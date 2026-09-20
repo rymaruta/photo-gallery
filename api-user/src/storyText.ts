@@ -1,21 +1,21 @@
 /**
- * ストーリーの文字（好きな場所・字体・色）。
+ * ストーリーの文字（好きな場所・字体・色。**何枚でも置ける**）。
  *
  * owner:「インスタみたいにストーリーで好きな場所で文字打てるようにしたい。
- * フォントの種類や色も豊富にしたい」
+ * フォントの種類や色も豊富にしたい」「複数のテキストを別々に置くのもやりたい」
  *
  * ## 画像に焼き込まない
  *
- * 文字は**データとして持つ**（位置・字体・色・大きさ・下地）。焼き込むと:
+ * 文字は**データとして持つ**（文言・位置・字体・色・大きさ・下地）。焼き込むと:
  *   - 「ギャラリーに残す」（`storyKeep.ts`）で、文字入りの写真が
  *     作品として残る——このサイトは**写真が主役**
  *   - あとから直せない／端末の解像度でぼける
  *
- * ## 文言そのものは `caption` のまま
+ * ## `caption` は文字たちから作る
  *
- * 打つ欄は1つ。`caption` が文字そのもので、ここが持つのは**見せ方だけ**。
- * 分けておくと、残したときの題（`storyKeep` が `caption` を使う）も
- * 検索に出る文章もこれまでどおりで、見せ方を足しても壊れない。
+ * 残したときの題（`storyKeep`）も、検索に出る文章も、これまでどおり
+ * `caption` を読む。**文言を2か所で持たない**ように、`caption` は
+ * 置いた文字を繋いだもの（`storyTextsCaption`）をサーバーが書く。
  *
  * ## 鍵で持つ（生の色や px ではなく）
  *
@@ -81,8 +81,12 @@ export const STORY_SIZE_KEYS = Object.keys(STORY_SIZES) as StorySizeKey[];
 export const STORY_BGS = ["none", "soft", "solid"] as const;
 export type StoryBgKey = (typeof STORY_BGS)[number];
 
-/** 文字の見せ方。位置は**中心**の割合（0〜1） */
-export type StoryTextStyle = {
+/**
+ * 置いた文字1つ。位置は**中心**の割合（0〜1）。
+ * **並びが重なり順**——後ろの要素ほど手前に出る。
+ */
+export type StoryText = {
+    text: string;
     x: number;
     y: number;
     size: StorySizeKey;
@@ -91,15 +95,21 @@ export type StoryTextStyle = {
     bg: StoryBgKey;
 };
 
-/**
- * 既定（打った直後の姿）。白・太ゴシック。
- *
- * **真ん中ではなく少し上**——下書きの画面は下半分が操作の欄なので、
- * 中央に出すと打った文字が自分で見えない（実測）。動かせば好きな所へ行く。
- */
-export const DEFAULT_STORY_TEXT_STYLE: StoryTextStyle = {
-    x: 0.5, y: 0.32, size: "l", font: "bold", color: "white", bg: "none",
+/** 見せ方の既定（新しく足した文字の姿）。白・太ゴシック */
+export const DEFAULT_STORY_TEXT: Omit<StoryText, "text" | "x" | "y"> = {
+    size: "l", font: "bold", color: "white", bg: "none",
 };
+
+/**
+ * 1枚目の既定の位置。**真ん中ではなく少し上**——下書きの画面は
+ * 下半分が操作の欄なので、中央に出すと打った文字が自分で見えない（実測）。
+ */
+export const FIRST_STORY_TEXT_POS = { x: 0.5, y: 0.32 };
+
+/** 置ける数。**多いほど読めなくなる**ので、画面が破綻しない範囲で切る */
+export const STORY_TEXTS_MAX = 5;
+/** 1つあたりの長さ（`caption` の上限と同じ。サーバーが最後にもう一度切る） */
+export const STORY_TEXT_LEN_MAX = 200;
 
 /**
  * 端まで行かせない。**中心の割合なので 0 や 1 にすると半分が画面の外**へ出る。
@@ -113,23 +123,46 @@ export function clampStoryTextPos(v: unknown): number {
     return Math.min(STORY_TEXT_MAX, Math.max(STORY_TEXT_MIN, Math.round(n * 1000) / 1000));
 }
 
+/** 新しく足す1つ（位置は呼ぶ側が決める——重ならないように少しずらす） */
+export function newStoryText(x: number, y: number): StoryText {
+    return { text: "", x: clampStoryTextPos(x), y: clampStoryTextPos(y), ...DEFAULT_STORY_TEXT };
+}
+
 /**
  * 受け取った値を、**一覧に在る鍵だけ**に直す。
  *
  * 知らない鍵は既定へ落とす（弾いて丸ごと捨てると、字体を1つ増やした日に
  * 古いクライアントの投稿から文字の位置が消える）。**位置は必ず挟む。**
+ * **文言が空のものは落とす**——置き場所だけの項目は画面に何も描けない。
  */
-export function sanitizeStoryTextStyle(input: unknown): StoryTextStyle | undefined {
-    if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
-    const o = input as Record<string, unknown>;
+export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
+    if (!Array.isArray(input)) return undefined;
     const pick = <T extends string>(v: unknown, keys: readonly T[], fallback: T): T =>
         typeof v === "string" && (keys as readonly string[]).includes(v) ? (v as T) : fallback;
-    return {
-        x: clampStoryTextPos(o.x),
-        y: clampStoryTextPos(o.y),
-        size: pick(o.size, STORY_SIZE_KEYS, DEFAULT_STORY_TEXT_STYLE.size),
-        font: pick(o.font, STORY_FONT_KEYS, DEFAULT_STORY_TEXT_STYLE.font),
-        color: pick(o.color, STORY_COLOR_KEYS, DEFAULT_STORY_TEXT_STYLE.color),
-        bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT_STYLE.bg),
-    };
+    const out: StoryText[] = [];
+    for (const raw of input) {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+        const o = raw as Record<string, unknown>;
+        const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
+        if (!text) continue;
+        out.push({
+            text,
+            x: clampStoryTextPos(o.x),
+            y: clampStoryTextPos(o.y),
+            size: pick(o.size, STORY_SIZE_KEYS, DEFAULT_STORY_TEXT.size),
+            font: pick(o.font, STORY_FONT_KEYS, DEFAULT_STORY_TEXT.font),
+            color: pick(o.color, STORY_COLOR_KEYS, DEFAULT_STORY_TEXT.color),
+            bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),
+        });
+        if (out.length >= STORY_TEXTS_MAX) break;
+    }
+    return out.length > 0 ? out : undefined;
+}
+
+/**
+ * 置いた文字から `caption` を作る。**文言を2か所で持たない**ための1本。
+ * 残したときの題も、検索に出る文章も、これを読む。
+ */
+export function storyTextsCaption(texts: readonly StoryText[]): string {
+    return texts.map((t) => t.text).join("\n").trim();
 }

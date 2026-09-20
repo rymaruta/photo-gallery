@@ -931,9 +931,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 {/* 置いた場所の文字。**下の帯には出さない**（同じ文言が2か所に出る）。
                     描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
                     出る場所が違う」になり、置き直しても直らない */}
-                {item.textStyle && item.caption && !mediaError && (
-                    <StoryTextOverlay text={item.caption} style={item.textStyle} box={mediaBox} />
-                )}
+                {item.texts?.length && !mediaError ? (
+                    <StoryTextOverlay texts={item.texts} box={mediaBox} />
+                ) : null}
 
                 {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
                     持たない（写真と違ってサムネも下地色もぼかしも無い）ので、
@@ -1122,7 +1122,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる。
                 **置いた場所の文字が在るときは、この段には出さない**
                 （同じ文言が写真の上と下に二重に出る） */}
-            {(isOwnStory || (item.caption && !item.textStyle)) && (
+            {(isOwnStory || (item.caption && !item.texts?.length)) && (
                 <div
                     /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
                        キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
@@ -1217,7 +1217,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             </button>
                         )
                     )}
-                    {item.caption && !item.textStyle && (
+                    {item.caption && !item.texts?.length && (
                         /* **潰れるならキャプションは次の段へ。** ピルは全部
                            `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
                            実測（390px）で幅 35px、320px では**ピルが画面の外**へ

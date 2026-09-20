@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
@@ -26,8 +26,9 @@ import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
 import {
     STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
-    STORY_SIZE_KEYS, STORY_BGS, DEFAULT_STORY_TEXT_STYLE, clampStoryTextPos,
-    type StoryTextStyle,
+    STORY_SIZE_KEYS, STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
+    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText,
+    type StoryText,
 } from "../../../lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
@@ -107,13 +108,15 @@ export default function StoriesBar() {
     /** 投稿中の要求。キャンセルを押したら中断する */
     const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
-    const [caption, setCaption] = useState("");
     /**
-     * 文字の見せ方（置いた場所・字体・色・大きさ・下地）。
-     * **文言は `caption` のまま**——ここが持つのは見せ方だけなので、
-     * 残したときの題（`storyKeep.ts`）も検索に出る文章も変わらない。
+     * 写真の上に置いた文字たち。**並びが重なり順**（後ろほど手前）。
+     *
+     * 文言はここが持ち、`caption`（残したときの題・検索に出る文章）は
+     * **サーバーがこれを繋いで**書く。2か所で持たない。
      */
-    const [textStyle, setTextStyle] = useState<StoryTextStyle>(DEFAULT_STORY_TEXT_STYLE);
+    const [texts, setTexts] = useState<StoryText[]>([]);
+    /** いま直している文字。操作の欄はこれに効く */
+    const [selected, setSelected] = useState<number | null>(null);
     /** 掴んでいる間は文字を少し透かす（下の写真を確かめられるように） */
     const [dragging, setDragging] = useState(false);
     const draftMediaAreaRef = useRef<HTMLDivElement | null>(null);
@@ -121,8 +124,72 @@ export default function StoriesBar() {
     // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
     const { attach: attachDraftMedia, box: draftMediaBox, measure: measureDraftMedia } = useMediaBox(draftMediaAreaRef);
 
+    /** いま選んでいる文字（無ければ null） */
+    const current = selected !== null ? texts[selected] ?? null : null;
+
+    /** 選んでいる文字の見せ方を変える */
+    const patchSelected = useCallback((patch: Partial<StoryText>) => {
+        setTexts((prev) => prev.map((t, i) => (i === selected ? { ...t, ...patch } : t)));
+    }, [selected]);
+
+    /**
+     * 文言を書き換える。**まだ1つも無ければ作る**——今までどおり
+     * 「開いて打つだけ」で1つ目が置けるようにする（＋を押させない）。
+     */
+    const editText = useCallback((value: string) => {
+        setTexts((prev) => {
+            if (selected !== null && prev[selected]) {
+                return prev.map((t, i) => (i === selected ? { ...t, text: value } : t));
+            }
+            if (!value) return prev;
+            return [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y)].map((t, i, a) =>
+                i === a.length - 1 ? { ...t, text: value } : t);
+        });
+        setSelected((cur) => (cur !== null ? cur : texts.length));
+    }, [selected, texts.length]);
+
+    /** もう1つ置く。**少しずらす**——同じ場所に重ねると掴み分けられない */
+    const addText = useCallback(() => {
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            const n = prev.length;
+            const next = [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * n)];
+            return next;
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [texts.length, selected]);
+
+    /**
+     * 選んでいる文字を消す。**残っていれば最後の1つを選び直す。**
+     *
+     * 何も選ばない形にすると、打つ欄が「選んでいない」状態になり、
+     * そこへ打つと**直すつもりで新しい文字ができる**（`editText` が
+     * 1つ目を作る経路に入る）。消したあとに続けて打つのは普通の流れなので、
+     * そこで驚かせない。
+     */
+    const removeSelected = useCallback(() => {
+        if (selected === null) return;
+        setTexts((prev) => {
+            const next = prev.filter((_, i) => i !== selected);
+            setSelected(next.length > 0 ? next.length - 1 : null);
+            return next;
+        });
+    }, [selected]);
+
+    /** 選んでいる文字をいちばん手前へ（並びが重なり順） */
+    const bringSelectedToFront = useCallback(() => {
+        if (selected === null) return;
+        setTexts((prev) => {
+            if (selected >= prev.length) return prev;
+            const next = prev.filter((_, i) => i !== selected);
+            next.push(prev[selected]);
+            return next;
+        });
+        setSelected(texts.length - 1);
+    }, [selected, texts.length]);
+
     /** 掴んだ場所を、絵に対する割合へ。**端は必ず挟む**（半分が外へ出ない） */
-    const moveTextTo = useCallback((clientX: number, clientY: number) => {
+    const moveTextTo = useCallback((index: number, clientX: number, clientY: number) => {
         const area = draftMediaAreaRef.current;
         if (!area) return;
         const r = area.getBoundingClientRect();
@@ -132,12 +199,13 @@ export default function StoriesBar() {
         const w = draftMediaBox?.width || r.width;
         const h = draftMediaBox?.height || r.height;
         if (!w || !h) return;
-        setTextStyle((prev) => ({
-            ...prev,
-            x: clampStoryTextPos((clientX - left) / w),
-            y: clampStoryTextPos((clientY - top) / h),
-        }));
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? { ...t, x: clampStoryTextPos((clientX - left) / w), y: clampStoryTextPos((clientY - top) / h) }
+            : t)));
     }, [draftMediaBox]);
+
+    /** 掴んでいる文字。指が離れるまで、その1つだけを動かす */
+    const draggingIndexRef = useRef<number | null>(null);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
@@ -350,8 +418,8 @@ export default function StoriesBar() {
         setDraft(null);
         setStoryLocation("");
         setStoryCoords(null);
-        setCaption("");
-        setTextStyle(DEFAULT_STORY_TEXT_STYLE);
+        setTexts([]);
+        setSelected(null);
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
@@ -463,7 +531,8 @@ export default function StoriesBar() {
         setViewerGroup(null);
         const gen = ++draftGenRef.current;
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
-        setCaption("");
+        setTexts([]);
+        setSelected(null);
         setStoryLocation("");
         setStoryCoords(null);
 
@@ -636,7 +705,9 @@ export default function StoriesBar() {
                     publicUrl,
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
-                    ...(caption.trim() ? { caption: caption.trim(), textStyle } : {}),
+                    // **文言は `texts` が持つ。** `caption`（残したときの題・
+                    // 検索に出る文章）はサーバーがこれを繋いで書く——2か所で持たない
+                    ...(texts.length ? { texts } : {}),
                     // **撮影地。** 残したときにそのまま写真の撮影地になる
                     // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
                     // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
@@ -700,7 +771,7 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, caption, textStyle, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -849,23 +920,18 @@ export default function StoriesBar() {
                     <div
                         ref={draftMediaAreaRef}
                         className="absolute inset-0 flex items-center justify-center"
-                        // **掴むのは絵そのもの。** 文字だけを的にすると、
-                        // 指の太さで外しやすい（`CropFramePicker` と同じ判断）。
-                        // `setPointerCapture` で、指が絵から出ても追随させる
-                        onPointerDown={caption.trim() ? (e) => {
-                            if (posting) return;
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                            setDragging(true);
-                            moveTextTo(e.clientX, e.clientY);
-                        } : undefined}
-                        onPointerMove={caption.trim() ? (e) => {
-                            if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                            moveTextTo(e.clientX, e.clientY);
-                        } : undefined}
-                        onPointerUp={() => setDragging(false)}
-                        onPointerCancel={() => setDragging(false)}
-                        // 掴んでいる間だけ、端末のスクロールに取られない
-                        style={caption.trim() && !posting ? { touchAction: "none" } : undefined}
+                        // **掴むのは文字そのもの。** 複数置けるので、絵のどこを
+                        // 掴んでも「いま選んでいる1つ」が飛んでくる形にはできない
+                        // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
+                        // 指が離れるまでその1つだけを動かす。追随は
+                        // `setPointerCapture` に任せる（指が文字から出ても続く）
+                        onPointerMove={(e) => {
+                            const i = draggingIndexRef.current;
+                            if (i === null) return;
+                            moveTextTo(i, e.clientX, e.clientY);
+                        }}
+                        onPointerUp={() => { draggingIndexRef.current = null; setDragging(false); }}
+                        onPointerCancel={() => { draggingIndexRef.current = null; setDragging(false); }}
                     >
                         {/* ⚠️ **`max-w-full max-h-full`（`w-full h-full` ではない）。**
                             `w-full h-full` だと要素は画面いっぱいで、絵はその中で
@@ -883,8 +949,28 @@ export default function StoriesBar() {
                         )}
                         {/* 置いた文字。**見る側とまったく同じ部品**——別々に描くと
                             「置いた場所と出る場所が違う」になる */}
-                        {caption.trim() && (
-                            <StoryTextOverlay text={caption} style={textStyle} box={draftMediaBox} dimmed={dragging} />
+                        {texts.length > 0 && (
+                            <StoryTextOverlay
+                                texts={texts}
+                                box={draftMediaBox}
+                                dimmed={dragging}
+                                selectedIndex={selected}
+                                onPickIndex={posting ? undefined : (i, e) => {
+                                    e.preventDefault();
+                                    setSelected(i);
+                                    draggingIndexRef.current = i;
+                                    setDragging(true);
+                                    // 掴んだ文字から指が出ても追随させる。捕まえるのは
+                                    // **囲み**（動かす計算がそこの座標を使う）。
+                                    //
+                                    // ⚠️ **持っているか確かめてから呼ぶ。** 無い環境
+                                    // （jsdom で実際に踏んだ）では投げ、ハンドラの中で
+                                    // 投げると**その場で掴みごと壊れる**。追随しなく
+                                    // なるだけで、動かすこと自体は続けられる
+                                    const area = draftMediaAreaRef.current;
+                                    if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+                                }}
+                            />
                         )}
                     </div>
                     {/* 上下のスクリム（文字と写真が重なっても読めるように） */}
@@ -920,16 +1006,37 @@ export default function StoriesBar() {
                         className={`relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
                     >
-                        <input
-                            type="text"
-                            value={caption}
-                            onChange={(e) => setCaption(e.target.value)}
-                            maxLength={200}
-                            placeholder={locale === "en" ? "Add a caption..." : "キャプションを追加..."}
-                            disabled={posting}
-                            className="w-full px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
-                            style={{ fontSize: "16px" }}
-                        />
+                        {/* **打つ欄は1つ。** いま選んでいる文字を直す。
+                            まだ1つも無ければ、打った時点で1つ目ができる
+                            （今までどおり「開いて打つだけ」で置ける） */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={current?.text ?? ""}
+                                onChange={(e) => editText(e.target.value)}
+                                maxLength={STORY_TEXT_LEN_MAX}
+                                placeholder={texts.length === 0
+                                    ? (locale === "en" ? "Add a caption..." : "キャプションを追加...")
+                                    : (locale === "en" ? "Edit this text..." : "この文字を直す...")}
+                                disabled={posting}
+                                aria-label={locale === "en" ? "Text" : "文字"}
+                                className="flex-1 min-w-0 px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                                style={{ fontSize: "16px" }}
+                            />
+                            {/* 消す。**選んでいるときだけ**（押しても効かない的を置かない） */}
+                            {current && (
+                                <button
+                                    type="button"
+                                    onClick={removeSelected}
+                                    disabled={posting}
+                                    aria-label={locale === "en" ? "Delete this text" : "この文字を消す"}
+                                    className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
+                                    style={{ width: "44px", height: "44px" }}
+                                >
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
 
                         {/* 文字の見せ方。**打ってから出す**——文字が無いうちは
                             動かすものも飾るものも無い（押しても効かない欄を置かない）。
@@ -938,11 +1045,41 @@ export default function StoriesBar() {
                             rem の指定は端末で縮む（`w-11` は 38.5px になる）。
                             間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
                             5.25px になり、隣の的と重なる（`5960be33` で実測） */}
-                        {caption.trim() && (
+                        {texts.length > 0 && (
                             <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
-                                <p id="story-text-style-label" className="text-[11px] text-white/70 px-1">
-                                    {locale === "en" ? "Drag the text on the photo to place it" : "文字は写真の上をなぞって動かせます"}
-                                </p>
+                                <div className="flex items-center justify-between gap-2 px-1">
+                                    {/* **1行に収める。** 折り返すと右のボタンとぶつかる（実測） */}
+                                    <p id="story-text-style-label" className="text-[11px] text-white/70 truncate">
+                                        {locale === "en" ? "Drag to move · tap to select" : "なぞって移動・触って選択"}
+                                    </p>
+                                    <div className="flex gap-2 flex-shrink-0">
+                                        {/* いちばん手前へ（**並びが重なり順**）。
+                                            2つ以上あるときだけ——1つだけなら重なりようが無い */}
+                                        {current && texts.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={bringSelectedToFront}
+                                                disabled={posting}
+                                                aria-label={locale === "en" ? "Bring to front" : "いちばん手前へ"}
+                                                className="rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
+                                                style={{ width: "36px", height: "36px" }}
+                                            >
+                                                <ChevronDoubleUpIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        {/* もう1つ置く。上限まで */}
+                                        <button
+                                            type="button"
+                                            onClick={addText}
+                                            disabled={posting || texts.length >= STORY_TEXTS_MAX}
+                                            aria-label={locale === "en" ? "Add another text" : "文字を追加"}
+                                            className="rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                            style={{ width: "36px", height: "36px" }}
+                                        >
+                                            <PlusIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
 
                                 {/* 字体 */}
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
@@ -951,10 +1088,10 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={textStyle.font === k}
+                                            aria-checked={current?.font === k}
                                             disabled={posting}
-                                            onClick={() => setTextStyle((p) => ({ ...p, font: k }))}
-                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            onClick={() => patchSelected({ font: k })}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
                                             style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
                                         >
                                             {STORY_FONTS[k].label}
@@ -969,11 +1106,11 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={textStyle.color === k}
+                                            aria-checked={current?.color === k}
                                             disabled={posting}
-                                            onClick={() => setTextStyle((p) => ({ ...p, color: k }))}
+                                            onClick={() => patchSelected({ color: k })}
                                             aria-label={STORY_COLORS[k].label}
-                                            className={`flex-shrink-0 rounded-full ring-2 transition ${textStyle.color === k ? "ring-white" : "ring-white/25"}`}
+                                            className={`flex-shrink-0 rounded-full ring-2 transition ${current?.color === k ? "ring-white" : "ring-white/25"}`}
                                             style={{ width: "32px", height: "32px", minWidth: "32px", background: STORY_COLORS[k].hex }}
                                         />
                                     ))}
@@ -987,11 +1124,11 @@ export default function StoriesBar() {
                                                 key={k}
                                                 type="button"
                                                 role="switch"
-                                                aria-checked={textStyle.size === k}
+                                                aria-checked={current?.size === k}
                                                 disabled={posting}
-                                                onClick={() => setTextStyle((p) => ({ ...p, size: k }))}
+                                                onClick={() => patchSelected({ size: k })}
                                                 aria-label={`${locale === "en" ? "Size" : "大きさ"} ${i + 1}`}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.size === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.size === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: `${11 + i * 2}px`, fontWeight: 700 }}
                                             >
                                                 A
@@ -1004,10 +1141,10 @@ export default function StoriesBar() {
                                                 key={k}
                                                 type="button"
                                                 role="switch"
-                                                aria-checked={textStyle.bg === k}
+                                                aria-checked={current?.bg === k}
                                                 disabled={posting}
-                                                onClick={() => setTextStyle((p) => ({ ...p, bg: k }))}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${textStyle.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                onClick={() => patchSelected({ bg: k })}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: "12px" }}
                                             >
                                                 {k === "none"

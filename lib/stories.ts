@@ -1,6 +1,6 @@
 // インスタ風ストーリーのフロントエンド用ヘルパー
 
-import type { StoryTextStyle } from "./utils/storyText";
+import type { StoryText } from "./utils/storyText";
 
 export type Story = {
     id: string;
@@ -21,12 +21,13 @@ export type Story = {
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
     /**
-     * キャプションの見せ方（置いた場所・字体・色・大きさ・下地）。
-     * **文言そのものは `caption`**——ここが持つのは見せ方だけなので、
-     * 残したときの題（`storyKeep.ts`）はこれまでどおり。
-     * 無ければ従来どおり下の帯に出す。
+     * 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+     * **並びが重なり順**——後ろほど手前。
+     *
+     * `caption` は**これを繋いだもの**をサーバーが書く（文言を2か所で
+     * 持たない）。無ければ従来どおり `caption` を下の帯に出す。
      */
-    textStyle?: StoryTextStyle;
+    texts?: StoryText[];
     /**
      * 届いた返信の数。**投稿者にしか入っていない**
      * （`getStories` が所有者以外から落とす）。見た人に「このストーリーに
