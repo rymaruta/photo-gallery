@@ -104,7 +104,7 @@ describe("PostFab", () => {
         fireEvent.keyDown(document, { key: "Escape" });
         expect(screen.queryByRole("dialog"), "Escape で閉じない").toBeNull();
         openSheet();
-        fireEvent.click(screen.getByTestId("post-fab-backdrop"));
+        fireEvent.click(screen.getByTestId("post-sheet-backdrop"));
         expect(screen.queryByRole("dialog"), "背景で閉じない").toBeNull();
     });
 

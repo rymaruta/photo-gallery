@@ -33,6 +33,7 @@ import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/phot
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
+import PostSheet from "../components/PostSheet";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import PHOTOS_JSON from "../data/photos.json";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -671,6 +672,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    /** 「投稿する」の2択（`PostSheet`）。「＋」と同じシートを開く */
+    const [postOpen, setPostOpen] = useState(false);
+    const postBtnRef = useRef<HTMLButtonElement | null>(null);
+    const closePost = useCallback(() => setPostOpen(false), []);
     /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
     const [blocked, setBlocked] = useState(false);
     const [blocking, setBlocking] = useState(false);
@@ -1443,15 +1448,22 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 <PencilSquareIcon className="w-4 h-4" />
                                 {locale === "en" ? "Edit profile" : "プロフィール編集"}
                             </Link>
-                            <Link
-                                href={ROUTES.UPLOAD}
-                                prefetch={false}
+                            {/* **「写真を追加」ではなく「投稿する」。** 押すと写真とストーリーの
+                                2択が出るので、写真だけを名乗ると嘘になる（owner:「写真を追加のとこで
+                                投稿かストーリーを選べるようにしたい」）。語は画面の他と揃える
+                                ——シートの見出しも「＋」の読み上げ名も「投稿する」 */}
+                            <button
+                                ref={postBtnRef}
+                                type="button"
+                                onClick={() => setPostOpen(true)}
+                                aria-haspopup="dialog"
+                                aria-expanded={postOpen}
                                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 <PlusIcon className="w-4 h-4" strokeWidth={2.5} />
-                                {locale === "en" ? "Add photos" : "写真を追加"}
-                            </Link>
+                                {locale === "en" ? "Create" : "投稿する"}
+                            </button>
                         </div>
                     )}
                     {isOwner && (
@@ -1577,6 +1589,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 )}
                 </div>
             </div>
+
+            {/* 投稿する（写真／ストーリーの2択）。「＋」と同じ部品 */}
+            {postOpen && <PostSheet onClose={closePost} locale={locale} restoreRef={postBtnRef} />}
 
             {/* プロフィールQRコード */}
             {qrOpen && (
