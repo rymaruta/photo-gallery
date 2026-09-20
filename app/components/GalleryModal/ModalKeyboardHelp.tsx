@@ -5,7 +5,7 @@ import type { Locale } from "@/lib/data/photos";
 const SHORTCUTS = [
     { key: "← →", ja: "前後の写真", en: "Prev / Next photo" },
     { key: "Esc",  ja: "閉じる",     en: "Close" },
-    { key: "H",    ja: "お気に入り切替", en: "Toggle favorite" },
+    { key: "H",    ja: "いいね切替", en: "Toggle like" },
     { key: "?",    ja: "このヘルプを表示", en: "Show this help" },
 ];
 

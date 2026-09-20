@@ -23,6 +23,7 @@ on:
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - public-feed-index # 公開一覧用の GSI を足す（GET /photos の全件 Scan をやめる）
           - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
+          - backfill-likes # 既にあるいいねから likes#<uid> を作る
           - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
@@ -160,6 +161,16 @@ jobs:
       - name: フォロワー一覧を埋め戻す
         if: inputs.task == 'backfill-followers'
         run: node scripts/backfill-followers.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+
+      # `likes#<uid>`（自分がいいねした写真）も、これまで持っていなかった行。
+      # 無かったので「いいねした写真」のページは**端末の localStorage しか
+      # 見ておらず**、別の端末で押したぶんが0件に見えた（owner の報告）。
+      # `likes.ts` は今後のいいねにしか書かないので、**既にあるぶんはここで埋める**。
+      # 併合するので何度流しても安全。ドライランで人数が出る。
+      - name: いいねした写真の一覧を埋め戻す
+        if: inputs.task == 'backfill-likes'
+        run: node scripts/backfill-likes.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
 
       # フォローは4種類の行（マーカー・数・フォロー中の並び・フォロワーの並び）に

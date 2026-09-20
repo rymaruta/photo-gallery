@@ -446,6 +446,18 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 自分がいいねした写真の一覧（`likes#<uid>` を1回 GetItem するだけ）。
+  # 無かった頃は「いいねした写真」のページが端末の localStorage しか
+  # 見ておらず、別の端末で押したぶんが0件に見えていた。
+  getMyLikes:
+    handler: src/likes.getMyLikes
+    events:
+      - httpApi:
+          path: /user/likes
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   likePhoto:
     handler: src/likes.likePhoto
     events:
