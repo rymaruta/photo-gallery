@@ -26,7 +26,6 @@ vi.mock("../../lib/utils/api", async (importOriginal) => ({
     userPublicFetch: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock("../components/FilterBar", () => ({ default: () => null }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => <div>grid</div> }));
 vi.mock("../components/GalleryModal", () => ({ default: () => <div>modal</div> }));
 // `?photo=` は `SearchParamWatcher` 経由で入る。**本物に近い形で渡す**

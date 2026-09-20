@@ -68,12 +68,15 @@ describe("PostSheet", () => {
         off();
     });
 
-    it("「ストーリーを投稿」: バーが無いページでは預けてトップへ", () => {
+    // バーは同じ画面（マイページ）に居るが、遅延読み込みの途中なら受け取り手が
+    // まだ居ない。**そこで移動してはいけない**——預けておけば、`StoriesBar` が
+    // マウントした時点で受け取る
+    it("「ストーリーを投稿」: バーがまだ居なければ預ける（移動しない）", () => {
         render(<Harness />);
         openSheet();
         const file = new File(["x"], "s.jpg", { type: "image/jpeg" });
         pick(file);
-        expect(nav.push).toHaveBeenCalledWith("/");
+        expect(nav.push, "預けたのに画面を移している").not.toHaveBeenCalled();
         expect(takeHandedStoryFile(), "預けていない").toBe(file);
         expect(takeHandedStoryFile(), "2回取れる").toBeNull();
     });

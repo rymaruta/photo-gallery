@@ -34,7 +34,6 @@ vi.mock("../components/FilterBar", () => ({
         <button type="button" onClick={() => onChange({})}>絞り込みを触る</button>
     ),
 }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 // `?photo=` は本来 SearchParamWatcher が親へ渡す。ここではその値を直接注ぐ。

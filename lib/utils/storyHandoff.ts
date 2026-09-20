@@ -5,16 +5,20 @@
  * ジェスチャ無しではブラウザが止める）ので、**選ぶのはシートの側**で、下ごしらえ・
  * キャプション・曲・投稿は `StoriesBar` の既存の流れに乗せる。
  *
- * - バーが描かれていれば（トップ）その場で渡す
- * - 描かれていなければ（別のページ）預けておき、トップへ移った `StoriesBar` が
- *   マウント時に受け取る。**預かるのは1件だけ**（後から来た方が勝つ）
+ * - バーが描かれていればその場で渡す
+ * - まだ描かれていなければ預けておき、`StoriesBar` がマウントした時点で
+ *   受け取る。**預かるのは1件だけ**（後から来た方が勝つ）
+ *
+ * **画面は移さない。** シートを開くのはマイページの「投稿する」で、バーは
+ * 同じ画面に居る（`UserProfileClient`）。遅延読み込みの途中でも、預けておけば
+ * 取りこぼさない。
  */
 type Listener = (file: File) => void;
 
 let pending: File | null = null;
 const listeners = new Set<Listener>();
 
-/** 渡せたら true（バーが受け取った）。false なら預けたので、トップへ移ること */
+/** 渡せたら true（バーが受け取った）。false なら預けた（バーがマウントしたら受け取る） */
 export function handOffStoryFile(file: File): boolean {
     if (listeners.size > 0) {
         for (const fn of listeners) fn(file);

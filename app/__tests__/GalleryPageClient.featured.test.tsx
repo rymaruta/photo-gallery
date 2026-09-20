@@ -15,7 +15,6 @@ vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { ...ja, site: { title: "Gallery" } } }),
 }));
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));

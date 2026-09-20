@@ -77,8 +77,10 @@ export default function PostSheet({ onClose, locale, restoreRef }: Props) {
     };
     const onStoryFile = (f: File) => {
         onClose();
-        // バーが描かれていれば（トップ）その場で投稿の流れへ。無ければ預けてトップへ
-        if (!handOffStoryFile(f)) router.push(ROUTES.HOME);
+        // **移動しない。** ストーリーのバーはこのシートを開いた画面（マイページ）に
+        // 居る。まだ遅延読み込みの途中でも `handOffStoryFile` が預かり、
+        // `StoriesBar` がマウント時に受け取る（`lib/utils/storyHandoff.ts`）
+        handOffStoryFile(f);
     };
 
     return createPortal(

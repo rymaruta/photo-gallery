@@ -34,6 +34,7 @@ import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import PostSheet from "../components/PostSheet";
+import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import PHOTOS_JSON from "../data/photos.json";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -73,6 +74,17 @@ type UserProfile = {
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 // Leaflet は window 依存のため SSG では読み込まない
+
+/**
+ * ストーリーの一覧（24時間で消える投稿）。owner:「ストーリー見れる場所も
+ * マイページに移設したいな」——以前はトップに置いていた。
+ *
+ * **遅延読み込みにする。** `StoryViewer`・曲・動画まで引き連れる重い部品で、
+ * 訪問者のプロフィール（本人でなければ描かない）の初回に載せる理由が無い。
+ * 読み込みが済む前にシートからファイルを選んでも、`storyHandoff` が預かって
+ * マウント時に受け取るので取りこぼさない。
+ */
+const StoriesBar = dynamic(() => import("../components/stories/StoriesBar"), { ssr: false });
 
 type TabKey = "posts" | "timeline";
 /** タブ。`timeline` は**年表**（内部名は古い）。「フォロー中」はトップのタブに在る */
@@ -1482,6 +1494,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     </div>
                 </div>
             </div>
+
+            {/* ストーリー（24時間で消える投稿）。**本人のページだけ**——出るのは
+                自分とフォローしている人のぶんで、他人のページに置く筋が無い */}
+            {isOwner && (
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pb-2">
+                    <StoriesBar />
+                </div>
+            )}
 
             {/* コンテンツ（黒背景）: 投稿 / 年表 */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">

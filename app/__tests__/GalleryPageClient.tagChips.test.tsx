@@ -17,7 +17,6 @@ vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { category: { all: "すべて", names: {} }, site: { title: "Gallery" } } }),
 }));
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
