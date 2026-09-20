@@ -461,7 +461,7 @@ export default function StoriesBar() {
     }, [locale, showToast]);
 
     /**
-     * 「＋」（`PostFab`）で選んだファイルを受け取る。バーが描かれていれば
+     * 「投稿する」（`PostSheet`）で選んだファイルを受け取る。バーが描かれていれば
      * その場で、別のページで選ばれたぶんはトップへ移ってきたマウント時に
      * （`lib/utils/storyHandoff.ts`）。以後の流れは入力欄から選んだときと同じ
      */
