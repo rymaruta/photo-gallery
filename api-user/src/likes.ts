@@ -3,6 +3,7 @@ import { PutCommand, DeleteCommand, UpdateCommand, GetCommand } from "@aws-sdk/l
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
+import { updateUserList, readUserList } from "./userList";
 
 // いいねはアグリゲート数を写真レコードの `likes` 属性に持ち、
 // 二重カウント防止のために「誰がいいねしたか」をマーカー item で記録する。
@@ -13,6 +14,58 @@ import { pushNotification, lookupDisplayName } from "./notify";
 
 function markerId(photoId: string, userId: string): string {
     return `like#${photoId}#${userId}`;
+}
+
+// 「自分がいいねした写真」の一覧（`likes#<uid>`）。
+//
+// **マーカーだけでは一覧を作れない。** このテーブルにソートキーは無いので
+// `like#<写真ID>#<自分>` を前方一致で列挙できず、全表 Scan しか手が無い。
+// `following#<uid>` と同じ形（新しい順のリスト＋`rev`）で1行持つ。
+//
+// 無かった頃は「いいねした写真」のページが**この端末の localStorage しか
+// 見ておらず**、スマホで押して PC で開くと0件だった（写真ページは
+// マーカーを見るので「いいね済み」と出る＝同じアカウントで食い違う）。
+const likesId = (uid: string) => `likes#${uid}`;
+
+/**
+ * 一覧に残す上限。**溢れるのは古い方。**
+ *
+ * ⚠️ 溢れても「いいね済みかどうか」は変わらない——判定は**マーカー**
+ * （`GET /user/likes/{id}`）が持つ。この一覧から判定すると、溢れた写真の
+ * ハートが空に見え、押すと解除が飛ぶ（`LIM-1` と同じ壊れ方）。
+ * ここが決めるのは「いいねした写真」のページが何件まで遡れるか だけ。
+ */
+const LIKED_MAX = 1000;
+
+/** 写真IDの形。uuid を要求せず、長さと文字種だけ見る（古い採番も通す） */
+const isPhotoId = (x: string) => x.length > 0 && x.length <= 128 && !x.includes("#");
+
+/**
+ * 一覧を書き換える。**失敗しても、いいねそのものは失敗させない。**
+ *
+ * いいねの本体はマーカー（判定）と `likes` 属性（公開の数）と通知で、
+ * この一覧は表示用の索引。ここで 500 にすると**索引1行のために
+ * 通知ごといいねを落とす**ことになる（`follow.ts` の
+ * `updateFollowersQuietly` が同じ理由で同じ判断をしている）。
+ *
+ * 欠けたときの出口は2つ: 押した端末では localStorage に残るので
+ * その端末の一覧には出る／既にいいね済みの POST（冪等経路）でも
+ * 足し直すので、状態がずれた端末から押すと直る。
+ */
+async function noteLiked(userId: string, photoId: string, add: boolean): Promise<void> {
+    try {
+        await updateUserList(likesId(userId), userId, LIKED_MAX, (list) => {
+            if (add) {
+                if (list.includes(photoId)) return null;
+                list.unshift(photoId);
+                return list;
+            }
+            const next = list.filter((x) => x !== photoId);
+            return next.length === list.length ? null : next;
+        });
+    } catch (e) {
+        console.warn(`likes#${userId} の一覧を更新できませんでした（いいね自体は成功）:`, e);
+    }
 }
 
 /**
@@ -106,6 +159,34 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
 // ログインすると、次の一押しが DELETE になって取り消し扱いになり、
 // 投稿者にいいねも通知も届かない。別の端末では逆に、いいね済みの写真が
 // 未いいねに見える。サーバーの真値を返す口を用意する。
+/**
+ * GET /user/likes — 自分がいいねした写真のID一覧（新しい順）。
+ *
+ * 「いいねした写真」のページはこれまで**この端末の localStorage しか
+ * 見ていなかった**ので、別の端末で押したぶんは0件に見えた
+ * （同じ写真のページは「いいね済み」と出るので、同じアカウントで食い違う）。
+ *
+ * **返すのは ID だけ。** 写真の中身は画面が既に持っている一覧から引く
+ * （ここで写真を引くと、1000件のいいねに対して GetItem が1000回になる）。
+ * 非公開になった写真のIDも混ざりうるが、画面側の一覧に居ないので出ない。
+ */
+export const getMyLikes: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const userId = getUserId(event);
+    if (!userId) return jsonError(400, "不正なリクエスト");
+    try {
+        const photoIds = await readUserList(likesId(userId), isPhotoId, `likes#${userId}`);
+        return {
+            statusCode: 200,
+            // 利用者ごとの答えなので共有キャッシュには載せない
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+            body: JSON.stringify({ photoIds }),
+        };
+    } catch (e) {
+        console.error("getMyLikes error:", e);
+        return jsonError(500, "取得に失敗しました");
+    }
+};
+
 export const getMyLike: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     const photoId = event.pathParameters?.id;
@@ -147,6 +228,9 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 既にいいね済み。現在数を返す（冪等）。
                 // **公開されていなければ数字を返さない**——ここは条件式を
                 // 通らない経路なので、非公開に戻された写真でも来られる
+                // **ここで足し直す。** 一覧の書き込みだけ落ちた回の出口
+                // （マーカーは在るので、状態のずれた端末から押すと通る）
+                await noteLiked(userId, photoId, true);
                 const cur = await readLikeCount(photoId);
                 if (cur === null) {
                     // **「もう見えない」ことと「あなたのいいねは残っている」ことを
@@ -188,6 +272,9 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 ReturnValues: "ALL_NEW",
             }));
             const likes = (res.Attributes?.likes as number | undefined) ?? 1;
+
+            // 「自分がいいねした写真」の一覧に足す（表示用の索引）
+            await noteLiked(userId, photoId, true);
 
             // 投稿者へ「いいねされました」通知（自分の写真は除く）。
             // 初回いいね（マーカー新規作成）の時だけここに到達するので連打では鳴らない
@@ -267,6 +354,10 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             throw e;
         }
 
+        // 一覧からも外す。**マーカーを消せたあと**に置く——消せていない回
+        // （冪等経路）で外すと、いいねは残っているのにページから消える
+        await noteLiked(userId, photoId, false);
+
         // カウンタを -1（0未満にはしない）
         try {
             const res = await ddb.send(new UpdateCommand({
@@ -312,6 +403,9 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                     TableName: PHOTOS_TABLE,
                     Item: { id: markerId(photoId, userId), like: true, photoId, uid: userId, createdAt: new Date().toISOString() },
                 })).catch(() => { /* 戻せなくてもこれ以上できることは無い */ });
+                // マーカーを戻したなら一覧も戻す（片方だけ戻すと、
+                // いいね済みなのにページに出ない状態が残る）
+                await noteLiked(userId, photoId, true);
             }
             throw e;
         }
