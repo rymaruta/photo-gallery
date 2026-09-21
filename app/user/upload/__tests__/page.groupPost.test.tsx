@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PHOTO_IMAGES_MAX } from "../../../../lib/utils/uploadLimits";
+import { PHOTO_IMAGES_MAX, PHOTO_LIMIT_PER_USER } from "../../../../lib/utils/uploadLimits";
 
 /**
  * **1投稿に複数枚**（owner のモックの「1/10」）。
@@ -170,6 +170,43 @@ describe("1件の投稿にまとめる", () => {
         await publish();
         // まとめず1枚ずつ＝保存の回数が枚数ぶん
         await waitFor(() => expect(savedBodies().length).toBe(PHOTO_IMAGES_MAX + 2));
+    });
+
+    // 🔴 **半端な枚数で1件できると「やめた」のに投稿が世に出る。**
+    // 上げ終わったぶんは控えてあるので、押し直せば使い回せる
+    it("🔴 途中でやめたら、まとめた保存をしない", async () => {
+        // 2枚目の PUT が返らない回線。1枚目は S3 に上がっている
+        let puts = 0;
+        vi.stubGlobal("fetch", vi.fn((_u: string, init?: { signal?: AbortSignal }) => {
+            if (puts++ === 0) return Promise.resolve({ ok: true, status: 200 });
+            return new Promise((_res, reject) => {
+                if (init?.signal?.aborted) reject(new DOMException("cancelled", "AbortError"));
+                init?.signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")));
+            });
+        }));
+        const { container } = render(<UploadPage />);
+        await pick(container, 3);
+        await userEvent.click(groupBox()!);
+        const btn = await screen.findByRole("button", { name: /枚を公開/ });
+        await waitFor(() => expect(btn).not.toBeDisabled());
+        await userEvent.click(btn);
+
+        await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        expect(savedBodies(), "やめたのに投稿が1件できている").toHaveLength(0);
+    });
+
+    // 🔴 投稿が1件なら、枠（1000枚）も1件ぶんしか減らない。枚数ぶん引くと
+    // 「あと N 枚」が実際より少なく出て、まだ上げられるのに諦めさせる
+    it("🔴 まとめた回は、残り枚数が1件ぶんしか減らない", async () => {
+        const { container } = render(<UploadPage />);
+        await pick(container, 3);
+        await userEvent.click(groupBox()!);
+        await publish();
+        await waitFor(() => expect(
+            screen.getByText(new RegExp(`あと${PHOTO_LIMIT_PER_USER - 1}枚`)),
+            "枚数ぶん引いている（投稿は1件しかできていない）",
+        ).toBeTruthy());
     });
 
     it("まとめた回のトーストは「1件の投稿」と言う（枠も1件しか減らない）", async () => {
