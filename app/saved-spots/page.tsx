@@ -72,7 +72,10 @@ export default function SavedSpotsPage() {
     }
 
     return (
-        <Shell locale={locale} count={pending ? null : slugs.length}>
+        // **数を出すのは、聞けたときだけ。** 失敗した回に `slugs.length` を
+        // 出すと「保存した場所 0 件」と言い切ることになる（このファイルの
+        // docstring が「混ぜない」と書いている当の形）
+        <Shell locale={locale} count={pending || failed ? null : slugs.length}>
             {/* 取りに行って失敗した回は、黙って短い一覧を出さない
                 （`/favorites` が同じ場面で同じ断りを出している） */}
             {failed && (
@@ -90,6 +93,11 @@ export default function SavedSpotsPage() {
                 <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
                     <p className="text-white/60 text-sm">{en ? "Loading…" : "読み込み中…"}</p>
                 </div>
+            ) : failed ? (
+                // **失敗した回に「まだありません」と言わない。** 上の
+                // `role="alert"` が事情と再試行を出しているので、ここは黙る
+                // （0件の案内を重ねると「無い」と読める）
+                null
             ) : entries.length === 0 ? (
                 <Empty
                     text={en ? "No saved spots yet." : "行きたい場所はまだありません。"}

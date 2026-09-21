@@ -22,6 +22,7 @@ import {
     collectionPath,
     canonicalCollectionPath,
     relatedEntries,
+    slugify,
 } from "@/lib/utils/collections";
 import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
 import { spotDetail } from "@/lib/utils/spot";
@@ -29,6 +30,15 @@ import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } 
 
 /** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す（`CollectionPage` と同じ） */
 const RELATED_PHOTOS_WHEN_FEWER_THAN = 6;
+
+/** 不正な % シーケンスで**ビルドごと落とさない**（`collectionPath` と同じ守り） */
+function decodeSlugSafe(s: string): string {
+    try {
+        return decodeURIComponent(s);
+    } catch {
+        return s;
+    }
+}
 
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
@@ -38,6 +48,20 @@ export default async function SpotPage({ slug }: { slug: string }) {
     if (matched.length === 0) notFound();
 
     const label = labelForSlug(photos, "location", slug);
+    /**
+     * **保存する鍵は、正規化したスラッグ。**
+     *
+     * ルートのパラメータは**非ASCII だとエンコードされた形で渡ってくる**
+     * （`collectionPath` のコメント）。素のまま「行きたい場所」に保存すると、
+     * 一覧（`/saved-spots`）が `collectEntries` の生スラッグ（`パリ`）と
+     * 突き合わせに行って**日本語の撮影地すべてで外れる**——見出しが
+     * スラッグのまま・枚数なしで並ぶ。
+     *
+     * 集約ページの他の経路は必ずデコード＋`slugify` を通している
+     * （`photosInCollection` / `labelForSlug` の `normalizeParam`）。同じ形に揃える。
+     * 既に正規化済みの値を通しても変わらない（冪等）。
+     */
+    const savedKey = slugify(decodeSlugSafe(slug), "location");
     const { heading, description, breadcrumb } = collectionCopy("location", label, matched.length);
     const pageUrl = `${siteConfig.url}${canonicalCollectionPath("location", slug)}`;
 
@@ -70,7 +94,7 @@ export default async function SpotPage({ slug }: { slug: string }) {
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(galleryData) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
             <SpotPageClient
-                slug={slug}
+                slug={savedKey}
                 name={label}
                 heading={heading}
                 description={description}

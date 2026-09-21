@@ -45,6 +45,41 @@ describe("広い／細かい撮影地（既にある向きのある一致をそ�
     it("自分自身は出ない", () => {
         expect(broaderSpots("パリ", entries).map((e) => e.label)).not.toContain("パリ");
     });
+
+    /**
+     * **「どちらが広いか」を字の長さで決めない——そもそも決められない。**
+     *
+     * 一度「名前が短い方が広い」で並べたが**逆になった**：
+     * `/location/パリ,-フランス` の広い方は「パリ」(2文字) と
+     * 「フランス」(4文字) で、短いのは**狭い方の「パリ」**。
+     *
+     * では包含で決められるかというと**決められない**。`photoIsInLocation` は
+     * 字の包含なので `"パリ"` と `"フランス"` は**どちらも相手を含まない**
+     * ——このデータは「フランスの方が広い」を知らない。知らないものを
+     * 順番で主張しないので、決まらない組は枚数の多い順 → slug 順にする。
+     */
+    it("入れ子でない組は「どちらが広いか」を主張しない（枚数順→slug順）", () => {
+        const e2 = collectEntries([
+            P("1", { location: "フランス" }),
+            P("2", { location: "パリ" }),
+            P("3", { location: "パリ, フランス" }),
+        ], "location");
+        // パリ・フランスとも2枚で同数 → slug 順。**字の長さでは決まっていない**
+        expect(broaderSpots("パリ, フランス", e2).map((x) => x.label)).toEqual(["パリ", "フランス"]);
+    });
+
+    /** 入れ子になっている組だけは、包含で決まるので決める（広い方が先） */
+    it("入れ子の組は広い方を先に出す", () => {
+        const e3 = collectEntries([
+            P("1", { location: "フランス" }),
+            P("2", { location: "パリ, フランス" }),
+            P("3", { location: "オペラ・ガルニエ（パリ, フランス）" }),
+        ], "location");
+        // 「オペラ…（パリ, フランス）」は「パリ, フランス」にも「フランス」にも含まれ、
+        // かつ「パリ, フランス」は「フランス」に含まれる＝順が決まる
+        expect(broaderSpots("オペラ・ガルニエ（パリ, フランス）", e3).map((x) => x.label))
+            .toEqual(["フランス", "パリ, フランス"]);
+    });
 });
 
 describe("代表座標", () => {
@@ -66,6 +101,22 @@ describe("代表座標", () => {
     it("推定しか無ければ推定として返す", () => {
         const got = spotCoords([P("1", { coords: { lat: 48.86, lng: 2.34 }, geoApprox: true })]);
         expect(got).toEqual({ lat: 48.86, lng: 2.34, approx: true });
+    });
+
+    /**
+     * **有限の数であることまで見る**（`PhotoMap` が同じデータに同じ判定を
+     * 掛けている）。NaN が1件混ざると、地図タブが「位置がありません」では
+     * なく座標ありの文面を出し、周辺のスポットに `NaNkm` が**静的HTMLへ
+     * 焼き込まれる**（直すには再ビルドが要る）。
+     */
+    it("NaN / Infinity の座標は無いものとして扱う", () => {
+        expect(spotCoords([P("1", { coords: { lat: NaN, lng: 2.3 } })])).toBeNull();
+        expect(spotCoords([P("1", { coords: { lat: 48.8, lng: Infinity } })])).toBeNull();
+        // 壊れた1枚が混ざっても、残りから出せる
+        expect(spotCoords([
+            P("1", { coords: { lat: NaN, lng: NaN } }),
+            P("2", { coords: { lat: 48.86, lng: 2.34 } }),
+        ])).toEqual({ lat: 48.86, lng: 2.34, approx: false });
     });
 
     // **平均ではなく中央値。** 平均は外れ値1枚に引きずられて、

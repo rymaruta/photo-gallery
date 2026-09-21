@@ -9,7 +9,7 @@ import SaveSpotButton from "./SaveSpotButton";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
-import { collectionPath } from "../../lib/utils/collections";
+import { collectionPath, slugify } from "../../lib/utils/collections";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
 
@@ -87,19 +87,28 @@ export default function SpotPageClient({
                 （「◯◯の写真」という既存の文言。title・JSON-LD と同じ字） */}
             <h1 className="mb-1 text-2xl font-semibold tracking-tight">{heading}</h1>
 
-            {/* 所在地。**推測しない**——同じ一覧にある、この場所を含む
-                撮影地だけを広い順に並べる（書かれている字から読み取れるぶん）。
-                無ければ何も出さない（国名を当てに行かない） */}
+            {/* 所在地。**推測しない**——同じ一覧にある「この場所を含む撮影地」
+                だけを出す（書かれている字から読み取れるぶん）。
+                無ければ何も出さない（国名を当てに行かない）。
+
+                **`/` 区切りの住所のようには描かない。** 一度そう描いていたが、
+                この並びは**広い順であることを保証できない**——
+                `photoIsInLocation` は字の包含なので「パリ」と「フランス」は
+                互いに含まず、どちらが広いかをこのデータは知らない。
+                住所の形に描くと、知らない順序を主張することになる。 */}
             {broader.length > 0 && (
-                <p className="mb-3 flex flex-wrap items-center gap-1.5 text-sm text-white/60">
+                <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-white/60">
                     <MapPinIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    {broader.map((b, i) => (
-                        <React.Fragment key={b.path}>
-                            {i > 0 && <span aria-hidden className="text-white/60">/</span>}
-                            <Link href={b.path} prefetch={false} className="hover:text-white/90 underline underline-offset-4 decoration-white/20">
-                                {b.label}
-                            </Link>
-                        </React.Fragment>
+                    <span className="sr-only">{en ? "Part of" : "この場所を含む撮影地"}</span>
+                    {broader.map((b) => (
+                        <Link
+                            key={b.path}
+                            href={b.path}
+                            prefetch={false}
+                            className="hover:text-white/90 underline underline-offset-4 decoration-white/20"
+                        >
+                            {b.label}
+                        </Link>
                     ))}
                 </p>
             )}
@@ -161,8 +170,16 @@ export default function SpotPageClient({
                 {facts.cameras.length > 0 && (
                     <Chips
                         heading={en ? "Cameras used here" : "ここで使われたカメラ"}
+                        // **`collectionPath` は正規化しない**（デコードして1回
+                        // エンコードするだけ）。生の機種名を渡していたので
+                        // `/camera/SONY%20ILCE-7M3` を出していたが、実体は
+                        // `out/camera/sony-ilce-7m3.html`——`dynamicParams = false`
+                        // の静的書き出しなので、**カメラのチップが出る全ページで
+                        // ハード404**だった（実ビルドの `out/location/パリ.html` で確認）。
+                        // 隣のタグが `t.slug` を渡しているのと同じ形に揃える
                         items={facts.cameras.map((c) => ({
-                            key: c.name, label: c.name, count: c.count, path: collectionPath("camera", c.name),
+                            key: c.name, label: c.name, count: c.count,
+                            path: collectionPath("camera", slugify(c.name, "camera")),
                         }))}
                     />
                 )}

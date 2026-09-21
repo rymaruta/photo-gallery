@@ -52,8 +52,28 @@ export type SpotPlace = {
 export function broaderSpots(label: string, all: CollectionEntry[]): CollectionEntry[] {
     return all
         .filter((e) => e.label !== label && photoIsInLocation(label, e.label))
-        // 広い方（＝名前が短い方）から並べる
-        .sort((a, b) => a.label.length - b.label.length || a.slug.localeCompare(b.slug));
+        // **広い順には並べられない。並べたふりもしない。**
+        //
+        // 一度「名前が短い方が広い」で並べたが**逆になる**——実在する
+        // `/location/パリ,-フランス` の広い方は「パリ」(2文字) と
+        // 「フランス」(4文字) で、短いのは**狭い方の「パリ」**。
+        //
+        // では包含で決められるかというと、**決められない**。
+        // `photoIsInLocation` は字の包含なので、`"パリ"` と `"フランス"` は
+        // **どちらも相手を含まない**——このデータは「フランスの方が広い」を
+        // 知らない。知らないものを順番で主張しないこと（画面側も
+        // `/` 区切りの住所風には描かない）。
+        //
+        // 入れ子になっている組だけは包含で決まるので、そこは決める。
+        // 決まらない組は枚数の多い順 → slug 順。**決着まで書く**
+        // ——書かないと入力配列の順という書いていない規則で並ぶ
+        // （`relatedCollectionPhotos` と同じ理由）。
+        .sort((a, b) => {
+            // a が b に含まれる＝a の方が狭い → b を先に
+            if (photoIsInLocation(a.label, b.label)) return 1;
+            if (photoIsInLocation(b.label, a.label)) return -1;
+            return b.count - a.count || a.slug.localeCompare(b.slug);
+        });
 }
 
 /**
@@ -87,8 +107,14 @@ export function narrowerSpots(label: string, all: CollectionEntry[]): Collection
 export type SpotCoords = { lat: number; lng: number; approx: boolean };
 
 export function spotCoords(photos: Photo[]): SpotCoords | null {
-    const exact = photos.filter((p) => p.coords && !p.geoApprox);
-    const source = exact.length > 0 ? exact : photos.filter((p) => p.coords);
+    // **有限の数であることまで見る**（`PhotoMap` が同じデータに同じ判定を
+    // 掛けている）。NaN が1件混ざると、地図タブが「位置がありません」では
+    // なく座標ありの文面を出し、周辺のスポットに `NaNkm` が**静的HTMLへ
+    // 焼き込まれる**（直すには再ビルドが要る）
+    const hasCoords = (p: Photo) =>
+        !!p.coords && Number.isFinite(p.coords.lat) && Number.isFinite(p.coords.lng);
+    const exact = photos.filter((p) => hasCoords(p) && !p.geoApprox);
+    const source = exact.length > 0 ? exact : photos.filter(hasCoords);
     if (source.length === 0) return null;
     const median = (xs: number[]) => {
         const s = [...xs].sort((a, b) => a - b);

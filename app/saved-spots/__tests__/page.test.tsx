@@ -85,6 +85,21 @@ describe("行きたい場所の一覧", () => {
         expect(within(alert).getByRole("button", { name: "再試行" })).toBeTruthy();
     });
 
+    /**
+     * **失敗した回に「0件」と言い切らない。**
+     *
+     * 一度 `slugs.length` をそのまま出していたので、見出しが
+     * 「保存した場所 0 件」・本文が「行きたい場所はまだありません。」に
+     * なっていた——このファイルの docstring が「混ぜない」と書いている当の形。
+     */
+    it("失敗した回は、件数も「まだありません」も出さない", async () => {
+        fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
+        render(<SavedSpotsPage />);
+        await screen.findByRole("alert");
+        expect(screen.queryByText("行きたい場所はまだありません。")).toBeNull();
+        expect(screen.queryByText(/保存した場所 0 件/)).toBeNull();
+    });
+
     it("未ログインなら、聞きに行かずログインへ誘う", () => {
         auth.isAuthenticated = false;
         render(<SavedSpotsPage />);

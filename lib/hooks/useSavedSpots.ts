@@ -98,23 +98,33 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
     const slugs = current?.slugs ?? EMPTY;
     const saved = useMemo(() => new Set(slugs), [slugs]);
 
+    const failed = current?.failed ?? false;
+
     /**
-     * **まだ分からない間は `false` を返さない。**
+     * **分からない間は `false` を返さない。**
      *
      * `false` を返すと、ボタンが一瞬「行きたい」に見えてから「保存済み」に
      * 変わる——その一瞬に押すと**解除ではなく保存**が飛ぶ（サーバーは
      * 冪等なので壊れないが、押した人には何も起きていないように見える）。
      * `undefined` を返して、呼び出し側が「まだ」を描けるようにする。
+     *
+     * **聞きに行って失敗した回も `undefined`。** 一度 `pending` だけを見て
+     * いたので、失敗すると `slugs` が空＝**保存済みのスポットが「行きたい」と
+     * 表示され**、`aria-pressed=false` と読み上げられ、押すと解除ではなく
+     * 保存が飛んでいた（＝その場で解除できない）。**「聞けなかった」と
+     * 「保存していない」を混ぜない**、というこのファイルの宣言そのもの。
      */
     const isSaved = useCallback(
-        (slug: string) => (pending ? undefined : saved.has(slug)),
-        [pending, saved],
+        (slug: string) => (pending || failed ? undefined : saved.has(slug)),
+        [pending, failed, saved],
     );
 
     const toggle = useCallback(async (slug: string): Promise<boolean> => {
         if (!slug || busy) return false;
-        // **状態が分からないうちは押させない**（上と同じ理由）
-        if (pending) return false;
+        // **状態が分からないうちは押させない**（上と同じ理由）。
+        // 失敗した回も含む——保存済みかどうかを知らずに書くと、
+        // 解除のつもりの一押しが保存になる
+        if (pending || failed) return false;
         const add = !saved.has(slug);
         setBusy(slug);
         try {
@@ -141,7 +151,7 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
         } finally {
             setBusy(null);
         }
-    }, [busy, pending, saved, token]);
+    }, [busy, pending, failed, saved, token]);
 
-    return { slugs, pending, failed: current?.failed ?? false, isSaved, toggle, busy, retry };
+    return { slugs, pending, failed, isSaved, toggle, busy, retry };
 }

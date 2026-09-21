@@ -100,6 +100,24 @@ describe("撮影スポット詳細", () => {
         expect(within(overview).getByText("撮影時期").parentElement!.textContent).toMatch(/2023.*〜.*2024/);
     });
 
+    /**
+     * **カメラのチップの飛び先は、スラッグでなければならない。**
+     *
+     * `collectionPath` は正規化しない（デコードして1回エンコードするだけ）。
+     * 生の機種名を渡していたので `/camera/SONY%20ILCE-7M3` を出していたが、
+     * 実体は `out/camera/sony-ilce-7m3.html`——`dynamicParams = false` の
+     * 静的書き出しなので、**カメラのチップが出る全ページでハード404**
+     * （実ビルドの `out/location/パリ.html` で確認した）。
+     */
+    it("カメラのチップは、生の機種名ではなくスラッグへ飛ぶ", () => {
+        render(<SpotPageClient {...base} facts={{ ...base.facts, cameras: [{ name: "SONY ILCE-7M3", count: 2 }] }} />);
+        // チップは概要タブの中。既定は「写真」なので開いてから見る
+        fireEvent.click(screen.getByRole("tab", { name: "概要" }));
+        const link = screen.getByRole("link", { name: /SONY ILCE-7M3/ });
+        expect(link.getAttribute("href")).toBe("/camera/sony-ilce-7m3");
+        expect(link.getAttribute("href")).not.toContain("%20");
+    });
+
     it("所在地は、渡された広い撮影地だけを出す（国名を当てに行かない）", () => {
         // **`rerender` は使わない**——`ToastProvider` の包みが外れる
         const { unmount } = render(<SpotPageClient {...base} />);
@@ -107,6 +125,28 @@ describe("撮影スポット詳細", () => {
         unmount();
         render(<SpotPageClient {...base} broader={[{ label: "フランス", count: 4, path: "/location/%E3%83%95" }]} />);
         expect(screen.getByRole("link", { name: "フランス" })).toBeTruthy();
+    });
+
+    /**
+     * **所在地を `/` 区切りの住所のようには描かない。**
+     *
+     * 一度そう描いていたが、この並びは**広い順であることを保証できない**
+     * ——`photoIsInLocation` は字の包含なので `"パリ"` と `"フランス"` は
+     * 互いに含まず、どちらが広いかをこのデータは知らない。住所の形に
+     * 描くと、知らない順序を主張することになる（実在する
+     * `/location/パリ,-フランス` で「パリ / フランス」と**狭い→広い**に
+     * 描かれていた）。
+     */
+    it("所在地を住所の形（/ 区切り）に描かない", () => {
+        render(<SpotPageClient {...base} broader={[
+            { label: "パリ", count: 3, path: "/location/p" },
+            { label: "フランス", count: 4, path: "/location/f" },
+        ]} />);
+        const region = screen.getByRole("link", { name: "パリ" }).parentElement!;
+        // リンクとリンクの間に区切り記号を置かない
+        expect(region.textContent).not.toContain("/");
+        // 代わりに、この並びが何なのかを読み上げに伝える
+        expect(region.textContent).toContain("この場所を含む撮影地");
     });
 });
 
