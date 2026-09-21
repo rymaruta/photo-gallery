@@ -264,6 +264,18 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* 設定（アカウント・プライバシー・サポート）。
+                                    **`isAuthenticated` だけで出す**——共同アルバムと
+                                    違ってグループ（投稿権限）を見ない。パスワードの
+                                    変更と退会は、権限が付かなかった人にこそ要る
+                                    （`/user/settings` の門も同じ判断） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SETTINGS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.settings || "Settings"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAdminUser && (
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.ADMIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
