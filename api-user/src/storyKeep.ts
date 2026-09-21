@@ -68,7 +68,13 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 判定は読み取り時点の値。「掃除がその行を読んだ後・消す前」に
         // 印が立つと、**S3 だけ消えた写真**ができる。期限切れの行は
         // `getStories` が返さない＝画面から押せないので、断っても失うものは無い
-        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()) {
+        //
+        // **アーカイブ済みは通す。** 上の競合は「掃除がこれから消しにくる行」の
+        // 話で、`archivedAt` が刻まれた行は掃除がもう二度と触らない
+        // （`storyFeed` を外してあるので GSI に出ない）。期限切れでも本人の
+        // 手元に残っている1枚なので、そこから「残す」を押せてよい
+        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()
+            && !(typeof story.archivedAt === "string" && story.archivedAt)) {
             return jsonError(404, "ストーリーが見つかりません");
         }
 

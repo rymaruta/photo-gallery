@@ -1187,7 +1187,9 @@ describe("cleanupExpiredStories", () => {
             input: { FilterExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
         };
         expect(scan.constructor.name).toBe("ScanCommand");
-        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now");
+        // アーカイブ済み（`archivedAt` が在る行）は拾わない——毎時撫で直さない
+        // ための絞り込みで、`storyArchive.test.ts` が同じ行を見ている
+        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now AND attribute_not_exists(archivedAt)");
         expect(scan.input.ExpressionAttributeValues?.[":t"]).toBe(true);
     });
 });

@@ -123,7 +123,12 @@ async function scanStories(filter: "active" | "expired"): Promise<Record<string,
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: PHOTOS_TABLE,
-            FilterExpression: filter === "active" ? "story = :t AND expiresAt > :now" : "story = :t AND expiresAt <= :now",
+            // 期限切れは**アーカイブ済みを除く**。GSI の経路は `storyFeed` を
+            // 外した時点で索引から落ちるので要らないが、Scan はテーブル全体を
+            // 見るので、ここで落とさないと**毎時アーカイブを撫で直す**
+            FilterExpression: filter === "active"
+                ? "story = :t AND expiresAt > :now"
+                : "story = :t AND expiresAt <= :now AND attribute_not_exists(archivedAt)",
             ExpressionAttributeValues: { ":t": true, ":now": now },
             ExclusiveStartKey: lastKey,
         }));
@@ -278,7 +283,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
         location?: unknown; coords?: unknown; texts?: unknown;
-        visibility?: unknown; allowReplies?: unknown;
+        visibility?: unknown; allowReplies?: unknown; archive?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -357,6 +362,15 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         : undefined;
     const allowReplies = storyAllowsReplies(body.allowReplies) ? undefined : false;
 
+    // **アーカイブに自動保存。** 立っていると、期限切れの掃除が行と実体を
+    // 消さずに**本人だけが後から見られる形**に変える（`cleanupExpiredStories`）。
+    // 既定は保存しない＝これまでどおり24時間で消える。**`true` を明示した
+    // ときだけ**立てる（`allowReplies` と同じで、値の形で黙って立てない）。
+    //
+    // 仕組みは `keptAs` と同じ1本——「行に印があれば掃除が消さない」。
+    // 2つ目の置き場（別の行・別のテーブル）は作らない。
+    const archive = body.archive === true ? true : undefined;
+
     // ストーリーBGM: title + https の previewUrl 必須（30秒プレビュー）
     let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number } | undefined;
     if (body.song && typeof body.song === "object" && !Array.isArray(body.song)) {
@@ -428,6 +442,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 書く**ので、`...(allowReplies ? ...)` では消える——値で分岐しない
         ...(visibility ? { visibility } : {}),
         ...(allowReplies === false ? { allowReplies } : {}),
+        ...(archive ? { archive } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),
@@ -717,9 +732,10 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
 
 // 期限切れストーリーの物理削除（毎日スケジュール実行）
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
-export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
+export const cleanupExpiredStories = async (): Promise<{ deleted: number; archived: number }> => {
     const expired = await queryStories("expired");
     let deleted = 0;
+    let archived = 0;
     // **エッジの掃除は最後に1回**（退会と同じ理由）。1行ごとに無効化を作ると
     // 期限切れの件数ぶんできて、CloudFront の「同時に進行できる本数」の上限
     // （既定15）に当たる。断られても `invalidateUploads` は警告だけ出すので、
@@ -730,6 +746,42 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
     for (const item of expired) {
         const id = String(item.id ?? "");
         if (!id) continue;
+
+        // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す。**
+        //
+        // やるのは1回の更新だけ:
+        //   - `archivedAt` を刻む（一覧 `getStoryArchive` はこれで引く）
+        //   - `storyFeed` を外す（ストーリー一覧の GSI から落ちる＝
+        //     `getStories` に二度と出ず、この掃除も二度と拾わない）
+        // S3 の実体・返信の文書・閲覧者はそのまま。**本人だけが後から
+        // 見られる**形——`viewStory` と `postStoryReply` は期限切れを 404 で
+        // 断るので、他人には「もう無い」ままで変わらない。
+        //
+        // **24時間で消える約束は壊さない。** 残るのは投稿のときに本人が
+        // 「アーカイブに自動保存」を入にしたぶんだけで、既定は今までどおり消える。
+        // 仕組みは `keptAs`（印があれば掃除が実体を消さない）と同じ1本で、
+        // 2つ目の置き場は作らない。
+        //
+        // `if_not_exists` で刻むのは、万一もう一度ここに来ても最初の時刻を
+        // 守るため（Scan の経路は `archivedAt` で落とすので普通は来ない）。
+        if (item.archive === true) {
+            try {
+                await ddb.send(new UpdateCommand({
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :now) REMOVE storyFeed",
+                    // 行が消えていたら作らない（`viewStory` と同じ理由——
+                    // 鍵だけの行はどの掃除からも辿れない）
+                    ConditionExpression: "attribute_exists(id)",
+                    ExpressionAttributeValues: { ":now": new Date().toISOString() },
+                }));
+                archived++;
+            } catch (e) {
+                // 書けなければ次回に回す（行は GSI に残っているので、また来る）
+                console.error(`cleanup: archive failed for ${id}:`, e);
+            }
+            continue;
+        }
 
         // **消せなければ行を残す**（上の deleteStory と同じ理由）。
         // 期限切れのストーリーは利用者からは見えないので、行が残っても
@@ -764,6 +816,6 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
     // 消せたぶんをまとめてエッジからも消す（失敗しても掃除の成否は変えない）
     await invalidateUploads(edgeKeys, "cleanupExpiredStories");
 
-    console.log(`cleanupExpiredStories: deleted ${deleted} of ${expired.length} expired stories`);
-    return { deleted };
+    console.log(`cleanupExpiredStories: deleted ${deleted}, archived ${archived} of ${expired.length} expired stories`);
+    return { deleted, archived };
 };
