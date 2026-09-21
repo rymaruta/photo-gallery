@@ -292,3 +292,64 @@ describe("写真の構造化データ: 説明は1行", () => {
         expect(d.caption).toBe("一行目。 二行目。");
     });
 });
+
+// **1投稿に複数枚**（owner のモックの「1/10」）。ページ数は減るが、
+// **機械に見せる画像の数は減らさない**
+describe("generatePhotoStructuredData: 2枚目以降（extraImages）", () => {
+    const base = {
+        id: "p1", src: "https://cdn.test/uploads/u1/a.jpg", title: "白波の夏",
+    };
+    const withExtra = {
+        ...base,
+        extraImages: [
+            { src: "https://cdn.test/uploads/u1/b.jpg" },
+            { src: "https://cdn.test/uploads/u1/c.jpg" },
+        ],
+    };
+
+    it("🔴 associatedMedia に2枚目以降を出す", () => {
+        const d = generatePhotoStructuredData(withExtra) as Record<string, unknown>;
+        const media = d.associatedMedia as Array<Record<string, unknown>>;
+        expect(media, "2枚目以降が機械に見えていない").toHaveLength(2);
+        expect(media.map((m) => m.contentUrl)).toEqual([
+            "https://cdn.test/uploads/u1/b.jpg",
+            "https://cdn.test/uploads/u1/c.jpg",
+        ]);
+        for (const m of media) expect(m["@type"]).toBe("ImageObject");
+    });
+
+    it("表紙は今までどおり contentUrl ＋ representativeOfPage（役割を混ぜない）", () => {
+        const d = generatePhotoStructuredData(withExtra) as Record<string, unknown>;
+        expect(d.contentUrl).toBe("https://cdn.test/uploads/u1/a.jpg");
+        expect(d.representativeOfPage).toBe(true);
+    });
+
+    it("2枚目以降に @id を付ける（無名の節点を増やさない）", () => {
+        const d = generatePhotoStructuredData(withExtra) as Record<string, unknown>;
+        const ids = (d.associatedMedia as Array<Record<string, unknown>>).map((m) => m["@id"]);
+        expect(new Set(ids).size, "同じ @id が2つある").toBe(2);
+        for (const id of ids) expect(typeof id).toBe("string");
+    });
+
+    it("2枚目以降に題や説明を持たせない（同じ文字列を N 回並べても何も伝わらない）", () => {
+        const d = generatePhotoStructuredData({ ...withExtra, description: "夏の海" }) as Record<string, unknown>;
+        for (const m of d.associatedMedia as Array<Record<string, unknown>>) {
+            expect(Object.keys(m).sort()).toEqual(["@id", "@type", "contentUrl"]);
+        }
+    });
+
+    it("extraImages が無ければ associatedMedia を出さない", () => {
+        const d = generatePhotoStructuredData(base) as Record<string, unknown>;
+        expect("associatedMedia" in d).toBe(false);
+        expect(generatePhotoStructuredData({ ...base, extraImages: [] })).not.toHaveProperty("associatedMedia");
+    });
+
+    it("壊れた要素は飛ばす（落ちない）", () => {
+        const d = generatePhotoStructuredData({
+            ...base,
+            // @ts-expect-error 壊れた値を通す（本番のデータは何でもありうる）
+            extraImages: [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.test/uploads/u1/b.jpg" }],
+        }) as Record<string, unknown>;
+        expect(d.associatedMedia).toHaveLength(1);
+    });
+});
