@@ -66,7 +66,15 @@ export default function StoryTextOverlay({
             {texts.map((t, i) => {
                 // **スタンプと文字は同じ仕組みに乗る**（置く・動かす・回す・
                 // 重ねる・消す）。違うのは**中身と、字体まわりを持つかどうか**
-                // だけなので、分岐はここに閉じる
+                // だけなので、分岐はここに閉じる。
+                //
+                // **知らない絵柄は、文字として描かない。** 引き当てた結果で
+                // 分岐すると、一覧に無い鍵が**文字の枝へ落ちて**
+                // `text` を持たないまま描かれる——中身も読み上げも空の `<p>` が
+                // 出て（置いたスタンプが消えた投稿に見える）、下書き側では
+                // `name.trim()` が TypeError になる。**その要素だけ描かない**
+                // のが正しい（`sanitizeStoryTexts` も同じ値を落としている）。
+                if (isStoryStamp(t) && !STORY_STAMPS[t.stamp]) return null;
                 const stamp = isStoryStamp(t) ? STORY_STAMPS[t.stamp] : null;
                 const font = stamp ? null : STORY_FONTS[(t as StoryTextItem).font];
                 const color = stamp ? null : STORY_COLORS[(t as StoryTextItem).color];

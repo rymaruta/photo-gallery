@@ -270,3 +270,39 @@ describe("スタンプ（StoriesBar の配線）", () => {
         expect(stamps()[0], "上限を超えて置ける").toBeDisabled();
     });
 });
+
+/**
+ * **スタンプを置いたあと、そのまま題を打てること。**
+ *
+ * `editText` だけが共用体に追従しておらず、スタンプを選んだ状態で打つと
+ * `{...スタンプ, text: 値}` を当てていた。欄は文字の側しか見ないので
+ * **1文字も入らず**、そのくせスタンプの中身に `text` が生えて
+ * サーバーが落とす＝**打った文字が黙って消える**。
+ * `addStamp` は置いた直後に選ぶので、いちばん自然な流れで踏む。
+ */
+describe("スタンプを置いたあとに打つ", () => {
+    it("スタンプを置いてから打つと、新しい文字ができる", async () => {
+        await pickImage();
+        await userEvent.click(stamps()[0]);
+        expect(placed()).toHaveLength(1);
+
+        await type("朝の空");
+
+        // スタンプ＋文字の2つになっている
+        expect(placed(), "文字が増えていない").toHaveLength(2);
+        const shown = [...placed()].map((p) => p.textContent);
+        expect(shown, "打った文字が写真の上に出ていない").toContain("朝の空");
+        // スタンプは絵柄のまま（文言が生えていない）
+        expect(shown[0]).toBe(STORY_STAMPS.heart.glyph);
+        // 打つ欄にも入っている（選び直せている）
+        expect((screen.getByRole("textbox", { name: "文字" }) as HTMLInputElement).value).toBe("朝の空");
+    });
+
+    // 読み上げの名前も、消す相手に合わせる
+    it("スタンプを選んでいるときは「このスタンプを消す」と名乗る", async () => {
+        await pickImage();
+        await userEvent.click(stamps()[0]);
+        expect(screen.getByRole("button", { name: "このスタンプを消す" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "この文字を消す" })).toBeNull();
+    });
+});

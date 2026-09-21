@@ -206,15 +206,31 @@ export default function StoriesBar() {
      */
     const editText = useCallback((value: string) => {
         setTexts((prev) => {
-            if (selected !== null && prev[selected]) {
+            const cur = selected !== null ? prev[selected] : undefined;
+            // **スタンプを選んでいるときは、それに文言を足さない。**
+            //
+            // 当てていたので、`addStamp` が置いた直後（選んだ状態）に打つと
+            // **1文字も入らなかった**——欄は `currentText?.text` を見るので
+            // 常に空、そのくせスタンプの中身には `text` が生えて、サーバーが
+            // 落とす（＝打った文字が黙って消える）。「スタンプを置いて、
+            // そのまま題を打つ」はいちばん自然な流れなので、ここは
+            // **新しい文字を足す**側へ倒す。
+            if (cur && !isStoryStamp(cur)) {
                 return prev.map((t, i) => (i === selected ? { ...t, text: value } : t));
             }
             if (!value) return prev;
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
             return [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y)].map((t, i, a) =>
                 i === a.length - 1 ? { ...t, text: value } : t);
         });
-        setSelected((cur) => (cur !== null ? cur : texts.length));
-    }, [selected, texts.length]);
+        // **文字を選び直す。** スタンプを選んでいた回は、いま足した文字が
+        // 新しい選択（そうしないと次の1文字がまたスタンプの側へ行く）
+        setSelected((cur) => {
+            const sel = cur !== null ? texts[cur] : undefined;
+            if (sel && !isStoryStamp(sel)) return cur;
+            return Math.min(texts.length, STORY_TEXTS_MAX - 1);
+        });
+    }, [selected, texts]);
 
     /** もう1つ置く。**少しずらす**——同じ場所に重ねると掴み分けられない */
     const addText = useCallback(() => {
@@ -1374,7 +1390,9 @@ export default function StoriesBar() {
                                     type="button"
                                     onClick={removeSelected}
                                     disabled={posting}
-                                    aria-label={locale === "en" ? "Delete this text" : "この文字を消す"}
+                                    aria-label={current && isStoryStamp(current)
+                                        ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
+                                        : (locale === "en" ? "Delete this text" : "この文字を消す")}
                                     className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
                                     style={{ width: "44px", height: "44px" }}
                                 >
