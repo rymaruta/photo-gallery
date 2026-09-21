@@ -16,6 +16,9 @@ describe("フッターの導線", () => {
             ["作品", ROUTES.HOME],
             ["撮影地マップ", ROUTES.MAP],
             ["いいねした写真", ROUTES.FAVORITES],
+            // **行きたい場所はいいねの隣**（どちらも「自分が取っておいたもの」）。
+            // 入口がスポット詳細のボタンしか無いと、押したあとに見に行く場所が無い
+            ["行きたい場所", ROUTES.SAVED_SPOTS],
             ["利用規約", ROUTES.TERMS],
             ["プライバシーポリシー", ROUTES.PRIVACY],
         ]);
