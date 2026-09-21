@@ -105,11 +105,27 @@ describe("sanitizeExtraImages", () => {
             .toBeUndefined();
     });
 
-    it("派生（srcAvif など）は受け取らない——ビルドが作る側なので利用者から来ない", () => {
+    it("URL の派生（srcAvif など）は受け取らない——ビルドが作る側なので利用者から来ない", () => {
         const out = sanitizeExtraImages(
             [{ src: `${CDN}/uploads/${ME}/a.webp`, srcAvif: "https://evil.example.com/x.avif" }],
             ME, CDN, cover);
         expect(out?.[0]).toEqual({ src: `${CDN}/uploads/${ME}/a.webp` });
+    });
+
+    // **ぼかしだけは受け取る**（表紙と揃える）。URL ではなく `data:` URI なので
+    // 外のホストを指しようが無い。受け取らないと、次のビルド（定期は週1）まで
+    // **1枚目だけ blur-up して2枚目以降は真っ黒**になる
+    it("ぼかしプレビュー（data: URI）は受け取る", () => {
+        const blur = "data:image/webp;base64,UklGRg==";
+        expect(sanitizeExtraImages([{ src: `${CDN}/uploads/${ME}/a.webp`, blurDataURL: blur }],
+            ME, CDN, cover)?.[0].blurDataURL).toBe(blur);
+    });
+
+    it("ぼかしの形が違えば落とす（外部URLを混ぜられない）", () => {
+        for (const bad of ["https://evil.example.com/x.webp", "data:text/html,<script>", "javascript:1", ""]) {
+            expect(sanitizeExtraImages([{ src: `${CDN}/uploads/${ME}/a.webp`, blurDataURL: bad }],
+                ME, CDN, cover)?.[0].blurDataURL, bad).toBeUndefined();
+        }
     });
 });
 

@@ -106,7 +106,7 @@ describe("共有シート経由の取り込みと GPS 自動入力の設定", ()
     it("別タブで切ったら、こちらの設定も切れる", async () => {
         localStorage.setItem("jp_gps_autofill", "1");
         render(<UploadPage />);
-        const box = await screen.findByRole("checkbox");
+        const box = await screen.findByRole("checkbox", { name: /撮影地を自動入力/ });
         await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
 
         // 別タブが切った
@@ -123,7 +123,7 @@ describe("共有シート経由の取り込みと GPS 自動入力の設定", ()
     it("別のキーの変更では読み直さない", async () => {
         localStorage.setItem("jp_gps_autofill", "1");
         render(<UploadPage />);
-        const box = await screen.findByRole("checkbox");
+        const box = await screen.findByRole("checkbox", { name: /撮影地を自動入力/ });
         await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
 
         // 値は変えておくが、知らせるキーは別物。読み直したら false になる
@@ -190,7 +190,7 @@ describe("地名を引いている間", () => {
         await waitFor(() => expect(calls).toBe(1));
 
         // 1枚目を引いたあとの待ち（1.1秒）の間に切る
-        const box = await screen.findByRole("checkbox");
+        const box = await screen.findByRole("checkbox", { name: /撮影地を自動入力/ });
         await act(async () => { (box as HTMLElement).click(); });
         await new Promise((r) => setTimeout(r, 1400));
         expect(calls, "切ったのに残りの写真を引いている").toBe(1);
