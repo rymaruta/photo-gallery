@@ -16,6 +16,7 @@ import Analytics from "./components/Analytics";
 import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
+import BottomNav from "./components/BottomNav";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
@@ -306,6 +307,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* グローバル音楽のミニプレイヤー（再生中のみ表示） */}
               <MiniPlayer />
+
+              {/* 画面下の5つのタブ。**全ページに常駐する**（owner の新デザイン）。
+                  高さを `--bottom-bar-h` に出すので、ミニプレイヤーはその上に逃げる。
+                  `body` の下余白（`app/globals.css`）も同じ変数を読む */}
+              <BottomNav />
               </MusicProvider>
             </AuthProvider>
           </LocaleProvider>

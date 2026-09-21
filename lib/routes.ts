@@ -56,6 +56,8 @@ export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
     MAP: "/map",
+    /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
+    SEARCH: "/search",
     PRIVACY: "/privacy",
     TERMS: "/terms",
     ADMIN: "/admin",

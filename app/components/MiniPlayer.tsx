@@ -139,7 +139,7 @@ export default function MiniPlayer() {
     // 押したつもりでプレイヤーのボタンが反応していた（iPhone で顕著）。
     const outerStyle: React.CSSProperties = positioned
         ? { left: pos!.x, top: pos!.y, width: "min(28rem, calc(100vw - 24px))" }
-        : { bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px + var(--bottom-bar-h, 0px))" };
+        : { bottom: "calc(12px + var(--bottom-bar-h, env(safe-area-inset-bottom, 0px)))" };
 
     return (
         <div ref={boxRef} className={outerClass} style={outerStyle}>
