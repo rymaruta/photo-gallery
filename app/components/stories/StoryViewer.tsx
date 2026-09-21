@@ -17,7 +17,10 @@ import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
+import { wasShortTap, type PressPoint } from "@/lib/utils/tap";
 import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
+import StoryTextOverlay from "./StoryTextOverlay";
+import { useMediaBox } from "@/lib/hooks/useMediaBox";
 
 /** 返信の本文の上限。**サーバーの `TEXT_MAX` と対**（api-user/src/storyReplies.ts）。
  *  画面だけ緩いと、打てるのに保存で黙って切られる */
@@ -410,9 +413,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「タップ」か「長押し・スワイプ」かの判定。
     // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
     // 離した瞬間に前後へ移動してしまう。
-    const pressRef = useRef<{ t: number; x: number; y: number } | null>(null);
-    const LONG_PRESS_MS = 350;
-    const MOVE_TOLERANCE_PX = 12;
+    // しきい値は `lib/utils/tap.ts` に1つ（下書きの文字の置き方が同じ判断をする）
+    const pressRef = useRef<PressPoint | null>(null);
 
     /** 長押しで止めたのか、ボタン（またはスペース）で止めたのか。
      *  指を離したときに**ボタンで止めたぶんまで再開しない**ように分ける */
@@ -434,10 +436,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const wasTap = useCallback((e: React.MouseEvent): boolean => {
         const p = pressRef.current;
         pressRef.current = null;
-        if (!p) return true; // ポインタ情報が取れない環境では従来どおり動かす
-        if (Date.now() - p.t >= LONG_PRESS_MS) return false;
-        const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y);
-        return moved <= MOVE_TOLERANCE_PX;
+        return wasShortTap(p, e.clientX, e.clientY);
     }, []);
 
     // ダイアログ表示中は自動送りを止める
@@ -509,17 +508,24 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
      * ストーリーの `<img>` は `srcset` を持たないので、
      * `24f9df2c`（密度で割って 0 に丸まる）の罠には当たらない。
      */
+    // 文字を**絵の上**の同じ場所に載せるために、絵が実際に描かれている
+    // 矩形を測る（`object-contain` なので端末の縦横比で余白が変わる）
+    const mediaAreaRef = useRef<HTMLDivElement | null>(null);
+    const { attach: attachMediaBox, box: mediaBox, measure: measureMediaBox } = useMediaBox(mediaAreaRef);
+
     const attachMedia = useCallback((img: HTMLImageElement | null) => {
+        attachMediaBox(img);
         if (!img?.complete) return;
         if (img.naturalWidth === 0) setMediaError(true);
         else setMediaReady(true);
-    }, [setMediaReady]);
+    }, [setMediaReady, attachMediaBox]);
 
     /** 動画も同じ（`readyState >= HAVE_CURRENT_DATA` なら最初の絵は出せる） */
     const attachVideo = useCallback((v: HTMLVideoElement | null) => {
         videoRef.current = v;
+        attachMediaBox(v);
         if (v && v.readyState >= 2) setMediaReady(true);
-    }, [setMediaReady]);
+    }, [setMediaReady, attachMediaBox]);
 
     const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
         || (!mediaReady && !mediaError);
@@ -877,7 +883,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             )}
 
             {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
-            <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
+            <div ref={mediaAreaRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
                 {isVideo ? (
                     <video
                         key={item.id}
@@ -893,7 +899,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // 動画の進捗は `currentTime` で描くので止まったままだが、
                         // `frozen` は `pause()` にも効くので**読み込み中に
                         // 再生が始まって先頭を取りこぼす**のを防ぐ
-                        onLoadedData={() => setMediaReady(true)}
+                        onLoadedData={() => { setMediaReady(true); measureMediaBox(); }}
                         onEnded={goNext}
                         onError={goNext}
                     />
@@ -914,10 +920,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
                         ref={attachMedia}
-                        onLoad={() => setMediaReady(true)}
+                        onLoad={() => { setMediaReady(true); measureMediaBox(); }}
                         onError={(e) => { setMediaError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     />
                 )}
+
+                {/* 置いた場所の文字。**下の帯には出さない**（同じ文言が2か所に出る）。
+                    描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
+                    出る場所が違う」になり、置き直しても直らない */}
+                {item.texts?.length && !mediaError ? (
+                    <StoryTextOverlay texts={item.texts} box={mediaBox} />
+                ) : null}
 
                 {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
                     持たない（写真と違ってサムネも下地色もぼかしも無い）ので、
@@ -1103,8 +1116,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 onPointerLeave={onZonePointerUp}
             />
 
-            {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}
-            {(isOwnStory || item.caption) && (
+            {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる。
+                **置いた場所の文字が在るときは、この段には出さない**
+                （同じ文言が写真の上と下に二重に出る） */}
+            {(isOwnStory || (item.caption && !item.texts?.length)) && (
                 <div
                     /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
                        キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
@@ -1199,7 +1214,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             </button>
                         )
                     )}
-                    {item.caption && (
+                    {item.caption && !item.texts?.length && (
                         /* **潰れるならキャプションは次の段へ。** ピルは全部
                            `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
                            実測（390px）で幅 35px、320px では**ピルが画面の外**へ

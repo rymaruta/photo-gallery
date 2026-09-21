@@ -12,6 +12,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
+import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -216,7 +217,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
-        location?: unknown; coords?: unknown;
+        location?: unknown; coords?: unknown; texts?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -243,7 +244,19 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const safeSrc = canonicalUploadUrl(publicUrl, process.env.CLOUDFRONT_URL ?? "");
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
-    const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
+    // 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+    //
+    // 受けるのは**一覧に在る鍵だけ**（`storyText.ts`）。任意の CSS を通さない
+    // ので、読めない組み合わせも他人の画面で動く値も作れない。位置は必ず挟み、
+    // 文言の空のものと上限を超えたぶんは落とす。
+    const texts = sanitizeStoryTexts(body.texts);
+
+    // **`caption` は文字たちから作る。** 文言を2か所で持つと静かにずれる
+    // ——残したときの題（`storyKeep.ts`）も、検索に出る文章も、この1本を読む。
+    // 文字を置いていない投稿は、これまでどおり `caption` をそのまま受ける。
+    const caption = texts
+        ? truncate(storyTextsCaption(texts), 200) || undefined
+        : truncate((body.caption ?? "").trim(), 200) || undefined;
 
     // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
     //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
@@ -329,6 +342,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(texts ? { texts } : {}),
         ...(location ? { location } : {}),
         // **座標は地名とセットのときだけ持つ。** 地名の無い座標は画面に
         // 出しようがなく（ピンだけ置く画面がストーリーには無い）、

@@ -1230,3 +1230,75 @@ describe("期限切れストーリーの掃除は1時間ごと", () => {
         expect(m![1]).toMatch(/cron\(\d+\s+\*/);  // 時が * ＝毎時
     });
 });
+
+/**
+ * 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+ *
+ * owner:「インスタみたいにストーリーで好きな場所で文字打てるようにしたい。
+ * フォントの種類や色も豊富にしたい」「複数のテキストを別々に置くのもやりたい」
+ *
+ * **`caption` は文字たちから作る**——文言を2か所で持つと静かにずれる。
+ * 残したときの題（`storyKeep.ts`）も検索に出る文章も、`caption` を読む。
+ */
+describe("createStory: 置いた文字", () => {
+    const post = (body: Record<string, unknown>) => invoke(createStory, authedEvent("u1", {
+        body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.webp", ...body }),
+    }));
+    const saved = () => (mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
+        .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
+    const one = { text: "朝の空", x: 0.2, y: 0.8, size: 0.05, font: "mincho", color: "sky", bg: "soft" };
+
+    beforeEach(() => { mockDdbSend.mockResolvedValue({ Count: 0 }); });
+
+    it("受け取って保存する", async () => {
+        await post({ texts: [one] });
+        expect(saved().texts).toEqual([one]);
+    });
+
+    // 🔴 **`caption` は文字たちから作る。** クライアントの申告は使わない
+    it("caption は置いた文字から作る（送られた caption は使わない）", async () => {
+        await post({ texts: [{ ...one, text: "いち" }, { ...one, text: "に" }], caption: "べつの文言" });
+        expect(saved().caption, "文言を2か所で持っている").toBe("いち\nに");
+    });
+
+    it("文字を置いていなければ、これまでどおり caption をそのまま受ける", async () => {
+        await post({ caption: "朝の空" });
+        expect(saved().caption).toBe("朝の空");
+        expect("texts" in saved()).toBe(false);
+    });
+
+    // **一覧に在る鍵だけ。** 任意の CSS を通さない
+    it("知らない字体・色は既定へ落とす（文言と位置は残す）", async () => {
+        await post({ texts: [{ text: "朝", x: 0.2, y: 0.8, font: "comic", color: "url(javascript:1)" }] });
+        const st = (saved().texts as Record<string, unknown>[])[0];
+        expect(st.x).toBe(0.2);
+        expect(st.font).not.toBe("comic");
+        expect(st.color).toBe("white");
+    });
+
+    it("位置は挟む（半分が画面の外へ出ない）", async () => {
+        await post({ texts: [{ text: "朝", x: -3, y: 42 }] });
+        const st = (saved().texts as { x: number; y: number }[])[0];
+        expect(st.x).toBeGreaterThan(0);
+        expect(st.y).toBeLessThan(1);
+    });
+
+    // **文言が空のものは置き場所だけの項目**——画面に何も描けない
+    it("文言が空のものは落とす", async () => {
+        await post({ texts: [{ ...one, text: "  " }] });
+        expect("texts" in saved(), "空の文字を保存している").toBe(false);
+        expect("caption" in saved()).toBe(false);
+    });
+
+    it("上限を超えたぶんは落とす", async () => {
+        await post({ texts: Array.from({ length: 20 }, (_, i) => ({ ...one, text: `t${i}` })) });
+        expect((saved().texts as unknown[]).length).toBeLessThanOrEqual(5);
+    });
+
+    it("形が違えば持たない（壊れた値で落ちない）", async () => {
+        await post({ texts: "left", caption: "朝" });
+        expect("texts" in saved()).toBe(false);
+        expect(saved().caption, "caption まで落としている").toBe("朝");
+    });
+});
