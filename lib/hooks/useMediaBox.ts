@@ -40,8 +40,24 @@ export function useMediaBox(containerRef: React.RefObject<HTMLElement | null>) {
                 : next);
     }, [containerRef]);
 
-    /** 測る対象。ref コールバックとして渡す（付け外しで測り直す） */
+    const roRef = useRef<ResizeObserver | null>(null);
+
+    /**
+     * 測る対象。ref コールバックとして渡す（付け外しで測り直す）。
+     *
+     * **見張りも付け替える。** 以前は `elRef` を差し替えるだけで、
+     * `ResizeObserver` は最初に観測した要素を握ったままだった——
+     * 絵と動画は別の要素なので（`StoryViewer` の `attachMedia` /
+     * `attachVideo`）、種別をまたぐと**画面から消えた方**を見張り続け、
+     * いま出ている絵の大きさが変わっても測り直しが走らなかった。
+     * 囲みと `window` は別に観測しているので、**絵だけが変わる回**に効く。
+     */
     const attach = useCallback((el: HTMLElement | null) => {
+        const ro = roRef.current;
+        if (ro && elRef.current !== el) {
+            if (elRef.current) ro.unobserve(elRef.current);
+            if (el) ro.observe(el);
+        }
         elRef.current = el;
         measure();
     }, [measure]);
@@ -49,6 +65,7 @@ export function useMediaBox(containerRef: React.RefObject<HTMLElement | null>) {
     useEffect(() => {
         const RO = typeof ResizeObserver !== "undefined" ? ResizeObserver : null;
         const ro = RO ? new RO(() => measure()) : null;
+        roRef.current = ro;
         if (ro) {
             if (elRef.current) ro.observe(elRef.current);
             if (containerRef.current) ro.observe(containerRef.current);
@@ -59,6 +76,7 @@ export function useMediaBox(containerRef: React.RefObject<HTMLElement | null>) {
         window.addEventListener("orientationchange", measure);
         return () => {
             ro?.disconnect();
+            if (roRef.current === ro) roRef.current = null;
             window.removeEventListener("resize", measure);
             window.removeEventListener("orientationchange", measure);
         };
