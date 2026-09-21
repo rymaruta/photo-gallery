@@ -769,6 +769,17 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 自分のアーカイブ（24時間で消えたあとも本人だけ見られる）。
+  # `GET /stories/{id}` は無いので、この固定パスと取り違えることは無い
+  getStoryArchive:
+    handler: src/storyArchive.getStoryArchive
+    events:
+      - httpApi:
+          path: /stories/archive
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   deleteAccount:
     handler: src/account.deleteAccount
     environment:

@@ -17,6 +17,11 @@ import { render, screen, waitFor } from "@testing-library/react";
  *     /admin/edit     label 13 → **13 すべて孤立**
  *     DeleteAccountModal  label 1 → 孤立（下記）
  *
+ * **`/user/settings` は 2026-09-21 に足した。** プロフィール編集から
+ * 移した入力欄4つ（新しいメールアドレス・確認コード・いまのパスワード・
+ * 新しいパスワード）が、**移設した時点でこの見張りの外に出ていた**
+ * ——ここは画面ごとに `it` を書く形なので、画面が増えても自動では入らない。
+ *
  * 一方 `/login`・`/signup`・`/admin/login`・`/user/albums`・`FilterBar` は
  * 前から `htmlFor` を持っている（`68e0a6d` の周で直した分）。
  * **同じ規則の入口が半分残っていた**、という台帳のいつもの型。
@@ -50,14 +55,17 @@ vi.mock("../../lib/utils/image", () => ({
     AVATAR_MAX_PX: 512, COVER_MAX_PX: 1280,
 }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-// ブロック一覧と退会モーダルはプロフィール画面の境界の外（別ファイルで見る）
-vi.mock("../user/profile/BlockedUsers", () => ({ default: () => null }));
+// ブロック一覧は設定画面の境界の外（`BlockedUsers.test.tsx` で見る）。
+// **2026-09-21 に `user/profile/` から `user/settings/` へ移した。**
+// 古いパスのままでも vitest は黙って素通りするので、移設に気づけない
+vi.mock("../user/settings/BlockedUsers", () => ({ default: () => null }));
 
 // **モジュールの読み込み時に読まれる**（`CLOUDFRONT_URL` は module スコープ）ので
 // import より前に置く。これが無いとカバー写真は「未設定」の枝しか描けない
 process.env.NEXT_PUBLIC_CLOUDFRONT_URL = "https://cdn.example";
 
 const ProfilePage = (await import("../user/profile/page")).default;
+const SettingsPage = (await import("../user/settings/page")).default;
 const UserEditPage = (await import("../user/edit/page")).default;
 const AdminEditPage = (await import("../admin/edit/page")).default;
 const DeleteAccountModal = (await import("../components/DeleteAccountModal")).default;
@@ -135,6 +143,15 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         // カバー未設定のときは、中に見えている文字と同じ言葉にする
         expect(container.querySelector('img[src*="/cover"]')).toBeNull();
         expect(coverButton(container)?.getAttribute("aria-label")).toBe("カバー写真を追加");
+    });
+
+    // 移設で外に出ていた4つの入力欄（メール2段・パスワード2つ）
+    it("/user/settings", async () => {
+        const { container } = render(<SettingsPage />);
+        await screen.findByRole("heading", { name: "設定" });
+        expect(orphanLabels(container)).toEqual([]);
+        expect(unnamedFields(container)).toEqual([]);
+        expect(danglingRefs(container)).toEqual([]);
     });
 
     it("/user/edit", async () => {

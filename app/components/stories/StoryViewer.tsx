@@ -129,6 +129,12 @@ export function storyDurationMs(durationSec: unknown): number {
 type Props = {
     groups: StoryGroup[];
     initialGroupIndex: number;
+    /**
+     * 最初に出す1枚（その束の中の添字）。省略時は先頭。アーカイブの
+     * グリッドで押した1枚から始めるために要る——先頭からしか始められないと、
+     * 30枚目を見るのに29回送ることになる
+     */
+    initialItemIndex?: number;
     locale: "ja" | "en";
     ownUserId?: string | null;
     isAuthenticated: boolean;
@@ -157,9 +163,9 @@ type Props = {
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, initialItemIndex = 0, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
-    const [i, setI] = useState(0);
+    const [i, setI] = useState(initialItemIndex);
     // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
     // state 経由にしていた頃は timeupdate（仕様上ブラウザ任せ・実測 250ms
     // 間隔）でしか動かず、120ms の transition で補間しても線が
@@ -336,7 +342,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, [viewersOpen, viewersError]);
 
     useEffect(() => {
-        if (!item || !isOwnStory) return;
+        // **アーカイブ（`archivedAt` あり）では引かない。** サーバーは期限切れに
+        // 必ず 0 人を返す（他人の名前は期限とともに消える側）ので、往復が
+        // 1枚ごとに1本増えるだけ（同時実行はアカウント全体で10）
+        if (!item || !isOwnStory || item.archivedAt) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
         // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
         // 出ていた（「誰が見たか」は見せ方として敏感な情報なので、
@@ -1227,7 +1236,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             : "env(safe-area-inset-bottom, 0px)",
                     }}
                 >
-                    {isOwnStory && (
+                    {/* アーカイブでは出さない——必ず 0 人で、押しても何も無い
+                        ボタンを置かない（すぐ下の返信バッジと同じ線） */}
+                    {isOwnStory && !item.archivedAt && (
                         <button
                             onClick={() => setViewersOpen(true)}
                             aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
@@ -1272,7 +1283,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         検索にも出ないが、写真には個別ページも地図も集約ページも
                         ある。この1枚だけ、**下書きの写真**として残す
                         （公開は編集画面で本人が押す）。動画は写真の行にできない */}
-                    {isOwnStory && item.mediaType !== "video" && (
+                    {/* **「アーカイブに自動保存」の投稿には出さない。** 残した写真と
+                        ストーリーは S3 の実体を共有し、写真を消すとアーカイブごと
+                        消える。サーバーも 409 で断る（`storyKeep.ts`）ので、押しても
+                        断られるだけのボタンを置かない */}
+                    {isOwnStory && item.mediaType !== "video" && item.archive !== true && (
                         keptPhotoId || item.keptAs ? (
                             <Link
                                 /* **URL を手で書かない**（`ROUTES.EDIT` と1文字同じものを
@@ -1553,8 +1568,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
-                                        ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
-                                        : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
+                                        ? "Blocking also removes follows in both directions. You can unblock from Settings."
+                                        // 行き先は**設定**（2026-09-21 にプロフィール編集から移設）。
+                                        // `BlockedUsers` は `/user/settings` の「プライバシー」に居る
+                                        : "ブロックすると、お互いのフォローも外れます。解除は設定の「ブロックした人」からできます。"}
                                 </p>
                             )}
                             {/* ブロックが効かなかった理由（`replyError` と同じ形） */}

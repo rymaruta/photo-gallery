@@ -493,6 +493,16 @@ export default function StoriesBar() {
      * から漏れる口を作ることになる。
      */
     const [showLocation, setShowLocation] = useState(true);
+    /**
+     * アーカイブに自動保存。**既定は切**＝これまでどおり24時間で消える。
+     * 入にしたぶんだけ、期限切れの掃除が消さずに棚へ移す（本人だけが
+     * `/user/archive` で見られる）。「24時間で消える約束」を守るのはここ
+     * ——残るのは本人が選んだぶんだけ。
+     *
+     * 入にした投稿は「残す」（ギャラリーへ）を押せない（実体を共有する
+     * ので、写真を消すとアーカイブごと消えるため。サーバーも 409）
+     */
+    const [archive, setArchive] = useState(false);
 
     // 試聴用オーディオ（検索結果も選択中の曲も、常に1つだけ鳴らす）
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -692,6 +702,7 @@ export default function StoriesBar() {
         setVisibility("public");
         setAllowReplies(true);
         setShowLocation(true);
+        setArchive(false);
     }, [stopPreview, clearSongSearch]);
 
     // 下書きのプレビューURLを必ず解放する。
@@ -1006,6 +1017,7 @@ export default function StoriesBar() {
                     // サーバーでも今までどおり動く**
                     ...(visibility !== "public" ? { visibility } : {}),
                     ...(allowReplies ? {} : { allowReplies: false }),
+                    ...(archive ? { archive: true } : {}),
                 }),
             });
             if (!saveRes.ok) {
@@ -1059,7 +1071,7 @@ export default function StoriesBar() {
             setPosting(false);
         }
     }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec,
-        visibility, allowReplies, showLocation,
+        visibility, allowReplies, showLocation, archive,
         locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
@@ -1990,9 +2002,8 @@ export default function StoriesBar() {
                         )}
 
                         {/* 公開設定（モックの「公開設定」）。
-                            **「親しい友達」と「アーカイブに自動保存」はまだ出さない**
-                            ——前者は人を選ぶ一覧、後者はアーカイブそのものが
-                            要る。押しても何も起きないものを置かない */}
+                            **「親しい友達」はまだ出さない**——人を選ぶ一覧が要る。
+                            押しても何も起きないものを置かない */}
                         <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
                             <p className="text-white/50" style={{ fontSize: "11px" }}>
                                 {locale === "en" ? "Sharing" : "公開設定"}
@@ -2033,6 +2044,15 @@ export default function StoriesBar() {
                                 label={locale === "en" ? "Allow replies" : "返信を許可"}
                                 checked={allowReplies}
                                 onChange={setAllowReplies}
+                                disabled={posting}
+                            />
+
+                            {/* 既定は切（24時間で消える）。入にしたぶんだけ本人の
+                                アーカイブに残る。モックの「アーカイブに自動保存」 */}
+                            <SettingSwitch
+                                label={locale === "en" ? "Save to archive" : "アーカイブに自動保存"}
+                                checked={archive}
+                                onChange={setArchive}
                                 disabled={posting}
                             />
 

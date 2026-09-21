@@ -117,6 +117,37 @@ owner の「デザインだけ完成して操作できない画面は作らな�
 - `robots.ts` の追記は**不要**（disallow に `/user/` が既に入っている）。
   `appPageMetadata` の noindex は要る
 
+### ⑩⑫ の積み残し（2026-09-21・レビューで出たぶん）
+
+**直した**（`c600c69` / `29c1a11`）:
+
+- テストが走らせた時刻で落ちる。区分は暦日なのに `Date.now() - 3 * HOUR` を
+  「今日」として作っていた。実測 `TZ=Australia/Brisbane`（現地 00:37）で3件
+  落ち、`TZ=UTC`（14:37）では全緑。**CI は UTC なので JST の朝に流すと
+  この窓に入る**。時刻は `dayAt`（その日の正午を基準）に集約した
+- 🔴 **閉じた直後に着地した古い GET が「新着」を据え直す。** `closePanel` が
+  境界を捨てた後に、開いていた頃の応答が `openRef === false` の枝で
+  `bound` を書き戻す → 次に開くと「開いている間は下げない」に守られて
+  **永久に「新着」が出続ける**。`panelSeqRef`（開閉の世代）で塞いだ
+- Escape で通知パネルを閉じる／矢印キーでフォーカスも移す
+- 未ログインで `/user/settings` を開くと、送り返すまで中身が丸ごと見えていた
+- 移設で死んだ `vi.mock`（10ファイル）。`labelAssociation` に
+  `/user/settings` のケースを足した（移した入力欄4つが見張りの外に出ていた）
+
+**残っている**:
+
+- ⚠️ **`api-user/src/follow.ts:418` が「解除はプロフィール設定の
+  『ブロックした人』からできます」と返す。** 画面側は「設定の」に直したので
+  **サーバーだけ古い**。api-user を触る回に束ねること（触ると
+  `deploy-api.yml` が4.5分走るため、単独では出さない）
+- 通知の行の `key` が添字を含む（先頭に1件挿入されると全行が作り直される）
+- タブのキーボード処理が `SpotPageClient` と二重。`lib/utils/tabKeys.ts` に
+  純関数を置く案は別の回
+- `/user/settings` の門が `useMemberGate` を写している（写す理由は上の節）
+- 通知パネルの節の見出しが `span`（`h2` にすると階層が整う）
+- **`vi.mock` が存在しないパスを指しても vitest は黙る。** 今回の死にコードが
+  見えなかった理由。パスの実在を見張る手は入れていない
+
 ## 決めたこと（owner の回答・2026-09-21）
 
 - **複数枚: やる。** SEO の面積が減る向き（`/photo/<id>` が 30ページある）だと
@@ -245,7 +276,7 @@ owner の指示は Photo Quest → Color Journey → Moment Match → Photo Rela
 | | 実データでの発火 | 判断 |
 |---|---|---|
 | Photo Quest | テーマ表示は投稿者の人数に依らず出る | **owner が「いらない」**（9/21）。作りかけは `claude/photo-quest-parked` に退避・PR には入れない |
-| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/search/ColorJourney.tsx`） |
+| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/components/ColorJourney.tsx`） |
 | Moment Match | **0件**——撮影日を持つ17枚のうち、2人以上が同じ日を持つ日は **0日** | **作らない**。人が増えて再測定するまで保留 |
 | Photo Relay | 担い手が **2人**（実質1人） | **作らない**。同上 |
 
@@ -260,16 +291,20 @@ owner の指示は Photo Quest → Color Journey → Moment Match → Photo Rela
   ただし**明度 0.08 未満は色味があっても黒**——HSL の彩度は真っ黒に近いほど
   跳ね上がり、`#180808`（明度 0.063）が「赤」になっていた（レビューで発見・
   本番3枚が該当）
-- **`GalleryPageClient` を触らないことで残る3つ**（承知のうえ）: `usePhotos`
-  が2つ動く（`GET /photos` が2回）／ビルド後の写真はモーダルでなくトップへ
-  遷移／ログイン中の「自分」絞り込みと色の内訳（全員）が食い違う。
-  あちらが落ち着いたら寄せて解く
+- ~~**`GalleryPageClient` を触らないことで残る3つ**~~ → **解いた（#72 のあと）。**
+  部品を `app/components/ColorJourney.tsx` に移し、`GalleryPageClient` の
+  「さがす」面が **`filteredPhotos`・`openById`・`categoryDisplayMap` を渡して描く**
+  形にした。写真を取りに行く部品ではなくなったので:
+  `usePhotos` は1つ／色のグリッドも下と同じモーダルで開く／色の内訳は
+  **絞り込み後の一覧の中**で数える（タグの件数バッジと同じ考え方）。
+  `app/__tests__/GalleryPageClient.colorJourney.test.tsx` が3つとも固定
+  （修正前のコードで 4/5 落ちることを確かめた）
 - **限界: 緑・赤・桃・紫は本番で0枚。** `dominantColor` は最頻1ビン＝影の色に
   なりやすい。`blurDataURL` の分布なら緑が7枚立つところまで確かめたが、
   閾値で答えが変わり検証の術が無いので採らなかった。owner が数枚見て
   決められるようになったら差し替える
-- `GalleryPageClient` には触っていない（別作業中・トップと共用）。
-  `/search` の上に部品を足しただけ
+- 最初は `GalleryPageClient` に触らず `/search` の上に部品を足しただけだった
+  （別作業中・トップと共用）。④-b が落ち着いたあとで中へ寄せた（上の項）
 - 実ブラウザで確認済み（本番の色を手元で注入して build → Chromium で
   390px/1280px とも 5チップ・32px・選択で11枚・解除で0枚・横はみ出しなし）
 

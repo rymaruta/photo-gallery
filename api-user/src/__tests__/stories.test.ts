@@ -922,7 +922,7 @@ describe("viewStory", () => {
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand");
         expect(updates).toHaveLength(2);
         for (const u of updates) {
-            expect(u.input.ConditionExpression).toBe("attribute_exists(id)");
+            expect(u.input.ConditionExpression).toBe("attribute_exists(id) AND attribute_not_exists(archivedAt)");
         }
     });
 
@@ -1211,7 +1211,13 @@ describe("cleanupExpiredStories", () => {
             input: { FilterExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
         };
         expect(scan.constructor.name).toBe("ScanCommand");
-        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now");
+        // アーカイブ済み（`storyFeed` を外し `archivedAt` を刻んだ行）は拾わない
+        // ——毎時撫で直さないための絞り込み。**式全体を完全一致で見る唯一の
+        // 見張り**（`storyArchive.test.ts` は重ねない）: DynamoDB は AND が OR
+        // より先に結びつくので、括弧が落ちると `(... AND storyFeed) OR
+        // archivedAt 無し`＝表の写真・コメント・印の行が全部「期限切れ」として
+        // 削除の経路に流れる
+        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
         expect(scan.input.ExpressionAttributeValues?.[":t"]).toBe(true);
     });
 });
