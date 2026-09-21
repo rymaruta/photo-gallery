@@ -51,6 +51,11 @@ API_BASELINE=11
 # 116 → 118: 通報のハンドラ（`report.ts`）を1つ足したぶん。
 # 118 → 120: いいねした写真の一覧（`likes.getMyLikes`）を1つと、
 #            対テスト（`userList.test.ts`）を1ファイル足したぶん。
+# 120 → 129: 行きたい場所（`savedSpots.ts`）のハンドラ3つ（TS2307 が1・
+#            その帰結の暗黙 any が3）と、対テスト2ファイル（先頭の
+#            `await import` が 1 + 4）。**中身を1件ずつ確かめた**
+#            ——`main` の姿を作り直して差分を取り、9件とも既知の形
+#            （`aws-lambda` の型がルートから見えないぶん）であることを見た。
 # 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any で、
 # **全ハンドラが同じ形**（`@types/aws-lambda` は package.json に在るが、
 # ルートから見た型検査には入らない）。CI は api-user で npm ci を打つので出ない。
@@ -65,7 +70,7 @@ API_BASELINE=11
 # 土俵では出ない。つまり **120 は緩すぎて、71件ぶんの増加を見逃す**。
 # 下げるのは別の作業（並行しているブランチも同じ関門を通るため、
 # ここでは測った数だけ書き残す）。
-API_USER_BASELINE=120
+API_USER_BASELINE=129
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
@@ -84,6 +89,24 @@ check_side_tsc() { # check_side_tsc <dir> <baseline>
     # 「増えていない」という判定が意味を持つのは、同じ土俵のときだけ。
     if [ ! -d "$1/node_modules" ]; then
         echo "::error:: $1/node_modules がありません。\`cd $1 && npm ci\` を打ってから測ってください"
+        return 1
+    fi
+    # **`$1/node_modules` が在っても、土俵が同じとは限らない。**
+    # `api` の package.json には `@types/node` も `vitest` も無く、モジュール解決の
+    # 親ディレクトリ探索で**ルートの node_modules を拾っている**。ルート側が
+    # 未インストールだと `console` / `process` / `require` が無い（TS2584/2580/2304）
+    # と `Cannot find module 'vitest'`（TS2307）で数十件ぶれる。実測:
+    #     ルートの node_modules 無し ＋ api/node_modules 有り → 97件
+    #     両方有り                                       → 11件（基準ぴったり）
+    # 11 の正体は TS1378（テストのトップレベル await）×10 と
+    # `api/src/photos.ts:132` の TS2322 ×1。残り86件は全部「依存が解決できて
+    # いないだけ」のノイズで、それを「本物の増加」と誤報していた。
+    #
+    # **エラーコードで判定しない。** api-user の基準120は `Cannot find module
+    # 'aws-lambda'`（TS2307）で構成されているので、コードで落とすとあちらの
+    # 関門が壊れる。代わりに「$1 から2つの依存が解決できるか」を先に見る。
+    if ! (cd "$1" && node -e 'require.resolve("vitest/package.json"); require.resolve("@types/node/package.json")' 2>/dev/null); then
+        echo "::error:: $1 から vitest / @types/node が解決できません（ルートで npm ci を打ってから測ってください）"
         return 1
     fi
 

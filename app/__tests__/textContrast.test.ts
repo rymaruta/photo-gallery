@@ -265,6 +265,9 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/components/MiniPlayer.tsx", 'MusicalNoteIcon className="w-4 h-4 text-white/30"', "アートワークが無いときの絵（2.46:1）"],
         ["app/components/MusicCard.tsx", 'MusicalNoteIcon className="w-6 h-6 text-white/30"', "同上（2.46:1）"],
         ["app/favorites/page.tsx", 'HeartIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
+        // 「保存した写真」の空のとき。**いいねした写真と同じ濃さに揃える**
+        // ——並ぶ2ページで片方だけ濃いと、別の意味があるように見える
+        ["app/saves/page.tsx", 'BookmarkIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
         ["app/user/drafts/page.tsx", 'PhotoIcon className="w-12 h-12 mx-auto mb-3 text-white/20"', "空のときの絵（1.66:1）"],
         ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
         ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],
@@ -285,8 +288,9 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-red-400', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
-        // **この走査は「黒地」を前提にしている。** 白い下地の上の文字は別
-        ["app/components/PhotoMap.tsx", 'loc.className = "text-xs text-gray-600"', "地図のポップアップは白地（gray-600 で約 7.5:1）"],
+        // 地図のポップアップ（白地の `text-gray-600`）はもう無い。
+        // 写真の中身は黒地のボトムシート（`app/map/MapPhotoSheet.tsx`）が
+        // 描くので、この走査の前提（黒地）にそのまま乗る
     ];
     const isExempt = (file: string, line: string) =>
         EXEMPT.some(([f, marker]) => f === file && line.includes(marker));

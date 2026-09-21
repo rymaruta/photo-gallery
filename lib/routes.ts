@@ -55,6 +55,8 @@ export function hasPhotoPage(id: string): boolean {
 export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
+    /** 保存した写真（ブックマーク）。**`FAVORITES`（いいね）とも `SAVED_SPOTS` とも別のページ** */
+    SAVES: "/saves",
     /**
      * 行きたい場所（保存した撮影スポット）。**写真の「保存」とは別物**。
      * **検索結果に出さない**——本人だけが見られる中身なので、
@@ -74,6 +76,15 @@ export const ROUTES = {
     ALBUMS: "/user/albums",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
+    /**
+     * 設定（アカウント・プライバシー・サポート）。**本人だけの画面**なので
+     * `appPageMetadata` で noindex（`robots.txt` は `/user/` を丸ごと
+     * 拒否しているので追記不要）。
+     *
+     * プロフィール編集（`PROFILE_EDIT`）とは別物。あちらは「他人に見える
+     * 自分」を作る画面で、こちらは**アカウントそのもの**の設定。
+     */
+    SETTINGS: "/user/settings",
     USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)

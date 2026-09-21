@@ -40,6 +40,7 @@ const EXEMPT: Array<[string, string]> = [
     ["app/user/drafts/page.tsx", "自分の下書き"],
     ["app/user/edit/page.tsx", "自分の写真の編集"],
     ["app/user/profile/page.tsx", "自分のプロフィール設定"],
+    ["app/user/settings/page.tsx", "設定（ログインした本人だけが描かれる）"],
     ["app/components/FollowingSheet.tsx", "フォロー一覧のシート（開くのはログイン後）"],
     ["app/components/MemberOnlyNotice.tsx", "投稿権限が無い人への案内"],
     ["app/components/NotificationsBell.tsx", "通知（ログイン中だけ出る）"],
