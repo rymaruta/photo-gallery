@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeftIcon, CheckIcon, LockClosedIcon } from "@heroicons/react/24/outline";
@@ -84,9 +84,16 @@ function HighlightEditor() {
         if (isAuthenticated) void loadArchive();
     }, [isAuthenticated, loadArchive]);
 
-    // 直すとき: 今の題・中身・表紙
+    /**
+     * 直すとき: 今の題・中身・表紙。**同じ id で読むのは1回。**
+     * 依存（`router`・`showToast`）が作り直されて効果が走り直しても、
+     * 選び直した途中の選択を読み直しで上書きしない（テストの `useRouter` は
+     * 毎回新しいオブジェクトを返し、実際に上書きが起きた）
+     */
+    const loadedForRef = useRef<string | null>(null);
     useEffect(() => {
         if (!isAuthenticated || !userId || !editingId) return;
+        if (loadedForRef.current === editingId) return;
         let alive = true;
         void (async () => {
             try {
@@ -101,6 +108,7 @@ function HighlightEditor() {
                 const data = (await res.json()) as HighlightDetail;
                 if (!alive) return;
                 const ids = (Array.isArray(data.items) ? data.items : []).map((s) => s.id).filter((v): v is string => typeof v === "string");
+                loadedForRef.current = editingId;
                 setTitle(typeof data.title === "string" ? data.title : "");
                 setSelected(ids);
                 setCover(typeof data.coverStoryId === "string" && ids.includes(data.coverStoryId) ? data.coverStoryId : ids[0] ?? null);
