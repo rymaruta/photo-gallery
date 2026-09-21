@@ -1242,7 +1242,7 @@ function UploadPageInner() {
                                     // 名前を種別で分ける（すぐ下のタグのチップと綴りが
                                     // 重なる語がある。見えている語はそのまま含める）
                                     aria-label={locale === "en" ? `Category: ${c}` : `カテゴリ: ${c}`}
-                                    className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                    className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     {c}
@@ -1285,7 +1285,7 @@ function UploadPageInner() {
                                         disabled={uploading}
                                         role="switch"
                                         aria-checked={on}
-                                        className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                        className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                         style={{ touchAction: "manipulation" }}
                                     >
                                         {t}
@@ -1514,7 +1514,7 @@ function UploadPageInner() {
                             <button
                                 onClick={() => handleUploadAll(true)}
                                 disabled={uploading || metaLoading || pendingCount === 0}
-                                className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {uploading
@@ -1629,7 +1629,7 @@ function UploadPageInner() {
                                     }
                                 }}
                                 disabled={avatarUploading}
-                                className="px-3 py-2 text-sm bg-white text-black rounded-full font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                                className="px-3 py-2 text-sm bg-accent-fill text-white rounded-full font-medium hover:bg-accent transition-colors disabled:opacity-50"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {avatarUploading

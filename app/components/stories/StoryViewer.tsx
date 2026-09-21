@@ -1229,7 +1229,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                    書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
                                    他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
                                 href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />

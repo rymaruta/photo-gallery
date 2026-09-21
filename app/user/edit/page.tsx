@@ -754,7 +754,7 @@ function EditContent() {
                     <p className="text-sm text-white/70 mb-4">{message}</p>
                     <Link
                         href={ROUTES.DRAFTS}
-                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:bg-accent transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {isJa ? "下書き一覧へ" : "Back to drafts"}
@@ -980,7 +980,7 @@ function EditContent() {
                                             // 並ぶことになる（`749bfce2` で潰した型）。
                                             // 見えている語はそのまま含める（WCAG 2.5.3）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             {c}
@@ -1020,7 +1020,7 @@ function EditContent() {
                                                 onClick={() => setTagsInput((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {t}
@@ -1227,7 +1227,7 @@ function EditContent() {
                         type="button"
                         onClick={() => void save(true)}
                         disabled={saving}
-                        className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40"
+                        className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving

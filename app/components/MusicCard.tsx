@@ -76,7 +76,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 <button
                     onClick={() => music.play(queueKey, songs, index, label)}
                     aria-label={playing ? (locale === "en" ? "Pause" : "一時停止") : (locale === "en" ? "Play" : "再生")}
-                    className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
+                    className="w-10 h-10 rounded-full bg-accent-fill text-white flex items-center justify-center hover:bg-accent active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
                 >
                     {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5 ml-0.5" />}
                 </button>

@@ -327,7 +327,7 @@ function AdminEditContent() {
                     </p>
                     <Link
                         href={ROUTES.ADMIN}
-                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:bg-accent transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Back to admin" : "管理画面へ"}
@@ -515,7 +515,7 @@ function AdminEditContent() {
                         <button
                             type="submit"
                             disabled={saving}
-                            className="flex-1 py-2 bg-white text-black rounded-lg font-medium text-sm hover:bg-white/90 disabled:opacity-50 transition-colors"
+                            className="flex-1 py-2 bg-accent-fill text-white rounded-lg font-medium text-sm hover:bg-accent disabled:opacity-50 transition-colors"
                         >
                             {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "保存" : "Save")}
                         </button>

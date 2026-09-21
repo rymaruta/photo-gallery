@@ -508,7 +508,7 @@ export default function NotificationsBell() {
                                     いま何の区分を見ているか分からなくなる）。
                                     **透けない下地**を敷かないと行が裏を通る */}
                                 <h3
-                                    className={`sticky top-0 z-10 bg-[#16181c] px-4 py-1.5 font-semibold ${bucket === "new" ? "text-sky-400" : "text-white/50"}`}
+                                    className={`sticky top-0 z-10 bg-[#16181c] px-4 py-1.5 font-semibold ${bucket === "new" ? "text-link" : "text-white/50"}`}
                                     style={{ fontSize: "11px", letterSpacing: "0.08em" }}
                                 >
                                     {BUCKET_LABEL[bucket][locale === "en" ? "en" : "ja"]}
@@ -540,7 +540,7 @@ export default function NotificationsBell() {
                                                 <p className="text-[13px] text-white/85 leading-snug break-words">
                                                     {n.type === "follow" ? (
                                                         <>
-                                                            <UserPlusIcon className="w-3.5 h-3.5 text-sky-400 inline -mt-0.5 mr-1" />
+                                                            <UserPlusIcon className="w-3.5 h-3.5 text-link inline -mt-0.5 mr-1" />
                                                             {locale === "en"
                                                                 ? <><span className="font-semibold">{n.byName}</span> followed you</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたをフォローしました</>}

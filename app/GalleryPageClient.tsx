@@ -415,7 +415,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               onClick={() => setFilters({ scope: t.key })}
               aria-pressed={filters.scope === t.key}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filters.scope === t.key ? "bg-white text-black" : "text-white/70 hover:text-white"
+                filters.scope === t.key ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
               }`}
               style={{ touchAction: "manipulation" }}
             >

@@ -1166,7 +1166,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
-                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-white text-black ring-white" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-accent-fill text-white ring-accent" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
                                 title={locale === "en" ? "Share" : "共有"}
                                 aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
                             >
@@ -1349,7 +1349,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         {/* 3つ目は自明な指標のみ: 旅した距離（GPSがある時だけ）。無ければ出さない */}
                         {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (
                             <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
-                                <GlobeAltIcon className="w-3 h-3 text-sky-400" />
+                                <GlobeAltIcon className="w-3 h-3 text-link" />
                                 <span className="text-sm font-bold tabular-nums leading-none">{Math.round(footprint.distanceKm).toLocaleString()}</span>
                                 <span className="text-[11px] text-white/60">km</span>
                             </div>
@@ -1470,7 +1470,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setPostOpen(true)}
                                 aria-haspopup="dialog"
                                 aria-expanded={postOpen}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors"
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 <PlusIcon className="w-4 h-4" strokeWidth={2.5} />
@@ -1551,7 +1551,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
+                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}

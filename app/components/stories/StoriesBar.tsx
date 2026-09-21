@@ -1326,7 +1326,7 @@ export default function StoriesBar() {
                         <div className="relative flex justify-center pb-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
                             <button
                                 onClick={() => setPhotoOnly(false)}
-                                className="px-6 py-3 rounded-full bg-white text-black text-sm font-semibold active:scale-95 transition"
+                                className="px-6 py-3 rounded-full bg-accent-fill text-white text-sm font-semibold active:scale-95 transition"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {locale === "en" ? "Done" : "完了"}
@@ -1454,7 +1454,7 @@ export default function StoriesBar() {
                                             aria-checked={current?.font === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ font: k })}
-                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.font === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
                                             style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
                                         >
                                             {STORY_FONTS[k].label}
@@ -1518,7 +1518,7 @@ export default function StoriesBar() {
                                                 aria-checked={current?.bg === k}
                                                 disabled={posting}
                                                 onClick={() => patchSelected({ bg: k })}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.bg === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: "12px" }}
                                             >
                                                 {k === "none"
@@ -1773,7 +1773,7 @@ export default function StoriesBar() {
                                             disabled={posting}
                                             aria-pressed={durationSec === s}
                                             className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s
-                                                ? "bg-white text-black font-semibold"
+                                                ? "bg-accent-fill text-white font-semibold"
                                                 : "bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white/70"}`}
                                         >
                                             {s}
@@ -1813,7 +1813,7 @@ export default function StoriesBar() {
                                             // すぐ上の表示時間の選択と同じ綴りに揃える
                                             aria-pressed={visibility === v}
                                             className={`px-3 py-1.5 rounded-full transition active:scale-95 disabled:opacity-40 ${visibility === v
-                                                ? "bg-white text-black font-semibold"
+                                                ? "bg-accent-fill text-white font-semibold"
                                                 : "bg-white/5 ring-1 ring-white/10 text-white/60"}`}
                                             style={{ fontSize: "12px", touchAction: "manipulation" }}
                                         >
@@ -1869,7 +1869,7 @@ export default function StoriesBar() {
                         <button
                             onClick={() => void handlePost()}
                             disabled={posting}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             style={{ touchAction: "manipulation" }}
                         >
                             {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}

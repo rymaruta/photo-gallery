@@ -207,7 +207,7 @@ export default function MiniPlayer() {
                     <button
                         onClick={music.toggle}
                         aria-label={playing ? "一時停止" : "再生"}
-                        className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 active:scale-95 transition flex-shrink-0"
+                        className="w-8 h-8 rounded-full bg-accent-fill text-white flex items-center justify-center hover:bg-accent active:scale-95 transition flex-shrink-0"
                     >
                         {playing ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 ml-0.5" />}
                     </button>

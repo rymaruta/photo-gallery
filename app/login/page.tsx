@@ -258,7 +258,7 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={submitting || !username || !password}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -309,7 +309,7 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={submitting || !username}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -359,7 +359,7 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={submitting || resetCode.trim().length < 6 || !newPassword}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -378,7 +378,7 @@ function LoginForm() {
                         <p className="text-white/60 text-sm">パスワードが更新されました。</p>
                         <button
                             onClick={() => { setStep("login"); setError(""); setPassword(""); }}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent active:scale-[0.98] transition"
                         >
                             ログインする
                         </button>

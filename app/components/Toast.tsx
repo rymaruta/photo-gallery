@@ -40,7 +40,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
             case "error":
                 return <span className="w-7 h-7 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0"><ExclamationCircleIcon className="w-[18px] h-[18px] text-red-400" /></span>;
             case "info":
-                return <span className="w-7 h-7 rounded-full bg-sky-500/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-sky-400" /></span>;
+                return <span className="w-7 h-7 rounded-full bg-sky-500/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-link" /></span>;
             default:
                 return <span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-white/60" /></span>;
         }

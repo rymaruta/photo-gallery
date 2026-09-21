@@ -34,7 +34,7 @@ export default function Footer() {
                     {/* ブランド + タグライン */}
                     <div>
                         <p className="inline-flex items-center gap-1.5 text-base font-bold tracking-wide text-white">
-                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400" />
+                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-link" />
                             Journey Photo
                         </p>
                         <p className="mt-1.5 text-xs text-white/50">

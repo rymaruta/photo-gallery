@@ -86,7 +86,7 @@ export default function SaveSpotButton({
                 // 分からない間に `false` を渡すと「押されていない」と読み上げる
                 aria-pressed={saved === undefined ? undefined : saved}
                 aria-busy={saved === undefined || working}
-                className={`${BTN} ${saved ? "bg-white text-black ring-white" : ""} disabled:opacity-60`}
+                className={`${BTN} ${saved ? "bg-accent-fill text-white ring-accent" : ""} disabled:opacity-60`}
                 style={{ touchAction: "manipulation", minHeight: 44 }}
             >
                 {saved

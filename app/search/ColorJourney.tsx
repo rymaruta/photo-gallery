@@ -130,7 +130,7 @@ export default function ColorJourney() {
                             onClick={() => setSelected(active ? null : bucket.id)}
                             className={`inline-flex items-center gap-1.5 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
                                 active
-                                    ? "bg-white text-black font-medium"
+                                    ? "bg-accent-fill text-white font-medium"
                                     : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"
                             }`}
                             style={{
@@ -149,7 +149,7 @@ export default function ColorJourney() {
                                 }}
                             />
                             <span>{bucket.label}</span>
-                            <span className={active ? "text-black/55 text-[11px]" : "text-white/50 text-[11px]"}>
+                            <span className={active ? "text-white/80 text-[11px]" : "text-white/50 text-[11px]"}>
                                 {inBucket.length}
                             </span>
                         </button>

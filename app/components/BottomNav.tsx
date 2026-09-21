@@ -184,7 +184,7 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
             aria-current={active ? "page" : undefined}
-            className={`${cell} transition-colors ${active ? "text-white" : "text-white/60 hover:text-white"}`}
+            className={`${cell} transition-colors ${active ? "text-accent" : "text-white/60 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />

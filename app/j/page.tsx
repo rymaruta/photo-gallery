@@ -154,7 +154,7 @@ function InviteView() {
                         <Link
                             href={`${ROUTES.UPLOAD}?album=${encodeURIComponent(album.id)}`}
                             prefetch={false}
-                            className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
+                            className="inline-block rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                         >
                             写真を追加する
                         </Link>
@@ -165,7 +165,7 @@ function InviteView() {
                             type="button"
                             onClick={join}
                             aria-disabled={joining}
-                            className="rounded-full bg-white text-black text-sm px-5 py-2.5"
+                            className="rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                             style={{ minHeight: 44 }}
                         >
                             {joining ? "参加しています…" : "このアルバムに参加する"}
@@ -177,7 +177,7 @@ function InviteView() {
                             <Link
                                 href={`${ROUTES.LOGIN}?next=${encodeURIComponent(`/j?t=${token}`)}`}
                                 prefetch={false}
-                                className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
+                                className="inline-block rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                             >
                                 ログインして参加する
                             </Link>

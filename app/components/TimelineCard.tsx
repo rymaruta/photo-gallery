@@ -190,8 +190,8 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
                             key={t}
                             href={collectionPath("tag", slugify(t, "tag"))}
                             prefetch={false}
-                            className="text-white/60 hover:text-white transition-colors"
-                            style={{ fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
+                            className="inline-flex items-center rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                            style={{ fontSize: "12px", lineHeight: "16px", padding: "3px 9px", touchAction: "manipulation" }}
                         >
                             #{t.replace(/^#/, "")}
                         </Link>
