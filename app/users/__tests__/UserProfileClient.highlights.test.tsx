@@ -68,6 +68,22 @@ describe("マイページのハイライト", () => {
         expect(screen.queryByTestId("highlights-row")).toBeNull();
     });
 
+    // PM:「マイページの輪＝アーカイブの入口もここ」。輪はハイライトで、
+    // アーカイブ（本人だけのもの）は輪にせず、下書きの隣に入口を置く
+    it("本人にはアーカイブへの入口が出る（訪問者には出ない）", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: OWNER } }) });
+        render(<UserProfileClient userId={OWNER} />);
+        const link = await screen.findByRole("link", { name: "アーカイブ →" });
+        expect(link.getAttribute("href")).toBe("/user/archive");
+    });
+
+    it("訪問者にアーカイブへの入口は出ない", async () => {
+        render(<UserProfileClient userId={OWNER} />);
+        expect(await screen.findByText("旅人")).toBeInTheDocument();
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+        expect(screen.queryByRole("link", { name: "アーカイブ →" })).toBeNull();
+    });
+
     it("本人には0件でも「新規」が出る", async () => {
         mockUserPublicFetch.mockImplementation(publicApi([]));
         mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: OWNER } }) });

@@ -1490,6 +1490,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             >
                                 {locale === "en" ? "Drafts →" : "下書き →"}
                             </Link>
+                            {/* ストーリーのアーカイブ（本人だけ）。輪はハイライトで、
+                                アーカイブそのものは輪にしない——入口はここ */}
+                            <Link
+                                href={ROUTES.STORY_ARCHIVE}
+                                prefetch={false}
+                                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Archive →" : "アーカイブ →"}
+                            </Link>
                         </div>
                     )}
 
