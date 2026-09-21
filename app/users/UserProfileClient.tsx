@@ -36,6 +36,7 @@ import UserAvatar from "../components/UserAvatar";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
+import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import { publicImageUrl } from "@/lib/utils/seo";
 
@@ -1489,6 +1490,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             >
                                 {locale === "en" ? "Drafts →" : "下書き →"}
                             </Link>
+                            {/* ストーリーのアーカイブ（本人だけ）。輪はハイライトで、
+                                アーカイブそのものは輪にしない——入口はここ */}
+                            <Link
+                                href={ROUTES.STORY_ARCHIVE}
+                                prefetch={false}
+                                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Archive →" : "アーカイブ →"}
+                            </Link>
                         </div>
                     )}
 
@@ -1503,6 +1514,18 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     <StoriesBar />
                 </div>
             )}
+
+            {/* ハイライト（アーカイブから束ねた輪・⑦）。**誰のページにも、誰にでも出る**
+                ——それがハイライトの役目（本人だけのアーカイブは輪にしない）。
+                0件なら本人以外には何も描かない。本人には「新規」と鉛筆が付く */}
+            <HighlightsRow
+                userId={userId}
+                displayName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                isOwner={isOwner}
+                isAuthenticated={viewerAuthed}
+                ownUserId={isOwner ? userId : null}
+                locale={locale as "ja" | "en"}
+            />
 
             {/* コンテンツ（黒背景）: 投稿 / 年表 */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
