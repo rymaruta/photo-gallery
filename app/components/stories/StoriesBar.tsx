@@ -29,9 +29,10 @@ import {
     STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
-    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText,
+    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
     type StoryText,
 } from "../../../lib/utils/storyText";
+import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
 
@@ -279,6 +280,58 @@ export default function StoriesBar() {
             : t)));
         setSelected(index);
     }, []);
+
+    /**
+     * 角のハンドルを掴んでいる間の控え。
+     *
+     * **`draggingIndexRef`（動かす）とは別に持つ。** 同じ ref を使うと、
+     * ハンドルを掴んだ指の動きが「文字を運ぶ」にも流れ込み、
+     * **回しながら文字が指を追って飛んでいく**。
+     */
+    const handleGrabRef = useRef<{ index: number; grab: HandleGrab } | null>(null);
+
+    /**
+     * 傾き・大きさを直に入れる（キーボードとハンドルの両方から）。
+     * **位置は触らない**——回しても置き場所は変わらない。
+     */
+    const transformText = useCallback((index: number, patch: { rotate?: number; size?: number }) => {
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? {
+                ...t,
+                ...(patch.rotate === undefined ? {} : { rotate: clampStoryTextRotate(patch.rotate) }),
+                ...(patch.size === undefined ? {} : { size: clampStoryTextSize(patch.size) }),
+            }
+            : t)));
+        setSelected(index);
+    }, []);
+
+    /**
+     * ハンドルを掴んだ。**文字の箱の中心**を画面の座標で控える
+     * ——回転も拡大縮小も、中心から見た角度と距離で決まる。
+     */
+    const grabTextHandle = useCallback((index: number, e: React.PointerEvent<HTMLElement>) => {
+        const el = (e.currentTarget as HTMLElement).parentElement;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const t = texts[index];
+        if (!t) return;
+        handleGrabRef.current = {
+            index,
+            grab: grabHandle(
+                r.left + r.width / 2, r.top + r.height / 2,
+                e.clientX, e.clientY,
+                clampStoryTextRotate(t.rotate), t.size,
+            ),
+        };
+        setSelected(index);
+        setDragging(true);
+        // **捕まえるのは囲みの方**（ハンドルではなく）。
+        // ハンドルに捕まえると、そのあとの `pointermove` / `pointerup` が
+        // ハンドルへ飛ぶので、**囲みが持っている追随の仕組みを丸ごと
+        // もう一組**書くことになる。囲みに捕まえれば既にある経路を通る。
+        const area = draftMediaAreaRef.current;
+        if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+    }, [texts]);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
@@ -1081,6 +1134,14 @@ export default function StoriesBar() {
                             if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
                         }}
                         onPointerMove={(e) => {
+                            // **ハンドルが先。** 角を掴んでいる間は、
+                            // 同じ指の動きを「文字を運ぶ」に流さない
+                            // （流すと、回しながら文字が指を追って飛んでいく）
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                transformText(h.index, handleMove(h.grab, e.clientX, e.clientY));
+                                return;
+                            }
                             // 余白から始めたなぞりは、**選んでいる文字**を連れていく
                             const press = bgPressRef.current;
                             if (press && draggingIndexRef.current === null
@@ -1093,6 +1154,15 @@ export default function StoriesBar() {
                             moveTextTo(i, e.clientX, e.clientY);
                         }}
                         onPointerUp={(e) => {
+                            // **ハンドルを離した回は、タップの判定に入れない。**
+                            // 入れると、ほとんど動かさずに離したときに
+                            // 「余白をタップした」と読まれて**選択が外れる**
+                            // ——直したばかりの文字が選ばれていない状態になる
+                            if (handleGrabRef.current) {
+                                handleGrabRef.current = null;
+                                setDragging(false);
+                                return;
+                            }
                             // 動かさずに離した＝タップ。選択を外して、ほかの欄を戻す
                             const press = bgPressRef.current;
                             bgPressRef.current = null;
@@ -1104,6 +1174,7 @@ export default function StoriesBar() {
                             setDragging(false);
                         }}
                         onPointerCancel={() => {
+                            handleGrabRef.current = null;
                             bgPressRef.current = null;
                             draggingIndexRef.current = null;
                             setDragging(false);
@@ -1135,6 +1206,8 @@ export default function StoriesBar() {
                                 selectedIndex={selected}
                                 locale={locale}
                                 onNudge={posting ? undefined : nudgeText}
+                                onTransform={posting ? undefined : transformText}
+                                onGrabHandle={posting ? undefined : grabTextHandle}
                                 onPickIndex={posting ? undefined : (i, e) => {
                                     e.preventDefault();
                                     // **囲みへ伝えない。** 囲みの pointerdown は

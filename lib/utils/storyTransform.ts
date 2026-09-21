@@ -1,7 +1,7 @@
 // lib/utils/storyTransform.ts
 // ストーリーの文字を「角のハンドルで拡大縮小・回転する」ための計算。純関数だけ。
 
-import { clampStoryTextSize, normalizeStoryRotate, STORY_SIZE_MIN, STORY_SIZE_MAX } from "./storyText";
+import { clampStoryTextSize, normalizeStoryRotate } from "./storyText";
 
 /**
  * **写しの2本（`storyText.ts`）には入れない。**
@@ -124,24 +124,11 @@ export function stepSize(size: number, direction: 1 | -1): number {
 }
 
 /**
- * ハンドルを置く場所（文字の箱に対する割合ではなく、**回したあとの画面上の点**）。
+ * **ハンドルの位置は計算しない。**
  *
- * 箱は `rotate` だけ回っているので、右下の角も同じだけ回る。
- * 回した先に置かないと、**傾けた文字のハンドルが箱から離れて浮く**。
- *
- * @param w 箱の幅（px）  @param h 箱の高さ（px）  @param rotate 度
- * @returns 箱の中心から見た、右下の角のずれ（px）
+ * ここに「回したあとの角の座標」を出す関数を置いていたが、**使わずに済んだ**
+ * ので消した。ハンドルを**回った箱の子**として置けば CSS が一緒に回すので、
+ * 角度の式を持つ必要が無い。置いていたら、同じ角度の式が
+ * **描く側とここ**の2か所に在ることになっていた——このリポジトリが
+ * 何度も踏んでいる「規則を2か所に書く」型。
  */
-export function handleOffset(w: number, h: number, rotate: number): { dx: number; dy: number } {
-    const r = (normalizeStoryRotate(rotate) * Math.PI) / 180;
-    const x = w / 2;
-    const y = h / 2;
-    return {
-        dx: x * Math.cos(r) - y * Math.sin(r),
-        dy: x * Math.sin(r) + y * Math.cos(r),
-    };
-}
-
-/** 大きさが端に届いているか（つまみの見た目を変えるためだけ） */
-export const atSizeLimit = (size: number) =>
-    size <= STORY_SIZE_MIN + 1e-9 || size >= STORY_SIZE_MAX - 1e-9;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-    angleDeg, distance, grabHandle, handleMove, snapRotate, handleOffset,
-    stepSize, atSizeLimit,
+    angleDeg, distance, grabHandle, handleMove, snapRotate,
+    stepSize,
     ROTATE_SNAP_DEG, ROTATE_SNAP_TARGETS, SIZE_STEP_RATIO,
 } from "../storyTransform";
 import { STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_DEFAULT } from "../storyText";
@@ -166,44 +166,4 @@ describe("キーボードでの拡大縮小", () => {
         expect(n).toBeLessThanOrEqual(30);
     });
 
-    it("端に着いたら分かる", () => {
-        expect(atSizeLimit(STORY_SIZE_MIN)).toBe(true);
-        expect(atSizeLimit(STORY_SIZE_MAX)).toBe(true);
-        expect(atSizeLimit(STORY_SIZE_DEFAULT)).toBe(false);
-    });
-});
-
-/**
- * ハンドルを置く場所。
- *
- * 箱は `rotate` だけ回っているので、右下の角も同じだけ回る。
- * 回した先に置かないと、**傾けた文字のハンドルが箱から離れて浮く**。
- */
-describe("ハンドルの位置", () => {
-    it("傾き 0 なら右下", () => {
-        expect(handleOffset(100, 40, 0)).toEqual({ dx: 50, dy: 20 });
-    });
-
-    it("90度回すと、右下の角も90度回る", () => {
-        const got = handleOffset(100, 40, 90);
-        // (50,20) を時計回りに90度 → (-20,50)
-        expect(got.dx).toBeCloseTo(-20, 6);
-        expect(got.dy).toBeCloseTo(50, 6);
-    });
-
-    it("180度回すと反対側へ", () => {
-        const got = handleOffset(100, 40, 180);
-        expect(got.dx).toBeCloseTo(-50, 6);
-        expect(got.dy).toBeCloseTo(-20, 6);
-    });
-
-    // 回しても、中心からの距離（角までの長さ）は変わらない
-    it("回しても中心からの距離は変わらない", () => {
-        const r0 = handleOffset(100, 40, 0);
-        const base = Math.hypot(r0.dx, r0.dy);
-        for (const deg of [17, 45, 93, -120, 179]) {
-            const g = handleOffset(100, 40, deg);
-            expect(Math.hypot(g.dx, g.dy)).toBeCloseTo(base, 6);
-        }
-    });
 });
