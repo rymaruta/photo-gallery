@@ -4,6 +4,7 @@ import React from "react";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
+import ColorJourney from "./components/ColorJourney";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -503,6 +504,18 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
+      />
+
+      {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
+          絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
+          グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
+          `usePhotos()` を2つ動かしていた（PR #72 の積み残し3件をここで解く）。
+          色を持つ写真が1枚も無ければ丸ごと描かない */}
+      <ColorJourney
+        photos={filteredPhotos}
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+        onOpenPhoto={openById}
       />
 
       <>
