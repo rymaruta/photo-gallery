@@ -520,6 +520,7 @@ describe("StoryTextOverlay: 投票に票を入れる", () => {
         expect([...container.querySelectorAll(".sr-only")].map((e) => e.textContent)).toEqual(["（2票）", "（1票）"]);
         rerender(<StoryTextOverlay texts={[vote()]} box={box} />);
         expect(container.textContent, "数が無いのに割合を出している").not.toMatch(/%/);
+        expect(container.querySelector(".sr-only"), "数が無いのに票数を読み上げている").toBeNull();
     });
 
     // **b は 100 − a**。両方を丸めると 1対7 が 13%＋88% になる
@@ -534,6 +535,7 @@ describe("StoryTextOverlay: 投票に票を入れる", () => {
         const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 0, b: 0 } }} />);
         expect(container.textContent).not.toMatch(/%/);
         expect(container.textContent).toContain("まだ票はありません");
+        expect(container.querySelector(".sr-only"), "0票なのに「（0票）」を読み上げている").toBeNull();
     });
 
     it("送っている間は押せない", () => {

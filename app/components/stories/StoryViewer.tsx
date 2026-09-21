@@ -1332,7 +1332,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
             {voteError && (
                 <p
-                    className="absolute inset-x-4 z-20 text-center text-[11px] text-rose-300"
+                    // **z は投票カード（25）と閉じる段（26）より上、返信の帯（30）より下。**
+                    // z-20 だと、下寄りに置かれた白い投票カード自体が文言を覆う
+                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-rose-300"
                     // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
                     // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
                     // ——あちらは自分のストーリー（帯が出ない）限定の文言。

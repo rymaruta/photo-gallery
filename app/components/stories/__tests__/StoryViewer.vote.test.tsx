@@ -223,6 +223,39 @@ describe("投票スタンプ（見る側）", () => {
         expect(voteButtons()).toHaveLength(2);
     });
 
+    // 送っている間は二度押しできず、自動送りも止まる（`frozen`）
+    it("送っている間は押せない（二度押ししない）・自動送りが止まる", async () => {
+        const release = hold();
+        view(othersGroups());
+        await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        await waitFor(() => expect(votePosts()).toHaveLength(1));
+        for (const b of voteButtons()) expect(b, "送っている間に押せる").toBeDisabled();
+        // 応答を待っている間は自動送りも止める——進んで次のストーリーへ行くと、
+        // どれに入れたのか分からなくなる
+        const playState = () => (document.querySelector(".story-progress-fill") as HTMLElement | null)?.style.animationPlayState;
+        expect(playState(), "応答を待っている間も進んでいる").toBe("paused");
+        release()({ ok: true, json: async () => ({ success: true, myVote: "a", counts: { a: 1, b: 0 } }) });
+        await waitFor(() => expect(voteButtons()).toHaveLength(0));
+        await waitFor(() => expect(playState(), "入れ終わったのに止まったまま").toBe("running"));
+    });
+
+    // 返信を切った人のストーリー（帯が出ない）では、文言は下に寄せる
+    it("返信の帯が無いときは、失敗の文言を帯のぶん持ち上げない", async () => {
+        mockUserFetch.mockImplementation(async (url: string) => (
+            String(url).includes("/vote")
+                ? { ok: false, status: 500, json: async () => ({ error: "送信に失敗しました" }) }
+                : { ok: true, json: async () => ({}) }
+        ));
+        view(othersGroups({ allowReplies: false }));
+        expect(screen.queryByLabelText("このストーリーに返信"), "帯が出ている（前提が崩れている）").toBeNull();
+        await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        const alert = await screen.findByRole("alert");
+        expect(alert.style.bottom).toContain("4rem");
+        expect(alert.style.bottom).not.toContain("7.5rem");
+        // 投票カード（z-25）と閉じる段（z-26）より上・返信の帯（z-30）より下
+        expect(alert.className).toContain("z-[27]");
+    });
+
     // 投票スタンプの無いストーリーには何も出ない（回帰）
     it("投票スタンプが無ければ、カードも押す口も無い", async () => {
         view(othersGroups({ texts: [TEXT] }));

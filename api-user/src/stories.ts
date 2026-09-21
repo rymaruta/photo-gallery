@@ -843,7 +843,10 @@ async function shelveExpiredStory(id: string, item: Record<string, unknown>): Pr
                 { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } } },
                 // 票の文書も**他人の uid** なので、返信と同じく棚には残さない
                 // （`storyVotes.ts`。棚の行に届く票は、あちらの ConditionCheck
-                //  `attribute_not_exists(archivedAt)` が断る）
+                //  `attribute_not_exists(archivedAt)` が断る）。
+                // **結果（数）も棚には写さない**（判断）——写すなら文書を先に読んで
+                // 数を行へ `SET` する形になり、読みと消しの間に届いた票が数に
+                // 入らない窓ができる。棚では問いと2択だけが出る
                 { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } } },
             ],
         }));
