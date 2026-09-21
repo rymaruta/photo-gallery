@@ -44,6 +44,8 @@ if (fs.existsSync(envLocalPath)) {
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const TABLE = requireEnv("PHOTOS_TABLE");
 const OUTPUT = path.resolve(__dirname, "../app/data/photos.json");
+/** 撮影スポットの台帳。写真と同じ1回の Scan から書き出す */
+const SPOT_OUTPUT = path.resolve(__dirname, "../app/data/spots.json");
 /**
  * **軽い索引。`lib/routes.ts` はこれだけを読む。**
  *
@@ -200,10 +202,33 @@ async function scan() {
     // 公開済みの「写真」のみ絞り込んで createdAt 降順でソート。
     // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
     // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
-    return items
-        .filter(item => item.src && item.published !== false && item.story !== true)
+    //
+    // **撮影スポットの台帳（`spot#<id>`）も同じ1回の Scan から拾う。**
+    // 別に読みに行かない——台帳のために DynamoDB の読み取りを増やさない。
+    const photos = items
+        .filter(item => item.src && !String(item.id ?? "").startsWith(SPOT_ID_PREFIX)
+            && item.published !== false && item.story !== true)
         .map(stripPrivateFields)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    return { photos, spots: publicSpots(items) };
+}
+
+/** 台帳の行の ID の頭。写真・コメント・通知と同じテーブルに同居する */
+const SPOT_ID_PREFIX = "spot#";
+
+/**
+ * 公開してよい撮影スポットの台帳。
+ *
+ * **下書き（status: "draft"）は出さない。** 台帳は公共の場所の情報なので
+ * 写真のような個人情報は持たないが、「まだ確かめていない地点」を
+ * 検索に出す理由も無い。
+ */
+function publicSpots(items) {
+    return items
+        .filter(item => String(item.id ?? "").startsWith(SPOT_ID_PREFIX) && item.status !== "draft")
+        .map(({ id, ...spot }) => spot)
+        .filter(spot => spot.spotId && spot.slug && spot.name)
+        .sort((a, b) => String(a.slug).localeCompare(String(b.slug)));
 }
 
 /**
@@ -443,8 +468,9 @@ async function main() {
     console.log(`  region: ${REGION}`);
 
     let photos;
+    let spots = [];
     try {
-        photos = await scan();
+        ({ photos, spots } = await scan());
     } catch (err) {
         console.error("\n[sync] DynamoDB scan failed:", err.message ?? err);
         console.warn("[sync] photos.json は更新しません（既存ファイルを維持）");
@@ -482,6 +508,10 @@ async function main() {
     // 控えに落ちる（個別ページは在るのに）状態を作る
     fs.writeFileSync(INDEX_OUTPUT, JSON.stringify(buildIndex(photos), null, 2) + "\n", "utf-8");
     console.log(`[sync] ${INDEX_OUTPUT} に書き込みました（${photos.length}枚ぶんの索引）`);
+    // 撮影スポットの台帳。**0件でも書く**——台帳が空であることと、
+    // 前のビルドの残りが居座ることは別（居座ると消したはずの地点のページが残る）
+    fs.writeFileSync(SPOT_OUTPUT, JSON.stringify(spots, null, 2) + "\n", "utf-8");
+    console.log(`[sync] ${SPOT_OUTPUT} に書き込みました（撮影スポット ${spots.length}件）`);
     const { profiles: writtenProfiles, readFailures } = lastPublicProfiles();
     fs.writeFileSync(PROFILE_OUTPUT, JSON.stringify(writtenProfiles, null, 2) + "\n", "utf-8");
     for (const line of profileWriteNotes(PROFILE_OUTPUT, writtenProfiles, readFailures)) console.log(line);
@@ -497,4 +527,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };
+module.exports = { publicSpots, SPOT_ID_PREFIX, checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };
