@@ -103,13 +103,21 @@ async function main() {
     // 引くようになったので、ここで生きている分だけ入れると、
     // **移行時点で既に期限切れだったストーリーが永久に消えなくなる**
     // （DynamoDB の項目も S3 の実体も残り続ける）。
+    //
+    // **ただしアーカイブ（`archivedAt` が在る行）は除く。** あれは掃除が
+    // **わざと** `storyFeed` を外した行で、本人だけが後から見るもの
+    // （`api-user/src/storyArchive.ts`）。ここで戻すと、次の掃除が
+    // アーカイブを丸ごと「期限切れ」として拾い、件数ぶん返信の削除と
+    // 条件付き更新を撃つ——溜まるほど毎回先頭に来て、後ろの本物の
+    // 期限切れに届かなくなる。この作業は「既にあれば何もしない」と
+    // 案内している冪等なものなので、走らせ直しても壊れてはいけない
     let scanned = 0;
     let target = 0;
     let lastKey;
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: TABLE,
-            FilterExpression: "story = :t AND attribute_not_exists(storyFeed)",
+            FilterExpression: "story = :t AND attribute_not_exists(storyFeed) AND attribute_not_exists(archivedAt)",
             ExpressionAttributeValues: { ":t": true },
             ExclusiveStartKey: lastKey,
         }));

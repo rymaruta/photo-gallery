@@ -1189,7 +1189,7 @@ describe("cleanupExpiredStories", () => {
         expect(scan.constructor.name).toBe("ScanCommand");
         // アーカイブ済み（`storyFeed` を外した行）は拾わない——毎時撫で直さない
         // ための絞り込みで、`storyArchive.test.ts` が同じ行を見ている
-        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now AND attribute_exists(storyFeed)");
+        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
         expect(scan.input.ExpressionAttributeValues?.[":t"]).toBe(true);
     });
 });

@@ -124,15 +124,18 @@ async function scanStories(filter: "active" | "expired"): Promise<Record<string,
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: PHOTOS_TABLE,
-            // 期限切れは**「まだ一覧に載っている」行だけ**（`storyFeed` が在る）。
-            // GSI の経路はその列がキーなので自然にそうなるが、Scan はテーブル
-            // 全体を見るので、ここで落とさないと**毎時アーカイブを撫で直す**。
-            // 「載っている」で見る（`archivedAt` の有無で見ない）のは、
-            // 棚へ移す条件式（下）と同じ物差しにするため——刻まれたのに
-            // `storyFeed` が残る半端な行を、どちらの経路でも拾って直せる
+            // 期限切れから**棚へ移した行（`storyFeed` を外し `archivedAt` を刻んだ）
+            // だけを除く**。GSI の経路は `storyFeed` がキーなので自然にそうなるが、
+            // Scan はテーブル全体を見るので、ここで落とさないと**毎時アーカイブを
+            // 撫で直す**。
+            //   - `storyFeed` が在る → 拾う（刻まれたのに残る半端な行も、
+            //     棚へ移す条件式と同じ物差しで拾って直せる）
+            //   - `storyFeed` が無くても `archivedAt` が無い → 拾う。**索引が生える
+            //     前の古い行**がここ——外すと、GSI の無い環境でその行と S3 の
+            //     実体が永久に消えない（一度そう書いて狭めすぎた）
             FilterExpression: filter === "active"
                 ? "story = :t AND expiresAt > :now"
-                : "story = :t AND expiresAt <= :now AND attribute_exists(storyFeed)",
+                : "story = :t AND expiresAt <= :now AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
             ExpressionAttributeValues: { ":t": true, ":now": now },
             ExclusiveStartKey: lastKey,
         }));
@@ -797,9 +800,13 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                     // 一覧（`getStoryArchive`）は掃除が来る前の行にも期限の時刻を
                     // 埋めて返すので、掃除の時刻を刻むと**同じ行の日付が掃除の
                     // 前後で変わる**（日をまたぐと「昨日のアーカイブ」が
-                    // 今日へ跳ぶ）。`if_not_exists` は半端に直された行（刻まれて
-                    // いるのに `storyFeed` が残る）を撫でるときに上書きしないため
-                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :exp) REMOVE storyFeed, viewers, replyCount",
+                    // 今日へ跳ぶ）。**行の `expiresAt` をそのまま写す**（値を
+                    // 手元から渡さない＝読んだ時点と書く時点の差が無い。
+                    // ここに来る行は必ず持っている——GSI のソートキーで、
+                    // Scan も `expiresAt <= :now` で絞る）。
+                    // `if_not_exists` は半端に直された行（刻まれているのに
+                    // `storyFeed` が残る）を撫でるときに上書きしないため
+                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, expiresAt) REMOVE storyFeed, viewers, replyCount",
                     // **今まさに棚へ移してよい行**であることを条件にする:
                     // 印が立っていて、まだ GSI に載っている（＝行が在る。
                     // `storyFeed` が在るなら行は在るので `attribute_exists(id)` は
@@ -813,11 +820,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                     // （モックのテストでは捕まらない。`rebuild.ts` の `#c`＝`count`・
                     // `sync-photos` の `#at`＝`at` と同じ罠）
                     ExpressionAttributeNames: { "#a": "archive" },
-                    ExpressionAttributeValues: {
-                        // 期限を持たない古い行だけ、掃除の時刻で埋める
-                        ":exp": typeof item.expiresAt === "string" && item.expiresAt ? item.expiresAt : new Date().toISOString(),
-                        ":t": true,
-                    },
+                    ExpressionAttributeValues: { ":t": true },
                 }));
                 archived++;
             } catch (e) {
@@ -826,13 +829,19 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                     // （`deleteStory` との普通の競合）のか、印が外れた・
                     // `storyFeed` が無いのに一覧に出た（異常。毎時ここに来て
                     // 返信だけ消して飛ぶ形）のかで、追う必要があるかが変わる。
-                    // 稀な経路なので1回読み直す。失敗ではないので error にはしない
-                    const fresh = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))
-                        .then((r) => r.Item as Record<string, unknown> | undefined)
-                        .catch(() => undefined);
-                    console.warn(`cleanup: archive skipped for ${id}: ${fresh
-                        ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
-                        : "row gone (deleted meanwhile)"}`);
+                    // 稀な経路なので1回読み直す。失敗ではないので error にはしない。
+                    // **読み直せなかった回を「消された」と言わない**——それでは
+                    // 見分けるために読み直した意味が無い
+                    let why: string;
+                    try {
+                        const fresh = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))).Item as Record<string, unknown> | undefined;
+                        why = fresh
+                            ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
+                            : "row gone (deleted meanwhile)";
+                    } catch (e2) {
+                        why = `re-read failed: ${(e2 as { name?: string }).name ?? "unknown"}`;
+                    }
+                    console.warn(`cleanup: archive skipped for ${id}: ${why}`);
                     continue;
                 }
                 // 書けなければ次回に回す（行は GSI に残っているので、また来る）
