@@ -150,20 +150,24 @@ describe("拡大表示の保存ボタン", () => {
     // 共有リンクを開いた直後はログイン状態の確認中で、押しても
     // `toggle` が入口で抜ける——アイコンも変わらずトーストも出ないので、
     // **壊れているようにしか見えない**
-    it("ログイン状態の確認中は押せない（aria-busy で伝える）", () => {
+    it("ログイン状態の確認中は aria-busy で伝え、押しても何も飛ばない", () => {
         authState.loading = true;
         setup();
         const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
-        expect(save.disabled).toBe(true);
         expect(save.getAttribute("aria-busy")).toBe("true");
+        // **`disabled` にはしない。** 往復中に disabled にすると、Enter で
+        // 押した人のフォーカスが body に落ちて戻らない（隣のいいねと同じく
+        // `busyRef` だけで連打を弾く）
+        expect(save.disabled).toBe(false);
         fireEvent.click(save);
         expect(mockShowToast).not.toHaveBeenCalled();
+        expect(mockUserFetch).not.toHaveBeenCalledWith("/photos/p1/save", expect.anything());
     });
 
-    it("ログイン状態が確定したら押せる", async () => {
+    it("ログイン状態が確定したら aria-busy が下りる", async () => {
         setup();
         const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
-        await waitFor(() => expect(save.disabled).toBe(false));
+        await waitFor(() => expect(save.getAttribute("aria-busy")).toBe("false"));
     });
 
     it("いいねのボタンと重ならない位置に置く（44px の当たりが並ぶ）", () => {

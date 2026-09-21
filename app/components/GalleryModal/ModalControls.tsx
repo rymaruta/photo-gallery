@@ -106,15 +106,18 @@ export default function ModalControls({
                 隣のいいねも同じ形（操作を名前にして `aria-pressed` 無し）で、
                 状態を名前にしている `FollowButton` とは流儀が違う。
 
-                **`pending` の間は押せなくする。** 共有リンクを開いた直後は
-                ログイン状態の確認中で、押しても `toggle` が入口で抜ける
-                ——アイコンも変わらずトーストも出ないので、**壊れている
-                ようにしか見えない**。`aria-busy` で読み上げにも伝える
-                （見た目は変えていない——`disabled:` の指定は足していない）。 */}
+                **`pending` の間は `aria-busy` だけ付けて、`disabled` にはしない。**
+                共有リンクを開いた直後はログイン状態の確認中で、押しても
+                `toggle` が入口で抜ける（アイコンも変わらずトーストも出ない）
+                ので、読み上げには「処理中」と伝える。ただし `disabled` に
+                すると、Enter で押した人のフォーカスが往復中に body へ落ち、
+                応答後も戻らない（`useFocusTrap` が次の Tab で先頭へ引き戻す）。
+                隣のいいねも `busyRef` だけで連打を弾いて `disabled` にして
+                いないので、それに揃える。連打は `usePhotoSave` の `busyRef` が
+                既に止めている。 */}
             <button
                 {...stopAndCall(onToggleSave)}
                 aria-label={isSaved ? "保存を取り消す" : "保存"}
-                disabled={savePending}
                 aria-busy={savePending}
                 className={`${BTN_BASE} top-2 sm:top-3 right-[120px] sm:right-[132px]`}
                 style={BTN_STYLE}

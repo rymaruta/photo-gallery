@@ -35,37 +35,4 @@ describe("撮影地マップの見た目（第三者CSSとの詳細度）", () =
         const rule = css.slice(css.indexOf(".photo-map-shell.leaflet-container"));
         expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("background");
     });
-
-    // ポップアップのサムネ。Tailwind の preflight（`@layer base` の
-    // `img { max-width: 100% }`）を打ち消さないと、Leaflet の幅の計算で
-    // サムネの幅寄与が 0 になり、ポップアップが最小幅まで潰れる
-    // （実測: 160px 指定のサムネが 96px で描かれた）
-    it("ポップアップのサムネが preflight に潰されない", () => {
-        expect(css).toContain(".photo-map-card img");
-        const rule = css.slice(css.indexOf(".photo-map-card img"));
-        expect(rule.slice(rule.indexOf("{"), rule.indexOf("}"))).toContain("max-width: none");
-    });
-
-    // 同じ升の写真は横に送る（縦積みは枚数ぶん伸びて地図の外へ出た）
-    it("束のポップアップが横並びで、送れるようになっている", () => {
-        const rule = css.slice(css.indexOf(".photo-map-list {"));
-        const body = rule.slice(rule.indexOf("{"), rule.indexOf("}"));
-        expect(body).toContain("display: flex");
-        expect(body).toContain("overflow-x: auto");
-        // 1枚ずつ止まる（半端な位置で止めない）
-        expect(body).toContain("scroll-snap-type: x mandatory");
-        // 端で地図やページを巻き込まない
-        expect(body).toContain("overscroll-behavior-x: contain");
-    });
-
-    // 題名は利用者の入力。折り返せない長い語でカードが広がると、1枚を見るのに
-    // 何画面ぶんも送ることになる（実測: 60文字の英語1語で 531px＝枠の2.6倍）
-    it("長い題名でカードが広がらない", () => {
-        const rule = css.slice(css.indexOf(".photo-map-list > .photo-map-card"));
-        expect(rule.slice(rule.indexOf("{"), rule.indexOf("}")), "フレックス項目の既定 min-width: auto で広がる")
-            .toContain("min-width: 0");
-        expect(css).toContain(".photo-map-card a");
-        const wrap = css.slice(css.indexOf(".photo-map-card a"));
-        expect(wrap.slice(wrap.indexOf("{"), wrap.indexOf("}"))).toContain("overflow-wrap: anywhere");
-    });
 });

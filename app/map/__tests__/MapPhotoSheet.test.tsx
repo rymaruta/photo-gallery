@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { MapPhoto } from "../../components/PhotoMap";
+import { ROUTES } from "../../../lib/routes";
 
 // **配信のホストを先に決める。** `lib/utils/seo.ts` の `CDN_HOST` は
 // モジュール読み込み時に `NEXT_PUBLIC_CLOUDFRONT_URL` から決まるので、
@@ -78,7 +79,9 @@ describe("撮影地マップのボトムシート", () => {
         setup([photo("a")]);
         const links = screen.getAllByRole("link");
         expect(links.length).toBeGreaterThanOrEqual(2);
-        for (const a of links) expect(a.getAttribute("href")).toContain("a");
+        // リンク先そのもの（`ROUTES.PHOTO` と一致）を見る。`toContain("a")` は
+        // ほぼ何でも通るので、何も固定していなかった
+        for (const a of links) expect(a.getAttribute("href")).toBe(ROUTES.PHOTO("a"));
         // 公開ページの `<Link>` は先読みしない（`linkPrefetch.test.ts`）
     });
 
@@ -159,8 +162,9 @@ describe("撮影地マップのボトムシート", () => {
         setup([photo("a")]);
         const bottom = (screen.getByTestId("map-photo-sheet") as HTMLElement).style.bottom;
         expect(bottom).toMatch(/var\(--bottom-bar-h,\s*env\(safe-area-inset-bottom/);
-        // 「safe-area + … + var(--bottom-bar-h, 0px)」の形（二重）ではないこと
-        expect(bottom).not.toMatch(/env\(safe-area-inset-bottom[^)]*\)[^v]*\+.*var\(--bottom-bar-h/);
+        // safe-area は**落とし先の1回だけ**。否定の正規表現は逆順の二重足し
+        // （`var(...) + env(...)`）を通していたので、出現回数で見る
+        expect(bottom.match(/env\(safe-area-inset-bottom/g)).toHaveLength(1);
     });
 
     // `MiniPlayer` は同じ位置・同じ z-40 で、`layout.tsx` が children の後に
