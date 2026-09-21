@@ -46,8 +46,11 @@ describe("usePhotoSave: 一覧から分かっているとき（known）", () => 
     });
 
     it("🔴 押したあとは、遅れて届いた一覧の値で戻さない", async () => {
+        // 一覧はまだ（undefined）→ 押す → 押す前の姿の一覧（false）が遅れて届く。
+        // **最初から false を渡して false を渡し直す形では効果が観測できない**
+        // （値が変わらないので effect が走らない。変異 M2 が素通りして気づいた）
         mockUserFetch.mockResolvedValue(ok({ saved: true }));
-        const { result, rerender } = renderHook(({ k }: { k?: boolean }) => usePhotoSave("p1", true, false, k), { initialProps: { k: false as boolean | undefined } });
+        const { result, rerender } = renderHook(({ k }: { k?: boolean }) => usePhotoSave("p1", true, false, k), { initialProps: { k: undefined as boolean | undefined } });
         await act(async () => { await result.current.toggle(); });
         expect(result.current.saved).toBe(true);
         rerender({ k: false });   // 古い一覧（押す前の姿）が遅れて届いた
