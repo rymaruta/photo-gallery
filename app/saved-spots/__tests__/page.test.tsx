@@ -121,6 +121,24 @@ describe("行きたい場所の一覧", () => {
         expect(screen.queryByText(/不明|見つかりません/)).toBeNull();
     });
 
+    /**
+     * **1件でも書き込み中なら、全部押させない。**
+     *
+     * `busy === slug` だけを見ていたので、行Aの処理中に行Bの「外す」を
+     * 押すと `toggle` が `false` を返して**何も起きない**（押せるのに無反応）。
+     */
+    it("1件の書き込み中は、他の行の「外す」も押せない", async () => {
+        fetchMock.mockResolvedValueOnce(ok(["山中湖", "パリ"]));
+        render(<SavedSpotsPage />);
+        const a = await screen.findByRole("button", { name: "「山中湖」を外す" });
+        const b = screen.getByRole("button", { name: "「パリ」を外す" });
+        // 返らない応答で書き込み中のまま止める
+        fetchMock.mockReturnValueOnce(new Promise(() => { /* 返らない */ }));
+        a.click();
+        await waitFor(() => expect(a).toBeDisabled());
+        expect(b, "他の行が押せるのに無反応になる").toBeDisabled();
+    });
+
     it("外すと、サーバーが返した一覧をそのまま映す", async () => {
         fetchMock.mockResolvedValueOnce(ok(["山中湖", "パリ"]));
         render(<SavedSpotsPage />);

@@ -264,12 +264,24 @@ export function spotFacts(photos: Photo[], topN = 6): SpotFacts {
 export function spotDetail(photos: Photo[], label: string, matched: Photo[]) {
     const entries = collectEntries(photos, "location");
     const here = spotCoords(matched);
-    const others = entries
-        .filter((e) => e.label !== label)
-        .map((e) => ({
-            entry: e,
-            coords: spotCoords(photos.filter((p) => isPublished(p) && photoIsInLocation(p.location, e.label))),
-        }));
+    // **自分に座標が無ければ、相手の座標も引かない。**
+    //
+    // `nearbySpots` は `!here` で即 `[]` を返すので、組み立てが丸ごと無駄に
+    // なる——しかもその組み立ては**撮影地の数 × 全写真**の
+    // `photoIsInLocation`（静的書き出しは全撮影地ページでこれを回すので
+    // O(撮影地² × 写真)）。
+    //
+    // そして**コミット済みの `photos.json` は座標を1件も持たない**（0/30）
+    // ＝いまはビルドの全ページがこの断面。本番でも、座標を持つのは
+    // `geocode-locations.js` が当てられた撮影地だけ。
+    const others = here
+        ? entries
+            .filter((e) => e.label !== label)
+            .map((e) => ({
+                entry: e,
+                coords: spotCoords(photos.filter((p) => isPublished(p) && photoIsInLocation(p.location, e.label))),
+            }))
+        : [];
     return {
         facts: spotFacts(matched),
         coords: here,

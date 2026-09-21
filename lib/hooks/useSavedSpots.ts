@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { userFetch } from "../utils/api";
 import { log } from "../utils/log";
 
@@ -55,6 +55,15 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
     const [fetched, setFetched] = useState<Fetched | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
     const [busy, setBusy] = useState<string | null>(null);
+    /**
+     * **連打の鍵は `ref` で持つ。**
+     *
+     * `busy`（state）で見ていたが、`toggle` の閉包が持つのは**その描画時の
+     * 値**なので、同じフレームの2回押しはどちらも `busy === null` を見て
+     * **2本とも飛ぶ**（`setBusy` が反映されるのは次の描画）。
+     * `ref` なら同期的に立つ。state の方は**画面に出すため**に残す。
+     */
+    const writing = useRef<string | null>(null);
     const token = `${authLoading ? "?" : isAuthenticated ? "in" : "out"}|${reloadKey}`;
 
     const retry = useCallback(() => { setReloadKey((k) => k + 1); }, []);
@@ -120,12 +129,13 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
     );
 
     const toggle = useCallback(async (slug: string): Promise<boolean> => {
-        if (!slug || busy) return false;
+        if (!slug || writing.current) return false;
         // **状態が分からないうちは押させない**（上と同じ理由）。
         // 失敗した回も含む——保存済みかどうかを知らずに書くと、
         // 解除のつもりの一押しが保存になる
         if (pending || failed) return false;
         const add = !saved.has(slug);
+        writing.current = slug;
         setBusy(slug);
         try {
             const res = add
@@ -149,9 +159,10 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
             log.warn("行きたい場所を更新できませんでした:", e);
             return false;
         } finally {
+            writing.current = null;
             setBusy(null);
         }
-    }, [busy, pending, failed, saved, token]);
+    }, [pending, failed, saved, token]);
 
     return { slugs, pending, failed, isSaved, toggle, busy, retry };
 }

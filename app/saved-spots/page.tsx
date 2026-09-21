@@ -143,7 +143,11 @@ export default function SavedSpotsPage() {
                             <button
                                 type="button"
                                 onClick={() => void toggle(slug)}
-                                disabled={busy === slug}
+                                // **1件でも書き込み中なら、全部押させない。**
+                                // `busy === slug` だけを見ていたので、行Aの
+                                // 処理中に行Bを押すと `toggle` が `false` を
+                                // 返して**何も起きない**（押せるのに無反応）
+                                disabled={busy !== null}
                                 aria-label={en ? `Remove ${entry?.label ?? slug}` : `「${entry?.label ?? slug}」を外す`}
                                 className="shrink-0 rounded-full px-3 py-1.5 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition"
                                 style={{ touchAction: "manipulation", minHeight: 44 }}

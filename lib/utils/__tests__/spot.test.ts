@@ -276,6 +276,33 @@ describe("実データ（app/data/photos.json）", () => {
         expect(detail.nearby).toEqual([]);
     });
 
+    /**
+     * **自分に座標が無ければ、相手の座標も引かない。**
+     *
+     * `nearbySpots` は `!here` で即 `[]` を返すので、組み立ては丸ごと無駄。
+     * しかもその組み立ては**撮影地の数 × 全写真**の `photoIsInLocation` で、
+     * 静的書き出しは全撮影地ページでこれを回す（O(撮影地² × 写真)）。
+     * コミット済みの断面は座標0件＝**全ページがこの経路**。
+     */
+    it("座標が無いときは、他の撮影地の座標を引きに行かない", () => {
+        let reads = 0;
+        // `coords` を読みに来た回数を数える（引きに行っていれば増える）
+        const watched = photos.map((p) => {
+            const clone = { ...p } as Photo;
+            Object.defineProperty(clone, "coords", {
+                get() { reads++; return undefined; },
+                enumerable: true,
+            });
+            return clone;
+        });
+        const matched = watched.filter((p) => (p.location ?? "").includes("パリ"));
+        const before = reads;
+        const detail = spotDetail(watched, "パリ", matched);
+        expect(detail.nearby).toEqual([]);
+        // 見るのは自分のぶん（`matched`）だけ。全撮影地ぶんは回さない
+        expect(reads - before).toBeLessThanOrEqual(matched.length * 2);
+    });
+
     it("スポット詳細の材料が、集約ページの枚数と食い違わない", () => {
         const entries = collectEntries(photos, "location");
         const paris = entries.find((e) => e.label === "パリ")!;

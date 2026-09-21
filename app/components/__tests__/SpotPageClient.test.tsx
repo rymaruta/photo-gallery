@@ -86,6 +86,37 @@ describe("撮影スポット詳細", () => {
         expect(document.getElementById("spot-panel-photos")!.hidden).toBe(true);
     });
 
+    /**
+     * **`role="tablist"` を名乗るなら、矢印キーで動けること。**
+     *
+     * 名乗るだけだと、読み上げは「タブ 1/3」と案内するのに矢印が効かない
+     * ——案内された通りに操作できない方が、ただのボタンの並びより悪い。
+     */
+    it("矢印キーで移れて、移った先にフォーカスが行く（端は折り返す）", () => {
+        render(<SpotPageClient {...base} />);
+        const list = screen.getByRole("tablist");
+        // 既定は「写真」（真ん中）
+        fireEvent.keyDown(list, { key: "ArrowRight" });
+        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
+        expect(document.getElementById("spot-panel-map")!.hidden).toBe(false);
+        // 端で折り返す
+        fireEvent.keyDown(list, { key: "ArrowRight" });
+        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "概要" }));
+        fireEvent.keyDown(list, { key: "ArrowLeft" });
+        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
+        fireEvent.keyDown(list, { key: "Home" });
+        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "概要" }));
+        fireEvent.keyDown(list, { key: "End" });
+        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
+    });
+
+    // roving tabindex: Tab で止まるのは選ばれている1つだけ
+    it("Tab で止まるのは選ばれているタブだけ", () => {
+        render(<SpotPageClient {...base} />);
+        const tabs = screen.getAllByRole("tab");
+        expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["-1", "0", "-1"]);
+    });
+
     // **無い情報を作らない。** 0 や推測で埋めず「—」と書く
     it("撮影時期が無ければ「—」（勝手に埋めない）", () => {
         render(<SpotPageClient {...base} />);

@@ -75,6 +75,28 @@ export default function SpotPageClient({
         ["map", en ? "Map" : "地図"],
     ];
 
+    /**
+     * 矢印キーでタブを移る（`Home` / `End` も）。移った先にフォーカスを送る
+     * ——送らないと、見た目だけ動いて読み上げの位置が置いていかれる。
+     * 端では折り返す（WAI-ARIA の tabs の作法）。
+     */
+    const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        const keys = TABS.map(([k]) => k);
+        const at = keys.indexOf(tab);
+        let next: number;
+        switch (e.key) {
+            case "ArrowRight": next = (at + 1) % keys.length; break;
+            case "ArrowLeft": next = (at - 1 + keys.length) % keys.length; break;
+            case "Home": next = 0; break;
+            case "End": next = keys.length - 1; break;
+            default: return;
+        }
+        // 矢印での横スクロールを起こさない
+        e.preventDefault();
+        setTab(keys[next]);
+        document.getElementById(`spot-tab-${keys[next]}`)?.focus();
+    };
+
     return (
         <main className="mx-auto max-w-6xl px-4 py-8 pb-28">
             <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
@@ -117,8 +139,19 @@ export default function SpotPageClient({
                 <SaveSpotButton slug={slug} name={name} locale={locale} />
             </div>
 
-            {/* タブ。**クチコミは無い**（理由は上の docstring） */}
-            <div role="tablist" aria-label={en ? "Spot sections" : "スポットの内容"} className="flex gap-1 border-b border-white/10 mb-5">
+            {/* タブ。**クチコミは無い**（理由は上の docstring）。
+
+                **`role="tablist"` を名乗るなら、矢印キーで動けること。**
+                名乗るだけだと、読み上げは「タブ 1/3」と案内するのに矢印が
+                効かない——案内された通りに操作できない方が、ただのボタンの
+                並びより悪い。`aria-selected` を持つものだけ Tab で止まる
+                （roving tabindex）のも同じ作法の片割れ。 */}
+            <div
+                role="tablist"
+                aria-label={en ? "Spot sections" : "スポットの内容"}
+                className="flex gap-1 border-b border-white/10 mb-5"
+                onKeyDown={onTabKeyDown}
+            >
                 {TABS.map(([key, text]) => (
                     <button
                         key={key}
@@ -127,6 +160,8 @@ export default function SpotPageClient({
                         id={`spot-tab-${key}`}
                         aria-selected={tab === key}
                         aria-controls={`spot-panel-${key}`}
+                        // **選ばれていないタブは Tab で止まらない**（矢印で移る）
+                        tabIndex={tab === key ? 0 : -1}
                         onClick={() => setTab(key)}
                         // 44px の押せる高さを px で書く（`96eb86db`）
                         style={{ touchAction: "manipulation", minHeight: 44 }}
