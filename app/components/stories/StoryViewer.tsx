@@ -212,8 +212,15 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // state を閉じ込めると送信を始めた時点の値になる
     const itemIdRef = useRef<string | undefined>(item?.id);
     itemIdRef.current = item?.id;
-    /** 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ */
-    const showReplyBar = !isOwnStory && isAuthenticated;
+    /**
+     * 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ。
+     *
+     * **投稿者が「返信を許可」を切っていたら出さない**（`allowReplies`。
+     * 無い＝受ける＝この列が生まれる前の投稿）。押しても 403 が返るだけの
+     * 欄を置かないため——断るのはサーバー（`postStoryReply`）で、
+     * ここは入口を出さないだけ。**画面側だけの防御にしない。**
+     */
+    const showReplyBar = !isOwnStory && isAuthenticated && item?.allowReplies !== false;
 
     // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
