@@ -38,6 +38,14 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
     const photoIdRef = useRef(photoId);
     const [pending, setPending] = useState(false);
     const busyRef = useRef(false);
+    // **番人を立てた要求の通し番号。** 下ろしてよいのは、その番人を立てた
+    // 要求の着地だけ。押すたびに番号が進むので、前の要求が遅れて着地しても
+    // 番人には触れない（PM が実コードで再現した競合:
+    // A で押す → B へ送る → B で押す → A が着地して番人を下ろす →
+    // B をもう一度押すと、B の POST が飛行中なのに DELETE が飛んだ）。
+    // 「まだ同じ写真か」では足りない——A → B → A と戻って押し直すと写真は
+    // 同じなので、古い A の着地を弾けない
+    const seqRef = useRef(0);
 
     // 写真が変わったら状態を捨てる（モーダルは同じフックのまま次へ進む）
     useEffect(() => {
@@ -53,6 +61,9 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
         // 着地した側が状態を書くことは `stillSamePhoto()` が止める。
         busyRef.current = false;
         setPending(false);
+        // 番号はここでは進めない——押した瞬間に `toggle` が進めるので、
+        // 前の写真の要求はそれだけで番人に触れなくなる。ここでも進めると
+        // 2か所のどちらを消しても挙動が変わらず、テストで守れない
     }, [photoId]);
 
     // ログイン中は自分の保存状態をサーバーに聞く。
@@ -92,6 +103,7 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
         const wasSaved = saved;
         busyRef.current = true;
         setPending(true);
+        const mySeq = ++seqRef.current;
         touchedRef.current = true;
         setSaved(!wasSaved);
 
@@ -151,8 +163,13 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
                 touchedRef.current = false;
             }
         } finally {
-            busyRef.current = false;
-            setPending(false);
+            // **自分が立てた番人だけ下ろす。** 写真の切り替え（effect）か、
+            // あとから押した要求が番号を進めていたら、その番人は自分の
+            // ものではない——触ると、飛行中の別の要求の連打止めが外れる
+            if (seqRef.current === mySeq) {
+                busyRef.current = false;
+                setPending(false);
+            }
         }
         return result;
     }, [saved, photoId, isAuthenticated, authLoading]);
