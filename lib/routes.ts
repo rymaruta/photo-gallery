@@ -74,6 +74,15 @@ export const ROUTES = {
     ALBUMS: "/user/albums",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
+    /**
+     * 設定（アカウント・プライバシー・サポート）。**本人だけの画面**なので
+     * `appPageMetadata` で noindex（`robots.txt` は `/user/` を丸ごと
+     * 拒否しているので追記不要）。
+     *
+     * プロフィール編集（`PROFILE_EDIT`）とは別物。あちらは「他人に見える
+     * 自分」を作る画面で、こちらは**アカウントそのもの**の設定。
+     */
+    SETTINGS: "/user/settings",
     USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)
