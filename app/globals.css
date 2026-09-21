@@ -181,36 +181,3 @@ body {
   font-size: 13px;
   box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
 }
-/* ポップアップのサムネ。**Tailwind の preflight（`img { max-width: 100% }`）を
-   打ち消す。** あれがあると、Leaflet が中身の幅を決めるときサムネの幅寄与が
-   0 になり、ポップアップが最小幅まで潰れる（実測: 160px 指定が 96px で描かれた）。
-   preflight は `@layer base` にあるので、レイヤーの外のこの規則が勝つ */
-.photo-map-card img {
-  max-width: none;
-}
-
-/* 同じ升（約1kmに丸めた同じ座標）の写真をまとめて出すポップアップ。
-   **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて地図の外へ出ていき、
-   後ろの写真に届かなくなる（実測: 5枚で 771px・地図の上へ 475px）。
-   横なら高さは1枚ぶんで固定。次の写真が少し覗くので「送れる」と分かる */
-.photo-map-list {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  /* 端まで送ったときに地図やページを巻き込まない */
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-.photo-map-list > .photo-map-card {
-  /* 1枚の幅は PhotoMap.tsx の THUMB_W と揃える */
-  flex: 0 0 160px;
-  /* フレックス項目の既定 `min-width: auto` だと、折り返せない長い語を含む
-     題名でカードが広がる（実測: 60文字の英語1語で 531px＝枠の2.6倍。
-     1枚を見るのに3画面ぶん送ることになる）。題名は利用者の入力 */
-  min-width: 0;
-  scroll-snap-align: start;
-}
-.photo-map-card a {
-  overflow-wrap: anywhere;
-}

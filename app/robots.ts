@@ -22,7 +22,8 @@ export default function robots(): MetadataRoute.Robots {
             // `/saved-spots` は「行きたい場所」。**本人だけが見られる中身**で、
             // `noindexMetadata` を付けたうえでフッターから全ページにリンクを
             // 出しているので、必ずクロールされる。`/favorites` と同じ扱いに揃える
-            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/saved-spots", "/search", "/history", "/j"],
+            // `/saves` は写真の「保存」。行きたい場所と同じく本人だけの棚
+            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/saves", "/saved-spots", "/search", "/history", "/j"],
         },
         sitemap: [
             `${siteConfig.url}/sitemap.xml`,
