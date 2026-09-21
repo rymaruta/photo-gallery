@@ -749,34 +749,52 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
 
         // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す。**
         //
-        // やるのは1回の更新だけ:
-        //   - `archivedAt` を刻む（一覧 `getStoryArchive` はこれで引く）
-        //   - `storyFeed` を外す（ストーリー一覧の GSI から落ちる＝
-        //     `getStories` に二度と出ず、この掃除も二度と拾わない）
-        // S3 の実体・返信の文書・閲覧者はそのまま。**本人だけが後から
-        // 見られる**形——`viewStory` と `postStoryReply` は期限切れを 404 で
-        // 断るので、他人には「もう無い」ままで変わらない。
+        // 残すのは**本人のもの**（実体・文字・場所・曲）だけ。
+        // **他人の言葉と名前は、今までどおり消す**:
+        //   - 返信の文書（`storyreplies#<id>`）を消す。返信は相手が
+        //     「24時間で消える」つもりで送った文章で、`photoUpdate.ts` が
+        //     「24時間で消えるはずの他人の文章とその人の uid が無期限に
+        //     残っていた」を不具合として塞いだ当のもの
+        //   - `viewers`（誰が見たか）と `replyCount` も外す（同じ理由。
+        //     `getStoryViewers` / `getStoryReplies` は期限を見ないので、
+        //     行に残せば本人がいつまでも読める）
+        // そのうえで `archivedAt` を刻み、`storyFeed` を外す（ストーリー一覧の
+        // GSI から落ちる＝`getStories` に二度と出ず、この掃除も二度と拾わない）。
         //
-        // **24時間で消える約束は壊さない。** 残るのは投稿のときに本人が
-        // 「アーカイブに自動保存」を入にしたぶんだけで、既定は今までどおり消える。
+        // **S3 の実体はそのまま**——これが「後から見られる」の中身。
+        // 公開URLは鍵が UUID なので当てられないが、**見た人が URL を控えて
+        // いれば取れ続ける**（`keptAs` で残した写真と同じ性質）。
+        // 本人が投稿のときに「アーカイブに自動保存」を入にしたぶんだけなので、
+        // 既定は今までどおり消える＝**24時間で消える約束は壊さない**。
         // 仕組みは `keptAs`（印があれば掃除が実体を消さない）と同じ1本で、
         // 2つ目の置き場は作らない。
         //
-        // `if_not_exists` で刻むのは、万一もう一度ここに来ても最初の時刻を
-        // 守るため（Scan の経路は `archivedAt` で落とすので普通は来ない）。
+        // 順序は削除と同じ「返信 → 行」。**返信を消せなければ棚へ移さない**
+        // ——行は GSI に残るので次回また来る（消せないまま棚へ移すと、
+        // `storyFeed` が無い行の返信はどの掃除からも辿れない）。
         if (item.archive === true) {
+            try {
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
+            } catch (e) {
+                console.error(`cleanup: keeping ${id} in feed (replies delete failed; will retry next run):`, e);
+                continue;
+            }
             try {
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
                     Key: { id },
-                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :now) REMOVE storyFeed",
+                    UpdateExpression: "SET archivedAt = :now REMOVE storyFeed, viewers, replyCount",
+                    // **今まさに棚へ移してよい行**であることを条件にする:
+                    // 行が在り・印が立っていて・まだ移っていない。
                     // 行が消えていたら作らない（`viewStory` と同じ理由——
                     // 鍵だけの行はどの掃除からも辿れない）
-                    ConditionExpression: "attribute_exists(id)",
-                    ExpressionAttributeValues: { ":now": new Date().toISOString() },
+                    ConditionExpression: "attribute_exists(id) AND archive = :t AND attribute_not_exists(archivedAt)",
+                    ExpressionAttributeValues: { ":now": new Date().toISOString(), ":t": true },
                 }));
                 archived++;
             } catch (e) {
+                // 条件が外れた＝もう棚に在るか、行が消えた。どちらもやることは無い
+                if ((e as { name?: string }).name === "ConditionalCheckFailedException") continue;
                 // 書けなければ次回に回す（行は GSI に残っているので、また来る）
                 console.error(`cleanup: archive failed for ${id}:`, e);
             }

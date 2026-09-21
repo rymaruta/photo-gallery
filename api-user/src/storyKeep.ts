@@ -69,12 +69,13 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 印が立つと、**S3 だけ消えた写真**ができる。期限切れの行は
         // `getStories` が返さない＝画面から押せないので、断っても失うものは無い
         //
-        // **アーカイブ済みは通す。** 上の競合は「掃除がこれから消しにくる行」の
-        // 話で、`archivedAt` が刻まれた行は掃除がもう二度と触らない
-        // （`storyFeed` を外してあるので GSI に出ない）。期限切れでも本人の
-        // 手元に残っている1枚なので、そこから「残す」を押せてよい
-        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()
-            && !(typeof story.archivedAt === "string" && story.archivedAt)) {
+        // **アーカイブ済みも断る。** 一度は通したが、残した写真とストーリーは
+        // **S3 の実体を共有する**ので、あとで下書きの写真を消すと
+        // `deleteMyPhoto` の `keptFrom` がストーリーの行ごと消す
+        // ——生きているストーリーなら「どうせ24時間で消える」で済むが、
+        // アーカイブは本人が残すつもりのものなので黙って消えては困る。
+        // 実体を複製して切り離すまでは、残せるのは生きている間だけ
+        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()) {
             return jsonError(404, "ストーリーが見つかりません");
         }
 
