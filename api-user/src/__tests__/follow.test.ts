@@ -179,8 +179,17 @@ describe("followUser", () => {
         //  逆の「この人をブロック」）。他の2か所（`StoryViewer` と
         // `UserProfileClient` の注意書き）は場所まで言っているのに、
         // **押した人が実際に受け取るこの文言だけ**が言っていなかった
+        //
+        // **場所は「設定」（`/user/settings`）。** 「ブロックした人」は
+        // プロフィール編集から `/user/settings` へ移したので、
+        // 「プロフィール設定の」は**実在しない場所**を指していた
+        // （画面側の2か所は移設のときに直り、サーバーだけ古かった）。
+        // 「設定」の1語では `プロフィール設定` も通ってしまうので、
+        // **古い方を名指しで落とす**
         expect(JSON.parse(res.body).error, "どこで解除するか言っていない")
-            .toContain("プロフィール設定");
+            .toContain("設定の「ブロックした人」");
+        expect(JSON.parse(res.body).error, "移設前の場所を案内している")
+            .not.toContain("プロフィール設定");
         expect(mockDdbSend).not.toHaveBeenCalled();
         expect(mockPush).not.toHaveBeenCalled();
     });
