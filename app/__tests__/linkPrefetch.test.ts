@@ -38,6 +38,7 @@ const EXEMPT: Array<[string, string]> = [
     ["app/admin/edit/page.tsx", "管理の編集画面"],
     ["app/user/albums/page.tsx", "自分のアルバム"],
     ["app/user/drafts/page.tsx", "自分の下書き"],
+    ["app/user/archive/page.tsx", "自分のストーリーのアーカイブ（本人だけ）"],
     ["app/user/edit/page.tsx", "自分の写真の編集"],
     ["app/user/profile/page.tsx", "自分のプロフィール設定"],
     ["app/user/settings/page.tsx", "設定（ログインした本人だけが描かれる）"],

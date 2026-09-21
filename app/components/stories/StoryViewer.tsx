@@ -128,6 +128,12 @@ export function storyDurationMs(durationSec: unknown): number {
 type Props = {
     groups: StoryGroup[];
     initialGroupIndex: number;
+    /**
+     * 最初に出す1枚（その束の中の添字）。省略時は先頭。アーカイブの
+     * グリッドで押した1枚から始めるために要る——先頭からしか始められないと、
+     * 30枚目を見るのに29回送ることになる
+     */
+    initialItemIndex?: number;
     locale: "ja" | "en";
     ownUserId?: string | null;
     isAuthenticated: boolean;
@@ -156,9 +162,9 @@ type Props = {
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, initialItemIndex = 0, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
-    const [i, setI] = useState(0);
+    const [i, setI] = useState(initialItemIndex);
     // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
     // state 経由にしていた頃は timeupdate（仕様上ブラウザ任せ・実測 250ms
     // 間隔）でしか動かず、120ms の transition で補間しても線が
@@ -1207,7 +1213,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         検索にも出ないが、写真には個別ページも地図も集約ページも
                         ある。この1枚だけ、**下書きの写真**として残す
                         （公開は編集画面で本人が押す）。動画は写真の行にできない */}
-                    {isOwnStory && item.mediaType !== "video" && (
+                    {/* **「アーカイブに自動保存」の投稿には出さない。** 残した写真と
+                        ストーリーは S3 の実体を共有し、写真を消すとアーカイブごと
+                        消える。サーバーも 409 で断る（`storyKeep.ts`）ので、押しても
+                        断られるだけのボタンを置かない */}
+                    {isOwnStory && item.mediaType !== "video" && item.archive !== true && (
                         keptPhotoId || item.keptAs ? (
                             <Link
                                 /* **URL を手で書かない**（`ROUTES.EDIT` と1文字同じものを
