@@ -1471,8 +1471,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
-                                        ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
-                                        : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
+                                        ? "Blocking also removes follows in both directions. You can unblock from Settings."
+                                        // 行き先は**設定**（2026-09-21 にプロフィール編集から移設）。
+                                        // `BlockedUsers` は `/user/settings` の「プライバシー」に居る
+                                        : "ブロックすると、お互いのフォローも外れます。解除は設定の「ブロックした人」からできます。"}
                                 </p>
                             )}
                             {/* ブロックが効かなかった理由（`replyError` と同じ形） */}

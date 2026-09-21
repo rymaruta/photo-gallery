@@ -111,6 +111,22 @@ describe("設定の門", () => {
         expect(String(mockReplace.mock.calls[0][0])).toContain("/login");
     });
 
+    // 🔴 **送り返すまでの間も描かない。** `loading` だけ見ていたので、
+    // 未ログインで開くと `router.replace` が効くまでの1描画ぶん、
+    // メールアドレス・パスワード・退会の並んだ画面が**丸ごと見えていた**
+    // （移設元の `/user/profile` は `loading || fetching` で塞いでいた）
+    it("未ログインの間は中身を描かない（送り返すまでの1描画も）", async () => {
+        mockAuth.value = { isAuthenticated: false, loading: false, deleteAccount: vi.fn() };
+        await renderSettings();
+
+        expect(screen.queryByRole("heading", { name: "アカウント" }),
+            "未ログインに設定の中身が見えている").toBeNull();
+        expect(screen.queryByLabelText("新しいメールアドレス")).toBeNull();
+        expect(screen.queryByRole("button", { name: /退会する/ })).toBeNull();
+        // 見出しは読み上げ向けに残す（事前描画で焼かれる枝）
+        expect(screen.getByRole("heading", { name: "設定" })).toBeInTheDocument();
+    });
+
     it("判定中はまだ送らない（スピナーのまま）", async () => {
         mockAuth.value = { isAuthenticated: false, loading: true, deleteAccount: vi.fn() };
         await renderSettings();

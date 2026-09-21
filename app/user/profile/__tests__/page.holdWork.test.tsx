@@ -19,7 +19,6 @@ const mockUserFetch = vi.fn();
 const mockReplace = vi.fn();
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: true, loading: false } }));
 
-vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: mockReplace }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
@@ -33,7 +32,6 @@ vi.mock("../../../../lib/utils/image", () => ({
     UnstrippableFileError: class extends Error {},
     AVATAR_MAX_PX: 512, COVER_MAX_PX: 1280,
 }));
-vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 
 const ProfilePage = (await import("../page")).default;
 

@@ -15,8 +15,6 @@ const mockUserFetch = vi.fn();
 
 // ブロック一覧は境界として外す（`GET /user/blocks` を勝手に呼ぶので、
 // この画面の「何を送ったか」の数え上げに混ざる）。中身は
-// `BlockedUsers.test.tsx` が見る
-vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
@@ -30,7 +28,6 @@ vi.mock("../../../../lib/utils/image", () => ({
     UnstrippableFileError: class extends Error {},
     AVATAR_MAX_PX: 512, COVER_MAX_PX: 1280,
 }));
-vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 
 const ProfilePage = (await import("../page")).default;
 
