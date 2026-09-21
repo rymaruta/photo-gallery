@@ -98,12 +98,29 @@ export function questDayNumber(dateKey: string): number | null {
     const y = Number(m[1]);
     const mo = Number(m[2]);
     const d = Number(m[3]);
-    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-    const ms = Date.UTC(y, mo - 1, d);
-    if (!Number.isFinite(ms)) return null;
-    const back = new Date(ms);
-    // 繰り上がっていれば入力は存在しない日付
-    if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
+    const back = new Date(Date.UTC(y, mo - 1, d));
+    /**
+     * **組み直して、書かれていた文字列と丸ごと突き合わせる。**
+     * これ1つで「範囲の検査」も「存在しない日付」も「2桁年」も兼ねる。
+     *
+     * `Date.UTC` は範囲外を黙って繰り上げる（`2026-13-01` → 2027-01-01、
+     * `2026-09-00` → 2026-08-31、`2026-02-31` → 2026-03-03）。通すと
+     * **存在しない日付が有効な日付の別名**になり、参加の行が2つに割れる。
+     *
+     * また `Date.UTC(26, …)` は西暦26年ではなく **1926年**を指す（2桁年の
+     * 遺産）。`0026-09-21` は 1926-09-21 になるが、文字列が一致しないので
+     * 落ちる——黙って1926年として通らない。
+     *
+     * **なぜ年・月・日を別々に比べないのか。** 最初はそう書いていたが、
+     * 変異テストで**日の比較を消しても1件も落ちなかった**。総当たり
+     * （2026年の全月 × 日0〜99＝1,200通り）で確かめると、年と月が一致した
+     * まま日だけずれる入力は **0件**——繰り上がりは必ず月をまたぐので、
+     * 日の比較は**一度も到達しない死んだ枝**だった。その手前に書いていた
+     * `mo < 1 || mo > 12 || …` の範囲検査も同じ理由で死んでいた。
+     * 丸ごと1回比べる形なら、どこを削っても必ずテストが落ちる。
+     */
+    if (back.toISOString().slice(0, 10) !== dateKey) return null;
+    const ms = back.getTime();
     return Math.floor(ms / MS_PER_DAY);
 }
 

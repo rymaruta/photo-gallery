@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
     QUEST_THEMES,
     questDayNumber,
@@ -35,6 +35,23 @@ describe("QUEST_THEMES（表そのもの）", () => {
     });
 });
 
+/**
+ * **変異テストの結果（13通り試して11殺し）。**
+ *
+ * 生き残った2つは**等価変異**で、テストの穴ではない:
+ *
+ * - 正規表現の `$` を外す
+ * - 突き合わせを `slice(0, 10)` から `slice(0, 7)`（月まで）に縮める
+ *
+ * どちらも 10,026 通りの入力を総当たりして**答えが変わった入力は0件**だった。
+ * `questDayNumber` が「組み直して `dateKey` と丸ごと突き合わせる」形なので、
+ * 末尾の余りも日のずれもその1回の比較が拾ってしまう。
+ *
+ * **それでも2つとも残してある。** 死んでいるから消した範囲検査
+ * （`mo < 1 || mo > 12 …`）とは違って、こちらは**読む人に意図を伝える**
+ * ぶんの価値がある——`$` の無い正規表現は「途中まで合えばよい」と
+ * 読めてしまうし、日を見ない突き合わせは下流の性質に寄りかかった形になる。
+ */
 describe("questDayNumber", () => {
     it("1970-01-01 が 0", () => {
         expect(questDayNumber("1970-01-01")).toBe(0);
@@ -62,12 +79,18 @@ describe("questDayNumber", () => {
     ])("形が違う %s（%s）は null", (value) => {
         expect(questDayNumber(value)).toBeNull();
     });
-    it.each(["2026-02-31", "2026-13-01", "2026-00-10", "2026-09-00", "2025-02-29"])(
+    it.each(["2026-02-31", "2026-13-01", "2026-00-10", "2026-09-00", "2026-09-32", "2025-02-29"])(
         "存在しない日付 %s は null（Date.UTC の繰り上がりを通さない）",
         (value) => {
             expect(questDayNumber(value)).toBeNull();
         },
     );
+    it("Date.UTC の2桁年の遺産を通さない（0026 は 1926 ではない）", () => {
+        // Date.UTC(26, 8, 21) は西暦26年ではなく 1926-09-21 を指す。
+        // 年を突き合わせているので null に落ちる。
+        expect(new Date(Date.UTC(26, 8, 21)).getUTCFullYear(), "前提: 2桁年は1900年代に写る").toBe(1926);
+        expect(questDayNumber("0026-09-21")).toBeNull();
+    });
 });
 
 describe("isQuestDateKey", () => {
@@ -125,11 +148,32 @@ describe("questThemeForDate", () => {
 });
 
 describe("questTodayKey", () => {
+    /**
+     * **端末の暦で切っていること。**
+     *
+     * 最初はこれを `new Date(2026, 8, 21, 6, 0, 0)` で書いていたが、
+     * **何も検証していなかった**——CI とこのコンテナの TZ は UTC で、
+     * ローカルと UTC が一致するため `getUTCFullYear()` に差し替えても
+     * 通ってしまう（変異テストで生き残って気づいた）。
+     *
+     * 実装が読むのは `getFullYear/getMonth/getDate` の3つだけなので、
+     * **その3つだけを差し替えて「+9時間の端末」をまねる**。こうすると
+     * 機械の TZ が何であっても、UTC 版に変えた瞬間に落ちる。
+     *
+     * **年をまたぐ瞬間を選ぶ。** 最初は 9/20→9/21 で書いたが、それだと
+     * 月と年は UTC でも同じ値なので、**`getMonth` だけを UTC に変えた変異が
+     * 生き残った**。大晦日なら3つとも食い違う（2026-12-31 / 2027-01-01）ので、
+     * どれ1つ差し替えても落ちる。
+     */
     it("端末の暦で切る（UTC ではない）", () => {
-        // JST(UTC+9) の 2026-09-21 06:00 は UTC ではまだ 09-20 21:00。
-        // 端末の暦で切るので 09-21 でなければならない。
-        const d = new Date(2026, 8, 21, 6, 0, 0); // ローカル時刻として組む
-        expect(questTodayKey(d)).toBe("2026-09-21");
+        // UTC では 2026-12-31 21:00。JST(+9) の端末では 2027-01-01 06:00。
+        const d = new Date(Date.UTC(2026, 11, 31, 21, 0, 0));
+        vi.spyOn(d, "getFullYear").mockReturnValue(2027);
+        vi.spyOn(d, "getMonth").mockReturnValue(0);
+        vi.spyOn(d, "getDate").mockReturnValue(1);
+        expect(questTodayKey(d)).toBe("2027-01-01");
+        // 前提: UTC 側は本当に年・月・日すべてが違う（崩れたら気づけるように）
+        expect(d.toISOString().slice(0, 10)).toBe("2026-12-31");
     });
     it("1桁の月日を0で埋める", () => {
         expect(questTodayKey(new Date(2026, 0, 5))).toBe("2026-01-05");
