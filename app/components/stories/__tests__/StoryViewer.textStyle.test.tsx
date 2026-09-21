@@ -15,7 +15,7 @@ vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: 
 
 import StoryViewer from "../StoryViewer";
 
-const one: StoryText = { text: "朝の空", x: 0.25, y: 0.75, size: "s", font: "mincho", color: "pink", bg: "solid" };
+const one: StoryText = { text: "朝の空", x: 0.25, y: 0.75, size: 0.05, font: "mincho", color: "pink", bg: "solid" };
 
 function groups(over: { texts?: StoryText[]; caption?: string } = {}): StoryGroup[] {
     return [{
@@ -79,6 +79,13 @@ describe("StoryViewer: 置いた場所の文字", () => {
         setup({ texts: [{ ...one, text: "いち" }, { ...one, text: "に", y: 0.3 }] });
         const ps = [...document.querySelectorAll('p[style*="translate"]')].map((e) => e.textContent);
         expect(ps).toEqual(["いち", "に"]);
+    });
+
+    // **見る側では押せるものを増やさない。** 動かせないので的にする意味が無い
+    it("見る側では、文字は押せる的にしない", () => {
+        setup({ texts: [one] });
+        expect(placed()!.getAttribute("role"), "見る側で押せる的になっている").toBeNull();
+        expect(placed()!.tabIndex).toBe(-1);
     });
 
     // 他人のストーリーでも同じに出る（自分のときだけの飾りではない）

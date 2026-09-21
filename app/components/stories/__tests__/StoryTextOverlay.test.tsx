@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import StoryTextOverlay from "../StoryTextOverlay";
-import { STORY_FONTS, STORY_SIZES, type StoryText } from "@/lib/utils/storyText";
+import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryText } from "@/lib/utils/storyText";
 
 /**
  * 置いた文字の描き方。
@@ -13,7 +13,7 @@ import { STORY_FONTS, STORY_SIZES, type StoryText } from "@/lib/utils/storyText"
  * **並びが重なり順**——後ろほど手前。
  */
 const t = (over: Partial<StoryText> = {}): StoryText =>
-    ({ text: "こんにちは", x: 0.5, y: 0.5, size: "l", font: "bold", color: "white", bg: "none", ...over });
+    ({ text: "こんにちは", x: 0.5, y: 0.5, size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none", ...over });
 
 const box = { left: 30, top: 60, width: 300, height: 500 };
 const para = (text = "こんにちは") => screen.getByText(text);
@@ -39,8 +39,8 @@ describe("StoryTextOverlay", () => {
 
     // **絵の幅に対する割合。** px で持つと、撮った端末と見る端末で別の大きさになる
     it("大きさは絵の幅から決める", () => {
-        render(<StoryTextOverlay texts={[t({ size: "m" })]} box={box} />);
-        expect(para().style.fontSize).toBe(`${Math.round(box.width * STORY_SIZES.m)}px`);
+        render(<StoryTextOverlay texts={[t({ size: 0.06 })]} box={box} />);
+        expect(para().style.fontSize).toBe(`${Math.round(box.width * 0.06)}px`);
     });
 
     it("字体と色を当てる", () => {

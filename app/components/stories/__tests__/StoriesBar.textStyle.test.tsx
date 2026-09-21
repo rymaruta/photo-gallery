@@ -124,9 +124,42 @@ describe("ストーリーの文字", () => {
         expect(overlay()?.style.background).toBe("rgb(255, 214, 10)");
         expect(overlay()?.style.color).toBe("rgb(0, 0, 0)");
 
+        // 大きさは**つまみ**（段階のチップは見分けられず気づかれなかった）
         const before = overlay()?.style.fontSize;
-        await userEvent.click(screen.getByRole("switch", { name: "大きさ 1" }));
+        const slider = screen.getByRole("slider", { name: "文字の大きさ" });
+        fireEvent.change(slider, { target: { value: "0.14" } });
         expect(overlay()?.style.fontSize, "大きさが変わらない").not.toBe(before);
+    });
+
+    /**
+     * 大きさは**つまみで無段階**。4段階のチップ（A A A A）は並べても
+     * 違いが見分けられず、controlが在ることに気づかれなかった
+     * （owner:「文字の大きさも変えたいよね」）。
+     */
+    it("大きさはつまみで、キーボードでも動く", async () => {
+        await pickImage();
+        await type("朝の空");
+        const slider = screen.getByRole("slider", { name: "文字の大きさ" });
+        expect(slider).toHaveAttribute("min");
+        expect(slider).toHaveAttribute("max");
+
+        const small = "0.04", big = "0.15";
+        fireEvent.change(slider, { target: { value: small } });
+        const a = parseFloat(overlay()!.style.fontSize);
+        fireEvent.change(slider, { target: { value: big } });
+        const b = parseFloat(overlay()!.style.fontSize);
+        expect(b, "つまみを右へ動かしても大きくならない").toBeGreaterThan(a);
+    });
+
+    // **範囲の外は受けない**（画面を埋め尽くす／読めない大きさを作らない）
+    it("範囲の外の値は挟む", async () => {
+        await pickImage();
+        await type("朝の空");
+        const slider = screen.getByRole("slider", { name: "文字の大きさ" });
+        fireEvent.change(slider, { target: { value: "99" } });
+        await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
+        await waitFor(() => expect(posted()).toHaveLength(1));
+        expect(posted()[0].texts[0].size).toBeLessThanOrEqual(0.16);
     });
 
     it("投稿に置いた文字が載る", async () => {
@@ -306,5 +339,130 @@ describe("ストーリーの文字: 複数置く", () => {
         await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
         await waitFor(() => expect(posted()).toHaveLength(1));
         expect(posted()[0].texts.map((t: { text: string }) => t.text)).toEqual(["いち", "に"]);
+    });
+});
+
+/**
+ * 置いている最中に**写真がどれだけ見えるか**。
+ *
+ * 320×568 の実測で**写真が 95px しか見えていなかった**——文字をどこへ置くか
+ * 決められない。撮影地・曲・表示時間は最後に1回さわるもので、置いている
+ * 最中には要らないので畳む。写真の余白をさわると選択が外れて戻る。
+ */
+describe("ストーリーの文字: 置いている間は、ほかの欄を畳む", () => {
+    const area = () => document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement;
+
+    it("文字を選んでいる間は、撮影地・曲・表示時間を出さない", async () => {
+        await pickImage();
+        expect(screen.getByPlaceholderText(/撮影地/), "最初から隠れている").toBeInTheDocument();
+        await type("朝の空");
+        expect(screen.queryByPlaceholderText(/撮影地/), "選んでいるのに撮影地が出ている").toBeNull();
+        expect(screen.queryByRole("button", { name: /曲を付ける/ })).toBeNull();
+    });
+
+    it("写真の余白をさわると選択が外れて、ほかの欄が戻る", async () => {
+        await pickImage();
+        await type("朝の空");
+        fireEvent.pointerDown(area(), { pointerId: 9 });
+        expect(screen.getByPlaceholderText(/撮影地/), "外しても戻らない").toBeInTheDocument();
+        // 文字は消えていない（選択が外れただけ）
+        expect(overlay()?.textContent).toBe("朝の空");
+    });
+
+    // 🔴 **文字の上で止めた指では外れない。** 伝わると選んだ直後に外れる
+    it("文字をさわったときは外れない", async () => {
+        await pickImage();
+        await type("朝の空");
+        fireEvent.pointerDown(area(), { pointerId: 9 });
+        await userEvent.pointer({ target: screen.getByText("朝の空"), keys: "[MouseLeft>]" });
+        expect(screen.queryByPlaceholderText(/撮影地/), "選んだ直後に外れている").toBeNull();
+    });
+
+    // **選んでいないのに字体や色を出さない**（押しても効かない的を並べない）
+    it("選んでいなければ、字体や色の欄は出さない", async () => {
+        await pickImage();
+        await type("朝の空");
+        expect(screen.getByRole("switch", { name: "明朝" })).toBeInTheDocument();
+        fireEvent.pointerDown(area(), { pointerId: 9 });
+        expect(screen.queryByRole("switch", { name: "明朝" }), "効かない的が残っている").toBeNull();
+        // もう1つ足す口は残す（外したあとに増やせなくならない）
+        expect(screen.getByRole("button", { name: "文字を追加" })).toBeInTheDocument();
+    });
+});
+
+/**
+ * 🔴 **投稿のボタンは、巻き取られる欄の外に置く。**
+ *
+ * 中に置いていたので、欄が伸びると画面の外へ落ちた——320×568 の実測で
+ * **画面外**（スクロールすれば届くが、いちばん押すものが見えない）。
+ * 文字の欄を足したこの差分で再発させた（台帳の `STORY-4` と同じ形）。
+ *
+ * jsdom にレイアウトは無いので**入れ子で見る**——外に在れば、
+ * これから何を足しても落ちない。
+ */
+describe("ストーリーの下書き: 投稿のボタンの置き場所", () => {
+    it("巻き取られる欄の中に入っていない", async () => {
+        await pickImage();
+        const post = screen.getByRole("button", { name: /ストーリーに投稿/ });
+        const scroller = document.querySelector('[role="dialog"] .overflow-y-auto');
+        expect(scroller, "巻き取られる欄が見つからない").not.toBeNull();
+        expect(scroller!.contains(post), "投稿のボタンが巻き取られる欄の中にある").toBe(false);
+    });
+});
+
+/**
+ * キーボードで置き場所を決められるか。**指でなぞる以外の手が無いと、
+ * 置き場所を決められない人がいる**（このリポジトリは同じ形を何度も直している）。
+ */
+describe("ストーリーの文字: キーボード", () => {
+    it("文字に到達できて、押された状態が分かる", async () => {
+        await pickImage();
+        await type("朝の光");
+        const el = screen.getByRole("button", { name: /文字「朝の光」/ });
+        expect(el.tabIndex, "キーボードで到達できない").toBe(0);
+        expect(el).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("矢印キーで動く", async () => {
+        await pickImage();
+        await type("朝の光");
+        const el = screen.getByRole("button", { name: /文字「朝の光」/ });
+        const before = el.style.left;
+        fireEvent.keyDown(el, { key: "ArrowRight" });
+        const after = (screen.getByRole("button", { name: /文字「朝の光」/ }) as HTMLElement).style.left;
+        expect(after, "矢印キーで動かない").not.toBe(before);
+        expect(parseFloat(after)).toBeGreaterThan(parseFloat(before));
+    });
+
+    it("上下にも動く。Shift で大きく動く", async () => {
+        await pickImage();
+        await type("朝の光");
+        const top0 = screen.getByRole("button", { name: /文字「朝の光」/ }).style.top;
+        fireEvent.keyDown(screen.getByRole("button", { name: /文字「朝の光」/ }), { key: "ArrowDown" });
+        const top1 = screen.getByRole("button", { name: /文字「朝の光」/ }).style.top;
+        expect(parseFloat(top1), "下へ動かない").toBeGreaterThan(parseFloat(top0));
+
+        fireEvent.keyDown(screen.getByRole("button", { name: /文字「朝の光」/ }), { key: "ArrowDown", shiftKey: true });
+        const top2 = screen.getByRole("button", { name: /文字「朝の光」/ }).style.top;
+        expect(parseFloat(top2) - parseFloat(top1), "Shift でも同じ幅しか動かない")
+            .toBeGreaterThan(parseFloat(top1) - parseFloat(top0));
+    });
+
+    // **端は必ず挟む**（半分が画面の外へ出ない）
+    it("端まで行っても外へ出ない", async () => {
+        await pickImage();
+        await type("朝の光");
+        for (let i = 0; i < 40; i++) {
+            fireEvent.keyDown(screen.getByRole("button", { name: /文字「朝の光」/ }), { key: "ArrowLeft", shiftKey: true });
+        }
+        expect(parseFloat(screen.getByRole("button", { name: /文字「朝の光」/ }).style.left)).toBeGreaterThan(0);
+    });
+
+    // 見る側では押せるものを増やさない
+    it("見る側では、文字はキーボードの的にしない", async () => {
+        await pickImage();
+        await type("朝の光");
+        // 下書きの中でだけ的になる。見る側は `StoryViewer.textStyle.test.tsx` が見る
+        expect(screen.getByRole("button", { name: /文字「朝の光」/ })).toBeInTheDocument();
     });
 });

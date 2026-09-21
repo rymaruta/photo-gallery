@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
     sanitizeStoryTexts, storyTextsCaption, clampStoryTextPos, newStoryText,
     DEFAULT_STORY_TEXT, FIRST_STORY_TEXT_POS,
-    STORY_FONTS, STORY_COLORS, STORY_SIZES, STORY_BGS,
+    clampStoryTextSize, STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_DEFAULT,
+    STORY_FONTS, STORY_COLORS, STORY_BGS,
     STORY_TEXT_MIN, STORY_TEXT_MAX, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
 } from "../storyText";
 
@@ -18,7 +19,7 @@ import {
  * 動く値も、読めない組み合わせも作れない。
  */
 describe("sanitizeStoryTexts", () => {
-    const ok = { text: "朝の空", x: 0.2, y: 0.8, size: "s", font: "mincho", color: "sky", bg: "soft" };
+    const ok = { text: "朝の空", x: 0.2, y: 0.8, size: 0.05, font: "mincho", color: "sky", bg: "soft" };
 
     it("そのまま通る値", () => {
         expect(sanitizeStoryTexts([ok])).toEqual([ok]);
@@ -76,6 +77,12 @@ describe("sanitizeStoryTexts", () => {
         expect(sanitizeStoryTexts(many)).toHaveLength(STORY_TEXTS_MAX);
     });
 
+    it("大きさは数として挟む（知らない値は既定）", () => {
+        expect(sanitizeStoryTexts([{ text: "朝", size: "huge" }])?.[0].size).toBe(STORY_SIZE_DEFAULT);
+        expect(sanitizeStoryTexts([{ text: "朝", size: 99 }])?.[0].size).toBe(STORY_SIZE_MAX);
+        expect(sanitizeStoryTexts([{ text: "朝", size: 0.05 }])?.[0].size).toBe(0.05);
+    });
+
     it("1つあたりの長さも切る", () => {
         const long = "あ".repeat(STORY_TEXT_LEN_MAX + 50);
         expect(sanitizeStoryTexts([{ ...ok, text: long }])?.[0].text).toHaveLength(STORY_TEXT_LEN_MAX);
@@ -109,6 +116,28 @@ describe("newStoryText", () => {
 
     it("位置は挟む", () => {
         expect(newStoryText(-1, 9)).toMatchObject({ x: STORY_TEXT_MIN, y: STORY_TEXT_MAX });
+    });
+});
+
+/**
+ * 大きさは**段階ではなく無段階**。4段階のチップは並べても違いが見分けられず
+ * 気づかれなかった（owner:「文字の大きさも変えたいよね」）。
+ */
+describe("clampStoryTextSize", () => {
+    it("挟む", () => {
+        expect(clampStoryTextSize(0)).toBe(STORY_SIZE_MIN);
+        expect(clampStoryTextSize(9)).toBe(STORY_SIZE_MAX);
+        expect(clampStoryTextSize(0.06)).toBe(0.06);
+    });
+
+    it("数でなければ既定", () => {
+        for (const v of [undefined, null, "0.06", NaN, Infinity, {}]) {
+            expect(clampStoryTextSize(v), `${JSON.stringify(v)}`).toBe(STORY_SIZE_DEFAULT);
+        }
+    });
+
+    it("小数は3桁に丸める（同じ大きさを指す長い小数で太らせない）", () => {
+        expect(clampStoryTextSize(0.0781234)).toBe(0.078);
     });
 });
 
@@ -160,10 +189,12 @@ describe("選べるものの一覧", () => {
     });
 
     // **絵の幅に対する割合。** px で持つと、撮った端末と見る端末で別の大きさになる
-    it("大きさは幅に対する割合（0〜1）で、小さい順", () => {
-        const vals = Object.values(STORY_SIZES);
-        expect(vals.every((v) => v > 0 && v < 0.5), "割合として妥当でない").toBe(true);
-        expect([...vals].sort((a, b) => a - b), "小さい順に並んでいない").toEqual(vals);
+    it("大きさの範囲は割合として妥当", () => {
+        expect(STORY_SIZE_MIN).toBeGreaterThan(0);
+        expect(STORY_SIZE_MAX).toBeLessThan(0.5);
+        expect(STORY_SIZE_MIN).toBeLessThan(STORY_SIZE_MAX);
+        expect(STORY_SIZE_DEFAULT).toBeGreaterThanOrEqual(STORY_SIZE_MIN);
+        expect(STORY_SIZE_DEFAULT).toBeLessThanOrEqual(STORY_SIZE_MAX);
     });
 
     it("下地は3種（無し・うす・塗り）", () => {
@@ -173,7 +204,6 @@ describe("選べるものの一覧", () => {
     it("既定は一覧の中の鍵", () => {
         expect(Object.keys(STORY_FONTS)).toContain(DEFAULT_STORY_TEXT.font);
         expect(Object.keys(STORY_COLORS)).toContain(DEFAULT_STORY_TEXT.color);
-        expect(Object.keys(STORY_SIZES)).toContain(DEFAULT_STORY_TEXT.size);
         expect([...STORY_BGS]).toContain(DEFAULT_STORY_TEXT.bg);
     });
 

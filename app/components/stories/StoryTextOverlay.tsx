@@ -1,10 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-    STORY_FONTS, STORY_COLORS, STORY_SIZES,
-    type StoryText,
-} from "@/lib/utils/storyText";
+import { STORY_FONTS, STORY_COLORS, type StoryText } from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
 
 /**
@@ -19,7 +16,7 @@ import type { MediaBox } from "@/lib/hooks/useMediaBox";
  *
  * **並びが重なり順**——後ろの要素ほど手前に出る（DOM の順のまま）。
  */
-export default function StoryTextOverlay({ texts, box, selectedIndex, onPickIndex, dimmed }: {
+export default function StoryTextOverlay({ texts, box, selectedIndex, onPickIndex, onNudge, locale, dimmed }: {
     texts: readonly StoryText[];
     /** 絵が実際に描かれている矩形。測れていなければ囲み全体に載せる */
     box: MediaBox | null;
@@ -27,6 +24,12 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
     selectedIndex?: number | null;
     /** 掴んだ文字を選ぶ（渡すと掴めるようになる＝下書きの画面） */
     onPickIndex?: (index: number, e: React.PointerEvent<HTMLElement>) => void;
+    /**
+     * 矢印キーで少し動かす。**指でなぞれない人の唯一の動かし方**
+     * ——渡さないとキーボードでは置き場所を決められない。
+     */
+    onNudge?: (index: number, dx: number, dy: number) => void;
+    locale?: "ja" | "en";
     /** 掴んでいる間などに少し透かす（下の写真を確かめられるように） */
     dimmed?: boolean;
 }) {
@@ -53,7 +56,31 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                         key={i}
                         data-story-text-index={i}
                         onPointerDown={onPickIndex ? (e) => onPickIndex(i, e) : undefined}
-                        className={`absolute whitespace-pre-wrap break-words text-center ${editable ? "pointer-events-auto cursor-move" : ""}`}
+                        // **キーボードでも選べて、動かせる。** 指でなぞる以外の
+                        // 手が無いと、置き場所を決められない人がいる
+                        // （このリポジトリは同じ形を何度も直している）
+                        {...(editable ? {
+                            role: "button",
+                            tabIndex: 0,
+                            "aria-pressed": selected,
+                            "aria-label": locale === "en"
+                                ? `Text "${t.text}" — arrow keys to move`
+                                : `文字「${t.text}」 — 矢印キーで動かせます`,
+                            onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+                                // 1回で 2%。Shift で 10%（端まで何度も押さずに済む）
+                                const step = e.shiftKey ? 0.1 : 0.02;
+                                const d: Record<string, [number, number]> = {
+                                    ArrowLeft: [-step, 0], ArrowRight: [step, 0],
+                                    ArrowUp: [0, -step], ArrowDown: [0, step],
+                                };
+                                const move = d[e.key];
+                                if (move && onNudge) {
+                                    e.preventDefault();
+                                    onNudge(i, move[0], move[1]);
+                                }
+                            },
+                        } : {})}
+                        className={`absolute whitespace-pre-wrap break-words text-center ${editable ? "pointer-events-auto cursor-move focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" : ""}`}
                         style={{
                             left: `${t.x * 100}%`,
                             top: `${t.y * 100}%`,
@@ -70,8 +97,8 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                             fontFamily: font.css,
                             fontWeight: font.weight,
                             fontSize: box
-                                ? `${Math.round(box.width * STORY_SIZES[t.size])}px`
-                                : `${(STORY_SIZES[t.size] * 100).toFixed(1)}vw`,
+                                ? `${Math.round(box.width * t.size)}px`
+                                : `${(t.size * 100).toFixed(1)}vw`,
                             lineHeight: 1.25,
                             // 下地が「塗り」のときは、選んだ色が下地になり文字が反転する
                             color: filled ? color.on : color.hex,

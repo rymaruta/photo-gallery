@@ -1247,7 +1247,7 @@ describe("createStory: 置いた文字", () => {
     const saved = () => (mockDdbSend.mock.calls
         .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
         .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
-    const one = { text: "朝の空", x: 0.2, y: 0.8, size: "s", font: "mincho", color: "sky", bg: "soft" };
+    const one = { text: "朝の空", x: 0.2, y: 0.8, size: 0.05, font: "mincho", color: "sky", bg: "soft" };
 
     beforeEach(() => { mockDdbSend.mockResolvedValue({ Count: 0 }); });
 

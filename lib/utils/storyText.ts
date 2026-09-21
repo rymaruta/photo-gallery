@@ -70,12 +70,23 @@ export type StoryColorKey = keyof typeof STORY_COLORS;
 export const STORY_COLOR_KEYS = Object.keys(STORY_COLORS) as StoryColorKey[];
 
 /**
- * 大きさ。**画面の幅に対する割合**で持つ（px で持つと、撮った端末と
+ * 大きさ。**絵の幅に対する割合**で持つ（px で持つと、撮った端末と
  * 見る端末で違う大きさになる）。
+ *
+ * **段階ではなく無段階。** 4段階のチップ（A A A A）で出していたが、
+ * 並べても違いが見分けられず**気づかれなかった**（owner:「文字の大きさも
+ * 変えたいよね」——控えは在ったのに見つからなかった）。
+ * つまみで連続に変える方が、何ができるかが一目で分かる。
  */
-export const STORY_SIZES = { s: 0.042, m: 0.058, l: 0.078, xl: 0.105 } as const;
-export type StorySizeKey = keyof typeof STORY_SIZES;
-export const STORY_SIZE_KEYS = Object.keys(STORY_SIZES) as StorySizeKey[];
+export const STORY_SIZE_MIN = 0.03;
+export const STORY_SIZE_MAX = 0.16;
+export const STORY_SIZE_DEFAULT = 0.078;
+export const STORY_SIZE_STEP = 0.002;
+
+export function clampStoryTextSize(v: unknown): number {
+    const n = typeof v === "number" && Number.isFinite(v) ? v : STORY_SIZE_DEFAULT;
+    return Math.min(STORY_SIZE_MAX, Math.max(STORY_SIZE_MIN, Math.round(n * 1000) / 1000));
+}
 
 /** 下地。`none` は影だけ（写真がうるさいと読みにくいので `soft`/`solid` を用意） */
 export const STORY_BGS = ["none", "soft", "solid"] as const;
@@ -89,7 +100,8 @@ export type StoryText = {
     text: string;
     x: number;
     y: number;
-    size: StorySizeKey;
+    /** 絵の幅に対する割合（`STORY_SIZE_MIN`〜`STORY_SIZE_MAX`） */
+    size: number;
     font: StoryFontKey;
     color: StoryColorKey;
     bg: StoryBgKey;
@@ -97,7 +109,7 @@ export type StoryText = {
 
 /** 見せ方の既定（新しく足した文字の姿）。白・太ゴシック */
 export const DEFAULT_STORY_TEXT: Omit<StoryText, "text" | "x" | "y"> = {
-    size: "l", font: "bold", color: "white", bg: "none",
+    size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none",
 };
 
 /**
@@ -149,7 +161,7 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
             text,
             x: clampStoryTextPos(o.x),
             y: clampStoryTextPos(o.y),
-            size: pick(o.size, STORY_SIZE_KEYS, DEFAULT_STORY_TEXT.size),
+            size: clampStoryTextSize(o.size),
             font: pick(o.font, STORY_FONT_KEYS, DEFAULT_STORY_TEXT.font),
             color: pick(o.color, STORY_COLOR_KEYS, DEFAULT_STORY_TEXT.color),
             bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),

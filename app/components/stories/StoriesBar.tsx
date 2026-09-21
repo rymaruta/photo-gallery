@@ -26,7 +26,8 @@ import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
 import {
     STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
-    STORY_SIZE_KEYS, STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
+    STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
+    STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText,
     type StoryText,
 } from "../../../lib/utils/storyText";
@@ -206,6 +207,14 @@ export default function StoriesBar() {
 
     /** 掴んでいる文字。指が離れるまで、その1つだけを動かす */
     const draggingIndexRef = useRef<number | null>(null);
+
+    /** 矢印キーで少しずつ動かす（指でなぞれない人の動かし方） */
+    const nudgeText = useCallback((index: number, dx: number, dy: number) => {
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? { ...t, x: clampStoryTextPos(t.x + dx), y: clampStoryTextPos(t.y + dy) }
+            : t)));
+        setSelected(index);
+    }, []);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
@@ -925,6 +934,11 @@ export default function StoriesBar() {
                         // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
                         // 指が離れるまでその1つだけを動かす。追随は
                         // `setPointerCapture` に任せる（指が文字から出ても続く）
+                        // **余白をさわったら選択を外す。** 外せないと、
+                        // 置いている間ずっと ほかの欄が畳まれたままになる
+                        // （文字の上で止めた pointerdown は上の `<p>` が受けるので
+                        //  ここには来ない）
+                        onPointerDown={() => { if (!posting) setSelected(null); }}
                         onPointerMove={(e) => {
                             const i = draggingIndexRef.current;
                             if (i === null) return;
@@ -955,8 +969,14 @@ export default function StoriesBar() {
                                 box={draftMediaBox}
                                 dimmed={dragging}
                                 selectedIndex={selected}
+                                locale={locale}
+                                onNudge={posting ? undefined : nudgeText}
                                 onPickIndex={posting ? undefined : (i, e) => {
                                     e.preventDefault();
+                                    // **囲みへ伝えない。** 囲みの pointerdown は
+                                    // 「余白をさわった＝選択を外す」なので、
+                                    // 伝わると選んだ直後に外れる
+                                    e.stopPropagation();
                                     setSelected(i);
                                     draggingIndexRef.current = i;
                                     setDragging(true);
@@ -1003,8 +1023,7 @@ export default function StoriesBar() {
                         消すのは見た目だけ（指は写真を掴んだままなので、
                         `pointer-events` を切っても掴みは切れない） */}
                     <div
-                        className={`relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
-                        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+                        className={`relative px-4 pt-4 pb-1 space-y-3 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
                         {/* **打つ欄は1つ。** いま選んでいる文字を直す。
                             まだ1つも無ければ、打った時点で1つ目ができる
@@ -1081,7 +1100,11 @@ export default function StoriesBar() {
                                     </div>
                                 </div>
 
-                                {/* 字体 */}
+                                {/* 字体・色・大きさ・下地は**選んでいるときだけ**。
+                                    選んでいないと `patchSelected` が何もしないので、
+                                    出したままだと**押しても効かない的**が並ぶ */}
+                                {current && (
+                                <>
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
                                     {STORY_FONT_KEYS.map((k) => (
                                         <button
@@ -1116,25 +1139,30 @@ export default function StoriesBar() {
                                     ))}
                                 </div>
 
-                                {/* 大きさ と 下地 */}
+                                {/* 大きさ。**段階ではなくつまみ。**
+                                    4段階のチップ（A A A A）で出していたが、並べても
+                                    違いが見分けられず**気づかれなかった**
+                                    （owner:「文字の大きさも変えたいよね」）。
+                                    つまみなら何ができるか一目で分かり、矢印キーでも動く */}
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[11px] text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "11px" }} aria-hidden="true">A</span>
+                                    <input
+                                        type="range"
+                                        min={STORY_SIZE_MIN}
+                                        max={STORY_SIZE_MAX}
+                                        step={STORY_SIZE_STEP}
+                                        value={current?.size ?? STORY_SIZE_DEFAULT}
+                                        onChange={(e) => patchSelected({ size: clampStoryTextSize(Number(e.target.value)) })}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Text size" : "文字の大きさ"}
+                                        className="flex-1 min-w-0 accent-white"
+                                        style={{ height: "36px" }}
+                                    />
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "19px", lineHeight: 1 }} aria-hidden="true">A</span>
+                                </div>
+
+                                {/* 下地 */}
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                                    <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Size" : "大きさ"}>
-                                        {STORY_SIZE_KEYS.map((k, i) => (
-                                            <button
-                                                key={k}
-                                                type="button"
-                                                role="switch"
-                                                aria-checked={current?.size === k}
-                                                disabled={posting}
-                                                onClick={() => patchSelected({ size: k })}
-                                                aria-label={`${locale === "en" ? "Size" : "大きさ"} ${i + 1}`}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.size === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
-                                                style={{ minHeight: "36px", fontSize: `${11 + i * 2}px`, fontWeight: 700 }}
-                                            >
-                                                A
-                                            </button>
-                                        ))}
-                                    </div>
                                     <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Text background" : "文字の下地"}>
                                         {STORY_BGS.map((k) => (
                                             <button
@@ -1156,9 +1184,18 @@ export default function StoriesBar() {
                                         ))}
                                     </div>
                                 </div>
+                                </>
+                                )}
                             </div>
                         )}
 
+                        {/* 🔴 **文字を置いている間は、ほかの欄を畳む。**
+                            320×568 の実測で**写真が 95px しか見えていなかった**
+                            ——文字をどこへ置くか決められない。撮影地・曲・表示時間は
+                            最後に1回さわるもので、置いている最中には要らない。
+                            写真の余白をさわると選択が外れて戻る。 */}
+                        {selected === null && (
+                        <>
                         {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
                             動画は `toUploadSafeVideo` が GPS を落としている
                             （サーバーも動画の位置は受けない）。押しても効かない
@@ -1394,7 +1431,21 @@ export default function StoriesBar() {
                                 </div>
                             </div>
                         )}
+                        </>
+                        )}
 
+                    </div>
+
+                    {/* 🔴 **投稿のボタンは、巻き取られる欄の外に出す。**
+                        中に置いていたので、欄が伸びると画面の外へ落ちた
+                        ——320×568 の実測で**画面外**（スクロールすれば届くが、
+                        いちばん押すものが見えない）。文字の欄を足したこの差分で
+                        再発させた（台帳の `STORY-4` と同じ形）。
+                        外に出せば、これから何を足しても落ちない */}
+                    <div
+                        className="relative px-4 pt-2"
+                        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+                    >
                         <button
                             onClick={() => void handlePost()}
                             disabled={posting}
