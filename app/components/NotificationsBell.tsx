@@ -95,6 +95,23 @@ const BUCKET_LABEL: Record<NotifBucket, { ja: string; en: string }> = {
 };
 
 /**
+ * 暦日の差（**転がる24時間ではなく、日付が何回変わったか**）。
+ *
+ * 🔴 `Math.floor((now - at) / DAY_MS)` だと、**午前0時を回った直後に
+ * 「今日」の見出しの下に昨日の夜の通知が並ぶ**。しかも行は時刻だけを
+ * 出す（下の `fmtTime`）ので、**午前1時に「今日 23:00」＝まだ来ていない
+ * 時刻**に見える。見出しを暦日の言葉（今日・昨日）にした以上、判定も
+ * 暦日にしないと表示が嘘になる。
+ *
+ * `Math.round` なのは夏時間のため（23時間・25時間の日がある）。
+ */
+export function calendarDaysAgo(at: number, now: number): number {
+    const a = new Date(at); a.setHours(0, 0, 0, 0);
+    const b = new Date(now); b.setHours(0, 0, 0, 0);
+    return Math.round((b.getTime() - a.getTime()) / DAY_MS);
+}
+
+/**
  * どの見出しの下に置くか。
  *
  * 🔴 **「新着」は位置ではなく時刻の境界で決める。** 未読は
@@ -107,13 +124,16 @@ const BUCKET_LABEL: Record<NotifBucket, { ja: string; en: string }> = {
  * 勝手に入る。
  *
  * 読めない時刻は**末尾**へ。先頭（新着）に混ぜると、壊れた行が毎回
- * 「新着」として一番上に出続ける。
+ * 「新着」として一番上に出続ける。**この `isNaN` の枝が無くても
+ * `NaN` の比較は全部 false なので最後の `older` に落ちる**が、
+ * 「日付が読めない行をどこへ置くか」は並べ方の決めごとなので、
+ * 比較演算子の副作用に任せずここに書く（並び替えたときに黙って壊れる）。
  */
 export function bucketOf(t: string, now: number, newSince: number | null): NotifBucket {
     const at = Date.parse(t);
     if (isNaN(at)) return "older";
     if (newSince !== null && at >= newSince) return "new";
-    const days = Math.floor((now - at) / DAY_MS);
+    const days = calendarDaysAgo(at, now);
     if (days <= 0) return "today";
     if (days <= 7) return "week";
     return "older";
@@ -214,11 +234,25 @@ export default function NotificationsBell() {
             // 見出しが丸ごと消えた**（実際にテストで踏んだ）。最小を探せば、
             // 壊れた行は `bucketOf` が「それ以前」へ落とすだけで済み、
             // 残りの未読は正しく新着に入る。
+            //
+            // 🔴 **数えるのは `rows` ではなく生の `data.items`。** `unread` は
+            // サーバーが返した並びでの「先頭 N 件」で、`usableRows` は
+            // **その並びから読めない行を1件ずつ抜く**（`filter`）ので、
+            // `rows` の先頭 N 件は別のものを指す:
+            //
+            //     サーバー  [p1(未読), null(未読), p3(既読)]  unread=2
+            //     rows      [p1, p3]  → 先頭2件 = p1 と **既読の p3**
+            //
+            // ＝境界が既読側まで下がり、**読み終わった通知が「新着」に
+            // 化ける**。`64a45d74` がサーバー側で塞いだ「落としたぶんが
+            // 先頭側だったかを見ていない」穴を、画面側で開け直すことになる。
             const serverUnread = typeof data.unread === "number" ? data.unread : 0;
-            const head = Math.max(0, Math.min(serverUnread, rows.length));
+            const raw = data.items as unknown[];
+            const head = Math.max(0, Math.min(serverUnread, raw.length));
             let bound: number | null = null;
             for (let i = 0; i < head; i++) {
-                const at = Date.parse(rows[i].t);
+                const t = (raw[i] as { t?: unknown } | null)?.t;
+                const at = typeof t === "string" ? Date.parse(t) : NaN;
                 if (!isNaN(at) && (bound === null || at < bound)) bound = at;
             }
             setNewSince((prev) => {
@@ -261,6 +295,16 @@ export default function NotificationsBell() {
     const closePanel = useCallback(() => {
         openRef.current = false;
         setOpen(false);
+        // 🔴 **閉じたら境界を捨てる。** 「開いている間は下げない」だけだと、
+        // 下げられるのは**閉じている間に走った常駐ポーリング**（60秒に1回・
+        // 裏タブでは走らない）だけになり、
+        //
+        //     開く → 5秒で閉じる → すぐ開き直す
+        //
+        // で `openRef` が先に立つので境界が据え置かれ、**読み終わった通知が
+        // 「新着」に出続ける**（ポーリングを挟まないと再現する）。
+        // 閉じた時点で捨てておけば、次に開いたときの取得が素直に決め直す。
+        setNewSince(null);
     }, []);
 
     const toggleOpen = () => {
@@ -302,13 +346,40 @@ export default function NotificationsBell() {
     const fmtTime = (iso: string) => {
         const t = Date.parse(iso);
         if (isNaN(t) || !now) return "";
-        const days = Math.floor((now - t) / DAY_MS);
+        // **見出しと同じ物差し**（暦日）で数える。転がる24時間のままだと
+        // 午前1時に「今日 23:00」＝まだ来ていない時刻に見える
+        const days = calendarDaysAgo(t, now);
         const d = new Date(t);
         // 先の時刻（端末の時計がずれている）も「今日」側に倒す
         if (days <= 0) return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
         if (days === 1) return locale === "en" ? "yesterday" : "昨日";
         if (days <= 7) return locale === "en" ? `${days}d ago` : `${days}日前`;
         return `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+
+    /**
+     * タブのキーボード操作（WAI-ARIA のタブの作法）。
+     *
+     * `role="tab"` を名乗った以上、**矢印で移動できないと壊れて見える**
+     * ——支援技術は「1/4」と読み上げるのに動かない。合わせて
+     * **タブストップは tablist 全体で1つ**にする（roving tabindex）。
+     * 4つ全部が Tab の停止点だと、通知を1件読むまでに4回 Tab を押す。
+     */
+    const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        const i = NOTIF_TABS.indexOf(tab);
+        const last = NOTIF_TABS.length - 1;
+        const to = e.key === "ArrowRight" ? (i === last ? 0 : i + 1)
+            : e.key === "ArrowLeft" ? (i === 0 ? last : i - 1)
+                : e.key === "Home" ? 0
+                    : e.key === "End" ? last
+                        : -1;
+        if (to < 0) return;
+        e.preventDefault();
+        const next = NOTIF_TABS[to];
+        setTab(next);
+        // 選んだタブへフォーカスも移す（roving tabindex は「選択中だけが
+        // 停止点」なので、移さないと次の Tab が一覧を飛ばす）
+        document.getElementById(`notif-tab-${next}`)?.focus();
     };
 
     // タブで絞る → 区分でまとめる、の順。**区分は絞る前の `newSince` で
@@ -370,7 +441,10 @@ export default function NotificationsBell() {
                                             id={`notif-tab-${key}`}
                                             aria-selected={selected}
                                             aria-controls="notif-tabpanel"
+                                            // roving tabindex（停止点は選択中の1つだけ）
+                                            tabIndex={selected ? 0 : -1}
                                             onClick={() => setTab(key)}
+                                            onKeyDown={onTabKeyDown}
                                             // **`/50` より薄くしない**（黒地で 5.28:1・
                                             // `textContrast.test.ts` の下限）。選択中との差は
                                             // 色だけに頼らず下線でも出す
@@ -411,6 +485,11 @@ export default function NotificationsBell() {
                                 id="notif-tabpanel"
                                 role="tabpanel"
                                 aria-labelledby={`notif-tab-${tab}`}
+                                // **スクロールする枠は、キーボードでも掴めること。**
+                                // 中にリンクが1つも無いタブ（退会した人からの
+                                // フォロー通知だけ、など）は、これが無いと
+                                // **キーボードだけでは一覧を送れない**（WCAG 2.1.1）
+                                tabIndex={0}
                                 className="max-h-96 overflow-y-auto no-scrollbar"
                             >
                             {/* **そのタブだけ空**のときは、全体が0件のときと

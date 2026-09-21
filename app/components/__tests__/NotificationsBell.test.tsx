@@ -155,8 +155,17 @@ describe("NotificationsBell", () => {
 describe("通知の時刻", () => {
     // **`t` は1回だけ作る。** `li` の key が `n.t` を含むので、`json()` が
     // 呼ばれるたびに違う値を返すと行ごと作り直される
-    const DAY = 24 * 60 * 60 * 1000;
-    const AT = (daysAgo: number) => new Date(Date.now() - daysAgo * DAY - 60_000).toISOString();
+    //
+    // **時刻は正午に固定して作る。** 区分は暦日で数えるので
+    // （`calendarDaysAgo`）、`Date.now()` から24時間単位で引くと
+    // **深夜に走らせたときだけ区分が1日ずれる**（00:05 に走らせると
+    // 「1分前」が昨日になる）。正午を基準にすれば12時間の余裕がある
+    const AT = (daysAgo: number) => {
+        const d = new Date();
+        d.setHours(12, 0, 0, 0);
+        d.setDate(d.getDate() - daysAgo);
+        return d.toISOString();
+    };
     const TODAY = AT(0), YESTERDAY = AT(1), THREE = AT(3);
 
     it("今日・昨日・N日前で出し分ける", async () => {
@@ -172,7 +181,11 @@ describe("通知の時刻", () => {
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
 
-        expect(await screen.findByText("今日")).toBeInTheDocument();
+        // **「今日」は見出し側**（行は時刻を出す。見出しと語を重ねない）。
+        // `selector` を書かないと、行の表示を1つも確かめずに緑になる
+        expect(await screen.findByText("今日", { selector: "h3" })).toBeInTheDocument();
+        expect(screen.getByText("12:00"), "今日の行が時刻を出していない").toBeInTheDocument();
+        // 昨日・3日前は行側（見出しはどちらも「今週」）
         expect(screen.getByText("昨日")).toBeInTheDocument();
         expect(screen.getByText("3日前")).toBeInTheDocument();
     });
@@ -785,5 +798,182 @@ describe("通知の見出し（新着・今日・今週）", () => {
         expect(await screen.findByText(clock)).toBeInTheDocument();
         // 「今日」は見出しに1つだけ（行にも出ていたら2つになる）
         expect(screen.getAllByText("今日")).toHaveLength(1);
+    });
+});
+
+
+// レビューで出た回帰3件と、キーボード操作。どれも既存の47件の**すぐ外**で、
+// 緑のまま壊れていた形。
+describe("「新着」の境界（レビューで出た穴）", () => {
+    const heading = (name: string) => screen.queryByRole("heading", { name });
+    const bell = () => screen.getByRole("button", { name: "通知" });
+
+    // 🔴 「開いている間は下げない」だけだと、境界を下げられるのは
+    // **閉じている間に走った常駐ポーリング**（60秒に1回・裏タブでは走らない）
+    // だけになる。開いてすぐ閉じて開き直すと据え置かれたままで、
+    // 読み終わった通知が「新着」に出続けていた
+    it("閉じてすぐ開き直しても「新着」が消える（ポーリングを挟まない）", async () => {
+        vi.useFakeTimers();
+        try {
+            const tick = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            const ROW = {
+                type: "like", photoId: "p1", photoSrc: "https://c/p1.webp",
+                byName: "新着の人", t: new Date(Date.now() - 60_000).toISOString(),
+            };
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [ROW], unread: 1 }));
+            render(<NotificationsBell />);
+            await tick();
+
+            fireEvent.click(bell());          // 開く（既読化）
+            await tick();
+            expect(heading("新着")).toBeInTheDocument();
+
+            // サーバーは既読化を受けたので、以後 unread は 0
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [ROW], unread: 0 }));
+            fireEvent.click(bell());          // 閉じる（**60秒待たない**）
+            fireEvent.click(bell());          // すぐ開き直す
+            await tick();
+
+            expect(heading("新着"), "読み終わったのに「新着」が残っている").toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // 🔴 `unread` は**サーバーが返した並び**での先頭 N 件。`usableRows` は
+    // その並びから読めない行を1件ずつ抜くので、抜いたあとの配列で
+    // 数えると境界が既読側まで下がる（`64a45d74` の穴の作り直し）
+    it("読めない行が落ちても、境界が既読側まで下がらない", async () => {
+        vi.useFakeTimers();
+        try {
+            const tick = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            const at = (minsAgo: number) => new Date(Date.now() - minsAgo * 60_000).toISOString();
+            mockUserFetch.mockResolvedValue(fetchOk({
+                items: [
+                    { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "未読の人", t: at(1) },
+                    null,                                   // 読めない行（`usableRows` が落とす）
+                    { type: "like", photoId: "p3", photoSrc: "https://c/p3.webp", byName: "既読の人", t: at(30) },
+                ],
+                // 未読は先頭2件＝「未読の人」と、落ちる `null`
+                unread: 2,
+            }));
+            render(<NotificationsBell />);
+            await tick();
+            fireEvent.click(bell());
+            await tick();
+
+            const New = screen.getByRole("heading", { name: "新着" });
+            expect(New.parentElement).toHaveTextContent("未読の人");
+            expect(New.parentElement, "既読の行が「新着」に化けている").not.toHaveTextContent("既読の人");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // 🔴 転がる24時間で数えると、午前1時に見た「昨日の23時」が
+    // **「今日」の見出しの下に 23:00 と出る**＝まだ来ていない時刻に見える
+    it("日付をまたいだら「今日」に入れない（暦日で数える）", async () => {
+        vi.useFakeTimers();
+        try {
+            const tick = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            vi.setSystemTime(new Date(2026, 8, 21, 1, 0, 0));        // 9/21 01:00
+            const lastNight = new Date(2026, 8, 20, 23, 0, 0);       // 9/20 23:00（2時間前）
+
+            mockUserFetch.mockResolvedValue(fetchOk({
+                items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "昨夜の人", t: lastNight.toISOString() }],
+                unread: 0,
+            }));
+            render(<NotificationsBell />);
+            await tick();
+            fireEvent.click(bell());
+            await tick();
+
+            expect(heading("今日"), "昨日の通知が「今日」に入っている").toBeNull();
+            expect(screen.getByText("昨日"), "行が「23:00」のまま（未来の時刻に見える）").toBeInTheDocument();
+            expect(screen.queryByText("23:00")).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // 8日以上前は「45日前」ではなく日付。分岐が1つもテストされていなかった
+    it("1週間より前は日付で出す", async () => {
+        vi.useFakeTimers();
+        try {
+            const tick = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+            vi.setSystemTime(new Date(2026, 8, 21, 12, 0, 0));       // 9/21
+            const old = new Date(2026, 7, 22, 9, 30, 0);             // 8/22
+
+            mockUserFetch.mockResolvedValue(fetchOk({
+                items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "昔の人", t: old.toISOString() }],
+                unread: 0,
+            }));
+            render(<NotificationsBell />);
+            await tick();
+            fireEvent.click(bell());
+            await tick();
+
+            expect(screen.getByRole("heading", { name: "それ以前" })).toBeInTheDocument();
+            expect(screen.getByText("8/22")).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});
+
+// `role="tab"` を名乗った以上、矢印で動かないと壊れて見える
+// （支援技術は「1/4」と読み上げる）
+describe("通知のタブ（キーボード）", () => {
+    const openMixed = async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [
+                { type: "follow", photoId: "", photoSrc: "", byId: "u1", targetUserId: "u1", byName: "フォロ子", t: "2026-09-20T10:00:00Z" },
+                { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byId: "u2", byName: "いいね太郎", t: "2026-09-19T10:00:00Z" },
+            ],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+    };
+    const tab = (name: string) => screen.getByRole("tab", { name });
+
+    it("矢印で隣のタブへ移る（端で回り込む）", async () => {
+        await openMixed();
+        fireEvent.keyDown(tab("すべて"), { key: "ArrowRight" });
+        expect(tab("いいね")).toHaveAttribute("aria-selected", "true");
+
+        fireEvent.keyDown(tab("いいね"), { key: "ArrowLeft" });
+        expect(tab("すべて")).toHaveAttribute("aria-selected", "true");
+
+        // 先頭で左 → 末尾へ回り込む
+        fireEvent.keyDown(tab("すべて"), { key: "ArrowLeft" });
+        expect(tab("フォロー")).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("Home / End で端へ飛ぶ", async () => {
+        await openMixed();
+        fireEvent.keyDown(tab("すべて"), { key: "End" });
+        expect(tab("フォロー")).toHaveAttribute("aria-selected", "true");
+
+        fireEvent.keyDown(tab("フォロー"), { key: "Home" });
+        expect(tab("すべて")).toHaveAttribute("aria-selected", "true");
+    });
+
+    // roving tabindex: Tab の停止点は選択中の1つだけ
+    it("停止点は選択中のタブ1つだけ", async () => {
+        await openMixed();
+        expect(screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex")))
+            .toEqual(["0", "-1", "-1", "-1"]);
+
+        fireEvent.click(tab("コメント"));
+        expect(screen.getAllByRole("tab").map((t) => t.getAttribute("tabindex")))
+            .toEqual(["-1", "-1", "0", "-1"]);
+    });
+
+    // 中にリンクが1つも無いタブでも、キーボードで一覧を送れること
+    it("スクロールする枠にキーボードで入れる", async () => {
+        await openMixed();
+        expect(screen.getByRole("tabpanel")).toHaveAttribute("tabindex", "0");
     });
 });
