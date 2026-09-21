@@ -21,6 +21,7 @@ import {
     type Story, type StoryGroup, type StoryVisibility,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
+import { RING_UNSEEN, RING_SEEN } from "./ring";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
@@ -89,9 +90,6 @@ const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime
 const MAX_VIDEO_SECONDS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
-// 未読リング（Instagram のブランドグラデーション）と既読リング（上品なグレー）
-const RING_UNSEEN = "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)";
-const RING_SEEN = "#3a3a3d";
 
 /**
  * 動画のメタデータが返らないときの打ち切り。

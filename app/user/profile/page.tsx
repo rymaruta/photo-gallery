@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
@@ -20,7 +19,8 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import SongArtwork from "../../components/SongArtwork";
-import { loginWithNext, ROUTES } from "../../../lib/routes";
+import { ROUTES } from "../../../lib/routes";
+import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 
@@ -88,7 +88,6 @@ function cleanUsername(v: string): string {
 export default function ProfileEditPage() {
     const { isAuthenticated, loading } = useAuth();
     const { locale } = useLocale();
-    const router = useRouter();
     const { showToast } = useToast();
     const { stop: stopGlobalMusic } = useMusic();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,14 +164,11 @@ export default function ProfileEditPage() {
         || website.trim() !== (profile.website ?? "").trim()
     );
 
-    useEffect(() => {
-        // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
-        // ログインが切れた側はどのみち保存できないが、書いたものを消して
-        // よい理由にはならない。保存できないことは下のトーストで伝える
-        if (!loading && !isAuthenticated && !hasUnsavedWork) {
-            router.replace(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, loading, router, hasUnsavedWork]);
+    // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
+    // ログインが切れた側はどのみち保存できないが、書いたものを消して
+    // よい理由にはならない。保存できないことは下のトーストで伝える。
+    // 送り方は `useLoginRedirect` に集めた
+    useLoginRedirect(!loading && !isAuthenticated && !hasUnsavedWork);
 
     // 留めたぶん、**保存できないことを言う**（`/user/edit` と同じ形）。
     // 一度だけ出す（描画のたびに出すと読めない）

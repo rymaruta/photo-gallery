@@ -191,6 +191,14 @@ export function groupStories(stories: Story[], ownUserId?: string | null): Story
     return groups;
 }
 
+/**
+ * 投稿した日（見ている人の時計）。アーカイブのタイルとハイライトの作成画面が
+ * 同じ文字を出す。**期限の時刻ではない**——ビューアの見出し（`timeAgo`）と同じ元
+ */
+export function storyDayLabel(createdAt: string, locale: "ja" | "en"): string {
+    return new Date(createdAt).toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
+}
+
 // 「3時間前」形式の経過時間表示
 export function timeAgo(iso: string, locale: "ja" | "en", now: number = Date.now()): string {
     const t = Date.parse(iso);
