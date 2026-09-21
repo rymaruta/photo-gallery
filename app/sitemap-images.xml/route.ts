@@ -116,14 +116,28 @@ export function buildImageSitemap(photos: readonly Photo[]): string {
     const entries = photos.map((p) => {
         const title = titleOf(p);
         const caption = captionOf(p);
+        // **1つの `<url>` に画像を何枚でも入れられる**（規格上 1000 枚まで）。
+        //
+        // 1投稿に複数枚を入れられるようにしたので、表紙だけ載せると
+        // **ページ数も画像の数も減る**。ページ数が減るのは承知の判断だが、
+        // 画像の数は減らさない——`extraImages` も並べる。
+        //
+        // 題と説明は**この投稿のもの**なので、どの画像にも同じものを付ける
+        // （画像ごとの題は持っていない。持っていないものを作らない）。
+        // **`i?.src` で読む。** 要素が null でも落とさない——ここが投げると
+        // **画像サイトマップが丸ごと出なくなる**（1枚の壊れた値で全部を失う）
+        const images = [p.src, ...(p.extraImages ?? []).map((i) => i?.src)]
+            .filter((src): src is string => typeof src === "string" && !!src);
         return [
             "  <url>",
             `    <loc>${esc(`${siteConfig.url}/photo/${p.id}`)}</loc>`,
-            "    <image:image>",
-            `      <image:loc>${esc(toAbsolute(p.src))}</image:loc>`,
-            title ? `      <image:title>${esc(title)}</image:title>` : "",
-            caption ? `      <image:caption>${esc(caption)}</image:caption>` : "",
-            "    </image:image>",
+            ...images.map((src) => [
+                "    <image:image>",
+                `      <image:loc>${esc(toAbsolute(src))}</image:loc>`,
+                title ? `      <image:title>${esc(title)}</image:title>` : "",
+                caption ? `      <image:caption>${esc(caption)}</image:caption>` : "",
+                "    </image:image>",
+            ].filter(Boolean).join("\n")),
             "  </url>",
         ].filter(Boolean).join("\n");
     });

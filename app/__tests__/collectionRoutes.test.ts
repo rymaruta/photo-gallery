@@ -13,12 +13,20 @@ import { join } from "node:path";
 // camera を足したとき、ルートを見るテストが1本も無かった（レビュー指摘）。
 const ROOT = join(__dirname, "..", "..");
 
-/** `CollectionType` と URL の区切りの対応（collections.ts の TYPE_PATH と対） */
-const TYPES: Array<{ type: string; path: string; seg: string }> = [
-    { type: "tag", path: "tag", seg: "tag" },
-    { type: "location", path: "location", seg: "location" },
-    { type: "category", path: "category", seg: "category" },
-    { type: "camera", path: "camera", seg: "camera" },
+/**
+ * `CollectionType` と URL の区切りの対応（collections.ts の TYPE_PATH と対）。
+ *
+ * `body` は**そのページが本体に使うコンポーネント**。撮影地だけ
+ * `SpotPage`（撮影スポット詳細）で、残りは `CollectionPage`。
+ * 撮影地の本体は**種類を引数に取らない**ので、`type="location"` を
+ * 貼り間違える余地がそもそも無い——代わりに「本体が撮影地専用であること」
+ * を下で確かめる。
+ */
+const TYPES: Array<{ type: string; path: string; seg: string; body: string }> = [
+    { type: "tag", path: "tag", seg: "tag", body: "CollectionPage" },
+    { type: "location", path: "location", seg: "location", body: "SpotPage" },
+    { type: "category", path: "category", seg: "category", body: "CollectionPage" },
+    { type: "camera", path: "camera", seg: "camera", body: "CollectionPage" },
 ];
 
 describe("集約ページのルート", () => {
@@ -27,16 +35,40 @@ describe("集約ページのルート", () => {
             `app/${path}/[${seg}]/page.tsx が無い`).toBe(true);
     });
 
-    it.each(TYPES)("$type は自分の種類とセグメントで組む", ({ type, path, seg }) => {
+    it.each(TYPES)("$type は自分の種類とセグメントで組む", ({ type, path, seg, body }) => {
         const src = readFileSync(join(ROOT, "app", path, `[${seg}]`, "page.tsx"), "utf8")
             .replace(/^\s*\/\/.*$/gm, " ");
-        // 種類の貼り間違い（camera のページが type="tag" を渡す）を止める
+        // 種類の貼り間違い（camera のページが type="tag" を渡す）を止める。
+        // **ここは撮影地も同じ**——`generateStaticParams` と
+        // `generateMetadata`（canonical・サイトマップ・noindex の判定）は
+        // 4種類とも `lib/server/collections.ts` のまま
         expect(src, `collectionStaticParams の種類/セグメントが違う`)
             .toContain(`collectionStaticParams("${type}", "${seg}")`);
         expect(src, `collectionMetadata の種類が違う`).toContain(`collectionMetadata("${type}"`);
-        expect(src, `CollectionPage の種類が違う`).toContain(`type="${type}"`);
+        expect(src, `本体が ${body} でない`).toContain(`<${body}`);
+        // `CollectionPage` を使う側だけ、種類を渡す形を見る
+        if (body === "CollectionPage") {
+            expect(src, `CollectionPage の種類が違う`).toContain(`type="${type}"`);
+        }
         // 列挙外を404にする（静的書き出しの前提）
         expect(src).toContain("dynamicParams = false");
+    });
+
+    /**
+     * **撮影地の本体（`SpotPage`）が、撮影地以外を混ぜていないこと。**
+     *
+     * 種類を引数に取らないぶん、貼り間違いは「中で別の種類を数える」形で
+     * しか起きない。集約の関数に渡す種類が全部 `"location"` であることを見る。
+     */
+    it("SpotPage は撮影地だけを扱う", () => {
+        const src = readFileSync(join(ROOT, "app", "components", "SpotPage.tsx"), "utf8")
+            .replace(/^\s*\/\/.*$/gm, " ")
+            .replace(/\/\*[\s\S]*?\*\//g, " ");
+        for (const fn of ["photosInCollection", "labelForSlug", "relatedEntries"]) {
+            expect(src, `${fn} に撮影地以外を渡している`).toMatch(new RegExp(`${fn}\\(photos, "location"`));
+        }
+        expect(src, "collectionCopy の種類が違う").toContain(`collectionCopy("location"`);
+        expect(src, "canonical の種類が違う").toContain(`canonicalCollectionPath("location"`);
     });
 
     // **TYPE_PATH と食い違っていないか。** URL の区切りだけ変えると、

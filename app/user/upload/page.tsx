@@ -29,7 +29,7 @@ import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
-import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
+import { PHOTO_LIMIT_PER_USER, PHOTO_IMAGES_MAX } from "../../../lib/utils/uploadLimits";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 
@@ -339,6 +339,17 @@ function UploadPageInner() {
         return () => { aborted = true; };
     }, [isAuthenticated, loading]);
     // 管理者は上限の対象外（サーバーも isAdmin を見て免除している）
+    /**
+     * **選んだ写真を1件の投稿にまとめるか**（owner のモックの「1/10」）。
+     *
+     * 既定は off ＝ **今までどおり「N枚選ぶ → N件の投稿」**。owner は
+     * まとめて上げる使い方をしているので、既定を変えると黙って挙動が変わる。
+     *
+     * on のとき: 1枚目が表紙（`src`）、残りが `extraImages`。題・説明・
+     * 撮影地は**1枚目のもの**を使う（投稿が1件なので1組しか持てない）。
+     */
+    const [asOnePost, setAsOnePost] = useState(false);
+
     const remainingSlots = isAdminUser || usedSlots === null
         ? null
         : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
@@ -667,6 +678,21 @@ function UploadPageInner() {
                     : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
             }
 
+            /**
+             * **1件の投稿にまとめるか。** 2枚以上あるときだけ意味を持つ。
+             * 枚数が上限（`PHOTO_IMAGES_MAX`）を超えるときは、まとめずに
+             * 今までどおり1枚ずつにする——**黙って11枚目以降を落とさない**
+             * （押せないようにボタン側でも止めているが、ここでも見る）
+             */
+            const groupMode = asOnePost && pending.length > 1 && pending.length <= PHOTO_IMAGES_MAX;
+            /** まとめる回に、S3 へ上げ終わったぶんを控える（1枚目が表紙） */
+            // 寸法（`width`/`height`）はこの画面が持っていないので送らない
+            // ——ビルド（`generate-thumbnails.js`）が埋める
+            const group: Array<{
+                item: Item; key: string; publicUrl: string; thumbUrl?: string;
+                dominantColor?: string | null; blurDataURL?: string | null;
+            }> = [];
+
             let successCount = 0;
             // **失敗は別に数える。** やめたときは「上げていない残り」が出るので
             // `pending.length - successCount` は使えない（手を付けていない
@@ -808,6 +834,17 @@ function UploadPageInner() {
                     //   保存の口に届いてから止まるのでは遅い）
                     if (signal.aborted) throw new DOMException("cancelled", "AbortError");
 
+                    // **1件にまとめる回は、ここでは保存しない。** 2枚目以降は
+                    // `extraImages` として最後の1回の保存に乗せる。
+                    // **控えるのは S3 に上がったもの**（`item.uploaded` と同じ
+                    // 中身）なので、保存に失敗しても押し直せば使い回せる
+                    // ——1枚ずつの経路と同じ扱い
+                    if (groupMode) {
+                        group.push({ item, key, publicUrl, thumbUrl, dominantColor, blurDataURL });
+                        updateItem(item.id, { progress: 90 });
+                        continue;
+                    }
+
                     const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
@@ -886,6 +923,70 @@ function UploadPageInner() {
                 }
             }
 
+            // **まとめる回は、ここで1回だけ保存する。**
+            //
+            // 1枚目が表紙（`src`）、2枚目以降が `extraImages`。題・説明・撮影地は
+            // 1枚目のものを使う（投稿が1件なので1組しか持てない）。
+            //
+            // **途中でやめた回は保存しない**——半端な枚数で1件できてしまうと、
+            // 「やめた」のに投稿が世に出る。上げ終わったぶんは `item.uploaded` に
+            // 残るので、押し直せば使い回せる（1枚ずつの経路と同じ）。
+            if (groupMode && group.length > 0 && !cancelled && !signal.aborted) {
+                const [cover, ...rest] = group;
+                const c = cover.item;
+                try {
+                    const coords = gpsAutofill && c.latitude !== undefined && c.longitude !== undefined
+                        ? { lat: Math.round(c.latitude * 100) / 100, lng: Math.round(c.longitude * 100) / 100 }
+                        : undefined;
+                    const cameraExif = await extractCameraExif(c.file);
+                    const saveResponse = await apiFetch("/upload/save", {
+                        method: "POST",
+                        signal,
+                        body: JSON.stringify({
+                            key: cover.key, publicUrl: cover.publicUrl,
+                            published,
+                            ...(c.dateTimeOriginal ? { date: c.dateTimeOriginal } : {}),
+                            title: c.title || undefined,
+                            description: c.description || undefined,
+                            location: c.location || undefined,
+                            category: category || undefined,
+                            tags: tagList,
+                            ...(coords ? { coords } : {}),
+                            ...(c.focalPoint ? { focalPoint: c.focalPoint } : {}),
+                            ...(cover.dominantColor ? { dominantColor: cover.dominantColor } : {}),
+                            ...(cover.blurDataURL ? { blurDataURL: cover.blurDataURL } : {}),
+                            ...(cover.thumbUrl ? { thumbUrl: cover.thumbUrl } : {}),
+                            ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
+                            ...(albumId ? { albumId } : {}),
+                            // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
+                            // 確かめる（`api-user/src/photoImages.ts`）ので、
+                            // 通らなかったぶんは黙って落ちる——だから枚数は
+                            // こちらでも上限内に収めてある
+                            extraImages: rest.map((g) => ({
+                                src: g.publicUrl, key: g.key,
+                                ...(g.thumbUrl ? { thumbSrc: g.thumbUrl } : {}),
+                                ...(g.dominantColor ? { dominantColor: g.dominantColor } : {}),
+                                ...(g.blurDataURL ? { blurDataURL: g.blurDataURL } : {}),
+                            })),
+                        }),
+                    });
+                    if (!saveResponse.ok) {
+                        throw new Error(await readApiError(saveResponse,
+                            locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
+                    }
+                    for (const g of group) updateItem(g.item.id, { status: "done", progress: 100 });
+                    successCount = group.length;
+                    // **枠は1件ぶんしか減らない**（投稿が1件なので）。
+                    // ここを枚数ぶん引くと「あと N 枚」が実際より少なく出る
+                    setUsedSlots((n) => (n === null ? n : n + 1));
+                } catch (err) {
+                    log.error("grouped upload save failed:", err);
+                    const msg = userFacingUploadError(err);
+                    for (const g of group) updateItem(g.item.id, { status: "error", error: msg });
+                    failCount = group.length;
+                }
+            }
+
             // **`signal.aborted` も見る。** `abort()` は決着済みの Promise を
             // 巻き戻せないので、押した時点で保存の応答が届いていた回は
             // `cancelled` が立たず、「アップロードしました」と出してトップへ
@@ -905,12 +1006,25 @@ function UploadPageInner() {
                 return;
             }
             if (successCount > 0) {
+                // **まとめた回は「1件の投稿」と言う。** 「5枚アップロード
+                // しました」だと5件できたように読める（枠も1つしか減らない）。
+                // **ここで `return` しない**——下の「N 件失敗しました」に
+                // 届かなくなる（上げ損ねた写真があった回だけ、その通知が
+                // 静かに消える。`2a90081e` で一度踏んだ形）
                 showToast(
-                    published
-                        ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
-                        : (locale === "en"
-                            ? `Saved ${successCount} draft(s). Fill in details later and publish.`
-                            : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`),
+                    groupMode
+                        ? (published
+                            ? (locale === "en"
+                                ? `Posted 1 photo set (${successCount} photos)`
+                                : `${successCount}枚を1件の投稿にしました`)
+                            : (locale === "en"
+                                ? `Saved 1 draft (${successCount} photos). Fill in details later and publish.`
+                                : `${successCount}枚を1件の下書きにしました。あとで編集して公開できます`))
+                        : (published
+                            ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
+                            : (locale === "en"
+                                ? `Saved ${successCount} draft(s). Fill in details later and publish.`
+                                : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`)),
                     "success",
                 );
                 // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
@@ -933,7 +1047,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -951,6 +1065,12 @@ function UploadPageInner() {
     const inputCls = "w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
     const doneCount = items.filter((i) => i.status === "done").length;
     const pendingCount = items.filter((i) => i.status === "pending" || i.status === "error").length;
+    /**
+     * 1件にまとめるには多すぎるか。**まとめずに1枚ずつへ倒す**——
+     * ここで黙って先頭10枚だけにすると、11枚目以降が消えたことに
+     * 気づけない（保存は成功して、あとで開くと足りない）
+     */
+    const tooManyToGroup = pendingCount > PHOTO_IMAGES_MAX;
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full pb-32">
@@ -1055,6 +1175,46 @@ function UploadPageInner() {
                     <p id="upload-common" className="text-xs text-white/50 uppercase tracking-wide">
                         {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
                     </p>
+
+                    {/* **1件の投稿にまとめる**（owner のモックの「1/10」）。
+                        **2枚以上あるときだけ出す**——1枚しか無いときに出しても
+                        意味が無く、押せる物が1つ増えるだけ。
+                        既定は off ＝今までどおり「N枚選ぶ → N件の投稿」 */}
+                    {pendingCount > 1 && (
+                        <>
+                            <label
+                                className={`flex items-center gap-2 pt-1 select-none ${tooManyToGroup ? "opacity-50" : "cursor-pointer"}`}
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={asOnePost && !tooManyToGroup}
+                                    onChange={(e) => setAsOnePost(e.target.checked)}
+                                    disabled={uploading || tooManyToGroup}
+                                    aria-describedby="group-hint"
+                                    className="w-4 h-4 accent-white"
+                                />
+                                <span className="text-xs text-white/70">
+                                    {locale === "en"
+                                        ? `Post these ${pendingCount} photos as one post`
+                                        : `この${pendingCount}枚を1件の投稿にまとめる`}
+                                </span>
+                            </label>
+                            <p id="group-hint" className="text-xs text-white/50">
+                                {tooManyToGroup
+                                    ? (locale === "en"
+                                        ? `One post can hold up to ${PHOTO_IMAGES_MAX} photos (${pendingCount} selected).`
+                                        : `1件の投稿に入れられるのは${PHOTO_IMAGES_MAX}枚までです（${pendingCount}枚を選んでいます）。`)
+                                    : (asOnePost
+                                        ? (locale === "en"
+                                            ? "Title, description and location come from the first photo."
+                                            : "題・説明・撮影地は1枚目のものを使います。")
+                                        : (locale === "en"
+                                            ? "Off: each photo becomes its own post."
+                                            : "オフのときは、1枚ずつ別々の投稿になります。"))}
+                            </p>
+                        </>
+                    )}
                     {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
                     <datalist id="own-categories">
                         {ownValues.categories.map((v) => <option key={v} value={v} />)}

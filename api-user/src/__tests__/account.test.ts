@@ -108,6 +108,10 @@ describe("deleteAccount", () => {
         expect(ids).toContain("notifs#me");
         expect(ids).toContain("followstats#me");
         expect(ids).toContain("following#me");
+        // **「行きたい場所」も消す**（`savedSpots.ts` の `spots#<uid>`）。
+        // 決定的キーの自分の行で、本人しか読めない一覧なので、ここで
+        // 消せば完全に消える。残すと退会後も行動履歴が残り、掃除役は居ない
+        expect(ids).toContain("spots#me");
 
         // プロフィール行は**消すのではなく墓石に置き換える**。
         // ただ消すと、期限まで有効な古いトークンを持った別端末が

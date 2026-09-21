@@ -1,3 +1,21 @@
+/**
+ * 2枚目以降の1枚（1投稿に複数枚）。**`api-user/src/photoImages.ts` の
+ * `PhotoImage` と対。** api は api-user を import できないので形だけ写す。
+ * 派生を足すときは両方と、両方の削除の列挙を見ること。
+ */
+export type PhotoImage = {
+    src: string;
+    srcAvif?: string;
+    thumbSrc?: string;
+    thumbAvif?: string;
+    thumbSm?: string;
+    thumbSmAvif?: string;
+    width?: number;
+    height?: number;
+    dominantColor?: string;
+    blurDataURL?: string;
+};
+
 export type Photo = {
     id: string;
     src: string;
@@ -12,6 +30,8 @@ export type Photo = {
     thumbAvif?: string;
     thumbSmAvif?: string;
     blurDataURL?: string;
+    /** 2枚目以降。削除の列挙に必ず通す */
+    extraImages?: PhotoImage[];
     displayName?: string;
     title?: string | Record<string, string>;
     description?: string | Record<string, string[]>;

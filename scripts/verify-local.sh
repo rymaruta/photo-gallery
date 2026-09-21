@@ -51,12 +51,26 @@ API_BASELINE=11
 # 116 → 118: 通報のハンドラ（`report.ts`）を1つ足したぶん。
 # 118 → 120: いいねした写真の一覧（`likes.getMyLikes`）を1つと、
 #            対テスト（`userList.test.ts`）を1ファイル足したぶん。
+# 120 → 129: 行きたい場所（`savedSpots.ts`）のハンドラ3つ（TS2307 が1・
+#            その帰結の暗黙 any が3）と、対テスト2ファイル（先頭の
+#            `await import` が 1 + 4）。**中身を1件ずつ確かめた**
+#            ——`main` の姿を作り直して差分を取り、9件とも既知の形
+#            （`aws-lambda` の型がルートから見えないぶん）であることを見た。
 # 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any で、
 # **全ハンドラが同じ形**（`@types/aws-lambda` は package.json に在るが、
 # ルートから見た型検査には入らない）。CI は api-user で npm ci を打つので出ない。
 # ⚠️ **上げるのはハンドラかテストファイルを足したときだけ**（テストは
 #    先頭の `await import` が1件になる）。それ以外で増えたら本物。
-API_USER_BASELINE=120
+#
+# ⚠️ **この 120 は測り方が変わったあとの残り香で、実測はずっと少ない。**
+# 2026-09-21 に `api-user/node_modules` を入れて測ると **49 件**
+# （`api` は 11 でちょうど基準）。上の「中身は Cannot find module
+# 'aws-lambda'」という説明は **node_modules が無い状態**の話で、
+# `check_side_tsc` は今その状態を失敗にする（80行）ので、基準が意味を持つ
+# 土俵では出ない。つまり **120 は緩すぎて、71件ぶんの増加を見逃す**。
+# 下げるのは別の作業（並行しているブランチも同じ関門を通るため、
+# ここでは測った数だけ書き残す）。
+API_USER_BASELINE=129
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)

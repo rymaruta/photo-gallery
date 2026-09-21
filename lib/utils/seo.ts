@@ -178,6 +178,8 @@ export function generatePhotoStructuredData(photo: {
     updatedAt?: string;
     width?: number;
     height?: number;
+    /** 2枚目以降（1投稿に複数枚）。表紙は `src` */
+    extraImages?: readonly { src: string }[];
 }, locale: "ja" | "en" = "ja") {
     const titleOf = (loc: "ja" | "en") =>
         typeof photo.title === "string" ? photo.title : photo.title?.[loc] || "";
@@ -233,6 +235,26 @@ export function generatePhotoStructuredData(photo: {
         url: `${siteConfig.url}/photo/${photo.id}`,
         representativeOfPage: true,
     };
+
+    // **2枚目以降も機械に見せる**（1投稿に複数枚）。
+    //
+    // 複数枚にすると `/photo/<id>` のページ数は減るが、**画像の数は減らさない**
+    // ——owner に「ページ数は減っても画像の数は減らない」と言って始めた分。
+    // `associatedMedia` は「このものに結び付いたメディア」で、表紙
+    // （`contentUrl` ＋ `representativeOfPage: true`）との役割が混ざらない。
+    //
+    // **題も説明も持たせない。** この投稿の題・説明は表紙が名乗っていて、
+    // 同じ文字列を N 回並べても機械に新しいことは伝わらない（`@id` の無い
+    // 無名の節点を増やすだけ＝`eee01816` で潰した形）。URL だけを出す。
+    if (photo.extraImages && photo.extraImages.length > 0) {
+        structuredData.associatedMedia = photo.extraImages
+            .filter((i) => typeof i?.src === "string" && i.src)
+            .map((i) => ({
+                "@type": "ImageObject",
+                "@id": `${siteConfig.url}/photo/${photo.id}#${publicImageUrl(i.src)}`,
+                contentUrl: publicImageUrl(i.src),
+            }));
+    }
 
     // Google 画像検索向けメタデータ（データがある項目だけ出力）
     if (photo.thumbSrc) {

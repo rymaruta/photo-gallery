@@ -7,11 +7,12 @@ export type GalleryFilters = {
     query: string;
     sort: "new" | "old" | "popular";
     /**
-     * 誰の写真を見るか（トップのタブ）。`all`＝みんな／`mine`＝自分／
-     * `following`＝フォローしている人（こちらはグリッドではなく `TimelineFeed`）。
-     * ログイン中の既定は `mine`（owner の指示）。決めるのは画面側
+     * 誰の・どの写真を見るか（トップのタブ）。
+     *   `all`      … 新着（みんなの写真を投稿の新しい順）
+     *   `featured` … おすすめ（**運営が選んだ写真**。人気順ではない）
+     *   `following`… フォロー中（`TimelineFeed` が描く）
      */
-    scope: "all" | "mine" | "following";
+    scope: "all" | "featured" | "following";
 };
 
 // FilterBar で使用する型（GalleryFilters と統一）

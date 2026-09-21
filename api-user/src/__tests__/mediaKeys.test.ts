@@ -125,3 +125,50 @@ describe("mediaKeys", () => {
         ]);
     });
 });
+
+describe("mediaKeys: 2枚目以降（extraImages）", () => {
+    it("🔴 2枚目以降の実体も消す対象に入る", () => {
+        const keys = mediaKeys({
+            src: "https://cdn.example.com/uploads/u1/cover.webp",
+            extraImages: [
+                { src: "https://cdn.example.com/uploads/u1/a.webp" },
+                { src: "https://cdn.example.com/uploads/u1/b.webp" },
+            ],
+        });
+        expect(keys).toContain("uploads/u1/a.webp");
+        expect(keys).toContain("uploads/u1/b.webp");
+        expect(keys).toContain("uploads/u1/cover.webp");
+    });
+
+    it("🔴 2枚目以降の派生（AVIF・サムネ）も消す", () => {
+        const keys = mediaKeys({
+            src: "https://cdn.example.com/uploads/u1/cover.webp",
+            extraImages: [{
+                src: "https://cdn.example.com/uploads/u1/a.webp",
+                srcAvif: "https://cdn.example.com/uploads/u1/a.avif",
+                thumbSrc: "https://cdn.example.com/uploads/u1/a_512.webp",
+                thumbAvif: "https://cdn.example.com/uploads/u1/a_512.avif",
+                thumbSm: "https://cdn.example.com/uploads/u1/a_256.webp",
+                thumbSmAvif: "https://cdn.example.com/uploads/u1/a_256.avif",
+            }],
+        });
+        for (const k of ["a.webp", "a.avif", "a_512.webp", "a_512.avif", "a_256.webp", "a_256.avif"]) {
+            expect(keys).toContain(`uploads/u1/${k}`);
+        }
+    });
+
+    it("2枚目以降でも uploads/ の外は拾わない（他人のアイコンを消させない）", () => {
+        const keys = mediaKeys({
+            src: "https://cdn.example.com/uploads/u1/cover.webp",
+            extraImages: [{ src: "https://cdn.example.com/profiles/victim" }],
+        });
+        expect(keys).toEqual(["uploads/u1/cover.webp"]);
+    });
+
+    it("extraImages が無い・壊れていても、表紙の列挙は変わらない", () => {
+        const base = { src: "https://cdn.example.com/uploads/u1/cover.webp" };
+        expect(mediaKeys(base)).toEqual(["uploads/u1/cover.webp"]);
+        expect(mediaKeys({ ...base, extraImages: "x" })).toEqual(["uploads/u1/cover.webp"]);
+        expect(mediaKeys({ ...base, extraImages: [null, {}] })).toEqual(["uploads/u1/cover.webp"]);
+    });
+});

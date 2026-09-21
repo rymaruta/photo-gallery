@@ -47,6 +47,37 @@ describe("1人あたりのアップロード上限は、画面とサーバーで
     });
 });
 
+/**
+ * **1投稿に入れられる枚数**（owner のモックの「1/10」）。
+ *
+ * 画面が大きいと 11枚目以降が**黙って落ちる**（保存は成功して、あとで開くと
+ * 足りない）。画面が小さいと、サーバーは受け付けるのに選べない。
+ * `PHOTO_LIMIT_PER_USER` で一度踏んだ形と同じなので、最初から縛る。
+ */
+describe("1投稿に入れられる枚数は、画面とサーバーで同じ", () => {
+    // サーバーは「2枚目以降の上限 + 1」で定義している（表紙は `src`）
+    const serverExtra = () => numberIn("api-user/src/photoImages.ts",
+        /export const EXTRA_IMAGES_MAX = (\d+);/, "サーバーの2枚目以降の上限");
+    const client = () => numberIn("lib/utils/uploadLimits.ts",
+        /export const PHOTO_IMAGES_MAX = (\d+);/, "画面の総枚数の上限");
+
+    it("画面の総枚数 = サーバーの2枚目以降 + 表紙1枚", () => {
+        expect(client(), "画面とサーバーで枚数がずれている").toBe(serverExtra() + 1);
+    });
+
+    it("読めた数字が正の値である（正規表現が壊れたときに緑にしない）", () => {
+        expect(serverExtra()).toBeGreaterThan(0);
+        expect(client()).toBeGreaterThan(1);
+    });
+
+    // サーバー側も「+1」で導いていることを見る（両方に 10 と書くと、
+    // 片方を直したときにこの対テストが気づけない）
+    it("サーバーの PHOTO_IMAGES_MAX は EXTRA_IMAGES_MAX から導いている", () => {
+        const src = read("api-user/src/photoImages.ts");
+        expect(src).toMatch(/export const PHOTO_IMAGES_MAX = EXTRA_IMAGES_MAX \+ 1;/);
+    });
+});
+
 /** `sanitize.ts` の該当行から実際の数字を取る（コメントの数字は見ない） */
 function serverLimit(re: RegExp, label: string): number {
     const m = re.exec(sanitize);

@@ -141,9 +141,45 @@ function needsDerivatives(item) {
     return isProcessableImage(item) && DERIVATIVE_FIELDS.some((f) => isBlank(item[f]));
 }
 
-/** この写真に対して何らかの処理（サムネ / メタ / 派生）が必要か */
+/**
+ * 2枚目以降（`extraImages`）で埋める項目。
+ *
+ * **`aspectRatio` は入れない。** `PhotoImage`（`api-user/src/photoImages.ts`）が
+ * 持たないので、書いても読む側がいない（`width`/`height` から出せる）。
+ * それ以外は表紙と同じ一式——2枚目だけ AVIF が無いと、**AVIF を出す端末で
+ * 1枚目だけ軽い**という気づきにくい形になる。
+ */
+const EXTRA_IMAGE_FIELDS = [
+    "thumbSrc", "dominantColor", "width", "height", "blurDataURL",
+    ...DERIVATIVE_FIELDS,
+];
+
+/** その1枚に、まだ埋まっていない項目があるか */
+function needsExtraImage(img) {
+    if (!img || typeof img.src !== "string" || !img.src) return false;
+    const key = keyFromSrc(img.src);
+    if (!key) return false;
+    const ext = key.split(".").pop()?.toLowerCase() ?? "";
+    if (SKIP_EXTENSIONS.has(ext)) return false;
+    return EXTRA_IMAGE_FIELDS.some((f) => isBlank(img[f]));
+}
+
+/**
+ * 2枚目以降の派生が未生成か。
+ *
+ * **公開・ストーリーの判定は表紙と同じ**（`isProcessableImage`）——
+ * 派生は `max-age=31536000` で公開バケットに焼かれるので、下書きや
+ * ストーリーに作ると公開前／期限切れ後に取得できてしまう。
+ */
+function needsExtraImages(item) {
+    return isProcessableImage(item)
+        && Array.isArray(item.extraImages)
+        && item.extraImages.some(needsExtraImage);
+}
+
+/** この写真に対して何らかの処理（サムネ / メタ / 派生 / 2枚目以降）が必要か */
 function shouldProcess(item) {
-    return needsThumb(item) || needsMeta(item) || needsDerivatives(item);
+    return needsThumb(item) || needsMeta(item) || needsDerivatives(item) || needsExtraImages(item);
 }
 
 /** 0-255 のチャンネル値を 2 桁 16 進に */
@@ -215,6 +251,73 @@ async function generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key) {
     return fields;
 }
 
+/**
+ * 512px WebP のサムネを作って S3 に置き、URL を返す。
+ *
+ * **切り出したのは、2枚目以降（`extraImages`）でも同じものが要るから。**
+ * 写すと片方だけ直す形になる（このリポジトリが何度も踏んでいる型）。
+ */
+async function generateThumb({ sharp, s3, PutObjectCommand }, buf, key) {
+    const thumbKey = thumbKeyFor(key);
+    const thumb = await sharp(buf)
+        .rotate()
+        .resize({ width: THUMB_MAX_PX, height: THUMB_MAX_PX, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: THUMB_QUALITY })
+        .toBuffer();
+    await s3.send(new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: thumbKey,
+        Body: thumb,
+        ContentType: "image/webp",
+        CacheControl: "max-age=31536000",
+    }));
+    return { url: `${CLOUDFRONT_URL}/${thumbKey}`, bytes: thumb.length };
+}
+
+/**
+ * 2枚目以降を1枚ずつ埋めて、**新しい配列を返す**（元は変えない）。
+ *
+ * **1枚が駄目でも残りは進める。** 原本が S3 に無い（退会の掃除が途中で
+ * 切れた等）1枚のために、同じ投稿の他の写真まで派生無しにしない。
+ * 埋まらなかった枚数を返して、呼ぶ側がログに出せるようにする。
+ */
+async function fillExtraImages(deps, extraImages) {
+    const { sharp, s3, GetObjectCommand } = deps;
+    const out = [];
+    let filled = 0, failed = 0;
+    for (const img of extraImages) {
+        if (!needsExtraImage(img)) { out.push(img); continue; }
+        const key = keyFromSrc(img.src);
+        try {
+            const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+            const buf = Buffer.from(await obj.Body.transformToByteArray());
+            const next = { ...img };
+            if (isBlank(next.thumbSrc)) {
+                next.thumbSrc = (await generateThumb(deps, buf, key)).url;
+            }
+            if (["dominantColor", "width", "height", "blurDataURL"].some((f) => isBlank(next[f]))) {
+                const meta = await computeMetaFromBuffer(sharp, buf);
+                // **`aspectRatio` は持たせない**（`PhotoImage` に無い項目を
+                // 書くと、読む側のいない値が行に溜まる）
+                for (const [k, v] of Object.entries(meta)) {
+                    if (k !== "aspectRatio" && isBlank(next[k])) next[k] = v;
+                }
+            }
+            if (DERIVATIVE_FIELDS.some((f) => isBlank(next[f]))) {
+                Object.assign(next, await generateDerivatives(deps, buf, key));
+            }
+            out.push(next);
+            filled++;
+        } catch (err) {
+            // 1枚の失敗で投稿ごと落とさない。次回の実行で埋め直す
+            console.warn(`  [thumbs] 2枚目以降を埋められなかった (${key}): ${err?.name ?? err}`);
+            out.push(img);
+            failed++;
+        }
+    }
+    return { extraImages: out, filled, failed };
+}
+
 async function main() {
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
     const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
@@ -241,7 +344,7 @@ async function main() {
     console.log(`[thumbs] ${items.length} 件中、処理対象 ${targets.length} 件`);
     if (DRY_RUN) {
         for (const t of targets) {
-            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv"].filter(Boolean).join("+");
+            const jobs = [needsThumb(t) && "thumb", needsMeta(t) && "meta", needsDerivatives(t) && "deriv", needsExtraImages(t) && "extra"].filter(Boolean).join("+");
             console.log(`  - ${t.id}  ${keyFromSrc(t.src)}  [${jobs}]`);
         }
         console.log("[thumbs] DRY_RUN=1 のため生成せず終了");
@@ -254,6 +357,8 @@ async function main() {
         const doThumb = needsThumb(item);
         const doMeta = needsMeta(item);
         const doDerivatives = needsDerivatives(item);
+        const doExtra = needsExtraImages(item);
+        let extraInfo = "";
         try {
             // 1) 元画像を取得（サムネ・メタどちらにも必要）
             const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -265,21 +370,9 @@ async function main() {
 
             if (doThumb) {
                 // 512px WebP を生成（EXIF の向きを反映しつつメタデータは持ち越さない）
-                const thumbKey = thumbKeyFor(key);
-                const thumb = await sharp(buf)
-                    .rotate()
-                    .resize({ width: THUMB_MAX_PX, height: THUMB_MAX_PX, fit: "inside", withoutEnlargement: true })
-                    .webp({ quality: THUMB_QUALITY })
-                    .toBuffer();
-                await s3.send(new PutObjectCommand({
-                    Bucket: BUCKET,
-                    Key: thumbKey,
-                    Body: thumb,
-                    ContentType: "image/webp",
-                    CacheControl: "max-age=31536000",
-                }));
-                fields.thumbSrc = `${CLOUDFRONT_URL}/${thumbKey}`;
-                thumbInfo = ` ${(buf.length / 1024).toFixed(0)}KB → ${(thumb.length / 1024).toFixed(0)}KB`;
+                const t = await generateThumb({ sharp, s3, PutObjectCommand }, buf, key);
+                fields.thumbSrc = t.url;
+                thumbInfo = ` ${(buf.length / 1024).toFixed(0)}KB → ${(t.bytes / 1024).toFixed(0)}KB`;
             }
 
             if (doMeta) {
@@ -289,6 +382,14 @@ async function main() {
             if (doDerivatives) {
                 // レスポンシブ/AVIF 派生（512 AVIF・256 WebP・256 AVIF・詳細 AVIF）
                 Object.assign(fields, await generateDerivatives({ sharp, s3, PutObjectCommand }, buf, key));
+            }
+
+            if (doExtra) {
+                // 2枚目以降（1投稿に複数枚）。**表紙と同じ一式**を作る
+                const r = await fillExtraImages(
+                    { sharp, s3, GetObjectCommand, PutObjectCommand }, item.extraImages);
+                if (r.filled > 0) fields.extraImages = r.extraImages;
+                extraInfo = ` extra=${r.filled}` + (r.failed > 0 ? `/失敗${r.failed}` : "");
             }
 
             // 2) DynamoDB へ動的 SET（更新するフィールドだけ書く）
@@ -310,19 +411,32 @@ async function main() {
                 sets.push(`#${k} = :${k}`);
             }
             if (sets.length === 0) { skipped++; continue; } // 書くものが無い（updatedAt も動かさない）
+            // **配列を丸ごと書くときだけ、読んだ姿から変わっていないことを見る。**
+            // ほかの項目は「空なら埋める」なので上書きしても失うものが無いが、
+            // `extraImages` は**配列の置き換え**なので、Scan と Update の間に
+            // 本人が写真を差し替えると**消した写真が復活する**（しかも実体は
+            // もう S3 に無いので割れた枠になる）。スカラの CAS が無いので
+            // 配列そのものを条件にする。競合したら次回の実行で埋め直す。
+            if (fields.extraImages !== undefined) {
+                names["#extraImages"] = "extraImages";
+                values[":prevExtraImages"] = item.extraImages;
+            }
+            const cond = fields.extraImages !== undefined
+                ? "attribute_exists(id) AND #extraImages = :prevExtraImages"
+                : "attribute_exists(id)";
             await ddb.send(new UpdateCommand({
                 TableName: TABLE,
                 Key: { id: item.id },
                 UpdateExpression: "SET " + sets.join(", "),
                 // 削除済み写真への復活書き込みを防ぐ
-                ConditionExpression: "attribute_exists(id)",
+                ConditionExpression: cond,
                 ExpressionAttributeNames: Object.keys(names).length ? names : undefined,
                 ExpressionAttributeValues: values,
             }));
 
             ok++;
-            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv"].filter(Boolean).join("+");
-            console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}`);
+            const jobs = [doThumb && "thumb", doMeta && "meta", doDerivatives && "deriv", doExtra && "extra"].filter(Boolean).join("+");
+            console.log(`  [${i + 1}/${targets.length}] ✅ ${item.id}  [${jobs}]${thumbInfo}${extraInfo}`);
         } catch (err) {
             // 原本が S3 に無い行は、この道具では直しようがない。
             // 失敗に数えると、下の判定で毎回ジョブが赤くなる
@@ -384,7 +498,8 @@ function exitCodeFor({ failed }) {
 
 module.exports = {
     keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess,
-    needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel,
+    needsThumb, needsMeta, needsDerivatives, needsExtraImage, needsExtraImages,
+    EXTRA_IMAGE_FIELDS, buildMetaFields, hexFromChannel,
     isMissingObject, exitCodeFor,
 };
 

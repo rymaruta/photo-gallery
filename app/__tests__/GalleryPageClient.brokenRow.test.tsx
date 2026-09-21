@@ -70,7 +70,7 @@ describe("読めない行が1件混じっても、一覧は生き残る", () => 
             ok: true,
             json: async () => [photo("a"), null, photo("b"), { id: "c", tags: "配列でない" }],
         });
-        render(<ErrorBoundary><GalleryPageClient /></ErrorBoundary>);
+        render(<ErrorBoundary><GalleryPageClient surface="search" /></ErrorBoundary>);
         await waitFor(() => expect(mockPublicFetch).toHaveBeenCalled());
         await new Promise((r) => setTimeout(r, 30));
         expect(screen.queryByText(/予期しないエラー/), "ページ全体が落ちている").toBeNull();
@@ -80,7 +80,7 @@ describe("読めない行が1件混じっても、一覧は生き残る", () => 
     // 正常系: 全部読める応答は今までどおり
     it("全部読める応答は今までどおり出る", async () => {
         mockPublicFetch.mockResolvedValue({ ok: true, json: async () => [photo("a"), photo("b")] });
-        render(<ErrorBoundary><GalleryPageClient /></ErrorBoundary>);
+        render(<ErrorBoundary><GalleryPageClient surface="search" /></ErrorBoundary>);
         await waitFor(() => expect(mockPublicFetch).toHaveBeenCalled());
         await new Promise((r) => setTimeout(r, 30));
         expect(screen.queryByText(/予期しないエラー/)).toBeNull();

@@ -8,6 +8,7 @@ import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
+import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
 import { photoLimitError } from "./photoLimit";
@@ -243,6 +244,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         date?: unknown;
         /** 共同アルバムに入れる場合の行き先（案C）。メンバーでなければ断る */
         albumId?: unknown;
+        /** 2枚目以降（1投稿に複数枚）。表紙は `publicUrl`。信用しない */
+        extraImages?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -310,6 +313,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const safeBlurDataURL = sanitizeBlurDataURL(blurDataURL);
     // 撮影日（EXIF 由来）。年表を「撮った順」で並べるために保存する。
     const safeDate = sanitizeDate(body.date);
+    // 検証したときに見ていた形で保存する（デコード済みのパスで組み直す）。
+    // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
+    // 対象から漏れる余地が残る。**2枚目以降の重複判定にも使う。**
+    const safeSrc = canonicalUploadUrl(publicUrl, CLOUDFRONT_URL);
 
     const photo: Photo = {
         // **IDは鍵から導出する（uuid v5）。** ここで毎回採番し直していたので、
@@ -328,7 +335,15 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 検証したときに見ていた形で保存する（デコード済みのパスで組み直す）。
         // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
         // 対象から漏れる余地が残る。
-        src: canonicalUploadUrl(publicUrl, CLOUDFRONT_URL),
+        src: safeSrc,
+        // **2枚目以降。** 表紙とまったく同じ厳しさで確かめる
+        // （`photoImages.ts`）。ここを緩めると、他人の写真の公開URLを
+        // 自分の投稿の2枚目に入れられ、自分の投稿を消したときに相手の
+        // 実ファイルが S3 から消える——表紙で一度踏んだ穴。
+        ...(() => {
+            const e = sanitizeExtraImages(body.extraImages, userId, CLOUDFRONT_URL, safeSrc);
+            return e ? { extraImages: e } : {};
+        })(),
         // 保存時にもサニタイズを通す。photoUpdate.ts は通しているのにここだけ
         // 素通しで、任意の長さ・任意の構造の値が静的HTMLまで届いていた。
         // **題が無いなら属性ごと持たない。** 以前ここは「無題」を入れていたが、
@@ -468,7 +483,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 serverOwned.coords = existing.coords;
                 serverOwned.geoApprox = true;
             }
-            const rewritten = { ...photo, ...serverOwned, createdAt: existing.createdAt ?? photo.createdAt };
+            // **2枚目以降の派生も落とさない。** `SERVER_OWNED_FIELDS` は
+            // 行の属性を見るが、`extraImages` の派生は**配列の要素の中**に
+            // ある。利用者が送り直すのは `src`（とクライアントが作れる
+            // サムネ・代表色）だけなので、そのまま書くと `srcAvif` などが
+            // 消える。同じ `src` の既存要素から引き継ぐ（今回の本文にある
+            // 項目は今回が勝つ、は上位と同じ規則）。
+            const mergedExtra = mergeExtraImages(photo.extraImages, existing.extraImages);
+            const rewritten = {
+                ...photo, ...serverOwned,
+                ...(mergedExtra ? { extraImages: mergedExtra } : {}),
+                createdAt: existing.createdAt ?? photo.createdAt,
+            };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
