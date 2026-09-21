@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
@@ -24,6 +24,7 @@ import StoryViewer from "./StoryViewer";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "../../../lib/hooks/useMediaBox";
+import { movedBeyondTap, type PressPoint } from "../../../lib/utils/tap";
 import {
     STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
@@ -120,6 +121,16 @@ export default function StoriesBar() {
     const [selected, setSelected] = useState<number | null>(null);
     /** 掴んでいる間は文字を少し透かす（下の写真を確かめられるように） */
     const [dragging, setDragging] = useState(false);
+    /**
+     * 操作の欄を畳んで**写真だけ**にする。
+     *
+     * 320×568 の実測で、指で触れる写真は**上の 57% まで**（残りは操作の欄）。
+     * 文字を掴んで運べば下へも置けるが、**置いたあと見えない**し、
+     * 空いている所を指して決めることもできない
+     * （owner:「指で決めれるようにしよう」）。
+     * 畳めば写真が全部出て、どこでも指で決められる。
+     */
+    const [photoOnly, setPhotoOnly] = useState(false);
     const draftMediaAreaRef = useRef<HTMLDivElement | null>(null);
     // 絵が実際に描かれている矩形。**囲みではなく絵に対する割合**で持たないと、
     // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
@@ -207,6 +218,15 @@ export default function StoriesBar() {
 
     /** 掴んでいる文字。指が離れるまで、その1つだけを動かす */
     const draggingIndexRef = useRef<number | null>(null);
+    /**
+     * 写真の余白に置いた指。**タップ（外す）となぞり（動かす）を見分ける。**
+     *
+     * 文字そのものを掴む形だけだと、**操作の欄に隠れた文字に指が届かない**
+     * ——320×568 では写真の見えている高さが 160px しかない。
+     * 選んでいる間は、**写真のどこをなぞっても選んでいる文字が付いてくる**
+     * （owner:「指で決めれるようにしよう」）。
+     */
+    const bgPressRef = useRef<PressPoint | null>(null);
 
     /** 矢印キーで少しずつ動かす（指でなぞれない人の動かし方） */
     const nudgeText = useCallback((index: number, dx: number, dy: number) => {
@@ -429,6 +449,7 @@ export default function StoriesBar() {
         setStoryCoords(null);
         setTexts([]);
         setSelected(null);
+        setPhotoOnly(false);
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
@@ -934,18 +955,50 @@ export default function StoriesBar() {
                         // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
                         // 指が離れるまでその1つだけを動かす。追随は
                         // `setPointerCapture` に任せる（指が文字から出ても続く）
-                        // **余白をさわったら選択を外す。** 外せないと、
-                        // 置いている間ずっと ほかの欄が畳まれたままになる
-                        // （文字の上で止めた pointerdown は上の `<p>` が受けるので
-                        //  ここには来ない）
-                        onPointerDown={() => { if (!posting) setSelected(null); }}
+                        // **余白は「タップで外す・なぞって動かす」。**
+                        //
+                        // 文字そのものを掴む形だけだと、操作の欄に隠れた文字に
+                        // 指が届かない。選んでいる間は写真のどこをなぞっても
+                        // その文字が付いてくるようにする——判定は
+                        // `lib/utils/tap.ts`（ストーリーの送りと同じしきい値）。
+                        // 文字の上で止めた pointerdown は上の `<p>` が受けて
+                        // 伝えないので、ここには来ない
+                        onPointerDown={(e) => {
+                            if (posting) return;
+                            bgPressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
+                            const area = draftMediaAreaRef.current;
+                            if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+                        }}
                         onPointerMove={(e) => {
+                            // 余白から始めたなぞりは、**選んでいる文字**を連れていく
+                            const press = bgPressRef.current;
+                            if (press && draggingIndexRef.current === null
+                                && selected !== null && movedBeyondTap(press, e.clientX, e.clientY)) {
+                                draggingIndexRef.current = selected;
+                                setDragging(true);
+                            }
                             const i = draggingIndexRef.current;
                             if (i === null) return;
                             moveTextTo(i, e.clientX, e.clientY);
                         }}
-                        onPointerUp={() => { draggingIndexRef.current = null; setDragging(false); }}
-                        onPointerCancel={() => { draggingIndexRef.current = null; setDragging(false); }}
+                        onPointerUp={(e) => {
+                            // 動かさずに離した＝タップ。選択を外して、ほかの欄を戻す
+                            const press = bgPressRef.current;
+                            bgPressRef.current = null;
+                            if (press && draggingIndexRef.current === null
+                                && !movedBeyondTap(press, e.clientX, e.clientY)) {
+                                setSelected(null);
+                            }
+                            draggingIndexRef.current = null;
+                            setDragging(false);
+                        }}
+                        onPointerCancel={() => {
+                            bgPressRef.current = null;
+                            draggingIndexRef.current = null;
+                            setDragging(false);
+                        }}
+                        // 選んでいる間は、端末のスクロールに指を取られない
+                        style={selected !== null && !posting ? { touchAction: "none" } : undefined}
                     >
                         {/* ⚠️ **`max-w-full max-h-full`（`w-full h-full` ではない）。**
                             `w-full h-full` だと要素は画面いっぱいで、絵はその中で
@@ -993,14 +1046,34 @@ export default function StoriesBar() {
                             />
                         )}
                     </div>
-                    {/* 上下のスクリム（文字と写真が重なっても読めるように） */}
+                    {/* 上下のスクリム（文字と写真が重なっても読めるように）。
+                        **畳んでいる間は下を出さない**——下の 2/3 を暗くするので、
+                        置いた姿を見るための画面なのに**本番より暗く見える**
+                        （実測: 畳んだ画面で写真の下半分が沈んでいた） */}
                     <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                    <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+                    {!photoOnly && (
+                        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+                    )}
 
                     <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
                         <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
+                        <div className="flex items-center gap-1">
+                        {/* **写真だけにする。** 操作の欄が写真の下半分を覆っていて、
+                            置いたあとの姿が見えない／空いている所を指せない。
+                            畳めば写真が全部出て、どこでも指で決められる */}
+                        <button
+                            onClick={() => setPhotoOnly((v) => !v)}
+                            disabled={posting}
+                            aria-pressed={photoOnly}
+                            className="p-2 text-white/80 hover:text-white drop-shadow disabled:opacity-40"
+                            aria-label={photoOnly
+                                ? (locale === "en" ? "Show controls" : "操作に戻る")
+                                : (locale === "en" ? "Show photo only" : "写真だけ見る")}
+                        >
+                            {photoOnly ? <EyeSlashIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
+                        </button>
                         <button
                             ref={draftCancelRef}
                             // **投稿中も押せる。** 押したら要求を中断して畳む
@@ -1015,6 +1088,7 @@ export default function StoriesBar() {
                         >
                             <XMarkIcon className="w-6 h-6" />
                         </button>
+                        </div>
                     </div>
                     <div className="flex-1 min-h-0" />
                     {/* **動かしている間は操作の欄を引っ込める。** 画面の下半分が
@@ -1022,6 +1096,20 @@ export default function StoriesBar() {
                         ——「置いた場所が見えないまま置く」ことになる。
                         消すのは見た目だけ（指は写真を掴んだままなので、
                         `pointer-events` を切っても掴みは切れない） */}
+                    {photoOnly ? (
+                        // **戻る道を必ず出す。** 畳んだまま出られないと、
+                        // 投稿もやめることもできなくなる
+                        <div className="relative flex justify-center pb-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+                            <button
+                                onClick={() => setPhotoOnly(false)}
+                                className="px-6 py-3 rounded-full bg-white text-black text-sm font-semibold active:scale-95 transition"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Done" : "完了"}
+                            </button>
+                        </div>
+                    ) : (
+                    <>
                     <div
                         className={`relative px-4 pt-4 pb-1 space-y-3 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
@@ -1458,6 +1546,8 @@ export default function StoriesBar() {
                                 : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
                         </button>
                     </div>
+                    </>
+                    )}
                 </div>
             )}
 

@@ -351,6 +351,11 @@ describe("ストーリーの文字: 複数置く", () => {
  */
 describe("ストーリーの文字: 置いている間は、ほかの欄を畳む", () => {
     const area = () => document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement;
+    /** 写真の余白を**タップ**（動かさずに離す） */
+    const tapBackground = () => {
+        fireEvent.pointerDown(area(), { pointerId: 9, clientX: 50, clientY: 50 });
+        fireEvent.pointerUp(area(), { pointerId: 9, clientX: 50, clientY: 50 });
+    };
 
     it("文字を選んでいる間は、撮影地・曲・表示時間を出さない", async () => {
         await pickImage();
@@ -363,7 +368,7 @@ describe("ストーリーの文字: 置いている間は、ほかの欄を畳�
     it("写真の余白をさわると選択が外れて、ほかの欄が戻る", async () => {
         await pickImage();
         await type("朝の空");
-        fireEvent.pointerDown(area(), { pointerId: 9 });
+        tapBackground();
         expect(screen.getByPlaceholderText(/撮影地/), "外しても戻らない").toBeInTheDocument();
         // 文字は消えていない（選択が外れただけ）
         expect(overlay()?.textContent).toBe("朝の空");
@@ -373,7 +378,7 @@ describe("ストーリーの文字: 置いている間は、ほかの欄を畳�
     it("文字をさわったときは外れない", async () => {
         await pickImage();
         await type("朝の空");
-        fireEvent.pointerDown(area(), { pointerId: 9 });
+        tapBackground();
         await userEvent.pointer({ target: screen.getByText("朝の空"), keys: "[MouseLeft>]" });
         expect(screen.queryByPlaceholderText(/撮影地/), "選んだ直後に外れている").toBeNull();
     });
@@ -383,7 +388,7 @@ describe("ストーリーの文字: 置いている間は、ほかの欄を畳�
         await pickImage();
         await type("朝の空");
         expect(screen.getByRole("switch", { name: "明朝" })).toBeInTheDocument();
-        fireEvent.pointerDown(area(), { pointerId: 9 });
+        tapBackground();
         expect(screen.queryByRole("switch", { name: "明朝" }), "効かない的が残っている").toBeNull();
         // もう1つ足す口は残す（外したあとに増やせなくならない）
         expect(screen.getByRole("button", { name: "文字を追加" })).toBeInTheDocument();
@@ -464,5 +469,173 @@ describe("ストーリーの文字: キーボード", () => {
         await type("朝の光");
         // 下書きの中でだけ的になる。見る側は `StoryViewer.textStyle.test.tsx` が見る
         expect(screen.getByRole("button", { name: /文字「朝の光」/ })).toBeInTheDocument();
+    });
+});
+
+/**
+ * 🔴 **指で決められるようにする。**
+ *
+ * 文字そのものを掴む形だけだと、**操作の欄に隠れた文字に指が届かない**
+ * ——320×568 では写真の見えている高さが 160px しかない
+ * （owner:「指で決めれるようにしよう」）。
+ *
+ * 選んでいる間は、**写真のどこをなぞってもその文字が付いてくる**。
+ * タップ（動かさず離す）は今までどおり選択を外す。
+ */
+describe("ストーリーの文字: 写真のどこでも指で置ける", () => {
+    const area = () => document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement;
+    const stubArea = () => {
+        area().getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 800, right: 400, bottom: 800, x: 0, y: 0, toJSON: () => ({}) });
+    };
+    const placed = () => document.querySelector('[role="dialog"] p[style*="translate"]') as HTMLElement;
+
+    it("余白をなぞると、選んでいる文字が指について来る", async () => {
+        await pickImage();
+        await type("朝の空");
+        stubArea();
+        const before = placed().style.left;
+        fireEvent.pointerDown(area(), { pointerId: 3, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        fireEvent.pointerUp(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        expect(placed().style.left, "指について来ない").not.toBe(before);
+        expect(placed().style.left).toBe("75%");
+        expect(placed().style.top).toBe("75%");
+    });
+
+    // **なぞったのに選択が外れない**（外れると、離した瞬間に欄が戻って驚く）
+    it("なぞったあとは選択が外れない", async () => {
+        await pickImage();
+        await type("朝の空");
+        stubArea();
+        fireEvent.pointerDown(area(), { pointerId: 3, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        fireEvent.pointerUp(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        expect(screen.queryByPlaceholderText(/撮影地/), "なぞっただけで選択が外れた").toBeNull();
+    });
+
+    // **指は静止していても数 px 揺れる。** それで動かしたことにしない
+    it("数 px の揺れはタップとして扱う（選択が外れる）", async () => {
+        await pickImage();
+        await type("朝の空");
+        stubArea();
+        const before = placed().style.left;
+        fireEvent.pointerDown(area(), { pointerId: 3, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(area(), { pointerId: 3, clientX: 44, clientY: 43 });
+        fireEvent.pointerUp(area(), { pointerId: 3, clientX: 44, clientY: 43 });
+        expect(placed().style.left, "揺れで文字が動いた").toBe(before);
+        expect(screen.getByPlaceholderText(/撮影地/), "タップなのに外れていない").toBeInTheDocument();
+    });
+
+    // 何も選んでいなければ、なぞっても何も動かない
+    it("選んでいなければ、なぞっても動かない", async () => {
+        await pickImage();
+        await type("朝の空");
+        stubArea();
+        fireEvent.pointerDown(area(), { pointerId: 3, clientX: 40, clientY: 40 });
+        fireEvent.pointerUp(area(), { pointerId: 3, clientX: 40, clientY: 40 });   // 外す
+        const before = placed().style.left;
+        fireEvent.pointerDown(area(), { pointerId: 4, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(area(), { pointerId: 4, clientX: 300, clientY: 600 });
+        fireEvent.pointerUp(area(), { pointerId: 4, clientX: 300, clientY: 600 });
+        expect(placed().style.left, "選んでいないのに動いた").toBe(before);
+    });
+
+    // 2つあるとき、連れていくのは**選んでいる方だけ**
+    it("連れていくのは選んでいる文字だけ", async () => {
+        await pickImage();
+        await type("いち");
+        await userEvent.click(screen.getByRole("button", { name: "文字を追加" }));
+        await type("に");
+        stubArea();
+        const before = [...document.querySelectorAll('[role="dialog"] p[style*="translate"]')].map((e) => (e as HTMLElement).style.left);
+        fireEvent.pointerDown(area(), { pointerId: 3, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        fireEvent.pointerUp(area(), { pointerId: 3, clientX: 300, clientY: 600 });
+        const after = [...document.querySelectorAll('[role="dialog"] p[style*="translate"]')].map((e) => (e as HTMLElement).style.left);
+        expect(after[0], "選んでいない方まで動いた").toBe(before[0]);
+        expect(after[1], "選んでいる方が動いていない").not.toBe(before[1]);
+    });
+});
+
+/**
+ * 🔴 **写真だけにして、指でどこでも決められるようにする。**
+ *
+ * 320×568 の実測で、指で触れる写真は**上の 57% まで**（残りは操作の欄）。
+ * 文字を掴んで運べば下へも置けるが、**置いたあとの姿が見えない**し、
+ * 空いている所を指して決めることもできない
+ * （owner:「指で決めれるようにしよう」）。
+ */
+describe("ストーリーの下書き: 写真だけ見る", () => {
+    it("押すと操作の欄が消えて、写真が全部出る", async () => {
+        await pickImage();
+        await type("朝の光");
+        expect(screen.getByRole("textbox", { name: "文字" })).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        expect(screen.queryByRole("textbox", { name: "文字" }), "操作の欄が残っている").toBeNull();
+        expect(screen.queryByRole("button", { name: /ストーリーに投稿/ })).toBeNull();
+        // 文字は出たまま（置いた姿を見るための機能）
+        expect(overlay()?.textContent).toBe("朝の光");
+    });
+
+    // 🔴 **戻る道を必ず出す。** 畳んだまま出られないと、投稿もやめることもできない
+    it("「完了」で戻れる", async () => {
+        await pickImage();
+        await type("朝の光");
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        await userEvent.click(screen.getByRole("button", { name: "完了" }));
+        expect(screen.getByRole("textbox", { name: "文字" }), "戻れない").toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /ストーリーに投稿/ })).toBeInTheDocument();
+    });
+
+    it("頭のボタンからも戻れる（押された状態が分かる）", async () => {
+        await pickImage();
+        await type("朝の光");
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        const back = screen.getByRole("button", { name: "操作に戻る" });
+        expect(back).toHaveAttribute("aria-pressed", "true");
+        await userEvent.click(back);
+        expect(screen.getByRole("textbox", { name: "文字" })).toBeInTheDocument();
+    });
+
+    // 畳んでいる間も、指で置き場所を決められる（これがこの機能の目的）
+    it("畳んでいる間も、指で文字を動かせる", async () => {
+        await pickImage();
+        await type("朝の光");
+        const areaEl = document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement;
+        areaEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 800, right: 400, bottom: 800, x: 0, y: 0, toJSON: () => ({}) });
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        const before = overlay()!.style.top;
+        fireEvent.pointerDown(areaEl, { pointerId: 5, clientX: 40, clientY: 40 });
+        fireEvent.pointerMove(areaEl, { pointerId: 5, clientX: 200, clientY: 700 });
+        fireEvent.pointerUp(areaEl, { pointerId: 5, clientX: 200, clientY: 700 });
+        expect(overlay()!.style.top, "畳んでいると動かせない").not.toBe(before);
+    });
+
+    it("下書きを閉じると畳みも戻る", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        await userEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["img"], "c.jpg", { type: "image/jpeg" }));
+        await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+        expect(screen.getByRole("textbox", { name: "文字" }), "畳んだまま開いた").toBeInTheDocument();
+    });
+});
+
+// **畳んでいる間は下のスクリムを出さない。** 置いた姿を見るための画面なのに
+// 下の 2/3 が暗いと、**本番より暗く見える**（実測で写真の下半分が沈んでいた）
+describe("ストーリーの下書き: 写真だけのときの見え方", () => {
+    const bottomScrim = () => document.querySelector('[role="dialog"] .bottom-0.h-2\\/3');
+
+    it("ふだんは下のスクリムを出す（文字と写真が重なっても読めるように）", async () => {
+        await pickImage();
+        expect(bottomScrim()).not.toBeNull();
+    });
+
+    it("写真だけのときは出さない（本番より暗く見せない）", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
+        expect(bottomScrim(), "写真を暗くしたまま見せている").toBeNull();
     });
 });

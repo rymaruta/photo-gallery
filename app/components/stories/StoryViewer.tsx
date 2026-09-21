@@ -17,6 +17,7 @@ import { log } from "@/lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
+import { wasShortTap, type PressPoint } from "@/lib/utils/tap";
 import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
 import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "@/lib/hooks/useMediaBox";
@@ -412,9 +413,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「タップ」か「長押し・スワイプ」かの判定。
     // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
     // 離した瞬間に前後へ移動してしまう。
-    const pressRef = useRef<{ t: number; x: number; y: number } | null>(null);
-    const LONG_PRESS_MS = 350;
-    const MOVE_TOLERANCE_PX = 12;
+    // しきい値は `lib/utils/tap.ts` に1つ（下書きの文字の置き方が同じ判断をする）
+    const pressRef = useRef<PressPoint | null>(null);
 
     /** 長押しで止めたのか、ボタン（またはスペース）で止めたのか。
      *  指を離したときに**ボタンで止めたぶんまで再開しない**ように分ける */
@@ -436,10 +436,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const wasTap = useCallback((e: React.MouseEvent): boolean => {
         const p = pressRef.current;
         pressRef.current = null;
-        if (!p) return true; // ポインタ情報が取れない環境では従来どおり動かす
-        if (Date.now() - p.t >= LONG_PRESS_MS) return false;
-        const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y);
-        return moved <= MOVE_TOLERANCE_PX;
+        return wasShortTap(p, e.clientX, e.clientY);
     }, []);
 
     // ダイアログ表示中は自動送りを止める
