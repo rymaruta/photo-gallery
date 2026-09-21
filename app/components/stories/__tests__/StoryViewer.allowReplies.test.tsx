@@ -78,4 +78,26 @@ describe("StoryViewer: 返信を許可", () => {
         view(true);
         expect(screen.getByLabelText("このストーリーに返信")).toBeTruthy();
     });
+
+    /**
+     * **画面の下に、何も受けない帯を作らない。**
+     *
+     * 左右のタップ領域は返信の帯（高さ約124px）を避けて `bottom: 88` で
+     * 止まっている。帯が出ないストーリーでその 88px を空けたままだと、
+     * 下の方を叩いても進まない——同じ他人のストーリーなのに、返信を
+     * 許した人のとだけ挙動が割れる。
+     */
+    it("返信の帯が出ないときは、タップ領域を下まで伸ばす", () => {
+        view(false);
+        const zones = document.querySelectorAll<HTMLElement>(".absolute.z-10");
+        expect(zones.length, "タップ領域を見つけられない（形が変わった？）").toBe(2);
+        for (const z of zones) expect(z.style.bottom, "何も受けない帯が残っている").toBe("0px");
+    });
+
+    it("返信の帯が出るときは、そのぶん空ける", () => {
+        view(true);
+        const zones = document.querySelectorAll<HTMLElement>(".absolute.z-10");
+        expect(zones.length).toBe(2);
+        for (const z of zones) expect(z.style.bottom, "帯の上に重なっている").toBe("88px");
+    });
 });

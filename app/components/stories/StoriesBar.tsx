@@ -285,6 +285,20 @@ export default function StoriesBar() {
     /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
     const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
     /**
+     * いま欄に入っている地名が**写真の GPS から来たものか**。
+     *
+     * 投稿のときに設定（`jp_gps_autofill`）をもう一度見るのは、
+     * 「待っている間に GPS 自動入力を切られたら送らない」ため。だが
+     * **手で打った地名にまでそれが効いていた**——設定を切っている人は
+     * 自動入力を受けないので、欄に在る文字は必ず自分で打ったものなのに、
+     * 投稿すると黙って落ちていた（残しても撮影地の無い写真になる）。
+     * 「位置情報を表示」を画面に出したことで、**入のまま送られない**という
+     * 嘘が利用者から見えるようになったので、来歴で分ける。
+     *
+     * 打ち直したら外す（自分で決めた文字は自分のもの）。
+     */
+    const locationFromGpsRef = useRef(false);
+    /**
      * 下書きの世代。**自動入力の書き戻しを、今の下書きに限る。**
      *
      * 位置を引くのに数秒かかるので、その間に閉じて別の写真（や動画）を選ぶと、
@@ -514,6 +528,7 @@ export default function StoriesBar() {
         setDraft(null);
         setStoryLocation("");
         setStoryCoords(null);
+        locationFromGpsRef.current = false;
         setTexts([]);
         setSelected(null);
         setPhotoOnly(false);
@@ -638,6 +653,7 @@ export default function StoriesBar() {
         setSelected(null);
         setStoryLocation("");
         setStoryCoords(null);
+        locationFromGpsRef.current = false;
 
         // **撮影地は、EXIF を落とす前の元ファイルから読む。**
         // 投稿の直前に `toUploadSafeFile` が GPS ごと消すので、ここを逃すと
@@ -662,7 +678,12 @@ export default function StoriesBar() {
                     const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
                     if (gen !== draftGenRef.current) return;
                     // **打ち始めていたら上書きしない**（後から届く値で消さない）
-                    if (place) setStoryLocation((prev) => prev || place);
+                    if (place) setStoryLocation((prev) => {
+                        // 実際に書けたときだけ「GPS から来た」印を立てる
+                        // （打ち始めていた回は、その文字は本人のもの）
+                        if (!prev) locationFromGpsRef.current = true;
+                        return prev || place;
+                    });
                 } catch (e) {
                     log.warn("story location autofill failed:", e);
                 }
@@ -689,7 +710,11 @@ export default function StoriesBar() {
         //     `toUploadSafeVideo` が GPS を落としている（サーバーも同じ判断）
         //   - **設定をもう一度見る。** 引いたのは選んだ時点なので、待っている
         //     間に GPS 自動入力を切られたら送らない（写真側は都度と送信時の
-        //     両方で見ていて、こちらは選択時の1回だけだった）
+        //     両方で見ていて、こちらは選択時の1回だけだった）。
+        //     **ただし効かせるのは GPS から来た地名だけ**（`locationFromGpsRef`）
+        //     ——設定を切っている人は自動入力を受けないので、欄に在る文字は
+        //     必ず手で打ったもの。そこまで落としていたので、「位置情報を表示」が
+        //     入のまま何も送られない、という嘘になっていた
         //   - **座標は送る前に丸める。** 写真のアップロード画面は
         //     `page.tsx:870` で同じことをしている
         const gpsOn = (() => {
@@ -698,7 +723,9 @@ export default function StoriesBar() {
         //   - **「位置情報を表示」を切っていたら送らない。** 保存しなければ、
         //     一覧にも、残した写真の撮影地にも、地図にも出ない（隠すのでは
         //     なく持たない）
-        const sendLocation = draft.mediaType === "image" && gpsOn && showLocation ? storyLocation.trim() : "";
+        const sendLocation = draft.mediaType === "image" && showLocation
+            && (gpsOn || !locationFromGpsRef.current)
+            ? storyLocation.trim() : "";
         const sendCoords = sendLocation && storyCoords
             ? { lat: Math.round(storyCoords.lat * 100) / 100, lng: Math.round(storyCoords.lng * 100) / 100 }
             : null;
@@ -1418,7 +1445,11 @@ export default function StoriesBar() {
                         <input
                             type="text"
                             value={storyLocation}
-                            onChange={(e) => setStoryLocation(e.target.value)}
+                            onChange={(e) => {
+                                // 打ち直した文字は本人のもの（GPS の印を外す）
+                                locationFromGpsRef.current = false;
+                                setStoryLocation(e.target.value);
+                            }}
                             maxLength={200}
                             disabled={posting}
                             placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
@@ -1663,8 +1694,12 @@ export default function StoriesBar() {
                                             type="button"
                                             onClick={() => setVisibility(v)}
                                             disabled={posting}
-                                            role="switch"
-                                            aria-checked={visibility === v}
+                                            // **`aria-pressed`。** 2つは排他で、
+                                            // 押し直しても外れない（片方は必ず選ばれている）
+                                            // ——`role="switch"` はこのリポジトリでは
+                                            // 「押し直すと外れる」チップの形（`FilterBar`）。
+                                            // すぐ上の表示時間の選択と同じ綴りに揃える
+                                            aria-pressed={visibility === v}
                                             className={`px-3 py-1.5 rounded-full transition active:scale-95 disabled:opacity-40 ${visibility === v
                                                 ? "bg-white text-black font-semibold"
                                                 : "bg-white/5 ring-1 ring-white/10 text-white/60"}`}
