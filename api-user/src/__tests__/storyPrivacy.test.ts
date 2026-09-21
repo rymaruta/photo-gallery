@@ -49,7 +49,7 @@ const { getStories, createStory, viewStory } = await import("../stories");
 const { postStoryReply, storyRepliesId } = await import("../storyReplies");
 const { storyVisibility, storyAllowsReplies, STORY_PUBLIC, STORY_FOLLOWERS_ONLY } =
     await import("../storyVisibility");
-const { followMarkerId, followingId } = await import("../followCheck");
+const { followMarkerId } = await import("../followCheck");
 
 type Result = { statusCode: number; headers?: Record<string, string>; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,9 +60,9 @@ const ev = (sub: string | undefined, overrides: Record<string, unknown> = {}) =>
     ...overrides,
 });
 
-// **実在する形の ID を使う。** `followingIds` は `isUserId`（UUID）で濾すので、
-// 適当な文字列を並べると一覧が空になり、**門が効いているのか ID の形で
-// 落ちているのか区別できない**テストになる
+// **実在する形の ID を使う。** 本物のIDは UUID なので、テストもそれに揃える
+// ——`follow#<相手>#<自分>` のマーカーを引くだけなので形に縛りは無いが、
+// 形の違う値で通ってしまうテストを書かないため
 const ME = "11111111-1111-4111-8111-111111111111";
 const FRIEND = "22222222-2222-4222-8222-222222222222";
 const STRANGER = "33333333-3333-4333-8333-333333333333";
@@ -139,14 +139,21 @@ describe("createStory: 公開設定", () => {
 // GET /stories — 一覧のふるい
 // ────────────────────────────────
 describe("getStories: 公開範囲", () => {
-    /** ストーリーの一覧と、`following#<自分>` が返す世界 */
-    function world(items: Record<string, unknown>[], following: string[] | "fail") {
+    /**
+     * ストーリーの一覧と、フォローのマーカーが返す世界。
+     *
+     * **一覧（`following#<自分>`）は置かない。** 置くと、実装がうっかり
+     * そちらを読んでも緑になる——判定をマーカーへ移した理由が
+     * 「一覧は解除の取りこぼしで残る／2000で切り捨てられる」なので、
+     * ここで両方用意すると**その区別を確かめられないテスト**になる。
+     */
+    function world(items: Record<string, unknown>[], followed: string[] | "fail") {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
             if (cmd.constructor.name === "GetCommand") {
-                if (cmd.input.Key?.id === followingId(ME)) {
-                    return following === "fail"
-                        ? Promise.reject(new Error("throttled"))
-                        : Promise.resolve({ Item: { list: following } });
+                const id = String(cmd.input.Key?.id ?? "");
+                if (followed === "fail" && id.startsWith("follow#")) return Promise.reject(new Error("throttled"));
+                if (followed !== "fail" && followed.some((o) => id === followMarkerId(o, ME))) {
+                    return Promise.resolve({ Item: { id } });
                 }
                 return Promise.resolve({});
             }
@@ -154,6 +161,9 @@ describe("getStories: 公開範囲", () => {
         });
     }
     const ids = async () => (JSON.parse((await invoke(getStories, ev(ME))).body) as Array<{ id: string }>).map((i) => i.id);
+    const followReads = () => mockDdbSend.mock.calls
+        .map((c) => String((c[0] as { input: { Key?: { id?: string } } }).input.Key?.id ?? ""))
+        .filter((id) => id.startsWith("follow#"));
 
     const FEED = [
         { id: "pub", userId: STRANGER, createdAt: "1" },
@@ -167,18 +177,37 @@ describe("getStories: 公開範囲", () => {
         expect(await ids(), "公開範囲のふるいが効いていない").toEqual(["pub", "friend-only", "mine-only"]);
     });
 
-    it("自分のフォロワー限定は自分に出す（`following#` に自分は入っていない）", async () => {
+    it("自分のフォロワー限定は自分に出す（自分は自分をフォローしていない）", async () => {
         // ここが抜けると、投稿した本人のバーから自分のストーリーが消える
         world(FEED, []);
         expect(await ids()).toContain("mine-only");
+        expect(followReads(), "自分のぶんを確かめに行っている").not.toContain(followMarkerId(ME, ME));
     });
 
-    it("フォロー一覧を読めなかったら、フォロワー限定は出さない（取り返せない側に倒さない）", async () => {
+    it("フォローを確かめられなかったら、フォロワー限定は出さない（取り返せない側に倒さない）", async () => {
         // ブロック一覧（`hiddenUserIds`）は逆に「読めなくても一覧は返す」。
         // 倒しすぎると誰のストーリーも出なくなるあちらと、見せないと決めた
-        // 相手に出てしまうこちらとで、危ない向きが違う
+        // 相手に中身が出てしまうこちらとで、危ない向きが違う
         world(FEED, "fail");
         expect(await ids()).toEqual(["pub", "mine-only"]);
+    });
+
+    it("全員に公開しか無ければ、フォローを1回も読まない", async () => {
+        // 誰も使っていない機能のために往復を増やさない
+        // （`visibleReplyCount` が「ブロックしていなければ読まない」のと同じ）
+        world([{ id: "pub", userId: STRANGER, createdAt: "1" }], []);
+        await ids();
+        expect(followReads()).toEqual([]);
+    });
+
+    it("同じ人が何本出していても、確かめるのは1回", async () => {
+        world([
+            { id: "a", userId: FRIEND, createdAt: "1", visibility: STORY_FOLLOWERS_ONLY },
+            { id: "b", userId: FRIEND, createdAt: "2", visibility: STORY_FOLLOWERS_ONLY },
+            { id: "c", userId: FRIEND, createdAt: "3", visibility: STORY_FOLLOWERS_ONLY },
+        ], [FRIEND]);
+        expect(await ids()).toEqual(["a", "b", "c"]);
+        expect(followReads(), "行の数だけ読んでいる").toEqual([followMarkerId(FRIEND, ME)]);
     });
 
     it("ブロックはフォローしていても勝つ", async () => {

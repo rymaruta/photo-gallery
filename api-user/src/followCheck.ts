@@ -1,7 +1,5 @@
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
-import { readUserList } from "./userList";
-import { isUserId } from "./userId";
 
 /**
  * フォローの**読み取りだけ**。`follow.ts` から切り出してある。
@@ -36,9 +34,18 @@ export const followersId = (uid: string) => `followers#${uid}`;
  * （`FOLLOWING_MAX` = 2000）で切り捨てられても判定が狂わないようにするため
  * ——`isBlocked` がまったく同じ理由で同じ形をしている。
  *
- * **1件を確かめる経路（閲覧の記録・返信）だけがこちらを使う。**
- * 一覧を引く `getStories` は `followingIds` の方（相手の数だけ
- * GetItem を撃たない）。
+ * **一覧（`getStories`）もこちらを使う**（投稿者ごとに1回）。
+ * `following#<自分>` を1回読む方が安いが、あの行は信用できない:
+ *
+ *   - `unfollowQuietly` はマーカーを消したあとの一覧の書き込みの失敗を
+ *     握り潰す（`follow.ts:536`）＝**解除した相手が一覧に残る**。
+ *     一覧で判定すると、その相手のフォロワー限定ストーリーが中身ごと出る
+ *   - `updateUserList` は上限2000で古い方から落とす＝**実際に追っている
+ *     相手が静かに消える**
+ *
+ * **読めなかったときは投げる。** 呼び出し側が「見せない側に倒す」か
+ * 「見せる側に倒す」かを選べるようにする（ここで false を返すと、
+ * 一時的な失敗が黙って「フォローしていない」になる）。
  */
 export async function isFollowing(target: string, follower: string): Promise<boolean> {
     if (!target || !follower || target === follower) return false;
@@ -47,20 +54,4 @@ export async function isFollowing(target: string, follower: string): Promise<boo
         Key: { id: followMarkerId(target, follower) },
     }));
     return !!res.Item;
-}
-
-/**
- * 自分がフォローしている人の集合。**一覧のふるい1回につき GetItem 1回**。
- *
- * `follow.ts` の `readFollowing` と同じ行を読む。形の違う ID を落とすのも
- * 同じ（`readUserList` が `isUserId` で濾す）——**でたらめな ID が本番に
- * 実在する**ことが `backfill-followers` のドライランで確認されている。
- *
- * **読めなかったときは投げる。** 呼び出し側が「見せない側に倒す」か
- * 「見せる側に倒す」かを選べるようにする（ここで空集合を返すと、
- * 一時的な失敗が黙って「誰もフォローしていない」になる）。
- */
-export async function followingIds(uid: string): Promise<Set<string>> {
-    if (!uid) return new Set();
-    return new Set(await readUserList(followingId(uid), isUserId, `following#${uid}`));
 }

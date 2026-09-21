@@ -12,7 +12,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
-import { followingIds, isFollowing } from "./followCheck";
+import { isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 import { STORY_PUBLIC, STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
 
@@ -148,23 +148,10 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // **ストーリーの取得と同時に投げる。** 直列にしていたので、
         // 一覧が返ってくるまで待ってからブロックを引いていた＝往復が1回増えた。
         // 互いの結果に依存しないので並べてよい。
-        // **フォロー一覧も同じ束で引く。**「フォロワーのみ」のストーリーを
-        // 出してよいかの判定に要る（下）。往復はここで**増えない**
-        // ——既に2本並べている Promise.all に3本目を足すだけで、
-        // 互いの結果に依存しない（Lambda の同時実行はアカウント全体で10なので、
-        // 直列の1往復を足す方が高くつく）。
-        //
-        // **読めなかったら「誰もフォローしていない」に倒す**＝フォロワー限定は
-        // 出さない。ブロック一覧（すぐ上）が逆向きなのは意図的な差で、
-        // あちらは**倒しすぎると誰のストーリーも出なくなる**のに対し、
-        // こちらは倒し方を間違えると**本人が見せないと決めた相手に出る**。
-        // 取り返せない側を選ばない。
-        const [items, hidden, following] = await Promise.all([
+        const [items, hidden] = await Promise.all([
             queryStories("active"),
             hiddenUserIds(userId)
                 .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); }),
-            followingIds(userId)
-                .catch((e) => { console.error("getStories: フォロー一覧を読めませんでした:", e); return new Set<string>(); }),
         ]);
         for (const item of items) {
             delete item.viewers;
@@ -178,23 +165,65 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
                 delete item.keptAs;
             }
         }
+        const shown = items.filter((i) => !hidden.has(String(i.userId ?? "")));
+
         // **「フォロワーのみ」は、フォローしている人と本人にだけ出す。**
         //
-        // ブロックのふるいと**同じ1回のループで**落とす（2回歩かない）。
-        // 本人を先に通すのは、`following#<自分>` に自分は入っていないため
-        // ——ここが抜けると**自分のフォロワー限定ストーリーが自分に見えない**
-        // （投稿した直後にバーから消える）。
+        // **判定は `following#<自分>` の一覧ではなくマーカー**
+        // （`follow#<相手>#<自分>`）。一覧は2つの理由で信用できない:
+        //
+        //   - `unfollowQuietly` は、マーカーを消したあとの `updateFollowing`
+        //     の失敗を**握り潰す**（`follow.ts:536`。あちらのコメントが
+        //     「ブロックを解除した瞬間に古い関係が生き返って見える」と
+        //     名指ししている残骸そのもの）。一覧で見ると、**解除した相手の
+        //     フォロワー限定ストーリーが中身ごと返る**——`viewStory` と
+        //     `postStoryReply` は同じ行に 404 を返すので、**中身だけ先に出る**
+        //   - `updateUserList` は上限2000で**古い方から**落とす。2000人超を
+        //     フォローしている人は、実際に追っている相手のストーリーが
+        //     静かに消える
+        //
+        // `followCheck.ts` の `isFollowing` が「一覧が切り捨てられても
+        // 判定が狂わないように」と書いている当の理由を、ここだけ破っていた。
+        //
+        // **払うのは「フォロワー限定を出した人の数」だけ。** 行ごとではなく
+        // 投稿者ごとにまとめ、誰も使っていなければ1回も読まない
+        // （`visibleReplyCount` が「ブロックしていなければ読まない」で
+        // 往復を抑えているのと同じ形）。
+        //
+        // **読めなければ出さない。** ブロック一覧（すぐ上）が逆向きなのは
+        // 意図的な差で、あちらは**倒しすぎると誰のストーリーも出なくなる**
+        // のに対し、こちらは倒し方を間違えると**本人が見せないと決めた相手に
+        // 中身が出る**。取り返せない側を選ばない。
+        //
+        // **本人を外すのは `gatedOwners` の1か所だけ。** `isFollowing` は
+        // 自分自身に false を返すので、ここで外さないと**自分の
+        // フォロワー限定ストーリーが自分に見えない**（投稿した直後に
+        // バーから消える）。下の `filter` にも `owner === userId` を
+        // 書いていたが、**二重になっていて片方を壊してもテストが緑**だった
+        // （変異で実測）。見張りは1本ずつ——`getStories` の `replyCount` の
+        // ところに同じ戒めが書いてある。
         //
         // 門はここだけではない。開きっぱなしのタブや直接叩く経路のために
-        // `viewStory` と `postStoryReply` にも同じ判定が要る（そちらは
-        // 相手が1人なのでマーカー1件で確かめる＝`isFollowing`）。
+        // `viewStory` と `postStoryReply` にも同じ判定が要る。
         // **画面側だけ・一覧側だけの防御を作らない。**
-        const visible = items.filter((i) => {
-            const owner = String(i.userId ?? "");
-            if (hidden.has(owner)) return false;
-            if (owner === userId) return true;
-            return storyVisibility(i.visibility) === STORY_PUBLIC || following.has(owner);
-        });
+        const gatedOwners = [...new Set(shown
+            .filter((i) => String(i.userId ?? "") !== userId
+                && storyVisibility(i.visibility) === STORY_FOLLOWERS_ONLY)
+            .map((i) => String(i.userId ?? "")))];
+        const notFollowed = new Set<string>();
+        await Promise.all(gatedOwners.map(async (owner) => {
+            const ok = await isFollowing(owner, userId).catch((e) => {
+                console.error(`getStories: フォローを確かめられませんでした（${owner}）:`, e);
+                return false;
+            });
+            if (!ok) notFollowed.add(owner);
+        }));
+        // **落とすのは行ごと**（投稿者ごとではない）。`notFollowed` は
+        // 「フォロワー限定を出した、追っていない人」なので、投稿者だけで
+        // 切ると**同じ人が同じ日に出した「全員に公開」のぶんまで消える**
+        // （実際にそう書いて、`FEED` の `pub` が落ちた）
+        const visible = shown.filter((i) =>
+            storyVisibility(i.visibility) === STORY_PUBLIC || !notFollowed.has(String(i.userId ?? "")));
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
