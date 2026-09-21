@@ -17,7 +17,10 @@ const photos: Photo[] = [
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const auth = vi.hoisted(() => ({ isAuthenticated: true, loading: false }));
 
-vi.mock("../../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos, loaded: true, failed: false }) }));
+const photosState = vi.hoisted(() => ({ loaded: true, failed: false }));
+vi.mock("../../../lib/hooks/usePhotos", () => ({
+    usePhotos: () => ({ photos, loaded: photosState.loaded, failed: photosState.failed }),
+}));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: ja }) }));
 vi.mock("../../auth/context", () => ({ useAuth: () => auth }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -33,6 +36,8 @@ const ok = (photoIds: string[]) => ({ ok: true, json: async () => ({ photoIds })
 beforeEach(() => {
     auth.isAuthenticated = true;
     auth.loading = false;
+    photosState.loaded = true;
+    photosState.failed = false;
     mockUserFetch.mockReset().mockResolvedValue(ok([]));
 });
 
@@ -91,14 +96,51 @@ describe("保存した写真のページ", () => {
         await waitFor(() => expect(screen.getByText("保存した写真 1 件")).toBeTruthy());
     });
 
+    // **失敗を「まだありません」と言い換えない。** 警告を出したうえで
+    // 「保存した写真はまだありません。しおりを押すとここに集まります」も
+    // 一緒に出していたので、読み込めていないだけなのに「保存が消えた」と
+    // 読める。`/favorites` は端末の控えで隠れるが、ここは控えを持たない
+    it("失敗した回に「0件」「まだありません」と言わない", async () => {
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        render(<SavesPage />);
+        await screen.findByRole("alert");
+        expect(screen.queryByText(/保存した写真はまだありません/)).toBeNull();
+        expect(screen.queryByText(/しおり（保存）を押すと/)).toBeNull();
+        expect(screen.queryByText("保存した写真 0 件")).toBeNull();
+    });
+
+    // 棚が持っているのは ID だけ。写真の一覧が届いていなければ、保存が
+    // 10件あっても0件に見える（手元の断面はビルド時のもので、そのあと
+    // 保存した写真は API の一覧にしか無い）
+    it("写真の一覧がまだ届いていないうちは「まだありません」と言わない", async () => {
+        photosState.loaded = false;
+        mockUserFetch.mockResolvedValue(ok(["a"]));
+        render(<SavesPage />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        expect(screen.queryByText(/保存した写真はまだありません/)).toBeNull();
+        expect(screen.getAllByText("読み込み中…").length).toBeGreaterThan(0);
+    });
+
+    it("写真の一覧を取れなかった回も、失敗として扱う", async () => {
+        photosState.loaded = false;
+        photosState.failed = true;
+        render(<SavesPage />);
+        const alert = await screen.findByRole("alert");
+        expect(alert.textContent).toContain("読み込めませんでした");
+        expect(screen.queryByText(/保存した写真はまだありません/)).toBeNull();
+    });
+
     // **未ログインに「まだありません」と言わない。** 保存はログインした
     // 人の機能なので、0件なのではなく「まだ使えない」
     it("未ログインにはログインへの導線を出す（「まだありません」ではなく）", async () => {
         auth.isAuthenticated = false;
         render(<SavesPage />);
-        await waitFor(() => expect(screen.getByRole("link", { name: "ログイン" })).toBeTruthy());
+        const login = await screen.findByRole("link", { name: "ログイン" });
         expect(screen.queryByText(/保存した写真はまだありません/)).toBeNull();
         expect(mockUserFetch).not.toHaveBeenCalled();
+        // **戻り先を持たせる。** 素の `/login` だと、ログインしたあと
+        // マイページへ飛ばされて、見に来た棚に戻れない
+        expect(login.getAttribute("href")).toBe("/login?next=%2Fsaves");
     });
 
     it("ログイン中で0件なら、押し方を案内する", async () => {
