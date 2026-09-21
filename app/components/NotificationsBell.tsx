@@ -405,8 +405,16 @@ export default function NotificationsBell() {
     // タブで絞る → 区分でまとめる、の順。**区分は絞る前の `newSince` で
     // 決まる**ので、どのタブでも「新着」の中身は変わらない
     // （フォローのタブに立つ「新着」は、フォローの新着だけになる）。
+    // **key に並びの番号を混ぜない。** `-${i}` を含めていたので、ポーリングで
+    // 先頭に1件挿入されると**以降の行の key が全部ずれ、全部作り直される**
+    // ——リンクに当たっていたキーボードのフォーカスが `<body>` へ落ち、
+    // アバターとサムネの `<img>` が再マウントして描き直しになる。
+    // 中身から作れば、増えた1件だけが新しい行になる。
+    //
+    // 同じ人が同じ写真に同じミリ秒で2回——は作れない（いいねは冪等、
+    // コメントとフォローと返信は `t` が別々に作られる）。
     const shownRows = items
-        .map((n, i) => ({ n, key: `${n.photoId || n.targetUserId}-${n.t}-${i}` }))
+        .map((n) => ({ n, key: `${n.type}-${n.byId ?? ""}-${n.photoId || n.targetUserId || ""}-${n.t}` }))
         .filter(({ n }) => inTab(n.type, tab));
     const groups = BUCKET_ORDER
         .map((bucket) => ({ bucket, rows: shownRows.filter(({ n }) => bucketOf(n.t, now, newSince) === bucket) }))
@@ -437,9 +445,13 @@ export default function NotificationsBell() {
                     )}
                     <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
-                            <span className="text-xs font-semibold tracking-widest uppercase text-white/50">
+                            {/* **`h2` にする。** 区分の見出しを `h3` にしたので、
+                                ここが `span` のままだと**見出しの階層が飛ぶ**
+                                （読み上げの「見出しへ移動」でパネルの題に着けない）。
+                                見た目は変えない——字の大きさも太さも据え置き */}
+                            <h2 className="text-xs font-semibold tracking-widest uppercase text-white/50">
                                 {locale === "en" ? "Notifications" : "通知"}
-                            </span>
+                            </h2>
                         </div>
                         {/* **1件も無いときはタブを出さない。** 押しても中身が
                             変わらない操作を4つ並べることになり、しかも下の

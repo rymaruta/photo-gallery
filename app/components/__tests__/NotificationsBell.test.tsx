@@ -1075,3 +1075,59 @@ describe("通知パネルを閉じる", () => {
         expect(screen.getByRole("heading", { name: "今日" })).toBeInTheDocument();
     });
 });
+
+
+describe("行の key と見出しの階層", () => {
+    const bell = () => screen.getByRole("button", { name: "通知" });
+
+    // 🔴 key に並びの番号（`-${i}`）を混ぜていたので、**先頭に1件挿入されると
+    // 以降の行の key が全部ずれ、全部作り直される**。リンクに当たっていた
+    // キーボードのフォーカスが `<body>` へ落ち、アバターとサムネの `<img>` が
+    // 再マウントして描き直しになる。中身から作れば増えた1件だけが新しい行。
+    it("先頭に1件届いても、既にある行は作り直されない", async () => {
+        vi.useFakeTimers();
+        try {
+            const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+            const OLD = { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byId: "u1", byName: "前からの人", t: dayAt(0, 12) };
+            const NEW = { type: "like", photoId: "p2", photoSrc: "https://c/p2.webp", byId: "u2", byName: "新しい人", t: dayAt(0, 13) };
+
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [OLD], unread: 0 }));
+            render(<NotificationsBell />);
+            await tick(0);
+            fireEvent.click(bell());
+            await tick(0);
+
+            // 開いたまま、この行の DOM ノードを掴んでおく
+            const before = screen.getByText(/前からの人/).closest("li");
+            expect(before).not.toBeNull();
+
+            // ポーリングで**先頭に**1件届く
+            mockUserFetch.mockResolvedValue(fetchOk({ items: [NEW, OLD], unread: 1 }));
+            await tick(61_000);
+
+            expect(screen.getByText(/新しい人/), "新着が出ていない").toBeInTheDocument();
+            const after = screen.getByText(/前からの人/).closest("li");
+            expect(after, "既にある行が作り直されている（key に並びの番号が混ざっている）").toBe(before);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // 区分の見出しを `h3` にしたので、パネルの題が `span` のままだと階層が飛ぶ
+    it("パネルの題は h2、区分は h3（階層が飛ばない）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "今日の人", t: dayAt(0, 12) }],
+            unread: 0,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(bell());
+
+        expect(screen.getByRole("heading", { level: 2, name: "通知" }),
+            "パネルの題が見出しになっていない").toBeInTheDocument();
+        expect(screen.getByRole("heading", { level: 3, name: "今日" })).toBeInTheDocument();
+        // h2 を飛ばして h3 から始まっていない
+        const levels = screen.getAllByRole("heading").map((h) => Number(h.tagName[1]));
+        expect(Math.min(...levels), "見出しが h3 から始まっている（階層が飛ぶ）").toBe(2);
+    });
+});
