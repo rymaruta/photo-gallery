@@ -371,9 +371,11 @@ describe("deleteMyPhoto: ストーリーから残した写真", () => {
         const order = deletedIds();
         expect(order.indexOf("storyreplies#story-1"), "行を先に消している（手がかりが消える）")
             .toBeLessThan(order.indexOf("story-1"));
-        // 票の文書（`storyvotes#`）も同じ
-        expect(deletedIds(), "票の文書が誰も辿れないまま残る").toContain("storyvotes#story-1");
-        expect(order.indexOf("storyvotes#story-1")).toBeLessThan(order.indexOf("story-1"));
+        // 票の文書（`storyvotes#`）も同じ。**行のあとにもう一度**（文書 → 行 の
+        // 間に通った票の文書。`storyVotes.ts`）。並びごと固定する
+        // （`indexOf` の大小だけだと、無いときの -1 で通る）
+        expect(order.filter((k) => k.endsWith("story-1")), "票の文書が誰も辿れないまま残る")
+            .toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
         expect(deletedS3(), "実体は共有なので、写真の側で消す").toContain("uploads/me/p1.jpg");
     });
 

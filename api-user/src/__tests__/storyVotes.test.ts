@@ -7,7 +7,9 @@ vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
 }));
 
-import { voteStory, storyVoteState, storyHasVote, storyVotesId, VOTES_MAX } from "../storyVotes";
+import fs from "node:fs";
+import path from "node:path";
+import { voteStory, storyVoteState, storyHasVote, storyVotesId, sweepStoryVotes, VOTES_MAX } from "../storyVotes";
 
 type Result = { statusCode: number; body: string; headers?: Record<string, string> };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -235,6 +237,22 @@ describe("voteStory", () => {
         expect(transactions(), "2票目でやり直している").toHaveLength(1);
     });
 
+    // 読めなければ 409（500 にすると「押した票が消えた」と読まれる。票は入っている）
+    it("2票目の見分けで読み直せなければ 409（書き直さない）", async () => {
+        mockDdbSend.mockImplementation((cmd: Cmd) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "story-1") return Promise.resolve({ Item: STORY });
+                if (id === "storyvotes#story-1") return Promise.reject(new Error("timeout"));
+                return Promise.resolve({});
+            }
+            return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
+        });
+        const r = await invoke(voteStory, ev("u1", "story-1", { choice: "a" }));
+        expect(r.statusCode).toBe(409);
+        expect(transactions()).toHaveLength(1);
+    });
+
     it("上限に達していれば 429", async () => {
         mockDdbSend.mockImplementation((cmd: Cmd) => {
             const id = String(cmd.input.Key?.id ?? "");
@@ -306,6 +324,31 @@ describe("storyVoteState", () => {
     it("読めなければ null（呼び側は付けずに返す）", async () => {
         mockDdbSend.mockRejectedValue(new Error("timeout"));
         expect(await storyVoteState("story-1", "owner", true)).toBeNull();
+    });
+});
+
+// **行のあとにもう一度消す**（文書 → 行 の間に通った票の文書）。失敗は投げない
+describe("sweepStoryVotes", () => {
+    it("storyvotes#<id> を消す", async () => {
+        mockDdbSend.mockResolvedValue({});
+        await sweepStoryVotes("story-1");
+        const del = calls().find((c) => c.constructor.name === "DeleteCommand");
+        expect(del?.input.Key?.id).toBe("storyvotes#story-1");
+    });
+    it("消せなくても投げない（行はもう無いので止めても戻せない）", async () => {
+        mockDdbSend.mockRejectedValue(new Error("boom"));
+        await expect(sweepStoryVotes("story-1")).resolves.toBeUndefined();
+    });
+});
+
+// **`ConditionCheck` には `dynamodb:ConditionCheckItem` が要る**（Put/Update/
+// Delete の項目はそれぞれの権限で足りるが、これだけ別）。共有ロールに無いと
+// AccessDeniedException で**全部の票が 500**——ddb をモックしたテストでは
+// 見えないので、serverless.yml を読んで固定する
+describe("IAM", () => {
+    it("共有ロールが dynamodb:ConditionCheckItem を許している", () => {
+        const yml = fs.readFileSync(path.join(__dirname, "..", "..", "serverless.yml"), "utf8");
+        expect(yml, "ConditionCheck を使う voteStory が AccessDenied になる").toMatch(/^\s*- dynamodb:ConditionCheckItem\s*$/m);
     });
 });
 

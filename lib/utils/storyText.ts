@@ -367,6 +367,22 @@ export function newStoryVote(x: number, y: number): StoryVoteItem {
     };
 }
 
+/** 2択のどちらか（保存の列名 `votersA` / `votersB` に対応） */
+export type StoryVoteChoice = "a" | "b";
+
+/**
+ * 見る人に返す票の状態（`GET /stories` の各行の `vote`・`POST /stories/{id}/vote` の応答）。
+ *
+ * **`counts` は投稿者と票を入れた人にだけ付く**（入れる前に数が見えると
+ * 多い方に寄る）。無い＝まだ入れていない・数は見えない。
+ * 画面（`StoryTextOverlay`）とサーバー（`api-user/src/storyVotes.ts`）が
+ * 同じ形を見る。
+ */
+export type StoryVoteState = {
+    myVote?: StoryVoteChoice;
+    counts?: { a: number; b: number };
+};
+
 /**
  * 受け取った値を、**一覧に在る鍵だけ**に直す。
  *

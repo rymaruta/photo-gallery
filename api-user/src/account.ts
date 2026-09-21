@@ -13,6 +13,7 @@ import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
 import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
 import { removePhotosFromAlbum } from "./albumCleanup";
+import { sweepStoryVotes } from "./storyVotes";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -365,9 +366,14 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;
-                    // 静的ページの入力（photos.json）と同じ条件
-                    else if (item.src && item.published !== false && item.story !== true) {
-                        deletedPublicPhoto = true;
+                    else {
+                        // 行が消えたあとにもう一度、票の文書を（文書 → 行 の間に
+                        // 通った票。`storyVotes.ts`）。失敗は数えない——行はもう無い
+                        await sweepStoryVotes(id);
+                        // 静的ページの入力（photos.json）と同じ条件
+                        if (item.src && item.published !== false && item.story !== true) {
+                            deletedPublicPhoto = true;
+                        }
                     }
                     // **共同アルバムから取り除く分を控える**（消すのはループの後）。
                     //

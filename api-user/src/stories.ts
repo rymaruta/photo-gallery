@@ -11,7 +11,7 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
-import { storyVotesId } from "./storyVotes";
+import { storyVotesId, storyHasVote, storyVoteState, sweepStoryVotes } from "./storyVotes";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
@@ -252,6 +252,16 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             const n = await visibleReplyCount(String(item.id ?? ""), hidden);
             // 読めなければ行の数のまま（バッジを消して唯一の入口を奪わない）
             if (n !== null) item.replyCount = n;
+        }));
+        // **投票スタンプを持つ行にだけ、票の状態を付ける**（`vote`）。
+        // 持たない行は読みに行かない（一覧の往復がストーリーの数だけ増える）。
+        // 数（`counts`）を誰に付けるかは `storyVoteState` が決める
+        // （投稿者と票を入れた人だけ）。読めなければ付けない——画面は
+        // 「まだ入れていない」の形で出し、押せば書き込みが2票目を断る
+        const withVote = visible.filter((i) => storyHasVote(i.texts));
+        await Promise.all(withVote.map(async (item) => {
+            const s = await storyVoteState(String(item.id ?? ""), userId, String(item.userId ?? "") === userId);
+            if (s) item.vote = s;
         }));
         visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
@@ -711,6 +721,8 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             return jsonError(500, "削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+        // 行が消えたあとにもう一度（文書 → 行 の間に通った票の文書。`storyVotes.ts`）
+        await sweepStoryVotes(storyId);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
         console.error("deleteStory error:", e);
@@ -759,6 +771,8 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+            // 行が消えたあとにもう一度（`deleteStory` と同じ理由）
+            await sweepStoryVotes(id);
             deleted++;
         } catch (e) {
             console.error(`cleanup: DDB delete failed for ${id}:`, e);

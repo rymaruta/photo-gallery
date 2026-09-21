@@ -869,8 +869,10 @@ describe("deleteAccount: コメントの消し残し", () => {
         await invoke(deleteAccount, ev("me"));
         expect(deletedDdbIds()).toContain("story-1");
         expect(deletedDdbIds(), "退会しても返信の本文が残る").toContain("storyreplies#story-1");
-        // 票の文書（`storyvotes#<id>`）も同じ（票を入れた人の uid が残る）
-        expect(deletedDdbIds(), "退会しても票の文書が残る").toContain("storyvotes#story-1");
+        // 票の文書（`storyvotes#<id>`）も同じ（票を入れた人の uid が残る）。
+        // 行のあとにもう一度（文書 → 行 の間に通った票。`storyVotes.ts`）
+        expect(deletedDdbIds().filter((k) => k.endsWith("story-1")))
+            .toEqual(["comments#story-1", "storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
     });
 });
 

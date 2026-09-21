@@ -1,11 +1,11 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, DeleteCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { STORY_FOLLOWERS_ONLY, storyVisibility } from "./storyVisibility";
-import { isStoryVote, type StoryText } from "./storyText";
+import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState } from "./storyText";
 
 /**
  * ストーリーの投票スタンプ（2択）に票を入れる。
@@ -44,26 +44,41 @@ import { isStoryVote, type StoryText } from "./storyText";
  * 同じ事故を長いコメント付きで塞いでいる）。あちらは「行が在るか」を
  * あとから確かめて孤児を掃除しに行くが、ここは書き込みが1回なので
  * `ConditionCheck(attribute_exists(id))` を同じトランザクションに乗せる方が短い。
+ * この `ConditionCheck` には IAM の `dynamodb:ConditionCheckItem` が要る
+ * （`serverless.yml` の共有ロール。無いと全部の票が 500）。
+ *
+ * **これで塞がるのは「行が消えた後」だけ。** 削除経路は文書 → 行 の順で
+ * 消す（消し損ねの手がかりを行に残すため）ので、文書を消してから行を
+ * 消すまでの間に票が通ると、行はまだ在るから条件を満たし、文書が
+ * 作り直される。だから各経路は**行を消したあとにもう一度**
+ * `sweepStoryVotes` で文書を消す——行が消えたあとは新しい文書を作れない
+ * ので、この2回目で確定する。
  */
-
-export type VoteChoice = "a" | "b";
 
 /** 1つのストーリーが受ける票の数。返信（200）より多いのは、票は1人1つで軽いから */
 export const VOTES_MAX = 1000;
 
 export const storyVotesId = (storyId: string) => `storyvotes#${storyId}`;
 
+/**
+ * 行を消した**あと**に `storyvotes#<id>` をもう一度消す（上の docstring）。
+ * 失敗は記録するだけ——行はもう無いので、ここで止めても戻せるものが無い。
+ * 4つの削除経路（`deleteStory`・期限切れの掃除・残した写真の削除・退会）が
+ * 行の削除の直後に呼ぶ。
+ */
+export async function sweepStoryVotes(storyId: string): Promise<void> {
+    try {
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(storyId) } }));
+    } catch (e) {
+        console.error(`sweepStoryVotes: 票の文書を消せませんでした（${storyId}）:`, e);
+    }
+}
+
 /** 票の文書（読んだままの形。DocumentClient は SS を `Set` で返す） */
 type VotesRow = {
     votersA?: Set<string> | string[];
     votersB?: Set<string> | string[];
     total?: number;
-};
-
-/** 見る人に返す形。`counts` は投稿者と票を入れた人にだけ付く */
-export type StoryVoteState = {
-    myVote?: VoteChoice;
-    counts?: { a: number; b: number };
 };
 
 const toSet = (v: Set<string> | string[] | undefined): Set<string> =>
@@ -86,7 +101,7 @@ async function readVotes(storyId: string, consistent = false): Promise<VotesRow 
 function stateOf(row: VotesRow | null, uid: string, isOwner: boolean): StoryVoteState {
     const a = toSet(row?.votersA);
     const b = toSet(row?.votersB);
-    const myVote: VoteChoice | undefined = a.has(uid) ? "a" : b.has(uid) ? "b" : undefined;
+    const myVote: StoryVoteChoice | undefined = a.has(uid) ? "a" : b.has(uid) ? "b" : undefined;
     // **数は、投稿者と票を入れた人だけ**（入れる前に見えると多い方に寄る）
     const counts = isOwner || myVote ? { a: a.size, b: b.size } : undefined;
     return { ...(myVote ? { myVote } : {}), ...(counts ? { counts } : {}) };
@@ -205,13 +220,22 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 行が消えていた（削除と同時に押された）
             if (reasons[0]?.Code === "ConditionalCheckFailed") return jsonError(404, "ストーリーが見つかりません");
             if (reasons[1]?.Code === "ConditionalCheckFailed") {
-                // 2票目か、上限か。読んで見分ける（どちらも保存はしていない）
-                const row = await readVotes(storyId, true);
+                // 2票目か、上限か。読んで見分ける（どちらも保存はしていない）。
+                // **読めなければ 409**——500 にすると「押した票が消えた」と
+                // 読まれるが、票は入っている（または上限）。`postStoryReply` の
+                // 競合と同じ語で、押し直してもらう
+                const row = await readVotes(storyId, true).catch((e2) => {
+                    console.error(`voteStory: 2票目の見分けで読めませんでした（${storyId}）:`, e2);
+                    return undefined;
+                });
+                if (row === undefined) return jsonError(409, "混み合っています。もう一度お試しください");
                 const mine = stateOf(row, uid, false).myVote;
                 if (mine) {
-                    // **投票済みは 200 で今の状態を返す。** 応答が失われて SDK が
-                    // 再送した回にここへ来るので、409 にすると「押したのに
-                    // 失敗した」と読まれる（`postStoryReply` の同 id の判断と同じ）
+                    // **投票済みは 200 で今の状態を返す。** 押し直し（同じ人が
+                    // もう一度押した・古い画面から押した）でここへ来るので、
+                    // 409 にすると「押したのに失敗した」と読まれる。
+                    // （SDK 自身の再送は `ClientRequestToken` で冪等に成功するので
+                    //   ここには来ない）
                     return {
                         statusCode: 200,
                         headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },

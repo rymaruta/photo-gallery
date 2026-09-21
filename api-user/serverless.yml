@@ -56,6 +56,11 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:Scan
             - dynamodb:DeleteItem
+            # TransactWriteItems の ConditionCheck 項目に要る（Put/Update/Delete の
+            # 項目はそれぞれの権限で足りるが、ConditionCheck だけ別の権限）。
+            # `storyVotes.ts` が「行がまだ在ること」をこれで確かめる。
+            # 無いと AccessDeniedException で**全部の票が 500** になる
+            - dynamodb:ConditionCheckItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*
