@@ -7,6 +7,11 @@ import { sanitizeText } from "./sanitize";
 import { isUserId } from "./userId";
 import { readUserList, updateUserList } from "./userList";
 import { STORY_PUBLIC, storyVisibility } from "./storyVisibility";
+import { isStoryExpired } from "./storyExpiry";
+import { isDeletedProfile } from "./types";
+import { requireEnv } from "./env";
+
+const USERS_TABLE = requireEnv("USERS_TABLE");
 
 /**
  * ハイライト（⑦）。アーカイブのストーリーを束ねて、マイページに輪として置く。
@@ -40,8 +45,10 @@ import { STORY_PUBLIC, storyVisibility } from "./storyVisibility";
  *
  * ## 24時間で消える約束は破らない
  *
- * ハイライトに入るのは、本人が「アーカイブに自動保存」を入にして投稿した
- * 分だけ（印の無い行は掃除が実体ごと消すので、入れても割れる）。
+ * ハイライトに入るのは、本人が「アーカイブに自動保存」を入にして投稿し、
+ * **期限の切れた**分だけ（`getStoryArchive` と同じ定義）。印の無い行は
+ * 掃除が実体ごと消すので入れても割れる。期限前の行を通すと、ログインした
+ * 人にしか出ないはずの生のストーリーが**未認証の口からその場で読める**。
  * 見た人の名前・返信の数（`viewers` / `replyCount`）は棚入れで消えており、
  * 応答は**表示に要る列だけ**を明示して返す（`getStories` のように「消す列を
  * 列挙する」形だと、列が増えたときに漏れる側へ倒れる）。
@@ -103,13 +110,29 @@ async function getHighlightRow(hid: string, consistent = false): Promise<Highlig
  * 作ったあとに本人が公開範囲を変える口は無いが、行が消えた・別の種類の
  * 行に差し替わった、は起きうるので読む側でも見る（未認証の口の最後の砦）。
  */
-function isPublicArchiveStory(row: Record<string, unknown> | undefined, ownerId: string): row is Record<string, unknown> {
+function isPublicArchiveStory(row: Record<string, unknown> | undefined, ownerId: string, now: string): row is Record<string, unknown> {
     return !!row
         && row.story === true
         && row.userId === ownerId
         && typeof row.src === "string" && row.src !== ""
         && row.archive === true
+        && isStoryExpired(row, now)
         && storyVisibility(row.visibility) === STORY_PUBLIC;
+}
+
+/**
+ * 退会した人か（users テーブルの墓石）。未認証の口の門——退会の掃除が
+ * 転んで一覧が残っても、題（本人の書いた文字列）を返し続けない。
+ * 引けなかったときは**退会扱い**（出す側に倒さない。`publicPinnedIds` と同じ）
+ */
+async function isDeletedUser(userId: string): Promise<boolean> {
+    try {
+        const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId }, ProjectionExpression: "deletedAt" }));
+        return isDeletedProfile(res.Item);
+    } catch (e) {
+        console.error("isDeletedUser error:", e);
+        return true;
+    }
 }
 
 /**
@@ -157,6 +180,7 @@ async function checkStories(userId: string, raw: unknown): Promise<{ ids: string
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
         return res.Item as Record<string, unknown> | undefined;
     }));
+    const now = new Date().toISOString();
     for (const row of rows) {
         // **持ち主でなければ「無い」。** 他人の ID を投げて在るかを探らせない
         if (!row || row.story !== true || row.userId !== userId) {
@@ -164,6 +188,9 @@ async function checkStories(userId: string, raw: unknown): Promise<{ ids: string
         }
         if (row.archive !== true) {
             return { statusCode: 400, error: "「アーカイブに自動保存」を入にして投稿したストーリーだけをハイライトに入れられます" };
+        }
+        if (!isStoryExpired(row, now)) {
+            return { statusCode: 400, error: "24時間が過ぎてアーカイブに入ったストーリーだけをハイライトに入れられます" };
         }
         if (storyVisibility(row.visibility) !== STORY_PUBLIC) {
             return { statusCode: 400, error: "「フォロワーのみ」で投稿したストーリーはハイライトに入れられません（ハイライトは誰でも見られます）" };
@@ -289,7 +316,14 @@ export const deleteHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 
     // 「無い」を根拠に一覧から外すので強整合で読む（`pruneMissingAlbumIds` と同じ）
     const current = await getHighlightRow(hid, true);
-    if (!current || current.ownerId !== userId) return jsonError(404, "ハイライトが見つかりません");
+    if (!current || current.ownerId !== userId) {
+        // **本体が無くても、自分の一覧に残っていれば外す。** 前回の削除で
+        // 一覧の書き込みだけ転ぶと、幽霊の ID が枠（`HIGHLIGHTS_PER_USER`）を
+        // 食い続け、本人には直す手段が無い（読む口は書けない）。
+        // 他人の本体の ID が自分の一覧に在ることは無いので、一律に外してよい
+        await removeFromList(userId, hid);
+        return jsonError(404, "ハイライトが見つかりません");
+    }
 
     try {
         await ddb.send(new DeleteCommand({
@@ -302,14 +336,20 @@ export const deleteHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") return jsonError(404, "ハイライトが見つかりません");
         throw e;
     }
-    // 本体を消してから一覧から外す。ここが転んでも本体は無いので、
-    // 読む側（`getUserHighlights`）が落とす——枠だけ食う形は次の一覧で直す
-    await updateUserList(highlightsOfUserKey(userId), userId, HIGHLIGHTS_PER_USER, (list) =>
-        list.includes(hid) ? list.filter((v) => v !== hid) : null,
-    ).catch((e) => console.error(`deleteHighlight: 一覧から外せませんでした（${hid}）:`, e));
+    // 本体を消してから一覧から外す。ここが転んでも本体は無いので読む側
+    // （`getUserHighlights`）は落とす。枠を食う幽霊は、もう一度この ID で
+    // DELETE を呼べば上の分岐が外す
+    await removeFromList(userId, hid);
 
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
 };
+
+/** 自分の一覧から ID を外す（無ければ書かない・失敗は記録して飲む） */
+async function removeFromList(userId: string, hid: string): Promise<void> {
+    await updateUserList(highlightsOfUserKey(userId), userId, HIGHLIGHTS_PER_USER, (list) =>
+        list.includes(hid) ? list.filter((v) => v !== hid) : null,
+    ).catch((e) => console.error(`deleteHighlight: 一覧から外せませんでした（${hid}）:`, e));
+}
 
 /** ストーリー1件を引く（無ければ undefined） */
 async function getStoryRow(id: string): Promise<Record<string, unknown> | undefined> {
@@ -327,10 +367,11 @@ async function resolveCover(h: HighlightItem, ownerId: string): Promise<{ src: s
         ...(typeof h.coverStoryId === "string" ? [h.coverStoryId] : []),
         ...ids.filter((id) => id !== h.coverStoryId),
     ].slice(0, COVER_LOOKUP_BUDGET);
+    const now = new Date().toISOString();
     for (const id of candidates) {
         if (!isStoryId(id)) continue;
         const row = await getStoryRow(id);
-        if (isPublicArchiveStory(row, ownerId)) {
+        if (isPublicArchiveStory(row, ownerId, now)) {
             return { src: row.src as string, ...(typeof row.mediaType === "string" ? { mediaType: row.mediaType } : {}) };
         }
     }
@@ -349,6 +390,7 @@ export const getUserHighlights: APIGatewayProxyHandlerV2 = async (event) => {
     if (!isUserId(userId)) return jsonError(404, "見つかりません");
 
     try {
+        if (await isDeletedUser(userId)) return jsonError(404, "見つかりません");
         const ids = (await readUserList(highlightsOfUserKey(userId), isHighlightId, "getUserHighlights")).slice(0, HIGHLIGHTS_PER_USER);
         const rows = await Promise.all(ids.map((hid) => getHighlightRow(hid)));
         const highlights = [];
@@ -387,11 +429,13 @@ export const getHighlight: APIGatewayProxyHandlerV2 = async (event) => {
     if (!isUserId(userId) || !isHighlightId(hid)) return jsonError(404, "ハイライトが見つかりません");
 
     try {
+        if (await isDeletedUser(userId)) return jsonError(404, "ハイライトが見つかりません");
         const h = await getHighlightRow(hid);
         if (!h || h.ownerId !== userId) return jsonError(404, "ハイライトが見つかりません");
         const ids = storyIdsOf(h).filter(isStoryId).slice(0, STORIES_PER_HIGHLIGHT);
         const rows = await Promise.all(ids.map((id) => getStoryRow(id)));
-        const items = rows.filter((row) => isPublicArchiveStory(row, userId)).map((row) => publicStoryShape(row!));
+        const now = new Date().toISOString();
+        const items = rows.filter((row) => isPublicArchiveStory(row, userId, now)).map((row) => publicStoryShape(row!));
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=30" },

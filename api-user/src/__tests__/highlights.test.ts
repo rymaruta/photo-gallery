@@ -17,6 +17,7 @@ import path from "node:path";
 
 const mockSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockSend }, PHOTOS_TABLE: "photos-test" }));
+vi.stubEnv("USERS_TABLE", "users-test");
 
 const {
     createHighlight, updateHighlight, deleteHighlight, getUserHighlights, getHighlight,
@@ -55,9 +56,13 @@ const archived = (n: number, extra: Record<string, unknown> = {}) => ({
  * **キーで答える。** 順番で答えると、実装がどの ID をどの順で引いても同じ
  * 結果になる（`getInvite` のテストが実測した穴）。書き込みは記録するだけ
  */
-function serve(store: Record<string, Record<string, unknown> | undefined>) {
+function serve(store: Record<string, Record<string, unknown> | undefined>, deletedUser = false) {
     mockSend.mockImplementation((cmd: Cmd) => {
-        const key = cmd.input.Key as { id?: string } | undefined;
+        const key = cmd.input.Key as { id?: string; userId?: string } | undefined;
+        // users テーブル（墓石の確認）。鍵は `userId`
+        if (cmd.input.TableName === "users-test") {
+            return Promise.resolve({ Item: deletedUser ? { userId: key?.userId, deletedAt: "2026-07-01T00:00:00.000Z" } : { userId: key?.userId } });
+        }
         if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: store[String(key?.id ?? "")] });
         if (cmd.constructor.name === "PutCommand") {
             const item = cmd.input.Item as { id: string };
@@ -121,6 +126,15 @@ describe("createHighlight", () => {
     it("知らない公開範囲の値も断る（狭い側に倒す）", async () => {
         serve({ [sid(1)]: archived(1, { visibility: "close-friends" }) });
         expect((await create({ title: "旅", storyIds: [sid(1)] })).statusCode).toBe(400);
+    });
+
+    // 期限前の行を通すと、ログインした人にしか出ない生のストーリーが未認証の口から読める
+    it("まだ24時間が過ぎていない投稿は断る（アーカイブに入ってから）", async () => {
+        serve({ [sid(1)]: archived(1, { expiresAt: "2099-01-01T00:00:00.000Z", archivedAt: undefined }) });
+        const r = await create({ title: "旅", storyIds: [sid(1)] });
+        expect(r.statusCode).toBe(400);
+        expect(bodyOf(r).error).toContain("24時間");
+        expect(puts()).toHaveLength(0);
     });
 
     it("「アーカイブに自動保存」の無い投稿は断る（掃除が実体ごと消すので割れる）", async () => {
@@ -274,12 +288,24 @@ describe("updateHighlight / deleteHighlight", () => {
         expect(get.input.ConsistentRead).toBe(true);
     });
 
-    it("消す: 他人のもの・無いものは 404 で、何も書かない", async () => {
+    it("消す: 他人のもの・無いものは 404 で、本体を消さない", async () => {
         serve({ [highlightKey(HID)]: { ...mine, ownerId: OTHER } });
         expect((await call(deleteHighlight, authed(ME, undefined, { id: HID }))).statusCode).toBe(404);
         expect((await call(deleteHighlight, authed(ME, undefined, { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }))).statusCode).toBe(404);
         expect(ofKind("DeleteCommand")).toHaveLength(0);
+        // 一覧に無いので一覧も書かない
         expect(puts()).toHaveLength(0);
+    });
+
+    // 前回の削除で一覧の書き込みだけ転ぶと、幽霊の ID が枠を食い続ける。
+    // 読む口は書けないので、もう一度 DELETE を呼んだときに外す
+    it("消す: 本体が無くても自分の一覧に残っていれば外す（枠を食う幽霊）", async () => {
+        serve({ [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID, "other"], rev: 4 } });
+        const r = await call(deleteHighlight, authed(ME, undefined, { id: HID }));
+        expect(r.statusCode).toBe(404);
+        const list = puts().find((i) => i.id === highlightsOfUserKey(ME))!;
+        expect(list, "幽霊を一覧から外していない").toBeTruthy();
+        expect(list.list).toEqual(["other"]);
     });
 });
 
@@ -321,15 +347,39 @@ describe("getUserHighlights（マイページの輪）", () => {
         expect(hs[1].cover).toBeNull();
     });
 
-    // 表紙にフォロワーのみの1枚が紛れても出さない（作るときに断っているが、最後の砦）
-    it("公開でない行は表紙にしない", async () => {
+    // 表紙にフォロワーのみ・期限前の1枚が紛れても出さない（作るときに断っているが、最後の砦）
+    it.each([
+        ["フォロワーのみ", { visibility: "followers" }],
+        ["期限前", { expiresAt: "2099-01-01T00:00:00.000Z" }],
+    ])("公開でない行（%s）は表紙にしない", async (_label, extra) => {
         serve({
             [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
             [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "x", storyIds: [sid(1)], coverStoryId: sid(1) },
-            [sid(1)]: archived(1, { visibility: "followers" }),
+            [sid(1)]: archived(1, extra),
         });
         const r = await call(getUserHighlights, anon({ userId: ME }));
+        expect(r.statusCode).toBe(200);
         expect(r.body).not.toContain(archived(1).src);
+        expect(bodyOf(r).highlights[0].cover).toBeNull();
+    });
+
+    // 退会の掃除が転んで一覧が残っても、題（本人の書いた文字列）を返し続けない
+    it("退会した人のものは 404（本体を引きにいかない）", async () => {
+        serve({
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)] },
+        }, true);
+        const r = await call(getUserHighlights, anon({ userId: ME }));
+        expect(r.statusCode).toBe(404);
+        expect(r.body).not.toContain("秘密");
+        expect(ofKind("GetCommand").some((c) => c.input.TableName === "photos-test"), "墓石なのに写真テーブルを引いている").toBe(false);
+    });
+
+    // 引けなかったら出さない側に倒す
+    it("墓石の確認が転んだら 404", async () => {
+        serve({ [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 } });
+        mockSend.mockImplementation((cmd: Cmd) => cmd.input.TableName === "users-test" ? Promise.reject(new Error("throttled")) : Promise.resolve({}));
+        expect((await call(getUserHighlights, anon({ userId: ME }))).statusCode).toBe(404);
     });
 
     // 未認証の口なので、代わりの表紙を探すのは数枚まで（1つで最大100回の読み取りにしない）
@@ -393,25 +443,33 @@ describe("getHighlight（開いたときの中身）", () => {
         expect(cmds().every((c) => c.constructor.name === "GetCommand")).toBe(true);
     });
 
-    it("消えた・他人の・公開でない・印の無い行は落とす（未認証の口の最後の砦）", async () => {
+    it("消えた・他人の・公開でない・印の無い・期限前の行は落とす（未認証の口の最後の砦）", async () => {
         serve({
-            [highlightKey(HID)]: { ...row, storyIds: [sid(1), sid(2), sid(3), sid(4), sid(5)] },
+            [highlightKey(HID)]: { ...row, storyIds: [sid(1), sid(2), sid(3), sid(4), sid(5), sid(6)] },
             [sid(1)]: archived(1),
             [sid(2)]: undefined,
             [sid(3)]: archived(3, { userId: OTHER }),
             [sid(4)]: archived(4, { visibility: "followers", src: "https://cdn.test/HIDDEN.webp" }),
             [sid(5)]: archived(5, { archive: undefined }),
+            [sid(6)]: archived(6, { expiresAt: "2099-01-01T00:00:00.000Z", src: "https://cdn.test/LIVE.webp" }),
         });
         const r = await call(getHighlight, anon({ userId: ME, id: HID }));
         expect(bodyOf(r).items.map((s: { id: string }) => s.id)).toEqual([sid(1)]);
         expect(r.body).not.toContain("HIDDEN");
+        expect(r.body).not.toContain("LIVE");
+    });
+
+    it("退会した人のものは 404", async () => {
+        serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) }, true);
+        expect((await call(getHighlight, anon({ userId: ME, id: HID }))).statusCode).toBe(404);
     });
 
     it("持ち主が URL の人でなければ 404（本体は読めても中身を引かない）", async () => {
         serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) });
         const r = await call(getHighlight, anon({ userId: OTHER, id: HID }));
         expect(r.statusCode).toBe(404);
-        expect(ofKind("GetCommand")).toHaveLength(1);
+        // 写真テーブルは本体の1回だけ（もう1回は users の墓石の確認）
+        expect(ofKind("GetCommand").filter((c) => c.input.TableName === "photos-test")).toHaveLength(1);
     });
 
     it("形の違う ID は引きにいかない", async () => {
