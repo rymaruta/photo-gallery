@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
 
@@ -221,6 +223,70 @@ describe("unsavePhoto", () => {
     it("保存していない写真の解除も 200（冪等）", async () => {
         mockDdbSend.mockResolvedValueOnce({});
         expect(JSON.parse((await invoke(unsavePhoto, ev("u1", "p1"))).body)).toEqual({ saved: false });
+    });
+
+    // **外す側には「押し直せば直る」出口が無い。**
+    //
+    // 足す側（POST）は、一覧の書き込みだけ落ちてもマーカーが在るので、
+    // もう一度押せば冪等経路が足し直す。外す側で同じように握りつぶすと、
+    // 棚には残りマーカーは無い——`getMySave` は「未保存」と答えるので
+    // 画面はしおりを空で描き、押すと**解除ではなく保存**が飛ぶ。
+    // つまり**棚から外す手段が画面から消える**。
+    it("一覧から外せなかったら、マーカーを戻して失敗を返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({});            // Delete marker
+        mockUpdateUserList.mockRejectedValueOnce(new Error("競合"));
+        const res = await invoke(unsavePhoto, ev("u1", "p1"));
+
+        expect(res.statusCode).toBe(500);
+        // 戻した＝両方「保存済み」に揃っている（もう一度押せばやり直せる）
+        const puts = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: { Item?: { id: string } } })
+            .filter((c) => c.constructor.name === "PutCommand");
+        expect(puts).toHaveLength(1);
+        expect(puts[0].input.Item?.id).toBe("save#p1#u1");
+    });
+
+    it("マーカーを戻せなくても 500 を返す（成功と言わない）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({})                       // Delete marker
+            .mockRejectedValueOnce(new Error("戻せない"));    // Put marker（巻き戻し）
+        mockUpdateUserList.mockRejectedValueOnce(new Error("競合"));
+        expect((await invoke(unsavePhoto, ev("u1", "p1"))).statusCode).toBe(500);
+    });
+});
+
+// **`savePhoto` という名前の関数キーは使えない**——`src/upload.savePhoto`
+// （投稿の確定）が既に使っている。重ねると YAML が
+// `duplicated mapping key` で読めなくなり、api-user のデプロイが丸ごと落ちる。
+// 一度この名前で書いて踏んだので、見張りを置く。
+describe("serverless.yml", () => {
+    // **YAML パーサは使わない**——`js-yaml` はどの package.json にも書かれて
+    // いない推移依存で、巻き上げが変わるとテストだけが先に壊れる
+    // （`scripts/__tests__/publicLambdaRole.test.ts` と同じ判断）。
+    /** `functions:` の下にある「2スペース字下げの 名前:」を出てくる順に全部 */
+    function functionKeys(yml: string): string[] {
+        const body = yml.split(/\nfunctions:\n/)[1];
+        if (!body) throw new Error("functions: が見つからない");
+        const section = body.split(/\n(?=[a-zA-Z#])/)[0];
+        return [...section.matchAll(/^ {2}(\w+):$/gm)].map((m) => m[1]);
+    }
+
+    const yml = readFileSync(join(__dirname, "..", "..", "serverless.yml"), "utf8");
+
+    it("関数キーが重複していない（重なると YAML ごと読めなくなる）", () => {
+        const keys = functionKeys(yml);
+        const dup = keys.filter((k, i) => keys.indexOf(k) !== i);
+        expect(dup).toEqual([]);
+    });
+
+    it("保存の口は `savePhoto` を名乗らない（投稿の確定が使っている）", () => {
+        const keys = functionKeys(yml);
+        expect(keys).toContain("savePhoto");        // src/upload.savePhoto（投稿の確定）
+        expect(keys).toContain("addPhotoSave");
+        expect(keys).toContain("removePhotoSave");
+        for (const h of ["src/saves.savePhoto", "src/saves.unsavePhoto", "src/saves.getMySave", "src/saves.getMySaves"]) {
+            expect(yml).toContain(`handler: ${h}`);
+        }
     });
 });
 

@@ -96,10 +96,13 @@ custom:
       - '@aws-sdk/*'
 
 functions:
-  # 注: この関数自身は再ビルドを頼まない。**savePhoto と同じ src/upload.ts に
-  # 居るため**、依存を辿る守り（scripts/__tests__/rebuildTokenScope.test.ts）が
-  # 「届く関数」として数える。配り先を厳密に1つにするには savePhoto を別ファイルへ
-  # 切り出すことになるので、今は配る側に倒す（どちらも認証必須の投稿系）。
+  # 注: この関数自身は再ビルドを頼まない。**`src/upload.ts` の `savePhoto`
+  # （投稿の確定）と同じファイルに居るため**、依存を辿る守り
+  # （scripts/__tests__/rebuildTokenScope.test.ts）が「届く関数」として数える。
+  # 配り先を厳密に1つにするには `savePhoto` を別ファイルへ切り出すことになるので、
+  # 今は配る側に倒す（どちらも認証必須の投稿系）。
+  # ※ 保存（ブックマーク）の `src/saves.ts` とは無関係。あちらは
+  #   `addPhotoSave` / `removePhotoSave` で、再ビルドを頼まない。
   presignedUrl:
     handler: src/upload.presignedUrl
     environment:
@@ -497,7 +500,11 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
-  savePhoto:
+  # ⚠️ `savePhoto` という名前は使えない——**`src/upload.savePhoto`（投稿の
+  # 確定）が既に使っている**。重ねると YAML が
+  # `duplicated mapping key` で読めなくなり、api-user のデプロイが
+  # 丸ごと落ちる（最初この名前で書いて踏んだ）。
+  addPhotoSave:
     handler: src/saves.savePhoto
     events:
       - httpApi:
@@ -506,7 +513,7 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
-  unsavePhoto:
+  removePhotoSave:
     handler: src/saves.unsavePhoto
     events:
       - httpApi:

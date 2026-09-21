@@ -60,17 +60,19 @@ const SAVED_MAX = 1000;
 const isPhotoId = (x: string) => x.length > 0 && x.length <= 128 && !x.includes("#");
 
 /**
- * 一覧を書き換える。**失敗しても、保存そのものは失敗させない。**
+ * 一覧を書き換える。**投げない**——書けたかどうかを返し、
+ * どう受けるかは呼び出し側が決める。
  *
- * 保存の本体はマーカー（判定）で、この一覧は表示用の索引。ここで 500 に
- * すると**索引1行のために保存を落とす**ことになる（`likes.ts` の
- * `noteLiked`・`follow.ts` の `updateFollowersQuietly` が同じ理由で
- * 同じ判断をしている）。
+ * 足す側（POST）は**落ちても保存を失敗させない**。保存の本体はマーカー
+ * （判定）で、この一覧は表示用の索引。ここで 500 にすると**索引1行のために
+ * 保存を落とす**ことになる（`likes.ts` の `noteLiked`・`follow.ts` の
+ * `updateFollowersQuietly` が同じ理由で同じ判断をしている）。欠けても、
+ * 既に保存済みの POST（冪等経路）で足し直すので、もう一度押せば直る。
  *
- * 欠けたときの出口: 既に保存済みの POST（冪等経路）でも足し直すので、
- * もう一度押すと直る。
+ * **外す側（DELETE）には、その出口が無い。** だから `unsavePhoto` は
+ * `false` を握りつぶさず、マーカーを戻してから失敗を返す（理由はあちらに）。
  */
-async function noteSaved(userId: string, photoId: string, add: boolean): Promise<void> {
+async function noteSaved(userId: string, photoId: string, add: boolean): Promise<boolean> {
     try {
         await updateUserList(savesId(userId), userId, SAVED_MAX, (list) => {
             if (add) {
@@ -81,9 +83,19 @@ async function noteSaved(userId: string, photoId: string, add: boolean): Promise
             const next = list.filter((x) => x !== photoId);
             return next.length === list.length ? null : next;
         });
+        return true;
     } catch (e) {
-        console.warn(`saves#${userId} の一覧を更新できませんでした（保存自体は成功）:`, e);
+        console.warn(`saves#${userId} の一覧を更新できませんでした:`, e);
+        return false;
     }
+}
+
+/** マーカーを書く。保存の POST と、解除に失敗したときの巻き戻しで使う */
+function putMarker(photoId: string, userId: string) {
+    return new PutCommand({
+        TableName: PHOTOS_TABLE,
+        Item: { id: markerId(photoId, userId), save: true, photoId, uid: userId, createdAt: new Date().toISOString() },
+    });
 }
 
 /**
@@ -189,13 +201,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // カウンタも持たないので**見分ける必要が無い**。上書きしても
         // 変わるのは `createdAt` だけで、並び順は一覧（`saves#<uid>`）が
         // 持っている——`noteSaved` は既に在れば書かないので順番も動かない。
-        await ddb.send(new PutCommand({
-            TableName: PHOTOS_TABLE,
-            Item: { id: markerId(photoId, userId), save: true, photoId, uid: userId, createdAt: new Date().toISOString() },
-        }));
+        await ddb.send(putMarker(photoId, userId));
 
         // **ここで足し直す。** 一覧の書き込みだけ落ちた回の出口
-        // （マーカーは在るので、状態のずれた端末から押すと通る）
+        // （マーカーは在るので、状態のずれた端末から押すと通る）。
+        // **落ちても保存は成功**——索引1行のために保存を落とさない
         await noteSaved(userId, photoId, true);
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ saved: true }) };
@@ -222,8 +232,22 @@ export const unsavePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }));
 
         // 一覧からも外す。**マーカーを消したあと**に置く——先に外すと、
-        // 消し損ねた回に「保存は残っているのに棚から消える」状態になる
-        await noteSaved(userId, photoId, false);
+        // 消し損ねた回に「保存は残っているのに棚から消える」状態になる。
+        //
+        // **ここは握りつぶせない。** 足す側には「押し直せば足し直す」
+        // 冪等経路があるが、外す側にその出口は無い——棚には残り、マーカーは
+        // 無いので `GET /user/saves/{id}` は「未保存」と答える。画面は
+        // しおりを空で描き、押すと**解除ではなく保存**が飛ぶので、
+        // **棚から外す手段が画面から消える**。
+        //
+        // だからマーカーを戻し、**両方「保存済み」に揃えたうえで**失敗を返す。
+        // もう一度押せばやり直せる（一覧の書き換えは何度当てても同じ結果に
+        // なるので、いいねのカウンタのように「二重に効く」心配が無い）。
+        if (!await noteSaved(userId, photoId, false)) {
+            await ddb.send(putMarker(photoId, userId))
+                .catch((e) => { console.error(`save#${photoId}#${userId} を戻せませんでした:`, e); });
+            return jsonError(500, "保存の解除に失敗しました");
+        }
 
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ saved: false }) };
     } catch (e) {
