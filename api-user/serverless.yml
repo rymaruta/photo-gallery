@@ -448,6 +448,11 @@ functions:
 
   likePhoto:
     handler: src/likes.likePhoto
+    # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、
+    # そこに APNs への送信（最大2秒・TLS から張り直し）が乗った。
+    # 溢れるとハード timeout で、**書けているのに 500 が返る**
+    # （巻き戻しも走らない）。`postStoryReply` が同じ理由で 15 秒。
+    timeout: 15
     environment:
       # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
       # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
@@ -485,6 +490,11 @@ functions:
 
   postComment:
     handler: src/comments.postComment
+    # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、
+    # そこに APNs への送信（最大2秒・TLS から張り直し）が乗った。
+    # 溢れるとハード timeout で、**書けているのに 500 が返る**
+    # （巻き戻しも走らない）。`postStoryReply` が同じ理由で 15 秒。
+    timeout: 15
     environment:
       # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
       # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
@@ -513,6 +523,11 @@ functions:
 
   followUser:
     handler: src/follow.followUser
+    # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、
+    # そこに APNs への送信（最大2秒・TLS から張り直し）が乗った。
+    # 溢れるとハード timeout で、**書けているのに 500 が返る**
+    # （巻き戻しも走らない）。`postStoryReply` が同じ理由で 15 秒。
+    timeout: 15
     environment:
       # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
       # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
