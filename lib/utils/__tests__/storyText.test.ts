@@ -8,7 +8,9 @@ import {
     clampStoryTextRotate, normalizeStoryRotate, STORY_ROTATE_DEFAULT,
     STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
     DEFAULT_STORY_STAMP_SIZE,
-    type StoryTextItem,
+    isStoryVote, isStoryTextItem, newStoryVote,
+    STORY_VOTE_DEFAULT, STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX, DEFAULT_STORY_VOTE_SIZE,
+    type StoryTextItem, type StoryVoteItem,
 } from "../storyText";
 
 /**
@@ -399,7 +401,7 @@ describe("スタンプ", () => {
             stampIn,
             { text: "空", x: 0.5, y: 0.6 },
         ])!;
-        expect(out.map((t) => (isStoryStamp(t) ? `stamp:${t.stamp}` : `text:${t.text}`)))
+        expect(out.map((t) => (isStoryStamp(t) ? `stamp:${t.stamp}` : isStoryTextItem(t) ? `text:${t.text}` : "vote")))
             .toEqual(["text:朝", "stamp:heart", "text:空"]);
     });
 
@@ -435,6 +437,110 @@ describe("スタンプ", () => {
 
         it("位置は挟む", () => {
             expect(newStoryStamp("star", -1, 9)).toMatchObject({ x: STORY_TEXT_MIN, y: STORY_TEXT_MAX });
+        });
+    });
+});
+
+/**
+ * 投票スタンプ（⑨-3）。
+ *
+ * ここで固定したいのは4つ:
+ *
+ *  1. **1投稿に1つだけ**（2つ目以降は落とす。票の行き先が決まらない）
+ *  2. **欠けた投票は落とす**（既定で埋めない——サーバーが文言を作らない）
+ *  3. **`caption` に混ざらない**（問いかけは題ではない）
+ *  4. 問い・選択肢の長さを切る（写真の上のカードに収まる長さ）
+ */
+describe("投票スタンプ", () => {
+    const voteIn = { kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 };
+
+    it("そのまま通る", () => {
+        const [got] = sanitizeStoryTexts([voteIn])!;
+        expect(isStoryVote(got)).toBe(true);
+        expect(got).toEqual({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 });
+    });
+
+    it("字体・色・下地を足さない", () => {
+        const [got] = sanitizeStoryTexts([{ ...voteIn, font: "mincho", color: "sky", bg: "solid" }])!;
+        expect(Object.keys(got).sort()).toEqual(["kind", "options", "question", "size", "x", "y"]);
+    });
+
+    // **1投稿に1つだけ。** 票はストーリー単位で数えるので、2つ置けると
+    // 票の行き先が決まらない。**後ろの文字は残る**（投票だけを落とす）
+    it("2つ目以降の投票は落とし、後ろの文字は残す", () => {
+        const out = sanitizeStoryTexts([
+            voteIn,
+            { ...voteIn, question: "2つ目" },
+            { text: "朝", x: 0.5, y: 0.5 },
+        ])!;
+        expect(out.filter(isStoryVote)).toHaveLength(1);
+        expect((out[0] as { question: string }).question).toBe("この景色、好き？");
+        expect(out.filter(isStoryTextItem).map((t) => t.text)).toEqual(["朝"]);
+    });
+
+    // **既定で埋めない。** 空の問いをサーバーが「この景色、好き？」に
+    // 化けさせると、投稿者が書いていない文言が出る
+    it("問いか選択肢が欠けた投票は落とす（既定で埋めない）", () => {
+        expect(sanitizeStoryTexts([{ ...voteIn, question: "  " }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ ...voteIn, options: ["はい"] }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ ...voteIn, options: ["はい", ""] }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ ...voteIn, options: "はい,いいえ" }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ kind: "vote", x: 0.5, y: 0.5 }])).toBeUndefined();
+    });
+
+    it("問いと選択肢の長さを切る", () => {
+        const [got] = sanitizeStoryTexts([{
+            ...voteIn,
+            question: "あ".repeat(STORY_VOTE_QUESTION_MAX + 10),
+            options: ["い".repeat(STORY_VOTE_OPTION_MAX + 5), "う"],
+        }])! as StoryVoteItem[];
+        expect(got.question).toHaveLength(STORY_VOTE_QUESTION_MAX);
+        expect(got.options[0]).toHaveLength(STORY_VOTE_OPTION_MAX);
+        expect(got.options[1]).toBe("う");
+    });
+
+    it("投票も位置・大きさ・傾きは同じ規則", () => {
+        const [got] = sanitizeStoryTexts([{ ...voteIn, x: -5, y: 99, size: 99, rotate: 15 }])!;
+        expect(got).toMatchObject({ x: STORY_TEXT_MIN, y: STORY_TEXT_MAX, size: STORY_SIZE_MAX, rotate: 15 });
+    });
+
+    /**
+     * **`caption` に混ざらない。** 「この景色、好き？」は題ではなく
+     * 問いかけで、残したときに写真の題になると嘘になる。
+     */
+    it("投票は caption に入らない", () => {
+        const texts = sanitizeStoryTexts([{ text: "朝の空", x: 0.5, y: 0.5 }, voteIn])!;
+        expect(storyTextsCaption(texts)).toBe("朝の空");
+        expect(storyTextsCaption(sanitizeStoryTexts([voteIn])!)).toBe("");
+    });
+
+    // `isStoryTextItem` は **無い＝文字**（`kind` を持たない要素）
+    it("`isStoryTextItem` は kind の無い要素を文字と見る", () => {
+        const [t] = sanitizeStoryTexts([{ text: "朝", x: 0.5, y: 0.5 }])!;
+        expect(isStoryTextItem(t)).toBe(true);
+        expect(isStoryTextItem(sanitizeStoryTexts([voteIn])![0])).toBe(false);
+    });
+
+    describe("newStoryVote", () => {
+        it("問いは台帳の文言、2択は判断の既定", () => {
+            const v = newStoryVote(0.3, 0.4);
+            expect(v).toEqual({
+                kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"],
+                x: 0.3, y: 0.4, size: DEFAULT_STORY_VOTE_SIZE,
+            });
+            expect(v.question).toBe(STORY_VOTE_DEFAULT.question);
+        });
+
+        // 既定は自分自身の検証を通ること（通らなければ「置いたのに保存で消える」）
+        it("既定の投票は sanitize を通る", () => {
+            expect(sanitizeStoryTexts([newStoryVote(0.5, 0.5)])).toHaveLength(1);
+        });
+
+        // 選択肢の配列を共有しない（1つ直すと既定まで変わる）
+        it("既定の配列を共有しない", () => {
+            const v = newStoryVote(0.5, 0.5);
+            v.options[0] = "変えた";
+            expect(STORY_VOTE_DEFAULT.options[0]).toBe("はい");
         });
     });
 });

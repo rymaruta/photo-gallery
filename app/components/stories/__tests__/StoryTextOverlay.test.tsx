@@ -381,3 +381,74 @@ describe("StoryTextOverlay: スタンプ", () => {
         expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
     });
 });
+
+/**
+ * 投票スタンプの描き方（⑨-3）。
+ *
+ * **2択は見る側の段でしか押せるようにしない。** ここでは `<button>` を
+ * 置かない——票を送る口（`onVote`）はこのあとの段で足すので、先に
+ * `<button>` を置くと「押しても効かない的」になる。
+ */
+describe("StoryTextOverlay: 投票", () => {
+    const vote = (over: Record<string, unknown> = {}) =>
+        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05, ...over }) as unknown as StoryTextItem;
+    const stamp = () =>
+        ({ kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.12 }) as unknown as StoryTextItem;
+
+    it("問いと2択を描く", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        const card = container.querySelector("[data-story-vote]") as HTMLElement;
+        expect(card.textContent).toContain("この景色、好き？");
+        expect(card.textContent).toContain("はい");
+        expect(card.textContent).toContain("いいえ");
+    });
+
+    // **白いカード**（塗りの下地の経路を借りる＝白地・黒字・影なし）
+    it("白いカードとして描く（字体は当てない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.background).toBe("rgb(255, 255, 255)");
+        expect(p.style.color).toBe("rgb(0, 0, 0)");
+        expect(p.style.textShadow).toBe("none");
+        expect(p.style.fontFamily, "字体を当てている").toBe("");
+    });
+
+    // 票を送る口が無い段では、押せる形にしない
+    it("この段では2択は押せない（button を置かない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(container.querySelectorAll("button")).toHaveLength(0);
+    });
+
+    it("投票も位置・大きさ・傾きは文字と同じ規則", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote({ x: 0.25, rotate: 10 })]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.left).toBe("25%");
+        expect(p.style.fontSize).toBe(`${Math.round(box.width * 0.05)}px`);
+        expect(p.style.transform).toContain("rotate(10deg)");
+    });
+
+    // 読み上げは「投票」と名乗り、問いを読む
+    it("下書きでは「投票」として名乗り、ハンドルが出る", () => {
+        const { container } = render(
+            <StoryTextOverlay
+                texts={[vote()]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()} onTransform={vi.fn()}
+            />,
+        );
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.getAttribute("aria-label")).toContain("投票「この景色、好き？」");
+        expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
+    });
+
+    // 文字・スタンプ・投票が混ざっても、それぞれが自分の形で出る
+    it("文字・スタンプと混ざっても、投票が文字の枝へ落ちない", () => {
+        const { container } = render(
+            <StoryTextOverlay texts={[t({ text: "朝" }), vote(), stamp()]} box={box} />,
+        );
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps).toHaveLength(3);
+        expect(ps[0].textContent).toBe("朝");
+        expect(ps[1].querySelector("[data-story-vote]")).not.toBeNull();
+        expect(ps[2].querySelector('[role="img"]')).not.toBeNull();
+    });
+});

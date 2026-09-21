@@ -2,8 +2,9 @@
 
 import React from "react";
 import {
-    STORY_FONTS, STORY_COLORS, STORY_STAMPS, clampStoryTextRotate, isStoryStamp,
-    type StoryText, type StoryTextItem,
+    STORY_FONTS, STORY_COLORS, STORY_STAMPS, clampStoryTextRotate,
+    isStoryStamp, isStoryVote, isStoryTextItem,
+    type StoryText,
 } from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
 import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/storyTransform";
@@ -76,13 +77,28 @@ export default function StoryTextOverlay({
                 // のが正しい（`sanitizeStoryTexts` も同じ値を落としている）。
                 if (isStoryStamp(t) && !STORY_STAMPS[t.stamp]) return null;
                 const stamp = isStoryStamp(t) ? STORY_STAMPS[t.stamp] : null;
-                const font = stamp ? null : STORY_FONTS[(t as StoryTextItem).font];
-                const color = stamp ? null : STORY_COLORS[(t as StoryTextItem).color];
-                const bg = stamp ? "none" : (t as StoryTextItem).bg;
+                const vote = isStoryVote(t) ? t : null;
+                // **`as` で握らない。** 種類で絞る——握っていた頃は、投票が
+                // 文字の枝へ落ちて `font` が `undefined` になり、下で
+                // `name.trim()` が落ちた（知らない絵柄と同じ穴）
+                // 型の述語で絞る（`stamp || vote ? null : t` では `t` が絞られない）
+                const text = isStoryTextItem(t) ? t : null;
+                // どれでもない（将来の種類）は描かない——`!` で握ると
+                // `name.trim()` が TypeError になる
+                if (!stamp && !vote && !text) return null;
+                const font = text ? STORY_FONTS[text.font] : null;
+                // **投票は「白い塗りの下地」を借りる。** `filled` の経路が
+                // そのまま白いカード（白地・黒字・角丸・影なし）になるので、
+                // カードの見た目を別に書かない
+                const color = text ? STORY_COLORS[text.color] : vote ? STORY_COLORS.white : null;
+                const bg = text ? text.bg : vote ? "solid" : "none";
                 const filled = bg === "solid";
                 const selected = editable && selectedIndex === i;
-                /** 読み上げ・掴む的の名前。スタンプは絵柄の名前で呼ぶ */
-                const name = stamp ? stamp.label : (t as StoryTextItem).text;
+                /** 読み上げ・掴む的の名前。スタンプは絵柄の名前、投票は問い */
+                const name = stamp ? stamp.label : vote ? vote.question : text ? text.text : "";
+                const kindLabel = stamp
+                    ? (locale === "en" ? "Sticker" : "スタンプ")
+                    : vote ? (locale === "en" ? "Poll" : "投票") : (locale === "en" ? "Text" : "文字");
                 // **「無い＝0度」はここ1か所で決める**（`clampStoryTextRotate` が
                 // `undefined` を 0 に落とす）。保存済みのストーリーは
                 // `rotate` を実際に持たない
@@ -103,8 +119,8 @@ export default function StoryTextOverlay({
                             // 読み上げが「矢印キーで動かせます」のままだと、
                             // 指でなぞれない人には**傾けられること自体が伝わらない**
                             "aria-label": locale === "en"
-                                ? `${stamp ? "Sticker" : "Text"} "${name}" — arrow keys to move, [ and ] to rotate, + and - to resize`
-                                : `${stamp ? "スタンプ" : "文字"}「${name}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
+                                ? `${kindLabel} "${name}" — arrow keys to move, [ and ] to rotate, + and - to resize`
+                                : `${kindLabel}「${name}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
                             onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
                                 // 1回で 2%。Shift で 10%（端まで何度も押さずに済む）
                                 const step = e.shiftKey ? 0.1 : 0.02;
@@ -198,7 +214,29 @@ export default function StoryTextOverlay({
                             touchAction: editable ? "none" : undefined,
                         }}
                     >
-                        {stamp ? <span role="img" aria-label={stamp.label}>{stamp.glyph}</span> : name}
+                        {stamp
+                            ? <span role="img" aria-label={stamp.label}>{stamp.glyph}</span>
+                            : vote
+                                // **2択は今はまだ押せない**（`<button>` にしない）。
+                                // 見る側で票を送る口（`onVote`）はこのあとの段で足す。
+                                // 先に `<button>` を置くと「押しても効かない的」になる
+                                ? (
+                                    <span className="block" data-story-vote>
+                                        <span className="block font-bold" style={{ marginBottom: "0.4em" }}>{vote.question}</span>
+                                        <span className="flex gap-2" style={{ fontSize: "0.9em" }}>
+                                            {vote.options.map((opt, k) => (
+                                                <span
+                                                    key={k}
+                                                    className="flex-1 rounded-full text-center"
+                                                    style={{ padding: "0.35em 0.6em", background: "rgba(0,0,0,0.08)" }}
+                                                >
+                                                    {opt}
+                                                </span>
+                                            ))}
+                                        </span>
+                                    </span>
+                                )
+                                : name}
                         {/* **角のハンドル。** 掴んで回すと傾き、離すと大きさが決まる。
                             選んでいる1つにだけ出す（全部に出すと写真が的だらけになる）。
 
