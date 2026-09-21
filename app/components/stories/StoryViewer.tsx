@@ -288,7 +288,10 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     }, [viewersOpen, viewersError]);
 
     useEffect(() => {
-        if (!item || !isOwnStory) return;
+        // **アーカイブ（`archivedAt` あり）では引かない。** サーバーは期限切れに
+        // 必ず 0 人を返す（他人の名前は期限とともに消える側）ので、往復が
+        // 1枚ごとに1本増えるだけ（同時実行はアカウント全体で10）
+        if (!item || !isOwnStory || item.archivedAt) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
         // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
         // 出ていた（「誰が見たか」は見せ方として敏感な情報なので、
@@ -1168,7 +1171,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             : "env(safe-area-inset-bottom, 0px)",
                     }}
                 >
-                    {isOwnStory && (
+                    {/* アーカイブでは出さない——必ず 0 人で、押しても何も無い
+                        ボタンを置かない（すぐ下の返信バッジと同じ線） */}
+                    {isOwnStory && !item.archivedAt && (
                         <button
                             onClick={() => setViewersOpen(true)}
                             aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}

@@ -71,6 +71,24 @@ describe("StoryViewer: initialItemIndex", () => {
     });
 });
 
+describe("StoryViewer: アーカイブ（archivedAt あり）では閲覧者を引かず、ボタンも出さない", () => {
+    // サーバーは期限切れに必ず 0 人を返す。押しても何も無いボタンと、
+    // 1枚ごとに1本増える往復を置かない
+    it("archivedAt が在れば /viewers を取りにいかず、ボタンも無い", async () => {
+        view(own({ archive: true, archivedAt: "2026-07-05T10:00:00Z" }));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockUserFetch.mock.calls.some((c) => String(c[0]).includes("/viewers")), "閲覧者を取りにいっている").toBe(false);
+        expect(screen.queryByLabelText("閲覧者を見る"), "0人のボタンを出している").toBeNull();
+    });
+
+    it("生きている自分のストーリーでは今までどおり取りにいく", async () => {
+        view(own());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockUserFetch.mock.calls.some((c) => String(c[0]).includes("/viewers"))).toBe(true);
+        expect(screen.getByLabelText("閲覧者を見る")).toBeTruthy();
+    });
+});
+
 describe("StoryViewer: 「アーカイブに自動保存」の投稿には「残す」を出さない", () => {
     it("印のある自分の写真には出ない", () => {
         view(own({ archive: true }));
