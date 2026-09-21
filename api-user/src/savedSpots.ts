@@ -53,20 +53,39 @@ const spotsId = (uid: string) => `spots#${uid}`;
 export const SAVED_SPOTS_MAX = 500;
 
 /**
- * 受け取ってよいスラッグの形。
+ * スラッグの長さの上限（**バイト**）。
  *
  * スラッグを作るのは画面側（`lib/utils/collections.ts` の `slugify(_, "location")`）で、
- * あそこは `/` `\` `?` `#` `%` と制御文字を `-` に潰し、**200バイト**で切る。
- * ここではその結果として在りうる形だけを通す:
+ * あそこは `clampSlugBytes` で **200バイト**に切る（`.html` と `.segments` の
+ * ファイル名になるため）。**ここも同じ単位で見る。**
+ *
+ * 一度 `x.length <= 200`（**文字数**）で書いていた。日本語は1文字3バイトなので
+ * `slugify` が返せるのは約66文字までなのに、**600バイトの値が保存できた**
+ * ——開けない `/location/<スラッグ>` が一覧に残り（この docstring 自身が
+ * 避けると書いていた失敗）、行は最大300KB近くまで育って保存1回ごとに
+ * その GetItem と PutItem が走る。
+ */
+const MAX_SLUG_BYTES = 200;
+
+/** UTF-8 のバイト数。`Buffer` はこの実行環境（Node の Lambda）に在る */
+const slugBytes = (x: string) => Buffer.byteLength(x, "utf8");
+
+/**
+ * **一覧に入っていてよい形**（読むとき・外すときの判定）。
  *
  *  - **空は通さない**（空の行 ID を作らない）
- *  - **`#` を含むものは通さない**。行 ID の区切りなので、通すと
- *    `spots#<uid>` 以外の行を指す値を一覧に混ぜられる（`report.ts` が
- *    写真 ID に同じ判定を置いているのと同じ理由）
- *  - 長さは 200 バイト＝**最大でも 200 文字**。`slugify` の上限と揃える
- *    （揃えないと、保存できたのに開けないスラッグが一覧に残る）
+ *  - **`#` を含むものは通さない**。行 ID の区切りなので、混ざっていれば
+ *    その行は壊れている（`report.ts` が写真 ID に同じ判定を置いている）
+ *
+ * **長さを見ない。** ここで長さを見ると、上限を変える前に入った長い値が
+ * 「GET では見えない／DELETE は 400／枠は占有したまま」の三すくみになる
+ * ——いいねと違って**マーカーによる復旧経路が無い**ので、直す手が無くなる。
+ * 長さで断るのは**新しく入れるとき**だけにする（下）。
  */
-const isSpotSlug = (x: string) => x.length > 0 && x.length <= 200 && !x.includes("#");
+const isStoredSpotSlug = (x: string) => x.length > 0 && !x.includes("#");
+
+/** **新しく受け取ってよい形。** 上に加えて `slugify` と同じ長さの上限を見る */
+const isNewSpotSlug = (x: string) => isStoredSpotSlug(x) && slugBytes(x) <= MAX_SLUG_BYTES;
 
 /**
  * GET /user/spots — 自分が保存したスポットのスラッグ一覧（新しい順）。
@@ -78,7 +97,7 @@ export const getMySavedSpots: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const userId = getUserId(event);
     if (!userId) return jsonError(400, "不正なリクエスト");
     try {
-        const slugs = await readUserList(spotsId(userId), isSpotSlug, `spots#${userId}`);
+        const slugs = await readUserList(spotsId(userId), isStoredSpotSlug, `spots#${userId}`);
         return {
             statusCode: 200,
             // **本人だけの答え。共有キャッシュには載せない**
@@ -109,7 +128,7 @@ export const saveSpot: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event)
         return jsonError(400, "不正なリクエスト");
     }
     const slug = typeof body.slug === "string" ? body.slug : "";
-    if (!isSpotSlug(slug)) return jsonError(400, "場所の指定が不正です");
+    if (!isNewSpotSlug(slug)) return jsonError(400, "場所の指定が不正です");
 
     return writeSpot(userId, slug, true, "保存に失敗しました");
 };
@@ -126,7 +145,9 @@ export const unsaveSpot: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     const userId = getUserId(event);
     if (!userId) return jsonError(400, "不正なリクエスト");
     const slug = event.pathParameters?.slug ?? "";
-    if (!isSpotSlug(slug)) return jsonError(400, "場所の指定が不正です");
+    // **外すときは長さを見ない**（`isStoredSpotSlug`）。上限を変える前に
+    // 入った長い値も外せるようにする——見ると三すくみになる（上の説明）
+    if (!isStoredSpotSlug(slug)) return jsonError(400, "場所の指定が不正です");
 
     return writeSpot(userId, slug, false, "解除に失敗しました");
 };
@@ -150,13 +171,20 @@ async function writeSpot(userId: string, slug: string, add: boolean, failMessage
                 return list;
             }
             const next = list.filter((x) => x !== slug);
-            after = next;
+            // **足す側と同じく上限で切る。** 切らずに返していたので、
+            // 上限を超えて入っている行（上限を後で下げた・backfill が
+            // 多めに書いた）では **DB に書かれた 500件と応答の 501件が
+            // 食い違い**、画面が「保存されていない場所」を出し続けた
+            after = next.slice(0, SAVED_SPOTS_MAX);
             return next.length === list.length ? null : next;
         });
         return {
             statusCode: 200,
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ saved: add, slugs: after }),
+            // **GET と同じふるいを通す。** ここだけ生の一覧を返していたので、
+            // 「GET には出ないが POST の応答には出る」値がありえた。
+            // 3つの口が同じものを見せる形にする
+            body: JSON.stringify({ saved: add, slugs: after.filter(isStoredSpotSlug) }),
         };
     } catch (e) {
         // **黙って 200 を返さない。** この一覧が唯一の状態なので、

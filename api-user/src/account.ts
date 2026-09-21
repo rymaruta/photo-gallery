@@ -19,7 +19,7 @@ import { removePhotosFromAlbum } from "./albumCleanup";
 //   - 自分の写真/ストーリー … GSI(userId-createdAt-index) で列挙 → S3 本体 + DDB item 削除
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
-//   - 自分の各ドキュメント  … notifs#/followstats#/following#
+//   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/spots#
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
 // 写真・アバターの削除失敗は数え、残っていれば Cognito を消す前に 500 で
 // 止める（再実行で収束する。付帯文書だけベストエフォート続行）。成功時 { ok: true }。
@@ -643,6 +643,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // （相手側の `following#<相手>` に自分が残るのは既知——
         //  `getUserFollowing` が `deleted: true` で伏せる）
         await ddbDelete(PHOTOS_TABLE, { id: `followers#${uid}` });
+        // 「行きたい場所」（`savedSpots.ts`）。**決定的キーの自分の行**なので、
+        // 上の3つと同じ扱いで消す。残すと、退会後も最大500件の行動履歴
+        // （どこへ行きたかったか）がテーブルに残り、掃除役は居ない
+        // ——`follownotify#` を「誰も消さないゴミ」として消した判断と同じ。
+        // **本人しか読めない一覧なので、ここで消せば完全に消える**
+        // （いいねのように他人側へ散る要素を持たない）
+        await ddbDelete(PHOTOS_TABLE, { id: `spots#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)

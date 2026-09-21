@@ -58,12 +58,55 @@ describe("保存する（POST /user/spots）", () => {
         expect(JSON.parse(res.body)).toEqual({ saved: true, slugs: ["山中湖"] });
     });
 
-    it("スラッグが空・`#` つき・長すぎるものは断る", async () => {
-        for (const slug of ["", "spots#u2", "あ".repeat(201)]) {
+    it("スラッグが空・`#` つきなら断る", async () => {
+        for (const slug of ["", "spots#u2"]) {
             const res = await run(saveSpot, ev("u1", { body: JSON.stringify({ slug }) }));
-            expect(res.statusCode, `slug=${slug.slice(0, 12)}`).toBe(400);
+            expect(res.statusCode, `slug=${slug}`).toBe(400);
         }
         expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    /**
+     * **長さは「文字数」ではなく「バイト数」で見る。**
+     *
+     * `slugify`（`lib/utils/collections.ts`）は `clampSlugBytes` で 200
+     * **バイト**に切る。日本語は1文字3バイトなので `slugify` が返せるのは
+     * 66文字まで——文字数で 200 まで通していた頃は、**600バイトの値が
+     * 保存できた**（開けない `/location/…` が一覧に残り、行が300KB近くまで育つ）。
+     *
+     * 66文字（198バイト）は通り、67文字（201バイト）は断ることで、
+     * **判定の単位そのもの**を固定する。文字数に戻すとここが落ちる。
+     */
+    it("200バイトを超えるスラッグは断る（文字数ではなくバイト数）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [], rev: 1 } }).mockResolvedValueOnce({});
+        const ok = "あ".repeat(66);   // 198 バイト
+        expect(Buffer.byteLength(ok, "utf8")).toBe(198);
+        expect((await run(saveSpot, ev("u1", { body: JSON.stringify({ slug: ok }) }))).statusCode).toBe(200);
+
+        mockDdbSend.mockReset();
+        const ng = "あ".repeat(67);   // 201 バイト（文字数では 200 未満）
+        expect(ng.length).toBeLessThan(200);
+        expect((await run(saveSpot, ev("u1", { body: JSON.stringify({ slug: ng }) }))).statusCode).toBe(400);
+        expect(mockDdbSend).not.toHaveBeenCalled();
+    });
+
+    /**
+     * **上限を変える前に入った長い値も、見えて・外せる。**
+     *
+     * 読みと解除まで長さで断ると「GET には出ない／DELETE は 400／
+     * 枠は占有したまま」の三すくみになる。いいねと違って**マーカーによる
+     * 復旧経路が無い**ので、そうなると直す手が無い。
+     */
+    it("長すぎる値が既に入っていても、一覧に出て外せる", async () => {
+        const long = "あ".repeat(300);
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [long, "パリ"] } });
+        expect(JSON.parse((await run(getMySavedSpots, ev("u1"))).body).slugs).toContain(long);
+
+        mockDdbSend.mockReset();
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: [long, "パリ"], rev: 1 } }).mockResolvedValueOnce({});
+        const res = await run(unsaveSpot, ev("u1", { pathParameters: { slug: long } }));
+        expect(res.statusCode).toBe(200);
+        expect(putInput(1).Item).toMatchObject({ list: ["パリ"] });
     });
 
     it("本文が JSON でなくても落ちない", async () => {
@@ -118,6 +161,19 @@ describe("解除する（DELETE /user/spots/{slug}）", () => {
         const res = await run(unsaveSpot, ev("u1", { pathParameters: { slug: "山中湖" } }));
         expect(res.statusCode).toBe(200);
         expect(mockDdbSend).toHaveBeenCalledTimes(1);
+    });
+
+    // **応答も上限で切る。** 足す側だけ切っていたので、上限を超えて入って
+    // いる行では **DB の500件と応答の501件が食い違い**、画面が
+    // 「保存されていない場所」を出し続けた
+    it("上限を超えている行から外しても、応答は上限で切れている", async () => {
+        const over = Array.from({ length: SAVED_SPOTS_MAX + 5 }, (_, i) => `s${i}`);
+        mockDdbSend.mockResolvedValueOnce({ Item: { list: over, rev: 1 } }).mockResolvedValueOnce({});
+        const res = await run(unsaveSpot, ev("u1", { pathParameters: { slug: "s0" } }));
+        const body = JSON.parse(res.body) as { slugs: string[] };
+        expect(body.slugs).toHaveLength(SAVED_SPOTS_MAX);
+        // DB に書かれたぶんと同じ（食い違わない）
+        expect(body.slugs).toEqual((putInput(1).Item as { list: string[] }).list);
     });
 
     it("スラッグが無ければ断る", async () => {
