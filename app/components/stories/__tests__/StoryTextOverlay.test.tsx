@@ -243,12 +243,46 @@ describe("StoryTextOverlay: 傾きと角のハンドル", () => {
         expect(onTransform.mock.calls[0][1]).toEqual({ rotate: 15 });
         fireEvent.keyDown(para(), { key: "[" });
         expect(onTransform.mock.calls[1][1]).toEqual({ rotate: 5 });
-        // Shift で大きく
-        fireEvent.keyDown(para(), { key: "]", shiftKey: true });
-        expect(onTransform.mock.calls[2][1]).toEqual({ rotate: 25 });
         // **矢印は今までどおり「動かす」**（回転に奪われていない）
         fireEvent.keyDown(para(), { key: "ArrowRight" });
         expect(onNudge).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * **`Shift` を押した `[` `]` は、ブラウザでは `{` `}` になる。**
+     *
+     * `[` `]` だけを見ていたので、`Shift` の刻み（15度）には**どうやっても
+     * 届かなかった**。対テストが `{ key: "]", shiftKey: true }` という
+     * **実ブラウザでは起きない組み合わせ**を投げていて、それで緑になって
+     * いた——CLAUDE.md の「何も検証していないテスト」そのもの。
+     *
+     * ここは**実際に飛んでくる `key`** で見る。
+     */
+    it("Shift を押した `{` `}` でも回る（15度）", () => {
+        const onTransform = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t({ rotate: 0 })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onTransform={onTransform}
+            />,
+        );
+        fireEvent.keyDown(para(), { key: "}", shiftKey: true });
+        expect(onTransform.mock.calls[0][1], "Shift の刻みに届いていない").toEqual({ rotate: 15 });
+        fireEvent.keyDown(para(), { key: "{", shiftKey: true });
+        expect(onTransform.mock.calls[1][1]).toEqual({ rotate: -15 });
+    });
+
+    // **空の文字にハンドルを出さない。** 「＋」で足した直後は `text: ""` で
+    // 箱が 0×0——そこを掴むと、少し動かしただけで大きさが上限に張り付き、
+    // 傾きも雑音から決まる
+    it("文言が空のうちはハンドルを出さない", () => {
+        render(
+            <StoryTextOverlay
+                texts={[t({ text: "" })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()}
+            />,
+        );
+        expect(document.querySelector("[data-story-text-handle]")).toBeNull();
     });
 
     it("+ と - で大きさが変わる", () => {

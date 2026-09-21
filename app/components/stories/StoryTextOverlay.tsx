@@ -106,10 +106,17 @@ export default function StoryTextOverlay({
                                 // なぞれない人は傾けられない
                                 if (!onTransform) return;
                                 const turn = e.shiftKey ? ROTATE_STEP_DEG_COARSE : ROTATE_STEP_DEG;
-                                if (e.key === "[") {
+                                // **`{` `}` も受ける。** `Shift` を押しながらの
+                                // `[` `]` は、ブラウザが `e.key` に `{` `}` を
+                                // 入れる——`[` `]` だけを見ていたので
+                                // **`Shift` の刻み（15度）にはどうやっても
+                                // 届かなかった**（対テストが `{ key: "]",
+                                // shiftKey: true }` という実ブラウザでは起きない
+                                // 組み合わせを投げていて、それで緑になっていた）
+                                if (e.key === "[" || e.key === "{") {
                                     e.preventDefault();
                                     onTransform(i, { rotate: rotate - turn });
-                                } else if (e.key === "]") {
+                                } else if (e.key === "]" || e.key === "}") {
                                     e.preventDefault();
                                     onTransform(i, { rotate: rotate + turn });
                                 } else if (e.key === "+" || e.key === "=") {
@@ -183,8 +190,15 @@ export default function StoryTextOverlay({
 
                             **Tab では止まらない**（`tabIndex={-1}`）。同じことは
                             親の `[` `]` `+` `-` でできて、そちらは読み上げが
-                            名乗っている。止めると「同じ操作に2つの止まり場」ができる */}
-                        {selected && onGrabHandle && (
+                            名乗っている。止めると「同じ操作に2つの止まり場」ができる
+
+                            **文言が空のうちは出さない。** 「＋」で足した直後の
+                            文字は `text: ""` で箱が 0×0——そこにハンドルを出すと、
+                            中心からの距離がほぼ 0 の点を掴むことになり、
+                            **少し動かしただけで大きさが上限に張り付き、
+                            傾きも雑音から決まる**。打つものが無い文字に
+                            大きさも傾きも無い */}
+                        {selected && onGrabHandle && t.text.trim() !== "" && (
                             <button
                                 type="button"
                                 tabIndex={-1}

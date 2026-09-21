@@ -288,7 +288,13 @@ export default function StoriesBar() {
      * ハンドルを掴んだ指の動きが「文字を運ぶ」にも流れ込み、
      * **回しながら文字が指を追って飛んでいく**。
      */
-    const handleGrabRef = useRef<{ index: number; grab: HandleGrab } | null>(null);
+    const handleGrabRef = useRef<{ index: number; grab: HandleGrab; pointerId: number } | null>(null);
+
+    /**
+     * ハンドルを掴んでよい箱の最小の辺（px）。
+     * これより小さい箱は「中心を掴んだ」のと変わらない（下の説明）。
+     */
+    const MIN_HANDLE_BOX_PX = 8;
 
     /**
      * 傾き・大きさを直に入れる（キーボードとハンドルの両方から）。
@@ -315,8 +321,15 @@ export default function StoriesBar() {
         const r = el.getBoundingClientRect();
         const t = texts[index];
         if (!t) return;
+        // **潰れた箱からは始めない。** 中心からの距離がほぼ 0 の点を掴むと、
+        // `dist / grab.dist` が一気に跳ねて**大きさが上限に張り付き**、
+        // 半径ほぼ 0 から測った角度は雑音なので**傾きも無関係な値に飛ぶ**。
+        // 空の文字にはハンドルを出さないようにしてあるが、下地なしの
+        // 細い文字や測る前の一瞬でもここに来うるので、入口でも止める
+        if (r.width < MIN_HANDLE_BOX_PX || r.height < MIN_HANDLE_BOX_PX) return;
         handleGrabRef.current = {
             index,
+            pointerId: e.pointerId,
             grab: grabHandle(
                 r.left + r.width / 2, r.top + r.height / 2,
                 e.clientX, e.clientY,
@@ -1136,10 +1149,18 @@ export default function StoriesBar() {
                         onPointerMove={(e) => {
                             // **ハンドルが先。** 角を掴んでいる間は、
                             // 同じ指の動きを「文字を運ぶ」に流さない
-                            // （流すと、回しながら文字が指を追って飛んでいく）
+                            // （流すと、回しながら文字が指を追って飛んでいく）。
+                            //
+                            // **掴んだ指のぶんだけ見る。** 囲みは画面いっぱい
+                            // （`absolute inset-0`）なので、端末を支える親指が
+                            // 触れれば別の `pointerId` がここへ来る。見分けずに
+                            // 通すと、その指の座標で回転が決まって**文字が飛ぶ**。
+                            // 掴んでいる間は他の指を丸ごと無視する
                             const h = handleGrabRef.current;
                             if (h) {
-                                transformText(h.index, handleMove(h.grab, e.clientX, e.clientY));
+                                if (e.pointerId === h.pointerId) {
+                                    transformText(h.index, handleMove(h.grab, e.clientX, e.clientY));
+                                }
                                 return;
                             }
                             // 余白から始めたなぞりは、**選んでいる文字**を連れていく
@@ -1155,12 +1176,19 @@ export default function StoriesBar() {
                         }}
                         onPointerUp={(e) => {
                             // **ハンドルを離した回は、タップの判定に入れない。**
-                            // 入れると、ほとんど動かさずに離したときに
-                            // 「余白をタップした」と読まれて**選択が外れる**
-                            // ——直したばかりの文字が選ばれていない状態になる
-                            if (handleGrabRef.current) {
-                                handleGrabRef.current = null;
-                                setDragging(false);
+                            //
+                            // **控えは必ず落とす。** 以前はここで早く `return`
+                            // していたので `bgPressRef` が残り、別の指
+                            // （端末を支える親指）の pointerup を拾った回に
+                            // **掴み続けている指の次の動きで文字がそこへ飛んだ**。
+                            // 掴んだ指以外では回転を終わらせない
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                bgPressRef.current = null;
+                                if (e.pointerId === h.pointerId) {
+                                    handleGrabRef.current = null;
+                                    setDragging(false);
+                                }
                                 return;
                             }
                             // 動かさずに離した＝タップ。選択を外して、ほかの欄を戻す
