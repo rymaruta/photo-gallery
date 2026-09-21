@@ -569,13 +569,14 @@ describe("届いた返信から、その人をブロックする", () => {
 
     // **押す前に、何が起きるかを言う。** ブロックは相手とのフォローを
     // 両向きに切る（`block.ts`）。黙って切ると「フォロワーが1人減った」
-    // だけが残る。戻し方（プロフィール設定）も同じ場所に書く
+    // だけが残る。戻し方（**設定**——2026-09-21 にプロフィール編集から移設）も
+    // 同じ場所に書く
     it("押す前に、フォローも外れることと解除の場所を出す", async () => {
         withReply();
         view(ownGroups(1));
         await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
         const note = await screen.findByText(/お互いのフォローも外れます/);
-        expect(note.textContent, "解除の場所を言っていない").toContain("プロフィール設定");
+        expect(note.textContent, "解除の場所を言っていない").toContain("設定の「ブロックした人」");
     });
 
     // 押せる相手が居ないのに出すと、ただの雑音

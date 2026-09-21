@@ -746,13 +746,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 // のに変わったように読める（2回目は外れていない）
                 showToast(next
                     ? (locale === "en"
-                        ? "This user is blocked. They can't reply, comment, or follow you, and follows in both directions are removed. You can unblock from your profile settings."
+                        ? "This user is blocked. They can't reply, comment, or follow you, and follows in both directions are removed. You can unblock from Settings."
                         // **解除の場所まで言う。** 言っているのは
                         // `StoryViewer` の注意書きだけで、**プロフィールから
                         // ブロックした人はどこで戻せるか受け取っていなかった**
                         // ——コミットに「他の2か所は場所まで言っている」と
                         // 書いたが、1か所だけだった（レビューの指摘）
-                        : "この人をブロック中です。返信・コメント・フォローができなくなり、お互いのフォローは外れます。解除はプロフィール設定の「ブロックした人」からできます。")
+                        // 行き先は**設定**（2026-09-21 に移設）
+                        : "この人をブロック中です。返信・コメント・フォローができなくなり、お互いのフォローは外れます。解除は設定の「ブロックした人」からできます。")
                     : (locale === "en" ? "Unblocked." : "ブロックを解除しました。"), "success");
             } else {
                 showToast(await readApiError(res, locale === "en" ? "Couldn't do that." : "できませんでした"), "error");

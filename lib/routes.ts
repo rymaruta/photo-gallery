@@ -74,6 +74,8 @@ export const ROUTES = {
     UPLOAD: "/user/upload",
     DRAFTS: "/user/drafts",
     ALBUMS: "/user/albums",
+    /** 自分のストーリーのアーカイブ（24時間で消えたあと、本人だけが見る） */
+    STORY_ARCHIVE: "/user/archive",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
     /**

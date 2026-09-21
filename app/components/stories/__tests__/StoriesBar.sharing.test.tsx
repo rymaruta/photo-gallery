@@ -110,10 +110,32 @@ describe("公開設定: 公開範囲", () => {
         expect(screen.queryByRole("button", { name: /親しい友達/ })).toBeNull();
     });
 
-    // 同じく、アーカイブそのものがまだ無い
-    it("「アーカイブに自動保存」もまだ出さない", async () => {
+});
+
+describe("公開設定: アーカイブに自動保存", () => {
+    // **既定は切**＝これまでどおり24時間で消える。残るのは本人が入にしたぶんだけ
+    it("既定は切で、その値は送らない", async () => {
         await pickImage();
-        expect(screen.queryByRole("switch", { name: /アーカイブ/ })).toBeNull();
+        expect(screen.getByRole("switch", { name: "アーカイブに自動保存" })).toHaveAttribute("aria-checked", "false");
+        expect(await post()).not.toHaveProperty("archive");
+    });
+
+    it("入にすると archive: true を送る", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("switch", { name: "アーカイブに自動保存" }));
+        expect(screen.getByRole("switch", { name: "アーカイブに自動保存" })).toHaveAttribute("aria-checked", "true");
+        expect((await post()).archive).toBe(true);
+    });
+
+    // 残すと、次の投稿が黙ってアーカイブに残る（公開範囲と同じ理由で戻す）
+    it("閉じて選び直すと切に戻っている", async () => {
+        await pickImage();
+        await userEvent.click(screen.getByRole("switch", { name: "アーカイブに自動保存" }));
+        await userEvent.click(screen.getByRole("button", { name: /キャンセル|閉じる/ }));
+        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["img2"], "b.jpg", { type: "image/jpeg" }));
+        await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+        expect(screen.getByRole("switch", { name: "アーカイブに自動保存" })).toHaveAttribute("aria-checked", "false");
     });
 });
 

@@ -8,6 +8,7 @@ import { idFromUploadKey, keyFromUploadUrl, isOwnUploadUrlFromEnv as isOwnUpload
 import { sanitizeTitle, sanitizeBlurDataURL } from "./sanitize";
 import { lookupDisplayNameIfSet } from "./notify";
 import type { Photo } from "./types";
+import { isStoryExpired } from "./storyExpiry";
 
 /**
  * ストーリーの1枚を、ギャラリーの写真として残す。
@@ -68,7 +69,14 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 判定は読み取り時点の値。「掃除がその行を読んだ後・消す前」に
         // 印が立つと、**S3 だけ消えた写真**ができる。期限切れの行は
         // `getStories` が返さない＝画面から押せないので、断っても失うものは無い
-        if (typeof story.expiresAt === "string" && story.expiresAt <= new Date().toISOString()) {
+        //
+        // **アーカイブ済みも断る。** 一度は通したが、残した写真とストーリーは
+        // **S3 の実体を共有する**ので、あとで下書きの写真を消すと
+        // `deleteMyPhoto` の `keptFrom` がストーリーの行ごと消す
+        // ——生きているストーリーなら「どうせ24時間で消える」で済むが、
+        // アーカイブは本人が残すつもりのものなので黙って消えては困る。
+        // 実体を複製して切り離すまでは、残せるのは生きている間だけ
+        if (isStoryExpired(story)) {
             return jsonError(404, "ストーリーが見つかりません");
         }
 
@@ -83,6 +91,19 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // ならない。押した側からは1回目と同じ結果に見える
         if (typeof story.keptAs === "string" && story.keptAs) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ photoId: story.keptAs, already: true }) };
+        }
+
+        // **「アーカイブに自動保存」の投稿は残せない。** 残した写真と
+        // ストーリーは S3 の実体を共有する。写真の方をあとで消すと
+        // `deleteMyPhoto` の `keptFrom` がストーリーの行ごと消す——生きている
+        // ストーリーなら「どうせ24時間で消える」で済むが、アーカイブは本人が
+        // 残すつもりのものなので、**黙って消える口を作らない**。
+        // 実体を複製して切り離すまでは、どちらか一方。理由を伝えて断る
+        // （画面は印のある投稿に「残す」を出さない。ここは直接叩く経路の門）。
+        // **冪等の分岐より後ろ。** 既に残してある行は、応答が失われて
+        // 押し直された回に 409 ではなく同じ写真IDを返す
+        if (story.archive === true) {
+            return jsonError(409, "アーカイブに保存する投稿はギャラリーに残せません（写真を消すとアーカイブも消えるため）");
         }
 
         // 枚数の上限は写真の口と同じものを使う（複製した規則は静かにずれる）
