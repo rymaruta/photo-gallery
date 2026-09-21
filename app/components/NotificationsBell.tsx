@@ -12,6 +12,7 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type Notif = {
     // 実際に作られるのは like / comment / follow / storyreply の4種類。
@@ -386,14 +387,11 @@ export default function NotificationsBell() {
      * 4つ全部が Tab の停止点だと、通知を1件読むまでに4回 Tab を押す。
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-        const i = NOTIF_TABS.indexOf(tab);
-        const last = NOTIF_TABS.length - 1;
-        const to = e.key === "ArrowRight" ? (i === last ? 0 : i + 1)
-            : e.key === "ArrowLeft" ? (i === 0 ? last : i - 1)
-                : e.key === "Home" ? 0
-                    : e.key === "End" ? last
-                        : -1;
-        if (to < 0) return;
+        // 計算は `lib/utils/tabKeys.ts`（`SpotPageClient` と共有）。
+        // 選び方とフォーカスの送り先だけがここの仕事
+        const to = nextTabIndex(e.key, NOTIF_TABS.indexOf(tab), NOTIF_TABS.length);
+        if (to === null) return;
+        // 矢印での横スクロールを起こさない
         e.preventDefault();
         const next = NOTIF_TABS[to];
         setTab(next);
