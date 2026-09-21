@@ -248,3 +248,59 @@ describe("管理APIの削除: 共同アルバムから取り除く", () => {
         expect(res.statusCode, "掃除の失敗で削除を止めている").toBe(200);
     });
 });
+
+describe("管理APIの写真削除: 2枚目以降（extraImages）", () => {
+    /** S3 に DeleteObject を投げたキーを集める */
+    const deletedKeys = (): string[] => mockS3Send.mock.calls
+        .map((c) => (c[0] as { input?: { Key?: string } }).input?.Key)
+        .filter((v): v is string => typeof v === "string");
+
+    it("🔴 2枚目以降の実体と派生も消す（`api-user/src/photoImages.ts` と対）", async () => {
+        mockGetPhoto.mockResolvedValue({
+            ...PHOTO,
+            extraImages: [{
+                src: "https://cdn.test/uploads/someone/a.webp",
+                srcAvif: "https://cdn.test/uploads/someone/a.avif",
+                thumbSrc: "https://cdn.test/uploads/someone/a_512.webp",
+                thumbAvif: "https://cdn.test/uploads/someone/a_512.avif",
+                thumbSm: "https://cdn.test/uploads/someone/a_256.webp",
+                thumbSmAvif: "https://cdn.test/uploads/someone/a_256.avif",
+            }],
+        });
+        const res = await invoke();
+        expect(res.statusCode).toBe(200);
+        const keys = deletedKeys();
+        for (const k of ["a.webp", "a.avif", "a_512.webp", "a_512.avif", "a_256.webp", "a_256.avif"]) {
+            expect(keys, `uploads/someone/${k} を消していない`).toContain(`uploads/someone/${k}`);
+        }
+        // エッジからも消す（S3 だけ消してもキャッシュに最大1年残る）
+        expect(mockInvalidate.mock.calls[0][0]).toEqual(
+            expect.arrayContaining(["uploads/someone/a.webp", "uploads/someone/a.avif"]));
+    });
+
+    it("2枚目以降でも uploads/ の外は消さない（他人のアイコンを消させない）", async () => {
+        mockGetPhoto.mockResolvedValue({
+            ...PHOTO,
+            extraImages: [{ src: "https://cdn.test/profiles/victim" }],
+        });
+        await invoke();
+        expect(deletedKeys()).not.toContain("profiles/victim");
+    });
+
+    it("ギャラリーに残した写真（keptAs）なら、2枚目以降も消さない", async () => {
+        mockGetPhoto.mockResolvedValue({
+            ...PHOTO, keptAs: "photo-1",
+            extraImages: [{ src: "https://cdn.test/uploads/someone/a.webp" }],
+        });
+        await invoke();
+        expect(deletedKeys()).toEqual([]);
+    });
+
+    it("extraImages が壊れていても、表紙の削除は変わらない", async () => {
+        mockGetPhoto.mockResolvedValue({ ...PHOTO, extraImages: [null, {}, "x"] });
+        const res = await invoke();
+        expect(res.statusCode).toBe(200);
+        expect(deletedKeys()).toEqual(
+            expect.arrayContaining(["uploads/someone/p1.jpg", "uploads/someone/p1_orig.jpg"]));
+    });
+});

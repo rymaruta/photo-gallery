@@ -1315,3 +1315,64 @@ describe("presign がサイズを縛る", () => {
         expect(res.statusCode).toBe(200);
     });
 });
+
+// **1投稿に複数枚**（owner の新デザインの「1/10」）。表紙は `src` のままで、
+// 2枚目以降は `extraImages`。検証の中身は `photoImages.test.ts` が見るので、
+// ここは**ハンドラに繋がっていること**と、再送で落とさないことを見る。
+describe("savePhoto: 2枚目以降（extraImages）", () => {
+    const extra = (name: string, owner = "u1") =>
+        ({ src: `https://cdn.example.com/uploads/${owner}/${name}` });
+
+    it("自分の領域の写真なら、2枚目以降として保存する", async () => {
+        const res = await invoke(event("u1", { ...BASE, extraImages: [extra("a.webp"), extra("b.webp")] }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().extraImages?.map((i) => i.src)).toEqual([
+            "https://cdn.example.com/uploads/u1/a.webp",
+            "https://cdn.example.com/uploads/u1/b.webp",
+        ]);
+    });
+
+    it("🔴 他人の領域の写真は入らない（消すと相手の実ファイルが消える）", async () => {
+        const res = await invoke(event("u1", { ...BASE, extraImages: [extra("a.webp", "u2")] }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().extraImages).toBeUndefined();
+    });
+
+    it("送らなければ属性ごと持たない（既存の写真は何も変わらない）", async () => {
+        await invoke(event("u1", BASE));
+        expect("extraImages" in savedPhoto()).toBe(false);
+    });
+
+    it("🔴 再送で、ビルドが作った派生を落とさない", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+            extraImages: [{
+                src: "https://cdn.example.com/uploads/u1/a.webp",
+                srcAvif: "https://cdn.example.com/uploads/u1/a.avif",
+                width: 1600,
+            }],
+        });
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), {
+            name: "ConditionalCheckFailedException",
+        }));
+        const res = await invoke(event("u1", { ...BASE, extraImages: [extra("a.webp")] }));
+        expect(res.statusCode).toBe(200);
+        const img = savedRewrite().extraImages?.[0];
+        expect(img?.srcAvif, "派生が落ちている").toBe("https://cdn.example.com/uploads/u1/a.avif");
+        expect(img?.width).toBe(1600);
+    });
+
+    it("再送で写真を差し替えたら、前の派生は付け直さない", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+            extraImages: [{ src: "https://cdn.example.com/uploads/u1/a.webp", srcAvif: "x.avif" }],
+        });
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), {
+            name: "ConditionalCheckFailedException",
+        }));
+        await invoke(event("u1", { ...BASE, extraImages: [extra("b.webp")] }));
+        expect(savedRewrite().extraImages).toEqual([{ src: "https://cdn.example.com/uploads/u1/b.webp" }]);
+    });
+});
