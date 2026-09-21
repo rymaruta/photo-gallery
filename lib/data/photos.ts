@@ -16,6 +16,20 @@ export type LocalizedParagraphs = {
     en?: string[];
 };
 
+/** 2枚目以降の1枚。`api-user/src/photoImages.ts` の `PhotoImage` と対 */
+export type PhotoImage = {
+    src: string;
+    srcAvif?: string;
+    thumbSrc?: string;
+    thumbAvif?: string;
+    thumbSm?: string;
+    thumbSmAvif?: string;
+    width?: number;
+    height?: number;
+    dominantColor?: string;
+    blurDataURL?: string;
+};
+
 export type Photo = {
     id: string;
     src: string;
@@ -52,6 +66,14 @@ export type Photo = {
     thumbSm?: string;     // 256 WebP
     thumbSmAvif?: string; // 256 AVIF
     srcAvif?: string;     // 詳細用（≤1600）AVIF
+    /**
+     * 2枚目以降（1投稿に複数枚。**表紙は `src` のまま**）。
+     *
+     * 表紙を `src` に残すことで、og:image・サムネ・地図・サイトマップ・
+     * JSON-LD の入口を1つも書き換えずに済む。検証と保存は
+     * `api-user/src/photoImages.ts`（画面側は受け取るだけ）
+     */
+    extraImages?: PhotoImage[];
     focalPoint?: { x: number; y: number };
     published?: boolean;
     /**

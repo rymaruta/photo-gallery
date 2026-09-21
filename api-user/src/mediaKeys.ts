@@ -1,3 +1,5 @@
+import { extraImageUrls } from "./photoImages";
+
 // 写真 / ストーリーの item から、消すべき S3 オブジェクトキーを集める。
 //
 // 退会（account.ts）とストーリー削除（stories.ts）で同じ列挙が要る。
@@ -50,11 +52,21 @@ export const MEDIA_FIELDS = [
     "thumbSrc", "thumbSm", "thumbAvif", "thumbSmAvif",
 ] as const;
 
-/** item から削除すべき S3 キーを重複なく集める */
+/**
+ * item から削除すべき S3 キーを重複なく集める。
+ *
+ * **`extraImages`（2枚目以降）も必ず通す。** 表紙だけ消すと、投稿を
+ * 消しても・退会しても 2枚目以降の実体が公開URLに残り、**行が消えた後は
+ * どの削除経路からも二度と辿れない**——`srcOriginal` で一度踏んだ形。
+ */
 export function mediaKeys(item: Record<string, unknown>): string[] {
     const keys = new Set<string>();
     for (const field of MEDIA_FIELDS) {
         const k = deriveUploadKey(item[field]);
+        if (k) keys.add(k);
+    }
+    for (const url of extraImageUrls(item.extraImages)) {
+        const k = deriveUploadKey(url);
         if (k) keys.add(k);
     }
     return [...keys];
