@@ -30,7 +30,8 @@ import {
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
-    type StoryText,
+    STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
+    type StoryText, type StoryTextItem, type StoryStampKey,
 } from "../../../lib/utils/storyText";
 import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
@@ -181,12 +182,22 @@ export default function StoriesBar() {
     // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
     const { attach: attachDraftMedia, box: draftMediaBox, measure: measureDraftMedia } = useMediaBox(draftMediaAreaRef);
 
-    /** いま選んでいる文字（無ければ null） */
+    /** いま選んでいるもの（文字かスタンプ。無ければ null） */
     const current = selected !== null ? texts[selected] ?? null : null;
+    /**
+     * いま選んでいるものが**文字のとき**だけ中身を返す。
+     *
+     * 字体・色・下地はスタンプに効かない。分けずに出すと**押しても効かない
+     * 欄**が並ぶ——このファイルが既に「動かすものも飾るものも無いなら
+     * 欄を置かない」と書いている、その判断をスタンプにも当てる。
+     */
+    const currentText = current && !isStoryStamp(current) ? current : null;
 
-    /** 選んでいる文字の見せ方を変える */
-    const patchSelected = useCallback((patch: Partial<StoryText>) => {
-        setTexts((prev) => prev.map((t, i) => (i === selected ? { ...t, ...patch } : t)));
+    /** 選んでいる**文字**の見せ方を変える（スタンプには当てない） */
+    const patchSelected = useCallback((patch: Partial<StoryTextItem>) => {
+        setTexts((prev) => prev.map((t, i) => (
+            i === selected && !isStoryStamp(t) ? { ...t, ...patch } : t
+        )));
     }, [selected]);
 
     /**
@@ -195,15 +206,31 @@ export default function StoriesBar() {
      */
     const editText = useCallback((value: string) => {
         setTexts((prev) => {
-            if (selected !== null && prev[selected]) {
+            const cur = selected !== null ? prev[selected] : undefined;
+            // **スタンプを選んでいるときは、それに文言を足さない。**
+            //
+            // 当てていたので、`addStamp` が置いた直後（選んだ状態）に打つと
+            // **1文字も入らなかった**——欄は `currentText?.text` を見るので
+            // 常に空、そのくせスタンプの中身には `text` が生えて、サーバーが
+            // 落とす（＝打った文字が黙って消える）。「スタンプを置いて、
+            // そのまま題を打つ」はいちばん自然な流れなので、ここは
+            // **新しい文字を足す**側へ倒す。
+            if (cur && !isStoryStamp(cur)) {
                 return prev.map((t, i) => (i === selected ? { ...t, text: value } : t));
             }
             if (!value) return prev;
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
             return [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y)].map((t, i, a) =>
                 i === a.length - 1 ? { ...t, text: value } : t);
         });
-        setSelected((cur) => (cur !== null ? cur : texts.length));
-    }, [selected, texts.length]);
+        // **文字を選び直す。** スタンプを選んでいた回は、いま足した文字が
+        // 新しい選択（そうしないと次の1文字がまたスタンプの側へ行く）
+        setSelected((cur) => {
+            const sel = cur !== null ? texts[cur] : undefined;
+            if (sel && !isStoryStamp(sel)) return cur;
+            return Math.min(texts.length, STORY_TEXTS_MAX - 1);
+        });
+    }, [selected, texts]);
 
     /** もう1つ置く。**少しずらす**——同じ場所に重ねると掴み分けられない */
     const addText = useCallback(() => {
@@ -212,6 +239,21 @@ export default function StoriesBar() {
             const n = prev.length;
             const next = [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * n)];
             return next;
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [texts.length, selected]);
+
+    /**
+     * スタンプを1つ置く。
+     *
+     * **少しずつずらす**のは文字と同じ理由——同じ場所に重ねると掴み分け
+     * られない。置いたら**選んだ状態にする**ので、そのまま角のハンドルで
+     * 大きさと傾きを決められる。
+     */
+    const addStamp = useCallback((stamp: StoryStampKey) => {
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            return [...prev, newStoryStamp(stamp, FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * prev.length)];
         });
         setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
     }, [texts.length, selected]);
@@ -1343,7 +1385,7 @@ export default function StoriesBar() {
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
-                                value={current?.text ?? ""}
+                                value={currentText?.text ?? ""}
                                 onChange={(e) => editText(e.target.value)}
                                 maxLength={STORY_TEXT_LEN_MAX}
                                 placeholder={texts.length === 0
@@ -1360,7 +1402,9 @@ export default function StoriesBar() {
                                     type="button"
                                     onClick={removeSelected}
                                     disabled={posting}
-                                    aria-label={locale === "en" ? "Delete this text" : "この文字を消す"}
+                                    aria-label={current && isStoryStamp(current)
+                                        ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
+                                        : (locale === "en" ? "Delete this text" : "この文字を消す")}
                                     className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
                                     style={{ width: "44px", height: "44px" }}
                                 >
@@ -1376,6 +1420,36 @@ export default function StoriesBar() {
                             rem の指定は端末で縮む（`w-11` は 38.5px になる）。
                             間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
                             5.25px になり、隣の的と重なる（`5960be33` で実測） */}
+                        {/* **スタンプ。** 押すと写真の上に置かれる。
+                            **文字が1つも無くても出す**——スタンプだけの投稿は
+                            ありうる（`caption` が空になるだけで、それが正しい）。
+
+                            上限は文字と合わせて数える（`STORY_TEXTS_MAX`）
+                            ——多いほど読めなくなるのは絵柄も同じ。
+                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                        <div className="space-y-1">
+                            <p id="story-stamp-label" className="text-[11px] text-white/70 px-1">
+                                {texts.length >= STORY_TEXTS_MAX
+                                    ? (locale === "en" ? `Stickers (max ${STORY_TEXTS_MAX} items)` : `スタンプ（合わせて${STORY_TEXTS_MAX}個まで）`)
+                                    : (locale === "en" ? "Stickers" : "スタンプ")}
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-labelledby="story-stamp-label">
+                                {STORY_STAMP_KEYS.map((k) => (
+                                    <button
+                                        key={k}
+                                        type="button"
+                                        onClick={() => addStamp(k)}
+                                        disabled={posting || texts.length >= STORY_TEXTS_MAX}
+                                        aria-label={STORY_STAMPS[k].label}
+                                        className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                        style={{ width: "40px", height: "40px", minWidth: "40px", fontSize: "20px", lineHeight: 1 }}
+                                    >
+                                        <span aria-hidden>{STORY_STAMPS[k].glyph}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {texts.length > 0 && (
                             <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
                                 <div className="flex items-center justify-between gap-2 px-1">
@@ -1415,7 +1489,31 @@ export default function StoriesBar() {
                                 {/* 字体・色・大きさ・下地は**選んでいるときだけ**。
                                     選んでいないと `patchSelected` が何もしないので、
                                     出したままだと**押しても効かない的**が並ぶ */}
-                                {current && (
+                                {/* **スタンプを選んでいるときは、大きさだけ。**
+                                    字体・色・下地は絵柄に効かない——出すと
+                                    「押しても効かない的」が並ぶ（このファイルが
+                                    既に文字について書いている判断を、絵柄にも当てる）。
+                                    傾きは角のハンドルと `[` `]`（欄を増やさない） */}
+                                {current && isStoryStamp(current) && (
+                                <div className="flex items-center gap-3">
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                    <input
+                                        type="range"
+                                        min={STORY_SIZE_MIN}
+                                        max={STORY_SIZE_MAX}
+                                        step={STORY_SIZE_STEP}
+                                        value={current.size}
+                                        onChange={(e) => transformText(selected!, { size: Number(e.target.value) })}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Sticker size" : "スタンプの大きさ"}
+                                        className="flex-1 min-w-0 accent-white"
+                                        style={{ height: "36px" }}
+                                    />
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                </div>
+                                )}
+
+                                {currentText && (
                                 <>
                                 {/* 🔴 **1度に1つだけ開く。** 字体・色・大きさ・下地を
                                     全部並べると、320×568 で操作の欄が 276px
@@ -1451,10 +1549,10 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={current?.font === k}
+                                            aria-checked={currentText?.font === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ font: k })}
-                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.font === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.font === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
                                             style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
                                         >
                                             {STORY_FONTS[k].label}
@@ -1470,11 +1568,11 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={current?.color === k}
+                                            aria-checked={currentText?.color === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ color: k })}
                                             aria-label={STORY_COLORS[k].label}
-                                            className={`flex-shrink-0 rounded-full ring-2 transition ${current?.color === k ? "ring-white" : "ring-white/25"}`}
+                                            className={`flex-shrink-0 rounded-full ring-2 transition ${currentText?.color === k ? "ring-white" : "ring-white/25"}`}
                                             style={{ width: "32px", height: "32px", minWidth: "32px", background: STORY_COLORS[k].hex }}
                                         />
                                     ))}
@@ -1495,7 +1593,7 @@ export default function StoriesBar() {
                                         min={STORY_SIZE_MIN}
                                         max={STORY_SIZE_MAX}
                                         step={STORY_SIZE_STEP}
-                                        value={current?.size ?? STORY_SIZE_DEFAULT}
+                                        value={currentText?.size ?? STORY_SIZE_DEFAULT}
                                         onChange={(e) => patchSelected({ size: clampStoryTextSize(Number(e.target.value)) })}
                                         disabled={posting}
                                         aria-label={locale === "en" ? "Text size" : "文字の大きさ"}
@@ -1515,10 +1613,10 @@ export default function StoriesBar() {
                                                 key={k}
                                                 type="button"
                                                 role="switch"
-                                                aria-checked={current?.bg === k}
+                                                aria-checked={currentText?.bg === k}
                                                 disabled={posting}
                                                 onClick={() => patchSelected({ bg: k })}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.bg === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.bg === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: "12px" }}
                                             >
                                                 {k === "none"

@@ -21,6 +21,29 @@ const ITEMS = [
     { type: "go", photoId: "p3", photoSrc: "https://c/p3.jpg", byName: "旅人", atLocation: "北海道", t: "2026-07-08T00:00:00Z" },
 ];
 
+/**
+ * 通知の時刻を作る。**その日の正午を基準にする。**
+ *
+ * 🔴 区分は**暦日**で数えるので（`NotificationsBell` の `calendarDaysAgo`）、
+ * `Date.now() - 3 * HOUR` のような相対で作ると**走らせた時刻で区分が変わる**。
+ * 実測（2026-09-21）:
+ *
+ *     TZ=UTC               現地 14:37 → 55件 全緑
+ *     TZ=Australia/Brisbane 現地 00:37 → **3件 落ちる**
+ *
+ * 「3時間前」が前日になるためで、CI は UTC で走るから **JST の朝に流すと
+ * この窓に入る**（`Deploy Site` は1回約18分。赤で捨てることになる）。
+ *
+ * 正午を基準にすれば前後12時間の余裕があり、何時に走らせても
+ * 「今日」は今日・「3日前」は3日前のまま。
+ */
+const dayAt = (daysAgo: number, hour = 12, min = 0): string => {
+    const d = new Date();
+    d.setHours(hour, min, 0, 0);
+    d.setDate(d.getDate() - daysAgo);
+    return d.toISOString();
+};
+
 function fetchOk(body: unknown) {
     return { ok: true, json: async () => body };
 }
@@ -156,17 +179,8 @@ describe("通知の時刻", () => {
     // **`t` は1回だけ作る。** `li` の key が `n.t` を含むので、`json()` が
     // 呼ばれるたびに違う値を返すと行ごと作り直される
     //
-    // **時刻は正午に固定して作る。** 区分は暦日で数えるので
-    // （`calendarDaysAgo`）、`Date.now()` から24時間単位で引くと
-    // **深夜に走らせたときだけ区分が1日ずれる**（00:05 に走らせると
-    // 「1分前」が昨日になる）。正午を基準にすれば12時間の余裕がある
-    const AT = (daysAgo: number) => {
-        const d = new Date();
-        d.setHours(12, 0, 0, 0);
-        d.setDate(d.getDate() - daysAgo);
-        return d.toISOString();
-    };
-    const TODAY = AT(0), YESTERDAY = AT(1), THREE = AT(3);
+    // 時刻の作り方は `dayAt`（モジュール先頭）に集約した
+    const TODAY = dayAt(0), YESTERDAY = dayAt(1), THREE = dayAt(3);
 
     it("今日・昨日・N日前で出し分ける", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({
@@ -531,12 +545,11 @@ describe("ストーリーへの返信の通知", () => {
 // `NOTIFS_MAX = 50` で頭打ちなのでページ送りが要らず、画面を足すと
 // 通知を読む導線が2つになる。だから「タブが在ること」はこのベルのテスト。
 describe("通知のタブ", () => {
-    const DAY = 24 * 60 * 60 * 1000;
-    const HOUR = 60 * 60 * 1000;
-    // **`t` は1回だけ作る**（`json()` のたびに変えると key が変わって行が作り直される）
-    const JUST_NOW = new Date(Date.now() - 60_000).toISOString();
-    const EARLIER_TODAY = new Date(Date.now() - 3 * HOUR).toISOString();
-    const LAST_WEEK = new Date(Date.now() - 3 * DAY).toISOString();
+    // **`t` は1回だけ作る**（`json()` のたびに変えると key が変わって行が作り直される）。
+    // 相対ではなく `dayAt`（走らせた時刻で区分が変わらない）
+    const JUST_NOW = dayAt(0, 13);
+    const EARLIER_TODAY = dayAt(0, 12);
+    const LAST_WEEK = dayAt(3);
 
     const MIXED = [
         { type: "follow", photoId: "", photoSrc: "", byId: "u1", targetUserId: "u1", byName: "フォロ子", t: JUST_NOW },
@@ -617,11 +630,9 @@ describe("通知のタブ", () => {
 });
 
 describe("通知の見出し（新着・今日・今週）", () => {
-    const DAY = 24 * 60 * 60 * 1000;
-    const HOUR = 60 * 60 * 1000;
-    const JUST_NOW = new Date(Date.now() - 60_000).toISOString();
-    const EARLIER_TODAY = new Date(Date.now() - 3 * HOUR).toISOString();
-    const LAST_WEEK = new Date(Date.now() - 3 * DAY).toISOString();
+    const JUST_NOW = dayAt(0, 13);
+    const EARLIER_TODAY = dayAt(0, 12);
+    const LAST_WEEK = dayAt(3);
 
     const heading = (name: string) => screen.queryByRole("heading", { name });
 
@@ -788,14 +799,12 @@ describe("通知の見出し（新着・今日・今週）", () => {
 
     // 見出しが日付の粗い位置を持つので、行が「今日」と繰り返さない
     it("今日の行は時刻を出す（見出しと同じ語を繰り返さない）", async () => {
-        const at = new Date(Date.now() - 3 * HOUR);
         await openWith({
-            items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "今日の人", t: at.toISOString() }],
+            items: [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "今日の人", t: dayAt(0, 12, 34) }],
             unread: 0,
         });
 
-        const clock = `${at.getHours()}:${String(at.getMinutes()).padStart(2, "0")}`;
-        expect(await screen.findByText(clock)).toBeInTheDocument();
+        expect(await screen.findByText("12:34")).toBeInTheDocument();
         // 「今日」は見出しに1つだけ（行にも出ていたら2つになる）
         expect(screen.getAllByText("今日")).toHaveLength(1);
     });
@@ -942,9 +951,14 @@ describe("通知のタブ（キーボード）", () => {
         await openMixed();
         fireEvent.keyDown(tab("すべて"), { key: "ArrowRight" });
         expect(tab("いいね")).toHaveAttribute("aria-selected", "true");
+        // **フォーカスも連れていく。** roving tabindex は「選択中だけが
+        // 停止点」なので、選択だけ動かすと**フォーカスが `tabIndex={-1}` に
+        // なった要素に残り**、次の Tab が一覧を飛び越す
+        expect(tab("いいね"), "選択だけ動いてフォーカスが取り残されている").toHaveFocus();
 
         fireEvent.keyDown(tab("いいね"), { key: "ArrowLeft" });
         expect(tab("すべて")).toHaveAttribute("aria-selected", "true");
+        expect(tab("すべて")).toHaveFocus();
 
         // 先頭で左 → 末尾へ回り込む
         fireEvent.keyDown(tab("すべて"), { key: "ArrowLeft" });
@@ -955,9 +969,11 @@ describe("通知のタブ（キーボード）", () => {
         await openMixed();
         fireEvent.keyDown(tab("すべて"), { key: "End" });
         expect(tab("フォロー")).toHaveAttribute("aria-selected", "true");
+        expect(tab("フォロー")).toHaveFocus();
 
         fireEvent.keyDown(tab("フォロー"), { key: "Home" });
         expect(tab("すべて")).toHaveAttribute("aria-selected", "true");
+        expect(tab("すべて")).toHaveFocus();
     });
 
     // roving tabindex: Tab の停止点は選択中の1つだけ
@@ -975,5 +991,87 @@ describe("通知のタブ（キーボード）", () => {
     it("スクロールする枠にキーボードで入れる", async () => {
         await openMixed();
         expect(screen.getByRole("tabpanel")).toHaveAttribute("tabindex", "0");
+    });
+});
+
+
+describe("通知パネルを閉じる", () => {
+    const bell = () => screen.getByRole("button", { name: "通知" });
+
+    const openPanel = async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(bell());
+    };
+
+    // タブが4つ増えたぶん、閉じる手段が「ベル／外側」のマウス2つだけなのは辛い
+    it("Escape で閉じる", async () => {
+        await openPanel();
+        expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(screen.queryByRole("tabpanel"), "Escape で閉じない").toBeNull();
+    });
+
+    // **変換中の Escape は「変換の取り消し」**（`useEscapeKey` が
+    // `isImeKey` で見ている）。ここで閉じると打ちかけを巻き込む
+    it("変換中の Escape では閉じない", async () => {
+        await openPanel();
+        fireEvent.keyDown(document, { key: "Escape", keyCode: 229 });
+        expect(screen.getByRole("tabpanel"), "変換の取り消しで閉じている").toBeInTheDocument();
+    });
+
+    // 閉じているときに拾っていたら、他の画面の Escape を奪う
+    it("閉じている間は Escape を拾わない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+
+        const onKey = vi.fn();
+        document.addEventListener("keydown", onKey);
+        fireEvent.keyDown(document, { key: "Escape" });
+        document.removeEventListener("keydown", onKey);
+        expect(onKey).toHaveBeenCalled();                 // 届いてはいる
+        expect(screen.queryByRole("tabpanel")).toBeNull();
+    });
+
+    // 🔴 **閉じた直後に着地した古い GET が「新着」を据え直す。**
+    //
+    // `closePanel` は境界を捨てるが、**開いていた頃に投げた応答**は
+    // まだ飛んでいる。それが `openRef.current === false` の枝に入って
+    // `bound` を書き戻すと、次に開いたとき `prev` が非 null なので
+    // 「開いている間は下げない」に守られ、**読み終わった通知が永久に
+    // 「新着」に出続ける**。開いてすぐ閉じるだけで踏む（回線が細いと普通）。
+    it("閉じた後に着地した古い取得が「新着」を据え直さない", async () => {
+        const ROW = { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "新着の人", t: dayAt(0, 13) };
+
+        // 最初の取得（閉じている状態）: 未読1件
+        mockUserFetch.mockResolvedValueOnce(fetchOk({ items: [ROW], unread: 1 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+
+        // 開いたときの GET を手元で止めておく（PUT はすぐ返す）
+        let release: (v: unknown) => void = () => {};
+        mockUserFetch.mockImplementation((_p: string, init?: { method?: string }) =>
+            init?.method === "PUT"
+                ? Promise.resolve(fetchOk({}))
+                : new Promise((res) => { release = res; }));
+
+        fireEvent.click(bell());                          // 開く（GET は宙に浮く）
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" }));
+        fireEvent.click(bell());                          // **応答より先に閉じる**
+
+        // ここで、開いていた頃の GET が着地する（サーバーはまだ unread: 1）
+        await act(async () => { release(fetchOk({ items: [ROW], unread: 1 })); });
+
+        // 開き直す。以後の取得は既読化後なので unread: 0
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [ROW], unread: 0 }));
+        fireEvent.click(bell());
+        await waitFor(() => expect(screen.getByRole("tabpanel")).toBeInTheDocument());
+
+        expect(screen.queryByRole("heading", { name: "新着" }),
+            "閉じた後に着地した応答が境界を据え直している").toBeNull();
+        expect(screen.getByRole("heading", { name: "今日" })).toBeInTheDocument();
     });
 });

@@ -16,7 +16,6 @@ const mockShowToast = vi.hoisted(() => vi.fn());
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockSafe = vi.hoisted(() => vi.fn(async (f: File) => f));
 
-vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
@@ -30,7 +29,6 @@ vi.mock("../../../../lib/utils/image", () => ({
     UnstrippableFileError: class extends Error {},
     AVATAR_MAX_PX: 512, COVER_MAX_PX: 1280,
 }));
-vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 
 const ProfilePage = (await import("../page")).default;
 

@@ -1,5 +1,4 @@
 import GalleryPageClient from "../GalleryPageClient";
-import ColorJourney from "./ColorJourney";
 
 /**
  * 写真をさがす。**絞り込み・件数・サムネのグリッド**を持つ面。
@@ -13,16 +12,10 @@ import ColorJourney from "./ColorJourney";
  * 無限にあり、どれも集約ページ（`/tag/*` など）と中身が重なる。
  * 構造化データも置かない（索引に入れないページなので機械向けの申告は要らない）。
  *
- * **色でさがす（Color Journey）は別の部品として上に足す。**
- * `GalleryPageClient` には手を入れない——あの部品はトップと共用している
- * （`surface` で面を切り替える形）。色が1つも立たないときは
- * `ColorJourney` が丸ごと何も描かないので、ここに置いても空の枠は出ない。
+ * 色でさがす（Color Journey）は `GalleryPageClient` の「さがす」面の中に
+ * 在る（`app/components/ColorJourney.tsx`）。以前はここで上に重ねていたが、
+ * それだと写真の取得が2つ動き、モーダルも絞り込みも下と食い違っていた。
  */
 export default function SearchPage() {
-    return (
-        <>
-            <ColorJourney />
-            <GalleryPageClient surface="search" />
-        </>
-    );
+    return <GalleryPageClient surface="search" />;
 }

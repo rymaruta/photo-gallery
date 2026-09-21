@@ -4,6 +4,7 @@ import React from "react";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
+import ColorJourney from "./components/ColorJourney";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -115,11 +116,16 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     // ——`currentIndex` を重ねて見ない（二重の守りは変異で観測できない）
     const q = new URLSearchParams(window.location.search);
     if (q.has("scope") || q.has("photo")) return;
+    // **「さがす」では倒さない。** タブ（おすすめ／フォロー中／新着）はホームに
+    // しか無いので、ここで「おすすめ」へ倒すと**戻す手段の無い絞り込み**になる
+    // ——結果の件数・グリッド・色の内訳が全部おすすめだけになり、FilterBar には
+    // 何も絞っていないように見える（レビューで指摘）
+    if (surface !== "home") return;
     // **「おすすめ」は1枚も選ばれていないと空**（実データは featured 0枚）。
     // 空のタブを既定にすると、開いた人がまず何も無い画面を見る。
     // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
     if (hasFeatured) setFilters({ scope: "featured" });
-  }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured]);
+  }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured, surface]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -510,6 +516,18 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
         tagCounts={tagCounts}
       />
 
+      {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
+          絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
+          グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
+          `usePhotos()` を2つ動かしていた（PR #72 の積み残し3件をここで解く）。
+          色を持つ写真が1枚も無ければ丸ごと描かない */}
+      <ColorJourney
+        photos={filteredPhotos}
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+        onOpenPhoto={openById}
+      />
+
       <>
         <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
             {locale === "en"
@@ -534,7 +552,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
             </p>
             <button
-              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
+              // `scope` も戻す。「さがす」にはタブが無いので、URL から来た
+              // `?scope=following`（一覧が空になる）をここでしか外せない
+              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" })}
               className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
               style={{ touchAction: "manipulation" }}
             >

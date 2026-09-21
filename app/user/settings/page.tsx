@@ -255,7 +255,11 @@ export default function SettingsPage() {
         }
     };
 
-    if (loading) {
+    // **送り返すまでの間も描かない。** `loading` だけ見ていたので、
+    // 未ログインで開くと `router.replace` が効くまでの1描画ぶん、
+    // メールアドレス・パスワード・退会の並んだ画面が**丸ごと見えていた**
+    // （移設元の `/user/profile` は `loading || fetching` で塞いでいた）。
+    if (loading || !isAuthenticated) {
         return (
             <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
