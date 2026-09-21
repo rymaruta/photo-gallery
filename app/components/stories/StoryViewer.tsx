@@ -212,8 +212,22 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // state を閉じ込めると送信を始めた時点の値になる
     const itemIdRef = useRef<string | undefined>(item?.id);
     itemIdRef.current = item?.id;
-    /** 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ */
-    const showReplyBar = !isOwnStory && isAuthenticated;
+    /**
+     * 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ。
+     *
+     * **投稿者が「返信を許可」を切っていたら出さない**（`allowReplies`。
+     * 無い＝受ける＝この列が生まれる前の投稿）。押しても 403 が返るだけの
+     * 欄を置かないため——断るのはサーバー（`postStoryReply`）で、
+     * ここは入口を出さないだけ。**画面側だけの防御にしない。**
+     */
+    const showReplyBar = !isOwnStory && isAuthenticated && item?.allowReplies !== false;
+    /**
+     * 左右のタップ領域の下端。**下に何か在るぶんだけ空ける。**
+     * 返信の帯（`showReplyBar`）か、自分のストーリーの段（閲覧者・返信・
+     * 残す）が出るときだけ。どちらも無ければ 0——空けたままだと
+     * **画面の下 88px が何も受けない帯**になる。
+     */
+    const zoneBottom = showReplyBar || isOwnStory ? 88 : 0;
 
     // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
@@ -1098,10 +1112,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* タップ領域: 左1/3で戻る、右2/3で進む。長押しで一時停止。
                 長押し・スワイプでは移動しない（キャプションを読むために止めたのに
-                指を離した瞬間に話が進んでしまうのを防ぐ）。 */}
+                指を離した瞬間に話が進んでしまうのを防ぐ）。
+
+                **下を空けるのは、下に何か在るときだけ。**
+                88px は返信の帯（高さ約124px）と、自分のストーリーの
+                閲覧者・返信・残すの段のためのもの。**返信を切った他人の
+                ストーリー**ではどちらも出ないので、空けたままだと
+                **画面の下 88px が何も受けない帯**になる——同じ画面なのに、
+                返信を許した人のストーリーとだけ挙動が割れる。
+                自分のストーリー側は今までどおり（あちらは段が出る）。 */}
             <div
                 className="absolute left-0 w-1/3 z-10"
-                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goPrev(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
@@ -1109,7 +1131,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
-                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goNext(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}

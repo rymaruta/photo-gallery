@@ -149,3 +149,51 @@ describe("画像サイトマップの caption は1行", () => {
         expect(c).toBe("一行目。 二行目。");
     });
 });
+
+// **1投稿に複数枚**（owner のモックの「1/10」）。ページ数は減るが
+// **画像の数は減らさない**——owner に「ページ数は減っても画像の数は
+// 減らない」と言って始めた分なので、ここが約束の実体
+describe("2枚目以降（extraImages）も画像サイトマップに載せる", () => {
+    const photo = {
+        id: "p1", src: "https://cdn.test/uploads/u1/a.jpg",
+        title: "白波の夏",
+        extraImages: [
+            { src: "https://cdn.test/uploads/u1/b.jpg" },
+            { src: "https://cdn.test/uploads/u1/c.jpg" },
+        ],
+    };
+
+    it("🔴 1つの <url> に、表紙と2枚目以降を全部並べる", () => {
+        const xml = buildImageSitemap([photo]);
+        // `<url>` は1つ（写真ページは1ページ）
+        expect(xml.match(/<url>/g), "URL の数が増えている").toHaveLength(1);
+        // 画像は3枚
+        expect(xml.match(/<image:image>/g), "2枚目以降が載っていない").toHaveLength(3);
+        for (const f of ["a.jpg", "b.jpg", "c.jpg"]) expect(xml).toContain(f);
+    });
+
+    it("題はどの画像にも付ける（この投稿のもの）", () => {
+        const xml = buildImageSitemap([photo]);
+        expect(xml.match(/<image:title>/g)).toHaveLength(3);
+    });
+
+    it("extraImages が無い写真は今までどおり1枚", () => {
+        const xml = buildImageSitemap([{ id: "p1", src: "https://cdn.test/uploads/u1/a.jpg" }]);
+        expect(xml.match(/<image:image>/g)).toHaveLength(1);
+    });
+
+    it("壊れた要素は飛ばす（落ちない・空の <image:loc> を出さない）", () => {
+        const xml = buildImageSitemap([{
+            ...photo,
+            // @ts-expect-error 壊れた値を通す（本番のデータは何でもありうる）
+            extraImages: [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.test/uploads/u1/b.jpg" }],
+        }]);
+        expect(xml.match(/<image:image>/g)).toHaveLength(2);
+        expect(xml).not.toContain("<image:loc></image:loc>");
+    });
+
+    it("XML として読める（1枚のときと同じく壊さない）", () => {
+        const doc = new DOMParser().parseFromString(buildImageSitemap([photo]), "application/xml");
+        expect(doc.querySelector("parsererror"), "XML が壊れている").toBeNull();
+    });
+});

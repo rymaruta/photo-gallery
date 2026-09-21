@@ -18,7 +18,7 @@ import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
     groupStories, hasUnseen, loadSeenStoryIds, markStorySeen, isSeenStoriesKey,
-    type Story, type StoryGroup,
+    type Story, type StoryGroup, type StoryVisibility,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
@@ -35,6 +35,42 @@ import {
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
 
+
+/**
+ * 公開設定の入／切。**モックのスイッチの形**。
+ *
+ * 押せるものは `<button role="switch">`（このリポジトリが
+ * `FilterBar` や投稿画面のチップで使っている形）。**寸法は px で書く**
+ * ——640px 未満で root が 14px に落ちるので、`rem` だと摘まむところが縮む
+ * （CLAUDE.md）。44×24px の軌道に 20px の玉で、指で押せる高さを保つ。
+ */
+function SettingSwitch({ label, checked, onChange, disabled }: {
+    label: string; checked: boolean; onChange: (next: boolean) => void; disabled?: boolean;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-3">
+            <span className="text-white/80" style={{ fontSize: "13px" }}>{label}</span>
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-label={label}
+                disabled={disabled}
+                onClick={() => onChange(!checked)}
+                className={`relative rounded-full transition-colors flex-shrink-0 disabled:opacity-40 ${checked ? "bg-white" : "bg-white/20"}`}
+                style={{ width: "44px", height: "24px", touchAction: "manipulation" }}
+            >
+                <span
+                    className={`absolute rounded-full transition-transform ${checked ? "bg-black" : "bg-white/70"}`}
+                    style={{
+                        width: "20px", height: "20px", top: "2px", left: "2px",
+                        transform: checked ? "translateX(20px)" : "translateX(0)",
+                    }}
+                />
+            </button>
+        </div>
+    );
+}
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
 const STORY_DEFAULT_DURATION_SEC = 5;
@@ -249,6 +285,20 @@ export default function StoriesBar() {
     /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
     const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
     /**
+     * いま欄に入っている地名が**写真の GPS から来たものか**。
+     *
+     * 投稿のときに設定（`jp_gps_autofill`）をもう一度見るのは、
+     * 「待っている間に GPS 自動入力を切られたら送らない」ため。だが
+     * **手で打った地名にまでそれが効いていた**——設定を切っている人は
+     * 自動入力を受けないので、欄に在る文字は必ず自分で打ったものなのに、
+     * 投稿すると黙って落ちていた（残しても撮影地の無い写真になる）。
+     * 「位置情報を表示」を画面に出したことで、**入のまま送られない**という
+     * 嘘が利用者から見えるようになったので、来歴で分ける。
+     *
+     * 打ち直したら外す（自分で決めた文字は自分のもの）。
+     */
+    const locationFromGpsRef = useRef(false);
+    /**
      * 下書きの世代。**自動入力の書き戻しを、今の下書きに限る。**
      *
      * 位置を引くのに数秒かかるので、その間に閉じて別の写真（や動画）を選ぶと、
@@ -272,6 +322,29 @@ export default function StoriesBar() {
     const [songStart, setSongStart] = useState(0);
     // 画像ストーリーの表示秒数（投稿者が選ぶ）
     const [durationSec, setDurationSec] = useState(STORY_DEFAULT_DURATION_SEC);
+
+    // ── 公開設定 ──
+    /**
+     * 公開範囲。既定は「全員に公開」＝これまでの姿。
+     *
+     * **「親しい友達」はまだ出さない。** モックには3つ目があるが、
+     * 人を選ぶ一覧の新設が要る。押しても何も起きない選択肢を置かない
+     * （`StoryViewer` が「0件のときは返信のボタンを出さない」と書いている
+     * のと同じ線）。
+     */
+    const [visibility, setVisibility] = useState<StoryVisibility>("public");
+    /** 返信を受けるか。既定は受ける */
+    const [allowReplies, setAllowReplies] = useState(true);
+    /**
+     * 位置情報を表示するか。既定は表示する。
+     *
+     * **新しい列は作らない。** 切ったら `location` / `coords` を**送らない**
+     * ——保存されていない位置は、一覧にも、残した写真にも、地図にも出ない。
+     * 「保存はするが隠す」形にすると、隠しているはずの地名が
+     * 残す経路（`storyKeep.ts` が `location` をそのまま写真の撮影地にする）
+     * から漏れる口を作ることになる。
+     */
+    const [showLocation, setShowLocation] = useState(true);
 
     // 試聴用オーディオ（検索結果も選択中の曲も、常に1つだけ鳴らす）
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -455,6 +528,7 @@ export default function StoriesBar() {
         setDraft(null);
         setStoryLocation("");
         setStoryCoords(null);
+        locationFromGpsRef.current = false;
         setTexts([]);
         setSelected(null);
         setPhotoOnly(false);
@@ -465,6 +539,11 @@ export default function StoriesBar() {
         clearSongSearch();   // 開き直したときに前回の結果と失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
+        // **公開設定も戻す。** 残すと、一度「フォロワーのみ」で出した人の
+        // 次の投稿が黙って絞られる（画面は閉じているので気づけない）
+        setVisibility("public");
+        setAllowReplies(true);
+        setShowLocation(true);
     }, [stopPreview, clearSongSearch]);
 
     // 下書きのプレビューURLを必ず解放する。
@@ -574,6 +653,7 @@ export default function StoriesBar() {
         setSelected(null);
         setStoryLocation("");
         setStoryCoords(null);
+        locationFromGpsRef.current = false;
 
         // **撮影地は、EXIF を落とす前の元ファイルから読む。**
         // 投稿の直前に `toUploadSafeFile` が GPS ごと消すので、ここを逃すと
@@ -598,7 +678,12 @@ export default function StoriesBar() {
                     const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
                     if (gen !== draftGenRef.current) return;
                     // **打ち始めていたら上書きしない**（後から届く値で消さない）
-                    if (place) setStoryLocation((prev) => prev || place);
+                    if (place) setStoryLocation((prev) => {
+                        // 実際に書けたときだけ「GPS から来た」印を立てる
+                        // （打ち始めていた回は、その文字は本人のもの）
+                        if (!prev) locationFromGpsRef.current = true;
+                        return prev || place;
+                    });
                 } catch (e) {
                     log.warn("story location autofill failed:", e);
                 }
@@ -625,13 +710,22 @@ export default function StoriesBar() {
         //     `toUploadSafeVideo` が GPS を落としている（サーバーも同じ判断）
         //   - **設定をもう一度見る。** 引いたのは選んだ時点なので、待っている
         //     間に GPS 自動入力を切られたら送らない（写真側は都度と送信時の
-        //     両方で見ていて、こちらは選択時の1回だけだった）
+        //     両方で見ていて、こちらは選択時の1回だけだった）。
+        //     **ただし効かせるのは GPS から来た地名だけ**（`locationFromGpsRef`）
+        //     ——設定を切っている人は自動入力を受けないので、欄に在る文字は
+        //     必ず手で打ったもの。そこまで落としていたので、「位置情報を表示」が
+        //     入のまま何も送られない、という嘘になっていた
         //   - **座標は送る前に丸める。** 写真のアップロード画面は
         //     `page.tsx:870` で同じことをしている
         const gpsOn = (() => {
             try { return localStorage.getItem("jp_gps_autofill") !== "0"; } catch { return true; }
         })();
-        const sendLocation = draft.mediaType === "image" && gpsOn ? storyLocation.trim() : "";
+        //   - **「位置情報を表示」を切っていたら送らない。** 保存しなければ、
+        //     一覧にも、残した写真の撮影地にも、地図にも出ない（隠すのでは
+        //     なく持たない）
+        const sendLocation = draft.mediaType === "image" && showLocation
+            && (gpsOn || !locationFromGpsRef.current)
+            ? storyLocation.trim() : "";
         const sendCoords = sendLocation && storyCoords
             ? { lat: Math.round(storyCoords.lat * 100) / 100, lng: Math.round(storyCoords.lng * 100) / 100 }
             : null;
@@ -758,6 +852,12 @@ export default function StoriesBar() {
                     ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
+                    // **公開設定。** 既定と違うときだけ送る——サーバーも
+                    // 既定は保存しないので（`storyVisibility.ts`）、
+                    // 既定のまま送っても同じだが、**送らなければ古い版の
+                    // サーバーでも今までどおり動く**
+                    ...(visibility !== "public" ? { visibility } : {}),
+                    ...(allowReplies ? {} : { allowReplies: false }),
                 }),
             });
             if (!saveRes.ok) {
@@ -810,7 +910,9 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec,
+        visibility, allowReplies, showLocation,
+        locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -1343,7 +1445,11 @@ export default function StoriesBar() {
                         <input
                             type="text"
                             value={storyLocation}
-                            onChange={(e) => setStoryLocation(e.target.value)}
+                            onChange={(e) => {
+                                // 打ち直した文字は本人のもの（GPS の印を外す）
+                                locationFromGpsRef.current = false;
+                                setStoryLocation(e.target.value);
+                            }}
                             maxLength={200}
                             disabled={posting}
                             placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
@@ -1564,6 +1670,66 @@ export default function StoriesBar() {
                                 </div>
                             </div>
                         )}
+
+                        {/* 公開設定（モックの「公開設定」）。
+                            **「親しい友達」と「アーカイブに自動保存」はまだ出さない**
+                            ——前者は人を選ぶ一覧、後者はアーカイブそのものが
+                            要る。押しても何も起きないものを置かない */}
+                        <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
+                            <p className="text-white/50" style={{ fontSize: "11px" }}>
+                                {locale === "en" ? "Sharing" : "公開設定"}
+                            </p>
+
+                            <div className="space-y-2">
+                                <p className="text-white/80" style={{ fontSize: "13px" }}>
+                                    {locale === "en" ? "Who can see this" : "公開範囲"}
+                                </p>
+                                <div className="flex gap-2" role="group" aria-label={locale === "en" ? "Who can see this" : "公開範囲"}>
+                                    {([
+                                        ["public", locale === "en" ? "Everyone" : "全員に公開"],
+                                        ["followers", locale === "en" ? "Followers only" : "フォロワーのみ"],
+                                    ] as Array<[StoryVisibility, string]>).map(([v, label]) => (
+                                        <button
+                                            key={v}
+                                            type="button"
+                                            onClick={() => setVisibility(v)}
+                                            disabled={posting}
+                                            // **`aria-pressed`。** 2つは排他で、
+                                            // 押し直しても外れない（片方は必ず選ばれている）
+                                            // ——`role="switch"` はこのリポジトリでは
+                                            // 「押し直すと外れる」チップの形（`FilterBar`）。
+                                            // すぐ上の表示時間の選択と同じ綴りに揃える
+                                            aria-pressed={visibility === v}
+                                            className={`px-3 py-1.5 rounded-full transition active:scale-95 disabled:opacity-40 ${visibility === v
+                                                ? "bg-white text-black font-semibold"
+                                                : "bg-white/5 ring-1 ring-white/10 text-white/60"}`}
+                                            style={{ fontSize: "12px", touchAction: "manipulation" }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <SettingSwitch
+                                label={locale === "en" ? "Allow replies" : "返信を許可"}
+                                checked={allowReplies}
+                                onChange={setAllowReplies}
+                                disabled={posting}
+                            />
+
+                            {/* **位置情報は写真だけ。** 動画は `toUploadSafeVideo` が
+                                GPS を落としていて、サーバーも動画の位置を受けない
+                                ——すぐ上の撮影地の欄と同じ条件で出す */}
+                            {draft.mediaType === "image" && (
+                                <SettingSwitch
+                                    label={locale === "en" ? "Show location" : "位置情報を表示"}
+                                    checked={showLocation}
+                                    onChange={setShowLocation}
+                                    disabled={posting}
+                                />
+                            )}
+                        </div>
                         </>
                         )}
 

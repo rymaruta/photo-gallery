@@ -476,6 +476,39 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 「行きたい場所」（撮影スポットの保存）。**写真の保存とは別の入れ物**で、
+  # 仕組みは `likes#<uid>` と同じ（`userList.ts` の `updateUserList`）。
+  #
+  # **公開の口は1つも無い。** 行 ID は JWT の sub からしか作らないので、
+  # 他人の一覧を指すパスが存在しない（本人だけが見られる）。
+  getMySavedSpots:
+    handler: src/savedSpots.getMySavedSpots
+    events:
+      - httpApi:
+          path: /user/spots
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  saveSpot:
+    handler: src/savedSpots.saveSpot
+    events:
+      - httpApi:
+          path: /user/spots
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **スラッグはパスで受ける**（本文のある DELETE は経路で落とされることがある）
+  unsaveSpot:
+    handler: src/savedSpots.unsaveSpot
+    events:
+      - httpApi:
+          path: /user/spots/{slug}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getComments:
     handler: src/comments.getComments
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
