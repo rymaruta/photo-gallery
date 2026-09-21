@@ -14,6 +14,7 @@ import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
+import type { StoryVoteChoice, StoryVoteState } from "@/lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
@@ -198,6 +199,13 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [keeping, setKeeping] = useState(false);
     const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
     const [keepError, setKeepError] = useState<string | null>(null);
+    /**
+     * 投票スタンプの票の状態（ストーリーID → 状態）。**初期値は一覧が運ぶ**
+     * （`item.vote`）。ここに在るのは、この画面で入れたぶん
+     */
+    const [votes, setVotes] = useState<Record<string, StoryVoteState>>({});
+    const [voting, setVoting] = useState(false);
+    const [voteError, setVoteError] = useState<string | null>(null);
     /** 返信の一覧から「この人からの返信を受け取らない」を押した相手 */
     const [blocking, setBlocking] = useState<string | null>(null);
     const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
@@ -233,6 +241,52 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     useEffect(() => {
         if (item) onSeen(item.id);
     }, [item, onSeen]);
+
+    // 票の失敗の文言は、そのストーリーを離れたら消す
+    useEffect(() => { setVoteError(null); }, [item?.id]);
+
+    /** いま表示しているストーリーの票の状態（この画面で入れたぶんが優先） */
+    const voteState = item ? (votes[item.id] ?? item.vote) : undefined;
+
+    /**
+     * 2択に票を入れる。**サーバーが断る条件（自分のもの・ブロック・
+     * フォロワー限定・投票済み）は画面で繰り返さない**——入口を出すかどうか
+     * だけをここで決め（`onVote` を渡すのは他人のストーリー・ログイン済み）、
+     * 断るのは `voteStory`。
+     */
+    const handleVote = useCallback(async (_index: number, choice: StoryVoteChoice) => {
+        if (!item || isOwnStory || !isAuthenticated || voting) return;
+        const target = item.id;
+        setVoting(true);
+        setVoteError(null);
+        const fallback = locale === "en" ? "Could not send your vote" : "投票を送れませんでした";
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/vote`, {
+                method: "POST",
+                body: JSON.stringify({ choice }),
+            });
+            if (!res.ok) {
+                const msg = await readApiError(res, fallback);
+                if (itemIdRef.current === target) setVoteError(msg);
+                return;
+            }
+            const data = await res.json() as StoryVoteState;
+            // 応答の形をそのまま持つ（`myVote` が付けば押せなくなる）
+            setVotes((prev) => ({
+                ...prev,
+                [target]: {
+                    ...(data.myVote ? { myVote: data.myVote } : {}),
+                    ...(data.counts ? { counts: data.counts } : {}),
+                },
+            }));
+        } catch (e) {
+            log.warn("story vote error:", e);
+            if (itemIdRef.current === target) setVoteError(fallback);
+        } finally {
+            setVoting(false);
+        }
+    }, [item, isOwnStory, isAuthenticated, voting, locale]);
 
     // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）
     useEffect(() => {
@@ -542,6 +596,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, [setMediaReady, attachMediaBox]);
 
     const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
+        || voting
         || (!mediaReady && !mediaError);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
@@ -943,7 +998,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                     描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
                     出る場所が違う」になり、置き直しても直らない */}
                 {item.texts?.length && !mediaError ? (
-                    <StoryTextOverlay texts={item.texts} box={mediaBox} />
+                    <StoryTextOverlay
+                        texts={item.texts}
+                        box={mediaBox}
+                        locale={locale}
+                        // 入口は他人のストーリー・ログイン済みだけ（未ログインは
+                        // 返信と同じで、押してから断る形にしない）
+                        onVote={!isOwnStory && isAuthenticated ? handleVote : undefined}
+                        voteState={voteState}
+                        voting={voting}
+                    />
                 ) : null}
 
                 {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
@@ -1248,6 +1312,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         </p>
                     )}
                 </div>
+            )}
+
+            {voteError && (
+                <p
+                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-rose-300"
+                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    role="alert"
+                >{voteError}</p>
             )}
 
             {keepError && isOwnStory && (

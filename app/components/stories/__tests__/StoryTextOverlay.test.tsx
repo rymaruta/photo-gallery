@@ -468,3 +468,63 @@ describe("StoryTextOverlay: 投票", () => {
         expect(ps[2].querySelector('[role="img"]')).not.toBeNull();
     });
 });
+
+/**
+ * 投票スタンプ（見る側で票を入れる）。
+ *
+ * **`<button>` にするのは `onVote` を渡し、まだ入れていないときだけ。**
+ * 数（割合）は `voteState.counts` が在るときだけ出す（投稿者と入れた人だけに届く）。
+ */
+describe("StoryTextOverlay: 投票に票を入れる", () => {
+    const vote = (): StoryVoteItem =>
+        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 });
+    const buttons = () => screen.queryAllByRole("button", { name: /「.+」に投票/ });
+
+    it("onVote を渡すと2択が押せて、番号と選択肢で呼ばれる", async () => {
+        const onVote = vi.fn();
+        render(<StoryTextOverlay texts={[vote()]} box={box} onVote={onVote} />);
+        expect(buttons()).toHaveLength(2);
+        fireEvent.click(screen.getByRole("button", { name: "「いいえ」に投票" }));
+        expect(onVote).toHaveBeenCalledWith(0, "b");
+        fireEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        expect(onVote).toHaveBeenLastCalledWith(0, "a");
+    });
+
+    // 親は `pointer-events-none`。押せる投票だけ受ける
+    it("押せる投票の箱は pointer-events を受ける（見る側の文字は受けない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[t({ text: "朝" }), vote()]} box={box} onVote={vi.fn()} />);
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps[0].className, "見る側の文字が押せる形になっている").not.toContain("pointer-events-auto");
+        expect(ps[1].className, "投票が親の pointer-events-none に埋もれている").toContain("pointer-events-auto");
+    });
+
+    it("入れてある（myVote）なら押せず、自分の票に印が付く", () => {
+        const { container } = render(
+            <StoryTextOverlay texts={[vote()]} box={box} onVote={vi.fn()} voteState={{ myVote: "a", counts: { a: 1, b: 3 } }} />,
+        );
+        expect(buttons()).toHaveLength(0);
+        expect((container.querySelector("p") as HTMLElement).className).not.toContain("pointer-events-auto");
+        const mine = container.querySelector('[aria-current="true"]') as HTMLElement;
+        expect(mine.textContent).toBe("✓ はい 25%");
+    });
+
+    it("数が在るときだけ割合を出す（読み上げには票数も）", () => {
+        const { container, rerender } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 2, b: 1 } }} />);
+        expect(container.textContent).toContain("はい 67%");
+        expect(container.textContent).toContain("いいえ 33%");
+        const pills = [...container.querySelectorAll("[data-story-vote] span span")];
+        expect(pills.map((e) => e.getAttribute("aria-label"))).toEqual(["はい: 67%（2票）", "いいえ: 33%（1票）"]);
+        rerender(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(container.textContent, "数が無いのに割合を出している").not.toMatch(/%/);
+    });
+
+    it("送っている間は押せない", () => {
+        render(<StoryTextOverlay texts={[vote()]} box={box} onVote={vi.fn()} voting />);
+        for (const b of buttons()) expect(b).toBeDisabled();
+    });
+
+    it("onVote が無ければ button を置かない（下書き・未ログイン）", () => {
+        render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(buttons()).toHaveLength(0);
+    });
+});
