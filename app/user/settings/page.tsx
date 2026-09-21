@@ -47,7 +47,8 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { loginWithNext, ROUTES } from "../../../lib/routes";
+import { ROUTES } from "../../../lib/routes";
+import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { siteConfig } from "../../../lib/utils/seo";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 import {
@@ -96,13 +97,10 @@ export default function SettingsPage() {
     const deleteAccountBtnRef = useRef<HTMLButtonElement | null>(null);
     const [deletingAccount, setDeletingAccount] = useState(false);
 
-    useEffect(() => {
-        if (!loading && !isAuthenticated) {
-            // **push ではなく replace**（`useMemberGate` と同じ理由——
-            // 見られなかったページを履歴に残すと戻るが往復になる）
-            router.replace(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, loading, router]);
+    // 送り方は `useLoginRedirect`（`useMemberGate` と `/user/profile` も同じ口）。
+    // **条件だけがここの判断**——グループ（投稿権限）は見ない。
+    // 打ちかけを留める仕掛けも持たない（理由はファイル冒頭）
+    useLoginRedirect(!loading && !isAuthenticated);
 
     // いま登録されているアドレスを出す（何から何に変えるのかが分からないと押せない）。
     // **変えたあとは読み直さない**——ID トークンは作られた時点の写しで、

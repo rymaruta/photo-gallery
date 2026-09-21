@@ -1289,7 +1289,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 )}
                             </div>
                             {/* **ブロック中は出さない。** サーバーは 400
-                                「ブロック中の相手です。解除はプロフィール設定の
+                                「ブロック中の相手です。解除は設定の
                                 『ブロックした人』からできます」を必ず返すので、
                                 押せる形で置くと**必ず失敗する操作へ誘う**。
                                 **`blocked` はこの画面で押した結果しか
