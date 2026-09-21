@@ -187,12 +187,15 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         try {
             await ddb.send(new TransactWriteCommand({
                 TransactItems: [
-                    // 行がまだ在ること（消えたあとに孤児を作らない）
+                    // 行がまだ在ること（消えたあとに孤児を作らない）。**棚へ移った行
+                    // （`archivedAt`）にも入れない**——棚入れは票の文書を消すので、
+                    // そのあとに通ると他人の uid が棚の行の隣に残る。`postStoryReply` の
+                    // 件数更新・`keepStory` と同じ条件
                     {
                         ConditionCheck: {
                             TableName: PHOTOS_TABLE,
                             Key: { id: storyId },
-                            ConditionExpression: "attribute_exists(id)",
+                            ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                         },
                     },
                     // **1人1票と上限を、書き込みの条件で守る**

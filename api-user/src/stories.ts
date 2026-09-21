@@ -841,6 +841,10 @@ async function shelveExpiredStory(id: string, item: Record<string, unknown>): Pr
                     ExpressionAttributeValues: { ":t": true },
                 } },
                 { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } } },
+                // 票の文書も**他人の uid** なので、返信と同じく棚には残さない
+                // （`storyVotes.ts`。棚の行に届く票は、あちらの ConditionCheck
+                //  `attribute_not_exists(archivedAt)` が断る）
+                { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } } },
             ],
         }));
         return "archived";

@@ -170,7 +170,9 @@ describe("voteStory", () => {
         const items = tx[0].input.TransactItems as Array<Record<string, { Key: { id: string }; ConditionExpression: string; UpdateExpression?: string; ExpressionAttributeValues?: Record<string, unknown> }>>;
         expect(items).toHaveLength(2);
         expect(items[0].ConditionCheck.Key.id).toBe("story-1");
-        expect(items[0].ConditionCheck.ConditionExpression).toBe("attribute_exists(id)");
+        // 棚へ移った行（`archivedAt`）にも入れない（棚入れが票の文書を消したあとに
+        // 通ると、他人の uid が棚の行の隣に残る）
+        expect(items[0].ConditionCheck.ConditionExpression).toBe("attribute_exists(id) AND attribute_not_exists(archivedAt)");
         const up = items[1].Update;
         expect(up.Key.id).toBe("storyvotes#story-1");
         expect(up.UpdateExpression).toContain("ADD votersB :me");
