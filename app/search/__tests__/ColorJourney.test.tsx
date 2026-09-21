@@ -20,10 +20,12 @@ vi.mock("../../../lib/hooks/usePhotos", () => ({
 }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: ja }) }));
 // グリッドの中身はここでは見ない（`GalleryGrid` 自身のテストが在る）。
-// **枚数だけ数えられる形**にして、選んだ色のぶんが渡っているかを見る
+// **枚数だけ数えられる形**にして、選んだ色のぶんが渡っているかを見る。
+// カテゴリ名の地図も外に出す——渡すのをやめる変異が素通りしたので
+// （`/favorites` の `page.categoryLabel.test.tsx` と同じ理由）
 vi.mock("../../components/GalleryGrid", () => ({
-    default: ({ photos: p }: { photos: Photo[] }) => (
-        <div data-testid="grid" data-count={p.length} />
+    default: ({ photos: p, categoryDisplayMap }: { photos: Photo[]; categoryDisplayMap?: Record<string, string> }) => (
+        <div data-testid="grid" data-count={p.length} data-category-map={JSON.stringify(categoryDisplayMap ?? null)} />
     ),
 }));
 
@@ -113,6 +115,24 @@ describe("チップの操作", () => {
         expect(screen.getByRole("button", { name: /青/ }).getAttribute("aria-pressed")).toBe("false");
         expect(screen.getByRole("button", { name: /黒/ }).getAttribute("aria-pressed")).toBe("true");
         expect(screen.getByTestId("grid").getAttribute("data-count")).toBe("2");
+    });
+
+    /**
+     * **下のグリッドと同じ規則でカテゴリ名を渡していること。** 渡さないと
+     * 同じ写真のカテゴリ帯が上下で違う（レビューで指摘・変異テストで
+     * 「渡すのをやめる」が素通りしたので固定する）。
+     */
+    it("カテゴリ名の地図を、飛び先と同じ名前で渡す", () => {
+        photos = [
+            { ...photo("a", "#0000ff"), category: "landscape" } as Photo,
+            { ...photo("b", "#0000ee"), category: "建物" } as Photo,
+        ];
+        render(<ColorJourney />);
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
+        const map = JSON.parse(screen.getByTestId("grid").getAttribute("data-category-map") ?? "null");
+        expect(map, "categoryDisplayMap を渡していない").not.toBeNull();
+        expect(map.landscape, "スラッグが表示名になっていない").toBe("風景");
+        expect(map["建物"], "別名が飛び先と同じ名前になっていない").toBe("建築");
     });
 
     it("チップに枚数が出る", () => {
