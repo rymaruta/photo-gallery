@@ -338,7 +338,10 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
         await pickImage();
         await userEvent.click(voteButton()!);
         expect(voteButton(), "2つ目が押せる").toBeDisabled();
-        expect(voteButton()!.getAttribute("aria-pressed")).toBe("true");
+        // トグルではない（押し直して外せない）ので `aria-pressed` は付けない。
+        // 理由は名前で伝える
+        expect(voteButton()!.hasAttribute("aria-pressed")).toBe(false);
+        expect(voteButton()!.getAttribute("aria-label")).toBe("投票（1投稿に1つ）");
         expect(document.querySelectorAll("[data-story-vote]")).toHaveLength(1);
     });
 
@@ -384,6 +387,36 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
         expect(voteCard()!.textContent, "投票の中身が変わっている").toContain("この景色、好き？");
         expect(voteCard()!.textContent).not.toContain("朝の空");
         expect((screen.getByRole("textbox", { name: "文字" }) as HTMLInputElement).value).toBe("朝の空");
+    });
+
+    /**
+     * **欠けた投票は送れない。** `sanitizeStoryTexts` は問いか2択が空の
+     * 投票を落とす（既定で埋めない）ので、送れてしまうと**カードは見えて
+     * いるのに投稿後に消える**。空の文字は画面に何も描かれないが、投票は
+     * 空のピルが見えたままなので「置いたのに消えた」に直結する。
+     */
+    it("選択肢を空にすると投稿できず、理由が出る。入れ直すと戻る", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        const post = () => screen.getByRole("button", { name: "ストーリーに投稿" });
+        expect(post()).toBeEnabled();
+        expect(screen.queryByRole("status")).toBeNull();
+        await userEvent.clear(screen.getByRole("textbox", { name: "選択肢2" }));
+        expect(post(), "欠けた投票のまま投稿できる").toBeDisabled();
+        expect(screen.getByRole("status").textContent).toContain("問いと2つの選択肢");
+        await userEvent.type(screen.getByRole("textbox", { name: "選択肢2" }), "うーん");
+        expect(post()).toBeEnabled();
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    // 問いが空白だけでも同じ（`trim` で見る）
+    it("問いが空白だけでも投稿できない", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        const q = screen.getByRole("textbox", { name: "投票の問い" });
+        await userEvent.clear(q);
+        await userEvent.type(q, "   ");
+        expect(screen.getByRole("button", { name: "ストーリーに投稿" })).toBeDisabled();
     });
 
     it("消すボタンは「この投票を消す」と名乗る", async () => {

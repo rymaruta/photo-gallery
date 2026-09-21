@@ -250,9 +250,26 @@ export function isStoryVote(t: StoryText): t is StoryVoteItem {
  * `!isStoryStamp(t) && !isStoryVote(t)` を `filter` に書くと、TS が
  * 述語を推論するかが式の形に依る。名前を付けた1本にして、
  * `filter(isStoryTextItem)` で必ず絞れるようにする。
+ *
+ * **肯定で書く。** `!== "stamp" && !== "vote"` だと、知らない `kind`
+ * （新しい画面が先に出した種類）が文字と見なされ、`text` も `font` も
+ * 無いまま文字の枝へ落ちる——「種類を足すと文字の側へ落ちる」穴が
+ * 述語の中へ移るだけ。無い・`"text"` だけを文字と読む。
  */
 export function isStoryTextItem(t: StoryText): t is StoryTextItem {
-    return t.kind !== "stamp" && t.kind !== "vote";
+    return t.kind === undefined || t.kind === "text";
+}
+
+/**
+ * 投票として成り立っているか（問いと2択が全部ある）。
+ *
+ * **作成画面と `sanitizeStoryTexts` が同じ1本を見る。** 別々に書くと、
+ * 画面は通したのにサーバーが落とす（プレビューに在るのに投稿後に消える）
+ * 形が作れてしまう。既定で埋めない（サーバーが文言を作らない）ので、
+ * 欠けは「落とす」しかなく、だから画面側は**送る前に止める**。
+ */
+export function isCompleteStoryVote(v: Pick<StoryVoteItem, "question" | "options">): boolean {
+    return v.question.trim() !== "" && v.options.length === 2 && v.options.every((o) => o.trim() !== "");
 }
 
 /**
@@ -401,11 +418,12 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
             const opts = Array.isArray(o.options) ? o.options : [];
             const a = (typeof opts[0] === "string" ? opts[0] : "").slice(0, STORY_VOTE_OPTION_MAX).trim();
             const b = (typeof opts[1] === "string" ? opts[1] : "").slice(0, STORY_VOTE_OPTION_MAX).trim();
-            // **欠けた投票は落とす**（既定で埋めない——サーバーが文言を作らない）
-            if (!question || !a || !b) continue;
+            // **欠けた投票は落とす**（既定で埋めない——サーバーが文言を作らない）。
+            // 判定は作成画面と同じ1本（`isCompleteStoryVote`）
+            if (!isCompleteStoryVote({ question, options: [a, b] })) continue;
             seenVote = true;
             out.push({ kind: "vote", question, options: [a, b], ...common });
-        } else {
+        } else if (o.kind === undefined || o.kind === "text") {
             const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
             if (!text) continue;
             out.push({
@@ -416,6 +434,7 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
                 bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),
             });
         }
+        // 知らない `kind` は落とす（文字に化けさせない。`isStoryTextItem` と同じ線）
         if (out.length >= STORY_TEXTS_MAX) break;
     }
     return out.length > 0 ? out : undefined;

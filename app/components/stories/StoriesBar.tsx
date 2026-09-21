@@ -31,7 +31,7 @@ import {
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
     STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
-    isStoryTextItem, isStoryVote, newStoryVote,
+    isStoryTextItem, isStoryVote, newStoryVote, isCompleteStoryVote,
     STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX,
     type StoryText, type StoryTextItem, type StoryStampKey,
 } from "../../../lib/utils/storyText";
@@ -269,6 +269,13 @@ export default function StoriesBar() {
 
     /** 投票は1投稿に1つ（票をストーリー単位で数えるため）。既に在るか */
     const hasVote = texts.some(isStoryVote);
+    /**
+     * 置いた投票に欠けがある（問いか2択が空）。**この間は投稿できない。**
+     * `sanitizeStoryTexts` は欠けた投票を落とす（既定で埋めない）ので、
+     * 送れてしまうと**カードは見えているのに投稿後に消える**。判定は
+     * サーバーと同じ1本（`isCompleteStoryVote`）
+     */
+    const voteIncomplete = texts.some((t) => isStoryVote(t) && !isCompleteStoryVote(t));
 
     /**
      * 投票を1つ置く。**既に在れば置かない**（上の理由。`sanitizeStoryTexts` も
@@ -1480,7 +1487,6 @@ export default function StoriesBar() {
                                     aria-label={hasVote
                                         ? (locale === "en" ? "Poll (one per story)" : "投票（1投稿に1つ）")
                                         : (locale === "en" ? "Add a poll" : "投票を置く")}
-                                    aria-pressed={hasVote}
                                     className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
                                     style={{ height: "40px", minWidth: "40px", padding: "0 12px", fontSize: "12px", fontWeight: 700 }}
                                 >
@@ -1588,6 +1594,13 @@ export default function StoriesBar() {
                                             />
                                         ))}
                                     </div>
+                                    {/* 欠けは**ここで言う**（送る前に止めているので、理由が無いと
+                                        投稿ボタンが黙って押せないだけになる） */}
+                                    {!isCompleteStoryVote(currentVote) && (
+                                        <p className="text-white/85 px-1" style={{ fontSize: "12px" }} role="status">
+                                            {locale === "en" ? "Fill in the question and both options to post" : "問いと2つの選択肢を入れると投稿できます"}
+                                        </p>
+                                    )}
                                     <div className="flex items-center gap-3">
                                         <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
                                         <input
@@ -2052,7 +2065,7 @@ export default function StoriesBar() {
                     >
                         <button
                             onClick={() => void handlePost()}
-                            disabled={posting}
+                            disabled={posting || voteIncomplete}
                             className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             style={{ touchAction: "manipulation" }}
                         >

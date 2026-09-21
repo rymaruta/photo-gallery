@@ -8,7 +8,7 @@ import {
     clampStoryTextRotate, normalizeStoryRotate, STORY_ROTATE_DEFAULT,
     STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
     DEFAULT_STORY_STAMP_SIZE,
-    isStoryVote, isStoryTextItem, newStoryVote,
+    isStoryVote, isStoryTextItem, newStoryVote, isCompleteStoryVote, type StoryText,
     STORY_VOTE_DEFAULT, STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX, DEFAULT_STORY_VOTE_SIZE,
     type StoryTextItem, type StoryVoteItem,
 } from "../storyText";
@@ -519,6 +519,32 @@ describe("投票スタンプ", () => {
         const [t] = sanitizeStoryTexts([{ text: "朝", x: 0.5, y: 0.5 }])!;
         expect(isStoryTextItem(t)).toBe(true);
         expect(isStoryTextItem(sanitizeStoryTexts([voteIn])![0])).toBe(false);
+    });
+
+    /**
+     * **知らない `kind` は文字ではない。** 述語を `!== "stamp" && !== "vote"`
+     * と否定で書くと、新しい画面が先に出した種類が文字と見なされ、
+     * `text` も `font` も無いまま文字の枝へ落ちる（描く側で `name.trim()` が
+     * TypeError）。「種類を足すと文字の側へ落ちる」穴が述語の中へ移るだけ。
+     */
+    it("`isStoryTextItem` は知らない kind を文字と見ない", () => {
+        expect(isStoryTextItem({ kind: "future", x: 0.5, y: 0.5, size: 0.06 } as unknown as StoryText)).toBe(false);
+        expect(isStoryTextItem({ kind: "text", text: "朝", x: 0.5, y: 0.5, size: 0.06, font: "bold", color: "white", bg: "none" })).toBe(true);
+    });
+
+    // サーバーも同じ線で落とす（文字に化けさせない）
+    it("sanitize は知らない kind を落とす（`text` があっても文字にしない）", () => {
+        expect(sanitizeStoryTexts([{ kind: "future", text: "朝", x: 0.5, y: 0.5 }])).toBeUndefined();
+        // `kind: "text"` は明示でも通る
+        expect(sanitizeStoryTexts([{ kind: "text", text: "朝", x: 0.5, y: 0.5 }])!.map((t) => isStoryTextItem(t) && t.text)).toEqual(["朝"]);
+    });
+
+    // 作成画面と sanitize が同じ1本を見る
+    it("`isCompleteStoryVote` は問いと2択が全部あるときだけ真", () => {
+        expect(isCompleteStoryVote({ question: "好き？", options: ["はい", "いいえ"] })).toBe(true);
+        expect(isCompleteStoryVote({ question: "  ", options: ["はい", "いいえ"] })).toBe(false);
+        expect(isCompleteStoryVote({ question: "好き？", options: ["はい", " "] })).toBe(false);
+        expect(isCompleteStoryVote({ question: "好き？", options: ["", "いいえ"] })).toBe(false);
     });
 
     describe("newStoryVote", () => {

@@ -2,7 +2,10 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import StoryTextOverlay from "../StoryTextOverlay";
-import { STORY_FONTS, STORY_SIZE_DEFAULT, STORY_STAMPS, type StoryTextItem } from "@/lib/utils/storyText";
+import {
+    STORY_FONTS, STORY_SIZE_DEFAULT, STORY_STAMPS,
+    type StoryText, type StoryTextItem, type StoryStampItem, type StoryVoteItem,
+} from "@/lib/utils/storyText";
 
 /**
  * 置いた文字の描き方。
@@ -390,10 +393,10 @@ describe("StoryTextOverlay: スタンプ", () => {
  * `<button>` を置くと「押しても効かない的」になる。
  */
 describe("StoryTextOverlay: 投票", () => {
-    const vote = (over: Record<string, unknown> = {}) =>
-        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05, ...over }) as unknown as StoryTextItem;
-    const stamp = () =>
-        ({ kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.12 }) as unknown as StoryTextItem;
+    // 形は型に見せる（`as unknown as` で握ると `options` の綴り違いを型が止めない）
+    const vote = (over: Partial<StoryVoteItem> = {}): StoryVoteItem =>
+        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05, ...over });
+    const stamp = (): StoryStampItem => ({ kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.12 });
 
     it("問いと2択を描く", () => {
         const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
@@ -438,6 +441,19 @@ describe("StoryTextOverlay: 投票", () => {
         const p = container.querySelector("p") as HTMLElement;
         expect(p.getAttribute("aria-label")).toContain("投票「この景色、好き？」");
         expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
+    });
+
+    // **知らない種類は描かない**（新しい画面が先に出した `kind`）。
+    // 述語が否定形だと文字の枝へ落ち、`text` の無い `<p>` が出る
+    it("知らない kind の要素は、その要素だけ描かない（落ちない）", () => {
+        const future = { kind: "future", x: 0.5, y: 0.5, size: 0.06 } as unknown as StoryText;
+        const { container } = render(<StoryTextOverlay texts={[future, t({ text: "朝" })]} box={box} />);
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps, "知らない種類まで描いている").toHaveLength(1);
+        expect(ps[0].textContent).toBe("朝");
+        expect(() => render(
+            <StoryTextOverlay texts={[future]} box={box} selectedIndex={0} onPickIndex={vi.fn()} onGrabHandle={vi.fn()} />,
+        )).not.toThrow();
     });
 
     // 文字・スタンプ・投票が混ざっても、それぞれが自分の形で出る
