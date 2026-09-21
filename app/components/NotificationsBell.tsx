@@ -11,6 +11,7 @@ import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import { publicImageUrl } from "@/lib/utils/seo";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 
 type Notif = {
     // 実際に作られるのは like / comment / follow / storyreply の4種類。
@@ -195,11 +196,22 @@ export default function NotificationsBell() {
     //   したら、返ってきた unread は既に古い。ベルを開くと GET と PUT が
     //   ほぼ同時に出るが、サーバーは GET を先に受けるので `unread: 3` を
     //   返し、消えたバッジが数百ms後に復活していた。
+    //
+    // `panelSeqRef` … **開閉の世代。** 開くときと閉じるときに進める。
+    //   これが無いと、**閉じた直後に着地した古い GET が `newSince` を
+    //   据え直す**——`closePanel` が境界を捨てた後に、開いていた頃に
+    //   投げた応答（まだ `unread > 0` を返す）が `openRef.current === false`
+    //   の枝に入って `bound` を書き戻す。次に開くと `prev` が非 null なので
+    //   「開いている間は下げない」に守られ、**読み終わった通知が永久に
+    //   「新着」に出続ける**。開いてすぐ閉じる（回線が細いと普通に起きる）
+    //   だけで踏む。
     const fetchSeqRef = useRef(0);
     const readSeqRef = useRef(0);
+    const panelSeqRef = useRef(0);
     const load = useCallback(async () => {
         const mine = ++fetchSeqRef.current;
         const readAt = readSeqRef.current;
+        const panelAt = panelSeqRef.current;
         try {
             const res = await userFetch("/user/notifications");
             if (!res.ok) { if (mine === fetchSeqRef.current) setStatus("error"); return; }
@@ -255,7 +267,8 @@ export default function NotificationsBell() {
                 const at = typeof t === "string" ? Date.parse(t) : NaN;
                 if (!isNaN(at) && (bound === null || at < bound)) bound = at;
             }
-            setNewSince((prev) => {
+            // 開閉をまたいだ応答は境界に触らない（上の `panelSeqRef`）
+            if (panelAt === panelSeqRef.current) setNewSince((prev) => {
                 // 閉じている間は素直に入れ替える（次に開いたときの正解）
                 if (!openRef.current) return bound;
                 // 開いている間は下げない。`Math.min` なので、開いたあとに
@@ -293,6 +306,7 @@ export default function NotificationsBell() {
      * 下がらない＝読み終わった通知が延々「新着」に出続ける。
      */
     const closePanel = useCallback(() => {
+        panelSeqRef.current++;
         openRef.current = false;
         setOpen(false);
         // 🔴 **閉じたら境界を捨てる。** 「開いている間は下げない」だけだと、
@@ -307,9 +321,15 @@ export default function NotificationsBell() {
         setNewSince(null);
     }, []);
 
+    // **Escape で閉じる**（既存の作法。`isImeKey` の判定まで込み）。
+    // 開いている間だけ拾う。タブが4つ増えたぶん、閉じる手段が
+    // 「ベルを押す／外側を押す」のマウス2つだけなのは辛い
+    useEscapeKey(open, closePanel);
+
     const toggleOpen = () => {
         const next = !open;
         if (!next) { closePanel(); return; }
+        panelSeqRef.current++;
         openRef.current = next;
         setOpen(next);
         if (next) {

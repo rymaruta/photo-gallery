@@ -64,7 +64,7 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
             // 戻って行が残るだけなので、効かなかったのか・まだなのか・
             // 押し方が悪いのかが分からなかった。**ここはブロック解除の
             // 唯一の口**で、`StoryViewer` と `UserProfileClient` が
-            // 「解除はプロフィール設定から」と案内する到達先。
+            // 「解除は設定の『ブロックした人』から」と案内する到達先。
             // 同じファイルの取得失敗は文言で伝えているのに、ここだけ黙っていた
             setActionError(await readApiError(res, locale === "en"
                 ? "Couldn't unblock. Please try again." : "解除できませんでした。もう一度お試しください"));
@@ -79,7 +79,7 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     }, [busy, locale]);
 
     // **取得に失敗したら、そう言う。** 黙って消すと、ストーリーの返信欄が
-    // 「解除はプロフィール設定からできます」と案内している先が
+    // 「解除は設定の『ブロックした人』からできます」と案内している先が
     // **何も無い行き止まり**になる（解除の口はここしかない）。
     // 黙っていた頃は `state` が出力を1度も変えず、「0人と言い切らない」を
     // 守っていたのは長さの判定だけだった＝この分岐は無検証だった。
