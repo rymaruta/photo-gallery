@@ -26,7 +26,7 @@ type Props = { locale: string };
  * 未ログインで描かれることは無いはずだが、その場合はログインへの導線を出す。
  */
 export default function TimelineFeed({ locale }: Props) {
-    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
 
     // `null` ＝ まだ分からない。**「0人」と混ぜない**（取得中に「まだ誰も
@@ -119,7 +119,13 @@ export default function TimelineFeed({ locale }: Props) {
         <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
             {items.map((p, i) => (
                 <li key={p.id} className="m-0 p-0">
-                    <TimelineCard photo={p} locale={locale === "en" ? "en" : "ja"} priority={i < PRIORITY_COUNT} />
+                    <TimelineCard
+                        photo={p}
+                        locale={locale === "en" ? "en" : "ja"}
+                        priority={i < PRIORITY_COUNT}
+                        isAuthenticated={isAuthenticated}
+                        viewerId={userId}
+                    />
                 </li>
             ))}
         </ol>

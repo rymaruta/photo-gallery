@@ -63,7 +63,9 @@ describe("写真が1枚も無い環境のトップ", () => {
     });
 
     // 絞り込みで0件になった側は、今までどおり「条件に一致する写真が
-    // ありません。」——**取り違えると、外すべき条件があることが伝わらない**
+    // ありません。」——**取り違えると、外すべき条件があることが伝わらない**。
+    // **絞り込みは「さがす」の持ち場**になったので、そちらの面で見る
+    // （トップは1列のカードで、絞り込みの欄を持たない）
     it("写真があって絞り込みで0件なら、従来の文言のまま", async () => {
         photosState.current = [{
             id: "p1", userId: "u1", src: "https://cdn/p1.jpg",
@@ -72,7 +74,7 @@ describe("写真が1枚も無い環境のトップ", () => {
         }];
         window.history.replaceState({}, "", "/?q=" + encodeURIComponent("見つからない語"));
 
-        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        render(<ToastProvider><GalleryPageClient surface="search" /></ToastProvider>);
         await waitFor(() => expect(screen.getByText("条件に一致する写真がありません。")).toBeInTheDocument());
         expect(screen.queryByText("まだ写真がありません。"),
             "絞り込みで0件なのに「まだ無い」と言っている").toBeNull();

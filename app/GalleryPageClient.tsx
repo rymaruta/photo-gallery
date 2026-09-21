@@ -15,13 +15,29 @@ import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
-import Link from "next/link";
-import { ROUTES } from "../lib/routes";
+import TimelineCard from "./components/TimelineCard";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
 
-export default function GalleryPageClient() {
+/** ホームの最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
+const HOME_PRIORITY_COUNT = 2;
+
+type Props = {
+  /**
+   * どの面として描くか。
+   *
+   * **1つの部品のまま出し分ける。** 2つに割ると `?photo=` の扱い（消された
+   * 写真・届く前・絞り込みの解除・トースト。この画面でいちばん手を入れた
+   * 100行）を複製することになる。違うのは見せ方だけで、写真の一覧・
+   * 絞り込みの状態・集約の数え上げは同じものを見ている。
+   *   `home`   … タブ（おすすめ／フォロー中／新着）＋1列のカード
+   *   `search` … 絞り込み＋件数＋サムネのグリッド
+   */
+  surface?: "home" | "search";
+};
+
+export default function GalleryPageClient({ surface = "home" }: Props) {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
@@ -52,14 +68,38 @@ export default function GalleryPageClient() {
    * 無ければ絞りを外す往復（トースト付き）になる。最初から「すべて」で開く。
    * ログアウトしたら「すべて」に戻す（`mine` は本人の id が無いと意味を持たない）。
    */
+  /**
+   * **おすすめに出せる写真が1枚でもあるか。**
+   *
+   * 「おすすめ」＝運営が選んだ写真（`featured`）で、**人気順ではない**
+   * ——実データは いいね0・コメント0 なので、人気の根拠がどこにも無い
+   * （根拠の無いものを「人気」と名乗らない）。1枚も選ばれていなければ
+   * そのタブは空になるので、既定にしない。
+   */
+  const hasFeatured = React.useMemo(() => PHOTOS.some((p) => p.featured === true), [PHOTOS]);
+
+  /**
+   * いま絞り込んでいるか（タブ以外の条件）。
+   *
+   * **絞り込み中は「おすすめ」を出さない。** 絞った結果と関係ない写真が
+   * 並ぶと何を見ているか分からなくなる。ホームに絞り込みの欄は無いが、
+   * `?q=` `?tags=` `?category=` は URL から来うる（古いリンク）。
+   */
+  const narrowedNow = filters.category !== "all" || filters.selectedTags.length > 0
+    || filters.query.trim() !== "";
+
   const scopeDecidedRef = React.useRef(false);
   React.useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
-      if (filters.scope !== "all") setFilters({ scope: "all" });
+      // **「フォロー中」だけ戻す。** 本人の id が無いと意味を持たないタブは
+      // これだけで、**「おすすめ」は未ログインでも見られる**（運営が選んだ
+      // 写真で、誰が見ても同じ）。ここを `!== "all"` にしていたので、
+      // 未ログインの人は「おすすめ」を押しても弾かれていた
+      if (filters.scope === "following") setFilters({ scope: "all" });
       return;
     }
-    // 決めるのは確定した1回だけ（利用者が「すべて」を押したあとに戻さない）
+    // 決めるのは確定した1回だけ（利用者が別のタブを押したあとに戻さない）
     if (scopeDecidedRef.current) return;
     scopeDecidedRef.current = true;
     // **URL はその時点で読む**（マウント時の控えではなく）。ハイドレーション直後に
@@ -71,8 +111,11 @@ export default function GalleryPageClient() {
     // ——`currentIndex` を重ねて見ない（二重の守りは変異で観測できない）
     const q = new URLSearchParams(window.location.search);
     if (q.has("scope") || q.has("photo")) return;
-    setFilters({ scope: "mine" });
-  }, [authLoading, isAuthenticated, filters.scope, setFilters]);
+    // **「おすすめ」は1枚も選ばれていないと空**（実データは featured 0枚）。
+    // 空のタブを既定にすると、開いた人がまず何も無い画面を見る。
+    // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
+    if (hasFeatured) setFilters({ scope: "featured" });
+  }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -358,13 +401,13 @@ export default function GalleryPageClient() {
       {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
           自分の写真かフォロー中の人の写真みれるようにしたい」。
           「すべて」は未ログインの人が見るのと同じ一覧。既定は「自分」（上の effect） */}
-      {isAuthenticated && (
-        <div role="group" aria-label={locale === "en" ? "Whose photos" : "誰の写真を見るか"}
+      {surface === "home" && (
+        <div role="group" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
              className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
           {([
-            { key: "mine", label: locale === "en" ? "Mine" : "自分" },
+            { key: "featured", label: locale === "en" ? "For you" : "おすすめ" },
             { key: "following", label: locale === "en" ? "Following" : "フォロー中" },
-            { key: "all", label: locale === "en" ? "All" : "すべて" },
+            { key: "all", label: locale === "en" ? "New" : "新着" },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -389,9 +432,65 @@ export default function GalleryPageClient() {
           （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
-      {isAuthenticated && filters.scope === "following" ? (
+      {surface === "home" && filters.scope === "following" ? (
         <div className="max-w-xl mx-auto">
           <TimelineFeed locale={locale} />
+        </div>
+      ) : surface === "home" && filters.scope === "featured" ? (
+        /* **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
+           （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
+           持ち場にする——同じものを二度作らない。
+           **人気順ではない**（実データは いいね0・コメント0 で、人気の
+           根拠がどこにも無い）。1枚も選ばれていなければそう言う */
+        hasFeatured && !narrowedNow ? (
+          <FeaturedSections
+            photos={PHOTOS}
+            categoryNames={labels.category?.names ?? {}}
+            locale={locale}
+            categoryDisplayMap={categoryDisplayMap}
+            onOpenPhoto={openById}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+            <p className="text-sm m-0">
+              {locale === "en" ? "No picks yet." : "まだおすすめは選ばれていません。"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilters({ scope: "all" })}
+              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              style={{ touchAction: "manipulation" }}
+            >
+              {locale === "en" ? "See what's new" : "新着を見る"}
+            </button>
+          </div>
+        )
+      ) : surface === "home" ? (
+        /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
+           グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
+           1枚ずつ見るのは別の体験なので、面を分ける */
+        <div className="max-w-xl mx-auto">
+          {filteredPhotos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+              <p className="text-sm m-0">
+                {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+              </p>
+            </div>
+          ) : (
+            <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
+              {filteredPhotos.map((p, i) => (
+                <li key={p.id} className="m-0 p-0">
+                  <TimelineCard
+                    photo={p}
+                    locale={locale === "en" ? "en" : "ja"}
+                    priority={i < HOME_PRIORITY_COUNT}
+                    isAuthenticated={isAuthenticated}
+                    viewerId={ownUserId}
+                  />
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       ) : (
       <>
@@ -405,21 +504,6 @@ export default function GalleryPageClient() {
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
       />
-
-      {/* **おすすめ（運営が選ぶ）。**
-          **絞り込み中は出さない**——絞った結果の上に、絞りと関係ない写真が
-          並ぶと何を見ているか分からなくなる。
-          1枚も選ばれていなければ、この部品が自分で何も出さない */}
-      {filters.scope === "all" && filters.category === "all" && filters.selectedTags.length === 0
-        && !filters.query.trim() && (
-        <FeaturedSections
-          photos={PHOTOS}
-          categoryNames={labels.category?.names ?? {}}
-          locale={locale}
-          categoryDisplayMap={categoryDisplayMap}
-          onOpenPhoto={openById}
-        />
-      )}
 
       <>
         <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
@@ -438,19 +522,6 @@ export default function GalleryPageClient() {
             <p className="text-sm">
               {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
             </p>
-          </div>
-        ) : filteredPhotos.length === 0 && filters.scope === "mine" && isAuthenticated
-          && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
-          // **「自分」で0枚は「条件に一致しない」ではない**——まだ投稿していないだけ。
-          // ログイン直後の既定がこのタブなので、最初に見るのはここ。投稿への導線を出す
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm">
-              {locale === "en" ? "You haven't posted any photos yet." : "まだ写真を投稿していません。"}
-            </p>
-            <Link href={ROUTES.UPLOAD} prefetch={false}
-                  className="px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
-              {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
-            </Link>
           </div>
         ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
