@@ -38,6 +38,10 @@ export type Spot = {
     slug: string;
     /** 正式名（画面の見出し） */
     name: string;
+    /** 読み（ふりがな） */
+    reading?: string;
+    /** 概要。**書かれたものだけを出す**（自動生成しない） */
+    summary?: string;
     /** 別名・旧称・英語表記・撮影者が打ちがちな綴り */
     aliases?: string[];
     /** 住所（1行） */
