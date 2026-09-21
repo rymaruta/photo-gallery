@@ -61,14 +61,14 @@ describe("最小枚数", () => {
     it("2枚あれば出す", () => {
         photos = [photo("a", "#0000ff"), photo("b", "#0000ee")];
         render(<ColorJourney />);
-        expect(screen.getByRole("switch", { name: /青/ })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /青/ })).toBeTruthy();
     });
 
     it("2枚に満たない色は、足りている色と混ぜても出さない", () => {
         photos = [photo("a", "#0000ff"), photo("b", "#0000ee"), photo("c", "#ff0000")];
         render(<ColorJourney />);
-        expect(screen.getByRole("switch", { name: /青/ })).toBeTruthy();
-        expect(screen.queryByRole("switch", { name: /赤/ }), "1枚の赤が出ている").toBeNull();
+        expect(screen.getByRole("button", { name: /青/ })).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /赤/ }), "1枚の赤が出ている").toBeNull();
     });
 });
 
@@ -82,43 +82,43 @@ describe("チップの操作", () => {
 
     it("最初はどれも選ばれておらず、グリッドも出ない", () => {
         render(<ColorJourney />);
-        for (const el of screen.getAllByRole("switch")) {
-            expect(el.getAttribute("aria-checked")).toBe("false");
+        for (const el of screen.getAllByRole("button")) {
+            expect(el.getAttribute("aria-pressed")).toBe("false");
         }
         expect(screen.queryByTestId("grid")).toBeNull();
     });
 
     it("押すと選ばれ、その色の枚数だけグリッドに渡る", () => {
         render(<ColorJourney />);
-        fireEvent.click(screen.getByRole("switch", { name: /青/ }));
-        expect(screen.getByRole("switch", { name: /青/ }).getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
+        expect(screen.getByRole("button", { name: /青/ }).getAttribute("aria-pressed")).toBe("true");
         expect(screen.getByTestId("grid").getAttribute("data-count")).toBe("3");
     });
 
     /** 足すだけのチップは、既に選んでいる色を押しても無反応になる（タグ入力で踏んだ形） */
     it("押し直すと外れ、グリッドも消える", () => {
         render(<ColorJourney />);
-        const blue = screen.getByRole("switch", { name: /青/ });
+        const blue = screen.getByRole("button", { name: /青/ });
         fireEvent.click(blue);
         expect(screen.getByTestId("grid")).toBeTruthy();
         fireEvent.click(blue);
-        expect(screen.getByRole("switch", { name: /青/ }).getAttribute("aria-checked")).toBe("false");
+        expect(screen.getByRole("button", { name: /青/ }).getAttribute("aria-pressed")).toBe("false");
         expect(screen.queryByTestId("grid"), "外したのにグリッドが残っている").toBeNull();
     });
 
     it("別の色を押すと、そちらに移る（2つ同時に光らない）", () => {
         render(<ColorJourney />);
-        fireEvent.click(screen.getByRole("switch", { name: /青/ }));
-        fireEvent.click(screen.getByRole("switch", { name: /黒/ }));
-        expect(screen.getByRole("switch", { name: /青/ }).getAttribute("aria-checked")).toBe("false");
-        expect(screen.getByRole("switch", { name: /黒/ }).getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
+        fireEvent.click(screen.getByRole("button", { name: /黒/ }));
+        expect(screen.getByRole("button", { name: /青/ }).getAttribute("aria-pressed")).toBe("false");
+        expect(screen.getByRole("button", { name: /黒/ }).getAttribute("aria-pressed")).toBe("true");
         expect(screen.getByTestId("grid").getAttribute("data-count")).toBe("2");
     });
 
     it("チップに枚数が出る", () => {
         render(<ColorJourney />);
-        expect(screen.getByRole("switch", { name: "青 (3)" })).toBeTruthy();
-        expect(screen.getByRole("switch", { name: "黒 (2)" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "青 (3)" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "黒 (2)" })).toBeTruthy();
     });
 });
 
@@ -130,7 +130,7 @@ describe("チップの並び", () => {
         ];
         render(<ColorJourney />);
         // 青は2枚・黒は3枚だが、表の順（青が先）で並ぶ
-        const labels = screen.getAllByRole("switch").map((el) => el.getAttribute("aria-label"));
+        const labels = screen.getAllByRole("button").map((el) => el.getAttribute("aria-label"));
         expect(labels).toEqual(["青 (2)", "黒 (3)"]);
     });
 });
@@ -143,15 +143,37 @@ describe("一覧が入れ替わったとき", () => {
     it("選んだ色が消えたら、グリッドも消える（枠だけ残さない）", () => {
         photos = [photo("a", "#0000ff"), photo("b", "#0000ee"), photo("c", "#000000"), photo("d", "#111111")];
         const { rerender } = render(<ColorJourney />);
-        fireEvent.click(screen.getByRole("switch", { name: /青/ }));
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
         expect(screen.getByTestId("grid").getAttribute("data-count")).toBe("2");
 
         // 青が1枚に減った＝最小枚数を割ってチップごと消える
         photos = [photo("a", "#0000ff"), photo("c", "#000000"), photo("d", "#111111")];
         rerender(<ColorJourney />);
 
-        expect(screen.queryByRole("switch", { name: /青/ }), "消えた色のチップが残っている").toBeNull();
+        expect(screen.queryByRole("button", { name: /青/ }), "消えた色のチップが残っている").toBeNull();
         expect(screen.queryByTestId("grid"), "チップは消えたのにグリッドが残っている").toBeNull();
+    });
+
+    /**
+     * **消えた色が戻っても、押していないのに光らない。** `selected` を持った
+     * ままにすると、取り直しで色が戻った瞬間にチップが光ってグリッドが開く
+     * （レビューで指摘）。消えた時点で選択そのものを捨てていること。
+     */
+    it("消えた色が戻っても、選択は戻らない（勝手にグリッドが開かない）", () => {
+        const withBlue = [photo("a", "#0000ff"), photo("b", "#0000ee"), photo("c", "#000000"), photo("d", "#111111")];
+        photos = withBlue;
+        const { rerender } = render(<ColorJourney />);
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
+        expect(screen.getByTestId("grid")).toBeTruthy();
+
+        photos = [photo("a", "#0000ff"), photo("c", "#000000"), photo("d", "#111111")];   // 青が消える
+        rerender(<ColorJourney />);
+        expect(screen.queryByTestId("grid")).toBeNull();
+
+        photos = withBlue;   // 青が戻る
+        rerender(<ColorJourney />);
+        expect(screen.getByRole("button", { name: /青/ }).getAttribute("aria-pressed"), "押していないのに光っている").toBe("false");
+        expect(screen.queryByTestId("grid"), "押していないのにグリッドが開いた").toBeNull();
     });
 
     it("色が全部消えたら、部品ごと消える", () => {

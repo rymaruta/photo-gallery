@@ -120,8 +120,17 @@ describe("colorBucketOf", () => {
      * 本番39枚のうち青が10枚まで減る（実測）。
      */
     it("暗くても色が付いていれば色の側へ行く", () => {
-        expect(colorBucketOf("#081828"), "暗い青").toBe("blue");
-        expect(colorBucketOf("#180808"), "暗い赤").toBe("red");
+        expect(colorBucketOf("#081828"), "暗い青（明度 0.094）").toBe("blue");
+        expect(colorBucketOf("#301010"), "暗い赤（明度 0.125）").toBe("red");
+    });
+
+    /**
+     * **ほぼ真っ黒の枠は、色味があっても黒。** HSL の彩度は明度が 0 に近いほど
+     * 跳ね上がる——`#180808` は明度 0.063 なのに彩度 0.50。彩度だけを見ると
+     * 「赤」になる（レビューで指摘され、本番の3枚がそうなっていた）。
+     */
+    it.each(["#180808", "#081818", "#181808", "#080810"])("明度 0.08 未満の %s は黒", (hex) => {
+        expect(colorBucketOf(hex)).toBe("black");
     });
 
     it("彩度がごく低ければ、暗さに応じて黒・モノクロ・白", () => {
@@ -222,17 +231,17 @@ describe("本番39枚（実測値）での発火数", () => {
         expect(photos.filter((p) => photoColorBucket(p) !== null)).toHaveLength(39);
     });
 
-    it("内訳が実測どおり（青14 黒13 黄4 橙3 モノクロ3 赤1 白1）", () => {
+    it("内訳が実測どおり（青13 黒16 黄3 橙3 モノクロ3 白1）", () => {
         const g = groupPhotosByColor(photos);
         expect(Object.fromEntries([...g].map(([k, v]) => [k, v.length]))).toEqual({
-            blue: 14, black: 13, yellow: 4, orange: 3, mono: 3, red: 1, white: 1,
+            blue: 13, black: 16, yellow: 3, orange: 3, mono: 3, white: 1,
         });
     });
 
-    it("2枚以上あるのは5色で、37/39 枚が拾われる", () => {
+    it("2枚以上あるのは5色で、38/39 枚が拾われる", () => {
         const out = visibleColorBuckets(photos);
         expect(out.map((x) => x.bucket.id)).toEqual(["blue", "orange", "yellow", "black", "mono"]);
-        expect(out.reduce((n, x) => n + x.photos.length, 0)).toBe(37);
+        expect(out.reduce((n, x) => n + x.photos.length, 0)).toBe(38);
     });
 
     /**
@@ -241,9 +250,10 @@ describe("本番39枚（実測値）での発火数", () => {
      * 葉や草が主役でも緑にならない。`blurDataURL` の分布なら7枚立つところまで
      * 確かめたが、閾値を検証する術が無いので採っていない（`buckets.ts` 冒頭）。
      */
-    it("緑・桃・紫は本番で0枚（dominantColor の限界。直すなら別の値を見る）", () => {
+    it("緑・赤・桃・紫は本番で0枚（dominantColor の限界。直すなら別の値を見る）", () => {
         const g = groupPhotosByColor(photos);
         expect(g.get("green")).toBeUndefined();
+        expect(g.get("red")).toBeUndefined();
         expect(g.get("pink")).toBeUndefined();
         expect(g.get("purple")).toBeUndefined();
     });

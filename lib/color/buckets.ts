@@ -87,6 +87,20 @@ const ACHROMATIC_MAX_SATURATION = 0.10;
 /** 無彩色のうち、黒と白に振り分ける明度の線 */
 const BLACK_MAX_LIGHTNESS = 0.20;
 const WHITE_MIN_LIGHTNESS = 0.85;
+/**
+ * **これより暗ければ、色味があっても黒。**
+ *
+ * HSL の彩度は明度が 0 に近いほど分母が小さくなり、**ほぼ真っ黒の枠に
+ * わずかな色味があるだけで彩度が跳ね上がる**——`#180808`（r=24,g=8,b=8）は
+ * 明度 0.063 なのに彩度 0.50 で、彩度だけ見ると「赤」になる。レビューで
+ * 指摘され、本番39枚で測ると `#081818` `#180808` `#181808`（3枚・全部
+ * 明度 0.063）が青・赤・黄に散っていた。目で見れば黒い枠なので黒へ寄せる。
+ *
+ * 0.08 は「暗いが青い」`#081828`（明度 0.094）を**青に残す**線。
+ * 0.10 にすると青に落ちて、彩度優先にした意味が1枚ぶん減る。
+ * この線で本番は 37枚 → **38/39枚** が拾われる（赤1枚が黒に入る）。
+ */
+const BLACK_LIGHTNESS_FLOOR = 0.08;
 
 /**
  * 色相の境目（度）。`from` 以上 次の `from` 未満。
@@ -156,6 +170,7 @@ export function colorBucketOf(hex: string): string | null {
     const rgb = parseHexColor(hex);
     if (!rgb) return null;
     const { h, s, l } = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    if (l < BLACK_LIGHTNESS_FLOOR) return "black";
     if (s < ACHROMATIC_MAX_SATURATION) {
         if (l < BLACK_MAX_LIGHTNESS) return "black";
         if (l > WHITE_MIN_LIGHTNESS) return "white";
@@ -182,8 +197,8 @@ export function photoColorBucket(photo: Pick<Photo, "dominantColor">): string | 
  * 見た目（他と同じ大きさの丸）が約束しているものと釣り合わない。
  * 撮影地の集約ページが同じ理由で2枚を線にしている（`MIN_INDEXABLE_LOCATION`）。
  *
- * 実データでの効き（本番39枚）: 2枚以上にすると**7色 → 5色**になり、
- * 37/39 枚が拾われる（落ちるのは赤1枚と白1枚）。
+ * 実データでの効き（本番39枚）: 2枚以上にすると**6色 → 5色**になり、
+ * 38/39 枚が拾われる（落ちるのは白1枚）。
  */
 export const MIN_PHOTOS_PER_COLOR = 2;
 
