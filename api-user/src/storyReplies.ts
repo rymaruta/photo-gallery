@@ -370,7 +370,10 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
                 break;
             } catch (e) {
                 if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                    console.error(`postStoryReply: 行が消えていました（${storyId}）:`, e);
+                    // 行が消えたか、棚へ移った（`archivedAt` が刻まれた）。後者は
+                    // 期限直前の返信と毎時の掃除が重なる**正常な経路**なので、
+                    // error では鳴らさない（本物の失敗が埋もれる）
+                    console.warn(`postStoryReply: 行が消えたか棚へ移っていました（${storyId}）`);
                     // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
                     await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
                         .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
