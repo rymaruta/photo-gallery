@@ -83,6 +83,10 @@ async function pickImage() {
 
 /** 写真の上に出ている文字（下の入力欄ではなく、置いた方） */
 const overlay = () => document.querySelector('[role="dialog"] p[style*="translate"]') as HTMLElement | null;
+/** 見せ方の欄は1度に1つだけ開く（画面を食わないように畳んである） */
+const openTool = async (name: string) => {
+    await userEvent.click(screen.getByRole("tab", { name }));
+};
 const type = async (text: string) => {
     await userEvent.type(screen.getByRole("textbox", { name: "文字" }), text);
 };
@@ -100,8 +104,14 @@ describe("ストーリーの文字", () => {
         await pickImage();
         await type("朝の空");
         expect(overlay()?.textContent).toBe("朝の空");
-        expect(screen.getByRole("switch", { name: "明朝" })).toBeInTheDocument();
+        // 見せ方は4つの欄に畳んである（1度に1つだけ開く）
+        for (const t of ["字体", "色", "大きさ", "下地"]) {
+            expect(screen.getByRole("tab", { name: t }), `${t} の欄が無い`).toBeInTheDocument();
+        }
+        expect(screen.getByRole("switch", { name: "明朝" }), "字体が最初から開いていない").toBeInTheDocument();
+        await openTool("色");
         expect(screen.getByRole("switch", { name: "空" })).toBeInTheDocument();
+        await openTool("下地");
         expect(screen.getByRole("switch", { name: "塗り" })).toBeInTheDocument();
     });
 
@@ -117,14 +127,17 @@ describe("ストーリーの文字", () => {
     it("色と下地と大きさを選べる", async () => {
         await pickImage();
         await type("朝の空");
+        await openTool("色");
         await userEvent.click(screen.getByRole("switch", { name: "黄" }));
         expect(overlay()?.style.color).toBe("rgb(255, 214, 10)");
 
+        await openTool("下地");
         await userEvent.click(screen.getByRole("switch", { name: "塗り" }));
         expect(overlay()?.style.background).toBe("rgb(255, 214, 10)");
         expect(overlay()?.style.color).toBe("rgb(0, 0, 0)");
 
         // 大きさは**つまみ**（段階のチップは見分けられず気づかれなかった）
+        await openTool("大きさ");
         const before = overlay()?.style.fontSize;
         const slider = screen.getByRole("slider", { name: "文字の大きさ" });
         fireEvent.change(slider, { target: { value: "0.14" } });
@@ -139,6 +152,7 @@ describe("ストーリーの文字", () => {
     it("大きさはつまみで、キーボードでも動く", async () => {
         await pickImage();
         await type("朝の空");
+        await openTool("大きさ");
         const slider = screen.getByRole("slider", { name: "文字の大きさ" });
         expect(slider).toHaveAttribute("min");
         expect(slider).toHaveAttribute("max");
@@ -155,6 +169,7 @@ describe("ストーリーの文字", () => {
     it("範囲の外の値は挟む", async () => {
         await pickImage();
         await type("朝の空");
+        await openTool("大きさ");
         const slider = screen.getByRole("slider", { name: "文字の大きさ" });
         fireEvent.change(slider, { target: { value: "99" } });
         await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
@@ -166,6 +181,7 @@ describe("ストーリーの文字", () => {
         await pickImage();
         await type("朝の空");
         await userEvent.click(screen.getByRole("switch", { name: "明朝" }));
+        await openTool("色");
         await userEvent.click(screen.getByRole("switch", { name: "桃" }));
         await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
         await waitFor(() => expect(posted()).toHaveLength(1));
@@ -637,5 +653,60 @@ describe("ストーリーの下書き: 写真だけのときの見え方", () =>
         await pickImage();
         await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
         expect(bottomScrim(), "写真を暗くしたまま見せている").toBeNull();
+    });
+});
+
+/**
+ * 🔴 **見せ方の欄は1度に1つだけ開く。**
+ *
+ * 字体・色・大きさ・下地を全部並べると、320×568 で操作の欄が 276px
+ * ——画面の半分を食っていた（owner:「画面の範囲奪いすぎてる」）。
+ * 置く相手の写真がその分だけ広く見える。
+ */
+describe("ストーリーの文字: 見せ方の欄は1つずつ", () => {
+    it("開いていない欄の中身は出さない", async () => {
+        await pickImage();
+        await type("朝の空");
+        // 最初は字体だけ
+        expect(screen.getByRole("switch", { name: "明朝" })).toBeInTheDocument();
+        expect(screen.queryByRole("switch", { name: "空" }), "色まで出ている").toBeNull();
+        expect(screen.queryByRole("slider", { name: "文字の大きさ" }), "大きさまで出ている").toBeNull();
+        expect(screen.queryByRole("switch", { name: "塗り" }), "下地まで出ている").toBeNull();
+
+        await openTool("色");
+        expect(screen.queryByRole("switch", { name: "明朝" }), "字体が畳まれていない").toBeNull();
+        expect(screen.getByRole("switch", { name: "空" })).toBeInTheDocument();
+    });
+
+    it("開いている欄が分かる", async () => {
+        await pickImage();
+        await type("朝の空");
+        expect(screen.getByRole("tab", { name: "字体" })).toHaveAttribute("aria-selected", "true");
+        await openTool("大きさ");
+        expect(screen.getByRole("tab", { name: "大きさ" })).toHaveAttribute("aria-selected", "true");
+        expect(screen.getByRole("tab", { name: "字体" })).toHaveAttribute("aria-selected", "false");
+    });
+
+    // 開き直したときに前の欄を持ち越さない
+    it("下書きを閉じると、開く欄も最初に戻る", async () => {
+        await pickImage();
+        await type("朝の空");
+        await openTool("下地");
+        await userEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["img"], "d.jpg", { type: "image/jpeg" }));
+        await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+        await type("次の一枚");
+        expect(screen.getByRole("tab", { name: "字体" }), "前に開いた欄が残っている").toHaveAttribute("aria-selected", "true");
+    });
+
+    // 文字を選んでいないときは、見せ方の欄そのものを出さない
+    it("選んでいなければ、欄の見出しも出さない", async () => {
+        await pickImage();
+        await type("朝の空");
+        expect(screen.getByRole("tab", { name: "字体" })).toBeInTheDocument();
+        fireEvent.pointerDown(document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement, { pointerId: 9, clientX: 50, clientY: 50 });
+        fireEvent.pointerUp(document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement, { pointerId: 9, clientX: 50, clientY: 50 });
+        expect(screen.queryByRole("tab", { name: "字体" }), "効かない欄が残っている").toBeNull();
     });
 });

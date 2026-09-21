@@ -131,6 +131,14 @@ export default function StoriesBar() {
      * 畳めば写真が全部出て、どこでも指で決められる。
      */
     const [photoOnly, setPhotoOnly] = useState(false);
+    /**
+     * 文字の見せ方の欄は**1度に1つだけ開く**。
+     *
+     * 字体・色・大きさ・下地を全部並べると、320×568 で操作の欄が 276px
+     * ——画面の**半分**を食っていた（owner:「画面の範囲奪いすぎてる」）。
+     * タブ1段＋開いた1段にすれば、置く相手の写真がその分だけ広く見える。
+     */
+    const [tool, setTool] = useState<"font" | "color" | "size" | "bg">("font");
     const draftMediaAreaRef = useRef<HTMLDivElement | null>(null);
     // 絵が実際に描かれている矩形。**囲みではなく絵に対する割合**で持たないと、
     // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
@@ -450,6 +458,7 @@ export default function StoriesBar() {
         setTexts([]);
         setSelected(null);
         setPhotoOnly(false);
+        setTool("font");
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
@@ -1111,7 +1120,7 @@ export default function StoriesBar() {
                     ) : (
                     <>
                     <div
-                        className={`relative px-4 pt-4 pb-1 space-y-3 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
                         {/* **打つ欄は1つ。** いま選んでいる文字を直す。
                             まだ1つも無ければ、打った時点で1つ目ができる
@@ -1193,6 +1202,34 @@ export default function StoriesBar() {
                                     出したままだと**押しても効かない的**が並ぶ */}
                                 {current && (
                                 <>
+                                {/* 🔴 **1度に1つだけ開く。** 字体・色・大きさ・下地を
+                                    全部並べると、320×568 で操作の欄が 276px
+                                    ——画面の半分を食っていた（owner:「画面の範囲
+                                    奪いすぎてる」）。置く相手の写真がその分だけ広く見える */}
+                                <div role="tablist" aria-label={locale === "en" ? "Text style" : "文字の見せ方"} className="flex gap-2">
+                                    {([
+                                        ["font", locale === "en" ? "Font" : "字体"],
+                                        ["color", locale === "en" ? "Color" : "色"],
+                                        ["size", locale === "en" ? "Size" : "大きさ"],
+                                        ["bg", locale === "en" ? "Box" : "下地"],
+                                    ] as const).map(([k, label]) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={tool === k}
+                                            disabled={posting}
+                                            onClick={() => setTool(k)}
+                                            className={`flex-1 rounded-full transition ${tool === k ? "bg-white/20 text-white ring-1 ring-white/40" : "text-white/60"}`}
+                                            style={{ minHeight: "36px", fontSize: "12px" }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div role="tabpanel" aria-label={locale === "en" ? "Text style" : "文字の見せ方"}>
+                                {tool === "font" && (
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
                                     {STORY_FONT_KEYS.map((k) => (
                                         <button
@@ -1209,8 +1246,9 @@ export default function StoriesBar() {
                                         </button>
                                     ))}
                                 </div>
+                                )}
 
-                                {/* 色 */}
+                                {tool === "color" && (
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Color" : "色"}>
                                     {STORY_COLOR_KEYS.map((k) => (
                                         <button
@@ -1226,7 +1264,10 @@ export default function StoriesBar() {
                                         />
                                     ))}
                                 </div>
+                                )}
 
+                                {tool === "size" && (
+                                <>
                                 {/* 大きさ。**段階ではなくつまみ。**
                                     4段階のチップ（A A A A）で出していたが、並べても
                                     違いが見分けられず**気づかれなかった**
@@ -1248,8 +1289,10 @@ export default function StoriesBar() {
                                     />
                                     <span className="text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "19px", lineHeight: 1 }} aria-hidden="true">A</span>
                                 </div>
+                                </>
+                                )}
 
-                                {/* 下地 */}
+                                {tool === "bg" && (
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
                                     <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Text background" : "文字の下地"}>
                                         {STORY_BGS.map((k) => (
@@ -1271,6 +1314,8 @@ export default function StoriesBar() {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                                )}
                                 </div>
                                 </>
                                 )}
