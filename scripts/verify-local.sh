@@ -77,6 +77,24 @@ check_side_tsc() { # check_side_tsc <dir> <baseline>
         echo "::error:: $1/node_modules がありません。\`cd $1 && npm ci\` を打ってから測ってください"
         return 1
     fi
+    # **`$1/node_modules` が在っても、土俵が同じとは限らない。**
+    # `api` の package.json には `@types/node` も `vitest` も無く、モジュール解決の
+    # 親ディレクトリ探索で**ルートの node_modules を拾っている**。ルート側が
+    # 未インストールだと `console` / `process` / `require` が無い（TS2584/2580/2304）
+    # と `Cannot find module 'vitest'`（TS2307）で数十件ぶれる。実測:
+    #     ルートの node_modules 無し ＋ api/node_modules 有り → 97件
+    #     両方有り                                       → 11件（基準ぴったり）
+    # 11 の正体は TS1378（テストのトップレベル await）×10 と
+    # `api/src/photos.ts:132` の TS2322 ×1。残り86件は全部「依存が解決できて
+    # いないだけ」のノイズで、それを「本物の増加」と誤報していた。
+    #
+    # **エラーコードで判定しない。** api-user の基準120は `Cannot find module
+    # 'aws-lambda'`（TS2307）で構成されているので、コードで落とすとあちらの
+    # 関門が壊れる。代わりに「$1 から2つの依存が解決できるか」を先に見る。
+    if ! (cd "$1" && node -e 'require.resolve("vitest/package.json"); require.resolve("@types/node/package.json")' 2>/dev/null); then
+        echo "::error:: $1 から vitest / @types/node が解決できません（ルートで npm ci を打ってから測ってください）"
+        return 1
+    fi
 
     local n; n=$(grep -c 'error TS' <<< "$out")
     echo "$1 の型エラー: $n 件（基準 $2）"
