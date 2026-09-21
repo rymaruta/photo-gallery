@@ -561,8 +561,8 @@ describe("useGallery", () => {
         // 「自分」が「すべて」に戻らないよう URL に載せる（`feed` のときに一度直した形）
         it("scope を URL に載せ、すべてに戻せば消える", () => {
             const { result } = renderHook(() => useGallery(mockPhotos, "me"));
-            act(() => { result.current.setFilters({ scope: "mine" }); });
-            expect(new URLSearchParams(window.location.search).get("scope")).toBe("mine");
+            act(() => { result.current.setFilters({ scope: "featured" }); });
+            expect(new URLSearchParams(window.location.search).get("scope")).toBe("featured");
             act(() => { result.current.setFilters({ scope: "all" }); });
             expect(new URLSearchParams(window.location.search).get("scope")).toBeNull();
         });
@@ -574,15 +574,36 @@ describe("useGallery", () => {
             expect(renderHook(() => useGallery(mockPhotos, "me")).result.current.filters.scope).toBe("all");
         });
 
-        it("自分だけ: 本人の写真に絞る。本人の id が無ければ絞らない", () => {
+        // **「自分だけ」のタブは無くなった**（owner の新デザイン。自分の写真は
+        // マイページの「投稿」タブが持つ）。代わりに「おすすめ」＝運営が選んだ
+        // 写真（`featured`）。**人気順ではない**——実データは いいね0・コメント0 で
+        // 人気の根拠がどこにも無く、根拠の無いものを「人気」と名乗らない
+        it("おすすめ: 運営が選んだ写真に絞る。未ログインでも同じ（誰が見ても同じ写真）", () => {
             const photos = [
-                { ...mockPhotos[0], id: "mine-1", userId: "me" },
-                { ...mockPhotos[1], id: "theirs", userId: "u1" },
-                { ...mockPhotos[2], id: "nobody" },
+                { ...mockPhotos[0], id: "pick-1", featured: true },
+                { ...mockPhotos[1], id: "plain" },
+                { ...mockPhotos[2], id: "pick-2", featured: true },
             ];
-            window.history.replaceState({}, "", "/?scope=mine");
-            expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id)).toEqual(["mine-1"]);
-            expect(renderHook(() => useGallery(photos, null)).result.current.filteredPhotos.length, "未ログインで空にしている").toBe(3);
+            window.history.replaceState({}, "", "/?scope=featured");
+            expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id).sort())
+                .toEqual(["pick-1", "pick-2"]);
+            // **本人の id に依らない。** ここを `ownUserId` で分岐させると、
+            // 未ログインの人に「おすすめ」が出なくなる
+            expect(renderHook(() => useGallery(photos, null)).result.current.filteredPhotos.map((p) => p.id).sort())
+                .toEqual(["pick-1", "pick-2"]);
+        });
+
+        it("おすすめ: 印が `true` の写真だけ（truthy では拾わない）", () => {
+            // 壊れた値を通す（本番のデータは何でもありうる）。型の穴は
+            // **配列ごと**開ける——要素に `@ts-expect-error` を置くと、
+            // エラーが出るのは呼び出し側なので「使われていない」と言われる
+            const photos = [
+                { ...mockPhotos[0], id: "pick", featured: true },
+                { ...mockPhotos[1], id: "truthy", featured: "yes" },
+            ] as unknown as Photo[];
+            window.history.replaceState({}, "", "/?scope=featured");
+            expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id))
+                .toEqual(["pick"]);
         });
 
         // **開けるまで `?photo=` を落とさない。**

@@ -168,7 +168,7 @@ describe("共同アルバムの招待", () => {
 // **フッターから全ページにリンクを出している**ので、外さないと必ず
 // 取りに来られる。`/favorites` と同じ扱いに揃える。
 describe("本人だけの一覧", () => {
-    it.each(["/favorites", "/saved-spots"])("%s をクロール対象から外す", async (path) => {
+    it.each(["/favorites", "/saves", "/saved-spots"])("%s をクロール対象から外す", async (path) => {
         const r = await robotsFor("prod");
         const disallow = [(r.rules as { disallow?: string | string[] }).disallow ?? []].flat();
         expect(disallow, `${path} がクロールされる`).toContain(path);
