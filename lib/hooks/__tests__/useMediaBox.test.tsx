@@ -25,7 +25,9 @@ function Harness({ kind }: { kind: "img" | "video" }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img ref={attach} data-testid="media" alt="" />
                 : <video ref={attach} data-testid="media" />}
-            <span data-testid="box">{box ? `${box.width}x${box.height}` : "null"}</span>
+            {/* **位置まで出す。** 大きさだけ見ていると、囲みからの相対に
+                する引き算（`a.left - b.left`）を丸ごと落としても緑のままだった */}
+            <span data-testid="box">{box ? `${box.left},${box.top} ${box.width}x${box.height}` : "null"}</span>
         </div>
     );
 }
@@ -76,6 +78,7 @@ describe("useMediaBox", () => {
         vi.spyOn(media, "getBoundingClientRect").mockReturnValue(
             { left: 10, top: 120, width: 300, height: 400, right: 310, bottom: 520, x: 10, y: 120, toJSON: () => ({}) } as DOMRect);
         act(() => { fire?.(); });
-        expect(getByTestId("box").textContent).toBe("300x400");
+        // 囲みは (10,20)・絵は (10,120) なので、相対では (0,100)。
+        expect(getByTestId("box").textContent).toBe("0,100 300x400");
     });
 });
