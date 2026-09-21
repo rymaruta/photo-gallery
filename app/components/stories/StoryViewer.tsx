@@ -1127,8 +1127,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 </div>
             </div>
 
-            {/* 閉じる / ミュート切り替え */}
-            <div className="absolute top-3 right-2 z-20 flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
+            {/* 閉じる / ミュート切り替え。**置いた文字・投票（z-25）より上**——
+                投稿者が右上に置いた投票の `<button>` に閉じるが覆われないように */}
+            <div className="absolute top-3 right-2 z-[26] flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
                 {(isVideo || item.song) && (
                     <button
                         onClick={() => setMuted((m) => !m)}
@@ -1316,8 +1317,17 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {voteError && (
                 <p
-                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-rose-300"
-                    style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+                    className="absolute inset-x-4 z-20 text-center text-[11px] text-rose-300"
+                    // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
+                    // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
+                    // ——あちらは自分のストーリー（帯が出ない）限定の文言。
+                    // 票を入れられる条件は帯が出る条件とほぼ同じなので、
+                    // キャプションと同じぶん持ち上げる
+                    style={{
+                        bottom: showReplyBar
+                            ? "calc(7.5rem + 8px + env(safe-area-inset-bottom, 0px))"
+                            : "calc(4rem + env(safe-area-inset-bottom, 0px))",
+                    }}
                     role="alert"
                 >{voteError}</p>
             )}

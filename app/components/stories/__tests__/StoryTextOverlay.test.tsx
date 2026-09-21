@@ -490,12 +490,14 @@ describe("StoryTextOverlay: 投票に票を入れる", () => {
         expect(onVote).toHaveBeenLastCalledWith(0, "a");
     });
 
-    // 親は `pointer-events-none`。押せる投票だけ受ける
-    it("押せる投票の箱は pointer-events を受ける（見る側の文字は受けない）", () => {
+    // 親は `pointer-events-none`。**押せる `<button>` だけ**受ける——箱ごと受けると、
+    // 問いの部分が右上の閉じるボタンなどを覆ったときにそちらが押せなくなる
+    it("票を入れる button だけが pointer-events を受ける（箱と文字は受けない）", () => {
         const { container } = render(<StoryTextOverlay texts={[t({ text: "朝" }), vote()]} box={box} onVote={vi.fn()} />);
         const ps = [...container.querySelectorAll("p")];
         expect(ps[0].className, "見る側の文字が押せる形になっている").not.toContain("pointer-events-auto");
-        expect(ps[1].className, "投票が親の pointer-events-none に埋もれている").toContain("pointer-events-auto");
+        expect(ps[1].className, "投票の箱ごと受けている").not.toContain("pointer-events-auto");
+        for (const b of buttons()) expect(b.className, "ボタンが親の pointer-events-none に埋もれている").toContain("pointer-events-auto");
     });
 
     it("入れてある（myVote）なら押せず、自分の票に印が付く", () => {
@@ -505,17 +507,33 @@ describe("StoryTextOverlay: 投票に票を入れる", () => {
         expect(buttons()).toHaveLength(0);
         expect((container.querySelector("p") as HTMLElement).className).not.toContain("pointer-events-auto");
         const mine = container.querySelector('[aria-current="true"]') as HTMLElement;
-        expect(mine.textContent).toBe("✓ はい 25%");
+        // 見える文字は「✓ はい 25%」、票数は隠し文字（読み上げだけ）
+        expect(mine.textContent).toBe("✓ はい 25%（1票）");
+        expect(mine.querySelector(".sr-only")?.textContent).toBe("（1票）");
     });
 
     it("数が在るときだけ割合を出す（読み上げには票数も）", () => {
         const { container, rerender } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 2, b: 1 } }} />);
         expect(container.textContent).toContain("はい 67%");
         expect(container.textContent).toContain("いいえ 33%");
-        const pills = [...container.querySelectorAll("[data-story-vote] span span")];
-        expect(pills.map((e) => e.getAttribute("aria-label"))).toEqual(["はい: 67%（2票）", "いいえ: 33%（1票）"]);
+        // 票数は隠し文字で（role の無い span の aria-label は読まれない）
+        expect([...container.querySelectorAll(".sr-only")].map((e) => e.textContent)).toEqual(["（2票）", "（1票）"]);
         rerender(<StoryTextOverlay texts={[vote()]} box={box} />);
         expect(container.textContent, "数が無いのに割合を出している").not.toMatch(/%/);
+    });
+
+    // **b は 100 − a**。両方を丸めると 1対7 が 13%＋88% になる
+    it("割合の和は必ず 100", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 1, b: 7 } }} />);
+        expect(container.textContent).toContain("はい 13%");
+        expect(container.textContent).toContain("いいえ 87%");
+    });
+
+    // 0%/0% は引き分けに読める
+    it("数が見えて 0 票なら、割合ではなく「まだ票はありません」", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 0, b: 0 } }} />);
+        expect(container.textContent).not.toMatch(/%/);
+        expect(container.textContent).toContain("まだ票はありません");
     });
 
     it("送っている間は押せない", () => {

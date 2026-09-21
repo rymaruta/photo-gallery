@@ -22,7 +22,10 @@ vi.mock("../../../../lib/utils/api", () => ({
     authenticatedFetch: vi.fn(),
     publicFetch: vi.fn(),
     userPublicFetch: vi.fn(async () => ({ ok: true, json: async () => ({ followers: 0, following: 0 }) })),
-    readApiError: async (_res: unknown, fallback: string) => fallback,
+    // サーバーの文言を出す（常に fallback を返すモックだと、応答を無視する変異が通る）
+    readApiError: async (res: { json?: () => Promise<{ error?: string }> }, fallback: string) => {
+        try { return (await res.json?.())?.error || fallback; } catch { return fallback; }
+    },
     sessionErrorMessage: () => null,
 }));
 
@@ -98,7 +101,9 @@ describe("投票スタンプ（見る側）", () => {
                 ? { ok: true, json: async () => ({ success: true, myVote: "b", counts: { a: 3, b: 1 } }) }
                 : { ok: true, json: async () => ({}) }
         ));
-        view(othersGroups());
+        // 一覧は未投票者に `vote: {}` を運ぶ（`getStories`）。**空でも押せる**——
+        // `{}` は truthy なので、`item.vote ?? votes[id]` の順に書くと入れた票が効かない
+        view(othersGroups({ vote: {} }));
         expect(card(), "投票のカードが出ていない").not.toBeNull();
         expect(voteButtons()).toHaveLength(2);
         await userEvent.click(screen.getByRole("button", { name: "「いいえ」に投票" }));
@@ -129,11 +134,11 @@ describe("投票スタンプ（見る側）", () => {
         await settle();
     });
 
-    it("自分のストーリーでは押せず、数が見える（0票でも）", async () => {
+    it("自分のストーリーでは押せず、0 票なら「まだ票はありません」", async () => {
         view(ownGroups({ vote: { counts: { a: 0, b: 0 } } }));
         expect(voteButtons(), "自分の投票に押せる").toHaveLength(0);
-        expect(card()!.textContent).toContain("はい 0%");
-        expect(card()!.textContent).toContain("いいえ 0%");
+        expect(card()!.textContent).toContain("まだ票はありません");
+        expect(card()!.textContent).not.toMatch(/%/);
         await settle();
     });
 
@@ -154,29 +159,68 @@ describe("投票スタンプ（見る側）", () => {
         ));
         view(othersGroups());
         await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
-        expect(await screen.findByRole("alert")).toHaveTextContent("投票を送れませんでした");
+        const alert = await screen.findByRole("alert");
+        expect(alert, "サーバーの文言を出していない").toHaveTextContent("送信に失敗しました");
+        // **返信の帯（bottom-0・高さ約 7.5rem）の上に出す**——`keepError` の位置
+        // （bottom-16）だと帯の裏に隠れ、押したのに何も起きないように見える
+        expect(alert.style.bottom, "返信の帯の裏に隠れる位置").toContain("7.5rem");
         expect(voteButtons(), "失敗したのに押せなくなっている").toHaveLength(2);
     });
 
-    // 送っている間は二度押しできず、自動送りも止まる
-    it("送っている間は押せない（二度押ししない）", async () => {
-        let release: (v: unknown) => void = () => { /* set below */ };
+    it("応答が来ない（ネットワーク）なら既定の文言", async () => {
+        mockUserFetch.mockImplementation(async (url: string) => {
+            if (String(url).includes("/vote")) throw new Error("offline");
+            return { ok: true, json: async () => ({}) };
+        });
+        view(othersGroups());
+        await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        expect(await screen.findByRole("alert")).toHaveTextContent("投票を送れませんでした");
+    });
+
+    /**
+     * **応答を待つ間に手で次へ進んでも、票は押した時点のストーリーに付く。**
+     * 送り先も書き先も `target`（押した時点）で、表示中のものではない。
+     * 表示中に書くと、s1 で押した票が s2 に付き、s2 の2択が消える
+     */
+    const twoStories = (): StoryGroup[] => [{
+        userId: "friend", displayName: "友人",
+        items: [base("friend"), base("friend", { id: "s2", src: "https://cdn/x/b.jpg" })],
+    }];
+    const hold = () => {
+        let release!: (v: unknown) => void;
         mockUserFetch.mockImplementation((url: string) => (
             String(url).includes("/vote")
                 ? new Promise((r) => { release = r; })
                 : Promise.resolve({ ok: true, json: async () => ({}) })
         ));
-        view(othersGroups());
+        return () => release;
+    };
+
+    it("送信中に次へ進んでも、票は押したストーリーに付く（次のストーリーの2択は残る）", async () => {
+        const release = hold();
+        view(twoStories());
         await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
         await waitFor(() => expect(votePosts()).toHaveLength(1));
-        for (const b of voteButtons()) expect(b, "送っている間に押せる").toBeDisabled();
-        // 応答を待っている間は自動送りも止める（`frozen`）——進んで次の
-        // ストーリーへ行くと、どれに入れたのか分からなくなる
-        const playState = () => (document.querySelector(".story-progress-fill") as HTMLElement | null)?.style.animationPlayState;
-        expect(playState(), "応答を待っている間も進んでいる").toBe("paused");
-        release({ ok: true, json: async () => ({ success: true, myVote: "a", counts: { a: 1, b: 0 } }) });
-        await waitFor(() => expect(voteButtons()).toHaveLength(0));
-        await waitFor(() => expect(playState(), "入れ終わったのに止まったまま").toBe("running"));
+        fireEvent.keyDown(document, { key: "ArrowRight" });   // 手で次へ（s2）
+        release()({ ok: true, json: async () => ({ success: true, myVote: "a", counts: { a: 1, b: 0 } }) });
+        await new Promise((r) => setTimeout(r, 30));
+        expect(voteButtons(), "s1 の票が s2 に付いた（s2 の2択が消えた）").toHaveLength(2);
+        expect(card()!.textContent, "s1 の数が s2 に出ている").not.toMatch(/%/);
+        fireEvent.keyDown(document, { key: "ArrowLeft" });    // s1 へ戻る
+        await waitFor(() => expect(voteButtons(), "s1 に入れた票が効いていない").toHaveLength(0));
+        expect(card()!.textContent).toContain("✓ はい 100%");
+    });
+
+    it("送信中に次へ進んで失敗しても、次のストーリーの画面に文言を出さない", async () => {
+        const release = hold();
+        view(twoStories());
+        await userEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        await waitFor(() => expect(votePosts()).toHaveLength(1));
+        fireEvent.keyDown(document, { key: "ArrowRight" });
+        release()({ ok: false, status: 500, json: async () => ({ error: "送信に失敗しました" }) });
+        await new Promise((r) => setTimeout(r, 30));
+        expect(screen.queryByRole("alert"), "送っていないストーリーの画面に失敗の文言が出ている").toBeNull();
+        expect(voteButtons()).toHaveLength(2);
     });
 
     // 投票スタンプの無いストーリーには何も出ない（回帰）

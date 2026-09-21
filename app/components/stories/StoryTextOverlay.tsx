@@ -176,9 +176,10 @@ export default function StoryTextOverlay({
                             },
                         } : {})}
                         // 見る側は触れない（`pointer-events-none` の親のまま）。
-                        // **票を入れられる投票だけ**は受ける——下の左右のタップ領域
-                        // （z-10）より上（Z=25）に在るので、押しても進まない
-                        className={`absolute whitespace-pre-wrap break-words text-center ${editable ? "pointer-events-auto cursor-move focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" : canVote ? "pointer-events-auto" : ""}`}
+                        // 票を入れる `<button>` だけが受ける（下で `pointer-events-auto`）
+                        // ——箱ごと受けると、問いの部分が右上の閉じるボタンなどを
+                        // 覆ったときにそちらが押せなくなる
+                        className={`absolute whitespace-pre-wrap break-words text-center ${editable ? "pointer-events-auto cursor-move focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" : ""}`}
                         style={{
                             left: `${t.x * 100}%`,
                             top: `${t.y * 100}%`,
@@ -242,8 +243,12 @@ export default function StoryTextOverlay({
                                                 const counts = voteState?.counts;
                                                 const total = counts ? counts.a + counts.b : 0;
                                                 const n = counts ? counts[choice] : 0;
-                                                // 数が見えるときだけ割合。0票は 0%
-                                                const pct = counts ? (total === 0 ? 0 : Math.round((n / total) * 100)) : null;
+                                                // 数が見えて、票が1つでもあるときだけ割合。
+                                                // **b は 100 − a**（両方を丸めると 13%＋88% のように
+                                                // 和が 101 になる組がある）。0票は割合を出さない
+                                                // （0%/0% は引き分けに読める。下に「まだ票はありません」）
+                                                const pctA = total > 0 && counts ? Math.round((counts.a / total) * 100) : null;
+                                                const pct = pctA === null ? null : choice === "a" ? pctA : 100 - pctA;
                                                 const mine = voteState?.myVote === choice;
                                                 const pill: React.CSSProperties = {
                                                     padding: "0.35em 0.6em",
@@ -263,7 +268,9 @@ export default function StoryTextOverlay({
                                                         disabled={voting}
                                                         onClick={() => onVote!(i, choice)}
                                                         aria-label={locale === "en" ? `Vote "${opt}"` : `「${opt}」に投票`}
-                                                        className="flex-1 rounded-full text-center disabled:opacity-60"
+                                                        // 親（この段全体）は `pointer-events-none`。**ボタンだけ**受ける
+                                                        // ——左右のタップ領域（z-10）より上（Z=25）なので押しても進まない
+                                                        className="pointer-events-auto flex-1 rounded-full text-center disabled:opacity-60"
                                                         style={{ ...pill, font: "inherit", color: "inherit", cursor: "pointer" }}
                                                     >
                                                         {opt}
@@ -274,14 +281,23 @@ export default function StoryTextOverlay({
                                                         className="flex-1 rounded-full text-center"
                                                         style={pill}
                                                         {...(mine ? { "aria-current": "true" as const } : {})}
-                                                        // 読み上げには票の数も（画面は割合だけ）
-                                                        {...(counts ? { "aria-label": locale === "en" ? `${opt}: ${pct}% (${n})` : `${opt}: ${pct}%（${n}票）` } : {})}
                                                     >
                                                         {mine ? "✓ " : ""}{label}
+                                                        {/* 読み上げには票の数も（画面は割合だけ）。
+                                                            role の無い span の aria-label は読まれないので、隠し文字で */}
+                                                        {pct !== null && (
+                                                            <span className="sr-only">{locale === "en" ? ` (${n} votes)` : `（${n}票）`}</span>
+                                                        )}
                                                     </span>
                                                 );
                                             })}
                                         </span>
+                                        {/* 数が見えるのに 0 票——0%/0% は引き分けに読めるので言葉で */}
+                                        {voteState?.counts && voteState.counts.a + voteState.counts.b === 0 && (
+                                            <span className="block" style={{ fontSize: "0.8em", marginTop: "0.4em", opacity: 0.7 }}>
+                                                {locale === "en" ? "No votes yet" : "まだ票はありません"}
+                                            </span>
+                                        )}
                                     </span>
                                 )
                                 : name}
