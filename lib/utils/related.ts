@@ -240,7 +240,12 @@ const LINK_FIELDS = ["id", "title", "dominantColor"] as const;
  *   `category`   … hover で出す分類名
  *   `alt` / `location` … `photoAltText` が読む（題＋撮影地で alt を組む）
  */
-const GRID_FIELDS = ["focalPoint", "category", "alt", "location"] as const;
+const GRID_FIELDS = ["focalPoint", "category", "alt", "location",
+    // **1投稿に複数枚の「1/N」。** 落とすと集約ページと関連写真の帯でだけ
+    // 枚数が出ない（画面は正しく出るので気づけない——`Thumb` の props を
+    // 絞りすぎて水和後にサムネが消えた `24f9df2c` と同じ形）。
+    // **これは一覧が読む項目**なので `GRID_FIELDS` 側に置く
+    "extraImages"] as const;
 
 function pick(p: Photo, keys: readonly string[]): Photo {
     const out: Record<string, unknown> = {};
