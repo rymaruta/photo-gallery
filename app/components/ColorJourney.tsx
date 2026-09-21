@@ -96,12 +96,11 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
         // 見出しは h2 でよい（独立して上に置いていた頃は h2 → h1 の順に
         // なるので region の名前だけにしていた）
         <section style={STYLE.section} aria-labelledby="color-journey-heading">
-            <h2 id="color-journey-heading" style={STYLE.heading}>
-                {locale === "en" ? "Browse by color" : "色でさがす"}
-            </h2>
-            <p className="text-white/50" style={STYLE.lead}>
-                {locale === "en" ? "Within the photos shown below" : "いま出ている写真の中から、色で辿る"}
-            </p>
+            {/* 文言は日本語だけ。チップの名前（`COLOR_BUCKETS.label`）が日本語しか
+                持たないので、見出しだけ英語にすると英語の見出しの下に「青」「黒」が
+                並ぶ（レビューで指摘）。英語化するなら表ごと */}
+            <h2 id="color-journey-heading" style={STYLE.heading}>色でさがす</h2>
+            <p className="text-white/50" style={STYLE.lead}>いま出ている写真の中から、色で辿る</p>
 
             {/* 1行の横スクロール。`FilterBar` のカテゴリ（単一選択）と同じ形 */}
             <div className="flex overflow-x-auto no-scrollbar -mx-1 px-1" style={STYLE.chipRow}>
@@ -148,6 +147,13 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                 })}
             </div>
 
+            {/* **承知のうえで残していること（レビューで指摘）:**
+                - ここから開いたモーダルの前後送りは、色の部分集合ではなく
+                  **下の一覧（`filteredPhotos`）全体**を回る。`FeaturedSections` から
+                  開いたときと同じ形で、部分集合ごとにモーダルを持つ作りにはしない
+                - 選んだ色の写真は下のグリッドにも在るので、サムネが2回描かれる
+                  （先頭8枚は優先読み込みも2回）。色を押した人の操作に律速されるので
+                  初期表示は重くならない */}
             {current ? (
                 <div style={STYLE.grid}>
                     <GalleryGrid

@@ -245,7 +245,7 @@ owner の指示は Photo Quest → Color Journey → Moment Match → Photo Rela
 | | 実データでの発火 | 判断 |
 |---|---|---|
 | Photo Quest | テーマ表示は投稿者の人数に依らず出る | **owner が「いらない」**（9/21）。作りかけは `claude/photo-quest-parked` に退避・PR には入れない |
-| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/search/ColorJourney.tsx`） |
+| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/components/ColorJourney.tsx`） |
 | Moment Match | **0件**——撮影日を持つ17枚のうち、2人以上が同じ日を持つ日は **0日** | **作らない**。人が増えて再測定するまで保留 |
 | Photo Relay | 担い手が **2人**（実質1人） | **作らない**。同上 |
 

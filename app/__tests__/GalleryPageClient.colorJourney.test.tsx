@@ -21,7 +21,9 @@ const mockShowToast = vi.hoisted(() => vi.fn());
 const usePhotosCalls = vi.hoisted(() => ({ n: 0 }));
 const grids = vi.hoisted(() => ({ list: [] as { count: number; open?: (id: string) => boolean }[] }));
 
-vi.mock("../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, userId: null, loading: false }) }));
+// ログイン状態はテストごとに切り替える（既定は未ログイン）
+const authState = vi.hoisted(() => ({ current: { isAuthenticated: false, userId: null as string | null, loading: false } }));
+vi.mock("../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: { ...ja, site: { title: "Gallery" } } }),
 }));
@@ -39,9 +41,10 @@ vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
 vi.mock("../components/TimelineCard", () => ({ default: () => <div data-testid="card" /> }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
-// 青3枚（うち landscape 2枚）・黒2枚（architecture）。全部 2026 年で並びは気にしない
+// 青3枚（うち landscape 2枚）・黒2枚（architecture）。全部 2026 年で並びは気にしない。
+// `b1` だけ「おすすめ」——ログイン中の既定が「おすすめ」へ倒れる条件を作る
 const PHOTOS = [
-    { id: "b1", src: "https://cdn/b1.jpg", title: "青1", category: "landscape", tags: [], createdAt: "2026-01-01", dominantColor: "#0000ff" },
+    { id: "b1", src: "https://cdn/b1.jpg", title: "青1", category: "landscape", tags: [], createdAt: "2026-01-01", dominantColor: "#0000ff", featured: true },
     { id: "b2", src: "https://cdn/b2.jpg", title: "青2", category: "landscape", tags: [], createdAt: "2026-01-02", dominantColor: "#0000ee" },
     { id: "b3", src: "https://cdn/b3.jpg", title: "青3", category: "travel", tags: [], createdAt: "2026-01-03", dominantColor: "#1133dd" },
     { id: "k1", src: "https://cdn/k1.jpg", title: "黒1", category: "architecture", tags: [], createdAt: "2026-01-04", dominantColor: "#000000" },
@@ -52,11 +55,15 @@ vi.mock("../../lib/hooks/usePhotos", () => ({
 }));
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
+// `/search` のページそのもの。**写真の取得が1回**であることは、このページを
+// 描かないと見られない——2回飛んでいた頃の2つ目は `page.tsx` 側に居た
+const SearchPage = (await import("../search/page")).default;
 
 beforeEach(() => {
     mockShowToast.mockReset();
     usePhotosCalls.n = 0;
     grids.list = [];
+    authState.current = { isAuthenticated: false, userId: null, loading: false };
     window.history.replaceState({}, "", "/search");
 });
 
@@ -69,13 +76,48 @@ describe("色でさがす の配線（さがす の面）", () => {
         expect(screen.queryByRole("heading", { level: 2, name: "色でさがす" }), "ホームに色の節が出ている").toBeNull();
     });
 
-    it("写真の取得は1回（部品が自分で取りに行っていない）", () => {
+    /**
+     * **`/search` のページを描いて数える。** 最初は `GalleryPageClient` だけを
+     * 描いて `<= 2` と書いていたが、2つ目の `usePhotos()` は `page.tsx` が置く
+     * `ColorJourney` に居たので、**その形では一度も落ちない**（レビューで指摘）。
+     * 未ログイン・`?photo=` 無しなら、マウントで状態を変える effect は無く
+     * 描画は1回＝フックの呼び出しも1回。2つ動いていた頃は 2。
+     */
+    it("写真の取得は1回（ページの上にもう1つ部品が居ない）", () => {
+        render(<SearchPage />);
+        expect(screen.getByRole("heading", { level: 2, name: "色でさがす" })).toBeTruthy();
+        expect(usePhotosCalls.n, "usePhotos を呼ぶ部品が2つある").toBe(1);
+    });
+
+    /**
+     * **「さがす」ではログイン中の既定を「おすすめ」へ倒さない。** タブは
+     * ホームにしか無いので、倒すと戻す手段の無い絞り込みになる——結果の件数・
+     * グリッド・色の内訳が全部おすすめだけになり、FilterBar には何も絞って
+     * いないように見える（レビューで指摘・`b1` だけがおすすめ）。
+     */
+    it("ログイン中でも、さがす では おすすめ へ倒さない（色の内訳も全部で数える）", async () => {
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
         render(<GalleryPageClient surface="search" />);
-        // React は描画を何度か走らせるので「呼び出し回数」ではなく
-        // **フックを持つ部品が1つ**であることを見る——2つ動いていた頃は
-        // 描画1回あたり2回ずつ呼ばれた。StrictMode は無いので偶数倍にならない
-        expect(usePhotosCalls.n, "usePhotos を呼ぶ部品が増えている").toBeLessThanOrEqual(2);
-        expect(usePhotosCalls.n).toBeGreaterThan(0);
+        await new Promise((r) => setTimeout(r, 30));   // 既定を決める effect が走る猶予
+        expect(new URLSearchParams(window.location.search).get("scope"), "おすすめへ倒れている").toBeNull();
+        expect(screen.getByRole("button", { name: "青 (3)" }), "おすすめ1枚だけで数えている").toBeTruthy();
+        expect(screen.getByRole("button", { name: "黒 (2)" })).toBeTruthy();
+    });
+
+    /**
+     * **リセットで `scope` も戻す。** `?scope=following` で来ると一覧が空になり
+     * 色の節も消える。「さがす」にはタブが無いので、リセットで外せないと
+     * 押しても何も変わらないボタンになる（レビューで指摘）。
+     */
+    it("フィルターをリセット で、URL から来た scope も外れて色の節が戻る", async () => {
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
+        window.history.replaceState({}, "", "/search?scope=following");
+        render(<GalleryPageClient surface="search" />);
+        await new Promise((r) => setTimeout(r, 30));
+        expect(screen.queryByRole("heading", { level: 2, name: "色でさがす" }), "空のはずの一覧に色の節が出ている").toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "フィルターをリセット" }));
+        expect(screen.getByRole("heading", { level: 2, name: "色でさがす" }), "リセットしても一覧が空のまま").toBeTruthy();
+        expect(screen.getByRole("button", { name: "青 (3)" })).toBeTruthy();
     });
 
     it("色のグリッドも下のグリッドも、同じ openById で開く", () => {
