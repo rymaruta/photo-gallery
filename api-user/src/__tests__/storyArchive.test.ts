@@ -56,10 +56,10 @@ vi.mock("../notify", async (importActual) => ({
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
 
-const { createStory, cleanupExpiredStories, getStoryViewers } = await import("../stories");
+const { createStory, cleanupExpiredStories, getStoryViewers, viewStory } = await import("../stories");
 const { getStoryArchive } = await import("../storyArchive");
 const { keepStory } = await import("../storyKeep");
-const { getStoryReplies, storyRepliesId } = await import("../storyReplies");
+const { getStoryReplies, postStoryReply, storyRepliesId } = await import("../storyReplies");
 const { isStoryExpired } = await import("../storyExpiry");
 
 type Result = { statusCode: number; headers?: Record<string, string>; body: string };
@@ -169,8 +169,10 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         // 条件: 印が立っていて、まだ棚へ移していない行だけ——**Scan の
         // 絞り込みと同じ物差し**（ずれると、絞り込みだけが拾う行が毎時
         // 条件不成立で永久に収束しない）。鍵だけの行を作らない見張りも要る
+        // `attribute_exists(id)` は要らない——行が無ければ `#a = :t` が必ず外れる
+        // （書き足すと見張りが二重になる）
         expect(up[0].input.ConditionExpression)
-            .toBe("attribute_exists(id) AND #a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
+            .toBe("#a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
         expectNoBareArchive(up[0].input, "ConditionExpression", "UpdateExpression");
         expect((up[0].input.ExpressionAttributeValues as Record<string, unknown>)[":t"]).toBe(true);
         expect((up[0].input.Key as { id: string }).id).toBe("s-keep");
@@ -207,21 +209,25 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(s3Keys()).toEqual([]);
     });
 
-    it("expiresAt を持たない行は、返信も消さず失敗として断る（毎時消して失敗し続ける形を作らない）", async () => {
+    it("expiresAt を持たない行は、返信も消さずに飛ばす（error では鳴らさない）", async () => {
         // ここに来る行は必ず持つ（GSI のソートキー／Scan の絞り込み）が、
         // 別の口から流されても壊れないように。`archivedAt` に期限を写すので、
-        // 無いと更新は ValidationException になる
+        // 無いと更新は ValidationException になる。直す手が無い行を毎時
+        // error で鳴らすと本物の失敗が埋もれる
         const noExp = Object.fromEntries(Object.entries(KEEP).filter(([k]) => k !== "expiresAt"));
         rows([noExp]);
         const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
         try {
             const r = await cleanupExpiredStories();
             expect(r).toEqual({ deleted: 0, archived: 0 });
-            expect(deletedIds(), "返信を消してから失敗している").toEqual([]);
+            expect(deletedIds(), "返信を消してから飛ばしている").toEqual([]);
             expect(ofKind("UpdateCommand")).toHaveLength(0);
-            expect(err.mock.calls.some((c) => String(c[0]).includes("no expiresAt")), "理由を残していない").toBe(true);
+            expect(warn.mock.calls.some((c) => String(c[0]).includes("no expiresAt")), "理由を残していない").toBe(true);
+            expect(err.mock.calls.some((c) => String(c[0]).includes("s-keep")), "失敗として鳴らしている").toBe(false);
         } finally {
             err.mockRestore();
+            warn.mockRestore();
         }
     });
 
@@ -294,28 +300,11 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(line).toContain("re-read failed");
     });
 
-    it("Scan の経路は棚へ移した行（storyFeed 無し）を拾わない（毎時撫で直さない）", async () => {
-        // GSI が無い環境（ValidationException）で Scan に落ちる
-        mockDdbSend.mockImplementation((cmd: Cmd) => {
-            if (cmd.constructor.name === "QueryCommand") {
-                return Promise.reject(Object.assign(new Error("no index"), { name: "ValidationException" }));
-            }
-            return Promise.resolve({ Items: [] });
-        });
-        await cleanupExpiredStories();
-        const scan = ofKind("ScanCommand");
-        expect(scan).toHaveLength(1);
-        const filter = String(scan[0].input.FilterExpression);
-        // 除くのは**棚へ移した行**（storyFeed 無し ＋ archivedAt あり）だけ。
-        //   - storyFeed が在る → 拾う（刻まれたのに残る半端な行も直せる）
-        //   - storyFeed が無くても archivedAt が無い → 拾う（索引が生える前の
-        //     古い行。外すと GSI の無い環境で永久に消えない）
-        // **括弧ごと見る。** DynamoDB は AND が OR より先に結びつくので、
-        // 括弧が落ちると `(... AND storyFeed) OR archivedAt 無し`＝**表の
-        // 写真・コメント・印の行が全部「期限切れ」として返り、削除の経路に
-        // 流れる**
-        expect(filter).toContain("AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
-    });
+    // Scan の経路（GSI が無い環境）の絞り込みは `stories.test.ts` の
+    // 「索引が無い環境のフォールバックでも expiresAt <= now を引く」が
+    // **式全体を完全一致**で固定している（括弧が落ちると AND が先に結び、
+    // 表の写真・コメント・印の行が全部「期限切れ」として削除の経路に流れる）。
+    // ここに弱い写しを重ねない（見張りは1本ずつ）
 });
 
 // ────────────────────────────────
@@ -490,5 +479,46 @@ describe("期限切れの閲覧者・返信は本人にも出さない（掃除�
         world(FUTURE);
         const r = await invoke(getStoryReplies, req);
         expect(JSON.parse(r.body).count).toBe(1);
+    });
+});
+
+// ────────────────────────────────
+// 6. 棚へ移った行に、閲覧者と返信の数を書き戻さない
+// ────────────────────────────────
+describe("棚へ移った行に書き戻さない（期限を読んでから書くまでの競合）", () => {
+    // 期限を見てから書くまでの間（表示名の往復など）に掃除が棚へ移すと、
+    // `viewers` を外した行に閲覧者が、消した返信の数が書き戻る——行はもう
+    // GSI に無いので掃除は二度と来ない。**書き込みの条件で断つ**
+    const OTHER = "22222222-2222-4222-8222-222222222222";
+    const live = { id: "story-1", story: true, userId: OTHER, src: "https://cdn.test/s.jpg", expiresAt: FUTURE };
+    const world = () => {
+        mockDdbSend.mockImplementation((cmd: Cmd) => {
+            const id = String((cmd.input.Key as { id?: string } | undefined)?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                if (id === "story-1") return Promise.resolve({ Item: live });
+                if (id === storyRepliesId("story-1")) return Promise.resolve({ Item: { items: [] } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({});
+        });
+    };
+    const req = (body?: unknown) => ev(ME, { pathParameters: { id: "story-1" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
+    it("viewStory の2つの更新は archivedAt の無い行にだけ書く", async () => {
+        world();
+        expect((await invoke(viewStory, req())).statusCode).toBe(200);
+        const ups = ofKind("UpdateCommand");
+        expect(ups, "閲覧者の更新が2回でない（形が変わった？）").toHaveLength(2);
+        for (const u of ups) {
+            expect(String(u.input.ConditionExpression), "棚へ移った行にも書く").toContain("attribute_not_exists(archivedAt)");
+        }
+    });
+
+    it("postStoryReply の返信の数の更新も、archivedAt の無い行にだけ書く", async () => {
+        world();
+        expect((await invoke(postStoryReply, req({ text: "いいね" }))).statusCode).toBe(200);
+        const count = ofKind("UpdateCommand").find((u) => String(u.input.UpdateExpression).includes("replyCount"));
+        expect(count, "返信の数の更新を見つけられない（形が変わった？）").toBeTruthy();
+        expect(String(count!.input.ConditionExpression), "棚へ移った行にも書く").toContain("attribute_not_exists(archivedAt)");
     });
 });

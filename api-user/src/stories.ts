@@ -516,11 +516,11 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
         // **期限切れは「もう無い」。**
         //
-        // 行が残っているのは掃除が日次だからで、一覧（`getStories`）は
+        // 行が残っているのは掃除が毎時だからで、一覧（`getStories`）は
         // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
         // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
         // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
-        // あとから増えて見え、掃除が来るまで（最大およそ24時間）続く。
+        // あとから増えて見え、掃除が来るまで（最長およそ1時間）続く。
         // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
         // 持たない古い行は有効扱い（無い理由で締め出さない）。
         if (isStoryExpired(item)) {
@@ -548,14 +548,19 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 TableName: PHOTOS_TABLE,
                 Key: { id: storyId },
                 UpdateExpression: "SET viewers = if_not_exists(viewers, :empty)",
-                ConditionExpression: "attribute_exists(id)",
+                // **棚へ移った行には書かない。** 上で期限を見てからここまでの間
+                // （表示名の往復）に掃除が棚へ移すと、`viewers` を外した行に
+                // 閲覧者が書き戻る——行はもう GSI に無いので掃除は二度と来ず、
+                // 「他人の名前は消す」が本人が消すまで破れたまま。CCF は下で
+                // 「消えた」と同じ 404 に落ちる（見えないものは記録しない）
+                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                 ExpressionAttributeValues: { ":empty": {} },
             }));
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: storyId },
                 UpdateExpression: "SET viewers.#uid = if_not_exists(viewers.#uid, :v)",
-                ConditionExpression: "attribute_exists(id)",
+                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                 ExpressionAttributeNames: { "#uid": viewerId },
                 ExpressionAttributeValues: {
                     ":v": { ...(displayName ? { displayName } : {}), at: new Date().toISOString() },
@@ -771,15 +776,16 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
  * 消えた・印が外れた。やることは無い）／`"failed"`＝書けなかった（行は
  * GSI に残るので次回また来る）
  */
-async function shelveExpiredStory(item: Record<string, unknown>): Promise<"archived" | "skipped" | "failed"> {
-    const id = String(item.id ?? "");
+async function shelveExpiredStory(id: string, item: Record<string, unknown>): Promise<"archived" | "skipped" | "failed"> {
     // **`expiresAt` を持たない行は移せない。** `archivedAt` にそれを写すので、
     // 無いと更新が ValidationException で落ちる——返信だけ毎時消して失敗し
     // 続ける形になる。ここに来る行は GSI のソートキー／Scan の絞り込みで
-    // 必ず持つが、別の口から流されても壊れないように先に断る
+    // **必ず持つ**（今の経路では来ない）が、別の口から流されても壊れない
+    // ように先に断る。**失敗ではなく「飛ばす」**——直す手が無い行を毎時
+    // error で鳴らしても、本物の失敗が埋もれるだけ
     if (typeof item.expiresAt !== "string" || !item.expiresAt) {
-        console.error(`cleanup: cannot archive ${id} (no expiresAt)`);
-        return "failed";
+        console.warn(`cleanup: archive skipped for ${id}: no expiresAt`);
+        return "skipped";
     }
     try {
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
@@ -803,12 +809,13 @@ async function shelveExpiredStory(item: Record<string, unknown>): Promise<"archi
             // 移していない（`storyFeed` が在る、または `archivedAt` が無い）。
             // 絞り込みと条件がずれると、絞り込みだけが拾う行が**毎時ここで
             // 条件不成立になり永久に収束しない**（一度そう書いた）。
-            // `attribute_exists(id)` は鍵だけの行を作らないため（`viewStory` と
-            // 同じ理由——鍵だけの行はどの掃除からも辿れない）。
+            // 鍵だけの行を作らない見張り（`attribute_exists(id)`）は要らない
+            // ——行が無ければ `archive` も無く `#a = :t` が必ず外れる。
+            // 書き足すと見張りが二重になり、片方を壊してもテストが緑になる
             // **`archive` は DynamoDB の予約語。** 素で書くと式ごと
             // ValidationException になり、**1行も棚へ移らない**（モックの
             // テストでは捕まらない。`comments.ts` の `#items` と同じ罠）
-            ConditionExpression: "attribute_exists(id) AND #a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
+            ConditionExpression: "#a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
             ExpressionAttributeNames: { "#a": "archive" },
             ExpressionAttributeValues: { ":t": true },
         }));
@@ -838,8 +845,9 @@ async function shelveExpiredStory(item: Record<string, unknown>): Promise<"archi
     }
 }
 
-// 期限切れストーリーの物理削除（毎日スケジュール実行）
+// 期限切れストーリーの物理削除（毎時スケジュール実行・`serverless.yml` の cron）。
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
+// 「アーカイブに自動保存」の印がある行だけは消さずに棚へ移す（`shelveExpiredStory`）。
 export const cleanupExpiredStories = async (): Promise<{ deleted: number; archived: number }> => {
     const expired = await queryStories("expired");
     let deleted = 0;
@@ -858,7 +866,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
         // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す**
         // （中身は `shelveExpiredStory`）。移せなかった行は GSI に残るので次回また来る
         if (item.archive === true) {
-            if (await shelveExpiredStory(item) === "archived") archived++;
+            if (await shelveExpiredStory(id, item) === "archived") archived++;
             continue;
         }
 
@@ -895,6 +903,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
     // 消せたぶんをまとめてエッジからも消す（失敗しても掃除の成否は変えない）
     await invalidateUploads(edgeKeys, "cleanupExpiredStories");
 
-    console.log(`cleanupExpiredStories: deleted ${deleted}, archived ${archived} of ${expired.length} expired stories`);
+    // `shelved` は「索引から外した数」（半端に直された行を撫でた回も含む）
+    console.log(`cleanupExpiredStories: deleted ${deleted}, shelved ${archived} of ${expired.length} expired stories`);
     return { deleted, archived };
 };

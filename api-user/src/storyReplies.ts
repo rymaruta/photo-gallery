@@ -359,7 +359,12 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
                     TableName: PHOTOS_TABLE,
                     Key: { id: storyId },
                     UpdateExpression: "SET replyCount = :n",
-                    ConditionExpression: "attribute_exists(id)",
+                    // **棚へ移った行にも書かない。** 期限を見てから追記するまでの
+                    // 間に掃除がアーカイブへ移すと、消したはずの返信の文書を上の
+                    // 追記が作り直し、ここが数を戻す。条件が外れれば下の CCF の
+                    // 枝が文書を片付ける（「行が消えた」と同じ扱いでよい——
+                    // どちらも、もう誰にも見せない行）
+                    ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                     ExpressionAttributeValues: { ":n": count },
                 }));
                 break;
