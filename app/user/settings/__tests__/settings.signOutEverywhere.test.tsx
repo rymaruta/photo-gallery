@@ -20,6 +20,7 @@ const mockUserFetch = vi.fn();
 const mockReplace = vi.hoisted(() => vi.fn());
 const mockSignOutEverywhere = vi.hoisted(() => vi.fn());
 
+// ブロック一覧は別のテスト（`BlockedUsers.test.tsx`）が見る
 vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: mockReplace }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
@@ -29,12 +30,6 @@ vi.mock("../../../../lib/utils/api", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
 }));
-vi.mock("../../../../lib/utils/image", () => ({
-    toUploadSafeFile: async (f: File) => f,
-    UnstrippableFileError: class extends Error { },
-    AVATAR_MAX_PX: 512,
-    COVER_MAX_PX: 1280,
-}));
 vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 vi.mock("../../../../lib/auth/cognito", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/auth/cognito")>()),
@@ -42,15 +37,15 @@ vi.mock("../../../../lib/auth/cognito", async (importActual) => ({
     signOutEverywhere: (...a: unknown[]) => mockSignOutEverywhere(...a),
 }));
 
-const ProfilePage = (await import("../page")).default;
+const SettingsPage = (await import("../page")).default;
 
 const ok = (data: unknown) => ({ ok: true, json: async () => data });
-const STORED = { userId: "u1", username: "tabibito", displayName: "旅人", bio: "こんにちは" };
 
+// プロフィールの読み込みはこの画面に無い（`/user/profile` に残っている）。
+// 描くだけで、いまのメールアドレスを読む `getCurrentEmail` の解決を待つ
 async function openLoaded() {
-    mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("旅人");
+    render(<SettingsPage />);
+    await screen.findByRole("heading", { name: "設定" });
 }
 
 const btn = () => screen.getByRole("button", { name: /すべての端末からログアウトする/ });
@@ -98,13 +93,18 @@ describe("すべての端末からログアウト", () => {
     });
 
     // プロフィールの保存とは別の口（パスワード・メールと同じ理由）
-    it("プロフィールの保存では呼ばない", async () => {
+    // 元はプロフィール編集と同じ画面にあり、「保存を押したら全端末から
+    // ログアウトされた」形にしていないことを見張っていた。
+    // `/user/settings` へ分けた 2026-09-21 以降は**構造的に起こりえない**
+    // ——この画面に保存ボタンが無い。判定を言い換える
+    it("プロフィールを保存する口を持たない（混ざりようが無い）", async () => {
         await openLoaded();
-        await userEvent.clear(screen.getByDisplayValue("旅人"));
-        await userEvent.type(screen.getByLabelText(/表示名/), "旅人2");
-        await userEvent.click(screen.getByRole("button", { name: /^保存する$/ }));
 
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(screen.queryByRole("button", { name: /^保存する$/ }),
+            "設定にプロフィールの保存ボタンが戻っている").toBeNull();
+        expect(screen.queryByLabelText(/表示名/),
+            "設定にプロフィールの項目が戻っている").toBeNull();
+        // 描いただけでは何も起きない（押すまで送らない・送り出さない）
         expect(mockSignOutEverywhere).not.toHaveBeenCalled();
         expect(mockReplace).not.toHaveBeenCalled();
     });

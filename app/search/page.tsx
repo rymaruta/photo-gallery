@@ -1,16 +1,28 @@
 import GalleryPageClient from "../GalleryPageClient";
+import ColorJourney from "./ColorJourney";
 
 /**
- * 写真をさがす。
+ * 写真をさがす。**絞り込み・件数・サムネのグリッド**を持つ面。
  *
- * **いまはトップと同じものを出している。** owner の新デザインでは
- * トップが1列のカードフィードになり、絞り込みと一覧はこちらが持ち場に
- * なる（`docs/redesign-2026-09.md` の ④）。**それまでの間だけ重なる**ので
- * `noindex`（レイアウト側）にしてある——同じ中身が2つの URL で索引に
- * 入るのを避けるため。
+ * トップは1列のカードフィードになったので、**サムネを並べて探すのはこちら**
+ * （`surface="search"`）。一覧で見るのと、流し読みで1枚ずつ見るのは別の
+ * 体験なので面を分けている。集約ページの404救済もここへ振る
+ * （`lib/utils/notFoundRedirect.ts`）。
  *
- * 構造化データは置かない（索引に入れないページなので機械向けの申告は要らない）。
+ * **`noindex`**（レイアウト側）。絞り込みの結果は URL の組み合わせだけ
+ * 無限にあり、どれも集約ページ（`/tag/*` など）と中身が重なる。
+ * 構造化データも置かない（索引に入れないページなので機械向けの申告は要らない）。
+ *
+ * **色でさがす（Color Journey）は別の部品として上に足す。**
+ * `GalleryPageClient` には手を入れない——あの部品はトップと共用している
+ * （`surface` で面を切り替える形）。色が1つも立たないときは
+ * `ColorJourney` が丸ごと何も描かないので、ここに置いても空の枠は出ない。
  */
 export default function SearchPage() {
-    return <GalleryPageClient />;
+    return (
+        <>
+            <ColorJourney />
+            <GalleryPageClient surface="search" />
+        </>
+    );
 }

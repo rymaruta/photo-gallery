@@ -19,6 +19,7 @@ const mockShowToast = vi.fn();
 const mockUserFetch = vi.fn();
 const mockChangePassword = vi.hoisted(() => vi.fn());
 
+// ブロック一覧は別のテスト（`BlockedUsers.test.tsx`）が見る
 vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
@@ -28,12 +29,6 @@ vi.mock("../../../../lib/utils/api", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
 }));
-vi.mock("../../../../lib/utils/image", () => ({
-    toUploadSafeFile: async (f: File) => f,
-    UnstrippableFileError: class extends Error { },
-    AVATAR_MAX_PX: 512,
-    COVER_MAX_PX: 1280,
-}));
 vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 // **実物を土台にする。** `PASSWORD_RULE_MESSAGE` を列挙から落とすと、
 // 画面に出る規則の文が undefined になって判定が空回りする
@@ -42,16 +37,16 @@ vi.mock("../../../../lib/auth/cognito", async (importActual) => ({
     changePassword: (...a: unknown[]) => mockChangePassword(...a),
 }));
 
-const ProfilePage = (await import("../page")).default;
+const SettingsPage = (await import("../page")).default;
 const { PASSWORD_RULE_MESSAGE } = await import("../../../../lib/auth/cognito");
 
 const ok = (data: unknown) => ({ ok: true, json: async () => data });
-const STORED = { userId: "u1", username: "tabibito", displayName: "旅人", bio: "こんにちは" };
 
+// プロフィールの読み込みはこの画面に無い（`/user/profile` に残っている）。
+// 描くだけで、いまのメールアドレスを読む `getCurrentEmail` の解決を待つ
 async function openLoaded() {
-    mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("旅人");
+    render(<SettingsPage />);
+    await screen.findByRole("heading", { name: "設定" });
 }
 
 const cur = () => screen.getByLabelText("いまのパスワード");
@@ -86,22 +81,22 @@ describe("ログイン中にパスワードを変える", () => {
         expect(mockChangePassword).toHaveBeenCalledWith("Old-pass1", "New-pass1");
     });
 
-    // **この差分でいちばん怖いのはここ。** プロフィールの保存に乗ると、
-    // 自己紹介を直すたびにパスワードが飛ぶ
-    it("プロフィールの保存にはパスワードを載せない", async () => {
+    // **元はここがいちばん怖かった。** プロフィール編集と同じ画面にあった
+    // ので、保存に乗ると「自己紹介を直すたびにパスワードが飛ぶ」。
+    // `/user/settings` へ分けた 2026-09-21 以降は**構造的に起こりえない**
+    // ——この画面に保存ボタンもプロフィールの PUT も無い。
+    // 判定を「混ざる余地が戻っていない」へ言い換える
+    it("プロフィールを保存する口を持たない（混ざりようが無い）", async () => {
         await openLoaded();
         await userEvent.type(cur(), "Old-pass1");
         await userEvent.type(next(), "New-pass1");
-        await userEvent.clear(screen.getByDisplayValue("旅人"));
-        await userEvent.type(screen.getByLabelText(/表示名/), "旅人2");
-        await userEvent.click(screen.getByRole("button", { name: /^保存する$/ }));
 
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
-        const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
-        expect(puts.length).toBeGreaterThan(0);
-        const body = JSON.stringify(puts.at(-1)![1].body);
-        expect(body, "プロフィールの保存にパスワードが乗っている").not.toContain("Old-pass1");
-        expect(body).not.toContain("New-pass1");
+        expect(screen.queryByRole("button", { name: /^保存する$/ }),
+            "設定にプロフィールの保存ボタンが戻っている").toBeNull();
+        expect(screen.queryByLabelText(/表示名/),
+            "設定にプロフィールの項目が戻っている").toBeNull();
+        // この画面はプロフィールを一度も書きに行かない
+        expect(mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT")).toEqual([]);
         // 逆向き: パスワードのボタンを押していないのに変えにいっていない
         expect(mockChangePassword).not.toHaveBeenCalled();
     });
