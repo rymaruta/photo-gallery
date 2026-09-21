@@ -261,7 +261,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
      * 断るのは `voteStory`。
      */
     const handleVote = useCallback(async (_index: number, choice: StoryVoteChoice) => {
-        if (!item || isOwnStory || !isAuthenticated || voting) return;
+        // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）には入れない。**
+        // サーバーは期限切れに 404 を返すので、口を出すと押しても効かない的になる
+        if (!item || isOwnStory || !isAuthenticated || voting || item.archivedAt) return;
         const target = item.id;
         setVoting(true);
         setVoteError(null);
@@ -1014,9 +1016,10 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         texts={item.texts}
                         box={mediaBox}
                         locale={locale}
-                        // 入口は他人のストーリー・ログイン済みだけ（未ログインは
-                        // 返信と同じで、押してから断る形にしない）
-                        onVote={!isOwnStory && isAuthenticated ? handleVote : undefined}
+                        // 入口は他人のストーリー・ログイン済み・アーカイブでないときだけ
+                        // （未ログインは返信と同じで、押してから断る形にしない。
+                        //  アーカイブはサーバーが期限切れとして 404 を返す）
+                        onVote={!isOwnStory && isAuthenticated && !item.archivedAt ? handleVote : undefined}
                         voteState={voteState}
                         voting={voting}
                     />

@@ -256,6 +256,16 @@ describe("投票スタンプ（見る側）", () => {
         expect(alert.className).toContain("z-[27]");
     });
 
+    // ハイライトから開いた他人のアーカイブ（`archivedAt` あり）。サーバーは期限切れに
+    // 404 を返すので、押す口を出すと「押しても効かない的」になる
+    it("アーカイブ（archivedAt あり）では2択を押せない", async () => {
+        view(othersGroups({ archive: true, archivedAt: "2026-07-05T10:00:00Z", allowReplies: false }));
+        expect(card(), "カード自体は見える").not.toBeNull();
+        expect(voteButtons(), "期限切れの投票が押せる").toHaveLength(0);
+        await settle();
+        expect(votePosts()).toHaveLength(0);
+    });
+
     // 投票スタンプの無いストーリーには何も出ない（回帰）
     it("投票スタンプが無ければ、カードも押す口も無い", async () => {
         view(othersGroups({ texts: [TEXT] }));
