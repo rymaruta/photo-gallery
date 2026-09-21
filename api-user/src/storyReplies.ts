@@ -396,6 +396,17 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // **返信は公開の議論ではない。** 所有者以外には返さない
         // （`getStoryViewers` と同じ）
         if ((story.userId ?? story.uploadedBy) !== callerId) return jsonError(403, "権限がありません");
+        // **期限が切れたら、届いた返信も読めない。** 文書を消すのは掃除
+        // （最長およそ1時間後。アーカイブへ移す行はそのときに消す）なので、
+        // その間もここで出さない。返信は相手が「24時間で消える」つもりで
+        // 送った文章——期限を過ぎて本人が読める窓を作らない
+        if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
+            return {
+                statusCode: 200,
+                headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+                body: JSON.stringify({ items: [], count: 0 }),
+            };
+        }
 
         const all = await readReplies(storyId);
 

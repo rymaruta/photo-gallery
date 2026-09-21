@@ -587,6 +587,13 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         if (item.userId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
         }
+        // **期限が切れたら、誰が見たかも消える。** 行の `viewers` を掃除が
+        // 外すのは最長およそ1時間後（アーカイブへ移すとき）なので、その間も
+        // ここで出さない。閲覧者の名前は本人のものではなく、期限とともに
+        // 消える側（返信と同じ）。アーカイブの画面から開いても 0 人
+        if (typeof item.expiresAt === "string" && item.expiresAt <= new Date().toISOString()) {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ viewers: [], count: 0 }) };
+        }
 
         // **退会した人の名前を出さない。**
         //
@@ -783,18 +790,35 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
                     Key: { id },
-                    UpdateExpression: "SET archivedAt = :now REMOVE storyFeed, viewers, replyCount",
+                    // `archivedAt` は**最初の時刻**を守る（半端に直された行——
+                    // 刻まれているのに `storyFeed` が残っている——を撫でるときに
+                    // 上書きしない）
+                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :now) REMOVE storyFeed, viewers, replyCount",
                     // **今まさに棚へ移してよい行**であることを条件にする:
-                    // 行が在り・印が立っていて・まだ移っていない。
-                    // 行が消えていたら作らない（`viewStory` と同じ理由——
-                    // 鍵だけの行はどの掃除からも辿れない）
-                    ConditionExpression: "attribute_exists(id) AND archive = :t AND attribute_not_exists(archivedAt)",
+                    // 印が立っていて、まだ GSI に載っている（＝行が在る。
+                    // `storyFeed` が在るなら行は在るので `attribute_exists(id)` は
+                    // 要らない——鍵だけの行を作る心配も同じ理由で無い）。
+                    // 「まだ移っていない」を `archivedAt` で見ないのは、刻まれて
+                    // いるのに `storyFeed` が残る行（手で直した途中など）が
+                    // **毎時ここで条件不成立になり永久に GSI に残る**のを避けるため
+                    ConditionExpression: "#a = :t AND attribute_exists(storyFeed)",
+                    // **`archive` は DynamoDB の予約語。** 素で書くと式ごと
+                    // ValidationException になり、**1行も棚へ移らない**
+                    // （モックのテストでは捕まらない。`rebuild.ts` の `#c`＝`count`・
+                    // `sync-photos` の `#at`＝`at` と同じ罠）
+                    ExpressionAttributeNames: { "#a": "archive" },
                     ExpressionAttributeValues: { ":now": new Date().toISOString(), ":t": true },
                 }));
                 archived++;
             } catch (e) {
-                // 条件が外れた＝もう棚に在るか、行が消えた。どちらもやることは無い
-                if ((e as { name?: string }).name === "ConditionalCheckFailedException") continue;
+                if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
+                    // 条件が外れた＝読んだあとに移った・消えた・印が外れた。
+                    // やることは無いが、**黙らない**——印が外れたのに行が GSI に
+                    // 残る形だと、毎時ここに来て返信だけ消して飛ぶ。追えるように
+                    // 残す（失敗ではないので error にはしない）
+                    console.warn(`cleanup: archive skipped for ${id} (condition not met)`);
+                    continue;
+                }
                 // 書けなければ次回に回す（行は GSI に残っているので、また来る）
                 console.error(`cleanup: archive failed for ${id}:`, e);
             }

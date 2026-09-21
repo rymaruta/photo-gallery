@@ -50,8 +50,11 @@ export const getStoryArchive: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 KeyConditionExpression: "userId = :u",
                 // 印があって、期限が切れている行だけ（上の docstring）。
                 // `story = true` も見るのは、将来ほかの種類の行に同じ名前の
-                // 列が生えても混ざらないように
-                FilterExpression: "story = :t AND archive = :t AND expiresAt <= :now",
+                // 列が生えても混ざらないように。
+                // **`archive` は DynamoDB の予約語**——素で書くと式ごと
+                // ValidationException で、一覧は必ず 500 になる（掃除側と同じ罠）
+                FilterExpression: "story = :t AND #a = :t AND expiresAt <= :now",
+                ExpressionAttributeNames: { "#a": "archive" },
                 ExpressionAttributeValues: { ":u": userId, ":t": true, ":now": now },
                 // 新しい順（索引のソートキーは createdAt）
                 ScanIndexForward: false,
@@ -61,12 +64,18 @@ export const getStoryArchive: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
         } while (lastKey);
 
-        // 棚へ移る前の行（掃除がまだ来ていない）は `viewers` と `replyCount` を
-        // まだ持っている。掃除が消すものは応答にも出さない——本人向けでも、
-        // 他人の名前と数は期限とともに消える側（`cleanupExpiredStories`）
+        // **棚へ移る前の行と後の行を、同じ形にして返す。** 掃除がまだ来て
+        // いない行（最長およそ1時間）は `viewers` / `replyCount` / `storyFeed` を
+        // まだ持ち、`archivedAt` を持たない。画面が2つの形を知らなくて済むよう:
+        //   - 掃除が消すものは応答にも出さない（他人の名前と数は期限とともに
+        //     消える側。`storyFeed` は索引の都合の列で、画面には要らない）
+        //   - `archivedAt` が無ければ期限の時刻で埋める（棚に在るとみなす
+        //     根拠がそれ。掃除が来れば同じ時刻の前後に刻まれる）
         for (const item of items) {
             delete item.viewers;
             delete item.replyCount;
+            delete item.storyFeed;
+            if (typeof item.archivedAt !== "string") item.archivedAt = item.expiresAt;
         }
 
         return {
