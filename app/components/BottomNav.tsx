@@ -68,19 +68,33 @@ export default function BottomNav() {
     const { locale } = useLocale();
     const barRef = React.useRef<HTMLElement | null>(null);
     const postBtnRef = React.useRef<HTMLButtonElement | null>(null);
-    const [postOpen, setPostOpen] = React.useState(false);
+    const [sheetOpen, setSheetOpen] = React.useState(false);
 
     useBottomBarHeight(barRef);
 
     // **画面が変わったら閉じる。** `PostSheet` は「常駐する場所に置く日が
     // 来たら、そちら側でパスを見比べること」と自分で書いている。ここが
     // その常駐する場所——ページの中の呼び手と違い、遷移では外れない。
-    const openedAtRef = React.useRef<string | null>(null);
-    if (postOpen && openedAtRef.current !== null && openedAtRef.current !== pathname) {
-        // 描画中に決める（effect で setState すると `react-hooks/set-state-in-effect`）
-        openedAtRef.current = null;
+    //
+    // **形は `HeaderNav` から借りる**（あちらが同じ場面を先に解いている）。
+    // とくに、あちらのコメントが名指しで戒めている形をやらないこと:
+    // `開いている = (開いたパス === 今のパス)` と書くと「画面が変わったら
+    // 閉じる」ではなく「**そのパスに居る間ずっと開いている**」になり、
+    // 閉じずに離れて戻ると**触っていないのに開き直す**
+    // （最初そう書いて、変異テストで見つけた）。
+    const [seenPath, setSeenPath] = React.useState(pathname);
+    if (seenPath !== pathname) {
+        // 描画のときに1回だけ閉じる（React が「props が変わったら state を
+        // 調整する」形として挙げているやり方。effect で setState すると連鎖描画）
+        setSeenPath(pathname);
+        if (sheetOpen) setSheetOpen(false);
     }
-    const sheetOpen = postOpen && openedAtRef.current === pathname;
+
+    // **クエリだけ変わる移動（`/users?id=A` → `?id=B`）は、ここでは聞かない。**
+    // `PostSheet` が開いている間だけ自分で `popstate` を聞いて閉じる
+    // （`PostSheet.tsx:67`）。ここにも置くと二重になり、片方を壊しても
+    // 観測できなくなる（`bf3df612`「二重の守りは1本にする」）。
+    // 一度書いて、変異テストで素通りして気づいた。
 
     const openPost = React.useCallback(() => {
         // **投稿できない人はログインへ。** タブは5つとも出したまま——
@@ -90,14 +104,10 @@ export default function BottomNav() {
             router.push(`${ROUTES.LOGIN}?next=${encodeURIComponent(ROUTES.UPLOAD)}`);
             return;
         }
-        openedAtRef.current = pathname;
-        setPostOpen(true);
-    }, [isAuthenticated, router, pathname]);
+        setSheetOpen(true);
+    }, [isAuthenticated, router]);
 
-    const closePost = React.useCallback(() => {
-        openedAtRef.current = null;
-        setPostOpen(false);
-    }, []);
+    const closePost = React.useCallback(() => setSheetOpen(false), []);
 
     const current = activeTab(pathname);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;

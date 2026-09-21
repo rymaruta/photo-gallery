@@ -77,6 +77,39 @@ describe("画面下の5つのタブ", () => {
         expect(screen.queryByRole("dialog")).toBeNull();
     });
 
+    it("離れてから戻ってきても、触っていないのに開き直さない", () => {
+        // **`開いている = (開いたパス === 今のパス)` と書くとここで落ちる。**
+        // `HeaderNav` が同じ場面で一度回帰にした形で、こちらも最初それを
+        // 書いていた（変異テストで見つけた）
+        auth.isAuthenticated = true;
+        auth.userId = "u1";
+        const { rerender } = render(<BottomNav />);
+        fireEvent.click(screen.getByRole("button", { name: "投稿" }));
+        expect(screen.getByRole("dialog")).toBeTruthy();
+
+        nav.pathname = ROUTES.MAP;
+        rerender(<BottomNav />);
+        nav.pathname = ROUTES.HOME;          // 戻る
+        rerender(<BottomNav />);
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("クエリだけ変わる移動（戻る・進む）でも閉じる", () => {
+        // `/users?id=A` → `?id=B` はパスが変わらないので、上のパス比較では拾えない。
+        // **これを持っているのは `PostSheet` の方**（あちらが開いている間だけ
+        // `popstate` を聞く）。ここには置かない——二重にすると片方を壊しても
+        // 観測できない。この1本は「繋がっていること」を見る
+        auth.isAuthenticated = true;
+        auth.userId = "u1";
+        nav.pathname = "/users";
+        render(<BottomNav />);
+        fireEvent.click(screen.getByRole("button", { name: "投稿" }));
+        expect(screen.getByRole("dialog")).toBeTruthy();
+
+        fireEvent.popState(window);
+        expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
     it("マイページの行き先は、ログインしていなければログイン", () => {
         render(<BottomNav />);
         expect(screen.getByRole("link", { name: "マイページ" }).getAttribute("href")).toBe(ROUTES.LOGIN);
