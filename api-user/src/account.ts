@@ -360,6 +360,8 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                     // 種類で分けると、`story` の判定が1か所ずれただけで
                     // 本文が置き去りになる（消す側は空振りしても害が無い）
                     if (!await ddbDelete(PHOTOS_TABLE, { id: `storyreplies#${id}` })) itemFailures++;
+                    // 票の文書（`storyvotes#<id>`）も同じ（`storyVotes.ts`）
+                    if (!await ddbDelete(PHOTOS_TABLE, { id: `storyvotes#${id}` })) itemFailures++;
                 }
                 if (itemFailures === 0) {
                     if (!await ddbDelete(PHOTOS_TABLE, { id })) itemFailures++;

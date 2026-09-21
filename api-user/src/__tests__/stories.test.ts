@@ -689,6 +689,27 @@ describe("deleteStory", () => {
         expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
     });
 
+    // 票の文書も同じ——消せなければ行を残す（`storyvotes#<id>` も
+    // `storyFeed` を持たないので、行が消えると二度と辿れない）
+    it("票の文書を消せなかったら、行を残して失敗を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } });
+            }
+            if (id.startsWith("storyvotes#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode, "票を消せていないのに成功と言っている").toBe(500);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "story-1";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
+    });
+
     // **ギャラリーに残した1枚の実体は消さない。** `keptAs` が立っている
     // ストーリーは、その S3 オブジェクトの持ち主が写真の行に移っている。
     // ここで消すと、残したはずの写真が**割れた画像**になる（行は残るので
@@ -703,7 +724,7 @@ describe("deleteStory", () => {
         const keys = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
+        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1"]);
     });
 
     // **ここで写真を消してはいけない。**
@@ -749,7 +770,7 @@ describe("deleteStory", () => {
         const deleted = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(deleted).toEqual(["storyreplies#story-1", "story-1"]);
+        expect(deleted).toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1"]);
     });
 
     // 本人が消すときは今までどおり（残した写真は守る）
@@ -774,8 +795,9 @@ describe("deleteStory", () => {
         // 行と、そこに届いた返信の文書。**返信を先に消す**
         // （逆だと、消し損ねた `storyreplies#` を辿る手がかりが無くなる）
         const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(keys, "返信の文書を消していない（24時間で消える約束の本文が残る）")
-            .toEqual(["storyreplies#story-1", "story-1"]);
+        // 票の文書（`storyvotes#`）も同じ理由で行より先に
+        expect(keys, "返信・票の文書を消していない（24時間で消える約束のものが残る）")
+            .toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1"]);
     });
 
     // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
@@ -1120,7 +1142,7 @@ describe("cleanupExpiredStories", () => {
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
         const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
         // 消せた方だけ。返信の文書も一緒に（行より先に）
-        expect(keys).toEqual(["storyreplies#good", "good"]);
+        expect(keys).toEqual(["storyreplies#good", "storyvotes#good", "good"]);
     });
 
     // 掃除も同じ。消せなければ行を残して次回に回す

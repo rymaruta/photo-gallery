@@ -11,6 +11,7 @@ import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
+import { storyVotesId } from "./storyVotes";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
@@ -701,10 +702,12 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // TTL は無いので、24時間で消えるはずの本文が永久に残る。
         // すぐ上の S3 の削除がまったく同じ理由で止めているのに、
         // ここだけ握って先へ進んでいた。
+        // 票の文書（`storyvotes#<id>`）も同じ理由で、同じ順で
         try {
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }));
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(storyId) } }));
         } catch (e) {
-            console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e);
+            console.error(`deleteStory: 返信・票を消せませんでした（${storyId}）:`, e);
             return jsonError(500, "削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
@@ -754,6 +757,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
             // はずの本文が永久に残る（S3 の失敗を `continue` で見送るのと
             // 同じ判断。期限切れの行が残っても利用者には見えない）
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
             deleted++;
         } catch (e) {

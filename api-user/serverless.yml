@@ -701,6 +701,18 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 投票スタンプ（2択）に票を入れる。認証必要・1人1票。
+  # 結果は `getStories` が投稿者と票を入れた人にだけ付けて返すので、
+  # 読む口は別に置かない。`PublicReadRole` には載せない（書き込み）
+  voteStory:
+    handler: src/storyVotes.voteStory
+    events:
+      - httpApi:
+          path: /stories/{id}/vote
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   # ブロック。**やり取りの口を持つ以上の最低限**（返信を足した時点で、
   # ログインしていれば誰でも誰の通知にも文字を送れるようになった）
   # 不適切な投稿の通報。**ログインが要る**——未認証で受けると誰でも
