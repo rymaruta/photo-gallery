@@ -476,6 +476,45 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 保存（ブックマーク）。**4つとも認証必須**——いいねの `getLikeCount` に
+  # 当たる「誰でも読める数」は持たない（保存は人に見せない操作）。
+  # 一覧は `saves#<uid>` を1回 GetItem するだけ（`likes` と同じ形）。
+  getMySaves:
+    handler: src/saves.getMySaves
+    events:
+      - httpApi:
+          path: /user/saves
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  getMySave:
+    handler: src/saves.getMySave
+    events:
+      - httpApi:
+          path: /user/saves/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  savePhoto:
+    handler: src/saves.savePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/save
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unsavePhoto:
+    handler: src/saves.unsavePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/save
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getComments:
     handler: src/comments.getComments
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
