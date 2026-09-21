@@ -8,6 +8,7 @@ import { truncate } from "./sanitize";
 import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
+import { isStoryExpired } from "./storyExpiry";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -182,7 +183,7 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // 無い（`viewStory` が本人の閲覧を記録しないのと同じ判断）
         if (ownerId === uid) return jsonError(400, "自分のストーリーには返信できません");
         // **期限切れは「もう無い」。** 行が残っているのは掃除が1時間ごとだから
-        if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
+        if (isStoryExpired(story)) {
             return jsonError(404, "ストーリーが見つかりません");
         }
         // **ブロックされていたら送れない。** ここは返信を足したことで
@@ -400,7 +401,7 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // （最長およそ1時間後。アーカイブへ移す行はそのときに消す）なので、
         // その間もここで出さない。返信は相手が「24時間で消える」つもりで
         // 送った文章——期限を過ぎて本人が読める窓を作らない
-        if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
+        if (isStoryExpired(story)) {
             return {
                 statusCode: 200,
                 headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },

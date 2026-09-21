@@ -60,6 +60,7 @@ const { createStory, cleanupExpiredStories, getStoryViewers } = await import("..
 const { getStoryArchive } = await import("../storyArchive");
 const { keepStory } = await import("../storyKeep");
 const { getStoryReplies, storyRepliesId } = await import("../storyReplies");
+const { isStoryExpired } = await import("../storyExpiry");
 
 type Result = { statusCode: number; headers?: Record<string, string>; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,7 +155,11 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         const up = ofKind("UpdateCommand");
         expect(up, "棚へ移す更新が1回でない").toHaveLength(1);
         const expr = String(up[0].input.UpdateExpression);
-        expect(expr, "archivedAt を刻んでいない（最初の時刻を守る形で）").toMatch(/SET archivedAt = if_not_exists\(archivedAt, :now\)/);
+        expect(expr, "archivedAt を刻んでいない（最初の時刻を守る形で）").toMatch(/SET archivedAt = if_not_exists\(archivedAt, :exp\)/);
+        // **刻むのは期限の時刻**（掃除が来た時刻ではない）。一覧は掃除前の
+        // 行にも期限の時刻を埋めるので、ここが違うと同じ行の日付が掃除の
+        // 前後で跳ぶ
+        expect((up[0].input.ExpressionAttributeValues as Record<string, unknown>)[":exp"], "掃除の時刻を刻んでいる").toBe(PAST);
         expect(expr, "GSI から外していない（毎時また拾う・一覧に出続ける）").toMatch(/REMOVE storyFeed/);
         expect(expr, "閲覧者を残している").toMatch(/\bviewers\b/);
         expect(expr, "返信の数を残している（消した文書と食い違う）").toMatch(/\breplyCount\b/);
@@ -208,16 +213,20 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(s3Keys()).toEqual([]);
     });
 
-    it("条件が外れた（もう棚に在る・印が外れた・行が消えた）は失敗にせず、追える印だけ残す", async () => {
+    it("条件が外れた（もう棚に在る・印が外れた・行が消えた）は失敗にせず、どれかを言う", async () => {
+        // 読み直すと、もう棚に在る（storyFeed 無し・archivedAt あり）
+        const shelved = { ...KEEP, archivedAt: PAST } as Record<string, unknown>;
         mockDdbSend.mockImplementation((cmd: Cmd) => {
             if (cmd.constructor.name === "QueryCommand") return Promise.resolve({ Items: [KEEP] });
             if (cmd.constructor.name === "UpdateCommand") {
                 return Promise.reject(Object.assign(new Error("ccf"), { name: "ConditionalCheckFailedException" }));
             }
+            if (cmd.constructor.name === "GetCommand") return Promise.resolve({ Item: shelved });
             return Promise.resolve({});
         });
         // **error にはしない**（毎時「失敗」が積もると本物が埋もれる）が、
-        // **黙りもしない**（印が外れたのに GSI に残る形は追えないと困る）
+        // **黙りもしない**——しかも「消された（普通の競合）」と「印が外れた・
+        // storyFeed が無いのに一覧に出た（異常）」を**見分けられる**形で残す
         const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
         const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
         try {
@@ -225,14 +234,16 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
             expect(r).toEqual({ deleted: 0, archived: 0 });
             expect(s3Keys()).toEqual([]);
             expect(err.mock.calls.filter((c) => String(c[0]).includes("s-keep")), "失敗として記録している").toEqual([]);
-            expect(warn.mock.calls.some((c) => String(c[0]).includes("s-keep")), "黙って飛ばしている").toBe(true);
+            const line = warn.mock.calls.map((c) => String(c[0])).find((s) => s.includes("s-keep"));
+            expect(line, "黙って飛ばしている").toBeTruthy();
+            expect(line, "どの状態で外れたかが分からない").toContain("storyFeed=false");
         } finally {
             err.mockRestore();
             warn.mockRestore();
         }
     });
 
-    it("Scan の経路は archivedAt の在る行を拾わない（毎時撫で直さない）", async () => {
+    it("Scan の経路は棚へ移した行（storyFeed 無し）を拾わない（毎時撫で直さない）", async () => {
         // GSI が無い環境（ValidationException）で Scan に落ちる
         mockDdbSend.mockImplementation((cmd: Cmd) => {
             if (cmd.constructor.name === "QueryCommand") {
@@ -243,7 +254,12 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         await cleanupExpiredStories();
         const scan = ofKind("ScanCommand");
         expect(scan).toHaveLength(1);
-        expect(String(scan[0].input.FilterExpression)).toContain("attribute_not_exists(archivedAt)");
+        const filter = String(scan[0].input.FilterExpression);
+        // 物差しは棚へ移す条件式と同じ「まだ一覧に載っているか」。
+        // `archivedAt` で見ると、刻まれたのに storyFeed が残る半端な行を
+        // この経路では永久に直せない
+        expect(filter).toContain("attribute_exists(storyFeed)");
+        expect(filter, "archivedAt で見ている（半端な行が直らない）").not.toContain("archivedAt");
     });
 });
 
@@ -343,6 +359,32 @@ describe("keepStory: アーカイブに自動保存の投稿は残せない", ()
         world({ ...base, expiresAt: FUTURE });
         expect((await keep()).statusCode).toBe(200);
         expect(mockPutPhoto).toHaveBeenCalledTimes(1);
+    });
+
+    // 応答が失われて押し直された回に、409 ではなく同じ写真IDを返す
+    // （断るのは冪等の分岐より後ろ）
+    it("既に残してあれば、印があっても冪等で同じ写真IDを返す", async () => {
+        world({ ...base, expiresAt: FUTURE, archive: true, keptAs: "p1" });
+        const r = await keep();
+        expect(r.statusCode).toBe(200);
+        expect(JSON.parse(r.body)).toEqual({ photoId: "p1", already: true });
+    });
+});
+
+// ────────────────────────────────
+// 期限の判定は1か所
+// ────────────────────────────────
+describe("isStoryExpired", () => {
+    const NOW = "2026-07-04T12:00:00.000Z";
+    it("過去なら切れている・未来なら生きている・同時刻は切れている", () => {
+        expect(isStoryExpired({ expiresAt: "2026-07-04T11:59:59.000Z" }, NOW)).toBe(true);
+        expect(isStoryExpired({ expiresAt: "2026-07-04T12:00:01.000Z" }, NOW)).toBe(false);
+        expect(isStoryExpired({ expiresAt: NOW }, NOW)).toBe(true);
+    });
+    it("持たない・文字列でない・空は有効扱い（無い理由で締め出さない）", () => {
+        expect(isStoryExpired({}, NOW)).toBe(false);
+        expect(isStoryExpired({ expiresAt: 0 }, NOW)).toBe(false);
+        expect(isStoryExpired({ expiresAt: "" }, NOW)).toBe(false);
     });
 });
 

@@ -69,8 +69,8 @@ export const getStoryArchive: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // まだ持ち、`archivedAt` を持たない。画面が2つの形を知らなくて済むよう:
         //   - 掃除が消すものは応答にも出さない（他人の名前と数は期限とともに
         //     消える側。`storyFeed` は索引の都合の列で、画面には要らない）
-        //   - `archivedAt` が無ければ期限の時刻で埋める（棚に在るとみなす
-        //     根拠がそれ。掃除が来れば同じ時刻の前後に刻まれる）
+        //   - `archivedAt` が無ければ期限の時刻で埋める。掃除も**期限の時刻を
+        //     刻む**（掃除が来た時刻ではない）ので、掃除の前後で同じ値になる
         for (const item of items) {
             delete item.viewers;
             delete item.replyCount;

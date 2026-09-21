@@ -15,6 +15,7 @@ import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 import { STORY_PUBLIC, STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
+import { isStoryExpired } from "./storyExpiry";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -123,12 +124,15 @@ async function scanStories(filter: "active" | "expired"): Promise<Record<string,
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: PHOTOS_TABLE,
-            // 期限切れは**アーカイブ済みを除く**。GSI の経路は `storyFeed` を
-            // 外した時点で索引から落ちるので要らないが、Scan はテーブル全体を
-            // 見るので、ここで落とさないと**毎時アーカイブを撫で直す**
+            // 期限切れは**「まだ一覧に載っている」行だけ**（`storyFeed` が在る）。
+            // GSI の経路はその列がキーなので自然にそうなるが、Scan はテーブル
+            // 全体を見るので、ここで落とさないと**毎時アーカイブを撫で直す**。
+            // 「載っている」で見る（`archivedAt` の有無で見ない）のは、
+            // 棚へ移す条件式（下）と同じ物差しにするため——刻まれたのに
+            // `storyFeed` が残る半端な行を、どちらの経路でも拾って直せる
             FilterExpression: filter === "active"
                 ? "story = :t AND expiresAt > :now"
-                : "story = :t AND expiresAt <= :now AND attribute_not_exists(archivedAt)",
+                : "story = :t AND expiresAt <= :now AND attribute_exists(storyFeed)",
             ExpressionAttributeValues: { ":t": true, ":now": now },
             ExclusiveStartKey: lastKey,
         }));
@@ -516,8 +520,7 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // あとから増えて見え、掃除が来るまで（最大およそ24時間）続く。
         // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
         // 持たない古い行は有効扱い（無い理由で締め出さない）。
-        const expiresAt = typeof item.expiresAt === "string" ? item.expiresAt : "";
-        if (expiresAt && expiresAt <= new Date().toISOString()) {
+        if (isStoryExpired(item)) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
 
@@ -591,7 +594,7 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // 外すのは最長およそ1時間後（アーカイブへ移すとき）なので、その間も
         // ここで出さない。閲覧者の名前は本人のものではなく、期限とともに
         // 消える側（返信と同じ）。アーカイブの画面から開いても 0 人
-        if (typeof item.expiresAt === "string" && item.expiresAt <= new Date().toISOString()) {
+        if (isStoryExpired(item)) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ viewers: [], count: 0 }) };
         }
 
@@ -790,10 +793,13 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                 await ddb.send(new UpdateCommand({
                     TableName: PHOTOS_TABLE,
                     Key: { id },
-                    // `archivedAt` は**最初の時刻**を守る（半端に直された行——
-                    // 刻まれているのに `storyFeed` が残っている——を撫でるときに
-                    // 上書きしない）
-                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :now) REMOVE storyFeed, viewers, replyCount",
+                    // **`archivedAt` は期限の時刻。** 掃除が来た時刻ではない——
+                    // 一覧（`getStoryArchive`）は掃除が来る前の行にも期限の時刻を
+                    // 埋めて返すので、掃除の時刻を刻むと**同じ行の日付が掃除の
+                    // 前後で変わる**（日をまたぐと「昨日のアーカイブ」が
+                    // 今日へ跳ぶ）。`if_not_exists` は半端に直された行（刻まれて
+                    // いるのに `storyFeed` が残る）を撫でるときに上書きしないため
+                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, :exp) REMOVE storyFeed, viewers, replyCount",
                     // **今まさに棚へ移してよい行**であることを条件にする:
                     // 印が立っていて、まだ GSI に載っている（＝行が在る。
                     // `storyFeed` が在るなら行は在るので `attribute_exists(id)` は
@@ -807,16 +813,26 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
                     // （モックのテストでは捕まらない。`rebuild.ts` の `#c`＝`count`・
                     // `sync-photos` の `#at`＝`at` と同じ罠）
                     ExpressionAttributeNames: { "#a": "archive" },
-                    ExpressionAttributeValues: { ":now": new Date().toISOString(), ":t": true },
+                    ExpressionAttributeValues: {
+                        // 期限を持たない古い行だけ、掃除の時刻で埋める
+                        ":exp": typeof item.expiresAt === "string" && item.expiresAt ? item.expiresAt : new Date().toISOString(),
+                        ":t": true,
+                    },
                 }));
                 archived++;
             } catch (e) {
                 if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                    // 条件が外れた＝読んだあとに移った・消えた・印が外れた。
-                    // やることは無いが、**黙らない**——印が外れたのに行が GSI に
-                    // 残る形だと、毎時ここに来て返信だけ消して飛ぶ。追えるように
-                    // 残す（失敗ではないので error にはしない）
-                    console.warn(`cleanup: archive skipped for ${id} (condition not met)`);
+                    // 条件が外れた。**どれかを言う**——読んだあとに消された
+                    // （`deleteStory` との普通の競合）のか、印が外れた・
+                    // `storyFeed` が無いのに一覧に出た（異常。毎時ここに来て
+                    // 返信だけ消して飛ぶ形）のかで、追う必要があるかが変わる。
+                    // 稀な経路なので1回読み直す。失敗ではないので error にはしない
+                    const fresh = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))
+                        .then((r) => r.Item as Record<string, unknown> | undefined)
+                        .catch(() => undefined);
+                    console.warn(`cleanup: archive skipped for ${id}: ${fresh
+                        ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
+                        : "row gone (deleted meanwhile)"}`);
                     continue;
                 }
                 // 書けなければ次回に回す（行は GSI に残っているので、また来る）
