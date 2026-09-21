@@ -12,7 +12,9 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
+import { followingIds, isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
+import { STORY_PUBLIC, STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -146,10 +148,23 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // **ストーリーの取得と同時に投げる。** 直列にしていたので、
         // 一覧が返ってくるまで待ってからブロックを引いていた＝往復が1回増えた。
         // 互いの結果に依存しないので並べてよい。
-        const [items, hidden] = await Promise.all([
+        // **フォロー一覧も同じ束で引く。**「フォロワーのみ」のストーリーを
+        // 出してよいかの判定に要る（下）。往復はここで**増えない**
+        // ——既に2本並べている Promise.all に3本目を足すだけで、
+        // 互いの結果に依存しない（Lambda の同時実行はアカウント全体で10なので、
+        // 直列の1往復を足す方が高くつく）。
+        //
+        // **読めなかったら「誰もフォローしていない」に倒す**＝フォロワー限定は
+        // 出さない。ブロック一覧（すぐ上）が逆向きなのは意図的な差で、
+        // あちらは**倒しすぎると誰のストーリーも出なくなる**のに対し、
+        // こちらは倒し方を間違えると**本人が見せないと決めた相手に出る**。
+        // 取り返せない側を選ばない。
+        const [items, hidden, following] = await Promise.all([
             queryStories("active"),
             hiddenUserIds(userId)
                 .catch((e) => { console.error("getStories: ブロック一覧を読めませんでした:", e); return new Set<string>(); }),
+            followingIds(userId)
+                .catch((e) => { console.error("getStories: フォロー一覧を読めませんでした:", e); return new Set<string>(); }),
         ]);
         for (const item of items) {
             delete item.viewers;
@@ -163,7 +178,23 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
                 delete item.keptAs;
             }
         }
-        const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+        // **「フォロワーのみ」は、フォローしている人と本人にだけ出す。**
+        //
+        // ブロックのふるいと**同じ1回のループで**落とす（2回歩かない）。
+        // 本人を先に通すのは、`following#<自分>` に自分は入っていないため
+        // ——ここが抜けると**自分のフォロワー限定ストーリーが自分に見えない**
+        // （投稿した直後にバーから消える）。
+        //
+        // 門はここだけではない。開きっぱなしのタブや直接叩く経路のために
+        // `viewStory` と `postStoryReply` にも同じ判定が要る（そちらは
+        // 相手が1人なのでマーカー1件で確かめる＝`isFollowing`）。
+        // **画面側だけ・一覧側だけの防御を作らない。**
+        const visible = items.filter((i) => {
+            const owner = String(i.userId ?? "");
+            if (hidden.has(owner)) return false;
+            if (owner === userId) return true;
+            return storyVisibility(i.visibility) === STORY_PUBLIC || following.has(owner);
+        });
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
@@ -218,6 +249,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
         location?: unknown; coords?: unknown; texts?: unknown;
+        visibility?: unknown; allowReplies?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -282,6 +314,19 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const clamped = Math.round(Math.min(15, Math.max(3, n)));
         return clamped === STORY_DEFAULT_DURATION_SEC ? undefined : clamped;
     })();
+
+    // **公開範囲と、返信を受けるか。** どちらも既定は保存しない
+    //   - 既定（全員に公開・返信を受ける）＝この機能が生まれたときからの姿。
+    //     読む側は `storyVisibility` / `storyAllowsReplies` が「無い＝既定」に
+    //     均すので、**既に在る行は移行なしでそのまま**動く
+    //   - `durationSec` が既定値を保存しないのと同じ作法
+    //
+    // **値の解釈は `storyVisibility.ts` の1本を通す。** 書く側と読む側で
+    // 別々に書くと静かにずれ、ずれる向きが「狭いつもりが全員に出る」になる。
+    const visibility = storyVisibility(body.visibility) === STORY_FOLLOWERS_ONLY
+        ? STORY_FOLLOWERS_ONLY
+        : undefined;
+    const allowReplies = storyAllowsReplies(body.allowReplies) ? undefined : false;
 
     // ストーリーBGM: title + https の previewUrl 必須（30秒プレビュー）
     let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number } | undefined;
@@ -350,6 +395,10 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
         ...(durationSec ? { durationSec } : {}),
+        // 既定は書かない（すぐ上の但し書き）。**`allowReplies` は `false` を
+        // 書く**ので、`...(allowReplies ? ...)` では消える——値で分岐しない
+        ...(visibility ? { visibility } : {}),
+        ...(allowReplies === false ? { allowReplies } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),
@@ -397,6 +446,21 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // ここに来る（この関数のコメント自身がそう書いている）。記録すると、
         // 所有者の閲覧者一覧に**相手が付けた任意の表示名**がそのまま出る
         if (await isBlocked(String(item.userId ?? ""), viewerId)) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
+        }
+        // **「フォロワーのみ」を、フォローしていない人には記録しない。**
+        //
+        // 一覧（`getStories`）では既に落としているが、ここに来る経路は
+        // すぐ下のコメントが書いているとおり別にある（期限をまたいで
+        // 開きっぱなしのタブ・直接叩く）。記録すると、所有者の閲覧者一覧に
+        // **見せないと決めた相手が並ぶ**——見せていないつもりの投稿に
+        // 知らない名前が出るので、ブロックした相手を弾くのと同じ話。
+        //
+        // 一覧ではなくマーカー1件で確かめる（`isBlocked` と同じ形）。
+        // 相手は1人なので、2000件の切り捨ての影響を受けない方を選ぶ。
+        // **読めなければ例外が下の catch に落ちて 500**＝記録しない側に倒れる。
+        if (storyVisibility(item.visibility) === STORY_FOLLOWERS_ONLY
+            && !await isFollowing(String(item.userId ?? ""), viewerId)) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
         // **期限切れは「もう無い」。**

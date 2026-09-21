@@ -54,9 +54,13 @@ API_BASELINE=11
 # 中身は `Cannot find module 'aws-lambda'` と、その結果の implicit any で、
 # **全ハンドラが同じ形**（`@types/aws-lambda` は package.json に在るが、
 # ルートから見た型検査には入らない）。CI は api-user で npm ci を打つので出ない。
+# 120 → 124: ストーリーの公開設定の対テスト（`storyPrivacy.test.ts`）を
+#            1ファイル足したぶん（先頭の `await import` が4本＝4件）。
+#            `followCheck.ts` / `storyVisibility.ts` はハンドラを持たず
+#            `aws-lambda` も引かないので0件のまま。
 # ⚠️ **上げるのはハンドラかテストファイルを足したときだけ**（テストは
 #    先頭の `await import` が1件になる）。それ以外で増えたら本物。
-API_USER_BASELINE=120
+API_USER_BASELINE=124
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
