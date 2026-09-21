@@ -306,6 +306,7 @@ type PhotoPageClientProps = {
 export default function PhotoPageClient({ photoId, initialPhoto, initialRelated }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
+
     const [allPhotos, setAllPhotos] = useState<Photo[]>(initialPhoto ? [initialPhoto] : []);
     const [loading, setLoading] = useState(!initialPhoto);
     // API の取得に失敗したか。静的データに無い新着写真の URL では、失敗を
@@ -363,6 +364,40 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     const photo = useMemo(() => {
         return allPhotos.find(p => p.id === photoId);
     }, [photoId, allPhotos]);
+
+    /**
+     * 1投稿に複数枚（owner のモックの「1/10」）。**表紙は `src`**、
+     * 2枚目以降が `extraImages`。
+     *
+     * **`shown` の初期値は 0 で固定する。** 静的書き出しなので、ここを
+     * URL やストレージから決めると水和で食い違う（サーバーが描いた木と
+     * 変わる）。この画面は検索の着地点で、1枚目が LCP そのもの。
+     *
+     * **`photo` はまだ届いていないことがある**（クライアント取得の前）ので
+     * `?.` で読む。届く前は1枚も無い＝送る仕組みも出ない。
+     */
+    const images = useMemo(() => {
+        if (!photo?.src) return [];
+        return [
+            {
+                src: photo.src, srcAvif: photo.srcAvif, blurDataURL: photo.blurDataURL,
+                width: photo.width, height: photo.height,
+            },
+            // **壊れた要素は落とす**（本番のデータは何でもありうる。ここで
+            // 落ちると写真ページが丸ごとエラーカードになる）
+            ...(photo.extraImages ?? []).filter((i) => typeof i?.src === "string" && !!i.src),
+        ];
+    }, [photo?.src, photo?.srcAvif, photo?.blurDataURL, photo?.width, photo?.height, photo?.extraImages]);
+    const [shown, setShown] = useState(0);
+    /**
+     * いま出す1枚。**枚数が減っても落ちない**ように挟む（写真を差し替えた直後など）。
+     *
+     * **`images` が空のまま描画に届くことは無い**——`photo` が無い回は
+     * 622行の早期 return（「写真が見つかりません」）で抜けるので、
+     * ここから下では必ず1枚以上ある。`photo` の有無で分かれる判定を
+     * 増やさないために、その事実に頼る。
+     */
+    const current = images[Math.min(shown, Math.max(0, images.length - 1))];
 
     // いいね機能（ハート＝ローカルお気に入り + サーバーいいね数）
     const { isAuthenticated, userId: authUserId, loading: authLoading } = useAuth();
@@ -732,18 +767,61 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
 
             {/* 写真 */}
             <div className="mb-6 relative lg:col-span-3 lg:mb-0 lg:sticky lg:top-8">
+                {/* **1枚目は必ずここで描く。** 静的書き出しなので、送る仕組みを
+                    state で包むと JS が届くまで写真が出ない——この画面は
+                    検索の着地点で、LCP がそのぶん遅れる。`shown === 0` の間は
+                    今までとまったく同じ木になる */}
                 <PhotoImage
-                    src={photo.src}
-                    alt={altText}
-                    focalPoint={photo.focalPoint}
-                    blurDataURL={photo.blurDataURL}
-                    srcAvif={photo.srcAvif}
-                    width={photo.width}
-                    height={photo.height}
-                    extractExif={!hasStoredExif(photo.exif)}
+                    key={shown}
+                    src={current.src}
+                    alt={shown === 0 ? altText : `${altText}（${shown + 1}/${images.length}）`}
+                    focalPoint={shown === 0 ? photo.focalPoint : undefined}
+                    blurDataURL={current.blurDataURL}
+                    srcAvif={current.srcAvif}
+                    width={current.width}
+                    height={current.height}
+                    // **EXIF を抜くのは表紙だけ。** 撮影情報は投稿に1組しか
+                    // 無いので、2枚目以降から抜くと表紙のものと食い違う
+                    extractExif={shown === 0 && !hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
                 />
 
+                {images.length > 1 && (
+                    <>
+                        {/* 「N/M」。モックの「1/5」 */}
+                        <p className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                           style={{ fontSize: "12px", lineHeight: "14px" }}
+                           aria-hidden="true">
+                            {shown + 1}/{images.length}
+                        </p>
+                        {/* **読み上げには別に伝える。** 上のバッジは
+                            `aria-hidden`（送るたびに読み上げが割り込むと邪魔）。
+                            こちらは操作の結果として伝わる */}
+                        <p className="sr-only" aria-live="polite">
+                            {locale === "en"
+                                ? `Photo ${shown + 1} of ${images.length}`
+                                : `${images.length}枚中 ${shown + 1}枚目`}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setShown((i) => (i - 1 + images.length) % images.length)}
+                            aria-label={locale === "en" ? "Previous photo" : "前の写真"}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
+                            style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                        >
+                            <ChevronLeftIcon style={{ width: "24px", height: "24px" }} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShown((i) => (i + 1) % images.length)}
+                            aria-label={locale === "en" ? "Next photo" : "次の写真"}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
+                            style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                        >
+                            <ChevronRightIcon style={{ width: "24px", height: "24px" }} />
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* 写真情報 */}

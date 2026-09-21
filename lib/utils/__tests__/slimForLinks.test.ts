@@ -25,6 +25,8 @@ const FULL = {
     // `pick` が undefined を飛ばすので「落としている」に見える**——
     // 実際そう出て、この2つを足した（テストが仕掛けの穴を捕まえた側）
     focalPoint: { x: 0.5, y: 0.3 }, alt: { ja: "代替テキスト" },
+    // 1投稿に複数枚の「1/N」。同じ理由でフィクスチャに要る
+    extraImages: [{ src: "https://cdn/b.jpg" }],
     // ここから下は回遊リンクが読まない
     description: { ja: ["長い説明".repeat(20)] }, exif: { camera: "SONY ILCE-7M3", lens: "FE 24-70" },
     tags: ["雲海", "神社"], category: "landscape", location: "高屋神社",
