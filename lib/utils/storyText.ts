@@ -93,6 +93,38 @@ export const STORY_BGS = ["none", "soft", "solid"] as const;
 export type StoryBgKey = (typeof STORY_BGS)[number];
 
 /**
+ * 傾き（度）。**時計回りが正。**
+ *
+ * ## 「無い＝0度」で読む
+ *
+ * 既に保存されているストーリーの `texts` は `rotate` を持たない。
+ * `clampStoryTextRotate(undefined)` が 0 を返すので、**既存の投稿は
+ * 1つも見た目が変わらない**（`extraImages`・`visibility` と同じ作法）。
+ *
+ * ## 1周ぶんだけ持つ
+ *
+ * −180〜180 に畳む。畳まないと、指で何周も回したときに 3600 のような値が
+ * 入り、**読み込んだ側が同じ見た目に戻せるのに違う数字を持つ**——
+ * 「同じものを2通りの値で表す」状態になる。
+ *
+ * 丸めるのは**1度**まで。これより細かくしても画面では見分けられず、
+ * 保存する文字数だけ増える（`size` を小数3桁で切っているのと同じ判断）。
+ */
+export const STORY_ROTATE_DEFAULT = 0;
+
+/** −180〜180 に畳む（180 は 180 のまま。−180 は 180 に寄せる） */
+export function normalizeStoryRotate(deg: number): number {
+    // `%` は負の数で負を返すので、+360 してからもう一度畳む
+    const wrapped = ((deg % 360) + 360) % 360;
+    return wrapped > 180 ? wrapped - 360 : wrapped;
+}
+
+export function clampStoryTextRotate(v: unknown): number {
+    const n = typeof v === "number" && Number.isFinite(v) ? v : STORY_ROTATE_DEFAULT;
+    return normalizeStoryRotate(Math.round(n));
+}
+
+/**
  * 置いた文字1つ。位置は**中心**の割合（0〜1）。
  * **並びが重なり順**——後ろの要素ほど手前に出る。
  */
@@ -105,10 +137,26 @@ export type StoryText = {
     font: StoryFontKey;
     color: StoryColorKey;
     bg: StoryBgKey;
+    /**
+     * 傾き（度・時計回りが正）。
+     *
+     * **`?` を外さないこと。** 保存済みのストーリーの `texts` は
+     * この項目を**実際に持たない**ので、必須にすると型が実データについて
+     * 嘘をつく（読み戻した値を `StoryText` と名乗らせる経路がある）。
+     * 読む側は必ず `clampStoryTextRotate(t.rotate)` を通す——あれが
+     * `undefined` を 0 に落とすので、「無い＝0度」が1か所で決まる。
+     */
+    rotate?: number;
 };
 
-/** 見せ方の既定（新しく足した文字の姿）。白・太ゴシック */
-export const DEFAULT_STORY_TEXT: Omit<StoryText, "text" | "x" | "y"> = {
+/**
+ * 見せ方の既定（新しく足した文字の姿）。白・太ゴシック。
+ *
+ * **`rotate` は置かない**——既定が 0 で、`sanitizeStoryTexts` は 0 を
+ * 書かないので、ここに置くと「新しい文字だけ 0 を持って保存で消える」
+ * という、見比べたときに説明の付かない差ができる。
+ */
+export const DEFAULT_STORY_TEXT: Omit<StoryText, "text" | "x" | "y" | "rotate"> = {
     size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none",
 };
 
@@ -157,7 +205,16 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
         const o = raw as Record<string, unknown>;
         const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
         if (!text) continue;
+        // **傾きが 0 なら書かない。**
+        //
+        // 書かなければ、傾けていない文字の保存内容は**この変更の前と
+        // 1バイトも変わらない**——「既存のストーリーが1つも変わらない」の
+        // いちばん強い形で、読む側は元から「無い＝0度」を通るので
+        // 経路も増えない。`size` は常に書くが、あちらは**既定が 0 ではない**
+        // （書かないと「無い」と「既定」が区別できない）ので事情が違う。
+        const rotate = clampStoryTextRotate(o.rotate);
         out.push({
+            ...(rotate === 0 ? {} : { rotate }),
             text,
             x: clampStoryTextPos(o.x),
             y: clampStoryTextPos(o.y),
