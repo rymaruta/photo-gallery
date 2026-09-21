@@ -276,7 +276,7 @@ owner の指示は Photo Quest → Color Journey → Moment Match → Photo Rela
 | | 実データでの発火 | 判断 |
 |---|---|---|
 | Photo Quest | テーマ表示は投稿者の人数に依らず出る | **owner が「いらない」**（9/21）。作りかけは `claude/photo-quest-parked` に退避・PR には入れない |
-| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/search/ColorJourney.tsx`） |
+| **Color Journey** | `dominantColor` で **5色・38/39枚** | **作った**（`lib/color/buckets.ts`・`app/components/ColorJourney.tsx`） |
 | Moment Match | **0件**——撮影日を持つ17枚のうち、2人以上が同じ日を持つ日は **0日** | **作らない**。人が増えて再測定するまで保留 |
 | Photo Relay | 担い手が **2人**（実質1人） | **作らない**。同上 |
 
@@ -291,16 +291,20 @@ owner の指示は Photo Quest → Color Journey → Moment Match → Photo Rela
   ただし**明度 0.08 未満は色味があっても黒**——HSL の彩度は真っ黒に近いほど
   跳ね上がり、`#180808`（明度 0.063）が「赤」になっていた（レビューで発見・
   本番3枚が該当）
-- **`GalleryPageClient` を触らないことで残る3つ**（承知のうえ）: `usePhotos`
-  が2つ動く（`GET /photos` が2回）／ビルド後の写真はモーダルでなくトップへ
-  遷移／ログイン中の「自分」絞り込みと色の内訳（全員）が食い違う。
-  あちらが落ち着いたら寄せて解く
+- ~~**`GalleryPageClient` を触らないことで残る3つ**~~ → **解いた（#72 のあと）。**
+  部品を `app/components/ColorJourney.tsx` に移し、`GalleryPageClient` の
+  「さがす」面が **`filteredPhotos`・`openById`・`categoryDisplayMap` を渡して描く**
+  形にした。写真を取りに行く部品ではなくなったので:
+  `usePhotos` は1つ／色のグリッドも下と同じモーダルで開く／色の内訳は
+  **絞り込み後の一覧の中**で数える（タグの件数バッジと同じ考え方）。
+  `app/__tests__/GalleryPageClient.colorJourney.test.tsx` が3つとも固定
+  （修正前のコードで 4/5 落ちることを確かめた）
 - **限界: 緑・赤・桃・紫は本番で0枚。** `dominantColor` は最頻1ビン＝影の色に
   なりやすい。`blurDataURL` の分布なら緑が7枚立つところまで確かめたが、
   閾値で答えが変わり検証の術が無いので採らなかった。owner が数枚見て
   決められるようになったら差し替える
-- `GalleryPageClient` には触っていない（別作業中・トップと共用）。
-  `/search` の上に部品を足しただけ
+- 最初は `GalleryPageClient` に触らず `/search` の上に部品を足しただけだった
+  （別作業中・トップと共用）。④-b が落ち着いたあとで中へ寄せた（上の項）
 - 実ブラウザで確認済み（本番の色を手元で注入して build → Chromium で
   390px/1280px とも 5チップ・32px・選択で11枚・解除で0枚・横はみ出しなし）
 
