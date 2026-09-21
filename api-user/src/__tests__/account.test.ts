@@ -1110,6 +1110,31 @@ describe("deleteAccount: ハイライト", () => {
         expect(ids, "一覧を消していない").toContain("highlights#me");
     });
 
+    // **ハイライトの行と、投票の文書が両方消える**（同じ退会の1回で）。
+    // ハイライト（#85）と投票（#87）は別の PR で `account.ts` の別の場所に
+    // 削除を足した——マージで片方が落ちても気づけるよう、1つの筋で固定する
+    it("ハイライトの行と、ストーリーの票の文書を、同じ退会で両方消す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "story-1" }] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "highlights#me") return Promise.resolve({ Item: { id, list: ["h1"], rev: 2 } });
+                if (id === "story-1") return Promise.resolve({ Item: { id: "story-1", story: true, src: "https://cdn/uploads/me/s1.jpg" } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "ハイライトの本体を消していない").toContain("highlight#h1");
+        expect(ids, "ハイライトの一覧を消していない").toContain("highlights#me");
+        expect(ids, "ストーリーの行を消していない").toContain("story-1");
+        expect(ids, "返信の文書を消していない").toContain("storyreplies#story-1");
+        // 票の文書は行より先に、そして行のあとにもう一度（`storyVotes.ts`）
+        expect(ids.filter((k) => k === "storyvotes#story-1"), "票の文書を消していない（行の前後で2回）").toHaveLength(2);
+    });
+
     it("持っていなくても退会は成功し、一覧の行を消す", async () => {
         withHighlights(undefined);
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
