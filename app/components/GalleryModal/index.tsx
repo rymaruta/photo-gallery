@@ -82,7 +82,7 @@ export default function GalleryModal({
 
     // 保存（ブックマーク）。**いいねとは別の棚**で、投稿者には届かない。
     // 集まる先は `/saves`（`/favorites` はいいねした写真）
-    const { saved, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading);
+    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading);
     const handleToggleSave = useCallback(() => {
         hapticTap();
         void toggleSave().then((r) => {
@@ -288,6 +288,7 @@ export default function GalleryModal({
                         onToggleFavorite={() => { hapticTap(); void toggleLike().then(notifyIfLikeFailed); }}
                         isSaved={saved}
                         onToggleSave={handleToggleSave}
+                        savePending={savePending}
                         firstFocusableRef={firstFocusableRef}
                     />
                 </div>

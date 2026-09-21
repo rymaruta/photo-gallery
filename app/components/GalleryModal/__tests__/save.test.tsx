@@ -135,6 +135,37 @@ describe("拡大表示の保存ボタン", () => {
         await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeTruthy());
     });
 
+    // 読み上げ名が「保存を取り消す」（＝これから起きること）なので、
+    // `aria-pressed` を足すと「保存を取り消す、押されています」と読まれて
+    // 意味が逆に取れる。隣のいいねも同じ形
+    it("操作を名前にしているので aria-pressed は付けない", async () => {
+        mockUserFetch.mockImplementation((p: string) => Promise.resolve(
+            p.startsWith("/user/saves/") ? { ok: true, json: async () => ({ saved: true }) } : defaultRoutes(p)));
+        setup();
+        const save = await screen.findByRole("button", { name: "保存を取り消す" });
+        expect(save.getAttribute("aria-pressed")).toBeNull();
+        expect(screen.getByRole("button", { name: "いいね" }).getAttribute("aria-pressed")).toBeNull();
+    });
+
+    // 共有リンクを開いた直後はログイン状態の確認中で、押しても
+    // `toggle` が入口で抜ける——アイコンも変わらずトーストも出ないので、
+    // **壊れているようにしか見えない**
+    it("ログイン状態の確認中は押せない（aria-busy で伝える）", () => {
+        authState.loading = true;
+        setup();
+        const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+        expect(save.getAttribute("aria-busy")).toBe("true");
+        fireEvent.click(save);
+        expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it("ログイン状態が確定したら押せる", async () => {
+        setup();
+        const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
+        await waitFor(() => expect(save.disabled).toBe(false));
+    });
+
     it("いいねのボタンと重ならない位置に置く（44px の当たりが並ぶ）", () => {
         setup();
         const save = screen.getByRole("button", { name: "保存" });

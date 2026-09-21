@@ -34,12 +34,14 @@ type Props = {
     onToggleFavorite: () => void;
     isSaved: boolean;
     onToggleSave: () => void;
+    /** 保存の往復中／ログイン状態の確認中。押しても何も起きない期間 */
+    savePending?: boolean;
     firstFocusableRef: React.RefObject<HTMLButtonElement | null>;
 };
 
 export default function ModalControls({
     onPrev, onNext, onClose, isFav, onToggleFavorite,
-    isSaved, onToggleSave,
+    isSaved, onToggleSave, savePending = false,
     firstFocusableRef,
 }: Props) {
     const stopAndCall = (fn: () => void) => ({
@@ -96,11 +98,24 @@ export default function ModalControls({
                 閉じる 8..52px → いいね 64..108px → 保存 120..164px
                 （sm では 12..56 / 72..116 / 132..176）。
                 **px で書く**——640px 未満で root が 14px に落ちるので、
-                rem で書くと縮んで隣と重なる。 */}
+                rem で書くと縮んで隣と重なる。
+
+                **`aria-pressed` は付けない。** 読み上げ名が「保存を取り消す」
+                （＝これから起きること）なので、足すと「保存を取り消す、
+                押されています」と読まれて意味が逆に取れる。
+                隣のいいねも同じ形（操作を名前にして `aria-pressed` 無し）で、
+                状態を名前にしている `FollowButton` とは流儀が違う。
+
+                **`pending` の間は押せなくする。** 共有リンクを開いた直後は
+                ログイン状態の確認中で、押しても `toggle` が入口で抜ける
+                ——アイコンも変わらずトーストも出ないので、**壊れている
+                ようにしか見えない**。`aria-busy` で読み上げにも伝える
+                （見た目は変えていない——`disabled:` の指定は足していない）。 */}
             <button
                 {...stopAndCall(onToggleSave)}
                 aria-label={isSaved ? "保存を取り消す" : "保存"}
-                aria-pressed={isSaved}
+                disabled={savePending}
+                aria-busy={savePending}
                 className={`${BTN_BASE} top-2 sm:top-3 right-[120px] sm:right-[132px]`}
                 style={BTN_STYLE}
             >

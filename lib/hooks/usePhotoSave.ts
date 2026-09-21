@@ -44,12 +44,29 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
         photoIdRef.current = photoId;
         touchedRef.current = false;
         setSaved(false);
+        // **番人も下ろす。** 下ろさないと、前の写真で投げた要求が返って
+        // いない間（回線が細いと最長20秒）、**次の写真の保存ボタンが黙って
+        // 死ぬ**——`toggle` は入口で `{ ok: true }` を返して抜けるので、
+        // 何も飛ばないのにトーストも出ない。
+        // 前の要求が着地したときの `finally` で下ろされるのを待っていたが、
+        // 待っている間がまさに押される時間だった。
+        // 着地した側が状態を書くことは `stillSamePhoto()` が止める。
+        busyRef.current = false;
+        setPending(false);
     }, [photoId]);
 
     // ログイン中は自分の保存状態をサーバーに聞く。
-    // **未ログインでは聞かない**（401 が返るだけ）。未保存のまま
+    // **未ログインでは聞かない**（401 が返るだけ）。
     useEffect(() => {
-        if (!isAuthenticated || authLoading || !photoId) return;
+        if (!isAuthenticated || authLoading || !photoId) {
+            // **ログアウトしたら未保存に戻す。** 戻さないと、モーダルを
+            // 開いたままログアウトした人に**塗られたしおりと「保存を
+            // 取り消す」**が出たままになる（押しても未ログインの案内が出る
+            // だけ）。`usePhotoLikes` が `setServerLiked(null)` で同じことを
+            // している
+            setSaved(false);
+            return;
+        }
         let aborted = false;
         const controller = new AbortController();
         void (async () => {
@@ -109,9 +126,16 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
                 // **サーバーが言っている理由を捨てない。** `readApiError` は
                 // 401 を「セッションの有効期限が切れています」に置き換える
                 // ——いちばん多い失敗を「もう一度お試しください」にしない。
-                // 既定文は呼び出し側が持つので、ここでは空にして落とす
-                result = { ok: false, message: (await readApiError(res, "")) || undefined };
+                // 既定文は呼び出し側が持つので、ここでは空にして落とす。
+                //
+                // **失敗を伝えるのは、まだその写真を見ているときだけ。**
+                // 戻り値は呼び出し元がトーストにする＝「いま画面に出ている
+                // 写真の話」として読まれるので、送ったあとに前の写真の失敗を
+                // 返すと、**関係のない写真の上に「保存できませんでした」**が
+                // 出る（`stillSamePhoto` を状態の書き込みにだけ掛けていた）
+                const message = (await readApiError(res, "")) || undefined;
                 if (stillSamePhoto()) {
+                    result = { ok: false, message };
                     setSaved(wasSaved);
                     // 巻き戻した＝「押す前」の姿に戻ったので、番人も下ろす。
                     // 立てたままだと、遅れて届くサーバーの真値まで弾く
@@ -120,8 +144,9 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
             }
         } catch (e) {
             log.warn("save toggle error:", e);
-            result = { ok: false, message: sessionErrorMessage(e) ?? undefined };
+            // 失敗を伝えるのは、まだその写真を見ているときだけ（上と同じ理由）
             if (stillSamePhoto()) {
+                result = { ok: false, message: sessionErrorMessage(e) ?? undefined };
                 setSaved(wasSaved);
                 touchedRef.current = false;
             }

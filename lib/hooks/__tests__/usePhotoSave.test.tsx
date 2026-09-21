@@ -182,6 +182,76 @@ describe("usePhotoSave", () => {
         expect(saves).toHaveLength(1);
     });
 
+    // **前の写真の要求が返っていない間、次の写真のボタンが黙って死ぬ。**
+    // 連打の番人（`busyRef`）を写真が変わったときに下ろしていなかった
+    // ——`toggle` は入口で `{ ok: true }` を返して抜けるので、何も飛ばない
+    // のにトーストも出ない。回線が細いと最長20秒その状態が続く
+    it("前の写真の要求が宙に浮いていても、次の写真は保存できる", async () => {
+        let release: ((v: unknown) => void) | undefined;
+        mockUserFetch.mockImplementation((p: string) => {
+            if (p === "/photos/p1/save") return new Promise((r) => { release = r; });
+            return Promise.resolve(ok({ saved: false }));
+        });
+        const { result, rerender } = renderHook(
+            ({ id }) => usePhotoSave(id, true), { initialProps: { id: "p1" } });
+
+        // p1 で押す（応答は握ったまま返さない）
+        await act(async () => { void result.current.toggle(); await Promise.resolve(); });
+        rerender({ id: "p2" });
+
+        mockUserFetch.mockImplementation(() => Promise.resolve(ok({ saved: true })));
+        await act(async () => { await result.current.toggle(); });
+        expect(mockUserFetch).toHaveBeenCalledWith("/photos/p2/save", { method: "POST" });
+        expect(result.current.saved).toBe(true);
+
+        // 遅れて着地した p1 の応答が p2 の状態を書かないこと
+        await act(async () => { release?.(ok({ saved: false })); await Promise.resolve(); });
+        expect(result.current.saved).toBe(true);
+    });
+
+    // 戻さないと、モーダルを開いたままログアウトした人に
+    // **塗られたしおりと「保存を取り消す」**が出たままになる
+    it("ログアウトしたら未保存に戻す", async () => {
+        mockUserFetch.mockResolvedValue(ok({ saved: true }));
+        const { result, rerender } = renderHook(
+            ({ auth }) => usePhotoSave("p1", auth), { initialProps: { auth: true } });
+        await waitFor(() => expect(result.current.saved).toBe(true));
+
+        rerender({ auth: false });
+        expect(result.current.saved).toBe(false);
+    });
+
+    // 戻り値は呼び出し元がトーストにする＝「いま画面に出ている写真の話」
+    // として読まれる。送ったあとに前の写真の失敗を返すと、関係のない写真の
+    // 上に「保存できませんでした」が出る
+    it("写真を送ったあとは、前の写真の失敗を報告しない", async () => {
+        let reject: ((e: unknown) => void) | undefined;
+        mockUserFetch.mockImplementation((p: string) => {
+            if (p === "/photos/p1/save") return new Promise((_, rj) => { reject = rj; });
+            return Promise.resolve(ok({ saved: false }));
+        });
+        const { result, rerender } = renderHook(
+            ({ id }) => usePhotoSave(id, true), { initialProps: { id: "p1" } });
+
+        let r: Awaited<ReturnType<typeof result.current.toggle>> | undefined;
+        let settled: Promise<void> | undefined;
+        await act(async () => {
+            settled = result.current.toggle().then((v) => { r = v; });
+            await Promise.resolve();
+        });
+        // **送るのは別の act で。** 同じ act の中で rerender しても、
+        // エフェクト（`photoIdRef` の更新）が流れるのは act を抜けるとき
+        await act(async () => { rerender({ id: "p2" }); });
+        await act(async () => { reject?.(new Error("通信できない")); await settled; });
+
+        expect(r).toEqual({ ok: true });   // p2 を見ている人には何も言わない
+    });
+
+    it("ログイン確認中は pending（押しても何も起きない期間を画面に伝える）", () => {
+        const { result } = renderHook(() => usePhotoSave("p1", false, true));
+        expect(result.current.pending).toBe(true);
+    });
+
     it("いいねの経路を叩かない（別の棚である）", async () => {
         mockUserFetch.mockResolvedValue(ok({ saved: true }));
         const { result } = renderHook(() => usePhotoSave("p1", true));
