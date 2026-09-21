@@ -46,6 +46,7 @@ vi.mock("../../../../lib/utils/exif", () => ({
 }));
 
 import StoriesBar from "../StoriesBar";
+import { STORY_STAMPS, STORY_TEXTS_MAX } from "@/lib/utils/storyText";
 
 const api = () => async (url: string, init?: { method?: string }) => {
     if (url === "/stories" && init?.method === "POST") return { ok: true, json: async () => ({ success: true }) };
@@ -199,5 +200,73 @@ describe("角のハンドル（StoriesBar の配線）", () => {
 
         expect(shownRotate(), "潰れた箱から傾きが決まっている").toBe(0);
         expect(overlay().style.fontSize, "潰れた箱から大きさが決まっている").toBe(sizeBefore);
+    });
+});
+
+/**
+ * スタンプ（⑨-2）。
+ *
+ * ここで見たいのは**繋ぎ目**——データの規則は
+ * `lib/utils/__tests__/storyText.test.ts`、描き方は
+ * `StoryTextOverlay.test.tsx` が見る。
+ *
+ * 固定したいのは3つ:
+ *
+ *  1. **文字が1つも無くても置ける**（スタンプだけの投稿はありうる）
+ *  2. **スタンプに字体・色・下地の欄を出さない**（押しても効かない的）
+ *  3. **上限は文字と合わせて数える**
+ */
+const stamps = () => screen.queryAllByRole("button", { name: STORY_STAMPS.heart.label });
+const placed = () => document.querySelectorAll('[role="dialog"] p[style*="translate"]');
+
+describe("スタンプ（StoriesBar の配線）", () => {
+    it("文字が1つも無くても置ける", async () => {
+        await pickImage();
+        expect(placed(), "まだ何も置いていない").toHaveLength(0);
+        await userEvent.click(stamps()[0]);
+        expect(placed(), "スタンプが写真の上に出ていない").toHaveLength(1);
+        expect(placed()[0].textContent).toBe(STORY_STAMPS.heart.glyph);
+    });
+
+    // **押しても効かない欄を置かない。** 字体・色・下地は絵柄に効かない
+    it("スタンプを選んでいる間は、字体・色・下地の欄を出さない", async () => {
+        await pickImage();
+        await userEvent.click(stamps()[0]);
+        for (const name of ["字体", "色", "下地"]) {
+            expect(screen.queryByRole("tab", { name }), `${name} の欄が出ている`).toBeNull();
+        }
+        // 大きさは効くので出す
+        expect(screen.getByRole("slider", { name: "スタンプの大きさ" })).toBeInTheDocument();
+    });
+
+    // 文字を選び直せば、文字の欄が戻る
+    it("文字を選び直すと、字体の欄が戻る", async () => {
+        await pickImage();
+        await type("朝");
+        await userEvent.click(stamps()[0]);
+        expect(screen.queryByRole("tab", { name: "字体" })).toBeNull();
+        // 置いた文字を触って選び直す
+        fireEvent.pointerDown(placed()[0]);
+        expect(screen.getByRole("tab", { name: "字体" })).toBeInTheDocument();
+    });
+
+    it("置いたスタンプにもハンドルが出て、回せる", async () => {
+        await pickImage();
+        await userEvent.click(stamps()[0]);
+        const el = placed()[0] as HTMLElement;
+        sizeTheBox(el);
+        expect(handle(), "スタンプにハンドルが出ていない").not.toBeNull();
+        fireEvent.pointerDown(handle()!, { pointerId: 1, clientX: 200, clientY: 100 });
+        fireEvent.pointerMove(el.parentElement!, { pointerId: 1, clientX: 100, clientY: 200 });
+        const m = /rotate\((-?\d+)deg\)/.exec(el.style.transform);
+        expect(m && Number(m[1]), "スタンプが回っていない").toBe(90);
+    });
+
+    // **上限は文字と合わせて数える**（多いほど読めなくなるのは絵柄も同じ）
+    it("上限まで置いたら、スタンプを押せなくする", async () => {
+        await pickImage();
+        for (let i = 0; i < STORY_TEXTS_MAX; i++) await userEvent.click(stamps()[0]);
+        expect(placed()).toHaveLength(STORY_TEXTS_MAX);
+        expect(stamps()[0], "上限を超えて置ける").toBeDisabled();
     });
 });

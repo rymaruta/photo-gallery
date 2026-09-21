@@ -30,8 +30,8 @@ import {
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
-    isStoryStamp,
-    type StoryText, type StoryTextItem,
+    STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
+    type StoryText, type StoryTextItem, type StoryStampKey,
 } from "../../../lib/utils/storyText";
 import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
@@ -223,6 +223,21 @@ export default function StoriesBar() {
             const n = prev.length;
             const next = [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * n)];
             return next;
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [texts.length, selected]);
+
+    /**
+     * スタンプを1つ置く。
+     *
+     * **少しずつずらす**のは文字と同じ理由——同じ場所に重ねると掴み分け
+     * られない。置いたら**選んだ状態にする**ので、そのまま角のハンドルで
+     * 大きさと傾きを決められる。
+     */
+    const addStamp = useCallback((stamp: StoryStampKey) => {
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            return [...prev, newStoryStamp(stamp, FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * prev.length)];
         });
         setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
     }, [texts.length, selected]);
@@ -1375,6 +1390,36 @@ export default function StoriesBar() {
                             rem の指定は端末で縮む（`w-11` は 38.5px になる）。
                             間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
                             5.25px になり、隣の的と重なる（`5960be33` で実測） */}
+                        {/* **スタンプ。** 押すと写真の上に置かれる。
+                            **文字が1つも無くても出す**——スタンプだけの投稿は
+                            ありうる（`caption` が空になるだけで、それが正しい）。
+
+                            上限は文字と合わせて数える（`STORY_TEXTS_MAX`）
+                            ——多いほど読めなくなるのは絵柄も同じ。
+                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                        <div className="space-y-1">
+                            <p id="story-stamp-label" className="text-[11px] text-white/70 px-1">
+                                {texts.length >= STORY_TEXTS_MAX
+                                    ? (locale === "en" ? `Stickers (max ${STORY_TEXTS_MAX} items)` : `スタンプ（合わせて${STORY_TEXTS_MAX}個まで）`)
+                                    : (locale === "en" ? "Stickers" : "スタンプ")}
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-labelledby="story-stamp-label">
+                                {STORY_STAMP_KEYS.map((k) => (
+                                    <button
+                                        key={k}
+                                        type="button"
+                                        onClick={() => addStamp(k)}
+                                        disabled={posting || texts.length >= STORY_TEXTS_MAX}
+                                        aria-label={STORY_STAMPS[k].label}
+                                        className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                        style={{ width: "40px", height: "40px", minWidth: "40px", fontSize: "20px", lineHeight: 1 }}
+                                    >
+                                        <span aria-hidden>{STORY_STAMPS[k].glyph}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {texts.length > 0 && (
                             <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
                                 <div className="flex items-center justify-between gap-2 px-1">
@@ -1414,7 +1459,31 @@ export default function StoriesBar() {
                                 {/* 字体・色・大きさ・下地は**選んでいるときだけ**。
                                     選んでいないと `patchSelected` が何もしないので、
                                     出したままだと**押しても効かない的**が並ぶ */}
-                                {current && (
+                                {/* **スタンプを選んでいるときは、大きさだけ。**
+                                    字体・色・下地は絵柄に効かない——出すと
+                                    「押しても効かない的」が並ぶ（このファイルが
+                                    既に文字について書いている判断を、絵柄にも当てる）。
+                                    傾きは角のハンドルと `[` `]`（欄を増やさない） */}
+                                {current && isStoryStamp(current) && (
+                                <div className="flex items-center gap-3">
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                    <input
+                                        type="range"
+                                        min={STORY_SIZE_MIN}
+                                        max={STORY_SIZE_MAX}
+                                        step={STORY_SIZE_STEP}
+                                        value={current.size}
+                                        onChange={(e) => transformText(selected!, { size: Number(e.target.value) })}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Sticker size" : "スタンプの大きさ"}
+                                        className="flex-1 min-w-0 accent-white"
+                                        style={{ height: "36px" }}
+                                    />
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                </div>
+                                )}
+
+                                {currentText && (
                                 <>
                                 {/* 🔴 **1度に1つだけ開く。** 字体・色・大きさ・下地を
                                     全部並べると、320×568 で操作の欄が 276px
@@ -1494,7 +1563,7 @@ export default function StoriesBar() {
                                         min={STORY_SIZE_MIN}
                                         max={STORY_SIZE_MAX}
                                         step={STORY_SIZE_STEP}
-                                        value={current?.size ?? STORY_SIZE_DEFAULT}
+                                        value={currentText?.size ?? STORY_SIZE_DEFAULT}
                                         onChange={(e) => patchSelected({ size: clampStoryTextSize(Number(e.target.value)) })}
                                         disabled={posting}
                                         aria-label={locale === "en" ? "Text size" : "文字の大きさ"}
