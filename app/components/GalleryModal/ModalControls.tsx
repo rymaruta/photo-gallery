@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
-import { HeartIcon } from "@heroicons/react/24/solid";
-import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
+import { HeartIcon, BookmarkIcon } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartIconOutline, BookmarkIcon as BookmarkIconOutline } from "@heroicons/react/24/outline";
 
 // **操作ラベルは日本語。** ここだけ英語のままだったので、支援技術が
 // 「Previous ボタン」「Next ボタン」と読み上げ、同じ画面の共有ボタン
@@ -32,11 +32,14 @@ type Props = {
     onClose: () => void;
     isFav: boolean;
     onToggleFavorite: () => void;
+    isSaved: boolean;
+    onToggleSave: () => void;
     firstFocusableRef: React.RefObject<HTMLButtonElement | null>;
 };
 
 export default function ModalControls({
     onPrev, onNext, onClose, isFav, onToggleFavorite,
+    isSaved, onToggleSave,
     firstFocusableRef,
 }: Props) {
     const stopAndCall = (fn: () => void) => ({
@@ -82,6 +85,28 @@ export default function ModalControls({
                 {isFav
                     ? <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
                     : <HeartIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                }
+            </button>
+
+            {/* 保存（ブックマーク）。**いいねとは別物**——いいねは投稿者に届く
+                公開の反応で、保存はあとで見返すための自分だけの棚
+                （`/saves` に集まる。`/favorites` とは別のページ）。
+
+                横の位置は 44px の当たりが重ならないように取る:
+                閉じる 8..52px → いいね 64..108px → 保存 120..164px
+                （sm では 12..56 / 72..116 / 132..176）。
+                **px で書く**——640px 未満で root が 14px に落ちるので、
+                rem で書くと縮んで隣と重なる。 */}
+            <button
+                {...stopAndCall(onToggleSave)}
+                aria-label={isSaved ? "保存を取り消す" : "保存"}
+                aria-pressed={isSaved}
+                className={`${BTN_BASE} top-2 sm:top-3 right-[120px] sm:right-[132px]`}
+                style={BTN_STYLE}
+            >
+                {isSaved
+                    ? <BookmarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
+                    : <BookmarkIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 }
             </button>
 
