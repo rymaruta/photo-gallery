@@ -16,6 +16,7 @@ import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import TimelineCard from "./components/TimelineCard";
+import { useMySaves } from "../lib/hooks/useMySaves";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -43,6 +44,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
   const ownUserId = isAuthenticated ? userId : null;
+  // 保存した写真の id を**1回で**引いてカードに配る（写真ごとに聞きに行かせない）
+  const saves = useMySaves(isAuthenticated, authLoading);
+  const savedIds = React.useMemo(() => (saves.pending || saves.failed ? null : new Set(saves.photoIds)), [saves.pending, saves.failed, saves.photoIds]);
 
   const {
     PHOTOS,
@@ -485,7 +489,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                     locale={locale === "en" ? "en" : "ja"}
                     priority={i < HOME_PRIORITY_COUNT}
                     isAuthenticated={isAuthenticated}
-                    viewerId={ownUserId}
+                    authLoading={authLoading}
+                    savedIds={savedIds}
                   />
                 </li>
               ))}
