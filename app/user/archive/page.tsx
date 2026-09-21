@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useStoryArchive } from "../../../lib/hooks/useStoryArchive";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ArchiveBoxIcon } from "@heroicons/react/24/outline";
@@ -9,8 +10,7 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES, loginWithNext } from "../../../lib/routes";
-import { usableRows } from "../../../lib/utils/apiRows";
-import { groupStories, type Story } from "@/lib/stories";
+import { groupStories, storyDayLabel, type Story } from "@/lib/stories";
 import StoryViewer from "../../components/stories/StoryViewer";
 import StoryTile from "../../components/stories/StoryTile";
 
@@ -54,9 +54,8 @@ export default function StoryArchivePage() {
     const router = useRouter();
     const isJa = locale === "ja";
 
-    const [items, setItems] = useState<Story[] | null>(null);
-    // 取得の失敗を「0件」に混ぜない（下書きの一覧と同じ判断——消えたように見える）
-    const [loadError, setLoadError] = useState(false);
+    // 一覧の読み方はハイライトの作成画面と同じ（`useStoryArchive`）
+    const { items, setItems, loadError, load } = useStoryArchive(isAuthenticated);
     /** 開いている束（その日のぶん）と、その中の1枚 */
     const [open, setOpen] = useState<{ items: Story[]; index: number } | null>(null);
     /**
@@ -71,34 +70,6 @@ export default function StoryArchivePage() {
     useEffect(() => {
         if (!loading && !isAuthenticated) router.replace(loginWithNext(ROUTES.STORY_ARCHIVE));
     }, [loading, isAuthenticated, router]);
-
-    const load = useCallback(async () => {
-        setLoadError(false);
-        try {
-            const { userFetch } = await import("../../../lib/utils/api");
-            const res = await userFetch("/stories/archive");
-            if (!res.ok) {
-                log.error("story archive fetch failed", { status: res.status });
-                setLoadError(true);
-                return;
-            }
-            // 配列でない応答は「0件」ではなく失敗。行の形は `groupStories` が見る
-            const rows = usableRows<Story>(await res.json(), "GET /stories/archive");
-            if (!rows) {
-                log.error("story archive response is not an array");
-                setLoadError(true);
-                return;
-            }
-            setItems(rows);
-        } catch (e) {
-            log.error("story archive load error:", e);
-            setLoadError(true);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (isAuthenticated) void load();
-    }, [isAuthenticated, load]);
 
     /**
      * 自分の束（古い→新しい）。形の壊れた行を落とすのも、並べるのも、
@@ -131,7 +102,7 @@ export default function StoryArchivePage() {
         const gone = removedRef.current;
         removedRef.current = new Set();
         setItems((prev) => (prev ? prev.filter((s) => !gone.has(s.id)) : prev));
-    }, []);
+    }, [setItems]);
 
     // 削除は `StoriesBar` の `handleDeleteStory` と同じ形（404 は成功・
     // サーバーの理由をそのまま出す・技術文字列は出さない）
@@ -168,8 +139,7 @@ export default function StoryArchivePage() {
     }
 
     const lc = isJa ? "ja" as const : "en" as const;
-    /** 投稿した日（見ている人の時計）。期限の時刻ではない——ビューアの見出し（`timeAgo`）と同じ元 */
-    const dayLabel = (s: Story) => new Date(s.createdAt).toLocaleDateString(isJa ? "ja-JP" : "en-US");
+    const dayLabel = (s: Story) => storyDayLabel(s.createdAt, lc);
 
     return (
         <main className="min-h-screen bg-black text-white">

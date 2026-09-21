@@ -2,8 +2,8 @@
 
 import React from "react";
 import { PlayIcon } from "@heroicons/react/24/outline";
-import { publicImageUrl } from "@/lib/utils/seo";
 import type { Story } from "@/lib/stories";
+import StoryThumb from "./StoryThumb";
 
 /**
  * アーカイブのストーリー1枚のタイル（縦長 9:16・3列のグリッドに並べる）。
@@ -38,27 +38,9 @@ export default function StoryTile({ story, label, ariaLabel, onClick, disabled, 
                 className="absolute inset-0 w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed"
                 style={{ touchAction: "manipulation" }}
             >
-                {story.mediaType === "video" ? (
-                    <>
-                        {/* 最初のフレームを出す。iOS Safari は `#t=` の欠片が無いと
-                            再生するまで何も描かない（黒い箱になる）。音は出さない */}
-                        <video
-                            src={`${publicImageUrl(story.src)}#t=0.001`}
-                            muted
-                            playsInline
-                            preload="metadata"
-                            className={`absolute inset-0 w-full h-full object-cover ${disabled ? "opacity-40" : ""}`}
-                        />
-                        <PlayIcon className="absolute right-1 top-1 w-4 h-4 text-white drop-shadow" aria-hidden="true" />
-                    </>
-                ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={publicImageUrl(story.src)}
-                        alt=""
-                        loading="lazy"
-                        className={`absolute inset-0 w-full h-full object-cover ${disabled ? "opacity-40" : ""}`}
-                    />
+                <StoryThumb src={story.src} mediaType={story.mediaType} className={disabled ? "opacity-40" : ""} />
+                {story.mediaType === "video" && (
+                    <PlayIcon className="absolute right-1 top-1 w-4 h-4 text-white drop-shadow" aria-hidden="true" />
                 )}
                 <span
                     className="absolute left-1 bottom-1 px-1.5 py-0.5 rounded bg-black/60 text-white/90"

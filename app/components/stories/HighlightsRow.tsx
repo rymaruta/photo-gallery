@@ -8,10 +8,10 @@ import { userPublicFetch } from "../../../lib/utils/api";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
-import { publicImageUrl } from "@/lib/utils/seo";
 import { groupStories } from "@/lib/stories";
 import type { HighlightSummary, HighlightDetail } from "@/lib/highlights";
 import { RING_SEEN } from "./ring";
+import StoryThumb from "./StoryThumb";
 
 /**
  * マイページのハイライトの輪（⑦）。誰のページでも、誰にでも出る。
@@ -161,18 +161,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
                                         style={{ width: `${RING_PX}px`, height: `${RING_PX}px` }}
                                     >
                                         {h.cover ? (
-                                            h.cover.mediaType === "video" ? (
-                                                <video
-                                                    src={`${publicImageUrl(h.cover.src)}#t=0.001`}
-                                                    muted
-                                                    playsInline
-                                                    preload="metadata"
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={publicImageUrl(h.cover.src)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-                                            )
+                                            <StoryThumb src={h.cover.src} mediaType={h.cover.mediaType === "video" ? "video" : "image"} />
                                         ) : (
                                             <PhotoIcon className="absolute inset-0 m-auto w-7 h-7 text-white/50" aria-hidden="true" />
                                         )}

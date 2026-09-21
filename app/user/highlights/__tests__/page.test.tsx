@@ -22,8 +22,11 @@ const mockShowToast = vi.hoisted(() => vi.fn());
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: true, loading: false, userId: "11111111-1111-4111-8111-111111111111" as string | null } }));
 const query = vi.hoisted(() => ({ id: null as string | null }));
 
+// **`useRouter` は本物と同じく同じオブジェクトを返す。** 毎回新しく作ると
+// 依存に持つ効果がレンダーごとに走り直し、本物では起きない挙動を試すことになる
+const router = vi.hoisted(() => ({ push: (...a: unknown[]) => mockPush(...a), replace: (...a: unknown[]) => mockReplace(...a) }));
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: mockPush, replace: mockReplace }),
+    useRouter: () => router,
     useSearchParams: () => ({ get: (k: string) => (k === "id" ? query.id : null) }),
 }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
@@ -194,6 +197,38 @@ describe("ハイライトの編集（?id=）", () => {
         expect(sent("PUT")[0].url).toBe(`/highlights/${HID}`);
         expect(sent("PUT")[0].body).toEqual({ title: "旧", storyIds: [S2.id], coverStoryId: S2.id });
         expect(sent("POST")).toHaveLength(0);
+    });
+
+    // 500 や通信断まで「見つかりません」に潰すと、在るものを消えたと思わせる
+    it("読めなかった（404 以外）ときは戻さず、再試行の口を出す。保存はできない", async () => {
+        mockUserPublicFetch
+            .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: HID, title: "旧", coverStoryId: S2.id, items: [S2] }) });
+        render(<Page />);
+        await gridTiles();
+        expect(await screen.findByText(/いまの中身を読み込めませんでした/)).toBeInTheDocument();
+        expect(mockReplace, "失敗なのにマイページへ戻している").not.toHaveBeenCalled();
+        expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+        await userEvent.click(screen.getByRole("button", { name: "再試行" }));
+        await waitFor(() => expect((screen.getByLabelText("名前") as HTMLInputElement).value).toBe("旧"));
+        expect(screen.queryByText(/いまの中身を読み込めませんでした/)).toBeNull();
+        expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    });
+
+    // ハイライトの1枚を本人がアーカイブから消していた。黙って落とさず1行で知らせ、
+    // 数える・保存はいま在るものだけ
+    it("アーカイブから消えた1枚は知らせて、保存には入れない", async () => {
+        mockUserPublicFetch.mockResolvedValue({
+            ok: true, status: 200,
+            json: async () => ({ id: HID, title: "旧", coverStoryId: "story-00000009-0000-4000-8000-000000000000", items: [S2, { ...S1, id: "story-00000009-0000-4000-8000-000000000000" }] }),
+        });
+        render(<Page />);
+        await gridTiles();
+        expect(await screen.findByText(/1件はアーカイブから消えている/)).toBeInTheDocument();
+        expect(screen.getByText("1/100")).toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "保存" }));
+        await waitFor(() => expect(sent("PUT")).toHaveLength(1));
+        expect(sent("PUT")[0].body).toEqual({ title: "旧", storyIds: [S2.id], coverStoryId: S2.id });
     });
 
     it("無ければマイページへ戻す", async () => {

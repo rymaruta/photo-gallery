@@ -9,11 +9,11 @@ import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES, loginWithNext } from "../../../lib/routes";
-import { usableRows } from "../../../lib/utils/apiRows";
-import { publicImageUrl } from "@/lib/utils/seo";
-import { groupStories, type Story } from "@/lib/stories";
+import { useStoryArchive } from "../../../lib/hooks/useStoryArchive";
+import { groupStories, storyDayLabel, type Story } from "@/lib/stories";
 import { HIGHLIGHT_TITLE_MAX, STORIES_PER_HIGHLIGHT, highlightRejection, type HighlightDetail } from "@/lib/highlights";
 import StoryTile from "../../components/stories/StoryTile";
+import StoryThumb from "../../components/stories/StoryThumb";
 import { RING_SEEN } from "../../components/stories/ring";
 
 /**
@@ -33,23 +33,24 @@ import { RING_SEEN } from "../../components/stories/ring";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 
-function HighlightEditor() {
+function HighlightEditor({ editingId }: { editingId: string | null }) {
     const { isAuthenticated, loading, userId } = useAuth();
     const { locale } = useLocale();
     const { showToast } = useToast();
     const router = useRouter();
-    const searchParams = useSearchParams();
     const isJa = locale === "ja";
-    const editingId = searchParams.get("id");
 
-    const [archive, setArchive] = useState<Story[] | null>(null);
-    const [loadError, setLoadError] = useState(false);
+    // 一覧の読み方は `/user/archive` と同じ（`useStoryArchive`）
+    const { items: archive, loadError, load: loadArchive } = useStoryArchive(isAuthenticated);
     const [title, setTitle] = useState("");
     /** 選んだ ID（押した順。保存時に投稿順へ並べ直す） */
     const [selected, setSelected] = useState<string[]>([]);
     const [cover, setCover] = useState<string | null>(null);
     /** 直すとき: 今の中身を読み終えたか（読む前に保存させない） */
     const [existingLoaded, setExistingLoaded] = useState(!editingId);
+    /** 直すとき: 今の中身を読めなかった（404 以外）。再試行の口を出す */
+    const [existingError, setExistingError] = useState(false);
+    const [existingRetry, setExistingRetry] = useState(0);
     const [saving, setSaving] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -57,32 +58,6 @@ function HighlightEditor() {
     useEffect(() => {
         if (!loading && !isAuthenticated) router.replace(loginWithNext(ROUTES.HIGHLIGHT_EDITOR(editingId ?? undefined)));
     }, [loading, isAuthenticated, router, editingId]);
-
-    const loadArchive = useCallback(async () => {
-        setLoadError(false);
-        try {
-            const { userFetch } = await import("../../../lib/utils/api");
-            const res = await userFetch("/stories/archive");
-            if (!res.ok) {
-                log.error("story archive fetch failed", { status: res.status });
-                setLoadError(true);
-                return;
-            }
-            const rows = usableRows<Story>(await res.json(), "GET /stories/archive");
-            if (!rows) {
-                setLoadError(true);
-                return;
-            }
-            setArchive(rows);
-        } catch (e) {
-            log.error("story archive load error:", e);
-            setLoadError(true);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (isAuthenticated) void loadArchive();
-    }, [isAuthenticated, loadArchive]);
 
     /**
      * 直すとき: 今の題・中身・表紙。**同じ id で読むのは1回。**
@@ -95,16 +70,20 @@ function HighlightEditor() {
         if (!isAuthenticated || !userId || !editingId) return;
         if (loadedForRef.current === editingId) return;
         let alive = true;
+        setExistingError(false);
         void (async () => {
             try {
                 const { userPublicFetch } = await import("../../../lib/utils/api");
                 const res = await userPublicFetch(`/highlights/${encodeURIComponent(userId)}/${encodeURIComponent(editingId)}`);
                 if (!alive) return;
-                if (!res.ok) {
+                // **戻すのは「無い」ときだけ。** 500 や通信断まで「見つかりません」に
+                // 潰すと、在るものを消えたと思わせる（再試行の口も無くなる）
+                if (res.status === 404) {
                     showToast(isJa ? "ハイライトが見つかりません" : "Highlight not found", "error");
                     router.replace(ROUTES.USER_PROFILE(userId));
                     return;
                 }
+                if (!res.ok) throw new Error(`status ${res.status}`);
                 const data = (await res.json()) as HighlightDetail;
                 if (!alive) return;
                 const ids = (Array.isArray(data.items) ? data.items : []).map((s) => s.id).filter((v): v is string => typeof v === "string");
@@ -116,35 +95,36 @@ function HighlightEditor() {
             } catch (e) {
                 if (!alive) return;
                 log.error("highlight load error:", e);
-                showToast(isJa ? "ハイライトを読み込めませんでした" : "Couldn't load the highlight", "error");
+                setExistingError(true);
             }
         })();
         return () => { alive = false; };
-    }, [isAuthenticated, userId, editingId, router, showToast, isJa]);
+    }, [isAuthenticated, userId, editingId, router, showToast, isJa, existingRetry]);
 
     /** 読める行だけ・新しい順（`groupStories` の規則をそのまま使う） */
     const stories = useMemo(() => {
         const group = archive && userId ? groupStories(archive, userId)[0] : null;
         return [...(group?.items ?? [])].reverse();
     }, [archive, userId]);
-    /** 選んだ中で、いまアーカイブに在るもの（投稿順） */
+    /** 選んだ中で、いまアーカイブに在るもの（投稿順）。数える・表紙・保存はすべてこれが母集団 */
     const chosen = useMemo(() => stories.filter((s) => selected.includes(s.id)).reverse(), [stories, selected]);
+    /** 直すとき: 既存の中身のうち、アーカイブから消えていた数（本人に1行で知らせる） */
+    const missing = archive && existingLoaded ? selected.length - chosen.length : 0;
 
     const toggle = useCallback((s: Story) => {
-        setSelected((prev) => {
-            if (prev.includes(s.id)) {
-                const next = prev.filter((v) => v !== s.id);
-                setCover((c) => (c === s.id ? (next[0] ?? null) : c));
-                return next;
-            }
-            if (prev.length >= STORIES_PER_HIGHLIGHT) {
-                showToast(isJa ? `1つのハイライトに入れられるのは${STORIES_PER_HIGHLIGHT}件までです` : `A highlight holds up to ${STORIES_PER_HIGHLIGHT} stories`, "error");
-                return prev;
-            }
-            setCover((c) => c ?? s.id);
-            return [...prev, s.id];
-        });
-    }, [showToast, isJa]);
+        if (selected.includes(s.id)) {
+            const next = selected.filter((v) => v !== s.id);
+            setSelected(next);
+            if (cover === s.id) setCover(chosen.find((x) => x.id !== s.id)?.id ?? null);
+            return;
+        }
+        if (chosen.length >= STORIES_PER_HIGHLIGHT) {
+            showToast(isJa ? `1つのハイライトに入れられるのは${STORIES_PER_HIGHLIGHT}件までです` : `A highlight holds up to ${STORIES_PER_HIGHLIGHT} stories`, "error");
+            return;
+        }
+        setSelected([...selected, s.id]);
+        if (!cover || !chosen.some((x) => x.id === cover)) setCover(s.id);
+    }, [selected, chosen, cover, showToast, isJa]);
 
     const save = useCallback(async () => {
         if (!userId || saving) return;
@@ -198,7 +178,7 @@ function HighlightEditor() {
         );
     }
 
-    const dayLabel = (s: Story) => new Date(s.createdAt).toLocaleDateString(isJa ? "ja-JP" : "en-US");
+    const dayLabel = (s: Story) => storyDayLabel(s.createdAt, isJa ? "ja" : "en");
     const canSave = existingLoaded && !saving && title.trim() !== "" && chosen.length > 0;
 
     return (
@@ -219,6 +199,15 @@ function HighlightEditor() {
                         : "Bundle archived stories into a ring on your profile. Highlights are visible to everyone."}
                 </p>
 
+                {existingError && (
+                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2">
+                        {isJa ? "いまの中身を読み込めませんでした。" : "Couldn't load this highlight. "}
+                        <button type="button" onClick={() => setExistingRetry((n) => n + 1)} className="underline text-white/90 hover:text-white ml-1">
+                            {isJa ? "再試行" : "Retry"}
+                        </button>
+                    </p>
+                )}
+
                 <label className="block text-sm text-white/60 mb-1" htmlFor="highlight-title">{isJa ? "名前" : "Name"}</label>
                 <input
                     id="highlight-title"
@@ -231,6 +220,12 @@ function HighlightEditor() {
                     style={{ minHeight: "44px" }}
                 />
                 <p className="text-xs text-white/50 mt-1 mb-6 tabular-nums">{title.length}/{HIGHLIGHT_TITLE_MAX}</p>
+
+                {missing > 0 && (
+                    <p className="text-xs text-white/60 mb-3">
+                        {isJa ? `${missing}件はアーカイブから消えているため、保存すると外れます` : `${missing} ${missing === 1 ? "story is" : "stories are"} no longer in your archive and will be dropped on save`}
+                    </p>
+                )}
 
                 {chosen.length > 0 && (
                     <div className="mb-6">
@@ -250,12 +245,7 @@ function HighlightEditor() {
                                         >
                                             <span className="block rounded-full p-[2.5px] bg-black">
                                                 <span className="relative block rounded-full overflow-hidden bg-white/10" style={{ width: "48px", height: "48px" }}>
-                                                    {s.mediaType === "video" ? (
-                                                        <video src={`${publicImageUrl(s.src)}#t=0.001`} muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
-                                                    ) : (
-                                                        // eslint-disable-next-line @next/next/no-img-element
-                                                        <img src={publicImageUrl(s.src)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-                                                    )}
+                                                    <StoryThumb src={s.src} mediaType={s.mediaType} />
                                                 </span>
                                             </span>
                                         </button>
@@ -399,6 +389,13 @@ function HighlightEditor() {
     );
 }
 
+/** `?id=` ごとに作り直す——id が消えた／変わったときに前の題と選択を持ち越さない（A の複製を POST しない） */
+function KeyedEditor() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get("id");
+    return <HighlightEditor key={id ?? ""} editingId={id} />;
+}
+
 export default function HighlightEditorPage() {
     return (
         <Suspense fallback={
@@ -408,7 +405,7 @@ export default function HighlightEditorPage() {
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </main>
         }>
-            <HighlightEditor />
+            <KeyedEditor />
         </Suspense>
     );
 }
