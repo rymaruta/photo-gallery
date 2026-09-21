@@ -34,7 +34,12 @@ describe("行き止まりからの遷移は replace で書く", () => {
      */
     const SITES: Array<[string, string, number, number]> = [
         // ファイル, needle, replace の本数, push の本数
-        ["lib/hooks/useMemberGate.ts", "loginWithNext(", 1, 0],
+        // **2026-09-21 に `useMemberGate.ts` から移した。** 送り返しは
+        // 3か所（`useMemberGate` / `/user/profile` / `/user/settings`）が
+        // 各自で書いていたのを `useLoginRedirect` に寄せたので、
+        // **見張るのもここ1本**になった——以前は `useMemberGate` しか
+        // 数えていなかったので、残り2か所は push に戻しても緑だった
+        ["lib/hooks/useLoginRedirect.ts", "loginWithNext(", 1, 0],
         ["app/login/page.tsx", "nextPath ?? (", 2, 0],
         ["app/signup/page.tsx", "isAuthenticated) router", 1, 0],
         ["app/admin/login/page.tsx", '"/admin")', 1, 0],
