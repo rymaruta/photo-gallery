@@ -327,3 +327,41 @@ describe("GalleryGrid: 題の無い写真", () => {
         expect(band(container), "題があるのに帯が出ていない").not.toBeNull();
     });
 });
+
+// **1投稿に複数枚**（owner のモックの「1/5」）。一覧で枚数を出さないと、
+// 1枚の投稿と見分けが付かない——開いて初めて「他にもある」と分かる
+describe("GalleryGrid: 複数枚の投稿", () => {
+    const withExtra = (id: string, extra: unknown[]): Photo => ({
+        ...photo(id),
+        extraImages: extra as Photo["extraImages"],
+    });
+
+    it("1枚だけなら枚数を出さない（今までと同じ見え方）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[photo(BUILT_ID)]} locale="ja" />);
+        expect(screen.queryByText(/^1\//)).toBeNull();
+    });
+
+    it("🔴 複数枚なら「1/N」を出す", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [{ src: "https://cdn.example.com/b.jpg" }, { src: "https://cdn.example.com/c.jpg" }])]} />);
+        expect(screen.getByText("1/3"), "枚数が出ていない").toBeTruthy();
+    });
+
+    it("🔴 壊れた要素は数えない（「1/3」と出して開くと2枚、を作らない）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.example.com/b.jpg" }])]} />);
+        expect(screen.getByText("1/2")).toBeTruthy();
+    });
+
+    it("お気に入りの印と重ならない（あちらは右上・こちらは左上）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [{ src: "https://cdn.example.com/b.jpg" }])]} />);
+        expect(screen.getByText("1/2").className).toContain("left-2");
+    });
+
+    it("extraImages が配列でなくても落ちない", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[{ ...photo(BUILT_ID), extraImages: "x" as unknown as Photo["extraImages"] }]} />);
+        expect(screen.queryByText(/^1\//)).toBeNull();
+    });
+});

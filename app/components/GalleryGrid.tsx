@@ -155,6 +155,14 @@ const GalleryItem = React.memo(function GalleryItem({
 }) {
     const { isFavorite } = useFavorites();
     const isFav = isFavorite(photo.id);
+    /**
+     * 2枚目以降の枚数（1投稿に複数枚）。**壊れた要素は数えない**
+     * ——本番のデータは何でもありうるので、`src` を持つものだけ数える
+     * （数え違えると「1/3」と出して開くと2枚、になる）
+     */
+    const extraCount = Array.isArray(photo.extraImages)
+        ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
+        : 0;
     const isPriority = index < 8;
     // 分類の表示名。**帯を出すかどうかの判定と同じ値で描く**——別々に書くと
     // 片方だけの変異がどちらも観測できなくなる（`2bba4291` の型）
@@ -239,6 +247,24 @@ const GalleryItem = React.memo(function GalleryItem({
                                     <div className="absolute top-2 right-2 z-10">
                                         <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 drop-shadow-lg" />
                                     </div>
+                                )}
+
+                                {/* **複数枚なら枚数を出す**（owner のモックの「1/5」）。
+                                    これが無いと、一覧では1枚の投稿と見分けが付かない
+                                    ——開いて初めて「他にもある」と分かる。
+                                    **お気に入りと重ならないよう左上に置く**（あちらは右上）。
+                                    寸法と字は px（640px 未満で root が 14px に落ちる）。
+                                    数字は `aria-hidden`——読み上げにはカードの名前
+                                    （`aria-label`）で伝える方が筋が良いが、そちらは
+                                    別の仕事なので、ここでは**目で見る人にだけ**出す */}
+                                {extraCount > 0 && (
+                                    <p
+                                        className="absolute top-2 left-2 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                                        style={{ fontSize: "11px", lineHeight: "13px", padding: "3px 7px" }}
+                                        aria-hidden="true"
+                                    >
+                                        1/{extraCount + 1}
+                                    </p>
                                 )}
 
                                 {/* **題も分類も無ければ、帯ごと出さない。** 題の無い写真に

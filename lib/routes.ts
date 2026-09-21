@@ -55,8 +55,14 @@ export function hasPhotoPage(id: string): boolean {
 export const ROUTES = {
     HOME: "/",
     FAVORITES: "/favorites",
-    /** 保存した写真（ブックマーク）。**`FAVORITES`（いいね）とは別のページ** */
+    /** 保存した写真（ブックマーク）。**`FAVORITES`（いいね）とも `SAVED_SPOTS` とも別のページ** */
     SAVES: "/saves",
+    /**
+     * 行きたい場所（保存した撮影スポット）。**写真の「保存」とは別物**。
+     * **検索結果に出さない**——本人だけが見られる中身なので、
+     * `/favorites` と同じ扱い（`noindexMetadata`）。
+     */
+    SAVED_SPOTS: "/saved-spots",
     MAP: "/map",
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
