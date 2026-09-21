@@ -5,6 +5,7 @@ import {
     clampStoryTextSize, STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_DEFAULT,
     STORY_FONTS, STORY_COLORS, STORY_BGS,
     STORY_TEXT_MIN, STORY_TEXT_MAX, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
+    clampStoryTextRotate, normalizeStoryRotate, STORY_ROTATE_DEFAULT,
 } from "../storyText";
 
 /**
@@ -211,5 +212,93 @@ describe("選べるものの一覧", () => {
     // 中央に出すと打った文字が自分で見えない（実測）
     it("1枚目の既定の位置は、下書きの操作欄に隠れない高さ", () => {
         expect(FIRST_STORY_TEXT_POS.y, "既定が画面の下半分にある").toBeLessThan(0.45);
+    });
+});
+
+/**
+ * 傾き（`rotate`）。
+ *
+ * ここで固定したいのは3つ:
+ *
+ *  1. **「無い＝0度」** ——保存済みのストーリーは `rotate` を持たない
+ *  2. **1周ぶんだけ持つ**（−180〜180）——何周も回しても数字が膨らまない
+ *  3. **0 は書かない** ——傾けていない文字の保存内容が、この変更の前と
+ *     1バイトも変わらないこと
+ */
+describe("文字の傾き", () => {
+    it("既定は 0 度", () => {
+        expect(STORY_ROTATE_DEFAULT).toBe(0);
+    });
+
+    // **保存済みのストーリーは `rotate` を持たない。** ここが 0 を返さないと、
+    // 既存の投稿が読み込んだ瞬間に傾く
+    it("無い・壊れている値は 0 として読む", () => {
+        for (const v of [undefined, null, "12", NaN, Infinity, {}, []]) {
+            expect(clampStoryTextRotate(v), `${String(v)} が 0 にならない`).toBe(0);
+        }
+    });
+
+    // **1周ぶんだけ持つ。** 畳まないと、指で何周も回したときに 3600 のような
+    // 値が入り、同じ見た目を違う数字で表すことになる
+    it("−180〜180 に畳む", () => {
+        expect(normalizeStoryRotate(0)).toBe(0);
+        expect(normalizeStoryRotate(90)).toBe(90);
+        expect(normalizeStoryRotate(180)).toBe(180);
+        expect(normalizeStoryRotate(181)).toBe(-179);
+        expect(normalizeStoryRotate(360)).toBe(0);
+        expect(normalizeStoryRotate(450)).toBe(90);
+        expect(normalizeStoryRotate(-90)).toBe(-90);
+        // **負の値でも畳めること。** `%` は負の数で負を返すので、
+        // 素朴に書くと −270 が −270 のまま残る
+        expect(normalizeStoryRotate(-270)).toBe(90);
+        expect(normalizeStoryRotate(-3600)).toBe(0);
+    });
+
+    it("1度に丸める（画面で見分けられない細かさを保存しない）", () => {
+        expect(clampStoryTextRotate(12.4)).toBe(12);
+        expect(clampStoryTextRotate(12.6)).toBe(13);
+    });
+
+    it("何周回しても、範囲の中に収まる", () => {
+        for (const v of [1e6, -1e6, 359.7, -359.7, 720, 1080.4]) {
+            const got = clampStoryTextRotate(v);
+            expect(got, `${v} が範囲の外`).toBeGreaterThanOrEqual(-180);
+            expect(got, `${v} が範囲の外`).toBeLessThanOrEqual(180);
+        }
+    });
+
+    describe("保存の形", () => {
+        const base = { text: "朝", x: 0.2, y: 0.8 };
+
+        // **0 は書かない。** 書かなければ、傾けていない文字の保存内容は
+        // この変更の前と1バイトも変わらない
+        it("傾けていない文字に `rotate` を足さない", () => {
+            const [got] = sanitizeStoryTexts([base])!;
+            expect(got, "傾き 0 なのに rotate が書かれている").not.toHaveProperty("rotate");
+            expect(Object.keys(got).sort()).toEqual(["bg", "color", "font", "size", "text", "x", "y"]);
+        });
+
+        it("傾けた文字は保存する", () => {
+            const [got] = sanitizeStoryTexts([{ ...base, rotate: 15 }])!;
+            expect(got.rotate).toBe(15);
+        });
+
+        it("壊れた傾きは 0 扱い＝書かない", () => {
+            const [got] = sanitizeStoryTexts([{ ...base, rotate: "ななめ" }])!;
+            expect(got).not.toHaveProperty("rotate");
+        });
+
+        it("範囲の外の傾きは畳んで保存する", () => {
+            expect(sanitizeStoryTexts([{ ...base, rotate: 450 }])![0].rotate).toBe(90);
+            // 畳んだ結果が 0 なら書かない（上の規則と食い違わない）
+            expect(sanitizeStoryTexts([{ ...base, rotate: 720 }])![0]).not.toHaveProperty("rotate");
+        });
+
+        // **新しく足した文字も `rotate` を持たない。** 持たせると
+        // 「新しい文字だけ 0 を持って、保存で消える」という説明の付かない差ができる
+        it("新しく足した文字は `rotate` を持たない", () => {
+            expect(newStoryText(0.5, 0.5)).not.toHaveProperty("rotate");
+            expect(DEFAULT_STORY_TEXT).not.toHaveProperty("rotate");
+        });
     });
 });

@@ -29,9 +29,10 @@ import {
     STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
-    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText,
+    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
     type StoryText,
 } from "../../../lib/utils/storyText";
+import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
 
@@ -279,6 +280,71 @@ export default function StoriesBar() {
             : t)));
         setSelected(index);
     }, []);
+
+    /**
+     * 角のハンドルを掴んでいる間の控え。
+     *
+     * **`draggingIndexRef`（動かす）とは別に持つ。** 同じ ref を使うと、
+     * ハンドルを掴んだ指の動きが「文字を運ぶ」にも流れ込み、
+     * **回しながら文字が指を追って飛んでいく**。
+     */
+    const handleGrabRef = useRef<{ index: number; grab: HandleGrab; pointerId: number } | null>(null);
+
+    /**
+     * ハンドルを掴んでよい箱の最小の辺（px）。
+     * これより小さい箱は「中心を掴んだ」のと変わらない（下の説明）。
+     */
+    const MIN_HANDLE_BOX_PX = 8;
+
+    /**
+     * 傾き・大きさを直に入れる（キーボードとハンドルの両方から）。
+     * **位置は触らない**——回しても置き場所は変わらない。
+     */
+    const transformText = useCallback((index: number, patch: { rotate?: number; size?: number }) => {
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? {
+                ...t,
+                ...(patch.rotate === undefined ? {} : { rotate: clampStoryTextRotate(patch.rotate) }),
+                ...(patch.size === undefined ? {} : { size: clampStoryTextSize(patch.size) }),
+            }
+            : t)));
+        setSelected(index);
+    }, []);
+
+    /**
+     * ハンドルを掴んだ。**文字の箱の中心**を画面の座標で控える
+     * ——回転も拡大縮小も、中心から見た角度と距離で決まる。
+     */
+    const grabTextHandle = useCallback((index: number, e: React.PointerEvent<HTMLElement>) => {
+        const el = (e.currentTarget as HTMLElement).parentElement;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const t = texts[index];
+        if (!t) return;
+        // **潰れた箱からは始めない。** 中心からの距離がほぼ 0 の点を掴むと、
+        // `dist / grab.dist` が一気に跳ねて**大きさが上限に張り付き**、
+        // 半径ほぼ 0 から測った角度は雑音なので**傾きも無関係な値に飛ぶ**。
+        // 空の文字にはハンドルを出さないようにしてあるが、下地なしの
+        // 細い文字や測る前の一瞬でもここに来うるので、入口でも止める
+        if (r.width < MIN_HANDLE_BOX_PX || r.height < MIN_HANDLE_BOX_PX) return;
+        handleGrabRef.current = {
+            index,
+            pointerId: e.pointerId,
+            grab: grabHandle(
+                r.left + r.width / 2, r.top + r.height / 2,
+                e.clientX, e.clientY,
+                clampStoryTextRotate(t.rotate), t.size,
+            ),
+        };
+        setSelected(index);
+        setDragging(true);
+        // **捕まえるのは囲みの方**（ハンドルではなく）。
+        // ハンドルに捕まえると、そのあとの `pointermove` / `pointerup` が
+        // ハンドルへ飛ぶので、**囲みが持っている追随の仕組みを丸ごと
+        // もう一組**書くことになる。囲みに捕まえれば既にある経路を通る。
+        const area = draftMediaAreaRef.current;
+        if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+    }, [texts]);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
@@ -1081,6 +1147,22 @@ export default function StoriesBar() {
                             if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
                         }}
                         onPointerMove={(e) => {
+                            // **ハンドルが先。** 角を掴んでいる間は、
+                            // 同じ指の動きを「文字を運ぶ」に流さない
+                            // （流すと、回しながら文字が指を追って飛んでいく）。
+                            //
+                            // **掴んだ指のぶんだけ見る。** 囲みは画面いっぱい
+                            // （`absolute inset-0`）なので、端末を支える親指が
+                            // 触れれば別の `pointerId` がここへ来る。見分けずに
+                            // 通すと、その指の座標で回転が決まって**文字が飛ぶ**。
+                            // 掴んでいる間は他の指を丸ごと無視する
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                if (e.pointerId === h.pointerId) {
+                                    transformText(h.index, handleMove(h.grab, e.clientX, e.clientY));
+                                }
+                                return;
+                            }
                             // 余白から始めたなぞりは、**選んでいる文字**を連れていく
                             const press = bgPressRef.current;
                             if (press && draggingIndexRef.current === null
@@ -1093,6 +1175,22 @@ export default function StoriesBar() {
                             moveTextTo(i, e.clientX, e.clientY);
                         }}
                         onPointerUp={(e) => {
+                            // **ハンドルを離した回は、タップの判定に入れない。**
+                            //
+                            // **控えは必ず落とす。** 以前はここで早く `return`
+                            // していたので `bgPressRef` が残り、別の指
+                            // （端末を支える親指）の pointerup を拾った回に
+                            // **掴み続けている指の次の動きで文字がそこへ飛んだ**。
+                            // 掴んだ指以外では回転を終わらせない
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                bgPressRef.current = null;
+                                if (e.pointerId === h.pointerId) {
+                                    handleGrabRef.current = null;
+                                    setDragging(false);
+                                }
+                                return;
+                            }
                             // 動かさずに離した＝タップ。選択を外して、ほかの欄を戻す
                             const press = bgPressRef.current;
                             bgPressRef.current = null;
@@ -1104,6 +1202,7 @@ export default function StoriesBar() {
                             setDragging(false);
                         }}
                         onPointerCancel={() => {
+                            handleGrabRef.current = null;
                             bgPressRef.current = null;
                             draggingIndexRef.current = null;
                             setDragging(false);
@@ -1135,6 +1234,8 @@ export default function StoriesBar() {
                                 selectedIndex={selected}
                                 locale={locale}
                                 onNudge={posting ? undefined : nudgeText}
+                                onTransform={posting ? undefined : transformText}
+                                onGrabHandle={posting ? undefined : grabTextHandle}
                                 onPickIndex={posting ? undefined : (i, e) => {
                                     e.preventDefault();
                                     // **囲みへ伝えない。** 囲みの pointerdown は
