@@ -233,6 +233,16 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* 保存した写真: **ログイン中だけ**。いいねと違って
+                                    未ログインでは押せないので、出しても空のページにしか
+                                    ならない（いいねは端末の控えがあるので条件が違う） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SAVES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.saves || "Saved"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
                                         <span className="text-[10px] tracking-widest uppercase text-white/50">
@@ -261,6 +271,18 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.ALBUMS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.albums || "Shared Albums"}
+                                        </button>
+                                    </li>
+                                )}
+                                {/* 設定（アカウント・プライバシー・サポート）。
+                                    **`isAuthenticated` だけで出す**——共同アルバムと
+                                    違ってグループ（投稿権限）を見ない。パスワードの
+                                    変更と退会は、権限が付かなかった人にこそ要る
+                                    （`/user/settings` の門も同じ判断） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SETTINGS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.settings || "Settings"}
                                         </button>
                                     </li>
                                 )}

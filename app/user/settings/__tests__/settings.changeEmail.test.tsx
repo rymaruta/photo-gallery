@@ -23,6 +23,7 @@ const mockGetCurrentEmail = vi.hoisted(() => vi.fn());
 const mockStartEmailChange = vi.hoisted(() => vi.fn());
 const mockConfirmEmailChange = vi.hoisted(() => vi.fn());
 
+// ブロック一覧は別のテスト（`BlockedUsers.test.tsx`）が見る
 vi.mock("../BlockedUsers", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
@@ -32,12 +33,6 @@ vi.mock("../../../../lib/utils/api", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
 }));
-vi.mock("../../../../lib/utils/image", () => ({
-    toUploadSafeFile: async (f: File) => f,
-    UnstrippableFileError: class extends Error { },
-    AVATAR_MAX_PX: 512,
-    COVER_MAX_PX: 1280,
-}));
 vi.mock("../../../components/DeleteAccountModal", () => ({ default: () => null }));
 vi.mock("../../../../lib/auth/cognito", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/auth/cognito")>()),
@@ -46,15 +41,12 @@ vi.mock("../../../../lib/auth/cognito", async (importActual) => ({
     confirmEmailChange: (...a: unknown[]) => mockConfirmEmailChange(...a),
 }));
 
-const ProfilePage = (await import("../page")).default;
+const SettingsPage = (await import("../page")).default;
 
 const ok = (data: unknown) => ({ ok: true, json: async () => data });
-const STORED = { userId: "u1", username: "tabibito", displayName: "旅人", bio: "こんにちは" };
 
 async function openLoaded() {
-    mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
-    render(<ProfilePage />);
-    await screen.findByDisplayValue("旅人");
+    render(<SettingsPage />);
     // 現在のメールが届くまで待つ（この節の判定はここが出てから）
     await screen.findByText("old@example.com");
 }
@@ -158,27 +150,29 @@ describe("メールアドレスを変える", () => {
         expect(screen.queryByLabelText(/に送ったコード/)).toBeNull();
     });
 
-    // プロフィールの保存とは別の口（パスワードと同じ理由）
-    it("プロフィールの保存ではメールを変えにいかない", async () => {
+    // **この画面はプロフィールを保存しない。**
+    //
+    // 元はプロフィール編集と同じ画面にあり、「自己紹介を直したらメールまで
+    // 送られる」形にしていないことを見張っていた。`/user/settings` へ分けた
+    // 2026-09-21 以降は**構造的に起こりえない**——この画面に保存ボタンも
+    // プロフィールの PUT も無い。判定をそちらへ言い換える
+    it("プロフィールを保存する口を持たない（混ざりようが無い）", async () => {
         await openLoaded();
         await userEvent.type(newEmailBox(), "new@example.com");
-        await userEvent.clear(screen.getByDisplayValue("旅人"));
-        await userEvent.type(screen.getByLabelText(/表示名/), "旅人2");
-        await userEvent.click(screen.getByRole("button", { name: /^保存する$/ }));
-
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(screen.queryByRole("button", { name: /^保存する$/ }),
+            "設定にプロフィールの保存ボタンが戻っている").toBeNull();
+        expect(screen.queryByLabelText(/表示名/),
+            "設定にプロフィールの項目が戻っている").toBeNull();
+        // 打っただけでは送らない（ボタンを押すまで何も起きない）
         expect(mockStartEmailChange).not.toHaveBeenCalled();
-        const puts = mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT");
-        expect(JSON.stringify(puts.at(-1)?.[1]?.body ?? "")).not.toContain("new@example.com");
+        expect(mockUserFetch.mock.calls.filter((c) => c[1]?.method === "PUT")).toEqual([]);
     });
 
     // ⚠️ **自分で踏んだ欠陥。** `getCurrentEmail()` は失敗しても `null` を
     // 返すので、初期値と同じにすると**「読み込み中」のまま永久に止まる**
     it("読めなかったときは「読み込み中」のまま止まらない", async () => {
         mockGetCurrentEmail.mockResolvedValue(null);
-        mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
-        render(<ProfilePage />);
-        await screen.findByDisplayValue("旅人");
+        render(<SettingsPage />);
         expect(await screen.findByText(/読み取れませんでした/)).toBeInTheDocument();
         expect(screen.queryByText(/読み込み中/)).toBeNull();
         // **それでも変更はできる**（読めないことと変えられないことは別）
@@ -192,10 +186,8 @@ describe("メールアドレスを変える", () => {
     // 要求する形へ変わったら、ここが落ちる
     it("いまのアドレスを読めなくても、変更は進められる", async () => {
         mockGetCurrentEmail.mockResolvedValue(null);
-        mockUserFetch.mockResolvedValueOnce(ok(STORED)).mockResolvedValueOnce(ok({}));
-        render(<ProfilePage />);
-        await screen.findByDisplayValue("旅人");
-        await userEvent.type(screen.getByLabelText("新しいメールアドレス"), "new@example.com");
+        render(<SettingsPage />);
+        await userEvent.type(await screen.findByLabelText("新しいメールアドレス"), "new@example.com");
         await userEvent.click(screen.getByRole("button", { name: /確認コードを送る/ }));
         await waitFor(() => expect(mockStartEmailChange).toHaveBeenCalledWith("new@example.com"));
     });

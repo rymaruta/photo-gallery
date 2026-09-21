@@ -4,6 +4,7 @@ import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { usePhotoLikes, type LikeResult } from "../../../lib/hooks/usePhotoLikes";
+import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useImagePreloader } from "../../../lib/hooks/useImagePreloader";
@@ -78,6 +79,28 @@ export default function GalleryModal({
     }, [showToast, locale]);
     const notifyIfLikeFailedRef = useRef(notifyIfLikeFailed);
     useEffect(() => { notifyIfLikeFailedRef.current = notifyIfLikeFailed; }, [notifyIfLikeFailed]);
+
+    // 保存（ブックマーク）。**いいねとは別の棚**で、投稿者には届かない。
+    // 集まる先は `/saves`（`/favorites` はいいねした写真）
+    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading);
+    const handleToggleSave = useCallback(() => {
+        hapticTap();
+        void toggleSave().then((r) => {
+            if (r.ok) return;
+            // **未ログインは「失敗」ではなく案内。** 「保存できませんでした。
+            // もう一度お試しください」と言われても、押し直して直る話ではない
+            if (r.requiresAuth) {
+                showToast(locale === "en"
+                    ? "Log in to save photos."
+                    : "写真を保存するにはログインしてください", "error");
+                return;
+            }
+            showToast(r.message ?? (locale === "en"
+                ? "Couldn't save this photo. Please try again."
+                : "保存できませんでした。もう一度お試しください"), "error");
+        });
+    }, [toggleSave, showToast, locale]);
+
     const { preload } = useImagePreloader();
 
     // ダブルタップいいね（Instagram風）。連続タップ350ms以内で発火し、
@@ -263,6 +286,9 @@ export default function GalleryModal({
                         onClose={onClose}
                         isFav={liked}
                         onToggleFavorite={() => { hapticTap(); void toggleLike().then(notifyIfLikeFailed); }}
+                        isSaved={saved}
+                        onToggleSave={handleToggleSave}
+                        savePending={savePending}
                         firstFocusableRef={firstFocusableRef}
                     />
                 </div>

@@ -150,3 +150,168 @@ describe("StoryTextOverlay: 複数置いたとき", () => {
         expect([...container.querySelectorAll("p")].filter((e) => (e as HTMLElement).style.outline)).toHaveLength(0);
     });
 });
+
+/**
+ * 傾き（`rotate`）と、角のハンドル。
+ *
+ * ここで固定したいのは4つ:
+ *
+ *  1. **「無い＝0度」** ——保存済みのストーリーは `rotate` を持たない
+ *  2. **傾き 0 なら `rotate()` を書かない** ——傾けていない文字は
+ *     データも DOM も、この変更の前と同じ
+ *  3. **運ぶ → 回す の順** ——逆だと運ぶ量そのものが回り、傾けた瞬間に飛ぶ
+ *  4. **ハンドルは選んでいる1つだけ**・**親へ伝えない**
+ */
+describe("StoryTextOverlay: 傾きと角のハンドル", () => {
+    it("保存済みの文字（`rotate` が無い）は傾かない", () => {
+        render(<StoryTextOverlay texts={[t()]} box={box} />);
+        expect(para().style.transform, "rotate が書かれている").toBe("translate(-50%, -50%)");
+    });
+
+    it("傾けた文字は回る", () => {
+        render(<StoryTextOverlay texts={[t({ rotate: 15 })]} box={box} />);
+        expect(para().style.transform).toBe("translate(-50%, -50%) rotate(15deg)");
+    });
+
+    // **運ぶ → 回す の順**（CSS は右から当たるので `rotate` が先に効く）。
+    // 逆に書くと運ぶ量そのものが回り、傾けた瞬間に文字が別の場所へ飛ぶ
+    it("運ぶのが先、回すのが後（順序が逆でない）", () => {
+        render(<StoryTextOverlay texts={[t({ rotate: 30 })]} box={box} />);
+        const tr = para().style.transform;
+        expect(tr.indexOf("translate")).toBeLessThan(tr.indexOf("rotate"));
+    });
+
+    it("壊れた傾きでも描ける（0 として読む）", () => {
+        render(<StoryTextOverlay texts={[t({ rotate: NaN })]} box={box} />);
+        expect(para().style.transform).toBe("translate(-50%, -50%)");
+    });
+
+    const handle = () => document.querySelector("[data-story-text-handle]") as HTMLElement | null;
+
+    it("見る側にはハンドルを出さない", () => {
+        render(<StoryTextOverlay texts={[t()]} box={box} />);
+        expect(handle(), "見る側にハンドルが出ている").toBeNull();
+    });
+
+    // **選んでいる1つだけ。** 全部に出すと写真が的だらけになる
+    it("ハンドルは選んでいる文字にだけ出る", () => {
+        const texts = [t({ text: "あ" }), t({ text: "い" })];
+        const { container } = render(
+            <StoryTextOverlay
+                texts={texts} box={box} selectedIndex={1}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()}
+            />,
+        );
+        const handles = container.querySelectorAll("[data-story-text-handle]");
+        expect(handles).toHaveLength(1);
+        expect(handles[0].getAttribute("data-story-text-handle")).toBe("1");
+    });
+
+    // **親へ伝えない。** 親の pointerdown は「掴んで動かす」を始めるので、
+    // 伝わると回そうとした指で文字が運ばれる
+    it("ハンドルを掴んでも、文字を掴んだことにはならない", () => {
+        const onGrab = vi.fn();
+        const onPick = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t()]} box={box} selectedIndex={0}
+                onPickIndex={onPick} onGrabHandle={onGrab}
+            />,
+        );
+        fireEvent.pointerDown(handle()!);
+        expect(onGrab).toHaveBeenCalledTimes(1);
+        expect(onGrab.mock.calls[0][0]).toBe(0);
+        expect(onPick, "親の「掴んで動かす」まで始まっている").not.toHaveBeenCalled();
+    });
+
+    /**
+     * **キーボードでも回せる・大きさを変えられる。**
+     *
+     * 角のハンドルは指の道具。これが無いと、なぞれない人は傾けられない。
+     * 矢印キーは「動かす」に割り当て済みなので奪わない。
+     */
+    it("[ と ] で回る（矢印は動かすまま）", () => {
+        const onTransform = vi.fn();
+        const onNudge = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t({ rotate: 10 })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onNudge={onNudge} onTransform={onTransform}
+            />,
+        );
+        fireEvent.keyDown(para(), { key: "]" });
+        expect(onTransform.mock.calls[0][1]).toEqual({ rotate: 15 });
+        fireEvent.keyDown(para(), { key: "[" });
+        expect(onTransform.mock.calls[1][1]).toEqual({ rotate: 5 });
+        // **矢印は今までどおり「動かす」**（回転に奪われていない）
+        fireEvent.keyDown(para(), { key: "ArrowRight" });
+        expect(onNudge).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * **`Shift` を押した `[` `]` は、ブラウザでは `{` `}` になる。**
+     *
+     * `[` `]` だけを見ていたので、`Shift` の刻み（15度）には**どうやっても
+     * 届かなかった**。対テストが `{ key: "]", shiftKey: true }` という
+     * **実ブラウザでは起きない組み合わせ**を投げていて、それで緑になって
+     * いた——CLAUDE.md の「何も検証していないテスト」そのもの。
+     *
+     * ここは**実際に飛んでくる `key`** で見る。
+     */
+    it("Shift を押した `{` `}` でも回る（15度）", () => {
+        const onTransform = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t({ rotate: 0 })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onTransform={onTransform}
+            />,
+        );
+        fireEvent.keyDown(para(), { key: "}", shiftKey: true });
+        expect(onTransform.mock.calls[0][1], "Shift の刻みに届いていない").toEqual({ rotate: 15 });
+        fireEvent.keyDown(para(), { key: "{", shiftKey: true });
+        expect(onTransform.mock.calls[1][1]).toEqual({ rotate: -15 });
+    });
+
+    // **空の文字にハンドルを出さない。** 「＋」で足した直後は `text: ""` で
+    // 箱が 0×0——そこを掴むと、少し動かしただけで大きさが上限に張り付き、
+    // 傾きも雑音から決まる
+    it("文言が空のうちはハンドルを出さない", () => {
+        render(
+            <StoryTextOverlay
+                texts={[t({ text: "" })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()}
+            />,
+        );
+        expect(document.querySelector("[data-story-text-handle]")).toBeNull();
+    });
+
+    it("+ と - で大きさが変わる", () => {
+        const onTransform = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t()]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onTransform={onTransform}
+            />,
+        );
+        fireEvent.keyDown(para(), { key: "+" });
+        expect(onTransform.mock.calls[0][1].size).toBeGreaterThan(STORY_SIZE_DEFAULT);
+        fireEvent.keyDown(para(), { key: "-" });
+        expect(onTransform.mock.calls[1][1].size).toBeLessThan(STORY_SIZE_DEFAULT);
+    });
+
+    // **できる操作を全部名乗る。** 回転を足したのに読み上げが
+    // 「矢印キーで動かせます」のままだと、指でなぞれない人には
+    // **傾けられること自体が伝わらない**
+    it("読み上げが、回転と大きさの操作も名乗る", () => {
+        render(
+            <StoryTextOverlay
+                texts={[t()]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onTransform={vi.fn()}
+            />,
+        );
+        const label = para().getAttribute("aria-label") ?? "";
+        expect(label).toContain("矢印キーで移動");
+        expect(label).toContain("[ と ] で回転");
+        expect(label).toContain("+ と - で大きさ");
+    });
+});

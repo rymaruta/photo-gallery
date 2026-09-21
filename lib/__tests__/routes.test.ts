@@ -8,6 +8,7 @@ describe("ROUTES", () => {
     it("静的ルートが正しいパスを持つ", () => {
         expect(ROUTES.HOME).toBe("/");
         expect(ROUTES.FAVORITES).toBe("/favorites");
+        expect(ROUTES.SAVES).toBe("/saves");
         expect(ROUTES.ADMIN).toBe("/admin");
         expect(ROUTES.LOGIN).toBe("/login");
         expect(ROUTES.UPLOAD).toBe("/user/upload");

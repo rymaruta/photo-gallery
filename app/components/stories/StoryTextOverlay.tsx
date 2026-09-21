@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { STORY_FONTS, STORY_COLORS, type StoryText } from "@/lib/utils/storyText";
+import { STORY_FONTS, STORY_COLORS, clampStoryTextRotate, type StoryText } from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
+import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/storyTransform";
 
 /**
  * ストーリーに載せた文字を描く。
@@ -16,7 +17,9 @@ import type { MediaBox } from "@/lib/hooks/useMediaBox";
  *
  * **並びが重なり順**——後ろの要素ほど手前に出る（DOM の順のまま）。
  */
-export default function StoryTextOverlay({ texts, box, selectedIndex, onPickIndex, onNudge, locale, dimmed }: {
+export default function StoryTextOverlay({
+    texts, box, selectedIndex, onPickIndex, onNudge, onTransform, onGrabHandle, locale, dimmed,
+}: {
     texts: readonly StoryText[];
     /** 絵が実際に描かれている矩形。測れていなければ囲み全体に載せる */
     box: MediaBox | null;
@@ -29,6 +32,17 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
      * ——渡さないとキーボードでは置き場所を決められない。
      */
     onNudge?: (index: number, dx: number, dy: number) => void;
+    /**
+     * キーボードで回す・大きさを変える。**矢印キーは「動かす」に
+     * 割り当て済み**なので、回すのは別のキー（`[` `]` と `-` `+`）。
+     * 渡さないとキーボードでは傾けられない——ハンドルは指だけの道具になる。
+     */
+    onTransform?: (index: number, patch: { rotate?: number; size?: number }) => void;
+    /**
+     * 角のハンドルを掴んだ（拡大縮小・回転の始まり）。
+     * 渡したときだけハンドルを描く。
+     */
+    onGrabHandle?: (index: number, e: React.PointerEvent<HTMLElement>) => void;
     locale?: "ja" | "en";
     /** 掴んでいる間などに少し透かす（下の写真を確かめられるように） */
     dimmed?: boolean;
@@ -51,6 +65,10 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                 const color = STORY_COLORS[t.color];
                 const filled = t.bg === "solid";
                 const selected = editable && selectedIndex === i;
+                // **「無い＝0度」はここ1か所で決める**（`clampStoryTextRotate` が
+                // `undefined` を 0 に落とす）。保存済みのストーリーは
+                // `rotate` を実際に持たない
+                const rotate = clampStoryTextRotate(t.rotate);
                 return (
                     <p
                         key={i}
@@ -63,9 +81,12 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                             role: "button",
                             tabIndex: 0,
                             "aria-pressed": selected,
+                            // **できる操作を全部名乗る。** 回転を足したのに
+                            // 読み上げが「矢印キーで動かせます」のままだと、
+                            // 指でなぞれない人には**傾けられること自体が伝わらない**
                             "aria-label": locale === "en"
-                                ? `Text "${t.text}" — arrow keys to move`
-                                : `文字「${t.text}」 — 矢印キーで動かせます`,
+                                ? `Text "${t.text}" — arrow keys to move, [ and ] to rotate, + and - to resize`
+                                : `文字「${t.text}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
                             onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
                                 // 1回で 2%。Shift で 10%（端まで何度も押さずに済む）
                                 const step = e.shiftKey ? 0.1 : 0.02;
@@ -77,6 +98,33 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                                 if (move && onNudge) {
                                     e.preventDefault();
                                     onNudge(i, move[0], move[1]);
+                                    return;
+                                }
+                                // **回す・大きさを変えるのは矢印以外のキー。**
+                                // 矢印は「動かす」に割り当て済みなので奪わない。
+                                // 角のハンドルは指の道具——これが無いと、
+                                // なぞれない人は傾けられない
+                                if (!onTransform) return;
+                                const turn = e.shiftKey ? ROTATE_STEP_DEG_COARSE : ROTATE_STEP_DEG;
+                                // **`{` `}` も受ける。** `Shift` を押しながらの
+                                // `[` `]` は、ブラウザが `e.key` に `{` `}` を
+                                // 入れる——`[` `]` だけを見ていたので
+                                // **`Shift` の刻み（15度）にはどうやっても
+                                // 届かなかった**（対テストが `{ key: "]",
+                                // shiftKey: true }` という実ブラウザでは起きない
+                                // 組み合わせを投げていて、それで緑になっていた）
+                                if (e.key === "[" || e.key === "{") {
+                                    e.preventDefault();
+                                    onTransform(i, { rotate: rotate - turn });
+                                } else if (e.key === "]" || e.key === "}") {
+                                    e.preventDefault();
+                                    onTransform(i, { rotate: rotate + turn });
+                                } else if (e.key === "+" || e.key === "=") {
+                                    e.preventDefault();
+                                    onTransform(i, { size: stepSize(t.size, 1) });
+                                } else if (e.key === "-") {
+                                    e.preventDefault();
+                                    onTransform(i, { size: stepSize(t.size, -1) });
                                 }
                             },
                         } : {})}
@@ -91,7 +139,22 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                             // ずらす量を割合そのものにすると、x=0 で左揃え・x=1 で右揃え・
                             // x=0.5 で中央になり、箱は必ず絵の中に収まる
                             // （箱の左端 = x × (絵の幅 − 箱の幅) なので 0 以上・はみ出さない）。
-                            transform: `translate(${-t.x * 100}%, ${-t.y * 100}%)`,
+                            // **回すのは最後（＝いちばん右に書く）。**
+                            // CSS の transform は右から当たるので、
+                            // `translate(...) rotate(...)` は「回してから運ぶ」。
+                            // 逆に書くと、運ぶ量そのものが回ってしまい、
+                            // **傾けた瞬間に文字が別の場所へ飛ぶ**。
+                            //
+                            // 回す中心は箱の真ん中（`transform-origin` の既定）。
+                            // 端に置いた文字は、回すと角が絵からはみ出しうるが、
+                            // **それは傾けた人が見て決めたこと**なので直さない
+                            // （挟み込むと、指で回しても途中で止まって理由が分からない）。
+                            //
+                            // **傾き 0 なら `rotate()` を書かない。** 保存側で
+                            // 「0 は書かない」と決めたのと同じ理由——傾けていない
+                            // 文字は、データも DOM も**この変更の前と同じ**になる。
+                            transform: `translate(${-t.x * 100}%, ${-t.y * 100}%)`
+                                + (rotate === 0 ? "" : ` rotate(${rotate}deg)`),
                             // 端に置いても読める幅を残す（はみ出す前に折り返す）
                             maxWidth: "86%",
                             fontFamily: font.css,
@@ -118,6 +181,65 @@ export default function StoryTextOverlay({ texts, box, selectedIndex, onPickInde
                         }}
                     >
                         {t.text}
+                        {/* **角のハンドル。** 掴んで回すと傾き、離すと大きさが決まる。
+                            選んでいる1つにだけ出す（全部に出すと写真が的だらけになる）。
+
+                            **回した箱の子に置く。** そうすれば CSS が一緒に回すので、
+                            傾けた角の位置を自分で計算しなくてよい（計算して外に置くと、
+                            角度の式を2か所——描く側と当たり判定——に持つことになる）。
+
+                            **Tab では止まらない**（`tabIndex={-1}`）。同じことは
+                            親の `[` `]` `+` `-` でできて、そちらは読み上げが
+                            名乗っている。止めると「同じ操作に2つの止まり場」ができる
+
+                            **文言が空のうちは出さない。** 「＋」で足した直後の
+                            文字は `text: ""` で箱が 0×0——そこにハンドルを出すと、
+                            中心からの距離がほぼ 0 の点を掴むことになり、
+                            **少し動かしただけで大きさが上限に張り付き、
+                            傾きも雑音から決まる**。打つものが無い文字に
+                            大きさも傾きも無い */}
+                        {selected && onGrabHandle && t.text.trim() !== "" && (
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                data-story-text-handle={i}
+                                onPointerDown={(e) => {
+                                    // **親へ伝えない。** 親の pointerdown は
+                                    // 「掴んで動かす」を始めるので、伝えると
+                                    // 回そうとした指で文字が運ばれる
+                                    e.stopPropagation();
+                                    onGrabHandle(i, e);
+                                }}
+                                aria-label={locale === "en"
+                                    ? "Drag to resize and rotate"
+                                    : "なぞって大きさと傾きを変える"}
+                                className="absolute pointer-events-auto flex items-center justify-center"
+                                style={{
+                                    // 箱の右下の角。的は指の太さ（44px）、見えるのは 18px
+                                    right: 0,
+                                    bottom: 0,
+                                    width: "44px",
+                                    height: "44px",
+                                    transform: "translate(50%, 50%)",
+                                    touchAction: "none",
+                                    // 文字の大きさに引きずられない（`em` は親の字の大きさ）
+                                    fontSize: "16px",
+                                }}
+                            >
+                                <span
+                                    aria-hidden
+                                    style={{
+                                        width: "18px",
+                                        height: "18px",
+                                        borderRadius: "9999px",
+                                        background: "rgba(255,255,255,0.95)",
+                                        // 白い写真の上でも見えるように縁を付ける
+                                        boxShadow: "0 0 0 2px rgba(0,0,0,0.45)",
+                                        display: "block",
+                                    }}
+                                />
+                            </button>
+                        )}
                     </p>
                 );
             })}

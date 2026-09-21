@@ -650,6 +650,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // **本人しか読めない一覧なので、ここで消せば完全に消える**
         // （いいねのように他人側へ散る要素を持たない）
         await ddbDelete(PHOTOS_TABLE, { id: `spots#${uid}` });
+        // 写真の「保存」の一覧（`saves.ts` の `saves#<uid>`）も同じ扱い。
+        // `save#<photoId>#<uid>` のマーカーは前方一致で列挙できないので
+        // `like#` と同じく残る（一覧が無ければ画面には出ない）
+        await ddbDelete(PHOTOS_TABLE, { id: `saves#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)
