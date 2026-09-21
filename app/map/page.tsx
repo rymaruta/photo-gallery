@@ -25,18 +25,27 @@ export default function MapPage() {
     const approxCount = useMemo(() => geo.filter((p) => p.geoApprox).length, [geo]);
 
     // ピンを押すと画面下のシートに出す（以前は地図の中のポップアップ）。
-    // **押された束をそのまま持つ。** 束の中身は地図が決めた並びで、
-    // シートは「1/5」で送るだけ
-    const [selection, setSelection] = useState<MapSelection | null>(null);
+    //
+    // **持つのは ID と何枚目かだけ。** 写真の中身は毎回 `geo` から引く。
+    // 押した瞬間の写真オブジェクトを抱えると、開いている間に一覧が
+    // 更新されたとき（手元の断面を API の一覧が置き換える・編集・非公開）
+    // 古い題や、もう地図に無い写真を出し続ける。ID から引き直せば、
+    // 消えた写真はシートから落ち、全部消えればシートごと畳まれる
+    // （描画のときに決めるので `setState` は要らない）
+    const [selection, setSelection] = useState<{ ids: string[]; index: number } | null>(null);
+    const onSelect = useCallback((s: MapSelection | null) => {
+        setSelection(s ? { ids: s.photos.map((p) => p.id), index: s.index } : null);
+    }, []);
     const closeSheet = useCallback(() => setSelection(null), []);
     const setIndex = useCallback((index: number) => {
         setSelection((s) => (s ? { ...s, index } : s));
     }, []);
-    // **写真が全部消えたらシートも出さない。** 出しっぱなしだと、地図が
-    // 「まだありません」に戻っているのにシートだけ残る。
-    // 描画のときに決める——ここで `setState` すると描画が1回増える
-    // （`react-hooks/set-state-in-render`）
-    const sheet = geo.length > 0 ? selection : null;
+    const sheetPhotos = useMemo(() => {
+        if (!selection) return [];
+        const byId = new Map(geo.map((p) => [p.id, p]));
+        return selection.ids.map((id) => byId.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
+    }, [selection, geo]);
+    const sheet = selection && sheetPhotos.length > 0 ? { photos: sheetPhotos, index: selection.index } : null;
 
     return (
         <main className="max-w-6xl mx-auto px-4 py-6 pb-28">
@@ -80,7 +89,7 @@ export default function MapPage() {
                 </div>
             ) : (
                 <>
-                    <PhotoMap photos={geo} locale={locale} onSelect={setSelection} />
+                    <PhotoMap photos={geo} locale={locale} onSelect={onSelect} />
                     {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
                         （white/40 は黒地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
                     <p className="mt-3 text-xs text-white/60">

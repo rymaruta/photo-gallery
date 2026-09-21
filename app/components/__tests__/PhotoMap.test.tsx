@@ -17,23 +17,11 @@ type FakeMarker = {
     popup: HTMLElement | null; popupOpts: Record<string, unknown> | null;
     update: ReturnType<typeof vi.fn>;
     clickHandler?: () => void;
-    on: (ev: string, fn: () => void) => void; addTo: () => FakeMarker;
+    keypressHandler?: (e: { originalEvent?: { key: string } }) => void;
+    on: (ev: string, fn: (e?: unknown) => void) => void; addTo: () => FakeMarker;
     bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
     getPopup: () => { update: ReturnType<typeof vi.fn> };
 };
-// **配信のホストを先に決める。** `lib/utils/seo.ts` の `CDN_HOST` は
-// モジュール読み込み時に `NEXT_PUBLIC_CLOUDFRONT_URL` から決まるので、
-// import より前（= `vi.hoisted`）で入れないと「揃える」経路に入らない。
-// 既存のフィクスチャは `https://cdn/...` で、ここで決めるホストとは別物
-// ——揃える対象にならないので、他のテストの見え方は変わらない。
-const ORIGINS = vi.hoisted(() => {
-    const cdn = "https://cdn-default.invalid";
-    const site = "https://site.invalid";
-    process.env.NEXT_PUBLIC_CLOUDFRONT_URL = cdn;
-    process.env.NEXT_PUBLIC_SITE_URL = site;
-    return { cdn, site };
-});
-
 const state = vi.hoisted(() => ({
     markers: [] as FakeMarker[], zoom: 4, center: [36, 138] as [number, number],
     zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null,
@@ -65,7 +53,10 @@ vi.mock("leaflet", () => {
         const update = vi.fn();
         const m: FakeMarker = {
             kind, latlng, opts, popup: null, popupOpts: null, update,
-            on: (ev: string, fn: () => void) => { if (ev === "click") m.clickHandler = fn; },
+            on: (ev: string, fn: (e?: unknown) => void) => {
+                if (ev === "click") m.clickHandler = fn as () => void;
+                if (ev === "keypress") m.keypressHandler = fn as FakeMarker["keypressHandler"];
+            },
             addTo: () => m,
             bindPopup: (el, o) => { m.popup = el; m.popupOpts = o; return m; },
             getPopup: () => ({ update }),
@@ -247,16 +238,29 @@ describe("押されたピンを親へ渡す", () => {
         expect(onSelect).toHaveBeenCalledWith(null);
     });
 
-    // Leaflet はレイヤーの DOM イベントを**地図にも伝える**
-    // （`Layer._fireDOMEvent` が targets にレイヤーと地図を並べて撃つ）。
-    // 弾かないと、ピンを押した直後に「閉じる」が走って何も出ない
-    it("ピンを押した直後の地図の click では閉じない", async () => {
+    // Leaflet はレイヤーの DOM イベントを**地図にも伝える**（`Layer._fireDOMEvent`
+    // が targets にレイヤーと地図を並べて撃つ）。止めるのは
+    // `bubblingMouseEvents: false` のレイヤーだけで、`Marker` は既定 false・
+    // `Path`（circleMarker）は既定 **true**。渡し忘れると、単独のピンを押した
+    // 直後に地図の click（＝閉じる）が走って何も出ない
+    it("単独のピンは click を地図へ伝えない（bubblingMouseEvents: false）", async () => {
+        await draw([photo("a")]);
+        expect(state.markers[0].kind).toBe("circle");
+        expect(state.markers[0].opts.bubblingMouseEvents).toBe(false);
+    });
+
+    // 束のピンは `keyboard: true` で Tab で来られるが、Leaflet は Enter を
+    // click に**変換しない**（以前は `bindPopup` が `keypress` を拾っていた）
+    it("束のピンは Enter でも押せる", async () => {
+        const at = { lat: 35.42, lng: 138.88 };
         const onSelect = vi.fn();
-        await draw([photo("a")], onSelect);
-        state.markers[0].clickHandler?.();
-        fireMap("click");
+        state.zoom = 19;
+        await draw([photo("a", { coords: at }), photo("b", { coords: at })], onSelect);
+        const cluster = state.markers.find((m) => m.kind === "marker")!;
+        cluster.keypressHandler?.({ originalEvent: { key: "a" } });
+        expect(onSelect).not.toHaveBeenCalled();
+        cluster.keypressHandler?.({ originalEvent: { key: "Enter" } });
         expect(onSelect).toHaveBeenCalledTimes(1);
-        expect(onSelect).not.toHaveBeenCalledWith(null);
     });
 
     it("`onSelect` を渡さなくても落ちない", async () => {

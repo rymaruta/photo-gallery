@@ -8,6 +8,7 @@ import { getLocalized, getLocalizedParagraphs } from "../../lib/data/photos";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { publicImageUrl } from "../../lib/utils/seo";
 import { ROUTES } from "../../lib/routes";
+import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 
 /**
  * 撮影地マップで押したピンの中身を出す、画面下のシート。
@@ -21,11 +22,18 @@ import { ROUTES } from "../../lib/routes";
  * **寸法は全部 px。** 640px 未満で root が 14px に落ちる（`app/globals.css`）
  * ので、rem で書くとスマホだけ縮む。
  *
- * **`--bottom-bar-h` のぶん持ち上げる。** 画面下に固定したバーがあるページ
- * では、バー自身が実測値をこの変数に出す（`lib/hooks/useBottomBarHeight.ts`）。
- * 決め打ちの高さで避けると、ラベルが折り返した幅で数px重なる（MiniPlayer が
- * 実際に踏んだ）。**こちらは変数を出さない**——出す側が2つになると、
+ * **`--bottom-bar-h` のぶん持ち上げる。** 画面下のバー（`BottomNav`）が
+ * 実測値をこの変数に出す（`lib/hooks/useBottomBarHeight.ts`）。決め打ちの
+ * 高さで避けると、ラベルが折り返した幅で数px重なる（MiniPlayer が実際に
+ * 踏んだ）。**その値は safe-area 込み**なので、こちらで safe-area を足すと
+ * notch 端末で 34px 浮く（最初そう書いていた）。変数が無いときだけ
+ * safe-area に落とす。**こちらは変数を出さない**——出す側が2つになると、
  * 後からマウントした方が上書きして静かにずれる。
+ *
+ * **`MiniPlayer` より前に出す（z-45）。** あちらも同じ位置（fixed・下から
+ * 12px + バー）の z-40 で、`layout.tsx` が `children` の後に描くので、
+ * 同じ z だと曲を流しながら来た人のシートの下半分（日付・送り・「1/5」）を
+ * プレイヤーが覆う。ヘッダー（z-50）よりは後ろ。
  */
 export default function MapPhotoSheet({ photos, index, onIndexChange, onClose, locale }: {
     photos: readonly MapPhoto[];
@@ -48,17 +56,38 @@ export default function MapPhotoSheet({ photos, index, onIndexChange, onClose, l
         onIndexChange((safeIndex + delta + total) % total);
     }, [safeIndex, total, onIndexChange]);
 
-    // Escape で閉じる・左右で送る。**`window` に張る**——シートの中に
-    // フォーカスが無くても（地図を触ったあとでも）効かせたい
+    // Escape で閉じる。他のモーダルと同じ口（IME の変換取り消しは閉じない）
+    useEscapeKey(true, onClose);
+
+    // 左右で送る。**capture で拾う**——地図を押した直後は Leaflet が地図の
+    // 容器にフォーカスを移していて、その間の矢印は Leaflet の `Keyboard` が
+    // document の keydown で受けて `stop(e)` する（地図が動く）。bubble で
+    // 張るとここへ届かない。**入力欄の中の矢印は触らない**（同じ画面に
+    // 投稿シートの入力欄が開きうる。カーソル移動を横取りしない）
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-            if (e.key === "ArrowRight") { e.preventDefault(); go(1); return; }
-            if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); return; }
+            if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+            const t = e.target as HTMLElement | null;
+            if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+            e.preventDefault();
+            e.stopPropagation();   // 地図を動かさない（シートが開いている間は送りが優先）
+            go(e.key === "ArrowRight" ? 1 : -1);
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [onClose, go]);
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+    }, [go]);
+
+    // **開いたら閉じるボタンへフォーカスを移し、閉じたら元へ戻す。**
+    // 移さないと、読み上げは開いたことを知らせず、Tab で来た人はピンに
+    // 残ったまま。閉じるボタンを押すと要素が消えてフォーカスが body に
+    // 落ち、次の Tab がページの先頭からになる
+    useEffect(() => {
+        const before = document.activeElement as HTMLElement | null;
+        closeRef.current?.focus({ preventScroll: true });
+        return () => {
+            if (before && before.isConnected && typeof before.focus === "function") before.focus({ preventScroll: true });
+        };
+    }, []);
 
     if (!photo) return null;
 
@@ -80,10 +109,11 @@ export default function MapPhotoSheet({ photos, index, onIndexChange, onClose, l
             role="dialog"
             aria-modal="false"
             aria-label={en ? "Photo at this location" : "この場所の写真"}
-            className="fixed left-0 right-0 z-40 pointer-events-none"
+            className="fixed left-0 right-0 z-[45] pointer-events-none"
             style={{
-                // 画面下から。バーがあるページではそのぶん上へ
-                bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px + var(--bottom-bar-h, 0px))",
+                // 画面下から。バーがあるページではそのぶん上へ（バーの実寸は
+                // safe-area 込み。無いときだけ safe-area に落とす）
+                bottom: "calc(12px + var(--bottom-bar-h, env(safe-area-inset-bottom, 0px)))",
                 paddingLeft: "12px",
                 paddingRight: "12px",
             }}

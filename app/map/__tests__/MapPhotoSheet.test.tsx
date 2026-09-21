@@ -2,7 +2,21 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { MapPhoto } from "../../components/PhotoMap";
-import MapPhotoSheet from "../MapPhotoSheet";
+
+// **配信のホストを先に決める。** `lib/utils/seo.ts` の `CDN_HOST` は
+// モジュール読み込み時に `NEXT_PUBLIC_CLOUDFRONT_URL` から決まるので、
+// import より前（= `vi.hoisted`）で入れないと「揃える」経路に入らない。
+// 他のフィクスチャは `https://cdn.example.com/...` で、ここで決めるホストとは
+// 別物——揃える対象にならないので、他のテストの見え方は変わらない
+const ORIGINS = vi.hoisted(() => {
+    const cdn = "https://cdn-default.invalid";
+    const site = "https://site.invalid";
+    process.env.NEXT_PUBLIC_CLOUDFRONT_URL = cdn;
+    process.env.NEXT_PUBLIC_SITE_URL = site;
+    return { cdn, site };
+});
+
+const MapPhotoSheet = (await import("../MapPhotoSheet")).default;
 
 // 撮影地マップの、画面下のシート。**地図の中のポップアップから出した**
 // ——あそこは地図の高さに縛られ、低い画面では中身が枠の外へ出ていた。
@@ -116,7 +130,8 @@ describe("撮影地マップのボトムシート", () => {
         fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
         expect(onClose).toHaveBeenCalledTimes(1);
 
-        fireEvent.keyDown(window, { key: "Escape" });
+        // `useEscapeKey` は document で聞く（他のモーダルと同じ口）
+        fireEvent.keyDown(document, { key: "Escape" });
         expect(onClose).toHaveBeenCalledTimes(2);
     });
 
@@ -135,6 +150,91 @@ describe("撮影地マップのボトムシート", () => {
         setup([photo("a")]);
         const sheet = screen.getByTestId("map-photo-sheet") as HTMLElement;
         expect(sheet.style.bottom).toContain("--bottom-bar-h");
-        expect(sheet.style.bottom).toContain("safe-area-inset-bottom");
+    });
+
+    // `BottomNav` が出す `--bottom-bar-h` は **safe-area 込みの実寸**。
+    // こちらで足すと notch 端末で 34px 浮く（最初そう書いていた）。
+    // 変数が無いときの落とし先としてだけ使う
+    it("safe-area を二重に足さない（変数が無いときの落とし先にだけ使う）", () => {
+        setup([photo("a")]);
+        const bottom = (screen.getByTestId("map-photo-sheet") as HTMLElement).style.bottom;
+        expect(bottom).toMatch(/var\(--bottom-bar-h,\s*env\(safe-area-inset-bottom/);
+        // 「safe-area + … + var(--bottom-bar-h, 0px)」の形（二重）ではないこと
+        expect(bottom).not.toMatch(/env\(safe-area-inset-bottom[^)]*\)[^v]*\+.*var\(--bottom-bar-h/);
+    });
+
+    // `MiniPlayer` は同じ位置・同じ z-40 で、`layout.tsx` が children の後に
+    // 描く。同じ z だと曲を流しながら来た人のシートの下半分をプレイヤーが覆う。
+    // ヘッダー（z-50）よりは後ろ
+    it("MiniPlayer（z-40）より前・ヘッダー（z-50）より後ろに出す", () => {
+        setup([photo("a")]);
+        const cls = (screen.getByTestId("map-photo-sheet") as HTMLElement).className;
+        const z = Number(/z-\[(\d+)\]/.exec(cls)?.[1]);
+        expect(z).toBeGreaterThan(40);
+        expect(z).toBeLessThan(50);
+    });
+
+    // 移さないと、読み上げは開いたことを知らせず、Tab で来た人はピンに
+    // 残ったまま。閉じると要素が消えてフォーカスが body に落ちる
+    it("開いたら閉じるボタンへフォーカスし、閉じたら元へ戻す", () => {
+        const pin = document.createElement("button");
+        pin.textContent = "ピン";
+        document.body.appendChild(pin);
+        pin.focus();
+        expect(document.activeElement).toBe(pin);
+
+        const { unmount } = setup([photo("a")]);
+        expect(document.activeElement).toBe(screen.getByRole("button", { name: "閉じる" }));
+
+        unmount();
+        expect(document.activeElement).toBe(pin);
+        pin.remove();
+    });
+
+    // 地図を押した直後は Leaflet が地図の容器にフォーカスを移していて、
+    // その間の矢印は Leaflet の `Keyboard` が document の keydown で受けて
+    // `stop(e)` する。bubble で張るとここへ届かない
+    it("document で止められる矢印でも送れる（capture で拾う）", () => {
+        const leafletLike = (e: KeyboardEvent) => { e.stopPropagation(); };
+        document.addEventListener("keydown", leafletLike);
+        try {
+            const { onIndexChange } = setup(["a", "b"].map((id) => photo(id)), 0);
+            fireEvent.keyDown(document.body, { key: "ArrowRight" });
+            expect(onIndexChange).toHaveBeenLastCalledWith(1);
+        } finally {
+            document.removeEventListener("keydown", leafletLike);
+        }
+    });
+
+    // 同じ画面に投稿シートの入力欄が開きうる。カーソル移動を横取りしない
+    it("入力欄の中の矢印は触らない", () => {
+        const { onIndexChange } = setup(["a", "b"].map((id) => photo(id)), 0);
+        const input = document.createElement("input");
+        document.body.appendChild(input);
+        input.focus();
+        fireEvent.keyDown(input, { key: "ArrowRight" });
+        expect(onIndexChange).not.toHaveBeenCalled();
+        input.remove();
+    });
+
+    // 変換中の Escape は「変換の取り消し」。閉じてはいけない（`useEscapeKey` と同じ）
+    it("IME の変換中の Escape では閉じない", () => {
+        const { onClose } = setup([photo("a")]);
+        fireEvent.keyDown(document, { key: "Escape", isComposing: true });
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    // 出すURLはサイトのドメインに揃える（`Thumb` と同じ理由。`PhotoMap` の
+    // ポップアップが持っていた検証を、サムネごとこちらへ移した）
+    it("配信の既定ドメインで保存された写真も、サイトのドメインで出す", () => {
+        setup([photo("a", { thumbSrc: `${ORIGINS.cdn}/uploads/u1/a_thumb.webp` } as Partial<MapPhoto>)]);
+        const img = screen.getByTestId("map-photo-sheet").querySelector("img");
+        expect(img?.getAttribute("src")).toBe(`${ORIGINS.site}/uploads/u1/a_thumb.webp`);
+    });
+
+    it("知らないホストの写真は触らない", () => {
+        setup([photo("a", { thumbSrc: "https://example.org/x.webp" } as Partial<MapPhoto>)]);
+        const img = screen.getByTestId("map-photo-sheet").querySelector("img");
+        expect(img?.getAttribute("src")).toBe("https://example.org/x.webp");
     });
 });

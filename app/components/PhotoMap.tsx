@@ -24,16 +24,6 @@ const PIN_PX = 9;
 const CELL_PX = 56;
 
 /**
- * ピンを押した直後に地図の `click` も鳴るまでの猶予（ms）。
- *
- * Leaflet はレイヤーの DOM イベントを**地図にも伝える**
- * （`Layer._fireDOMEvent` が targets にレイヤーと地図を並べて撃つ）ので、
- * ピンを押すと「選ぶ」の直後に「閉じる」が走る。`stopPropagation` は
- * ベクターと `divIcon` で効き方が違うので、時刻で弾く。
- */
-const PIN_CLICK_GRACE_MS = 200;
-
-/**
  * 撮影地の地図。**Leaflet は effect の中で読む**——`window` に依存するので、
  * トップレベルで import すると静的書き出し（`next build` の事前描画）で落ちる。
  * CSS は window に依存しないので普通に import する。
@@ -111,18 +101,24 @@ export default function PhotoMap({ photos, locale, onSelect }: {
             const layer = L.layerGroup().addTo(map);
             layerRef.current = layer;
 
-            /** 最後にピンを押した時刻。地図の `click` が続けて鳴るのを弾く */
-            let lastPinClick = 0;
-            const select = (sel: MapSelection) => {
-                lastPinClick = Date.now();
-                onSelectRef.current?.(sel);
+            const select = (sel: MapSelection) => onSelectRef.current?.(sel);
+            // 地図の余白を押したら閉じる。
+            // **ピンの click はここへ来ない。** Leaflet はレイヤーの DOM イベントを
+            // 地図にも伝えるが、`bubblingMouseEvents: false` のレイヤーだけは
+            // 止める（`leaflet-src.js:4567`）。`Marker` は既定で false、
+            // `Path`（circleMarker）は既定で **true** なので、単独のピンにだけ
+            // 明示して渡す（下）。最初は「ピンの直後 200ms は閉じない」と
+            // 時刻で弾いていたが、それは Leaflet が用意している選択肢の
+            // 言い換えで、壁時計に依存するぶん脆い
+            map.on("click", () => onSelectRef.current?.(null));
+
+            /** Enter でも押せるようにする（束のピンは `keyboard: true` で
+             *  Tab で来られるが、Leaflet は Enter を click に**変換しない**。
+             *  以前は `bindPopup` が `keypress` を拾って開いていた） */
+            const onActivate = (marker: import("leaflet").Layer, fn: () => void) => {
+                marker.on("click", fn);
+                marker.on("keypress", (e) => { if ((e as { originalEvent?: KeyboardEvent }).originalEvent?.key === "Enter") fn(); });
             };
-            // 地図の余白を押したら閉じる。**ピンの直後は閉じない**
-            // （Leaflet はレイヤーのイベントを地図にも伝えるため）
-            map.on("click", () => {
-                if (Date.now() - lastPinClick < PIN_CLICK_GRACE_MS) return;
-                onSelectRef.current?.(null);
-            });
 
             const draw = () => {
                 layer.clearLayers();
@@ -132,8 +128,10 @@ export default function PhotoMap({ photos, locale, onSelect }: {
                         const { photo } = c.items[0];
                         const marker = L.circleMarker([c.lat, c.lng], {
                             radius: PIN_PX, color: "#ffffff", weight: 2, fillColor: "#0ea5e9", fillOpacity: 0.9,
+                            // 押しても地図の click（＝閉じる）を鳴らさない（上を参照）
+                            bubblingMouseEvents: false,
                         });
-                        marker.on("click", () => select({ photos: [photo], index: 0 }));
+                        onActivate(marker, () => select({ photos: [photo], index: 0 }));
                         marker.addTo(layer);
                     } else {
                         const icon = L.divIcon({
@@ -161,7 +159,7 @@ export default function PhotoMap({ photos, locale, onSelect }: {
                             // 動かさない」という安全弁で、`true` を渡すと**外れる**。
                             // 設定を入れていない人にまで「画面端の束を押すと約1秒
                             // かけて滑る」が起きる（実測）。止めたいときだけ false
-                            marker.on("click", () => {
+                            onActivate(marker, () => {
                                 map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
                             });
                         } else {
@@ -170,7 +168,7 @@ export default function PhotoMap({ photos, locale, onSelect }: {
                             // 作っていた頃は、画像が遅れて入るたびに測り直しが走り、
                             // その測り直しが横送りの位置を先頭へ巻き戻していた
                             // （実測: 10枚の束で5回送って5回とも先頭へ戻された）
-                            marker.on("click", () => select({ photos: c.items.map((it) => it.photo), index: 0 }));
+                            onActivate(marker, () => select({ photos: c.items.map((it) => it.photo), index: 0 }));
                         }
                         marker.addTo(layer);
                     }

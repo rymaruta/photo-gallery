@@ -232,6 +232,46 @@ describe("/map", () => {
             expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
         });
 
+        // **押した瞬間の写真オブジェクトを抱えない。** 開いている間に一覧が
+        // 更新されたとき（手元の断面を API の一覧が置き換える・編集・非公開）、
+        // 古い題や、もう地図に無い写真を出し続ける
+        it("一覧が更新されたら、シートも新しい中身になる", () => {
+            const photos = [withCoords("a", { title: { ja: "古い題" } })];
+            photosState.current = photos;
+            const { rerender } = render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.getByText("古い題")).toBeTruthy();
+
+            photosState.current = [withCoords("a", { title: { ja: "新しい題" } })];
+            rerender(<MapPage />);
+            expect(screen.queryByText("古い題")).toBeNull();
+            expect(screen.getByText("新しい題")).toBeTruthy();
+        });
+
+        it("開いている写真が一覧から消えたら、シートは畳まれる", () => {
+            const photos = [withCoords("a"), withCoords("b")];
+            photosState.current = photos;
+            const { rerender } = render(<MapPage />);
+            act(() => { mapProps.select?.({ photos: [photos[0]], index: 0 }); });
+            expect(screen.getByTestId("map-photo-sheet")).toBeTruthy();
+
+            photosState.current = [withCoords("b")];   // a が非公開になった
+            rerender(<MapPage />);
+            expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
+        });
+
+        it("束のうち一部が消えたら、残りだけで数え直す", () => {
+            const photos = ["a", "b", "c"].map((id) => withCoords(id));
+            photosState.current = photos;
+            const { rerender } = render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.getByText("1/3")).toBeTruthy();
+
+            photosState.current = [photos[0], photos[2]];
+            rerender(<MapPage />);
+            expect(screen.getByText("1/2")).toBeTruthy();
+        });
+
         it("閉じるボタンで閉じる", () => {
             const photos = [withCoords("a")];
             photosState.current = photos;
