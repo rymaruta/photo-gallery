@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import type { Photo } from "@/lib/data/photos";
 
 /**
@@ -124,5 +125,39 @@ describe("一覧のカード", () => {
         const { container } = card();
         const link = container.querySelector("[data-photo-id]") as HTMLAnchorElement;
         expect(link.getAttribute("href")).toContain("p1");
+    });
+});
+
+/**
+ * 🔴 **「3日前」を静的HTMLに焼かない。**
+ *
+ * 静的書き出しはビルド時に文字列を焼くので、相対時刻をそのまま出すと
+ * **ビルドの翌日以降は毎回 水和が食い違う**（実測: `out/index.html` に
+ * 「244日前」が19件焼かれていて、実ブラウザのスモークが React の
+ * 水和エラー #418 を出した）。
+ *
+ * このカードがトップ（静的に書き出される面）で使われるようになって出た。
+ * `TimelineFeed` の中だけだった頃は、あの面がサーバーで描かれないので
+ * 一度も踏まなかった。
+ */
+describe("相対時刻と水和", () => {
+    const withTime = { ...base, createdAt: "2020-01-01T00:00:00Z" };
+
+    it("🔴 サーバーの描画には相対時刻を含めない", () => {
+        const html = renderToString(<TimelineCard photo={withTime} locale="ja" />);
+        expect(html, "静的HTMLに相対時刻が焼かれている（翌日には食い違う）")
+            .not.toMatch(/日前|時間前|たった今/);
+    });
+
+    it("React が付いたあとは出す", () => {
+        render(<TimelineCard photo={withTime} locale="ja" />);
+        expect(screen.getByText(/日前/)).toBeTruthy();
+    });
+
+    it("題・撮影地・説明は静的HTMLに焼いたまま（検索に効く文字）", () => {
+        const html = renderToString(<TimelineCard photo={withTime} locale="ja" />);
+        expect(html).toContain("エーゲ海の夕景");
+        expect(html).toContain("ギリシャ・サントリーニ島");
+        expect(html).toContain("言葉を忘れるほど");
     });
 });

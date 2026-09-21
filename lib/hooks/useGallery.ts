@@ -67,7 +67,7 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     if (tags) out.selectedTags = Array.from(new Set(tags.split(",").filter(Boolean)));
     // 知らない値は既定のまま
     const scope = params.get("scope");
-    if (scope === "mine" || scope === "following") out.scope = scope;
+    if (scope === "featured" || scope === "following") out.scope = scope;
     return out;
 }
 
@@ -91,8 +91,9 @@ function withNextHistoryState(extra: Record<string, unknown>): Record<string, un
 }
 
 /**
- * @param ownUserId ログイン中の本人の id。`scope: "mine"` はこの id の写真に絞る。
- *   無ければ（未ログイン）`mine` は `all` と同じ（絞れないので絞らない）
+ * @param ownUserId ログイン中の本人の id。`scope: "following"` の判定に使う。
+ *   **「自分の写真」タブは無くなった**（owner の新デザイン。自分の写真は
+ *   マイページの「投稿」タブが持つ）
  */
 export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
@@ -128,9 +129,14 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
 
-        // 自分の写真だけ（トップの「自分」タブ）。本人の id が無ければ絞らない
-        if (filters.scope === "mine" && ownUserId) {
-            arr = arr.filter((p) => p.userId === ownUserId);
+        // **おすすめ**（トップの「おすすめ」タブ）＝**運営が選んだ写真**。
+        //
+        // 人気順ではない。実データは いいね0・コメント0 なので、人気の根拠が
+        // どこにも無い——根拠の無いものを「人気」と名乗らない（owner の
+        // 指示書にも明記がある）。選ぶのは管理APIだけ（`featured` は
+        // `/user/edit` からは触れない。`lib/data/photos.ts` の docstring）。
+        if (filters.scope === "featured") {
+            arr = arr.filter((p) => p.featured === true);
         }
         // 「フォロー中」はグリッドではなく `TimelineFeed` が描くので、この一覧は
         // **空にする**。空にしないと `?photo=` が来たとき `openById` が通って

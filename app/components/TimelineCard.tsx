@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { HeartIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
@@ -29,6 +29,22 @@ type Props = {
 const TAGS_SHOWN = 4;
 
 /**
+ * **サーバーでは描かない値のための札**（`Thumb` と同じ形）。
+ *
+ * 「3日前」は**見ている瞬間で変わる**。静的書き出しはビルド時に文字列を
+ * 焼くので、そのまま出すと**ビルドの翌日以降は毎回 水和が食い違う**
+ * （実測: `out/index.html` に「244日前」が19件焼かれていて、実ブラウザの
+ * スモークが React の水和エラー #418 を出した）。
+ *
+ * 焼かずに、React が付いてから出す。**検索に効く文字ではない**ので、
+ * 静的HTMLに無くて困らない（題・撮影地・説明・タグは焼いたまま）。
+ */
+const subscribeNoop = () => () => {};
+function useAfterHydration(): boolean {
+    return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
+
+/**
  * 一覧の1枚（owner の新デザインのカード）。
  *
  * **写真が先、投稿者が後。** 以前は投稿者の行が写真の上にあったが、モックは
@@ -53,7 +69,8 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
     // `formatStoredDateTime` に通すと JST の人には9時間前の時刻になる
     // （実測 `2026-04-29T23:10:00Z` → 「4月29日 23:10」＝本当は 4/30 08:10）。
     // ストーリー・コメントと同じ相対表記（「3日前」）なら閲覧者のゾーンで正しい
-    const posted = photo.createdAt ? timeAgo(photo.createdAt, isJa ? "ja" : "en") : "";
+    const hydrated = useAfterHydration();
+    const posted = hydrated && photo.createdAt ? timeAgo(photo.createdAt, isJa ? "ja" : "en") : "";
     // 実寸があればその比で枠を予約する（読み込み後に高さが伸びて下がガタつかない）。
     // 無ければ一覧と同じ 3:2
     const ratio = photo.width && photo.height && photo.width > 0 && photo.height > 0

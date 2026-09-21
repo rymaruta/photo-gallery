@@ -28,7 +28,11 @@ vi.mock("../i18n/context", () => ({
 }));
 vi.mock("../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 // 絞り込みを「触る」ためのボタンだけ持つ。値を変えなくても `setFilters` は
-// 新しいオブジェクトを作るので、URL の同期がもう一度走る
+// 新しいオブジェクトを作るので、URL の同期がもう一度走る。
+//
+// **これを押す回は `surface="search"` で描く。** 絞り込みの欄は「さがす」の
+// 持ち場になった（トップは1列のカード）。見ている性質は面に依らない
+// ——`?photo=` の効果は両方の面で同じものが走る
 vi.mock("../components/FilterBar", () => ({
     default: ({ onChange }: { onChange: (v: Record<string, never>) => void }) => (
         <button type="button" onClick={() => onChange({})}>絞り込みを触る</button>
@@ -86,7 +90,7 @@ describe("開けない ?photo= を踏んだとき", () => {
     it("同じ URL のまま、フィルターを触っても2回は言わない", async () => {
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
         searchParams.current = "deleted-id";
-        render(<GalleryPageClient />);
+        render(<GalleryPageClient surface="search" />);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledTimes(1));
 
         // 効果を再実行させる（絞り込みを触ると `filters` が作り直される）
@@ -260,11 +264,11 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         // （この試験が守りたいのは「開けない間、預けた id を落とさない」）。
         window.history.replaceState({}, "", "/?category=food");
         photosState.loaded = false;
-        const { rerender } = render(<GalleryPageClient />);
+        const { rerender } = render(<GalleryPageClient surface="search" />);
         await new Promise((r) => setTimeout(r, 20));
 
         searchParams.current = "not-yet-arrived";
-        rerender(<GalleryPageClient />);
+        rerender(<GalleryPageClient surface="search" />);
         await new Promise((r) => setTimeout(r, 20));
 
         // 別の絞り込みを触る＝同期が走る。この写真は**まだ開けない**ので、
@@ -279,20 +283,26 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         expect(mockShowToast).not.toHaveBeenCalled();
     });
 
-    // 一覧そのものが空のとき（ログイン直後の既定「自分」で写真0枚、など）でも、
-    // 手元にある写真なら**絞りを外して開く**。id は落とさない
+    // 一覧そのものが空のときでも、手元にある写真なら**絞りを外して開く**。
+    // id は落とさない。
+    //
+    // **空にするのは絞り込みで**（以前は「自分」タブの既定に頼っていたが、
+    // そのタブは無くなった——自分の写真はマイページの持ち場）。
     it("一覧が空でも、手元にある写真は絞りを外して開く", async () => {
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
-        window.history.replaceState({}, "", "/");   // 既定が「自分」＝ p1/p2 は他人なので空
+        // どの写真にも無いカテゴリで絞る＝一覧は空
+        window.history.replaceState({}, "", "/?category=" + encodeURIComponent("無い分類"));
         photosState.loaded = true;
         const { rerender } = render(<GalleryPageClient />);
         await new Promise((r) => setTimeout(r, 20));
-        expect(screen.getByRole("button", { name: "自分" })).toHaveAttribute("aria-pressed", "true");
+        expect(new URLSearchParams(window.location.search).get("category"), "絞れていない").toBeTruthy();
 
         searchParams.current = "p1";
         rerender(<GalleryPageClient />);
 
-        await waitFor(() => expect(screen.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true"));
+        await waitFor(() => expect(
+            new URLSearchParams(window.location.search).get("category"), "絞りが外れていない",
+        ).toBeNull());
         expect(new URLSearchParams(window.location.search).get("photo"), "開けるのに id を落としている").toBe("p1");
         expect(mockShowToast.mock.calls.map((c) => String(c[0])).join("\n")).toMatch(/絞り込みを解除して/);
     });
@@ -302,11 +312,11 @@ describe("遷移で ?photo= が届いたとき（再マウントされない）"
         auth.current = { isAuthenticated: true, userId: "me", loading: false };
         window.history.replaceState({}, "", "/?category=food");
         photosState.loaded = false;        // API はまだ返っていない
-        const { rerender } = render(<GalleryPageClient />);
+        const { rerender } = render(<GalleryPageClient surface="search" />);
         await new Promise((r) => setTimeout(r, 20));
 
         searchParams.current = "unknown-yet";
-        rerender(<GalleryPageClient />);
+        rerender(<GalleryPageClient surface="search" />);
         await new Promise((r) => setTimeout(r, 20));
 
         fireEvent.click(screen.getByRole("button", { name: "絞り込みを触る" }));
