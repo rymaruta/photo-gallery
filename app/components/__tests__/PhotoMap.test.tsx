@@ -93,8 +93,8 @@ const photo = (id: string, extra: Partial<Photo> = {}): MapPhoto => ({
     createdAt: "2026-01-01T00:00:00.000Z", ...extra,
 } as MapPhoto);
 
-const draw = async (photos: MapPhoto[]) => {
-    render(<PhotoMap photos={photos} locale="ja" />);
+const draw = async (photos: MapPhoto[], onSelect?: (s: unknown) => void) => {
+    render(<PhotoMap photos={photos} locale="ja" onSelect={onSelect} />);
     await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
 };
 
@@ -181,148 +181,96 @@ describe("地図の枠", () => {
     });
 });
 
-describe("ポップアップ", () => {
-    it("サムネに幅と高さを入れる（Leaflet が開いた瞬間に測れるように）", async () => {
-        await draw([photo("a", { width: 4000, height: 3000 })]);
-        const img = state.markers[0].popup!.querySelector("img")!;
-        expect(img.getAttribute("width")).toBe("160");
-        // 実寸が分かればその比（160 * 3000/4000 = 120）
-        expect(img.getAttribute("height")).toBe("120");
+// **写真の中身は地図の中に描かない。** 押されたことだけを `onSelect` で
+// 親へ渡し、中身は画面下のシート（`app/map/MapPhotoSheet.tsx`）が描く。
+//
+// 地図の中（Leaflet のポップアップ）に組んでいた頃は2つ壊れていた:
+//   - 高さが地図に収まらず、低い画面では枠の外へ出ていた（実測 390x844 で
+//     3枚 465px・地図の上へ 183px はみ出し、うち1枚は表示も操作もできなかった）
+//   - 画像が遅れて入るたびに測り直しが走り、その測り直しが横送りの位置を
+//     先頭へ巻き戻していた（実測: 10枚の束で5回送って5回とも先頭へ戻された）
+describe("押されたピンを親へ渡す", () => {
+    it("ポップアップはもう作らない（地図の高さに縛られないため）", async () => {
+        await draw([photo("a"), photo("b", { coords: { lat: 10, lng: 10 } })]);
+        for (const m of state.markers) expect(m.popup).toBeNull();
     });
 
-    it("実寸を持たない写真は 3:2 で見積もる（高さ無しにしない）", async () => {
+    it("単独のピンを押すと、その1枚が渡る", async () => {
+        const onSelect = vi.fn();
+        await draw([photo("a")], onSelect);
+        state.markers[0].clickHandler?.();
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
+        expect(sel.photos.map((p) => p.id)).toEqual(["a"]);
+        expect(sel.index).toBe(0);
+    });
+
+    // 同じ升（約1km に丸めた同じ座標）の写真は**どこまで寄っても割れない**。
+    // 束ごと渡して、シートが「1/5」で送れるようにする
+    it("これ以上割れない束は、枚数ぶんまとめて渡る", async () => {
+        const at = { lat: 35.42, lng: 138.88 };
+        const onSelect = vi.fn();
+        state.zoom = 19;   // MAP_MAX_ZOOM。これ以上は寄れない
+        await draw([photo("a", { coords: at }), photo("b", { coords: at }), photo("c", { coords: at })], onSelect);
+
+        const cluster = state.markers.find((m) => m.kind === "marker");
+        expect(cluster, "束のピンが無い").toBeTruthy();
+        cluster!.clickHandler?.();
+        const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
+        expect(sel.photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
+        expect(sel.index).toBe(0);
+    });
+
+    // **まだ割れる束は寄るだけ。** シートに渡すと、寄れば個別に見られる
+    // ものまで「1/5」に畳んでしまう
+    it("まだ割れる束は寄るだけで、シートには渡さない", async () => {
+        const onSelect = vi.fn();
+        state.zoom = 4;
+        await draw([
+            photo("a", { coords: { lat: 35.40, lng: 138.80 } }),
+            photo("b", { coords: { lat: 35.44, lng: 138.96 } }),
+        ], onSelect);
+
+        const cluster = state.markers.find((m) => m.kind === "marker");
+        expect(cluster, "束のピンが無い").toBeTruthy();
+        // 最初の「全部のピンが収まる範囲へ」のぶんを差し引く
+        const before = state.fitCalls;
+        cluster!.clickHandler?.();
+        expect(state.fitCalls).toBe(before + 1);
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("地図の余白を押すと `null`（＝閉じる）が渡る", async () => {
+        const onSelect = vi.fn();
+        await draw([photo("a")], onSelect);
+        fireMap("click");
+        expect(onSelect).toHaveBeenCalledWith(null);
+    });
+
+    // Leaflet はレイヤーの DOM イベントを**地図にも伝える**
+    // （`Layer._fireDOMEvent` が targets にレイヤーと地図を並べて撃つ）。
+    // 弾かないと、ピンを押した直後に「閉じる」が走って何も出ない
+    it("ピンを押した直後の地図の click では閉じない", async () => {
+        const onSelect = vi.fn();
+        await draw([photo("a")], onSelect);
+        state.markers[0].clickHandler?.();
+        fireMap("click");
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        expect(onSelect).not.toHaveBeenCalledWith(null);
+    });
+
+    it("`onSelect` を渡さなくても落ちない", async () => {
         await draw([photo("a")]);
-        const img = state.markers[0].popup!.querySelector("img")!;
-        expect(img.getAttribute("height"), "高さが無いと Leaflet は高さ0で測る").toBe("107");
+        expect(() => { state.markers[0].clickHandler?.(); fireMap("click"); }).not.toThrow();
     });
 
-    it("極端な比でも収まる範囲に丸める", async () => {
-        await draw([photo("a", { width: 100, height: 9000 })]);
-        expect(state.markers[0].popup!.querySelector("img")!.getAttribute("height")).toBe("240");
-    });
-
-    it("同じ升の束は、写真ごとのカードを並べて全部に辿れるようにする", async () => {
-        await draw([photo("a"), photo("b"), photo("c")]);
-        const cluster = state.markers.find((m) => m.kind === "marker")!;
-        expect(cluster, "同じ座標なのに束になっていない").toBeTruthy();
-        const links = [...cluster.popup!.querySelectorAll("a")];
-        // **href まで見る。** 長さだけだと、3枚とも同じ写真を指していても通る
-        expect(links.map((a) => a.getAttribute("href"))).toEqual(["/?photo=a", "/?photo=b", "/?photo=c"]);
-        // はみ出したぶんはスクロールで届く（高さの上限を渡している）
-        expect(typeof cluster.popupOpts?.maxHeight).toBe("number");
-    });
-
-    // **単独のピンにも上限が要る。** 縦長の写真1枚でも、低い画面
-    // （`min-h-[320px]` が効く高さ）では地図の下へはみ出す
-    // 同じ升の写真は横に送る。縦に積むと枚数ぶん背が伸びて地図の外へ出た
-    // （実測 5枚で 771px）。並べ方は globals.css の `.photo-map-list`
-    it("束のポップアップは横に送れる並び（役割と枚数を伝える）", async () => {
-        await draw([photo("a"), photo("b"), photo("c")]);
-        const list = state.markers.find((m) => m.kind === "marker")!.popup!;
-        expect(list.className).toContain("photo-map-list");
-        // 読み上げに「リスト・N項目」と伝える（`group` だと何枚目かが読まれない）
-        expect(list.getAttribute("role")).toBe("list");
-        expect([...list.querySelectorAll(":scope > .photo-map-card")].map((c) => c.getAttribute("role")))
-            .toEqual(["listitem", "listitem", "listitem"]);
-        expect(list.getAttribute("aria-label")).toBe("この場所の写真 3枚");
-        // カードは横並びの子（1枚ずつが送る単位）
-        expect(list.querySelectorAll(":scope > .photo-map-card")).toHaveLength(3);
-    });
-
-    it("単独のピンのポップアップにも高さの上限を渡す", async () => {
-        await draw([photo("a")]);
-        expect(typeof state.markers[0].popupOpts?.maxHeight).toBe("number");
-    });
-
-    it("画像が入ったら測り直す（見積もりより伸びたぶんを枠の外に残さない）", async () => {
-        await draw([photo("a")]);
-        const marker = state.markers[0];
-        const img = marker.popup!.querySelector("img")!;
-        expect(marker.update).not.toHaveBeenCalled();
-        img.dispatchEvent(new Event("load"));
-        // 実測: 見積もり 107px に対し 3:4 の写真は 213px で描かれる。
-        // Leaflet は開いた瞬間にしか測らないので、伸びたぶんは枠の外に残る
-        expect(marker.update, "画像が入っても測り直していない").toHaveBeenCalled();
-    });
-
-    // **測り直しで送った位置を失わない。** Leaflet の `update()` は中身の DOM を
-    // 外して付け直すので `scrollLeft` が 0 に戻る。サムネは lazy なので
-    // 「送る → 画像が届く → 測り直し → 先頭へ戻る」になり、送る操作そのものが
-    // 送れなくする（実測: 10枚の束で5回送って5回とも先頭へ戻された）
-    it("測り直しても、送った位置を戻す", async () => {
-        await draw([photo("a"), photo("b"), photo("c")]);
-        const marker = state.markers.find((m) => m.kind === "marker")!;
-        const list = marker.popup!;
-        // jsdom はレイアウトを持たないので scrollLeft は常に 0。読み書きを覗く
-        let scroll = 334;
-        const writes: number[] = [];
-        Object.defineProperty(list, "scrollLeft", {
-            configurable: true,
-            get: () => scroll,
-            set: (v: number) => { writes.push(v); scroll = v; },
-        });
-        list.querySelectorAll("img")[1].dispatchEvent(new Event("load"));
-        expect(marker.update).toHaveBeenCalled();
-        expect(writes, "測り直しのあとに位置を戻していない").toEqual([334]);
-    });
-
-    it("測り直しても、当たっていた焦点を戻す", async () => {
-        await draw([photo("a"), photo("b")]);
-        const marker = state.markers.find((m) => m.kind === "marker")!;
-        const list = marker.popup!;
-        document.body.appendChild(list);   // フォーカスは文書の中でしか当たらない
-        const link = list.querySelectorAll("a")[1] as HTMLAnchorElement;
-        link.focus();
-        expect(document.activeElement).toBe(link);
-        const spy = vi.spyOn(link, "focus");
-        list.querySelectorAll("img")[0].dispatchEvent(new Event("load"));
-        expect(spy, "測り直しのあとにフォーカスを戻していない").toHaveBeenCalled();
-        list.remove();
-    });
-
-    // Tab で来たカードは端まで送る。一部でも見えているとブラウザは送らないので、
-    // 偶数枚目は 34px しか見えないままフォーカスだけが当たる（実測）
-    it("Tab でカードに来たら、そのカードを端まで送る", async () => {
-        await draw([photo("a"), photo("b"), photo("c")]);
-        const list = state.markers.find((m) => m.kind === "marker")!.popup!;
-        const card = list.querySelectorAll(".photo-map-card")[1] as HTMLElement;
-        const spy = vi.fn();
-        card.scrollIntoView = spy;   // jsdom には実装が無い
-        list.querySelectorAll("a")[1].dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
-        expect(spy).toHaveBeenCalledWith({ inline: "start", block: "nearest" });
-    });
-
-    it("サムネもリンクの中に入れる（一番大きい当たりを押して何も起きない、を無くす）", async () => {
-        await draw([photo("a")]);
-        const card = state.markers[0].popup!;
-        expect(card.querySelector("a img"), "サムネがリンクの外にある").not.toBeNull();
-        // リンクの読み上げ名は題名（画像の alt は空）
-        expect(card.querySelector("a")!.textContent).toBe("写真a");
-        expect(card.querySelector("a")!.getAttribute("href")).toBe("/?photo=a");
-    });
-
-    it("サムネが preflight に潰されないよう、カードに目印を付ける", async () => {
-        await draw([photo("a")]);
-        // globals.css の `.photo-map-card img { max-width: none }` が当たる先。
-        // 無いと Leaflet の幅の計算でサムネの幅寄与が0になり、160px 指定が
-        // 96px で描かれた（実測）
-        expect(state.markers[0].popup!.className).toContain("photo-map-card");
-    });
-
-    it("タイトルは文字として入れる（利用者の入力を HTML として解釈しない）", async () => {
-        await draw([photo("a", { title: { ja: "<b>注入</b>" } })]);
-        const link = state.markers[0].popup!.querySelector("a")!;
-        expect(link.textContent).toBe("<b>注入</b>");
-        expect(link.querySelector("b"), "利用者の入力が要素になっている").toBeNull();
-    });
-
-    // ピン1つずつに「（おおよそ）」と断るとうるさいので、断りは地図の下に
-    // 1行だけ出す（`app/map/page.tsx`。そちらのテストで固定している）
-    it("ピンの中では地名だけ出す（1枚ずつ断りを付けない）", async () => {
-        await draw([photo("a", { geoApprox: true })]);
-        const text = state.markers[0].popup!.textContent!;
-        expect(text).toContain("山中湖");
-        expect(text, "ピンごとに断りを付けている").not.toContain("おおよそ");
+    // 束の数字は利用者の入力ではない（題を入れていた頃は DOM を組んでいた）
+    it("束のピンに入れるのは枚数の数字だけ", async () => {
+        const at = { lat: 35.42, lng: 138.88 };
+        state.zoom = 19;
+        await draw([photo("a", { coords: at }), photo("<img onerror=x>", { coords: at })]);
+        const cluster = state.markers.find((m) => m.kind === "marker");
+        expect(JSON.stringify(cluster!.opts)).not.toContain("onerror");
     });
 });
 
@@ -374,16 +322,3 @@ describe("動きを減らす設定", () => {
 // 地図のポップアップのサムネは `document.createElement("img")` で組む＝
 // JSX の入口を数えるテスト（`app/__tests__/imageOriginSites.test.ts`）から
 // 見えない場所。ここで描画として見る。
-describe("ポップアップのサムネのURL", () => {
-    it("配信の既定ドメインで保存された写真も、サイトのドメインで出す", async () => {
-        await draw([photo("a", { thumbSrc: `${ORIGINS.cdn}/uploads/a_512.webp` })]);
-        const img = state.markers[0].popup?.querySelector("img");
-        expect(img?.getAttribute("src")).toBe(`${ORIGINS.site}/uploads/a_512.webp`);
-    });
-
-    it("知らないホストの写真は触らない", async () => {
-        await draw([photo("b", { thumbSrc: "https://example.org/x.webp" })]);
-        const img = state.markers[0].popup?.querySelector("img");
-        expect(img?.getAttribute("src")).toBe("https://example.org/x.webp");
-    });
-});

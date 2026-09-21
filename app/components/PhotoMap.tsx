@@ -4,10 +4,8 @@ import React, { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
-import { ROUTES } from "../../lib/routes";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
 import { MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView } from "../../lib/utils/mapView";
-import { publicImageUrl } from "@/lib/utils/seo";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
 export type MapPhoto = Photo & { coords: { lat: number; lng: number } };
@@ -16,13 +14,24 @@ export function photosWithCoords(photos: readonly Photo[]): MapPhoto[] {
         !!p.coords && Number.isFinite(p.coords.lat) && Number.isFinite(p.coords.lng));
 }
 
+/** ピンを押したときに親へ渡すもの。`null` は「閉じる」 */
+export type MapSelection = { photos: MapPhoto[]; index: number };
+
 type Point = GeoPoint & { photo: MapPhoto };
 
 /** ピンの半径（px）。束の升はこの直径より少し大きく取る */
 const PIN_PX = 9;
-/** ポップアップのサムネの幅（px） */
-const THUMB_W = 160;
 const CELL_PX = 56;
+
+/**
+ * ピンを押した直後に地図の `click` も鳴るまでの猶予（ms）。
+ *
+ * Leaflet はレイヤーの DOM イベントを**地図にも伝える**
+ * （`Layer._fireDOMEvent` が targets にレイヤーと地図を並べて撃つ）ので、
+ * ピンを押すと「選ぶ」の直後に「閉じる」が走る。`stopPropagation` は
+ * ベクターと `divIcon` で効き方が違うので、時刻で弾く。
+ */
+const PIN_CLICK_GRACE_MS = 200;
 
 /**
  * 撮影地の地図。**Leaflet は effect の中で読む**——`window` に依存するので、
@@ -35,14 +44,35 @@ const CELL_PX = 56;
  *
  * 束ね方は `lib/utils/mapClusters.ts`（純関数）。ズームが変わるたびに
  * 束ね直す（ズームだけで束が決まる格子なので、移動では変えない）。
+ *
+ * **写真の中身は地図の中に描かない。** 以前は Leaflet のポップアップに
+ * サムネと題を組んでいたが、
+ *
+ *   - 高さが地図の中に収まらず、低い画面では枠の外へ出ていた
+ *     （実測 390x844 で3枚 465px・地図の上へ 183px はみ出し）
+ *   - 画像が遅れて入ると測り直しが要り、その測り直しが横送りの位置と
+ *     フォーカスを巻き戻していた（送る操作そのものが送れなくなる）
+ *   - 束の枚数だけ中身を作るので、枚数に比例して重くなる
+ *
+ * 今は**押されたことだけ**を `onSelect` で親へ渡し、中身は画面下の
+ * シート（`app/map/MapPhotoSheet.tsx`）が描く。地図の高さに縛られない。
  */
-export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto[]; locale: "ja" | "en" }) {
+export default function PhotoMap({ photos, locale, onSelect }: {
+    photos: readonly MapPhoto[];
+    locale: "ja" | "en";
+    /** ピンが押された（`null` は地図の余白が押された＝閉じる） */
+    onSelect?: (selection: MapSelection | null) => void;
+}) {
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const layerRef = useRef<LayerGroup | null>(null);
     // 最新の写真を effect の外から読む（ズームのたびに束ね直すため）
     const photosRef = useRef(photos);
     photosRef.current = photos;
+    // **ref に持つ。** 依存に入れると、親が関数を作り直すたびに地図ごと
+    // 建て直すことになる（見ていた場所もズームも消える）
+    const onSelectRef = useRef(onSelect);
+    onSelectRef.current = onSelect;
 
     useEffect(() => {
         const el = containerRef.current;
@@ -81,80 +111,18 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             const layer = L.layerGroup().addTo(map);
             layerRef.current = layer;
 
-            /** 1枚ぶんのポップアップ（サムネ・タイトルへのリンク・地名）。
-             *  **HTML 文字列を組まない。** タイトルは利用者の入力なので、
-             *  文字列で innerHTML に入れると注入できる。DOM を作って渡す */
-            const cardFor = (photo: MapPhoto, onImageLoad?: () => void): HTMLElement => {
-                // **サムネもリンクの中に入れる。** 写真が主役のサイトで、一番大きい
-                // 当たり（160px の画像）を押しても何も起きないのは導線の穴だった。
-                // 題名はリンクの読み上げ名になるので、画像の alt は空のまま
-                const a = document.createElement("a");
-                a.href = ROUTES.PHOTO(photo.id);
-                a.className = "block text-sm font-semibold";
-                const title = document.createElement("span");
-                title.textContent = titleOf(photo, locale);
-                const box = document.createElement("div");
-                // **クラスを付ける。** Tailwind の preflight（`img { max-width: 100% }`）が
-                // あると、Leaflet が幅を決めるときサムネの幅寄与が 0 になり、
-                // ポップアップが最小幅まで潰れる（実測: 160px 指定のサムネが 96px で
-                // 描かれ、ポップアップの中身も 96px）。globals.css で打ち消す
-                box.className = "photo-map-card";
-                if (photo.thumbSrc || photo.src) {
-                    const img = document.createElement("img");
-                    // 出すURLはサイトのドメインに揃える（`Thumb` と同じ理由）
-                    img.src = publicImageUrl(photo.thumbSrc || photo.src);
-                    img.alt = "";
-                    img.width = THUMB_W;
-                    // **高さも入れる。** Leaflet は開いた瞬間に中身の高さを測って、
-                    // `maxHeight` を超えていればスクロールできるようにする。画像が
-                    // まだ読めていないと高さ0で測られ、「収まっている」と誤判定した
-                    // あとから画像が入ってポップアップだけが伸びる——実測（390x844）:
-                    // 3枚で高さ465px・地図の上へ 183px はみ出し、3枚のうち1枚は
-                    // 表示も操作もできなかった（束は寄っても割れないのでここが唯一の導線）
-                    img.height = thumbHeight(photo);
-                    img.loading = "lazy";
-                    img.className = "rounded-md mb-1 block";
-                    // **入ったら測り直す。** 上の高さは見積もりなので、実物が縦長だと
-                    // 見積もりより伸びる。Leaflet は開いた瞬間にしか測らないので、
-                    // 伸びたぶんは枠の外へ出たままになる（実測: 見積もり 107px に対し
-                    // 3:4 の写真は 128px で描かれ、3枚で 63px 超過しうる）
-                    if (onImageLoad) img.addEventListener("load", onImageLoad, { once: true });
-                    a.appendChild(img);
-                }
-                a.appendChild(title);
-                box.appendChild(a);
-                if (photo.location) {
-                    const loc = document.createElement("div");
-                    // 「（おおよそ）」は付けない。ピン1つずつに断りを入れると
-                    // うるさいので、断りは地図の下に1行だけ出す（app/map/page.tsx）
-                    loc.textContent = photo.location;
-                    loc.className = "text-xs text-gray-600";
-                    box.appendChild(loc);
-                }
-                return box;
+            /** 最後にピンを押した時刻。地図の `click` が続けて鳴るのを弾く */
+            let lastPinClick = 0;
+            const select = (sel: MapSelection) => {
+                lastPinClick = Date.now();
+                onSelectRef.current?.(sel);
             };
-
-            /**
-             * ポップアップを測り直す。**位置と焦点は自分で戻す**——Leaflet の
-             * `update()` は中身の DOM を一度外して付け直すので（`_updateContent`）、
-             * 横送りの位置は 0 に戻り、フォーカスは body へ落ちる。
-             * サムネは lazy なので「送る → 画像が届く → 測り直し → 先頭へ戻る」に
-             * なり、**送る操作そのものが送れなくする**（実測: 10枚の束で
-             * 5回送って5回とも先頭へ戻された。3枚目より先へ進めない）
-             */
-            const refreshPopup = (marker: { getPopup: () => { update: () => void } | null | undefined }, root: HTMLElement) => {
-                const left = root.scrollLeft;
-                const active = document.activeElement;
-                const keepFocus = active instanceof HTMLElement && root.contains(active);
-                marker.getPopup()?.update();
-                root.scrollLeft = left;
-                if (keepFocus) (active as HTMLElement).focus({ preventScroll: true });
-            };
-
-            /** ポップアップの高さの上限。**地図より高くしない**——低い画面
-             *  （`min-h-[320px]` が効く高さ）で下へはみ出し、最後のカードに
-             *  届かなくなる（実測: 390x400 で 33px はみ出し） */
-            const popupMaxH = () => Math.max(140, Math.round(el.clientHeight * 0.7));
+            // 地図の余白を押したら閉じる。**ピンの直後は閉じない**
+            // （Leaflet はレイヤーのイベントを地図にも伝えるため）
+            map.on("click", () => {
+                if (Date.now() - lastPinClick < PIN_CLICK_GRACE_MS) return;
+                onSelectRef.current?.(null);
+            });
 
             const draw = () => {
                 layer.clearLayers();
@@ -165,8 +133,7 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         const marker = L.circleMarker([c.lat, c.lng], {
                             radius: PIN_PX, color: "#ffffff", weight: 2, fillColor: "#0ea5e9", fillOpacity: 0.9,
                         });
-                        const card = cardFor(photo, () => refreshPopup(marker, card));
-                        marker.bindPopup(card, { maxWidth: 200, maxHeight: popupMaxH() });
+                        marker.on("click", () => select({ photos: [photo], index: 0 }));
                         marker.addTo(layer);
                     } else {
                         const icon = L.divIcon({
@@ -183,7 +150,8 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                         // 「2段ずつ寄る」だと、4km 離れた2枚を割るのに5回押す
                         // ことになった（実ブラウザで実測）。
                         // 同じ升（約1km に丸めた同じ座標）の写真は**どこまで寄っても
-                        // 割れない**ので、寄れないときは一覧のポップアップを出す
+                        // 割れない**ので、寄れないときは束ごとシートに渡す
+                        // （シートが「1/5」で送れるようにする）
                         const inner = boundsOf(c.items);
                         const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAP_MAX_ZOOM;
                         if (splittable) {
@@ -197,29 +165,12 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
                                 map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
                             });
                         } else {
-                            // **横に並べて指で送る。** 縦に積むと枚数ぶん背が伸びて
-                            // 地図の外へ出ていく（実測: 5枚で 771px）。横なら高さは
-                            // 1枚ぶんのまま。次の写真が少しだけ覗くので送れると分かる
-                            const list = document.createElement("div");
-                            list.className = "photo-map-list";
-                            // 読み上げには「リスト・N項目」と伝える（`group` だと
-                            // 何枚目を見ているかが読まれない）
-                            list.setAttribute("role", "list");
-                            list.setAttribute("aria-label", locale === "en" ? `${c.items.length} photos here` : `この場所の写真 ${c.items.length}枚`);
-                            // **Tab で来たカードは端まで送る。** 一部でも見えていると
-                            // ブラウザは送らないので、偶数枚目は 34px しか見えないまま
-                            // フォーカスだけが当たる（実測）
-                            list.addEventListener("focusin", (ev) => {
-                                const card = (ev.target as HTMLElement | null)?.closest?.(".photo-map-card");
-                                if (card && typeof card.scrollIntoView === "function") card.scrollIntoView({ inline: "start", block: "nearest" });
-                            });
-                            const remeasure = () => refreshPopup(marker, list);
-                            for (const it of c.items) {
-                                const card = cardFor(it.photo, remeasure);
-                                card.setAttribute("role", "listitem");
-                                list.appendChild(card);
-                            }
-                            marker.bindPopup(list, { maxWidth: 200, maxHeight: popupMaxH() });
+                            // これ以上は割れない束。**枚数ぶんまとめてシートに渡し、
+                            // 「1/5」で送ってもらう。** 地図の中に横並びのカードを
+                            // 作っていた頃は、画像が遅れて入るたびに測り直しが走り、
+                            // その測り直しが横送りの位置を先頭へ巻き戻していた
+                            // （実測: 10枚の束で5回送って5回とも先頭へ戻された）
+                            marker.on("click", () => select({ photos: c.items.map((it) => it.photo), index: 0 }));
                         }
                         marker.addTo(layer);
                     }
@@ -285,27 +236,4 @@ export default function PhotoMap({ photos, locale }: { photos: readonly MapPhoto
             data-testid="photo-map"
         />
     );
-}
-
-/**
- * ポップアップのサムネの高さ。実寸が分かっていればその比、無ければ 3:2。
- * **開く前に高さが決まっていること**が要る（`img.height` の説明を参照）。
- * 読み込み後は実際の比で描かれる（`height: auto`）ので、外れても歪まない。
- */
-function thumbHeight(photo: Photo): number {
-    const w = Number(photo.width), h = Number(photo.height);
-    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-        return Math.min(240, Math.max(40, Math.round((THUMB_W * h) / w)));
-    }
-    return Math.round((THUMB_W * 2) / 3);
-}
-
-function titleOf(photo: Photo, locale: "ja" | "en"): string {
-    const t = photo.title;
-    if (typeof t === "string") return t || (locale === "en" ? "Untitled" : "無題");
-    if (t && typeof t === "object") {
-        const v = (t as Record<string, unknown>)[locale] ?? (t as Record<string, unknown>).ja ?? (t as Record<string, unknown>).en;
-        if (typeof v === "string" && v) return v;
-    }
-    return locale === "en" ? "Untitled" : "無題";
 }

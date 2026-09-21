@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
 
@@ -15,13 +15,18 @@ vi.mock("../../i18n/context", () => ({
     useLocale: () => ({ locale: "ja", labels: {} }),
 }));
 // 地図に渡った写真の ID を並べるだけの偽物
-const mapProps = vi.hoisted(() => ({ last: null as null | { ids: string[] } }));
+const mapProps = vi.hoisted(() => ({
+    last: null as null | { ids: string[] },
+    select: null as null | ((s: unknown) => void),
+}));
 vi.mock("../../components/PhotoMap", async (importOriginal) => {
     const real = await importOriginal<typeof import("../../components/PhotoMap")>();
     return {
         ...real,
-        default: ({ photos }: { photos: readonly Photo[] }) => {
+        default: ({ photos, onSelect }: { photos: readonly Photo[]; onSelect?: (s: unknown) => void }) => {
             mapProps.last = { ids: photos.map((p) => p.id) };
+            // ピンを押したことにする口（本物の Leaflet は jsdom で描けない）
+            mapProps.select = onSelect ?? null;
             return <div data-testid="photo-map">map:{photos.length}</div>;
         },
     };
@@ -39,6 +44,7 @@ beforeEach(() => {
     photosState.loaded = true;
     photosState.failed = false;
     mapProps.last = null;
+    mapProps.select = null;
 });
 
 describe("/map", () => {
@@ -179,5 +185,60 @@ describe("/map", () => {
         render(<MapPage />);
         const list = screen.getByRole("list", { name: "地図上の写真" });
         expect(within(list).getAllByRole("link")[0].textContent).toBe("写真");
+    });
+
+    // **ピンの中身は地図の外に出した。** 地図の中のポップアップは地図の
+    // 高さに縛られ、低い画面では枠の外へ出ていた（実測 390x844 で3枚
+    // 465px・地図の上へ 183px はみ出し、うち1枚は表示も操作もできなかった）
+    describe("ボトムシート", () => {
+        const withCoords = (id: string, extra: Partial<Photo> = {}) =>
+            base(id, { coords: { lat: 35.68, lng: 139.77 }, ...extra });
+
+        it("ピンを押すまでは出さない", () => {
+            photosState.current = [withCoords("a")];
+            render(<MapPage />);
+            expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
+        });
+
+        it("ピンを押すと、その写真がシートに出る", () => {
+            const photos = [withCoords("a"), withCoords("b")];
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos: [photos[1]], index: 0 }); });
+            expect(screen.getByTestId("map-photo-sheet")).toBeTruthy();
+            expect(screen.getByText("b")).toBeTruthy();
+        });
+
+        it("束を押すと「1/3」で送れる", () => {
+            const photos = ["a", "b", "c"].map((id) => withCoords(id));
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.getByText("1/3")).toBeTruthy();
+
+            fireEvent.click(screen.getByRole("button", { name: "次の写真" }));
+            expect(screen.getByText("2/3")).toBeTruthy();
+            expect(screen.getByText("b")).toBeTruthy();
+        });
+
+        it("地図の余白を押すと閉じる（`null` が来る）", () => {
+            const photos = [withCoords("a")];
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.getByTestId("map-photo-sheet")).toBeTruthy();
+
+            act(() => { mapProps.select?.(null); });
+            expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
+        });
+
+        it("閉じるボタンで閉じる", () => {
+            const photos = [withCoords("a")];
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+            expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
+        });
     });
 });

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
-import PhotoMap, { photosWithCoords } from "../components/PhotoMap";
+import PhotoMap, { photosWithCoords, type MapSelection } from "../components/PhotoMap";
+import MapPhotoSheet from "./MapPhotoSheet";
 import { getLocalized } from "../../lib/data/photos";
 
 /**
@@ -22,6 +23,20 @@ export default function MapPage() {
 
     const geo = useMemo(() => photosWithCoords(photos.filter((p) => p.published !== false)), [photos]);
     const approxCount = useMemo(() => geo.filter((p) => p.geoApprox).length, [geo]);
+
+    // ピンを押すと画面下のシートに出す（以前は地図の中のポップアップ）。
+    // **押された束をそのまま持つ。** 束の中身は地図が決めた並びで、
+    // シートは「1/5」で送るだけ
+    const [selection, setSelection] = useState<MapSelection | null>(null);
+    const closeSheet = useCallback(() => setSelection(null), []);
+    const setIndex = useCallback((index: number) => {
+        setSelection((s) => (s ? { ...s, index } : s));
+    }, []);
+    // **写真が全部消えたらシートも出さない。** 出しっぱなしだと、地図が
+    // 「まだありません」に戻っているのにシートだけ残る。
+    // 描画のときに決める——ここで `setState` すると描画が1回増える
+    // （`react-hooks/set-state-in-render`）
+    const sheet = geo.length > 0 ? selection : null;
 
     return (
         <main className="max-w-6xl mx-auto px-4 py-6 pb-28">
@@ -65,7 +80,7 @@ export default function MapPage() {
                 </div>
             ) : (
                 <>
-                    <PhotoMap photos={geo} locale={locale} />
+                    <PhotoMap photos={geo} locale={locale} onSelect={setSelection} />
                     {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
                         （white/40 は黒地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
                     <p className="mt-3 text-xs text-white/60">
@@ -100,6 +115,17 @@ export default function MapPage() {
                         ))}
                     </ul>
                 </>
+            )}
+
+            {/* 押したピンの中身。**地図の外**に出すので、地図の高さに縛られない */}
+            {sheet && (
+                <MapPhotoSheet
+                    photos={sheet.photos}
+                    index={sheet.index}
+                    onIndexChange={setIndex}
+                    onClose={closeSheet}
+                    locale={locale}
+                />
             )}
         </main>
     );
