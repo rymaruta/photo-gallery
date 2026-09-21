@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import StoryTextOverlay from "../StoryTextOverlay";
-import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryText } from "@/lib/utils/storyText";
+import { STORY_FONTS, STORY_SIZE_DEFAULT, STORY_STAMPS, type StoryTextItem } from "@/lib/utils/storyText";
 
 /**
  * 置いた文字の描き方。
@@ -12,7 +12,7 @@ import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryText } from "@/lib/utils/sto
  *
  * **並びが重なり順**——後ろほど手前。
  */
-const t = (over: Partial<StoryText> = {}): StoryText =>
+const t = (over: Partial<StoryTextItem> = {}): StoryTextItem =>
     ({ text: "こんにちは", x: 0.5, y: 0.5, size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none", ...over });
 
 const box = { left: 30, top: 60, width: 300, height: 500 };
@@ -313,5 +313,71 @@ describe("StoryTextOverlay: 傾きと角のハンドル", () => {
         expect(label).toContain("矢印キーで移動");
         expect(label).toContain("[ と ] で回転");
         expect(label).toContain("+ と - で大きさ");
+    });
+});
+
+/**
+ * スタンプの描き方。
+ *
+ * **知らない絵柄は、文字として描かない。** 引き当てた結果で分岐すると
+ * 一覧に無い鍵が文字の枝へ落ち、`text` を持たないまま描かれる——
+ * 中身も読み上げも空の `<p>` が出て（置いたスタンプが消えた投稿に見える）、
+ * 下書き側では `name.trim()` が TypeError になる。
+ */
+describe("StoryTextOverlay: スタンプ", () => {
+    const stamp = (over: Record<string, unknown> = {}) =>
+        ({ kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.12, ...over }) as unknown as StoryTextItem;
+
+    it("絵柄を描く（読み上げは絵柄の名前）", () => {
+        const { container } = render(<StoryTextOverlay texts={[stamp()]} box={box} />);
+        const img = container.querySelector('[role="img"]') as HTMLElement;
+        expect(img.textContent).toBe(STORY_STAMPS.heart.glyph);
+        expect(img.getAttribute("aria-label")).toBe(STORY_STAMPS.heart.label);
+    });
+
+    // 字体・色・下地は絵柄に効かない（当てない）
+    it("スタンプに字体や下地を当てない", () => {
+        const { container } = render(<StoryTextOverlay texts={[stamp()]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.fontFamily, "字体を当てている").toBe("");
+        expect(p.style.background, "下地を当てている").toBe("transparent");
+    });
+
+    it("スタンプも位置・大きさ・傾きは文字と同じ規則", () => {
+        const { container } = render(<StoryTextOverlay texts={[stamp({ x: 0.25, rotate: 30 })]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.left).toBe("25%");
+        expect(p.style.fontSize).toBe(`${Math.round(box.width * 0.12)}px`);
+        expect(p.style.transform).toContain("rotate(30deg)");
+    });
+
+    // **知らない絵柄は描かない**（空の `<p>` を出さない・落ちない）
+    it("一覧に無い絵柄は、その要素だけ描かない", () => {
+        const { container } = render(
+            <StoryTextOverlay texts={[stamp({ stamp: "unicorn" }), t({ text: "朝" })]} box={box} />,
+        );
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps, "知らない絵柄まで描いている").toHaveLength(1);
+        expect(ps[0].textContent).toBe("朝");
+    });
+
+    // 下書き側でも落ちない（`name.trim()` の TypeError）
+    it("一覧に無い絵柄が下書きに混ざっても落ちない", () => {
+        expect(() => render(
+            <StoryTextOverlay
+                texts={[stamp({ stamp: "unicorn" })]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()}
+            />,
+        )).not.toThrow();
+    });
+
+    it("スタンプにもハンドルを出す", () => {
+        const { container } = render(
+            <StoryTextOverlay
+                texts={[stamp()]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()}
+            />,
+        );
+        expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
     });
 });
