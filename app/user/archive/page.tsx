@@ -3,16 +3,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, ArchiveBoxIcon, PlayIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArchiveBoxIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES, loginWithNext } from "../../../lib/routes";
 import { usableRows } from "../../../lib/utils/apiRows";
-import { publicImageUrl } from "@/lib/utils/seo";
 import { groupStories, type Story } from "@/lib/stories";
 import StoryViewer from "../../components/stories/StoryViewer";
+import StoryTile from "../../components/stories/StoryTile";
 
 /**
  * ストーリーのアーカイブ（24時間で消えたあと、本人だけが見る）。
@@ -27,12 +27,14 @@ import StoryViewer from "../../components/stories/StoryViewer";
  * 線はそれを前提にしている）。日ごとに束ねれば同じ上限に収まり、
  * 押した1枚から始めてその日の残りを送れる。
  *
- * **入口はまだ無い。** マイページの輪（アーカイブ／ハイライト）は ⑦ で置く
- * ——`UserProfileClient` は ⑦ に入るまで触らない約束。それまでは URL で来る。
+ * **入口はハイライトの作成画面**（`/user/highlights` の「アーカイブを見る」）
+ * と URL。マイページの輪はハイライト（⑦）で、アーカイブそのものは輪にしない
+ * （本人だけのものを、誰でも見る場所に並べない）。
  *
- * 一覧は3列・縦長（9:16）のタイル。ストーリーは縦長なので、下書きの
- * 正方形ではなく実物の形で並べる。モックにはアーカイブ単体の画面が
- * 無いので、足すのは最小限——押すと開く、だけ。
+ * 一覧は3列・縦長（9:16）のタイル（`StoryTile`。ハイライトの作成画面と
+ * 同じ絵）。ストーリーは縦長なので、下書きの正方形ではなく実物の形で
+ * 並べる。モックにはアーカイブ単体の画面が無いので、足すのは最小限
+ * ——押すと開く、だけ。
  */
 
 /** その日の鍵（見ている人の時計で。UTC の日付で切ると深夜の投稿が翌日に寄る） */
@@ -221,44 +223,13 @@ export default function StoryArchivePage() {
                         {descending.map((s) => {
                             const label = dayLabel(s);
                             return (
-                                <li key={s.id} className="relative aspect-[9/16] overflow-hidden bg-white/5">
-                                    <button
-                                        type="button"
-                                        onClick={() => openStory(s)}
-                                        aria-label={isJa ? `${label} のストーリーを開く` : `Open story from ${label}`}
-                                        className="absolute inset-0 w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {s.mediaType === "video" ? (
-                                            <>
-                                                {/* 最初のフレームを出す。iOS Safari は `#t=` の欠片が無いと
-                                                    再生するまで何も描かない（黒い箱になる）。音は出さない */}
-                                                <video
-                                                    src={`${publicImageUrl(s.src)}#t=0.001`}
-                                                    muted
-                                                    playsInline
-                                                    preload="metadata"
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                                <PlayIcon className="absolute right-1 top-1 w-4 h-4 text-white drop-shadow" aria-hidden="true" />
-                                            </>
-                                        ) : (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={publicImageUrl(s.src)}
-                                                alt=""
-                                                loading="lazy"
-                                                className="absolute inset-0 w-full h-full object-cover"
-                                            />
-                                        )}
-                                        <span
-                                            className="absolute left-1 bottom-1 px-1.5 py-0.5 rounded bg-black/60 text-white/90"
-                                            style={{ fontSize: "10px" }}
-                                        >
-                                            {label}
-                                        </span>
-                                    </button>
-                                </li>
+                                <StoryTile
+                                    key={s.id}
+                                    story={s}
+                                    label={label}
+                                    ariaLabel={isJa ? `${label} のストーリーを開く` : `Open story from ${label}`}
+                                    onClick={() => openStory(s)}
+                                />
                             );
                         })}
                     </ul>

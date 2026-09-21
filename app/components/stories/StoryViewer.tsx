@@ -240,9 +240,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         if (item) onSeen(item.id);
     }, [item, onSeen]);
 
-    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）
+    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）。
+    // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）では送らない。**
+    // 期限の切れたストーリーはサーバーが 404 で記録を断るので、1枚ごとに
+    // 断られるだけの往復が増える（閲覧者の取得を省くのと同じ理由）
     useEffect(() => {
-        if (!item || !isAuthenticated || isOwnStory) return;
+        if (!item || !isAuthenticated || isOwnStory || item.archivedAt) return;
         if (reportedRef.current.has(item.id)) return;
         reportedRef.current.add(item.id);
         void (async () => {
