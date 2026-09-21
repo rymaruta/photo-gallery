@@ -307,7 +307,7 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
      * 免除。`[ファイル, その行を見分ける印, 理由]`。
      * **印にはその行のクラス指定そのものを書く**（アイコン名だけだと、同じ
      * アイコンを使う別の行や `import` の行まで黙らせる）。
-     * 比率は黒地での実測値（`scripts/audit-text-contrast.mjs` と同じ式）。
+     * 比率は下地（`BASE_BG`・紺）に合成して出す（`scripts/audit-text-contrast.mjs` と同じ式）。
      */
     const EXEMPT: Array<[string, string, string]> = [
         // 純粋な装飾のアイコン（WCAG 1.4.11 の対象外。比率は参考）

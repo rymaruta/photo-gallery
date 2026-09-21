@@ -95,7 +95,7 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                 aria-label={locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                 // 下端に密着させない（iPhone のホームインジケータに最後の行が
                 // かぶる）。既存のボトムシート2つと同じ形
-                className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-[#1c1c1e] ring-1 ring-white/10 pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
+                className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-surface-2 ring-1 ring-white/10 pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">

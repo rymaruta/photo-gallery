@@ -310,7 +310,7 @@ function AdminEditContent() {
 
     if (loading || loadingPhoto) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-bg flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
         );
@@ -320,14 +320,14 @@ function AdminEditContent() {
     // （見つからない・失敗の経路は上で /admin に戻している）。
     if (!photo) {
         return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+            <div className="min-h-screen bg-bg text-white flex items-center justify-center px-6">
                 <div className="text-center">
                     <p className="text-sm text-white/70 mb-4">
                         {locale === "en" ? "No photo was specified." : "編集する写真が指定されていません。"}
                     </p>
                     <Link
                         href={ROUTES.ADMIN}
-                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:bg-accent transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Back to admin" : "管理画面へ"}
@@ -340,7 +340,7 @@ function AdminEditContent() {
     const isJa = locale === "ja";
 
     return (
-        <div className="min-h-screen bg-black text-white">
+        <div className="min-h-screen bg-bg text-white">
             <div className="max-w-2xl mx-auto px-4 py-8">
                 <div className="flex items-center gap-4 mb-8">
                     <Link href={ROUTES.ADMIN} className="text-white/60 hover:text-white transition-colors">
@@ -479,7 +479,7 @@ function AdminEditContent() {
                             aria-label={isJa ? "公開" : "Published"}
                             aria-checked={published}
                             onClick={() => setPublished((v) => !v)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${published ? "bg-blue-500" : "bg-white/20"}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${published ? "bg-accent" : "bg-white/20"}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${published ? "translate-x-6" : "translate-x-1"}`}
@@ -497,7 +497,7 @@ function AdminEditContent() {
                             aria-label={isJa ? "おすすめに出す" : "Feature on home"}
                             aria-checked={featured}
                             onClick={() => setFeatured((v) => !v)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featured ? "bg-blue-500" : "bg-white/20"}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featured ? "bg-accent" : "bg-white/20"}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${featured ? "translate-x-6" : "translate-x-1"}`}
@@ -515,7 +515,7 @@ function AdminEditContent() {
                         <button
                             type="submit"
                             disabled={saving}
-                            className="flex-1 py-2 bg-accent-fill text-white rounded-lg font-medium text-sm hover:bg-accent disabled:opacity-50 transition-colors"
+                            className="flex-1 py-2 bg-accent-fill text-white rounded-lg font-medium text-sm hover:brightness-110 disabled:opacity-50 transition-colors"
                         >
                             {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "保存" : "Save")}
                         </button>
@@ -535,7 +535,7 @@ function AdminEditContent() {
 export default function AdminEditPage() {
     return (
         <Suspense fallback={
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
                     ここなので、ランドマークと見出しを持たせる
                     （`sr-only` は position:absolute で描画に影響しない） */}

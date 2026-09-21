@@ -1064,7 +1064,7 @@ export default function StoriesBar() {
                                 className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
                                 style={{ background: ownGroupIdx >= 0 ? (ownUnseen ? RING_UNSEEN : RING_SEEN) : "rgba(255,255,255,0.1)" }}
                             >
-                                <div className="rounded-full p-[2.5px] bg-black">
+                                <div className="rounded-full p-[2.5px] bg-bg">
                                     <UserAvatar userId={userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
@@ -1072,7 +1072,7 @@ export default function StoriesBar() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={posting}
-                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black flex items-center justify-center active:scale-90 transition disabled:opacity-50"
+                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-bg flex items-center justify-center active:scale-90 transition disabled:opacity-50"
                             style={{ background: "#0095F6", touchAction: "manipulation" }}
                             aria-label={locale === "en" ? "Add a story" : "ストーリーを追加"}
                         >
@@ -1101,7 +1101,7 @@ export default function StoriesBar() {
                                 className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
                                 style={{ background: unseen ? RING_UNSEEN : RING_SEEN }}
                             >
-                                <div className="rounded-full p-[2.5px] bg-black">
+                                <div className="rounded-full p-[2.5px] bg-bg">
                                     <UserAvatar userId={group.userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
@@ -1869,7 +1869,7 @@ export default function StoriesBar() {
                         <button
                             onClick={() => void handlePost()}
                             disabled={posting}
-                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             style={{ touchAction: "manipulation" }}
                         >
                             {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}

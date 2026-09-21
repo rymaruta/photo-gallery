@@ -40,7 +40,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
             case "error":
                 return <span className="w-7 h-7 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0"><ExclamationCircleIcon className="w-[18px] h-[18px] text-red-400" /></span>;
             case "info":
-                return <span className="w-7 h-7 rounded-full bg-sky-500/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-link" /></span>;
+                return <span className="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-link" /></span>;
             default:
                 return <span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-white/60" /></span>;
         }
@@ -49,7 +49,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
     return (
         <div
             className={`
-                bg-[#16181c]/90 ring-1 ring-white/10 rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
+                bg-surface-2/90 ring-1 ring-white/10 rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
                 flex items-center gap-2.5 shadow-2xl backdrop-blur-md
                 transition-all duration-300 ease-out
                 ${isVisible && !isRemoving ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-3 scale-95"}

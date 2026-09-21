@@ -18,7 +18,7 @@ export default function NotFoundClient() {
     }, []);
 
     return (
-        <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <main className="min-h-screen bg-bg text-white flex items-center justify-center px-4">
             <div className="text-center space-y-6">
                 <p className="text-white/50 text-xs tracking-widest uppercase">404</p>
                 <h1 className="text-2xl font-bold">ページが見つかりません</h1>
@@ -28,7 +28,7 @@ export default function NotFoundClient() {
                 <Link
                     href="/"
                     prefetch={false}
-                    className="inline-block px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-lg hover:bg-accent transition-colors"
+                    className="inline-block px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-lg hover:brightness-110 transition-colors"
                 >
                     ギャラリーに戻る
                 </Link>

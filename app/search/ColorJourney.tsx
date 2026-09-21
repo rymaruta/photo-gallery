@@ -105,7 +105,7 @@ export default function ColorJourney() {
          * 名前付きの region にして、題は見た目だけの行にする。
          */
         <section
-            className="text-white bg-black max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8"
+            className="text-white bg-bg max-w-5xl mx-auto w-full px-4 sm:px-6 md:px-8"
             style={STYLE.section}
             aria-label="色でさがす"
         >
@@ -149,7 +149,7 @@ export default function ColorJourney() {
                                 }}
                             />
                             <span>{bucket.label}</span>
-                            <span className={active ? "text-white/80 text-[11px]" : "text-white/50 text-[11px]"}>
+                            <span className={active ? "text-white text-[11px]" : "text-white/50 text-[11px]"}>
                                 {inBucket.length}
                             </span>
                         </button>

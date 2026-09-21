@@ -232,7 +232,7 @@ export default function AlbumsPage() {
     //   「画面も出す」を持ってこなかった）
     if (gate !== "ok" && !hasUnsavedWork) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">共同アルバム</h1>
@@ -242,7 +242,7 @@ export default function AlbumsPage() {
     }
 
     return (
-        <main className="min-h-screen bg-black text-white px-4 py-8">
+        <main className="min-h-screen bg-bg text-white px-4 py-8">
             <div className="max-w-2xl mx-auto">
                 <div className="flex items-center gap-4 mb-6">
                     <Link href={ROUTES.HOME} aria-label="戻る" className="text-white/70">
@@ -380,7 +380,7 @@ export default function AlbumsPage() {
                 {confirming && (
                     <div role="dialog" aria-modal="true" aria-label="アルバムを消す"
                         className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50">
-                        <div className="bg-neutral-900 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
+                        <div className="bg-surface-2 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
                             <p className="text-sm">「{confirming.title}」を消しますか？</p>
                             <p className="text-xs text-white/60 mt-2">
                                 招待リンクは使えなくなり、参加者はこのアルバムを開けなくなります。

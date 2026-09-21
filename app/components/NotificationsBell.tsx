@@ -403,7 +403,7 @@ export default function NotificationsBell() {
             >
                 <BellIcon className="w-6 h-6" />
                 {unread > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-sky-500 text-[10px] font-bold text-white flex items-center justify-center">
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
                         {unread > 9 ? "9+" : unread}
                     </span>
                 )}
@@ -415,7 +415,7 @@ export default function NotificationsBell() {
                         <div className="fixed inset-0 z-40" onClick={closePanel} aria-hidden="true" />,
                         document.body,
                     )}
-                    <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                    <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
                             <span className="text-xs font-semibold tracking-widest uppercase text-white/50">
                                 {locale === "en" ? "Notifications" : "通知"}
@@ -508,7 +508,7 @@ export default function NotificationsBell() {
                                     いま何の区分を見ているか分からなくなる）。
                                     **透けない下地**を敷かないと行が裏を通る */}
                                 <h3
-                                    className={`sticky top-0 z-10 bg-[#16181c] px-4 py-1.5 font-semibold ${bucket === "new" ? "text-link" : "text-white/50"}`}
+                                    className={`sticky top-0 z-10 bg-surface-2 px-4 py-1.5 font-semibold ${bucket === "new" ? "text-link" : "text-white/50"}`}
                                     style={{ fontSize: "11px", letterSpacing: "0.08em" }}
                                 >
                                     {BUCKET_LABEL[bucket][locale === "en" ? "en" : "ja"]}

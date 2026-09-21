@@ -241,7 +241,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             <Link
                 href={ROUTES.PHOTO(photo.id)}
                 prefetch={false}
-                className={`absolute inset-0 overflow-hidden bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
+                className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
                 {/* Thumb が AVIF/256・blur-up・エラー表示まで内包する */}
@@ -308,7 +308,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     onClick={(e) => { e.preventDefault(); onSetCover(photo.id); }}
                     className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         coverSelected
-                            ? "bg-sky-400/90 text-black"
+                            ? "bg-accent text-black"
                             : OWNER_CHIP_IDLE
                     }`}
                     aria-label={coverSelected
@@ -1116,7 +1116,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     }, [locale, showToast, shareUrl]);
 
     return (
-        <main className="min-h-screen text-white bg-black">
+        <main className="min-h-screen text-white bg-bg">
             {loadError && (
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
@@ -1176,7 +1176,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             {shareOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} aria-hidden="true" />
-                                    <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                                    <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                                         <button
                                             role="menuitem"
                                             onClick={() => { setShareOpen(false); void handleShareProfile(); }}
@@ -1260,7 +1260,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         文字が重なって読みにくくなるのを避けるため。 */}
                     <div className="pb-6 pt-24 sm:pt-32">
                         {/* アバター（オリジナルのオーロラリング: 旅パレットで回転） */}
-                        <div className="relative w-fit rounded-full shadow-lg shadow-sky-500/20">
+                        <div className="relative w-fit rounded-full shadow-lg shadow-accent/20">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
                             <div
                                 className="absolute inset-0 rounded-full avatar-orbit"
@@ -1268,7 +1268,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 aria-hidden="true"
                             />
                             <div className="relative rounded-full p-[3px]">
-                                <div className="rounded-full p-[2px] bg-black">
+                                <div className="rounded-full p-[2px] bg-bg">
                                     <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
                                 </div>
                             </div>
@@ -1470,7 +1470,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setPostOpen(true)}
                                 aria-haspopup="dialog"
                                 aria-expanded={postOpen}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors"
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 <PlusIcon className="w-4 h-4" strokeWidth={2.5} />
@@ -1551,7 +1551,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors">
+                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}
@@ -1592,7 +1592,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     <div key={g.key} className="relative mb-6">
                                         {/* 節点 + 月ラベル */}
                                         <div className="flex items-center gap-2 mb-2 -ml-6">
-                                            <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-black flex-shrink-0" />
+                                            <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-bg flex-shrink-0" />
                                             <span className="text-sm font-bold">{g.label}</span>
                                             <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>

@@ -49,7 +49,7 @@ export default function FavoritesPage() {
     );
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 min-h-[64px]">
                 <div className="flex-1">
                     <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">

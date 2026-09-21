@@ -64,7 +64,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // **`manifest.webmanifest` が `theme_color: "#000000"` を宣言しているのに、
+  // **`manifest.webmanifest` が `theme_color` を宣言しているのに、
   // `<meta name="theme-color">` が1ページも無かった**（実ビルドで確認）。
   // マニフェストの色が効くのは**インストール後**で、ブラウザで見ている間の
   // ツールバーの色はこのメタタグが決める。真っ黒なサイトの上に既定の
@@ -163,7 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/*
           CSS が届かなかったときの最低限の下地。
           スタイルシートが 404/403 になると真っ白＋既定フォントで「壊れた」ページに
-          見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて黒背景で見せる。
+          見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて紺の下地で見せる。
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
         <style dangerouslySetInnerHTML={{ __html: "html,body{background:#050e17;color:#fff;margin:0}" }} />
@@ -270,7 +270,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LocaleProvider>
             <AuthProvider>
               <MusicProvider>
-              {/* Header: 黒背景に白字のモダンなデザイン */}
+              {/* Header: 紺の下地に白字（最終版モック） */}
               <header className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">

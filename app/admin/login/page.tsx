@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">ログイン</h1>
@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-black flex items-center justify-center px-4">
+        <main className="min-h-screen bg-bg flex items-center justify-center px-4">
             <div className="w-full max-w-sm">
 
                 <div className="mb-10 text-center">
@@ -112,7 +112,7 @@ export default function AdminLoginPage() {
                             <button
                                 type="submit"
                                 disabled={submitting || !username || !password}
-                                className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-lg hover:bg-accent active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                                className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-lg hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                             >
                                 {submitting ? (
                                     <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />

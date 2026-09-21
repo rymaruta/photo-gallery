@@ -96,7 +96,7 @@ export default function ReportDialog({ photoId, locale, onClose, openerRef }: Pr
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="report-title"
-                className="relative w-full sm:max-w-md bg-neutral-900 ring-1 ring-white/10 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto"
+                className="relative w-full sm:max-w-md bg-surface-2 ring-1 ring-white/10 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto"
             >
                 <h2 id="report-title" className="text-base font-semibold">
                     {isJa ? "この投稿を通報する" : "Report this post"}

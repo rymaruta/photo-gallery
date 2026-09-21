@@ -1056,7 +1056,7 @@ function UploadPageInner() {
     // （見えないまま止まるだけで、選び直すのと同じことになる）
     if (gate !== "ok" && !holdingWork) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
@@ -1073,7 +1073,7 @@ function UploadPageInner() {
     const tooManyToGroup = pendingCount > PHOTO_IMAGES_MAX;
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full pb-32">
+        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full pb-32">
             <div className="flex items-start justify-between gap-3 mb-6">
                 <h1 className="text-2xl sm:text-3xl font-bold">
                     {locale === "en" ? "Upload Photos" : "写真をアップロード"}
@@ -1514,7 +1514,7 @@ function UploadPageInner() {
                             <button
                                 onClick={() => handleUploadAll(true)}
                                 disabled={uploading || metaLoading || pendingCount === 0}
-                                className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {uploading
@@ -1629,7 +1629,7 @@ function UploadPageInner() {
                                     }
                                 }}
                                 disabled={avatarUploading}
-                                className="px-3 py-2 text-sm bg-accent-fill text-white rounded-full font-medium hover:bg-accent transition-colors disabled:opacity-50"
+                                className="px-3 py-2 text-sm bg-accent-fill text-white rounded-full font-medium hover:brightness-110 transition-colors disabled:opacity-50"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {avatarUploading
@@ -1647,7 +1647,7 @@ function UploadPageInner() {
 export default function UploadPage() {
     return (
         <Suspense fallback={
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
                     ここなので、ランドマークと見出しを持たせる
                     （`sr-only` は position:absolute で描画に影響しない） */}

@@ -28,7 +28,7 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="border-t border-white/10 bg-black">
+        <footer className="border-t border-white/10 bg-bg">
             <div className="max-w-5xl mx-auto px-6 md:px-8 py-10 md:py-12">
                 <div className="flex flex-col items-center gap-5 text-center">
                     {/* ブランド + タグライン */}

@@ -592,7 +592,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // ローディング中
     if (loading) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
@@ -605,7 +605,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // 一時的な失敗が「消された」ように読める（実在するのに）。
     if (!photo && fetchFailed) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                     <h1 className="text-3xl font-bold mb-4">
                         {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
@@ -617,7 +617,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </p>
                     <button
                         onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-white text-sm font-semibold hover:bg-accent active:scale-95 transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Retry" : "もう一度読み込む"}
@@ -628,7 +628,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     }
     if (!photo) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                     <h1 className="text-3xl font-bold mb-4">
                         {locale === "en" ? "Photo Not Found" : "写真が見つかりません"}
@@ -741,7 +741,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
