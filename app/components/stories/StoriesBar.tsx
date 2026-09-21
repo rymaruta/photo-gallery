@@ -30,7 +30,8 @@ import {
     STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
-    type StoryText,
+    isStoryStamp,
+    type StoryText, type StoryTextItem,
 } from "../../../lib/utils/storyText";
 import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
@@ -181,12 +182,22 @@ export default function StoriesBar() {
     // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
     const { attach: attachDraftMedia, box: draftMediaBox, measure: measureDraftMedia } = useMediaBox(draftMediaAreaRef);
 
-    /** いま選んでいる文字（無ければ null） */
+    /** いま選んでいるもの（文字かスタンプ。無ければ null） */
     const current = selected !== null ? texts[selected] ?? null : null;
+    /**
+     * いま選んでいるものが**文字のとき**だけ中身を返す。
+     *
+     * 字体・色・下地はスタンプに効かない。分けずに出すと**押しても効かない
+     * 欄**が並ぶ——このファイルが既に「動かすものも飾るものも無いなら
+     * 欄を置かない」と書いている、その判断をスタンプにも当てる。
+     */
+    const currentText = current && !isStoryStamp(current) ? current : null;
 
-    /** 選んでいる文字の見せ方を変える */
-    const patchSelected = useCallback((patch: Partial<StoryText>) => {
-        setTexts((prev) => prev.map((t, i) => (i === selected ? { ...t, ...patch } : t)));
+    /** 選んでいる**文字**の見せ方を変える（スタンプには当てない） */
+    const patchSelected = useCallback((patch: Partial<StoryTextItem>) => {
+        setTexts((prev) => prev.map((t, i) => (
+            i === selected && !isStoryStamp(t) ? { ...t, ...patch } : t
+        )));
     }, [selected]);
 
     /**
@@ -1331,7 +1342,7 @@ export default function StoriesBar() {
                         <div className="flex items-center gap-2">
                             <input
                                 type="text"
-                                value={current?.text ?? ""}
+                                value={currentText?.text ?? ""}
                                 onChange={(e) => editText(e.target.value)}
                                 maxLength={STORY_TEXT_LEN_MAX}
                                 placeholder={texts.length === 0
@@ -1439,10 +1450,10 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={current?.font === k}
+                                            aria-checked={currentText?.font === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ font: k })}
-                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.font === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
                                             style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
                                         >
                                             {STORY_FONTS[k].label}
@@ -1458,11 +1469,11 @@ export default function StoriesBar() {
                                             key={k}
                                             type="button"
                                             role="switch"
-                                            aria-checked={current?.color === k}
+                                            aria-checked={currentText?.color === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ color: k })}
                                             aria-label={STORY_COLORS[k].label}
-                                            className={`flex-shrink-0 rounded-full ring-2 transition ${current?.color === k ? "ring-white" : "ring-white/25"}`}
+                                            className={`flex-shrink-0 rounded-full ring-2 transition ${currentText?.color === k ? "ring-white" : "ring-white/25"}`}
                                             style={{ width: "32px", height: "32px", minWidth: "32px", background: STORY_COLORS[k].hex }}
                                         />
                                     ))}
@@ -1503,10 +1514,10 @@ export default function StoriesBar() {
                                                 key={k}
                                                 type="button"
                                                 role="switch"
-                                                aria-checked={current?.bg === k}
+                                                aria-checked={currentText?.bg === k}
                                                 disabled={posting}
                                                 onClick={() => patchSelected({ bg: k })}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${current?.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.bg === k ? "bg-white text-black ring-white" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: "12px" }}
                                             >
                                                 {k === "none"

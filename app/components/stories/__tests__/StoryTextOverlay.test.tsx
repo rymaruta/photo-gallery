@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import StoryTextOverlay from "../StoryTextOverlay";
-import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryText } from "@/lib/utils/storyText";
+import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryTextItem } from "@/lib/utils/storyText";
 
 /**
  * 置いた文字の描き方。
@@ -12,7 +12,7 @@ import { STORY_FONTS, STORY_SIZE_DEFAULT, type StoryText } from "@/lib/utils/sto
  *
  * **並びが重なり順**——後ろほど手前。
  */
-const t = (over: Partial<StoryText> = {}): StoryText =>
+const t = (over: Partial<StoryTextItem> = {}): StoryTextItem =>
     ({ text: "こんにちは", x: 0.5, y: 0.5, size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none", ...over });
 
 const box = { left: 30, top: 60, width: 300, height: 500 };

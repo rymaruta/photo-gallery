@@ -125,18 +125,52 @@ export function clampStoryTextRotate(v: unknown): number {
 }
 
 /**
- * 置いた文字1つ。位置は**中心**の割合（0〜1）。
+ * スタンプ（写真の上に置く絵柄）。
+ *
+ * ## 絵の files を持たない
+ *
+ * 絵文字で出す。画像にすると **S3 と CDN と派生の生成**が増え、
+ * ストーリーを見るたびに追加の要求が飛ぶ（このサイトは表示速度を
+ * SEO より上に置いていない——`CLAUDE.md` の「優先度は SEO・表示速度・
+ * 安定性」）。絵文字なら**要求が1本も増えない**。
+ *
+ * ⚠️ **絵柄は端末の絵文字に依存する**（`maru` の字体が Android で
+ * ゴシックに落ちるのと同じ話）。どの端末でも「何の絵か」は伝わる、
+ * 言葉に頼らない絵だけを選んである。
+ *
+ * ## 鍵で持つ（絵文字そのものではなく）
+ *
+ * 字体や色と同じ。受け取るのは**一覧に在る鍵**だけなので、
+ * サーバーの検証が「一覧に在るか」で済み、任意の文字列（他人の画面で
+ * 何が出るか分からないもの）を写真の上に置かれることも無い。
+ */
+export const STORY_STAMPS = {
+    heart: { label: "ハート", glyph: "❤️" },
+    star: { label: "星", glyph: "⭐" },
+    sparkles: { label: "きらきら", glyph: "✨" },
+    fire: { label: "炎", glyph: "🔥" },
+    camera: { label: "カメラ", glyph: "📷" },
+    pin: { label: "ピン", glyph: "📍" },
+    plane: { label: "飛行機", glyph: "✈️" },
+    mountain: { label: "山", glyph: "⛰️" },
+    wave: { label: "波", glyph: "🌊" },
+    sun: { label: "太陽", glyph: "☀️" },
+    moon: { label: "月", glyph: "🌙" },
+    flower: { label: "花", glyph: "🌸" },
+} as const;
+
+export type StoryStampKey = keyof typeof STORY_STAMPS;
+export const STORY_STAMP_KEYS = Object.keys(STORY_STAMPS) as StoryStampKey[];
+
+/**
+ * 置いたもの1つに**共通する**ぶん。位置は**中心**の割合（0〜1）。
  * **並びが重なり順**——後ろの要素ほど手前に出る。
  */
-export type StoryText = {
-    text: string;
+type StoryItemBase = {
     x: number;
     y: number;
     /** 絵の幅に対する割合（`STORY_SIZE_MIN`〜`STORY_SIZE_MAX`） */
     size: number;
-    font: StoryFontKey;
-    color: StoryColorKey;
-    bg: StoryBgKey;
     /**
      * 傾き（度・時計回りが正）。
      *
@@ -150,15 +184,62 @@ export type StoryText = {
 };
 
 /**
+ * 置いた文字1つ。
+ *
+ * **`kind` は `?` のまま。** 保存済みのストーリーの要素はこの項目を
+ * 持たない——**無い＝文字**で読む（`rotate` と同じ作法）。
+ */
+export type StoryTextItem = StoryItemBase & {
+    kind?: "text";
+    text: string;
+    font: StoryFontKey;
+    color: StoryColorKey;
+    bg: StoryBgKey;
+};
+
+/** 置いたスタンプ1つ。**字体も色も下地も持たない**（絵柄に効かない） */
+export type StoryStampItem = StoryItemBase & {
+    kind: "stamp";
+    stamp: StoryStampKey;
+};
+
+/**
+ * 写真の上に置いたもの。**文字とスタンプを1つの並びで持つ。**
+ *
+ * 別の配列に分けると、**重なり順が決まらない**——「文字の上にスタンプ」
+ * と「スタンプの上に文字」を置き分けられなくなる。動かす・回す・
+ * 大きさを変えるの仕組みも、分ければ2組書くことになる。
+ *
+ * 名前は `StoryText` のまま（保存されている属性名が `texts` で、
+ * 画面もサーバーもこの名前で呼んでいる。改名は別の作業）。
+ */
+export type StoryText = StoryTextItem | StoryStampItem;
+
+/** その要素はスタンプか（**無い＝文字**で読む） */
+export function isStoryStamp(t: StoryText): t is StoryStampItem {
+    return t.kind === "stamp";
+}
+
+/**
  * 見せ方の既定（新しく足した文字の姿）。白・太ゴシック。
  *
  * **`rotate` は置かない**——既定が 0 で、`sanitizeStoryTexts` は 0 を
  * 書かないので、ここに置くと「新しい文字だけ 0 を持って保存で消える」
  * という、見比べたときに説明の付かない差ができる。
  */
-export const DEFAULT_STORY_TEXT: Omit<StoryText, "text" | "x" | "y" | "rotate"> = {
+export const DEFAULT_STORY_TEXT: Omit<StoryTextItem, "text" | "x" | "y" | "rotate" | "kind"> = {
     size: STORY_SIZE_DEFAULT, font: "bold", color: "white", bg: "none",
 };
+
+/**
+ * 新しく置くスタンプの既定。
+ *
+ * **文字より大きめ。** 同じ `size`（絵の幅に対する割合）で出すと、
+ * 絵文字は1文字ぶんしか無いので**文字列より小さく見える**。
+ * 置いた直後に掴める大きさにしておく（小さすぎるとハンドルが
+ * 潰れた箱の判定に掛かる）。
+ */
+export const DEFAULT_STORY_STAMP_SIZE = 0.14;
 
 /**
  * 1枚目の既定の位置。**真ん中ではなく少し上**——下書きの画面は
@@ -183,9 +264,18 @@ export function clampStoryTextPos(v: unknown): number {
     return Math.min(STORY_TEXT_MAX, Math.max(STORY_TEXT_MIN, Math.round(n * 1000) / 1000));
 }
 
-/** 新しく足す1つ（位置は呼ぶ側が決める——重ならないように少しずらす） */
-export function newStoryText(x: number, y: number): StoryText {
+/** 新しく足す文字1つ（位置は呼ぶ側が決める——重ならないように少しずらす） */
+export function newStoryText(x: number, y: number): StoryTextItem {
     return { text: "", x: clampStoryTextPos(x), y: clampStoryTextPos(y), ...DEFAULT_STORY_TEXT };
+}
+
+/** 新しく置くスタンプ1つ */
+export function newStoryStamp(stamp: StoryStampKey, x: number, y: number): StoryStampItem {
+    return {
+        kind: "stamp", stamp,
+        x: clampStoryTextPos(x), y: clampStoryTextPos(y),
+        size: clampStoryTextSize(DEFAULT_STORY_STAMP_SIZE),
+    };
 }
 
 /**
@@ -194,6 +284,10 @@ export function newStoryText(x: number, y: number): StoryText {
  * 知らない鍵は既定へ落とす（弾いて丸ごと捨てると、字体を1つ増やした日に
  * 古いクライアントの投稿から文字の位置が消える）。**位置は必ず挟む。**
  * **文言が空のものは落とす**——置き場所だけの項目は画面に何も描けない。
+ *
+ * **スタンプは別の規則。** 文言を持たないので「空なら落とす」は当てない
+ * ——代わりに**一覧に在る鍵でなければ落とす**（知らないスタンプを
+ * 既定の絵柄に化けさせない。字体と違い、絵柄が変わると**別の意味**になる）。
  */
 export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
     if (!Array.isArray(input)) return undefined;
@@ -203,8 +297,6 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
     for (const raw of input) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const o = raw as Record<string, unknown>;
-        const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
-        if (!text) continue;
         // **傾きが 0 なら書かない。**
         //
         // 書かなければ、傾けていない文字の保存内容は**この変更の前と
@@ -213,16 +305,29 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
         // 経路も増えない。`size` は常に書くが、あちらは**既定が 0 ではない**
         // （書かないと「無い」と「既定」が区別できない）ので事情が違う。
         const rotate = clampStoryTextRotate(o.rotate);
-        out.push({
+        const common = {
             ...(rotate === 0 ? {} : { rotate }),
-            text,
             x: clampStoryTextPos(o.x),
             y: clampStoryTextPos(o.y),
             size: clampStoryTextSize(o.size),
-            font: pick(o.font, STORY_FONT_KEYS, DEFAULT_STORY_TEXT.font),
-            color: pick(o.color, STORY_COLOR_KEYS, DEFAULT_STORY_TEXT.color),
-            bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),
-        });
+        };
+
+        if (o.kind === "stamp") {
+            // **知らない絵柄は落とす**（既定に化けさせない）。
+            // 一覧を増やした日に古い画面が困ることは無い——増える側なので
+            if (typeof o.stamp !== "string" || !(STORY_STAMP_KEYS as readonly string[]).includes(o.stamp)) continue;
+            out.push({ kind: "stamp", stamp: o.stamp as StoryStampKey, ...common });
+        } else {
+            const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
+            if (!text) continue;
+            out.push({
+                ...common,
+                text,
+                font: pick(o.font, STORY_FONT_KEYS, DEFAULT_STORY_TEXT.font),
+                color: pick(o.color, STORY_COLOR_KEYS, DEFAULT_STORY_TEXT.color),
+                bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),
+            });
+        }
         if (out.length >= STORY_TEXTS_MAX) break;
     }
     return out.length > 0 ? out : undefined;
@@ -233,5 +338,9 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
  * 残したときの題も、検索に出る文章も、これを読む。
  */
 export function storyTextsCaption(texts: readonly StoryText[]): string {
-    return texts.map((t) => t.text).join("\n").trim();
+    // **スタンプは混ぜない。** `caption` は「残したときの題」と
+    // 「検索に出る文章」になる（`storyKeep.ts` の `sanitizeTitle`）。
+    // 絵柄は文章ではないので、入れると**題が絵文字だけの写真**ができる。
+    // スタンプしか置いていない投稿は `caption` を持たない（それが正しい）。
+    return texts.filter((t) => !isStoryStamp(t)).map((t) => t.text).join("\n").trim();
 }

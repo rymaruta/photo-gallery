@@ -6,7 +6,27 @@ import {
     STORY_FONTS, STORY_COLORS, STORY_BGS,
     STORY_TEXT_MIN, STORY_TEXT_MAX, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
     clampStoryTextRotate, normalizeStoryRotate, STORY_ROTATE_DEFAULT,
+    STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
+    DEFAULT_STORY_STAMP_SIZE,
+    type StoryTextItem,
 } from "../storyText";
+
+/**
+ * **文字だけを見る所の絞り込み。**
+ *
+ * `sanitizeStoryTexts` はスタンプも返すようになったので、`text` や `font` を
+ * 読むテストはここを通す。**`as` で握らない**——スタンプが混ざっていたら
+ * その場で落ちるようにして、「文字のつもりで書いた検査がスタンプを
+ * 素通りする」を防ぐ。
+ */
+const asTexts = (out: unknown): StoryTextItem[] => {
+    const list = out as Array<Record<string, unknown>> | undefined;
+    if (!list) throw new Error("sanitizeStoryTexts が undefined を返した");
+    for (const t of list) {
+        if (t.kind === "stamp") throw new Error("文字のつもりの検査にスタンプが混ざっている");
+    }
+    return list as unknown as StoryTextItem[];
+};
 
 /**
  * ストーリーの文字の見せ方。
@@ -28,7 +48,7 @@ describe("sanitizeStoryTexts", () => {
 
     it("複数をその並びで保つ（並びが重なり順）", () => {
         const out = sanitizeStoryTexts([{ ...ok, text: "いち" }, { ...ok, text: "に" }]);
-        expect(out?.map((t) => t.text)).toEqual(["いち", "に"]);
+        expect(asTexts(out).map((t) => t.text)).toEqual(["いち", "に"]);
     });
 
     // **知らない鍵は既定へ落とす（丸ごと捨てない）。** 捨てると、字体を1つ
@@ -45,13 +65,13 @@ describe("sanitizeStoryTexts", () => {
     // **任意の CSS を通さない。** 鍵で持つ理由そのもの
     it("色や字体に生の CSS を入れても通らない", () => {
         const out = sanitizeStoryTexts([{ text: "朝", color: "red; background:url(javascript:1)", font: '"; content:"' }]);
-        expect(out?.[0].color).toBe(DEFAULT_STORY_TEXT.color);
-        expect(out?.[0].font).toBe(DEFAULT_STORY_TEXT.font);
+        expect(asTexts(out)[0].color).toBe(DEFAULT_STORY_TEXT.color);
+        expect(asTexts(out)[0].font).toBe(DEFAULT_STORY_TEXT.font);
     });
 
     // **文言が空のものは落とす。** 置き場所だけの項目は画面に何も描けない
     it("文言が空のものは落とす", () => {
-        expect(sanitizeStoryTexts([{ ...ok, text: "   " }, ok])?.map((t) => t.text)).toEqual(["朝の空"]);
+        expect(asTexts(sanitizeStoryTexts([{ ...ok, text: "   " }, ok])).map((t) => t.text)).toEqual(["朝の空"]);
         expect(sanitizeStoryTexts([{ ...ok, text: "" }])).toBeUndefined();
         expect(sanitizeStoryTexts([{ x: 0.5, y: 0.5 }])).toBeUndefined();
     });
@@ -63,7 +83,7 @@ describe("sanitizeStoryTexts", () => {
     });
 
     it("要素が壊れていても落ちない（その要素だけ捨てる）", () => {
-        expect(sanitizeStoryTexts([null, "x", 3, [], ok])?.map((t) => t.text)).toEqual(["朝の空"]);
+        expect(asTexts(sanitizeStoryTexts([null, "x", 3, [], ok])).map((t) => t.text)).toEqual(["朝の空"]);
     });
 
     it("位置は必ず挟む（半分が画面の外へ出ない）", () => {
@@ -86,7 +106,7 @@ describe("sanitizeStoryTexts", () => {
 
     it("1つあたりの長さも切る", () => {
         const long = "あ".repeat(STORY_TEXT_LEN_MAX + 50);
-        expect(sanitizeStoryTexts([{ ...ok, text: long }])?.[0].text).toHaveLength(STORY_TEXT_LEN_MAX);
+        expect(asTexts(sanitizeStoryTexts([{ ...ok, text: long }]))[0].text).toHaveLength(STORY_TEXT_LEN_MAX);
     });
 });
 
@@ -273,18 +293,18 @@ describe("文字の傾き", () => {
         // **0 は書かない。** 書かなければ、傾けていない文字の保存内容は
         // この変更の前と1バイトも変わらない
         it("傾けていない文字に `rotate` を足さない", () => {
-            const [got] = sanitizeStoryTexts([base])!;
+            const [got] = asTexts(sanitizeStoryTexts([base]));
             expect(got, "傾き 0 なのに rotate が書かれている").not.toHaveProperty("rotate");
             expect(Object.keys(got).sort()).toEqual(["bg", "color", "font", "size", "text", "x", "y"]);
         });
 
         it("傾けた文字は保存する", () => {
-            const [got] = sanitizeStoryTexts([{ ...base, rotate: 15 }])!;
+            const [got] = asTexts(sanitizeStoryTexts([{ ...base, rotate: 15 }]));
             expect(got.rotate).toBe(15);
         });
 
         it("壊れた傾きは 0 扱い＝書かない", () => {
-            const [got] = sanitizeStoryTexts([{ ...base, rotate: "ななめ" }])!;
+            const [got] = asTexts(sanitizeStoryTexts([{ ...base, rotate: "ななめ" }]));
             expect(got).not.toHaveProperty("rotate");
         });
 
@@ -299,6 +319,122 @@ describe("文字の傾き", () => {
         it("新しく足した文字は `rotate` を持たない", () => {
             expect(newStoryText(0.5, 0.5)).not.toHaveProperty("rotate");
             expect(DEFAULT_STORY_TEXT).not.toHaveProperty("rotate");
+        });
+    });
+});
+
+/**
+ * スタンプ（写真の上に置く絵柄）。
+ *
+ * **文字と同じ並びに持つ**（`texts`）。別の配列に分けると重なり順が
+ * 決まらず、動かす・回す・大きさを変えるの仕組みも2組になる。
+ *
+ * ここで固定したいのは4つ:
+ *
+ *  1. **無い＝文字**（保存済みの要素は `kind` を持たない）
+ *  2. **知らない絵柄は落とす**（既定に化けさせない——字体と違い、
+ *     絵柄が変わると別の意味になる）
+ *  3. **スタンプは `caption` に混ざらない**（題が絵文字だけの写真にしない）
+ *  4. スタンプは字体・色・下地を**持たない**
+ */
+describe("スタンプ", () => {
+    const stampIn = { kind: "stamp", stamp: "heart", x: 0.3, y: 0.4, size: 0.1 };
+
+    it("一覧はどれも絵柄と名前を持つ", () => {
+        expect(STORY_STAMP_KEYS.length, "スタンプが少なすぎる").toBeGreaterThanOrEqual(8);
+        for (const [k, v] of Object.entries(STORY_STAMPS)) {
+            expect(v.glyph, `${k} の絵柄が空`).toBeTruthy();
+            expect(v.label, `${k} の名前が無い`).toBeTruthy();
+        }
+    });
+
+    // **無い＝文字。** 保存済みの要素は `kind` を持たない
+    it("`kind` を持たない要素は文字として読む", () => {
+        const [got] = sanitizeStoryTexts([{ text: "朝", x: 0.5, y: 0.5 }])!;
+        expect(isStoryStamp(got)).toBe(false);
+        expect(got).not.toHaveProperty("kind");
+    });
+
+    it("スタンプはそのまま通る", () => {
+        const [got] = sanitizeStoryTexts([stampIn])!;
+        expect(isStoryStamp(got)).toBe(true);
+        expect(got).toEqual({ kind: "stamp", stamp: "heart", x: 0.3, y: 0.4, size: 0.1 });
+    });
+
+    // **字体も色も下地も持たない**（絵柄に効かない項目を保存しない）
+    it("スタンプに字体・色・下地を足さない", () => {
+        const [got] = sanitizeStoryTexts([{ ...stampIn, font: "mincho", color: "sky", bg: "solid" }])!;
+        expect(Object.keys(got).sort()).toEqual(["kind", "size", "stamp", "x", "y"]);
+    });
+
+    /**
+     * **知らない絵柄は落とす（既定に化けさせない）。**
+     *
+     * 字体や色は「知らない鍵 → 既定」に落とすが、絵柄は違う——
+     * ハートのつもりで置いたものが炎になったら**別の意味**になる。
+     */
+    it("知らない絵柄は落とす（既定の絵柄に化けさせない）", () => {
+        expect(sanitizeStoryTexts([{ ...stampIn, stamp: "unicorn" }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ ...stampIn, stamp: 3 }])).toBeUndefined();
+        expect(sanitizeStoryTexts([{ kind: "stamp", x: 0.5, y: 0.5 }])).toBeUndefined();
+        // 隣の正しい要素は残る（1つ壊れても丸ごと捨てない）
+        const out = sanitizeStoryTexts([{ ...stampIn, stamp: "unicorn" }, stampIn])!;
+        expect(out).toHaveLength(1);
+    });
+
+    it("スタンプも位置と大きさを挟む", () => {
+        const [got] = sanitizeStoryTexts([{ ...stampIn, x: -5, y: 99, size: 99 }])!;
+        expect(got).toMatchObject({ x: STORY_TEXT_MIN, y: STORY_TEXT_MAX, size: STORY_SIZE_MAX });
+    });
+
+    it("スタンプも傾けられる（0 なら書かない）", () => {
+        expect(sanitizeStoryTexts([{ ...stampIn, rotate: 20 }])![0].rotate).toBe(20);
+        expect(sanitizeStoryTexts([{ ...stampIn, rotate: 0 }])![0]).not.toHaveProperty("rotate");
+    });
+
+    // **文字とスタンプは1つの並び**＝重なり順を置き分けられる
+    it("文字とスタンプを混ぜて、その並びのまま保つ", () => {
+        const out = sanitizeStoryTexts([
+            { text: "朝", x: 0.5, y: 0.5 },
+            stampIn,
+            { text: "空", x: 0.5, y: 0.6 },
+        ])!;
+        expect(out.map((t) => (isStoryStamp(t) ? `stamp:${t.stamp}` : `text:${t.text}`)))
+            .toEqual(["text:朝", "stamp:heart", "text:空"]);
+    });
+
+    // 上限は合わせて数える（多いほど読めなくなるのは絵柄も同じ）
+    it("上限は文字とスタンプを合わせて数える", () => {
+        const many = Array.from({ length: STORY_TEXTS_MAX + 4 }, (_, i) =>
+            i % 2 ? stampIn : { text: `t${i}`, x: 0.5, y: 0.5 });
+        expect(sanitizeStoryTexts(many)).toHaveLength(STORY_TEXTS_MAX);
+    });
+
+    /**
+     * **`caption` に混ざらない。**
+     *
+     * `caption` は「残したときの題」と「検索に出る文章」になる
+     * （`storyKeep.ts` の `sanitizeTitle`）。絵柄は文章ではないので、
+     * 入れると**題が絵文字だけの写真**ができる。
+     */
+    it("スタンプは caption に入らない", () => {
+        const texts = sanitizeStoryTexts([{ text: "朝の空", x: 0.5, y: 0.5 }, stampIn])!;
+        expect(storyTextsCaption(texts)).toBe("朝の空");
+    });
+
+    it("スタンプだけなら caption は空（題の無い写真になる）", () => {
+        expect(storyTextsCaption(sanitizeStoryTexts([stampIn])!)).toBe("");
+    });
+
+    describe("newStoryStamp", () => {
+        it("既定の大きさで置く（文字より大きめ＝置いた直後に掴める）", () => {
+            const s = newStoryStamp("star", 0.3, 0.4);
+            expect(s).toEqual({ kind: "stamp", stamp: "star", x: 0.3, y: 0.4, size: DEFAULT_STORY_STAMP_SIZE });
+            expect(DEFAULT_STORY_STAMP_SIZE).toBeGreaterThan(STORY_SIZE_DEFAULT);
+        });
+
+        it("位置は挟む", () => {
+            expect(newStoryStamp("star", -1, 9)).toMatchObject({ x: STORY_TEXT_MIN, y: STORY_TEXT_MAX });
         });
     });
 });

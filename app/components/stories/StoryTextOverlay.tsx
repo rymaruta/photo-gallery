@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import { STORY_FONTS, STORY_COLORS, clampStoryTextRotate, type StoryText } from "@/lib/utils/storyText";
+import {
+    STORY_FONTS, STORY_COLORS, STORY_STAMPS, clampStoryTextRotate, isStoryStamp,
+    type StoryText, type StoryTextItem,
+} from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
 import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/storyTransform";
 
@@ -61,10 +64,17 @@ export default function StoryTextOverlay({
     return (
         <div className="absolute pointer-events-none" style={area}>
             {texts.map((t, i) => {
-                const font = STORY_FONTS[t.font];
-                const color = STORY_COLORS[t.color];
-                const filled = t.bg === "solid";
+                // **スタンプと文字は同じ仕組みに乗る**（置く・動かす・回す・
+                // 重ねる・消す）。違うのは**中身と、字体まわりを持つかどうか**
+                // だけなので、分岐はここに閉じる
+                const stamp = isStoryStamp(t) ? STORY_STAMPS[t.stamp] : null;
+                const font = stamp ? null : STORY_FONTS[(t as StoryTextItem).font];
+                const color = stamp ? null : STORY_COLORS[(t as StoryTextItem).color];
+                const bg = stamp ? "none" : (t as StoryTextItem).bg;
+                const filled = bg === "solid";
                 const selected = editable && selectedIndex === i;
+                /** 読み上げ・掴む的の名前。スタンプは絵柄の名前で呼ぶ */
+                const name = stamp ? stamp.label : (t as StoryTextItem).text;
                 // **「無い＝0度」はここ1か所で決める**（`clampStoryTextRotate` が
                 // `undefined` を 0 に落とす）。保存済みのストーリーは
                 // `rotate` を実際に持たない
@@ -85,8 +95,8 @@ export default function StoryTextOverlay({
                             // 読み上げが「矢印キーで動かせます」のままだと、
                             // 指でなぞれない人には**傾けられること自体が伝わらない**
                             "aria-label": locale === "en"
-                                ? `Text "${t.text}" — arrow keys to move, [ and ] to rotate, + and - to resize`
-                                : `文字「${t.text}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
+                                ? `${stamp ? "Sticker" : "Text"} "${name}" — arrow keys to move, [ and ] to rotate, + and - to resize`
+                                : `${stamp ? "スタンプ" : "文字"}「${name}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
                             onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
                                 // 1回で 2%。Shift で 10%（端まで何度も押さずに済む）
                                 const step = e.shiftKey ? 0.1 : 0.02;
@@ -157,20 +167,20 @@ export default function StoryTextOverlay({
                                 + (rotate === 0 ? "" : ` rotate(${rotate}deg)`),
                             // 端に置いても読める幅を残す（はみ出す前に折り返す）
                             maxWidth: "86%",
-                            fontFamily: font.css,
-                            fontWeight: font.weight,
+                            // スタンプは絵文字なので字体を当てない（端末の絵文字が出る）
+                            ...(font ? { fontFamily: font.css, fontWeight: font.weight } : {}),
                             fontSize: box
                                 ? `${Math.round(box.width * t.size)}px`
                                 : `${(t.size * 100).toFixed(1)}vw`,
                             lineHeight: 1.25,
                             // 下地が「塗り」のときは、選んだ色が下地になり文字が反転する
-                            color: filled ? color.on : color.hex,
-                            background: filled ? color.hex : t.bg === "soft" ? "rgba(0,0,0,0.45)" : "transparent",
-                            padding: t.bg === "none" ? 0 : "0.18em 0.5em",
-                            borderRadius: t.bg === "none" ? 0 : "0.35em",
+                            ...(color ? { color: filled ? color.on : color.hex } : {}),
+                            background: filled && color ? color.hex : bg === "soft" ? "rgba(0,0,0,0.45)" : "transparent",
+                            padding: bg === "none" ? 0 : "0.18em 0.5em",
+                            borderRadius: bg === "none" ? 0 : "0.35em",
                             // **下地が無いときは影で浮かせる。** 白い空や雪の上に
                             // 白い文字を置くと、影が無いと消える
-                            textShadow: t.bg === "none" ? "0 2px 8px rgba(0,0,0,0.65), 0 0 2px rgba(0,0,0,0.5)" : "none",
+                            textShadow: bg === "none" ? "0 2px 8px rgba(0,0,0,0.65), 0 0 2px rgba(0,0,0,0.5)" : "none",
                             opacity: dimmed ? 0.75 : 1,
                             // **選んでいるものが分かるようにする。** 複数置けるので、
                             // どれを直しているのかが見えないと操作の欄が誰に効くか分からない
@@ -180,7 +190,7 @@ export default function StoryTextOverlay({
                             touchAction: editable ? "none" : undefined,
                         }}
                     >
-                        {t.text}
+                        {stamp ? <span role="img" aria-label={stamp.label}>{stamp.glyph}</span> : name}
                         {/* **角のハンドル。** 掴んで回すと傾き、離すと大きさが決まる。
                             選んでいる1つにだけ出す（全部に出すと写真が的だらけになる）。
 
@@ -198,7 +208,7 @@ export default function StoryTextOverlay({
                             **少し動かしただけで大きさが上限に張り付き、
                             傾きも雑音から決まる**。打つものが無い文字に
                             大きさも傾きも無い */}
-                        {selected && onGrabHandle && t.text.trim() !== "" && (
+                        {selected && onGrabHandle && name.trim() !== "" && (
                             <button
                                 type="button"
                                 tabIndex={-1}
