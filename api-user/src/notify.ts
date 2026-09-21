@@ -2,6 +2,8 @@ import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
 import { isBlocked } from "./blockCheck";
+import { apnsConfigured, sendPush } from "./apns";
+import { deviceTokens, forgetTokens } from "./devices";
 
 // 通知の共通ヘルパー。
 // 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する
@@ -210,6 +212,13 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // ここで丸めても**利用者に見える結果は変わらない**。競合する書き込みは
         // 守るより無くす方が確実で、しかも安い——通知が上限に達した人は
         // 毎回ここを通るので、丸めを残すと書き込みが常時3本になっていた。
+        // **端末にも届ける。** ここが通知を作る唯一の場所なので、
+        // 送信もここ1か所に置く（口ごとに配線すると、次に経路が増えたときに
+        // 必ず1つ漏れる——ブロックの判定が同じ理由でここに在る）。
+        // **落ちても通知は積まれたまま**（アプリを開けば読める）
+        const unread = res.Attributes?.unread;
+        await deliverPush(ownerId, notif, typeof unread === "number" ? unread : undefined);
+
         const items = res.Attributes?.items;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
             await ddb.send(new UpdateCommand({
@@ -226,5 +235,49 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         }
     } catch (e) {
         console.error("pushNotification error:", e);
+    }
+}
+
+/**
+ * 端末の `Localizable.strings` の鍵。**文面はサーバーで作らない**
+ * ——相手の言語を知らないので、作ると英語の端末にも日本語が届く。
+ *
+ * **種類を足したら、アプリの `Localizable.strings` にも足すこと。**
+ * 足さないと iOS は鍵の文字列（`NOTIF_LIKE`）をそのまま通知に出す。
+ */
+const LOC_KEYS: Record<Notif["type"], string> = {
+    like: "NOTIF_LIKE",
+    comment: "NOTIF_COMMENT",
+    follow: "NOTIF_FOLLOW",
+    storyreply: "NOTIF_STORY_REPLY",
+};
+
+/**
+ * 通知を端末へ送る。**best-effort**（落ちても本体は成功）。
+ *
+ * ブロックの判定は呼び出し元（`pushNotification`）で済んでいる
+ * ——積まない相手には、ここまで来ない。
+ */
+async function deliverPush(ownerId: string, notif: Notif, badge?: number): Promise<void> {
+    if (!apnsConfigured()) return;
+    try {
+        const tokens = await deviceTokens(ownerId);
+        if (tokens.length === 0) return;
+        const result = await sendPush(tokens, {
+            locKey: LOC_KEYS[notif.type],
+            locArgs: [notif.byName],
+            badge,
+            // 押したときの行き先。**写真が無い通知（follow）もある**
+            data: {
+                type: notif.type,
+                ...(notif.photoId ? { photoId: notif.photoId } : {}),
+                ...(notif.byId ? { byId: notif.byId } : {}),
+                ...(notif.targetUserId ? { targetUserId: notif.targetUserId } : {}),
+            },
+        });
+        // **無効だった宛先だけ外す**（送信の失敗では外さない）
+        if (result.invalid.length > 0) await forgetTokens(ownerId, result.invalid);
+    } catch (e) {
+        console.error(`deliverPush: 送れませんでした（${ownerId}）:`, e);
     }
 }

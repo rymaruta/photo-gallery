@@ -448,6 +448,16 @@ functions:
 
   likePhoto:
     handler: src/likes.likePhoto
+    environment:
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
+      # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
+      # 未認証で呼べる口にまで秘密を配る理由は無い。
+      # **未設定でも本筋は通る**（通知は積まれ、端末に飛ばないだけ）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     events:
       - httpApi:
           path: /photos/{id}/like
@@ -475,6 +485,16 @@ functions:
 
   postComment:
     handler: src/comments.postComment
+    environment:
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
+      # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
+      # 未認証で呼べる口にまで秘密を配る理由は無い。
+      # **未設定でも本筋は通る**（通知は積まれ、端末に飛ばないだけ）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     events:
       - httpApi:
           path: /photos/{id}/comments
@@ -493,6 +513,16 @@ functions:
 
   followUser:
     handler: src/follow.followUser
+    environment:
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
+      # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
+      # 未認証で呼べる口にまで秘密を配る理由は無い。
+      # **未設定でも本筋は通る**（通知は積まれ、端末に飛ばないだけ）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     events:
       - httpApi:
           path: /users/{uid}/follow
@@ -590,6 +620,16 @@ functions:
   # 載せない——書き込みがあるので未認証の口の一覧に足してはいけない
   postStoryReply:
     handler: src/storyReplies.postStoryReply
+    environment:
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）。
+      # 環境変数は lambda:GetFunctionConfiguration を持つ人に見えるので、
+      # 未認証で呼べる口にまで秘密を配る理由は無い。
+      # **未設定でも本筋は通る**（通知は積まれ、端末に飛ばないだけ）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     # 既定の6秒だと、件数の書き込みをやり直す回に枠を使い切りうる
     # （本文はもう入っているので、そこで切れると画面は失敗と読んで
     #  送り直し＝二重投稿になる）。`savePhoto` と同じ理由で広げる。
@@ -637,6 +677,26 @@ functions:
     events:
       - httpApi:
           path: /users/{id}/block
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # プッシュ通知の宛先（端末トークン）の登録と解除。
+  # **鍵は配らない**——ここは保管するだけで、送るのは上の4つ
+  registerDevice:
+    handler: src/devices.registerDevice
+    events:
+      - httpApi:
+          path: /user/devices
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  unregisterDevice:
+    handler: src/devices.unregisterDevice
+    events:
+      - httpApi:
+          path: /user/devices
           method: DELETE
           authorizer:
             name: cognitoAuthorizer
