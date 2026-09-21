@@ -1,4 +1,5 @@
 import { canonicalUploadUrl, uploadPrefix, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
+import { sanitizeBlurDataURL } from "./sanitize";
 
 /**
  * 1投稿に複数枚（owner の新デザインの「1/10」）。
@@ -109,6 +110,14 @@ export function sanitizeExtraImages(
         }
         const c = safeColor(r.dominantColor);
         if (c) img.dominantColor = c;
+        // **ぼかしプレビューは受け取る。** これだけは URL ではなく `data:` URI
+        // （`sanitizeBlurDataURL` が形を見る）なので、外のホストを指しようが
+        // ない。表紙は前から受け取っていて、2枚目以降だけ受け取らないと
+        // **1枚目だけ blur-up して2枚目以降は真っ黒**——しかも埋まるのは
+        // 次のビルド（定期は週1）まで待つことになる。
+        // URL の派生（`srcAvif` など）は引き続き受け取らない
+        const b = sanitizeBlurDataURL(r.blurDataURL);
+        if (b) img.blurDataURL = b;
         // 寸法は正の有限な数だけ（レイアウトの予約に使う）
         for (const k of ["width", "height"] as const) {
             const n = r[k];
