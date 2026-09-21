@@ -1,5 +1,7 @@
 // インスタ風ストーリーのフロントエンド用ヘルパー
 
+import type { StoryText } from "./utils/storyText";
+
 export type Story = {
     id: string;
     src: string;
@@ -18,6 +20,14 @@ export type Story = {
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number };
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
+    /**
+     * 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+     * **並びが重なり順**——後ろほど手前。
+     *
+     * `caption` は**これを繋いだもの**をサーバーが書く（文言を2か所で
+     * 持たない）。無ければ従来どおり `caption` を下の帯に出す。
+     */
+    texts?: StoryText[];
     /**
      * 届いた返信の数。**投稿者にしか入っていない**
      * （`getStories` が所有者以外から落とす）。見た人に「このストーリーに
