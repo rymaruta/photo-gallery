@@ -82,9 +82,22 @@ describe("一覧のカード", () => {
         expect(like.getAttribute("href")).toContain("p1");
     });
 
-    it("複数枚なら「1/N」。壊れた要素は数えない", () => {
+    it("複数枚なら「1/N」", () => {
         card({ extraImages: [{ src: "https://cdn.example.com/b.jpg" }] });
         expect(screen.getByText("1/2")).toBeTruthy();
+    });
+
+    it("🔴 壊れた要素は数えない（「1/3」と出して開くと2枚、を作らない）", () => {
+        card({
+            // @ts-expect-error 壊れた値を通す（本番のデータは何でもありうる）
+            extraImages: [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.example.com/b.jpg" }],
+        });
+        expect(screen.getByText("1/2"), "壊れた要素まで数えている").toBeTruthy();
+    });
+
+    it("extraImages が配列でなくても落ちない", () => {
+        card({ extraImages: "x" as unknown as Photo["extraImages"] });
+        expect(screen.queryByText(/^1\//)).toBeNull();
     });
 
     it("1枚だけなら枚数を出さない", () => {
