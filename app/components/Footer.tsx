@@ -17,6 +17,8 @@ export default function Footer() {
         // 出るので、写真ページから来た人にも見つかる
         { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
+        // 保存した写真。**いいねとは別の棚**なので、並べて出して違いを見せる
+        { href: ROUTES.SAVES, label: navLabels.saves || (locale === "en" ? "Saved Photos" : "保存した写真") },
         { href: ROUTES.TERMS, label: locale === "en" ? "Terms" : "利用規約" },
         { href: ROUTES.PRIVACY, label: locale === "en" ? "Privacy" : "プライバシーポリシー" },
     ];

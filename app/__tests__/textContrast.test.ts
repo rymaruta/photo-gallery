@@ -265,6 +265,9 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/components/MiniPlayer.tsx", 'MusicalNoteIcon className="w-4 h-4 text-white/30"', "アートワークが無いときの絵（2.46:1）"],
         ["app/components/MusicCard.tsx", 'MusicalNoteIcon className="w-6 h-6 text-white/30"', "同上（2.46:1）"],
         ["app/favorites/page.tsx", 'HeartIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
+        // 「保存した写真」の空のとき。**いいねした写真と同じ濃さに揃える**
+        // ——並ぶ2ページで片方だけ濃いと、別の意味があるように見える
+        ["app/saves/page.tsx", 'BookmarkIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
         ["app/user/drafts/page.tsx", 'PhotoIcon className="w-12 h-12 mx-auto mb-3 text-white/20"', "空のときの絵（1.66:1）"],
         ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
         ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],

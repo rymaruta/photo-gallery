@@ -233,6 +233,16 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* 保存した写真: **ログイン中だけ**。いいねと違って
+                                    未ログインでは押せないので、出しても空のページにしか
+                                    ならない（いいねは端末の控えがあるので条件が違う） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SAVES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.saves || "Saved"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
                                         <span className="text-[10px] tracking-widest uppercase text-white/50">

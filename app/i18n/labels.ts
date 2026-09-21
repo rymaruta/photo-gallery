@@ -49,6 +49,8 @@ export type Labels = {
         gallery?: string;
         about?: string;
         favorites?: string;
+        /** 保存した写真（ブックマーク）。いいねとは別の棚 */
+        saves?: string;
         map?: string;
         mypage?: string;
         albums?: string;
@@ -109,6 +111,7 @@ const enLabels: Labels = {
         gallery: "Gallery",
         about: "About",
         favorites: "Liked Photos",
+        saves: "Saved Photos",
         map: "Map",
         mypage: "My Page",
         albums: "Shared Albums",
@@ -168,6 +171,7 @@ export const ja: Labels = {
         gallery: "ギャラリー",
         about: "制作について",
         favorites: "いいねした写真",
+        saves: "保存した写真",
         map: "撮影地マップ",
         mypage: "マイページ",
         albums: "共同アルバム",
