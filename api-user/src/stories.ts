@@ -743,6 +743,101 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     }
 };
 
+/**
+ * 期限切れの行を「アーカイブの棚」へ移す（`archive: true` の行だけ）。
+ *
+ * **消さずに残す**が、残すのは**本人のもの**（実体・文字・場所・曲）だけ。
+ * **他人の言葉と名前は、今までどおり消す**:
+ *   - 返信の文書（`storyreplies#<id>`）を消す。返信は相手が「24時間で
+ *     消える」つもりで送った文章で、`photoUpdate.ts` が「24時間で消える
+ *     はずの他人の文章とその人の uid が無期限に残っていた」を不具合として
+ *     塞いだ当のもの
+ *   - `viewers`（誰が見たか）と `replyCount` も外す（同じ理由）
+ * そのうえで `archivedAt` を刻み、`storyFeed` を外す（ストーリー一覧の GSI
+ * から落ちる＝`getStories` に二度と出ず、掃除も二度と拾わない）。
+ *
+ * **S3 の実体はそのまま**——これが「後から見られる」の中身。公開URLは鍵が
+ * UUID なので当てられないが、**見た人が URL を控えていれば取れ続ける**
+ * （`keptAs` で残した写真と同じ性質）。本人が投稿のときに「アーカイブに
+ * 自動保存」を入にしたぶんだけなので、既定は今までどおり消える＝
+ * **24時間で消える約束は壊さない**。仕組みは `keptAs`（印があれば掃除が
+ * 実体を消さない）と同じ1本で、2つ目の置き場は作らない。
+ *
+ * 順序は削除と同じ「返信 → 行」。**返信を消せなければ棚へ移さない**
+ * ——行は GSI に残るので次回また来る（消せないまま棚へ移すと、`storyFeed`
+ * が無い行の返信はどの掃除からも辿れない）。
+ *
+ * 返り値: `"archived"`＝移した／`"skipped"`＝条件が外れた（もう棚に在る・
+ * 消えた・印が外れた。やることは無い）／`"failed"`＝書けなかった（行は
+ * GSI に残るので次回また来る）
+ */
+async function shelveExpiredStory(item: Record<string, unknown>): Promise<"archived" | "skipped" | "failed"> {
+    const id = String(item.id ?? "");
+    // **`expiresAt` を持たない行は移せない。** `archivedAt` にそれを写すので、
+    // 無いと更新が ValidationException で落ちる——返信だけ毎時消して失敗し
+    // 続ける形になる。ここに来る行は GSI のソートキー／Scan の絞り込みで
+    // 必ず持つが、別の口から流されても壊れないように先に断る
+    if (typeof item.expiresAt !== "string" || !item.expiresAt) {
+        console.error(`cleanup: cannot archive ${id} (no expiresAt)`);
+        return "failed";
+    }
+    try {
+        await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
+    } catch (e) {
+        console.error(`cleanup: keeping ${id} in feed (replies delete failed; will retry next run):`, e);
+        return "failed";
+    }
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id },
+            // **`archivedAt` は期限の時刻。** 掃除が来た時刻ではない——一覧
+            // （`getStoryArchive`）は掃除が来る前の行にも期限の時刻を埋めて
+            // 返すので、掃除の時刻を刻むと**同じ行の日付が掃除の前後で変わる**
+            // （日をまたぐと「昨日のアーカイブ」が今日へ跳ぶ）。行の
+            // `expiresAt` をそのまま写す（手元の値を渡さない）。`if_not_exists`
+            // は半端に直された行（刻まれているのに `storyFeed` が残る）を
+            // 撫でるときに上書きしないため
+            UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, expiresAt) REMOVE storyFeed, viewers, replyCount",
+            // **条件は Scan の絞り込みと同じ物差し**: 印が立っていて、まだ棚へ
+            // 移していない（`storyFeed` が在る、または `archivedAt` が無い）。
+            // 絞り込みと条件がずれると、絞り込みだけが拾う行が**毎時ここで
+            // 条件不成立になり永久に収束しない**（一度そう書いた）。
+            // `attribute_exists(id)` は鍵だけの行を作らないため（`viewStory` と
+            // 同じ理由——鍵だけの行はどの掃除からも辿れない）。
+            // **`archive` は DynamoDB の予約語。** 素で書くと式ごと
+            // ValidationException になり、**1行も棚へ移らない**（モックの
+            // テストでは捕まらない。`comments.ts` の `#items` と同じ罠）
+            ConditionExpression: "attribute_exists(id) AND #a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
+            ExpressionAttributeNames: { "#a": "archive" },
+            ExpressionAttributeValues: { ":t": true },
+        }));
+        return "archived";
+    } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+            console.error(`cleanup: archive failed for ${id}:`, e);
+            return "failed";
+        }
+        // 条件が外れた。**どれかを言う**——読んだあとに消された（`deleteStory`
+        // との普通の競合）のか、印が外れた・棚に在るのに一覧に出た（異常。
+        // 毎時ここに来て返信だけ消して飛ぶ形）のかで、追う必要があるかが
+        // 変わる。稀な経路なので1回読み直す。失敗ではないので error にはしない。
+        // **読み直せなかった回を「消された」と言わない**——それでは見分ける
+        // ために読み直した意味が無い
+        let why: string;
+        try {
+            const fresh = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))).Item as Record<string, unknown> | undefined;
+            why = fresh
+                ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
+                : "row gone (deleted meanwhile)";
+        } catch (e2) {
+            why = `re-read failed: ${(e2 as { name?: string }).name ?? "unknown"}`;
+        }
+        console.warn(`cleanup: archive skipped for ${id}: ${why}`);
+        return "skipped";
+    }
+}
+
 // 期限切れストーリーの物理削除（毎日スケジュール実行）
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
 export const cleanupExpiredStories = async (): Promise<{ deleted: number; archived: number }> => {
@@ -760,93 +855,10 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number; archiv
         const id = String(item.id ?? "");
         if (!id) continue;
 
-        // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す。**
-        //
-        // 残すのは**本人のもの**（実体・文字・場所・曲）だけ。
-        // **他人の言葉と名前は、今までどおり消す**:
-        //   - 返信の文書（`storyreplies#<id>`）を消す。返信は相手が
-        //     「24時間で消える」つもりで送った文章で、`photoUpdate.ts` が
-        //     「24時間で消えるはずの他人の文章とその人の uid が無期限に
-        //     残っていた」を不具合として塞いだ当のもの
-        //   - `viewers`（誰が見たか）と `replyCount` も外す（同じ理由。
-        //     `getStoryViewers` / `getStoryReplies` は期限を見ないので、
-        //     行に残せば本人がいつまでも読める）
-        // そのうえで `archivedAt` を刻み、`storyFeed` を外す（ストーリー一覧の
-        // GSI から落ちる＝`getStories` に二度と出ず、この掃除も二度と拾わない）。
-        //
-        // **S3 の実体はそのまま**——これが「後から見られる」の中身。
-        // 公開URLは鍵が UUID なので当てられないが、**見た人が URL を控えて
-        // いれば取れ続ける**（`keptAs` で残した写真と同じ性質）。
-        // 本人が投稿のときに「アーカイブに自動保存」を入にしたぶんだけなので、
-        // 既定は今までどおり消える＝**24時間で消える約束は壊さない**。
-        // 仕組みは `keptAs`（印があれば掃除が実体を消さない）と同じ1本で、
-        // 2つ目の置き場は作らない。
-        //
-        // 順序は削除と同じ「返信 → 行」。**返信を消せなければ棚へ移さない**
-        // ——行は GSI に残るので次回また来る（消せないまま棚へ移すと、
-        // `storyFeed` が無い行の返信はどの掃除からも辿れない）。
+        // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す**
+        // （中身は `shelveExpiredStory`）。移せなかった行は GSI に残るので次回また来る
         if (item.archive === true) {
-            try {
-                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
-            } catch (e) {
-                console.error(`cleanup: keeping ${id} in feed (replies delete failed; will retry next run):`, e);
-                continue;
-            }
-            try {
-                await ddb.send(new UpdateCommand({
-                    TableName: PHOTOS_TABLE,
-                    Key: { id },
-                    // **`archivedAt` は期限の時刻。** 掃除が来た時刻ではない——
-                    // 一覧（`getStoryArchive`）は掃除が来る前の行にも期限の時刻を
-                    // 埋めて返すので、掃除の時刻を刻むと**同じ行の日付が掃除の
-                    // 前後で変わる**（日をまたぐと「昨日のアーカイブ」が
-                    // 今日へ跳ぶ）。**行の `expiresAt` をそのまま写す**（値を
-                    // 手元から渡さない＝読んだ時点と書く時点の差が無い。
-                    // ここに来る行は必ず持っている——GSI のソートキーで、
-                    // Scan も `expiresAt <= :now` で絞る）。
-                    // `if_not_exists` は半端に直された行（刻まれているのに
-                    // `storyFeed` が残る）を撫でるときに上書きしないため
-                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, expiresAt) REMOVE storyFeed, viewers, replyCount",
-                    // **今まさに棚へ移してよい行**であることを条件にする:
-                    // 印が立っていて、まだ GSI に載っている（＝行が在る。
-                    // `storyFeed` が在るなら行は在るので `attribute_exists(id)` は
-                    // 要らない——鍵だけの行を作る心配も同じ理由で無い）。
-                    // 「まだ移っていない」を `archivedAt` で見ないのは、刻まれて
-                    // いるのに `storyFeed` が残る行（手で直した途中など）が
-                    // **毎時ここで条件不成立になり永久に GSI に残る**のを避けるため
-                    ConditionExpression: "#a = :t AND attribute_exists(storyFeed)",
-                    // **`archive` は DynamoDB の予約語。** 素で書くと式ごと
-                    // ValidationException になり、**1行も棚へ移らない**
-                    // （モックのテストでは捕まらない。`rebuild.ts` の `#c`＝`count`・
-                    // `sync-photos` の `#at`＝`at` と同じ罠）
-                    ExpressionAttributeNames: { "#a": "archive" },
-                    ExpressionAttributeValues: { ":t": true },
-                }));
-                archived++;
-            } catch (e) {
-                if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                    // 条件が外れた。**どれかを言う**——読んだあとに消された
-                    // （`deleteStory` との普通の競合）のか、印が外れた・
-                    // `storyFeed` が無いのに一覧に出た（異常。毎時ここに来て
-                    // 返信だけ消して飛ぶ形）のかで、追う必要があるかが変わる。
-                    // 稀な経路なので1回読み直す。失敗ではないので error にはしない。
-                    // **読み直せなかった回を「消された」と言わない**——それでは
-                    // 見分けるために読み直した意味が無い
-                    let why: string;
-                    try {
-                        const fresh = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))).Item as Record<string, unknown> | undefined;
-                        why = fresh
-                            ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
-                            : "row gone (deleted meanwhile)";
-                    } catch (e2) {
-                        why = `re-read failed: ${(e2 as { name?: string }).name ?? "unknown"}`;
-                    }
-                    console.warn(`cleanup: archive skipped for ${id}: ${why}`);
-                    continue;
-                }
-                // 書けなければ次回に回す（行は GSI に残っているので、また来る）
-                console.error(`cleanup: archive failed for ${id}:`, e);
-            }
+            if (await shelveExpiredStory(item) === "archived") archived++;
             continue;
         }
 

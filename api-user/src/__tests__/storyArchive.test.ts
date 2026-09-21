@@ -166,8 +166,11 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(expr, "GSI から外していない（毎時また拾う・一覧に出続ける）").toMatch(/REMOVE storyFeed/);
         expect(expr, "閲覧者を残している").toMatch(/\bviewers\b/);
         expect(expr, "返信の数を残している（消した文書と食い違う）").toMatch(/\breplyCount\b/);
-        // 条件: 印が立っていて、まだ GSI に載っている行だけ
-        expect(up[0].input.ConditionExpression).toBe("#a = :t AND attribute_exists(storyFeed)");
+        // 条件: 印が立っていて、まだ棚へ移していない行だけ——**Scan の
+        // 絞り込みと同じ物差し**（ずれると、絞り込みだけが拾う行が毎時
+        // 条件不成立で永久に収束しない）。鍵だけの行を作らない見張りも要る
+        expect(up[0].input.ConditionExpression)
+            .toBe("attribute_exists(id) AND #a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
         expectNoBareArchive(up[0].input, "ConditionExpression", "UpdateExpression");
         expect((up[0].input.ExpressionAttributeValues as Record<string, unknown>)[":t"]).toBe(true);
         expect((up[0].input.Key as { id: string }).id).toBe("s-keep");
@@ -202,6 +205,24 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(r).toEqual({ deleted: 0, archived: 0 });
         expect(ofKind("UpdateCommand"), "返信が残ったまま GSI から外している（二度と辿れない）").toHaveLength(0);
         expect(s3Keys()).toEqual([]);
+    });
+
+    it("expiresAt を持たない行は、返信も消さず失敗として断る（毎時消して失敗し続ける形を作らない）", async () => {
+        // ここに来る行は必ず持つ（GSI のソートキー／Scan の絞り込み）が、
+        // 別の口から流されても壊れないように。`archivedAt` に期限を写すので、
+        // 無いと更新は ValidationException になる
+        const noExp = Object.fromEntries(Object.entries(KEEP).filter(([k]) => k !== "expiresAt"));
+        rows([noExp]);
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        try {
+            const r = await cleanupExpiredStories();
+            expect(r).toEqual({ deleted: 0, archived: 0 });
+            expect(deletedIds(), "返信を消してから失敗している").toEqual([]);
+            expect(ofKind("UpdateCommand")).toHaveLength(0);
+            expect(err.mock.calls.some((c) => String(c[0]).includes("no expiresAt")), "理由を残していない").toBe(true);
+        } finally {
+            err.mockRestore();
+        }
     });
 
     it("棚へ移せなかったら行を消さない（次回にまた来る）", async () => {
@@ -289,7 +310,11 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         //   - storyFeed が在る → 拾う（刻まれたのに残る半端な行も直せる）
         //   - storyFeed が無くても archivedAt が無い → 拾う（索引が生える前の
         //     古い行。外すと GSI の無い環境で永久に消えない）
-        expect(filter).toContain("attribute_exists(storyFeed) OR attribute_not_exists(archivedAt)");
+        // **括弧ごと見る。** DynamoDB は AND が OR より先に結びつくので、
+        // 括弧が落ちると `(... AND storyFeed) OR archivedAt 無し`＝**表の
+        // 写真・コメント・印の行が全部「期限切れ」として返り、削除の経路に
+        // 流れる**
+        expect(filter).toContain("AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
     });
 });
 

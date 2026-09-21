@@ -10,7 +10,8 @@
  *
  * ここでやること:
  *   1. GSI `storyFeed-expiresAt-index` を足す（既にあれば何もしない）
- *   2. 既存の生きているストーリーに storyFeed 属性を書く
+ *   2. 既存のストーリーに storyFeed 属性を書く（**期限切れを含む・
+ *      アーカイブ＝archivedAt の在る行は除く**。詳しくは下の絞り込みの注記）
  *      （新規投稿は api-user 側が最初から書く。ストーリーは24時間で
  *        入れ替わるので、本来はこの backfill 無しでも1日で揃う。
  *        今出ているストーリーを消さないためにやる）
@@ -137,7 +138,7 @@ async function main() {
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    console.log(`[story-index] 走査 ${scanned} 件 / storyFeed が必要なストーリー ${target} 件（期限切れを含む）`);
+    console.log(`[story-index] 走査 ${scanned} 件 / storyFeed が必要なストーリー ${target} 件（期限切れを含む・アーカイブを除く）`);
     if (!apply) console.log("\n[story-index] ドライランのため何も変更していません。");
     else console.log("\n[story-index] 完了。索引が ACTIVE になるまでは Scan にフォールバックします。");
 }
