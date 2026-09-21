@@ -40,6 +40,85 @@ type Notif = {
 /** 常駐ぶんの再取得の間隔。短くしすぎると人数×頻度でAPI が増える */
 const POLL_MS = 60_000;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 通知のタブ。モックの「すべて／いいね／コメント／フォロー」と対。
+ *
+ * **別の画面（`/notifications`）にはしない。** 一覧は `NOTIFS_MAX = 50` で
+ * 頭打ち（`api-user/src/notify.ts`）＝ページ送りが要らないので、全画面に
+ * する実用上の理由が無い。逆に画面を足すと**通知を読む導線が2つ**になり、
+ * しかもこのベルが積み上げてきた正しさ（取得世代・既読世代・`status` の
+ * 3状態・ブロック除去後の未読数）を写した側で作り直すことになる。
+ * モックが全画面なのは iOS のタブバーに枠があるからで、Web ではこのベルが
+ * その枠にあたる。
+ */
+export type NotifTab = "all" | "like" | "comment" | "follow";
+
+export const NOTIF_TABS: readonly NotifTab[] = ["all", "like", "comment", "follow"] as const;
+
+const TAB_LABEL: Record<NotifTab, { ja: string; en: string }> = {
+    all: { ja: "すべて", en: "All" },
+    like: { ja: "いいね", en: "Likes" },
+    comment: { ja: "コメント", en: "Comments" },
+    follow: { ja: "フォロー", en: "Follows" },
+};
+
+/**
+ * タブの絞り込み。
+ *
+ * **`storyreply` は「コメント」に入れる。** 通知の種別は4つ（like /
+ * comment / follow / storyreply）あるのにモックのタブは3つなので、
+ * 素直に `type === tab` で絞ると**ストーリーへの返信が「すべて」以外の
+ * どのタブにも出ない**。どちらも「誰かが自分宛てに書いた」もので、
+ * この下の本文は既に両方へ同じ吹き出しのアイコンを出している。
+ *
+ * 知らない種別は「すべて」にだけ残る（本文は出ないが、行は数に入る）。
+ * ここで弾くと、種別を足した人が**タブから消えたこと**に気づけない。
+ */
+export function inTab(type: string, tab: NotifTab): boolean {
+    if (tab === "all") return true;
+    if (tab === "comment") return type === "comment" || type === "storyreply";
+    return type === tab;
+}
+
+/** 時間の区分。モックの「新着」「今日」の見出しと対 */
+export type NotifBucket = "new" | "today" | "week" | "older";
+
+export const BUCKET_ORDER: readonly NotifBucket[] = ["new", "today", "week", "older"] as const;
+
+const BUCKET_LABEL: Record<NotifBucket, { ja: string; en: string }> = {
+    new: { ja: "新着", en: "New" },
+    today: { ja: "今日", en: "Today" },
+    week: { ja: "今週", en: "This week" },
+    older: { ja: "それ以前", en: "Earlier" },
+};
+
+/**
+ * どの見出しの下に置くか。
+ *
+ * 🔴 **「新着」は位置ではなく時刻の境界で決める。** 未読は
+ * 「**先頭 N 件**」＝位置の意味を持つ数（`api-user/src/notifications.ts` の
+ * `headCount`。`64a45d74` で直した回帰の中心）。タブで絞ったあとの並びに
+ * 番号で当てると、**落としたぶんが先頭側だったかどうか**を見ていない
+ * 同じ穴をここで掘り直すことになる。だから**絞る前の全件**から境界の
+ * 時刻を1つ取り出し（`newSince`）、それ以降を新着とする——絞っても
+ * 並べ替えても壊れず、開いている間に届いたぶん（より新しい `t`）も
+ * 勝手に入る。
+ *
+ * 読めない時刻は**末尾**へ。先頭（新着）に混ぜると、壊れた行が毎回
+ * 「新着」として一番上に出続ける。
+ */
+export function bucketOf(t: string, now: number, newSince: number | null): NotifBucket {
+    const at = Date.parse(t);
+    if (isNaN(at)) return "older";
+    if (newSince !== null && at >= newSince) return "new";
+    const days = Math.floor((now - at) / DAY_MS);
+    if (days <= 0) return "today";
+    if (days <= 7) return "week";
+    return "older";
+}
+
 // 通知ベル: **いいね・コメント・フォロー**が届く場所。
 // 認証済みヘッダーにのみ表示。開くと既読になり、通知タップで写真へ飛べる。
 //
@@ -59,6 +138,23 @@ export default function NotificationsBell() {
     const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
     const [unread, setUnread] = useState(0);
     const [now, setNow] = useState(0);
+    const [tab, setTab] = useState<NotifTab>("all");
+    /**
+     * 「新着」の境界（この時刻以降が新着）。**バッジ（`unread`）とは別に持つ。**
+     *
+     * バッジは開いた瞬間に 0 にする（既読化）ので、それを見出しに使うと
+     * **開いた瞬間に「新着」が消えて、何が新しかったのか分からなくなる**。
+     * だから境界は開いている間**下げない**（下の `load` の `Math.min`）。
+     * 閉じてから取り直したぶんで初めて下がる＝次に開いたときには
+     * 正しく「新着なし」になる。
+     */
+    const [newSince, setNewSince] = useState<number | null>(null);
+    /**
+     * `open` を effect の外から読むための控え。`load` は `[]` deps の
+     * `useCallback` なので、`open` を直接読むと取得のたびに作り直しになり、
+     * ポーリングの `setInterval` まで張り直される。
+     */
+    const openRef = useRef(false);
 
     // 取得は1回きりではいけない。このベルはヘッダーに常駐するので、
     // `[]` deps だけだと**リロードするまで新着が出ない**——いいねも
@@ -104,6 +200,36 @@ export default function NotificationsBell() {
             }
             setItems(rows);
             setUnread(readAt === readSeqRef.current && typeof data.unread === "number" ? data.unread : 0);
+            // **見出しの境界は、既読化の世代で捨てない。** バッジ（すぐ上）は
+            // 既読化に追い越されたら 0 に倒すが、こちらは「開いたときに何が
+            // 新しかったか」を出すためのものなので、生の `unread` から作る。
+            //
+            // 未読は先頭 N 件なので、境界は **N 件目の時刻**。落としたぶんは
+            // サーバーが既に除いている（`getNotifications` がブロック相手を
+            // 消したうえで未読も数え直す）ので、ここは受け取った並びを
+            // そのまま信じてよい。
+            //
+            // **先頭 N 件のうち、読める時刻の最小**を取る。`rows[head-1].t` の
+            // 1件だけを見ていたら、**その行の時刻が壊れているだけで「新着」の
+            // 見出しが丸ごと消えた**（実際にテストで踏んだ）。最小を探せば、
+            // 壊れた行は `bucketOf` が「それ以前」へ落とすだけで済み、
+            // 残りの未読は正しく新着に入る。
+            const serverUnread = typeof data.unread === "number" ? data.unread : 0;
+            const head = Math.max(0, Math.min(serverUnread, rows.length));
+            let bound: number | null = null;
+            for (let i = 0; i < head; i++) {
+                const at = Date.parse(rows[i].t);
+                if (!isNaN(at) && (bound === null || at < bound)) bound = at;
+            }
+            setNewSince((prev) => {
+                // 閉じている間は素直に入れ替える（次に開いたときの正解）
+                if (!openRef.current) return bound;
+                // 開いている間は下げない。`Math.min` なので、開いたあとに
+                // 届いたぶん（より新しい `t`）は境界より後ろ＝新着に入る
+                if (prev === null) return bound;
+                if (bound === null) return prev;
+                return Math.min(prev, bound);
+            });
             setNow(Date.now());
             setStatus("ready");
         } catch {
@@ -124,10 +250,30 @@ export default function NotificationsBell() {
         return () => clearInterval(timer);
     }, [load]);
 
+    /**
+     * 閉じる口は**1つにまとめる**。
+     *
+     * `setOpen(false)` は3か所から呼ばれる（外側の覆い・通知のリンク・ベル
+     * そのもの）。`openRef` を片方だけで下ろしていたら、**外側を押して
+     * 閉じた人は `openRef` が立ったまま**になり、「新着」の境界が二度と
+     * 下がらない＝読み終わった通知が延々「新着」に出続ける。
+     */
+    const closePanel = useCallback(() => {
+        openRef.current = false;
+        setOpen(false);
+    }, []);
+
     const toggleOpen = () => {
         const next = !open;
+        if (!next) { closePanel(); return; }
+        openRef.current = next;
         setOpen(next);
         if (next) {
+            // **開くたびに「すべて」へ戻す。** 絞ったまま閉じると、次に
+            // 届いた別の種別（フォローで絞ったあとの いいね）が**バッジには
+            // 出るのに開いても見えない**。絞りは「いま探している」操作で、
+            // 覚えておくものではない
+            setTab("all");
             // 開いた時点の中身を出す。バッジが 0 でも、閉じている間に
             // 届いた通知はここで初めて見える。
             void load();
@@ -139,14 +285,41 @@ export default function NotificationsBell() {
         }
     };
 
+    /**
+     * 行の時刻。
+     *
+     * **見出しと同じ語を行に書かない。** 区分の見出し（今日／今週／それ以前）が
+     * 粗い位置を持つので、行は**その中での位置**を出す:
+     *
+     *     今日      → 時刻（14:32）      見出しが「今日」と言っているので繰り返さない
+     *     昨日      → 「昨日」
+     *     1週間以内 → 「3日前」
+     *     それ以前  → 日付（8/22）       「45日前」より置き場所が分かる
+     *
+     * 以前は今日のぶんも「今日」と書いていた。見出しを足した以上、
+     * そのままだと**同じ語が2つ並ぶ**。
+     */
     const fmtTime = (iso: string) => {
         const t = Date.parse(iso);
         if (isNaN(t) || !now) return "";
-        const days = Math.floor((now - t) / (24 * 60 * 60 * 1000));
-        if (days <= 0) return locale === "en" ? "today" : "今日";
+        const days = Math.floor((now - t) / DAY_MS);
+        const d = new Date(t);
+        // 先の時刻（端末の時計がずれている）も「今日」側に倒す
+        if (days <= 0) return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
         if (days === 1) return locale === "en" ? "yesterday" : "昨日";
-        return locale === "en" ? `${days}d ago` : `${days}日前`;
+        if (days <= 7) return locale === "en" ? `${days}d ago` : `${days}日前`;
+        return `${d.getMonth() + 1}/${d.getDate()}`;
     };
+
+    // タブで絞る → 区分でまとめる、の順。**区分は絞る前の `newSince` で
+    // 決まる**ので、どのタブでも「新着」の中身は変わらない
+    // （フォローのタブに立つ「新着」は、フォローの新着だけになる）。
+    const shownRows = items
+        .map((n, i) => ({ n, key: `${n.photoId || n.targetUserId}-${n.t}-${i}` }))
+        .filter(({ n }) => inTab(n.type, tab));
+    const groups = BUCKET_ORDER
+        .map((bucket) => ({ bucket, rows: shownRows.filter(({ n }) => bucketOf(n.t, now, newSince) === bucket) }))
+        .filter((g) => g.rows.length > 0);
 
     return (
         <div className="relative">
@@ -168,7 +341,7 @@ export default function NotificationsBell() {
             {open && (
                 <>
                     {createPortal(
-                        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />,
+                        <div className="fixed inset-0 z-40" onClick={closePanel} aria-hidden="true" />,
                         document.body,
                     )}
                     <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
@@ -177,6 +350,50 @@ export default function NotificationsBell() {
                                 {locale === "en" ? "Notifications" : "通知"}
                             </span>
                         </div>
+                        {/* **1件も無いときはタブを出さない。** 押しても中身が
+                            変わらない操作を4つ並べることになり、しかも下の
+                            「まだ届いていません／読み込めませんでした」が
+                            タブの奥に隠れて読みにくくなる */}
+                        {items.length > 0 && (
+                            <div
+                                role="tablist"
+                                aria-label={locale === "en" ? "Filter notifications" : "通知の絞り込み"}
+                                className="flex border-b border-white/5"
+                            >
+                                {NOTIF_TABS.map((key) => {
+                                    const selected = tab === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            role="tab"
+                                            id={`notif-tab-${key}`}
+                                            aria-selected={selected}
+                                            aria-controls="notif-tabpanel"
+                                            onClick={() => setTab(key)}
+                                            // **`/50` より薄くしない**（黒地で 5.28:1・
+                                            // `textContrast.test.ts` の下限）。選択中との差は
+                                            // 色だけに頼らず下線でも出す
+                                            className={`flex-1 border-b-2 transition ${selected
+                                                ? "border-white text-white font-semibold"
+                                                : "border-transparent text-white/50 hover:text-white/80"}`}
+                                            // **px で書く**（640px 未満で root が 14px に
+                                            // 落ちるので rem 系は縮む）
+                                            style={{
+                                                fontSize: "12px",
+                                                paddingTop: "10px",
+                                                paddingBottom: "8px",
+                                                minHeight: "44px",
+                                                touchAction: "manipulation",
+                                                WebkitTapHighlightColor: "transparent",
+                                            }}
+                                        >
+                                            {TAB_LABEL[key][locale === "en" ? "en" : "ja"]}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                         {items.length === 0 ? (
                             <p className="px-4 py-8 text-center text-xs text-white/50">
                                 {status === "error"
@@ -190,8 +407,35 @@ export default function NotificationsBell() {
                                             : "いいね・コメント・ストーリーへの返信・フォローがここに届きます。")}
                             </p>
                         ) : (
-                            <ul className="max-h-96 overflow-y-auto no-scrollbar divide-y divide-white/5">
-                                {items.map((n, i) => {
+                            <div
+                                id="notif-tabpanel"
+                                role="tabpanel"
+                                aria-labelledby={`notif-tab-${tab}`}
+                                className="max-h-96 overflow-y-auto no-scrollbar"
+                            >
+                            {/* **そのタブだけ空**のときは、全体が0件のときと
+                                別の文を出す。同じ「まだ届いていません」にすると、
+                                絞っていることを忘れた人に**通知が消えた**ように
+                                見える */}
+                            {groups.length === 0 ? (
+                                <p className="px-4 py-8 text-center text-xs text-white/50">
+                                    {locale === "en"
+                                        ? "Nothing in this tab yet."
+                                        : "このタブに届いた通知はまだありません。"}
+                                </p>
+                            ) : groups.map(({ bucket, rows }) => (
+                            <section key={bucket}>
+                                {/* 見出しは貼り付ける（384px の枠を繰ると、
+                                    いま何の区分を見ているか分からなくなる）。
+                                    **透けない下地**を敷かないと行が裏を通る */}
+                                <h3
+                                    className={`sticky top-0 z-10 bg-[#16181c] px-4 py-1.5 font-semibold ${bucket === "new" ? "text-sky-400" : "text-white/50"}`}
+                                    style={{ fontSize: "11px", letterSpacing: "0.08em" }}
+                                >
+                                    {BUCKET_LABEL[bucket][locale === "en" ? "en" : "ja"]}
+                                </h3>
+                            <ul className="divide-y divide-white/5">
+                                {rows.map(({ n, key }) => {
                                     // **退会した人のフォロー通知は、開く先が墓石になる。**
                                     // フォローの通知は写真を持たないので、代わりの行き先も
                                     // 無い——リンクを外して文面だけ残す（コメント欄と同じ扱い）。
@@ -261,7 +505,7 @@ export default function NotificationsBell() {
                                         </>
                                     );
                                     return (
-                                        <li key={`${n.photoId || n.targetUserId}-${n.t}-${i}`} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                        <li key={key} className="flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
                                             {/* 左のアイコンは相手のプロフィールへ。
                                                 名前だけだと、名前未設定の人は既定名で表示されて
                                                 誰なのか辿れず、フォローしに行けないため */}
@@ -273,7 +517,7 @@ export default function NotificationsBell() {
                                             ) : (n.byId || n.targetUserId) ? (
                                                 <Link
                                                     href={ROUTES.USER_PROFILE(String(n.byId || n.targetUserId))}
-                                                    onClick={() => setOpen(false)}
+                                                    onClick={closePanel}
                                                     aria-label={locale === "en" ? `Open ${n.byName}'s profile` : `${n.byName} さんのプロフィール`}
                                                     className="flex-shrink-0 rounded-full active:scale-95 transition"
                                                     style={{ touchAction: "manipulation" }}
@@ -298,7 +542,7 @@ export default function NotificationsBell() {
                                             ) : (
                                                 <Link
                                                     href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
-                                                    onClick={() => setOpen(false)}
+                                                    onClick={closePanel}
                                                     className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
                                                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                                                 >
@@ -309,6 +553,9 @@ export default function NotificationsBell() {
                                     );
                                 })}
                             </ul>
+                            </section>
+                            ))}
+                            </div>
                         )}
                     </div>
                 </>
