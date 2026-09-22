@@ -70,6 +70,43 @@ function resolveChromium() {
     return undefined; // playwright-core が自身の既定解決を試みる（CI では playwright install 済み）
 }
 
+/**
+ * 🔴 **Service Worker の資産キャッシュに、2デプロイぶんが収まるか。**
+ *
+ * `public/sw.js` は `_next/static/**` を**キャッシュ優先**で控えるが、
+ * `MAX_ASSET_ENTRIES` を超えると古い順に捨てる。`CACHE_VERSION` は固定で
+ * `activate` が消すのは別のキャッシュ名だけなので、デプロイをまたぐと
+ * **旧版と新版が同居する**——収まらないと**同じ版の資産どうしで
+ * 追い出し合って**キャッシュがほとんど効かなくなる（毎回の再訪で JS を
+ * 落とし直す）。**例外にはならないので、誰も気づかない。**
+ *
+ * 実測（2026-09-22・本番と同じ環境変数のビルド）: 公開ページだけで 30本、
+ * ログインが要る10画面まで入れて **48本**。上限 150 に対して
+ * 2デプロイ＝96、3デプロイ＝144。
+ *
+ * ここでは**スモークが回ったページ**の異なりを数え、**上限の半分**を
+ * 超えたら落とす（＝2デプロイぶんが収まらなくなる手前）。
+ * スモークは全画面を回らないので、実際の数はこれより多い——だから
+ * 「半分」という余裕のある線で見る。
+ */
+function maxAssetEntriesFromSw() {
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "public", "sw.js"), "utf8");
+    const m = /const\s+MAX_ASSET_ENTRIES\s*=\s*(\d+)/.exec(src);
+    return m ? Number(m[1]) : 0;
+}
+/** このエンジンで要求された `/_next/static/**` の異なり */
+const staticAssets = new Set();
+function watchStaticAssets(ctx) {
+    ctx.on("request", (req) => {
+        try {
+            const u = new URL(req.url());
+            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")) {
+                staticAssets.add(u.pathname);
+            }
+        } catch { /* 相対でない URL は無視 */ }
+    });
+}
+
 const failures = [];
 function check(name, ok, detail = "") {
     if (ok) console.log(`  ✅ ${name}`);
@@ -198,6 +235,7 @@ async function runChecks(browser, eng) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" });
     // 外部リクエストを遮断して密閉型にする（画像だけは 1x1 PNG で返す）。
     await sealContext(ctx);
+    watchStaticAssets(ctx);
     const page = await ctx.newPage();
     const bag = attachDiagnostics(page);
 
@@ -622,6 +660,7 @@ async function runChecks(browser, eng) {
     console.log(`\n[${eng}][6] デスクトップ（hover・マウス）`);
     const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
     await sealContext(dctx);
+    watchStaticAssets(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
     await dctx.addInitScript(() => {
         try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
@@ -642,6 +681,12 @@ async function runChecks(browser, eng) {
     await dctx.close();
 
     await runSignedInChecks(browser, eng);
+
+    // **資産の異なりが、SW の上限の半分に収まっているか**（上の注記を参照）
+    const limit = maxAssetEntriesFromSw();
+    check(`[${eng}] SW の資産キャッシュに 2デプロイぶんが収まる`,
+        limit > 0 && staticAssets.size > 0 && staticAssets.size * 2 <= limit,
+        `異なり=${staticAssets.size} × 2デプロイ = ${staticAssets.size * 2} / 上限 ${limit}`);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -805,6 +850,7 @@ async function runSignedInChecks(browser, eng) {
     for (const [w, h, touch] of [[320, 640, true], [1280, 900, false]]) {
         const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, serviceWorkers: "block" });
         await sealContext(ctx);
+        watchStaticAssets(ctx);
         // **`sealContext` の後に登録する**（あとから足した route が先に当たる）。
         // これで API だけ JSON を返し、それ以外の外向きは遮断のまま
         await ctx.route("**://*.execute-api.*.amazonaws.com/**", (route) => route.fulfill({
