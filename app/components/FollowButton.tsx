@@ -132,7 +132,7 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }:
             className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                 isFollowing
                     ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
-                    : "bg-white text-black hover:bg-white/90"
+                    : "bg-accent-fill text-white hover:brightness-110"
             }`}
             style={{ touchAction: "manipulation", minHeight: "44px" }}
         >

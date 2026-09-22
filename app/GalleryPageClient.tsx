@@ -17,6 +17,7 @@ import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import TimelineCard from "./components/TimelineCard";
+import { useMySaves } from "../lib/hooks/useMySaves";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -44,6 +45,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
   const ownUserId = isAuthenticated ? userId : null;
+  // 保存した写真の id を**1回で**引いてカードに配る（写真ごとに聞きに行かせない）
+  const saves = useMySaves(isAuthenticated, authLoading);
+  const savedIds = React.useMemo(() => (saves.pending || saves.failed ? null : new Set(saves.photoIds)), [saves.pending, saves.failed, saves.photoIds]);
 
   const {
     PHOTOS,
@@ -385,7 +389,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   };
 
   return (
-    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
           ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
@@ -421,7 +425,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               onClick={() => setFilters({ scope: t.key })}
               aria-pressed={filters.scope === t.key}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filters.scope === t.key ? "bg-white text-black" : "text-white/70 hover:text-white"
+                filters.scope === t.key ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
               }`}
               style={{ touchAction: "manipulation" }}
             >
@@ -491,7 +495,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                     locale={locale === "en" ? "en" : "ja"}
                     priority={i < HOME_PRIORITY_COUNT}
                     isAuthenticated={isAuthenticated}
-                    viewerId={ownUserId}
+                    authLoading={authLoading}
+                    savedIds={savedIds}
                   />
                 </li>
               ))}

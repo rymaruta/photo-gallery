@@ -206,7 +206,7 @@ export default function AdminPage() {
     // ローディング中または認証されていない場合
     if (loading || !isAuthenticated || !isAdminUser) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-7xl mx-auto w-full flex items-center justify-center">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-7xl mx-auto w-full flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">写真管理</h1>
@@ -244,7 +244,7 @@ export default function AdminPage() {
     };
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-7xl mx-auto w-full">
+        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-7xl mx-auto w-full">
             <div className="mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                     <h1 className="text-2xl sm:text-3xl font-bold">
@@ -252,7 +252,7 @@ export default function AdminPage() {
                     </h1>
                     <Link
                         href={ROUTES.UPLOAD}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-full font-semibold text-sm hover:bg-white/90 active:scale-[0.98] transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-fill text-white rounded-full font-semibold text-sm hover:brightness-110 active:scale-[0.98] transition"
                     >
                         <PlusIcon className="w-5 h-5" />
                         <span>{locale === "en" ? "Upload New Photo" : "新しい写真をアップロード"}</span>
@@ -281,7 +281,7 @@ export default function AdminPage() {
                                     key={key}
                                     onClick={() => setStatus(key)}
                                     aria-pressed={status === key}
-                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-white text-black font-semibold" : "bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
+                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-accent-fill text-white font-semibold" : "bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
                                 >
                                     {label}
                                 </button>
@@ -315,7 +315,7 @@ export default function AdminPage() {
                     </p>
                     <button
                         onClick={() => void loadPhotos()}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-accent-fill text-white rounded-full text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Retry" : "再試行"}
@@ -329,7 +329,7 @@ export default function AdminPage() {
                     <p className="text-white/70 text-sm">{locale === "en" ? "No photos found." : "写真がありません。"}</p>
                     <Link
                         href={ROUTES.UPLOAD}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-white text-black rounded-full text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-1 bg-accent-fill text-white rounded-full text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition"
                     >
                         <PlusIcon className="w-4 h-4" />
                         {locale === "en" ? "Upload your first photo" : "最初の写真をアップロード"}
@@ -350,7 +350,7 @@ export default function AdminPage() {
                         // タイル1枚＝写真1枚。文字は写真の上に重ねてカードの縦幅を詰める
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {visiblePhotos.map((photo) => (
-                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-[#16181c] ring-1 ring-white/10 hover:ring-white/25 transition">
+                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-surface-2 ring-1 ring-white/10 hover:ring-white/25 transition">
                                     <Image
                                         src={publicImageUrl(photo.thumbSrc ?? photo.src)}
                                         alt={getTitle(photo)}
