@@ -43,6 +43,28 @@ describe("タブの矢印キー", () => {
         }
     });
 
+    // 🔴 **整数でない数も「存在しない添字」を作る。**
+    // `count <= 0` / `current >= 0 && current < count` だけでは `1.5` が
+    // 素通りし、`ArrowRight` が **`2.5`** を返していた。呼び出し側は
+    // 返り値をそのまま添字に使うので（`NOTIF_TABS[2.5]`）`undefined` が
+    // `setTab` に届く。**上の「範囲の中」のテストは `at` を整数でしか
+    // 回していなかったので、この穴を見ていなかった**
+    it("整数でない数は、存在しない添字を作らせない", () => {
+        for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+            // 数が整数でない → 何もしない
+            expect(nextTabIndex(k, 0, 1.5), `count=1.5 で ${k} が答えを返す`).toBeNull();
+            expect(nextTabIndex(k, 0, NaN), `count=NaN で ${k} が答えを返す`).toBeNull();
+            // 選択中が整数でない → 先頭から数え直す（返すのは必ず整数）
+            for (const at of [1.5, NaN]) {
+                const to = nextTabIndex(k, at, 4);
+                expect(to, `${k} / at=${at}`).not.toBeNull();
+                expect(Number.isInteger(to!), `${k} / at=${at} が整数でない添字を返す`).toBe(true);
+                expect(to!).toBeGreaterThanOrEqual(0);
+                expect(to!).toBeLessThan(4);
+            }
+        }
+    });
+
     // 選択中のタブが一覧から消えた直後など。負の添字を `%` に通すと負が残る
     it("選択中が範囲の外なら、先頭から数え直す", () => {
         expect(nextTabIndex("ArrowRight", -1, 4), "負の添字がそのまま計算に入っている").toBe(1);

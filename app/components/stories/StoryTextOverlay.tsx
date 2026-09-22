@@ -2,8 +2,9 @@
 
 import React from "react";
 import {
-    STORY_FONTS, STORY_COLORS, STORY_STAMPS, clampStoryTextRotate, isStoryStamp,
-    type StoryText, type StoryTextItem,
+    STORY_FONTS, STORY_COLORS, STORY_STAMPS, clampStoryTextRotate,
+    isStoryStamp, isStoryVote, isStoryTextItem,
+    type StoryText, type StoryVoteChoice, type StoryVoteState,
 } from "@/lib/utils/storyText";
 import type { MediaBox } from "@/lib/hooks/useMediaBox";
 import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/storyTransform";
@@ -22,6 +23,7 @@ import { ROTATE_STEP_DEG, ROTATE_STEP_DEG_COARSE, stepSize } from "@/lib/utils/s
  */
 export default function StoryTextOverlay({
     texts, box, selectedIndex, onPickIndex, onNudge, onTransform, onGrabHandle, locale, dimmed,
+    onVote, voteState, voting,
 }: {
     texts: readonly StoryText[];
     /** 絵が実際に描かれている矩形。測れていなければ囲み全体に載せる */
@@ -49,6 +51,16 @@ export default function StoryTextOverlay({
     locale?: "ja" | "en";
     /** 掴んでいる間などに少し透かす（下の写真を確かめられるように） */
     dimmed?: boolean;
+    /**
+     * 投票スタンプの2択に票を入れる（見る側）。**渡したときだけ `<button>` に
+     * する**——下書きや未ログインでは押しても効かない的を置かない。
+     * 既に入れてある（`voteState.myVote`）ときも押せない（1人1票・変えられない）
+     */
+    onVote?: (index: number, choice: StoryVoteChoice) => void;
+    /** 票の状態。`counts` が在るときだけ数を出す（投稿者と入れた人だけに届く） */
+    voteState?: StoryVoteState;
+    /** 送っている間（二度押しを止める） */
+    voting?: boolean;
 }) {
     // **スクリム（上下の黒いグラデーション）より上に出す。** 下に置くと
     // 白い文字が灰色に沈む（実測: 下書きの画面で文字が読めなくなっていた）。
@@ -76,13 +88,30 @@ export default function StoryTextOverlay({
                 // のが正しい（`sanitizeStoryTexts` も同じ値を落としている）。
                 if (isStoryStamp(t) && !STORY_STAMPS[t.stamp]) return null;
                 const stamp = isStoryStamp(t) ? STORY_STAMPS[t.stamp] : null;
-                const font = stamp ? null : STORY_FONTS[(t as StoryTextItem).font];
-                const color = stamp ? null : STORY_COLORS[(t as StoryTextItem).color];
-                const bg = stamp ? "none" : (t as StoryTextItem).bg;
+                const vote = isStoryVote(t) ? t : null;
+                // **`as` で握らない。** 種類で絞る——握っていた頃は、投票が
+                // 文字の枝へ落ちて `font` が `undefined` になり、下で
+                // `name.trim()` が落ちた（知らない絵柄と同じ穴）
+                // 型の述語で絞る（`stamp || vote ? null : t` では `t` が絞られない）
+                const text = isStoryTextItem(t) ? t : null;
+                // どれでもない（将来の種類）は描かない——`!` で握ると
+                // `name.trim()` が TypeError になる
+                if (!stamp && !vote && !text) return null;
+                const font = text ? STORY_FONTS[text.font] : null;
+                // **投票は「白い塗りの下地」を借りる。** `filled` の経路が
+                // そのまま白いカード（白地・黒字・角丸・影なし）になるので、
+                // カードの見た目を別に書かない
+                const color = text ? STORY_COLORS[text.color] : vote ? STORY_COLORS.white : null;
+                const bg = text ? text.bg : vote ? "solid" : "none";
                 const filled = bg === "solid";
                 const selected = editable && selectedIndex === i;
-                /** 読み上げ・掴む的の名前。スタンプは絵柄の名前で呼ぶ */
-                const name = stamp ? stamp.label : (t as StoryTextItem).text;
+                /** この投票に、いま票を入れられるか（口があり・まだ入れていない） */
+                const canVote = !!vote && !!onVote && !voteState?.myVote;
+                /** 読み上げ・掴む的の名前。スタンプは絵柄の名前、投票は問い */
+                const name = stamp ? stamp.label : vote ? vote.question : text ? text.text : "";
+                const kindLabel = stamp
+                    ? (locale === "en" ? "Sticker" : "スタンプ")
+                    : vote ? (locale === "en" ? "Poll" : "投票") : (locale === "en" ? "Text" : "文字");
                 // **「無い＝0度」はここ1か所で決める**（`clampStoryTextRotate` が
                 // `undefined` を 0 に落とす）。保存済みのストーリーは
                 // `rotate` を実際に持たない
@@ -103,8 +132,8 @@ export default function StoryTextOverlay({
                             // 読み上げが「矢印キーで動かせます」のままだと、
                             // 指でなぞれない人には**傾けられること自体が伝わらない**
                             "aria-label": locale === "en"
-                                ? `${stamp ? "Sticker" : "Text"} "${name}" — arrow keys to move, [ and ] to rotate, + and - to resize`
-                                : `${stamp ? "スタンプ" : "文字"}「${name}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
+                                ? `${kindLabel} "${name}" — arrow keys to move, [ and ] to rotate, + and - to resize`
+                                : `${kindLabel}「${name}」 — 矢印キーで移動、[ と ] で回転、+ と - で大きさ`,
                             onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
                                 // 1回で 2%。Shift で 10%（端まで何度も押さずに済む）
                                 const step = e.shiftKey ? 0.1 : 0.02;
@@ -146,6 +175,10 @@ export default function StoryTextOverlay({
                                 }
                             },
                         } : {})}
+                        // 見る側は触れない（`pointer-events-none` の親のまま）。
+                        // 票を入れる `<button>` だけが受ける（下で `pointer-events-auto`）
+                        // ——箱ごと受けると、問いの部分が右上の閉じるボタンなどを
+                        // 覆ったときにそちらが押せなくなる
                         className={`absolute whitespace-pre-wrap break-words text-center ${editable ? "pointer-events-auto cursor-move focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" : ""}`}
                         style={{
                             left: `${t.x * 100}%`,
@@ -198,7 +231,76 @@ export default function StoryTextOverlay({
                             touchAction: editable ? "none" : undefined,
                         }}
                     >
-                        {stamp ? <span role="img" aria-label={stamp.label}>{stamp.glyph}</span> : name}
+                        {stamp
+                            ? <span role="img" aria-label={stamp.label}>{stamp.glyph}</span>
+                            : vote
+                                ? (
+                                    <span className="block" data-story-vote>
+                                        <span className="block font-bold" style={{ marginBottom: "0.4em" }}>{vote.question}</span>
+                                        <span className="flex gap-2" style={{ fontSize: "0.9em" }}>
+                                            {vote.options.map((opt, k) => {
+                                                const choice: StoryVoteChoice = k === 0 ? "a" : "b";
+                                                const counts = voteState?.counts;
+                                                const total = counts ? counts.a + counts.b : 0;
+                                                const n = counts ? counts[choice] : 0;
+                                                // 数が見えて、票が1つでもあるときだけ割合。
+                                                // **b は 100 − a**（両方を丸めると 13%＋88% のように
+                                                // 和が 101 になる組がある）。0票は割合を出さない
+                                                // （0%/0% は引き分けに読める。下に「まだ票はありません」）
+                                                const pctA = total > 0 && counts ? Math.round((counts.a / total) * 100) : null;
+                                                const pct = pctA === null ? null : choice === "a" ? pctA : 100 - pctA;
+                                                const mine = voteState?.myVote === choice;
+                                                const pill: React.CSSProperties = {
+                                                    padding: "0.35em 0.6em",
+                                                    // 数が見えるときは、割合ぶんを薄く塗る（棒グラフの代わり）
+                                                    background: pct === null
+                                                        ? "rgba(0,0,0,0.08)"
+                                                        : `linear-gradient(90deg, rgba(0,0,0,0.18) ${pct}%, rgba(0,0,0,0.06) ${pct}%)`,
+                                                    fontWeight: mine ? 700 : undefined,
+                                                };
+                                                const label = pct === null ? opt : `${opt} ${pct}%`;
+                                                // **押せるのは、口があって・まだ入れていないときだけ。**
+                                                // それ以外は `<button>` にしない（押しても効かない的）
+                                                return canVote ? (
+                                                    <button
+                                                        key={k}
+                                                        type="button"
+                                                        disabled={voting}
+                                                        onClick={() => onVote!(i, choice)}
+                                                        aria-label={locale === "en" ? `Vote "${opt}"` : `「${opt}」に投票`}
+                                                        // 親（この段全体）は `pointer-events-none`。**ボタンだけ**受ける
+                                                        // ——左右のタップ領域（z-10）より上（Z=25）なので押しても進まない
+                                                        className="pointer-events-auto flex-1 rounded-full text-center disabled:opacity-60"
+                                                        style={{ ...pill, font: "inherit", color: "inherit", cursor: "pointer" }}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ) : (
+                                                    <span
+                                                        key={k}
+                                                        className="flex-1 rounded-full text-center"
+                                                        style={pill}
+                                                        {...(mine ? { "aria-current": "true" as const } : {})}
+                                                    >
+                                                        {mine ? "✓ " : ""}{label}
+                                                        {/* 読み上げには票の数も（画面は割合だけ）。
+                                                            role の無い span の aria-label は読まれないので、隠し文字で */}
+                                                        {pct !== null && (
+                                                            <span className="sr-only">{locale === "en" ? ` (${n} votes)` : `（${n}票）`}</span>
+                                                        )}
+                                                    </span>
+                                                );
+                                            })}
+                                        </span>
+                                        {/* 数が見えるのに 0 票——0%/0% は引き分けに読めるので言葉で */}
+                                        {voteState?.counts && voteState.counts.a + voteState.counts.b === 0 && (
+                                            <span className="block" style={{ fontSize: "0.8em", marginTop: "0.4em", opacity: 0.7 }}>
+                                                {locale === "en" ? "No votes yet" : "まだ票はありません"}
+                                            </span>
+                                        )}
+                                    </span>
+                                )
+                                : name}
                         {/* **角のハンドル。** 掴んで回すと傾き、離すと大きさが決まる。
                             選んでいる1つにだけ出す（全部に出すと写真が的だらけになる）。
 

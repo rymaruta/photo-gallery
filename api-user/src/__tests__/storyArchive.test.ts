@@ -160,8 +160,10 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         expect(ofKind("UpdateCommand"), "別々に更新している").toHaveLength(0);
         const tx = shelves();
         expect(tx, "棚入れのトランザクションが1回でない").toHaveLength(1);
-        const [update, del] = tx[0];
+        const [update, del, votes] = tx[0];
         expect(del?.Delete?.Key.id, "返信の文書を一緒に消していない").toBe("storyreplies#s-keep");
+        // 票の文書も他人の uid なので、棚には残さない（`storyVotes.ts`）
+        expect(votes?.Delete?.Key.id, "票の文書を一緒に消していない").toBe("storyvotes#s-keep");
         expect(update?.Update, "行の更新が無い").toBeTruthy();
         const up = update!.Update!;
         const expr = String(up.UpdateExpression);
@@ -192,7 +194,8 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         const r = await cleanupExpiredStories();
         expect(r).toEqual({ deleted: 1, archived: 0 });
         expect(s3Keys()).toContain(`uploads/${ME}/g.webp`);
-        expect(deletedIds()).toEqual(["storyreplies#s-gone", "s-gone"]);
+        // 票の文書は行より先に、そして行のあとにもう一度（`storyVotes.ts`）
+        expect(deletedIds()).toEqual(["storyreplies#s-gone", "storyvotes#s-gone", "s-gone", "storyvotes#s-gone"]);
         expect(ofKind("UpdateCommand")).toHaveLength(0);
     });
 
@@ -200,7 +203,7 @@ describe("cleanupExpiredStories: 印のある行は消さずに棚へ", () => {
         rows([KEEP, GONE]);
         const r = await cleanupExpiredStories();
         expect(r).toEqual({ deleted: 1, archived: 1 });
-        expect(deletedIds()).toEqual(["storyreplies#s-gone", "s-gone"]);
+        expect(deletedIds()).toEqual(["storyreplies#s-gone", "storyvotes#s-gone", "s-gone", "storyvotes#s-gone"]);
         expect(shelves()).toHaveLength(1);
         expect(s3Keys()).toEqual([`uploads/${ME}/g.webp`]);
     });
