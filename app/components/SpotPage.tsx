@@ -27,6 +27,7 @@ import {
 import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
 import type { Photo } from "@/lib/data/photos";
 import { spotDetail } from "@/lib/utils/spot";
+import { spotMasterFor } from "@/lib/data/spotMaster";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
 /** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す（`CollectionPage` と同じ） */
@@ -64,6 +65,18 @@ export default async function SpotPage({ slug }: { slug: string }) {
      */
     const savedKey = slugify(decodeSlugSafe(slug), "location");
     const { heading, description, breadcrumb } = collectionCopy("location", label, matched.length);
+    /**
+     * 人が書いたぶん（ふりがな・概要）。**無ければ `null`。**
+     *
+     * 🔴 **`collectionCopy` には渡さない。** ここを `title` や
+     * `description` に流すと、**14ページぶんの `<title>` と
+     * `<meta name=description>` が変わる**——URL は変わらなくても
+     * 検索結果の見え方は変わるので、「SEO を壊さない」と言えなくなる
+     * （`docs/spot-master.md` の4節）。出すのは**本文だけ**。
+     *
+     * 鍵は `savedKey`（正規化済みのスラッグ）。**正規化を2か所に置かない。**
+     */
+    const master = spotMasterFor(savedKey);
     const pageUrl = `${siteConfig.url}${canonicalCollectionPath("location", slug)}`;
 
     // **材料は1本の純関数から受け取る**（`initialRelatedFor` と同じ立場）。
@@ -117,6 +130,8 @@ export default async function SpotPage({ slug }: { slug: string }) {
                 // **共有する URL は canonical**。画面側で `window.location` から
                 // 組み立てると、クエリ（`?utm_…`）が付いたまま配られる
                 canonicalUrl={pageUrl}
+                reading={master?.reading ?? null}
+                summary={master?.summary ?? null}
                 heading={heading}
                 description={description}
                 breadcrumb={breadcrumb}

@@ -79,6 +79,10 @@ const base = {
     slug: "パリ",
     name: "パリ",
     canonicalUrl: "https://journey-photo.com/location/パリ",
+    // **既定は「書かれていない」。** 台帳（`content/spot-master.json`）は
+    // owner が書くまで空なので、こちらが本番でいちばん多い姿
+    reading: null,
+    summary: null,
     heading: "パリの写真",
     description: "パリで撮影した旅の写真3枚を掲載。",
     breadcrumb: "撮影地: パリ",
@@ -481,5 +485,53 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
         const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
         expect(list.textContent).not.toMatch(/★|☆|4\.\d|評価/);
         expect(within(list).queryByRole("button")).toBeNull();
+    });
+});
+
+/**
+ * ── ふりがなと概要（モック③⑤・`content/spot-master.json`）─────
+ *
+ * **owner が書くまで空。** だからいちばん多い姿は「両方 null」で、
+ * そのとき**枠ごと出ない**ことがこの節の主眼。
+ */
+describe("撮影スポット詳細: ふりがなと概要", () => {
+    // **「空の行を描く」も出さないうちに入る。** 中身で見ると、
+    // `{reading !== undefined && …}` のような変異が**空の `<p>` を描いても
+    // 素通りする**（実測でそうなった）。印で見れば、描いた時点で落ちる
+    it("書かれていなければ、ふりがなの行を出さない", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.queryByTestId("spot-reading")).toBeNull();
+    });
+
+    it("書かれていれば、見出しの下にふりがなが出る", () => {
+        render(<SpotPageClient {...base} reading="たかやじんじゃ" />);
+        const h1 = screen.getByRole("heading", { level: 1 });
+        expect(h1.nextElementSibling).toBe(screen.getByTestId("spot-reading"));
+        expect(screen.getByTestId("spot-reading").textContent).toBe("たかやじんじゃ");
+    });
+
+    it("概要は、書かれていれば概要タブに出る", () => {
+        render(<SpotPageClient {...base} summary="雲海に浮かぶ鳥居。" />);
+        expect(document.getElementById("spot-panel-overview")!.textContent).toContain("雲海に浮かぶ鳥居。");
+    });
+
+    it("概要が無ければ、その枠ごと出さない（定型文で埋めない）", () => {
+        render(<SpotPageClient {...base} />);
+        const overview = document.getElementById("spot-panel-overview")!;
+        // 既にある説明文（`collectionCopy`）は出るが、概要の段落は増えない
+        expect(overview.textContent).toContain(base.description);
+        expect(overview.querySelectorAll("p").length).toBe(1);
+    });
+
+    // 🔴 **台帳の値を見出しや説明文に混ぜない。** 混ぜると `<title>` と
+    // `<meta name=description>` が 14ページぶん動く（URL は変わらなくても
+    // 検索結果の見え方が変わる＝「SEO を壊さない」と言えなくなる）
+    it("ふりがなも概要も、見出しと説明文には混ざらない", () => {
+        render(<SpotPageClient {...base} reading="たかやじんじゃ" summary="雲海に浮かぶ鳥居。" />);
+        expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(base.heading);
+        const overview = document.getElementById("spot-panel-overview")!;
+        const paras = [...overview.querySelectorAll("p")].map((p) => p.textContent);
+        // 説明文の段落は**そのまま**（読みや概要を足した文になっていない）
+        expect(paras).toContain(base.description);
     });
 });

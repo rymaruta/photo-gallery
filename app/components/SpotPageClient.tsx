@@ -32,6 +32,16 @@ type Props = {
     name: string;
     /** そのページの canonical（共有するURL）。**画面側で組み立てない** */
     canonicalUrl: string;
+    /**
+     * ふりがな（モック③）と概要（モック⑤）。**人が書いたぶんだけ**
+     * （`content/spot-master.json`）。無ければ `null` で、**枠ごと出さない**。
+     *
+     * 🔴 **`heading` や `description` に混ぜない。** 混ぜると `<title>` と
+     * `<meta name=description>` が動く＝検索結果の見え方が変わる
+     * （`docs/spot-master.md` の4節）。ここは本文にだけ出す。
+     */
+    reading: string | null;
+    summary: string | null;
     heading: string;
     description: string;
     breadcrumb: string;
@@ -75,7 +85,7 @@ type TabKey = "overview" | "photos" | "map";
  * JS が動かない環境でも写真が見える、という副産物もある。
  */
 export default function SpotPageClient({
-    slug, name, canonicalUrl, heading, description, breadcrumb,
+    slug, name, canonicalUrl, reading, summary, heading, description, breadcrumb,
     photos, nearbyPhotos, facts, coords, broader, narrower, nearby, related,
 }: Props) {
     const { locale } = useLocale();
@@ -334,6 +344,11 @@ export default function SpotPageClient({
                 （「◯◯の写真」という既存の文言。title・JSON-LD と同じ字） */}
             <h1 className="mb-1 text-2xl font-semibold tracking-tight">{heading}</h1>
 
+            {/* ふりがな（モック③）。**書かれていなければ行ごと出さない。**
+                読みを機械で当てに行かない——地名の読みは当てると外れる
+                （「高屋」は たかや／こうや、「山中湖」は やまなかこ） */}
+            {reading && <p data-testid="spot-reading" className="mb-1 text-sm text-white/60">{reading}</p>}
+
             {/* 所在地。**推測しない**——同じ一覧にある「この場所を含む撮影地」
                 だけを出す（書かれている字から読み取れるぶん）。
                 無ければ何も出さない（国名を当てに行かない）。
@@ -403,6 +418,12 @@ export default function SpotPageClient({
 
             {/* ── 概要 ───────────────────────────────────────── */}
             <section role="tabpanel" id="spot-panel-overview" aria-labelledby="spot-tab-overview" hidden={tab !== "overview"}>
+                {/* 概要（モック⑤）。**人が書いたものだけ**（`content/spot-master.json`）。
+                    生成しない——owner の指示で、`lib/utils/spot.ts` が
+                    「無い情報を作らない境界」と書いている通り。
+                    **書かれていなければ枠ごと出ない。** */}
+                {summary && <p className="text-sm text-white/80 mb-4 whitespace-pre-line">{summary}</p>}
+
                 {/* **その場所の説明**は、既にあるページ固有の文（`collectionCopy`）。
                     ここで新しい紹介文を作らない */}
                 <p className="text-sm text-white/70 mb-5">{description}</p>
