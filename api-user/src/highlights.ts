@@ -161,14 +161,17 @@ function isHighlightableStory(row: Record<string, unknown> | undefined, ownerId:
 async function canSeeHighlights(ownerId: string, viewerId: string): Promise<boolean> {
     if (ownerId === viewerId) return true;
     try {
-        // **3本まとめて投げる。** 互いの結果に依存しないので直列にする理由が無い
-        // （`getStories` が一覧とブロックを並べているのと同じ形）。
-        const [following, blockedByOwner, blockedByViewer] = await Promise.all([
-            isFollowing(ownerId, viewerId),
+        // **フォローを先に見て、追っていなければそこで終わり。**
+        // 3本まとめて投げると往復は1回で済むが、**追っていない人（訪問者の
+        // 大半）でも GetItem が 1 → 3 に増える**——プロフィールは誰でも開く
+        // ページなので、そちらの方が高くつく。ブロックまで見るのは
+        // フォロワーだけ（そこは2本を並べて往復1回）。
+        if (!await isFollowing(ownerId, viewerId)) return false;
+        const [blockedByOwner, blockedByViewer] = await Promise.all([
             isBlocked(ownerId, viewerId),
             isBlocked(viewerId, ownerId),
         ]);
-        return following && !blockedByOwner && !blockedByViewer;
+        return !blockedByOwner && !blockedByViewer;
     } catch (e) {
         console.error("canSeeHighlights error:", e);
         return false;
