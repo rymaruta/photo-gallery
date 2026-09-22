@@ -133,6 +133,50 @@ describe("updatePhotoVisibility", () => {
         expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
     });
 
+    // 🔴 **編集画面は保存のたびに `published: true` を同梱する。**
+    // 印を無条件に `"1"` へ戻していた頃は、「フォロワーのみ」の写真を
+    // 題を直して保存し直すだけで**全体に公開**になった。索引にしか
+    // 現れないので、行を見ても画面を見ても気づけない
+    it("絞ってある写真を保存し直しても、全体に公開へ戻らない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, title: "あたらしい題" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"], "絞りの仕切りのまま").toBe("restricted");
+    });
+
+    it("公開範囲を外したら、公開一覧の仕切りへ戻す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, audience: null }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
+        expect(update.UpdateExpression, "属性も消さないと索引と食い違う").toMatch(/REMOVE[^]*#audience/);
+    });
+
+    it("公開範囲を付けたら、絞りの仕切りへ移す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, audience: "closeFriends" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("restricted");
+        expect(update.ExpressionAttributeValues[":aud"]).toBe("closeFriends");
+    });
+
+    // **知らない値で広げない。** ただし印も一緒に消すので、索引と属性は揃う
+    it("知らない公開範囲は保存しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, audience: "mutuals" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":aud"]).toBeUndefined();
+        expect(update.UpdateExpression).toMatch(/REMOVE[^]*#audience/);
+    });
+
     // 公開状態を触っていない保存（曲だけ変えた等）で印に触ると、
     // 索引の中身が編集のたびに書き換わる
     it("published を送っていなければ、印には触らない", async () => {
