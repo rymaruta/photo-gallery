@@ -96,6 +96,9 @@ export default async function SpotPage({ slug }: { slug: string }) {
             <SpotPageClient
                 slug={savedKey}
                 name={label}
+                // **共有する URL は canonical**。画面側で `window.location` から
+                // 組み立てると、クエリ（`?utm_…`）が付いたまま配られる
+                canonicalUrl={pageUrl}
                 heading={heading}
                 description={description}
                 breadcrumb={breadcrumb}

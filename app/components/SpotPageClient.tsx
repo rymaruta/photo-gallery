@@ -2,14 +2,21 @@
 
 import React from "react";
 import Link from "next/link";
-import { MapPinIcon } from "@heroicons/react/24/outline";
+import {
+    MapPinIcon, ArrowLeftIcon, ShareIcon, ChevronLeftIcon, ChevronRightIcon,
+} from "@heroicons/react/24/outline";
 import GalleryGrid from "./GalleryGrid";
-import { GRID_SIZES_6XL } from "./gridSizes";
+import MoreMenu from "./MoreMenu";
+import Thumb from "./Thumb";
+import { GRID_SIZES_6XL, SPOT_HERO_SIZES } from "./gridSizes";
 import SaveSpotButton from "./SaveSpotButton";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
+import { useToast } from "../../lib/hooks/useToast";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
+import { photoAltText } from "../../lib/utils/photoAlt";
+import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
@@ -20,6 +27,8 @@ type NearbyLink = SpotLink & { km: number; approx: boolean };
 type Props = {
     slug: string;
     name: string;
+    /** そのページの canonical（共有するURL）。**画面側で組み立てない** */
+    canonicalUrl: string;
     heading: string;
     description: string;
     breadcrumb: string;
@@ -63,12 +72,51 @@ type TabKey = "overview" | "photos" | "map";
  * JS が動かない環境でも写真が見える、という副産物もある。
  */
 export default function SpotPageClient({
-    slug, name, heading, description, breadcrumb,
+    slug, name, canonicalUrl, heading, description, breadcrumb,
     photos, nearbyPhotos, facts, coords, broader, narrower, nearby, related,
 }: Props) {
     const { locale } = useLocale();
     const en = locale === "en";
+    const { showToast } = useToast();
     const [tab, setTab] = React.useState<TabKey>("photos");
+
+    /**
+     * ヒーローに出している写真の位置（モック②の「1/10」）。
+     *
+     * **並びは変えない。** `photosInCollection` が返した順（投稿の新しい順）
+     * そのままなので、最初に出るのは**いちばん新しい1枚**。
+     * 「代表」を選ぶ規則をここで発明しない——`featured` は実データで 0/30 で、
+     * 人気の根拠も持っていない（`lib/utils/spot.ts` の「無い情報を作らない境界」）。
+     */
+    const [shown, setShown] = React.useState(0);
+    const hero = photos[shown];
+
+    /**
+     * 共有する URL は**サーバーが組み立てた canonical**。
+     *
+     * `window.location.href` を使うと、クエリ（`?utm_...`）やタブの状態が
+     * 付いたまま配られる。集約ページの canonical は
+     * `canonicalCollectionPath` に一本化してあるので、そこから受け取る。
+     */
+    const shareText = heading;
+
+    const handleShare = async () => {
+        const result = await shareUrl(canonicalUrl, shareText, description);
+        // shared と cancelled（利用者が閉じた）は何も出さない
+        if (result === "copied") {
+            showToast(en ? "Link copied to clipboard!" : "リンクをクリップボードにコピーしました", "success");
+        } else if (result === "failed") {
+            showToast(en ? "Could not share" : "共有できませんでした", "error");
+        }
+    };
+
+    const handleCopyLink = async () => {
+        if (await copyToClipboard(canonicalUrl)) {
+            showToast(en ? "Link copied!" : "リンクをコピーしました");
+        } else {
+            showToast(en ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
+        }
+    };
 
     const TABS: Array<[TabKey, string]> = [
         ["overview", en ? "Overview" : "概要"],
@@ -95,11 +143,152 @@ export default function SpotPageClient({
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-8 pb-28">
+            {/* ── ヘッダー行（モック①: 戻る・シェア・⋯）──────────────
+                **全体ヘッダー（ロゴ・ハンバーガー）は layout のもの**なので、
+                この行はその下に置く（重ねない）。寸法は `PhotoPageClient` の
+                同じ行に揃えた——40px の的・22px の絵・px 直書き
+                （640px 未満で root が 14px に落ちるため。台帳 `96eb86db`）。
+
+                **戻るは `router.back()` にしない。** `/location/*` は検索の
+                着地点なので、直接開かれた回の `back()` は**サイトの外**へ出る。
+                写真ページが同じ理由で `<Link href="/">` にしている
+                （`history.length` を見る書き方は `/users/search` と
+                `/user/upload` に既に2つあり、3つ目を作らない）。 */}
+            <div className="flex items-center justify-between gap-2 -mx-2 mb-1">
+                <Link
+                    href="/"
+                    prefetch={false}
+                    aria-label={en ? "Back to Gallery" : "ギャラリーに戻る"}
+                    className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
+                    style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                >
+                    <ArrowLeftIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
+                </Link>
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => void handleShare()}
+                        aria-label={en ? "Share" : "共有"}
+                        className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
+                        style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    >
+                        <ShareIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
+                    </button>
+                    {/* **⋯ は共通部品を使い回す**（`MoreMenu`。写真ページが既に使っている）。
+                        中身は**この画面に本当にある操作だけ**——通報・ブロック・非表示は
+                        「人」や「投稿」に対するもので、**場所には相手が居ない**ので置かない
+                        （`MoreMenu` は `items` が空ならボタンごと出さない作り）。 */}
+                    <MoreMenu
+                        label={en ? "More" : "その他"}
+                        items={[
+                            { key: "copy", label: en ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
+                            { key: "x", label: en ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(canonicalUrl, shareText) },
+                            ...(en ? [] : [{ key: "line", label: "LINEで共有", onSelect: () => shareToLine(canonicalUrl, shareText) }]),
+                        ]}
+                    />
+                </div>
+            </div>
+
             <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
                 <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
                 <span className="mx-2" aria-hidden>/</span>
                 <span className="text-white/80">{breadcrumb}</span>
             </nav>
+
+            {/* ── 代表画像（モック②）───────────────────────────
+                「そのスポットを象徴する写真を大きく表示。複数あれば枚数と
+                現在の位置を表示」。**運営が選ぶ『注目』ではない**——
+                `featured` は実データで 0/30 で、人気の根拠も持っていない。
+                出しているのは**いま並んでいる写真の1枚目**（投稿の新しい順）で、
+                前/次で送れる＝**バッジの「1/N」が実際に動く**。
+
+                押すとその写真のページへ。**一覧の格子と同じ行き先**にして、
+                新しい操作を発明しない（その場での拡大は `GalleryModal` を
+                使い回す別の PR）。
+
+                画像は `Thumb`（`<picture>`・AVIF/WebP・blur-up・
+                `publicImageUrl` での1オリジン化・毒を食った控えの破棄まで
+                入っている共通部品）。**2つ目の実装を作らない。** */}
+            {hero && (
+                <section
+                    aria-label={en ? "Featured photo" : "この場所の写真"}
+                    // **640px 以上は 640px で止めて中央に置く**（`SPOT_HERO_SIZES`
+                    // に理由を書いた——`Thumb` の派生が 512w までなので、容器
+                    // いっぱいに広げると PC で 2.2倍に引き伸ばすことになる）。
+                    // 640px 未満はモックのとおり左右いっぱい。
+                    className="relative -mx-4 mb-4 sm:mx-auto sm:max-w-[640px] sm:rounded-2xl sm:overflow-hidden"
+                >
+                    <Link
+                        href={ROUTES.PHOTO(hero.id)}
+                        prefetch={false}
+                        aria-label={en ? "Open this photo" : "この写真を開く"}
+                        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    >
+                        {/* **比で枠を予約する**（読み込み後に高さが伸びて下がガタつかない）。
+                            `slimForGrid` は `width` / `height` を渡さないので、
+                            `TimelineCard` と同じ 3:2 の既定に倒す */}
+                        <div
+                            className="relative w-full overflow-hidden"
+                            style={{
+                                paddingTop: "66.6667%",
+                                backgroundColor: hero.dominantColor ?? "#0d1a26",
+                                fontSize: 0,
+                                lineHeight: 0,
+                            }}
+                        >
+                            <Thumb
+                                // **送るたびに新しい `<img>` にする。** 使い回すと
+                                // 前の写真が出たまま次が届くのを待つ
+                                key={hero.id}
+                                photo={hero}
+                                alt={photoAltText(hero, locale)}
+                                sizes={SPOT_HERO_SIZES}
+                                // 検索の着地点で、これが画面の一番上の絵になる
+                                priority
+                            />
+                        </div>
+                    </Link>
+
+                    {photos.length > 1 && (
+                        <>
+                            {/* 「N/M」（モックの「1/10」）。**送るたびに読み上げが
+                                割り込むと邪魔**なので、バッジは `aria-hidden` にして
+                                下の `aria-live` で伝える（写真ページと同じ形） */}
+                            <p
+                                className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                                style={{ fontSize: "12px", lineHeight: "14px", padding: "4px 10px" }}
+                                aria-hidden="true"
+                            >
+                                {shown + 1}/{photos.length}
+                            </p>
+                            <p className="sr-only" aria-live="polite">
+                                {en
+                                    ? `Photo ${shown + 1} of ${photos.length}`
+                                    : `${photos.length}枚中 ${shown + 1}枚目`}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setShown((i) => (i - 1 + photos.length) % photos.length)}
+                                aria-label={en ? "Previous photo" : "前の写真"}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
+                                style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                            >
+                                <ChevronLeftIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShown((i) => (i + 1) % photos.length)}
+                                aria-label={en ? "Next photo" : "次の写真"}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white transition-colors"
+                                style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                            >
+                                <ChevronRightIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
+                            </button>
+                        </>
+                    )}
+                </section>
+            )}
 
             {/* 見出し（スポット名）。**`heading` はそのまま使う**
                 （「◯◯の写真」という既存の文言。title・JSON-LD と同じ字） */}
