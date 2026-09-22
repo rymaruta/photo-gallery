@@ -2,7 +2,6 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { StoryGroup } from "@/lib/stories";
-import { STORY_REACTIONS } from "@/lib/stories";
 
 /**
  * 投稿者が「返信を許可」を切ったストーリー。
@@ -65,13 +64,13 @@ describe("StoryViewer: 返信を許可", () => {
     it("切ってあるストーリーには返信の帯を出さない", () => {
         view(false);
         expect(screen.queryByLabelText("このストーリーに返信"), "入力欄が出ている").toBeNull();
-        expect(screen.queryByLabelText(`${STORY_REACTIONS[0]} で反応する`), "リアクションが出ている").toBeNull();
+        expect(screen.queryByLabelText("いいねを送る"), "♡ が出ている").toBeNull();
     });
 
     it("`allowReplies` を持たない投稿は今までどおり返信できる", () => {
         view(undefined);
         expect(screen.getByLabelText("このストーリーに返信")).toBeTruthy();
-        expect(screen.getByLabelText(`${STORY_REACTIONS[0]} で反応する`)).toBeTruthy();
+        expect(screen.getByLabelText("いいねを送る")).toBeTruthy();
     });
 
     it("true を明示した投稿も返信できる", () => {

@@ -70,7 +70,9 @@ beforeEach(() => {
  */
 async function openOwnStoryAndDelete() {
     await userEvent.click(await screen.findByLabelText("自分のストーリーを見る"));
-    await userEvent.click(await screen.findByLabelText("ストーリーを削除"));
+    // 削除の入口は右上の「…」の中（モック09 ⑦⑧）
+    await userEvent.click(await screen.findByLabelText("ストーリーの操作"));
+    await userEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
     // 確認ダイアログの「削除」を押す
     await userEvent.click(await screen.findByRole("button", { name: "削除" }));
 }
