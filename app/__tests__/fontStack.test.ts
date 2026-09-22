@@ -154,6 +154,33 @@ describe("ストーリーの手書き（webfont の配線）", () => {
             expect(m![1], "preload を切っていない").toMatch(/preload:\s*false/);
         });
 
+        /**
+         * ⚠️ **`fallback` を渡さない。** 渡すと next/font はそれを
+         * **CSS 変数の中へそのまま焼き込む**ので、`storyText.ts` の
+         * `var(--font-marker),"Hiragino…",cursive` が実際にはこう展開される:
+         *
+         *     "Yusei Magic",Hiragino Maru Gothic ProN,Hiragino Sans,sans-serif,
+         *     "Hiragino Maru Gothic ProN","Hiragino Sans",cursive
+         *      ^^^^^^^^^^ ここで総称ファミリに当たって並びが終わる
+         *
+         * 実ブラウザで計算後の値を読んで見つけた（`getComputedStyle`）。
+         * 後ろ半分は**永久に使われない**＝末尾を `cursive` にした意味が消える。
+         * 受け皿の並びは `storyText.ts` 側の1か所だけが持つ。
+         *
+         * 渡さないと変数は `"Yusei Magic","Yusei Magic Fallback"` になる。
+         * 後者は `src:local(Arial)` の字幅合わせ面で**日本語の字を持たない**
+         * ので、日本語は字ごとに次（Hiragino）へ落ちる。
+         */
+        it(`${f.fn} に \`fallback\` を渡していない（渡すと並びが二重になり cursive に届かない）`, () => {
+            const m = new RegExp(`${f.fn}\\(\\{([\\s\\S]*?)\\}\\)`).exec(layout());
+            expect(m, `${f.fn} の呼び出しが読めない`).not.toBeNull();
+            expect(m![1], "fallback は storyText.ts 側だけが持つ").not.toMatch(/^\s*fallback:/m);
+            // ⚠️ `adjustFontFallback: false` は**効かない**（実ビルドで確認。
+            // 渡しても `Yusei Magic Fallback` の @font-face は出て変数にも入る）。
+            // 効かない指定を置かない
+            expect(m![1], "効かない指定（adjustFontFallback）が残っている").not.toMatch(/adjustFontFallback/);
+        });
+
         it(`\`storyText.ts\` の ${f.key} がその変数を先頭で使い、落ちても読める並びが続く`, async () => {
             const { STORY_FONTS } = await import("@/lib/utils/storyText");
             const css = STORY_FONTS[f.key].css;

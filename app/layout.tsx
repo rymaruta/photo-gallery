@@ -86,20 +86,37 @@ const inter = Inter({
  * `latin` と書くと**日本語の字が1つも入らない**。省くと全部の
  * `unicode-range` を取り込み、ブラウザは**使った範囲だけ**落とす。
  * 省くときは `preload: false` が要る（Next が止める）。
+ *
+ * ⚠️ **`fallback` も渡さない。** 渡すと next/font は**その並びを CSS 変数の
+ * 中へ焼き込む**ので、`storyText.ts` の
+ * `var(--font-marker),"Hiragino…",cursive` が実際にはこう展開される
+ * （実ブラウザで `getComputedStyle` を読んで見つけた）:
+ *
+ *     "Yusei Magic",Hiragino Maru Gothic ProN,Hiragino Sans,sans-serif,
+ *     "Hiragino Maru Gothic ProN","Hiragino Sans",cursive
+ *      ^^^^^^^^^^ ここで総称ファミリに当たり、後ろ半分は永久に使われない
+ *
+ * 受け皿の並びは `storyText.ts` の1か所だけが持つ。渡さないと変数は
+ * `"Yusei Magic","Yusei Magic Fallback"` になり、並びは `cursive` まで届く。
+ *
+ * ⚠️ **`adjustFontFallback: false` は効かない**（実ビルドで確かめた）。
+ * 渡しても `@font-face{font-family:Yusei Magic Fallback;src:local(Arial);
+ * size-adjust:111.71%}` は出て、変数にも入る。効かない指定は置かない。
+ * 害は無い——この面は Arial なので**日本語の字を1つも持たず**、
+ * CSS のフォント選択は字ごとに落ちるので、日本語は次の
+ * `Hiragino Maru Gothic ProN` へ進む。
  */
 const marker = Yusei_Magic({
     weight: ["400"],
     display: "swap",
     preload: false,
     variable: "--font-marker",
-    fallback: ["Hiragino Maru Gothic ProN", "Hiragino Sans", "sans-serif"],
 });
 const scribble = Yomogi({
     weight: ["400"],
     display: "swap",
     preload: false,
     variable: "--font-scribble",
-    fallback: ["Hiragino Maru Gothic ProN", "Hiragino Sans", "sans-serif"],
 });
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
