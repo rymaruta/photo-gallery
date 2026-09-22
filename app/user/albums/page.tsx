@@ -266,11 +266,20 @@ export default function AlbumsPage() {
                         placeholder="例: 北欧の冬"
                         className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
                     />
+                    {/* 🔴 **`aria-disabled` だけにしない。** 以前はこれで、
+                        名前が空でも**見た目はそのまま押せて、押しても何も
+                        起きなかった**（`create` が黙って return する）。
+                        知らせも無いので「壊れている」としか見えない。
+                        この画面だけが外れていた——`/user/highlights` の保存・
+                        `/user/settings` のパスワード変更・`ReportDialog` の
+                        送信は、どれも**本物の `disabled` ＋ 薄くする**で、
+                        押せないことが目で分かる。そちらに揃える
+                        （見張り: `app/user/albums/__tests__/`） */}
                     <button
                         type="button"
                         onClick={create}
-                        aria-disabled={busy || !title.trim()}
-                        className="rounded-lg bg-accent-fill text-white text-sm px-4"
+                        disabled={busy || !title.trim()}
+                        className="rounded-lg bg-accent-fill text-white text-sm px-4 disabled:opacity-50"
                         style={{ minHeight: 44 }}
                     >
                         作る
@@ -313,8 +322,11 @@ export default function AlbumsPage() {
                                             maxLength={60}
                                             className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
                                         />
-                                        <button type="button" onClick={rename} aria-disabled={busy}
-                                            className="rounded-lg bg-accent-fill text-white text-sm px-3" style={{ minHeight: 44 }}>
+                                        {/* **空の名前でも押せて無反応**だった
+                                            （`rename` は `!name` で黙って return するのに、
+                                            ここは `busy` しか見ていなかった）。条件を揃える */}
+                                        <button type="button" onClick={rename} disabled={busy || !editing.title.trim()}
+                                            className="rounded-lg bg-accent-fill text-white text-sm px-3 disabled:opacity-50" style={{ minHeight: 44 }}>
                                             保存
                                         </button>
                                         <button type="button" onClick={() => setEditing(null)}
@@ -351,12 +363,12 @@ export default function AlbumsPage() {
                                             </p>
                                         )}
                                         <div className="flex gap-3 mt-2">
-                                            <button type="button" onClick={() => issue(a.id)} aria-disabled={busy}
-                                                className="text-xs underline decoration-white/40 underline-offset-2" style={{ minHeight: 44 }}>
+                                            <button type="button" onClick={() => issue(a.id)} disabled={busy}
+                                                className="text-xs underline decoration-white/40 underline-offset-2 disabled:opacity-50" style={{ minHeight: 44 }}>
                                                 作り直す
                                             </button>
-                                            <button type="button" onClick={() => revoke(a.id)} aria-disabled={busy}
-                                                className="text-xs underline decoration-white/40 underline-offset-2" style={{ minHeight: 44 }}>
+                                            <button type="button" onClick={() => revoke(a.id)} disabled={busy}
+                                                className="text-xs underline decoration-white/40 underline-offset-2 disabled:opacity-50" style={{ minHeight: 44 }}>
                                                 取り消す
                                             </button>
                                         </div>
@@ -364,8 +376,8 @@ export default function AlbumsPage() {
                                         <p className="text-[11px] text-white/50 mt-1">作り直すと、前のリンクは使えなくなります。</p>
                                     </div>
                                 ) : (
-                                    <button type="button" onClick={() => issue(a.id)} aria-disabled={busy}
-                                        className="mt-3 text-xs underline decoration-white/40 underline-offset-2" style={{ minHeight: 44 }}>
+                                    <button type="button" onClick={() => issue(a.id)} disabled={busy}
+                                        className="mt-3 text-xs underline decoration-white/40 underline-offset-2 disabled:opacity-50" style={{ minHeight: 44 }}>
                                         招待リンクを作る
                                     </button>
                                 )}
@@ -389,8 +401,8 @@ export default function AlbumsPage() {
                             <div className="flex gap-2 justify-end mt-5">
                                 <button type="button" onClick={() => setConfirming(null)}
                                     className="text-sm px-4" style={{ minHeight: 44 }}>やめる</button>
-                                <button type="button" onClick={() => remove(confirming)} aria-disabled={busy}
-                                    className="rounded-lg bg-accent-fill text-white text-sm px-4" style={{ minHeight: 44 }}>
+                                <button type="button" onClick={() => remove(confirming)} disabled={busy}
+                                    className="rounded-lg bg-accent-fill text-white text-sm px-4 disabled:opacity-50" style={{ minHeight: 44 }}>
                                     消す
                                 </button>
                             </div>
