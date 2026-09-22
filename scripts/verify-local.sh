@@ -211,11 +211,20 @@ PROD_BUILD_ENV=(
     # 本番では `G-7TFN1YPBE3` が入る
 )
 
-# **スモークも Client ID を要る。** ログイン済みの画面を開くのに
-# `localStorage` の鍵（`CognitoIdentityServiceProvider.<clientId>.*`）が要る。
-# 一覧から取り出して渡す（同じ値を2か所に書かない）
+# **スモークも Client ID を要る**（ログイン済みの画面を開くのに
+# `localStorage` の鍵 `CognitoIdentityServiceProvider.<clientId>.*` が要る）。
+# 一覧から取り出して使う（同じ値を2か所に書かない）。
+#
+# 🔴 **`export` しない。** 最初 `export` で通したら、**単体テストにも
+# 漏れて 55件が落ちた**（実測。`lib/auth/config.ts` は Pool ID と Client ID の
+# 両方が揃っているかで分岐するので、片方だけ立つと**テストが前提にしている
+# 失敗の形が変わる**——`UserProfileClient.*` の10ファイルと
+# `lib/utils/apiTimeout` ほか）。しかも `npx vitest run` を手で叩くと緑なので、
+# **関門でしか出ない**形だった（この台帳が今日2回踏んだ「手元と CI で環境が
+# 違う」の、もう1つの向き）。**要るプロセスにだけ渡す。**
+SMOKE_ENV=()
 for _kv in "${PROD_BUILD_ENV[@]}"; do
-    case "$_kv" in NEXT_PUBLIC_COGNITO_CLIENT_ID=*) export "$_kv" ;; esac
+    case "$_kv" in NEXT_PUBLIC_COGNITO_CLIENT_ID=*) SMOKE_ENV+=("$_kv") ;; esac
 done
 
 build_site() { # build_site  — 本番と同じ環境変数で建てる
@@ -265,14 +274,14 @@ gate "型検査（api-user）"      check_side_tsc api-user "$API_USER_BASELINE"
 gate "lint"                    npx eslint .
 gate "単体テスト"              npx vitest run
 gate "ビルド（本番と同じ設定）" build_site
-gate "実ブラウザのスモーク"     node scripts/e2e-smoke.mjs
+gate "実ブラウザのスモーク"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
 
 if [ -z "$SKIP_DERIV" ]; then
     echo ""
     echo "──────── 本番のデータの形（派生あり）でもう一度 ────────"
     gate "本番の形にする（派生を足す）" synthesize_derivatives
     gate "ビルド（派生あり）"       build_site
-    gate "スモーク（派生あり）"     node scripts/e2e-smoke.mjs
+    gate "スモーク（派生あり）"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
     restore_data
 fi
 

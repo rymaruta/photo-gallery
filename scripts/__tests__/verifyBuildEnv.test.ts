@@ -94,6 +94,43 @@ describe("手元の関門のビルド環境（verify-local.sh）", () => {
         }
     });
 
+    /**
+     * 🔴 **スモーク用の値を `export` しない。**
+     *
+     * 最初 `export NEXT_PUBLIC_COGNITO_CLIENT_ID=…` で通したら、
+     * **単体テストにも漏れて 55件が落ちた**（実測）——`lib/auth/config.ts` は
+     * Pool ID と Client ID の**両方**が揃っているかで分岐するので、片方だけ
+     * 立つと、テストが前提にしている失敗の形が変わる
+     * （`UserProfileClient.*` の10ファイルと `lib/utils/apiTimeout` ほか）。
+     *
+     * しかも **`npx vitest run` を手で叩くと緑**で、関門でしか出ない。
+     * 「手元と CI で環境が違う」の、もう1つの向き。**要るプロセスにだけ渡す。**
+     */
+    it("スモーク用の値を export で撒いていない（単体テストに漏れる）", () => {
+        const sh = verifySh();
+        // ⚠️ **綴りを `NEXT_PUBLIC_*` に絞らない／行頭に固定しない。**
+        // 実際に踏んだ書き方は
+        //     case "$_kv" in NEXT_PUBLIC_COGNITO_CLIENT_ID=*) export "$_kv" ;; esac
+        // で、**名前でも行頭でも見つからない**——最初その2つで書いて、
+        // この見張りは壊れた状態でも緑だった（2回とも実測）。
+        // コメント行を落としてから、`export` という語そのものを禁じる
+        const code = sh.replace(/^\s*#.*$/gm, "");
+        const exported = [...code.matchAll(/^.*\bexport\b.*$/gm)].map((m) => m[0].trim());
+        expect(exported, "export すると vitest にも渡ってしまう（要るプロセスにだけ渡す）").toEqual([]);
+    });
+
+    it("スモークの関門だけに Client ID を渡している", () => {
+        const sh = verifySh();
+        // 一覧から取り出して `SMOKE_ENV` に積む（同じ値を2か所に書かない）
+        expect(sh, "SMOKE_ENV を組み立てていない").toMatch(/SMOKE_ENV\+=\("\$_kv"\)/);
+        // **スモークを呼ぶ行すべてに渡す**（派生ありの2回目を忘れない）
+        const calls = [...sh.matchAll(/^gate .*e2e-smoke\.mjs|^\s+gate .*e2e-smoke\.mjs/gm)].map((m) => m[0]);
+        expect(calls.length, "スモークの呼び出しが見つからない").toBeGreaterThanOrEqual(2);
+        for (const c of calls) {
+            expect(c, `Client ID を渡していない: ${c.trim()}`).toContain('env "${SMOKE_ENV[@]}"');
+        }
+    });
+
     /** `build_site()` がその一覧を実際に使っていること（宣言しただけで使わない形を止める） */
     it("build_site() が PROD_BUILD_ENV を使って建てている", () => {
         const sh = verifySh();
