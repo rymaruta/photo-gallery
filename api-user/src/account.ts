@@ -13,6 +13,8 @@ import { requestSiteRebuild } from "./rebuild";
 import { isDeletedProfile } from "./types";
 import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
 import { removePhotosFromAlbum } from "./albumCleanup";
+import { highlightKey, highlightsOfUserKey } from "./highlights";
+import { readUserList } from "./userList";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -722,6 +724,19 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             // ログインできるアカウントだけが残る（下のフォロー掃除と同じ理由）。
             // 黙って握らないようにログは残す
             console.error(`deleteAccount: アルバムの掃除に失敗（${uid}）:`, e);
+        }
+        // ハイライト（本体と一覧）。`highlight#` の行は `userId` を持たないので
+        // 上の索引の掃除には掛からない——一覧から辿って消す（アルバムと同じ形）。
+        // 中のストーリーは上で消えているので、残すと空の輪だけが残る
+        try {
+            const hids = await readUserList(highlightsOfUserKey(uid), (v) => v.length > 0, "deleteAccount");
+            for (const hid of hids) {
+                await ddbDelete(PHOTOS_TABLE, { id: highlightKey(hid) });
+            }
+            await ddbDelete(PHOTOS_TABLE, { id: highlightsOfUserKey(uid) });
+        } catch (e) {
+            // **止めない**（アルバムの掃除と同じ理由）
+            console.error(`deleteAccount: ハイライトの掃除に失敗（${uid}）:`, e);
         }
         if (followCleanupComplete) {
             await ddbDelete(PHOTOS_TABLE, { id: `following#${uid}` });

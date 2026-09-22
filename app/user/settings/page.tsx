@@ -47,7 +47,8 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { loginWithNext, ROUTES } from "../../../lib/routes";
+import { ROUTES } from "../../../lib/routes";
+import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { siteConfig } from "../../../lib/utils/seo";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 import {
@@ -96,13 +97,10 @@ export default function SettingsPage() {
     const deleteAccountBtnRef = useRef<HTMLButtonElement | null>(null);
     const [deletingAccount, setDeletingAccount] = useState(false);
 
-    useEffect(() => {
-        if (!loading && !isAuthenticated) {
-            // **push ではなく replace**（`useMemberGate` と同じ理由——
-            // 見られなかったページを履歴に残すと戻るが往復になる）
-            router.replace(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, loading, router]);
+    // 送り方は `useLoginRedirect`（`useMemberGate` と `/user/profile` も同じ口）。
+    // **条件だけがここの判断**——グループ（投稿権限）は見ない。
+    // 打ちかけを留める仕掛けも持たない（理由はファイル冒頭）
+    useLoginRedirect(!loading && !isAuthenticated);
 
     // いま登録されているアドレスを出す（何から何に変えるのかが分からないと押せない）。
     // **変えたあとは読み直さない**——ID トークンは作られた時点の写しで、
@@ -261,7 +259,7 @@ export default function SettingsPage() {
     // （移設元の `/user/profile` は `loading || fetching` で塞いでいた）。
     if (loading || !isAuthenticated) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">設定</h1>
@@ -281,7 +279,7 @@ export default function SettingsPage() {
     const rowLinkClass = "flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition";
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"

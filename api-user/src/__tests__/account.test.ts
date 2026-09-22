@@ -1073,6 +1073,51 @@ describe("deleteAccount: 共同アルバム", () => {
     });
 });
 
+// **ハイライト（⑦）の掃除。** `highlight#` の行は `userId` を持たないので
+// 索引の掃除に掛からない。一覧（`highlights#<uid>`・`updateUserList` の行）
+// から辿って本体を消し、一覧も消す。中のストーリーは索引の掃除で消えている
+describe("deleteAccount: ハイライト", () => {
+    const deletedIds = () => mockDdbSend.mock.calls
+        .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+        .map((c) => String(((c[0] as { input: { Key?: { id?: string } } }).input.Key ?? {}).id ?? ""));
+
+    function withHighlights(list: string[] | undefined, fail = false) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "highlights#me") {
+                    if (fail) return Promise.reject(new Error("throttled"));
+                    return Promise.resolve({ Item: list ? { id, list, rev: 2 } : undefined });
+                }
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("本体と一覧を消す", async () => {
+        withHighlights(["h1", "h2"]);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "本体を消していない").toContain("highlight#h1");
+        expect(ids).toContain("highlight#h2");
+        expect(ids, "一覧を消していない").toContain("highlights#me");
+    });
+
+    it("持っていなくても退会は成功し、一覧の行を消す", async () => {
+        withHighlights(undefined);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedIds()).toContain("highlights#me");
+    });
+
+    it("掃除に失敗しても、退会は止めない", async () => {
+        withHighlights(["h1"], true);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+    });
+});
+
 // **共同アルバムから取り除く経路が、退会に無かった。**
 //
 // `removePhotoFromAlbum` の docstring が「呼ばれないと何が困るか」を

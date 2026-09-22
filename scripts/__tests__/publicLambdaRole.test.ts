@@ -42,7 +42,10 @@ const services = [
         // 守りは「認証」ではなく**推測不能なトークン**（192ビット）で、
         // 読むのは招待の行とアルバムの行の GetItem 2回だけ
         // ——PublicReadRole の権限（写真テーブルは GetItem のみ）に収まる。
-        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
+        // `getUserHighlights` / `getHighlight` はマイページの輪（⑦）。プロフィールと
+        // 同じく誰でも見る面なので未認証。読むのは一覧・本体・ストーリーの
+        // GetItem だけ（`highlights.ts` の冒頭コメント）
+        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getUserHighlights", "getHighlight"],
     },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },
 ];

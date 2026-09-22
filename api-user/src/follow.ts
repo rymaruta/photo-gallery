@@ -415,10 +415,11 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // `UserProfileClient` の注意書き——は場所まで言っているのに、
     // **押した人が実際に受け取るこの文言だけ**が言っていなかった。
     //
-    // **場所は「設定」（`/user/settings`）。** 「ブロックした人」は
-    // プロフィール編集から設定へ移した（`app/user/settings/BlockedUsers.tsx`）。
-    // 画面側の2か所は移設のときに「設定の」へ直ったが、**ここだけ
-    // 「プロフィール設定の」と実在しない場所を案内していた**
+    // 🔴 **行き先は「設定」。** `BlockedUsers` は 2026-09-21 に
+    // プロフィール編集から `/user/settings` の「プライバシー」へ移した。
+    // 画面側の2か所は同じ回で直したが、**ここだけ `api-user` を触る回を
+    // 待っていた**ので、しばらくサーバーだけが古い場所を案内していた。
+    // 画面と文言を合わせること（ずれると、押した人が無い場所を探す）。
     if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除は設定の「ブロックした人」からできます");
 
     const exists = await userExists(target);

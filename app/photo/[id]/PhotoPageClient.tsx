@@ -592,7 +592,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // ローディング中
     if (loading) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
@@ -605,7 +605,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     // 一時的な失敗が「消された」ように読める（実在するのに）。
     if (!photo && fetchFailed) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                     <h1 className="text-3xl font-bold mb-4">
                         {locale === "en" ? "Couldn't load the photo" : "写真を読み込めませんでした"}
@@ -617,7 +617,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </p>
                     <button
                         onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 active:scale-95 transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Retry" : "もう一度読み込む"}
@@ -628,7 +628,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
     }
     if (!photo) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                     <h1 className="text-3xl font-bold mb-4">
                         {locale === "en" ? "Photo Not Found" : "写真が見つかりません"}
@@ -741,7 +741,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
             {/* ヘッダー */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-6">
                 <div className="flex-1">
@@ -870,13 +870,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                                 title={locale === "ja" ? "地図で見る" : "View on map"}
                             >
-                                <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                <MapPinIcon className="w-4 h-4 text-link flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
                                 <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "ja" ? "地図" : "Map"} ↗</span>
                             </a>
                         ) : (
                             <span className="inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/75">
-                                <MapPinIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                <MapPinIcon className="w-4 h-4 text-link flex-shrink-0" />
                                 <span className="truncate">{locationText}</span>
                             </span>
                         )}
@@ -925,7 +925,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                                 key={tag}
                                 href={collectionPath("tag", slugify(tag, "tag"))}
                                 prefetch={false}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
+                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-chip ring-1 ring-line text-xs text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 #{tag}

@@ -735,7 +735,7 @@ function EditContent() {
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
     if (loading || loadingPhoto) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-bg flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
         );
@@ -749,12 +749,12 @@ function EditContent() {
                 ? (isJa ? "写真を読み込めませんでした。" : "Could not load this photo.")
                 : (isJa ? "写真が見つかりません。" : "Photo not found.");
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center px-6">
                 <div className="text-center">
                     <p className="text-sm text-white/70 mb-4">{message}</p>
                     <Link
                         href={ROUTES.DRAFTS}
-                        className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {isJa ? "下書き一覧へ" : "Back to drafts"}
@@ -780,7 +780,7 @@ function EditContent() {
         .filter(Boolean).join(" · ");
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-2xl mx-auto px-4 py-8 pb-28">
                 <div className="flex items-center gap-4 mb-6">
                     {/* **名前を付ける。** 中身はアイコンだけ（`aria-hidden`）なので、
@@ -980,7 +980,7 @@ function EditContent() {
                                             // 並ぶことになる（`749bfce2` で潰した型）。
                                             // 見えている語はそのまま含める（WCAG 2.5.3）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             {c}
@@ -1020,7 +1020,7 @@ function EditContent() {
                                                 onClick={() => setTagsInput((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {t}
@@ -1118,7 +1118,7 @@ function EditContent() {
                     aria-label={isJa ? "保存していない変更があります" : "You have unsaved changes"}
                 >
                     <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                        <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
                             <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
                                 {isJa
                                     ? "保存していない変更があります。戻ると、直した内容は失われます。"
@@ -1137,7 +1137,7 @@ function EditContent() {
                             ref={leaveStayRef}
                             type="button"
                             onClick={() => setConfirmLeave(false)}
-                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                            className="w-full py-3.5 rounded-2xl bg-surface-2/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
                             style={{ touchAction: "manipulation" }}
                         >
                             {isJa ? "編集を続ける" : "Keep editing"}
@@ -1161,7 +1161,7 @@ function EditContent() {
                     aria-label={isJa ? "この写真を削除しますか？" : "Delete this photo?"}
                 >
                     <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                        <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
                             <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
                                 {isJa
                                     ? "この写真を削除します。画像とコメントも消え、この操作は取り消せません。"
@@ -1183,7 +1183,7 @@ function EditContent() {
                             type="button"
                             onClick={() => setConfirmDelete(false)}
                             disabled={deleting}
-                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50"
+                            className="w-full py-3.5 rounded-2xl bg-surface-2/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50"
                             style={{ touchAction: "manipulation" }}
                         >
                             {isJa ? "キャンセル" : "Cancel"}
@@ -1227,7 +1227,7 @@ function EditContent() {
                         type="button"
                         onClick={() => void save(true)}
                         disabled={saving}
-                        className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40"
+                        className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving
@@ -1243,7 +1243,7 @@ function EditContent() {
 export default function UserEditPage() {
     return (
         <Suspense fallback={
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
                     ここなので、ランドマークと見出しを持たせる
                     （`sr-only` は position:absolute で描画に影響しない） */}
