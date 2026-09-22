@@ -368,6 +368,22 @@ describe("撮影スポット詳細: その場で拡大", () => {
 
     // 🔴 **開けないのに遷移を止めると、タップが無反応になる。**
     // 写真ページへ行く方が、何も起きないよりずっと良い
+    /**
+     * 🔴 **端末の「戻る」でビューアが閉じる**（ページごと離脱しない）。
+     *
+     * `/location/*` は検索の着地点。積まないまま開くと、戻るで
+     * **サイトの外**（前に見ていた別のサイト）へ出る。
+     * 履歴の作法そのものは `useViewerHistory.test.ts` が見る。ここで見るのは
+     * **この画面がそれを使っているか**。
+     */
+    it("戻るでビューアが閉じる（ページごと離脱しない）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        expect(screen.getByTestId("modal")).toBeTruthy();
+        fireEvent(window, new PopStateEvent("popstate"));
+        expect(screen.queryByTestId("modal"), "戻るで閉じていない＝ページごと離脱する").toBeNull();
+    });
+
     it("知らない写真なら false を返す（遷移を止めさせない）", () => {
         render(<SpotPageClient {...base} />);
         fireEvent.click(screen.getByRole("button", { name: "居ない写真を開く" }));
