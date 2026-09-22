@@ -18,7 +18,7 @@ export default function ModalKeyboardHelp({ locale, onClose }: Props) {
             onClick={(e) => { e.stopPropagation(); onClose(); }}
         >
             <div
-                className="bg-[#16181c] ring-1 ring-white/10 rounded-2xl p-6 w-72 shadow-2xl story-media-in"
+                className="bg-surface-2 ring-1 ring-white/10 rounded-2xl p-6 w-72 shadow-2xl story-media-in"
                 onClick={(e) => e.stopPropagation()}
             >
                 <h3 className="text-sm font-semibold text-white mb-4">

@@ -61,7 +61,7 @@ export default function SavedSpotsPage() {
                         <Link
                             href={loginWithNext(ROUTES.SAVED_SPOTS)}
                             prefetch={false}
-                            className="text-sky-300 hover:text-sky-200 underline underline-offset-4"
+                            className="text-link hover:text-white underline underline-offset-4"
                         >
                             {en ? "Sign in" : "ログイン"}
                         </Link>
@@ -174,7 +174,7 @@ function decodeSlug(slug: string): string {
 function Shell({ locale, count, children }: { locale: "ja" | "en"; count?: number | null; children: React.ReactNode }) {
     const en = locale === "en";
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full pb-28">
+        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full pb-28">
             <div className="mb-4 sm:mb-6">
                 <h1 className="text-2xl sm:text-3xl font-bold">{en ? "Want to go" : "行きたい場所"}</h1>
                 <p className="text-sm text-white/60 mt-1">

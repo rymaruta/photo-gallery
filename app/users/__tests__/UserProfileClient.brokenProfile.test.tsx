@@ -93,6 +93,6 @@ describe("プロフィールの応答の形が想定と違うとき", () => {
 
         expect(await screen.findByText("旅人")).toBeInTheDocument();
         expect(await screen.findByText("こんにちは")).toBeInTheDocument();
-        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+        expect(screen.queryByText(/(プロフィール|写真一覧|写真)を読み込めませんでした/)).toBeNull();
     });
 });

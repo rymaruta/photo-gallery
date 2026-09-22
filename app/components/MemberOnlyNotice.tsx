@@ -15,7 +15,7 @@ import { siteConfig } from "../../lib/utils/seo";
 export default function MemberOnlyNotice({ locale = "ja" }: { locale?: string }) {
     const en = locale === "en";
     return (
-        <main className="p-6 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+        <main className="p-6 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full flex items-center justify-center">
             <div className="text-center space-y-4">
                 <p className="text-sm text-white/80">
                     {en

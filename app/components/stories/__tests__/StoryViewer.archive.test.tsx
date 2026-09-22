@@ -89,6 +89,28 @@ describe("StoryViewer: アーカイブ（archivedAt あり）では閲覧者を�
     });
 });
 
+describe("StoryViewer: アーカイブ（ハイライトから開いた他人のストーリー）では閲覧を記録しない", () => {
+    const theirs = (extra: Record<string, unknown> = {}): StoryGroup[] => [{
+        userId: "them",
+        displayName: "相手",
+        items: [{ id: "t1", src: "https://cdn/x/t.jpg", userId: "them", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z", ...extra }],
+    }];
+    const viewPosts = () => mockUserFetch.mock.calls.filter((c) => String(c[0]).endsWith("/view"));
+
+    // 期限の切れたストーリーはサーバーが 404 で記録を断る。1枚ごとに断られるだけの往復を増やさない
+    it("archivedAt が在れば /view を送らない", async () => {
+        view(theirs({ archive: true, archivedAt: "2026-07-05T10:00:00Z", allowReplies: false }));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(viewPosts(), "期限切れの閲覧を記録しにいっている").toHaveLength(0);
+    });
+
+    it("生きている他人のストーリーでは今までどおり送る", async () => {
+        view(theirs());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(viewPosts()).toHaveLength(1);
+    });
+});
+
 describe("StoryViewer: 「アーカイブに自動保存」の投稿には「残す」を出さない", () => {
     it("印のある自分の写真には出ない", () => {
         view(own({ archive: true }));
