@@ -35,10 +35,22 @@ type Props = {
     locale: string;
     /** カテゴリのスラッグ → 表示名（`GalleryPageClient` が持っているものをそのまま） */
     categoryDisplayMap: Record<string, string>;
+    /**
+     * 置き方。**中身（数え方・行き先）は同じで、並べ方だけが違う。**
+     *
+     *   `page` … 「さがす」の面の中（横いっぱい）。狭い画面は1行の
+     *            横スクロール、**PC は折り返す**（横スクロールは指の作法で、
+     *            マウスには掴む所が無い）
+     *   `rail` … ホームの PC の右の柱（20rem＝320px）。撮影地は
+     *            **縦に並べた行**（150px のカードを2列にすると、
+     *            柱の高さが画面を超えて貼り付かなくなる）
+     */
+    variant?: "page" | "rail";
 };
 
-/** 節に出す数（横スクロール1画面ぶん） */
+/** 節に出す数（`page` は横スクロール1画面ぶん／`rail` は貼り付いたまま収まる高さ） */
 const SHOWN = 8;
+const SHOWN_RAIL = 4;
 
 /** `collectEntries` と同じ規則でスラッグにする（写真の生の値から） */
 function slugOf(raw: string, type: "category" | "location"): string {
@@ -64,13 +76,23 @@ function SectionHead({ title, href, moreLabel }: { title: string; href?: string;
     );
 }
 
-export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
+export default function DiscoverSections({ photos, locale, categoryDisplayMap, variant = "page" }: Props) {
     const isJa = locale !== "en";
     const more = isJa ? "すべて見る ›" : "See all ›";
+    const isRail = variant === "rail";
+    const shown = isRail ? SHOWN_RAIL : SHOWN;
+    /**
+     * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**
+     * ので、`lg:` で `overflow-visible` へ戻してから折り返させる
+     * （`FilterBar` の `WRAPPING_ROW` と同じ形）。柱は最初から折り返す。
+     */
+    const row = isRail
+        ? "flex flex-wrap gap-3"
+        : "flex gap-3 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap";
 
-    const categories = React.useMemo(() => collectEntries(photos, "category").slice(0, SHOWN), [photos]);
-    const spots = React.useMemo(() => collectEntries(photos, "location").slice(0, SHOWN), [photos]);
-    const cameras = React.useMemo(() => collectEntries(photos, "camera").slice(0, SHOWN), [photos]);
+    const categories = React.useMemo(() => collectEntries(photos, "category").slice(0, shown), [photos, shown]);
+    const spots = React.useMemo(() => collectEntries(photos, "location").slice(0, shown), [photos, shown]);
+    const cameras = React.useMemo(() => collectEntries(photos, "camera").slice(0, shown), [photos, shown]);
 
     // 代表写真は**スラッグで突き合わせる**（生の値だと別名で保存された写真に当たらない）
     const coverFor = React.useCallback((entry: CollectionEntry, type: "category" | "location") =>
@@ -82,23 +104,25 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
 
     if (categories.length === 0 && spots.length === 0 && cameras.length === 0) return null;
 
+    const circle = isRail ? 60 : 72;
+
     return (
         <div className="space-y-6 mb-6">
             {categories.length > 0 && (
                 <section aria-labelledby="discover-categories">
                     <SectionHead title={isJa ? "カテゴリからさがす" : "Browse by category"} moreLabel={more} />
                     <h2 id="discover-categories" className="sr-only">{isJa ? "カテゴリからさがす" : "Browse by category"}</h2>
-                    <ul className="flex gap-3 overflow-x-auto no-scrollbar m-0 p-0" style={{ listStyle: "none" }}>
+                    <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {categories.map((c) => {
                             const cover = coverFor(c, "category");
                             return (
                                 <li key={c.slug} className="flex-shrink-0">
                                     <Link href={collectionPath("category", c.slug)} prefetch={false}
                                           className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
-                                          style={{ width: "72px", touchAction: "manipulation" }}>
+                                          style={{ width: `${circle}px`, touchAction: "manipulation" }}>
                                         <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line"
-                                              style={{ width: "72px", height: "72px" }}>
-                                            {cover && <Thumb photo={cover} alt="" sizes="72px" />}
+                                              style={{ width: `${circle}px`, height: `${circle}px` }}>
+                                            {cover && <Thumb photo={cover} alt="" sizes={`${circle}px`} />}
                                         </span>
                                         <span className="block mt-1.5 text-white truncate" style={{ fontSize: "12px" }}>
                                             {categoryDisplayMap[c.slug] ?? c.label}
@@ -117,9 +141,31 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                         閲覧数も保存数も持っていない（指示書 7） */}
                     <SectionHead title={isJa ? "写真の多い撮影地" : "Places with the most photos"} moreLabel={more} />
                     <h2 id="discover-spots" className="sr-only">{isJa ? "写真の多い撮影地" : "Places with the most photos"}</h2>
-                    <ul className="flex gap-3 overflow-x-auto no-scrollbar m-0 p-0" style={{ listStyle: "none" }}>
+                    {/* **柱では縦に並べた行**（150px のカードを2列にすると、
+                        柱が画面の高さを超えて貼り付きが効かなくなる） */}
+                    <ul className={`${isRail ? "flex flex-col gap-2" : row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {spots.map((s) => {
                             const cover = coverFor(s, "location");
+                            if (isRail) {
+                                return (
+                                    <li key={s.slug}>
+                                        <Link href={collectionPath("location", s.slug)} prefetch={false}
+                                              className="flex items-center gap-2.5 rounded-xl p-1 -m-1 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                                              style={{ touchAction: "manipulation" }}>
+                                            <span className="block relative flex-shrink-0 bg-surface ring-1 ring-line rounded-[10px] overflow-hidden"
+                                                  style={{ width: "56px", height: "56px" }}>
+                                                {cover && <Thumb photo={cover} alt="" sizes="56px" />}
+                                            </span>
+                                            <span className="min-w-0">
+                                                <span className="block text-white truncate" style={{ fontSize: "13px" }}>{s.label}</span>
+                                                <span className="block text-white/60" style={{ fontSize: "11px" }}>
+                                                    {isJa ? `${s.count}枚` : `${s.count} photos`}
+                                                </span>
+                                            </span>
+                                        </Link>
+                                    </li>
+                                );
+                            }
                             return (
                                 <li key={s.slug} className="flex-shrink-0">
                                     <Link href={collectionPath("location", s.slug)} prefetch={false}

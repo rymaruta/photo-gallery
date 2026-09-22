@@ -76,4 +76,50 @@ describe("さがす: 発見の節", () => {
             expect(a.getAttribute("href"), "先読みしている").toBeTruthy();
         }
     });
+
+    /**
+     * ホームの PC の右の柱（`variant="rail"`）。
+     *
+     * 柱は幅 320px・高さは画面に貼り付いたまま収まらないといけないので、
+     * **面の中と同じ形では置けない**。数え方と行き先は同じ1か所のまま、
+     * 並べ方と件数だけが違う。
+     */
+    describe("柱の形（ホームの PC・variant=rail）", () => {
+        const many = (type: "location" | "category", n: number) =>
+            Array.from({ length: n }, (_, i) =>
+                [photo(`${type}${i}a`, type === "location" ? { location: `場所${i}` } : { category: `cat${i}` }),
+                 photo(`${type}${i}b`, type === "location" ? { location: `場所${i}` } : { category: `cat${i}` })],
+            ).flat();
+
+        it("🔴 件数を絞る（8件のままだと柱が画面の高さを超えて貼り付きが効かない）", () => {
+            const photos = many("location", 8);
+            const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
+            expect(wide.container.querySelectorAll('a[href*="/location/"]')).toHaveLength(8);
+            wide.unmount();
+
+            const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
+            expect(rail.container.querySelectorAll('a[href*="/location/"]'), "柱でも8件出している").toHaveLength(4);
+        });
+
+        it("🔴 撮影地は縦に並べた行にする（150px のカードを柱に詰めない）", () => {
+            const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" })];
+            const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
+            const link = rail.container.querySelector('a[href*="/location/"]') as HTMLElement;
+            expect(link.className, "面の中と同じカードのまま").toContain("flex");
+            // カードの幅（150px）を柱に持ち込んでいない
+            expect(link.getAttribute("style") ?? "", "150px のカードのまま").not.toContain("150px");
+            expect(rail.container.textContent, "枚数が消えている").toContain("2枚");
+        });
+
+        it("行き先も数えた値も、面の中と同じ（並べ方だけが違う）", () => {
+            const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" }), photo("c", { location: "パリ" })];
+            const href = (r: ReturnType<typeof render>) =>
+                [...r.container.querySelectorAll('a[href*="/location/"]')].map((a) => a.getAttribute("href"));
+            const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
+            const wideHrefs = href(wide);
+            wide.unmount();
+            const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
+            expect(href(rail)).toEqual(wideHrefs);
+        });
+    });
 });

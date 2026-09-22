@@ -29,6 +29,24 @@ type Props = {
     tagCounts?: Record<string, number>;
 };
 
+/**
+ * 溢れの逃がし方を幅で変える行（カテゴリ・タグ）。
+ *
+ *   < 1024px … 1行のまま**横スクロール**（画面の上に横一列で置く）
+ *   ≥ 1024px … **折り返す**（`/search` の PC は左の柱に置くので、
+ *              幅 248px しか無く横スクロールは指の当てどころが無い）
+ *
+ * ⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない。** 溢れを
+ * スクロールで逃がす箱は折り返さない。だから `lg:` で `overflow-visible`
+ * へ**戻してから** `lg:flex-wrap` を当てる——片方だけ足すと効かない。
+ *
+ * この部品を使っているのは `/search`（`GalleryPageClient` の `surface="search"`）
+ * だけなので、幅だけで決めてよい（props で切り替える必要が無い）。
+ * **props にしなかったのは水和のため**——`matchMedia` で選ぶと、PC の
+ * 初回描画が一度スマホの形で出てから組み替わる。
+ */
+const WRAPPING_ROW = "-mx-1 px-1 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:overflow-visible lg:flex-wrap";
+
 function FilterBarInner({
     categories,
     tags,
@@ -325,15 +343,17 @@ function FilterBarInner({
 
     return (
         <section className={`mb-2 ${className}`}>
-            <div className="space-y-2.5">
-                {/* カテゴリ: 1行横スクロールのピル */}
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+            <div className="space-y-2.5 lg:space-y-3">
+                {/* カテゴリ: 1行横スクロールのピル（PC の柱では折り返す） */}
+                <div className={`flex gap-1.5 ${WRAPPING_ROW}`}>
                     {renderAllButton}
                     {renderCategoryButtons}
                 </div>
 
-                {/* 検索 + 並び替え */}
-                <div className="flex items-center gap-1.5">
+                {/* 検索 + 並び替え。**PC の柱では縦に積む**——248px の柱に
+                    検索欄と並び替えを横に並べると、検索欄が語句を1つ置くのも
+                    苦しい幅（約150px）になる */}
+                <div className="flex items-center gap-1.5 lg:flex-col lg:items-stretch">
                     <div className="relative flex-1">
                         <label htmlFor="filter-query" className="sr-only">
                             {labels.search.placeholder}
@@ -374,8 +394,10 @@ function FilterBarInner({
                         )}
                     </div>
 
-                    {/* 並び替え */}
-                    <div className="relative flex-shrink-0">
+                    {/* 並び替え。PC の柱では縦に積むので、箱をボタンの幅に
+                        縮めて（`lg:self-start`）吊る一覧の右端が柱の端まで
+                        飛ばないようにする */}
+                    <div className="relative flex-shrink-0 lg:self-start">
                         <button
                             ref={sortButtonRef}
                             type="button"
@@ -443,7 +465,7 @@ function FilterBarInner({
 
                 {/* タグ: よく使うものだけを1行で。全件（数十個）並べても選べないので、
                     残りは検索で探してもらう */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+                <div className={`flex items-center gap-1.5 ${WRAPPING_ROW}`}>
                     {renderTagChips}
 
                     {values.selectedTags && values.selectedTags.length > 0 && (

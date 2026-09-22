@@ -39,6 +39,16 @@ export type Labels = {
     search: {
         placeholder: string;
         clear: string;
+        /**
+         * `/search` の `<h1>`。
+         *
+         * **トップと同じ文にしない。** 以前は両方が `site.title`
+         * （「みんなの旅の写真」）で、別の面なのに見出しで区別できなかった
+         * ——読み上げでページを行き来する人には同じページに見える。
+         * `/search` は `noindex` なので検索結果への影響は無いが、
+         * 見出しは画面が何かを言う場所。
+         */
+        heading?: string;
     };
     gallery?: {
         emptyMessage?: string;
@@ -102,7 +112,7 @@ const enLabels: Labels = {
     },
     tags: { title: "Tags" },
     actions: { clearTags: "Clear" },
-    search: { placeholder: "Search photos", clear: "Clear" },
+    search: { placeholder: "Search photos", clear: "Clear", heading: "Find photos" },
     gallery: {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
@@ -163,7 +173,7 @@ export const ja: Labels = {
     },
     tags: { title: "タグ" },
     actions: { clearTags: "選択を解除" },
-    search: { placeholder: "写真を検索（タイトル・説明・タグなど）", clear: "クリア" },
+    search: { placeholder: "写真を検索（タイトル・説明・タグなど）", clear: "クリア", heading: "写真をさがす" },
     gallery: {
         emptyMessage: "該当する写真がありません。",
         resultsCount: "結果",
