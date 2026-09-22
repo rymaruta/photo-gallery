@@ -20,11 +20,45 @@ ROOT="$(pwd)"
 WORK="$(mktemp -d)"
 FAILED=()
 
-# 退避したものは何があっても戻す。photos.json は**追跡されているファイル**なので、
-# 途中で落ちると偽のデータが作業ツリーに残る。
+# 退避したものは何があっても戻す。`app/data/*.json` は**追跡されている
+# ファイル**なので、途中で落ちると偽のデータが作業ツリーに残る。
+#
+# ⚠️ **控えるのは `photos.json` だけでは足りない。**
+# `photo-index.json` も、この関門の中で**わざと空にされる**
+# ——`scripts/__tests__/photoIndexParity.test.ts` の「索引が空でも型が通る」が
+# 空の索引を書いて `tsc` を走らせ、`finally` で戻す。その戻しは
+# **SIGKILL では走らない**（`finally` ごと飛ぶ）。
+#
+# 空のまま残ると何が起きるか（実測・2026-09-22）:
+#
+#     空の索引で `npx next build`      → **rc=0（緑）**
+#     out/location/パリ.html の
+#       href="/photo/…"                → **0本**（本来9本）
+#       href="/?photo=…"               → **10本**
+#
+# `lib/routes.ts` の `ROUTES.PHOTO()` が索引に無い id を
+# 「静的ページがまだ無い写真」と読んで控えの URL に落とすため。
+# **ビルドは緑のまま、内部リンクが全部差し替わる。**
+#
+# なお**この関門自身はそれを緑と読まない**——単体テストがビルドより先で、
+# `photoIndexParity.test.ts` が3件落ちる（実測）。ここで控えるのは
+# 「偽の中身を作業ツリーに残さない」ためで、`photos.json` を控えている
+# 理由とまったく同じ。**名指しではなく `app/data/*.json` を丸ごと**控える
+# ——4つ目が足された日に、また1つだけ漏れる形にしない。
+backup_data() {
+    for f in "$ROOT"/app/data/*.json; do
+        [ -f "$f" ] && cp "$f" "$WORK/data-$(basename "$f")"
+    done
+}
+restore_data() {
+    for b in "$WORK"/data-*.json; do
+        [ -f "$b" ] && cp "$b" "$ROOT/app/data/$(basename "${b#"$WORK"/data-}")"
+    done
+}
+
 cleanup() {
     [ -d "$ROOT/_api_build_backup" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/_api_build_backup" "$ROOT/app/api"; }
-    [ -f "$WORK/photos.json" ] && cp "$WORK/photos.json" "$ROOT/app/data/photos.json"
+    restore_data
     rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -188,7 +222,7 @@ if (n === 0) { console.error("::error:: 派生を1枚も足せなかった"); pr
 }
 
 echo "関門をローカルで全部通す（GitHub Actions は使わない）"
-cp "$ROOT/app/data/photos.json" "$WORK/photos.json"
+backup_data
 
 gate "型検査（ルート）"        npx tsc --noEmit
 gate "型検査（api）"           check_side_tsc api "$API_BASELINE"
@@ -204,7 +238,7 @@ if [ -z "$SKIP_DERIV" ]; then
     gate "本番の形にする（派生を足す）" synthesize_derivatives
     gate "ビルド（派生あり）"       build_site
     gate "スモーク（派生あり）"     node scripts/e2e-smoke.mjs
-    cp "$WORK/photos.json" "$ROOT/app/data/photos.json"
+    restore_data
 fi
 
 echo ""
