@@ -39,9 +39,12 @@ vi.mock("../components/GalleryGrid", () => ({
     },
 }));
 
+// **機材も入れておく。** 入れないと柱の「機材からさがす」の節が
+// 丸ごと出ず（データが無い節は描かない）、その節の見出しのリンクも
+// 一緒に消える＝見張りが空回りする
 const PHOTOS = [
-    { id: "p1", src: "https://cdn/a.jpg", title: "あ", category: "landscape", location: "東京", tags: ["旅"], date: "2026-01-01", createdAt: "2026-01-01" },
-    { id: "p2", src: "https://cdn/b.jpg", title: "い", category: "landscape", location: "東京", tags: ["旅"], date: "2026-01-02", createdAt: "2026-01-02" },
+    { id: "p1", src: "https://cdn/a.jpg", title: "あ", category: "landscape", location: "東京", tags: ["旅"], date: "2026-01-01", createdAt: "2026-01-01", exif: { camera: "SONY ILCE-7M3" } },
+    { id: "p2", src: "https://cdn/b.jpg", title: "い", category: "landscape", location: "東京", tags: ["旅"], date: "2026-01-02", createdAt: "2026-01-02", exif: { camera: "SONY ILCE-7M3" } },
 ];
 vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS, loaded: true }) }));
 
@@ -96,7 +99,14 @@ describe("PC の設計（指示書 4・11・17）", () => {
 
         it("🔴 柱を押したら「さがす」の検索結果へ行く（集約ページではない）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
-            const links = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
+            // **節の項目だけを見る。** 見出しの「すべて見る ›」は索引ページ
+            // （`/category` `/location` `/camera`）へ向ける——**トップから
+            // 集約ページへ渡す唯一の1本**で、これが無いと `/search` が
+            // `robots.txt` で `Disallow` なぶん、トップはリンクを1本も渡さない
+            // （2026-09-22 に実ビルドで 0本 と数えた）。
+            // 見出しの行き先は下の「索引ページへ行ける」で別に縛る
+            const all = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
+            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h));
             expect(links.length, "柱にリンクが無い").toBeGreaterThan(0);
             for (const href of links) {
                 expect(href, `集約ページのままになっている: ${href}`).toMatch(/^\/search\?/);
@@ -104,6 +114,29 @@ describe("PC の設計（指示書 4・11・17）", () => {
             // カテゴリは専用の絞り込み、撮影地は `?q=`（`useGallery` が読む形）
             expect(links.some((h) => h.startsWith("/search?category=")), "カテゴリの絞り込みに載っていない").toBe(true);
             expect(links.some((h) => h.startsWith("/search?q=")), "撮影地・機材が検索語に載っていない").toBe(true);
+        });
+
+        /**
+         * 🔴 **トップから集約ページへ渡る1本。**
+         *
+         * 実ビルド（151 HTML・2026-09-22）で数えると、トップ →
+         * `/category/*` `/location/*` `/camera/*` は **0本**だった。
+         * 柱の項目は owner の指示で `/search?…` を向いていて、その
+         * `/search` は `robots.txt` で `Disallow`＝行き止まり。
+         * `/tag/*` だけは写真カードのチップで49本あった。
+         *
+         * **索引ページは実在する**（`app/category/page.tsx` ほか）ので、
+         * 「すべて見る」は枠だけではない——`#125` で落とした死にコードと
+         * 同じ形に戻っていないことを、ここで縛る。
+         */
+        it("🔴 節の見出しから索引ページへ行ける（トップ→集約ページの唯一の1本）", () => {
+            const { container } = render(<GalleryPageClient surface="home" />);
+            const hrefs = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
+            for (const want of ["/category", "/location", "/camera"]) {
+                expect(hrefs, `${want} への「すべて見る」が無い`).toContain(want);
+            }
+            // 文言まで見る（枠だけ置いて押せない形に戻っていないこと）
+            expect(container.querySelector("main aside")?.textContent ?? "").toContain("すべて見る");
         });
     });
 

@@ -1,6 +1,8 @@
 import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * **1ページ1オリジン**——画面に描く画像URLを、サイトのドメインに揃える。
@@ -86,5 +88,43 @@ describe("拡大表示（ModalImage）", () => {
         expect(cdnLeftIn(container), "CDN の既定ドメインのまま描いている").toEqual([]);
         expect(container.querySelector('source[type="image/avif"]')?.getAttribute("srcset")).toBe(`${SITE}/uploads/b.avif`);
         expect(container.querySelector("picture > img")?.getAttribute("src")).toBe(`${SITE}/uploads/b.webp`);
+    });
+});
+
+/**
+ * 🔴 **描かない要求も、同じオリジンに揃える。**
+ *
+ * 写真ページは、データ側に EXIF が無い写真だけ**画像そのものを取りに行って**
+ * 撮影情報を読む（`exifr`）。その入口だけ生の `src` を渡していたので、
+ * 同じ1枚に対して2つのホストへ要求が飛んでいた——
+ * `<img>` は `journey-photo.com`、EXIF は CloudFront の既定ドメイン。
+ * 別オリジンなので CORS が要り、返らなければ**撮影情報の欄が黙って出ない**
+ * （例外は握るので画面に何も出ない＝気づけない）。
+ *
+ * ⚠️ **この経路は描画に出ないので、上の「描かれたURL」では見えない。**
+ * だから綴りで見る。**自己点検つき**——読む場所が消えたら、空回りで緑に
+ * ならずに落ちる。
+ */
+describe("写真ページの EXIF 抽出（描かないが飛ぶ要求）", () => {
+    const readLoadExif = (): string => {
+        const src = readFileSync(
+            join(__dirname, "..", "..", "photo", "[id]", "PhotoPageClient.tsx"), "utf8");
+        const m = /const loadExif = async \(\) => \{([\s\S]*?)\n        \};/.exec(src);
+        return m?.[1] ?? "";
+    };
+
+    it("見る場所が実在する（空回りしていない）", () => {
+        const body = readLoadExif();
+        expect(body, "loadExif が見つからない（名前が変わった？）").not.toBe("");
+        expect(body, "exifr を呼んでいない").toContain("exifr.parse(");
+        expect(body, "画像を取りに行く控えの経路が無い").toContain("fetch(");
+    });
+
+    it("取りに行く先を publicImageUrl で揃えている", () => {
+        const body = readLoadExif();
+        expect(body, "生の src のまま取りに行っている").toContain("publicImageUrl(src)");
+        // `exifr.parse(src` / `fetch(src` が1つも残っていないこと
+        const raw = [...body.matchAll(/\b(?:exifr\.parse|fetch)\(\s*src\b/g)].map((x) => x[0]);
+        expect(raw, "生の src を渡している呼び出しが残っている").toEqual([]);
     });
 });

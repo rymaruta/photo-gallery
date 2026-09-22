@@ -197,3 +197,59 @@ describe("拡大表示の保存ボタン", () => {
         expect(like.className).toContain("right-[64px]");
     });
 });
+
+/**
+ * 🔴 **呼ぶ側が一覧を持っているなら、送るたびに聞きに行かない。**
+ *
+ * ホームは `useMySaves` で保存済みの id を**一覧ぶん1回**で持っているのに、
+ * ビューアには渡していなかった。実測（ログイン済みでホームからビューアを開き、
+ * 3回 送った）:
+ *
+ *     GET /photos/<id>/like ・ GET /user/likes/<id> ・ GET /user/saves/<id>
+ *     …が **送るたびに3本ずつ**
+ *
+ * `/user/saves/<id>` は一覧で分かっているぶんなので、丸ごと要らない。
+ * カードで直したのと同じ形（`TimelineCard` / `usePhotoSave` の
+ * `known` / `knownPending`）に揃える。
+ *
+ * ⚠️ いいねの2本は残る——ホームは**いいねの一覧を引いていない**
+ * （`useMyServerLikes` を読むのは `/favorites` だけ）。そこへ新しく
+ * 一括取得を足すのは別の判断なので、ここでは広げない。
+ */
+describe("一覧から分かっている保存（savedIds）", () => {
+    const withIds = (ids: string[] | null, pending = false) => render(
+        <GalleryModal
+            photos={[photo("p1"), photo("p2")]}
+            currentIndex={0}
+            onClose={vi.fn()} onNext={vi.fn()} onPrev={vi.fn()}
+            locale="ja"
+            savedIds={ids ? new Set(ids) : null}
+            savesPending={pending}
+        />,
+    );
+    const saveGets = () => mockUserFetch.mock.calls.filter((c) => String(c[0]).startsWith("/user/saves/"));
+
+    it("🔴 一覧に在れば、写真ごとに聞きに行かない（しおりは付く）", async () => {
+        withIds(["p1"]);
+        await waitFor(() => expect(screen.getByRole("button", { name: "保存を取り消す" })).toBeTruthy());
+        expect(saveGets(), "一覧で分かっているのに GET を撃った").toEqual([]);
+    });
+
+    it("一覧に無ければ、未保存として出す（やはり聞きに行かない）", async () => {
+        withIds(["p9"]);
+        await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeTruthy());
+        expect(saveGets()).toEqual([]);
+    });
+
+    it("一覧が飛行中なら待つ（撃たない）", async () => {
+        withIds(null, true);
+        await screen.findByRole("button", { name: "保存" });
+        expect(saveGets(), "一覧の到着を待たずに撃った").toEqual([]);
+    });
+
+    // **渡さなければ今までどおり**（撮影スポット詳細は一覧を持っていない）
+    it("渡さなければ、今までどおり聞きに行く", async () => {
+        setup();
+        await waitFor(() => expect(saveGets().length).toBeGreaterThan(0));
+    });
+});

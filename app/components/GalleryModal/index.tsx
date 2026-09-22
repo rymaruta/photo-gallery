@@ -31,12 +31,20 @@ type Props = {
     locale: Locale;
     categoryDisplayMap?: Record<string, string>;
     mapLabel?: { ja: string; en: string };
+    /**
+     * 呼ぶ側が**一覧で既に持っている**保存済みの id（`useMySaves`）。
+     * 渡すと、送るたびに `/user/saves/<id>` を聞きに行かなくなる。
+     */
+    savedIds?: ReadonlySet<string> | null;
+    /** その一覧を**いま引いている最中**か（`null` だけでは「失敗した」と区別が付かない） */
+    savesPending?: boolean;
 };
 
 export default function GalleryModal({
     photos, currentIndex, onClose, onNext, onPrev, locale,
     categoryDisplayMap = {},
     mapLabel = { ja: "地図で見る", en: "View on map" },
+    savedIds = null, savesPending = false,
 }: Props) {
     const p = photos[currentIndex];
 
@@ -82,7 +90,13 @@ export default function GalleryModal({
 
     // 保存（ブックマーク）。**いいねとは別の棚**で、投稿者には届かない。
     // 集まる先は `/saves`（`/favorites` はいいねした写真）
-    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading);
+    // 🔴 **一覧から分かっているなら聞きに行かない。**
+    // 渡していなかったので、**送るたびに1本ずつ** `/user/saves/<id>` が
+    // 飛んでいた（実測: 3回送ると3本）。呼ぶ側（ホーム）は `useMySaves` で
+    // 一覧を持っているのに使っていなかった——カードで直したのと同じ形
+    // （`TimelineCard` / `usePhotoSave` の `known` / `knownPending`）。
+    const knownSaved = savedIds ? savedIds.has(p?.id ?? "") : undefined;
+    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading, knownSaved, savesPending);
     const handleToggleSave = useCallback(() => {
         hapticTap();
         void toggleSave().then((r) => {

@@ -70,6 +70,43 @@ function resolveChromium() {
     return undefined; // playwright-core が自身の既定解決を試みる（CI では playwright install 済み）
 }
 
+/**
+ * 🔴 **Service Worker の資産キャッシュに、2デプロイぶんが収まるか。**
+ *
+ * `public/sw.js` は `_next/static/**` を**キャッシュ優先**で控えるが、
+ * `MAX_ASSET_ENTRIES` を超えると古い順に捨てる。`CACHE_VERSION` は固定で
+ * `activate` が消すのは別のキャッシュ名だけなので、デプロイをまたぐと
+ * **旧版と新版が同居する**——収まらないと**同じ版の資産どうしで
+ * 追い出し合って**キャッシュがほとんど効かなくなる（毎回の再訪で JS を
+ * 落とし直す）。**例外にはならないので、誰も気づかない。**
+ *
+ * 実測（2026-09-22・本番と同じ環境変数のビルド）: 公開ページだけで 30本、
+ * ログインが要る10画面まで入れて **48本**。上限 150 に対して
+ * 2デプロイ＝96、3デプロイ＝144。
+ *
+ * ここでは**スモークが回ったページ**の異なりを数え、**上限の半分**を
+ * 超えたら落とす（＝2デプロイぶんが収まらなくなる手前）。
+ * スモークは全画面を回らないので、実際の数はこれより多い——だから
+ * 「半分」という余裕のある線で見る。
+ */
+function maxAssetEntriesFromSw() {
+    const src = fs.readFileSync(path.resolve(__dirname, "..", "public", "sw.js"), "utf8");
+    const m = /const\s+MAX_ASSET_ENTRIES\s*=\s*(\d+)/.exec(src);
+    return m ? Number(m[1]) : 0;
+}
+/** このエンジンで要求された `/_next/static/**` の異なり */
+const staticAssets = new Set();
+function watchStaticAssets(ctx) {
+    ctx.on("request", (req) => {
+        try {
+            const u = new URL(req.url());
+            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")) {
+                staticAssets.add(u.pathname);
+            }
+        } catch { /* 相対でない URL は無視 */ }
+    });
+}
+
 const failures = [];
 function check(name, ok, detail = "") {
     if (ok) console.log(`  ✅ ${name}`);
@@ -198,6 +235,7 @@ async function runChecks(browser, eng) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" });
     // 外部リクエストを遮断して密閉型にする（画像だけは 1x1 PNG で返す）。
     await sealContext(ctx);
+    watchStaticAssets(ctx);
     const page = await ctx.newPage();
     const bag = attachDiagnostics(page);
 
@@ -459,6 +497,38 @@ async function runChecks(browser, eng) {
     }
 
     /**
+     * 🔴 **索引ページ（`/category`）。** 「すべて見る ›」の行き先で、
+     * **トップから集約ページへ渡る唯一の1本**（柱の `/search?…` は
+     * `robots.txt` で `Disallow`＝行き止まり。実ビルドで 0本 と数えた）。
+     *
+     * ここが 404 になっても**ホームは今までどおり描かれる**ので、
+     * 画面を見ているだけでは気づけない。`/category` と `/category/<slug>` が
+     * 同居する形（`out/category.html` と `out/category/*.html`）が
+     * 静的書き出しで崩れていないか、実ブラウザで1回通す。
+     */
+    if (fs.existsSync(path.join(OUT, "category.html"))) {
+        console.log(`\n[${eng}][5d] 索引ページ`);
+        await page.goto(`http://localhost:${PORT}/category`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 索引ページ: ハイドレーション完了`, await waitForHydration(page));
+        const idx = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            children: new Set([...document.querySelectorAll('a[href^="/category/"]')].map((a) => a.getAttribute("href"))).size,
+            home: !!document.querySelector('a[href="/"]'),
+        }));
+        check(`[${eng}] 索引ページ: 見出しが出る`, idx.h1.length > 0, idx.h1);
+        check(`[${eng}] 索引ページ: 集約ページへ並ぶ`, idx.children > 1, `子リンク=${idx.children}`);
+        check(`[${eng}] 索引ページ: ホームへ戻れる`, idx.home);
+
+        // **トップから実際に辿れること。** 部品が描いていても、柱が
+        // PC でしか出ない・節ごと消えている、で届かなくなる
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const fromHome = await page.evaluate(() =>
+            ["/category", "/location", "/camera"].filter((h) => !!document.querySelector(`a[href="${h}"]`)));
+        check(`[${eng}] トップから索引ページへ行ける`, fromHome.length === 3, `届くのは ${fromHome.join(",") || "0本"}`);
+    }
+
+    /**
      * 🔴 **撮影スポット詳細（`/location/*`）。**
      *
      * ここは**検索の着地点**で、2026-09-22 に画面ごと作り直した。それなのに
@@ -576,6 +646,37 @@ async function runChecks(browser, eng) {
                 .catch(() => all);
             check(`[${eng}] さがす: 絞り込みが効く（${cat}）`, narrowed > 0 && narrowed < all, `全${all} → ${narrowed}`);
             check(`[${eng}] さがす: 絞り込みが URL に出る`, /[?&](category|tags|q)=/.test(page.url()), page.url());
+
+            /**
+             * 🔴 **クエリ付きで「直接ひらく」経路を通す。**
+             *
+             * ここまでは `/search` を開いてからチップを押していた＝
+             * **クライアント側の状態変化**しか見ていない。ところが
+             * `/search?…` を**URL ごと開く**と、静的HTML（絞り込み無し）と
+             * 最初の描画（絞り込み後）が食い違って**React が水和に失敗して
+             * いた**（`#418`。2026-09-22 に実測）。失敗すると焼いた HTML を
+             * 捨てて全部描き直すので、検索からの着地・404 の救済・柱からの
+             * 遷移が毎回その作り直しを踏む。**例外は握られて画面に出ない。**
+             *
+             * この経路は実際に人が通る——`robots.txt` は `/search` を
+             * 拒んでいるが、404 の救済（`resolveNotFoundRedirect`）と
+             * ホームの柱がここへ送る。
+             *
+             * JS エラーそのものは下の「実行時のJSエラーがない」が拾う。
+             * ここでは**絞り込みが効いた状態で描かれること**まで見る
+             * （水和をやめて全部描き直せば絵は出るので、件数まで見ないと
+             *   「直った」と言えない）。
+             */
+            const direct = page.url();
+            await page.goto(direct, { waitUntil: "domcontentloaded" });
+            await waitForHydration(page);
+            await page.waitForTimeout(600);
+            const reopened = await page.evaluate(() =>
+                document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length);
+            check(`[${eng}] さがす: 絞り込み付きの URL を直接ひらいても効く`,
+                reopened > 0 && reopened < all, `全${all} → ${reopened}（${direct}）`);
+            check(`[${eng}] さがす: 直接ひらいても URL が残る`,
+                /[?&](category|tags|q)=/.test(page.url()), page.url());
         }
     }
 
@@ -590,6 +691,7 @@ async function runChecks(browser, eng) {
     console.log(`\n[${eng}][6] デスクトップ（hover・マウス）`);
     const dctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: "block" });
     await sealContext(dctx);
+    watchStaticAssets(dctx);
     // 保存位置を右上(ヘッダー上)に seed。将来ミニプレイヤーがそこに出てもメニューを塞がないこと（クランプ）を確認。
     await dctx.addInitScript(() => {
         try { localStorage.setItem("jp_miniplayer_pos", JSON.stringify({ x: 99999, y: 0 })); } catch { /* ignore */ }
@@ -608,6 +710,233 @@ async function runChecks(browser, eng) {
     check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dRealErrors.length === 0, dRealErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/desktop`, dbag);
     await dctx.close();
+
+    await runSignedInChecks(browser, eng);
+
+    // **資産の異なりが、SW の上限の半分に収まっているか**（上の注記を参照）
+    const limit = maxAssetEntriesFromSw();
+    check(`[${eng}] SW の資産キャッシュに 2デプロイぶんが収まる`,
+        limit > 0 && staticAssets.size > 0 && staticAssets.size * 2 <= limit,
+        `異なり=${staticAssets.size} × 2デプロイ = ${staticAssets.size * 2} / 上限 ${limit}`);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ログイン済みの画面を開くための道具
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * 🔴 **この関門は、長いあいだ「ログインできない site」を見ていた。**
+ *
+ * `scripts/verify-local.sh` の `build_site()` が `NEXT_PUBLIC_COGNITO_CLIENT_ID`
+ * を渡していなかったので、建った `out/` では `lib/auth/config.ts` が投げ、
+ * `lookupSession` は必ず未ログインを返す。実測（2026-09-22）——
+ * `out/user/highlights` を開いた本文は
+ *
+ *     "ログイン / 写真をアップロードするにはログインが必要です …"
+ *
+ * つまり `/user/**` の12画面は**1つも中身が描かれていなかった**。
+ * 今日いちばん大きかった2件（ハイライトの「保存」が押せない・`/user/edit` の
+ * 下バーが全部押せない）が全関門を素通りしたのは、突き詰めるとこれ。
+ *
+ * **だから偽のトークンで入って、実際に描かれた画面を見る。**
+ * 署名は検証していない（クライアントは Cognito の応答を信じる作り）ので、
+ * `localStorage` に本物と同じ鍵で置けばログイン済みとして描かれる。
+ * API は全部この場で作った JSON で返す（密閉は保ったまま）。
+ */
+const SIGNED_IN_CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "";
+
+const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64")
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/** 署名は捨てる（クライアントは検証しない）。形だけ本物に合わせる */
+const fakeJwt = (payload) => `${b64url({ alg: "RS256", kid: "smoke" })}.${b64url(payload)}.c21va2U`;
+
+/** API の受け皿。**未知の口は空オブジェクト**（画面は「0件」として描く） */
+function signedInApiBody(url, method, photos) {
+    const p = new URL(url).pathname;
+    if (p === "/user/profile" || p.startsWith("/profile/")) return SIGNED_IN_PROFILE;
+    if (p === "/user/photos" || p === "/photos") return photos;
+    if (p === "/stories" || p === "/stories/archive") return [];
+    if (p.startsWith("/highlights")) return { highlights: [] };
+    if (p === "/user/notifications") return { items: [], unread: 0 };
+    if (p === "/user/following") return { list: [] };
+    if (p === "/user/blocks" || p === "/albums") return { items: [] };
+    if (p === "/user/likes" || p === "/user/saves" || p === "/user/spots") return { ids: [] };
+    if (/^\/users\/[^/]+\/follow$/.test(p)) return { following: false, followers: 0, followingCount: 0 };
+    if (/^\/photos\/[^/]+\/comments$/.test(p)) return { items: [], count: 0 };
+    if (/^\/photos\/[^/]+\/like$/.test(p)) return { likes: 0 };
+    if (p === "/music/search") return { results: [] };
+    if (method !== "GET") return { ok: true };
+    return {};
+}
+
+let SIGNED_IN_PROFILE = null;
+
+/**
+ * 画面を「読める状態か」で見る監査。**名前・重なり・見出し・溢れ**を一度に測る。
+ *
+ * - `checkVisibility` で祖先の `display:none` まで見る（子だけ見ると
+ *   閉じたメニューの中身を「見えている」と数えてしまう。実測で誤報した）
+ * - `scrollIntoView` は `behavior: 'instant'`。`scroll-behavior: smooth` が
+ *   効くと移動が非同期になり、**まだ動いていない座標で当たり判定**をして
+ *   48件の誤報を出した（実測）
+ * - 包んでいる `<label>` も名前として数える（`for=` だけではない）
+ */
+const SIGNED_IN_AUDIT = `(() => {
+  const name = (el) => {
+    const al = el.getAttribute('aria-label'); if (al && al.trim()) return al.trim();
+    const lb = el.getAttribute('aria-labelledby');
+    if (lb) { const t = lb.split(/\\s+/).map(id => document.getElementById(id)?.textContent ?? '').join(' ').trim(); if (t) return t; }
+    const ti = el.getAttribute('title'); if (ti && ti.trim()) return ti.trim();
+    const txt = (el.textContent ?? '').replace(/\\s+/g, ' ').trim(); if (txt) return txt;
+    const img = el.querySelector('img[alt]'); if (img && (img.getAttribute('alt') ?? '').trim()) return img.getAttribute('alt').trim();
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      const id = el.id;
+      if (id) { const l = document.querySelector('label[for="' + CSS.escape(id) + '"]'); if (l && l.textContent.trim()) return l.textContent.trim(); }
+      const wrap = el.closest('label'); if (wrap && wrap.textContent.trim()) return wrap.textContent.trim();
+      const ph = el.getAttribute('placeholder'); if (ph && ph.trim()) return ph.trim();
+    }
+    return '';
+  };
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility({ checkVisibilityCSS: true }) : !!el.offsetParent);
+  const out = { noName: [], covered: [], dupIds: [], focusable: 0, h1: 0, overflow: 0, signedIn: false, text: 0 };
+  // ログイン画面そのものの目印で見る。パスワード欄の有無で見ていたら、
+  // /user/settings（パスワード変更の欄がある）が
+  // 「ログインしていない」と誤報した（実測）。
+  // ※この塊はテンプレート文字列の中なので、バッククォートと $ は書けない
+  out.signedIn = !document.querySelector('#login-email');
+  out.text = (document.body.innerText || '').replace(/\\s+/g, ' ').trim().length;
+  out.overflow = document.documentElement.scrollWidth - window.innerWidth;
+  const seen = new Map();
+  for (const el of document.querySelectorAll('[id]')) seen.set(el.id, (seen.get(el.id) ?? 0) + 1);
+  for (const [id, c] of seen) if (c > 1) out.dupIds.push(id + ' x' + c);
+  for (const el of document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role="switch"], [role="tab"]')) {
+    if (!visible(el)) continue;
+    out.focusable++;
+    if (el.getAttribute('aria-hidden') === 'true') continue;
+    if (!name(el)) out.noName.push(el.tagName + ': ' + el.outerHTML.slice(0, 80).replace(/\\s+/g, ' '));
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (r.bottom <= 0 || r.top >= innerHeight) continue;
+    const x = Math.min(innerWidth - 1, Math.max(1, r.left + r.width / 2));
+    const y = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    if (hit && !el.contains(hit) && !hit.contains(el)) {
+      out.covered.push(name(el).slice(0, 28) + ' <- ' + hit.tagName + '.' + String(hit.className).slice(0, 40));
+    }
+  }
+  const hs = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).map(h => Number(h.tagName[1]));
+  out.h1 = hs.filter(l => l === 1).length;
+  return out;
+})()`;
+
+/**
+ * ログイン済みの画面をひと通り開いて、**押せない操作が無いこと**を見る。
+ *
+ * ここで見るのは「絵が正しいか」ではなく「**指が届くか**」——
+ * いちばん下まで送った状態で、見えている操作の中心を当たり判定に掛ける。
+ * 下に固定した帯がタブバーやフッターを覆っていれば、そこで落ちる。
+ */
+async function runSignedInChecks(browser, eng) {
+    console.log(`\n[${eng}][7] ログイン済みの画面（偽のトークンで入る）`);
+
+    // **値が無ければ落とす。** 黙って飛ばすと、この節を足した理由
+    // （ログインできない site を見ていた）がそのまま戻る
+    check(`[${eng}] ログイン: Client ID が渡っている`, !!SIGNED_IN_CLIENT_ID,
+        "NEXT_PUBLIC_COGNITO_CLIENT_ID が空（verify-local.sh / deploy.yml の env を見る）");
+    if (!SIGNED_IN_CLIENT_ID) return;
+
+    // 実在するプロフィール（`/users/<sub>` を本人として開くため）
+    const profiles = fs.existsSync(path.join(OUT, "users"))
+        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
+        : [];
+    const sub = (profiles[0] ?? "").replace(/\.html$/, "") || "00000000-0000-4000-8000-000000000000";
+
+    const allPhotos = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "app", "data", "photos.json"), "utf8"));
+    const photos = allPhotos.slice(0, 6).map((p) => ({ ...p, userId: sub, published: true }));
+    SIGNED_IN_PROFILE = { userId: sub, displayName: "スモークの人", username: "smoke", bio: "", themeColor: "#2080f6", pinnedPhotoIds: [] };
+
+    const now = Math.floor(Date.now() / 1000);
+    const common = { sub, exp: now + 3600, iat: now, "cognito:groups": ["user"] };
+    const idToken = fakeJwt({ ...common, aud: SIGNED_IN_CLIENT_ID, token_use: "id", "cognito:username": sub, email: "smoke@example.com", email_verified: true });
+    const accessToken = fakeJwt({ ...common, client_id: SIGNED_IN_CLIENT_ID, token_use: "access", username: sub, scope: "aws.cognito.signin.user.admin" });
+
+    const screens = [
+        ["/user/profile", "自分のプロフィール"],
+        ["/user/upload", "投稿作成"],
+        ["/user/settings", "設定"],
+        ["/user/archive", "アーカイブ"],
+        ["/user/highlights", "ハイライト編集"],
+        ["/user/drafts", "下書き"],
+        ["/user/albums", "アルバム"],
+        ["/saves", "保存した写真"],
+        ["/saved-spots", "行きたい場所"],
+        ["/favorites", "いいねした写真"],
+        [`/users/${sub}`, "マイページ（本人として）"],
+        [`/user/edit?id=${encodeURIComponent(photos[0]?.id ?? "")}`, "写真の編集"],
+    ];
+
+    // 幅は2つだけ（画面数 × 幅で時間が伸びる）。**320px を外さない**
+    // ——重なりは狭い画面から出る（`MiniPlayer` の 3px 重なりがそうだった）
+    for (const [w, h, touch] of [[320, 640, true], [1280, 900, false]]) {
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, serviceWorkers: "block" });
+        await sealContext(ctx);
+        watchStaticAssets(ctx);
+        // **`sealContext` の後に登録する**（あとから足した route が先に当たる）。
+        // これで API だけ JSON を返し、それ以外の外向きは遮断のまま
+        await ctx.route("**://*.execute-api.*.amazonaws.com/**", (route) => route.fulfill({
+            status: 200, contentType: "application/json",
+            headers: { "access-control-allow-origin": "*" },
+            body: JSON.stringify(signedInApiBody(route.request().url(), route.request().method(), photos)),
+        }));
+        await ctx.addInitScript(({ cid, s, id, at }) => {
+            try {
+                const k = `CognitoIdentityServiceProvider.${cid}`;
+                localStorage.setItem(`${k}.LastAuthUser`, s);
+                localStorage.setItem(`${k}.${s}.idToken`, id);
+                localStorage.setItem(`${k}.${s}.accessToken`, at);
+                localStorage.setItem(`${k}.${s}.refreshToken`, "smoke");
+                localStorage.setItem(`${k}.${s}.clockDrift`, "0");
+            } catch { /* localStorage が無い環境ならそのまま */ }
+        }, { cid: SIGNED_IN_CLIENT_ID, s: sub, id: idToken, at: accessToken });
+
+        for (const [url, label] of screens) {
+            const page = await ctx.newPage();
+            const bag = attachDiagnostics(page);
+            const tag = `[${eng}] ${w}px ${label}`;
+            let audit = null;
+            try {
+                await page.goto(`http://localhost:${PORT}${url}`, { waitUntil: "domcontentloaded" });
+                // 認証の確定 → 取得 → 描画、と段があるので「ログイン画面が
+                // 消える」まで待つ（固定の待ちにしない）
+                await page.waitForFunction(() => !document.querySelector('#login-email'), null, { timeout: 15000 }).catch(() => {});
+                await page.waitForTimeout(800);
+                // **いちばん下まで送ってから測る。** 下に固定した帯が
+                // フッターを覆う形は、送り切った状態でしか出ない（実測）
+                await page.evaluate(() => {
+                    document.documentElement.style.scrollBehavior = "auto";
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+                await page.waitForTimeout(300);
+                audit = await page.evaluate(SIGNED_IN_AUDIT);
+            } catch (e) {
+                check(`${tag}: 開ける`, false, String(e.message ?? e).split("\n")[0]);
+                await page.close();
+                continue;
+            }
+            check(`${tag}: ログイン済みとして描かれる`, audit.signedIn && audit.text > 20,
+                `signedIn=${audit.signedIn} 本文=${audit.text}字`);
+            check(`${tag}: 押せない操作が無い`, audit.covered.length === 0, audit.covered.slice(0, 3).join(" / "));
+            check(`${tag}: 名前の無い操作が無い`, audit.noName.length === 0, audit.noName.slice(0, 2).join(" / "));
+            check(`${tag}: id が重複していない`, audit.dupIds.length === 0, audit.dupIds.slice(0, 3).join(" / "));
+            check(`${tag}: 見出しが1つ`, audit.h1 === 1, `h1=${audit.h1}`);
+            check(`${tag}: 横に溢れていない`, audit.overflow <= 1, `はみ出し=${audit.overflow}px`);
+            const real = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
+            check(`${tag}: 実行時のJSエラーが無い`, real.length === 0, real.slice(0, 2).join(" / "));
+            await page.close();
+        }
+        await ctx.close();
+    }
 }
 
 async function launchEngine(eng) {

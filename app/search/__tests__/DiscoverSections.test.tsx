@@ -115,6 +115,17 @@ describe("さがす: 発見の節", () => {
                  photo(`${type}${i}b`, type === "location" ? { location: `場所${i}` } : { category: `cat${i}` })],
             ).flat();
 
+        /**
+         * **節の「項目」のリンクだけ。** 見出しの「すべて見る ›」は
+         * 索引ページ（`/category` `/location` `/camera`）へ向けてあるので、
+         * 行き先の規則が項目とは違う（下の「索引ページへ行ける」で別に縛る）。
+         */
+        const INDEX_HREFS = ["/category", "/location", "/camera"];
+        const itemHrefs = (r: ReturnType<typeof render>) =>
+            [...r.container.querySelectorAll("a")]
+                .map((a) => a.getAttribute("href") ?? "")
+                .filter((h) => !INDEX_HREFS.includes(h));
+
         /** 撮影地のリンク。面の中は `/location/*`、柱は `/search?q=`（下の節を参照） */
         const spotLinks = (r: ReturnType<typeof render>, rail: boolean) =>
             [...r.container.querySelectorAll(rail ? 'a[href^="/search?q="]' : 'a[href*="/location/"]')];
@@ -155,12 +166,12 @@ describe("さがす: 発見の節", () => {
                 photo("b", { category: "landscape", location: "東京", exif: { camera: "SONY ILCE-7M3" } }),
             ];
             const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
-            const wideHrefs = [...wide.container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+            const wideHrefs = itemHrefs(wide);
             expect(wideHrefs.every((h) => !h.startsWith("/search")), "面の中まで検索結果に変えている").toBe(true);
             wide.unmount();
 
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
-            const railHrefs = [...rail.container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+            const railHrefs = itemHrefs(rail);
             expect(railHrefs.length).toBeGreaterThan(0);
             for (const h of railHrefs) expect(h, `集約ページのまま: ${h}`).toMatch(/^\/search\?/);
             // 写像は救済と同じ1本（種別ごとの受け皿も同じ）
@@ -181,6 +192,34 @@ describe("さがす: 発見の節", () => {
          * 属性の有無（`data-prefetch`）で見ていた頃は、**`<Link>` に戻しても
          * 落ちなかった**。
          */
+        /**
+         * 🔴 **「すべて見る ›」の行き先は実在する索引ページ。**
+         *
+         * `#125` でこの枠を落としたのは、**`href` を誰も渡しておらず
+         * 一度も描かれたことが無かった**から（実ビルドの `out/search.html`
+         * に0件）。戻したのは行き先を作ったから——`app/category/page.tsx`
+         * ほかが `collectEntries` の全件を並べるので、「すべて見る」が本当になる。
+         *
+         * トップ → 集約ページの内部リンクは、実ビルド（151 HTML）で
+         * **0本**だった（柱の `/search?…` は `robots.txt` で `Disallow`＝
+         * 行き止まり）。この1本がその穴を塞ぐ。
+         */
+        it("🔴 見出しから索引ページへ行ける（柱でも面の中でも）", () => {
+            const photos = [
+                photo("a", { category: "landscape", location: "東京", exif: { camera: "SONY ILCE-7M3" } }),
+                photo("b", { category: "landscape", location: "東京", exif: { camera: "SONY ILCE-7M3" } }),
+            ];
+            for (const variant of ["page", "rail"] as const) {
+                const r = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant={variant} />);
+                const hrefs = [...r.container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+                for (const want of INDEX_HREFS) {
+                    expect(hrefs, `${variant}: ${want} への「すべて見る」が無い`).toContain(want);
+                }
+                expect(r.container.textContent, `${variant}: 文言が消えている`).toContain("すべて見る");
+                r.unmount();
+            }
+        });
+
         it("🔴 柱は素の `<a>` で全ページ遷移する（`<Link>` だとクエリが落ちる）", () => {
             const photos = [photo("a", { category: "landscape" }), photo("b", { category: "landscape" })];
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
