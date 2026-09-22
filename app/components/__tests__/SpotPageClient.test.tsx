@@ -31,12 +31,13 @@ vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false,
  * 「その場で開く」を頼んでいるか、頼まれた側が何を返すかは、ここの関心。
  */
 vi.mock("../GalleryGrid", () => ({
-    default: ({ photos, onOpenPhoto, openInPlace }: {
+    default: ({ photos, onOpenPhoto, openInPlace, priorityCount }: {
         photos: Array<{ id: string }>;
         onOpenPhoto?: (id: string) => boolean;
         openInPlace?: boolean;
+        priorityCount?: number;
     }) => (
-        <div data-testid="grid" data-open-in-place={String(!!openInPlace)}>
+        <div data-testid="grid" data-open-in-place={String(!!openInPlace)} data-priority={String(priorityCount)}>
             {photos.map((p) => (
                 <button key={p.id} type="button" onClick={() => { lastOpenResult.value = onOpenPhoto?.(p.id); }}>
                     {p.id}
@@ -349,17 +350,21 @@ describe("撮影スポット詳細: その場で拡大", () => {
         expect(screen.queryByTestId("modal")).toBeNull();
     });
 
-    it("押した写真でビューアが開き、閉じると消える", () => {
+    // **ビューアは後ろへ回してある**（`next/dynamic`）ので、押してすぐには
+    // 描かれない。`findBy*` で待つ——同期で見ると、読み込みの速さに
+    // 結果が左右されるテストになる
+    it("押した写真でビューアが開き、閉じると消える", async () => {
         render(<SpotPageClient {...base} />);
         fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p2" }));
-        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
+        expect((await screen.findByTestId("modal")).getAttribute("data-current")).toBe("p2");
         fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
         expect(screen.queryByTestId("modal")).toBeNull();
     });
 
-    it("ビューアの送りは端で折り返す", () => {
+    it("ビューアの送りは端で折り返す", async () => {
         render(<SpotPageClient {...base} />);
         fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        await screen.findByTestId("modal");
         fireEvent.click(screen.getByRole("button", { name: "前へ" }));
         expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
         fireEvent.click(screen.getByRole("button", { name: "次へ" }));
@@ -368,6 +373,22 @@ describe("撮影スポット詳細: その場で拡大", () => {
 
     // 🔴 **開けないのに遷移を止めると、タップが無反応になる。**
     // 写真ページへ行く方が、何も起きないよりずっと良い
+    /**
+     * 🔴 **端末の「戻る」でビューアが閉じる**（ページごと離脱しない）。
+     *
+     * `/location/*` は検索の着地点。積まないまま開くと、戻るで
+     * **サイトの外**（前に見ていた別のサイト）へ出る。
+     * 履歴の作法そのものは `useViewerHistory.test.ts` が見る。ここで見るのは
+     * **この画面がそれを使っているか**。
+     */
+    it("戻るでビューアが閉じる（ページごと離脱しない）", async () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        expect(await screen.findByTestId("modal")).toBeTruthy();
+        fireEvent(window, new PopStateEvent("popstate"));
+        expect(screen.queryByTestId("modal"), "戻るで閉じていない＝ページごと離脱する").toBeNull();
+    });
+
     it("知らない写真なら false を返す（遷移を止めさせない）", () => {
         render(<SpotPageClient {...base} />);
         fireEvent.click(screen.getByRole("button", { name: "居ない写真を開く" }));
@@ -489,5 +510,35 @@ describe("撮影スポット詳細: ふりがなと概要", () => {
         const paras = [...container.querySelectorAll("p")].map((p) => p.textContent);
         // 説明文の段落は**そのまま**（読みや概要を足した文になっていない）
         expect(paras).toContain(base.description);
+    });
+});
+
+/**
+ * ── ヒーローと格子の関係（レビューの指摘3・4）─────────────
+ */
+describe("撮影スポット詳細: ヒーローと格子", () => {
+    // **格子は折り返しのずっと下**（実測 y=1064 / 画面 844・390px）。
+    // 既定の8枚 `priority` は、画面に出ていない写真で LCP と帯域を奪い合う
+    it("格子に「先読みしない」を頼んでいる", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.getByTestId("grid").getAttribute("data-priority")).toBe("0");
+    });
+
+    // **同じ画面で同じ写真の振る舞いを2通りにしない。**
+    // ヒーローも格子と同じく「その場で拡大」
+    it("代表画像を押すと、遷移せずその場で開く", async () => {
+        render(<SpotPageClient {...base} />);
+        const hero = screen.getByRole("link", { name: "この写真を開く" });
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(hero, ev);
+        expect(ev.defaultPrevented, "遷移を止めていない＝その場で開いていない").toBe(true);
+        expect((await screen.findByTestId("modal")).getAttribute("data-current")).toBe("p1");
+    });
+
+    // 🔴 **`href` は残す。** 消すと検索に載っているこのページから
+    // 写真の個別ページへの内部リンクが1本減る
+    it("代表画像の `href` は写真ページのまま", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.getByRole("link", { name: "この写真を開く" }).getAttribute("href")).toContain("p1");
     });
 });

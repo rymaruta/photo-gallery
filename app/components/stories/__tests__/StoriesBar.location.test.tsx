@@ -75,6 +75,8 @@ async function pickImage() {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["img"], "a.jpg", { type: "image/jpeg" }));
     await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+    // 撮影地は「位置情報」の道具の中（1度に1つだけ開く・最終版モック 08）
+    await userEvent.click(screen.getByRole("tab", { name: "位置情報" }));
 }
 
 // **投稿の往復を増やさない。** ここで `GET /user/profile` を待っていたが、
@@ -207,6 +209,7 @@ describe("撮影地を持ち越さない", () => {
         mockExtract.mockResolvedValue({});
         await userEvent.upload(input, new File(["B"], "b.jpg", { type: "image/jpeg" }));
         await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
+        await userEvent.click(screen.getByRole("tab", { name: "位置情報" }));
 
         // ここで1枚目の地名がようやく届く
         held.release("横浜 みなとみらい");

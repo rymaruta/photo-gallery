@@ -216,12 +216,25 @@ describe("角のハンドル（StoriesBar の配線）", () => {
  *  2. **スタンプに字体・色・下地の欄を出さない**（押しても効かない的）
  *  3. **上限は文字と合わせて数える**
  */
+/**
+ * 道具の欄を開く（最終版モック 08 の「編集ツール」）。**1度に1つだけ開く**
+ * ので、スタンプと投票は「スタンプ」を開いてから、文字は「テキスト」を
+ * 開いてから触る。
+ */
+const openTool = async (name: string) => {
+    await userEvent.click(screen.getByRole("tab", { name }));
+};
+/** スタンプの道具を開いた状態で下書きを出す */
+const pickImageWithStickers = async () => {
+    await pickImage();
+    await openTool("スタンプ");
+};
 const stamps = () => screen.queryAllByRole("button", { name: STORY_STAMPS.heart.label });
 const placed = () => document.querySelectorAll('[role="dialog"] p[style*="translate"]');
 
 describe("スタンプ（StoriesBar の配線）", () => {
     it("文字が1つも無くても置ける", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         expect(placed(), "まだ何も置いていない").toHaveLength(0);
         await userEvent.click(stamps()[0]);
         expect(placed(), "スタンプが写真の上に出ていない").toHaveLength(1);
@@ -230,7 +243,7 @@ describe("スタンプ（StoriesBar の配線）", () => {
 
     // **押しても効かない欄を置かない。** 字体・色・下地は絵柄に効かない
     it("スタンプを選んでいる間は、字体・色・下地の欄を出さない", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(stamps()[0]);
         for (const name of ["字体", "色", "下地"]) {
             expect(screen.queryByRole("tab", { name }), `${name} の欄が出ている`).toBeNull();
@@ -241,8 +254,10 @@ describe("スタンプ（StoriesBar の配線）", () => {
 
     // 文字を選び直せば、文字の欄が戻る
     it("文字を選び直すと、字体の欄が戻る", async () => {
-        await pickImage();
+        await pickImageWithStickers();
+        await openTool("テキスト");
         await type("朝");
+        await openTool("スタンプ");
         await userEvent.click(stamps()[0]);
         expect(screen.queryByRole("tab", { name: "字体" })).toBeNull();
         // 置いた文字を触って選び直す
@@ -251,7 +266,7 @@ describe("スタンプ（StoriesBar の配線）", () => {
     });
 
     it("置いたスタンプにもハンドルが出て、回せる", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(stamps()[0]);
         const el = placed()[0] as HTMLElement;
         sizeTheBox(el);
@@ -264,7 +279,7 @@ describe("スタンプ（StoriesBar の配線）", () => {
 
     // **上限は文字と合わせて数える**（多いほど読めなくなるのは絵柄も同じ）
     it("上限まで置いたら、スタンプを押せなくする", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         for (let i = 0; i < STORY_TEXTS_MAX; i++) await userEvent.click(stamps()[0]);
         expect(placed()).toHaveLength(STORY_TEXTS_MAX);
         expect(stamps()[0], "上限を超えて置ける").toBeDisabled();
@@ -282,8 +297,9 @@ describe("スタンプ（StoriesBar の配線）", () => {
  */
 describe("スタンプを置いたあとに打つ", () => {
     it("スタンプを置いてから打つと、新しい文字ができる", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(stamps()[0]);
+        await openTool("テキスト");
         expect(placed()).toHaveLength(1);
 
         await type("朝の空");
@@ -300,7 +316,7 @@ describe("スタンプを置いたあとに打つ", () => {
 
     // 読み上げの名前も、消す相手に合わせる
     it("スタンプを選んでいるときは「このスタンプを消す」と名乗る", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(stamps()[0]);
         expect(screen.getByRole("button", { name: "このスタンプを消す" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "この文字を消す" })).toBeNull();
@@ -323,7 +339,7 @@ const voteCard = () => document.querySelector("[data-story-vote]") as HTMLElemen
 
 describe("投票スタンプ（StoriesBar の配線）", () => {
     it("「投票」を押すと、写真の上にカードが出る", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         expect(voteCard()).toBeNull();
         await userEvent.click(voteButton()!);
         expect(voteCard(), "投票が写真の上に出ていない").not.toBeNull();
@@ -335,7 +351,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
     // **1投稿に1つ。** 票をストーリー単位で数えるので、2つ置けると行き先が決まらない。
     // `sanitizeStoryTexts` も2つ目を落とすので、押せるのに保存で消える、を作らない
     it("置いたら2つ目は押せない", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         expect(voteButton(), "2つ目が押せる").toBeDisabled();
         // トグルではない（押し直して外せない）ので `aria-pressed` は付けない。
@@ -346,7 +362,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
     });
 
     it("投票を選んでいる間は、問い・2択・大きさの欄が出て、字体の欄は出ない", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         expect(screen.getByRole("textbox", { name: "投票の問い" })).toBeInTheDocument();
         expect(screen.getByRole("textbox", { name: "選択肢1" })).toBeInTheDocument();
@@ -358,7 +374,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
     });
 
     it("問いと選択肢を直すと、カードに反映される", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         const q = screen.getByRole("textbox", { name: "投票の問い" });
         await userEvent.clear(q);
@@ -380,8 +396,9 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
      * 足したときに開け直していないことを見る。
      */
     it("投票を置いてから打つと、新しい文字ができる（投票は問いのまま）", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
+        await openTool("テキスト");
         await type("朝の空");
         expect(placed(), "文字が増えていない").toHaveLength(2);
         expect(voteCard()!.textContent, "投票の中身が変わっている").toContain("この景色、好き？");
@@ -396,7 +413,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
      * 空のピルが見えたままなので「置いたのに消えた」に直結する。
      */
     it("選択肢を空にすると投稿できず、理由が出る。入れ直すと戻る", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         const post = () => screen.getByRole("button", { name: "ストーリーに投稿" });
         expect(post()).toBeEnabled();
@@ -411,7 +428,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
 
     // 問いが空白だけでも同じ（`trim` で見る）
     it("問いが空白だけでも投稿できない", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         const q = screen.getByRole("textbox", { name: "投票の問い" });
         await userEvent.clear(q);
@@ -425,7 +442,7 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
      * 投票の3つだけ 14px で入れていた
      */
     it("問いと選択肢の欄は 16px（iOS で画面が拡大しない）", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         for (const name of ["投票の問い", "選択肢1", "選択肢2"]) {
             const el = screen.getByRole("textbox", { name });
@@ -434,13 +451,13 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
     });
 
     it("消すボタンは「この投票を消す」と名乗る", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         await userEvent.click(voteButton()!);
         expect(screen.getByRole("button", { name: "この投票を消す" })).toBeInTheDocument();
     });
 
     it("上限まで置いたら投票も押せない", async () => {
-        await pickImage();
+        await pickImageWithStickers();
         for (let i = 0; i < STORY_TEXTS_MAX; i++) await userEvent.click(stamps()[0]);
         expect(voteButton()).toBeDisabled();
     });

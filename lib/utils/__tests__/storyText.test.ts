@@ -196,7 +196,9 @@ describe("選べるものの一覧", () => {
             expect(v.css, `${k} の css が空`).toBeTruthy();
             // **総称ファミリで終わる。** 端末に無いときに何も指定が残らないと、
             // 選んだ字体が「既定のまま」になって選べていないのと同じになる
-            expect(v.css, `${k} が総称ファミリで終わっていない`).toMatch(/(sans-serif|serif|monospace)$/);
+            // `cursive` は手書き（`hand`）の受け皿。端末に手書きの字体が
+            // あればそれが使われ、無ければブラウザの既定の筆記体になる
+            expect(v.css, `${k} が総称ファミリで終わっていない`).toMatch(/(sans-serif|serif|monospace|cursive)$/);
             expect(v.weight, `${k} の太さが無い`).toBeGreaterThan(0);
             expect(v.label, `${k} のラベルが無い`).toBeTruthy();
         }

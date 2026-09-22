@@ -85,10 +85,12 @@ describe("StoryViewer", () => {
         expect(screen.queryByText("1枚目")).toBeNull();
     });
 
-    it("自分のストーリーには削除ボタンがあり、確認 → onDelete → onClose", async () => {
+    // 削除の入口は右上の「…」（モック09 ⑦⑧で、右上は「…」と「✕」の2つだけ）
+    it("自分のストーリーには削除があり、確認 → onDelete → onClose", async () => {
         const onDelete = vi.fn().mockResolvedValue(true);
         const { onClose } = setup({ onDelete });
-        fireEvent.click(screen.getByLabelText("ストーリーを削除"));
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
         // 確認ダイアログ
         const dialog = await screen.findByText(/この操作は取り消せません/);
         expect(dialog).toBeInTheDocument();
@@ -97,9 +99,10 @@ describe("StoryViewer", () => {
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
-    it("他人のストーリーには削除ボタンを出さない", () => {
+    it("他人のストーリーには削除を出さない", () => {
         setup({ initialGroupIndex: 1 }); // other グループ
-        expect(screen.queryByLabelText("ストーリーを削除")).toBeNull();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        expect(screen.queryByRole("button", { name: "ストーリーを削除" })).toBeNull();
     });
 
     it("自分のストーリーには閲覧者ピルを表示する", () => {
@@ -119,13 +122,22 @@ describe("StoryViewer", () => {
             items: [{ id: "v1", src: "https://cdn/x/v.mp4", userId: "owner", mediaType: "video", createdAt: "2026-07-04T10:00:00Z", expiresAt: "2026-07-05T10:00:00Z" }],
         }];
         setup({ groups });
-        expect(screen.getByLabelText(/ミュート/)).toBeInTheDocument();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        expect(screen.getByRole("button", { name: /ミュート/ })).toBeInTheDocument();
+    });
+
+    // 音の無い写真に「ミュート」を置かない（押しても何も起きない項目を出さない）
+    it("音の無いストーリーの操作シートにミュートは出ない", () => {
+        setup();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        expect(screen.queryByRole("button", { name: /ミュート/ })).toBeNull();
     });
 
     it("削除確認をキャンセルすると onDelete は呼ばれない", async () => {
         const onDelete = vi.fn().mockResolvedValue(true);
         setup({ onDelete });
-        fireEvent.click(screen.getByLabelText("ストーリーを削除"));
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
         await screen.findByText(/この操作は取り消せません/);
         fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
         expect(onDelete).not.toHaveBeenCalled();
