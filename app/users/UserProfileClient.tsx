@@ -38,7 +38,6 @@ import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
-import { publicImageUrl } from "@/lib/utils/seo";
 
 type SongEntry = {
     title: string;
@@ -72,7 +71,6 @@ type UserProfile = {
     pinnedPhotoIds?: string[];
 };
 
-const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
 
 // Leaflet は window 依存のため SSG では読み込まない
 
@@ -623,11 +621,6 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     // 「下書きが数に入らない＝増えていない」に見えるので、**本人にだけ
     // 内訳を添えて**食い違いの理由が分かるようにする。
     const hiddenCount = isOwner ? postCount - publishedPhotos.length : 0;
-    const totalLikes = useMemo(
-        () => visiblePhotos.reduce((sum, p) => sum + (typeof p.likes === "number" && p.likes > 0 ? p.likes : 0), 0),
-        [visiblePhotos]
-    );
-
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
     /** 「投稿する」の2択（`PostSheet`）。「＋」と同じシートを開く */
@@ -1096,7 +1089,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 （`CoverBackground` と `pt-24 sm:pt-32` が対）。編集画面のカバー欄も
                 同じ回で外した——設定できるのに出ない状態を残さない */}
             <div className="relative">
-                <div className="relative max-w-2xl mx-auto px-4">
+                <div className="relative max-w-2xl lg:max-w-5xl mx-auto px-4">
                     {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
                         背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
                     <div className="pt-4 mb-2 flex items-center justify-between">
@@ -1207,10 +1200,13 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {/* プロフィールヘッダー: アバターだけがカバーバンドの下端に重なり、
                         名前と一言はカバーの外（黒背景）に置く。カバー写真の柄と
                         文字が重なって読みにくくなるのを避けるため。 */}
-                    <div className="pb-5 pt-2">
+                    {/* **PC は横に使う**（owner の指示書 2026-09-22:「PCでは
+                        プロフィールヘッダーを横方向に活用し、写真一覧を複数カラムで」）。
+                        スマホ（1024px 未満）は最終版モックのまま縦に積む */}
+                    <div className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8">
                         {/* アバター（オリジナルのオーロラリング: 既定は主色で回転）。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
-                        <div className="relative w-fit rounded-full shadow-lg shadow-accent/20">
+                        <div className="relative w-fit rounded-full shadow-lg shadow-accent/20 lg:flex-shrink-0">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
                             <div
                                 className="absolute inset-0 rounded-full avatar-orbit"
@@ -1238,6 +1234,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
 
+                        <div className="lg:flex-1 lg:min-w-0">
                         {/* 名前 + @ユーザー名 + フォローボタン（同じ行の右端）。
                             縦の場所を使わずに主要アクションを見せるため。名前は truncate し、
                             ボタン側は縮ませないので、長い名前でも崩れない。 */}
@@ -1421,6 +1418,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {/* **編集は名前の右の枠線ボタン、投稿はアバターの「＋」へ移した**
                         （最終版モック）。ここに在った2つ並びのボタン行は無くなった。
                         `postBtnRef` は `PostSheet` の戻り先として＋ボタンが持つ */}
+                    </div>{/* /PC の右列 */}
+
                     {isOwner && (
                         <div className="mt-2 text-center">
                             <Link
@@ -1522,7 +1521,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
                     ) : null) : (
-                        <div className="grid grid-cols-3 gap-[2px] pb-8">
+                        <div className="grid grid-cols-3 lg:grid-cols-4 gap-[2px] pb-8">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
