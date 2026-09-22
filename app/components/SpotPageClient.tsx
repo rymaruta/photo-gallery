@@ -6,6 +6,7 @@ import {
     MapPinIcon, ArrowLeftIcon, ShareIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import GalleryGrid from "./GalleryGrid";
+import GalleryModal from "./GalleryModal";
 import MoreMenu from "./MoreMenu";
 import Thumb from "./Thumb";
 import { GRID_SIZES_6XL, SPOT_HERO_SIZES } from "./gridSizes";
@@ -117,6 +118,29 @@ export default function SpotPageClient({
             showToast(en ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
         }
     };
+
+    /**
+     * その場で開いている写真の位置（モック⑧「タップで拡大表示に切り替わる」）。
+     *
+     * **`GalleryModal` を使い回す。2つ目のビューアは作らない**（PM の指示）。
+     * 送り・スワイプ・キーボード・フォーカスの閉じ込め・いいね・保存は
+     * 全部あちらが持っている。
+     *
+     * **URL は変えない。** ホームの `?photo=` は「静的ページの無い新着写真を
+     * 見せる」ための仕掛けで、こちらの写真は**全部 `/photo/<id>` を持っている**
+     * ——深いリンクはその URL が既に担っているので、同じことを2通りで
+     * できるようにしない。
+     */
+    const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+    const openById = React.useCallback((photoId: string) => {
+        const i = photos.findIndex((p) => p.id === photoId);
+        // **見つからなければ `false` を返す。** `GalleryGrid` はこの戻り値で
+        // 「遷移を止めるか」を決めるので、開けないのに止めると**タップが
+        // 無反応**になる（写真ページへ行く方が、何も起きないよりずっと良い）
+        if (i < 0) return false;
+        setOpenIndex(i);
+        return true;
+    }, [photos]);
 
     const TABS: Array<[TabKey, string]> = [
         ["overview", en ? "Overview" : "概要"],
@@ -426,7 +450,16 @@ export default function SpotPageClient({
                     {description}
                     <span className="ml-1 whitespace-nowrap text-white/50">（{photos.length}枚）</span>
                 </p>
-                <GalleryGrid photos={photos} locale={locale} sizes={GRID_SIZES_6XL} />
+                <GalleryGrid
+                    photos={photos}
+                    locale={locale}
+                    sizes={GRID_SIZES_6XL}
+                    // モック⑧「タップで拡大表示に切り替わる」。
+                    // **`<Link href="/photo/<id>">` は残る**ので、
+                    // 検索に載っているこのページからの内部リンクは消えない
+                    onOpenPhoto={openById}
+                    openInPlace
+                />
 
                 {/* **写真が少ないページにだけ。** 既存の `CollectionPage` と同じ扱い */}
                 {nearbyPhotos.length > 0 && (
@@ -538,6 +571,18 @@ export default function SpotPageClient({
                         ))}
                     </div>
                 </section>
+            )}
+            {/* **その場で拡大**（モック⑧）。`GalleryModal` を使い回す。
+                端では折り返す——ヒーローの前/次と同じ作法 */}
+            {openIndex !== null && photos[openIndex] && (
+                <GalleryModal
+                    photos={photos}
+                    currentIndex={openIndex}
+                    onClose={() => setOpenIndex(null)}
+                    onNext={() => setOpenIndex((i) => (i === null ? null : (i + 1) % photos.length))}
+                    onPrev={() => setOpenIndex((i) => (i === null ? null : (i - 1 + photos.length) % photos.length))}
+                    locale={locale}
+                />
             )}
         </main>
     );
