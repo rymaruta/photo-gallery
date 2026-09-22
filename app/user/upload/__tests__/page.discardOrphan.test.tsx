@@ -101,7 +101,7 @@ beforeEach(() => {
 /** 共有シート経由の1枚を、保存失敗まで進める */
 async function uploadAndFail() {
     render(<UploadPage />);
-    const publish = await screen.findByRole("button", { name: /枚を公開/ });
+    const publish = await screen.findByRole("button", { name: /投稿する/ });
     await waitFor(() => expect(publish).not.toBeDisabled());
     await userEvent.click(publish);
     // S3 には上がったが保存で落ちた状態
@@ -146,7 +146,7 @@ describe("保存に失敗した項目を捨てるとき", () => {
             return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
         });
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
@@ -169,7 +169,7 @@ describe("S3 への PUT が応答を返さなかったとき", () => {
     it("上げたかもしれない実体を消しに行く", async () => {
         putRejects();
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -192,7 +192,7 @@ describe("S3 への PUT が応答を返さなかったとき", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -257,7 +257,7 @@ describe("サムネの PUT だけ失敗したとき", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -276,7 +276,7 @@ describe("サムネの PUT だけ失敗したとき", () => {
         }));
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -287,7 +287,7 @@ describe("サムネの PUT だけ失敗したとき", () => {
 
     it("サムネのキーを消しに行き、本体の保存は続ける", async () => {
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -348,7 +348,7 @@ describe("presign に申告した長さと、PUT する本文の長さ", () => {
         vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 

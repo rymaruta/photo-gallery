@@ -73,7 +73,7 @@ async function pickOne() {
     const { container } = render(<UploadPage />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
-    await screen.findByText(/共通設定/);
+    await screen.findByText(/全写真に適用/);
 }
 
 const chip = (c: string) => screen.getByRole("switch", { name: `カテゴリ: ${c}` });
@@ -141,7 +141,7 @@ describe("アップロード画面: カテゴリを選ぶ", () => {
         await pickOne();
         // タグ側が出ていることを先に確かめる（前提。これが無いと
         // 「カテゴリのチップしか無いから重ならない」で通ってしまう）
-        await screen.findByRole("switch", { name: "冬" });
+        await screen.findByRole("switch", { name: "#冬" });
         const names = screen.getAllByRole("switch").map((b) => b.getAttribute("aria-label") ?? b.textContent ?? "");
         const dup = names.filter((n, i) => names.indexOf(n) !== i);
         expect(dup, `同じ名前のスイッチ: ${dup.join(", ")}`).toEqual([]);

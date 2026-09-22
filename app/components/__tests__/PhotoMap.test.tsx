@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import { MAP_MAX_ZOOM } from "@/lib/utils/mapView";
 
@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
     zoomControl: null as unknown, mapOpts: null as Record<string, unknown> | null,
     fitOpts: null as Record<string, unknown> | null, fitCalls: 0,
     setViewArgs: [] as Array<{ center: [number, number]; zoom: number }>,
+    bounds: { south: 35, west: 139, north: 36, east: 140 },
     fireMap: (() => {}) as (ev: string) => void,
 }));
 const fireMap = (ev: string) => state.fireMap(ev);
@@ -44,6 +45,13 @@ vi.mock("leaflet", () => {
     const map = {
         getZoom: () => state.zoom,
         getCenter: () => ({ lat: state.center[0], lng: state.center[1] }),
+        // 操作のボタン（容器の外の `<button>`）から呼ぶぶん
+        zoomIn: vi.fn(() => { state.zoom += 1; }),
+        zoomOut: vi.fn(() => { state.zoom -= 1; }),
+        getBounds: () => ({
+            getSouth: () => state.bounds.south, getWest: () => state.bounds.west,
+            getNorth: () => state.bounds.north, getEast: () => state.bounds.east,
+        }),
         fitBounds: vi.fn((_b: unknown, o: Record<string, unknown>) => { state.fitOpts = o; state.fitCalls++; (handlers.moveend ?? []).forEach((f) => f()); }),
         setView: vi.fn((center: [number, number], zoom: number) => {
             state.setViewArgs.push({ center, zoom }); state.center = center; state.zoom = zoom;
@@ -106,6 +114,7 @@ function setReducedMotion(reduce: boolean) {
 beforeEach(() => {
     state.markers.length = 0; state.zoom = 4; state.center = [36, 138]; state.zoomControl = null;
     state.mapOpts = null; state.fitOpts = null; state.fitCalls = 0; state.setViewArgs.length = 0;
+    state.bounds = { south: 35, west: 139, north: 36, east: 140 };
     setReducedMotion(false);
     window.location.hash = "";
     sessionStorage.clear();
@@ -282,13 +291,46 @@ describe("押されたピンを親へ渡す", () => {
 
     // Leaflet はレイヤーの DOM イベントを**地図にも伝える**（`Layer._fireDOMEvent`
     // が targets にレイヤーと地図を並べて撃つ）。止めるのは
-    // `bubblingMouseEvents: false` のレイヤーだけで、`Marker` は既定 false・
-    // `Path`（circleMarker）は既定 **true**。渡し忘れると、単独のピンを押した
-    // 直後に地図の click（＝閉じる）が走って何も出ない
-    it("単独のピンは click を地図へ伝えない（bubblingMouseEvents: false）", async () => {
+    // `bubblingMouseEvents: false` のレイヤーだけで、**`Marker` は既定 false**・
+    // `Path`（circleMarker）は既定 true。渡し忘れると、単独のピンを押した
+    // 直後に地図の click（＝閉じる）が走って何も出ない。
+    //
+    // **2026-09-22 に単独のピンは `Marker`（写真入りの `divIcon`）になった**
+    // ので、既定のまま伝わらない。`circleMarker` に戻すなら
+    // `bubblingMouseEvents: false` を明示すること
+    it("単独のピンは Marker で描く（click が地図へ伝わらない側）", async () => {
         await draw([photo("a")]);
-        expect(state.markers[0].kind).toBe("circle");
-        expect(state.markers[0].opts.bubblingMouseEvents).toBe(false);
+        expect(state.markers[0].kind).toBe("marker");
+        expect(state.markers[0].opts.bubblingMouseEvents, "Path に戻すなら false を明示する").toBeUndefined();
+    });
+
+    // モックの②「写真ピン」。地図の上で「どこに何が在るか」が絵で分かる形
+    it("単独のピンには写真のサムネを入れる（幅と高さを px で書く）", async () => {
+        await draw([photo("a", { thumbSm: "https://cdn.example.com/uploads/a_sm.webp" })]);
+        const icon = state.markers[0].opts.icon as { html: HTMLElement; iconSize: number[]; iconAnchor: number[] };
+        const img = icon.html.querySelector("img");
+        expect(img, "サムネが入っていない").toBeTruthy();
+        expect(img!.getAttribute("src")).toContain("a_sm.webp");
+        // **px を書かないと Leaflet の `width: auto` が効く**（読み込み前は幅0、
+        // 読み込み後は元画像の 256px になってピンが化ける）
+        expect(img!.getAttribute("width")).toBe("40");
+        expect(img!.getAttribute("height")).toBe("40");
+        // 尖りの先が座標（下端を合わせる）
+        expect(icon.iconAnchor).toEqual([icon.iconSize[0] / 2, icon.iconSize[1]]);
+    });
+
+    // **文字列の HTML を組まない。** 写真の URL を通した差し込みの口になる
+    it("ピンの中身は DOM で渡す（HTML の文字列を組まない）", async () => {
+        await draw([photo("a")]);
+        const icon = state.markers[0].opts.icon as { html: unknown };
+        expect(typeof icon.html, "文字列で組んでいる").not.toBe("string");
+    });
+
+    it("サムネが無い写真でも描ける（丸だけ残す）", async () => {
+        await draw([photo("a", { src: "" } as Partial<Photo>)]);
+        const icon = state.markers[0].opts.icon as { html: HTMLElement };
+        expect(icon.html.querySelector("img")).toBeNull();
+        expect(icon.html.querySelector(".photo-map-pin__tail")).toBeTruthy();
     });
 
     // 束のピンは `keyboard: true` で Tab で来られるが、Leaflet は Enter を
@@ -320,13 +362,111 @@ describe("押されたピンを親へ渡す", () => {
     });
 });
 
-describe("ズームの位置", () => {
-    // 左上に置くと、少しスクロールした帯で固定ヘッダーの下に入り、
-    // 半透明のヘッダー越しに「＋」が見えているのに押せない
-    // （押すとヘッダーのロゴが反応してトップへ飛ぶ）——実測で確認
-    it("左下に置く（固定ヘッダーの下に入らない）", async () => {
+// **操作のボタンは Leaflet のコントロールにしない**（2026-09-22・最終版モック）。
+// `L.control.zoom` は白い26px四方の `<a href="#">` で、色も大きさもこのサイトと
+// 合わず、読み上げには「リンク」と伝わる。地図の容器の**外**に素の `<button>` を
+// 置けば、Leaflet のドラッグ・ホイールにも触られない
+describe("操作のボタン", () => {
+    it("Leaflet のズームコントロールは作らない", async () => {
         await draw([photo("a")]);
-        expect(state.zoomControl).toMatchObject({ position: "bottomleft" });
+        expect(state.zoomControl, "Leaflet 側のコントロールが復活している").toBeNull();
+        expect(state.mapOpts?.zoomControl).toBe(false);
+    });
+
+    it("＋ と − で地図を寄せ引きする", async () => {
+        await draw([photo("a")]);
+        const before = state.zoom;
+        fireEvent.click(screen.getByRole("button", { name: "拡大" }));
+        expect(state.zoom).toBe(before + 1);
+        fireEvent.click(screen.getByRole("button", { name: "縮小" }));
+        expect(state.zoom).toBe(before);
+    });
+
+    // **`z-[1001]` は Leaflet のコントロール層（1000）より前**。そのぶん、
+    // 外枠が `isolate` でスタッキングコンテキストを作っていないと、
+    // この値がページの土俵に出て固定ヘッダー（z-50）を覆う（`2922526f` と同じ形）
+    it("ボタンは地図の枠の中に閉じ込める（外枠が isolate）", async () => {
+        await draw([photo("a")]);
+        const frame = document.querySelector(".photo-map-frame") as HTMLElement;
+        expect(frame, "外枠が無い").toBeTruthy();
+        expect(frame.className).toContain("isolate");
+        expect(frame.querySelector('[data-testid="map-locate"]'), "ボタンが枠の外にある").toBeTruthy();
+    });
+
+    // 「このエリアを検索」。範囲は素の数で親へ渡す（Leaflet の型を外に出さない）
+    it("「このエリアを検索」で今の表示範囲を親へ渡す", async () => {
+        const onSearchArea = vi.fn();
+        render(<PhotoMap photos={[photo("a")]} locale="ja" onSearchArea={onSearchArea} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        fireEvent.click(screen.getByTestId("map-search-area"));
+        expect(onSearchArea).toHaveBeenCalledWith({ south: 35, west: 139, north: 36, east: 140 });
+    });
+
+    it("範囲が効いているときは、押すと解除になる", async () => {
+        const onSearchArea = vi.fn();
+        render(<PhotoMap photos={[photo("a")]} locale="ja" onSearchArea={onSearchArea} areaActive />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        const btn = screen.getByTestId("map-search-area");
+        expect(btn.textContent).toContain("範囲の指定を解除");
+        fireEvent.click(btn);
+        expect(onSearchArea).toHaveBeenCalledWith(null);
+    });
+
+    it("親が受け取らないなら「このエリアを検索」は出さない", async () => {
+        await draw([photo("a")]);
+        expect(screen.queryByTestId("map-search-area")).toBeNull();
+    });
+});
+
+/**
+ * **現在地は送らない・保存しない**（owner の指示 2026-09-22）。
+ *
+ * 地図は動かすたびに中心を `sessionStorage` に控えている。現在地へ寄せた
+ * あと控え続けると、**端末のだいたいの位置が残る**（小数4桁＝約11m）。
+ * 写真の座標は約1km に丸めて出しているのに、閲覧者自身の位置だけそれより
+ * 細かく残るのは筋が通らないので、使った瞬間に消して以後書かない。
+ */
+describe("現在地", () => {
+    const stubGeolocation = (impl: Partial<Geolocation>) => {
+        Object.defineProperty(navigator, "geolocation", {
+            configurable: true, writable: true, value: impl as Geolocation,
+        });
+    };
+
+    it("押すと、その位置へ寄る", async () => {
+        stubGeolocation({
+            getCurrentPosition: (ok) => ok({ coords: { latitude: 48.86, longitude: 2.35 } } as GeolocationPosition),
+        });
+        await draw([photo("a")]);
+        state.setViewArgs.length = 0;
+        fireEvent.click(screen.getByTestId("map-locate"));
+        expect(state.setViewArgs).toEqual([{ center: [48.86, 2.35], zoom: 12 }]);
+    });
+
+    it("押した時点で控えを消し、以後は見ている場所を控えない", async () => {
+        stubGeolocation({
+            getCurrentPosition: (ok) => ok({ coords: { latitude: 48.86, longitude: 2.35 } } as GeolocationPosition),
+        });
+        sessionStorage.setItem("photo-map:view", JSON.stringify({ lat: 1, lng: 2, zoom: 5, hash: "" }));
+        await draw([photo("a")]);
+        fireEvent.click(screen.getByTestId("map-locate"));
+        expect(sessionStorage.getItem("photo-map:view"), "現在地が控えに残っている").toBeNull();
+
+        // そのあと地図を動かしても書かない
+        state.center = [48.86, 2.35]; state.zoom = 12;
+        fireEvent.click(screen.getByRole("button", { name: "拡大" }));
+        fireMap("moveend");
+        expect(sessionStorage.getItem("photo-map:view"), "現在地の近くを控えている").toBeNull();
+    });
+
+    it("断られたら、その旨を出す（読み上げにも届ける）", async () => {
+        stubGeolocation({
+            getCurrentPosition: (_ok, err) => err?.({ code: 1 } as GeolocationPositionError),
+        });
+        await draw([photo("a")]);
+        fireEvent.click(screen.getByTestId("map-locate"));
+        const msg = await screen.findByRole("status");
+        expect(msg.textContent).toContain("現在地を取得できませんでした");
     });
 });
 

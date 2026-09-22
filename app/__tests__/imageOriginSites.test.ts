@@ -120,7 +120,7 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/stories/StoriesBar.tsx", "draft.previewUrl", "下書きの blob: URL（まだ上げていない）"],
     ["app/components/stories/StoriesBar.tsx", "url", "長さを測るための blob: URL"],
     ["app/user/profile/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
-    ["app/user/upload/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
+    ["app/user/upload/page.tsx", "it.preview", "サムネ帯の blob: URL（まだ上げていない・端末の中だけ）"],
     // 切り抜きプレビューは `app/components/CropFramePicker.tsx` へ切り出した
     // （アップロードと編集で共用）。**呼ぶ側で使い分ける**——
     // アップロードは端末の blob: URL をそのまま、編集は保存済みの URL を
