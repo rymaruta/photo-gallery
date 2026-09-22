@@ -466,6 +466,44 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 公開範囲を絞った写真のうち、**自分に見えるぶん**。
+  # 静的な一覧（photos.json）には出さないので、ここでだけ返す
+  getRestrictedFeed:
+    handler: src/restrictedFeed.getRestrictedFeed
+    events:
+      - httpApi:
+          path: /feed/restricted
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 「親しい友達」（写真の公開範囲）。**本人の一覧だけ**——
+  # 誰が入っているかは本人のもので、相手にも知らせない。
+  # ⚠️ ストーリーには使わない（公開範囲の選択そのものが無くなった
+  # ——2026-09-22・`src/storyVisibility.ts`）
+  getCloseFriends:
+    handler: src/closeFriends.getCloseFriends
+    events:
+      - httpApi:
+          path: /user/close-friends
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  setCloseFriend:
+    handler: src/closeFriends.setCloseFriend
+    events:
+      - httpApi:
+          path: /user/close-friends/{id}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/close-friends/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   likePhoto:
     handler: src/likes.likePhoto
     events:
