@@ -9,7 +9,7 @@ import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUpl
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
-import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
+import { truncate, sanitizeText, sanitizeCoords, sanitizeAudience } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { closeFriendsId, isUserId } from "./closeFriends";
@@ -230,11 +230,9 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
  * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
  * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
  */
-export type Audience = "followers" | "closeFriends";
-
-export function sanitizeAudience(value: unknown): Audience | undefined {
-    return value === "followers" || value === "closeFriends" ? value : undefined;
-}
+// 規則は `sanitize.ts` に1つだけ置く（写真も同じものを使う）
+export { sanitizeAudience } from "./sanitize";
+export type { Audience } from "./sanitize";
 
 /**
  * その人に、その行を見せてよいか。

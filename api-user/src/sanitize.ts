@@ -138,6 +138,22 @@ export function sanitizeText(v: unknown, max: number): string | undefined {
  * それ以外は**まとめない**方に倒す——まとめ損なっても写真は1枚ずつ出るが、
  * 変な値でまとまると関係のない写真が同じ投稿に見える。
  */
+/**
+ * 公開範囲。**受け取るのは絞る側の2つだけ。**
+ *
+ * 「全体に公開」は属性を書かない形で表す（既にある行と同じ）。
+ * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
+ * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
+ *
+ * ストーリー（`stories.ts`）と写真（`upload.ts`）で同じ規則を使う
+ * ——2か所に書くと静かにずれる。
+ */
+export type Audience = "followers" | "closeFriends";
+
+export function sanitizeAudience(value: unknown): Audience | undefined {
+    return value === "followers" || value === "closeFriends" ? value : undefined;
+}
+
 export function sanitizeGroupId(v: unknown): string | undefined {
     if (typeof v !== "string") return undefined;
     const trimmed = v.trim();

@@ -32,3 +32,16 @@ export const PUBLIC_INDEX = "publicFeed-createdAt-index";
 
 /** publicFeed の値。**公開中の写真だけ**に入れる（下書き・ストーリーには入れない） */
 export const PUBLIC_FEED_KEY = "1";
+
+/**
+ * **公開範囲を絞った写真**の印。同じ索引の**別の仕切り**に入れる。
+ *
+ * 新しい索引を足さずに済むのがこの形の要点——`publicFeed` は
+ * この索引の仕切りの鍵なので、値を変えれば
+ *
+ *   - `GET /photos`（仕切り `"1"` を引く）には**出ない**
+ *   - 絞ったぶんだけを `createdAt` の順で引ける
+ *
+ * が同時に成り立つ。索引を足すのは本番の変更なので、足さずに済ませる。
+ */
+export const RESTRICTED_FEED_KEY = "restricted";

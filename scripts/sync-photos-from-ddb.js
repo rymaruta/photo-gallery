@@ -207,7 +207,12 @@ async function scan() {
     // 別に読みに行かない——台帳のために DynamoDB の読み取りを増やさない。
     const photos = items
         .filter(item => item.src && !String(item.id ?? "").startsWith(SPOT_ID_PREFIX)
-            && item.published !== false && item.story !== true)
+            && item.published !== false && item.story !== true
+            // **公開範囲を絞った写真は静的サイトに出さない。**
+            // ここは全員に配る JSON なので、載せた時点で「フォロワーだけ」は
+            // 守れない（個別ページもサイトマップもここから作られる）。
+            // 出すのは実行時の口（`GET /feed/restricted`）だけ
+            && !item.audience)
         .map(stripPrivateFields)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
     return { photos, spots: publicSpots(items) };

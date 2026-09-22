@@ -458,6 +458,17 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 公開範囲を絞った写真のうち、**自分に見えるぶん**。
+  # 静的な一覧（photos.json）には出さないので、ここでだけ返す
+  getRestrictedFeed:
+    handler: src/restrictedFeed.getRestrictedFeed
+    events:
+      - httpApi:
+          path: /feed/restricted
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   # 「親しい友達」（ストーリーの公開範囲）。**本人の一覧だけ**——
   # 誰が入っているかは本人のもので、相手にも知らせない
   getCloseFriends:
