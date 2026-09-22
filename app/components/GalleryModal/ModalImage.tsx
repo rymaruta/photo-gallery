@@ -41,6 +41,11 @@ export default function ModalImage({ src, alt, srcAvif, focalPoint }: Props) {
                 <img
                     src={publicImageUrl(src)}
                     alt={alt}
+                    // スモークが**原寸の1枚だけ**を名指しで拾うための札。
+                    // ビューアにはアバターと次の写真のサムネも居るので、
+                    // `img > 0` では「原寸が出ている」ことを見たことにならない
+                    // （`scripts/e2e-smoke.mjs` の「ビューア: 原寸の写真が出る」）
+                    data-e2e="viewer-image"
                     draggable={false}
                     onContextMenu={(e) => e.preventDefault()}
                     decoding="async"
