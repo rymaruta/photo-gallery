@@ -947,6 +947,27 @@ describe("通知のタブ（キーボード）", () => {
     };
     const tab = (name: string) => screen.getByRole("tab", { name });
 
+    /**
+     * **関係ないキーは飲まない。** roving tabindex なので Tab の停止点は
+     * 選ばれているタブ1つだけ——ここで `Tab` を飲むと、キーボードだけで
+     * 操作する人が通知の一覧へ進めない。
+     *
+     * `e.preventDefault()` を「移る先が決まったときだけ」撃つ、という条件を
+     * 見張るテストが**どこにも無かった**（`preventDefault()` を判定の前に
+     * 移す書き換えで全部緑になる）。`fireEvent.keyDown` は
+     * `preventDefault()` が呼ばれると `false` を返す。
+     */
+    it("関係ないキーは飲まない（矢印・Home/End だけ飲む）", async () => {
+        await openMixed();
+        for (const key of ["Tab", "Enter", " ", "a", "ArrowUp", "ArrowDown"]) {
+            expect(fireEvent.keyDown(tab("すべて"), { key }), `${key} を飲んでいる`).toBe(true);
+        }
+        for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+            expect(fireEvent.keyDown(screen.getAllByRole("tab")[0], { key }),
+                `${key} を飲んでいない`).toBe(false);
+        }
+    });
+
     it("矢印で隣のタブへ移る（端で回り込む）", async () => {
         await openMixed();
         fireEvent.keyDown(tab("すべて"), { key: "ArrowRight" });

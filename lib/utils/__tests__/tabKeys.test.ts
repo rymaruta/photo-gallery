@@ -35,8 +35,13 @@ describe("nextTabIndex", () => {
 
     // **元の2か所と同じ答えになること。** 実装を写した先で式の形が違って
     // いたので（`i === last ? 0 : i + 1` と `(at + 1) % len`）、
-    // 全ての位置で突き合わせる
-    it("元の2か所の式と、全ての位置で答えが一致する", () => {
+    // 範囲内の全ての位置で突き合わせる。
+    //
+    // ⚠️ 剰余の式は**実装と同じ形**なので、独立した検証になっているのは
+    // Bell 側の三項演算子の行と、関係ないキーの行。**範囲外の `at` は
+    // ここでは突き合わせない**——元の2か所で答えが食い違っていた
+    // （`-2` と `1`）ので、一致させる対象が無い
+    it("範囲内の位置では、元の2か所の式と答えが一致する", () => {
         for (const count of [3, 4]) {
             const last = count - 1;
             for (let i = 0; i < count; i++) {
@@ -48,6 +53,9 @@ describe("nextTabIndex", () => {
                 expect(nextTabIndex("ArrowLeft", i, count)).toBe((i - 1 + count) % count);
                 expect(nextTabIndex("Home", i, count)).toBe(0);
                 expect(nextTabIndex("End", i, count)).toBe(count - 1);
+                // 元の2か所はどちらも `-1`（Bell）/ `return`（Spot）で
+                // 何もしなかった。こちらは `null` で同じところへ倒れる
+                expect(nextTabIndex("Tab", i, count)).toBeNull();
             }
         }
     });
@@ -62,6 +70,11 @@ describe("nextTabIndex", () => {
                 expect(to, `${k} / at=${at}`).not.toBeNull();
                 expect(to!, `${k} / at=${at} が範囲外`).toBeGreaterThanOrEqual(0);
                 expect(to!, `${k} / at=${at} が範囲外`).toBeLessThan(4);
+                // **整数であること。** ここを見ていなかったので、
+                // `Number.isInteger(at)` のガードを落としても緑だった
+                // （`at = 1.5` → `2.5` が返り、0 以上 4 未満を満たす）。
+                // `NOTIF_TABS[2.5]` は `undefined` で `setTab` に届く
+                expect(Number.isInteger(to!), `${k} / at=${at} が整数でない`).toBe(true);
             }
         }
     });

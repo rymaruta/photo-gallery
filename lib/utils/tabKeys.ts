@@ -9,6 +9,15 @@
  * **別々に書かれていた**。片方だけ直す事故が起きる形なので、**判断だけ**を
  * 純関数にして両方から呼ぶ。
  *
+ * ## ⚠️ 3つ目の tablist は、まだ寄せていない
+ *
+ * `app/components/stories/StoriesBar.tsx`（ストーリー編集の「文字の見せ方」）も
+ * `role="tablist"` を名乗っているが、**`onKeyDown` を持っていない**
+ * （矢印も Home/End も効かない・`tabIndex` も付けないので4つ全部が Tab の
+ * 停止点）。ここへ矢印を足すのは**振る舞いの追加**で、二重をやめる作業とは
+ * 別物。しかも `StoriesBar.tsx` は別の担当が進めている最中のファイル。
+ * **だから触っていない。** 寄せるときはこの関数を呼ぶだけで済む。
+ *
  * ## 判断だけ。DOM は呼ぶ側に残す
  *
  * `setState` と `document.getElementById(...)?.focus()`（roving tabindex は
@@ -32,11 +41,22 @@
  * 端では折り返す（`ArrowRight` で最後 → 先頭）。WAI-ARIA の tabs の作法で、
  * 元の2か所とも折り返していた。
  *
- * **範囲外の `at` は先頭として扱う。** `indexOf` が `-1` を返す
- * （状態がタブの一覧に無い）場合、元の `NotificationsBell` は
- * `ArrowLeft` で `-2` を作って `NOTIF_TABS[-2]` = `undefined` を
- * `setTab` に渡していた。実際には起きない筋（状態は必ず一覧の中）だが、
- * 共通部に寄せる以上、**範囲内の答えしか返さない**と決めておく。
+ * **範囲外の `at` は「いま 0 番目にいる」ものとして扱う**
+ * （`ArrowRight` なら `1` を返す。`0` ではない）。
+ *
+ * `indexOf` が `-1` を返す（状態がタブの一覧に無い）場合、元の2か所は
+ * **答えが食い違っていた**——`NotificationsBell` は `ArrowLeft` で `-2` を
+ * 作り、`SpotPageClient` は剰余で `1` に化けていた。
+ *
+ * ⚠️ **`-2` が `setTab` まで届いていたわけではない。** 元の Bell は
+ * 直後に `if (to < 0) return;` があって**何も起きなかった**
+ * （`e.preventDefault()` も撃たない）。最初はここに「`undefined` を
+ * `setTab` に渡していた」と書いたが、**確かめずに書いた誤り**だった
+ * （`git show origin/develop:app/components/NotificationsBell.tsx` の
+ *  該当行で確認）。
+ *
+ * どちらも実際には起きない筋（状態は必ず一覧の中）だが、答えが2か所で
+ * 食い違っていたので、共通部では**範囲内の答えしか返さない**と決めておく。
  */
 export function nextTabIndex(key: string, at: number, count: number): number | null {
     if (!Number.isInteger(count) || count <= 0) return null;
