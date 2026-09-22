@@ -14,6 +14,21 @@ type Props = {
     isOwner: boolean;
     isAuthenticated: boolean;
     locale: "ja" | "en";
+    /**
+     * どの場面のボタンか。**大きさと文言だけが違う**（押したときの処理・
+     * 楽観更新・エラーの返し分けは `useFollow` の1本で共有する）。
+     *
+     * - `profile` … プロフィールのアクション行。行幅いっぱい・44px
+     * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。
+     *   行の中に収まる小さい錠剤。**文言も変える**——通知の文脈では
+     *   「フォロー」ではなく、相手のフォローに返す操作だから
+     *
+     * **2つ目のフォローボタンを作らないための prop。** 見た目のために
+     * 別コンポーネントを立てると、`useFollow` を2か所から呼ぶことになり、
+     * 「押しても数が動かない」「エラー文言が片方だけ古い」が必ず出る
+     * （このリポジトリが何度も踏んでいる「同じものを二度作る」の形）。
+     */
+    variant?: "profile" | "followBack";
 };
 
 export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
@@ -100,11 +115,19 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
  * フォローボタン単体。数字のピル（FollowButton）とは切り離し、
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
-export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }: Props) {
+export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, variant = "profile" }: Props) {
     // 数は描かないので取りに行かない（検索結果 N 件で N 本飛んでいた）。
     // 数のピルはプロフィールの FollowButton が別に取る。
+    //
+    // **通知一覧に N 個並んでも問い合わせは増えない。** `withCounts = false`
+    // なので `GET /users/<id>/follow` は飛ばず、フォロー中の一覧
+    // （`fetchFollowingSet`）は**モジュール側で1本に束ねてある**
+    // （`followingPromise` の相乗り）ので、50件の通知に何個ボタンが出ても
+    // `GET /user/following` は1回。ここを確かめずに並べると、通知を開く
+    // たびに数十本の GET が飛ぶ形になっていた。
     const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated, false);
     const { showToast } = useToast();
+    const compact = variant === "followBack";
 
     if (isOwner) return null;
 
@@ -129,16 +152,26 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }:
             // 出て、押しても既にフォロー済みで画面が変わらなかった。
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
-            className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
+            className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
+                compact ? "flex-shrink-0" : "flex-1 px-4 py-2.5 text-sm"
+            } ${
                 isFollowing
                     ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
                     : "bg-accent-fill text-white hover:brightness-110"
             }`}
-            style={{ touchAction: "manipulation", minHeight: "44px" }}
+            // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）。
+            // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px
+            // ＝ 29 CSS px だが、**押せる面は 32px まで上げる**。行の中の操作なので
+            // 44px は取れないが、29px は指に小さい（他の行内ボタンと同じ判断）。
+            style={compact
+                ? { touchAction: "manipulation", minHeight: "32px", fontSize: "13px", paddingLeft: "12px", paddingRight: "12px" }
+                : { touchAction: "manipulation", minHeight: "44px" }}
         >
             {isFollowing
-                ? <><CheckIcon className="w-4 h-4" />{locale === "en" ? "Following" : "フォロー中"}</>
-                : <><UserPlusIcon className="w-4 h-4" />{locale === "en" ? "Follow" : "フォロー"}</>}
+                ? <><CheckIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{locale === "en" ? "Following" : "フォロー中"}</>
+                : <><UserPlusIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{compact
+                    ? (locale === "en" ? "Follow back" : "フォローバック")
+                    : (locale === "en" ? "Follow" : "フォロー")}</>}
         </button>
     );
 }

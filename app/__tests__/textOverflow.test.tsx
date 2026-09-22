@@ -52,7 +52,10 @@ describe("長い文字列で横に流れない", () => {
 
     it("通知の本文", () => {
         const src = read("app/components/NotificationsBell.tsx");
-        const line = src.split("\n").find((l) => l.includes('className="text-[13px] text-white/85 leading-snug'));
+        // 字の大きさは**寸法表（`M.body`）から渡す**ようになったので、
+        // 目印から `text-[13px]` が消えた（スマホ 14px / PC 13px の2つを
+        // 持つため）。色と行送りの指定で行を特定する
+        const line = src.split("\n").find((l) => l.includes('className="text-white/85 leading-snug'));
         expect(line, "通知の本文を描く行が見つからない").toBeDefined();
         expect(line, "break-words が無い（長い表示名がパネルの外へ出て読めない）").toContain("break-words");
     });
