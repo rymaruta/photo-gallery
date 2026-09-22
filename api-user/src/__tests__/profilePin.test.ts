@@ -405,7 +405,7 @@ describe("部分更新の契約: 送らなかった項目は触らない", () =>
     const savedFor = async (body: Record<string, unknown>) => {
         mockSend.mockReset();
         mockSend
-            .mockResolvedValueOnce(stored({ displayName: "旅人", bio: "こんにちは", statusText: "旅の途中", homeLocation: "東京" }))
+            .mockResolvedValueOnce(stored({ displayName: "旅人", bio: "こんにちは", statusText: "旅の途中" }))
             .mockResolvedValueOnce({});
         const res = await invoke(body);
         expect(res.statusCode).toBe(200);
@@ -421,8 +421,6 @@ describe("部分更新の契約: 送らなかった項目は触らない", () =>
         ["bio", { displayName: "新しい名前" }],
         ["statusText", { displayName: "新しい名前" }],
         ["displayName", { bio: "新しい自己紹介" }],
-        // 居住地（モック2-1）。**ひとことと同じ扱い**——送らない保存で消えない
-        ["homeLocation", { displayName: "新しい名前" }],
     ] as const)("%s を送らずに他を更新しても、保存済みの値が残る", async (key, body) => {
         const saved = await savedFor(body);
         expect(saved[key], `${key} が消えた`).toBeTruthy();
@@ -438,19 +436,6 @@ describe("部分更新の契約: 送らなかった項目は触らない", () =>
     it("空文字を送ったら消える（消す手段は残す）", async () => {
         const saved = await savedFor({ displayName: "" });
         expect(saved.displayName).toBeUndefined();
-    });
-
-    /// 居住地は**写真の撮影地とは別物**。`location` という名前を使わないのは
-    /// 集約ページと地図に混ざらないため（住んでいる場所を地図に出さない）
-    it("居住地は保存され、写真の撮影地とは別の項目として持つ", async () => {
-        const saved = await savedFor({ homeLocation: "京都" });
-        expect(saved.homeLocation).toBe("京都");
-        expect(saved.location).toBeUndefined();
-    });
-
-    it("居住地は60文字で切る（ひとことと同じ）", async () => {
-        const saved = await savedFor({ homeLocation: "あ".repeat(80) });
-        expect(String(saved.homeLocation).length).toBe(60);
     });
 
     it("値を送ったら置き換わる", async () => {

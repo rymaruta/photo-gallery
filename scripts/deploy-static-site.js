@@ -154,15 +154,12 @@ if (require.main === module) {
 // このファイルを require しただけで out/app/data/ に書き込んでいた
 // （収集・検証より前に走る副作用でもあった）。
 function copyPhotosJsonIntoOut() {
-    // 撮影スポットの台帳も同じ場所に置く。**アプリが読むのはここ**
-    // （iOS は写真と同じく静的 JSON を取りに来る＝スポットのための API を増やさない）
-    for (const name of ["photos.json", "spots.json"]) {
-        const src = path.join(root, "app", "data", name);
-        const dest = path.join(outDir, "app", "data", name);
-        if (!fs.existsSync(src)) continue;
-        fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.copyFileSync(src, dest);
-        console.log(`[deploy] Copied app/data/${name} → out/app/data/`);
+    const photosJsonSrc = path.join(root, "app", "data", "photos.json");
+    const photosJsonDest = path.join(outDir, "app", "data", "photos.json");
+    if (fs.existsSync(photosJsonSrc)) {
+        fs.mkdirSync(path.dirname(photosJsonDest), { recursive: true });
+        fs.copyFileSync(photosJsonSrc, photosJsonDest);
+        console.log(`[deploy] Copied app/data/photos.json → out/app/data/`);
     }
 }
 
@@ -197,8 +194,6 @@ const NO_CACHE_KEYS = new Set([
     "sw.js",
     "manifest.webmanifest",
     "app/data/photos.json",
-    // 台帳も写真と同じ扱い（内容が変わりうる名前なので長期キャッシュさせない）
-    "app/data/spots.json",
     "sitemap.xml",
     "sitemap-images.xml",
     // フィードも写真を追加するたびに変わる。入れないと 1時間 `max-age` で配られる
@@ -657,8 +652,7 @@ function shouldScan(key) {
     // **`.map` を除く条件は書かない。** `a.js.map` は `.js` で終わらないので
     // `endsWith(".js")` の時点で外れる——書くと**一度も効かない条件**になる
     // （変異で当てても落ちず、等価だと分かった）。
-    return isHtmlOrTxt(key) || key === "app/data/photos.json"
-        || key === "app/data/spots.json" || key.endsWith(".js");
+    return isHtmlOrTxt(key) || key === "app/data/photos.json" || key.endsWith(".js");
 }
 
 function assertNoForbiddenContent(files) {

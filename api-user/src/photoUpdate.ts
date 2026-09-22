@@ -1,10 +1,10 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
-import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
+import { PUBLIC_FEED_KEY } from "./publicFeed";
 import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -69,7 +69,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
-        audience?: unknown;
         replace?: ReplaceBody;
     };
     try {
@@ -79,7 +78,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     }
 
     const hasPublished = typeof body.published === "boolean";
-    const hasAudience = "audience" in body;
     const hasSong = "song" in body;
     const hasYoutube = "songYoutubeUrl" in body;
     const hasMeta = META_KEYS.some((k) => k in body);
@@ -165,14 +163,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         }
 
         const sets: string[] = ["updatedAt = :t"];
-        // いまこの写真の公開範囲。**本文に来ていなければ、既にある値のまま。**
-        // 公開一覧の索引キー（`publicFeed`）はこれ1つから決める——2か所で
-        // 決めると、索引と属性が食い違って「絞ったつもりが一覧に出る」
-        // （またはその逆）になる。
-        const effectiveAudience = hasAudience
-            ? sanitizeAudience(body.audience)
-            : sanitizeAudience(existing.Item.audience);
-
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
         const removes: string[] = [];
@@ -187,28 +177,8 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                 names["#publicFeed"] = "publicFeed";
                 removes.push("#publicFeed");
             } else {
-                // 🔴 **公開範囲を見てから決める。** ここで無条件に
-                // `PUBLIC_FEED_KEY` を書いていた頃は、「フォロワーのみ」の
-                // 写真を**題を直して保存し直すだけで全体に公開**になった
-                // （編集画面は保存のたびに `published: true` を同梱する）。
-                // 索引にしか現れないので、行を見ても画面を見ても分からない。
                 sets.push("publicFeed = :pf");
-                values[":pf"] = effectiveAudience ? RESTRICTED_FEED_KEY : PUBLIC_FEED_KEY;
-            }
-        }
-        // 公開範囲そのものの変更。**キーが来たときだけ触る**
-        // （来ていない保存で既にある印を消さない）。
-        // 知らない値は `sanitizeAudience` が undefined にする＝全体に公開に
-        // 戻す方へ倒れるが、**そのときは印も消す**ので索引と食い違わない
-        // （上の `:pf` も同じ `effectiveAudience` から決めている）。
-        if (hasAudience) {
-            if (effectiveAudience) {
-                names["#audience"] = "audience";
-                sets.push("#audience = :aud");
-                values[":aud"] = effectiveAudience;
-            } else {
-                names["#audience"] = "audience";
-                removes.push("#audience");
+                values[":pf"] = PUBLIC_FEED_KEY;
             }
         }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
