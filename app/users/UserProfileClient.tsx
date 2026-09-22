@@ -1215,7 +1215,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             />
                             <div className="relative rounded-full p-[3px]">
                                 <div className="rounded-full p-[2px] bg-bg">
-                                    <UserAvatar userId={userId} className="w-[84px] h-[84px]" iconClassName="w-11 h-11" />
+                                    <UserAvatar userId={userId} className="w-[84px] h-[84px] lg:w-[120px] lg:h-[120px]" iconClassName="w-11 h-11 lg:w-16 lg:h-16" />
                                 </div>
                             </div>
                             {isOwner && (
