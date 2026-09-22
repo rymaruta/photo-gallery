@@ -196,3 +196,125 @@ body {
   font-size: 13px;
   box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
 }
+
+/* ───────── 写真入りのピン（最終版モック 06-map.jpg の②） ─────────
+
+   大きさはモックの画素から測った（端末の画面幅 364画素 ＝ 393 CSS px）:
+     写真の丸 36画素 → 39px（選択中 62画素 → 67px）・尖りまで 55画素 → 59px
+   丸 40px・尖りを足して 50px に丸めてある（`PhotoMap.tsx` の `PIN_PX` / `PIN_H`）。
+
+   **`leaflet-div-icon` の既定を持ち込まない。** `L.divIcon` の `className` を
+   渡すと既定の `leaflet-div-icon`（白背景・1px の灰色枠）は付かないので、
+   枠を消す指定は要らない——**付けてしまうと**丸の外に白い四角が出る。 */
+.photo-map-pin-icon.leaflet-marker-icon,
+.photo-map-pin-icon {
+  background: transparent;
+  border: 0;
+}
+
+.photo-map-pin {
+  display: block;
+  position: relative;
+  width: 40px;
+  height: 50px;
+}
+
+/* 写真の丸。中身が読めない間も丸が見えるよう、下地は主色に寄せる */
+.photo-map-pin::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: #16324f;
+  box-shadow: 0 0 0 2.5px #fff, 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* **Leaflet の `width: auto` に勝つために3クラスで書く。**
+   `.leaflet-container .leaflet-marker-pane img`（詳細度 0,2,1）が
+   `max-width: none !important` ＋ `width: auto` を当ててくるので、
+   Tailwind の preflight（`img { max-width: 100%; height: auto }`）ごと潰される。
+   ここが負けると、読み込み前は幅0・読み込み後は元画像の幅（256px）になり、
+   ピンが地図いっぱいに広がる。`!important` ではなく詳細度で勝つ
+   （`!important` 同士になると次に困るのはこちら）。 */
+.photo-map-shell .leaflet-marker-pane .photo-map-pin__img,
+.photo-map-pin .photo-map-pin__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  max-width: none;
+  border-radius: 9999px;
+  object-fit: cover;
+  display: block;
+}
+
+/* 下向きの尖り。先端が座標（`iconAnchor` が下端） */
+.photo-map-pin__tail {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 12px solid #fff;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* 選んだピン。**大きくして青く光らせる**（モックの「サントリーニ島」） */
+.photo-map-pin.is-selected {
+  width: 64px;
+  height: 78px;
+  margin-left: -12px;   /* 中心を動かさない（Leaflet の iconAnchor は 40px 基準） */
+  margin-top: -24px;
+}
+.photo-map-pin.is-selected::before {
+  width: 64px;
+  height: 64px;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(32 128 246 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.photo-map-shell .leaflet-marker-pane .photo-map-pin.is-selected .photo-map-pin__img,
+.photo-map-pin.is-selected .photo-map-pin__img {
+  width: 64px;
+  height: 64px;
+}
+.photo-map-pin.is-selected .photo-map-pin__tail {
+  border-left-width: 9px;
+  border-right-width: 9px;
+  border-top-width: 15px;
+}
+
+/* 撮影地マップのボトムシート。**1024px 以上では地図の枠の中に収める。**
+   PC は「左に検索と一覧・右に地図」（owner の指示書 §14）なので、画面の下
+   いっぱいに固定すると左の一覧まで覆う。土台は `app/map/page.tsx` の
+   地図を包む `relative` な枠。
+
+   **`!important` が要る。** スマホ向けの `bottom` は `MapPhotoSheet` の
+   インラインの style（`calc(12px + var(--bottom-bar-h, …))`）で、
+   クラスの指定では勝てない。position はインラインに無いので素のままでよいが、
+   同じ理由で動く値なので並べて書く。 */
+@media (min-width: 1024px) {
+  .map-sheet {
+    position: absolute;
+    bottom: 12px !important;
+    left: 12px;
+    right: 12px;
+  }
+}
+
+/* 地図の中の帯（OpenStreetMap の表記）。黒地の画面に白い帯が出るのを防ぐ。
+   **2クラスで書く**（leaflet.css の `.leaflet-control-attribution` に勝つ） */
+.photo-map-shell .leaflet-control-attribution,
+.photo-map-frame .leaflet-control-attribution {
+  background: rgb(11 18 32 / 0.72);
+  color: rgb(255 255 255 / 0.6);
+  font-size: 10px;
+}
+.photo-map-shell .leaflet-control-attribution a,
+.photo-map-frame .leaflet-control-attribution a {
+  color: rgb(255 255 255 / 0.75);
+}
