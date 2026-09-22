@@ -1,6 +1,6 @@
 // インスタ風ストーリーのフロントエンド用ヘルパー
 
-import type { StoryText } from "./utils/storyText";
+import type { StoryText, StoryVoteState } from "./utils/storyText";
 
 /**
  * ストーリーの公開範囲。**サーバーの一覧と対**
@@ -50,6 +50,11 @@ export type Story = {
      * 本人だけのもの。
      */
     replyCount?: number;
+    /**
+     * 投票スタンプの票の状態。**投票スタンプを持つ行にだけ**サーバーが付ける。
+     * `counts` は投稿者と票を入れた人にだけ入る（`api-user/src/storyVotes.ts`）。
+     */
+    vote?: StoryVoteState;
     /**
      * 公開範囲。**無い＝全員に公開**（この列が生まれる前の投稿はそう扱う）。
      * 絞るのはサーバー——`getStories` が、フォローしていない人の
@@ -184,6 +189,14 @@ export function groupStories(stories: Story[], ownUserId?: string | null): Story
     });
 
     return groups;
+}
+
+/**
+ * 投稿した日（見ている人の時計）。アーカイブのタイルとハイライトの作成画面が
+ * 同じ文字を出す。**期限の時刻ではない**——ビューアの見出し（`timeAgo`）と同じ元
+ */
+export function storyDayLabel(createdAt: string, locale: "ja" | "en"): string {
+    return new Date(createdAt).toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
 }
 
 // 「3時間前」形式の経過時間表示

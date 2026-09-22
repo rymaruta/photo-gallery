@@ -218,14 +218,14 @@ function SignupForm() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
     }
 
     return (
-        <main className="min-h-screen bg-black flex items-center justify-center px-4">
+        <main className="min-h-screen bg-bg flex items-center justify-center px-4">
             <div className="w-full max-w-sm">
 
                 {/* ヘッダー */}
@@ -318,7 +318,7 @@ function SignupForm() {
                         <button
                             type="submit"
                             disabled={submitting || !email || !password || !confirmPassword}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -360,7 +360,7 @@ function SignupForm() {
                         <button
                             type="submit"
                             disabled={submitting || code.trim().length < 6}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -405,7 +405,7 @@ function SignupForm() {
                         <Link
                             href={loginHref}
                             prefetch={false}
-                            className="block w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition text-center"
+                            className="block w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition text-center"
                         >
                             ログインする
                         </Link>
@@ -426,7 +426,7 @@ export default function SignupPage() {
             // 出るのはヘッダーとフッターだけ）。見た目は変えずに、
             // ランドマークと見出しだけ置く——`sr-only` は
             // `position: absolute` なので描画に影響しない
-            <main className="min-h-screen bg-black">
+            <main className="min-h-screen bg-bg">
                 <h1 className="sr-only">アカウント作成</h1>
             </main>
         }>

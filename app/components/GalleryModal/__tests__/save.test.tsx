@@ -113,14 +113,24 @@ describe("拡大表示の保存ボタン", () => {
         expect(screen.getByRole("button", { name: "保存" })).toBeTruthy();
     });
 
-    // モーダルは**同じフックのまま**次の写真へ進む。持ち越すと、1枚目の
-    // しおりが2枚目にも付いて見え、押すと解除が飛ぶ
+    /**
+     * モーダルは**同じフックのまま**次の写真へ進む（コンポーネントを作り直さない）。
+     * 持ち越すと、1枚目のしおりが2枚目にも付いて見え、押すと解除が飛ぶ。
+     *
+     * ⚠️ **2枚目の取得を着地させてはいけない。** 以前は p1 が `saved: true`・
+     * p2 が `saved: false` を返す形だったので、**捨てる処理を消しても
+     * 2枚目の応答が `false` を運んできて緑**になっていた——「持ち越さない」を
+     * 何も検証していなかった。だから p2 の GET は**着地させないまま握る**。
+     * これで「保存」に戻る道が、捨てる処理しか無くなる。
+     */
     it("写真を送ったら、しおりは持ち越さない", async () => {
-        const saved = new Set(["p1"]);
-        mockUserFetch.mockImplementation((p: string) => Promise.resolve(
-            p.startsWith("/user/saves/")
-                ? { ok: true, json: async () => ({ saved: saved.has(p.slice("/user/saves/".length)) }) }
-                : defaultRoutes(p)));
+        let landSecond!: (v: unknown) => void;
+        mockUserFetch.mockImplementation((p: string) => {
+            if (p === "/user/saves/p1") return Promise.resolve({ ok: true, json: async () => ({ saved: true }) });
+            // p2 は**返さない**（飛行中のまま）
+            if (p === "/user/saves/p2") return new Promise((r) => { landSecond = r; });
+            return Promise.resolve(defaultRoutes(p));
+        });
         const { rerender } = setup(0);
         await waitFor(() => expect(screen.getByRole("button", { name: "保存を取り消す" })).toBeTruthy());
 
@@ -132,6 +142,13 @@ describe("拡大表示の保存ボタン", () => {
                 locale="ja"
             />,
         );
+        // **2枚目の答えが来る前に**「保存」に戻っていること
+        await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeTruthy());
+        expect(screen.queryByRole("button", { name: "保存を取り消す" }),
+            "1枚目のしおりを持ち越している").toBeNull();
+
+        // 後始末（開いたままの約束を残さない）。着地しても壊れないことまで見る
+        landSecond({ ok: true, json: async () => ({ saved: false }) });
         await waitFor(() => expect(screen.getByRole("button", { name: "保存" })).toBeTruthy());
     });
 

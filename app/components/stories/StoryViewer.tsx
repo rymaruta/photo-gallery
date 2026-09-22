@@ -14,6 +14,7 @@ import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
+import type { StoryVoteChoice, StoryVoteState } from "@/lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
@@ -204,6 +205,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [keeping, setKeeping] = useState(false);
     const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
     const [keepError, setKeepError] = useState<string | null>(null);
+    /**
+     * 投票スタンプの票の状態（ストーリーID → 状態）。**初期値は一覧が運ぶ**
+     * （`item.vote`）。ここに在るのは、この画面で入れたぶん
+     */
+    const [votes, setVotes] = useState<Record<string, StoryVoteState>>({});
+    const [voting, setVoting] = useState(false);
+    const [voteError, setVoteError] = useState<string | null>(null);
     /** 返信の一覧から「この人からの返信を受け取らない」を押した相手 */
     const [blocking, setBlocking] = useState<string | null>(null);
     const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
@@ -240,9 +248,60 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         if (item) onSeen(item.id);
     }, [item, onSeen]);
 
-    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）
+    // 票の失敗の文言は、そのストーリーを離れたら消す
+    useEffect(() => { setVoteError(null); }, [item?.id]);
+
+    /** いま表示しているストーリーの票の状態（この画面で入れたぶんが優先） */
+    const voteState = item ? (votes[item.id] ?? item.vote) : undefined;
+
+    /**
+     * 2択に票を入れる。**サーバーが断る条件（自分のもの・ブロック・
+     * フォロワー限定・投票済み）は画面で繰り返さない**——入口を出すかどうか
+     * だけをここで決め（`onVote` を渡すのは他人のストーリー・ログイン済み）、
+     * 断るのは `voteStory`。
+     */
+    const handleVote = useCallback(async (_index: number, choice: StoryVoteChoice) => {
+        // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）には入れない。**
+        // サーバーは期限切れに 404 を返すので、口を出すと押しても効かない的になる
+        if (!item || isOwnStory || !isAuthenticated || voting || item.archivedAt) return;
+        const target = item.id;
+        setVoting(true);
+        setVoteError(null);
+        const fallback = locale === "en" ? "Could not send your vote" : "投票を送れませんでした";
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/vote`, {
+                method: "POST",
+                body: JSON.stringify({ choice }),
+            });
+            if (!res.ok) {
+                const msg = await readApiError(res, fallback);
+                if (itemIdRef.current === target) setVoteError(msg);
+                return;
+            }
+            const data = await res.json() as StoryVoteState;
+            // 応答の形をそのまま持つ（`myVote` が付けば押せなくなる）
+            setVotes((prev) => ({
+                ...prev,
+                [target]: {
+                    ...(data.myVote ? { myVote: data.myVote } : {}),
+                    ...(data.counts ? { counts: data.counts } : {}),
+                },
+            }));
+        } catch (e) {
+            log.warn("story vote error:", e);
+            if (itemIdRef.current === target) setVoteError(fallback);
+        } finally {
+            setVoting(false);
+        }
+    }, [item, isOwnStory, isAuthenticated, voting, locale]);
+
+    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）。
+    // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）では送らない。**
+    // 期限の切れたストーリーはサーバーが 404 で記録を断るので、1枚ごとに
+    // 断られるだけの往復が増える（閲覧者の取得を省くのと同じ理由）
     useEffect(() => {
-        if (!item || !isAuthenticated || isOwnStory) return;
+        if (!item || !isAuthenticated || isOwnStory || item.archivedAt) return;
         if (reportedRef.current.has(item.id)) return;
         reportedRef.current.add(item.id);
         void (async () => {
@@ -551,6 +610,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     }, [setMediaReady, attachMediaBox]);
 
     const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
+        || voting
         || (!mediaReady && !mediaError);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
@@ -952,7 +1012,17 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
                     出る場所が違う」になり、置き直しても直らない */}
                 {item.texts?.length && !mediaError ? (
-                    <StoryTextOverlay texts={item.texts} box={mediaBox} />
+                    <StoryTextOverlay
+                        texts={item.texts}
+                        box={mediaBox}
+                        locale={locale}
+                        // 入口は他人のストーリー・ログイン済み・アーカイブでないときだけ
+                        // （未ログインは返信と同じで、押してから断る形にしない。
+                        //  アーカイブはサーバーが期限切れとして 404 を返す）
+                        onVote={!isOwnStory && isAuthenticated && !item.archivedAt ? handleVote : undefined}
+                        voteState={voteState}
+                        voting={voting}
+                    />
                 ) : null}
 
                 {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
@@ -1072,8 +1142,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 </div>
             </div>
 
-            {/* 閉じる / ミュート切り替え */}
-            <div className="absolute top-3 right-2 z-20 flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
+            {/* 閉じる / ミュート切り替え。**置いた文字・投票（z-25）より上**——
+                投稿者が右上に置いた投票の `<button>` に閉じるが覆われないように */}
+            <div className="absolute top-3 right-2 z-[26] flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
                 {(isVideo || item.song) && (
                     <button
                         onClick={() => setMuted((m) => !m)}
@@ -1229,7 +1300,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                    書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
                                    他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
                                 href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1263,6 +1334,25 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         </p>
                     )}
                 </div>
+            )}
+
+            {voteError && (
+                <p
+                    // **z は投票カード（25）と閉じる段（26）より上、返信の帯（30）より下。**
+                    // z-20 だと、下寄りに置かれた白い投票カード自体が文言を覆う
+                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-rose-300"
+                    // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
+                    // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
+                    // ——あちらは自分のストーリー（帯が出ない）限定の文言。
+                    // 票を入れられる条件は帯が出る条件とほぼ同じなので、
+                    // キャプションと同じぶん持ち上げる
+                    style={{
+                        bottom: showReplyBar
+                            ? "calc(7.5rem + 8px + env(safe-area-inset-bottom, 0px))"
+                            : "calc(4rem + env(safe-area-inset-bottom, 0px))",
+                    }}
+                    role="alert"
+                >{voteError}</p>
             )}
 
             {keepError && isOwnStory && (
@@ -1355,7 +1445,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {viewersOpen && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setViewersOpen(false)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1412,7 +1502,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {repliesOpen && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1506,7 +1596,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <div className="absolute inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0" onClick={() => !deleting && setConfirmDelete(false)}>
                     {/* iOS のアクションシート風。装飾は最小限にして、文字そのもので選ばせる */}
                     <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                        <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
                             <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
                                 {locale === "en"
                                     ? "This story will be deleted. This can't be undone."
@@ -1525,7 +1615,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         <button
                             onClick={() => setConfirmDelete(false)}
                             disabled={deleting}
-                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
+                            className="w-full py-3.5 rounded-2xl bg-surface-2/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
                             style={{ touchAction: "manipulation", marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                         >
                             {locale === "en" ? "Cancel" : "キャンセル"}

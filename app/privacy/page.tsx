@@ -93,7 +93,7 @@ export default function PrivacyPage() {
                     </p>
                     <p>
                         収集の仕組みや Google におけるデータの利用については、
-                        <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline underline-offset-2">
+                        <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="text-link hover:text-link underline underline-offset-2">
                             Google のポリシーと規約
                         </a>
                         をご確認ください。ブラウザの設定で Cookie を無効にすることで、収集を拒否することもできます。
@@ -107,7 +107,7 @@ export default function PrivacyPage() {
                     </p>
                     <p>
                         Cookie を無効にする方法や Google AdSense に関する詳細は、
-                        <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline underline-offset-2">
+                        <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-link hover:text-link underline underline-offset-2">
                             広告 – ポリシーと規約 – Google
                         </a>
                         をご確認ください。
@@ -132,7 +132,7 @@ export default function PrivacyPage() {
 
                 <Section title="9. 退会・データの削除">
                     <p>
-                        アカウントをお持ちの方は、プロフィール編集ページの「危険な操作」から退会（アカウント削除）を行えます。
+                        アカウントをお持ちの方は、設定ページの「危険な操作」から退会（アカウント削除）を行えます。
                         退会すると、アカウント情報および投稿された写真は削除されます。この操作は取り消せません。
                     </p>
                 </Section>
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
                     {siteConfig.contactEmail ? (
                         <p>
                             本ポリシーに関するお問い合わせは{" "}
-                            <a href={`mailto:${siteConfig.contactEmail}`} className="text-sky-400 hover:text-sky-300 underline underline-offset-2">
+                            <a href={`mailto:${siteConfig.contactEmail}`} className="text-link hover:text-link underline underline-offset-2">
                                 {siteConfig.contactEmail}
                             </a>{" "}
                             までご連絡ください。
