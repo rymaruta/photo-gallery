@@ -120,7 +120,7 @@ export default function MapPhotoSheet({ photos, index, onIndexChange, onClose, l
             data-testid="map-photo-sheet"
         >
             <div
-                className="pointer-events-auto mx-auto rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50"
+                className="pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50"
                 style={{ maxWidth: "560px", padding: "12px" }}
             >
                 <div className="flex items-start" style={{ gap: "12px" }}>

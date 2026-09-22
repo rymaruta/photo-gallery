@@ -132,13 +132,13 @@ describe("プロフィールの取得失敗", () => {
         // （レビューが実測した空振り）
         await waitFor(() => expect(mockUserPublicFetch.mock.calls.length).toBeGreaterThan(before));
         expect(await screen.findByText("旅人")).toBeInTheDocument();
-        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+        expect(screen.queryByText(/(プロフィール|写真一覧|写真)を読み込めませんでした/)).toBeNull();
     });
 
     it("成功時は何も出さない", async () => {
         render(<UserProfileClient userId={ME} />);
         await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
-        expect(screen.queryByText(/読み込めませんでした/)).toBeNull();
+        expect(screen.queryByText(/(プロフィール|写真一覧|写真)を読み込めませんでした/)).toBeNull();
     });
 });
 

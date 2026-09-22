@@ -70,7 +70,16 @@ API_BASELINE=11
 # 土俵では出ない。つまり **120 は緩すぎて、71件ぶんの増加を見逃す**。
 # 下げるのは別の作業（並行しているブランチも同じ関門を通るため、
 # ここでは測った数だけ書き残す）。
-API_USER_BASELINE=129
+# 2026-09-21（夜）: 129 → 142。develop に入った PR #73（保存）と #80（アーカイブ）の
+# 新ファイル4つぶん——`saves.ts` 5・`storyArchive.ts` 2・`storyArchive.test.ts` 5・
+# `saves.test.ts` 1（`git cat-file -e 33cafc66:<path>` で「基準を決めた断面に無い
+# ファイル」だけを数えて 13 = 142 − 129 と一致）。中身は上と同じ
+# `Cannot find module 'aws-lambda'`（TS2307）・implicit any（TS7006）・
+# テストのトップレベル await（TS1378）。
+# ⚠️ **並行するブランチが各自の木で関門を通しても、合流した develop で
+# 基準を超える**（9/21 の 120 → 129 と同じ形）。develop を取り込んだら
+# この関門を一度は通すこと。
+API_USER_BASELINE=142
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
