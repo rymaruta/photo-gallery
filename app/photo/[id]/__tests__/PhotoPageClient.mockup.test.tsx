@@ -10,7 +10,7 @@ import type { Photo } from "@/lib/data/photos";
  * 押し心地（いいね・保存・フォロー・コメント）は各フックと部品のテストが持つ。
  */
 const mockShowToast = vi.fn();
-const mockUserFetch = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+const mockUserFetch = vi.fn(async (..._a: unknown[]) => ({ ok: false, status: 500, json: async () => ({}) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => authState.current }));
 const authState = { current: { isAuthenticated: false, userId: null as string | null, loading: false } };
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: { category: { names: { landscape: "風景" } } } }) }));
