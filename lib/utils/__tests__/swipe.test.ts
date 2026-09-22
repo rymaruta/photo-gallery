@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { swipeDirection, stepInList } from "../swipe";
+import { swipeDirection, verticalSwipeDirection, stepInList } from "../swipe";
 
 describe("swipeDirection", () => {
     it("左へ十分動いたら 1（次へ）", () => {
@@ -42,5 +42,29 @@ describe("stepInList", () => {
     });
     it("リストに無い要素はそのまま", () => {
         expect(stepInList(list, "unknown" as unknown as (typeof list)[number], 1)).toBe("unknown");
+    });
+});
+
+describe("verticalSwipeDirection", () => {
+    // ストーリー閲覧のモック⑤: 上下でメニュー・閉じる、左右で前後
+    it("下へ大きく動かせば 1（閉じる）", () => {
+        expect(verticalSwipeDirection(0, 90)).toBe(1);
+    });
+    it("上へ大きく動かせば -1（メニュー）", () => {
+        expect(verticalSwipeDirection(0, -90)).toBe(-1);
+    });
+    it("小さい動きは 0", () => {
+        expect(verticalSwipeDirection(0, 60)).toBe(0);
+        expect(verticalSwipeDirection(0, -60)).toBe(0);
+    });
+    // 斜めに払ったときに前後の送りと取り合わない
+    it("横優位なら 0", () => {
+        expect(verticalSwipeDirection(200, 90)).toBe(0);
+        expect(swipeDirection(200, 90), "横はこちらが拾う（右へ＝前へ）").toBe(-1);
+    });
+    // **閉じるのは戻れない操作**なので、横（45px）より遠くまで払わせる
+    it("しきい値は横より大きい", () => {
+        expect(verticalSwipeDirection(0, 50)).toBe(0);
+        expect(swipeDirection(50, 0)).toBe(-1);
     });
 });

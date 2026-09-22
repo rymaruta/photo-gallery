@@ -14,6 +14,23 @@ export function swipeDirection(dx: number, dy: number, threshold = 45, ratio = 1
     return dx < 0 ? 1 : -1;
 }
 
+/**
+ * 縦スワイプの方向。
+ *  1  = 下へスワイプ（＝閉じる）
+ * -1  = 上へスワイプ（＝メニューを出す）
+ *  0  = スワイプとみなさない（移動が小さい／横方向優位）
+ *
+ * 横優位のときに 0 を返すことで、**前後のストーリーへの送りと取り合わない**
+ * （ストーリー閲覧のモック⑤: 左右で前後、上下でメニュー・閉じる）。
+ * しきい値が横（45px）より大きいのは、**閉じるのは戻れない操作**だから
+ * ——指の揺れで閉じると、見ていた場所に戻すのは手間が大きい。
+ */
+export function verticalSwipeDirection(dx: number, dy: number, threshold = 70, ratio = 1.4): -1 | 0 | 1 {
+    if (Math.abs(dy) < threshold) return 0;
+    if (Math.abs(dy) <= Math.abs(dx) * ratio) return 0;
+    return dy > 0 ? 1 : -1;
+}
+
 /** 配列内で current から dir 分だけ動いた次の要素（両端はクランプ、ラップしない） */
 export function stepInList<T>(list: readonly T[], current: T, dir: number): T {
     const i = list.indexOf(current);

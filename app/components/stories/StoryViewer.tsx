@@ -6,7 +6,7 @@ import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { publicImageUrl } from "@/lib/utils/seo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, EyeSlashIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon, EllipsisHorizontalIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { HeartIcon, PaperAirplaneIcon, XMarkIcon, EyeIcon, EyeSlashIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon, EllipsisHorizontalIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import StoryActionSheet, { type StorySheetItem } from "./StoryActionSheet";
 import ReportDialog from "../ReportDialog";
@@ -21,6 +21,7 @@ import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
 import { wasShortTap, type PressPoint } from "@/lib/utils/tap";
+import { swipeDirection, verticalSwipeDirection } from "@/lib/utils/swipe";
 import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
 import StoryTextOverlay from "./StoryTextOverlay";
 import { useMediaBox } from "@/lib/hooks/useMediaBox";
@@ -212,6 +213,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [blockError, setBlockError] = useState<string | null>(null);
     /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
     const [replyFocused, setReplyFocused] = useState(false);
+    /**
+     * 絵文字の列を出しているか（モック⑥: 帯は入力と ♡ と ➤ の1段で、
+     * 絵文字は出ていない）。**フォーカスが外れても畳まない**——触れた瞬間に
+     * 消えると、その絵文字を押せない
+     */
+    const [replyOpen, setReplyOpen] = useState(false);
     // 届いた返信（投稿者だけ）
     const [replies, setReplies] = useState<StoryReply[] | null>(null);
     const [repliesError, setRepliesError] = useState(false);
@@ -517,22 +524,56 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
      *  指を離したときに**ボタンで止めたぶんまで再開しない**ように分ける */
     const pressPausedRef = useRef(false);
 
+    /**
+     * 直前の操作を「払った」として処理したか。
+     *
+     * **`pressRef` を捨てるだけでは止まらない。** `wasShortTap` は
+     * 押し始めの点が無いとき **`true`（従来どおり動かす）** を返す仕様なので、
+     * 払ったあとに必ず来る `click` が素通りする——実測では、左へ払って
+     * 次へ進んだ直後に**左のタップ領域の `click` が前へ戻し**、その場に
+     * 留まって見えた（上へ払ったときは、戻った先でストーリーが変わり
+     * 操作シートが閉じた）。押し始めで毎回 false に戻す。
+     */
+    const swipedRef = useRef(false);
+
     const onZonePointerDown = useCallback((e: React.PointerEvent) => {
         pressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
+        swipedRef.current = false;
         setPaused((prev) => { pressPausedRef.current = !prev; return true; });
     }, []);
 
-    /** 指を離した。長押しで止めたときだけ再開する */
-    const onZonePointerUp = useCallback(() => {
-        if (!pressPausedRef.current) return;
-        pressPausedRef.current = false;
-        setPaused(false);
-    }, []);
+    /**
+     * 指を離した。長押しで止めたときだけ再開する。
+     *
+     * **払った向きで振り分ける**（モック⑤「ジェスチャー操作」）:
+     * 左右で前後のストーリー、下で閉じる、上で操作シート。
+     * 払ったと決めたら `pressRef` を捨てる——残すと、このあと必ず来る
+     * `click` が「短いタップ」と読んで**送りが二重に効く**。
+     */
+    const onZonePointerUp = useCallback((e: React.PointerEvent) => {
+        if (pressPausedRef.current) {
+            pressPausedRef.current = false;
+            setPaused(false);
+        }
+        const p = pressRef.current;
+        if (!p) return;
+        const dx = e.clientX - p.x;
+        const dy = e.clientY - p.y;
+        const swiped = () => { swipedRef.current = true; pressRef.current = null; };
+        const vertical = verticalSwipeDirection(dx, dy);
+        if (vertical === 1) { swiped(); onClose(); return; }
+        if (vertical === -1) { swiped(); setMenuOpen(true); return; }
+        const horizontal = swipeDirection(dx, dy);
+        if (horizontal === 1) { swiped(); goNext(); return; }
+        if (horizontal === -1) { swiped(); goPrev(); }
+    }, [onClose, goNext, goPrev]);
 
     /** 直前の操作が短いタップだったか（長押し・指の移動があれば false） */
     const wasTap = useCallback((e: React.MouseEvent): boolean => {
         const p = pressRef.current;
         pressRef.current = null;
+        // 払いとして処理済みなら、この `click` は無かったことにする
+        if (swipedRef.current) return false;
         return wasShortTap(p, e.clientX, e.clientY);
     }, []);
 
@@ -678,6 +719,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         setReplyError(null);
         setReplySending(false);
         setReplyFocused(false);
+        setReplyOpen(false);
         setReplies(null);
         setRepliesError(false);
         setRepliesOpen(false);
@@ -721,6 +763,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             if (!stillHere()) return;
             setReplyText("");
             setReplySent(true);
+            // 送り終えたら絵文字の列は畳む（帯はモック⑥ の1段に戻る）
+            setReplyOpen(false);
         } catch (e) {
             const { sessionErrorMessage } = await import("../../../lib/utils/api");
             if (stillHere()) setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
@@ -1498,20 +1542,28 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         </p>
                     ) : (
                         <>
-                            <div className="flex items-center justify-center gap-1 pb-2">
-                                {STORY_REACTIONS.map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        onClick={() => void sendReply({ emoji })}
-                                        disabled={replySending}
-                                        aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
-                                        className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
+                            {/* 絵文字の列。**入力に触れてから出す**——モック⑥ の帯は
+                                「メッセージを送る…」と ♡ と ➤ の1段で、絵文字は
+                                出ていない。触れたら閉じないのは、**閉じる側に
+                                倒すと押せない**から（触った瞬間にフォーカスが
+                                外れて列ごと消える）。次のストーリーへ移るか、
+                                送り終えたら畳む */}
+                            {replyOpen && (
+                                <div className="flex items-center justify-center gap-1 pb-2">
+                                    {STORY_REACTIONS.map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() => void sendReply({ emoji })}
+                                            disabled={replySending}
+                                            aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
+                                            className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             <div className="flex items-center gap-2">
                                 <input
                                     type="text"
@@ -1519,7 +1571,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     onChange={(e) => setReplyText(e.target.value)}
                                     /* **打っている間は進めない。** 入力中に次へ送られると、
                                        書いた相手と違う人に届く */
-                                    onFocus={() => setReplyFocused(true)}
+                                    onFocus={() => { setReplyFocused(true); setReplyOpen(true); }}
                                     onBlur={() => setReplyFocused(false)}
                                     /* **変換確定の Enter で送らない。** 「きょう」を
                                        「今日」に変換した瞬間に飛ぶ（`lib/utils/ime.ts`） */
@@ -1531,21 +1583,37 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     }}
                                     maxLength={STORY_REPLY_MAX}
                                     disabled={replySending}
-                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送信…"}
+                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送る…"}
                                     aria-label={locale === "en" ? "Reply to this story" : "このストーリーに返信"}
                                     className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-white/40"
                                 />
-                                {replyText.trim() && (
-                                    <button
-                                        onClick={() => void sendReply({ text: replyText.trim() })}
-                                        disabled={replySending}
-                                        aria-label={locale === "en" ? "Send" : "送信"}
-                                        className="flex-shrink-0 px-3 py-2.5 text-sm text-white font-semibold disabled:opacity-40 active:scale-95 transition"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {locale === "en" ? "Send" : "送信"}
-                                    </button>
-                                )}
+                                {/* ♡: いちばん多い反応をひと押しで送る（モック⑥
+                                    「いいね（♡）で気持ちを伝えられます」）。
+                                    送る中身は絵文字の列の先頭と同じもので、
+                                    一覧（`STORY_REACTIONS`）から採る——**絵文字を
+                                    ここに書き写さない**（サーバーと突き合わせている
+                                    のはあの一覧の方） */}
+                                <button
+                                    onClick={() => void sendReply({ emoji: STORY_REACTIONS[0] })}
+                                    disabled={replySending}
+                                    aria-label={locale === "en" ? "Send a like" : "いいねを送る"}
+                                    className="flex-shrink-0 p-2 text-white/90 hover:text-white disabled:opacity-40 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <HeartIcon className="w-6 h-6" />
+                                </button>
+                                {/* ➤: 打った文字を送る。**空のときは押せない**——
+                                    押しても何も起きないボタンにしない（モックの絵は
+                                    入力が空の状態で、この印が薄く置かれている） */}
+                                <button
+                                    onClick={() => void sendReply({ text: replyText.trim() })}
+                                    disabled={replySending || !replyText.trim()}
+                                    aria-label={locale === "en" ? "Send" : "送信"}
+                                    className="flex-shrink-0 p-2 text-white/90 hover:text-white disabled:opacity-30 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <PaperAirplaneIcon className="w-6 h-6" />
+                                </button>
                             </div>
                             {replyError && (
                                 <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{replyError}</p>
