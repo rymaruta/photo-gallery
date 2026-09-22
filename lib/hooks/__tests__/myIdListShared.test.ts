@@ -39,18 +39,21 @@ const stripComments = (src: string): string =>
     src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
 /**
- * 「自分で取得の仕掛けを持っている」の判定。
+ * 「自分でサーバーを叩いている」の判定。**`userFetch` を呼ぶかどうかだけ。**
  *
- * **`userFetch` を呼び、中断の後始末（`AbortController` か `aborted`）を
- * 自分でしている**もの。「`AbortController` ＋ `userFetch`」の AND だけで
- * 見ていた頃は、中断を素のフラグだけで済ませた写しが素通りした
- * （`usePhotos` は `AbortController` だけ・`useFollow` は `userFetch` だけ、
- *  という実例がこのフォルダに既に2つある）。
+ * ⚠️ **中断の後始末（`AbortController` / `aborted`）を条件に足してはいけない。**
+ * 最初は「`userFetch` ＋ `AbortController`」の AND で見ていた。レビューで
+ * 「中断をフラグだけで書いた写しが素通りする」と出たので `aborted` を
+ * 足したが、**それでも取りこぼした**——develop に入った
+ * `useStoryArchive` は競合の番人を**1つも持たない**ので、どちらにも当たらない。
+ *
+ * だから条件を「自分で `userFetch` を呼ぶ」1つに削った。当たる数は少なく
+ * （このフォルダで7件）、**全部に理由を書ける**。取得する新しいフックは
+ * 必ずここに当たるので、**免除に理由を書く手が止められる**＝そのとき
+ * 「共通部に寄せられないか」を考えることになる。
  */
 export function fetchesOwnList(raw: string): boolean {
-    const src = stripComments(raw);
-    if (!/\buserFetch\s*\(/.test(src)) return false;
-    return /new AbortController\s*\(/.test(src) || /\baborted\b/.test(src);
+    return /\buserFetch\s*\(/.test(stripComments(raw));
 }
 
 /** `lib/hooks/**` を再帰で歩く（サブフォルダの写しも見る・`__tests__` は除く） */
@@ -78,6 +81,16 @@ const EXEMPT: Array<[string, string]> = [
     ["usePhotoLikes.ts", "1枚に対する押す口（一覧ではない）"],
     ["usePhotoSave.ts", "1枚に対する押す口（一覧ではない）"],
     ["useFollow.ts", "フォローの状態（一覧ではなく1件の真偽）"],
+    // **読む側は共通部の包み。** ここに残る `userFetch` は書く側
+    // （`toggle` の POST / DELETE）で、一覧の取得はしていない。
+    // 写しに戻されたら下の「共通部の包み」のテストが落ちる
+    ["useSavedSpots.ts", "読むのは共通部の包み。残る userFetch は書く側だけ"],
+    // **ID の一覧ではない。** 返るのは `Story[]`（行そのもの）で、
+    // サーバーも `{photoIds: [...]}` ではなく**素の配列**を返す。
+    // `useMyPhotoIdList` は「文字列のIDの一覧」を前提にしているので、
+    // 包みにするなら共通部の形から変える話になる。
+    // **`app/components/stories/**` は別の担当の範囲**でもある
+    ["useStoryArchive.ts", "Story の行の一覧（IDの一覧ではない）・素の配列が返る"],
 ];
 
 describe("自分の一覧を引く処理は1つだけ", () => {
@@ -97,9 +110,10 @@ describe("自分の一覧を引く処理は1つだけ", () => {
             const controller = new AbortController();
             const res = await userFetch("/user/spots", { signal: controller.signal });
         `;
-        const copyWithoutAbortController = `
-            let aborted = false;
-            const res = await userFetch("/user/spots");
+        // **中断の番人を1つも持たない写しも捕まえる。** develop の
+        // `useStoryArchive` がこの形で、AND の条件では取りこぼしていた
+        const copyWithoutAnyGuard = `
+            const res = await userFetch("/stories/archive");
         `;
         const wrapper = `
             import { useMyPhotoIdList } from "./useMyPhotoIdList";
@@ -110,8 +124,8 @@ describe("自分の一覧を引く処理は1つだけ", () => {
             return useMyPhotoIdList("/user/spots", "行きたい場所の一覧", a, b, "slugs");
         `;
         expect(fetchesOwnList(copy), "写しを見逃している").toBe(true);
-        expect(fetchesOwnList(copyWithoutAbortController),
-            "中断をフラグだけで書いた写しを見逃している").toBe(true);
+        expect(fetchesOwnList(copyWithoutAnyGuard),
+            "中断の番人を持たない写しを見逃している").toBe(true);
         expect(fetchesOwnList(wrapper), "包みを写し扱いしている").toBe(false);
         expect(fetchesOwnList(onlyInAComment),
             "コメントの文字で判定している").toBe(false);
