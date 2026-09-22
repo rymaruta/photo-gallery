@@ -96,6 +96,25 @@ describe("旅の実績の行", () => {
     });
 });
 
+// **線の引き方もモックに合わせた。** 数字の行は「下に1本」だけで上には無く、
+// 旅の実績は角丸のカード（`rounded-2xl bg-surface ring-1`）ではなく同じ1本の線。
+// どちらも元に戻す変異が、字の大きさのテストでは素通りする
+describe("線の引き方", () => {
+    it("数字の行の上に線を引かない", async () => {
+        await show(OWNER);
+        const lab = screen.getAllByText("投稿").find((e) => e.style.fontSize)!;
+        const row = lab.parentElement!.parentElement!;
+        expect(row.className, "下に1本ではない").toContain("border-b");
+        expect(row.className, "上にも線が戻っている").not.toMatch(/border-y|border-t/);
+    });
+
+    it("旅の実績は角丸のカードにしない", async () => {
+        const row = await show(OWNER);
+        expect(row.className, "カードに戻っている").not.toMatch(/rounded|bg-surface|ring-1/);
+        expect(row.className).toContain("border-b");
+    });
+});
+
 describe("数字の行の字の大きさ", () => {
     /** ラベルの span（インラインの fontSize を持つ方）と、その直前の数字の span */
     const sizesOf = (label: string) => {
