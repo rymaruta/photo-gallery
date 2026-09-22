@@ -1148,9 +1148,17 @@ function EditContent() {
 
             {/* 削除確認。取り消せない操作なので、装飾を減らして文字で選ばせる
                 （app/components/stories/StoryViewer.tsx と同じ形） */}
-            {/* safe-area は**クラスで**足す（`pb-[calc(env(...)+0.75rem)]`）。
+            {/* safe-area は**クラスで**足す（下の `pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]`）。
                 インライン style にするとどの utility より強く、`sm:pb-0` が
-                効かなくなって 640px 以上で中央寄せのカードが 6px ずれる */}
+                効かなくなって 640px 以上で中央寄せのカードが 6px ずれる。
+
+                🔴 **ここに中身を省いた形（`env(…)` の三点リーダ）を書かないこと。**
+                Tailwind は**コメントの中も走査して**クラスの候補を拾うので、
+                省略形がそのまま `calc(env(...))` という**壊れた CSS**として
+                出力に入る。`next build`（lightningcss）は警告だけで通すが、
+                `next dev`（turbopack）は解析に失敗して**リポジトリ全体が
+                500 になる**——実測でトップページが開かなかった。
+                見張りは `app/__tests__/tailwindArbitrary.test.ts`。 */}
             {confirmDelete && (
                 <div
                     ref={confirmRef}
