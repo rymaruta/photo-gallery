@@ -28,6 +28,27 @@ import { followingId } from "./followCheck";
  */
 export const MAX_ITEMS = 200;
 
+/**
+ * **外に出さない項目。** `lib/server/photos.ts` ／ `api/src/photos.ts` ／
+ * `scripts/sync-photos-from-ddb.js` と同じ一覧で、
+ * `scripts/__tests__/privateFieldsParity.test.ts` が突き合わせる。
+ *
+ * ここは**見せてよい相手にだけ返す口**だが、それは「行をそのまま渡してよい」
+ * という意味ではない。とくに `srcOriginal` は **EXIF を落とす前の原本**（GPS 入り）
+ * のURLで、フォロワーであっても撮影者の自宅が割れる粒度の情報を渡すことになる。
+ *
+ * 同じ考えを `api-user/src/albums.ts` が先に書いている（招いた相手にだけ返す口で、
+ * 表示に要る項目だけを組み直している）。**ここだけ生の行を返していた。**
+ */
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+
+/** 行から外に出さない項目を落とす（渡すのは写し。元の行は触らない） */
+export function stripPrivate(item: Record<string, unknown>): Record<string, unknown> {
+    const out = { ...item };
+    for (const f of PRIVATE_FIELDS) delete out[f];
+    return out;
+}
+
 export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
@@ -58,7 +79,7 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(visible),
+            body: JSON.stringify(visible.map(stripPrivate)),
         };
     } catch (e) {
         console.error("getRestrictedFeed error:", e);
