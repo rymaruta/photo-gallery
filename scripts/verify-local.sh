@@ -79,7 +79,13 @@ API_BASELINE=11
 # ⚠️ **並行するブランチが各自の木で関門を通しても、合流した develop で
 # 基準を超える**（9/21 の 120 → 129 と同じ形）。develop を取り込んだら
 # この関門を一度は通すこと。
-API_USER_BASELINE=142
+# 2026-09-22: 149 → 151。develop に入った PR #87（投票スタンプ）の新しいハンドラ
+# `api-user/src/storyVotes.ts` ぶん——TS2307（`aws-lambda` が引けない）と、その
+# 帰結の TS7006（`event` が暗黙 any）の2件で、中身は上と同じノイズ
+# （`git cat-file -e 33cafc66:api-user/src/storyVotes.ts` は無い＝新しいファイル）。
+# ⚠️ **develop の値（142）は合流のときに上げ忘れていた**——手元で測ると 151 で、
+# `npm run verify` は develop そのものでも落ちる。上の警告どおりの形が実際に起きた。
+API_USER_BASELINE=151
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
