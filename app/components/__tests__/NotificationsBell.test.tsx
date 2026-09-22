@@ -1422,54 +1422,143 @@ describe("モックに在るが、作る側がコードに無いもの（出さ�
     // owner の指示書 2026-09-22「架空のデータを出さない」。
     // サーバーが作る通知は `api-user/src/notify.ts` の4種類
     //（like / comment / follow / storyreply）だけ。
+    //
+    // **1つの it にまとめてある。** ここは「存在したことのない文字列が
+    // 出ていない」ことの確認なので、**どの版の実装でも通る**
+    // ——回帰試験ではなく、足し戻したときに落ちる番人。
+    // 描画は1回で足りるのに it を5本に割ると、フォロー一覧の取得待ちが
+    // 5回ぶん CI に乗る（`CLAUDE.md`「テストが約10分を占める」）。
     const ROWS = [
         { type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "旅子", byId: "u1", t: dayAt(0, 12) },
         { type: "follow", photoId: "", photoSrc: "", byName: "Ken", byId: "u2", targetUserId: "u2", t: dayAt(0, 11) },
     ];
 
-    const open = async () => {
+    it("お知らせ／アクティビティのタブ・保存／メンション・運営通知・フォローリクエスト・個別削除を出さない", async () => {
         mockUserFetch.mockImplementation((url: string) => Promise.resolve(
             url === "/user/following" ? fetchOk({ userIds: [] }) : fetchOk({ items: ROWS, unread: 0 }),
         ));
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-    };
 
-    it("「お知らせ」「アクティビティ」のタブを作らない", async () => {
-        await open();
-        // 運営からのお知らせを**書き込む経路がどこにも無い**ので、
-        // タブを置くと必ず空になる。お知らせが無い以上「アクティビティ」は
-        // 「すべて」と同じ中身になるので、これも置かない
-        expect(screen.queryByRole("tab", { name: "お知らせ" })).toBeNull();
-        expect(screen.queryByRole("tab", { name: "アクティビティ" })).toBeNull();
+        // 運営からのお知らせを**書き込む経路がどこにも無い**ので、タブを置くと
+        // 必ず空になる。お知らせが無い以上「アクティビティ」は「すべて」と
+        // 同じ中身になるので、これも置かない
         expect(screen.getAllByRole("tab").map((t) => t.textContent))
             .toEqual(["すべて", "いいね", "コメント", "フォロー"]);
-    });
-
-    it("「保存しました」「メンションしました」を出さない（その種別が無い）", async () => {
-        await open();
+        // その種別が無い（like / comment / follow / storyreply の4つだけ）
         expect(screen.queryByText(/保存しました/)).toBeNull();
         expect(screen.queryByText(/メンションしました/)).toBeNull();
-    });
-
-    it("運営からのお知らせを出さない", async () => {
-        await open();
         expect(screen.queryByText(/運営からのお知らせ/)).toBeNull();
-    });
-
-    it("フォローリクエストの承認・削除を出さない（そういう機能が無い）", async () => {
-        await open();
         // フォローは即時（承認を待つ仕組みが `follow.ts` に無い）
         expect(screen.queryByText(/フォローリクエスト/)).toBeNull();
         expect(screen.queryByRole("button", { name: "承認" })).toBeNull();
-    });
-
-    it("1件ごとの削除・非表示のメニューを出さない（その口が無い）", async () => {
-        await open();
-        // 通知の口は `GET /user/notifications` と `PUT`（全部既読）の2つだけ。
-        // 1件消す・隠す API は `api-user` に無い
+        // 通知の口は `GET` と `PUT`（全部既読）の2つだけ。1件消す・隠す API は無い
         expect(screen.queryByRole("button", { name: /削除/ })).toBeNull();
         expect(screen.queryByRole("button", { name: /非表示/ })).toBeNull();
+    });
+});
+
+// ────────────────────────────────────────────────────────────
+// レビューで出た回帰と抜け（2026-09-22）
+// ────────────────────────────────────────────────────────────
+
+describe("「新着」の下では、行が暦日の語を落とさない（レビューで出た回帰）", () => {
+    it("未読の昨日の行は「昨日」と出す（見出しが暦日を言わないため）", async () => {
+        // 🔴 `days <= 1` で時刻に倒していたときの実測:
+        //       見出し ['新着'] / 行 '9:00' '23:00'
+        //    新しい順なのに時刻が上がるので、**2行目が「今日の23時」＝
+        //    まだ来ていない時刻**に読めた（`calendarDaysAgo` の doc が
+        //    禁じている形を、区分を足した側が別経路で作っていた）
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [
+                { type: "like", photoId: "p1", photoSrc: "https://c/a.webp", byName: "今朝の人", t: dayAt(0, 9) },
+                { type: "like", photoId: "p2", photoSrc: "https://c/b.webp", byName: "昨夜の人", t: dayAt(1, 23) },
+            ],
+            unread: 2,
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        // 2件とも未読＝「新着」に吸い上げられる（暦日の見出しが出ない）
+        expect(await screen.findByRole("heading", { name: "新着" })).toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: "昨日" }),
+            "この筋では「昨日」の見出しは出ない（未読が先に「新着」へ入る）").toBeNull();
+        // だから**行が**暦日を言う
+        expect(screen.getByText("昨日"), "「新着」の下なのに行が時刻だけになっている").toBeInTheDocument();
+        expect(screen.queryByText("23:00"), "日付の手がかりが無い時刻を出している").toBeNull();
+        // 今日ぶんは時刻のまま（「新着」でも今日なら未来には読めない）
+        expect(screen.getByText("9:00")).toBeInTheDocument();
+    });
+
+    it("「昨日」の見出しの下では、行は時刻（見出しと同じ語を繰り返さない）", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({
+            items: [{ type: "like", photoId: "p2", photoSrc: "https://c/b.webp", byName: "昨夜の人", t: dayAt(1, 23) }],
+            unread: 0,   // 既読なので「新着」に入らず、暦日の区分に落ちる
+        }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(await screen.findByRole("heading", { name: "昨日" })).toBeInTheDocument();
+        expect(screen.getByText("23:00")).toBeInTheDocument();
+        expect(screen.queryByText("昨日", { selector: "p" }), "行が見出しと同じ語を繰り返している").toBeNull();
+    });
+});
+
+describe("全画面のシートは裏のページを止める", () => {
+    const ONE = [{ type: "like", photoId: "p1", photoSrc: "https://c/p1.webp", byName: "旅子", t: dayAt(0, 12) }];
+
+    const open = async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ONE, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+    };
+
+    it("スマホ: 開いている間は body を固定し、閉じたら戻す", async () => {
+        // 画面を覆う `aria-modal` は既存5か所とも掛けている
+        //（`HeaderNav`・`FollowingSheet`・`DeleteConfirmModal`・
+        //  `DeleteAccountModal`・`PostSheet`）。掛けないと一覧の端で
+        // 裏のページが動く（スクロール連鎖）
+        await open();
+        expect(document.body.style.overflow, "裏のページが止まっていない").toBe("hidden");
+        fireEvent.click(screen.getByRole("button", { name: "通知を閉じる" }));
+        expect(document.body.style.overflow, "閉じたのに固定が残っている").not.toBe("hidden");
+    });
+
+    it("PC: 板は画面を覆わないので固定しない", async () => {
+        setWide(true);
+        await open();
+        expect(document.body.style.overflow, "板なのにページを固定している").not.toBe("hidden");
+    });
+});
+
+describe("フォローバックの安全と読み上げ", () => {
+    const FOLLOW = { type: "follow", photoId: "", photoSrc: "", byName: "Ken", byId: "u-ken", targetUserId: "u-ken", t: dayAt(0, 12) };
+
+    const open = async (followingIds: string[]) => {
+        mockUserFetch.mockImplementation((url: string) => Promise.resolve(
+            url === "/user/following" ? fetchOk({ userIds: followingIds }) : fetchOk({ items: [FOLLOW], unread: 0 }),
+        ));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+    };
+
+    it("誰をフォローバックするのかを読み上げに出す", async () => {
+        await open([]);
+        expect(await screen.findByRole("button", { name: "Ken さんをフォローバック" })).toBeInTheDocument();
+    });
+
+    it("既に返している相手には出さない（誤タップで無確認に解除させない）", async () => {
+        await open(["u-ken"]);
+        // 行そのものは出る
+        await waitFor(() => expect(screen.getByText(/さんがあなたをフォローしました/)).toBeInTheDocument());
+        // 「フォロー中」＝押すと解除、が密に並ぶ行の中に残らないこと
+        expect(screen.queryByRole("button", { name: /フォローバック/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /フォロー中/ }),
+            "返し終わった行に解除ボタンが残っている").toBeNull();
     });
 });

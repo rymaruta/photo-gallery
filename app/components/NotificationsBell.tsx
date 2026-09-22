@@ -15,6 +15,7 @@ import { FollowAction } from "./FollowButton";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
+import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type Notif = {
@@ -416,6 +417,23 @@ export default function NotificationsBell() {
     useFocusTrap(open && !wide, sheetRef, bellRef);
 
     /**
+     * 全画面のシートの間だけ、裏のページを固定する。
+     *
+     * **画面を覆う `aria-modal` は全部これを掛けている**——`HeaderNav` の
+     * メニュー・`FollowingSheet`・`DeleteConfirmModal`・`DeleteAccountModal`・
+     * `PostSheet`・`StoryViewer`。掛けないと、一覧を端まで送ってさらに引いた
+     * ときに**裏のページが動く**（スクロール連鎖）。
+     *
+     * **PC の板には掛けない。** あちらは画面を覆わないポップオーバーで、
+     * 裏を固定すると「板が開いている間ページが動かせない」になる。
+     */
+    useEffect(() => {
+        if (!open || wide) return;
+        lockBodyScroll();
+        return () => unlockBodyScroll();
+    }, [open, wide]);
+
+    /**
      * 未読を全部既読にする。モック 05 の注釈⑦「右上の『すべて既読にする』で、
      * 未読の通知をまとめて既読に」。
      *
@@ -488,17 +506,35 @@ export default function NotificationsBell() {
      * ——この doc がまさに禁じている形を、区分を足した側が作る。
      * 見出しが暦日の言葉を持つ区分（今日・昨日）は、行は時刻を出す。
      */
-    const fmtTime = (iso: string) => {
+    const fmtTime = (iso: string, bucket: NotifBucket) => {
         const t = Date.parse(iso);
         if (isNaN(t) || !now) return "";
         // **見出しと同じ物差し**（暦日）で数える。転がる24時間のままだと
         // 午前1時に「今日 23:00」＝まだ来ていない時刻に見える
         const days = calendarDaysAgo(t, now);
         const d = new Date(t);
-        // 先の時刻（端末の時計がずれている）も「今日」側に倒す。
-        // **1日前まで時刻**——見出し（今日・昨日）が暦日を言うので、
-        // 行はその中での位置を出す（すぐ上の doc）
-        if (days <= 1) return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+        const clock = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+        // 🔴 **暦日の語を落としてよいのは、その見出しが暦日を言う区分だけ。**
+        //
+        // 「昨日」の区分を足した回、ここを `days <= 1` で時刻に倒して**回帰を
+        // 出した**。未読は暦日より先に「新着」へ吸い上げられる（`bucketOf` は
+        // `newSince` を最初に見る）ので、**「新着」の下に日付の手がかりが無い
+        // 「23:00」が並ぶ**。実測:
+        //
+        //     見出し  ['新着']
+        //     行      '今朝の人 …いいねしました 9:00'
+        //             '昨夜の人 …いいねしました 23:00'
+        //
+        // 新しい順なのに時刻が上がるので、**2行目が「今日の23時」＝まだ来て
+        // いない時刻**に読める——`calendarDaysAgo` の doc がまさに禁じている形を、
+        // 区分を足した側が別の経路で作り直していた。朝に開くほど強く出る。
+        //
+        // だから見出しで分ける。`today` / `yesterday` は見出しが暦日を言うので
+        // 行は時刻だけ。`new` / `week` / `older` は言わないので、行が言う。
+        if (bucket === "today" || bucket === "yesterday") return clock;
+        // 先の時刻（端末の時計がずれている）も「今日」側に倒す
+        if (days <= 0) return clock;
+        if (days === 1) return locale === "en" ? "yesterday" : "昨日";
         if (days <= 7) return locale === "en" ? `${days}d ago` : `${days}日前`;
         return `${d.getMonth() + 1}/${d.getDate()}`;
     };
@@ -852,7 +888,7 @@ export default function NotificationsBell() {
                                                 以前はここが「旅立たせました！」の分岐で、
                                                 将来わけの分からない通知が全部その文言で出る作りだった */}
                                         </p>
-                                        <p className="text-white/50" style={{ fontSize: M.time, marginTop: 2 }}>{fmtTime(n.t)}</p>
+                                        <p className="text-white/50" style={{ fontSize: M.time, marginTop: 2 }}>{fmtTime(n.t, bucket)}</p>
                                     </div>
                                     {/* どの写真のことかが分かるよう、右端にその写真を出す */}
                                     {/* **ストーリーのサムネは出さない。** 返信の通知が持つ
@@ -925,6 +961,16 @@ export default function NotificationsBell() {
                                                 isAuthenticated={isAuthenticated}
                                                 locale={locale === "en" ? "en" : "ja"}
                                                 variant="followBack"
+                                                // **誰をフォローバックするのかを読み上げに出す。**
+                                                // 文言だけだと「フォローバック、ボタン」が
+                                                // 人数ぶん続いて区別が付かない
+                                                ariaLabel={locale === "en"
+                                                    ? `Follow ${n.byName} back`
+                                                    : `${n.byName} さんをフォローバック`}
+                                                // **返し終わったら消す。** 残すと「フォロー中」
+                                                // ＝押すと解除のボタンが、密に並ぶ行の中に
+                                                // 32px で居座る（誤タップで無確認に解除される）
+                                                hideWhenFollowing
                                             />
                                         </div>
                                     )}

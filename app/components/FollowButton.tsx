@@ -29,6 +29,25 @@ type Props = {
      * （このリポジトリが何度も踏んでいる「同じものを二度作る」の形）。
      */
     variant?: "profile" | "followBack";
+    /**
+     * 読み上げ用の名前。**一覧に並べるときは必ず渡す。**
+     * 文言だけだと「フォローバック、ボタン」が人数ぶん続いて、
+     * どれが誰なのか分からない（隣のアバターのリンクは名前を持っている）。
+     */
+    ariaLabel?: string;
+    /**
+     * 既にフォローしている相手では**何も描かない**。
+     *
+     * プロフィールの行では「フォロー中」（＝押すと解除）でよいが、
+     * 通知の一覧は 56px の行が並ぶスクロール面で、そこに置いた高さ 32px の
+     * 錠剤は**誤タップで無確認に解除される**。モックがフォローバックを
+     * 出しているのも「まだ返していない」行なので、返し終わったら消える方が
+     * モックにも近い。
+     *
+     * **判定が付くまでも描かない**（`!resolved`）。先に「フォローバック」を
+     * 出してから消すと、一覧が一瞬ずれる。
+     */
+    hideWhenFollowing?: boolean;
 };
 
 export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
@@ -115,7 +134,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
  * フォローボタン単体。数字のピル（FollowButton）とは切り離し、
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
-export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, variant = "profile" }: Props) {
+export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, variant = "profile", ariaLabel, hideWhenFollowing }: Props) {
     // 数は描かないので取りに行かない（検索結果 N 件で N 本飛んでいた）。
     // 数のピルはプロフィールの FollowButton が別に取る。
     //
@@ -130,6 +149,9 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
     const compact = variant === "followBack";
 
     if (isOwner) return null;
+    // 返し終わった行（と、まだ判定が付いていない行）には何も置かない。
+    // **`useFollow` より後に置くこと**——フックは毎回同じ数だけ呼ぶ
+    if (hideWhenFollowing && (!resolved || isFollowing)) return null;
 
     const onClick = async () => {
         const { result, message } = await toggle();
@@ -152,6 +174,7 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
             // 出て、押しても既にフォロー済みで画面が変わらなかった。
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
+            aria-label={ariaLabel}
             className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                 compact ? "flex-shrink-0" : "flex-1 px-4 py-2.5 text-sm"
             } ${
