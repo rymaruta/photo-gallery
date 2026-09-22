@@ -657,6 +657,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                     isAuthenticated={isAuthenticated}
                     authLoading={authLoading}
                     savedIds={savedIds}
+                    savesPending={saves.pending}
                   />
                 </li>
               ))}

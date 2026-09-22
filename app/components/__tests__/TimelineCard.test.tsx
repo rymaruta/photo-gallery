@@ -129,15 +129,29 @@ describe("ホームのカード（モックの並び）", () => {
 describe("保存（右端のしおり）", () => {
     it("🔴 一覧から分かっている保存の有無を `usePhotoSave` に渡す（写真ごとに聞きに行かせない）", () => {
         card({}, { isAuthenticated: true, savedIds: new Set(["p1", "p9"]) });
-        expect(usePhotoSaveMock).toHaveBeenCalledWith("p1", true, false, true);
+        expect(usePhotoSaveMock).toHaveBeenCalledWith("p1", true, false, true, false);
         usePhotoSaveMock.mockClear();
         card({ id: "p2" }, { isAuthenticated: true, savedIds: new Set(["p1"]) });
-        expect(usePhotoSaveMock).toHaveBeenCalledWith("p2", true, false, false);
+        expect(usePhotoSaveMock).toHaveBeenCalledWith("p2", true, false, false, false);
     });
 
     it("一覧がまだ無ければ（null）分からないまま渡す＝フックが自分で聞きに行く", () => {
         card({}, { isAuthenticated: true, savedIds: null });
-        expect(usePhotoSaveMock).toHaveBeenCalledWith("p1", true, false, undefined);
+        expect(usePhotoSaveMock).toHaveBeenCalledWith("p1", true, false, undefined, false);
+    });
+
+    /**
+     * 🔴 **一覧を「いま引いている最中」だけは、聞きに行かせない。**
+     *
+     * `savedIds` が `null` なのは「まだ」と「失敗した」の両方なので、
+     * `null` だけでは区別が付かない。区別しなかったせいで、ログイン中に
+     * ホームを開くと**写真ごとに GET が飛んでいた**
+     * ——実測 **30本 / 1回の表示**（`out/` を実ブラウザで開いて計測）。
+     * ⚠️ Lambda の同時実行はアカウント全体で 10（`CLAUDE.md`）。
+     */
+    it("🔴 一覧が飛行中なら、その旨も渡す（写真ごとの GET を止める）", () => {
+        card({}, { isAuthenticated: true, savedIds: null, savesPending: true });
+        expect(usePhotoSaveMock).toHaveBeenCalledWith("p1", true, false, undefined, true);
     });
 
     it("保存済みは青いしおりで aria-pressed", () => {

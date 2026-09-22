@@ -217,3 +217,44 @@ describe("消す", () => {
         expect(mockUserFetch.mock.calls.some((c) => c[1]?.method === "DELETE")).toBe(false);
     });
 });
+
+/**
+ * 🔴 **押せるのに何も起きないボタンを作らない。**
+ *
+ * この画面だけ `aria-disabled` を使っていて、**見た目はそのまま押せるのに
+ * 押しても何も起きなかった**——`create` / `rename` は名前が空だと黙って
+ * `return` する。知らせも出ないので「壊れている」としか見えない。
+ * 実ブラウザで「作る」を押して確かめた（要求0・トースト無し・画面の変化無し）。
+ *
+ * リポジトリの他の3か所（`/user/highlights` の保存・`/user/settings` の
+ * パスワード変更・`ReportDialog` の送信）は**本物の `disabled` ＋ 薄くする**
+ * で揃っている。**3つ目の表現を作らない**（PM の線）ので、そちらへ寄せる。
+ */
+describe("空の入力で押せてしまわない", () => {
+    it("名前が空のあいだ「作る」は押せない（見た目でも分かる）", async () => {
+        render(<AlbumsPage />);
+        await screen.findByText("北欧の冬");
+        const create = screen.getByRole("button", { name: "作る" });
+        expect(create, "空でも押せる（押しても何も起きない）").toBeDisabled();
+        expect(create.className, "押せないのに見た目が変わらない").toContain("disabled:opacity-50");
+
+        await userEvent.type(screen.getByLabelText("アルバムの名前"), "北欧の夏");
+        expect(create, "名前を入れても押せないまま").toBeEnabled();
+    });
+
+    it("空白だけの名前でも押せない（trim して判定する）", async () => {
+        render(<AlbumsPage />);
+        await screen.findByText("北欧の冬");
+        await userEvent.type(screen.getByLabelText("アルバムの名前"), "   ");
+        expect(screen.getByRole("button", { name: "作る" }), "空白だけで押せる").toBeDisabled();
+    });
+
+    it("名前を空にした「保存」（名前の変更）も押せない", async () => {
+        render(<AlbumsPage />);
+        await screen.findByText("北欧の冬");
+        await userEvent.click(screen.getByRole("button", { name: "名前を変える" }));
+        const input = await screen.findByLabelText("アルバムの新しい名前");
+        await userEvent.clear(input);
+        expect(screen.getByRole("button", { name: "保存" }), "空のまま保存が押せる").toBeDisabled();
+    });
+});

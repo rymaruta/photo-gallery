@@ -65,3 +65,63 @@ describe("usePhotoSave: 一覧から分かっているとき（known）", () => 
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * 🔴 **`known` は「一覧が返ってから」しか効かない。**
+ *
+ * `useMySaves` が飛行中のあいだ `savedIds` は `null` ＝ `known` は
+ * `undefined` なので、**カードは全部それぞれ GET を撃っていた**。
+ * 上の `known` のテストは「返ったあと」だけを見ていたので、
+ * **この穴は一度も落ちなかった**。
+ *
+ * 実測（2026-09-22・ログイン済みでホームを1回開く。実ブラウザ）:
+ *
+ *     GET /user/saves/<id>   ×33   ← 写真ごと
+ *     GET /user/saves        ×1    ← 一括（最後に着地）
+ *
+ * ⚠️ **Lambda の同時実行はアカウント全体で 10**（`CLAUDE.md`）。
+ * 1人がホームを開くだけで上限を大きく超える要求が出る。
+ */
+describe("usePhotoSave: 一覧をいま引いている最中（knownPending）", () => {
+    it("🔴 一覧が飛行中なら、写真ごとに聞きに行かない", () => {
+        renderHook(() => usePhotoSave("p1", true, false, undefined, true));
+        expect(mockUserFetch, "一覧の到着を待たずに GET を撃った").not.toHaveBeenCalled();
+    });
+
+    it("一覧が返ったら、その値を使う（それでも GET は撃たない）", async () => {
+        const { result, rerender } = renderHook(
+            ({ known, pending }: { known?: boolean; pending: boolean }) =>
+                usePhotoSave("p1", true, false, known, pending),
+            { initialProps: { known: undefined as boolean | undefined, pending: true } },
+        );
+        expect(mockUserFetch).not.toHaveBeenCalled();
+        rerender({ known: true, pending: false });
+        await waitFor(() => expect(result.current.saved).toBe(true));
+        expect(mockUserFetch, "一覧が返ったあとに GET を撃った").not.toHaveBeenCalled();
+    });
+
+    /**
+     * **一覧が失敗したら、今までどおり聞きに行く。** 塞ぐのは
+     * 「待てば分かる」窓だけで、経路そのものは消さない
+     * （消すと、一覧が落ちた人のしおりが永久に未保存に見える）
+     */
+    it("一覧が失敗したら（pending が下りて known も無い）聞きに行く", async () => {
+        mockUserFetch.mockResolvedValue(ok({ saved: true }));
+        const { result, rerender } = renderHook(
+            ({ pending }: { pending: boolean }) => usePhotoSave("p1", true, false, undefined, pending),
+            { initialProps: { pending: true } },
+        );
+        expect(mockUserFetch).not.toHaveBeenCalled();
+        rerender({ pending: false });
+        await waitFor(() => expect(result.current.saved).toBe(true));
+        expect(mockUserFetch).toHaveBeenCalledWith("/user/saves/p1", expect.anything());
+    });
+
+    // **既定は今までどおり**（写真ページ・ビューアは一覧を持たないので聞きに行く）
+    it("渡さなければ今までどおり聞きに行く", async () => {
+        mockUserFetch.mockResolvedValue(ok({ saved: true }));
+        const { result } = renderHook(() => usePhotoSave("p1", true));
+        await waitFor(() => expect(result.current.saved).toBe(true));
+        expect(mockUserFetch).toHaveBeenCalledWith("/user/saves/p1", expect.anything());
+    });
+});
