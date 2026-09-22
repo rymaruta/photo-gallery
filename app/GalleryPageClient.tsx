@@ -10,7 +10,7 @@ import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
-import { GRID_SIZES_5XL } from "./components/gridSizes";
+import { GRID_SIZES_SEARCH, GRID_COLUMNS_SEARCH } from "./components/gridSizes";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
@@ -25,6 +25,56 @@ const POPULAR_TAG_LIMIT = 10;
 
 /** ホームの最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
 const HOME_PRIORITY_COUNT = 2;
+
+/**
+ * **ホームの PC は「1列のフィード＋右の柱」**（owner の指示書 4・11・17:
+ * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
+ * Webサイトとして最適なレイアウトを設計してください」）。
+ *
+ *   < 1024px … 最終版モックのまま（1列のカードだけ）
+ *   ≥ 1024px … 左にフィード（**40rem＝640px**）／右に**発見の柱**（余りぜんぶ）
+ *
+ * **空いた横を埋めるのは別の中身。** スマホでは下部タブの「さがす」で
+ * 辿る面を、PC では同じ画面に出す（柱の行き先も「さがす」の検索結果）。
+ *
+ * ## 余白の詰め方（2026-09-22・owner の指示）
+ *
+ * owner:「ホームの本文が 576px に制限され、1280px 幅で左右に大きな余白が
+ * 残る問題を解消すること。ただし**無理に画面幅いっぱいへ引き伸ばさない**。
+ * 中央フィードと右サイドバーのバランスを整える」。
+ *
+ *     画面   容器            フィード ＋ 隙間 ＋ 柱      画面に対して
+ *     1024   1024−64=960     640 + 32 + 288 = 960        94%（余白 0）
+ *     1152   1152−64=1088    640 + 32 + 416 = 1088       94%
+ *     1280   1152 で頭打ち   同上                        85%（前は 72.5%）
+ *     1920   同上            同上                        57%
+ *
+ * ⚠️ **フィードを 640px より広げない。** `Thumb` の派生は 512w までなので、
+ * 箱を広げるほど引き伸ばしになる（`FEED_SIZES_XL` と `SPOT_HERO_SIZES` の
+ * doc に同じ線が引いてある）。**「引き伸ばさない」は owner の言葉でもある。**
+ *
+ * **柱は `1fr`（余りぜんぶ）にする。** 固定幅にして `justify-center` で
+ * 寄せると、見出し・タブと本文の左端が 16px ずれる
+ * （実測: 見出し x=160 / カード x=176）。余りを柱に渡せば両端が揃う。
+ */
+function HomeColumns({ rail, children }: { rail: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-none">{children}</div>
+      {/* **狭い画面には出さない。** スマホの「さがす」は下部タブの別の面で、
+          ここに足すとモックに無いものが1画面に増える。
+
+          **高さを画面に収める。** 貼り付いたまま画面より高くなると、
+          下の節（機材）が**どうやっても読めない**——本文を送っても柱は
+          動かないので、届く手段が1つも無い（レビューが 1280×600 で計測）。
+          引くのはヘッダー 72 ＋ 上の余白 16 ＋ 下部タブ 64 ＋ 下の余白 16。
+          **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
+          柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
+          作ると隠れる */}
+      <aside className="hidden lg:block lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">{rail}</aside>
+    </div>
+  );
+}
 
 type Props = {
   /**
@@ -368,6 +418,27 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     [labels, categories],
   );
 
+  /**
+   * ホームの PC の右の柱（`HomeColumns`）に置く中身。
+   *
+   * **同じものを二度作らない**——「さがす」の発見の節（`DiscoverSections`）を
+   * 柱の形で出すだけ。数え方も行き先も1か所（`collectEntries`）のままなので、
+   * 柱の数字と飛んだ先の枚数が食い違わない。
+   *
+   * **架空の数字は出さない**（owner の指示書）。ここに出るのは
+   * カテゴリ・撮影地・機材と、その**実際の枚数**だけ。
+   */
+  const discoverRail = (
+    <nav aria-label={locale === "en" ? "Browse photos" : "写真をさがす"}>
+      <DiscoverSections
+        photos={PHOTOS}
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+        variant="rail"
+      />
+    </nav>
+  );
+
   const renderSubtitle = (sub?: string | string[]) => {
     if (!sub) return null;
     const parts = Array.isArray(sub) ? sub : [sub];
@@ -389,23 +460,45 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     );
   };
 
+  /**
+   * 見出しは面ごとに別の文。
+   *
+   * **以前はどちらも `site.title`（「みんなの旅の写真」）だった。**
+   * `/search` は `noindex` なので検索への影響は無いが、別の画面が
+   * 同じ見出しを名乗ると、見出しで行き来する人には区別が付かない。
+   * 一言（`subtitle`）はサイトの看板なのでトップにだけ置く。
+   */
+  const isSearch = surface !== "home";
+  const heading = isSearch
+    ? (labels.search?.heading ?? (locale === "en" ? "Find photos" : "写真をさがす"))
+    : (labels.site?.title ?? "Gallery");
+
+  /**
+   * **PC は両方 6xl に広げる**（指示書 4・11・17「スマホ画面をそのまま横に
+   * 引き伸ばさない」／owner 2026-09-22「1280px 幅で左右に大きな余白が
+   * 残る問題を解消する。ただし無理に画面幅いっぱいへ引き伸ばさない」）。
+   *
+   * **上限は 6xl**——写真ページ（`lg:max-w-6xl`）・集約ページと同じ箱。
+   * 7xl にするとヘッダー（`max-w-5xl`）とロゴの左端が片側128px ずれる。
+   * 狭い画面（< 1024px）は今までどおり `max-w-5xl`。
+   */
   return (
-    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
+    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
           ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
           辿れない（実測: 390px 幅で h1 が0件）。**見た目は変えない**——
           画面に出さない見出しを1つ置く。広い画面では下の h1 が出るので、
           `sm:hidden` で重複させない */}
-      <h1 className="sr-only sm:hidden">{labels.site?.title ?? "Gallery"}</h1>
+      <h1 className="sr-only sm:hidden">{heading}</h1>
 
       {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
       <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">
           <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
-            {labels.site?.title ?? "Gallery"}
+            {heading}
           </h1>
-          {renderSubtitle(labels.site?.subtitle)}
+          {!isSearch && renderSubtitle(labels.site?.subtitle)}
         </div>
       </div>
 
@@ -444,11 +537,21 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {surface === "home" && filters.scope === "following" ? (
-        <div className="max-w-xl mx-auto">
+        <HomeColumns rail={discoverRail}>
           <TimelineFeed locale={locale} />
-        </div>
+        </HomeColumns>
       ) : surface === "home" && filters.scope === "featured" ? (
-        /* **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
+        /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
+           `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
+           `max-w-5xl` いっぱいである前提**で `sizes` を申告している。
+           36rem の柱の中へ入れると箱は 139.5px なのに 235.5px と申告する
+           ことになり、`gridSizes.ts` が禁じている「申告と実寸のずれ」を
+           作る。**既にカテゴリごとのグリッド＝横を使う形**なので、
+           ここは広いまま置く。付けるなら `FeaturedSections` に `sizes` を
+           渡せるようにするのが先（本番の `featured` は 0枚なので、
+           いま実際に出るのは下の空の知らせ）。
+
+           **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
            （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
            持ち場にする——同じものを二度作らない。
            **人気順ではない**（実データは いいね0・コメント0 で、人気の
@@ -480,7 +583,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
         /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
            グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
            1枚ずつ見るのは別の体験なので、面を分ける */
-        <div className="max-w-xl mx-auto">
+        <HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
               <p className="text-sm m-0">
@@ -503,20 +606,40 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               ))}
             </ol>
           )}
-        </div>
+        </HomeColumns>
       ) : (
-      <>
+      /**
+       * **「さがす」の PC は2カラム**（owner の指示書 4・11・17:
+       * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
+       * Webサイトとして最適なレイアウトを設計してください」）。
+       *
+       *   < 1024px … 最終版モックのまま（絞り込み → 発見の節 → 結果）
+       *   ≥ 1024px … **左に絞り込みの柱**（画面に貼り付く）／右に写真の面
+       *
+       * 柱にするのは、この画面がいちばん長くなる面だから——結果が
+       * 数十枚あるとスクロールの先で絞り込みが画面から消え、条件を
+       * 変えるたびに上まで戻ることになる。マップ（左に一覧／右に地図）と
+       * 同じ考え方。
+       *
+       * 柱は `lg:top-[88px]`＝ヘッダー（`md:` で 72px）の下 16px。
+       * **`overflow-y-auto` は付けない**——並び替えの一覧が
+       * `absolute` で吊り下がるので、切り取られる箱を作ると隠れる。
+       */
+      <div className="lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <div className="lg:sticky lg:top-[88px]">
       <FilterBar
         categories={categories}
         tags={tags}
         values={filters}
         onChange={setFilters}
-        className="mb-4"
+        className="mb-4 lg:mb-0"
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
       />
+      </div>
 
+      <div className="min-w-0">
       {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
           絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
           グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
@@ -569,7 +692,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           </div>
         ) : (
           <GalleryGrid
-                        sizes={GRID_SIZES_5XL}
+            sizes={GRID_SIZES_SEARCH}
+            columnsClassName={GRID_COLUMNS_SEARCH}
             photos={filteredPhotos}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
@@ -577,7 +701,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           />
         )}
       </>
-      </>
+      </div>
+      </div>
       )}
 
       <SearchParamWatcher name="photo" onChange={setPhotoParam} />

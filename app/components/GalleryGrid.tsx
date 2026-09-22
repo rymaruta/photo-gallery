@@ -63,6 +63,18 @@ type Props = {
      * このリポジトリの方針どおりになる。
      */
     sizes: string;
+    /**
+     * 列数のクラス。**`sizes` と必ず対で変える。**
+     *
+     * 既定は「スマホ2列・`sm:`3列・`lg:`4列」で、`GRID_SIZES_5XL` /
+     * `GRID_SIZES_6XL` はこの列数で計算されている。「さがす」だけは
+     * PC で左に柱を置くぶん `lg:` を3列のままにし、`xl:` で4列にする
+     * （`GRID_SIZES_SEARCH`）。
+     *
+     * ⚠️ **片方だけ変えない。** 列数を変えて `sizes` を据え置くと、
+     * 申告と実寸がずれてブラウザが違う候補を落とす（`gridSizes.ts` の doc）。
+     */
+    columnsClassName?: string;
 };
 
 
@@ -95,6 +107,8 @@ export default function GalleryGrid({
     openInPlace = false,
     priorityCount = 8,
     sizes,
+    // 既定は `GRID_SIZES_5XL` / `GRID_SIZES_6XL` が前提にしている列数
+    columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -132,7 +146,7 @@ export default function GalleryGrid({
     return (
         <>
         {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
+        <div className={`grid ${columnsClassName} gap-1 sm:gap-1.5`}>
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
                 const localizedTitle = displayTitle(getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : ""));

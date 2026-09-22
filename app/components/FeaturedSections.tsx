@@ -5,7 +5,7 @@ import type { Photo } from "../../lib/data/photos";
 import { featuredGroups } from "../../lib/utils/featured";
 import { collectionPath } from "../../lib/utils/collections";
 import GalleryGrid from "./GalleryGrid";
-import { GRID_SIZES_5XL } from "./gridSizes";
+import { GRID_SIZES_HOME_6XL } from "./gridSizes";
 import type { Locale } from "../../lib/data/photos";
 
 /**
@@ -59,14 +59,15 @@ export default function FeaturedSections({ photos, categoryNames, locale, onOpen
                         {/* **カードの作りは `GalleryGrid` に任せる。** 切り抜き位置・
                             alt・派生の出し分け・開き方の約束を写すと、片方だけ
                             古くなる（このリポジトリが何度も踏んだ型）。
-                            `sizes` はホームの一覧と同じ箱なので同じ値を渡す
-                            ——`gridSizes.ts` の実測値（既定値は無い） */}
+                            `sizes` はホームの容器（`max-w-5xl lg:max-w-6xl`）で
+                            計算した値——`gridSizes.ts` の `GRID_SIZES_HOME_6XL`。
+                            **容器を広げたらこちらも動かす**（既定値は無い） */}
                         <GalleryGrid
                             photos={g.photos}
                             locale={locale}
                             categoryDisplayMap={categoryDisplayMap}
                             onOpenPhoto={onOpenPhoto}
-                            sizes={GRID_SIZES_5XL}
+                            sizes={GRID_SIZES_HOME_6XL}
                         />
                     </div>
                 ))}

@@ -174,3 +174,33 @@ describe("並び替えボタンの aria-controls", () => {
         expect(document.getElementById(ref!), "指す先が存在しない").not.toBeNull();
     });
 });
+
+/**
+ * **PC では左の柱に置く**（`/search` の ≥1024px・指示書 4・11・17）。
+ *
+ * jsdom はメディアクエリを解かないので、ここで見られるのは
+ * 「`lg:` のクラスが付いているか」まで。実際の位置は Chromium で測った
+ * （台帳の「PC の設計を入れた」の節）。
+ */
+describe("PC の柱（/search の ≥1024px）", () => {
+    it("🔴 並び替えの一覧は PC で左に揃える（右揃えのままだと柱からはみ出す）", () => {
+        setup();
+        fireEvent.click(screen.getByRole("button", { expanded: false, name: /並び|順/ }));
+        const menu = document.getElementById("sort-menu")!;
+        // 柱では箱がボタンの幅（約76px）まで縮むので、`right-0` のままだと
+        // 幅 130px の一覧の左端が **x=-14** になる（実測・スクロールでも出てこない）
+        expect(menu.className, "PC で左揃えに切り替えていない").toContain("lg:left-0");
+        expect(menu.className, "右揃えを外していない（両方効くと右が勝つ）").toContain("lg:right-auto");
+    });
+
+    it("🔴 溢れる行は、PC では折り返す（横スクロールは指の作法）", () => {
+        setup();
+        const rows = [...document.querySelectorAll("div")].filter((d) => d.className.includes("overflow-x-auto"));
+        expect(rows.length, "溢れる行が見つからない").toBeGreaterThan(0);
+        for (const r of rows) {
+            expect(r.className, "PC で折り返させていない").toContain("lg:flex-wrap");
+            // `overflow-x-auto` と `flex-wrap` は共存できないので、戻してから折り返す
+            expect(r.className, "`overflow-visible` に戻していない＝折り返しが効かない").toContain("lg:overflow-visible");
+        }
+    });
+});
