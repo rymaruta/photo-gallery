@@ -274,8 +274,8 @@ describe("地図タブ", () => {
 
 describe("周辺のスポット", () => {
     const nearby = [
-        { label: "ヴェルサイユ", count: 2, path: "/location/v", km: 17.3, approx: true },
-        { label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false },
+        { label: "ヴェルサイユ", count: 2, path: "/location/v", km: 17.3, approx: true, cover: null },
+        { label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null },
     ];
 
     it("渡された順（距離順）でそのまま並べる", () => {
@@ -418,5 +418,68 @@ describe("撮影スポット詳細: その場で拡大", () => {
         render(<SpotPageClient {...base} />);
         fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
         expect(lastOpenResult.value).toBe(true);
+    });
+});
+
+/**
+ * ── 地図に寄せる・周辺のスポットのカード（モック⑥⑨・2026-09-22）───
+ *
+ * ⚠️ **コミット済みの `app/data/photos.json` は座標を1件も持たない**
+ * （30枚とも）。だから本番で見える姿は**手元のビルドでは出ない**
+ * ——ここが唯一「出る側」を固定している場所になる。
+ */
+describe("撮影スポット詳細: 地図と周辺のスポット", () => {
+    const coords = { lat: 35.4234, lng: 138.8765, approx: true };
+
+    // **地図タブは `hidden` で隠れている**（3つとも DOM に残す設計なので、
+    // 読み上げの木からは外れる）。既存の地図タブのテストと同じく id で取る
+    const mapPanel = () => document.getElementById("spot-panel-map")!;
+
+    it("「地図で見る」はこの場所に寄せて開く（#ズーム/緯度/経度）", () => {
+        render(<SpotPageClient {...base} coords={coords} />);
+        const link = mapPanel().querySelector("a")!;
+        // ズームは PHOTO_LINK_ZOOM（12）。座標は小数4桁（約11m）まで
+        expect(link.getAttribute("href")).toBe("/map#12/35.4234/138.8765");
+    });
+
+    // **座標が無ければ寄せようがない。** 出すのは素の /map で、
+    // 「位置がまだありません」と言い切る側の文面が出る
+    it("座標が無ければハッシュを付けない", () => {
+        render(<SpotPageClient {...base} coords={null} />);
+        const link = mapPanel().querySelector("a")!;
+        expect(link.getAttribute("href")).toBe("/map");
+    });
+
+    it("周辺のスポットのカードに、そのスポットの1枚が出る", () => {
+        const nearby = [{
+            label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false,
+            cover: { id: "n1", src: "https://x/uploads/n1.jpg", title: "湖", location: "山中湖" },
+        }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(within(list).getAllByRole("img").length).toBe(1);
+    });
+
+    // **代わりの絵を置かない。** 「写真がある場所」のカードで、持って
+    // いない絵を見せることになる
+    it("絵を持たないスポットのカードには、絵の枠ごと出さない", () => {
+        const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(within(list).queryAllByRole("img").length).toBe(0);
+        // 名前・距離・枚数は出る（カードそのものは消さない）
+        expect(list.textContent).toContain("山中湖");
+        expect(list.textContent).toContain("0.8km");
+        expect(list.textContent).toContain("2枚");
+    });
+
+    // **評価と♡は出さない**（評価の仕組みが無く、「行きたい」は本人しか
+    // 読めない＝公開の集計が無い）。モック⑨には在るが、実データが無い
+    it("カードに評価も「行きたい」も出さない", () => {
+        const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(list.textContent).not.toMatch(/★|☆|4\.\d|評価/);
+        expect(within(list).queryByRole("button")).toBeNull();
     });
 });
