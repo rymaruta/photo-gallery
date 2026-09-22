@@ -5,6 +5,7 @@ import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import ColorJourney from "./components/ColorJourney";
+import DiscoverSections from "./search/DiscoverSections";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -521,6 +522,11 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
           `usePhotos()` を2つ動かしていた（PR #72 の積み残し3件をここで解く）。
           色を持つ写真が1枚も無ければ丸ごと描かない */}
+      {/* 発見の面（最終版モックの中段・指示書 7）。**絞り込みに連動させない**
+          ——「いま何があるか」を出す面なので、絞り込んだ結果で節が消えると
+          探しに来た人の手がかりが無くなる。実データが無い節は丸ごと出さない */}
+      <DiscoverSections photos={PHOTOS} locale={locale} categoryDisplayMap={categoryDisplayMap} />
+
       <ColorJourney
         photos={filteredPhotos}
         locale={locale}
