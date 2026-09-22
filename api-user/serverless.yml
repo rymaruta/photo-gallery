@@ -56,6 +56,11 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:Scan
             - dynamodb:DeleteItem
+            # TransactWriteItems の ConditionCheck 項目に要る（Put/Update/Delete の
+            # 項目はそれぞれの権限で足りるが、ConditionCheck だけ別の権限）。
+            # `storyVotes.ts` が「行がまだ在ること」をこれで確かめる。
+            # 無いと AccessDeniedException で**全部の票が 500** になる
+            - dynamodb:ConditionCheckItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*
@@ -698,6 +703,18 @@ functions:
       - httpApi:
           path: /stories/{id}/replies
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 投票スタンプ（2択）に票を入れる。認証必要・1人1票。
+  # 結果は `getStories` が投稿者と票を入れた人にだけ付けて返すので、
+  # 読む口は別に置かない。`PublicReadRole` には載せない（書き込み）
+  voteStory:
+    handler: src/storyVotes.voteStory
+    events:
+      - httpApi:
+          path: /stories/{id}/vote
+          method: POST
           authorizer:
             name: cognitoAuthorizer
 
