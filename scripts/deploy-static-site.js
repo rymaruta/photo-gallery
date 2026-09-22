@@ -486,7 +486,9 @@ async function verifyAssets(assetKeys, cfDistId) {
     const targets = assetKeys
         .map((k) => k.split(path.sep).join("/"))
         .filter((k) => /\.(js|css)$/.test(k));
-    if (targets.length === 0) return;
+    // **一度も見ていない＝失敗ではない。** ここで falsy を返すと、ページが
+    // 落ちた回の診断が「アセットも落ちている」に化ける（見てもいないのに）
+    if (targets.length === 0) return true;
 
     // **並列で見る。** 直列だと 1件あたり最大 2回×1.5秒 の待ちが積み上がり、
     // 403 が続く回は**1回のデプロイで最大4.5分**を「参考ログ」のためだけに使う。
@@ -543,14 +545,131 @@ async function verifyAssets(assetKeys, cfDistId) {
 
     if (bad.length === 0) {
         console.log("[deploy] advisory check: all sampled assets 200 + script/style MIME.");
-    } else {
-        // 一律 403(HTML) はほぼ確実にランナー IP の一時ブロック。デプロイは止めない。
-        console.warn(
-            `[deploy] advisory: ${bad.length}/${targets.length} asset(s) not 200 from THIS runner ` +
-            `(CI ランナー IP は WAF/エッジに一時的に 403 されることがある — サイト障害とは限らず、デプロイは失敗させません):`,
-            bad.slice(0, 8),
-        );
+        return true;
     }
+    const reachable = runnerLooksReachable(bad.length, targets.length);
+    // 一律 403(HTML) はほぼ確実にランナー IP の一時ブロック。デプロイは止めない。
+    console.warn(
+        `[deploy] advisory: ${bad.length}/${targets.length} asset(s) not 200 from THIS runner ` +
+        `(CI ランナー IP は WAF/エッジに一時的に 403 されることがある — サイト障害とは限らず、デプロイは失敗させません):`,
+        bad.slice(0, 8),
+    );
+    return reachable;
+}
+
+/**
+ * **このランナーから配信ドメインに届いているか**（純関数）。
+ *
+ * ページの失敗を「エッジの書き換えが外れた」と読んでよいのは、**同じ
+ * ランナーが他のものは取れている**ときだけ。WAF に握られた回は全部が
+ * 403 になるので、そこで書き換えを疑っても誤報にしかならない。
+ *
+ * 🔴 **「1件も落ちていないこと」にしない。** `_next/static/**` の
+ * 1件が一時的に 403 になった回に `false` を返すと、**本当に書き換えが
+ * 外れていても「アセットも落ちている＝IP ブロック」**と読んで、いちばん
+ * 強い警告が消える（レビューが名指しした形）。過半が取れていれば届いている。
+ *
+ * 1件も見ていないとき（JS/CSS が0件）は **`true`**——「見ていない」を
+ * 「落ちた」と同じ扱いにしない。
+ */
+function runnerLooksReachable(badCount, total) {
+    if (!total) return true;
+    return badCount * 2 < total;
+}
+
+/**
+ * 🔴 **ページも見る。アセットだけでは、このサイトで一番外れたら困る設定を
+ * 一度も通らない。**
+ *
+ * 上の `verifyAssets` が取りに行くのは `_next/static/**.js` と `.css`
+ * ——**拡張子の付いたキーそのもの**なので、
+ *
+ *   - `/photo/<id>` → `photo/<id>.html` の**エッジの書き換え**（既定ビヘイビアの
+ *     viewer-request。`diagnose-aws.js` の `edgeFunctionNote` が
+ *     「このサイトで一番外れたら困る設定」「コードはこのリポジトリに無い」と
+ *     書いているもの）
+ *   - **百分率エンコードされた日本語のパス**（`/location/%E3%83%91%E3%83%AA`。
+ *     撮影地ページ14枚は**全部が非ASCII**で、5枚はサイトマップに載っている）
+ *
+ * のどちらも一度も通らない。外れると**トップ以外の全ページが 404** になるのに、
+ * デプロイは「成功」と出る。実際 `out/` に拡張子なしのファイルは0件で、
+ * オリジンは S3 の REST + OAC なので、書き換えが無ければ素の 403 → 404.html。
+ *
+ * **止めない**（上と同じ理由——CI ランナーの IP は一時的に 403 されうる）。
+ * ただし**アセットが全部 200 なのにページだけ落ちている**ときは IP ブロックでは
+ * 説明が付かないので、そこだけは名指しで警告する。
+ */
+function pageCheckTargets(htmlKeys) {
+    const keys = htmlKeys.map((k) => k.split(path.sep).join("/")).filter((k) => k.endsWith(".html"));
+    /** `photo/abc.html` → `/photo/abc`（各区切りを1つずつエンコードする） */
+    const toUrlPath = (key) => {
+        const parts = key.replace(/\.html$/, "").split("/");
+        if (parts.length === 1 && parts[0] === "index") return "/";
+        return "/" + parts.map(encodeURIComponent).join("/");
+    };
+    const hasNonAscii = (k) => /[^\x00-\x7F]/.test(k);
+    const picks = [];
+    const add = (key) => {
+        if (!key) return;
+        const url = toUrlPath(key);
+        if (!picks.some((p) => p.url === url)) picks.push({ key, url });
+    };
+    // 1. トップ（書き換えが要らない唯一のページ＝比べるための基準）
+    add(keys.find((k) => k === "index.html"));
+    // 2. 拡張子なしの入れ子（書き換えを通す）。写真ページが無ければ他の入れ子で代用
+    add(keys.find((k) => k.startsWith("photo/") && !hasNonAscii(k))
+        ?? keys.find((k) => k.includes("/") && !hasNonAscii(k) && !k.endsWith("index.html")));
+    // 3. 非ASCII のパス（エンコードを通す）。撮影地を優先する
+    add(keys.find((k) => k.startsWith("location/") && hasNonAscii(k))
+        ?? keys.find((k) => hasNonAscii(k) && !k.endsWith("index.html")));
+    return picks;
+}
+
+async function verifyPages(htmlKeys, runnerReachable) {
+    if (!SITE_URL) return;   // 配信チェックと同じ理由（未設定なら飛ばす）
+    const targets = pageCheckTargets(htmlKeys);
+    if (targets.length === 0) return;
+    console.log(`[deploy] (advisory) checking ${targets.length} page(s) via ${SITE_URL} ...`);
+    const bad = [];
+    for (const t of targets) {
+        let info = "";
+        let ok = false;
+        // **アセット側と同じ2回＋1.5秒。** 直前に無効化して `sleep(5000)` した
+        // ばかりなので、一瞬の 5xx/403 を「書き換えが外れた」と読むと誤報になる
+        for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+            try {
+                // **タイムアウトを付ける。** 付けないと Node の既定は 300秒で、
+                // ランナーが握られた回（このコードが想定している状況そのもの）に
+                // 3件 × 2回 × 300秒 ＝ 最大30分ジョブが伸びる。Actions の枠は実費。
+                // 同じファイルの `verifyOgImage` が同じ理由で同じ値を使っている
+                const res = await fetch(`${SITE_URL}${t.url}`, { redirect: "follow", signal: AbortSignal.timeout(5000) });
+                const ct = (res.headers.get("content-type") || "").toLowerCase();
+                ok = res.status === 200 && ct.includes("text/html");
+                info = `status=${res.status} ct=${ct || "-"}`;
+            } catch (e) {
+                info = String(e && e.message ? e.message : e).split("\n")[0];
+            }
+            if (!ok) await sleep(1500);
+        }
+        if (!ok) bad.push(`${t.url} (${info})`);
+    }
+    if (bad.length === 0) {
+        console.log("[deploy] advisory check: all sampled pages 200 + text/html.");
+        return;
+    }
+    if (runnerReachable) {
+        // アセットが全部 200 なのにページだけ落ちる＝ランナー IP のブロックでは
+        // 説明が付かない。いちばん疑わしいのはエッジの書き換え
+        console.warn(
+            `[deploy] 🔴 advisory: assets are 200 but ${bad.length}/${targets.length} page(s) are not — ` +
+            `既定ビヘイビアの viewer-request（/foo → /foo.html の書き換え）が外れている可能性があります。` +
+            `\n           確かめ方: Actions の \`Diagnose CDN\` / \`maintenance\` の diagnose（edgeFunctionNote）。`,
+            bad,
+        );
+        return;
+    }
+    console.warn(`[deploy] advisory: ${bad.length}/${targets.length} page(s) not 200 from THIS runner ` +
+        `(アセットの過半も落ちているので、ランナー IP の一時ブロックの可能性が高い):`, bad);
 }
 
 /**
@@ -788,7 +907,10 @@ async function main() {
     // Step 4: 配信の健全性を参考チェック（アドバイザリ）。CI ランナー IP は WAF/エッジに
     //         一時的に 403 されうるため、ここではログするだけでデプロイは止めない
     //         （5xx が見えたときのみ一度だけ再インバリデーション）。
-    await verifyAssets(assets, cfDistId);
+    const runnerReachable = await verifyAssets(assets, cfDistId);
+    // **ページも見る。** アセットだけではエッジの書き換えも日本語のパスも
+    // 一度も通らない（`verifyPages` の説明）
+    await verifyPages(htmlFiles, runnerReachable);
     // トップの OGP 画像は「一番新しい公開写真」なので、その写真が消えると
     // 次のビルドまで壊れたままになる（削除は S3 の実体も消す）
     await verifyOgImage();
@@ -801,7 +923,8 @@ module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
     FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys, isInvalidatable,
-    bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys };
+    bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys,
+    pageCheckTargets, runnerLooksReachable };
 
 if (require.main === module) main().catch(err => {
     console.error("[deploy] ERROR:", err.message ?? err);

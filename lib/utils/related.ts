@@ -301,6 +301,14 @@ const VIEWER_FIELDS = [
     "commentCount",     // コメント件数
     "likes",            // いいねの初期値（`usePhotoLikes` に渡る）
     "coords", "geoApprox",  // 地図リンクと、その位置が推定かどうか
+    // **人が入れた地図リンク。** `GalleryModal` は `getPreferredMapLink(p)` を
+    // 写真ごと渡して呼び、あちら（`lib/data/photos.ts`）が `p.mapLinks` を読む。
+    // 🔴 落ちていた——**綴りで数える見張りからは見えない**（`photo.mapLinks` と
+    // 書いてある場所がビューアのソースに1つも無い）。座標を持たない写真
+    // （本番は 30枚中30枚）で、地図への導線だけが黙って消えていた。
+    // 見張りは `GalleryModal/__tests__/slimParity.test.tsx`＝**描いたものを
+    // 突き合わせる**側に足した（綴りでは追えない形なので）
+    "mapLinks",
     "srcAvif",          // 原寸の AVIF
 ] as const;
 

@@ -3,6 +3,7 @@
 import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { ArrowLeftIcon, CheckIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -47,6 +48,8 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
     // 一覧の読み方は `/user/archive` と同じ（`useStoryArchive`）
     const { items: archive, loadError, load: loadArchive } = useStoryArchive(isAuthenticated);
     const [title, setTitle] = useState("");
+    /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける） */
+    const pageBarRef = usePageBarHeight();
     /** 選んだ ID（押した順。保存時に投稿順へ並べ直す） */
     const [selected, setSelected] = useState<string[]>([]);
     const [cover, setCover] = useState<string | null>(null);
@@ -342,7 +345,23 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 )}
             </div>
 
-            <div className="fixed inset-x-0 bottom-0 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
+            {/* 🔴 **下部タブバー（`BottomNav`・z-40）の上へ逃がす。**
+                `bottom-0` に固定していたので、**この帯がタブバーの裏に入り、
+                「保存」も「キャンセル」も押せなかった**（実測: 保存の座標を
+                クリックすると書き込みは1件も飛ばず、タブバーの「マイページ」に
+                当たって遷移した。390px と 1280px の両方）。
+
+                **`z-50` で覆い返すだけにはしない。** 隠れたタブの5つのボタンが
+                **フォーカスだけ受け取れる**状態になる（WCAG 2.4.11）。
+                `app/user/upload/page.tsx` が同じ不具合を先に直していて、
+                その理由まで書いてある——**同じ形に揃える**。
+
+                高さはタブバー自身が `--bottom-bar-h` に実測値（safe-area 込み）を
+                出しているので、それを読む。**この画面からは書かない**。
+                落とし先の `env(safe-area-inset-bottom)` はタブバーが無い状況の受け皿。
+                safe-area は変数に含まれるので、`paddingBottom` で二重に空けない。 */}
+            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3"
+                style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-3xl mx-auto flex items-center gap-3">
                     {editingId && (
                         confirmDelete ? (
