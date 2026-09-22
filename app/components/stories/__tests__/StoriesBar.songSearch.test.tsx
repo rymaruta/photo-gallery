@@ -52,6 +52,8 @@ async function openSongPicker() {
     await screen.findByText("あなた");
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "story.jpg", { type: "image/jpeg" }));
+    // BGM の道具を開く（1度に1つだけ開く・最終版モック 08）
+    await userEvent.click(await screen.findByRole("tab", { name: "BGM" }));
     // 曲を選ぶ画面を開く
     const openBtn = await screen.findByRole("button", { name: /曲|音楽|BGM/ });
     await userEvent.click(openBtn);

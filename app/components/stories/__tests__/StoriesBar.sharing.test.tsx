@@ -75,6 +75,10 @@ async function pick(file: File) {
     await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
 }
 const pickImage = () => pick(new File(["img"], "a.jpg", { type: "image/jpeg" }));
+/** 撮影地の欄は「位置情報」の道具の中（1度に1つだけ開く・最終版モック 08） */
+const openLocationTool = async () => {
+    await userEvent.click(screen.getByRole("tab", { name: "位置情報" }));
+};
 const post = async () => {
     await userEvent.click(screen.getByRole("button", { name: /ストーリーに投稿/ }));
     await waitFor(() => expect(posted()).toHaveLength(1));
@@ -159,8 +163,10 @@ describe("公開設定: 位置情報を表示", () => {
         mockExtract.mockResolvedValue({ latitude: 35.4567, longitude: 139.6321 });
         mockReverse.mockResolvedValue("横浜市");
         await pickImage();
+        await openLocationTool();
         await waitFor(() => expect((screen.getByLabelText("撮影地") as HTMLInputElement).value).toBe("横浜市"));
     };
+    /** 「位置情報を表示」は公開設定の中（道具の欄とは別に常に出ている） */
 
     it("既定は入。地名と座標をそのまま送る", async () => {
         await withGps();
@@ -196,6 +202,7 @@ describe("公開設定: 位置情報を表示", () => {
     it("GPS 自動入力を切っていても、手で打った撮影地は送る", async () => {
         localStorage.setItem("jp_gps_autofill", "0");
         await pickImage();
+        await openLocationTool();
         expect((screen.getByLabelText("撮影地") as HTMLInputElement).value,
             "前提が崩れている（設定オフなのに自動で入っている）").toBe("");
         await userEvent.type(screen.getByLabelText("撮影地"), "京都 嵐山");
