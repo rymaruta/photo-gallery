@@ -21,8 +21,9 @@ import { join } from "node:path";
  * アドバイザリのまま（デプロイは止めない）。
  */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { pageCheckTargets } = require("../deploy-static-site.js") as {
+const { pageCheckTargets, runnerLooksReachable } = require("../deploy-static-site.js") as {
     pageCheckTargets: (keys: string[]) => Array<{ key: string; url: string }>;
+    runnerLooksReachable: (badCount: number, total: number) => boolean;
 };
 
 const ALL = [
@@ -80,16 +81,50 @@ describe("デプロイ後に見に行くページ", () => {
     });
 
     /**
-     * **配線は「呼んでいるか」で見る。** `main()` は export していないので
-     * ここだけはソースを読む（`linkPrefetch.test.ts` と同じ形・
-     * **コメントを先に落とす**——理由を書くほど綴りで見る判定は自分の説明に当たる）。
+     * **配線はソースを読むしかない**（`main()` は export していない）。
+     *
+     * ⚠️ **コメントを落とす処理は通さない。** 素朴な
+     * `\/\*[\s\S]*?\*\/` は、このファイルの `` `/${dir}/*` `` や
+     * `"/*" だと写真まで…` という**文字列の中の `/*`** を
+     * ブロックコメントの開始と読んで、**900行中338行を消す**
+     * （レビューが実測）。消えた範囲にこの配線が入ると、正しいのに
+     * 「呼ばれていない」で落ちる。素のまま、正確な綴りで見る。
      */
-    it("デプロイの本体から呼ばれている", () => {
-        const src = readFileSync(join(__dirname, "..", "deploy-static-site.js"), "utf8")
-            .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-        expect(src, "verifyPages が呼ばれていない").toMatch(/await verifyPages\(/);
-        expect(src, "アセットの結果を渡していない（ページだけ落ちた回を見分けられない）")
-            .toMatch(/await verifyPages\(htmlFiles,\s*assetsOk\)/);
-        expect(src, "verifyAssets が結果を返していない").toMatch(/const assetsOk = await verifyAssets\(/);
+    it("デプロイの本体から呼ばれている（ランナーの到達性を渡している）", () => {
+        const src = readFileSync(join(__dirname, "..", "deploy-static-site.js"), "utf8");
+        expect(src, "verifyPages が呼ばれていない").toMatch(/await verifyPages\(htmlFiles,\s*runnerReachable\)/);
+        expect(src, "アセットの結果を受けていない（ページだけ落ちた回を見分けられない）")
+            .toMatch(/const runnerReachable = await verifyAssets\(/);
+    });
+});
+
+/**
+ * 🔴 **ページの失敗を「エッジの書き換えが外れた」と読んでよい条件。**
+ *
+ * 以前ここは「呼び出し側の綴り」しか見ていなかった。`verifyAssets` から
+ * `return true` / `return false` を**両方消しても9件とも緑**で、その状態では
+ * 戻り値が常に `undefined` ＝このコミットの目的である 🔴 分岐が二度と
+ * 発火しない（レビューが実測）。**判定そのものを純関数にして直接見る。**
+ */
+describe("ランナーが配信ドメインに届いているか", () => {
+    it("1件も見ていないときは「届いている」（見ていないを落ちた扱いにしない）", () => {
+        expect(runnerLooksReachable(0, 0)).toBe(true);
+    });
+
+    // 🔴 **1件のフレークで、いちばん強い警告を消さない。**
+    it("1件だけ落ちても届いている扱い", () => {
+        expect(runnerLooksReachable(1, 100)).toBe(true);
+        expect(runnerLooksReachable(0, 100)).toBe(true);
+    });
+
+    it("過半が落ちていれば届いていない扱い（WAF の一律403）", () => {
+        expect(runnerLooksReachable(100, 100)).toBe(false);
+        expect(runnerLooksReachable(50, 100)).toBe(false);
+    });
+
+    // 境界（`badCount * 2 < total`）をそのまま固定する
+    it("ちょうど半分は「届いていない」側", () => {
+        expect(runnerLooksReachable(2, 4)).toBe(false);
+        expect(runnerLooksReachable(1, 4)).toBe(true);
     });
 });
