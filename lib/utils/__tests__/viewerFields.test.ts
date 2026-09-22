@@ -21,6 +21,13 @@ const stripComments = (src: string): string =>
  * だから `GalleryModal` の**ソースを読んで**、触っている `photo.X` が
  * 全部 `slimForViewer` の中に在るかを見る。ビューアが新しい項目を読み
  * 始めた日に、ここが落ちて教える。
+ *
+ * ⚠️ **綴りで数えるので、写真を丸ごと渡す関数の中は見えない。**
+ * `getPreferredMapLink(p)` が読む `p.mapLinks` は、この走査に1度も
+ * 引っかからないまま落ちていた（2026-09-22）。**対になる見張りは
+ * `app/components/GalleryModal/__tests__/slimParity.test.tsx`**——
+ * 丸ごとと絞ったぶんで**描かれたもの**（文字・`href`・画像のURL）を
+ * 突き合わせる。綴りで追えない形はあちらが受け持つ。
  */
 describe("ビューアに渡す写真の項目", () => {
     const files = readdirSync(MODAL_DIR).filter((f) => f.endsWith(".tsx") && !f.includes("__"));
