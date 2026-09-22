@@ -97,6 +97,27 @@ export function saveView(view: MapView, hash: string, storage: Storage | null = 
 }
 
 /**
+ * 控えを**消す**。「現在地」を使った瞬間に呼ぶ。
+ *
+ * 地図を動かすたびに中心を控えているので、現在地へ寄せたあとに何もしないと
+ * **端末のだいたいの位置が sessionStorage に残る**（小数4桁＝約11m）。
+ * 写真の座標は約1km に丸めて出しているのに、閲覧者自身の位置だけが
+ * それより細かく残るのは筋が通らない。
+ *
+ * 消すだけでなく、以後この画面では控えを**書かない**（`PhotoMap` 側の
+ * `suppressSaveRef`）。「戻ったとき同じ場所を出す」便宜は失うが、
+ * 位置を持たない方を選ぶ。
+ */
+export function clearSavedView(storage: Storage | null = getStorage()): void {
+    if (!storage) return;
+    try {
+        storage.removeItem(MAP_VIEW_KEY);
+    } catch {
+        /* 読み書きが禁止された環境。控えが無いのと同じ */
+    }
+}
+
+/**
  * 最初に見せる場所を決める。null なら「全部のピンが収まる範囲」（呼び出し側）。
  *
  * - ハッシュがあり、**それが控えを取ったときのハッシュと違う**なら、
