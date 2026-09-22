@@ -80,7 +80,7 @@ beforeEach(() => {
 async function uploadOne(container: HTMLElement) {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
-    const publish = await screen.findByRole("button", { name: /枚を公開/ });
+    const publish = await screen.findByRole("button", { name: /投稿する/ });
     await waitFor(() => expect(publish).not.toBeDisabled());
     await userEvent.click(publish);
     await waitFor(() => expect(savedBody(), "保存に届いていない").not.toBeNull());

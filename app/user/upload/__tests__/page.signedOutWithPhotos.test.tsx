@@ -82,7 +82,7 @@ const signedOutToasts = () => toasts().filter((t) => t.includes("ログインが
 describe("取り込んだ写真があるときにログインが切れたら", () => {
     it("ログイン画面へ送り返さず、写真も画面も残す", async () => {
         const { rerender } = render(<UploadPage />);
-        await screen.findByRole("button", { name: /枚を公開/ });
+        await screen.findByRole("button", { name: /投稿する/ });
 
         auth.isAuthenticated = false;
         rerender(<UploadPage />);
@@ -90,8 +90,8 @@ describe("取り込んだ写真があるときにログインが切れたら", (
         await waitFor(() => expect(toasts().some((t) => t.includes("ログインが切れました"))).toBe(true));
         expect(mockReplace, "取り込んだ写真ごと画面を入れ替えている").not.toHaveBeenCalled();
         // スピナーに落とさない（見えないまま止まるのは、選び直すのと同じこと）
-        expect(screen.getByRole("button", { name: /枚を公開/ })).toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "写真をアップロード" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /投稿する/ })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "新しい投稿を作成" })).toBeInTheDocument();
     });
 
     // **1枚も取り込んでいなければ今までどおり。** 直接開いた未ログインの人を
@@ -104,8 +104,8 @@ describe("取り込んだ写真があるときにログインが切れたら", (
         expect(String(mockReplace.mock.calls[0][0])).toContain("/login");
         expect(signedOutToasts(), "送り返すのに知らせている").toEqual([]);
         // **送り返す間は会員画面を出さない**（留めているときだけ出す）。
-        // 写真0枚では「N枚を公開」が元から無いので、**画面そのものの見出し**で見る
-        expect(screen.queryByRole("heading", { name: "写真をアップロード" }),
+        // 写真0枚では「投稿する」が元から無いので、**画面そのものの見出し**で見る
+        expect(screen.queryByRole("heading", { name: "新しい投稿を作成" }),
             "送り返すのに会員画面を出している").toBeNull();
     });
 
@@ -115,17 +115,17 @@ describe("取り込んだ写真があるときにログインが切れたら", (
     // **この画面はテストの作りのせいで、その状態を一度も作れていなかった**
     it("権限が無いだけの人には、ログインの話をしない", async () => {
         const { rerender } = render(<UploadPage />);
-        await screen.findByRole("button", { name: /枚を公開/ });
+        await screen.findByRole("button", { name: /投稿する/ });
         auth.inGroup = false;
         rerender(<UploadPage />);
 
-        await waitFor(() => expect(screen.queryByRole("button", { name: /枚を公開/ })).toBeNull());
+        await waitFor(() => expect(screen.queryByRole("button", { name: /投稿する/ })).toBeNull());
         expect(signedOutToasts().length, "権限の話とログインの話を混ぜている").toBe(0);
     });
 
     it("知らせは赤（成功として出さない）", async () => {
         const { rerender } = render(<UploadPage />);
-        await screen.findByRole("button", { name: /枚を公開/ });
+        await screen.findByRole("button", { name: /投稿する/ });
         auth.isAuthenticated = false;
         rerender(<UploadPage />);
         await waitFor(() => expect(signedOutToasts().length).toBe(1));
@@ -134,7 +134,7 @@ describe("取り込んだ写真があるときにログインが切れたら", (
 
     it("同じことを何度も言わない", async () => {
         const { rerender } = render(<UploadPage />);
-        await screen.findByRole("button", { name: /枚を公開/ });
+        await screen.findByRole("button", { name: /投稿する/ });
         auth.isAuthenticated = false;
         rerender(<UploadPage />);
         await waitFor(() => expect(signedOutToasts().length).toBe(1));
@@ -156,10 +156,10 @@ describe("取り込んだ写真があるときにログインが切れたら", (
             return Promise.resolve({ ok: true, json: async () => ({ id: "p1" }) });
         });
         const { rerender } = render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         fireEvent.click(publish);
-        await screen.findByText("アップロード完了");
+        await screen.findByText(/アップロード完了/);
 
         auth.isAuthenticated = false;
         rerender(<UploadPage />);

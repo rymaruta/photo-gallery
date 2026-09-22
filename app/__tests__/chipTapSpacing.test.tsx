@@ -30,11 +30,19 @@ import { readFileSync } from "node:fs";
  *  `scripts/__tests__` ではなく実ブラウザが要る）。
  */
 
-/** `py-0.5`（高さ18px）のチップを含む、折り返す行 */
+/**
+ * チップを含む、折り返す行。3つ目は**そのファイルのチップの高さの前提**。
+ *
+ * **前提はファイルごとに持つ**（2026-09-22）。`/user/upload` は最終版モックの
+ * 実測（高さ31画素 ≒ 32 CSS px）に合わせて `minHeight: "32px"` にしたので、
+ * `py-0.5`（18px）という前提はもう当たらない。**間隔はむしろ広がった**——
+ * 32px のチップと `gap-2`（8px）で**行の間隔は40px**なので、24px の円は
+ * 上下の行で重ならない（18px ＋ `gap-1.5` の頃は22pxで重なっていた）。
+ */
 const CHIP_ROWS = [
-    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）"],
-    ["app/user/edit/page.tsx", "編集画面のカテゴリとタグ"],
-    ["app/user/upload/page.tsx", "アップロード画面のカテゴリとタグ"],
+    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /px-2 py-0\.5 rounded-full/],
+    ["app/user/edit/page.tsx", "編集画面のカテゴリとタグ", /px-2 py-0\.5 rounded-full/],
+    ["app/user/upload/page.tsx", "アップロード画面のカテゴリとタグ", /minHeight: "32px"/],
 ] as const;
 
 const read = (p: string) => readFileSync(p, "utf8");
@@ -52,9 +60,9 @@ describe("チップの行の間隔（24px の円が重ならないこと）", ()
 
     // **チップの高さを変えたら、この判定の前提が変わる。**
     // `py-1`（21px）以上にすれば `gap-1.5` でも間隔は足りる
-    it.each(CHIP_ROWS)("%s のチップは py-0.5（＝18px・前提）", (file) => {
+    it.each(CHIP_ROWS)("%s のチップの高さが、前提のまま", (file, _why, height) => {
         const src = strip(read(file));
-        expect(src, "チップの高さが変わった。行の間隔の前提を測り直すこと").toMatch(/px-2 py-0\.5 rounded-full/);
+        expect(src, "チップの高さが変わった。行の間隔の前提を測り直すこと").toMatch(height);
     });
 
     // 検出器の自己確認（いま0件なので、壊れた検出器と正しい検出器が同じ答えを返す）

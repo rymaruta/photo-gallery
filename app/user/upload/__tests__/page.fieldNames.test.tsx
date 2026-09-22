@@ -87,13 +87,6 @@ function accName(el: Element): string {
         || "";
 }
 
-/** 「詳細」を開く（説明・撮影地の欄はここでしか描かれない） */
-function openDetails(container: HTMLElement): void {
-    for (const b of container.querySelectorAll("button")) {
-        if (/詳細/.test(b.getAttribute("aria-label") ?? "")) fireEvent.click(b);
-    }
-}
-
 async function withPhotos(n: number) {
     const r = render(<UploadPage />);
     const file = r.container.querySelector("input[type=file]") as HTMLInputElement;
@@ -112,25 +105,30 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
         expect(dup, "同じ名前の欄が並んでいる（どちらの写真か分からない）").toEqual([]);
     });
 
-    it("タイトル欄は「N枚目のタイトル（任意）」と名乗る", async () => {
+    // **欄は「いま選んでいる1枚」ぶんだけ描く**（2026-09-22・最終版モック）。
+    // 以前は枚数ぶん縦に積んでいたので、5枚選ぶと「タイトル（任意）」が5つ
+    // 並んだ。番号を名前に入れて見分けていたが、モックは1枚ぶんしか持たない。
+    // **番号は残す**——どの写真の欄なのかは、名前でしか分からない。
+    it("題・説明・撮影地は、いま選んでいる写真の番号を名乗る", async () => {
         const container = await withPhotos(2);
-        const names = [...container.querySelectorAll("input,textarea")].map(accName);
-        expect(names).toContain("1枚目のタイトル（任意）");
-        expect(names).toContain("2枚目のタイトル（任意）");
+        const names = () => [...container.querySelectorAll("input,textarea")].map(accName);
+        for (const n of ["1枚目のタイトル（任意）", "1枚目の説明（任意）", "1枚目の場所（任意）"]) {
+            expect(names(), `${n} が無い`).toContain(n);
+        }
+        expect(names(), "選んでいない写真の欄まで描いている").not.toContain("2枚目のタイトル（任意）");
     });
 
-    // **詳細を開かないと描かれない欄がある。** 開かずに数えていたので、
-    // 説明と撮影地の名前は**一度も描かれず、外しても全件緑**だった
-    it("詳細を開いた説明・撮影地の欄も、何枚目か名乗る", async () => {
+    it("サムネを押すと、欄がその写真のものに変わる", async () => {
         const container = await withPhotos(2);
-        openDetails(container);
+        const second = [...container.querySelectorAll("button")]
+            .find((b) => b.getAttribute("aria-label") === "2枚目を選ぶ");
+        expect(second, "2枚目を選ぶボタンが無い").toBeDefined();
+        fireEvent.click(second!);
         const names = [...container.querySelectorAll("input,textarea")].map(accName);
-        for (const n of ["1枚目の説明（任意）", "2枚目の説明（任意）",
-                         "1枚目の場所（任意）", "2枚目の場所（任意）"]) {
+        for (const n of ["2枚目のタイトル（任意）", "2枚目の説明（任意）", "2枚目の場所（任意）"]) {
             expect(names, `${n} が無い`).toContain(n);
         }
-        const dup = names.filter((n, i) => n && names.indexOf(n) !== i);
-        expect(dup, "詳細を開くと同じ名前の欄が並ぶ").toEqual([]);
+        expect(names, "前に選んでいた写真の欄が残っている").not.toContain("1枚目のタイトル（任意）");
     });
 
     // **見えている placeholder と、読み上げる名前を同じ言葉にする。**
@@ -138,7 +136,6 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
     // 「場所をタップ」のような音声操作がその欄にだけ当たらない
     it("読み上げる名前は、見えている placeholder を含む", async () => {
         const container = await withPhotos(1);
-        openDetails(container);
         for (const el of container.querySelectorAll<HTMLInputElement>("input,textarea")) {
             const ph = el.getAttribute("placeholder");
             const al = el.getAttribute("aria-label");
@@ -154,20 +151,22 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
         const names = [...container.querySelectorAll("button")].map(accName);
         expect(names).toContain("1枚目を削除");
         expect(names).toContain("2枚目を削除");
-        expect(names).toContain("1枚目の詳細");
-        expect(names).toContain("2枚目の詳細");
+        expect(names).toContain("1枚目を選ぶ");
+        expect(names).toContain("2枚目を選ぶ");
         const dup = names.filter((n, i) => n && names.indexOf(n) !== i);
         expect(dup, "同じ名前のボタンが並んでいる").toEqual([]);
     });
 
-    // 開いているかどうかが読み上げに出る
-    it("詳細ボタンは開閉の状態を言う", async () => {
-        const container = await withPhotos(1);
-        const btn = [...container.querySelectorAll("button")]
-            .find((b) => b.getAttribute("aria-label") === "1枚目の詳細")!;
-        expect(btn.getAttribute("aria-expanded")).toBe("false");
-        fireEvent.click(btn);
-        expect(btn.getAttribute("aria-expanded")).toBe("true");
+    // どれを編集しているかが読み上げに出る（サムネの枠が青い、を言葉でも）
+    it("サムネは、いま編集している1枚を名乗る", async () => {
+        const container = await withPhotos(2);
+        const pick = (n: number) => [...container.querySelectorAll("button")]
+            .find((b) => b.getAttribute("aria-label") === `${n}枚目を選ぶ`)!;
+        expect(pick(1).getAttribute("aria-current")).toBe("true");
+        expect(pick(2).getAttribute("aria-current")).toBe("false");
+        fireEvent.click(pick(2));
+        expect(pick(1).getAttribute("aria-current")).toBe("false");
+        expect(pick(2).getAttribute("aria-current")).toBe("true");
     });
 
     // **「全写真に適用」は見えている文にしか書いていなかった。**
