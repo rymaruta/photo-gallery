@@ -20,6 +20,24 @@ type Props = {
      */
     onOpenPhoto?: (photoId: string) => boolean;
     /**
+     * **静的ページのある写真も、その場で開く**（既定は false ＝今までどおり）。
+     *
+     * `onOpenPhoto` は元々「静的ページの無い新着写真」専用だった
+     * （`/?photo=<id>` へ遷移しても今いる URL なので何も起きない、という
+     * 不具合の受け皿）。撮影スポット詳細のモック⑧は
+     * 「タップで拡大表示に切り替わる」なので、**ページのある写真でも
+     * その場で開きたい**。
+     *
+     * **`<Link href="/photo/<id>">` はそのまま残る。** 消すと
+     * `/location/*`（検索に載っている14ページ）から写真の個別ページへの
+     * 内部リンクが丸ごと消える——出しているのは同じ `<a href>` で、
+     * 変えるのは「押したときに遷移を止めるか」だけ。
+     *
+     * **既定を false にしてあるので、既存の呼び出し側の振る舞いは1つも
+     * 変わらない**（ホーム・お気に入り・保存・他の集約ページ）。
+     */
+    openInPlace?: boolean;
+    /**
      * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
      *
      * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
@@ -70,6 +88,7 @@ export default function GalleryGrid({
     locale,
     categoryDisplayMap = {},
     onOpenPhoto,
+    openInPlace = false,
     sizes,
     // 既定は `GRID_SIZES_5XL` / `GRID_SIZES_6XL` が前提にしている列数
     columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
@@ -133,6 +152,7 @@ export default function GalleryGrid({
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
                         onOpenPhoto={onOpenPhoto}
+                        openInPlace={openInPlace}
                         sizes={sizes}
                     />
                 );
@@ -155,6 +175,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition,
     categoryDisplayMap,
     onOpenPhoto,
+    openInPlace,
     sizes,
 }: {
     photo: Photo;
@@ -165,6 +186,7 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
     onOpenPhoto?: (photoId: string) => boolean;
+    openInPlace?: boolean;
     sizes: string;
 }) {
     const { isFavorite } = useFavorites();
@@ -185,7 +207,11 @@ const GalleryItem = React.memo(function GalleryItem({
     // 静的ページが無い写真は /?photo=<id> を指す。ホームで開いている場合、
     // これは「今いるURLへの遷移」なので Next のルーターが何もせず、
     // タップしても無反応だった。同じ画面で開けるならその場で開く。
-    const opensHere = href.startsWith("/?photo=") && !!onOpenPhoto;
+    // **その場で開く条件は2つ。** (1) 静的ページが無い写真（`/?photo=<id>` は
+    // 今いる URL なので遷移しても何も起きない・元からの受け皿）。
+    // (2) 呼ぶ側が `openInPlace` を立てた画面（撮影スポット詳細のモック⑧）。
+    // どちらでも `<Link href>` は残るので、内部リンクは消えない
+    const opensHere = !!onOpenPhoto && (openInPlace || href.startsWith("/?photo="));
 
     return (
         <div className="w-full m-0 p-0">
