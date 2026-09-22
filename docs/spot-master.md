@@ -61,9 +61,19 @@ owner の指示書 Phase 4。**まだ実装していない。** PM の確認を�
 **7/9 が保存ゼロで作れる。** 残る2つ（ふりがな・概要）は「owner が書く文章」で、
 これは**架空のデータではない**——書いてあれば出してよい。問題は置き場所だけ。
 
-### ふりがな・概要の置き場所: DynamoDB ではなく `app/data/spot-master.json`
+### ふりがな・概要の置き場所: DynamoDB ではなく `content/spot-master.json`
 
-| | A: DynamoDB `spot#<slug>` 行＋ビルド時に書き出し | **B（推奨）: `app/data/spot-master.json` を直接コミット** |
+> 📌 **2026-09-22 に `app/data/` から `content/` へ変えた**（PM の指摘）。
+> `app/data/*.json`（`photos.json` / `photo-index.json` / `profiles.json`）は
+> **`npm run build` のたびに `scripts/sync-photos-from-ddb.js` が
+> DynamoDB から作り直す**（`prepare-static-build.js` が呼ぶ）。
+> 人が書いた行をあそこへ置くと、**次のビルドで消える側の棚**に文章を
+> 置くことになる。`content/` は誰も書き換えない。
+> `.gitignore` は**触っていない**——`app/data/` の3つも元から追跡されて
+> いて（`git ls-files app/data/`）、無視されているのは `*.bak-*` と
+> `_backups/` だけ。`content/` も同じく普通に追跡される。
+
+| | A: DynamoDB `spot#<slug>` 行＋ビルド時に書き出し | **B（推奨）: `content/spot-master.json` を直接コミット** |
 |---|---|---|
 | 件数 | 14（うち文章を書く価値があるのは地点の4つ） | 同じ |
 | owner が書く経路 | **無い**。編集画面を新設するか、AWS コンソールで手打ち | GitHub 上でファイルを直す／PM に頼む |
@@ -122,7 +132,7 @@ DynamoDB に置いても「すぐ反映される」にはならない（再ビ�
 ### 持つと決めた場合に持つもの（＝導出で作れないものだけ）
 
 ```jsonc
-// app/data/spot-master.json  —— 鍵は /location/<スラッグ> のスラッグ
+// content/spot-master.json  —— 鍵は /location/<スラッグ> のスラッグ
 [
   {
     "slug": "香川県-観音寺市-高屋神社",   // ← 第二の ID を作らない
@@ -154,7 +164,7 @@ DynamoDB に置いても「すぐ反映される」にはならない（再ビ�
 | 問い | どう答えるか | 実行時の DB アクセス |
 |---|---|---|
 | このスラッグのスポットは？ | **静的HTML**（`generateStaticParams` が全スラッグを書き出し済み） | 0 |
-| ふりがな・概要は？ | `app/data/spot-master.json`（ビルド時に埋め込み） | 0 |
+| ふりがな・概要は？ | `content/spot-master.json`（ビルド時に埋め込み） | 0 |
 | この場所の写真は？ | `photosInCollection`（`photos.json`・ビルド時） | 0 |
 | 近くのスポットは？ | `nearbySpots`（`photos.json` の座標・ビルド時） | 0 |
 | 自分は行きたいに入れたか？ | `GET /user/spots`（**既存**・`spots#<uid>` の `GetItem`） | 既存のまま（PK 一発・索引不要） |
@@ -306,7 +316,7 @@ owner の指示「**架空のデータを出さない**（統計・件数・人�
 
 `claude/journey-photo-ios-app-ffos85` は別ブランチで、**Swift のファイルは
 1つも入っていない**（上述）。そちらと衝突するのは `app/data/spots.json` と
-`lib/data/spots.ts` という**名前**だけなので、こちらは `spot-master.json` /
+`lib/data/spots.ts` という**名前**だけなので、こちらは `content/spot-master.json` /
 `lib/data/spotMaster.ts` と**別の名前**にして、合流時に取り違えないようにする。
 
 ### 包む日に効いてくること（＝この設計を選ぶ理由でもある）
@@ -332,7 +342,7 @@ owner の指示「**架空のデータを出さない**（統計・件数・人�
 | ② | ヘッダー（戻る・シェア・⋯）＋代表画像＋1/N | `SpotPageClient.tsx`・`lib/utils/share.ts`（既存の `shareUrl`） | 不要 |
 | ③ | この場所の写真を横スクロール＋その場で拡大 | `SpotPageClient.tsx`・`GalleryModal/` | 不要（`GalleryModal` の N/M とサムネ帯は D10 と共通＝**先に誰かが着手していないか PM に確認**） |
 | ④ | 「地図で見る」をこのスポットの座標へ寄せる／近くのスポットをカードに | `SpotPageClient.tsx`（`formatMapHash` は既にある） | 不要 |
-| ⑤ | `app/data/spot-master.json`（ふりがな・概要）＋読み込み＋4節の見張り | `lib/data/spotMaster.ts`・`SpotPage.tsx`・テスト | **owner が文章を書くまで中身は空**。空でも壊れないことをテストで固定 |
+| ⑤ | `content/spot-master.json`（ふりがな・概要）＋読み込み＋4節の見張り | `lib/data/spotMaster.ts`・`SpotPage.tsx`・テスト | **owner が文章を書くまで中身は空**。空でも壊れないことをテストで固定 |
 
 1コミットは5〜8件まで。区切りごとにレビューを1本かける（`CLAUDE.md`）。
 
