@@ -1359,10 +1359,32 @@ export default function StoriesBar() {
                         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
                     )}
 
-                    <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
+                    {/* 🔴 **上部のバー**（最終版モック 08）。左に「キャンセル」、
+                        右に投稿。モックは右が「下書き保存」と「次へ」だが、
+                        下書きも確認画面も**機能が無い**ので出さない
+                        （指示書「未実装の設定を、動作するボタンとして表示しない」）。
+                        題は読み上げの拠り所なので残す（画面には出さない）。 */}
+                    <div className="relative flex items-center justify-between gap-2 px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
+                        <h2 id="story-draft-title" className="sr-only">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
+                        <button
+                            ref={draftCancelRef}
+                            // **投稿中も押せる。** 押したら要求を中断して畳む
+                            onClick={() => {
+                                if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
+                                closeDraft();
+                            }}
+                            className="flex-shrink-0 px-2 py-2 text-white/90 hover:text-white drop-shadow text-sm"
+                            style={{ touchAction: "manipulation" }}
+                            aria-label={posting
+                                ? (locale === "en" ? "Stop posting" : "投稿をやめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                        >
+                            {posting
+                                ? (locale === "en" ? "Stop" : "やめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                        </button>
                         <div className="flex items-center gap-1">
                         {/* **写真だけにする。** 操作の欄が写真の下半分を覆っていて、
                             置いたあとの姿が見えない／空いている所を指せない。
@@ -1378,19 +1400,20 @@ export default function StoriesBar() {
                         >
                             {photoOnly ? <EyeSlashIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
                         </button>
+                        {/* 🔴 **投稿はここ**（モックの「次へ」の位置）。
+                            以前は画面の最下部にあり、欄が伸びると**画面外へ落ちた**
+                            （台帳 STORY-4）。上のバーは固定なので、これから何を
+                            足しても落ちない。 */}
                         <button
-                            ref={draftCancelRef}
-                            // **投稿中も押せる。** 押したら要求を中断して畳む
-                            onClick={() => {
-                                if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
-                                closeDraft();
-                            }}
-                            className="p-2 text-white/80 hover:text-white drop-shadow"
-                            aria-label={posting
-                                ? (locale === "en" ? "Stop posting" : "投稿をやめる")
-                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                            onClick={() => void handlePost()}
+                            disabled={posting || voteIncomplete}
+                            className="flex-shrink-0 px-5 py-2 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{ touchAction: "manipulation" }}
                         >
-                            <XMarkIcon className="w-6 h-6" />
+                            {posting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {posting
+                                ? (locale === "en" ? "Posting..." : "投稿中...")
+                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
                         </button>
                         </div>
                     </div>
@@ -2074,28 +2097,9 @@ export default function StoriesBar() {
 
                     </div>
 
-                    {/* 🔴 **投稿のボタンは、巻き取られる欄の外に出す。**
-                        中に置いていたので、欄が伸びると画面の外へ落ちた
-                        ——320×568 の実測で**画面外**（スクロールすれば届くが、
-                        いちばん押すものが見えない）。文字の欄を足したこの差分で
-                        再発させた（台帳の `STORY-4` と同じ形）。
-                        外に出せば、これから何を足しても落ちない */}
-                    <div
-                        className="relative px-4 pt-2"
-                        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-                    >
-                        <button
-                            onClick={() => void handlePost()}
-                            disabled={posting || voteIncomplete}
-                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            style={{ touchAction: "manipulation" }}
-                        >
-                            {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
-                            {posting
-                                ? (locale === "en" ? "Posting..." : "投稿中...")
-                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
-                        </button>
-                    </div>
+                    {/* 投稿のボタンは**上のバー**（モックの「次へ」の位置）。
+                        下端は安全領域のぶんだけ空ける */}
+                    <div className="relative" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }} />
                     </>
                     )}
                 </div>

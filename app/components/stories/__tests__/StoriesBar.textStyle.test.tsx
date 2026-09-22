@@ -589,7 +589,9 @@ describe("ストーリーの下書き: 写真だけ見る", () => {
 
         await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
         expect(screen.queryByRole("textbox", { name: "文字" }), "操作の欄が残っている").toBeNull();
-        expect(screen.queryByRole("button", { name: /ストーリーに投稿/ })).toBeNull();
+        // **投稿は上のバーなので残る**（最終版モック 08 の「次へ」の位置）。
+        // 以前は画面の最下部にあり、畳むと一緒に消えていた
+        expect(screen.getByRole("button", { name: /ストーリーに投稿/ }), "投稿する道が消えている").toBeInTheDocument();
         // 文字は出たまま（置いた姿を見るための機能）
         expect(overlay()?.textContent).toBe("朝の光");
     });
