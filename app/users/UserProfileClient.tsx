@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -140,74 +140,6 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
     return Array.from(map.values());
 }
 
-// ヒーロー背景としてのカバー写真。上部の横長バンドに写真をくっきり表示し、
-// バンドの下は黒（フェードで徐々に黒くする演出はしない）。
-function CoverBackground({ userId }: { userId: string }) {
-    const [coverError, setCoverError] = useState(false);
-    /**
-     * 🔴 **React より先に失敗が終わっていた画像を、`onError` は拾えない。**
-     * `UserAvatar` と同じ形（`fa640312` の型）。カバーは**このページの
-     * 静的HTMLに焼かれる**ので、カバーを設定していない人なら配信が
-     * 数十msで断る——React が付くより前で、`error` は誰も聞いていない。
-     * 落ちないと**画面いっぱいの帯にブラウザの破損表示**が残る
-     * （アバターより目立つ）。
-     */
-    const attachCover = useCallback((img: HTMLImageElement | null) => {
-        if (!img) return;
-        if (img.complete && img.naturalWidth === 0) setCoverError(true);
-    }, []);
-    const coverUrl = CLOUDFRONT_URL ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(userId)}/cover`) : "";
-    const hasCover = coverUrl && !coverError;
-
-    return (
-        <div className="absolute inset-0 overflow-hidden bg-black" aria-hidden="true">
-            {hasCover ? (
-                <>
-                    {/* カバーは上部の横長バンドに限定（縦長ヒーロー全体を object-cover で
-                        覆うと強く切り取られ "どアップ" に見えるため）。写真は暗くしない。 */}
-                    <div className="absolute top-0 inset-x-0 h-56 sm:h-64 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            ref={attachCover}
-                            src={coverUrl}
-                            alt=""
-                            className="w-full h-full object-cover object-center"
-                            onError={() => setCoverError(true)}
-                        />
-                        {/* 戻るリンクの視認性用に上端のみ薄いスクリム（全体は暗くしない） */}
-                        <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/45 to-transparent" />
-                    </div>
-                    {/* バンド下端から下は黒（グラデーションなし） */}
-                    <div className="absolute inset-x-0 top-56 sm:top-64 bottom-0 bg-black" />
-                </>
-            ) : (
-                <div className="w-full h-full bg-black" />
-            )}
-        </div>
-    );
-}
-
-/**
- * **最初の画面に出る写真を「すぐ読む」にする枚数。**
- *
- * ここを渡していなかったので、プロフィールのグリッドは**1枚目から全部
- * `loading="lazy"`＋`fetchPriority="auto"`** だった（`GalleryGrid` は
- * `index < 8` で渡している）。`/users/<id>` はサイトマップに載る公開ページで、
- * **画面のいちばん上に出る写真が後回し指定**になっていた。
- *
- *     実測（Chromium・代替画像）  画面内の img   うち loading="lazy"
- *       スマホ 390x844                11              9
- *       デスクトップ 1280x800           5              3
- *
- * **3（1行ぶん）にしてある。** グリッドは3列固定で、**いちばん狭い条件
- * （デスクトップ）で最初の画面に入るのが3枚**だから——`GalleryGrid` が
- * 「画面内の枚数を超えない」形（8枚に対し画面内10〜12）にしているのと同じ考え。
- * 多く指定すると、画面外の写真が高い優先度で主役と帯域を取り合う（IMG-2 で
- * 一度測り、トップページでは超えていないことを確かめてある）。
- *
- * **スマホの2〜3行目は lazy のまま**。そこを「すぐ読む」にすると、
- * デスクトップで画面外の6枚が高優先になる。どちらか一方しか選べない。
- */
 const PROFILE_PRIORITY_THUMBS = 3;
 
 function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
@@ -233,9 +165,13 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
     const isHidden = photo.published === false;
 
     const likeCount = typeof photo.likes === "number" && photo.likes > 0 ? photo.likes : 0;
+    // 複数枚の印。**壊れた要素は数えない**（「1/3」と出して開くと2枚、を作らない）
+    const extraCount = Array.isArray(photo.extraImages)
+        ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
+        : 0;
 
     return (
-        <div className="relative rounded-md overflow-hidden group" style={{ paddingTop: "100%" }}>
+        <div className="relative overflow-hidden group" style={{ paddingTop: "100%" }}>
             {/* **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
                 `app/components/GalleryGrid.tsx` のカードのコメントに書いた */}
@@ -253,6 +189,15 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     priority={priority}
                     className="transition-transform duration-300 group-hover:scale-[1.04]"
                 />
+                {/* 複数枚の印（モック）。**壊れた要素は数えない**
+                    （「1/3」と出して開くと2枚、を作らない） */}
+                {extraCount > 0 && (
+                    <span className="absolute top-1 right-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                          style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
+                          aria-hidden="true">
+                        1/{extraCount + 1}
+                    </span>
+                )}
                 {/* ホバー: いいね数オーバーレイ */}
                 {likeCount > 0 && (
                     <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1146,10 +1091,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 </div>
             )}
             {/* ヒーロー: カバー写真を背景に、戻る/アバター/名前/統計/アクションを重ねる */}
+            {/* **カバー写真はやめた**（最終版モックに無い・2026-09-22）。
+                以前は横長のバンドを背景に敷き、アバターがその下端に重なる形だった
+                （`CoverBackground` と `pt-24 sm:pt-32` が対）。編集画面のカバー欄も
+                同じ回で外した——設定できるのに出ない状態を残さない */}
             <div className="relative">
-                <CoverBackground userId={userId} />
-
-                <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
+                <div className="relative max-w-2xl mx-auto px-4">
                     {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
                         背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
                     <div className="pt-4 mb-2 flex items-center justify-between">
@@ -1260,8 +1207,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {/* プロフィールヘッダー: アバターだけがカバーバンドの下端に重なり、
                         名前と一言はカバーの外（黒背景）に置く。カバー写真の柄と
                         文字が重なって読みにくくなるのを避けるため。 */}
-                    <div className="pb-6 pt-24 sm:pt-32">
-                        {/* アバター（オリジナルのオーロラリング: 旅パレットで回転） */}
+                    <div className="pb-5 pt-2">
+                        {/* アバター（オリジナルのオーロラリング: 既定は主色で回転）。
+                            本人には右下に「＋」（投稿する）——モックと同じ */}
                         <div className="relative w-fit rounded-full shadow-lg shadow-accent/20">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
                             <div
@@ -1271,9 +1219,23 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             />
                             <div className="relative rounded-full p-[3px]">
                                 <div className="rounded-full p-[2px] bg-bg">
-                                    <UserAvatar userId={userId} className="w-20 h-20 sm:w-24 sm:h-24" iconClassName="w-11 h-11 sm:w-14 sm:h-14" />
+                                    <UserAvatar userId={userId} className="w-[84px] h-[84px]" iconClassName="w-11 h-11" />
                                 </div>
                             </div>
+                            {isOwner && (
+                                <button
+                                    ref={postBtnRef}
+                                    type="button"
+                                    onClick={() => setPostOpen(true)}
+                                    aria-haspopup="dialog"
+                                    aria-expanded={postOpen}
+                                    aria-label={locale === "en" ? "Create" : "投稿する"}
+                                    className="absolute right-0 bottom-0 inline-flex items-center justify-center rounded-full bg-accent-fill text-white ring-[3px] ring-bg hover:brightness-110 active:scale-95 transition"
+                                    style={{ width: "28px", height: "28px", touchAction: "manipulation" }}
+                                >
+                                    <PlusIcon aria-hidden="true" style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
+                                </button>
+                            )}
                         </div>
 
                         {/* 名前 + @ユーザー名 + フォローボタン（同じ行の右端）。
@@ -1302,7 +1264,18 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 ——張り直すと `busyRef` / `pending` ごと
                                 作り直され、**二重送信の番人が外れる**
                                 （飛んでいる POST の最中に押せる） */}
-                            {!isOwner && !blocked && (
+                            {isOwner ? (
+                                // モックはここに枠線の「プロフィールを編集」（以前は下の行に
+                                // 「投稿する」と並べていた。投稿はアバターの＋へ移した）
+                                <Link
+                                    href={ROUTES.PROFILE_EDIT}
+                                    prefetch={false}
+                                    className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10 font-semibold transition"
+                                    style={{ fontSize: "13px", lineHeight: "18px", padding: "8px 14px", touchAction: "manipulation", minHeight: "36px" }}
+                                >
+                                    {locale === "en" ? "Edit profile" : "プロフィールを編集"}
+                                </Link>
+                            ) : !blocked ? (
                                 <div className="flex-shrink-0">
                                     <FollowAction
                                         targetUserId={userId}
@@ -1311,7 +1284,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                         locale={locale as "ja" | "en"}
                                     />
                                 </div>
-                            )}
+                            ) : null}
                         </div>
 
                         {/* 自己紹介: 名前のすぐ下（従来ステータスがあった位置）に置く。
@@ -1324,52 +1297,47 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             <p className="text-sm text-white/85 whitespace-pre-wrap break-words mb-4 leading-relaxed">{shownBio}</p>
                         )}
 
-                    {/* 統計（投稿 / いいね / 距離）— 1行にまとめる。
-                        フォロー中 / フォロワーは下の `FollowButton` が次の行に出す */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <div className="inline-flex items-baseline gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                            {/* **届く前に「0投稿」と言い切らない。** 同じ画面の
-                                写真グリッド（`photosResolved`）とフォロー数
-                                （`countsKnown`）は既に守られているのに、この
-                                ピルだけ素通しだった——実測: 応答を保持すると
-                                5秒・20秒・45秒のいずれでも「0投稿 0いいね」。
-                                ビルド後に登録した人（定期ビルドは週1なので
-                                最大7日）のプロフィールが該当する */}
-                            <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? postCount : "…"}</span>
-                            <span className="text-[11px] text-white/60">{locale === "en" ? "posts" : "投稿"}</span>
+                    {/* 数字の行（最終版モック）: 投稿 ／ フォロワー ／ フォロー中。
+                        縦線で区切り、数字が上・ラベルが下。
+                        **いいねの合計はモックに無いので出さない**（本人以外に見せる
+                        意味が薄く、実データも 0）。「うち非公開」は本人だけの情報なので
+                        投稿の数字の下に小さく残す。
+                        **届く前に「0投稿」と言い切らない**——実測で応答を保持すると
+                        5秒・20秒・45秒のいずれでも「0投稿」だった。ビルド後に登録した
+                        人（定期ビルドは週1なので最大7日）のプロフィールが該当する */}
+                    <div className="flex items-stretch py-3 mb-3 border-y border-white/10">
+                        <div className="flex-1 text-center">
+                            <span className="block font-bold tabular-nums leading-none" style={{ fontSize: "17px" }}>{photosResolved ? postCount : "…"}</span>
+                            <span className="block text-white/60 mt-0.5" style={{ fontSize: "12px" }}>{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
-                                <span className="text-[11px] text-white/50">
+                                <span className="block text-white/50" style={{ fontSize: "11px" }}>
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
                         </div>
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
-                            <HeartIcon className="w-3 h-3 text-rose-400" />
-                            <span className="text-sm font-bold tabular-nums leading-none">{photosResolved ? totalLikes.toLocaleString() : "…"}</span>
-                            <span className="text-[11px] text-white/60">{locale === "en" ? "likes" : "いいね"}</span>
-                        </div>
-                        {/* 3つ目は自明な指標のみ: 旅した距離（GPSがある時だけ）。無ければ出さない */}
-                        {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (
-                            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
-                                <GlobeAltIcon className="w-3 h-3 text-link" />
-                                <span className="text-sm font-bold tabular-nums leading-none">{Math.round(footprint.distanceKm).toLocaleString()}</span>
-                                <span className="text-[11px] text-white/60">km</span>
-                            </div>
-                        )}
+                        <span aria-hidden="true" className="w-px self-stretch bg-white/10" />
+                        <FollowButton
+                            targetUserId={userId}
+                            isOwner={isOwner}
+                            isAuthenticated={viewerAuthed}
+                            locale={locale as "ja" | "en"}
+                            variant="stats"
+                        />
                     </div>
 
-                    {/* フォロー中 / フォロワーは**次の行**（owner の指示）。
-                        自分の行と余白は `FollowButton` が持つ——数がまだ
-                        取れていない回に何も描かないので、ここに空の行を
-                        置くと、その回だけ余白が残る */}
-                    <FollowButton
-                        targetUserId={userId}
-                        isOwner={isOwner}
-                        isAuthenticated={viewerAuthed}
-                        locale={locale as "ja" | "en"}
-                    />
-
-
+                    {/* 旅の実績（最終版モック）: 訪れた国・地域 ／ 総移動距離。
+                        **訪れた国は持っていない**（撮影地は自由文字列で、国を当てるには
+                        逆ジオコードの country を写真に書く必要がある＝データと API の話）。
+                        総移動距離だけなので、それが無ければカードごと出さない
+                        （座標を持つ写真が2枚以上・1km 以上のときだけ） */}
+                    {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (
+                        <div className="flex items-center gap-2 rounded-2xl bg-surface ring-1 ring-line px-4 py-3 mb-4" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
+                            <PaperAirplaneIcon aria-hidden="true" className="-rotate-45 text-accent flex-shrink-0" style={{ width: "18px", height: "18px" }} />
+                            <span className="text-white/60" style={{ fontSize: "12px" }}>{locale === "en" ? "Distance traveled" : "総移動距離"}</span>
+                            <span className="ml-auto font-bold tabular-nums" style={{ fontSize: "17px" }}>{Math.round(footprint.distanceKm).toLocaleString()}</span>
+                            <span className="text-white/60" style={{ fontSize: "12px" }}>km</span>
+                        </div>
+                    )}
 
                     {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
@@ -1450,36 +1418,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     )}
 
 
-                    {/* 自分のプロフィール: 編集・アップロード導線（インスタ風） */}
-                    {isOwner && (
-                        <div className="flex gap-2 mt-4">
-                            <Link
-                                href={ROUTES.PROFILE_EDIT}
-                                prefetch={false}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-black/30 backdrop-blur-md ring-1 ring-white/15 hover:bg-black/40 text-white text-sm font-medium rounded-full transition-colors"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                <PencilSquareIcon className="w-4 h-4" />
-                                {locale === "en" ? "Edit profile" : "プロフィール編集"}
-                            </Link>
-                            {/* **「写真を追加」ではなく「投稿する」。** 押すと写真とストーリーの
-                                2択が出るので、写真だけを名乗ると嘘になる（owner:「写真を追加のとこで
-                                投稿かストーリーを選べるようにしたい」）。語は画面の他と揃える
-                                ——シートの見出しも「＋」の読み上げ名も「投稿する」 */}
-                            <button
-                                ref={postBtnRef}
-                                type="button"
-                                onClick={() => setPostOpen(true)}
-                                aria-haspopup="dialog"
-                                aria-expanded={postOpen}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                <PlusIcon className="w-4 h-4" strokeWidth={2.5} />
-                                {locale === "en" ? "Create" : "投稿する"}
-                            </button>
-                        </div>
-                    )}
+                    {/* **編集は名前の右の枠線ボタン、投稿はアバターの「＋」へ移した**
+                        （最終版モック）。ここに在った2つ並びのボタン行は無くなった。
+                        `postBtnRef` は `PostSheet` の戻り先として＋ボタンが持つ */}
                     {isOwner && (
                         <div className="mt-2 text-center">
                             <Link
@@ -1581,7 +1522,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
                     ) : null) : (
-                        <div className="grid grid-cols-3 gap-1 pb-8">
+                        <div className="grid grid-cols-3 gap-[2px] pb-8">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
