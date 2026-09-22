@@ -1464,3 +1464,41 @@ owner の「写真の縦横比を維持」に対して、**いまの状態を正
 
 → **モック 02 は揃った大きさの格子**なので、いまのまま（切り抜く）を
 推奨して owner の判断を待っている。
+
+## ⚠️ `next dev` では、日本語スラッグの集約ページが全部 500（2026-09-22・実測）
+
+**本番は無事。手元の dev だけ。** それでも書き残すのは、**今日いちばん
+手を入れた画面（`/location/*`）が、手元で1枚も開けない**から。
+
+    dev サーバーに 22本投げた実測
+      200  / /search /map /favorites /saves /saved-spots /user/upload
+           /user/settings /user/profile /user/highlights /user/archive
+           /users/search /privacy /terms /login /signup /j
+      200  /tag/finland  /category/landscape  /camera/sony-ilce-7m3   ← ASCII
+      500  /tag/パリ  /tag/白鳥  /tag/風景                            ← 日本語
+      500  /location/パリ  /location/白鳥  /location/風景
+
+    Error: Page "/location/[location]/page" is missing param
+           "/location/[location]" in "generateStaticParams()",
+           which is required with "output: export" config.
+
+**筋**: `collectionStaticParams`（`lib/server/collections.ts`）が返すのは
+**素のスラッグ**（`パリ`）。ブラウザが送るのは百分率エンコード
+（`%E3%83%91%E3%83%AA`）で、`output: export` の dev は**デコードする前に**
+一覧と突き合わせるので外れる。**生のバイトで送っても同じ**（実測）。
+
+- **今日の回帰ではない。** 今日1行も触っていない `/tag/*` でも起きる
+- **本番は静的書き出し**（`out/location/パリ.html`）なので影響しない
+  ——実ブラウザ（`out/` を配信）で 200 を確認済み
+- **`/location/*` の14スラッグは全部が非ASCII**。つまり撮影スポット詳細は
+  `next dev` では一度も見られない
+
+**直さないと決めた。** `generateStaticParams` に「素の綴り ＋
+`encodeURIComponent` した綴り」の両方を返させると dev は通るが、
+**静的書き出しが `%E3%83%91%E3%83%AA.html` という二重エンコードの
+ファイルを作りうる**——本番の S3 に意味の無いキーが14個増える側の危険を、
+手元の都合のために取らない。**見たいときは `npm run build` して
+`out/` を配る**（このリポジトリのスモークと同じやり方）。
+
+**型として記録: 「本番で動く」と「手元で見られる」は別。**
+片方だけ壊れていても、もう片方の緑は何も保証しない。

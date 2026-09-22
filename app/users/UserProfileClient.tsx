@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeftIcon, ChevronRightIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
@@ -141,6 +142,24 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
 
 const PROFILE_PRIORITY_THUMBS = 3;
 
+/**
+ * 写真タイルの読み上げ用の名前。**純関数**（画面を建てずに固定できる）。
+ *
+ * 🔴 **`alt` 任せにしない。** タイルの中身は `Thumb` だけなので、
+ * サムネの読み込みが落ちると `<img>` ごと絵の受け皿に差し替わり、
+ * **リンクの名前が消える**（実測で30本とも）。題を持たない写真でも同じ
+ * （`alt=""` は「装飾画像」の意味）。
+ *
+ * **いいねの数も名前に入れる。** ホバーの帯は `aria-hidden` にしたので、
+ * ここに入れないと読み上げから消える（`aria-label` は中身を上書きする）。
+ */
+export function photoCardLabel(title: string, likeCount: number, locale: string): string {
+    const en = locale === "en";
+    const base = title ? (en ? `Open ${title}` : `${title} を開く`) : (en ? "Open photo" : "写真を開く");
+    if (!(likeCount > 0)) return base;
+    return en ? `${base} (${likeCount} likes)` : `${base}（いいね ${likeCount}）`;
+}
+
 function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
     photo: Photo;
     locale: string;
@@ -177,6 +196,21 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             <Link
                 href={ROUTES.PHOTO(photo.id)}
                 prefetch={false}
+                /**
+                 * 🔴 **名前を `alt` 任せにしない。**
+                 *
+                 * このタイルの中身は `Thumb` だけで、`alt` は題。だから
+                 * **サムネの読み込みが落ちた瞬間にリンクの名前が消える**
+                 * ——`Thumb` は失敗すると `<img>` ごと絵の受け皿に差し替える
+                 * ので、残るのは `aria-hidden` の svg だけ。実測（Chromium・
+                 * 画像を落とせない状態）で、このページの**30本すべてが
+                 * 名前の無いリンク**になった。題を持たない写真でも同じ
+                 * （`alt=""` ＝装飾画像の意味になる）。
+                 *
+                 * `GalleryGrid` は同じ状況でも名前が残る（あちらは
+                 * `aria-label` を持っている）。揃える。
+                 */
+                aria-label={photoCardLabel(title, likeCount, locale)}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -197,9 +231,13 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                         1/{extraCount + 1}
                     </span>
                 )}
-                {/* ホバー: いいね数オーバーレイ */}
+                {/* ホバー: いいね数オーバーレイ。
+                    **読み上げからは外す**（`aria-hidden`）——この数は上の
+                    `aria-label` に入れてあるので、外さないと二重に読まれる。
+                    そもそもホバーでしか見えない飾りで、すぐ上の「1/N」の印も
+                    同じ理由で外してある */}
                 {likeCount > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                         <HeartIcon className="w-5 h-5 text-white" />
                         <span className="text-white font-semibold text-sm tabular-nums">{likeCount}</span>
                     </div>
@@ -722,6 +760,25 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 
+
+    /**
+     * タブのキーボード操作（WAI-ARIA のタブの作法）。
+     *
+     * `role="tab"` を名乗った以上、**矢印で移動できないと壊れて見える**
+     * ——支援技術は「1/2」と読み上げるのに動かない。タブストップは
+     * tablist 全体で1つにする（roving tabindex）。
+     * 計算は `lib/utils/tabKeys.ts`（写真ページ・通知ベルと共有）。
+     */
+    const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        const to = nextTabIndex(e.key, TAB_ORDER.indexOf(tab), TAB_ORDER.length);
+        if (to === null) return;
+        e.preventDefault();          // 矢印での横スクロールを起こさない
+        const next = TAB_ORDER[to];
+        setTab(next);
+        // 選んだタブへフォーカスも移す（roving tabindex なので移さないと
+        // 次の Tab が一覧を飛ばす）
+        document.getElementById(`profile-tab-${next}`)?.focus();
+    };
 
     // タブを横スワイプで切り替え（投稿 ⇄ 年表）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
@@ -1500,8 +1557,20 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
             {/* コンテンツ（黒背景）: 投稿 / 年表 */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                {/* タブバー */}
-                <div className={"grid grid-cols-2 border-t border-white/10 mb-1"}>
+                {/* タブバー。
+                    🔴 **`aria-pressed` のボタンではなく、本物のタブにする。**
+                    `aria-pressed` は「押して入り切りする」という意味なので、
+                    **押し直しても外れない**この2つに付けると嘘になる
+                    （読み上げは「押されています」と言うのに、もう一度押しても
+                    何も起きない）。写真ページと通知ベルは既に
+                    `role="tab"` ＋ `aria-selected` ＋ 矢印キーで、
+                    計算は `lib/utils/tabKeys.ts` に1つ。**3つ目を別の形にしない。**
+                    見た目は変えていない（属性とキー操作だけ）。 */}
+                <div
+                    role="tablist"
+                    aria-label={locale === "en" ? "Profile sections" : "プロフィールの表示"}
+                    className={"grid grid-cols-2 border-t border-white/10 mb-1"}
+                >
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
@@ -1510,13 +1579,20 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         return (
                             <button
                                 key={key}
+                                type="button"
+                                role="tab"
+                                id={`profile-tab-${key}`}
+                                aria-selected={active}
+                                aria-controls={`profile-panel-${key}`}
+                                // roving tabindex（停止点は選択中の1つだけ）
+                                tabIndex={active ? 0 : -1}
                                 onClick={() => setTab(key)}
-                                aria-pressed={active}
+                                onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
                                 className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
                                 style={{ touchAction: "manipulation" }}
                             >
-                                <Icon className="w-4 h-4" />
+                                <Icon className="w-4 h-4" aria-hidden="true" />
                                 <span>{label}</span>
                                 {active && <span className="absolute -top-px inset-x-0 h-0.5 rounded-full" style={{ backgroundColor: userProfile?.themeColor ?? "#ffffff" }} />}
                             </button>
@@ -1536,7 +1612,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 >
                 {/* 投稿タブ */}
                 {tab === "posts" && (
-                    // 分かるまでは何も出さない。**待っている間に「無い」と
+                    // **`role="tabpanel"` で包む。** タブが `aria-controls` で
+                    // 指す先が無いと、支援技術が「どれの中身か」を辿れない
+                    <div role="tabpanel" id="profile-panel-posts" aria-labelledby="profile-tab-posts">
+                    {// 分かるまでは何も出さない。**待っている間に「無い」と
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
                     postCount === 0 ? (photosResolved ? (
@@ -1568,12 +1647,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             ))}
                         </div>
                     )
+                    }
+                    </div>
                 )}
 
                 {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
                 {/* 年表タブ */}
                 {tab === "timeline" && (
-                    <div className="pb-8 pt-2">
+                    <div role="tabpanel" id="profile-panel-timeline" aria-labelledby="profile-tab-timeline" className="pb-8 pt-2">
                         {timeline.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                                 <CalendarDaysIcon className="w-10 h-10" />

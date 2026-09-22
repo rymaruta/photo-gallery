@@ -63,7 +63,7 @@ async function openTimeline(photos: unknown[]) {
     mockPublicFetch.mockResolvedValue({ ok: true, json: async () => photos });
     render(<UserProfileClient userId={OWNER} />);
     await waitFor(() => expect(mockPublicFetch).toHaveBeenCalled());
-    fireEvent.click(await screen.findByRole("button", { name: /年表/ }));
+    fireEvent.click(await screen.findByRole("tab", { name: /年表/ }));
 }
 
 describe("年表の見出しと並び", () => {

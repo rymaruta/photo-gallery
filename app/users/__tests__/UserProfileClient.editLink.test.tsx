@@ -94,7 +94,7 @@ describe("プロフィールの一覧から編集画面へ", () => {
         const user = (await import("@testing-library/user-event")).default;
         render(<UserProfileClient userId={OWNER} />);
         await editLinks();
-        await user.click(screen.getByRole("button", { name: /年表/ }));
+        await user.click(screen.getByRole("tab", { name: /年表/ }));
         const links = await editLinks();
         expect(links.length, "年表のカードに編集が無い").toBeGreaterThan(0);
         expect(links.map((a) => a.getAttribute("href"))).toContain("/user/edit?id=aaa");

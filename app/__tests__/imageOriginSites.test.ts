@@ -114,6 +114,9 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/stories/StoriesBar.tsx", "song.previewUrl", "曲の試聴（iTunes の音源）"],
     ["app/user/profile/page.tsx", "song.previewUrl", "曲の試聴（iTunes の音源・プロフィールの一覧）"],
 
+    // (a2) 自分のサイトに置いた固定の資産（写真ではない）
+    ["app/layout.tsx", '"/logo-aperture.png"', "ヘッダーのロゴ（`public/` に置いた固定の絵。相対パスなので既にサイトのドメイン）"],
+
     // (b) 端末の中にしか無い
     ["app/components/Thumb.tsx", "photo.blurDataURL", "ぼかしは data: URI"],
     ["app/photo/[id]/PhotoPageClient.tsx", "blurDataURL", "ぼかしは data: URI"],

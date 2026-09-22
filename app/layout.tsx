@@ -339,21 +339,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       画面から 27px はみ出して**全ページが横スクロール**していた
                       （実測。WCAG 1.4.10 は拡大時に横スクロールを出さないことを求める）。
                       **100% では場所が余っているので見た目は変わらない。** */}
-                  {/* **最終版モックのロゴ**（2026-09-21）: 左に青の山のマーク、
-                      字はセリフ。マークは `<svg>` を直に置く（画像だと初回描画で
-                      1本余計に取りに行くうえ、色をトークンで揃えられない）。
-                      装飾なので読み上げには渡さない（`aria-hidden`）。 */}
-                  <p className="font-serif text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0 truncate">
+                  {/* **ロゴのマークは owner が出したアパーチャの画像そのもの**（2026-09-22）。
+                      ファビコンとアプリのアイコンは既にこの絵なのに、**ヘッダーだけ
+                      前の青い山が残っていた**——同じサイトが2つのマークを名乗っていた。
+
+                      **絵は描き直さない。** owner の PNG を `scripts/icon-source/aperture.png`
+                      に原寸で置き、配るのはその 64px の写し（`public/logo-aperture.png`・2.7KB）。
+                      1254px を 28px の表示に配ると 560KB 払うことになるので縮めるだけ。
+                      **下地の黒は抜いてある**——紺のヘッダーの上で黒い四角に見えて
+                      いた（owner の報告「なんでこれだけ色違うの？」はメニューの
+                      ボタンの話だったが、ロゴも同じ理由で浮いていた）。
+                      抜き方は**明るさをそのまま透明度にする**だけで、形は1画素も
+                      変えていない（しきい値で切ると縁がギザギザになる）。
+                      装飾なので読み上げには渡さない（`aria-hidden`＋空の `alt`）。 */}
+                  <p className="font-serif text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0">
                     <Link
                       href="/"
                       prefetch={false}
-                      className="inline-flex items-center gap-2 hover:opacity-70 transition-opacity duration-200 relative group"
+                      className="inline-flex items-center gap-2 min-w-0 max-w-full hover:opacity-70 transition-opacity duration-200 relative group"
                     >
-                      <svg aria-hidden="true" viewBox="0 0 32 32" className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0 text-accent" fill="currentColor">
-                        <path d="M3 26 13 8l6 10 3-4 7 12z" opacity="0.55" />
-                        <path d="M9 26 19 10l10 16z" />
-                      </svg>
-                      <span className="relative z-10">Journey Photo</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/logo-aperture.png" alt="" aria-hidden="true" width={32} height={32}
+                           className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0" />
+                      {/* **切るなら「…」を見せる。** `truncate` は外側の `<p>` に
+                          掛かっていたが、中身が `inline-flex` なので**省略記号が出ず、
+                          文字が途中で断ち切られていた**（実測: 文字サイズ200%・幅390px で
+                          48px ぶん欠けて「Journey Phot」になる。owner のスクショがこれ）。
+                          縮む側は文字だけにして、詰まったときは「Journey Ph…」と見せる。 */}
+                      <span className="relative z-10 min-w-0 truncate">Journey Photo</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>
             </p>

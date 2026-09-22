@@ -34,7 +34,8 @@ const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
 /** 「おすすめ」タブを開く（未ログインの既定は「新着」） */
 function openFeatured() {
-    fireEvent.click(screen.getByRole("button", { name: "おすすめ" }));
+    // タブは `role="tab"`（2026-09-22 に `aria-pressed` のボタンから直した）
+    fireEvent.click(screen.getByRole("tab", { name: "おすすめ" }));
 }
 
 beforeEach(() => { photosRef.list = PHOTOS; window.history.replaceState({}, "", "/"); });

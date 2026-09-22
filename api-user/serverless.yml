@@ -811,7 +811,7 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
-  # 🔴 **ログインが要る。さらに中でフォローも見る**（`canSeeHighlights`）。
+  # 🔴 **ログインが要る。さらに中でフォローとブロックを見る**（`canSeeHighlights`）。
   # ハイライトの中身はストーリーそのもので、**ストーリーはフォロワーだけが
   # 見る**（2026-09-22・owner の判断。経緯は `src/storyVisibility.ts`）。
   #
@@ -819,6 +819,13 @@ functions:
   # 根拠は「入れられるのは全員に公開のアーカイブだけ」だったが、あの「全員」は
   # **ログインした全員**の意味で、インターネット全体ではなかった。
   # その状態で本番まで出した。
+  #
+  # **ブロックも見る**（2026-09-22・後から塞いだ）。ストーリーの門は他に4つ
+  # （`getStories` / `viewStory` / `postStoryReply` / `voteStory`）あり、
+  # **どれもブロックを見ている**のにここだけ見ていなかった。
+  # 「ブロックすればフォローが切れる」は成り立たない——`block.ts` は
+  # `unfollowQuietly` の失敗を握って「ブロックは成功」で返すので、
+  # **フォローの印が残ったままブロックが成立する断面が設計として在る**。
   #
   # **`role: PublicReadRole` は付けない。** あれは「未認証で呼べる口」の目印で、
   # `scripts/__tests__/publicLambdaRole.test.ts` が「認可の無い口の集合」と
