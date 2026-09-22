@@ -18,6 +18,7 @@ import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
 import { photoAltText } from "../../lib/utils/photoAlt";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../lib/utils/mapView";
+import { useViewerHistory } from "../../lib/hooks/useViewerHistory";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
@@ -154,6 +155,15 @@ export default function SpotPageClient({
     const mapHref = `${ROUTES.MAP}${mapHash}`;
 
     const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+    const closeViewer = React.useCallback(() => setOpenIndex(null), []);
+    /**
+     * **端末の「戻る」でビューアを閉じる**（履歴を1件積む）。
+     *
+     * 積まないと、戻るで**ページごと離脱する**——`/location/*` は検索の
+     * 着地点なので、そこで押すと**サイトの外**へ出る。その場で拡大する形に
+     * した回（③）の取りこぼしで、2026-09-22 のレビューで発覚した。
+     */
+    useViewerHistory(openIndex !== null, closeViewer);
     const openById = React.useCallback((photoId: string) => {
         const i = photos.findIndex((p) => p.id === photoId);
         // **見つからなければ `false` を返す。** `GalleryGrid` はこの戻り値で
@@ -601,7 +611,7 @@ export default function SpotPageClient({
                 <GalleryModal
                     photos={photos}
                     currentIndex={openIndex}
-                    onClose={() => setOpenIndex(null)}
+                    onClose={closeViewer}
                     onNext={() => setOpenIndex((i) => (i === null ? null : (i + 1) % photos.length))}
                     onPrev={() => setOpenIndex((i) => (i === null ? null : (i - 1 + photos.length) % photos.length))}
                     locale={locale}
