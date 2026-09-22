@@ -300,8 +300,11 @@ describe("オーナーが見るピン留め", () => {
             screen.getAllByText("非公開").length,
             "ピンの取得を待って、一覧がビルド時のままになっている",
         ).toBeGreaterThan(0));
-        // 2本とも投げている（片方を消す変異も捕まえる）
-        expect(mockUserFetch.mock.calls.map((c) => c[0]).sort())
+        // 2本とも投げている（片方を消す変異も捕まえる）。
+        // **`/user/` のぶんだけを見る**——ログインしている人のマイページは
+        // ハイライトの輪（`/highlights/<uid>`）も引くので、全件の突き合わせだと
+        // この試験と関係のない取得で落ちる
+        expect(mockUserFetch.mock.calls.map((c) => String(c[0])).filter((u) => u.startsWith("/user/")).sort())
             .toEqual(["/user/photos", "/user/profile"]);
     });
 

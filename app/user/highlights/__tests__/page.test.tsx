@@ -8,14 +8,14 @@ import userEvent from "@testing-library/user-event";
  * 題・表紙・チェック付きのグリッド。
  *
  *   - 未ログインはログインへ（戻り先付き）
- *   - グリッドはアーカイブ（新しい順）。フォロワーのみの投稿は押せず、理由が付く
+ *   - グリッドはアーカイブ（新しい順）。印の無い投稿は押せず、理由が付く
  *   - 選ぶと印が付き、最初の1枚が表紙。表紙は選んだ中から替えられる
  *   - 保存は**投稿順（古い→新しい）**で送る（押した順ではない）
  *   - `?id=` は既存を読んで PUT。消すのもここ（404 は成功）
  */
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
-const mockUserPublicFetch = vi.hoisted(() => vi.fn());
+const mockHighlightFetch = vi.hoisted(() => vi.fn());
 const mockReplace = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -35,7 +35,7 @@ vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast:
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../../../../lib/utils/api", () => ({
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
-    userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
+    userPublicFetch: vi.fn(),
     isGoneResponse: async (r: { status: number }) => r.status === 404,
     readApiError: async (r: { json: () => Promise<{ error?: string }> }, f: string) => (await r.json()).error ?? f,
 }));
@@ -48,12 +48,18 @@ const story = (n: number, extra: Record<string, unknown> = {}) => ({
     id: `story-0000000${n}-0000-4000-8000-000000000000`, src: `https://cdn/x/s${n}.jpg`, userId: ME, mediaType: "image",
     createdAt: `2026-07-0${n}T10:00:00Z`, expiresAt: `2026-07-0${n + 1}T10:00:00Z`, archivedAt: `2026-07-0${n + 1}T10:00:00Z`, archive: true, ...extra,
 });
-const S1 = story(1), S2 = story(2), S3 = story(3, { visibility: "followers" });
+// 🔴 **公開範囲では断らない**（ストーリーもハイライトもフォロワーだけが
+// 見る）。押せないのは「アーカイブの印が無い」行だけで、本来
+// `GET /stories/archive` は返さない——行が差し替わった回のための最後の砦
+const S1 = story(1), S2 = story(2), S3 = story(3, { archive: undefined });
 /** サーバーは新しい順 */
 const ARCHIVE = [S3, S2, S1];
 
 const api = (archive: unknown = ARCHIVE) => async (url: string, init?: { method?: string }) => {
     if (url === "/stories/archive") return { ok: true, status: 200, json: async () => archive };
+    // 既存のハイライトを読むのも `userFetch`（未認証の口をやめた）。
+    // 中身は `mockHighlightFetch` が返す
+    if (url.startsWith("/highlights/") && !init?.method) return mockHighlightFetch(url);
     if (url === "/highlights" && init?.method === "POST") return { ok: true, status: 200, json: async () => ({ highlight: { id: HID } }) };
     if (url.startsWith("/highlights/") && init?.method === "PUT") return { ok: true, status: 200, json: async () => ({ highlight: { id: HID } }) };
     if (url.startsWith("/highlights/") && init?.method === "DELETE") return { ok: true, status: 200, json: async () => ({ ok: true }) };
@@ -72,7 +78,7 @@ const sent = (method: string) => mockUserFetch.mock.calls
 
 beforeEach(() => {
     mockUserFetch.mockReset().mockImplementation(api());
-    mockUserPublicFetch.mockReset().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "見つかりません" }) });
+    mockHighlightFetch.mockReset().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "見つかりません" }) });
     mockReplace.mockReset();
     mockPush.mockReset();
     mockShowToast.mockReset();
@@ -89,17 +95,27 @@ describe("ハイライトの作成画面", () => {
         expect(mockUserFetch).not.toHaveBeenCalled();
     });
 
-    it("アーカイブを新しい順に並べ、フォロワーのみの投稿は押せず理由が付く", async () => {
+    it("アーカイブを新しい順に並べ、印の無い投稿は押せず理由が付く", async () => {
         render(<Page />);
         const lis = await gridTiles();
         expect(lis).toHaveLength(3);
         expect(lis.map((t) => t.querySelector("img")?.getAttribute("src")?.match(/s(\d)/)?.[1])).toEqual(["3", "2", "1"]);
         const locked = tileButton(lis[0]);
-        expect(locked, "フォロワーのみの投稿が押せる").toBeDisabled();
-        expect(locked.getAttribute("aria-label")).toMatch(/フォロワーのみ/);
+        expect(locked, "印の無い投稿が押せる").toBeDisabled();
+        expect(locked.getAttribute("aria-label")).toMatch(/アーカイブ/);
         expect(screen.getByText(/鍵のついた投稿/)).toBeInTheDocument();
         // 押せるタイルは「選ぶ」もの
         expect(tileButton(lis[1]).getAttribute("aria-pressed")).toBe("false");
+    });
+
+    // 公開範囲の列は死んでいる。見て断ると、公開範囲があった頃に投稿した
+    // アーカイブが永久に入れられなくなる
+    it("古い `visibility` の列が残っている投稿は、ふつうに押せる", async () => {
+        mockUserFetch.mockImplementation(api([story(3, { visibility: "followers" }), S2, S1]));
+        render(<Page />);
+        const lis = await gridTiles();
+        expect(tileButton(lis[0]), "死んだ列で押せなくしている").not.toBeDisabled();
+        expect(screen.queryByText(/鍵のついた投稿/)).toBeNull();
     });
 
     it("選ぶと印が付き、最初の1枚が表紙。保存は投稿順で、表紙つき", async () => {
@@ -145,7 +161,7 @@ describe("ハイライトの作成画面", () => {
     it("サーバーが断った理由をそのまま出す", async () => {
         mockUserFetch.mockImplementation(async (url: string, init?: { method?: string }) => {
             if (url === "/stories/archive") return { ok: true, status: 200, json: async () => ARCHIVE };
-            if (init?.method === "POST") return { ok: false, status: 400, json: async () => ({ error: "「フォロワーのみ」で投稿したストーリーはハイライトに入れられません" }) };
+            if (init?.method === "POST") return { ok: false, status: 400, json: async () => ({ error: "選んだ中に、見つからないストーリーがあります" }) };
             return { ok: true, status: 200, json: async () => ({}) };
         });
         render(<Page />);
@@ -153,7 +169,7 @@ describe("ハイライトの作成画面", () => {
         await userEvent.click(tileButton(lis[1]));
         await userEvent.type(screen.getByLabelText("名前"), "x");
         await userEvent.click(screen.getByRole("button", { name: "保存" }));
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("フォロワーのみ"), "error"));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("見つからないストーリー"), "error"));
         expect(mockPush).not.toHaveBeenCalled();
         expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     });
@@ -175,7 +191,7 @@ describe("ハイライトの作成画面", () => {
 describe("ハイライトの編集（?id=）", () => {
     beforeEach(() => {
         query.id = HID;
-        mockUserPublicFetch.mockResolvedValue({
+        mockHighlightFetch.mockResolvedValue({
             ok: true, status: 200,
             json: async () => ({ id: HID, title: "旧", coverStoryId: S2.id, items: [S1, S2] }),
         });
@@ -184,7 +200,7 @@ describe("ハイライトの編集（?id=）", () => {
     it("今の題・選択・表紙を読み、PUT で置き換える", async () => {
         render(<Page />);
         expect(await screen.findByRole("heading", { name: "ハイライトを編集" })).toBeInTheDocument();
-        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalledWith(`/highlights/${ME}/${HID}`));
+        await waitFor(() => expect(mockHighlightFetch).toHaveBeenCalledWith(`/highlights/${ME}/${HID}`));
         const lis = await gridTiles();
         await waitFor(() => expect((screen.getByLabelText("名前") as HTMLInputElement).value).toBe("旧"));
         expect(tileButton(lis[1]).getAttribute("aria-pressed")).toBe("true");
@@ -201,7 +217,7 @@ describe("ハイライトの編集（?id=）", () => {
 
     // 500 や通信断まで「見つかりません」に潰すと、在るものを消えたと思わせる
     it("読めなかった（404 以外）ときは戻さず、再試行の口を出す。保存はできない", async () => {
-        mockUserPublicFetch
+        mockHighlightFetch
             .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) })
             .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: HID, title: "旧", coverStoryId: S2.id, items: [S2] }) });
         render(<Page />);
@@ -218,7 +234,7 @@ describe("ハイライトの編集（?id=）", () => {
     // ハイライトの1枚を本人がアーカイブから消していた。黙って落とさず1行で知らせ、
     // 数える・保存はいま在るものだけ
     it("アーカイブから消えた1枚は知らせて、保存には入れない", async () => {
-        mockUserPublicFetch.mockResolvedValue({
+        mockHighlightFetch.mockResolvedValue({
             ok: true, status: 200,
             json: async () => ({ id: HID, title: "旧", coverStoryId: "story-00000009-0000-4000-8000-000000000000", items: [S2, { ...S1, id: "story-00000009-0000-4000-8000-000000000000" }] }),
         });
@@ -232,7 +248,7 @@ describe("ハイライトの編集（?id=）", () => {
     });
 
     it("無ければマイページへ戻す", async () => {
-        mockUserPublicFetch.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "見つかりません" }) });
+        mockHighlightFetch.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "見つかりません" }) });
         render(<Page />);
         await waitFor(() => expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining(ME)));
         expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("見つかりません"), "error");
@@ -241,6 +257,7 @@ describe("ハイライトの編集（?id=）", () => {
     it("削除は確認してから。404 も成功。ストーリーは消えない", async () => {
         mockUserFetch.mockImplementation(async (url: string, init?: { method?: string }) => {
             if (url === "/stories/archive") return { ok: true, status: 200, json: async () => ARCHIVE };
+            if (url.startsWith("/highlights/") && !init?.method) return mockHighlightFetch(url);
             if (init?.method === "DELETE") return { ok: false, status: 404, json: async () => ({ error: "無い" }) };
             return { ok: true, status: 200, json: async () => ({}) };
         });

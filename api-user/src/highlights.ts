@@ -6,7 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
 import { isUserId } from "./userId";
 import { readUserList, updateUserList } from "./userList";
-import { STORY_PUBLIC, storyVisibility } from "./storyVisibility";
+import { isFollowing } from "./followCheck";
 import { isStoryExpired } from "./storyExpiry";
 import { isDeletedProfile } from "./types";
 import { requireEnv } from "./env";
@@ -31,31 +31,36 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
  * フォロー可否の判定が絞り込み無しで引いている索引に混ざる）。持ち主は
  * `ownerId`。
  *
- * ## 誰でも見られる
+ * ## 誰が見られるか
  *
- * マイページの輪は**訪問者にも出る**（それがハイライトの役目）。だから
- * 入れられるのは**「全員に公開」で投稿したアーカイブだけ**——
- * 「フォロワーのみ」の投稿を入れると、フォローしていない人にも見える
- * ことになる。**黙って公開に変えず、断る**（`postStoryReply` が返信不可を
- * 403 で断るのと同じ向き）。
+ * 🔴 **本人とフォロワーだけ**（`canSeeHighlights`）。中身はストーリー
+ * そのもので、ストーリーはフォロワーにしか出さない（`storyVisibility.ts`
+ * の節に owner の判断を書いた）。輪だけ広く出すと、**追っていない人に
+ * ストーリーの中身が届く**。
  *
- * 読む口は未認証（`PublicReadRole`＝写真テーブルは GetItem のみ）なので、
- * Query は使えない。ID を1件ずつ引く——だから1つに入れる数と1人が持てる
- * 数に上限がある（`getInvite` の `INVITE_LOOKUP_BUDGET` と同じ考え）。
+ * 最初は**未認証で読める口**にしていて、それが本番まで出た。理由は
+ * 「全員に公開のアーカイブだけ入れているから」だったが、**この画面の
+ * 「全員に公開」はログインした全員の意味**で、インターネット全体では
+ * なかった（ストーリー一覧 `getStories` が認証必須）。その後 owner が
+ * 公開範囲そのものを無くしたので、今は**フォロワーの線**に揃えてある。
+ *
+ * 読み方は変えていない——**ID を1件ずつ GetItem で引く**。Query 用の索引を
+ * 足さずに済む形で、1つに入れる数と1人が持てる数の上限がその読み取り回数を
+ * 抑える（`getInvite` の `INVITE_LOOKUP_BUDGET` と同じ考え）。
  *
  * ## 24時間で消える約束は破らない
  *
  * ハイライトに入るのは、本人が「アーカイブに自動保存」を入にして投稿し、
  * **期限の切れた**分だけ（`getStoryArchive` と同じ定義）。印の無い行は
- * 掃除が実体ごと消すので入れても割れる。期限前の行を通すと、ログインした
- * 人にしか出ないはずの生のストーリーが**未認証の口からその場で読める**。
+ * 掃除が実体ごと消すので入れても割れる。期限前の行を通すと、まだ生きて
+ * いるストーリーが**閲覧の記録を残さずに**この口から読める。
  * 見た人の名前・返信の数（`viewers` / `replyCount`）は棚入れで消えており、
  * 応答は**表示に要る列だけ**を明示して返す（`getStories` のように「消す列を
  * 列挙する」形だと、列が増えたときに漏れる側へ倒れる）。
  */
 
 /**
- * 1人が持てるハイライトの数。輪の一覧は未認証の口が**1件ずつ引く**ので、
+ * 1人が持てるハイライトの数。輪の一覧は**1件ずつ引く**ので、
  * この数がそのまま1回の読み取り回数の上限になる
  */
 export const HIGHLIGHTS_PER_USER = 20;
@@ -65,7 +70,7 @@ export const STORIES_PER_HIGHLIGHT = 100;
 export const HIGHLIGHT_TITLE_MAX = 30;
 /**
  * 表紙が消えていたときに、代わりを探す数。
- * 全部見にいくと1つのハイライトで最大100回の読み取りになる（未認証の口）
+ * 全部見にいくと1つのハイライトで最大100回の読み取りになる
  */
 const COVER_LOOKUP_BUDGET = 3;
 
@@ -104,20 +109,44 @@ async function getHighlightRow(hid: string, consistent = false): Promise<Highlig
 }
 
 /**
- * その行を**誰にでも見せてよい**ストーリーか。
+ * ハイライトに入れてよい／出してよいストーリーの行か。
  *
  * 作るときの検査（`checkStories`）と読むときの絞り込みで**同じ判定**を使う。
- * 作ったあとに本人が公開範囲を変える口は無いが、行が消えた・別の種類の
- * 行に差し替わった、は起きうるので読む側でも見る（未認証の口の最後の砦）。
+ * 行が消えた・別の種類の行に差し替わった、は起きうるので読む側でも見る。
+ *
+ * **公開範囲は見ない。** ストーリーはもともとフォロワーだけが見るもので
+ * （`storyVisibility.ts` の節）、ハイライトも**フォロワーにしか出さない**
+ * ——見せる相手が同じなので、ここで絞る意味が無い。
  */
-function isPublicArchiveStory(row: Record<string, unknown> | undefined, ownerId: string, now: string): row is Record<string, unknown> {
+function isHighlightableStory(row: Record<string, unknown> | undefined, ownerId: string, now: string): row is Record<string, unknown> {
     return !!row
         && row.story === true
         && row.userId === ownerId
         && typeof row.src === "string" && row.src !== ""
         && row.archive === true
-        && isStoryExpired(row, now)
-        && storyVisibility(row.visibility) === STORY_PUBLIC;
+        && isStoryExpired(row, now);
+}
+
+/**
+ * その人のハイライトを見てよいか。**本人か、フォロワーだけ。**
+ *
+ * 中身はストーリーそのもので、ストーリーはフォロワーだけが見るもの
+ * （`storyVisibility.ts` の節）。輪だけ広く出すと、**追っていない人に
+ * ストーリーの中身が届く**——公開範囲を無くした意味が無くなる。
+ *
+ * 判定は**マーカー1件**（`isFollowing`）。`following#<自分>` の一覧は
+ * 上限2000で古い方から落ち、解除の失敗も握られるので信用しない
+ * （`getStories` の同じ注記）。**読めなければ見せない**——倒し方を
+ * 間違えると、本人が見せないと決めた相手に中身が出る。
+ */
+async function canSeeHighlights(ownerId: string, viewerId: string): Promise<boolean> {
+    if (ownerId === viewerId) return true;
+    try {
+        return await isFollowing(ownerId, viewerId);
+    } catch (e) {
+        console.error("canSeeHighlights error:", e);
+        return false;
+    }
 }
 
 /**
@@ -191,9 +220,6 @@ async function checkStories(userId: string, raw: unknown): Promise<{ ids: string
         }
         if (!isStoryExpired(row, now)) {
             return { statusCode: 400, error: "24時間が過ぎてアーカイブに入ったストーリーだけをハイライトに入れられます" };
-        }
-        if (storyVisibility(row.visibility) !== STORY_PUBLIC) {
-            return { statusCode: 400, error: "「フォロワーのみ」で投稿したストーリーはハイライトに入れられません（ハイライトは誰でも見られます）" };
         }
     }
     return { ids };
@@ -371,7 +397,7 @@ async function resolveCover(h: HighlightItem, ownerId: string): Promise<{ src: s
     for (const id of candidates) {
         if (!isStoryId(id)) continue;
         const row = await getStoryRow(id);
-        if (isPublicArchiveStory(row, ownerId, now)) {
+        if (isHighlightableStory(row, ownerId, now)) {
             return { src: row.src as string, ...(typeof row.mediaType === "string" ? { mediaType: row.mediaType } : {}) };
         }
     }
@@ -379,18 +405,29 @@ async function resolveCover(h: HighlightItem, ownerId: string): Promise<{ src: s
 }
 
 /**
- * GET /highlights/{userId} — その人のハイライトの輪（誰でも読める）。
+ * GET /highlights/{userId} — その人のハイライトの輪。
+ *
+ * **フォロワーと本人だけ**（`canSeeHighlights`）。中身はストーリーそのもので、
+ * ストーリーはフォロワーだけが見るもの（`storyVisibility.ts` の節）。
  *
  * 一覧の行 → 本体を1件ずつ → 表紙を1件ずつ。**持ち主が違う本体は出さない**
  * （一覧の行に他人の ID が紛れても、その人のページに出ない）
  */
-export const getUserHighlights: APIGatewayProxyHandlerV2 = async (event) => {
+export const getUserHighlights: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const me = getUserId(event);
+    if (!me) return jsonError(401, "認証が必要です");
     const userId = event.pathParameters?.userId ?? "";
-    // 形を見てから引く（未認証の口で無駄な読み取りを起こさせない）
+    // 形を見てから引く（無駄な読み取りを起こさせない）
     if (!isUserId(userId)) return jsonError(404, "見つかりません");
 
     try {
         if (await isDeletedUser(userId)) return jsonError(404, "見つかりません");
+        // **追っていない人には「0件」を返す。** エラーではない——輪が出ない
+        // だけで、あとでフォローすれば出る。画面は0件と失敗を分けて扱うので、
+        // ここを 403 にすると訪問者のプロフィールに赤い1行が出る
+        if (!await canSeeHighlights(userId, me)) {
+            return { statusCode: 200, headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" }, body: JSON.stringify({ highlights: [] }) };
+        }
         const ids = (await readUserList(highlightsOfUserKey(userId), isHighlightId, "getUserHighlights")).slice(0, HIGHLIGHTS_PER_USER);
         const rows = await Promise.all(ids.map((hid) => getHighlightRow(hid)));
         const highlights = [];
@@ -407,8 +444,11 @@ export const getUserHighlights: APIGatewayProxyHandlerV2 = async (event) => {
         }
         return {
             statusCode: 200,
-            // 本人が直した直後に古い輪が出続けないよう、共有キャッシュには短くしか載せない
-            headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=30" },
+            // 🔴 **共有キャッシュに載せない。** 中身は**見る人によって変わる**
+            // （追っていなければ0件）。`s-maxage` を付けると、フォロワーが
+            // 受け取った輪を CloudFront が持ち、**追っていない人の要求に同じ
+            // 応答を返す**ことになる
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
             body: JSON.stringify({ highlights }),
         };
     } catch (e) {
@@ -418,27 +458,32 @@ export const getUserHighlights: APIGatewayProxyHandlerV2 = async (event) => {
 };
 
 /**
- * GET /highlights/{userId}/{id} — ハイライトの中身（誰でも読める）。
+ * GET /highlights/{userId}/{id} — ハイライトの中身。
  *
- * 保存した並びのまま返す。消えた・公開でなくなった行は落とす
- * （**ここが未認証の口の最後の砦**——作るときの検査と同じ判定）
+ * **フォロワーと本人だけ**。保存した並びのまま返し、消えた行は落とす
+ * （作るときの検査と同じ判定）。追っていない人には 404——在ることも
+ * 教えない（持ち主でない相手に 404 を返しているのと同じ判断）。
  */
-export const getHighlight: APIGatewayProxyHandlerV2 = async (event) => {
+export const getHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const me = getUserId(event);
+    if (!me) return jsonError(401, "認証が必要です");
     const userId = event.pathParameters?.userId ?? "";
     const hid = event.pathParameters?.id;
     if (!isUserId(userId) || !isHighlightId(hid)) return jsonError(404, "ハイライトが見つかりません");
 
     try {
         if (await isDeletedUser(userId)) return jsonError(404, "ハイライトが見つかりません");
+        if (!await canSeeHighlights(userId, me)) return jsonError(404, "ハイライトが見つかりません");
         const h = await getHighlightRow(hid);
         if (!h || h.ownerId !== userId) return jsonError(404, "ハイライトが見つかりません");
         const ids = storyIdsOf(h).filter(isStoryId).slice(0, STORIES_PER_HIGHLIGHT);
         const rows = await Promise.all(ids.map((id) => getStoryRow(id)));
         const now = new Date().toISOString();
-        const items = rows.filter((row) => isPublicArchiveStory(row, userId, now)).map((row) => publicStoryShape(row!));
+        const items = rows.filter((row) => isHighlightableStory(row, userId, now)).map((row) => publicStoryShape(row!));
         return {
             statusCode: 200,
-            headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=30" },
+            // 見る人によって 200 と 404 が割れるので共有キャッシュに載せない（上と同じ）
+            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
             body: JSON.stringify({
                 id: hid,
                 title: typeof h.title === "string" ? h.title : "",

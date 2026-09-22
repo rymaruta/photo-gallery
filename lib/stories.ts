@@ -3,19 +3,16 @@
 import type { StoryText, StoryVoteState } from "./utils/storyText";
 
 /**
- * ストーリーの公開範囲。**サーバーの一覧と対**
- * （`api-user/src/storyVisibility.ts` の `STORY_PUBLIC` /
- * `STORY_FOLLOWERS_ONLY`）。ずれると、画面で「フォロワーのみ」を選んでも
- * サーバーが知らない値として扱う——`storyVisibility` は知らない値を
- * **狭い側**に倒すので全員には出ないが、「全員に公開」を選んだつもりが
- * フォロワー限定になる。`scripts/__tests__/storyVisibilityParity.test.ts`
- * が値そのものを突き合わせる（`STORY_REACTIONS` と同じ手）。
+ * 🔴 **ストーリーに公開範囲は無い。フォロワーだけが見る**
+ * （2026-09-22・owner の判断。経緯は `api-user/src/storyVisibility.ts`）。
  *
- * **「親しい友達」はまだ無い。** 人を選ぶ一覧の新設が要るので、
- * ここに値を足すのはそれを作るときに一緒に。
+ * 以前は「全員に公開」と「フォロワーのみ」の2択を持っていたが、ここでの
+ * 「全員」は**ログインした全員**の意味で、フォローしていない会員にも
+ * 配っていた。**選択そのものを無くした**ので、この画面が送る値も無い。
+ *
+ * 「親しい友達」を足すときは、この2択を戻すのではなく、人を選ぶ一覧を
+ * 作ってそのときの仕様で組み直すこと。
  */
-export const STORY_VISIBILITIES = ["public", "followers"] as const;
-export type StoryVisibility = (typeof STORY_VISIBILITIES)[number];
 
 export type Story = {
     id: string;
@@ -55,13 +52,6 @@ export type Story = {
      * `counts` は投稿者と票を入れた人にだけ入る（`api-user/src/storyVotes.ts`）。
      */
     vote?: StoryVoteState;
-    /**
-     * 公開範囲。**無い＝全員に公開**（この列が生まれる前の投稿はそう扱う）。
-     * 絞るのはサーバー——`getStories` が、フォローしていない人の
-     * `"followers"` を返さない（`api-user/src/storyVisibility.ts`）。
-     * 画面はこれで何も隠さない（届いている時点で見てよいもの）。
-     */
-    visibility?: StoryVisibility;
     /**
      * 返信を受けるか。**無い＝受ける**（返信が生まれたときからの姿）。
      * `false` のとき `StoryViewer` は返信の帯ごと出さない——押せない欄を

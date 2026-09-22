@@ -34,11 +34,18 @@ const STORY = {
     texts: [{ text: "朝", x: 0.5, y: 0.5, size: 0.06, font: "sans", color: "white", bg: "none" }, VOTE],
 };
 
-/** ストーリーの行と、票の文書を返す世界。`extra` で印（ブロック・フォロー）を足す */
+/**
+ * ストーリーの行と、票の文書を返す世界。`extra` で印（ブロック）を足す。
+ *
+ * **フォローの印は既定で在る。** ストーリーはフォロワーしか見られないので
+ * （`storyVisibility.ts` の節）、投票の規則を見るテストは全部その状態から
+ * 始まる。門そのものを見る2本だけ `follows: false` で外す
+ */
 function world(
     story: Record<string, unknown> | undefined,
     votes: Record<string, unknown> | undefined = undefined,
     extra: Record<string, Record<string, unknown>> = {},
+    follows = true,
 ) {
     mockDdbSend.mockImplementation((cmd: Cmd) => {
         const id = String(cmd.input.Key?.id ?? "");
@@ -46,11 +53,18 @@ function world(
             if (id === "story-1") return Promise.resolve(story ? { Item: story } : {});
             if (id === storyVotesId("story-1")) return Promise.resolve(votes ? { Item: votes } : {});
             if (extra[id]) return Promise.resolve({ Item: extra[id] });
+            if (follows && id === "follow#owner#u1") return Promise.resolve({ Item: { id } });
             return Promise.resolve({});   // ブロック・フォローの印を含め、その他は無し
         }
         return Promise.resolve({});
     });
 }
+
+/**
+ * フォローの印（`world` を使わず自前でモックするテスト用）。
+ * **忘れると門で 404 になり、期待が 404 のテストは偶然緑になる**
+ */
+const followMark = (id: string) => (id === "follow#owner#u1" ? { Item: { id } } : {});
 
 /** `TransactWriteItems` が断った形（`CancellationReasons` は `TransactItems` と同じ並び） */
 const cancelled = (codes: [string, string]) =>
@@ -127,15 +141,25 @@ describe("voteStory", () => {
         expect((await invoke(voteStory, ev("u1", "story-1", { choice: "a" }))).statusCode).toBe(200);
     });
 
-    it("フォロワー限定は、追っていない人には 404", async () => {
-        world({ ...STORY, visibility: "followers" });
+    // 🔴 ストーリーは**フォロワーだけ**が見る（公開範囲の選択は無くなった）。
+    // 追っていない人に票を入れさせると、見えないはずの問いに答えられる
+    it("追っていない人には 404（書かない）", async () => {
+        world(STORY, undefined, {}, false);
         expect((await invoke(voteStory, ev("u1", "story-1", { choice: "a" }))).statusCode).toBe(404);
         expect(wrote()).toBe(false);
     });
 
-    it("フォロワー限定でも、追っている人は入れられる", async () => {
-        world({ ...STORY, visibility: "followers" }, undefined, { "follow#owner#u1": { t: "x" } });
+    it("追っている人は入れられる", async () => {
+        world(STORY);
         expect((await invoke(voteStory, ev("u1", "story-1", { choice: "a" }))).statusCode).toBe(200);
+    });
+
+    // 死んだ列（`visibility`）で門が割れない
+    it("古い `visibility` の列が残っていても、門は同じ", async () => {
+        world({ ...STORY, visibility: "followers" });
+        expect((await invoke(voteStory, ev("u1", "story-1", { choice: "a" }))).statusCode).toBe(200);
+        world({ ...STORY, visibility: "public" }, undefined, {}, false);
+        expect((await invoke(voteStory, ev("u1", "story-1", { choice: "a" }))).statusCode).toBe(404);
     });
 
     // **「返信を許可」は見ない。** 投票は投稿者が自分で置いたスタンプ
@@ -211,7 +235,7 @@ describe("voteStory", () => {
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
                 if (id === "storyvotes#story-1") return Promise.reject(new Error("timeout"));
-                return Promise.resolve({});
+                return Promise.resolve(followMark(id));
             }
             return Promise.resolve({});
         });
@@ -228,7 +252,7 @@ describe("voteStory", () => {
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
                 if (id === "storyvotes#story-1") return Promise.resolve({ Item: { votersA: new Set(["u9"]), votersB: new Set(["u1"]), total: 2 } });
-                return Promise.resolve({});
+                return Promise.resolve(followMark(id));
             }
             return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
         });
@@ -246,7 +270,7 @@ describe("voteStory", () => {
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
                 if (id === "storyvotes#story-1") return Promise.reject(new Error("timeout"));
-                return Promise.resolve({});
+                return Promise.resolve(followMark(id));
             }
             return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
         });
@@ -261,7 +285,7 @@ describe("voteStory", () => {
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: STORY });
                 if (id === "storyvotes#story-1") return Promise.resolve({ Item: { votersA: new Set(["u9"]), total: VOTES_MAX } });
-                return Promise.resolve({});
+                return Promise.resolve(followMark(id));
             }
             return Promise.reject(cancelled(["None", "ConditionalCheckFailed"]));
         });
@@ -274,7 +298,7 @@ describe("voteStory", () => {
         mockDdbSend.mockImplementation((cmd: Cmd) => {
             const id = String(cmd.input.Key?.id ?? "");
             if (cmd.constructor.name === "GetCommand") {
-                return Promise.resolve(id === "story-1" ? { Item: STORY } : {});
+                return Promise.resolve(id === "story-1" ? { Item: STORY } : followMark(id));
             }
             return Promise.reject(cancelled(["ConditionalCheckFailed", "None"]));
         });
@@ -284,7 +308,8 @@ describe("voteStory", () => {
     it("トランザクション以外の失敗は 500", async () => {
         mockDdbSend.mockImplementation((cmd: Cmd) => {
             if (cmd.constructor.name === "GetCommand") {
-                return Promise.resolve(String(cmd.input.Key?.id) === "story-1" ? { Item: STORY } : {});
+                const id = String(cmd.input.Key?.id ?? "");
+                return Promise.resolve(id === "story-1" ? { Item: STORY } : followMark(id));
             }
             return Promise.reject(new Error("ProvisionedThroughputExceeded"));
         });

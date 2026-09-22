@@ -285,7 +285,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
     /**
      * 2択に票を入れる。**サーバーが断る条件（自分のもの・ブロック・
-     * フォロワー限定・投票済み）は画面で繰り返さない**——入口を出すかどうか
+     * 追っていない相手・投票済み）は画面で繰り返さない**——入口を出すかどうか
      * だけをここで決め（`onVote` を渡すのは他人のストーリー・ログイン済み）、
      * 断るのは `voteStory`。
      */

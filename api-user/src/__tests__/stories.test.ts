@@ -122,8 +122,8 @@ describe("getStories", () => {
     it("ログイン済みなら作成順で返し、viewers は除外・共有キャッシュもしない", async () => {
         mockDdbSend.mockResolvedValueOnce({
             Items: [
-                { id: "s2", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
-                { id: "s1", createdAt: "2026-07-04T10:00:00Z" },
+                { id: "s2", userId: "viewer", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
+                { id: "s1", userId: "viewer", createdAt: "2026-07-04T10:00:00Z" },
             ],
         });
         const res = await invoke(getStories, authedEvent("viewer"));
@@ -138,8 +138,13 @@ describe("getStories", () => {
     // 自分をブロックした相手のストーリーも出さない
     it("ブロックした相手・された相手のストーリーは出さない", async () => {
         mockHidden.mockResolvedValue(new Set(["a", "b"]));
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
-            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+        // a・b・c は全員フォローしている（ここで見たいのはブロックのふるいで、
+        // フォローのふるい＝`storyPrivacy.test.ts` ではない）
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                return Promise.resolve(id.startsWith("follow#") ? { Item: { id } } : {});
+            }
             return Promise.resolve({ Items: [
                 { id: "s1", userId: "me", createdAt: "1" },
                 { id: "s2", userId: "a", createdAt: "2" },
@@ -266,8 +271,8 @@ describe("getStories", () => {
             if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             page++;
             return Promise.resolve(page === 1
-                ? { Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
-                : { Items: [{ id: "b", createdAt: "2" }] });
+                ? { Items: [{ id: "a", userId: "viewer", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
+                : { Items: [{ id: "b", userId: "viewer", createdAt: "2" }] });
         });
         const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
@@ -313,7 +318,7 @@ describe("getStories", () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
             if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             if (cmd.constructor.name === "QueryCommand" && !queried) { queried = true; return Promise.reject(missing); }
-            return Promise.resolve({ Items: [{ id: "s1", createdAt: "1" }] });
+            return Promise.resolve({ Items: [{ id: "s1", userId: "viewer", createdAt: "1" }] });
         });
         const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(200);
@@ -841,6 +846,15 @@ describe("deleteStory", () => {
 // POST /stories/{id}/view
 // ────────────────────────────────
 describe("viewStory", () => {
+    /**
+     * **フォローの印を1つ返す。** `viewStory` は
+     * 「行 → 期限 → ブロック → フォロー → 表示名 → 書き込み」の順に叩くので、
+     * `mockResolvedValueOnce` を積む形のテストは**行の直後にこれを挟む**。
+     * 挟み忘れても表示名の応答が印として読まれて**偶然緑になる**ので、
+     * 名前を付けて明示する
+     */
+    const follows = () => ({ Item: { id: "follow#owner#viewer-1" } });
+
     it("id なしは 400", async () => {
         const res = await invoke(viewStory, authedEvent("u1", { body: "{}" }));
         expect(res.statusCode).toBe(400);
@@ -874,6 +888,7 @@ describe("viewStory", () => {
         const future = new Date(Date.now() + 60_000).toISOString();
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner", expiresAt: future } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -889,6 +904,7 @@ describe("viewStory", () => {
     it("expiresAt が無い行は有効として扱う", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -912,6 +928,7 @@ describe("viewStory", () => {
     it("記録の書き込みには存在チェックを付ける（消えた行を作らない）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -930,6 +947,7 @@ describe("viewStory", () => {
         const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
             .mockRejectedValueOnce(cond);
         const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
@@ -952,6 +970,7 @@ describe("viewStory", () => {
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } }) // 表示名をテーブルから引く
             .mockResolvedValueOnce({}) // viewers マップ初期化
             .mockResolvedValueOnce({}); // 閲覧者エントリ追加
@@ -960,10 +979,10 @@ describe("viewStory", () => {
             body: JSON.stringify({ displayName: "なりすまし" }),
         }));
         expect(res.statusCode).toBe(200);
-        expect(mockDdbSend).toHaveBeenCalledTimes(4);
-        const initExpr = (mockDdbSend.mock.calls[2][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
+        expect(mockDdbSend).toHaveBeenCalledTimes(5);   // 行・フォローの印・表示名・書き込み2回
+        const initExpr = (mockDdbSend.mock.calls[3][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
         expect(initExpr).toContain("if_not_exists(viewers");
-        const addCall = (mockDdbSend.mock.calls[3][0] as {
+        const addCall = (mockDdbSend.mock.calls[4][0] as {
             input: {
                 UpdateExpression: string;
                 ExpressionAttributeNames: Record<string, string>;
@@ -1239,6 +1258,9 @@ describe("getStories: 投票の状態", () => {
                     if (votes === "fail") return Promise.reject(new Error("throttled"));
                     return Promise.resolve(votes ? { Item: { id: key, ...votes } } : {});
                 }
+                // 投稿者は全員フォローしている（ここで見たいのは票の状態で、
+                // フォローのふるい＝`storyPrivacy.test.ts` ではない）
+                if (key.startsWith("follow#")) return Promise.resolve({ Item: { id: key } });
                 return Promise.resolve({});
             }
             return Promise.resolve({ Items: items });

@@ -7,7 +7,7 @@ import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME 
 import { truncate } from "./sanitize";
 import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { isFollowing } from "./followCheck";
-import { STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
+import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
 
 /**
@@ -137,8 +137,6 @@ export async function visibleReplyCount(storyId: string, hidden: Set<string>): P
 type StoryItem = {
     story?: boolean; userId?: string; uploadedBy?: string;
     src?: string; expiresAt?: string;
-    /** 公開範囲。無い＝全員に公開（`storyVisibility.ts` が均す） */
-    visibility?: unknown;
     /** 返信を受けるか。無い＝受ける（同上） */
     allowReplies?: unknown;
 };
@@ -192,11 +190,11 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // されています」と言うと、相手の操作を教えることになる
         // （持ち主でない相手に 404 を返しているのと同じ判断）
         if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
-        // **「フォロワーのみ」には、フォローしている人しか返せない。**
-        // 見えないはずのものに反応が届く＝通知に相手の名前が出るので、
-        // ブロックと同じく **404**（相手の設定を教えない）。
+        // **フォローしている人しか返せない。** ストーリーはフォロワーだけが
+        // 見るもの（`storyVisibility.ts` の節）。見えないはずのものに反応が
+        // 届く＝通知に相手の名前が出るので、ブロックと同じく **404**。
         // 一覧ではなくマーカー1件で確かめる（`isBlocked` と同じ形）
-        if (ownerId && storyVisibility(story.visibility) === STORY_FOLLOWERS_ONLY
+        if (ownerId && ownerId !== uid
             && !await isFollowing(ownerId, uid)) {
             return jsonError(404, "ストーリーが見つかりません");
         }
