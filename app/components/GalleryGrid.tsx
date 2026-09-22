@@ -38,6 +38,22 @@ type Props = {
      */
     openInPlace?: boolean;
     /**
+     * **先に読む枚数**（既定 8 ＝今までどおり）。
+     *
+     * この格子が**画面の最初のものでない**画面が渡す。撮影スポット詳細は
+     * 上に代表画像（ヒーロー）が在り、**格子の1枚目は折り返しのずっと下**
+     * ——実測（Chromium 390x844）で **y=1064 / 画面 844**。それでも先頭8枚を
+     * `priority`（eager ＋ fetchpriority high）で取っていたので、
+     * **画面に出ていない8枚が、LCP であるヒーローと帯域を奪い合っていた**。
+     *
+     * しかも1枚目はヒーローと**同じ写真**なので、箱の大きさが違うぶん
+     * **512w と 256w を両方**取っていた（390px で実測）。
+     *
+     * **既定は 8 のまま**なので、ホーム・お気に入り・保存・他の集約ページは
+     * 1つも変わらない。
+     */
+    priorityCount?: number;
+    /**
      * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
      *
      * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
@@ -77,6 +93,7 @@ export default function GalleryGrid({
     categoryDisplayMap = {},
     onOpenPhoto,
     openInPlace = false,
+    priorityCount = 8,
     sizes,
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
@@ -139,6 +156,7 @@ export default function GalleryGrid({
                         categoryDisplayMap={categoryDisplayMap}
                         onOpenPhoto={onOpenPhoto}
                         openInPlace={openInPlace}
+                        priorityCount={priorityCount}
                         sizes={sizes}
                     />
                 );
@@ -162,6 +180,7 @@ const GalleryItem = React.memo(function GalleryItem({
     categoryDisplayMap,
     onOpenPhoto,
     openInPlace,
+    priorityCount,
     sizes,
 }: {
     photo: Photo;
@@ -173,6 +192,7 @@ const GalleryItem = React.memo(function GalleryItem({
     categoryDisplayMap?: Record<string, string>;
     onOpenPhoto?: (photoId: string) => boolean;
     openInPlace?: boolean;
+    priorityCount?: number;
     sizes: string;
 }) {
     const { isFavorite } = useFavorites();
@@ -185,7 +205,7 @@ const GalleryItem = React.memo(function GalleryItem({
     const extraCount = Array.isArray(photo.extraImages)
         ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
         : 0;
-    const isPriority = index < 8;
+    const isPriority = index < (priorityCount ?? 8);
     // 分類の表示名。**帯を出すかどうかの判定と同じ値で描く**——別々に書くと
     // 片方だけの変異がどちらも観測できなくなる（`2bba4291` の型）
     const categoryLabel = categoryDisplayMap?.[photo.category ?? ""] ?? "";
