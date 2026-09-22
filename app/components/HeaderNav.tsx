@@ -26,10 +26,17 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     }, [isAuthenticated, isAdminUser, loading]);
 
     const navLabels = labels.navigation || {};
-    const bg = "#07090a";
-    const outerBorder = "rgba(255,255,255,0.26)";
-    const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.02)";
-    const subtleShadow = "0 1px 8px rgba(0,0,0,0.65)";
+    // **メニューのボタンの色は直書きしない。** 見た目の土台（`app/globals.css` の
+    // `@theme`）が入る前の値がここだけ残っていて、**ヘッダーの中でここだけ
+    // 灰色寄りの黒**だった（owner から「なんでこれだけ色違うの？」と報告）。
+    //
+    //     ここ      背景 #07090a（灰色寄りの黒）・枠 rgba(255,255,255,0.26)
+    //     ヘッダー  #050e17（紺）
+    //
+    // 下地は `--color-surface`、枠は `--color-line`（青みの線）＝ほかの
+    // 押せるものと同じ組み合わせにする。影は落とす——紺の上で黒い影は
+    // 「浮いた黒い箱」に見える側にしか働かない。
+    const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.03)";
 
     // **「開いた画面」ごと覚える。**
     //
@@ -179,15 +186,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 data-e2e="menu-toggle"
                 onClick={() => setOpen(!open)}
                 style={{
-                    backgroundColor: bg,
-                    border: `2px solid ${outerBorder}`,
-                    boxShadow: `${subtleShadow}, ${subtleInset}`,
+                    boxShadow: subtleInset,
                     touchAction: "manipulation",
                     WebkitTapHighlightColor: "transparent",
                     minWidth: "44px",
                     minHeight: "44px",
                 }}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-md hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-md bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
             >
                 {open ? <XMarkIcon className="h-6 w-6 text-white" /> : <Bars3Icon className="h-6 w-6 text-white" />}
             </button>
