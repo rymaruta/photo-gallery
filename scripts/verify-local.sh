@@ -180,13 +180,57 @@ check_side_tsc() { # check_side_tsc <dir> <baseline>
     return 0
 }
 
+# **本番のビルドと同じ `NEXT_PUBLIC_*` を渡す。**
+#
+# 🔴 ここが3本しか無かったので、**この関門で建てた site は「誰もログインできない
+# site」**だった——`NEXT_PUBLIC_COGNITO_CLIENT_ID` が空だと
+# `lib/auth/config.ts` が投げ、`lookupSession` は必ず未ログインを返す。
+# 実測（2026-09-22・`out/user/highlights` を実ブラウザで開いた）:
+#
+#     本文 = "ログイン / 写真をアップロードするにはログインが必要です …"
+#
+# つまり `/user/**` の11画面は**どれ1つとして中身が描かれていない**。
+# 今日いちばん大きかった2件（ハイライトの「保存」が押せない・`/user/edit` の
+# 下バーが全部押せない）が全関門を素通りしたのは、これが理由。
+# スモークを足しても、この env が欠けている限り**ログイン画面を見に行くだけ**になる。
+#
+# 値は全部公開値（`deploy.yml` が同じものを平文で渡している）。
+# 見張りは `scripts/__tests__/verifyBuildEnv.test.ts`——`deploy.yml` が渡す
+# 名前を全部ここでも渡しているかを突き合わせる。
+PROD_BUILD_ENV=(
+    "NEXT_PUBLIC_CLOUDFRONT_URL=https://d1s3dwwzgxf5ni.cloudfront.net"
+    "NEXT_PUBLIC_SITE_URL=https://journey-photo.com"
+    "NEXT_PUBLIC_ENV_NAME=prod"
+    "NEXT_PUBLIC_API_BASE_URL=https://ionr4ik01e.execute-api.ap-northeast-1.amazonaws.com"
+    "NEXT_PUBLIC_USER_API_BASE_URL=https://gu7kxwdc5l.execute-api.ap-northeast-1.amazonaws.com"
+    "NEXT_PUBLIC_COGNITO_USER_POOL_ID=ap-northeast-1_ZbuhDQsWz"
+    "NEXT_PUBLIC_COGNITO_CLIENT_ID=21cs4cd8dkttmg3snloj72u8mu"
+    "NEXT_PUBLIC_CONTACT_EMAIL=journey.photo.official@gmail.com"
+    # **`NEXT_PUBLIC_GA_ID` だけは空のまま。** 入れると手元のスモークの
+    # 全ページが Google へ計測を送る（本番の数字が汚れる）。
+    # 本番では `G-7TFN1YPBE3` が入る
+)
+
+# **スモークも Client ID を要る**（ログイン済みの画面を開くのに
+# `localStorage` の鍵 `CognitoIdentityServiceProvider.<clientId>.*` が要る）。
+# 一覧から取り出して使う（同じ値を2か所に書かない）。
+#
+# 🔴 **`export` しない。** 最初 `export` で通したら、**単体テストにも
+# 漏れて 55件が落ちた**（実測。`lib/auth/config.ts` は Pool ID と Client ID の
+# 両方が揃っているかで分岐するので、片方だけ立つと**テストが前提にしている
+# 失敗の形が変わる**——`UserProfileClient.*` の10ファイルと
+# `lib/utils/apiTimeout` ほか）。しかも `npx vitest run` を手で叩くと緑なので、
+# **関門でしか出ない**形だった（この台帳が今日2回踏んだ「手元と CI で環境が
+# 違う」の、もう1つの向き）。**要るプロセスにだけ渡す。**
+SMOKE_ENV=()
+for _kv in "${PROD_BUILD_ENV[@]}"; do
+    case "$_kv" in NEXT_PUBLIC_COGNITO_CLIENT_ID=*) SMOKE_ENV+=("$_kv") ;; esac
+done
+
 build_site() { # build_site  — 本番と同じ環境変数で建てる
     rm -rf "$ROOT/out"
     [ -d "$ROOT/app/api" ] && mv "$ROOT/app/api" "$ROOT/_api_build_backup"
-    NEXT_PUBLIC_CLOUDFRONT_URL=https://d1s3dwwzgxf5ni.cloudfront.net \
-    NEXT_PUBLIC_SITE_URL=https://journey-photo.com \
-    NEXT_PUBLIC_ENV_NAME=prod \
-        npx next build
+    env "${PROD_BUILD_ENV[@]}" npx next build
     local rc=$?
     [ -d "$ROOT/_api_build_backup" ] && { rm -rf "$ROOT/app/api"; mv "$ROOT/_api_build_backup" "$ROOT/app/api"; }
     return $rc
@@ -230,14 +274,14 @@ gate "型検査（api-user）"      check_side_tsc api-user "$API_USER_BASELINE"
 gate "lint"                    npx eslint .
 gate "単体テスト"              npx vitest run
 gate "ビルド（本番と同じ設定）" build_site
-gate "実ブラウザのスモーク"     node scripts/e2e-smoke.mjs
+gate "実ブラウザのスモーク"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
 
 if [ -z "$SKIP_DERIV" ]; then
     echo ""
     echo "──────── 本番のデータの形（派生あり）でもう一度 ────────"
     gate "本番の形にする（派生を足す）" synthesize_derivatives
     gate "ビルド（派生あり）"       build_site
-    gate "スモーク（派生あり）"     node scripts/e2e-smoke.mjs
+    gate "スモーク（派生あり）"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
     restore_data
 fi
 

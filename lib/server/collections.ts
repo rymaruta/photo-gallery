@@ -7,7 +7,10 @@ import { loadAllPhotos } from "./photos";
 import {
     canonicalCollectionPath,
     collectEntries,
+    collectionIndexCopy,
+    collectionIndexPath,
     isIndexableCollection,
+    isIndexableCollectionIndex,
     legacyCategorySlugs,
     legacyTagSlugs,
     photosInCollection,
@@ -60,6 +63,46 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
         // **線は種別で違う**（タグ・カテゴリ・機材は3枚、撮影地は2枚）ので、
         // 枚数の条件はここに書かず `isIndexableCollection` に集めてある。
         robots: isIndexableCollection(matched.length, type) ? undefined : { index: false, follow: true },
+        openGraph: {
+            type: "website",
+            locale: siteConfig.locale.ja,
+            url,
+            siteName: siteConfig.name,
+            title,
+            description,
+            images: image ? [{ url: image }] : undefined,
+        },
+        twitter: {
+            card: "summary_large_image",
+            title,
+            description,
+            images: image ? [image] : undefined,
+            creator: siteConfig.twitterHandle,
+        },
+    };
+}
+
+/**
+ * **索引ページ**（`/category` `/location` `/camera`）のメタデータ。
+ *
+ * `robots` の線は `isIndexableCollectionIndex`（載せる中身が何件あるか）で
+ * 決める。**枚数ではなく件数**——索引の中身はエントリの一覧なので、
+ * 1〜2件しか無い索引は個別ページと中身がほぼ同じになる。
+ */
+export async function collectionIndexMetadata(type: CollectionType): Promise<Metadata> {
+    const photos = await loadAllPhotos();
+    const entries = collectEntries(photos, type);
+    const { title, description } = collectionIndexCopy(type, entries.length);
+    const url = `${siteConfig.url}${collectionIndexPath(type)}`;
+    const first = photosInCollection(photos, type, entries[0]?.slug ?? "")[0];
+    const rawImage = first?.thumbSrc || first?.src;
+    const image = rawImage ? publicImageUrl(rawImage) : undefined;
+
+    return {
+        title,
+        description,
+        alternates: { canonical: url },
+        robots: isIndexableCollectionIndex(entries.length) ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,
