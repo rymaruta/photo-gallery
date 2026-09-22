@@ -6,8 +6,10 @@ import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { publicImageUrl } from "@/lib/utils/seo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, EyeIcon, EyeSlashIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon, EllipsisHorizontalIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
+import StoryActionSheet, { type StorySheetItem } from "./StoryActionSheet";
+import ReportDialog from "../ReportDialog";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import UserAvatar from "../UserAvatar";
@@ -187,6 +189,19 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [viewersOpen, setViewersOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    /**
+     * 「…」の操作シート（モック09 ⑦⑧）。一時停止・ミュート・テキストの
+     * 表示・このユーザーを非表示・報告を、右上の1つの入口にまとめる
+     */
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
+    /**
+     * 写真の上の文字を伏せる（モック⑦「テキストを非表示」）。**写真そのものを
+     * 見たいとき**のための表示設定なので、ストーリーを送っても保ったままにする
+     * （1枚ごとに戻すと、押し直しが要る）。端末には覚えさせない
+     */
+    const [textsHidden, setTextsHidden] = useState(false);
+    const menuBtnRef = useRef<HTMLButtonElement | null>(null);
     // 返信（見た人 → 投稿者）。**ストーリーごとに必ずリセットする**
     // ——打ちかけのまま次へ送られると、**書いた相手と違う人に届く**
     const [replyText, setReplyText] = useState("");
@@ -611,6 +626,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
     const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
         || voting
+        // 操作シート・報告の間も進めない（開いたときと押したときで対象がずれる）
+        || menuOpen || reportOpen
         || (!mediaReady && !mediaError);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
@@ -814,8 +831,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
      * 書いている当のもの）。困っているのは返信を読んでいる人なので、
      * その場に置くのがいちばん短い。
      */
-    const blockSender = useCallback(async (uid: string) => {
-        if (!uid || blocking) return;
+    const blockSender = useCallback(async (uid: string): Promise<boolean> => {
+        if (!uid || blocking) return false;
         setBlocking(uid);
         setBlockError(null);
         try {
@@ -835,6 +852,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 noteFollowSevered(uid);
                 // ストーリーのバーも取り直させる（doc を見よ）
                 onBlocked?.(uid);
+                return true;
             } else {
                 // **失敗を無言にしない。** プロフィール側は理由を出すのに、
                 // ここだけ押しても何も起きないように見えていた。
@@ -851,7 +869,18 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         } finally {
             setBlocking(null);
         }
+        return false;
     }, [blocking, onBlocked, locale]);
+
+    /**
+     * 「このユーザーを非表示」（モック⑧）。ブロックと同じ操作で、
+     * **効いたらこの画面を閉じる**——閉じないと、いま非表示にした相手の
+     * ストーリーがそのまま目の前に残る（バーの取り直しは親がやる）。
+     */
+    const hideAuthor = useCallback(async () => {
+        if (!group?.userId) return;
+        if (await blockSender(group.userId)) onClose();
+    }, [group?.userId, blockSender, onClose]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -890,8 +919,11 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 if (e.key === "Escape" && !isImeKey(e)) (t as HTMLInputElement).blur();
                 return;
             }
-            if (confirmDelete || viewersOpen || repliesOpen) {
-                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); }
+            // 報告のダイアログは自前で Escape を聞く（`useEscapeKey`）ので、
+            // ここは**何もしない**で返す（二重に閉じない・背後を送らない）
+            if (reportOpen) return;
+            if (confirmDelete || viewersOpen || repliesOpen || menuOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); setMenuOpen(false); }
                 return;
             }
             if (e.key === "Escape") onClose();
@@ -903,7 +935,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen, menuOpen, reportOpen]);
 
     // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
     // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
@@ -919,9 +951,10 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const closeBtnRef = useRef<HTMLButtonElement | null>(null);
     useFocusTrap(true, rootRef, undefined, closeBtnRef);
 
-    // 表示中のストーリーが変わったら確認シートを閉じる。
-    // 開いたときの対象と、押したときの対象がずれないようにする。
-    useEffect(() => { setConfirmDelete(false); }, [item?.id]);
+    // 表示中のストーリーが変わったら確認シートと操作シートを閉じる。
+    // 開いたときの対象と、押したときの対象がずれないようにする
+    // （「報告」も同じ理由。別のストーリーを報告してしまう）。
+    useEffect(() => { setConfirmDelete(false); setMenuOpen(false); setReportOpen(false); }, [item?.id]);
 
     // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
     // ここは `overflow: hidden` だけの自前実装で、あちらのコメントが
@@ -943,6 +976,65 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     }, [showing]);
 
     if (!group || !item) return null;
+
+    /**
+     * 「…」の操作シートの中身（モック⑦⑧）。**押しても何も起きない項目は
+     * 出さない**——音の無いストーリーに「ミュート」、文字の無い写真に
+     * 「テキストを非表示」を置かない（このリポジトリの決まり）。
+     * 自分のストーリーには「このユーザーを非表示」「報告」を出さず、
+     * 代わりに削除を出す。
+     */
+    const hasAudio = isVideo || !!item.song;
+    /** 左下に出すチップ（撮影地・BGM）が1つでも在るか */
+    const hasBottomChips = !!item.location || !!item.song;
+    const hasTexts = !!item.texts?.length || !!item.caption;
+    const sheetItems: StorySheetItem[] = [
+        {
+            key: "pause",
+            label: paused
+                ? (locale === "en" ? "Play" : "再生")
+                : (locale === "en" ? "Pause" : "一時停止"),
+            icon: paused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />,
+            onSelect: () => setPaused((v) => !v),
+        },
+        ...(hasAudio ? [{
+            key: "mute",
+            label: muted
+                ? (locale === "en" ? "Unmute" : "ミュート解除")
+                : (locale === "en" ? "Mute" : "ミュート"),
+            icon: muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />,
+            onSelect: () => setMuted((m) => !m),
+        }] : []),
+        ...(hasTexts ? [{
+            key: "texts",
+            label: textsHidden
+                ? (locale === "en" ? "Show text" : "テキストを表示")
+                : (locale === "en" ? "Hide text" : "テキストを非表示"),
+            // モックの印はアイコンではなく「Aa」
+            icon: <span className="text-[15px] font-semibold leading-none">Aa</span>,
+            onSelect: () => setTextsHidden((v) => !v),
+        }] : []),
+        ...(!isOwnStory && isAuthenticated ? [{
+            key: "hide",
+            label: locale === "en" ? "Hide this user" : "このユーザーを非表示",
+            icon: <EyeSlashIcon className="w-5 h-5" />,
+            onSelect: () => { void hideAuthor(); },
+            disabled: blocking === group.userId,
+        }, {
+            key: "report",
+            label: locale === "en" ? "Report story" : "ストーリーを報告",
+            icon: <ExclamationTriangleIcon className="w-5 h-5" />,
+            onSelect: () => setReportOpen(true),
+            danger: true,
+        }] : []),
+        ...(isOwnStory && onDelete ? [{
+            key: "delete",
+            label: locale === "en" ? "Delete story" : "ストーリーを削除",
+            icon: <TrashIcon className="w-5 h-5" />,
+            onSelect: () => setConfirmDelete(true),
+            danger: true,
+        }] : []),
+    ];
 
     return (
         <div
@@ -1011,7 +1103,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 {/* 置いた場所の文字。**下の帯には出さない**（同じ文言が2か所に出る）。
                     描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
                     出る場所が違う」になり、置き直しても直らない */}
-                {item.texts?.length && !mediaError ? (
+                {item.texts?.length && !mediaError && !textsHidden ? (
                     <StoryTextOverlay
                         texts={item.texts}
                         box={mediaBox}
@@ -1104,40 +1196,21 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <div className="flex items-start gap-2 px-1 pr-24">
                     <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
                     <div className="min-w-0">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</span>
-                            <span className="text-xs text-white/60 flex-shrink-0">{timeAgo(item.createdAt, locale)}</span>
-                        </div>
-                        {/* **撮影地。** 見る側に「どこで」が伝わる。名前の段の下に
-                            置くのは、キャプションの段（下端）が既に3つのピルで
-                            埋まっているため（実測でキャプションが潰れた前例あり） */}
-                        {item.location && (
-                            <p className="text-[11px] text-white/70 drop-shadow truncate max-w-full">
-                                <MapPinIcon className="w-3 h-3 inline -mt-0.5 mr-0.5" aria-hidden="true" />
-                                {item.location}
-                            </p>
-                        )}
-                        {/* 曲は名前のすぐ下の段（親は pointer-events-none なのでここで戻す） */}
-                        {item.song && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                                className="pointer-events-auto mt-1 inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-full bg-white/15 ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
-                                style={{ touchAction: "manipulation" }}
-                                aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
-                            >
-                                {muted
-                                    ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                                    : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
-                                <span className="truncate">
-                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                                </span>
-                                {muted && (
-                                    <span className="text-[10px] text-white/50 flex-shrink-0">
-                                        {locale === "en" ? "Tap for sound" : "タップで再生"}
-                                    </span>
-                                )}
-                            </button>
-                        )}
+                        {/* モック② のヘッダー: 1段目が名前、2段目が細い字の1行。
+                            時刻を名前の隣から2段目へ移した——モックの並びで、
+                            名前に使える幅も広がる（長い表示名が先に潰れていた）。
+
+                            🔴 **撮影地はここには出さない。** モックはヘッダー（②）と
+                            左下のチップ（④）の両方に場所を描いているが、あちらは
+                            「イタリア・アマルフィ」と「アマルフィ, イタリア」で
+                            粒度が違う。**こちらが持っている `location` は1つの
+                            文字列**なので、両方に出すと**同じ文字が画面に2度**
+                            並ぶ（実測: 「横浜 みなとみらい」が上下に重なる）。
+                            押せる方（④・チップ）に寄せる。 */}
+                        <div className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</div>
+                        <p className="text-[11px] text-white/60 drop-shadow truncate max-w-full">
+                            {timeAgo(item.createdAt, locale)}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1145,38 +1218,21 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {/* 閉じる / ミュート切り替え。**置いた文字・投票（z-25）より上**——
                 投稿者が右上に置いた投票の `<button>` に閉じるが覆われないように */}
             <div className="absolute top-3 right-2 z-[26] flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
-                {(isVideo || item.song) && (
+                {/* モック②⑦⑧: 右上は「…」と「✕」の2つだけ。一時停止・ミュート・
+                    テキストの表示・削除・このユーザーを非表示・報告は、この
+                    1つの入口（操作シート）にまとめる——以前は最大4つの
+                    アイコンが並び、置いた文字や投票と重なっていた */}
+                {sheetItems.length > 0 && (
                     <button
-                        onClick={() => setMuted((m) => !m)}
-                        aria-label={muted ? (locale === "en" ? "Unmute" : "ミュート解除") : (locale === "en" ? "Mute" : "ミュート")}
+                        ref={menuBtnRef}
+                        onClick={() => setMenuOpen(true)}
+                        aria-label={locale === "en" ? "Story options" : "ストーリーの操作"}
+                        aria-haspopup="dialog"
+                        aria-expanded={menuOpen}
                         className="p-2.5 text-white/80 hover:text-white"
                         style={{ touchAction: "manipulation" }}
                     >
-                        {muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />}
-                    </button>
-                )}
-                {/* **止める手段を画面に置く。** これまで自動送りを止められるのは
-                    「押しっぱなし」だけで、キーボードだけの人には手段が無かった。
-                    読む速さは人によって違うので、設定（動きを減らす）とは関係なく要る */}
-                <button
-                    onClick={() => setPaused((v) => !v)}
-                    aria-label={paused
-                        ? (locale === "en" ? "Resume" : "再生")
-                        : (locale === "en" ? "Pause" : "一時停止")}
-                    aria-pressed={paused}
-                    className="p-2.5 text-white/80 hover:text-white"
-                    style={{ touchAction: "manipulation" }}
-                >
-                    {paused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
-                </button>
-                {isOwnStory && onDelete && (
-                    <button
-                        onClick={() => setConfirmDelete(true)}
-                        aria-label={locale === "en" ? "Delete story" : "ストーリーを削除"}
-                        className="p-2.5 text-white/80 hover:text-white"
-                        style={{ touchAction: "manipulation" }}
-                    >
-                        <TrashIcon className="w-5 h-5" />
+                        <EllipsisHorizontalIcon className="w-6 h-6" />
                     </button>
                 )}
                 <button
@@ -1218,18 +1274,40 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 onPointerLeave={onZonePointerUp}
             />
 
+            {/* 一時停止の印（モック09 の状態例「一時停止状態」）。**止まっている
+                ことが画面で分かる**——これまでは進行バーが止まるだけで、
+                長押しで止めたのか読み込みで止まっているのか見分けが付かなかった。
+                押すと再開する（読み上げは「再生」。絵はモックのとおり⏸）。
+                出すのは**本当に一時停止しているときだけ**——読み込み中や
+                シートを開いている間（どちらも `frozen`）には出さない */}
+            {paused && !menuOpen && !confirmDelete && !viewersOpen && !repliesOpen && !reportOpen && (
+                <div className="absolute inset-0 z-[24] flex items-center justify-center pointer-events-none">
+                    <button
+                        onClick={() => setPaused(false)}
+                        aria-label={locale === "en" ? "Resume" : "再生"}
+                        className="pointer-events-auto w-16 h-16 rounded-full bg-black/45 backdrop-blur-sm ring-1 ring-white/20 text-white flex items-center justify-center active:scale-95 transition"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        <PauseIcon className="w-7 h-7" />
+                    </button>
+                </div>
+            )}
+
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる。
                 **置いた場所の文字が在るときは、この段には出さない**
                 （同じ文言が写真の上と下に二重に出る） */}
-            {(isOwnStory || (item.caption && !item.texts?.length)) && (
+            {(hasBottomChips || isOwnStory || (item.caption && !item.texts?.length && !textsHidden)) && (
                 <div
-                    /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
-                       キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
-                       実測（390px）で**キャプションの幅が 0px**になり、
-                       360px 以下ではピル自体が**画面の外へ切れる**（押せない
-                       部分ができる）。折り返せばキャプションは2段目に落ちる
-                       ——位置が変わるだけで、見た目の作り直しにはならない */
-                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center gap-2"
+                    /* モック④: **撮影地と BGM のチップは写真の左下**（返信欄のすぐ上）。
+                       以前はどちらもヘッダーの中に在り、名前の下に3段が積み上がって
+                       いた。チップの列と、既存の段（閲覧者・返信・残す・キャプション）を
+                       **1つの入れ物**に縦に積む——位置を決める式（下の `marginBottom`）が
+                       2か所に分かれると、返信の帯が出たときにどちらかが帯に潜る。
+
+                       **空いている所はタップを通す**（`pointer-events-none`）。
+                       この段は左右のタップ領域（z-10）より前面なので、囲いに
+                       当たり判定を持たせると**送りが効かない帯**ができる */
+                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-start gap-2 pointer-events-none"
                     /* **返信の帯（高さ約124px）に完全に隠れていた。**
                        実測（390x844）でキャプションの高さの100%が帯と重なり、
                        36px は入力欄そのものの下に沈んでいた（`bg-black/55` +
@@ -1242,13 +1320,48 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             : "env(safe-area-inset-bottom, 0px)",
                     }}
                 >
+                    {/* 撮影地のチップ。**押せる先を持たない**——ストーリーの撮影地は
+                        まだ写真が1枚も無い場所でもよく、`/location/<スラッグ>` は
+                        ビルド時に在る場所しか作られない（静的書き出し）。
+                        行き止まりのリンクを置くくらいなら、出すのは文字だけにする */}
+                    {item.location && (
+                        <span className="max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px]">
+                            <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/70" aria-hidden="true" />
+                            <span className="truncate">{item.location}</span>
+                        </span>
+                    )}
+                    {/* BGM のチップ。押すと音の入り切り（この画面で音を出せる唯一の
+                        一手。操作シートの「ミュート解除」と同じ状態を切り替える） */}
+                    {item.song && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
+                            style={{ touchAction: "manipulation" }}
+                            aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                        >
+                            {muted
+                                ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                            <span className="truncate">
+                                {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                            </span>
+                            {muted && (
+                                <span className="text-[10px] text-white/50 flex-shrink-0">
+                                    {locale === "en" ? "Tap for sound" : "タップで再生"}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    {/* 閲覧者・返信・残す・キャプションの段（従来どおり横に並べ、
+                        溢れたら折り返す） */}
+                    <div className="w-full flex flex-wrap items-center gap-2">
                     {/* アーカイブでは出さない——必ず 0 人で、押しても何も無い
                         ボタンを置かない（すぐ下の返信バッジと同じ線） */}
                     {isOwnStory && !item.archivedAt && (
                         <button
                             onClick={() => setViewersOpen(true)}
                             aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
-                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
                         >
                             <EyeIcon className="w-4 h-4" />
@@ -1276,7 +1389,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         <button
                             onClick={() => setRepliesOpen(true)}
                             aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
-                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
                         >
                             <ChatBubbleOvalLeftIcon className="w-4 h-4" />
@@ -1300,7 +1413,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                    書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
                                    他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
                                 href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
+                                className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1312,7 +1425,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 onClick={() => void keepToGallery()}
                                 disabled={keeping}
                                 aria-label={locale === "en" ? "Keep in gallery" : "ギャラリーに残す"}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
+                                className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1322,7 +1435,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             </button>
                         )
                     )}
-                    {item.caption && !item.texts?.length && (
+                    {item.caption && !item.texts?.length && !textsHidden && (
                         /* **潰れるならキャプションは次の段へ。** ピルは全部
                            `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
                            実測（390px）で幅 35px、320px では**ピルが画面の外**へ
@@ -1333,6 +1446,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             {item.caption}
                         </p>
                     )}
+                    </div>
                 </div>
             )}
 
@@ -1591,38 +1705,49 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 </div>
             )}
 
-            {/* 削除確認ダイアログ */}
-            {confirmDelete && (
-                <div className="absolute inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0" onClick={() => !deleting && setConfirmDelete(false)}>
-                    {/* iOS のアクションシート風。装飾は最小限にして、文字そのもので選ばせる */}
-                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
-                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
-                                {locale === "en"
-                                    ? "This story will be deleted. This can't be undone."
-                                    : "このストーリーを削除します。この操作は取り消せません。"}
-                            </p>
-                            <button
-                                onClick={() => void handleDelete()}
-                                disabled={deleting}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
-                                {locale === "en" ? "Delete" : "削除"}
-                            </button>
-                        </div>
-                        <button
-                            onClick={() => setConfirmDelete(false)}
-                            disabled={deleting}
-                            className="w-full py-3.5 rounded-2xl bg-surface-2/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
-                            style={{ touchAction: "manipulation", marginBottom: "env(safe-area-inset-bottom, 0px)" }}
-                        >
-                            {locale === "en" ? "Cancel" : "キャンセル"}
-                        </button>
-                    </div>
-                </div>
+            {/* 「…」の操作シート（モック09 のストーリーメニュー） */}
+            {menuOpen && (
+                <StoryActionSheet
+                    items={sheetItems}
+                    onClose={() => setMenuOpen(false)}
+                    cancelLabel={locale === "en" ? "Cancel" : "キャンセル"}
+                    openerRef={menuBtnRef}
+                />
             )}
+
+            {/* 報告（モック⑧）。**写真ページと同じ部品**——ストーリーの行は
+                写真と同じ表に在るので、`POST /photos/{id}/report` がそのまま効く
+                （サーバーは `story: true` を控える） */}
+            {reportOpen && (
+                <ReportDialog
+                    photoId={item.id}
+                    locale={locale}
+                    onClose={() => setReportOpen(false)}
+                    openerRef={menuBtnRef}
+                />
+            )}
+
+            {/* 削除の確認。**同じシートの部品**で、説明文と赤い1項目だけを出す */}
+            {confirmDelete && (
+                <StoryActionSheet
+                    items={[{
+                        key: "delete",
+                        label: locale === "en" ? "Delete" : "削除",
+                        danger: true,
+                        busy: deleting,
+                        // 閉じない——消えるまでの間、進捗を出す場所が無くなる
+                        closeOnSelect: false,
+                        onSelect: () => { void handleDelete(); },
+                    }]}
+                    description={locale === "en"
+                        ? "This story will be deleted. This can't be undone."
+                        : "このストーリーを削除します。この操作は取り消せません。"}
+                    onClose={() => { if (!deleting) setConfirmDelete(false); }}
+                    cancelLabel={locale === "en" ? "Cancel" : "キャンセル"}
+                    openerRef={menuBtnRef}
+                />
+            )}
+
         </div>
     );
 }
