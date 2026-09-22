@@ -46,7 +46,14 @@ vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: PHOTOS
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
-beforeEach(() => { mockShowToast.mockReset(); window.history.replaceState({}, "", "/"); });
+beforeEach(() => {
+    mockShowToast.mockReset();
+    window.history.replaceState({}, "", "/");
+    // **毎回まっさらにする。** 残したままだと、`GalleryGrid` が丸ごと
+    // 描かれなくなっても前のテストが置いた値で下の検査が通る
+    gridProps.sizes = "";
+    gridProps.columns = undefined;
+});
 
 describe("PC の設計（指示書 4・11・17）", () => {
     describe("ホーム", () => {
@@ -63,6 +70,13 @@ describe("PC の設計（指示書 4・11・17）", () => {
             const aside = container.querySelector("main aside")!;
             expect(aside.className, "狭い画面にも柱が出る").toContain("hidden");
             expect(aside.className, "PC で柱が出ない").toContain("lg:block");
+        });
+
+        it("🔴 柱の高さは画面に収める（貼り付いたまま画面より高いと、下の節に届く手段が無い）", () => {
+            const { container } = render(<GalleryPageClient surface="home" />);
+            const aside = container.querySelector("main aside")!;
+            expect(aside.className, "画面より高くなっても切り上げない").toContain("lg:max-h-");
+            expect(aside.className, "はみ出したぶんを送れない").toContain("lg:overflow-y-auto");
         });
 
         it("🔴 カードの箱は広げない（`FEED_SIZES_XL` は 36rem で頭打ち）", () => {
@@ -86,17 +100,20 @@ describe("PC の設計（指示書 4・11・17）", () => {
 
         it("🔴 グリッドの `sizes` と列数は対で「さがす」用のものを渡す", () => {
             render(<GalleryPageClient surface="search" />);
-            // 柱のぶん lg は3列のまま（4列にすると 1024px で1セルがスマホより小さくなる）
-            expect(gridProps.columns, "列数を渡していない").toBe("grid-cols-2 sm:grid-cols-3 xl:grid-cols-4");
-            expect(gridProps.sizes, "容器が変わったのに `sizes` が据え置き").toContain("14.34375rem");
+            // 柱のぶん PC でも3列のまま（4列にすると 1024px で1セルがスマホより小さくなる）
+            expect(gridProps.columns, "列数を渡していない").toBe("grid-cols-2 sm:grid-cols-3");
+            expect(gridProps.sizes, "容器が変わったのに `sizes` が据え置き").toContain("16.58333rem");
         });
 
-        it("🔴 PC だけ箱を広げる（トップは広げない）", () => {
+        it("🔴 PC だけ箱を広げる（トップは広げない・ヘッダーとずらしすぎない）", () => {
             const search = render(<GalleryPageClient surface="search" />);
-            expect(search.container.querySelector("main")!.className).toContain("lg:max-w-7xl");
+            // 6xl＝写真ページ・集約ページと同じ箱。7xl にするとヘッダー
+            //（`max-w-5xl`）と片側128px ずれる
+            expect(search.container.querySelector("main")!.className).toContain("lg:max-w-6xl");
+            expect(search.container.querySelector("main")!.className, "ヘッダーより広げすぎ").not.toContain("max-w-7xl");
             search.unmount();
             const home = render(<GalleryPageClient surface="home" />);
-            expect(home.container.querySelector("main")!.className, "トップまで広げている").not.toContain("max-w-7xl");
+            expect(home.container.querySelector("main")!.className, "トップまで広げている").not.toContain("max-w-6xl");
         });
     });
 

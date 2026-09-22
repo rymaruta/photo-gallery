@@ -54,8 +54,16 @@ function HomeColumns({ rail, children }: { rail: React.ReactNode; children: Reac
     <div className="lg:grid lg:grid-cols-[minmax(0,36rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-none">{children}</div>
       {/* **狭い画面には出さない。** スマホの「さがす」は下部タブの別の面で、
-          ここに足すとモックに無いものが1画面に増える */}
-      <aside className="hidden lg:block lg:sticky lg:top-[88px]">{rail}</aside>
+          ここに足すとモックに無いものが1画面に増える。
+
+          **高さを画面に収める。** 貼り付いたまま画面より高くなると、
+          下の節（機材）が**どうやっても読めない**——本文を送っても柱は
+          動かないので、届く手段が1つも無い（レビューが 1280×600 で計測）。
+          引くのはヘッダー 72 ＋ 上の余白 16 ＋ 下部タブ 64 ＋ 下の余白 16。
+          **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
+          柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
+          作ると隠れる */}
+      <aside className="hidden lg:block lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">{rail}</aside>
     </div>
   );
 }
@@ -462,8 +470,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       /* **「さがす」だけ PC で広げる**（指示書 4・11・17「スマホ画面を
          そのまま横に引き伸ばさない」）。左に絞り込みの柱を置き、
          写真の面をその右に取る。トップは1列のカードを読む面なので
-         広げない（`max-w-5xl` のまま） */
-      isSearch ? "max-w-5xl lg:max-w-7xl" : "max-w-5xl"
+         広げない（`max-w-5xl` のまま）。
+         **上限は 6xl**——写真ページ（`lg:max-w-6xl`）・集約ページと同じ箱。
+         7xl にするとヘッダー（`max-w-5xl`）とロゴの左端が片側128px ずれる */
+      isSearch ? "max-w-5xl lg:max-w-6xl" : "max-w-5xl"
     }`}>
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
@@ -522,7 +532,17 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           <TimelineFeed locale={locale} />
         </HomeColumns>
       ) : surface === "home" && filters.scope === "featured" ? (
-        /* **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
+        /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
+           `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
+           `max-w-5xl` いっぱいである前提**で `sizes` を申告している。
+           36rem の柱の中へ入れると箱は 139.5px なのに 235.5px と申告する
+           ことになり、`gridSizes.ts` が禁じている「申告と実寸のずれ」を
+           作る。**既にカテゴリごとのグリッド＝横を使う形**なので、
+           ここは広いまま置く。付けるなら `FeaturedSections` に `sizes` を
+           渡せるようにするのが先（本番の `featured` は 0枚なので、
+           いま実際に出るのは下の空の知らせ）。
+
+           **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
            （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
            持ち場にする——同じものを二度作らない。
            **人気順ではない**（実データは いいね0・コメント0 で、人気の

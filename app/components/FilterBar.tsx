@@ -430,7 +430,13 @@ function FilterBarInner({
                                 id="sort-menu"
                                 role="listbox"
                                 aria-label={labels.sort.label}
-                                className="absolute right-0 mt-1 z-50 shadow-xl"
+                                /* **PC の柱では左に揃える。** 柱では箱が
+                                   ボタンの幅（約76px）まで縮むので、`right-0`
+                                   のまま吊ると幅 130px の一覧が左へはみ出す
+                                   ——実測で左端が **x=-14**（英語は -23）、
+                                   しかも `scrollWidth == innerWidth` なので
+                                   スクロールしても出てこない（レビューが計測） */
+                                className="absolute right-0 lg:right-auto lg:left-0 mt-1 z-50 shadow-xl"
                                 style={{ minWidth: 130, borderRadius: 12, overflow: "hidden", background: "#101214", border: "1px solid rgba(255,255,255,0.10)" }}
                             >
                                 {sortOptions.map((opt) => {
