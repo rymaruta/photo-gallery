@@ -3,7 +3,6 @@
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
-import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -207,9 +206,6 @@ const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
 
 function EditContent() {
-    // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
-    const bottomBarRef = useRef<HTMLDivElement | null>(null);
-    useBottomBarHeight(bottomBarRef);
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -1201,11 +1197,24 @@ function EditContent() {
             )}
 
             {/* 固定アクションバー: 削除 / 下書き保存 / 公開する */}
-            {/* `env(safe-area-inset-bottom)`: ホームインジケーター帯に
-                ボタンが入らないようにする（`globals.css` の body 側の
-                padding は `position: fixed` には効かない） */}
-            <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
-                style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
+            {/* 🔴 **下部タブバー（`BottomNav`・z-40）の上へ逃がす。**
+                `bottom-0` ＋ 同じ z-40 だったので、**あとから描かれるタブバーが
+                覆いかぶさり、この帯の操作（削除・保存系）が押せなかった**
+                （実測: 「削除」の座標をクリックすると書き込みは1件も飛ばず、
+                390px では `/`、1280px では `/search` へ遷移した）。
+
+                **`z-50` で覆い返すだけにはしない。** 隠れたタブの5つのボタンが
+                **フォーカスだけ受け取れる**状態になる（WCAG 2.4.11）。
+                `app/user/upload/page.tsx` が同じ不具合を先に直しているので、
+                **その形に揃える**——`--bottom-bar-h` のぶん上へ逃がす。
+
+                ⚠️ **この画面からは `--bottom-bar-h` に書かない**（`useBottomBarHeight`
+                を外した）。タブバーと両方が書くと、**あとから描いた方の高さで
+                `MiniPlayer` が浮く**——upload 側のコメントが名指ししている形で、
+                書き手が2つ在ったのはこの画面だけだった。
+                safe-area はその変数に含まれるので、`paddingBottom` で二重に空けない。 */}
+            <div className="fixed left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 p-4"
+                style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-2xl mx-auto flex items-center gap-2">
                     {/* 削除は左端に離して置く。保存系と並べると押し間違える */}
                     <button
