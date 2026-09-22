@@ -4,6 +4,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { dedupeCameraName } from "../../../lib/utils/cameraName";
 import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -206,6 +207,10 @@ const LOCATION_MAX = 200;
 const CATEGORY_MAX = 100;
 
 function EditContent() {
+    /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける）。
+     *  **`--bottom-bar-h` には書かない**——書き手が2人になると、あとから
+     *  描いた方の高さで `MiniPlayer` が浮く（この画面が書き手の2人目だった） */
+    const pageBarRef = usePageBarHeight();
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -1213,7 +1218,7 @@ function EditContent() {
                 `MiniPlayer` が浮く**——upload 側のコメントが名指ししている形で、
                 書き手が2つ在ったのはこの画面だけだった。
                 safe-area はその変数に含まれるので、`paddingBottom` で二重に空けない。 */}
-            <div className="fixed left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 p-4"
+            <div ref={pageBarRef} className="fixed left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 p-4"
                 style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-2xl mx-auto flex items-center gap-2">
                     {/* 削除は左端に離して置く。保存系と並べると押し間違える */}

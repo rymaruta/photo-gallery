@@ -109,6 +109,34 @@ describe("画面下に固定した帯は、タブバーの上へ逃がす", () =
         expect(stray, "タブバーの裏に入る帯がある（`--bottom-bar-h` のぶん上へ逃がすこと）").toEqual([]);
     });
 
+    /**
+     * 🔴 **高さを出していない帯は、フッターを覆う。**
+     *
+     * 帯をタブバーの上へ逃がすと、`body` の下の余白（タブバーのぶん）では
+     * 足りず、**フッターの最後の行が帯の裏に入る**（2026-09-22 に実測で
+     * 7本とも）。`usePageBarHeight` が `--page-bar-h` に高さを出し、
+     * `Footer` がそのぶん空ける。**逃がすのと空けるのは対。**
+     */
+    it("`--bottom-bar-h` を読む帯は、自分の高さも出している（フッターを覆わない）", () => {
+        const exempt = new Set(EXEMPT.map(([f]) => f));
+        const files = [...new Set(allBars().filter((b) => !exempt.has(b.file)).map((b) => b.file))];
+        expect(files.length, "逃がしている帯を1つも拾えていない").toBeGreaterThan(0);
+        /**
+         * **地図の上に浮くシートは別物。** ページ幅の帯ではなく、地図の中の
+         * カード（`/map`）。しかも**本番では一度も開かない**——座標を持つ
+         * 写真が 0/30 なのでピンが出ない（`CLAUDE.md` の実測）。
+         * 高さを出させると、開いている間だけフッターが大きく下がる。
+         * **座標を持つ写真が本番に出たら、ここは測り直すこと。**
+         */
+        const SHEETS = new Set(["app/map/MapPhotoSheet.tsx"]);
+        const silent = files
+            .filter((f) => !SHEETS.has(f))
+            .filter((f) => !nodeFs.readFileSync(nodePath.join(ROOT, f), "utf8").includes("usePageBarHeight"));
+        expect(silent, "高さを出していない帯がある（フッターが覆われる）").toEqual([]);
+        // 一覧が古くなったら落とす
+        expect([...SHEETS].filter((f) => !files.includes(f)), "シートの一覧に、もう無いものが残っている").toEqual([]);
+    });
+
     // **一覧が古くなったら落とす**（消えた行が、次に足された帯を黙って吸収する）
     it("一覧の項目はいま実在する", () => {
         const present = new Set(allBars().map((b) => b.file));

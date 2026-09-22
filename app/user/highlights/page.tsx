@@ -3,6 +3,7 @@
 import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { ArrowLeftIcon, CheckIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
@@ -47,6 +48,8 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
     // 一覧の読み方は `/user/archive` と同じ（`useStoryArchive`）
     const { items: archive, loadError, load: loadArchive } = useStoryArchive(isAuthenticated);
     const [title, setTitle] = useState("");
+    /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける） */
+    const pageBarRef = usePageBarHeight();
     /** 選んだ ID（押した順。保存時に投稿順へ並べ直す） */
     const [selected, setSelected] = useState<string[]>([]);
     const [cover, setCover] = useState<string | null>(null);
@@ -357,7 +360,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 出しているので、それを読む。**この画面からは書かない**。
                 落とし先の `env(safe-area-inset-bottom)` はタブバーが無い状況の受け皿。
                 safe-area は変数に含まれるので、`paddingBottom` で二重に空けない。 */}
-            <div className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3"
+            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3"
                 style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-3xl mx-auto flex items-center gap-3">
                     {editingId && (
