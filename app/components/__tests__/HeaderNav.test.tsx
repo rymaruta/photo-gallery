@@ -89,13 +89,22 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(menuItems()).toContain("Manage");
     });
 
-    it("マイページは自分の userId のプロフィールURLに遷移する", async () => {
+    /**
+     * 🔴 **行き先は `<a href>`**（2026-09-22 に `<button>` ＋ `router.push` から直した）。
+     * ボタンだと**新しいタブで開けない・リンクのアドレスをコピーできない・
+     * 読み上げが「ボタン」と言う**——押せば飛ぶので画面では気づけない。
+     * 実ブラウザで数えたとき、メニューの中の `<a href>` は **0本**だった。
+     *
+     * だから `router.push` の呼び出しではなく **`href` を見る**（そちらの方が
+     * 「本当にリンクか」まで含めて縛れる）。
+     */
+    it("マイページは自分の userId のプロフィールURLへのリンク", async () => {
         setRole("general");
         render(<HeaderNav />);
         await openMenu();
-        fireEvent.click(screen.getByText("My Page"));
-        expect(mockPush).toHaveBeenCalledTimes(1);
-        const dest = mockPush.mock.calls[0][0] as string;
+        // ヘッダーのアバターにも同じ名前のリンクがあるので、メニューの中に限る
+        const dest = within(screen.getByRole("dialog"))
+            .getByRole("link", { name: "My Page" }).getAttribute("href");
         expect(dest === "/users/user-1" || dest === "/users?id=user-1").toBe(true);
     });
 
@@ -107,13 +116,12 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
-    it("ログイン中はヘッダーのアバターからマイページへ直行できる", () => {
+    it("ログイン中はヘッダーのアバターからマイページへ直行できる（リンク）", () => {
         setRole("general");
         render(<HeaderNav />);
-        const avatarBtn = screen.getByLabelText("My Page");
-        fireEvent.click(avatarBtn);
-        expect(mockPush).toHaveBeenCalledTimes(1);
-        const dest = mockPush.mock.calls[0][0] as string;
+        const avatar = screen.getByLabelText("My Page");
+        expect(avatar.tagName, "ボタンのまま＝新しいタブで開けない").toBe("A");
+        const dest = avatar.getAttribute("href");
         expect(dest === "/users/user-1" || dest === "/users?id=user-1").toBe(true);
     });
 
@@ -167,13 +175,14 @@ describe("HeaderNav - メニュー開閉の回帰ガード", () => {
         expect(screen.queryByRole("dialog")).toBeNull();
     });
 
-    it("メニュー項目を押すと遷移し、メニューが閉じる", () => {
+    it("メニュー項目を押すとメニューが閉じる（行き先はリンク）", () => {
         render(<HeaderNav />);
         fireEvent.click(screen.getByLabelText("メニューを開く"));
         const dialog = screen.getByRole("dialog");
-        fireEvent.click(within(dialog).getByText("My Page"));
-        expect(mockPush).toHaveBeenCalledTimes(1);
-        expect(screen.queryByRole("dialog")).toBeNull();
+        const item = within(dialog).getByRole("link", { name: "My Page" });
+        expect(item.getAttribute("href"), "行き先が無い").toBeTruthy();
+        fireEvent.click(item);
+        expect(screen.queryByRole("dialog"), "押しても開いたまま").toBeNull();
     });
 
     // **ロックは共通実装（`lib/utils/scrollLock.ts`）に寄せた。**
@@ -226,7 +235,8 @@ describe("認証状態が分かるまで", () => {
         authState.current = { ...authState.current, isAuthenticated: false, loading: false };
         const { unmount } = render(<HeaderNav />);
         fireEvent.click(screen.getByLabelText(/メニュー|Menu/i));
-        expect(screen.getByRole("button", { name: /Login|ログイン/ })).toBeInTheDocument();
+        // ログインは**行き先**なのでリンク（ログアウトだけが動作＝ボタン）
+        expect(screen.getByRole("link", { name: /Login|ログイン/ })).toBeInTheDocument();
         unmount();
 
         authState.current = { ...authState.current, isAuthenticated: true, loading: false };
@@ -357,8 +367,7 @@ describe("HeaderNav - 撮影地マップ", () => {
         render(<HeaderNav />);
         await openMenu();
         expect(menuItems()).toContain("Map");
-        fireEvent.click(screen.getByRole("button", { name: "Map" }));
-        expect(mockPush).toHaveBeenCalledWith("/map");
+        expect(screen.getByRole("link", { name: "Map" }).getAttribute("href")).toBe("/map");
     });
 });
 
@@ -370,8 +379,7 @@ describe("HeaderNav - 共同アルバム", () => {
         render(<HeaderNav />);
         await openMenu();
         expect(menuItems()).toContain("Shared Albums");
-        fireEvent.click(screen.getByRole("button", { name: "Shared Albums" }));
-        expect(mockPush).toHaveBeenCalledWith("/user/albums");
+        expect(screen.getByRole("link", { name: "Shared Albums" }).getAttribute("href")).toBe("/user/albums");
     });
 
     it("未ログインには出さない", async () => {
@@ -399,5 +407,62 @@ describe("HeaderNav - 共同アルバム", () => {
         render(<HeaderNav />);
         await openMenu();
         expect(menuItems()).toContain("Shared Albums");
+    });
+});
+
+/**
+ * 🔴 **メニューの行き先は全部 `<a href>`。動作だけが `<button>`。**
+ *
+ * 直す前は9項目すべてが `<button onClick={() => router.push(href)}>` で、
+ * 実ブラウザで数えると**メニューの中の `<a href>` は 0本**だった。
+ * 押せば飛ぶので画面では気づけないが、ブラウザが持っている手が落ちる:
+ *
+ *   - 新しいタブで開けない（⌘/Ctrl＋クリック・中クリック）
+ *   - リンクのアドレスをコピーできない（右クリック）
+ *   - 読み上げは「ボタン」と言う（行き先があることが伝わらない）
+ *   - クローラから見えない（`/map` はここからの被リンクを失う）
+ *
+ * **名前で1つずつ確かめない**——項目が増えた日に足し忘れる。
+ * 「ボタンとして残ってよいのは一覧に在るものだけ」で見る。
+ */
+describe("HeaderNav - 行き先はリンク、動作はボタン", () => {
+    /** `<button>` のまま残してよいもの（**理由が書けるものだけ**） */
+    const ACTIONS = [
+        /Logout|ログアウト/,   // 行き先ではなく動作
+        /閉じる|Close/,        // メニューを閉じる
+    ];
+
+    it.each(["anonymous", "general", "admin"] as const)("%s: メニューの項目がリンクとして出る", async (role) => {
+        setRole(role);
+        render(<HeaderNav />);
+        await openMenu();
+        const dialog = screen.getByRole("dialog");
+        const links = within(dialog).queryAllByRole("link");
+        // 走査が空回りしていないこと（0本を「問題なし」と読ませない）
+        expect(links.length, "メニューにリンクが1本も無い").toBeGreaterThan(0);
+        for (const a of links) expect(a.getAttribute("href"), "href が無いリンク").toBeTruthy();
+
+        const strayButtons = within(dialog).queryAllByRole("button")
+            .map((b) => (b.getAttribute("aria-label") || b.textContent || "").trim())
+            .filter((n) => !ACTIONS.some((re) => re.test(n)));
+        expect(strayButtons, "行き先なのにボタンのまま（新しいタブで開けない）").toEqual([]);
+    });
+
+    it("ログアウトだけはボタンのまま（行き先ではなく動作）", async () => {
+        setRole("general");
+        render(<HeaderNav />);
+        await openMenu();
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByRole("button", { name: /Logout|ログアウト/ })).toBeInTheDocument();
+        expect(within(dialog).queryByRole("link", { name: /Logout|ログアウト/ })).toBeNull();
+    });
+
+    it("ヘッダーの「ユーザーを探す」とアバターもリンク", () => {
+        setRole("general");
+        render(<HeaderNav />);
+        const find = screen.getByLabelText(/Find people|ユーザーを探す/);
+        expect(find.tagName, "検索がボタンのまま").toBe("A");
+        expect(find.getAttribute("href")).toBe("/users/search");
+        expect(screen.getByLabelText("My Page").tagName, "アバターがボタンのまま").toBe("A");
     });
 });

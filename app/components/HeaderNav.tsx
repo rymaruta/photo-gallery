@@ -3,7 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { createPortal } from "react-dom";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
@@ -16,7 +17,6 @@ import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
 export default function HeaderNav({ className = "" }: { className?: string }) {
-    const router = useRouter();
     const { isAuthenticated, isAdminUser, isGeneralUser, userId, logout, loading } = useAuth();
     const { locale, labels } = useLocale();
     const { favorites } = useFavorites();
@@ -86,10 +86,38 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => window.removeEventListener("popstate", close);
     }, [open]);
 
-    const handleNavigation = (href: string) => {
-        setOpen(false);
-        router.push(href);
-    };
+    /**
+     * 🔴 **行き先は `<a>`（`<Link>`）にする。**
+     *
+     * 以前はメニューの項目が全部 `<button onClick={() => router.push(href)}>`
+     * だった。押せば飛ぶので画面上は同じに見えるが、**ブラウザが持っている
+     * 当たり前の手が全部落ちる**（実ブラウザで確認: メニューの中の
+     * `<a href>` は **0本**、ボタンが3つ）:
+     *
+     *   - **新しいタブで開けない**（⌘/Ctrl＋クリック・中クリック）
+     *   - **リンクのアドレスをコピーできない**（右クリック）
+     *   - 読み上げは「ボタン」と言う（行き先があることが伝わらない）
+     *   - クローラから見えない（`/map` はここからの被リンクを失う。
+     *     フッターに同じ行き先があるので孤立はしていない——実ビルドで確認）
+     *
+     * **`<button>` のまま残すのはログアウトだけ**（あれは行き先ではなく動作）。
+     *
+     * ⚠️ `prefetch={false}`（公開ページの `<Link>` は全部そう。
+     * 見張りは `app/__tests__/linkPrefetch.test.ts`）。
+     */
+    const MenuLink = ({ href, children }: { href: string; children: React.ReactNode }) => (
+        <li style={{ margin: 0, padding: 0 }}>
+            <Link
+                href={href}
+                prefetch={false}
+                onClick={() => setOpen(false)}
+                className={`${linkBase} ${inactiveClasses} w-full text-left block`}
+                style={btnStyle}
+            >
+                {children}
+            </Link>
+        </li>
+    );
 
 
     // Close on Escape key
@@ -141,30 +169,34 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         <nav aria-label={locale === "en" ? "Site header" : "ヘッダー"}
              className={`site-header__nav flex items-center gap-2 flex-shrink-0 ${className}`}>
             {/* ユーザーを探す。知り合いを見つけてフォローする導線をどのページからも1タップに */}
-            <button
-                onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
+            {/* **行き先なので `<a>`。** 理由は `MenuLink` の注記（新しいタブ・
+                リンクのコピー・読み上げの「リンク」） */}
+            <Link
+                href={ROUTES.USER_SEARCH}
+                prefetch={false}
                 aria-label={locale === "en" ? "Find people" : "ユーザーを探す"}
                 title={locale === "en" ? "Find people" : "ユーザーを探す"}
-                className="p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                className="inline-flex items-center justify-center p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", minWidth: "44px" }}
             >
-                <MagnifyingGlassIcon className="h-6 w-6" />
-            </button>
+                <MagnifyingGlassIcon className="h-6 w-6" aria-hidden="true" />
+            </Link>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}
             {isAuthenticated && userId && (
-                <button
-                    onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
+                <Link
+                    href={ROUTES.USER_PROFILE(userId)}
+                    prefetch={false}
                     aria-label={navLabels.mypage || "My Page"}
                     title={navLabels.mypage || "My Page"}
-                    className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
+                    className="inline-block rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
                     <span className="block rounded-full p-[2px] bg-bg">
                         <UserAvatar userId={userId} className="w-8 h-8" iconClassName="w-5 h-5" />
                     </span>
-                </button>
+                </Link>
             )}
             <button
                 ref={toggleRef}
@@ -224,29 +256,23 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>
                                 {/* 撮影地マップ: 公開の入口なので誰にでも出す */}
-                                <li style={{ margin: 0, padding: 0 }}>
-                                    <button onClick={() => handleNavigation(ROUTES.MAP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                <MenuLink href={ROUTES.MAP}>
                                         {navLabels.map || "Map"}
-                                    </button>
-                                </li>
+                                    </MenuLink>
                                 {/* いいねした写真: 未ログインの初回訪問者には出さない（空ページになるため）。
                                     ログイン中、または実際にお気に入りがある人にだけ表示する。 */}
                                 {(isAuthenticated || favorites.length > 0) && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.FAVORITES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.favorites || "Favorites"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.FAVORITES}>
+                                        {navLabels.favorites || "Favorites"}
+                                    </MenuLink>
                                 )}
                                 {/* 保存した写真: **ログイン中だけ**。いいねと違って
                                     未ログインでは押せないので、出しても空のページにしか
                                     ならない（いいねは端末の控えがあるので条件が違う） */}
                                 {isAuthenticated && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.SAVES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.saves || "Saved"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.SAVES}>
+                                        {navLabels.saves || "Saved"}
+                                    </MenuLink>
                                 )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
@@ -256,11 +282,9 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     </li>
                                 )}
                                 {isAuthenticated && userId && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.mypage || "My Page"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.USER_PROFILE(userId)}>
+                                        {navLabels.mypage || "My Page"}
+                                    </MenuLink>
                                 )}
                                 {/* 共同アルバム（案C）。**ログイン中だけ**——招待リンクを
                                     配る側の画面で、未ログインには行き先が無い。
@@ -273,11 +297,9 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     案内**になる（行き先の無い項目）。
                                     この項目はメニューで唯一の会員限定の行き先 */}
                                 {isAuthenticated && (isAdminUser || isGeneralUser) && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.ALBUMS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.albums || "Shared Albums"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.ALBUMS}>
+                                        {navLabels.albums || "Shared Albums"}
+                                    </MenuLink>
                                 )}
                                 {/* 設定（アカウント・プライバシー・サポート）。
                                     **`isAuthenticated` だけで出す**——共同アルバムと
@@ -285,18 +307,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     変更と退会は、権限が付かなかった人にこそ要る
                                     （`/user/settings` の門も同じ判断） */}
                                 {isAuthenticated && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.SETTINGS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.settings || "Settings"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.SETTINGS}>
+                                        {navLabels.settings || "Settings"}
+                                    </MenuLink>
                                 )}
                                 {isAdminUser && (
-                                    <li style={{ margin: 0, padding: 0 }}>
-                                        <button onClick={() => handleNavigation(ROUTES.ADMIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                            {navLabels.admin || "Manage"}
-                                        </button>
-                                    </li>
+                                    <MenuLink href={ROUTES.ADMIN}>
+                                        {navLabels.admin || "Manage"}
+                                    </MenuLink>
                                 )}
                                 {/* **判定中は出し分けない。** `loading` を受け取っているのに
                                     使っておらず、Cognito のセッション確認が終わる前は
@@ -316,16 +334,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     </li>
                                 ) : (
                                     <>
-                                        <li style={{ margin: 0, padding: 0 }}>
-                                            <button onClick={() => handleNavigation(ROUTES.LOGIN)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                                {navLabels.login || "Login"}
-                                            </button>
-                                        </li>
-                                        <li style={{ margin: 0, padding: 0 }}>
-                                            <button onClick={() => handleNavigation(ROUTES.SIGNUP)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
-                                                {navLabels.signup || "Sign up"}
-                                            </button>
-                                        </li>
+                                        <MenuLink href={ROUTES.LOGIN}>
+                                        {navLabels.login || "Login"}
+                                    </MenuLink>
+                                        <MenuLink href={ROUTES.SIGNUP}>
+                                        {navLabels.signup || "Sign up"}
+                                    </MenuLink>
                                     </>
                                 )}
                             </ul>
