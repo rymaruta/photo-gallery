@@ -192,6 +192,18 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
      * **シートは1枚で、タブで切り替える**——以前は「閲覧者」と「届いた返信」で
      * 別々のシートが2枚在り、同じ形の入れ物を2回書いていた。
      * `null` は閉じている。
+     *
+     * ⚠️ **`"reactions"` の中身は絵文字の反応と文字の返信の両方**。
+     * サーバーは1つの文書（`storyreplies#<id>`）に両方を入れ、`replyCount` も
+     * 両方を数える（`api-user/src/storyReplies.ts` の `postStoryReply` が
+     * `emoji` と `text` のどちらでも同じ配列に足す）。だから画面の名前は
+     * **「リアクション・返信」**——片方だけの名前を付けると、
+     * 「リアクション 3」を開いて文字の返信が並ぶ／「返信 3件」を開いて
+     * ♡ が並ぶ、という嘘になる。
+     *
+     * 分ける必要が出たら**サーバーの形から**変えること（種類で数を割るには
+     * `replyCount` を2つにするか、一覧を読んでから数えることになる。
+     * 後者は「開かないと数が出ない」＝バッジが出せない）。
      */
     const [insights, setInsights] = useState<null | "viewers" | "reactions">(null);
     const viewersOpen = insights !== null;
@@ -226,7 +238,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
      * 消えると、その絵文字を押せない
      */
     const [replyOpen, setReplyOpen] = useState(false);
-    // 届いた返信（投稿者だけ）
+    // 届いたリアクション・返信（投稿者だけ）
     const [replies, setReplies] = useState<StoryReply[] | null>(null);
     const [repliesError, setRepliesError] = useState(false);
     const repliesOpen = insights === "reactions";
@@ -779,8 +791,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         }
     }, [item, replySending, locale]);
 
-    // 届いた返信は**開いたときに取りに行く**（バッジの数は `replyCount` が
-    // 持っているので、開かない限り読みに行かない）。
+    // 届いたリアクション・返信は**開いたときに取りに行く**（バッジの数は
+    // `replyCount` が持っているので、開かない限り読みに行かない）。
+    // この1本が絵文字の反応と文字の返信の**両方**を返す（口も1つ）。
     // 中断ガードは閲覧者リストと同じ理由——ストーリーは次々に切り替わる
     useEffect(() => {
         if (!repliesOpen || !item || !isOwnStory) return;
@@ -794,7 +807,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 const data = await res.json() as { items?: StoryReply[] };
                 if (aborted) return;
                 const rows = usableRows<StoryReply>(data.items, "GET /stories/{id}/replies");
-                // **配列でない応答を「まだ返信はありません」にしない**
+                // **配列でない応答を「まだリアクションも返信もありません」にしない**
                 // （閲覧者リストと同じ SW-b8）
                 if (!rows) { setRepliesError(true); return; }
                 setReplies(rows);
@@ -1440,20 +1453,25 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     : `閲覧 ${viewers.length}人`}
                         </button>
                     )}
-                    {/* 届いた返信（投稿者だけ）。数は `replyCount` が持っている
-                        ので、開かない限り読みに行かない。**0件のときは出さない**
-                        ——押しても何も無いボタンを常に置かない */}
+                    {/* 届いたリアクション・返信（投稿者だけ）。数は `replyCount` が
+                        持っているので、開かない限り読みに行かない。
+                        **0件のときは出さない**——押しても何も無いボタンを
+                        常に置かない */}
                     {isOwnStory && (item.replyCount ?? 0) > 0 && (
                         <button
                             onClick={() => setInsights("reactions")}
-                            aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
+                            aria-label={locale === "en" ? "Reactions and replies" : "届いたリアクション・返信を見る"}
                             className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
                         >
                             <ChatBubbleOvalLeftIcon className="w-4 h-4" />
+                            {/* **名前は中身と揃える。** この数（`replyCount`）は
+                                絵文字の反応と文字の返信の**合計**なので、
+                                「返信 N件」と書くと ♡ だけの N 件でも
+                                「返信」と言うことになる */}
                             {locale === "en"
-                                ? `${item.replyCount} repl${item.replyCount === 1 ? "y" : "ies"}`
-                                : `返信 ${item.replyCount}件`}
+                                ? `${item.replyCount} reaction${item.replyCount === 1 ? "" : "s"} & repl${item.replyCount === 1 ? "y" : "ies"}`
+                                : `リアクション・返信 ${item.replyCount}件`}
                         </button>
                     )}
                     {/* **消えるもの → 残るもの。** ストーリーは24時間で消えて
@@ -1639,9 +1657,11 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
             {/* 閲覧者リスト（ボトムシート） */}
             {/* 反応の一覧（モック09 の状態例「リアクション・閲覧者リスト」）。
-                **シートは1枚。タブで「閲覧者」と「リアクション」を切り替える**
-                ——以前は同じ形のボトムシートが2枚在り、見出しも閉じるも
-                2か所に書いてあった。数はどちらも実データ（作り物は出さない）。 */}
+                **シートは1枚。タブで「閲覧者」と「リアクション・返信」を
+                切り替える**——以前は同じ形のボトムシートが2枚在り、見出しも
+                閉じるも2か所に書いてあった。数はどちらも実データ
+                （作り物は出さない）。
+                2つ目のタブが**両方を含む**ことは `insights` の doc に書いた。 */}
             {insights !== null && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setInsights(null)}>
                     <div
@@ -1654,12 +1674,16 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             <span className="w-9 h-1 rounded-full bg-white/20" />
                         </div>
                         <div className="px-2 py-1 border-b border-white/10 flex items-center justify-between gap-2">
-                            <div className="flex items-center" role="tablist" aria-label={locale === "en" ? "Story insights" : "ストーリーの反応"}>
+                            <div className="flex items-center" role="tablist" aria-label={locale === "en" ? "Story insights" : "ストーリーの閲覧者とリアクション・返信"}>
                                 {([
                                     ["viewers", locale === "en" ? "Viewers" : "閲覧者",
                                         // 取得中・失敗のときは数を出さない（ピルと同じ扱い）
                                         viewersError ? null : viewers === null ? "…" : String(viewers.length)],
-                                    ["reactions", locale === "en" ? "Reactions" : "リアクション",
+                                    // **「リアクション」だけにしない。** ここに並ぶのは
+                                    // 絵文字の反応と文字の返信の両方で、数
+                                    // （`replyCount`）も両方の合計。名前を片方に
+                                    // すると、開いた中身と食い違う
+                                    ["reactions", locale === "en" ? "Reactions & replies" : "リアクション・返信",
                                         // 数はサーバーが行に持っている（開かなくても分かる）
                                         repliesError ? null : String(item.replyCount ?? replies?.length ?? 0)],
                                 ] as const).map(([key, label, count]) => {
@@ -1716,8 +1740,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             {(replies ?? []).length === 0 ? (
                                 <p className="text-xs text-white/50 text-center py-8">
                                     {repliesError
-                                        ? (locale === "en" ? "Couldn't load replies." : "返信を読み込めませんでした")
-                                        : (locale === "en" ? "No replies yet." : "まだ返信はありません")}
+                                        ? (locale === "en" ? "Couldn't load reactions and replies." : "リアクション・返信を読み込めませんでした")
+                                        : (locale === "en" ? "No reactions or replies yet." : "まだリアクションも返信もありません")}
                                 </p>
                             ) : (
                                 (replies ?? []).map((r) => (
