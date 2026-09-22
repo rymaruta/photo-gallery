@@ -1582,8 +1582,10 @@ export default function StoriesBar() {
                                         maxLength={STORY_VOTE_QUESTION_MAX}
                                         disabled={posting}
                                         aria-label={locale === "en" ? "Poll question" : "投票の問い"}
-                                        className="w-full rounded-full bg-black/55 ring-1 ring-white/15 text-white px-4 outline-none focus:ring-white/40"
-                                        style={{ height: "40px", fontSize: "14px" }}
+                                        className="w-full rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 outline-none focus:bg-black/70"
+                                        // ⚠️ **16px**。これより小さいと iOS Safari が焦点を当てた瞬間に
+                                        // 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）
+                                        style={{ height: "40px", fontSize: "16px" }}
                                     />
                                     <div className="flex gap-2">
                                         {currentVote.options.map((opt, k) => (
@@ -1599,8 +1601,9 @@ export default function StoriesBar() {
                                                 maxLength={STORY_VOTE_OPTION_MAX}
                                                 disabled={posting}
                                                 aria-label={locale === "en" ? `Option ${k + 1}` : `選択肢${k + 1}`}
-                                                className="flex-1 min-w-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white px-4 text-center outline-none focus:ring-white/40"
-                                                style={{ height: "40px", fontSize: "14px" }}
+                                                className="flex-1 min-w-0 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 text-center outline-none focus:bg-black/70"
+                                                // ⚠️ 16px（上の問いと同じ理由——iOS Safari の拡大）
+                                                style={{ height: "40px", fontSize: "16px" }}
                                             />
                                         ))}
                                     </div>

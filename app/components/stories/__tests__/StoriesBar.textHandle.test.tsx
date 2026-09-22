@@ -419,6 +419,20 @@ describe("投票スタンプ（StoriesBar の配線）", () => {
         expect(screen.getByRole("button", { name: "ストーリーに投稿" })).toBeDisabled();
     });
 
+    /**
+     * **入力欄の字は 16px。** これより小さいと iOS Safari が焦点を当てた瞬間に
+     * 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）。
+     * 投票の3つだけ 14px で入れていた
+     */
+    it("問いと選択肢の欄は 16px（iOS で画面が拡大しない）", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        for (const name of ["投票の問い", "選択肢1", "選択肢2"]) {
+            const el = screen.getByRole("textbox", { name });
+            expect(el.style.fontSize, `${name} が 16px でない`).toBe("16px");
+        }
+    });
+
     it("消すボタンは「この投票を消す」と名乗る", async () => {
         await pickImage();
         await userEvent.click(voteButton()!);
