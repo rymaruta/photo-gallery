@@ -45,13 +45,20 @@ const FUTURE = new Date(Date.now() + 60_000).toISOString();
 const PAST = new Date(Date.now() - 60_000).toISOString();
 const STORY = { id: "story-1", story: true, userId: "owner", src: "https://cdn/s.jpg", expiresAt: FUTURE };
 
-/** ストーリーの行と、既存の返信一覧を返す世界 */
-function world(story: Record<string, unknown> | undefined, replies: unknown[] = []) {
+/**
+ * ストーリーの行と、既存の返信一覧を返す世界。
+ *
+ * **フォローの印は既定で在る。** ストーリーはフォロワーしか見られないので
+ * （`storyVisibility.ts` の節）、返信の規則を見るテストは全部その状態から
+ * 始まる。門そのものは `storyPrivacy.test.ts` が見る
+ */
+function world(story: Record<string, unknown> | undefined, replies: unknown[] = [], follows = true) {
     mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
         const id = String(cmd.input.Key?.id ?? "");
         if (cmd.constructor.name === "GetCommand") {
             if (id === "story-1") return Promise.resolve(story ? { Item: story } : {});
             if (id === storyRepliesId("story-1")) return Promise.resolve({ Item: { items: replies } });
+            if (follows && id === "follow#owner#u1") return Promise.resolve({ Item: { id } });
             return Promise.resolve({});   // ブロックの印を含め、その他は無し
         }
         return Promise.resolve({});

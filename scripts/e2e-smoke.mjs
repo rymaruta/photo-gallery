@@ -251,6 +251,54 @@ async function runChecks(browser, eng) {
             check(`[${eng}] モーダル表示中は URL に ?photo= が残る`,
                 page.url().includes(`photo=${encodeURIComponent(pid ?? "")}`));
 
+            // **ビューアの中の画像を見る。** ここは**原寸（`src` / `srcAvif`＝`_lg`）を
+            // 要求する、このサイトで唯一の場所**で、ほかの画面は全部サムネ
+            // （`thumbSrc` / `thumbAvif`）しか出さない。つまり原寸の経路だけが
+            // 壊れる回帰——ビューアへ渡す props から `src` が落ちる、
+            // `publicImageUrl` を通し忘れる、`<picture>` の組み方を崩す——は
+            // **この判定が無い限りスモークを素通りする**。実際このブロックは
+            // 「モーダルが開く・URL が残る・閉じる」しか見ておらず、
+            // **中身が「画像を読み込めません」でも全部緑**だった（変異で確認）。
+            //
+            // 見るのは2つだけ:
+            //   (a) `ModalImage` の失敗表示（`imageError`）が出ていないこと
+            //   (b) 主役の1枚が**水和後に実際に復号できている**こと
+            //       （`complete && naturalWidth > 0`）
+            //
+            // **`img > 0` では見たことにならない。** ビューアにはアバターと
+            // 次の写真のサムネも居るので、`data-e2e="viewer-image"` で名指しする。
+            //
+            // **AVIF が選ばれたかは見ない。** 派生を持たないビルド
+            // （コミット済みの `photos.json`）では `<source>` がそもそも出ず、
+            // エンジンによって候補の選び方も違う。どちらでも成り立つ
+            // 「1枚が復号できている」だけを縛る。
+            const viewer = await page.evaluate(async () => {
+                const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
+                if (!dlg) return { dialog: false };
+                // 復号は非同期なので、決着（complete）まで少し待つ
+                const deadline = Date.now() + 8000;
+                let img = null;
+                while (Date.now() < deadline) {
+                    img = dlg.querySelector('[data-e2e="viewer-image"]');
+                    if (img?.complete) break;
+                    if ((dlg.textContent ?? "").includes("画像を読み込めません")) break;
+                    await new Promise((r) => setTimeout(r, 150));
+                }
+                return {
+                    dialog: true,
+                    errorShown: (dlg.textContent ?? "").includes("画像を読み込めません"),
+                    found: !!img,
+                    complete: img?.complete ?? false,
+                    naturalWidth: img?.naturalWidth ?? 0,
+                    currentSrc: img?.currentSrc ?? "",
+                };
+            });
+            check(`[${eng}] ビューア: 「画像を読み込めません」が出ていない`,
+                !viewer.errorShown, viewer.currentSrc);
+            check(`[${eng}] ビューア: 原寸の写真が出る`,
+                viewer.found && viewer.complete && viewer.naturalWidth > 0,
+                `found=${viewer.found} complete=${viewer.complete} naturalWidth=${viewer.naturalWidth} src=${viewer.currentSrc}`);
+
             let closed = false;
             for (let k = 0; k < 5 && !closed; k++) {
                 await page.keyboard.press("Escape");

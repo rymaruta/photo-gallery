@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { PlusIcon, PencilIcon, PhotoIcon } from "@heroicons/react/24/outline";
-import { userPublicFetch } from "../../../lib/utils/api";
+import { userFetch } from "../../../lib/utils/api";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -14,9 +14,13 @@ import { RING_SEEN } from "./ring";
 import StoryThumb from "./StoryThumb";
 
 /**
- * マイページのハイライトの輪（⑦）。誰のページでも、誰にでも出る。
+ * マイページのハイライトの輪（⑦）。
  *
- * - 中身は `GET /highlights/{userId}`（未認証で読める口）。表紙の丸と題だけ
+ * - 中身は `GET /highlights/{userId}`。表紙の丸と題だけ。
+ *   🔴 **本人とフォロワーにしか出ない**——中身はストーリーそのもので、
+ *   ストーリーはフォロワーだけが見る（2026-09-22・owner の判断。経緯は
+ *   `api-user/src/storyVisibility.ts`）。サーバーは追っていない人に0件を
+ *   返すので、**この段はそのまま何も描かない**
  * - 押すと `GET /highlights/{userId}/{id}` で中身を引き、`StoryViewer` で
  *   開く（トップの輪と同じ見せ方。返信の帯・閲覧者・「残す」はサーバーが
  *   返す形（`allowReplies: false`・`archivedAt`・`archive: true`）で消える）
@@ -53,7 +57,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
     const load = useCallback(async () => {
         setLoadError(false);
         try {
-            const res = await userPublicFetch(`/highlights/${encodeURIComponent(userId)}`);
+            const res = await userFetch(`/highlights/${encodeURIComponent(userId)}`);
             if (!res.ok) {
                 log.warn("highlights fetch failed", { status: res.status });
                 setLoadError(true);
@@ -74,13 +78,15 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
         }
     }, [userId]);
 
-    useEffect(() => { void load(); }, [load]);
+    // **未ログインでは取りにいかない。** 押しても 401 が返るだけの往復を
+    // 増やさないのと、輪そのものを出さないため（下の早期 return）
+    useEffect(() => { if (isAuthenticated) void load(); }, [isAuthenticated, load]);
 
     const openHighlight = useCallback(async (h: HighlightSummary) => {
         if (opening) return;
         setOpening(h.id);
         try {
-            const res = await userPublicFetch(`/highlights/${encodeURIComponent(userId)}/${encodeURIComponent(h.id)}`);
+            const res = await userFetch(`/highlights/${encodeURIComponent(userId)}/${encodeURIComponent(h.id)}`);
             if (!res.ok) {
                 // 消えていたら輪も外す（本人が別の端末で消した直後など）
                 if (res.status === 404) setHighlights((prev) => prev?.filter((x) => x.id !== h.id) ?? prev);
@@ -106,8 +112,12 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
         }
     }, [opening, userId, isJa, showToast]);
 
-    // 0件は本人以外に何も出さない。失敗は本人以外にも出す（黙って0件に見せない）
     const rows = highlights ?? [];
+    // **未ログインには何も描かない。** 取りにいっていないので出せる中身が無い
+    // （「ログインすると見られます」も置かない——この段は装飾で、
+    //   ログインの導線はヘッダーに在る）
+    if (!isAuthenticated) return null;
+    // 0件は本人以外に何も出さない。失敗は本人以外にも出す（黙って0件に見せない）
     if (!isOwner && !loadError && rows.length === 0) return null;
 
     return (

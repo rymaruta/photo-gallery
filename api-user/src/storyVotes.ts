@@ -4,7 +4,6 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
-import { STORY_FOLLOWERS_ONLY, storyVisibility } from "./storyVisibility";
 import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState } from "./storyText";
 
 /**
@@ -13,7 +12,7 @@ import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState 
  * **返信（`storyReplies.ts`）と同じ門を通り、同じ場所に置く。** ストーリー
  * ごとに1つの文書（`storyvotes#<storyId>`）。**`stories.ts` には足さない**
  * ——あちらは投稿・一覧・削除で既に 770 行あり、票の規則（1人1票・上限・
- * 結果を誰に見せるか）を混ぜると、一覧の門（ブロック・フォロワー限定）と
+ * 結果を誰に見せるか）を混ぜると、一覧の門（ブロック・フォロー）と
  * 票の門を別々に直すたびに互いを壊す。
  *
  * **返信と違うところ**（意図的な差）:
@@ -127,7 +126,7 @@ export async function storyVoteState(storyId: string, uid: string, isOwner: bool
 
 type StoryItem = {
     story?: boolean; userId?: string; uploadedBy?: string;
-    expiresAt?: string; visibility?: unknown; texts?: unknown;
+    expiresAt?: string; texts?: unknown;
 };
 
 async function loadStory(storyId: string): Promise<StoryItem | null> {
@@ -171,10 +170,10 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
             return jsonError(404, "ストーリーが見つかりません");
         }
-        // **ブロック・フォロワー限定は 404**（相手の設定を教えない。
+        // **ブロック・追っていない相手は 404**（相手の関係を教えない。
         // `viewStory` / `postStoryReply` と同じ門。**画面側だけの防御を作らない**）
         if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
-        if (ownerId && storyVisibility(story.visibility) === STORY_FOLLOWERS_ONLY
+        if (ownerId && ownerId !== uid
             && !await isFollowing(ownerId, uid)) {
             return jsonError(404, "ストーリーが見つかりません");
         }

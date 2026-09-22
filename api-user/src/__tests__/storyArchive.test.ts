@@ -519,6 +519,9 @@ describe("棚へ移った行に書き戻さない（期限を読んでから書�
             if (cmd.constructor.name === "GetCommand") {
                 if (id === "story-1") return Promise.resolve({ Item: live });
                 if (id === storyRepliesId("story-1")) return Promise.resolve({ Item: { items: [] } });
+                // ストーリーはフォロワーしか見られない。印が無いと返信の門で
+                // 404 になり、書き込みの条件を確かめる前に終わる
+                if (id === `follow#${OTHER}#${ME}`) return Promise.resolve({ Item: { id } });
                 return Promise.resolve({});
             }
             return Promise.resolve({});
@@ -545,12 +548,17 @@ describe("getStories: 「アーカイブに自動保存」の印は本人にだ�
     // （`keptAs` / `replyCount` と同じ扱い）
     it("他人の行からは archive を落とし、自分の行には残す", async () => {
         const OTHER = "22222222-2222-4222-8222-222222222222";
-        mockDdbSend.mockImplementation((cmd: Cmd) => Promise.resolve(cmd.constructor.name === "QueryCommand"
-            ? { Items: [
-                { id: "mine", userId: ME, createdAt: "1", archive: true },
-                { id: "theirs", userId: OTHER, createdAt: "2", archive: true },
-            ] }
-            : {}));
+        mockDdbSend.mockImplementation((cmd: Cmd) => {
+            if (cmd.constructor.name === "QueryCommand") {
+                return Promise.resolve({ Items: [
+                    { id: "mine", userId: ME, createdAt: "1", archive: true },
+                    { id: "theirs", userId: OTHER, createdAt: "2", archive: true },
+                ] });
+            }
+            // OTHER はフォローしている（フォローのふるいはここの本題ではない）
+            const id = String((cmd.input.Key as { id?: string } | undefined)?.id ?? "");
+            return Promise.resolve(id === `follow#${OTHER}#${ME}` ? { Item: { id } } : {});
+        });
         const r = await invoke(getStories, ev(ME));
         const items = JSON.parse(r.body) as Array<{ id: string; archive?: boolean }>;
         expect(items.find((i) => i.id === "mine")?.archive, "自分の印まで落としている").toBe(true);

@@ -18,7 +18,7 @@ import { startFromPointer, clampStart } from "../../../lib/utils/songTrim";
 import { log } from "../../../lib/utils/log";
 import {
     groupStories, hasUnseen, loadSeenStoryIds, markStorySeen, isSeenStoriesKey,
-    type Story, type StoryGroup, type StoryVisibility,
+    type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
 import { RING_UNSEEN, RING_SEEN } from "./ring";
@@ -503,15 +503,8 @@ export default function StoriesBar() {
     const [durationSec, setDurationSec] = useState(STORY_DEFAULT_DURATION_SEC);
 
     // ── 公開設定 ──
-    /**
-     * 公開範囲。既定は「全員に公開」＝これまでの姿。
-     *
-     * **「親しい友達」はまだ出さない。** モックには3つ目があるが、
-     * 人を選ぶ一覧の新設が要る。押しても何も起きない選択肢を置かない
-     * （`StoryViewer` が「0件のときは返信のボタンを出さない」と書いている
-     * のと同じ線）。
-     */
-    const [visibility, setVisibility] = useState<StoryVisibility>("public");
+    // 🔴 **公開範囲の状態は持たない。** ストーリーはフォロワーだけが見る
+    // （2026-09-22・owner の判断。経緯は `api-user/src/storyVisibility.ts`）
     /** 返信を受けるか。既定は受ける */
     const [allowReplies, setAllowReplies] = useState(true);
     /**
@@ -728,9 +721,8 @@ export default function StoriesBar() {
         clearSongSearch();   // 開き直したときに前回の結果と失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
-        // **公開設定も戻す。** 残すと、一度「フォロワーのみ」で出した人の
-        // 次の投稿が黙って絞られる（画面は閉じているので気づけない）
-        setVisibility("public");
+        // **公開設定も戻す。** 残すと、一度切った人の次の投稿が黙って
+        // 同じ設定で出る（画面は閉じているので気づけない）
         setAllowReplies(true);
         setShowLocation(true);
         setArchive(false);
@@ -1042,11 +1034,6 @@ export default function StoriesBar() {
                     ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
-                    // **公開設定。** 既定と違うときだけ送る——サーバーも
-                    // 既定は保存しないので（`storyVisibility.ts`）、
-                    // 既定のまま送っても同じだが、**送らなければ古い版の
-                    // サーバーでも今までどおり動く**
-                    ...(visibility !== "public" ? { visibility } : {}),
                     ...(allowReplies ? {} : { allowReplies: false }),
                     ...(archive ? { archive: true } : {}),
                 }),
@@ -1102,7 +1089,7 @@ export default function StoriesBar() {
             setPosting(false);
         }
     }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec,
-        visibility, allowReplies, showLocation, archive,
+        allowReplies, showLocation, archive,
         locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
@@ -2124,43 +2111,22 @@ export default function StoriesBar() {
                         )}
 
                         {/* 公開設定（モックの「公開設定」）。
-                            **「親しい友達」はまだ出さない**——人を選ぶ一覧が要る。
-                            押しても何も起きないものを置かない */}
+                            🔴 **公開範囲の選択は置かない。** ストーリーは
+                            フォロワーだけが見る（2026-09-22・owner の判断。
+                            経緯は `api-user/src/storyVisibility.ts`）。
+                            「親しい友達」を足すときは人を選ぶ一覧から作る */}
                         <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
                             <p className="text-white/50" style={{ fontSize: "11px" }}>
                                 {locale === "en" ? "Sharing" : "公開設定"}
                             </p>
 
-                            <div className="space-y-2">
-                                <p className="text-white/80" style={{ fontSize: "13px" }}>
-                                    {locale === "en" ? "Who can see this" : "公開範囲"}
-                                </p>
-                                <div className="flex gap-2" role="group" aria-label={locale === "en" ? "Who can see this" : "公開範囲"}>
-                                    {([
-                                        ["public", locale === "en" ? "Everyone" : "全員に公開"],
-                                        ["followers", locale === "en" ? "Followers only" : "フォロワーのみ"],
-                                    ] as Array<[StoryVisibility, string]>).map(([v, label]) => (
-                                        <button
-                                            key={v}
-                                            type="button"
-                                            onClick={() => setVisibility(v)}
-                                            disabled={posting}
-                                            // **`aria-pressed`。** 2つは排他で、
-                                            // 押し直しても外れない（片方は必ず選ばれている）
-                                            // ——`role="switch"` はこのリポジトリでは
-                                            // 「押し直すと外れる」チップの形（`FilterBar`）。
-                                            // すぐ上の表示時間の選択と同じ綴りに揃える
-                                            aria-pressed={visibility === v}
-                                            className={`px-3 py-1.5 rounded-full transition active:scale-95 disabled:opacity-40 ${visibility === v
-                                                ? "bg-accent-fill text-white font-semibold"
-                                                : "bg-white/5 ring-1 ring-white/10 text-white/60"}`}
-                                            style={{ fontSize: "12px", touchAction: "manipulation" }}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            {/* **誰に届くかは言う。** 選べないからこそ、
+                                投稿する前に分かるようにしておく */}
+                            <p className="text-white/60" style={{ fontSize: "12px" }}>
+                                {locale === "en"
+                                    ? "Only your followers can see your stories."
+                                    : "ストーリーはフォロワーだけに表示されます。"}
+                            </p>
 
                             <SettingSwitch
                                 label={locale === "en" ? "Allow replies" : "返信を許可"}
