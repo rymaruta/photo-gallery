@@ -179,7 +179,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
                                 href={ROUTES.HIGHLIGHT_EDITOR(h.id)}
                                 prefetch={false}
                                 aria-label={isJa ? `ハイライト「${h.title}」を編集` : `Edit highlight “${h.title}”`}
-                                className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black bg-white/90 text-black flex items-center justify-center active:scale-90 transition"
+                                className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-bg bg-accent-fill text-white flex items-center justify-center active:scale-90 transition"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PencilIcon className="w-3 h-3" strokeWidth={2.5} />

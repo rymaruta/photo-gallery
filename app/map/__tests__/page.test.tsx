@@ -18,15 +18,24 @@ vi.mock("../../i18n/context", () => ({
 const mapProps = vi.hoisted(() => ({
     last: null as null | { ids: string[] },
     select: null as null | ((s: unknown) => void),
+    searchArea: null as null | ((b: unknown) => void),
+    areaActive: false,
+    sheetOpen: false,
 }));
 vi.mock("../../components/PhotoMap", async (importOriginal) => {
     const real = await importOriginal<typeof import("../../components/PhotoMap")>();
     return {
         ...real,
-        default: ({ photos, onSelect }: { photos: readonly Photo[]; onSelect?: (s: unknown) => void }) => {
+        default: ({ photos, onSelect, onSearchArea, areaActive, sheetOpen }: {
+            photos: readonly Photo[]; onSelect?: (s: unknown) => void;
+            onSearchArea?: (b: unknown) => void; areaActive?: boolean; sheetOpen?: boolean;
+        }) => {
             mapProps.last = { ids: photos.map((p) => p.id) };
             // ピンを押したことにする口（本物の Leaflet は jsdom で描けない）
             mapProps.select = onSelect ?? null;
+            mapProps.searchArea = onSearchArea ?? null;
+            mapProps.areaActive = !!areaActive;
+            mapProps.sheetOpen = !!sheetOpen;
             return <div data-testid="photo-map">map:{photos.length}</div>;
         },
     };
@@ -45,6 +54,9 @@ beforeEach(() => {
     photosState.failed = false;
     mapProps.last = null;
     mapProps.select = null;
+    mapProps.searchArea = null;
+    mapProps.areaActive = false;
+    mapProps.sheetOpen = false;
 });
 
 describe("/map", () => {
@@ -124,7 +136,9 @@ describe("/map", () => {
         expect(screen.queryByText(/おおよその位置です/), "おおよそが0枚なのに注記が出ている").toBeNull();
     });
 
-    // 地図を操作できない環境（読み上げ・キーボード）向け。地図と同じ写真へ辿れる
+    // 地図を操作できない環境（読み上げ・キーボード）向け。地図と同じ写真へ辿れる。
+    // **`sr-only` の一覧はこの見える一覧に置き換えた**（2026-09-22）。両方置くと
+    // 同じリンクが2組 DOM に並び、片方だけ直す事故が起きる
     it("地図上の写真と同じ集合を、リンクの一覧としても出す", () => {
         photosState.current = [
             base("a", { coords: { lat: 35.68, lng: 139.77 } }),
@@ -137,7 +151,43 @@ describe("/map", () => {
         // `ROUTES.PHOTO` はビルド済みの写真だけ `/photo/<id>` にし、それ以外は
         // `/?photo=<id>`（モーダル）へ回す。ここではその規則に従う
         expect(links.map((a) => a.getAttribute("href"))).toEqual([ROUTES.PHOTO("a"), ROUTES.PHOTO("c")]);
-        expect(links.map((a) => a.textContent)).toEqual(["場所a", "場所c"]);
+        // 行の主役は撮影地（地図の一覧なので、探しているのは場所）
+        expect(within(list).getByText("場所a")).toBeInTheDocument();
+        expect(within(list).getByText("場所c")).toBeInTheDocument();
+    });
+
+    // 絞り込み（①のチップと検索欄）。規則そのものは `lib/utils/mapFilter.ts` の
+    // 純関数が見る。ここは**画面が繋がっているか**だけ
+    it("チップは、いま地図に在るカテゴリだけを出す（決め打ちで並べない）", () => {
+        photosState.current = [
+            base("a", { coords: { lat: 35.68, lng: 139.77 }, category: "風景" }),
+            base("b", { coords: { lat: 48.86, lng: 2.35 }, category: "建物" }),
+            base("c", { coords: { lat: 51.51, lng: -0.13 }, category: "建築" }),
+        ];
+        render(<MapPage />);
+        const chips = within(screen.getByTestId("map-category-chips")).getAllByRole("switch");
+        // 「建物」と「建築」は同じ `architecture` に畳まれる（集約ページと同じ物差し）
+        expect(chips.map((b) => b.textContent)).toEqual(["すべて", "建築", "風景"]);
+        // モックの絵にある「グルメ」「街並み」は実データに無いので出さない
+        expect(screen.queryByText("グルメ")).toBeNull();
+    });
+
+    it("チップを押すと、そのカテゴリだけが地図に渡る（押し直すと外れる）", () => {
+        photosState.current = [
+            base("a", { coords: { lat: 35.68, lng: 139.77 }, category: "風景" }),
+            base("b", { coords: { lat: 48.86, lng: 2.35 }, category: "建築" }),
+        ];
+        render(<MapPage />);
+        const chip = screen.getByRole("switch", { name: "建築" });
+        fireEvent.click(chip);
+        expect(mapProps.last?.ids).toEqual(["b"]);
+        expect(chip).toHaveAttribute("aria-checked", "true");
+        // **絞っているときは分数で出す**（「位置情報のある写真 1枚」だと
+        // サイト全体で1枚しか位置情報を持っていないと読める）
+        expect(screen.getByTestId("map-count").textContent).toBe("2枚中 1枚を表示");
+
+        fireEvent.click(chip);
+        expect(mapProps.last?.ids).toEqual(["a", "b"]);
     });
 
     /**
@@ -187,6 +237,53 @@ describe("/map", () => {
         expect(within(list).getAllByRole("link")[0].textContent).toBe("写真");
     });
 
+    // ④「このエリアを検索」。範囲の判定そのものは `lib/utils/mapFilter.ts` の
+    // 純関数が見る。ここは画面が繋がっているか
+    describe("このエリアを検索", () => {
+        const spread = [
+            base("near", { coords: { lat: 35.5, lng: 139.5 } }),
+            base("far", { coords: { lat: 10, lng: 10 } }),
+        ];
+
+        it("範囲を決めると、その中の写真だけが地図と一覧に残る", () => {
+            photosState.current = spread;
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 35, west: 139, north: 36, east: 140 }); });
+            expect(mapProps.last?.ids).toEqual(["near"]);
+            expect(screen.getByTestId("map-area-note").textContent).toContain("このエリアの写真 1件");
+            expect(screen.getByTestId("map-count").textContent).toBe("2枚中 1枚を表示");
+            expect(mapProps.areaActive, "地図側のボタンが解除の文言に変わらない").toBe(true);
+        });
+
+        // **押しても一覧へ切り替えない。** 切り替えると地図の列が `display: none` に
+        // なり、「範囲の指定を解除」が地図の上に在るので押した直後に届かなくなる
+        // （Playwright で実測して直した）
+        it("押しても地図のままにする（解除のボタンごと消さない）", () => {
+            photosState.current = spread;
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 35, west: 139, north: 36, east: 140 }); });
+            expect(screen.getByTestId("photo-map")).toBeInTheDocument();
+        });
+
+        it("断りの×で範囲を外す", () => {
+            photosState.current = spread;
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 35, west: 139, north: 36, east: 140 }); });
+            fireEvent.click(screen.getByRole("button", { name: "範囲の指定を解除" }));
+            expect(screen.queryByTestId("map-area-note")).toBeNull();
+            expect(mapProps.last?.ids).toEqual(["near", "far"]);
+        });
+
+        it("`null` が来たら範囲を外す（地図側のボタンから）", () => {
+            photosState.current = spread;
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 35, west: 139, north: 36, east: 140 }); });
+            act(() => { mapProps.searchArea?.(null); });
+            expect(screen.queryByTestId("map-area-note")).toBeNull();
+            expect(mapProps.areaActive).toBe(false);
+        });
+    });
+
     // **ピンの中身は地図の外に出した。** 地図の中のポップアップは地図の
     // 高さに縛られ、低い画面では枠の外へ出ていた（実測 390x844 で3枚
     // 465px・地図の上へ 183px はみ出し、うち1枚は表示も操作もできなかった）
@@ -205,8 +302,10 @@ describe("/map", () => {
             photosState.current = photos;
             render(<MapPage />);
             act(() => { mapProps.select?.({ photos: [photos[1]], index: 0 }); });
-            expect(screen.getByTestId("map-photo-sheet")).toBeTruthy();
-            expect(screen.getByText("b")).toBeTruthy();
+            const sheet = screen.getByTestId("map-photo-sheet");
+            // **シートの中を見る。** 同じ題は左の一覧にも出ているので、
+            // 画面全体から探すと2件見つかる
+            expect(within(sheet).getByText("b")).toBeTruthy();
         });
 
         it("束を押すと「1/3」で送れる", () => {
@@ -218,7 +317,7 @@ describe("/map", () => {
 
             fireEvent.click(screen.getByRole("button", { name: "次の写真" }));
             expect(screen.getByText("2/3")).toBeTruthy();
-            expect(screen.getByText("b")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("b")).toBeTruthy();
         });
 
         it("地図の余白を押すと閉じる（`null` が来る）", () => {
@@ -240,12 +339,12 @@ describe("/map", () => {
             photosState.current = photos;
             const { rerender } = render(<MapPage />);
             act(() => { mapProps.select?.({ photos, index: 0 }); });
-            expect(screen.getByText("古い題")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("古い題")).toBeTruthy();
 
             photosState.current = [withCoords("a", { title: { ja: "新しい題" } })];
             rerender(<MapPage />);
             expect(screen.queryByText("古い題")).toBeNull();
-            expect(screen.getByText("新しい題")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("新しい題")).toBeTruthy();
         });
 
         it("開いている写真が一覧から消えたら、シートは畳まれる", () => {
@@ -270,6 +369,59 @@ describe("/map", () => {
             photosState.current = [photos[0], photos[2]];
             rerender(<MapPage />);
             expect(screen.getByText("1/2")).toBeTruthy();
+        });
+
+        // モックの③「関連写真もすぐ見られ、『この場所の写真を見る』からさらに探索」。
+        // **同じ撮影地は文字列の完全一致で見る**（集約ページの緩い一致で寄せると、
+        // 地図の上では別のピンの写真が「この場所」として並ぶ）
+        it("同じ撮影地の別の写真を帯に出し、残りを「+N」に畳む", () => {
+            const here = { coords: { lat: 35.42, lng: 138.88 }, location: "山中湖, 山梨" };
+            const photos = ["a", "b", "c", "d", "e"].map((id) => base(id, { ...here }));
+            photosState.current = [...photos, base("z", { coords: { lat: 48.86, lng: 2.35 }, location: "パリ" })];
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos: [photos[0]], index: 0 }); });
+
+            const strip = screen.getByTestId("map-sheet-related");
+            // 3枚並べて、残り1枚は「+1」（自分を除いた4枚のうち3枚を出す）
+            expect(within(strip).getAllByRole("link")).toHaveLength(4);
+            expect(within(strip).getByText("+1")).toBeInTheDocument();
+            // 別の撮影地の写真は混ぜない
+            const hrefs = within(strip).getAllByRole("link").map((a) => a.getAttribute("href"));
+            expect(hrefs).not.toContain(ROUTES.PHOTO("z"));
+            expect(hrefs, "自分自身を関連に出している").not.toContain(ROUTES.PHOTO("a"));
+        });
+
+        it("「この場所の写真を見る」は撮影地の集約ページへ行く", () => {
+            const photos = [base("a", { coords: { lat: 35.42, lng: 138.88 }, location: "山中湖, 山梨" })];
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.getByTestId("map-sheet-location-link"))
+                .toHaveAttribute("href", "/location/%E5%B1%B1%E4%B8%AD%E6%B9%96%2C-%E5%B1%B1%E6%A2%A8");
+        });
+
+        // 撮影地の無い写真（GPS 付きで上げると座標だけ入る）では行き先が作れない
+        it("撮影地が無ければ「この場所の写真を見る」を出さない", () => {
+            const photos = [base("a", { coords: { lat: 35.42, lng: 138.88 }, location: undefined })];
+            photosState.current = photos;
+            render(<MapPage />);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(screen.queryByTestId("map-sheet-location-link")).toBeNull();
+            expect(screen.queryByTestId("map-sheet-related")).toBeNull();
+            // 行き止まりにはしない（「詳細を見る」は残る）
+            expect(screen.getByRole("link", { name: "詳細を見る" })).toBeInTheDocument();
+        });
+
+        // シートは画面の下 275px を覆う（Chromium で実測）。地図の操作ボタンと
+        // 「このエリアを検索」がその下に入ると、95% 不透明な面越しに薄く見えた
+        // まま押せない——このリポジトリが何度も踏んでいる形（`2922526f`）
+        it("開いている間は、地図に「シートが開いている」と伝える", () => {
+            const photos = [base("a", { coords: { lat: 35.42, lng: 138.88 } })];
+            photosState.current = photos;
+            render(<MapPage />);
+            expect(mapProps.sheetOpen).toBe(false);
+            act(() => { mapProps.select?.({ photos, index: 0 }); });
+            expect(mapProps.sheetOpen, "操作のボタンがシートの下に残る").toBe(true);
         });
 
         it("閉じるボタンで閉じる", () => {

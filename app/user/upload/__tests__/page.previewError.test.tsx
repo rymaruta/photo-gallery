@@ -66,7 +66,7 @@ async function pickHeic() {
     const { container } = render(<UploadPage />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "IMG_0001.heic", { type: "image/heic" }));
-    await screen.findByText(/共通設定/);
+    await screen.findByText(/全写真に適用/);
     return container;
 }
 

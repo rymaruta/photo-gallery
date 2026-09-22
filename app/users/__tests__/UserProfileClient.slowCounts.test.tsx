@@ -29,14 +29,16 @@ const UserProfileClient = (await import("../UserProfileClient")).default;
 beforeEach(() => { window.history.replaceState({}, "", "/users?id=someone"); });
 
 describe("応答が返らないプロフィール", () => {
-    it("投稿数・いいね数を 0 と言い切らない", async () => {
+    it("投稿数を 0 と言い切らない", async () => {
         render(<UserProfileClient userId="someone" />);
-        // 「投稿」はタブにも出るので、数字のピル（`tabular-nums` の隣）で見る
+        // 「投稿」はタブにも出るので、数字（`tabular-nums`）で見る。
+        // **いいねの合計は出さなくなった**（最終版モックに無い）。いまの3つは
+        // 投稿・フォロワー・フォロー中
         await waitFor(() => expect(document.querySelector(".tabular-nums")).toBeTruthy());
         const nums = [...document.querySelectorAll(".tabular-nums")].map((n) => n.textContent);
-        const posts = nums[0];
-        const likes = nums[1];
-        expect(posts, "届く前に「0投稿」と言っている").toBe("…");
-        expect(likes, "届く前に「0いいね」と言っている").toBe("…");
+        // フォロワー／フォロー中は `FollowButton` の担当で、このファイルは
+        // それをモックしている（数が届く前に `…` を出すのは向こうのテスト）
+        expect(nums[0], "届く前に「0投稿」と言っている").toBe("…");
+        expect(nums.length, "いいねの合計はもう出さない（最終版モックに無い）").toBe(1);
     });
 });

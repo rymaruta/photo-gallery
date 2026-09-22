@@ -83,13 +83,13 @@ async function pickOne() {
     const { container } = render(<UploadPage />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
-    await screen.findByText(/共通設定/);
+    await screen.findByText(/全写真に適用/);
 }
 
 const tagsField = () => screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
 
 async function publish() {
-    const btn = await screen.findByRole("button", { name: /枚を公開/ });
+    const btn = await screen.findByRole("button", { name: /投稿する/ });
     await waitFor(() => expect(btn).not.toBeDisabled());
     await userEvent.click(btn);
 }

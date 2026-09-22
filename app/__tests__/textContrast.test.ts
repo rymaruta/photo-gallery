@@ -322,7 +322,6 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
         ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],
         ["app/user/upload/page.tsx", 'PhotoIcon className="w-10 h-10 text-white/40 mb-2"', "選ぶ前の絵（3.66:1）"],
-        ["app/user/upload/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/40"', "アバターが無いときの絵（3.66:1）"],
         ["app/components/Thumb.tsx", '<svg className="w-8 h-8 text-white/40"', "画像を読めなかったときの絵（3.66:1）"],
         ["app/components/UserAvatar.tsx", "${iconClassName} text-white/40", "アバターが無いときの既定の絵（3.66:1）"],
         ["app/components/FilterBar.tsx", '"text-white/70 animate-pulse" : "text-white/35"', "入力欄の中の絵（3.01:1）"],
@@ -338,6 +337,9 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-red-400', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
+        // 旅の実績の `›`。**押せるのは行そのもの**で、行は `aria-label` を持つ。
+        // この矢印は `aria-hidden` の装飾で、意味は文字とリンクが伝えている
+        ["app/users/UserProfileClient.tsx", 'ChevronRightIcon aria-hidden="true" className="ml-auto te', "旅の実績の行の矢印（装飾・3.66:1）"],
         // 地図のポップアップ（白地の `text-gray-600`）はもう無い。
         // 写真の中身は黒地のボトムシート（`app/map/MapPhotoSheet.tsx`）が
         // 描くので、この走査の前提（黒地）にそのまま乗る
