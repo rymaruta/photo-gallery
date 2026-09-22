@@ -187,7 +187,14 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     // 取得の失敗を「閲覧者0人」と混ぜない（SW-b8）
     const [viewersError, setViewersError] = useState(false);
-    const [viewersOpen, setViewersOpen] = useState(false);
+    /**
+     * 反応の一覧（モック09 の状態例「リアクション・閲覧者リスト」）。
+     * **シートは1枚で、タブで切り替える**——以前は「閲覧者」と「届いた返信」で
+     * 別々のシートが2枚在り、同じ形の入れ物を2回書いていた。
+     * `null` は閉じている。
+     */
+    const [insights, setInsights] = useState<null | "viewers" | "reactions">(null);
+    const viewersOpen = insights !== null;
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
     /**
@@ -222,7 +229,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     // 届いた返信（投稿者だけ）
     const [replies, setReplies] = useState<StoryReply[] | null>(null);
     const [repliesError, setRepliesError] = useState(false);
-    const [repliesOpen, setRepliesOpen] = useState(false);
+    const repliesOpen = insights === "reactions";
     // ギャラリーに残す（このサイトにしかない向き。消えるもの → 検索に出るもの）
     const [keeping, setKeeping] = useState(false);
     const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
@@ -350,12 +357,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [viewersRetry, setViewersRetry] = useState(0);
 
     // **リセットは取得と分ける。** 一緒にしていたので `viewersOpen` を
-    // deps に入れられなかった（入れると開いた瞬間に `setViewersOpen(false)`
+    // deps に入れられなかった（入れると開いた瞬間に `setInsights(null)`
     // が走って開けない）。分けたので、取得の側に開閉を効かせられる
     useEffect(() => {
         setViewers(null);
         setViewersError(false);   // 前のストーリーの失敗を持ち越さない
-        setViewersOpen(false);
+        setInsights(null);
     }, [item?.id]);
 
     // **失敗した回は、開き直したときに引き直す。**
@@ -722,7 +729,6 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         setReplyOpen(false);
         setReplies(null);
         setRepliesError(false);
-        setRepliesOpen(false);
         setKeeping(false);
         setKeptPhotoId(null);
         setKeepError(null);
@@ -967,7 +973,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             // ここは**何もしない**で返す（二重に閉じない・背後を送らない）
             if (reportOpen) return;
             if (confirmDelete || viewersOpen || repliesOpen || menuOpen) {
-                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); setMenuOpen(false); }
+                if (e.key === "Escape") { setConfirmDelete(false); setInsights(null); setMenuOpen(false); }
                 return;
             }
             if (e.key === "Escape") onClose();
@@ -1083,7 +1089,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     return (
         <div
             ref={rootRef}
-            className="fixed inset-0 z-[90] bg-black flex flex-col items-center justify-center select-none"
+            className="fixed inset-0 z-[90] bg-black flex items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
             aria-label={locale === "en" ? "Stories" : "ストーリー"}
@@ -1100,6 +1106,14 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     draggable={false}
                 />
             )}
+
+            {/* **PC は別に設計する**（指示書 4・11・17）。スマホは今までどおり
+                画面いっぱい。1024px 以上では**縦長の1枚に収める**——
+                ヘッダーも返信の帯も `absolute` でこの入れ物に付くので、
+                幅いっぱいに引き伸ばすと、名前が左端・閉じるが右端で 1,200px
+                離れる（実測 1280px 幅）。まわりはぼかした写真のまま
+                （上の背景はこの外側に置いてある）。 */}
+            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-2xl lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-white/10">
 
             {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
             <div ref={mediaAreaRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
@@ -1403,7 +1417,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         ボタンを置かない（すぐ下の返信バッジと同じ線） */}
                     {isOwnStory && !item.archivedAt && (
                         <button
-                            onClick={() => setViewersOpen(true)}
+                            onClick={() => setInsights("viewers")}
                             aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
                             className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
@@ -1431,7 +1445,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         ——押しても何も無いボタンを常に置かない */}
                     {isOwnStory && (item.replyCount ?? 0) > 0 && (
                         <button
-                            onClick={() => setRepliesOpen(true)}
+                            onClick={() => setInsights("reactions")}
                             aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
                             className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
@@ -1624,8 +1638,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             )}
 
             {/* 閲覧者リスト（ボトムシート） */}
-            {viewersOpen && isOwnStory && (
-                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setViewersOpen(false)}>
+            {/* 反応の一覧（モック09 の状態例「リアクション・閲覧者リスト」）。
+                **シートは1枚。タブで「閲覧者」と「リアクション」を切り替える**
+                ——以前は同じ形のボトムシートが2枚在り、見出しも閉じるも
+                2か所に書いてあった。数はどちらも実データ（作り物は出さない）。 */}
+            {insights !== null && isOwnStory && (
+                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setInsights(null)}>
                     <div
                         className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
@@ -1635,23 +1653,39 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         <div className="flex justify-center pt-2.5 pb-1">
                             <span className="w-9 h-1 rounded-full bg-white/20" />
                         </div>
-                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">
-                                {locale === "en" ? "Viewers" : "閲覧者"}
-                                {/* **取得中を 0 と言わない。** 同じ画面のボタン側は
-                                    `viewers === null` を "..." と出しているのに、
-                                    この見出しだけ `?? 0` で潰していて、開いた瞬間
-                                    「閲覧者 0」が出てから数字が入っていた */}
-                                {/* 失敗したら数字を出さない（上のボタンと同じ）。
-                                    本文が「読み込めませんでした」と説明する */}
-                                {!viewersError && (
-                                    <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
-                                )}
-                            </h3>
-                            <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
+                        <div className="px-2 py-1 border-b border-white/10 flex items-center justify-between gap-2">
+                            <div className="flex items-center" role="tablist" aria-label={locale === "en" ? "Story insights" : "ストーリーの反応"}>
+                                {([
+                                    ["viewers", locale === "en" ? "Viewers" : "閲覧者",
+                                        // 取得中・失敗のときは数を出さない（ピルと同じ扱い）
+                                        viewersError ? null : viewers === null ? "…" : String(viewers.length)],
+                                    ["reactions", locale === "en" ? "Reactions" : "リアクション",
+                                        // 数はサーバーが行に持っている（開かなくても分かる）
+                                        repliesError ? null : String(item.replyCount ?? replies?.length ?? 0)],
+                                ] as const).map(([key, label, count]) => {
+                                    const active = insights === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            role="tab"
+                                            aria-selected={active}
+                                            onClick={() => setInsights(key)}
+                                            className={`px-3 py-2.5 text-sm transition-colors ${active ? "text-white font-semibold" : "text-white/50 hover:text-white/80"}`}
+                                            style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                        >
+                                            {label}
+                                            {count !== null && <span className="ml-1.5 text-white/50 font-normal tabular-nums">{count}</span>}
+                                            {/* 選んでいる方に下線（タブだと分かる印） */}
+                                            {active && <span className="block h-0.5 mt-1 -mb-1 rounded-full bg-white" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button onClick={() => setInsights(null)} className="p-2 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
+                        {insights === "viewers" && (
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
                                 <p className="text-xs text-white/50 text-center py-8">
@@ -1676,34 +1710,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 届いた返信（投稿者だけ。閲覧者リストと同じ形のボトムシート） */}
-            {repliesOpen && isOwnStory && (
-                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
-                    <div
-                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-                    >
-                        <div className="flex justify-center pt-2.5 pb-1">
-                            <span className="w-9 h-1 rounded-full bg-white/20" />
-                        </div>
-                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">
-                                {locale === "en" ? "Replies" : "届いた返信"}
-                                {/* 取得中を 0 と言わない・失敗したら数字を出さない
-                                    （閲覧者リストと同じ扱い） */}
-                                {!repliesError && (
-                                    <span className="ml-2 text-white/50 font-normal">{replies === null ? "…" : replies.length}</span>
-                                )}
-                            </h3>
-                            <button onClick={() => setRepliesOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
+                        )}
+                        {insights === "reactions" && (
                         <div className="overflow-y-auto p-2">
                             {(replies ?? []).length === 0 ? (
                                 <p className="text-xs text-white/50 text-center py-8">
@@ -1769,6 +1777,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1816,6 +1825,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 />
             )}
 
+            </div>
         </div>
     );
 }
