@@ -162,6 +162,15 @@ export type UserProfile = {
     // マイページのパーソナライズ
     themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
     statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
+    /**
+     * 居住地（モック2-1 の「📍Tokyo, Japan」）。**自由入力の1行**。
+     *
+     * **写真の `location` とは別物。** あちらは撮影地で、`/location/*` の
+     * 集約ページと地図に効く。こちらは**プロフィールの自己紹介の一部**で、
+     * 集約にも地図にも使わない——使うと、住んでいる場所が地図に
+     * ピンとして出ることになる。名前を分けてあるのはそのため。
+     */
+    homeLocation?: string;
     pinnedPhotoIds?: string[];    // ピン留め（投稿タブ先頭に固定・最大3枚）
     /**
      * 認証済みの印（名前の横のバッジ）。
@@ -476,7 +485,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         tripTitles?: Record<string, string>;
         tripCovers?: Record<string, string>;
         tripSongs?: unknown;
-        themeColor?: string; statusText?: string; pinnedPhotoIds?: string[];
+        themeColor?: string; statusText?: string; homeLocation?: string; pinnedPhotoIds?: string[];
         pinPhotoId?: unknown; pin?: unknown;
         songs?: unknown;
     };
@@ -615,6 +624,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         ? body.themeColor.trim().toLowerCase()
         : undefined;
     const statusText = truncate(body.statusText?.trim() ?? "", 60) || undefined;
+    // 居住地。ひとことと同じ長さ・同じ扱い（空なら消す）
+    const homeLocation = truncate(body.homeLocation?.trim() ?? "", 60) || undefined;
     let pinnedPhotoIds: string[] | undefined;
     if (Array.isArray(body.pinnedPhotoIds)) {
         const cleaned = body.pinnedPhotoIds
@@ -766,6 +777,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("tripSongs", tripSongs !== undefined, tripSongs);
     apply("themeColor", "themeColor" in body, themeColor);
     apply("statusText", "statusText" in body, statusText);
+    apply("homeLocation", "homeLocation" in body, homeLocation);
     // 増減（pinOp）で来たときは、**下の書き込みループが必ず上書きする**。
     // ここで `!pinOp &&` のガードを足したくなるが、効かないので置かない
     // （置くと「守っているつもりの死にコード」になる。実際に一度書いて、
@@ -1003,7 +1015,7 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
-        tripTitles, tripCovers, tripSongs, statusText, verified,
+        tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
     } = p;
     return withCheckedSongUrls({
         userId, username, displayName, bio, instagram, website, themeColor,
@@ -1011,7 +1023,7 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
         // **印は公開してよい**（バッジとして出すためのもの）。
         // 立てられるのは運営だけ（型の注記）
-        tripTitles, tripCovers, tripSongs, statusText, verified,
+        tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
     });
 }
 
