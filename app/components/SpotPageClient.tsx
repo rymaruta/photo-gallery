@@ -212,7 +212,11 @@ export default function SpotPageClient({
             {hero && (
                 <section
                     aria-label={en ? "Featured photo" : "この場所の写真"}
-                    className="relative -mx-4 mb-4 sm:mx-0 sm:rounded-2xl sm:overflow-hidden"
+                    // **640px 以上は 640px で止めて中央に置く**（`SPOT_HERO_SIZES`
+                    // に理由を書いた——`Thumb` の派生が 512w までなので、容器
+                    // いっぱいに広げると PC で 2.2倍に引き伸ばすことになる）。
+                    // 640px 未満はモックのとおり左右いっぱい。
+                    className="relative -mx-4 mb-4 sm:mx-auto sm:max-w-[640px] sm:rounded-2xl sm:overflow-hidden"
                 >
                     <Link
                         href={ROUTES.PHOTO(hero.id)}
