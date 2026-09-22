@@ -30,6 +30,9 @@ vi.mock("../../../lib/hooks/usePhotos", () => ({
     usePhotos: () => ({ photos, loaded: true, failed: false }),
 }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: ja }) }));
+// サーバー側のいいね一覧は別のテストで見る。ここでは未ログインとして、
+// 端末の控えだけで描く（この画面の元々の経路）
+vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, loading: false }) }));
 
 const FavoritesPage = (await import("../page")).default;
 

@@ -72,7 +72,7 @@ function setup() {
 describe("GalleryModal のいいね", () => {
     it("ハートを押すとユーザーAPIに POST する", async () => {
         setup();
-        fireEvent.click(screen.getByRole("button", { name: "お気に入りに追加" }));
+        fireEvent.click(screen.getByRole("button", { name: "いいね" }));
         await waitFor(() => {
             expect(mockUserFetch).toHaveBeenCalledWith(
                 "/photos/p1/like",
@@ -83,9 +83,9 @@ describe("GalleryModal のいいね", () => {
 
     it("いいね済みならもう一度押すと DELETE する", async () => {
         setup();
-        fireEvent.click(screen.getByRole("button", { name: "お気に入りに追加" }));
-        await waitFor(() => screen.getByRole("button", { name: "お気に入りから外す" }));
-        fireEvent.click(screen.getByRole("button", { name: "お気に入りから外す" }));
+        fireEvent.click(screen.getByRole("button", { name: "いいね" }));
+        await waitFor(() => screen.getByRole("button", { name: "いいねを取り消す" }));
+        fireEvent.click(screen.getByRole("button", { name: "いいねを取り消す" }));
         await waitFor(() => {
             expect(mockUserFetch).toHaveBeenLastCalledWith(
                 "/photos/p1/like",

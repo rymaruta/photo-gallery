@@ -15,31 +15,19 @@ import { useEffect } from "react";
  *
  * `ResizeObserver` が無い環境（古いブラウザ・jsdom）では、マウント時に
  * 1回だけ測る。0 のままより、その高さのぶん逃がせる方がまし。
+ *
+ * **一度これを汎用化して `--mini-player-h` も出していたが、戻した。**
+ * 読み手は画面右下に浮いていた「＋」だけで、それを撤去したので
+ * 参照0になった（`c1361795` の次のコミット）。読み手の無い変数と、
+ * 呼び手が1つしか無い汎用版は、次に読む人に嘘をつく。
  */
 export function useBottomBarHeight(ref: React.RefObject<HTMLElement | null>): void {
-    usePublishedHeight(ref, "--bottom-bar-h");
-}
-
-/**
- * 同じ仕組みの汎用版。要素の実測の高さを CSS 変数 `name` に出す。
- * `enabled` が false の間は出さない（ミニプレイヤーが画面下に無いとき＝
- * デスクトップで動かしたあと、に使う）。
- *
- * 画面下に重なりうるものは3つ（投稿・編集のバー／ミニプレイヤー／「＋」）で、
- * 下から順に**自分より下にあるものの高さぶん逃げる**:
- *   バー → `--bottom-bar-h` → ミニプレイヤー → `--mini-player-h` → 「＋」
- */
-export function usePublishedHeight(
-    ref: React.RefObject<HTMLElement | null>,
-    name: string,
-    enabled = true,
-): void {
     useEffect(() => {
         const el = ref.current;
-        if (!enabled || !el || typeof document === "undefined") return;
+        if (!el || typeof document === "undefined") return;
         const root = document.documentElement;
         const publish = () => {
-            root.style.setProperty(name, `${el.offsetHeight}px`);
+            root.style.setProperty("--bottom-bar-h", `${el.offsetHeight}px`);
         };
         publish();
         const RO = typeof ResizeObserver !== "undefined" ? ResizeObserver : null;
@@ -49,7 +37,7 @@ export function usePublishedHeight(
             ro?.disconnect();
             // **必ず消す。** 残すと、バーの無いページでミニプレイヤーが
             // 宙に浮いたままになる
-            root.style.removeProperty(name);
+            root.style.removeProperty("--bottom-bar-h");
         };
-    }, [ref, name, enabled]);
+    }, [ref]);
 }

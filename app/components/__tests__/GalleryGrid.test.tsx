@@ -269,3 +269,61 @@ describe("読み込みの優先度", () => {
         expect(eager).toHaveLength(8);
     });
 });
+
+/**
+ * **「無題」は render のときの代わりの言葉ではなく、保存されている値。**
+ *
+ * サーバーが題の無い投稿に `無題` / `Untitled` を入れていたので、一覧には
+ * 「無題」が並んでいた（owner:「タイトルなくてもいいよ」）。書き込み側は
+ * 直したが、**既にある写真は直らない**ので読む側でも落とす。
+ *
+ * 落とすのは**丸ごとその言葉のときだけ**——「無題の風景」は人が書いた題。
+ */
+describe("GalleryGrid: 題の無い写真", () => {
+    const titled = (id: string, title: unknown): Photo =>
+        ({ id, src: `https://cdn.example.com/uploads/${id}.jpg`, tags: [], title } as Photo);
+
+    const cardText = (container: HTMLElement) =>
+        (container.querySelector("[data-photo-id]") as HTMLElement).textContent ?? "";
+    // 帯は写真の下に敷く黒いグラデーション。**文字の有無では見分けられない**
+    // ——中身が空でも帯そのものは描かれてしまう（最初そう書いて変異を逃した）
+    const band = (container: HTMLElement) =>
+        container.querySelector('[style*="linear-gradient"]');
+
+    it("保存されている「無題」は題として出さない", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", { ja: "無題", en: "Untitled" })]} locale="ja" />);
+        expect(screen.queryByText("無題"), "保存されていた「無題」がそのまま並んでいる").toBeNull();
+        // 読み上げる名前も「無題 を開く」にしない
+        expect(screen.getByRole("link")).toHaveAccessibleName("写真を開く");
+    });
+
+    it("素の文字列で保存された「Untitled」も同じ", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "Untitled")]} locale="ja" />);
+        expect(screen.queryByText("Untitled")).toBeNull();
+    });
+
+    // **落としすぎない。** 「無題」で始まる題は人が書いたもの
+    it("「無題の風景」は人が書いた題なので消さない", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "無題の風景")]} locale="ja" />);
+        expect(screen.getByText("無題の風景")).toBeInTheDocument();
+    });
+
+    it("題も分類も無ければ、写真の下の帯ごと出さない", () => {
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "無題")]} locale="ja" />);
+        expect(cardText(container), "題が無いのに文字が出ている").toBe("");
+        expect(band(container), "中身が無いのに黒い帯だけ敷いている").toBeNull();
+    });
+
+    it("題が無くても分類があれば帯は出す", () => {
+        const { container } = render(
+            <GalleryGrid sizes={GRID_SIZES_5XL} photos={[{ ...titled("a", "無題"), category: "landscape" } as Photo]} locale="ja" categoryDisplayMap={{ landscape: "風景" }} />,
+        );
+        expect(band(container), "分類があるのに帯が出ていない").not.toBeNull();
+        expect(cardText(container)).toBe("風景");
+    });
+
+    it("題だけでも帯は出す", () => {
+        const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "白鳥と湖")]} locale="ja" />);
+        expect(band(container), "題があるのに帯が出ていない").not.toBeNull();
+    });
+});

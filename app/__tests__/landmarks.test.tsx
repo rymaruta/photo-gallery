@@ -27,7 +27,6 @@ vi.mock("../../lib/utils/api", async (importOriginal) => ({
     userPublicFetch: vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),
 }));
 vi.mock("../components/FilterBar", () => ({ default: () => null }));
-vi.mock("../components/stories/StoriesBar", () => ({ default: () => null }));
 vi.mock("../components/GalleryGrid", () => ({ default: () => null }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));

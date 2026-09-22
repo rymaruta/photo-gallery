@@ -2,6 +2,7 @@
 // 写真の代替テキスト（alt）を1か所で組む。
 
 import { getLocalized, type Photo, type Locale } from "../data/photos";
+import { displayTitle } from "./photoTitle";
 import { titleWithPlace } from "./titlePlace";
 
 /**
@@ -30,7 +31,9 @@ export function photoAltText(photo: Photo, locale: Locale): string {
     const own = getLocalized(photo.alt, locale);
     if (own) return own;
 
-    const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
+    // サーバーが入れていた「無題」は題として扱わない（`photoTitle.ts`）。
+    // 読み上げと画像検索に「無題」と言わせない
+    const title = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
     const place = typeof photo.location === "string" ? photo.location.trim() : "";
     // **並べ方の決め方は `titleWithPlace` 1つに置く**（写真ページの `<title>` と
     // 同じ判断。片方だけ直して `alt="オペラ・ガルニエ（オペラ・ガルニエ（パリ））"`

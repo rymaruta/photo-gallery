@@ -285,9 +285,11 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
         expect(r.statusCode).toBe(200);
     });
 
-    it("キャプションが無ければ「無題」", async () => {
+    // 以前はここで `{ ja: "無題" }` を入れていた。**利用者が名付けていない語**を
+    // 一覧にも読み上げにも出していたので、題を付けない側へ（owner の指示）
+    it("キャプションが無ければ題を付けない", async () => {
         world({ ...STORY, caption: undefined });
         await invoke(ev("me", "story-1"));
-        expect((mockPutPhoto.mock.calls[0][0] as { title: unknown }).title).toEqual({ ja: "無題", en: "Untitled" });
+        expect("title" in (mockPutPhoto.mock.calls[0][0] as object), "名付けていない題を保存している").toBe(false);
     });
 });

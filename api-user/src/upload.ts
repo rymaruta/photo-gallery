@@ -331,7 +331,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         src: canonicalUploadUrl(publicUrl, CLOUDFRONT_URL),
         // 保存時にもサニタイズを通す。photoUpdate.ts は通しているのにここだけ
         // 素通しで、任意の長さ・任意の構造の値が静的HTMLまで届いていた。
-        title: sanitizeTitle(title) ?? { ja: "無題", en: "Untitled" },
+        // **題が無いなら属性ごと持たない。** 以前ここは「無題」を入れていたが、
+        // それは**利用者が名付けた語ではない**のに一覧にも読み上げにも出ていた
+        // （owner:「タイトルなくてもいいよ」）。編集の経路（`photoUpdate.ts`）は
+        // 前から空を REMOVE に倒しているので、保存形もそちらに揃う
+        ...(() => { const t = sanitizeTitle(title); return t ? { title: t } : {}; })(),
         ...(() => { const d = sanitizeDescription(description); return d ? { description: d } : {}; })(),
         ...(() => { const l = sanitizeText(location, 200); return l ? { location: l } : {}; })(),
         ...(() => { const c = sanitizeText(category, 100); return c ? { category: c } : {}; })(),

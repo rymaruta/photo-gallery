@@ -42,7 +42,13 @@ vi.mock("../../../lib/auth/session", () => ({
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
-vi.mock("../../../lib/stories", () => ({ clearSeenStories: vi.fn() }));
+// **列挙式のモックは、実装が新しく使い始めた export で undefined になる**
+// （その分岐を通るテストだけが落ちる。台帳の既知の型）
+vi.mock("../../../lib/stories", () => ({
+    clearSeenStories: vi.fn(),
+    setSeenStoriesUser: vi.fn(),
+    removeSeenStoriesUserData: vi.fn(),
+}));
 vi.mock("../../../lib/hooks/useFavorites", () => ({
     setFavoritesUser: vi.fn(),
     removeFavoritesUserData: vi.fn(),

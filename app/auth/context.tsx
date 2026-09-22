@@ -15,7 +15,7 @@ import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
-import { clearSeenStories } from "../../lib/stories";
+import { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } from "../../lib/stories";
 import { setFavoritesUser, removeFavoritesUserData } from "../../lib/hooks/useFavorites";
 
 /**
@@ -29,7 +29,10 @@ function clearAccountLocalState(): void {
     // PWA 共有シートのペイロード（写真の実体）。残すと1時間以内に
     // ログインした**別の人**のアップロード画面へ自動取り込みされる
     void clearSharedPayload();
-    // ストーリー既読。共有キーなので前の人の既読リングが付いて見える
+    // 未ログインで付いた既読記録（共有キー）だけ掃除する。
+    // **ログイン中のぶんは消さない**——鍵が利用者ごとに分かれたので
+    // 前の人の既読が次の人に見えることはもう無く、消していたせいで
+    // 同じ人がログインし直すと一度見たストーリーが新着に戻っていた
     clearSeenStories();
 }
 
@@ -108,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!hasCognitoConfig) {
                 setFavoritesUser(null);
+                setSeenStoriesUser(null);
                 setAuthState({
                     isAuthenticated: false,
                     isAdminUser: false,
@@ -159,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 resolvedRef.current = { authenticated, admin };
             }
             setFavoritesUser(authenticated ? sub : null);
+            setSeenStoriesUser(authenticated ? sub : null);
             setAuthState({
                 isAuthenticated: authenticated,
                 isAdminUser: admin,
@@ -173,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // 成功経路（setFavoritesUser(authenticated ? sub : null)）と対称に、
             // 判定できなかったときも前のユーザーのキーを向いたままにしない
             setFavoritesUser(null);
+            setSeenStoriesUser(null);
             setAuthState({
                 isAuthenticated: false,
                 isAdminUser: false,
@@ -286,6 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // **新しいログインは白紙から始める**のが確実。
                 resetFollowingCache();
                 setFavoritesUser(sub ?? null);
+                setSeenStoriesUser(sub ?? null);
                 // **ここも「確かめた」。** `checkAuth` を通らない経路なので、
                 // 揃えないと旗が立ちっぱなしになり、復帰のたびに余計に
                 // 確かめ直す（`resolvedRef` の方は古い答えが残る）
@@ -328,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetFollowingCache();
         clearAccountLocalState();
         setFavoritesUser(null);
+        setSeenStoriesUser(null);
         markResolved(false, false);
         setAuthState({
             isAuthenticated: false,
@@ -412,9 +420,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             resetFollowingCache();
             clearAccountLocalState();
             setFavoritesUser(null);
+            setSeenStoriesUser(null);
             // 同じ userId では二度とログインできない。読めない鍵付きの
             // ハート一覧を端末に残さない
             if (deletedUserId) removeFavoritesUserData(deletedUserId);
+            if (deletedUserId) removeSeenStoriesUserData(deletedUserId);
             markResolved(false, false);
             setAuthState({
                 isAuthenticated: false,
