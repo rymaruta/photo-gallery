@@ -141,6 +141,24 @@ function buildTimeline(photos: Photo[], locale: "ja" | "en"): TimelineGroup[] {
 
 const PROFILE_PRIORITY_THUMBS = 3;
 
+/**
+ * 写真タイルの読み上げ用の名前。**純関数**（画面を建てずに固定できる）。
+ *
+ * 🔴 **`alt` 任せにしない。** タイルの中身は `Thumb` だけなので、
+ * サムネの読み込みが落ちると `<img>` ごと絵の受け皿に差し替わり、
+ * **リンクの名前が消える**（実測で30本とも）。題を持たない写真でも同じ
+ * （`alt=""` は「装飾画像」の意味）。
+ *
+ * **いいねの数も名前に入れる。** ホバーの帯は `aria-hidden` にしたので、
+ * ここに入れないと読み上げから消える（`aria-label` は中身を上書きする）。
+ */
+export function photoCardLabel(title: string, likeCount: number, locale: string): string {
+    const en = locale === "en";
+    const base = title ? (en ? `Open ${title}` : `${title} を開く`) : (en ? "Open photo" : "写真を開く");
+    if (!(likeCount > 0)) return base;
+    return en ? `${base} (${likeCount} likes)` : `${base}（いいね ${likeCount}）`;
+}
+
 function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
     photo: Photo;
     locale: string;
@@ -191,9 +209,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                  * `GalleryGrid` は同じ状況でも名前が残る（あちらは
                  * `aria-label` を持っている）。揃える。
                  */
-                aria-label={title
-                    ? (locale === "en" ? `Open ${title}` : `${title} を開く`)
-                    : (locale === "en" ? "Open photo" : "写真を開く")}
+                aria-label={photoCardLabel(title, likeCount, locale)}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -214,9 +230,13 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                         1/{extraCount + 1}
                     </span>
                 )}
-                {/* ホバー: いいね数オーバーレイ */}
+                {/* ホバー: いいね数オーバーレイ。
+                    **読み上げからは外す**（`aria-hidden`）——この数は上の
+                    `aria-label` に入れてあるので、外さないと二重に読まれる。
+                    そもそもホバーでしか見えない飾りで、すぐ上の「1/N」の印も
+                    同じ理由で外してある */}
                 {likeCount > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                         <HeartIcon className="w-5 h-5 text-white" />
                         <span className="text-white font-semibold text-sm tabular-nums">{likeCount}</span>
                     </div>

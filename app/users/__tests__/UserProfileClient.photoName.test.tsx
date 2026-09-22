@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 
 /**
  * 🔴 **マイページの写真タイルに、読み上げ用の名前が付いていること。**
@@ -46,20 +46,22 @@ import UserProfileClient from "../UserProfileClient";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 /**
- * **個別ページを持つ写真の ID を使う**（`app/data/photo-index.json` の実物）。
- * 索引に無い ID を使うと `ROUTES.PHOTO` が `/?photo=<id>` に落ちるので、
- * `a[href^="/photo/"]` で数えるこのテストが1件も拾えなくなる
- * （`lib/routes.ts` の「静的ページがまだ無い写真」の受け皿）。
+ * **写真の ID は好きに決めてよい。** 一度 `photo-index.json` の実物の UUID を
+ * 直書きしたが、あの索引は DynamoDB から作り直される（staging は空）ので、
+ * その写真が消えた日に `ROUTES.PHOTO` が `/?photo=<id>` へ落ち、
+ * `a[href^="/photo/"]` で数えていたこのテストが**「waitFor の時間切れ」だけで
+ * 落ちる**（名前の話は一言も出ない）。**ID で引く**ようにして索引から切り離す。
  */
-const P1 = "a129394d-f386-4795-9623-2d6e915d20c7";
-const P2 = "88c66c1d-c2fc-4875-9b52-55756db18dbc";
+const P1 = "photo-1";
+const P2 = "photo-2";
 const photo = (id: string, title: string) => ({
     id, src: `https://cdn/x/${id}.jpg`, userId: OWNER, published: true,
     title, createdAt: "2026-08-01T00:00:00Z",
 });
 
 /** 訪問者（本人ではない）として開く */
-async function openAsVisitor(photos: unknown[]) {
+async function openAsVisitor(photos: Array<{ id: string }>) {
+    SHOWN = photos;
     mockGetCurrentSession.mockResolvedValue(null);
     mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: OWNER, displayName: "旅人" }) });
     mockPublicFetch.mockResolvedValue({ ok: true, json: async () => photos });
@@ -68,8 +70,13 @@ async function openAsVisitor(photos: unknown[]) {
     await waitFor(() => expect(tiles().length).toBe(photos.length));
 }
 
-/** 写真タイルのリンク */
-const tiles = () => [...document.querySelectorAll('a[href^="/photo/"]')];
+/**
+ * 写真タイルのリンク。**行き先の形（`/photo/<id>` か `/?photo=<id>`）に
+ * 依存しない**ように、ID を含む `href` で引く（上の注記の理由）。
+ */
+const tileFor = (id: string) => document.querySelector(`a[href*="${id}"]`);
+const tiles = () => SHOWN.map((p) => tileFor(p.id)).filter((a): a is Element => !!a);
+let SHOWN: Array<{ id: string }> = [];
 
 beforeEach(() => {
     localeRef.locale = "ja";
@@ -96,10 +103,34 @@ describe("マイページの写真タイルの名前", () => {
         expect(tiles()[0].getAttribute("aria-label")).toBe("写真を開く");
     });
 
+    /**
+     * **いいねの数を読み上げから落とさない。** ホバーの帯は `aria-hidden` に
+     * したので、名前に入れないと消える（`aria-label` は中身を上書きする）。
+     * 入れ忘れると、直す前より情報が減る。
+     */
+    it("いいねが付いていれば名前に入る（帯は読み上げから外す）", async () => {
+        await openAsVisitor([{ ...photo(P1, "オペラ座の朝"), likes: 3 }]);
+        expect(tiles()[0].getAttribute("aria-label")).toBe("オペラ座の朝 を開く（いいね 3）");
+        // 帯そのものは読み上げない（名前と二重にしない）
+        const band = tiles()[0].querySelector('[aria-hidden="true"].absolute.inset-0');
+        expect(band, "いいねの帯が読み上げから外れていない").not.toBeNull();
+    });
+
+    it("いいねが 0 なら名前に足さない", async () => {
+        await openAsVisitor([{ ...photo(P1, "オペラ座の朝"), likes: 0 }]);
+        expect(tiles()[0].getAttribute("aria-label")).toBe("オペラ座の朝 を開く");
+    });
+
     it("英語では英語で名乗る", async () => {
         localeRef.locale = "en";
         await openAsVisitor([photo(P1, "Opera at dawn"), photo(P2, "")]);
         expect(tiles().map((a) => a.getAttribute("aria-label")))
             .toEqual(["Open Opera at dawn", "Open photo"]);
+    });
+
+    it("英語でもいいねの数が名前に入る", async () => {
+        localeRef.locale = "en";
+        await openAsVisitor([{ ...photo(P1, "Opera at dawn"), likes: 2 }]);
+        expect(tiles()[0].getAttribute("aria-label")).toBe("Open Opera at dawn (2 likes)");
     });
 });
