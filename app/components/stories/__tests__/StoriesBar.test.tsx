@@ -169,6 +169,7 @@ describe("StoriesBar - 削除したら 404 だった", () => {
         // 自分のストーリーを開く
         fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
         // 削除 → 確認
+        fireEvent.click(await screen.findByLabelText("ストーリーの操作"));
         fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
         fireEvent.click(await screen.findByRole("button", { name: "削除" }));
 
@@ -204,6 +205,7 @@ describe("StoriesBar - 削除が 500 で失敗した", () => {
 
         render(<StoriesBar />);
         fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
+        fireEvent.click(await screen.findByLabelText("ストーリーの操作"));
         fireEvent.click(await screen.findByRole("button", { name: "ストーリーを削除" }));
         fireEvent.click(await screen.findByRole("button", { name: "削除" }));
 

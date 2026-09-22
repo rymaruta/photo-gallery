@@ -19,7 +19,11 @@ export default function robots(): MetadataRoute.Robots {
             // `/j` は共同アルバムの招待。**私的なリンク**なので、
             // クロールさせない（ページ自体も noindex だが、そもそも
             // 取りに来させない方が確実）
-            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/history", "/j"],
+            // `/saved-spots` は「行きたい場所」。**本人だけが見られる中身**で、
+            // `noindexMetadata` を付けたうえでフッターから全ページにリンクを
+            // 出しているので、必ずクロールされる。`/favorites` と同じ扱いに揃える
+            // `/saves` は写真の「保存」。行きたい場所と同じく本人だけの棚
+            disallow: ["/api/", "/admin", "/user/", "/login", "/signup", "/favorites", "/saves", "/saved-spots", "/search", "/history", "/j"],
         },
         sitemap: [
             `${siteConfig.url}/sitemap.xml`,

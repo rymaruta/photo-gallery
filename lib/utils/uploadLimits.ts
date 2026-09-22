@@ -20,3 +20,19 @@
  * ——この上限はそれまでの余裕であって、耐えられる保証ではない。
  */
 export const PHOTO_LIMIT_PER_USER = 1000;
+
+/**
+ * **1投稿に入れられる写真の枚数**（表紙 + 2枚目以降）。画面側の写し。
+ *
+ * **`api-user/src/photoImages.ts` の `PHOTO_IMAGES_MAX` と対。**
+ * クライアントから api-user は import できない（`app/` から import すると
+ * `next build` が落ちる。`7276c2b8` で踏んだ）ので数字を2か所に持つことになる。
+ * 片方だけ変えると
+ *   - 画面が大きい  → 11枚目以降が**黙って落ちる**（保存は成功して、あとで
+ *                     開くと足りない）
+ *   - 画面が小さい  → サーバーは受け付けるのに選べない
+ * のどちらかになるので、`scripts/__tests__/limitParity.test.ts` が突き合わせる。
+ *
+ * 10 は owner のモック（投稿作成の「1/10」）から。
+ */
+export const PHOTO_IMAGES_MAX = 10;

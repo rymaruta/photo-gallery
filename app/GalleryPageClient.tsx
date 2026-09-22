@@ -4,29 +4,101 @@ import React from "react";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
+import ColorJourney from "./components/ColorJourney";
+import DiscoverSections from "./search/DiscoverSections";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
-import { GRID_SIZES_5XL } from "./components/gridSizes";
+import { GRID_SIZES_SEARCH, GRID_COLUMNS_SEARCH } from "./components/gridSizes";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
-import Link from "next/link";
-import { ROUTES } from "../lib/routes";
+import TimelineCard from "./components/TimelineCard";
+import { useMySaves } from "../lib/hooks/useMySaves";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
 
-export default function GalleryPageClient() {
+/** ホームの最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
+const HOME_PRIORITY_COUNT = 2;
+
+/**
+ * **ホームの PC は「1列のフィード＋右の柱」**（owner の指示書 4・11・17:
+ * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
+ * Webサイトとして最適なレイアウトを設計してください」）。
+ *
+ *   < 1024px … 最終版モックのまま（1列のカードだけ）
+ *   ≥ 1024px … 左にフィード（**40rem＝640px**）／右に**発見の柱**（余りぜんぶ）
+ *
+ * **空いた横を埋めるのは別の中身。** スマホでは下部タブの「さがす」で
+ * 辿る面を、PC では同じ画面に出す（柱の行き先も「さがす」の検索結果）。
+ *
+ * ## 余白の詰め方（2026-09-22・owner の指示）
+ *
+ * owner:「ホームの本文が 576px に制限され、1280px 幅で左右に大きな余白が
+ * 残る問題を解消すること。ただし**無理に画面幅いっぱいへ引き伸ばさない**。
+ * 中央フィードと右サイドバーのバランスを整える」。
+ *
+ *     画面   容器            フィード ＋ 隙間 ＋ 柱      画面に対して
+ *     1024   1024−64=960     640 + 32 + 288 = 960        94%（余白 0）
+ *     1152   1152−64=1088    640 + 32 + 416 = 1088       94%
+ *     1280   1152 で頭打ち   同上                        85%（前は 72.5%）
+ *     1920   同上            同上                        57%
+ *
+ * ⚠️ **フィードを 640px より広げない。** `Thumb` の派生は 512w までなので、
+ * 箱を広げるほど引き伸ばしになる（`FEED_SIZES_XL` と `SPOT_HERO_SIZES` の
+ * doc に同じ線が引いてある）。**「引き伸ばさない」は owner の言葉でもある。**
+ *
+ * **柱は `1fr`（余りぜんぶ）にする。** 固定幅にして `justify-center` で
+ * 寄せると、見出し・タブと本文の左端が 16px ずれる
+ * （実測: 見出し x=160 / カード x=176）。余りを柱に渡せば両端が揃う。
+ */
+function HomeColumns({ rail, children }: { rail: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-none">{children}</div>
+      {/* **狭い画面には出さない。** スマホの「さがす」は下部タブの別の面で、
+          ここに足すとモックに無いものが1画面に増える。
+
+          **高さを画面に収める。** 貼り付いたまま画面より高くなると、
+          下の節（機材）が**どうやっても読めない**——本文を送っても柱は
+          動かないので、届く手段が1つも無い（レビューが 1280×600 で計測）。
+          引くのはヘッダー 72 ＋ 上の余白 16 ＋ 下部タブ 64 ＋ 下の余白 16。
+          **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
+          柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
+          作ると隠れる */}
+      <aside className="hidden lg:block lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">{rail}</aside>
+    </div>
+  );
+}
+
+type Props = {
+  /**
+   * どの面として描くか。
+   *
+   * **1つの部品のまま出し分ける。** 2つに割ると `?photo=` の扱い（消された
+   * 写真・届く前・絞り込みの解除・トースト。この画面でいちばん手を入れた
+   * 100行）を複製することになる。違うのは見せ方だけで、写真の一覧・
+   * 絞り込みの状態・集約の数え上げは同じものを見ている。
+   *   `home`   … タブ（おすすめ／フォロー中／新着）＋1列のカード
+   *   `search` … 絞り込み＋件数＋サムネのグリッド
+   */
+  surface?: "home" | "search";
+};
+
+export default function GalleryPageClient({ surface = "home" }: Props) {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
   const { isAuthenticated, userId, loading: authLoading } = useAuth();
   const ownUserId = isAuthenticated ? userId : null;
+  // 保存した写真の id を**1回で**引いてカードに配る（写真ごとに聞きに行かせない）
+  const saves = useMySaves(isAuthenticated, authLoading);
+  const savedIds = React.useMemo(() => (saves.pending || saves.failed ? null : new Set(saves.photoIds)), [saves.pending, saves.failed, saves.photoIds]);
 
   const {
     PHOTOS,
@@ -52,14 +124,38 @@ export default function GalleryPageClient() {
    * 無ければ絞りを外す往復（トースト付き）になる。最初から「すべて」で開く。
    * ログアウトしたら「すべて」に戻す（`mine` は本人の id が無いと意味を持たない）。
    */
+  /**
+   * **おすすめに出せる写真が1枚でもあるか。**
+   *
+   * 「おすすめ」＝運営が選んだ写真（`featured`）で、**人気順ではない**
+   * ——実データは いいね0・コメント0 なので、人気の根拠がどこにも無い
+   * （根拠の無いものを「人気」と名乗らない）。1枚も選ばれていなければ
+   * そのタブは空になるので、既定にしない。
+   */
+  const hasFeatured = React.useMemo(() => PHOTOS.some((p) => p.featured === true), [PHOTOS]);
+
+  /**
+   * いま絞り込んでいるか（タブ以外の条件）。
+   *
+   * **絞り込み中は「おすすめ」を出さない。** 絞った結果と関係ない写真が
+   * 並ぶと何を見ているか分からなくなる。ホームに絞り込みの欄は無いが、
+   * `?q=` `?tags=` `?category=` は URL から来うる（古いリンク）。
+   */
+  const narrowedNow = filters.category !== "all" || filters.selectedTags.length > 0
+    || filters.query.trim() !== "";
+
   const scopeDecidedRef = React.useRef(false);
   React.useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
-      if (filters.scope !== "all") setFilters({ scope: "all" });
+      // **「フォロー中」だけ戻す。** 本人の id が無いと意味を持たないタブは
+      // これだけで、**「おすすめ」は未ログインでも見られる**（運営が選んだ
+      // 写真で、誰が見ても同じ）。ここを `!== "all"` にしていたので、
+      // 未ログインの人は「おすすめ」を押しても弾かれていた
+      if (filters.scope === "following") setFilters({ scope: "all" });
       return;
     }
-    // 決めるのは確定した1回だけ（利用者が「すべて」を押したあとに戻さない）
+    // 決めるのは確定した1回だけ（利用者が別のタブを押したあとに戻さない）
     if (scopeDecidedRef.current) return;
     scopeDecidedRef.current = true;
     // **URL はその時点で読む**（マウント時の控えではなく）。ハイドレーション直後に
@@ -71,8 +167,16 @@ export default function GalleryPageClient() {
     // ——`currentIndex` を重ねて見ない（二重の守りは変異で観測できない）
     const q = new URLSearchParams(window.location.search);
     if (q.has("scope") || q.has("photo")) return;
-    setFilters({ scope: "mine" });
-  }, [authLoading, isAuthenticated, filters.scope, setFilters]);
+    // **「さがす」では倒さない。** タブ（おすすめ／フォロー中／新着）はホームに
+    // しか無いので、ここで「おすすめ」へ倒すと**戻す手段の無い絞り込み**になる
+    // ——結果の件数・グリッド・色の内訳が全部おすすめだけになり、FilterBar には
+    // 何も絞っていないように見える（レビューで指摘）
+    if (surface !== "home") return;
+    // **「おすすめ」は1枚も選ばれていないと空**（実データは featured 0枚）。
+    // 空のタブを既定にすると、開いた人がまず何も無い画面を見る。
+    // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
+    if (hasFeatured) setFilters({ scope: "featured" });
+  }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured, surface]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -314,6 +418,27 @@ export default function GalleryPageClient() {
     [labels, categories],
   );
 
+  /**
+   * ホームの PC の右の柱（`HomeColumns`）に置く中身。
+   *
+   * **同じものを二度作らない**——「さがす」の発見の節（`DiscoverSections`）を
+   * 柱の形で出すだけ。数え方も行き先も1か所（`collectEntries`）のままなので、
+   * 柱の数字と飛んだ先の枚数が食い違わない。
+   *
+   * **架空の数字は出さない**（owner の指示書）。ここに出るのは
+   * カテゴリ・撮影地・機材と、その**実際の枚数**だけ。
+   */
+  const discoverRail = (
+    <nav aria-label={locale === "en" ? "Browse photos" : "写真をさがす"}>
+      <DiscoverSections
+        photos={PHOTOS}
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+        variant="rail"
+      />
+    </nav>
+  );
+
   const renderSubtitle = (sub?: string | string[]) => {
     if (!sub) return null;
     const parts = Array.isArray(sub) ? sub : [sub];
@@ -335,36 +460,58 @@ export default function GalleryPageClient() {
     );
   };
 
+  /**
+   * 見出しは面ごとに別の文。
+   *
+   * **以前はどちらも `site.title`（「みんなの旅の写真」）だった。**
+   * `/search` は `noindex` なので検索への影響は無いが、別の画面が
+   * 同じ見出しを名乗ると、見出しで行き来する人には区別が付かない。
+   * 一言（`subtitle`）はサイトの看板なのでトップにだけ置く。
+   */
+  const isSearch = surface !== "home";
+  const heading = isSearch
+    ? (labels.search?.heading ?? (locale === "en" ? "Find photos" : "写真をさがす"))
+    : (labels.site?.title ?? "Gallery");
+
+  /**
+   * **PC は両方 6xl に広げる**（指示書 4・11・17「スマホ画面をそのまま横に
+   * 引き伸ばさない」／owner 2026-09-22「1280px 幅で左右に大きな余白が
+   * 残る問題を解消する。ただし無理に画面幅いっぱいへ引き伸ばさない」）。
+   *
+   * **上限は 6xl**——写真ページ（`lg:max-w-6xl`）・集約ページと同じ箱。
+   * 7xl にするとヘッダー（`max-w-5xl`）とロゴの左端が片側128px ずれる。
+   * 狭い画面（< 1024px）は今までどおり `max-w-5xl`。
+   */
   return (
-    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-5xl mx-auto w-full">
+    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
           ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
           辿れない（実測: 390px 幅で h1 が0件）。**見た目は変えない**——
           画面に出さない見出しを1つ置く。広い画面では下の h1 が出るので、
           `sm:hidden` で重複させない */}
-      <h1 className="sr-only sm:hidden">{labels.site?.title ?? "Gallery"}</h1>
+      <h1 className="sr-only sm:hidden">{heading}</h1>
 
       {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
       <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">
           <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
-            {labels.site?.title ?? "Gallery"}
+            {heading}
           </h1>
-          {renderSubtitle(labels.site?.subtitle)}
+          {!isSearch && renderSubtitle(labels.site?.subtitle)}
         </div>
       </div>
 
       {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
           自分の写真かフォロー中の人の写真みれるようにしたい」。
           「すべて」は未ログインの人が見るのと同じ一覧。既定は「自分」（上の effect） */}
-      {isAuthenticated && (
-        <div role="group" aria-label={locale === "en" ? "Whose photos" : "誰の写真を見るか"}
+      {surface === "home" && (
+        <div role="group" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
              className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
           {([
-            { key: "mine", label: locale === "en" ? "Mine" : "自分" },
+            { key: "featured", label: locale === "en" ? "For you" : "おすすめ" },
             { key: "following", label: locale === "en" ? "Following" : "フォロー中" },
-            { key: "all", label: locale === "en" ? "All" : "すべて" },
+            { key: "all", label: locale === "en" ? "New" : "新着" },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -372,7 +519,7 @@ export default function GalleryPageClient() {
               onClick={() => setFilters({ scope: t.key })}
               aria-pressed={filters.scope === t.key}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filters.scope === t.key ? "bg-white text-black" : "text-white/70 hover:text-white"
+                filters.scope === t.key ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
               }`}
               style={{ touchAction: "manipulation" }}
             >
@@ -389,37 +536,126 @@ export default function GalleryPageClient() {
           （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
-      {isAuthenticated && filters.scope === "following" ? (
-        <div className="max-w-xl mx-auto">
+      {surface === "home" && filters.scope === "following" ? (
+        <HomeColumns rail={discoverRail}>
           <TimelineFeed locale={locale} />
-        </div>
+        </HomeColumns>
+      ) : surface === "home" && filters.scope === "featured" ? (
+        /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
+           `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
+           `max-w-5xl` いっぱいである前提**で `sizes` を申告している。
+           36rem の柱の中へ入れると箱は 139.5px なのに 235.5px と申告する
+           ことになり、`gridSizes.ts` が禁じている「申告と実寸のずれ」を
+           作る。**既にカテゴリごとのグリッド＝横を使う形**なので、
+           ここは広いまま置く。付けるなら `FeaturedSections` に `sizes` を
+           渡せるようにするのが先（本番の `featured` は 0枚なので、
+           いま実際に出るのは下の空の知らせ）。
+
+           **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
+           （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
+           持ち場にする——同じものを二度作らない。
+           **人気順ではない**（実データは いいね0・コメント0 で、人気の
+           根拠がどこにも無い）。1枚も選ばれていなければそう言う */
+        hasFeatured && !narrowedNow ? (
+          <FeaturedSections
+            photos={PHOTOS}
+            categoryNames={labels.category?.names ?? {}}
+            locale={locale}
+            categoryDisplayMap={categoryDisplayMap}
+            onOpenPhoto={openById}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+            <p className="text-sm m-0">
+              {locale === "en" ? "No picks yet." : "まだおすすめは選ばれていません。"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilters({ scope: "all" })}
+              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              style={{ touchAction: "manipulation" }}
+            >
+              {locale === "en" ? "See what's new" : "新着を見る"}
+            </button>
+          </div>
+        )
+      ) : surface === "home" ? (
+        /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
+           グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
+           1枚ずつ見るのは別の体験なので、面を分ける */
+        <HomeColumns rail={discoverRail}>
+          {filteredPhotos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+              <p className="text-sm m-0">
+                {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+              </p>
+            </div>
+          ) : (
+            <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
+              {filteredPhotos.map((p, i) => (
+                <li key={p.id} className="m-0 p-0">
+                  <TimelineCard
+                    photo={p}
+                    locale={locale === "en" ? "en" : "ja"}
+                    priority={i < HOME_PRIORITY_COUNT}
+                    isAuthenticated={isAuthenticated}
+                    authLoading={authLoading}
+                    savedIds={savedIds}
+                  />
+                </li>
+              ))}
+            </ol>
+          )}
+        </HomeColumns>
       ) : (
-      <>
+      /**
+       * **「さがす」の PC は2カラム**（owner の指示書 4・11・17:
+       * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
+       * Webサイトとして最適なレイアウトを設計してください」）。
+       *
+       *   < 1024px … 最終版モックのまま（絞り込み → 発見の節 → 結果）
+       *   ≥ 1024px … **左に絞り込みの柱**（画面に貼り付く）／右に写真の面
+       *
+       * 柱にするのは、この画面がいちばん長くなる面だから——結果が
+       * 数十枚あるとスクロールの先で絞り込みが画面から消え、条件を
+       * 変えるたびに上まで戻ることになる。マップ（左に一覧／右に地図）と
+       * 同じ考え方。
+       *
+       * 柱は `lg:top-[88px]`＝ヘッダー（`md:` で 72px）の下 16px。
+       * **`overflow-y-auto` は付けない**——並び替えの一覧が
+       * `absolute` で吊り下がるので、切り取られる箱を作ると隠れる。
+       */
+      <div className="lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <div className="lg:sticky lg:top-[88px]">
       <FilterBar
         categories={categories}
         tags={tags}
         values={filters}
         onChange={setFilters}
-        className="mb-4"
+        className="mb-4 lg:mb-0"
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
         tagCounts={tagCounts}
       />
+      </div>
 
-      {/* **おすすめ（運営が選ぶ）。**
-          **絞り込み中は出さない**——絞った結果の上に、絞りと関係ない写真が
-          並ぶと何を見ているか分からなくなる。
-          1枚も選ばれていなければ、この部品が自分で何も出さない */}
-      {filters.scope === "all" && filters.category === "all" && filters.selectedTags.length === 0
-        && !filters.query.trim() && (
-        <FeaturedSections
-          photos={PHOTOS}
-          categoryNames={labels.category?.names ?? {}}
-          locale={locale}
-          categoryDisplayMap={categoryDisplayMap}
-          onOpenPhoto={openById}
-        />
-      )}
+      <div className="min-w-0">
+      {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
+          絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
+          グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
+          `usePhotos()` を2つ動かしていた（PR #72 の積み残し3件をここで解く）。
+          色を持つ写真が1枚も無ければ丸ごと描かない */}
+      {/* 発見の面（最終版モックの中段・指示書 7）。**絞り込みに連動させない**
+          ——「いま何があるか」を出す面なので、絞り込んだ結果で節が消えると
+          探しに来た人の手がかりが無くなる。実データが無い節は丸ごと出さない */}
+      <DiscoverSections photos={PHOTOS} locale={locale} categoryDisplayMap={categoryDisplayMap} />
+
+      <ColorJourney
+        photos={filteredPhotos}
+        locale={locale}
+        categoryDisplayMap={categoryDisplayMap}
+        onOpenPhoto={openById}
+      />
 
       <>
         <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
@@ -439,26 +675,15 @@ export default function GalleryPageClient() {
               {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
             </p>
           </div>
-        ) : filteredPhotos.length === 0 && filters.scope === "mine" && isAuthenticated
-          && filters.category === "all" && filters.selectedTags.length === 0 && !filters.query.trim() ? (
-          // **「自分」で0枚は「条件に一致しない」ではない**——まだ投稿していないだけ。
-          // ログイン直後の既定がこのタブなので、最初に見るのはここ。投稿への導線を出す
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm">
-              {locale === "en" ? "You haven't posted any photos yet." : "まだ写真を投稿していません。"}
-            </p>
-            <Link href={ROUTES.UPLOAD} prefetch={false}
-                  className="px-5 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors">
-              {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
-            </Link>
-          </div>
         ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
             <p className="text-sm">
               {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
             </p>
             <button
-              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new" })}
+              // `scope` も戻す。「さがす」にはタブが無いので、URL から来た
+              // `?scope=following`（一覧が空になる）をここでしか外せない
+              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" })}
               className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
               style={{ touchAction: "manipulation" }}
             >
@@ -467,7 +692,8 @@ export default function GalleryPageClient() {
           </div>
         ) : (
           <GalleryGrid
-                        sizes={GRID_SIZES_5XL}
+            sizes={GRID_SIZES_SEARCH}
+            columnsClassName={GRID_COLUMNS_SEARCH}
             photos={filteredPhotos}
             locale={locale}
             categoryDisplayMap={categoryDisplayMap}
@@ -475,7 +701,8 @@ export default function GalleryPageClient() {
           />
         )}
       </>
-      </>
+      </div>
+      </div>
       )}
 
       <SearchParamWatcher name="photo" onChange={setPhotoParam} />

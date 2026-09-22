@@ -2,17 +2,14 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import CropFramePicker from "../../components/CropFramePicker";
-import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PhotoIcon, XMarkIcon, UserCircleIcon, MapPinIcon, CalendarIcon, ChevronDownIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, XMarkIcon, MapPinIcon, CalendarIcon, PlusIcon, PaperAirplaneIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useAuth } from "../../auth/context";
 import AddToHomeScreenHint from "../../components/AddToHomeScreenHint";
 import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
-// 薄い入口から引く（`lib/auth/session.ts`。端末に痕跡が無ければ SDK を読まない）
-import { getCurrentSession } from "../../../lib/auth/session";
-import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder, AVATAR_MAX_PX } from "../../../lib/utils/image";
+import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
 import { ROUTES } from "../../../lib/routes";
@@ -20,21 +17,54 @@ import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { userFacingUploadError, UPLOAD_FAILED_MESSAGE } from "./errorText";
 import { CANCEL_DISCARD_WAIT_MS } from "./cancelWait";
-import { unstrippableMessage, gifRejectedMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
+import { unstrippableMessage, gifRejectedLabel } from "../../../lib/utils/uploadRejection";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
-import { PHOTO_LIMIT_PER_USER } from "../../../lib/utils/uploadLimits";
-import { publicImageUrl } from "@/lib/utils/seo";
+import { PHOTO_LIMIT_PER_USER, PHOTO_IMAGES_MAX } from "../../../lib/utils/uploadLimits";
 
+/**
+ * **最終版モック（`docs/mockups/07-post-create.jpg`）から測った寸法。**
+ *
+ * 測り方はモックの README のとおり——シートの端末画面の幅を 393 CSS px と
+ * 置いて比を取る。この1枚は画面が **x=347..732（386画素）** なので
+ * **1画素 ≈ 1.018 CSS px**（家の中の丸め誤差は ±1px）。
+ *
+ *     部品                    モックの画素        使う値
+ *     左右の余白              12                  12px
+ *     ヘッダーの中身の高さ     32                  バー全体 52px
+ *     「下書き保存」のピル      93×32               高さ 32px・角丸 full
+ *     ヒーロー                362×157             幅いっぱい・**16/7**（≒369×161）
+ *     サムネ                  60×78               **64×80（4:5）**・間 6px
+ *     題の入力欄（1行）        362×37              高さ 40px
+ *     キャプション            362×80              高さ 80px
+ *     チップ                  高さ 31             高さ 32px・角丸 full
+ *     タグの入力欄            高さ 35             高さ 40px
+ *     位置情報の行            高さ 44             高さ 44px
+ *     「投稿する」            362×45              幅いっぱい・高さ 46px・角丸 full
+ *     見出しの字（漢字 0.88em）字高 11.2          13px
+ *     行のラベルの字           字高 12.2           14px
+ *     カウンタの字             字高 10.2           12px
+ *     「投稿する」の字         字高 15.3           17px
+ *
+ * **入力欄の中の字だけはモックより大きい 16px。** 16px 未満だと iOS が
+ * 焦点を当てた瞬間に画面を拡大する（この画面は前から `fontSize: "16px"` を
+ * 直書きしている）。モックの実測は約 15px。
+ */
 
-
-const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
+/**
+ * 画面の幅。**モックは iPhone だけなので、PC は別に組む**（owner の指示）。
+ * 1024px 未満は 560px で頭打ちにして横に伸ばさない（伸ばすとヒーローだけが
+ * 巨大になり、モックの比が崩れる）。1024px 以上は「写真の列 ＋ 入力の列」の
+ * 2段組み（`lg:` の指定）。
+ */
+const COLUMN = "mx-auto w-full max-w-[560px] lg:max-w-[980px] px-3";
 
 type Status = "pending" | "uploading" | "done" | "error";
 
@@ -54,7 +84,6 @@ type Item = {
     dateTimeOriginal?: string;
     latitude?: number;
     longitude?: number;
-    expanded: boolean;
     status: Status;
     progress: number;
     error?: string;
@@ -109,9 +138,6 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
 }
 
 function UploadPageInner() {
-    // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
-    const bottomBarRef = useRef<HTMLDivElement | null>(null);
-    useBottomBarHeight(bottomBarRef);
     const { isAuthenticated, isAdminUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -301,6 +327,28 @@ function UploadPageInner() {
     // 59種あり、絞らないと上位12種しか選べない（残り47種は打つしかない＝
     // 打つから表記が割れる）。理由と実測は `suggestTags` に書いた
     const tagSuggestions = useMemo(() => suggestTags(TAG_CHOICES, tags, TAG_CHOICES.length), [tags]);
+    /**
+     * いま選んでいるタグ（モック④の「#サントリーニ ✕」の並び）。
+     * **欄はカンマ区切りの文字列のまま**なので、ここで切り出すだけ——
+     * 状態を2つ持つと「欄に打った字」と「チップ」がずれる。
+     */
+    const chosenTags = useMemo(() => {
+        // **`tagKey` で畳む。** 生の綴りで並べると `桜, 桜` が React の
+        // 同じ key で2つ並び（開発ビルドで警告・並び替えで壊れる）、
+        // `自然, nature` は**2つ出るのに ✕ が両方消す**（`toggleTag` は
+        // キーで外すため）。畳んだ結果は**最初に打った綴り**を残す
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const raw of tags.split(",")) {
+            const t = raw.trim();
+            if (!t) continue;
+            const key = tagKey(t) || t;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(t);
+        }
+        return out;
+    }, [tags]);
 
     useEffect(() => {
         if (loading || !isAuthenticated) return;
@@ -339,6 +387,29 @@ function UploadPageInner() {
         return () => { aborted = true; };
     }, [isAuthenticated, loading]);
     // 管理者は上限の対象外（サーバーも isAdmin を見て免除している）
+    /**
+     * **選んだ写真を1件の投稿にまとめるか**（owner のモックの「1/10」）。
+     *
+     * 既定は off ＝ **今までどおり「N枚選ぶ → N件の投稿」**。owner は
+     * まとめて上げる使い方をしているので、既定を変えると黙って挙動が変わる。
+     *
+     * on のとき: 1枚目が表紙（`src`）、残りが `extraImages`。題・説明・
+     * 撮影地は**1枚目のもの**を使う（投稿が1件なので1組しか持てない）。
+     */
+    const [asOnePost, setAsOnePost] = useState(false);
+
+    /**
+     * **いま編集している写真**（モックのヒーローと、サムネ帯の「1/5」）。
+     *
+     * 題・説明・撮影地は**写真ごと**に持つ（`Item`）。前の画面は同じ名前の欄を
+     * 枚数ぶん縦に並べていたので、5枚選ぶと「タイトル（任意）」が5つ並んだ。
+     * モックは1枚ぶんの欄しか持たないので、**サムネで選んだ1枚の欄だけ**を出す。
+     *
+     * 消えた ID・未設定のときは**先頭に落とす**（下の `selected`）。ここで
+     * `null` のままにすると、削除した直後に「どれも選ばれていない空白」が残る。
+     */
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+
     const remainingSlots = isAdminUser || usedSlots === null
         ? null
         : Math.max(0, PHOTO_LIMIT_PER_USER - usedSlots);
@@ -402,19 +473,12 @@ function UploadPageInner() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fromShare, loading, isAuthenticated]);
 
-    // プロフィール写真
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-    const [avatarFile, setAvatarFile] = useState<File | null>(null);
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-    const [avatarUploading, setAvatarUploading] = useState(false);
-    const [avatarCacheBust, setAvatarCacheBust] = useState(Date.now());
-
-    useEffect(() => {
-        getCurrentSession().then((session) => {
-            const sub = session?.getIdToken()?.payload?.sub as string | undefined;
-            if (sub) setCurrentUserId(sub);
-        }).catch(() => { /* ignore */ });
-    }, []);
+    // **プロフィール写真の欄はこの画面から外した**（2026-09-22・最終版モック）。
+    // モックの「投稿作成画面」には無く、同じ操作が `/user/profile` に
+    // 丸ごとある（アバターもカバーも・presigned URL も同じ
+    // `POST /profile/avatar/presigned-url`）。投稿を作る画面に「自分の顔を
+    // 変える」欄が同居していたのは、この画面が「マイページ代わり」だった
+    // 名残りで、**同じものを二度持っていた**。
 
     const addFiles = useCallback(async (files: File[], shared?: { title?: string; text?: string }) => {
         setFileError(null);
@@ -489,7 +553,6 @@ function UploadPageInner() {
             title: sharedTitle,
             description: sharedText,
             location: "",
-            expanded: false,
             status: "pending",
             progress: 0,
         }));
@@ -667,6 +730,21 @@ function UploadPageInner() {
                     : `説明は${DESC_STRING_MAX}字までです。超えた分は保存されません`, "error");
             }
 
+            /**
+             * **1件の投稿にまとめるか。** 2枚以上あるときだけ意味を持つ。
+             * 枚数が上限（`PHOTO_IMAGES_MAX`）を超えるときは、まとめずに
+             * 今までどおり1枚ずつにする——**黙って11枚目以降を落とさない**
+             * （押せないようにボタン側でも止めているが、ここでも見る）
+             */
+            const groupMode = asOnePost && pending.length > 1 && pending.length <= PHOTO_IMAGES_MAX;
+            /** まとめる回に、S3 へ上げ終わったぶんを控える（1枚目が表紙） */
+            // 寸法（`width`/`height`）はこの画面が持っていないので送らない
+            // ——ビルド（`generate-thumbnails.js`）が埋める
+            const group: Array<{
+                item: Item; key: string; publicUrl: string; thumbUrl?: string;
+                dominantColor?: string | null; blurDataURL?: string | null;
+            }> = [];
+
             let successCount = 0;
             // **失敗は別に数える。** やめたときは「上げていない残り」が出るので
             // `pending.length - successCount` は使えない（手を付けていない
@@ -808,6 +886,17 @@ function UploadPageInner() {
                     //   保存の口に届いてから止まるのでは遅い）
                     if (signal.aborted) throw new DOMException("cancelled", "AbortError");
 
+                    // **1件にまとめる回は、ここでは保存しない。** 2枚目以降は
+                    // `extraImages` として最後の1回の保存に乗せる。
+                    // **控えるのは S3 に上がったもの**（`item.uploaded` と同じ
+                    // 中身）なので、保存に失敗しても押し直せば使い回せる
+                    // ——1枚ずつの経路と同じ扱い
+                    if (groupMode) {
+                        group.push({ item, key, publicUrl, thumbUrl, dominantColor, blurDataURL });
+                        updateItem(item.id, { progress: 90 });
+                        continue;
+                    }
+
                     const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
@@ -886,6 +975,70 @@ function UploadPageInner() {
                 }
             }
 
+            // **まとめる回は、ここで1回だけ保存する。**
+            //
+            // 1枚目が表紙（`src`）、2枚目以降が `extraImages`。題・説明・撮影地は
+            // 1枚目のものを使う（投稿が1件なので1組しか持てない）。
+            //
+            // **途中でやめた回は保存しない**——半端な枚数で1件できてしまうと、
+            // 「やめた」のに投稿が世に出る。上げ終わったぶんは `item.uploaded` に
+            // 残るので、押し直せば使い回せる（1枚ずつの経路と同じ）。
+            if (groupMode && group.length > 0 && !cancelled && !signal.aborted) {
+                const [cover, ...rest] = group;
+                const c = cover.item;
+                try {
+                    const coords = gpsAutofill && c.latitude !== undefined && c.longitude !== undefined
+                        ? { lat: Math.round(c.latitude * 100) / 100, lng: Math.round(c.longitude * 100) / 100 }
+                        : undefined;
+                    const cameraExif = await extractCameraExif(c.file);
+                    const saveResponse = await apiFetch("/upload/save", {
+                        method: "POST",
+                        signal,
+                        body: JSON.stringify({
+                            key: cover.key, publicUrl: cover.publicUrl,
+                            published,
+                            ...(c.dateTimeOriginal ? { date: c.dateTimeOriginal } : {}),
+                            title: c.title || undefined,
+                            description: c.description || undefined,
+                            location: c.location || undefined,
+                            category: category || undefined,
+                            tags: tagList,
+                            ...(coords ? { coords } : {}),
+                            ...(c.focalPoint ? { focalPoint: c.focalPoint } : {}),
+                            ...(cover.dominantColor ? { dominantColor: cover.dominantColor } : {}),
+                            ...(cover.blurDataURL ? { blurDataURL: cover.blurDataURL } : {}),
+                            ...(cover.thumbUrl ? { thumbUrl: cover.thumbUrl } : {}),
+                            ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
+                            ...(albumId ? { albumId } : {}),
+                            // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
+                            // 確かめる（`api-user/src/photoImages.ts`）ので、
+                            // 通らなかったぶんは黙って落ちる——だから枚数は
+                            // こちらでも上限内に収めてある
+                            extraImages: rest.map((g) => ({
+                                src: g.publicUrl, key: g.key,
+                                ...(g.thumbUrl ? { thumbSrc: g.thumbUrl } : {}),
+                                ...(g.dominantColor ? { dominantColor: g.dominantColor } : {}),
+                                ...(g.blurDataURL ? { blurDataURL: g.blurDataURL } : {}),
+                            })),
+                        }),
+                    });
+                    if (!saveResponse.ok) {
+                        throw new Error(await readApiError(saveResponse,
+                            locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
+                    }
+                    for (const g of group) updateItem(g.item.id, { status: "done", progress: 100 });
+                    successCount = group.length;
+                    // **枠は1件ぶんしか減らない**（投稿が1件なので）。
+                    // ここを枚数ぶん引くと「あと N 枚」が実際より少なく出る
+                    setUsedSlots((n) => (n === null ? n : n + 1));
+                } catch (err) {
+                    log.error("grouped upload save failed:", err);
+                    const msg = userFacingUploadError(err);
+                    for (const g of group) updateItem(g.item.id, { status: "error", error: msg });
+                    failCount = group.length;
+                }
+            }
+
             // **`signal.aborted` も見る。** `abort()` は決着済みの Promise を
             // 巻き戻せないので、押した時点で保存の応答が届いていた回は
             // `cancelled` が立たず、「アップロードしました」と出してトップへ
@@ -905,12 +1058,25 @@ function UploadPageInner() {
                 return;
             }
             if (successCount > 0) {
+                // **まとめた回は「1件の投稿」と言う。** 「5枚アップロード
+                // しました」だと5件できたように読める（枠も1つしか減らない）。
+                // **ここで `return` しない**——下の「N 件失敗しました」に
+                // 届かなくなる（上げ損ねた写真があった回だけ、その通知が
+                // 静かに消える。`2a90081e` で一度踏んだ形）
                 showToast(
-                    published
-                        ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
-                        : (locale === "en"
-                            ? `Saved ${successCount} draft(s). Fill in details later and publish.`
-                            : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`),
+                    groupMode
+                        ? (published
+                            ? (locale === "en"
+                                ? `Posted 1 photo set (${successCount} photos)`
+                                : `${successCount}枚を1件の投稿にしました`)
+                            : (locale === "en"
+                                ? `Saved 1 draft (${successCount} photos). Fill in details later and publish.`
+                                : `${successCount}枚を1件の下書きにしました。あとで編集して公開できます`))
+                        : (published
+                            ? (locale === "en" ? `${successCount} photo(s) uploaded` : `${successCount} 枚アップロードしました`)
+                            : (locale === "en"
+                                ? `Saved ${successCount} draft(s). Fill in details later and publish.`
+                                : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`)),
                     "success",
                 );
                 // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
@@ -933,7 +1099,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -942,119 +1108,364 @@ function UploadPageInner() {
     // （見えないまま止まるだけで、選び直すのと同じことになる）
     if (gate !== "ok" && !holdingWork) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full flex items-center justify-center">
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         );
     }
 
-    const inputCls = "w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
     const doneCount = items.filter((i) => i.status === "done").length;
     const pendingCount = items.filter((i) => i.status === "pending" || i.status === "error").length;
+    /**
+     * 1件にまとめるには多すぎるか。**まとめずに1枚ずつへ倒す**——
+     * ここで黙って先頭10枚だけにすると、11枚目以降が消えたことに
+     * 気づけない（保存は成功して、あとで開くと足りない）
+     */
+    const tooManyToGroup = pendingCount > PHOTO_IMAGES_MAX;
+    /** 押したときに1件の投稿になるか（ボタンの文言に出す） */
+    const willBeOnePost = pendingCount <= 1 || (asOnePost && !tooManyToGroup);
+    const isJa = locale !== "en";
+
+    /** サムネで選んでいる写真（ヒーローに出る）。消えた ID・未設定のときは先頭 */
+    const selected: Item | undefined = items.find((i) => i.id === selectedId) ?? items[0];
+    /** 読み上げる名前に入れる「何枚目か」。1 始まり */
+    const selectedNo = selected ? items.findIndex((i) => i.id === selected.id) + 1 : 0;
+
+    /**
+     * **まとめる回に、題・説明・撮影地が実際に保存される1枚。**
+     *
+     * `handleUploadAll` は `pending`（まだ上げていない写真）の**先頭**を表紙に
+     * して、その1枚の題・説明・撮影地を投稿に載せる（投稿が1件なので1組しか
+     * 持てない）。前の画面は全部の欄が同時に見えていたので気づけたが、
+     * **1枚ぶんしか描かない今の形では、3枚目に書いたキャプションが黙って
+     * 捨てられる**（レビューで出た）。だから**まとめる回は欄も表紙の1枚に
+     * 固定する**——ヒーローはサムネで選んだ写真のまま切り替わる。
+     *
+     * 「1枚目」と決め打ちにしない。1枚目が上げ終わっている（`done`）回は、
+     * 表紙になるのは**次に残っている写真**なので、番号も数え直す。
+     */
+    const coverItem = items.find((i) => i.status === "pending" || i.status === "error");
+    const groupMode = asOnePost && pendingCount > 1 && !tooManyToGroup;
+    const editing: Item | undefined = groupMode ? (coverItem ?? selected) : selected;
+    const editingNo = editing ? items.findIndex((i) => i.id === editing.id) + 1 : 0;
+    /** 上げ終わった写真の欄は触らせない（サーバーの値と食い違う） */
+    const fieldsLocked = uploading || editing?.status === "done";
+
+    /**
+     * 欄の見た目（モックの実測）。**入力の字だけ 16px**——それ未満だと
+     * iOS が焦点を当てた瞬間に画面を拡大する。
+     */
+    const fieldCls = "w-full px-3 bg-surface-2 border border-line rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-accent transition-colors disabled:opacity-50";
+    const fieldStyle: React.CSSProperties = { fontSize: "16px" };
+    const labelStyle: React.CSSProperties = { fontSize: "13px" };
+    const labelCls = "block font-semibold text-white/80 mb-2";
+    const counterCls = "mt-1 text-right text-white/50";
+    const counterStyle: React.CSSProperties = { fontSize: "12px" };
+    /** チップ（モック 高さ32・角丸 full）。`chipTapSpacing.test.tsx` が高さの前提を持つ */
+    const chipCls = "px-3 rounded-full ring-1 inline-flex items-center transition-colors disabled:opacity-40";
+    const chipStyle: React.CSSProperties = { minHeight: "32px", fontSize: "13px", touchAction: "manipulation" };
+
+    /**
+     * ヘッダーの ✕。**確認を挟まない**——ブラウザの戻るボタンで前からできる
+     * ことと同じで、ここだけ関門を作っても抜け道が残る。
+     *
+     * ⚠️ **「何も残らない」わけではない。** S3 への PUT は通ったが
+     * `/upload/save` で落ちた写真は `item.uploaded` に控えてあり（押し直せば
+     * 使い回せるように、わざと消していない）、この画面を離れると
+     * **誰も辿れない実体として S3 に残る**。掃除しているのは「✕ で1枚消した」
+     * 回だけ（`removeItem` → `discardUploaded`）で、それは**この差分より前から
+     * そう**——閉じ際にまとめて捨てるのは振る舞いの追加なので、ここでは
+     * 事実だけ書き残す。
+     *
+     * 履歴が無いとき（共有シートから直接開いた回）だけトップへ逃がす。
+     */
+    const closeComposer = () => {
+        if (typeof window !== "undefined" && window.history.length > 1) router.back();
+        else router.push(ROUTES.HOME);
+    };
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full pb-32">
-            <div className="flex items-start justify-between gap-3 mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold">
-                    {locale === "en" ? "Upload Photos" : "写真をアップロード"}
-                </h1>
+        <main className="min-h-screen bg-bg text-white">
+            {/* ── ヘッダー（モック①⑧）。✕ ／ 題 ／ 下書き保存 ──
+                高さ52px・下書き保存は青のピル（93×32画素 → 32px・角丸 full）。
+                共通ヘッダー（`app/layout.tsx` の `sticky top-0`）の下に重ねる
+                ので、こちらは `sticky` にしない——2本のバーが同時に貼り付くと
+                狭い画面で本文が 116px ぶん隠れる */}
+            <div className="border-b border-line bg-bar">
+                <div className={`${COLUMN} grid grid-cols-[44px_1fr_auto] items-center gap-2`} style={{ minHeight: "52px" }}>
+                    <button
+                        type="button"
+                        onClick={closeComposer}
+                        aria-label={isJa ? "投稿の作成をやめる" : "Close"}
+                        className="justify-self-start inline-flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                        style={{ width: "44px", height: "44px", touchAction: "manipulation" }}
+                    >
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                    <h1 className="text-center font-semibold" style={{ fontSize: "16px" }}>
+                        {isJa ? "新しい投稿を作成" : "New post"}
+                    </h1>
+                    {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる。
+                        **地名の引き当てを待たない**——下書きは公開ではないので、
+                        場所は後から編集画面で足せる。公開だけが待つ
+                        （場所の無いまま公開される事故を過去に踏んでいるため） */}
+                    <button
+                        type="button"
+                        onClick={() => handleUploadAll(false)}
+                        disabled={uploading || pendingCount === 0}
+                        className="justify-self-end px-4 rounded-full bg-accent-fill text-white font-semibold hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ minHeight: "32px", fontSize: "13px", touchAction: "manipulation" }}
+                    >
+                        {isJa ? "下書き保存" : "Save draft"}
+                    </button>
+                </div>
             </div>
 
             {/* iOS向け「ホーム画面に追加」ヒント（該当時のみ表示） */}
-            <AddToHomeScreenHint />
+            <div className={COLUMN}>
+                <AddToHomeScreenHint />
+            </div>
 
-            {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
-                取れていなければ何も出さない（推測した数字は見せない）。 */}
-            {remainingSlots !== null && (
-                <p className={`text-xs mb-3 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/50"}`}>
-                    {remainingSlots === 0
-                        ? (locale === "en"
-                            ? `Upload limit reached (${PHOTO_LIMIT_PER_USER}). Delete a photo to make room.`
-                            : `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`)
-                        : (locale === "en"
-                            ? `${remainingSlots} of ${PHOTO_LIMIT_PER_USER} uploads left`
-                            : `あと${remainingSlots}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`)}
-                </p>
-            )}
+            {/* 1024px 以上は「写真の列 ／ 入力の列」の2段組み（モックは iPhone
+                だけなので、横に引き伸ばさず別に組む）。写真の列は貼り付けて
+                おく——右の欄を打っている間も、どの写真の話かが見えている */}
+            <div className={`${COLUMN} pb-40 lg:grid lg:grid-cols-[minmax(0,392px)_minmax(0,1fr)] lg:gap-8 lg:items-start`}>
 
-            {/* ファイル選択 */}
-            {/* **入力は sr-only にする（hidden にしない）。**
-                `hidden` は display:none なので、その input は**フォーカスできない**
-                ——`<label>` 自体もタブ順に入らないので、キーボードだけの人は
-                写真を選ぶ手段が無く、このページで何もできなかった
-                （ドロップも貼り付けも `ref.click()` も無い）。
-                sr-only なら見た目はそのままで、Tab で届き Enter で開ける。
-                枠が光るように focus-within も付ける（どこにいるか分かるように）。 */}
-            <label
-                htmlFor="files-input"
-                className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-white/40 focus-within:border-white/60 transition-colors mb-4"
-                style={{ touchAction: "manipulation", minHeight: "120px" }}
-            >
-                <PhotoIcon className="w-10 h-10 text-white/40 mb-2" />
-                <p className="text-sm text-white/70 font-semibold">
-                    {locale === "en" ? "Tap to choose photos" : "タップして写真を選ぶ"}
-                </p>
-                <p className="text-xs text-white/50 mt-1">
-                    {locale === "en" ? "Multiple selection supported (max 50MB each)" : "複数選択OK・各50MBまで"}
-                </p>
-                <input
-                    id="files-input"
-                    type="file"
-                    multiple
-                    className="sr-only"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    disabled={uploading}
-                />
-            </label>
+                {/* ───────── 写真（モック①②） ───────── */}
+                <div className="pt-3 lg:sticky lg:top-[88px]">
+                    {selected ? (
+                        <>
+                            {/* ヒーロー（モック①）。中身は `CropFramePicker`
+                                ——一覧に出る範囲をドラッグで決める既存の機能で、
+                                焦点は写真ごとに保存される。
+                                **モックの比（362×157画素＝ほぼ 16/7）に切り詰めない。**
+                                あの枠に `object-contain` で入れると、縦長でも 3:2 でも
+                                左右が黒帯になる（実ブラウザで確認した）。切り抜きの
+                                白枠は**写真そのものの形**の上に描く道具なので、
+                                写真を歪めない側を採る */}
+                            <div className="relative overflow-hidden rounded-2xl bg-black ring-1 ring-line">
+                                <CropFramePicker
+                                    key={selected.preview}
+                                    src={selected.preview}
+                                    hint={isJa
+                                        ? "白い枠が一覧に表示されます（ドラッグで移動）"
+                                        : "White frame = shown in the grid (drag to move)"}
+                                    focalPoint={selected.focalPoint}
+                                    onChange={(focalPoint) => updateItem(selected.id, { focalPoint })}
+                                    // **このブラウザで開けなかった写真**（PC の Chrome で選んだ
+                                    // HEIC など。`addFiles` が断るのは「画像でない」「GIF」
+                                    // 「50MB超」だけなので、種別が画像で開けないファイルは
+                                    // ここまで来る）。文言は公開を押したときに出るものと
+                                    // 同じにする（画面ごとに書き分けない）
+                                    fallback={
+                                        <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
+                                            <PhotoIcon className="w-8 h-8" />
+                                            <p style={{ fontSize: "12px" }}>{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
+                                        </div>
+                                    }
+                                />
+                                {/* 「1/5」（モック①）。**枚数は選んだ実数**で、絵ではない。
+                                    **モックは左下だが、ここは左上に置く**——切り抜きの
+                                    説明（`CropFramePicker` の帯・中央下）と実測で重なった
+                                    （393px 幅で帯は左端 35px から・バッジは 12〜54px）。
+                                    帯は編集画面と共有の部品なので、こちらが避ける */}
+                                {items.length > 1 && (
+                                    <span
+                                        className="absolute left-3 top-3 rounded-full bg-black/60 px-2.5 py-1 text-white"
+                                        style={{ fontSize: "12px" }}
+                                    >
+                                        {selectedNo}/{items.length}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => removeItem(selected.id)}
+                                    disabled={uploading || selected.status === "uploading"}
+                                    className="absolute top-3 right-3 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors disabled:opacity-30 z-10"
+                                    aria-label={isJa ? "表示中の写真を外す" : "Remove the photo shown above"}
+                                    style={{ touchAction: "manipulation" }}
+                                >
+                                    <XMarkIcon className="w-5 h-5" />
+                                </button>
+                            </div>
 
-            {/* カメラ直撮り（スマホで背面カメラを直接起動）。ギャラリー選択とは別入力にする */}
-            <label
-                htmlFor="camera-input"
-                className="flex items-center justify-center gap-2 w-full rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 focus-within:ring-white/60 transition-colors mb-4 cursor-pointer text-sm text-white/80"
-                style={{ touchAction: "manipulation", minHeight: "44px" }}
-            >
-                <CameraIcon className="w-5 h-5 text-white/60" />
-                {locale === "en" ? "Take a photo" : "写真を撮る"}
-                <input
-                    id="camera-input"
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="sr-only"
-                    onChange={handleFileSelect}
-                    disabled={uploading}
-                />
-            </label>
+                            {/* サムネ帯（モック①）。64×80（4:5・実測 60×78画素）・間6px。
+                                10枚でも収まらないので横に流す */}
+                            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={isJa ? "選んだ写真" : "Selected photos"}>
+                                {items.map((it, i) => (
+                                    <div key={it.id} className="relative flex-shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedId(it.id)}
+                                            aria-current={it.id === selected.id}
+                                            aria-label={isJa ? `${i + 1}枚目を選ぶ` : `Select photo ${i + 1}`}
+                                            className={`block overflow-hidden rounded-[10px] ring-2 transition-colors ${it.id === selected.id ? "ring-accent" : "ring-transparent hover:ring-white/30"}`}
+                                            style={{ width: "64px", height: "80px", touchAction: "manipulation" }}
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={it.preview} alt="" className="w-full h-full object-cover" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeItem(it.id)}
+                                            disabled={uploading || it.status === "uploading"}
+                                            // **語は変えない**（元から「削除」）。足すのは何枚目かだけ
+                                            aria-label={isJa ? `${i + 1}枚目を削除` : `Remove photo ${i + 1}`}
+                                            // **24px を下回らない**（WCAG 2.5.8・AA）。
+                                            // この的は 64×80 の「選ぶ」ボタンの上に乗るので、
+                                            // 小さい的に許される「間隔の例外」は使えない
+                                            // ——大きさそのもので満たす
+                                            className="absolute top-0.5 right-0.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-colors disabled:opacity-30 inline-flex items-center justify-center"
+                                            style={{ width: "24px", height: "24px", touchAction: "manipulation" }}
+                                        >
+                                            <XMarkIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                        {/* 状態（上げている最中・完了・失敗）はこの1枚の下に出す */}
+                                        {it.status === "uploading" && (
+                                            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+                                                <div className="h-full bg-accent transition-all" style={{ width: `${it.progress}%` }} />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {/* 「追加する（1-10枚）」（モック①）。**枚数はサーバーと
+                                    同じ定数**（`PHOTO_IMAGES_MAX`）から出す */}
+                                <label
+                                    htmlFor="files-input"
+                                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-line text-white/70 cursor-pointer hover:border-accent focus-within:border-accent transition-colors"
+                                    style={{ width: "64px", height: "80px", touchAction: "manipulation" }}
+                                >
+                                    <PlusIcon className="w-5 h-5" />
+                                    {/* **枚数は書かない。** モックは「（1-10枚）」だが、
+                                        `PHOTO_IMAGES_MAX` は**1件の投稿に入る枚数**の上限で、
+                                        選べる枚数ではない（既定は N枚 → N件の投稿）。
+                                        10枚の話は「1件の投稿にまとめる」の説明が持つ */}
+                                    <span className="text-center leading-tight" style={{ fontSize: "11px" }}>
+                                        {isJa ? "追加する" : "Add"}
+                                    </span>
+                                    <input
+                                        id="files-input"
+                                        type="file"
+                                        multiple
+                                        className="sr-only"
+                                        accept="image/*"
+                                        onChange={handleFileSelect}
+                                        disabled={uploading}
+                                    />
+                                </label>
+                            </div>
+                        </>
+                    ) : (
+                        /* 1枚も選んでいないとき。モックに「空の状態」は無いので、
+                           ヒーローと同じ枠に選ぶ導線を置く。
+                           **入力は sr-only にする（hidden にしない）。**
+                           `hidden` は display:none なので、その input は**フォーカス
+                           できない**——`<label>` 自体もタブ順に入らないので、
+                           キーボードだけの人は写真を選ぶ手段が無く、このページで
+                           何もできなかった（ドロップも貼り付けも `ref.click()` も無い）。
+                           sr-only なら見た目はそのままで、Tab で届き Enter で開ける。 */
+                        <label
+                            htmlFor="files-input"
+                            className="flex flex-col items-center justify-center w-full rounded-2xl border-2 border-dashed border-line cursor-pointer hover:border-accent focus-within:border-accent transition-colors"
+                            style={{ touchAction: "manipulation", minHeight: "180px" }}
+                        >
+                            <PhotoIcon className="w-10 h-10 text-white/40 mb-2" />
+                            <p className="font-semibold text-white/70" style={{ fontSize: "14px" }}>
+                                {isJa ? "タップして写真を選ぶ" : "Tap to choose photos"}
+                            </p>
+                            <p className="text-white/50 mt-1" style={{ fontSize: "12px" }}>
+                                {isJa ? "複数選択OK・各50MBまで" : "Multiple selection supported (max 50MB each)"}
+                            </p>
+                            <input
+                                id="files-input"
+                                type="file"
+                                multiple
+                                className="sr-only"
+                                accept="image/*"
+                                onChange={handleFileSelect}
+                                disabled={uploading}
+                            />
+                        </label>
+                    )}
 
-            {/* GPS 自動入力トグル */}
-            <label className="flex items-center gap-2 mb-4 cursor-pointer select-none" style={{ touchAction: "manipulation" }}>
-                <input
-                    type="checkbox"
-                    checked={gpsAutofill}
-                    onChange={toggleGpsAutofill}
-                    disabled={uploading}
-                    className="w-4 h-4 accent-white"
-                />
-                <span className="text-xs text-white/60">
-                    <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5 mr-0.5" />
-                    {locale === "en"
-                        ? "Auto-fill shooting location from photo GPS (city level)"
-                        : "写真のGPSから撮影地を自動入力（市区町村レベル）"}
-                </span>
-            </label>
+                    {/* カメラ直撮り（スマホで背面カメラを直接起動）。ギャラリー選択とは別入力にする */}
+                    <label
+                        htmlFor="camera-input"
+                        className="mt-2 flex items-center justify-center gap-2 w-full rounded-xl bg-surface-2 ring-1 ring-line hover:brightness-125 focus-within:ring-accent transition cursor-pointer text-white/80"
+                        style={{ touchAction: "manipulation", minHeight: "44px", fontSize: "14px" }}
+                    >
+                        <CameraIcon className="w-5 h-5 text-white/60" />
+                        {isJa ? "写真を撮る" : "Take a photo"}
+                        <input
+                            id="camera-input"
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="sr-only"
+                            onChange={handleFileSelect}
+                            disabled={uploading}
+                        />
+                    </label>
 
-            {fileError && <p role="alert" className="text-sm text-red-400 mb-3">{fileError}</p>}
+                    {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
+                        取れていなければ何も出さない（推測した数字は見せない）。 */}
+                    {remainingSlots !== null && (
+                        <p className={`mt-2 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/50"}`} style={{ fontSize: "12px" }}>
+                            {remainingSlots === 0
+                                ? (isJa
+                                    ? `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`
+                                    : `Upload limit reached (${PHOTO_LIMIT_PER_USER}). Delete a photo to make room.`)
+                                : (isJa
+                                    ? `あと${remainingSlots}枚アップロードできます（${PHOTO_LIMIT_PER_USER}枚まで）`
+                                    : `${remainingSlots} of ${PHOTO_LIMIT_PER_USER} uploads left`)}
+                        </p>
+                    )}
 
-            {/* 共通設定 */}
-            {items.length > 0 && (
-                <div role="group" aria-labelledby="upload-common" className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3.5 mb-4 space-y-2">
-                    {/* **「全写真に適用」は見えている文にしか書いていなかった。**
-                        読み上げでは箱の外の独立した1文なので、中のカテゴリ・タグが
-                        「この1枚ぶん」なのか「全部ぶん」なのか分からない */}
-                    <p id="upload-common" className="text-xs text-white/50 uppercase tracking-wide">
-                        {locale === "en" ? "Common settings (applied to all)" : "共通設定（全写真に適用）"}
-                    </p>
+                    {fileError && <p role="alert" className="mt-2 text-red-400" style={{ fontSize: "13px" }}>{fileError}</p>}
+
+                    {/* **1件の投稿にまとめる**（モックは1投稿＝複数枚だが、この画面の
+                        既定は今までどおり「N枚選ぶ → N件の投稿」。既定を変えると
+                        owner の使い方が黙って変わるので owner 判断のまま据え置き）。
+                        **2枚以上あるときだけ出す**——1枚のときは押せる物が増えるだけ */}
+                    {pendingCount > 1 && (
+                        <div className="mt-3 rounded-xl bg-surface ring-1 ring-line p-3">
+                            <label
+                                className={`flex items-center gap-2 select-none ${tooManyToGroup ? "opacity-50" : "cursor-pointer"}`}
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={asOnePost && !tooManyToGroup}
+                                    onChange={(e) => setAsOnePost(e.target.checked)}
+                                    disabled={uploading || tooManyToGroup}
+                                    aria-describedby="group-hint"
+                                    className="w-4 h-4 accent-[#2080f6]"
+                                />
+                                <span className="text-white/80" style={{ fontSize: "13px" }}>
+                                    {isJa
+                                        ? `この${pendingCount}枚を1件の投稿にまとめる`
+                                        : `Post these ${pendingCount} photos as one post`}
+                                </span>
+                            </label>
+                            <p id="group-hint" className="mt-1 text-white/50" style={{ fontSize: "12px" }}>
+                                {tooManyToGroup
+                                    ? (isJa
+                                        ? `1件の投稿に入れられるのは${PHOTO_IMAGES_MAX}枚までです（${pendingCount}枚を選んでいます）。`
+                                        : `One post can hold up to ${PHOTO_IMAGES_MAX} photos (${pendingCount} selected).`)
+                                    : (asOnePost
+                                        ? (isJa
+                                            ? "題・説明・撮影地は1枚目のものを使います。"
+                                            : "Title, description and location come from the first photo.")
+                                        : (isJa
+                                            ? "オフのときは、1枚ずつ別々の投稿になります。"
+                                            : "Off: each photo becomes its own post."))}
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* ───────── 入力（モック③④⑤） ───────── */}
+                <div className="pt-4 lg:pt-3">
                     {/* 前に使った値を候補に出す（選ばずに自由入力もできる） */}
                     <datalist id="own-categories">
                         {ownValues.categories.map((v) => <option key={v} value={v} />)}
@@ -1062,133 +1473,19 @@ function UploadPageInner() {
                     <datalist id="own-locations">
                         {ownValues.locations.map((v) => <option key={v} value={v} />)}
                     </datalist>
-                    {/* **カテゴリは決まった選択肢から選ぶ**（owner の
-                        「風景、建築、人物、動物など狭めた選択肢にしたい」）。
-                        すぐ下のタグのチップと同じ形（`role="switch"`・選択中は
-                        白地・押し直すと外れる）だが、**カテゴリは1つしか
-                        持てない**ので別のチップを押すと置き換わる。
-                        **自由入力は残す**（owner の判断）＝下の欄は消していない */}
-                    <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Choose a category" : "カテゴリを選ぶ"}>
-                        {CATEGORY_CHOICES.map((c) => {
-                            const on = isChosenCategory(category, c);
-                            return (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setCategory((cur) => toggleCategory(cur, c))}
-                                    disabled={uploading}
-                                    role="switch"
-                                    aria-checked={on}
-                                    // 名前を種別で分ける（すぐ下のタグのチップと綴りが
-                                    // 重なる語がある。見えている語はそのまま含める）
-                                    aria-label={locale === "en" ? `Category: ${c}` : `カテゴリ: ${c}`}
-                                    className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
-                                    style={{ touchAction: "manipulation" }}
-                                >
-                                    {c}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <input
-                        type="text"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        maxLength={CATEGORY_MAX}
-                        placeholder={locale === "en" ? "Category: something else" : "カテゴリ（一覧に無い語はここに）"}
-                        className={inputCls}
-                        list="own-categories"
-                        style={{ fontSize: "16px" }}
-                        disabled={uploading}
-                    />
-                    <input
-                        type="text"
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                        placeholder={locale === "en" ? "Tags (comma-separated)" : "タグ（カンマ区切り）"}
-                        className={inputCls}
-                        style={{ fontSize: "16px" }}
-                        disabled={uploading}
-                    />
-                    {/* タグはカンマ区切りなので datalist が効かない（欄全体を
-                        置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
-                        選んでいるものは白地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
-                    {tagSuggestions.length > 0 && (
-                        <div className="flex flex-wrap gap-2" role="group" aria-label={locale === "en" ? "Tag choices" : "タグの候補"}>
-                            {tagSuggestions.map((t: string) => {
-                                const on = hasTag(tags, t);
-                                return (
-                                    <button
-                                        key={t}
-                                        type="button"
-                                        onClick={() => setTags((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
-                                        disabled={uploading}
-                                        role="switch"
-                                        aria-checked={on}
-                                        className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors disabled:opacity-40 ${on ? "bg-white text-black font-medium ring-white" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {t}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            )}
 
-            {/* 写真リスト */}
-            <div className="space-y-3 mb-6">
-                {/* **同じ名前の欄が枚数ぶん並ぶ。** placeholder は名前の最後の
-                    受け皿なので「無名」ではないが、2枚選ぶと「タイトル（任意）」が
-                    **2つ**——読み上げではどちらがどの写真か分からない（`/user/edit` の
-                    罪として挙げたのと同じ形が、枚数ぶんに増えた形）。
-                    何枚目かを名前に入れる。**見た目は変えない**（属性だけ） */}
-                {items.map((it, photoIndex) => (
-                    <div key={it.id} className="border border-white/10 rounded-lg overflow-hidden bg-white/5">
-                        {/* トリミングプレビュー（一覧表示範囲を白枠で明示） */}
-                        <div className="relative">
-                            <CropFramePicker
-                                key={it.preview}
-                                src={it.preview}
-                                hint={locale === "en"
-                                    ? "White frame = shown in the grid (drag to move)"
-                                    : "白い枠が一覧に表示されます（ドラッグで移動）"}
-                                focalPoint={it.focalPoint}
-                                onChange={(focalPoint) => updateItem(it.id, { focalPoint })}
-                                // **このブラウザで開けなかった写真**（PC の Chrome で選んだ
-                                // HEIC など。`addFiles` が断るのは「画像でない」「GIF」
-                                // 「50MB超」だけなので、種別が画像で開けないファイルは
-                                // ここまで来る）。文言は公開を押したときに出るものと
-                                // 同じにする（画面ごとに書き分けない）
-                                fallback={
-                                    <div className="relative bg-black flex flex-col items-center justify-center gap-2 h-40 px-6 text-center text-white/60">
-                                        <PhotoIcon className="w-8 h-8" />
-                                        <p className="text-xs">{unstrippableMessage(new UnstrippableFileError("", "undecodable"), locale)}</p>
-                                    </div>
-                                }
-                            />
-                            <button
-                                type="button"
-                                onClick={() => removeItem(it.id)}
-                                disabled={uploading || it.status === "uploading"}
-                                className="absolute top-2 right-2 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors disabled:opacity-30 z-10"
-                                // **語は変えない**（元から「削除」）。足すのは何枚目かだけ
-                                aria-label={locale === "en"
-                                    ? `Remove photo ${photoIndex + 1}`
-                                    : `${photoIndex + 1}枚目を削除`}
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="p-3">
-                            <div className="flex-1 min-w-0 space-y-1.5">
+                    {editing ? (
+                        <>
+                            {/* ── タイトル（モック③） ── */}
+                            <div>
+                                <label htmlFor="post-title" className={labelCls} style={labelStyle}>
+                                    {isJa ? "タイトル（任意）" : "Title (optional)"}
+                                </label>
                                 <input
+                                    id="post-title"
                                     type="text"
-                                    value={it.title}
-                                    onChange={(e) => updateItem(it.id, { title: e.target.value })}
+                                    value={editing.title}
+                                    onChange={(e) => updateItem(editing.id, { title: e.target.value })}
                                     maxLength={TITLE_MAX}
                                     // **見えている placeholder と同じ言葉にする。**
                                     // `aria-label` は placeholder を上書きするので、
@@ -1196,290 +1493,343 @@ function UploadPageInner() {
                                     // 別物**になる（音声操作は読み上げる名前で当てるので、
                                     // 「場所をタップ」が効かなくなる）。`（任意）` も
                                     // 落とすと、任意であることが読み上げにだけ届かない
-                                    aria-label={locale === "en"
-                                        ? `Title of photo ${photoIndex + 1} (optional)`
-                                        : `${photoIndex + 1}枚目のタイトル（任意）`}
-                                    placeholder={locale === "en" ? "Title (optional)" : "タイトル（任意）"}
-                                    className={inputCls}
-                                    style={{ fontSize: "16px" }}
-                                    disabled={uploading || it.status === "done"}
+                                    aria-label={isJa
+                                        ? `${editingNo}枚目のタイトル（任意）`
+                                        : `Title of photo ${editingNo} (optional)`}
+                                    placeholder={isJa ? "タイトル（任意）" : "Title (optional)"}
+                                    className={fieldCls}
+                                    style={{ ...fieldStyle, height: "40px" }}
+                                    disabled={fieldsLocked}
                                 />
-                                {/* EXIF メタ表示 */}
-                                <div className="flex flex-wrap gap-2 text-xs text-white/50">
-                                    {it.dateTimeOriginal && (
-                                        <span className="inline-flex items-center gap-0.5">
-                                            <CalendarIcon className="w-3 h-3" />
-                                            {/* 保存されている通りに出す。toLocaleDateString だと
-                                                UTC より西の端末で**保存される日付より1日前**が
-                                                確認画面に出て、写真ページの表示とも食い違う。 */}
-                                            {formatStoredDateTime(it.dateTimeOriginal, locale === "en" ? "en" : "ja")}
-                                        </span>
-                                    )}
-                                    {it.location && (
-                                        <span className="inline-flex items-center gap-0.5 truncate max-w-[200px]">
-                                            <MapPinIcon className="w-3 h-3" />
-                                            {it.location}
-                                        </span>
-                                    )}
+                                {/* 文字数カウンタ（モック③）。**上限はこの実装の本物の数**
+                                    ——モックの「16/50」は絵で、サーバーは 200 まで受ける
+                                    （`scripts/__tests__/limitParity.test.ts` が対で見張る） */}
+                                <p className={counterCls} style={counterStyle}>{editing.title.length}/{TITLE_MAX}</p>
+                            </div>
+
+                            {/* ── キャプション（モック③） ── */}
+                            <div className="mt-3">
+                                <label htmlFor="post-caption" className={labelCls} style={labelStyle}>
+                                    {isJa ? "キャプション" : "Caption"}
+                                </label>
+                                <textarea
+                                    id="post-caption"
+                                    value={editing.description}
+                                    onChange={(e) => updateItem(editing.id, { description: e.target.value })}
+                                    // **見えているラベル（「キャプション」）を名前に含める。**
+                                    // WCAG 2.5.3（Label in Name）——音声操作は見えている
+                                    // 言葉で当てるので、「キャプション」と読める欄が
+                                    // 「説明」としか名乗らないと、その欄にだけ当たらない。
+                                    // placeholder も同じ語に揃える（下の見張りが対で見る）
+                                    aria-label={isJa
+                                        ? `${editingNo}枚目のキャプション（任意）`
+                                        : `Caption of photo ${editingNo} (optional)`}
+                                    placeholder={isJa ? "キャプション（任意）" : "Caption (optional)"}
+                                    className={`${fieldCls} resize-none py-2.5 break-words`}
+                                    style={{ ...fieldStyle, height: "80px" }}
+                                    disabled={fieldsLocked}
+                                />
+                                <p className={counterCls} style={counterStyle}>{editing.description.length}/{DESC_STRING_MAX}</p>
+                            </div>
+                        </>
+                    ) : null}
+
+                    {/* ── カテゴリ・タグ（モック④）。**全写真に共通** ──
+                        「全写真に適用」は見えている文にしか書いていなかった。
+                        読み上げでは箱の外の独立した1文なので、中のカテゴリ・タグが
+                        「この1枚ぶん」なのか「全部ぶん」なのか分からない */}
+                    {items.length > 0 && (
+                        <div role="group" aria-labelledby="upload-common" className="mt-4">
+                            <p id="upload-common" className="text-white/50 mb-3" style={{ fontSize: "12px" }}>
+                                {isJa ? "カテゴリとタグは全写真に適用されます" : "Category and tags are applied to all photos"}
+                            </p>
+
+                            <p className={labelCls} style={labelStyle}>
+                                {isJa ? "カテゴリ（テーマ）" : "Category (theme)"}
+                            </p>
+                            {/* **カテゴリは決まった選択肢から選ぶ**（owner の
+                                「風景、建築、人物、動物など狭めた選択肢にしたい」）。
+                                すぐ下のタグのチップと同じ形（`role="switch"`・選択中は
+                                青地 ＋ 押し直すと外れる）だが、**カテゴリは1つしか
+                                持てない**ので別のチップを押すと置き換わる。
+                                **語彙はモックと違う**（モックは 絶景/グルメ/街歩き/
+                                文化・歴史/自然/人物）。入れ替えると `/category/<slug>` の
+                                集約ページと既に保存された写真の付け直しが要るので、
+                                ここは owner 判断のまま据え置き（`docs/redesign-2026-09.md` P4）。
+                                **自由入力は残す**（owner の判断）＝下の欄は消していない */}
+                            <div className="flex flex-wrap gap-2" role="group" aria-label={isJa ? "カテゴリを選ぶ" : "Choose a category"}>
+                                {CATEGORY_CHOICES.map((c) => {
+                                    const on = isChosenCategory(category, c);
+                                    return (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() => setCategory((cur) => toggleCategory(cur, c))}
+                                            disabled={uploading}
+                                            role="switch"
+                                            aria-checked={on}
+                                            // 名前を種別で分ける（すぐ下のタグのチップと綴りが
+                                            // 重なる語がある。見えている語はそのまま含める）
+                                            aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
+                                            className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-surface-2 ring-line text-white/80 hover:brightness-125"}`}
+                                            style={chipStyle}
+                                        >
+                                            {c}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <input
+                                type="text"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                maxLength={CATEGORY_MAX}
+                                placeholder={isJa ? "カテゴリ（一覧に無い語はここに）" : "Category: something else"}
+                                className={`${fieldCls} mt-2`}
+                                list="own-categories"
+                                style={{ ...fieldStyle, height: "40px" }}
+                                disabled={uploading}
+                            />
+
+                            <p className={`${labelCls} mt-4`} style={labelStyle}>
+                                {isJa ? `タグ（最大${TAGS_MAX}個）` : `Tags (up to ${TAGS_MAX})`}
+                            </p>
+                            {/* 選んでいるタグ（モック④の「#サントリーニ ✕」）。
+                                **押すと外れる**（`toggleTag` は入っていれば外す） */}
+                            {chosenTags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-2" role="group" aria-label={isJa ? "選んでいるタグ" : "Chosen tags"}>
+                                    {chosenTags.map((t) => (
+                                        <button
+                                            key={t}
+                                            type="button"
+                                            onClick={() => setTags((cur) => toggleTag(cur, t))}
+                                            disabled={uploading}
+                                            aria-label={isJa ? `タグ「${t}」を外す` : `Remove tag ${t}`}
+                                            className={`${chipCls} gap-1 bg-chip ring-line text-chip-text hover:brightness-125`}
+                                            style={chipStyle}
+                                        >
+                                            #{t}
+                                            <XMarkIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                    ))}
                                 </div>
-                                {/* 詳細フォーム（折り畳み） */}
-                                {it.expanded ? (
-                                    <div className="space-y-1.5 pt-1">
-                                        <textarea
-                                            value={it.description}
-                                            onChange={(e) => updateItem(it.id, { description: e.target.value })}
-                                            aria-label={locale === "en"
-                                                ? `Description of photo ${photoIndex + 1} (optional)`
-                                                : `${photoIndex + 1}枚目の説明（任意）`}
-                                            placeholder={locale === "en" ? "Description (optional)" : "説明（任意）"}
-                                            rows={2}
-                                            className={`${inputCls} resize-none`}
-                                            style={{ fontSize: "16px" }}
-                                            disabled={uploading || it.status === "done"}
-                                        />
-                                        <input
-                                            type="text"
-                                            value={it.location}
-                                            onChange={(e) => updateItem(it.id, { location: e.target.value })}
-                                            maxLength={LOCATION_MAX}
-                                            aria-label={locale === "en"
-                                                ? `Location of photo ${photoIndex + 1} (optional)`
-                                                : `${photoIndex + 1}枚目の場所（任意）`}
-                                            placeholder={locale === "en" ? "Location (optional)" : "場所（任意）"}
-                                            className={inputCls}
-                                            list="own-locations"
-                                            style={{ fontSize: "16px" }}
-                                            disabled={uploading || it.status === "done"}
-                                        />
-                                    </div>
-                                ) : null}
-                                {/* **この差分が潰した症状が、同じ画面に残っていた。**
-                                    開閉ボタンも枚数ぶん「詳細」で同じ名前だった。
-                                    開いているかどうかも読み上げに出ていない */}
-                                <button
-                                    type="button"
-                                    onClick={() => updateItem(it.id, { expanded: !it.expanded })}
-                                    aria-label={locale === "en"
-                                        ? `Details of photo ${photoIndex + 1}`
-                                        : `${photoIndex + 1}枚目の詳細`}
-                                    aria-expanded={it.expanded}
-                                    className="text-xs text-white/50 hover:text-white/70 inline-flex items-center gap-0.5"
-                                    disabled={uploading}
-                                >
-                                    <ChevronDownIcon className={`w-3 h-3 transition-transform ${it.expanded ? "rotate-180" : ""}`} />
-                                    {locale === "en" ? "Details" : "詳細"}
-                                </button>
-                            </div>
+                            )}
+                            {/* **タグはカンマ区切りの1欄のまま**（モックは1つずつ足す形）。
+                                サーバーの上限は**タグ1つあたり**なので、欄に `maxLength` を
+                                置くと「サーバーは受け付けるのに入力できない」に倒れる。
+                                Enter で1つ確定する形にすると、日本語の変換確定の Enter を
+                                拾う（`app/__tests__/imeEnterGuard.test.ts` の題材）ので、
+                                **入力の仕組みは変えずに見た目だけモックに寄せた** */}
+                            <input
+                                type="text"
+                                value={tags}
+                                onChange={(e) => setTags(e.target.value)}
+                                placeholder={isJa ? "タグ（カンマ区切り）" : "Tags (comma-separated)"}
+                                className={fieldCls}
+                                style={{ ...fieldStyle, height: "40px" }}
+                                disabled={uploading}
+                            />
+                            {/* タグはカンマ区切りなので datalist が効かない（欄全体を
+                                置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、
+                                選んでいるものは青地で出す（一覧の絞り込みと同じ `role="switch"`）。 */}
+                            {tagSuggestions.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label={isJa ? "タグの候補" : "Tag choices"}>
+                                    {tagSuggestions.map((t: string) => {
+                                        const on = hasTag(tags, t);
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => setTags((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
+                                                disabled={uploading}
+                                                role="switch"
+                                                aria-checked={on}
+                                                className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-chip ring-line text-chip-text hover:brightness-125"}`}
+                                                style={chipStyle}
+                                            >
+                                                #{t}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-                        {/* ステータス */}
-                        {it.status !== "pending" && (
-                            <div className="px-3 pb-3">
-                                {it.status === "uploading" && (
-                                    <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-                                        <div className="h-full rounded-full bg-gradient-to-r from-white/70 to-white transition-all" style={{ width: `${it.progress}%` }} />
-                                    </div>
-                                )}
-                                {it.status === "done" && (
-                                    <p className="text-xs text-green-400 inline-flex items-center gap-1"><CheckCircleIcon className="w-4 h-4" />{locale === "en" ? "Uploaded" : "アップロード完了"}</p>
-                                )}
-                                {/* ここは role="alert" にしない。逐次ループなので、
-                                    50枚失敗すれば assertive な割り込みが50回起きる。
-                                    まとめは「N 件失敗しました」のトーストが出していて、
-                                    Toast は元から role="alert" を持っている。 */}
-                                {it.status === "error" && (
-                                    <p className="text-xs text-red-400 inline-flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{it.error ?? (locale === "en" ? "Failed" : "失敗")}</p>
+                    )}
+
+                    {/* ── 位置情報（モック⑤） ──
+                        モックは「地図から検索して候補から選ぶ」形だが、**この画面に
+                        その仕組みは無い**（`docs/redesign-2026-09.md` P5。地名検索は
+                        編集画面の `searchPlaces` にしかなく、移植は機能の追加＝
+                        デザインの範囲を越える）。**動かない「>」は置かない**——
+                        いまある撮影地の欄を、モックの行の形で出す */}
+                    {editing && (
+                        <div className="mt-4">
+                            <label htmlFor="post-location" className={labelCls} style={labelStyle}>
+                                {isJa ? "位置情報" : "Location"}
+                            </label>
+                            <div className="flex items-center gap-2 rounded-xl bg-surface-2 border border-line px-3 focus-within:border-accent transition-colors" style={{ minHeight: "44px" }}>
+                                <MapPinIcon className="w-5 h-5 text-accent flex-shrink-0" />
+                                <input
+                                    id="post-location"
+                                    type="text"
+                                    value={editing.location}
+                                    onChange={(e) => updateItem(editing.id, { location: e.target.value })}
+                                    maxLength={LOCATION_MAX}
+                                    // 見えているラベル（「位置情報」）を名前に含める（上と同じ理由）
+                                    aria-label={isJa
+                                        ? `${editingNo}枚目の位置情報（任意）`
+                                        : `Location of photo ${editingNo} (optional)`}
+                                    placeholder={isJa ? "位置情報（任意）" : "Location (optional)"}
+                                    className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50"
+                                    list="own-locations"
+                                    style={fieldStyle}
+                                    disabled={fieldsLocked}
+                                />
+                                {editing.location && (
+                                    <button
+                                        type="button"
+                                        onClick={() => updateItem(editing.id, { location: "" })}
+                                        disabled={fieldsLocked}
+                                        aria-label={isJa ? "撮影地を空にする" : "Clear location"}
+                                        className="flex-shrink-0 -m-1 p-1 text-white/60 hover:text-white transition-colors"
+                                        style={{ touchAction: "manipulation" }}
+                                    >
+                                        <XMarkIcon className="w-5 h-5" />
+                                    </button>
                                 )}
                             </div>
-                        )}
-                    </div>
-                ))}
+                            {/* 撮影日（EXIF から読めたときだけ）。読めなければ**欄ごと出さない** */}
+                            {editing.dateTimeOriginal && (
+                                <p className="mt-2 inline-flex items-center gap-1 text-white/50" style={{ fontSize: "12px" }}>
+                                    <CalendarIcon className="w-4 h-4" />
+                                    {/* 保存されている通りに出す。toLocaleDateString だと
+                                        UTC より西の端末で**保存される日付より1日前**が
+                                        確認画面に出て、写真ページの表示とも食い違う。 */}
+                                    {formatStoredDateTime(editing.dateTimeOriginal, isJa ? "ja" : "en")}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* GPS 自動入力トグル。**写真を選ぶ前から見えている**必要がある
+                        （取り込みの瞬間に効く設定なので、選んでから出しても遅い） */}
+                    <label className="flex items-center gap-2 mt-3 cursor-pointer select-none" style={{ touchAction: "manipulation" }}>
+                        <input
+                            type="checkbox"
+                            checked={gpsAutofill}
+                            onChange={toggleGpsAutofill}
+                            disabled={uploading}
+                            className="w-4 h-4 accent-[#2080f6]"
+                        />
+                        <span className="text-white/60" style={{ fontSize: "12px" }}>
+                            <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5 mr-0.5" />
+                            {isJa
+                                ? "写真のGPSから撮影地を自動入力（市区町村レベル）"
+                                : "Auto-fill shooting location from photo GPS (city level)"}
+                        </span>
+                    </label>
+
+                    {/* **BGM と公開範囲の行は置かない**（モック⑥⑦）。
+                        - BGM: 投稿時に曲を付ける口が無い（`/upload/save` は `song` を
+                          受け取らない）。公開したあと写真ページで付ける経路だけがある
+                        - 公開範囲: いまの写真は `published` の真偽しか持たない。
+                          「フォロワーのみ」「自分のみ」は**データにもAPIにも無い**
+                          （`docs/redesign-2026-09.md` P6・P7）。2択は
+                          「下書き保存」と「投稿する」の2つのボタンがそのまま担う
+                        どちらも `api-user/**` を触らないと動かないので、
+                        **動かないボタンとしては出さない**（owner の指示 2026-09-22）。
+                        同じ理由で、モックの「人気」「評価」の類はこの画面に無い */}
+
+                    {/* 上げ終わった・失敗した写真の状態。
+                        ここは role="alert" にしない。逐次ループなので、
+                        50枚失敗すれば assertive な割り込みが50回起きる。
+                        まとめは「N 件失敗しました」のトーストが出していて、
+                        Toast は元から role="alert" を持っている。 */}
+                    {items.some((i) => i.status === "done" || i.status === "error") && (
+                        <ul className="mt-4 space-y-1">
+                            {items.map((it, i) => (
+                                it.status === "done" ? (
+                                    <li key={it.id} className="text-green-400 inline-flex items-center gap-1" style={{ fontSize: "12px" }}>
+                                        <CheckCircleIcon className="w-4 h-4" />{i + 1}{isJa ? "枚目: アップロード完了" : ": Uploaded"}
+                                    </li>
+                                ) : it.status === "error" ? (
+                                    <li key={it.id} className="text-red-400 inline-flex items-center gap-1 break-words" style={{ fontSize: "12px" }}>
+                                        <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />{i + 1}{isJa ? "枚目: " : ": "}{it.error ?? (isJa ? "失敗" : "Failed")}
+                                    </li>
+                                ) : null
+                            ))}
+                        </ul>
+                    )}
+                </div>
             </div>
 
-            {/* アップロードバー（固定）。
-                **`env(safe-area-inset-bottom)` を足す。** `viewportFit: "cover"` なので、
-                ホームインジケーターのある端末では下 34px がインジケーター帯に入る。
-                `globals.css` の `body { padding-bottom: env(...) }` は
-                **`position: fixed` には効かない**（fixed は body の padding box の外）。
-                実測で、高さ44pxのボタンの下に14pxしか空いていなかった。
-                `StoryViewer` / `StoriesBar` / `MiniPlayer` は既にこの形。 */}
+            {/* ── 投稿する（モック⑨）。画面の下に固定 ──
+                **常駐のタブバー（`BottomNav`）の上に置く。** 同じ `bottom-0` に
+                並べると、DOM で後ろにいるあちら（z-40）が覆いかぶさって
+                **「投稿する」が押せない位置**にあった。かといって `z-50` で
+                覆い返すと、隠れたタブバーの5つのボタンが**フォーカスだけ
+                受け取れる**状態になる（WCAG 2.4.11・Enter で投稿シートが開き、
+                書きかけが消える）。だから覆わずに**上へ逃がす**。
+                高さはタブバー自身が `--bottom-bar-h` に実測値（safe-area 込み）を
+                出しているので、それを読む。**この画面からは書かない**
+                ——両方が同じ変数に書くと、あとから描いた方の高さで
+                `MiniPlayer` が浮く。落とし先の `env(safe-area-inset-bottom)` は
+                タブバーが無い状況（将来そのページが出たとき）の受け皿 */}
             {items.length > 0 && (
-                <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 p-4 z-40"
-                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
-                    <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
-                        <p className="hidden sm:block text-sm text-white/70 flex-shrink-0">
-                            {doneCount > 0 ? `${doneCount}/${items.length} ` : ""}
-                            {locale === "en" ? `${pendingCount} ready` : `${pendingCount} 枚待ち`}
-                        </p>
-                        <div className="flex items-center gap-2 flex-1 sm:flex-none justify-end">
-                            {/* **アップロード中にやめられるようにする。** 押している間は
-                                公開も下書き保存も無効で、しかも S3 への PUT は素の `fetch`
-                                （`userFetch` の20秒の打ち切りは経路外）なので、応答が返らない
-                                回線では**リロード以外に出る手段が無かった**——しかもリロード
-                                すると S3 に孤児が残る。ストーリーの投稿が同じ理由で先に
-                                直してある形（`StoriesBar`）を借りる。
-                                上げ終わったぶんはそのまま残す（画面にも「完了」で出ている） */}
-                            {uploading && (
-                                <button
-                                    onClick={() => {
-                                        if (stopping) return;
-                                        setStopping(true);
-                                        uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"));
-                                    }}
-                                    // **`disabled` にしない。** 実ブラウザは focus 中の
-                                    // 要素が disabled になると blur するので、
-                                    // 「消さずに残す」理由（フォーカスを失わせない）を
-                                    // 自分で潰していた。手本の `StoriesBar` も
-                                    // disabled にせず名前だけ変えている
-                                    aria-disabled={stopping}
-                                    className={`px-4 py-3 text-white/70 hover:text-white text-sm font-semibold rounded-full ring-1 ring-white/15 hover:ring-white/30 transition-colors${stopping ? " opacity-50" : ""}`}
-                                    style={{ touchAction: "manipulation", minHeight: "44px" }}
-                                >
-                                    {stopping
-                                        ? (locale === "en" ? "Stopping…" : "中断中…")
-                                        : (locale === "en" ? "Stop" : "やめる")}
-                                </button>
-                            )}
-                            {/* 下書き保存: 必須項目なしで非公開保存。あとで編集して公開できる。
-                                **地名の引き当てを待たない**——下書きは公開ではないので、
-                                場所は後から編集画面で足せる。公開だけが待つ
-                                （場所の無いまま公開される事故を過去に踏んでいるため） */}
+                <div className="fixed left-0 right-0 bg-bar border-t border-line p-3 z-50"
+                    style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
+                    <div className={`${COLUMN} flex items-center gap-2`}>
+                        {/* **アップロード中にやめられるようにする。** 押している間は
+                            公開も下書き保存も無効で、しかも S3 への PUT は素の `fetch`
+                            （`userFetch` の20秒の打ち切りは経路外）なので、応答が返らない
+                            回線では**リロード以外に出る手段が無かった**——しかもリロード
+                            すると S3 に孤児が残る。ストーリーの投稿が同じ理由で先に
+                            直してある形（`StoriesBar`）を借りる。
+                            上げ終わったぶんはそのまま残す（画面にも「完了」で出ている） */}
+                        {uploading && (
                             <button
-                                onClick={() => handleUploadAll(false)}
-                                disabled={uploading || pendingCount === 0}
-                                className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-full ring-1 ring-white/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                onClick={() => {
+                                    if (stopping) return;
+                                    setStopping(true);
+                                    uploadAbortRef.current?.abort(new DOMException("cancelled", "AbortError"));
+                                }}
+                                // **`disabled` にしない。** 実ブラウザは focus 中の
+                                // 要素が disabled になると blur するので、
+                                // 「消さずに残す」理由（フォーカスを失わせない）を
+                                // 自分で潰していた。手本の `StoriesBar` も
+                                // disabled にせず名前だけ変えている
+                                aria-disabled={stopping}
+                                className={`px-4 text-white/80 hover:text-white font-semibold rounded-full ring-1 ring-line transition-colors flex-shrink-0${stopping ? " opacity-50" : ""}`}
+                                style={{ touchAction: "manipulation", minHeight: "46px", fontSize: "15px" }}
                             >
-                                {locale === "en" ? "Save draft" : "下書き保存"}
+                                {stopping
+                                    ? (isJa ? "中断中…" : "Stopping…")
+                                    : (isJa ? "やめる" : "Stop")}
                             </button>
-                            <button
-                                onClick={() => handleUploadAll(true)}
-                                disabled={uploading || metaLoading || pendingCount === 0}
-                                className="px-6 py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                {uploading
-                                    ? (locale === "en" ? "Uploading..." : "アップロード中...")
-                                    : metaLoading
-                                        ? (locale === "en" ? "Reading photo info..." : "撮影情報を読み取り中…")
-                                        : (locale === "en" ? `Publish ${pendingCount}` : `${pendingCount}枚を公開`)}
-                            </button>
-                        </div>
+                        )}
+                        <button
+                            onClick={() => handleUploadAll(true)}
+                            disabled={uploading || metaLoading || pendingCount === 0}
+                            className="flex-1 lg:flex-none lg:w-[420px] lg:ml-auto inline-flex items-center justify-center gap-2 bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ touchAction: "manipulation", minHeight: "46px", fontSize: "17px" }}
+                        >
+                            <PaperAirplaneIcon className="w-5 h-5" aria-hidden="true" />
+                            {uploading
+                                ? (isJa ? "アップロード中..." : "Uploading...")
+                                : metaLoading
+                                    ? (isJa ? "撮影情報を読み取り中…" : "Reading photo info...")
+                                    : willBeOnePost
+                                        ? (isJa ? "投稿する" : "Post")
+                                        : (isJa ? `${pendingCount}件を投稿する` : `Post ${pendingCount} items`)}
+                        </button>
                     </div>
+                    {doneCount > 0 && (
+                        <p className={`${COLUMN} mt-1 text-white/50`} style={{ fontSize: "12px" }}>
+                            {isJa ? `${doneCount}/${items.length} 枚がアップロード済み` : `${doneCount}/${items.length} uploaded`}
+                        </p>
+                    )}
                 </div>
             )}
-
-            {/* プロフィール写真 */}
-            <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-4 mt-8">
-                <h2 className="text-sm font-medium text-white/70">
-                    {locale === "en" ? "Profile Photo" : "プロフィール写真"}
-                </h2>
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
-                        {avatarPreview ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-                        ) : currentUserId && CLOUDFRONT_URL ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(currentUserId)}?v=${avatarCacheBust}`)}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                            />
-                        ) : (
-                            <UserCircleIcon className="w-10 h-10 text-white/40" />
-                        )}
-                    </div>
-                    <div className="space-y-2">
-                        {/* focus-within は**input を包む側**に付ける。
-                            span は input の兄弟なので、そこに付けても永久に
-                            発火しない（:focus-within は自分自身か子孫にしか
-                            当たらない）。Tab で止まるようになったのに何も
-                            光らない＝フォーカスが行方不明、という新しい
-                            壊れ方を作っていた。 */}
-                        <label className="inline-block cursor-pointer rounded-lg focus-within:ring-2 focus-within:ring-white/60">
-                            <span className="px-3.5 py-2 text-sm bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-lg transition inline-flex items-center"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}>
-                                {locale === "en" ? "Choose photo" : "写真を選択"}
-                            </span>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                className="sr-only"
-                                disabled={avatarUploading}
-                                onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (!f || !f.type.startsWith("image/")) return;
-                                    // **写真グリッドと同じく、選んだ時点で断る。**
-                                    // ここだけ残っていたので、プレビューを見て
-                                    // 「保存」を押してから必ず失敗していた。
-                                    if (f.type === "image/gif") {
-                                        showToast(gifRejectedMessage(locale), "error");
-                                        e.target.value = "";
-                                        return;
-                                    }
-                                    setAvatarFile(f);
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => setAvatarPreview(reader.result as string);
-                                    reader.readAsDataURL(f);
-                                    e.target.value = "";
-                                }}
-                            />
-                        </label>
-                        {avatarFile && (
-                            <button
-                                onClick={async () => {
-                                    if (!avatarFile) return;
-                                    setAvatarUploading(true);
-                                    try {
-                                        // 消せない形式は上げない（アイコンも公開URLで配信される）
-                                        const compressed = await toUploadSafeFile(avatarFile, AVATAR_MAX_PX, 0.9);
-                                        // アイコンのアップロードは管理APIに経路が無い
-                                        // （/profile/avatar/presigned-url はユーザーAPIだけ）。
-                                        // 管理者だと 404 になって「Presigned URL fail」で終わっていた。
-                                        const { userFetch } = await import("../../../lib/utils/api");
-                                        const res = await userFetch("/profile/avatar/presigned-url", {
-                                            method: "POST",
-                                            body: JSON.stringify({ fileType: compressed.type }),
-                                        });
-                                        if (!res.ok) throw new Error("Presigned URL fail");
-                                        const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
-                                        const upload = await fetch(presignedUrl, {
-                                            method: "PUT",
-                                            body: compressed,
-                                            // Cache-Control は署名対象外ヘッダなので presigned URL 側では
-                                            // 指定できない。クライアントが送らないと S3 に何も付かず、
-                                            // CDN の既定TTLで配信されてアイコンを変えても反映されない。
-                                            headers: { "Content-Type": contentType ?? compressed.type, "Cache-Control": "no-store" },
-                                        });
-                                        if (!upload.ok) throw new Error("S3 upload fail");
-                                        setAvatarFile(null);
-                                        setAvatarCacheBust(Date.now());
-                                        showToast(locale === "en" ? "Profile photo updated!" : "プロフィール写真を更新しました");
-                                    } catch (e) {
-                                        log.error("avatar upload error:", e);
-                                        showToast(
-                                            e instanceof UnstrippableFileError
-                                                ? unstrippableMessage(e, locale)
-                                                : (locale === "en" ? "Upload failed" : "アップロードに失敗しました"),
-                                            "error",
-                                        );
-                                    } finally {
-                                        setAvatarUploading(false);
-                                    }
-                                }}
-                                disabled={avatarUploading}
-                                className="px-3 py-2 text-sm bg-white text-black rounded-full font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                {avatarUploading
-                                    ? (locale === "en" ? "Uploading..." : "アップロード中...")
-                                    : (locale === "en" ? "Save" : "保存")}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
         </main>
     );
 }
@@ -1487,11 +1837,11 @@ function UploadPageInner() {
 export default function UploadPage() {
     return (
         <Suspense fallback={
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-black max-w-3xl mx-auto w-full flex items-center justify-center">
+            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-3xl mx-auto w-full flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの fallback。** JS が走る前に見えるのは
                     ここなので、ランドマークと見出しを持たせる
                     （`sr-only` は position:absolute で描画に影響しない） */}
-                <h1 className="sr-only">写真をアップロード</h1>
+                <h1 className="sr-only">新しい投稿を作成</h1>
                 <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
             </main>
         }>

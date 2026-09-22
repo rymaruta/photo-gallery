@@ -56,6 +56,11 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:Scan
             - dynamodb:DeleteItem
+            # TransactWriteItems の ConditionCheck 項目に要る（Put/Update/Delete の
+            # 項目はそれぞれの権限で足りるが、ConditionCheck だけ別の権限）。
+            # `storyVotes.ts` が「行がまだ在ること」をこれで確かめる。
+            # 無いと AccessDeniedException で**全部の票が 500** になる
+            - dynamodb:ConditionCheckItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/*
@@ -96,10 +101,13 @@ custom:
       - '@aws-sdk/*'
 
 functions:
-  # 注: この関数自身は再ビルドを頼まない。**savePhoto と同じ src/upload.ts に
-  # 居るため**、依存を辿る守り（scripts/__tests__/rebuildTokenScope.test.ts）が
-  # 「届く関数」として数える。配り先を厳密に1つにするには savePhoto を別ファイルへ
-  # 切り出すことになるので、今は配る側に倒す（どちらも認証必須の投稿系）。
+  # 注: この関数自身は再ビルドを頼まない。**`src/upload.ts` の `savePhoto`
+  # （投稿の確定）と同じファイルに居るため**、依存を辿る守り
+  # （scripts/__tests__/rebuildTokenScope.test.ts）が「届く関数」として数える。
+  # 配り先を厳密に1つにするには `savePhoto` を別ファイルへ切り出すことになるので、
+  # 今は配る側に倒す（どちらも認証必須の投稿系）。
+  # ※ 保存（ブックマーク）の `src/saves.ts` とは無関係。あちらは
+  #   `addPhotoSave` / `removePhotoSave` で、再ビルドを頼まない。
   presignedUrl:
     handler: src/upload.presignedUrl
     environment:
@@ -527,6 +535,82 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 保存（ブックマーク）。**4つとも認証必須**——いいねの `getLikeCount` に
+  # 当たる「誰でも読める数」は持たない（保存は人に見せない操作）。
+  # 一覧は `saves#<uid>` を1回 GetItem するだけ（`likes` と同じ形）。
+  getMySaves:
+    handler: src/saves.getMySaves
+    events:
+      - httpApi:
+          path: /user/saves
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  getMySave:
+    handler: src/saves.getMySave
+    events:
+      - httpApi:
+          path: /user/saves/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # ⚠️ `savePhoto` という名前は使えない——**`src/upload.savePhoto`（投稿の
+  # 確定）が既に使っている**。重ねると YAML が
+  # `duplicated mapping key` で読めなくなり、api-user のデプロイが
+  # 丸ごと落ちる（最初この名前で書いて踏んだ）。
+  addPhotoSave:
+    handler: src/saves.savePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/save
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  removePhotoSave:
+    handler: src/saves.unsavePhoto
+    events:
+      - httpApi:
+          path: /photos/{id}/save
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 「行きたい場所」（撮影スポットの保存）。**写真の保存とは別の入れ物**で、
+  # 仕組みは `likes#<uid>` と同じ（`userList.ts` の `updateUserList`）。
+  #
+  # **公開の口は1つも無い。** 行 ID は JWT の sub からしか作らないので、
+  # 他人の一覧を指すパスが存在しない（本人だけが見られる）。
+  getMySavedSpots:
+    handler: src/savedSpots.getMySavedSpots
+    events:
+      - httpApi:
+          path: /user/spots
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  saveSpot:
+    handler: src/savedSpots.saveSpot
+    events:
+      - httpApi:
+          path: /user/spots
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **スラッグはパスで受ける**（本文のある DELETE は経路で落とされることがある）
+  unsaveSpot:
+    handler: src/savedSpots.unsaveSpot
+    events:
+      - httpApi:
+          path: /user/spots/{slug}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getComments:
     handler: src/comments.getComments
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
@@ -713,6 +797,18 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 投票スタンプ（2択）に票を入れる。認証必要・1人1票。
+  # 結果は `getStories` が投稿者と票を入れた人にだけ付けて返すので、
+  # 読む口は別に置かない。`PublicReadRole` には載せない（書き込み）
+  voteStory:
+    handler: src/storyVotes.voteStory
+    events:
+      - httpApi:
+          path: /stories/{id}/vote
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   # ブロック。**やり取りの口を持つ以上の最低限**（返信を足した時点で、
   # ログインしていれば誰でも誰の通知にも文字を送れるようになった）
   # 不適切な投稿の通報。**ログインが要る**——未認証で受けると誰でも
@@ -781,6 +877,80 @@ functions:
       - httpApi:
           path: /stories/{id}/keep
           method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 自分のアーカイブ（24時間で消えたあとも本人だけ見られる）。
+  # `GET /stories/{id}` は無いので、この固定パスと取り違えることは無い
+  getStoryArchive:
+    handler: src/storyArchive.getStoryArchive
+    events:
+      - httpApi:
+          path: /stories/archive
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # ---- ハイライト（⑦・アーカイブを束ねてマイページの輪に）------------
+  # 作る・直す・消すは本人だけ。読む2つは未認証（マイページは誰でも見る）
+  # ——読み取り専用ロール（写真テーブルは GetItem のみ）で動くよう、
+  # `highlights.ts` は ID を1件ずつ引く形にしてある
+  createHighlight:
+    handler: src/highlights.createHighlight
+    events:
+      - httpApi:
+          path: /highlights
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  updateHighlight:
+    handler: src/highlights.updateHighlight
+    events:
+      - httpApi:
+          path: /highlights/{id}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  deleteHighlight:
+    handler: src/highlights.deleteHighlight
+    events:
+      - httpApi:
+          path: /highlights/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 🔴 **ログインが要る。さらに中でフォローも見る**（`canSeeHighlights`）。
+  # ハイライトの中身はストーリーそのもので、**ストーリーはフォロワーだけが
+  # 見る**（2026-09-22・owner の判断。経緯は `src/storyVisibility.ts`）。
+  #
+  # 最初この2つを未認証で開いた（マイページを誰でも見られるようにするため）。
+  # 根拠は「入れられるのは全員に公開のアーカイブだけ」だったが、あの「全員」は
+  # **ログインした全員**の意味で、インターネット全体ではなかった。
+  # その状態で本番まで出した。
+  #
+  # **`role: PublicReadRole` は付けない。** あれは「未認証で呼べる口」の目印で、
+  # `scripts/__tests__/publicLambdaRole.test.ts` が「認可の無い口の集合」と
+  # 突き合わせている。認可を付けた関数に残すと対応が崩れ、**新しい未認証の口が
+  # 黙って共有ロールに乗る**のを見つけられなくなる。認証済みの読み取り口
+  # （`getStoryViewers`・`getStoryReplies` など）は全部この共有ロール。
+  getUserHighlights:
+    handler: src/highlights.getUserHighlights
+    events:
+      - httpApi:
+          path: /highlights/{userId}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  getHighlight:
+    handler: src/highlights.getHighlight
+    events:
+      - httpApi:
+          path: /highlights/{userId}/{id}
+          method: GET
           authorizer:
             name: cognitoAuthorizer
 

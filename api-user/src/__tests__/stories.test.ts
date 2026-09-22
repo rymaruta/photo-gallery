@@ -122,8 +122,8 @@ describe("getStories", () => {
     it("ログイン済みなら作成順で返し、viewers は除外・共有キャッシュもしない", async () => {
         mockDdbSend.mockResolvedValueOnce({
             Items: [
-                { id: "s2", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
-                { id: "s1", createdAt: "2026-07-04T10:00:00Z" },
+                { id: "s2", userId: "viewer", createdAt: "2026-07-04T11:00:00Z", viewers: { "u9": { at: "x" } } },
+                { id: "s1", userId: "viewer", createdAt: "2026-07-04T10:00:00Z" },
             ],
         });
         const res = await invoke(getStories, authedEvent("viewer"));
@@ -138,8 +138,13 @@ describe("getStories", () => {
     // 自分をブロックした相手のストーリーも出さない
     it("ブロックした相手・された相手のストーリーは出さない", async () => {
         mockHidden.mockResolvedValue(new Set(["a", "b"]));
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
-            if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
+        // a・b・c は全員フォローしている（ここで見たいのはブロックのふるいで、
+        // フォローのふるい＝`storyPrivacy.test.ts` ではない）
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const id = String(cmd.input.Key?.id ?? "");
+                return Promise.resolve(id.startsWith("follow#") ? { Item: { id } } : {});
+            }
             return Promise.resolve({ Items: [
                 { id: "s1", userId: "me", createdAt: "1" },
                 { id: "s2", userId: "a", createdAt: "2" },
@@ -266,8 +271,8 @@ describe("getStories", () => {
             if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             page++;
             return Promise.resolve(page === 1
-                ? { Items: [{ id: "a", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
-                : { Items: [{ id: "b", createdAt: "2" }] });
+                ? { Items: [{ id: "a", userId: "viewer", createdAt: "1" }], LastEvaluatedKey: { id: "a" } }
+                : { Items: [{ id: "b", userId: "viewer", createdAt: "2" }] });
         });
         const res = await invoke(getStories, authedEvent("viewer"));
         const items = JSON.parse(res.body) as Array<Record<string, unknown>>;
@@ -313,7 +318,7 @@ describe("getStories", () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) => {
             if (cmd.constructor.name === "GetCommand") return Promise.resolve({});
             if (cmd.constructor.name === "QueryCommand" && !queried) { queried = true; return Promise.reject(missing); }
-            return Promise.resolve({ Items: [{ id: "s1", createdAt: "1" }] });
+            return Promise.resolve({ Items: [{ id: "s1", userId: "viewer", createdAt: "1" }] });
         });
         const res = await invoke(getStories, authedEvent("viewer"));
         expect(res.statusCode).toBe(200);
@@ -689,6 +694,27 @@ describe("deleteStory", () => {
         expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
     });
 
+    // 票の文書も同じ——消せなければ行を残す（`storyvotes#<id>` も
+    // `storyFeed` を持たないので、行が消えると二度と辿れない）
+    it("票の文書を消せなかったら、行を残して失敗を返す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+            const id = String(cmd.input.Key?.id ?? "");
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "story-1", story: true, userId: "u1", key: "uploads/a.jpg" } });
+            }
+            if (id.startsWith("storyvotes#")) return Promise.reject(new Error("boom"));
+            return Promise.resolve({});
+        });
+        mockS3Send.mockResolvedValue({});
+        const res = await invoke(deleteStory, authedEvent("u1", { pathParameters: { id: "story-1" } }));
+        expect(res.statusCode, "票を消せていないのに成功と言っている").toBe(500);
+        const rowDeleted = mockDdbSend.mock.calls.some((c) => {
+            const cmd = c[0] as { constructor: { name: string }; input: { Key?: { id?: string } } };
+            return cmd.constructor.name === "DeleteCommand" && cmd.input.Key?.id === "story-1";
+        });
+        expect(rowDeleted, "辿る手がかり（行）まで消している").toBe(false);
+    });
+
     // **ギャラリーに残した1枚の実体は消さない。** `keptAs` が立っている
     // ストーリーは、その S3 オブジェクトの持ち主が写真の行に移っている。
     // ここで消すと、残したはずの写真が**割れた画像**になる（行は残るので
@@ -703,7 +729,7 @@ describe("deleteStory", () => {
         const keys = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "story-1"]);
+        expect(keys, "行は予定どおり消す").toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
     });
 
     // **ここで写真を消してはいけない。**
@@ -749,7 +775,7 @@ describe("deleteStory", () => {
         const deleted = mockDdbSend.mock.calls
             .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
             .map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(deleted).toEqual(["storyreplies#story-1", "story-1"]);
+        expect(deleted).toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
     });
 
     // 本人が消すときは今までどおり（残した写真は守る）
@@ -774,8 +800,11 @@ describe("deleteStory", () => {
         // 行と、そこに届いた返信の文書。**返信を先に消す**
         // （逆だと、消し損ねた `storyreplies#` を辿る手がかりが無くなる）
         const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
-        expect(keys, "返信の文書を消していない（24時間で消える約束の本文が残る）")
-            .toEqual(["storyreplies#story-1", "story-1"]);
+        // 票の文書（`storyvotes#`）も同じ理由で行より先に。**行のあとにもう一度**
+        // ——文書 → 行 の間に通った票は、行がまだ在るので `voteStory` の
+        // ConditionCheck を満たして文書を作り直す。行が消えたあとは作れない
+        expect(keys, "返信・票の文書を消していない（24時間で消える約束のものが残る）")
+            .toEqual(["storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
     });
 
     // 以前はサムネ生成スクリプトがストーリーも対象にしていたため、
@@ -817,6 +846,15 @@ describe("deleteStory", () => {
 // POST /stories/{id}/view
 // ────────────────────────────────
 describe("viewStory", () => {
+    /**
+     * **フォローの印を1つ返す。** `viewStory` は
+     * 「行 → 期限 → ブロック → フォロー → 表示名 → 書き込み」の順に叩くので、
+     * `mockResolvedValueOnce` を積む形のテストは**行の直後にこれを挟む**。
+     * 挟み忘れても表示名の応答が印として読まれて**偶然緑になる**ので、
+     * 名前を付けて明示する
+     */
+    const follows = () => ({ Item: { id: "follow#owner#viewer-1" } });
+
     it("id なしは 400", async () => {
         const res = await invoke(viewStory, authedEvent("u1", { body: "{}" }));
         expect(res.statusCode).toBe(400);
@@ -850,6 +888,7 @@ describe("viewStory", () => {
         const future = new Date(Date.now() + 60_000).toISOString();
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner", expiresAt: future } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -865,6 +904,7 @@ describe("viewStory", () => {
     it("expiresAt が無い行は有効として扱う", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "旅子" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -888,6 +928,7 @@ describe("viewStory", () => {
     it("記録の書き込みには存在チェックを付ける（消えた行を作らない）", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
             .mockResolvedValueOnce({})
             .mockResolvedValueOnce({});
@@ -898,7 +939,7 @@ describe("viewStory", () => {
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand");
         expect(updates).toHaveLength(2);
         for (const u of updates) {
-            expect(u.input.ConditionExpression).toBe("attribute_exists(id)");
+            expect(u.input.ConditionExpression).toBe("attribute_exists(id) AND attribute_not_exists(archivedAt)");
         }
     });
 
@@ -906,6 +947,7 @@ describe("viewStory", () => {
         const cond = Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } })
             .mockRejectedValueOnce(cond);
         const res = await invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" }, body: "{}" }));
@@ -928,6 +970,7 @@ describe("viewStory", () => {
     it("他人の閲覧は viewers マップに初回時刻つきで記録する", async () => {
         mockDdbSend
             .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
             .mockResolvedValueOnce({ Item: { displayName: "本当の名前" } }) // 表示名をテーブルから引く
             .mockResolvedValueOnce({}) // viewers マップ初期化
             .mockResolvedValueOnce({}); // 閲覧者エントリ追加
@@ -936,10 +979,10 @@ describe("viewStory", () => {
             body: JSON.stringify({ displayName: "なりすまし" }),
         }));
         expect(res.statusCode).toBe(200);
-        expect(mockDdbSend).toHaveBeenCalledTimes(4);
-        const initExpr = (mockDdbSend.mock.calls[2][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
+        expect(mockDdbSend).toHaveBeenCalledTimes(5);   // 行・フォローの印・表示名・書き込み2回
+        const initExpr = (mockDdbSend.mock.calls[3][0] as { input: { UpdateExpression: string } }).input.UpdateExpression;
         expect(initExpr).toContain("if_not_exists(viewers");
-        const addCall = (mockDdbSend.mock.calls[3][0] as {
+        const addCall = (mockDdbSend.mock.calls[4][0] as {
             input: {
                 UpdateExpression: string;
                 ExpressionAttributeNames: Record<string, string>;
@@ -1120,7 +1163,7 @@ describe("cleanupExpiredStories", () => {
             (c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand");
         const keys = deletes.map((c) => (c[0] as { input: { Key: { id: string } } }).input.Key.id);
         // 消せた方だけ。返信の文書も一緒に（行より先に）
-        expect(keys).toEqual(["storyreplies#good", "good"]);
+        expect(keys).toEqual(["storyreplies#good", "storyvotes#good", "good", "storyvotes#good"]);
     });
 
     // 掃除も同じ。消せなければ行を残して次回に回す
@@ -1187,7 +1230,13 @@ describe("cleanupExpiredStories", () => {
             input: { FilterExpression?: string; ExpressionAttributeValues?: Record<string, unknown> };
         };
         expect(scan.constructor.name).toBe("ScanCommand");
-        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now");
+        // アーカイブ済み（`storyFeed` を外し `archivedAt` を刻んだ行）は拾わない
+        // ——毎時撫で直さないための絞り込み。**式全体を完全一致で見る唯一の
+        // 見張り**（`storyArchive.test.ts` は重ねない）: DynamoDB は AND が OR
+        // より先に結びつくので、括弧が落ちると `(... AND storyFeed) OR
+        // archivedAt 無し`＝表の写真・コメント・印の行が全部「期限切れ」として
+        // 削除の経路に流れる
+        expect(scan.input.FilterExpression).toBe("story = :t AND expiresAt <= :now AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))");
         expect(scan.input.ExpressionAttributeValues?.[":t"]).toBe(true);
     });
 });
@@ -1195,6 +1244,66 @@ describe("cleanupExpiredStories", () => {
 // 一覧側は逆で、生きている分だけを引く。
 // active と expired が同じ三項で分かれているので、両側を固定しないと
 // 「三項ごと潰す」変異を捕まえられない。
+/**
+ * 投票スタンプの票の状態（`vote`）。**持つ行にだけ付ける・読みに行く。**
+ * 数（`counts`）は投稿者と票を入れた人だけ（`storyVoteState` が決める）。
+ */
+describe("getStories: 投票の状態", () => {
+    const VOTE = { kind: "vote", question: "好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 };
+    const rows = (items: Array<Record<string, unknown>>, votes: Record<string, unknown> | "fail" | undefined) => {
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
+                if (key.startsWith("storyvotes#")) {
+                    if (votes === "fail") return Promise.reject(new Error("throttled"));
+                    return Promise.resolve(votes ? { Item: { id: key, ...votes } } : {});
+                }
+                // 投稿者は全員フォローしている（ここで見たいのは票の状態で、
+                // フォローのふるい＝`storyPrivacy.test.ts` ではない）
+                if (key.startsWith("follow#")) return Promise.resolve({ Item: { id: key } });
+                return Promise.resolve({});
+            }
+            return Promise.resolve({ Items: items });
+        });
+    };
+    const first = async (me: string) =>
+        (JSON.parse((await invoke(getStories, authedEvent(me))).body) as Array<{ vote?: unknown }>)[0];
+    const voteReads = () => mockDdbSend.mock.calls
+        .map((c) => (c[0].input as { Key?: { id?: string } })?.Key?.id ?? "")
+        .filter((k) => k.startsWith("storyvotes#"));
+
+    it("投稿者には数が付く（入れていなくても）", async () => {
+        rows([{ id: "s1", userId: "me", createdAt: "1", texts: [VOTE] }], { votersA: new Set(["u1", "u2"]), votersB: new Set(["u3"]) });
+        expect((await first("me")).vote).toEqual({ counts: { a: 2, b: 1 } });
+    });
+
+    it("票を入れた人には自分の票と数", async () => {
+        rows([{ id: "s1", userId: "owner", createdAt: "1", texts: [VOTE] }], { votersA: new Set(["u1"]), votersB: new Set(["me"]) });
+        expect((await first("me")).vote).toEqual({ myVote: "b", counts: { a: 1, b: 1 } });
+    });
+
+    // **入れる前に数を見せない**（多い方に寄る）
+    it("まだ入れていない人には、票も数も無い（空）", async () => {
+        rows([{ id: "s1", userId: "owner", createdAt: "1", texts: [VOTE] }], { votersA: new Set(["u1"]) });
+        expect((await first("me")).vote).toEqual({});
+    });
+
+    it("投票スタンプの無い行には付けず、読みにも行かない", async () => {
+        rows([{ id: "s1", userId: "owner", createdAt: "1", texts: [{ text: "朝", x: 0.5, y: 0.5, size: 0.06 }] }], undefined);
+        expect((await first("me")).vote, "投票の無い行に vote を付けている").toBeUndefined();
+        expect(voteReads(), "投票の無い行の票を読みに行っている").toHaveLength(0);
+    });
+
+    // 読めなければ付けない（一覧は返す）。画面は「まだ入れていない」の形になり、
+    // 押せば書き込みが2票目を断る
+    it("票を読めなくても一覧は返す（vote は付けない）", async () => {
+        rows([{ id: "s1", userId: "me", createdAt: "1", texts: [VOTE] }], "fail");
+        const res = await invoke(getStories, authedEvent("me"));
+        expect(res.statusCode).toBe(200);
+        expect((JSON.parse(res.body) as Array<{ vote?: unknown }>)[0].vote).toBeUndefined();
+    });
+});
+
 describe("getStories: 生きているストーリーだけを引く", () => {
     it("expiresAt > now を引く", async () => {
         mockDdbSend.mockResolvedValueOnce({ Items: [] });
@@ -1228,5 +1337,77 @@ describe("期限切れストーリーの掃除は1時間ごと", () => {
         expect(m![1], "日次のままだと、消えたはずのストーリーが最大48時間取れる")
             .not.toMatch(/cron\(\d+\s+\d+\s/);   // 「分 時」が固定＝1日1回
         expect(m![1]).toMatch(/cron\(\d+\s+\*/);  // 時が * ＝毎時
+    });
+});
+
+/**
+ * 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+ *
+ * owner:「インスタみたいにストーリーで好きな場所で文字打てるようにしたい。
+ * フォントの種類や色も豊富にしたい」「複数のテキストを別々に置くのもやりたい」
+ *
+ * **`caption` は文字たちから作る**——文言を2か所で持つと静かにずれる。
+ * 残したときの題（`storyKeep.ts`）も検索に出る文章も、`caption` を読む。
+ */
+describe("createStory: 置いた文字", () => {
+    const post = (body: Record<string, unknown>) => invoke(createStory, authedEvent("u1", {
+        body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.webp", ...body }),
+    }));
+    const saved = () => (mockDdbSend.mock.calls
+        .map((c) => c[0] as { constructor: { name: string }; input: { Item?: Record<string, unknown> } })
+        .find((c) => c.constructor.name === "PutCommand")?.input.Item) ?? {};
+    const one = { text: "朝の空", x: 0.2, y: 0.8, size: 0.05, font: "mincho", color: "sky", bg: "soft" };
+
+    beforeEach(() => { mockDdbSend.mockResolvedValue({ Count: 0 }); });
+
+    it("受け取って保存する", async () => {
+        await post({ texts: [one] });
+        expect(saved().texts).toEqual([one]);
+    });
+
+    // 🔴 **`caption` は文字たちから作る。** クライアントの申告は使わない
+    it("caption は置いた文字から作る（送られた caption は使わない）", async () => {
+        await post({ texts: [{ ...one, text: "いち" }, { ...one, text: "に" }], caption: "べつの文言" });
+        expect(saved().caption, "文言を2か所で持っている").toBe("いち\nに");
+    });
+
+    it("文字を置いていなければ、これまでどおり caption をそのまま受ける", async () => {
+        await post({ caption: "朝の空" });
+        expect(saved().caption).toBe("朝の空");
+        expect("texts" in saved()).toBe(false);
+    });
+
+    // **一覧に在る鍵だけ。** 任意の CSS を通さない
+    it("知らない字体・色は既定へ落とす（文言と位置は残す）", async () => {
+        await post({ texts: [{ text: "朝", x: 0.2, y: 0.8, font: "comic", color: "url(javascript:1)" }] });
+        const st = (saved().texts as Record<string, unknown>[])[0];
+        expect(st.x).toBe(0.2);
+        expect(st.font).not.toBe("comic");
+        expect(st.color).toBe("white");
+    });
+
+    it("位置は挟む（半分が画面の外へ出ない）", async () => {
+        await post({ texts: [{ text: "朝", x: -3, y: 42 }] });
+        const st = (saved().texts as { x: number; y: number }[])[0];
+        expect(st.x).toBeGreaterThan(0);
+        expect(st.y).toBeLessThan(1);
+    });
+
+    // **文言が空のものは置き場所だけの項目**——画面に何も描けない
+    it("文言が空のものは落とす", async () => {
+        await post({ texts: [{ ...one, text: "  " }] });
+        expect("texts" in saved(), "空の文字を保存している").toBe(false);
+        expect("caption" in saved()).toBe(false);
+    });
+
+    it("上限を超えたぶんは落とす", async () => {
+        await post({ texts: Array.from({ length: 20 }, (_, i) => ({ ...one, text: `t${i}` })) });
+        expect((saved().texts as unknown[]).length).toBeLessThanOrEqual(5);
+    });
+
+    it("形が違えば持たない（壊れた値で落ちない）", async () => {
+        await post({ texts: "left", caption: "朝" });
+        expect("texts" in saved()).toBe(false);
+        expect(saved().caption, "caption まで落としている").toBe("朝");
     });
 });

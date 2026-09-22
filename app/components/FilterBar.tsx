@@ -29,6 +29,24 @@ type Props = {
     tagCounts?: Record<string, number>;
 };
 
+/**
+ * 溢れの逃がし方を幅で変える行（カテゴリ・タグ）。
+ *
+ *   < 1024px … 1行のまま**横スクロール**（画面の上に横一列で置く）
+ *   ≥ 1024px … **折り返す**（`/search` の PC は左の柱に置くので、
+ *              幅 248px しか無く横スクロールは指の当てどころが無い）
+ *
+ * ⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない。** 溢れを
+ * スクロールで逃がす箱は折り返さない。だから `lg:` で `overflow-visible`
+ * へ**戻してから** `lg:flex-wrap` を当てる——片方だけ足すと効かない。
+ *
+ * この部品を使っているのは `/search`（`GalleryPageClient` の `surface="search"`）
+ * だけなので、幅だけで決めてよい（props で切り替える必要が無い）。
+ * **props にしなかったのは水和のため**——`matchMedia` で選ぶと、PC の
+ * 初回描画が一度スマホの形で出てから組み替わる。
+ */
+const WRAPPING_ROW = "-mx-1 px-1 overflow-x-auto no-scrollbar lg:mx-0 lg:px-0 lg:overflow-visible lg:flex-wrap";
+
 function FilterBarInner({
     categories,
     tags,
@@ -249,7 +267,7 @@ function FilterBarInner({
                         onClick={() => onChange({ category: c })}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -270,7 +288,7 @@ function FilterBarInner({
                 onClick={() => onChange({ category: "all" })}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${values.category === "all" ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${values.category === "all" ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -302,7 +320,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-white text-black font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -312,7 +330,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-black/55" : "text-white/50"}`}>{count}</span> : null}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-white" : "text-white/50"}`}>{count}</span> : null}
                     </button>
                 );
             }),
@@ -325,15 +343,17 @@ function FilterBarInner({
 
     return (
         <section className={`mb-2 ${className}`}>
-            <div className="space-y-2.5">
-                {/* カテゴリ: 1行横スクロールのピル */}
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+            <div className="space-y-2.5 lg:space-y-3">
+                {/* カテゴリ: 1行横スクロールのピル（PC の柱では折り返す） */}
+                <div className={`flex gap-1.5 ${WRAPPING_ROW}`}>
                     {renderAllButton}
                     {renderCategoryButtons}
                 </div>
 
-                {/* 検索 + 並び替え */}
-                <div className="flex items-center gap-1.5">
+                {/* 検索 + 並び替え。**PC の柱では縦に積む**——248px の柱に
+                    検索欄と並び替えを横に並べると、検索欄が語句を1つ置くのも
+                    苦しい幅（約150px）になる */}
+                <div className="flex items-center gap-1.5 lg:flex-col lg:items-stretch">
                     <div className="relative flex-1">
                         <label htmlFor="filter-query" className="sr-only">
                             {labels.search.placeholder}
@@ -374,8 +394,10 @@ function FilterBarInner({
                         )}
                     </div>
 
-                    {/* 並び替え */}
-                    <div className="relative flex-shrink-0">
+                    {/* 並び替え。PC の柱では縦に積むので、箱をボタンの幅に
+                        縮めて（`lg:self-start`）吊る一覧の右端が柱の端まで
+                        飛ばないようにする */}
+                    <div className="relative flex-shrink-0 lg:self-start">
                         <button
                             ref={sortButtonRef}
                             type="button"
@@ -408,7 +430,13 @@ function FilterBarInner({
                                 id="sort-menu"
                                 role="listbox"
                                 aria-label={labels.sort.label}
-                                className="absolute right-0 mt-1 z-50 shadow-xl"
+                                /* **PC の柱では左に揃える。** 柱では箱が
+                                   ボタンの幅（約76px）まで縮むので、`right-0`
+                                   のまま吊ると幅 130px の一覧が左へはみ出す
+                                   ——実測で左端が **x=-14**（英語は -23）、
+                                   しかも `scrollWidth == innerWidth` なので
+                                   スクロールしても出てこない（レビューが計測） */
+                                className="absolute right-0 lg:right-auto lg:left-0 mt-1 z-50 shadow-xl"
                                 style={{ minWidth: 130, borderRadius: 12, overflow: "hidden", background: "#101214", border: "1px solid rgba(255,255,255,0.10)" }}
                             >
                                 {sortOptions.map((opt) => {
@@ -443,7 +471,7 @@ function FilterBarInner({
 
                 {/* タグ: よく使うものだけを1行で。全件（数十個）並べても選べないので、
                     残りは検索で探してもらう */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+                <div className={`flex items-center gap-1.5 ${WRAPPING_ROW}`}>
                     {renderTagChips}
 
                     {values.selectedTags && values.selectedTags.length > 0 && (

@@ -174,8 +174,8 @@ describe("閲覧者一覧: 取得の失敗", () => {
         await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
         await screen.findByText(/閲覧者を読み込めませんでした/);
 
-        const heading = screen.getByRole("heading", { name: /閲覧者/ });
-        expect((heading.textContent ?? "").replace("閲覧者", "").trim(),
+        const tab = screen.getByRole("tab", { name: /閲覧者/ });
+        expect((tab.textContent ?? "").replace("閲覧者", "").trim(),
             "失敗しているのに『取得中』のまま").toBe("");
 
         // **ボタン側も見る。** 見出しだけを読んでいたので、ボタンの
@@ -266,9 +266,9 @@ describe("閲覧者一覧: 取得の失敗", () => {
 // はじめてのストーリーで開くと「閲覧者 0」が出てから数字が入る
 // ——「誰にも見られていない」と読んで閉じる人が出る。
 describe("閲覧者一覧: 見出しの数字", () => {
-    /** 「閲覧者」の見出しに添えられた文字（数字 or …） */
+    /** 「閲覧者」のタブに添えられた文字（数字 or …） */
     const headingCount = () =>
-        (screen.getByRole("heading", { name: /閲覧者/ }).textContent ?? "").replace("閲覧者", "").trim();
+        (screen.getByRole("tab", { name: /閲覧者/ }).textContent ?? "").replace("閲覧者", "").trim();
 
     const open = () => {
         render(
@@ -451,5 +451,60 @@ describe("閲覧者一覧: ストーリーを切り替えたときのリセッ�
 
         // 送られていない＝シートも一覧もそのまま
         expect(screen.getByText("旅子"), "開いたまま次のストーリーへ行った").toBeInTheDocument();
+    });
+});
+
+// モック09 の状態例「リアクション・閲覧者リスト」。
+// **シートは1枚で、タブで切り替える**（以前は別々のシートが2枚あった）。
+describe("反応の一覧: 閲覧者とリアクションのタブ", () => {
+    const withReplies = (replyCount: number) => [{
+        userId: "me", displayName: "自分",
+        items: [{
+            id: "s1", src: "https://cdn/x/a.jpg", userId: "me", replyCount,
+            createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z",
+        }],
+    }] as unknown as StoryGroup[];
+
+    const open = (replyCount = 2) => render(
+        <StoryViewer groups={withReplies(replyCount)} initialGroupIndex={0} locale="ja" isAuthenticated
+            ownUserId="me" onSeen={() => { /* noop */ }} onClose={() => { /* noop */ }} />,
+    );
+
+    it("閲覧者から開いても、リアクションのタブがある（件数つき）", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({ items: [], count: 0 }) }));
+        open(2);
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        const tabs = screen.getAllByRole("tab");
+        expect(tabs.map((t) => t.textContent)).toEqual(["閲覧者1", "リアクション2"]);
+        expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("タブを押すと、シートはそのままで中身が入れ替わる", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({ items: [{ id: "r1", uid: "u2", name: "友人", emoji: "❤️", t: "2026-07-04T10:30:00Z" }], count: 1 }) }));
+        open(1);
+        await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+        await userEvent.click(screen.getByRole("tab", { name: /リアクション/ }));
+        expect(await screen.findByText("友人")).toBeInTheDocument();
+        expect(screen.queryByText("旅子"), "前のタブの中身が残っている").toBeNull();
+        // 戻れる
+        await userEvent.click(screen.getByRole("tab", { name: /閲覧者/ }));
+        expect(await screen.findByText("旅子")).toBeInTheDocument();
+    });
+
+    it("返信のピルからはリアクションのタブで開く", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf([])
+                : { ok: true, json: async () => ({ items: [], count: 0 }) }));
+        open(3);
+        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        expect(screen.getByRole("tab", { name: /リアクション/ })).toHaveAttribute("aria-selected", "true");
     });
 });

@@ -39,6 +39,16 @@ export type Labels = {
     search: {
         placeholder: string;
         clear: string;
+        /**
+         * `/search` の `<h1>`。
+         *
+         * **トップと同じ文にしない。** 以前は両方が `site.title`
+         * （「みんなの旅の写真」）で、別の面なのに見出しで区別できなかった
+         * ——読み上げでページを行き来する人には同じページに見える。
+         * `/search` は `noindex` なので検索結果への影響は無いが、
+         * 見出しは画面が何かを言う場所。
+         */
+        heading?: string;
     };
     gallery?: {
         emptyMessage?: string;
@@ -49,9 +59,12 @@ export type Labels = {
         gallery?: string;
         about?: string;
         favorites?: string;
+        /** 保存した写真（ブックマーク）。いいねとは別の棚 */
+        saves?: string;
         map?: string;
         mypage?: string;
         albums?: string;
+        settings?: string;
         wishlist?: string;
         account?: string;
         upload?: string;
@@ -99,7 +112,7 @@ const enLabels: Labels = {
     },
     tags: { title: "Tags" },
     actions: { clearTags: "Clear" },
-    search: { placeholder: "Search photos", clear: "Clear" },
+    search: { placeholder: "Search photos", clear: "Clear", heading: "Find photos" },
     gallery: {
         emptyMessage: "No photos found.",
         resultsCount: "Results",
@@ -109,9 +122,11 @@ const enLabels: Labels = {
         gallery: "Gallery",
         about: "About",
         favorites: "Liked Photos",
+        saves: "Saved Photos",
         map: "Map",
         mypage: "My Page",
         albums: "Shared Albums",
+        settings: "Settings",
         wishlist: "Travel List",
         account: "Account",
         upload: "Upload",
@@ -158,7 +173,7 @@ export const ja: Labels = {
     },
     tags: { title: "タグ" },
     actions: { clearTags: "選択を解除" },
-    search: { placeholder: "写真を検索（タイトル・説明・タグなど）", clear: "クリア" },
+    search: { placeholder: "写真を検索（タイトル・説明・タグなど）", clear: "クリア", heading: "写真をさがす" },
     gallery: {
         emptyMessage: "該当する写真がありません。",
         resultsCount: "結果",
@@ -168,9 +183,11 @@ export const ja: Labels = {
         gallery: "ギャラリー",
         about: "制作について",
         favorites: "いいねした写真",
+        saves: "保存した写真",
         map: "撮影地マップ",
         mypage: "マイページ",
         albums: "共同アルバム",
+        settings: "設定",
         wishlist: "行きたいリスト",
         account: "アカウント",
         upload: "アップロード",

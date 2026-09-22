@@ -3,7 +3,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
-import { Inter } from "next/font/google";
+import { Inter, Yusei_Magic, Yomogi } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
@@ -16,6 +16,7 @@ import Analytics from "./components/Analytics";
 import { AuthProvider } from "./auth/context";
 import { MusicProvider } from "./music/MusicContext";
 import MiniPlayer from "./components/MiniPlayer";
+import BottomNav from "./components/BottomNav";
 import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
@@ -57,21 +58,81 @@ const inter = Inter({
     fallback: ["Noto Sans JP", "system-ui", "-apple-system", "sans-serif"],
 });
 
+/**
+ * **手書き2種**（ストーリーの文字だけで使う。owner の要望 2026-09-22
+ * 「広告でよくある手書きのフォントも欲しい」「アオハルマーカー mini /
+ * みぎかたあがり のフォントがいい」）。
+ *
+ * ⚠️ **名指しの2つはそのまま使えない。**
+ *   - アオハルマーカーmini は**漢字を収録していない**（かな・英数字のみ）
+ *   - みぎかたあがり は**漢字が69字だけ**
+ *   どちらも文章に混ぜると「かなは手書き・漢字はゴシック」になる。
+ *   さらに Web フォントはファイルを閲覧者全員へ配ることになるが、
+ *   両方とも配布元（BOOTH）の規約に Web フォント可の明記が無い。
+ *
+ * そこで**見た目がいちばん近く、漢字を持ち、配ってよい**（SIL OFL）2つ:
+ *   - `Yusei Magic`（油性マジック）＝マーカー書き
+ *   - `Yomogi`（ヨモギ）＝ペンの走り書き
+ *
+ * **代償を抑える形**:
+ *   - `preload: false`——全ページに `<link rel=preload>` を出さない。
+ *     使うのはストーリーの文字だけで、ほとんどのページには1文字も無い
+ *   - `display: "swap"`——落ちてくるまでは丸ゴシックで読める
+ *   - `subsets` は**書かない**（次のコメント）。日本語は `unicode-range` で
+ *     細かく割れて配られるので、**実際に落ちるのは使った字の範囲だけ**
+ *
+ * ⚠️ **`subsets` を書かない。** next/font が持つ一覧に `japanese` が無く
+ * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
+ * `latin` と書くと**日本語の字が1つも入らない**。省くと全部の
+ * `unicode-range` を取り込み、ブラウザは**使った範囲だけ**落とす。
+ * 省くときは `preload: false` が要る（Next が止める）。
+ *
+ * ⚠️ **`fallback` も渡さない。** 渡すと next/font は**その並びを CSS 変数の
+ * 中へ焼き込む**ので、`storyText.ts` の
+ * `var(--font-marker),"Hiragino…",cursive` が実際にはこう展開される
+ * （実ブラウザで `getComputedStyle` を読んで見つけた）:
+ *
+ *     "Yusei Magic",Hiragino Maru Gothic ProN,Hiragino Sans,sans-serif,
+ *     "Hiragino Maru Gothic ProN","Hiragino Sans",cursive
+ *      ^^^^^^^^^^ ここで総称ファミリに当たり、後ろ半分は永久に使われない
+ *
+ * 受け皿の並びは `storyText.ts` の1か所だけが持つ。渡さないと変数は
+ * `"Yusei Magic","Yusei Magic Fallback"` になり、並びは `cursive` まで届く。
+ *
+ * ⚠️ **`adjustFontFallback: false` は効かない**（実ビルドで確かめた）。
+ * 渡しても `@font-face{font-family:Yusei Magic Fallback;src:local(Arial);
+ * size-adjust:111.71%}` は出て、変数にも入る。効かない指定は置かない。
+ * 害は無い——この面は Arial なので**日本語の字を1つも持たず**、
+ * CSS のフォント選択は字ごとに落ちるので、日本語は次の
+ * `Hiragino Maru Gothic ProN` へ進む。
+ */
+const marker = Yusei_Magic({
+    weight: ["400"],
+    display: "swap",
+    preload: false,
+    variable: "--font-marker",
+});
+const scribble = Yomogi({
+    weight: ["400"],
+    display: "swap",
+    preload: false,
+    variable: "--font-scribble",
+});
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
 // viewportFit=cover でノッチ・ホームインジケーター領域の safe-area-inset を有効化
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // **`manifest.webmanifest` が `theme_color: "#000000"` を宣言しているのに、
+  // **`manifest.webmanifest` が `theme_color` を宣言しているのに、
   // `<meta name="theme-color">` が1ページも無かった**（実ビルドで確認）。
   // マニフェストの色が効くのは**インストール後**で、ブラウザで見ている間の
   // ツールバーの色はこのメタタグが決める。真っ黒なサイトの上に既定の
   // 明るいツールバーが乗っていた。
   //
   // **新しい色を決めていない**——マニフェストが既に宣言している色を、
-  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ `#000000`）。
-  themeColor: "#000000",
+  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ値。2026-09-21 に紺 `#050e17` へ——`globals.css` の `--color-bg` と同じ）。
+  themeColor: "#050e17",
 };
 
 // **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
@@ -162,10 +223,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/*
           CSS が届かなかったときの最低限の下地。
           スタイルシートが 404/403 になると真っ白＋既定フォントで「壊れた」ページに
-          見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて黒背景で見せる。
+          見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて紺の下地で見せる。
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
-        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000;color:#fff;margin:0}" }} />
+        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#050e17;color:#fff;margin:0}" }} />
         {/* **画像配信元への事前接続はもう出さない。**
             以前はここで CloudFront の既定ドメインへ preconnect / dns-prefetch を
             張っていた。「最初の画像の DNS+TLS 待ちを削る」ためだが、
@@ -251,7 +312,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-black text-white`}>
+      <body className={`${inter.className} ${marker.variable} ${scribble.variable} min-h-screen flex flex-col bg-bg text-white`}>
         <Analytics />
         <DisableSave />
         <AssetRecovery />
@@ -269,8 +330,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LocaleProvider>
             <AuthProvider>
               <MusicProvider>
-              {/* Header: 黒背景に白字のモダンなデザイン */}
-              <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-md border-b border-white/10">
+              {/* Header: 紺の下地に白字（最終版モック） */}
+              <header className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10">
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
                   {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
@@ -278,12 +339,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       画面から 27px はみ出して**全ページが横スクロール**していた
                       （実測。WCAG 1.4.10 は拡大時に横スクロールを出さないことを求める）。
                       **100% では場所が余っているので見た目は変わらない。** */}
-                  <p className={`${inter.className} text-2xl md:text-3xl font-bold tracking-tight text-white m-0 min-w-0 truncate`}>
+                  {/* **最終版モックのロゴ**（2026-09-21）: 左に青の山のマーク、
+                      字はセリフ。マークは `<svg>` を直に置く（画像だと初回描画で
+                      1本余計に取りに行くうえ、色をトークンで揃えられない）。
+                      装飾なので読み上げには渡さない（`aria-hidden`）。 */}
+                  <p className="font-serif text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0 truncate">
                     <Link
                       href="/"
                       prefetch={false}
-                      className="inline-block hover:opacity-70 transition-opacity duration-200 relative group"
+                      className="inline-flex items-center gap-2 hover:opacity-70 transition-opacity duration-200 relative group"
                     >
+                      <svg aria-hidden="true" viewBox="0 0 32 32" className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0 text-accent" fill="currentColor">
+                        <path d="M3 26 13 8l6 10 3-4 7 12z" opacity="0.55" />
+                        <path d="M9 26 19 10l10 16z" />
+                      </svg>
                       <span className="relative z-10">Journey Photo</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>
@@ -306,6 +375,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* グローバル音楽のミニプレイヤー（再生中のみ表示） */}
               <MiniPlayer />
+
+              {/* 画面下の5つのタブ。**全ページに常駐する**（owner の新デザイン）。
+                  高さを `--bottom-bar-h` に出すので、ミニプレイヤーはその上に逃げる。
+                  `body` の下余白（`app/globals.css`）も同じ変数を読む */}
+              <BottomNav />
               </MusicProvider>
             </AuthProvider>
           </LocaleProvider>

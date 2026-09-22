@@ -108,6 +108,12 @@ describe("deleteAccount", () => {
         expect(ids).toContain("notifs#me");
         expect(ids).toContain("followstats#me");
         expect(ids).toContain("following#me");
+        // **「行きたい場所」も消す**（`savedSpots.ts` の `spots#<uid>`）。
+        // 決定的キーの自分の行で、本人しか読めない一覧なので、ここで
+        // 消せば完全に消える。残すと退会後も行動履歴が残り、掃除役は居ない
+        expect(ids).toContain("spots#me");
+        // 写真の「保存」の一覧（`saves.ts` の `saves#<uid>`）も同じ扱い
+        expect(ids).toContain("saves#me");
 
         // プロフィール行は**消すのではなく墓石に置き換える**。
         // ただ消すと、期限まで有効な古いトークンを持った別端末が
@@ -863,6 +869,10 @@ describe("deleteAccount: コメントの消し残し", () => {
         await invoke(deleteAccount, ev("me"));
         expect(deletedDdbIds()).toContain("story-1");
         expect(deletedDdbIds(), "退会しても返信の本文が残る").toContain("storyreplies#story-1");
+        // 票の文書（`storyvotes#<id>`）も同じ（票を入れた人の uid が残る）。
+        // 行のあとにもう一度（文書 → 行 の間に通った票。`storyVotes.ts`）
+        expect(deletedDdbIds().filter((k) => k.endsWith("story-1")))
+            .toEqual(["comments#story-1", "storyreplies#story-1", "storyvotes#story-1", "story-1", "storyvotes#story-1"]);
     });
 });
 
@@ -1063,6 +1073,76 @@ describe("deleteAccount: 共同アルバム", () => {
             }
             return Promise.resolve({});
         });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+    });
+});
+
+// **ハイライト（⑦）の掃除。** `highlight#` の行は `userId` を持たないので
+// 索引の掃除に掛からない。一覧（`highlights#<uid>`・`updateUserList` の行）
+// から辿って本体を消し、一覧も消す。中のストーリーは索引の掃除で消えている
+describe("deleteAccount: ハイライト", () => {
+    const deletedIds = () => mockDdbSend.mock.calls
+        .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
+        .map((c) => String(((c[0] as { input: { Key?: { id?: string } } }).input.Key ?? {}).id ?? ""));
+
+    function withHighlights(list: string[] | undefined, fail = false) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "highlights#me") {
+                    if (fail) return Promise.reject(new Error("throttled"));
+                    return Promise.resolve({ Item: list ? { id, list, rev: 2 } : undefined });
+                }
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("本体と一覧を消す", async () => {
+        withHighlights(["h1", "h2"]);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "本体を消していない").toContain("highlight#h1");
+        expect(ids).toContain("highlight#h2");
+        expect(ids, "一覧を消していない").toContain("highlights#me");
+    });
+
+    // **ハイライトの行と、投票の文書が両方消える**（同じ退会の1回で）。
+    // ハイライト（#85）と投票（#87）は別の PR で `account.ts` の別の場所に
+    // 削除を足した——マージで片方が落ちても気づけるよう、1つの筋で固定する
+    it("ハイライトの行と、ストーリーの票の文書を、同じ退会で両方消す", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [{ id: "story-1" }] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "highlights#me") return Promise.resolve({ Item: { id, list: ["h1"], rev: 2 } });
+                if (id === "story-1") return Promise.resolve({ Item: { id: "story-1", story: true, src: "https://cdn/uploads/me/s1.jpg" } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        const ids = deletedIds();
+        expect(ids, "ハイライトの本体を消していない").toContain("highlight#h1");
+        expect(ids, "ハイライトの一覧を消していない").toContain("highlights#me");
+        expect(ids, "ストーリーの行を消していない").toContain("story-1");
+        expect(ids, "返信の文書を消していない").toContain("storyreplies#story-1");
+        // 票の文書は行より先に、そして行のあとにもう一度（`storyVotes.ts`）
+        expect(ids.filter((k) => k === "storyvotes#story-1"), "票の文書を消していない（行の前後で2回）").toHaveLength(2);
+    });
+
+    it("持っていなくても退会は成功し、一覧の行を消す", async () => {
+        withHighlights(undefined);
+        expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
+        expect(deletedIds()).toContain("highlights#me");
+    });
+
+    it("掃除に失敗しても、退会は止めない", async () => {
+        withHighlights(["h1"], true);
         expect((await invoke(deleteAccount, ev("me"))).statusCode).toBe(200);
     });
 });
@@ -1322,5 +1402,56 @@ describe("退会: 同じアルバムの写真が複数あっても、全部外�
             .filter((cmd) => cmd?.constructor?.name === "UpdateCommand"
                 && String((cmd.input.Key as { id?: string })?.id ?? "") === "album#A");
         expect(albumUpdates, "1枚ずつ撃っている").toHaveLength(1);
+    });
+});
+
+// **退会で「何にいいねしたか」が消えていなかった。**
+//
+// 既知キーの削除に `likes#<uid>` だけ入っておらず、退会後も最大1000件の
+// 「どの写真を気に入ったか」がテーブルに残っていた（掃除役は居ない）。
+// `spots#` / `saves#` と同じ扱いにする。
+describe("deleteAccount: いいねの一覧", () => {
+    function withLikes(photoIds: string[]) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "likes#me") return Promise.resolve({ Item: { list: photoIds, rev: 3 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("`likes#<uid>` の行を消す", async () => {
+        withLikes(["p1", "p2"]);
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(deletedDdbIds(), "いいねの一覧が残っている").toContain("likes#me");
+    });
+
+    /**
+     * **写真側の `likes` は減らさない。** 減らす判断をするならマーカーの
+     * 削除と同じ書き込みでやる必要があり（でないと再実行で二重に減る）、
+     * それを一覧の最大1000件ぶん回すとフォローの掃除と同じ実行時間の壁に
+     * 当たる。詳細は `account.ts` の該当箇所のコメント。
+     *
+     * ⚠️ **これは「この差分が直したこと」の検証ではない。** 今の実装は
+     * `likes#<uid>` を**消すだけで読まない**ので、`withLikes` が用意する
+     * 中身（`["p1","p2"]`）はこのテストでは効いていない——**差し戻しても
+     * 緑になる**。置いてあるのは、あとで「減らす」実装が入ったときに
+     * 捕まえるための見張り。実際に減算を足した変異で落ちることは確認済み。
+     */
+    it("写真の `likes` を減らさない／マーカーも触らない", async () => {
+        withLikes(["p1", "p2"]);
+        await invoke(deleteAccount, ev("me"));
+        const touched = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand"
+                || cmd?.constructor?.name === "DeleteCommand")
+            .map((cmd) => String((cmd.input.Key as { id?: string })?.id ?? ""));
+        expect(touched, "写真のいいね数を触っている").not.toContain("p1");
+        expect(touched, "いいねのマーカーを消そうとしている").not.toContain("like#p1#me");
     });
 });

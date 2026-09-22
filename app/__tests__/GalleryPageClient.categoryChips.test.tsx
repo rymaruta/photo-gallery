@@ -13,6 +13,8 @@ import { ja } from "../i18n/labels";
  *
  * **ここは配線を見る**——地図を作るのをやめる変異が、
  * `lib/utils/__tests__/categoryMap.test.ts` だけでは素通りしていた。
+  *
+ * **`surface="search"` で描く。** 絞り込みのチップとグリッドは「さがす」の持ち場になった（トップは1列のカード）。**見ている性質は同じ**——別名で保存されたカテゴリを、飛び先と同じ名前で出すこと。
  */
 const mockShowToast = vi.hoisted(() => vi.fn());
 
@@ -48,19 +50,24 @@ beforeEach(() => { mockShowToast.mockReset(); window.history.replaceState({}, ""
 
 describe("カテゴリのチップの字", () => {
     it("別名で保存されていても、飛び先と同じ名前で出る", () => {
-        render(<GalleryPageClient />);
-        expect(screen.getByText("建築"), "別名の写真のチップが生の値のまま").toBeInTheDocument();
+        render(<GalleryPageClient surface="search" />);
+        // **チップは `role="button"` で探す。** 同じ画面の「カテゴリから探す」
+        // （`DiscoverSections`）が同じ名前を `<Link>` で出すので、素の
+        // `getByText` だと2件見つかって落ちる——そして `getAllByText` に
+        // 緩めると、**チップが消えて丸いリンクだけになっても通る**
+        // ＝見たい性質（絞り込みチップの字）が無検証になる
+        expect(screen.getByRole("button", { name: "建築" }), "別名の写真のチップが生の値のまま").toBeInTheDocument();
         expect(screen.queryByText("建物"), "飛び先と違う言葉を出している").toBeNull();
-        expect(screen.getByText("風景")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "風景" })).toBeInTheDocument();
         // 表に無いカテゴリは本人が書いた言葉のまま（一覧・写真ページと同じ）
-        expect(screen.getByText("travel"), "見出し語に書き換えている").toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "travel" }), "見出し語に書き換えている").toBeInTheDocument();
     });
 
     // **サムネの下の名前は、この地図を渡さないと消える。**
     // チップ側は `FilterBar` の落とし先があるので、渡し忘れても字が出る
     // ——渡し忘れを観測できるのはこちら
     it("サムネの下に出す地図を、ちゃんと渡している", () => {
-        render(<GalleryPageClient />);
+        render(<GalleryPageClient surface="search" />);
         expect(gridProps.map, "地図を渡していない").toBeTruthy();
         expect(gridProps.map?.architecture, "別名の写真のカテゴリが空欄になる").toBe("建築");
         expect(gridProps.map?.landscape).toBe("風景");

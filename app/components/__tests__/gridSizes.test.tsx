@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import GalleryGrid from "../GalleryGrid";
-import { GRID_SIZES_5XL, GRID_SIZES_6XL } from "../gridSizes";
+import { GRID_SIZES_5XL, GRID_SIZES_6XL, GRID_SIZES_SEARCH } from "../gridSizes";
 import type { Photo } from "@/lib/data/photos";
 
 /**
@@ -60,6 +60,16 @@ const MEASURED_5XL: Array<[number, number]> = [
 const MEASURED_6XL: Array<[number, number]> = [
     [320, 144], [390, 179], [640, 199], [641, 199], [768, 241], [1024, 244], [1280, 276], [1536, 276],
 ];
+/**
+ * 「さがす」（`/search`）。**≥1024px で左に絞り込みの柱（248px）が入り**、
+ * 容器の上限が `max-w-6xl`（72rem）になる。1023px までは `max-w-5xl` と同じ。
+ * 列は **PC でも3列**（柱を置いて4列にすると 1024px で 165.5px ＝ スマホより
+ * 小さくなる）。Chromium で `out/` を配って実測（2026-09-22）。
+ */
+const MEASURED_SEARCH: Array<[number, number]> = [
+    [320, 144], [390, 179], [640, 193], [641, 194], [768, 231],
+    [1024, 223], [1151, 265], [1152, 265], [1280, 265], [1536, 265], [1920, 265],
+];
 
 const TOLERANCE = 0.02; // 実測との差は2%まで（式を実測に合わせたので絞れる）
 
@@ -74,6 +84,25 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
         const declared = resolveSizes(GRID_SIZES_6XL, vw);
         expect(declared).not.toBeNull();
         expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
+    });
+
+    it.each(MEASURED_SEARCH)("さがす（柱つき）: 画面幅 %ipx で実測 %ipx に合う", (vw, actual) => {
+        const declared = resolveSizes(GRID_SIZES_SEARCH, vw);
+        expect(declared).not.toBeNull();
+        expect(Math.abs(declared! - actual) / actual).toBeLessThanOrEqual(TOLERANCE);
+    });
+
+    /**
+     * **柱を置いたのに `sizes` を据え置く**のがいちばん起きやすい間違い
+     * （容器と列数だけ直して申告を忘れる）。その形を通すと落ちること。
+     */
+    it("柱のぶんを引いていない式は、PC の幅で落ちる（判定の自己確認）", () => {
+        const bad = MEASURED_SEARCH.filter(([vw]) => vw >= 1024).filter(([vw, actual]) => {
+            const d = resolveSizes(GRID_SIZES_5XL, vw);   // 柱が無い前提の式
+            return d === null || Math.abs(d - actual) / actual > TOLERANCE;
+        });
+        expect(bad.length, "柱の有無で申告が変わらない＝この判定は空回りしている")
+            .toBe(MEASURED_SEARCH.filter(([vw]) => vw >= 1024).length);
     });
 
     // **この判定が空回りしていないこと。** 直す前の式を通すと落ちるはず。
@@ -94,14 +123,14 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
     });
 
     // **容器に上限があるので、いちばん広いときは vw で申告してはいけない。**
-    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
+    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
         const last = sizes.split(",").pop()!.trim();
         expect(last).toMatch(/^[\d.]+(px|rem)$/);
     });
 
     // **境界は Tailwind に合わせて手前で切る。** `sm:` は 640px **から**効くのに
     // `(max-width:640px)` も 640 を含むので、ちょうど 640px で食い違っていた。
-    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL]])("%s: 境界に 640px / 1024px を素で使わない", (_n, sizes) => {
+    it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH]])("%s: 境界に 640px / 1024px を素で使わない", (_n, sizes) => {
         expect(sizes).not.toMatch(/max-width:\s*(640|768|1024|1152)(px|rem)/);
         expect(sizes).not.toMatch(/max-width:\s*(40|48|64|72)rem/);
     });

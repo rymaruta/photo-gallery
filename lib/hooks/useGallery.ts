@@ -5,6 +5,9 @@ import type { GalleryFilters } from "../types/gallery";
 import { slugify, normalizeForSearch, tagKey, categoryDisplayName } from "../utils/collections";
 import { dedupeCameraName } from "../utils/cameraName";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
+// **履歴の作法は共通部品**（`__NA` を持ち越さないと戻るたびに再読み込みになる）。
+// 撮影スポット詳細のビューアも同じものが要るので、ここから出した
+import { withNextHistoryState } from "../utils/historyState";
 
 /**
  * タグ比較用の正規化。
@@ -67,32 +70,14 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     if (tags) out.selectedTags = Array.from(new Set(tags.split(",").filter(Boolean)));
     // 知らない値は既定のまま
     const scope = params.get("scope");
-    if (scope === "mine" || scope === "following") out.scope = scope;
+    if (scope === "featured" || scope === "following") out.scope = scope;
     return out;
 }
 
 /**
- * 履歴の state を書くときに、**Next の内部キーを持ち越す**。
- *
- * `replaceState({}, ...)` で潰していたので、そのエントリに戻ると Next の
- * popstate ハンドラが `if (!event.state.__NA) window.location.reload()`
- * （`app-router.js`）に落ちる——**ページが丸ごと再読み込みされ、一覧の
- * スクロール位置が消える**。モーダルを閉じるたびにそれが起きていた
- * （`e6aa8c7` で `back()` を呼ぶようにして初めて表に出た。潰し自体は
- * それ以前からあった）。Next 自身も `copyNextJsInternalHistoryState` で
- * 同じことをしている。
- */
-function withNextHistoryState(extra: Record<string, unknown>): Record<string, unknown> {
-    const cur = (typeof window !== "undefined" ? window.history.state : null) as Record<string, unknown> | null;
-    const out: Record<string, unknown> = { ...extra };
-    if (cur?.__NA) out.__NA = cur.__NA;
-    if (cur?.__PRIVATE_NEXTJS_INTERNALS_TREE) out.__PRIVATE_NEXTJS_INTERNALS_TREE = cur.__PRIVATE_NEXTJS_INTERNALS_TREE;
-    return out;
-}
-
-/**
- * @param ownUserId ログイン中の本人の id。`scope: "mine"` はこの id の写真に絞る。
- *   無ければ（未ログイン）`mine` は `all` と同じ（絞れないので絞らない）
+ * @param ownUserId ログイン中の本人の id。`scope: "following"` の判定に使う。
+ *   **「自分の写真」タブは無くなった**（owner の新デザイン。自分の写真は
+ *   マイページの「投稿」タブが持つ）
  */
 export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
@@ -128,9 +113,14 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
 
-        // 自分の写真だけ（トップの「自分」タブ）。本人の id が無ければ絞らない
-        if (filters.scope === "mine" && ownUserId) {
-            arr = arr.filter((p) => p.userId === ownUserId);
+        // **おすすめ**（トップの「おすすめ」タブ）＝**運営が選んだ写真**。
+        //
+        // 人気順ではない。実データは いいね0・コメント0 なので、人気の根拠が
+        // どこにも無い——根拠の無いものを「人気」と名乗らない（owner の
+        // 指示書にも明記がある）。選ぶのは管理APIだけ（`featured` は
+        // `/user/edit` からは触れない。`lib/data/photos.ts` の docstring）。
+        if (filters.scope === "featured") {
+            arr = arr.filter((p) => p.featured === true);
         }
         // 「フォロー中」はグリッドではなく `TimelineFeed` が描くので、この一覧は
         // **空にする**。空にしないと `?photo=` が来たとき `openById` が通って

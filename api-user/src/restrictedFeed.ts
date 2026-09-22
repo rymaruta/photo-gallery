@@ -6,16 +6,10 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { readUserList } from "./userList";
 import { closeFriendsId, isUserId } from "./closeFriends";
 import { hiddenUserIds } from "./blockCheck";
-
-/**
- * 「自分がフォローしている人」の行。
- *
- * **`follow.ts` を読み込まない。** あちらは通知・S3・CDN まで引き連れて
- * いて、読み込みの輪（`importCycle.test.ts`）を作りやすい。行の名前は
- * 1つの定数なので、こちらで持つ方が軽い
- * （名前がずれないことは `restrictedFeed.test.ts` が縛る）。
- */
-const followingListId = (uid: string) => `following#${uid}`;
+// 行の名前は `followCheck.ts` が持つ（`follow.ts` は通知・S3・CDN まで
+// 引き連れていて、読み込みの輪を作る）。**写しを作らない**——develop が
+// 同じ理由でここへ切り出していたので、そちらに寄せた
+import { followingId } from "./followCheck";
 
 /**
  * GET /feed/restricted — 公開範囲を絞った写真のうち、**自分に見えるぶん**。
@@ -40,7 +34,7 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
     try {
         const [items, following, closeOf, hidden] = await Promise.all([
             queryRestricted(),
-            readUserList(followingListId(userId), isUserId, `following#${userId}`)
+            readUserList(followingId(userId), isUserId, "フォロー一覧")
                 .catch(() => [] as string[]),
             // 自分を「親しい友達」に入れている人は、その人の行を読まないと
             // 分からない。**出している人ぶんだけ**あとで読む（下）

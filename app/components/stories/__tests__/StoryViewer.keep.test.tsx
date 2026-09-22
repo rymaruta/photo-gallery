@@ -248,9 +248,11 @@ describe("ストーリーをギャラリーに残す", () => {
 // 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）。
 // 名前の段の下に置くのは、下端の段が既に3つのピルで埋まっているため
 describe("ストーリーの撮影地", () => {
-    it("付いていれば出す", async () => {
+    // モック④ の左下のチップ。**1か所にだけ出す**——ヘッダー（②）にも
+    // 出すと、`location` は1つの文字列なので同じ文字が画面に2度並ぶ
+    it("付いていれば出す（画面に1つだけ）", async () => {
         view(own({ location: "横浜 みなとみらい" }));
-        expect(await screen.findByText("横浜 みなとみらい")).toBeInTheDocument();
+        expect(await screen.findAllByText("横浜 みなとみらい")).toHaveLength(1);
     });
 
     it("無ければ何も出さない", async () => {

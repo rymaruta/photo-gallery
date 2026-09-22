@@ -6,6 +6,7 @@ import { useAuth } from "../auth/context";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import { fetchFollowingSet, subscribeFollowingSet } from "../../lib/hooks/useFollow";
 import { timelinePhotos } from "../../lib/utils/timeline";
+import { useMySaves } from "../../lib/hooks/useMySaves";
 import { ROUTES, loginWithNext } from "../../lib/routes";
 import TimelineCard from "./TimelineCard";
 
@@ -26,8 +27,11 @@ type Props = { locale: string };
  * 未ログインで描かれることは無いはずだが、その場合はログインへの導線を出す。
  */
 export default function TimelineFeed({ locale }: Props) {
-    const { isAuthenticated, loading: authLoading } = useAuth();
+    const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
+    // 保存した写真の id を**1回で**引いてカードに配る（写真ごとに聞きに行かせない）
+    const saves = useMySaves(isAuthenticated, authLoading);
+    const savedIds = React.useMemo(() => (saves.pending || saves.failed ? null : new Set(saves.photoIds)), [saves.pending, saves.failed, saves.photoIds]);
 
     // `null` ＝ まだ分からない。**「0人」と混ぜない**（取得中に「まだ誰も
     // フォローしていません」を出すと、フォローが効いていないように見える）
@@ -119,7 +123,14 @@ export default function TimelineFeed({ locale }: Props) {
         <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
             {items.map((p, i) => (
                 <li key={p.id} className="m-0 p-0">
-                    <TimelineCard photo={p} locale={locale === "en" ? "en" : "ja"} priority={i < PRIORITY_COUNT} />
+                    <TimelineCard
+                        photo={p}
+                        locale={locale === "en" ? "en" : "ja"}
+                        priority={i < PRIORITY_COUNT}
+                        isAuthenticated={isAuthenticated}
+                        authLoading={authLoading}
+                        savedIds={savedIds}
+                    />
                 </li>
             ))}
         </ol>

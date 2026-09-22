@@ -154,7 +154,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
-                    <span className="block rounded-full p-[2px] bg-black">
+                    <span className="block rounded-full p-[2px] bg-bg">
                         <UserAvatar userId={userId} className="w-8 h-8" iconClassName="w-5 h-5" />
                     </span>
                 </button>
@@ -233,6 +233,16 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                         </button>
                                     </li>
                                 )}
+                                {/* 保存した写真: **ログイン中だけ**。いいねと違って
+                                    未ログインでは押せないので、出しても空のページにしか
+                                    ならない（いいねは端末の控えがあるので条件が違う） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SAVES)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.saves || "Saved"}
+                                        </button>
+                                    </li>
+                                )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
                                         <span className="text-[10px] tracking-widest uppercase text-white/50">
@@ -261,6 +271,18 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                     <li style={{ margin: 0, padding: 0 }}>
                                         <button onClick={() => handleNavigation(ROUTES.ALBUMS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
                                             {navLabels.albums || "Shared Albums"}
+                                        </button>
+                                    </li>
+                                )}
+                                {/* 設定（アカウント・プライバシー・サポート）。
+                                    **`isAuthenticated` だけで出す**——共同アルバムと
+                                    違ってグループ（投稿権限）を見ない。パスワードの
+                                    変更と退会は、権限が付かなかった人にこそ要る
+                                    （`/user/settings` の門も同じ判断） */}
+                                {isAuthenticated && (
+                                    <li style={{ margin: 0, padding: 0 }}>
+                                        <button onClick={() => handleNavigation(ROUTES.SETTINGS)} className={`${linkBase} ${inactiveClasses} w-full text-left`} style={btnStyle}>
+                                            {navLabels.settings || "Settings"}
                                         </button>
                                     </li>
                                 )}

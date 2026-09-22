@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, DeleteCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
@@ -9,11 +9,14 @@ import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUpl
 import { s3DeleteMany } from "./s3Delete";
 import { invalidateUploads } from "./cdnInvalidate";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
-import { truncate, sanitizeText, sanitizeCoords, sanitizeAudience } from "./sanitize";
+import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
+import { storyVotesId, storyHasVote, storyVoteState, sweepStoryVotes } from "./storyVotes";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
-import { closeFriendsId, isUserId } from "./closeFriends";
-import { readUserList } from "./userList";
+import { isFollowing } from "./followCheck";
+import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
+import { storyAllowsReplies } from "./storyVisibility";
+import { isStoryExpired } from "./storyExpiry";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -122,7 +125,18 @@ async function scanStories(filter: "active" | "expired"): Promise<Record<string,
     do {
         const res = await ddb.send(new ScanCommand({
             TableName: PHOTOS_TABLE,
-            FilterExpression: filter === "active" ? "story = :t AND expiresAt > :now" : "story = :t AND expiresAt <= :now",
+            // 期限切れから**棚へ移した行（`storyFeed` を外し `archivedAt` を刻んだ）
+            // だけを除く**。GSI の経路は `storyFeed` がキーなので自然にそうなるが、
+            // Scan はテーブル全体を見るので、ここで落とさないと**毎時アーカイブを
+            // 撫で直す**。
+            //   - `storyFeed` が在る → 拾う（刻まれたのに残る半端な行も、
+            //     棚へ移す条件式と同じ物差しで拾って直せる）
+            //   - `storyFeed` が無くても `archivedAt` が無い → 拾う。**索引が生える
+            //     前の古い行**がここ——外すと、GSI の無い環境でその行と S3 の
+            //     実体が永久に消えない（一度そう書いて狭めすぎた）
+            FilterExpression: filter === "active"
+                ? "story = :t AND expiresAt > :now"
+                : "story = :t AND expiresAt <= :now AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
             ExpressionAttributeValues: { ":t": true, ":now": now },
             ExclusiveStartKey: lastKey,
         }));
@@ -162,24 +176,67 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
                 // 「残した」印も本人だけ。画面は `isOwnStory` で守っているが、
                 // 応答に出す理由が無い（`viewers` と同じ扱い）
                 delete item.keptAs;
+                // 「アーカイブに自動保存」の印も同じ——見る人に「この投稿は
+                // 24時間後も本人の手元に残る」と知らせる理由が無い
+                delete item.archive;
             }
         }
-        const notBlocked = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+        const shown = items.filter((i) => !hidden.has(String(i.userId ?? "")));
 
-        // **公開範囲。** 「フォロワーのみ」の行は、本人とフォロワーにだけ。
-        // 確かめられなかったら見せない（`isVisibleToViewer` の注記）
-        const ownersOf = (audience: string) => new Set(
-            notBlocked.filter((i) => i.audience === audience)
-                .map((i) => String(i.userId ?? ""))
-                .filter((id) => id && id !== userId),
-        );
-        const followerOwners = ownersOf("followers");
-        const closeOwners = ownersOf("closeFriends");
-        const [followed, closeFriendOf] = await Promise.all([
-            followerOwners.size === 0 ? new Set<string>() : followedAmong(userId, followerOwners),
-            closeOwners.size === 0 ? new Set<string>() : closeFriendsAmong(userId, closeOwners),
-        ]);
-        const visible = notBlocked.filter((i) => isVisibleToViewer(i, userId, followed, closeFriendOf));
+        // 🔴 **ストーリーはフォローしている人と本人にだけ出す。**
+        // 公開範囲の選択は無くなった（2026-09-22・owner の判断。経緯は
+        // `storyVisibility.ts` の節）。**行の列は見ない**——見ると、
+        // 列を持たない古い行と持つ行で門の広さが割れる。
+        //
+        // **判定は `following#<自分>` の一覧ではなくマーカー**
+        // （`follow#<相手>#<自分>`）。一覧は2つの理由で信用できない:
+        //
+        //   - `unfollowQuietly` は、マーカーを消したあとの `updateFollowing`
+        //     の失敗を**握り潰す**（`follow.ts:536`。あちらのコメントが
+        //     「ブロックを解除した瞬間に古い関係が生き返って見える」と
+        //     名指ししている残骸そのもの）。一覧で見ると、**解除した相手の
+        //     ストーリーが中身ごと返る**——`viewStory` と `postStoryReply` は
+        //     同じ行に 404 を返すので、**中身だけ先に出る**
+        //   - `updateUserList` は上限2000で**古い方から**落とす。2000人超を
+        //     フォローしている人は、実際に追っている相手のストーリーが
+        //     静かに消える
+        //
+        // `followCheck.ts` の `isFollowing` が「一覧が切り捨てられても
+        // 判定が狂わないように」と書いている当の理由を、ここだけ破っていた。
+        //
+        // **払うのは「他人の投稿者の数」だけ。** 行ごとではなく投稿者ごとに
+        // まとめるので、同じ人が何本出していても1回（`visibleReplyCount` が
+        // 「ブロックしていなければ読まない」で往復を抑えているのと同じ形）。
+        //
+        // **読めなければ出さない。** ブロック一覧（すぐ上）が逆向きなのは
+        // 意図的な差で、あちらは**倒しすぎると誰のストーリーも出なくなる**
+        // のに対し、こちらは倒し方を間違えると**本人が見せないと決めた相手に
+        // 中身が出る**。取り返せない側を選ばない。
+        //
+        // **本人を外すのは `gatedOwners` の1か所だけ。** `isFollowing` は
+        // 自分自身に false を返すので、ここで外さないと**自分のストーリーが
+        // 自分に見えない**（投稿した直後にバーから消える）。下の `filter` にも `owner === userId` を
+        // 書いていたが、**二重になっていて片方を壊してもテストが緑**だった
+        // （変異で実測）。見張りは1本ずつ——`getStories` の `replyCount` の
+        // ところに同じ戒めが書いてある。
+        //
+        // 門はここだけではない。開きっぱなしのタブや直接叩く経路のために
+        // `viewStory` / `postStoryReply` / `voteStory`、それにハイライトの
+        // 読む2つの口にも同じ判定が要る。
+        // **画面側だけ・一覧側だけの防御を作らない。**
+        const gatedOwners = [...new Set(shown
+            .filter((i) => String(i.userId ?? "") !== userId)
+            .map((i) => String(i.userId ?? "")))];
+        const notFollowed = new Set<string>();
+        await Promise.all(gatedOwners.map(async (owner) => {
+            const ok = await isFollowing(owner, userId).catch((e) => {
+                console.error(`getStories: フォローを確かめられませんでした（${owner}）:`, e);
+                return false;
+            });
+            if (!ok) notFollowed.add(owner);
+        }));
+        // 追っていない人の行は全部落とす（本人のぶんは `gatedOwners` で外してある）
+        const visible = shown.filter((i) => !notFollowed.has(String(i.userId ?? "")));
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
@@ -208,6 +265,16 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             // 読めなければ行の数のまま（バッジを消して唯一の入口を奪わない）
             if (n !== null) item.replyCount = n;
         }));
+        // **投票スタンプを持つ行にだけ、票の状態を付ける**（`vote`）。
+        // 持たない行は読みに行かない（一覧の往復がストーリーの数だけ増える）。
+        // 数（`counts`）を誰に付けるかは `storyVoteState` が決める
+        // （投稿者と票を入れた人だけ）。読めなければ付けない——画面は
+        // 「まだ入れていない」の形で出し、押せば書き込みが2票目を断る
+        const withVote = visible.filter((i) => storyHasVote(i.texts));
+        await Promise.all(withVote.map(async (item) => {
+            const s = await storyVoteState(String(item.id ?? ""), userId, String(item.userId ?? "") === userId);
+            if (s) item.vote = s;
+        }));
         visible.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")));
         return {
             // 認証済みユーザー個別のレスポンスなので共有キャッシュには載せない
@@ -223,84 +290,6 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 
 // POST /stories — ストーリー投稿（認証必要）。
 // 画像/動画は既存の presigned-url フローでアップロード済みであることを前提にレコードだけ作成する。
-/**
- * 公開範囲。**受け取るのは「フォロワーのみ」だけ。**
- *
- * 「全体に公開」は属性を書かない形で表す（既にある行と同じ）。
- * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
- * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
- */
-// 規則は `sanitize.ts` に1つだけ置く（写真も同じものを使う）
-export { sanitizeAudience } from "./sanitize";
-export type { Audience } from "./sanitize";
-
-/**
- * その人に、その行を見せてよいか。
- *
- * **閉じる側に倒す。** フォローしているかを確かめられなかったら**見せない**
- * ——ブロックの絞り込みは「落ちたら出す」に倒してあるが（見えなくする側が
- * 落ちて全部消えるのは倒しすぎ）、こちらは逆。**見せてよいか分からない**の
- * だから、出す方に倒すと「フォロワーだけ」のつもりの写真が他人に見える。
- */
-export function isVisibleToViewer(
-    item: { userId?: unknown; audience?: unknown },
-    viewerId: string,
-    followedOwners: Set<string>,
-    closeFriendOf: Set<string> = new Set(),
-): boolean {
-    const audience = item.audience;
-    if (audience !== "followers" && audience !== "closeFriends") return true;
-    const owner = String(item.userId ?? "");
-    if (!owner) return false;
-    if (owner === viewerId) return true;
-    // **親しい友達はフォローでは代用できない。** フォローしていても
-    // 選ばれていなければ見せない（狭い方が勝つ）
-    return audience === "closeFriends" ? closeFriendOf.has(owner) : followedOwners.has(owner);
-}
-
-/**
- * 自分がフォローしている相手のうち、この一覧に出てくる人だけを引く。
- *
- * 全部のフォローを引かないのは、**見るのはストーリーを出している人だけ**で
- * 足りるため（1回の一覧に出る投稿者はたかだか数人）。
- * 読めなかった相手は**含めない**＝見せない側に倒る。
- */
-async function followedAmong(viewerId: string, owners: Set<string>): Promise<Set<string>> {
-    const found = new Set<string>();
-    await Promise.all([...owners].map(async (owner) => {
-        try {
-            const res = await ddb.send(new GetCommand({
-                TableName: PHOTOS_TABLE,
-                Key: { id: `follow#${owner}#${viewerId}` },
-                ProjectionExpression: "id",
-            }));
-            if (res.Item) found.add(owner);
-        } catch (e) {
-            console.error("followedAmong: フォローを確かめられませんでした:", e);
-        }
-    }));
-    return found;
-}
-
-/**
- * その人たちのうち、**自分を「親しい友達」に入れている人**。
- *
- * 一覧は持ち主の行（`closefriends#<持ち主>`）にあるので、
- * 出している人ぶんだけ読む。**読めなかった相手は含めない**＝見せない側に倒る。
- */
-async function closeFriendsAmong(viewerId: string, owners: Set<string>): Promise<Set<string>> {
-    const found = new Set<string>();
-    await Promise.all([...owners].map(async (owner) => {
-        try {
-            const list = await readUserList(closeFriendsId(owner), isUserId, `closefriends#${owner}`);
-            if (list.includes(viewerId)) found.add(owner);
-        } catch (e) {
-            console.error("closeFriendsAmong: 親しい友達を確かめられませんでした:", e);
-        }
-    }));
-    return found;
-}
-
 export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) {
@@ -311,7 +300,8 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
-        location?: unknown; coords?: unknown; audience?: unknown;
+        location?: unknown; coords?: unknown; texts?: unknown;
+        visibility?: unknown; allowReplies?: unknown; archive?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -338,7 +328,19 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const safeSrc = canonicalUploadUrl(publicUrl, process.env.CLOUDFRONT_URL ?? "");
 
     const mediaType = body.mediaType === "video" ? "video" : "image";
-    const caption = truncate((body.caption ?? "").trim(), 200) || undefined;
+    // 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+    //
+    // 受けるのは**一覧に在る鍵だけ**（`storyText.ts`）。任意の CSS を通さない
+    // ので、読めない組み合わせも他人の画面で動く値も作れない。位置は必ず挟み、
+    // 文言の空のものと上限を超えたぶんは落とす。
+    const texts = sanitizeStoryTexts(body.texts);
+
+    // **`caption` は文字たちから作る。** 文言を2か所で持つと静かにずれる
+    // ——残したときの題（`storyKeep.ts`）も、検索に出る文章も、この1本を読む。
+    // 文字を置いていない投稿は、これまでどおり `caption` をそのまま受ける。
+    const caption = texts
+        ? truncate(storyTextsCaption(texts), 200) || undefined
+        : truncate((body.caption ?? "").trim(), 200) || undefined;
 
     // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
     //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
@@ -364,6 +366,24 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const clamped = Math.round(Math.min(15, Math.max(3, n)));
         return clamped === STORY_DEFAULT_DURATION_SEC ? undefined : clamped;
     })();
+
+    // **返信を受けるか。** 既定（受ける）は保存しない＝この機能が生まれた
+    // ときからの姿で、読む側の `storyAllowsReplies` が「無い＝既定」に均す
+    // （`durationSec` が既定値を保存しないのと同じ作法）。
+    //
+    // **公開範囲は受け取らない。** ストーリーは常にフォロワーだけが見る
+    // （`storyVisibility.ts` の節）。送られてきても捨てる——受け取って
+    // 保存すると「選べる」と誤解させ、読む側は見ないので嘘になる。
+    const allowReplies = storyAllowsReplies(body.allowReplies) ? undefined : false;
+
+    // **アーカイブに自動保存。** 立っていると、期限切れの掃除が行と実体を
+    // 消さずに**本人だけが後から見られる形**に変える（`cleanupExpiredStories`）。
+    // 既定は保存しない＝これまでどおり24時間で消える。**`true` を明示した
+    // ときだけ**立てる（`allowReplies` と同じで、値の形で黙って立てない）。
+    //
+    // 仕組みは `keptAs` と同じ1本——「行に印があれば掃除が消さない」。
+    // 2つ目の置き場（別の行・別のテーブル）は作らない。
+    const archive = body.archive === true ? true : undefined;
 
     // ストーリーBGM: title + https の previewUrl 必須（30秒プレビュー）
     let song: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number } | undefined;
@@ -424,6 +444,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(key ? { key } : {}), // 期限切れ削除時に S3 オブジェクトを消すために保持
         mediaType,
         ...(caption ? { caption } : {}),
+        ...(texts ? { texts } : {}),
         ...(location ? { location } : {}),
         // **座標は地名とセットのときだけ持つ。** 地名の無い座標は画面に
         // 出しようがなく（ピンだけ置く画面がストーリーには無い）、
@@ -431,9 +452,10 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
         ...(durationSec ? { durationSec } : {}),
-        // 公開範囲。**「全体に公開」は書かない**——既にある行と同じ形にして、
-        // 「属性が無い＝全体に公開」を1通りに保つ（`tags: []` で踏んだ穴と同じ）
-        ...(() => { const a = sanitizeAudience(body.audience); return a ? { audience: a } : {}; })(),
+        // 既定は書かない（すぐ上の但し書き）。**`allowReplies` は `false` を
+        // 書く**ので、`...(allowReplies ? ...)` では消える——値で分岐しない
+        ...(allowReplies === false ? { allowReplies } : {}),
+        ...(archive ? { archive } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),
@@ -476,6 +498,19 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
         }
+        // **期限切れは「もう無い」。** 誰にとっても無いので、ブロックや
+        // フォローを引く前にここで切る（読み取りを1〜2回減らす）。
+        //
+        // 行が残っているのは掃除が毎時だからで、一覧（`getStories`）は
+        // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
+        // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
+        // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
+        // あとから増えて見え、掃除が来るまで（最長およそ1時間）続く。
+        // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
+        // 持たない古い行は有効扱い（無い理由で締め出さない）。
+        if (isStoryExpired(item)) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
+        }
         // **ブロックした相手の閲覧は記録しない。** 一覧（`getStories`）からは
         // 隠しているが、期限をまたいで開きっぱなしのタブや直接叩く経路では
         // ここに来る（この関数のコメント自身がそう書いている）。記録すると、
@@ -483,20 +518,21 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (await isBlocked(String(item.userId ?? ""), viewerId)) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
-        // **期限切れは「もう無い」。**
+        // **「フォロワーのみ」を、フォローしていない人には記録しない。**
         //
-        // 行が残っているのは掃除が日次だからで、一覧（`getStories`）は
-        // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
-        // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
-        // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
-        // あとから増えて見え、掃除が来るまで（最大およそ24時間）続く。
-        // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
-        // 持たない古い行は有効扱い（無い理由で締め出さない）。
-        const expiresAt = typeof item.expiresAt === "string" ? item.expiresAt : "";
-        if (expiresAt && expiresAt <= new Date().toISOString()) {
+        // 一覧（`getStories`）では既に落としているが、ここに来る経路は
+        // すぐ下のコメントが書いているとおり別にある（期限をまたいで
+        // 開きっぱなしのタブ・直接叩く）。記録すると、所有者の閲覧者一覧に
+        // **見せないと決めた相手が並ぶ**——見せていないつもりの投稿に
+        // 知らない名前が出るので、ブロックした相手を弾くのと同じ話。
+        //
+        // 一覧ではなくマーカー1件で確かめる（`isBlocked` と同じ形）。
+        // 相手は1人なので、2000件の切り捨ての影響を受けない方を選ぶ。
+        // **読めなければ例外が下の catch に落ちて 500**＝記録しない側に倒れる。
+        if (String(item.userId ?? "") !== viewerId
+            && !await isFollowing(String(item.userId ?? ""), viewerId)) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
-
         // 表示名はサーバーで引く。クライアント申告を保存すると、改造したクライアントから
         // 任意の名前で閲覧履歴に載れてしまう（notify.ts も同じ理由で申告を信用していない）。
         // 記録すると決まってから引く（本人の閲覧や404では無駄に叩かない）。
@@ -518,14 +554,19 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 TableName: PHOTOS_TABLE,
                 Key: { id: storyId },
                 UpdateExpression: "SET viewers = if_not_exists(viewers, :empty)",
-                ConditionExpression: "attribute_exists(id)",
+                // **棚へ移った行には書かない。** 上で期限を見てからここまでの間
+                // （表示名の往復）に掃除が棚へ移すと、`viewers` を外した行に
+                // 閲覧者が書き戻る——行はもう GSI に無いので掃除は二度と来ず、
+                // 「他人の名前は消す」が本人が消すまで破れたまま。CCF は下で
+                // 「消えた」と同じ 404 に落ちる（見えないものは記録しない）
+                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                 ExpressionAttributeValues: { ":empty": {} },
             }));
             await ddb.send(new UpdateCommand({
                 TableName: PHOTOS_TABLE,
                 Key: { id: storyId },
                 UpdateExpression: "SET viewers.#uid = if_not_exists(viewers.#uid, :v)",
-                ConditionExpression: "attribute_exists(id)",
+                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                 ExpressionAttributeNames: { "#uid": viewerId },
                 ExpressionAttributeValues: {
                     ":v": { ...(displayName ? { displayName } : {}), at: new Date().toISOString() },
@@ -562,6 +603,13 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         }
         if (item.userId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
+        }
+        // **期限が切れたら、誰が見たかも消える。** 行の `viewers` を掃除が
+        // 外すのは最長およそ1時間後（アーカイブへ移すとき）なので、その間も
+        // ここで出さない。閲覧者の名前は本人のものではなく、期限とともに
+        // 消える側（返信と同じ）。アーカイブの画面から開いても 0 人
+        if (isStoryExpired(item)) {
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ viewers: [], count: 0 }) };
         }
 
         // **退会した人の名前を出さない。**
@@ -638,7 +686,11 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 揃っていて、理由もそこに書いてある。**ストーリーだけ逆だった。**
         //
         // 押し直せば続きから消える（消せたキーは S3 に無いので、再実行の
-        // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う。
+        // DeleteObject は成功する）。24時間で期限切れになれば掃除が拾う
+        // ——**ただし棚へ移った行（アーカイブ）は掃除が来ない**（GSI に無い）
+        // ので、そこで行の削除が転ぶと**押し直しだけが道**。画面は
+        // サーバーの理由をそのまま出して押し直しを促す（`StoriesBar` の
+        // `handleDeleteStory` と同じ形）。
         // **管理者が消すときは、残された写真の方から消してもらう。**
         //
         // `storyMediaKeys` は `keptAs` があると実体を残す（本人が残した
@@ -692,13 +744,17 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // TTL は無いので、24時間で消えるはずの本文が永久に残る。
         // すぐ上の S3 の削除がまったく同じ理由で止めているのに、
         // ここだけ握って先へ進んでいた。
+        // 票の文書（`storyvotes#<id>`）も同じ理由で、同じ順で
         try {
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }));
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(storyId) } }));
         } catch (e) {
-            console.error(`deleteStory: 返信を消せませんでした（${storyId}）:`, e);
+            console.error(`deleteStory: 返信・票を消せませんでした（${storyId}）:`, e);
             return jsonError(500, "削除を完了できませんでした。時間をおいてもう一度お試しください");
         }
         await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+        // 行が消えたあとにもう一度（文書 → 行 の間に通った票の文書。`storyVotes.ts`）
+        await sweepStoryVotes(storyId);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true }) };
     } catch (e) {
         console.error("deleteStory error:", e);
@@ -706,11 +762,125 @@ export const deleteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     }
 };
 
-// 期限切れストーリーの物理削除（毎日スケジュール実行）
+/**
+ * 期限切れの行を「アーカイブの棚」へ移す（`archive: true` の行だけ）。
+ *
+ * **消さずに残す**が、残すのは**本人のもの**（実体・文字・場所・曲）だけ。
+ * **他人の言葉と名前は、今までどおり消す**:
+ *   - 返信の文書（`storyreplies#<id>`）を消す。返信は相手が「24時間で
+ *     消える」つもりで送った文章で、`photoUpdate.ts` が「24時間で消える
+ *     はずの他人の文章とその人の uid が無期限に残っていた」を不具合として
+ *     塞いだ当のもの
+ *   - `viewers`（誰が見たか）と `replyCount` も外す（同じ理由）
+ * そのうえで `archivedAt` を刻み、`storyFeed` を外す（ストーリー一覧の GSI
+ * から落ちる＝`getStories` に二度と出ず、掃除も二度と拾わない）。
+ *
+ * **行の更新と返信の文書の削除は1つのトランザクション。** 2回に分けると
+ * （文書を消す → 行を更新）、その間に届いた返信が文書を作り直し、件数の
+ * 更新は `archivedAt` がまだ無いので通り、そのあと行だけ棚へ移る＝
+ * **他人の返信の文書が棚の行の隣に残る**（行は GSI に無いので掃除は二度と
+ * 来ない）。`viewers` は行の中の属性なので行の更新が拾うが、返信は別の行。
+ * 1回で書けば、追記は必ず棚入れの前か後——後なら `postStoryReply` の
+ * 件数更新が `attribute_not_exists(archivedAt)` で外れ、その CCF の枝が
+ * 文書を片付ける。
+ *
+ * **S3 の実体はそのまま**——これが「後から見られる」の中身。公開URLは鍵が
+ * UUID なので当てられないが、**見た人が URL を控えていれば取れ続ける**
+ * （`keptAs` で残した写真と同じ性質）。本人が投稿のときに「アーカイブに
+ * 自動保存」を入にしたぶんだけなので、既定は今までどおり消える＝
+ * **24時間で消える約束は壊さない**。仕組みは `keptAs`（印があれば掃除が
+ * 実体を消さない）と同じ1本で、2つ目の置き場は作らない。
+ *
+ * 返り値: `"archived"`＝移した／`"skipped"`＝条件が外れた（もう棚に在る・
+ * 消えた・印が外れた。やることは無い）／`"failed"`＝書けなかった（行は
+ * GSI に残るので次回また来る）
+ */
+async function shelveExpiredStory(id: string, item: Record<string, unknown>): Promise<"archived" | "skipped" | "failed"> {
+    // **最後の砦。** `archivedAt` に `expiresAt` を写すので、無いと更新が
+    // ValidationException になる。ここに来る行は GSI のソートキー／Scan の
+    // 絞り込みで必ず持つ（今の経路では来ない）。直す手が無い行なので
+    // error では鳴らさない
+    if (typeof item.expiresAt !== "string" || !item.expiresAt) {
+        console.warn(`cleanup: archive skipped for ${id}: no expiresAt`);
+        return "skipped";
+    }
+    try {
+        await ddb.send(new TransactWriteCommand({
+            TransactItems: [
+                { Update: {
+                    TableName: PHOTOS_TABLE,
+                    Key: { id },
+                    // **`archivedAt` は期限の時刻。** 掃除が来た時刻ではない——
+                    // 一覧（`getStoryArchive`）は掃除が来る前の行にも期限の時刻を
+                    // 埋めて返すので、掃除の時刻を刻むと**同じ行の日付が掃除の
+                    // 前後で変わる**（日をまたぐと「昨日のアーカイブ」が今日へ
+                    // 跳ぶ）。行の `expiresAt` をそのまま写す（手元の値を渡さない）。
+                    // `if_not_exists` は半端に直された行（刻まれているのに
+                    // `storyFeed` が残る）を撫でるときに上書きしないため
+                    UpdateExpression: "SET archivedAt = if_not_exists(archivedAt, expiresAt) REMOVE storyFeed, viewers, replyCount",
+                    // **条件は Scan の絞り込みと同じ物差し**: 印が立っていて、まだ
+                    // 棚へ移していない（`storyFeed` が在る、または `archivedAt` が
+                    // 無い）。絞り込みと条件がずれると、絞り込みだけが拾う行が
+                    // **毎時ここで条件不成立になり永久に収束しない**（一度そう書いた）。
+                    // 鍵だけの行を作らない見張り（`attribute_exists(id)`）は要らない
+                    // ——行が無ければ `archive` も無く `#a = :t` が必ず外れる。
+                    // 書き足すと見張りが二重になり、片方を壊してもテストが緑になる。
+                    // **`archive` は DynamoDB の予約語。** 素で書くと式ごと
+                    // ValidationException になり、**1行も棚へ移らない**（モックの
+                    // テストでは捕まらない。`comments.ts` の `#items` と同じ罠）
+                    ConditionExpression: "#a = :t AND (attribute_exists(storyFeed) OR attribute_not_exists(archivedAt))",
+                    ExpressionAttributeNames: { "#a": "archive" },
+                    ExpressionAttributeValues: { ":t": true },
+                } },
+                { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } } },
+                // 票の文書も**他人の uid** なので、返信と同じく棚には残さない
+                // （`storyVotes.ts`。棚の行に届く票は、あちらの ConditionCheck
+                //  `attribute_not_exists(archivedAt)` が断る）。
+                // **結果（数）も棚には写さない**（判断）——写すなら文書を先に読んで
+                // 数を行へ `SET` する形になり、読みと消しの間に届いた票が数に
+                // 入らない窓ができる。棚では問いと2択だけが出る
+                { Delete: { TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } } },
+            ],
+        }));
+        return "archived";
+    } catch (e) {
+        if ((e as { name?: string }).name !== "TransactionCanceledException") {
+            // 書けなければ次回に回す（行は GSI に残っているので、また来る）
+            console.error(`cleanup: archive failed for ${id}:`, e);
+            return "failed";
+        }
+        // 取り消された。**どれかを言う**——条件が外れた（読んだあとに消された
+        // ＝`deleteStory` との普通の競合／もう棚に在る／印が外れた）のか、
+        // 混み合って通らなかっただけなのかで、追う必要があるかが変わる。
+        // 稀な経路なので1回読み直す。**読み直せなかった回を「消された」と
+        // 言わない**——それでは見分けるために読み直した意味が無い
+        let fresh: Record<string, unknown> | undefined;
+        try {
+            fresh = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }))).Item as Record<string, unknown> | undefined;
+        } catch (e2) {
+            console.warn(`cleanup: archive skipped for ${id}: re-read failed: ${(e2 as { name?: string }).name ?? "unknown"}`);
+            return "skipped";
+        }
+        // 条件はまだ通る形で残っている＝取り消しの理由は条件ではない
+        // （混み合っていた）。次回また来るので、失敗として数える
+        if (fresh && fresh.archive === true && ("storyFeed" in fresh || typeof fresh.archivedAt !== "string")) {
+            console.error(`cleanup: archive transaction canceled for ${id} (row still in feed; will retry next run)`);
+            return "failed";
+        }
+        console.warn(`cleanup: archive skipped for ${id}: ${fresh
+            ? `archive=${String(fresh.archive)} storyFeed=${"storyFeed" in fresh} archivedAt=${String(fresh.archivedAt ?? "")}`
+            : "row gone (deleted meanwhile)"}`);
+        return "skipped";
+    }
+}
+
+// 期限切れストーリーの物理削除（毎時スケジュール実行・`serverless.yml` の cron）。
 // DynamoDB のレコードと S3 の画像/動画本体の両方を削除する。
-export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
+// 「アーカイブに自動保存」の印がある行だけは消さずに棚へ移す（`shelveExpiredStory`）。
+export const cleanupExpiredStories = async (): Promise<{ deleted: number; archived: number }> => {
     const expired = await queryStories("expired");
     let deleted = 0;
+    let archived = 0;
     // **エッジの掃除は最後に1回**（退会と同じ理由）。1行ごとに無効化を作ると
     // 期限切れの件数ぶんできて、CloudFront の「同時に進行できる本数」の上限
     // （既定15）に当たる。断られても `invalidateUploads` は警告だけ出すので、
@@ -721,6 +891,13 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
     for (const item of expired) {
         const id = String(item.id ?? "");
         if (!id) continue;
+
+        // **アーカイブに自動保存の印がある行は、消さずに「期限切れの棚」へ移す**
+        // （中身は `shelveExpiredStory`）。移せなかった行は GSI に残るので次回また来る
+        if (item.archive === true) {
+            if (await shelveExpiredStory(id, item) === "archived") archived++;
+            continue;
+        }
 
         // **消せなければ行を残す**（上の deleteStory と同じ理由）。
         // 期限切れのストーリーは利用者からは見えないので、行が残っても
@@ -745,7 +922,10 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
             // はずの本文が永久に残る（S3 の失敗を `continue` で見送るのと
             // 同じ判断。期限切れの行が残っても利用者には見えない）
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(id) } }));
+            await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyVotesId(id) } }));
             await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
+            // 行が消えたあとにもう一度（`deleteStory` と同じ理由）
+            await sweepStoryVotes(id);
             deleted++;
         } catch (e) {
             console.error(`cleanup: DDB delete failed for ${id}:`, e);
@@ -755,6 +935,7 @@ export const cleanupExpiredStories = async (): Promise<{ deleted: number }> => {
     // 消せたぶんをまとめてエッジからも消す（失敗しても掃除の成否は変えない）
     await invalidateUploads(edgeKeys, "cleanupExpiredStories");
 
-    console.log(`cleanupExpiredStories: deleted ${deleted} of ${expired.length} expired stories`);
-    return { deleted };
+    // `archived` は「索引から外した数」（半端に直された行を撫でた回も含む）
+    console.log(`cleanupExpiredStories: deleted ${deleted}, archived ${archived} of ${expired.length} expired stories`);
+    return { deleted, archived };
 };

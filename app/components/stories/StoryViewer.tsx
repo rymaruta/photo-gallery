@@ -6,18 +6,25 @@ import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { publicImageUrl } from "@/lib/utils/seo";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
-import { XMarkIcon, EyeIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon } from "@heroicons/react/24/outline";
+import { HeartIcon, PaperAirplaneIcon, XMarkIcon, EyeIcon, EyeSlashIcon, SpeakerWaveIcon, SpeakerXMarkIcon, TrashIcon, MusicalNoteIcon, PhotoIcon, ChatBubbleOvalLeftIcon, MapPinIcon, EllipsisHorizontalIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
+import StoryActionSheet, { type StorySheetItem } from "./StoryActionSheet";
+import ReportDialog from "../ReportDialog";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
+import type { StoryVoteChoice, StoryVoteState } from "@/lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
+import { wasShortTap, type PressPoint } from "@/lib/utils/tap";
+import { swipeDirection, verticalSwipeDirection } from "@/lib/utils/swipe";
 import { STORY_REACTIONS, type StoryReply } from "@/lib/stories";
+import StoryTextOverlay from "./StoryTextOverlay";
+import { useMediaBox } from "@/lib/hooks/useMediaBox";
 
 /** 返信の本文の上限。**サーバーの `TEXT_MAX` と対**（api-user/src/storyReplies.ts）。
  *  画面だけ緩いと、打てるのに保存で黙って切られる */
@@ -125,6 +132,12 @@ export function storyDurationMs(durationSec: unknown): number {
 type Props = {
     groups: StoryGroup[];
     initialGroupIndex: number;
+    /**
+     * 最初に出す1枚（その束の中の添字）。省略時は先頭。アーカイブの
+     * グリッドで押した1枚から始めるために要る——先頭からしか始められないと、
+     * 30枚目を見るのに29回送ることになる
+     */
+    initialItemIndex?: number;
     locale: "ja" | "en";
     ownUserId?: string | null;
     isAuthenticated: boolean;
@@ -153,9 +166,9 @@ type Props = {
     onClose: () => void;
 };
 
-export default function StoryViewer({ groups, initialGroupIndex, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
+export default function StoryViewer({ groups, initialGroupIndex, initialItemIndex = 0, locale, ownUserId, isAuthenticated, onSeen, onDelete, onBlocked, onClose }: Props) {
     const [g, setG] = useState(initialGroupIndex);
-    const [i, setI] = useState(0);
+    const [i, setI] = useState(initialItemIndex);
     // 動画の進捗は **DOM に直接書く**（下の rAF ループ）。
     // state 経由にしていた頃は timeupdate（仕様上ブラウザ任せ・実測 250ms
     // 間隔）でしか動かず、120ms の transition で補間しても線が
@@ -174,9 +187,29 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [viewers, setViewers] = useState<ViewerEntry[] | null>(null);
     // 取得の失敗を「閲覧者0人」と混ぜない（SW-b8）
     const [viewersError, setViewersError] = useState(false);
-    const [viewersOpen, setViewersOpen] = useState(false);
+    /**
+     * 反応の一覧（モック09 の状態例「リアクション・閲覧者リスト」）。
+     * **シートは1枚で、タブで切り替える**——以前は「閲覧者」と「届いた返信」で
+     * 別々のシートが2枚在り、同じ形の入れ物を2回書いていた。
+     * `null` は閉じている。
+     */
+    const [insights, setInsights] = useState<null | "viewers" | "reactions">(null);
+    const viewersOpen = insights !== null;
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    /**
+     * 「…」の操作シート（モック09 ⑦⑧）。一時停止・ミュート・テキストの
+     * 表示・このユーザーを非表示・報告を、右上の1つの入口にまとめる
+     */
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
+    /**
+     * 写真の上の文字を伏せる（モック⑦「テキストを非表示」）。**写真そのものを
+     * 見たいとき**のための表示設定なので、ストーリーを送っても保ったままにする
+     * （1枚ごとに戻すと、押し直しが要る）。端末には覚えさせない
+     */
+    const [textsHidden, setTextsHidden] = useState(false);
+    const menuBtnRef = useRef<HTMLButtonElement | null>(null);
     // 返信（見た人 → 投稿者）。**ストーリーごとに必ずリセットする**
     // ——打ちかけのまま次へ送られると、**書いた相手と違う人に届く**
     const [replyText, setReplyText] = useState("");
@@ -187,14 +220,27 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [blockError, setBlockError] = useState<string | null>(null);
     /** 入力中は進めない（打っている間に次のストーリーへ送られない） */
     const [replyFocused, setReplyFocused] = useState(false);
+    /**
+     * 絵文字の列を出しているか（モック⑥: 帯は入力と ♡ と ➤ の1段で、
+     * 絵文字は出ていない）。**フォーカスが外れても畳まない**——触れた瞬間に
+     * 消えると、その絵文字を押せない
+     */
+    const [replyOpen, setReplyOpen] = useState(false);
     // 届いた返信（投稿者だけ）
     const [replies, setReplies] = useState<StoryReply[] | null>(null);
     const [repliesError, setRepliesError] = useState(false);
-    const [repliesOpen, setRepliesOpen] = useState(false);
+    const repliesOpen = insights === "reactions";
     // ギャラリーに残す（このサイトにしかない向き。消えるもの → 検索に出るもの）
     const [keeping, setKeeping] = useState(false);
     const [keptPhotoId, setKeptPhotoId] = useState<string | null>(null);
     const [keepError, setKeepError] = useState<string | null>(null);
+    /**
+     * 投票スタンプの票の状態（ストーリーID → 状態）。**初期値は一覧が運ぶ**
+     * （`item.vote`）。ここに在るのは、この画面で入れたぶん
+     */
+    const [votes, setVotes] = useState<Record<string, StoryVoteState>>({});
+    const [voting, setVoting] = useState(false);
+    const [voteError, setVoteError] = useState<string | null>(null);
     /** 返信の一覧から「この人からの返信を受け取らない」を押した相手 */
     const [blocking, setBlocking] = useState<string | null>(null);
     const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
@@ -209,17 +255,82 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // state を閉じ込めると送信を始めた時点の値になる
     const itemIdRef = useRef<string | undefined>(item?.id);
     itemIdRef.current = item?.id;
-    /** 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ */
-    const showReplyBar = !isOwnStory && isAuthenticated;
+    /**
+     * 返信の帯を出すか。**キャプションの位置がこれで決まる**ので1か所で持つ。
+     *
+     * **投稿者が「返信を許可」を切っていたら出さない**（`allowReplies`。
+     * 無い＝受ける＝この列が生まれる前の投稿）。押しても 403 が返るだけの
+     * 欄を置かないため——断るのはサーバー（`postStoryReply`）で、
+     * ここは入口を出さないだけ。**画面側だけの防御にしない。**
+     */
+    const showReplyBar = !isOwnStory && isAuthenticated && item?.allowReplies !== false;
+    /**
+     * 左右のタップ領域の下端。**下に何か在るぶんだけ空ける。**
+     * 返信の帯（`showReplyBar`）か、自分のストーリーの段（閲覧者・返信・
+     * 残す）が出るときだけ。どちらも無ければ 0——空けたままだと
+     * **画面の下 88px が何も受けない帯**になる。
+     */
+    const zoneBottom = showReplyBar || isOwnStory ? 88 : 0;
 
     // 表示したストーリーを既読にする（端末側）
     useEffect(() => {
         if (item) onSeen(item.id);
     }, [item, onSeen]);
 
-    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）
+    // 票の失敗の文言は、そのストーリーを離れたら消す
+    useEffect(() => { setVoteError(null); }, [item?.id]);
+
+    /** いま表示しているストーリーの票の状態（この画面で入れたぶんが優先） */
+    const voteState = item ? (votes[item.id] ?? item.vote) : undefined;
+
+    /**
+     * 2択に票を入れる。**サーバーが断る条件（自分のもの・ブロック・
+     * 追っていない相手・投票済み）は画面で繰り返さない**——入口を出すかどうか
+     * だけをここで決め（`onVote` を渡すのは他人のストーリー・ログイン済み）、
+     * 断るのは `voteStory`。
+     */
+    const handleVote = useCallback(async (_index: number, choice: StoryVoteChoice) => {
+        // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）には入れない。**
+        // サーバーは期限切れに 404 を返すので、口を出すと押しても効かない的になる
+        if (!item || isOwnStory || !isAuthenticated || voting || item.archivedAt) return;
+        const target = item.id;
+        setVoting(true);
+        setVoteError(null);
+        const fallback = locale === "en" ? "Could not send your vote" : "投票を送れませんでした";
+        try {
+            const { userFetch, readApiError } = await import("../../../lib/utils/api");
+            const res = await userFetch(`/stories/${encodeURIComponent(target)}/vote`, {
+                method: "POST",
+                body: JSON.stringify({ choice }),
+            });
+            if (!res.ok) {
+                const msg = await readApiError(res, fallback);
+                if (itemIdRef.current === target) setVoteError(msg);
+                return;
+            }
+            const data = await res.json() as StoryVoteState;
+            // 応答の形をそのまま持つ（`myVote` が付けば押せなくなる）
+            setVotes((prev) => ({
+                ...prev,
+                [target]: {
+                    ...(data.myVote ? { myVote: data.myVote } : {}),
+                    ...(data.counts ? { counts: data.counts } : {}),
+                },
+            }));
+        } catch (e) {
+            log.warn("story vote error:", e);
+            if (itemIdRef.current === target) setVoteError(fallback);
+        } finally {
+            setVoting(false);
+        }
+    }, [item, isOwnStory, isAuthenticated, voting, locale]);
+
+    // 閲覧をサーバーに記録（ログイン済み・他人のストーリーのみ・セッション内1回）。
+    // **アーカイブ（`archivedAt` あり＝ハイライトから開いた）では送らない。**
+    // 期限の切れたストーリーはサーバーが 404 で記録を断るので、1枚ごとに
+    // 断られるだけの往復が増える（閲覧者の取得を省くのと同じ理由）
     useEffect(() => {
-        if (!item || !isAuthenticated || isOwnStory) return;
+        if (!item || !isAuthenticated || isOwnStory || item.archivedAt) return;
         if (reportedRef.current.has(item.id)) return;
         reportedRef.current.add(item.id);
         void (async () => {
@@ -246,12 +357,12 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const [viewersRetry, setViewersRetry] = useState(0);
 
     // **リセットは取得と分ける。** 一緒にしていたので `viewersOpen` を
-    // deps に入れられなかった（入れると開いた瞬間に `setViewersOpen(false)`
+    // deps に入れられなかった（入れると開いた瞬間に `setInsights(null)`
     // が走って開けない）。分けたので、取得の側に開閉を効かせられる
     useEffect(() => {
         setViewers(null);
         setViewersError(false);   // 前のストーリーの失敗を持ち越さない
-        setViewersOpen(false);
+        setInsights(null);
     }, [item?.id]);
 
     // **失敗した回は、開き直したときに引き直す。**
@@ -265,7 +376,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     }, [viewersOpen, viewersError]);
 
     useEffect(() => {
-        if (!item || !isOwnStory) return;
+        // **アーカイブ（`archivedAt` あり）では引かない。** サーバーは期限切れに
+        // 必ず 0 人を返す（他人の名前は期限とともに消える側）ので、往復が
+        // 1枚ごとに1本増えるだけ（同時実行はアカウント全体で10）
+        if (!item || !isOwnStory || item.archivedAt) return;
         // 中断ガード。ストーリーは左右で次々に切り替わるので、前のストーリーの
         // 応答が後から届く。無かった頃は**別のストーリーの閲覧者数と名前**が
         // 出ていた（「誰が見たか」は見せ方として敏感な情報なので、
@@ -410,34 +524,64 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     // 「タップ」か「長押し・スワイプ」かの判定。
     // click は指を離せば必ず発火するため、これが無いと長押しで一時停止したあと
     // 離した瞬間に前後へ移動してしまう。
-    const pressRef = useRef<{ t: number; x: number; y: number } | null>(null);
-    const LONG_PRESS_MS = 350;
-    const MOVE_TOLERANCE_PX = 12;
+    // しきい値は `lib/utils/tap.ts` に1つ（下書きの文字の置き方が同じ判断をする）
+    const pressRef = useRef<PressPoint | null>(null);
 
     /** 長押しで止めたのか、ボタン（またはスペース）で止めたのか。
      *  指を離したときに**ボタンで止めたぶんまで再開しない**ように分ける */
     const pressPausedRef = useRef(false);
 
+    /**
+     * 直前の操作を「払った」として処理したか。
+     *
+     * **`pressRef` を捨てるだけでは止まらない。** `wasShortTap` は
+     * 押し始めの点が無いとき **`true`（従来どおり動かす）** を返す仕様なので、
+     * 払ったあとに必ず来る `click` が素通りする——実測では、左へ払って
+     * 次へ進んだ直後に**左のタップ領域の `click` が前へ戻し**、その場に
+     * 留まって見えた（上へ払ったときは、戻った先でストーリーが変わり
+     * 操作シートが閉じた）。押し始めで毎回 false に戻す。
+     */
+    const swipedRef = useRef(false);
+
     const onZonePointerDown = useCallback((e: React.PointerEvent) => {
         pressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
+        swipedRef.current = false;
         setPaused((prev) => { pressPausedRef.current = !prev; return true; });
     }, []);
 
-    /** 指を離した。長押しで止めたときだけ再開する */
-    const onZonePointerUp = useCallback(() => {
-        if (!pressPausedRef.current) return;
-        pressPausedRef.current = false;
-        setPaused(false);
-    }, []);
+    /**
+     * 指を離した。長押しで止めたときだけ再開する。
+     *
+     * **払った向きで振り分ける**（モック⑤「ジェスチャー操作」）:
+     * 左右で前後のストーリー、下で閉じる、上で操作シート。
+     * 払ったと決めたら `pressRef` を捨てる——残すと、このあと必ず来る
+     * `click` が「短いタップ」と読んで**送りが二重に効く**。
+     */
+    const onZonePointerUp = useCallback((e: React.PointerEvent) => {
+        if (pressPausedRef.current) {
+            pressPausedRef.current = false;
+            setPaused(false);
+        }
+        const p = pressRef.current;
+        if (!p) return;
+        const dx = e.clientX - p.x;
+        const dy = e.clientY - p.y;
+        const swiped = () => { swipedRef.current = true; pressRef.current = null; };
+        const vertical = verticalSwipeDirection(dx, dy);
+        if (vertical === 1) { swiped(); onClose(); return; }
+        if (vertical === -1) { swiped(); setMenuOpen(true); return; }
+        const horizontal = swipeDirection(dx, dy);
+        if (horizontal === 1) { swiped(); goNext(); return; }
+        if (horizontal === -1) { swiped(); goPrev(); }
+    }, [onClose, goNext, goPrev]);
 
     /** 直前の操作が短いタップだったか（長押し・指の移動があれば false） */
     const wasTap = useCallback((e: React.MouseEvent): boolean => {
         const p = pressRef.current;
         pressRef.current = null;
-        if (!p) return true; // ポインタ情報が取れない環境では従来どおり動かす
-        if (Date.now() - p.t >= LONG_PRESS_MS) return false;
-        const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y);
-        return moved <= MOVE_TOLERANCE_PX;
+        // 払いとして処理済みなら、この `click` は無かったことにする
+        if (swipedRef.current) return false;
+        return wasShortTap(p, e.clientX, e.clientY);
     }, []);
 
     // ダイアログ表示中は自動送りを止める
@@ -509,19 +653,29 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
      * ストーリーの `<img>` は `srcset` を持たないので、
      * `24f9df2c`（密度で割って 0 に丸まる）の罠には当たらない。
      */
+    // 文字を**絵の上**の同じ場所に載せるために、絵が実際に描かれている
+    // 矩形を測る（`object-contain` なので端末の縦横比で余白が変わる）
+    const mediaAreaRef = useRef<HTMLDivElement | null>(null);
+    const { attach: attachMediaBox, box: mediaBox, measure: measureMediaBox } = useMediaBox(mediaAreaRef);
+
     const attachMedia = useCallback((img: HTMLImageElement | null) => {
+        attachMediaBox(img);
         if (!img?.complete) return;
         if (img.naturalWidth === 0) setMediaError(true);
         else setMediaReady(true);
-    }, [setMediaReady]);
+    }, [setMediaReady, attachMediaBox]);
 
     /** 動画も同じ（`readyState >= HAVE_CURRENT_DATA` なら最初の絵は出せる） */
     const attachVideo = useCallback((v: HTMLVideoElement | null) => {
         videoRef.current = v;
+        attachMediaBox(v);
         if (v && v.readyState >= 2) setMediaReady(true);
-    }, [setMediaReady]);
+    }, [setMediaReady, attachMediaBox]);
 
     const frozen = paused || viewersOpen || confirmDelete || repliesOpen || replyFocused || replySending || keeping
+        || voting
+        // 操作シート・報告の間も進めない（開いたときと押したときで対象がずれる）
+        || menuOpen || reportOpen
         || (!mediaReady && !mediaError);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
@@ -572,9 +726,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         setReplyError(null);
         setReplySending(false);
         setReplyFocused(false);
+        setReplyOpen(false);
         setReplies(null);
         setRepliesError(false);
-        setRepliesOpen(false);
         setKeeping(false);
         setKeptPhotoId(null);
         setKeepError(null);
@@ -615,6 +769,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             if (!stillHere()) return;
             setReplyText("");
             setReplySent(true);
+            // 送り終えたら絵文字の列は畳む（帯はモック⑥ の1段に戻る）
+            setReplyOpen(false);
         } catch (e) {
             const { sessionErrorMessage } = await import("../../../lib/utils/api");
             if (stillHere()) setReplyError(sessionErrorMessage(e) ?? (locale === "en" ? "Couldn't send." : "送信できませんでした"));
@@ -725,8 +881,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
      * 書いている当のもの）。困っているのは返信を読んでいる人なので、
      * その場に置くのがいちばん短い。
      */
-    const blockSender = useCallback(async (uid: string) => {
-        if (!uid || blocking) return;
+    const blockSender = useCallback(async (uid: string): Promise<boolean> => {
+        if (!uid || blocking) return false;
         setBlocking(uid);
         setBlockError(null);
         try {
@@ -746,6 +902,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 noteFollowSevered(uid);
                 // ストーリーのバーも取り直させる（doc を見よ）
                 onBlocked?.(uid);
+                return true;
             } else {
                 // **失敗を無言にしない。** プロフィール側は理由を出すのに、
                 // ここだけ押しても何も起きないように見えていた。
@@ -762,7 +919,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         } finally {
             setBlocking(null);
         }
+        return false;
     }, [blocking, onBlocked, locale]);
+
+    /**
+     * 「このユーザーを非表示」（モック⑧）。ブロックと同じ操作で、
+     * **効いたらこの画面を閉じる**——閉じないと、いま非表示にした相手の
+     * ストーリーがそのまま目の前に残る（バーの取り直しは親がやる）。
+     */
+    const hideAuthor = useCallback(async () => {
+        if (!group?.userId) return;
+        if (await blockSender(group.userId)) onClose();
+    }, [group?.userId, blockSender, onClose]);
 
     const handleDelete = useCallback(async () => {
         if (!item || !onDelete) return;
@@ -801,8 +969,11 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 if (e.key === "Escape" && !isImeKey(e)) (t as HTMLInputElement).blur();
                 return;
             }
-            if (confirmDelete || viewersOpen || repliesOpen) {
-                if (e.key === "Escape") { setConfirmDelete(false); setViewersOpen(false); setRepliesOpen(false); }
+            // 報告のダイアログは自前で Escape を聞く（`useEscapeKey`）ので、
+            // ここは**何もしない**で返す（二重に閉じない・背後を送らない）
+            if (reportOpen) return;
+            if (confirmDelete || viewersOpen || repliesOpen || menuOpen) {
+                if (e.key === "Escape") { setConfirmDelete(false); setInsights(null); setMenuOpen(false); }
                 return;
             }
             if (e.key === "Escape") onClose();
@@ -814,7 +985,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen]);
+    }, [onClose, goNext, goPrev, confirmDelete, viewersOpen, repliesOpen, menuOpen, reportOpen]);
 
     // **Tab を中に閉じ込める。** `aria-modal="true"` を付けた8つのうち、
     // ここと StoriesBar の投稿プレビューだけ管理が無かった。全画面
@@ -830,9 +1001,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
     const closeBtnRef = useRef<HTMLButtonElement | null>(null);
     useFocusTrap(true, rootRef, undefined, closeBtnRef);
 
-    // 表示中のストーリーが変わったら確認シートを閉じる。
-    // 開いたときの対象と、押したときの対象がずれないようにする。
-    useEffect(() => { setConfirmDelete(false); }, [item?.id]);
+    // 表示中のストーリーが変わったら確認シートと操作シートを閉じる。
+    // 開いたときの対象と、押したときの対象がずれないようにする
+    // （「報告」も同じ理由。別のストーリーを報告してしまう）。
+    useEffect(() => { setConfirmDelete(false); setMenuOpen(false); setReportOpen(false); }, [item?.id]);
 
     // 背景スクロールロック。**共通の実装に寄せた**（`lib/utils/scrollLock.ts`）。
     // ここは `overflow: hidden` だけの自前実装で、あちらのコメントが
@@ -855,10 +1027,69 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
     if (!group || !item) return null;
 
+    /**
+     * 「…」の操作シートの中身（モック⑦⑧）。**押しても何も起きない項目は
+     * 出さない**——音の無いストーリーに「ミュート」、文字の無い写真に
+     * 「テキストを非表示」を置かない（このリポジトリの決まり）。
+     * 自分のストーリーには「このユーザーを非表示」「報告」を出さず、
+     * 代わりに削除を出す。
+     */
+    const hasAudio = isVideo || !!item.song;
+    /** 左下に出すチップ（撮影地・BGM）が1つでも在るか */
+    const hasBottomChips = !!item.location || !!item.song;
+    const hasTexts = !!item.texts?.length || !!item.caption;
+    const sheetItems: StorySheetItem[] = [
+        {
+            key: "pause",
+            label: paused
+                ? (locale === "en" ? "Play" : "再生")
+                : (locale === "en" ? "Pause" : "一時停止"),
+            icon: paused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />,
+            onSelect: () => setPaused((v) => !v),
+        },
+        ...(hasAudio ? [{
+            key: "mute",
+            label: muted
+                ? (locale === "en" ? "Unmute" : "ミュート解除")
+                : (locale === "en" ? "Mute" : "ミュート"),
+            icon: muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />,
+            onSelect: () => setMuted((m) => !m),
+        }] : []),
+        ...(hasTexts ? [{
+            key: "texts",
+            label: textsHidden
+                ? (locale === "en" ? "Show text" : "テキストを表示")
+                : (locale === "en" ? "Hide text" : "テキストを非表示"),
+            // モックの印はアイコンではなく「Aa」
+            icon: <span className="text-[15px] font-semibold leading-none">Aa</span>,
+            onSelect: () => setTextsHidden((v) => !v),
+        }] : []),
+        ...(!isOwnStory && isAuthenticated ? [{
+            key: "hide",
+            label: locale === "en" ? "Hide this user" : "このユーザーを非表示",
+            icon: <EyeSlashIcon className="w-5 h-5" />,
+            onSelect: () => { void hideAuthor(); },
+            disabled: blocking === group.userId,
+        }, {
+            key: "report",
+            label: locale === "en" ? "Report story" : "ストーリーを報告",
+            icon: <ExclamationTriangleIcon className="w-5 h-5" />,
+            onSelect: () => setReportOpen(true),
+            danger: true,
+        }] : []),
+        ...(isOwnStory && onDelete ? [{
+            key: "delete",
+            label: locale === "en" ? "Delete story" : "ストーリーを削除",
+            icon: <TrashIcon className="w-5 h-5" />,
+            onSelect: () => setConfirmDelete(true),
+            danger: true,
+        }] : []),
+    ];
+
     return (
         <div
             ref={rootRef}
-            className="fixed inset-0 z-[90] bg-black flex flex-col items-center justify-center select-none"
+            className="fixed inset-0 z-[90] bg-black flex items-center justify-center select-none"
             role="dialog"
             aria-modal="true"
             aria-label={locale === "en" ? "Stories" : "ストーリー"}
@@ -876,8 +1107,16 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 />
             )}
 
+            {/* **PC は別に設計する**（指示書 4・11・17）。スマホは今までどおり
+                画面いっぱい。1024px 以上では**縦長の1枚に収める**——
+                ヘッダーも返信の帯も `absolute` でこの入れ物に付くので、
+                幅いっぱいに引き伸ばすと、名前が左端・閉じるが右端で 1,200px
+                離れる（実測 1280px 幅）。まわりはぼかした写真のまま
+                （上の背景はこの外側に置いてある）。 */}
+            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-2xl lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-white/10">
+
             {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
-            <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
+            <div ref={mediaAreaRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
                 {isVideo ? (
                     <video
                         key={item.id}
@@ -893,7 +1132,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         // 動画の進捗は `currentTime` で描くので止まったままだが、
                         // `frozen` は `pause()` にも効くので**読み込み中に
                         // 再生が始まって先頭を取りこぼす**のを防ぐ
-                        onLoadedData={() => setMediaReady(true)}
+                        onLoadedData={() => { setMediaReady(true); measureMediaBox(); }}
                         onEnded={goNext}
                         onError={goNext}
                     />
@@ -914,10 +1153,27 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         className="block max-w-full max-h-full object-contain rounded-lg story-media-in"
                         draggable={false}
                         ref={attachMedia}
-                        onLoad={() => setMediaReady(true)}
+                        onLoad={() => { setMediaReady(true); measureMediaBox(); }}
                         onError={(e) => { setMediaError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                     />
                 )}
+
+                {/* 置いた場所の文字。**下の帯には出さない**（同じ文言が2か所に出る）。
+                    描き方は下書きの画面と同じ部品——別々に書くと「置いた場所と
+                    出る場所が違う」になり、置き直しても直らない */}
+                {item.texts?.length && !mediaError && !textsHidden ? (
+                    <StoryTextOverlay
+                        texts={item.texts}
+                        box={mediaBox}
+                        locale={locale}
+                        // 入口は他人のストーリー・ログイン済み・アーカイブでないときだけ
+                        // （未ログインは返信と同じで、押してから断る形にしない。
+                        //  アーカイブはサーバーが期限切れとして 404 を返す）
+                        onVote={!isOwnStory && isAuthenticated && !item.archivedAt ? handleVote : undefined}
+                        voteState={voteState}
+                        voting={voting}
+                    />
+                ) : null}
 
                 {/* **読み込み中だと分かるようにする。** ストーリーは `src` しか
                     持たない（写真と違ってサムネも下地色もぼかしも無い）ので、
@@ -998,86 +1254,51 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                 <div className="flex items-start gap-2 px-1 pr-24">
                     <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
                     <div className="min-w-0">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</span>
-                            <span className="text-xs text-white/60 flex-shrink-0">{timeAgo(item.createdAt, locale)}</span>
-                        </div>
-                        {/* **撮影地。** 見る側に「どこで」が伝わる。名前の段の下に
-                            置くのは、キャプションの段（下端）が既に3つのピルで
-                            埋まっているため（実測でキャプションが潰れた前例あり） */}
-                        {item.location && (
-                            <p className="text-[11px] text-white/70 drop-shadow truncate max-w-full">
-                                <MapPinIcon className="w-3 h-3 inline -mt-0.5 mr-0.5" aria-hidden="true" />
-                                {item.location}
-                            </p>
-                        )}
-                        {/* 曲は名前のすぐ下の段（親は pointer-events-none なのでここで戻す） */}
-                        {item.song && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                                className="pointer-events-auto mt-1 inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-full bg-white/15 ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
-                                style={{ touchAction: "manipulation" }}
-                                aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
-                            >
-                                {muted
-                                    ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                                    : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
-                                <span className="truncate">
-                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                                </span>
-                                {muted && (
-                                    <span className="text-[10px] text-white/50 flex-shrink-0">
-                                        {locale === "en" ? "Tap for sound" : "タップで再生"}
-                                    </span>
-                                )}
-                            </button>
-                        )}
+                        {/* モック② のヘッダー: 1段目が名前、2段目が細い字の1行。
+                            時刻を名前の隣から2段目へ移した——モックの並びで、
+                            名前に使える幅も広がる（長い表示名が先に潰れていた）。
+
+                            🔴 **撮影地はここには出さない。** モックはヘッダー（②）と
+                            左下のチップ（④）の両方に場所を描いているが、あちらは
+                            「イタリア・アマルフィ」と「アマルフィ, イタリア」で
+                            粒度が違う。**こちらが持っている `location` は1つの
+                            文字列**なので、両方に出すと**同じ文字が画面に2度**
+                            並ぶ（実測: 「横浜 みなとみらい」が上下に重なる）。
+                            押せる方（④・チップ）に寄せる。 */}
+                        <div className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</div>
+                        <p className="text-[11px] text-white/60 drop-shadow truncate max-w-full">
+                            {timeAgo(item.createdAt, locale)}
+                        </p>
                     </div>
                 </div>
             </div>
 
-            {/* 閉じる / ミュート切り替え */}
-            <div className="absolute top-3 right-2 z-20 flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
-                {(isVideo || item.song) && (
+            {/* 閉じる / ミュート切り替え。**置いた文字・投票（z-25）より上**——
+                投稿者が右上に置いた投票の `<button>` に閉じるが覆われないように */}
+            <div className="absolute top-3 right-2 z-[26] flex items-center gap-1" style={{ marginTop: "env(safe-area-inset-top, 0px)" }}>
+                {/* モック②⑦⑧: 右上は「…」と「✕」の2つだけ。一時停止・ミュート・
+                    テキストの表示・削除・このユーザーを非表示・報告は、この
+                    1つの入口（操作シート）にまとめる——以前は最大4つの
+                    アイコンが並び、置いた文字や投票と重なっていた */}
+                {sheetItems.length > 0 && (
                     <button
-                        onClick={() => setMuted((m) => !m)}
-                        aria-label={muted ? (locale === "en" ? "Unmute" : "ミュート解除") : (locale === "en" ? "Mute" : "ミュート")}
-                        className="p-2.5 text-white/80 hover:text-white"
-                        style={{ touchAction: "manipulation" }}
+                        ref={menuBtnRef}
+                        onClick={() => setMenuOpen(true)}
+                        aria-label={locale === "en" ? "Story options" : "ストーリーの操作"}
+                        aria-haspopup="dialog"
+                        aria-expanded={menuOpen}
+                        className="flex items-center justify-center text-white/80 hover:text-white"
+                        style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                     >
-                        {muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />}
-                    </button>
-                )}
-                {/* **止める手段を画面に置く。** これまで自動送りを止められるのは
-                    「押しっぱなし」だけで、キーボードだけの人には手段が無かった。
-                    読む速さは人によって違うので、設定（動きを減らす）とは関係なく要る */}
-                <button
-                    onClick={() => setPaused((v) => !v)}
-                    aria-label={paused
-                        ? (locale === "en" ? "Resume" : "再生")
-                        : (locale === "en" ? "Pause" : "一時停止")}
-                    aria-pressed={paused}
-                    className="p-2.5 text-white/80 hover:text-white"
-                    style={{ touchAction: "manipulation" }}
-                >
-                    {paused ? <PlayIcon className="w-5 h-5" /> : <PauseIcon className="w-5 h-5" />}
-                </button>
-                {isOwnStory && onDelete && (
-                    <button
-                        onClick={() => setConfirmDelete(true)}
-                        aria-label={locale === "en" ? "Delete story" : "ストーリーを削除"}
-                        className="p-2.5 text-white/80 hover:text-white"
-                        style={{ touchAction: "manipulation" }}
-                    >
-                        <TrashIcon className="w-5 h-5" />
+                        <EllipsisHorizontalIcon className="w-6 h-6" />
                     </button>
                 )}
                 <button
                     ref={closeBtnRef}
                     onClick={onClose}
                     aria-label={locale === "en" ? "Close" : "閉じる"}
-                    className="p-2.5 text-white/80 hover:text-white"
-                    style={{ touchAction: "manipulation" }}
+                    className="flex items-center justify-center text-white/80 hover:text-white"
+                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                 >
                     <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -1085,10 +1306,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
 
             {/* タップ領域: 左1/3で戻る、右2/3で進む。長押しで一時停止。
                 長押し・スワイプでは移動しない（キャプションを読むために止めたのに
-                指を離した瞬間に話が進んでしまうのを防ぐ）。 */}
+                指を離した瞬間に話が進んでしまうのを防ぐ）。
+
+                **下を空けるのは、下に何か在るときだけ。**
+                88px は返信の帯（高さ約124px）と、自分のストーリーの
+                閲覧者・返信・残すの段のためのもの。**返信を切った他人の
+                ストーリー**ではどちらも出ないので、空けたままだと
+                **画面の下 88px が何も受けない帯**になる——同じ画面なのに、
+                返信を許した人のストーリーとだけ挙動が割れる。
+                自分のストーリー側は今までどおり（あちらは段が出る）。 */}
             <div
                 className="absolute left-0 w-1/3 z-10"
-                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goPrev(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
@@ -1096,23 +1325,47 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
-                style={{ top: 80, bottom: 88, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goNext(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
                 onPointerLeave={onZonePointerUp}
             />
 
-            {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる */}
-            {(isOwnStory || item.caption) && (
+            {/* 一時停止の印（モック09 の状態例「一時停止状態」）。**止まっている
+                ことが画面で分かる**——これまでは進行バーが止まるだけで、
+                長押しで止めたのか読み込みで止まっているのか見分けが付かなかった。
+                押すと再開する（読み上げは「再生」。絵はモックのとおり⏸）。
+                出すのは**本当に一時停止しているときだけ**——読み込み中や
+                シートを開いている間（どちらも `frozen`）には出さない */}
+            {paused && !menuOpen && !confirmDelete && !viewersOpen && !repliesOpen && !reportOpen && (
+                <div className="absolute inset-0 z-[24] flex items-center justify-center pointer-events-none">
+                    <button
+                        onClick={() => setPaused(false)}
+                        aria-label={locale === "en" ? "Resume" : "再生"}
+                        className="pointer-events-auto w-16 h-16 rounded-full bg-black/45 backdrop-blur-sm ring-1 ring-white/20 text-white flex items-center justify-center active:scale-95 transition"
+                        style={{ touchAction: "manipulation" }}
+                    >
+                        <PauseIcon className="w-7 h-7" />
+                    </button>
+                </div>
+            )}
+
+            {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる。
+                **置いた場所の文字が在るときは、この段には出さない**
+                （同じ文言が写真の上と下に二重に出る） */}
+            {(hasBottomChips || isOwnStory || (item.caption && !item.texts?.length && !textsHidden)) && (
                 <div
-                    /* **`flex-wrap`。** ピルは全部 `flex-shrink-0` で、縮むのは
-                       キャプションだけ。閲覧者・返信件数・残すの3つが並ぶと
-                       実測（390px）で**キャプションの幅が 0px**になり、
-                       360px 以下ではピル自体が**画面の外へ切れる**（押せない
-                       部分ができる）。折り返せばキャプションは2段目に落ちる
-                       ——位置が変わるだけで、見た目の作り直しにはならない */
-                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center gap-2"
+                    /* モック④: **撮影地と BGM のチップは写真の左下**（返信欄のすぐ上）。
+                       以前はどちらもヘッダーの中に在り、名前の下に3段が積み上がって
+                       いた。チップの列と、既存の段（閲覧者・返信・残す・キャプション）を
+                       **1つの入れ物**に縦に積む——位置を決める式（下の `marginBottom`）が
+                       2か所に分かれると、返信の帯が出たときにどちらかが帯に潜る。
+
+                       **空いている所はタップを通す**（`pointer-events-none`）。
+                       この段は左右のタップ領域（z-10）より前面なので、囲いに
+                       当たり判定を持たせると**送りが効かない帯**ができる */
+                    className="absolute bottom-4 left-4 right-4 z-20 flex flex-col items-start gap-2 pointer-events-none"
                     /* **返信の帯（高さ約124px）に完全に隠れていた。**
                        実測（390x844）でキャプションの高さの100%が帯と重なり、
                        36px は入力欄そのものの下に沈んでいた（`bg-black/55` +
@@ -1125,11 +1378,48 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             : "env(safe-area-inset-bottom, 0px)",
                     }}
                 >
-                    {isOwnStory && (
+                    {/* 撮影地のチップ。**押せる先を持たない**——ストーリーの撮影地は
+                        まだ写真が1枚も無い場所でもよく、`/location/<スラッグ>` は
+                        ビルド時に在る場所しか作られない（静的書き出し）。
+                        行き止まりのリンクを置くくらいなら、出すのは文字だけにする */}
+                    {item.location && (
+                        <span className="max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px]">
+                            <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/70" aria-hidden="true" />
+                            <span className="truncate">{item.location}</span>
+                        </span>
+                    )}
+                    {/* BGM のチップ。押すと音の入り切り（この画面で音を出せる唯一の
+                        一手。操作シートの「ミュート解除」と同じ状態を切り替える） */}
+                    {item.song && (
                         <button
-                            onClick={() => setViewersOpen(true)}
+                            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
+                            style={{ touchAction: "manipulation", minHeight: "36px" }}
+                            aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
+                        >
+                            {muted
+                                ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
+                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                            <span className="truncate">
+                                {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                            </span>
+                            {muted && (
+                                <span className="text-[10px] text-white/50 flex-shrink-0">
+                                    {locale === "en" ? "Tap for sound" : "タップで再生"}
+                                </span>
+                            )}
+                        </button>
+                    )}
+                    {/* 閲覧者・返信・残す・キャプションの段（従来どおり横に並べ、
+                        溢れたら折り返す） */}
+                    <div className="w-full flex flex-wrap items-center gap-2">
+                    {/* アーカイブでは出さない——必ず 0 人で、押しても何も無い
+                        ボタンを置かない（すぐ下の返信バッジと同じ線） */}
+                    {isOwnStory && !item.archivedAt && (
+                        <button
+                            onClick={() => setInsights("viewers")}
                             aria-label={locale === "en" ? "Viewers" : "閲覧者を見る"}
-                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
                         >
                             <EyeIcon className="w-4 h-4" />
@@ -1155,9 +1445,9 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         ——押しても何も無いボタンを常に置かない */}
                     {isOwnStory && (item.replyCount ?? 0) > 0 && (
                         <button
-                            onClick={() => setRepliesOpen(true)}
+                            onClick={() => setInsights("reactions")}
                             aria-label={locale === "en" ? "Replies" : "届いた返信を見る"}
-                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
+                            className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm"
                             style={{ touchAction: "manipulation" }}
                         >
                             <ChatBubbleOvalLeftIcon className="w-4 h-4" />
@@ -1170,14 +1460,18 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         検索にも出ないが、写真には個別ページも地図も集約ページも
                         ある。この1枚だけ、**下書きの写真**として残す
                         （公開は編集画面で本人が押す）。動画は写真の行にできない */}
-                    {isOwnStory && item.mediaType !== "video" && (
+                    {/* **「アーカイブに自動保存」の投稿には出さない。** 残した写真と
+                        ストーリーは S3 の実体を共有し、写真を消すとアーカイブごと
+                        消える。サーバーも 409 で断る（`storyKeep.ts`）ので、押しても
+                        断られるだけのボタンを置かない */}
+                    {isOwnStory && item.mediaType !== "video" && item.archive !== true && (
                         keptPhotoId || item.keptAs ? (
                             <Link
                                 /* **URL を手で書かない**（`ROUTES.EDIT` と1文字同じものを
                                    書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
                                    他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
                                 href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1189,7 +1483,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 onClick={() => void keepToGallery()}
                                 disabled={keeping}
                                 aria-label={locale === "en" ? "Keep in gallery" : "ギャラリーに残す"}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
+                                className="pointer-events-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/60 text-white/80 hover:text-white text-xs backdrop-blur-sm disabled:opacity-50"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1199,7 +1493,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             </button>
                         )
                     )}
-                    {item.caption && (
+                    {item.caption && !item.texts?.length && !textsHidden && (
                         /* **潰れるならキャプションは次の段へ。** ピルは全部
                            `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
                            実測（390px）で幅 35px、320px では**ピルが画面の外**へ
@@ -1210,7 +1504,27 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             {item.caption}
                         </p>
                     )}
+                    </div>
                 </div>
+            )}
+
+            {voteError && (
+                <p
+                    // **z は投票カード（25）と閉じる段（26）より上、返信の帯（30）より下。**
+                    // z-20 だと、下寄りに置かれた白い投票カード自体が文言を覆う
+                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-rose-300"
+                    // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
+                    // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
+                    // ——あちらは自分のストーリー（帯が出ない）限定の文言。
+                    // 票を入れられる条件は帯が出る条件とほぼ同じなので、
+                    // キャプションと同じぶん持ち上げる
+                    style={{
+                        bottom: showReplyBar
+                            ? "calc(7.5rem + 8px + env(safe-area-inset-bottom, 0px))"
+                            : "calc(4rem + env(safe-area-inset-bottom, 0px))",
+                    }}
+                    role="alert"
+                >{voteError}</p>
             )}
 
             {keepError && isOwnStory && (
@@ -1242,20 +1556,28 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         </p>
                     ) : (
                         <>
-                            <div className="flex items-center justify-center gap-1 pb-2">
-                                {STORY_REACTIONS.map((emoji) => (
-                                    <button
-                                        key={emoji}
-                                        onClick={() => void sendReply({ emoji })}
-                                        disabled={replySending}
-                                        aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
-                                        className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
+                            {/* 絵文字の列。**入力に触れてから出す**——モック⑥ の帯は
+                                「メッセージを送る…」と ♡ と ➤ の1段で、絵文字は
+                                出ていない。触れたら閉じないのは、**閉じる側に
+                                倒すと押せない**から（触った瞬間にフォーカスが
+                                外れて列ごと消える）。次のストーリーへ移るか、
+                                送り終えたら畳む */}
+                            {replyOpen && (
+                                <div className="flex items-center justify-center gap-1 pb-2">
+                                    {STORY_REACTIONS.map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() => void sendReply({ emoji })}
+                                            disabled={replySending}
+                                            aria-label={locale === "en" ? `React ${emoji}` : `${emoji} で反応する`}
+                                            className="text-2xl leading-none px-1.5 py-1 rounded-full active:scale-90 transition disabled:opacity-40"
+                                            style={{ touchAction: "manipulation" }}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             <div className="flex items-center gap-2">
                                 <input
                                     type="text"
@@ -1263,7 +1585,7 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     onChange={(e) => setReplyText(e.target.value)}
                                     /* **打っている間は進めない。** 入力中に次へ送られると、
                                        書いた相手と違う人に届く */
-                                    onFocus={() => setReplyFocused(true)}
+                                    onFocus={() => { setReplyFocused(true); setReplyOpen(true); }}
                                     onBlur={() => setReplyFocused(false)}
                                     /* **変換確定の Enter で送らない。** 「きょう」を
                                        「今日」に変換した瞬間に飛ぶ（`lib/utils/ime.ts`） */
@@ -1275,21 +1597,37 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                     }}
                                     maxLength={STORY_REPLY_MAX}
                                     disabled={replySending}
-                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送信…"}
+                                    placeholder={locale === "en" ? "Send a message…" : "メッセージを送る…"}
                                     aria-label={locale === "en" ? "Reply to this story" : "このストーリーに返信"}
                                     className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-white/40"
                                 />
-                                {replyText.trim() && (
-                                    <button
-                                        onClick={() => void sendReply({ text: replyText.trim() })}
-                                        disabled={replySending}
-                                        aria-label={locale === "en" ? "Send" : "送信"}
-                                        className="flex-shrink-0 px-3 py-2.5 text-sm text-white font-semibold disabled:opacity-40 active:scale-95 transition"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {locale === "en" ? "Send" : "送信"}
-                                    </button>
-                                )}
+                                {/* ♡: いちばん多い反応をひと押しで送る（モック⑥
+                                    「いいね（♡）で気持ちを伝えられます」）。
+                                    送る中身は絵文字の列の先頭と同じもので、
+                                    一覧（`STORY_REACTIONS`）から採る——**絵文字を
+                                    ここに書き写さない**（サーバーと突き合わせている
+                                    のはあの一覧の方） */}
+                                <button
+                                    onClick={() => void sendReply({ emoji: STORY_REACTIONS[0] })}
+                                    disabled={replySending}
+                                    aria-label={locale === "en" ? "Send a like" : "いいねを送る"}
+                                    className="flex-shrink-0 flex items-center justify-center text-white/90 hover:text-white disabled:opacity-40 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
+                                >
+                                    <HeartIcon className="w-6 h-6" />
+                                </button>
+                                {/* ➤: 打った文字を送る。**空のときは押せない**——
+                                    押しても何も起きないボタンにしない（モックの絵は
+                                    入力が空の状態で、この印が薄く置かれている） */}
+                                <button
+                                    onClick={() => void sendReply({ text: replyText.trim() })}
+                                    disabled={replySending || !replyText.trim()}
+                                    aria-label={locale === "en" ? "Send" : "送信"}
+                                    className="flex-shrink-0 flex items-center justify-center text-white/90 hover:text-white disabled:opacity-30 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
+                                >
+                                    <PaperAirplaneIcon className="w-6 h-6" />
+                                </button>
                             </div>
                             {replyError && (
                                 <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{replyError}</p>
@@ -1300,10 +1638,14 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
             )}
 
             {/* 閲覧者リスト（ボトムシート） */}
-            {viewersOpen && isOwnStory && (
-                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setViewersOpen(false)}>
+            {/* 反応の一覧（モック09 の状態例「リアクション・閲覧者リスト」）。
+                **シートは1枚。タブで「閲覧者」と「リアクション」を切り替える**
+                ——以前は同じ形のボトムシートが2枚在り、見出しも閉じるも
+                2か所に書いてあった。数はどちらも実データ（作り物は出さない）。 */}
+            {insights !== null && isOwnStory && (
+                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setInsights(null)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1311,23 +1653,39 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                         <div className="flex justify-center pt-2.5 pb-1">
                             <span className="w-9 h-1 rounded-full bg-white/20" />
                         </div>
-                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">
-                                {locale === "en" ? "Viewers" : "閲覧者"}
-                                {/* **取得中を 0 と言わない。** 同じ画面のボタン側は
-                                    `viewers === null` を "..." と出しているのに、
-                                    この見出しだけ `?? 0` で潰していて、開いた瞬間
-                                    「閲覧者 0」が出てから数字が入っていた */}
-                                {/* 失敗したら数字を出さない（上のボタンと同じ）。
-                                    本文が「読み込めませんでした」と説明する */}
-                                {!viewersError && (
-                                    <span className="ml-2 text-white/50 font-normal">{viewers === null ? "…" : viewers.length}</span>
-                                )}
-                            </h3>
-                            <button onClick={() => setViewersOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
+                        <div className="px-2 py-1 border-b border-white/10 flex items-center justify-between gap-2">
+                            <div className="flex items-center" role="tablist" aria-label={locale === "en" ? "Story insights" : "ストーリーの反応"}>
+                                {([
+                                    ["viewers", locale === "en" ? "Viewers" : "閲覧者",
+                                        // 取得中・失敗のときは数を出さない（ピルと同じ扱い）
+                                        viewersError ? null : viewers === null ? "…" : String(viewers.length)],
+                                    ["reactions", locale === "en" ? "Reactions" : "リアクション",
+                                        // 数はサーバーが行に持っている（開かなくても分かる）
+                                        repliesError ? null : String(item.replyCount ?? replies?.length ?? 0)],
+                                ] as const).map(([key, label, count]) => {
+                                    const active = insights === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            role="tab"
+                                            aria-selected={active}
+                                            onClick={() => setInsights(key)}
+                                            className={`px-3 py-2.5 text-sm transition-colors ${active ? "text-white font-semibold" : "text-white/50 hover:text-white/80"}`}
+                                            style={{ touchAction: "manipulation", minHeight: "44px" }}
+                                        >
+                                            {label}
+                                            {count !== null && <span className="ml-1.5 text-white/50 font-normal tabular-nums">{count}</span>}
+                                            {/* 選んでいる方に下線（タブだと分かる印） */}
+                                            {active && <span className="block h-0.5 mt-1 -mb-1 rounded-full bg-white" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button onClick={() => setInsights(null)} className="p-2 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
+                        {insights === "viewers" && (
                         <div className="overflow-y-auto p-2">
                             {(viewers ?? []).length === 0 ? (
                                 <p className="text-xs text-white/50 text-center py-8">
@@ -1352,34 +1710,8 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 届いた返信（投稿者だけ。閲覧者リストと同じ形のボトムシート） */}
-            {repliesOpen && isOwnStory && (
-                <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
-                    <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-                    >
-                        <div className="flex justify-center pt-2.5 pb-1">
-                            <span className="w-9 h-1 rounded-full bg-white/20" />
-                        </div>
-                        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white">
-                                {locale === "en" ? "Replies" : "届いた返信"}
-                                {/* 取得中を 0 と言わない・失敗したら数字を出さない
-                                    （閲覧者リストと同じ扱い） */}
-                                {!repliesError && (
-                                    <span className="ml-2 text-white/50 font-normal">{replies === null ? "…" : replies.length}</span>
-                                )}
-                            </h3>
-                            <button onClick={() => setRepliesOpen(false)} className="p-1 text-white/60 hover:text-white" aria-label={locale === "en" ? "Close" : "閉じる"}>
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
+                        )}
+                        {insights === "reactions" && (
                         <div className="overflow-y-auto p-2">
                             {(replies ?? []).length === 0 ? (
                                 <p className="text-xs text-white/50 text-center py-8">
@@ -1434,8 +1766,10 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
                                 <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
                                     {locale === "en"
-                                        ? "Blocking also removes follows in both directions. You can unblock from your profile settings."
-                                        : "ブロックすると、お互いのフォローも外れます。解除はプロフィール設定からできます。"}
+                                        ? "Blocking also removes follows in both directions. You can unblock from Settings."
+                                        // 行き先は**設定**（2026-09-21 にプロフィール編集から移設）。
+                                        // `BlockedUsers` は `/user/settings` の「プライバシー」に居る
+                                        : "ブロックすると、お互いのフォローも外れます。解除は設定の「ブロックした人」からできます。"}
                                 </p>
                             )}
                             {/* ブロックが効かなかった理由（`replyError` と同じ形） */}
@@ -1443,42 +1777,55 @@ export default function StoryViewer({ groups, initialGroupIndex, locale, ownUser
                                 <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
                             )}
                         </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* 削除確認ダイアログ */}
-            {confirmDelete && (
-                <div className="absolute inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0" onClick={() => !deleting && setConfirmDelete(false)}>
-                    {/* iOS のアクションシート風。装飾は最小限にして、文字そのもので選ばせる */}
-                    <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
-                            <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
-                                {locale === "en"
-                                    ? "This story will be deleted. This can't be undone."
-                                    : "このストーリーを削除します。この操作は取り消せません。"}
-                            </p>
-                            <button
-                                onClick={() => void handleDelete()}
-                                disabled={deleting}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
-                                {locale === "en" ? "Delete" : "削除"}
-                            </button>
-                        </div>
-                        <button
-                            onClick={() => setConfirmDelete(false)}
-                            disabled={deleting}
-                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
-                            style={{ touchAction: "manipulation", marginBottom: "env(safe-area-inset-bottom, 0px)" }}
-                        >
-                            {locale === "en" ? "Cancel" : "キャンセル"}
-                        </button>
-                    </div>
-                </div>
+            {/* 「…」の操作シート（モック09 のストーリーメニュー） */}
+            {menuOpen && (
+                <StoryActionSheet
+                    items={sheetItems}
+                    onClose={() => setMenuOpen(false)}
+                    cancelLabel={locale === "en" ? "Cancel" : "キャンセル"}
+                    openerRef={menuBtnRef}
+                />
             )}
+
+            {/* 報告（モック⑧）。**写真ページと同じ部品**——ストーリーの行は
+                写真と同じ表に在るので、`POST /photos/{id}/report` がそのまま効く
+                （サーバーは `story: true` を控える） */}
+            {reportOpen && (
+                <ReportDialog
+                    photoId={item.id}
+                    locale={locale}
+                    onClose={() => setReportOpen(false)}
+                    openerRef={menuBtnRef}
+                />
+            )}
+
+            {/* 削除の確認。**同じシートの部品**で、説明文と赤い1項目だけを出す */}
+            {confirmDelete && (
+                <StoryActionSheet
+                    items={[{
+                        key: "delete",
+                        label: locale === "en" ? "Delete" : "削除",
+                        danger: true,
+                        busy: deleting,
+                        // 閉じない——消えるまでの間、進捗を出す場所が無くなる
+                        closeOnSelect: false,
+                        onSelect: () => { void handleDelete(); },
+                    }]}
+                    description={locale === "en"
+                        ? "This story will be deleted. This can't be undone."
+                        : "このストーリーを削除します。この操作は取り消せません。"}
+                    onClose={() => { if (!deleting) setConfirmDelete(false); }}
+                    cancelLabel={locale === "en" ? "Cancel" : "キャンセル"}
+                    openerRef={menuBtnRef}
+                />
+            )}
+
+            </div>
         </div>
     );
 }

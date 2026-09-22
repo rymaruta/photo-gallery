@@ -17,18 +17,24 @@ export default function Footer() {
         // 出るので、写真ページから来た人にも見つかる
         { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
+        // 保存した写真。**いいねとは別の棚**なので、並べて出して違いを見せる
+        { href: ROUTES.SAVES, label: navLabels.saves || (locale === "en" ? "Saved Photos" : "保存した写真") },
+        // 行きたい場所（保存した撮影スポット）。**いいねとは別物**。
+        // 入口がスポット詳細の「行きたい」ボタンしか無いと、押したあとに
+        // 見に行く場所が無い（`BottomNav` は別の作業中なので触らない）
+        { href: ROUTES.SAVED_SPOTS, label: locale === "en" ? "Want to go" : "行きたい場所" },
         { href: ROUTES.TERMS, label: locale === "en" ? "Terms" : "利用規約" },
         { href: ROUTES.PRIVACY, label: locale === "en" ? "Privacy" : "プライバシーポリシー" },
     ];
 
     return (
-        <footer className="border-t border-white/10 bg-black">
+        <footer className="border-t border-white/10 bg-bg">
             <div className="max-w-5xl mx-auto px-6 md:px-8 py-10 md:py-12">
                 <div className="flex flex-col items-center gap-5 text-center">
                     {/* ブランド + タグライン */}
                     <div>
                         <p className="inline-flex items-center gap-1.5 text-base font-bold tracking-wide text-white">
-                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400" />
+                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-link" />
                             Journey Photo
                         </p>
                         <p className="mt-1.5 text-xs text-white/50">

@@ -1,5 +1,19 @@
 // インスタ風ストーリーのフロントエンド用ヘルパー
 
+import type { StoryText, StoryVoteState } from "./utils/storyText";
+
+/**
+ * 🔴 **ストーリーに公開範囲は無い。フォロワーだけが見る**
+ * （2026-09-22・owner の判断。経緯は `api-user/src/storyVisibility.ts`）。
+ *
+ * 以前は「全員に公開」と「フォロワーのみ」の2択を持っていたが、ここでの
+ * 「全員」は**ログインした全員**の意味で、フォローしていない会員にも
+ * 配っていた。**選択そのものを無くした**ので、この画面が送る値も無い。
+ *
+ * 「親しい友達」を足すときは、この2択を戻すのではなく、人を選ぶ一覧を
+ * 作ってそのときの仕様で組み直すこと。
+ */
+
 export type Story = {
     id: string;
     src: string;
@@ -19,12 +33,45 @@ export type Story = {
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
     /**
+     * 写真の上に置いた文字（何枚でも・それぞれ位置と見せ方を持つ）。
+     * **並びが重なり順**——後ろほど手前。
+     *
+     * `caption` は**これを繋いだもの**をサーバーが書く（文言を2か所で
+     * 持たない）。無ければ従来どおり `caption` を下の帯に出す。
+     */
+    texts?: StoryText[];
+    /**
      * 届いた返信の数。**投稿者にしか入っていない**
      * （`getStories` が所有者以外から落とす）。見た人に「このストーリーに
      * 何件届いたか」を知らせないため——誰が反応したかは閲覧者と同じく
      * 本人だけのもの。
      */
     replyCount?: number;
+    /**
+     * 投票スタンプの票の状態。**投票スタンプを持つ行にだけ**サーバーが付ける。
+     * `counts` は投稿者と票を入れた人にだけ入る（`api-user/src/storyVotes.ts`）。
+     */
+    vote?: StoryVoteState;
+    /**
+     * 返信を受けるか。**無い＝受ける**（返信が生まれたときからの姿）。
+     * `false` のとき `StoryViewer` は返信の帯ごと出さない——押せない欄を
+     * 置かないため。断るのはサーバー側（`postStoryReply` が 403）で、
+     * ここは「押せない入口を出さない」だけ。
+     */
+    allowReplies?: boolean;
+    /**
+     * 「アーカイブに自動保存」。立っていると24時間後に消えず、本人だけが
+     * `/user/archive` で見られる。**本人にしか入っていない**（`getStories` が
+     * 他人から落とす）。画面はこれで「残す」を出さない——残した写真と実体を
+     * 共有するので、写真を消すとアーカイブごと消える（サーバーも 409 で断る）
+     */
+    archive?: boolean;
+    /**
+     * 棚へ移った時刻（＝期限の時刻）。`GET /stories/archive` の応答だけが
+     * 持つ。掃除が来る前の行にもサーバーが期限の時刻を埋めるので、
+     * 画面は無い場合を考えなくてよい
+     */
+    archivedAt?: string;
     /**
      * ギャラリーに残したときの写真ID（`POST /stories/{id}/keep`）。
      * 立っていると、期限切れでも**S3 の実体は消えない**（持ち主が写真に
@@ -132,6 +179,14 @@ export function groupStories(stories: Story[], ownUserId?: string | null): Story
     });
 
     return groups;
+}
+
+/**
+ * 投稿した日（見ている人の時計）。アーカイブのタイルとハイライトの作成画面が
+ * 同じ文字を出す。**期限の時刻ではない**——ビューアの見出し（`timeAgo`）と同じ元
+ */
+export function storyDayLabel(createdAt: string, locale: "ja" | "en"): string {
+    return new Date(createdAt).toLocaleDateString(locale === "ja" ? "ja-JP" : "en-US");
 }
 
 // 「3時間前」形式の経過時間表示

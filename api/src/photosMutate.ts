@@ -297,16 +297,17 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // api-user の `deleteMyPhoto` は同じ場面を `keptFrom` で塞いでいる。
         const keptFrom = (photo as Record<string, unknown>).keptFrom;
         const sourceStory = typeof keptFrom === "string" && keptFrom ? keptFrom : "";
-        for (const field of keepMedia ? [] : mediaFields) {
-            const v = (photo as Record<string, unknown>)[field];
-            if (typeof v !== "string" || !v) continue;
+        // **導出は1か所。** 以前はここに直に書いていたが、2枚目以降
+        // （`extraImages`）からも同じ導出が要る。写すと片方だけ直す形になる。
+        const addKeyOf = (v: unknown): void => {
+            if (typeof v !== "string" || !v) return;
             if (v.startsWith("uploads/")) {
                 let raw = v;
                 try { raw = decodeURIComponent(v); } catch { /* 不正な % はそのまま */ }
                 if (!raw.includes("..")) keys.add(raw);
-                continue;
+                return;
             }
-            if (!v.startsWith("http")) continue;
+            if (!v.startsWith("http")) return;
             try {
                 // パスはデコードしてから見る。生のままだと、保存時の検証
                 // （デコードして判定している）と食い違い、
@@ -321,6 +322,23 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 if (key.startsWith("uploads/") && !key.includes("..")) keys.add(key);
                 else console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
             } catch { /* URL でなければ無視 */ }
+        };
+        for (const field of keepMedia ? [] : mediaFields) {
+            addKeyOf((photo as Record<string, unknown>)[field]);
+        }
+        // **2枚目以降（`extraImages`）も消す。** `api-user/src/photoImages.ts`
+        // の `extraImageUrls` と**対**——あちらを直したらこちらも直すこと
+        // （片方だけだと管理者の削除のときだけ実体が残り、行が消えたあとは
+        // どの経路からも辿れない）。`keepMedia` は表紙と同じく尊重する。
+        const extraImages = (photo as Record<string, unknown>).extraImages;
+        if (!keepMedia && Array.isArray(extraImages)) {
+            for (const e of extraImages) {
+                if (!e || typeof e !== "object") continue;
+                const r = e as Record<string, unknown>;
+                for (const f of ["src", "srcAvif", "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif"] as const) {
+                    addKeyOf(r[f]);
+                }
+            }
         }
         let s3Failures = 0;
         // **消せたキーだけをエッジの掃除に回す。** 消えていない実体の

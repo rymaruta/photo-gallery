@@ -25,6 +25,19 @@ vi.mock("../../../lib/hooks/useFollow", () => ({
     fetchFollowingSet: () => follow.fetch(),
     subscribeFollowingSet: (fn: () => void) => { follow.listeners.add(fn); return () => follow.listeners.delete(fn); },
 }));
+// **フォローの操作は境界としてモックする。** このファイルが見ているのは
+// 面の状態の出し分け（まだ／未ログイン／失敗／0人／0枚／並ぶ）で、
+// フォローの押し心地は `FollowButton` 側の試験の担当。
+// 本物を通すと `useFollow`（上でモックした一覧の取得とは別の口）まで
+// 引きずられ、**この面の試験がフォローの通信を模す羽目になる**
+vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+vi.mock("../../../lib/hooks/useMySaves", () => ({ useMySaves: () => ({ photoIds: [], pending: false, failed: false, retry: vi.fn() }) }));
+vi.mock("../../../lib/hooks/usePhotoSave", () => ({ usePhotoSave: () => ({ saved: false, pending: false, toggle: vi.fn(async () => ({ ok: true })) }) }));
+vi.mock("../UserAvatar", () => ({ default: () => <span /> }));
+vi.mock("../FollowButton", () => ({
+    FollowAction: () => null,
+    default: () => null,
+}));
 
 const TimelineFeed = (await import("../TimelineFeed")).default;
 const Feed = () => <TimelineFeed locale="ja" />;

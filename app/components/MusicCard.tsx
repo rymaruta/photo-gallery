@@ -19,9 +19,11 @@ type Props = {
     locale: string;
     /** マウント時に自動で再生を開始する（旅アルバムを開いた時など） */
     autoPlay?: boolean;
+    /** 最終版モックの写真ページ用: 見出し行なし・幅いっぱいの1行（既定はプロフィールと同じ） */
+    compact?: boolean;
 };
 
-export default function MusicCard({ queueKey, songs, label, locale, autoPlay = false }: Props) {
+export default function MusicCard({ queueKey, songs, label, locale, autoPlay = false, compact = false }: Props) {
     const music = useMusic();
     const active = music.queueKey === queueKey;
     const index = active ? music.index : 0;
@@ -41,14 +43,14 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
     if (!cur) return null;
 
     return (
-        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
-            <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1.5">
+        <div className={`rounded-2xl bg-surface ring-1 ring-line overflow-hidden ${compact ? "" : "max-w-md"}`}>
+            <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1.5" hidden={compact}>
                 <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
                 <span className="text-[11px] tracking-widest uppercase text-white/50">
                     {label}{songs.length > 1 ? ` ${index + 1}/${songs.length}` : ""}
                 </span>
             </div>
-            <div className="flex items-center gap-3 px-3 pb-3">
+            <div className={`flex items-center gap-3 px-3 pb-3 ${compact ? "pt-3" : ""}`}>
                 <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10">
                     {artwork ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -76,7 +78,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 <button
                     onClick={() => music.play(queueKey, songs, index, label)}
                     aria-label={playing ? (locale === "en" ? "Pause" : "一時停止") : (locale === "en" ? "Play" : "再生")}
-                    className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
+                    className="w-10 h-10 rounded-full bg-accent-fill text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
                 >
                     {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5 ml-0.5" />}
                 </button>

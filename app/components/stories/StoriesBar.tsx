@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, XMarkIcon, MusicalNoteIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon, MapPinIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
@@ -21,10 +21,61 @@ import {
     type Story, type StoryGroup,
 } from "../../../lib/stories";
 import StoryViewer from "./StoryViewer";
+import { RING_UNSEEN, RING_SEEN } from "./ring";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import StoryTextOverlay from "./StoryTextOverlay";
+import { useMediaBox } from "../../../lib/hooks/useMediaBox";
+import { movedBeyondTap, type PressPoint } from "../../../lib/utils/tap";
+import {
+    STORY_FONTS, STORY_FONT_KEYS, STORY_COLORS, STORY_COLOR_KEYS,
+    STORY_BGS, STORY_TEXTS_MAX, STORY_TEXT_LEN_MAX,
+    STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
+    FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
+    STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
+    isStoryTextItem, isStoryVote, newStoryVote, isCompleteStoryVote,
+    STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX,
+    type StoryText, type StoryTextItem, type StoryStampKey,
+} from "../../../lib/utils/storyText";
+import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
 import { useMusic } from "../../music/MusicContext";
 import SongSearchError from "../SongSearchError";
 
+
+/**
+ * 公開設定の入／切。**モックのスイッチの形**。
+ *
+ * 押せるものは `<button role="switch">`（このリポジトリが
+ * `FilterBar` や投稿画面のチップで使っている形）。**寸法は px で書く**
+ * ——640px 未満で root が 14px に落ちるので、`rem` だと摘まむところが縮む
+ * （CLAUDE.md）。44×24px の軌道に 20px の玉で、指で押せる高さを保つ。
+ */
+function SettingSwitch({ label, checked, onChange, disabled }: {
+    label: string; checked: boolean; onChange: (next: boolean) => void; disabled?: boolean;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-3">
+            <span className="text-white/80" style={{ fontSize: "13px" }}>{label}</span>
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-label={label}
+                disabled={disabled}
+                onClick={() => onChange(!checked)}
+                className={`relative rounded-full transition-colors flex-shrink-0 disabled:opacity-40 ${checked ? "bg-white" : "bg-white/20"}`}
+                style={{ width: "44px", height: "24px", touchAction: "manipulation" }}
+            >
+                <span
+                    className={`absolute rounded-full transition-transform ${checked ? "bg-black" : "bg-white/70"}`}
+                    style={{
+                        width: "20px", height: "20px", top: "2px", left: "2px",
+                        transform: checked ? "translateX(20px)" : "translateX(0)",
+                    }}
+                />
+            </button>
+        </div>
+    );
+}
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
 const STORY_DEFAULT_DURATION_SEC = 5;
@@ -39,9 +90,6 @@ const ALLOWED_VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime
 const MAX_VIDEO_SECONDS = 60;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
-// 未読リング（Instagram のブランドグラデーション）と既読リング（上品なグレー）
-const RING_UNSEEN = "linear-gradient(45deg, #FEDA75, #FA7E1E, #D62976, #962FBF, #4F5BD5)";
-const RING_SEEN = "#3a3a3d";
 
 /**
  * 動画のメタデータが返らないときの打ち切り。
@@ -85,6 +133,26 @@ type Draft = {
     mediaType: "image" | "video";
 };
 
+/** 作成画面の道具（最終版モック 08 の「編集ツール」）。カメラ・ライブラリは持たない */
+type StoryTool = "text" | "sticker" | "location" | "song";
+
+/**
+ * ツールの行の中身。**並びはモックのまま**（テキスト → 位置情報 → BGM →
+ * スタンプ）。文字の「Aa」は絵文字ではなく字形なので、アイコンではなく
+ * その2文字を出す（モックも同じ）。
+ */
+const STORY_TOOLS: ReadonlyArray<{
+    key: StoryTool;
+    Icon: (p: { className?: string }) => React.ReactElement;
+    ja: string;
+    en: string;
+}> = [
+    { key: "text", Icon: ({ className }) => <span className={className} style={{ fontSize: "17px", fontWeight: 700, lineHeight: 1 }}>Aa</span>, ja: "テキスト", en: "Text" },
+    { key: "location", Icon: ({ className }) => <MapPinIcon className={className} />, ja: "位置情報", en: "Location" },
+    { key: "song", Icon: ({ className }) => <MusicalNoteIcon className={className} />, ja: "BGM", en: "Music" },
+    { key: "sticker", Icon: ({ className }) => <FaceSmileIcon className={className} />, ja: "スタンプ", en: "Stickers" },
+];
+
 export default function StoriesBar() {
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
@@ -100,12 +168,315 @@ export default function StoriesBar() {
     /** 投稿中の要求。キャンセルを押したら中断する */
     const postAbortRef = useRef<AbortController | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
-    const [caption, setCaption] = useState("");
+    /**
+     * 写真の上に置いた文字たち。**並びが重なり順**（後ろほど手前）。
+     *
+     * 文言はここが持ち、`caption`（残したときの題・検索に出る文章）は
+     * **サーバーがこれを繋いで**書く。2か所で持たない。
+     */
+    const [texts, setTexts] = useState<StoryText[]>([]);
+    /** いま直している文字。操作の欄はこれに効く */
+    const [selected, setSelected] = useState<number | null>(null);
+    /** 掴んでいる間は文字を少し透かす（下の写真を確かめられるように） */
+    const [dragging, setDragging] = useState(false);
+    /**
+     * 操作の欄を畳んで**写真だけ**にする。
+     *
+     * 320×568 の実測で、指で触れる写真は**上の 57% まで**（残りは操作の欄）。
+     * 文字を掴んで運べば下へも置けるが、**置いたあと見えない**し、
+     * 空いている所を指して決めることもできない
+     * （owner:「指で決めれるようにしよう」）。
+     * 畳めば写真が全部出て、どこでも指で決められる。
+     */
+    const [photoOnly, setPhotoOnly] = useState(false);
+    /**
+     * いま開いている道具（最終版モック 08 の「編集ツール」）。
+     *
+     * **1度に1つだけ開く。** 以前は文字・スタンプ・撮影地・曲・表示時間・
+     * 公開設定が全部縦に積まれていて、320×568 の実測で**写真が 95px しか
+     * 見えていなかった**——置き場所を決められない。モックはツールの行を1本
+     * 置いて、押したものの欄だけ出す形。
+     *
+     * 既定は文字——「開いて打つだけで1つ目が置ける」を守る（＋を押させない）。
+     * モックの「カメラ」「ライブラリ」は**出さない**。写真は下書きを開く前に
+     * 選んでおり、差し替えの機能が無い（押しても効かない的を置かない）。
+     */
+    const [composerTool, setComposerTool] = useState<StoryTool>("text");
+    /**
+     * 文字の見せ方の欄は**1度に1つだけ開く**。
+     *
+     * 字体・色・大きさ・下地を全部並べると、320×568 で操作の欄が 276px
+     * ——画面の**半分**を食っていた（owner:「画面の範囲奪いすぎてる」）。
+     * タブ1段＋開いた1段にすれば、置く相手の写真がその分だけ広く見える。
+     */
+    const [tool, setTool] = useState<"font" | "color" | "size" | "bg">("font");
+    const draftMediaAreaRef = useRef<HTMLDivElement | null>(null);
+    // 絵が実際に描かれている矩形。**囲みではなく絵に対する割合**で持たないと、
+    // 置いた端末と見る端末で写真のどこに載るかがずれる（`object-contain`）
+    const { attach: attachDraftMedia, box: draftMediaBox, measure: measureDraftMedia } = useMediaBox(draftMediaAreaRef);
+
+    /** いま選んでいるもの（文字かスタンプ。無ければ null） */
+    const current = selected !== null ? texts[selected] ?? null : null;
+    /**
+     * いま選んでいるものが**文字のとき**だけ中身を返す。
+     *
+     * 字体・色・下地はスタンプに効かない。分けずに出すと**押しても効かない
+     * 欄**が並ぶ——このファイルが既に「動かすものも飾るものも無いなら
+     * 欄を置かない」と書いている、その判断をスタンプにも当てる。
+     */
+    // **「スタンプでない」ではなく「文字である」で絞る。** 否定で書くと、
+    // 種類を足すたび（投票）に**新しい種類が文字の側へ落ちる**
+    const currentText = current && isStoryTextItem(current) ? current : null;
+    /** いま選んでいるものが**投票のとき**だけ中身を返す（問いと2択の欄に効く） */
+    const currentVote = current && isStoryVote(current) ? current : null;
+
+    /** 選んでいる**文字**の見せ方を変える（スタンプには当てない） */
+    const patchSelected = useCallback((patch: Partial<StoryTextItem>) => {
+        setTexts((prev) => prev.map((t, i) => (
+            i === selected && isStoryTextItem(t) ? { ...t, ...patch } : t
+        )));
+    }, [selected]);
+
+    /**
+     * 文言を書き換える。**まだ1つも無ければ作る**——今までどおり
+     * 「開いて打つだけ」で1つ目が置けるようにする（＋を押させない）。
+     */
+    const editText = useCallback((value: string) => {
+        setTexts((prev) => {
+            const cur = selected !== null ? prev[selected] : undefined;
+            // **スタンプを選んでいるときは、それに文言を足さない。**
+            //
+            // 当てていたので、`addStamp` が置いた直後（選んだ状態）に打つと
+            // **1文字も入らなかった**——欄は `currentText?.text` を見るので
+            // 常に空、そのくせスタンプの中身には `text` が生えて、サーバーが
+            // 落とす（＝打った文字が黙って消える）。「スタンプを置いて、
+            // そのまま題を打つ」はいちばん自然な流れなので、ここは
+            // **新しい文字を足す**側へ倒す。
+            // **「文字である」で絞る**（`!isStoryStamp` だと投票が文字の側へ
+            // 落ちて、投票の中身に `text` が生える——⑨-2 で踏んだ形。
+            // スプレッドは余剰プロパティを型が止めないので、ここは型に頼れない）
+            if (cur && isStoryTextItem(cur)) {
+                return prev.map((t, i) => (i === selected ? { ...t, text: value } : t));
+            }
+            if (!value) return prev;
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            return [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y)].map((t, i, a) =>
+                i === a.length - 1 ? { ...t, text: value } : t);
+        });
+        // **文字を選び直す。** スタンプを選んでいた回は、いま足した文字が
+        // 新しい選択（そうしないと次の1文字がまたスタンプの側へ行く）
+        setSelected((cur) => {
+            const sel = cur !== null ? texts[cur] : undefined;
+            if (sel && isStoryTextItem(sel)) return cur;
+            return Math.min(texts.length, STORY_TEXTS_MAX - 1);
+        });
+    }, [selected, texts]);
+
+    /** もう1つ置く。**少しずらす**——同じ場所に重ねると掴み分けられない */
+    const addText = useCallback(() => {
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            const n = prev.length;
+            const next = [...prev, newStoryText(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * n)];
+            return next;
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [texts.length, selected]);
+
+    /**
+     * スタンプを1つ置く。
+     *
+     * **少しずつずらす**のは文字と同じ理由——同じ場所に重ねると掴み分け
+     * られない。置いたら**選んだ状態にする**ので、そのまま角のハンドルで
+     * 大きさと傾きを決められる。
+     */
+    const addStamp = useCallback((stamp: StoryStampKey) => {
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX) return prev;
+            return [...prev, newStoryStamp(stamp, FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * prev.length)];
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [texts.length, selected]);
+
+    /** 投票は1投稿に1つ（票をストーリー単位で数えるため）。既に在るか */
+    const hasVote = texts.some(isStoryVote);
+    /**
+     * 置いた投票に欠けがある（問いか2択が空）。**この間は投稿できない。**
+     * `sanitizeStoryTexts` は欠けた投票を落とす（既定で埋めない）ので、
+     * 送れてしまうと**カードは見えているのに投稿後に消える**。判定は
+     * サーバーと同じ1本（`isCompleteStoryVote`）
+     */
+    const voteIncomplete = texts.some((t) => isStoryVote(t) && !isCompleteStoryVote(t));
+
+    /**
+     * 投票を1つ置く。**既に在れば置かない**（上の理由。`sanitizeStoryTexts` も
+     * 2つ目を落とすので、置けても保存で消える——押せない形にしておく）。
+     * 置いたら選んだ状態にして、問いと2択を直せるようにする。
+     */
+    const addVote = useCallback(() => {
+        if (hasVote) return;
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX || prev.some(isStoryVote)) return prev;
+            return [...prev, newStoryVote(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * prev.length)];
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [hasVote, texts.length, selected]);
+
+    /** 選んでいる**投票**の問い・2択を直す（他の種類には当てない） */
+    const patchVote = useCallback((patch: { question?: string; options?: [string, string] }) => {
+        setTexts((prev) => prev.map((t, i) => (
+            i === selected && isStoryVote(t) ? { ...t, ...patch } : t
+        )));
+    }, [selected]);
+
+    /**
+     * 選んでいる文字を消す。**残っていれば最後の1つを選び直す。**
+     *
+     * 何も選ばない形にすると、打つ欄が「選んでいない」状態になり、
+     * そこへ打つと**直すつもりで新しい文字ができる**（`editText` が
+     * 1つ目を作る経路に入る）。消したあとに続けて打つのは普通の流れなので、
+     * そこで驚かせない。
+     */
+    const removeSelected = useCallback(() => {
+        if (selected === null) return;
+        setTexts((prev) => {
+            const next = prev.filter((_, i) => i !== selected);
+            setSelected(next.length > 0 ? next.length - 1 : null);
+            return next;
+        });
+    }, [selected]);
+
+    /** 選んでいる文字をいちばん手前へ（並びが重なり順） */
+    const bringSelectedToFront = useCallback(() => {
+        if (selected === null) return;
+        setTexts((prev) => {
+            if (selected >= prev.length) return prev;
+            const next = prev.filter((_, i) => i !== selected);
+            next.push(prev[selected]);
+            return next;
+        });
+        setSelected(texts.length - 1);
+    }, [selected, texts.length]);
+
+    /** 掴んだ場所を、絵に対する割合へ。**端は必ず挟む**（半分が外へ出ない） */
+    const moveTextTo = useCallback((index: number, clientX: number, clientY: number) => {
+        const area = draftMediaAreaRef.current;
+        if (!area) return;
+        const r = area.getBoundingClientRect();
+        // 測れていれば絵の矩形、測れていなければ囲み（文字を消さない）
+        const left = r.left + (draftMediaBox?.left ?? 0);
+        const top = r.top + (draftMediaBox?.top ?? 0);
+        const w = draftMediaBox?.width || r.width;
+        const h = draftMediaBox?.height || r.height;
+        if (!w || !h) return;
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? { ...t, x: clampStoryTextPos((clientX - left) / w), y: clampStoryTextPos((clientY - top) / h) }
+            : t)));
+    }, [draftMediaBox]);
+
+    /** 掴んでいる文字。指が離れるまで、その1つだけを動かす */
+    const draggingIndexRef = useRef<number | null>(null);
+    /**
+     * 写真の余白に置いた指。**タップ（外す）となぞり（動かす）を見分ける。**
+     *
+     * 文字そのものを掴む形だけだと、**操作の欄に隠れた文字に指が届かない**
+     * ——320×568 では写真の見えている高さが 160px しかない。
+     * 選んでいる間は、**写真のどこをなぞっても選んでいる文字が付いてくる**
+     * （owner:「指で決めれるようにしよう」）。
+     */
+    const bgPressRef = useRef<PressPoint | null>(null);
+
+    /** 矢印キーで少しずつ動かす（指でなぞれない人の動かし方） */
+    const nudgeText = useCallback((index: number, dx: number, dy: number) => {
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? { ...t, x: clampStoryTextPos(t.x + dx), y: clampStoryTextPos(t.y + dy) }
+            : t)));
+        setSelected(index);
+    }, []);
+
+    /**
+     * 角のハンドルを掴んでいる間の控え。
+     *
+     * **`draggingIndexRef`（動かす）とは別に持つ。** 同じ ref を使うと、
+     * ハンドルを掴んだ指の動きが「文字を運ぶ」にも流れ込み、
+     * **回しながら文字が指を追って飛んでいく**。
+     */
+    const handleGrabRef = useRef<{ index: number; grab: HandleGrab; pointerId: number } | null>(null);
+
+    /**
+     * ハンドルを掴んでよい箱の最小の辺（px）。
+     * これより小さい箱は「中心を掴んだ」のと変わらない（下の説明）。
+     */
+    const MIN_HANDLE_BOX_PX = 8;
+
+    /**
+     * 傾き・大きさを直に入れる（キーボードとハンドルの両方から）。
+     * **位置は触らない**——回しても置き場所は変わらない。
+     */
+    const transformText = useCallback((index: number, patch: { rotate?: number; size?: number }) => {
+        setTexts((prev) => prev.map((t, i) => (i === index
+            ? {
+                ...t,
+                ...(patch.rotate === undefined ? {} : { rotate: clampStoryTextRotate(patch.rotate) }),
+                ...(patch.size === undefined ? {} : { size: clampStoryTextSize(patch.size) }),
+            }
+            : t)));
+        setSelected(index);
+    }, []);
+
+    /**
+     * ハンドルを掴んだ。**文字の箱の中心**を画面の座標で控える
+     * ——回転も拡大縮小も、中心から見た角度と距離で決まる。
+     */
+    const grabTextHandle = useCallback((index: number, e: React.PointerEvent<HTMLElement>) => {
+        const el = (e.currentTarget as HTMLElement).parentElement;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const t = texts[index];
+        if (!t) return;
+        // **潰れた箱からは始めない。** 中心からの距離がほぼ 0 の点を掴むと、
+        // `dist / grab.dist` が一気に跳ねて**大きさが上限に張り付き**、
+        // 半径ほぼ 0 から測った角度は雑音なので**傾きも無関係な値に飛ぶ**。
+        // 空の文字にはハンドルを出さないようにしてあるが、下地なしの
+        // 細い文字や測る前の一瞬でもここに来うるので、入口でも止める
+        if (r.width < MIN_HANDLE_BOX_PX || r.height < MIN_HANDLE_BOX_PX) return;
+        handleGrabRef.current = {
+            index,
+            pointerId: e.pointerId,
+            grab: grabHandle(
+                r.left + r.width / 2, r.top + r.height / 2,
+                e.clientX, e.clientY,
+                clampStoryTextRotate(t.rotate), t.size,
+            ),
+        };
+        setSelected(index);
+        setDragging(true);
+        // **捕まえるのは囲みの方**（ハンドルではなく）。
+        // ハンドルに捕まえると、そのあとの `pointermove` / `pointerup` が
+        // ハンドルへ飛ぶので、**囲みが持っている追随の仕組みを丸ごと
+        // もう一組**書くことになる。囲みに捕まえれば既にある経路を通る。
+        const area = draftMediaAreaRef.current;
+        if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+    }, [texts]);
     // 撮影地。**ここが「残す」の価値を決める**——空のまま残すと、写真は
     // 地図にも `/location/<スラッグ>` にも載らない（本人が編集画面で打つまで）
     const [storyLocation, setStoryLocation] = useState("");
     /** 写真の GPS（丸めはサーバー側。写真のアップロード画面と同じ形） */
     const [storyCoords, setStoryCoords] = useState<{ lat: number; lng: number } | null>(null);
+    /**
+     * いま欄に入っている地名が**写真の GPS から来たものか**。
+     *
+     * 投稿のときに設定（`jp_gps_autofill`）をもう一度見るのは、
+     * 「待っている間に GPS 自動入力を切られたら送らない」ため。だが
+     * **手で打った地名にまでそれが効いていた**——設定を切っている人は
+     * 自動入力を受けないので、欄に在る文字は必ず自分で打ったものなのに、
+     * 投稿すると黙って落ちていた（残しても撮影地の無い写真になる）。
+     * 「位置情報を表示」を画面に出したことで、**入のまま送られない**という
+     * 嘘が利用者から見えるようになったので、来歴で分ける。
+     *
+     * 打ち直したら外す（自分で決めた文字は自分のもの）。
+     */
+    const locationFromGpsRef = useRef(false);
     /**
      * 下書きの世代。**自動入力の書き戻しを、今の下書きに限る。**
      *
@@ -130,6 +501,32 @@ export default function StoriesBar() {
     const [songStart, setSongStart] = useState(0);
     // 画像ストーリーの表示秒数（投稿者が選ぶ）
     const [durationSec, setDurationSec] = useState(STORY_DEFAULT_DURATION_SEC);
+
+    // ── 公開設定 ──
+    // 🔴 **公開範囲の状態は持たない。** ストーリーはフォロワーだけが見る
+    // （2026-09-22・owner の判断。経緯は `api-user/src/storyVisibility.ts`）
+    /** 返信を受けるか。既定は受ける */
+    const [allowReplies, setAllowReplies] = useState(true);
+    /**
+     * 位置情報を表示するか。既定は表示する。
+     *
+     * **新しい列は作らない。** 切ったら `location` / `coords` を**送らない**
+     * ——保存されていない位置は、一覧にも、残した写真にも、地図にも出ない。
+     * 「保存はするが隠す」形にすると、隠しているはずの地名が
+     * 残す経路（`storyKeep.ts` が `location` をそのまま写真の撮影地にする）
+     * から漏れる口を作ることになる。
+     */
+    const [showLocation, setShowLocation] = useState(true);
+    /**
+     * アーカイブに自動保存。**既定は切**＝これまでどおり24時間で消える。
+     * 入にしたぶんだけ、期限切れの掃除が消さずに棚へ移す（本人だけが
+     * `/user/archive` で見られる）。「24時間で消える約束」を守るのはここ
+     * ——残るのは本人が選んだぶんだけ。
+     *
+     * 入にした投稿は「残す」（ギャラリーへ）を押せない（実体を共有する
+     * ので、写真を消すとアーカイブごと消えるため。サーバーも 409）
+     */
+    const [archive, setArchive] = useState(false);
 
     // 試聴用オーディオ（検索結果も選択中の曲も、常に1つだけ鳴らす）
     const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -313,13 +710,22 @@ export default function StoriesBar() {
         setDraft(null);
         setStoryLocation("");
         setStoryCoords(null);
-        setCaption("");
+        locationFromGpsRef.current = false;
+        setTexts([]);
+        setSelected(null);
+        setPhotoOnly(false);
+        setTool("font");
         setDraftSong(null);
         setSongPickerOpen(false);
         setSongQuery("");
         clearSongSearch();   // 開き直したときに前回の結果と失敗を出さない
         setSongStart(0);
         setDurationSec(STORY_DEFAULT_DURATION_SEC);
+        // **公開設定も戻す。** 残すと、一度切った人の次の投稿が黙って
+        // 同じ設定で出る（画面は閉じているので気づけない）
+        setAllowReplies(true);
+        setShowLocation(true);
+        setArchive(false);
     }, [stopPreview, clearSongSearch]);
 
     // 下書きのプレビューURLを必ず解放する。
@@ -425,9 +831,11 @@ export default function StoriesBar() {
         setViewerGroup(null);
         const gen = ++draftGenRef.current;
         setDraft({ file: prepared, previewUrl: URL.createObjectURL(prepared), mediaType: isVideo ? "video" : "image" });
-        setCaption("");
+        setTexts([]);
+        setSelected(null);
         setStoryLocation("");
         setStoryCoords(null);
+        locationFromGpsRef.current = false;
 
         // **撮影地は、EXIF を落とす前の元ファイルから読む。**
         // 投稿の直前に `toUploadSafeFile` が GPS ごと消すので、ここを逃すと
@@ -452,7 +860,12 @@ export default function StoriesBar() {
                     const place = await reverseGeocode(meta.latitude, meta.longitude, locale);
                     if (gen !== draftGenRef.current) return;
                     // **打ち始めていたら上書きしない**（後から届く値で消さない）
-                    if (place) setStoryLocation((prev) => prev || place);
+                    if (place) setStoryLocation((prev) => {
+                        // 実際に書けたときだけ「GPS から来た」印を立てる
+                        // （打ち始めていた回は、その文字は本人のもの）
+                        if (!prev) locationFromGpsRef.current = true;
+                        return prev || place;
+                    });
                 } catch (e) {
                     log.warn("story location autofill failed:", e);
                 }
@@ -479,13 +892,22 @@ export default function StoriesBar() {
         //     `toUploadSafeVideo` が GPS を落としている（サーバーも同じ判断）
         //   - **設定をもう一度見る。** 引いたのは選んだ時点なので、待っている
         //     間に GPS 自動入力を切られたら送らない（写真側は都度と送信時の
-        //     両方で見ていて、こちらは選択時の1回だけだった）
+        //     両方で見ていて、こちらは選択時の1回だけだった）。
+        //     **ただし効かせるのは GPS から来た地名だけ**（`locationFromGpsRef`）
+        //     ——設定を切っている人は自動入力を受けないので、欄に在る文字は
+        //     必ず手で打ったもの。そこまで落としていたので、「位置情報を表示」が
+        //     入のまま何も送られない、という嘘になっていた
         //   - **座標は送る前に丸める。** 写真のアップロード画面は
         //     `page.tsx:870` で同じことをしている
         const gpsOn = (() => {
             try { return localStorage.getItem("jp_gps_autofill") !== "0"; } catch { return true; }
         })();
-        const sendLocation = draft.mediaType === "image" && gpsOn ? storyLocation.trim() : "";
+        //   - **「位置情報を表示」を切っていたら送らない。** 保存しなければ、
+        //     一覧にも、残した写真の撮影地にも、地図にも出ない（隠すのでは
+        //     なく持たない）
+        const sendLocation = draft.mediaType === "image" && showLocation
+            && (gpsOn || !locationFromGpsRef.current)
+            ? storyLocation.trim() : "";
         const sendCoords = sendLocation && storyCoords
             ? { lat: Math.round(storyCoords.lat * 100) / 100, lng: Math.round(storyCoords.lng * 100) / 100 }
             : null;
@@ -598,7 +1020,9 @@ export default function StoriesBar() {
                     publicUrl,
                     ...(key ? { key } : {}),
                     mediaType: draft.mediaType,
-                    ...(caption.trim() ? { caption: caption.trim() } : {}),
+                    // **文言は `texts` が持つ。** `caption`（残したときの題・
+                    // 検索に出る文章）はサーバーがこれを繋いで書く——2か所で持たない
+                    ...(texts.length ? { texts } : {}),
                     // **撮影地。** 残したときにそのまま写真の撮影地になる
                     // （`storyKeep.ts`）＝地図と `/location/<スラッグ>` に載る。
                     // 座標は地名とセットのときだけ送る（サーバーも同じ判断）
@@ -610,6 +1034,8 @@ export default function StoriesBar() {
                     ...(sendLocation && sendCoords ? { coords: sendCoords } : {}),
                     ...(draftSong ? { song: { title: draftSong.title, artist: draftSong.artist, artwork: draftSong.artwork, previewUrl: draftSong.previewUrl, trackUrl: draftSong.trackUrl, ...(songStart > 0 ? { startSec: songStart } : {}) } } : {}),
                     ...(draft.mediaType === "image" ? { durationSec } : {}),
+                    ...(allowReplies ? {} : { allowReplies: false }),
+                    ...(archive ? { archive: true } : {}),
                 }),
             });
             if (!saveRes.ok) {
@@ -662,7 +1088,9 @@ export default function StoriesBar() {
             postAbortRef.current = null;
             setPosting(false);
         }
-    }, [draft, caption, storyLocation, storyCoords, draftSong, songStart, durationSec, locale, showToast, loadStories, closeDraft, stopPreview]);
+    }, [draft, texts, storyLocation, storyCoords, draftSong, songStart, durationSec,
+        allowReplies, showLocation, archive,
+        locale, showToast, loadStories, closeDraft, stopPreview]);
 
     // 自分のストーリーを削除
     const handleDeleteStory = useCallback(async (storyId: string) => {
@@ -736,7 +1164,7 @@ export default function StoriesBar() {
                                 className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
                                 style={{ background: ownGroupIdx >= 0 ? (ownUnseen ? RING_UNSEEN : RING_SEEN) : "rgba(255,255,255,0.1)" }}
                             >
-                                <div className="rounded-full p-[2.5px] bg-black">
+                                <div className="rounded-full p-[2.5px] bg-bg">
                                     <UserAvatar userId={userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
@@ -744,7 +1172,7 @@ export default function StoriesBar() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={posting}
-                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-black flex items-center justify-center active:scale-90 transition disabled:opacity-50"
+                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-bg flex items-center justify-center active:scale-90 transition disabled:opacity-50"
                             style={{ background: "#0095F6", touchAction: "manipulation" }}
                             aria-label={locale === "en" ? "Add a story" : "ストーリーを追加"}
                         >
@@ -773,7 +1201,7 @@ export default function StoriesBar() {
                                 className="rounded-full p-[2.5px] group-active:scale-95 transition-transform"
                                 style={{ background: unseen ? RING_UNSEEN : RING_SEEN }}
                             >
-                                <div className="rounded-full p-[2.5px] bg-black">
+                                <div className="rounded-full p-[2.5px] bg-bg">
                                     <UserAvatar userId={group.userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
@@ -808,20 +1236,163 @@ export default function StoriesBar() {
                 >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    {/* 🔴 **PC は別設計**（指示書 4・11・17「スマホ画面をそのまま横に
+                        引き伸ばさない」）。1024px 以上では**左に写真・右に操作の列**。
+                        写真の面をここで左半分に閉じると、`mediaBox` の実測も一緒に
+                        狭まるので、置いた文字の位置は**割合のまま**正しく乗る */}
+                    <div
+                        ref={draftMediaAreaRef}
+                        className="absolute inset-0 lg:right-[400px] flex items-center justify-center"
+                        // **掴むのは文字そのもの。** 複数置けるので、絵のどこを
+                        // 掴んでも「いま選んでいる1つ」が飛んでくる形にはできない
+                        // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
+                        // 指が離れるまでその1つだけを動かす。追随は
+                        // `setPointerCapture` に任せる（指が文字から出ても続く）
+                        // **余白は「タップで外す・なぞって動かす」。**
+                        //
+                        // 文字そのものを掴む形だけだと、操作の欄に隠れた文字に
+                        // 指が届かない。選んでいる間は写真のどこをなぞっても
+                        // その文字が付いてくるようにする——判定は
+                        // `lib/utils/tap.ts`（ストーリーの送りと同じしきい値）。
+                        // 文字の上で止めた pointerdown は上の `<p>` が受けて
+                        // 伝えないので、ここには来ない
+                        onPointerDown={(e) => {
+                            if (posting) return;
+                            bgPressRef.current = { t: Date.now(), x: e.clientX, y: e.clientY };
+                            const area = draftMediaAreaRef.current;
+                            if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+                        }}
+                        onPointerMove={(e) => {
+                            // **ハンドルが先。** 角を掴んでいる間は、
+                            // 同じ指の動きを「文字を運ぶ」に流さない
+                            // （流すと、回しながら文字が指を追って飛んでいく）。
+                            //
+                            // **掴んだ指のぶんだけ見る。** 囲みは画面いっぱい
+                            // （`absolute inset-0`）なので、端末を支える親指が
+                            // 触れれば別の `pointerId` がここへ来る。見分けずに
+                            // 通すと、その指の座標で回転が決まって**文字が飛ぶ**。
+                            // 掴んでいる間は他の指を丸ごと無視する
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                if (e.pointerId === h.pointerId) {
+                                    transformText(h.index, handleMove(h.grab, e.clientX, e.clientY));
+                                }
+                                return;
+                            }
+                            // 余白から始めたなぞりは、**選んでいる文字**を連れていく
+                            const press = bgPressRef.current;
+                            if (press && draggingIndexRef.current === null
+                                && selected !== null && movedBeyondTap(press, e.clientX, e.clientY)) {
+                                draggingIndexRef.current = selected;
+                                setDragging(true);
+                            }
+                            const i = draggingIndexRef.current;
+                            if (i === null) return;
+                            moveTextTo(i, e.clientX, e.clientY);
+                        }}
+                        onPointerUp={(e) => {
+                            // **ハンドルを離した回は、タップの判定に入れない。**
+                            //
+                            // **控えは必ず落とす。** 以前はここで早く `return`
+                            // していたので `bgPressRef` が残り、別の指
+                            // （端末を支える親指）の pointerup を拾った回に
+                            // **掴み続けている指の次の動きで文字がそこへ飛んだ**。
+                            // 掴んだ指以外では回転を終わらせない
+                            const h = handleGrabRef.current;
+                            if (h) {
+                                bgPressRef.current = null;
+                                if (e.pointerId === h.pointerId) {
+                                    handleGrabRef.current = null;
+                                    setDragging(false);
+                                }
+                                return;
+                            }
+                            // 動かさずに離した＝タップ。選択を外して、ほかの欄を戻す
+                            const press = bgPressRef.current;
+                            bgPressRef.current = null;
+                            if (press && draggingIndexRef.current === null
+                                && !movedBeyondTap(press, e.clientX, e.clientY)) {
+                                setSelected(null);
+                            }
+                            draggingIndexRef.current = null;
+                            setDragging(false);
+                        }}
+                        onPointerCancel={() => {
+                            handleGrabRef.current = null;
+                            bgPressRef.current = null;
+                            draggingIndexRef.current = null;
+                            setDragging(false);
+                        }}
+                        // 選んでいる間は、端末のスクロールに指を取られない
+                        style={selected !== null && !posting ? { touchAction: "none" } : undefined}
+                    >
+                        {/* ⚠️ **`max-w-full max-h-full`（`w-full h-full` ではない）。**
+                            `w-full h-full` だと要素は画面いっぱいで、絵はその中で
+                            letterbox される——`getBoundingClientRect` が返すのは
+                            **要素**なので、絵の矩形が取れない。見る側
+                            （`StoryViewer`）は `max-w/max-h` で要素が絵に縮むので、
+                            揃えないと**置いた場所と出る場所がずれる**（実測で
+                            ずれていた）。見た目は変わらない——どちらも同じように
+                            letterbox される */}
                         {draft.mediaType === "video" ? (
-                            <video src={draft.previewUrl} className="w-full h-full object-contain" controls playsInline muted loop autoPlay />
+                            <video ref={attachDraftMedia} src={draft.previewUrl} className="block max-w-full max-h-full object-contain" controls playsInline muted loop autoPlay onLoadedData={measureDraftMedia} />
                         ) : (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={draft.previewUrl} alt="" className="w-full h-full object-contain" />
+                            <img ref={attachDraftMedia} src={draft.previewUrl} alt="" className="block max-w-full max-h-full object-contain" onLoad={measureDraftMedia} />
+                        )}
+                        {/* 置いた文字。**見る側とまったく同じ部品**——別々に描くと
+                            「置いた場所と出る場所が違う」になる */}
+                        {texts.length > 0 && (
+                            <StoryTextOverlay
+                                texts={texts}
+                                box={draftMediaBox}
+                                dimmed={dragging}
+                                selectedIndex={selected}
+                                locale={locale}
+                                onNudge={posting ? undefined : nudgeText}
+                                onTransform={posting ? undefined : transformText}
+                                onGrabHandle={posting ? undefined : grabTextHandle}
+                                onPickIndex={posting ? undefined : (i, e) => {
+                                    e.preventDefault();
+                                    // **囲みへ伝えない。** 囲みの pointerdown は
+                                    // 「余白をさわった＝選択を外す」なので、
+                                    // 伝わると選んだ直後に外れる
+                                    e.stopPropagation();
+                                    setSelected(i);
+                                    draggingIndexRef.current = i;
+                                    setDragging(true);
+                                    // 掴んだ文字から指が出ても追随させる。捕まえるのは
+                                    // **囲み**（動かす計算がそこの座標を使う）。
+                                    //
+                                    // ⚠️ **持っているか確かめてから呼ぶ。** 無い環境
+                                    // （jsdom で実際に踏んだ）では投げ、ハンドラの中で
+                                    // 投げると**その場で掴みごと壊れる**。追随しなく
+                                    // なるだけで、動かすこと自体は続けられる
+                                    const area = draftMediaAreaRef.current;
+                                    if (typeof area?.setPointerCapture === "function") area.setPointerCapture(e.pointerId);
+                                }}
+                            />
                         )}
                     </div>
-                    {/* 上下のスクリム（文字と写真が重なっても読めるように） */}
-                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-                    <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+                    {/* 上下のスクリム（文字と写真が重なっても読めるように）。
+                        **畳んでいる間は下を出さない**——下の 2/3 を暗くするので、
+                        置いた姿を見るための画面なのに**本番より暗く見える**
+                        （実測: 畳んだ画面で写真の下半分が沈んでいた） */}
+                    <div className="absolute inset-x-0 lg:right-[400px] top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                    {!photoOnly && (
+                        <div className="absolute inset-x-0 lg:right-[400px] bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none lg:hidden" />
+                    )}
 
-                    <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
+                    {/* 🔴 **上部のバー**（最終版モック 08）。左に「キャンセル」、
+                        右に投稿。モックは右が「下書き保存」と「次へ」だが、
+                        下書きも確認画面も**機能が無い**ので出さない
+                        （指示書「未実装の設定を、動作するボタンとして表示しない」）。
+                        題は読み上げの拠り所なので残す（画面には出さない）。 */}
+                    {/* ⚠️ **`z-10`。** PC では操作の欄が右の列（`lg:absolute`）になり、
+                        DOM の後ろに居るぶん**このバーの上に乗る**——実測で
+                        「ストーリーに投稿」が欄の下に潜って押せなかった */}
+                    <div className="relative z-10 flex items-center justify-between gap-2 px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
+                        <h2 id="story-draft-title" className="sr-only">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
                         <button
@@ -831,32 +1402,468 @@ export default function StoriesBar() {
                                 if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
                                 closeDraft();
                             }}
-                            className="p-2 text-white/80 hover:text-white drop-shadow"
+                            className="flex-shrink-0 px-2 py-2 text-white/90 hover:text-white drop-shadow text-sm"
+                            style={{ touchAction: "manipulation" }}
                             aria-label={posting
                                 ? (locale === "en" ? "Stop posting" : "投稿をやめる")
                                 : (locale === "en" ? "Cancel" : "キャンセル")}
                         >
-                            <XMarkIcon className="w-6 h-6" />
+                            {posting
+                                ? (locale === "en" ? "Stop" : "やめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
                         </button>
+                        <div className="flex items-center gap-1">
+                        {/* **写真だけにする。** 操作の欄が写真の下半分を覆っていて、
+                            置いたあとの姿が見えない／空いている所を指せない。
+                            畳めば写真が全部出て、どこでも指で決められる */}
+                        <button
+                            onClick={() => setPhotoOnly((v) => !v)}
+                            disabled={posting}
+                            aria-pressed={photoOnly}
+                            className="p-2 text-white/80 hover:text-white drop-shadow disabled:opacity-40"
+                            aria-label={photoOnly
+                                ? (locale === "en" ? "Show controls" : "操作に戻る")
+                                : (locale === "en" ? "Show photo only" : "写真だけ見る")}
+                        >
+                            {photoOnly ? <EyeSlashIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
+                        </button>
+                        {/* 🔴 **投稿はここ**（モックの「次へ」の位置）。
+                            以前は画面の最下部にあり、欄が伸びると**画面外へ落ちた**
+                            （台帳 STORY-4）。上のバーは固定なので、これから何を
+                            足しても落ちない。 */}
+                        <button
+                            onClick={() => void handlePost()}
+                            disabled={posting || voteIncomplete}
+                            className="flex-shrink-0 px-5 py-2 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {posting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {posting
+                                ? (locale === "en" ? "Posting..." : "投稿中...")
+                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
+                        </button>
+                        </div>
                     </div>
                     <div className="flex-1 min-h-0" />
-                    <div className="relative p-4 space-y-3 max-h-[70%] overflow-y-auto no-scrollbar" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
-                        <input
-                            type="text"
-                            value={caption}
-                            onChange={(e) => setCaption(e.target.value)}
-                            maxLength={200}
-                            placeholder={locale === "en" ? "Add a caption..." : "キャプションを追加..."}
-                            disabled={posting}
-                            className="w-full px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
-                            style={{ fontSize: "16px" }}
-                        />
+                    {/* **動かしている間は操作の欄を引っ込める。** 画面の下半分が
+                        欄なので、下の方へ置こうとすると自分で見えない
+                        ——「置いた場所が見えないまま置く」ことになる。
+                        消すのは見た目だけ（指は写真を掴んだままなので、
+                        `pointer-events` を切っても掴みは切れない） */}
+                    {photoOnly ? (
+                        // **戻る道を必ず出す。** 畳んだまま出られないと、
+                        // 投稿もやめることもできなくなる
+                        <div className="relative flex justify-center pb-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+                            <button
+                                onClick={() => setPhotoOnly(false)}
+                                className="px-6 py-3 rounded-full bg-accent-fill text-white text-sm font-semibold active:scale-95 transition"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Done" : "完了"}
+                            </button>
+                        </div>
+                    ) : (
+                    <>
+                    <div
+                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[400px] lg:max-h-none lg:pt-[72px] lg:pb-6 lg:bg-bar/80 lg:backdrop-blur-md lg:border-l lg:border-white/10 ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                    >
+                        {/* 🔴 **編集ツールの行**（最終版モック 08 の⑥）。
+                            押したものの欄だけ下に出る。モックは6つ（カメラ・
+                            ライブラリ・テキスト・位置情報・BGM・スタンプ）だが、
+                            **写真の差し替えは持っていない**ので前の2つは出さない。
+                            動画には撮影地が無いので位置情報も出さない
+                            （`toUploadSafeVideo` が GPS を落とし、サーバーも受けない）。
+                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                        <div
+                            role="tablist"
+                            aria-label={locale === "en" ? "Story tools" : "編集ツール"}
+                            className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+                        >
+                            {STORY_TOOLS
+                                .filter((t) => t.key !== "location" || draft.mediaType === "image")
+                                .map(({ key, Icon, ja, en }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={composerTool === key}
+                                    onClick={() => setComposerTool(key)}
+                                    disabled={posting}
+                                    className="flex-shrink-0 flex flex-col items-center gap-1 disabled:opacity-40"
+                                    style={{ width: "60px", touchAction: "manipulation" }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`rounded-full flex items-center justify-center ring-1 transition ${composerTool === key
+                                            ? "bg-accent-fill text-white ring-accent"
+                                            : "bg-black/55 text-white/85 ring-white/15"}`}
+                                        style={{ width: "48px", height: "48px" }}
+                                    >
+                                        <Icon className="w-6 h-6" />
+                                    </span>
+                                    <span className="text-white/75 truncate max-w-full" style={{ fontSize: "11px" }}>
+                                        {locale === "en" ? en : ja}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {composerTool === "text" && (
+                        <>
+                        {/* **打つ欄は1つ。** いま選んでいる文字を直す。
+                            まだ1つも無ければ、打った時点で1つ目ができる
+                            （今までどおり「開いて打つだけ」で置ける） */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={currentText?.text ?? ""}
+                                onChange={(e) => editText(e.target.value)}
+                                maxLength={STORY_TEXT_LEN_MAX}
+                                placeholder={texts.length === 0
+                                    ? (locale === "en" ? "Add a caption..." : "キャプションを追加...")
+                                    : (locale === "en" ? "Edit this text..." : "この文字を直す...")}
+                                disabled={posting}
+                                aria-label={locale === "en" ? "Text" : "文字"}
+                                className="flex-1 min-w-0 px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                                style={{ fontSize: "16px" }}
+                            />
+                        </div>
+
+                        </>
+                        )}
+
+                        {composerTool === "sticker" && (
+                        <>
+                        {/* 文字の見せ方。**打ってから出す**——文字が無いうちは
+                            動かすものも飾るものも無い（押しても効かない欄を置かない）。
+
+                            ⚠️ 大きさは px で書く。640px 未満は root が 14px なので、
+                            rem の指定は端末で縮む（`w-11` は 38.5px になる）。
+                            間隔も `gap-2`（24px 以上）——`gap-1.5` だと root 14px で
+                            5.25px になり、隣の的と重なる（`5960be33` で実測） */}
+                        {/* **スタンプ。** 押すと写真の上に置かれる。
+                            **文字が1つも無くても出す**——スタンプだけの投稿は
+                            ありうる（`caption` が空になるだけで、それが正しい）。
+
+                            上限は文字と合わせて数える（`STORY_TEXTS_MAX`）
+                            ——多いほど読めなくなるのは絵柄も同じ。
+                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                        <div className="space-y-1">
+                            <p id="story-stamp-label" className="text-[11px] text-white/70 px-1">
+                                {texts.length >= STORY_TEXTS_MAX
+                                    ? (locale === "en" ? `Stickers (max ${STORY_TEXTS_MAX} items)` : `スタンプ（合わせて${STORY_TEXTS_MAX}個まで）`)
+                                    : (locale === "en" ? "Stickers" : "スタンプ")}
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-labelledby="story-stamp-label">
+                                {STORY_STAMP_KEYS.map((k) => (
+                                    <button
+                                        key={k}
+                                        type="button"
+                                        onClick={() => addStamp(k)}
+                                        disabled={posting || texts.length >= STORY_TEXTS_MAX}
+                                        aria-label={STORY_STAMPS[k].label}
+                                        className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                        style={{ width: "40px", height: "40px", minWidth: "40px", fontSize: "20px", lineHeight: 1 }}
+                                    >
+                                        <span aria-hidden>{STORY_STAMPS[k].glyph}</span>
+                                    </button>
+                                ))}
+                                {/* **投票（2択）。** 絵柄の並びの最後に1つ。
+                                    **1投稿に1つ**なので、置いたら押せなくする
+                                    （押せるのに保存で消える、を作らない） */}
+                                <button
+                                    type="button"
+                                    onClick={addVote}
+                                    disabled={posting || hasVote || texts.length >= STORY_TEXTS_MAX}
+                                    aria-label={hasVote
+                                        ? (locale === "en" ? "Poll (one per story)" : "投票（1投稿に1つ）")
+                                        : (locale === "en" ? "Add a poll" : "投票を置く")}
+                                    className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                    style={{ height: "40px", minWidth: "40px", padding: "0 12px", fontSize: "12px", fontWeight: 700 }}
+                                >
+                                    {locale === "en" ? "Poll" : "投票"}
+                                </button>
+                            </div>
+                        </div>
+                        </>
+                        )}
+
+                        {/* 選んでいるものを直す欄。**文字とスタンプの道具のときだけ**
+                            ——撮影地や曲を触っている間は関係が無い */}
+                        {(composerTool === "text" || composerTool === "sticker") && texts.length > 0 && (
+                            <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
+                                <div className="flex items-center justify-between gap-2 px-1">
+                                    {/* **1行に収める。** 折り返すと右のボタンとぶつかる（実測） */}
+                                    <p id="story-text-style-label" className="text-[11px] text-white/70 truncate">
+                                        {locale === "en" ? "Drag to move · tap to select" : "なぞって移動・触って選択"}
+                                    </p>
+                                    <div className="flex gap-2 flex-shrink-0">
+                                        {/* 消す。**選んでいるときだけ**（押しても効かない的を置かない）。
+                                            **打つ欄ではなくここ**——文字の道具でしか消せないと、
+                                            スタンプや投票を置いた人が消せなくなる */}
+                                        {current && (
+                                            <button
+                                                type="button"
+                                                onClick={removeSelected}
+                                                disabled={posting}
+                                                aria-label={isStoryStamp(current)
+                                                    ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
+                                                    : isStoryVote(current)
+                                                        ? (locale === "en" ? "Delete this poll" : "この投票を消す")
+                                                        : (locale === "en" ? "Delete this text" : "この文字を消す")}
+                                                className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                                style={{ width: "36px", height: "36px" }}
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        {/* いちばん手前へ（**並びが重なり順**）。
+                                            2つ以上あるときだけ——1つだけなら重なりようが無い */}
+                                        {current && texts.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={bringSelectedToFront}
+                                                disabled={posting}
+                                                aria-label={locale === "en" ? "Bring to front" : "いちばん手前へ"}
+                                                className="rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
+                                                style={{ width: "36px", height: "36px" }}
+                                            >
+                                                <ChevronDoubleUpIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        {/* もう1つ置く。上限まで */}
+                                        <button
+                                            type="button"
+                                            onClick={addText}
+                                            disabled={posting || texts.length >= STORY_TEXTS_MAX}
+                                            aria-label={locale === "en" ? "Add another text" : "文字を追加"}
+                                            className="rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                            style={{ width: "36px", height: "36px" }}
+                                        >
+                                            <PlusIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 字体・色・大きさ・下地は**選んでいるときだけ**。
+                                    選んでいないと `patchSelected` が何もしないので、
+                                    出したままだと**押しても効かない的**が並ぶ */}
+                                {/* **スタンプを選んでいるときは、大きさだけ。**
+                                    字体・色・下地は絵柄に効かない——出すと
+                                    「押しても効かない的」が並ぶ（このファイルが
+                                    既に文字について書いている判断を、絵柄にも当てる）。
+                                    傾きは角のハンドルと `[` `]`（欄を増やさない） */}
+                                {current && isStoryStamp(current) && (
+                                <div className="flex items-center gap-3">
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                    <input
+                                        type="range"
+                                        min={STORY_SIZE_MIN}
+                                        max={STORY_SIZE_MAX}
+                                        step={STORY_SIZE_STEP}
+                                        value={current.size}
+                                        onChange={(e) => transformText(selected!, { size: Number(e.target.value) })}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Sticker size" : "スタンプの大きさ"}
+                                        className="flex-1 min-w-0 accent-white"
+                                        style={{ height: "36px" }}
+                                    />
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                </div>
+                                )}
+
+                                {/* **投票を選んでいるときは、問い・2択・大きさ。**
+                                    字体・色・下地は出さない（カードの見た目は1種類）。
+                                    上限は保存側と同じ定数（超えた分は保存で切られる
+                                    ——ここで止めておけば「打てたのに消える」が無い）。
+                                    ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                                {currentVote && (
+                                <div className="space-y-2" role="group" aria-label={locale === "en" ? "Poll" : "投票"}>
+                                    <input
+                                        type="text"
+                                        value={currentVote.question}
+                                        onChange={(e) => patchVote({ question: e.target.value })}
+                                        maxLength={STORY_VOTE_QUESTION_MAX}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Poll question" : "投票の問い"}
+                                        className="w-full rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 outline-none focus:bg-black/70"
+                                        // ⚠️ **16px**。これより小さいと iOS Safari が焦点を当てた瞬間に
+                                        // 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）
+                                        style={{ height: "40px", fontSize: "16px" }}
+                                    />
+                                    <div className="flex gap-2">
+                                        {currentVote.options.map((opt, k) => (
+                                            <input
+                                                key={k}
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) => {
+                                                    const next: [string, string] = [...currentVote.options];
+                                                    next[k] = e.target.value;
+                                                    patchVote({ options: next });
+                                                }}
+                                                maxLength={STORY_VOTE_OPTION_MAX}
+                                                disabled={posting}
+                                                aria-label={locale === "en" ? `Option ${k + 1}` : `選択肢${k + 1}`}
+                                                className="flex-1 min-w-0 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 text-center outline-none focus:bg-black/70"
+                                                // ⚠️ 16px（上の問いと同じ理由——iOS Safari の拡大）
+                                                style={{ height: "40px", fontSize: "16px" }}
+                                            />
+                                        ))}
+                                    </div>
+                                    {/* 欠けは**ここで言う**（送る前に止めているので、理由が無いと
+                                        投稿ボタンが黙って押せないだけになる） */}
+                                    {!isCompleteStoryVote(currentVote) && (
+                                        <p className="text-white/85 px-1" style={{ fontSize: "12px" }} role="status">
+                                            {locale === "en" ? "Fill in the question and both options to post" : "問いと2つの選択肢を入れると投稿できます"}
+                                        </p>
+                                    )}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                        <input
+                                            type="range"
+                                            min={STORY_SIZE_MIN}
+                                            max={STORY_SIZE_MAX}
+                                            step={STORY_SIZE_STEP}
+                                            value={currentVote.size}
+                                            onChange={(e) => transformText(selected!, { size: Number(e.target.value) })}
+                                            disabled={posting}
+                                            aria-label={locale === "en" ? "Poll size" : "投票の大きさ"}
+                                            className="flex-1 min-w-0 accent-white"
+                                            style={{ height: "36px" }}
+                                        />
+                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                    </div>
+                                </div>
+                                )}
+
+                                {currentText && (
+                                <>
+                                {/* 🔴 **1度に1つだけ開く。** 字体・色・大きさ・下地を
+                                    全部並べると、320×568 で操作の欄が 276px
+                                    ——画面の半分を食っていた（owner:「画面の範囲
+                                    奪いすぎてる」）。置く相手の写真がその分だけ広く見える */}
+                                <div role="tablist" aria-label={locale === "en" ? "Text style" : "文字の見せ方"} className="flex gap-2">
+                                    {([
+                                        ["font", locale === "en" ? "Font" : "字体"],
+                                        ["color", locale === "en" ? "Color" : "色"],
+                                        ["size", locale === "en" ? "Size" : "大きさ"],
+                                        ["bg", locale === "en" ? "Box" : "下地"],
+                                    ] as const).map(([k, label]) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={tool === k}
+                                            disabled={posting}
+                                            onClick={() => setTool(k)}
+                                            className={`flex-1 rounded-full transition ${tool === k ? "bg-white/20 text-white ring-1 ring-white/40" : "text-white/60"}`}
+                                            style={{ minHeight: "36px", fontSize: "12px" }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div role="tabpanel" aria-label={locale === "en" ? "Text style" : "文字の見せ方"}>
+                                {tool === "font" && (
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Font" : "字体"}>
+                                    {STORY_FONT_KEYS.map((k) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={currentText?.font === k}
+                                            disabled={posting}
+                                            onClick={() => patchSelected({ font: k })}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.font === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
+                                        >
+                                            {STORY_FONTS[k].label}
+                                        </button>
+                                    ))}
+                                </div>
+                                )}
+
+                                {tool === "color" && (
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar" role="group" aria-label={locale === "en" ? "Color" : "色"}>
+                                    {STORY_COLOR_KEYS.map((k) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={currentText?.color === k}
+                                            disabled={posting}
+                                            onClick={() => patchSelected({ color: k })}
+                                            aria-label={STORY_COLORS[k].label}
+                                            className={`flex-shrink-0 rounded-full ring-2 transition ${currentText?.color === k ? "ring-white" : "ring-white/25"}`}
+                                            style={{ width: "32px", height: "32px", minWidth: "32px", background: STORY_COLORS[k].hex }}
+                                        />
+                                    ))}
+                                </div>
+                                )}
+
+                                {tool === "size" && (
+                                <>
+                                {/* 大きさ。**段階ではなくつまみ。**
+                                    4段階のチップ（A A A A）で出していたが、並べても
+                                    違いが見分けられず**気づかれなかった**
+                                    （owner:「文字の大きさも変えたいよね」）。
+                                    つまみなら何ができるか一目で分かり、矢印キーでも動く */}
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[11px] text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "11px" }} aria-hidden="true">A</span>
+                                    <input
+                                        type="range"
+                                        min={STORY_SIZE_MIN}
+                                        max={STORY_SIZE_MAX}
+                                        step={STORY_SIZE_STEP}
+                                        value={currentText?.size ?? STORY_SIZE_DEFAULT}
+                                        onChange={(e) => patchSelected({ size: clampStoryTextSize(Number(e.target.value)) })}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Text size" : "文字の大きさ"}
+                                        className="flex-1 min-w-0 accent-white"
+                                        style={{ height: "36px" }}
+                                    />
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "19px", lineHeight: 1 }} aria-hidden="true">A</span>
+                                </div>
+                                </>
+                                )}
+
+                                {tool === "bg" && (
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                    <div className="flex gap-2 flex-shrink-0" role="group" aria-label={locale === "en" ? "Text background" : "文字の下地"}>
+                                        {STORY_BGS.map((k) => (
+                                            <button
+                                                key={k}
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={currentText?.bg === k}
+                                                disabled={posting}
+                                                onClick={() => patchSelected({ bg: k })}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.bg === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                style={{ minHeight: "36px", fontSize: "12px" }}
+                                            >
+                                                {k === "none"
+                                                    ? (locale === "en" ? "No box" : "下地なし")
+                                                    : k === "soft"
+                                                        ? (locale === "en" ? "Dim box" : "うす下地")
+                                                        : (locale === "en" ? "Filled" : "塗り")}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                )}
+                                </div>
+                                </>
+                                )}
+                            </div>
+                        )}
 
                         {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
                             動画は `toUploadSafeVideo` が GPS を落としている
                             （サーバーも動画の位置は受けない）。押しても効かない
-                            欄を置かない */}
-                        {draft.mediaType === "image" && (
+                            欄を置かない（ツールの行にも出していない） */}
+                        {composerTool === "location" && draft.mediaType === "image" && (
                         <>
                         {/* **撮影地（任意）。** 写真の GPS から自動で入る
                             （設定 `jp_gps_autofill` がオフなら入らない）。
@@ -866,7 +1873,11 @@ export default function StoriesBar() {
                         <input
                             type="text"
                             value={storyLocation}
-                            onChange={(e) => setStoryLocation(e.target.value)}
+                            onChange={(e) => {
+                                // 打ち直した文字は本人のもの（GPS の印を外す）
+                                locationFromGpsRef.current = false;
+                                setStoryLocation(e.target.value);
+                            }}
                             maxLength={200}
                             disabled={posting}
                             placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
@@ -878,6 +1889,8 @@ export default function StoriesBar() {
                         )}
 
                         {/* ストーリーBGM（任意） */}
+                        {composerTool === "song" && (
+                        <>
                         {draftSong ? (
                             <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
                                 <div className="flex items-center gap-2.5">
@@ -1058,7 +2071,16 @@ export default function StoriesBar() {
                                 {locale === "en" ? "Add music" : "曲を付ける"}
                             </button>
                         )}
+                        </>
+                        )}
 
+                        {/* 🔴 **文字を置いている間は、設定の欄を畳む。**
+                            320×568 の実測で**写真が 95px しか見えていなかった**
+                            ——文字をどこへ置くか決められない。表示時間と公開設定は
+                            最後に1回さわるもので、置いている最中には要らない。
+                            写真の余白をさわると選択が外れて戻る。 */}
+                        {selected === null && (
+                        <>
                         {/* 表示時間（画像のみ。動画は動画の長さで決まる）*/}
                         {draft.mediaType === "image" && (
                             <div className="flex items-center gap-2">
@@ -1077,7 +2099,7 @@ export default function StoriesBar() {
                                             disabled={posting}
                                             aria-pressed={durationSec === s}
                                             className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s
-                                                ? "bg-white text-black font-semibold"
+                                                ? "bg-accent-fill text-white font-semibold"
                                                 : "bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white/70"}`}
                                         >
                                             {s}
@@ -1088,18 +2110,62 @@ export default function StoriesBar() {
                             </div>
                         )}
 
-                        <button
-                            onClick={() => void handlePost()}
-                            disabled={posting}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            style={{ touchAction: "manipulation" }}
-                        >
-                            {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
-                            {posting
-                                ? (locale === "en" ? "Posting..." : "投稿中...")
-                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
-                        </button>
+                        {/* 公開設定（モックの「公開設定」）。
+                            🔴 **公開範囲の選択は置かない。** ストーリーは
+                            フォロワーだけが見る（2026-09-22・owner の判断。
+                            経緯は `api-user/src/storyVisibility.ts`）。
+                            「親しい友達」を足すときは人を選ぶ一覧から作る */}
+                        <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
+                            <p className="text-white/50" style={{ fontSize: "11px" }}>
+                                {locale === "en" ? "Sharing" : "公開設定"}
+                            </p>
+
+                            {/* **誰に届くかは言う。** 選べないからこそ、
+                                投稿する前に分かるようにしておく */}
+                            <p className="text-white/60" style={{ fontSize: "12px" }}>
+                                {locale === "en"
+                                    ? "Only your followers can see your stories."
+                                    : "ストーリーはフォロワーだけに表示されます。"}
+                            </p>
+
+                            <SettingSwitch
+                                label={locale === "en" ? "Allow replies" : "返信を許可"}
+                                checked={allowReplies}
+                                onChange={setAllowReplies}
+                                disabled={posting}
+                            />
+
+                            {/* 既定は切（24時間で消える）。入にしたぶんだけ本人の
+                                アーカイブに残る。モックの「アーカイブに自動保存」 */}
+                            <SettingSwitch
+                                label={locale === "en" ? "Save to archive" : "アーカイブに自動保存"}
+                                checked={archive}
+                                onChange={setArchive}
+                                disabled={posting}
+                            />
+
+                            {/* **位置情報は写真だけ。** 動画は `toUploadSafeVideo` が
+                                GPS を落としていて、サーバーも動画の位置を受けない
+                                ——すぐ上の撮影地の欄と同じ条件で出す */}
+                            {draft.mediaType === "image" && (
+                                <SettingSwitch
+                                    label={locale === "en" ? "Show location" : "位置情報を表示"}
+                                    checked={showLocation}
+                                    onChange={setShowLocation}
+                                    disabled={posting}
+                                />
+                            )}
+                        </div>
+                        </>
+                        )}
+
                     </div>
+
+                    {/* 投稿のボタンは**上のバー**（モックの「次へ」の位置）。
+                        下端は安全領域のぶんだけ空ける */}
+                    <div className="relative" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }} />
+                    </>
+                    )}
                 </div>
             )}
 

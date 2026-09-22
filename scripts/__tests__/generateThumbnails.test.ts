@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
+const { keyFromSrc, thumbKeyFor, derivativeKey, shouldProcess, needsThumb, needsMeta, needsDerivatives, needsExtraImage, needsExtraImages, EXTRA_IMAGE_FIELDS, buildMetaFields, hexFromChannel, isMissingObject, exitCodeFor } = require("../generate-thumbnails.js");
 
 describe("keyFromSrc", () => {
     it("CloudFront URL から S3 キーを取り出す", () => {
@@ -270,5 +270,77 @@ describe("保存する画像URLの土台", () => {
         const src = nodeFs.readFileSync(
             nodePath.join(__dirname, "..", "generate-thumbnails.js"), "utf8");
         expect(src).toContain("process.env.PUBLIC_BASE_URL || requireEnv(\"CLOUDFRONT_URL\")");
+    });
+});
+
+// **1投稿に複数枚。** 2枚目以降（`extraImages`）にも表紙と同じ派生が要る。
+// 抜けると「AVIF を出す端末で1枚目だけ軽い」「一覧のサムネが原本」という
+// 気づきにくい形になる（画面は正しく出るので誰も気づけない）。
+describe("2枚目以降（extraImages）の派生", () => {
+    const CDN = "https://cdn.test";
+    /** 表紙は全部埋まっている写真 */
+    const done = {
+        src: `${CDN}/uploads/u1/a.jpg`, thumbSrc: "x", dominantColor: "#111111",
+        width: 1, height: 1, aspectRatio: 1, blurDataURL: "d",
+        thumbAvif: "x", thumbSm: "x", thumbSmAvif: "x", srcAvif: "x",
+    };
+    /** 全部埋まった2枚目 */
+    const filled = Object.fromEntries([
+        ["src", `${CDN}/uploads/u1/b.jpg`],
+        ...EXTRA_IMAGE_FIELDS.map((f: string) => [f, f === "width" || f === "height" ? 1 : "x"]),
+    ]);
+
+    it("2枚目が空なら処理対象になる", () => {
+        expect(shouldProcess({ ...done, extraImages: [{ src: `${CDN}/uploads/u1/b.jpg` }] })).toBe(true);
+    });
+
+    it("2枚目まで全部埋まっていれば処理しない", () => {
+        expect(shouldProcess({ ...done, extraImages: [filled] })).toBe(false);
+    });
+
+    it("埋める項目のどれが空でも、埋めに行く", () => {
+        // `it.each` にせず1本にまとめる（require 越しの配列は型が付かないので
+        // コールバックの引数が implicit any になる）。落ちた項目は名前で分かる
+        for (const field of EXTRA_IMAGE_FIELDS as string[]) {
+            const img: Record<string, unknown> = { ...filled };
+            delete img[field];
+            expect(needsExtraImage(img), `${field} を見ていない`).toBe(true);
+        }
+    });
+
+    it("🔴 下書きとストーリーには作らない（公開前・期限切れ後に取得できてしまう）", () => {
+        const extra = [{ src: `${CDN}/uploads/u1/b.jpg` }];
+        expect(needsExtraImages({ ...done, extraImages: extra })).toBe(true);
+        expect(needsExtraImages({ ...done, published: false, extraImages: extra })).toBe(false);
+        expect(needsExtraImages({ ...done, story: true, extraImages: extra })).toBe(false);
+    });
+
+    it("動画・GIF は2枚目でも飛ばす", () => {
+        for (const ext of ["mp4", "webm", "mov", "gif"]) {
+            expect(needsExtraImage({ src: `${CDN}/uploads/u1/b.${ext}` }), ext).toBe(false);
+        }
+    });
+
+    it("src が無い・URL でない要素は飛ばす（落ちない）", () => {
+        expect(needsExtraImage(null)).toBe(false);
+        expect(needsExtraImage({})).toBe(false);
+        expect(needsExtraImage({ src: 5 })).toBe(false);
+        expect(needsExtraImage({ src: "not-a-url" })).toBe(false);
+        expect(needsExtraImages({ ...done, extraImages: "x" })).toBe(false);
+        expect(needsExtraImages({ ...done, extraImages: [null, {}] })).toBe(false);
+    });
+
+    // **項目の一覧が2か所にある。** ここと `api-user/src/photoImages.ts` の
+    // `PhotoImage`。片方だけ増やすと、作っても読む側がいない／読む側が
+    // いるのに作られない、のどちらかになる
+    it("PhotoImage が持つ項目と、埋める項目が一致する", async () => {
+        const src = await import("node:fs").then((fs) =>
+            fs.readFileSync("api-user/src/photoImages.ts", "utf8"));
+        const body = src.slice(src.indexOf("export type PhotoImage = {"));
+        const typeFields = Array.from(
+            body.slice(0, body.indexOf("};")).matchAll(/^\s{4}(\w+)\??:/gm)
+        ).map((m) => m[1]).filter((f) => f !== "src");
+        expect(typeFields.length, "型を読めていない").toBeGreaterThan(5);
+        expect([...EXTRA_IMAGE_FIELDS].sort()).toEqual([...typeFields].sort());
     });
 });

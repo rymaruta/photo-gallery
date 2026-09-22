@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
-import { HeartIcon } from "@heroicons/react/24/solid";
-import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
+import { HeartIcon, BookmarkIcon } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartIconOutline, BookmarkIcon as BookmarkIconOutline } from "@heroicons/react/24/outline";
 
 // **操作ラベルは日本語。** ここだけ英語のままだったので、支援技術が
 // 「Previous ボタン」「Next ボタン」と読み上げ、同じ画面の共有ボタン
@@ -32,11 +32,16 @@ type Props = {
     onClose: () => void;
     isFav: boolean;
     onToggleFavorite: () => void;
+    isSaved: boolean;
+    onToggleSave: () => void;
+    /** 保存の往復中／ログイン状態の確認中。押しても何も起きない期間 */
+    savePending?: boolean;
     firstFocusableRef: React.RefObject<HTMLButtonElement | null>;
 };
 
 export default function ModalControls({
     onPrev, onNext, onClose, isFav, onToggleFavorite,
+    isSaved, onToggleSave, savePending = false,
     firstFocusableRef,
 }: Props) {
     const stopAndCall = (fn: () => void) => ({
@@ -82,6 +87,44 @@ export default function ModalControls({
                 {isFav
                     ? <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
                     : <HeartIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                }
+            </button>
+
+            {/* 保存（ブックマーク）。**いいねとは別物**——いいねは投稿者に届く
+                公開の反応で、保存はあとで見返すための自分だけの棚
+                （`/saves` に集まる。`/favorites` とは別のページ）。
+
+                横の位置は 44px の当たりが重ならないように取る:
+                閉じる 8..52px → いいね 64..108px → 保存 120..164px
+                （sm では 12..56 / 72..116 / 132..176）。
+                **px で書く**——640px 未満で root が 14px に落ちるので、
+                rem で書くと縮んで隣と重なる。
+
+                **`aria-pressed` は付けない。** 読み上げ名が「保存を取り消す」
+                （＝これから起きること）なので、足すと「保存を取り消す、
+                押されています」と読まれて意味が逆に取れる。
+                隣のいいねも同じ形（操作を名前にして `aria-pressed` 無し）で、
+                状態を名前にしている `FollowButton` とは流儀が違う。
+
+                **`pending` の間は `aria-busy` だけ付けて、`disabled` にはしない。**
+                共有リンクを開いた直後はログイン状態の確認中で、押しても
+                `toggle` が入口で抜ける（アイコンも変わらずトーストも出ない）
+                ので、読み上げには「処理中」と伝える。ただし `disabled` に
+                すると、Enter で押した人のフォーカスが往復中に body へ落ち、
+                応答後も戻らない（`useFocusTrap` が次の Tab で先頭へ引き戻す）。
+                隣のいいねも `busyRef` だけで連打を弾いて `disabled` にして
+                いないので、それに揃える。連打は `usePhotoSave` の `busyRef` が
+                既に止めている。 */}
+            <button
+                {...stopAndCall(onToggleSave)}
+                aria-label={isSaved ? "保存を取り消す" : "保存"}
+                aria-busy={savePending}
+                className={`${BTN_BASE} top-2 sm:top-3 right-[120px] sm:right-[132px]`}
+                style={BTN_STYLE}
+            >
+                {isSaved
+                    ? <BookmarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-link" />
+                    : <BookmarkIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 }
             </button>
 

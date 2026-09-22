@@ -99,15 +99,39 @@ afterEach(async () => {
 });
 
 describe("ストーリーへの返信（見る側）", () => {
-    it("絵文字を押すと、そのストーリーへ送る", async () => {
+    it("♡ を押すと、そのストーリーへ送る（モック⑥）", async () => {
         view(othersGroups());
-        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        await userEvent.click(await screen.findByLabelText("いいねを送る"));
 
         await waitFor(() => expect(replyPosts()).toHaveLength(1));
         const [url, init] = replyPosts()[0] as [string, { body: string }];
         expect(url).toBe("/stories/s1/replies");
         expect(JSON.parse(init.body)).toEqual({ emoji: STORY_REACTIONS[0] });
         expect(await screen.findByText("送信しました")).toBeInTheDocument();
+    });
+
+    // モック⑥ の帯は「メッセージを送る…」と ♡ と ➤ の1段。絵文字の列は
+    // 入力に触れてから出す（触れた瞬間に消えると、その絵文字を押せない）
+    it("絵文字の列は、入力に触れてから出る", async () => {
+        view(othersGroups());
+        const input = await screen.findByLabelText("このストーリーに返信");
+        expect(screen.queryByLabelText(`${STORY_REACTIONS[1]} で反応する`), "最初から出ている").toBeNull();
+        await userEvent.click(input);
+        expect(screen.getByLabelText(`${STORY_REACTIONS[1]} で反応する`)).toBeTruthy();
+        // 押すために、フォーカスが外れても畳まない
+        await userEvent.click(screen.getByLabelText(`${STORY_REACTIONS[1]} で反応する`));
+        await waitFor(() => expect(replyPosts()).toHaveLength(1));
+        expect(JSON.parse((replyPosts()[0][1] as { body: string }).body)).toEqual({ emoji: STORY_REACTIONS[1] });
+    });
+
+    // モック⑥ の帯には空でも ➤ が置かれている。**押しても何も起きない
+    // ボタンにしない**——打つまでは押せない
+    it("➤ は打つまで押せない", async () => {
+        view(othersGroups());
+        const send = await screen.findByLabelText("送信");
+        expect(send, "空なのに送信を押せる").toBeDisabled();
+        await userEvent.type(screen.getByLabelText("このストーリーに返信"), "きれい！");
+        expect(send).toBeEnabled();
     });
 
     it("一言を打って送れる", async () => {
@@ -153,7 +177,7 @@ describe("ストーリーへの返信（見る側）", () => {
 
     it("送ったあとの「送信しました」も持ち越さない", async () => {
         view(othersGroups());
-        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        await userEvent.click(await screen.findByLabelText("いいねを送る"));
         expect(await screen.findByText("送信しました")).toBeInTheDocument();
 
         fireEvent.keyDown(document, { key: "ArrowRight" });
@@ -202,7 +226,7 @@ describe("ストーリーへの返信（見る側）", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(othersGroups());
-        await userEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        await userEvent.click(await screen.findByLabelText("いいねを送る"));
 
         expect(await screen.findByRole("alert")).toBeInTheDocument();
         expect(screen.queryByText("送信しました"), "失敗したのに成功と出ている").toBeNull();
@@ -258,7 +282,7 @@ describe("入力中・送信中は自動で進まない", () => {
             return { ok: true, json: async () => ({}) };
         });
         view(othersGroups());
-        fireEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        fireEvent.click(await screen.findByLabelText("いいねを送る"));
         await waitFor(() => expect(playState(), "応答を待っている間も進んでいる").toBe("paused"));
         release();
     });
@@ -276,7 +300,7 @@ describe("入力中・送信中は自動で進まない", () => {
             return { ok: true, json: async () => ({}) };
         });
         view(othersGroups());
-        fireEvent.click(await screen.findByLabelText(`${STORY_REACTIONS[0]} で反応する`));
+        fireEvent.click(await screen.findByLabelText("いいねを送る"));
         await waitFor(() => expect(mockUserFetch.mock.calls.some(
             (c) => String(c[0]).includes("/replies")))
             .toBe(true));
@@ -569,13 +593,14 @@ describe("届いた返信から、その人をブロックする", () => {
 
     // **押す前に、何が起きるかを言う。** ブロックは相手とのフォローを
     // 両向きに切る（`block.ts`）。黙って切ると「フォロワーが1人減った」
-    // だけが残る。戻し方（プロフィール設定）も同じ場所に書く
+    // だけが残る。戻し方（**設定**——2026-09-21 にプロフィール編集から移設）も
+    // 同じ場所に書く
     it("押す前に、フォローも外れることと解除の場所を出す", async () => {
         withReply();
         view(ownGroups(1));
         await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
         const note = await screen.findByText(/お互いのフォローも外れます/);
-        expect(note.textContent, "解除の場所を言っていない").toContain("プロフィール設定");
+        expect(note.textContent, "解除の場所を言っていない").toContain("設定の「ブロックした人」");
     });
 
     // 押せる相手が居ないのに出すと、ただの雑音

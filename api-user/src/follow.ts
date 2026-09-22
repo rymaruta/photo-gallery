@@ -8,6 +8,7 @@ import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUse
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
+import { followMarkerId, followingId, followersId } from "./followCheck";
 import { isDeletedProfile } from "./types";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -59,22 +60,20 @@ async function userExists(userId: string): Promise<boolean | "unknown"> {
 
 const FOLLOWING_MAX = 2000;
 
-const markerId = (target: string, follower: string) => `follow#${target}#${follower}`;
-const statsId = (uid: string) => `followstats#${uid}`;
-const followingId = (uid: string) => `following#${uid}`;
 /**
- * **自分をフォローしている人の一覧。**
+ * 鍵の組み立ては `followCheck.ts` に置いてある（読むだけの側と**1つの
+ * 定義を分け合う**ため。別々に書くと静かにずれる）。
  *
- * これまで持っていたのは「自分がフォローしている人」（`following#`）と
- * 数（`followstats#`）だけで、**「誰にフォローされているか」を引ける行が
- * 無かった**。マーカー（`follow#<自分>#<相手>`）は主キーが1本なので
- * 前方一致で列挙できない（このテーブルにソートキーは無い）＝
- * 全表 Scan しか手が無く、画面からは引けない。
- *
- * `following#` と同じ形（新しい順のリスト＋`rev`）で持つ。
+ * `followersId` =「自分をフォローしている人の一覧」。これまで持っていたのは
+ * 「自分がフォローしている人」（`following#`）と数（`followstats#`）だけで、
+ * **「誰にフォローされているか」を引ける行が無かった**。マーカー
+ * （`follow#<自分>#<相手>`）は主キーが1本なので前方一致で列挙できない
+ * （このテーブルにソートキーは無い）＝全表 Scan しか手が無く、画面からは
+ * 引けない。`following#` と同じ形（新しい順のリスト＋`rev`）で持つ。
  * 既にあるフォロー関係は `scripts/backfill-followers.js` が埋める。
  */
-const followersId = (uid: string) => `followers#${uid}`;
+const markerId = followMarkerId;
+const statsId = (uid: string) => `followstats#${uid}`;
 
 async function readStats(uid: string): Promise<{ followers: number; following: number }> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: statsId(uid) } }));
@@ -413,10 +412,15 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // **どこで解除するかを言う。** 「解除してから」だけでは、その画面に
     // 解除の口が無い（プロフィールの共有メニューに出ているのは、開き直した
     // 直後は逆の「この人をブロック」）。他の2か所——`StoryViewer` と
-    // `UserProfileClient` の注意書き——は「解除はプロフィール設定から」と
-    // 場所まで言っているのに、**押した人が実際に受け取るこの文言だけ**が
-    // 言っていなかった
-    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除はプロフィール設定の「ブロックした人」からできます");
+    // `UserProfileClient` の注意書き——は場所まで言っているのに、
+    // **押した人が実際に受け取るこの文言だけ**が言っていなかった。
+    //
+    // 🔴 **行き先は「設定」。** `BlockedUsers` は 2026-09-21 に
+    // プロフィール編集から `/user/settings` の「プライバシー」へ移した。
+    // 画面側の2か所は同じ回で直したが、**ここだけ `api-user` を触る回を
+    // 待っていた**ので、しばらくサーバーだけが古い場所を案内していた。
+    // 画面と文言を合わせること（ずれると、押した人が無い場所を探す）。
+    if (blockedByMe) return jsonError(400, "ブロック中の相手です。解除は設定の「ブロックした人」からできます");
 
     const exists = await userExists(target);
     // 「居ない」と「確認できなかった」を混ぜない。unknown で 404 を返すと

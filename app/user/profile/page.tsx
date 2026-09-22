@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
@@ -13,17 +12,15 @@ import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
-import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { toUploadSafeFile, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
-import DeleteAccountModal from "../../components/DeleteAccountModal";
-import { changePassword, PASSWORD_RULE_MESSAGE, getCurrentEmail, startEmailChange, confirmEmailChange, signOutEverywhere } from "../../../lib/auth/cognito";
-import BlockedUsers from "./BlockedUsers";
 import SongArtwork from "../../components/SongArtwork";
-import { loginWithNext, ROUTES } from "../../../lib/routes";
+import { ROUTES } from "../../../lib/routes";
+import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 
@@ -89,45 +86,11 @@ function cleanUsername(v: string): string {
 }
 
 export default function ProfileEditPage() {
-    const { isAuthenticated, loading, deleteAccount } = useAuth();
+    const { isAuthenticated, loading } = useAuth();
     const { locale } = useLocale();
-    const router = useRouter();
     const { showToast } = useToast();
     const { stop: stopGlobalMusic } = useMusic();
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // パスワード変更。**プロフィールの保存とは別の口**——`handleSave` は
-    // プロフィールの項目を送るもので、そこへ混ぜると「自己紹介を直したら
-    // パスワードも送られる」形になる
-    const [curPassword, setCurPassword] = useState("");
-    const [newPassword, setNewPassword] = useState("");
-    const [changingPassword, setChangingPassword] = useState(false);
-
-    // メールアドレス変更。**2段**——新しいアドレスにコードを送り、
-    // そのコードで確定する。確定するまで古いアドレスでログインできる
-    // （プールの `AttributesRequireVerificationBeforeUpdate` が効いている。
-    //  本番に入っていることは `diagnose` で実測した）
-    // **「まだ」と「読めなかった」を分ける。** `getCurrentEmail()` は失敗しても
-    // `null` を返すので、初期値と同じにすると**「読み込み中」のまま永久に止まる**
-    // （台帳の「まだ来ていないものを 0件 と言う」の裏返し・自分で踏んだ）
-    const [currentEmail, setCurrentEmail] = useState<string | null>(null);
-    const [emailLoad, setEmailLoad] = useState<"loading" | "ok" | "failed">("loading");
-    const [newEmail, setNewEmail] = useState("");
-    const [emailCode, setEmailCode] = useState("");
-    // コードを送った先。**送ったアドレスを覚えておく**——欄を書き換えられても
-    // 「どこに届いたか」を言い続けるため
-    const [emailPending, setEmailPending] = useState<string | null>(null);
-    const [emailBusy, setEmailBusy] = useState(false);
-
-    // すべての端末からログアウト。**いまの端末も含む**ので、押した人はここも
-    // ログインし直しになる（画面でそう言う）
-    const [signingOutAll, setSigningOutAll] = useState(false);
-
-    // 退会（アカウント削除）
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    // 退会モーダルを閉じたときの戻り先（モーダル内の autoFocus に奪われるため明示）
-    const deleteAccountBtnRef = useRef<HTMLButtonElement | null>(null);
-    const [deletingAccount, setDeletingAccount] = useState(false);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [fetching, setFetching] = useState(true);
@@ -162,10 +125,6 @@ export default function ProfileEditPage() {
     const [songEndText, setSongEndText] = useState("");
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarError, setAvatarError] = useState(false);
-    const coverInputRef = useRef<HTMLInputElement>(null);
-    const [coverPreview, setCoverPreview] = useState<string | null>(null);
-    const [coverError, setCoverError] = useState(false);
-    const [coverUploading, setCoverUploading] = useState(false);
     // プロフィールの読み込みに失敗したか。
     // PUT は全置換なので、読み込めていない（=フォームが空欄の）状態で保存すると
     // 自己紹介・リンク・テーマ色・BGM・ピン留め・旅アルバムがまとめて消える。
@@ -201,14 +160,11 @@ export default function ProfileEditPage() {
         || website.trim() !== (profile.website ?? "").trim()
     );
 
-    useEffect(() => {
-        // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
-        // ログインが切れた側はどのみち保存できないが、書いたものを消して
-        // よい理由にはならない。保存できないことは下のトーストで伝える
-        if (!loading && !isAuthenticated && !hasUnsavedWork) {
-            router.replace(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, loading, router, hasUnsavedWork]);
+    // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
+    // ログインが切れた側はどのみち保存できないが、書いたものを消して
+    // よい理由にはならない。保存できないことは下のトーストで伝える。
+    // 送り方は `useLoginRedirect` に集めた
+    useLoginRedirect(!loading && !isAuthenticated && !hasUnsavedWork);
 
     // 留めたぶん、**保存できないことを言う**（`/user/edit` と同じ形）。
     // 一度だけ出す（描画のたびに出すと読めない）
@@ -283,75 +239,6 @@ export default function ProfileEditPage() {
             }
         })();
     }, [isAuthenticated]);
-
-    const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        // 同じファイルを選び直しても change が発火するように値を空にしておく。
-        // アップロードに失敗したあと同じ写真でやり直せなかった。
-        e.target.value = "";
-        if (!file) return;
-        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
-        // `UnstrippableFileError` にするので、進めても必ず失敗する
-        // ——プレビューが一瞬出てから断られる形だった。
-        // アップロード画面（アイコン）とストーリーは選択時に断っている
-        // ＝この2か所（カバー・アバター）だけ残っていた
-        if (file.type === "image/gif") {
-            showToast(gifRejectedMessage(locale), "error");
-            return;
-        }
-        const reader = new FileReader();
-        // 失敗したらプレビューを消す。残したままだと**保存された気になる**
-        // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
-        // 入っていない。次に開くと元に戻っていて、何が起きたのか分からない。
-        //
-        // FileReader は非同期なので、**先に失敗する順序がある**
-        // （presign が 503 で即返るなど）。あとから onload が発火して
-        // 消したはずのプレビューを描き直さないよう、両方の順序を見る。
-        let saved = false;
-        let failed = false;
-        reader.onload = (ev) => { if (!failed) setCoverPreview(ev.target?.result as string); };
-        reader.readAsDataURL(file);
-        setCoverUploading(true);
-        try {
-            // 表示は横幅いっぱいの帯なので、原寸ではなく1280pxまで縮めて送る。
-            // 縮小に失敗しても原寸で続行してはいけない（EXIF の GPS が公開URLに乗る）。
-            let upload: File;
-            try {
-                upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
-            } catch (e) {
-                log.error("cover: could not strip metadata:", e);
-                showToast(unstrippableMessage(e, locale), "error");
-                return;
-            }
-
-            const res = await userFetch("/profile/avatar/presigned-url", {
-                method: "POST",
-                body: JSON.stringify({ fileType: upload.type, type: "cover" }),
-            });
-            // サーバーは理由を返し分けている（「対応していない形式です
-            // （JPEG・PNG・WebP・AVIF・HEIC・GIF）」など）。固定文に潰していたので、
-            // 形式が原因なのか一時障害なのか分からず、同じ画像を選び直していた
-            if (!res.ok) { showToast(await readApiError(res, "カバー写真のアップロードに失敗しました"), "error"); return; }
-            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
-            const uploadRes = await fetch(presignedUrl, {
-                method: "PUT",
-                body: upload,
-                // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
-                // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
-                // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
-            });
-            if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
-            setCoverError(false);
-            saved = true;
-            showToast("カバー写真を更新しました", "success");
-        } catch (e) {
-            showToast(sessionErrorMessage(e) ?? "カバー写真のアップロードに失敗しました", "error");
-        } finally {
-            setCoverUploading(false);
-            if (!saved) { failed = true; setCoverPreview(null); }
-        }
-    };
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -630,7 +517,7 @@ export default function ProfileEditPage() {
             // **セッション切れを塗り潰さない。** 裸の catch だった頃は
             // 「保存に失敗しました。」だけが出るので、**再ログインすれば
             // 直ると分からず**同じ操作を繰り返すことになった。
-            // 同じファイルのアバター・カバー（`handleCoverChange` ほか）は
+            // 同じファイルのアバター（`handleAvatarChange`）は
             // 前からこう書いてある——対の乖離だった
             showToast(sessionErrorMessage(e)
                 ?? (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
@@ -639,164 +526,9 @@ export default function ProfileEditPage() {
         }
     };
 
-    // いま登録されているアドレスを出す（何から何に変えるのかが分からないと押せない）。
-    // **変えたあとは読み直さない**——ID トークンは作られた時点の写しで、
-    // 次に更新されるまで古い値のまま（`getCurrentEmail` のコメントを見よ）
-    useEffect(() => {
-        let aborted = false;
-        void (async () => {
-            const e = await getCurrentEmail();
-            if (aborted) return;
-            setCurrentEmail(e);
-            setEmailLoad(e ? "ok" : "failed");
-        })();
-        return () => { aborted = true; };
-    }, []);
-
-    const handleStartEmailChange = async () => {
-        if (emailBusy) return;
-        const next = newEmail.trim();
-        // 送る前に断れるものだけ断る（形の細かい判定はサーバーに任せる）
-        if (!next) return;
-        // 読めていない（`currentEmail` が null）ときは、空でない文字列が
-        // それと等しくなることは無いので**そのまま素通りする**
-        // ——`currentEmail &&` の守りを足しかけたが、変異で素通りして
-        // 到達しないと分かった（台帳の「二重の守りは1本にする」）
-        if (next === currentEmail) {
-            showToast(locale === "en" ? "That is already your email address." : "いまのメールアドレスと同じです", "error");
-            return;
-        }
-        setEmailBusy(true);
-        try {
-            const result = await startEmailChange(next);
-            if (!result.success) {
-                showToast(result.error || (locale === "en" ? "Failed to send the code." : "確認コードを送れませんでした"), "error");
-                return;
-            }
-            setEmailPending(next);
-            setEmailCode("");
-            showToast(locale === "en"
-                ? `A confirmation code was sent to ${next}. Your current address still works until you confirm.`
-                : `${next} に確認コードを送りました。確定するまでは、いまのアドレスでログインできます`, "success");
-        } finally {
-            setEmailBusy(false);
-        }
-    };
-
-    const handleConfirmEmailChange = async () => {
-        if (emailBusy || !emailCode.trim()) return;
-        setEmailBusy(true);
-        try {
-            const result = await confirmEmailChange(emailCode);
-            if (!result.success) {
-                showToast(result.error || (locale === "en" ? "Failed to change your email." : "メールアドレスを変更できませんでした"), "error");
-                return;
-            }
-            // **自分が知っている新しい値を出す**（トークンはまだ古い）
-            setCurrentEmail(emailPending);
-            setEmailLoad("ok");
-            setEmailPending(null);
-            setNewEmail("");
-            setEmailCode("");
-            showToast(locale === "en"
-                ? "Your email address has been changed. Use it to sign in from now on."
-                : "メールアドレスを変更しました。次からはこのアドレスでログインしてください", "success");
-        } finally {
-            setEmailBusy(false);
-        }
-    };
-
-    /**
-     * **送る前に断るのは、こちらで確かめられる条件だけ。**
-     *
-     * プールの規則は8文字以上＋英大小・数字・記号（`provision-env.js:410`）だが、
-     * **本番のプールが今もその設定かはコードからは確かめられない**——
-     * ここで規則を写して厳しく断ると、プールが通すパスワードを画面だけが
-     * 拒む側に倒れる（台帳が何度も記録している「正当な操作を殺す」）。
-     * なので長さと空欄と「同じもの」だけ見て、残りはサーバーの
-     * `InvalidPasswordException` に言わせる（`changePasswordErrorMessage` が
-     * `PASSWORD_RULE_MESSAGE` に訳す）。
-     */
-    const handleChangePassword = async () => {
-        if (changingPassword) return;
-        if (!curPassword || !newPassword) return;
-        if (newPassword.length < 8) {
-            showToast(PASSWORD_RULE_MESSAGE, "error");
-            return;
-        }
-        if (newPassword === curPassword) {
-            showToast(locale === "en" ? "The new password is the same as the current one." : "いまのパスワードと同じです", "error");
-            return;
-        }
-        setChangingPassword(true);
-        try {
-            const result = await changePassword(curPassword, newPassword);
-            if (!result.success) {
-                showToast(result.error || (locale === "en" ? "Failed to change password." : "パスワードを変更できませんでした"), "error");
-                return;
-            }
-            // **打った中身を画面に残さない。** 次に誰かがこの端末を触ったとき、
-            // 入力欄に残っていると読める（`type="password"` でも devtools で見える）
-            setCurPassword("");
-            setNewPassword("");
-            // Cognito はパスワードを変えてもいまのトークンを失効させないので、
-            // ログインし直す必要は無い。**そう言わないと「他の端末はどうなる？」に
-            // 答えられない**ので、そこまで書く
-            showToast(locale === "en"
-                ? "Password changed. You stay signed in on this device; other devices stay signed in until their session expires."
-                : "パスワードを変更しました。この端末はログインしたままです（他の端末は、そのセッションが切れるまでログインしたままになります）", "success");
-        } finally {
-            setChangingPassword(false);
-        }
-    };
-
-    /**
-     * **パスワードを変えても他の端末は生きたまま**——Cognito はパスワードの
-     * 変更で既存のトークンを失効させない。漏れたかもしれない端末を止める
-     * 手段がサイトに1つも無かったので、その口。
-     */
-    const handleSignOutEverywhere = async () => {
-        if (signingOutAll) return;
-        setSigningOutAll(true);
-        try {
-            const result = await signOutEverywhere();
-            if (!result.success) {
-                showToast(result.error || (locale === "en" ? "Failed to sign out." : "ログアウトできませんでした"), "error");
-                return;
-            }
-            showToast(locale === "en"
-                ? "Signed out on all devices. Please sign in again."
-                : "すべての端末からログアウトしました。もう一度ログインしてください", "success");
-            // **ここもログアウトしている**ので、ログイン画面へ送る。
-            // 残すと「ログイン中の顔のまま、押すたびに失敗する」状態になる
-            router.replace(ROUTES.LOGIN);
-        } finally {
-            setSigningOutAll(false);
-        }
-    };
-
-    const handleDeleteAccount = async () => {
-        setDeletingAccount(true);
-        try {
-            const result = await deleteAccount();
-            if (result.success) {
-                // deleteAccount 内でトップへ遷移済み。トーストで結果を伝える。
-                showToast(locale === "en" ? "Your account has been deleted." : "退会が完了しました。ご利用ありがとうございました。", "success");
-            } else {
-                showToast(result.error || (locale === "en" ? "Failed to delete account." : "退会処理に失敗しました。"), "error");
-                setShowDeleteModal(false);
-            }
-        } catch {
-            showToast(locale === "en" ? "Failed to delete account." : "退会処理に失敗しました。", "error");
-            setShowDeleteModal(false);
-        } finally {
-            setDeletingAccount(false);
-        }
-    };
-
     if (loading || fetching) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">プロフィール編集</h1>
@@ -808,17 +540,6 @@ export default function ProfileEditPage() {
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
-    const currentCoverUrl = profile?.userId && CLOUDFRONT_URL
-        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`)
-        : null;
-
-    // **ボタンの名前を状態で分けるための旗。** 描き分けの式と同じ材料から
-    // 作る（`src` の式そのものは触らない——`imageOriginSites.test.ts` の
-    // 免除一覧が式の綴りで突き合わせているので、`!` を足すだけで落ちる。
-    // 実際に落として気づいた）。**片方だけずれる変異は、対テストが
-    // 「出ている絵」と「名前の言葉」を突き合わせて捕まえる**
-    const hasCover = !!coverPreview || (!!currentCoverUrl && !coverError);
-
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
@@ -827,7 +548,7 @@ export default function ProfileEditPage() {
     const isYouTubePreview = songPreview?.service === "youtube";
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"
@@ -851,47 +572,10 @@ export default function ProfileEditPage() {
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
 
-                {/* カバー写真 */}
-                <div className="mb-6">
-                    <p className={labelClass}>{locale === "en" ? "Cover photo" : "カバー写真"}</p>
-                    {/* **カバーを一度でも設定すると、このボタンは名前を失う。**
-                        中身は `alt=""` の `<img>` とアイコンだけになるので、
-                        読み上げでは「ボタン」としか言われない（未設定のときだけ
-                        「カバー写真を追加」の文字が中にある）。**すぐ下の
-                        アバターのボタンは前から `aria-label` を持っている**
-                        ——対になっている片方だけ漏れていた。
-                        文言は見えている文字と食い違わないよう状態で分ける
-                        （未設定のときは中の文字と同じ「追加」）。 */}
-                    <button
-                        type="button"
-                        onClick={() => coverInputRef.current?.click()}
-                        disabled={coverUploading}
-                        aria-label={hasCover
-                            ? (locale === "en" ? "Change cover photo" : "カバー写真を変更")
-                            : (locale === "en" ? "Add cover photo" : "カバー写真を追加")}
-                        className="relative w-full h-28 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group"
-                    >
-                        {coverPreview ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={coverPreview} alt="" className="w-full h-full object-cover" />
-                        ) : currentCoverUrl && !coverError ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={currentCoverUrl} alt="" className="w-full h-full object-cover" onError={() => setCoverError(true)} />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-white/50">
-                                <CameraIcon className="w-6 h-6" />
-                                <span className="text-xs">{locale === "en" ? "Add cover photo" : "カバー写真を追加"}</span>
-                            </div>
-                        )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {coverUploading
-                                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                : <CameraIcon className="w-6 h-6 text-white" />}
-                        </div>
-                    </button>
-                    <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
-                        onChange={(e) => void handleCoverChange(e)} />
-                </div>
+                {/* **カバー写真の欄は外した**（2026-09-22）。マイページが
+                    カバーを表示しなくなったので（最終版モックに無い）、設定だけ
+                    残すと「変えても何も起きない」欄になる。**サーバーの口と
+                    既に上げた画像はそのまま**——戻すときはここを足し直すだけ */}
 
                 {/* アバター */}
                 <div className="flex flex-col items-center mb-8">
@@ -1028,14 +712,14 @@ export default function ProfileEditPage() {
                                     onClick={() => setThemeColor(themeColor === c ? "" : c)}
                                     aria-label={c}
                                     aria-pressed={themeColor === c}
-                                    className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition ${themeColor === c ? "ring-white scale-110" : "ring-transparent"}`}
+                                    className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-bg active:scale-90 transition ${themeColor === c ? "ring-white scale-110" : "ring-transparent"}`}
                                     style={{ backgroundColor: c }}
                                 />
                             ))}
 
                             {/* パレットから自由に選ぶ。見本の中に無い色もここで決められる */}
                             <label
-                                className={`relative w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition cursor-pointer overflow-hidden ${isCustomTheme ? "ring-white scale-110" : "ring-white/30"}`}
+                                className={`relative w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-bg active:scale-90 transition cursor-pointer overflow-hidden ${isCustomTheme ? "ring-white scale-110" : "ring-white/30"}`}
                                 style={{
                                     background: isCustomTheme
                                         ? themeColor
@@ -1321,7 +1005,7 @@ export default function ProfileEditPage() {
                         <button
                             onClick={() => void handleSave()}
                             disabled={saving || avatarUploading}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving
@@ -1330,245 +1014,32 @@ export default function ProfileEditPage() {
                         </button>
                     </div>
 
-                    {/* ブロックした人（1人も居なければ何も描かない）。
-                        **解除できる場所がここしか無い**——ストーリーの返信から
-                        ブロックできるようにしたぶん、戻す口が要る */}
-                    <BlockedUsers locale={locale as "ja" | "en"} />
-
-                    {/* アカウント: パスワードの変更。
-                        **これが無かった間、変える手段は「ログアウト →
-                        パスワードをお忘れですか → メールのコード」だけだった**
-                        ——漏洩を疑ったその場で替えられず、しかも「忘れた」を
-                        装う必要があった。プロフィールの保存とは別のボタンにする
-                        （自己紹介を直すたびにパスワードを送らない）。 */}
+                    {/* 設定へ。
+                        **2026-09-21 に、ここに在った「アカウント」（メール
+                        アドレス・パスワード・全端末ログアウト）「危険な操作」
+                        （退会）「ブロックした人」を `/user/settings` へ移した。**
+                        この画面は「他人に見える自分」を作る場所で、それらは
+                        アカウントそのものの設定＝別の話（owner のモックも
+                        別の画面として描いている）。
+                        **導線は残す。** パスワードを変えたい人がまず来るのは
+                        ここなので、黙って消すと行き先を失う */}
                     <div className="mt-10 pt-6 border-t border-white/10">
-                        {/* **`/50` より薄くしない。** 黒地で `/40` は 3.66:1 で
-                            基準（4.5:1）に届かない——`/50` が届く最小の段階
-                            （`textContrast.test.ts` が全体を見張っている） */}
-                        <p className="text-[11px] tracking-widest uppercase text-white/50 mb-2">
-                            {locale === "en" ? "Account" : "アカウント"}
-                        </p>
-                        <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3">
-                            {/* メールアドレスの変更。
-                                **メールがログインID**（プールの `AliasAttributes` が
-                                email）なので、変える手段が無いと「メールを変えた人は
-                                アカウントごと失う」——退会して作り直す以外に無く、
-                                写真・いいね・フォロワー・共有したURLが全部消えていた。
-
-                                **2段にする。** 新しいアドレスにコードを送り、その
-                                コードで確定する。**確定するまで古いアドレスでログイン
-                                できる**（プールの `AttributesRequireVerificationBeforeUpdate`
-                                が効いている。本番に入っていることは診断で実測した）
-                                ——これが無いと、コードを入れる前にタブを閉じた人が
-                                締め出される。 */}
-                            <p className="text-sm font-semibold text-white/90">
-                                {locale === "en" ? "Change email address" : "メールアドレスを変更"}
-                            </p>
-                            <p className="text-xs text-white/50 leading-relaxed">
-                                {locale === "en" ? "Sign-in address" : "ログインに使うアドレス"}:{" "}
-                                <span className="text-white/80">{currentEmail ?? (emailLoad === "failed"
-                                    ? (locale === "en" ? "(couldn't read it — you can still change it below)" : "（読み取れませんでした。下から変更はできます）")
-                                    : (locale === "en" ? "(loading)" : "（読み込み中）"))}</span>
-                            </p>
-                            {emailPending === null ? (
-                                <>
-                                    <div>
-                                        <label className={labelClass} htmlFor="profile-new-email">
-                                            {locale === "en" ? "New email address" : "新しいメールアドレス"}
-                                        </label>
-                                        <input
-                                            id="profile-new-email"
-                                            type="email"
-                                            // **本人の連絡先**なので `email`（パスワード管理を汚さない）
-                                            autoComplete="email"
-                                            inputMode="email"
-                                            aria-describedby="profile-email-note"
-                                            value={newEmail}
-                                            onChange={(e) => setNewEmail(e.target.value)}
-                                            disabled={emailBusy}
-                                            className={inputClass}
-                                        />
-                                        <p id="profile-email-note" className="mt-1.5 text-xs text-white/50 leading-relaxed">
-                                            {locale === "en"
-                                                ? "We'll send a confirmation code to the new address. Your current address keeps working until you confirm."
-                                                : "新しいアドレスに確認コードを送ります。確定するまでは、いまのアドレスでログインできます"}
-                                        </p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => void handleStartEmailChange()}
-                                        disabled={emailBusy || !newEmail.trim()}
-                                        className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                                    >
-                                        {emailBusy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                        {locale === "en" ? "Send confirmation code" : "確認コードを送る"}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <label className={labelClass} htmlFor="profile-email-code">
-                                            {locale === "en" ? `Code sent to ${emailPending}` : `${emailPending} に送ったコード`}
-                                        </label>
-                                        <input
-                                            id="profile-email-code"
-                                            type="text"
-                                            // 届いたコードを自動で入れられるようにする
-                                            // （`/login` `/signup` の確認コードと同じ）
-                                            autoComplete="one-time-code"
-                                            inputMode="numeric"
-                                            value={emailCode}
-                                            onChange={(e) => setEmailCode(e.target.value)}
-                                            disabled={emailBusy}
-                                            className={inputClass}
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => void handleConfirmEmailChange()}
-                                        disabled={emailBusy || !emailCode.trim()}
-                                        className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        style={{ touchAction: "manipulation", minHeight: "44px" }}
-                                    >
-                                        {emailBusy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                        {locale === "en" ? "Change email address" : "メールアドレスを変更する"}
-                                    </button>
-                                    {/* **やめる道を残す。** コードが届かない／打ち間違えた人が
-                                        ここで詰まると、設定画面から出るしか無くなる */}
-                                    <button
-                                        type="button"
-                                        onClick={() => { setEmailPending(null); setEmailCode(""); }}
-                                        disabled={emailBusy}
-                                        className="w-full py-2 text-xs text-white/50 hover:text-white/80 transition disabled:opacity-40"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {locale === "en" ? "Cancel and use a different address" : "やめる（別のアドレスにする）"}
-                                    </button>
-                                </>
-                            )}
-
-                            <div className="pt-1 border-t border-white/10" />
-
-                            <p className="text-sm font-semibold text-white/90">
-                                {locale === "en" ? "Change password" : "パスワードを変更"}
-                            </p>
-                            <div>
-                                <label className={labelClass} htmlFor="profile-current-password">
-                                    {locale === "en" ? "Current password" : "いまのパスワード"}
-                                </label>
-                                <input
-                                    id="profile-current-password"
-                                    type="password"
-                                    // ブラウザとパスワード管理に「いまのもの」と伝える。
-                                    // 付けないと新しい方を保存候補にされる
-                                    autoComplete="current-password"
-                                    value={curPassword}
-                                    onChange={(e) => setCurPassword(e.target.value)}
-                                    disabled={changingPassword}
-                                    className={inputClass}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass} htmlFor="profile-new-password">
-                                    {locale === "en" ? "New password" : "新しいパスワード"}
-                                </label>
-                                <input
-                                    id="profile-new-password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    // **満たせないと進めない条件は、読み上げにも渡す**
-                                    // （`/signup` のパスワード条件と同じ形）
-                                    aria-describedby="profile-password-rule"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    disabled={changingPassword}
-                                    className={inputClass}
-                                />
-                                <p id="profile-password-rule" className="mt-1.5 text-xs text-white/50 leading-relaxed">
-                                    {PASSWORD_RULE_MESSAGE}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => void handleChangePassword()}
-                                // **押せるのに必ず失敗する形にしない。** 空欄のうちは
-                                // 押しても往復するだけ（台帳の `903279da` と同じ判断）
-                                disabled={changingPassword || !curPassword || !newPassword}
-                                className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                {changingPassword && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                {changingPassword
-                                    ? (locale === "en" ? "Changing..." : "変更中...")
-                                    : (locale === "en" ? "Change password" : "パスワードを変更する")}
-                            </button>
-                            <div className="pt-1 border-t border-white/10" />
-
-                            {/* すべての端末からログアウト。
-                                **パスワードを変えても他の端末は生きたまま**——Cognito は
-                                パスワードの変更で既存のトークンを失効させないので、漏れた
-                                かもしれない端末を止める手段がサイトに1つも無かった。
-                                消す操作ではないので「危険な操作」には置かない。 */}
-                            <p className="text-sm font-semibold text-white/90">
-                                {locale === "en" ? "Sign out on all devices" : "すべての端末からログアウト"}
-                            </p>
-                            <p className="text-xs text-white/50 leading-relaxed">
+                        <Link
+                            href={ROUTES.SETTINGS}
+                            className="flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition"
+                            style={{ minHeight: "44px", touchAction: "manipulation" }}
+                        >
+                            <span>
                                 {locale === "en"
-                                    ? "Signs out everywhere, including this device. Use this if you changed your password because you think someone else got in — a password change alone does not sign other devices out."
-                                    : "この端末を含め、すべての端末からログアウトします。パスワードを変えただけでは他の端末はログインしたままなので、誰かに入られたかもしれないときはこちらも押してください"}
-                            </p>
-                            <button
-                                type="button"
-                                onClick={() => void handleSignOutEverywhere()}
-                                disabled={signingOutAll}
-                                className="w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                style={{ touchAction: "manipulation", minHeight: "44px" }}
-                            >
-                                {signingOutAll && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                {signingOutAll
-                                    ? (locale === "en" ? "Signing out..." : "ログアウト中...")
-                                    : (locale === "en" ? "Sign out on all devices" : "すべての端末からログアウトする")}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* 危険な操作: 退会（アカウント削除） */}
-                    <div className="mt-10 pt-6 border-t border-white/10">
-                        <p className="text-[11px] tracking-widest uppercase text-red-400/70 mb-2">
-                            {locale === "en" ? "Danger zone" : "危険な操作"}
-                        </p>
-                        <div className="rounded-2xl bg-red-500/[0.05] ring-1 ring-red-500/15 p-4">
-                            <p className="text-sm font-semibold text-white/90 mb-1">
-                                {locale === "en" ? "Delete account" : "退会（アカウント削除）"}
-                            </p>
-                            <p className="text-xs text-white/50 leading-relaxed mb-3">
-                                {locale === "en"
-                                    ? "Permanently deletes your photos, stories, profile, and account. This can't be undone."
-                                    : "写真・ストーリー・プロフィール・アカウントをすべて完全に削除します。取り消しはできません。"}
-                            </p>
-                            <button
-                                type="button"
-                                ref={deleteAccountBtnRef}
-                                onClick={() => setShowDeleteModal(true)}
-                                className="w-full py-2.5 rounded-xl bg-transparent text-red-400 text-sm font-medium ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10 active:scale-[0.98] transition"
-                                style={{ touchAction: "manipulation" }}
-                            >
-                                {locale === "en" ? "Delete my account" : "退会する"}
-                            </button>
-                        </div>
+                                    ? "Settings (email, password, privacy)"
+                                    : "設定（メールアドレス・パスワード・プライバシー）"}
+                            </span>
+                            <span aria-hidden="true" className="text-white/50">›</span>
+                        </Link>
                     </div>
                 </div>
             </div>
 
-            <DeleteAccountModal
-                openerRef={deleteAccountBtnRef}
-                isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
-                onConfirm={() => void handleDeleteAccount()}
-                locale={locale}
-                deleting={deletingAccount}
-            />
         </main>
     );
 }

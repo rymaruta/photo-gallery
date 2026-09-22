@@ -19,6 +19,8 @@ export function isDeletedProfile(p: unknown): boolean {
     return typeof (p as { deletedAt?: unknown } | null)?.deletedAt === "string";
 }
 
+import type { PhotoImage } from "./photoImages";
+
 export type Photo = {
     id: string;
     src: string;
@@ -36,6 +38,12 @@ export type Photo = {
     thumbSm?: string;     // 256 WebP
     thumbSmAvif?: string; // 256 AVIF
     srcAvif?: string;     // 詳細用（≤1600）AVIF
+    /**
+     * 2枚目以降（1投稿に複数枚。表紙は `src` のまま）。
+     * 規則は `photoImages.ts` に1か所。**削除の列挙（`mediaKeys`）にも
+     * 通すこと**——忘れると投稿を消しても実体が公開URLに残る
+     */
+    extraImages?: PhotoImage[];
     userId?: string;
     uploadedBy?: string;
     displayName?: string;

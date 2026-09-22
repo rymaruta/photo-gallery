@@ -6,6 +6,9 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked, hiddenUserIds } from "./blockCheck";
+import { isFollowing } from "./followCheck";
+import { storyAllowsReplies } from "./storyVisibility";
+import { isStoryExpired } from "./storyExpiry";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -134,6 +137,8 @@ export async function visibleReplyCount(storyId: string, hidden: Set<string>): P
 type StoryItem = {
     story?: boolean; userId?: string; uploadedBy?: string;
     src?: string; expiresAt?: string;
+    /** 返信を受けるか。無い＝受ける（同上） */
+    allowReplies?: unknown;
 };
 
 /** ストーリーを引いて、返信を受け付けてよいかまで見る */
@@ -176,7 +181,7 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // 無い（`viewStory` が本人の閲覧を記録しないのと同じ判断）
         if (ownerId === uid) return jsonError(400, "自分のストーリーには返信できません");
         // **期限切れは「もう無い」。** 行が残っているのは掃除が1時間ごとだから
-        if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
+        if (isStoryExpired(story)) {
             return jsonError(404, "ストーリーが見つかりません");
         }
         // **ブロックされていたら送れない。** ここは返信を足したことで
@@ -185,6 +190,24 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         // されています」と言うと、相手の操作を教えることになる
         // （持ち主でない相手に 404 を返しているのと同じ判断）
         if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
+        // **フォローしている人しか返せない。** ストーリーはフォロワーだけが
+        // 見るもの（`storyVisibility.ts` の節）。見えないはずのものに反応が
+        // 届く＝通知に相手の名前が出るので、ブロックと同じく **404**。
+        // 一覧ではなくマーカー1件で確かめる（`isBlocked` と同じ形）
+        if (ownerId && ownerId !== uid
+            && !await isFollowing(ownerId, uid)) {
+            return jsonError(404, "ストーリーが見つかりません");
+        }
+        // **「返信を許可」を切っていたら受けない。**
+        //
+        // こちらは **403 ＋ 理由**。隠す意味が無いため——投稿者が切っていれば
+        // 画面には返信の帯自体が出ない（`StoryViewer`）ので、ここに来るのは
+        // 切られる前に開いていたタブか直接叩いた場合で、「今は受け付けて
+        // いない」と分かる方が親切。公開範囲（上）と違って、**これは相手に
+        // 対する態度ではなく投稿ごとの設定**なので伏せる理由が無い。
+        if (!storyAllowsReplies(story.allowReplies)) {
+            return jsonError(403, "この投稿は返信を受け付けていません");
+        }
 
         const reply: StoryReply = {
             id: uuidv4(),
@@ -334,13 +357,21 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
                     TableName: PHOTOS_TABLE,
                     Key: { id: storyId },
                     UpdateExpression: "SET replyCount = :n",
-                    ConditionExpression: "attribute_exists(id)",
+                    // **棚へ移った行にも書かない。** 期限を見てから追記するまでの
+                    // 間に掃除がアーカイブへ移すと、消したはずの返信の文書を上の
+                    // 追記が作り直し、ここが数を戻す。条件が外れれば下の CCF の
+                    // 枝が文書を片付ける（「行が消えた」と同じ扱いでよい——
+                    // どちらも、もう誰にも見せない行）
+                    ConditionExpression: "attribute_exists(id) AND attribute_not_exists(archivedAt)",
                     ExpressionAttributeValues: { ":n": count },
                 }));
                 break;
             } catch (e) {
                 if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                    console.error(`postStoryReply: 行が消えていました（${storyId}）:`, e);
+                    // 行が消えたか、棚へ移った（`archivedAt` が刻まれた）。後者は
+                    // 期限直前の返信と毎時の掃除が重なる**正常な経路**なので、
+                    // error では鳴らさない（本物の失敗が埋もれる）
+                    console.warn(`postStoryReply: 行が消えたか棚へ移っていました（${storyId}）`);
                     // 行が消えている＝いま作り直した文書は誰も辿れない。片付ける
                     await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyRepliesId(storyId) } }))
                         .catch((e2) => console.error(`postStoryReply: 孤児の掃除に失敗（${storyId}）:`, e2));
@@ -372,6 +403,17 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // **返信は公開の議論ではない。** 所有者以外には返さない
         // （`getStoryViewers` と同じ）
         if ((story.userId ?? story.uploadedBy) !== callerId) return jsonError(403, "権限がありません");
+        // **期限が切れたら、届いた返信も読めない。** 文書を消すのは掃除
+        // （最長およそ1時間後。アーカイブへ移す行はそのときに消す）なので、
+        // その間もここで出さない。返信は相手が「24時間で消える」つもりで
+        // 送った文章——期限を過ぎて本人が読める窓を作らない
+        if (isStoryExpired(story)) {
+            return {
+                statusCode: 200,
+                headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+                body: JSON.stringify({ items: [], count: 0 }),
+            };
+        }
 
         const all = await readReplies(storyId);
 

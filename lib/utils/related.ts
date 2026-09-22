@@ -240,7 +240,12 @@ const LINK_FIELDS = ["id", "title", "dominantColor"] as const;
  *   `category`   … hover で出す分類名
  *   `alt` / `location` … `photoAltText` が読む（題＋撮影地で alt を組む）
  */
-const GRID_FIELDS = ["focalPoint", "category", "alt", "location"] as const;
+const GRID_FIELDS = ["focalPoint", "category", "alt", "location",
+    // **1投稿に複数枚の「1/N」。** 落とすと集約ページと関連写真の帯でだけ
+    // 枚数が出ない（画面は正しく出るので気づけない——`Thumb` の props を
+    // 絞りすぎて水和後にサムネが消えた `24f9df2c` と同じ形）。
+    // **これは一覧が読む項目**なので `GRID_FIELDS` 側に置く
+    "extraImages"] as const;
 
 function pick(p: Photo, keys: readonly string[]): Photo {
     const out: Record<string, unknown> = {};
@@ -271,6 +276,48 @@ export function slimForLinks(p: Photo): Photo {
 export function slimForGrid(p: Photo): Photo {
     return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS]);
 }
+
+/**
+ * **その場で拡大する画面（`GalleryModal`）が追加で読む項目。**
+ *
+ * 🔴 **落ちても何も起きないのが怖いところ。** 絞った写真をそのまま
+ * ビューアに渡すと、説明文も撮影情報も投稿者も**黙って空のまま**出る
+ * ——例外にならないので、テストも実ブラウザのスモークも素通りする。
+ * 同じ写真をホームから開いたときと**中身が別物**になっていた
+ * （2026-09-22 のレビューで発覚。撮影スポット詳細で実際に起きていた）。
+ *
+ * `srcAvif` が落ちていたのも同じ形で、**原寸の AVIF を持たないまま**
+ * 拡大表示していた（絵は出るので気づけない）。
+ *
+ * 見張りは `lib/utils/__tests__/viewerFields.test.ts`——`GalleryModal` の
+ * ソースを読んで、**読んでいる項目が全部ここに在るか**を突き合わせる。
+ */
+const VIEWER_FIELDS = [
+    "description",      // 本文
+    "exif",             // 撮影情報
+    "userId", "displayName", "photographer", "uploaderUsername",  // 撮った人
+    "license",          // 利用条件
+    "song",             // BGM
+    "commentCount",     // コメント件数
+    "likes",            // いいねの初期値（`usePhotoLikes` に渡る）
+    "coords", "geoApprox",  // 地図リンクと、その位置が推定かどうか
+    "srcAvif",          // 原寸の AVIF
+] as const;
+
+/**
+ * その場で拡大する画面に渡す写真（グリッドのぶん ＋ ビューアのぶん）。
+ *
+ * **グリッドとビューアで配列を分けない。** 分けると同じ写真が2通りの
+ * 形で props に載り、`currentIndex` の指す先が食い違いうる。
+ */
+export function slimForViewer(p: Photo): Photo {
+    return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS, ...VIEWER_FIELDS]);
+}
+
+/** 見張り（`viewerFields.test.ts`）が突き合わせる、ビューアに渡る項目の全体 */
+export const VIEWER_KEPT_FIELDS: readonly string[] = [
+    ...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS, ...VIEWER_FIELDS,
+];
 
 /** 写真ページに焼き込む回遊リンクの材料（**絞ったもの**） */
 export type InitialRelated = {

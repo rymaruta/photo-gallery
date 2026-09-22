@@ -91,7 +91,7 @@ export default function PostSheet({ onClose, locale, restoreRef }: Props) {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="relative w-full max-w-sm rounded-3xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/60 overflow-hidden story-media-in"
+                className="relative w-full max-w-sm rounded-3xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/60 overflow-hidden story-media-in"
                 // 字: サイトの本文と同じ Inter → Noto Sans JP → system の並び（`layout.tsx`）。
                 // 日本語はプロポーショナル詰め（`palt`）で、見出しはわずかに字間を開ける。
                 // 太さはこのサイトが配っている 700 だけを使う（600 は Inter に無い）

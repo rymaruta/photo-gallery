@@ -19,8 +19,8 @@ const photo = (id: string): Photo => ({
     tags: [],
 });
 
-function setup(ids: string[], onOpenPhoto?: (id: string) => boolean) {
-    render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} />);
+function setup(ids: string[], onOpenPhoto?: (id: string) => boolean, openInPlace?: boolean, priorityCount?: number) {
+    render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} openInPlace={openInPlace} priorityCount={priorityCount} />);
 }
 
 describe("GalleryGrid: 新着写真のタップ", () => {
@@ -40,6 +40,55 @@ describe("GalleryGrid: 新着写真のタップ", () => {
         fireEvent(link, ev);
         expect(onOpenPhoto).toHaveBeenCalledWith(NEW_ID);
         expect(ev.defaultPrevented).toBe(true);
+    });
+
+    // **`openInPlace` は撮影スポット詳細のモック⑧**（「タップで拡大表示に
+    // 切り替わる」）のための opt-in。既定は false なので、これを渡していない
+    // 画面（ホーム・お気に入り・保存・他の集約ページ）の振る舞いは変わらない
+    // ——それを見張るのが1つ下の「静的ページのある写真はそのまま遷移させる」。
+    it("openInPlace なら、静的ページのある写真もその場で開く", () => {
+        const onOpenPhoto = vi.fn().mockReturnValue(true);
+        setup([BUILT_ID], onOpenPhoto, true);
+        const link = screen.getByRole("link");
+        // 🔴 **`href` は消さない。** 消すと `/location/*`（検索に載っている
+        // ページ）から写真の個別ページへの内部リンクが丸ごと消える
+        expect(link).toHaveAttribute("href", `/photo/${BUILT_ID}`);
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(link, ev);
+        expect(onOpenPhoto).toHaveBeenCalledWith(BUILT_ID);
+        expect(ev.defaultPrevented).toBe(true);
+    });
+
+    // **開けなかったら遷移を止めない。** 止めると「タップしても何も起きない」
+    // になる——写真ページへ行く方がずっと良い
+    it("openInPlace でも、開けなかった（false）なら遷移はそのまま", () => {
+        const onOpenPhoto = vi.fn().mockReturnValue(false);
+        setup([BUILT_ID], onOpenPhoto, true);
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(screen.getByRole("link"), ev);
+        expect(onOpenPhoto).toHaveBeenCalledWith(BUILT_ID);
+        expect(ev.defaultPrevented).toBe(false);
+    });
+
+    /**
+     * **先に読む枚数は呼ぶ側が決められる。**
+     *
+     * 既定は 8（ホームのように格子が画面の最初のもの）。撮影スポット詳細は
+     * 上にヒーローが在り、**格子の1枚目は折り返しのずっと下**なので 0 を渡す
+     * ——実測（Chromium 390x844）で格子の1枚目は **y=1064 / 画面 844**。
+     */
+    it("priorityCount=0 なら1枚目も先に読まない", () => {
+        setup([BUILT_ID], undefined, undefined, 0);
+        const img = screen.getByRole("img");
+        expect(img.getAttribute("loading")).toBe("lazy");
+        expect(img.getAttribute("fetchpriority")).not.toBe("high");
+    });
+
+    // **既定は今までどおり**（ホーム・お気に入り・保存・他の集約ページ）
+    it("既定では1枚目を先に読む", () => {
+        setup([BUILT_ID]);
+        const img = screen.getByRole("img");
+        expect(img.getAttribute("loading")).not.toBe("lazy");
     });
 
     it("静的ページのある写真はそのまま個別ページへ遷移させる", () => {
@@ -325,5 +374,43 @@ describe("GalleryGrid: 題の無い写真", () => {
     it("題だけでも帯は出す", () => {
         const { container } = render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "白鳥と湖")]} locale="ja" />);
         expect(band(container), "題があるのに帯が出ていない").not.toBeNull();
+    });
+});
+
+// **1投稿に複数枚**（owner のモックの「1/5」）。一覧で枚数を出さないと、
+// 1枚の投稿と見分けが付かない——開いて初めて「他にもある」と分かる
+describe("GalleryGrid: 複数枚の投稿", () => {
+    const withExtra = (id: string, extra: unknown[]): Photo => ({
+        ...photo(id),
+        extraImages: extra as Photo["extraImages"],
+    });
+
+    it("1枚だけなら枚数を出さない（今までと同じ見え方）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[photo(BUILT_ID)]} locale="ja" />);
+        expect(screen.queryByText(/^1\//)).toBeNull();
+    });
+
+    it("🔴 複数枚なら「1/N」を出す", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [{ src: "https://cdn.example.com/b.jpg" }, { src: "https://cdn.example.com/c.jpg" }])]} />);
+        expect(screen.getByText("1/3"), "枚数が出ていない").toBeTruthy();
+    });
+
+    it("🔴 壊れた要素は数えない（「1/3」と出して開くと2枚、を作らない）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [null, {}, { src: 5 }, { src: "" }, { src: "https://cdn.example.com/b.jpg" }])]} />);
+        expect(screen.getByText("1/2")).toBeTruthy();
+    });
+
+    it("お気に入りの印と重ならない（あちらは右上・こちらは左上）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[withExtra(BUILT_ID, [{ src: "https://cdn.example.com/b.jpg" }])]} />);
+        expect(screen.getByText("1/2").className).toContain("left-2");
+    });
+
+    it("extraImages が配列でなくても落ちない", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} locale="ja"
+            photos={[{ ...photo(BUILT_ID), extraImages: "x" as unknown as Photo["extraImages"] }]} />);
+        expect(screen.queryByText(/^1\//)).toBeNull();
     });
 });

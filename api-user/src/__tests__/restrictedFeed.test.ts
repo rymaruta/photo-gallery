@@ -10,6 +10,7 @@ vi.mock("../dynamodb", () => ({
 }));
 
 const { isVisiblePhoto } = await import("../restrictedFeed");
+const { sanitizeAudience } = await import("../sanitize");
 const { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } = await import("../publicFeed");
 
 describe("絞った写真の見せ方", () => {
@@ -58,12 +59,31 @@ describe("仕切りと静的サイト", () => {
         expect(src).toMatch(/&&\s*!item\.audience/);
     });
 
-    /// 行の名前がずれると、フォローしている人が一人も出なくなる
-    it("フォロー一覧の行の名前が follow.ts と同じ", () => {
+    /// **行の名前を写さない。** 写すと、片方だけ直したときに
+    /// 「フォローしている人が一人も出ない」という静かな壊れ方をする
+    it("フォロー一覧の行の名前は followCheck.ts から借りる", () => {
         const feed = readFileSync("api-user/src/restrictedFeed.ts", "utf8");
-        const follow = readFileSync("api-user/src/follow.ts", "utf8");
-        const rowName = (src: string) => src.match(/`(following[^`]*)`/)?.[1];
-        expect(rowName(feed)).toBe("following#${uid}");
-        expect(rowName(follow)).toBe("following#${uid}");
+        expect(feed, "自前で組み立てていない").not.toMatch(/`following#\$\{/);
+        expect(feed).toMatch(/import \{ followingId \} from "\.\/followCheck"/);
+    });
+});
+
+/// もとは `storyAudience.test.ts` に在った。ストーリーの公開範囲は
+/// owner の判断で無くなった（`storyVisibility.ts`）が、**関数は写真が
+/// 使い続ける**ので、検査もこちらへ移す。
+describe("sanitizeAudience", () => {
+    it("受け取るのは followers と closeFriends だけ", () => {
+        expect(sanitizeAudience("followers")).toBe("followers");
+        expect(sanitizeAudience("closeFriends")).toBe("closeFriends");
+    });
+
+    /// **知らない値を「全体に公開」へ倒さない。**
+    /// 倒すと、綴りを間違えた「フォロワーのみ」が全員に見える
+    it("知らない値は undefined（属性を書かない＝全体に公開）", () => {
+        expect(sanitizeAudience("public")).toBeUndefined();
+        expect(sanitizeAudience("Followers")).toBeUndefined();
+        expect(sanitizeAudience(undefined)).toBeUndefined();
+        expect(sanitizeAudience(1)).toBeUndefined();
+        expect(sanitizeAudience({ audience: "followers" })).toBeUndefined();
     });
 });

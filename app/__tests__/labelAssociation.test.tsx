@@ -17,6 +17,11 @@ import { render, screen, waitFor } from "@testing-library/react";
  *     /admin/edit     label 13 → **13 すべて孤立**
  *     DeleteAccountModal  label 1 → 孤立（下記）
  *
+ * **`/user/settings` は 2026-09-21 に足した。** プロフィール編集から
+ * 移した入力欄4つ（新しいメールアドレス・確認コード・いまのパスワード・
+ * 新しいパスワード）が、**移設した時点でこの見張りの外に出ていた**
+ * ——ここは画面ごとに `it` を書く形なので、画面が増えても自動では入らない。
+ *
  * 一方 `/login`・`/signup`・`/admin/login`・`/user/albums`・`FilterBar` は
  * 前から `htmlFor` を持っている（`68e0a6d` の周で直した分）。
  * **同じ規則の入口が半分残っていた**、という台帳のいつもの型。
@@ -50,14 +55,17 @@ vi.mock("../../lib/utils/image", () => ({
     AVATAR_MAX_PX: 512, COVER_MAX_PX: 1280,
 }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
-// ブロック一覧と退会モーダルはプロフィール画面の境界の外（別ファイルで見る）
-vi.mock("../user/profile/BlockedUsers", () => ({ default: () => null }));
+// ブロック一覧は設定画面の境界の外（`BlockedUsers.test.tsx` で見る）。
+// **2026-09-21 に `user/profile/` から `user/settings/` へ移した。**
+// 古いパスのままでも vitest は黙って素通りするので、移設に気づけない
+vi.mock("../user/settings/BlockedUsers", () => ({ default: () => null }));
 
 // **モジュールの読み込み時に読まれる**（`CLOUDFRONT_URL` は module スコープ）ので
 // import より前に置く。これが無いとカバー写真は「未設定」の枝しか描けない
 process.env.NEXT_PUBLIC_CLOUDFRONT_URL = "https://cdn.example";
 
 const ProfilePage = (await import("../user/profile/page")).default;
+const SettingsPage = (await import("../user/settings/page")).default;
 const UserEditPage = (await import("../user/edit/page")).default;
 const AdminEditPage = (await import("../admin/edit/page")).default;
 const DeleteAccountModal = (await import("../components/DeleteAccountModal")).default;
@@ -99,12 +107,6 @@ function danglingRefs(container: HTMLElement): string[] {
     return bad;
 }
 
-/** カバー写真のボタン（見出し「カバー写真」の直後） */
-function coverButton(container: HTMLElement): HTMLButtonElement | null {
-    const heading = [...container.querySelectorAll("p")].find((p) => p.textContent === "カバー写真");
-    return (heading?.parentElement?.querySelector("button") ?? null) as HTMLButtonElement | null;
-}
-
 /** 見出しで名前を付けた集まり（`role="group"`）の数 */
 function labelledGroups(container: HTMLElement): number {
     return container.querySelectorAll('[role="group"][aria-labelledby]').length;
@@ -132,9 +134,18 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         expect(danglingRefs(container)).toEqual([]);
         // テーマカラー（見本ボタンの集まり）
         expect(labelledGroups(container)).toBe(1);
-        // カバー未設定のときは、中に見えている文字と同じ言葉にする
-        expect(container.querySelector('img[src*="/cover"]')).toBeNull();
-        expect(coverButton(container)?.getAttribute("aria-label")).toBe("カバー写真を追加");
+        // **カバー写真の欄は 2026-09-22 に外した**（マイページが出さなくなったので）。
+        // 名前を失うボタンはもう無い＝`unnamedFields` と下の `nameless` が見る
+        expect(container.querySelector('img[src*="/cover"]'), "カバーの欄が戻っている").toBeNull();
+    });
+
+    // 移設で外に出ていた4つの入力欄（メール2段・パスワード2つ）
+    it("/user/settings", async () => {
+        const { container } = render(<SettingsPage />);
+        await screen.findByRole("heading", { name: "設定" });
+        expect(orphanLabels(container)).toEqual([]);
+        expect(unnamedFields(container)).toEqual([]);
+        expect(danglingRefs(container)).toEqual([]);
     });
 
     it("/user/edit", async () => {
@@ -157,8 +168,7 @@ describe("見えているラベルは入力欄に結ばれている", () => {
     // **曲のリンクを開いた状態でないと描かれない欄がある。**
     // 初期状態だけを見ていたので「開始 (m:ss)」「終了 (m:ss)」の2本は
     // 直したのに守りが1行も掛かっていなかった（レビューが変異で実証）。
-    // カバー写真も同じ——**設定済みの人だけ**ボタンが名前を失う
-    it("/user/profile: 曲のリンクを開いた状態・カバー設定済み", async () => {
+    it("/user/profile: 曲のリンクを開いた状態", async () => {
         mockUserFetch.mockResolvedValue({
             ok: true,
             json: async () => ({
@@ -173,22 +183,13 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         expect(unnamedFields(container)).toEqual([]);
         expect(danglingRefs(container)).toEqual([]);
 
-        // **カバーを設定した人のボタンは、中身が `alt=""` の画像だけになる。**
-        // すぐ下のアバターのボタンは前から名前を持っていた＝片方だけ漏れていた
+        // 名前を持たないボタンが無いこと（アバターのボタンは `aria-label` を持つ）
         const nameless = [...container.querySelectorAll("button")]
             .filter((b) => !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby")
                 && !b.textContent?.trim())
             .map((b) => b.className.slice(0, 40));
         expect(nameless).toEqual([]);
 
-        // **名前の言葉と、出ている絵を突き合わせる。** どちらも同じ材料から
-        // 作るが式は2つあるので、片方だけずれる変異を止めるにはここで結ぶ
-        // （`src` の式は `imageOriginSites.test.ts` が綴りで見張っているため
-        //  1つにまとめられない）
-        expect(container.querySelector('img[src*="/cover"]'),
-            "カバーが設定されているのに画像が出ていない").not.toBeNull();
-        expect(coverButton(container)?.getAttribute("aria-label"),
-            "絵は出ているのに、名前が「追加」のまま").toBe("カバー写真を変更");
     });
 
     // **制約を書いた文が、欄に結ばれていなかった。**

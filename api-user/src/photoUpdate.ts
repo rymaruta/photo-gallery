@@ -11,6 +11,7 @@ import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
+import { sweepStoryVotes } from "./storyVotes";
 
 /**
  * 保存する URL の土台。**呼ぶたびに読む。**
@@ -714,7 +715,11 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             const storyId = item.keptFrom;
             try {
                 await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `storyreplies#${storyId}` } }));
+                // 票の文書（`storyvotes#<id>`）も同じ（`storyVotes.ts`）
+                await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: `storyvotes#${storyId}` } }));
                 await ddb.send(new DeleteCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
+                // 行が消えたあとにもう一度（文書 → 行 の間に通った票。`storyVotes.ts`）
+                await sweepStoryVotes(storyId);
             } catch (e) {
                 // **消せなければ行を残す**（次に辿る手がかりになる）。
                 // 写真の削除そのものは成功で返す——実体はもう消えていて、

@@ -3,7 +3,7 @@
 // 写真ページのコメント欄。公開閲覧、認証ユーザーが投稿でき、
 // 投稿者本人または写真オーナーが削除できる。
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChatBubbleOvalLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useComments } from "../../lib/hooks/useComments";
@@ -29,7 +29,11 @@ function timeAgo(iso: string, locale: "ja" | "en"): string {
     return locale === "en" ? `${days}d ago` : `${days}日前`;
 }
 
-export default function CommentSection({ photoId, photoOwnerId, locale, initialCount = 0 }: Props) {
+/**
+ * @param hideHeading 親がタブ（「コメント (N)」）で見出しを持つときに true。
+ * @param onCountChange 件数が変わったら親へ（タブの数字を更新する）
+ */
+export default function CommentSection({ photoId, photoOwnerId, locale, initialCount = 0, hideHeading = false, onCountChange }: Props & { hideHeading?: boolean; onCountChange?: (n: number) => void }) {
     // ログイン後にこの写真へ戻す（サイト内パスだけを通す safeNextPath 経由）。
     // 戻り先が無いと、コメントしようとしていた写真を見失う。
     const loginHref = typeof window === "undefined"
@@ -42,6 +46,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     const { showToast } = useToast();
     const { items, count, loading, loadError, reload, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
     const [text, setText] = useState("");
+    useEffect(() => { onCountChange?.(count); }, [count, onCountChange]);
 
     const submit = async () => {
         const r = await add(text);
@@ -61,8 +66,8 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     };
 
     return (
-        <section className="pt-5 border-t border-white/10">
-            <div className="flex items-center gap-1.5 mb-3">
+        <section className={hideHeading ? "" : "pt-5 border-t border-white/10"}>
+            <div className="flex items-center gap-1.5 mb-3" hidden={hideHeading}>
                 <ChatBubbleOvalLeftIcon className="w-4 h-4 text-white/50" />
                 <h2 className="text-sm font-semibold text-white/70">
                     {locale === "en" ? "Comments" : "コメント"}
@@ -95,7 +100,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     <button
                         onClick={() => void submit()}
                         disabled={pending || !text.trim()}
-                        className="flex-shrink-0 px-4 py-2 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-shrink-0 px-4 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {pending

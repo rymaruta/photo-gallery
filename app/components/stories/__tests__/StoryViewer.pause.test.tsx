@@ -5,8 +5,9 @@ import type { StoryGroup } from "@/lib/stories";
 
 // **止める手段が「押しっぱなし」しか無かった。** 読む速さは人によって違うのに、
 // 指を離すと進む＝自分で決められない。キーボードだけの人には手段が無い
-// （キーは Escape と ← → だけだった）。画面に停止ボタンを置き、
-// スペースでも止められるようにする。
+// （キーは Escape と ← → だけだった）。スペースで止められ、
+// **止まっていることが画面で分かる**（モック09 の「一時停止状態」＝
+// 中央の丸い印。押すと再開する）。止める入口は右上の「…」の操作シート。
 
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../../../../lib/utils/api", () => ({
@@ -69,14 +70,28 @@ describe("ストーリーの自動送りを止める", () => {
         expect(playState()).toBe("running");
     });
 
-    it("停止ボタンで止まり、もう一度押すと再開する", () => {
+    it("操作シートの「一時停止」で止まり、中央の印を押すと再開する", () => {
         view();
-        fireEvent.click(screen.getByLabelText("一時停止"));
+        // 止まっている間は中央に印が出ていない
+        expect(screen.queryByLabelText("再生")).toBeNull();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        fireEvent.click(screen.getByRole("button", { name: "一時停止" }));
         expect(playState()).toBe("paused");
-        // 押した状態は支援技術にも伝える
-        expect(screen.getByLabelText("再生")).toHaveAttribute("aria-pressed", "true");
+        // モック09 の「一時停止状態」——止まっていることが画面で分かる
         fireEvent.click(screen.getByLabelText("再生"));
         expect(playState()).toBe("running");
+        expect(screen.queryByLabelText("再生")).toBeNull();
+    });
+
+    // シートの下に印が透けると、押す対象が2つ見える。止めたあとに
+    // シートを開き直しても、印は引っ込む
+    it("操作シートを開いている間、中央の印は出ない", () => {
+        view();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        fireEvent.click(screen.getByRole("button", { name: "一時停止" }));
+        expect(screen.getByLabelText("再生"), "止めたのに印が出ていない").toBeInTheDocument();
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        expect(screen.queryByLabelText("再生"), "シートの下に印が重なっている").toBeNull();
     });
 
     it("スペースキーでも止まる（キーボードだけの人の唯一の手段）", () => {
@@ -89,9 +104,10 @@ describe("ストーリーの自動送りを止める", () => {
 
     // **ボタンで止めたぶんを、指を離したときに再開しない。**
     // 長押しの解除は「長押しで止めたとき」だけ効かせる
-    it("ボタンで止めたあと、画面に触れて離しても止まったまま", () => {
+    it("シートで止めたあと、画面に触れて離しても止まったまま", () => {
         const { container } = view();
-        fireEvent.click(screen.getByLabelText("一時停止"));
+        fireEvent.click(screen.getByLabelText("ストーリーの操作"));
+        fireEvent.click(screen.getByRole("button", { name: "一時停止" }));
         const zone = container.querySelector(".w-1\\/3")!;
         fireEvent.pointerDown(zone, { clientX: 10, clientY: 10 });
         fireEvent.pointerUp(zone);

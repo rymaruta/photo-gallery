@@ -23,17 +23,42 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..");
 
 /**
- * 黒地でのコントラスト比。`#rrggbb` を実際に計算する
- * （「任意の色は読めるか分からないので弾く」にしたら、取り消し操作の赤
- *  `text-[#ff453a]`（6.16:1）まで弾いた。分からないなら計算すればよい）
+ * **下地は紺（`--color-bg: #050e17`・2026-09-21）。** それまでは純黒で、
+ * 半透明の文字はここで「黒に溶かした色」として比を出していた。紺は黒より
+ * 僅かに明るい（相対輝度 0.0045）が、**半透明の文字は下地の上に合成される**
+ * ので分子も一緒に増え、比はほぼ変わらない（計算して確かめた。最初「下がる」と
+ * 書いて自己確認が落ちた）:
+ *
+ *   text-white/44  4.25:1（黒）→ 4.36:1（紺）  ← どちらも届かない
+ *   text-white/45  4.41:1（黒）→ 4.51:1（紺）  ← 紺では**辛うじて届く**（境界が1段下がる）
+ *   text-white/46  4.58:1（黒）→ 4.66:1（紺）
+ *   text-white/50  5.28:1（黒）→ 5.32:1（紺）
+ *
+ * **`/45` を新しく使ってよいとは読まないこと**（この行に閉じ記号を書くと
+ *  コメントが終わる。書きかけて踏んだ）。4.51 は JPEG の実測値から
+ * 決めた下地に対する計算で、下地を1段暗くすれば落ちる。使うのは /50 から。
+ *
+ * `globals.css` の `@theme` と同じ値をここに持つ。ずれると見張りが嘘をつくので
+ * 下の it で突き合わせる。
+ *
+ * `#rrggbb` を実際に計算する（「任意の色は読めるか分からないので弾く」に
+ * したら、取り消し操作の赤 `text-[#ff453a]`（6.16:1）まで弾いた。分からないなら
+ * 計算すればよい）。半透明は下地の上に**合成してから**測る。
  */
-function ratioOnBlack(hexColor: string, alpha = 1): number {
+const BASE_BG = "#050e17";
+function hexToRgb(hexColor: string): number[] {
     const h = hexColor.replace("#", "");
     const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-    const rgb = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) * alpha);
+    return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+}
+function luminance(rgb: number[]): number {
     const lin = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
-    const lum = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
-    return (lum + 0.05) / 0.05;
+    return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+}
+function ratioOnBlack(hexColor: string, alpha = 1): number {
+    const base = hexToRgb(BASE_BG);
+    const fg = hexToRgb(hexColor).map((v, i) => v * alpha + base[i] * (1 - alpha));
+    return (luminance(fg) + 0.05) / (luminance(base) + 0.05);
 }
 
 /**
@@ -60,7 +85,7 @@ function stripComments(src: string): string {
  * 抜けていた。黒文字（白地）も見ていなかった。
  *
  * 通すのは、黒地／白地で 4.5:1 に届くと分かっているものだけ:
- *   `text-white`（21:1）・`text-white/46` 以上（4.58:1〜）
+ *   `text-white`（21:1）・`text-white/46` 以上（4.66:1〜）
  *   `text-black`（21:1）・`text-black/55` 以上（4.76:1〜）
  */
 const COLOR_TOKEN = /(?:^|[\s"'`{:\]])((?:(?:[\w-]+|\[[^\]]*\]|group-\[[^\]]*\]):)*)text-(white|black|\[[^\]]*\]|[a-z]+-\d{2,3})(\/(\[[^\]]*\]|\d{1,3}))?/g;
@@ -252,12 +277,37 @@ describe("読めない濃さの文字に戻っていないか", () => {
 // リポジトリ全体を1つの規則で見る: 黒地/白地の文字は 4.5:1 に届く濃さだけ。
 // **アイコンと装飾は別基準**（WCAG 1.4.11 は 3:1、純粋な装飾は対象外）なので
 // 免除の一覧を持つ——ここに足すときは「なぜ文字ではないか」を書くこと。
+describe("見張りの下地が、実際の下地と同じ色", () => {
+    it("BASE_BG は globals.css の --color-bg と一致する", () => {
+        const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
+        const m = /--color-bg:\s*(#[0-9a-f]{6})/i.exec(css);
+        expect(m?.[1]?.toLowerCase(), "globals.css に --color-bg が無い").toBeDefined();
+        expect(m![1].toLowerCase()).toBe(BASE_BG);
+    });
+    it("紺の下地での境界（/44 は届かず /46 は届く。合成してから測っている証拠）", () => {
+        expect(ratioOnBlack("#ffffff", 0.44)).toBeLessThan(4.5);
+        expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.5);
+        // 合成を忘れて「黒に溶かす」式に戻すと、/46 が 4.58 に戻る＝紺の値（4.66）と区別できる
+        expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.6);
+    });
+    it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／紺の上の主色・リンク／チップの文字）", () => {
+        const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
+        const tok = (name: string) => { const m = new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i").exec(css); expect(m, `--color-${name} が無い`).not.toBeNull(); return m![1]; };
+        const on = (fg: string, bg: string) => { const a = luminance(hexToRgb(fg)), b = luminance(hexToRgb(bg)); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
+        expect(on("#ffffff", tok("accent-fill"))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("accent"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("link"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("link"), tok("surface"))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("chip-text"), tok("chip"))).toBeGreaterThanOrEqual(4.5);
+    });
+});
+
 describe("app 全体: 読めない濃さの文字を新しく増やさない", () => {
     /**
      * 免除。`[ファイル, その行を見分ける印, 理由]`。
      * **印にはその行のクラス指定そのものを書く**（アイコン名だけだと、同じ
      * アイコンを使う別の行や `import` の行まで黙らせる）。
-     * 比率は黒地での実測値（`scripts/audit-text-contrast.mjs` と同じ式）。
+     * 比率は下地（`BASE_BG`・紺）に合成して出す（`scripts/audit-text-contrast.mjs` と同じ式）。
      */
     const EXEMPT: Array<[string, string, string]> = [
         // 純粋な装飾のアイコン（WCAG 1.4.11 の対象外。比率は参考）
@@ -265,11 +315,13 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/components/MiniPlayer.tsx", 'MusicalNoteIcon className="w-4 h-4 text-white/30"', "アートワークが無いときの絵（2.46:1）"],
         ["app/components/MusicCard.tsx", 'MusicalNoteIcon className="w-6 h-6 text-white/30"', "同上（2.46:1）"],
         ["app/favorites/page.tsx", 'HeartIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
+        // 「保存した写真」の空のとき。**いいねした写真と同じ濃さに揃える**
+        // ——並ぶ2ページで片方だけ濃いと、別の意味があるように見える
+        ["app/saves/page.tsx", 'BookmarkIcon className="w-8 h-8 text-white/30"', "空のときの絵（2.46:1）"],
         ["app/user/drafts/page.tsx", 'PhotoIcon className="w-12 h-12 mx-auto mb-3 text-white/20"', "空のときの絵（1.66:1）"],
         ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
         ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],
         ["app/user/upload/page.tsx", 'PhotoIcon className="w-10 h-10 text-white/40 mb-2"', "選ぶ前の絵（3.66:1）"],
-        ["app/user/upload/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/40"', "アバターが無いときの絵（3.66:1）"],
         ["app/components/Thumb.tsx", '<svg className="w-8 h-8 text-white/40"', "画像を読めなかったときの絵（3.66:1）"],
         ["app/components/UserAvatar.tsx", "${iconClassName} text-white/40", "アバターが無いときの既定の絵（3.66:1）"],
         ["app/components/FilterBar.tsx", '"text-white/70 animate-pulse" : "text-white/35"', "入力欄の中の絵（3.01:1）"],
@@ -285,8 +337,12 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-red-400', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
-        // **この走査は「黒地」を前提にしている。** 白い下地の上の文字は別
-        ["app/components/PhotoMap.tsx", 'loc.className = "text-xs text-gray-600"', "地図のポップアップは白地（gray-600 で約 7.5:1）"],
+        // 旅の実績の `›`。**押せるのは行そのもの**で、行は `aria-label` を持つ。
+        // この矢印は `aria-hidden` の装飾で、意味は文字とリンクが伝えている
+        ["app/users/UserProfileClient.tsx", 'ChevronRightIcon aria-hidden="true" className="ml-auto te', "旅の実績の行の矢印（装飾・3.66:1）"],
+        // 地図のポップアップ（白地の `text-gray-600`）はもう無い。
+        // 写真の中身は黒地のボトムシート（`app/map/MapPhotoSheet.tsx`）が
+        // 描くので、この走査の前提（黒地）にそのまま乗る
     ];
     const isExempt = (file: string, line: string) =>
         EXEMPT.some(([f, marker]) => f === file && line.includes(marker));
