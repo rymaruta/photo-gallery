@@ -1,11 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { userFetch } from "../utils/api";
 import { log } from "../utils/log";
+import { useMyPhotoIdList } from "./useMyPhotoIdList";
 
 /**
  * 「行きたい場所」（撮影スポットの保存）。
+ *
+ * ## 一覧を引く部分は `useMyPhotoIdList`（3つ目の写しをやめた）
+ *
+ * サーバーは `spots#<uid>` を `likes#<uid>` / `saves#<uid>` と**同じ形の1行**
+ * （新しい順のリスト＋`rev`）で持ち、書き込みの規則も `userList.ts` 1つに
+ * 寄せてある。ところが引く側は、切り出した共通部（`useMyPhotoIdList`）と
+ * `useMyServerLikes`（その薄い包み）に加えて、**ここに3つ目の写し**が
+ * あった——「まだ／聞けなかった／0件」を混ぜない扱い・投げた条件を添えて
+ * 持つ仕掛け・中断の後始末が、同じ形で二重に書かれていた。
+ * だから**ここも包みにする**。振る舞いは変えていない。
+ *
+ * 違うのは2つだけ:
+ *
+ *  - 応答の欄が `slugs`（写真のIDではなく撮影地のスラッグ）。
+ *    共通部に欄の名前を渡す
+ *  - **押す口がこのフックの中にある。** いいね・保存は押す側が別のフック
+ *    （`usePhotoLikes` / `usePhotoSave`）なので一覧は読むだけだが、
+ *    こちらは `toggle` がサーバーの返した一覧をそのまま映す。
+ *    そのための口が共通部の `apply`
  *
  * ## 写真の「保存」とは別物
  *
@@ -26,8 +46,9 @@ import { log } from "../utils/log";
  *
  * ## 「まだ」「聞けなかった」「0件」を混ぜない
  *
- * `useMyServerLikes` と同じ立場。混ぜると、通信に失敗しただけの人に
- * 「保存した場所はまだありません」と言い切ることになる。
+ * `useMyServerLikes` と同じ立場——というより、**同じ実装**になった。
+ * 混ぜると、通信に失敗しただけの人に「保存した場所はまだありません」と
+ * 言い切ることになる。
  */
 export type SavedSpots = {
     /** 保存済みのスラッグ（新しい順）。取れていなければ空 */
@@ -46,14 +67,11 @@ export type SavedSpots = {
     retry: () => void;
 };
 
-const EMPTY: readonly string[] = [];
-
-/** 応答は**どの条件で投げたぶんか**を添えて持つ（`useMyServerLikes` と同形） */
-type Fetched = { token: string; slugs: readonly string[]; failed: boolean };
-
 export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): SavedSpots {
-    const [fetched, setFetched] = useState<Fetched | null>(null);
-    const [reloadKey, setReloadKey] = useState(0);
+    // **一覧を引くのは共通部1つ。** 経路と、応答の欄（`slugs`）だけが違う
+    const { photoIds: slugs, pending, failed, retry, apply } = useMyPhotoIdList(
+        "/user/spots", "行きたい場所の一覧", isAuthenticated, authLoading, "slugs",
+    );
     const [busy, setBusy] = useState<string | null>(null);
     /**
      * **連打の鍵は `ref` で持つ。**
@@ -64,50 +82,8 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
      * `ref` なら同期的に立つ。state の方は**画面に出すため**に残す。
      */
     const writing = useRef<string | null>(null);
-    const token = `${authLoading ? "?" : isAuthenticated ? "in" : "out"}|${reloadKey}`;
 
-    const retry = useCallback(() => { setReloadKey((k) => k + 1); }, []);
-
-    useEffect(() => {
-        // 聞きに行くのはログイン中と決まったときだけ。「まだ分からない」
-        // 「未ログイン」は**描画のときに決める**（ここで同期的に state を
-        // 戻すと描画が1回増える——`react-hooks/set-state-in-effect`）
-        if (authLoading || !isAuthenticated) return;
-
-        let aborted = false;
-        const controller = new AbortController();
-        void (async () => {
-            try {
-                const res = await userFetch("/user/spots", { signal: controller.signal });
-                if (aborted) return;
-                if (!res.ok) { setFetched({ token, slugs: EMPTY, failed: true }); return; }
-                const data = await res.json() as { slugs?: unknown };
-                if (aborted) return;
-                // 形が違う応答で画面ごと落とさない
-                const list = Array.isArray(data.slugs)
-                    ? data.slugs.filter((x): x is string => typeof x === "string")
-                    : null;
-                setFetched(list === null
-                    ? { token, slugs: EMPTY, failed: true }
-                    : { token, slugs: list, failed: false });
-            } catch (e) {
-                if (aborted) return;
-                log.warn("行きたい場所の一覧を取得できませんでした:", e);
-                setFetched({ token, slugs: EMPTY, failed: true });
-            }
-        })();
-        return () => { aborted = true; controller.abort(); };
-    }, [isAuthenticated, authLoading, token]);
-
-    // **古い条件で得た答えは使わない**（ログインが確定した瞬間に、
-    // 未ログインとして得た結果を出さない）
-    const current = fetched && fetched.token === token ? fetched : null;
-    const signedOut = !authLoading && !isAuthenticated;
-    const pending = !signedOut && current === null;
-    const slugs = current?.slugs ?? EMPTY;
     const saved = useMemo(() => new Set(slugs), [slugs]);
-
-    const failed = current?.failed ?? false;
 
     /**
      * **分からない間は `false` を返さない。**
@@ -153,7 +129,7 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
                 ? data.slugs.filter((x): x is string => typeof x === "string")
                 : null;
             if (list === null) return false;
-            setFetched({ token, slugs: list, failed: false });
+            apply(list);
             return true;
         } catch (e) {
             log.warn("行きたい場所を更新できませんでした:", e);
@@ -162,7 +138,7 @@ export function useSavedSpots(isAuthenticated: boolean, authLoading: boolean): S
             writing.current = null;
             setBusy(null);
         }
-    }, [pending, failed, saved, token]);
+    }, [pending, failed, saved, apply]);
 
     return { slugs, pending, failed, isSaved, toggle, busy, retry };
 }

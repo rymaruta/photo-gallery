@@ -1404,3 +1404,54 @@ describe("退会: 同じアルバムの写真が複数あっても、全部外�
         expect(albumUpdates, "1枚ずつ撃っている").toHaveLength(1);
     });
 });
+
+// **退会で「何にいいねしたか」が消えていなかった。**
+//
+// 既知キーの削除に `likes#<uid>` だけ入っておらず、退会後も最大1000件の
+// 「どの写真を気に入ったか」がテーブルに残っていた（掃除役は居ない）。
+// `spots#` / `saves#` と同じ扱いにする。
+describe("deleteAccount: いいねの一覧", () => {
+    function withLikes(photoIds: string[]) {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const name = cmd.constructor.name;
+            if (name === "QueryCommand") return Promise.resolve({ Items: [] });
+            if (name === "GetCommand") {
+                const id = String((cmd.input.Key as { id?: string }).id ?? "");
+                if (id === "likes#me") return Promise.resolve({ Item: { list: photoIds, rev: 3 } });
+                return Promise.resolve({ Item: undefined });
+            }
+            return Promise.resolve({});
+        });
+    }
+
+    it("`likes#<uid>` の行を消す", async () => {
+        withLikes(["p1", "p2"]);
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        expect(deletedDdbIds(), "いいねの一覧が残っている").toContain("likes#me");
+    });
+
+    /**
+     * **写真側の `likes` は減らさない。** 減らす判断をするならマーカーの
+     * 削除と同じ書き込みでやる必要があり（でないと再実行で二重に減る）、
+     * それを一覧の最大1000件ぶん回すとフォローの掃除と同じ実行時間の壁に
+     * 当たる。詳細は `account.ts` の該当箇所のコメント。
+     *
+     * ⚠️ **これは「この差分が直したこと」の検証ではない。** 今の実装は
+     * `likes#<uid>` を**消すだけで読まない**ので、`withLikes` が用意する
+     * 中身（`["p1","p2"]`）はこのテストでは効いていない——**差し戻しても
+     * 緑になる**。置いてあるのは、あとで「減らす」実装が入ったときに
+     * 捕まえるための見張り。実際に減算を足した変異で落ちることは確認済み。
+     */
+    it("写真の `likes` を減らさない／マーカーも触らない", async () => {
+        withLikes(["p1", "p2"]);
+        await invoke(deleteAccount, ev("me"));
+        const touched = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((cmd) => cmd?.constructor?.name === "UpdateCommand"
+                || cmd?.constructor?.name === "DeleteCommand")
+            .map((cmd) => String((cmd.input.Key as { id?: string })?.id ?? ""));
+        expect(touched, "写真のいいね数を触っている").not.toContain("p1");
+        expect(touched, "いいねのマーカーを消そうとしている").not.toContain("like#p1#me");
+    });
+});

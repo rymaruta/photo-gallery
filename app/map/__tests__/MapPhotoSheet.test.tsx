@@ -62,12 +62,24 @@ describe("撮影地マップのボトムシート", () => {
 
     // **`toLocaleString` を使わない。** 静的書き出しは UTC で走るので、
     // 日付だけの値は UTC より西の閲覧者に前日と表示される
+    //
+    // ⚠️ **戻しは `finally` で。** 素直に最後の行に置いていたので、
+    // この assertion が落ちた回に `TZ` が `America/New_York` のまま
+    // **後続のテストへ漏れて**いた（同じワーカーで走るファイルにも）。
+    // 台帳には「テストが走らせた時刻で落ちる」事故が既に1件あり、
+    // そのときの調査を遠回りにするのがまさにこの形。
     it("日付は保存されている通りに出す（ゾーン変換しない）", () => {
         const tz = process.env.TZ;
         process.env.TZ = "America/New_York";
-        setup([photo("a", { date: "2024-01-01" } as Partial<MapPhoto>)]);
-        expect(screen.getByText("2024年1月1日")).toBeTruthy();
-        process.env.TZ = tz;
+        try {
+            setup([photo("a", { date: "2024-01-01" } as Partial<MapPhoto>)]);
+            expect(screen.getByText("2024年1月1日")).toBeTruthy();
+        } finally {
+            // **`undefined` なら消す。** `= undefined` を代入すると
+            // `process.env` は文字列 `"undefined"` にする（＝無効なゾーン名）
+            if (tz === undefined) delete process.env.TZ;
+            else process.env.TZ = tz;
+        }
     });
 
     it("撮影日が無ければ EXIF の撮影日時に落とす", () => {
