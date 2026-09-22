@@ -32,26 +32,34 @@ const HOME_PRIORITY_COUNT = 2;
  * Webサイトとして最適なレイアウトを設計してください」）。
  *
  *   < 1024px … 最終版モックのまま（1列のカードだけ）
- *   ≥ 1024px … 左にフィード（36rem＝576px のまま）／右に**発見の柱**（20rem）
+ *   ≥ 1024px … 左にフィード（**40rem＝640px**）／右に**発見の柱**（余りぜんぶ）
  *
- * **カードは広げない。** 写真が主役の1列フィードで、幅を伸ばすと
- * 1画面に1枚も入らなくなる（`TimelineCard` の `FEED_SIZES_XL` も
- * 36rem で頭打ちにしてある＝伸ばすと `sizes` が嘘になる）。
- * 空いた横を埋めるのは**別の中身**——スマホでは下部タブの「さがす」で
- * 辿る面を、PC では同じ画面に出す。
+ * **空いた横を埋めるのは別の中身。** スマホでは下部タブの「さがす」で
+ * 辿る面を、PC では同じ画面に出す（柱の行き先も「さがす」の検索結果）。
  *
- * 寸法（`max-w-5xl` ＝ 64rem ・ `md:p-8` ＝ 2rem×2）:
+ * ## 余白の詰め方（2026-09-22・owner の指示）
  *
- *     1024px の画面  容器 1024 − 64 = 960   576 + 32 + 柱 352
- *     1280px 以上    容器は 1024 で頭打ち   同上
+ * owner:「ホームの本文が 576px に制限され、1280px 幅で左右に大きな余白が
+ * 残る問題を解消すること。ただし**無理に画面幅いっぱいへ引き伸ばさない**。
+ * 中央フィードと右サイドバーのバランスを整える」。
  *
- * **柱は `1fr`（余りぜんぶ）にする。** 固定幅（20rem）にして
- * `justify-center` で寄せると、見出し・タブと本文の左端が 16px ずれる
+ *     画面   容器            フィード ＋ 隙間 ＋ 柱      画面に対して
+ *     1024   1024−64=960     640 + 32 + 288 = 960        94%（余白 0）
+ *     1152   1152−64=1088    640 + 32 + 416 = 1088       94%
+ *     1280   1152 で頭打ち   同上                        85%（前は 72.5%）
+ *     1920   同上            同上                        57%
+ *
+ * ⚠️ **フィードを 640px より広げない。** `Thumb` の派生は 512w までなので、
+ * 箱を広げるほど引き伸ばしになる（`FEED_SIZES_XL` と `SPOT_HERO_SIZES` の
+ * doc に同じ線が引いてある）。**「引き伸ばさない」は owner の言葉でもある。**
+ *
+ * **柱は `1fr`（余りぜんぶ）にする。** 固定幅にして `justify-center` で
+ * 寄せると、見出し・タブと本文の左端が 16px ずれる
  * （実測: 見出し x=160 / カード x=176）。余りを柱に渡せば両端が揃う。
  */
 function HomeColumns({ rail, children }: { rail: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,36rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+    <div className="lg:grid lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-none">{children}</div>
       {/* **狭い画面には出さない。** スマホの「さがす」は下部タブの別の面で、
           ここに足すとモックに無いものが1画面に増える。
@@ -465,16 +473,17 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     ? (labels.search?.heading ?? (locale === "en" ? "Find photos" : "写真をさがす"))
     : (labels.site?.title ?? "Gallery");
 
+  /**
+   * **PC は両方 6xl に広げる**（指示書 4・11・17「スマホ画面をそのまま横に
+   * 引き伸ばさない」／owner 2026-09-22「1280px 幅で左右に大きな余白が
+   * 残る問題を解消する。ただし無理に画面幅いっぱいへ引き伸ばさない」）。
+   *
+   * **上限は 6xl**——写真ページ（`lg:max-w-6xl`）・集約ページと同じ箱。
+   * 7xl にするとヘッダー（`max-w-5xl`）とロゴの左端が片側128px ずれる。
+   * 狭い画面（< 1024px）は今までどおり `max-w-5xl`。
+   */
   return (
-    <main className={`p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full ${
-      /* **「さがす」だけ PC で広げる**（指示書 4・11・17「スマホ画面を
-         そのまま横に引き伸ばさない」）。左に絞り込みの柱を置き、
-         写真の面をその右に取る。トップは1列のカードを読む面なので
-         広げない（`max-w-5xl` のまま）。
-         **上限は 6xl**——写真ページ（`lg:max-w-6xl`）・集約ページと同じ箱。
-         7xl にするとヘッダー（`max-w-5xl`）とロゴの左端が片側128px ずれる */
-      isSearch ? "max-w-5xl lg:max-w-6xl" : "max-w-5xl"
-    }`}>
+    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
           ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから

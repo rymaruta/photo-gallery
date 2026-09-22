@@ -106,6 +106,32 @@ export const GRID_SIZES_SEARCH = [
  */
 export const GRID_COLUMNS_SEARCH = "grid-cols-2 sm:grid-cols-3";
 
+/**
+ * ホームの「おすすめ」（`FeaturedSections`）のグリッド。
+ *
+ * **`GRID_SIZES_5XL` と同じなのは 1023px まで。** 2026-09-22 にホームの容器が
+ * PC で `max-w-5xl`（64rem）→ **`max-w-6xl`（72rem）**に広がったので、
+ * ≥1024px はこちらを使う。余白は `md:p-8`（2rem×2）、4列、隙間 6px×3。
+ *
+ *     幅                容器         グリッド   1セル
+ *     1024（lg）        1024-64=960   960       235.5
+ *     1151              1151-64=1087  1087      267.25
+ *     1152（頭打ち）     1152-64=1088  1088      267.5
+ *     1920（頭打ち）     同上          1088      267.5
+ *
+ * ⚠️ **容器を広げたらここも動かす。** 広げたのに `GRID_SIZES_5XL` のままだと、
+ * 箱 267.5px に 235.5px と申告して**小さすぎる候補を落とす**（ぼやける）。
+ * `gridSizes.test.tsx` の「直す前の式は落ちる」と同じ型の間違い。
+ */
+export const GRID_SIZES_HOME_6XL = [
+    "(max-width:639px) calc(50vw - 15.75px)",        // 2列 / root 14px 固定
+    "(max-width:39.99rem) calc(50vw - 1.125rem)",    // 2列
+    "(max-width:47.99rem) calc(33.33vw - 1.25rem)",  // 3列 / p-6
+    "(max-width:63.99rem) calc(33.33vw - 1.583rem)", // 3列 / p-8
+    "(max-width:71.99rem) calc(25vw - 1.28125rem)",  // 4列 / p-8（4rem）＋ 隙間1.125rem を4で割る
+    "16.71875rem",                                   // 4列 / 容器 72rem で頭打ち: (72 - 4 - 1.125) / 4
+].join(", ");
+
 /** 集約ページ（`max-w-6xl` ＝ 72rem ＋ 左右の余白は `px-4` 固定） */
 export const GRID_SIZES_6XL = [
     "(max-width:639px) calc(50vw - 15.75px)",
@@ -127,11 +153,26 @@ export const GRID_SIZES_6XL = [
  * - 640px 以上は `100vw - 3rem`（≥592px）が箱の 36rem（576px）を必ず超えるので
  *   最初から頭打ち。メディアクエリの rem は常に 16px なので
  *   `(max-width:35.99rem)` のような条件は 1つ目に含まれて到達しない
+ *
+ * ## ≥1024px（`lg:`）は **40rem（640px）**（2026-09-22・owner の指示）
+ *
+ * PC では1列のフィード＋右の柱になり、フィードの枠が
+ * `lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]` の1本目＝640px で頭打ちになる。
+ * owner:「ホームの本文が 576px に制限され、1280px 幅で左右に大きな余白が
+ * 残る問題を解消すること。ただし無理に画面幅いっぱいへ引き伸ばさない」。
+ *
+ * ⚠️ **640px より広げない。** `Thumb` の派生は **512w まで**なので、箱を
+ * 広げるほど引き伸ばしになる（640px で 1.25倍）。**`SPOT_HERO_SIZES` が
+ * 同じ理由で 640px に止めているのと同じ線**——そちらの doc に
+ * 「写真が主役のサイトで、いちばん大きく出す1枚がいちばん粗い、という形に
+ * なる」と書いてある。もっと広げたいなら `generate-thumbnails.js` の
+ * variants に大きい派生を足すのが先で、**ここだけ上げない**。
  */
 export const FEED_SIZES_XL = [
     "(max-width:531px) calc(100vw - 28px)",
     "(max-width:639px) 504px",
-    "36rem",
+    "(max-width:63.99rem) 36rem",   // 640〜1023px: `max-w-xl` の箱
+    "40rem",                        // ≥1024px: PC の2カラムの1本目
 ].join(", ");
 
 /**

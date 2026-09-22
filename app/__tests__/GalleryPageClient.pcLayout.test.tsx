@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ja } from "../i18n/labels";
+import { FEED_SIZES_XL } from "../components/gridSizes";
 
 /**
  * **PC は別設計**（owner の指示書 4・11・17:「PCではスマートフォン画面を
@@ -61,8 +62,11 @@ describe("PC の設計（指示書 4・11・17）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
             const aside = container.querySelector("main aside");
             expect(aside, "PC の柱が無い＝1列のまま横に伸びる").not.toBeNull();
-            // 柱の中身は「さがす」の発見の節（同じものを二度作らない）
-            expect(aside!.querySelector('a[href*="/location/"]'), "柱に発見の節が入っていない").not.toBeNull();
+            // 柱の中身は「さがす」の発見の節（同じものを二度作らない）。
+            // **行き先では探さない**——行き先は別のテストが見ている項目で、
+            // ここで `href` を当てにすると2つの性質が1つのテストに混ざる
+            expect(aside!.textContent, "柱に発見の節が入っていない").toContain("写真の多い撮影地");
+            expect(aside!.querySelectorAll("a").length, "柱にリンクが無い").toBeGreaterThan(0);
         });
 
         it("🔴 柱は狭い画面には出さない（スマホはモックのまま）", () => {
@@ -79,13 +83,27 @@ describe("PC の設計（指示書 4・11・17）", () => {
             expect(aside.className, "はみ出したぶんを送れない").toContain("lg:overflow-y-auto");
         });
 
-        it("🔴 カードの箱は広げない（`FEED_SIZES_XL` は 36rem で頭打ち）", () => {
+        it("🔴 フィードは 40rem で止める（`1fr` にしない・`FEED_SIZES_XL` と対）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
             const shell = container.querySelector("main aside")!.parentElement!;
             expect(shell.className, "PC の2カラムになっていない").toContain("lg:grid");
-            // 左は 36rem（576px）で止める。**`1fr` にしない**——伸ばすと
-            // カードの `sizes` が嘘になる
-            expect(shell.className).toContain("36rem");
+            // **`1fr` にしない**——伸ばすとカードの `sizes` が嘘になる。
+            // 640px は `Thumb` の派生（512w）から引いた線で、
+            // `SPOT_HERO_SIZES` が 640px に止めているのと同じ理由
+            expect(shell.className, "フィードの上限が 40rem ではない").toContain("40rem");
+            expect(FEED_SIZES_XL, "`sizes` を対で動かしていない").toContain("40rem");
+        });
+
+        it("🔴 柱を押したら「さがす」の検索結果へ行く（集約ページではない）", () => {
+            const { container } = render(<GalleryPageClient surface="home" />);
+            const links = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
+            expect(links.length, "柱にリンクが無い").toBeGreaterThan(0);
+            for (const href of links) {
+                expect(href, `集約ページのままになっている: ${href}`).toMatch(/^\/search\?/);
+            }
+            // カテゴリは専用の絞り込み、撮影地は `?q=`（`useGallery` が読む形）
+            expect(links.some((h) => h.startsWith("/search?category=")), "カテゴリの絞り込みに載っていない").toBe(true);
+            expect(links.some((h) => h.startsWith("/search?q=")), "撮影地・機材が検索語に載っていない").toBe(true);
         });
     });
 
@@ -105,15 +123,17 @@ describe("PC の設計（指示書 4・11・17）", () => {
             expect(gridProps.sizes, "容器が変わったのに `sizes` が据え置き").toContain("16.58333rem");
         });
 
-        it("🔴 PC だけ箱を広げる（トップは広げない・ヘッダーとずらしすぎない）", () => {
-            const search = render(<GalleryPageClient surface="search" />);
+        it("🔴 PC だけ箱を広げる（ヘッダーとずらしすぎない）", () => {
             // 6xl＝写真ページ・集約ページと同じ箱。7xl にするとヘッダー
             //（`max-w-5xl`）と片側128px ずれる
-            expect(search.container.querySelector("main")!.className).toContain("lg:max-w-6xl");
-            expect(search.container.querySelector("main")!.className, "ヘッダーより広げすぎ").not.toContain("max-w-7xl");
-            search.unmount();
-            const home = render(<GalleryPageClient surface="home" />);
-            expect(home.container.querySelector("main")!.className, "トップまで広げている").not.toContain("max-w-6xl");
+            for (const surface of ["search", "home"] as const) {
+                const r = render(<GalleryPageClient surface={surface} />);
+                const cls = r.container.querySelector("main")!.className;
+                expect(cls, `${surface}: 狭い画面の箱が変わっている`).toContain("max-w-5xl");
+                expect(cls, `${surface}: PC で広げていない`).toContain("lg:max-w-6xl");
+                expect(cls, `${surface}: ヘッダーより広げすぎ`).not.toContain("max-w-7xl");
+                r.unmount();
+            }
         });
     });
 

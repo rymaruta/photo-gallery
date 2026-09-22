@@ -6,6 +6,7 @@ import type { Photo } from "@/lib/data/photos";
 vi.mock("../../components/Thumb", () => ({ default: ({ photo }: { photo: Photo }) => <span data-thumb={photo.id} /> }));
 
 import DiscoverSections from "../DiscoverSections";
+import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 
 const photo = (id: string, extra: Partial<Photo> = {}): Photo => ({
     id, src: `https://cdn/${id}.jpg`, title: id, ...extra,
@@ -91,35 +92,91 @@ describe("さがす: 発見の節", () => {
                  photo(`${type}${i}b`, type === "location" ? { location: `場所${i}` } : { category: `cat${i}` })],
             ).flat();
 
+        /** 撮影地のリンク。面の中は `/location/*`、柱は `/search?q=`（下の節を参照） */
+        const spotLinks = (r: ReturnType<typeof render>, rail: boolean) =>
+            [...r.container.querySelectorAll(rail ? 'a[href^="/search?q="]' : 'a[href*="/location/"]')];
+
         it("🔴 件数を絞る（8件のままだと柱が画面の高さを超えて貼り付きが効かない）", () => {
             const photos = many("location", 8);
             const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
-            expect(wide.container.querySelectorAll('a[href*="/location/"]')).toHaveLength(8);
+            expect(spotLinks(wide, false)).toHaveLength(8);
             wide.unmount();
 
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
-            expect(rail.container.querySelectorAll('a[href*="/location/"]'), "柱でも8件出している").toHaveLength(4);
+            expect(spotLinks(rail, true), "柱でも8件出している").toHaveLength(4);
         });
 
         it("🔴 撮影地は縦に並べた行にする（150px のカードを柱に詰めない）", () => {
             const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" })];
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
-            const link = rail.container.querySelector('a[href*="/location/"]') as HTMLElement;
+            const link = spotLinks(rail, true)[0] as HTMLElement;
+            expect(link, "撮影地の行が無い").toBeTruthy();
             expect(link.className, "面の中と同じカードのまま").toContain("flex");
             // カードの幅（150px）を柱に持ち込んでいない
             expect(link.getAttribute("style") ?? "", "150px のカードのまま").not.toContain("150px");
             expect(rail.container.textContent, "枚数が消えている").toContain("2枚");
         });
 
-        it("行き先も数えた値も、面の中と同じ（並べ方だけが違う）", () => {
-            const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" }), photo("c", { location: "パリ" })];
-            const href = (r: ReturnType<typeof render>) =>
-                [...r.container.querySelectorAll('a[href*="/location/"]')].map((a) => a.getAttribute("href"));
+        /**
+         * 🔴 **柱の行き先は「さがす」の検索結果**（owner の指示・2026-09-22:
+         * 「各項目を押したら『さがす』画面の該当する検索結果へ移動すること」）。
+         *
+         * **写像は `resolveNotFoundRedirect` を使い回す。** 集約ページが
+         * まだ建っていないときの404救済が既に持っている1本で、読む側は
+         * `useGallery` の `readFiltersFromUrl`。**新しい仕組みを作らない**
+         * ので、救済の行き先と柱の行き先が食い違うことが起きない。
+         */
+        it("🔴 柱は「さがす」の検索結果へ飛ぶ（面の中は集約ページのまま）", () => {
+            const photos = [
+                photo("a", { category: "landscape", location: "東京", exif: { camera: "SONY ILCE-7M3" } }),
+                photo("b", { category: "landscape", location: "東京", exif: { camera: "SONY ILCE-7M3" } }),
+            ];
             const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
-            const wideHrefs = href(wide);
+            const wideHrefs = [...wide.container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+            expect(wideHrefs.every((h) => !h.startsWith("/search")), "面の中まで検索結果に変えている").toBe(true);
+            wide.unmount();
+
+            const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
+            const railHrefs = [...rail.container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+            expect(railHrefs.length).toBeGreaterThan(0);
+            for (const h of railHrefs) expect(h, `集約ページのまま: ${h}`).toMatch(/^\/search\?/);
+            // 写像は救済と同じ1本（種別ごとの受け皿も同じ）
+            for (const h of wideHrefs) {
+                expect(railHrefs, `${h} の振り替え先が柱に無い`).toContain(resolveNotFoundRedirect(h));
+            }
+        });
+
+        /**
+         * 🔴 **柱は素の `<a>`（全ページ遷移）**。`<Link>` に戻すと
+         * クライアント遷移になり、`useGallery` が URL を読む前に
+         * 描き始めるので**クエリが落ちて全件になる**（実測: `<Link>` で
+         * 押すと `/search`・30件。`location.assign` なら 16件）。
+         * 404 救済（`NotFoundClient`）が `window.location.replace` を
+         * 使っているのと同じ理由。
+         */
+        it("🔴 柱は素の `<a>` で全ページ遷移する（`<Link>` だとクエリが落ちる）", () => {
+            const photos = [photo("a", { category: "landscape" }), photo("b", { category: "landscape" })];
+            const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
+            for (const a of rail.container.querySelectorAll("a[href^='/search']")) {
+                // Next の `<Link>` は先読みを切っても `router` を通す。素の `<a>`
+                // には `<Link>` が付ける属性が1つも無い
+                expect(a.hasAttribute("data-prefetch"), "`<Link>` に戻っている").toBe(false);
+                expect(a.getAttribute("href"), "href が消えている").toMatch(/^\/search\?/);
+            }
+            rail.unmount();
+            // 面の中（`page`）は今までどおり `<Link>`
+            const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
+            expect(wide.container.querySelector('a[href^="/category/"]'), "面の中のリンクが消えた").not.toBeNull();
+        });
+
+        it("数えた値は面の中と同じ（並べ方と行き先だけが違う）", () => {
+            const photos = [photo("a", { location: "東京" }), photo("b", { location: "東京" }), photo("c", { location: "パリ" })];
+            const allText = (r: ReturnType<typeof render>) => r.container.textContent ?? "";
+            const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
+            expect(allText(wide)).toContain("2枚");
             wide.unmount();
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
-            expect(href(rail)).toEqual(wideHrefs);
+            expect(allText(rail), "柱で数が変わっている").toContain("2枚");
         });
     });
 });
