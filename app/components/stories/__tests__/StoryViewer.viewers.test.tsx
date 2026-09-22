@@ -456,7 +456,7 @@ describe("閲覧者一覧: ストーリーを切り替えたときのリセッ�
 
 // モック09 の状態例「リアクション・閲覧者リスト」。
 // **シートは1枚で、タブで切り替える**（以前は別々のシートが2枚あった）。
-describe("反応の一覧: 閲覧者とリアクションのタブ", () => {
+describe("反応の一覧: 閲覧者とリアクション・返信のタブ", () => {
     const withReplies = (replyCount: number) => [{
         userId: "me", displayName: "自分",
         items: [{
@@ -478,7 +478,7 @@ describe("反応の一覧: 閲覧者とリアクションのタブ", () => {
         open(2);
         await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
         const tabs = screen.getAllByRole("tab");
-        expect(tabs.map((t) => t.textContent)).toEqual(["閲覧者1", "リアクション2"]);
+        expect(tabs.map((t) => t.textContent)).toEqual(["閲覧者1", "リアクション・返信2"]);
         expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     });
 
@@ -490,7 +490,7 @@ describe("反応の一覧: 閲覧者とリアクションのタブ", () => {
         open(1);
         await userEvent.click(await screen.findByLabelText("閲覧者を見る"));
         expect(await screen.findByText("旅子")).toBeInTheDocument();
-        await userEvent.click(screen.getByRole("tab", { name: /リアクション/ }));
+        await userEvent.click(screen.getByRole("tab", { name: /リアクション・返信/ }));
         expect(await screen.findByText("友人")).toBeInTheDocument();
         expect(screen.queryByText("旅子"), "前のタブの中身が残っている").toBeNull();
         // 戻れる
@@ -498,13 +498,92 @@ describe("反応の一覧: 閲覧者とリアクションのタブ", () => {
         expect(await screen.findByText("旅子")).toBeInTheDocument();
     });
 
-    it("返信のピルからはリアクションのタブで開く", async () => {
+    it("ピルからはリアクション・返信のタブで開く", async () => {
         mockUserFetch.mockImplementation((path: string) =>
             Promise.resolve(String(path).includes("/viewers")
                 ? viewersOf([])
                 : { ok: true, json: async () => ({ items: [], count: 0 }) }));
         open(3);
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
-        expect(screen.getByRole("tab", { name: /リアクション/ })).toHaveAttribute("aria-selected", "true");
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
+        expect(screen.getByRole("tab", { name: /リアクション・返信/ })).toHaveAttribute("aria-selected", "true");
+    });
+});
+
+/**
+ * **名前が中身と食い違わない。**
+ *
+ * サーバーは絵文字の反応と文字の返信を**1つの文書**に入れ、`replyCount` も
+ * 両方を数える（`api-user/src/storyReplies.ts`）。画面でそれを「リアクション」
+ * とだけ呼ぶと、開いて文字の返信が並ぶ。「返信」とだけ呼ぶと、♡ だけの
+ * N 件を「返信 N件」と言う。**どちらも嘘**なので、名前も数も両方を指す。
+ *
+ * ここは owner の指示（2026-09-22・PM 経由）「嘘の名前を付けないこと」の
+ * 見張り。**サーバーの形を変えずに画面だけ正直にする**という判断なので、
+ * 分けたくなったら `replyCount` を2つにするところから始めること。
+ */
+describe("リアクション・返信: 名前と数が中身と一致する", () => {
+    /** 絵文字の反応1件と文字の返信1件。`replyCount` はサーバー同様その合計 */
+    const MIXED = [
+        { id: "r1", uid: "u2", name: "友人", emoji: "❤️", t: "2026-07-04T10:30:00Z" },
+        { id: "r2", uid: "u3", name: "同僚", text: "きれい！", t: "2026-07-04T10:40:00Z" },
+    ];
+    const openMixed = () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf([])
+                : { ok: true, json: async () => ({ items: MIXED, count: MIXED.length }) }));
+        return render(
+            <StoryViewer
+                groups={[{
+                    userId: "me", displayName: "自分",
+                    items: [{
+                        id: "s1", src: "https://cdn/x/a.jpg", userId: "me", replyCount: MIXED.length,
+                        createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z",
+                    }],
+                }] as unknown as StoryGroup[]}
+                initialGroupIndex={0} locale="ja" isAuthenticated
+                ownUserId="me" onSeen={() => { /* noop */ }} onClose={() => { /* noop */ }} />,
+        );
+    };
+
+    it("入口のピルが、片方だけの名前を名乗らない", async () => {
+        openMixed();
+        const pill = await screen.findByLabelText("届いたリアクション・返信を見る");
+        expect(pill.textContent).toContain("リアクション・返信 2件");
+        // 「返信 2件」だけ・「リアクション 2件」だけにしない
+        expect(pill.textContent, "反応を「返信」とだけ呼んでいる").not.toMatch(/^返信/);
+    });
+
+    it("タブの名前と数が、絵文字と文字の両方を指す", async () => {
+        openMixed();
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
+        const tab = screen.getByRole("tab", { name: /リアクション・返信/ });
+        expect(tab).toHaveAttribute("aria-selected", "true");
+        // 数は合計（片方だけを数えていない）
+        expect(tab.textContent).toBe("リアクション・返信2");
+        // 中身も両方出ている＝名前どおり
+        expect(await screen.findByText("❤️")).toBeInTheDocument();
+        expect(screen.getByText("きれい！")).toBeInTheDocument();
+    });
+
+    it("0件のときも、片方だけの名前で言わない", async () => {
+        mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(String(path).includes("/viewers")
+                ? viewersOf(["旅子"])
+                : { ok: true, json: async () => ({ items: [], count: 0 }) }));
+        render(
+            <StoryViewer
+                groups={[{
+                    userId: "me", displayName: "自分",
+                    items: [{
+                        id: "s1", src: "https://cdn/x/a.jpg", userId: "me", replyCount: 1,
+                        createdAt: "2026-07-04T10:00:00Z", expiresAt: "2099-07-05T10:00:00Z",
+                    }],
+                }] as unknown as StoryGroup[]}
+                initialGroupIndex={0} locale="ja" isAuthenticated
+                ownUserId="me" onSeen={() => { /* noop */ }} onClose={() => { /* noop */ }} />,
+        );
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
+        expect(await screen.findByText("まだリアクションも返信もありません")).toBeInTheDocument();
     });
 });
