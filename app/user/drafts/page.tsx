@@ -86,8 +86,8 @@ export default function DraftsPage() {
             <div className="max-w-3xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4">
-                        <Link href={ROUTES.HOME} className="text-white/60 hover:text-white transition-colors">
-                            <ArrowLeftIcon className="w-5 h-5" />
+                        <Link href={ROUTES.HOME} aria-label={isJa ? "ギャラリーに戻る" : "Back to gallery"} className="text-white/60 hover:text-white transition-colors">
+                            <ArrowLeftIcon aria-hidden="true" className="w-5 h-5" />
                         </Link>
                         <h1 className="text-xl font-semibold">
                             {isJa ? "下書き" : "Drafts"}

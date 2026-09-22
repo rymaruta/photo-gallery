@@ -5,6 +5,29 @@ import type { Photo } from "@/lib/data/photos";
 
 vi.mock("../../components/Thumb", () => ({ default: ({ photo }: { photo: Photo }) => <span data-thumb={photo.id} /> }));
 
+/**
+ * 🔴 **`<Link>` に印を付けてから数える。**
+ *
+ * 以前ここは `a.hasAttribute("data-prefetch")` が false であることで
+ * 「素の `<a>` か」を見ていたが、**Next の `<Link>` はその属性を出さない**
+ * （DOM に出るのは素の `<a href>`）ので、**`<a>` でも `<Link>` でも常に true**
+ * ——柱を `<Link>` に戻す変異を当てても**13件とも緑**だった（実測）。
+ *
+ * だから本物の `<Link>` を、**見分けの付く印を持つ `<a>`** に置き換える。
+ * こうすると「柱に印が無い」と「面の中には印が在る」を両方見られる
+ * ——**後者が無いと、mock が効かなくなった日にまた何も検証しなくなる**
+ * （`vi.mock` は黙る。台帳の「🔴 `vi.mock` は黙る」の節）。
+ */
+vi.mock("next/link", () => ({
+    default: ({ href, children, prefetch, ...rest }: {
+        href: string; children: React.ReactNode; prefetch?: boolean;
+    } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        // `prefetch` は DOM の属性ではない（そのまま撒くと React が警告を出す）
+        void prefetch;
+        return <a data-next-link="1" href={typeof href === "string" ? href : ""} {...rest}>{children}</a>;
+    },
+}));
+
 import DiscoverSections from "../DiscoverSections";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 
@@ -153,20 +176,31 @@ describe("さがす: 発見の節", () => {
          * 押すと `/search`・30件。`location.assign` なら 16件）。
          * 404 救済（`NotFoundClient`）が `window.location.replace` を
          * 使っているのと同じ理由。
+         *
+         * ⚠️ **見分けは `next/link` の mock が付ける印で付ける**（ファイル先頭）。
+         * 属性の有無（`data-prefetch`）で見ていた頃は、**`<Link>` に戻しても
+         * 落ちなかった**。
          */
         it("🔴 柱は素の `<a>` で全ページ遷移する（`<Link>` だとクエリが落ちる）", () => {
             const photos = [photo("a", { category: "landscape" }), photo("b", { category: "landscape" })];
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
-            for (const a of rail.container.querySelectorAll("a[href^='/search']")) {
-                // Next の `<Link>` は先読みを切っても `router` を通す。素の `<a>`
-                // には `<Link>` が付ける属性が1つも無い
-                expect(a.hasAttribute("data-prefetch"), "`<Link>` に戻っている").toBe(false);
+            const railLinks = [...rail.container.querySelectorAll("a[href^='/search']")];
+            expect(railLinks.length, "柱のリンクが1本も無い（判定が空回りしている）").toBeGreaterThan(0);
+            for (const a of railLinks) {
+                // `<Link>` は上の mock で `data-next-link` を持つ `<a>` になる。
+                // 柱は素の `<a>` なので印が付かない
+                expect(a.hasAttribute("data-next-link"), "`<Link>` に戻っている（押すとクエリが落ちる）").toBe(false);
                 expect(a.getAttribute("href"), "href が消えている").toMatch(/^\/search\?/);
             }
             rail.unmount();
             // 面の中（`page`）は今までどおり `<Link>`
             const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
-            expect(wide.container.querySelector('a[href^="/category/"]'), "面の中のリンクが消えた").not.toBeNull();
+            const pageLink = wide.container.querySelector('a[href^="/category/"]');
+            expect(pageLink, "面の中のリンクが消えた").not.toBeNull();
+            // 🔴 **判定の自己確認。** ここが false になったら mock が効いて
+            // いない＝上の「印が無い」は何も検証していない
+            expect(pageLink!.hasAttribute("data-next-link"),
+                "`next/link` の mock が効いていない（柱の判定が空回りする）").toBe(true);
         });
 
         it("数えた値は面の中と同じ（並べ方と行き先だけが違う）", () => {

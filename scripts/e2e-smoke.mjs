@@ -458,6 +458,127 @@ async function runChecks(browser, eng) {
         await expectMenuWorks(page, `[${eng}] 集約ページ`);
     }
 
+    /**
+     * 🔴 **撮影スポット詳細（`/location/*`）。**
+     *
+     * ここは**検索の着地点**で、2026-09-22 に画面ごと作り直した。それなのに
+     * このスモークは一度も開いていなかった——同じ日に出た不具合が
+     * **どちらもこの画面**だった:
+     *
+     *   - その場で拡大したビューアの**キャプションが空**（渡す項目を絞りすぎた）
+     *   - **戻るでページごと離脱**（履歴を積んでいなかった＝検索から来た人が
+     *     サイトの外へ出る）
+     *
+     * どちらも例外にならないので、単体テストもビルドも素通りする。
+     * **スラッグは全部が非ASCII**（`/location/パリ`）なので、
+     * 百分率エンコードの経路もここで一度通る。
+     */
+    const locDir = path.join(OUT, "location");
+    // **`_none.html` を外し、並びを固定する。** 0枚ビルドの置き石が先頭に
+    // 来ると 404 → `/search?q=_none` へ流れ、**別のページで偽の緑**が出る
+    // （`photo` / `users` / `tag` が同じ理由で除いている）。並べ替えないと
+    // 当たるページが環境依存になる
+    const locs = fs.existsSync(locDir)
+        ? fs.readdirSync(locDir).filter((f) => f.endsWith(".html") && f !== "_none.html").sort()
+        : [];
+    if (locs.length > 0) {
+        console.log(`\n[${eng}][5b] 撮影スポット詳細`);
+        const slug = locs[0].replace(/\.html$/, "");
+        await page.goto(`http://localhost:${PORT}/location/${encodeURIComponent(slug)}`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] スポット詳細: ハイドレーション完了`, await waitForHydration(page));
+        const spot = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            imgs: document.querySelectorAll("img").length,
+            links: document.querySelectorAll("a[href^='/photo/']").length,
+        }));
+        check(`[${eng}] スポット詳細: 見出しが出る`, spot.h1.length > 0, spot.h1);
+        check(`[${eng}] スポット詳細: 写真が並ぶ`, spot.imgs > 0, `img=${spot.imgs}`);
+        check(`[${eng}] スポット詳細: 写真ページへの内部リンクがある`, spot.links > 0, `links=${spot.links}`);
+
+        // 格子をタップ → **その場で拡大**（遷移しない）
+        const beforeUrl = page.url();
+        // **2枚目を押す**（1枚目はヒーローと同じ写真）。`page.tap` は nth を
+        // 取らないので locator で選ぶ。
+        // **投げさせない。** ここで例外が出ると `runChecks` を抜けて
+        // `/search` の検査もデスクトップの回も丸ごと走らず、しかも
+        // 検査名の付いた ❌ が1つも出ない（生の Playwright のタイムアウトになる）
+        const tile = page.locator("a[href^='/photo/']").nth(1);
+        let tapped = true;
+        try {
+            await tile.tap({ timeout: 10000 }).catch(() => tile.click({ timeout: 10000 }));
+        } catch (e) {
+            tapped = false;
+            check(`[${eng}] スポット詳細: 格子の写真を押せる`, false, String(e.message).split("\n")[0]);
+        }
+        // **固定の待ちにしない。** ビューアは `dynamic(..., { ssr: false })` なので
+        // チャンクの取得が伸びると、待ち時間で決め打ちした回だけ3件同時に落ちる
+        if (tapped) await page.waitForSelector('[role="dialog"]', { timeout: 10000 }).catch(() => undefined);
+        const viewer = await page.evaluate(() => {
+            const d = document.querySelector('[role="dialog"]');
+            if (!d) return { open: false, text: "", author: 0 };
+            return {
+                open: true,
+                text: (d.textContent ?? "").replace(/\s+/g, " ").trim(),
+                // **投稿者への導線**。`userId` と `displayName` の両方が
+                // 渡っていないと出ない＝ビューア用の絞りを通った証拠
+                author: d.querySelectorAll('a[href^="/users/"]').length,
+            };
+        });
+        check(`[${eng}] スポット詳細: 格子タップでその場で拡大する`, viewer.open && page.url() === beforeUrl, page.url());
+        // 🔴 **中身が痩せていないこと。** 渡す項目を絞りすぎると、絵は出るのに
+        // 説明文も撮影情報も投稿者も黙って空になる（実際に起きた形）。
+        //
+        // ⚠️ **文字数だけでは捕まらない。** 格子用の絞り（`slimForGrid`）でも
+        // 題と撮影地は残るので、`length > 10` は素通りする（実測）。
+        // **ビューア用の絞りを通らないと出ないもの**で見る——投稿者への導線は
+        // `userId` と `displayName` の両方が要る。
+        check(`[${eng}] スポット詳細: ビューアに投稿者が出る（項目を絞りすぎていない）`,
+            viewer.author > 0, `author=${viewer.author} text=${JSON.stringify(viewer.text.slice(0, 60))}`);
+        check(`[${eng}] スポット詳細: ビューアに文字が出る`, viewer.text.length > 10, JSON.stringify(viewer.text.slice(0, 60)));
+        // 🔴 **端末の「戻る」でビューアだけ閉じ、ページからは離れない。**
+        // 積み忘れると、検索から来た人が戻るでサイトの外へ出る
+        await page.goBack();
+        // 閉じるのを待つ（固定の待ちにしない）
+        const closed = await page
+            .waitForFunction(() => !document.querySelector('[role="dialog"]'), undefined, { timeout: 10000 })
+            .then(() => true).catch(() => false);
+        check(`[${eng}] スポット詳細: 戻るでビューアが閉じ、ページに留まる`,
+            closed && page.url().includes("/location/"), `closed=${closed} url=${page.url()}`);
+    }
+
+    /**
+     * 🔴 **「さがす」（`/search`）。** 絞り込みの本拠地なのに一度も開いて
+     * いなかった。`useGallery` は URL から絞り込みを読むので、**直接ひらいた
+     * ときに効いているか**をここで通す（`<Link>` で飛ぶと落ちる形を
+     * `DiscoverSections.test.tsx` が別に見ている）。
+     */
+    {
+        console.log(`\n[${eng}][5c] さがす`);
+        await page.goto(`http://localhost:${PORT}/search`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] さがす: ハイドレーション完了`, await waitForHydration(page));
+        const all = await page.evaluate(() => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length);
+        check(`[${eng}] さがす: 写真が並ぶ`, all > 0, `links=${all}`);
+        // カテゴリで絞る（URL から読む経路）。**件数が減ること**まで見る
+        const cat = await page.evaluate(() => {
+            const b = [...document.querySelectorAll("button[aria-pressed]")].find((x) => x.getAttribute("aria-pressed") === "false");
+            return b ? (b.getAttribute("aria-label") ?? b.textContent ?? "").trim() : null;
+        });
+        // **見つからなければ赤にする。** `if (cat)` で包むと、チップの形が
+        // 変わった日に**何も検査しないまま全部緑**になる（`LocaleToggle` の
+        // 「見えたら押す」を死んだ分岐として消したのと同じ形）
+        check(`[${eng}] さがす: 絞り込みのチップがある`, !!cat, `cat=${cat}`);
+        if (cat) {
+            await tapOrClick(page, `button[aria-pressed="false"]`);
+            // 件数が動くまで待つ（固定の待ちにしない）
+            const narrowed = await page
+                .waitForFunction((n) => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length !== n, all, { timeout: 10000 })
+                .then(() => page.evaluate(() => document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length))
+                .catch(() => all);
+            check(`[${eng}] さがす: 絞り込みが効く（${cat}）`, narrowed > 0 && narrowed < all, `全${all} → ${narrowed}`);
+            check(`[${eng}] さがす: 絞り込みが URL に出る`, /[?&](category|tags|q)=/.test(page.url()), page.url());
+        }
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);
