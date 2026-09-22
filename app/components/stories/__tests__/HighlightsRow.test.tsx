@@ -13,13 +13,13 @@ import userEvent from "@testing-library/user-event";
  *   - 取得の失敗を「0件」に混ぜない・404 なら輪を外す
  */
 
-const mockUserPublicFetch = vi.hoisted(() => vi.fn());
+const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
 const viewerProps = vi.hoisted(() => ({ last: null as Record<string, unknown> | null }));
 
 vi.mock("../../../../lib/utils/api", () => ({
-    userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
-    userFetch: vi.fn(),
+    userFetch: (...a: unknown[]) => mockUserFetch(...a),
+    userPublicFetch: vi.fn(),
     publicFetch: vi.fn(),
 }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
@@ -68,17 +68,33 @@ const api = (hs: unknown = summary, det: unknown = detail) => async (url: string
 };
 
 const view = (props: Partial<React.ComponentProps<typeof HighlightsRow>> = {}) => render(
-    <HighlightsRow userId={OWNER} displayName="旅人" isOwner={false} isAuthenticated={false} ownUserId={null} locale="ja" {...props} />,
+    <HighlightsRow userId={OWNER} displayName="旅人" isOwner={false} isAuthenticated ownUserId={null} locale="ja" {...props} />,
 );
 
 beforeEach(() => {
-    mockUserPublicFetch.mockReset().mockImplementation(api());
+    mockUserFetch.mockReset().mockImplementation(api());
     mockShowToast.mockReset();
     viewerProps.last = null;
 });
 
 describe("ハイライトの輪", () => {
-    it("訪問者にも出る。題と表紙、表紙が無ければアイコン", async () => {
+    // 🔴 中身はストーリーそのもの。一覧（`GET /stories`）が認証必須なので、
+    // ここだけインターネットに開かない（一度そうして本番まで出した）
+    it("未ログインには出さないし、取りにもいかない", async () => {
+        const { container } = view({ isAuthenticated: false });
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockUserFetch, "ログインしていないのに取りにいっている").not.toHaveBeenCalled();
+        expect(container.querySelector("[data-testid=highlights-row]")).toBeNull();
+    });
+
+    it("本人でも、ログインが切れていれば出さない", async () => {
+        const { container } = view({ isAuthenticated: false, isOwner: true, ownUserId: OWNER });
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockUserFetch).not.toHaveBeenCalled();
+        expect(container.querySelector("[data-testid=highlights-row]")).toBeNull();
+    });
+
+    it("ログインした訪問者には出る。題と表紙、表紙が無ければアイコン", async () => {
         view();
         const list = await screen.findByRole("list", { name: "ハイライト" });
         const items = within(list).getAllByRole("listitem");
@@ -92,15 +108,15 @@ describe("ハイライトの輪", () => {
     });
 
     it("0件なら本人以外には何も描かない", async () => {
-        mockUserPublicFetch.mockImplementation(api([]));
+        mockUserFetch.mockImplementation(api([]));
         const { container } = view();
-        await waitFor(() => expect(mockUserPublicFetch).toHaveBeenCalled());
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         await act(async () => { await Promise.resolve(); });
         expect(container.querySelector("[data-testid=highlights-row]")).toBeNull();
     });
 
     it("本人には「新規」と、各輪の鉛筆（作る・直す画面へ）", async () => {
-        mockUserPublicFetch.mockImplementation(api([summary[0]]));
+        mockUserFetch.mockImplementation(api([summary[0]]));
         view({ isOwner: true, isAuthenticated: true, ownUserId: OWNER });
         const add = await screen.findByRole("link", { name: "ハイライトを作る" });
         expect(add.getAttribute("href")).toBe("/user/highlights");
@@ -109,7 +125,7 @@ describe("ハイライトの輪", () => {
     });
 
     it("本人は0件でも「新規」が出る", async () => {
-        mockUserPublicFetch.mockImplementation(api([]));
+        mockUserFetch.mockImplementation(api([]));
         view({ isOwner: true, isAuthenticated: true, ownUserId: OWNER });
         expect(await screen.findByRole("link", { name: "ハイライトを作る" })).toBeTruthy();
     });
@@ -118,7 +134,7 @@ describe("ハイライトの輪", () => {
         view({ isAuthenticated: true, ownUserId: "someone-else" });
         await userEvent.click(await screen.findByRole("button", { name: /北海道/ }));
         expect(await screen.findByTestId("viewer")).toBeTruthy();
-        expect(mockUserPublicFetch).toHaveBeenCalledWith(`/highlights/${OWNER}/${H1}`);
+        expect(mockUserFetch).toHaveBeenCalledWith(`/highlights/${OWNER}/${H1}`);
         const groups = viewerProps.last?.groups as Array<{ userId: string; displayName: string; items: Array<{ id: string }> }>;
         expect(groups[0].userId).toBe(OWNER);
         expect(groups[0].displayName).toBe("旅人");
@@ -130,7 +146,7 @@ describe("ハイライトの輪", () => {
     });
 
     it("形の壊れた行は落として、残りで開く", async () => {
-        mockUserPublicFetch.mockImplementation(api(summary, { ...detail, items: [null, { id: "broken" }, detail.items[1]] }));
+        mockUserFetch.mockImplementation(api(summary, { ...detail, items: [null, { id: "broken" }, detail.items[1]] }));
         view();
         await userEvent.click(await screen.findByRole("button", { name: /北海道/ }));
         await screen.findByTestId("viewer");
@@ -139,7 +155,7 @@ describe("ハイライトの輪", () => {
     });
 
     it("中身が空なら開かず、その旨を出す", async () => {
-        mockUserPublicFetch.mockImplementation(api(summary, { ...detail, items: [] }));
+        mockUserFetch.mockImplementation(api(summary, { ...detail, items: [] }));
         view();
         await userEvent.click(await screen.findByRole("button", { name: /北海道/ }));
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("もうありません"), "error"));
@@ -155,7 +171,7 @@ describe("ハイライトの輪", () => {
     });
 
     it("取得に失敗したら「0件」ではなく失敗として出し、再試行できる", async () => {
-        mockUserPublicFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+        mockUserFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
         view();
         expect(await screen.findByText(/読み込めませんでした/)).toBeInTheDocument();
         await userEvent.click(screen.getByRole("button", { name: "再試行" }));
@@ -164,7 +180,7 @@ describe("ハイライトの輪", () => {
     });
 
     it("配列でない応答も失敗（0件に混ぜない）", async () => {
-        mockUserPublicFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ userId: OWNER }) });
+        mockUserFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ userId: OWNER }) });
         view();
         expect(await screen.findByText(/読み込めませんでした/)).toBeInTheDocument();
     });

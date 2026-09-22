@@ -38,30 +38,45 @@ const OWNER = "33333333-3333-4333-8333-333333333333";
 const H1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 import UserProfileClient from "../UserProfileClient";
 
-const publicApi = (highlights: unknown[]) => async (url: string) => {
-    if (url.startsWith("/highlights/")) return { ok: true, status: 200, json: async () => ({ highlights }) };
-    return { ok: true, status: 200, json: async () => ({ userId: OWNER, displayName: "旅人" }) };
+const publicApi = () => async () => ({ ok: true, status: 200, json: async () => ({ userId: OWNER, displayName: "旅人" }) });
+/** ハイライトは `userFetch`（ログインが要る口）で引く */
+const withHighlights = (highlights: unknown[]) => async (url: string) => {
+    if (String(url).startsWith("/highlights/")) return { ok: true, status: 200, json: async () => ({ highlights }) };
+    return { ok: true, json: async () => [] };
 };
 
 beforeEach(() => {
-    mockUserFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [] });
+    mockUserFetch.mockReset().mockImplementation(withHighlights([{ id: H1, title: "北海道", count: 1, cover: null }]));
     mockPublicFetch.mockReset().mockResolvedValue({ ok: true, json: async () => [] });
-    mockUserPublicFetch.mockReset().mockImplementation(publicApi([{ id: H1, title: "北海道", count: 1, cover: null }]));
+    mockUserPublicFetch.mockReset().mockImplementation(publicApi());
     mockGetCurrentSession.mockReset().mockResolvedValue(null);
     document.body.innerHTML = "";
 });
 
 describe("マイページのハイライト", () => {
-    it("訪問者のページにも出る（誰でも見られるもの）", async () => {
+    // 🔴 **未ログインには出さない。** 中身はストーリーそのもので、一覧
+    // （`GET /stories`）は認証必須——ここだけインターネットに開かない
+    it("未ログインの訪問者には出ない（取りにもいかない）", async () => {
+        render(<UserProfileClient userId={OWNER} />);
+        expect(await screen.findByText("旅人")).toBeInTheDocument();
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+        expect(screen.queryByTestId("highlights-row")).toBeNull();
+        expect(mockUserFetch.mock.calls.some((c) => String(c[0]).startsWith("/highlights/")),
+            "ログインしていないのに取りにいっている").toBe(false);
+    });
+
+    it("ログインした訪問者のページには出る", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: "22222222-2222-4222-8222-222222222222" } }) });
         render(<UserProfileClient userId={OWNER} />);
         expect(await screen.findByRole("button", { name: "ハイライト「北海道」を見る" })).toBeInTheDocument();
-        expect(mockUserPublicFetch).toHaveBeenCalledWith(`/highlights/${OWNER}`);
-        // 訪問者に「新規」は無い
+        expect(mockUserFetch).toHaveBeenCalledWith(`/highlights/${OWNER}`);
+        // 他人なので「新規」は無い
         expect(screen.queryByRole("link", { name: "ハイライトを作る" })).toBeNull();
     });
 
-    it("0件なら訪問者には何も描かない", async () => {
-        mockUserPublicFetch.mockImplementation(publicApi([]));
+    it("0件ならログインした訪問者にも何も描かない", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: "22222222-2222-4222-8222-222222222222" } }) });
+        mockUserFetch.mockImplementation(withHighlights([]));
         render(<UserProfileClient userId={OWNER} />);
         expect(await screen.findByText("旅人")).toBeInTheDocument();
         await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -85,7 +100,7 @@ describe("マイページのハイライト", () => {
     });
 
     it("本人には0件でも「新規」が出る", async () => {
-        mockUserPublicFetch.mockImplementation(publicApi([]));
+        mockUserFetch.mockImplementation(withHighlights([]));
         mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: OWNER } }) });
         render(<UserProfileClient userId={OWNER} />);
         const add = await screen.findByRole("link", { name: "ハイライトを作る" });

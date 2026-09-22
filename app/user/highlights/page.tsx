@@ -73,8 +73,8 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
         setExistingError(false);
         void (async () => {
             try {
-                const { userPublicFetch } = await import("../../../lib/utils/api");
-                const res = await userPublicFetch(`/highlights/${encodeURIComponent(userId)}/${encodeURIComponent(editingId)}`);
+                const { userFetch } = await import("../../../lib/utils/api");
+                const res = await userFetch(`/highlights/${encodeURIComponent(userId)}/${encodeURIComponent(editingId)}`);
                 if (!alive) return;
                 // **戻すのは「無い」ときだけ。** 500 や通信断まで「見つかりません」に
                 // 潰すと、在るものを消えたと思わせる（再試行の口も無くなる）

@@ -811,22 +811,35 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 🔴 **ログインが要る。** ハイライトの中身はストーリーそのもので、
+  # ストーリー一覧（`getStories`）は**認証必須**——この画面の「全員に公開」は
+  # **ログインした全員**という意味で、インターネット全体という意味ではない。
+  # 最初この2つを未認証で開いたが（マイページを誰でも見られるようにするため）、
+  # それでは**同じ中身をログインしていない人にも配る**ことになり、投稿者が
+  # 選んだ範囲より広かった。
+  #
+  # **`role: PublicReadRole` は付けない。** あれは「未認証で呼べる口」の目印で、
+  # `scripts/__tests__/publicLambdaRole.test.ts` が「認可の無い口の集合」と
+  # 突き合わせている。認可を付けた関数に残すと対応が崩れ、**新しい未認証の口が
+  # 黙って共有ロールに乗る**のを見つけられなくなる。認証済みの読み取り口
+  # （`getStoryViewers`・`getStoryReplies` など）は全部この共有ロール。
   getUserHighlights:
     handler: src/highlights.getUserHighlights
-    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
-    role: PublicReadRole
     events:
       - httpApi:
           path: /highlights/{userId}
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   getHighlight:
     handler: src/highlights.getHighlight
-    role: PublicReadRole
     events:
       - httpApi:
           path: /highlights/{userId}/{id}
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
 
   deleteAccount:
     handler: src/account.deleteAccount

@@ -491,14 +491,21 @@ describe("serverless.yml", () => {
         return m![1];
     };
 
-    it("未認証の2つは PublicReadRole、書く3つは cognitoAuthorizer", () => {
-        for (const fn of ["getUserHighlights", "getHighlight"]) {
-            expect(block(fn), `${fn} が読み取り専用ロールでない`).toContain("role: PublicReadRole");
-            expect(block(fn), `${fn} に認可が付いている（未認証で読む口）`).not.toContain("cognitoAuthorizer");
-        }
-        for (const fn of ["createHighlight", "updateHighlight", "deleteHighlight"]) {
+    // 🔴 **読む口にもログインが要る。** 中身はストーリーそのもので、一覧
+    // （`getStories`）は認証必須——「全員に公開」は**ログインした全員**の
+    // 意味なので、未認証で開くと投稿者が選んだ範囲より広く配ることになる。
+    // 一度そうして本番まで出した（`/highlights/{userId}` が誰でも読めた）
+    it("5つとも cognitoAuthorizer が要る（未認証で読める口を作らない）", () => {
+        for (const fn of ["getUserHighlights", "getHighlight", "createHighlight", "updateHighlight", "deleteHighlight"]) {
             expect(block(fn), `${fn} が認可なし`).toContain("name: cognitoAuthorizer");
-            expect(block(fn)).not.toContain("PublicReadRole");
+        }
+    });
+
+    // `PublicReadRole` は「未認証で呼べる口」の目印。認可を付けた関数に
+    // 残すと `scripts/__tests__/publicLambdaRole.test.ts` の対応が崩れる
+    it("読み取り専用ロールは付けない（未認証の口の目印なので）", () => {
+        for (const fn of ["getUserHighlights", "getHighlight"]) {
+            expect(block(fn), `${fn} に未認証の口の目印が残っている`).not.toContain("PublicReadRole");
         }
     });
 });

@@ -42,10 +42,12 @@ const services = [
         // 守りは「認証」ではなく**推測不能なトークン**（192ビット）で、
         // 読むのは招待の行とアルバムの行の GetItem 2回だけ
         // ——PublicReadRole の権限（写真テーブルは GetItem のみ）に収まる。
-        // `getUserHighlights` / `getHighlight` はマイページの輪（⑦）。プロフィールと
-        // 同じく誰でも見る面なので未認証。読むのは一覧・本体・ストーリーの
-        // GetItem だけ（`highlights.ts` の冒頭コメント）
-        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getUserHighlights", "getHighlight"],
+        // 🔴 **ハイライト（`getUserHighlights` / `getHighlight`）はここに入れない。**
+        // 一度入れて本番まで出してしまった。中身はストーリーそのもので、
+        // ストーリー一覧は認証必須——「全員に公開」は**ログインした全員**の
+        // 意味なので、未認証で開くと投稿者が選んだ範囲より広くなる。
+        // 読み取り専用ロールのままログインを要求している（`serverless.yml`）
+        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
     },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },
 ];
