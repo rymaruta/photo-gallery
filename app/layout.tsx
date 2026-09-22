@@ -345,8 +345,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                       **絵は描き直さない。** owner の PNG を `scripts/icon-source/aperture.png`
                       に原寸で置き、配るのはその 64px の写し（`public/logo-aperture.png`・2.7KB）。
-                      1254px を 28px の表示に配ると 560KB 払うことになるので縮めるだけで、
-                      形は1画素も変えていない。
+                      1254px を 28px の表示に配ると 560KB 払うことになるので縮めるだけ。
+                      **下地の黒は抜いてある**——紺のヘッダーの上で黒い四角に見えて
+                      いた（owner の報告「なんでこれだけ色違うの？」はメニューの
+                      ボタンの話だったが、ロゴも同じ理由で浮いていた）。
+                      抜き方は**明るさをそのまま透明度にする**だけで、形は1画素も
+                      変えていない（しきい値で切ると縁がギザギザになる）。
                       装飾なので読み上げには渡さない（`aria-hidden`＋空の `alt`）。 */}
                   <p className="font-serif text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0">
                     <Link
@@ -356,7 +360,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/logo-aperture.png" alt="" aria-hidden="true" width={32} height={32}
-                           className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0 rounded-md" />
+                           className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0" />
                       {/* **切るなら「…」を見せる。** `truncate` は外側の `<p>` に
                           掛かっていたが、中身が `inline-flex` なので**省略記号が出ず、
                           文字が途中で断ち切られていた**（実測: 文字サイズ200%・幅390px で
