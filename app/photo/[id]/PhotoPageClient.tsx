@@ -770,7 +770,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="min-h-screen text-white bg-bg max-w-2xl mx-auto w-full pb-8">
+            <main className="min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
             {/* **最終版モックの並び**（2026-09-21・owner「全く同じにしたい」）:
                 戻る/共有/⋯ の行 → 端までのヒーロー（撮影地チップ・地図）→ 題 →
                 作者行（枠線のフォロー）→ 撮影日 · 撮影地 → 本文 → チップ →
@@ -815,9 +815,15 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 </div>
             </div>
 
-            {/* ヒーロー。**端まで**（左右の余白なし・角丸なし）。複数枚は左右スワイプでも送れる */}
+            {/* **PC は2カラム**（owner の指示書 2026-09-22:「PCではスマホ画面を
+                そのまま横に引き伸ばさず、写真詳細は写真を大きく、撮影情報やコメントを
+                別カラムに」）。スマホ（1024px 未満）は最終版モックのまま縦に積む。
+                左は写真だけ・スクロールに追従、右に題から下を全部入れる */}
+            <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-8 lg:px-4 lg:pt-3 lg:items-start">
+            {/* ヒーロー。**スマホでは端まで**（左右の余白なし・角丸なし）。
+                複数枚は左右スワイプでも送れる */}
             <div
-                className="relative"
+                className="relative lg:sticky lg:top-4 lg:rounded-2xl lg:overflow-hidden"
                 {...(images.length > 1 ? swipeHandlers : {})}
                 style={images.length > 1 ? { touchAction: "pan-y" } : undefined}
             >
@@ -904,7 +910,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                 )}
             </div>
 
-            <div className="px-4 pt-3 space-y-3">
+            <div className="min-w-0">
+            <div className="px-4 pt-3 lg:px-0 lg:pt-0 space-y-3">
                 {/* 題。`break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ
                     （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                 <h1 className="font-bold break-words m-0" style={{ fontSize: "20px", lineHeight: "28px" }}>{titleText}</h1>
@@ -1298,7 +1305,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
             {/* タブ: コメント (N) ／ 関連写真。**両方の中身を描いて、見えない側は `hidden`**
                 ——関連写真の `/photo/<id>` リンクは静的HTMLに焼かれている必要がある
                 （回遊＝SEO。本番のスモークも「ほかの写真への導線」を数える） */}
-            <div ref={tabsRef} className="mt-5 px-4">
+            <div ref={tabsRef} className="mt-5 px-4 lg:px-0">
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
                      className="flex border-b border-white/10">
                     {([
@@ -1392,6 +1399,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     )}
                 </div>
             </div>
+            </div>{/* /右カラム */}
+            </div>{/* /2カラム（PC） */}
             </main>
         </>
     );
