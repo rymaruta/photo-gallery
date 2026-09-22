@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeftIcon, ChevronRightIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
@@ -759,6 +760,25 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const [mvOpen, setMvOpen] = useState(false);
 
+
+    /**
+     * タブのキーボード操作（WAI-ARIA のタブの作法）。
+     *
+     * `role="tab"` を名乗った以上、**矢印で移動できないと壊れて見える**
+     * ——支援技術は「1/2」と読み上げるのに動かない。タブストップは
+     * tablist 全体で1つにする（roving tabindex）。
+     * 計算は `lib/utils/tabKeys.ts`（写真ページ・通知ベルと共有）。
+     */
+    const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        const to = nextTabIndex(e.key, TAB_ORDER.indexOf(tab), TAB_ORDER.length);
+        if (to === null) return;
+        e.preventDefault();          // 矢印での横スクロールを起こさない
+        const next = TAB_ORDER[to];
+        setTab(next);
+        // 選んだタブへフォーカスも移す（roving tabindex なので移さないと
+        // 次の Tab が一覧を飛ばす）
+        document.getElementById(`profile-tab-${next}`)?.focus();
+    };
 
     // タブを横スワイプで切り替え（投稿 ⇄ 年表）。
     // Pointer Events で PC(マウス)・スマホ(タッチ)・ペンを一本化。
@@ -1537,8 +1557,20 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
             {/* コンテンツ（黒背景）: 投稿 / 年表 */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
-                {/* タブバー */}
-                <div className={"grid grid-cols-2 border-t border-white/10 mb-1"}>
+                {/* タブバー。
+                    🔴 **`aria-pressed` のボタンではなく、本物のタブにする。**
+                    `aria-pressed` は「押して入り切りする」という意味なので、
+                    **押し直しても外れない**この2つに付けると嘘になる
+                    （読み上げは「押されています」と言うのに、もう一度押しても
+                    何も起きない）。写真ページと通知ベルは既に
+                    `role="tab"` ＋ `aria-selected` ＋ 矢印キーで、
+                    計算は `lib/utils/tabKeys.ts` に1つ。**3つ目を別の形にしない。**
+                    見た目は変えていない（属性とキー操作だけ）。 */}
+                <div
+                    role="tablist"
+                    aria-label={locale === "en" ? "Profile sections" : "プロフィールの表示"}
+                    className={"grid grid-cols-2 border-t border-white/10 mb-1"}
+                >
                     {([
                         { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
                         { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
@@ -1547,13 +1579,20 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         return (
                             <button
                                 key={key}
+                                type="button"
+                                role="tab"
+                                id={`profile-tab-${key}`}
+                                aria-selected={active}
+                                aria-controls={`profile-panel-${key}`}
+                                // roving tabindex（停止点は選択中の1つだけ）
+                                tabIndex={active ? 0 : -1}
                                 onClick={() => setTab(key)}
-                                aria-pressed={active}
+                                onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
                                 className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
                                 style={{ touchAction: "manipulation" }}
                             >
-                                <Icon className="w-4 h-4" />
+                                <Icon className="w-4 h-4" aria-hidden="true" />
                                 <span>{label}</span>
                                 {active && <span className="absolute -top-px inset-x-0 h-0.5 rounded-full" style={{ backgroundColor: userProfile?.themeColor ?? "#ffffff" }} />}
                             </button>
@@ -1573,7 +1612,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 >
                 {/* 投稿タブ */}
                 {tab === "posts" && (
-                    // 分かるまでは何も出さない。**待っている間に「無い」と
+                    // **`role="tabpanel"` で包む。** タブが `aria-controls` で
+                    // 指す先が無いと、支援技術が「どれの中身か」を辿れない
+                    <div role="tabpanel" id="profile-panel-posts" aria-labelledby="profile-tab-posts">
+                    {// 分かるまでは何も出さない。**待っている間に「無い」と
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
                     postCount === 0 ? (photosResolved ? (
@@ -1605,12 +1647,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             ))}
                         </div>
                     )
+                    }
+                    </div>
                 )}
 
                 {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
                 {/* 年表タブ */}
                 {tab === "timeline" && (
-                    <div className="pb-8 pt-2">
+                    <div role="tabpanel" id="profile-panel-timeline" aria-labelledby="profile-tab-timeline" className="pb-8 pt-2">
                         {timeline.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
                                 <CalendarDaysIcon className="w-10 h-10" />

@@ -134,24 +134,28 @@ function ItemLink({ href, rail, className, style, children }: {
  * 2回読まれる**（3節で6つ）。実ビルドの `out/search.html` で
  * 「カテゴリからさがす」「写真の多い撮影地」「機材からさがす」が
  * それぞれ2回出ていた。見える方に `id` を付ければ1つで足りる。
+ *
+ * ⚠️ **「すべて見る ›」は置いていない。** `href` と `moreLabel` を受け取る
+ * 形で書いてあったが、**3か所の呼び出しがどれも `href` を渡していない**ので
+ * **一度も描かれたことが無かった**（実ビルドの `out/search.html` に
+ * 「すべて見る」は 0件）。渡し忘れと見分けが付かないので、枝ごと落とした。
+ *
+ * **出すことにしたときは、行き先を決めるところから。** 節の項目は owner の
+ * 指示で `/search?…`（noindex）へ向けてあるので、見出しの「すべて見る」まで
+ * そちらへ向けると、**トップから集約ページへの内部リンクが1本も無くなる**
+ * ——`CLAUDE.md` が「集約ページ＝検索での面積」と書いている側と逆になる。
+ * 集約ページ（`/category/*` など）へ向けるなら、そこは owner の判断。
  */
-function SectionHead({ id, title, href, moreLabel }: { id: string; title: string; href?: string; moreLabel: string }) {
+function SectionHead({ id, title }: { id: string; title: string }) {
     return (
         <div className="flex items-baseline justify-between mb-2.5">
             <h2 id={id} className="font-bold m-0" style={{ fontSize: "16px", lineHeight: "22px" }}>{title}</h2>
-            {href && (
-                <Link href={href} prefetch={false} className="text-link hover:text-white transition-colors"
-                      style={{ fontSize: "12px", touchAction: "manipulation" }}>
-                    {moreLabel}
-                </Link>
-            )}
         </div>
     );
 }
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap, variant = "page" }: Props) {
     const isJa = locale !== "en";
-    const more = isJa ? "すべて見る ›" : "See all ›";
     const isRail = variant === "rail";
     const shown = isRail ? SHOWN_RAIL : SHOWN;
     /**
@@ -181,7 +185,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
         <div className="space-y-6 mb-6">
             {categories.length > 0 && (
                 <section aria-labelledby="discover-categories">
-                    <SectionHead id="discover-categories" title={isJa ? "カテゴリからさがす" : "Browse by category"} moreLabel={more} />
+                    <SectionHead id="discover-categories" title={isJa ? "カテゴリからさがす" : "Browse by category"} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {categories.map((c) => {
                             const cover = coverFor(c, "category");
@@ -209,7 +213,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                 <section aria-labelledby="discover-spots">
                     {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、
                         閲覧数も保存数も持っていない（指示書 7） */}
-                    <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"} moreLabel={more} />
+                    <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"} />
                     {/* **柱では縦に並べた行**（150px のカードを2列にすると、
                         柱が画面の高さを超えて貼り付きが効かなくなる） */}
                     <ul className={`${isRail ? "flex flex-col gap-2" : row} m-0 p-0`} style={{ listStyle: "none" }}>
@@ -262,7 +266,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                         センサーの大きさを持っていない＝35mm換算に直せない。
                         APS-C の 28mm を「広角」と出すと嘘になる（指示書: 実際のデータが
                         存在しない限り表示しない） */}
-                    <SectionHead id="discover-cameras" title={isJa ? "機材からさがす" : "Browse by camera"} moreLabel={more} />
+                    <SectionHead id="discover-cameras" title={isJa ? "機材からさがす" : "Browse by camera"} />
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
