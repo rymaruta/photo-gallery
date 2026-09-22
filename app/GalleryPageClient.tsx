@@ -773,6 +773,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           onPrev={prev}
           locale={locale}
           categoryDisplayMap={categoryDisplayMap}
+          // **一覧で持っているぶんを渡す**（送るたびに聞きに行かせない）
+          savedIds={savedIds}
+          savesPending={saves.pending}
         />
       )}
     </main>
