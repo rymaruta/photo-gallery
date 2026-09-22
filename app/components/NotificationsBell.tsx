@@ -12,6 +12,7 @@ import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type Notif = {
     // 実際に作られるのは like / comment / follow / storyreply の4種類。
@@ -384,16 +385,15 @@ export default function NotificationsBell() {
      * ——支援技術は「1/4」と読み上げるのに動かない。合わせて
      * **タブストップは tablist 全体で1つ**にする（roving tabindex）。
      * 4つ全部が Tab の停止点だと、通知を1件読むまでに4回 Tab を押す。
+     *
+     * **どこへ移るかの判断は `nextTabIndex` 1つ**（`SpotPageClient` と
+     * 二重だったので寄せた）。ここに残るのは画面ごとに違うぶん
+     * ——状態の持ち方と、タブの id の付け方。
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-        const i = NOTIF_TABS.indexOf(tab);
-        const last = NOTIF_TABS.length - 1;
-        const to = e.key === "ArrowRight" ? (i === last ? 0 : i + 1)
-            : e.key === "ArrowLeft" ? (i === 0 ? last : i - 1)
-                : e.key === "Home" ? 0
-                    : e.key === "End" ? last
-                        : -1;
-        if (to < 0) return;
+        const to = nextTabIndex(e.key, NOTIF_TABS.indexOf(tab), NOTIF_TABS.length);
+        // **関係ないキーでは止めない。** 止めると Tab まで飲む
+        if (to === null) return;
         e.preventDefault();
         const next = NOTIF_TABS[to];
         setTab(next);

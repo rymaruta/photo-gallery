@@ -1337,10 +1337,6 @@ describe("退会: 同じアルバムの写真が複数あっても、全部外�
 // 「どの写真を気に入ったか」がテーブルに残っていた（掃除役は居ない）。
 // `spots#` / `saves#` と同じ扱いにする。
 describe("deleteAccount: いいねの一覧", () => {
-    const deletedIds = () => mockDdbSend.mock.calls
-        .filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "DeleteCommand")
-        .map((c) => String(((c[0] as { input: { Key?: { id?: string } } }).input.Key ?? {}).id ?? ""));
-
     function withLikes(photoIds: string[]) {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
@@ -1358,13 +1354,21 @@ describe("deleteAccount: いいねの一覧", () => {
         withLikes(["p1", "p2"]);
         const res = await invoke(deleteAccount, ev("me"));
         expect(res.statusCode).toBe(200);
-        expect(deletedIds(), "いいねの一覧が残っている").toContain("likes#me");
+        expect(deletedDdbIds(), "いいねの一覧が残っている").toContain("likes#me");
     });
 
-    // **写真側の `likes` は減らさない。** 減らす判断をするなら
-    // マーカーの削除と同じ書き込みでやる必要があり（でないと再実行で
-    // 二重に減る）、それを一覧の最大1000件ぶん回すとフォローの掃除と
-    // 同じ実行時間の壁に当たる。詳細は `account.ts` の該当箇所のコメント。
+    /**
+     * **写真側の `likes` は減らさない。** 減らす判断をするならマーカーの
+     * 削除と同じ書き込みでやる必要があり（でないと再実行で二重に減る）、
+     * それを一覧の最大1000件ぶん回すとフォローの掃除と同じ実行時間の壁に
+     * 当たる。詳細は `account.ts` の該当箇所のコメント。
+     *
+     * ⚠️ **これは「この差分が直したこと」の検証ではない。** 今の実装は
+     * `likes#<uid>` を**消すだけで読まない**ので、`withLikes` が用意する
+     * 中身（`["p1","p2"]`）はこのテストでは効いていない——**差し戻しても
+     * 緑になる**。置いてあるのは、あとで「減らす」実装が入ったときに
+     * 捕まえるための見張り。実際に減算を足した変異で落ちることは確認済み。
+     */
     it("写真の `likes` を減らさない／マーカーも触らない", async () => {
         withLikes(["p1", "p2"]);
         await invoke(deleteAccount, ev("me"));
