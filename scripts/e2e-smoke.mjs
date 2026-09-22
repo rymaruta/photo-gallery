@@ -646,6 +646,37 @@ async function runChecks(browser, eng) {
                 .catch(() => all);
             check(`[${eng}] さがす: 絞り込みが効く（${cat}）`, narrowed > 0 && narrowed < all, `全${all} → ${narrowed}`);
             check(`[${eng}] さがす: 絞り込みが URL に出る`, /[?&](category|tags|q)=/.test(page.url()), page.url());
+
+            /**
+             * 🔴 **クエリ付きで「直接ひらく」経路を通す。**
+             *
+             * ここまでは `/search` を開いてからチップを押していた＝
+             * **クライアント側の状態変化**しか見ていない。ところが
+             * `/search?…` を**URL ごと開く**と、静的HTML（絞り込み無し）と
+             * 最初の描画（絞り込み後）が食い違って**React が水和に失敗して
+             * いた**（`#418`。2026-09-22 に実測）。失敗すると焼いた HTML を
+             * 捨てて全部描き直すので、検索からの着地・404 の救済・柱からの
+             * 遷移が毎回その作り直しを踏む。**例外は握られて画面に出ない。**
+             *
+             * この経路は実際に人が通る——`robots.txt` は `/search` を
+             * 拒んでいるが、404 の救済（`resolveNotFoundRedirect`）と
+             * ホームの柱がここへ送る。
+             *
+             * JS エラーそのものは下の「実行時のJSエラーがない」が拾う。
+             * ここでは**絞り込みが効いた状態で描かれること**まで見る
+             * （水和をやめて全部描き直せば絵は出るので、件数まで見ないと
+             *   「直った」と言えない）。
+             */
+            const direct = page.url();
+            await page.goto(direct, { waitUntil: "domcontentloaded" });
+            await waitForHydration(page);
+            await page.waitForTimeout(600);
+            const reopened = await page.evaluate(() =>
+                document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length);
+            check(`[${eng}] さがす: 絞り込み付きの URL を直接ひらいても効く`,
+                reopened > 0 && reopened < all, `全${all} → ${reopened}（${direct}）`);
+            check(`[${eng}] さがす: 直接ひらいても URL が残る`,
+                /[?&](category|tags|q)=/.test(page.url()), page.url());
         }
     }
 
