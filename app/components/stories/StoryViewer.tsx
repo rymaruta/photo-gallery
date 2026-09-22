@@ -1300,7 +1300,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                    書いていた）。`<a>` だと静的サイトを丸ごと読み直すので、
                                    他の導線（`PhotoPageClient`）と同じ `Link` に寄せる */
                                 href={ROUTES.EDIT(keptPhotoId ?? String(item.keptAs))}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/90 text-black text-xs font-semibold"
+                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-accent-fill/90 text-white text-xs font-semibold"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <PhotoIcon className="w-4 h-4" />
@@ -1445,7 +1445,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {viewersOpen && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setViewersOpen(false)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1502,7 +1502,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {repliesOpen && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setRepliesOpen(false)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-[#16181c] ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1596,7 +1596,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <div className="absolute inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60 px-3 pb-3 sm:pb-0" onClick={() => !deleting && setConfirmDelete(false)}>
                     {/* iOS のアクションシート風。装飾は最小限にして、文字そのもので選ばせる */}
                     <div className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl overflow-hidden">
+                        <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
                             <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">
                                 {locale === "en"
                                     ? "This story will be deleted. This can't be undone."
@@ -1615,7 +1615,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         <button
                             onClick={() => setConfirmDelete(false)}
                             disabled={deleting}
-                            className="w-full py-3.5 rounded-2xl bg-[#1c1c1e]/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
+                            className="w-full py-3.5 rounded-2xl bg-surface-2/95 backdrop-blur-xl text-white text-[17px] font-semibold hover:bg-[#2c2c2e]/95 active:bg-[#2c2c2e] transition disabled:opacity-50"
                             style={{ touchAction: "manipulation", marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                         >
                             {locale === "en" ? "Cancel" : "キャンセル"}

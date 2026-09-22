@@ -287,7 +287,7 @@ export default function SpotPageClient({
                         {en
                             ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
                             : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
-                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-sky-300 hover:text-sky-200 underline underline-offset-4">
+                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
                             {en ? "Open the map" : "撮影地マップを開く"}
                         </Link>
                     </p>

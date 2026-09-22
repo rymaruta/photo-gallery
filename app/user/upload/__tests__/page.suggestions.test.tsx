@@ -140,13 +140,13 @@ describe("アップロード画面の入力候補", () => {
         // **見た目でも分かること。** 直した症状の見出しは「選んだかどうかが
         // 分からない」＝見た目の話なので、`aria-checked` だけでは足りない
         // （選択中の色を未選択と同じに戻す変異が素通りしていた）
-        expect(chip.className, "選択中の見た目になっていない").toContain("bg-white ");
-        expect(chip.className).toContain("text-black");
+        expect(chip.className, "選択中の見た目になっていない").toContain("bg-accent-fill ");
+        expect(chip.className).toContain("text-white ");
 
         await userEvent.click(chip);
         expect(field.value, "押し直しても外れない（押しても何も起きないボタン）").toBe("");
         expect(chip).toHaveAttribute("aria-checked", "false");
-        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("text-black");
+        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("bg-accent-fill");
     });
 
     // 手で打った綴りが違っても、同じタグとして見る（二重に入れない）

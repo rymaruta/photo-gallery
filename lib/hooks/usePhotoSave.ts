@@ -32,7 +32,14 @@ export type SaveResult = {
     requiresAuth?: boolean;
 };
 
-export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoading = false) {
+/**
+ * @param known 呼ぶ側が**一覧から**保存の有無を既に知っているとき（`useMySaves`
+ *   の id 集合から引いた真偽）。渡されたら写真ごとの GET を飛ばさない——
+ *   ホームのカードで写真ごとに聞きに行くと、一覧を開くだけで N 往復になる。
+ *   `undefined` なら今までどおり聞きに行く。押したあと（`touchedRef`）は
+ *   一覧の値で上書きしない（遅れて届いた一覧で戻さない）
+ */
+export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoading = false, known?: boolean) {
     const [saved, setSaved] = useState(false);
     const touchedRef = useRef(false);
     const photoIdRef = useRef(photoId);
@@ -78,6 +85,11 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
             setSaved(false);
             return;
         }
+        // 一覧から分かっているなら、それを使って聞きに行かない
+        if (typeof known === "boolean") {
+            if (!touchedRef.current) setSaved(known);
+            return;
+        }
         let aborted = false;
         const controller = new AbortController();
         void (async () => {
@@ -89,7 +101,7 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
             } catch { /* 未保存のまま */ }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId, isAuthenticated, authLoading]);
+    }, [photoId, isAuthenticated, authLoading, known]);
 
     const toggle = useCallback(async (): Promise<SaveResult> => {
         if (busyRef.current) return { ok: true };

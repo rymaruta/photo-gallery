@@ -2,16 +2,19 @@
 
 import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
-import { HeartIcon, ChatBubbleOvalLeftIcon } from "@heroicons/react/24/outline";
+import { HeartIcon, ChatBubbleOvalLeftIcon, PaperAirplaneIcon, BookmarkIcon, MapPinIcon } from "@heroicons/react/24/outline";
+import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
 import { slugify, tagKey, collectionPath } from "@/lib/utils/collections";
 import { photoAltText } from "@/lib/utils/photoAlt";
+import { shareUrl } from "@/lib/utils/share";
 import { timeAgo } from "@/lib/stories";
+import { usePhotoSave } from "@/lib/hooks/usePhotoSave";
+import { useToast } from "@/lib/hooks/useToast";
 import Thumb from "./Thumb";
-import ProfileLink from "./ProfileLink";
-import { FollowAction } from "./FollowButton";
+import UserAvatar from "./UserAvatar";
 import { FEED_SIZES_XL } from "./gridSizes";
 
 type Props = {
@@ -19,10 +22,17 @@ type Props = {
     locale: Locale;
     /** 最初の画面に入る数枚だけ true（`fetchPriority="high"`） */
     priority?: boolean;
-    /** ログイン中か。フォローの操作を出すかの判断に使う */
+    /** ログイン中か。保存の操作の可否に使う */
     isAuthenticated?: boolean;
-    /** 見ている人の id。自分の写真にはフォローを出さない */
-    viewerId?: string | null;
+    /** ログインの確認中か（その間は保存を押せない） */
+    authLoading?: boolean;
+    /**
+     * 自分が保存した写真の id（`useMySaves`）。**一覧ぶんを1回で引いた結果**を
+     * 渡す。渡さないと `usePhotoSave` が写真ごとにサーバーへ聞きに行き、
+     * 一覧を開くだけで N 往復になる（いいねを「数と行き先だけ」にしたのと
+     * 同じ理由）。`null` は「まだ分からない／取れなかった」
+     */
+    savedIds?: ReadonlySet<string> | null;
 };
 
 /** カードに出すタグの数。全部出すと写真より文字が多くなる */
@@ -45,25 +55,31 @@ function useAfterHydration(): boolean {
 }
 
 /**
- * 一覧の1枚（owner の新デザインのカード）。
+ * ホームの1枚（最終版モックのカード・2026-09-21・owner「全く同じにしたい」）。
  *
- * **写真が先、投稿者が後。** 以前は投稿者の行が写真の上にあったが、モックは
- * 写真を一番上に置き、題と撮影地を写真の上に重ね、その下に投稿者の行を敷く。
- * 「写真が主役」（CLAUDE.md）と同じ向き。
+ * **並びはモックのまま**: 投稿者の行（アバター・名前・撮影地／右に投稿時間）
+ * → 角丸の写真 → 題と本文 → ハッシュタグのチップ → いいね・コメント・シェア・
+ * 右端に保存。以前は「写真が先で題を重ねる」形だったが、モックは投稿者が先。
+ *
+ * **フォローのボタンはカードに置かない**（モックに無い。フォローは
+ * プロフィールと写真ページの持ち場）。
  *
  * 画像は一覧と同じ `Thumb`（512px の派生まで）。写真ページの主役（≤1600）を
  * 流し読みの面で1枚ずつ落とすのは重すぎる。押せば写真ページで原寸に近い方が出る。
  *
- * **いいね・コメントは「数」と「行き先」だけ。**
- * `usePhotoLikes` は写真ごとにサーバーへ引きに行くので、カードに載せると
- * **一覧を開くだけで N 往復**になる（CLAUDE.md の優先度「表示速度」と逆）。
- * 押すと写真ページが開き、そこで押せる。**押せない見た目のボタンを置かない**
- * ——リンクとして出す。
+ * **いいね・コメントは「数」と「行き先」だけ。** `usePhotoLikes` は写真ごとに
+ * サーバーへ引きに行くので、カードに載せると**一覧を開くだけで N 往復**になる
+ * （CLAUDE.md の優先度「表示速度」と逆）。押すと写真ページが開き、そこで押せる。
+ * **保存は押せる**——一覧ぶんの id を `savedIds` で1回で受け取るので往復が
+ * 増えない（`usePhotoSave` の `known`）。
  */
-export default function TimelineCard({ photo, locale, priority = false, isAuthenticated = false, viewerId = null }: Props) {
+export default function TimelineCard({
+    photo, locale, priority = false, isAuthenticated = false, authLoading = false, savedIds = null,
+}: Props) {
     const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     const alt = photoAltText(photo, locale);
     const isJa = locale !== "en";
+    const { showToast } = useToast();
     // 「いつ上げたか」。撮影日ではない（並びと同じ理由。`lib/utils/timeline.ts`）。
     // **`createdAt` は UTC の瞬間（`…Z`）**なので、書かれた数字をそのまま出す
     // `formatStoredDateTime` に通すと JST の人には9時間前の時刻になる
@@ -95,23 +111,88 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
         }
         return out;
     }, [photo.tags]);
-    // **自分の写真にフォローは出さない**（押しても断られる）。
-    // 投稿者が分からない古い行にも出さない
-    const showFollow = !!photo.userId && photo.userId !== viewerId;
+
+    // 保存。一覧から分かっていれば（`savedIds`）写真ごとに聞きに行かない
+    const known = savedIds ? savedIds.has(photo.id) : undefined;
+    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(photo.id, isAuthenticated, authLoading, known);
+    const handleSave = React.useCallback(() => {
+        void toggleSave().then((r) => {
+            if (r.ok) return;
+            // **未ログインは「失敗」ではなく案内**（モーダルと同じ文言）
+            if (r.requiresAuth) {
+                showToast(isJa ? "写真を保存するにはログインしてください" : "Log in to save photos.", "error");
+                return;
+            }
+            showToast(r.message ?? (isJa ? "保存できませんでした。もう一度お試しください" : "Couldn't save this photo. Please try again."), "error");
+        });
+    }, [toggleSave, showToast, isJa]);
+
+    // シェア。行き先は写真ページ（写真ページ・モーダルと同じ判断: `?photo=` ではなく `/photo/<id>`）
+    const handleShare = React.useCallback(() => {
+        const url = new URL(ROUTES.PHOTO(photo.id), window.location.origin).href;
+        void shareUrl(url, title || undefined, paragraphs.join(" ")).then((result) => {
+            // cancelled（利用者が閉じた）と shared は何も出さない
+            if (result === "copied") showToast(isJa ? "リンクをクリップボードにコピーしました" : "Link copied to clipboard!", "success");
+            else if (result === "failed") showToast(isJa ? "共有できませんでした" : "Could not share", "error");
+        });
+    }, [photo.id, title, paragraphs, showToast, isJa]);
+
+    const displayName = photo.displayName || (isJa ? "旅人" : "Traveler");
+    const actionText = { fontSize: "13px", lineHeight: "18px" } as const;
+    const iconSize = { width: "22px", height: "22px" } as const;
 
     return (
-        <article className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden">
+        <article className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden">
+            {/* 投稿者の行: アバター・名前・撮影地／右に投稿時間 */}
+            <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
+                {photo.userId ? (
+                    <Link href={ROUTES.USER_PROFILE(photo.userId)} prefetch={false}
+                          className="flex-shrink-0 rounded-full"
+                          aria-label={isJa ? `${displayName} のプロフィール` : `${displayName}'s profile`}
+                          style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}>
+                        <UserAvatar userId={photo.userId} className="w-9 h-9" iconClassName="w-5 h-5" />
+                    </Link>
+                ) : (
+                    <span aria-hidden="true" className="w-9 h-9 rounded-full bg-white/10 flex-shrink-0" />
+                )}
+                {/* **名前の箱は縮んでよい。** `min-w-0` が無いと、空白の無い100文字の
+                    名前で右の時刻がカードの外へ押し出される（レビューが Chromium
+                    320px で実測した形）。中の名前は `overflow-wrap: anywhere` で折る */}
+                <div className="min-w-0 flex-1">
+                    {photo.userId ? (
+                        <Link href={ROUTES.USER_PROFILE(photo.userId)} prefetch={false}
+                              className="block text-white font-semibold wrap-anywhere hover:text-white/80 transition-colors"
+                              style={{ fontSize: "15px", lineHeight: "20px", touchAction: "manipulation" }}>
+                            {displayName}
+                        </Link>
+                    ) : (
+                        <span className="block text-white font-semibold wrap-anywhere" style={{ fontSize: "15px", lineHeight: "20px" }}>{displayName}</span>
+                    )}
+                    {photo.location && (
+                        <p className="m-0 flex items-center gap-1 text-white/60 min-w-0" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                            <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "13px", height: "13px" }} />
+                            <span className="truncate">{photo.location}</span>
+                        </p>
+                    )}
+                </div>
+                {posted && (
+                    <time className="flex-shrink-0 text-white/50" style={{ fontSize: "12px", lineHeight: "16px" }}
+                          dateTime={photo.createdAt}>{posted}</time>
+                )}
+            </div>
+
+            {/* 写真。角丸で左右に少し余白（モックの形）。押すと写真ページ */}
             <Link
                 href={ROUTES.PHOTO(photo.id)}
                 prefetch={false}
-                className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                aria-label={title ? `${title} を開く` : "写真を開く"}
+                className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label={title ? (isJa ? `${title} を開く` : `Open ${title}`) : (isJa ? "写真を開く" : "Open photo")}
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
             >
                 <div
-                    className="relative w-full overflow-hidden"
-                    style={{ paddingTop: `${ratio}%`, backgroundColor: photo.dominantColor ?? "#111", fontSize: 0, lineHeight: 0 }}
+                    className="relative mx-2 rounded-xl overflow-hidden"
+                    style={{ paddingTop: `${ratio}%`, backgroundColor: photo.dominantColor ?? "#0d1a26", fontSize: 0, lineHeight: 0 }}
                 >
                     <Thumb photo={photo} alt={alt} sizes={FEED_SIZES_XL} priority={priority} />
 
@@ -123,60 +204,20 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
                             1/{extraCount + 1}
                         </p>
                     )}
-
-                    {/* **題と撮影地を写真の上に。** 中身が無ければ帯ごと出さない
-                        （題の無い写真に空の帯を敷くと、下だけ黒くなって理由が
-                        分からない。一覧のセルで一度直した形） */}
-                    {(title || photo.location) && (
-                        <div className="absolute left-0 right-0 bottom-0 px-3 pb-3 pt-10"
-                             style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }}>
-                            {title && (
-                                <p className="text-white font-bold break-words m-0"
-                                   style={{ fontSize: "18px", lineHeight: "24px" }}>{title}</p>
-                            )}
-                            {photo.location && (
-                                <p className="text-white/80 break-words m-0 mt-0.5"
-                                   style={{ fontSize: "13px", lineHeight: "18px" }}>{photo.location}</p>
-                            )}
-                        </div>
-                    )}
                 </div>
             </Link>
 
-            {/* 投稿者の行 */}
-            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-                {/* **名前の箱は縮んでよい。** `ProfileLink` の中の `break-words` は
-                    フレックス行の子としての最小幅（＝空白の無い名前1語の幅）を縮めない
-                    ので、100文字の名前で右のものがカードの外へ押し出される（レビューが
-                    Chromium 320px で実測）。箱に `min-w-0` ＋中の名前を
-                    `overflow-wrap: anywhere` で折る */}
-                <div className="min-w-0 overflow-hidden [&_span]:wrap-anywhere">
-                    {photo.userId ? (
-                        <ProfileLink userId={photo.userId} displayName={photo.displayName || "旅人"} size="sm" />
-                    ) : (
-                        <span className="text-xs sm:text-sm text-white/60">{photo.displayName || "旅人"}</span>
+            {/* 題と本文。**題は焼いたまま**（検索に効く文字。写真の上に重ねるのをやめても消さない） */}
+            {(title || paragraphs.length > 0) && (
+                <div className="px-3 pt-2.5 break-words">
+                    {title && (
+                        <p className="m-0 text-white font-semibold" style={{ fontSize: "15px", lineHeight: "22px" }}>{title}</p>
                     )}
-                    {posted && (
-                        <time className="block text-white/50" style={{ fontSize: "11px", lineHeight: "14px" }}
-                              dateTime={photo.createdAt}>{posted}</time>
+                    {paragraphs.length > 0 && (
+                        <div className="text-white/85" style={{ fontSize: "14px", lineHeight: "21px" }}>
+                            {paragraphs.map((line, i) => <p key={i} className="m-0">{line}</p>)}
+                        </div>
                     )}
-                </div>
-                {showFollow && (
-                    <div className="flex-shrink-0">
-                        <FollowAction
-                            targetUserId={photo.userId!}
-                            isOwner={false}
-                            isAuthenticated={isAuthenticated}
-                            locale={isJa ? "ja" : "en"}
-                        />
-                    </div>
-                )}
-            </div>
-
-            {/* 説明 */}
-            {paragraphs.length > 0 && (
-                <div className="px-3 pb-2 text-white/80 break-words" style={{ fontSize: "14px", lineHeight: "20px" }}>
-                    {paragraphs.map((line, i) => <p key={i} className="m-0">{line}</p>)}
                 </div>
             )}
 
@@ -184,14 +225,14 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
                 先読みしない（静的書き出し＋`no-store` 配信なので、画面に入るたび
                 行き先を丸ごと落とし直す。`d8884430`） */}
             {tags.length > 0 && (
-                <div className="px-3 pb-2 flex flex-wrap gap-x-2 gap-y-1">
+                <div className="px-3 pt-2 flex flex-wrap gap-1.5">
                     {tags.map((t) => (
                         <Link
                             key={t}
                             href={collectionPath("tag", slugify(t, "tag"))}
                             prefetch={false}
-                            className="text-white/60 hover:text-white transition-colors"
-                            style={{ fontSize: "13px", lineHeight: "18px", touchAction: "manipulation" }}
+                            className="inline-flex items-center rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                            style={{ fontSize: "12px", lineHeight: "16px", padding: "3px 9px", touchAction: "manipulation" }}
                         >
                             #{t.replace(/^#/, "")}
                         </Link>
@@ -199,30 +240,49 @@ export default function TimelineCard({ photo, locale, priority = false, isAuthen
                 </div>
             )}
 
-            {/* いいね・コメントの数。**押すと写真ページが開く**（そこで押せる）。
-                ここで押せるようにすると写真ごとにサーバーへ引きに行くことになり、
-                一覧を開くだけで N 往復になる */}
-            <div className="flex items-center gap-4 px-3 pb-3">
+            {/* いいね・コメントの数（押すと写真ページが開く）・シェア・右端に保存 */}
+            <div className="flex items-center gap-5 px-3 pt-2.5 pb-3">
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
                     prefetch={false}
-                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors"
                     style={{ touchAction: "manipulation" }}
                     aria-label={isJa ? `いいね ${photo.likes ?? 0}件。写真を開く` : `${photo.likes ?? 0} likes. Open photo`}
                 >
-                    <HeartIcon aria-hidden="true" style={{ width: "20px", height: "20px" }} />
-                    <span style={{ fontSize: "13px", lineHeight: "18px" }}>{(photo.likes ?? 0).toLocaleString()}</span>
+                    <HeartIcon aria-hidden="true" style={iconSize} />
+                    <span style={actionText}>{(photo.likes ?? 0).toLocaleString()}</span>
                 </Link>
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
                     prefetch={false}
-                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors"
                     style={{ touchAction: "manipulation" }}
                     aria-label={isJa ? `コメント ${photo.commentCount ?? 0}件。写真を開く` : `${photo.commentCount ?? 0} comments. Open photo`}
                 >
-                    <ChatBubbleOvalLeftIcon aria-hidden="true" style={{ width: "20px", height: "20px" }} />
-                    <span style={{ fontSize: "13px", lineHeight: "18px" }}>{(photo.commentCount ?? 0).toLocaleString()}</span>
+                    <ChatBubbleOvalLeftIcon aria-hidden="true" style={iconSize} />
+                    <span style={actionText}>{(photo.commentCount ?? 0).toLocaleString()}</span>
                 </Link>
+                <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors"
+                    style={{ touchAction: "manipulation" }}
+                    aria-label={isJa ? "シェア" : "Share"}
+                >
+                    <PaperAirplaneIcon aria-hidden="true" style={{ ...iconSize, transform: "rotate(-30deg)" }} />
+                    <span style={actionText}>{isJa ? "シェア" : "Share"}</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    aria-pressed={saved}
+                    aria-disabled={savePending || undefined}
+                    className={`ml-auto flex items-center transition-colors ${saved ? "text-accent" : "text-white/85 hover:text-white"}`}
+                    style={{ touchAction: "manipulation" }}
+                    aria-label={saved ? (isJa ? "保存を取り消す" : "Remove from saved") : (isJa ? "保存" : "Save")}
+                >
+                    {saved ? <BookmarkSolidIcon aria-hidden="true" style={iconSize} /> : <BookmarkIcon aria-hidden="true" style={iconSize} />}
+                </button>
             </div>
         </article>
     );

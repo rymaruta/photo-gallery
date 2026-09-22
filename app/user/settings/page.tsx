@@ -259,7 +259,7 @@ export default function SettingsPage() {
     // （移設元の `/user/profile` は `loading || fetching` で塞いでいた）。
     if (loading || !isAuthenticated) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">設定</h1>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
     const rowLinkClass = "flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition";
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"

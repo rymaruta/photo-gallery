@@ -43,7 +43,7 @@ export default function AddToHomeScreenHint() {
 
     return (
         <div className="mb-4 flex items-start gap-2 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 p-3 text-xs text-white/70">
-            <ArrowUpOnSquareIcon className="w-4 h-4 mt-0.5 text-sky-400 flex-shrink-0" />
+            <ArrowUpOnSquareIcon className="w-4 h-4 mt-0.5 text-link flex-shrink-0" />
             <p className="flex-1 leading-relaxed">
                 {locale === "en"
                     ? "Tip: tap Share → “Add to Home Screen” to open this like an app (full-screen, one tap)."

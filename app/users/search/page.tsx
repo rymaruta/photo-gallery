@@ -52,7 +52,7 @@ export default function UserSearchPage() {
     const showFailed = searched && failed && users.length === 0;
 
     return (
-        <main className="min-h-screen bg-black text-white max-w-2xl mx-auto w-full px-4 pb-16">
+        <main className="min-h-screen bg-bg text-white max-w-2xl mx-auto w-full px-4 pb-16">
             <div className="flex items-center gap-2 py-3">
                 <button
                     onClick={() => {
@@ -135,7 +135,7 @@ export default function UserSearchPage() {
                                 className="rounded-full p-[2px] flex-shrink-0"
                                 style={{ background: u.themeColor || "rgba(255,255,255,0.12)" }}
                             >
-                                <div className="rounded-full p-[2px] bg-black">
+                                <div className="rounded-full p-[2px] bg-bg">
                                     <UserAvatar userId={u.userId} className="w-12 h-12" iconClassName="w-7 h-7" />
                                 </div>
                             </div>

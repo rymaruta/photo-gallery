@@ -123,7 +123,7 @@ export default function ModalControls({
                 style={BTN_STYLE}
             >
                 {isSaved
-                    ? <BookmarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
+                    ? <BookmarkIcon className="w-5 h-5 sm:w-6 sm:h-6 text-link" />
                     : <BookmarkIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 }
             </button>
