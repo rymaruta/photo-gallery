@@ -6,7 +6,7 @@ import {
     MapPinIcon, ArrowLeftIcon, ShareIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import GalleryGrid from "./GalleryGrid";
-import GalleryModal from "./GalleryModal";
+import dynamic from "next/dynamic";
 import MoreMenu from "./MoreMenu";
 import Thumb from "./Thumb";
 import { GRID_SIZES_6XL, SPOT_HERO_SIZES, SPOT_NEARBY_SIZES } from "./gridSizes";
@@ -22,6 +22,19 @@ import { useViewerHistory } from "../../lib/hooks/useViewerHistory";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
+
+/**
+ * **ビューアは後ろへ回す**（レビューの指摘6）。
+ *
+ * 静的 import だと、**写真を1枚も開かない訪問者にも**`/location/*` の
+ * 全ページでビューア一式（送り・スワイプ・いいね・保存・共有・
+ * キーボード補助）の JS が配られる。開いたときに取りに行けばよい。
+ *
+ * `ssr: false` にするのは、ビューアが `window` と `document` を前提に
+ * するため（静的書き出しの HTML には最初から出さない ＝ 開くまで
+ * 存在しない、が正しい姿）。
+ */
+const GalleryModal = dynamic(() => import("./GalleryModal"), { ssr: false });
 
 type SpotLink = { label: string; count: number; path: string };
 /** 周辺のスポット。`cover` はそのスポットの1枚（無ければ `null`） */
@@ -235,9 +248,9 @@ export default function SpotPageClient({
                 出しているのは**いま並んでいる写真の1枚目**（投稿の新しい順）で、
                 前/次で送れる＝**バッジの「1/N」が実際に動く**。
 
-                押すとその写真のページへ。**一覧の格子と同じ行き先**にして、
-                新しい操作を発明しない（その場での拡大は `GalleryModal` を
-                使い回す別の PR）。
+                押すと**その場で拡大する**（格子と同じ振る舞い）。`href` は
+                `/photo/<id>` のまま残すので、検索に載っているこのページから
+                写真の個別ページへの内部リンクは減らない。
 
                 画像は `Thumb`（`<picture>`・AVIF/WebP・blur-up・
                 `publicImageUrl` での1オリジン化・毒を食った控えの破棄まで
@@ -257,6 +270,17 @@ export default function SpotPageClient({
                         aria-label={en ? "Open this photo" : "この写真を開く"}
                         className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        // **格子と同じ振る舞いにする。** 同じ画面で同じ写真が
+                        // 「遷移する／その場で開く」の2通りだった（レビューの指摘4）。
+                        // 🔴 **`href` は残す**——消すと検索に載っているこの
+                        // ページから写真の個別ページへの内部リンクが1本減る。
+                        // 止めるのは押したときの遷移だけで、`GalleryGrid` の
+                        // `openInPlace` とまったく同じ形
+                        onClick={(e) => {
+                            // 新しいタブ・別ウィンドウで開く操作は邪魔しない
+                            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                            if (openById(hero.id)) e.preventDefault();
+                        }}
                     >
                         {/* **比で枠を予約する**（読み込み後に高さが伸びて下がガタつかない）。
                             `slimForGrid` は `width` / `height` を渡さないので、
@@ -367,7 +391,7 @@ export default function SpotPageClient({
                 元の docstring が守っていたのは「検索に載っているページなので、
                 本文が HTML から消えてはいけない」という一点で、**節に
                 すればその心配自体が消える**（隠す仕組みが無くなる）。
-                `spotSections.test.tsx` が「`hidden` を持つ節が無いこと」と
+                `SpotPageClient.test.tsx` が「`hidden` を持つ節が無いこと」と
                 「3つぶんの中身が1回の描画で全部在ること」を固定している。
 
                 置くのは**実体のある操作だけ**:
@@ -504,6 +528,11 @@ export default function SpotPageClient({
                     photos={photos}
                     locale={locale}
                     sizes={GRID_SIZES_6XL}
+                    // **先読みしない。** 上にヒーローが在るので、格子の1枚目は
+                    // 折り返しのずっと下（実測 y=1064 / 画面 844・390px）。
+                    // 既定の8枚 `priority` は、画面に出ていない写真で LCP と
+                    // 帯域を奪い合う（レビューの指摘3）
+                    priorityCount={0}
                     // モック⑧「タップで拡大表示に切り替わる」。
                     // **`<Link href="/photo/<id>">` は残る**ので、
                     // 検索に載っているこのページからの内部リンクは消えない
@@ -517,7 +546,9 @@ export default function SpotPageClient({
                         <h2 className="text-sm font-semibold text-white/70 mb-3">
                             {en ? "You might also like" : "ほかにこんな写真も"}
                         </h2>
-                        <GalleryGrid photos={nearbyPhotos} locale={locale} sizes={GRID_SIZES_6XL} />
+                        {/* **ここも先読みしない。** ページのいちばん下で、
+                            折り返しから2画面ぶん下に在る */}
+                        <GalleryGrid photos={nearbyPhotos} locale={locale} sizes={GRID_SIZES_6XL} priorityCount={0} />
                     </section>
                 )}
             </section>
