@@ -1047,7 +1047,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     </button>
                     <button
                         type="button"
-                        onClick={() => { setActiveTab("comments"); tabsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }); }}
+                        onClick={() => { setActiveTab("comments"); tabsRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" }); }}
                         aria-label={locale === "en" ? `${commentCount} comments. Show comments` : `コメント ${commentCount}件。コメントを見る`}
                         className="flex items-center gap-1.5 text-white/85 hover:text-white transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
