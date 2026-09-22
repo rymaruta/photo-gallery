@@ -79,10 +79,12 @@ API_BASELINE=11
 # ⚠️ **並行するブランチが各自の木で関門を通しても、合流した develop で
 # 基準を超える**（9/21 の 120 → 129 と同じ形）。develop を取り込んだら
 # この関門を一度は通すこと。
-# 2026-09-22: 142 → 149。develop に入った #85（⑦ハイライト）の新ファイル2つぶん
-# ——`highlights.ts` 6・`highlights.test.ts` 1（`git cat-file -e f3a13491:<path>` で
-# 「基準を決めた断面に無いファイル」だけを数えて 7 = 149 − 142 と一致）。
-API_USER_BASELINE=149
+# 2026-09-22: 149 → 142 に**戻した**。149 へ上げたのは私の測り違い——この容れ物の
+# `api-user/node_modules` がほぼ空で `@types/aws-lambda` を引けず、TS2307 と
+# その帰結の TS7006 で膨らんだ数を「develop で増えた」と読んでいた。
+# `cd api-user && npm ci` を打つと **57件**（別のセッションの実測「57/142」と一致）。
+# 下の「型定義が入っているか」の見張りが、この読み違いを次から止める。
+API_USER_BASELINE=142
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
