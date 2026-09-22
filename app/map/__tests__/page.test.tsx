@@ -124,7 +124,9 @@ describe("/map", () => {
         expect(screen.queryByText(/おおよその位置です/), "おおよそが0枚なのに注記が出ている").toBeNull();
     });
 
-    // 地図を操作できない環境（読み上げ・キーボード）向け。地図と同じ写真へ辿れる
+    // 地図を操作できない環境（読み上げ・キーボード）向け。地図と同じ写真へ辿れる。
+    // **`sr-only` の一覧はこの見える一覧に置き換えた**（2026-09-22）。両方置くと
+    // 同じリンクが2組 DOM に並び、片方だけ直す事故が起きる
     it("地図上の写真と同じ集合を、リンクの一覧としても出す", () => {
         photosState.current = [
             base("a", { coords: { lat: 35.68, lng: 139.77 } }),
@@ -137,7 +139,41 @@ describe("/map", () => {
         // `ROUTES.PHOTO` はビルド済みの写真だけ `/photo/<id>` にし、それ以外は
         // `/?photo=<id>`（モーダル）へ回す。ここではその規則に従う
         expect(links.map((a) => a.getAttribute("href"))).toEqual([ROUTES.PHOTO("a"), ROUTES.PHOTO("c")]);
-        expect(links.map((a) => a.textContent)).toEqual(["場所a", "場所c"]);
+        // 行の主役は撮影地（地図の一覧なので、探しているのは場所）
+        expect(within(list).getByText("場所a")).toBeInTheDocument();
+        expect(within(list).getByText("場所c")).toBeInTheDocument();
+    });
+
+    // 絞り込み（①のチップと検索欄）。規則そのものは `lib/utils/mapFilter.ts` の
+    // 純関数が見る。ここは**画面が繋がっているか**だけ
+    it("チップは、いま地図に在るカテゴリだけを出す（決め打ちで並べない）", () => {
+        photosState.current = [
+            base("a", { coords: { lat: 35.68, lng: 139.77 }, category: "風景" }),
+            base("b", { coords: { lat: 48.86, lng: 2.35 }, category: "建物" }),
+            base("c", { coords: { lat: 51.51, lng: -0.13 }, category: "建築" }),
+        ];
+        render(<MapPage />);
+        const chips = within(screen.getByTestId("map-category-chips")).getAllByRole("switch");
+        // 「建物」と「建築」は同じ `architecture` に畳まれる（集約ページと同じ物差し）
+        expect(chips.map((b) => b.textContent)).toEqual(["すべて", "建築", "風景"]);
+        // モックの絵にある「グルメ」「街並み」は実データに無いので出さない
+        expect(screen.queryByText("グルメ")).toBeNull();
+    });
+
+    it("チップを押すと、そのカテゴリだけが地図に渡る（押し直すと外れる）", () => {
+        photosState.current = [
+            base("a", { coords: { lat: 35.68, lng: 139.77 }, category: "風景" }),
+            base("b", { coords: { lat: 48.86, lng: 2.35 }, category: "建築" }),
+        ];
+        render(<MapPage />);
+        const chip = screen.getByRole("switch", { name: "建築" });
+        fireEvent.click(chip);
+        expect(mapProps.last?.ids).toEqual(["b"]);
+        expect(chip).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByTestId("map-count").textContent).toContain("1枚");
+
+        fireEvent.click(chip);
+        expect(mapProps.last?.ids).toEqual(["a", "b"]);
     });
 
     /**
@@ -205,8 +241,10 @@ describe("/map", () => {
             photosState.current = photos;
             render(<MapPage />);
             act(() => { mapProps.select?.({ photos: [photos[1]], index: 0 }); });
-            expect(screen.getByTestId("map-photo-sheet")).toBeTruthy();
-            expect(screen.getByText("b")).toBeTruthy();
+            const sheet = screen.getByTestId("map-photo-sheet");
+            // **シートの中を見る。** 同じ題は左の一覧にも出ているので、
+            // 画面全体から探すと2件見つかる
+            expect(within(sheet).getByText("b")).toBeTruthy();
         });
 
         it("束を押すと「1/3」で送れる", () => {
@@ -218,7 +256,7 @@ describe("/map", () => {
 
             fireEvent.click(screen.getByRole("button", { name: "次の写真" }));
             expect(screen.getByText("2/3")).toBeTruthy();
-            expect(screen.getByText("b")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("b")).toBeTruthy();
         });
 
         it("地図の余白を押すと閉じる（`null` が来る）", () => {
@@ -240,12 +278,12 @@ describe("/map", () => {
             photosState.current = photos;
             const { rerender } = render(<MapPage />);
             act(() => { mapProps.select?.({ photos, index: 0 }); });
-            expect(screen.getByText("古い題")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("古い題")).toBeTruthy();
 
             photosState.current = [withCoords("a", { title: { ja: "新しい題" } })];
             rerender(<MapPage />);
             expect(screen.queryByText("古い題")).toBeNull();
-            expect(screen.getByText("新しい題")).toBeTruthy();
+            expect(within(screen.getByTestId("map-photo-sheet")).getByText("新しい題")).toBeTruthy();
         });
 
         it("開いている写真が一覧から消えたら、シートは畳まれる", () => {
