@@ -10,6 +10,8 @@ import { hiddenUserIds } from "./blockCheck";
 // 引き連れていて、読み込みの輪を作る）。**写しを作らない**——develop が
 // 同じ理由でここへ切り出していたので、そちらに寄せた
 import { followingId } from "./followCheck";
+// **画像の URL に期限を付ける。** 鍵が無い環境では何もしない（`signedUrl.ts`）
+import { signPhotoImages } from "./signedUrl";
 
 /**
  * GET /feed/restricted — 公開範囲を絞った写真のうち、**自分に見えるぶん**。
@@ -58,7 +60,12 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(visible),
+            // 🔴 **画像の URL にも期限を付ける。** ここで誰に見せるかを
+            // 正しく判定しても、配った URL が永久に有効なら、判定は
+            // 「初回だけ」効いていることになる——フォローを外しても
+            // ブロックしても、控えた URL で取り続けられる。
+            // **鍵が無い環境（いまの本番）では何もしない**（`signedUrl.ts`）
+            body: JSON.stringify(visible.map((p) => signPhotoImages(p))),
         };
     } catch (e) {
         console.error("getRestrictedFeed error:", e);

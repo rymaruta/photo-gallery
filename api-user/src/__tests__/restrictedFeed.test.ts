@@ -189,3 +189,56 @@ describe("外したあと、次の要求から見えなくなる", () => {
         expect((ddb.send as any).mock.calls.length).toBeGreaterThan(before);
     });
 });
+
+// **配線の抜けを見る。** 署名の関数を単体で試すだけだと
+// 「関数は在るのに `body` に通していない」を誰も見ない
+// （#134 が `stripPrivate` でまったく同じ穴を指摘している）
+describe("一覧の本文に、署名が乗っているか", () => {
+    const ME = "11111111-1111-1111-1111-111111111111";
+    const event = { requestContext: { authorizer: { jwt: { claims: { sub: ME } } } } };
+
+    it("鍵があれば、返す画像 URL に期限が付く", async () => {
+        const { generateKeyPairSync } = await import("node:crypto");
+        const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            privateKeyEncoding: { type: "pkcs1", format: "pem" },
+            publicKeyEncoding: { type: "spki", format: "pem" },
+        });
+        vi.stubEnv("CLOUDFRONT_KEY_PAIR_ID", "K2EXAMPLE");
+        vi.stubEnv("CLOUDFRONT_PRIVATE_KEY", privateKey as unknown as string);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            if ((cmd.input as Record<string, unknown>).KeyConditionExpression) {
+                return Promise.resolve({ Items: [{
+                    id: "r1", src: "https://cdn/r1.jpg", thumbSrc: "https://cdn/r1-t.jpg",
+                    userId: ME, audience: "followers",
+                }] });
+            }
+            return Promise.resolve({});
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getRestrictedFeed as any)(event);
+        const body = JSON.parse(res.body) as { src: string; thumbSrc: string }[];
+        expect(body[0].src, "src に署名が乗っていない").toContain("Signature=");
+        expect(body[0].thumbSrc, "派生に署名が乗っていない").toContain("Signature=");
+        vi.unstubAllEnvs();
+    });
+
+    // **鍵が無いいまの本番では、今までどおり**（機能を壊さない）
+    it("鍵が無ければ、素の URL のまま返す", async () => {
+        vi.unstubAllEnvs();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            if ((cmd.input as Record<string, unknown>).KeyConditionExpression) {
+                return Promise.resolve({ Items: [{
+                    id: "r1", src: "https://cdn/r1.jpg", userId: ME, audience: "followers",
+                }] });
+            }
+            return Promise.resolve({});
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getRestrictedFeed as any)(event);
+        expect((JSON.parse(res.body) as { src: string }[])[0].src).toBe("https://cdn/r1.jpg");
+    });
+});
+
