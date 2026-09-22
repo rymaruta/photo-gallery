@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import { collectionPath } from "@/lib/utils/collections";
 
@@ -60,6 +60,11 @@ const photo = {
 } as unknown as Photo;
 
 const hrefOf = (text: string | RegExp) => screen.getByText(text).closest("a")?.getAttribute("href");
+/** 撮影地のチップ（写真の上）。同じ地名が「撮影日 · 撮影地」の行にも出るので、`/location/` を指す a を引く */
+const locationHref = (text: string) =>
+    screen.getAllByText(text).map((e) => e.closest("a")).find((a) => a?.getAttribute("href")?.includes("/location/"))?.getAttribute("href");
+/** 撮影情報は初期は畳まれている（中身は DOM に残る）。リンクの role で引くときは開く */
+const expandExif = () => { const b = screen.queryByRole("button", { name: "詳しく見る" }); if (b) fireEvent.click(b); };
 
 describe("集約ページへの内部リンク", () => {
     it("タグは統合後のURLを指す", async () => {
@@ -85,15 +90,16 @@ describe("集約ページへの内部リンク", () => {
         const placed = { ...photo, location: "建物" } as unknown as Photo;
         render(<PhotoPageClient photoId="p1" initialPhoto={placed} />);
         await screen.findByText("テスト写真");
-        expect(hrefOf("この場所の写真"), "地名を architecture に寄せている")
+        expect(locationHref("建物"), "地名を architecture に寄せている")
             .toBe(collectionPath("location", "建物"));
     });
 
     it("カメラは保存済みの機種名からリンクする", async () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={photo} />);
         await screen.findByText("テスト写真");
+        expandExif();
         expect(hrefOf("SONY ILCE-7M3")).toBe(collectionPath("camera", "sony-ilce-7m3"));
-        expect(hrefOf("この場所の写真"))
+        expect(locationHref("香川県 観音寺市 高屋神社"))
             .toBe(collectionPath("location", "香川県-観音寺市-高屋神社"));
     });
 });

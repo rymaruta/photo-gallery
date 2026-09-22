@@ -59,7 +59,8 @@ describe("場所チップの地図リンク", () => {
         await screen.findByText("テスト写真");
         expect(screen.queryByTitle("地図で見る"), "街の中心へのリンクを出している").toBeNull();
         // 地名そのものは消えない
-        expect(screen.getByText("パリ")).toBeInTheDocument();
+        // 地名は写真の上のチップと「撮影日 · 撮影地」の行の2か所に出る
+        expect(screen.getAllByText("パリ").length).toBeGreaterThan(0);
     });
 });
 

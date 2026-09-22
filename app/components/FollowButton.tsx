@@ -19,6 +19,7 @@ type Props = {
      * 楽観更新・エラーの返し分けは `useFollow` の1本で共有する）。
      *
      * - `profile` … プロフィールのアクション行。行幅いっぱい・44px
+     * - `outline` … 写真ページ（最終版モック 03）。青の枠線・塗らない・伸びない・36px
      * - `followBack` … 通知一覧の「フォローバック」（モック 05 の注釈③）。
      *   行の中に収まる小さい錠剤。**文言も変える**——通知の文脈では
      *   「フォロー」ではなく、相手のフォローに返す操作だから
@@ -28,7 +29,7 @@ type Props = {
      * 「押しても数が動かない」「エラー文言が片方だけ古い」が必ず出る
      * （このリポジトリが何度も踏んでいる「同じものを二度作る」の形）。
      */
-    variant?: "profile" | "followBack";
+    variant?: "profile" | "outline" | "followBack";
     /**
      * 読み上げ用の名前。**一覧に並べるときは必ず渡す。**
      * 文言だけだと「フォローバック、ボタン」が人数ぶん続いて、
@@ -176,19 +177,26 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
             aria-pressed={isFollowing}
             aria-label={ariaLabel}
             className={`inline-flex items-center justify-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
-                compact ? "flex-shrink-0" : "flex-1 px-4 py-2.5 text-sm"
+                compact
+                    ? "flex-shrink-0"
+                    : variant === "outline"
+                        ? "flex-shrink-0 px-4 py-2 text-sm"
+                        : "flex-1 px-4 py-2.5 text-sm"
             } ${
                 isFollowing
                     ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
-                    : "bg-accent-fill text-white hover:brightness-110"
+                    : variant === "outline"
+                        ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
+                        : "bg-accent-fill text-white hover:brightness-110"
             }`}
             // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）。
             // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px
             // ＝ 29 CSS px だが、**押せる面は 32px まで上げる**。行の中の操作なので
             // 44px は取れないが、29px は指に小さい（他の行内ボタンと同じ判断）。
+            // 写真ページ（`outline`）は 36px（モック 03 の実測）。
             style={compact
                 ? { touchAction: "manipulation", minHeight: "32px", fontSize: "13px", paddingLeft: "12px", paddingRight: "12px" }
-                : { touchAction: "manipulation", minHeight: "44px" }}
+                : { touchAction: "manipulation", minHeight: variant === "outline" ? "36px" : "44px" }}
         >
             {isFollowing
                 ? <><CheckIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />{locale === "en" ? "Following" : "フォロー中"}</>

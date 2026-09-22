@@ -123,7 +123,7 @@ describe("アップロード中にやめる", () => {
     it("止めるボタンは、押している間だけ出る", async () => {
         hangingPut();
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         expect(screen.queryByRole("button", { name: "やめる" }), "押す前から出ている").toBeNull();
 
@@ -134,7 +134,7 @@ describe("アップロード中にやめる", () => {
     it("押したら S3 への PUT を中断し、上げかけた実体を捨てる", async () => {
         hangingPut();
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 
@@ -148,7 +148,7 @@ describe("アップロード中にやめる", () => {
         });
         // 押せる状態に戻る（＝止める手段が効いている）
         await waitFor(() => expect(screen.queryByRole("button", { name: "やめる" })).toBeNull());
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
     });
 
     // **本体の PUT は通り、保存だけ返らない**とき。5か所のうち行を作る
@@ -168,13 +168,13 @@ describe("アップロード中にやめる", () => {
             });
         });
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save")).toBe(true));
 
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
         expect(toasts()).toContain("info:アップロードをやめました");
     });
 
@@ -183,17 +183,17 @@ describe("アップロード中にやめる", () => {
     it("中身の分からない失敗（null で reject）でも、押せる状態に戻る", async () => {
         vi.stubGlobal("fetch", vi.fn(() => Promise.reject(null)));
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
         expect(screen.queryByRole("button", { name: "やめる" }), "止めるボタンが出たまま残っている").toBeNull();
     });
 
     it("やめても「失敗」にせず、もう一度押せる状態に戻す", async () => {
         hangingPut();
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
@@ -230,13 +230,13 @@ describe("アップロード中にやめる", () => {
         }));
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(thumbPutStarted, "サムネの PUT まで進んでいない").toBe(true));
 
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
 
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"),
             "やめたのに保存まで進んでいる").toBe(false);
@@ -260,7 +260,7 @@ describe("アップロード中にやめる", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
@@ -296,7 +296,7 @@ describe("アップロード中にやめる", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(finishSave, "保存まで進んでいない").not.toBeNull());
@@ -322,7 +322,7 @@ describe("アップロード中にやめる", () => {
         vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(finishDecode, "代表色の抽出まで進んでいない").not.toBeNull());
@@ -330,7 +330,7 @@ describe("アップロード中にやめる", () => {
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
         finishDecode!();
 
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"),
             "やめたのに保存まで進んでいる").toBe(false);
         expect(toasts()).toContain("info:アップロードをやめました");
@@ -349,7 +349,7 @@ describe("アップロード中にやめる", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
@@ -385,7 +385,7 @@ describe("アップロード中にやめる", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(n, "サムネの PUT まで進んでいない").toBe(2));
@@ -405,7 +405,7 @@ describe("アップロード中にやめる", () => {
     it("理由が AbortError でなくても、中断なら失敗にしない", async () => {
         hangingPut(() => new TypeError("Failed to fetch"));
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
@@ -427,7 +427,7 @@ describe("アップロード中にやめる", () => {
         }));
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
         await waitFor(() => expect(n, "サムネの PUT まで進んでいない").toBe(2));
@@ -463,7 +463,7 @@ describe("アップロード中にやめる", () => {
 
         render(<UploadPage />);
         // 取り込みは1枚ごとに 1.1 秒 待つので、既定の1秒では間に合わない
-        const publish = await screen.findByRole("button", { name: /2枚を公開/ }, { timeout: 5_000 });
+        const publish = await screen.findByRole("button", { name: /2件を投稿する/ }, { timeout: 5_000 });
         await waitFor(() => expect(publish).not.toBeDisabled(), { timeout: 5_000 });
         await userEvent.click(publish);
         await waitFor(() => expect(finishSave, "1枚目の保存まで進んでいない").not.toBeNull());
@@ -496,7 +496,7 @@ describe("アップロード中にやめる", () => {
         });
 
         render(<UploadPage />);
-        const publish = await screen.findByRole("button", { name: /2枚を公開/ }, { timeout: 5_000 });
+        const publish = await screen.findByRole("button", { name: /2件を投稿する/ }, { timeout: 5_000 });
         await waitFor(() => expect(publish).not.toBeDisabled(), { timeout: 5_000 });
         await userEvent.click(publish);
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));

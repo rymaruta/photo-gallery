@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // **GIF は選べるのに、公開を押して初めて必ず失敗していた。**
@@ -100,30 +100,20 @@ describe("GIF は選んだ時点で断る", () => {
     it("下書きも作らない", async () => {
         await pick(new File(["x"], "cat.gif", { type: "image/gif" }));
         await screen.findByText(/GIF は位置情報を取り除けない/);
-        expect(screen.queryByRole("button", { name: /枚を公開/ }),
+        expect(screen.queryByRole("button", { name: /投稿する/ }),
             "選んだことになっている").toBeNull();
     });
 
-    // **同じ画面のアバターだけ、保存を押すまで分からなかった。**
-    // アバターの `<input>` は `startsWith("image/")` しか見ずにプレビューを
-    // 出し、`toUploadSafeFile` を呼ぶのは「保存」を押したあとだった
-    // （写真グリッド側の関門はこの入力を通らない）。
-    it("アバターの入力でも、選んだ時点で断る", async () => {
-        const { container } = render(<UploadPage />);
-        const inputs = Array.from(container.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
-        expect(inputs.length, "ファイル入力が見つからない").toBeGreaterThan(1);
-        // 2つ目がアバター用（1つ目は写真グリッド）
-        await userEvent.upload(inputs[inputs.length - 1], new File(["x"], "cat.gif", { type: "image/gif" }));
-        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
-            expect.stringContaining("GIF は位置情報を取り除けません"), "error"));
-        expect(screen.queryByRole("button", { name: /保存/ }),
-            "保存を押すまで分からない").toBeNull();
-    });
+    // **アバターの入力は、この画面から無くなった**（2026-09-22・最終版モック）。
+    // プロフィール写真の欄は `/user/profile` にしか無く、あちらは
+    // 選んだ時点で同じ判定をしている（`page.tsx:258, 326` の
+    // `type === "image/gif"` → `gifRejectedMessage`）。ここに写しを
+    // 残すと、画面に無い入力を見張り続けることになる。
 
     // 正常系: JPEG は今までどおり通る
     it("JPEG は今までどおり選べる", async () => {
         await pick(new File(["x"], "a.jpg", { type: "image/jpeg" }));
-        expect(await screen.findByRole("button", { name: /枚を公開/ })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: /投稿する/ })).toBeInTheDocument();
         expect(screen.queryByText(/GIF は位置情報を取り除けない/)).toBeNull();
     });
 });

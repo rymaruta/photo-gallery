@@ -64,7 +64,7 @@ describe("長い文字列で横に流れない", () => {
         const src = read("app/photo/[id]/PhotoPageClient.tsx");
         const title = src.split("\n").find((l) => l.includes("{titleText}</h1>"));
         expect(title, "タイトルに break-words が無い").toContain("break-words");
-        const desc = src.split("\n").find((l) => l.includes("text-sm sm:text-base text-white/80 leading-relaxed"));
+        const desc = src.split("\n").find((l) => l.includes('className="text-white/85 break-words" style={{ fontSize: "14px"'));
         expect(desc, "説明に break-words が無い").toContain("break-words");
     });
 
@@ -112,11 +112,16 @@ describe("画面下に固定したものは safe-area を空ける", () => {
     });
 
     // 画面下に固定するものを新しく足したときに気づけるように、
-    // 数そのものを固定する（増えたら「safe-area を見たか」を確かめる）
+    // 数そのものを固定する（増えたら「safe-area を見たか」を確かめる）。
+    //
+    // **目印は `fixed bottom-0` ではなく「下辺いっぱいに張る」形**（2026-09-22）。
+    // 投稿作成のバーは常駐のタブバー（`BottomNav`）を覆わないよう
+    // `bottom` を `--bottom-bar-h` ぶん持ち上げたので、`bottom-0` を持たない。
+    // `fixed inset-0` の覆い（編集画面の確認シート2つ）は数えない
     it("固定バーは2本（増えたら safe-area を確かめる）", () => {
         const bars = ["app/user/upload/page.tsx", "app/user/edit/page.tsx"]
             .map(codeOf)
-            .map((c) => (c.match(/fixed bottom-0/g) ?? []).length)
+            .map((c) => (c.match(/fixed (?:bottom-0 )?left-0 right-0/g) ?? []).length)
             .reduce((a, b) => a + b, 0);
         expect(bars).toBe(2);
     });
