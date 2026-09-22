@@ -146,6 +146,24 @@ function PhotoImage({
 
     // データ側 exif が欠けている写真のみ、画像読み込み後に EXIF をクライアント抽出する。
     // exifr は重いので初期バンドルに含めず、必要時だけ動的 import する。
+    //
+    // 🔴 **取りに行く先も `publicImageUrl` を通す。**
+    // 下の `<picture>` は通しているのに、ここだけ生の `src` を使っていた。
+    // 保存されている値は CloudFront の既定ドメイン（api-user の
+    // `canonicalUploadUrl` が `CLOUDFRONT_URL` を土台にする）なので、
+    // **同じ1枚に対して2つのホストへ要求が飛ぶ**——
+    //
+    //   - `<img>`      → `https://journey-photo.com/uploads/x.webp`（同一オリジン）
+    //   - EXIF の抽出  → `https://d1s3dwwzgxf5ni.cloudfront.net/uploads/x.webp`（別オリジン）
+    //
+    // 別オリジンなので **CORS が要る**。返ってこなければ `exifr.parse` も
+    // 控えの `fetch` も投げ、**撮影情報の欄が黙って出ない**（例外は握るので
+    // 画面には何も出ない＝気づけない）。同一オリジンにすれば CORS は要らず、
+    // Service Worker の写真の控え（`journey-photo-img-v1`）にも当たる。
+    // `CLAUDE.md` の「実際に飛ぶ要求は同一オリジンだけ」とも、ここだけ食い違っていた。
+    //
+    // 実データ（`app/data/photos.json` の30枚）では **3枚が
+    // 「exif 無し ＋ 既定ドメイン」**＝この経路に入る。
     useEffect(() => {
         if (!extractExif) return;              // 既に photo.exif がある場合は再ダウンロード/解析しない
         if (imageLoading || imageError) return;
@@ -156,14 +174,16 @@ function PhotoImage({
                 const { default: exifr } = await import("exifr"); // 遅延ロード
                 const opts = { pick: EXIF_PICK, translateKeys: false } as const;
                 let exif: ExtractedExif | null = null;
+                // **`<img>` が実際に取った1枚と同じ URL**（同一オリジンに揃う）
+                const from = publicImageUrl(src);
 
-                if (src.startsWith("http://") || src.startsWith("https://")) {
+                if (from.startsWith("http://") || from.startsWith("https://")) {
                     // まず URL を直接試し（CORS が正しければ動作）、ダメなら fetch → blob で再試行
                     try {
-                        exif = await exifr.parse(src, opts);
+                        exif = await exifr.parse(from, opts);
                     } catch {
                         try {
-                            const response = await fetch(src, { mode: "cors", credentials: "omit" });
+                            const response = await fetch(from, { mode: "cors", credentials: "omit" });
                             if (response.ok) exif = await exifr.parse(await response.blob(), opts);
                         } catch (fetchError) {
                             log.warn("Failed to fetch image for EXIF:", fetchError);
@@ -171,7 +191,7 @@ function PhotoImage({
                     }
                 } else {
                     // ローカルパス（/images/ 等）は URL を直接使用
-                    exif = await exifr.parse(src, opts);
+                    exif = await exifr.parse(from, opts);
                 }
 
                 if (!cancelled) onExifLoaded?.(exif || null);

@@ -608,6 +608,226 @@ async function runChecks(browser, eng) {
     check(`[${eng}] デスクトップ: 実行時のJSエラーがない`, dRealErrors.length === 0, dRealErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/desktop`, dbag);
     await dctx.close();
+
+    await runSignedInChecks(browser, eng);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * ログイン済みの画面を開くための道具
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * 🔴 **この関門は、長いあいだ「ログインできない site」を見ていた。**
+ *
+ * `scripts/verify-local.sh` の `build_site()` が `NEXT_PUBLIC_COGNITO_CLIENT_ID`
+ * を渡していなかったので、建った `out/` では `lib/auth/config.ts` が投げ、
+ * `lookupSession` は必ず未ログインを返す。実測（2026-09-22）——
+ * `out/user/highlights` を開いた本文は
+ *
+ *     "ログイン / 写真をアップロードするにはログインが必要です …"
+ *
+ * つまり `/user/**` の12画面は**1つも中身が描かれていなかった**。
+ * 今日いちばん大きかった2件（ハイライトの「保存」が押せない・`/user/edit` の
+ * 下バーが全部押せない）が全関門を素通りしたのは、突き詰めるとこれ。
+ *
+ * **だから偽のトークンで入って、実際に描かれた画面を見る。**
+ * 署名は検証していない（クライアントは Cognito の応答を信じる作り）ので、
+ * `localStorage` に本物と同じ鍵で置けばログイン済みとして描かれる。
+ * API は全部この場で作った JSON で返す（密閉は保ったまま）。
+ */
+const SIGNED_IN_CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || "";
+
+const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64")
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/** 署名は捨てる（クライアントは検証しない）。形だけ本物に合わせる */
+const fakeJwt = (payload) => `${b64url({ alg: "RS256", kid: "smoke" })}.${b64url(payload)}.c21va2U`;
+
+/** API の受け皿。**未知の口は空オブジェクト**（画面は「0件」として描く） */
+function signedInApiBody(url, method, photos) {
+    const p = new URL(url).pathname;
+    if (p === "/user/profile" || p.startsWith("/profile/")) return SIGNED_IN_PROFILE;
+    if (p === "/user/photos" || p === "/photos") return photos;
+    if (p === "/stories" || p === "/stories/archive") return [];
+    if (p.startsWith("/highlights")) return { highlights: [] };
+    if (p === "/user/notifications") return { items: [], unread: 0 };
+    if (p === "/user/following") return { list: [] };
+    if (p === "/user/blocks" || p === "/albums") return { items: [] };
+    if (p === "/user/likes" || p === "/user/saves" || p === "/user/spots") return { ids: [] };
+    if (/^\/users\/[^/]+\/follow$/.test(p)) return { following: false, followers: 0, followingCount: 0 };
+    if (/^\/photos\/[^/]+\/comments$/.test(p)) return { items: [], count: 0 };
+    if (/^\/photos\/[^/]+\/like$/.test(p)) return { likes: 0 };
+    if (p === "/music/search") return { results: [] };
+    if (method !== "GET") return { ok: true };
+    return {};
+}
+
+let SIGNED_IN_PROFILE = null;
+
+/**
+ * 画面を「読める状態か」で見る監査。**名前・重なり・見出し・溢れ**を一度に測る。
+ *
+ * - `checkVisibility` で祖先の `display:none` まで見る（子だけ見ると
+ *   閉じたメニューの中身を「見えている」と数えてしまう。実測で誤報した）
+ * - `scrollIntoView` は `behavior: 'instant'`。`scroll-behavior: smooth` が
+ *   効くと移動が非同期になり、**まだ動いていない座標で当たり判定**をして
+ *   48件の誤報を出した（実測）
+ * - 包んでいる `<label>` も名前として数える（`for=` だけではない）
+ */
+const SIGNED_IN_AUDIT = `(() => {
+  const name = (el) => {
+    const al = el.getAttribute('aria-label'); if (al && al.trim()) return al.trim();
+    const lb = el.getAttribute('aria-labelledby');
+    if (lb) { const t = lb.split(/\\s+/).map(id => document.getElementById(id)?.textContent ?? '').join(' ').trim(); if (t) return t; }
+    const ti = el.getAttribute('title'); if (ti && ti.trim()) return ti.trim();
+    const txt = (el.textContent ?? '').replace(/\\s+/g, ' ').trim(); if (txt) return txt;
+    const img = el.querySelector('img[alt]'); if (img && (img.getAttribute('alt') ?? '').trim()) return img.getAttribute('alt').trim();
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      const id = el.id;
+      if (id) { const l = document.querySelector('label[for="' + CSS.escape(id) + '"]'); if (l && l.textContent.trim()) return l.textContent.trim(); }
+      const wrap = el.closest('label'); if (wrap && wrap.textContent.trim()) return wrap.textContent.trim();
+      const ph = el.getAttribute('placeholder'); if (ph && ph.trim()) return ph.trim();
+    }
+    return '';
+  };
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility({ checkVisibilityCSS: true }) : !!el.offsetParent);
+  const out = { noName: [], covered: [], dupIds: [], focusable: 0, h1: 0, overflow: 0, signedIn: false, text: 0 };
+  // ログイン画面そのものの目印で見る。パスワード欄の有無で見ていたら、
+  // /user/settings（パスワード変更の欄がある）が
+  // 「ログインしていない」と誤報した（実測）。
+  // ※この塊はテンプレート文字列の中なので、バッククォートと $ は書けない
+  out.signedIn = !document.querySelector('#login-email');
+  out.text = (document.body.innerText || '').replace(/\\s+/g, ' ').trim().length;
+  out.overflow = document.documentElement.scrollWidth - window.innerWidth;
+  const seen = new Map();
+  for (const el of document.querySelectorAll('[id]')) seen.set(el.id, (seen.get(el.id) ?? 0) + 1);
+  for (const [id, c] of seen) if (c > 1) out.dupIds.push(id + ' x' + c);
+  for (const el of document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role="switch"], [role="tab"]')) {
+    if (!visible(el)) continue;
+    out.focusable++;
+    if (el.getAttribute('aria-hidden') === 'true') continue;
+    if (!name(el)) out.noName.push(el.tagName + ': ' + el.outerHTML.slice(0, 80).replace(/\\s+/g, ' '));
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) continue;
+    if (r.bottom <= 0 || r.top >= innerHeight) continue;
+    const x = Math.min(innerWidth - 1, Math.max(1, r.left + r.width / 2));
+    const y = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    if (hit && !el.contains(hit) && !hit.contains(el)) {
+      out.covered.push(name(el).slice(0, 28) + ' <- ' + hit.tagName + '.' + String(hit.className).slice(0, 40));
+    }
+  }
+  const hs = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).map(h => Number(h.tagName[1]));
+  out.h1 = hs.filter(l => l === 1).length;
+  return out;
+})()`;
+
+/**
+ * ログイン済みの画面をひと通り開いて、**押せない操作が無いこと**を見る。
+ *
+ * ここで見るのは「絵が正しいか」ではなく「**指が届くか**」——
+ * いちばん下まで送った状態で、見えている操作の中心を当たり判定に掛ける。
+ * 下に固定した帯がタブバーやフッターを覆っていれば、そこで落ちる。
+ */
+async function runSignedInChecks(browser, eng) {
+    console.log(`\n[${eng}][7] ログイン済みの画面（偽のトークンで入る）`);
+
+    // **値が無ければ落とす。** 黙って飛ばすと、この節を足した理由
+    // （ログインできない site を見ていた）がそのまま戻る
+    check(`[${eng}] ログイン: Client ID が渡っている`, !!SIGNED_IN_CLIENT_ID,
+        "NEXT_PUBLIC_COGNITO_CLIENT_ID が空（verify-local.sh / deploy.yml の env を見る）");
+    if (!SIGNED_IN_CLIENT_ID) return;
+
+    // 実在するプロフィール（`/users/<sub>` を本人として開くため）
+    const profiles = fs.existsSync(path.join(OUT, "users"))
+        ? fs.readdirSync(path.join(OUT, "users")).filter((f) => f.endsWith(".html"))
+        : [];
+    const sub = (profiles[0] ?? "").replace(/\.html$/, "") || "00000000-0000-4000-8000-000000000000";
+
+    const allPhotos = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "app", "data", "photos.json"), "utf8"));
+    const photos = allPhotos.slice(0, 6).map((p) => ({ ...p, userId: sub, published: true }));
+    SIGNED_IN_PROFILE = { userId: sub, displayName: "スモークの人", username: "smoke", bio: "", themeColor: "#2080f6", pinnedPhotoIds: [] };
+
+    const now = Math.floor(Date.now() / 1000);
+    const common = { sub, exp: now + 3600, iat: now, "cognito:groups": ["user"] };
+    const idToken = fakeJwt({ ...common, aud: SIGNED_IN_CLIENT_ID, token_use: "id", "cognito:username": sub, email: "smoke@example.com", email_verified: true });
+    const accessToken = fakeJwt({ ...common, client_id: SIGNED_IN_CLIENT_ID, token_use: "access", username: sub, scope: "aws.cognito.signin.user.admin" });
+
+    const screens = [
+        ["/user/profile", "自分のプロフィール"],
+        ["/user/upload", "投稿作成"],
+        ["/user/settings", "設定"],
+        ["/user/archive", "アーカイブ"],
+        ["/user/highlights", "ハイライト編集"],
+        ["/user/drafts", "下書き"],
+        ["/user/albums", "アルバム"],
+        ["/saves", "保存した写真"],
+        ["/saved-spots", "行きたい場所"],
+        ["/favorites", "いいねした写真"],
+        [`/users/${sub}`, "マイページ（本人として）"],
+        [`/user/edit?id=${encodeURIComponent(photos[0]?.id ?? "")}`, "写真の編集"],
+    ];
+
+    // 幅は2つだけ（画面数 × 幅で時間が伸びる）。**320px を外さない**
+    // ——重なりは狭い画面から出る（`MiniPlayer` の 3px 重なりがそうだった）
+    for (const [w, h, touch] of [[320, 640, true], [1280, 900, false]]) {
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, serviceWorkers: "block" });
+        await sealContext(ctx);
+        // **`sealContext` の後に登録する**（あとから足した route が先に当たる）。
+        // これで API だけ JSON を返し、それ以外の外向きは遮断のまま
+        await ctx.route("**://*.execute-api.*.amazonaws.com/**", (route) => route.fulfill({
+            status: 200, contentType: "application/json",
+            headers: { "access-control-allow-origin": "*" },
+            body: JSON.stringify(signedInApiBody(route.request().url(), route.request().method(), photos)),
+        }));
+        await ctx.addInitScript(({ cid, s, id, at }) => {
+            try {
+                const k = `CognitoIdentityServiceProvider.${cid}`;
+                localStorage.setItem(`${k}.LastAuthUser`, s);
+                localStorage.setItem(`${k}.${s}.idToken`, id);
+                localStorage.setItem(`${k}.${s}.accessToken`, at);
+                localStorage.setItem(`${k}.${s}.refreshToken`, "smoke");
+                localStorage.setItem(`${k}.${s}.clockDrift`, "0");
+            } catch { /* localStorage が無い環境ならそのまま */ }
+        }, { cid: SIGNED_IN_CLIENT_ID, s: sub, id: idToken, at: accessToken });
+
+        for (const [url, label] of screens) {
+            const page = await ctx.newPage();
+            const bag = attachDiagnostics(page);
+            const tag = `[${eng}] ${w}px ${label}`;
+            let audit = null;
+            try {
+                await page.goto(`http://localhost:${PORT}${url}`, { waitUntil: "domcontentloaded" });
+                // 認証の確定 → 取得 → 描画、と段があるので「ログイン画面が
+                // 消える」まで待つ（固定の待ちにしない）
+                await page.waitForFunction(() => !document.querySelector('#login-email'), null, { timeout: 15000 }).catch(() => {});
+                await page.waitForTimeout(800);
+                // **いちばん下まで送ってから測る。** 下に固定した帯が
+                // フッターを覆う形は、送り切った状態でしか出ない（実測）
+                await page.evaluate(() => {
+                    document.documentElement.style.scrollBehavior = "auto";
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+                await page.waitForTimeout(300);
+                audit = await page.evaluate(SIGNED_IN_AUDIT);
+            } catch (e) {
+                check(`${tag}: 開ける`, false, String(e.message ?? e).split("\n")[0]);
+                await page.close();
+                continue;
+            }
+            check(`${tag}: ログイン済みとして描かれる`, audit.signedIn && audit.text > 20,
+                `signedIn=${audit.signedIn} 本文=${audit.text}字`);
+            check(`${tag}: 押せない操作が無い`, audit.covered.length === 0, audit.covered.slice(0, 3).join(" / "));
+            check(`${tag}: 名前の無い操作が無い`, audit.noName.length === 0, audit.noName.slice(0, 2).join(" / "));
+            check(`${tag}: id が重複していない`, audit.dupIds.length === 0, audit.dupIds.slice(0, 3).join(" / "));
+            check(`${tag}: 見出しが1つ`, audit.h1 === 1, `h1=${audit.h1}`);
+            check(`${tag}: 横に溢れていない`, audit.overflow <= 1, `はみ出し=${audit.overflow}px`);
+            const real = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
+            check(`${tag}: 実行時のJSエラーが無い`, real.length === 0, real.slice(0, 2).join(" / "));
+            await page.close();
+        }
+        await ctx.close();
+    }
 }
 
 async function launchEngine(eng) {
