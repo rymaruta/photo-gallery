@@ -29,10 +29,12 @@ vi.mock("../../../lib/utils/api", async (importActual) => {
 import UserProfileClient from "../UserProfileClient";
 
 function tabButton(name: "Posts" | "Trips" | "Map" | "Timeline") {
-    return screen.getByRole("button", { name: new RegExp(name) });
+    return screen.getByRole("tab", { name: new RegExp(name) });
 }
 function activeTab(): string {
-    const btn = screen.getAllByRole("button").find((b) => b.getAttribute("aria-pressed") === "true");
+    // **`role="tab"` ＋ `aria-selected`**（2026-09-22 に `aria-pressed` から
+    // 直した。押し直しても外れない2つに「押されています」は嘘になるため）
+    const btn = screen.getAllByRole("tab").find((b) => b.getAttribute("aria-selected") === "true");
     return btn?.textContent?.trim() ?? "";
 }
 // スワイプ領域で左右スワイプを発火する

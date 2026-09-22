@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
-import { collectEntries, collectionPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
+import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import Thumb from "../components/Thumb";
@@ -126,24 +126,59 @@ function ItemLink({ href, rail, className, style, children }: {
     return <Link href={href} prefetch={false} className={className} style={style}>{children}</Link>;
 }
 
-function SectionHead({ title, href, moreLabel }: { title: string; href?: string; moreLabel: string }) {
+/**
+ * 節の見出しと「すべて見る ›」。**`id` は見える `<h2>` に付ける。**
+ *
+ * 以前は `aria-labelledby` のために `sr-only` の `<h2>` を**同じ文字列で
+ * もう1つ**置いていた。見た目は変わらないが、**読み上げでは同じ見出しが
+ * 2回読まれる**（3節で6つ）。見える方に `id` を付ければ1つで足りる。
+ *
+ * 🔴 **「すべて見る ›」は一度 枠ごと落としてから、行き先を作って戻した。**
+ *
+ * 落とした理由: `href` を受け取る形で書いてあったのに、**3か所の呼び出しが
+ * どれも渡していない**＝一度も描かれたことが無かった（実ビルドの
+ * `out/search.html` に「すべて見る」は0件）。
+ *
+ * 戻した理由（2026-09-22・実ビルド151 HTML で数えた）:
+ *
+ *     トップ → /category/*   0本      トップ → /tag/*  49本
+ *     トップ → /location/*   0本      （写真カードのタグのチップ）
+ *     トップ → /camera/*     0本
+ *
+ * 柱の項目は owner の指示で `/search?…` を向いていて、その `/search` は
+ * **`robots.txt` で `Disallow`**＝検索エンジンから見ると行き止まり。
+ * つまり**トップは集約ページへリンクを1本も渡していなかった**。
+ *
+ * ⚠️ **枠だけ置かない**（落としたときと同じ形に戻さない）。行き先は
+ * `collectionIndexPath` が返す**実在する索引ページ**（`app/category/page.tsx`
+ * ほか）で、そこは `collectEntries` の全件を並べる＝「すべて見る」が本当。
+ * 見張りは `DiscoverSections.test.tsx` の「見出しから索引ページへ行ける」。
+ */
+function SectionHead({ id, title, href, moreLabel }: {
+    id: string; title: string; href: string; moreLabel: string;
+}) {
     return (
         <div className="flex items-baseline justify-between mb-2.5">
-            <h2 className="font-bold m-0" style={{ fontSize: "16px", lineHeight: "22px" }}>{title}</h2>
-            {href && (
-                <Link href={href} prefetch={false} className="text-link hover:text-white transition-colors"
-                      style={{ fontSize: "12px", touchAction: "manipulation" }}>
-                    {moreLabel}
-                </Link>
-            )}
+            <h2 id={id} className="font-bold m-0" style={{ fontSize: "16px", lineHeight: "22px" }}>{title}</h2>
+            {/* **先読みしない**（公開ページの `<Link>` は全部そう）。
+                行き先は普通のページなので、項目と違って `<Link>` のままでよい
+                ——クエリを持たないので `useGallery` の読み落としに当たらない */}
+            <Link
+                href={href}
+                prefetch={false}
+                className="flex-shrink-0 text-white/60 hover:text-white transition-colors"
+                style={{ fontSize: "12px", touchAction: "manipulation" }}
+            >
+                {moreLabel}
+            </Link>
         </div>
     );
 }
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap, variant = "page" }: Props) {
     const isJa = locale !== "en";
-    const more = isJa ? "すべて見る ›" : "See all ›";
     const isRail = variant === "rail";
+    const more = isJa ? "すべて見る ›" : "See all ›";
     const shown = isRail ? SHOWN_RAIL : SHOWN;
     /**
      * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**
@@ -172,8 +207,8 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
         <div className="space-y-6 mb-6">
             {categories.length > 0 && (
                 <section aria-labelledby="discover-categories">
-                    <SectionHead title={isJa ? "カテゴリからさがす" : "Browse by category"} moreLabel={more} />
-                    <h2 id="discover-categories" className="sr-only">{isJa ? "カテゴリからさがす" : "Browse by category"}</h2>
+                    <SectionHead id="discover-categories" title={isJa ? "カテゴリからさがす" : "Browse by category"}
+                                 href={collectionIndexPath("category")} moreLabel={more} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {categories.map((c) => {
                             const cover = coverFor(c, "category");
@@ -201,8 +236,8 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                 <section aria-labelledby="discover-spots">
                     {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、
                         閲覧数も保存数も持っていない（指示書 7） */}
-                    <SectionHead title={isJa ? "写真の多い撮影地" : "Places with the most photos"} moreLabel={more} />
-                    <h2 id="discover-spots" className="sr-only">{isJa ? "写真の多い撮影地" : "Places with the most photos"}</h2>
+                    <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
+                                 href={collectionIndexPath("location")} moreLabel={more} />
                     {/* **柱では縦に並べた行**（150px のカードを2列にすると、
                         柱が画面の高さを超えて貼り付きが効かなくなる） */}
                     <ul className={`${isRail ? "flex flex-col gap-2" : row} m-0 p-0`} style={{ listStyle: "none" }}>
@@ -255,8 +290,8 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                         センサーの大きさを持っていない＝35mm換算に直せない。
                         APS-C の 28mm を「広角」と出すと嘘になる（指示書: 実際のデータが
                         存在しない限り表示しない） */}
-                    <SectionHead title={isJa ? "機材からさがす" : "Browse by camera"} moreLabel={more} />
-                    <h2 id="discover-cameras" className="sr-only">{isJa ? "機材からさがす" : "Browse by camera"}</h2>
+                    <SectionHead id="discover-cameras" title={isJa ? "機材からさがす" : "Browse by camera"}
+                                 href={collectionIndexPath("camera")} moreLabel={more} />
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>

@@ -1,4 +1,4 @@
-import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { randomUUID } from "node:crypto";
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
@@ -7,6 +7,7 @@ import { sanitizeText } from "./sanitize";
 import { isUserId } from "./userId";
 import { readUserList, updateUserList } from "./userList";
 import { isFollowing } from "./followCheck";
+import { isBlocked } from "./blockCheck";
 import { isStoryExpired } from "./storyExpiry";
 import { isDeletedProfile } from "./types";
 import { requireEnv } from "./env";
@@ -128,21 +129,49 @@ function isHighlightableStory(row: Record<string, unknown> | undefined, ownerId:
 }
 
 /**
- * その人のハイライトを見てよいか。**本人か、フォロワーだけ。**
+ * その人のハイライトを見てよいか。**本人か、ブロックしていない／されていない
+ * フォロワーだけ。**
  *
  * 中身はストーリーそのもので、ストーリーはフォロワーだけが見るもの
  * （`storyVisibility.ts` の節）。輪だけ広く出すと、**追っていない人に
  * ストーリーの中身が届く**——公開範囲を無くした意味が無くなる。
  *
- * 判定は**マーカー1件**（`isFollowing`）。`following#<自分>` の一覧は
- * 上限2000で古い方から落ち、解除の失敗も握られるので信用しない
- * （`getStories` の同じ注記）。**読めなければ見せない**——倒し方を
- * 間違えると、本人が見せないと決めた相手に中身が出る。
+ * 判定は**マーカー1件ずつ**（`isFollowing` / `isBlocked`）。
+ * `following#<自分>` や `blocks#<自分>` の一覧は上限で古い方から落ち、
+ * 解除の失敗も握られるので信用しない（`getStories` と `viewStory` の
+ * 同じ注記）。**読めなければ見せない**——倒し方を間違えると、本人が
+ * 見せないと決めた相手に中身が出る。
+ *
+ * 🔴 **ブロックを見る理由。** ストーリーの門は他に4つ
+ * （`getStories` / `viewStory` / `postStoryReply` / `voteStory`）あり、
+ * **どれもブロックを見ている**のに、ここだけ見ていなかった。
+ *
+ * 「ブロックすればフォローが切れるから要らない」は成り立たない——
+ * `block.ts` は `unfollowQuietly` を `.catch(console.error)` で握り、
+ * 「失敗してもブロックは成功で返す」と明記している（`follow.ts` も
+ * 「フォローが残ったからといってブロックを失敗にはしない」）。
+ * ＝**フォローの印が残ったままブロックが成立する状態が、設計として在る。**
+ * その断面で一覧・閲覧・返信・投票は全部止まるのに、**ハイライトだけが
+ * ストーリーの中身を返していた**（写真・置いた文字・キャプション・撮影地・BGM）。
+ *
+ * **両向き見る**のは `getStories` の `hiddenUserIds` に合わせるため
+ * （あちらは「自分がブロックした人 ∪ 自分をブロックした人」を落とす）。
+ * `followUser` も両向きを見て関係を作らせない。
  */
 async function canSeeHighlights(ownerId: string, viewerId: string): Promise<boolean> {
     if (ownerId === viewerId) return true;
     try {
-        return await isFollowing(ownerId, viewerId);
+        // **フォローを先に見て、追っていなければそこで終わり。**
+        // 3本まとめて投げると往復は1回で済むが、**追っていない人（訪問者の
+        // 大半）でも GetItem が 1 → 3 に増える**——プロフィールは誰でも開く
+        // ページなので、そちらの方が高くつく。ブロックまで見るのは
+        // フォロワーだけ（そこは2本を並べて往復1回）。
+        if (!await isFollowing(ownerId, viewerId)) return false;
+        const [blockedByOwner, blockedByViewer] = await Promise.all([
+            isBlocked(ownerId, viewerId),
+            isBlocked(viewerId, ownerId),
+        ]);
+        return !blockedByOwner && !blockedByViewer;
     } catch (e) {
         console.error("canSeeHighlights error:", e);
         return false;

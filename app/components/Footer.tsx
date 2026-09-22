@@ -28,7 +28,27 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="border-t border-white/10 bg-bg">
+        <footer
+            className="border-t border-white/10 bg-bg"
+            /**
+             * 🔴 **その画面自身の下の帯のぶんを、ここで空ける。**
+             *
+             * 帯（「保存」「削除」「投稿する」）は下部タブバーの**上**に乗るので、
+             * `body` の下の余白（タブバーのぶん）だけでは足りず、
+             * **フッターの最後の行が帯の裏に入って押せなくなる**
+             * （2026-09-22 に実測: `/user/highlights` と `/user/edit` で
+             *  いちばん下まで送ると7本とも `elementFromPoint` が帯を返した）。
+             *
+             * **`body` の `padding-bottom` では効かない。** この木は
+             * `body` が `min-h-screen flex flex-col` で、中身が溢れても
+             * `body` の箱は伸びない——余白は箱の内側に入ったままで、
+             * フッターは外へはみ出す（実測: `body` の余白を 123px にしても
+             * フッターの下端は画面の下端のままだった）。だから**受け取る側**で空ける。
+             *
+             * 高さは帯自身が出す（`usePageBarHeight`）。帯の無い画面では 0。
+             */
+            style={{ paddingBottom: "var(--page-bar-h, 0px)" }}
+        >
             <div className="max-w-5xl mx-auto px-6 md:px-8 py-10 md:py-12">
                 <div className="flex flex-col items-center gap-5 text-center">
                     {/* ブランド + タグライン */}

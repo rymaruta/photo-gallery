@@ -611,6 +611,61 @@ export function canonicalCollectionPath(type: CollectionType, slug: string): str
     return collectionPath(type, canonicalSlug);
 }
 
+/**
+ * **その種別を全部並べた索引ページ**の相対 URL（`/category` `/location` `/camera`）。
+ *
+ * 🔴 **なぜ要るか（2026-09-22 に実ビルドで数えて足した）。**
+ * トップから `/category/*` `/location/*` `/camera/*` への内部リンクは **0本**
+ * だった。柱（ホームの右）は owner の指示で `/search?…` を向いており、
+ * その `/search` は **`robots.txt` で `Disallow`**——つまり検索エンジンから見ると
+ * **行き止まり**で、柱はリンクを1本も渡していない。
+ *
+ * ⚠️ **「集約ページが孤立していた」わけではない。** 同じビルドで数えると、
+ * noindex でない60ページのうち `/category/*` へ37・`/location/*` へ22・
+ * `/camera/*` へ34 が張っている（主に写真ページ）＝トップから2クリックでは届く。
+ * 足りなかったのは**トップからの1本**と、「すべて見る」の行き先そのもの。
+ *
+ * **`/tag` は作っていない。** トップの写真カードのタグのチップが
+ * 実ビルドで `/tag/*` へ49本張っているので、同じ穴が無い。
+ */
+export function collectionIndexPath(type: CollectionType): string {
+    return `/${TYPE_PATH[type]}`;
+}
+
+/**
+ * **索引ページを検索に載せるかどうか。** 見るのは「写真の枚数」ではなく
+ * **並ぶエントリの件数**——索引の中身はエントリの一覧なので、1〜2件しか
+ * 無い索引はその個別ページと中身がほぼ同じになる（薄いページを増やすと
+ * サイト全体の評価が下がる、という `isIndexableCollection` と同じ判断）。
+ *
+ * 線は `MIN_INDEXABLE_COUNT`（3）に揃える。実データ（2026-09-22）では
+ * カテゴリ6・撮影地14・カメラ4 なので3つとも載る。
+ */
+export function isIndexableCollectionIndex(entryCount: number): boolean {
+    return entryCount >= MIN_INDEXABLE_COUNT;
+}
+
+/** 索引ページの見出し・メタ文言。`collectionCopy` と同じ組み方に揃える */
+export function collectionIndexCopy(type: CollectionType, count: number): CollectionCopy {
+    const kindJa = type === "tag" ? "タグ" : type === "location" ? "撮影地"
+        : type === "camera" ? "カメラ" : "カテゴリ";
+    const heading =
+        type === "location" ? "撮影地から写真をさがす"
+            : type === "camera" ? "カメラから写真をさがす"
+                : type === "category" ? "カテゴリから写真をさがす"
+                    : "タグから写真をさがす";
+    const title = `${heading}${count ? `（${count}件）` : ""}`;
+    const description =
+        type === "location"
+            ? `このサイトに写真がある撮影地${count ? `${count}か所` : ""}の一覧です。地名から、その場所で撮られた旅の写真をまとめて見られます。`
+            : type === "camera"
+                ? `このサイトに作例があるカメラ${count ? `${count}機種` : ""}の一覧です。機種名から、そのカメラで撮られた写真と撮影設定（EXIF）を見られます。`
+                : type === "category"
+                    ? `このサイトの写真のカテゴリ${count ? `${count}件` : ""}の一覧です。風景・街・食べ物などの分類から旅の写真をたどれます。`
+                    : `このサイトで使われているタグ${count ? `${count}件` : ""}の一覧です。`;
+    return { title, description, heading, breadcrumb: `${kindJa}の一覧` };
+}
+
 export type CollectionCopy = { title: string; description: string; heading: string; breadcrumb: string };
 
 /** ランディングページの見出し・メタ文言（日本語主体・ページ固有の導入文つき） */
