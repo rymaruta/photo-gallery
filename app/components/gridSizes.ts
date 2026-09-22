@@ -114,3 +114,19 @@ export const SPOT_HERO_SIZES = [
     "(max-width:639px) 100vw",
     "640px",
 ].join(", ");
+
+/**
+ * 「周辺のスポット」のカード（モック⑨）。容器は `max-w-6xl` ＋ `px-4`、
+ * 2列（640px 未満）→ 3列（sm）→ 4列（lg）。隙間は `gap-3`。
+ *
+ * **640px 未満だけ px**（このサイトは root を 14px に固定している＝
+ * `gap-3` は 10.5px・`px-4` は 14px）。それ以上は rem で書いて
+ * Tailwind のメディアクエリに追随させる（`GRID_SIZES_*` と同じ理由）。
+ */
+export const SPOT_NEARBY_SIZES = [
+    "(max-width:639px) calc(50vw - 19.25px)",        // 2列: (100vw - 14*2 - 10.5) / 2
+    "(max-width:39.99rem) calc(50vw - 1.375rem)",    // 2列: (100vw - 1rem*2 - 0.75rem) / 2
+    "(max-width:63.99rem) calc(33.33vw - 1.1667rem)",// 3列: (100vw - 2rem - 1.5rem) / 3
+    "(max-width:71.99rem) calc(25vw - 1.0625rem)",   // 4列: (100vw - 2rem - 2.25rem) / 4
+    "16.9375rem",                                    // 容器 72rem で頭打ち: (72 - 2 - 2.25) / 4
+].join(", ");

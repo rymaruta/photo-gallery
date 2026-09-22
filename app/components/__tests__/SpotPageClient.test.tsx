@@ -24,12 +24,47 @@ const shareMocks = vi.hoisted(() => ({
 }));
 vi.mock("../../../lib/utils/share", () => shareMocks);
 vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, loading: false }) }));
-// グリッドの中身はここの関心ではない（`GalleryGrid.test.tsx` が見る）
+/**
+ * グリッドの中身はここの関心ではない（`GalleryGrid.test.tsx` が見る）。
+ *
+ * ただし**受け取った props は出す**——このページが
+ * 「その場で開く」を頼んでいるか、頼まれた側が何を返すかは、ここの関心。
+ */
 vi.mock("../GalleryGrid", () => ({
-    default: ({ photos }: { photos: Array<{ id: string }> }) => (
-        <div data-testid="grid">{photos.map((p) => <span key={p.id}>{p.id}</span>)}</div>
+    default: ({ photos, onOpenPhoto, openInPlace }: {
+        photos: Array<{ id: string }>;
+        onOpenPhoto?: (id: string) => boolean;
+        openInPlace?: boolean;
+    }) => (
+        <div data-testid="grid" data-open-in-place={String(!!openInPlace)}>
+            {photos.map((p) => (
+                <button key={p.id} type="button" onClick={() => { lastOpenResult.value = onOpenPhoto?.(p.id); }}>
+                    {p.id}
+                </button>
+            ))}
+            <button type="button" onClick={() => { lastOpenResult.value = onOpenPhoto?.("居ない写真"); }}>
+                居ない写真を開く
+            </button>
+        </div>
     ),
 }));
+// **ビューアは使い回し**（`GalleryModal`）。あちらの中身は
+// `GalleryModal` 自身のテストが見るので、ここでは「開いたか・どれを・
+// 送れるか」だけを出す
+vi.mock("../GalleryModal", () => ({
+    default: ({ photos, currentIndex, onClose, onNext, onPrev }: {
+        photos: Array<{ id: string }>; currentIndex: number;
+        onClose: () => void; onNext: () => void; onPrev: () => void;
+    }) => (
+        <div data-testid="modal" data-current={photos[currentIndex]?.id}>
+            <button type="button" onClick={onPrev}>前へ</button>
+            <button type="button" onClick={onNext}>次へ</button>
+            <button type="button" onClick={onClose}>閉じる</button>
+        </div>
+    ),
+}));
+/** `onOpenPhoto` の戻り値を試験から覗くための箱 */
+const lastOpenResult = vi.hoisted(() => ({ value: undefined as boolean | undefined }));
 
 import SpotPageClient from "../SpotPageClient";
 
@@ -239,8 +274,8 @@ describe("地図タブ", () => {
 
 describe("周辺のスポット", () => {
     const nearby = [
-        { label: "ヴェルサイユ", count: 2, path: "/location/v", km: 17.3, approx: true },
-        { label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false },
+        { label: "ヴェルサイユ", count: 2, path: "/location/v", km: 17.3, approx: true, cover: null },
+        { label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null },
     ];
 
     it("渡された順（距離順）でそのまま並べる", () => {
@@ -333,5 +368,118 @@ describe("撮影スポット詳細: ヘッダーと代表画像", () => {
     it("写真が無ければ代表画像の枠ごと出さない", () => {
         render(<SpotPageClient {...base} photos={[] as never} />);
         expect(screen.queryByRole("link", { name: "この写真を開く" })).toBeNull();
+    });
+});
+
+/**
+ * ── その場で拡大（モック⑧・2026-09-22）──────────────────
+ *
+ * **2つ目のビューアを作らない**（`GalleryModal` を使い回す）。
+ * ここで見たいのは「頼み方」と「開けなかったときに黙らないこと」。
+ */
+describe("撮影スポット詳細: その場で拡大", () => {
+    it("グリッドに「その場で開く」を頼んでいる", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.getByTestId("grid").getAttribute("data-open-in-place")).toBe("true");
+    });
+
+    it("最初はビューアを描かない", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("押した写真でビューアが開き、閉じると消える", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p2" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
+        fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("ビューアの送りは端で折り返す", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
+        fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p1");
+    });
+
+    // 🔴 **開けないのに遷移を止めると、タップが無反応になる。**
+    // 写真ページへ行く方が、何も起きないよりずっと良い
+    it("知らない写真なら false を返す（遷移を止めさせない）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(screen.getByRole("button", { name: "居ない写真を開く" }));
+        expect(lastOpenResult.value).toBe(false);
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("見つかった写真では true を返す（その場で開く）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        expect(lastOpenResult.value).toBe(true);
+    });
+});
+
+/**
+ * ── 地図に寄せる・周辺のスポットのカード（モック⑥⑨・2026-09-22）───
+ *
+ * ⚠️ **コミット済みの `app/data/photos.json` は座標を1件も持たない**
+ * （30枚とも）。だから本番で見える姿は**手元のビルドでは出ない**
+ * ——ここが唯一「出る側」を固定している場所になる。
+ */
+describe("撮影スポット詳細: 地図と周辺のスポット", () => {
+    const coords = { lat: 35.4234, lng: 138.8765, approx: true };
+
+    // **地図タブは `hidden` で隠れている**（3つとも DOM に残す設計なので、
+    // 読み上げの木からは外れる）。既存の地図タブのテストと同じく id で取る
+    const mapPanel = () => document.getElementById("spot-panel-map")!;
+
+    it("「地図で見る」はこの場所に寄せて開く（#ズーム/緯度/経度）", () => {
+        render(<SpotPageClient {...base} coords={coords} />);
+        const link = mapPanel().querySelector("a")!;
+        // ズームは PHOTO_LINK_ZOOM（12）。座標は小数4桁（約11m）まで
+        expect(link.getAttribute("href")).toBe("/map#12/35.4234/138.8765");
+    });
+
+    // **座標が無ければ寄せようがない。** 出すのは素の /map で、
+    // 「位置がまだありません」と言い切る側の文面が出る
+    it("座標が無ければハッシュを付けない", () => {
+        render(<SpotPageClient {...base} coords={null} />);
+        const link = mapPanel().querySelector("a")!;
+        expect(link.getAttribute("href")).toBe("/map");
+    });
+
+    it("周辺のスポットのカードに、そのスポットの1枚が出る", () => {
+        const nearby = [{
+            label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false,
+            cover: { id: "n1", src: "https://x/uploads/n1.jpg", title: "湖", location: "山中湖" },
+        }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(within(list).getAllByRole("img").length).toBe(1);
+    });
+
+    // **代わりの絵を置かない。** 「写真がある場所」のカードで、持って
+    // いない絵を見せることになる
+    it("絵を持たないスポットのカードには、絵の枠ごと出さない", () => {
+        const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(within(list).queryAllByRole("img").length).toBe(0);
+        // 名前・距離・枚数は出る（カードそのものは消さない）
+        expect(list.textContent).toContain("山中湖");
+        expect(list.textContent).toContain("0.8km");
+        expect(list.textContent).toContain("2枚");
+    });
+
+    // **評価と♡は出さない**（評価の仕組みが無く、「行きたい」は本人しか
+    // 読めない＝公開の集計が無い）。モック⑨には在るが、実データが無い
+    it("カードに評価も「行きたい」も出さない", () => {
+        const nearby = [{ label: "山中湖", count: 2, path: "/location/y", km: 0.8, approx: false, cover: null }] as never;
+        render(<SpotPageClient {...base} nearby={nearby} />);
+        const list = screen.getByRole("heading", { name: "周辺のスポット" }).parentElement!;
+        expect(list.textContent).not.toMatch(/★|☆|4\.\d|評価/);
+        expect(within(list).queryByRole("button")).toBeNull();
     });
 });

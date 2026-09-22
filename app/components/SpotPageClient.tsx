@@ -6,9 +6,10 @@ import {
     MapPinIcon, ArrowLeftIcon, ShareIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import GalleryGrid from "./GalleryGrid";
+import GalleryModal from "./GalleryModal";
 import MoreMenu from "./MoreMenu";
 import Thumb from "./Thumb";
-import { GRID_SIZES_6XL, SPOT_HERO_SIZES } from "./gridSizes";
+import { GRID_SIZES_6XL, SPOT_HERO_SIZES, SPOT_NEARBY_SIZES } from "./gridSizes";
 import SaveSpotButton from "./SaveSpotButton";
 import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
@@ -16,13 +17,15 @@ import { useToast } from "../../lib/hooks/useToast";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
 import { photoAltText } from "../../lib/utils/photoAlt";
+import { formatMapHash, PHOTO_LINK_ZOOM } from "../../lib/utils/mapView";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type SpotLink = { label: string; count: number; path: string };
-type NearbyLink = SpotLink & { km: number; approx: boolean };
+/** 周辺のスポット。`cover` はそのスポットの1枚（無ければ `null`） */
+type NearbyLink = SpotLink & { km: number; approx: boolean; cover: Photo | null };
 
 type Props = {
     slug: string;
@@ -117,6 +120,43 @@ export default function SpotPageClient({
             showToast(en ? "Failed to copy link" : "リンクのコピーに失敗しました", "error");
         }
     };
+
+    /**
+     * その場で開いている写真の位置（モック⑧「タップで拡大表示に切り替わる」）。
+     *
+     * **`GalleryModal` を使い回す。2つ目のビューアは作らない**（PM の指示）。
+     * 送り・スワイプ・キーボード・フォーカスの閉じ込め・いいね・保存は
+     * 全部あちらが持っている。
+     *
+     * **URL は変えない。** ホームの `?photo=` は「静的ページの無い新着写真を
+     * 見せる」ための仕掛けで、こちらの写真は**全部 `/photo/<id>` を持っている**
+     * ——深いリンクはその URL が既に担っているので、同じことを2通りで
+     * できるようにしない。
+     */
+    /**
+     * 撮影地マップ（`/map`）へ、**このスポットに寄せて**飛ぶためのハッシュ。
+     *
+     * 写真ページ（`PhotoPageClient`）が同じ形で作っているのと**同じ関数**
+     * （`formatMapHash`）。座標が無ければ空文字が返るので、そのまま
+     * 「寄せずに開く」側へ倒れる——**`formatMapHash` 自身が非有限を弾く**
+     * （`clampView` が `null` を返す）ので、ここで数の検査を写さない。
+     *
+     * ズームは `PHOTO_LINK_ZOOM`（12）。**座標は約1km に丸めてある**ので、
+     * これ以上寄せてもピンの位置に意味が無い、という既にある判断に乗る。
+     */
+    const mapHash = coords ? formatMapHash({ lat: coords.lat, lng: coords.lng, zoom: PHOTO_LINK_ZOOM }) : "";
+    const mapHref = `${ROUTES.MAP}${mapHash}`;
+
+    const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+    const openById = React.useCallback((photoId: string) => {
+        const i = photos.findIndex((p) => p.id === photoId);
+        // **見つからなければ `false` を返す。** `GalleryGrid` はこの戻り値で
+        // 「遷移を止めるか」を決めるので、開けないのに止めると**タップが
+        // 無反応**になる（写真ページへ行く方が、何も起きないよりずっと良い）
+        if (i < 0) return false;
+        setOpenIndex(i);
+        return true;
+    }, [photos]);
 
     const TABS: Array<[TabKey, string]> = [
         ["overview", en ? "Overview" : "概要"],
@@ -426,7 +466,16 @@ export default function SpotPageClient({
                     {description}
                     <span className="ml-1 whitespace-nowrap text-white/50">（{photos.length}枚）</span>
                 </p>
-                <GalleryGrid photos={photos} locale={locale} sizes={GRID_SIZES_6XL} />
+                <GalleryGrid
+                    photos={photos}
+                    locale={locale}
+                    sizes={GRID_SIZES_6XL}
+                    // モック⑧「タップで拡大表示に切り替わる」。
+                    // **`<Link href="/photo/<id>">` は残る**ので、
+                    // 検索に載っているこのページからの内部リンクは消えない
+                    onOpenPhoto={openById}
+                    openInPlace
+                />
 
                 {/* **写真が少ないページにだけ。** 既存の `CollectionPage` と同じ扱い */}
                 {nearbyPhotos.length > 0 && (
@@ -445,11 +494,13 @@ export default function SpotPageClient({
                     <>
                         <p className="text-sm text-white/70 mb-4">
                             {en
-                                ? "Open the photo map to see this area."
-                                : "撮影地マップでこのあたりを見られます。"}
+                                ? "Open the photo map centred on this spot."
+                                : "撮影地マップを、この場所に寄せて開きます。"}
                         </p>
                         <Link
-                            href={ROUTES.MAP}
+                            // **この場所に寄せて開く**（`#ズーム/緯度/経度`）。
+                            // 受け取るのは `PhotoMap` の `chooseInitialView`
+                            href={mapHref}
                             prefetch={false}
                             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white/10 ring-1 ring-white/20 hover:bg-white/20 active:scale-95 transition"
                             style={{ touchAction: "manipulation", minHeight: 44 }}
@@ -476,7 +527,13 @@ export default function SpotPageClient({
                         {en
                             ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
                             : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
-                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
+                        {/* **行き先は上と同じ式（`mapHref`）。** ここだけ
+                            `ROUTES.MAP` を直書きしていたので、「座標が無ければ
+                            寄せない」を見張るテストが**この直書きを読んで
+                            素通り**していた（座標を勝手に 0,0 にする変異を
+                            入れても緑だった＝実測）。同じ答えを2か所で
+                            組まない */}
+                        <Link href={mapHref} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
                             {en ? "Open the map" : "撮影地マップを開く"}
                         </Link>
                     </p>
@@ -491,23 +548,50 @@ export default function SpotPageClient({
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {en ? "Nearby spots" : "周辺のスポット"}
                     </h2>
-                    <ul className="flex flex-wrap gap-1.5">
+                    {/* モック⑨のカード。**評価も♡も出さない**——評価の仕組みが
+                        無く、「行きたい」は本人しか読めない（公開の集計が無い）。
+                        出せるのは**サムネ・名前・距離・枚数**の4つだけ */}
+                    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                         {nearby.map((n) => (
                             <li key={n.path}>
                                 <Link
                                     href={n.path}
                                     prefetch={false}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                                    className="block rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     style={{ touchAction: "manipulation" }}
                                 >
-                                    {n.label}
-                                    {/* **距離の粒度を偽らない。** 元の座標が約1kmに
-                                        丸めてあるので、小数第1位までしか出さない。
-                                        推定に基づくぶんは「約」を付ける */}
-                                    <span className="text-white/50 tabular-nums">
-                                        {n.approx && (en ? "~" : "約")}{n.km < 10 ? n.km.toFixed(1) : Math.round(n.km)}km
-                                    </span>
-                                    <span className="text-white/60 tabular-nums">{n.count}</span>
+                                    {/* **絵が無ければ枠ごと出さない。** 代わりの絵を
+                                        置くと「写真がある場所」のカードで、持って
+                                        いない絵を見せることになる */}
+                                    {n.cover && (
+                                        <div
+                                            className="relative w-full overflow-hidden"
+                                            style={{
+                                                paddingTop: "66.6667%",
+                                                backgroundColor: n.cover.dominantColor ?? "#0d1a26",
+                                                fontSize: 0,
+                                                lineHeight: 0,
+                                            }}
+                                        >
+                                            <Thumb photo={n.cover} alt={photoAltText(n.cover, locale)} sizes={SPOT_NEARBY_SIZES} />
+                                        </div>
+                                    )}
+                                    <div className="px-2.5 py-2">
+                                        <p className="text-sm text-white/90 truncate">{n.label}</p>
+                                        <p className="mt-0.5 flex items-center gap-1 text-xs text-white/60">
+                                            <MapPinIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                            {/* **距離の粒度を偽らない。** 元の座標が約1kmに
+                                                丸めてあるので、小数第1位までしか出さない。
+                                                推定に基づくぶんは「約」を付ける */}
+                                            <span className="tabular-nums">
+                                                {n.approx && (en ? "~" : "約")}{n.km < 10 ? n.km.toFixed(1) : Math.round(n.km)}km
+                                            </span>
+                                            <span aria-hidden>·</span>
+                                            <span className="tabular-nums">
+                                                {en ? `${n.count} photo${n.count === 1 ? "" : "s"}` : `${n.count}枚`}
+                                            </span>
+                                        </p>
+                                    </div>
                                 </Link>
                             </li>
                         ))}
@@ -538,6 +622,18 @@ export default function SpotPageClient({
                         ))}
                     </div>
                 </section>
+            )}
+            {/* **その場で拡大**（モック⑧）。`GalleryModal` を使い回す。
+                端では折り返す——ヒーローの前/次と同じ作法 */}
+            {openIndex !== null && photos[openIndex] && (
+                <GalleryModal
+                    photos={photos}
+                    currentIndex={openIndex}
+                    onClose={() => setOpenIndex(null)}
+                    onNext={() => setOpenIndex((i) => (i === null ? null : (i + 1) % photos.length))}
+                    onPrev={() => setOpenIndex((i) => (i === null ? null : (i - 1 + photos.length) % photos.length))}
+                    locale={locale}
+                />
             )}
         </main>
     );

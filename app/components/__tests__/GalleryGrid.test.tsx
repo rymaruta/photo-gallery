@@ -19,8 +19,8 @@ const photo = (id: string): Photo => ({
     tags: [],
 });
 
-function setup(ids: string[], onOpenPhoto?: (id: string) => boolean) {
-    render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} />);
+function setup(ids: string[], onOpenPhoto?: (id: string) => boolean, openInPlace?: boolean) {
+    render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={ids.map(photo)} locale="ja" onOpenPhoto={onOpenPhoto} openInPlace={openInPlace} />);
 }
 
 describe("GalleryGrid: 新着写真のタップ", () => {
@@ -40,6 +40,34 @@ describe("GalleryGrid: 新着写真のタップ", () => {
         fireEvent(link, ev);
         expect(onOpenPhoto).toHaveBeenCalledWith(NEW_ID);
         expect(ev.defaultPrevented).toBe(true);
+    });
+
+    // **`openInPlace` は撮影スポット詳細のモック⑧**（「タップで拡大表示に
+    // 切り替わる」）のための opt-in。既定は false なので、これを渡していない
+    // 画面（ホーム・お気に入り・保存・他の集約ページ）の振る舞いは変わらない
+    // ——それを見張るのが1つ下の「静的ページのある写真はそのまま遷移させる」。
+    it("openInPlace なら、静的ページのある写真もその場で開く", () => {
+        const onOpenPhoto = vi.fn().mockReturnValue(true);
+        setup([BUILT_ID], onOpenPhoto, true);
+        const link = screen.getByRole("link");
+        // 🔴 **`href` は消さない。** 消すと `/location/*`（検索に載っている
+        // ページ）から写真の個別ページへの内部リンクが丸ごと消える
+        expect(link).toHaveAttribute("href", `/photo/${BUILT_ID}`);
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(link, ev);
+        expect(onOpenPhoto).toHaveBeenCalledWith(BUILT_ID);
+        expect(ev.defaultPrevented).toBe(true);
+    });
+
+    // **開けなかったら遷移を止めない。** 止めると「タップしても何も起きない」
+    // になる——写真ページへ行く方がずっと良い
+    it("openInPlace でも、開けなかった（false）なら遷移はそのまま", () => {
+        const onOpenPhoto = vi.fn().mockReturnValue(false);
+        setup([BUILT_ID], onOpenPhoto, true);
+        const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+        fireEvent(screen.getByRole("link"), ev);
+        expect(onOpenPhoto).toHaveBeenCalledWith(BUILT_ID);
+        expect(ev.defaultPrevented).toBe(false);
     });
 
     it("静的ページのある写真はそのまま個別ページへ遷移させる", () => {

@@ -25,6 +25,7 @@ import {
     slugify,
 } from "@/lib/utils/collections";
 import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
+import type { Photo } from "@/lib/data/photos";
 import { spotDetail } from "@/lib/utils/spot";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
@@ -73,6 +74,23 @@ export default async function SpotPage({ slug }: { slug: string }) {
         label: e.label, count: e.count, path: collectionPath("location", e.slug),
     });
 
+    /**
+     * 周辺のスポットのカードに出す1枚（モック⑨）。
+     *
+     * **枚数を数えたのと同じ関数から採る**（`photosInCollection`）。別の
+     * 絞り方で採ると「3枚」と書いてあるカードに、その3枚に入っていない
+     * 写真が出る。撮影地の一致は**緩い**（「パリ」と「パリ, フランス」を
+     * 寄せる）ので、自前で `location === label` と書くと**ほとんどのカードで
+     * 絵が出ない**（`CLAUDE.md` が名指ししている数え違いと同じ形）。
+     *
+     * 無ければ `null`。**代わりの絵を置かない**——「写真がある場所」の
+     * カードなのに、持っていない絵を見せることになる。
+     */
+    const coverOf = (slug: string): Photo | null => {
+        const first = photosInCollection(photos, "location", slug)[0];
+        return first ? slimForGrid(first) : null;
+    };
+
     // 同タイプの他ページへの相互リンク（孤立防止・回遊・SEO）。**既存のまま**
     const related = relatedEntries(photos, "location", slug, 12).map(link);
 
@@ -108,7 +126,7 @@ export default async function SpotPage({ slug }: { slug: string }) {
                 coords={coords}
                 broader={broader.map(link)}
                 narrower={narrower.map(link)}
-                nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx }))}
+                nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx, cover: coverOf(n.slug) }))}
                 related={related}
             />
         </>
