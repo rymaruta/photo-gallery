@@ -110,6 +110,30 @@ describe("撮影スポット詳細", () => {
         expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
     });
 
+    /**
+     * **関係ないキーは飲まない。**
+     *
+     * roving tabindex なので、tablist の中で Tab の停止点は選ばれている
+     * 1つだけ。ここで `Tab` を飲むと、**キーボードだけで操作する人が
+     * タブの並びから出られない**。
+     *
+     * `e.preventDefault()` を「移る先が決まったときだけ」撃つ、という条件を
+     * 見張るテストが**どこにも無かった**——`preventDefault()` を判定の
+     * 前に移すという、ごく起こりやすい書き換えで25件が全部緑になる。
+     * `fireEvent.keyDown` は `preventDefault()` が呼ばれると `false` を返す。
+     */
+    it("関係ないキーは飲まない（矢印だけ飲む）", () => {
+        render(<SpotPageClient {...base} />);
+        const list = screen.getByRole("tablist");
+        for (const key of ["Tab", "Enter", " ", "a", "ArrowUp", "ArrowDown", "Escape"]) {
+            expect(fireEvent.keyDown(list, { key }), `${key} を飲んでいる`).toBe(true);
+        }
+        // 矢印・Home/End は飲む（矢印での横スクロールを起こさない）
+        for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+            expect(fireEvent.keyDown(list, { key }), `${key} を飲んでいない`).toBe(false);
+        }
+    });
+
     // roving tabindex: Tab で止まるのは選ばれている1つだけ
     it("Tab で止まるのは選ばれているタブだけ", () => {
         render(<SpotPageClient {...base} />);

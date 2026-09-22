@@ -2,7 +2,10 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import StoryTextOverlay from "../StoryTextOverlay";
-import { STORY_FONTS, STORY_SIZE_DEFAULT, STORY_STAMPS, type StoryTextItem } from "@/lib/utils/storyText";
+import {
+    STORY_FONTS, STORY_SIZE_DEFAULT, STORY_STAMPS,
+    type StoryText, type StoryTextItem, type StoryStampItem, type StoryVoteItem,
+} from "@/lib/utils/storyText";
 
 /**
  * 置いた文字の描き方。
@@ -379,5 +382,169 @@ describe("StoryTextOverlay: スタンプ", () => {
             />,
         );
         expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
+    });
+});
+
+/**
+ * 投票スタンプの描き方（⑨-3）。
+ *
+ * **2択は見る側の段でしか押せるようにしない。** ここでは `<button>` を
+ * 置かない——票を送る口（`onVote`）はこのあとの段で足すので、先に
+ * `<button>` を置くと「押しても効かない的」になる。
+ */
+describe("StoryTextOverlay: 投票", () => {
+    // 形は型に見せる（`as unknown as` で握ると `options` の綴り違いを型が止めない）
+    const vote = (over: Partial<StoryVoteItem> = {}): StoryVoteItem =>
+        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05, ...over });
+    const stamp = (): StoryStampItem => ({ kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.12 });
+
+    it("問いと2択を描く", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        const card = container.querySelector("[data-story-vote]") as HTMLElement;
+        expect(card.textContent).toContain("この景色、好き？");
+        expect(card.textContent).toContain("はい");
+        expect(card.textContent).toContain("いいえ");
+    });
+
+    // **白いカード**（塗りの下地の経路を借りる＝白地・黒字・影なし）
+    it("白いカードとして描く（字体は当てない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.background).toBe("rgb(255, 255, 255)");
+        expect(p.style.color).toBe("rgb(0, 0, 0)");
+        expect(p.style.textShadow).toBe("none");
+        expect(p.style.fontFamily, "字体を当てている").toBe("");
+    });
+
+    // 票を送る口が無い段では、押せる形にしない
+    it("この段では2択は押せない（button を置かない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(container.querySelectorAll("button")).toHaveLength(0);
+    });
+
+    it("投票も位置・大きさ・傾きは文字と同じ規則", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote({ x: 0.25, rotate: 10 })]} box={box} />);
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.style.left).toBe("25%");
+        expect(p.style.fontSize).toBe(`${Math.round(box.width * 0.05)}px`);
+        expect(p.style.transform).toContain("rotate(10deg)");
+    });
+
+    // 読み上げは「投票」と名乗り、問いを読む
+    it("下書きでは「投票」として名乗り、ハンドルが出る", () => {
+        const { container } = render(
+            <StoryTextOverlay
+                texts={[vote()]} box={box} selectedIndex={0}
+                onPickIndex={vi.fn()} onGrabHandle={vi.fn()} onTransform={vi.fn()}
+            />,
+        );
+        const p = container.querySelector("p") as HTMLElement;
+        expect(p.getAttribute("aria-label")).toContain("投票「この景色、好き？」");
+        expect(container.querySelector("[data-story-text-handle]")).not.toBeNull();
+    });
+
+    // **知らない種類は描かない**（新しい画面が先に出した `kind`）。
+    // 述語が否定形だと文字の枝へ落ち、`text` の無い `<p>` が出る
+    it("知らない kind の要素は、その要素だけ描かない（落ちない）", () => {
+        const future = { kind: "future", x: 0.5, y: 0.5, size: 0.06 } as unknown as StoryText;
+        const { container } = render(<StoryTextOverlay texts={[future, t({ text: "朝" })]} box={box} />);
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps, "知らない種類まで描いている").toHaveLength(1);
+        expect(ps[0].textContent).toBe("朝");
+        expect(() => render(
+            <StoryTextOverlay texts={[future]} box={box} selectedIndex={0} onPickIndex={vi.fn()} onGrabHandle={vi.fn()} />,
+        )).not.toThrow();
+    });
+
+    // 文字・スタンプ・投票が混ざっても、それぞれが自分の形で出る
+    it("文字・スタンプと混ざっても、投票が文字の枝へ落ちない", () => {
+        const { container } = render(
+            <StoryTextOverlay texts={[t({ text: "朝" }), vote(), stamp()]} box={box} />,
+        );
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps).toHaveLength(3);
+        expect(ps[0].textContent).toBe("朝");
+        expect(ps[1].querySelector("[data-story-vote]")).not.toBeNull();
+        expect(ps[2].querySelector('[role="img"]')).not.toBeNull();
+    });
+});
+
+/**
+ * 投票スタンプ（見る側で票を入れる）。
+ *
+ * **`<button>` にするのは `onVote` を渡し、まだ入れていないときだけ。**
+ * 数（割合）は `voteState.counts` が在るときだけ出す（投稿者と入れた人だけに届く）。
+ */
+describe("StoryTextOverlay: 投票に票を入れる", () => {
+    const vote = (): StoryVoteItem =>
+        ({ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 });
+    const buttons = () => screen.queryAllByRole("button", { name: /「.+」に投票/ });
+
+    it("onVote を渡すと2択が押せて、番号と選択肢で呼ばれる", async () => {
+        const onVote = vi.fn();
+        render(<StoryTextOverlay texts={[vote()]} box={box} onVote={onVote} />);
+        expect(buttons()).toHaveLength(2);
+        fireEvent.click(screen.getByRole("button", { name: "「いいえ」に投票" }));
+        expect(onVote).toHaveBeenCalledWith(0, "b");
+        fireEvent.click(screen.getByRole("button", { name: "「はい」に投票" }));
+        expect(onVote).toHaveBeenLastCalledWith(0, "a");
+    });
+
+    // 親は `pointer-events-none`。**押せる `<button>` だけ**受ける——箱ごと受けると、
+    // 問いの部分が右上の閉じるボタンなどを覆ったときにそちらが押せなくなる
+    it("票を入れる button だけが pointer-events を受ける（箱と文字は受けない）", () => {
+        const { container } = render(<StoryTextOverlay texts={[t({ text: "朝" }), vote()]} box={box} onVote={vi.fn()} />);
+        const ps = [...container.querySelectorAll("p")];
+        expect(ps[0].className, "見る側の文字が押せる形になっている").not.toContain("pointer-events-auto");
+        expect(ps[1].className, "投票の箱ごと受けている").not.toContain("pointer-events-auto");
+        for (const b of buttons()) expect(b.className, "ボタンが親の pointer-events-none に埋もれている").toContain("pointer-events-auto");
+    });
+
+    it("入れてある（myVote）なら押せず、自分の票に印が付く", () => {
+        const { container } = render(
+            <StoryTextOverlay texts={[vote()]} box={box} onVote={vi.fn()} voteState={{ myVote: "a", counts: { a: 1, b: 3 } }} />,
+        );
+        expect(buttons()).toHaveLength(0);
+        expect((container.querySelector("p") as HTMLElement).className).not.toContain("pointer-events-auto");
+        const mine = container.querySelector('[aria-current="true"]') as HTMLElement;
+        // 見える文字は「✓ はい 25%」、票数は隠し文字（読み上げだけ）
+        expect(mine.textContent).toBe("✓ はい 25%（1票）");
+        expect(mine.querySelector(".sr-only")?.textContent).toBe("（1票）");
+    });
+
+    it("数が在るときだけ割合を出す（読み上げには票数も）", () => {
+        const { container, rerender } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 2, b: 1 } }} />);
+        expect(container.textContent).toContain("はい 67%");
+        expect(container.textContent).toContain("いいえ 33%");
+        // 票数は隠し文字で（role の無い span の aria-label は読まれない）
+        expect([...container.querySelectorAll(".sr-only")].map((e) => e.textContent)).toEqual(["（2票）", "（1票）"]);
+        rerender(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(container.textContent, "数が無いのに割合を出している").not.toMatch(/%/);
+        expect(container.querySelector(".sr-only"), "数が無いのに票数を読み上げている").toBeNull();
+    });
+
+    // **b は 100 − a**。両方を丸めると 1対7 が 13%＋88% になる
+    it("割合の和は必ず 100", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 1, b: 7 } }} />);
+        expect(container.textContent).toContain("はい 13%");
+        expect(container.textContent).toContain("いいえ 87%");
+    });
+
+    // 0%/0% は引き分けに読める
+    it("数が見えて 0 票なら、割合ではなく「まだ票はありません」", () => {
+        const { container } = render(<StoryTextOverlay texts={[vote()]} box={box} voteState={{ counts: { a: 0, b: 0 } }} />);
+        expect(container.textContent).not.toMatch(/%/);
+        expect(container.textContent).toContain("まだ票はありません");
+        expect(container.querySelector(".sr-only"), "0票なのに「（0票）」を読み上げている").toBeNull();
+    });
+
+    it("送っている間は押せない", () => {
+        render(<StoryTextOverlay texts={[vote()]} box={box} onVote={vi.fn()} voting />);
+        for (const b of buttons()) expect(b).toBeDisabled();
+    });
+
+    it("onVote が無ければ button を置かない（下書き・未ログイン）", () => {
+        render(<StoryTextOverlay texts={[vote()]} box={box} />);
+        expect(buttons()).toHaveLength(0);
     });
 });

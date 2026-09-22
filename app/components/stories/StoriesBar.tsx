@@ -32,6 +32,8 @@ import {
     STORY_SIZE_MIN, STORY_SIZE_MAX, STORY_SIZE_STEP, STORY_SIZE_DEFAULT, clampStoryTextSize,
     FIRST_STORY_TEXT_POS, clampStoryTextPos, newStoryText, clampStoryTextRotate,
     STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
+    isStoryTextItem, isStoryVote, newStoryVote, isCompleteStoryVote,
+    STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX,
     type StoryText, type StoryTextItem, type StoryStampKey,
 } from "../../../lib/utils/storyText";
 import { grabHandle, handleMove, type HandleGrab } from "../../../lib/utils/storyTransform";
@@ -189,12 +191,16 @@ export default function StoriesBar() {
      * 欄**が並ぶ——このファイルが既に「動かすものも飾るものも無いなら
      * 欄を置かない」と書いている、その判断をスタンプにも当てる。
      */
-    const currentText = current && !isStoryStamp(current) ? current : null;
+    // **「スタンプでない」ではなく「文字である」で絞る。** 否定で書くと、
+    // 種類を足すたび（投票）に**新しい種類が文字の側へ落ちる**
+    const currentText = current && isStoryTextItem(current) ? current : null;
+    /** いま選んでいるものが**投票のとき**だけ中身を返す（問いと2択の欄に効く） */
+    const currentVote = current && isStoryVote(current) ? current : null;
 
     /** 選んでいる**文字**の見せ方を変える（スタンプには当てない） */
     const patchSelected = useCallback((patch: Partial<StoryTextItem>) => {
         setTexts((prev) => prev.map((t, i) => (
-            i === selected && !isStoryStamp(t) ? { ...t, ...patch } : t
+            i === selected && isStoryTextItem(t) ? { ...t, ...patch } : t
         )));
     }, [selected]);
 
@@ -213,7 +219,10 @@ export default function StoriesBar() {
             // 落とす（＝打った文字が黙って消える）。「スタンプを置いて、
             // そのまま題を打つ」はいちばん自然な流れなので、ここは
             // **新しい文字を足す**側へ倒す。
-            if (cur && !isStoryStamp(cur)) {
+            // **「文字である」で絞る**（`!isStoryStamp` だと投票が文字の側へ
+            // 落ちて、投票の中身に `text` が生える——⑨-2 で踏んだ形。
+            // スプレッドは余剰プロパティを型が止めないので、ここは型に頼れない）
+            if (cur && isStoryTextItem(cur)) {
                 return prev.map((t, i) => (i === selected ? { ...t, text: value } : t));
             }
             if (!value) return prev;
@@ -225,7 +234,7 @@ export default function StoriesBar() {
         // 新しい選択（そうしないと次の1文字がまたスタンプの側へ行く）
         setSelected((cur) => {
             const sel = cur !== null ? texts[cur] : undefined;
-            if (sel && !isStoryStamp(sel)) return cur;
+            if (sel && isStoryTextItem(sel)) return cur;
             return Math.min(texts.length, STORY_TEXTS_MAX - 1);
         });
     }, [selected, texts]);
@@ -255,6 +264,37 @@ export default function StoriesBar() {
         });
         setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
     }, [texts.length, selected]);
+
+    /** 投票は1投稿に1つ（票をストーリー単位で数えるため）。既に在るか */
+    const hasVote = texts.some(isStoryVote);
+    /**
+     * 置いた投票に欠けがある（問いか2択が空）。**この間は投稿できない。**
+     * `sanitizeStoryTexts` は欠けた投票を落とす（既定で埋めない）ので、
+     * 送れてしまうと**カードは見えているのに投稿後に消える**。判定は
+     * サーバーと同じ1本（`isCompleteStoryVote`）
+     */
+    const voteIncomplete = texts.some((t) => isStoryVote(t) && !isCompleteStoryVote(t));
+
+    /**
+     * 投票を1つ置く。**既に在れば置かない**（上の理由。`sanitizeStoryTexts` も
+     * 2つ目を落とすので、置けても保存で消える——押せない形にしておく）。
+     * 置いたら選んだ状態にして、問いと2択を直せるようにする。
+     */
+    const addVote = useCallback(() => {
+        if (hasVote) return;
+        setTexts((prev) => {
+            if (prev.length >= STORY_TEXTS_MAX || prev.some(isStoryVote)) return prev;
+            return [...prev, newStoryVote(FIRST_STORY_TEXT_POS.x, FIRST_STORY_TEXT_POS.y + 0.12 * prev.length)];
+        });
+        setSelected(texts.length < STORY_TEXTS_MAX ? texts.length : selected);
+    }, [hasVote, texts.length, selected]);
+
+    /** 選んでいる**投票**の問い・2択を直す（他の種類には当てない） */
+    const patchVote = useCallback((patch: { question?: string; options?: [string, string] }) => {
+        setTexts((prev) => prev.map((t, i) => (
+            i === selected && isStoryVote(t) ? { ...t, ...patch } : t
+        )));
+    }, [selected]);
 
     /**
      * 選んでいる文字を消す。**残っていれば最後の1つを選び直す。**
@@ -1402,7 +1442,9 @@ export default function StoriesBar() {
                                     disabled={posting}
                                     aria-label={current && isStoryStamp(current)
                                         ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
-                                        : (locale === "en" ? "Delete this text" : "この文字を消す")}
+                                        : current && isStoryVote(current)
+                                            ? (locale === "en" ? "Delete this poll" : "この投票を消す")
+                                            : (locale === "en" ? "Delete this text" : "この文字を消す")}
                                     className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
                                     style={{ width: "44px", height: "44px" }}
                                 >
@@ -1445,6 +1487,21 @@ export default function StoriesBar() {
                                         <span aria-hidden>{STORY_STAMPS[k].glyph}</span>
                                     </button>
                                 ))}
+                                {/* **投票（2択）。** 絵柄の並びの最後に1つ。
+                                    **1投稿に1つ**なので、置いたら押せなくする
+                                    （押せるのに保存で消える、を作らない） */}
+                                <button
+                                    type="button"
+                                    onClick={addVote}
+                                    disabled={posting || hasVote || texts.length >= STORY_TEXTS_MAX}
+                                    aria-label={hasVote
+                                        ? (locale === "en" ? "Poll (one per story)" : "投票（1投稿に1つ）")
+                                        : (locale === "en" ? "Add a poll" : "投票を置く")}
+                                    className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                    style={{ height: "40px", minWidth: "40px", padding: "0 12px", fontSize: "12px", fontWeight: 700 }}
+                                >
+                                    {locale === "en" ? "Poll" : "投票"}
+                                </button>
                             </div>
                         </div>
 
@@ -1508,6 +1565,71 @@ export default function StoriesBar() {
                                         style={{ height: "36px" }}
                                     />
                                     <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                </div>
+                                )}
+
+                                {/* **投票を選んでいるときは、問い・2択・大きさ。**
+                                    字体・色・下地は出さない（カードの見た目は1種類）。
+                                    上限は保存側と同じ定数（超えた分は保存で切られる
+                                    ——ここで止めておけば「打てたのに消える」が無い）。
+                                    ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                                {currentVote && (
+                                <div className="space-y-2" role="group" aria-label={locale === "en" ? "Poll" : "投票"}>
+                                    <input
+                                        type="text"
+                                        value={currentVote.question}
+                                        onChange={(e) => patchVote({ question: e.target.value })}
+                                        maxLength={STORY_VOTE_QUESTION_MAX}
+                                        disabled={posting}
+                                        aria-label={locale === "en" ? "Poll question" : "投票の問い"}
+                                        className="w-full rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 outline-none focus:bg-black/70"
+                                        // ⚠️ **16px**。これより小さいと iOS Safari が焦点を当てた瞬間に
+                                        // 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）
+                                        style={{ height: "40px", fontSize: "16px" }}
+                                    />
+                                    <div className="flex gap-2">
+                                        {currentVote.options.map((opt, k) => (
+                                            <input
+                                                key={k}
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) => {
+                                                    const next: [string, string] = [...currentVote.options];
+                                                    next[k] = e.target.value;
+                                                    patchVote({ options: next });
+                                                }}
+                                                maxLength={STORY_VOTE_OPTION_MAX}
+                                                disabled={posting}
+                                                aria-label={locale === "en" ? `Option ${k + 1}` : `選択肢${k + 1}`}
+                                                className="flex-1 min-w-0 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 text-center outline-none focus:bg-black/70"
+                                                // ⚠️ 16px（上の問いと同じ理由——iOS Safari の拡大）
+                                                style={{ height: "40px", fontSize: "16px" }}
+                                            />
+                                        ))}
+                                    </div>
+                                    {/* 欠けは**ここで言う**（送る前に止めているので、理由が無いと
+                                        投稿ボタンが黙って押せないだけになる） */}
+                                    {!isCompleteStoryVote(currentVote) && (
+                                        <p className="text-white/85 px-1" style={{ fontSize: "12px" }} role="status">
+                                            {locale === "en" ? "Fill in the question and both options to post" : "問いと2つの選択肢を入れると投稿できます"}
+                                        </p>
+                                    )}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                        <input
+                                            type="range"
+                                            min={STORY_SIZE_MIN}
+                                            max={STORY_SIZE_MAX}
+                                            step={STORY_SIZE_STEP}
+                                            value={currentVote.size}
+                                            onChange={(e) => transformText(selected!, { size: Number(e.target.value) })}
+                                            disabled={posting}
+                                            aria-label={locale === "en" ? "Poll size" : "投票の大きさ"}
+                                            className="flex-1 min-w-0 accent-white"
+                                            style={{ height: "36px" }}
+                                        />
+                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "17px", lineHeight: 1 }} aria-hidden="true">大</span>
+                                    </div>
                                 </div>
                                 )}
 
@@ -1964,7 +2086,7 @@ export default function StoriesBar() {
                     >
                         <button
                             onClick={() => void handlePost()}
-                            disabled={posting}
+                            disabled={posting || voteIncomplete}
                             className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             style={{ touchAction: "manipulation" }}
                         >
