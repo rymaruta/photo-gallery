@@ -72,7 +72,7 @@ beforeEach(() => {
 async function blockFromViewer() {
     render(<StoriesBar />);
     fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
-    fireEvent.click(await screen.findByLabelText("届いた返信を見る"));
+    fireEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
     fireEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
     await waitFor(() => expect(mockUserFetch.mock.calls.some(
         (c) => String(c[0]).includes("/block") && (c[1] as { method?: string })?.method === "POST")).toBe(true));
@@ -97,7 +97,7 @@ describe("返信一覧からブロックしたあと、ストーリーのバー�
         fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
         await closeViewer();
 
-        await waitFor(() => expect(screen.queryByLabelText("届いた返信を見る")).toBeNull());
+        await waitFor(() => expect(screen.queryByLabelText("届いたリアクション・返信を見る")).toBeNull());
         expect(listCalls(), "押していないのに取り直している").toHaveLength(1);
     });
 
@@ -109,7 +109,7 @@ describe("返信一覧からブロックしたあと、ストーリーのバー�
 
         fireEvent.click(await screen.findByRole("button", { name: "自分のストーリーを見る" }));
         await closeViewer();
-        await waitFor(() => expect(screen.queryByLabelText("届いた返信を見る")).toBeNull());
+        await waitFor(() => expect(screen.queryByLabelText("届いたリアクション・返信を見る")).toBeNull());
         expect(listCalls(), "札を下ろしていない").toHaveLength(2);
     });
 });

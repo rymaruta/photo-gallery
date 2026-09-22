@@ -314,7 +314,7 @@ describe("入力中・送信中は自動で進まない", () => {
     });
 });
 
-describe("届いた返信（投稿者側）", () => {
+describe("届いたリアクション・返信（投稿者側）", () => {
     // シートを開いている間も止める（閲覧者リストと同じ）。
     // 止めないと、読んでいる途中で次のストーリーへ移って**別の人の返信**が
     // 出る（`viewersOpen` は最初から入っていたのに、こちらは無検証だった）
@@ -326,7 +326,7 @@ describe("届いた返信（投稿者側）", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         const fill = document.querySelector(".story-progress-fill") as HTMLElement | null;
         expect(fill?.style.animationPlayState, "シートを開いている間も進んでいる").toBe("paused");
     });
@@ -334,7 +334,7 @@ describe("届いた返信（投稿者側）", () => {
     it("0件のときはボタンを出さない", async () => {
         view(ownGroups());
         await screen.findByLabelText("閉じる");
-        expect(screen.queryByLabelText("届いた返信を見る"), "押しても何も無いボタンを出している").toBeNull();
+        expect(screen.queryByLabelText("届いたリアクション・返信を見る"), "押しても何も無いボタンを出している").toBeNull();
     });
 
     it("届いていれば数を出し、開くと中身を読みに行く", async () => {
@@ -348,7 +348,7 @@ describe("届いた返信（投稿者側）", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(2));
-        const btn = await screen.findByLabelText("届いた返信を見る");
+        const btn = await screen.findByLabelText("届いたリアクション・返信を見る");
         expect(btn.textContent).toContain("2");
 
         // **開くまでシートの中身は出ない。**
@@ -370,12 +370,12 @@ describe("届いた返信（投稿者側）", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
-        expect(await screen.findByText("返信を読み込めませんでした")).toBeInTheDocument();
-        expect(screen.queryByText("まだ返信はありません"), "失敗を0件と言っている").toBeNull();
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
+        expect(await screen.findByText("リアクション・返信を読み込めませんでした")).toBeInTheDocument();
+        expect(screen.queryByText("まだリアクションも返信もありません"), "失敗を0件と言っている").toBeNull();
     });
 
-    // 配列でない応答を「まだ返信はありません」にしない（SW-b8）
+    // 配列でない応答を「まだリアクションも返信もありません」にしない（SW-b8）
     it("配列でない応答も「0件」と言わない", async () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (String(url).includes("/replies") && !init?.method) {
@@ -384,8 +384,8 @@ describe("届いた返信（投稿者側）", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
-        expect(await screen.findByText("返信を読み込めませんでした")).toBeInTheDocument();
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
+        expect(await screen.findByText("リアクション・返信を読み込めませんでした")).toBeInTheDocument();
     });
 });
 
@@ -394,7 +394,7 @@ describe("届いた返信（投稿者側）", () => {
 // 無く、迷惑な返信を受けた人にできることが**退会しかなかった**
 // （`block.ts` が「やり取りの口を持つ以上の最低限」と書いている当のもの）。
 // 困っているのは返信を読んでいる人なので、その場に置く。
-describe("届いた返信から、その人をブロックする", () => {
+describe("届いたリアクション・返信から、その人をブロックする", () => {
     const withReply = () => {
         mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
             if (String(url).includes("/replies") && !init?.method) {
@@ -412,7 +412,7 @@ describe("届いた返信から、その人をブロックする", () => {
     it("押すとその人をブロックする", async () => {
         withReply();
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
 
         await waitFor(() => expect(blockCalls()).toHaveLength(1));
@@ -434,7 +434,7 @@ describe("届いた返信から、その人をブロックする", () => {
         const off = mod.subscribeFollowingSet(() => seen.push("changed"));
         try {
             view(ownGroups(1));
-            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
             await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
             await waitFor(() => expect(blockCalls()).toHaveLength(1));
             await waitFor(() => expect(seen, "一覧が古いまま（写真が出続ける）").toHaveLength(1));
@@ -451,7 +451,7 @@ describe("届いた返信から、その人をブロックする", () => {
         withReply();
         const onBlocked = vi.fn();
         view(ownGroups(1), { onBlocked });
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         await waitFor(() => expect(blockCalls()).toHaveLength(1));
         await waitFor(() => expect(onBlocked, "リングが残ったままになる").toHaveBeenCalledWith("u2"));
@@ -474,7 +474,7 @@ describe("届いた返信から、その人をブロックする", () => {
         });
         const onBlocked = vi.fn();
         view(ownGroups(1), { onBlocked });
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         await waitFor(() => expect(blockCalls()).toHaveLength(1));
         // **その場に出す**（`replyError` と同じ形。トーストにすると
@@ -501,7 +501,7 @@ describe("届いた返信から、その人をブロックする", () => {
         const off = mod.subscribeFollowingSet(() => seen.push("changed"));
         try {
             view(ownGroups(1));
-            await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+            await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
             await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
             await waitFor(() => expect(blockCalls()).toHaveLength(1));
             expect(seen, "効いていないのに一覧を捨てている").toHaveLength(0);
@@ -525,7 +525,7 @@ describe("届いた返信から、その人をブロックする", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         expect(await screen.findByRole("alert"), "押しても何も起きないように見える").toBeInTheDocument();
     });
@@ -555,14 +555,14 @@ describe("届いた返信から、その人をブロックする", () => {
                 { id: "s2", src: "https://cdn/x/b.jpg", userId: "me", createdAt: "2026-07-04T11:00:00Z", expiresAt: "2099-07-05T11:00:00Z", replyCount: 1 },
             ],
         }]);
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         await screen.findByRole("alert");
 
         // 返信シートを閉じて次のストーリーへ（他のテストと同じ矢印キー）
         await userEvent.click(screen.getAllByLabelText("閉じる").slice(-1)[0]);
         fireEvent.keyDown(document, { key: "ArrowRight" });
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
 
         expect(screen.queryByRole("alert"), "前のストーリーの失敗を持ち越している").toBeNull();
     });
@@ -583,7 +583,7 @@ describe("届いた返信から、その人をブロックする", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         await waitFor(() => expect(blockCalls()).toHaveLength(1));
 
@@ -598,7 +598,7 @@ describe("届いた返信から、その人をブロックする", () => {
     it("押す前に、フォローも外れることと解除の場所を出す", async () => {
         withReply();
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         const note = await screen.findByText(/お互いのフォローも外れます/);
         expect(note.textContent, "解除の場所を言っていない").toContain("設定の「ブロックした人」");
     });
@@ -615,7 +615,7 @@ describe("届いた返信から、その人をブロックする", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await screen.findByText("退会したユーザー");
         expect(screen.queryByText(/お互いのフォローも外れます/)).toBeNull();
     });
@@ -624,7 +624,7 @@ describe("届いた返信から、その人をブロックする", () => {
     it("全員ブロックし終えたら、その一文も消える", async () => {
         withReply();
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await screen.findByText(/お互いのフォローも外れます/);
         await userEvent.click(await screen.findByLabelText("しつこい人 さんをブロック"));
         await screen.findByText("ブロック済み");
@@ -643,7 +643,7 @@ describe("届いた返信から、その人をブロックする", () => {
             return Promise.resolve({ ok: true, json: async () => ({}) });
         });
         view(ownGroups(1));
-        await userEvent.click(await screen.findByLabelText("届いた返信を見る"));
+        await userEvent.click(await screen.findByLabelText("届いたリアクション・返信を見る"));
         await screen.findByText("退会したユーザー");
         expect(screen.queryByLabelText(/さんをブロック/)).toBeNull();
     });
