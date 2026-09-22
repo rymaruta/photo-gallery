@@ -15,6 +15,14 @@ import { ToastProvider } from "../../../lib/hooks/useToast";
  *  4. **`geoApprox` を正確な GPS と区別する**
  */
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
+// 共有の中身は `share.test.ts` が見る。ここで見たいのは**何を渡したか**
+const shareMocks = vi.hoisted(() => ({
+    shareUrl: vi.fn(async () => "shared" as const),
+    copyToClipboard: vi.fn(async () => true),
+    shareToTwitter: vi.fn(),
+    shareToLine: vi.fn(),
+}));
+vi.mock("../../../lib/utils/share", () => shareMocks);
 vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, loading: false }) }));
 // グリッドの中身はここの関心ではない（`GalleryGrid.test.tsx` が見る）
 vi.mock("../GalleryGrid", () => ({
@@ -35,6 +43,7 @@ const render = (ui: React.ReactElement) => rtlRender(<ToastProvider>{ui}</ToastP
 const base = {
     slug: "パリ",
     name: "パリ",
+    canonicalUrl: "https://journey-photo.com/location/パリ",
     heading: "パリの写真",
     description: "パリで撮影した旅の写真3枚を掲載。",
     breadcrumb: "撮影地: パリ",
@@ -256,5 +265,73 @@ describe("周辺のスポット", () => {
     it("0件なら節ごと出ない", () => {
         render(<SpotPageClient {...base} />);
         expect(screen.queryByRole("heading", { name: "周辺のスポット" })).toBeNull();
+    });
+});
+
+/**
+ * ── ヘッダーと代表画像（モック①②・2026-09-22）─────────────
+ *
+ * ここで固定したいのは「**動かない枠を置かない**」こと。モックの
+ * 「1/10」は*送れる*ことが前提の数字で、送れないのに出すと
+ * owner の「デザインだけ完成して操作できない画面は作らない」に反する。
+ */
+describe("撮影スポット詳細: ヘッダーと代表画像", () => {
+    it("戻るは `/` へのリンク（`router.back()` を使わない＝サイトの外へ出さない）", () => {
+        render(<SpotPageClient {...base} />);
+        const back = screen.getByRole("link", { name: "ギャラリーに戻る" });
+        expect(back.getAttribute("href")).toBe("/");
+    });
+
+    it("共有は canonical を渡す（`window.location` から組み立てない）", async () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(screen.getByRole("button", { name: "共有" }));
+        await screen.findByRole("link", { name: "ギャラリーに戻る" });
+        expect(shareMocks.shareUrl).toHaveBeenCalledWith(
+            "https://journey-photo.com/location/パリ", "パリの写真", base.description,
+        );
+    });
+
+    // **場所には「相手」が居ない。** 通報・ブロック・非表示は人や投稿への
+    // 操作なので、押しても何も起きない項目を並べない
+    it("⋯ に出るのは共有の3つだけ（通報・ブロックは出さない）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(screen.getByRole("button", { name: "その他" }));
+        const items = screen.getAllByRole("menuitem").map((el) => el.textContent);
+        expect(items).toEqual(["リンクをコピー", "Xで共有", "LINEで共有"]);
+        expect(items.some((t) => (t ?? "").includes("通報"))).toBe(false);
+    });
+
+    it("代表画像は1枚目で、押すとその写真へ行ける", () => {
+        render(<SpotPageClient {...base} />);
+        const link = screen.getByRole("link", { name: "この写真を開く" });
+        expect(link.getAttribute("href")).toContain("p1");
+    });
+
+    // **「1/N」は実際に動く数字。** 送れないのに出すと、数字が状態ではなく
+    // 飾りになる（モック②は「枚数と現在の表示位置」と書いている）
+    it("次の写真を押すと 1/2 → 2/2 になり、行き先も入れ替わる", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.getByText("1/2")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "次の写真" }));
+        expect(screen.getByText("2/2")).toBeTruthy();
+        expect(screen.getByRole("link", { name: "この写真を開く" }).getAttribute("href")).toContain("p2");
+    });
+
+    it("端では折り返す（前の写真で最後の1枚へ）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(screen.getByRole("button", { name: "前の写真" }));
+        expect(screen.getByText("2/2")).toBeTruthy();
+    });
+
+    it("1枚しか無ければ「1/1」も前/次も出さない", () => {
+        render(<SpotPageClient {...base} photos={[{ id: "only" }] as never} />);
+        expect(screen.getByRole("link", { name: "この写真を開く" })).toBeTruthy();
+        expect(screen.queryByText("1/1")).toBeNull();
+        expect(screen.queryByRole("button", { name: "次の写真" })).toBeNull();
+    });
+
+    it("写真が無ければ代表画像の枠ごと出さない", () => {
+        render(<SpotPageClient {...base} photos={[] as never} />);
+        expect(screen.queryByRole("link", { name: "この写真を開く" })).toBeNull();
     });
 });

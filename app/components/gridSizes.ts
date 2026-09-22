@@ -88,3 +88,22 @@ export const FEED_SIZES_XL = [
     "(max-width:639px) 504px",
     "36rem",
 ].join(", ");
+
+/**
+ * 撮影スポット詳細（`/location/*`）の代表画像（ヒーロー）。
+ *
+ * 容器は `max-w-6xl`（72rem）＋ `px-4`。**640px 未満は左右いっぱいに広げる**
+ * （`-mx-4`）ので、そこだけ `100vw` をそのまま申告する。640px 以上は
+ * `px-4`（1rem×2）のぶんを引き、容器の上限（72rem − 2rem = 70rem）で頭打ち。
+ *
+ * ⚠️ **`Thumb` が持っている派生は 512w まで**（`GRID_SIZES_*` と同じ）。
+ * ここで大きく申告しても、それ以上の候補は存在しない——`TimelineCard` が
+ * 「画像は一覧と同じ `Thumb`（512px の派生まで）。押せば写真ページで
+ * 原寸に近い方が出る」と書いているのと**同じ判断**で、ヒーローは
+ * 「大きく見せる入口」であって原寸の置き場ではない。
+ */
+export const SPOT_HERO_SIZES = [
+    "(max-width:639px) 100vw",
+    "(max-width:71.99rem) calc(100vw - 2rem)",
+    "70rem",
+].join(", ");
