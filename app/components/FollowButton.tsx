@@ -56,7 +56,11 @@ type Props = {
  * @param variant "stats" は最終版モックのマイページ用——投稿数と同じ行に並ぶ
  *   「数字が上・ラベルが下」の形（ピルではない）。既定の "pill" は今までどおり
  */
-export default function FollowButton({ targetUserId, isAuthenticated, locale, variant = "pill" }: Omit<Props, "isOwner"> & { isOwner?: boolean; variant?: "pill" | "stats" }) {
+// **`variant` は `Omit` で外す。** `Props.variant` は `FollowAction` 用の
+// 3つ（profile / outline / followBack）で、こちらの2つ（pill / stats）と
+// 交わらない——外さずに `&` すると型が `never` になり、`variant="stats"` を
+// 渡している呼び出し側が落ちる（develop を取り込んだときに実際に落ちた）
+export default function FollowButton({ targetUserId, isAuthenticated, locale, variant = "pill" }: Omit<Props, "isOwner" | "variant"> & { isOwner?: boolean; variant?: "pill" | "stats" }) {
     const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
     const [sheet, setSheet] = useState<FollowListKind | null>(null);
     const followingBtnRef = useRef<HTMLButtonElement>(null);
