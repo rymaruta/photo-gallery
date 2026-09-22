@@ -79,7 +79,7 @@ API_BASELINE=11
 # ⚠️ **並行するブランチが各自の木で関門を通しても、合流した develop で
 # 基準を超える**（9/21 の 120 → 129 と同じ形）。develop を取り込んだら
 # この関門を一度は通すこと。
-API_USER_BASELINE=142
+API_USER_BASELINE=149
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
