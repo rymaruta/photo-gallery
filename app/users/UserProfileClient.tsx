@@ -177,6 +177,23 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             <Link
                 href={ROUTES.PHOTO(photo.id)}
                 prefetch={false}
+                /**
+                 * 🔴 **名前を `alt` 任せにしない。**
+                 *
+                 * このタイルの中身は `Thumb` だけで、`alt` は題。だから
+                 * **サムネの読み込みが落ちた瞬間にリンクの名前が消える**
+                 * ——`Thumb` は失敗すると `<img>` ごと絵の受け皿に差し替える
+                 * ので、残るのは `aria-hidden` の svg だけ。実測（Chromium・
+                 * 画像を落とせない状態）で、このページの**30本すべてが
+                 * 名前の無いリンク**になった。題を持たない写真でも同じ
+                 * （`alt=""` ＝装飾画像の意味になる）。
+                 *
+                 * `GalleryGrid` は同じ状況でも名前が残る（あちらは
+                 * `aria-label` を持っている）。揃える。
+                 */
+                aria-label={title
+                    ? (locale === "en" ? `Open ${title}` : `${title} を開く`)
+                    : (locale === "en" ? "Open photo" : "写真を開く")}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
