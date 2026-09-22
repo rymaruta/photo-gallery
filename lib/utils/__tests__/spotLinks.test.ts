@@ -172,4 +172,30 @@ describe("書き込みの関門", () => {
             { photoId: "p1", location: "x", verdict: "confirmed", reason: "" },
         ])).toEqual([]);
     });
+
+    // 🔴 #131（同じ指示書 6 を別に実装した PR）が挙げていた場合。
+    // こちらは `new Map(...)` で作っていたので**あとの行が黙って勝って**いた
+    describe("同じ写真に確認が2つ", () => {
+        const spots = [
+            spot({ spotId: "spot-a", name: "高屋神社" }),
+            spot({ spotId: "spot-b", name: "高屋神社（別の場所）" }),
+        ];
+        const photo = { id: "p1", src: "/uploads/p1.jpg", location: "高屋神社" } as Photo;
+        const conf = (spotId: string, by: string) => ({
+            photoId: "p1", spotId, confirmedBy: by,
+            confirmedAt: "2026-09-22", evidence: "現地で撮影",
+        });
+
+        it("違うスポットを指していたら、どちらも書かない", () => {
+            const states = linkStates([photo], spots, [conf("spot-a", "owner"), conf("spot-b", "owner")]);
+            expect(states[0].verdict).toBe("ambiguous");
+            expect(writableLinks(states)).toHaveLength(0);
+        });
+
+        it("同じスポットを指す重複は通す（書く内容が変わらない）", () => {
+            const states = linkStates([photo], spots, [conf("spot-a", "owner"), conf("spot-a", "別の人")]);
+            expect(states[0].verdict).toBe("confirmed");
+            expect(writableLinks(states)).toHaveLength(1);
+        });
+    });
 });

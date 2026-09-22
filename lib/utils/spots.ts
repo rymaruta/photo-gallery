@@ -183,7 +183,19 @@ export function linkStates(
     confirmations: unknown[] = [],
 ): LinkSuggestion[] {
     const usable = confirmations.filter(isUsableConfirmation);
-    const byPhoto = new Map(usable.map((c) => [c.photoId, c]));
+    // 🔴 **同じ写真に食い違う確認が2つあったら、どちらも使わない。**
+    // `new Map(...)` で作ると**あとの行が黙って勝つ**——どちらが正しいかは
+    // 機械には決められないので、決めた風に振る舞わない。
+    // （同じ spotId を指す重複は、書く内容が同じなので通す。理由文には
+    //   最初の記録のものを使う——`confirmedBy` が食い違っていても、
+    //   書き込む `spotId` は変わらない）
+    const byPhoto = new Map<string, SpotLinkConfirmation>();
+    const conflicted = new Set<string>();
+    for (const c of usable) {
+        const prior = byPhoto.get(c.photoId);
+        if (!prior) { byPhoto.set(c.photoId, c); continue; }
+        if (prior.spotId !== c.spotId) conflicted.add(c.photoId);
+    }
     const out: LinkSuggestion[] = [];
 
     for (const photo of photos) {
@@ -194,6 +206,12 @@ export function linkStates(
         // ただし記録が指す先が生きていることまで見る——消えたスポットや
         // 非公開の写真に、記録があるからといって書き込まない
         if (confirmation) {
+            if (conflicted.has(photo.id)) {
+                out.push({ photoId: photo.id, location,
+                    verdict: "ambiguous",
+                    reason: "同じ写真に、違うスポットを指す確認が2つある（どちらが正しいか決められない）" });
+                continue;
+            }
             const spot = spots.find((s) => s.spotId === confirmation.spotId);
             if (!spot) {
                 out.push({ photoId: photo.id, location, spotId: confirmation.spotId,
