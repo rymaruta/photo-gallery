@@ -373,19 +373,29 @@ describe("ストーリーの文字: 置いている間は、ほかの欄を畳�
         fireEvent.pointerUp(area(), { pointerId: 9, clientX: 50, clientY: 50 });
     };
 
-    it("文字を選んでいる間は、撮影地・曲・表示時間を出さない", async () => {
+    it("文字を選んでいる間は、表示時間と公開設定を畳む", async () => {
         await pickImage();
-        expect(screen.getByPlaceholderText(/撮影地/), "最初から隠れている").toBeInTheDocument();
+        expect(screen.getByText("表示時間"), "最初から畳まれている").toBeInTheDocument();
         await type("朝の空");
-        expect(screen.queryByPlaceholderText(/撮影地/), "選んでいるのに撮影地が出ている").toBeNull();
-        expect(screen.queryByRole("button", { name: /曲を付ける/ })).toBeNull();
+        expect(screen.queryByText("表示時間"), "選んでいるのに設定の欄が出ている").toBeNull();
+        expect(screen.queryByRole("switch", { name: "アーカイブに自動保存" })).toBeNull();
+    });
+
+    // **撮影地と曲は別の道具**（最終版モック 08 の編集ツール）。
+    // 文字を触っている間だけ畳む、ではなく**そもそも同じ欄に出ない**
+    it("文字の道具のときは、撮影地も曲も出ない（別の道具）", async () => {
+        await pickImage();
+        expect(screen.queryByPlaceholderText(/撮影地/), "文字の道具に撮影地が出ている").toBeNull();
+        expect(screen.queryByRole("button", { name: /曲を付ける/ }), "文字の道具に曲が出ている").toBeNull();
+        await userEvent.click(screen.getByRole("tab", { name: "位置情報" }));
+        expect(screen.getByPlaceholderText(/撮影地/), "位置情報を開いても出ない").toBeInTheDocument();
     });
 
     it("写真の余白をさわると選択が外れて、ほかの欄が戻る", async () => {
         await pickImage();
         await type("朝の空");
         tapBackground();
-        expect(screen.getByPlaceholderText(/撮影地/), "外しても戻らない").toBeInTheDocument();
+        expect(screen.getByText("表示時間"), "外しても戻らない").toBeInTheDocument();
         // 文字は消えていない（選択が外れただけ）
         expect(overlay()?.textContent).toBe("朝の空");
     });
@@ -396,7 +406,7 @@ describe("ストーリーの文字: 置いている間は、ほかの欄を畳�
         await type("朝の空");
         tapBackground();
         await userEvent.pointer({ target: screen.getByText("朝の空"), keys: "[MouseLeft>]" });
-        expect(screen.queryByPlaceholderText(/撮影地/), "選んだ直後に外れている").toBeNull();
+        expect(screen.queryByText("表示時間"), "選んだ直後に外れている").toBeNull();
     });
 
     // **選んでいないのに字体や色を出さない**（押しても効かない的を並べない）
@@ -539,7 +549,7 @@ describe("ストーリーの文字: 写真のどこでも指で置ける", () =>
         fireEvent.pointerMove(area(), { pointerId: 3, clientX: 44, clientY: 43 });
         fireEvent.pointerUp(area(), { pointerId: 3, clientX: 44, clientY: 43 });
         expect(placed().style.left, "揺れで文字が動いた").toBe(before);
-        expect(screen.getByPlaceholderText(/撮影地/), "タップなのに外れていない").toBeInTheDocument();
+        expect(screen.getByText("表示時間"), "タップなのに外れていない").toBeInTheDocument();
     });
 
     // 何も選んでいなければ、なぞっても何も動かない
@@ -589,7 +599,9 @@ describe("ストーリーの下書き: 写真だけ見る", () => {
 
         await userEvent.click(screen.getByRole("button", { name: "写真だけ見る" }));
         expect(screen.queryByRole("textbox", { name: "文字" }), "操作の欄が残っている").toBeNull();
-        expect(screen.queryByRole("button", { name: /ストーリーに投稿/ })).toBeNull();
+        // **投稿は上のバーなので残る**（最終版モック 08 の「次へ」の位置）。
+        // 以前は画面の最下部にあり、畳むと一緒に消えていた
+        expect(screen.getByRole("button", { name: /ストーリーに投稿/ }), "投稿する道が消えている").toBeInTheDocument();
         // 文字は出たまま（置いた姿を見るための機能）
         expect(overlay()?.textContent).toBe("朝の光");
     });

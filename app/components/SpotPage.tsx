@@ -24,7 +24,7 @@ import {
     relatedEntries,
     slugify,
 } from "@/lib/utils/collections";
-import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
+import { relatedCollectionPhotos, slimForGrid, slimForViewer } from "@/lib/utils/related";
 import type { Photo } from "@/lib/data/photos";
 import { spotDetail } from "@/lib/utils/spot";
 import { spotMasterFor } from "@/lib/data/spotMaster";
@@ -135,7 +135,13 @@ export default async function SpotPage({ slug }: { slug: string }) {
                 heading={heading}
                 description={description}
                 breadcrumb={breadcrumb}
-                photos={matched.map(slimForGrid)}
+                // **ビューアのぶんまで持たせる**（`slimForViewer`）。
+                // 格子だけの絞り（`slimForGrid`）を渡していたので、その場で
+                // 拡大したときに説明文・撮影情報・投稿者・BGM・原寸の AVIF が
+                // **黙って空**になっていた（2026-09-22 のレビューで発覚）。
+                // 「ほかにこんな写真も」は格子から個別ページへ行くだけなので、
+                // そちらは `slimForGrid` のまま
+                photos={matched.map(slimForViewer)}
                 nearbyPhotos={nearbyPhotos.map(slimForGrid)}
                 facts={facts}
                 coords={coords}

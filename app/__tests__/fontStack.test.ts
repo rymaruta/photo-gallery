@@ -109,3 +109,85 @@ describe("オフラインの受け皿（public/offline.html）", () => {
         expect(/color-scheme:\s*dark/.test(html), "color-scheme: dark が無い（UA の部品が明色のまま）").toBe(true);
     });
 });
+
+/**
+ * **手書き2種だけは webfont**（owner の要望 2026-09-22
+ * 「広告でよくある手書きのフォントも欲しい」「アオハルマーカー mini /
+ * みぎかたあがり のフォントがいい」）。
+ *
+ * 名指しの2つはそのまま使えない——アオハルマーカーmini は**漢字を持たず**、
+ * みぎかたあがり は**漢字が69字だけ**で、文章に混ぜると「かなは手書き・
+ * 漢字はゴシック」になる。配布元の規約にも Web フォント可の明記が無い
+ * （Web フォントはファイルを閲覧者全員へ配る行為）。だから**見た目が
+ * いちばん近く、漢字を持ち、配ってよい**（SIL OFL）2つを使う:
+ * `Yusei Magic`（油性マジック）と `Yomogi`（ヨモギ）。
+ *
+ * **配線は2か所**（`layout.tsx` が変数を立て、`storyText.ts` がそれを使う）。
+ * 片方だけ消えても画面は落ちず、**黙って丸ゴシックに落ちる**ので機械で縛る。
+ */
+describe("ストーリーの手書き（webfont の配線）", () => {
+    const layout = () => read("app/layout.tsx");
+    const FONTS = [
+        { fn: "Yusei_Magic", varName: "--font-marker", local: "marker", key: "marker" },
+        { fn: "Yomogi", varName: "--font-scribble", local: "scribble", key: "scribble" },
+    ] as const;
+
+    for (const f of FONTS) {
+        it(`\`layout.tsx\` が ${f.fn} を読み、\`${f.varName}\` を立てている`, () => {
+            const src = layout();
+            expect(src, `${f.fn} を読んでいない`).toMatch(new RegExp(`${f.fn}\\(`));
+            expect(src, "CSS 変数の名前が違う").toContain(`variable: "${f.varName}"`);
+            expect(src, "<body> に変数が付いていない").toContain(`${f.local}.variable`);
+        });
+
+        /**
+         * **`subsets` を書かない。** next/font の一覧に `japanese` が無く
+         * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
+         * `latin` と書くと**日本語の字が1つも入らない**まま緑になる。
+         */
+        it(`${f.fn} に \`subsets\` を渡していない（渡すと日本語が入らない）`, () => {
+            const m = new RegExp(`${f.fn}\\(\\{([\\s\\S]*?)\\}\\)`).exec(layout());
+            expect(m, `${f.fn} の呼び出しが読めない`).not.toBeNull();
+            expect(m![1], "subsets を渡すと日本語のグリフが落ちる").not.toMatch(/^\s*subsets:/m);
+            // `subsets` を省くときは `preload: false` が要る（Next が止める）。
+            // 全ページに何十本ぶんもの preload を出さない意味もある
+            expect(m![1], "preload を切っていない").toMatch(/preload:\s*false/);
+        });
+
+        /**
+         * ⚠️ **`fallback` を渡さない。** 渡すと next/font はそれを
+         * **CSS 変数の中へそのまま焼き込む**ので、`storyText.ts` の
+         * `var(--font-marker),"Hiragino…",cursive` が実際にはこう展開される:
+         *
+         *     "Yusei Magic",Hiragino Maru Gothic ProN,Hiragino Sans,sans-serif,
+         *     "Hiragino Maru Gothic ProN","Hiragino Sans",cursive
+         *      ^^^^^^^^^^ ここで総称ファミリに当たって並びが終わる
+         *
+         * 実ブラウザで計算後の値を読んで見つけた（`getComputedStyle`）。
+         * 後ろ半分は**永久に使われない**＝末尾を `cursive` にした意味が消える。
+         * 受け皿の並びは `storyText.ts` 側の1か所だけが持つ。
+         *
+         * 渡さないと変数は `"Yusei Magic","Yusei Magic Fallback"` になる。
+         * 後者は `src:local(Arial)` の字幅合わせ面で**日本語の字を持たない**
+         * ので、日本語は字ごとに次（Hiragino）へ落ちる。
+         */
+        it(`${f.fn} に \`fallback\` を渡していない（渡すと並びが二重になり cursive に届かない）`, () => {
+            const m = new RegExp(`${f.fn}\\(\\{([\\s\\S]*?)\\}\\)`).exec(layout());
+            expect(m, `${f.fn} の呼び出しが読めない`).not.toBeNull();
+            expect(m![1], "fallback は storyText.ts 側だけが持つ").not.toMatch(/^\s*fallback:/m);
+            // ⚠️ `adjustFontFallback: false` は**効かない**（実ビルドで確認。
+            // 渡しても `Yusei Magic Fallback` の @font-face は出て変数にも入る）。
+            // 効かない指定を置かない
+            expect(m![1], "効かない指定（adjustFontFallback）が残っている").not.toMatch(/adjustFontFallback/);
+        });
+
+        it(`\`storyText.ts\` の ${f.key} がその変数を先頭で使い、落ちても読める並びが続く`, async () => {
+            const { STORY_FONTS } = await import("@/lib/utils/storyText");
+            const css = STORY_FONTS[f.key].css;
+            expect(css, "変数を使っていない（別名で宣言すると黙って落ちる）").toBe(css);
+            expect(css.startsWith(`var(${f.varName})`), "変数が先頭に無い").toBe(true);
+            expect(css, "落ちたときの受け皿が無い").toContain("Hiragino Maru Gothic ProN");
+            expect(css.split(",").at(-1)!.trim(), "総称ファミリで終わっていない").toBe("cursive");
+        });
+    }
+});
