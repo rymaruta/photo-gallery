@@ -458,6 +458,31 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 「親しい友達」（ストーリーの公開範囲）。**本人の一覧だけ**——
+  # 誰が入っているかは本人のもので、相手にも知らせない
+  getCloseFriends:
+    handler: src/closeFriends.getCloseFriends
+    events:
+      - httpApi:
+          path: /user/close-friends
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  setCloseFriend:
+    handler: src/closeFriends.setCloseFriend
+    events:
+      - httpApi:
+          path: /user/close-friends/{id}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/close-friends/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   likePhoto:
     handler: src/likes.likePhoto
     # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、

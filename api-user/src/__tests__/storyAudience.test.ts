@@ -53,3 +53,31 @@ describe("isVisibleToViewer", () => {
         expect(isVisibleToViewer({ userId: "", audience: "followers" }, "me", new Set())).toBe(false);
     });
 });
+
+describe("親しい友達", () => {
+    const followers = new Set(["owner"]);
+    const close = new Set(["owner"]);
+
+    it("受け取るのは followers と closeFriends だけ", () => {
+        expect(sanitizeAudience("closeFriends")).toBe("closeFriends");
+        expect(sanitizeAudience("close-friends")).toBeUndefined();
+        expect(sanitizeAudience("closefriends")).toBeUndefined();
+    });
+
+    it("選ばれていれば見える", () => {
+        expect(isVisibleToViewer({ userId: "owner", audience: "closeFriends" }, "me",
+                                 new Set(), close)).toBe(true);
+    });
+
+    /// **フォローでは代用できない。** フォローしていても選ばれていなければ
+    /// 見せない（狭い方が勝つ）
+    it("フォローしていても、選ばれていなければ見えない", () => {
+        expect(isVisibleToViewer({ userId: "owner", audience: "closeFriends" }, "me",
+                                 followers, new Set())).toBe(false);
+    });
+
+    it("本人には必ず見える", () => {
+        expect(isVisibleToViewer({ userId: "me", audience: "closeFriends" }, "me",
+                                 new Set(), new Set())).toBe(true);
+    });
+});

@@ -12,6 +12,8 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { truncate, sanitizeText, sanitizeCoords } from "./sanitize";
 import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
+import { closeFriendsId, isUserId } from "./closeFriends";
+import { readUserList } from "./userList";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -166,15 +168,18 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 
         // **公開範囲。** 「フォロワーのみ」の行は、本人とフォロワーにだけ。
         // 確かめられなかったら見せない（`isVisibleToViewer` の注記）
-        const restrictedOwners = new Set(
-            notBlocked.filter((i) => i.audience === "followers")
+        const ownersOf = (audience: string) => new Set(
+            notBlocked.filter((i) => i.audience === audience)
                 .map((i) => String(i.userId ?? ""))
                 .filter((id) => id && id !== userId),
         );
-        const followed = restrictedOwners.size === 0
-            ? new Set<string>()
-            : await followedAmong(userId, restrictedOwners);
-        const visible = notBlocked.filter((i) => isVisibleToViewer(i, userId, followed));
+        const followerOwners = ownersOf("followers");
+        const closeOwners = ownersOf("closeFriends");
+        const [followed, closeFriendOf] = await Promise.all([
+            followerOwners.size === 0 ? new Set<string>() : followedAmong(userId, followerOwners),
+            closeOwners.size === 0 ? new Set<string>() : closeFriendsAmong(userId, closeOwners),
+        ]);
+        const visible = notBlocked.filter((i) => isVisibleToViewer(i, userId, followed, closeFriendOf));
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
@@ -225,8 +230,10 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
  * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
  * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
  */
-export function sanitizeAudience(value: unknown): "followers" | undefined {
-    return value === "followers" ? "followers" : undefined;
+export type Audience = "followers" | "closeFriends";
+
+export function sanitizeAudience(value: unknown): Audience | undefined {
+    return value === "followers" || value === "closeFriends" ? value : undefined;
 }
 
 /**
@@ -241,12 +248,16 @@ export function isVisibleToViewer(
     item: { userId?: unknown; audience?: unknown },
     viewerId: string,
     followedOwners: Set<string>,
+    closeFriendOf: Set<string> = new Set(),
 ): boolean {
-    if (item.audience !== "followers") return true;
+    const audience = item.audience;
+    if (audience !== "followers" && audience !== "closeFriends") return true;
     const owner = String(item.userId ?? "");
     if (!owner) return false;
     if (owner === viewerId) return true;
-    return followedOwners.has(owner);
+    // **親しい友達はフォローでは代用できない。** フォローしていても
+    // 選ばれていなければ見せない（狭い方が勝つ）
+    return audience === "closeFriends" ? closeFriendOf.has(owner) : followedOwners.has(owner);
 }
 
 /**
@@ -268,6 +279,25 @@ async function followedAmong(viewerId: string, owners: Set<string>): Promise<Set
             if (res.Item) found.add(owner);
         } catch (e) {
             console.error("followedAmong: フォローを確かめられませんでした:", e);
+        }
+    }));
+    return found;
+}
+
+/**
+ * その人たちのうち、**自分を「親しい友達」に入れている人**。
+ *
+ * 一覧は持ち主の行（`closefriends#<持ち主>`）にあるので、
+ * 出している人ぶんだけ読む。**読めなかった相手は含めない**＝見せない側に倒る。
+ */
+async function closeFriendsAmong(viewerId: string, owners: Set<string>): Promise<Set<string>> {
+    const found = new Set<string>();
+    await Promise.all([...owners].map(async (owner) => {
+        try {
+            const list = await readUserList(closeFriendsId(owner), isUserId, `closefriends#${owner}`);
+            if (list.includes(viewerId)) found.add(owner);
+        } catch (e) {
+            console.error("closeFriendsAmong: 親しい友達を確かめられませんでした:", e);
         }
     }));
     return found;
@@ -405,7 +435,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(durationSec ? { durationSec } : {}),
         // 公開範囲。**「全体に公開」は書かない**——既にある行と同じ形にして、
         // 「属性が無い＝全体に公開」を1通りに保つ（`tags: []` で踏んだ穴と同じ）
-        ...(sanitizeAudience(body.audience) ? { audience: "followers" } : {}),
+        ...(() => { const a = sanitizeAudience(body.audience); return a ? { audience: a } : {}; })(),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),
