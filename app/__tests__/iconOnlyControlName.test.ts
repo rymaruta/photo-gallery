@@ -43,7 +43,8 @@ export function namelessIconControls(raw: string, file: string): string[] {
         const tag = m[1];
         const chunk = tagChunk(src, m.index ?? 0);
         if (chunk.endsWith("/>")) continue;                       // 中身が無い
-        if (/\baria-label[=\s]/.test(chunk) || /\btitle=/.test(chunk)) continue;
+        // `aria-labelledby` も名前（これを落とすと、正しく付いている操作を誤報する）
+        if (/\baria-label(?:ledby)?[=\s]/.test(chunk) || /\btitle=/.test(chunk)) continue;
         const close = src.indexOf(`</${tag}>`, (m.index ?? 0) + chunk.length);
         if (close < 0) continue;
         const inner = src.slice((m.index ?? 0) + chunk.length, close);
@@ -58,7 +59,10 @@ export function namelessIconControls(raw: string, file: string): string[] {
          * ——取りこぼす代わりに誤報を出さない（誤報を出す見張りは、いずれ
          * 一覧で黙らされて何も検証しなくなる）。
          */
-        const rest = inner.replace(/<[^>]*>/g, "").trim();
+        // ⚠️ **`{/* … */}` の抜け殻を残さない。** `stripComments` はコメントの
+        // 中身だけ落とすので `{}` が残り、**その操作が黙って見張りの外に出る**
+        // （このリポジトリはコメントが多いので、必ず踏む）
+        const rest = inner.replace(/<[^>]*>/g, "").replace(/\{\s*\}/g, "").trim();
         if (rest.length > 0) continue;
         out.push(`${file}  <${tag}> ${inner.replace(/\s+/g, " ").trim().slice(0, 60)}`);
     }
@@ -107,6 +111,15 @@ describe("絵だけの操作には名前を付ける", () => {
         });
         it("入れ子の span の中身も名前", () => {
             const ok = `<Link href="/" className="x"><Icon aria-hidden="true" /><span style={s}>{label}</span></Link>`;
+            expect(namelessIconControls(ok, "x.tsx")).toEqual([]);
+        });
+        // 🔴 コメントの抜け殻（`{}`）で見張りの外に出ないこと
+        it("JSX コメントだけが残っていても挙げる", () => {
+            const bad = `<Link href="/" className="x">{/* 戻る */}<ArrowLeftIcon className="w-4 h-4" /></Link>`;
+            expect(namelessIconControls(bad, "x.tsx")).toHaveLength(1);
+        });
+        it("`aria-labelledby` も名前として認める", () => {
+            const ok = `<button aria-labelledby="t1" className="x"><XMarkIcon className="w-4 h-4" /></button>`;
             expect(namelessIconControls(ok, "x.tsx")).toEqual([]);
         });
         it("絵が無いものは挙げない", () => {
