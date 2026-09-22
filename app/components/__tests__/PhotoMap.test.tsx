@@ -2,25 +2,33 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
+import { MAP_MAX_ZOOM } from "@/lib/utils/mapView";
 
 // 地図そのもの（描画・タイル）は jsdom では出せないので Leaflet を差し替え、
 // **こちらが Leaflet に何を渡しているか**を見る。
-// ここに置いたのは、実ブラウザでしか見えない壊れを2件踏んだため:
-//   (1) コンテナがスタッキングコンテキストを作らず、Leaflet の z-index 400 が
-//       ページ全体の土俵に出て `z-50` のヘッダー・メニューを覆っていた
-//   (2) ポップアップの画像に高さが無く、Leaflet が「収まっている」と誤って測って
-//       スクロールにしないまま、あとから画像が入って地図の外まで伸びていた
-// どちらも CSS と実測が要る話だが、**こちら側の指定が消えたら気づける**ようにする。
+// ここに置いたのは、実ブラウザでしか見えない壊れを踏んだため:
+//   コンテナがスタッキングコンテキストを作らず、Leaflet の z-index 400 が
+//   ページ全体の土俵に出て `z-50` のヘッダー・メニューを覆っていた。
+// CSS と実測が要る話だが、**こちら側の指定が消えたら気づける**ようにする。
+//
+// **ポップアップはもう作らない**（写真の中身は `app/map/MapPhotoSheet.tsx` が
+// 描く）。以前ここに「ポップアップの画像に高さが無く、Leaflet が収まっていると
+// 誤って測る」という項目があったが、その作りごと無くなったので落とした
+// ——`bindPopup` を呼ばないことは「押されたピンを親へ渡す」の1件が見張っている。
 
 type FakeMarker = {
     kind: string; latlng: unknown; opts: Record<string, unknown>;
-    popup: HTMLElement | null; popupOpts: Record<string, unknown> | null;
-    update: ReturnType<typeof vi.fn>;
+    /**
+     * `bindPopup` が呼ばれたら入る。**`null` のままであること**を見張る
+     * ためだけに在る（ポップアップはもう作らない）。`popupOpts` /
+     * `getPopup` / `update` も持っていたが、**誰も見ていない偽物**
+     * だったので落とした
+     */
+    popup: HTMLElement | null;
     clickHandler?: () => void;
     keypressHandler?: (e: { originalEvent?: { key: string } }) => void;
     on: (ev: string, fn: (e?: unknown) => void) => void; addTo: () => FakeMarker;
-    bindPopup: (el: HTMLElement, o: Record<string, unknown>) => FakeMarker;
-    getPopup: () => { update: ReturnType<typeof vi.fn> };
+    bindPopup: (el: HTMLElement) => FakeMarker;
 };
 const state = vi.hoisted(() => ({
     markers: [] as FakeMarker[], zoom: 4, center: [36, 138] as [number, number],
@@ -50,16 +58,14 @@ vi.mock("leaflet", () => {
     state.fireMap = map.fire;
     const group = { addTo: () => group, clearLayers: () => { state.markers.length = 0; } };
     const make = (kind: string) => (latlng: unknown, opts: Record<string, unknown> = {}) => {
-        const update = vi.fn();
         const m: FakeMarker = {
-            kind, latlng, opts, popup: null, popupOpts: null, update,
+            kind, latlng, opts, popup: null,
             on: (ev: string, fn: (e?: unknown) => void) => {
                 if (ev === "click") m.clickHandler = fn as () => void;
                 if (ev === "keypress") m.keypressHandler = fn as FakeMarker["keypressHandler"];
             },
             addTo: () => m,
-            bindPopup: (el, o) => { m.popup = el; m.popupOpts = o; return m; },
-            getPopup: () => ({ update }),
+            bindPopup: (el) => { m.popup = el; return m; },
         };
         state.markers.push(m);
         return m;
@@ -201,7 +207,11 @@ describe("押されたピンを親へ渡す", () => {
     it("これ以上割れない束は、枚数ぶんまとめて渡る", async () => {
         const at = { lat: 35.42, lng: 138.88 };
         const onSelect = vi.fn();
-        state.zoom = 19;   // MAP_MAX_ZOOM。これ以上は寄れない
+        // **境界そのものを置く。** `19` と書いてあったが `MAP_MAX_ZOOM` は
+        // **18**——分岐は `map.getZoom() < MAP_MAX_ZOOM` なので、19 では
+        // `<` を `<=` に変えても偽のままで**境界を一度も通っていなかった**。
+        // 定数を import して、値が動いてもここが追う
+        state.zoom = MAP_MAX_ZOOM;
         await draw([photo("a", { coords: at }), photo("b", { coords: at }), photo("c", { coords: at })], onSelect);
 
         const cluster = state.markers.find((m) => m.kind === "marker");
@@ -210,6 +220,38 @@ describe("押されたピンを親へ渡す", () => {
         const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
         expect(sel.photos.map((p) => p.id)).toEqual(["a", "b", "c"]);
         expect(sel.index).toBe(0);
+    });
+
+    /**
+     * **これ以上寄れないなら、割れる束でもシートに渡す。**
+     *
+     * 分岐は3つの AND（`inner` が在る・**中身の座標が割れている**・
+     * `map.getZoom() < MAP_MAX_ZOOM`）。上の「これ以上割れない束」は
+     * 3枚とも同じ座標なので**2つ目で偽**になり、ズームの項を一度も
+     * 通っていなかった——`state.zoom = 19` と書いてあったのはそのせいで
+     * 見過ごされていた（`MAP_MAX_ZOOM` は **18** で、19 は実在しない値）。
+     *
+     * ここは**座標を割れる形にしたうえで、ズームを上限に置く**。これで
+     * `<` を `<=` に変えると落ちる＝境界を実際に通る。
+     * 座標は zoom 18 でも同じ升に入る差（約11m）を選んである
+     * （`clusterPoints` の升は zoom 18 で約33m 四方）。
+     */
+    it("上限まで寄っていたら、割れる束でもシートに渡す（寄り直さない）", async () => {
+        const onSelect = vi.fn();
+        state.zoom = MAP_MAX_ZOOM;
+        await draw([
+            photo("a", { coords: { lat: 35.42, lng: 138.88 } }),
+            photo("b", { coords: { lat: 35.4201, lng: 138.88 } }),
+        ], onSelect);
+
+        const cluster = state.markers.find((m) => m.kind === "marker");
+        expect(cluster, "束のピンが無い（座標が割れすぎて束にならなかった）").toBeTruthy();
+        const before = state.fitCalls;
+        cluster!.clickHandler?.();
+        expect(state.fitCalls, "上限なのに寄り直している").toBe(before);
+        expect(onSelect, "シートに渡していない").toHaveBeenCalledTimes(1);
+        const sel = onSelect.mock.calls[0][0] as { photos: MapPhoto[]; index: number };
+        expect(sel.photos.map((p) => p.id)).toEqual(["a", "b"]);
     });
 
     // **まだ割れる束は寄るだけ。** シートに渡すと、寄れば個別に見られる
@@ -254,7 +296,7 @@ describe("押されたピンを親へ渡す", () => {
     it("束のピンは Enter でも押せる", async () => {
         const at = { lat: 35.42, lng: 138.88 };
         const onSelect = vi.fn();
-        state.zoom = 19;
+        state.zoom = MAP_MAX_ZOOM;
         await draw([photo("a", { coords: at }), photo("b", { coords: at })], onSelect);
         const cluster = state.markers.find((m) => m.kind === "marker")!;
         cluster.keypressHandler?.({ originalEvent: { key: "a" } });
@@ -271,7 +313,7 @@ describe("押されたピンを親へ渡す", () => {
     // 束の数字は利用者の入力ではない（題を入れていた頃は DOM を組んでいた）
     it("束のピンに入れるのは枚数の数字だけ", async () => {
         const at = { lat: 35.42, lng: 138.88 };
-        state.zoom = 19;
+        state.zoom = MAP_MAX_ZOOM;
         await draw([photo("a", { coords: at }), photo("<img onerror=x>", { coords: at })]);
         const cluster = state.markers.find((m) => m.kind === "marker");
         expect(JSON.stringify(cluster!.opts)).not.toContain("onerror");
@@ -323,6 +365,3 @@ describe("動きを減らす設定", () => {
     });
 });
 
-// 地図のポップアップのサムネは `document.createElement("img")` で組む＝
-// JSX の入口を数えるテスト（`app/__tests__/imageOriginSites.test.ts`）から
-// 見えない場所。ここで描画として見る。
