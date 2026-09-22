@@ -12,7 +12,7 @@ import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState 
  * **返信（`storyReplies.ts`）と同じ門を通り、同じ場所に置く。** ストーリー
  * ごとに1つの文書（`storyvotes#<storyId>`）。**`stories.ts` には足さない**
  * ——あちらは投稿・一覧・削除で既に 770 行あり、票の規則（1人1票・上限・
- * 結果を誰に見せるか）を混ぜると、一覧の門（ブロック・フォロワー限定）と
+ * 結果を誰に見せるか）を混ぜると、一覧の門（ブロック・フォロー）と
  * 票の門を別々に直すたびに互いを壊す。
  *
  * **返信と違うところ**（意図的な差）:
@@ -170,7 +170,7 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (story.expiresAt && String(story.expiresAt) <= new Date().toISOString()) {
             return jsonError(404, "ストーリーが見つかりません");
         }
-        // **ブロック・フォロワー限定は 404**（相手の設定を教えない。
+        // **ブロック・追っていない相手は 404**（相手の関係を教えない。
         // `viewStory` / `postStoryReply` と同じ門。**画面側だけの防御を作らない**）
         if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
         if (ownerId && ownerId !== uid

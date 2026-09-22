@@ -6,7 +6,9 @@ import userEvent from "@testing-library/user-event";
 /**
  * マイページのハイライトの輪。
  *
- *   - 誰にでも出る。0件は本人以外に何も描かない（空の段を見せない）
+ *   - 🔴 **本人とフォロワーだけ**（サーバーが追っていない人に0件を返すので、
+ *     この段はそのまま何も描かない）。未ログインには取りにもいかない
+ *   - 0件は本人以外に何も描かない（空の段を見せない）
  *   - 本人には「新規」と、各輪の鉛筆（作る・直す画面へ）
  *   - 押すと中身を引いて `StoryViewer` を**保存した順のまま**開く
  *     （`groupStories` は投稿順に並べ替えるので、落とすためだけに通す）
@@ -78,8 +80,9 @@ beforeEach(() => {
 });
 
 describe("ハイライトの輪", () => {
-    // 🔴 中身はストーリーそのもの。一覧（`GET /stories`）が認証必須なので、
-    // ここだけインターネットに開かない（一度そうして本番まで出した）
+    // 🔴 中身はストーリーそのもので、ストーリーはフォロワーだけが見る
+    // （`api-user/src/storyVisibility.ts`）。ここだけインターネットに
+    // 開かない——一度そうして本番まで出した
     it("未ログインには出さないし、取りにもいかない", async () => {
         const { container } = view({ isAuthenticated: false });
         await new Promise((r) => setTimeout(r, 20));
@@ -94,7 +97,9 @@ describe("ハイライトの輪", () => {
         expect(container.querySelector("[data-testid=highlights-row]")).toBeNull();
     });
 
-    it("ログインした訪問者には出る。題と表紙、表紙が無ければアイコン", async () => {
+    // 追っていない人にはサーバーが 0件を返す＝この段は何も描かない
+    // （`getUserHighlights` の `canSeeHighlights`）。画面側の分岐は要らない
+    it("フォロワー（サーバーが中身を返す相手）には出る。題と表紙、表紙が無ければアイコン", async () => {
         view();
         const list = await screen.findByRole("list", { name: "ハイライト" });
         const items = within(list).getAllByRole("listitem");

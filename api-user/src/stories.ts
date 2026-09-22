@@ -183,7 +183,10 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         }
         const shown = items.filter((i) => !hidden.has(String(i.userId ?? "")));
 
-        // **「フォロワーのみ」は、フォローしている人と本人にだけ出す。**
+        // 🔴 **ストーリーはフォローしている人と本人にだけ出す。**
+        // 公開範囲の選択は無くなった（2026-09-22・owner の判断。経緯は
+        // `storyVisibility.ts` の節）。**行の列は見ない**——見ると、
+        // 列を持たない古い行と持つ行で門の広さが割れる。
         //
         // **判定は `following#<自分>` の一覧ではなくマーカー**
         // （`follow#<相手>#<自分>`）。一覧は2つの理由で信用できない:
@@ -192,8 +195,8 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         //     の失敗を**握り潰す**（`follow.ts:536`。あちらのコメントが
         //     「ブロックを解除した瞬間に古い関係が生き返って見える」と
         //     名指ししている残骸そのもの）。一覧で見ると、**解除した相手の
-        //     フォロワー限定ストーリーが中身ごと返る**——`viewStory` と
-        //     `postStoryReply` は同じ行に 404 を返すので、**中身だけ先に出る**
+        //     ストーリーが中身ごと返る**——`viewStory` と `postStoryReply` は
+        //     同じ行に 404 を返すので、**中身だけ先に出る**
         //   - `updateUserList` は上限2000で**古い方から**落とす。2000人超を
         //     フォローしている人は、実際に追っている相手のストーリーが
         //     静かに消える
@@ -201,10 +204,9 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // `followCheck.ts` の `isFollowing` が「一覧が切り捨てられても
         // 判定が狂わないように」と書いている当の理由を、ここだけ破っていた。
         //
-        // **払うのは「フォロワー限定を出した人の数」だけ。** 行ごとではなく
-        // 投稿者ごとにまとめ、誰も使っていなければ1回も読まない
-        // （`visibleReplyCount` が「ブロックしていなければ読まない」で
-        // 往復を抑えているのと同じ形）。
+        // **払うのは「他人の投稿者の数」だけ。** 行ごとではなく投稿者ごとに
+        // まとめるので、同じ人が何本出していても1回（`visibleReplyCount` が
+        // 「ブロックしていなければ読まない」で往復を抑えているのと同じ形）。
         //
         // **読めなければ出さない。** ブロック一覧（すぐ上）が逆向きなのは
         // 意図的な差で、あちらは**倒しすぎると誰のストーリーも出なくなる**
@@ -212,18 +214,16 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // 中身が出る**。取り返せない側を選ばない。
         //
         // **本人を外すのは `gatedOwners` の1か所だけ。** `isFollowing` は
-        // 自分自身に false を返すので、ここで外さないと**自分の
-        // フォロワー限定ストーリーが自分に見えない**（投稿した直後に
-        // バーから消える）。下の `filter` にも `owner === userId` を
+        // 自分自身に false を返すので、ここで外さないと**自分のストーリーが
+        // 自分に見えない**（投稿した直後にバーから消える）。下の `filter` にも `owner === userId` を
         // 書いていたが、**二重になっていて片方を壊してもテストが緑**だった
         // （変異で実測）。見張りは1本ずつ——`getStories` の `replyCount` の
         // ところに同じ戒めが書いてある。
         //
         // 門はここだけではない。開きっぱなしのタブや直接叩く経路のために
-        // `viewStory` と `postStoryReply` にも同じ判定が要る。
+        // `viewStory` / `postStoryReply` / `voteStory`、それにハイライトの
+        // 読む2つの口にも同じ判定が要る。
         // **画面側だけ・一覧側だけの防御を作らない。**
-        // **いまは「フォロワーだけ」しか無い**（`storyVisibility.ts` の節）。
-        // 以前は「全員に公開」の行をここから外していたが、その選択は無くした
         const gatedOwners = [...new Set(shown
             .filter((i) => String(i.userId ?? "") !== userId)
             .map((i) => String(i.userId ?? "")))];
