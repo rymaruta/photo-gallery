@@ -19,12 +19,25 @@ import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import TimelineCard from "./components/TimelineCard";
 import { useMySaves } from "../lib/hooks/useMySaves";
+import { nextTabIndex } from "../lib/utils/tabKeys";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
 
 /** ホームの最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
 const HOME_PRIORITY_COUNT = 2;
+
+/**
+ * ホームのタブ（おすすめ／フォロー中／新着）。**順番が矢印キーの順番**。
+ * 3つとも同じ1つの面を入れ替えるので、`aria-controls` の行き先も1つ
+ * （`role="tabpanel"` はその面に付ける）。
+ */
+const HOME_TABS = [
+    { key: "featured", ja: "おすすめ", en: "For you" },
+    { key: "following", ja: "フォロー中", en: "Following" },
+    { key: "all", ja: "新着", en: "New" },
+] as const;
+const HOME_PANEL_ID = "home-tabpanel";
 
 /**
  * **ホームの PC は「1列のフィード＋右の柱」**（owner の指示書 4・11・17:
@@ -57,6 +70,18 @@ const HOME_PRIORITY_COUNT = 2;
  * 寄せると、見出し・タブと本文の左端が 16px ずれる
  * （実測: 見出し x=160 / カード x=176）。余りを柱に渡せば両端が揃う。
  */
+/**
+ * タブが入れ替える面。**`aria-controls` の行き先**（`role="tab"` が
+ * 指す先が無いと、読み上げがタブから中身へ飛べない）。
+ *
+ * **3つの枝それぞれを包む**（同時に描かれるのは1つだけなので id は重複しない）。
+ * 外側をまとめて包まないのは、`surface === "search"` の枝まで
+ * 「ホームのタブの面」にしてしまうため。
+ */
+function HomePanel({ scope, children }: { scope: string; children: React.ReactNode }) {
+  return <div id={HOME_PANEL_ID} role="tabpanel" aria-labelledby={`home-tab-${scope}`}>{children}</div>;
+}
+
 function HomeColumns({ rail, children }: { rail: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)] lg:gap-8 lg:items-start">
@@ -177,6 +202,22 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
     if (hasFeatured) setFilters({ scope: "featured" });
   }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured, surface]);
+
+  /**
+   * ホームのタブの矢印キー（WAI-ARIA の tabs の作法）。
+   * 計算は `nextTabIndex` に寄せてある（マイページ・通知・スポット詳細と同じ1本）。
+   */
+  const onHomeTabKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const order = HOME_TABS.map((t) => t.key as string);
+    const to = nextTabIndex(e.key, order.indexOf(filters.scope ?? ""), order.length);
+    if (to === null) return;
+    e.preventDefault();          // 矢印での横スクロールを起こさない
+    const next = HOME_TABS[to].key;
+    setFilters({ scope: next });
+    // roving tabindex なので、選んだタブへフォーカスも移す
+    // （移さないと次の Tab が一覧を飛ばす）
+    document.getElementById(`home-tab-${next}`)?.focus();
+  }, [filters.scope, setFilters]);
 
 
   // URLパラメータ(?photo=)で写真モーダルを開く。
@@ -505,27 +546,40 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
           自分の写真かフォロー中の人の写真みれるようにしたい」。
           「すべて」は未ログインの人が見るのと同じ一覧。既定は「自分」（上の effect） */}
+      {/* 🔴 **`aria-pressed` ではなく、本物のタブ。**
+          `aria-pressed` は「押して入り切りする」という意味だが、この3つは
+          **押し直しても外れない**（必ずどれか1つが選ばれている）ので、
+          読み上げの「押されています／押されていません」が嘘になる。
+          マイページのタブを同じ理由で直したのと同じ形に揃える
+          （`app/users/UserProfileClient.tsx`・2026-09-22）。
+          矢印キーの計算は `lib/utils/tabKeys.ts` を使い回す——**同じ計算を
+          もう1つ書かない**（あちらのコメントが名指ししている形） */}
       {surface === "home" && (
-        <div role="group" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
+        <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
              className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
-          {([
-            { key: "featured", label: locale === "en" ? "For you" : "おすすめ" },
-            { key: "following", label: locale === "en" ? "Following" : "フォロー中" },
-            { key: "all", label: locale === "en" ? "New" : "新着" },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setFilters({ scope: t.key })}
-              aria-pressed={filters.scope === t.key}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filters.scope === t.key ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
-              }`}
-              style={{ touchAction: "manipulation" }}
-            >
-              {t.label}
-            </button>
-          ))}
+          {HOME_TABS.map((t) => {
+            const active = filters.scope === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`home-tab-${t.key}`}
+                aria-selected={active}
+                aria-controls={HOME_PANEL_ID}
+                // roving tabindex（選んでいるタブだけが Tab の止まり先）
+                tabIndex={active ? 0 : -1}
+                onClick={() => setFilters({ scope: t.key })}
+                onKeyDown={onHomeTabKeyDown}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  active ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
+                }`}
+                style={{ touchAction: "manipulation" }}
+              >
+                {locale === "en" ? t.en : t.ja}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -537,9 +591,11 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {surface === "home" && filters.scope === "following" ? (
-        <HomeColumns rail={discoverRail}>
-          <TimelineFeed locale={locale} />
-        </HomeColumns>
+        <HomePanel scope="following">
+          <HomeColumns rail={discoverRail}>
+            <TimelineFeed locale={locale} />
+          </HomeColumns>
+        </HomePanel>
       ) : surface === "home" && filters.scope === "featured" ? (
         /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
            `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
@@ -556,7 +612,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
            持ち場にする——同じものを二度作らない。
            **人気順ではない**（実データは いいね0・コメント0 で、人気の
            根拠がどこにも無い）。1枚も選ばれていなければそう言う */
-        hasFeatured && !narrowedNow ? (
+        <HomePanel scope="featured">{hasFeatured && !narrowedNow ? (
           <FeaturedSections
             photos={PHOTOS}
             categoryNames={labels.category?.names ?? {}}
@@ -578,12 +634,12 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               {locale === "en" ? "See what's new" : "新着を見る"}
             </button>
           </div>
-        )
+        )}</HomePanel>
       ) : surface === "home" ? (
         /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
            グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
            1枚ずつ見るのは別の体験なので、面を分ける */
-        <HomeColumns rail={discoverRail}>
+        <HomePanel scope="all"><HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
               <p className="text-sm m-0">
@@ -601,12 +657,13 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                     isAuthenticated={isAuthenticated}
                     authLoading={authLoading}
                     savedIds={savedIds}
+                    savesPending={saves.pending}
                   />
                 </li>
               ))}
             </ol>
           )}
-        </HomeColumns>
+        </HomeColumns></HomePanel>
       ) : (
       /**
        * **「さがす」の PC は2カラム**（owner の指示書 4・11・17:
@@ -716,6 +773,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           onPrev={prev}
           locale={locale}
           categoryDisplayMap={categoryDisplayMap}
+          // **一覧で持っているぶんを渡す**（送るたびに聞きに行かせない）
+          savedIds={savedIds}
+          savesPending={saves.pending}
         />
       )}
     </main>

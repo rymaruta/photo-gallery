@@ -130,6 +130,7 @@ export default function TimelineFeed({ locale }: Props) {
                         isAuthenticated={isAuthenticated}
                         authLoading={authLoading}
                         savedIds={savedIds}
+                        savesPending={saves.pending}
                     />
                 </li>
             ))}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Photo, LocalizedText, LocalizedParagraphs } from "../data/photos";
 import { getLocalized, getLocalizedParagraphs } from "../data/photos";
 import type { GalleryFilters } from "../types/gallery";
@@ -43,6 +43,13 @@ const normalizeKey = (s?: string) => {
     // 同じページにまとまる。同じ写真の集合が、見る場所で違って見えていた。
     return base;
 };
+
+/**
+ * 「いまサーバー（＝静的HTML を焼いている側）か、水和が済んだクライアントか」を
+ * 見分けるための空の購読。`Thumb` / `TimelineCard` / `PhotoPageClient` が
+ * 同じ形で持っている（**4つ目の言い方を作らない**）。
+ */
+const subscribeNoop = () => () => {};
 
 function readFiltersFromUrl(): Partial<GalleryFilters> {
     if (typeof window === "undefined") return {};
@@ -98,15 +105,59 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         [raw]
     );
 
-    // URL から初期フィルターを読み込む（マウント時一度だけ）
-    const [filters, setFilters] = useState<GalleryFilters>(() => ({
+    /**
+     * 🔴 **描画の最中に URL を読まない。**
+     *
+     * 以前はここが `useState(() => ({ ...readFiltersFromUrl() }))` で、
+     * **最初の描画で `window.location.search` を読んでいた**。静的書き出し
+     * なのでサーバー側の HTML は必ず「絞り込み無し」で焼かれる。ところが
+     * クライアントの最初の描画は URL を読んで**絞り込み後**を描くので、
+     * 食い違う＝**React が水和に失敗する**（`#418`）。
+     *
+     * 実測（2026-09-22・本番と同じ環境変数のビルドを実ブラウザで開く）:
+     *
+     *     /search                        水和エラー 0
+     *     /search?q=山中湖                水和エラー 1  ← #418
+     *     /search?category=landscape     水和エラー 1
+     *     /search?tags=lake              水和エラー 1
+     *     /search?category=…&q=…         水和エラー 1
+     *
+     * 失敗すると React は**焼いた HTML を捨てて全部描き直す**ので、
+     * 検索から着地した人・404 の救済で飛ばされた人・柱から来た人が
+     * 毎回その作り直しを踏む。**例外は握られて画面に出ない**ので、
+     * 台帳の言う「落ちないバグ」そのもの。
+     *
+     * ## 直し方
+     *
+     * **水和が終わるまではサーバーと同じ姿で描く。** 見分けには
+     * `useSyncExternalStore` を使う——`Thumb` / `TimelineCard` /
+     * `PhotoPageClient` が既に同じ形で持っている（**4つ目の言い方を作らない**）。
+     *
+     *   - サーバーと**水和中**  … `clientRender === false` → URL を読まない
+     *   - 水和が済んだ直後      … `true` になって描き直し、URL が効く
+     *
+     * ⚠️ **`useEffect` で `setFilters` する形にはしない。** この
+     * リポジトリは `react-hooks/set-state-in-effect` を error にしている
+     * （`useMyPhotoIdList` の注記が同じ理由を書いている）。**描画で
+     * 混ぜる**方なら state が増えない。
+     */
+    const clientRender = useSyncExternalStore(subscribeNoop, () => true, () => false);
+    /** URL から来る絞り込み。**水和が済むまでは空**（サーバーと同じ姿） */
+    const urlFilters = useMemo<Partial<GalleryFilters>>(
+        () => (clientRender ? readFiltersFromUrl() : {}),
+        [clientRender],
+    );
+    /** 人が触ったぶん。URL より強い（外した絞り込みが URL から生き返らない） */
+    const [ownFilters, setOwnFilters] = useState<Partial<GalleryFilters>>({});
+    const filters = useMemo<GalleryFilters>(() => ({
         category: "all",
         selectedTags: [],
         query: "",
         sort: "new",
         scope: "all",
-        ...readFiltersFromUrl(),
-    }));
+        ...urlFilters,
+        ...ownFilters,
+    }), [urlFilters, ownFilters]);
 
     const [currentIndex, setCurrentIndex] = useState<number | null>(null);
 
@@ -317,6 +368,9 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
 
     useEffect(() => {
         if (typeof window === "undefined") return;
+        // **URL を読み終えるまで書かない。** 水和中に走ると、まだ読んでいない
+        // 空の絞り込みで `?category=` を消してしまう（上の注記）
+        if (!clientRender) return;
         const params = new URLSearchParams();
         if (filters.category && filters.category !== "all") params.set("category", filters.category);
         if (filters.query) params.set("q", filters.query);
@@ -372,7 +426,7 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
             return;
         }
         window.history.replaceState(withNextHistoryState({}), "", url);
-    }, [filters, openPhotoId]);
+    }, [filters, openPhotoId, clientRender]);
 
     // 依存配列なし → 参照が変わらない安定したコールバック
     const open = useCallback((i: number) => {
@@ -402,7 +456,7 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         }), []);
 
     const updateFilters = useCallback((next: Partial<GalleryFilters>) => {
-        setFilters((s) => ({ ...s, ...next }));
+        setOwnFilters((s) => ({ ...s, ...next }));
     }, []);
 
     return {

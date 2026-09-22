@@ -33,6 +33,9 @@ type Props = {
      * 同じ理由）。`null` は「まだ分からない／取れなかった」
      */
     savedIds?: ReadonlySet<string> | null;
+    /** その一覧を**いま引いている最中**か。`true` のあいだ写真ごとの GET を出さない
+     *  （`savedIds` が `null` なだけでは「失敗した」と区別が付かない） */
+    savesPending?: boolean;
 };
 
 /** カードに出すタグの数。全部出すと写真より文字が多くなる */
@@ -74,7 +77,7 @@ function useAfterHydration(): boolean {
  * 増えない（`usePhotoSave` の `known`）。
  */
 export default function TimelineCard({
-    photo, locale, priority = false, isAuthenticated = false, authLoading = false, savedIds = null,
+    photo, locale, priority = false, isAuthenticated = false, authLoading = false, savedIds = null, savesPending = false,
 }: Props) {
     const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
     const alt = photoAltText(photo, locale);
@@ -114,7 +117,7 @@ export default function TimelineCard({
 
     // 保存。一覧から分かっていれば（`savedIds`）写真ごとに聞きに行かない
     const known = savedIds ? savedIds.has(photo.id) : undefined;
-    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(photo.id, isAuthenticated, authLoading, known);
+    const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(photo.id, isAuthenticated, authLoading, known, savesPending);
     const handleSave = React.useCallback(() => {
         void toggleSave().then((r) => {
             if (r.ok) return;

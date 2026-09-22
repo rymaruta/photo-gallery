@@ -78,8 +78,15 @@ vi.mock("../../lib/hooks/usePhotos", () => ({ usePhotos: () => ({ photos: photos
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
 
-const tab = (name: string) => screen.getByRole("button", { name });
-const pressed = (name: string) => tab(name).getAttribute("aria-pressed") === "true";
+/**
+ * 🔴 **`role="tab"` ＋ `aria-selected`**（2026-09-22 に `aria-pressed` から直した）。
+ * 3つとも押し直しても外れない＝必ずどれか1つが選ばれているので、
+ * 「押されています／押されていません」は嘘になる。マイページのタブを
+ * 同じ理由で直したのと同じ形（PM の指示: 排他の切り替えは `role="tab"`、
+ * 入り切りは `role="switch"`。3つ目の表現を作らない）。
+ */
+const tab = (name: string) => screen.getByRole("tab", { name });
+const pressed = (name: string) => tab(name).getAttribute("aria-selected") === "true";
 /** トップのカードに並んでいる写真（グリッドではない） */
 const cardIds = () => Array.from(document.querySelectorAll("[data-card]")).map((el) => el.getAttribute("data-card"));
 
@@ -234,5 +241,65 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         expect(screen.getByText("まだおすすめは選ばれていません。")).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: "新着を見る" }));
         await waitFor(() => expect(pressed("新着")).toBe(true));
+    });
+});
+
+/**
+ * 🔴 **タブの作法（WAI-ARIA の tabs）。**
+ *
+ * 直す前は `role="group"` ＋ `aria-pressed` のボタン3つだった。
+ * `aria-pressed` は「押して入り切りする」という意味だが、この3つは
+ * **押し直しても外れない**——必ずどれか1つが選ばれている。読み上げは
+ * 「押されていません」と言うのに外す手段が無い、という嘘になる。
+ *
+ * PM の線（2026-09-22）:「入り切りは `role="switch"`、排他の切り替えは
+ * `role="tab"`。**3つ目の表現を作らない**」。マイページのタブを同じ理由で
+ * 直してあるので、そちらに揃える。
+ */
+describe("ホームのタブの作法", () => {
+    it("tablist の中の tab で、選んでいる1つだけ aria-selected", () => {
+        render(<GalleryPageClient />);
+        const list = screen.getByRole("tablist");
+        expect(list, "tablist が無い").toBeInTheDocument();
+        const tabs = screen.getAllByRole("tab");
+        expect(tabs).toHaveLength(3);
+        expect(tabs.filter((t) => t.getAttribute("aria-selected") === "true"), "選択中が1つではない").toHaveLength(1);
+        // 入り切りの意味を持つ `aria-pressed` は残っていない
+        for (const t of tabs) expect(t.hasAttribute("aria-pressed"), "aria-pressed が残っている").toBe(false);
+    });
+
+    it("roving tabindex（Tab の止まり先は選んでいるタブだけ）", () => {
+        render(<GalleryPageClient />);
+        const tabs = screen.getAllByRole("tab");
+        for (const t of tabs) {
+            const selected = t.getAttribute("aria-selected") === "true";
+            expect(t.getAttribute("tabindex"), `${t.textContent}: roving tabindex になっていない`)
+                .toBe(selected ? "0" : "-1");
+        }
+    });
+
+    it("aria-controls の行き先が実在する（tabpanel）", () => {
+        render(<GalleryPageClient />);
+        const id = screen.getAllByRole("tab")[0].getAttribute("aria-controls");
+        expect(id, "aria-controls が無い").toBeTruthy();
+        const panel = document.getElementById(id!);
+        expect(panel, `aria-controls の行き先（#${id}）が無い`).not.toBeNull();
+        expect(panel!.getAttribute("role"), "tabpanel になっていない").toBe("tabpanel");
+        // 面は選んでいるタブに名前を借りる
+        const labelled = panel!.getAttribute("aria-labelledby");
+        expect(document.getElementById(labelled ?? ""), "面の名前の出どころが無い").not.toBeNull();
+    });
+
+    it("矢印キーで隣のタブへ動き、端で折り返す", () => {
+        render(<GalleryPageClient />);
+        // 未ログインの既定は「新着」（一覧の最後）
+        const start = screen.getAllByRole("tab").find((t) => t.getAttribute("aria-selected") === "true")!;
+        fireEvent.keyDown(start, { key: "ArrowRight" });
+        // 端なので先頭（おすすめ）へ折り返す
+        expect(pressed("おすすめ"), "右端から先頭へ折り返さない").toBe(true);
+        fireEvent.keyDown(screen.getByRole("tab", { name: "おすすめ" }), { key: "ArrowLeft" });
+        expect(pressed("新着"), "左端から末尾へ折り返さない").toBe(true);
+        fireEvent.keyDown(screen.getByRole("tab", { name: "新着" }), { key: "Home" });
+        expect(pressed("おすすめ"), "Home で先頭へ行かない").toBe(true);
     });
 });
