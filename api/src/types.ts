@@ -23,6 +23,9 @@ export type Photo = {
     // 型を頼りに書くと漏れる下地だった（api-user/src/types.ts と対。
     // 派生を足すときは両方の型と mediaKeys.ts の MEDIA_FIELDS も見る）
     srcOriginal?: string;  // EXIF除去前の原本（GPS入り。削除時に必ず消す）
+    // 公開範囲。**在ることが「絞ってある」の印**（`api` 側は中身を見ない）。
+    // 誰に見せてよいかの判定は `api-user/src/restrictedFeed.ts` だけが持つ
+    audience?: string;
     srcAvif?: string;
     src256?: string;
     thumbSrc?: string;

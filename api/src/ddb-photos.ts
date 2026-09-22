@@ -31,7 +31,12 @@ export async function listPhotos(): Promise<Photo[]> {
             // photos.json に載り、静的ページとサイトマップの項目までできた。
             // 24時間後の掃除は実体しか消さないので、壊れたページが残る。
             // ハンドラ側でも弾いているが、ここでも保証する。
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
+            // **公開範囲を絞った写真も出さない**（`audience` を持つ行）。
+            // 2026-09-22 に PM が個別取得の穴を報告したが、**一覧はもっと軽い**
+            // ——id すら要らずに全部返っていた。索引の側（`publicFeed`）では
+            // 仕切ってあるのに、この Scan だけが素通しだった。
+            // **管理用の `listAllPhotosForAdmin` は別**（下書きと同じく見える側）
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story) AND attribute_not_exists(audience)",
             ExpressionAttributeValues: { ":pub": true },
         }));
         items.push(...((res.Items ?? []) as Photo[]));
@@ -161,10 +166,11 @@ export async function listPhotosByUser(userId: string): Promise<Photo[]> {
             IndexName: USER_INDEX,
             KeyConditionExpression: "userId = :uid",
             // listPhotos と同じ条件。ストーリーもここから出さない
-            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story)",
+            FilterExpression: "(attribute_not_exists(published) OR published = :pub) AND attribute_exists(src) AND attribute_not_exists(story) AND attribute_not_exists(audience)",
             ExpressionAttributeValues: { ":uid": userId, ":pub": true },
             ExclusiveStartKey: lastKey,
         }));
+            // **公開範囲を絞った写真も出さない。** `?userId=` は誰でも叩ける
         items.push(...((res.Items ?? []) as Photo[]));
         lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
     } while (lastKey);

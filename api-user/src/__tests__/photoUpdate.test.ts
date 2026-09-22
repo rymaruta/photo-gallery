@@ -166,15 +166,36 @@ describe("updatePhotoVisibility", () => {
         expect(update.ExpressionAttributeValues[":aud"]).toBe("closeFriends");
     });
 
-    // **知らない値で広げない。** ただし印も一緒に消すので、索引と属性は揃う
-    it("知らない公開範囲は保存しない", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
-            .mockResolvedValueOnce({});
-        await invoke(event("u1", "p1", { published: true, audience: "mutuals" }));
-        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
-        expect(update.ExpressionAttributeValues[":aud"]).toBeUndefined();
-        expect(update.UpdateExpression).toMatch(/REMOVE[^]*#audience/);
+    // 🔴 **知らない公開範囲は 400 で断る。** 以前はここで黙って落として
+    // いたので、綴りを間違えた保存（`"follower"`・`"close_friends"`・
+    // 将来足した値を古いサーバーが受けた場合）が**そのまま全体に公開**に
+    // なっていた。他の項目なら「無視する」で済むが、これは公開範囲なので
+    // **分からないときに開く方へ倒れてはいけない**
+    it("知らない公開範囲は断る（全体に公開へ倒さない）", async () => {
+        for (const bad of ["mutuals", "follower", "close_friends", "public", 1, {}]) {
+            mockDdbSend.mockReset()
+                .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+                .mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { published: true, audience: bad }));
+            expect(res.statusCode, String(bad)).toBe(400);
+            // **1行も書かない**（いまの「フォロワーのみ」がそのまま残る）
+            expect(mockDdbSend.mock.calls.some(
+                (c) => "UpdateExpression" in ((c[0] as { input: Record<string, unknown> }).input)),
+                String(bad)).toBe(false);
+        }
+    });
+
+    // **空にするのは通す**（はっきりした「全体に公開へ戻す」の意思表示）
+    it("null と空文字は、今までどおり解除として通る", async () => {
+        for (const blank of [null, "", "   "]) {
+            mockDdbSend.mockReset()
+                .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+                .mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { published: true, audience: blank }));
+            expect(res.statusCode, String(blank)).toBe(200);
+            const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+            expect(update.UpdateExpression, String(blank)).toMatch(/REMOVE[^]*#audience/);
+        }
     });
 
     // 公開状態を触っていない保存（曲だけ変えた等）で印に触ると、

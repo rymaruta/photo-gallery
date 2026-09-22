@@ -92,6 +92,25 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
     }
 
+    // 🔴 **知らない公開範囲は断る。「全体に公開」へ倒さない。**
+    //
+    // `sanitizeAudience` は知らない値を `undefined` にするので、綴りを
+    // 間違えた保存（`"follower"`・`"close_friends"`・将来足した値を古い
+    // サーバーが受けた場合）が**そのまま全体に公開**になっていた。
+    // 他の項目なら「無視する」で済むが、これは**公開範囲**なので、
+    // 分からないときに開く方へ倒れてはいけない。
+    //
+    // **空にするのは通す**（null・空文字＝「全体に公開へ戻す」という
+    // はっきりした意思表示）。断るのは「何か書いてあるが読めない」回だけ。
+    if (hasAudience) {
+        const raw = body.audience;
+        const blank = raw == null || (typeof raw === "string" && raw.trim() === "");
+        if (!blank && !sanitizeAudience(raw)) {
+            return { statusCode: 400, headers: JSON_HEADERS,
+                body: JSON.stringify({ error: "公開範囲の指定が不正です" }) };
+        }
+    }
+
     // フル再生MV: 有効な YouTube URL のみ保存、null/空で解除
     let youtubeUrl: string | undefined;
     let removeYoutube = false;
