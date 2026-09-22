@@ -119,7 +119,6 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/photo/[id]/PhotoPageClient.tsx", "blurDataURL", "ぼかしは data: URI"],
     ["app/components/stories/StoriesBar.tsx", "draft.previewUrl", "下書きの blob: URL（まだ上げていない）"],
     ["app/components/stories/StoriesBar.tsx", "url", "長さを測るための blob: URL"],
-    ["app/user/profile/page.tsx", "coverPreview", "選んだ直後の data: URL"],
     ["app/user/profile/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
     ["app/user/upload/page.tsx", "it.preview", "サムネ帯の blob: URL（まだ上げていない・端末の中だけ）"],
     // 切り抜きプレビューは `app/components/CropFramePicker.tsx` へ切り出した
@@ -135,9 +134,7 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/Thumb.tsx", "avifSet", "`buildSrcSet` が1本ずつ通している"],
     ["app/components/Thumb.tsx", "webpSet", "`buildSrcSet` が1本ずつ通している"],
     ["app/components/UserAvatar.tsx", "url", "組み立てるところで通している"],
-    ["app/user/profile/page.tsx", "currentCoverUrl", "組み立てるところで通している"],
     ["app/user/profile/page.tsx", "currentAvatarUrl", "組み立てるところで通している"],
-    ["app/users/UserProfileClient.tsx", "coverUrl", "組み立てるところで通している"],
     ["lib/hooks/useImagePreloader.ts", "url", "`preloadImage` の入口で通している（`useImagePreloader.origin.test.ts` が `Image` に入った値で見る）"],
 ];
 
