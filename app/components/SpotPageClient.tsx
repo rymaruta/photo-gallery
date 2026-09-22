@@ -12,6 +12,7 @@ import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type SpotLink = { label: string; count: number; path: string };
 type NearbyLink = SpotLink & { km: number; approx: boolean };
@@ -82,15 +83,10 @@ export default function SpotPageClient({
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         const keys = TABS.map(([k]) => k);
-        const at = keys.indexOf(tab);
-        let next: number;
-        switch (e.key) {
-            case "ArrowRight": next = (at + 1) % keys.length; break;
-            case "ArrowLeft": next = (at - 1 + keys.length) % keys.length; break;
-            case "Home": next = 0; break;
-            case "End": next = keys.length - 1; break;
-            default: return;
-        }
+        // 計算は `lib/utils/tabKeys.ts`（`NotificationsBell` と共有）。
+        // 選び方とフォーカスの送り先だけがここの仕事
+        const next = nextTabIndex(e.key, keys.indexOf(tab), keys.length);
+        if (next === null) return;
         // 矢印での横スクロールを起こさない
         e.preventDefault();
         setTab(keys[next]);
@@ -291,7 +287,7 @@ export default function SpotPageClient({
                         {en
                             ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
                             : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
-                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-sky-300 hover:text-sky-200 underline underline-offset-4">
+                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
                             {en ? "Open the map" : "撮影地マップを開く"}
                         </Link>
                     </p>

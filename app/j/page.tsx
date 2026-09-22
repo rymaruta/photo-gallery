@@ -98,7 +98,7 @@ function InviteView() {
 
     if (state === "loading") {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center px-4">
                 {/* **見出しを1つ置く。** 読み上げは見出しでページを渡り歩くので、
                     h1 が無いとこの画面には入口が無い。見た目は変えない
                     （ホームの `sr-only sm:hidden` と同じ形） */}
@@ -110,7 +110,7 @@ function InviteView() {
 
     if (state === "error" || !album) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center px-4">
                 <div className="text-center max-w-sm">
                     {/* **失敗の画面こそ見出しが要る。** 招待リンクは30日で
                         失効するので、ここは実際に人が着地する */}
@@ -125,7 +125,7 @@ function InviteView() {
     }
 
     return (
-        <main className="min-h-screen bg-black text-white px-4 py-8">
+        <main className="min-h-screen bg-bg text-white px-4 py-8">
             <div className="max-w-2xl mx-auto">
                 <p className="text-[11px] tracking-widest uppercase text-white/50">アルバムへの招待</p>
                 <h1 className="text-xl mt-1">{album.title}</h1>
@@ -154,7 +154,7 @@ function InviteView() {
                         <Link
                             href={`${ROUTES.UPLOAD}?album=${encodeURIComponent(album.id)}`}
                             prefetch={false}
-                            className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
+                            className="inline-block rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                         >
                             写真を追加する
                         </Link>
@@ -165,7 +165,7 @@ function InviteView() {
                             type="button"
                             onClick={join}
                             aria-disabled={joining}
-                            className="rounded-full bg-white text-black text-sm px-5 py-2.5"
+                            className="rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                             style={{ minHeight: 44 }}
                         >
                             {joining ? "参加しています…" : "このアルバムに参加する"}
@@ -177,7 +177,7 @@ function InviteView() {
                             <Link
                                 href={`${ROUTES.LOGIN}?next=${encodeURIComponent(`/j?t=${token}`)}`}
                                 prefetch={false}
-                                className="inline-block rounded-full bg-white text-black text-sm px-5 py-2.5"
+                                className="inline-block rounded-full bg-accent-fill text-white text-sm px-5 py-2.5"
                             >
                                 ログインして参加する
                             </Link>
@@ -212,7 +212,7 @@ export default function InvitePage() {
             // `state === "loading"` ではない——`useSearchParams` のために
             // 全体を包んでいるので、**JS が走る前に見えるのはここ**。
             // 内側にだけ見出しを足しても静的HTMLは h1=0 のままだった（実測）
-            <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center px-4">
                 <h1 className="sr-only">アルバムへの招待</h1>
                 <p className="text-sm text-white/60">読み込み中…</p>
             </main>

@@ -10,7 +10,7 @@ const { viewport } = await import("../layout");
 /**
  * **マニフェストとメタタグの色を、2か所で別々に持たない。**
  *
- * `public/manifest.webmanifest` は `theme_color: "#000000"` を宣言して
+ * `public/manifest.webmanifest` は `theme_color`（当時は `#000000`）を宣言して
  * いたのに、`<meta name="theme-color">` が**1ページも無かった**
  * （2026-09-12 に実ビルドで確認）。マニフェストの色が効くのは
  * **インストール後**で、ブラウザで見ている間のツールバーの色は
@@ -32,9 +32,9 @@ describe("テーマカラー", () => {
         expect(String(viewport.themeColor).toLowerCase()).toBe(String(manifest.theme_color).toLowerCase());
     });
 
-    // 背景色もマニフェスト側にある。**同じ黒**であることを確かめる
+    // 背景色もマニフェスト側にある。**同じ色**（いまは紺）であることを確かめる
     // （起動画面とツールバーで色が割れると、開いた瞬間にちらつく）
-    it("マニフェストの背景色と同じ黒", () => {
+    it("マニフェストの背景色とツールバーの色が同じ", () => {
         expect(String(manifest.background_color).toLowerCase()).toBe(String(manifest.theme_color).toLowerCase());
     });
 });
