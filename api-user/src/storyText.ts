@@ -40,11 +40,15 @@ export const STORY_FONTS = {
     // 丸ゴシック。⚠️ **端末に無ければゴシックに落ちる**（iOS/macOS には在るが、
     // Android と Windows は標準で持たない）。落ちても読める並びにしてある
     maru: { label: "丸ゴシック", css: '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Hiragino Sans",system-ui,sans-serif', weight: 600 },
-    // 手書き（owner:「広告でよくある手書きのフォントも欲しい」2026-09-22）。
-    // **ここだけ webfont**（`--font-hand` は `app/layout.tsx` が Klee One を
-    // 読んで立てる）。日本語に手書きの字体を持つ端末は少なく、並びだけでは
-    // ゴシックに落ちて要望が満たせない。落ちてくるまでは丸ゴシックで読める
-    hand: { label: "手書き", css: 'var(--font-hand),"Klee One","Hiragino Maru Gothic ProN","Hiragino Sans",cursive', weight: 600 },
+    // マーカー（owner:「広告でよくある手書き」「アオハルマーカー mini」2026-09-22）。
+    // **ここだけ webfont**（`--font-marker` は `app/layout.tsx` が Yusei Magic＝
+    // 油性マジックを読んで立てる）。名指しのアオハルマーカーmini は**漢字を
+    // 収録していない**ので文章が「かなだけ手書き」になり、配布元の規約にも
+    // Web フォント可の明記が無い——見た目がいちばん近く漢字を持つ OFL の方を使う
+    marker: { label: "マーカー", css: 'var(--font-marker),"Yusei Magic","Hiragino Maru Gothic ProN","Hiragino Sans",cursive', weight: 400 },
+    // 走り書き（owner:「みぎかたあがり」）。同じ理由で Yomogi（ヨモギ）。
+    // 名指しの方は**漢字が69字だけ**
+    scribble: { label: "走り書き", css: 'var(--font-scribble),"Yomogi","Hiragino Maru Gothic ProN","Hiragino Sans",cursive', weight: 400 },
     // 等幅。数字や英字を並べるとき
     mono: { label: "等幅", css: 'ui-monospace,SFMono-Regular,Menlo,"Noto Sans Mono CJK JP",monospace', weight: 600 },
 } as const;

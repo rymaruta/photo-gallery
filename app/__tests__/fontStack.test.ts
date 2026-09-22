@@ -111,45 +111,56 @@ describe("オフラインの受け皿（public/offline.html）", () => {
 });
 
 /**
- * **手書きの字体だけは webfont**（owner の要望 2026-09-22
- * 「広告でよくある手書きのフォントも欲しい」）。
+ * **手書き2種だけは webfont**（owner の要望 2026-09-22
+ * 「広告でよくある手書きのフォントも欲しい」「アオハルマーカー mini /
+ * みぎかたあがり のフォントがいい」）。
  *
- * 日本語の手書きは端末に在るとは限らず、並びだけではゴシックに落ちて
- * 要望が満たせない——`maru`（丸ゴシック）が Android と Windows で
- * 落ちるのと同じ話。だからここだけ Klee One を読む。
+ * 名指しの2つはそのまま使えない——アオハルマーカーmini は**漢字を持たず**、
+ * みぎかたあがり は**漢字が69字だけ**で、文章に混ぜると「かなは手書き・
+ * 漢字はゴシック」になる。配布元の規約にも Web フォント可の明記が無い
+ * （Web フォントはファイルを閲覧者全員へ配る行為）。だから**見た目が
+ * いちばん近く、漢字を持ち、配ってよい**（SIL OFL）2つを使う:
+ * `Yusei Magic`（油性マジック）と `Yomogi`（ヨモギ）。
  *
  * **配線は2か所**（`layout.tsx` が変数を立て、`storyText.ts` がそれを使う）。
  * 片方だけ消えても画面は落ちず、**黙って丸ゴシックに落ちる**ので機械で縛る。
  */
 describe("ストーリーの手書き（webfont の配線）", () => {
     const layout = () => read("app/layout.tsx");
+    const FONTS = [
+        { fn: "Yusei_Magic", varName: "--font-marker", local: "marker", key: "marker" },
+        { fn: "Yomogi", varName: "--font-scribble", local: "scribble", key: "scribble" },
+    ] as const;
 
-    it("`layout.tsx` が Klee One を読み、`--font-hand` を立てている", () => {
-        const src = layout();
-        expect(src, "Klee One を読んでいない").toMatch(/Klee_One\(/);
-        expect(src, "CSS 変数の名前が違う").toMatch(/variable:\s*"--font-hand"/);
-        expect(src, "<body> に変数が付いていない").toMatch(/klee\.variable/);
-    });
+    for (const f of FONTS) {
+        it(`\`layout.tsx\` が ${f.fn} を読み、\`${f.varName}\` を立てている`, () => {
+            const src = layout();
+            expect(src, `${f.fn} を読んでいない`).toMatch(new RegExp(`${f.fn}\\(`));
+            expect(src, "CSS 変数の名前が違う").toContain(`variable: "${f.varName}"`);
+            expect(src, "<body> に変数が付いていない").toContain(`${f.local}.variable`);
+        });
 
-    /**
-     * **`subsets` を書かない。** next/font の一覧に `japanese` が無く
-     * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
-     * `latin` と書くと**日本語の字が1つも入らない**まま緑になる。
-     */
-    it("Klee One に `subsets` を渡していない（渡すと日本語が入らない）", () => {
-        const m = /Klee_One\(\{([\s\S]*?)\}\)/.exec(layout());
-        expect(m, "Klee_One の呼び出しが読めない").not.toBeNull();
-        expect(m![1], "subsets を渡すと日本語のグリフが落ちる").not.toMatch(/^\s*subsets:/m);
-        // `subsets` を省くときは `preload: false` が要る（Next が止める）。
-        // 全ページに 131 本ぶんの preload を出さない意味もある
-        expect(m![1], "preload を切っていない").toMatch(/preload:\s*false/);
-    });
+        /**
+         * **`subsets` を書かない。** next/font の一覧に `japanese` が無く
+         * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
+         * `latin` と書くと**日本語の字が1つも入らない**まま緑になる。
+         */
+        it(`${f.fn} に \`subsets\` を渡していない（渡すと日本語が入らない）`, () => {
+            const m = new RegExp(`${f.fn}\\(\\{([\\s\\S]*?)\\}\\)`).exec(layout());
+            expect(m, `${f.fn} の呼び出しが読めない`).not.toBeNull();
+            expect(m![1], "subsets を渡すと日本語のグリフが落ちる").not.toMatch(/^\s*subsets:/m);
+            // `subsets` を省くときは `preload: false` が要る（Next が止める）。
+            // 全ページに何十本ぶんもの preload を出さない意味もある
+            expect(m![1], "preload を切っていない").toMatch(/preload:\s*false/);
+        });
 
-    it("`storyText.ts` の手書きがその変数を先頭で使い、落ちても読める並びが続く", async () => {
-        const { STORY_FONTS } = await import("@/lib/utils/storyText");
-        const css = STORY_FONTS.hand.css;
-        expect(css, "変数を使っていない（別名で宣言すると黙って落ちる）").toMatch(/^var\(--font-hand\)/);
-        expect(css, "落ちたときの受け皿が無い").toContain("Hiragino Maru Gothic ProN");
-        expect(css.split(",").at(-1)!.trim(), "総称ファミリで終わっていない").toBe("cursive");
-    });
+        it(`\`storyText.ts\` の ${f.key} がその変数を先頭で使い、落ちても読める並びが続く`, async () => {
+            const { STORY_FONTS } = await import("@/lib/utils/storyText");
+            const css = STORY_FONTS[f.key].css;
+            expect(css, "変数を使っていない（別名で宣言すると黙って落ちる）").toBe(css);
+            expect(css.startsWith(`var(${f.varName})`), "変数が先頭に無い").toBe(true);
+            expect(css, "落ちたときの受け皿が無い").toContain("Hiragino Maru Gothic ProN");
+            expect(css.split(",").at(-1)!.trim(), "総称ファミリで終わっていない").toBe("cursive");
+        });
+    }
 });
