@@ -24,12 +24,47 @@ const shareMocks = vi.hoisted(() => ({
 }));
 vi.mock("../../../lib/utils/share", () => shareMocks);
 vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, loading: false }) }));
-// グリッドの中身はここの関心ではない（`GalleryGrid.test.tsx` が見る）
+/**
+ * グリッドの中身はここの関心ではない（`GalleryGrid.test.tsx` が見る）。
+ *
+ * ただし**受け取った props は出す**——このページが
+ * 「その場で開く」を頼んでいるか、頼まれた側が何を返すかは、ここの関心。
+ */
 vi.mock("../GalleryGrid", () => ({
-    default: ({ photos }: { photos: Array<{ id: string }> }) => (
-        <div data-testid="grid">{photos.map((p) => <span key={p.id}>{p.id}</span>)}</div>
+    default: ({ photos, onOpenPhoto, openInPlace }: {
+        photos: Array<{ id: string }>;
+        onOpenPhoto?: (id: string) => boolean;
+        openInPlace?: boolean;
+    }) => (
+        <div data-testid="grid" data-open-in-place={String(!!openInPlace)}>
+            {photos.map((p) => (
+                <button key={p.id} type="button" onClick={() => { lastOpenResult.value = onOpenPhoto?.(p.id); }}>
+                    {p.id}
+                </button>
+            ))}
+            <button type="button" onClick={() => { lastOpenResult.value = onOpenPhoto?.("居ない写真"); }}>
+                居ない写真を開く
+            </button>
+        </div>
     ),
 }));
+// **ビューアは使い回し**（`GalleryModal`）。あちらの中身は
+// `GalleryModal` 自身のテストが見るので、ここでは「開いたか・どれを・
+// 送れるか」だけを出す
+vi.mock("../GalleryModal", () => ({
+    default: ({ photos, currentIndex, onClose, onNext, onPrev }: {
+        photos: Array<{ id: string }>; currentIndex: number;
+        onClose: () => void; onNext: () => void; onPrev: () => void;
+    }) => (
+        <div data-testid="modal" data-current={photos[currentIndex]?.id}>
+            <button type="button" onClick={onPrev}>前へ</button>
+            <button type="button" onClick={onNext}>次へ</button>
+            <button type="button" onClick={onClose}>閉じる</button>
+        </div>
+    ),
+}));
+/** `onOpenPhoto` の戻り値を試験から覗くための箱 */
+const lastOpenResult = vi.hoisted(() => ({ value: undefined as boolean | undefined }));
 
 import SpotPageClient from "../SpotPageClient";
 
@@ -333,5 +368,55 @@ describe("撮影スポット詳細: ヘッダーと代表画像", () => {
     it("写真が無ければ代表画像の枠ごと出さない", () => {
         render(<SpotPageClient {...base} photos={[] as never} />);
         expect(screen.queryByRole("link", { name: "この写真を開く" })).toBeNull();
+    });
+});
+
+/**
+ * ── その場で拡大（モック⑧・2026-09-22）──────────────────
+ *
+ * **2つ目のビューアを作らない**（`GalleryModal` を使い回す）。
+ * ここで見たいのは「頼み方」と「開けなかったときに黙らないこと」。
+ */
+describe("撮影スポット詳細: その場で拡大", () => {
+    it("グリッドに「その場で開く」を頼んでいる", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.getByTestId("grid").getAttribute("data-open-in-place")).toBe("true");
+    });
+
+    it("最初はビューアを描かない", () => {
+        render(<SpotPageClient {...base} />);
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("押した写真でビューアが開き、閉じると消える", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p2" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
+        fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("ビューアの送りは端で折り返す", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p2");
+        fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+        expect(screen.getByTestId("modal").getAttribute("data-current")).toBe("p1");
+    });
+
+    // 🔴 **開けないのに遷移を止めると、タップが無反応になる。**
+    // 写真ページへ行く方が、何も起きないよりずっと良い
+    it("知らない写真なら false を返す（遷移を止めさせない）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(screen.getByRole("button", { name: "居ない写真を開く" }));
+        expect(lastOpenResult.value).toBe(false);
+        expect(screen.queryByTestId("modal")).toBeNull();
+    });
+
+    it("見つかった写真では true を返す（その場で開く）", () => {
+        render(<SpotPageClient {...base} />);
+        fireEvent.click(within(screen.getByTestId("grid")).getByRole("button", { name: "p1" }));
+        expect(lastOpenResult.value).toBe(true);
     });
 });
