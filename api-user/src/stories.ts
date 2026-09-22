@@ -15,7 +15,7 @@ import { storyVotesId, storyHasVote, storyVoteState, sweepStoryVotes } from "./s
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
-import { STORY_PUBLIC, STORY_FOLLOWERS_ONLY, storyVisibility, storyAllowsReplies } from "./storyVisibility";
+import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
@@ -222,9 +222,10 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // 門はここだけではない。開きっぱなしのタブや直接叩く経路のために
         // `viewStory` と `postStoryReply` にも同じ判定が要る。
         // **画面側だけ・一覧側だけの防御を作らない。**
+        // **いまは「フォロワーだけ」しか無い**（`storyVisibility.ts` の節）。
+        // 以前は「全員に公開」の行をここから外していたが、その選択は無くした
         const gatedOwners = [...new Set(shown
-            .filter((i) => String(i.userId ?? "") !== userId
-                && storyVisibility(i.visibility) === STORY_FOLLOWERS_ONLY)
+            .filter((i) => String(i.userId ?? "") !== userId)
             .map((i) => String(i.userId ?? "")))];
         const notFollowed = new Set<string>();
         await Promise.all(gatedOwners.map(async (owner) => {
@@ -234,12 +235,8 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             });
             if (!ok) notFollowed.add(owner);
         }));
-        // **落とすのは行ごと**（投稿者ごとではない）。`notFollowed` は
-        // 「フォロワー限定を出した、追っていない人」なので、投稿者だけで
-        // 切ると**同じ人が同じ日に出した「全員に公開」のぶんまで消える**
-        // （実際にそう書いて、`FEED` の `pub` が落ちた）
-        const visible = shown.filter((i) =>
-            storyVisibility(i.visibility) === STORY_PUBLIC || !notFollowed.has(String(i.userId ?? "")));
+        // 追っていない人の行は全部落とす（本人のぶんは `gatedOwners` で外してある）
+        const visible = shown.filter((i) => !notFollowed.has(String(i.userId ?? "")));
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
@@ -370,17 +367,13 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         return clamped === STORY_DEFAULT_DURATION_SEC ? undefined : clamped;
     })();
 
-    // **公開範囲と、返信を受けるか。** どちらも既定は保存しない
-    //   - 既定（全員に公開・返信を受ける）＝この機能が生まれたときからの姿。
-    //     読む側は `storyVisibility` / `storyAllowsReplies` が「無い＝既定」に
-    //     均すので、**既に在る行は移行なしでそのまま**動く
-    //   - `durationSec` が既定値を保存しないのと同じ作法
+    // **返信を受けるか。** 既定（受ける）は保存しない＝この機能が生まれた
+    // ときからの姿で、読む側の `storyAllowsReplies` が「無い＝既定」に均す
+    // （`durationSec` が既定値を保存しないのと同じ作法）。
     //
-    // **値の解釈は `storyVisibility.ts` の1本を通す。** 書く側と読む側で
-    // 別々に書くと静かにずれ、ずれる向きが「狭いつもりが全員に出る」になる。
-    const visibility = storyVisibility(body.visibility) === STORY_FOLLOWERS_ONLY
-        ? STORY_FOLLOWERS_ONLY
-        : undefined;
+    // **公開範囲は受け取らない。** ストーリーは常にフォロワーだけが見る
+    // （`storyVisibility.ts` の節）。送られてきても捨てる——受け取って
+    // 保存すると「選べる」と誤解させ、読む側は見ないので嘘になる。
     const allowReplies = storyAllowsReplies(body.allowReplies) ? undefined : false;
 
     // **アーカイブに自動保存。** 立っていると、期限切れの掃除が行と実体を
@@ -461,7 +454,6 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(durationSec ? { durationSec } : {}),
         // 既定は書かない（すぐ上の但し書き）。**`allowReplies` は `false` を
         // 書く**ので、`...(allowReplies ? ...)` では消える——値で分岐しない
-        ...(visibility ? { visibility } : {}),
         ...(allowReplies === false ? { allowReplies } : {}),
         ...(archive ? { archive } : {}),
         userId,
@@ -506,6 +498,19 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (item.userId === viewerId) {
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, self: true }) };
         }
+        // **期限切れは「もう無い」。** 誰にとっても無いので、ブロックや
+        // フォローを引く前にここで切る（読み取りを1〜2回減らす）。
+        //
+        // 行が残っているのは掃除が毎時だからで、一覧（`getStories`）は
+        // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
+        // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
+        // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
+        // あとから増えて見え、掃除が来るまで（最長およそ1時間）続く。
+        // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
+        // 持たない古い行は有効扱い（無い理由で締め出さない）。
+        if (isStoryExpired(item)) {
+            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
+        }
         // **ブロックした相手の閲覧は記録しない。** 一覧（`getStories`）からは
         // 隠しているが、期限をまたいで開きっぱなしのタブや直接叩く経路では
         // ここに来る（この関数のコメント自身がそう書いている）。記録すると、
@@ -524,23 +529,10 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 一覧ではなくマーカー1件で確かめる（`isBlocked` と同じ形）。
         // 相手は1人なので、2000件の切り捨ての影響を受けない方を選ぶ。
         // **読めなければ例外が下の catch に落ちて 500**＝記録しない側に倒れる。
-        if (storyVisibility(item.visibility) === STORY_FOLLOWERS_ONLY
+        if (String(item.userId ?? "") !== viewerId
             && !await isFollowing(String(item.userId ?? ""), viewerId)) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
         }
-        // **期限切れは「もう無い」。**
-        //
-        // 行が残っているのは掃除が毎時だからで、一覧（`getStories`）は
-        // とっくに返していない。ここに来るのは**期限をまたいで開きっぱなしの
-        // タブ**か、直接叩いた場合。記録すると、消えたはずのストーリーに
-        // 閲覧者が増え続ける——本人には「24時間で消えた」ものの閲覧者が
-        // あとから増えて見え、掃除が来るまで（最長およそ1時間）続く。
-        // 判定は `queryStories` と同じ ISO 文字列の比較。`expiresAt` を
-        // 持たない古い行は有効扱い（無い理由で締め出さない）。
-        if (isStoryExpired(item)) {
-            return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "ストーリーが見つかりません" }) };
-        }
-
         // 表示名はサーバーで引く。クライアント申告を保存すると、改造したクライアントから
         // 任意の名前で閲覧履歴に載れてしまう（notify.ts も同じ理由で申告を信用していない）。
         // 記録すると決まってから引く（本人の閲覧や404では無駄に叩かない）。

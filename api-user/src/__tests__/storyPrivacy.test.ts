@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * ストーリーの公開設定（公開範囲・返信を許可）。
+ * ストーリーは**フォロワーだけ**が見る（2026-09-22・owner の判断。
+ * 経緯は `storyVisibility.ts` の節）。公開範囲の選択は無くなったので、
+ * ここで見るのは**「フォローしているか」1本で門が閉まっているか**。
  *
- * **門は3つある。** 一覧（`getStories`）・閲覧の記録（`viewStory`）・
- * 返信（`postStoryReply`）。一覧だけ塞いでも、期限をまたいで開きっぱなしの
- * タブと直接叩く経路が残る（`viewStory` 自身のコメントがそう書いている）。
- * ここでは**3つとも**見る——1つでも抜けると「見せないつもりの相手が
- * 閲覧者一覧に並ぶ」形になる。
+ * **門は4つある。** 一覧（`getStories`）・閲覧の記録（`viewStory`）・
+ * 返信（`postStoryReply`）・投票（`voteStory`）。一覧だけ塞いでも、
+ * 期限をまたいで開きっぱなしのタブと直接叩く経路が残る
+ * （`viewStory` 自身のコメントがそう書いている）。1つでも抜けると
+ * 「見せないつもりの相手が閲覧者一覧に並ぶ」形になる。
+ *
+ * ⚠️ **`visibility` の列は死んでいる**。古い行には `"followers"` が
+ * 残っているが誰も読まない。**その列を見て分岐する実装に戻していないか**も
+ * ここで見る（列を見ると、列の無い行と有る行で門の広さが割れる）。
  */
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
@@ -47,8 +53,8 @@ vi.mock("../notify", async (importActual) => ({
 
 const { getStories, createStory, viewStory } = await import("../stories");
 const { postStoryReply, storyRepliesId } = await import("../storyReplies");
-const { storyVisibility, storyAllowsReplies, STORY_PUBLIC, STORY_FOLLOWERS_ONLY } =
-    await import("../storyVisibility");
+const { voteStory } = await import("../storyVotes");
+const { storyAllowsReplies } = await import("../storyVisibility");
 const { followMarkerId } = await import("../followCheck");
 
 type Result = { statusCode: number; headers?: Record<string, string>; body: string };
@@ -67,6 +73,8 @@ const ME = "11111111-1111-4111-8111-111111111111";
 const FRIEND = "22222222-2222-4222-8222-222222222222";
 const STRANGER = "33333333-3333-4333-8333-333333333333";
 const FUTURE = new Date(Date.now() + 60_000).toISOString();
+/** 公開範囲があった頃の行（今は誰も読まない列） */
+const DEAD_COLUMN = { visibility: "followers" };
 
 beforeEach(() => {
     mockDdbSend.mockReset();
@@ -78,21 +86,7 @@ beforeEach(() => {
 // ────────────────────────────────
 // 値の解釈（規則は1か所）
 // ────────────────────────────────
-describe("storyVisibility / storyAllowsReplies", () => {
-    it("無い・null・public は「全員に公開」（この列を持たない古い行が全部隠れない）", () => {
-        for (const raw of [undefined, null, STORY_PUBLIC]) {
-            expect(storyVisibility(raw), `${String(raw)} が全員に公開になっていない`).toBe(STORY_PUBLIC);
-        }
-    });
-
-    it("知らない値は「フォロワーのみ」に倒す（広すぎる側は取り返せない）", () => {
-        // 「親しい友達」を足したとき、その値を知らない版のサーバーに当たった
-        // 投稿が全員に出る——という形を作らないための線
-        for (const raw of ["closeFriends", "followers", "", 1, {}]) {
-            expect(storyVisibility(raw), `${JSON.stringify(raw)} が全員に公開に倒れている`).toBe(STORY_FOLLOWERS_ONLY);
-        }
-    });
-
+describe("storyAllowsReplies", () => {
     it("返信は既定で受ける。false を明示したときだけ断る", () => {
         for (const raw of [undefined, null, true, 0, "false"]) {
             expect(storyAllowsReplies(raw), `${String(raw)} で黙って閉じている`).toBe(true);
@@ -120,25 +114,29 @@ describe("createStory: 公開設定", () => {
         expect(saved()).not.toHaveProperty("allowReplies");
     });
 
-    it("フォロワーのみ・返信なしを保存する", async () => {
-        await post({ visibility: STORY_FOLLOWERS_ONLY, allowReplies: false });
-        expect(saved().visibility).toBe(STORY_FOLLOWERS_ONLY);
+    it("返信なしを保存する", async () => {
+        await post({ allowReplies: false });
         // **`false` を書く。** 値で分岐すると（`...(allowReplies ? ... )`）
         // ここが黙って消え、切ったはずの返信が届く
         expect(saved().allowReplies).toBe(false);
     });
 
-    it("public を明示しても列は書かない（既定は保存しない）", async () => {
-        await post({ visibility: STORY_PUBLIC, allowReplies: true });
+    // 画面の公開範囲は無くなったが、古い版の画面・直接叩く経路からは
+    // まだ送られうる。**受け取っても保存しない**——保存すると、読む側が
+    // 見ていない列に「設定したつもり」が溜まる
+    it("`visibility` を送ってきても保存しない（死んだ列を復活させない）", async () => {
+        await post({ visibility: "public" });
+        expect(saved(), "誰も読まない列を書いている").not.toHaveProperty("visibility");
+        mockDdbSend.mockClear();
+        await post({ visibility: "followers" });
         expect(saved()).not.toHaveProperty("visibility");
-        expect(saved()).not.toHaveProperty("allowReplies");
     });
 });
 
 // ────────────────────────────────
 // GET /stories — 一覧のふるい
 // ────────────────────────────────
-describe("getStories: 公開範囲", () => {
+describe("getStories: フォロワーだけ", () => {
     /**
      * ストーリーの一覧と、フォローのマーカーが返す世界。
      *
@@ -166,45 +164,46 @@ describe("getStories: 公開範囲", () => {
         .filter((id) => id.startsWith("follow#"));
 
     const FEED = [
-        { id: "pub", userId: STRANGER, createdAt: "1" },
-        { id: "friend-only", userId: FRIEND, createdAt: "2", visibility: STORY_FOLLOWERS_ONLY },
-        { id: "stranger-only", userId: STRANGER, createdAt: "3", visibility: STORY_FOLLOWERS_ONLY },
-        { id: "mine-only", userId: ME, createdAt: "4", visibility: STORY_FOLLOWERS_ONLY },
+        { id: "stranger-plain", userId: STRANGER, createdAt: "1" },
+        { id: "friend-plain", userId: FRIEND, createdAt: "2" },
+        { id: "friend-old-column", userId: FRIEND, createdAt: "3", ...DEAD_COLUMN },
+        { id: "stranger-old-column", userId: STRANGER, createdAt: "4", ...DEAD_COLUMN },
+        { id: "mine", userId: ME, createdAt: "5" },
     ];
 
-    it("フォローしている人のフォロワー限定は出す。していない人のは出さない", async () => {
+    // 🔴 ここが今回の変更の本体。**列の有無で割れない**
+    it("フォローしている人のだけ出す（列の有無で割れない）", async () => {
         world(FEED, [FRIEND]);
-        expect(await ids(), "公開範囲のふるいが効いていない").toEqual(["pub", "friend-only", "mine-only"]);
+        expect(await ids(), "フォローのふるいが効いていない").toEqual(["friend-plain", "friend-old-column", "mine"]);
     });
 
-    it("自分のフォロワー限定は自分に出す（自分は自分をフォローしていない）", async () => {
+    it("自分のは自分に出す（自分は自分をフォローしていない）", async () => {
         // ここが抜けると、投稿した本人のバーから自分のストーリーが消える
         world(FEED, []);
-        expect(await ids()).toContain("mine-only");
+        expect(await ids()).toEqual(["mine"]);
         expect(followReads(), "自分のぶんを確かめに行っている").not.toContain(followMarkerId(ME, ME));
     });
 
-    it("フォローを確かめられなかったら、フォロワー限定は出さない（取り返せない側に倒さない）", async () => {
+    it("フォローを確かめられなかったら出さない（取り返せない側に倒さない）", async () => {
         // ブロック一覧（`hiddenUserIds`）は逆に「読めなくても一覧は返す」。
         // 倒しすぎると誰のストーリーも出なくなるあちらと、見せないと決めた
         // 相手に中身が出てしまうこちらとで、危ない向きが違う
         world(FEED, "fail");
-        expect(await ids()).toEqual(["pub", "mine-only"]);
+        expect(await ids()).toEqual(["mine"]);
     });
 
-    it("全員に公開しか無ければ、フォローを1回も読まない", async () => {
-        // 誰も使っていない機能のために往復を増やさない
-        // （`visibleReplyCount` が「ブロックしていなければ読まない」のと同じ）
-        world([{ id: "pub", userId: STRANGER, createdAt: "1" }], []);
+    it("自分のしか無ければ、フォローを1回も読まない", async () => {
+        // 誰も居ない往復を増やさない
+        world([{ id: "mine", userId: ME, createdAt: "1" }], []);
         await ids();
         expect(followReads()).toEqual([]);
     });
 
     it("同じ人が何本出していても、確かめるのは1回", async () => {
         world([
-            { id: "a", userId: FRIEND, createdAt: "1", visibility: STORY_FOLLOWERS_ONLY },
-            { id: "b", userId: FRIEND, createdAt: "2", visibility: STORY_FOLLOWERS_ONLY },
-            { id: "c", userId: FRIEND, createdAt: "3", visibility: STORY_FOLLOWERS_ONLY },
+            { id: "a", userId: FRIEND, createdAt: "1" },
+            { id: "b", userId: FRIEND, createdAt: "2" },
+            { id: "c", userId: FRIEND, createdAt: "3" },
         ], [FRIEND]);
         expect(await ids()).toEqual(["a", "b", "c"]);
         expect(followReads(), "行の数だけ読んでいる").toEqual([followMarkerId(FRIEND, ME)]);
@@ -213,101 +212,113 @@ describe("getStories: 公開範囲", () => {
     it("ブロックはフォローしていても勝つ", async () => {
         mockHidden.mockResolvedValue(new Set([FRIEND]));
         world(FEED, [FRIEND]);
-        // FRIEND はブロック済みなので `friend-only` は落ちる。
-        // `stranger-only` はフォローしていないので落ちる
-        expect(await ids()).toEqual(["pub", "mine-only"]);
+        expect(await ids()).toEqual(["mine"]);
     });
 
     it("`allowReplies` は落とさない（見る人の画面が返信の帯を出すかを決める）", async () => {
-        world([{ id: "s1", userId: STRANGER, createdAt: "1", allowReplies: false }], []);
+        world([{ id: "s1", userId: FRIEND, createdAt: "1", allowReplies: false }], [FRIEND]);
         const items = JSON.parse((await invoke(getStories, ev(ME))).body) as Array<{ allowReplies?: boolean }>;
         expect(items[0].allowReplies, "返信の可否が画面まで届かない").toBe(false);
     });
 });
 
 // ────────────────────────────────
-// POST /stories/{id}/view — 閲覧の記録
+// 直接叩く3つの口（一覧を通らない経路）
 // ────────────────────────────────
-describe("viewStory: 公開範囲", () => {
-    function world(story: Record<string, unknown>, follows: boolean) {
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
-            const id = String(cmd.input.Key?.id ?? "");
-            if (cmd.constructor.name === "GetCommand") {
-                if (id === "story-1") return Promise.resolve({ Item: story });
-                if (id === followMarkerId(FRIEND, ME)) return Promise.resolve(follows ? { Item: { id } } : {});
-                return Promise.resolve({});
-            }
+
+/** ストーリー1件と、フォローのマーカーだけが在る世界 */
+function oneStory(story: Record<string, unknown>, follows: boolean, extra: Record<string, unknown> = {}) {
+    mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
+        const id = String(cmd.input.Key?.id ?? "");
+        if (cmd.constructor.name === "GetCommand") {
+            if (id === "story-1") return Promise.resolve({ Item: story });
+            if (id === followMarkerId(FRIEND, ME)) return Promise.resolve(follows ? { Item: { id } } : {});
+            if (id in extra) return Promise.resolve({ Item: extra[id] });
             return Promise.resolve({});
-        });
-    }
+        }
+        return Promise.resolve({});
+    });
+}
+const updates = () => mockDdbSend.mock.calls.filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "UpdateCommand");
+
+describe("viewStory: フォロワーだけ", () => {
     const view = () => invoke(viewStory, ev(ME, { pathParameters: { id: "story-1" } }));
-    const followersOnly = {
-        id: "story-1", story: true, userId: FRIEND, expiresAt: FUTURE, visibility: STORY_FOLLOWERS_ONLY,
-    };
-    const updates = () => mockDdbSend.mock.calls.filter((c) => (c[0] as { constructor: { name: string } }).constructor.name === "UpdateCommand");
+    const base = { id: "story-1", story: true, userId: FRIEND, expiresAt: FUTURE };
 
     it("フォローしていない人の閲覧は記録せず 404", async () => {
-        world(followersOnly, false);
+        oneStory(base, false);
         expect((await view()).statusCode).toBe(404);
         expect(updates(), "見せないと決めた相手が閲覧者一覧に載っている").toHaveLength(0);
     });
 
     it("フォローしていれば記録する", async () => {
-        world(followersOnly, true);
+        oneStory(base, true);
         expect((await view()).statusCode).toBe(200);
         expect(updates().length).toBeGreaterThan(0);
     });
 
-    it("全員に公開なら、フォローしていなくても記録する", async () => {
-        world({ id: "story-1", story: true, userId: FRIEND, expiresAt: FUTURE }, false);
+    // 列の有無で門が割れないこと（`visibility` を読む実装に戻したら落ちる）
+    it("古い `visibility` の列が有っても無くても同じ門", async () => {
+        oneStory({ ...base, ...DEAD_COLUMN }, true);
         expect((await view()).statusCode).toBe(200);
-        expect(updates().length).toBeGreaterThan(0);
+        mockDdbSend.mockReset();
+        oneStory({ ...base, ...DEAD_COLUMN }, false);
+        expect((await view()).statusCode).toBe(404);
     });
 });
 
-// ────────────────────────────────
-// POST /stories/{id}/replies — 返信
-// ────────────────────────────────
-describe("postStoryReply: 公開範囲と「返信を許可」", () => {
-    function world(story: Record<string, unknown>, follows: boolean) {
-        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { Key?: { id?: string } } }) => {
-            const id = String(cmd.input.Key?.id ?? "");
-            if (cmd.constructor.name === "GetCommand") {
-                if (id === "story-1") return Promise.resolve({ Item: story });
-                if (id === storyRepliesId("story-1")) return Promise.resolve({ Item: { items: [] } });
-                if (id === followMarkerId(FRIEND, ME)) return Promise.resolve(follows ? { Item: { id } } : {});
-                return Promise.resolve({});
-            }
-            return Promise.resolve({});
-        });
-    }
+describe("postStoryReply: フォロワーだけ ＋ 「返信を許可」", () => {
     const send = () => invoke(postStoryReply, ev(ME, {
         pathParameters: { id: "story-1" }, body: JSON.stringify({ text: "いいね" }),
     }));
     const base = { id: "story-1", story: true, userId: FRIEND, src: "https://cdn/s.jpg", expiresAt: FUTURE };
-    const wrote = () => mockDdbSend.mock.calls.some((c) => (c[0] as { constructor: { name: string } }).constructor.name === "UpdateCommand");
+    const replies = { [storyRepliesId("story-1")]: { items: [] } };
+    const wrote = () => updates().length > 0;
 
-    it("フォローしていない相手のフォロワー限定には返せない（404・設定を教えない）", async () => {
-        world({ ...base, visibility: STORY_FOLLOWERS_ONLY }, false);
+    it("フォローしていない相手には返せない（404・在ることも教えない）", async () => {
+        oneStory(base, false, replies);
         expect((await send()).statusCode).toBe(404);
         expect(wrote(), "返信が保存されている").toBe(false);
     });
 
     it("フォローしていれば返せる", async () => {
-        world({ ...base, visibility: STORY_FOLLOWERS_ONLY }, true);
+        oneStory(base, true, replies);
         expect((await send()).statusCode).toBe(200);
     });
 
-    it("返信を切っていたら 403 と理由を返す（伏せる理由が無い）", async () => {
-        world({ ...base, allowReplies: false }, false);
+    // 返信の可否は**伏せる理由が無い**（見えている相手に対する設定なので
+    // 403 と理由を返す）。見せない相手への 404 とは向きが違う
+    it("返信を切っていたら 403 と理由を返す", async () => {
+        oneStory({ ...base, allowReplies: false }, true, replies);
         const res = await send();
         expect(res.statusCode).toBe(403);
         expect(JSON.parse(res.body).error, "理由が伝わらない").toContain("返信");
         expect(wrote(), "返信が保存されている").toBe(false);
     });
 
-    it("既定（列なし）は今までどおり受ける", async () => {
-        world(base, false);
+    it("古い `visibility` の列は見ない", async () => {
+        oneStory({ ...base, ...DEAD_COLUMN }, true, replies);
         expect((await send()).statusCode).toBe(200);
+    });
+});
+
+describe("voteStory: フォロワーだけ", () => {
+    const vote = () => invoke(voteStory, ev(ME, {
+        pathParameters: { id: "story-1" }, body: JSON.stringify({ choice: "a" }),
+    }));
+    const base = {
+        id: "story-1", story: true, userId: FRIEND, expiresAt: FUTURE,
+        texts: [{ kind: "vote", question: "この景色、好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 }],
+    };
+
+    it("フォローしていない人は投票できない（404・記録しない）", async () => {
+        oneStory(base, false);
+        expect((await vote()).statusCode).toBe(404);
+        expect(updates(), "見せないと決めた相手の票が入っている").toHaveLength(0);
+    });
+
+    it("フォローしていれば投票できる", async () => {
+        oneStory(base, true);
+        expect((await vote()).statusCode, "フォロワーが投票できない").toBe(200);
     });
 });

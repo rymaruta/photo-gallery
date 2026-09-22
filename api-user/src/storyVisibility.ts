@@ -1,39 +1,27 @@
 /**
  * ストーリーの公開設定。**規則を1か所に置く**ための小さな module。
  *
- * 書く側（`createStory`）と読む側（`getStories` / `viewStory` /
- * `postStoryReply`）で同じ判定を別々に書くと静かにずれる
- * ——ずれる向きが「狭いつもりが全員に出る」なので、値の解釈は
- * **必ずこの1本を通す**。
- *
  * `stories.ts` に置けない: `stories.ts` は `storyReplies.ts` を import して
  * いるので、`storyReplies.ts` から引くと輪になる（`blockCheck.ts` /
  * `followCheck.ts` を切り出したのと同じ理由）。
- */
-
-/** 全員に公開（既定。ログイン中の全員のトレイに出る） */
-export const STORY_PUBLIC = "public";
-/** フォロワーのみ（投稿者をフォローしている人と本人だけ） */
-export const STORY_FOLLOWERS_ONLY = "followers";
-
-export type StoryVisibility = typeof STORY_PUBLIC | typeof STORY_FOLLOWERS_ONLY;
-
-/**
- * 保存された値／受け取った値を、画面と門が使う2値に均す。
  *
- * **無い＝全員に公開。** この列が生まれる前の行は持っていないので、
- * ここを逆にすると**既存のストーリーが全部フォロワー限定になる**
- * （移行を走らせずに済ませるための線）。
+ * ## 🔴 ストーリーは**フォロワーだけ**が見る（2026-09-22・owner の判断）
  *
- * **知らない値は「フォロワーのみ」に倒す。** 逆にすると、あとで
- * 「親しい友達」を足したとき、**その値を知らない版のサーバーに当たった
- * 投稿が全員に出る**。公開範囲は間違える向きが決まっていて、
- * 狭すぎる側は「見えない」で済むが、広すぎる側は取り返せない。
+ * 以前は「全員に公開」と「フォロワーのみ」の2択だった。ただしここでの
+ * 「全員」は**ログインした全員**の意味で、フォローしていない会員にも
+ * 配っていた。owner の判断は「ストーリーは全員に公開しない。
+ * フォロワー全員に公開の意味なら要る」——つまり**選択そのものを無くし、
+ * 常にフォロワーだけ**にする。
+ *
+ * だから**この module に公開範囲の値はもう無い**。門（`getStories` /
+ * `viewStory` / `postStoryReply` / `voteStory` / ハイライトの2つ）は
+ * **値を見ずに、フォローしているかだけ**を見る。
+ *
+ * **`visibility` の列は消していない。** 以前の行は `"followers"` を持って
+ * いることがあるが、**誰も読まない**（移行を走らせる必要が無い）。
+ * 新しい投稿では書かない。「親しい友達」を足すときは、この列を読み直す
+ * のではなく、そのときの仕様で作り直すこと。
  */
-export function storyVisibility(raw: unknown): StoryVisibility {
-    if (raw === undefined || raw === null || raw === STORY_PUBLIC) return STORY_PUBLIC;
-    return STORY_FOLLOWERS_ONLY;
-}
 
 /**
  * 返信を受け付けるか。**既定は受け付ける**（返信が生まれたときからの姿）。

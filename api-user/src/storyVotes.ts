@@ -4,7 +4,6 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
-import { STORY_FOLLOWERS_ONLY, storyVisibility } from "./storyVisibility";
 import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState } from "./storyText";
 
 /**
@@ -127,7 +126,7 @@ export async function storyVoteState(storyId: string, uid: string, isOwner: bool
 
 type StoryItem = {
     story?: boolean; userId?: string; uploadedBy?: string;
-    expiresAt?: string; visibility?: unknown; texts?: unknown;
+    expiresAt?: string; texts?: unknown;
 };
 
 async function loadStory(storyId: string): Promise<StoryItem | null> {
@@ -174,7 +173,7 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **ブロック・フォロワー限定は 404**（相手の設定を教えない。
         // `viewStory` / `postStoryReply` と同じ門。**画面側だけの防御を作らない**）
         if (ownerId && await isBlocked(ownerId, uid)) return jsonError(404, "ストーリーが見つかりません");
-        if (ownerId && storyVisibility(story.visibility) === STORY_FOLLOWERS_ONLY
+        if (ownerId && ownerId !== uid
             && !await isFollowing(ownerId, uid)) {
             return jsonError(404, "ストーリーが見つかりません");
         }

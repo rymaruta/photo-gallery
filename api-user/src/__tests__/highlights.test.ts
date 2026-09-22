@@ -6,12 +6,13 @@ import path from "node:path";
  * ハイライト（⑦）。アーカイブのストーリーを束ねてマイページの輪にする。
  *
  * 見るのは4つ:
- *   1. **入れられるのは「全員に公開」のアーカイブだけ**。フォロワーのみ・
- *      印の無い投稿・他人の投稿は断る（黙って落とさない・黙って公開に変えない）
+ *   1. **入れられるのは自分の・印のある・期限の切れたストーリーだけ**
+ *      （黙って落とさず、理由を言って断る）
  *   2. 本体の行は `userId` を持たない（`userId-createdAt-index` に混ざらない）。
  *      一覧は `updateUserList` の行（`list` / `rev`）
- *   3. 読む口は未認証＝**GetItem だけ**で動く（Query・Scan を打たない）。
- *      返すのは表示に要る列だけ——閲覧者・返信の数・`keptAs`・S3 のキーは出さない
+ *   3. 🔴 **読む口は本人とフォロワーだけ**。未認証は 401、追っていない人には
+ *      輪は0件・中身は 404。返すのは表示に要る列だけ——閲覧者・返信の数・
+ *      `keptAs`・S3 のキーは出さない
  *   4. 持ち主でなければ 404（403 だと ID の実在を教える）
  */
 
@@ -33,7 +34,16 @@ const authed = (sub: string, body?: unknown, pathParameters?: Record<string, str
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     ...(pathParameters ? { pathParameters } : {}),
 });
-const anon = (pathParameters: Record<string, string>) => ({ requestContext: {}, pathParameters });
+/**
+ * sub の無い呼び出し。`getUserId` は `requestContext.authorizer.jwt` を
+ * そのまま辿るので、**認可ごと外した形にすると 401 ではなく例外**になる
+ * （＝500）。ここで見たいのは「sub が取れないときに中身を出さないか」なので、
+ * 器はそのままでクレームだけ空にする
+ */
+const anon = (pathParameters: Record<string, string>) => ({
+    requestContext: { authorizer: { jwt: { claims: {} } } },
+    pathParameters,
+});
 
 type Cmd = { constructor: { name: string }; input: Record<string, unknown> };
 const cmds = () => mockSend.mock.calls.map((c) => c[0] as Cmd);
@@ -113,22 +123,18 @@ describe("createHighlight", () => {
         expect(puts(), "断ったのに書いている").toHaveLength(0);
     });
 
-    // **黙って公開に変えない。** フォロワーのみで投稿した1枚を輪に入れると、
-    // フォローしていない人にも見える
-    it("「フォロワーのみ」の投稿は断る（理由を言う・何も書かない）", async () => {
-        serve({ [sid(1)]: archived(1), [sid(2)]: archived(2, { visibility: "followers" }) });
+    // 公開範囲は owner が無くした（`storyVisibility.ts` の節）。ハイライトも
+    // ストーリーもフォロワーにしか出ないので、**古い `visibility` の列が
+    // 残っている行を断らない**（断ると、公開範囲があった頃に投稿した
+    // アーカイブが永久にハイライトへ入れられなくなる）
+    it("古い `visibility` の列が残っている行も入れられる（死んだ列は見ない）", async () => {
+        serve({ [sid(1)]: archived(1, { visibility: "followers" }), [sid(2)]: archived(2, { visibility: "public" }) });
         const r = await create({ title: "旅", storyIds: [sid(1), sid(2)] });
-        expect(r.statusCode).toBe(400);
-        expect(bodyOf(r).error).toContain("フォロワーのみ");
-        expect(puts()).toHaveLength(0);
+        expect(r.statusCode, r.body).toBe(200);
+        expect(bodyOf(r).highlight.storyIds).toEqual([sid(1), sid(2)]);
     });
 
-    it("知らない公開範囲の値も断る（狭い側に倒す）", async () => {
-        serve({ [sid(1)]: archived(1, { visibility: "close-friends" }) });
-        expect((await create({ title: "旅", storyIds: [sid(1)] })).statusCode).toBe(400);
-    });
-
-    // 期限前の行を通すと、ログインした人にしか出ない生のストーリーが未認証の口から読める
+    // 期限前の行を通すと、まだ生きているストーリーが閲覧の記録を残さずに読める
     it("まだ24時間が過ぎていない投稿は断る（アーカイブに入ってから）", async () => {
         serve({ [sid(1)]: archived(1, { expiresAt: "2099-01-01T00:00:00.000Z", archivedAt: undefined }) });
         const r = await create({ title: "旅", storyIds: [sid(1)] });
@@ -265,10 +271,12 @@ describe("updateHighlight / deleteHighlight", () => {
         expect(ofKind("UpdateCommand")).toHaveLength(0);
     });
 
-    it("直す: 中身の検査は作るときと同じ（フォロワーのみを断る）", async () => {
-        serve({ [highlightKey(HID)]: mine, [sid(1)]: archived(1, { visibility: "followers" }) });
+    it("直す: 中身の検査は作るときと同じ（期限前を断る）", async () => {
+        serve({ [highlightKey(HID)]: mine, [sid(1)]: archived(1, { expiresAt: "2099-01-01T00:00:00.000Z", archivedAt: undefined }) });
         const r = await call(updateHighlight, authed(ME, { title: "新", storyIds: [sid(1)] }, { id: HID }));
         expect(r.statusCode).toBe(400);
+        expect(bodyOf(r).error).toContain("24時間");
+        expect(ofKind("UpdateCommand")).toHaveLength(0);
     });
 
     it("消す: 本体を持ち主の条件つきで消し、一覧から外す。中のストーリーは消さない", async () => {
@@ -310,11 +318,19 @@ describe("updateHighlight / deleteHighlight", () => {
 });
 
 // ────────────────────────────────
-// 3. 読む: 未認証・GetItem だけ・要る列だけ
+// 3. 読む: 本人とフォロワーだけ・GetItem だけ・要る列だけ
 // ────────────────────────────────
+
+/** `viewer` が `target` をフォローしている印（`followMarkerId` と同じ綴り） */
+const followRow = (target: string, viewer: string) => ({
+    [`follow#${target}#${viewer}`]: { id: `follow#${target}#${viewer}`, createdAt: "2026-07-01T00:00:00.000Z" },
+});
+
 describe("getUserHighlights（マイページの輪）", () => {
     const H2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const H3 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    /** 本人が自分の輪を見る（`canSeeHighlights` は本人を素通しする） */
+    const asOwner = () => authed(ME, undefined, { userId: ME });
 
     it("一覧の順に、題・数・表紙を返す。GetItem 以外を打たない", async () => {
         serve({
@@ -323,13 +339,15 @@ describe("getUserHighlights（マイページの輪）", () => {
             [highlightKey(H2)]: { id: highlightKey(H2), ownerId: ME, title: "沖縄", storyIds: [sid(3)], coverStoryId: sid(3) },
             [sid(1)]: archived(1), [sid(2)]: archived(2, { mediaType: "video" }), [sid(3)]: archived(3),
         });
-        const r = await call(getUserHighlights, anon({ userId: ME }));
+        const r = await call(getUserHighlights, asOwner());
         expect(r.statusCode, r.body).toBe(200);
         expect(bodyOf(r).highlights).toEqual([
             { id: HID, title: "北海道", count: 2, cover: { src: archived(2).src, mediaType: "video" } },
             { id: H2, title: "沖縄", count: 1, cover: { src: archived(3).src } },
         ]);
-        expect(cmds().every((c) => c.constructor.name === "GetCommand"), "読み取り専用ロールでは GetItem しか使えない").toBe(true);
+        expect(cmds().every((c) => c.constructor.name === "GetCommand"), "Query・Scan を打っている（索引を足さずに済む形のはず）").toBe(true);
+        // 見る人によって中身が変わるので、共有キャッシュに載せさせない
+        expect(r.headers?.["Cache-Control"], "CloudFront がフォロワー向けの輪を他人に配る").toBe("private, no-store");
     });
 
     it("持ち主が違う本体は出さない。表紙が消えていれば次の1枚、全部消えていれば null", async () => {
@@ -340,27 +358,98 @@ describe("getUserHighlights（マイページの輪）", () => {
             [highlightKey(H3)]: { id: highlightKey(H3), ownerId: ME, title: "全部消えた", storyIds: [sid(8)], coverStoryId: sid(8) },
             [sid(1)]: archived(1), [sid(2)]: archived(2),
         });
-        const r = await call(getUserHighlights, anon({ userId: ME }));
+        const r = await call(getUserHighlights, asOwner());
         const hs = bodyOf(r).highlights;
         expect(hs.map((h: { id: string }) => h.id)).toEqual([H2, H3]);
         expect(hs[0].cover.src).toBe(archived(2).src);
         expect(hs[1].cover).toBeNull();
     });
 
-    // 表紙にフォロワーのみ・期限前の1枚が紛れても出さない（作るときに断っているが、最後の砦）
+    // 表紙に期限前の1枚が紛れても出さない（作るときに断っているが、最後の砦）
     it.each([
-        ["フォロワーのみ", { visibility: "followers" }],
         ["期限前", { expiresAt: "2099-01-01T00:00:00.000Z" }],
-    ])("公開でない行（%s）は表紙にしない", async (_label, extra) => {
+        ["印が無い", { archive: undefined }],
+        ["他人の行に差し替わった", { userId: OTHER }],
+    ])("入れられない行（%s）は表紙にしない", async (_label, extra) => {
         serve({
             [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
             [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "x", storyIds: [sid(1)], coverStoryId: sid(1) },
             [sid(1)]: archived(1, extra),
         });
-        const r = await call(getUserHighlights, anon({ userId: ME }));
+        const r = await call(getUserHighlights, asOwner());
         expect(r.statusCode).toBe(200);
         expect(r.body).not.toContain(archived(1).src);
         expect(bodyOf(r).highlights[0].cover).toBeNull();
+    });
+
+    // ── 🔴 誰に見せるか ──
+    // 本番で `/highlights/{userId}` が**誰でも読める**状態になっていた。
+    // 中身はストーリーそのもので、ストーリーはフォロワーにしか出ない
+
+    it("sub が取れなければ 401（引きにいかない）", async () => {
+        serve({});
+        const r = await call(getUserHighlights, anon({ userId: ME }));
+        expect(r.statusCode).toBe(401);
+        expect(mockSend, "認証を見る前に引いている").not.toHaveBeenCalled();
+    });
+
+    // 0件で返すのは、画面が「取得の失敗」と「0件」を分けて扱うため。
+    // 403 にすると訪問者のプロフィールに赤い1行が出る
+    it("追っていない人には 0件（本体も一覧も引かない）", async () => {
+        serve({
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)], coverStoryId: sid(1) },
+            [sid(1)]: archived(1),
+        });
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).highlights).toEqual([]);
+        expect(r.body).not.toContain("秘密");
+        expect(r.body).not.toContain(archived(1).src);
+        expect(r.headers?.["Cache-Control"]).toBe("private, no-store");
+        const gets = ofKind("GetCommand").map((c) => String((c.input.Key as { id?: string }).id ?? ""));
+        expect(gets.some((id) => id.startsWith("highlight")), "見せないのに引いている").toBe(false);
+    });
+
+    it("フォロワーには出る", async () => {
+        serve({
+            ...followRow(ME, OTHER),
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "北海道", storyIds: [sid(1)], coverStoryId: sid(1) },
+            [sid(1)]: archived(1),
+        });
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(r.statusCode, r.body).toBe(200);
+        expect(bodyOf(r).highlights).toEqual([{ id: HID, title: "北海道", count: 1, cover: { src: archived(1).src } }]);
+    });
+
+    // **向きを間違えない。** `follow#<追われる人>#<追う人>`。逆向きの印
+    // （相手が自分を追っている）で見せると、片思いされただけで中身が出る
+    it("向きが逆の印では見せない（相手が自分を追っているだけ）", async () => {
+        serve({
+            ...followRow(OTHER, ME),
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)] },
+        });
+        expect(bodyOf(await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }))).highlights).toEqual([]);
+    });
+
+    // **読めなければ見せない。** ここを「見せる」に倒すと、DynamoDB が
+    // 詰まった瞬間だけ他人のストーリーが配られる
+    it("フォローの確認が転んだら 0件（見せる側に倒さない）", async () => {
+        serve({
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)] },
+        });
+        const store = mockSend.getMockImplementation()!;
+        mockSend.mockImplementation((cmd: Cmd) =>
+            String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("follow#")
+                ? Promise.reject(new Error("throttled"))
+                : store(cmd));
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).highlights).toEqual([]);
+        expect(r.body).not.toContain("秘密");
     });
 
     // 退会の掃除が転んで一覧が残っても、題（本人の書いた文字列）を返し続けない
@@ -369,7 +458,7 @@ describe("getUserHighlights（マイページの輪）", () => {
             [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
             [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)] },
         }, true);
-        const r = await call(getUserHighlights, anon({ userId: ME }));
+        const r = await call(getUserHighlights, asOwner());
         expect(r.statusCode).toBe(404);
         expect(r.body).not.toContain("秘密");
         expect(ofKind("GetCommand").some((c) => c.input.TableName === "photos-test"), "墓石なのに写真テーブルを引いている").toBe(false);
@@ -379,10 +468,10 @@ describe("getUserHighlights（マイページの輪）", () => {
     it("墓石の確認が転んだら 404", async () => {
         serve({ [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 } });
         mockSend.mockImplementation((cmd: Cmd) => cmd.input.TableName === "users-test" ? Promise.reject(new Error("throttled")) : Promise.resolve({}));
-        expect((await call(getUserHighlights, anon({ userId: ME }))).statusCode).toBe(404);
+        expect((await call(getUserHighlights, asOwner())).statusCode).toBe(404);
     });
 
-    // 未認証の口なので、代わりの表紙を探すのは数枚まで（1つで最大100回の読み取りにしない）
+    // 代わりの表紙を探すのは数枚まで（1つで最大100回の読み取りにしない）
     it("表紙の代わりを探すのは決まった数まで", async () => {
         const dead = Array.from({ length: 10 }, (_, i) => sid(10 + i));
         serve({
@@ -390,7 +479,7 @@ describe("getUserHighlights（マイページの輪）", () => {
             [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "x", storyIds: [...dead, sid(1)], coverStoryId: dead[0] },
             [sid(1)]: archived(1),
         });
-        const r = await call(getUserHighlights, anon({ userId: ME }));
+        const r = await call(getUserHighlights, asOwner());
         const hs = bodyOf(r).highlights;
         expect(hs[0].count).toBe(11);
         expect(hs[0].cover, "上限を超えて探している").toBeNull();
@@ -400,18 +489,20 @@ describe("getUserHighlights（マイページの輪）", () => {
 
     it("形の違う userId は引きにいかない", async () => {
         serve({});
-        expect((await call(getUserHighlights, anon({ userId: "../x" }))).statusCode).toBe(404);
+        expect((await call(getUserHighlights, authed(ME, undefined, { userId: "../x" }))).statusCode).toBe(404);
         expect(mockSend).not.toHaveBeenCalled();
     });
 
     it("一覧が無ければ空", async () => {
         serve({});
-        expect(bodyOf(await call(getUserHighlights, anon({ userId: ME }))).highlights).toEqual([]);
+        expect(bodyOf(await call(getUserHighlights, asOwner())).highlights).toEqual([]);
     });
 });
 
 describe("getHighlight（開いたときの中身）", () => {
     const row = { id: highlightKey(HID), ownerId: ME, title: "北海道", storyIds: [sid(2), sid(1), sid(3)], coverStoryId: sid(1) };
+    /** 本人が自分のハイライトを開く */
+    const asOwner = (id: string) => authed(ME, undefined, { userId: ME, id });
 
     it("保存した並びで、表示に要る列だけを返す", async () => {
         serve({
@@ -420,7 +511,7 @@ describe("getHighlight（開いたときの中身）", () => {
             [sid(2)]: archived(2, { viewers: {}, replyCount: 0, storyFeed: "1", archivedAt: undefined }),
             [sid(3)]: archived(3),
         });
-        const r = await call(getHighlight, anon({ userId: ME, id: HID }));
+        const r = await call(getHighlight, asOwner(HID));
         expect(r.statusCode, r.body).toBe(200);
         const b = bodyOf(r);
         expect(b.title).toBe("北海道");
@@ -441,42 +532,83 @@ describe("getHighlight（開いたときの中身）", () => {
         }
         expect(b.items[0].archivedAt).toBe(archived(2).expiresAt);
         expect(cmds().every((c) => c.constructor.name === "GetCommand")).toBe(true);
+        expect(r.headers?.["Cache-Control"], "見る人で 200 と 404 が割れるので共有キャッシュに載せない").toBe("private, no-store");
     });
 
-    it("消えた・他人の・公開でない・印の無い・期限前の行は落とす（未認証の口の最後の砦）", async () => {
+    it("消えた・他人の・印の無い・期限前の行は落とす（最後の砦）", async () => {
         serve({
             [highlightKey(HID)]: { ...row, storyIds: [sid(1), sid(2), sid(3), sid(4), sid(5), sid(6)] },
             [sid(1)]: archived(1),
             [sid(2)]: undefined,
-            [sid(3)]: archived(3, { userId: OTHER }),
-            [sid(4)]: archived(4, { visibility: "followers", src: "https://cdn.test/HIDDEN.webp" }),
-            [sid(5)]: archived(5, { archive: undefined }),
+            [sid(3)]: archived(3, { userId: OTHER, src: "https://cdn.test/OTHERS.webp" }),
+            // 公開範囲は無くなった（`storyVisibility.ts`）。死んだ列を見て落とすと、
+            // 昔の投稿を入れたハイライトが**中身だけ空**になる
+            [sid(4)]: archived(4, { visibility: "followers" }),
+            [sid(5)]: archived(5, { archive: undefined, src: "https://cdn.test/NOARCHIVE.webp" }),
             [sid(6)]: archived(6, { expiresAt: "2099-01-01T00:00:00.000Z", src: "https://cdn.test/LIVE.webp" }),
         });
-        const r = await call(getHighlight, anon({ userId: ME, id: HID }));
-        expect(bodyOf(r).items.map((s: { id: string }) => s.id)).toEqual([sid(1)]);
-        expect(r.body).not.toContain("HIDDEN");
-        expect(r.body).not.toContain("LIVE");
+        const r = await call(getHighlight, asOwner(HID));
+        expect(bodyOf(r).items.map((s: { id: string }) => s.id)).toEqual([sid(1), sid(4)]);
+        for (const s of ["OTHERS", "NOARCHIVE", "LIVE"]) expect(r.body, s).not.toContain(s);
     });
 
     it("退会した人のものは 404", async () => {
         serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) }, true);
-        expect((await call(getHighlight, anon({ userId: ME, id: HID }))).statusCode).toBe(404);
+        expect((await call(getHighlight, asOwner(HID))).statusCode).toBe(404);
     });
 
     it("持ち主が URL の人でなければ 404（本体は読めても中身を引かない）", async () => {
-        serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) });
-        const r = await call(getHighlight, anon({ userId: OTHER, id: HID }));
+        // URL の人（OTHER）を追っている状態にして、フォローの門を越えさせる
+        serve({ ...followRow(OTHER, ME), [highlightKey(HID)]: row, [sid(1)]: archived(1) });
+        const r = await call(getHighlight, authed(ME, undefined, { userId: OTHER, id: HID }));
         expect(r.statusCode).toBe(404);
-        // 写真テーブルは本体の1回だけ（もう1回は users の墓石の確認）
-        expect(ofKind("GetCommand").filter((c) => c.input.TableName === "photos-test")).toHaveLength(1);
+        const gets = ofKind("GetCommand").map((c) => String((c.input.Key as { id?: string }).id ?? ""));
+        expect(gets.some((id) => id.startsWith("story-")), "持ち主が違うのに中身を引いている").toBe(false);
     });
 
     it("形の違う ID は引きにいかない", async () => {
         serve({});
-        expect((await call(getHighlight, anon({ userId: ME, id: "x" }))).statusCode).toBe(404);
-        expect((await call(getHighlight, anon({ userId: "x", id: HID }))).statusCode).toBe(404);
+        expect((await call(getHighlight, authed(ME, undefined, { userId: ME, id: "x" }))).statusCode).toBe(404);
+        expect((await call(getHighlight, authed(ME, undefined, { userId: "x", id: HID }))).statusCode).toBe(404);
         expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    // ── 🔴 誰に見せるか（輪と同じ線） ──
+
+    it("sub が取れなければ 401（引きにいかない）", async () => {
+        serve({});
+        const r = await call(getHighlight, anon({ userId: ME, id: HID }));
+        expect(r.statusCode).toBe(401);
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    // 輪（0件）と違って 404。在ることも教えない
+    it("追っていない人には 404（本体も中身も引かない）", async () => {
+        serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) });
+        const r = await call(getHighlight, authed(OTHER, undefined, { userId: ME, id: HID }));
+        expect(r.statusCode).toBe(404);
+        expect(r.body).not.toContain("北海道");
+        const gets = ofKind("GetCommand").map((c) => String((c.input.Key as { id?: string }).id ?? ""));
+        expect(gets.some((id) => id.startsWith("highlight#") || id.startsWith("story-")), "見せないのに引いている").toBe(false);
+    });
+
+    it("フォロワーには中身が出る", async () => {
+        serve({ ...followRow(ME, OTHER), [highlightKey(HID)]: row, [sid(1)]: archived(1), [sid(2)]: archived(2), [sid(3)]: archived(3) });
+        const r = await call(getHighlight, authed(OTHER, undefined, { userId: ME, id: HID }));
+        expect(r.statusCode, r.body).toBe(200);
+        expect(bodyOf(r).items.map((s: { id: string }) => s.id)).toEqual([sid(2), sid(1), sid(3)]);
+    });
+
+    it("フォローの確認が転んだら 404（見せる側に倒さない）", async () => {
+        serve({ [highlightKey(HID)]: row, [sid(1)]: archived(1) });
+        const store = mockSend.getMockImplementation()!;
+        mockSend.mockImplementation((cmd: Cmd) =>
+            String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("follow#")
+                ? Promise.reject(new Error("throttled"))
+                : store(cmd));
+        const r = await call(getHighlight, authed(OTHER, undefined, { userId: ME, id: HID }));
+        expect(r.statusCode).toBe(404);
+        expect(r.body).not.toContain("北海道");
     });
 });
 
