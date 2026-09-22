@@ -6,7 +6,7 @@ import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./d
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
@@ -244,6 +244,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         date?: unknown;
         /** 共同アルバムに入れる場合の行き先（案C）。メンバーでなければ断る */
         albumId?: unknown;
+        /** 同じ投稿としてまとめる印。行は1枚ずつのまま */
+        groupId?: unknown;
         /** 2枚目以降（1投稿に複数枚）。表紙は `publicUrl`。信用しない */
         extraImages?: unknown;
     };
@@ -371,6 +373,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(safeThumbSrc ? { thumbSrc: safeThumbSrc } : {}),
         ...(safeBlurDataURL ? { blurDataURL: safeBlurDataURL } : {}),
         ...(safeDate ? { date: safeDate } : {}),
+        // **同じ投稿としてまとめる印。** 行は1枚ずつのまま
+        // （個別ページもサイトマップもこれまでどおり）で、アプリだけが
+        // まとめて1つのカードに出す。まとめないときは属性を書かない
+        ...(() => { const g = sanitizeGroupId(body.groupId); return g ? { groupId: g } : {}; })(),
         ...(resolvedDisplayName ? { displayName: resolvedDisplayName } : {}),
         userId,
         uploadedBy: userId,
