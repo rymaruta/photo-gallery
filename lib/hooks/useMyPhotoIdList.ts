@@ -75,14 +75,21 @@ type Fetched = { token: string; photoIds: readonly string[]; failed: boolean };
  * @param path ユーザーAPI の経路（`/user/likes`・`/user/saves`・`/user/spots`）
  * @param label 失敗をログに残すときの言い方
  * @param field 応答のどの欄に一覧が入っているか。既定は `photoIds`
- *              （`/user/spots` だけ `slugs` を返す）
+ *              （`/user/spots` だけ `slugs` を返す）。
+ *
+ *              **候補を型で絞る。** `string` にしていると `"slug"`（複数形
+ *              忘れ）が型検査を通り、`data[field]` が `undefined` →
+ *              `failed: true` になる——画面には「取得できませんでした」と
+ *              再試行ボタンが出て、**押しても永久に直らない**。通信障害と
+ *              見分けが付かないので調べる側も遠回りする。ついでに
+ *              `"constructor"` のようなプロトタイプ鎖の名前も塞がる
  */
 export function useMyPhotoIdList(
     path: string,
     label: string,
     isAuthenticated: boolean,
     authLoading: boolean,
-    field: string = "photoIds",
+    field: "photoIds" | "slugs" = "photoIds",
 ): MyPhotoIdListWithApply {
     const [fetched, setFetched] = useState<Fetched | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
