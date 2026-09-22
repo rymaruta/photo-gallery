@@ -173,3 +173,67 @@ describe("投稿作成画面: 実装の無い設定は出さない（owner 指�
         }
     });
 });
+
+describe("投稿作成画面: まとめる回は、保存に使われる1枚の欄を出す", () => {
+    /**
+     * `handleUploadAll` は `pending` の**先頭**を表紙にして、その1枚の
+     * 題・説明・撮影地だけを投稿に載せる。前の画面は全部の欄が同時に
+     * 見えていたので気づけたが、**1枚ぶんしか描かない形では3枚目に書いた
+     * キャプションが黙って捨てられる**（レビューで出た）。
+     */
+    it("チェックを入れると、欄が表紙の1枚に切り替わる", async () => {
+        const { container } = render(<UploadPage />);
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [
+            new File(["a"], "a.jpg", { type: "image/jpeg" }),
+            new File(["b"], "b.jpg", { type: "image/jpeg" }),
+        ]);
+        await screen.findByText(/全写真に適用/);
+
+        // 2枚目を選んでから「まとめる」を入れる
+        await userEvent.click(screen.getByRole("button", { name: "2枚目を選ぶ" }));
+        expect(screen.getByLabelText("2枚目のタイトル（任意）")).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("checkbox", { name: /1件の投稿にまとめる/ }));
+        expect(screen.getByLabelText("1枚目のタイトル（任意）"),
+            "まとめる回なのに、保存されない写真の欄を出している").toBeInTheDocument();
+        expect(screen.queryByLabelText("2枚目のタイトル（任意）")).toBeNull();
+        // ヒーローは選んだままの2枚目（写真は見比べられる）
+        expect(screen.getByText("2/2")).toBeInTheDocument();
+    });
+});
+
+describe("投稿作成画面: サムネの「削除」の的の大きさ", () => {
+    // **24px を下回らない**（WCAG 2.5.8・AA）。この的は 64×80 の「選ぶ」
+    // ボタンの**上に乗る**ので、小さい的に許される「間隔の例外」は使えない。
+    // jsdom はレイアウトを計算しないので、直書きの寸法そのものを見る
+    // （数値の根拠は WCAG。`chipTapSpacing.test.tsx` と同じ立場）
+    it("24px 未満にしない", async () => {
+        await withOnePhoto();
+        const btn = screen.getByRole("button", { name: "1枚目を削除" });
+        for (const side of ["width", "height"] as const) {
+            const px = Number.parseFloat(btn.style[side]);
+            expect(px, `${side} が ${btn.style[side]}（24px 未満）`).toBeGreaterThanOrEqual(24);
+        }
+    });
+});
+
+describe("投稿作成画面: タグのチップ", () => {
+    // 生の綴りで並べると `桜, 桜` が同じ React の key で2つ並び、
+    // `自然, nature` は2つ出るのに ✕ が両方消す（`toggleTag` はキーで外す）
+    it("同じタグは畳んで1つだけ出す", async () => {
+        await withOnePhoto();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）");
+        await userEvent.type(field, "桜, 桜");
+        expect(screen.getAllByRole("button", { name: 'タグ「桜」を外す' }),
+            "同じタグのチップが2つ並んでいる").toHaveLength(1);
+    });
+
+    it("押すとそのタグが欄から外れる", async () => {
+        await withOnePhoto();
+        const field = screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement;
+        await userEvent.type(field, "桜, 海");
+        await userEvent.click(screen.getByRole("button", { name: 'タグ「桜」を外す' }));
+        expect(field.value.split(",").map((t) => t.trim()).filter(Boolean)).toEqual(["海"]);
+    });
+});

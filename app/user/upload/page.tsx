@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import CropFramePicker from "../../components/CropFramePicker";
-import { useBottomBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, MapPinIcon, CalendarIcon, PlusIcon, PaperAirplaneIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "../../../lib/hooks/useToast";
@@ -23,6 +22,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
@@ -138,9 +138,6 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
 }
 
 function UploadPageInner() {
-    // 画面下の固定バーの実測値を CSS 変数に出す（MiniPlayer が読む）
-    const bottomBarRef = useRef<HTMLDivElement | null>(null);
-    useBottomBarHeight(bottomBarRef);
     const { isAuthenticated, isAdminUser, loading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -335,10 +332,23 @@ function UploadPageInner() {
      * **欄はカンマ区切りの文字列のまま**なので、ここで切り出すだけ——
      * 状態を2つ持つと「欄に打った字」と「チップ」がずれる。
      */
-    const chosenTags = useMemo(
-        () => tags.split(",").map((t) => t.trim()).filter(Boolean),
-        [tags],
-    );
+    const chosenTags = useMemo(() => {
+        // **`tagKey` で畳む。** 生の綴りで並べると `桜, 桜` が React の
+        // 同じ key で2つ並び（開発ビルドで警告・並び替えで壊れる）、
+        // `自然, nature` は**2つ出るのに ✕ が両方消す**（`toggleTag` は
+        // キーで外すため）。畳んだ結果は**最初に打った綴り**を残す
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const raw of tags.split(",")) {
+            const t = raw.trim();
+            if (!t) continue;
+            const key = tagKey(t) || t;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(t);
+        }
+        return out;
+    }, [tags]);
 
     useEffect(() => {
         if (loading || !isAuthenticated) return;
@@ -1116,13 +1126,30 @@ function UploadPageInner() {
     const willBeOnePost = pendingCount <= 1 || (asOnePost && !tooManyToGroup);
     const isJa = locale !== "en";
 
-    /** いま編集している写真。消えた ID・未設定のときは先頭に落とす */
+    /** サムネで選んでいる写真（ヒーローに出る）。消えた ID・未設定のときは先頭 */
     const selected: Item | undefined = items.find((i) => i.id === selectedId) ?? items[0];
-    const selectedIndex = selected ? items.findIndex((i) => i.id === selected.id) : -1;
     /** 読み上げる名前に入れる「何枚目か」。1 始まり */
-    const selectedNo = selectedIndex + 1;
+    const selectedNo = selected ? items.findIndex((i) => i.id === selected.id) + 1 : 0;
+
+    /**
+     * **まとめる回に、題・説明・撮影地が実際に保存される1枚。**
+     *
+     * `handleUploadAll` は `pending`（まだ上げていない写真）の**先頭**を表紙に
+     * して、その1枚の題・説明・撮影地を投稿に載せる（投稿が1件なので1組しか
+     * 持てない）。前の画面は全部の欄が同時に見えていたので気づけたが、
+     * **1枚ぶんしか描かない今の形では、3枚目に書いたキャプションが黙って
+     * 捨てられる**（レビューで出た）。だから**まとめる回は欄も表紙の1枚に
+     * 固定する**——ヒーローはサムネで選んだ写真のまま切り替わる。
+     *
+     * 「1枚目」と決め打ちにしない。1枚目が上げ終わっている（`done`）回は、
+     * 表紙になるのは**次に残っている写真**なので、番号も数え直す。
+     */
+    const coverItem = items.find((i) => i.status === "pending" || i.status === "error");
+    const groupMode = asOnePost && pendingCount > 1 && !tooManyToGroup;
+    const editing: Item | undefined = groupMode ? (coverItem ?? selected) : selected;
+    const editingNo = editing ? items.findIndex((i) => i.id === editing.id) + 1 : 0;
     /** 上げ終わった写真の欄は触らせない（サーバーの値と食い違う） */
-    const fieldsLocked = uploading || selected?.status === "done";
+    const fieldsLocked = uploading || editing?.status === "done";
 
     /**
      * 欄の見た目（モックの実測）。**入力の字だけ 16px**——それ未満だと
@@ -1139,8 +1166,17 @@ function UploadPageInner() {
     const chipStyle: React.CSSProperties = { minHeight: "32px", fontSize: "13px", touchAction: "manipulation" };
 
     /**
-     * ヘッダーの ✕。**確認を挟まない**——いまも戻るボタンで同じことが
-     * できる（選んだ写真は端末の中だけなので、サーバーには何も残らない）。
+     * ヘッダーの ✕。**確認を挟まない**——ブラウザの戻るボタンで前からできる
+     * ことと同じで、ここだけ関門を作っても抜け道が残る。
+     *
+     * ⚠️ **「何も残らない」わけではない。** S3 への PUT は通ったが
+     * `/upload/save` で落ちた写真は `item.uploaded` に控えてあり（押し直せば
+     * 使い回せるように、わざと消していない）、この画面を離れると
+     * **誰も辿れない実体として S3 に残る**。掃除しているのは「✕ で1枚消した」
+     * 回だけ（`removeItem` → `discardUploaded`）で、それは**この差分より前から
+     * そう**——閉じ際にまとめて捨てるのは振る舞いの追加なので、ここでは
+     * 事実だけ書き残す。
+     *
      * 履歴が無いとき（共有シートから直接開いた回）だけトップへ逃がす。
      */
     const closeComposer = () => {
@@ -1275,8 +1311,12 @@ function UploadPageInner() {
                                             disabled={uploading || it.status === "uploading"}
                                             // **語は変えない**（元から「削除」）。足すのは何枚目かだけ
                                             aria-label={isJa ? `${i + 1}枚目を削除` : `Remove photo ${i + 1}`}
+                                            // **24px を下回らない**（WCAG 2.5.8・AA）。
+                                            // この的は 64×80 の「選ぶ」ボタンの上に乗るので、
+                                            // 小さい的に許される「間隔の例外」は使えない
+                                            // ——大きさそのもので満たす
                                             className="absolute top-0.5 right-0.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-colors disabled:opacity-30 inline-flex items-center justify-center"
-                                            style={{ width: "22px", height: "22px", touchAction: "manipulation" }}
+                                            style={{ width: "24px", height: "24px", touchAction: "manipulation" }}
                                         >
                                             <XMarkIcon className="w-3.5 h-3.5" />
                                         </button>
@@ -1296,8 +1336,12 @@ function UploadPageInner() {
                                     style={{ width: "64px", height: "80px", touchAction: "manipulation" }}
                                 >
                                     <PlusIcon className="w-5 h-5" />
-                                    <span className="text-center leading-tight" style={{ fontSize: "10px" }}>
-                                        {isJa ? <>追加する<br />（1-{PHOTO_IMAGES_MAX}枚）</> : <>Add<br />(1-{PHOTO_IMAGES_MAX})</>}
+                                    {/* **枚数は書かない。** モックは「（1-10枚）」だが、
+                                        `PHOTO_IMAGES_MAX` は**1件の投稿に入る枚数**の上限で、
+                                        選べる枚数ではない（既定は N枚 → N件の投稿）。
+                                        10枚の話は「1件の投稿にまとめる」の説明が持つ */}
+                                    <span className="text-center leading-tight" style={{ fontSize: "11px" }}>
+                                        {isJa ? "追加する" : "Add"}
                                     </span>
                                     <input
                                         id="files-input"
@@ -1330,7 +1374,7 @@ function UploadPageInner() {
                                 {isJa ? "タップして写真を選ぶ" : "Tap to choose photos"}
                             </p>
                             <p className="text-white/50 mt-1" style={{ fontSize: "12px" }}>
-                                {isJa ? `1〜${PHOTO_IMAGES_MAX}枚・各50MBまで` : `1-${PHOTO_IMAGES_MAX} photos, max 50MB each`}
+                                {isJa ? "複数選択OK・各50MBまで" : "Multiple selection supported (max 50MB each)"}
                             </p>
                             <input
                                 id="files-input"
@@ -1430,7 +1474,7 @@ function UploadPageInner() {
                         {ownValues.locations.map((v) => <option key={v} value={v} />)}
                     </datalist>
 
-                    {selected ? (
+                    {editing ? (
                         <>
                             {/* ── タイトル（モック③） ── */}
                             <div>
@@ -1440,8 +1484,8 @@ function UploadPageInner() {
                                 <input
                                     id="post-title"
                                     type="text"
-                                    value={selected.title}
-                                    onChange={(e) => updateItem(selected.id, { title: e.target.value })}
+                                    value={editing.title}
+                                    onChange={(e) => updateItem(editing.id, { title: e.target.value })}
                                     maxLength={TITLE_MAX}
                                     // **見えている placeholder と同じ言葉にする。**
                                     // `aria-label` は placeholder を上書きするので、
@@ -1450,8 +1494,8 @@ function UploadPageInner() {
                                     // 「場所をタップ」が効かなくなる）。`（任意）` も
                                     // 落とすと、任意であることが読み上げにだけ届かない
                                     aria-label={isJa
-                                        ? `${selectedNo}枚目のタイトル（任意）`
-                                        : `Title of photo ${selectedNo} (optional)`}
+                                        ? `${editingNo}枚目のタイトル（任意）`
+                                        : `Title of photo ${editingNo} (optional)`}
                                     placeholder={isJa ? "タイトル（任意）" : "Title (optional)"}
                                     className={fieldCls}
                                     style={{ ...fieldStyle, height: "40px" }}
@@ -1460,7 +1504,7 @@ function UploadPageInner() {
                                 {/* 文字数カウンタ（モック③）。**上限はこの実装の本物の数**
                                     ——モックの「16/50」は絵で、サーバーは 200 まで受ける
                                     （`scripts/__tests__/limitParity.test.ts` が対で見張る） */}
-                                <p className={counterCls} style={counterStyle}>{selected.title.length}/{TITLE_MAX}</p>
+                                <p className={counterCls} style={counterStyle}>{editing.title.length}/{TITLE_MAX}</p>
                             </div>
 
                             {/* ── キャプション（モック③） ── */}
@@ -1470,17 +1514,22 @@ function UploadPageInner() {
                                 </label>
                                 <textarea
                                     id="post-caption"
-                                    value={selected.description}
-                                    onChange={(e) => updateItem(selected.id, { description: e.target.value })}
+                                    value={editing.description}
+                                    onChange={(e) => updateItem(editing.id, { description: e.target.value })}
+                                    // **見えているラベル（「キャプション」）を名前に含める。**
+                                    // WCAG 2.5.3（Label in Name）——音声操作は見えている
+                                    // 言葉で当てるので、「キャプション」と読める欄が
+                                    // 「説明」としか名乗らないと、その欄にだけ当たらない。
+                                    // placeholder も同じ語に揃える（下の見張りが対で見る）
                                     aria-label={isJa
-                                        ? `${selectedNo}枚目の説明（任意）`
-                                        : `Description of photo ${selectedNo} (optional)`}
-                                    placeholder={isJa ? "説明（任意）" : "Description (optional)"}
+                                        ? `${editingNo}枚目のキャプション（任意）`
+                                        : `Caption of photo ${editingNo} (optional)`}
+                                    placeholder={isJa ? "キャプション（任意）" : "Caption (optional)"}
                                     className={`${fieldCls} resize-none py-2.5 break-words`}
                                     style={{ ...fieldStyle, height: "80px" }}
                                     disabled={fieldsLocked}
                                 />
-                                <p className={counterCls} style={counterStyle}>{selected.description.length}/{DESC_STRING_MAX}</p>
+                                <p className={counterCls} style={counterStyle}>{editing.description.length}/{DESC_STRING_MAX}</p>
                             </div>
                         </>
                     ) : null}
@@ -1613,7 +1662,7 @@ function UploadPageInner() {
                         編集画面の `searchPlaces` にしかなく、移植は機能の追加＝
                         デザインの範囲を越える）。**動かない「>」は置かない**——
                         いまある撮影地の欄を、モックの行の形で出す */}
-                    {selected && (
+                    {editing && (
                         <div className="mt-4">
                             <label htmlFor="post-location" className={labelCls} style={labelStyle}>
                                 {isJa ? "位置情報" : "Location"}
@@ -1623,22 +1672,23 @@ function UploadPageInner() {
                                 <input
                                     id="post-location"
                                     type="text"
-                                    value={selected.location}
-                                    onChange={(e) => updateItem(selected.id, { location: e.target.value })}
+                                    value={editing.location}
+                                    onChange={(e) => updateItem(editing.id, { location: e.target.value })}
                                     maxLength={LOCATION_MAX}
+                                    // 見えているラベル（「位置情報」）を名前に含める（上と同じ理由）
                                     aria-label={isJa
-                                        ? `${selectedNo}枚目の場所（任意）`
-                                        : `Location of photo ${selectedNo} (optional)`}
-                                    placeholder={isJa ? "場所（任意）" : "Location (optional)"}
+                                        ? `${editingNo}枚目の位置情報（任意）`
+                                        : `Location of photo ${editingNo} (optional)`}
+                                    placeholder={isJa ? "位置情報（任意）" : "Location (optional)"}
                                     className="flex-1 min-w-0 bg-transparent text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50"
                                     list="own-locations"
                                     style={fieldStyle}
                                     disabled={fieldsLocked}
                                 />
-                                {selected.location && (
+                                {editing.location && (
                                     <button
                                         type="button"
-                                        onClick={() => updateItem(selected.id, { location: "" })}
+                                        onClick={() => updateItem(editing.id, { location: "" })}
                                         disabled={fieldsLocked}
                                         aria-label={isJa ? "撮影地を空にする" : "Clear location"}
                                         className="flex-shrink-0 -m-1 p-1 text-white/60 hover:text-white transition-colors"
@@ -1649,13 +1699,13 @@ function UploadPageInner() {
                                 )}
                             </div>
                             {/* 撮影日（EXIF から読めたときだけ）。読めなければ**欄ごと出さない** */}
-                            {selected.dateTimeOriginal && (
+                            {editing.dateTimeOriginal && (
                                 <p className="mt-2 inline-flex items-center gap-1 text-white/50" style={{ fontSize: "12px" }}>
                                     <CalendarIcon className="w-4 h-4" />
                                     {/* 保存されている通りに出す。toLocaleDateString だと
                                         UTC より西の端末で**保存される日付より1日前**が
                                         確認画面に出て、写真ページの表示とも食い違う。 */}
-                                    {formatStoredDateTime(selected.dateTimeOriginal, isJa ? "ja" : "en")}
+                                    {formatStoredDateTime(editing.dateTimeOriginal, isJa ? "ja" : "en")}
                                 </p>
                             )}
                         </div>
@@ -1714,18 +1764,20 @@ function UploadPageInner() {
             </div>
 
             {/* ── 投稿する（モック⑨）。画面の下に固定 ──
-                **`env(safe-area-inset-bottom)` を足す。** `viewportFit: "cover"` なので、
-                ホームインジケーターのある端末では下 34px がインジケーター帯に入る。
-                `globals.css` の `body { padding-bottom: env(...) }` は
-                **`position: fixed` には効かない**（fixed は body の padding box の外）。
-                実測で、高さ44pxのボタンの下に14pxしか空いていなかった。
-                `StoryViewer` / `StoriesBar` / `MiniPlayer` は既にこの形。
-                **`z-50` は常駐のタブバー（`BottomNav` は z-40）より上**——
-                同じ z で後から描かれるあちらに隠れて、「投稿する」が押せない
-                位置にあった。モックの投稿作成画面にもタブバーは出ていない */}
+                **常駐のタブバー（`BottomNav`）の上に置く。** 同じ `bottom-0` に
+                並べると、DOM で後ろにいるあちら（z-40）が覆いかぶさって
+                **「投稿する」が押せない位置**にあった。かといって `z-50` で
+                覆い返すと、隠れたタブバーの5つのボタンが**フォーカスだけ
+                受け取れる**状態になる（WCAG 2.4.11・Enter で投稿シートが開き、
+                書きかけが消える）。だから覆わずに**上へ逃がす**。
+                高さはタブバー自身が `--bottom-bar-h` に実測値（safe-area 込み）を
+                出しているので、それを読む。**この画面からは書かない**
+                ——両方が同じ変数に書くと、あとから描いた方の高さで
+                `MiniPlayer` が浮く。落とし先の `env(safe-area-inset-bottom)` は
+                タブバーが無い状況（将来そのページが出たとき）の受け皿 */}
             {items.length > 0 && (
-                <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-bar border-t border-line p-3 z-50"
-                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+                <div className="fixed left-0 right-0 bg-bar border-t border-line p-3 z-50"
+                    style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                     <div className={`${COLUMN} flex items-center gap-2`}>
                         {/* **アップロード中にやめられるようにする。** 押している間は
                             公開も下書き保存も無効で、しかも S3 への PUT は素の `fetch`

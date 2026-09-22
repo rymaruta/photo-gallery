@@ -42,7 +42,10 @@ import { readFileSync } from "node:fs";
 const CHIP_ROWS = [
     ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /px-2 py-0\.5 rounded-full/],
     ["app/user/edit/page.tsx", "編集画面のカテゴリとタグ", /px-2 py-0\.5 rounded-full/],
-    ["app/user/upload/page.tsx", "アップロード画面のカテゴリとタグ", /minHeight: "32px"/],
+    // ⚠️ **チップ専用の行で見る。** 最初 `/minHeight: "32px"/` だけにしていたが、
+    // ヘッダーの「下書き保存」のピルも同じ値を持つので、**チップを18pxに
+    // 戻しても緑のまま**だった（レビューが変異で実証）
+    ["app/user/upload/page.tsx", "アップロード画面のカテゴリとタグ", /const chipStyle[^\n]*minHeight: "32px"/],
 ] as const;
 
 const read = (p: string) => readFileSync(p, "utf8");

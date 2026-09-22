@@ -112,7 +112,7 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
     it("題・説明・撮影地は、いま選んでいる写真の番号を名乗る", async () => {
         const container = await withPhotos(2);
         const names = () => [...container.querySelectorAll("input,textarea")].map(accName);
-        for (const n of ["1枚目のタイトル（任意）", "1枚目の説明（任意）", "1枚目の場所（任意）"]) {
+        for (const n of ["1枚目のタイトル（任意）", "1枚目のキャプション（任意）", "1枚目の位置情報（任意）"]) {
             expect(names(), `${n} が無い`).toContain(n);
         }
         expect(names(), "選んでいない写真の欄まで描いている").not.toContain("2枚目のタイトル（任意）");
@@ -125,7 +125,7 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
         expect(second, "2枚目を選ぶボタンが無い").toBeDefined();
         fireEvent.click(second!);
         const names = [...container.querySelectorAll("input,textarea")].map(accName);
-        for (const n of ["2枚目のタイトル（任意）", "2枚目の説明（任意）", "2枚目の場所（任意）"]) {
+        for (const n of ["2枚目のタイトル（任意）", "2枚目のキャプション（任意）", "2枚目の位置情報（任意）"]) {
             expect(names, `${n} が無い`).toContain(n);
         }
         expect(names, "前に選んでいた写真の欄が残っている").not.toContain("1枚目のタイトル（任意）");
@@ -142,6 +142,26 @@ describe("/user/upload: 写真ごとの欄は、何枚目かまで名乗る", ()
             if (!ph || !al) continue;
             expect(al, `「${ph}」の欄が「${al}」と名乗っている`).toContain(ph);
         }
+    });
+
+    // **見えている「ラベル」も名前に含める**（WCAG 2.5.3・Label in Name）。
+    // すぐ上の見張りは `placeholder` としか比べていなかったので、
+    // モックに合わせて `<label>` を足したときに**「キャプション」と見えて
+    // 「説明」としか名乗らない欄**を通していた（レビューが実測）。
+    // 音声操作は見えている言葉で当てるので、その欄にだけ当たらない
+    it("読み上げる名前は、見えているラベルも含む", async () => {
+        const container = await withPhotos(1);
+        let checked = 0;
+        for (const label of container.querySelectorAll("label")) {
+            const control = (label as HTMLLabelElement).control;
+            const al = control?.getAttribute("aria-label");
+            if (!al) continue;
+            const visible = label.textContent?.trim() ?? "";
+            if (!visible) continue;
+            checked++;
+            expect(al, `「${visible}」と見えている欄が「${al}」と名乗っている`).toContain(visible);
+        }
+        expect(checked, "ラベルの付いた欄を1つも見ていない（見張りが空振り）").toBeGreaterThanOrEqual(3);
     });
 
     // **ボタンも同じ。** `toContain` だけだと、別のボタンが枚数ぶん同じ名前で
