@@ -33,6 +33,9 @@ vi.mock("../../../components/CommentSection", () => ({ default: () => null }));
 vi.mock("../../../components/RelatedPhotos", () => ({ default: () => null }));
 vi.mock("../../../components/ProfileLink", () => ({ default: () => null }));
 vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
+// 保存（しおり）は境界としてモック。本物だとマウント時の `GET /user/saves/<id>` が
+// MV の PUT 用に `mockResolvedValueOnce` で用意した応答を先に食ってしまう
+vi.mock("../../../../lib/hooks/usePhotoSave", () => ({ usePhotoSave: () => ({ saved: false, pending: false, toggle: async () => ({ ok: true }) }) }));
 const mockLikeToggle = vi.hoisted(() => vi.fn(async (): Promise<{ ok: boolean; message?: string }> => ({ ok: true })));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: mockLikeToggle }),
