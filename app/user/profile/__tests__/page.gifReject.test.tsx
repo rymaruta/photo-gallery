@@ -44,21 +44,22 @@ beforeEach(() => {
 });
 
 /**
- * ファイル入力を順序で引く。**ラベルが無い**——どちらも `className="hidden"`
- * で、見えているボタンが ref 経由で開く作り。順序に依存するので、
- * **本数が変わったら気づけるように**数も見る（0番=カバー・1番=アバター）
+ * ファイル入力を引く。**ラベルが無い**——`className="hidden"` で、見えている
+ * ボタンが ref 経由で開く作り。**カバー写真の欄は 2026-09-22 に外した**
+ * （マイページがカバーを出さなくなったので）ので、残るのはアバターだけ。
+ * **本数が変わったら気づけるように**数も見る
  */
-async function pickInto(which: "cover" | "avatar", file: File) {
+async function pickInto(file: File) {
     const { container } = render(<ProfilePage />);
     await screen.findByDisplayValue("こんにちは");
     const inputs = container.querySelectorAll<HTMLInputElement>('input[type="file"]');
-    expect(inputs.length, "ファイル入力の本数が変わった（順序の前提が崩れている）").toBe(2);
-    await userEvent.upload(inputs[which === "cover" ? 0 : 1], file);
+    expect(inputs.length, "ファイル入力の本数が変わった（前提が崩れている）").toBe(1);
+    await userEvent.upload(inputs[0], file);
 }
 
-describe("プロフィールのカバー・アバター: GIF は選んだ時点で断る", () => {
-    it("カバーに GIF を選ぶと、その場で断る", async () => {
-        await pickInto("cover", gif());
+describe("プロフィールのアバター: GIF は選んだ時点で断る", () => {
+    it("アバターに GIF を選ぶと、その場で断る", async () => {
+        await pickInto(gif());
         await waitFor(() => expect(toasts().length, "無言で進んでいる").toBeGreaterThan(0));
         expect(toasts()[0]).toMatch(/GIF/);
         // **上げに行かない**（presign も呼ばない）
@@ -67,16 +68,9 @@ describe("プロフィールのカバー・アバター: GIF は選んだ時点�
         expect(mockSafe, "断ったのに下ごしらえまで進んでいる").not.toHaveBeenCalled();
     });
 
-    it("アバターに GIF を選ぶと、その場で断る", async () => {
-        await pickInto("avatar", gif());
-        await waitFor(() => expect(toasts().length).toBeGreaterThan(0));
-        expect(toasts()[0]).toMatch(/GIF/);
-        expect(mockSafe, "断ったのに下ごしらえまで進んでいる").not.toHaveBeenCalled();
-    });
-
     // **正当な形式は今までどおり通す**（断りすぎていないこと）
     it("JPEG は断らない", async () => {
-        await pickInto("cover", jpg());
+        await pickInto(jpg());
         await waitFor(() => expect(mockSafe, "正当な画像まで断っている").toHaveBeenCalled());
         expect(toasts().some((t) => /GIF/.test(t))).toBe(false);
     });

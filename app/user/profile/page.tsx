@@ -12,7 +12,7 @@ import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
-import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
+import { toUploadSafeFile, AVATAR_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
@@ -125,10 +125,6 @@ export default function ProfileEditPage() {
     const [songEndText, setSongEndText] = useState("");
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarError, setAvatarError] = useState(false);
-    const coverInputRef = useRef<HTMLInputElement>(null);
-    const [coverPreview, setCoverPreview] = useState<string | null>(null);
-    const [coverError, setCoverError] = useState(false);
-    const [coverUploading, setCoverUploading] = useState(false);
     // プロフィールの読み込みに失敗したか。
     // PUT は全置換なので、読み込めていない（=フォームが空欄の）状態で保存すると
     // 自己紹介・リンク・テーマ色・BGM・ピン留め・旅アルバムがまとめて消える。
@@ -243,75 +239,6 @@ export default function ProfileEditPage() {
             }
         })();
     }, [isAuthenticated]);
-
-    const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        // 同じファイルを選び直しても change が発火するように値を空にしておく。
-        // アップロードに失敗したあと同じ写真でやり直せなかった。
-        e.target.value = "";
-        if (!file) return;
-        // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
-        // `UnstrippableFileError` にするので、進めても必ず失敗する
-        // ——プレビューが一瞬出てから断られる形だった。
-        // アップロード画面（アイコン）とストーリーは選択時に断っている
-        // ＝この2か所（カバー・アバター）だけ残っていた
-        if (file.type === "image/gif") {
-            showToast(gifRejectedMessage(locale), "error");
-            return;
-        }
-        const reader = new FileReader();
-        // 失敗したらプレビューを消す。残したままだと**保存された気になる**
-        // ——画面には新しい写真が出ているのに、S3 にもプロフィールにも
-        // 入っていない。次に開くと元に戻っていて、何が起きたのか分からない。
-        //
-        // FileReader は非同期なので、**先に失敗する順序がある**
-        // （presign が 503 で即返るなど）。あとから onload が発火して
-        // 消したはずのプレビューを描き直さないよう、両方の順序を見る。
-        let saved = false;
-        let failed = false;
-        reader.onload = (ev) => { if (!failed) setCoverPreview(ev.target?.result as string); };
-        reader.readAsDataURL(file);
-        setCoverUploading(true);
-        try {
-            // 表示は横幅いっぱいの帯なので、原寸ではなく1280pxまで縮めて送る。
-            // 縮小に失敗しても原寸で続行してはいけない（EXIF の GPS が公開URLに乗る）。
-            let upload: File;
-            try {
-                upload = await toUploadSafeFile(file, COVER_MAX_PX, 0.85);
-            } catch (e) {
-                log.error("cover: could not strip metadata:", e);
-                showToast(unstrippableMessage(e, locale), "error");
-                return;
-            }
-
-            const res = await userFetch("/profile/avatar/presigned-url", {
-                method: "POST",
-                body: JSON.stringify({ fileType: upload.type, type: "cover" }),
-            });
-            // サーバーは理由を返し分けている（「対応していない形式です
-            // （JPEG・PNG・WebP・AVIF・HEIC・GIF）」など）。固定文に潰していたので、
-            // 形式が原因なのか一時障害なのか分からず、同じ画像を選び直していた
-            if (!res.ok) { showToast(await readApiError(res, "カバー写真のアップロードに失敗しました"), "error"); return; }
-            const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
-            const uploadRes = await fetch(presignedUrl, {
-                method: "PUT",
-                body: upload,
-                // Cache-Control は署名対象外ヘッダなので presigned URL 側では指定できない。
-                // クライアントが送らないと S3 に何も付かず、CDN の既定TTLで配信されて
-                // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
-                headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
-            });
-            if (!uploadRes.ok) { showToast("カバー写真のアップロードに失敗しました", "error"); return; }
-            setCoverError(false);
-            saved = true;
-            showToast("カバー写真を更新しました", "success");
-        } catch (e) {
-            showToast(sessionErrorMessage(e) ?? "カバー写真のアップロードに失敗しました", "error");
-        } finally {
-            setCoverUploading(false);
-            if (!saved) { failed = true; setCoverPreview(null); }
-        }
-    };
 
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -590,7 +517,7 @@ export default function ProfileEditPage() {
             // **セッション切れを塗り潰さない。** 裸の catch だった頃は
             // 「保存に失敗しました。」だけが出るので、**再ログインすれば
             // 直ると分からず**同じ操作を繰り返すことになった。
-            // 同じファイルのアバター・カバー（`handleCoverChange` ほか）は
+            // 同じファイルのアバター（`handleAvatarChange`）は
             // 前からこう書いてある——対の乖離だった
             showToast(sessionErrorMessage(e)
                 ?? (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
@@ -613,17 +540,6 @@ export default function ProfileEditPage() {
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
-    const currentCoverUrl = profile?.userId && CLOUDFRONT_URL
-        ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}/cover`)
-        : null;
-
-    // **ボタンの名前を状態で分けるための旗。** 描き分けの式と同じ材料から
-    // 作る（`src` の式そのものは触らない——`imageOriginSites.test.ts` の
-    // 免除一覧が式の綴りで突き合わせているので、`!` を足すだけで落ちる。
-    // 実際に落として気づいた）。**片方だけずれる変異は、対テストが
-    // 「出ている絵」と「名前の言葉」を突き合わせて捕まえる**
-    const hasCover = !!coverPreview || (!!currentCoverUrl && !coverError);
-
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
@@ -656,47 +572,10 @@ export default function ProfileEditPage() {
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
 
-                {/* カバー写真 */}
-                <div className="mb-6">
-                    <p className={labelClass}>{locale === "en" ? "Cover photo" : "カバー写真"}</p>
-                    {/* **カバーを一度でも設定すると、このボタンは名前を失う。**
-                        中身は `alt=""` の `<img>` とアイコンだけになるので、
-                        読み上げでは「ボタン」としか言われない（未設定のときだけ
-                        「カバー写真を追加」の文字が中にある）。**すぐ下の
-                        アバターのボタンは前から `aria-label` を持っている**
-                        ——対になっている片方だけ漏れていた。
-                        文言は見えている文字と食い違わないよう状態で分ける
-                        （未設定のときは中の文字と同じ「追加」）。 */}
-                    <button
-                        type="button"
-                        onClick={() => coverInputRef.current?.click()}
-                        disabled={coverUploading}
-                        aria-label={hasCover
-                            ? (locale === "en" ? "Change cover photo" : "カバー写真を変更")
-                            : (locale === "en" ? "Add cover photo" : "カバー写真を追加")}
-                        className="relative w-full h-28 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group"
-                    >
-                        {coverPreview ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={coverPreview} alt="" className="w-full h-full object-cover" />
-                        ) : currentCoverUrl && !coverError ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={currentCoverUrl} alt="" className="w-full h-full object-cover" onError={() => setCoverError(true)} />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-white/50">
-                                <CameraIcon className="w-6 h-6" />
-                                <span className="text-xs">{locale === "en" ? "Add cover photo" : "カバー写真を追加"}</span>
-                            </div>
-                        )}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {coverUploading
-                                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                : <CameraIcon className="w-6 h-6 text-white" />}
-                        </div>
-                    </button>
-                    <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
-                        onChange={(e) => void handleCoverChange(e)} />
-                </div>
+                {/* **カバー写真の欄は外した**（2026-09-22）。マイページが
+                    カバーを表示しなくなったので（最終版モックに無い）、設定だけ
+                    残すと「変えても何も起きない」欄になる。**サーバーの口と
+                    既に上げた画像はそのまま**——戻すときはここを足し直すだけ */}
 
                 {/* アバター */}
                 <div className="flex flex-col items-center mb-8">

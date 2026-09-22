@@ -107,12 +107,6 @@ function danglingRefs(container: HTMLElement): string[] {
     return bad;
 }
 
-/** カバー写真のボタン（見出し「カバー写真」の直後） */
-function coverButton(container: HTMLElement): HTMLButtonElement | null {
-    const heading = [...container.querySelectorAll("p")].find((p) => p.textContent === "カバー写真");
-    return (heading?.parentElement?.querySelector("button") ?? null) as HTMLButtonElement | null;
-}
-
 /** 見出しで名前を付けた集まり（`role="group"`）の数 */
 function labelledGroups(container: HTMLElement): number {
     return container.querySelectorAll('[role="group"][aria-labelledby]').length;
@@ -140,9 +134,9 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         expect(danglingRefs(container)).toEqual([]);
         // テーマカラー（見本ボタンの集まり）
         expect(labelledGroups(container)).toBe(1);
-        // カバー未設定のときは、中に見えている文字と同じ言葉にする
-        expect(container.querySelector('img[src*="/cover"]')).toBeNull();
-        expect(coverButton(container)?.getAttribute("aria-label")).toBe("カバー写真を追加");
+        // **カバー写真の欄は 2026-09-22 に外した**（マイページが出さなくなったので）。
+        // 名前を失うボタンはもう無い＝`unnamedFields` と下の `nameless` が見る
+        expect(container.querySelector('img[src*="/cover"]'), "カバーの欄が戻っている").toBeNull();
     });
 
     // 移設で外に出ていた4つの入力欄（メール2段・パスワード2つ）
@@ -174,8 +168,7 @@ describe("見えているラベルは入力欄に結ばれている", () => {
     // **曲のリンクを開いた状態でないと描かれない欄がある。**
     // 初期状態だけを見ていたので「開始 (m:ss)」「終了 (m:ss)」の2本は
     // 直したのに守りが1行も掛かっていなかった（レビューが変異で実証）。
-    // カバー写真も同じ——**設定済みの人だけ**ボタンが名前を失う
-    it("/user/profile: 曲のリンクを開いた状態・カバー設定済み", async () => {
+    it("/user/profile: 曲のリンクを開いた状態", async () => {
         mockUserFetch.mockResolvedValue({
             ok: true,
             json: async () => ({
@@ -190,22 +183,13 @@ describe("見えているラベルは入力欄に結ばれている", () => {
         expect(unnamedFields(container)).toEqual([]);
         expect(danglingRefs(container)).toEqual([]);
 
-        // **カバーを設定した人のボタンは、中身が `alt=""` の画像だけになる。**
-        // すぐ下のアバターのボタンは前から名前を持っていた＝片方だけ漏れていた
+        // 名前を持たないボタンが無いこと（アバターのボタンは `aria-label` を持つ）
         const nameless = [...container.querySelectorAll("button")]
             .filter((b) => !b.getAttribute("aria-label") && !b.getAttribute("aria-labelledby")
                 && !b.textContent?.trim())
             .map((b) => b.className.slice(0, 40));
         expect(nameless).toEqual([]);
 
-        // **名前の言葉と、出ている絵を突き合わせる。** どちらも同じ材料から
-        // 作るが式は2つあるので、片方だけずれる変異を止めるにはここで結ぶ
-        // （`src` の式は `imageOriginSites.test.ts` が綴りで見張っているため
-        //  1つにまとめられない）
-        expect(container.querySelector('img[src*="/cover"]'),
-            "カバーが設定されているのに画像が出ていない").not.toBeNull();
-        expect(coverButton(container)?.getAttribute("aria-label"),
-            "絵は出ているのに、名前が「追加」のまま").toBe("カバー写真を変更");
     });
 
     // **制約を書いた文が、欄に結ばれていなかった。**
