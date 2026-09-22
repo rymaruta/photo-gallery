@@ -106,101 +106,62 @@ describe("撮影スポット詳細", () => {
 
     // **クチコミは作らない。** 投稿する口も、荒れたものを裁く仕組みも
     // 持っていないのに枠だけ置くと、0件のまま残るか誰も見ない投稿欄になる
-    it("タブは 概要／写真／地図 の3つだけ（クチコミを置かない）", () => {
-        render(<SpotPageClient {...base} />);
-        const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
-        expect(tabs).toEqual(["概要", "写真", "地図"]);
+    it("クチコミも評価も置かない", () => {
+        const { container } = render(<SpotPageClient {...base} />);
         expect(screen.queryByText(/クチコミ|レビュー|口コミ/)).toBeNull();
+        expect(container.textContent).not.toMatch(/[★☆]|評価/);
+        // 投稿する口（入力欄）も無い
+        expect(container.querySelector("textarea")).toBeNull();
     });
 
     /**
-     * **3つとも DOM に在る。** 切り替えで差し替えると、静的HTMLには
-     * その時のタブの中身しか出ない（検索に載っているページ）。
+     * 🔴 **節は隠さない**（2026-09-22・タブを畳んだ）。
+     *
+     * 元はタブ3つ（概要／写真／地図）で、選ばれていない中身を `hidden` で
+     * 隠していた。その形が守っていたのは「**検索に載っているページなので、
+     * 本文が HTML から消えてはいけない**」という一点。
+     *
+     * 節に畳んだので、隠す仕組みごと無くなった。**戻さないための見張り**が
+     * これ——`hidden` の節が1つでも現れたら落ちる。
      */
-    it("選んでいないタブの中身も DOM に残る（hidden で隠すだけ）", () => {
-        render(<SpotPageClient {...base} />);
-        for (const key of ["overview", "photos", "map"]) {
-            expect(document.getElementById(`spot-panel-${key}`), `spot-panel-${key} が無い`).not.toBeNull();
-        }
-        // 既定は「写真」——今まで見えていたものを保つ
-        expect(document.getElementById("spot-panel-photos")!.hidden).toBe(false);
-        expect(document.getElementById("spot-panel-overview")!.hidden).toBe(true);
-    });
-
-    it("タブを押すと切り替わる", () => {
-        render(<SpotPageClient {...base} />);
-        fireEvent.click(screen.getByRole("tab", { name: "概要" }));
-        expect(document.getElementById("spot-panel-overview")!.hidden).toBe(false);
-        expect(document.getElementById("spot-panel-photos")!.hidden).toBe(true);
+    it("`hidden` で隠している節が1つも無い", () => {
+        const { container } = render(<SpotPageClient {...base} />);
+        expect(container.querySelectorAll("[hidden]").length).toBe(0);
     });
 
     /**
-     * **`role="tablist"` を名乗るなら、矢印キーで動けること。**
+     * **3つぶんの中身が、1回の描画で全部在る。**
      *
-     * 名乗るだけだと、読み上げは「タブ 1/3」と案内するのに矢印が効かない
-     * ——案内された通りに操作できない方が、ただのボタンの並びより悪い。
+     * 「タブを押さないと出ない」が無いこと＝静的HTMLに全部載ること。
+     * 中身そのもの（統計・写真・地図の案内）で見る——`hidden` の有無だけ
+     * だと、中身を条件で出し分ける形に変えたときに素通りする。
      */
-    it("矢印キーで移れて、移った先にフォーカスが行く（端は折り返す）", () => {
-        render(<SpotPageClient {...base} />);
-        const list = screen.getByRole("tablist");
-        // 既定は「写真」（真ん中）
-        fireEvent.keyDown(list, { key: "ArrowRight" });
-        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
-        expect(document.getElementById("spot-panel-map")!.hidden).toBe(false);
-        // 端で折り返す
-        fireEvent.keyDown(list, { key: "ArrowRight" });
-        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "概要" }));
-        fireEvent.keyDown(list, { key: "ArrowLeft" });
-        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
-        fireEvent.keyDown(list, { key: "Home" });
-        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "概要" }));
-        fireEvent.keyDown(list, { key: "End" });
-        expect(document.activeElement).toBe(screen.getByRole("tab", { name: "地図" }));
+    it("概要・写真・地図の中身が、切り替えなしで全部出る", () => {
+        const { container } = render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: true }} />);
+        expect(container.textContent).toContain(base.description);          // 概要
+        expect(container.textContent).toContain("撮影時期");                 // 統計
+        expect(screen.getByTestId("grid")).toBeTruthy();                     // 写真
+        expect(screen.getByRole("link", { name: "撮影地マップを開く" })).toBeTruthy(); // 地図
     });
 
-    /**
-     * **関係ないキーは飲まない。**
-     *
-     * roving tabindex なので、tablist の中で Tab の停止点は選ばれている
-     * 1つだけ。ここで `Tab` を飲むと、**キーボードだけで操作する人が
-     * タブの並びから出られない**。
-     *
-     * `e.preventDefault()` を「移る先が決まったときだけ」撃つ、という条件を
-     * 見張るテストが**どこにも無かった**——`preventDefault()` を判定の
-     * 前に移すという、ごく起こりやすい書き換えで25件が全部緑になる。
-     * `fireEvent.keyDown` は `preventDefault()` が呼ばれると `false` を返す。
-     */
-    it("関係ないキーは飲まない（矢印だけ飲む）", () => {
+    // **タブという仕掛けごと持たない。** 残っていると「隠す入れ物」が
+    // いつの間にか戻る足場になる
+    it("タブの仕掛けを持たない", () => {
         render(<SpotPageClient {...base} />);
-        const list = screen.getByRole("tablist");
-        for (const key of ["Tab", "Enter", " ", "a", "ArrowUp", "ArrowDown", "Escape"]) {
-            expect(fireEvent.keyDown(list, { key }), `${key} を飲んでいる`).toBe(true);
-        }
-        // 矢印・Home/End は飲む（矢印での横スクロールを起こさない）
-        for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
-            expect(fireEvent.keyDown(list, { key }), `${key} を飲んでいない`).toBe(false);
-        }
-    });
-
-    // roving tabindex: Tab で止まるのは選ばれている1つだけ
-    it("Tab で止まるのは選ばれているタブだけ", () => {
-        render(<SpotPageClient {...base} />);
-        const tabs = screen.getAllByRole("tab");
-        expect(tabs.map((t) => t.getAttribute("tabindex"))).toEqual(["-1", "0", "-1"]);
+        expect(screen.queryAllByRole("tab").length).toBe(0);
+        expect(screen.queryByRole("tablist")).toBeNull();
     });
 
     // **無い情報を作らない。** 0 や推測で埋めず「—」と書く
     it("撮影時期が無ければ「—」（勝手に埋めない）", () => {
         render(<SpotPageClient {...base} />);
-        const overview = document.getElementById("spot-panel-overview")!;
-        const term = within(overview).getByText("撮影時期");
+        const term = screen.getByText("撮影時期");
         expect(term.parentElement!.textContent).toContain("—");
     });
 
     it("撮影時期があれば範囲で出す", () => {
         render(<SpotPageClient {...base} facts={{ ...base.facts, period: { from: "2023-05-01", to: "2024-10-12" } }} />);
-        const overview = document.getElementById("spot-panel-overview")!;
-        expect(within(overview).getByText("撮影時期").parentElement!.textContent).toMatch(/2023.*〜.*2024/);
+        expect(screen.getByText("撮影時期").parentElement!.textContent).toMatch(/2023.*〜.*2024/);
     });
 
     /**
@@ -214,8 +175,7 @@ describe("撮影スポット詳細", () => {
      */
     it("カメラのチップは、生の機種名ではなくスラッグへ飛ぶ", () => {
         render(<SpotPageClient {...base} facts={{ ...base.facts, cameras: [{ name: "SONY ILCE-7M3", count: 2 }] }} />);
-        // チップは概要タブの中。既定は「写真」なので開いてから見る
-        fireEvent.click(screen.getByRole("tab", { name: "概要" }));
+        // 節を縦に並べたので、チップは最初から見えている（切り替え不要）
         const link = screen.getByRole("link", { name: /SONY ILCE-7M3/ });
         expect(link.getAttribute("href")).toBe("/camera/sony-ilce-7m3");
         expect(link.getAttribute("href")).not.toContain("%20");
@@ -256,23 +216,20 @@ describe("撮影スポット詳細", () => {
 describe("地図タブ", () => {
     it("座標が無ければ「位置がまだ無い」と言い切る（空の地図を出さない）", () => {
         render(<SpotPageClient {...base} />);
-        const map = document.getElementById("spot-panel-map")!;
-        expect(map.textContent).toContain("地図に出せる位置がまだありません");
+        expect(screen.getByText(/地図に出せる位置がまだありません/)).toBeTruthy();
     });
 
     // **`geoApprox` を正確な GPS と区別する**（`sanitizeCoords` の丸めの断りも出す）
     it("推定の位置なら、そう断る", () => {
-        render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: true }} />);
-        const map = document.getElementById("spot-panel-map")!;
-        expect(map.textContent).toContain("約1km");
-        expect(map.textContent).toContain("地名から引いたおおよその位置");
+        const { container } = render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: true }} />);
+        expect(container.textContent).toContain("約1km");
+        expect(container.textContent).toContain("地名から引いたおおよその位置");
     });
 
     it("正確な位置なら「地名から引いた」とは書かない", () => {
-        render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: false }} />);
-        const map = document.getElementById("spot-panel-map")!;
-        expect(map.textContent).toContain("約1km");
-        expect(map.textContent).not.toContain("地名から引いた");
+        const { container } = render(<SpotPageClient {...base} coords={{ lat: 48.86, lng: 2.34, approx: false }} />);
+        expect(container.textContent).toContain("約1km");
+        expect(container.textContent).not.toContain("地名から引いた");
     });
 });
 
@@ -437,11 +394,9 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
 
     // **地図タブは `hidden` で隠れている**（3つとも DOM に残す設計なので、
     // 読み上げの木からは外れる）。既存の地図タブのテストと同じく id で取る
-    const mapPanel = () => document.getElementById("spot-panel-map")!;
-
     it("「地図で見る」はこの場所に寄せて開く（#ズーム/緯度/経度）", () => {
         render(<SpotPageClient {...base} coords={coords} />);
-        const link = mapPanel().querySelector("a")!;
+        const link = screen.getByRole("link", { name: "撮影地マップを開く" });
         // ズームは PHOTO_LINK_ZOOM（12）。座標は小数4桁（約11m）まで
         expect(link.getAttribute("href")).toBe("/map#12/35.4234/138.8765");
     });
@@ -450,7 +405,7 @@ describe("撮影スポット詳細: 地図と周辺のスポット", () => {
     // 「位置がまだありません」と言い切る側の文面が出る
     it("座標が無ければハッシュを付けない", () => {
         render(<SpotPageClient {...base} coords={null} />);
-        const link = mapPanel().querySelector("a")!;
+        const link = screen.getByRole("link", { name: "撮影地マップを開く" });
         expect(link.getAttribute("href")).toBe("/map");
     });
 
@@ -510,17 +465,18 @@ describe("撮影スポット詳細: ふりがなと概要", () => {
         expect(screen.getByTestId("spot-reading").textContent).toBe("たかやじんじゃ");
     });
 
-    it("概要は、書かれていれば概要タブに出る", () => {
+    it("概要は、書かれていれば本文に出る", () => {
         render(<SpotPageClient {...base} summary="雲海に浮かぶ鳥居。" />);
-        expect(document.getElementById("spot-panel-overview")!.textContent).toContain("雲海に浮かぶ鳥居。");
+        expect(screen.getByTestId("spot-summary").textContent).toBe("雲海に浮かぶ鳥居。");
     });
 
+    // **「空の段落を描く」も出したうちに入る。** 中身で見ると、
+    // `{summary !== undefined && …}` の変異が素通りする（実測）
     it("概要が無ければ、その枠ごと出さない（定型文で埋めない）", () => {
-        render(<SpotPageClient {...base} />);
-        const overview = document.getElementById("spot-panel-overview")!;
-        // 既にある説明文（`collectionCopy`）は出るが、概要の段落は増えない
-        expect(overview.textContent).toContain(base.description);
-        expect(overview.querySelectorAll("p").length).toBe(1);
+        const { container } = render(<SpotPageClient {...base} />);
+        expect(screen.queryByTestId("spot-summary")).toBeNull();
+        // 既にある説明文（`collectionCopy`）は出る
+        expect(container.textContent).toContain(base.description);
     });
 
     // 🔴 **台帳の値を見出しや説明文に混ぜない。** 混ぜると `<title>` と
@@ -529,8 +485,8 @@ describe("撮影スポット詳細: ふりがなと概要", () => {
     it("ふりがなも概要も、見出しと説明文には混ざらない", () => {
         render(<SpotPageClient {...base} reading="たかやじんじゃ" summary="雲海に浮かぶ鳥居。" />);
         expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(base.heading);
-        const overview = document.getElementById("spot-panel-overview")!;
-        const paras = [...overview.querySelectorAll("p")].map((p) => p.textContent);
+        const { container } = render(<SpotPageClient {...base} reading="X" summary="Y" />);
+        const paras = [...container.querySelectorAll("p")].map((p) => p.textContent);
         // 説明文の段落は**そのまま**（読みや概要を足した文になっていない）
         expect(paras).toContain(base.description);
     });

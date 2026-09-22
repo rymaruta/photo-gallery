@@ -21,7 +21,6 @@ import { formatMapHash, PHOTO_LINK_ZOOM } from "../../lib/utils/mapView";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
-import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type SpotLink = { label: string; count: number; path: string };
 /** 周辺のスポット。`cover` はそのスポットの1枚（無ければ `null`） */
@@ -54,8 +53,6 @@ type Props = {
     nearby: NearbyLink[];
     related: SpotLink[];
 };
-
-type TabKey = "overview" | "photos" | "map";
 
 /**
  * 撮影スポット詳細。
@@ -91,7 +88,6 @@ export default function SpotPageClient({
     const { locale } = useLocale();
     const en = locale === "en";
     const { showToast } = useToast();
-    const [tab, setTab] = React.useState<TabKey>("photos");
 
     /**
      * ヒーローに出している写真の位置（モック②の「1/10」）。
@@ -167,29 +163,6 @@ export default function SpotPageClient({
         setOpenIndex(i);
         return true;
     }, [photos]);
-
-    const TABS: Array<[TabKey, string]> = [
-        ["overview", en ? "Overview" : "概要"],
-        ["photos", en ? "Photos" : "写真"],
-        ["map", en ? "Map" : "地図"],
-    ];
-
-    /**
-     * 矢印キーでタブを移る（`Home` / `End` も）。移った先にフォーカスを送る
-     * ——送らないと、見た目だけ動いて読み上げの位置が置いていかれる。
-     * 端では折り返す（WAI-ARIA の tabs の作法）。
-     */
-    const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-        const keys = TABS.map(([k]) => k);
-        // 計算は `lib/utils/tabKeys.ts`（`NotificationsBell` と共有）。
-        // 選び方とフォーカスの送り先だけがここの仕事
-        const next = nextTabIndex(e.key, keys.indexOf(tab), keys.length);
-        if (next === null) return;
-        // 矢印での横スクロールを起こさない
-        e.preventDefault();
-        setTab(keys[next]);
-        document.getElementById(`spot-tab-${keys[next]}`)?.focus();
-    };
 
     return (
         <main className="mx-auto max-w-6xl px-4 py-8 pb-28">
@@ -375,118 +348,148 @@ export default function SpotPageClient({
                 </p>
             )}
 
-            <div className="mb-5">
+            {/* ── 操作（モック⑥）─────────────────────────────
+
+                🔴 **タブを畳んで、節を縦に並べた**（2026-09-22・PM の指示。
+                owner の最終版モックは「節が縦に並ぶ1枚のページ」）。
+
+                畳んだことで本文は `hidden` から出て、**常に見える本文**になった。
+                元の docstring が守っていたのは「検索に載っているページなので、
+                本文が HTML から消えてはいけない」という一点で、**節に
+                すればその心配自体が消える**（隠す仕組みが無くなる）。
+                `spotSections.test.tsx` が「`hidden` を持つ節が無いこと」と
+                「3つぶんの中身が1回の描画で全部在ること」を固定している。
+
+                置くのは**実体のある操作だけ**:
+                  - **行きたい** … `spots#<uid>`（`SaveSpotButton`）
+                  - **地図で見る** … この場所に寄せて `/map` へ
+                  - **シェア** … ヘッダー行に在る（2つ置かない）
+                  - ~~保存~~ … **置かない。** 場所に対する「保存」の実体が無く、
+                    「行きたい」と同じものが2つ並ぶだけになる */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
                 <SaveSpotButton slug={slug} name={name} locale={locale} />
-            </div>
-
-            {/* タブ。**クチコミは無い**（理由は上の docstring）。
-
-                **`role="tablist"` を名乗るなら、矢印キーで動けること。**
-                名乗るだけだと、読み上げは「タブ 1/3」と案内するのに矢印が
-                効かない——案内された通りに操作できない方が、ただのボタンの
-                並びより悪い。`aria-selected` を持つものだけ Tab で止まる
-                （roving tabindex）のも同じ作法の片割れ。 */}
-            <div
-                role="tablist"
-                aria-label={en ? "Spot sections" : "スポットの内容"}
-                className="flex gap-1 border-b border-white/10 mb-5"
-                onKeyDown={onTabKeyDown}
-            >
-                {TABS.map(([key, text]) => (
-                    <button
-                        key={key}
-                        type="button"
-                        role="tab"
-                        id={`spot-tab-${key}`}
-                        aria-selected={tab === key}
-                        aria-controls={`spot-panel-${key}`}
-                        // **選ばれていないタブは Tab で止まらない**（矢印で移る）
-                        tabIndex={tab === key ? 0 : -1}
-                        onClick={() => setTab(key)}
-                        // 44px の押せる高さを px で書く（`96eb86db`）
+                {coords && (
+                    <Link
+                        // **この場所に寄せて開く**（`#ズーム/緯度/経度`）。
+                        // 受け取るのは `PhotoMap` の `chooseInitialView`
+                        href={mapHref}
+                        prefetch={false}
+                        className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white/10 ring-1 ring-white/20 hover:bg-white/20 active:scale-95 transition"
                         style={{ touchAction: "manipulation", minHeight: 44 }}
-                        className={`px-4 text-sm font-semibold transition border-b-2 -mb-px ${
-                            tab === key
-                                ? "border-white text-white"
-                                : "border-transparent text-white/50 hover:text-white/80"
-                        }`}
                     >
-                        {text}
-                    </button>
-                ))}
+                        <MapPinIcon className="w-5 h-5" aria-hidden />
+                        {en ? "Open the map" : "撮影地マップを開く"}
+                    </Link>
+                )}
             </div>
 
-            {/* ── 概要 ───────────────────────────────────────── */}
-            <section role="tabpanel" id="spot-panel-overview" aria-labelledby="spot-tab-overview" hidden={tab !== "overview"}>
-                {/* 概要（モック⑤）。**人が書いたものだけ**（`content/spot-master.json`）。
-                    生成しない——owner の指示で、`lib/utils/spot.ts` が
-                    「無い情報を作らない境界」と書いている通り。
-                    **書かれていなければ枠ごと出ない。** */}
-                {summary && <p className="text-sm text-white/80 mb-4 whitespace-pre-line">{summary}</p>}
-
-                {/* **その場所の説明**は、既にあるページ固有の文（`collectionCopy`）。
-                    ここで新しい紹介文を作らない */}
-                <p className="text-sm text-white/70 mb-5">{description}</p>
-
-                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                    <Fact label={en ? "Photos" : "写真"} value={`${facts.photoCount}${en ? "" : "枚"}`} />
-                    <Fact
-                        label={en ? "Photographers" : "撮った人"}
-                        value={facts.photographerCount > 0 ? `${facts.photographerCount}${en ? "" : "人"}` : null}
-                    />
-                    {/* **撮影期間は `date` を持つ写真だけから。** 投稿日は使わない
-                        （実データは30枚中8枚しか撮影日を持たず、残りは
-                        アップロードした年に固まっている——「撮影期間」として
-                        出すと嘘になる） */}
-                    <Fact
-                        label={en ? "Shot between" : "撮影時期"}
-                        value={facts.period
-                            ? facts.period.from === facts.period.to
-                                ? formatStoredDateTime(facts.period.from, locale)
-                                : `${formatStoredDateTime(facts.period.from, locale)} 〜 ${formatStoredDateTime(facts.period.to, locale)}`
-                            : null}
-                    />
-                </dl>
-
-                {facts.cameras.length > 0 && (
-                    <Chips
-                        heading={en ? "Cameras used here" : "ここで使われたカメラ"}
-                        // **`collectionPath` は正規化しない**（デコードして1回
-                        // エンコードするだけ）。生の機種名を渡していたので
-                        // `/camera/SONY%20ILCE-7M3` を出していたが、実体は
-                        // `out/camera/sony-ilce-7m3.html`——`dynamicParams = false`
-                        // の静的書き出しなので、**カメラのチップが出る全ページで
-                        // ハード404**だった（実ビルドの `out/location/パリ.html` で確認）。
-                        // 隣のタグが `t.slug` を渡しているのと同じ形に揃える
-                        items={facts.cameras.map((c) => ({
-                            key: c.name, label: c.name, count: c.count,
-                            path: collectionPath("camera", slugify(c.name, "camera")),
-                        }))}
-                    />
-                )}
-                {facts.tags.length > 0 && (
-                    <Chips
-                        heading={en ? "Tags on these photos" : "この場所の写真に付いたタグ"}
-                        items={facts.tags.map((t) => ({
-                            key: t.slug, label: `#${t.label}`, count: t.count, path: collectionPath("tag", t.slug),
-                        }))}
-                    />
-                )}
-
-                {narrower.length > 0 && (
-                    <Chips
-                        heading={en ? "Spots within" : "この場所の中の撮影地"}
-                        items={narrower.map((n) => ({ key: n.path, label: n.label, count: n.count, path: n.path }))}
-                    />
-                )}
-            </section>
-
-            {/* ── 写真 ───────────────────────────────────────── */}
-            <section role="tabpanel" id="spot-panel-photos" aria-labelledby="spot-tab-photos" hidden={tab !== "photos"}>
-                <p className="mb-4 text-sm text-white/70">
-                    {description}
-                    <span className="ml-1 whitespace-nowrap text-white/50">（{photos.length}枚）</span>
+            {/* 位置の出どころ。**`geoApprox` を正確な GPS と区別する。**
+                座標は `sanitizeCoords` が約1kmに丸めた値で、ここはそれを
+                読むだけ（精度を上げ直さない）。**小さい字なので色は薄く
+                しない**（white/40 は黒地で約3.7:1 ＝ 小さい文字の基準
+                4.5:1 に届かない） */}
+            {coords ? (
+                <p className="mb-5 text-xs text-white/60">
+                    {en ? "Positions are rounded to about 1 km. " : "位置は約1km の粒度に丸めています。"}
+                    {coords.approx && (en
+                        ? "This one is approximate (derived from the place name, not GPS)."
+                        : "この場所の位置は、GPS ではなく地名から引いたおおよその位置です。")}
                 </p>
+            ) : (
+                // **「地図に出せる位置を持っていない」と言い切る。**
+                // 空の地図を出したり、地名から勝手に座標を当てたりしない
+                <p className="mb-5 text-sm text-white/60">
+                    {en
+                        ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
+                        : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
+                    <Link href={mapHref} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
+                        {en ? "Open the map" : "撮影地マップを開く"}
+                    </Link>
+                </p>
+            )}
+
+            {/* ── 概要（モック⑤）─────────────────────────────
+                **人が書いたものだけ**（`content/spot-master.json`）。生成しない
+                ——owner の指示で、`lib/utils/spot.ts` が「無い情報を作らない
+                境界」と書いている通り。**書かれていなければ枠ごと出ない。** */}
+            {summary && <p data-testid="spot-summary" className="text-sm text-white/80 mb-4 whitespace-pre-line">{summary}</p>}
+
+            {/* **その場所の説明**は、既にあるページ固有の文（`collectionCopy`）。
+                ここで新しい紹介文を作らない。**1回だけ出す**——タブだった頃は
+                概要と写真の両方に出ていたが、節にすると同じ文が2回並ぶ */}
+            <p className="text-sm text-white/70 mb-5">{description}</p>
+
+            {/* ── 統計（モック⑦）─────────────────────────────
+                出せるのは**数えられるものだけ**。「行きたい人数」は
+                `spots#<uid>` に逆引きが無いので数えられず、評価は仕組みが
+                無い——**枠ごと出さない**（`docs/spot-master.md` の3節） */}
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                <Fact label={en ? "Photos" : "写真"} value={`${facts.photoCount}${en ? "" : "枚"}`} />
+                <Fact
+                    label={en ? "Photographers" : "撮った人"}
+                    value={facts.photographerCount > 0 ? `${facts.photographerCount}${en ? "" : "人"}` : null}
+                />
+                {/* **撮影期間は `date` を持つ写真だけから。** 投稿日は使わない
+                    （実データは30枚中8枚しか撮影日を持たず、残りは
+                    アップロードした年に固まっている——「撮影期間」として
+                    出すと嘘になる） */}
+                <Fact
+                    label={en ? "Shot between" : "撮影時期"}
+                    value={facts.period
+                        ? facts.period.from === facts.period.to
+                            ? formatStoredDateTime(facts.period.from, locale)
+                            : `${formatStoredDateTime(facts.period.from, locale)} 〜 ${formatStoredDateTime(facts.period.to, locale)}`
+                        : null}
+                />
+            </dl>
+
+            {/* ── カテゴリタグ（モック④）── */}
+            {facts.cameras.length > 0 && (
+                <Chips
+                    heading={en ? "Cameras used here" : "ここで使われたカメラ"}
+                    // **`collectionPath` は正規化しない**（デコードして1回
+                    // エンコードするだけ）。生の機種名を渡していたので
+                    // `/camera/SONY%20ILCE-7M3` を出していたが、実体は
+                    // `out/camera/sony-ilce-7m3.html`——`dynamicParams = false`
+                    // の静的書き出しなので、**カメラのチップが出る全ページで
+                    // ハード404**だった（実ビルドの `out/location/パリ.html` で確認）。
+                    // 隣のタグが `t.slug` を渡しているのと同じ形に揃える
+                    items={facts.cameras.map((c) => ({
+                        key: c.name, label: c.name, count: c.count,
+                        path: collectionPath("camera", slugify(c.name, "camera")),
+                    }))}
+                />
+            )}
+            {facts.tags.length > 0 && (
+                <Chips
+                    heading={en ? "Tags on these photos" : "この場所の写真に付いたタグ"}
+                    items={facts.tags.map((t) => ({
+                        key: t.slug, label: `#${t.label}`, count: t.count, path: collectionPath("tag", t.slug),
+                    }))}
+                />
+            )}
+            {narrower.length > 0 && (
+                <Chips
+                    heading={en ? "Spots within" : "この場所の中の撮影地"}
+                    items={narrower.map((n) => ({ key: n.path, label: n.label, count: n.count, path: n.path }))}
+                />
+            )}
+
+            {/* ── この場所の写真（モック⑧）───────────────────────
+                **格子のまま。横スクロールの帯にしない。**
+                モックの帯には「すべて見る」が付いているが、その行き先は
+                **このページ自身**（撮影地ページが「その場所の全部」）。
+                帯にすると**見える枚数が減って、行き先が自分自身**の
+                「すべて見る」を置くことになる。格子は既に
+                `<a href="/photo/<id>">` で全部に内部リンクを張っており、
+                押せばその場で拡大する（③）。 */}
+            <section aria-labelledby="spot-photos-heading" className="mt-10 pt-5 border-t border-white/10">
+                <h2 id="spot-photos-heading" className="text-sm font-semibold text-white/70 mb-3">
+                    {en ? "Photos here" : "この場所の写真"}
+                    <span className="ml-1 whitespace-nowrap text-white/50">
+                        {en ? `（${photos.length}）` : `（${photos.length}枚）`}
+                    </span>
+                </h2>
                 <GalleryGrid
                     photos={photos}
                     locale={locale}
@@ -506,58 +509,6 @@ export default function SpotPageClient({
                         </h2>
                         <GalleryGrid photos={nearbyPhotos} locale={locale} sizes={GRID_SIZES_6XL} />
                     </section>
-                )}
-            </section>
-
-            {/* ── 地図 ───────────────────────────────────────── */}
-            <section role="tabpanel" id="spot-panel-map" aria-labelledby="spot-tab-map" hidden={tab !== "map"}>
-                {coords ? (
-                    <>
-                        <p className="text-sm text-white/70 mb-4">
-                            {en
-                                ? "Open the photo map centred on this spot."
-                                : "撮影地マップを、この場所に寄せて開きます。"}
-                        </p>
-                        <Link
-                            // **この場所に寄せて開く**（`#ズーム/緯度/経度`）。
-                            // 受け取るのは `PhotoMap` の `chooseInitialView`
-                            href={mapHref}
-                            prefetch={false}
-                            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-white/10 ring-1 ring-white/20 hover:bg-white/20 active:scale-95 transition"
-                            style={{ touchAction: "manipulation", minHeight: 44 }}
-                        >
-                            <MapPinIcon className="w-5 h-5" aria-hidden />
-                            {en ? "Open the map" : "撮影地マップを開く"}
-                        </Link>
-                        {/* **位置の出どころを断る。** `geoApprox` を正確な GPS と
-                            区別する。座標は `sanitizeCoords` が約1kmに丸めた値で、
-                            ここはそれを読むだけ（精度を上げ直さない）。
-                            **小さい字なので色は薄くしない**（white/40 は黒地で
-                            約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
-                        <p className="mt-3 text-xs text-white/60">
-                            {en ? "Positions are rounded to about 1 km. " : "位置は約1km の粒度に丸めています。"}
-                            {coords.approx && (en
-                                ? "This one is approximate (derived from the place name, not GPS)."
-                                : "この場所の位置は、GPS ではなく地名から引いたおおよその位置です。")}
-                        </p>
-                    </>
-                ) : (
-                    // **「地図に出せる位置を持っていない」と言い切る。**
-                    // 空の地図を出したり、地名から勝手に座標を当てたりしない
-                    <p className="text-sm text-white/60">
-                        {en
-                            ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
-                            : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
-                        {/* **行き先は上と同じ式（`mapHref`）。** ここだけ
-                            `ROUTES.MAP` を直書きしていたので、「座標が無ければ
-                            寄せない」を見張るテストが**この直書きを読んで
-                            素通り**していた（座標を勝手に 0,0 にする変異を
-                            入れても緑だった＝実測）。同じ答えを2か所で
-                            組まない */}
-                        <Link href={mapHref} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
-                            {en ? "Open the map" : "撮影地マップを開く"}
-                        </Link>
-                    </p>
                 )}
             </section>
 
