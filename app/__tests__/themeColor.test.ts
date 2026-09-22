@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 
 // `next/font` は vitest では動かない（`Inter is not a function`）。
 // 見たいのは `viewport` の値だけなので、font だけ差し替えて本物を読む
-vi.mock("next/font/google", () => ({ Inter: () => ({ className: "inter" }) }));
+vi.mock("next/font/google", () => ({
+    Inter: () => ({ className: "inter" }),
+    // 手書き（ストーリーの文字だけで使う webfont）
+    Klee_One: () => ({ variable: "--font-hand" }),
+}));
 
 const { viewport } = await import("../layout");
 

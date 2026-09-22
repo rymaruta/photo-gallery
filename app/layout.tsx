@@ -3,7 +3,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
-import { Inter } from "next/font/google";
+import { Inter, Klee_One } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
@@ -56,6 +56,36 @@ const inter = Inter({
     weight: ["400", "700", "900"],
     display: "swap",
     fallback: ["Noto Sans JP", "system-ui", "-apple-system", "sans-serif"],
+});
+
+/**
+ * **手書き**（ストーリーの文字だけで使う。owner の要望 2026-09-22
+ * 「広告でよくある手書きのフォントも欲しい」）。
+ *
+ * 日本語に手書きの字体は**端末に在るとは限らない**（`maru` が Android と
+ * Windows でゴシックに落ちるのと同じ話）。落とすと要望が満たせないので、
+ * ここだけ webfont を持ち込む。
+ *
+ * **代償を抑える形**:
+ *   - `preload: false`——全ページに `<link rel=preload>` を出さない。
+ *     使うのはストーリーの文字だけで、ほとんどのページには1文字も無い
+ *   - `display: "swap"`——落ちてくるまでは下の並び（丸ゴシック→ゴシック）で
+ *     読める。白紙の時間を作らない
+ *   - 日本語は `unicode-range` で細かく割れて配られるので、
+ *     **実際に落ちるのは使った字の範囲だけ**
+ */
+const klee = Klee_One({
+    // ⚠️ **`subsets` を書かない。** next/font が持つ一覧に `japanese` が無く
+    // （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
+    // `latin` と書くと**日本語の字が1つも入らない**。省くと全部の
+    // `unicode-range` を取り込み、ブラウザは**使った範囲だけ**落とす
+    // 使うのは 600 だけ（`STORY_FONTS.hand` の太さ）。400 も入れると
+    // 書き出しが倍になる（実測 7.3MB → 3.7MB）
+    weight: ["600"],
+    display: "swap",
+    preload: false,
+    variable: "--font-hand",
+    fallback: ["Hiragino Maru Gothic ProN", "Hiragino Sans", "sans-serif"],
 });
 
 // Instagram IAB / iOS Safari でブラウザUIを除いた実際の表示領域を使う
@@ -252,7 +282,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-bg text-white`}>
+      <body className={`${inter.className} ${klee.variable} min-h-screen flex flex-col bg-bg text-white`}>
         <Analytics />
         <DisableSave />
         <AssetRecovery />

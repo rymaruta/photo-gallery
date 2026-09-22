@@ -109,3 +109,47 @@ describe("オフラインの受け皿（public/offline.html）", () => {
         expect(/color-scheme:\s*dark/.test(html), "color-scheme: dark が無い（UA の部品が明色のまま）").toBe(true);
     });
 });
+
+/**
+ * **手書きの字体だけは webfont**（owner の要望 2026-09-22
+ * 「広告でよくある手書きのフォントも欲しい」）。
+ *
+ * 日本語の手書きは端末に在るとは限らず、並びだけではゴシックに落ちて
+ * 要望が満たせない——`maru`（丸ゴシック）が Android と Windows で
+ * 落ちるのと同じ話。だからここだけ Klee One を読む。
+ *
+ * **配線は2か所**（`layout.tsx` が変数を立て、`storyText.ts` がそれを使う）。
+ * 片方だけ消えても画面は落ちず、**黙って丸ゴシックに落ちる**ので機械で縛る。
+ */
+describe("ストーリーの手書き（webfont の配線）", () => {
+    const layout = () => read("app/layout.tsx");
+
+    it("`layout.tsx` が Klee One を読み、`--font-hand` を立てている", () => {
+        const src = layout();
+        expect(src, "Klee One を読んでいない").toMatch(/Klee_One\(/);
+        expect(src, "CSS 変数の名前が違う").toMatch(/variable:\s*"--font-hand"/);
+        expect(src, "<body> に変数が付いていない").toMatch(/klee\.variable/);
+    });
+
+    /**
+     * **`subsets` を書かない。** next/font の一覧に `japanese` が無く
+     * （`font-data.json` は cyrillic/greek-ext/latin/latin-ext だけ）、
+     * `latin` と書くと**日本語の字が1つも入らない**まま緑になる。
+     */
+    it("Klee One に `subsets` を渡していない（渡すと日本語が入らない）", () => {
+        const m = /Klee_One\(\{([\s\S]*?)\}\)/.exec(layout());
+        expect(m, "Klee_One の呼び出しが読めない").not.toBeNull();
+        expect(m![1], "subsets を渡すと日本語のグリフが落ちる").not.toMatch(/^\s*subsets:/m);
+        // `subsets` を省くときは `preload: false` が要る（Next が止める）。
+        // 全ページに 131 本ぶんの preload を出さない意味もある
+        expect(m![1], "preload を切っていない").toMatch(/preload:\s*false/);
+    });
+
+    it("`storyText.ts` の手書きがその変数を先頭で使い、落ちても読める並びが続く", async () => {
+        const { STORY_FONTS } = await import("@/lib/utils/storyText");
+        const css = STORY_FONTS.hand.css;
+        expect(css, "変数を使っていない（別名で宣言すると黙って落ちる）").toMatch(/^var\(--font-hand\)/);
+        expect(css, "落ちたときの受け皿が無い").toContain("Hiragino Maru Gothic ProN");
+        expect(css.split(",").at(-1)!.trim(), "総称ファミリで終わっていない").toBe("cursive");
+    });
+});

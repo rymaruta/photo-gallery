@@ -40,6 +40,11 @@ export const STORY_FONTS = {
     // 丸ゴシック。⚠️ **端末に無ければゴシックに落ちる**（iOS/macOS には在るが、
     // Android と Windows は標準で持たない）。落ちても読める並びにしてある
     maru: { label: "丸ゴシック", css: '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Hiragino Sans",system-ui,sans-serif', weight: 600 },
+    // 手書き（owner:「広告でよくある手書きのフォントも欲しい」2026-09-22）。
+    // **ここだけ webfont**（`--font-hand` は `app/layout.tsx` が Klee One を
+    // 読んで立てる）。日本語に手書きの字体を持つ端末は少なく、並びだけでは
+    // ゴシックに落ちて要望が満たせない。落ちてくるまでは丸ゴシックで読める
+    hand: { label: "手書き", css: 'var(--font-hand),"Klee One","Hiragino Maru Gothic ProN","Hiragino Sans",cursive', weight: 600 },
     // 等幅。数字や英字を並べるとき
     mono: { label: "等幅", css: 'ui-monospace,SFMono-Regular,Menlo,"Noto Sans Mono CJK JP",monospace', weight: 600 },
 } as const;
