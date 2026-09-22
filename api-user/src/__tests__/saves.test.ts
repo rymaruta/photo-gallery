@@ -263,15 +263,40 @@ describe("serverless.yml", () => {
     // **YAML パーサは使わない**——`js-yaml` はどの package.json にも書かれて
     // いない推移依存で、巻き上げが変わるとテストだけが先に壊れる
     // （`scripts/__tests__/publicLambdaRole.test.ts` と同じ判断）。
-    /** `functions:` の下にある「2スペース字下げの 名前:」を出てくる順に全部 */
+    /**
+     * `functions:` の下にある「2スペース字下げの 名前:」を出てくる順に全部。
+     *
+     * ⚠️ **区切りは「列0の英字」だけ。`#` を入れてはいけない。**
+     * 以前は `[a-zA-Z#]` で切っていたので、`functions:` の途中に
+     * **列0のコメント1本**（このファイルは節の区切りに `# ---` を多用する）が
+     * 入るだけで走査がそこで終わり、**重複の見張りが静かに縮んでいた**
+     * ——落ちずに「見る範囲が狭まる」ので気づけない。
+     */
     function functionKeys(yml: string): string[] {
         const body = yml.split(/\nfunctions:\n/)[1];
         if (!body) throw new Error("functions: が見つからない");
-        const section = body.split(/\n(?=[a-zA-Z#])/)[0];
+        const section = body.split(/\n(?=[a-zA-Z])/)[0];
         return [...section.matchAll(/^ {2}(\w+):$/gm)].map((m) => m[1]);
     }
 
     const yml = readFileSync(join(__dirname, "..", "..", "serverless.yml"), "utf8");
+
+    /**
+     * **走査が縮んでいないことを、件数で固定する。**
+     *
+     * 関数は1つにつき `handler:` を1行ずつ持つので、`functions:` の
+     * 節から拾えたキーの数と、ファイル全体の `handler:` の数は一致する
+     * （`resources:` に `handler:` は無い）。ずれたら走査が縮んだか、
+     * 関数の書き方が変わったかのどちらか——**どちらも人が見るべき**。
+     */
+    it("走査が `functions:` の節を丸ごと見ている（静かに縮んでいない）", () => {
+        const keys = functionKeys(yml);
+        const handlers = [...yml.matchAll(/^ {4}handler:/gm)].length;
+        expect(keys.length, "拾えたキーの数が `handler:` の数と合わない＝走査が縮んでいる")
+            .toBe(handlers);
+        // 空振りで緑にならないこと（0 === 0 を通さない）
+        expect(handlers).toBeGreaterThan(40);
+    });
 
     it("関数キーが重複していない（重なると YAML ごと読めなくなる）", () => {
         const keys = functionKeys(yml);

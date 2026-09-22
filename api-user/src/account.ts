@@ -21,7 +21,7 @@ import { readUserList } from "./userList";
 //   - 自分の写真/ストーリー … GSI(userId-createdAt-index) で列挙 → S3 本体 + DDB item 削除
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
-//   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/spots#
+//   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/spots#/saves#/likes#
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
 // 写真・アバターの削除失敗は数え、残っていれば Cognito を消す前に 500 で
 // 止める（再実行で収束する。付帯文書だけベストエフォート続行）。成功時 { ok: true }。
@@ -54,8 +54,11 @@ const FOLLOW_RETRY_BASE_MS = 150;
  * **ハンドラが返らない**。呼び出し側は !res.ok を見て Cognito の削除に
  * 進まないので、「写真もプロフィールも消えたのにログインできる
  * アカウントだけが残る」——このファイルが繰り返し避けようとしている状態
- * ——に落ちる。しかも静的ページの掃除依頼はこのループの**後ろ**にあるので、
- * それも飛ぶ。フォロワー数のズレより、そちらを優先して残す。
+ * ——に落ちる。フォロワー数のズレより、返ることを優先する。
+ *
+ * **静的ページの掃除依頼（`requestSiteRebuild`）はこのループより前**
+ * （ステップ3.5）。以前は後ろにあって時間切れで飛んでいたので前へ移した
+ * ——このコメントはその頃の姿のまま「後ろにある」と書いていた。
  */
 const CLEANUP_RESERVE_MS = 6000;
 // **未設定なら起動時に止める。** `?? ""` / `!` にしていた頃は、環境変数が
@@ -589,7 +592,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // ぶつかる。一度きりで諦めると、その1件は誰にも直せないまま残る
         // （この関数を呼べる人はもう存在しない）。
         //
-        // 残り時間を見て打ち切る。掃除の依頼（下）に必ず到達させる。
+        // 残り時間を見て打ち切る。**掃除の依頼（`requestSiteRebuild`）は
+        // このループより前（ステップ3.5）で済んでいる**ので、ここで
+        // 打ち切るのは「ハンドラを必ず返す」ため。ステップ5（既知キーの
+        // 削除）には時間の見張りが無い。
         const timeLeft = () => context?.getRemainingTimeInMillis?.() ?? Infinity;
         const following = await readList(`following#${uid}`);
         let targets = following.list
@@ -656,6 +662,33 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // `save#<photoId>#<uid>` のマーカーは前方一致で列挙できないので
         // `like#` と同じく残る（一覧が無ければ画面には出ない）
         await ddbDelete(PHOTOS_TABLE, { id: `saves#${uid}` });
+        // いいねした写真の一覧（`likes.ts` の `likes#<uid>`）も同じ扱い。
+        // **ここだけ長く入っていなかった。** 消さないと「何にいいねしたか」が
+        // 最大 `LIKED_MAX`（1000）件、退会後もテーブルに残る——`spots#` を
+        // 消した判断（行動履歴を残さない・掃除役が居ない）がそのまま当てはまる。
+        //
+        // `like#<photoId>#<uid>` のマーカーは残る。`saves#` の隣に書いてある
+        // のと同じ理由で、このテーブルにソートキーが無く前方一致で列挙できない
+        // （全表 Scan しか手が無い）。ファイル冒頭の「v1 スコープ外」に
+        // 挙げてあるのはこのマーカーの方で、一覧の方ではない。
+        //
+        // **写真側の `likes` カウンタは減らさない。** フォローの掃除
+        //（`unfollowAtomically`）は相手の `followers` を減らすので、一見
+        // 揃っていないように見えるが、あちらが減らせるのは
+        // `following#<uid>` が**完全な台帳**で、1件ずつ「マーカー削除＋減算」を
+        // 1つの取引にできるから。いいねの一覧はそうではない:
+        //   - `LIKED_MAX` で古い方から溢れる。溢れた写真のマーカーは
+        //     列挙できないので、この一覧を台帳にして減らすと
+        //     **一部だけ減る**という新しいズレを作る
+        //   - `noteLiked` は書き込みの失敗を握って進む（いいね自体を
+        //     落とさないため）ので、一覧に欠けがあり得る
+        //   - マーカーを消さずに減らすと、退会のやり直しで**二重に減る**。
+        //     取引にすれば防げるが、最大1000件の取引はフォローの掃除と
+        //     同じ実行時間の壁（`CLEANUP_RESERVE_MS` の上のコメント）に当たり、
+        //     退会そのものを落とす側に倒れる
+        // 消すべき個人データは「何にいいねしたか」の一覧で、写真の `likes` は
+        // その写真側の集計。減らすかどうかは別の判断として残す。
+        await ddbDelete(PHOTOS_TABLE, { id: `likes#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)
@@ -712,7 +745,8 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             // !res.ok だと Cognito の削除に進まないので、権限や設定の誤りで
             // 恒常的に失敗する種類だと、**写真もプロフィールも消えたのに
             // ログインできるアカウントだけが残り、退会が永久に完了しない**。
-            // 一度そうしてしまい、静的ページの掃除依頼（下）も飛ばしていた。
+            // 一度そうしてしまい、静的ページの掃除依頼も飛ばしていた
+            // （そのため依頼はステップ3.5＝**このループより前**へ移した）。
             //
             // ただし 200 を返すと、この uid で退会APIを呼べる人はもういない
             // （Cognito のアカウントごと消える）。つまり following# を残しても
