@@ -5,6 +5,9 @@ import type { GalleryFilters } from "../types/gallery";
 import { slugify, normalizeForSearch, tagKey, categoryDisplayName } from "../utils/collections";
 import { dedupeCameraName } from "../utils/cameraName";
 import { compareNewest, compareOldest } from "../utils/photoOrder";
+// **履歴の作法は共通部品**（`__NA` を持ち越さないと戻るたびに再読み込みになる）。
+// 撮影スポット詳細のビューアも同じものが要るので、ここから出した
+import { withNextHistoryState } from "../utils/historyState";
 
 /**
  * タグ比較用の正規化。
@@ -68,25 +71,6 @@ function readFiltersFromUrl(): Partial<GalleryFilters> {
     // 知らない値は既定のまま
     const scope = params.get("scope");
     if (scope === "featured" || scope === "following") out.scope = scope;
-    return out;
-}
-
-/**
- * 履歴の state を書くときに、**Next の内部キーを持ち越す**。
- *
- * `replaceState({}, ...)` で潰していたので、そのエントリに戻ると Next の
- * popstate ハンドラが `if (!event.state.__NA) window.location.reload()`
- * （`app-router.js`）に落ちる——**ページが丸ごと再読み込みされ、一覧の
- * スクロール位置が消える**。モーダルを閉じるたびにそれが起きていた
- * （`e6aa8c7` で `back()` を呼ぶようにして初めて表に出た。潰し自体は
- * それ以前からあった）。Next 自身も `copyNextJsInternalHistoryState` で
- * 同じことをしている。
- */
-function withNextHistoryState(extra: Record<string, unknown>): Record<string, unknown> {
-    const cur = (typeof window !== "undefined" ? window.history.state : null) as Record<string, unknown> | null;
-    const out: Record<string, unknown> = { ...extra };
-    if (cur?.__NA) out.__NA = cur.__NA;
-    if (cur?.__PRIVATE_NEXTJS_INTERNALS_TREE) out.__PRIVATE_NEXTJS_INTERNALS_TREE = cur.__PRIVATE_NEXTJS_INTERNALS_TREE;
     return out;
 }
 

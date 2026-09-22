@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
@@ -248,5 +250,30 @@ describe("Thumb: 読み込めなかった写真の控えを捨てる", () => {
 
         expect(opened, "違う入れ物を開いている").toEqual(["journey-photo-img-v1"]);
         expect(deleted).toEqual(["https://cdn/x_thumb.webp"]);
+    });
+});
+
+/**
+ * 🔴 **写真を歪ませない**（owner の指示・2026-09-22「さがす」は写真の
+ * 縦横比を維持すること）。
+ *
+ * 一覧の枠は縦横比が決まっている（`GalleryGrid` は `padding-top:75%` で
+ * 4:3 を先に確保する＝**読み込み前から場所が決まっていて画面が飛ばない**）。
+ * その中で `object-fit` が何であるかが「歪むか／切り抜くか」を決める:
+ *
+ *     cover    … 縦横比を保ったまま**切り抜く**（いまの形）
+ *     contain  … 縦横比を保ったまま**余白を足す**
+ *     fill     … **枠に合わせて伸ばす＝歪む**（これを入れてはいけない）
+ *
+ * ⚠️ **切り抜きを無くすには写真ごとの寸法が要る。** `width`/`height` は
+ * 型には在るが、**本番の30枚は1枚も持っていない**（`app/data/photos.json`
+ * を数えた: 0/30）。書く側は `scripts/generate-thumbnails.js` の
+ * `META_FIELDS` で、そこを流さないと埋まらない。
+ */
+describe("写真を歪ませない", () => {
+    it("🔴 `object-fit` は cover（`fill` は縦横比を壊す）", () => {
+        const src = readFileSync(join(process.cwd(), "app/components/Thumb.tsx"), "utf8");
+        expect(src, "`object-fill` で枠に合わせて伸ばしている").not.toMatch(/object-fill|objectFit:\s*["']fill["']/);
+        expect(src.match(/object-cover/g)?.length ?? 0, "`object-cover` が消えている").toBeGreaterThanOrEqual(2);
     });
 });

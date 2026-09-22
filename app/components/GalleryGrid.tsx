@@ -20,6 +20,40 @@ type Props = {
      */
     onOpenPhoto?: (photoId: string) => boolean;
     /**
+     * **静的ページのある写真も、その場で開く**（既定は false ＝今までどおり）。
+     *
+     * `onOpenPhoto` は元々「静的ページの無い新着写真」専用だった
+     * （`/?photo=<id>` へ遷移しても今いる URL なので何も起きない、という
+     * 不具合の受け皿）。撮影スポット詳細のモック⑧は
+     * 「タップで拡大表示に切り替わる」なので、**ページのある写真でも
+     * その場で開きたい**。
+     *
+     * **`<Link href="/photo/<id>">` はそのまま残る。** 消すと
+     * `/location/*`（検索に載っている14ページ）から写真の個別ページへの
+     * 内部リンクが丸ごと消える——出しているのは同じ `<a href>` で、
+     * 変えるのは「押したときに遷移を止めるか」だけ。
+     *
+     * **既定を false にしてあるので、既存の呼び出し側の振る舞いは1つも
+     * 変わらない**（ホーム・お気に入り・保存・他の集約ページ）。
+     */
+    openInPlace?: boolean;
+    /**
+     * **先に読む枚数**（既定 8 ＝今までどおり）。
+     *
+     * この格子が**画面の最初のものでない**画面が渡す。撮影スポット詳細は
+     * 上に代表画像（ヒーロー）が在り、**格子の1枚目は折り返しのずっと下**
+     * ——実測（Chromium 390x844）で **y=1064 / 画面 844**。それでも先頭8枚を
+     * `priority`（eager ＋ fetchpriority high）で取っていたので、
+     * **画面に出ていない8枚が、LCP であるヒーローと帯域を奪い合っていた**。
+     *
+     * しかも1枚目はヒーローと**同じ写真**なので、箱の大きさが違うぶん
+     * **512w と 256w を両方**取っていた（390px で実測）。
+     *
+     * **既定は 8 のまま**なので、ホーム・お気に入り・保存・他の集約ページは
+     * 1つも変わらない。
+     */
+    priorityCount?: number;
+    /**
      * `<picture>` の `sizes`。**画面の容器ごとに違うので呼ぶ側が必ず渡す。**
      *
      * **既定値は置かない。** 置くと、容器の違う画面に足したときに黙って
@@ -29,6 +63,18 @@ type Props = {
      * このリポジトリの方針どおりになる。
      */
     sizes: string;
+    /**
+     * 列数のクラス。**`sizes` と必ず対で変える。**
+     *
+     * 既定は「スマホ2列・`sm:`3列・`lg:`4列」で、`GRID_SIZES_5XL` /
+     * `GRID_SIZES_6XL` はこの列数で計算されている。「さがす」だけは
+     * PC で左に柱を置くぶん `lg:` を3列のままにし、`xl:` で4列にする
+     * （`GRID_SIZES_SEARCH`）。
+     *
+     * ⚠️ **片方だけ変えない。** 列数を変えて `sizes` を据え置くと、
+     * 申告と実寸がずれてブラウザが違う候補を落とす（`gridSizes.ts` の doc）。
+     */
+    columnsClassName?: string;
 };
 
 
@@ -58,7 +104,11 @@ export default function GalleryGrid({
     locale,
     categoryDisplayMap = {},
     onOpenPhoto,
+    openInPlace = false,
+    priorityCount = 8,
     sizes,
+    // 既定は `GRID_SIZES_5XL` / `GRID_SIZES_6XL` が前提にしている列数
+    columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
 }: Props) {
     const labels = React.useMemo(() => getLabels(locale), [locale]);
     const emptyMessage = labels.gallery?.emptyMessage ?? (locale === "en" ? "No photos found." : "該当する写真がありません。");
@@ -96,7 +146,7 @@ export default function GalleryGrid({
     return (
         <>
         {/* 写真同士は少し余白を空けて呼吸させる（ユーザー好みで gap-0 から変更） */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-1.5">
+        <div className={`grid ${columnsClassName} gap-1 sm:gap-1.5`}>
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
                 const localizedTitle = displayTitle(getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : ""));
@@ -119,6 +169,8 @@ export default function GalleryGrid({
                         objectPosition={objectPosition}
                         categoryDisplayMap={categoryDisplayMap}
                         onOpenPhoto={onOpenPhoto}
+                        openInPlace={openInPlace}
+                        priorityCount={priorityCount}
                         sizes={sizes}
                     />
                 );
@@ -141,6 +193,8 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition,
     categoryDisplayMap,
     onOpenPhoto,
+    openInPlace,
+    priorityCount,
     sizes,
 }: {
     photo: Photo;
@@ -151,6 +205,8 @@ const GalleryItem = React.memo(function GalleryItem({
     objectPosition?: string;
     categoryDisplayMap?: Record<string, string>;
     onOpenPhoto?: (photoId: string) => boolean;
+    openInPlace?: boolean;
+    priorityCount?: number;
     sizes: string;
 }) {
     const { isFavorite } = useFavorites();
@@ -163,7 +219,7 @@ const GalleryItem = React.memo(function GalleryItem({
     const extraCount = Array.isArray(photo.extraImages)
         ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
         : 0;
-    const isPriority = index < 8;
+    const isPriority = index < (priorityCount ?? 8);
     // 分類の表示名。**帯を出すかどうかの判定と同じ値で描く**——別々に書くと
     // 片方だけの変異がどちらも観測できなくなる（`2bba4291` の型）
     const categoryLabel = categoryDisplayMap?.[photo.category ?? ""] ?? "";
@@ -171,7 +227,11 @@ const GalleryItem = React.memo(function GalleryItem({
     // 静的ページが無い写真は /?photo=<id> を指す。ホームで開いている場合、
     // これは「今いるURLへの遷移」なので Next のルーターが何もせず、
     // タップしても無反応だった。同じ画面で開けるならその場で開く。
-    const opensHere = href.startsWith("/?photo=") && !!onOpenPhoto;
+    // **その場で開く条件は2つ。** (1) 静的ページが無い写真（`/?photo=<id>` は
+    // 今いる URL なので遷移しても何も起きない・元からの受け皿）。
+    // (2) 呼ぶ側が `openInPlace` を立てた画面（撮影スポット詳細のモック⑧）。
+    // どちらでも `<Link href>` は残るので、内部リンクは消えない
+    const opensHere = !!onOpenPhoto && (openInPlace || href.startsWith("/?photo="));
 
     return (
         <div className="w-full m-0 p-0">

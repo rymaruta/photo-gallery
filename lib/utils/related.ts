@@ -277,6 +277,48 @@ export function slimForGrid(p: Photo): Photo {
     return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS]);
 }
 
+/**
+ * **その場で拡大する画面（`GalleryModal`）が追加で読む項目。**
+ *
+ * 🔴 **落ちても何も起きないのが怖いところ。** 絞った写真をそのまま
+ * ビューアに渡すと、説明文も撮影情報も投稿者も**黙って空のまま**出る
+ * ——例外にならないので、テストも実ブラウザのスモークも素通りする。
+ * 同じ写真をホームから開いたときと**中身が別物**になっていた
+ * （2026-09-22 のレビューで発覚。撮影スポット詳細で実際に起きていた）。
+ *
+ * `srcAvif` が落ちていたのも同じ形で、**原寸の AVIF を持たないまま**
+ * 拡大表示していた（絵は出るので気づけない）。
+ *
+ * 見張りは `lib/utils/__tests__/viewerFields.test.ts`——`GalleryModal` の
+ * ソースを読んで、**読んでいる項目が全部ここに在るか**を突き合わせる。
+ */
+const VIEWER_FIELDS = [
+    "description",      // 本文
+    "exif",             // 撮影情報
+    "userId", "displayName", "photographer", "uploaderUsername",  // 撮った人
+    "license",          // 利用条件
+    "song",             // BGM
+    "commentCount",     // コメント件数
+    "likes",            // いいねの初期値（`usePhotoLikes` に渡る）
+    "coords", "geoApprox",  // 地図リンクと、その位置が推定かどうか
+    "srcAvif",          // 原寸の AVIF
+] as const;
+
+/**
+ * その場で拡大する画面に渡す写真（グリッドのぶん ＋ ビューアのぶん）。
+ *
+ * **グリッドとビューアで配列を分けない。** 分けると同じ写真が2通りの
+ * 形で props に載り、`currentIndex` の指す先が食い違いうる。
+ */
+export function slimForViewer(p: Photo): Photo {
+    return pick(p, [...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS, ...VIEWER_FIELDS]);
+}
+
+/** 見張り（`viewerFields.test.ts`）が突き合わせる、ビューアに渡る項目の全体 */
+export const VIEWER_KEPT_FIELDS: readonly string[] = [
+    ...LINK_FIELDS, ...THUMB_FIELDS, ...GRID_FIELDS, ...VIEWER_FIELDS,
+];
+
 /** 写真ページに焼き込む回遊リンクの材料（**絞ったもの**） */
 export type InitialRelated = {
     author: Photo[];

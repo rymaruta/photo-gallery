@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon, MapPinIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import UserAvatar from "../UserAvatar";
@@ -133,6 +133,26 @@ type Draft = {
     mediaType: "image" | "video";
 };
 
+/** 作成画面の道具（最終版モック 08 の「編集ツール」）。カメラ・ライブラリは持たない */
+type StoryTool = "text" | "sticker" | "location" | "song";
+
+/**
+ * ツールの行の中身。**並びはモックのまま**（テキスト → 位置情報 → BGM →
+ * スタンプ）。文字の「Aa」は絵文字ではなく字形なので、アイコンではなく
+ * その2文字を出す（モックも同じ）。
+ */
+const STORY_TOOLS: ReadonlyArray<{
+    key: StoryTool;
+    Icon: (p: { className?: string }) => React.ReactElement;
+    ja: string;
+    en: string;
+}> = [
+    { key: "text", Icon: ({ className }) => <span className={className} style={{ fontSize: "17px", fontWeight: 700, lineHeight: 1 }}>Aa</span>, ja: "テキスト", en: "Text" },
+    { key: "location", Icon: ({ className }) => <MapPinIcon className={className} />, ja: "位置情報", en: "Location" },
+    { key: "song", Icon: ({ className }) => <MusicalNoteIcon className={className} />, ja: "BGM", en: "Music" },
+    { key: "sticker", Icon: ({ className }) => <FaceSmileIcon className={className} />, ja: "スタンプ", en: "Stickers" },
+];
+
 export default function StoriesBar() {
     const { isAuthenticated, userId } = useAuth();
     const { locale } = useLocale();
@@ -169,6 +189,19 @@ export default function StoriesBar() {
      * 畳めば写真が全部出て、どこでも指で決められる。
      */
     const [photoOnly, setPhotoOnly] = useState(false);
+    /**
+     * いま開いている道具（最終版モック 08 の「編集ツール」）。
+     *
+     * **1度に1つだけ開く。** 以前は文字・スタンプ・撮影地・曲・表示時間・
+     * 公開設定が全部縦に積まれていて、320×568 の実測で**写真が 95px しか
+     * 見えていなかった**——置き場所を決められない。モックはツールの行を1本
+     * 置いて、押したものの欄だけ出す形。
+     *
+     * 既定は文字——「開いて打つだけで1つ目が置ける」を守る（＋を押させない）。
+     * モックの「カメラ」「ライブラリ」は**出さない**。写真は下書きを開く前に
+     * 選んでおり、差し替えの機能が無い（押しても効かない的を置かない）。
+     */
+    const [composerTool, setComposerTool] = useState<StoryTool>("text");
     /**
      * 文字の見せ方の欄は**1度に1つだけ開く**。
      *
@@ -1216,9 +1249,13 @@ export default function StoriesBar() {
                 >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
+                    {/* 🔴 **PC は別設計**（指示書 4・11・17「スマホ画面をそのまま横に
+                        引き伸ばさない」）。1024px 以上では**左に写真・右に操作の列**。
+                        写真の面をここで左半分に閉じると、`mediaBox` の実測も一緒に
+                        狭まるので、置いた文字の位置は**割合のまま**正しく乗る */}
                     <div
                         ref={draftMediaAreaRef}
-                        className="absolute inset-0 flex items-center justify-center"
+                        className="absolute inset-0 lg:right-[400px] flex items-center justify-center"
                         // **掴むのは文字そのもの。** 複数置けるので、絵のどこを
                         // 掴んでも「いま選んでいる1つ」が飛んでくる形にはできない
                         // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
@@ -1354,15 +1391,40 @@ export default function StoriesBar() {
                         **畳んでいる間は下を出さない**——下の 2/3 を暗くするので、
                         置いた姿を見るための画面なのに**本番より暗く見える**
                         （実測: 畳んだ画面で写真の下半分が沈んでいた） */}
-                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 lg:right-[400px] top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
                     {!photoOnly && (
-                        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+                        <div className="absolute inset-x-0 lg:right-[400px] bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none lg:hidden" />
                     )}
 
-                    <div className="relative flex items-center justify-between p-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-                        <h2 id="story-draft-title" className="text-sm font-semibold text-white drop-shadow">
+                    {/* 🔴 **上部のバー**（最終版モック 08）。左に「キャンセル」、
+                        右に投稿。モックは右が「下書き保存」と「次へ」だが、
+                        下書きも確認画面も**機能が無い**ので出さない
+                        （指示書「未実装の設定を、動作するボタンとして表示しない」）。
+                        題は読み上げの拠り所なので残す（画面には出さない）。 */}
+                    {/* ⚠️ **`z-10`。** PC では操作の欄が右の列（`lg:absolute`）になり、
+                        DOM の後ろに居るぶん**このバーの上に乗る**——実測で
+                        「ストーリーに投稿」が欄の下に潜って押せなかった */}
+                    <div className="relative z-10 flex items-center justify-between gap-2 px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
+                        <h2 id="story-draft-title" className="sr-only">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
+                        <button
+                            ref={draftCancelRef}
+                            // **投稿中も押せる。** 押したら要求を中断して畳む
+                            onClick={() => {
+                                if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
+                                closeDraft();
+                            }}
+                            className="flex-shrink-0 px-2 py-2 text-white/90 hover:text-white drop-shadow text-sm"
+                            style={{ touchAction: "manipulation" }}
+                            aria-label={posting
+                                ? (locale === "en" ? "Stop posting" : "投稿をやめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                        >
+                            {posting
+                                ? (locale === "en" ? "Stop" : "やめる")
+                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                        </button>
                         <div className="flex items-center gap-1">
                         {/* **写真だけにする。** 操作の欄が写真の下半分を覆っていて、
                             置いたあとの姿が見えない／空いている所を指せない。
@@ -1378,19 +1440,20 @@ export default function StoriesBar() {
                         >
                             {photoOnly ? <EyeSlashIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
                         </button>
+                        {/* 🔴 **投稿はここ**（モックの「次へ」の位置）。
+                            以前は画面の最下部にあり、欄が伸びると**画面外へ落ちた**
+                            （台帳 STORY-4）。上のバーは固定なので、これから何を
+                            足しても落ちない。 */}
                         <button
-                            ref={draftCancelRef}
-                            // **投稿中も押せる。** 押したら要求を中断して畳む
-                            onClick={() => {
-                                if (posting) { postAbortRef.current?.abort(new DOMException("cancelled", "AbortError")); return; }
-                                closeDraft();
-                            }}
-                            className="p-2 text-white/80 hover:text-white drop-shadow"
-                            aria-label={posting
-                                ? (locale === "en" ? "Stop posting" : "投稿をやめる")
-                                : (locale === "en" ? "Cancel" : "キャンセル")}
+                            onClick={() => void handlePost()}
+                            disabled={posting || voteIncomplete}
+                            className="flex-shrink-0 px-5 py-2 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{ touchAction: "manipulation" }}
                         >
-                            <XMarkIcon className="w-6 h-6" />
+                            {posting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {posting
+                                ? (locale === "en" ? "Posting..." : "投稿中...")
+                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
                         </button>
                         </div>
                     </div>
@@ -1415,8 +1478,51 @@ export default function StoriesBar() {
                     ) : (
                     <>
                     <div
-                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[400px] lg:max-h-none lg:pt-[72px] lg:pb-6 lg:bg-bar/80 lg:backdrop-blur-md lg:border-l lg:border-white/10 ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
+                        {/* 🔴 **編集ツールの行**（最終版モック 08 の⑥）。
+                            押したものの欄だけ下に出る。モックは6つ（カメラ・
+                            ライブラリ・テキスト・位置情報・BGM・スタンプ）だが、
+                            **写真の差し替えは持っていない**ので前の2つは出さない。
+                            動画には撮影地が無いので位置情報も出さない
+                            （`toUploadSafeVideo` が GPS を落とし、サーバーも受けない）。
+                            ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
+                        <div
+                            role="tablist"
+                            aria-label={locale === "en" ? "Story tools" : "編集ツール"}
+                            className="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+                        >
+                            {STORY_TOOLS
+                                .filter((t) => t.key !== "location" || draft.mediaType === "image")
+                                .map(({ key, Icon, ja, en }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={composerTool === key}
+                                    onClick={() => setComposerTool(key)}
+                                    disabled={posting}
+                                    className="flex-shrink-0 flex flex-col items-center gap-1 disabled:opacity-40"
+                                    style={{ width: "60px", touchAction: "manipulation" }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className={`rounded-full flex items-center justify-center ring-1 transition ${composerTool === key
+                                            ? "bg-accent-fill text-white ring-accent"
+                                            : "bg-black/55 text-white/85 ring-white/15"}`}
+                                        style={{ width: "48px", height: "48px" }}
+                                    >
+                                        <Icon className="w-6 h-6" />
+                                    </span>
+                                    <span className="text-white/75 truncate max-w-full" style={{ fontSize: "11px" }}>
+                                        {locale === "en" ? en : ja}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {composerTool === "text" && (
+                        <>
                         {/* **打つ欄は1つ。** いま選んでいる文字を直す。
                             まだ1つも無ければ、打った時点で1つ目ができる
                             （今までどおり「開いて打つだけ」で置ける） */}
@@ -1434,25 +1540,13 @@ export default function StoriesBar() {
                                 className="flex-1 min-w-0 px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                                 style={{ fontSize: "16px" }}
                             />
-                            {/* 消す。**選んでいるときだけ**（押しても効かない的を置かない） */}
-                            {current && (
-                                <button
-                                    type="button"
-                                    onClick={removeSelected}
-                                    disabled={posting}
-                                    aria-label={current && isStoryStamp(current)
-                                        ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
-                                        : current && isStoryVote(current)
-                                            ? (locale === "en" ? "Delete this poll" : "この投票を消す")
-                                            : (locale === "en" ? "Delete this text" : "この文字を消す")}
-                                    className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition"
-                                    style={{ width: "44px", height: "44px" }}
-                                >
-                                    <TrashIcon className="w-5 h-5" />
-                                </button>
-                            )}
                         </div>
 
+                        </>
+                        )}
+
+                        {composerTool === "sticker" && (
+                        <>
                         {/* 文字の見せ方。**打ってから出す**——文字が無いうちは
                             動かすものも飾るものも無い（押しても効かない欄を置かない）。
 
@@ -1504,8 +1598,12 @@ export default function StoriesBar() {
                                 </button>
                             </div>
                         </div>
+                        </>
+                        )}
 
-                        {texts.length > 0 && (
+                        {/* 選んでいるものを直す欄。**文字とスタンプの道具のときだけ**
+                            ——撮影地や曲を触っている間は関係が無い */}
+                        {(composerTool === "text" || composerTool === "sticker") && texts.length > 0 && (
                             <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
                                 <div className="flex items-center justify-between gap-2 px-1">
                                     {/* **1行に収める。** 折り返すと右のボタンとぶつかる（実測） */}
@@ -1513,6 +1611,25 @@ export default function StoriesBar() {
                                         {locale === "en" ? "Drag to move · tap to select" : "なぞって移動・触って選択"}
                                     </p>
                                     <div className="flex gap-2 flex-shrink-0">
+                                        {/* 消す。**選んでいるときだけ**（押しても効かない的を置かない）。
+                                            **打つ欄ではなくここ**——文字の道具でしか消せないと、
+                                            スタンプや投票を置いた人が消せなくなる */}
+                                        {current && (
+                                            <button
+                                                type="button"
+                                                onClick={removeSelected}
+                                                disabled={posting}
+                                                aria-label={isStoryStamp(current)
+                                                    ? (locale === "en" ? "Delete this sticker" : "このスタンプを消す")
+                                                    : isStoryVote(current)
+                                                        ? (locale === "en" ? "Delete this poll" : "この投票を消す")
+                                                        : (locale === "en" ? "Delete this text" : "この文字を消す")}
+                                                className="flex-shrink-0 rounded-full bg-black/55 ring-1 ring-white/15 text-white/85 flex items-center justify-center active:scale-90 transition disabled:opacity-40"
+                                                style={{ width: "36px", height: "36px" }}
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         {/* いちばん手前へ（**並びが重なり順**）。
                                             2つ以上あるときだけ——1つだけなら重なりようが無い */}
                                         {current && texts.length > 1 && (
@@ -1755,18 +1872,11 @@ export default function StoriesBar() {
                             </div>
                         )}
 
-                        {/* 🔴 **文字を置いている間は、ほかの欄を畳む。**
-                            320×568 の実測で**写真が 95px しか見えていなかった**
-                            ——文字をどこへ置くか決められない。撮影地・曲・表示時間は
-                            最後に1回さわるもので、置いている最中には要らない。
-                            写真の余白をさわると選択が外れて戻る。 */}
-                        {selected === null && (
-                        <>
                         {/* **動画には出さない。** 位置は写真の EXIF から来るもので、
                             動画は `toUploadSafeVideo` が GPS を落としている
                             （サーバーも動画の位置は受けない）。押しても効かない
-                            欄を置かない */}
-                        {draft.mediaType === "image" && (
+                            欄を置かない（ツールの行にも出していない） */}
+                        {composerTool === "location" && draft.mediaType === "image" && (
                         <>
                         {/* **撮影地（任意）。** 写真の GPS から自動で入る
                             （設定 `jp_gps_autofill` がオフなら入らない）。
@@ -1792,6 +1902,8 @@ export default function StoriesBar() {
                         )}
 
                         {/* ストーリーBGM（任意） */}
+                        {composerTool === "song" && (
+                        <>
                         {draftSong ? (
                             <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
                                 <div className="flex items-center gap-2.5">
@@ -1972,7 +2084,16 @@ export default function StoriesBar() {
                                 {locale === "en" ? "Add music" : "曲を付ける"}
                             </button>
                         )}
+                        </>
+                        )}
 
+                        {/* 🔴 **文字を置いている間は、設定の欄を畳む。**
+                            320×568 の実測で**写真が 95px しか見えていなかった**
+                            ——文字をどこへ置くか決められない。表示時間と公開設定は
+                            最後に1回さわるもので、置いている最中には要らない。
+                            写真の余白をさわると選択が外れて戻る。 */}
+                        {selected === null && (
+                        <>
                         {/* 表示時間（画像のみ。動画は動画の長さで決まる）*/}
                         {draft.mediaType === "image" && (
                             <div className="flex items-center gap-2">
@@ -2074,28 +2195,9 @@ export default function StoriesBar() {
 
                     </div>
 
-                    {/* 🔴 **投稿のボタンは、巻き取られる欄の外に出す。**
-                        中に置いていたので、欄が伸びると画面の外へ落ちた
-                        ——320×568 の実測で**画面外**（スクロールすれば届くが、
-                        いちばん押すものが見えない）。文字の欄を足したこの差分で
-                        再発させた（台帳の `STORY-4` と同じ形）。
-                        外に出せば、これから何を足しても落ちない */}
-                    <div
-                        className="relative px-4 pt-2"
-                        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-                    >
-                        <button
-                            onClick={() => void handlePost()}
-                            disabled={posting || voteIncomplete}
-                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            style={{ touchAction: "manipulation" }}
-                        >
-                            {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
-                            {posting
-                                ? (locale === "en" ? "Posting..." : "投稿中...")
-                                : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
-                        </button>
-                    </div>
+                    {/* 投稿のボタンは**上のバー**（モックの「次へ」の位置）。
+                        下端は安全領域のぶんだけ空ける */}
+                    <div className="relative" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }} />
                     </>
                     )}
                 </div>

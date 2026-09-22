@@ -24,8 +24,10 @@ import {
     relatedEntries,
     slugify,
 } from "@/lib/utils/collections";
-import { relatedCollectionPhotos, slimForGrid } from "@/lib/utils/related";
+import { relatedCollectionPhotos, slimForGrid, slimForViewer } from "@/lib/utils/related";
+import type { Photo } from "@/lib/data/photos";
 import { spotDetail } from "@/lib/utils/spot";
+import { spotMasterFor } from "@/lib/data/spotMaster";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
 /** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す（`CollectionPage` と同じ） */
@@ -63,6 +65,18 @@ export default async function SpotPage({ slug }: { slug: string }) {
      */
     const savedKey = slugify(decodeSlugSafe(slug), "location");
     const { heading, description, breadcrumb } = collectionCopy("location", label, matched.length);
+    /**
+     * 人が書いたぶん（ふりがな・概要）。**無ければ `null`。**
+     *
+     * 🔴 **`collectionCopy` には渡さない。** ここを `title` や
+     * `description` に流すと、**14ページぶんの `<title>` と
+     * `<meta name=description>` が変わる**——URL は変わらなくても
+     * 検索結果の見え方は変わるので、「SEO を壊さない」と言えなくなる
+     * （`docs/spot-master.md` の4節）。出すのは**本文だけ**。
+     *
+     * 鍵は `savedKey`（正規化済みのスラッグ）。**正規化を2か所に置かない。**
+     */
+    const master = spotMasterFor(savedKey);
     const pageUrl = `${siteConfig.url}${canonicalCollectionPath("location", slug)}`;
 
     // **材料は1本の純関数から受け取る**（`initialRelatedFor` と同じ立場）。
@@ -72,6 +86,23 @@ export default async function SpotPage({ slug }: { slug: string }) {
     const link = (e: { slug: string; label: string; count: number }) => ({
         label: e.label, count: e.count, path: collectionPath("location", e.slug),
     });
+
+    /**
+     * 周辺のスポットのカードに出す1枚（モック⑨）。
+     *
+     * **枚数を数えたのと同じ関数から採る**（`photosInCollection`）。別の
+     * 絞り方で採ると「3枚」と書いてあるカードに、その3枚に入っていない
+     * 写真が出る。撮影地の一致は**緩い**（「パリ」と「パリ, フランス」を
+     * 寄せる）ので、自前で `location === label` と書くと**ほとんどのカードで
+     * 絵が出ない**（`CLAUDE.md` が名指ししている数え違いと同じ形）。
+     *
+     * 無ければ `null`。**代わりの絵を置かない**——「写真がある場所」の
+     * カードなのに、持っていない絵を見せることになる。
+     */
+    const coverOf = (slug: string): Photo | null => {
+        const first = photosInCollection(photos, "location", slug)[0];
+        return first ? slimForGrid(first) : null;
+    };
 
     // 同タイプの他ページへの相互リンク（孤立防止・回遊・SEO）。**既存のまま**
     const related = relatedEntries(photos, "location", slug, 12).map(link);
@@ -96,16 +127,27 @@ export default async function SpotPage({ slug }: { slug: string }) {
             <SpotPageClient
                 slug={savedKey}
                 name={label}
+                // **共有する URL は canonical**。画面側で `window.location` から
+                // 組み立てると、クエリ（`?utm_…`）が付いたまま配られる
+                canonicalUrl={pageUrl}
+                reading={master?.reading ?? null}
+                summary={master?.summary ?? null}
                 heading={heading}
                 description={description}
                 breadcrumb={breadcrumb}
-                photos={matched.map(slimForGrid)}
+                // **ビューアのぶんまで持たせる**（`slimForViewer`）。
+                // 格子だけの絞り（`slimForGrid`）を渡していたので、その場で
+                // 拡大したときに説明文・撮影情報・投稿者・BGM・原寸の AVIF が
+                // **黙って空**になっていた（2026-09-22 のレビューで発覚）。
+                // 「ほかにこんな写真も」は格子から個別ページへ行くだけなので、
+                // そちらは `slimForGrid` のまま
+                photos={matched.map(slimForViewer)}
                 nearbyPhotos={nearbyPhotos.map(slimForGrid)}
                 facts={facts}
                 coords={coords}
                 broader={broader.map(link)}
                 narrower={narrower.map(link)}
-                nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx }))}
+                nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx, cover: coverOf(n.slug) }))}
                 related={related}
             />
         </>
