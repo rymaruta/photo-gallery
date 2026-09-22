@@ -7,6 +7,7 @@ import React, { useRef, useState } from "react";
 import { UserPlusIcon, CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "./statCellStyle";
 import FollowingSheet, { type FollowListKind } from "./FollowingSheet";
 
 type Props = {
@@ -45,8 +46,8 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
             const open = isAuthenticated && countsKnown && n > 0;
             const inner = (
                 <>
-                    <span className="block font-bold tabular-nums leading-none" style={{ fontSize: "17px" }}>{shown(n)}</span>
-                    <span className="block text-white/60 mt-0.5" style={{ fontSize: "12px" }}>{label}</span>
+                    <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
+                    <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
                 </>
             );
             return open ? (
@@ -60,7 +61,7 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
         return (
             <>
                 {cell(followers, locale === "en" ? "followers" : "フォロワー", "followers", followersBtnRef)}
-                <span aria-hidden="true" className="w-px self-stretch bg-white/10" />
+                <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
                 {cell(following, locale === "en" ? "following" : "フォロー中", "following", followingBtnRef)}
                 {sheet && (
                     <FollowingSheet

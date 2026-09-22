@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ChevronRightIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { haversineKm } from "../../lib/utils/journey";
@@ -33,6 +33,7 @@ import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/phot
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX, ACHIEVEMENT_VALUE_PX, ACHIEVEMENT_LABEL_PX, ACHIEVEMENT_ICON_PX } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
@@ -1302,17 +1303,17 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         **届く前に「0投稿」と言い切らない**——実測で応答を保持すると
                         5秒・20秒・45秒のいずれでも「0投稿」だった。ビルド後に登録した
                         人（定期ビルドは週1なので最大7日）のプロフィールが該当する */}
-                    <div className="flex items-stretch py-3 mb-3 border-y border-white/10">
+                    <div className="flex items-center py-4 border-b border-white/10">
                         <div className="flex-1 text-center">
-                            <span className="block font-bold tabular-nums leading-none" style={{ fontSize: "17px" }}>{photosResolved ? postCount : "…"}</span>
-                            <span className="block text-white/60 mt-0.5" style={{ fontSize: "12px" }}>{locale === "en" ? "posts" : "投稿"}</span>
+                            <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{photosResolved ? postCount : "…"}</span>
+                            <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
-                                <span className="block text-white/50" style={{ fontSize: "11px" }}>
+                                <span className="block text-white/50 mt-1" style={{ fontSize: "11px" }}>
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
                         </div>
-                        <span aria-hidden="true" className="w-px self-stretch bg-white/10" />
+                        <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
                         <FollowButton
                             targetUserId={userId}
                             isOwner={isOwner}
@@ -1322,19 +1323,49 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         />
                     </div>
 
-                    {/* 旅の実績（最終版モック）: 訪れた国・地域 ／ 総移動距離。
+                    {/* 旅の実績（最終版モック `docs/mockups/04-mypage.jpg` の3番）。
+                        モックは「訪れた国・地域 ｜ 総移動距離 ›」の2枠だが、
                         **訪れた国は持っていない**（撮影地は自由文字列で、国を当てるには
                         逆ジオコードの country を写真に書く必要がある＝データと API の話）。
-                        総移動距離だけなので、それが無ければカードごと出さない
-                        （座標を持つ写真が2枚以上・1km 以上のときだけ） */}
-                    {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (
-                        <div className="flex items-center gap-2 rounded-2xl bg-surface ring-1 ring-line px-4 py-3 mb-4" title={locale === "en" ? "Total distance traveled" : "旅した総移動距離"}>
-                            <PaperAirplaneIcon aria-hidden="true" className="-rotate-45 text-accent flex-shrink-0" style={{ width: "18px", height: "18px" }} />
-                            <span className="text-white/60" style={{ fontSize: "12px" }}>{locale === "en" ? "Distance traveled" : "総移動距離"}</span>
-                            <span className="ml-auto font-bold tabular-nums" style={{ fontSize: "17px" }}>{Math.round(footprint.distanceKm).toLocaleString()}</span>
-                            <span className="text-white/60" style={{ fontSize: "12px" }}>km</span>
-                        </div>
-                    )}
+                        持っていない欄は出さないので、総移動距離の1枠だけになる
+                        （座標を持つ写真が2枚以上・1km 以上のときだけ）。
+
+                        **形と大きさはモックのとおりに揃えた**——角丸のカードではなく
+                        数字の行と同じ「下に細い線を1本」で、青いアイコンの右に
+                        ラベルが上・数字が下。大きさは `statCellStyle.ts`（画素から実測）。
+
+                        **`›` は本人のページだけ。** モックはマイページなので押した先が
+                        あるが、このサイトで実在するのは撮影地マップ（`/map`）で、
+                        そこに出るのは**全員の写真**。他人のページに置くと
+                        「この人の旅の続き」に見えて別のものへ連れて行くので出さない
+                        （押せるのに約束と違うものを出さない——CLAUDE.md の型）。 */}
+                    {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (() => {
+                        const label = locale === "en" ? "Distance traveled" : "総移動距離";
+                        const rowClass = "flex items-center gap-3 py-3 mb-4 border-b border-white/10";
+                        const body = (
+                            <>
+                                <PaperAirplaneIcon aria-hidden="true" className="-rotate-45 text-accent flex-shrink-0" style={{ width: `${ACHIEVEMENT_ICON_PX}px`, height: `${ACHIEVEMENT_ICON_PX}px` }} />
+                                <span className="min-w-0">
+                                    <span className="block text-white/60 leading-none" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>{label}</span>
+                                    <span className="block mt-1 leading-none">
+                                        <span className="font-bold tabular-nums" style={{ fontSize: `${ACHIEVEMENT_VALUE_PX}px` }}>{Math.round(footprint.distanceKm).toLocaleString()}</span>
+                                        <span className="text-white/60 ml-1" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>km</span>
+                                    </span>
+                                </span>
+                                {isOwner && <ChevronRightIcon aria-hidden="true" className="ml-auto text-white/40 flex-shrink-0" style={{ width: "18px", height: "18px" }} />}
+                            </>
+                        );
+                        const title = locale === "en" ? "Total distance traveled" : "旅した総移動距離";
+                        return isOwner ? (
+                            <Link href={ROUTES.MAP} prefetch={false} title={title}
+                                  aria-label={locale === "en" ? "Open the photo map" : "撮影地マップを開く"}
+                                  className={`${rowClass} hover:bg-white/[0.04] transition-colors`}>
+                                {body}
+                            </Link>
+                        ) : (
+                            <div className={rowClass} title={title}>{body}</div>
+                        );
+                    })()}
 
                     {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
