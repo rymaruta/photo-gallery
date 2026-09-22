@@ -162,7 +162,19 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
                 delete item.keptAs;
             }
         }
-        const visible = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+        const notBlocked = hidden.size === 0 ? items : items.filter((i) => !hidden.has(String(i.userId ?? "")));
+
+        // **公開範囲。** 「フォロワーのみ」の行は、本人とフォロワーにだけ。
+        // 確かめられなかったら見せない（`isVisibleToViewer` の注記）
+        const restrictedOwners = new Set(
+            notBlocked.filter((i) => i.audience === "followers")
+                .map((i) => String(i.userId ?? ""))
+                .filter((id) => id && id !== userId),
+        );
+        const followed = restrictedOwners.size === 0
+            ? new Set<string>()
+            : await followedAmong(userId, restrictedOwners);
+        const visible = notBlocked.filter((i) => isVisibleToViewer(i, userId, followed));
 
         // **バッジの数も、返信一覧と同じふるいを通した数にする。**
         //
@@ -206,6 +218,61 @@ export const getStories: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 
 // POST /stories — ストーリー投稿（認証必要）。
 // 画像/動画は既存の presigned-url フローでアップロード済みであることを前提にレコードだけ作成する。
+/**
+ * 公開範囲。**受け取るのは「フォロワーのみ」だけ。**
+ *
+ * 「全体に公開」は属性を書かない形で表す（既にある行と同じ）。
+ * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
+ * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
+ */
+export function sanitizeAudience(value: unknown): "followers" | undefined {
+    return value === "followers" ? "followers" : undefined;
+}
+
+/**
+ * その人に、その行を見せてよいか。
+ *
+ * **閉じる側に倒す。** フォローしているかを確かめられなかったら**見せない**
+ * ——ブロックの絞り込みは「落ちたら出す」に倒してあるが（見えなくする側が
+ * 落ちて全部消えるのは倒しすぎ）、こちらは逆。**見せてよいか分からない**の
+ * だから、出す方に倒すと「フォロワーだけ」のつもりの写真が他人に見える。
+ */
+export function isVisibleToViewer(
+    item: { userId?: unknown; audience?: unknown },
+    viewerId: string,
+    followedOwners: Set<string>,
+): boolean {
+    if (item.audience !== "followers") return true;
+    const owner = String(item.userId ?? "");
+    if (!owner) return false;
+    if (owner === viewerId) return true;
+    return followedOwners.has(owner);
+}
+
+/**
+ * 自分がフォローしている相手のうち、この一覧に出てくる人だけを引く。
+ *
+ * 全部のフォローを引かないのは、**見るのはストーリーを出している人だけ**で
+ * 足りるため（1回の一覧に出る投稿者はたかだか数人）。
+ * 読めなかった相手は**含めない**＝見せない側に倒る。
+ */
+async function followedAmong(viewerId: string, owners: Set<string>): Promise<Set<string>> {
+    const found = new Set<string>();
+    await Promise.all([...owners].map(async (owner) => {
+        try {
+            const res = await ddb.send(new GetCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: `follow#${owner}#${viewerId}` },
+                ProjectionExpression: "id",
+            }));
+            if (res.Item) found.add(owner);
+        } catch (e) {
+            console.error("followedAmong: フォローを確かめられませんでした:", e);
+        }
+    }));
+    return found;
+}
+
 export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) {
@@ -216,7 +283,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
-        location?: unknown; coords?: unknown;
+        location?: unknown; coords?: unknown; audience?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -336,6 +403,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
         ...(durationSec ? { durationSec } : {}),
+        // 公開範囲。**「全体に公開」は書かない**——既にある行と同じ形にして、
+        // 「属性が無い＝全体に公開」を1通りに保つ（`tags: []` で踏んだ穴と同じ）
+        ...(sanitizeAudience(body.audience) ? { audience: "followers" } : {}),
         userId,
         ...(displayName ? { displayName } : {}),
         createdAt: new Date(now).toISOString(),
