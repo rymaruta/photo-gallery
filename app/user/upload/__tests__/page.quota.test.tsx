@@ -131,7 +131,7 @@ describe("アップロードしたら残り枚数を減らす", () => {
 
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
-        const publish = await screen.findByRole("button", { name: /枚を公開/ });
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         await userEvent.click(publish);
 

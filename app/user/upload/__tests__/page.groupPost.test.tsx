@@ -92,13 +92,13 @@ async function pick(container: HTMLElement, n: number) {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, Array.from({ length: n },
         (_, i) => new File(["x"], `p${i}.jpg`, { type: "image/jpeg" })));
-    await screen.findByRole("button", { name: /枚を公開/ });
+    await screen.findByRole("button", { name: /投稿する/ });
 }
 
 const groupBox = () => screen.queryByRole("checkbox", { name: /1件の投稿にまとめる/ });
 
 async function publish() {
-    const btn = await screen.findByRole("button", { name: /枚を公開/ });
+    const btn = await screen.findByRole("button", { name: /投稿する/ });
     await waitFor(() => expect(btn).not.toBeDisabled());
     await userEvent.click(btn);
     await waitFor(() => expect(savedBodies().length, "保存に届いていない").toBeGreaterThan(0));
@@ -187,12 +187,12 @@ describe("1件の投稿にまとめる", () => {
         const { container } = render(<UploadPage />);
         await pick(container, 3);
         await userEvent.click(groupBox()!);
-        const btn = await screen.findByRole("button", { name: /枚を公開/ });
+        const btn = await screen.findByRole("button", { name: /投稿する/ });
         await waitFor(() => expect(btn).not.toBeDisabled());
         await userEvent.click(btn);
 
         await userEvent.click(await screen.findByRole("button", { name: "やめる" }));
-        await waitFor(() => expect(screen.getByRole("button", { name: /枚を公開/ })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole("button", { name: /投稿する/ })).not.toBeDisabled());
         expect(savedBodies(), "やめたのに投稿が1件できている").toHaveLength(0);
     });
 

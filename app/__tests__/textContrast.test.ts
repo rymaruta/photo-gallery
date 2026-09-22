@@ -322,7 +322,6 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/user/profile/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/30"', "アバターが無いときの絵（2.46:1）"],
         ["app/user/profile/page.tsx", 'MagnifyingGlassIcon className="w-4 h-4 text-white/30 absolute', "入力欄の中の絵（2.46:1）"],
         ["app/user/upload/page.tsx", 'PhotoIcon className="w-10 h-10 text-white/40 mb-2"', "選ぶ前の絵（3.66:1）"],
-        ["app/user/upload/page.tsx", 'UserCircleIcon className="w-10 h-10 text-white/40"', "アバターが無いときの絵（3.66:1）"],
         ["app/components/Thumb.tsx", '<svg className="w-8 h-8 text-white/40"', "画像を読めなかったときの絵（3.66:1）"],
         ["app/components/UserAvatar.tsx", "${iconClassName} text-white/40", "アバターが無いときの既定の絵（3.66:1）"],
         ["app/components/FilterBar.tsx", '"text-white/70 animate-pulse" : "text-white/35"', "入力欄の中の絵（3.01:1）"],

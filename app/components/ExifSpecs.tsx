@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * 撮影情報のカード（ラベル上・値下の2列グリッド）。
  *
@@ -16,7 +18,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { CameraIcon } from "@heroicons/react/24/outline";
+import { CameraIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useState } from "react";
 import { dedupeCameraName } from "../../lib/utils/cameraName";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { displayWhiteBalance } from "../../lib/utils/exifDisplay";
@@ -78,17 +81,37 @@ export function buildExifSpecs(exif: ExifLike, locale: string, cameraHref?: stri
  * @param className 外側の枠に足すクラス。写真ページは `max-w-md`、
  *   モーダルは幅いっぱい——**見た目の違いはここだけ**にする
  */
-export default function ExifSpecs({ specs, locale, className = "" }: { specs: ExifSpec[]; locale: string; className?: string }) {
+/**
+ * @param collapsible 最終版モックの写真ページ用（初期は畳む・「詳しく見る」で開く）。
+ *   **畳んでも中身は DOM に残す**（`hidden` 属性）——機材名の `/camera/` への
+ *   リンクは静的HTMLに焼かれている必要がある（内部リンク＝SEO・回遊）。
+ *   `open && …` の条件付き描画にしない。既定は今までどおり常時展開（モーダル）
+ */
+export default function ExifSpecs({ specs, locale, className = "", collapsible = false }: { specs: ExifSpec[]; locale: string; className?: string; collapsible?: boolean }) {
+    const [open, setOpen] = useState(false);
     if (specs.length === 0) return null;
+    const expanded = !collapsible || open;
     return (
-        <div className={`rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 ${className}`}>
-            <div className="flex items-center gap-1.5 mb-3">
-                <CameraIcon className="w-3.5 h-3.5 text-white/50" />
-                <span className="text-[11px] tracking-widest uppercase text-white/50">
+        <div className={`rounded-2xl bg-surface ring-1 ring-line p-4 ${className}`}>
+            <div className={`flex items-center gap-1.5 ${expanded ? "mb-3" : ""}`}>
+                <CameraIcon className="w-4 h-4 text-accent" />
+                <span className="text-[13px] font-semibold text-white">
                     {locale === "en" ? "Camera Settings" : "撮影情報"}
                 </span>
+                {collapsible && (
+                    <button
+                        type="button"
+                        onClick={() => setOpen((v) => !v)}
+                        aria-expanded={open}
+                        className="ml-auto inline-flex items-center gap-0.5 text-[12px] text-link hover:text-white active:scale-95 transition"
+                        style={{ touchAction: "manipulation", minHeight: "32px" }}
+                    >
+                        {open ? (locale === "en" ? "Hide" : "閉じる") : (locale === "en" ? "Details" : "詳しく見る")}
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+                    </button>
+                )}
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3" hidden={!expanded}>
                 {specs.map((s) => (
                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>
                         <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>

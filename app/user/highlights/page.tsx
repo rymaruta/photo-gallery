@@ -171,7 +171,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
 
     if (loading || !isAuthenticated || !userId) {
         return (
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 <h1 className="sr-only">{isJa ? "ハイライト" : "Highlight"}</h1>
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </main>
@@ -182,7 +182,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
     const canSave = existingLoaded && !saving && title.trim() !== "" && chosen.length > 0;
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
                 <div className="flex items-center gap-4 mb-6">
                     <Link href={ROUTES.USER_PROFILE(userId)} prefetch={false} className="text-white/60 hover:text-white transition-colors" aria-label={isJa ? "戻る" : "Back"}>
@@ -275,7 +275,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                         <p className="text-sm mb-4">{isJa ? "アーカイブを読み込めませんでした" : "Could not load your archive"}</p>
                         <button
                             onClick={() => void loadArchive()}
-                            className="inline-block px-4 py-2.5 text-sm bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-colors"
+                            className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {isJa ? "再試行" : "Retry"}
@@ -313,14 +313,14 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                                         </span>
                                     ) : (
                                         <span
-                                            className={`absolute right-1 top-1 w-[22px] h-[22px] rounded-full flex items-center justify-center ring-2 ring-white ${isSelected ? "bg-white text-black" : "bg-black/40"}`}
+                                            className={`absolute right-1 top-1 w-[22px] h-[22px] rounded-full flex items-center justify-center ring-2 ring-white ${isSelected ? "bg-accent-fill text-white" : "bg-black/40"}`}
                                             aria-hidden="true"
                                         >
                                             {isSelected && <CheckIcon className="w-3.5 h-3.5" strokeWidth={3} />}
                                         </span>
                                     )}
                                     {isSelected && cover === s.id && (
-                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-white text-black font-semibold" style={{ fontSize: "10px" }}>
+                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-accent-fill text-white font-semibold" style={{ fontSize: "10px" }}>
                                             {isJa ? "表紙" : "Cover"}
                                         </span>
                                     )}
@@ -378,7 +378,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                         type="button"
                         onClick={() => void save()}
                         disabled={!canSave}
-                        className="ml-auto px-6 py-2.5 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 transition-colors disabled:opacity-50"
+                        className="ml-auto px-6 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "保存" : "Save")}
@@ -399,7 +399,7 @@ function KeyedEditor() {
 export default function HighlightEditorPage() {
     return (
         <Suspense fallback={
-            <main className="min-h-screen bg-black flex items-center justify-center">
+            <main className="min-h-screen bg-bg flex items-center justify-center">
                 {/* 事前描画で焼かれるのはこの fallback。見出しを持たせる */}
                 <h1 className="sr-only">ハイライト</h1>
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
