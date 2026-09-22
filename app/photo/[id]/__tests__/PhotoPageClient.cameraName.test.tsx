@@ -31,6 +31,8 @@ vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
 }));
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
+/** 撮影情報は初期は畳まれている（中身は DOM に残るが、`getByRole` は hidden を拾わない）。開いてから見る */
+const expandExif = () => { const b = screen.queryByRole("button", { name: "詳しく見る" }); if (b) fireEvent.click(b); };
 
 // exif を持たない写真（＝画面で抽出する経路に入る）
 const base = { id: "p1", src: "https://cdn.example.com/uploads/u1/a.jpg", userId: "u1", title: "写真" };
@@ -98,6 +100,7 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
         mockParse.mockResolvedValue(null);
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, exif: { camera: "SONY ILCE-7M3" } }} />);
         fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText(/撮影情報/); expandExif();
         const link = await screen.findByRole("link", { name: "SONY ILCE-7M3" });
         expect(link).toHaveAttribute("href", "/camera/sony-ilce-7m3");
     });
@@ -113,6 +116,7 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={base} />);   // 保存済み exif なし
         fireEvent.load(screen.getByAltText(/写真/));
         await screen.findByText("SONY ILCE-7M3");
+        expandExif();   // 畳んだままだと hidden で null になり、何も確かめない
         expect(screen.queryByRole("link", { name: "SONY ILCE-7M3" }),
             "集約に載っていない写真からリンクしている").toBeNull();
     });
@@ -125,6 +129,7 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
             ...base, exif: { camera: "Hasselblad Hasselblad X2D II 100C" },
         }} />);
         fireEvent.load(screen.getByAltText(/写真/));
+        await screen.findByText(/撮影情報/); expandExif();
         const link = await screen.findByRole("link", { name: "Hasselblad X2D II 100C" });
         expect(link).toHaveAttribute("href", "/camera/hasselblad-x2d-ii-100c");
     });

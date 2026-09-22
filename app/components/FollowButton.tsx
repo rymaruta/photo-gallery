@@ -141,7 +141,11 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
  * フォローボタン単体。数字のピル（FollowButton）とは切り離し、
  * プロフィールのアクション行（編集/写真を追加 と同じ場所）に置けるようにする。
  */
-export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }: Props) {
+/**
+ * @param variant "outline" は最終版モックの写真ページ用（青の枠線・塗らない・伸びない）。
+ *   既定の "filled" はプロフィール（塗り・行いっぱい）のまま
+ */
+export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, variant = "filled" }: Props & { variant?: "filled" | "outline" }) {
     // 数は描かないので取りに行かない（検索結果 N 件で N 本飛んでいた）。
     // 数のピルはプロフィールの FollowButton が別に取る。
     const { isFollowing, pending, resolved, toggle } = useFollow(targetUserId, isAuthenticated, false);
@@ -170,12 +174,14 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale }:
             // 出て、押しても既にフォロー済みで画面が変わらなかった。
             disabled={pending || !resolved}
             aria-pressed={isFollowing}
-            className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
+            className={`${variant === "outline" ? "flex-shrink-0 px-4 py-2" : "flex-1 px-4 py-2.5"} inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
                 isFollowing
                     ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
-                    : "bg-accent-fill text-white hover:brightness-110"
+                    : variant === "outline"
+                        ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
+                        : "bg-accent-fill text-white hover:brightness-110"
             }`}
-            style={{ touchAction: "manipulation", minHeight: "44px" }}
+            style={{ touchAction: "manipulation", minHeight: variant === "outline" ? "36px" : "44px" }}
         >
             {isFollowing
                 ? <><CheckIcon className="w-4 h-4" />{locale === "en" ? "Following" : "フォロー中"}</>
