@@ -12,6 +12,9 @@ import userEvent from "@testing-library/user-event";
  *
  * **既定と同じときは送らない。** サーバーも既定は保存しないので結果は
  * 同じだが、送らなければ古い版のサーバーでも今までどおり動く。
+ *
+ * 🔴 **公開範囲はもう無い**（ストーリーはフォロワーだけが見る）。
+ * その節はいちばん上で、選ぶ口が戻っていないことを見る。
  */
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
@@ -85,35 +88,29 @@ const post = async () => {
     return posted()[0] as Record<string, unknown>;
 };
 
-describe("公開設定: 公開範囲", () => {
-    it("既定は「全員に公開」で、その値は送らない", async () => {
+describe("公開設定: 公開範囲は選ばせない", () => {
+    // 🔴 ストーリーはフォロワーだけが見る（2026-09-22・owner の判断。
+    // 経緯は `api-user/src/storyVisibility.ts`）。以前ここには
+    // 「全員に公開／フォロワーのみ」の2択があり、その「全員」は
+    // **ログインした全員**の意味で、追っていない会員にも配っていた
+    it("公開範囲の選択肢を出さない", async () => {
         await pickImage();
-        expect(screen.getByRole("button", { name: "全員に公開" })).toHaveAttribute("aria-pressed", "true");
-        expect(screen.getByRole("button", { name: "フォロワーのみ" })).toHaveAttribute("aria-pressed", "false");
-        expect(await post()).not.toHaveProperty("visibility");
+        for (const name of [/全員に公開/, /フォロワーのみ/, /親しい友達/]) {
+            expect(screen.queryByRole("button", { name }), String(name)).toBeNull();
+        }
     });
 
-    it("「フォロワーのみ」を選ぶと、その値を送る", async () => {
+    // **選べないからこそ、誰に届くかは言う**
+    it("フォロワーだけに出ると書いてある", async () => {
         await pickImage();
-        await userEvent.click(screen.getByRole("button", { name: "フォロワーのみ" }));
-        expect(screen.getByRole("button", { name: "フォロワーのみ" })).toHaveAttribute("aria-pressed", "true");
-        expect((await post()).visibility).toBe("followers");
+        expect(screen.getByText(/ストーリーはフォロワーだけに表示されます/)).toBeTruthy();
     });
 
-    it("押し直して「全員に公開」へ戻せる", async () => {
+    // 送ると、古い版のサーバーがその値で絞る（画面には選ぶ口が無いので直せない）
+    it("`visibility` を送らない", async () => {
         await pickImage();
-        await userEvent.click(screen.getByRole("button", { name: "フォロワーのみ" }));
-        await userEvent.click(screen.getByRole("button", { name: "全員に公開" }));
-        expect(await post()).not.toHaveProperty("visibility");
+        expect(await post(), "死んだ列を送っている").not.toHaveProperty("visibility");
     });
-
-    // **押しても何も起きない選択肢を置かない。** モックには3つ目があるが、
-    // 人を選ぶ一覧の新設が要るので、それを作るまで出さない
-    it("「親しい友達」はまだ出さない", async () => {
-        await pickImage();
-        expect(screen.queryByRole("button", { name: /親しい友達/ })).toBeNull();
-    });
-
 });
 
 describe("公開設定: アーカイブに自動保存", () => {
@@ -252,17 +249,18 @@ describe("公開設定: 位置情報を表示", () => {
 });
 
 describe("公開設定: 下書きを閉じたら戻す", () => {
-    // 残すと、一度「フォロワーのみ」で出した人の次の投稿が黙って絞られる
+    // 残すと、一度返信を切った人の次の投稿が黙って切られたまま出る
+    // （画面は閉じているので気づけない）
     it("閉じて選び直すと既定に戻っている", async () => {
         await pickImage();
-        await userEvent.click(screen.getByRole("button", { name: "フォロワーのみ" }));
         await userEvent.click(screen.getByRole("switch", { name: "返信を許可" }));
+        await userEvent.click(screen.getByRole("switch", { name: "位置情報を表示" }));
         await userEvent.click(screen.getByRole("button", { name: /キャンセル|閉じる/ }));
 
         const input = document.querySelector('input[type="file"]') as HTMLInputElement;
         await userEvent.upload(input, new File(["img2"], "b.jpg", { type: "image/jpeg" }));
         await screen.findByRole("button", { name: /ストーリーに投稿/ }, { timeout: 5000 });
-        expect(screen.getByRole("button", { name: "全員に公開" })).toHaveAttribute("aria-pressed", "true");
         expect(screen.getByRole("switch", { name: "返信を許可" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByRole("switch", { name: "位置情報を表示" })).toHaveAttribute("aria-checked", "true");
     });
 });

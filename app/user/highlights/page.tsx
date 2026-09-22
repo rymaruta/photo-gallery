@@ -22,9 +22,13 @@ import { RING_SEEN } from "../../components/stories/ring";
  *
  * - グリッドはアーカイブ（`GET /stories/archive`）そのもの。タイルは
  *   `/user/archive` と同じ `StoryTile`
- * - **ハイライトは誰でも見られる。** だから「フォロワーのみ」で投稿した
- *   1枚は押せなくして理由を出す（`highlightRejection`。断るのはサーバー
- *   ——画面は押してから断られるボタンを置かないだけ）
+ * - 🔴 **ハイライトは本人とフォロワーだけが見る**（ストーリーと同じ相手。
+ *   2026-09-22・owner の判断）。**公開範囲では断らない**——以前は
+ *   「フォロワーのみ」の1枚を押せなくしていたが、見せる相手が同じに
+ *   なったので理由が無い。残る理由は「アーカイブの印が無い」だけで、
+ *   そういう行は `GET /stories/archive` が返さない＝**画面では普通出ない**。
+ *   それでも判定を置くのは、行が別の種類に差し替わった回に押してから
+ *   断られるボタンを置かないため（`highlightRejection`）
  * - 表紙は選んだ中から。選んだ順に関わらず、保存は投稿順（古い→新しい）
  *   ——ビューアが送る順で、その日の束と同じ向き
  * - `?id=` があれば既存のものを直す（`GET /highlights/{uid}/{id}` で今の
@@ -195,8 +199,8 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
 
                 <p className="text-sm text-white/50 mb-6">
                     {isJa
-                        ? "アーカイブのストーリーを束ねて、マイページに輪として置きます。ハイライトは誰でも見られます。"
-                        : "Bundle archived stories into a ring on your profile. Highlights are visible to everyone."}
+                        ? "アーカイブのストーリーを束ねて、マイページに輪として置きます。ハイライトはフォロワーだけに表示されます。"
+                        : "Bundle archived stories into a ring on your profile. Only your followers can see them."}
                 </p>
 
                 {existingError && (
@@ -332,8 +336,8 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
 
                 {stories.some((s) => highlightRejection(s, isJa)) && (
                     <p className="text-xs text-white/50 mt-3">
-                        {isJa ? "鍵のついた投稿は「フォロワーのみ」で投稿したもので、誰でも見られるハイライトには入れられません。"
-                            : "Locked stories were posted to followers only and can't go into a highlight that anyone can see."}
+                        {isJa ? "鍵のついた投稿は「アーカイブに自動保存」が入っていないので、ハイライトには入れられません。"
+                            : "Locked stories weren’t saved to your archive, so they can’t go into a highlight."}
                     </p>
                 )}
             </div>

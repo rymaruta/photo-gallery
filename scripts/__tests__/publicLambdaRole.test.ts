@@ -44,9 +44,11 @@ const services = [
         // ——PublicReadRole の権限（写真テーブルは GetItem のみ）に収まる。
         // 🔴 **ハイライト（`getUserHighlights` / `getHighlight`）はここに入れない。**
         // 一度入れて本番まで出してしまった。中身はストーリーそのもので、
-        // ストーリー一覧は認証必須——「全員に公開」は**ログインした全員**の
-        // 意味なので、未認証で開くと投稿者が選んだ範囲より広くなる。
-        // 読み取り専用ロールのままログインを要求している（`serverless.yml`）
+        // **ストーリーはフォロワーだけが見る**（2026-09-22・owner の判断。
+        // 経緯は `api-user/src/storyVisibility.ts`）。当時の理由は
+        // 「全員に公開のアーカイブしか入らないから」だったが、あの「全員」は
+        // **ログインした全員**の意味で、インターネット全体ではなかった。
+        // 今はログインを要求したうえで、さらにフォローを見ている
         publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
     },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },

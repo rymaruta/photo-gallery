@@ -6,11 +6,12 @@ import type { Story } from "./stories";
  * **サーバーと対**（`api-user/src/highlights.ts`）。クライアントから
  * `api-user` は import できないので複製する——ずれていないことは
  * `scripts/__tests__/highlightParity.test.ts` が数値そのものを突き合わせる
- * （`STORY_VISIBILITIES` と同じ手）。
+ * （`STORY_REACTIONS` と同じ手）。
  *
- * **ハイライトは誰でも見られる。** だから入れられるのは「全員に公開」で
- * 投稿したアーカイブだけ（サーバーが断る。画面はそのタイルを押せなくして
- * 理由を出す）。
+ * 🔴 **ハイライトは本人とフォロワーだけが見る**（`canSeeHighlights`）。
+ * 中身はストーリーそのもので、ストーリーはフォロワーにしか出ない
+ * （2026-09-22・owner の判断。経緯は `api-user/src/storyVisibility.ts`）。
+ * 見せる相手が同じなので、**入れるときに公開範囲で断ることはもう無い**。
  */
 
 /** 1人が持てるハイライトの数 */
@@ -46,10 +47,6 @@ export function highlightRejection(s: Story, isJa: boolean): string | null {
     if (s.archive !== true) {
         return isJa ? "「アーカイブに自動保存」が入っていない投稿は入れられません"
             : "Only stories saved to your archive can be added";
-    }
-    if (s.visibility !== undefined && s.visibility !== "public") {
-        return isJa ? "フォロワーのみの投稿は入れられません（ハイライトは誰でも見られます）"
-            : "Followers-only stories can't be added (highlights are visible to everyone)";
     }
     return null;
 }
