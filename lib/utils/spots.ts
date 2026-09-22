@@ -120,14 +120,31 @@ export function photosForSpot(photos: Photo[], spotId: string): Photo[] {
  *     被写体と撮影位置の差では説明できない距離＝同名異所の疑い。
  *     近いことを根拠に `confirmed` へ**格上げはしない**（1 の理由）
  *
- * `confirmed` だけが書き込んでよい候補。それ以外は**未設定のまま残す**。
+ * 🔴 **名前が一致しただけでは「決まり」にしない。** 以前はここが
+ * `confirmed`（＝書き込んでよい）を返していて、`--apply` がそのまま
+ * 本番の写真に `spotId` を書いていた。名前の一致は撮影の証拠にならない:
+ *
+ *   - 富士山は**20km 先からでも撮れる**（被写体の地点＝撮影の地点ではない）
+ *   - 同じ名前の神社・公園・駅が各地にある（台帳に1件しか無くても、
+ *     **台帳が未完成なだけ**かもしれない）
+ *   - 「京都」「北海道」のような**広い地域名**が撮影地に入っている
+ *
+ * だから機械が出すのは**候補まで**で、確定は人の仕事。
+ *
+ *     unmatched … 台帳に同じ名前が無い（何もしない）
+ *     ambiguous … 同名が複数、または座標が大きく離れる（人が調べる）
+ *     review    … 名前が1件だけ一致した。**人が見て決める候補**
+ *
+ * **`confirmed` はこの関数からは返らない。** 確定は
+ * `content/spot-links.json`（人が承認した紐付けの台帳）にしか存在せず、
+ * `--apply` はそこに載っているものだけを書く。
  */
 export type LinkSuggestion = {
     photoId: string;
     location: string;
     spotId?: string;
     spotName?: string;
-    verdict: "confirmed" | "ambiguous" | "unmatched";
+    verdict: "review" | "ambiguous" | "unmatched";
     reason: string;
 };
 
@@ -169,8 +186,88 @@ export function suggestSpotLinks(photos: Photo[], spots: Spot[]): LinkSuggestion
         }
         out.push({
             photoId: photo.id, location, spotId: spot.spotId, spotName: spot.name,
-            verdict: "confirmed", reason: "名前が1件だけ一致",
+            verdict: "review", reason: "名前が1件だけ一致（人の確認が要る）",
         });
     }
     return out;
+}
+
+/**
+ * **人が確認した紐付け。** `content/spot-links.json` の1行ぶん。
+ *
+ * 機械の候補（`suggestSpotLinks`）は書き込みの根拠にならない。
+ * 書いてよいのは、人がその写真を実際に見て「この地点で撮った」と
+ * 判断したものだけ。**誰がいつ何を根拠に決めたかを残す**——あとから
+ * 「なぜこの写真にこのスポットが付いているのか」を辿れないと、
+ * 間違いを見つけても直す手がかりが無い。
+ */
+export type ConfirmedSpotLink = {
+    photoId: string;
+    spotId: string;
+    /** 確認した人（GitHub のユーザー名など、後から本人に辿れる名前） */
+    confirmedBy: string;
+    /** ISO8601 */
+    confirmedAt: string;
+    /** 何を見て決めたか（「写真に社殿が写っている」「撮影者に確認」など） */
+    evidence: string;
+};
+
+/** 書き込みを断る理由。**通す理由は1つだけで、断る理由は数え上げる** */
+export type ApplyRejection = {
+    photoId: string;
+    spotId?: string;
+    reason: string;
+};
+
+/**
+ * **書き込んでよい紐付けだけを選ぶ。**
+ *
+ * 人の承認（`confirmed`）を入口にして、そのうえで写真・スポット・候補の
+ * 三方が食い違っていないものだけを通す。片方向の確認（承認さえあれば書く）
+ * にしないのは、承認した後に写真の撮影地が書き換わったり、スポットが
+ * 台帳から消えたりしうるため——**承認は「あの時点の判断」**でしかない。
+ */
+export function selectApplicableLinks(
+    photos: Photo[],
+    spots: Spot[],
+    confirmed: ConfirmedSpotLink[],
+): { apply: ConfirmedSpotLink[]; rejected: ApplyRejection[] } {
+    const byId = new Map(photos.map((p) => [p.id, p]));
+    const spotIds = new Set(spots.map((s) => s.spotId));
+    // 候補は「いま同じ判断になるか」を照らすためだけに使う
+    const candidates = new Map(suggestSpotLinks(photos, spots).map((s) => [s.photoId, s]));
+
+    const apply: ConfirmedSpotLink[] = [];
+    const rejected: ApplyRejection[] = [];
+    const seen = new Set<string>();
+
+    for (const c of confirmed) {
+        const push = (reason: string) => rejected.push({ photoId: c.photoId, spotId: c.spotId, reason });
+
+        if (!c.photoId || !c.spotId) { push("photoId か spotId が空"); continue; }
+        if (!c.confirmedBy?.trim()) { push("確認した人が書かれていない"); continue; }
+        if (!c.confirmedAt?.trim()) { push("確認した日時が書かれていない"); continue; }
+        if (!c.evidence?.trim()) { push("判定の根拠が書かれていない"); continue; }
+        if (seen.has(c.photoId)) { push("同じ写真が2回書かれている"); continue; }
+        seen.add(c.photoId);
+
+        const photo = byId.get(c.photoId);
+        if (!photo) { push("その写真が無い（消された・IDの打ち間違い）"); continue; }
+        if (photo.spotId) {
+            // 同じ先に付いているなら何もしない（冪等）。違う先なら人の判断がいる
+            push(photo.spotId === c.spotId ? "既に同じ spotId が付いている" : `既に別の spotId（${photo.spotId}）が付いている`);
+            continue;
+        }
+        if (!spotIds.has(c.spotId)) { push("その spotId が台帳に無い"); continue; }
+
+        // **いまの候補と食い違っていたら書かない。** 承認したあとに撮影地が
+        // 書き換わっていれば、その承認はもう別の写真についての判断になっている
+        const s = candidates.get(c.photoId);
+        if (!s) { push("いまは候補に挙がらない（撮影地が空・既に紐付け済みなど）"); continue; }
+        if (s.verdict === "ambiguous") { push(`いまは曖昧な候補（${s.reason}）`); continue; }
+        if (s.spotId !== c.spotId) { push(`承認した先（${c.spotId}）と、いまの候補（${s.spotId ?? "無し"}）が違う`); continue; }
+
+        apply.push(c);
+    }
+    return { apply, rejected };
 }

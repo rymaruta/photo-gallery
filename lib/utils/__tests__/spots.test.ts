@@ -123,13 +123,17 @@ describe("photosForSpot", () => {
 });
 
 describe("suggestSpotLinks", () => {
-    it("名前が1件だけ一致したら confirmed", () => {
+    // 2026-09-22: `confirmed` → `review`。**見ている性質は同じ**——名前が1件だけ
+    // 一致したらその1件を候補に挙げ、綴りが違えば挙げない。変わったのは
+    // 「それを確定として扱うか」で、いまは**人が見て決める候補**として返す
+    // （名前の一致は撮影の証拠にならない。詳しくは spotLinkSafety.test.ts）
+    it("名前が1件だけ一致したら、その1件を候補に挙げる（確定にはしない）", () => {
         const s = suggestSpotLinks([photo({ id: "p1", location: "香川県 観音寺市 高屋神社" })], ALL);
         // 「香川県 観音寺市 高屋神社」は台帳の名前と綴りが違う＝一致しない
         expect(s[0].verdict).toBe("unmatched");
 
         const t = suggestSpotLinks([photo({ id: "p2", location: "高屋神社" })], ALL);
-        expect(t[0]).toMatchObject({ verdict: "confirmed", spotId: "sp_0000000000a1" });
+        expect(t[0]).toMatchObject({ verdict: "review", spotId: "sp_0000000000a1" });
     });
     it("同じ名前が2件あれば ambiguous（機械が選ばない）", () => {
         const twins = [
@@ -150,7 +154,7 @@ describe("suggestSpotLinks", () => {
         const fuji = [spot({ spotId: "f1", slug: "fuji", name: "富士山", coords: { lat: 35.36, lng: 138.73 } })];
         // 山中湖畔（約 15km 先）から撮った1枚
         const s = suggestSpotLinks([photo({ id: "p1", location: "富士山", coords: { lat: 35.42, lng: 138.87 } })], fuji);
-        expect(s[0].verdict).toBe("confirmed");
+        expect(s[0].verdict, "近い写真まで曖昧に落としている").toBe("review");
     });
     it("座標が近いだけでは候補にしない（名前の一致が必須）", () => {
         const s = suggestSpotLinks([photo({ id: "p1", location: "観音寺市のどこか", coords: takaya.coords })], ALL);

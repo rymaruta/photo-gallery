@@ -20,13 +20,15 @@
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import type { Photo } from "../lib/data/photos";
 import type { Spot } from "../lib/data/spots";
-import { suggestSpotLinks, type LinkSuggestion } from "../lib/utils/spots";
+import { suggestSpotLinks, selectApplicableLinks, type LinkSuggestion, type ConfirmedSpotLink, type ApplyRejection } from "../lib/utils/spots";
 
 const REGION = process.env.AWS_REGION ?? "ap-northeast-1";
 const APPLY = process.argv.includes("--apply");
+/** 人が承認した紐付けの台帳。**書き込んでよいのはここに載っているものだけ** */
+const LINKS_FILE = process.env.SPOT_LINKS_FILE ?? "content/spot-links.json";
 const fromJsonIndex = process.argv.indexOf("--from-json");
 const FROM_JSON = fromJsonIndex >= 0 ? process.argv[fromJsonIndex + 1] : undefined;
 
@@ -64,19 +66,40 @@ async function loadFromDdb(table: string): Promise<Loaded> {
     return splitItems(items);
 }
 
-/** 下見の表（人が読む形）。**件数の要約も出す** */
+/**
+ * 下見の表（人が読む形）。**件数の要約も出す**。
+ *
+ * 🔴 **この表は「これから書かれるもの」ではない。** 名前が1件だけ一致した写真は
+ * `review`＝**人が見て決める候補**で、ここに出たからといって書き込まれない。
+ * 書かれるのは `content/spot-links.json` に人が承認を書いたものだけ。
+ */
 export function formatPreview(suggestions: LinkSuggestion[]): string {
     const lines: string[] = [];
-    const counts = { confirmed: 0, ambiguous: 0, unmatched: 0 };
+    const counts = { review: 0, ambiguous: 0, unmatched: 0 };
     for (const s of suggestions) {
         counts[s.verdict]++;
-        const mark = s.verdict === "confirmed" ? "付ける" : s.verdict === "ambiguous" ? "保留 " : "対象外";
+        const mark = s.verdict === "review" ? "要確認" : s.verdict === "ambiguous" ? "曖昧  " : "対象外";
         lines.push(`  [${mark}] ${s.photoId}  「${s.location}」 → ${s.spotName ?? "—"}  （${s.reason}）`);
     }
     lines.push("");
-    lines.push(`  付ける ${counts.confirmed} 件 / 保留 ${counts.ambiguous} 件 / 対象外 ${counts.unmatched} 件`);
-    lines.push("  保留と対象外は **未設定のまま残す**（撮影地の文字列はどれも消さない）");
+    lines.push(`  要確認 ${counts.review} 件 / 曖昧 ${counts.ambiguous} 件 / 対象外 ${counts.unmatched} 件`);
+    lines.push("  **どれも自動では書き込まない。** 人が確かめたものを content/spot-links.json に");
+    lines.push("  書いてから --apply を打つ（撮影地の文字列はどれも消さない）");
     return lines.join("\n");
+}
+
+/** 人が承認した紐付けの台帳。無ければ空（＝何も書かない） */
+export function loadConfirmedLinks(file: string): ConfirmedSpotLink[] {
+    if (!existsSync(file)) return [];
+    const raw = JSON.parse(readFileSync(file, "utf8")) as unknown;
+    if (!Array.isArray(raw)) throw new Error(`${file} は配列であるべきです`);
+    return raw as ConfirmedSpotLink[];
+}
+
+/** 書き込みを断ったものを人が読む形に */
+export function formatRejections(rejected: ApplyRejection[]): string {
+    if (rejected.length === 0) return "  断ったものはありません";
+    return rejected.map((r) => `  [断った] ${r.photoId} → ${r.spotId ?? "—"}  （${r.reason}）`).join("\n");
 }
 
 async function main(): Promise<void> {
@@ -112,22 +135,38 @@ async function main(): Promise<void> {
         console.error("--apply は本番/ステージングのテーブルにだけ使えます（--from-json とは併用できません）");
         process.exit(1);
     }
+    // 🔴 **書き込む根拠は人の承認だけ。** 機械の候補（`suggestions`）は
+    // ここでは使わない——名前が一致しただけの写真を書いていた頃の形に戻さない。
+    const confirmed = loadConfirmedLinks(LINKS_FILE);
+    if (confirmed.length === 0) {
+        console.error(`${LINKS_FILE} に承認された紐付けがありません。`);
+        console.error("上の「要確認」を人が確かめ、photoId / spotId / confirmedBy / confirmedAt / evidence を書いてください。");
+        process.exit(1);
+    }
+    const { apply, rejected } = selectApplicableLinks(loaded.photos, loaded.spots, confirmed);
+    console.log(`\n承認 ${confirmed.length} 件のうち、書けるのは ${apply.length} 件:`);
+    console.log(formatRejections(rejected));
+
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
     let written = 0;
-    for (const s of suggestions) {
-        if (s.verdict !== "confirmed" || !s.spotId) continue;
+    for (const c of apply) {
         try {
             await ddb.send(new UpdateCommand({
                 TableName: table,
-                Key: { id: s.photoId },
-                UpdateExpression: "SET spotId = :sid, updatedAt = :now",
+                Key: { id: c.photoId },
+                // **誰がいつ何を根拠に決めたかも一緒に残す。** 付いている理由を
+                // 辿れないと、間違いを見つけても直す手がかりが無い
+                UpdateExpression: "SET spotId = :sid, spotLinkedBy = :by, spotLinkedAt = :at, spotLinkEvidence = :ev, updatedAt = :now",
                 // 既に紐づいている行は上書きしない（人が直したものを巻き戻さない）
                 ConditionExpression: "attribute_exists(id) AND attribute_not_exists(spotId)",
-                ExpressionAttributeValues: { ":sid": s.spotId, ":now": new Date().toISOString() },
+                ExpressionAttributeValues: {
+                    ":sid": c.spotId, ":by": c.confirmedBy, ":at": c.confirmedAt,
+                    ":ev": c.evidence, ":now": new Date().toISOString(),
+                },
             }));
             written++;
         } catch (err) {
-            console.warn(`  飛ばしました ${s.photoId}: ${(err as Error).name}`);
+            console.warn(`  飛ばしました ${c.photoId}: ${(err as Error).name}`);
         }
     }
     console.log(`\n${written} 件に spotId を付けました。撮影地の文字列は触っていません。`);
