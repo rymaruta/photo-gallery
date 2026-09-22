@@ -1287,8 +1287,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         aria-label={locale === "en" ? "Story options" : "ストーリーの操作"}
                         aria-haspopup="dialog"
                         aria-expanded={menuOpen}
-                        className="p-2.5 text-white/80 hover:text-white"
-                        style={{ touchAction: "manipulation" }}
+                        className="flex items-center justify-center text-white/80 hover:text-white"
+                        style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                     >
                         <EllipsisHorizontalIcon className="w-6 h-6" />
                     </button>
@@ -1297,8 +1297,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     ref={closeBtnRef}
                     onClick={onClose}
                     aria-label={locale === "en" ? "Close" : "閉じる"}
-                    className="p-2.5 text-white/80 hover:text-white"
-                    style={{ touchAction: "manipulation" }}
+                    className="flex items-center justify-center text-white/80 hover:text-white"
+                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                 >
                     <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -1393,8 +1393,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     {item.song && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
-                            style={{ touchAction: "manipulation" }}
+                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
+                            style={{ touchAction: "manipulation", minHeight: "36px" }}
                             aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
                         >
                             {muted
@@ -1611,8 +1611,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     onClick={() => void sendReply({ emoji: STORY_REACTIONS[0] })}
                                     disabled={replySending}
                                     aria-label={locale === "en" ? "Send a like" : "いいねを送る"}
-                                    className="flex-shrink-0 p-2 text-white/90 hover:text-white disabled:opacity-40 active:scale-90 transition"
-                                    style={{ touchAction: "manipulation" }}
+                                    className="flex-shrink-0 flex items-center justify-center text-white/90 hover:text-white disabled:opacity-40 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                                 >
                                     <HeartIcon className="w-6 h-6" />
                                 </button>
@@ -1623,8 +1623,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     onClick={() => void sendReply({ text: replyText.trim() })}
                                     disabled={replySending || !replyText.trim()}
                                     aria-label={locale === "en" ? "Send" : "送信"}
-                                    className="flex-shrink-0 p-2 text-white/90 hover:text-white disabled:opacity-30 active:scale-90 transition"
-                                    style={{ touchAction: "manipulation" }}
+                                    className="flex-shrink-0 flex items-center justify-center text-white/90 hover:text-white disabled:opacity-30 active:scale-90 transition"
+                                    style={{ touchAction: "manipulation", width: "44px", height: "44px" }}
                                 >
                                     <PaperAirplaneIcon className="w-6 h-6" />
                                 </button>
