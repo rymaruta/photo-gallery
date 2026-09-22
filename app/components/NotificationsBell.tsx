@@ -704,7 +704,9 @@ export default function NotificationsBell() {
      */
     const empty = (
         <div
-            className="flex flex-col items-center justify-center text-center"
+            // スマホは残りの高さを取って**中央に置く**（モックの空の状態と同じ）。
+            // PC の板は高さが中身で決まるので、余白だけで足りる
+            className={`flex flex-col items-center justify-center text-center ${wide ? "" : "flex-1 min-h-0"}`}
             style={{ paddingLeft: 24, paddingRight: 24, paddingTop: wide ? 32 : 56, paddingBottom: wide ? 32 : 56 }}
         >
             {status === "error" ? (
