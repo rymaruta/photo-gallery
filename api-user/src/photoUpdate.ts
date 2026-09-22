@@ -88,7 +88,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     // `META_KEYS` しか見ていないので、`replace` は素通りしない）。
     // 上の `META_KEYS` のコメントが名指しで警告している罠そのもの
     const hasReplace = !!body.replace && typeof body.replace === "object";
-    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
+    // **`audience` もここに要る。** 入れ忘れていたので、公開範囲だけを
+    // 変える保存が 400「更新項目がありません」で断られていた
+    // ——画面が `published` を毎回同梱しているので表に出ていなかっただけ。
+    // 上の `hasReplace` のコメントが名指しで警告している罠と同じ形
+    if (!hasPublished && !hasAudience && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
     }
 
@@ -454,7 +458,22 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // いる**ということなので、たいていはその1本が拾う。拾えない窓
         // （そのビルドがテーブルを読んだ後〜ロックを下ろす前）は残るが、
         // そこは下の印で削除時に取り返す。
-        const requested = visibilityChanged || metaChanged;
+        // 🔴 **公開範囲を絞るのも「隠す」操作。**
+        //
+        // ここは `published` と `META_KEYS` しか見ていなかった。`audience` は
+        // どちらにも入っていないので、**公開 →「フォロワーのみ」に変えても
+        // 再ビルドを頼まない**＝既に配られている個別ページ・`photos.json`・
+        // サイトマップ・OGP が**そのまま公開のまま残る**。定期ビルドは週1
+        // （`CLAUDE.md`）なので、**最大7日**その状態が続く。
+        //
+        // この PR は「絞った写真は静的サイトに出さない」と書いているが、
+        // それが本当になるのは**次のビルドから**だった。
+        const wasRestricted = !!sanitizeAudience(existing.Item.audience);
+        const nowRestricted = !!effectiveAudience;
+        const audienceChanged = hasAudience && wasRestricted !== nowRestricted;
+        // **公開されていた写真を絞った**＝既に公開のページが在る
+        const becameRestricted = audienceChanged && nowRestricted && wasPublished;
+        const requested = visibilityChanged || metaChanged || audienceChanged;
         const dispatched = requested
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
@@ -539,7 +558,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
         // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
         // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
-        const hiding = visibilityChanged && body.published === false;
+        // **「絞った」も隠す操作に数える。** 依頼が届かなかった回に
+        // `staticStale` を残さないと、**公開のままのページを誰も消さない**
+        // （削除側は「非公開だった写真にページは無い」と決め打ちする）
+        const hiding = (visibilityChanged && body.published === false) || becameRestricted;
         const staticStale = hiding && !dispatched;
         // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が残る**。
         // `staticStale`（非公開にした）とは**排他**——あちらは `hiding`、こちらは

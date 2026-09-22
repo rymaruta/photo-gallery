@@ -1256,3 +1256,63 @@ describe("写真の差し替え", () => {
         expect(res.statusCode).toBe(403);
     });
 });
+// 🔴 **公開範囲を絞ったら、静的サイトを作り直す。**
+//
+// この関門は `published` と `META_KEYS` しか見ていなかった。`audience` は
+// どちらにも入っていないので、公開 →「フォロワーのみ」に変えても
+// **再ビルドを頼まず**、既に配られている個別ページ・`photos.json`・
+// サイトマップ・OGP が**公開のまま残って**いた。定期ビルドは週1なので
+// 最大7日。「絞った写真は静的サイトに出さない」が本当になるのは
+// 次のビルドから、という状態だった。
+describe("公開範囲を絞ったら、公開のページを作り直す", () => {
+    const published = (audience?: string) => ({
+        Item: { id: "p1", userId: "u1", published: true, ...(audience ? { audience } : {}) },
+    });
+
+    it("公開 →「フォロワーのみ」で再ビルドを頼む", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published()).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockRebuild).toHaveBeenCalled();
+    });
+
+    it("「フォロワーのみ」→ 解除でも頼む（ページを作りに行く）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published("followers")).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: null }));
+        expect(mockRebuild).toHaveBeenCalled();
+    });
+
+    it("同じ値で保存し直しても頼まない（連打で予算を使わない）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published("followers")).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    // **届かなかった回は行に印を残す。** 残さないと、公開のままのページを
+    // 誰も消さない（削除側は「非公開だった写真にページは無い」と決め打つ）
+    it("依頼が届かなかったら staticStale を残す", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce(published())
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(false);
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(JSON.parse(res.body).staticStale).toBe(true);
+        const wrote = mockDdbSend.mock.calls.some((c) =>
+            /SET staticStale/.test(String(((c[0] as { input: { UpdateExpression?: string } }).input).UpdateExpression ?? "")));
+        expect(wrote, "行にも印が要る").toBe(true);
+    });
+
+    // **下書きを絞っただけなら、公開のページは無い**
+    it("非公開の写真を絞っても staticStale は立てない", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(false);
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(JSON.parse(res.body).staticStale).toBeFalsy();
+    });
+});
+
