@@ -60,7 +60,7 @@ const photo = (id: string, title: string) => ({
 });
 
 /** 訪問者（本人ではない）として開く */
-async function openAsVisitor(photos: Array<{ id: string }>) {
+async function openAsVisitor(photos: Array<Record<string, unknown> & { id: string }>) {
     SHOWN = photos;
     mockGetCurrentSession.mockResolvedValue(null);
     mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ userId: OWNER, displayName: "旅人" }) });
