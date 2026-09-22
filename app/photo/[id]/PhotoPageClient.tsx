@@ -153,8 +153,8 @@ function PhotoImage({
     // `canonicalUploadUrl` が `CLOUDFRONT_URL` を土台にする）なので、
     // **同じ1枚に対して2つのホストへ要求が飛ぶ**——
     //
-    //   - `<img>`      → `https://journey-photo.com/uploads/x.webp`（同一オリジン）
-    //   - EXIF の抽出  → `https://d1s3dwwzgxf5ni.cloudfront.net/uploads/x.webp`（別オリジン）
+    //   - `<img>`      → サイトのドメイン（同一オリジン）
+    //   - EXIF の抽出  → CloudFront の既定ドメイン（別オリジン）
     //
     // 別オリジンなので **CORS が要る**。返ってこなければ `exifr.parse` も
     // 控えの `fetch` も投げ、**撮影情報の欄が黙って出ない**（例外は握るので

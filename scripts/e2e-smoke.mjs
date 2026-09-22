@@ -459,6 +459,38 @@ async function runChecks(browser, eng) {
     }
 
     /**
+     * 🔴 **索引ページ（`/category`）。** 「すべて見る ›」の行き先で、
+     * **トップから集約ページへ渡る唯一の1本**（柱の `/search?…` は
+     * `robots.txt` で `Disallow`＝行き止まり。実ビルドで 0本 と数えた）。
+     *
+     * ここが 404 になっても**ホームは今までどおり描かれる**ので、
+     * 画面を見ているだけでは気づけない。`/category` と `/category/<slug>` が
+     * 同居する形（`out/category.html` と `out/category/*.html`）が
+     * 静的書き出しで崩れていないか、実ブラウザで1回通す。
+     */
+    if (fs.existsSync(path.join(OUT, "category.html"))) {
+        console.log(`\n[${eng}][5d] 索引ページ`);
+        await page.goto(`http://localhost:${PORT}/category`, { waitUntil: "domcontentloaded" });
+        check(`[${eng}] 索引ページ: ハイドレーション完了`, await waitForHydration(page));
+        const idx = await page.evaluate(() => ({
+            h1: document.querySelector("h1")?.textContent?.trim() ?? "",
+            children: new Set([...document.querySelectorAll('a[href^="/category/"]')].map((a) => a.getAttribute("href"))).size,
+            home: !!document.querySelector('a[href="/"]'),
+        }));
+        check(`[${eng}] 索引ページ: 見出しが出る`, idx.h1.length > 0, idx.h1);
+        check(`[${eng}] 索引ページ: 集約ページへ並ぶ`, idx.children > 1, `子リンク=${idx.children}`);
+        check(`[${eng}] 索引ページ: ホームへ戻れる`, idx.home);
+
+        // **トップから実際に辿れること。** 部品が描いていても、柱が
+        // PC でしか出ない・節ごと消えている、で届かなくなる
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const fromHome = await page.evaluate(() =>
+            ["/category", "/location", "/camera"].filter((h) => !!document.querySelector(`a[href="${h}"]`)));
+        check(`[${eng}] トップから索引ページへ行ける`, fromHome.length === 3, `届くのは ${fromHome.join(",") || "0本"}`);
+    }
+
+    /**
      * 🔴 **撮影スポット詳細（`/location/*`）。**
      *
      * ここは**検索の着地点**で、2026-09-22 に画面ごと作り直した。それなのに
