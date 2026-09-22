@@ -288,21 +288,47 @@ body {
   border-top-width: 15px;
 }
 
-/* 撮影地マップのボトムシート。**1024px 以上では地図の枠の中に収める。**
-   PC は「左に検索と一覧・右に地図」（owner の指示書 §14）なので、画面の下
-   いっぱいに固定すると左の一覧まで覆う。土台は `app/map/page.tsx` の
-   地図を包む `relative` な枠。
+/* 撮影地マップの、押したピンの中身。
 
-   **`!important` が要る。** スマホ向けの `bottom` は `MapPhotoSheet` の
-   インラインの style（`calc(12px + var(--bottom-bar-h, …))`）で、
-   クラスの指定では勝てない。position はインラインに無いので素のままでよいが、
-   同じ理由で動く値なので並べて書く。 */
+   **スマホ**は画面の下に浮かぶシート（`position: fixed`・`MapPhotoSheet` の
+   インラインの style が `bottom` を持つ）。
+
+   **1024px 以上は左の列の中に置く**（普通の流れに戻す）。PC は「左に検索と
+   一覧・右に地図」（owner の指示書 §14）で、地図の右には操作のボタン・
+   左下には「このエリアを検索」が在る。**地図に重ねると、そのどちらも覆う**
+   ——Chromium で実測（1024x768）: 地図の枠が 592px しかないため、
+   枠いっぱいのシート（x 428..980）が現在地のボタン（x 940..984）と
+   「このエリアを検索」（x 424..578・y 589..625）の上に乗り、どちらも
+   押せなくなっていた。
+
+   そのため `MapPhotoSheet` は**左の列の DOM に置く**（一覧の手前）。
+   スマホでは `fixed` なので DOM の位置に関係なく画面の下に出る。
+   `bottom` はインラインの style だが、`position: static` では読まれないので
+   打ち消しは要らない。 */
+/* **低い画面ではシートを詰める。** 320x640 では 260px のシートが地図の
+   2/3 を覆い、上端へ逃がした操作のボタンまで届かなかった（Chromium で実測）。
+   主のサムネを小さくし、説明を1行にすると 205px 前後まで下がる。
+   1024px 以上は左の列の板なので対象外。 */
+@media (max-height: 700px) and (max-width: 1023px) {
+  /* **`!important` が要る。** 寸法はインラインの style（px で書く決まり）で
+     持っているので、クラスでは勝てない。ここは「この画面幅・高さのときだけ
+     上書きする」1か所なので、詳細度を上げても打ち消し合いにならない */
+  .map-sheet .map-sheet__thumb {
+    width: 96px !important;
+    height: 114px !important;
+  }
+  .map-sheet .map-sheet__desc {
+    -webkit-line-clamp: 1 !important;
+  }
+}
+
 @media (min-width: 1024px) {
   .map-sheet {
-    position: absolute;
-    bottom: 12px !important;
-    left: 12px;
-    right: 12px;
+    position: static;
+    margin-top: 12px;
+  }
+  .map-sheet > * {
+    max-width: none;
   }
 }
 

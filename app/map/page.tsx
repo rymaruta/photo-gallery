@@ -97,12 +97,13 @@ export default function MapPage() {
     const locationSlug = currentLocation ? slugify(currentLocation, "location") : "";
     const relatedHref = locationSlug ? collectionPath("location", locationSlug) : "";
 
-    const onSearchArea = useCallback((b: MapBounds | null) => {
-        setArea(b);
-        // 範囲を決めたら一覧を見せる（モックの「このエリアの写真」と同じ振る舞い）。
-        // PC は左に一覧が出たままなので、この切り替えはスマホにだけ効く
-        if (b) setView("list");
-    }, []);
+    // **押しても一覧へ切り替えない。** 最初は切り替えていたが、実ブラウザで
+    // 触ると地図ごと消えるのが驚きだったうえ、「範囲の指定を解除」は地図の上に
+    // 在るので**押した直後に届かなくなっていた**（Playwright で実測: 押した
+    // あと地図の列が `display: none` になり、解除のボタンが見えない）。
+    // いまは絞るだけ——上の断り（「このエリアの写真 N件」）が出て、
+    // 一覧で見たければ「リスト」を押す
+    const onSearchArea = useCallback((b: MapBounds | null) => setArea(b), []);
 
     const emptyHint = query || category !== "all" || area
         ? (en ? "No photos match. Try clearing the search or filters." : "該当する写真がありません。検索や絞り込みを外してみてください。")
@@ -183,6 +184,25 @@ export default function MapPage() {
                             </div>
                         )}
 
+                        {/* 押したピンの中身。**地図の中には描かない**ので、地図の高さに
+                            縛られない。**左の列の DOM に置く**のは PC のため
+                            ——1024px 以上では普通の流れに戻り、一覧の上の板になる
+                            （地図に重ねると右の操作ボタンと「このエリアを検索」を
+                            覆う。実ブラウザで測って分かった）。スマホでは
+                            `position: fixed` なので、DOM のこの位置は効かない */}
+                        {sheet && (
+                            <MapPhotoSheet
+                                photos={sheet.photos}
+                                index={sheet.index}
+                                onIndexChange={setIndex}
+                                onClose={closeSheet}
+                                locale={locale}
+                                related={related}
+                                relatedTotal={sameLocation.length}
+                                relatedHref={relatedHref}
+                            />
+                        )}
+
                         {/* 何枚が残っているか。**「まだ届いていない」ときは
                             この枝に入らない**ので、ここの 0 は「絞り込みで
                             消えた 0」だけ（実測: 4秒の回線で「0枚」→「18枚」と
@@ -208,33 +228,16 @@ export default function MapPage() {
 
                     {/* 右（PC）／下（スマホ）: 地図 */}
                     <div className={`${view === "map" ? "" : "hidden lg:block"} lg:flex-1 lg:min-w-0`} style={{ marginTop: "12px" }}>
-                        {/* シートを**地図の枠に重ねる**ための土台（PC）。
-                            スマホでは `position: fixed` なのでこの枠には縛られない */}
-                        <div className="relative">
-                            <PhotoMap
-                                photos={filtered}
-                                locale={locale}
-                                onSelect={onSelect}
-                                selectedId={current?.id ?? null}
-                                onSearchArea={onSearchArea}
-                                areaActive={!!area}
-                                className="h-[62vh] min-h-[320px] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
-                            />
-                            {/* 押したピンの中身。**地図の中には描かない**ので、
-                                地図の高さに縛られない */}
-                            {sheet && (
-                                <MapPhotoSheet
-                                    photos={sheet.photos}
-                                    index={sheet.index}
-                                    onIndexChange={setIndex}
-                                    onClose={closeSheet}
-                                    locale={locale}
-                                    related={related}
-                                    relatedTotal={sameLocation.length}
-                                    relatedHref={relatedHref}
-                                />
-                            )}
-                        </div>
+                        <PhotoMap
+                            photos={filtered}
+                            locale={locale}
+                            onSelect={onSelect}
+                            selectedId={current?.id ?? null}
+                            onSearchArea={onSearchArea}
+                            areaActive={!!area}
+                            sheetOpen={!!sheet}
+                            className="h-[62vh] min-h-[320px] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
+                        />
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
                             （white/40 は紺地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}

@@ -85,7 +85,7 @@ const LOCATE_ZOOM = 12;
  * 触られない（`DomEvent.disableClickPropagation` を足す必要もない）。
  */
 export default function PhotoMap({
-    photos, locale, onSelect, selectedId, onSearchArea, areaActive = false, className = "",
+    photos, locale, onSelect, selectedId, onSearchArea, areaActive = false, sheetOpen = false, className = "",
 }: {
     photos: readonly MapPhoto[];
     locale: "ja" | "en";
@@ -97,6 +97,20 @@ export default function PhotoMap({
     onSearchArea?: (bounds: MapBounds | null) => void;
     /** 範囲の指定が効いているか（ボタンの文言が変わる） */
     areaActive?: boolean;
+    /**
+     * 押したピンのシートが開いているか。**開いている間、操作のボタンを
+     * 地図の上端へ逃がす**（1024px 未満だけ）。
+     *
+     * 実測（Chromium）: シートは画面の下に固定で出て、地図の下 275px を覆う。
+     * そこに「このエリアを検索」（左下）と操作のボタン（右・上下中央）が
+     * 在ると、**シートの面は 95% の不透明なので薄く透けて見えたまま押せない**
+     * ——このリポジトリが何度も踏んでいる形（`2922526f`）。
+     * 320x844 では現在地のボタンも、390x844 では「このエリアを検索」も
+     * `elementFromPoint` がシートを返していた。
+     *
+     * 1024px 以上ではシートが左の列の板になるので、動かさない。
+     */
+    sheetOpen?: boolean;
     /** 外枠の見た目（高さなど）。既定はスマホの1画面ぶん */
     className?: string;
 }) {
@@ -438,9 +452,24 @@ export default function PhotoMap({
             {/* 操作のボタン。**地図の容器の外**に置くので Leaflet のドラッグ・
                 ホイールに触られない。`z-[1001]` は Leaflet のコントロール層
                 （`.leaflet-top` = 1000）より前。`isolate` の中なのでページには出ない */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1001] flex flex-col items-center" style={{ gap: "12px" }}>
-                {/* ＋ と − は1つの縦長の丸にまとめる（モックと同じ） */}
-                <div className="flex flex-col overflow-hidden rounded-full bg-surface-2/90 backdrop-blur-sm ring-1 ring-white/15 shadow-lg shadow-black/40">
+            <div
+                // シートが開いている間は**1段の横並びで上端へ逃がす**（1024px 未満）。
+                // 縦積みのままだと 144px あり、320x640 のような低い画面では
+                // 上端へ寄せてもシートの下に入る（実測: 現在地のボタンが
+                // `elementFromPoint` でシートの本文を返していた）
+                className={`absolute right-4 z-[1001] flex items-center ${
+                    sheetOpen
+                        ? "top-2 flex-row-reverse lg:top-1/2 lg:-translate-y-1/2 lg:flex-col"
+                        : "top-1/2 -translate-y-1/2 flex-col"
+                }`}
+                data-testid="map-controls-stack"
+                style={{ gap: "12px" }}
+            >
+                {/* ＋ と − は1つの丸にまとめる（モックと同じ）。シートが開いて
+                    いる間だけ横に寝かせる */}
+                <div className={`flex overflow-hidden rounded-full bg-surface-2/90 backdrop-blur-sm ring-1 ring-white/15 shadow-lg shadow-black/40 ${
+                    sheetOpen ? "flex-row-reverse lg:flex-col" : "flex-col"
+                }`}>
                     <button
                         type="button" onClick={() => zoomBy(1)}
                         aria-label={en ? "Zoom in" : "拡大"}
@@ -451,7 +480,7 @@ export default function PhotoMap({
                             <path d="M10 4v12M4 10h12" />
                         </svg>
                     </button>
-                    <span className="h-px bg-white/15" aria-hidden="true" />
+                    <span className={sheetOpen ? "w-px self-stretch bg-white/15 lg:w-auto lg:h-px" : "h-px bg-white/15"} aria-hidden="true" />
                     <button
                         type="button" onClick={() => zoomBy(-1)}
                         aria-label={en ? "Zoom out" : "縮小"}
@@ -483,8 +512,14 @@ export default function PhotoMap({
             {onSearchArea && (
                 <button
                     type="button" onClick={searchArea}
-                    className="absolute left-4 z-[1001] inline-flex items-center rounded-full bg-surface-2/90 backdrop-blur-sm text-white ring-1 ring-accent/60 shadow-lg shadow-black/40 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                    style={{ bottom: "44px", height: "36px", paddingLeft: "12px", paddingRight: "14px", gap: "6px", fontSize: "13px", touchAction: "manipulation" }}
+                    className={`absolute left-4 z-[1001] inline-flex items-center rounded-full bg-surface-2/90 backdrop-blur-sm text-white ring-1 ring-accent/60 shadow-lg shadow-black/40 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                        // **操作のボタンの下の段に置く。** 同じ段だと 320px 幅で
+                        // 横に並びきらず、後から描くこちらがボタンを覆っていた
+                        // （実測: 現在地のボタンが `elementFromPoint` でこの
+                        // ボタンを返していた）
+                        sheetOpen ? "top-14 lg:top-auto lg:bottom-11" : "bottom-11"
+                    }`}
+                    style={{ height: "36px", paddingLeft: "12px", paddingRight: "14px", gap: "6px", fontSize: "13px", touchAction: "manipulation" }}
                     data-testid="map-search-area"
                 >
                     <svg viewBox="0 0 20 20" aria-hidden="true" className="text-accent" style={{ width: "16px", height: "16px" }} fill="currentColor">
@@ -500,8 +535,10 @@ export default function PhotoMap({
             {locateError && (
                 <p
                     role="status"
-                    className="absolute left-4 right-4 top-4 z-[1001] rounded-xl bg-surface-2/95 backdrop-blur-sm ring-1 ring-white/15 text-white/90"
-                    style={{ padding: "8px 12px", fontSize: "13px", lineHeight: "18px" }}
+                    className="absolute left-4 z-[1001] rounded-xl bg-surface-2/95 backdrop-blur-sm ring-1 ring-white/15 text-white/90"
+                    // **右は空けておく。** 操作のボタン（44px ＋ 余白）が右上へ
+                    // 逃げている場合があるので、そこへ潜り込ませない
+                    style={{ top: "64px", maxWidth: "calc(100% - 88px)", padding: "8px 12px", fontSize: "13px", lineHeight: "18px" }}
                 >
                     {locateError}
                 </p>

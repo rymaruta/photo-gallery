@@ -51,8 +51,12 @@ const RELATED_SHOWN = 3;
  * safe-area に落とす。**こちらは変数を出さない**——出す側が2つになると、
  * 後からマウントした方が上書きして静かにずれる。
  *
- * **1024px 以上では地図の枠の中に収める**（`app/globals.css` の `.map-sheet`）。
- * PC は左に一覧・右に地図なので、画面の下いっぱいに出すと一覧まで覆う。
+ * **1024px 以上では左の列の中の板になる**（`app/globals.css` の `.map-sheet`
+ * が `position: static` に戻す）。PC は左に一覧・右に地図で、地図の右には
+ * 操作のボタン・左下には「このエリアを検索」が在る。**地図に重ねるとその
+ * どちらも覆う**——Chromium で実測（1024x768）: 枠いっぱいのシート
+ * （x 428..980）が現在地のボタン（x 940..984）と「このエリアを検索」
+ * （x 424..578）の上に乗り、どちらも押せなくなっていた。
  *
  * **`MiniPlayer` より前に出す（z-45）。** あちらも同じ位置（fixed・下から
  * 12px + バー）の z-40 で、`layout.tsx` が `children` の後に描くので、
@@ -144,25 +148,26 @@ export default function MapPhotoSheet({
             role="dialog"
             aria-modal="false"
             aria-label={en ? "Photo at this location" : "この場所の写真"}
-            className="map-sheet fixed left-0 right-0 z-[45] pointer-events-none"
+            className="map-sheet fixed left-0 right-0 z-[45] px-2 pointer-events-none lg:px-0"
             style={{
                 // 画面下から。バーがあるページではそのぶん上へ（バーの実寸は
-                // safe-area 込み。無いときだけ safe-area に落とす）
+                // safe-area 込み。無いときだけ safe-area に落とす）。
+                // **左右の余白はクラスで持つ**——1024px 以上では `position: static`
+                // に戻すので（`app/globals.css`）、インラインの style だと
+                // 打ち消せない
                 bottom: "calc(12px + var(--bottom-bar-h, env(safe-area-inset-bottom, 0px)))",
-                paddingLeft: "8px",
-                paddingRight: "8px",
             }}
             data-testid="map-photo-sheet"
         >
             <div
-                className="pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50"
+                className="pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 lg:shadow-none"
                 style={{ maxWidth: "560px", padding: "12px" }}
             >
                 {/* つまみ。モックの上端にある短い横棒（掴んで動かせる印ではなく、
                     「下から出てきた面」であることの目印） */}
                 <span
                     aria-hidden="true"
-                    className="block mx-auto rounded-full bg-white/30"
+                    className="block mx-auto rounded-full bg-white/30 lg:hidden"
                     style={{ width: "40px", height: "4px", marginBottom: "10px" }}
                 />
 
@@ -172,7 +177,7 @@ export default function MapPhotoSheet({
                     <Link
                         href={ROUTES.PHOTO(photo.id)}
                         prefetch={false}
-                        className="flex-shrink-0 block rounded-xl overflow-hidden bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        className="map-sheet__thumb flex-shrink-0 block rounded-xl overflow-hidden bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                         style={{ width: "128px", height: "152px" }}
                         aria-label={title}
                     >
@@ -224,7 +229,7 @@ export default function MapPhotoSheet({
                         {description && (
                             // 2行で切る（シートは入口で、全文は個別ページ）
                             <p
-                                className="text-white/80 break-words"
+                                className="map-sheet__desc text-white/80 break-words"
                                 style={{
                                     fontSize: "14px", lineHeight: "20px", marginTop: "8px",
                                     display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
