@@ -79,16 +79,7 @@ API_BASELINE=11
 # ⚠️ **並行するブランチが各自の木で関門を通しても、合流した develop で
 # 基準を超える**（9/21 の 120 → 129 と同じ形）。develop を取り込んだら
 # この関門を一度は通すこと。
-# 2026-09-22: 142 → 149。develop に入った #85（⑦ハイライト）の新ファイル2つぶん
-# ——`highlights.ts` 6・`highlights.test.ts` 1（`git cat-file -e f3a13491:<path>` で
-# 「基準を決めた断面に無いファイル」だけを数えて 7 = 149 − 142 と一致）。
-# 2026-09-22: 149 → 151。develop に入った PR #87（投票スタンプ）の新しいハンドラ
-# `api-user/src/storyVotes.ts` ぶん——TS2307（`aws-lambda` が引けない）と、その
-# 帰結の TS7006（`event` が暗黙 any）の2件で、中身は上と同じノイズ
-# （`git cat-file -e 33cafc66:api-user/src/storyVotes.ts` は無い＝新しいファイル）。
-# ⚠️ **develop の値（142）は合流のときに上げ忘れていた**——手元で測ると 151 で、
-# `npm run verify` は develop そのものでも落ちる。上の警告どおりの形が実際に起きた。
-API_USER_BASELINE=151
+API_USER_BASELINE=142
 
 check_side_tsc() { # check_side_tsc <dir> <baseline>
     local out; out=$(npx tsc --noEmit -p "$1/tsconfig.json" 2>&1)
@@ -125,6 +116,18 @@ check_side_tsc() { # check_side_tsc <dir> <baseline>
     # 関門が壊れる。代わりに「$1 から2つの依存が解決できるか」を先に見る。
     if ! (cd "$1" && node -e 'require.resolve("vitest/package.json"); require.resolve("@types/node/package.json")' 2>/dev/null); then
         echo "::error:: $1 から vitest / @types/node が解決できません（ルートで npm ci を打ってから測ってください）"
+        return 1
+    fi
+    # **`$1/package.json` が挙げている型定義が、そこに入っているか。**
+    # 上の2つはルートの node_modules で満たせてしまうので、`$1` 自身の
+    # devDependencies が空でも素通りする。実際に踏んだ（2026-09-22）——
+    # `api-user/node_modules` は在るのに中身がほぼ空で、`@types/aws-lambda` が
+    # 引けず **TS2307 と、その帰結の TS7006 で 57 → 151 に膨らんでいた**。
+    # それを「develop で増えた」と読んで基準を上げかけた（＝本物の増加を
+    # 隠す方向）。**土俵が違うだけなのか、本当に増えたのかを先に切り分ける。**
+    local miss
+    if ! miss=$(cd "$1" && node -e 'const p=require("./package.json");const ns=Object.keys({...p.dependencies,...p.devDependencies}).filter(n=>n.startsWith("@types/"));const m=ns.filter(n=>{try{require.resolve(n+"/package.json");return false}catch{return true}});if(m.length){console.log(m.join(", "));process.exit(1)}'); then
+        echo "::error:: $1 の型定義が入っていません（$miss）。\`cd $1 && npm ci\` を打ってから測ってください"
         return 1
     fi
 
