@@ -306,3 +306,142 @@ describe("スタンプを置いたあとに打つ", () => {
         expect(screen.queryByRole("button", { name: "この文字を消す" })).toBeNull();
     });
 });
+
+/**
+ * 投票スタンプ（⑨-3・下書きの側）。
+ *
+ * 固定したいのは4つ:
+ *
+ *  1. **1投稿に1つ**（置いたら押せなくなる）
+ *  2. 投票を選んでいる間は**問い・2択・大きさ**の欄が出て、字体の欄は出ない
+ *  3. **投票を置いたあとに打つと、新しい文字ができる**（投票の中身に
+ *     `text` が生えない——⑨-2 で踏んだスプレッドの穴を投票でも塞ぐ）
+ *  4. 問いを直すと写真の上のカードに反映される
+ */
+const voteButton = () => screen.queryByRole("button", { name: /投票を置く|投票（1投稿に1つ）/ });
+const voteCard = () => document.querySelector("[data-story-vote]") as HTMLElement | null;
+
+describe("投票スタンプ（StoriesBar の配線）", () => {
+    it("「投票」を押すと、写真の上にカードが出る", async () => {
+        await pickImage();
+        expect(voteCard()).toBeNull();
+        await userEvent.click(voteButton()!);
+        expect(voteCard(), "投票が写真の上に出ていない").not.toBeNull();
+        expect(voteCard()!.textContent).toContain("この景色、好き？");
+        expect(voteCard()!.textContent).toContain("はい");
+        expect(voteCard()!.textContent).toContain("いいえ");
+    });
+
+    // **1投稿に1つ。** 票をストーリー単位で数えるので、2つ置けると行き先が決まらない。
+    // `sanitizeStoryTexts` も2つ目を落とすので、押せるのに保存で消える、を作らない
+    it("置いたら2つ目は押せない", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        expect(voteButton(), "2つ目が押せる").toBeDisabled();
+        // トグルではない（押し直して外せない）ので `aria-pressed` は付けない。
+        // 理由は名前で伝える
+        expect(voteButton()!.hasAttribute("aria-pressed")).toBe(false);
+        expect(voteButton()!.getAttribute("aria-label")).toBe("投票（1投稿に1つ）");
+        expect(document.querySelectorAll("[data-story-vote]")).toHaveLength(1);
+    });
+
+    it("投票を選んでいる間は、問い・2択・大きさの欄が出て、字体の欄は出ない", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        expect(screen.getByRole("textbox", { name: "投票の問い" })).toBeInTheDocument();
+        expect(screen.getByRole("textbox", { name: "選択肢1" })).toBeInTheDocument();
+        expect(screen.getByRole("textbox", { name: "選択肢2" })).toBeInTheDocument();
+        expect(screen.getByRole("slider", { name: "投票の大きさ" })).toBeInTheDocument();
+        for (const name of ["字体", "色", "下地"]) {
+            expect(screen.queryByRole("tab", { name }), `${name} の欄が出ている`).toBeNull();
+        }
+    });
+
+    it("問いと選択肢を直すと、カードに反映される", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        const q = screen.getByRole("textbox", { name: "投票の問い" });
+        await userEvent.clear(q);
+        await userEvent.type(q, "また来たい？");
+        const o2 = screen.getByRole("textbox", { name: "選択肢2" });
+        await userEvent.clear(o2);
+        await userEvent.type(o2, "うーん");
+        expect(voteCard()!.textContent).toContain("また来たい？");
+        expect(voteCard()!.textContent).toContain("はい");
+        expect(voteCard()!.textContent).toContain("うーん");
+    });
+
+    /**
+     * **投票を置いたあとに打つと、新しい文字ができる。**
+     *
+     * `editText` の絞りが `!isStoryStamp` のままだと、投票が文字の側へ落ちて
+     * 投票の中身に `text` が生える（画面には何も出ず、サーバーが落として
+     * 打った文字が消える）。⑨-2 でスタンプについて踏んだ穴を、種類を
+     * 足したときに開け直していないことを見る。
+     */
+    it("投票を置いてから打つと、新しい文字ができる（投票は問いのまま）", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        await type("朝の空");
+        expect(placed(), "文字が増えていない").toHaveLength(2);
+        expect(voteCard()!.textContent, "投票の中身が変わっている").toContain("この景色、好き？");
+        expect(voteCard()!.textContent).not.toContain("朝の空");
+        expect((screen.getByRole("textbox", { name: "文字" }) as HTMLInputElement).value).toBe("朝の空");
+    });
+
+    /**
+     * **欠けた投票は送れない。** `sanitizeStoryTexts` は問いか2択が空の
+     * 投票を落とす（既定で埋めない）ので、送れてしまうと**カードは見えて
+     * いるのに投稿後に消える**。空の文字は画面に何も描かれないが、投票は
+     * 空のピルが見えたままなので「置いたのに消えた」に直結する。
+     */
+    it("選択肢を空にすると投稿できず、理由が出る。入れ直すと戻る", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        const post = () => screen.getByRole("button", { name: "ストーリーに投稿" });
+        expect(post()).toBeEnabled();
+        expect(screen.queryByRole("status")).toBeNull();
+        await userEvent.clear(screen.getByRole("textbox", { name: "選択肢2" }));
+        expect(post(), "欠けた投票のまま投稿できる").toBeDisabled();
+        expect(screen.getByRole("status").textContent).toContain("問いと2つの選択肢");
+        await userEvent.type(screen.getByRole("textbox", { name: "選択肢2" }), "うーん");
+        expect(post()).toBeEnabled();
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    // 問いが空白だけでも同じ（`trim` で見る）
+    it("問いが空白だけでも投稿できない", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        const q = screen.getByRole("textbox", { name: "投票の問い" });
+        await userEvent.clear(q);
+        await userEvent.type(q, "   ");
+        expect(screen.getByRole("button", { name: "ストーリーに投稿" })).toBeDisabled();
+    });
+
+    /**
+     * **入力欄の字は 16px。** これより小さいと iOS Safari が焦点を当てた瞬間に
+     * 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）。
+     * 投票の3つだけ 14px で入れていた
+     */
+    it("問いと選択肢の欄は 16px（iOS で画面が拡大しない）", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        for (const name of ["投票の問い", "選択肢1", "選択肢2"]) {
+            const el = screen.getByRole("textbox", { name });
+            expect(el.style.fontSize, `${name} が 16px でない`).toBe("16px");
+        }
+    });
+
+    it("消すボタンは「この投票を消す」と名乗る", async () => {
+        await pickImage();
+        await userEvent.click(voteButton()!);
+        expect(screen.getByRole("button", { name: "この投票を消す" })).toBeInTheDocument();
+    });
+
+    it("上限まで置いたら投票も押せない", async () => {
+        await pickImage();
+        for (let i = 0; i < STORY_TEXTS_MAX; i++) await userEvent.click(stamps()[0]);
+        expect(voteButton()).toBeDisabled();
+    });
+});

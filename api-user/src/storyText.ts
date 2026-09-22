@@ -204,7 +204,26 @@ export type StoryStampItem = StoryItemBase & {
 };
 
 /**
- * 写真の上に置いたもの。**文字とスタンプを1つの並びで持つ。**
+ * 投票スタンプ（「この景色、好き？」→ 2択）。
+ *
+ * **問いと2択は投稿者が書いた文言**で、字体や色は持たない（カードの
+ * 見た目は1種類）。票そのものはここには無い——**ストーリーごとに1行**
+ * （`storyvotes#<storyId>`・`api-user/src/storyVotes.ts`）に、投じた人と
+ * 数を持つ。投稿の中に票を持つと、票が入るたびに投稿の行を書き換える
+ * ことになる（投稿者以外が投稿の行を書く形になり、返信が
+ * `storyreplies#` に分けたのと同じ理由で避ける）。
+ *
+ * **1投稿に1つだけ**（`sanitizeStoryTexts` が2つ目以降を落とす）。
+ * 票はストーリー単位で数えるので、2つ置けると票の行き先が決まらない。
+ */
+export type StoryVoteItem = StoryItemBase & {
+    kind: "vote";
+    question: string;
+    options: [string, string];
+};
+
+/**
+ * 写真の上に置いたもの。**文字・スタンプ・投票を1つの並びで持つ。**
  *
  * 別の配列に分けると、**重なり順が決まらない**——「文字の上にスタンプ」
  * と「スタンプの上に文字」を置き分けられなくなる。動かす・回す・
@@ -213,11 +232,44 @@ export type StoryStampItem = StoryItemBase & {
  * 名前は `StoryText` のまま（保存されている属性名が `texts` で、
  * 画面もサーバーもこの名前で呼んでいる。改名は別の作業）。
  */
-export type StoryText = StoryTextItem | StoryStampItem;
+export type StoryText = StoryTextItem | StoryStampItem | StoryVoteItem;
 
 /** その要素はスタンプか（**無い＝文字**で読む） */
 export function isStoryStamp(t: StoryText): t is StoryStampItem {
     return t.kind === "stamp";
+}
+
+/** その要素は投票か */
+export function isStoryVote(t: StoryText): t is StoryVoteItem {
+    return t.kind === "vote";
+}
+
+/**
+ * その要素は文字か（**無い＝文字**で読む）。
+ *
+ * `!isStoryStamp(t) && !isStoryVote(t)` を `filter` に書くと、TS が
+ * 述語を推論するかが式の形に依る。名前を付けた1本にして、
+ * `filter(isStoryTextItem)` で必ず絞れるようにする。
+ *
+ * **肯定で書く。** `!== "stamp" && !== "vote"` だと、知らない `kind`
+ * （新しい画面が先に出した種類）が文字と見なされ、`text` も `font` も
+ * 無いまま文字の枝へ落ちる——「種類を足すと文字の側へ落ちる」穴が
+ * 述語の中へ移るだけ。無い・`"text"` だけを文字と読む。
+ */
+export function isStoryTextItem(t: StoryText): t is StoryTextItem {
+    return t.kind === undefined || t.kind === "text";
+}
+
+/**
+ * 投票として成り立っているか（問いと2択が全部ある）。
+ *
+ * **作成画面と `sanitizeStoryTexts` が同じ1本を見る。** 別々に書くと、
+ * 画面は通したのにサーバーが落とす（プレビューに在るのに投稿後に消える）
+ * 形が作れてしまう。既定で埋めない（サーバーが文言を作らない）ので、
+ * 欠けは「落とす」しかなく、だから画面側は**送る前に止める**。
+ */
+export function isCompleteStoryVote(v: Pick<StoryVoteItem, "question" | "options">): boolean {
+    return v.question.trim() !== "" && v.options.length === 2 && v.options.every((o) => o.trim() !== "");
 }
 
 /**
@@ -279,6 +331,59 @@ export function newStoryStamp(stamp: StoryStampKey, x: number, y: number): Story
 }
 
 /**
+ * 投票の文言の長さ。**写真の上のカードに収まる長さ**で切る。
+ *
+ * 問いは1〜2行、選択肢はボタン1つに乗る短い語（「はい」「いいえ」の類）。
+ * これより長いと、小さい画面（320px）でカードが写真を覆う。上限は判断。
+ */
+export const STORY_VOTE_QUESTION_MAX = 40;
+export const STORY_VOTE_OPTION_MAX = 12;
+
+/**
+ * 新しく置く投票の既定。**問いは台帳の文言そのもの**
+ * （「この景色、好き？」）。2択の既定は台帳に無いので判断——
+ * 違う想定なら差し替える（PR 本文に明記）。
+ */
+export const STORY_VOTE_DEFAULT: { question: string; options: [string, string] } = {
+    question: "この景色、好き？",
+    options: ["はい", "いいえ"],
+};
+
+/**
+ * 新しく置く投票の大きさ。**文字の既定より小さめ**——`size` はカードの
+ * 字の大きさで、カードは問いと2つのボタンを持つので、文字と同じ字の
+ * 大きさだと写真を覆う。
+ */
+export const DEFAULT_STORY_VOTE_SIZE = 0.05;
+
+/** 新しく置く投票1つ（問いと2択は既定。置いたあとに直す） */
+export function newStoryVote(x: number, y: number): StoryVoteItem {
+    return {
+        kind: "vote",
+        question: STORY_VOTE_DEFAULT.question,
+        options: [...STORY_VOTE_DEFAULT.options],
+        x: clampStoryTextPos(x), y: clampStoryTextPos(y),
+        size: clampStoryTextSize(DEFAULT_STORY_VOTE_SIZE),
+    };
+}
+
+/** 2択のどちらか（保存の列名 `votersA` / `votersB` に対応） */
+export type StoryVoteChoice = "a" | "b";
+
+/**
+ * 見る人に返す票の状態（`GET /stories` の各行の `vote`・`POST /stories/{id}/vote` の応答）。
+ *
+ * **`counts` は投稿者と票を入れた人にだけ付く**（入れる前に数が見えると
+ * 多い方に寄る）。無い＝まだ入れていない・数は見えない。
+ * 画面（`StoryTextOverlay`）とサーバー（`api-user/src/storyVotes.ts`）が
+ * 同じ形を見る。
+ */
+export type StoryVoteState = {
+    myVote?: StoryVoteChoice;
+    counts?: { a: number; b: number };
+};
+
+/**
  * 受け取った値を、**一覧に在る鍵だけ**に直す。
  *
  * 知らない鍵は既定へ落とす（弾いて丸ごと捨てると、字体を1つ増やした日に
@@ -288,12 +393,17 @@ export function newStoryStamp(stamp: StoryStampKey, x: number, y: number): Story
  * **スタンプは別の規則。** 文言を持たないので「空なら落とす」は当てない
  * ——代わりに**一覧に在る鍵でなければ落とす**（知らないスタンプを
  * 既定の絵柄に化けさせない。字体と違い、絵柄が変わると**別の意味**になる）。
+ *
+ * **投票は1つだけ・欠けたら落とす。** 問いか選択肢が空の投票は成立しない
+ * （既定で埋めない——サーバーが文言を作ることになる）。2つ目以降は
+ * 落とす（票はストーリー単位で数えるので、行き先が決まらない）。
  */
 export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
     if (!Array.isArray(input)) return undefined;
     const pick = <T extends string>(v: unknown, keys: readonly T[], fallback: T): T =>
         typeof v === "string" && (keys as readonly string[]).includes(v) ? (v as T) : fallback;
     const out: StoryText[] = [];
+    let seenVote = false;
     for (const raw of input) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const o = raw as Record<string, unknown>;
@@ -317,7 +427,19 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
             // 一覧を増やした日に古い画面が困ることは無い——増える側なので
             if (typeof o.stamp !== "string" || !(STORY_STAMP_KEYS as readonly string[]).includes(o.stamp)) continue;
             out.push({ kind: "stamp", stamp: o.stamp as StoryStampKey, ...common });
-        } else {
+        } else if (o.kind === "vote") {
+            // **1投稿に1つだけ。** 2つ目以降は落とす（上の docstring）
+            if (seenVote) continue;
+            const question = (typeof o.question === "string" ? o.question : "").slice(0, STORY_VOTE_QUESTION_MAX).trim();
+            const opts = Array.isArray(o.options) ? o.options : [];
+            const a = (typeof opts[0] === "string" ? opts[0] : "").slice(0, STORY_VOTE_OPTION_MAX).trim();
+            const b = (typeof opts[1] === "string" ? opts[1] : "").slice(0, STORY_VOTE_OPTION_MAX).trim();
+            // **欠けた投票は落とす**（既定で埋めない——サーバーが文言を作らない）。
+            // 判定は作成画面と同じ1本（`isCompleteStoryVote`）
+            if (!isCompleteStoryVote({ question, options: [a, b] })) continue;
+            seenVote = true;
+            out.push({ kind: "vote", question, options: [a, b], ...common });
+        } else if (o.kind === undefined || o.kind === "text") {
             const text = (typeof o.text === "string" ? o.text : "").slice(0, STORY_TEXT_LEN_MAX).trim();
             if (!text) continue;
             out.push({
@@ -328,6 +450,7 @@ export function sanitizeStoryTexts(input: unknown): StoryText[] | undefined {
                 bg: pick(o.bg, STORY_BGS, DEFAULT_STORY_TEXT.bg),
             });
         }
+        // 知らない `kind` は落とす（文字に化けさせない。`isStoryTextItem` と同じ線）
         if (out.length >= STORY_TEXTS_MAX) break;
     }
     return out.length > 0 ? out : undefined;
@@ -342,5 +465,7 @@ export function storyTextsCaption(texts: readonly StoryText[]): string {
     // 「検索に出る文章」になる（`storyKeep.ts` の `sanitizeTitle`）。
     // 絵柄は文章ではないので、入れると**題が絵文字だけの写真**ができる。
     // スタンプしか置いていない投稿は `caption` を持たない（それが正しい）。
-    return texts.filter((t) => !isStoryStamp(t)).map((t) => t.text).join("\n").trim();
+    // **投票も混ぜない。** 「この景色、好き？」は題ではなく問いかけで、
+    // 残したときに写真の題になると嘘になる（スタンプと同じ側）
+    return texts.filter(isStoryTextItem).map((t) => t.text).join("\n").trim();
 }
