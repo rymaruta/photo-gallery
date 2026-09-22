@@ -163,6 +163,18 @@ export type UserProfile = {
     themeColor?: string;          // #rrggbb（アバターリング等のアクセント色）
     statusText?: string;          // 名前の下に出る「ひとこと」（絵文字OK・60文字）
     pinnedPhotoIds?: string[];    // ピン留め（投稿タブ先頭に固定・最大3枚）
+    /**
+     * 認証済みの印（名前の横のバッジ）。
+     *
+     * **本人からは立てられない。** ここは本人が書き換えられる行なので、
+     * 更新の経路（`updateProfile`）では**受け取らない**——受け取ると
+     * 誰でも自分にバッジを付けられる。立てるのは運営で、いまは
+     * DynamoDB の行を直に書く（管理画面の口はまだ無い）。
+     *
+     * **誰も立てていなければ誰にも出ない。** それは正しい状態であって、
+     * 「機能が無い」のではない。
+     */
+    verified?: boolean;
     updatedAt?: string;
 };
 
@@ -991,13 +1003,15 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
-        tripTitles, tripCovers, tripSongs, statusText,
+        tripTitles, tripCovers, tripSongs, statusText, verified,
     } = p;
     return withCheckedSongUrls({
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
-        tripTitles, tripCovers, tripSongs, statusText,
+        // **印は公開してよい**（バッジとして出すためのもの）。
+        // 立てられるのは運営だけ（型の注記）
+        tripTitles, tripCovers, tripSongs, statusText, verified,
     });
 }
 
