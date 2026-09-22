@@ -1249,9 +1249,13 @@ export default function StoriesBar() {
                 >
                     {/* 写真は画面いっぱいの背面に固定。入力欄はその上に重ねるので、
                         キャプションや曲を入れている間もずっと写真を見ていられる。 */}
+                    {/* 🔴 **PC は別設計**（指示書 4・11・17「スマホ画面をそのまま横に
+                        引き伸ばさない」）。1024px 以上では**左に写真・右に操作の列**。
+                        写真の面をここで左半分に閉じると、`mediaBox` の実測も一緒に
+                        狭まるので、置いた文字の位置は**割合のまま**正しく乗る */}
                     <div
                         ref={draftMediaAreaRef}
-                        className="absolute inset-0 flex items-center justify-center"
+                        className="absolute inset-0 lg:right-[400px] flex items-center justify-center"
                         // **掴むのは文字そのもの。** 複数置けるので、絵のどこを
                         // 掴んでも「いま選んでいる1つ」が飛んでくる形にはできない
                         // （どれを動かしたいのかが決まらない）。掴んだ文字を選び、
@@ -1387,9 +1391,9 @@ export default function StoriesBar() {
                         **畳んでいる間は下を出さない**——下の 2/3 を暗くするので、
                         置いた姿を見るための画面なのに**本番より暗く見える**
                         （実測: 畳んだ画面で写真の下半分が沈んでいた） */}
-                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 lg:right-[400px] top-0 h-28 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
                     {!photoOnly && (
-                        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none" />
+                        <div className="absolute inset-x-0 lg:right-[400px] bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/60 to-transparent pointer-events-none lg:hidden" />
                     )}
 
                     {/* 🔴 **上部のバー**（最終版モック 08）。左に「キャンセル」、
@@ -1397,7 +1401,10 @@ export default function StoriesBar() {
                         下書きも確認画面も**機能が無い**ので出さない
                         （指示書「未実装の設定を、動作するボタンとして表示しない」）。
                         題は読み上げの拠り所なので残す（画面には出さない）。 */}
-                    <div className="relative flex items-center justify-between gap-2 px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
+                    {/* ⚠️ **`z-10`。** PC では操作の欄が右の列（`lg:absolute`）になり、
+                        DOM の後ろに居るぶん**このバーの上に乗る**——実測で
+                        「ストーリーに投稿」が欄の下に潜って押せなかった */}
+                    <div className="relative z-10 flex items-center justify-between gap-2 px-3 py-2" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}>
                         <h2 id="story-draft-title" className="sr-only">
                             {locale === "en" ? "New story" : "新しいストーリー"}
                         </h2>
@@ -1471,7 +1478,7 @@ export default function StoriesBar() {
                     ) : (
                     <>
                     <div
-                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[400px] lg:max-h-none lg:pt-[72px] lg:pb-6 lg:bg-bar/80 lg:backdrop-blur-md lg:border-l lg:border-white/10 ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
                         {/* 🔴 **編集ツールの行**（最終版モック 08 の⑥）。
                             押したものの欄だけ下に出る。モックは6つ（カメラ・
