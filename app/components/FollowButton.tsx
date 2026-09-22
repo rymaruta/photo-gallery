@@ -7,6 +7,7 @@ import React, { useRef, useState } from "react";
 import { UserPlusIcon, CheckIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useFollow } from "../../lib/hooks/useFollow";
 import { useToast } from "../../lib/hooks/useToast";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "./statCellStyle";
 import FollowingSheet, { type FollowListKind } from "./FollowingSheet";
 
 type Props = {
@@ -16,7 +17,11 @@ type Props = {
     locale: "ja" | "en";
 };
 
-export default function FollowButton({ targetUserId, isAuthenticated, locale }: Omit<Props, "isOwner"> & { isOwner?: boolean }) {
+/**
+ * @param variant "stats" は最終版モックのマイページ用——投稿数と同じ行に並ぶ
+ *   「数字が上・ラベルが下」の形（ピルではない）。既定の "pill" は今までどおり
+ */
+export default function FollowButton({ targetUserId, isAuthenticated, locale, variant = "pill" }: Omit<Props, "isOwner"> & { isOwner?: boolean; variant?: "pill" | "stats" }) {
     const { followers, following, countsKnown } = useFollow(targetUserId, isAuthenticated);
     const [sheet, setSheet] = useState<FollowListKind | null>(null);
     const followingBtnRef = useRef<HTMLButtonElement>(null);
@@ -34,6 +39,42 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale }: 
     // で答えている。**数字だけ `…` にすれば**「0人と言い切らない」を守った
     // まま行の高さが動かない。
     const shown = (n: number) => (countsKnown ? n.toLocaleString() : "…");
+
+    if (variant === "stats") {
+        // 数字が上・ラベルが下。押せるときだけボタンにする（0人・取得前は押させない）
+        const cell = (n: number, label: string, kind: FollowListKind, ref: React.RefObject<HTMLButtonElement | null>) => {
+            const open = isAuthenticated && countsKnown && n > 0;
+            const inner = (
+                <>
+                    <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{shown(n)}</span>
+                    <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{label}</span>
+                </>
+            );
+            return open ? (
+                <button type="button" ref={ref} onClick={() => setSheet(kind)} aria-haspopup="dialog"
+                        className="flex-1 text-center hover:opacity-80 active:scale-95 transition"
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}>
+                    {inner}
+                </button>
+            ) : <div className="flex-1 text-center">{inner}</div>;
+        };
+        return (
+            <>
+                {cell(followers, locale === "en" ? "followers" : "フォロワー", "followers", followersBtnRef)}
+                <span aria-hidden="true" className="w-px self-center bg-white/10" style={{ height: `${STAT_DIVIDER_PX}px` }} />
+                {cell(following, locale === "en" ? "following" : "フォロー中", "following", followingBtnRef)}
+                {sheet && (
+                    <FollowingSheet
+                        userId={targetUserId}
+                        kind={sheet}
+                        locale={locale}
+                        onClose={() => setSheet(null)}
+                        openerRef={sheet === "following" ? followingBtnRef : followersBtnRef}
+                    />
+                )}
+            </>
+        );
+    }
 
     return (
         <div className="flex flex-wrap items-center gap-2 -mt-2 mb-4">
