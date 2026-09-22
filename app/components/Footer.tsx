@@ -28,13 +28,13 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="border-t border-white/10 bg-black">
+        <footer className="border-t border-white/10 bg-bg">
             <div className="max-w-5xl mx-auto px-6 md:px-8 py-10 md:py-12">
                 <div className="flex flex-col items-center gap-5 text-center">
                     {/* ブランド + タグライン */}
                     <div>
                         <p className="inline-flex items-center gap-1.5 text-base font-bold tracking-wide text-white">
-                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-sky-400" />
+                            <PaperAirplaneIcon className="w-3.5 h-3.5 -rotate-45 text-link" />
                             Journey Photo
                         </p>
                         <p className="mt-1.5 text-xs text-white/50">

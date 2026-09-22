@@ -385,15 +385,13 @@ export default function NotificationsBell() {
      * ——支援技術は「1/4」と読み上げるのに動かない。合わせて
      * **タブストップは tablist 全体で1つ**にする（roving tabindex）。
      * 4つ全部が Tab の停止点だと、通知を1件読むまでに4回 Tab を押す。
-     *
-     * **どこへ移るかの判断は `nextTabIndex` 1つ**（`SpotPageClient` と
-     * 二重だったので寄せた）。ここに残るのは画面ごとに違うぶん
-     * ——状態の持ち方と、タブの id の付け方。
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        // 計算は `lib/utils/tabKeys.ts`（`SpotPageClient` と共有）。
+        // 選び方とフォーカスの送り先だけがここの仕事
         const to = nextTabIndex(e.key, NOTIF_TABS.indexOf(tab), NOTIF_TABS.length);
-        // **関係ないキーでは止めない。** 止めると Tab まで飲む
         if (to === null) return;
+        // 矢印での横スクロールを起こさない
         e.preventDefault();
         const next = NOTIF_TABS[to];
         setTab(next);
@@ -405,8 +403,16 @@ export default function NotificationsBell() {
     // タブで絞る → 区分でまとめる、の順。**区分は絞る前の `newSince` で
     // 決まる**ので、どのタブでも「新着」の中身は変わらない
     // （フォローのタブに立つ「新着」は、フォローの新着だけになる）。
+    // **key に並びの番号を混ぜない。** `-${i}` を含めていたので、ポーリングで
+    // 先頭に1件挿入されると**以降の行の key が全部ずれ、全部作り直される**
+    // ——リンクに当たっていたキーボードのフォーカスが `<body>` へ落ち、
+    // アバターとサムネの `<img>` が再マウントして描き直しになる。
+    // 中身から作れば、増えた1件だけが新しい行になる。
+    //
+    // 同じ人が同じ写真に同じミリ秒で2回——は作れない（いいねは冪等、
+    // コメントとフォローと返信は `t` が別々に作られる）。
     const shownRows = items
-        .map((n, i) => ({ n, key: `${n.photoId || n.targetUserId}-${n.t}-${i}` }))
+        .map((n) => ({ n, key: `${n.type}-${n.byId ?? ""}-${n.photoId || n.targetUserId || ""}-${n.t}` }))
         .filter(({ n }) => inTab(n.type, tab));
     const groups = BUCKET_ORDER
         .map((bucket) => ({ bucket, rows: shownRows.filter(({ n }) => bucketOf(n.t, now, newSince) === bucket) }))
@@ -423,7 +429,7 @@ export default function NotificationsBell() {
             >
                 <BellIcon className="w-6 h-6" />
                 {unread > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-sky-500 text-[10px] font-bold text-white flex items-center justify-center">
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
                         {unread > 9 ? "9+" : unread}
                     </span>
                 )}
@@ -435,11 +441,15 @@ export default function NotificationsBell() {
                         <div className="fixed inset-0 z-40" onClick={closePanel} aria-hidden="true" />,
                         document.body,
                     )}
-                    <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                    <div className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[85vw] rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
                         <div className="px-4 py-2.5 border-b border-white/5">
-                            <span className="text-xs font-semibold tracking-widest uppercase text-white/50">
+                            {/* **`h2` にする。** 区分の見出しを `h3` にしたので、
+                                ここが `span` のままだと**見出しの階層が飛ぶ**
+                                （読み上げの「見出しへ移動」でパネルの題に着けない）。
+                                見た目は変えない——字の大きさも太さも据え置き */}
+                            <h2 className="text-xs font-semibold tracking-widest uppercase text-white/50">
                                 {locale === "en" ? "Notifications" : "通知"}
-                            </span>
+                            </h2>
                         </div>
                         {/* **1件も無いときはタブを出さない。** 押しても中身が
                             変わらない操作を4つ並べることになり、しかも下の
@@ -528,7 +538,7 @@ export default function NotificationsBell() {
                                     いま何の区分を見ているか分からなくなる）。
                                     **透けない下地**を敷かないと行が裏を通る */}
                                 <h3
-                                    className={`sticky top-0 z-10 bg-[#16181c] px-4 py-1.5 font-semibold ${bucket === "new" ? "text-sky-400" : "text-white/50"}`}
+                                    className={`sticky top-0 z-10 bg-surface-2 px-4 py-1.5 font-semibold ${bucket === "new" ? "text-link" : "text-white/50"}`}
                                     style={{ fontSize: "11px", letterSpacing: "0.08em" }}
                                 >
                                     {BUCKET_LABEL[bucket][locale === "en" ? "en" : "ja"]}
@@ -560,7 +570,7 @@ export default function NotificationsBell() {
                                                 <p className="text-[13px] text-white/85 leading-snug break-words">
                                                     {n.type === "follow" ? (
                                                         <>
-                                                            <UserPlusIcon className="w-3.5 h-3.5 text-sky-400 inline -mt-0.5 mr-1" />
+                                                            <UserPlusIcon className="w-3.5 h-3.5 text-link inline -mt-0.5 mr-1" />
                                                             {locale === "en"
                                                                 ? <><span className="font-semibold">{n.byName}</span> followed you</>
                                                                 : <><span className="font-semibold">{n.byName}</span> さんがあなたをフォローしました</>}

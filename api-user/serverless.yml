@@ -763,6 +763,54 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # ---- ハイライト（⑦・アーカイブを束ねてマイページの輪に）------------
+  # 作る・直す・消すは本人だけ。読む2つは未認証（マイページは誰でも見る）
+  # ——読み取り専用ロール（写真テーブルは GetItem のみ）で動くよう、
+  # `highlights.ts` は ID を1件ずつ引く形にしてある
+  createHighlight:
+    handler: src/highlights.createHighlight
+    events:
+      - httpApi:
+          path: /highlights
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  updateHighlight:
+    handler: src/highlights.updateHighlight
+    events:
+      - httpApi:
+          path: /highlights/{id}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  deleteHighlight:
+    handler: src/highlights.deleteHighlight
+    events:
+      - httpApi:
+          path: /highlights/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  getUserHighlights:
+    handler: src/highlights.getUserHighlights
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
+    events:
+      - httpApi:
+          path: /highlights/{userId}
+          method: GET
+
+  getHighlight:
+    handler: src/highlights.getHighlight
+    role: PublicReadRole
+    events:
+      - httpApi:
+          path: /highlights/{userId}/{id}
+          method: GET
+
   deleteAccount:
     handler: src/account.deleteAccount
     environment:

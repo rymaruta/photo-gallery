@@ -10,9 +10,9 @@ import { useLocale } from "../i18n/context";
 import { ROUTES } from "../../lib/routes";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
-import { nextTabIndex } from "../../lib/utils/tabKeys";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type SpotLink = { label: string; count: number; path: string };
 type NearbyLink = SpotLink & { km: number; approx: boolean };
@@ -83,8 +83,8 @@ export default function SpotPageClient({
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         const keys = TABS.map(([k]) => k);
-        // **どこへ移るかの判断は `nextTabIndex` 1つ**（`NotificationsBell` と
-        // 二重だったので寄せた）。ここに残るのは画面ごとに違うぶん
+        // 計算は `lib/utils/tabKeys.ts`（`NotificationsBell` と共有）。
+        // 選び方とフォーカスの送り先だけがここの仕事
         const next = nextTabIndex(e.key, keys.indexOf(tab), keys.length);
         if (next === null) return;
         // 矢印での横スクロールを起こさない
@@ -287,7 +287,7 @@ export default function SpotPageClient({
                         {en
                             ? "No map position for this spot yet. Photos taken with GPS, or given a place from the edit screen, put it on the map."
                             : "この場所には、地図に出せる位置がまだありません。GPS 付きの写真を上げるか、編集画面で場所を選ぶと地図に載ります。"}
-                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-sky-300 hover:text-sky-200 underline underline-offset-4">
+                        <Link href={ROUTES.MAP} prefetch={false} className="ml-1 text-link hover:text-white underline underline-offset-4">
                             {en ? "Open the map" : "撮影地マップを開く"}
                         </Link>
                     </p>

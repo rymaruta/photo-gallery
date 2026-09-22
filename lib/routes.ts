@@ -76,6 +76,12 @@ export const ROUTES = {
     ALBUMS: "/user/albums",
     /** 自分のストーリーのアーカイブ（24時間で消えたあと、本人だけが見る） */
     STORY_ARCHIVE: "/user/archive",
+    /**
+     * ハイライトを作る・直す（アーカイブから束ねてマイページの輪にする）。
+     * `id` を渡すと既存のものを直す画面（`/user/edit?id=` と同じ形）
+     */
+    HIGHLIGHT_EDITOR: (id?: string) =>
+        id ? `/user/highlights?id=${encodeURIComponent(id)}` : "/user/highlights",
     EDIT: (id: string) => `/user/edit?id=${encodeURIComponent(id)}`,
     PROFILE_EDIT: "/user/profile",
     /**

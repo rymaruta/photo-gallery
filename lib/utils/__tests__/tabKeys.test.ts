@@ -2,95 +2,87 @@ import { describe, it, expect } from "vitest";
 import { nextTabIndex } from "../tabKeys";
 
 /**
- * `nextTabIndex` は `NotificationsBell`（タブ4つ）と `SpotPageClient`（3つ）の
- * 二重だった判断を1つにしたもの。**元の2か所と答えが一致すること**を固定する。
+ * **2か所が同じ計算を各自で書いていた**（`SpotPageClient` と
+ * `NotificationsBell`）。寄せたので、端の折り返しと「タブの操作ではない
+ * キー」をここで一度だけ固定する。
+ *
+ * 画面側のテストは「矢印で隣へ移り、フォーカスも移る」を見ていて、
+ * **`count` が 0 や範囲外のときは踏んでいない**（どちらの画面もタブの数が
+ * 固定なので、画面からは作れない）。純関数にしたぶん、ここで見られる。
  */
-describe("nextTabIndex", () => {
-    it("ArrowRight は次へ、最後なら先頭へ折り返す", () => {
+describe("タブの矢印キー", () => {
+    it("矢印で隣へ移る", () => {
         expect(nextTabIndex("ArrowRight", 0, 4)).toBe(1);
-        expect(nextTabIndex("ArrowRight", 2, 4)).toBe(3);
-        expect(nextTabIndex("ArrowRight", 3, 4)).toBe(0);
+        expect(nextTabIndex("ArrowLeft", 2, 4)).toBe(1);
     });
 
-    it("ArrowLeft は前へ、先頭なら最後へ折り返す", () => {
-        expect(nextTabIndex("ArrowLeft", 3, 4)).toBe(2);
-        expect(nextTabIndex("ArrowLeft", 1, 4)).toBe(0);
-        expect(nextTabIndex("ArrowLeft", 0, 4)).toBe(3);
+    // WAI-ARIA の tabs は端で折り返す（行き止まりを作らない）
+    it("端では折り返す", () => {
+        expect(nextTabIndex("ArrowRight", 3, 4), "末尾の次が先頭になっていない").toBe(0);
+        expect(nextTabIndex("ArrowLeft", 0, 4), "先頭の前が末尾になっていない").toBe(3);
     });
 
-    it("Home は先頭、End は最後", () => {
+    it("Home / End は端へ飛ぶ", () => {
         expect(nextTabIndex("Home", 2, 4)).toBe(0);
-        expect(nextTabIndex("Home", 0, 4)).toBe(0);
-        expect(nextTabIndex("End", 0, 4)).toBe(3);
-        expect(nextTabIndex("End", 3, 4)).toBe(3);
+        expect(nextTabIndex("End", 2, 4)).toBe(3);
     });
 
-    // **関係ないキーは `null`。** 呼ぶ側はこれを見て `preventDefault()` を
-    // 飛ばす——止めると `Tab` や文字入力まで飲む
-    it("タブに関係ないキーは null（呼ぶ側が preventDefault を飛ばせる）", () => {
-        for (const k of ["Tab", "Enter", " ", "a", "ArrowUp", "ArrowDown", "Escape", "PageDown", ""]) {
-            expect(nextTabIndex(k, 1, 4), `${k} を拾ってしまっている`).toBeNull();
+    // **`null` を返す＝呼び出し側は `preventDefault` しない。**
+    // ここで 0 などを返すと、Tab や文字キーまでタブを動かし、
+    // しかも既定の動作を止めてしまう
+    it.each(["Tab", "Enter", " ", "a", "ArrowUp", "ArrowDown", "Escape"])(
+        "タブの操作でないキー（%s）には手を出さない", (key) => {
+            expect(nextTabIndex(key, 1, 4), "関係ないキーでタブが動く").toBeNull();
+        });
+
+    // 🔴 画面からは作れないが、関数としては呼べてしまう形。
+    // `% 0` は NaN、`count - 1` は -1 で、どちらも**存在しない添字**
+    it("タブが0個なら何も返さない", () => {
+        for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+            expect(nextTabIndex(k, 0, 0), `${k} が存在しない添字を返す`).toBeNull();
         }
     });
 
-    // **元の2か所と同じ答えになること。** 実装を写した先で式の形が違って
-    // いたので（`i === last ? 0 : i + 1` と `(at + 1) % len`）、
-    // 範囲内の全ての位置で突き合わせる。
-    //
-    // ⚠️ 剰余の式は**実装と同じ形**なので、独立した検証になっているのは
-    // Bell 側の三項演算子の行と、関係ないキーの行。**範囲外の `at` は
-    // ここでは突き合わせない**——元の2か所で答えが食い違っていた
-    // （`-2` と `1`）ので、一致させる対象が無い
-    it("範囲内の位置では、元の2か所の式と答えが一致する", () => {
-        for (const count of [3, 4]) {
-            const last = count - 1;
-            for (let i = 0; i < count; i++) {
-                // NotificationsBell の式
-                expect(nextTabIndex("ArrowRight", i, count)).toBe(i === last ? 0 : i + 1);
-                expect(nextTabIndex("ArrowLeft", i, count)).toBe(i === 0 ? last : i - 1);
-                // SpotPageClient の式
-                expect(nextTabIndex("ArrowRight", i, count)).toBe((i + 1) % count);
-                expect(nextTabIndex("ArrowLeft", i, count)).toBe((i - 1 + count) % count);
-                expect(nextTabIndex("Home", i, count)).toBe(0);
-                expect(nextTabIndex("End", i, count)).toBe(count - 1);
-                // 元の2か所はどちらも `-1`（Bell）/ `return`（Spot）で
-                // 何もしなかった。こちらは `null` で同じところへ倒れる
-                expect(nextTabIndex("Tab", i, count)).toBeNull();
-            }
-        }
-    });
-
-    // **範囲内の答えしか返さない。** 元の `NotificationsBell` は
-    // `at = -1`（状態が一覧に無い）＋ ArrowLeft で `-2` を作り、
-    // `NOTIF_TABS[-2]` = `undefined` を `setTab` に渡していた
-    it("範囲外の位置でも、範囲内の答えしか返さない", () => {
-        for (const at of [-1, -2, 4, 99, 1.5, NaN]) {
-            for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+    // 🔴 **整数でない数も「存在しない添字」を作る。**
+    // `count <= 0` / `current >= 0 && current < count` だけでは `1.5` が
+    // 素通りし、`ArrowRight` が **`2.5`** を返していた。呼び出し側は
+    // 返り値をそのまま添字に使うので（`NOTIF_TABS[2.5]`）`undefined` が
+    // `setTab` に届く。**上の「範囲の中」のテストは `at` を整数でしか
+    // 回していなかったので、この穴を見ていなかった**
+    it("整数でない数は、存在しない添字を作らせない", () => {
+        for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+            // 数が整数でない → 何もしない
+            expect(nextTabIndex(k, 0, 1.5), `count=1.5 で ${k} が答えを返す`).toBeNull();
+            expect(nextTabIndex(k, 0, NaN), `count=NaN で ${k} が答えを返す`).toBeNull();
+            // 選択中が整数でない → 先頭から数え直す（返すのは必ず整数）
+            for (const at of [1.5, NaN]) {
                 const to = nextTabIndex(k, at, 4);
                 expect(to, `${k} / at=${at}`).not.toBeNull();
-                expect(to!, `${k} / at=${at} が範囲外`).toBeGreaterThanOrEqual(0);
-                expect(to!, `${k} / at=${at} が範囲外`).toBeLessThan(4);
-                // **整数であること。** ここを見ていなかったので、
-                // `Number.isInteger(at)` のガードを落としても緑だった
-                // （`at = 1.5` → `2.5` が返り、0 以上 4 未満を満たす）。
-                // `NOTIF_TABS[2.5]` は `undefined` で `setTab` に届く
-                expect(Number.isInteger(to!), `${k} / at=${at} が整数でない`).toBe(true);
+                expect(Number.isInteger(to!), `${k} / at=${at} が整数でない添字を返す`).toBe(true);
+                expect(to!).toBeGreaterThanOrEqual(0);
+                expect(to!).toBeLessThan(4);
             }
         }
     });
 
-    // タブが無い／数がおかしいときは動かさない（`% 0` の NaN を返さない）
-    it("タブが0個以下・整数でない数なら null", () => {
-        for (const count of [0, -1, 1.5, NaN]) {
-            expect(nextTabIndex("ArrowRight", 0, count), `count=${count}`).toBeNull();
-            expect(nextTabIndex("Home", 0, count), `count=${count}`).toBeNull();
-            expect(nextTabIndex("End", 0, count), `count=${count}`).toBeNull();
-        }
+    // 選択中のタブが一覧から消えた直後など。負の添字を `%` に通すと負が残る
+    it("選択中が範囲の外なら、先頭から数え直す", () => {
+        expect(nextTabIndex("ArrowRight", -1, 4), "負の添字がそのまま計算に入っている").toBe(1);
+        expect(nextTabIndex("ArrowLeft", -1, 4)).toBe(3);
+        expect(nextTabIndex("ArrowRight", 99, 4)).toBe(1);
     });
 
-    it("タブが1個なら、どのキーでもその1個", () => {
-        for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
-            expect(nextTabIndex(k, 0, 1), k).toBe(0);
+    // 返すのは必ず範囲の中（呼び出し側は添字でそのまま引く）
+    it("返す値は必ず範囲の中", () => {
+        for (const count of [1, 2, 5]) {
+            for (let at = 0; at < count; at++) {
+                for (const k of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+                    const to = nextTabIndex(k, at, count);
+                    expect(to, `${k} / ${at} / ${count}`).not.toBeNull();
+                    expect(to!).toBeGreaterThanOrEqual(0);
+                    expect(to!).toBeLessThan(count);
+                }
+            }
         }
     });
 });

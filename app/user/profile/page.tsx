@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
@@ -20,7 +19,8 @@ import { isImeKey } from "../../../lib/utils/ime";
 import { log } from "../../../lib/utils/log";
 import { useMusic } from "../../music/MusicContext";
 import SongArtwork from "../../components/SongArtwork";
-import { loginWithNext, ROUTES } from "../../../lib/routes";
+import { ROUTES } from "../../../lib/routes";
+import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 
@@ -88,7 +88,6 @@ function cleanUsername(v: string): string {
 export default function ProfileEditPage() {
     const { isAuthenticated, loading } = useAuth();
     const { locale } = useLocale();
-    const router = useRouter();
     const { showToast } = useToast();
     const { stop: stopGlobalMusic } = useMusic();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,14 +164,11 @@ export default function ProfileEditPage() {
         || website.trim() !== (profile.website ?? "").trim()
     );
 
-    useEffect(() => {
-        // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
-        // ログインが切れた側はどのみち保存できないが、書いたものを消して
-        // よい理由にはならない。保存できないことは下のトーストで伝える
-        if (!loading && !isAuthenticated && !hasUnsavedWork) {
-            router.replace(loginWithNext(window.location.pathname + window.location.search));
-        }
-    }, [isAuthenticated, loading, router, hasUnsavedWork]);
+    // **打ちかけがあるときは送り返さない**（`useMemberGate` と同じ判断）。
+    // ログインが切れた側はどのみち保存できないが、書いたものを消して
+    // よい理由にはならない。保存できないことは下のトーストで伝える。
+    // 送り方は `useLoginRedirect` に集めた
+    useLoginRedirect(!loading && !isAuthenticated && !hasUnsavedWork);
 
     // 留めたぶん、**保存できないことを言う**（`/user/edit` と同じ形）。
     // 一度だけ出す（描画のたびに出すと読めない）
@@ -605,7 +601,7 @@ export default function ProfileEditPage() {
 
     if (loading || fetching) {
         return (
-            <main className="min-h-screen bg-black text-white flex items-center justify-center">
+            <main className="min-h-screen bg-bg text-white flex items-center justify-center">
                 {/* **事前描画で焼かれるのはこの枝**（認証を確かめる前）。
                     JS が走る前に見えるのはここなので見出しを持たせる */}
                 <h1 className="sr-only">プロフィール編集</h1>
@@ -636,7 +632,7 @@ export default function ProfileEditPage() {
     const isYouTubePreview = songPreview?.service === "youtube";
 
     return (
-        <main className="min-h-screen bg-black text-white">
+        <main className="min-h-screen bg-bg text-white">
             <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
                 <Link
                     href="/"
@@ -837,14 +833,14 @@ export default function ProfileEditPage() {
                                     onClick={() => setThemeColor(themeColor === c ? "" : c)}
                                     aria-label={c}
                                     aria-pressed={themeColor === c}
-                                    className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition ${themeColor === c ? "ring-white scale-110" : "ring-transparent"}`}
+                                    className={`w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-bg active:scale-90 transition ${themeColor === c ? "ring-white scale-110" : "ring-transparent"}`}
                                     style={{ backgroundColor: c }}
                                 />
                             ))}
 
                             {/* パレットから自由に選ぶ。見本の中に無い色もここで決められる */}
                             <label
-                                className={`relative w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-black active:scale-90 transition cursor-pointer overflow-hidden ${isCustomTheme ? "ring-white scale-110" : "ring-white/30"}`}
+                                className={`relative w-9 h-9 rounded-full ring-2 ring-offset-2 ring-offset-bg active:scale-90 transition cursor-pointer overflow-hidden ${isCustomTheme ? "ring-white scale-110" : "ring-white/30"}`}
                                 style={{
                                     background: isCustomTheme
                                         ? themeColor
@@ -1130,7 +1126,7 @@ export default function ProfileEditPage() {
                         <button
                             onClick={() => void handleSave()}
                             disabled={saving || avatarUploading}
-                            className="w-full py-3 bg-white text-black text-sm font-semibold rounded-full hover:bg-white/90 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving

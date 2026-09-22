@@ -143,7 +143,7 @@ export default function MiniPlayer() {
 
     return (
         <div ref={boxRef} className={outerClass} style={outerStyle}>
-            <div className="relative rounded-2xl bg-[#16181c]/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 overflow-hidden">
+            <div className="relative rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 overflow-hidden">
                 {/* プログレス（上辺・rAFで滑らかに更新） */}
                 <SmoothProgress
                     getAudio={music.getAudio}
@@ -207,7 +207,7 @@ export default function MiniPlayer() {
                     <button
                         onClick={music.toggle}
                         aria-label={playing ? "一時停止" : "再生"}
-                        className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-white/90 active:scale-95 transition flex-shrink-0"
+                        className="w-8 h-8 rounded-full bg-accent-fill text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0"
                     >
                         {playing ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 ml-0.5" />}
                     </button>
