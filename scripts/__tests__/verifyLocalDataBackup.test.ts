@@ -57,7 +57,13 @@ describe("verify-local.sh のデータ退避", () => {
      * （`imageOriginSites.test.ts` の「一覧の項目が実在することも見る」と同じ構え）。
      */
     it("`app/data/` の追跡ファイルは全部 .json（glob の外に出ていない）", () => {
-        const tracked = execFileSync("git", ["ls-files", "app/data"], { cwd: ROOT, encoding: "utf8" })
+        // ⚠️ **`-c safe.directory=*` を必ず付ける。**
+        // CI のテストは Playwright の**コンテナの中**で走るので、
+        // 作業ツリーの所有者が git の実行ユーザーと違い、素の `git` は
+        // `fatal: detected dubious ownership` で 128 を返す。
+        // **手元では通り、CI でだけ落ちる**——実際に Deploy Site run 416 が
+        // これで止まり、本番反映が1回失敗した（2026-09-22）。
+        const tracked = execFileSync("git", ["-c", "safe.directory=*", "ls-files", "app/data"], { cwd: ROOT, encoding: "utf8" })
             .split("\n").map((l) => l.trim()).filter(Boolean);
         expect(tracked.length, "app/data に追跡ファイルが無い（この見張りが空回りしている）").toBeGreaterThan(0);
         const notJson = tracked.filter((f) => !f.endsWith(".json"));
