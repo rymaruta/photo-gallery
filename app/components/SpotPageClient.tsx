@@ -12,6 +12,7 @@ import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { collectionPath, slugify } from "../../lib/utils/collections";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
+import { nextTabIndex } from "../../lib/utils/tabKeys";
 
 type SpotLink = { label: string; count: number; path: string };
 type NearbyLink = SpotLink & { km: number; approx: boolean };
@@ -82,15 +83,10 @@ export default function SpotPageClient({
      */
     const onTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         const keys = TABS.map(([k]) => k);
-        const at = keys.indexOf(tab);
-        let next: number;
-        switch (e.key) {
-            case "ArrowRight": next = (at + 1) % keys.length; break;
-            case "ArrowLeft": next = (at - 1 + keys.length) % keys.length; break;
-            case "Home": next = 0; break;
-            case "End": next = keys.length - 1; break;
-            default: return;
-        }
+        // 計算は `lib/utils/tabKeys.ts`（`NotificationsBell` と共有）。
+        // 選び方とフォーカスの送り先だけがここの仕事
+        const next = nextTabIndex(e.key, keys.indexOf(tab), keys.length);
+        if (next === null) return;
         // 矢印での横スクロールを起こさない
         e.preventDefault();
         setTab(keys[next]);

@@ -179,8 +179,16 @@ describe("followUser", () => {
         //  逆の「この人をブロック」）。他の2か所（`StoryViewer` と
         // `UserProfileClient` の注意書き）は場所まで言っているのに、
         // **押した人が実際に受け取るこの文言だけ**が言っていなかった
-        expect(JSON.parse(res.body).error, "どこで解除するか言っていない")
-            .toContain("プロフィール設定");
+        // 行き先は**設定**（2026-09-21 にプロフィール編集から移設）。
+        // 画面側（`StoryViewer` / `UserProfileClient`）と同じ文言にする。
+        //
+        // ⚠️ **`toContain("設定の…")` だけでは足りない。** 旧文言
+        // 「解除は**プロフィール設定**の『ブロックした人』から」も
+        // その部分文字列を含むので、戻しても素通りする（変異で実測）。
+        // 古い方が消えていることを別に見る
+        const err = JSON.parse(res.body).error;
+        expect(err, "どこで解除するか言っていない").toContain("設定の「ブロックした人」");
+        expect(err, "移設前の場所（プロフィール設定）を案内したまま").not.toContain("プロフィール設定");
         expect(mockDdbSend).not.toHaveBeenCalled();
         expect(mockPush).not.toHaveBeenCalled();
     });

@@ -1,18 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useStoryArchive } from "../../../lib/hooks/useStoryArchive";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, ArchiveBoxIcon, PlayIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ArchiveBoxIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { log } from "../../../lib/utils/log";
 import { ROUTES, loginWithNext } from "../../../lib/routes";
-import { usableRows } from "../../../lib/utils/apiRows";
-import { publicImageUrl } from "@/lib/utils/seo";
-import { groupStories, type Story } from "@/lib/stories";
+import { groupStories, storyDayLabel, type Story } from "@/lib/stories";
 import StoryViewer from "../../components/stories/StoryViewer";
+import StoryTile from "../../components/stories/StoryTile";
 
 /**
  * ストーリーのアーカイブ（24時間で消えたあと、本人だけが見る）。
@@ -27,12 +27,15 @@ import StoryViewer from "../../components/stories/StoryViewer";
  * 線はそれを前提にしている）。日ごとに束ねれば同じ上限に収まり、
  * 押した1枚から始めてその日の残りを送れる。
  *
- * **入口はまだ無い。** マイページの輪（アーカイブ／ハイライト）は ⑦ で置く
- * ——`UserProfileClient` は ⑦ に入るまで触らない約束。それまでは URL で来る。
+ * **入口はマイページの「アーカイブ →」（本人だけ・下書きの隣）**と、
+ * ハイライトの作成画面（`/user/highlights` の「アーカイブを見る」）。
+ * マイページの輪はハイライト（⑦）で、アーカイブそのものは輪にしない
+ * （本人だけのものを、誰でも見る場所に並べない）。
  *
- * 一覧は3列・縦長（9:16）のタイル。ストーリーは縦長なので、下書きの
- * 正方形ではなく実物の形で並べる。モックにはアーカイブ単体の画面が
- * 無いので、足すのは最小限——押すと開く、だけ。
+ * 一覧は3列・縦長（9:16）のタイル（`StoryTile`。ハイライトの作成画面と
+ * 同じ絵）。ストーリーは縦長なので、下書きの正方形ではなく実物の形で
+ * 並べる。モックにはアーカイブ単体の画面が無いので、足すのは最小限
+ * ——押すと開く、だけ。
  */
 
 /** その日の鍵（見ている人の時計で。UTC の日付で切ると深夜の投稿が翌日に寄る） */
@@ -52,9 +55,8 @@ export default function StoryArchivePage() {
     const router = useRouter();
     const isJa = locale === "ja";
 
-    const [items, setItems] = useState<Story[] | null>(null);
-    // 取得の失敗を「0件」に混ぜない（下書きの一覧と同じ判断——消えたように見える）
-    const [loadError, setLoadError] = useState(false);
+    // 一覧の読み方はハイライトの作成画面と同じ（`useStoryArchive`）
+    const { items, setItems, loadError, load } = useStoryArchive(isAuthenticated);
     /** 開いている束（その日のぶん）と、その中の1枚 */
     const [open, setOpen] = useState<{ items: Story[]; index: number } | null>(null);
     /**
@@ -69,34 +71,6 @@ export default function StoryArchivePage() {
     useEffect(() => {
         if (!loading && !isAuthenticated) router.replace(loginWithNext(ROUTES.STORY_ARCHIVE));
     }, [loading, isAuthenticated, router]);
-
-    const load = useCallback(async () => {
-        setLoadError(false);
-        try {
-            const { userFetch } = await import("../../../lib/utils/api");
-            const res = await userFetch("/stories/archive");
-            if (!res.ok) {
-                log.error("story archive fetch failed", { status: res.status });
-                setLoadError(true);
-                return;
-            }
-            // 配列でない応答は「0件」ではなく失敗。行の形は `groupStories` が見る
-            const rows = usableRows<Story>(await res.json(), "GET /stories/archive");
-            if (!rows) {
-                log.error("story archive response is not an array");
-                setLoadError(true);
-                return;
-            }
-            setItems(rows);
-        } catch (e) {
-            log.error("story archive load error:", e);
-            setLoadError(true);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (isAuthenticated) void load();
-    }, [isAuthenticated, load]);
 
     /**
      * 自分の束（古い→新しい）。形の壊れた行を落とすのも、並べるのも、
@@ -129,7 +103,7 @@ export default function StoryArchivePage() {
         const gone = removedRef.current;
         removedRef.current = new Set();
         setItems((prev) => (prev ? prev.filter((s) => !gone.has(s.id)) : prev));
-    }, []);
+    }, [setItems]);
 
     // 削除は `StoriesBar` の `handleDeleteStory` と同じ形（404 は成功・
     // サーバーの理由をそのまま出す・技術文字列は出さない）
@@ -166,8 +140,7 @@ export default function StoryArchivePage() {
     }
 
     const lc = isJa ? "ja" as const : "en" as const;
-    /** 投稿した日（見ている人の時計）。期限の時刻ではない——ビューアの見出し（`timeAgo`）と同じ元 */
-    const dayLabel = (s: Story) => new Date(s.createdAt).toLocaleDateString(isJa ? "ja-JP" : "en-US");
+    const dayLabel = (s: Story) => storyDayLabel(s.createdAt, lc);
 
     return (
         <main className="min-h-screen bg-bg text-white">
@@ -221,44 +194,13 @@ export default function StoryArchivePage() {
                         {descending.map((s) => {
                             const label = dayLabel(s);
                             return (
-                                <li key={s.id} className="relative aspect-[9/16] overflow-hidden bg-white/5">
-                                    <button
-                                        type="button"
-                                        onClick={() => openStory(s)}
-                                        aria-label={isJa ? `${label} のストーリーを開く` : `Open story from ${label}`}
-                                        className="absolute inset-0 w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                                        style={{ touchAction: "manipulation" }}
-                                    >
-                                        {s.mediaType === "video" ? (
-                                            <>
-                                                {/* 最初のフレームを出す。iOS Safari は `#t=` の欠片が無いと
-                                                    再生するまで何も描かない（黒い箱になる）。音は出さない */}
-                                                <video
-                                                    src={`${publicImageUrl(s.src)}#t=0.001`}
-                                                    muted
-                                                    playsInline
-                                                    preload="metadata"
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                                <PlayIcon className="absolute right-1 top-1 w-4 h-4 text-white drop-shadow" aria-hidden="true" />
-                                            </>
-                                        ) : (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={publicImageUrl(s.src)}
-                                                alt=""
-                                                loading="lazy"
-                                                className="absolute inset-0 w-full h-full object-cover"
-                                            />
-                                        )}
-                                        <span
-                                            className="absolute left-1 bottom-1 px-1.5 py-0.5 rounded bg-black/60 text-white/90"
-                                            style={{ fontSize: "10px" }}
-                                        >
-                                            {label}
-                                        </span>
-                                    </button>
-                                </li>
+                                <StoryTile
+                                    key={s.id}
+                                    story={s}
+                                    label={label}
+                                    ariaLabel={isJa ? `${label} のストーリーを開く` : `Open story from ${label}`}
+                                    onClick={() => openStory(s)}
+                                />
                             );
                         })}
                     </ul>
