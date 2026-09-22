@@ -15,7 +15,6 @@
 import type { Photo } from "../data/photos";
 import { getLocalized } from "../data/photos";
 import { normalizeForSearch, slugify } from "./collections";
-import { haversineKm } from "./journey";
 
 /** 地図の表示範囲（Leaflet の `getBounds()` を素の数で受ける） */
 export type MapBounds = { south: number; west: number; north: number; east: number };
@@ -107,24 +106,31 @@ export function isInBounds(point: { lat: number; lng: number }, b: MapBounds): b
         : point.lng >= b.west || point.lng <= b.east;
 }
 
+/**
+ * Leaflet の `getBounds()` を、`isInBounds` が読める形に直す。
+ *
+ * **Leaflet は経度を ±180 に丸めない。** `worldCopyJump` で世界を跨いで
+ * 動かすと `west=169 / east=189` のような値が返る。そのまま渡すと
+ * `west <= east` の枝に入り、`east > 180` の側にある写真（日付変更線の
+ * west 寄り）が落ちる——**太平洋を見ているときだけ 0 件**になる。
+ *
+ * - 幅が 360 度以上なら世界全部
+ * - そうでなければ両端を ±180 に畳む。日付変更線をまたいでいれば
+ *   `west > east` になり、`isInBounds` のもう一方の枝が拾う
+ */
+export function normalizeBounds(b: MapBounds): MapBounds {
+    const south = Math.min(b.south, b.north);
+    const north = Math.max(b.south, b.north);
+    if (!Number.isFinite(b.west) || !Number.isFinite(b.east) || b.east - b.west >= 360) {
+        return { south, west: -180, north, east: 180 };
+    }
+    const wrap = (lng: number) => (lng >= -180 && lng <= 180 ? lng : ((((lng + 180) % 360) + 360) % 360) - 180);
+    return { south, west: wrap(b.west), north, east: wrap(b.east) };
+}
+
 /** 表示範囲に入っている写真だけ */
 export function photosInBounds<T extends WithCoords>(photos: readonly T[], b: MapBounds | null): T[] {
     if (!b) return [...photos];
     return photos.filter((p) => isInBounds(p.coords, b));
 }
 
-/**
- * 現在地に近い順。**距離は返すが、現在地そのものは誰にも渡さない**
- * （呼び出し側が state に置くだけで、保存も送信もしない）。
- *
- * 座標は約1km に丸めてあるので、**「500m以内」のような細かい線は引けない**。
- * 呼び出し側の既定は 5km。
- */
-export function sortByDistance<T extends WithCoords>(
-    photos: readonly T[],
-    here: { lat: number; lng: number },
-): (T & { km: number })[] {
-    return photos
-        .map((p) => ({ ...p, km: haversineKm(here, p.coords) }))
-        .sort((a, b) => a.km - b.km);
-}

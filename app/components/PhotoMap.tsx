@@ -8,7 +8,7 @@ import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClust
 import {
     MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView, clearSavedView,
 } from "../../lib/utils/mapView";
-import type { MapBounds } from "../../lib/utils/mapFilter";
+import { normalizeBounds, type MapBounds } from "../../lib/utils/mapFilter";
 import { publicImageUrl } from "../../lib/utils/seo";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
@@ -343,6 +343,31 @@ export default function PhotoMap({
         // 写真が増えたら描き直す（`photosRef` を読むのは draw。ここは初期化だけ）
     }, [locale, en]);
 
+    /**
+     * **枠の大きさが変わったら Leaflet に測り直させる。**
+     *
+     * この地図は「地図／リスト」の切り替えで `display: none` になる列の中に
+     * 在る。隠れている間に画面が回る・URL バーが畳まれると `resize` が飛び、
+     * Leaflet は `_onResize` → `invalidateSize` で **0x0 を掴んだまま
+     * `_sizeChanged = false`** にする（`leaflet-src.js:4007`）。戻しても
+     * タイルを取りに行かず、白い枠のまま残る。
+     *
+     * `ResizeObserver` は「隠れている間は 0、戻った瞬間に実寸」を通知するので、
+     * 表示・回転・列幅の変化を1つの口でまとめて拾える。
+     */
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el || typeof ResizeObserver === "undefined") return;
+        const ro = new ResizeObserver(() => {
+            const map = mapRef.current;
+            // 0x0（＝隠れている）ときは測り直さない。その値を覚えさせない
+            if (!map || el.clientWidth === 0 || el.clientHeight === 0) return;
+            map.invalidateSize({ debounceMoveend: true });
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
     // 写真の配列が変わったら、地図を作り直さずにピンだけ描き直す
     useEffect(() => {
         const map = mapRef.current;
@@ -382,13 +407,20 @@ export default function PhotoMap({
         }
         setLocateError("");
         setLocating(true);
-        suppressSaveRef.current = true;
-        clearSavedView();
+        // **控えを消すのは、位置が実際に来たときだけ。** 押した時点で消すと、
+        // 許可のダイアログで「ブロック」を押しただけで——位置は一度も
+        // 取れていないのに——控えが消え、以後この画面は控えを書かなくなる
+        // （戻ったとき同じ場所に着地する挙動がセッション中ずっと失われる）
         geo.getCurrentPosition(
             (pos) => {
                 setLocating(false);
                 const { latitude, longitude } = pos.coords;
                 if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+                // **`setView` より前に立てる。** Leaflet は `setView` の中で
+                // `moveend` を同期で出すので、あとから立てると現在地が
+                // 1回ぶん控えに書かれる
+                suppressSaveRef.current = true;
+                clearSavedView();
                 setHere({ lat: latitude, lng: longitude });
                 mapRef.current?.setView([latitude, longitude], LOCATE_ZOOM);
             },
@@ -411,8 +443,12 @@ export default function PhotoMap({
         if (!onSearchArea) return;
         if (areaActive) { onSearchArea(null); return; }
         if (!map) return;
+        // **Leaflet は経度を ±180 に丸めない**（`worldCopyJump` で世界を跨ぐと
+        // `west=169 / east=189` が返る）。畳んでから渡す（`normalizeBounds`）
         const b = map.getBounds();
-        onSearchArea({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
+        onSearchArea(normalizeBounds({
+            south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast(),
+        }));
     }, [onSearchArea, areaActive]);
 
     // 操作ボタンの共通の見た目。**px で書く**（640px 未満で root が 14px に

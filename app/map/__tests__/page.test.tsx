@@ -182,7 +182,9 @@ describe("/map", () => {
         fireEvent.click(chip);
         expect(mapProps.last?.ids).toEqual(["b"]);
         expect(chip).toHaveAttribute("aria-checked", "true");
-        expect(screen.getByTestId("map-count").textContent).toContain("1枚");
+        // **絞っているときは分数で出す**（「位置情報のある写真 1枚」だと
+        // サイト全体で1枚しか位置情報を持っていないと読める）
+        expect(screen.getByTestId("map-count").textContent).toBe("2枚中 1枚を表示");
 
         fireEvent.click(chip);
         expect(mapProps.last?.ids).toEqual(["a", "b"]);
@@ -249,6 +251,7 @@ describe("/map", () => {
             act(() => { mapProps.searchArea?.({ south: 35, west: 139, north: 36, east: 140 }); });
             expect(mapProps.last?.ids).toEqual(["near"]);
             expect(screen.getByTestId("map-area-note").textContent).toContain("このエリアの写真 1件");
+            expect(screen.getByTestId("map-count").textContent).toBe("2枚中 1枚を表示");
             expect(mapProps.areaActive, "地図側のボタンが解除の文言に変わらない").toBe(true);
         });
 

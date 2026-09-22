@@ -6,8 +6,8 @@ import {
     matchesMapCategory,
     filterMapPhotos,
     isInBounds,
+    normalizeBounds,
     photosInBounds,
-    sortByDistance,
 } from "@/lib/utils/mapFilter";
 
 const p = (id: string, extra: Partial<Photo> = {}): Photo => ({
@@ -153,20 +153,44 @@ describe("photosInBounds", () => {
     });
 });
 
-describe("sortByDistance", () => {
-    it("近い順に並べ、km を添える", () => {
-        const here = { lat: 35, lng: 139 };
-        const out = sortByDistance([
-            { id: "far", coords: { lat: 36, lng: 139 } },
-            { id: "near", coords: { lat: 35.01, lng: 139 } },
-        ], here);
-        expect(out.map((x) => x.id)).toEqual(["near", "far"]);
-        expect(out[0].km).toBeLessThan(2);
-        expect(out[1].km).toBeGreaterThan(100);
+// **Leaflet は経度を ±180 に丸めない。** `worldCopyJump` で世界を跨ぐと
+// `west=169 / east=189` のような値が返る。そのまま `isInBounds` に渡すと
+// `west <= east` の枝に入り、日付変更線の west 寄りの写真が落ちる
+// ——太平洋を見ているときだけ 0 件になる
+describe("normalizeBounds", () => {
+    it("普通の範囲はそのまま", () => {
+        expect(normalizeBounds({ south: 35, west: 139, north: 36, east: 140 }))
+            .toEqual({ south: 35, west: 139, north: 36, east: 140 });
     });
-    it("元の配列を壊さない", () => {
-        const input = [{ id: "a", coords: { lat: 1, lng: 1 } }];
-        sortByDistance(input, { lat: 0, lng: 0 });
-        expect(input).toEqual([{ id: "a", coords: { lat: 1, lng: 1 } }]);
+
+    it("180 を越えた east を畳み、またいでいる形（west > east）に直す", () => {
+        const b = normalizeBounds({ south: -10, west: 169, north: 10, east: 189 });
+        expect(b.west).toBe(169);
+        expect(b.east).toBeCloseTo(-171, 6);
+        // 畳んだあとは `isInBounds` のまたぎの枝で拾える
+        expect(isInBounds({ lat: 0, lng: 175 }, b)).toBe(true);
+        expect(isInBounds({ lat: 0, lng: -175 }, b)).toBe(true);
+        expect(isInBounds({ lat: 0, lng: 0 }, b)).toBe(false);
+    });
+
+    it("-180 を下回った west も畳む", () => {
+        const b = normalizeBounds({ south: -10, west: -189, north: 10, east: -171 });
+        expect(b.west).toBeCloseTo(171, 6);
+        expect(isInBounds({ lat: 0, lng: 178 }, b)).toBe(true);
+    });
+
+    it("幅が 360 度以上なら世界全部", () => {
+        expect(normalizeBounds({ south: -85, west: -200, north: 85, east: 200 }))
+            .toEqual({ south: -85, west: -180, north: 85, east: 180 });
+    });
+
+    it("南北が入れ替わっていても直す", () => {
+        expect(normalizeBounds({ south: 36, west: 139, north: 35, east: 140 }))
+            .toMatchObject({ south: 35, north: 36 });
+    });
+
+    it("読めない値なら世界全部に倒す（0件にしない）", () => {
+        expect(normalizeBounds({ south: 0, west: Number.NaN, north: 1, east: 10 }))
+            .toEqual({ south: 0, west: -180, north: 1, east: 180 });
     });
 });

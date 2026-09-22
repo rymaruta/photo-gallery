@@ -269,8 +269,11 @@ body {
 .photo-map-pin.is-selected {
   width: 64px;
   height: 78px;
-  margin-left: -12px;   /* 中心を動かさない（Leaflet の iconAnchor は 40px 基準） */
-  margin-top: -24px;
+  /* **尖りの先を動かさない。** `iconAnchor` は下端（40x50 基準）なので、
+     横は増えた 24px の半分、**縦は増えた 28px ぶん丸ごと**引き上げる。
+     -24 と書いていたときは、選ぶたびにピンが座標より 4px 下へずれていた */
+  margin-left: -12px;
+  margin-top: -28px;
 }
 .photo-map-pin.is-selected::before {
   width: 64px;

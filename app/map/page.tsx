@@ -206,18 +206,38 @@ export default function MapPage() {
                         {/* 何枚が残っているか。**「まだ届いていない」ときは
                             この枝に入らない**ので、ここの 0 は「絞り込みで
                             消えた 0」だけ（実測: 4秒の回線で「0枚」→「18枚」と
-                            出ていたのを分けた経緯がある） */}
+                            出ていたのを分けた経緯がある）。
+
+                            **絞っているときは分数で出す。** 「位置情報のある写真 5枚」
+                            のまま数だけ絞られた値にすると、**サイト全体で5枚しか
+                            位置情報を持っていない**と読める嘘になる */}
                         <p className="text-white/60 tabular-nums" style={{ marginTop: "12px", fontSize: "12px" }} data-testid="map-count">
-                            {en
-                                ? `${filtered.length} photo${filtered.length === 1 ? "" : "s"} with location`
-                                : `位置情報のある写真 ${filtered.length}枚`}
+                            {filtered.length === geo.length
+                                ? (en
+                                    ? `${geo.length} photo${geo.length === 1 ? "" : "s"} with location`
+                                    : `位置情報のある写真 ${geo.length}枚`)
+                                : (en
+                                    ? `${filtered.length} of ${geo.length} shown`
+                                    : `${geo.length}枚中 ${filtered.length}枚を表示`)}
                         </p>
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
-                            この一覧が、地図を操作できない人（読み上げ・キーボード）の
-                            経路でもある——以前あった `sr-only` の一覧は**これに
-                            置き換えた**。両方置くと同じリンクが2組 DOM に並び、
-                            片方だけ直す事故が起きる */}
+
+                            **以前あった `sr-only` の一覧は、これに置き換えた。**
+                            両方置くと同じリンクが2組 DOM に並び、片方だけ直す事故が
+                            起きる。地図を操作できない人（読み上げ・キーボード）の
+                            経路が細るのではないか——を実ブラウザで確かめた
+                            （Chromium・390x844）:
+
+                                ピンの tabindex / role           0 / button
+                                読み上げに出る名前               撮影地（例「フィンランド」）
+                                Tab で最初のピンに届くまで       14回
+                                Enter でシートが開く             開く
+
+                            単独のピンは `circleMarker`（**フォーカスできない**）から
+                            `Marker`（`keyboard: true`）に変えたので、**経路はむしろ
+                            増えている**——地図の上を Tab で回れるようになったうえ、
+                            「リスト」を押せばこの一覧に来られる */}
                         <div
                             className={`${view === "list" ? "" : "hidden lg:block"} lg:overflow-y-auto lg:max-h-[calc(100vh-300px)] lg:pr-1`}
                             style={{ marginTop: "8px" }}
