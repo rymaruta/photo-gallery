@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
+import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import CropFramePicker from "../../components/CropFramePicker";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PhotoIcon, XMarkIcon, MapPinIcon, CalendarIcon, PlusIcon, PaperAirplaneIcon, CheckCircleIcon, ExclamationTriangleIcon, CameraIcon } from "@heroicons/react/24/outline";
@@ -154,6 +155,10 @@ function UploadPageInner() {
      */
     const albumId = searchParams?.get("album") || "";
 
+    /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける）。
+     *  **`--bottom-bar-h` には書かない**——このファイルの下の帯のコメントが
+     *  「この画面からは書かない」と言っているのはそちらの変数のこと */
+    const pageBarRef = usePageBarHeight();
     const [items, setItems] = useState<Item[]>([]);
     /**
      * 認証ゲート。**取り込んだ写真があるときは送り返させない**——
@@ -1776,7 +1781,7 @@ function UploadPageInner() {
                 `MiniPlayer` が浮く。落とし先の `env(safe-area-inset-bottom)` は
                 タブバーが無い状況（将来そのページが出たとき）の受け皿 */}
             {items.length > 0 && (
-                <div className="fixed left-0 right-0 bg-bar border-t border-line p-3 z-50"
+                <div ref={pageBarRef} className="fixed left-0 right-0 bg-bar border-t border-line p-3 z-50"
                     style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                     <div className={`${COLUMN} flex items-center gap-2`}>
                         {/* **アップロード中にやめられるようにする。** 押している間は

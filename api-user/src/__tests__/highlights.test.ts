@@ -326,6 +326,11 @@ const followRow = (target: string, viewer: string) => ({
     [`follow#${target}#${viewer}`]: { id: `follow#${target}#${viewer}`, createdAt: "2026-07-01T00:00:00.000Z" },
 });
 
+/** `blocker` が `blocked` をブロックしている印（`blockMarkerId` と同じ綴り） */
+const blockRow = (blocker: string, blocked: string) => ({
+    [`block#${blocker}#${blocked}`]: { id: `block#${blocker}#${blocked}`, blockerId: blocker, blockedId: blocked, createdAt: "2026-07-01T00:00:00.000Z" },
+});
+
 describe("getUserHighlights（マイページの輪）", () => {
     const H2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const H3 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -421,6 +426,64 @@ describe("getUserHighlights（マイページの輪）", () => {
         const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
         expect(r.statusCode, r.body).toBe(200);
         expect(bodyOf(r).highlights).toEqual([{ id: HID, title: "北海道", count: 1, cover: { src: archived(1).src } }]);
+    });
+
+    /**
+     * 🔴 **ブロックした相手には出さない（フォローの印が残っていても）。**
+     *
+     * `block.ts` は `unfollowQuietly` の失敗を握って「ブロックは成功」で返すので、
+     * **フォローの印が残ったままブロックが成立する断面が設計として在る**。
+     * ストーリーの他の門（一覧・閲覧・返信・投票）はブロックを見て止めるのに、
+     * ここだけ見ていなかった＝中身だけがハイライト経由で届いていた。
+     */
+    it("🔴 本人がブロックした相手には 0件（フォローの印が残っていても）", async () => {
+        serve({
+            ...followRow(ME, OTHER),
+            ...blockRow(ME, OTHER),
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)], coverStoryId: sid(1) },
+            [sid(1)]: archived(1),
+        });
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).highlights).toEqual([]);
+        expect(r.body).not.toContain("秘密");
+        expect(r.body).not.toContain(archived(1).src);
+        const gets = ofKind("GetCommand").map((c) => String((c.input.Key as { id?: string }).id ?? ""));
+        expect(gets.some((id) => id.startsWith("highlight")), "見せないのに引いている").toBe(false);
+    });
+
+    // **両向き。** `getStories` の `hiddenUserIds` が
+    // 「自分がブロックした人 ∪ 自分をブロックした人」を落としているのに合わせる
+    it("🔴 自分がブロックした相手のものも 0件", async () => {
+        serve({
+            ...followRow(ME, OTHER),
+            ...blockRow(OTHER, ME),
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)], coverStoryId: sid(1) },
+            [sid(1)]: archived(1),
+        });
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(bodyOf(r).highlights).toEqual([]);
+        expect(r.body).not.toContain("秘密");
+    });
+
+    // 読めなければ見せない（フォローの確認が転んだときと同じ倒し方）
+    it("ブロックの確認が転んだら 0件（見せる側に倒さない）", async () => {
+        serve({
+            ...followRow(ME, OTHER),
+            [highlightsOfUserKey(ME)]: { id: highlightsOfUserKey(ME), list: [HID], rev: 1 },
+            [highlightKey(HID)]: { id: highlightKey(HID), ownerId: ME, title: "秘密", storyIds: [sid(1)] },
+        });
+        const store = mockSend.getMockImplementation()!;
+        mockSend.mockImplementation((cmd: Cmd) =>
+            String((cmd.input.Key as { id?: string })?.id ?? "").startsWith("block#")
+                ? Promise.reject(new Error("throttled"))
+                : store(cmd));
+        const r = await call(getUserHighlights, authed(OTHER, undefined, { userId: ME }));
+        expect(r.statusCode).toBe(200);
+        expect(bodyOf(r).highlights).toEqual([]);
+        expect(r.body).not.toContain("秘密");
     });
 
     // **向きを間違えない。** `follow#<追われる人>#<追う人>`。逆向きの印
@@ -597,6 +660,18 @@ describe("getHighlight（開いたときの中身）", () => {
         const r = await call(getHighlight, authed(OTHER, undefined, { userId: ME, id: HID }));
         expect(r.statusCode, r.body).toBe(200);
         expect(bodyOf(r).items.map((s: { id: string }) => s.id)).toEqual([sid(2), sid(1), sid(3)]);
+    });
+
+    // 🔴 輪と同じ線でブロックを見る（理由は `getUserHighlights` の同じテスト）
+    it("🔴 ブロックしている相手には 404（フォローの印が残っていても・両向き）", async () => {
+        for (const [blocker, blocked] of [[ME, OTHER], [OTHER, ME]] as const) {
+            serve({ ...followRow(ME, OTHER), ...blockRow(blocker, blocked), [highlightKey(HID)]: row, [sid(1)]: archived(1) });
+            const r = await call(getHighlight, authed(OTHER, undefined, { userId: ME, id: HID }));
+            expect(r.statusCode, `${blocker} → ${blocked}`).toBe(404);
+            expect(r.body).not.toContain("北海道");
+            const gets = ofKind("GetCommand").map((c) => String((c.input.Key as { id?: string }).id ?? ""));
+            expect(gets.some((id) => id.startsWith("story-")), "見せないのに中身を引いている").toBe(false);
+        }
     });
 
     it("フォローの確認が転んだら 404（見せる側に倒さない）", async () => {

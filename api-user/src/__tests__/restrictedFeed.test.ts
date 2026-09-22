@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 
 vi.mock("../dynamodb", () => ({
@@ -165,3 +165,104 @@ describe("GET /feed/restricted の応答", () => {
 function asText(body: Record<string, unknown>[]): string {
     return JSON.stringify(body);
 }
+
+// ─────────────────────────────────────────────────────────────
+// 🔴 **外したあと、本当に見えなくなるか**（2026-09-22 の指摘）
+//
+// ここまでのテストは `isVisiblePhoto` を**単体で**呼ぶものだった。
+// 「フォローを外したら見えなくなる」は、その関数ではなく
+// **口が毎回サーバーから読み直しているか**で決まる。控えを持っていたり、
+// 起動時に一度だけ読んでいたら、外しても見え続ける。
+//
+// だから**ハンドラを実際に呼び**、保存されている一覧だけを書き換えて
+// **同じ要求をもう一度**投げる。
+describe("外したあと、次の要求から見えなくなる", () => {
+    // 保存されている状態。テストの途中で書き換える
+    let following: string[] = [];
+    let closeFriendsOfOwner: string[] = [];
+    let myBlocks: string[] = [];
+    let blockedMe: string[] = [];
+    let photos: Record<string, unknown>[] = [];
+
+    const ME = "11111111-1111-1111-1111-111111111111";
+    const OWNER = "22222222-2222-2222-2222-222222222222";
+
+    const event = { requestContext: { authorizer: { jwt: { claims: { sub: ME } } } } };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const call = (): Promise<{ statusCode: number; body: string }> => (getRestrictedFeed as any)(event);
+    const idsFrom = async () => (JSON.parse((await call()).body) as { id: string }[]).map((p) => p.id);
+
+    beforeEach(() => {
+        following = [OWNER];
+        closeFriendsOfOwner = [ME];
+        myBlocks = [];
+        blockedMe = [];
+        photos = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            const input = cmd.input as Record<string, unknown>;
+            if (input.KeyConditionExpression) return Promise.resolve({ Items: photos });
+            const id = (input.Key as { id: string }).id;
+            if (id === `following#${ME}`) return Promise.resolve({ Item: { list: following } });
+            if (id === `closefriends#${OWNER}`) return Promise.resolve({ Item: { list: closeFriendsOfOwner } });
+            if (id === `blocks#${ME}`) return Promise.resolve({ Item: { blockedIds: myBlocks } });
+            if (id === `blockedby#${ME}`) return Promise.resolve({ Item: { blockerIds: blockedMe } });
+            return Promise.resolve({});
+        });
+    });
+
+    it("フォローを外すと、「フォロワーのみ」が次から見えない", async () => {
+        photos = [{ id: "r1", src: "https://cdn/r1.jpg", userId: OWNER, audience: "followers" }];
+        expect(await idsFrom()).toEqual(["r1"]);
+        following = [];                       // ← 外した
+        expect(await idsFrom()).toEqual([]);
+    });
+
+    it("「親しい友達」から外すと、次から見えない", async () => {
+        photos = [{ id: "r2", src: "https://cdn/r2.jpg", userId: OWNER, audience: "closeFriends" }];
+        expect(await idsFrom()).toEqual(["r2"]);
+        closeFriendsOfOwner = [];             // ← 外した
+        expect(await idsFrom()).toEqual([]);
+    });
+
+    // **フォローは残したまま**親しい友達だけ外す。フォローで代用されない
+    it("親しい友達から外しても、フォローでは代用されない", async () => {
+        photos = [{ id: "r3", src: "https://cdn/r3.jpg", userId: OWNER, audience: "closeFriends" }];
+        closeFriendsOfOwner = [];
+        expect(following).toEqual([OWNER]);
+        expect(await idsFrom()).toEqual([]);
+    });
+
+    it("こちらがブロックすると、次から見えない", async () => {
+        photos = [{ id: "r4", src: "https://cdn/r4.jpg", userId: OWNER, audience: "followers" }];
+        expect(await idsFrom()).toEqual(["r4"]);
+        myBlocks = [OWNER];                   // ← ブロックした
+        expect(await idsFrom()).toEqual([]);
+    });
+
+    it("相手にブロックされると、次から見えない", async () => {
+        photos = [{ id: "r5", src: "https://cdn/r5.jpg", userId: OWNER, audience: "followers" }];
+        expect(await idsFrom()).toEqual(["r5"]);
+        blockedMe = [OWNER];                  // ← 相手が私をブロックした
+        expect(await idsFrom()).toEqual([]);
+    });
+
+    // **自分のぶんは、誰を外しても残る**（外しすぎの見張り）
+    it("自分の写真は、フォローもブロックも関係なく残る", async () => {
+        photos = [{ id: "mine", src: "https://cdn/mine.jpg", userId: ME, audience: "closeFriends" }];
+        following = [];
+        closeFriendsOfOwner = [];
+        expect(await idsFrom()).toEqual(["mine"]);
+    });
+
+    // **控えを持っていないこと。** 持っていたら上のどれかが緑のまま通る
+    it("要求のたびに、保存されている一覧を読み直す", async () => {
+        photos = [{ id: "r6", src: "https://cdn/r6.jpg", userId: OWNER, audience: "followers" }];
+        await call();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const before = (ddb.send as any).mock.calls.length;
+        await call();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((ddb.send as any).mock.calls.length).toBeGreaterThan(before);
+    });
+});
