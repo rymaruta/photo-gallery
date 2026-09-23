@@ -17,7 +17,7 @@ function UsersPageInner() {
 
     if (!userId) {
         return (
-            <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
+            <main className="jp-page p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
                     {/* **見出しを1つ置く。** 読み上げは見出しでページを渡り歩くので、
                         h1 が無いとこの画面には入口が無い（全141ページの走査で
