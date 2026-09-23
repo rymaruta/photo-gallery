@@ -131,7 +131,7 @@ export default function BottomNav() {
             <nav
                 ref={barRef}
                 aria-label={locale === "en" ? "Main" : "メインメニュー"}
-                className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 backdrop-blur-md"
+                className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bar/95 backdrop-blur-xl"
                 style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             >
                 <div className="max-w-5xl mx-auto grid grid-cols-5">
