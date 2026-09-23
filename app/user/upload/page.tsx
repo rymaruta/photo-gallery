@@ -1190,13 +1190,13 @@ function UploadPageInner() {
     };
 
     return (
-        <main className="min-h-screen bg-bg text-white">
+        <main className="jp-page min-h-screen bg-bg text-white">
             {/* ── ヘッダー（モック①⑧）。✕ ／ 題 ／ 下書き保存 ──
                 高さ52px・下書き保存は青のピル（93×32画素 → 32px・角丸 full）。
                 共通ヘッダー（`app/layout.tsx` の `sticky top-0`）の下に重ねる
                 ので、こちらは `sticky` にしない——2本のバーが同時に貼り付くと
                 狭い画面で本文が 116px ぶん隠れる */}
-            <div className="border-b border-line bg-bar">
+            <div className="border-b border-line bg-bar/95 backdrop-blur-sm">
                 <div className={`${COLUMN} grid grid-cols-[44px_1fr_auto] items-center gap-2`} style={{ minHeight: "52px" }}>
                     <button
                         type="button"
