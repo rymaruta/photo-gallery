@@ -189,13 +189,13 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
     const canSave = existingLoaded && !saving && title.trim() !== "" && chosen.length > 0;
 
     return (
-        <main className="min-h-screen bg-bg text-white">
+        <main className="jp-page min-h-screen bg-bg text-white">
             <div className="max-w-3xl mx-auto px-4 py-8 pb-32">
                 <div className="flex items-center gap-4 mb-6">
                     <Link href={ROUTES.USER_PROFILE(userId)} prefetch={false} className="text-white/60 hover:text-white transition-colors" aria-label={isJa ? "戻る" : "Back"}>
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
-                    <h1 className="text-xl font-semibold">
+                    <h1 className="jp-page__title">
                         {editingId ? (isJa ? "ハイライトを編集" : "Edit highlight") : (isJa ? "ハイライトを作る" : "New highlight")}
                     </h1>
                 </div>
