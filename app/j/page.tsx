@@ -125,10 +125,10 @@ function InviteView() {
     }
 
     return (
-        <main className="min-h-screen bg-bg text-white px-4 py-8">
+        <main className="jp-page min-h-screen bg-bg text-white px-4 py-8">
             <div className="max-w-2xl mx-auto">
                 <p className="text-[11px] tracking-widest uppercase text-white/50">アルバムへの招待</p>
-                <h1 className="text-xl mt-1">{album.title}</h1>
+                <h1 className="jp-page__title mt-1">{album.title}</h1>
                 {/* **枚数は出さない。** サーバーは返さない——消された写真の ID を
                     持ち続けるので、数えると嘘になる */}
                 <p className="text-xs text-white/60 mt-1">{album.memberCount}人が参加</p>
