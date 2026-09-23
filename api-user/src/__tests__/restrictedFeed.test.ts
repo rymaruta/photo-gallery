@@ -9,7 +9,7 @@ vi.mock("../dynamodb", () => ({
     STORY_FEED_KEY: "1",
 }));
 
-const { isVisiblePhoto, getRestrictedFeed } = await import("../restrictedFeed");
+const { isVisiblePhoto, getRestrictedFeed, stripPrivate } = await import("../restrictedFeed");
 const { ddb } = await import("../dynamodb");
 const { sanitizeAudience } = await import("../sanitize");
 const { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } = await import("../publicFeed");
@@ -88,6 +88,83 @@ describe("sanitizeAudience", () => {
         expect(sanitizeAudience({ audience: "followers" })).toBeUndefined();
     });
 });
+
+/// **応答そのものを見る。** `stripPrivate` を単体で確かめるだけだと、
+/// 「関数は在るのに `body` に通していない」という配線の抜けを誰も見ない
+/// （このリポジトリが何度も踏んでいる形）。
+describe("GET /feed/restricted の応答", () => {
+    // **短い id を使わない。** `isUserId` は 8 文字以上しか通さないので、
+    // `"owner"` のような名前だとフォロー一覧が空になり、**中身を見る前に
+    // 0 件になって「出していない」に見える**（実際にそれで一度誤った）
+    const OWNER = "owner-0001";
+    const VIEWER = "viewer-0001";
+
+    const ROW = {
+        id: "uploads/a.jpg",
+        userId: OWNER,
+        audience: "followers",
+        src: "https://journey-photo.com/uploads/a.jpg",
+        title: "白鳥と湖",
+        // ここから下は**外に出してはいけない**もの
+        srcOriginal: "https://journey-photo.com/uploads/originals/a.jpg",
+        key: `uploads/${OWNER}/a.jpg`,
+        staticStale: true,
+        publicFeed: "restricted",
+        keptFrom: "story#1",
+    };
+
+    /** 写真の Query にはこの行を、`following#me` には owner を返す */
+    function wireDdb(): void {
+        (ddb.send as ReturnType<typeof vi.fn>).mockImplementation(async (cmd: { input: Record<string, unknown> }) => {
+            const input = cmd.input;
+            if (input.KeyConditionExpression) return { Items: [{ ...ROW }] };
+            const key = input.Key as { id?: string } | undefined;
+            if (key?.id === `following#${VIEWER}`) return { Item: { list: [OWNER] } };
+            return {};
+        });
+    }
+
+    const EVENT = { requestContext: { authorizer: { jwt: { claims: { sub: VIEWER } } } } };
+
+    async function callFeed(): Promise<Record<string, unknown>[]> {
+        wireDdb();
+        const res = await getRestrictedFeed(EVENT as never, {} as never, (() => {}) as never);
+        const http = res as { statusCode: number; body: string };
+        expect(http.statusCode, "そもそも 200 を返していない").toBe(200);
+        return JSON.parse(http.body) as Record<string, unknown>[];
+    }
+
+    it("見える写真は返す（この判定が空回りしていないこと）", async () => {
+        const body = await callFeed();
+        expect(body).toHaveLength(1);
+        expect(body[0].src).toBe(ROW.src);
+        expect(body[0].title).toBe("白鳥と湖");
+    });
+
+    /// **原本（GPS 入り）の URL は、相手がフォロワーでも渡さない**
+    it.each([
+        ["srcOriginal", "EXIF を落とす前の原本（GPS 入り）の URL"],
+        ["key", "S3 のオブジェクトキー"],
+        ["staticStale", "静的ページの掃除が届いていないという内部の印"],
+        ["publicFeed", "公開一覧の GSI に載せるための内部の印"],
+        ["keptFrom", "ストーリーから残した写真に付く、元のストーリーのID"],
+    ])("応答に %s を出さない（%s）", async (field) => {
+        const body = await callFeed();
+        expect(body[0], `${field} が応答に残っている`).not.toHaveProperty(field);
+        expect(asText(body), `${field} が応答の本文に残っている`).not.toContain(field);
+    });
+
+    /// **元の行は触らない**（写しを返す）。触ると、同じ行を見る他の判定が狂う
+    it("落とすのは写しで、元の行は変えない", async () => {
+        const item = { ...ROW };
+        expect(stripPrivate(item).srcOriginal).toBeUndefined();
+        expect(item.srcOriginal, "元の行から消えている").toBe(ROW.srcOriginal);
+    });
+});
+
+function asText(body: Record<string, unknown>[]): string {
+    return JSON.stringify(body);
+}
 
 // ─────────────────────────────────────────────────────────────
 // 🔴 **外したあと、本当に見えなくなるか**（2026-09-22 の指摘）
