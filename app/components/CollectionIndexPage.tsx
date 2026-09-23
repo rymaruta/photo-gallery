@@ -69,7 +69,7 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
     return (
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
-            <main className="mx-auto max-w-6xl px-4 py-8">
+            <main className="jp-page mx-auto max-w-6xl px-4 py-8">
                 <nav aria-label="パンくずリスト" className="mb-3 text-sm text-white/60">
                     <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
                     <span className="mx-2" aria-hidden>/</span>
