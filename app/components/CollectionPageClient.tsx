@@ -41,7 +41,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                 <span className="text-white/80">{breadcrumb}</span>
             </nav>
 
-            <h1 className="mb-2 text-2xl font-semibold tracking-tight">{heading}</h1>
+            <h1 className="jp-page__title mb-2">{heading}</h1>
             <p className="mb-6 text-sm text-white/70">
                 {description}
                 <span className="ml-1 whitespace-nowrap text-white/50">（{photos.length}枚）</span>
