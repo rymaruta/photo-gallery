@@ -41,6 +41,12 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
     };
 });
 
+vi.mock("../OfficialSpotExplorer", () => ({
+    default: ({ spots }: { spots: { slug: string; name: string }[] }) => (
+        <div data-testid="official-map">{spots.map((s) => <span key={s.slug}>{s.name}</span>)}</div>
+    ),
+}));
+
 const MapPage = (await import("../MapPageClient")).default;
 
 const base = (id: string, extra: Partial<Photo> = {}): Photo => ({
@@ -60,6 +66,19 @@ beforeEach(() => {
 });
 
 describe("/map", () => {
+    it("投稿0枚でも公開済み公式ガイドを見つけられ、写真マップへ切り替えられる", () => {
+        render(<MapPage spotPreviews={[{
+            slug: "sample-spot", name: "確認用スポット", region: "日本",
+            coords: { lat: 35, lng: 139 }, cover: null,
+        }]} />);
+        expect(screen.getByTestId("official-map")).toHaveTextContent("確認用スポット");
+        expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "みんなの写真" }));
+        expect(screen.getByText("位置情報のある写真はまだありません。")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "公式スポット" }));
+        expect(screen.getByTestId("official-map")).toBeInTheDocument();
+    });
+
     it("位置情報のある写真が無ければ「まだ」と言い、地図は描かない", () => {
         photosState.current = [base("a"), base("b")];   // 地名はあるが座標が無い
         render(<MapPage />);
