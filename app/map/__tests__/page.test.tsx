@@ -41,7 +41,7 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
     };
 });
 
-const MapPage = (await import("../page")).default;
+const MapPage = (await import("../MapPageClient")).default;
 
 const base = (id: string, extra: Partial<Photo> = {}): Photo => ({
     id, src: `https://cdn/${id}.jpg`, userId: "u1", title: { ja: id }, location: `場所${id}`,
