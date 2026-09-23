@@ -72,8 +72,23 @@ describe("保存の鍵", () => {
         expect(parseSavedKey("なにか変な値").kind).toBe("location");
     });
 
-    it("空のスポット鍵は畳むときに落とす（撮影地としても読めない）", () => {
-        expect(dedupeSavedKeys([SPOT_KEY_PREFIX])).toEqual([]);
+    /**
+     * 🔴 **壊れた鍵でも落とさない。**
+     *
+     * 一度は「スラッグが空なら捨てる」にしていたが、**捨てると画面に出ない
+     * のにサーバーには残り、本人が外す手段を失う**（レビューが指摘）。
+     * 入る隙そのものは `publishBlockers` が塞いだ（`slug` が無ければ公開しない）
+     * が、**既に入ったものを外せる道は残す**。
+     *
+     * 落とすのは空文字だけ——サーバーはそもそも受け付けない値。
+     */
+    it("スラッグの無いスポット鍵も残す（外せなくならないように）", () => {
+        expect(dedupeSavedKeys([SPOT_KEY_PREFIX])).toEqual([SPOT_KEY_PREFIX]);
+        expect(dedupeSavedKeys([SPOT_KEY_PREFIX, SPOT_KEY_PREFIX])).toEqual([SPOT_KEY_PREFIX]);
+    });
+
+    it("空文字は落とす（サーバーが受け付けない値）", () => {
+        expect(dedupeSavedKeys(["", "  ", "パリ"])).toEqual(["パリ"]);
     });
 
     describe("重複の畳み方", () => {

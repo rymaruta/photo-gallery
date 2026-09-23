@@ -2,9 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import type { Photo } from "@/lib/data/photos";
-import { SPOTS } from "@/lib/data/spots";
-import { publishableSpots, usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
+import type { SpotLink } from "@/lib/data/spotLink";
 import { ROUTES } from "@/lib/routes";
 
 /**
@@ -17,24 +15,30 @@ import { ROUTES } from "@/lib/routes";
  * ください」。**だから文字列では一切照合しない**——`spotId` は人が確認した
  * ものしか入らない（`lib/utils/spots.ts` の `linkStates` が候補で止める）。
  *
- * 台帳に無い・下書き・情報が足りないスポットも出さない（`publishableSpots`）
- * ——押した先が 404 になるリンクを置かない。
+ * 台帳に無い・下書き・情報が足りないスポットも出さない——押した先が 404 に
+ * なるリンクを置かない。**その判断はサーバー側**（`lib/data/spotLink.ts` の
+ * `spotLinkForPhoto`）で済ませてある。
  *
  * **公式スポットが未登録なら何も描かない。** 既存の撮影地ページへの導線は
  * 写真の下のチップが持っているので、ここが空でも行き先は消えない。
+ *
+ * ## 🔴 台帳をここから読んではいけない
+ *
+ * 以前このファイルは `SPOTS` を直接 import していた。`"use client"` なので
+ * **`content/spots.json` の全文が写真ページ30枚のチャンクに載っていた**
+ * （台帳に1件入れてビルドして実測）。写真ページは検索の着地点で、
+ * CLAUDE.md の優先度（表示速度）に直接当たる。
+ * **受け取るのは解いたあとの `SpotLink` だけ。**
+ * 見張りは `app/__tests__/spotLedgerClientImport.test.ts`。
  */
-export default function SpotLinkCard({ photo, locale }: { photo: Photo; locale: string }) {
+export default function SpotLinkCard({ spot, locale }: { spot: SpotLink | null; locale: string }) {
     const isJa = locale !== "en";
-    const spot = React.useMemo(() => {
-        if (!photo.spotId) return undefined;
-        return publishableSpots(SPOTS).find((s) => s.spotId === photo.spotId);
-    }, [photo.spotId]);
 
     if (!spot) return null;
 
-    const where = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
+    const where = spot.region;
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
-    const noImage = usesMapHero(spot);
+    const noImage = !spot.cover;
 
     return (
         <section className="mt-5" aria-labelledby="photo-spot-card">
@@ -52,11 +56,11 @@ export default function SpotLinkCard({ photo, locale }: { photo: Photo; locale: 
                         ) : (
                             <>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={spot.coverImage!.src} alt={spot.coverImage!.alt}
+                                <img src={spot.cover!.src} alt={spot.cover!.alt}
                                      className="absolute inset-0 w-full h-full object-cover" />
-                                {needsVisibleCredit(spot) && (
+                                {spot.cover!.credit && (
                                     <span className="absolute bottom-0.5 right-1 text-white/70" style={{ fontSize: "8px" }}>
-                                        {spot.coverImage!.requiredCreditText || spot.coverImage!.credit}
+                                        {spot.cover!.credit}
                                     </span>
                                 )}
                             </>

@@ -209,6 +209,42 @@ describe("行きたい場所の一覧", () => {
             expect(within(item).getByRole("button", { name: "「kieta」を外す" })).toBeTruthy();
         });
 
+        /**
+         * 🔴 **地域名は名前と同じ行に置かない。**
+         *
+         * 同じ枠（`shrink-0`）に入れると、**縮む側が名前だけ**になる。
+         * 320px で本物の CSS を当てて実測（2026-09-23）:
+         *
+         *     同じ行   「高屋神社（天空の鳥居）」 名前の枠 85px → 切れる
+         *     次の行   同                        名前の枠 135px → 切れない
+         *
+         * 行の高さは変わらない（2行でも `minHeight: 44` に収まる）。
+         * 撮影地の「3枚」は短く長さも決まっているので同じ行のまま。
+         */
+        it("地域名は次の行（縮むのが名前だけにならない）", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社（天空の鳥居）")];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            const region = within(item).getByText("香川県 観音寺市");
+            const name = within(item).getByText("高屋神社（天空の鳥居）");
+            // 地域は自由長なので**縮める**。名前と同じ行の固定枠に入れない
+            expect(region.className, "地域が縮まないと、名前だけが縮む").toContain("truncate");
+            expect(region.className).not.toContain("shrink-0");
+            // 名前と地域は別の行（同じ親の中で並んでいない）
+            expect(name.parentElement).not.toBe(region.parentElement);
+        });
+
+        it("撮影地の枚数は名前と同じ行のまま（短く長さが決まっている）", async () => {
+            fetchMock.mockResolvedValue(ok(["パリ"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            const count = within(item).getByText("3枚");
+            const name = within(item).getByText("パリ");
+            expect(count.className).toContain("shrink-0");
+            expect(name.parentElement).toBe(count.parentElement);
+        });
+
         it("外すときも、保存したときと同じ鍵を送る", async () => {
             ledger.spots = [SPOT("takaya-jinja", "高屋神社")];
             fetchMock.mockResolvedValueOnce(ok(["SPOT-takaya-jinja"]));
@@ -221,12 +257,30 @@ describe("行きたい場所の一覧", () => {
             ));
         });
 
-        /// 件数は**描く一覧そのもの**で数える（壊れた値を畳んだぶんと食い違わない）
-        it("壊れた鍵は落として、件数も行数と合わせる", async () => {
+        /**
+         * 🔴 **スラッグの無い壊れた鍵も、行として残す。**
+         *
+         * 一度は落としていたが、**落とすと画面に出ないのにサーバーには残り、
+         * 本人が外す手段を失う**（レビューが指摘）。入る隙は
+         * `publishBlockers` が塞いだが、既に入ったものは外せるようにする。
+         * 名前が作れないので**鍵そのもの**を出す（こちらで言葉を作らない）。
+         */
+        it("スラッグの無い鍵も残し、外せるようにする", async () => {
             fetchMock.mockResolvedValue(ok(["SPOT-", "パリ"]));
             render(<SavedSpotsPage />);
-            expect(await screen.findByText("保存した場所 1 件")).toBeTruthy();
-            expect(screen.getAllByRole("listitem")).toHaveLength(1);
+            const items = await screen.findAllByRole("listitem");
+            expect(items).toHaveLength(2);
+            expect(items[0].textContent).toContain("SPOT-");
+            expect(within(items[0]).getByRole("button", { name: "「SPOT-」を外す" })).toBeTruthy();
+            expect(screen.getByText("保存した場所 2 件")).toBeTruthy();
+        });
+
+        /// 件数は**描く一覧そのもの**で数える（畳んだぶんと行数が食い違わない）
+        it("同じ鍵が2つ来ても、件数と行数は一致する", async () => {
+            fetchMock.mockResolvedValue(ok(["パリ", "パリ", "山中湖"]));
+            render(<SavedSpotsPage />);
+            expect(await screen.findByText("保存した場所 2 件")).toBeTruthy();
+            expect(screen.getAllByRole("listitem")).toHaveLength(2);
         });
     });
 

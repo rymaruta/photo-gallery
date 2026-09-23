@@ -49,6 +49,7 @@ import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import SpotLinkCard from "../../components/SpotLinkCard";
+import type { SpotLink } from "@/lib/data/spotLink";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -328,9 +329,17 @@ type PhotoPageClientProps = {
     initialPhoto?: Photo;
     // ビルド時にサーバで計算した回遊リンク。クライアント取得完了までのSSR/初期表示に使う
     initialRelated?: RelatedSets;
+    /**
+     * この写真が指す公式スポット（**サーバー側で解いたもの**）。
+     *
+     * 🔴 **画面から台帳を読まない。** `content/spots.json` を
+     * `"use client"` のファイルが import すると、全文が写真ページ30枚の
+     * チャンクに載る（実測）。解くのは `lib/data/spotLink.ts`。
+     */
+    spotLink?: SpotLink | null;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto, initialRelated }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
@@ -1048,7 +1057,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                     持っているときだけ**出る（文字列では照合しない）。
                     未登録なら何も描かない——撮影地ページへの導線は写真の
                     左下のチップが持っているので、ここが空でも行き先は消えない */}
-                <SpotLinkCard photo={photo} locale={locale} />
+                <SpotLinkCard spot={spotLink ?? null} locale={locale} />
 
                 {/* アクション行: ♡（押せる・数）・💬（数・コメントのタブへ）・🔖 保存・⬆ シェア。
                     ホームのカードと同じ形（`TimelineCard`）。失敗すると楽観更新が

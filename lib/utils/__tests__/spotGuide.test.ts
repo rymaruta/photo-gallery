@@ -136,6 +136,19 @@ describe("正式公開の条件（薄いページを索引へ入れない）", (
         expect(Object.keys(fullSpot())).not.toContain("photoCount");
     });
 
+    /**
+     * 🔴 **URL の綴りが無ければ公開しない。**
+     *
+     * 無いとページが作られないのに画面には出るので、「行きたい」の鍵が
+     * `SPOT-`（スラッグが空）で保存され、**外す手段が無くなる**
+     * （レビューが指摘した経路）。`generateStaticParams` も空を返す。
+     */
+    it("URL の綴りが無ければ公開しない", () => {
+        expect(publishBlockers(fullSpot({ slug: "" })).some((m) => m.includes("綴り"))).toBe(true);
+        expect(publishBlockers(fullSpot({ slug: "   " })).some((m) => m.includes("綴り"))).toBe(true);
+        expect(publishableSpots([fullSpot({ slug: "" })])).toEqual([]);
+    });
+
     it("下書きは公開しない", () => {
         expect(publishBlockers(fullSpot({ status: "draft" }))).toContain("status が published でない");
     });

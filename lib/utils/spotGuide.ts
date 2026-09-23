@@ -98,6 +98,15 @@ export function publishBlockers(spot: Spot): string[] {
 
     if (spot.status !== "published") missing.push("status が published でない");
 
+    /**
+     * 🔴 **URL に出る綴り。** 無いと `/spots/` のページが作られず、
+     * それでも画面には出るので:
+     *   - 「行きたい」の鍵が `SPOT-`（スラッグが空）になって保存されうる
+     *   - その鍵は撮影地としても読めないので、**画面から外せなくなる**
+     * `generateStaticParams` も空のスラッグを返すことになる。
+     */
+    if (!spot.slug?.trim()) missing.push("URL の綴り（slug）が無い");
+
     // 同一性: 人が確かめたか
     if (!spot.verifiedAt?.trim() && spot.verified !== true) missing.push("確認日（verifiedAt）が無い");
 

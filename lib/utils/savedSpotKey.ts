@@ -72,10 +72,7 @@ export function spotSavedKey(slug: string): string {
 export function parseSavedKey(raw: string): SavedKey {
     const v = (raw ?? "").trim();
     if (v.startsWith(SPOT_KEY_PREFIX)) {
-        const slug = v.slice(SPOT_KEY_PREFIX.length);
-        // `SPOT-` だけの壊れた値は、撮影地としても読めないので落とす側に倒す
-        // ——ただし**ここでは捨てない**（呼ぶ側が見分けられるよう空のスラッグで返す）
-        return { kind: "spot", slug };
+        return { kind: "spot", slug: v.slice(SPOT_KEY_PREFIX.length) };
     }
     return { kind: "location", slug: v };
 }
@@ -97,9 +94,16 @@ export function dedupeSavedKeys(keys: readonly string[]): string[] {
     const seen = new Set<string>();
     const out: string[] = [];
     for (const k of keys) {
-        const p = parseSavedKey(k);
+        const raw = (k ?? "").trim();
+        // **落とすのは空文字だけ。** `SPOT-`（スラッグが空）は落とさない
+        // ——落とすと画面に出ないのにサーバーには残り、**本人が外せなくなる**。
+        // 入る隙は `publishBlockers` が塞いだが、**既に入ったものを外せる道も
+        // 残しておく**（このページの docstring が「消すと本人が外す手段を失う」と
+        // 書いているのと同じ判断）
+        if (raw.length === 0) continue;
+        const p = parseSavedKey(raw);
         const id = `${p.kind}:${p.slug}`;
-        if (p.slug.length === 0 || seen.has(id)) continue;
+        if (seen.has(id)) continue;
         seen.add(id);
         out.push(k);
     }
