@@ -21,6 +21,13 @@ const stripComments = (src: string): string =>
  * だから `GalleryModal` の**ソースを読んで**、触っている `photo.X` が
  * 全部 `slimForViewer` の中に在るかを見る。ビューアが新しい項目を読み
  * 始めた日に、ここが落ちて教える。
+ *
+ * ⚠️ **綴りで数えるので、写真を丸ごと渡す関数の中は見えない。**
+ * `getPreferredMapLink(p)` が読む `p.mapLinks` は、この走査に1度も
+ * 引っかからないまま落ちていた（2026-09-22）。**対になる見張りは
+ * `app/components/GalleryModal/__tests__/slimParity.test.tsx`**——
+ * 丸ごとと絞ったぶんで**描かれたもの**（文字・`href`・画像のURL）を
+ * 突き合わせる。綴りで追えない形はあちらが受け持つ。
  */
 describe("ビューアに渡す写真の項目", () => {
     const files = readdirSync(MODAL_DIR).filter((f) => f.endsWith(".tsx") && !f.includes("__"));
@@ -66,6 +73,29 @@ describe("ビューアに渡す写真の項目", () => {
             .filter((k) => !NOT_PHOTO_FIELDS.has(k) && !kept.has(k))
             .sort();
         expect(missing, `ビューアが読むのに渡していない項目: ${missing.join(", ")}`).toEqual([]);
+    });
+
+    /**
+     * 🔴 **絞っていることを見る。** これが無いと `slimForViewer` を
+     * `return { ...p };` にする変異が**11件とも緑**で通る（レビューが実測）。
+     * 落ちるのは「足りない」側だけで、「絞るのをやめた」側は誰も見ていなかった
+     * ——RSC のペイロードが黙って元に戻る（絞った理由そのもの）。
+     */
+    it("slimForViewer は、渡していない項目を落とす（素通しにならない）", () => {
+        const photo = {
+            id: "a", src: "s", title: "t", description: "d",
+            // 渡してはいけないもの（公開の読み取りでも落としている内部の項目）
+            srcOriginal: "https://cdn/orig.jpg", key: "uploads/u1/a.jpg",
+            staticStale: true, publicFeed: "1", keptFrom: "story-1",
+            // 読まないもの（絞りの対象）
+            tags: ["x"], date: "2026-01-01", createdAt: "2026-01-01", updatedAt: "2026-01-02",
+        } as unknown as Photo;
+        const kept = Object.keys(slimForViewer(photo));
+        for (const k of ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "tags", "date", "createdAt", "updatedAt"]) {
+            expect(kept, `${k} が素通りしている`).not.toContain(k);
+        }
+        // 残るのは一覧に在るものだけ（新しい項目が黙って載らない）
+        expect(kept.filter((k) => !VIEWER_KEPT_FIELDS.includes(k)), "一覧に無い項目が残っている").toEqual([]);
     });
 
     // **格子の絞りでは足りないことを、数で固定する。**

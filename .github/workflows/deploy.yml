@@ -440,6 +440,10 @@ jobs:
       - name: Browser smoke test (tap the real UI — Chromium + WebKit)
         if: needs.config.outputs.envName == 'prod'
         run: SMOKE_ENGINES=chromium,webkit node scripts/e2e-smoke.mjs
+        env:
+          # ログイン済みの画面を開くのに要る（`localStorage` の鍵）。
+          # 渡さないとスモークの [7] が赤くなる（黙って飛ばさない）
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ needs.config.outputs.cognitoClientId }}
         timeout-minutes: 10
 
       - name: Deploy to S3

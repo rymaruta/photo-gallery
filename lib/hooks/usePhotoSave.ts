@@ -38,8 +38,23 @@ export type SaveResult = {
  *   ホームのカードで写真ごとに聞きに行くと、一覧を開くだけで N 往復になる。
  *   `undefined` なら今までどおり聞きに行く。押したあと（`touchedRef`）は
  *   一覧の値で上書きしない（遅れて届いた一覧で戻さない）
+ * @param knownPending **一覧をいま引いている最中**。`known` はまだ
+ *   `undefined` だが、**聞きに行かずに待つ**。
+ *
+ *   🔴 **これが無いと、上の `known` は効かない。**
+ *   一覧（`useMySaves`）が返るまで `savedIds` は `null` ＝ `known` は
+ *   `undefined` なので、**カードは全部それぞれ GET を投げてしまう**。
+ *   実測（2026-09-22・ログイン済みでホームを1回開く）:
+ *
+ *       GET /user/saves/<id>   ×33   ← 写真ごと
+ *       GET /user/saves        ×1    ← 一括（最後に着地）
+ *
+ *   ⚠️ **Lambda の同時実行はアカウント全体で 10**（`CLAUDE.md`）。
+ *   1人がホームを開くだけでその上限を大きく超える要求が出る。
+ *   一括が**失敗**したときは `knownPending` が下りるので、
+ *   今までどおり写真ごとに聞きに行く（落とし穴を塞ぐだけで、経路は消さない）。
  */
-export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoading = false, known?: boolean) {
+export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoading = false, known?: boolean, knownPending = false) {
     const [saved, setSaved] = useState(false);
     const touchedRef = useRef(false);
     const photoIdRef = useRef(photoId);
@@ -90,6 +105,9 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
             if (!touchedRef.current) setSaved(known);
             return;
         }
+        // **一覧が飛行中なら待つ。** ここを抜けると、一覧が返るまでの間に
+        // カードの数だけ GET が出る（上の `knownPending` の注記の実測）
+        if (knownPending) return;
         let aborted = false;
         const controller = new AbortController();
         void (async () => {
@@ -101,7 +119,7 @@ export function usePhotoSave(photoId: string, isAuthenticated: boolean, authLoad
             } catch { /* 未保存のまま */ }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId, isAuthenticated, authLoading, known]);
+    }, [photoId, isAuthenticated, authLoading, known, knownPending]);
 
     const toggle = useCallback(async (): Promise<SaveResult> => {
         if (busyRef.current) return { ok: true };

@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { listPhotos, listPhotosByUser, getPhotoById, listAllPhotosForAdmin } from "./ddb-photos";
 import { isAdmin } from "./auth";
+import type { Photo } from "./types";
 
 const JSON_HEADERS = {
     "Content-Type": "application/json",
@@ -65,6 +66,22 @@ export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     return out;
 }
 
+/**
+ * **公開範囲を絞った写真か**（「フォロワーのみ」「親しい友達」）。
+ *
+ * この口には認証が無いので、**持っていれば一律で無いことにする**。
+ * 誰に見せてよいかの判定は `api-user/src/restrictedFeed.ts` の
+ * `isVisiblePhoto` 1つだけが持つ——ここに2つ目を書かない。
+ *
+ * **中身は見ない。** 知らない値（`sanitizeAudience` が弾く綴り、将来足す値）が
+ * 入っていても**隠す側に倒す**。「知っている値だけ隠す」にすると、
+ * 綴りを間違えた行が公開に戻る。
+ */
+function isRestricted(photo: Pick<Photo, "audience">): boolean {
+    const a = photo.audience;
+    return typeof a === "string" ? a.trim() !== "" : a != null;
+}
+
 const LIST_CACHE_TTL_MS = 10 * 1000;
 let listCache: { at: number; json: string } | null = null;
 
@@ -79,11 +96,13 @@ export const getPhotos: APIGatewayProxyHandlerV2 = async (event) => {
         if (userId) {
             // 特定の人の分は GSI の Query なので、その人の枚数で収まる
             const photos = await listPhotosByUser(userId);
-            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(photos.map(stripPrivate)) };
+            return { statusCode: 200, headers: JSON_HEADERS,
+                body: JSON.stringify(photos.filter((p) => !isRestricted(p)).map(stripPrivate)) };
         }
         const now = Date.now();
         if (!listCache || now - listCache.at >= LIST_CACHE_TTL_MS) {
-            listCache = { at: now, json: JSON.stringify((await listPhotos()).map(stripPrivate)) };
+            listCache = { at: now, json: JSON.stringify(
+                (await listPhotos()).filter((p) => !isRestricted(p)).map(stripPrivate)) };
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: listCache.json };
     } catch (e) {
@@ -112,7 +131,25 @@ export const getPhoto: APIGatewayProxyHandlerV2 = async (event) => {
         // published:false 経由の間接的な判定しかなく、
         // 何かの拍子に published:true になった story-<id> を直に引くと
         // viewers（閲覧者全員の userId と表示名）ごと返っていた。
-        if (!photo || !photo.src || photo.published === false || photo.story === true) {
+        // **公開範囲を絞った写真は「無い」ことにする。**
+        //
+        // 🔴 2026-09-22 に PM が再現を添えて報告。この口には認証が無いので、
+        // **写真の id さえ分かれば `src` ごと読めていた**（「フォロワーのみ」
+        // に絞った写真ほど効く）。owner の指示書 7:
+        //
+        // > フロントエンドで写真を隠しても、API や画像URLから取得できる場合は
+        // > 公開範囲の制御が成立していません。
+        //
+        // **判定ではなく一律 404。** この口は誰が来たか分からないので
+        // 「在るが見せない」と答えると、**存在そのものが漏れる**
+        // （403 と 404 の差で、その id の写真が在ることが分かる）。
+        // 上の `id.includes("#")` と同じ構え。
+        //
+        // 本人や許されたフォロワーが1枚を開く経路は **`api-user` の
+        // `GET /feed/restricted`** で、判定はあちらの `isVisiblePhoto` 1つ。
+        // **ここに2つ目の判定を書かない。**
+        if (!photo || !photo.src || photo.published === false || photo.story === true
+            || isRestricted(photo)) {
             return { statusCode: 404, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: "写真が見つかりません" }) };
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(stripPrivate(photo)) };

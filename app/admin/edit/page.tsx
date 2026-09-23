@@ -343,8 +343,8 @@ function AdminEditContent() {
         <div className="min-h-screen bg-bg text-white">
             <div className="max-w-2xl mx-auto px-4 py-8">
                 <div className="flex items-center gap-4 mb-8">
-                    <Link href={ROUTES.ADMIN} className="text-white/60 hover:text-white transition-colors">
-                        <ArrowLeftIcon className="w-5 h-5" />
+                    <Link href={ROUTES.ADMIN} aria-label={isJa ? "一覧に戻る" : "Back to list"} className="text-white/60 hover:text-white transition-colors">
+                        <ArrowLeftIcon aria-hidden="true" className="w-5 h-5" />
                     </Link>
                     <h1 className="text-xl font-semibold">
                         {isJa ? "写真を編集" : "Edit Photo"}

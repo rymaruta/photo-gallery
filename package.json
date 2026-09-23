@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
+    "verify:visibility:live": "node scripts/verify-visibility-live.mjs",
     "upload-local-images": "tsx scripts/upload-local-images-to-s3.ts",
     "dev:upload": "tsx scripts/upload-to-dev-s3.ts",
     "add-exif": "tsx scripts/add-exif-to-existing-photos.ts",

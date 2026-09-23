@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { siteConfig, publicImageUrl } from "../lib/utils/seo";
-import { collectEntries, collectionPath, isIndexableCollection, photosInCollection, type CollectionType } from "../lib/utils/collections";
+import { collectEntries, collectionPath, collectionIndexPath, isIndexableCollection, isIndexableCollectionIndex, photosInCollection, type CollectionType } from "../lib/utils/collections";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
@@ -92,6 +92,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .filter(Boolean)
         .sort()
         .pop();
+
+    /**
+     * **索引ページ**（`/category` `/location` `/camera`）。
+     * 「すべて見る」の行き先で、トップから集約ページへ渡す唯一の1本
+     * （柱は `/search?…`＝`robots.txt` で `Disallow`＝行き止まり）。
+     *
+     * `/tag` は作っていない——トップの写真カードのタグのチップが
+     * 実ビルドで `/tag/*` へ49本張っており、同じ穴が無い。
+     * lastmod は中身（エントリの一覧）が写真に連動するのでトップと同じ。
+     */
+    const indexUrls: MetadataRoute.Sitemap = (["location", "category", "camera"] as CollectionType[])
+        .filter((type) => isIndexableCollectionIndex(collectEntries(photos, type).length))
+        .map((type) => ({
+            url: `${baseUrl}${collectionIndexPath(type)}`,
+            lastModified: newestPhoto ?? now,
+            changeFrequency: "weekly" as const,
+            priority: 0.5,
+        }));
+
     return [
         {
             url: baseUrl,
@@ -119,6 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: "weekly",
             priority: 0.5,
         },
+        ...indexUrls,
         ...photoUrls,
         ...userUrls,
         ...collectionUrls,
