@@ -181,18 +181,6 @@ describe("さがす: 発見の節", () => {
         });
 
         /**
-         * 🔴 **柱は素の `<a>`（全ページ遷移）**。`<Link>` に戻すと
-         * クライアント遷移になり、`useGallery` が URL を読む前に
-         * 描き始めるので**クエリが落ちて全件になる**（実測: `<Link>` で
-         * 押すと `/search`・30件。`location.assign` なら 16件）。
-         * 404 救済（`NotFoundClient`）が `window.location.replace` を
-         * 使っているのと同じ理由。
-         *
-         * ⚠️ **見分けは `next/link` の mock が付ける印で付ける**（ファイル先頭）。
-         * 属性の有無（`data-prefetch`）で見ていた頃は、**`<Link>` に戻しても
-         * 落ちなかった**。
-         */
-        /**
          * 🔴 **「すべて見る ›」の行き先は実在する索引ページ。**
          *
          * `#125` でこの枠を落としたのは、**`href` を誰も渡しておらず
@@ -220,24 +208,40 @@ describe("さがす: 発見の節", () => {
             }
         });
 
-        it("🔴 柱は素の `<a>` で全ページ遷移する（`<Link>` だとクエリが落ちる）", () => {
+        /**
+         * **柱も `<Link>`。**
+         *
+         * 2026-09-23 まで、ここだけ素の `<a>` にしていた——`<Link>` だと
+         * `useGallery` が行き先のクエリを読まないまま空の絞り込みを
+         * 書き戻し、`/search?category=landscape` が `/search`（30件）に
+         * 化けていたため。根っこを直した（`useGallery` の `subscribeToUrl`）
+         * ので回避策は要らない。
+         *
+         * ⚠️ **押したときに絞り込みが効くことを見張るのは `useGallery` 側**
+         * （`lib/hooks/__tests__/useGallery.test.ts` の
+         * 「URL の読み直し（<Link> の遷移）」4本）。ここが見るのは
+         * **素の `<a>` に戻していないこと**だけ——戻しても壊れはしないが、
+         * 押すたびに HTML を1本落とし直す（実測 gzip 15,477 B ／
+         * `<Link>` の RSC の控えは 3,934 B）。
+         *
+         * ⚠️ **見分けは `next/link` の mock が付ける印で付ける**（ファイル先頭）。
+         * 属性の有無（`data-prefetch`）で見ていた頃は、`<a>` と `<Link>` を
+         * 取り違えても落ちなかった。
+         */
+        it("柱も `<Link>`（素の `<a>` に戻すと HTML を1本落とし直す）", () => {
             const photos = [photo("a", { category: "landscape" }), photo("b", { category: "landscape" })];
             const rail = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} variant="rail" />);
             const railLinks = [...rail.container.querySelectorAll("a[href^='/search']")];
             expect(railLinks.length, "柱のリンクが1本も無い（判定が空回りしている）").toBeGreaterThan(0);
             for (const a of railLinks) {
-                // `<Link>` は上の mock で `data-next-link` を持つ `<a>` になる。
-                // 柱は素の `<a>` なので印が付かない
-                expect(a.hasAttribute("data-next-link"), "`<Link>` に戻っている（押すとクエリが落ちる）").toBe(false);
+                expect(a.hasAttribute("data-next-link"), "素の `<a>` に戻っている").toBe(true);
                 expect(a.getAttribute("href"), "href が消えている").toMatch(/^\/search\?/);
             }
             rail.unmount();
-            // 面の中（`page`）は今までどおり `<Link>`
+            // 面の中（`page`）も `<Link>`
             const wide = render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={{}} />);
             const pageLink = wide.container.querySelector('a[href^="/category/"]');
             expect(pageLink, "面の中のリンクが消えた").not.toBeNull();
-            // 🔴 **判定の自己確認。** ここが false になったら mock が効いて
-            // いない＝上の「印が無い」は何も検証していない
             expect(pageLink!.hasAttribute("data-next-link"),
                 "`next/link` の mock が効いていない（柱の判定が空回りする）").toBe(true);
         });

@@ -51,9 +51,75 @@ const normalizeKey = (s?: string) => {
  */
 const subscribeNoop = () => () => {};
 
-function readFiltersFromUrl(): Partial<GalleryFilters> {
-    if (typeof window === "undefined") return {};
-    const params = new URLSearchParams(window.location.search);
+/**
+ * いまの URL のクエリ文字列。**`useSyncExternalStore` で読む。**
+ *
+ * 🔴 **これが無いと、`<Link>` で飛んだ行き先の絞り込みが落ちる。**
+ * 実測（2026-09-23・本番と同じ環境変数のビルドを実ブラウザで・`history` の
+ * 呼び出しを全部記録した）:
+ *
+ *     1889.6ms  pushState     /search?category=landscape   ← Next の <Link>
+ *     1953.2ms  replaceState  /search                      ← 下の同期が消す
+ *
+ * **URL は一度は正しくなっている。** 消していたのはこのフック自身だった
+ * ——`urlFilters` の依存が `[clientRender]` だけで、**水和のときに一度
+ * 読んだきり二度と読み直さない**ので、行き先のクエリを知らないまま
+ * 空の絞り込みを書き戻していた。
+ *
+ * `getSnapshot` は**描画のたびに読み直される**ので、`<Link>` の遷移
+ * （`pushState` → 描画）はこれで拾える。購読が要るのは「こちらが描き直さない
+ * のに URL だけ変わる」場合＝**戻る・進む**（`popstate`）。
+ *
+ * ⚠️ **`useSearchParams()` は使えない。** 静的書き出しでは Suspense に
+ * 包む必要があり、事前描画で焼かれるのは fallback なので**トップの静的HTML
+ * が空になる**。実測: `out/index.html` 261,753 → 50,039 バイト／
+ * 写真カードのリンク 30 → 0／`<h1>` 2 → 0。このサイトで最も強い索引対象の
+ * ページなので採れない。
+ */
+/**
+ * `pushState` / `replaceState` は**イベントを出さない**ので、購読するには
+ * 1度だけ包むしかない。**元の関数は必ず呼び、戻り値もそのまま返す**
+ * （振る舞いは1つも変えない。足すのは「変わったと知らせる」だけ）。
+ *
+ * ⚠️ 戻るのに `popstate` だけでは足りないことが実測で分かっている——
+ * `<Link>` の遷移は **描画のあとに `pushState`** する（記録した順:
+ * 行き先の描画 → `pushState`）ので、描画のときに読む `getSnapshot` は
+ * 前の URL を見る。知らせが来なければそのまま固まる。
+ */
+const urlListeners = new Set<() => void>();
+let historyPatched = false;
+function patchHistoryOnce(): void {
+    if (historyPatched || typeof window === "undefined") return;
+    historyPatched = true;
+    for (const key of ["pushState", "replaceState"] as const) {
+        const original = window.history[key].bind(window.history);
+        window.history[key] = function patched(...args: Parameters<History["pushState"]>) {
+            const result = original(...args);
+            for (const notify of [...urlListeners]) notify();
+            return result;
+        };
+    }
+}
+
+const subscribeToUrl = (onChange: () => void) => {
+    patchHistoryOnce();
+    urlListeners.add(onChange);
+    window.addEventListener("popstate", onChange);
+    return () => {
+        urlListeners.delete(onChange);
+        window.removeEventListener("popstate", onChange);
+    };
+};
+const readSearch = () => window.location.search;
+const readSearchOnServer = () => "";
+
+/**
+ * クエリ文字列から絞り込みを読む。**読む文字列は呼ぶ側が渡す**——
+ * `window.location` をここで読み直すと、`useSyncExternalStore` で撮った
+ * 断面とずれうるし、依存に入れた値を使っていないと lint も警告する。
+ */
+function readFiltersFromUrl(search: string): Partial<GalleryFilters> {
+    const params = new URLSearchParams(search);
     const out: Partial<GalleryFilters> = {};
     const cat = params.get("category");
     // **URL の値も同じ正規化を通す。** 写真側は normalizeKey を通した姿で
@@ -142,10 +208,25 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
      * 混ぜる**方なら state が増えない。
      */
     const clientRender = useSyncExternalStore(subscribeNoop, () => true, () => false);
-    /** URL から来る絞り込み。**水和が済むまでは空**（サーバーと同じ姿） */
+    /**
+     * いまのクエリ文字列。
+     * ——これを `readFiltersFromUrl` に渡す。`subscribeToUrl` の注記が、
+     * これが無いと何が落ちるかを書いている。
+     */
+    const urlSearch = useSyncExternalStore(subscribeToUrl, readSearch, readSearchOnServer);
+    /**
+     * URL から来る絞り込み。**水和が済むまでは空**（サーバーと同じ姿）で、
+     * **URL が変わったら読み直す**。
+     *
+     * ⚠️ **人が触ったぶん（`ownFilters`）は据え置き。** 同じルートへ
+     * クエリだけ変えて飛ぶリンクがあると、そちらが勝って URL の方が無視される。
+     * 実ビルドの全ページを走査した時点では**そういうリンクは1本も無い**
+     * （`useGallery` が読むクエリを載せた内部リンクは、トップの柱から
+     * `/search` への2種類だけ）。増えたらここを見直すこと。
+     */
     const urlFilters = useMemo<Partial<GalleryFilters>>(
-        () => (clientRender ? readFiltersFromUrl() : {}),
-        [clientRender],
+        () => (clientRender ? readFiltersFromUrl(urlSearch) : {}),
+        [clientRender, urlSearch],
     );
     /** 人が触ったぶん。URL より強い（外した絞り込みが URL から生き返らない） */
     const [ownFilters, setOwnFilters] = useState<Partial<GalleryFilters>>({});
@@ -371,6 +452,18 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         // **URL を読み終えるまで書かない。** 水和中に走ると、まだ読んでいない
         // 空の絞り込みで `?category=` を消してしまう（上の注記）
         if (!clientRender) return;
+        // 🔴 **読んだ URL が古いなら、今回は書かない。**
+        //
+        // `<Link>` の遷移は **行き先を描いたあとに `pushState`** する（実測した
+        // 順: 描画 → `pushState` → この効果）。つまりこの描画が見ている
+        // `search` は**前のページの URL**で、そのまま書くと行き先のクエリを
+        // 消す（`/search?category=landscape` → `/search`・16枚が30枚に）。
+        //
+        // 消さずに黙って帰れば、`subscribeToUrl` の知らせで描き直しが来て、
+        // そのときは一致しているので書ける。**知らせは必ず来る**——
+        // URL を動かす道は `pushState` / `replaceState` / 戻る・進む の
+        // 3つだけで、3つとも購読している。
+        if (window.location.search !== urlSearch) return;
         const params = new URLSearchParams();
         if (filters.category && filters.category !== "all") params.set("category", filters.category);
         if (filters.query) params.set("q", filters.query);
@@ -426,7 +519,7 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
             return;
         }
         window.history.replaceState(withNextHistoryState({}), "", url);
-    }, [filters, openPhotoId, clientRender]);
+    }, [filters, openPhotoId, clientRender, urlSearch]);
 
     // 依存配列なし → 参照が変わらない安定したコールバック
     const open = useCallback((i: number) => {
