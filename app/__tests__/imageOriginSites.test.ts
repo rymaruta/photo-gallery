@@ -107,6 +107,11 @@ export function imageSinks(raw: string, file: string): Sink[] {
  *       （`app/components/__tests__/imageOrigin.test.tsx`）
  */
 const EXEMPT: Array<[string, string, string]> = [
+    ["app/components/SpotGuideClient.tsx", "cover!.src",
+     "公式撮影地ガイドの代表写真。**利用者が上げた写真ではない**——運営が台帳"
+     + "（`content/spots.json`）に書いたサイト内のパス（`/spots/x.jpg`）で、"
+     + "CloudFront の写真URLではないので `publicImageUrl` を通す対象ではない。"
+     + "外部へのホットリンクは型の規約で禁じている（`SpotCoverImage.src`）"],
     // (a) 自分の配信ではない
     ["app/components/MiniPlayer.tsx", "artwork", "曲のアートワーク（`safeSongArtworkUrl` を通した別オリジン）"],
     ["app/components/MusicCard.tsx", "artwork", "曲のアートワーク（MiniPlayer と同じ値）"],
