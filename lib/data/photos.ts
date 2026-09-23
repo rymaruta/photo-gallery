@@ -46,6 +46,18 @@ export type Photo = {
     coords?: { lat: number; lng: number };
     // coords が location 名からのジオコーディング（おおよその位置）であることを示す
     geoApprox?: boolean;
+    /**
+     * 撮影スポットの台帳（`lib/data/spots.ts`）への参照。
+     *
+     * 🔴 **入るのは人が確認した紐付けだけ**（owner の指示書 6）。
+     * 名称が一致しただけの写真には入らない——`lib/utils/spots.ts` の
+     * `linkStates` が `candidate` で止め、書き込み側（`link-photos-to-spots.ts`）
+     * が確認済み以外を拒む。
+     *
+     * `location`（撮影者が打った文字列）は**消さない**——こちらが空でも
+     * 今までどおり `/location/*` に載る。**足し算の関係**にする。
+     */
+    spotId?: string;
     // 写真BGM（オーナーが1曲添えられる。30秒プレビュー）
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
     // 写真のフル再生MV（YouTube リンク）。30秒プレビューとは別枠で共存
