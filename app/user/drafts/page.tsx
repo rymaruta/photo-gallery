@@ -82,14 +82,14 @@ export default function DraftsPage() {
     }
 
     return (
-        <main className="min-h-screen bg-bg text-white">
+        <main className="jp-page min-h-screen bg-bg text-white">
             <div className="max-w-3xl mx-auto px-4 py-8">
                 <div className="flex items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4">
                         <Link href={ROUTES.HOME} aria-label={isJa ? "ギャラリーに戻る" : "Back to gallery"} className="text-white/60 hover:text-white transition-colors">
                             <ArrowLeftIcon aria-hidden="true" className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-xl font-semibold">
+                        <h1 className="jp-page__title">
                             {isJa ? "下書き" : "Drafts"}
                             {drafts.length > 0 && <span className="ml-2 text-sm text-white/50">{drafts.length}</span>}
                         </h1>
