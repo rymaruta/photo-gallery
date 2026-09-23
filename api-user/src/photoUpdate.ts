@@ -1,10 +1,10 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
-import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -69,6 +69,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
+        audience?: unknown;
         replace?: ReplaceBody;
     };
     try {
@@ -78,6 +79,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     }
 
     const hasPublished = typeof body.published === "boolean";
+    const hasAudience = "audience" in body;
     const hasSong = "song" in body;
     const hasYoutube = "songYoutubeUrl" in body;
     const hasMeta = META_KEYS.some((k) => k in body);
@@ -86,8 +88,31 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     // `META_KEYS` しか見ていないので、`replace` は素通りしない）。
     // 上の `META_KEYS` のコメントが名指しで警告している罠そのもの
     const hasReplace = !!body.replace && typeof body.replace === "object";
-    if (!hasPublished && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
+    // **`audience` もここに要る。** 入れ忘れていたので、公開範囲だけを
+    // 変える保存が 400「更新項目がありません」で断られていた
+    // ——画面が `published` を毎回同梱しているので表に出ていなかっただけ。
+    // 上の `hasReplace` のコメントが名指しで警告している罠と同じ形
+    if (!hasPublished && !hasAudience && !hasSong && !hasYoutube && !hasMeta && !hasReplace) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "更新項目がありません" }) };
+    }
+
+    // 🔴 **知らない公開範囲は断る。「全体に公開」へ倒さない。**
+    //
+    // `sanitizeAudience` は知らない値を `undefined` にするので、綴りを
+    // 間違えた保存（`"follower"`・`"close_friends"`・将来足した値を古い
+    // サーバーが受けた場合）が**そのまま全体に公開**になっていた。
+    // 他の項目なら「無視する」で済むが、これは**公開範囲**なので、
+    // 分からないときに開く方へ倒れてはいけない。
+    //
+    // **空にするのは通す**（null・空文字＝「全体に公開へ戻す」という
+    // はっきりした意思表示）。断るのは「何か書いてあるが読めない」回だけ。
+    if (hasAudience) {
+        const raw = body.audience;
+        const blank = raw == null || (typeof raw === "string" && raw.trim() === "");
+        if (!blank && !sanitizeAudience(raw)) {
+            return { statusCode: 400, headers: JSON_HEADERS,
+                body: JSON.stringify({ error: "公開範囲の指定が不正です" }) };
+        }
     }
 
     // フル再生MV: 有効な YouTube URL のみ保存、null/空で解除
@@ -163,6 +188,14 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         }
 
         const sets: string[] = ["updatedAt = :t"];
+        // いまこの写真の公開範囲。**本文に来ていなければ、既にある値のまま。**
+        // 公開一覧の索引キー（`publicFeed`）はこれ1つから決める——2か所で
+        // 決めると、索引と属性が食い違って「絞ったつもりが一覧に出る」
+        // （またはその逆）になる。
+        const effectiveAudience = hasAudience
+            ? sanitizeAudience(body.audience)
+            : sanitizeAudience(existing.Item.audience);
+
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
         const removes: string[] = [];
@@ -177,8 +210,28 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                 names["#publicFeed"] = "publicFeed";
                 removes.push("#publicFeed");
             } else {
+                // 🔴 **公開範囲を見てから決める。** ここで無条件に
+                // `PUBLIC_FEED_KEY` を書いていた頃は、「フォロワーのみ」の
+                // 写真を**題を直して保存し直すだけで全体に公開**になった
+                // （編集画面は保存のたびに `published: true` を同梱する）。
+                // 索引にしか現れないので、行を見ても画面を見ても分からない。
                 sets.push("publicFeed = :pf");
-                values[":pf"] = PUBLIC_FEED_KEY;
+                values[":pf"] = effectiveAudience ? RESTRICTED_FEED_KEY : PUBLIC_FEED_KEY;
+            }
+        }
+        // 公開範囲そのものの変更。**キーが来たときだけ触る**
+        // （来ていない保存で既にある印を消さない）。
+        // 知らない値は `sanitizeAudience` が undefined にする＝全体に公開に
+        // 戻す方へ倒れるが、**そのときは印も消す**ので索引と食い違わない
+        // （上の `:pf` も同じ `effectiveAudience` から決めている）。
+        if (hasAudience) {
+            if (effectiveAudience) {
+                names["#audience"] = "audience";
+                sets.push("#audience = :aud");
+                values[":aud"] = effectiveAudience;
+            } else {
+                names["#audience"] = "audience";
+                removes.push("#audience");
             }
         }
         if (song) { sets.push("song = :s"); values[":s"] = song; }
@@ -405,7 +458,22 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // いる**ということなので、たいていはその1本が拾う。拾えない窓
         // （そのビルドがテーブルを読んだ後〜ロックを下ろす前）は残るが、
         // そこは下の印で削除時に取り返す。
-        const requested = visibilityChanged || metaChanged;
+        // 🔴 **公開範囲を絞るのも「隠す」操作。**
+        //
+        // ここは `published` と `META_KEYS` しか見ていなかった。`audience` は
+        // どちらにも入っていないので、**公開 →「フォロワーのみ」に変えても
+        // 再ビルドを頼まない**＝既に配られている個別ページ・`photos.json`・
+        // サイトマップ・OGP が**そのまま公開のまま残る**。定期ビルドは週1
+        // （`CLAUDE.md`）なので、**最大7日**その状態が続く。
+        //
+        // この PR は「絞った写真は静的サイトに出さない」と書いているが、
+        // それが本当になるのは**次のビルドから**だった。
+        const wasRestricted = !!sanitizeAudience(existing.Item.audience);
+        const nowRestricted = !!effectiveAudience;
+        const audienceChanged = hasAudience && wasRestricted !== nowRestricted;
+        // **公開されていた写真を絞った**＝既に公開のページが在る
+        const becameRestricted = audienceChanged && nowRestricted && wasPublished;
+        const requested = visibilityChanged || metaChanged || audienceChanged;
         const dispatched = requested
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
@@ -490,7 +558,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // **画面に伝える**（`staticStale` として返す）。行に印が書けたかとは
         // 別に、「静的ページがまだ残りうる」ことは変わらない。ここを黙ると
         // 「非公開にしました」だけが出て、実際には検索から開ける状態が続く
-        const hiding = visibilityChanged && body.published === false;
+        // **「絞った」も隠す操作に数える。** 依頼が届かなかった回に
+        // `staticStale` を残さないと、**公開のままのページを誰も消さない**
+        // （削除側は「非公開だった写真にページは無い」と決め打ちする）
+        const hiding = (visibilityChanged && body.published === false) || becameRestricted;
         const staticStale = hiding && !dispatched;
         // 公開のまま項目を消した場合。ページ自体は残ってよいが、**消した中身が残る**。
         // `staticStale`（非公開にした）とは**排他**——あちらは `hiding`、こちらは
