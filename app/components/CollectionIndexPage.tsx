@@ -76,7 +76,7 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
                     <span className="text-white/80">{breadcrumb}</span>
                 </nav>
 
-                <h1 className="mb-2 text-2xl font-semibold tracking-tight">{heading}</h1>
+                <h1 className="jp-page__title mb-2">{heading}</h1>
                 <p className="mb-6 text-sm text-white/70">{description}</p>
 
                 {/* **全部並べる**（`collectEntries` の順＝枚数の多い順）。
