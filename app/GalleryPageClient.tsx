@@ -1,11 +1,24 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { tagKey } from "@/lib/utils/collections";
 import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import ColorJourney from "./components/ColorJourney";
 import DiscoverSections from "./search/DiscoverSections";
+import DiscoverRail from "./components/DiscoverRail";
+import HomeHero from "./components/HomeHero";
+
+/**
+ * ストーリー（24時間で消える投稿）。**マイページと同じ形で読み込む**
+ * （`ssr: false`）。owner:「ストーリーはホームにもだしたい」。
+ *
+ * **マイページからは外していない**——「ホームにも」なので両方に出る。
+ * 未ログインの人には `StoriesBar` 自身が `null` を返すので、
+ * 静的HTML（＝検索エンジンが見る側）は1バイトも変わらない。
+ */
+const StoriesBar = dynamic(() => import("./components/stories/StoriesBar"), { ssr: false });
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -471,11 +484,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
    */
   const discoverRail = (
     <nav aria-label={locale === "en" ? "Browse photos" : "写真をさがす"}>
-      <DiscoverSections
+      <DiscoverRail
         photos={PHOTOS}
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
-        variant="rail"
       />
     </nav>
   );
@@ -536,7 +548,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
       <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">
-          <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
+          <h1 id="site-title" className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold mb-0 tracking-tight">
             {heading}
           </h1>
           {!isSearch && renderSubtitle(labels.site?.subtitle)}
@@ -554,6 +566,16 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           （`app/users/UserProfileClient.tsx`・2026-09-22）。
           矢印キーの計算は `lib/utils/tabKeys.ts` を使い回す——**同じ計算を
           もう1つ書かない**（あちらのコメントが名指ししている形） */}
+      {/* ストーリー（owner:「ストーリーはホームにもだしたい」・2026-09-23）。
+          **モックと同じ並び**——ヘッダー → ストーリーの輪 → タブ → フィード。
+          マイページからは外していない（「ホームにも」なので両方に出る）。
+          未ログインには何も描かれない（`StoriesBar` が `null` を返す） */}
+      {surface === "home" && (
+        <div className="mb-4">
+          <StoriesBar />
+        </div>
+      )}
+
       {surface === "home" && (
         <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
              className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
@@ -640,6 +662,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
            グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
            1枚ずつ見るのは別の体験なので、面を分ける */
         <HomePanel scope="all"><HomeColumns rail={discoverRail}>
+          {/* 特集（運営が選んだ1枚）。**印が付いた公開写真が無ければ帯ごと出ない**
+              ——`HomeHero` が `null` を返す（owner:「掲載可能な実写真がない場合は
+              特集領域そのものを表示しない」）。実データでは今 0 枚 */}
+          <HomeHero photos={PHOTOS} locale={locale} />
           {filteredPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
               <p className="text-sm m-0">

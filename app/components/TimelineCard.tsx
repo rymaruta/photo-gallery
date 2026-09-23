@@ -147,7 +147,7 @@ export default function TimelineCard({
     return (
         <article className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden">
             {/* 投稿者の行: アバター・名前・撮影地／右に投稿時間 */}
-            <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
+            <div className="flex items-center gap-2.5 px-3.5 pt-3.5 pb-2.5">
                 {photo.userId ? (
                     <Link href={ROUTES.USER_PROFILE(photo.userId)} prefetch={false}
                           className="flex-shrink-0 rounded-full"
@@ -193,8 +193,12 @@ export default function TimelineCard({
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                 data-photo-id={photo.id}
             >
+                {/* **端まで出す。** 以前は `mx-2` で左右に余白を取って浮かせていたが、
+                    カードの中に小さい写真が浮いて見えていた（owner:「写真が最も
+                    目立つように」）。外枠が `rounded-2xl overflow-hidden` なので
+                    角はそちらで落ちる */}
                 <div
-                    className="relative mx-2 rounded-xl overflow-hidden"
+                    className="relative overflow-hidden"
                     style={{ paddingTop: `${ratio}%`, backgroundColor: photo.dominantColor ?? "#0d1a26", fontSize: 0, lineHeight: 0 }}
                 >
                     <Thumb photo={photo} alt={alt} sizes={FEED_SIZES_XL} priority={priority} />
@@ -212,12 +216,16 @@ export default function TimelineCard({
 
             {/* 題と本文。**題は焼いたまま**（検索に効く文字。写真の上に重ねるのをやめても消さない） */}
             {(title || paragraphs.length > 0) && (
-                <div className="px-3 pt-2.5 break-words">
+                <div className="px-3.5 pt-3 break-words">
                     {title && (
-                        <p className="m-0 text-white font-semibold" style={{ fontSize: "15px", lineHeight: "22px" }}>{title}</p>
+                        <p className="m-0 text-white font-semibold" style={{ fontSize: "16px", lineHeight: "23px" }}>{title}</p>
                     )}
+                    {/* **本文は2行で畳む。** 説明は中央値60文字だが最長は3〜4行あり、
+                        そこだけカードが伸びて「写真の帯」が途切れる。畳んでも
+                        **文字は消さない**（DOM に全部在る＝検索にも読み上げにも届く。
+                        隠すのは `line-clamp` の見た目だけ）。続きは写真ページ */}
                     {paragraphs.length > 0 && (
-                        <div className="text-white/85" style={{ fontSize: "14px", lineHeight: "21px" }}>
+                        <div className="text-white/85 line-clamp-2 mt-0.5" style={{ fontSize: "14px", lineHeight: "21px" }}>
                             {paragraphs.map((line, i) => <p key={i} className="m-0">{line}</p>)}
                         </div>
                     )}
@@ -228,14 +236,14 @@ export default function TimelineCard({
                 先読みしない（静的書き出し＋`no-store` 配信なので、画面に入るたび
                 行き先を丸ごと落とし直す。`d8884430`） */}
             {tags.length > 0 && (
-                <div className="px-3 pt-2 flex flex-wrap gap-1.5">
+                <div className="px-3.5 pt-2.5 flex flex-wrap gap-1.5">
                     {tags.map((t) => (
                         <Link
                             key={t}
                             href={collectionPath("tag", slugify(t, "tag"))}
                             prefetch={false}
                             className="inline-flex items-center rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
-                            style={{ fontSize: "12px", lineHeight: "16px", padding: "3px 9px", touchAction: "manipulation" }}
+                            style={{ fontSize: "11px", lineHeight: "15px", padding: "3px 8px", touchAction: "manipulation" }}
                         >
                             #{t.replace(/^#/, "")}
                         </Link>
@@ -244,7 +252,7 @@ export default function TimelineCard({
             )}
 
             {/* いいね・コメントの数（押すと写真ページが開く）・シェア・右端に保存 */}
-            <div className="flex items-center gap-5 px-3 pt-2.5 pb-3">
+            <div className="flex items-center gap-5 px-3.5 pt-3 pb-3.5">
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
                     prefetch={false}
