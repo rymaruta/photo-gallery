@@ -1012,7 +1012,7 @@ export default function NotificationsBell() {
                         <div className="fixed inset-0 z-40" onClick={closePanel} aria-hidden="true" />,
                         document.body,
                     )}
-                    <div className="absolute right-0 top-full mt-2 z-50 w-96 max-w-[85vw] rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                    <div className="absolute right-0 top-full mt-2 z-50 w-96 max-w-[85vw] rounded-[22px] border border-white/15 bg-surface-2/95 backdrop-blur-md shadow-2xl overflow-hidden story-media-in">
                         {header}
                         {tabs}
                         {items.length === 0 ? empty : list}
