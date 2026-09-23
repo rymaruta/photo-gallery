@@ -85,6 +85,41 @@ describe("行きたいボタン", () => {
     });
 
     // 未ログインは**ボタンではなくログインへのリンク**（押してから断らない）
+    /**
+     * **公式撮影地ガイドのスポットは、頭の付いた鍵で保存する。**
+     *
+     * 撮影地の集約ページ（`/location/<スラッグ>`）と**同じ綴りでも別物**
+     * ——owner:「対応関係が不明な項目を勝手に同一スポットとして統合しないで
+     * ください」。鍵の形は `lib/utils/savedSpotKey.ts` 1つが持つ。
+     */
+    describe("公式スポット（kind=\"spot\"）", () => {
+        it("送る鍵に頭が付く", async () => {
+            fetchMock.mockResolvedValueOnce(ok([]));
+            render(<SaveSpotButton slug="takaya-jinja" name="高屋神社" locale="ja" kind="spot" />);
+            const btn = await screen.findByRole("button", { name: "行きたい" });
+            fetchMock.mockResolvedValueOnce(ok(["SPOT-takaya-jinja"]));
+            btn.click();
+            await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+                "/user/spots",
+                expect.objectContaining({ body: JSON.stringify({ slug: "SPOT-takaya-jinja" }) }),
+            ));
+        });
+
+        /// 🔴 **同じ綴りの撮影地を保存していても、「保存済み」にならない。**
+        /// 混ぜると、別の場所を保存したことになる
+        it("同じ綴りの撮影地が保存済みでも、こちらは「行きたい」のまま", async () => {
+            fetchMock.mockResolvedValue(ok(["山中湖"]));
+            render(<SaveSpotButton slug="山中湖" name="山中湖" locale="ja" kind="spot" />);
+            expect(await screen.findByRole("button", { name: "行きたい" })).toBeTruthy();
+        });
+
+        it("頭の付いた鍵が保存済みなら「保存済み」", async () => {
+            fetchMock.mockResolvedValue(ok(["SPOT-山中湖"]));
+            render(<SaveSpotButton slug="山中湖" name="山中湖" locale="ja" kind="spot" />);
+            expect(await screen.findByRole("button", { name: "保存済み" })).toBeTruthy();
+        });
+    });
+
     it("未ログインならログインへのリンクを出し、聞きに行かない", () => {
         auth.isAuthenticated = false;
         render(<SaveSpotButton slug="パリ" name="パリ" locale="ja" />);

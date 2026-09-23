@@ -24,6 +24,31 @@ vi.mock("../../../lib/hooks/usePhotos", () => ({ usePhotos: () => photosState })
 const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/utils/api", () => ({ userFetch: fetchMock }));
 
+/**
+ * **公式スポットの台帳は差し替える。**
+ *
+ * `content/spots.json` はいま空（人が書く棚で、まだ1件も入っていない）。
+ * 実データに寄りかかると、台帳に1件入った日に**この判定が別のことを見る**。
+ */
+const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
+vi.mock("../../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
+
+/** 公開条件を全部満たす1件（`spotGuide.publishBlockers` を通す） */
+const SPOT = (slug: string, name: string) => ({
+    spotId: `sp_${slug}`,
+    slug,
+    name,
+    summary: "あ".repeat(40),
+    region: { country: "日本", prefecture: "香川県", city: "観音寺市" },
+    coords: { lat: 34.1, lng: 133.6 },
+    highlights: ["雲海が出る朝がある"],
+    officialWebsiteUrl: "https://example.example/",
+    status: "published",
+    verifiedAt: "2026-09-23",
+    createdAt: "2026-09-23T00:00:00.000Z",
+    updatedAt: "2026-09-23T00:00:00.000Z",
+});
+
 import SavedSpotsPage from "../page";
 
 const P = (id: string, location: string): Photo =>
@@ -40,6 +65,7 @@ beforeEach(() => {
         P("4", "山中湖"), P("5", "山中湖"),
     ];
     photosState.loaded = true;
+    ledger.spots = [];
 });
 
 describe("行きたい場所の一覧", () => {
@@ -137,6 +163,71 @@ describe("行きたい場所の一覧", () => {
         a.click();
         await waitFor(() => expect(a).toBeDisabled());
         expect(b, "他の行が押せるのに無反応になる").toBeDisabled();
+    });
+
+    /**
+     * **公式撮影地ガイドと、撮影地の集約ページが同じ一覧に並ぶ。**
+     *
+     * 鍵は `SPOT-<slug>`。**API は1行も変えていない**——サーバーは
+     * 「`#` を含まない文字列」を受けるだけで、種別を知らない。
+     */
+    describe("公式撮影地ガイド", () => {
+        it("台帳の名前で出し、`/spots/<slug>` へ送る", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社")];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const link = await screen.findByRole("link", { name: /高屋神社/ });
+            expect(link.getAttribute("href")).toBe("/spots/takaya-jinja");
+            // 見分けが付く（撮影地の集約ページと同じ見た目にしない）
+            expect(within(link).getByText("公式")).toBeTruthy();
+        });
+
+        /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を
+        /// 勝手に同一スポットとして統合しないでください」
+        it("同じ綴りの撮影地と公式スポットは、2行として残る", async () => {
+            ledger.spots = [SPOT("山中湖", "山中湖（公式）")];
+            fetchMock.mockResolvedValue(ok(["SPOT-山中湖", "山中湖"]));
+            render(<SavedSpotsPage />);
+            const items = await screen.findAllByRole("listitem");
+            expect(items).toHaveLength(2);
+            expect(items[0].textContent).toContain("山中湖（公式）");
+            expect(items[1].textContent).toContain("2枚");
+        });
+
+        /**
+         * **台帳から下りたスポットは、行ごと消さない。**
+         *
+         * 消すと本人が外す手段を失う（サーバーには残ったまま）。
+         * リンクだけ外す——押しても 404 のページへ送らない。
+         */
+        it("台帳に無いスポットは、リンクを外して残す", async () => {
+            fetchMock.mockResolvedValue(ok(["SPOT-kieta"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            expect(within(item).queryByRole("link")).toBeNull();
+            expect(item.textContent).toContain("kieta");
+            expect(within(item).getByRole("button", { name: "「kieta」を外す" })).toBeTruthy();
+        });
+
+        it("外すときも、保存したときと同じ鍵を送る", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社")];
+            fetchMock.mockResolvedValueOnce(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const remove = await screen.findByRole("button", { name: "「高屋神社」を外す" });
+            fetchMock.mockResolvedValueOnce(ok([]));
+            remove.click();
+            await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+                "/user/spots/SPOT-takaya-jinja", { method: "DELETE" },
+            ));
+        });
+
+        /// 件数は**描く一覧そのもの**で数える（壊れた値を畳んだぶんと食い違わない）
+        it("壊れた鍵は落として、件数も行数と合わせる", async () => {
+            fetchMock.mockResolvedValue(ok(["SPOT-", "パリ"]));
+            render(<SavedSpotsPage />);
+            expect(await screen.findByText("保存した場所 1 件")).toBeTruthy();
+            expect(screen.getAllByRole("listitem")).toHaveLength(1);
+        });
     });
 
     it("外すと、サーバーが返した一覧をそのまま映す", async () => {

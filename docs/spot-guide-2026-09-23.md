@@ -20,7 +20,7 @@ owner の依頼:「ユーザーの投稿が0枚でも、その撮影地につい
 | `app/components/SpotPageClient.tsx` | 685 | 画面 |
 | `app/location/[location]/page.tsx` | 28 | ルート。`generateStaticParams` は `collectEntries` |
 | `app/map/page.tsx` / `PhotoMap.tsx` | 278 / 584 | 撮影地マップ（写真の座標から） |
-| `app/saved-spots/page.tsx` / `SaveSpotButton.tsx` / `useSavedSpots.ts` | 204 / 123 / 144 | 行きたい場所。**鍵は撮影地のスラッグ**（`spots#<uid>` に入るのもスラッグ） |
+| `app/saved-spots/page.tsx` / `SaveSpotButton.tsx` / `useSavedSpots.ts` | 204 / 123 / 144 | 行きたい場所。**鍵は撮影地のスラッグ**（`spots#<uid>` に入るのもスラッグ）。2026-09-23 に公式スポット（`SPOT-<slug>`）も同じ一覧へ |
 | `app/sitemap.ts` | 146 | `isIndexableCollection`（撮影地は**2枚以上**）で載せる |
 | `app/spots/[slug]/page.tsx` | — | **無い** |
 
@@ -415,10 +415,21 @@ owner 自身が撮っていて、**地点として特定できる**もの。
    Network access を広げてもらう必要がある。広げないなら、**事実は owner が入れ、
    私は型・画面・見張りを作る**
 2. **最初の20〜30件のスポット名。** 行ったことのある場所は owner にしか分からない
-3. **「行きたい場所」の鍵をどうするか。** いまは `/location/` のスラッグで
-   保存されている。`/spots/<slug>` に移すなら、**既に保存されている分の移行**が要る
-   （`spots#<uid>` の中身）。**移行しない**（両方を鍵として受ける）案も可能で、
-   そちらの方が安全
+3. ~~**「行きたい場所」の鍵をどうするか。**~~ → **決着（2026-09-23・移行しない）。**
+   `spots#<uid>` の中身はそのまま、公式スポットだけ **`SPOT-<slug>`** という鍵で
+   同じ一覧に入れる（`lib/utils/savedSpotKey.ts`）。
+
+   - **既存の保存は1件も触らない**（頭の無いものは今までどおり撮影地）
+   - **API は1行も変えていない**——サーバーが受けるのは「`#` を含まない
+     200バイト以内の文字列」だけで、種別を知らない。Deploy API も走らない
+   - **同じ綴りでも別物として残す**（owner:「対応関係が不明な項目を勝手に
+     同一スポットとして統合しないでください」）
+   - 接頭辞は**2回選び直した**。`spot:` は `slugify` がコロンを落とさないので
+     撮影地の名前と衝突しうる。`spot/` は外す口（`DELETE /user/spots/{slug}`）で
+     `%2F` になり、**API Gateway の扱いをこの環境からは確かめられない**
+     （当たらなければ「保存はできるが外せない」）。`SPOT-` は
+     `slugify` が `toLowerCase()` する＝大文字は出力に現れない、が根拠で、
+     記号を1つも含まないのでパスの心配も無い
 4. **#132 をどうするか。** 今回の土台にするので、**#132 を先に develop へ入れる**か、
    **この枝に取り込む**か。取り込むと #132 と重複した差分になる
 

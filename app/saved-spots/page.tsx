@@ -9,6 +9,9 @@ import { useSavedSpots } from "../../lib/hooks/useSavedSpots";
 import { useLocale } from "../i18n/context";
 import { ROUTES, loginWithNext } from "../../lib/routes";
 import { collectEntries, collectionPath } from "../../lib/utils/collections";
+import { SPOTS } from "../../lib/data/spots";
+import { publishableSpots } from "../../lib/utils/spotGuide";
+import { parseSavedKey, dedupeSavedKeys } from "../../lib/utils/savedSpotKey";
 
 /**
  * 行きたい場所（保存した撮影スポット）の一覧。
@@ -29,6 +32,18 @@ import { collectEntries, collectionPath } from "../../lib/utils/collections";
  *
  * 混ぜると、通信に失敗しただけの人に「保存した場所はまだありません」と
  * 言い切ることになる（この台帳が何度も踏んでいる形）。
+ *
+ * ## 2種類が同じ一覧に並ぶ
+ *
+ *  - **公式撮影地ガイド**（`/spots/<slug>`）… 鍵に頭が付く（`SPOT-`）。
+ *    見出しは**台帳**（`content/spots.json`）から引く
+ *  - **撮影地の集約ページ**（`/location/<スラッグ>`）… これまでの形。
+ *    見出しは**写真から**引く（`collectEntries`）
+ *
+ * 見分けは `lib/utils/savedSpotKey.ts` の1か所だけ。**綴りで判定しない。**
+ * 台帳から消えた／下書きに戻ったスポットは、**行ごと消さずにリンクを外す**
+ * ——押しても 404 のページへ送らず、それでも「外す」は押せる
+ * （消すと、本人が外す手段を失う）。
  */
 export default function SavedSpotsPage() {
     const { locale } = useLocale();
@@ -48,9 +63,33 @@ export default function SavedSpotsPage() {
      */
     const entries = React.useMemo(() => {
         const bySlug = new Map(collectEntries(photos, "location").map((e) => [e.slug, e]));
+        // **公式スポットは台帳から引く。** 公開条件を満たすものだけ
+        // （下書き・条件未達のページは作られていない＝リンク先が無い）
+        const spotBySlug = new Map(publishableSpots(SPOTS).map((sp) => [sp.slug, sp]));
         // **保存した順（新しい順）を保つ。** 枚数順に並べ替えない
-        return slugs.map((slug) => ({ slug, entry: bySlug.get(slug) }));
-    }, [photos, slugs]);
+        return dedupeSavedKeys(slugs).map((key) => {
+            const parsed = parseSavedKey(key);
+            if (parsed.kind === "spot") {
+                const sp = spotBySlug.get(parsed.slug);
+                return {
+                    key,
+                    kind: "spot" as const,
+                    label: sp?.name ?? decodeSlug(parsed.slug),
+                    href: sp ? `${ROUTES.SPOTS}/${parsed.slug}` : null,
+                    note: sp ? [sp.region?.prefecture, sp.region?.city].filter(Boolean).join(" ") : "",
+                };
+            }
+            const entry = bySlug.get(parsed.slug);
+            return {
+                key,
+                kind: "location" as const,
+                label: entry?.label ?? decodeSlug(parsed.slug),
+                href: collectionPath("location", parsed.slug),
+                // 一覧がまだ届いていない間は「0枚」と言い切らない
+                note: entry ? `${entry.count}${en ? "" : "枚"}` : (loaded ? "" : "…"),
+            };
+        });
+    }, [photos, slugs, en, loaded]);
 
     if (!authLoading && !isAuthenticated) {
         return (
@@ -72,10 +111,12 @@ export default function SavedSpotsPage() {
     }
 
     return (
-        // **数を出すのは、聞けたときだけ。** 失敗した回に `slugs.length` を
-        // 出すと「保存した場所 0 件」と言い切ることになる（このファイルの
-        // docstring が「混ぜない」と書いている当の形）
-        <Shell locale={locale} count={pending || failed ? null : slugs.length}>
+        // **数を出すのは、聞けたときだけ。** 失敗した回に件数を出すと
+        // 「保存した場所 0 件」と言い切ることになる（このファイルの
+        // docstring が「混ぜない」と書いている当の形）。
+        // **数えるのは描く一覧そのもの**（`entries`）——生の `slugs` で
+        // 数えると、畳んだぶん・壊れた値のぶんだけ行数と食い違う
+        <Shell locale={locale} count={pending || failed ? null : entries.length}>
             {/* 取りに行って失敗した回は、黙って短い一覧を出さない
                 （`/favorites` が同じ場面で同じ断りを出している） */}
             {failed && (
@@ -111,44 +152,27 @@ export default function SavedSpotsPage() {
                 />
             ) : (
                 <ul className="flex flex-col gap-2">
-                    {entries.map(({ slug, entry }) => (
+                    {entries.map(({ key, kind, label, href, note }) => (
                         <li
-                            key={slug}
+                            key={key}
                             className="flex items-center gap-3 rounded-xl bg-white/5 ring-1 ring-white/10 px-4 py-3"
                         >
-                            <Link
-                                href={collectionPath("location", slug)}
-                                prefetch={false}
-                                className="flex-1 min-w-0 hover:text-white"
-                                style={{ touchAction: "manipulation", minHeight: 44, display: "flex", alignItems: "center" }}
-                            >
-                                <span className="truncate text-sm font-semibold">
-                                    {/* **見出しが引けないときはスラッグを出す。**
-                                        「不明な場所」のような、こちらで作った
-                                        言葉を置かない。引けないのは、その撮影地の
-                                        写真が非公開になった／まだ届いていない
-                                        （`loaded` が false）とき */}
-                                    {entry?.label ?? decodeSlug(slug)}
-                                </span>
-                                {entry && (
-                                    <span className="ml-2 shrink-0 text-xs text-white/60 tabular-nums">
-                                        {entry.count}{en ? "" : "枚"}
-                                    </span>
-                                )}
-                                {/* 一覧がまだ届いていない間は「0枚」と言い切らない */}
-                                {!entry && !loaded && (
-                                    <span className="ml-2 shrink-0 text-xs text-white/60">…</span>
-                                )}
-                            </Link>
+                            {/* **見出しが引けないときはスラッグを出す。**
+                                「不明な場所」のような、こちらで作った言葉を
+                                置かない。引けないのは、その撮影地の写真が
+                                非公開になった／まだ届いていない（`loaded` が
+                                false）／台帳からそのスポットが下りたとき */}
+                            <Row href={href} label={label} note={note}
+                                 badge={kind === "spot" ? (en ? "Official" : "公式") : null} />
                             <button
                                 type="button"
-                                onClick={() => void toggle(slug)}
+                                onClick={() => void toggle(key)}
                                 // **1件でも書き込み中なら、全部押させない。**
                                 // `busy === slug` だけを見ていたので、行Aの
                                 // 処理中に行Bを押すと `toggle` が `false` を
                                 // 返して**何も起きない**（押せるのに無反応）
                                 disabled={busy !== null}
-                                aria-label={en ? `Remove ${entry?.label ?? slug}` : `「${entry?.label ?? slug}」を外す`}
+                                aria-label={en ? `Remove ${label}` : `「${label}」を外す`}
                                 className="shrink-0 rounded-full px-3 py-1.5 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition"
                                 style={{ touchAction: "manipulation", minHeight: 44 }}
                             >
@@ -159,6 +183,31 @@ export default function SavedSpotsPage() {
                 </ul>
             )}
         </Shell>
+    );
+}
+
+/**
+ * 一覧の1行の中身。**リンクが無いときは素の行にする**
+ * （台帳から下りたスポットへ送っても 404 になるだけ）。
+ */
+function Row({ href, label, note, badge }: { href: string | null; label: string; note: string; badge: string | null }) {
+    const inner = (
+        <>
+            <span className="truncate text-sm font-semibold">{label}</span>
+            {badge && (
+                <span className="ml-2 shrink-0 rounded-full bg-chip text-chip-text" style={{ fontSize: "10px", padding: "2px 8px" }}>
+                    {badge}
+                </span>
+            )}
+            {note && <span className="ml-2 shrink-0 text-xs text-white/60 tabular-nums">{note}</span>}
+        </>
+    );
+    const style = { touchAction: "manipulation", minHeight: 44, display: "flex", alignItems: "center" } as const;
+    if (!href) return <div className="flex-1 min-w-0" style={style}>{inner}</div>;
+    return (
+        <Link href={href} prefetch={false} className="flex-1 min-w-0 hover:text-white" style={style}>
+            {inner}
+        </Link>
     );
 }
 

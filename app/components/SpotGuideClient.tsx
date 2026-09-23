@@ -8,6 +8,7 @@ import { showsField, sourcesFor, needsVisibleCredit, usesMapHero } from "@/lib/u
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import GalleryGrid from "./GalleryGrid";
+import SaveSpotButton from "./SaveSpotButton";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -27,12 +28,15 @@ import GalleryGrid from "./GalleryGrid";
  * **この画面には書かない**——同じ判断が2か所にあると、片方だけ直したときに
  * 静かにずれる（このリポジトリが何度も踏んでいる形）。
  *
- * ## 「行きたい場所に保存」はまだ置かない
+ * ## 「行きたい場所に保存」は本物（ダミーではない）
  *
- * 保存の鍵は今 **`/location/` のスラッグ**（`spots#<uid>` に入るのも文字列）で、
- * `spotId` を足すには互換の設計が要る（計画の S-6・API 変更あり＝承認が要る）。
  * owner:「**保存機能が正しく実装されていない段階ではダミーボタンを表示しない**」。
- * だから**ボタン自体を出さない**。
+ * だから置くまで出さなかった。いまは**実際に `spots#<uid>` へ入る**。
+ *
+ * **API は1行も変えていない。** サーバーが受けるのは「`#` を含まない
+ * 200バイト以内の文字列」だけで、公式スポットは `SPOT-<slug>` という鍵で
+ * 同じ一覧に入る（`lib/utils/savedSpotKey.ts` がその形を1か所で持つ）。
+ * 既存の保存（撮影地のスラッグそのまま）は**1件も消えない・触らない**。
  */
 type Props = {
     spot: Spot;
@@ -158,9 +162,11 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                 </header>
 
                 {/* ── 3. 主な操作 ──────────────────────────────
-                    ⚠️ 「行きたい場所に保存」は**まだ置かない**（上の注記）。
-                    押せないボタンや、押しても保存されないボタンを出さない */}
-                <div className="flex flex-wrap gap-2 pb-6 border-b border-white/10">
+                    「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
+                    部品は撮影地ページと同じ `SaveSpotButton`——同じ見た目・
+                    同じ3状態の扱いを2つ作らない */}
+                <div className="flex flex-wrap items-start gap-2 pb-6 border-b border-white/10">
+                    <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" />
                     <Link href={mapHref} prefetch={false}
                           className="inline-flex items-center rounded-full bg-accent-fill text-white font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>

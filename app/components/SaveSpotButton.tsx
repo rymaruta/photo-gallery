@@ -8,12 +8,23 @@ import { useAuth } from "../auth/context";
 import { useSavedSpots } from "../../lib/hooks/useSavedSpots";
 import { useToast } from "../../lib/hooks/useToast";
 import { loginWithNext } from "../../lib/routes";
+import { spotSavedKey } from "../../lib/utils/savedSpotKey";
 
 /**
  * 撮影スポットを「行きたい場所」に保存するボタン。
  *
  * **写真の「保存」とは別物。** あちらは写真を、こちらは場所を保存する
  * （サーバーの入れ物も別 ＝ `spots#<uid>`）。
+ *
+ * ## 保存できるのは2種類（`kind`）
+ *
+ *  - `location` … 撮影地の集約ページ（`/location/<スラッグ>`）。**これまでの形**
+ *  - `spot` … 公式撮影地ガイド（`/spots/<スラッグ>`）。鍵に頭が付く
+ *
+ * **鍵の作り方はここに書かない**——`lib/utils/savedSpotKey.ts` 1つが持つ
+ * （同じ規則が2か所にあると、片方だけ直したときに静かにずれる）。
+ * **API は1行も変えていない**：サーバーは「`#` を含まない文字列」を
+ * 受けるだけで、種別を知らない。
  *
  * ## 3つの状態を混ぜない
  *
@@ -33,18 +44,23 @@ export default function SaveSpotButton({
     slug,
     name,
     locale,
+    kind = "location",
 }: {
     slug: string;
     name: string;
     locale: "ja" | "en";
+    /** 既定は撮影地（これまでの形）。公式ガイドのスポットは `"spot"` */
+    kind?: "location" | "spot";
 }) {
     const en = locale === "en";
     const { isAuthenticated, loading: authLoading } = useAuth();
     const { isSaved, toggle, busy, failed, retry } = useSavedSpots(isAuthenticated, authLoading);
     const { showToast } = useToast();
 
-    const saved = isSaved(slug);
-    const working = busy === slug;
+    // **保存の鍵。** 撮影地はスラッグそのまま、公式スポットは頭を付ける
+    const key = kind === "spot" ? spotSavedKey(slug) : slug;
+    const saved = isSaved(key);
+    const working = busy === key;
 
     // 未ログインはログインへ。**戻り先は今のページ**（押した場所に返す）
     if (!authLoading && !isAuthenticated) {
@@ -62,7 +78,7 @@ export default function SaveSpotButton({
     }
 
     const onClick = async () => {
-        const ok = await toggle(slug);
+        const ok = await toggle(key);
         if (!ok) {
             showToast(en ? "Couldn't update. Please try again." : "更新できませんでした。もう一度お試しください。", "error");
             return;
