@@ -135,8 +135,20 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
             </section>
 
             <div className="mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 pb-10">
+                <nav aria-label={isJa ? "パンくずリスト" : "Breadcrumb"}
+                     className="flex flex-wrap items-center gap-2 pt-4 text-xs text-white/70">
+                    <Link href="/spots" prefetch={false}
+                          className="text-link hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {isJa ? "撮影スポットをさがす" : "Explore spots"}
+                    </Link>
+                    <span aria-hidden="true">/</span>
+                    <span aria-current="page" className="text-white/85">{spot.name}</span>
+                </nav>
                 {/* ── 2. 基本情報 ─────────────────────────────── */}
-                <header className="pt-5 pb-4">
+                <header className="pt-4 pb-5">
+                    <p className="m-0 mb-2 text-[11px] font-semibold tracking-[0.18em] text-link">
+                        JOURNEY GUIDE / LOCATION
+                    </p>
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"
                         style={{ fontSize: "clamp(24px, 4.5vw, 38px)", lineHeight: "1.18" }}>
                         {spot.name}
@@ -165,7 +177,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                     「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
                     部品は撮影地ページと同じ `SaveSpotButton`——同じ見た目・
                     同じ3状態の扱いを2つ作らない */}
-                <div className="flex flex-wrap items-start gap-2 pb-6 border-b border-white/10">
+                <div className="flex flex-wrap items-start gap-2 pb-5 border-b border-white/10">
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" />
                     <Link href={mapHref} prefetch={false}
                           className="inline-flex items-center rounded-full bg-accent-fill text-white font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -181,12 +193,39 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                     )}
                 </div>
 
+                {/* 実際に存在する節にだけ進めるページ内ナビ。情報の少ないスポットを
+                    架空の項目で飾らず、必要な情報まで短い操作で移動できる。 */}
+                <nav aria-label={isJa ? "このページの目次" : "On this page"}
+                     className="flex items-center gap-2 overflow-x-auto whitespace-nowrap py-4 text-[12px]">
+                    {(spot.description || (spot.highlights ?? []).length > 0) && (
+                        <a href="#spot-charm" className="shrink-0 rounded-full border border-line px-3 py-2 text-white/85 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            {isJa ? "見どころ" : "Highlights"}
+                        </a>
+                    )}
+                    {((spot.seasonalGuide ?? []).length > 0
+                        || (spot.timeOfDayGuide ?? []).length > 0
+                        || (spot.compositionTips ?? []).length > 0
+                        || (showsField(spot, "safetyNotes") && (spot.safetyNotes ?? []).length > 0)) && (
+                        <a href="#spot-guide" className="shrink-0 rounded-full border border-line px-3 py-2 text-white/85 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            {isJa ? "撮影ガイド" : "Shooting guide"}
+                        </a>
+                    )}
+                    {(showsField(spot, "access") || showsField(spot, "parking") || spot.address) && (
+                        <a href="#spot-access" className="shrink-0 rounded-full border border-line px-3 py-2 text-white/85 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            {isJa ? "アクセス" : "Access"}
+                        </a>
+                    )}
+                    <a href="#spot-photos" className="shrink-0 rounded-full border border-line px-3 py-2 text-white/85 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                        {isJa ? "みんなの写真" : "Community photos"}
+                    </a>
+                </nav>
+
                 {/* PC は2段組。スマホは1列（スマホを横に引き伸ばさない） */}
                 <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:gap-10 lg:items-start">
                     <div className="min-w-0">
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
-                            <section className="pt-6" aria-labelledby="spot-charm">
+                            <section className="pt-6 scroll-mt-28" aria-labelledby="spot-charm">
                                 <Head id="spot-charm">{isJa ? "この場所の魅力" : "What makes it special"}</Head>
                                 {spot.description && (
                                     <p className="m-0 mb-3 text-white/85" style={{ fontSize: "15px", lineHeight: "26px" }}>
@@ -194,9 +233,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                     </p>
                                 )}
                                 {(spot.highlights ?? []).length > 0 && (
-                                    <ul className="m-0 p-0 flex flex-col gap-2" style={{ listStyle: "none" }}>
+                                    <ul className="m-0 grid grid-cols-1 gap-2 p-0 sm:grid-cols-2" style={{ listStyle: "none" }}>
                                         {spot.highlights!.map((h) => (
-                                            <li key={h} className="flex gap-2 text-white/85"
+                                            <li key={h} className="flex gap-2 rounded-xl border border-line bg-surface p-3 text-white/85"
                                                 style={{ fontSize: "15px", lineHeight: "24px" }}>
                                                 <span aria-hidden="true" className="text-accent flex-shrink-0">—</span>
                                                 <span>{h}</span>
@@ -214,7 +253,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                             || (spot.timeOfDayGuide ?? []).length > 0
                             || (spot.compositionTips ?? []).length > 0
                             || showsField(spot, "safetyNotes")) && (
-                            <section className="pt-8" aria-labelledby="spot-guide">
+                            <section className="pt-8 scroll-mt-28" aria-labelledby="spot-guide">
                                 <Head id="spot-guide">{isJa ? "撮影ガイド" : "Shooting guide"}</Head>
 
                                 {(spot.seasonalGuide ?? []).length > 0 && (
@@ -222,9 +261,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                         <p className="m-0 mb-2 text-white/60" style={{ fontSize: "12px" }}>
                                             {isJa ? "季節ごとの景色" : "By season"}
                                         </p>
-                                        <ul className="m-0 p-0 flex flex-col gap-2" style={{ listStyle: "none" }}>
+                                        <ul className="m-0 grid grid-cols-1 gap-2 p-0 sm:grid-cols-2" style={{ listStyle: "none" }}>
                                             {spot.seasonalGuide!.map((s) => (
-                                                <li key={s.season} className="flex gap-2.5">
+                                                <li key={s.season} className="flex flex-col items-start gap-2 rounded-xl border border-line bg-surface p-3">
                                                     <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
                                                           style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
                                                         {SEASON_LABEL[s.season] ?? s.season}
@@ -288,7 +327,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
 
                         {/* ── 7. みんなが撮影した写真 ───────────
                             **ここだけがユーザー投稿に触れる節。** 0枚でも上は完成している */}
-                        <section className="pt-8" aria-labelledby="spot-photos">
+                        <section className="pt-8 scroll-mt-28" aria-labelledby="spot-photos">
                             <Head id="spot-photos">{isJa ? "みんなが撮影した写真" : "Photos from the community"}</Head>
                             {photos.length > 0 ? (
                                 <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
@@ -317,7 +356,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                     <aside className="pt-8 lg:pt-6 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">
                         {/* ── 6. アクセス ── */}
                         {(showsField(spot, "access") || showsField(spot, "parking") || spot.address) && (
-                            <section className="mb-7" aria-labelledby="spot-access">
+                            <section className="mb-7 scroll-mt-28" aria-labelledby="spot-access">
                                 <Head id="spot-access">{isJa ? "アクセス" : "Getting there"}</Head>
                                 {spot.address && (
                                     <p className="m-0 mb-2 text-white/75" style={{ fontSize: "13px", lineHeight: "20px" }}>
