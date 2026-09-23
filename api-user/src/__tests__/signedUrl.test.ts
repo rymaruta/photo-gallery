@@ -121,6 +121,62 @@ describe("写真の中の画像 URL", () => {
         expect(photo.src).toBe("https://cdn/a.jpg");
     });
 
+    // 🔴 **2枚目以降が素のまま残っていた。** `privateMove.ts` は
+    // `extraImages` も `private/` へ動かすので、owner が「署名必須」を
+    // 入れた瞬間、**見てよい人にも2枚目以降だけ 403 で割れる**
+    it("2枚目以降（extraImages）の URL も全部署名する", () => {
+        const out = signPhotoImages({
+            id: "p1",
+            src: "https://cdn/a.jpg",
+            extraImages: [
+                { src: "https://cdn/b.jpg", thumbSrc: "https://cdn/b-thumb.jpg", srcAvif: "https://cdn/b.avif" },
+                { src: "https://cdn/c.jpg" },
+            ],
+        }, { now: NOW, signer });
+
+        const extras = out.extraImages as Record<string, unknown>[];
+        expect(String(extras[0].src)).toContain("Signature=");
+        expect(String(extras[0].thumbSrc)).toContain("Signature=");
+        expect(String(extras[0].srcAvif)).toContain("Signature=");
+        expect(String(extras[1].src)).toContain("Signature=");
+        // 表紙も今までどおり
+        expect(String(out.src)).toContain("Signature=");
+    });
+
+    // **URL でない項目に署名を足さない。** `blurDataURL` は `data:` URI、
+    // `dominantColor` は `#rrggbb`。足すと絵が壊れる／色が読めなくなる
+    it("2枚目以降の URL でない項目は触らない", () => {
+        const out = signPhotoImages({
+            id: "p1", src: "https://cdn/a.jpg",
+            extraImages: [{
+                src: "https://cdn/b.jpg",
+                width: 800, height: 600,
+                dominantColor: "#112233",
+                blurDataURL: "data:image/jpeg;base64,abc",
+            }],
+        }, { now: NOW, signer });
+
+        const e = (out.extraImages as Record<string, unknown>[])[0];
+        expect(e.width).toBe(800);
+        expect(e.height).toBe(600);
+        expect(e.dominantColor).toBe("#112233");
+        expect(e.blurDataURL).toBe("data:image/jpeg;base64,abc");
+    });
+
+    // **元の配列も、その要素も書き換えない**（写しを返す約束は入れ子でも同じ）
+    it("元の extraImages を書き換えない", () => {
+        const photo = { id: "p1", src: "https://cdn/a.jpg", extraImages: [{ src: "https://cdn/b.jpg" }] };
+        signPhotoImages(photo, { now: NOW, signer });
+        expect(photo.extraImages[0].src).toBe("https://cdn/b.jpg");
+    });
+
+    it("extraImages が配列でなくても落ちない", () => {
+        const out = signPhotoImages({ id: "p1", src: "https://cdn/a.jpg", extraImages: "おかしな値" },
+            { now: NOW, signer });
+        expect(out.extraImages).toBe("おかしな値");
+        expect(String(out.src)).toContain("Signature=");
+    });
+
     it("無い項目・空文字は足さない", () => {
         const out = signPhotoImages({ id: "p1", src: "https://cdn/a.jpg", thumbSrc: "" },
             { now: NOW, signer });

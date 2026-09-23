@@ -130,12 +130,40 @@ export function signPhotoImages<T extends Record<string, unknown>>(
 ): T {
     const signer = opts.signer ?? signerFromEnv();
     if (!signer) return photo;
-    const out = { ...photo };
-    for (const field of IMAGE_FIELDS) {
-        const value = out[field];
-        if (typeof value === "string" && value) {
-            (out as Record<string, unknown>)[field] = signUrl(value, { ...opts, signer });
-        }
+    const out = signFields({ ...photo }, { ...opts, signer }) as T;
+
+    // 🔴 **2枚目以降も署名する。** `privateMove.ts` は `extraImages` の
+    // URL も `private/` へ動かすのに、ここが表紙しか見ていなかった
+    // ——owner が CloudFront に「署名必須」を入れた瞬間、
+    // **見てよい人にも2枚目以降だけ 403 で割れる**。
+    //
+    // 削除の列挙（`mediaKeys`）が `extraImageUrls` を通しているのと
+    // 同じ扱いが、配る側にも要る。**動かす側・消す側・配る側の3つが
+    // 揃っていないと、どれか1つが穴になる。**
+    //
+    // 項目の綴りは**上と同じ表**を使う（`dominantColor` や
+    // `blurDataURL` は `data:`／`#rrggbb` で URL ではないので入らない。
+    // `signUrl` も `https://` 以外は素通しにするが、**通す物を先に
+    // 絞る**方が読んで分かる）。
+    if (Array.isArray(out.extraImages)) {
+        (out as Record<string, unknown>).extraImages = out.extraImages.map((entry) => {
+            if (!entry || typeof entry !== "object") return entry;
+            return signFields({ ...entry as Record<string, unknown> }, { ...opts, signer });
+        });
     }
     return out;
+}
+
+/** 1つの入れ物の中の `IMAGE_FIELDS` を署名する（表紙にも、2枚目以降にも） */
+function signFields(
+    row: Record<string, unknown>,
+    opts: { now?: number; ttlSec?: number; signer: SignerConfig },
+): Record<string, unknown> {
+    for (const field of IMAGE_FIELDS) {
+        const value = row[field];
+        if (typeof value === "string" && value) {
+            row[field] = signUrl(value, opts);
+        }
+    }
+    return row;
 }
