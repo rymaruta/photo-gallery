@@ -253,9 +253,10 @@ function decodeSlug(slug: string): string {
 function Shell({ locale, count, children }: { locale: "ja" | "en"; count?: number | null; children: React.ReactNode }) {
     const en = locale === "en";
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full pb-28">
+        <main className="jp-page p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-5xl mx-auto w-full pb-28">
             <div className="mb-4 sm:mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold">{en ? "Want to go" : "行きたい場所"}</h1>
+                <p className="jp-page__eyebrow mb-1">MY JOURNEY / SAVED</p>
+                <h1 className="jp-page__title">{en ? "Want to go" : "行きたい場所"}</h1>
                 <p className="text-sm text-white/60 mt-1">
                     {/* **「まだ」と「0件」を混ぜない**（`/favorites` と同じ判断） */}
                     {count === null || count === undefined
