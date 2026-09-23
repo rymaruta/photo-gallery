@@ -4,6 +4,36 @@
  * Add classes to real screens only; no visual placeholders or fake data.
  * See docs/design-all-screens-2026-09-24.md for scope and review gates.
  */
+/* Cross-route finish: the site shell applies to every public and signed-in page.
+ * Do not change the semantics of hidden, modal, loading or privacy states. */
+.jp-site ::selection {
+  background: rgb(32 128 246 / 0.40);
+  color: #fff;
+}
+
+.jp-site :where(a, button, input, textarea, select):focus-visible {
+  outline-color: var(--color-accent);
+  outline-offset: 2px;
+}
+
+.jp-site :where(button, input, textarea, select):disabled {
+  cursor: not-allowed;
+}
+
+.jp-site main { min-width: 0; }
+
+.jp-feed-card {
+  border: 1px solid var(--jp-quiet-line);
+  box-shadow: 0 4px 28px rgb(0 0 0 / 0.08);
+}
+
+@media (min-width: 1024px) {
+  .jp-photo-frame {
+    border: 1px solid var(--jp-quiet-line);
+    border-radius: 20px;
+  }
+}
+
 :root {
   --jp-quiet-line: rgb(148 180 220 / 0.13);
   --jp-page-gutter: clamp(16px, 3vw, 32px);
