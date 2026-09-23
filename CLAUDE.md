@@ -181,6 +181,63 @@
   （`next/dist/client/app-dir/link.js` の `prefetchEnabled`）。
   遷移が遅いと感じたら `router.prefetch` を `onTouchStart` で撃つのが次の一手
 
+## 🔴 「枝の上で緑」は「入れてよい」ではない（2026-09-23・実測）
+
+PR #141 は自分の枝で `npm run verify` 全関門 緑だった。**いまの develop と
+併合したら1件落ちた**:
+
+    develop            30回中 **0回** 失敗
+    develop + #141     28回中 **9回**（約32%）失敗
+
+→ **別のブランチへ入れる前は、「併合した状態」で verify を通す。**
+  枝の verify はその枝が切られた時点の土台に対するもので、土台は動く。
+
+    git checkout -B tmp/check origin/develop && git merge origin/<枝>
+    rm -rf .next out && npm run verify
+
+⚠️ **作業ツリーを分ける（`git worktree`）と関門が測れない**——`api/node_modules`
+が無いので型検査が「測らずに落ちる」（`c946c3f3` の設計どおり）。本体のツリーで
+一時ブランチを切る方が速い。
+
+⚠️ **ブランチを切り替えたら `.next` と `out` を消す。** 前の枝で建てた
+`.next/types/validator.ts` が残り、**いまの枝に無いファイルを指して** tsc が
+落ちる（存在しない回帰を1つ作りかけた）。
+
+## テストが history スタックを共有している（2026-09-23・記録して突き止めた）
+
+上の1件の原因。`window.history.back()` は**非同期**で、jsdom は `popstate` を
+あとのタスクで飛ばす。テストは**1つの history スタックを共有している**ので、
+あるテストの `back()` が**次のテストの URL を巻き戻す**:
+
+    BACK called  href=…/?photo=theirs   ← 前のテストがモーダルを閉じた
+    --- TEST START href=…/
+    --- SET href=…/?scope=following
+    POPSTATE href=…/                    ← ここで巻き戻る
+
+長いあいだ無害だった（画面が URL を**一度しか読まなかった**）。
+`popstate` を購読する画面が出てきて初めて効いた。**製品の欠陥ではない。**
+
+**直したのは `vitest.setup.ts`。置き場所を2回間違えたので実測を残す:**
+
+| 置いた所 | 実測 |
+|---|---|
+| テストの `afterEach` | 20回中 **11回** 失敗（**悪化**）。vitest は後から登録した `afterEach` を**先に**走らせるので、そのあとの testing-library の cleanup が新しい `back()` を積む |
+| テストの `beforeEach` で1タスク待つ | 20回中 **8回** |
+| 同・5ms 間隔で静まるまで | 20回中 **1回**。**待ち時間の調整は「直した」ではない** |
+| **`vitest.setup.ts` の `afterEach`** | 20回中 **0回** |
+
+setup ファイルはテストモジュールより**先に登録される**ので、逆順では
+**いちばん後**＝cleanup のあとに走る。**フックの順序が要るときは setup へ置く。**
+
+費用は0に近い——`back()`/`forward()`/`go()` を呼んだ回数と `popstate` が届いた
+回数を数え、**差がある間だけ**待つ（呼んでいないテストは素通り）。
+全スイートの所要は 290秒 → 278秒（誤差の内）。
+
+⚠️ **「どこが URL を変えたか」は stack を取って確かめた。** `history` の
+書き込みを全部記録しても2件しか出ず、その間に URL が戻っていた
+——`history.back()` は `pushState`/`replaceState` を通らない。
+**書き込みを数えるだけでは足りない。**
+
 ## 2026-09-23 に測って「直さない」と決めたこと
 
 **直さない判断も測ってから書く。** 推測で「直っている／直っていない」と
