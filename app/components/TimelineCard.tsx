@@ -145,7 +145,7 @@ export default function TimelineCard({
     const iconSize = { width: "22px", height: "22px" } as const;
 
     return (
-        <article className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden">
+        <article className="jp-feed-card rounded-2xl bg-surface ring-1 ring-line overflow-hidden">
             {/* 投稿者の行: アバター・名前・撮影地／右に投稿時間 */}
             <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
                 {photo.userId ? (
