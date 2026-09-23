@@ -136,7 +136,7 @@ export default function MapPageClient({ spotPreviews = [] }: { spotPreviews?: Sp
             {spotPreviews.length > 0 && source === "official" ? (
                 <OfficialSpotExplorer spots={spotPreviews} locale={locale} />
             ) : (
-
+                <>
             {nothingToShow && !loaded ? (
                 // **まだ届いていないなら「まだ」と言わない。** 手元の断面に座標が
                 // 無いだけで、API の一覧には有ることがある（実測: 4秒の回線で
@@ -292,6 +292,7 @@ export default function MapPageClient({ spotPreviews = [] }: { spotPreviews?: Sp
                     </div>
                 </div>
             )}
+                </>
             )}
         </main>
     );
