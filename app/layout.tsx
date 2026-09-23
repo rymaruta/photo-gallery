@@ -1,5 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
+import "./editorial.css";
 import type { Metadata, Viewport } from "next";
 import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
