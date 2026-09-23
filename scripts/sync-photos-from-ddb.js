@@ -201,7 +201,12 @@ async function scan() {
     // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
     // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
     return items
-        .filter(item => item.src && item.published !== false && item.story !== true)
+        .filter(item => item.src && item.published !== false && item.story !== true
+            // **公開範囲を絞った写真は静的サイトに出さない。**
+            // ここは全員に配る JSON なので、載せた時点で「フォロワーだけ」は
+            // 守れない（個別ページもサイトマップもここから作られる）。
+            // 出すのは実行時の口（`GET /feed/restricted`）だけ
+            && !item.audience)
         .map(stripPrivateFields)
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }

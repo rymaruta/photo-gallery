@@ -35,3 +35,19 @@ describe("公開一覧の絞り込み", () => {
         expect(f).toContain("attribute_not_exists(story)");
     });
 });
+
+// 🔴 絞り込みは **DynamoDB 側にも**入れる。ハンドラだけに置くと、
+// 別の入口が `listPhotos()` を直に呼んだ日に素通りする
+// （ストーリーで同じことが起きたので、あちらは両方に入れてある）
+describe("公開範囲を絞った写真を、読み取りの段で外す", () => {
+    it("一覧の Scan が audience を持つ行を除く", async () => {
+        await listPhotos();
+        expect(inputOf().FilterExpression).toContain("attribute_not_exists(audience)");
+    });
+
+    it("その人の一覧（GSI の Query）も同じ", async () => {
+        await listPhotosByUser("u1");
+        expect(inputOf().FilterExpression).toContain("attribute_not_exists(audience)");
+    });
+});
+
