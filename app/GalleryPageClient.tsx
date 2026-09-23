@@ -527,7 +527,7 @@ export default function GalleryPageClient({ surface = "home", spotPreview = [] }
    * 狭い画面（< 1024px）は今までどおり `max-w-5xl`。
    */
   return (
-    <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
+    <main className="jp-page p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
       {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
           の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
           ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
@@ -539,7 +539,8 @@ export default function GalleryPageClient({ surface = "home", spotPreview = [] }
       {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
       <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
         <div className="flex-1">
-          <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
+          <p className="jp-page__eyebrow mb-1">{isSearch ? "DISCOVER" : "JOURNEY PHOTO"}</p>
+          <h1 id="site-title" className="jp-page__title mb-0">
             {heading}
           </h1>
           {!isSearch && renderSubtitle(labels.site?.subtitle)}
