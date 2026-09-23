@@ -87,6 +87,25 @@ export function spotLinkForPhoto(spotId: string | undefined | null): SpotLink | 
     return spot ? toSpotLink(spot) : null;
 }
 
+/**
+ * 地図に立てる公式スポット。**座標を持つものだけ。**
+ *
+ * `SpotLink` から `coords` を必須にしただけの形にするのは、地図側が
+ * 「無いかもしれない」を毎回ほどかずに済むため（ピンは座標が無いと立たない）。
+ */
+export type SpotPin = { slug: string; name: string; region: string; lat: number; lng: number };
+
+/** 地図に立てられる公式スポット（公開条件を満たし、座標を持つもの） */
+export function spotPins(): SpotPin[] {
+    const out: SpotPin[] = [];
+    for (const spot of publishableSpots(SPOTS)) {
+        if (!spot.coords) continue;
+        const { slug, name, region } = toSpotLink(spot);
+        out.push({ slug, name, region, lat: spot.coords.lat, lng: spot.coords.lng });
+    }
+    return out;
+}
+
 /** 公開してよいスポットを、スラッグで引ける形にして全部返す */
 export function spotLinksBySlug(): Record<string, SpotLink> {
     const out: Record<string, SpotLink> = {};

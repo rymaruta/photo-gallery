@@ -21,14 +21,19 @@ const mapProps = vi.hoisted(() => ({
     searchArea: null as null | ((b: unknown) => void),
     areaActive: false,
     sheetOpen: false,
+    spotSlugs: [] as string[],
+    selectSpot: null as null | ((slug: string) => void),
+    selectedSpotSlug: null as string | null,
 }));
 vi.mock("../../components/PhotoMap", async (importOriginal) => {
     const real = await importOriginal<typeof import("../../components/PhotoMap")>();
     return {
         ...real,
-        default: ({ photos, onSelect, onSearchArea, areaActive, sheetOpen }: {
+        default: ({ photos, onSelect, onSearchArea, areaActive, sheetOpen, spots, onSelectSpot, selectedSpotSlug }: {
             photos: readonly Photo[]; onSelect?: (s: unknown) => void;
             onSearchArea?: (b: unknown) => void; areaActive?: boolean; sheetOpen?: boolean;
+            spots?: readonly { slug: string }[]; onSelectSpot?: (slug: string) => void;
+            selectedSpotSlug?: string | null;
         }) => {
             mapProps.last = { ids: photos.map((p) => p.id) };
             // ピンを押したことにする口（本物の Leaflet は jsdom で描けない）
@@ -36,10 +41,31 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
             mapProps.searchArea = onSearchArea ?? null;
             mapProps.areaActive = !!areaActive;
             mapProps.sheetOpen = !!sheetOpen;
+            mapProps.spotSlugs = (spots ?? []).map((sp) => sp.slug);
+            mapProps.selectSpot = onSelectSpot ?? null;
+            mapProps.selectedSpotSlug = selectedSpotSlug ?? null;
             return <div data-testid="photo-map">map:{photos.length}</div>;
         },
     };
 });
+
+/**
+ * 公式撮影地ガイドの台帳は差し替える。
+ *
+ * `content/spots.json` はいま空（人が書く棚）。実データに寄りかかると、
+ * 台帳に1件入った日に**この判定が別のことを見る**。
+ */
+const ledger = vi.hoisted(() => ({
+    pins: [] as Array<{ slug: string; name: string; region: string; lat: number; lng: number }>,
+}));
+vi.mock("../../../lib/data/spotLink", () => ({ spotPins: () => ledger.pins }));
+
+// `SaveSpotButton`（シートの「行きたい」）が読むもの
+const authState = vi.hoisted(() => ({ isAuthenticated: true, loading: false }));
+vi.mock("../../auth/context", () => ({ useAuth: () => authState }));
+const userFetch = vi.hoisted(() => vi.fn());
+vi.mock("../../../lib/utils/api", () => ({ userFetch }));
+vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 
 const MapPage = (await import("../page")).default;
 
@@ -57,6 +83,14 @@ beforeEach(() => {
     mapProps.searchArea = null;
     mapProps.areaActive = false;
     mapProps.sheetOpen = false;
+    mapProps.spotSlugs = [];
+    mapProps.selectSpot = null;
+    mapProps.selectedSpotSlug = null;
+    ledger.pins = [];
+    authState.isAuthenticated = true;
+    authState.loading = false;
+    userFetch.mockReset();
+    userFetch.mockResolvedValue({ ok: true, json: async () => ({ slugs: [] }) });
 });
 
 describe("/map", () => {
@@ -432,5 +466,99 @@ describe("/map", () => {
             fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
             expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
         });
+    });
+});
+
+/**
+ * 公式撮影地ガイドのピンを押したとき。
+ *
+ * owner のコアの鎖（さがす → 撮影地ガイド → **マップ** → 行きたい場所 →
+ * 旅行プラン → 写真SNS）で、地図から次の2つへ繋ぐのがこのシートの役目。
+ */
+describe("公式撮影地ガイドのピン", () => {
+    const PIN = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6 };
+    const P = (id: string): Photo => ({
+        id, src: `https://cdn/${id}.jpg`, userId: "u1", title: { ja: `写真${id}` },
+        location: "山中湖", coords: { lat: 35.42, lng: 138.88 }, published: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+    } as Photo);
+
+    /// **写真が1枚も無いと地図ごと出ない**（既存の判断）ので、1枚置く
+    const show = () => { photosState.current = [P("a")]; ledger.pins = [PIN]; render(<MapPage />); };
+
+    it("台帳のスポットを地図へ渡す", () => {
+        show();
+        expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+    });
+
+    it("押すとシートが出て、名前と地域を出す", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        const sheet = screen.getByTestId("map-spot-sheet");
+        expect(within(sheet).getByText("高屋神社")).toBeTruthy();
+        expect(within(sheet).getByText("香川県 観音寺市")).toBeTruthy();
+        expect(within(sheet).getByText("公式撮影スポット")).toBeTruthy();
+    });
+
+    /// 🔴 **地図 → ガイド**（コアの鎖の次の輪）
+    it("撮影ガイドへの導線が `/spots/<slug>` を指す", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        expect(screen.getByTestId("map-spot-guide-link").getAttribute("href")).toBe("/spots/takaya-jinja");
+    });
+
+    /// 🔴 **地図 → 行きたい場所**（同上）。鍵の形は `savedSpotKey` が持つ
+    it("「行きたい」で保存すると、頭の付いた鍵を送る", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        const btn = await screen.findByRole("button", { name: "行きたい" });
+        userFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ slugs: ["SPOT-takaya-jinja"] }) });
+        await act(async () => { fireEvent.click(btn); });
+        expect(userFetch).toHaveBeenLastCalledWith(
+            "/user/spots",
+            expect.objectContaining({ body: JSON.stringify({ slug: "SPOT-takaya-jinja" }) }),
+        );
+    });
+
+    /// **シートは1枚だけ。** 同じ場所に出るので、重なると下が読めない
+    it("写真のピンを押すと、スポットのシートは閉じる", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        expect(screen.queryByTestId("map-spot-sheet")).toBeTruthy();
+        await act(async () => { mapProps.select?.({ photos: [P("a")], index: 0 }); });
+        expect(screen.queryByTestId("map-spot-sheet")).toBeNull();
+        expect(screen.queryByTestId("map-photo-sheet")).toBeTruthy();
+    });
+
+    it("スポットのピンを押すと、写真のシートは閉じる", async () => {
+        show();
+        await act(async () => { mapProps.select?.({ photos: [P("a")], index: 0 }); });
+        expect(screen.queryByTestId("map-photo-sheet")).toBeTruthy();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        expect(screen.queryByTestId("map-photo-sheet")).toBeNull();
+    });
+
+    /// 開いているスポットを地図へ伝える（そのピンを目立たせるため）
+    it("開いているスポットを地図へ伝える", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        expect(mapProps.selectedSpotSlug).toBe("takaya-jinja");
+    });
+
+    it("閉じるとシートが消える", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "閉じる" })); });
+        expect(screen.queryByTestId("map-spot-sheet")).toBeNull();
+    });
+
+    /**
+     * **台帳から下りたスポットはシートを畳む。** 押した瞬間の object を
+     * 抱えず、スラッグから引き直しているので自然にそうなる（写真と同じ判断）。
+     */
+    it("台帳に無いスラッグではシートを出さない", async () => {
+        show();
+        await act(async () => { mapProps.selectSpot?.("kieta"); });
+        expect(screen.queryByTestId("map-spot-sheet")).toBeNull();
     });
 });

@@ -155,7 +155,9 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/privacy/page.tsx", "最終更新日: {LAST_UPDATED}", "プライバシーポリシーの更新日"],
     // 子の <Link>（/70）を親と取り違えていたので、包む <p> を直接の目印にする
     ["app/components/CommentSection.tsx", '<p className="mb-4 text-xs', "コメントの案内"],
-    ["app/map/page.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
+    // `app/map/page.tsx` はサーバー側の殻になった（台帳をクライアントに
+    // 載せないため）。文言を持つのは画面の方
+    ["app/map/MapPageClient.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
     // 画面に出る文字が変数で、目印にできないもの。コードの断片を目印にする
     ["app/components/FilterBar.tsx", "showCount ? <span", "絞り込みのチップの件数"],
     ["app/components/CollectionPageClient.tsx", "{r.count}", "関連する集約ページの件数"],
