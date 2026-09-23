@@ -313,7 +313,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} ${marker.variable} ${scribble.variable} min-h-screen flex flex-col bg-bg text-white`}>
+      <body className={`${inter.className} ${marker.variable} ${scribble.variable} jp-site min-h-screen flex flex-col bg-bg text-white`}>
         <Analytics />
         <DisableSave />
         <AssetRecovery />
