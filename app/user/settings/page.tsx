@@ -268,19 +268,19 @@ export default function SettingsPage() {
         );
     }
 
-    const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
-    const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
+    const inputClass = "jp-input w-full px-4 py-3 text-sm text-white placeholder:text-white/60 transition-colors";
+    const labelClass = "block text-xs text-white/70 mb-1.5 tracking-wide";
     // **`/50` より薄くしない。** 黒地で `/40` は 3.66:1 で基準（4.5:1）に
     // 届かない——`/50` が届く最小の段階（`textContrast.test.ts` が見張る）
     const sectionLabelClass = "text-[11px] tracking-widest uppercase text-white/50 mb-2";
-    const cardClass = "rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3";
+    const cardClass = "jp-soft-panel p-4 space-y-3";
     const subtleButtonClass = "w-full py-2.5 rounded-xl bg-white/5 text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2";
     // 外の画面へ渡す行。押せる高さ（44px）を保つ
     const rowLinkClass = "flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition";
 
     return (
-        <main className="min-h-screen bg-bg text-white">
-            <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
+        <main className="jp-page min-h-screen bg-bg text-white">
+            <div className="max-w-lg mx-auto px-4 pt-8 sm:pt-12 pb-16">
                 <Link
                     href="/"
                     // **公開ページは先読みしない**……のだが、ここはログイン後の
@@ -291,7 +291,8 @@ export default function SettingsPage() {
                     {locale === "en" ? "Back" : "戻る"}
                 </Link>
 
-                <h1 className="text-xl font-bold mb-6">
+                <p className="jp-page__eyebrow mb-1">YOUR ACCOUNT</p>
+                <h1 className="jp-page__title mb-6">
                     {locale === "en" ? "Settings" : "設定"}
                 </h1>
 
