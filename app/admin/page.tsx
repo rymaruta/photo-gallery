@@ -244,10 +244,10 @@ export default function AdminPage() {
     };
 
     return (
-        <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-7xl mx-auto w-full">
+        <main className="jp-page p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg max-w-7xl mx-auto w-full">
             <div className="mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold">
+                    <h1 className="jp-page__title">
                         {locale === "en" ? "Photo Management" : "写真管理"}
                     </h1>
                     <Link
