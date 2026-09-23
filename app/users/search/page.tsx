@@ -52,7 +52,7 @@ export default function UserSearchPage() {
     const showFailed = searched && failed && users.length === 0;
 
     return (
-        <main className="min-h-screen bg-bg text-white max-w-2xl mx-auto w-full px-4 pb-16">
+        <main className="jp-page min-h-screen bg-bg text-white max-w-2xl mx-auto w-full px-4 pb-16">
             <div className="flex items-center gap-2 py-3">
                 <button
                     onClick={() => {
@@ -84,7 +84,7 @@ export default function UserSearchPage() {
                     onCompositionEnd={(e) => { composingRef.current = false; onChange(e.currentTarget.value); }}
                     placeholder={isJa ? "名前・@ユーザー名" : "Name or @username"}
                     aria-label={isJa ? "ユーザーを検索" : "Search people"}
-                    className="w-full rounded-full bg-white/[0.07] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 outline-none transition"
+                    className="jp-input w-full text-white placeholder:text-white/60 transition"
                     style={{ padding: "12px 40px 12px 40px", fontSize: "16px" }}
                 />
                 {input && (
