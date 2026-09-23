@@ -85,6 +85,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                     label: sp?.name || decodeSlug(parsed.slug) || key,
                     href: sp ? `${ROUTES.SPOTS}/${parsed.slug}` : null,
                     note: sp ? sp.region : "",
+                    cover: sp?.cover ?? null,
                 };
             }
             const entry = bySlug.get(parsed.slug);
@@ -95,6 +96,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                 href: collectionPath("location", parsed.slug),
                 // 一覧がまだ届いていない間は「0枚」と言い切らない
                 note: entry ? `${entry.count}${en ? "" : "枚"}` : (loaded ? "" : "…"),
+                cover: null,
             };
         });
     }, [photos, slugs, en, loaded, spots]);
@@ -159,33 +161,32 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                     }
                 />
             ) : (
-                <ul className="flex flex-col gap-2">
-                    {entries.map(({ key, kind, label, href, note }) => (
-                        <li
-                            key={key}
-                            className="flex items-center gap-3 rounded-xl bg-white/5 ring-1 ring-white/10 px-4 py-3"
-                        >
-                            {/* **見出しが引けないときはスラッグを出す。**
-                                「不明な場所」のような、こちらで作った言葉を
-                                置かない。引けないのは、その撮影地の写真が
-                                非公開になった／まだ届いていない（`loaded` が
-                                false）／台帳からそのスポットが下りたとき */}
-                            <Row href={href} label={label} note={note}
-                                 badge={kind === "spot" ? (en ? "Official" : "公式") : null} />
-                            <button
-                                type="button"
-                                onClick={() => void toggle(key)}
-                                // **1件でも書き込み中なら、全部押させない。**
-                                // `busy === slug` だけを見ていたので、行Aの
-                                // 処理中に行Bを押すと `toggle` が `false` を
-                                // 返して**何も起きない**（押せるのに無反応）
-                                disabled={busy !== null}
-                                aria-label={en ? `Remove ${label}` : `「${label}」を外す`}
-                                className="shrink-0 rounded-full px-3 py-1.5 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition"
-                                style={{ touchAction: "manipulation", minHeight: 44 }}
-                            >
-                                {en ? "Remove" : "外す"}
-                            </button>
+                <ul className="m-0 grid grid-cols-2 gap-3 p-0 sm:grid-cols-3 lg:grid-cols-4" style={{ listStyle: "none" }}>
+                    {entries.map(({ key, kind, label, href, note, cover }) => (
+                        <li key={key} className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface">
+                            {href ? (
+                                <Link href={href} prefetch={false}
+                                      aria-label={`${label} — ${kind === "spot" ? (en ? "Shooting guide" : "撮影ガイド") : (en ? "Place photos" : "撮影地の写真")}`}
+                                      className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                                    <SavedCover cover={cover} label={label} kind={kind} locale={locale} />
+                                    <SavedInfo label={label} note={note} kind={kind} locale={locale} />
+                                </Link>
+                            ) : (
+                                <div>
+                                    <SavedCover cover={null} label={label} kind={kind} locale={locale} />
+                                    <SavedInfo label={label} note={note} kind={kind} locale={locale} unavailable />
+                                </div>
+                            )}
+                            {/* リンクと削除は兄弟要素に分離。クリック領域が重ならない。 */}
+                            <div className="flex justify-end border-t border-white/10 px-2 py-1">
+                                <button type="button" onClick={() => void toggle(key)}
+                                        disabled={busy !== null}
+                                        aria-label={en ? `Remove ${label}` : `「${label}」を外す`}
+                                        className="rounded-full px-3 text-xs text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                        style={{ minHeight: 44, touchAction: "manipulation" }}>
+                                    {en ? "Remove" : "外す"}
+                                </button>
+                            </div>
                         </li>
                     ))}
                 </ul>
@@ -194,48 +195,49 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
     );
 }
 
-/**
- * 一覧の1行の中身。**リンクが無いときは素の行にする**
- * （台帳から下りたスポットへ送っても 404 になるだけ）。
- */
-function Row({ href, label, note, badge }: { href: string | null; label: string; note: string; badge: string | null }) {
-    /**
-     * 🔴 **公式スポットの地域名は、名前と同じ行に置かない。**
-     *
-     * 一度は撮影地の「3枚」と同じ枠（`shrink-0`）に入れていたが、
-     * 地域名は自由長なので**縮む側が名前だけ**になる。320px で実測:
-     *
-     *     「高屋神社（天空の鳥居）」  名前の枠 85px（切れる）／地域 76px
-     *     「国営ひたち海浜公園」      名前の枠 63px（切れる）／地域 99px
-     *
-     * 名前が読めないと、どのスポットか分からない。**地域は次の行へ。**
-     * 撮影地の「3枚」は短く長さも決まっているので、今までどおり同じ行。
-     */
-    const stacked = badge !== null;
-    const inner = (
-        <span className="min-w-0 flex-1 flex flex-col justify-center">
-            <span className="flex items-center min-w-0">
-                <span className="truncate text-sm font-semibold">{label}</span>
-                {badge && (
-                    <span className="ml-2 shrink-0 rounded-full bg-chip text-chip-text" style={{ fontSize: "10px", padding: "2px 8px" }}>
-                        {badge}
-                    </span>
-                )}
-                {note && !stacked && (
-                    <span className="ml-2 shrink-0 text-xs text-white/60 tabular-nums">{note}</span>
-                )}
-            </span>
-            {note && stacked && (
-                <span className="truncate text-xs text-white/60" style={{ marginTop: "2px" }}>{note}</span>
+/** 保存カード: 写真は検証済みの公式スポット用だけ。旧形式に別の写真を流用しない。 */
+function SavedCover({ cover, label, kind, locale }: {
+    cover: SpotLink["cover"]; label: string; kind: "spot" | "location"; locale: string;
+}) {
+    const en = locale === "en";
+    return (
+        <span className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-surface-2">
+            {cover ? (
+                <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={cover.src} alt={cover.alt} loading="lazy" decoding="async"
+                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                    {cover.credit && (
+                        <span className="absolute inset-x-1 bottom-1 rounded bg-black/85 px-1.5 py-1 text-right text-[11px] leading-4 text-white">
+                            {cover.credit}
+                        </span>
+                    )}
+                </>
+            ) : (
+                <span className="flex flex-col items-center gap-2 px-3 text-center">
+                    <BookmarkIcon aria-hidden="true" className="h-7 w-7 text-white/60" />
+                    <span className="line-clamp-2 font-serif text-sm font-semibold leading-5 text-white/80">{label}</span>
+                    <span className="text-[11px] text-white/60">{kind === "spot"
+                        ? (en ? "Guide" : "撮影ガイド") : (en ? "Place" : "撮影地")}</span>
+                </span>
             )}
         </span>
     );
-    const style = { touchAction: "manipulation", minHeight: 44, display: "flex", alignItems: "center" } as const;
-    if (!href) return <div className="flex-1 min-w-0" style={style}>{inner}</div>;
+}
+
+function SavedInfo({ label, note, kind, locale, unavailable = false }: {
+    label: string; note: string; kind: "spot" | "location"; locale: string; unavailable?: boolean;
+}) {
+    const en = locale === "en";
     return (
-        <Link href={href} prefetch={false} className="flex-1 min-w-0 hover:text-white" style={style}>
-            {inner}
-        </Link>
+        <span className="block min-h-[96px] px-3 pb-3 pt-2.5">
+            <span className="mb-1 block text-[11px] text-link">{kind === "spot"
+                ? (en ? "OFFICIAL GUIDE" : "公式撮影地ガイド")
+                : (en ? "PLACE PHOTOS" : "撮影地の写真")}</span>
+            <span className="block break-words font-serif text-[15px] font-semibold leading-5 text-white">{label}</span>
+            {note && <span className="mt-1 block break-words text-xs leading-4 text-white/65">{note}</span>}
+            {unavailable && <span className="mt-1 block text-xs leading-4 text-white/70">{en ? "Guide unavailable" : "現在はページを表示できません"}</span>}
+        </span>
     );
 }
 
