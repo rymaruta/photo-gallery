@@ -172,8 +172,8 @@ function LoginForm() {
     }
 
     return (
-        <main className="min-h-screen bg-bg flex items-center justify-center px-4">
-            <div className="w-full max-w-sm">
+        <main className="jp-page min-h-screen bg-bg flex items-center justify-center px-4">
+            <div className="jp-soft-panel w-full max-w-[440px] p-5 sm:p-7">
 
                 {/* ロゴ */}
                 <div className="mb-10 text-center">
