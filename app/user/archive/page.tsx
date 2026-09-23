@@ -143,13 +143,13 @@ export default function StoryArchivePage() {
     const dayLabel = (s: Story) => storyDayLabel(s.createdAt, lc);
 
     return (
-        <main className="min-h-screen bg-bg text-white">
+        <main className="jp-page min-h-screen bg-bg text-white">
             <div className="max-w-3xl mx-auto px-4 py-8">
                 <div className="flex items-center gap-4 mb-6">
                     <Link href={ROUTES.HOME} className="text-white/60 hover:text-white transition-colors" aria-label={isJa ? "戻る" : "Back"}>
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
-                    <h1 className="text-xl font-semibold">
+                    <h1 className="jp-page__title">
                         {isJa ? "アーカイブ" : "Archive"}
                         {descending.length > 0 && <span className="ml-2 text-sm text-white/50">{descending.length}</span>}
                     </h1>
