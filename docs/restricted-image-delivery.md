@@ -1,6 +1,6 @@
 # 絞った写真の画像を、URL だけで取れないようにする
 
-**状態: 設計（本番の設定は未実施・owner の承認待ち）**
+**状態: コードは完成（#136）。本番の設定だけが残っている（owner の作業）**
 最終更新 2026-09-22
 
 ## いまどうなっているか
@@ -95,12 +95,73 @@ CloudFront には振る舞いを **2つ**置きます。`/private/*` にだけ�
   派生を含めて 7〜8 オブジェクト動く
 - 署名の計算: Lambda の中で RSA-SHA1 1回/画像。実測で 1ms 未満
 
+## 本番に入れる手順（owner の作業）
+
+**私はここを実行できない。** 推測ではなく実測:
+
+    $ aws sts get-caller-identity
+    NG InvalidClientTokenId — The security token included in the request is invalid.
+
+環境に `AWS_ACCESS_KEY_ID` は在るが、**AWS に通らない**（開発用の
+置き石）。だから「承認をもらえば私がやる」ではなく、**owner の手でしか
+できない**。以下は3つとも数分で終わる。
+
+### 1. 鍵を作る（手元で1回）
+
+```bash
+openssl genrsa -out cf-private.pem 2048
+openssl rsa -pubout -in cf-private.pem -out cf-public.pem
+```
+
+`cf-private.pem` は**どこにも commit しない**。
+
+### 2. CloudFront に公開鍵と鍵グループ（コンソールでも CLI でも）
+
+```bash
+aws cloudfront create-public-key --public-key-config \
+  "CallerReference=journey-private-$(date +%s),Name=journey-private,EncodedKey=$(cat cf-public.pem)"
+# 返った Id を使って
+aws cloudfront create-key-group --key-group-config \
+  "Name=journey-private,Items=<公開鍵のId>"
+```
+
+### 3. `/private/*` の振る舞いを足す（ディストリビューション `EYRLTGCPOS9E4`）
+
+**`/uploads/*` は触らない。** `/private/*` を**新しい振る舞い**として足し、
+そこにだけ「ビューワーアクセスを制限する（署名付き URL）」＋ 2 の鍵グループ。
+
+⚠️ **ここを `/uploads/*` に付けると、公開写真まで 403 になってサイト全体の
+画像が割れる。** 案A の全部はこの1点を避けるためにある。
+
+### 4. Secrets とデプロイのパラメータ
+
+GitHub の Secrets に:
+
+    CLOUDFRONT_KEY_PAIR_ID   … 1 で作った公開鍵の Id
+    CLOUDFRONT_PRIVATE_KEY   … cf-private.pem の中身（そのまま貼る）
+
+`deploy-api.yml` から Lambda へ渡す（**この1行は私が入れられる**ので、
+言ってもらえれば PR に足す）。
+
+### 効いたかの確かめ方
+
+    PHOTO_ID=<絞った写真のid> npm run verify:visibility:live
+
+`isConfigured()` が true になっていれば署名が付き、鍵の無い URL は
+CloudFront が 403 を返す。
+
+**3 を入れるまで、この機能は完全に不活性**（署名は付かず、移動だけが
+起きる）。移動しただけなら今の CloudFront でも正しく配信される
+——`/private/*` も同じディストリビューションから配られるため。
+
 ## 決まっていないこと
 
-- **案A／B／C のどれにするか**
-- 案Aなら、**既に配られた URL が 404 になること**を許容するか
-- 絞った写真の**派生（AVIF/WebP）も移すか**（移さないと派生だけ素で取れる）
+~~案A／B／C のどれにするか~~ → **案A に決定**（2026-09-23）
+~~既に配られた URL が 404 になることを許容するか~~ → **許容する**（同上）
+~~派生も移すか~~ → **移す**（同上。`MEDIA_FIELDS` と `extraImages` 全部）
+
+残るのは**上の 1〜4 だけ**（owner の作業）。
 
 ---
 
-この文書は**設計だけ**です。本番の CloudFront は1つも触っていません。
+本番の CloudFront は1つも触っていません（**触れません**——上の実測のとおり）。
