@@ -548,8 +548,8 @@ export default function ProfileEditPage() {
     const isYouTubePreview = songPreview?.service === "youtube";
 
     return (
-        <main className="min-h-screen bg-bg text-white">
-            <div className="max-w-sm mx-auto px-4 pt-12 pb-16">
+        <main className="jp-page min-h-screen bg-bg text-white">
+            <div className="max-w-lg mx-auto px-4 pt-8 sm:pt-12 pb-16">
                 <Link
                     href="/"
                     className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/60 transition-colors mb-10"
@@ -568,7 +568,7 @@ export default function ProfileEditPage() {
                     </div>
                 )}
 
-                <h1 className="text-xl font-bold mb-6">
+                <h1 className="jp-page__title mb-6">
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
 
