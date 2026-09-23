@@ -800,7 +800,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
+            <main className="jp-page min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
             {/* **最終版モックの並び**（2026-09-21・owner「全く同じにしたい」）:
                 戻る/共有/⋯ の行 → 端までのヒーロー（撮影地チップ・地図）→ 題 →
                 作者行（枠線のフォロー）→ 撮影日 · 撮影地 → 本文 → チップ →
@@ -853,7 +853,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             {/* ヒーロー。**スマホでは端まで**（左右の余白なし・角丸なし）。
                 複数枚は左右スワイプでも送れる */}
             <div
-                className="relative lg:sticky lg:top-4 lg:rounded-2xl lg:overflow-hidden"
+                className="jp-photo-frame relative lg:sticky lg:top-4 lg:rounded-2xl lg:overflow-hidden"
                 {...(images.length > 1 ? swipeHandlers : {})}
                 style={images.length > 1 ? { touchAction: "pan-y" } : undefined}
             >
