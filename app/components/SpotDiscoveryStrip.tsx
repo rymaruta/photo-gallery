@@ -16,7 +16,7 @@ export type SpotDiscoveryItem = {
     credit?: string;
 };
 
-export default function SpotDiscoveryStrip({ spots }: { spots: readonly SpotDiscoveryItem[] }) {
+export default function SpotDiscoveryStrip({ spots, isJa }: { spots: readonly SpotDiscoveryItem[]; isJa: boolean }) {
     if (!spots.length) return null;
 
     return (
@@ -27,15 +27,15 @@ export default function SpotDiscoveryStrip({ spots }: { spots: readonly SpotDisc
                         JOURNEY GUIDE
                     </p>
                     <h2 id="search-official-spots" className="m-0 font-serif text-xl sm:text-2xl font-bold tracking-tight text-white">
-                        景色から、旅先を見つける
+                        {isJa ? "景色から、旅先を見つける" : "Discover your next destination"}
                     </h2>
                     <p className="m-0 mt-1 text-xs sm:text-sm text-white/70">
-                        投稿がまだない場所も、撮影地ガイドから探せます。
+                        {isJa ? "投稿がまだない場所も、撮影地ガイドから探せます。" : "Explore our guides, even before anyone shares a photo."}
                     </p>
                 </div>
                 <Link href="/spots" prefetch={false}
                       className="shrink-0 rounded-full border border-line px-3 py-2 text-xs text-link hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    すべて見る <span aria-hidden="true">↗</span>
+                    {isJa ? "すべて見る" : "Explore all"} <span aria-hidden="true">↗</span>
                 </Link>
             </div>
 
