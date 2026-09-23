@@ -116,7 +116,7 @@ export default function MapPageClient({ spotPreviews = [] }: { spotPreviews?: Sp
     const nothingToShow = geo.length === 0;
 
     return (
-        <main className="mx-auto w-full max-w-[1400px] px-4 pt-4 pb-28 lg:px-6">
+        <main className="jp-page mx-auto w-full max-w-[1400px] px-4 pt-4 pb-28 lg:px-6">
             {/* **見出しは読み上げにだけ。** モックの画面に題は無く、先頭は検索欄。
                 消してしまうと読み上げの人がこのページが何かを掴めないので残す */}
             <h1 className="sr-only">{en ? "Map" : "撮影地マップ"}</h1>
