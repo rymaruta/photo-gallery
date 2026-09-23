@@ -7,6 +7,7 @@ import FilterBar from "./components/FilterBar";
 import ColorJourney from "./components/ColorJourney";
 import DiscoverSections from "./search/DiscoverSections";
 import FeaturedSections from "./components/FeaturedSections";
+import SpotDiscoveryStrip, { type SpotDiscoveryItem } from "./components/SpotDiscoveryStrip";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
 import GalleryGrid from "./components/GalleryGrid";
@@ -113,9 +114,11 @@ type Props = {
    *   `search` … 絞り込み＋件数＋サムネのグリッド
    */
   surface?: "home" | "search";
+  /** サーバーが検証した公開ガイドの少数のカード情報だけ（台帳をクライアントへ import しない） */
+  spotPreview?: SpotDiscoveryItem[];
 };
 
-export default function GalleryPageClient({ surface = "home" }: Props) {
+export default function GalleryPageClient({ surface = "home", spotPreview = [] }: Props) {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
@@ -542,6 +545,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           {!isSearch && renderSubtitle(labels.site?.subtitle)}
         </div>
       </div>
+
+      {/* 公式撮影地の入口。公開済みの実データが無ければ部品が描かれない。
+          ユーザーの写真検索はこの下で従来どおり利用できる。 */}
+      {surface === "search" && <SpotDiscoveryStrip spots={spotPreview} />}
 
       {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
           自分の写真かフォロー中の人の写真みれるようにしたい」。
