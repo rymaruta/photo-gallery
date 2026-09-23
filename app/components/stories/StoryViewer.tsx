@@ -1126,7 +1126,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 幅いっぱいに引き伸ばすと、名前が左端・閉じるが右端で 1,200px
                 離れる（実測 1280px 幅）。まわりはぼかした写真のまま
                 （上の背景はこの外側に置いてある）。 */}
-            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-2xl lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-white/10">
+            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-[24px] lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-white/15">
 
             {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
             <div ref={mediaAreaRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
