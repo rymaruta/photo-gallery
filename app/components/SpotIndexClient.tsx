@@ -23,6 +23,7 @@ export default function SpotIndexClient({ spots }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
     const [theme, setTheme] = React.useState<string | null>(null);
+    const [query, setQuery] = React.useState("");
 
     /** 台帳に実際に在るカテゴリと件数（**架空のテーマを出さない**） */
     const themes = React.useMemo(() => {
@@ -34,11 +35,22 @@ export default function SpotIndexClient({ spots }: Props) {
         return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     }, [spots]);
 
-    const shown = theme ? spots.filter((s) => s.category === theme) : spots;
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const shown = spots.filter((s) => {
+        if (theme && s.category !== theme) return false;
+        if (!normalizedQuery) return true;
+        const searchable = [
+            s.name, s.reading, s.nameEn, s.category, s.address,
+            s.region?.country, s.region?.prefecture, s.region?.city,
+            ...(s.aliases ?? []),
+        ].filter(Boolean).join(" ").toLocaleLowerCase();
+        return searchable.includes(normalizedQuery);
+    });
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
-            <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
+            <p className="m-0 mb-1 text-[11px] font-semibold tracking-[0.18em] text-link">JOURNEY GUIDE / PLACES</p>
+            <h1 className="font-serif text-[27px] sm:text-[38px] sm:leading-[1.15] font-bold m-0 tracking-tight">
                 {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
             </h1>
             <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
@@ -47,14 +59,27 @@ export default function SpotIndexClient({ spots }: Props) {
                     : "Guides we researched. Places with no photos yet are listed too."}
             </p>
 
+            {/* 公式マスタだけを検索する。写真のフィルターには影響しない。 */}
+            {spots.length > 0 && (
+                <div className="relative mb-5">
+                    <label htmlFor="official-spot-query" className="mb-2 block text-xs font-medium text-white/70">
+                        行きたい場所・地域・テーマから探す
+                    </label>
+                    <input id="official-spot-query" type="search" value={query}
+                           onChange={(e) => setQuery(e.target.value)}
+                           placeholder="例：河童橋、長野、夕景"
+                           className="block min-h-[46px] w-full rounded-2xl border border-line bg-surface pl-4 pr-4 text-[15px] text-white placeholder:text-white/50 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40" />
+                </div>
+            )}
+
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
             {themes.length > 0 && (
                 <div role="group" aria-label={isJa ? "テーマでしぼる" : "Filter by theme"}
-                     className="flex flex-wrap gap-1.5 mb-6">
+                     className="flex flex-nowrap gap-2 mb-6 overflow-x-auto pb-2 sm:flex-wrap">
                     <button type="button" role="switch" aria-checked={theme === null}
                             onClick={() => setTheme(null)}
                             className={`inline-flex items-center rounded-full transition-colors ${
-                                theme === null ? "bg-white text-black" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                theme === null ? "bg-accent-fill text-white" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
                             }`}
                             style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                         {isJa ? "すべて" : "All"}
@@ -63,10 +88,10 @@ export default function SpotIndexClient({ spots }: Props) {
                         <button key={c} type="button" role="switch" aria-checked={theme === c}
                                 onClick={() => setTheme(theme === c ? null : c)}
                                 className={`inline-flex items-center gap-1.5 rounded-full transition-colors ${
-                                    theme === c ? "bg-white text-black" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                    theme === c ? "bg-accent-fill text-white" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
                                 }`}
                                 style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
-                            {c}<span className="text-white/60" style={{ fontSize: "11px" }}>{n}</span>
+                            {c}<span className={theme === c ? "text-white/85" : "text-chip-text"} style={{ fontSize: "11px" }}>{n}</span>
                         </button>
                     ))}
                 </div>
@@ -75,18 +100,20 @@ export default function SpotIndexClient({ spots }: Props) {
             {shown.length === 0 ? (
                 /* **架空のスポットで埋めない。** 0件なら0件と言う */
                 <p className="m-0 text-white/70" style={{ fontSize: "14px" }}>
-                    {isJa ? "公開中の撮影スポットはまだありません。" : "No published spots yet."}
+                    {spots.length === 0
+                        ? (isJa ? "公開中の撮影スポットはまだありません。" : "No published spots yet.")
+                        : (isJa ? "条件に合う撮影スポットがありません。" : "No spots match these filters.")}
                 </p>
             ) : (
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 m-0 p-0" style={{ listStyle: "none" }}>
+                <ul className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4 m-0 p-0" style={{ listStyle: "none" }}>
                     {shown.map((s) => {
                         const where = [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ");
                         const noImage = usesMapHero(s);
                         return (
                             <li key={s.spotId}>
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
-                                      className="group block rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                                    <div className="relative w-full aspect-[3/2] overflow-hidden">
+                                      className="group block h-full rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 hover:ring-white/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                                    <div className="relative w-full aspect-[4/3] overflow-hidden bg-surface-2">
                                         {noImage ? (
                                             /* 代表写真が無いときは**地図と名前**（無関係な写真で埋めない） */
                                             <div className="absolute inset-0 flex items-center justify-center bg-surface-2 px-4">
@@ -97,7 +124,8 @@ export default function SpotIndexClient({ spots }: Props) {
                                             <>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={s.coverImage!.src} alt={s.coverImage!.alt}
-                                                     className="absolute inset-0 w-full h-full object-cover" />
+                                                     loading="lazy" decoding="async"
+                                                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
                                                 {needsVisibleCredit(s) && (
                                                     <span className="absolute bottom-1 right-2 text-white/70"
                                                           style={{ fontSize: "9px" }}>
@@ -107,16 +135,17 @@ export default function SpotIndexClient({ spots }: Props) {
                                             </>
                                         )}
                                     </div>
-                                    <div className="p-3">
+                                    <div className="p-2.5 sm:p-3.5">
                                         <p className="m-0 font-serif font-bold text-white wrap-anywhere"
-                                           style={{ fontSize: "16px", lineHeight: "22px" }}>{s.name}</p>
+                                           style={{ fontSize: "clamp(13px, 2.6vw, 17px)", lineHeight: "1.4" }}>{s.name}</p>
                                         {where && (
                                             <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{where}</p>
                                         )}
                                         {s.summary && (
                                             <p className="m-0 mt-1.5 text-white/75 line-clamp-2"
-                                               style={{ fontSize: "13px", lineHeight: "20px" }}>{s.summary}</p>
+                                               style={{ fontSize: "12px", lineHeight: "18px" }}>{s.summary}</p>
                                         )}
+                                        <span className="mt-3 inline-flex items-center text-xs font-medium text-link">撮影ガイドを見る <span aria-hidden="true" className="ml-1">›</span></span>
                                     </div>
                                 </Link>
                             </li>
