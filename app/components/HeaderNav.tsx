@@ -158,7 +158,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
                     aria-label={navLabels.mypage || "My Page"}
                     title={navLabels.mypage || "My Page"}
-                    className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
+                    className="rounded-full p-[2px] bg-accent-fill ring-1 ring-accent/40 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
                     <span className="block rounded-full p-[2px] bg-bg">
