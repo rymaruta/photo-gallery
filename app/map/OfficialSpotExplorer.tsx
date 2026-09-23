@@ -20,6 +20,7 @@ export default function OfficialSpotExplorer({ spots, locale }: {
     const plotted = useMemo(() => plottableOfficialSpots(spots), [spots]);
     const [selected, setSelected] = useState<string | null>(null);
     const [mapReady, setMapReady] = useState(false);
+    const [mapError, setMapError] = useState(false);
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const layerRef = useRef<LayerGroup | null>(null);
@@ -72,7 +73,9 @@ export default function OfficialSpotExplorer({ spots, locale }: {
                 });
             }
             setMapReady(true);
-        })();
+        })().catch(() => {
+            if (!cancelled) setMapError(true);
+        });
         return () => {
             cancelled = true;
             layerRef.current = null;
@@ -115,6 +118,7 @@ export default function OfficialSpotExplorer({ spots, locale }: {
                                     <span className="block font-serif text-[17px] font-semibold text-white">{spot.name}</span>
                                     {spot.region && <span className="mt-0.5 block text-xs text-white/70">{spot.region}</span>}
                                     <span className="mt-1 block text-xs text-link">{en ? "View the guide →" : "撮影ガイドを見る →"}</span>
+                                    {spot.cover?.credit && <span className="mt-1 block break-words text-[11px] leading-4 text-white/75">{spot.cover.credit}</span>}
                                 </span>
                             </Link>
                         </div>}
@@ -138,8 +142,8 @@ export default function OfficialSpotExplorer({ spots, locale }: {
                         <div ref={mapContainer} role="region"
                              aria-label={en ? "Map of published official spots" : "公開済み公式スポットの地図"}
                              className="jp-official-map__canvas h-[50dvh] min-h-[300px] lg:h-[calc(100dvh-220px)] lg:min-h-[480px]" />
-                        {!mapReady && <p className="pointer-events-none absolute left-3 top-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-white/85">
-                            {en ? "Loading map…" : "地図を読み込み中…"}
+                        {!mapReady && <p role={mapError ? "alert" : "status"} className="pointer-events-none absolute left-3 top-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-white/85">
+                            {mapError ? (en ? "Couldn\u0027t load the map. Open a guide from the list." : "地図を読み込めませんでした。左の一覧から撮影地を選べます。") : (en ? "Loading map…" : "地図を読み込み中…")}
                         </p>}
                     </div>
                 </div>
@@ -170,9 +174,6 @@ function SpotCover({ spot }: { spot: SpotLink }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={spot.cover.src} alt={spot.cover.alt} loading="lazy" decoding="async"
                      className="h-full w-full object-cover" />
-                {spot.cover.credit && <span className="absolute inset-x-0 bottom-0 bg-black/85 px-1 py-0.5 text-[10px] leading-3 text-white">
-                    {spot.cover.credit}
-                </span>}
             </> : <span aria-hidden="true">⌖</span>}
         </span>
     );
