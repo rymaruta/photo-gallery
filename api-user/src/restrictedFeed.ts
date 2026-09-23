@@ -30,6 +30,27 @@ import { signPhotoImages } from "./signedUrl";
  */
 export const MAX_ITEMS = 200;
 
+/**
+ * **外に出さない項目。** `lib/server/photos.ts` ／ `api/src/photos.ts` ／
+ * `scripts/sync-photos-from-ddb.js` と同じ一覧で、
+ * `scripts/__tests__/privateFieldsParity.test.ts` が突き合わせる。
+ *
+ * ここは**見せてよい相手にだけ返す口**だが、それは「行をそのまま渡してよい」
+ * という意味ではない。とくに `srcOriginal` は **EXIF を落とす前の原本**（GPS 入り）
+ * のURLで、フォロワーであっても撮影者の自宅が割れる粒度の情報を渡すことになる。
+ *
+ * 同じ考えを `api-user/src/albums.ts` が先に書いている（招いた相手にだけ返す口で、
+ * 表示に要る項目だけを組み直している）。**ここだけ生の行を返していた。**
+ */
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+
+/** 行から外に出さない項目を落とす（渡すのは写し。元の行は触らない） */
+export function stripPrivate(item: Record<string, unknown>): Record<string, unknown> {
+    const out = { ...item };
+    for (const f of PRIVATE_FIELDS) delete out[f];
+    return out;
+}
+
 export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
@@ -60,12 +81,22 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            // 🔴 **画像の URL にも期限を付ける。** ここで誰に見せるかを
-            // 正しく判定しても、配った URL が永久に有効なら、判定は
-            // 「初回だけ」効いていることになる——フォローを外しても
-            // ブロックしても、控えた URL で取り続けられる。
-            // **鍵が無い環境（いまの本番）では何もしない**（`signedUrl.ts`）
-            body: JSON.stringify(visible.map((p) => signPhotoImages(p))),
+            // 🔴 **落としてから、署名する。順番に意味がある。**
+            //
+            // この1行を2つの PR が別々に書き換えていた（#134 が
+            // `stripPrivate`・#136 が `signPhotoImages`）。**機械任せに
+            // すると片方が黙って消える**——`stripPrivate` が消えれば
+            // GPS 入り原本の URL が戻り、`signPhotoImages` が消えれば
+            // 署名が効かない。**要るのは両方。**
+            //
+            // 先に落とすのは、これから捨てる項目（`srcOriginal`）に
+            // 署名しないため。署名してから落としても結果は同じだが、
+            // **捨てるものに鍵をかける**のは読む人を迷わせる。
+            //
+            //  - `stripPrivate`   … 原本・S3 のキー・内部の印を外に出さない
+            //  - `signPhotoImages`… 残った画像の URL に期限を付ける
+            //                       （鍵が無い環境では何もしない）
+            body: JSON.stringify(visible.map((p) => signPhotoImages(stripPrivate(p)))),
         };
     } catch (e) {
         console.error("getRestrictedFeed error:", e);
