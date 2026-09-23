@@ -134,7 +134,7 @@ export default function BottomNav() {
                 className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bar/95 backdrop-blur-xl"
                 style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             >
-                <div className="max-w-5xl mx-auto grid grid-cols-5">
+                <div className="max-w-6xl mx-auto grid grid-cols-5">
                     {items.slice(0, 2).map((it) => (
                         <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
