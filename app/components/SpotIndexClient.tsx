@@ -115,7 +115,7 @@ export default function SpotIndexClient({ spots }: Props) {
                                       className="group block h-full rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 hover:ring-white/30 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                     <div className="relative w-full aspect-[4/3] overflow-hidden bg-surface-2">
                                         {noImage ? (
-                                            /* 代表写真が無いときは**地図と名前**（無関係な写真で埋めない） */
+                                            /* 代表写真が無いときはスポット名で表示（無関係な写真を置かない） */
                                             <div className="absolute inset-0 flex items-center justify-center bg-surface-2 px-4">
                                                 <span className="font-serif font-bold text-white/80 text-center"
                                                       style={{ fontSize: "17px", lineHeight: "1.3" }}>{s.name}</span>
@@ -127,8 +127,8 @@ export default function SpotIndexClient({ spots }: Props) {
                                                      loading="lazy" decoding="async"
                                                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
                                                 {needsVisibleCredit(s) && (
-                                                    <span className="absolute bottom-1 right-2 text-white/70"
-                                                          style={{ fontSize: "9px" }}>
+                                                    <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-white"
+                                                          style={{ fontSize: "11px", lineHeight: "14px" }}>
                                                         {s.coverImage!.requiredCreditText || `Photo: ${s.coverImage!.credit}`}
                                                     </span>
                                                 )}
