@@ -242,13 +242,13 @@ export default function AlbumsPage() {
     }
 
     return (
-        <main className="min-h-screen bg-bg text-white px-4 py-8">
+        <main className="jp-page min-h-screen bg-bg text-white px-4 py-8">
             <div className="max-w-2xl mx-auto">
                 <div className="flex items-center gap-4 mb-6">
                     <Link href={ROUTES.HOME} aria-label="戻る" className="text-white/70">
                         <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
                     </Link>
-                    <h1 className="text-lg">共同アルバム</h1>
+                    <h1 className="jp-page__title">共同アルバム</h1>
                 </div>
 
                 <p className="text-xs text-white/60 mb-6">
