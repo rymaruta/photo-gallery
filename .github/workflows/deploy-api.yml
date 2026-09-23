@@ -273,6 +273,12 @@ jobs:
           REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
           REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
           MUSIC_SEARCH_RESERVED: ${{ needs.config.outputs.musicSearchReserved }}
+          # 絞った写真の画像 URL に期限を付ける鍵（案A・`docs/restricted-image-delivery.md`）。
+          # **未登録でも何も壊れない**——空なら `isConfigured()` が false で
+          # 署名しないだけ（`api-user/src/signedUrl.ts`）。先に配線だけ
+          # 通しておき、owner が鍵を作った時点で**コードの変更なしに**効く
+          CLOUDFRONT_KEY_PAIR_ID: ${{ secrets.CLOUDFRONT_KEY_PAIR_ID }}
+          CLOUDFRONT_PRIVATE_KEY: ${{ secrets.CLOUDFRONT_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           extra=()
@@ -280,9 +286,15 @@ jobs:
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
           if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
           if [ -n "$MUSIC_SEARCH_RESERVED" ]; then extra+=(--param "musicSearchReserved=$MUSIC_SEARCH_RESERVED"); fi
+          # **空なら旗ごと渡さない**（serverless v3 は `--param "k="` を
+          # 「不正な形式」として弾き、全変数の解決に失敗してデプロイが落ちる
+          # ——上の注記と同じ罠）
+          if [ -n "${CLOUDFRONT_KEY_PAIR_ID:-}" ]; then extra+=(--param "cloudfrontKeyPairId=$CLOUDFRONT_KEY_PAIR_ID"); fi
+          if [ -n "${CLOUDFRONT_PRIVATE_KEY:-}" ]; then extra+=(--param "cloudfrontPrivateKey=$CLOUDFRONT_PRIVATE_KEY"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
                "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')" \
-               "曲検索の予約=$([ -n "$MUSIC_SEARCH_RESERVED" ] && echo "$MUSIC_SEARCH_RESERVED" || echo '(なし)')"
+               "曲検索の予約=$([ -n "$MUSIC_SEARCH_RESERVED" ] && echo "$MUSIC_SEARCH_RESERVED" || echo '(なし)')" \
+               "画像の署名=$([ -n "${CLOUDFRONT_KEY_PAIR_ID:-}" ] && echo '鍵あり' || echo '(なし・署名しない)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \
             --param "photosTable=${{ needs.config.outputs.photosTable }}" \
             --param "usersTable=${{ needs.config.outputs.usersTable }}" \
