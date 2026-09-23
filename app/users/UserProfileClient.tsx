@@ -1114,7 +1114,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     }, [locale, showToast, shareUrl]);
 
     return (
-        <main className="min-h-screen text-white bg-bg">
+        <main className="jp-page jp-profile min-h-screen text-white bg-bg">
             {loadError && (
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
