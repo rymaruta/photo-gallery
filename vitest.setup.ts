@@ -28,3 +28,62 @@ for (const k of [
 // 署名処理はリージョンが無いと別の理由で落ちるので、これだけは残す
 // （リージョンは秘密ではない）。
 process.env.AWS_REGION ??= "ap-northeast-1";
+
+/**
+ * 🔴 **テストをまたいで漏れる `popstate` を、ここで受け取り切る。**
+ *
+ * `window.history.back()` は**非同期**——jsdom は `popstate` をあとのタスクで
+ * 飛ばす。テストは**1つの history スタックを共有している**ので、あるテストが
+ * 呼んだ `back()` の `popstate` は**次のテストの URL を巻き戻す**ことがある。
+ *
+ * 実際に記録した並び（`GalleryPageClient.scopeTabs.test.tsx`）:
+ *
+ *     BACK called  href=…/?photo=theirs   ← 前のテストがモーダルを閉じた
+ *     --- TEST START href=…/
+ *     --- SET href=…/?scope=following
+ *     POPSTATE href=…/                    ← ここで巻き戻る
+ *
+ * 長いあいだ無害だった（画面が URL を一度しか読まなかったので、巻き戻っても
+ * 表示は変わらない）。**`popstate` を購読する画面が出てきた今は効く**
+ * ——`/?scope=following` で始めたテストが「新着」に落ちる。実測 **28回中9回**。
+ *
+ * **製品の欠陥ではない。** 実ブラウザでその `back()` が消すのは自分が積んだ
+ * エントリだけで、別の画面には届かない。直すのは**テストが history を
+ * 共有していること**の方。
+ *
+ * ## 置き場所が肝（2回間違えた）
+ *
+ *   - テストファイルの `afterEach` → **効かない**。vitest は後から登録した
+ *     `afterEach` を先に走らせるので、そのあとの testing-library の cleanup が
+ *     新しい `back()` を積む（実測 20回中11回 落ちたまま）
+ *   - テストファイルの `beforeEach` で待つ → **足りない**（20回中8回／
+ *     間隔を空けても 20回中1回）。**待ち時間の調整は「直した」ではない**
+ *   - **setup ファイル**の `afterEach` → テストモジュールより**先に登録される**
+ *     ので、逆順では**いちばん後**＝cleanup のあとに走る。ここが正しい
+ *
+ * ## ほぼ全部のテストでは1度も待たない
+ *
+ * `back()` / `forward()` / `go()` を呼んだ回数と `popstate` が届いた回数を
+ * 数えて、**差がある間だけ**待つ。呼んでいないテスト（大多数）は素通り。
+ */
+if (typeof window !== "undefined") {
+    let inFlight = 0;
+    for (const m of ["back", "forward", "go"] as const) {
+        const orig = window.history[m].bind(window.history);
+        window.history[m] = ((...a: unknown[]) => {
+            inFlight++;
+            return (orig as (...x: unknown[]) => void)(...a);
+        }) as typeof window.history.back;
+    }
+    // 同じ位置へ戻そうとした回は `popstate` が飛ばない。数が減らないまま
+    // 次のテストを待たせ続けないよう、上限で必ず抜ける
+    window.addEventListener("popstate", () => { if (inFlight > 0) inFlight--; });
+
+    const { afterEach: afterEachHook } = await import("vitest");
+    afterEachHook(async () => {
+        for (let i = 0; i < 20 && inFlight > 0; i++) {
+            await new Promise((r) => setTimeout(r, 0));
+        }
+        inFlight = 0;
+    });
+}
