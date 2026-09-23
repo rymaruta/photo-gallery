@@ -63,11 +63,11 @@ export default function SpotIndexClient({ spots }: Props) {
             {spots.length > 0 && (
                 <div className="relative mb-5">
                     <label htmlFor="official-spot-query" className="mb-2 block text-xs font-medium text-white/70">
-                        行きたい場所・地域・テーマから探す
+                        {isJa ? "行きたい場所・地域・テーマから探す" : "Search places, regions or themes"}
                     </label>
                     <input id="official-spot-query" type="search" value={query}
                            onChange={(e) => setQuery(e.target.value)}
-                           placeholder="例：河童橋、長野、夕景"
+                           placeholder={isJa ? "例：河童橋、長野、夕景" : "e.g. bridge, mountain, sunset"}
                            className="block min-h-[46px] w-full rounded-2xl border border-line bg-surface pl-4 pr-4 text-[15px] text-white placeholder:text-white/50 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40" />
                 </div>
             )}
@@ -145,7 +145,7 @@ export default function SpotIndexClient({ spots }: Props) {
                                             <p className="m-0 mt-1.5 text-white/75 line-clamp-2"
                                                style={{ fontSize: "12px", lineHeight: "18px" }}>{s.summary}</p>
                                         )}
-                                        <span className="mt-3 inline-flex items-center text-xs font-medium text-link">撮影ガイドを見る <span aria-hidden="true" className="ml-1">›</span></span>
+                                        <span className="mt-3 inline-flex items-center text-xs font-medium text-link">{isJa ? "撮影ガイドを見る" : "Explore the guide"} <span aria-hidden="true" className="ml-1">›</span></span>
                                     </div>
                                 </Link>
                             </li>
