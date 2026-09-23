@@ -6,13 +6,13 @@ import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./d
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
 import { requestSiteRebuild } from "./rebuild";
 import { photoLimitError } from "./photoLimit";
-import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAlbumMember, addPhotoToAlbum } from "./albums";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -246,6 +246,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         albumId?: unknown;
         /** 同じ投稿としてまとめる印。行は1枚ずつのまま */
         groupId?: unknown;
+        /** 公開範囲。絞ると静的サイトには出ない（下の注記） */
+        audience?: unknown;
         /** 2枚目以降（1投稿に複数枚）。表紙は `publicUrl`。信用しない */
         extraImages?: unknown;
     };
@@ -382,10 +384,20 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         uploadedBy: userId,
         published: isPublished,
         ...(albumId ? { albumId } : {}),
+        // 公開範囲。**絞った写真は静的サイトに出さない**
+        // （`scripts/sync-photos-from-ddb.js` が落とす）。
+        // 出すのは実行時の口（`GET /feed/restricted`）だけ
+        ...(() => { const a = sanitizeAudience(body.audience); return a ? { audience: a } : {}; })(),
         // 公開一覧用 GSI（publicFeed-createdAt-index）のパーティションキー。
         // **公開中の写真にだけ入れる**——下書きに入れると一覧に出る。
         // 非公開にするときは photoUpdate.ts が REMOVE する。
-        ...(isPublished ? { publicFeed: PUBLIC_FEED_KEY } : {}),
+        //
+        // **公開範囲を絞ったものは別の仕切りへ。** 同じ索引の中で
+        // 仕切りを分けるだけなので、索引を足さずに
+        // 「`GET /photos` には出ない・絞ったぶんだけ引ける」が両立する
+        ...(isPublished
+            ? { publicFeed: sanitizeAudience(body.audience) ? RESTRICTED_FEED_KEY : PUBLIC_FEED_KEY }
+            : {}),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };

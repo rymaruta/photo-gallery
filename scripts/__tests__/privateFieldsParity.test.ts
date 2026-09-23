@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// **公開してはいけない項目のふるいが3か所にある。**
+// **公開してはいけない項目のふるいが4か所にある。**
 //
 //   api/src/photos.ts               … `GET /photos` / `GET /photos/{id}` の応答
+//   api-user/src/restrictedFeed.ts  … `GET /feed/restricted`（見せてよい相手にだけ返す口）
 //   scripts/sync-photos-from-ddb.js … ビルド時に `app/data/photos.json` を作る
 //   lib/server/photos.ts            … その JSON を読み出す側（二重の守り）
 //
@@ -31,6 +32,11 @@ function fieldsOf(relPath: string): string[] {
 }
 
 const API = "api/src/photos.ts";
+// 4つ目の写し（2026-09-22）。**見せてよい相手にだけ返す口**だが、
+// それは「行をそのまま渡してよい」という意味ではない——`srcOriginal` は
+// EXIF を落とす前の原本（GPS 入り）のURLで、フォロワーであっても
+// 撮影者の自宅が割れる粒度の情報になる。**ここだけ生の行を返していた。**
+const RESTRICTED = "api-user/src/restrictedFeed.ts";
 const SYNC = "scripts/sync-photos-from-ddb.js";
 const READER = "lib/server/photos.ts";
 
@@ -39,14 +45,24 @@ const READER = "lib/server/photos.ts";
 //                  （NUM-3。API はその場で数えるので落とさない）
 const SYNC_ONLY = ["commentCount"];
 
-describe("公開データのふるいは3か所で揃っている", () => {
+describe("公開データのふるいは4か所で揃っている", () => {
     // 正規表現が壊れて「空 vs 空」で緑になるのを防ぐ
-    it.each([API, SYNC, READER])("%s から一覧を読み取れる", (path) => {
+    it.each([API, RESTRICTED, SYNC, READER])("%s から一覧を読み取れる", (path) => {
         expect(fieldsOf(path).length).toBeGreaterThan(3);
     });
 
     it("読み出し側（lib/server）は API と同じものを落とす", () => {
         expect([...fieldsOf(READER)].sort()).toEqual([...fieldsOf(API)].sort());
+    });
+
+    // **相手が限られていても、落とすものは同じ。** 「フォロワーだけに返す口だから
+    // 少しは出してよい」という線を引くと、その線をどこに引いたかが
+    // ここからは読めなくなる（`srcOriginal` は原本のURLで、相手がフォロワーでも
+    // 撮影者の自宅が割れる）。**余分に落とすのは構わないが、足りないのは駄目。**
+    it("絞った一覧（restrictedFeed）は API のぶんを全部落とす", () => {
+        for (const f of fieldsOf(API)) {
+            expect(fieldsOf(RESTRICTED), `${f} が絞った一覧の応答に残る`).toContain(f);
+        }
     });
 
     it("ビルド時（sync）は API のぶんを全部落とす", () => {
@@ -74,7 +90,7 @@ describe("公開データのふるいは3か所で揃っている", () => {
         ["keptFrom", "ストーリーから残した写真に付く、元のストーリーのID"],
     ];
     it.each(MUST_DROP)("%s はどこでも落とす（%s）", (field) => {
-        for (const p of [API, SYNC, READER]) {
+        for (const p of [API, RESTRICTED, SYNC, READER]) {
             expect(fieldsOf(p), `${p} が ${field} を出している`).toContain(field);
         }
     });

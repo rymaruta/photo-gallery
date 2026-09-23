@@ -128,6 +128,19 @@ export function sanitizeText(v: unknown, max: number): string | undefined {
  * 未来すぎる / 古すぎる値は誤検出とみなして捨てる（EXIF が壊れている写真がある）。
  */
 /**
+ * 公開範囲。**受け取るのは絞る側の2つだけ。**
+ *
+ * 「全体に公開」は属性を書かない形で表す（既にある行と同じ）。
+ * 知らない値は**全体に公開へ倒さない**——倒すと、綴りを間違えた
+ * 「フォロワーのみ」が全員に見える。倒すのは**狭い側**。
+ */
+export type Audience = "followers" | "closeFriends";
+
+export function sanitizeAudience(value: unknown): Audience | undefined {
+    return value === "followers" || value === "closeFriends" ? value : undefined;
+}
+
+/**
  * 同じ投稿としてまとめる印（`groupId`）。
  *
  * **画面が作る値をそのまま信じない。** 鍵の一部にはしない（行のIDは
