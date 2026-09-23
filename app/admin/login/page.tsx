@@ -60,8 +60,8 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen bg-bg flex items-center justify-center px-4">
-            <div className="w-full max-w-sm">
+        <main className="jp-page min-h-screen bg-bg flex items-center justify-center px-4">
+            <div className="jp-soft-panel w-full max-w-[440px] p-5 sm:p-7">
 
                 <div className="mb-10 text-center">
                     <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
