@@ -781,7 +781,7 @@ function EditContent() {
         .filter(Boolean).join(" · ");
 
     return (
-        <main className="min-h-screen bg-bg text-white">
+        <main className="jp-page min-h-screen bg-bg text-white">
             <div className="max-w-2xl mx-auto px-4 py-8 pb-28">
                 <div className="flex items-center gap-4 mb-6">
                     {/* **名前を付ける。** 中身はアイコンだけ（`aria-hidden`）なので、
@@ -799,7 +799,7 @@ function EditContent() {
                     >
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
-                    <h1 className="text-xl font-semibold">
+                    <h1 className="jp-page__title">
                         {isDraft ? (isJa ? "下書きを編集" : "Edit draft") : (isJa ? "写真を編集" : "Edit photo")}
                     </h1>
                 </div>
