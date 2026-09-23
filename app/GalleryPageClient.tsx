@@ -548,7 +548,7 @@ export default function GalleryPageClient({ surface = "home", spotPreview = [] }
 
       {/* 公式撮影地の入口。公開済みの実データが無ければ部品が描かれない。
           ユーザーの写真検索はこの下で従来どおり利用できる。 */}
-      {surface === "search" && <SpotDiscoveryStrip spots={spotPreview} />}
+      {surface === "search" && <SpotDiscoveryStrip spots={spotPreview} isJa={locale !== "en"} />}
 
       {/* 誰の写真を見るか（ログイン中だけ）。owner:「この画面は、タブで切り替えて、
           自分の写真かフォロー中の人の写真みれるようにしたい」。
