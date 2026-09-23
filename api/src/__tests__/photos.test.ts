@@ -204,3 +204,58 @@ describe("公開応答から落とす項目", () => {
         expect(item.srcOriginal, "呼び出し元の項目を壊している").toBe("https://cdn/x_orig.jpg");
     });
 });
+
+// 🔴 公開範囲を絞った写真（「フォロワーのみ」「親しい友達」）。
+//
+// 2026-09-22 に PM が再現を添えて報告した。この口には**認証が無い**ので、
+// ここが素通しだと「絞ったつもりの写真」が誰にでも読めてしまう。
+// owner の指示書 7:「フロントエンドで写真を隠しても、API や画像URLから
+// 取得できる場合は公開範囲の制御が成立していません」
+describe("公開範囲を絞った写真は、認証の無い口から出さない", () => {
+    const secret = (id: string, audience: string) => ({
+        id, src: `https://cdn/${id}.jpg`, title: "絞った写真", audience, userId: "u1",
+    });
+
+    it("個別取得は 404（403 ではない——在ることも漏らさない）", async () => {
+        for (const audience of ["followers", "closeFriends"]) {
+            mockGetPhotoById.mockReset().mockResolvedValue(secret("r1", audience));
+            const res = await invokeOne({ pathParameters: { id: "r1" } });
+            expect(res.statusCode, audience).toBe(404);
+            expect(res.body).not.toContain("cdn/r1.jpg");
+        }
+    });
+
+    it("知らない綴りでも隠す（隠す側に倒す）", async () => {
+        mockGetPhotoById.mockReset().mockResolvedValue(secret("r9", "friends-of-friends"));
+        expect((await invokeOne({ pathParameters: { id: "r9" } })).statusCode).toBe(404);
+    });
+
+    it("`audience` が空文字・null の行は今までどおり公開", async () => {
+        for (const audience of ["", "   "]) {
+            mockGetPhotoById.mockReset().mockResolvedValue(secret("ok", audience));
+            expect((await invokeOne({ pathParameters: { id: "ok" } })).statusCode, audience).toBe(200);
+        }
+        mockGetPhotoById.mockReset().mockResolvedValue({ id: "ok2", src: "https://cdn/ok2.jpg" });
+        expect((await invokeOne({ pathParameters: { id: "ok2" } })).statusCode).toBe(200);
+    });
+
+    it("一覧にも混ざらない", async () => {
+        resetPhotosCache();
+        mockListPhotos.mockReset().mockResolvedValue([
+            { id: "p1", src: "https://cdn/p1.jpg" },
+            secret("r1", "followers"),
+            secret("r2", "closeFriends"),
+        ]);
+        const body = JSON.parse((await invoke({})).body) as { id: string }[];
+        expect(body.map((p) => p.id)).toEqual(["p1"]);
+    });
+
+    it("その人の一覧（`?userId=`）にも混ざらない", async () => {
+        mockListPhotosByUser.mockReset().mockResolvedValue([
+            { id: "p2", src: "https://cdn/p2.jpg" },
+            secret("r3", "followers"),
+        ]);
+        const body = JSON.parse((await invoke({ queryStringParameters: { userId: "u1" } })).body) as { id: string }[];
+        expect(body.map((p) => p.id)).toEqual(["p2"]);
+    });
+});

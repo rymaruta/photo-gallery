@@ -133,6 +133,71 @@ describe("updatePhotoVisibility", () => {
         expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
     });
 
+    // 🔴 **編集画面は保存のたびに `published: true` を同梱する。**
+    // 印を無条件に `"1"` へ戻していた頃は、「フォロワーのみ」の写真を
+    // 題を直して保存し直すだけで**全体に公開**になった。索引にしか
+    // 現れないので、行を見ても画面を見ても気づけない
+    it("絞ってある写真を保存し直しても、全体に公開へ戻らない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, title: "あたらしい題" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"], "絞りの仕切りのまま").toBe("restricted");
+    });
+
+    it("公開範囲を外したら、公開一覧の仕切りへ戻す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, audience: null }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("1");
+        expect(update.UpdateExpression, "属性も消さないと索引と食い違う").toMatch(/REMOVE[^]*#audience/);
+    });
+
+    it("公開範囲を付けたら、絞りの仕切りへ移す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { published: true, audience: "closeFriends" }));
+        const update = (mockDdbSend.mock.calls[1][0] as { input: { ExpressionAttributeValues: Record<string, unknown> } }).input;
+        expect(update.ExpressionAttributeValues[":pf"]).toBe("restricted");
+        expect(update.ExpressionAttributeValues[":aud"]).toBe("closeFriends");
+    });
+
+    // 🔴 **知らない公開範囲は 400 で断る。** 以前はここで黙って落として
+    // いたので、綴りを間違えた保存（`"follower"`・`"close_friends"`・
+    // 将来足した値を古いサーバーが受けた場合）が**そのまま全体に公開**に
+    // なっていた。他の項目なら「無視する」で済むが、これは公開範囲なので
+    // **分からないときに開く方へ倒れてはいけない**
+    it("知らない公開範囲は断る（全体に公開へ倒さない）", async () => {
+        for (const bad of ["mutuals", "follower", "close_friends", "public", 1, {}]) {
+            mockDdbSend.mockReset()
+                .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+                .mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { published: true, audience: bad }));
+            expect(res.statusCode, String(bad)).toBe(400);
+            // **1行も書かない**（いまの「フォロワーのみ」がそのまま残る）
+            expect(mockDdbSend.mock.calls.some(
+                (c) => "UpdateExpression" in ((c[0] as { input: Record<string, unknown> }).input)),
+                String(bad)).toBe(false);
+        }
+    });
+
+    // **空にするのは通す**（はっきりした「全体に公開へ戻す」の意思表示）
+    it("null と空文字は、今までどおり解除として通る", async () => {
+        for (const blank of [null, "", "   "]) {
+            mockDdbSend.mockReset()
+                .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", audience: "followers" } })
+                .mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { published: true, audience: blank }));
+            expect(res.statusCode, String(blank)).toBe(200);
+            const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string } }).input;
+            expect(update.UpdateExpression, String(blank)).toMatch(/REMOVE[^]*#audience/);
+        }
+    });
+
     // 公開状態を触っていない保存（曲だけ変えた等）で印に触ると、
     // 索引の中身が編集のたびに書き換わる
     it("published を送っていなければ、印には触らない", async () => {
@@ -1191,3 +1256,63 @@ describe("写真の差し替え", () => {
         expect(res.statusCode).toBe(403);
     });
 });
+// 🔴 **公開範囲を絞ったら、静的サイトを作り直す。**
+//
+// この関門は `published` と `META_KEYS` しか見ていなかった。`audience` は
+// どちらにも入っていないので、公開 →「フォロワーのみ」に変えても
+// **再ビルドを頼まず**、既に配られている個別ページ・`photos.json`・
+// サイトマップ・OGP が**公開のまま残って**いた。定期ビルドは週1なので
+// 最大7日。「絞った写真は静的サイトに出さない」が本当になるのは
+// 次のビルドから、という状態だった。
+describe("公開範囲を絞ったら、公開のページを作り直す", () => {
+    const published = (audience?: string) => ({
+        Item: { id: "p1", userId: "u1", published: true, ...(audience ? { audience } : {}) },
+    });
+
+    it("公開 →「フォロワーのみ」で再ビルドを頼む", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published()).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockRebuild).toHaveBeenCalled();
+    });
+
+    it("「フォロワーのみ」→ 解除でも頼む（ページを作りに行く）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published("followers")).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: null }));
+        expect(mockRebuild).toHaveBeenCalled();
+    });
+
+    it("同じ値で保存し直しても頼まない（連打で予算を使わない）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(published("followers")).mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(true);
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockRebuild).not.toHaveBeenCalled();
+    });
+
+    // **届かなかった回は行に印を残す。** 残さないと、公開のままのページを
+    // 誰も消さない（削除側は「非公開だった写真にページは無い」と決め打つ）
+    it("依頼が届かなかったら staticStale を残す", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce(published())
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(false);
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(JSON.parse(res.body).staticStale).toBe(true);
+        const wrote = mockDdbSend.mock.calls.some((c) =>
+            /SET staticStale/.test(String(((c[0] as { input: { UpdateExpression?: string } }).input).UpdateExpression ?? "")));
+        expect(wrote, "行にも印が要る").toBe(true);
+    });
+
+    // **下書きを絞っただけなら、公開のページは無い**
+    it("非公開の写真を絞っても staticStale は立てない", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } })
+            .mockResolvedValueOnce({});
+        mockRebuild.mockReset().mockResolvedValue(false);
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(JSON.parse(res.body).staticStale).toBeFalsy();
+    });
+});
+
