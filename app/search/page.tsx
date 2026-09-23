@@ -1,4 +1,7 @@
 import GalleryPageClient from "../GalleryPageClient";
+import type { SpotDiscoveryItem } from "../components/SpotDiscoveryStrip";
+import { SPOTS } from "@/lib/data/spots";
+import { publishableSpots, usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
 
 /**
  * 写真をさがす。**絞り込み・件数・サムネのグリッド**を持つ面。
@@ -17,5 +20,18 @@ import GalleryPageClient from "../GalleryPageClient";
  * それだと写真の取得が2つ動き、モーダルも絞り込みも下と食い違っていた。
  */
 export default function SearchPage() {
-    return <GalleryPageClient surface="search" />;
+    // サーバーで台帳を絞る。検索画面の client bundle に全スポットデータを載せない。
+    // 未許諾画像・未公開スポット・架空の枚数をカードに出さない。
+    const spotPreview: SpotDiscoveryItem[] = publishableSpots(SPOTS).slice(0, 3).map((spot) => {
+        const cover = !usesMapHero(spot) && !needsVisibleCredit(spot) ? spot.coverImage : null;
+        return {
+            slug: spot.slug,
+            name: spot.name,
+            region: [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ") || undefined,
+            summary: spot.summary,
+            coverSrc: cover?.src,
+            coverAlt: cover?.alt,
+        };
+    });
+    return <GalleryPageClient surface="search" spotPreview={spotPreview} />;
 }
