@@ -107,6 +107,11 @@ export function imageSinks(raw: string, file: string): Sink[] {
  *       （`app/components/__tests__/imageOrigin.test.tsx`）
  */
 const EXEMPT: Array<[string, string, string]> = [
+    ["app/components/SpotLinkCard.tsx", "spot.coverImage!.src",
+     "写真詳細に出す公式ガイドの代表写真。`SpotGuideClient` と同じ値"],
+    ["app/components/SpotIndexClient.tsx", "s.coverImage!.src",
+     "公式撮影地ガイドの索引に出す代表写真。`SpotGuideClient` と同じ値で、"
+     + "運営が台帳に書いたサイト内のパス（利用者が上げた写真ではない）"],
     ["app/components/SpotGuideClient.tsx", "cover!.src",
      "公式撮影地ガイドの代表写真。**利用者が上げた写真ではない**——運営が台帳"
      + "（`content/spots.json`）に書いたサイト内のパス（`/spots/x.jpg`）で、"

@@ -16,6 +16,10 @@ export default function Footer() {
         // 撮影地マップはメニューの中にしか無かった。フッターは全ページに
         // 出るので、写真ページから来た人にも見つかる
         { href: ROUTES.MAP, label: navLabels.map || (locale === "en" ? "Map" : "撮影地マップ") },
+        // 公式撮影地ガイドの索引。**写真の投稿が0枚の場所も載る**面なので、
+        // 写真の一覧（`/location`）とは別に入口が要る。フッターは全ページに
+        // 出るので、写真から来た人にも見つかる（撮影地マップと同じ理由）
+        { href: ROUTES.SPOTS, label: locale === "en" ? "Photo spots" : "撮影スポット" },
         { href: ROUTES.FAVORITES, label: navLabels.favorites || (locale === "en" ? "Liked Photos" : "いいねした写真") },
         // 保存した写真。**いいねとは別の棚**なので、並べて出して違いを見せる
         { href: ROUTES.SAVES, label: navLabels.saves || (locale === "en" ? "Saved Photos" : "保存した写真") },

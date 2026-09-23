@@ -48,6 +48,7 @@ import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
+import SpotLinkCard from "../../components/SpotLinkCard";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -1042,6 +1043,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated 
                         {photo.license && <span>{photo.license}</span>}
                     </div>
                 )}
+
+                {/* 公式撮影地ガイドへのカード。**写真が確認済みの `spotId` を
+                    持っているときだけ**出る（文字列では照合しない）。
+                    未登録なら何も描かない——撮影地ページへの導線は写真の
+                    左下のチップが持っているので、ここが空でも行き先は消えない */}
+                <SpotLinkCard photo={photo} locale={locale} />
 
                 {/* アクション行: ♡（押せる・数）・💬（数・コメントのタブへ）・🔖 保存・⬆ シェア。
                     ホームのカードと同じ形（`TimelineCard`）。失敗すると楽観更新が
