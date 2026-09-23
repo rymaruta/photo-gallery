@@ -1,0 +1,153 @@
+/*
+ * Journey Photo Web — editorial refinement layer.
+ * Keeps owner-approved navy, blue action color and photographic hierarchy.
+ * Add classes to real screens only; no visual placeholders or fake data.
+ * See docs/design-all-screens-2026-09-24.md for scope and review gates.
+ */
+:root {
+  --jp-quiet-line: rgb(148 180 220 / 0.13);
+  --jp-page-gutter: clamp(16px, 3vw, 32px);
+  --jp-card-round: 18px;
+}
+
+.jp-page {
+  color: #fff;
+  background-color: var(--color-bg);
+}
+
+.jp-page__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0 0 20px;
+}
+
+.jp-page__eyebrow {
+  margin: 0;
+  color: var(--color-link);
+  font-size: 11px;
+  line-height: 17px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.jp-page__title {
+  margin: 0;
+  color: #fff;
+  font-family: Georgia, "Yu Mincho", "Hiragino Mincho ProN", serif;
+  font-size: clamp(24px, 2.2vw, 34px);
+  line-height: 1.28;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: pretty;
+}
+
+.jp-page__lead {
+  margin: 0;
+  color: rgb(255 255 255 / 0.75);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.jp-soft-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--jp-quiet-line);
+  border-radius: var(--jp-card-round);
+}
+
+.jp-photo-tile {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--jp-quiet-line);
+}
+
+.jp-photo-tile img {
+  transition: transform 240ms ease;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .jp-photo-tile:hover img { transform: scale(1.025); }
+}
+
+.jp-spot-card {
+  background: var(--color-surface);
+  border: 1px solid var(--jp-quiet-line);
+  border-radius: var(--jp-card-round);
+  overflow: hidden;
+}
+
+.jp-spot-card:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.jp-divider { border-color: var(--jp-quiet-line); }
+
+.jp-interactive:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.jp-input {
+  min-height: 44px;
+  background: var(--color-surface-2);
+  border: 1px solid rgb(148 180 220 / 0.23);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.jp-input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.jp-official-map__canvas.leaflet-container {
+  isolation: isolate;
+  background: var(--color-surface-2);
+}
+
+/* A distinct official-guide pin, never a user photo pin or user GPS marker.
+ * Text comes from Leaflet marker title/alt, not a string-injected HTML fragment.
+ */
+.jp-official-spot-pin.leaflet-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+.jp-official-spot-pin span {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px 12px 12px 3px;
+  transform: rotate(-45deg);
+  background: var(--color-accent-fill);
+  border: 2px solid #fff;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.4);
+}
+
+.jp-official-spot-pin span::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.jp-official-spot-pin.leaflet-marker-icon:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-photo-tile img { transition: none; transform: none; }
+}
+
+@media (max-width: 639px) {
+  .jp-page__head { margin-bottom: 16px; }
+  .jp-page__title { font-size: 25px; }
+}
