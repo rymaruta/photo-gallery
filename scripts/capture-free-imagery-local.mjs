@@ -85,6 +85,14 @@ const routes = [
     source: "wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/",
     description: "Luxembourg ACT open-data CC0 ortho_2023, city of Luxembourg",
     pins: [["proof-luxembourg", "ルクセンブルク市（検証用）", "ルクセンブルク", 49.6116, 6.1319]] },
+  { slug: "canada-toronto", label: "Canada: Toronto only", hash: "#13/43.6532/-79.3832",
+    source: "gis.toronto.ca/arcgis/rest/services/basemap/cot_ortho/MapServer/tile/",
+    description: "City of Toronto public official aerial imagery, NOT Canada-wide",
+    pins: [["proof-toronto", "トロント（検証用）", "カナダ・トロント市", 43.6532, -79.3832]] },
+  { slug: "brazil-sao-paulo", label: "Brazil: São Paulo state", hash: "#13/-23.5505/-46.6333",
+    source: "datageo.ambiente.sp.gov.br/geoimage/datageoimg/ows?",
+    description: "IGC São Paulo official state WMS orthophoto, NOT all Brazil; imagery rights pending",
+    pins: [["proof-sao-paulo", "サンパウロ（検証用）", "ブラジル・サンパウロ州", -23.5505, -46.6333]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
