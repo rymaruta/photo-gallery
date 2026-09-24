@@ -7575,6 +7575,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_84774664551c",
+    "slug": "daigo-zakura",
+    "name": "醍醐桜",
+    "nameEn": "Daigo Zakura",
+    "reading": "だいござくら",
+    "aliases": [
+      "真庭 醍醐桜"
+    ],
+    "address": "岡山県真庭市別所2277",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "真庭市"
+    },
+    "coords": {
+      "lat": 35.05,
+      "lng": 133.6
+    },
+    "category": "nature",
+    "summary": "標高五百メートルの尾根に立つ樹齢千年とされる一本桜。周囲に建物がなく、樹形だけで構図が決まります。",
+    "description": "アズマヒガンの古木で、樹齢はおよそ千年、樹高十八メートル、幹回り九.二メートルとされます。後醍醐天皇が隠岐配流の途中で賞賛したという伝承が名の由来です。標高五百メートルの尾根の上に単独で立ち、周囲に建物がありません。背景は空と山並みだけになります。見頃は四月中旬。期間中は夜間ライトアップが行われ、星空と組み合わせられます。",
+    "highlights": [
+      "樹齢千年とされる一本桜",
+      "周囲に建物のない尾根の立地",
+      "夜間ライトアップと星空"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬が見頃。標高があるぶん平地より遅く咲きます。"
+      },
+      {
+        "season": "winter",
+        "text": "葉を落とした枝ぶりと雪。樹形そのものを撮るなら冬です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、雲海が谷に出ることもあります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ期は星空との重ね撮りが定番です。"
+      }
+    ],
+    "compositionTips": [
+      "低い位置から煽ると一本桜の存在感が強まります",
+      "背景に山並みだけを置いて余計な要素を外します",
+      "混雑期は駐車場が離れるので歩く時間を見込みます"
+    ],
+    "officialWebsiteUrl": "https://www.maniwa.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_5c85475ff7ed",
     "slug": "daigoji",
     "name": "醍醐寺",
@@ -16901,6 +16960,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_dc44152e7635",
+    "slug": "hattoji",
+    "name": "八塔寺ふるさと村",
+    "nameEn": "Hattoji Furusato Village",
+    "reading": "はっとうじふるさとむら",
+    "aliases": [
+      "八塔寺 茅葺き集落"
+    ],
+    "address": "岡山県備前市吉永町加賀美",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "備前市"
+    },
+    "coords": {
+      "lat": 34.86,
+      "lng": 134.24
+    },
+    "category": "landmark",
+    "summary": "標高四百メートルの盆地に茅葺きの民家が点在します。電柱が少なく、時代劇の撮影に使われてきました。",
+    "description": "山上の小さな盆地にある集落で、茅葺き屋根の民家が田畑の間に点在します。かつて八塔寺という大きな寺があった場所で、その名が残ります。電線の地中化が進んでおり、現代的な要素が画面に入りにくいため、時代劇の撮影地として使われてきました。集落は小さく、歩いて回れます。住民が生活する場です。",
+    "highlights": [
+      "点在する茅葺きの民家",
+      "電柱の少ない集落の景観",
+      "標高四百メートルの盆地の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、田に水が入り、茅葺きが水面に映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、茅葺きの茶色が際立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があり、屋根の勾配に雪が乗る形が見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は盆地に霧が溜まり、茅葺きが霧の上に出ることがあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は茅葺きが暖色に染まり、家の灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "現代の要素が入らない画角を探すのがこの集落の要点です",
+      "田の水面に映る茅葺きを上下二層にします",
+      "住民の生活の場なので、敷地に入らず道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.bizen.okayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_9767c6f673ef",
     "slug": "hattori-ryokuchi",
     "name": "服部緑地 日本民家集落博物館",
@@ -21628,6 +21750,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6131fa29df17",
+    "slug": "ibara-nakatsuiwa",
+    "name": "中津井",
+    "nameEn": "Nakatsui Historic Town",
+    "reading": "なかつい",
+    "aliases": [
+      "真庭 中津井陣屋町"
+    ],
+    "address": "岡山県真庭市中津井",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "真庭市"
+    },
+    "coords": {
+      "lat": 34.9,
+      "lng": 133.64
+    },
+    "category": "landmark",
+    "summary": "陣屋が置かれた小さな町。白漆喰と焼杉の壁が続き、観光地化されていない町並みが残ります。",
+    "description": "江戸期に旗本の陣屋が置かれた町で、街道沿いに町家が並びます。白漆喰の塗り込めと、焼いた杉板を張った黒い下見板が混ざる外観が特徴です。観光施設がほとんどなく、生活の場としての町並みがそのまま残っています。通りは短く、歩いて三十分ほどで往復できます。人も車も少なく、町並みだけを落ち着いて撮れる場所です。",
+    "highlights": [
+      "白漆喰と黒い焼杉板の対比",
+      "観光地化されていない町並み",
+      "短い距離に収まる通り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白漆喰と黒板壁の対比がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が壁に影を落とし、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もると白漆喰と一体化し、黒い板壁だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車もほとんどなく、通りの全景が撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は壁が暖色に染まり、白と黒の差が和らぎます。"
+      }
+    ],
+    "compositionTips": [
+      "白と黒の壁が並ぶ位置を探して対比を主題にします",
+      "通りは望遠で圧縮して連なりを見せます",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.maniwa.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_48ea59aa0ce9",
     "slug": "ibukiyama",
     "name": "伊吹山",
@@ -22821,6 +23006,70 @@
       "白鳥は望遠で距離を保ち、餌を与えないこと"
     ],
     "officialWebsiteUrl": "https://www.bandaisan.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_bbb0a3932880",
+    "slug": "inbe",
+    "name": "備前焼の里 伊部",
+    "nameEn": "Imbe, Bizen Ware Village",
+    "reading": "びぜんやきのさと いんべ",
+    "aliases": [
+      "伊部 煉瓦煙突",
+      "備前焼"
+    ],
+    "address": "岡山県備前市伊部",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "備前市"
+    },
+    "coords": {
+      "lat": 34.75,
+      "lng": 134.19
+    },
+    "category": "landmark",
+    "summary": "釉薬を使わない備前焼の産地。町のあちこちに窯の煉瓦煙突が立ち、屋根越しに突き出して見えます。",
+    "description": "六古窯の一つ備前焼の産地で、伊部の町に窯元が集まります。備前焼は釉薬も絵付けも使わず、土と炎だけで焼き締めるため、器の表面には窯の中の位置による焼けの違いがそのまま現れます。町には登り窯や角窯の煉瓦煙突が点在し、家並みの上に突き出して見えます。駅前に備前焼ミュージアムがあり、歩いて窯元を回れます。",
+    "highlights": [
+      "家並みから突き出す煉瓦煙突",
+      "釉薬を使わない器の表面",
+      "駅から歩いて回れる窯元"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月の備前焼まつり。町全体が市になり、器が路上に並びます。"
+      },
+      {
+        "season": "winter",
+        "text": "窯焚きの季節。煙突から煙が上がる日があります。"
+      },
+      {
+        "season": "spring",
+        "text": "光が明るく、煉瓦と瓦屋根の色が素直に出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光で煉瓦の赤が濃く出ます。"
+      },
+      {
+        "time": "day",
+        "text": "器は屋内の自然光で、斜めからの光が焼けの変化を見せます。"
+      }
+    ],
+    "compositionTips": [
+      "煙突は屋根越しに望遠で圧縮すると本数が見えます",
+      "器は斜光で表面の焼けの濃淡を出します",
+      "窯元での撮影は必ず作り手に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.touyuukai.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -30756,6 +31005,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_34690cbb2bad",
+    "slug": "katsuyama",
+    "name": "勝山の町並み",
+    "nameEn": "Katsuyama Historic Town",
+    "reading": "かつやまのまちなみ",
+    "aliases": [
+      "勝山 のれんの町",
+      "旭川 勝山"
+    ],
+    "address": "岡山県真庭市勝山",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "真庭市"
+    },
+    "coords": {
+      "lat": 35.09,
+      "lng": 133.68
+    },
+    "category": "landmark",
+    "summary": "各戸が草木染めののれんを掲げる町。白壁の町家の入口に色の違う布が下がり、通りに統一感があります。",
+    "description": "旭川の水運で栄えた城下町で、岡山県で最初の町並み保存地区に指定されました。特徴は各戸が掲げるのれんで、地元の染織家が始めた取り組みが町全体に広がりました。家ごとに色柄が違い、白壁の町家に色の点が並ぶ構成になります。川沿いには高瀬舟の船着場の跡が残ります。酒蔵もあり、町の規模は歩いて回れます。",
+    "highlights": [
+      "各戸が掲げる草木染めののれん",
+      "白壁の町家の連なり",
+      "旭川の高瀬舟の船着場跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、のれんの色が素直に出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "のれんが風に揺れます。動きを止めるか流すかを選べます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と白壁。のれんの色だけが画面に残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝はのれんが掛けられた直後で、通りも空いています。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色になり、のれんの色と馴染みます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で通りを圧縮するとのれんの色が点として並びます",
+      "一枚ののれんに寄って染めの手仕事を見せる対比も入れます",
+      "のれんは店の入口なので、営業の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.maniwa.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d259a0374fb1",
     "slug": "kawachi-fujien",
     "name": "河内藤園",
@@ -32121,6 +32434,134 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_5c552a6df1c5",
+    "slug": "kibitsu",
+    "name": "吉備津神社",
+    "nameEn": "Kibitsu Shrine",
+    "reading": "きびつじんじゃ",
+    "aliases": [
+      "比翼入母屋造",
+      "吉備津神社 回廊"
+    ],
+    "address": "岡山県岡山市北区吉備津931",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "岡山市"
+    },
+    "coords": {
+      "lat": 34.67,
+      "lng": 133.85
+    },
+    "category": "shrine",
+    "summary": "国宝の本殿は比翼入母屋造という他に例のない形式。斜面を下る回廊が約四百メートル続きます。",
+    "description": "吉備津彦命を祀る社で、本殿と拝殿は一四二五年の再建、国宝に指定されています。屋根は入母屋を二つ繋いだ比翼入母屋造で、この形式は他に例がなく吉備津造とも呼ばれます。本殿から続く回廊は、自然の地形に沿って斜面を下りながら約四百メートル伸びます。柱の反復が奥へ続く構図が撮れます。桃太郎伝説の元になった温羅伝説の舞台です。",
+    "highlights": [
+      "国宝の比翼入母屋造本殿",
+      "斜面を下る約四百メートルの回廊",
+      "温羅伝説ゆかりの鳴釜神事"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、回廊沿いの牡丹と新緑。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、回廊の内側が暗くなります。柱の線が浮きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内が色づき、回廊の屋根越しに紅葉が見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、回廊を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は回廊に横から光が入り、柱の影が床に反復します。"
+      }
+    ],
+    "compositionTips": [
+      "回廊は消失点まで通して長さと勾配を見せます",
+      "柱の影が床に落ちる時間を狙うとリズムが強まります",
+      "本殿は妻側から撮って比翼入母屋の二つの屋根を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.kibitujinja.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_fdd85128a1cf",
+    "slug": "kibitsuhiko",
+    "name": "吉備津彦神社",
+    "nameEn": "Kibitsuhiko Shrine",
+    "reading": "きびつひこじんじゃ",
+    "aliases": [
+      "朝日の宮",
+      "日本一の大石灯籠"
+    ],
+    "address": "岡山県岡山市北区一宮1043",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "岡山市"
+    },
+    "coords": {
+      "lat": 34.69,
+      "lng": 133.86
+    },
+    "category": "shrine",
+    "summary": "夏至の朝、日が正面の鳥居から差して本殿の鏡に届く配置。朝日の宮と呼ばれてきました。",
+    "description": "備前国一之宮で、吉備の中山の麓に建ちます。社殿が東を向いており、夏至の日の朝日が正面の鳥居の中心から差し込み、本殿の鏡に届くとされることから朝日の宮と呼ばれます。参道には高さ十一.五メートルの大石灯籠が立ち、こうした形式の灯籠としては日本最大級です。背後の吉備の中山は古墳と磐座が点在する山で、歩いて登れます。",
+    "highlights": [
+      "夏至の朝に鳥居から差す日",
+      "高さ十一.五メートルの大石灯籠",
+      "背後の吉備の中山の古墳と磐座"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夏至の朝が本番。鳥居の中心に日が入る位置を狙います。"
+      },
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、参道が明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、大灯籠と参道を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝が本命。特に夏至前後は鳥居と太陽の位置が揃います。"
+      },
+      {
+        "time": "day",
+        "text": "日中は大灯籠の石の質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "参道の中心線に立って鳥居と社殿を一直線に並べます",
+      "大灯籠は人を入れて十一.五メートルの高さを示します",
+      "夏至の朝は前日までに立ち位置を決めておきます"
+    ],
+    "officialWebsiteUrl": "https://www.kibitsuhiko.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0098fc92bb8a",
     "slug": "kifune-jinja",
     "name": "貴船神社",
@@ -32661,6 +33102,70 @@
       "帰りの便の時刻から逆算し、山頂へ登るかを先に決めます"
     ],
     "officialWebsiteUrl": "https://kinkasan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_c05be6dba06a",
+    "slug": "kinojo",
+    "name": "鬼ノ城",
+    "nameEn": "Kinojo Castle Site",
+    "reading": "きのじょう",
+    "aliases": [
+      "鬼城山",
+      "西門 復元"
+    ],
+    "address": "岡山県総社市奥坂",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "総社市"
+    },
+    "coords": {
+      "lat": 34.71,
+      "lng": 133.75
+    },
+    "category": "landmark",
+    "summary": "七世紀の古代山城。標高四百メートルの山頂を二.八キロの城壁が囲み、西門が復元されています。",
+    "description": "鬼城山の山頂部を囲む古代山城で、築かれた年代は七世紀後半とされます。周囲約二.八キロにわたって版築の土塁と石垣が巡り、四つの門と水門が確認されています。西門は発掘の成果にもとづいて復元され、高い土塁の上に立ちます。眼下には総社平野が広がり、晴れた日は瀬戸内海まで見えます。温羅伝説の鬼の居城とされてきました。",
+    "highlights": [
+      "復元された西門",
+      "山頂を囲む二.八キロの城壁",
+      "総社平野と瀬戸内海の眺望"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が城壁の周囲を覆い、土塁の線が緑に縁取られます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、平野から瀬戸内海までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して土塁と石垣の構造がむき出しになります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は平野に霧が溜まり、城壁から雲海を見下ろせる日があります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は西門が横から照らされ、柱の影が土塁に伸びます。"
+      }
+    ],
+    "compositionTips": [
+      "西門は下から煽って土塁の高さごと入れます",
+      "城壁の線を手前から奥へ通して規模を見せます",
+      "雲海の日は稜線を画面下に置いて雲を主役にします"
+    ],
+    "officialWebsiteUrl": "https://www.city.soja.okayama.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -38410,6 +38915,70 @@
       "広すぎて散らかりやすいので、木や柵を一つ手前に置いて画面を締めます"
     ],
     "officialWebsiteUrl": "https://www.makibakouen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_795591d3511d",
+    "slug": "manabeshima",
+    "name": "真鍋島",
+    "nameEn": "Manabeshima Island",
+    "reading": "まなべしま",
+    "aliases": [
+      "真鍋島 本浦",
+      "走り神輿"
+    ],
+    "address": "岡山県笠岡市真鍋島",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "笠岡市"
+    },
+    "coords": {
+      "lat": 34.33,
+      "lng": 133.49
+    },
+    "category": "nature",
+    "summary": "斜面に石積みと細い路地が入り組む島。車が入れない道が多く、港からの町並みがそのまま残ります。",
+    "description": "笠岡諸島の南にある小さな島で、港に面した斜面に集落が密集しています。路地は人が通れる幅しかない区間が多く、車が入れないため古い町並みが残りました。木造の校舎が残る真鍋中学校は映画の舞台になりました。三月には走り神輿という荒々しい祭りが行われます。猫が多く、路地で見かけます。島の規模は小さく、歩いて回れます。",
+    "highlights": [
+      "車が入れない細い路地",
+      "斜面に密集する集落",
+      "木造校舎が残る学校"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月の走り神輿。島の人口を上回る人が集まる日です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、路地の先の水の色が濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "便が減り、島は静かです。路地を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は漁の動きがあり、港が生活の場として写ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は斜面の家並みが横から照らされ、路地に影が伸びます。"
+      }
+    ],
+    "compositionTips": [
+      "路地は狭いので広角で両側の壁を入れます",
+      "港から斜面を見上げて集落の密度を見せます",
+      "生活の場なので、住居を覗き込まず住民には断ってから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.kasaoka.okayama.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -51244,6 +51813,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_387ab42f9325",
+    "slug": "ohara-museum",
+    "name": "大原美術館",
+    "nameEn": "Ohara Museum of Art",
+    "reading": "おおはらびじゅつかん",
+    "aliases": [
+      "倉敷 大原美術館"
+    ],
+    "address": "岡山県倉敷市中央1-1-15",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "倉敷市"
+    },
+    "coords": {
+      "lat": 34.59,
+      "lng": 133.77
+    },
+    "category": "landmark",
+    "summary": "一九三〇年開館の日本初の西洋美術館。ギリシャ神殿風の本館が倉敷川沿いの白壁の町並みに立ちます。",
+    "description": "倉敷の実業家大原孫三郎が、画家児島虎次郎の収集した作品をもとに開いた日本初の私立西洋美術館です。本館はギリシャ神殿を思わせる石造の外観で、白壁と瓦の町並みの中で異質な存在感があります。エル・グレコの受胎告知など西洋絵画の名品を収蔵します。館内は原則撮影禁止で、被写体は建物の外観と周囲の町並みになります。",
+    "highlights": [
+      "神殿風の石造本館",
+      "白壁の町並みの中の異質な外観",
+      "倉敷川沿いの立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "倉敷川沿いの柳が芽吹き、石造の建物と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、柱の彫りに影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、本館の正面を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は観光客が少なく、建物を正面から撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は町並みのライトアップで、本館の柱が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "柱の反復を正面から撮って神殿風の構成を見せます",
+      "周囲の白壁の町家と一緒に入れて異質さを示します",
+      "館内は撮影禁止なので、被写体を外観に絞ります"
+    ],
+    "officialWebsiteUrl": "https://www.ohara.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7fb4e96f2333",
     "slug": "ohori-park",
     "name": "大濠公園",
@@ -51800,6 +52432,129 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b3059aed0aed",
+    "slug": "okayama-art",
+    "name": "奈義町現代美術館",
+    "nameEn": "Nagi Museum of Contemporary Art",
+    "reading": "なぎちょうげんだいびじゅつかん",
+    "aliases": [
+      "ナギ 太陽の部屋"
+    ],
+    "address": "岡山県勝田郡奈義町豊沢441",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "奈義町"
+    },
+    "coords": {
+      "lat": 35.11,
+      "lng": 134.17
+    },
+    "category": "landmark",
+    "summary": "作品のために建物を作った美術館。円筒形の太陽の部屋は、龍安寺の石庭が壁に垂直に貼り付いています。",
+    "description": "磯崎新が設計し、三組の作家の作品に合わせて建物そのものを作った美術館です。太陽と名付けられた部屋は円筒を斜めに寝かせた形で、内部の壁面に龍安寺の石庭が原寸で再現され、床ではなく壁に垂直に貼り付いています。入ると平衡感覚が狂います。他に月と大地の部屋があり、それぞれ形が異なります。撮影可否は各室の表示に従います。",
+    "highlights": [
+      "壁に垂直に貼り付いた石庭",
+      "作品のために設計された円筒の部屋",
+      "形の異なる三つの展示室"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。背後の那岐山が白くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "外光が明るく、円筒の開口から入る光が強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽の部屋は外光が入る時間帯で見え方が変わります。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "太陽の部屋は広角で円筒の曲面ごと入れて平衡感覚の狂いを見せます",
+      "人を入れると傾きが伝わります",
+      "撮影可否は各室の表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.town.nagi.okayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_dfa685596d74",
+    "slug": "okayama-castle",
+    "name": "岡山城",
+    "nameEn": "Okayama Castle",
+    "reading": "おかやまじょう",
+    "aliases": [
+      "烏城",
+      "金烏城"
+    ],
+    "address": "岡山県岡山市北区丸の内2-3-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "岡山市"
+    },
+    "coords": {
+      "lat": 34.66,
+      "lng": 133.94
+    },
+    "category": "landmark",
+    "summary": "外壁を黒い下見板で覆った天守。烏城と呼ばれ、旭川を挟んで後楽園と向かい合います。",
+    "description": "宇喜多秀家が築いた城で、天守は黒漆塗りの下見板で覆われていたことから烏城と呼ばれます。天守は戦災で焼失し一九六六年に再建、二〇二二年に大規模改修されました。旭川を天然の堀として使う配置で、対岸の後楽園から天守を借景として見られます。天守台の石垣は築城当時のもので、不等辺の五角形という珍しい平面をしています。",
+    "highlights": [
+      "黒い下見板に覆われた天守",
+      "旭川を挟んだ後楽園との関係",
+      "不等辺五角形の天守台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。旭川の河川敷から天守と桜を重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、黒い天守との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "後楽園側が色づき、借景として天守が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は西日が天守の黒壁に当たり、金の飾りが光ります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップされ、黒い壁が暗い背景から浮き上がります。"
+      }
+    ],
+    "compositionTips": [
+      "黒壁は露出が引っ張られるのでプラス補正で潰れを防ぎます",
+      "旭川の対岸から水面の映り込みを入れます",
+      "天守台の石垣は側面から撮って五角形の角を見せます"
+    ],
+    "officialWebsiteUrl": "https://okayama-kanko.net/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6b174a03edc5",
@@ -58757,6 +59512,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d1647744ffa0",
+    "slug": "saijoinari",
+    "name": "最上稲荷",
+    "nameEn": "Saijo Inari",
+    "reading": "さいじょういなり",
+    "aliases": [
+      "最上稲荷山妙教寺",
+      "最上稲荷 大鳥居"
+    ],
+    "address": "岡山県岡山市北区高松稲荷712",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "岡山市"
+    },
+    "coords": {
+      "lat": 34.7,
+      "lng": 133.82
+    },
+    "category": "temple",
+    "summary": "神仏習合の形が残る稲荷。高さ二十七.五メートルの大鳥居が国道に立ち、その奥に仏教寺院の伽藍が続きます。",
+    "description": "日本三大稲荷の一つとされ、明治の神仏分離を経てなお神仏習合の形を残す珍しい例です。寺でありながら鳥居と注連縄があり、本殿は仏堂の形をしています。参道の入口には高さ二十七.五メートルの大鳥居が立ち、国道をまたぐ規模です。奥の院へは山道を上がり、途中に多数の小祠が並びます。正月は参拝者が集中します。",
+    "highlights": [
+      "高さ二十七.五メートルの大鳥居",
+      "神仏習合の伽藍",
+      "奥の院へ続く小祠の列"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "正月は参拝者が集中します。人の流れそのものが被写体になります。"
+      },
+      {
+        "season": "spring",
+        "text": "参道の木が芽吹き、朱色との対比が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "奥の院への山道が色づきます。人も落ち着く時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、伽藍を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "大鳥居はライトアップされ、暗い背景に朱が浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "大鳥居は車を入れて二十七.五メートルの高さを示します",
+      "小祠の列は望遠で圧縮して反復を見せます",
+      "神社と寺の要素が同居する画角を探すのがこの場所の要点です"
+    ],
+    "officialWebsiteUrl": "https://www.inari.ne.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_5a7554d08e98",
     "slug": "saiko-iyashi-no-sato",
     "name": "西湖いやしの里根場",
@@ -64430,6 +65249,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7dcb1575e698",
+    "slug": "shiraishi",
+    "name": "白石島",
+    "nameEn": "Shiraishijima Island",
+    "reading": "しらいしじま",
+    "aliases": [
+      "白石踊",
+      "鎧岩"
+    ],
+    "address": "岡山県笠岡市白石島",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "笠岡市"
+    },
+    "coords": {
+      "lat": 34.37,
+      "lng": 133.55
+    },
+    "category": "nature",
+    "summary": "花崗岩の巨岩が島の斜面に露出します。鎧岩は板を重ねたような節理で、国の天然記念物です。",
+    "description": "笠岡諸島の一つで、島全体が花崗岩でできています。斜面には巨岩が露出し、なかでも鎧岩は岩が板状に割れて重なり、鎧の札を思わせる形から国の天然記念物に指定されています。島には開龍寺があり、その裏山に岩が集中します。八月に踊られる白石踊は国の重要無形民俗文化財で、一つの音頭に複数の振りが同時に踊られます。",
+    "highlights": [
+      "板状に割れた鎧岩",
+      "斜面に露出する花崗岩の巨岩",
+      "国の重要無形民俗文化財の白石踊"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月の白石踊。海水浴の季節でもあり、便も増えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩の質感と海の色が同時に出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "便が減ります。島は静かで、岩だけを落ち着いて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が岩の節理に影を作り、板の重なりが見えます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は花崗岩が暖色に染まり、白さが和らぎます。"
+      }
+    ],
+    "compositionTips": [
+      "鎧岩は斜光のときに節理の線が最もよく出ます",
+      "人を入れて巨岩のスケールを示します",
+      "最終便の時刻から逆算して島内の移動を組みます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kasaoka.okayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b73e2c05a941",
     "slug": "shiraito-no-taki",
     "name": "白糸ノ滝（富士宮）",
@@ -67126,6 +68009,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_48610b38634d",
+    "slug": "soja-bitchu-kokubunji",
+    "name": "備中国分寺",
+    "nameEn": "Bitchu Kokubun-ji",
+    "reading": "びっちゅうこくぶんじ",
+    "aliases": [
+      "備中国分寺 五重塔",
+      "吉備路"
+    ],
+    "address": "岡山県総社市上林1046",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "総社市"
+    },
+    "coords": {
+      "lat": 34.68,
+      "lng": 133.77
+    },
+    "category": "temple",
+    "summary": "田園の中に五重塔が一基だけ立ちます。周囲に高い建物がなく、塔と田だけで構図が成立します。",
+    "description": "奈良期の国分寺の跡に建つ寺で、五重塔は江戸後期の一八四四年頃の再建、高さ約三十四メートルで岡山県唯一の五重塔です。周囲は吉備路の田園地帯で、視界を遮るものがありません。そのため塔が田の中に単独で立つ構図が成立し、季節ごとに前景が変わります。春は菜の花、夏はレンゲと稲、秋はコスモスが塔の手前に広がります。",
+    "highlights": [
+      "田園に単独で立つ五重塔",
+      "季節で入れ替わる前景の花",
+      "遮るもののない吉備路の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月、菜の花が塔の手前を埋めます。この場所の代表的な構図です。"
+      },
+      {
+        "season": "summer",
+        "text": "水を張った田に塔が映ります。夕方は空も一緒に映ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、コスモスが咲きます。稲刈り後の田とも合わせられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、塔の輪郭がはっきり出ます。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は塔が逆光でシルエットになり、空の色が主役になります。"
+      }
+    ],
+    "compositionTips": [
+      "花を前景に大きく取って塔を小さく置くと田園の広さが出ます",
+      "水を張った田では映り込みで塔を二重にします",
+      "田は私有地なので畦に入らず、農道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.soja.okayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_84a932e5c559",
     "slug": "soma-nomaoi",
     "name": "相馬野馬追",
@@ -69743,6 +70690,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2340b5018a23",
+    "slug": "takebe",
+    "name": "たけべの森",
+    "nameEn": "Takebe no Mori Park",
+    "reading": "たけべのもり",
+    "aliases": [
+      "岡山市建部町 桜"
+    ],
+    "address": "岡山県岡山市北区建部町田地子1636",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "岡山市"
+    },
+    "coords": {
+      "lat": 34.89,
+      "lng": 133.89
+    },
+    "category": "nature",
+    "summary": "約十五種一万五千本の桜が植えられた丘陵の公園。種類が多いため開花が一か月以上ずれて続きます。",
+    "description": "丘陵地を利用した広い公園で、約十五種一万五千本の桜が植えられています。種類が多いため、早咲きから遅咲きまで一か月以上にわたって花が続くのが特徴です。園内には遊歩道が巡り、高い位置からは桜の斜面を俯瞰できます。夏はプールやキャンプ場が開きます。旭川に近く、周囲は山に囲まれています。混雑は桜の時期に集中します。",
+    "highlights": [
+      "約十五種一万五千本の桜",
+      "一か月以上続く開花",
+      "斜面を俯瞰できる遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月下旬から五月上旬まで種類を変えて咲き継ぎます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、園内は人が分散します。"
+      },
+      {
+        "season": "autumn",
+        "text": "園内の落葉樹が色づきます。人も落ち着く時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、桜の斜面を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は斜面が横から照らされ、花の層が立体的になります。"
+      }
+    ],
+    "compositionTips": [
+      "高い位置から俯瞰して桜の斜面を面で見せます",
+      "種類の違う桜を並べて色の差を主題にします",
+      "望遠で斜面を圧縮すると花の密度が上がります"
+    ],
+    "officialWebsiteUrl": "https://www.takebenomori.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_4708ac1e5db3",
@@ -76964,6 +77974,134 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_99c938c31f54",
+    "slug": "tsuyama-castle",
+    "name": "津山城",
+    "nameEn": "Tsuyama Castle",
+    "reading": "つやまじょう",
+    "aliases": [
+      "鶴山公園",
+      "備中櫓"
+    ],
+    "address": "岡山県津山市山下135",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "津山市"
+    },
+    "coords": {
+      "lat": 35.07,
+      "lng": 134
+    },
+    "category": "landmark",
+    "summary": "丘の全面を石垣で固めた城跡。高さ十メートル級の石垣が幾重にも段をなし、その規模で知られます。",
+    "description": "森忠政が築いた城で、建物は明治に取り壊されましたが石垣が良好に残ります。丘の斜面を段状に削り、そのすべてを石垣で覆った構成で、高さ十メートル前後の壁が何重にも重なります。現存する城跡の石垣としては規模が大きい部類です。二〇〇五年に備中櫓が復元されました。園内には約千本の桜があり、石垣と花が同時に写せます。",
+    "highlights": [
+      "幾重にも段をなす高石垣",
+      "復元された備中櫓",
+      "石垣と重なる約千本の桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。石垣の段に沿って花が重なります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。石の灰色と赤が対になります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して石垣の積み方と段の構造が最もよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が石垣の面に当たり、積み方が読めます。"
+      },
+      {
+        "time": "night",
+        "text": "桜の期間はライトアップされ、石垣が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "石垣は斜めから撮って段の重なりを見せます",
+      "人を入れて十メートル級の高さを示します",
+      "桜は石垣の段に沿わせて構図の線として使います"
+    ],
+    "officialWebsiteUrl": "https://www.tsuyamakan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_bbe6784fb66f",
+    "slug": "tsuyama-jotoku",
+    "name": "城東の町並み",
+    "nameEn": "Jotomachi Historic District",
+    "reading": "じょうとうのまちなみ",
+    "aliases": [
+      "津山 城東重伝建",
+      "作州城東屋敷"
+    ],
+    "address": "岡山県津山市東新町",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "津山市"
+    },
+    "coords": {
+      "lat": 35.07,
+      "lng": 134.01
+    },
+    "category": "landmark",
+    "summary": "出雲街道沿いに町家が約一.二キロ続きます。なまこ壁と袖壁が並び、電線が地中化されています。",
+    "description": "津山城の東側に広がる町人地で、出雲街道に沿って町家が約一.二キロ続きます。重要伝統的建造物群保存地区に選定されており、電線が地中化されているため空が開けています。なまこ壁、袖壁、虫籠窓といった意匠が連続し、屋根の高さも揃っています。箕作阮甫の旧宅が公開されているほか、作州城東屋敷では町家の内部を見られます。",
+    "highlights": [
+      "約一.二キロ続く町家の連なり",
+      "なまこ壁と袖壁の意匠",
+      "電線が地中化された通り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁と瓦の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月のだんじり。斜めの光が壁の意匠に影を落とします。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の町並み。人が少なく、通りの全景を撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りを無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は壁が暖色に染まり、袖壁の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "電線がないので広角で空ごと入れられます",
+      "なまこ壁は正面から撮って目地の反復を見せます",
+      "望遠で通りを圧縮すると屋根の高さが揃っていることが分かります"
+    ],
+    "officialWebsiteUrl": "https://www.tsuyamakan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_aaf3f3b2b1ce",
     "slug": "ubara",
     "name": "鵜原理想郷",
@@ -78523,6 +79661,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b0a2a1c15ef5",
+    "slug": "ushimado",
+    "name": "牛窓の町並み",
+    "nameEn": "Ushimado Old Town",
+    "reading": "うしまどのまちなみ",
+    "aliases": [
+      "牛窓 しおまち唐琴通り",
+      "牛窓海遊文化館"
+    ],
+    "address": "岡山県瀬戸内市牛窓町牛窓",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "瀬戸内市"
+    },
+    "coords": {
+      "lat": 34.61,
+      "lng": 134.16
+    },
+    "category": "landmark",
+    "summary": "朝鮮通信使が寄港した港町。しおまち唐琴通りに町家と蔵が並び、海が通りの突き当たりに見えます。",
+    "description": "瀬戸内海に面した古い港町で、江戸期には朝鮮通信使の寄港地でした。しおまち唐琴通りには町家、蔵、洋風建築が混在し、路地の突き当たりに海が見える構成になっています。牛窓海遊文化館は明治期の警察署を使った建物で、通信使の資料を展示します。町の背後の丘には牛窓オリーブ園があり、瀬戸内海の島々を見渡せます。",
+    "highlights": [
+      "町家と蔵が並ぶしおまち唐琴通り",
+      "路地の突き当たりに見える海",
+      "明治期の建物を使った海遊文化館"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁と瓦の色が素直に出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、路地の先の色が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、丘の上からの島の見通しが利きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、通りの全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は町家の木肌が暖色になり、海も光ります。"
+      }
+    ],
+    "compositionTips": [
+      "路地の突き当たりに海を置く構図がこの町の特徴です",
+      "通りは望遠で圧縮して建物の連なりを見せます",
+      "住居が多いので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.setouchi-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f1bd2cae040f",
@@ -82045,6 +83247,69 @@
       "醸造蔵の内部は必ず許可を得てから撮ります"
     ],
     "officialWebsiteUrl": "https://www.town.yuasa.wakayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_2b1c476929c6",
+    "slug": "yubara",
+    "name": "湯原温泉 砂湯",
+    "nameEn": "Yubara Onsen Sunayu",
+    "reading": "ゆばらおんせん すなゆ",
+    "aliases": [
+      "湯原ダム 砂湯"
+    ],
+    "address": "岡山県真庭市湯原温泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "岡山県",
+      "city": "真庭市"
+    },
+    "coords": {
+      "lat": 35.19,
+      "lng": 133.65
+    },
+    "category": "landmark",
+    "summary": "旭川の河原にある無料の露天風呂。川底から湯が湧き、背後に湯原ダムの堤体がそびえます。",
+    "description": "旭川の河原に石で囲った浴槽があり、川底の砂から湯が湧いています。二十四時間無料で入れる混浴の露天風呂で、囲いはほとんどありません。すぐ上流に湯原ダムの堤体が立ち、自然の河原と巨大なコンクリート構造物が同じ画面に入る構成になります。増水時は使えません。撮影は入浴者への配慮が絶対の前提になる場所です。",
+    "highlights": [
+      "川底から湧く河原の露天風呂",
+      "背後にそびえる湯原ダムの堤体",
+      "自然と人工構造物の同居"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "雪と湯気の対比が最も強くなります。周囲の山も白くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の山が色づきます。川の水も澄みます。"
+      },
+      {
+        "season": "spring",
+        "text": "雪解けで川の水量が増えます。増水時は浴槽が使えません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は湯気が濃く立ちます。入浴者も少ない時間です。"
+      },
+      {
+        "time": "night",
+        "text": "夜は照明とダムのシルエット。人が写らない角度を選びます。"
+      }
+    ],
+    "compositionTips": [
+      "入浴者が写らない画角を最優先で決めます",
+      "ダムの堤体を背景に入れて場所の特異さを見せます",
+      "湯気は逆光で狙うと形が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.maniwa.or.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
