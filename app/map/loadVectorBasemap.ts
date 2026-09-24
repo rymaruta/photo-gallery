@@ -223,6 +223,14 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "ign-spain-canaries", country: "ES", provider: "IGN España / CNIG / PNOA",
         url: "https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&FORMAT=image/png&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
         bounds: [-19, 27, -12, 30], min: 9, max: 19, until: 20 },
+    // Swiss federal swisstopo SWISSIMAGE: public keyless Web Mercator WMTS.
+    { id: "swisstopo-swissimage", country: "CH", provider: "swisstopo / SWISSIMAGE",
+        url: "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/default/current/3857/{z}/{x}/{y}.jpeg",
+        bounds: [5.9, 45.8, 10.6, 47.9], min: 9, max: 19, until: 20 },
+    // Dutch government PDOK aerial orthophoto 25cm open-data WMTS.
+    { id: "pdok-netherlands", country: "NL", provider: "PDOK / Beeldmateriaal",
+        url: "https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/EPSG:3857/{z}/{x}/{y}.jpeg",
+        bounds: [3.25, 50.5, 7.6, 54], min: 9, max: 19, until: 20 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -327,7 +335,9 @@ export async function upgradeToRealVectorBasemap(
             + ' ・Global MODIS: NASA LP DAAC / USGS EROS'
             + ' ・<a href="https://www.usgs.gov/the-national-map" target="_blank" rel="noopener noreferrer">USGS / USDA NAIP</a>'
             + ' ・<a href="https://cartes.gouv.fr/" target="_blank" rel="noopener noreferrer">IGN France</a>'
-            + ' ・<a href="https://pnoa.ign.es/" target="_blank" rel="noopener noreferrer">IGN España / CNIG / PNOA</a>',
+            + ' ・<a href="https://pnoa.ign.es/" target="_blank" rel="noopener noreferrer">IGN España / CNIG / PNOA</a>'
+            + ' ・<a href="https://www.swisstopo.admin.ch/" target="_blank" rel="noopener noreferrer">© swisstopo</a>'
+            + ' ・<a href="https://www.pdok.nl/" target="_blank" rel="noopener noreferrer">PDOK / Beeldmateriaal</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
