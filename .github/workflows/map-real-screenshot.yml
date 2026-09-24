@@ -1,11 +1,11 @@
-name: Keyless aerial imagery visual proof (draft)
+name: Free USGS overseas real-map screenshots (draft)
 
 # Only this explicitly approved map prototype; NEVER deploy. Owner's other
 # workflows remain manual. One read-only screenshot job for the PR branch.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [design/cinematic-map-preview-20260924]
+    branches: [design/free-imagery-map-20260924]
     paths:
       - ".github/workflows/map-real-screenshot.yml"
       - "app/components/PhotoMap.tsx"
@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   screenshot:
-    if: github.head_ref == 'design/free-imagery-map-20260924' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.head_ref == 'design/world-public-imagery-20260924' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 22
     steps:
@@ -33,7 +33,7 @@ jobs:
       - name: Lint the map changes
         run: npx eslint app/components/PhotoMap.tsx app/map/loadVectorBasemap.ts app/map/MapPageClient.tsx
       - name: Existing map, sheet and privacy regression tests
-        run: npx vitest run app/map/__tests__/page.test.tsx app/map/__tests__/MapPhotoSheet.test.tsx app/map/__tests__/freeImagery.test.ts
+        run: npx vitest run app/map/__tests__/page.test.tsx app/map/__tests__/MapPhotoSheet.test.tsx app/map/__tests__/freeImagery.test.ts app/map/__tests__/worldPublicImagery.test.ts
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Create test-only route on the runner (NEVER committed or deployed)
@@ -50,9 +50,9 @@ jobs:
           import MapPageClient from "../MapPageClient";
           import type { SpotPin } from "../../../lib/data/spotLink";
           const SPOTS: SpotPin[] = [
-            { slug: "proof-fuji-a", name: "河口湖周辺A（検証用）", region: "山梨県・検証用", summary: "空中写真とスポットカードの動作を確認するためだけのCIデータです。", lat: 35.502, lng: 138.755, cover: null },
-            { slug: "proof-fuji-b", name: "河口湖周辺B（検証用）", region: "山梨県・検証用", lat: 35.503, lng: 138.759, cover: null },
-            { slug: "proof-fuji-c", name: "河口湖周辺C（検証用）", region: "山梨県・検証用", lat: 35.504, lng: 138.758, cover: null },
+            { slug: "proof-big-sur-a", name: "Big Sur A (CI TEST ONLY)", region: "United States / CI test", summary: "Non-published location marker used only for image-loading verification.", lat: 36.2704, lng: -121.8081, cover: null },
+            { slug: "proof-big-sur-b", name: "Big Sur B (CI TEST ONLY)", region: "United States / CI test", lat: 36.2712, lng: -121.8068, cover: null },
+            { slug: "proof-big-sur-c", name: "Big Sur C (CI TEST ONLY)", region: "United States / CI test", lat: 36.2699, lng: -121.8072, cover: null },
           ];
           export default function Proof() {
             return (
@@ -87,42 +87,40 @@ jobs:
             for (const [name, width, height] of [["mobile", 390, 844], ["desktop", 1280, 800]]) {
               const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
               const errors = [];
-              const gsiTileResponses = [];
-              const gsiTileFailures = [];
+              const usgsTileResponses = [];
+              const usgsTileFailures = [];
               page.on("pageerror", (err) => errors.push(String(err)));
               page.on("response", (response) => {
-                if (response.url().includes("cyberjapandata.gsi.go.jp/xyz/")) {
-                  if (response.status() === 200) gsiTileResponses.push(response.url());
-                  else gsiTileFailures.push(response.status() + " " + response.url());
+                if (response.url().includes("basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/")) {
+                  if (response.status() === 200 && (response.headers()["content-type"] ?? "").startsWith("image/")) usgsTileResponses.push(response.url());
+                  else usgsTileFailures.push(response.status() + " " + response.url());
                 }
               });
               page.on("requestfailed", (request) => {
-                if (request.url().includes("cyberjapandata.gsi.go.jp/xyz/"))
-                  gsiTileFailures.push(String(request.failure()?.errorText) + " " + request.url());
+                if (request.url().includes("basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/"))
+                  usgsTileFailures.push(String(request.failure()?.errorText) + " " + request.url());
               });
-              await page.goto("http://127.0.0.1:3000/map/design-proof#16/35.502/138.755", { waitUntil: "domcontentloaded", timeout: 90000 });
+              await page.goto("http://127.0.0.1:3000/map/design-proof#16/36.2704/-121.8081", { waitUntil: "domcontentloaded", timeout: 90000 });
               try {
                 await page.locator('[data-basemap="free-imagery-ready"]').waitFor({ timeout: 65000 });
               } catch {
                 failed = true;
                 console.error(name + " did not start free geographic imagery. State: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
               }
-              // The #16/35.502/138.755 permalink uses PhotoMap's genuine
-              // initial-view logic and must request native orthophoto z14-18.
-              // Avoid guesswork about fitBounds zoom and button animation.
+              // Actual American coordinates, government provider, z16 (native).
+              // Readiness alone is insufficient: require HTTP 200 image tiles.
               await page.waitForTimeout(5000);
-              console.log(name + " GSI OK samples", gsiTileResponses.slice(-10));
-              console.log(name + " GSI failure samples", gsiTileFailures.slice(-10));
-              const actualOrthophoto = gsiTileResponses.filter((url) => url.includes("/xyz/seamlessphoto/"));
-              if (!actualOrthophoto.length) {
+              console.log(name + " USGS OK samples", usgsTileResponses.slice(-10));
+              console.log(name + " USGS failure samples", usgsTileFailures.slice(-10));
+              if (!usgsTileResponses.length) {
                 failed = true;
-                console.error(name + " received NO real Japanese orthophoto tiles HTTP 200; not a verified aerial screenshot");
-              } else console.log(name + " GSI orthophoto HTTP 200:", actualOrthophoto.length);
-              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-JAPAN-REAL-ORTHOPHOTO.png", fullPage: true });
+                console.error(name + " received NO real USGS image tiles HTTP 200; cannot call this an overseas aerial screenshot");
+              } else console.log(name + " USGS orthophoto HTTP 200:", usgsTileResponses.length);
+              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-USGS-REAL-ORTHOPHOTO.png", fullPage: true });
               const pin = page.locator(".spot-map-pin-icon").first();
               if (await pin.count()) {
                 await pin.click({ timeout: 10000 });
-                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-JAPAN-REAL-ORTHOPHOTO.png", fullPage: true });
+                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-USGS-REAL-ORTHOPHOTO.png", fullPage: true });
               } else { failed = true; console.error(name + " has no real official pin"); }
               if (errors.length) { failed = true; console.error(name + " errors:", errors.slice(0, 6)); }
               await page.close();
@@ -136,7 +134,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: journey-photo-free-imagery-proof
+          name: journey-photo-world-usgs-real-imagery
           path: /tmp/journey-real-map-screens/*.png
           if-no-files-found: warn
           retention-days: 3
