@@ -12,6 +12,7 @@ import { ROUTES, loginWithNext } from "../../lib/routes";
 import { collectEntries } from "../../lib/utils/collections";
 import { parseSavedKey, dedupeSavedKeys } from "../../lib/utils/savedSpotKey";
 import type { SpotRef } from "../../lib/data/spotLink";
+import { formatStoredDateTime } from "../../lib/utils/photoDate";
 
 /**
  * 旅行プラン——**行きたい場所を「いつ・どの順で回るか」に並べる**画面。
@@ -184,7 +185,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
                 >
                     <span className="block truncate text-sm font-semibold">{plan.title}</span>
                     <span className="block text-xs text-white/60" style={{ marginTop: "2px" }}>
-                        {[period(plan), en ? `${count} place${count !== 1 ? "s" : ""}` : `${count} か所`]
+                        {[period(plan, en ? "en" : "ja"), en ? `${count} place${count !== 1 ? "s" : ""}` : `${count} か所`]
                             .filter(Boolean)
                             .join(" ・ ")}
                     </span>
@@ -232,10 +233,25 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
     );
 }
 
-/** 「12/24 〜 12/28」。片方しか無ければその1つ。**無ければ空文字**（作り話をしない） */
-function period(plan: TripPlan): string {
-    const s = plan.startDate ?? "";
-    const e = plan.endDate ?? "";
+/**
+ * 「2026年12月24日 〜 2026年12月28日」。片方しか無ければその1つ。
+ * **無ければ空文字**（作り話をしない）。
+ *
+ * 🔴 **サイトの他の画面と同じ形で出す。** 最初は保存されている
+ * `2026-12-24` をそのまま出していたが、**画面に見える日付はサイト全体で
+ * `2026年12月24日` に統一されている**（`YYYY-MM-DD` が出るのは JSON-LD と
+ * meta＝機械向けの経路だけ）。ここだけ生の値を出すと、同じ「日付」が
+ * 2つの見え方を持つ——台帳の切り口「同じ概念に複数の語を使っている」。
+ *
+ * 整形は `photoDate.ts` を使い回す。**`toLocaleString` を使わない**理由
+ * （水和の不一致・閲覧者のゾーンで1日ずれる）があちらに書いてあり、
+ * 旅の日付にもそのまま当てはまる——「12月24日に出発する」は
+ * 閲覧者のゾーンに変換すべき値ではない。
+ */
+function period(plan: TripPlan, locale: "ja" | "en"): string {
+    // 読めない値は**出さない**（`formatStoredDateTime` が null を返す）
+    const s = formatStoredDateTime(plan.startDate, locale) ?? "";
+    const e = formatStoredDateTime(plan.endDate, locale) ?? "";
     if (s && e) return `${s} 〜 ${e}`;
     return s || e;
 }
@@ -316,7 +332,10 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                             <div className="flex items-center justify-between gap-2 mb-2">
                                 <span className="text-xs font-semibold text-white/80">
                                     {en ? `Day ${di + 1}` : `${di + 1} 日目`}
-                                    {day.date ? `・${day.date}` : ""}
+                                    {/* 日付もサイトの形で（上の `period` と同じ理由） */}
+                                    {formatStoredDateTime(day.date, en ? "en" : "ja")
+                                        ? `・${formatStoredDateTime(day.date, en ? "en" : "ja")}`
+                                        : ""}
                                 </span>
                                 <button
                                     type="button"
