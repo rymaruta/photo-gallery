@@ -193,6 +193,35 @@ export const FREE_GSI_IMAGERY = {
     japanDetail: "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
 } as const;
 
+/**
+ * Public geographic imagery provided by the United States Geological Survey.
+ * The National Map FAQ says its services/data are free and public domain;
+ * individual source imagery can have additional licensing caveats (e.g. Alaska
+ * SPOT), so enable ONLY the contiguous-US NAIP/orthoimagery area here.
+ *
+ * Cached ArcGIS REST tile endpoint: tile/{z}/{y}/{x} (NOT WMTS x/y order).
+ * No key, subscription, proxy, image export API or payment information.
+ * https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer
+ */
+export const FREE_USGS_IMAGERY = {
+    contiguousUS: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+} as const;
+
+export const FREE_PUBLIC_IMAGERY_PROVIDERS = [
+    {
+        id: "usgs-conus-ortho",
+        country: "US",
+        url: FREE_USGS_IMAGERY.contiguousUS,
+        // Bounds limit requests to the 48 contiguous states, not AK/SPOT.
+        // This rectangular approximation is not a political border overlay.
+        bounds: [-125, 24, -66, 50],
+        min: 9,
+        max: 18,
+        until: 19,
+        attribution: "USDA / USGS The National Map: Orthoimagery",
+    },
+] as const;
+
 export function isBoundaryLayer(id: string): boolean {
     return /boundary|border|admin|maritime|marine|disputed|territorial/i.test(id);
 }
@@ -208,6 +237,9 @@ function addFreeImagery(gl: VectorMap): boolean {
                 bounds: [122, 20, 154, 46] },
             { id: "gsi-japan-ortho", url: FREE_GSI_IMAGERY.japanDetail, min: 14, max: 18, until: 19,
                 bounds: [122, 20, 154, 46] },
+            // Same map/marker system, but real US government orthophotos.
+            // Outside supported locations, the keyless vector map remains.
+            ...FREE_PUBLIC_IMAGERY_PROVIDERS,
         ];
         for (const item of imagery) {
             gl.addSource(item.id, {
@@ -288,11 +320,17 @@ export async function upgradeToRealVectorBasemap(
         // aerial/satellite photographs. No MapTiler/Mapbox key is used.
         const imageryAdded = addFreeImagery(gl);
         map.removeLayer(fallback);
-        if (imageryAdded) map.attributionControl?.addAttribution(
-            '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院（地理院タイル）</a>'
-            + ' ・Landsat8: GSI, TSIC, GEO Grid/AIST, USGS'
-            + ' ・Global MODIS: NASA LP DAAC / USGS EROS',
-        );
+        if (imageryAdded) {
+            map.attributionControl?.addAttribution(
+                '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院（地理院タイル）</a>'
+                + ' ・Landsat8: GSI, TSIC, GEO Grid/AIST, USGS'
+                + ' ・Global MODIS: NASA LP DAAC / USGS EROS',
+            );
+            map.attributionControl?.addAttribution(
+                '<a href="https://apps.nationalmap.gov/services/" target="_blank" rel="noopener noreferrer">USGS The National Map</a>'
+                + ' ・USDA / USGS: Orthoimagery',
+            );
+        }
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
             + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> '
