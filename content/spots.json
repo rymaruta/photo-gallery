@@ -3568,6 +3568,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c0191727776e",
+    "slug": "aridagawa",
+    "name": "有田みかん",
+    "nameEn": "Arida Mandarin Terraces",
+    "reading": "ありだみかん",
+    "aliases": [
+      "有田 石積みの段々畑"
+    ],
+    "address": "和歌山県有田市宮原町",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "有田市"
+    },
+    "coords": {
+      "lat": 34.08,
+      "lng": 135.12
+    },
+    "category": "nature",
+    "summary": "有田川の両岸の斜面が、石積みの段々畑でみかん一色になります。収穫期は斜面が橙色に染まります。",
+    "description": "有田は四百年以上のみかん栽培の歴史を持つ産地で、有田川沿いの急斜面が石積みの段々畑に造成されています。段は幅が狭く、斜面の上まで幾重にも重なります。十一月から十二月の収穫期には実が色づき、斜面全体が橙色に見えます。モノラックという小型の運搬機が畑の間を走ります。畑は生産者の私有地なので、道路から撮ります。",
+    "highlights": [
+      "石積みの段々畑が重なる斜面",
+      "収穫期に橙色に染まる斜面",
+      "畑を走る小型運搬機"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月から十二月が収穫期。実が色づき斜面が橙色になります。"
+      },
+      {
+        "season": "spring",
+        "text": "五月、みかんの白い花が咲きます。香りも強い季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑の葉と石積みの灰色。斜面の構造が読みやすい時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が段の影を長くし、斜面の起伏が出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、対岸の斜面まで見通せます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で斜面を圧縮すると段の重なりが密に見えます",
+      "実に寄って橙色を主題にする一枚も入れます",
+      "畑は私有地なので立ち入らず、道路や展望地点から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.arida.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8ba9df829739",
     "slug": "arima-onsen",
     "name": "有馬温泉の町並み",
@@ -4571,6 +4634,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0abb2efbf211",
+    "slug": "awashima",
+    "name": "淡嶋神社",
+    "nameEn": "Awashima Shrine",
+    "reading": "あわしまじんじゃ",
+    "aliases": [
+      "加太 淡嶋神社",
+      "人形供養"
+    ],
+    "address": "和歌山県和歌山市加太118",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "和歌山市"
+    },
+    "coords": {
+      "lat": 34.27,
+      "lng": 135.06
+    },
+    "category": "shrine",
+    "summary": "供養のために奉納された人形が境内を埋めます。数万体が棚に並ぶ光景が、この社の特徴です。",
+    "description": "加太の海に面した神社で、女性の病気平癒や安産の信仰を集めてきました。人形供養の社として知られ、全国から送られた雛人形、日本人形、こけしなどが境内の棚に並びます。その数は数万体とされ、同じ方向を向いた顔が壁のように連なります。三月三日の雛流しでは、人形を白木の舟に乗せて海へ流します。撮影の可否は社務所で確認します。",
+    "highlights": [
+      "棚を埋める数万体の人形",
+      "三月三日の雛流し",
+      "海に面した境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月三日の雛流し。舟に乗せた人形が海へ出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、境内から加太の海が明るく見えます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、人形の並びを静かに撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、境内を落ち着いて回れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は棚に光が回り、人形の顔が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "人形は望遠で圧縮して数の多さを面として見せます",
+      "供養の場なので、面白がる扱いを避けて淡々と撮ります",
+      "撮影可否は社務所で確認してから始めます"
+    ],
+    "officialWebsiteUrl": "https://www.kada.jp/awashima/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0adc844559f8",
@@ -7483,6 +7610,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_376894cf9144",
+    "slug": "daimonzaka",
+    "name": "大門坂",
+    "nameEn": "Daimonzaka Slope",
+    "reading": "だいもんざか",
+    "aliases": [
+      "熊野古道 大門坂",
+      "夫婦杉"
+    ],
+    "address": "和歌山県東牟婁郡那智勝浦町那智山",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "那智勝浦町"
+    },
+    "coords": {
+      "lat": 33.66,
+      "lng": 135.9
+    },
+    "category": "nature",
+    "summary": "杉木立に挟まれた石畳の坂道が六百七十メートル続きます。熊野古道のなかで最も歩きやすい保存区間です。",
+    "description": "熊野那智大社へ向かう熊野古道の一部で、石畳が約六百七十メートル、高低差約百メートルにわたって残ります。両側には樹齢数百年の杉が立ち、入口には夫婦杉と呼ばれる二本の巨木があります。古道のなかでは整備状態が良く、三十分ほどで上がれるため、装備を選ばずに古道の雰囲気を味わえます。雨の日は石畳が濡れて色が濃くなります。",
+    "highlights": [
+      "六百七十メートル続く石畳",
+      "両側に立つ杉の巨木",
+      "入口の夫婦杉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が杉の間に入り、暗い坂道に緑の光が差します。"
+      },
+      {
+        "season": "summer",
+        "text": "杉が濃く、坂道が最も暗く沈みます。雰囲気は最も出る季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "朝の冷え込みで霧が出ると、杉の奥行きが層になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、坂道を無人で撮れます。霧も出やすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が石畳に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "石畳の線を消失点まで通して坂の長さを見せます",
+      "杉の幹を縦線の反復として画面の両側に置きます",
+      "雨上がりは石畳が濡れて色が濃くなり、質感が出ます"
+    ],
+    "officialWebsiteUrl": "https://nachikan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0a74bf721ff5",
     "slug": "daio-wasabi",
     "name": "大王わさび農場",
@@ -7985,6 +8176,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2bf6955cde65",
+    "slug": "danjo-garan",
+    "name": "壇上伽藍",
+    "nameEn": "Danjo Garan, Koyasan",
+    "reading": "だんじょうがらん",
+    "aliases": [
+      "高野山 根本大塔",
+      "高野山 中門"
+    ],
+    "address": "和歌山県伊都郡高野町高野山152",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "高野町"
+    },
+    "coords": {
+      "lat": 34.21,
+      "lng": 135.58
+    },
+    "category": "temple",
+    "summary": "高野山の中心となる修行の場。朱色の根本大塔が高さ四十八メートルで立ち、周囲に堂塔が並びます。",
+    "description": "空海が高野山を開くときに最初に整備した区画で、奥之院と並ぶ二大聖地の一つです。中心の根本大塔は高さ約四十八メートルの朱塗りで、内部は立体の曼荼羅として構成されています。周囲には金堂、御影堂、不動堂などが並び、二〇一五年に再建された中門が正面を固めます。広い砂利敷きの平場に建物が点在する構成で、夜はライトアップされます。",
+    "highlights": [
+      "高さ四十八メートルの根本大塔",
+      "再建された中門",
+      "砂利敷きの平場に点在する堂塔"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、境内の桜。標高があるぶん平地より遅く咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬の紅葉。朱の大塔と赤が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の伽藍。標高八百メートルなので積もる日が多く、朱と白の対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、大塔を正面から無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ時は大塔の朱が暗い背景に浮き上がります。"
+      }
+    ],
+    "compositionTips": [
+      "大塔は下から煽って高さを出します",
+      "堂塔が点在するので、二つ以上を重ねて配置に奥行きを作ります",
+      "朱色が飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.koyasan.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c5f4746ee6a3",
     "slug": "dazaifu-tenmangu",
     "name": "太宰府天満宮",
@@ -8340,6 +8595,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d0ce0f08352e",
+    "slug": "dojoji",
+    "name": "道成寺",
+    "nameEn": "Dojo-ji Temple",
+    "reading": "どうじょうじ",
+    "aliases": [
+      "道成寺 石段",
+      "安珍清姫"
+    ],
+    "address": "和歌山県日高郡日高川町鐘巻1738",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "日高川町"
+    },
+    "coords": {
+      "lat": 33.91,
+      "lng": 135.17
+    },
+    "category": "temple",
+    "summary": "安珍清姫伝説の舞台。参道の石段は段の幅と高さが上るほど変化し、下から見ると実際より短く見えます。",
+    "description": "七〇一年創建と伝わる和歌山最古の寺で、安珍清姫の鐘の伝説で知られます。参道の六十二段の石段は、上るにつれて段の踏面が広く蹴上が低くなる設計で、下から見上げると実際より短く、上から見下ろすと長く見えます。本堂は室町期の建築で重要文化財。宝仏殿には国宝の千手観音像などが収蔵され、絵とき説法が行われています。",
+    "highlights": [
+      "錯視を起こす六十二段の石段",
+      "室町期の本堂",
+      "国宝の千手観音を収める宝仏殿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月下旬から四月上旬、境内の入相桜。石段と重なります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、境内が色づきます。石段の両側が赤くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、石段と本堂を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、石段の錯視を確かめながら撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は本堂に光が回り、室町期の構造が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下と上の両方から撮って見え方の違いを記録します",
+      "本堂は正面から撮って簡素な構成を見せます",
+      "仏像の撮影可否は宝仏殿の表示に従います"
+    ],
+    "officialWebsiteUrl": "https://dojoji.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9c3b66142664",
@@ -27196,6 +27515,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_68b2a4cb253f",
+    "slug": "kamikura",
+    "name": "神倉神社",
+    "nameEn": "Kamikura Shrine",
+    "reading": "かみくらじんじゃ",
+    "aliases": [
+      "ゴトビキ岩",
+      "御燈祭"
+    ],
+    "address": "和歌山県新宮市神倉1-13-8",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "新宮市"
+    },
+    "coords": {
+      "lat": 33.73,
+      "lng": 135.98
+    },
+    "category": "shrine",
+    "summary": "巨岩のゴトビキ岩の下に社殿が建ちます。そこまでは五百三十八段の急な石段を上がります。",
+    "description": "熊野速玉大社の元宮とされ、山の中腹に突き出した巨岩ゴトビキ岩を御神体とします。参道の石段は五百三十八段で、源頼朝の寄進と伝わる自然石を積んだ急勾配のもの。手すりに頼りながら上がる区間があります。上からは新宮の市街と熊野灘が見渡せます。二月六日の御燈祭では、松明を持った男たちがこの石段を駆け下ります。",
+    "highlights": [
+      "御神体のゴトビキ岩",
+      "五百三十八段の急な石段",
+      "上からの新宮市街と熊野灘"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "二月六日の御燈祭。松明の火が石段を流れ落ちる様子が撮れます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と巨岩。石段の上りが最も快適な季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、上からの海の見通しが利きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段と巨岩を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "御燈祭は夜。火の軌跡を残すか止めるかを決めて撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "巨岩は社殿と一緒に入れて大きさの対比を出します",
+      "石段は上からの見下ろしで勾配の急さを見せます",
+      "石段は滑るので、撮影時も足元を優先します"
+    ],
+    "officialWebsiteUrl": "https://kumanohayatama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_517f31a2ce62",
     "slug": "kaminoyama-castle",
     "name": "上山城",
@@ -31129,6 +31512,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_8a91d70fa3d8",
+    "slug": "kimiidera",
+    "name": "紀三井寺",
+    "nameEn": "Kimii-dera Temple",
+    "reading": "きみいでら",
+    "aliases": [
+      "紀三井寺 結縁坂"
+    ],
+    "address": "和歌山県和歌山市紀三井寺1201",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "和歌山市"
+    },
+    "coords": {
+      "lat": 34.18,
+      "lng": 135.19
+    },
+    "category": "temple",
+    "summary": "二百三十一段の石段を上がると和歌浦湾が一望できます。近畿でいちばん早く桜が咲く寺として知られます。",
+    "description": "名草山の中腹にある寺で、境内に三つの井戸が湧くことが名の由来です。参道の結縁坂は二百三十一段あり、上りきると本堂の前に和歌浦湾と和歌山市街が開けます。近畿地方の桜の開花標本木があり、例年この寺から桜前線が始まります。境内には重要文化財の多宝塔と鐘楼、高さ十二メートルの大千手十一面観音像があります。",
+    "highlights": [
+      "二百三十一段の結縁坂",
+      "本堂前からの和歌浦湾の眺め",
+      "近畿の桜の開花標本木"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月下旬、近畿で最も早く咲く桜。石段の両側が花で覆われます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、和歌浦湾の見通しが最も利きます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、石段を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、湾も朝日を受けて光ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾が西日を受け、海面に光の道ができます。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から望遠で圧縮して段数の多さを見せます",
+      "本堂前からは湾を大きく取り、境内を前景に置きます",
+      "桜の時期は混むので、朝の早い時間に入ります"
+    ],
+    "officialWebsiteUrl": "https://www.kimiidera.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_68ce23596832",
     "slug": "kimimachizaka",
     "name": "きみまち阪公園",
@@ -34385,6 +34831,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d94e9b14e4d2",
+    "slug": "kozagawa",
+    "name": "古座川 一枚岩",
+    "nameEn": "Ichimai-iwa Rock, Kozagawa",
+    "reading": "こざがわ いちまいいわ",
+    "aliases": [
+      "一枚岩"
+    ],
+    "address": "和歌山県東牟婁郡古座川町相瀬",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "古座川町"
+    },
+    "coords": {
+      "lat": 33.58,
+      "lng": 135.79
+    },
+    "category": "nature",
+    "summary": "幅五百メートル、高さ百メートルの一枚の岩壁が川沿いに立ちます。国内最大級の単一岩壁です。",
+    "description": "古座川の川べりに、幅約五百メートル、高さ約百メートルの岩壁が切れ目なく立っています。火山活動でできた流紋岩質の岩体で、国の天然記念物です。川を挟んだ対岸の道路から正面に見られ、水面に岩が映ります。春から秋にかけて、特定の時期の夕方に岩に犬の形の影が現れることが知られています。周囲に高い建物がなく、岩だけが立ちます。",
+    "highlights": [
+      "幅五百メートルの単一岩壁",
+      "川面への映り込み",
+      "特定時期に現れる犬の形の影"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が岩の周囲に入り、灰色の岩肌が際立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の木が色づきます。川の水も澄む時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、川遊びの季節。岩の陰が川面に落ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は川面が静かで、岩の映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は岩面に横から光が当たり、凹凸が浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "横に広いので、パノラマか望遠での分割を検討します",
+      "川面の映り込みを入れて上下に厚みを作ります",
+      "人や車を入れると五百メートルの幅が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.town.kozagawa.wakayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_fba7fd518bae",
     "slug": "kuji-amber",
     "name": "久慈琥珀博物館",
@@ -34726,6 +35235,133 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_99f55700fb96",
+    "slug": "kumano-hayatama",
+    "name": "熊野速玉大社",
+    "nameEn": "Kumano Hayatama Taisha",
+    "reading": "くまのはやたまたいしゃ",
+    "aliases": [
+      "新宮 速玉大社",
+      "ナギの巨木"
+    ],
+    "address": "和歌山県新宮市新宮1",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "新宮市"
+    },
+    "coords": {
+      "lat": 33.73,
+      "lng": 135.99
+    },
+    "category": "shrine",
+    "summary": "朱塗りの社殿が鮮やかな熊野三山の一つ。境内には樹齢千年とされるナギの巨木が立ちます。",
+    "description": "熊野川の河口近くにある熊野三山の一社で、世界遺産の構成資産です。社殿は鮮やかな朱と白で、三山の中で最も色彩が強い構成をしています。境内の梛の木は樹齢千年とされ、国の天然記念物。熊野詣の道中の無事を祈って葉を持ち帰る習わしがありました。市街地に近く、平坦な境内なので歩きやすい社です。熊野速玉大社の神宝館には国宝の古神宝類が収蔵されています。",
+    "highlights": [
+      "鮮やかな朱塗りの社殿",
+      "樹齢千年のナギの巨木",
+      "国宝の古神宝を収める神宝館"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、朱と緑の対比が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、朱がいっそう際立ちます。日差しは強い土地です。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、社殿を落ち着いて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、社殿を正面から無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は朱に光が回り、色が最も濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "朱は飽和しやすいので露出を下げ、彩度を上げすぎないこと",
+      "ナギの巨木は下から見上げて樹高を取ります",
+      "神宝館の展示は撮影可否を確認します"
+    ],
+    "officialWebsiteUrl": "https://kumanohayatama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_6f767e607cd3",
+    "slug": "kumano-hongu",
+    "name": "熊野本宮大社",
+    "nameEn": "Kumano Hongu Taisha",
+    "reading": "くまのほんぐうたいしゃ",
+    "aliases": [
+      "本宮大社 158段の石段"
+    ],
+    "address": "和歌山県田辺市本宮町本宮1110",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "田辺市"
+    },
+    "coords": {
+      "lat": 33.84,
+      "lng": 135.77
+    },
+    "category": "shrine",
+    "summary": "熊野三山の中心。檜皮葺の社殿が横に並び、参道は百五十八段の石段が杉木立の中を上がります。",
+    "description": "熊野三山の首座で、世界遺産の構成資産です。現在の社殿は明治の洪水後に高台へ移されたもので、檜皮葺の建物が横一列に並びます。参道の石段は百五十八段あり、両側に幟が立ちます。旧社地の大斎原には日本最大級の大鳥居が立ち、こちらは徒歩圏です。八咫烏が神の使いとされ、境内各所に意匠として現れます。",
+    "highlights": [
+      "横一列に並ぶ檜皮葺の社殿",
+      "幟が並ぶ百五十八段の石段",
+      "徒歩圏の大斎原の大鳥居"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が参道に入り、杉の緑が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、檜皮の質感がよく出ます。人出も落ち着きます。"
+      },
+      {
+        "season": "winter",
+        "text": "朝の冷え込みで川霧が出て、周囲が白く沈むことがあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段と社殿を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は社殿に光が回り、檜皮葺の重なりが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から望遠で圧縮して幟の反復を見せます",
+      "社殿は横並びなので、正面より斜めから撮ると奥行きが出ます",
+      "撮影禁止の区域が境内にあるので表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://hongutaisha.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d107b4ef6a24",
@@ -35668,6 +36304,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5f455a10ff05",
+    "slug": "kushimoto-kaichu",
+    "name": "串本海中公園",
+    "nameEn": "Kushimoto Marine Park",
+    "reading": "くしもとかいちゅうこうえん",
+    "aliases": [
+      "串本 海中展望塔"
+    ],
+    "address": "和歌山県東牟婁郡串本町有田1157",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "串本町"
+    },
+    "coords": {
+      "lat": 33.48,
+      "lng": 135.8
+    },
+    "category": "landmark",
+    "summary": "黒潮が当たる海域にある日本最北のテーブルサンゴ群落。沖の海中展望塔から素潜りせずに海中を見られます。",
+    "description": "串本周辺は黒潮が直接当たるため、温帯でありながらテーブルサンゴの大群落が育ちます。海中公園には水族館と、沖合百四十メートルに建つ海中展望塔があります。展望塔は海面下六.三メートルに窓があり、潜らずにサンゴと魚を見られます。透明度は季節と天候で大きく変わるため、訪れる日の海況が写りを左右します。",
+    "highlights": [
+      "日本最北のテーブルサンゴ群落",
+      "海面下六.三メートルの展望塔",
+      "黒潮が運ぶ南方系の魚"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水温が高く魚の数が増えます。ただし台風後は透明度が落ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "水の透明度が最も安定する季節とされます。"
+      },
+      {
+        "season": "winter",
+        "text": "水温は下がりますが、濁りが少なく見通しが利く日があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高い正午前後が海中に光が届き、色が出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は来館者が少なく、展望塔の窓を独占できます。"
+      }
+    ],
+    "compositionTips": [
+      "窓ガラスの反射を防ぐためレンズをガラスに近づけます",
+      "ストロボは反射するので使わず、高感度で撮ります",
+      "透明度は日で変わるので、期待値を下げて行きます"
+    ],
+    "officialWebsiteUrl": "https://kushimoto.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1c432fc31513",
@@ -44305,6 +45004,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d10fece53902",
+    "slug": "nakahechi",
+    "name": "熊野古道 中辺路",
+    "nameEn": "Kumano Kodo Nakahechi Route",
+    "reading": "くまのこどう なかへち",
+    "aliases": [
+      "発心門王子",
+      "伏拝王子"
+    ],
+    "address": "和歌山県田辺市中辺路町",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "田辺市"
+    },
+    "coords": {
+      "lat": 33.82,
+      "lng": 135.63
+    },
+    "category": "nature",
+    "summary": "田辺から本宮へ抜ける熊野参詣道の本道。杉林の尾根道と王子社の跡が交互に現れます。",
+    "description": "京から熊野三山へ参る主要ルートで、世界遺産に登録されています。発心門王子から本宮までの約七キロは高低差が小さく、初めてでも歩ける区間として知られます。道中には王子社と呼ばれる小社の跡が点在し、伏拝王子からは本宮の大斎原が見下ろせます。路面は土と石畳が混ざり、杉林と棚田が交互に現れます。季節を問わず歩けます。",
+    "highlights": [
+      "杉林と棚田が交互に現れる道",
+      "点在する王子社の跡",
+      "伏拝王子から見下ろす大斎原"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と棚田の代掻き。道沿いの景色が最も変化に富みます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、広葉樹が色づきます。歩くのに最も快適な季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "朝の霧が谷に溜まり、尾根道から雲海を見られることがあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、杉林の奥行きが層になります。歩き始めも早いほうが安全です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は林の中が明るくなります。日没前に下山できる行程を組みます。"
+      }
+    ],
+    "compositionTips": [
+      "道の線を手前から奥へ通して古道であることを見せます",
+      "王子社の石碑は周囲の林と一緒に入れて立地を示します",
+      "人を小さく入れると道の長さが伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.tb-kumano.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_ac7a5bce5cd6",
     "slug": "nakaminato",
     "name": "那珂湊おさかな市場",
@@ -46299,6 +47062,69 @@
       "川面の映り込みは風のない朝に狙います"
     ],
     "officialWebsiteUrl": "https://www.town.ono.fukushima.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_1d18cfd8764d",
+    "slug": "negoroji",
+    "name": "根来寺",
+    "nameEn": "Negoro-ji Temple",
+    "reading": "ねごろじ",
+    "aliases": [
+      "根来寺 大塔"
+    ],
+    "address": "和歌山県岩出市根来2286",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "岩出市"
+    },
+    "coords": {
+      "lat": 34.29,
+      "lng": 135.31
+    },
+    "category": "temple",
+    "summary": "国宝の大塔は高さ四十メートル、日本最大の木造多宝塔。秀吉の焼き討ちを生き延びた建物です。",
+    "description": "新義真言宗の総本山で、中世には一大宗教都市として栄え、鉄砲を備えた僧兵を擁しました。一五八五年に豊臣秀吉に攻められ大半が焼けましたが、大塔と大師堂は残りました。大塔は高さ約四十メートル、内部に十六本の柱が立つ日本最大の木造多宝塔で国宝です。焼き討ちの際の銃弾の跡が柱に残っています。広い境内には池と庭園もあります。",
+    "highlights": [
+      "日本最大の木造多宝塔",
+      "柱に残る焼き討ちの銃弾の跡",
+      "広い境内の池と庭園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。境内に多数あり、大塔と重ねられます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬の紅葉。大塔の白と朱に赤が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、大塔を正面から無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、境内が静かです。塔も順光になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は塔の内部に光が入り、柱の並びが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "大塔は下から煽って四十メートルの高さを出します",
+      "内部の柱は放射状の並びを見せる角度を探します",
+      "銃弾の跡は寄って記録として撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.negoroji.org/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -49370,6 +50196,70 @@
       "住居が近いので、生活の場への配慮を優先します"
     ],
     "officialWebsiteUrl": "https://www.town.nishikawa.yamagata.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_40999fea476f",
+    "slug": "oishi-kogen",
+    "name": "生石高原",
+    "nameEn": "Oishi Highland",
+    "reading": "おいしこうげん",
+    "aliases": [
+      "生石ヶ峰",
+      "ススキの高原"
+    ],
+    "address": "和歌山県有田郡有田川町生石",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "有田川町"
+    },
+    "coords": {
+      "lat": 34.1,
+      "lng": 135.35
+    },
+    "category": "nature",
+    "summary": "標高八百七十メートルの尾根が一面のススキ野原になります。秋は斜面全体が銀色に染まります。",
+    "description": "紀伊水道を望む尾根上の高原で、約十三ヘクタールがススキに覆われます。木がほとんどないため視界が全方向に開け、紀伊水道、四国、天候が良ければ大阪方面まで見渡せます。秋の穂の時期が本番で、十月から十一月にススキが銀色に光ります。山頂の生石ヶ峰までは駐車場から二十分ほど。夜は星がよく見え、雲海が出ることもあります。",
+    "highlights": [
+      "十三ヘクタールのススキ野原",
+      "紀伊水道と四国までの眺望",
+      "夜の星空と雲海"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月から十一月がススキの本番。逆光で穂が光ります。"
+      },
+      {
+        "season": "spring",
+        "text": "三月頃の山焼きの後、新しい草が芽吹きます。"
+      },
+      {
+        "season": "winter",
+        "text": "枯れたススキと澄んだ空気。四国までの視程が最も伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の逆光で穂が銀色に光ります。この高原の本命です。"
+      },
+      {
+        "time": "night",
+        "text": "光害が少なく、星空とススキを重ねられます。"
+      }
+    ],
+    "compositionTips": [
+      "ススキは必ず逆光で撮り、穂を光らせます",
+      "尾根の稜線を手前から奥へ通して広さを見せます",
+      "風で穂が揺れるので、止めるか流すかを決めて撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.aridagawa.lg.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -55497,6 +56387,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0b27dc1738a2",
+    "slug": "ryujin",
+    "name": "龍神温泉",
+    "nameEn": "Ryujin Onsen",
+    "reading": "りゅうじんおんせん",
+    "aliases": [
+      "日高川 龍神",
+      "龍神村"
+    ],
+    "address": "和歌山県田辺市龍神村龍神",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "田辺市"
+    },
+    "coords": {
+      "lat": 33.89,
+      "lng": 135.5
+    },
+    "category": "landmark",
+    "summary": "日高川沿いの山あいにある温泉地。日本三美人の湯とされ、川と山に挟まれた細長い集落が続きます。",
+    "description": "紀伊半島の中央、標高四百メートルほどの山中にある温泉で、日高川の谷に沿って宿が並びます。開湯は約千三百年前と伝わり、日本三美人の湯の一つとされます。集落は川と斜面に挟まれて細長く、道沿いに木造の宿が続きます。高野龍神スカイラインの南端にあたり、護摩壇山への起点にもなります。周囲は杉林で、山の深さが写ります。",
+    "highlights": [
+      "日高川の谷に沿う細長い集落",
+      "木造の宿が並ぶ道",
+      "護摩壇山への起点となる立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が谷を覆い、川の水量も多い時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬、谷が色づきます。スカイライン沿いの紅葉も同時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があり、湯気と雪の対比が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、宿の屋根が霧の上に出ることがあります。"
+      },
+      {
+        "time": "night",
+        "text": "夜は宿の灯りと川の音。長時間露光で川を流せます。"
+      }
+    ],
+    "compositionTips": [
+      "谷の狭さを出すため、両側の斜面を画面に入れます",
+      "川と宿を一枚に入れて立地を示します",
+      "湯気は逆光で狙うと形が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.ryujin-onsen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1b301a914298",
     "slug": "ryujin-ohtsuribashi",
     "name": "竜神大吊橋",
@@ -58966,6 +59920,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_01930a9bd795",
+    "slug": "senjojiki-shirahama",
+    "name": "千畳敷 白浜",
+    "nameEn": "Senjojiki, Shirahama",
+    "reading": "せんじょうじき しらはま",
+    "aliases": [
+      "白浜 千畳敷"
+    ],
+    "address": "和歌山県西牟婁郡白浜町2927-72",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "白浜町"
+    },
+    "coords": {
+      "lat": 33.68,
+      "lng": 135.33
+    },
+    "category": "nature",
+    "summary": "白い砂岩が波に削られてできた広い岩の斜面。柵がなく、岩の上を海際まで歩いて降りられます。",
+    "description": "第三紀の砂岩層が波に削られてできた地形で、白い岩の面が海に向かって緩やかに傾いています。柵がないため岩の上を自由に歩け、波打ち際まで降りられます。岩は層状に剥がれており、年輪のような模様が広がります。西向きなので夕日が正面に落ち、岩面が暖色に染まります。濡れた岩は滑りやすく、高波の日は危険です。",
+    "highlights": [
+      "層状に剥がれた白い砂岩",
+      "柵のない広い岩の斜面",
+      "正面に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、白い岩との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、岩に砕ける白波が主役になります。近づきすぎないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。岩面が暖色に染まります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩の層の模様が最もはっきり見えます。"
+      }
+    ],
+    "compositionTips": [
+      "岩の層の線を手前から奥へ通して海へ視線を運びます",
+      "人を入れると岩の面積が伝わります",
+      "柵がないので足元を優先し、波が来る位置には立たないこと"
+    ],
+    "officialWebsiteUrl": "https://www.nanki-shirahama.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4346d0efbac7",
     "slug": "senjuji",
     "name": "専修寺",
@@ -61060,6 +62077,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_4308efa9a46b",
+    "slug": "shionomisaki",
+    "name": "潮岬",
+    "nameEn": "Cape Shionomisaki",
+    "reading": "しおのみさき",
+    "aliases": [
+      "本州最南端",
+      "潮岬灯台"
+    ],
+    "address": "和歌山県東牟婁郡串本町潮岬",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "串本町"
+    },
+    "coords": {
+      "lat": 33.44,
+      "lng": 135.76
+    },
+    "category": "nature",
+    "summary": "本州最南端の岬。広い芝生の台地が断崖で海に落ち、水平線が二百四十度近く開けます。",
+    "description": "本州の最南端にあたる岬で、標高六十メートルほどの平らな台地が海に突き出しています。台地は芝生の広場になっており、そこから断崖越しに太平洋を見渡せます。視界を遮るものがなく、水平線が大きく弧を描いて見えます。白い潮岬灯台は参観可能で、上からはさらに視界が開けます。毎年一月に芝生の野焼きが行われます。",
+    "highlights": [
+      "広い芝生の台地と断崖",
+      "弧を描いて見える水平線",
+      "参観できる潮岬灯台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "一月の野焼き。空気も澄み、水平線の弧が最もはっきり出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "芝生が緑になり、海の青との二層構成が明快になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、日の出と日の入りの両方を台地から見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東側から日が上がり、台地の芝が横から照らされます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西側に日が落ちます。同じ場所で朝夕の両方が撮れる岬です。"
+      }
+    ],
+    "compositionTips": [
+      "水平線を低く置いて空を広く取ると岬の開放感が出ます",
+      "灯台は芝生を前景に入れて立地を示します",
+      "広角で水平線の弧を意識すると地球の丸みが表現できます"
+    ],
+    "officialWebsiteUrl": "https://www.town.kushimoto.wakayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3e3625a686b7",
     "slug": "shiorutoge",
     "name": "枝折峠の滝雲",
@@ -62075,6 +63156,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4216c76f2542",
+    "slug": "shirarahama",
+    "name": "白良浜",
+    "nameEn": "Shirarahama Beach",
+    "reading": "しららはま",
+    "aliases": [
+      "白浜 白良浜"
+    ],
+    "address": "和歌山県西牟婁郡白浜町864",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "白浜町"
+    },
+    "coords": {
+      "lat": 33.69,
+      "lng": 135.34
+    },
+    "category": "nature",
+    "summary": "石英の白い砂が六百二十メートル続く浜。砂の白さと海の色の対比が、日本の海岸では際立っています。",
+    "description": "石英の含有率が高い白い砂で知られる浜で、長さ約六百二十メートル、幅約十メートルの弧を描きます。砂が白いぶん浅瀬の水が明るい青に見え、南国の海のような色になります。砂の補充にオーストラリア産の砂が使われた経緯があります。浜のすぐ背後に温泉街が続き、夕方には西の海へ日が落ちます。夏は海水浴客で埋まります。",
+    "highlights": [
+      "石英の白い砂",
+      "白い砂が作る明るい海の色",
+      "西向きで正面に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海水浴期で人が多くなります。海の色は最も鮮やかに出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人がほとんどおらず、白い砂と海だけの画面が撮れます。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、砂に足跡のない朝を狙いやすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。砂が暖色に染まります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、砂に足跡のない状態を撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "砂の白は露出がアンダーに寄るのでプラス補正を基本にします",
+      "浜の弧を手前から奥へ通して長さを見せます",
+      "浅瀬の色は偏光フィルターで反射を消すと出ます"
+    ],
+    "officialWebsiteUrl": "https://www.nanki-shirahama.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_4b7ead08a21c",
@@ -67546,6 +68690,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c5a0b24facb8",
+    "slug": "tanabe-tokei",
+    "name": "田辺 闘鶏神社",
+    "nameEn": "Tokei Shrine, Tanabe",
+    "reading": "たなべ とうけいじんじゃ",
+    "aliases": [
+      "闘鶏神社"
+    ],
+    "address": "和歌山県田辺市東陽1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "田辺市"
+    },
+    "coords": {
+      "lat": 33.73,
+      "lng": 135.38
+    },
+    "category": "shrine",
+    "summary": "熊野三山を勧請した社で、六棟の本殿が横一列に並びます。市街地にあり、世界遺産の構成資産です。",
+    "description": "熊野三山へ参れない人のために三山の神を勧請した社で、熊野権現の別宮的な位置づけでした。上殿から若宮まで六棟の本殿が横一列に並び、その形が本宮大社の旧社殿の配置を伝えるとされます。源平合戦の際、熊野別当湛増が紅白の鶏を闘わせて出陣を決めたという伝承が社名の由来です。田辺の市街地にあり、駅から徒歩圏です。",
+    "highlights": [
+      "横一列に並ぶ六棟の本殿",
+      "熊野三山を勧請した社の構成",
+      "市街地にある世界遺産構成資産"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の藤と新緑。市街地の社なので通年で歩きやすい場所です。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、檜皮葺の並びに陰影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、本殿の並びを無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、六棟の並びを正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は社殿に光が回り、檜皮の質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "六棟の並びは望遠で圧縮すると反復が効きます",
+      "斜めから撮ると奥行きと棟数の両方が入ります",
+      "拝殿の内部は撮影可否を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.tb-kumano.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_634908b3c640",
@@ -75904,6 +77111,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_d43b77219048",
+    "slug": "wakayama-castle",
+    "name": "和歌山城",
+    "nameEn": "Wakayama Castle",
+    "reading": "わかやまじょう",
+    "aliases": [
+      "御橋廊下",
+      "和歌山城 西之丸庭園"
+    ],
+    "address": "和歌山県和歌山市一番丁3",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "和歌山市"
+    },
+    "coords": {
+      "lat": 34.23,
+      "lng": 135.17
+    },
+    "category": "landmark",
+    "summary": "市街の中心の丘に建つ連立式天守。石垣は時代ごとに積み方が違い、三種類の工法が同じ城内で見比べられます。",
+    "description": "徳川御三家紀州藩の居城で、天守は再建ですが連立式の構成を再現しています。石垣は野面積み、打込接、切込接の三種が城内に残り、築かれた時代の違いが一目で分かります。西之丸庭園と本丸を結ぶ御橋廊下は屋根と壁のある斜めの橋で、復元されて渡れます。紅葉渓庭園は西之丸にあり、池と石組みが残ります。",
+    "highlights": [
+      "三種の積み方が見比べられる石垣",
+      "屋根付きの斜めの橋 御橋廊下",
+      "西之丸の紅葉渓庭園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。天守と桜を重ねる角度が複数あります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬、紅葉渓庭園が色づきます。名前どおりの季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して石垣の積み方が見やすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、天守と石垣を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "天守はライトアップされ、丘の上に浮かんで見えます。"
+      }
+    ],
+    "compositionTips": [
+      "石垣は三種の積み方を近い画角で撮り比べて並べます",
+      "御橋廊下は斜めの構造が分かる横からの角度で撮ります",
+      "天守は下から煽って連立式の重なりを見せます"
+    ],
+    "officialWebsiteUrl": "https://wakayamajo.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_619751623394",
     "slug": "wanizuka",
     "name": "わに塚の桜",
@@ -78260,6 +79531,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0b3eb82b8b9d",
+    "slug": "yuasa",
+    "name": "湯浅の町並み",
+    "nameEn": "Yuasa Historic District",
+    "reading": "ゆあさのまちなみ",
+    "aliases": [
+      "醤油発祥の地 湯浅",
+      "北町通り"
+    ],
+    "address": "和歌山県有田郡湯浅町湯浅",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "湯浅町"
+    },
+    "coords": {
+      "lat": 34.03,
+      "lng": 135.18
+    },
+    "category": "landmark",
+    "summary": "醤油発祥の地とされる町。格子と虫籠窓の町家が並び、いまも古い製法の醸造蔵が稼働しています。",
+    "description": "鎌倉期に金山寺味噌の製造過程から醤油が生まれたとされる町で、重要伝統的建造物群保存地区に選定されています。北町通りを中心に、格子戸と虫籠窓を持つ町家、醸造蔵、土蔵が続きます。いまも杉桶で仕込む醸造元があり、蔵の前を通ると醤油の匂いがします。一部の醸造元は見学を受け付けています。町の規模は小さく、徒歩で一周できます。",
+    "highlights": [
+      "格子戸と虫籠窓の町家",
+      "杉桶で仕込む現役の醸造蔵",
+      "徒歩で一周できる町の規模"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "通りが明るくなり、木部と漆喰の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が格子に影を落とし、線が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、通りの全景を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、町並みの構成だけを撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は木肌が暖色になり、格子の奥に灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "格子と虫籠窓は正面から撮って意匠を記録します",
+      "通りは望遠で圧縮して町家の連なりを見せます",
+      "醸造蔵の内部は必ず許可を得てから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.yuasa.wakayama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_93df7950d8ac",
