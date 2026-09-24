@@ -1250,6 +1250,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1326bdef665f",
+    "slug": "aomori-nebuta",
+    "name": "青森ねぶた祭",
+    "nameEn": "Aomori Nebuta Festival",
+    "reading": "あおもりねぶたまつり",
+    "aliases": [
+      "ねぶた",
+      "ハネト",
+      "国の重要無形民俗文化財",
+      "東北三大祭り"
+    ],
+    "address": "青森県青森市 新町通り周辺",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "青森市"
+    },
+    "coords": {
+      "lat": 40.83,
+      "lng": 140.74
+    },
+    "category": "祭り",
+    "summary": "毎年8月2日から7日に行われる祭り。高さ約5m・幅約9mの人形灯籠が市内を運行し、ハネトと呼ばれる踊り手が周囲を跳ねます。",
+    "description": "**灯籠そのものが光源**です。内部から照らされた和紙の人形が動くので、**露出は灯籠の明るさに合わせる**ことになり、周囲は暗く落ちます。それが狙いでもある——闇の中に極彩色の人形だけが浮かぶ。動きは速く、**シャッター速度を上げないとぶれます**。ハネトは跳ねながら進むので、流し撮りも成立する。8月7日は海上運行と花火があり、灯籠が船に載ります。",
+    "highlights": [
+      "内部から照らされた人形灯籠。闇の中に極彩色が浮かびます",
+      "ハネト。跳ねながら灯籠の周囲を進みます",
+      "8月7日の海上運行と花火。灯籠が船に載ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "8月2日から7日だけです。それ以外の時期にはありません。"
+      },
+      {
+        "season": "spring",
+        "text": "ねぶたの家ワ・ラッセで実物の灯籠を見られます。"
+      },
+      {
+        "season": "autumn",
+        "text": "同じく展示施設で灯籠を見られます。"
+      },
+      {
+        "season": "winter",
+        "text": "祭りはありません。展示施設のみです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "本番はこの時間です。灯籠が光源になります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "運行開始は日没前後です。空に色が残るうちが撮りやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "8月7日の昼は昼間運行があります。灯籠の造形がよく見えます。"
+      }
+    ],
+    "compositionTips": [
+      "露出は灯籠に合わせてください。周囲が暗く落ちるのが狙いです",
+      "動きが速く、シャッター速度を上げないとぶれます",
+      "沿道は非常に混みます。三脚は置けません。有料観覧席も検討してください"
+    ],
+    "officialWebsiteUrl": "https://www.nebuta.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_42c26b2b6f30",
     "slug": "aoshima",
     "name": "青島（鬼の洗濯板）",
@@ -1316,6 +1390,80 @@
       "岩は濡れていて滑ります。潮だまりに足を取られないでください"
     ],
     "officialWebsiteUrl": "https://www.miyazaki-city.tourism.or.jp/spot/13",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_9e6f2f65cc0b",
+    "slug": "aragijima",
+    "name": "あらぎ島",
+    "nameEn": "Aragijima Rice Terraces",
+    "reading": "あらぎじま",
+    "aliases": [
+      "有田川町 あらぎ島",
+      "扇形の棚田",
+      "蘭島",
+      "日本の棚田百選"
+    ],
+    "address": "和歌山県有田郡有田川町清水",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "有田郡有田川町"
+    },
+    "coords": {
+      "lat": 34.05,
+      "lng": 135.41
+    },
+    "category": "棚田",
+    "summary": "有田川の蛇行で囲まれた扇形の棚田。54枚の田が半円状に並び、対岸の展望台から全体を見下ろせます。国の重要文化的景観です。",
+    "description": "**田が扇形に並ぶ**という、棚田としては珍しい形です。川が大きく蛇行してできた半島の上に田があり、**上から見ると扇**になる——斜面の棚田とは全く違う模様です。展望台が対岸の道路沿いにあり、そこからでないと形が分かりません。春の水鏡、夏の緑、秋の黄金、冬の雪と**同じ形が色だけ変わる**ので、季節を変えて撮る価値があります。",
+    "highlights": [
+      "扇形に並ぶ54枚の田。上から見ると扇になります",
+      "対岸の展望台からの俯瞰。ここからでないと形が分かりません",
+      "同じ形で色だけ変わる四季"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "田に水が入り、扇が鏡になります。"
+      },
+      {
+        "season": "summer",
+        "text": "稲が伸びて緑の扇になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "黄金色の扇。刈り取り後は土の扇です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が載ると白い扇になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "霧が谷に溜まることがあります。水鏡の時期は風も弱い時間です。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で田の色と形が出ます。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光であぜの段差が立体になります。"
+      }
+    ],
+    "compositionTips": [
+      "展望台からだけ形が分かります。近づくと普通の棚田に見えます",
+      "望遠で圧縮すると扇の輪郭が締まります",
+      "田は人の仕事場です。あぜ道に入らないでください"
+    ],
+    "officialWebsiteUrl": "https://aridagawa-kanko.jp/spot/aragijima/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -1989,6 +2137,80 @@
       "神社の境内です。水に入ったり物を投げ込んだりしないでください"
     ],
     "officialWebsiteUrl": "https://karusuto.com/spot/bentenike/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f41923490efa",
+    "slug": "biei-patchwork",
+    "name": "美瑛 パッチワークの路",
+    "nameEn": "Patchwork Road, Biei",
+    "reading": "びえい ぱっちわーくのみち",
+    "aliases": [
+      "ケンとメリーの木",
+      "セブンスターの木",
+      "マイルドセブンの丘",
+      "美瑛 丘"
+    ],
+    "address": "北海道上川郡美瑛町大久保協生",
+    "region": {
+      "country": "日本",
+      "prefecture": "北海道",
+      "city": "上川郡美瑛町"
+    },
+    "coords": {
+      "lat": 43.6,
+      "lng": 142.44
+    },
+    "category": "高原",
+    "summary": "作物の色が区画ごとに違うため、丘全体がパッチワークのように見える一帯。畑の中に1本だけ立つ木が点在します。",
+    "description": "**畑の色分けと1本木**という二つの要素で成り立つ風景です。小麦・ジャガイモ・豆などが区画ごとに植えられ、**色の帯が丘の起伏に沿って曲がる**——望遠で圧縮すると帯が重なって密になります。「ケンとメリーの木」などの1本木は畑の中にあり、**農地には絶対に入れません**。道路の路肩から撮ることになるため、駐車できる場所が限られます。冬は一面の雪原になります。",
+    "highlights": [
+      "畑の色分け。丘の起伏に沿って帯が曲がります",
+      "畑の中の1本木。道路から撮ります",
+      "冬の雪原。色が消えて線だけが残ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "7月から8月が最も色が分かれます。この一帯の本番です。"
+      },
+      {
+        "season": "spring",
+        "text": "耕された土の色と残雪。線だけの構図になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "収穫後の土と刈り跡。空気も澄む時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "一面の雪原。1本木と防風林だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "霧が丘の間に溜まることがあります。人も最も少ない時間です。"
+      },
+      {
+        "time": "morning",
+        "text": "斜光で丘の起伏が立体になります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光が最も強く効きます。丘の影が長く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で圧縮すると、色の帯が重なって密になります",
+      "斜光で丘の起伏が出ます。真昼の光では平坦に写ります",
+      "農地には絶対に入らないでください。路肩の駐車にも配慮が要ります"
+    ],
+    "officialWebsiteUrl": "https://www.biei-hokkaido.jp/ja/sightseeing/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -2745,6 +2967,80 @@
       "遊歩道から出ないでください。花畑の中には入れません"
     ],
     "officialWebsiteUrl": "https://www.chausuyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0f52983a37ef",
+    "slug": "chichibu-yomatsuri",
+    "name": "秩父夜祭",
+    "nameEn": "Chichibu Night Festival",
+    "reading": "ちちぶよまつり",
+    "aliases": [
+      "秩父神社",
+      "屋台と笠鉾",
+      "団子坂",
+      "冬花火"
+    ],
+    "address": "埼玉県秩父市番場町1-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "埼玉県",
+      "city": "秩父市"
+    },
+    "coords": {
+      "lat": 36.0,
+      "lng": 139.08
+    },
+    "category": "祭り",
+    "summary": "12月2日から3日に行われる秩父神社の例大祭。提灯で飾られた6基の屋台と笠鉾が曳かれ、冬の花火が同時に上がります。",
+    "description": "**花火と曳山が同じ夜にある**のが、この祭りの特徴です。冬の澄んだ空に花火が上がり、その下を提灯で覆われた屋台が進む——**両方を一枚に入れるか、どちらかに絞るか**を決める必要があります。最大の見せ場は「団子坂」で、重さ十数トンの屋台を急坂へ曳き上げる場面。人出が非常に多く、**場所取りと有料観覧席**が現実的な選択になります。12月2日から3日だけです。",
+    "highlights": [
+      "提灯で覆われた屋台と笠鉾。6基が曳かれます",
+      "団子坂。重さ十数トンの屋台を急坂へ曳き上げます",
+      "冬の花火。澄んだ空に上がります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "12月2日から3日だけです。空気が最も澄む時期でもあります。"
+      },
+      {
+        "season": "spring",
+        "text": "祭りはありません。秩父神社は通年で参拝できます。"
+      },
+      {
+        "season": "summer",
+        "text": "屋台は秩父まつり会館で展示されています。"
+      },
+      {
+        "season": "autumn",
+        "text": "同じく会館で屋台を見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "本番はこの時間です。花火と屋台が同時に進みます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "屋台が動き始めます。空に色が残るうちが撮りやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "昼間も屋台は曳かれます。提灯は点いていません。"
+      }
+    ],
+    "compositionTips": [
+      "花火と屋台のどちらを主題にするか決めてください。両立は難しい構図です",
+      "提灯は明るく、周囲は暗い。露出差が大きいので決めてから撮ってください",
+      "人出が非常に多く、三脚は置けません。有料観覧席も検討してください"
+    ],
+    "officialWebsiteUrl": "https://www.chichibu-matsuri.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -3545,6 +3841,80 @@
       "利用者がいる現役の浴場です。入浴客に向けないでください"
     ],
     "officialWebsiteUrl": "https://dogo.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0fef9c5ebd1b",
+    "slug": "dorokyo",
+    "name": "瀞峡",
+    "nameEn": "Dorokyo Gorge",
+    "reading": "どろきょう",
+    "aliases": [
+      "瀞八丁",
+      "北山川",
+      "ウォータージェット船",
+      "十津川"
+    ],
+    "address": "和歌山県新宮市熊野川町",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "新宮市"
+    },
+    "coords": {
+      "lat": 33.82,
+      "lng": 135.87
+    },
+    "category": "渓谷",
+    "summary": "北山川が刻んだ約30kmの峡谷。和歌山・奈良・三重の県境にまたがり、「瀞八丁」と呼ばれる区間は断崖と深い淵が続きます。",
+    "description": "**水の色と岩壁の高さ**が主題です。淵は深く、水が濃い緑に見える——両岸は垂直の岩壁で、**水面から見上げる構図**が船から撮れます。ウォータージェット船が川を遡り、両岸の奇岩を巡る。船は速く、**構えたまま連写する**ことになります。陸からは瀞ホテル周辺の展望地から見下ろせる。紅葉は11月中旬から下旬。船は水量により運休することがあります。",
+    "highlights": [
+      "濃い緑の淵と垂直の岩壁。水面から見上げます",
+      "ウォータージェット船。川を遡りながら奇岩を巡ります",
+      "陸からの見下ろし。瀞ホテル周辺の展望地から狙えます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "11月中旬から下旬が紅葉。年間で最も色が揃います。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が峡谷を覆います。水量も安定します。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、水の色も深くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "水量が減ることがあります。船の運航状況を確認してください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "峡谷に霧が残ることがあります。水面も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと水の色が出ます。船の便もこの時間帯です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "船の最終便があります。峡谷も早く暗くなります。"
+      }
+    ],
+    "compositionTips": [
+      "船は速く動きます。シャッター速度を上げて連写してください",
+      "円偏光フィルターで反射を抑えると、淵の緑が濃くなります",
+      "水量で運休することがあります。運航状況を先に確認してください"
+    ],
+    "officialWebsiteUrl": "https://www.city.shingu.lg.jp/kanko/spot/dorokyo.html",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -5265,6 +5635,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_830ae3102fb8",
+    "slug": "gongendo-tsutsumi",
+    "name": "権現堂堤",
+    "nameEn": "Gongendo Embankment",
+    "reading": "ごんげんどうつつみ",
+    "aliases": [
+      "幸手 権現堂",
+      "桜堤",
+      "菜の花と桜",
+      "あじさい"
+    ],
+    "address": "埼玉県幸手市内国府間887-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "埼玉県",
+      "city": "幸手市"
+    },
+    "coords": {
+      "lat": 36.09,
+      "lng": 139.74
+    },
+    "category": "並木道",
+    "summary": "約1kmの堤に約1,000本のソメイヨシノが並びます。堤の下は菜の花畑で、春はピンクと黄色の帯が平行に伸びます。",
+    "description": "**桜の帯と菜の花の帯が平行に走る**のが、この堤の構図です。堤の上が桜、下が菜の花——**高さの違う二本の線**が同じ方向へ伸びます。堤の上から見下ろすと黄色が手前に、堤の下から見上げるとピンクが上に来る。**どちらから撮るかで全く違う写真**になります。見頃は4月上旬。初夏はアジサイ、秋は曼珠沙華と、季節ごとに別の花が咲きます。",
+    "highlights": [
+      "桜と菜の花の平行な二本の帯",
+      "堤の上からと下からで別の写真になる構図",
+      "初夏のアジサイと秋の曼珠沙華"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月上旬が桜と菜の花。年間で最も混みます。"
+      },
+      {
+        "season": "summer",
+        "text": "6月のアジサイ。約100種が堤に咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "9月下旬の曼珠沙華。赤い帯になります。"
+      },
+      {
+        "season": "winter",
+        "text": "水仙が咲きます。人も少ない時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人が最も少なく、順光で二色が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "光が強く、黄色が飛びやすくなります。人も最大です。"
+      },
+      {
+        "time": "night",
+        "text": "桜の期間はライトアップされます。"
+      }
+    ],
+    "compositionTips": [
+      "堤の上と下で別の写真になります。両方試してください",
+      "菜の花の黄色は飛びやすい。露出をアンダー寄りに振ってください",
+      "堤は歩道です。三脚は通行の妨げにならない位置で"
+    ],
+    "officialWebsiteUrl": "https://gongendo.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_c4207e1b96da",
     "slug": "goryokaku",
     "name": "五稜郭",
@@ -5626,6 +6070,79 @@
       "天候次第で上陸できません。周遊だけになった場合の構図も考えておいてください"
     ],
     "officialWebsiteUrl": "https://www.city.nagasaki.lg.jp/nagazine/hen_2/hen_2_1/index.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b3d49a823ba7",
+    "slug": "gyoda-tanbo-art",
+    "name": "行田 田んぼアート",
+    "nameEn": "Gyoda Rice Paddy Art",
+    "reading": "ぎょうだ たんぼあーと",
+    "aliases": [
+      "古代蓮の里",
+      "古代蓮会館 展望室",
+      "世界最大の田んぼアート"
+    ],
+    "address": "埼玉県行田市小針2375",
+    "region": {
+      "country": "日本",
+      "prefecture": "埼玉県",
+      "city": "行田市"
+    },
+    "coords": {
+      "lat": 36.13,
+      "lng": 139.48
+    },
+    "category": "公園",
+    "summary": "色の違う稲を植え分けて絵を描く田んぼアート。古代蓮会館の展望室（地上50m）から見下ろすと、図案の全体が入ります。",
+    "description": "**上から見ないと成立しない**被写体です。地上からは色の違う稲が混ざって見えるだけで、**展望室の高さ50mから初めて絵になる**——望遠で切り取ると図案が平らに写り、広角だと周囲の田も入ります。見頃は7月から10月で、**稲の成長とともに色が変わる**ため、同じ年でも時期で印象が違う。図案は毎年変わります。隣の古代蓮は6月下旬から8月上旬が見頃です。",
+    "highlights": [
+      "展望室からの田んぼアート。地上50mから見下ろします",
+      "稲の成長で変わる色。同じ年でも時期で印象が違います",
+      "隣の古代蓮。6月下旬から8月上旬が見頃です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "7月から見頃。古代蓮も同じ時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "10月頃まで。稲の色が濃くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "田植えの時期です。まだ絵にはなりません。"
+      },
+      {
+        "season": "winter",
+        "text": "田は乾いています。アートはありません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "順光で色が出ます。人も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、色の境界がはっきりします。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "展望室の開館時間があります。先に確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "展望室からだけ絵になります。地上では色の混ざりにしか見えません",
+      "望遠で切り取ると図案が平らに写ります。広角だと周囲も入ります",
+      "図案は毎年変わります。見頃の情報を公式で確認してください"
+    ],
+    "officialWebsiteUrl": "https://www.city.gyoda.lg.jp/kanko/kankoannai/kodaihasu/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -11588,6 +12105,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f75efac3dc28",
+    "slug": "kamui-misaki",
+    "name": "神威岬",
+    "nameEn": "Cape Kamui",
+    "reading": "かむいみさき",
+    "aliases": [
+      "積丹ブルー",
+      "積丹町 神威岬",
+      "チャレンカの小道",
+      "神威岩"
+    ],
+    "address": "北海道積丹郡積丹町神岬町",
+    "region": {
+      "country": "日本",
+      "prefecture": "北海道",
+      "city": "積丹郡積丹町"
+    },
+    "coords": {
+      "lat": 43.33,
+      "lng": 140.35
+    },
+    "category": "岬",
+    "summary": "日本海に約770m突き出した岬。両側が断崖で、海は「積丹ブルー」と呼ばれる濃い青。先端には神威岩が立ちます。",
+    "description": "**細い尾根の上を歩く**のが、この岬の行程です。「チャレンカの小道」は両側が切れ落ちた尾根道で、**歩く道そのものが被写体**になります。海の色は積丹ブルーと呼ばれ、晴れた日の日中に最も濃い——**円偏光フィルターがほぼ必須**です。先端からは神威岩が海に立つ姿が見える。強風時と冬期は**ゲートが閉鎖**され、入れません。開門時間も季節で変わります。",
+    "highlights": [
+      "チャレンカの小道。両側が切れ落ちた尾根道です",
+      "積丹ブルー。晴れた日の日中に最も濃く出ます",
+      "先端の神威岩。海に立つ岩です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海の青が最も濃く、開門時間も長い時期です。"
+      },
+      {
+        "season": "spring",
+        "text": "海が落ち着き始めます。人も少ない時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海の色も締まります。"
+      },
+      {
+        "season": "winter",
+        "text": "ゲートが閉鎖される期間があります。行けません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高いほど海の青が濃くなります。この岬の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で岬の形と海が出ます。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面に来ます。開門時間を確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "円偏光フィルターがほぼ必須です。反射を抑えないと青が出ません",
+      "尾根道を前景にすると、岬の細さと高さが伝わります",
+      "強風時はゲートが閉鎖されます。行く前に確認してください"
+    ],
+    "officialWebsiteUrl": "https://www.kanko-shakotan.jp/spot/kamuimisaki/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_912e3bd071a0",
     "slug": "kanazawa-21st-museum",
     "name": "金沢21世紀美術館",
@@ -15337,6 +15928,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1c432fc31513",
+    "slug": "kushiro-shitsugen-hosooka",
+    "name": "釧路湿原 細岡展望台",
+    "nameEn": "Hosooka Observatory, Kushiro Marsh",
+    "reading": "くしろしつげん ほそおかてんぼうだい",
+    "aliases": [
+      "釧路湿原",
+      "細岡ビジターズラウンジ",
+      "釧路川の蛇行",
+      "タンチョウ"
+    ],
+    "address": "北海道釧路郡釧路町達古武",
+    "region": {
+      "country": "日本",
+      "prefecture": "北海道",
+      "city": "釧路郡釧路町"
+    },
+    "coords": {
+      "lat": 43.08,
+      "lng": 144.4
+    },
+    "category": "湿原",
+    "summary": "日本最大の湿原を見下ろす展望台。眼下に釧路川が大きく蛇行し、地平線まで湿原が続きます。西向きで夕日の名所でもあります。",
+    "description": "**川が自由に曲がっている**のが、この湿原の被写体です。護岸されていない釧路川が何重にも蛇行し、**S字の連なり**が地平線まで続く——日本でこの規模の蛇行を見下ろせる場所は他にありません。展望台は西向きで、**夕日が湿原の向こうに沈む**。夏は緑、秋は枯れ色、冬は雪原とタンチョウ。湿原に降りることはできず、撮るのは展望台からです。",
+    "highlights": [
+      "釧路川の蛇行。S字の連なりが地平線まで続きます",
+      "西向きの夕日。湿原の向こうに沈みます",
+      "冬の雪原とタンチョウ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "湿原が最も緑になります。朝霧も出やすい時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "枯れ色の湿原と澄んだ空気。夕日も扱いやすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪原になります。タンチョウが見られることもあります。"
+      },
+      {
+        "season": "spring",
+        "text": "雪解けで水が増えます。緑が戻り始める時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面に来ます。この展望台の本番です。"
+      },
+      {
+        "time": "dawn",
+        "text": "朝霧が湿原に溜まることがあります。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で蛇行の形がはっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で圧縮すると、蛇行のS字が重なって密になります",
+      "広角で地平線を入れると、湿原の広さが伝わります",
+      "湿原には降りられません。展望台から撮ってください"
+    ],
+    "officialWebsiteUrl": "https://kushiro-lakeakan.com/spot/2073/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_36420cbd763d",
     "slug": "kuzuryu-ko",
     "name": "九頭竜湖 夢のかけはし",
@@ -18181,6 +18846,80 @@
       "神社の参道です。参拝者の導線をふさがないでください"
     ],
     "officialWebsiteUrl": "https://www.kankou-gifu.jp/spot/detail_5094.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_581be4f21989",
+    "slug": "morioka-ishiwarizakura",
+    "name": "盛岡 石割桜",
+    "nameEn": "Ishiwarizakura, Morioka",
+    "reading": "もりおか いしわりざくら",
+    "aliases": [
+      "石割桜",
+      "盛岡地方裁判所",
+      "エドヒガン",
+      "国の天然記念物"
+    ],
+    "address": "岩手県盛岡市内丸9-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "盛岡市"
+    },
+    "coords": {
+      "lat": 39.7,
+      "lng": 141.15
+    },
+    "category": "樹木",
+    "summary": "巨大な花崗岩の割れ目から生えているエドヒガン。樹齢は360年以上とされ、幹が岩を押し広げながら育ちました。国の天然記念物です。",
+    "description": "**岩を割って木が生えている**という一点だけで成立する被写体です。周囲約21mの花崗岩に幅数十センチの割れ目があり、そこから幹が出ている——**岩と幹の接点**に寄るのが要点で、引くと普通の桜に見えます。場所は盛岡地方裁判所の敷地の前庭で、道路から見られる。見頃は4月中旬。**背後に庁舎が入る**ので、角度で外すか入れるかを決めることになります。",
+    "highlights": [
+      "岩の割れ目から出る幹。接点に寄るのが要点です",
+      "周囲約21mの花崗岩。木に押し広げられています",
+      "4月中旬の開花。樹齢360年以上のエドヒガンです"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月中旬が見頃。年間で最も人が集まります。"
+      },
+      {
+        "season": "summer",
+        "text": "葉が茂り、岩との接点が見えにくくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "黄葉。人も少なく、幹の形がよく見えます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して岩と幹の関係が最もよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人が最も少なく、斜光で岩の質感も出ます。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、花の色が素直に出ます。人も最大です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で花が染まります。背後の庁舎も色を拾います。"
+      }
+    ],
+    "compositionTips": [
+      "岩と幹の接点に寄ってください。引くと普通の桜に見えます",
+      "背後に庁舎が入ります。角度で外すか入れるか決めてください",
+      "裁判所の敷地です。道路から撮り、業務の妨げにならないようにしてください"
+    ],
+    "officialWebsiteUrl": "https://www.odette.or.jp/spot/2/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -25309,6 +26048,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f42d6d2ba4ab",
+    "slug": "sandanbeki",
+    "name": "三段壁",
+    "nameEn": "Sandanbeki Cliffs",
+    "reading": "さんだんべき",
+    "aliases": [
+      "白浜 三段壁",
+      "三段壁洞窟",
+      "熊野水軍",
+      "柱状節理"
+    ],
+    "address": "和歌山県西牟婁郡白浜町三段2927-52",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "西牟婁郡白浜町"
+    },
+    "coords": {
+      "lat": 33.66,
+      "lng": 135.33
+    },
+    "category": "海岸",
+    "summary": "高さ約50m・長さ約2kmの断崖。崖下にはエレベーターで降りられる洞窟があり、波が直接打ち込む様子を間近で見られます。",
+    "description": "**崖の上と洞窟の中**で全く違う写真になります。上からは水平線と崖の連なり、洞窟からは**波が岩に打ち込む瞬間**を至近距離で撮れる。洞窟は熊野水軍が舟を隠した場所と伝わり、岩肌に波の当たる音が響く。**洞窟内は暗く、外の波が明るい**ので露出差が大きい。崖の上は西向きで、夕日が正面に来ます。強風の日は柵から離れてください。",
+    "highlights": [
+      "高さ約50m・長さ約2kmの断崖",
+      "洞窟から見る波の打ち込み。至近距離です",
+      "西向きの崖。夕日が正面に来ます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "波が最も高く、洞窟の迫力が増します。空気も澄みます。"
+      },
+      {
+        "season": "spring",
+        "text": "海が穏やかになります。人も少ない時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が最も濃くなります。日陰が少ない崖です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、台風後は波も高くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面に来ます。崖がシルエットになります。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で崖の地層と海の青が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "洞窟に光が入る時間があります。営業時間を確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "洞窟の中と外の露出差が大きい。どちらを残すか決めてください",
+      "波を止めるなら1/1000秒以上。飛沫の形が写ります",
+      "崖の上は強風の日があります。柵から離れてください"
+    ],
+    "officialWebsiteUrl": "https://sandanbeki.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_d133daf20bc5",
     "slug": "sandankyo",
     "name": "三段峡",
@@ -25523,6 +26336,80 @@
       "現役の部分があります。業務の妨げにならない位置で構えてください"
     ],
     "officialWebsiteUrl": "https://sakata-kankou.com/spot/1012",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b375f46c0987",
+    "slug": "sannai-maruyama",
+    "name": "三内丸山遺跡",
+    "nameEn": "Sannai Maruyama Site",
+    "reading": "さんないまるやまいせき",
+    "aliases": [
+      "青森 三内丸山",
+      "大型掘立柱建物",
+      "縄文遺跡群",
+      "六本柱"
+    ],
+    "address": "青森県青森市三内丸山305",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "青森市"
+    },
+    "coords": {
+      "lat": 40.81,
+      "lng": 140.7
+    },
+    "category": "遺跡",
+    "summary": "約5,900年前から1,700年間続いた縄文時代の大集落跡。直径1mの栗の柱6本を立てた大型掘立柱建物が復元されています。世界文化遺産です。",
+    "description": "**巨大な柱6本**が、この遺跡の象徴です。直径約1mの栗の柱が等間隔に立ち、**上部に床がない**——何のための建物かが分かっていないため、骨組みだけが復元されています。周囲は草地で遮るものがなく、**空を背にすると柱の形がはっきり出る**。大型竪穴建物も復元され、茅葺きの長い屋根が地面に接します。冬は雪に覆われ、柱だけが白の中に立ちます。",
+    "highlights": [
+      "直径約1mの栗の柱6本。骨組みだけが復元されています",
+      "大型竪穴建物。茅葺きの長い屋根が地面に接します",
+      "冬の雪原。柱だけが白の中に立ちます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "草地が緑になります。空を背にした柱がよく映えます。"
+      },
+      {
+        "season": "spring",
+        "text": "雪が解け、遺構の配置が見えるようになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、柱の輪郭がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に覆われます。柱だけが白の中に立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜光で柱の立体感が出ます。人も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、遺構の配置が見やすくなります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光が最も強く効きます。柱の影が長く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "空を背にすると柱の形がはっきり出ます。低く構えてください",
+      "人を入れると柱の太さと高さが伝わります",
+      "遺構には立ち入らないでください。順路に従ってください"
+    ],
+    "officialWebsiteUrl": "https://sannaimaruyama.pref.aomori.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -26851,6 +27738,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_cd504ac06ac7",
+    "slug": "shirahama-engetsuto",
+    "name": "白浜 円月島",
+    "nameEn": "Engetsuto Island, Shirahama",
+    "reading": "しらはま えんげつとう",
+    "aliases": [
+      "高嶋",
+      "円月島の夕日",
+      "南紀白浜",
+      "穴の開いた島"
+    ],
+    "address": "和歌山県西牟婁郡白浜町臨海",
+    "region": {
+      "country": "日本",
+      "prefecture": "和歌山県",
+      "city": "西牟婁郡白浜町"
+    },
+    "coords": {
+      "lat": 33.69,
+      "lng": 135.33
+    },
+    "category": "海岸",
+    "summary": "南北35m・東西9m・高さ25mの小島。中央に波の浸食でできた丸い穴があり、夕日が穴に重なる日があります。",
+    "description": "**穴に夕日が入る日は限られます**。太陽の沈む位置は季節で動くため、穴の正面に来るのは春分と秋分の前後——それ以外は穴の左右に沈みます。島は小さく、**望遠で圧縮すると穴が大きく写る**。岸からの距離があるので、広角では豆粒になります。夕方は撮影者が並ぶため、場所取りが要る。日没後のマジックアワーまで空の色が残ります。",
+    "highlights": [
+      "島の中央の丸い穴。波の浸食でできました",
+      "穴に重なる夕日。春分と秋分の前後に限られます",
+      "日没後のマジックアワー。空の色が残ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "春分の前後は太陽が穴の正面に近づきます。"
+      },
+      {
+        "season": "autumn",
+        "text": "秋分の前後が再び狙い目。空気も澄みます。"
+      },
+      {
+        "season": "summer",
+        "text": "太陽の沈む位置が北に寄ります。日没も遅くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "太陽の位置は南に寄ります。空気は最も澄みます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "この島の本番です。日没の1時間前には場所を決めてください。"
+      },
+      {
+        "time": "night",
+        "text": "日没後30分まで色が残ります。島がシルエットになります。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で島の形と穴が見えます。人も少ない時間です。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で圧縮してください。広角では島が豆粒になります",
+      "太陽の位置は季節で動きます。事前に方角を調べてください",
+      "夕方は撮影者が並びます。早めに場所を決めてください"
+    ],
+    "officialWebsiteUrl": "https://www.nanki-shirahama.com/search/details.php?log=1332728484",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_3fa9d260866a",
     "slug": "shirahama-shirasaki",
     "name": "白崎海洋公園",
@@ -27886,6 +28847,80 @@
       "工事区域と公開区域は変わります。行く前に公式で確認してください"
     ],
     "officialWebsiteUrl": "https://oki-park.jp/shurijo/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bb04b92bdf71",
+    "slug": "shutoken-gaikaku-hosuiro",
+    "name": "首都圏外郭放水路",
+    "nameEn": "Metropolitan Area Outer Underground Discharge Channel",
+    "reading": "しゅとけんがいかくほうすいろ",
+    "aliases": [
+      "防災地下神殿",
+      "調圧水槽",
+      "春日部",
+      "地下神殿"
+    ],
+    "address": "埼玉県春日部市上金崎720",
+    "region": {
+      "country": "日本",
+      "prefecture": "埼玉県",
+      "city": "春日部市"
+    },
+    "coords": {
+      "lat": 35.99,
+      "lng": 139.81
+    },
+    "category": "産業遺産",
+    "summary": "洪水を防ぐための地下放水路。調圧水槽は長さ177m・幅78mで、高さ18mの柱が59本並び「地下神殿」と呼ばれます。",
+    "description": "**柱の列が無数に続く**空間です。重さ500トンの柱が59本、等間隔で並ぶ——**一点透視**が強烈に決まり、望遠で圧縮すると柱が重なって奥が見えなくなります。照明は限られ、**暗い**。見学は予約制のツアーで、**三脚の可否とコースは公式で確認**が要ります。放水後は水が残ることがあり、床が濡れて柱が映る。地上は普通の公園で、地下だけが異質です。",
+    "highlights": [
+      "59本の柱の列。一点透視が強烈に決まります",
+      "高さ18mの空間。人が小さく見えます",
+      "床の水。残っていると柱が映ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "見学しやすい時期です。地下は年中同じ環境です。"
+      },
+      {
+        "season": "summer",
+        "text": "外より涼しい場所です。台風期は見学中止になることがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "台風の影響で見学中止になる日があります。"
+      },
+      {
+        "season": "winter",
+        "text": "外より暖かい場所です。予約が取りやすい時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "見学ツアーの時間です。地下なので外の天気は関係ありません。"
+      },
+      {
+        "time": "morning",
+        "text": "早い回は人が少ないことがあります。"
+      },
+      {
+        "time": "night",
+        "text": "見学できません。日中に行く場所です。"
+      }
+    ],
+    "compositionTips": [
+      "一点透視が主題です。中央から柱の列を奥へ向かわせてください",
+      "人を入れると18mの高さが伝わります",
+      "予約制で、三脚の可否はコースによります。公式で確認してください"
+    ],
+    "officialWebsiteUrl": "https://gaikaku.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -29402,6 +30437,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_634908b3c640",
+    "slug": "tanesashi-kaigan",
+    "name": "種差海岸",
+    "nameEn": "Tanesashi Coast",
+    "reading": "たねさしかいがん",
+    "aliases": [
+      "八戸 種差",
+      "天然芝生地",
+      "三陸復興国立公園",
+      "蕪島からの遊歩道"
+    ],
+    "address": "青森県八戸市大字鮫町字棚久保",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "八戸市"
+    },
+    "coords": {
+      "lat": 40.53,
+      "lng": 141.62
+    },
+    "category": "海岸",
+    "summary": "波打ち際まで天然の芝生が広がる海岸。芝と岩と海が直接接する光景は珍しく、国の名勝に指定されています。",
+    "description": "**芝生が海まで続く**という、他ではあまり見ない地形です。普通は砂浜か岩場が海と陸を分けますが、ここは**緑の芝が波打ち際まで来る**——緑と岩と海の三色が境界線なしに接します。芝生は人が手入れしたものではなく、潮風と馬の放牧で保たれてきたもの。**低く構えて芝を大きく入れる**と、緑が画面の手前を占めます。夏は海霧が出ることがあります。",
+    "highlights": [
+      "波打ち際まで続く天然の芝生。緑と岩と海が直接接します",
+      "低い視点。芝を大きく入れると緑が手前を占めます",
+      "夏の海霧。芝と海の境界がぼやけます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "芝が最も緑になります。海霧も出やすい季節です。"
+      },
+      {
+        "season": "spring",
+        "text": "芝が芽吹きます。海も穏やかになる時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "芝が枯れ色に変わります。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "芝は枯れ、波が高くなります。人も少ない時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "東向きの海岸から日が昇ります。芝が赤く染まります。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で芝の緑と海の青が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光で芝の起伏が立体になります。"
+      }
+    ],
+    "compositionTips": [
+      "低く構えて芝を大きく入れると、この海岸らしい構図になります",
+      "緑と青の境界が主題です。境界線を画面のどこに置くかで決まります",
+      "芝生は天然のものです。車の乗り入れや焚き火はできません"
+    ],
+    "officialWebsiteUrl": "https://hachinohe-kanko.com/spots/tanesashi",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_cd46b51c7a08",
     "slug": "tanzan-jinja",
     "name": "談山神社",
@@ -30641,6 +31750,80 @@
       "山道は狭く、対向車に注意が要ります。バスの便も確認してください"
     ],
     "officialWebsiteUrl": "https://besshi.com/tonaru/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c76b561c85d9",
+    "slug": "tono-meganebashi",
+    "name": "遠野 めがね橋（宮守川橋梁）",
+    "nameEn": "Miyamori River Bridge, Tono",
+    "reading": "とおの めがねばし みやもりがわきょうりょう",
+    "aliases": [
+      "宮守川橋梁",
+      "銀河鉄道の夜",
+      "JR釜石線",
+      "道の駅みやもり"
+    ],
+    "address": "岩手県遠野市宮守町下宮守",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "遠野市"
+    },
+    "coords": {
+      "lat": 39.33,
+      "lng": 141.43
+    },
+    "category": "鉄道",
+    "summary": "JR釜石線の5連アーチ橋。宮沢賢治の「銀河鉄道の夜」の舞台のひとつとされ、夜はライトアップされます。",
+    "description": "**5連のアーチが並ぶ**のが、この橋の形です。コンクリート造で、下から見上げると**曲線が等間隔で反復**する。列車が渡る瞬間を狙うなら時刻表が先——本数は多くありません。夜はライトアップされ、**アーチの内側が青白く光る**。道の駅みやもりの駐車場から歩いてすぐで、撮影位置も整備されています。冬は雪が載り、白と青の対比になります。",
+    "highlights": [
+      "5連のアーチ。下から見上げると曲線が反復します",
+      "夜のライトアップ。アーチの内側が青白く光ります",
+      "橋を渡る列車。本数は多くありません"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑がアーチを縁取ります。人も少ない時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、コンクリートの灰色と対比します。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉と、空気の澄んだ空。輪郭が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が載ります。白とライトアップの青が対比します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "空に色が残るうちにライトアップが点きます。最も撮りやすい時間です。"
+      },
+      {
+        "time": "night",
+        "text": "アーチの内側が青白く光ります。三脚が要ります。"
+      },
+      {
+        "time": "day",
+        "text": "列車の時刻に合わせることになります。先に確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "下から見上げるとアーチの反復が奥行きになります",
+      "列車は本数が少ない。時刻表を先に見て待つ位置を決めてください",
+      "薄暮はライトアップと空の明るさが釣り合う唯一の時間です"
+    ],
+    "officialWebsiteUrl": "https://tonojikan.jp/kanko/meganebashi/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",

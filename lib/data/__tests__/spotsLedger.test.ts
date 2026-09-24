@@ -155,6 +155,36 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(hits, "日本語の語の途中に英単語が挟まっている").toEqual([]);
     });
 
+    /**
+     * 🔴 **日本語で使わない簡体字が紛れていない。**
+     *
+     * 上の2つ（キリル文字・英単語）と同じ壊れ方の、**最も見つけにくいもの**。
+     * 2026-09-24 に「埼玉県行田市小**针**」と書きかけた——`針` の簡体字で、
+     * 漢字なので目でも機械（文字体系の検査）でも素通りする。
+     *
+     * 全部を機械で判別するのは無理なので、**日本語に同形が無い字だけ**を
+     * 挙げる。増えたらここに足す。誤検知しないことは実データ（474件）で
+     * 確認済み。
+     */
+    const SIMPLIFIED = "针现这说门车东马鸟岛关开长书们华丽亿产众优传伤农冲决对时过还进远连边";
+
+    it("日本語で使わない簡体字が混ざっていない", () => {
+        const hits: string[] = [];
+        const walk = (v: unknown, path: string) => {
+            if (typeof v === "string") {
+                for (const ch of v) {
+                    if (SIMPLIFIED.includes(ch)) hits.push(`${path}: 「${ch}」（${v.slice(0, 30)}）`);
+                }
+            } else if (Array.isArray(v)) {
+                v.forEach((x, i) => walk(x, `${path}[${i}]`));
+            } else if (v && typeof v === "object") {
+                for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+            }
+        };
+        for (const s of SPOTS) walk(s, s.slug);
+        expect(hits, "簡体字が混ざっている").toEqual([]);
+    });
+
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
         // 名前を鍵にすると (1) 同名異所を混ぜる (2) 改名で鍵が変わる
         const bad = SPOTS.filter((s) => !SPOT_ID_RE.test(s.spotId)).map((s) => s.spotId);
@@ -303,17 +333,27 @@ describe("撮影スポット台帳（content/spots.json）", () => {
     });
 
     /**
-     * **どの県も入口が2つ以上ある。**
+     * 🔴 **どの県も10件以上ある**（owner の目標・2026-09-24）。
      *
      * 1件だけの県は、その1件が季節限定（藤・芝桜・雪）だったときに
-     * 年の大半で「その県には何も無い」ページになる。47県に1件ずつ置いた
-     * 時点では満たせていなかった条件で、2026-09-24 に全県2件以上にした。
+     * 年の大半で「その県には何も無い」ページになる。まず全県2件以上にし、
+     * 同じ日に**全県10件以上**まで積んだ（474件）。
+     *
+     * 10件あれば `/spots/area/<県>` が「季節・種別で選べるページ」になり、
+     * `MIN_INDEXABLE_AREA`（2件）も余裕をもって満たす。
+     *
+     * **減らしたい日が来たらこの数を下げること。** そのとき「減らした」と
+     * 意識することが、上の `MIN_SPOTS` と同じくこのテストの目的。
      */
-    it("どの都道府県も2件以上ある", () => {
+    const MIN_PER_PREFECTURE = 10;
+
+    it("どの都道府県も10件以上ある", () => {
         const count = new Map<string, number>();
         for (const p of jpPrefectures()) count.set(p, (count.get(p) ?? 0) + 1);
-        const thin = PREFECTURES.filter((p) => (count.get(p) ?? 0) < 2);
-        expect(thin, "この都道府県がまだ1件以下").toEqual([]);
+        const thin = PREFECTURES
+            .filter((p) => (count.get(p) ?? 0) < MIN_PER_PREFECTURE)
+            .map((p) => `${p}: ${count.get(p) ?? 0}件`);
+        expect(thin, `この都道府県が${MIN_PER_PREFECTURE}件に届いていない`).toEqual([]);
     });
 
     it("知らない都道府県名を書いていない（綴りの揺れを止める）", () => {
