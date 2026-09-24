@@ -65,10 +65,15 @@ describe("PC の設計（指示書 4・11・17）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
             const aside = container.querySelector("main aside");
             expect(aside, "PC の柱が無い＝1列のまま横に伸びる").not.toBeNull();
-            // 柱の中身は「さがす」の発見の節（同じものを二度作らない）。
-            // **行き先では探さない**——行き先は別のテストが見ている項目で、
-            // ここで `href` を当てにすると2つの性質が1つのテストに混ざる
-            expect(aside!.textContent, "柱に発見の節が入っていない").toContain("写真の多い撮影地");
+            // 柱の中身は発見の節（`DiscoverRail`）。**行き先では探さない**
+            // ——行き先は別のテストが見ている項目で、ここで `href` を当てにすると
+            // 2つの性質が1つのテストに混ざる。
+            //
+            // ⚠️ 目印は 2026-09-23 に更新した（節の名前が「写真の多い撮影地」→
+            // 「撮影地からさがす」に変わったため）。**更新後もこの判定が効くこと**
+            // ——柱を空にすると落ちる——を変異で確かめてある。
+            expect(aside!.textContent, "柱に発見の節が入っていない").toContain("撮影地からさがす");
+            expect(aside!.textContent, "カテゴリの節が入っていない").toContain("カテゴリからさがす");
             expect(aside!.querySelectorAll("a").length, "柱にリンクが無い").toBeGreaterThan(0);
         });
 
