@@ -436,10 +436,10 @@ body {
   border-top-width: 12px;
 }
 
-/* Journey Photo cinematic map prototype — scoped to /map only.
-   Leaflet is still the ONE interactive map. Photos and official pins share it.
-   This restyles an OSM fallback for preview; a licensed MapTiler Dark key provides
-   the production-quality cartography. Never filter attribution or marker panes. */
+/* Journey Photo cinematic map — scoped to /map only.
+   One Leaflet map with OpenFreeMap REAL vector coastline/roads/labels, plus photo
+   and official-guide markers. On provider failure show ordinary OSM tiles;
+   never turn those tiles into a fake dark-map filter. Attribution is visible. */
 .journey-map-page .journey-map-heading { border-bottom: 1px solid rgb(117 158 208 / .13); padding-bottom: 12px; }
 .journey-map-page .photo-map-frame.journey-photo-map {
   border: 1px solid rgb(109 157 214 / .32);
@@ -447,9 +447,9 @@ body {
   box-shadow: 0 16px 48px rgb(0 0 0 / .24);
 }
 .journey-photo-map .photo-map-shell.leaflet-container { background: #071729; }
-.journey-photo-map[data-basemap="osm-fallback"] .leaflet-tile-pane .leaflet-tile {
-  filter: invert(.94) hue-rotate(180deg) saturate(.68) brightness(.78) contrast(1.12);
-}
+/* MapLibre renders in Leaflet's tile pane; marker/overlay panes stay ABOVE it.
+   Do not darken the actual vector map or turn OSM's legible fallback into a fake. */
+.journey-photo-map[data-basemap="loading"] .leaflet-tile-pane { opacity: 1; }
 .journey-photo-map .leaflet-control-attribution {
   background: rgb(5 14 23 / .88) !important;
   color: #d4e3f6 !important;
