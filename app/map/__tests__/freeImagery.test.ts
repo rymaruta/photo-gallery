@@ -21,9 +21,9 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("registers official imagery from ten overseas countries alongside Japan without keys", () => {
+    it("registers official imagery from twelve overseas countries alongside Japan without keys", () => {
         expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(
-            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU"]),
+            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU", "EE", "DE"]),
         );
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
@@ -70,5 +70,12 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         expect(au?.url).toContain("public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}");
         expect(au?.bounds[0]).toBeGreaterThan(140);
         expect(au?.bounds[2]).toBeLessThan(155);
+        const ee = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "EE");
+        const de = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "DE");
+        expect(ee?.url).toContain("LAYER=foto&STYLE=default&FORMAT=image/png&TILEMATRIXSET=GMC");
+        expect(ee?.url).toContain("ASUTUS=JOURNEYPHOTO&KESKKOND=LIVE&IS=JOURNEYPHOTO");
+        expect(de?.url).toContain("wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/{z}/{y}/{x}");
+        expect(de?.bounds[0]).toBeGreaterThan(5);
+        expect(de?.bounds[2]).toBeLessThan(10);
     });
 });
