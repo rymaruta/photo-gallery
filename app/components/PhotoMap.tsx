@@ -201,10 +201,17 @@ export default function PhotoMap({
                 markerZoomAnimation: !reduceMotion, inertia: !reduceMotion,
             });
             mapRef.current = map;
-            L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            // 既存のLeaflet地図を1つだけ使用。MapTilerの公開用キーを設定した
+            // プレビューではダークタイルを利用。未設定なら元のOSMへフォールバック。
+            // APIキーはWeb向けの公開キーであり、MapTiler側でサイトドメインを制限すること。
+            const mapTilerKey = process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY;
+            L.tileLayer(mapTilerKey
+                ? `https://api.maptiler.com/maps/streets-v4-dark/256/{z}/{x}/{y}.png?key=${encodeURIComponent(mapTilerKey)}`
+                : "https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 maxZoom: MAP_MAX_ZOOM,
-                // OpenStreetMap の利用規約: 帯を出す
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                attribution: mapTilerKey
+                    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>'
+                    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             }).addTo(map);
             const layer = L.layerGroup().addTo(map);
             layerRef.current = layer;
@@ -550,7 +557,8 @@ export default function PhotoMap({
             // ——`2922526f` で直したのと同じ形（あのときは Leaflet のペインだった）。
             // 外枠でスタッキングコンテキストを作れば、地図の中の重なり順は
             // どれだけ大きい値でもこの枠から出ない。
-            className={`photo-map-frame relative isolate w-full rounded-2xl overflow-hidden ring-1 ring-white/10 ${className || "h-[70vh] min-h-[320px]"}`}
+            className={`photo-map-frame journey-photo-map relative isolate w-full rounded-2xl overflow-hidden ring-1 ring-white/10 ${className || "h-[70vh] min-h-[320px]"}`}
+            data-basemap={process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY ? "maptiler-dark" : "osm-fallback"}
         >
             <div
                 ref={containerRef}
