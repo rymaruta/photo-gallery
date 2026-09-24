@@ -100,21 +100,17 @@ jobs:
                 if (request.url().includes("cyberjapandata.gsi.go.jp/xyz/"))
                   gsiTileFailures.push(String(request.failure()?.errorText) + " " + request.url());
               });
-              await page.goto("http://127.0.0.1:3000/map/design-proof", { waitUntil: "domcontentloaded", timeout: 90000 });
+              await page.goto("http://127.0.0.1:3000/map/design-proof#16/35.502/138.755", { waitUntil: "domcontentloaded", timeout: 90000 });
               try {
                 await page.locator('[data-basemap="free-imagery-ready"]').waitFor({ timeout: 65000 });
               } catch {
                 failed = true;
                 console.error(name + " did not start free geographic imagery. State: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
               }
-              // The actual Japan orthophoto is served at zoom 14+, not at the
-              // earlier Greek test coordinates. Zoom into Japan before capture.
-              // Default multi-pin fitBounds is capped at zoom 12.
-              // Force zoom 16-17 to request the native orthophoto z14-18.
-              for (let step = 0; step < 5; step++) {
-                await page.getByRole("button", { name: "拡大" }).click();
-              }
-              await page.waitForTimeout(5200);
+              // The #16/35.502/138.755 permalink uses PhotoMap's genuine
+              // initial-view logic and must request native orthophoto z14-18.
+              // Avoid guesswork about fitBounds zoom and button animation.
+              await page.waitForTimeout(5000);
               console.log(name + " GSI OK samples", gsiTileResponses.slice(-10));
               console.log(name + " GSI failure samples", gsiTileFailures.slice(-10));
               const actualOrthophoto = gsiTileResponses.filter((url) => url.includes("/xyz/seamlessphoto/"));
