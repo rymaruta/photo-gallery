@@ -126,6 +126,35 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(hits, "日本語の文章に別の文字体系が混ざっている").toEqual([]);
     });
 
+    /**
+     * 🔴 **日本語の語の途中に、英単語が挟まっていない。**
+     *
+     * 上のキリル文字と同じ壊れ方の、**見つけにくいほう**。2026-09-24 に
+     * 「群猿山・**仙human岩**」を書きかけた——キリル文字と違って
+     * 読み飛ばしやすく、JSON としても妥当なので、既存の見張りは全部緑だった。
+     *
+     * 通すのは**大文字の略語**（`LED`・`ND`・`JR`・`GPS`・`CM`・`V字`）。
+     * 実データ（2026-09-24・全11件）はこれしかなく、誤検知しない。
+     * 弾くのは**小文字が2文字以上**、日本語の文字に挟まれた形。
+     */
+    const LATIN_WEDGE_RE = /[\u3040-\u30FF\u4E00-\u9FFF][a-z]{2,}[\u3040-\u30FF\u4E00-\u9FFF]/;
+
+    it("日本語の語の途中に英単語が挟まっていない", () => {
+        const hits: string[] = [];
+        const walk = (v: unknown, path: string) => {
+            if (typeof v === "string") {
+                const m = LATIN_WEDGE_RE.exec(v);
+                if (m) hits.push(`${path}: 「${m[0]}」`);
+            } else if (Array.isArray(v)) {
+                v.forEach((x, i) => walk(x, `${path}[${i}]`));
+            } else if (v && typeof v === "object") {
+                for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+            }
+        };
+        for (const s of SPOTS) walk(s, s.slug);
+        expect(hits, "日本語の語の途中に英単語が挟まっている").toEqual([]);
+    });
+
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
         // 名前を鍵にすると (1) 同名異所を混ぜる (2) 改名で鍵が変わる
         const bad = SPOTS.filter((s) => !SPOT_ID_RE.test(s.spotId)).map((s) => s.spotId);
