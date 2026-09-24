@@ -487,6 +487,27 @@ describe("公式撮影地ガイドのピン", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
     } as Photo);
 
+    it("投稿写真0枚でも公式スポットだけで同じ地図を表示する", () => {
+        photosState.current = [];
+        ledger.pins = [PIN];
+        render(<MapPage />);
+        expect(screen.getByTestId("photo-map")).toBeInTheDocument();
+        expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+        expect(screen.getByTestId("map-spot-list")).toBeInTheDocument();
+        expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+    });
+
+    it("このエリアを検索すると公式スポット一覧も同じ範囲で絞られる", () => {
+        photosState.current = [P("a")];
+        ledger.pins = [PIN, { ...PIN, slug: "far-away", name: "離れた場所", lat: 45, lng: 140 }];
+        render(<MapPage />);
+        act(() => { mapProps.searchArea?.({ south: 34, north: 35, west: 133, east: 134 }); });
+        const list = screen.getByTestId("map-spot-list");
+        expect(within(list).getByText("高屋神社")).toBeInTheDocument();
+        expect(within(list).queryByText("離れた場所")).toBeNull();
+    });
+
+    /// 写真がある状態での既存の挙動も維持する。
     /// **写真が1枚も無いと地図ごと出ない**（既存の判断）ので、1枚置く
     const show = () => { photosState.current = [P("a")]; ledger.pins = [PIN]; render(<MapPage />); };
 
