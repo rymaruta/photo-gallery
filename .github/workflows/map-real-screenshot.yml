@@ -139,6 +139,7 @@ jobs:
                 { slug: "CZ", hash: "#13/50.0755/14.4378", provider: "ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/" },
                 { slug: "BE-FLANDERS", hash: "#13/51.0543/3.7174", provider: "geo.api.vlaanderen.be/OMWRGBMRVL/wmts?" },
                 { slug: "PL", hash: "#13/52.2297/21.0122", provider: "mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?" },
+                { slug: "AU-NSW", hash: "#13/-33.8688/151.2093", provider: "maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/" },
               ];
               for (const country of overseas) {
                 const foreign = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
