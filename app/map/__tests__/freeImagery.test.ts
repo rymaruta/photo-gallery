@@ -21,15 +21,23 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("registers official imagery from thirteen overseas countries alongside Japan without keys", () => {
+    it("registers official imagery from fifteen overseas countries alongside Japan without keys", () => {
         expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(
-            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU", "EE", "DE", "LU"]),
+            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU", "EE", "DE", "LU", "CA", "BR"]),
         );
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
-            expect(source.url).toContain("{z}");
-            expect(source.url).toContain("{x}");
-            expect(source.url).toContain("{y}");
+            // Brazil is a genuine WMS 1.1.1 imagery source. MapLibre's
+            // bbox-epsg-3857 substitution computes the correct tile BBOX.
+            if (source.country === "BR") {
+                expect(source.url).toContain("BBOX={bbox-epsg-3857}");
+                expect(source.url).toContain("REQUEST=GetMap");
+                expect(source.url).toContain("SRS=EPSG:3857");
+            } else {
+                expect(source.url).toContain("{z}");
+                expect(source.url).toContain("{x}");
+                expect(source.url).toContain("{y}");
+            }
             expect(source.url).not.toMatch(/(?:apikey|access_token|maptiler|mapbox|google\.com\/maps)/i);
             expect(source.bounds).toHaveLength(4);
             expect(source.bounds[0]).toBeLessThan(source.bounds[2]);
@@ -80,5 +88,14 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         const lu = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "LU");
         expect(lu?.url).toContain("opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg");
         expect(lu?.min).toBeGreaterThanOrEqual(10);
+        const ca = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "CA");
+        const br = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "BR");
+        expect(ca?.url).toContain("basemap/cot_ortho/MapServer/tile/{z}/{y}/{x}");
+        expect(ca?.bounds[0]).toBeGreaterThan(-80);
+        expect(ca?.bounds[2]).toBeLessThan(-79);
+        expect(br?.url).toContain("LAYERS=ORTOFOTOS_SP_2023_2024");
+        expect(br?.url).toContain("TRANSPARENT=true");
+        expect(br?.bounds[0]).toBeGreaterThan(-54);
+        expect(br?.bounds[2]).toBeLessThan(-44);
     });
 });
