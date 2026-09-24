@@ -1,5 +1,79 @@
 [
   {
+    "spotId": "sp_78960dafe8ff",
+    "slug": "abukumado",
+    "name": "あぶくま洞",
+    "nameEn": "Abukumado Cave",
+    "reading": "あぶくまどう",
+    "aliases": [
+      "田村市 あぶくま洞",
+      "滝根町",
+      "月の世界",
+      "鍾乳洞"
+    ],
+    "address": "福島県田村市滝根町菅谷字東釜山1",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "田村市"
+    },
+    "coords": {
+      "lat": 37.35,
+      "lng": 140.72
+    },
+    "category": "鍾乳洞",
+    "summary": "全長約600mが公開されている鍾乳洞。8,000万年かけて形成された鍾乳石の種類の多さで知られ、高さ約29mの「滝根御殿」があります。",
+    "description": "**鍾乳石の種類が多い**ことが、この洞窟の特徴です。つらら石・石筍・石柱に加え、細く曲がりくねった「ヘリクタイト」など、形の違う鍾乳石が一か所に集まる。最大の空間「滝根御殿」は高さ約29mで、照明が演出用に色を付けています——**そのまま撮ると色被りする**ので、ホワイトバランスの扱いが要ります。年間を通じて15度前後。探検コースは狭く、身をかがめて進みます。",
+    "highlights": [
+      "滝根御殿。高さ約29mの最大の空間です",
+      "種類の多い鍾乳石。つらら石・石筍・ヘリクタイトが並びます",
+      "探検コース。狭く、身をかがめて進みます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "外との気温差が大きく、レンズが曇ります。"
+      },
+      {
+        "season": "winter",
+        "text": "外より暖かい場所です。人も少ない時期です。"
+      },
+      {
+        "season": "spring",
+        "text": "周囲の新緑と合わせて回れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲の紅葉と洞内の対比が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開洞直後は人が少なく、通路を空で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "洞内は一日中同じ明るさです。外の天気は関係ありません。"
+      },
+      {
+        "time": "night",
+        "text": "開洞時間が終わります。日中に行く場所です。"
+      }
+    ],
+    "compositionTips": [
+      "照明に色が付いています。ホワイトバランスを手動にするか、後で戻してください",
+      "暗いので高感度に振ることになります。三脚の可否は現地の掲示に従ってください",
+      "夏はレンズが曇ります。入口で機材を温度に慣らしてください"
+    ],
+    "officialWebsiteUrl": "https://abukumado.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_0847e15bc396",
     "slug": "adachi-museum-garden",
     "name": "足立美術館 庭園",
@@ -1551,6 +1625,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_de7be1d55a77",
+    "slug": "biwako-valley",
+    "name": "びわ湖バレイ びわ湖テラス",
+    "nameEn": "Biwako Valley Biwako Terrace",
+    "reading": "びわこばれい びわこてらす",
+    "aliases": [
+      "びわ湖テラス",
+      "打見山",
+      "蓬莱山",
+      "ロープウェイ"
+    ],
+    "address": "滋賀県大津市木戸1547-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "大津市"
+    },
+    "coords": {
+      "lat": 35.22,
+      "lng": 135.92
+    },
+    "category": "展望台",
+    "summary": "標高約1,100mの打見山にある展望テラス。眼下に琵琶湖が広がり、水盤に空と湖が映る設計になっています。",
+    "description": "**水盤の映り込みと本物の湖を重ねる**のが、このテラスの設計です。手前の浅い水盤に空が映り、その向こうに琵琶湖がある——二つの水面が段違いに並びます。低く構えると水盤が画面の下半分を占め、湖と空がその上に乗る。ロープウェイで約5分。標高1,100mなので雲海が出ることがあり、湖が雲に隠れて山だけが浮かぶ日もあります。冬はスキー場になります。",
+    "highlights": [
+      "水盤の映り込みと琵琶湖。二つの水面が段違いに並びます",
+      "雲海。湖が雲に隠れ、山だけが浮かぶ日があります",
+      "標高1,100mからの琵琶湖の全景"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "湖の青が濃く、水盤の空も鮮やかになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸まで見えます。雲海も出やすい時期です。"
+      },
+      {
+        "season": "spring",
+        "text": "霞が出やすく、湖は柔らかく見えます。"
+      },
+      {
+        "season": "winter",
+        "text": "スキー場になります。テラスの営業を確認してください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "雲海が出やすく、水盤も波立ちません。"
+      },
+      {
+        "time": "day",
+        "text": "湖の青が最も濃くなります。水盤に空が映ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "ロープウェイの最終時刻があります。確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "低く構えて水盤を大きく入れると、二つの水面が段になります",
+      "水盤の映り込みは風で崩れます。朝のほうが確実です",
+      "ロープウェイの運行と営業期間を先に確認してください"
+    ],
+    "officialWebsiteUrl": "https://www.biwako-valley.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_5d5498d550ed",
     "slug": "bizan",
     "name": "眉山",
@@ -1854,6 +2002,80 @@
       "人物を入れるなら、逆光のシルエットにすると鏡の効果が強く出ます"
     ],
     "officialWebsiteUrl": "https://www.mitoyo-kanko.com/chichibugahama/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_fa03bcbb81ed",
+    "slug": "chikubushima",
+    "name": "竹生島",
+    "nameEn": "Chikubushima Island",
+    "reading": "ちくぶしま",
+    "aliases": [
+      "琵琶湖 竹生島",
+      "宝厳寺",
+      "都久夫須麻神社",
+      "舟廊下"
+    ],
+    "address": "滋賀県長浜市早崎町",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "長浜市"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 136.14
+    },
+    "category": "島",
+    "summary": "琵琶湖の北部に浮かぶ周囲約2kmの島。全島が花崗岩で、断崖の上に宝厳寺と都久夫須麻神社が建ち、165段の石段が港から続きます。",
+    "description": "**島全体が斜面**です。平地がほとんどなく、建物は岩を削った場所に建っている——だから境内を歩くと常に階段か傾斜で、**上下方向の構図**が自然に決まります。宝厳寺と神社を結ぶ「舟廊下」は秀吉の御座船の材を使ったと伝わる懸造りで、斜面から柱が伸びる。港から見上げる構図と、船から見る島の全景が主な被写体。船は本数が限られ、滞在時間も決まっています。",
+    "highlights": [
+      "165段の石段。港から上へ一直線に続きます",
+      "舟廊下。斜面に柱を立てた懸造りです",
+      "船からの島の全景。断崖の上に堂が見えます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と、湖の穏やかな季節。船も安定して出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、湖の青も濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が島を彩ります。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "湖が荒れ、欠航が増えます。人は最も少ない時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "湖面が静かで、船も安定します。人も少ない便です。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、断崖と堂が見やすくなります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "最終便の時刻があります。夕景は撮れないと考えてください。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図が向く島です。平地がなく、常に上下の関係になります",
+      "船の滞在時間は決まっています。回る順番を先に決めてください",
+      "堂内の撮影可否は現地の掲示に従ってください"
+    ],
+    "officialWebsiteUrl": "https://www.chikubushima.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -4009,6 +4231,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_e317a4dcd0de",
+    "slug": "hachiman-bori",
+    "name": "近江八幡 八幡堀",
+    "nameEn": "Hachiman-bori Canal, Omihachiman",
+    "reading": "おうみはちまん はちまんぼり",
+    "aliases": [
+      "八幡堀",
+      "近江八幡 水郷",
+      "白雲橋",
+      "新町通り"
+    ],
+    "address": "滋賀県近江八幡市宮内町",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "近江八幡市"
+    },
+    "coords": {
+      "lat": 35.14,
+      "lng": 136.09
+    },
+    "category": "町並み",
+    "summary": "豊臣秀次が築いた全長約6kmの水路。石垣と白壁の土蔵が水辺に並び、屋形船で堀を巡れます。時代劇の撮影地としても使われます。",
+    "description": "**水面のすぐ際に石垣と土蔵が立つ**構成です。堀は幅が狭く、両岸の建物が水に近いため、映り込みが画面の半分を占める——**上下対称に近い構図**が素直に決まります。石段が水際まで降りているので、低い位置から構えられる。春は桜、初夏は菖蒲、秋は紅葉が水面に落ちます。屋形船からは水面と同じ高さで石垣を見上げられ、岸からとは別の写真になります。",
+    "highlights": [
+      "石垣と白壁の土蔵、そしてその映り込み",
+      "水際まで降りる石段。低い位置から構えられます",
+      "屋形船からの視点。水面と同じ高さで石垣を見上げます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "桜が堀沿いに咲きます。水面にも落ちます。"
+      },
+      {
+        "season": "summer",
+        "text": "菖蒲と柳の緑。水面の緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が水面に映ります。空気も澄み、映り込みが鮮明です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が石垣と屋根に載ります。人も少ない時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "水面が最も静かで、映り込みが出ます。人も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が水面に入り、石垣の質感が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日で白壁が染まります。水面も色を拾います。"
+      }
+    ],
+    "compositionTips": [
+      "低く構えて映り込みを大きく入れると、上下対称に近づきます",
+      "映り込みは風の弱い朝だけです。日中は波立ちます",
+      "白壁は白飛びします。露出をアンダー寄りに振ってください"
+    ],
+    "officialWebsiteUrl": "https://www.omi8.com/kankou/hachimanbori.htm",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_e753a626dd05",
     "slug": "hachimantai-dragon-eye",
     "name": "八幡平 ドラゴンアイ（鏡沼）",
@@ -4075,6 +4371,80 @@
       "残雪の上を歩くと踏み抜きます。遊歩道から出ないでください"
     ],
     "officialWebsiteUrl": "https://iwatetabi.jp/spots/68149/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bb0448505800",
+    "slug": "haguro-goju-no-to",
+    "name": "羽黒山 五重塔",
+    "nameEn": "Five-storied Pagoda of Mt. Haguro",
+    "reading": "はぐろさん ごじゅうのとう",
+    "aliases": [
+      "出羽三山",
+      "羽黒山 杉並木",
+      "爺杉",
+      "国宝 五重塔"
+    ],
+    "address": "山形県鶴岡市羽黒町手向",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.7,
+      "lng": 139.97
+    },
+    "category": "寺社",
+    "summary": "杉木立の中に立つ高さ約29mの素木造の塔。国宝で、創建は平安時代と伝わります。参道は2,446段の石段が続きます。",
+    "description": "**塗られていない塔**です。朱塗りの五重塔が多いなか、ここは木の地肌のまま——周囲の杉と同じ色なので、**背景から浮き上がらせるのが構図の課題**になります。樹齢1,000年を超える「爺杉」がすぐ横に立ち、塔と杉の高さが競う。参道は石段2,446段で、塔はその途中。杉並木は頭上を覆い、光が筋になって落ちます。雪の季節は塔だけが白の中に立ちます。",
+    "highlights": [
+      "素木造の五重塔。塗られていない木の地肌です",
+      "樹齢1,000年超の爺杉。塔のすぐ横に立ちます",
+      "杉並木の参道。光が筋になって落ちます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と残雪。参道の苔も濃くなる時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "杉の緑が最も濃く、参道は涼しい場所です。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が杉の緑に混じります。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もり、塔だけが白の中に立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜光が杉の間から入ります。光の筋が最も立つ時間です。"
+      },
+      {
+        "time": "day",
+        "text": "参道は暗いままです。柔らかい光で塔を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "杉並木の中は早く暗くなります。朝のほうが向きます。"
+      }
+    ],
+    "compositionTips": [
+      "塔は背景の杉と同じ色です。霧や雪で背景を白く飛ばすと浮き上がります",
+      "縦構図で杉と塔の高さを競わせてください",
+      "参道の石段は濡れて滑ります。三脚は畳んで持ってください"
+    ],
+    "officialWebsiteUrl": "https://www.dewasanzan.jp/publics/index/79/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -4294,6 +4664,79 @@
       "咲いている花は年ごとに変わります。行く前に確認してください"
     ],
     "officialWebsiteUrl": "https://www.hananomiyakokouen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0ffe7ad1c8d1",
+    "slug": "hanamiyama",
+    "name": "花見山公園",
+    "nameEn": "Hanamiyama Park",
+    "reading": "はなみやまこうえん",
+    "aliases": [
+      "福島市 花見山",
+      "福島の桃源郷",
+      "阿部一郎"
+    ],
+    "address": "福島県福島市渡利字原",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "福島市"
+    },
+    "coords": {
+      "lat": 37.73,
+      "lng": 140.49
+    },
+    "category": "公園",
+    "summary": "花木農家が自宅の山を開放した公園。桜・梅・モモ・レンギョウなどが斜面に重なり、写真家・秋山庄太郎が「福島に桃源郷あり」と評しました。",
+    "description": "**花の種類が多く、同時に咲く**のがこの山の特徴です。単一の桜並木と違い、白・ピンク・黄色・赤が斜面に混ざる——だから**色の配置で構図を決める**ことになります。もとは花木の畑で、観賞用に整えられたものではありません。遊歩道が斜面を登り、上からは福島市街と吾妻連峰も見える。見頃は例年4月上旬から中旬で、その時期は周辺の車両規制があります。",
+    "highlights": [
+      "斜面に重なる多色の花。白・ピンク・黄色・赤が混ざります",
+      "遊歩道の上からの市街と吾妻連峰",
+      "花木畑としての風景。観賞用に整えられていません"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月上旬から中旬が見頃。年間で最も混み、車両規制もあります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の山です。人がおらず、斜面の形だけを撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が斜面を彩ります。人も少ない時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して斜面の地形が見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "順光で花の色が出ます。人も最も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が強く、色が飛びやすくなります。人も最大になります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光で花に陰影が出ます。吾妻連峰も染まります。"
+      }
+    ],
+    "compositionTips": [
+      "色の配置で構図を決めてください。種類が多いぶん、整理しないと散らかります",
+      "望遠で斜面を切り取ると、色の層が密になります",
+      "花木農家の私有地です。遊歩道から出ないでください"
+    ],
+    "officialWebsiteUrl": "https://www.f-kankou.jp/hanamiyama/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -4659,6 +5102,80 @@
       "朝日は季節で位置が変わります。事前に方角を調べてください"
     ],
     "officialWebsiteUrl": "https://www.town.kushimoto.wakayama.jp/kanko/spot/hashiguiiwa.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c8bcb4732f83",
+    "slug": "hieizan-enryakuji",
+    "name": "比叡山 延暦寺",
+    "nameEn": "Enryakuji Temple, Mt. Hiei",
+    "reading": "ひえいざん えんりゃくじ",
+    "aliases": [
+      "延暦寺",
+      "根本中堂",
+      "東塔",
+      "大津 比叡山"
+    ],
+    "address": "滋賀県大津市坂本本町4220",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "大津市"
+    },
+    "coords": {
+      "lat": 35.07,
+      "lng": 135.84
+    },
+    "category": "寺社",
+    "summary": "788年に最澄が開いた天台宗の総本山。標高約848mの比叡山全域が境内で、東塔・西塔・横川の三塔に堂が点在します。世界文化遺産です。",
+    "description": "**山そのものが寺**という規模です。三塔は離れており、全部回ると半日かかる。根本中堂は「不滅の法灯」が1200年以上灯り続ける堂で、内陣が参拝席より低い独特の構造——**内部の撮影は禁止**なので、撮るのは外観と回廊、そして参道の杉です。標高が高く、琵琶湖を見下ろせる場所もある。朝は雲海が出ることがあり、山の中腹から湖が雲に隠れます。",
+    "highlights": [
+      "根本中堂と回廊。参道の杉に囲まれています",
+      "琵琶湖を見下ろす眺め。標高約848mです",
+      "三塔に点在する堂。歩くと半日かかる規模です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "11月中旬から下旬が紅葉。山上から順に下ります。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と、平地より遅い桜。空気も澄む時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "平地より涼しく、杉の緑が濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が堂に載ります。路面凍結に備えてください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "雲海が出ることがあります。参道の光の筋も狙えます。"
+      },
+      {
+        "time": "day",
+        "text": "堂と回廊を撮る時間です。参道は暗いままです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "拝観時間が終わります。ドライブウェイの通行時間も確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "堂内は撮影禁止です。外観・回廊・参道で構図を組んでください",
+      "参道の杉は縦構図。光の筋が入ると奥行きが出ます",
+      "三塔は離れています。回る順番と時間を先に決めてください"
+    ],
+    "officialWebsiteUrl": "https://www.hieizan.or.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -5242,6 +5759,80 @@
       "武甲山を入れるなら望遠で圧縮すると、山が大きく写ります"
     ],
     "officialWebsiteUrl": "https://www.city.chichibu.lg.jp/1853.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5c9308b54085",
+    "slug": "hokodate-tenbodai",
+    "name": "鳥海山 鉾立展望台",
+    "nameEn": "Hokodate Observatory, Mt. Chokai",
+    "reading": "ちょうかいさん ほこだててんぼうだい",
+    "aliases": [
+      "鳥海ブルーライン",
+      "奈曽渓谷",
+      "出羽富士",
+      "鳥海山"
+    ],
+    "address": "山形県飽海郡遊佐町吹浦",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "飽海郡遊佐町"
+    },
+    "coords": {
+      "lat": 39.1,
+      "lng": 140.02
+    },
+    "category": "展望台",
+    "summary": "鳥海ブルーラインの標高約1,150m地点にある展望台。眼下に奈曽渓谷が切れ込み、条件が合えば日本海と夕日が見渡せます。",
+    "description": "**谷を見下ろしながら海も見える**という高度と配置です。奈曽渓谷は深く切れ込み、その先が日本海まで下っていく——山と谷と海が一枚に入ります。鳥海山は「出羽富士」と呼ばれる独立峰で、山頂部は残雪が遅くまで残る。鳥海ブルーラインは**冬期閉鎖**で、開通は例年4月下旬。展望台は西向きなので、日本海に沈む夕日が正面に来ます。",
+    "highlights": [
+      "眼下に切れ込む奈曽渓谷",
+      "日本海に沈む夕日。西向きの展望です",
+      "鳥海山の残雪。遅くまで残ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "高山植物と残雪。道も安定して通れる時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が山頂から下りてきます。空気も澄みます。"
+      },
+      {
+        "season": "spring",
+        "text": "4月下旬の開通後は残雪の壁が見られます。"
+      },
+      {
+        "season": "winter",
+        "text": "鳥海ブルーラインが冬期閉鎖されます。行けません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "日本海に日が沈みます。この展望台の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "ガスが湧く前です。渓谷の底まで見えます。"
+      },
+      {
+        "time": "day",
+        "text": "雲が湧きやすく、視界が閉じることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で渓谷の深さと海までの距離を同時に見せられます",
+      "夕日は日没後30分まで粘ってください。空の色は沈んでから濃くなります",
+      "道路の開通期間を確認してください。冬期は閉鎖されます"
+    ],
+    "officialWebsiteUrl": "https://www.town.yuza.yamagata.jp/kanko/spot/hokodate.html",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -6194,6 +6785,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_230b22ee4e8d",
+    "slug": "ishiyamadera",
+    "name": "石山寺",
+    "nameEn": "Ishiyamadera Temple",
+    "reading": "いしやまでら",
+    "aliases": [
+      "大津 石山寺",
+      "硅灰石",
+      "紫式部",
+      "多宝塔"
+    ],
+    "address": "滋賀県大津市石山寺1-1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "大津市"
+    },
+    "coords": {
+      "lat": 34.96,
+      "lng": 135.9
+    },
+    "category": "寺社",
+    "summary": "747年開創と伝わる寺。境内に露出した巨大な硅灰石の上に堂が建ち、日本最古の多宝塔（国宝）があります。紫式部が源氏物語を起筆した地とされます。",
+    "description": "**岩の上に建っている**ことが、寺の名の由来です。硅灰石という白い岩が境内に大きく露出し、その上や間に堂が配置されている——灰白色の岩、木造の堂、緑という三要素が常に画面に入ります。多宝塔は1194年建立で、下層が方形・上層が円形という形。秋は境内一面が紅葉し、白い岩と赤が対比します。夜間のライトアップがある期間もあります。",
+    "highlights": [
+      "露出した硅灰石。白い岩の上や間に堂が建ちます",
+      "日本最古の多宝塔。下層が方形、上層が円形です",
+      "秋の紅葉。白い岩と赤が対比します"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "11月中旬から下旬が紅葉。ライトアップもあります。"
+      },
+      {
+        "season": "spring",
+        "text": "梅・桜・ツツジが順に咲きます。新緑も重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、白い岩との対比が強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が岩と堂に載ります。人も少ない時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜光で岩の凹凸が出ます。人も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、岩が白飛びしやすくなります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップの期間は、岩が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "白い岩は白飛びします。露出をアンダー寄りに振ってください",
+      "岩と堂の関係が主題です。堂だけを撮ると普通の寺になります",
+      "岩は滑ります。参道から外れないでください"
+    ],
+    "officialWebsiteUrl": "https://www.ishiyamadera.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_997d383c7b4c",
     "slug": "ishizuchisan",
     "name": "石鎚山",
@@ -6698,6 +7363,80 @@
       "人が住み、店が営まれている町です。建物の中へレンズを向けないでください"
     ],
     "officialWebsiteUrl": "https://www.izushi.co.jp/spot/shinkoro/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_29c507c9fe09",
+    "slug": "jododaira",
+    "name": "浄土平（吾妻小富士）",
+    "nameEn": "Jododaira and Mt. Azuma-Kofuji",
+    "reading": "じょうどだいら あづまこふじ",
+    "aliases": [
+      "磐梯吾妻スカイライン",
+      "吾妻小富士",
+      "浄土平湿原",
+      "福島 浄土平"
+    ],
+    "address": "福島県福島市土湯温泉町字鷲倉山",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "福島市"
+    },
+    "coords": {
+      "lat": 37.73,
+      "lng": 140.25
+    },
+    "category": "山岳",
+    "summary": "磐梯吾妻スカイラインの標高約1,600m地点にある高原。火口が大きく口を開けた吾妻小富士と、荒涼とした火山礫の斜面が広がります。",
+    "description": "**火口の縁を歩いて一周できる**のが、この山の被写体です。吾妻小富士の火口は直径約450m・深さ約70mで、縁の道から内側を見下ろせる——すり鉢の中を撮れる山は多くありません。周囲は火山礫で草木が乏しく、色数の少ない画面になります。隣の浄土平湿原には木道があり、荒涼と湿原が隣り合う。スカイラインは**冬期閉鎖**で、火山活動による規制もあります。",
+    "highlights": [
+      "吾妻小富士の火口。直径約450mのすり鉢を見下ろせます",
+      "火山礫の斜面。草木が乏しく、色数が少ない景色です",
+      "浄土平湿原の木道。荒涼と湿原が隣り合います"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "高山植物が湿原に咲きます。緑と火山礫の対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "9月下旬から10月上旬が紅葉。標高が高く早い時期です。"
+      },
+      {
+        "season": "spring",
+        "text": "4月の開通直後は雪の壁が見られます。"
+      },
+      {
+        "season": "winter",
+        "text": "スカイラインが冬期閉鎖されます。行けません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "ガスが湧く前です。火口の底まで見えます。"
+      },
+      {
+        "time": "day",
+        "text": "雲が湧きやすく、視界が閉じることがあります。"
+      },
+      {
+        "time": "night",
+        "text": "星空が濃い場所です。防寒と道路の通行時間を確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "火口は人を入れると大きさが伝わります。縁を歩く人を小さく置いてください",
+      "色数が少ない場所です。空の状態がそのまま作品を決めます",
+      "火山活動による規制があります。行く前に必ず確認してください"
+    ],
+    "officialWebsiteUrl": "https://www.tif.ne.jp/jp/spot/spot_disp.php?id=224",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -11268,6 +12007,79 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_963560b6bb7f",
+    "slug": "maruike-sama",
+    "name": "丸池様",
+    "nameEn": "Maruike-sama Pond",
+    "reading": "まるいけさま",
+    "aliases": [
+      "遊佐町 丸池様",
+      "牛渡川",
+      "鳥海山の湧水"
+    ],
+    "address": "山形県飽海郡遊佐町直世",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "飽海郡遊佐町"
+    },
+    "coords": {
+      "lat": 39.0,
+      "lng": 139.93
+    },
+    "category": "湧水",
+    "summary": "鳥海山の湧水だけでできた直径約20m・深さ約3.5mの池。池そのものが御神体で、水が青緑に見え、沈んだ倒木がそのまま残っています。",
+    "description": "**池そのものが神様**とされているため、名前に「様」が付きます。水は湧水だけで、流れ込む川がないため非常に澄んでいる。倒れた木が底に沈んだまま朽ちずに残り、水中に横たわる姿が上から見えます。色は光の角度で青から緑へ変わり、**日が高い晴れた日**が最も濃く出る。隣の牛渡川では梅花藻が揺れます。池は小さく、撮れる位置は限られます。",
+    "highlights": [
+      "青緑の水面。光の角度で色が変わります",
+      "水中に横たわる倒木。朽ちずに残っています",
+      "隣の牛渡川の梅花藻。水中で緑が揺れます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "太陽が高く、色が最も濃く出ます。梅花藻も咲きます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が周囲を囲みます。水量も安定します。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が水面に映ります。青と赤の対比です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に囲まれます。道の状況を確認してください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高いほど色が濃く出ます。この池の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "水面が静かで、倒木がはっきり見えます。色は控えめです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "周囲の木で早く陰ります。日中のほうが向きます。"
+      }
+    ],
+    "compositionTips": [
+      "円偏光フィルターで反射を抑えると、水中の倒木が出ます",
+      "晴れた日の正午前後が最も色が濃くなります",
+      "御神体です。水に入ったり物を投げ込んだりしないでください"
+    ],
+    "officialWebsiteUrl": "https://www.town.yuza.yamagata.jp/kanko/spot/maruike.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_b8b0879c65ac",
     "slug": "matama-kaigan",
     "name": "真玉海岸",
@@ -12143,6 +12955,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_09bf01f31e7a",
+    "slug": "miharu-takizakura",
+    "name": "三春滝桜",
+    "nameEn": "Miharu Takizakura",
+    "reading": "みはるたきざくら",
+    "aliases": [
+      "滝桜",
+      "三春町 滝桜",
+      "日本三大桜",
+      "ベニシダレザクラ"
+    ],
+    "address": "福島県田村郡三春町大字滝字桜久保",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "田村郡三春町"
+    },
+    "coords": {
+      "lat": 37.42,
+      "lng": 140.52
+    },
+    "category": "樹木",
+    "summary": "樹齢1,000年を超えるベニシダレザクラ。高さ約13m・枝張り約25mで、枝が四方に垂れる姿が滝に見えることが名の由来です。",
+    "description": "**1本で完結する被写体**です。周囲は畑と丘で、他に木がない——だから全景を撮るなら引き、枝の流れを撮るなら寄る、という二択になります。枝は四方に垂れ、下から見上げると空が桜で埋まる。見頃は例年4月上旬から中旬で、その頃は駐車場が有料になり人も多い。夜はライトアップされ、暗い背景に桜だけが浮かびます。**夜のほうが余計なものが消えます**。",
+    "highlights": [
+      "四方に垂れる枝。下から見上げると空が桜で埋まります",
+      "1本だけの立地。周囲に他の木がありません",
+      "夜のライトアップ。暗い背景に桜だけが浮かびます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月上旬から中旬が見頃。この時期以外は葉桜か裸木です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の枝垂れ。人がおらず、樹形だけを撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "黄葉。周囲の田畑も色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "裸木の枝ぶり。雪が載ると線だけの画面になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "人が最も少なく、朝霧が出ることもあります。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で花の色が出ます。人は増え始めます。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ。背景が黒く落ち、桜だけが残ります。"
+      }
+    ],
+    "compositionTips": [
+      "夜のほうが余計なものが消えます。日中は人と車が入ります",
+      "下から見上げると、枝が空を埋めて滝の名の意味が出ます",
+      "根元は柵で囲われています。中に入らないでください"
+    ],
+    "officialWebsiteUrl": "https://miharukoma.com/experience/takizakura/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_5804cb136a7f",
     "slug": "miho-no-matsubara",
     "name": "三保松原",
@@ -12717,6 +13603,80 @@
       "期間中は非常に混みます。観覧の方法は公式の案内に従ってください"
     ],
     "officialWebsiteUrl": "https://www.miyajidake.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_706c5b8be24f",
+    "slug": "mogami-kyo",
+    "name": "最上峡 舟下り",
+    "nameEn": "Mogami Gorge Boat Ride",
+    "reading": "もがみきょう ふなくだり",
+    "aliases": [
+      "最上川舟下り",
+      "戸沢村 最上峡",
+      "白糸の滝",
+      "芭蕉ライン"
+    ],
+    "address": "山形県最上郡戸沢村古口86-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "最上郡戸沢村"
+    },
+    "coords": {
+      "lat": 38.74,
+      "lng": 140.22
+    },
+    "category": "渓谷",
+    "summary": "最上川が出羽山地を横切る約12kmの峡谷。舟下りで川を下りながら、両岸の断崖と48の滝を見られます。",
+    "description": "**水面の高さから峡谷を見る**のが、この舟下りの価値です。両岸は緑に覆われた山で、その斜面のあちこちから滝が落ちる——白糸の滝は落差約120mで、舟から正面に見えます。船頭の舟唄が名物。冬は「こたつ舟」になり、雪の峡谷を進みます。舟の上は立てないので、**座ったまま構えられる機材**を選ぶ必要があります。季節で全く違う峡谷になります。",
+    "highlights": [
+      "水面の高さから見る両岸の断崖",
+      "白糸の滝。落差約120m、舟から正面に見えます",
+      "冬のこたつ舟。雪の峡谷を進みます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と雪解けの水量。滝が最も多い時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、川面は涼しい場所です。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が両岸を覆います。年間で最も色が揃います。"
+      },
+      {
+        "season": "winter",
+        "text": "こたつ舟。雪の峡谷という別の被写体になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "川霧が出ることがあります。水面も静かな時間です。"
+      },
+      {
+        "time": "day",
+        "text": "峡谷に光が入り、緑と水の色が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "最終便の時刻があります。夕方は乗れないことがあります。"
+      }
+    ],
+    "compositionTips": [
+      "舟の上は立てません。座ったまま構えられる機材を選んでください",
+      "舟は動き続けます。滝は近づく前から構えて連写してください",
+      "川霧の出る朝は、峡谷が層に分かれて見えます"
+    ],
+    "officialWebsiteUrl": "https://www.blf.co.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -13821,6 +14781,79 @@
       "岩をくぐる区間があります。三脚は畳んで持ってください"
     ],
     "officialWebsiteUrl": "https://niyodogawa.jp/spot/nakatsukeikoku/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_de1b3ea014e6",
+    "slug": "nakatsugawa-keikoku",
+    "name": "中津川渓谷",
+    "nameEn": "Nakatsugawa Gorge",
+    "reading": "なかつがわけいこく",
+    "aliases": [
+      "磐梯吾妻レークライン",
+      "北塩原村 中津川渓谷",
+      "中津川レストハウス"
+    ],
+    "address": "福島県耶麻郡北塩原村大字桧原字剣ケ峯",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "耶麻郡北塩原村"
+    },
+    "coords": {
+      "lat": 37.65,
+      "lng": 140.13
+    },
+    "category": "渓谷",
+    "summary": "秋元湖に注ぐ中津川がつくる渓谷。磐梯吾妻レークラインの中津川レストハウスから遊歩道を下ると、岩と淵の続く渓谷に降りられます。",
+    "description": "**降りないと撮れない渓谷**です。道路からは木に隠れて見えず、遊歩道を約15分下って初めて川に出る。岩は大きく、水は透明で淵が青緑に見える。紅葉期は谷全体が赤くなり、磐梯吾妻レークラインでも屈指の色の濃さになります。見頃は10月下旬から11月上旬。**下りた分だけ登り返す**ので、時間と体力の計算が要ります。冬期はレークラインが閉鎖されます。",
+    "highlights": [
+      "岩と淵の続く渓流。水が透明で淵が青緑に見えます",
+      "10月下旬から11月上旬の紅葉。谷全体が赤くなります",
+      "遊歩道からの見下ろし。降りる途中の視点です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "10月下旬から11月上旬が紅葉。年間で最も混みます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と雪解けの水量。道の開通時期を確認してください。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、渓谷は涼しい場所です。"
+      },
+      {
+        "season": "winter",
+        "text": "レークラインが冬期閉鎖されます。行けません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "渓谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと淵の色が出ます。紅葉は逆光で透かせます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "渓谷は早く暗くなります。登り返しの時間を計算してください。"
+      }
+    ],
+    "compositionTips": [
+      "円偏光フィルターで反射を抑えると、淵の青緑が出ます",
+      "紅葉は逆光で透かしてください。順光では沈みます",
+      "下りた分だけ登り返します。三脚は軽いものを選んでください"
+    ],
+    "officialWebsiteUrl": "https://www.urabandai-inf.com/?page_id=45",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -17407,6 +18440,80 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_772a53826054",
+    "slug": "samegai-baikamo",
+    "name": "醒井の梅花藻",
+    "nameEn": "Baikamo of Samegai",
+    "reading": "さめがいのばいかも",
+    "aliases": [
+      "醒井宿",
+      "地蔵川",
+      "米原 醒井",
+      "中山道"
+    ],
+    "address": "滋賀県米原市醒井",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "米原市"
+    },
+    "coords": {
+      "lat": 35.32,
+      "lng": 136.34
+    },
+    "category": "湧水",
+    "summary": "中山道の宿場町を流れる地蔵川に、梅花藻という水中花が群生します。7月から8月にかけて、水面下で白い小花が一面に咲きます。",
+    "description": "**花が水の中で咲く**ことが、この場所の被写体です。梅花藻は水温14度前後の清流にしか育たず、地蔵川は湧水なので年間を通じてその温度を保つ。花は水面下2〜3cmで咲き、流れに揺れる——つまり**シャッター速度で揺れを止めるか流すか**が選択になります。お盆の頃には百日紅の赤い花が川に落ち、白と赤が水中で重なる。町家の並ぶ通りが川沿いに続きます。",
+    "highlights": [
+      "水中で咲く白い梅花藻。7月から8月が見頃です",
+      "落ちた百日紅の赤。白と赤が水中で重なります",
+      "宿場町の町並みと地蔵川。生活の場を川が流れます"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "7月から8月が見頃。百日紅が落ちる時期も重なります。"
+      },
+      {
+        "season": "spring",
+        "text": "藻は育っていますが、花はまだ少ない時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "9月上旬まで花が残ります。その後は葉だけになります。"
+      },
+      {
+        "season": "winter",
+        "text": "花はありません。湧水なので川は凍りません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "人が少なく、水面も静かです。光も柔らかい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日が高いと水中まで光が届き、白い花が明るく出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "川沿いは早く陰ります。日中のほうが向きます。"
+      }
+    ],
+    "compositionTips": [
+      "円偏光フィルターがほぼ必須です。反射を消さないと水中が見えません",
+      "流れの揺れは速いシャッターで止まります。流すなら1/15秒前後です",
+      "生活の場を流れる川です。住宅の敷地に入らないでください"
+    ],
+    "officialWebsiteUrl": "https://www.biwako-visitors.jp/spot/detail/1224",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_d133daf20bc5",
     "slug": "sandankyo",
     "name": "三段峡",
@@ -17474,6 +18581,79 @@
       "長秒露光にするなら減光フィルターと三脚が要ります"
     ],
     "officialWebsiteUrl": "https://akiota.jp/spot/sandankyo/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_eda62399fcf2",
+    "slug": "sankyo-soko",
+    "name": "山居倉庫",
+    "nameEn": "Sankyo Rice Storehouses",
+    "reading": "さんきょそうこ",
+    "aliases": [
+      "酒田 山居倉庫",
+      "ケヤキ並木",
+      "米倉庫"
+    ],
+    "address": "山形県酒田市山居町1-1-20",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 38.91,
+      "lng": 139.84
+    },
+    "category": "産業遺産",
+    "summary": "1893年に建てられた米の保管倉庫。9棟が並び、西側には日除けと風除けのためのケヤキ並木が植えられています。",
+    "description": "**倉庫とケヤキ並木の組み合わせ**が、この場所の構図です。黒い板壁の倉庫が一列に並び、その前に太いケヤキが等間隔で立つ——垂直の幹と水平の屋根のラインが交差します。ケヤキは日除けのために植えられた実用のもので、装飾ではありません。倉庫は米の保管に必要な湿度を保つ設計で、いまも現役の部分があります。新緑と紅葉、雪の季節で並木の表情が変わります。",
+    "highlights": [
+      "黒い板壁の倉庫9棟。一列に並びます",
+      "ケヤキ並木。日除けのために植えられた実用の並木です",
+      "幹の垂直と屋根の水平が交差する構図"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "ケヤキの新緑。黒い壁との対比が最も強い時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、日陰が深くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "ケヤキの黄葉。落ち葉が地面を埋めます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根に載り、裸木の幹だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "斜光が並木の間から入ります。人も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "光が回り、倉庫の並びが見やすくなります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西日が並木を横から照らします。幹の影が長く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "並木に沿って斜めから撮ると、幹の反復が奥行きになります",
+      "黒い壁は黒潰れします。露出は明るめに振ってください",
+      "現役の部分があります。業務の妨げにならない位置で構えてください"
+    ],
+    "officialWebsiteUrl": "https://sakata-kankou.com/spot/1012",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -18662,6 +19842,79 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a97b4292220a",
+    "slug": "shirakawa-ko-suibotsurin",
+    "name": "白川湖の水没林",
+    "nameEn": "Submerged Forest of Lake Shirakawa",
+    "reading": "しらかわこのすいぼつりん",
+    "aliases": [
+      "飯豊町 白川湖",
+      "水没林",
+      "ヤナギ"
+    ],
+    "address": "山形県西置賜郡飯豊町数馬",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "西置賜郡飯豊町"
+    },
+    "coords": {
+      "lat": 38.02,
+      "lng": 139.88
+    },
+    "category": "湖沼",
+    "summary": "雪解け水でダム湖の水位が上がり、湖岸のヤナギが水に浸かる現象。例年4月中旬から5月上旬の数週間だけ現れます。",
+    "description": "**年に数週間しか存在しない**被写体です。雪解けでダム湖が満水になると、普段は陸地に立つヤナギの下半分が水没し、木が水面から生えているように見える。水が引けば普通の湖岸に戻ります。新緑の時期と重なるため、明るい緑の木と水面が同じ色を持つ。朝は霧が出やすく、木と霧と水だけの画面になります。カヌーで水没林の中に入れる期間もあります。",
+    "highlights": [
+      "水面から生えているように見えるヤナギ",
+      "朝霧。木と霧と水だけの画面になります",
+      "新緑。木の緑と水面が同じ色になります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "4月中旬から5月上旬の数週間だけです。この時期以外は存在しません。"
+      },
+      {
+        "season": "summer",
+        "text": "水が引き、普通の湖岸に戻ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉の湖として撮れます。水没林ではありません。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に閉ざされます。道の状況を確認してください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "霧が最も出やすい時間です。この場所の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "霧が晴れ、新緑が順光で出ます。水面も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "風で水面が波立ちます。映り込みは崩れます。"
+      }
+    ],
+    "compositionTips": [
+      "出現は年に数週間です。水位の情報を確認してから行ってください",
+      "霧を狙うなら夜明け前に着いてください。日が昇ると消えます",
+      "映り込みは風の弱い早朝だけです"
+    ],
+    "officialWebsiteUrl": "https://iide-kanko.com/spot/suibotsurin/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_8fa3d05c162e",
     "slug": "shirakawago",
     "name": "白川郷 荻町合掌造り集落",
@@ -19548,6 +20801,79 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6e63cf5bd65f",
+    "slug": "tadami-daiichi-viewpoint",
+    "name": "第一只見川橋梁ビューポイント",
+    "nameEn": "First Tadami River Bridge Viewpoint",
+    "reading": "だいいちただみがわきょうりょう びゅーぽいんと",
+    "aliases": [
+      "只見線",
+      "三島町 ビューポイント",
+      "道の駅尾瀬街道みしま宿"
+    ],
+    "address": "福島県大沼郡三島町川井",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "大沼郡三島町"
+    },
+    "coords": {
+      "lat": 37.46,
+      "lng": 139.6
+    },
+    "category": "鉄道",
+    "summary": "JR只見線のアーチ橋を見下ろす展望地。国道252号の道の駅から遊歩道で上がり、3つの展望位置から橋と只見川を一望できます。",
+    "description": "**橋と川と山が層になる**構図が最初から決まっています。アーチ橋が只見川を渡り、その両岸が山——高い位置から見下ろすと、水面・橋・山・空が水平に重なる。展望位置はBからDの3か所あり、**最も高いDまでは徒歩約15分**。列車は1日数本しかないので、時刻表を先に見て待つ場所を決める必要があります。川霧が出る朝は、橋だけが霧の上に残ります。",
+    "highlights": [
+      "アーチ橋と只見川と山。水平に層が重なります",
+      "川霧。橋だけが霧の上に残ります",
+      "3つの展望位置。最も高いDまで徒歩約15分です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "10月下旬から11月上旬が紅葉。年間で最も混みます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の只見線。白い山と赤い列車の対比になります。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と残雪。川霧も出やすい時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、川霧が最も出やすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "川霧が最も出やすい時間です。列車の時刻と合うかは運次第です。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で橋と川の色が出ます。列車の本数を確認してください。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光で山の起伏が立体になります。最終列車の時刻に注意。"
+      }
+    ],
+    "compositionTips": [
+      "列車は1日数本です。時刻表を先に見て、待つ位置を決めてください",
+      "望遠で圧縮すると橋と山が近づき、層が締まります",
+      "遊歩道は山道です。三脚は軽いものを選んでください"
+    ],
+    "officialWebsiteUrl": "https://www.town.mishima.fukushima.jp/site/kankou/4242.html",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_e0ccb0e33a76",
     "slug": "taishakukyo",
     "name": "帝釈峡 雄橋",
@@ -20172,6 +21498,79 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c9d7de14d585",
+    "slug": "tamasudare-no-taki",
+    "name": "玉簾の滝",
+    "nameEn": "Tamasudare Falls",
+    "reading": "たまだれのたき",
+    "aliases": [
+      "酒田 玉簾の滝",
+      "御嶽神社",
+      "氷瀑"
+    ],
+    "address": "山形県酒田市升田字大森921-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 38.92,
+      "lng": 140.07
+    },
+    "category": "滝",
+    "summary": "高さ63m・幅5mの山形県随一の直瀑。御嶽神社の境内にあり、岩壁を細く長く落ちる姿が簾に例えられます。",
+    "description": "**細くて長い**のがこの滝の形です。幅5mに対して高さ63mなので、**縦構図でしか成立しません**。岩壁は苔に覆われ、水が壁を伝うように落ちる。滝壺のすぐ前まで歩いて行けるため、見上げる角度が取れます。冬は全面が凍る「氷瀑」になり、期間限定でライトアップされる年もあります。境内の滝なので、撮影の際は参拝者の導線に配慮してください。",
+    "highlights": [
+      "高さ63m・幅5mの直瀑。縦構図でしか成立しません",
+      "苔むした岩壁。水が壁を伝うように落ちます",
+      "冬の氷瀑。全面が凍ります"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "氷瀑になります。ライトアップされる年もあります。"
+      },
+      {
+        "season": "spring",
+        "text": "雪解けで水量が増えます。新緑も重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、滝壺は涼しい場所です。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が岩壁を縁取ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "光が岩壁に当たり、苔の緑が出ます。"
+      },
+      {
+        "time": "night",
+        "text": "冬のライトアップの期間だけです。公式で確認してください。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図が必須です。横にすると高さがまったく伝わりません",
+      "長秒露光で水を伸ばすと、簾の名の意味が出ます",
+      "神社の境内です。参拝者の導線をふさがないでください"
+    ],
+    "officialWebsiteUrl": "https://sakata-kankou.com/spot/1024",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
     "spotId": "sp_7b5ca173a195",
     "slug": "tenkaiho",
     "name": "展海峰（九十九島）",
@@ -20238,6 +21637,79 @@
       "夕景は日没後30分まで。空の色は沈んでから濃くなります"
     ],
     "officialWebsiteUrl": "https://www.sasebo99.com/spot/tenkaiho/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6635624f4ee0",
+    "slug": "to-no-hetsuri",
+    "name": "塔のへつり",
+    "nameEn": "To-no-Hetsuri",
+    "reading": "とうのへつり",
+    "aliases": [
+      "下郷町 塔のへつり",
+      "大川ライン",
+      "藤見橋"
+    ],
+    "address": "福島県南会津郡下郷町弥五島字下夕川原",
+    "region": {
+      "country": "日本",
+      "prefecture": "福島県",
+      "city": "南会津郡下郷町"
+    },
+    "coords": {
+      "lat": 37.25,
+      "lng": 139.87
+    },
+    "category": "渓谷",
+    "summary": "大川の浸食で削られた約200mの岩壁。塔のような岩が連なり、その足元が抉れて回廊状になっています。国の天然記念物です。",
+    "description": "**岩の下が抉れている**ことが、この地形の特徴です。柔らかい層が先に削られたため、上の岩が張り出し、足元に回廊ができている——吊橋を渡ってその回廊を歩けます。岩は白っぽく、緑や紅葉と強い対比になる。「へつり」は会津の言葉で「川沿いの険しい崖」の意味。吊橋から岩壁を横位置で撮るのが定番で、紅葉期は11月上旬から中旬です。",
+    "highlights": [
+      "足元が抉れた岩壁。上の岩が張り出して回廊になっています",
+      "吊橋からの横位置。約200mの岩壁が並びます",
+      "白い岩と紅葉。11月上旬から中旬です"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "11月上旬から中旬が紅葉。年間で最も混みます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が岩を縁取ります。水量も安定します。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、渓谷は涼しい場所です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が岩に載ります。吊橋の通行状況を確認してください。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "谷に直射が入らず、白い岩の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "岩に光が当たり、抉れた部分の影が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光で岩の凹凸が最も立体になります。"
+      }
+    ],
+    "compositionTips": [
+      "白い岩は白飛びします。露出をアンダー寄りに振ってください",
+      "吊橋は揺れます。シャッター速度を上げてください",
+      "回廊は狭く、濡れると滑ります。柵の外に出ないでください"
+    ],
+    "officialWebsiteUrl": "https://shimogo.jp/sightseeing/tounohetsuri/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -22371,6 +23843,80 @@
       "展望台の柵から身を乗り出さないでください"
     ],
     "officialWebsiteUrl": "https://www.yashima-navi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6cccbf925ba9",
+    "slug": "yogo-ko",
+    "name": "余呉湖",
+    "nameEn": "Lake Yogo",
+    "reading": "よごこ",
+    "aliases": [
+      "鏡湖",
+      "長浜 余呉湖",
+      "羽衣伝説",
+      "賤ヶ岳"
+    ],
+    "address": "滋賀県長浜市余呉町川並",
+    "region": {
+      "country": "日本",
+      "prefecture": "滋賀県",
+      "city": "長浜市"
+    },
+    "coords": {
+      "lat": 35.54,
+      "lng": 136.19
+    },
+    "category": "湖沼",
+    "summary": "琵琶湖の北にある周囲約6.4kmの湖。風が弱く水面が鏡のようになることから「鏡湖」とも呼ばれ、羽衣伝説が伝わります。",
+    "description": "**波が立ちにくい湖**です。周囲を山に囲まれて風が遮られるため、対岸の山がそのまま水面に映る——上下対称の構図が、他の湖より高い確率で成立します。湖は一周できる道があり、光の向きに合わせて立ち位置を選べる。冬は雪が湖畔まで下り、白い山と黒い水面という色数の少ない画面になります。ワカサギ釣りの桟橋が並ぶのも冬の景色です。",
+    "highlights": [
+      "鏡のような水面。対岸の山がそのまま映ります",
+      "湖を一周できる道。光の向きで立ち位置を選べます",
+      "冬の雪景色とワカサギ釣りの桟橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "雪が湖畔まで下ります。色数の少ない画面になります。"
+      },
+      {
+        "season": "spring",
+        "text": "桜が湖畔に咲きます。水面にも映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、水面の映り込みも緑になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉が対岸を覆います。空気も澄み、映り込みが鮮明です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "風が最も弱く、映り込みが最も出ます。朝霧も出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "順光で対岸の色が出ます。水面もまだ静かです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "斜光で山の起伏が立体になります。水面も色を拾います。"
+      }
+    ],
+    "compositionTips": [
+      "上下対称を狙うなら、水平線を画面の中央に置いてください",
+      "映り込みは早朝が最も確実です。日が高くなると風が出ます",
+      "湖は一周できます。光の向きに合わせて対岸へ移動してください"
+    ],
+    "officialWebsiteUrl": "https://kitabiwako.jp/spot/spot_1090",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
