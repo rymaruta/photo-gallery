@@ -91,6 +91,13 @@ const EXEMPT: Array<[string, string]> = [
     // 包みにするなら共通部の形から変える話になる。
     // **`app/components/stories/**` は別の担当の範囲**でもある
     ["useStoryArchive.ts", "Story の行の一覧（IDの一覧ではない）・素の配列が返る"],
+    // **ID の一覧ではない。** 返るのは `TripPlan[]`（題・日付・日ごとの項目を
+    // 持つ行そのもの）。`useMyPhotoIdList` は「文字列のIDの一覧」を前提に
+    // しているので、包みにするなら共通部の形から変える話になる
+    // ——**サーバー側は同じ行の形を使い回している**（`api-user/src/userList.ts` を
+    // 型引数つきに広げ、読む側に `readUserRows` を足した）が、画面側は別。
+    // 書く側（POST / PUT / DELETE）が同じファイルに在るのも `useSavedSpots` と同じ
+    ["useTripPlans.ts", "TripPlan の行の一覧（IDの一覧ではない）・書く口も同じファイル"],
 ];
 
 describe("自分の一覧を引く処理は1つだけ", () => {

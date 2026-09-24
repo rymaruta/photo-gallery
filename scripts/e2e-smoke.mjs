@@ -761,6 +761,13 @@ function signedInApiBody(url, method, photos) {
     if (p === "/user/following") return { list: [] };
     if (p === "/user/blocks" || p === "/albums") return { items: [] };
     if (p === "/user/likes" || p === "/user/saves" || p === "/user/spots") return { ids: [] };
+    // 旅行プラン。**1件返す**——0件だと空状態しか描かれず、カード（題・期間・
+    // 何か所・削除）の名前とタップ領域を一度も測らないことになる
+    if (p === "/user/trips") return { plans: [{
+        planId: "smoke-trip", title: "スモークの旅", startDate: "2026-12-24", endDate: "2026-12-28",
+        days: [{ date: "2026-12-24", items: [{ kind: "location", slug: "パリ" }] }],
+        visibility: "private",
+    }] };
     if (/^\/users\/[^/]+\/follow$/.test(p)) return { following: false, followers: 0, followingCount: 0 };
     if (/^\/photos\/[^/]+\/comments$/.test(p)) return { items: [], count: 0 };
     if (/^\/photos\/[^/]+\/like$/.test(p)) return { likes: 0 };
@@ -871,6 +878,7 @@ async function runSignedInChecks(browser, eng) {
         ["/user/albums", "アルバム"],
         ["/saves", "保存した写真"],
         ["/saved-spots", "行きたい場所"],
+        ["/trips", "旅行プラン"],
         ["/favorites", "いいねした写真"],
         [`/users/${sub}`, "マイページ（本人として）"],
         [`/user/edit?id=${encodeURIComponent(photos[0]?.id ?? "")}`, "写真の編集"],
