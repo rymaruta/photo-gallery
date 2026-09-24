@@ -21,9 +21,9 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("registers official imagery from twelve overseas countries alongside Japan without keys", () => {
+    it("registers official imagery from thirteen overseas countries alongside Japan without keys", () => {
         expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(
-            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU", "EE", "DE"]),
+            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU", "EE", "DE", "LU"]),
         );
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
@@ -77,5 +77,8 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         expect(de?.url).toContain("wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/{z}/{y}/{x}");
         expect(de?.bounds[0]).toBeGreaterThan(5);
         expect(de?.bounds[2]).toBeLessThan(10);
+        const lu = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "LU");
+        expect(lu?.url).toContain("opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg");
+        expect(lu?.min).toBeGreaterThanOrEqual(10);
     });
 });
