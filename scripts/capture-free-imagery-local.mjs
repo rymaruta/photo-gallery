@@ -74,6 +74,13 @@ const routes = [
     source: "maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/",
     description: "NSW Spatial Services official NSW-only imagery in Sydney (not whole Australia)",
     pins: [["proof-sydney", "シドニー（検証用）", "オーストラリア・NSW州", -33.8688, 151.2093]] },
+  { slug: "estonia", label: "Estonia", hash: "#13/59.437/24.745",
+    source: "tiles.maaamet.ee/tm/wmts?", description: "Estonian Maa- ja Ruumiamet orthophoto in Tallinn",
+    pins: [["proof-tallinn", "タリン（検証用）", "エストニア", 59.437, 24.745]] },
+  { slug: "germany-nrw", label: "Germany: NRW", hash: "#13/50.9375/6.9603",
+    source: "www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/",
+    description: "German Geobasis NRW orthophoto in Cologne, NOT all Germany",
+    pins: [["proof-cologne", "ケルン（検証用）", "ドイツ・NRW州", 50.9375, 6.9603]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
