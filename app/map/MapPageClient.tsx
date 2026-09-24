@@ -15,6 +15,7 @@ import {
 } from "../../lib/utils/mapFilter";
 import type { SpotPin } from "../../lib/data/spotLink";
 import MapSpotSheet from "./MapSpotSheet";
+import MapSpotList from "./MapSpotList";
 
 /**
  * 撮影地マップ（/map）。位置情報を持つ公開写真を地図に載せる。
@@ -252,6 +253,14 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                                     ? `${filtered.length} of ${geo.length} shown`
                                     : `${geo.length}枚中 ${filtered.length}枚を表示`)}
                         </p>
+
+                        {/* 公式撮影スポットの一覧。**タブで写真と分けない**
+                            ——地図は1つで、公式スポットのピンと写真のピンが
+                            同時に立つ。ここは「地図を操作できない人のための
+                            ガイドへの経路」で、`MapPhotoList` と同じ役目。
+                            **絞り込み（語・カテゴリ・範囲）には連動しない**
+                            ——あれは写真の値を見る仕組みで、台帳は別の持ち物 */}
+                        <MapSpotList spots={spots} locale={locale} />
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
 

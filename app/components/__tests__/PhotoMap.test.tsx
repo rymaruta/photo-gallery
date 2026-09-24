@@ -518,7 +518,7 @@ describe("動きを減らす設定", () => {
  *  3. **押すと親へスラッグが渡る**（中身は画面側のシートが描く）
  */
 describe("公式撮影地ガイドのピン", () => {
-    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6 };
+    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null };
 
     const drawWithSpot = async (photos: MapPhoto[], onSelectSpot?: (slug: string) => void) => {
         render(<PhotoMap photos={photos} locale="ja" spots={[SPOT]} onSelectSpot={onSelectSpot} />);

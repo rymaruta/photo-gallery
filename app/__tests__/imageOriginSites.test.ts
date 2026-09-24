@@ -111,6 +111,13 @@ const EXEMPT: Array<[string, string, string]> = [
      "写真詳細に出す公式ガイドの代表写真。`SpotGuideClient` と同じ値。"
      + "台帳をクライアントに載せないため、サーバー側（`lib/data/spotLink.ts`）で"
      + "解いた `SpotLink` から受け取る"],
+    ["app/map/MapSpotSheet.tsx", "spot.cover.src",
+     "地図で公式スポットのピンを押したときの代表写真。**利用者が上げた写真では"
+     + "ない**——運営が台帳（`content/spots.json`）に書いたサイト内のパスで、"
+     + "CloudFront の写真URLではないので `publicImageUrl` を通す対象ではない。"
+     + "権利の判断はサーバー側（`lib/data/spotLink.ts` の `toSpotLink`）で済ませてある"],
+    ["app/map/MapSpotList.tsx", "s.cover.src",
+     "地図の下の公式スポット一覧の代表写真。上と同じ値・同じ経路"],
     ["app/components/SpotIndexClient.tsx", "s.coverImage!.src",
      "公式撮影地ガイドの索引に出す代表写真。`SpotGuideClient` と同じ値で、"
      + "運営が台帳に書いたサイト内のパス（利用者が上げた写真ではない）"],

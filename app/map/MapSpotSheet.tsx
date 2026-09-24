@@ -23,9 +23,13 @@ import SaveSpotButton from "../components/SaveSpotButton";
  *
  * ## 置くもの
  *
- *   - 名前と地域
+ *   - **代表写真**（権利が確認できているときだけ）と名前・地域
  *   - **撮影ガイドを見る**（`/spots/<slug>`）… 地図 → ガイドの導線
  *   - **行きたい**（`SaveSpotButton`）… 地図 → 行きたい場所の導線
+ *
+ * 代表写真を置くのは owner の「**写真が主役**」から。無いスポットは
+ * 枠ごと出さない——**無関係な写真で埋めない**（指示書 第5章）し、
+ * 空の灰色の四角を並べても情報が増えない。
  *
  * owner のコアの鎖（さがす → 撮影地ガイド → マップ → 行きたい場所 →
  * 旅行プラン → 写真SNS）で、地図から次の2つへ繋ぐのがこのシートの役目。
@@ -54,6 +58,24 @@ export default function MapSpotSheet({
                 style={{ maxWidth: "560px", padding: "12px 12px 14px" }}
             >
                 <div className="flex items-start gap-2">
+                    {/* 代表写真。**権利の判断はサーバー側で済んでいる**
+                        （`lib/data/spotLink.ts` の `toSpotLink`）ので、
+                        ここは在れば出す・無ければ枠ごと出さないだけ */}
+                    {spot.cover && (
+                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5 relative"
+                              style={{ width: "72px", height: "72px" }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={spot.cover.src} alt={spot.cover.alt} width={72} height={72}
+                                 loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                            {spot.cover.credit && (
+                                <span className="absolute bottom-0 right-0 bg-black/60 text-white/85"
+                                      style={{ fontSize: "8px", lineHeight: "12px", padding: "0 3px" }}
+                                      data-testid="map-spot-credit">
+                                    {spot.cover.credit}
+                                </span>
+                            )}
+                        </span>
+                    )}
                     <div className="min-w-0 flex-1">
                         <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />

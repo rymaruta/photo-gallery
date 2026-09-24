@@ -56,7 +56,10 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
  * 台帳に1件入った日に**この判定が別のことを見る**。
  */
 const ledger = vi.hoisted(() => ({
-    pins: [] as Array<{ slug: string; name: string; region: string; lat: number; lng: number }>,
+    pins: [] as Array<{
+        slug: string; name: string; region: string; lat: number; lng: number;
+        cover: { src: string; alt: string; credit: string | null } | null;
+    }>,
 }));
 vi.mock("../../../lib/data/spotLink", () => ({ spotPins: () => ledger.pins }));
 
@@ -476,7 +479,8 @@ describe("/map", () => {
  * 旅行プラン → 写真SNS）で、地図から次の2つへ繋ぐのがこのシートの役目。
  */
 describe("公式撮影地ガイドのピン", () => {
-    const PIN = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6 };
+    const PIN = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null };
+    const COVER = { src: "/spots/takaya.jpg", alt: "高屋神社の鳥居", credit: "丸田 竜平" };
     const P = (id: string): Photo => ({
         id, src: `https://cdn/${id}.jpg`, userId: "u1", title: { ja: `写真${id}` },
         location: "山中湖", coords: { lat: 35.42, lng: 138.88 }, published: true,
@@ -485,6 +489,89 @@ describe("公式撮影地ガイドのピン", () => {
 
     /// **写真が1枚も無いと地図ごと出ない**（既存の判断）ので、1枚置く
     const show = () => { photosState.current = [P("a")]; ledger.pins = [PIN]; render(<MapPage />); };
+
+    /**
+     * **公式スポットの一覧は、行そのものがガイドへのリンク。**
+     *
+     * `MapPhotoList` が同じ理由でそうしている——「押すと選ぶだけ、にすると
+     * 読み上げの人が辿り着けない」。地図を操作できない人にとって、ここが
+     * ガイドへの**唯一の経路**になる。
+     */
+    describe("公式スポットの一覧", () => {
+        it("行がガイドへのリンクになっている", () => {
+            show();
+            const list = screen.getByTestId("map-spot-list");
+            const link = within(list).getByRole("link", { name: /高屋神社/ });
+            expect(link.getAttribute("href")).toBe("/spots/takaya-jinja");
+        });
+
+        it("地域も出す（どこの場所か分かるように）", () => {
+            show();
+            expect(within(screen.getByTestId("map-spot-list")).getByText(/香川県 観音寺市/)).toBeTruthy();
+        });
+
+        /// **タブで分けない。** 公式スポットと写真が同時に見られるのが、
+        /// 1つの地図にした理由
+        it("写真の一覧と同時に出る（タブで排他にしない）", () => {
+            show();
+            expect(screen.getByTestId("map-spot-list")).toBeTruthy();
+            expect(screen.getByTestId("map-list")).toBeTruthy();
+        });
+
+        /// 台帳が空なら節ごと出さない（空の見出しを置かない）
+        it("スポットが0件なら節ごと出さない", () => {
+            photosState.current = [P("a")];
+            ledger.pins = [];
+            render(<MapPage />);
+            expect(screen.queryByTestId("map-spot-list")).toBeNull();
+            expect(screen.queryByText("公式撮影スポット")).toBeNull();
+        });
+
+        /// 数えていないものを出さない（owner の指示 2026-09-22）
+        it("「人気」「評価」「枚数」を出さない", () => {
+            show();
+            expect(screen.getByTestId("map-spot-list").textContent).not.toMatch(/人気|評価|枚|件/);
+        });
+    });
+
+    /**
+     * 代表写真。**権利の判断はサーバー側で済ませてある**ので、画面は
+     * 在れば出す・無ければ枠ごと出さないだけ。
+     */
+    describe("シートの代表写真", () => {
+        it("無ければ枠ごと出さない（空の灰色を置かない）", async () => {
+            show();
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            expect(within(screen.getByTestId("map-spot-sheet")).queryByRole("img")).toBeNull();
+        });
+
+        it("在れば出し、クレジットも添える", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [{ ...PIN, cover: COVER }];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            const sheet = screen.getByTestId("map-spot-sheet");
+            const img = within(sheet).getByRole("img");
+            expect(img.getAttribute("src")).toBe("/spots/takaya.jpg");
+            expect(img.getAttribute("alt"), "台帳の alt をそのまま使う").toBe("高屋神社の鳥居");
+            expect(within(sheet).getByTestId("map-spot-credit").textContent).toBe("丸田 竜平");
+        });
+
+        /**
+         * クレジットが要らない回（owner 本人の写真）は**要素ごと出さない**。
+         *
+         * ⚠️ 最初は「文字が無いこと」で見ていたが、**空の黒いチップが写真の
+         * 上に出る**変異を素通りさせた（背景と余白を持つので見える）。
+         * 要素そのものの有無で見る。
+         */
+        it("クレジットが `null` なら、空の帯も出さない", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [{ ...PIN, cover: { ...COVER, credit: null } }];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            expect(within(screen.getByTestId("map-spot-sheet")).queryByTestId("map-spot-credit")).toBeNull();
+        });
+    });
 
     it("台帳のスポットを地図へ渡す", () => {
         show();

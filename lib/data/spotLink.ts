@@ -93,15 +93,29 @@ export function spotLinkForPhoto(spotId: string | undefined | null): SpotLink | 
  * `SpotLink` から `coords` を必須にしただけの形にするのは、地図側が
  * 「無いかもしれない」を毎回ほどかずに済むため（ピンは座標が無いと立たない）。
  */
-export type SpotPin = { slug: string; name: string; region: string; lat: number; lng: number };
+export type SpotPin = {
+    slug: string;
+    name: string;
+    region: string;
+    lat: number;
+    lng: number;
+    /**
+     * 代表写真。**権利が確認できているものだけ**（判断はサーバー側で済ませる）。
+     * `null` なら画面は写真の枠を出さない。
+     *
+     * ⚠️ **足す項目は「本当に画面が読むか」を確かめてから。** ここに入れた
+     * ぶんが `/map` のチャンクに、スポットの数だけ乗る。
+     */
+    cover: SpotLink["cover"];
+};
 
 /** 地図に立てられる公式スポット（公開条件を満たし、座標を持つもの） */
 export function spotPins(): SpotPin[] {
     const out: SpotPin[] = [];
     for (const spot of publishableSpots(SPOTS)) {
         if (!spot.coords) continue;
-        const { slug, name, region } = toSpotLink(spot);
-        out.push({ slug, name, region, lat: spot.coords.lat, lng: spot.coords.lng });
+        const { slug, name, region, cover } = toSpotLink(spot);
+        out.push({ slug, name, region, cover, lat: spot.coords.lat, lng: spot.coords.lng });
     }
     return out;
 }
