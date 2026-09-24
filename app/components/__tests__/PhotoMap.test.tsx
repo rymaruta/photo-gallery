@@ -505,3 +505,87 @@ describe("動きを減らす設定", () => {
     });
 });
 
+
+/**
+ * 公式撮影地ガイドのピン（`/spots/<slug>`）。
+ *
+ * ここで固定したいのは3つ:
+ *
+ *  1. **写真の束に混ぜない**——混ぜると束の数字が「N枚」と名乗ったまま
+ *     写真でないものを数える
+ *  2. **形を分ける**——写真入りの丸と同じ見た目にすると「ここに写真がある」
+ *     と読める（現在地の点を丸にしてあるのと同じ判断）
+ *  3. **押すと親へスラッグが渡る**（中身は画面側のシートが描く）
+ */
+describe("公式撮影地ガイドのピン", () => {
+    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null };
+
+    const drawWithSpot = async (photos: MapPhoto[], onSelectSpot?: (slug: string) => void) => {
+        render(<PhotoMap photos={photos} locale="ja" spots={[SPOT]} onSelectSpot={onSelectSpot} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+    };
+
+    const spotMarker = () => state.markers.find((m) => String(m.opts.title ?? "").includes("高屋神社"));
+
+    it("写真が1枚も無くてもピンが立つ（投稿0枚でも成立するのが台帳の肝）", async () => {
+        await drawWithSpot([]);
+        expect(spotMarker()).toBeTruthy();
+    });
+
+    /// 🔴 **束の数字は写真の枚数のまま。** 同じ升にスポットが在っても増えない
+    it("写真の束には混ざらない", async () => {
+        await drawWithSpot([photo("a"), photo("b")]);
+        const cluster = state.markers.find((m) => String(m.opts.title ?? "").includes("枚"));
+        expect(cluster?.opts.title, "束の数字がスポットを数えている").toBe("2枚");
+    });
+
+    /// 🔴 **形を分ける。** 写真のピン（`photo-map-pin`）と同じクラスにしない
+    it("写真のピンとは別の形で描く", async () => {
+        await drawWithSpot([]);
+        // 偽物の `divIcon` は渡された options をそのまま返す（上のモック）
+        const icon = spotMarker()?.opts.icon as { html?: HTMLElement; className?: string } | undefined;
+        expect(icon?.className).toBe("spot-map-pin-icon");
+        expect(icon?.html?.className).toContain("spot-map-pin");
+        expect(icon?.html?.className, "写真のピンと同じ見た目にしない").not.toContain("photo-map-pin");
+    });
+
+    /// 名前は読み上げにも届く（ピンの中身は印だけ＝文字を持たない）
+    it("名前と「公式」を読み上げに渡す", async () => {
+        await drawWithSpot([]);
+        expect(spotMarker()?.opts.title).toBe("高屋神社（公式撮影スポット）");
+        expect(spotMarker()?.opts.alt).toBe("高屋神社（公式撮影スポット）");
+        const html = (spotMarker()?.opts.icon as { html?: HTMLElement }).html;
+        expect(html?.textContent, "ピンの中に文字を入れない").toBe("");
+    });
+
+    it("押すとスラッグが親へ渡る", async () => {
+        const onSelectSpot = vi.fn();
+        await drawWithSpot([], onSelectSpot);
+        spotMarker()?.clickHandler?.();
+        expect(onSelectSpot).toHaveBeenCalledWith("takaya-jinja");
+    });
+
+    it("Enter でも押せる", async () => {
+        const onSelectSpot = vi.fn();
+        await drawWithSpot([], onSelectSpot);
+        spotMarker()?.keypressHandler?.({ originalEvent: { key: "Enter" } });
+        expect(onSelectSpot).toHaveBeenCalledWith("takaya-jinja");
+    });
+
+    /// **写真の束の下に隠れない。** 同じ升に束が在ると押せなくなる
+    it("写真のピンより手前に置く", async () => {
+        await drawWithSpot([photo("a"), photo("b")]);
+        expect(Number(spotMarker()?.opts.zIndexOffset ?? 0)).toBeGreaterThan(0);
+    });
+
+    it("`onSelectSpot` を渡さなくても落ちない", async () => {
+        await drawWithSpot([]);
+        expect(() => spotMarker()?.clickHandler?.()).not.toThrow();
+    });
+
+    /// 渡さなければ1本も立たない（既定の空配列が毎回作られないことも兼ねる）
+    it("スポットを渡さなければ立たない", async () => {
+        await draw([photo("a")]);
+        expect(state.markers.some((m) => String(m.opts.title ?? "").includes("公式"))).toBe(false);
+    });
+});
