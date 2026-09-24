@@ -4018,6 +4018,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_21367554ed20",
+    "slug": "arita",
+    "name": "有田の町並み",
+    "nameEn": "Arita Historic District",
+    "reading": "ありたのまちなみ",
+    "aliases": [
+      "有田 内山地区",
+      "トンバイ塀"
+    ],
+    "address": "佐賀県西松浦郡有田町幸平",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "有田町"
+    },
+    "coords": {
+      "lat": 33.2,
+      "lng": 129.89
+    },
+    "category": "landmark",
+    "summary": "磁器の産地の町並み。廃材の窯道具を積んだトンバイ塀が路地に続き、赤茶けた壁になります。",
+    "description": "日本の磁器発祥の地で、内山地区が重要伝統的建造物群保存地区に選定されています。町家、洋館、蔵が混在し、約二キロ続きます。路地にはトンバイ塀と呼ばれる塀があり、登り窯を築いた耐火煉瓦の廃材と赤土を交互に積んで作られています。使い込まれた窯道具が壁の模様になっており、有田以外では見られない構造です。五月には陶器市が開かれます。",
+    "highlights": [
+      "窯の廃材を積んだトンバイ塀",
+      "町家と洋館が混在する町並み",
+      "五月の陶器市"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の陶器市。通りが店で埋まり、人出も最大になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光がトンバイ塀の凹凸に影を作ります。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、路地を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景を撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中はトンバイ塀に光が回り、廃材の形が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "トンバイ塀は寄って窯道具の形を主題にします",
+      "通りは望遠で圧縮して建物の様式の混在を見せます",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.arita.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_efd4b4bd39af",
     "slug": "arita-sueyama-jinja",
     "name": "有田 陶山神社",
@@ -15321,6 +15385,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_01289aa408ec",
+    "slug": "hadonomisaki",
+    "name": "波戸岬",
+    "nameEn": "Cape Hado",
+    "reading": "はどみさき",
+    "aliases": [
+      "玄海海中展望塔",
+      "波戸岬 ハート"
+    ],
+    "address": "佐賀県唐津市鎮西町波戸",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.55,
+      "lng": 129.85
+    },
+    "category": "nature",
+    "summary": "玄界灘に突き出した岬。沖に建つ海中展望塔から、潜らずに海の中の魚と海底を見られます。",
+    "description": "東松浦半島の先端にある岬で、沖合に玄海海中展望塔が建ちます。塔は海面下に窓を持ち、潜らずに魚と海底を見られる構造です。岬の芝生広場からは壱岐と対馬方面が見渡せ、晴れた日は水平線が大きく開けます。周囲は玄界灘に面しているため波が高く、岩場に白波が砕けます。日没が海に落ちる位置にあり、夕景が撮れます。",
+    "highlights": [
+      "沖に建つ海中展望塔",
+      "芝生広場からの玄界灘の眺め",
+      "海に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海の透明度が高く、展望塔からの見通しが利きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、水平線までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、岩場に砕ける白波が主役になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。展望塔をシルエットにできます。"
+      },
+      {
+        "time": "day",
+        "text": "海中展望塔は太陽が高い時間に水中へ光が届きます。"
+      }
+    ],
+    "compositionTips": [
+      "展望塔を海の中に置いて岬からの引きで撮ります",
+      "水中はガラス越しなのでレンズを近づけて反射を消します",
+      "岩場は波が来るので、足元を優先して立ち位置を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3f174b299125",
     "slug": "hagi-jokamachi",
     "name": "萩 城下町",
@@ -21112,6 +21240,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_35616aeaab34",
+    "slug": "hizen-hama",
+    "name": "肥前浜宿",
+    "nameEn": "Hizen Hamashuku",
+    "reading": "ひぜんはましゅく",
+    "aliases": [
+      "浜中町 酒蔵通り",
+      "茅葺きの町並み"
+    ],
+    "address": "佐賀県鹿島市浜町",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "鹿島市"
+    },
+    "coords": {
+      "lat": 33.09,
+      "lng": 130.11
+    },
+    "category": "landmark",
+    "summary": "白壁の酒蔵が並ぶ通りと、茅葺きの町家が続く通りが隣り合います。様式の違う町並みが二本あります。",
+    "description": "長崎街道の脇街道の宿場町で、二つの重要伝統的建造物群保存地区が隣り合う珍しい町です。浜中町八本木宿は白壁土蔵造りの酒蔵が並ぶ通りで、いまも複数の蔵が稼働しています。もう一方の浜庄津町浜金屋町は茅葺きの町家と桟瓦葺きの町家が混在する通りです。同じ町で様式の違う町並みを歩いて比べられます。三月には酒蔵の開放が行われます。",
+    "highlights": [
+      "白壁の酒蔵が並ぶ通り",
+      "茅葺きの町家が続く通り",
+      "二つの保存地区が隣り合う構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月の酒蔵開放。通りに人が出て賑わいます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が白壁と茅葺きの両方に影を作ります。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、二本の通りを無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、茅葺きの色と近づきます。"
+      }
+    ],
+    "compositionTips": [
+      "二本の通りを同じ画角で撮り比べて様式の差を見せます",
+      "酒蔵の白壁は露出オーバーになりやすいので補正します",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.kashima.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2fac38c65ac9",
@@ -28577,6 +28769,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_3236e752df1b",
+    "slug": "kagamiyama",
+    "name": "唐津 鏡山",
+    "nameEn": "Mt. Kagami, Karatsu",
+    "reading": "からつ かがみやま",
+    "aliases": [
+      "領巾振山"
+    ],
+    "address": "佐賀県唐津市鏡",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.44,
+      "lng": 130.01
+    },
+    "category": "mountain",
+    "summary": "標高二百八十四メートルの平らな山頂から、虹の松原と唐津湾を俯瞰できます。松原の弧が一枚に入ります。",
+    "description": "唐津湾の東にある山で、山頂が平らな台地になっています。展望台からは虹の松原が弓なりに続く全景と、その先の唐津湾、唐津城が一望できます。松原を上から見られる場所はここだけで、五キロにわたる松の帯が弧を描くのが分かります。山頂まで車道が通じています。春は山頂のツツジ、初夏は展望台周辺のアジサイが咲きます。",
+    "highlights": [
+      "虹の松原の弧を俯瞰できる視点",
+      "唐津湾と唐津城の一望",
+      "平らな山頂の台地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬から五月のツツジ。松原と花を一枚に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "六月のアジサイ。松の緑と海の青も濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、松原の先の海まで見通せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、松原の輪郭がはっきり出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾が光り、松原がシルエットに寄ります。"
+      }
+    ],
+    "compositionTips": [
+      "松原の弧を手前から奥へ通して長さを見せます",
+      "望遠で唐津城を抜くと街との位置関係が分かります",
+      "花を前景に入れると季節が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c686a7d1177b",
     "slug": "kagawa-ayagawa",
     "name": "綾川 滝宮",
@@ -31339,6 +31594,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2945a2cf3a49",
+    "slug": "kankyo-geijutsu",
+    "name": "環境芸術の森",
+    "nameEn": "Kankyo Geijutsu no Mori",
+    "reading": "かんきょうげいじゅつのもり",
+    "aliases": [
+      "唐津 風遊山荘"
+    ],
+    "address": "佐賀県唐津市厳木町平之923",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.36,
+      "lng": 130.11
+    },
+    "category": "nature",
+    "summary": "磨いた漆の床に紅葉が映り込みます。上下が逆さまに見える構図で知られる私設の森です。",
+    "description": "作礼山の中腹にある私設の森で、個人が四十年以上かけて植樹と整備を続けてきました。園内の風遊山荘には黒く磨かれたテーブルと床があり、そこに窓の外の紅葉が映り込みます。床の映り込みを撮ると上下が逆さに見える構図になります。紅葉は十一月中旬から下旬。新緑の時期にも同じ映り込みが緑で成立します。私有地なので管理の指示に従います。",
+    "highlights": [
+      "漆の床に映り込む紅葉",
+      "上下が逆さに見える構図",
+      "四十年かけて整備された森"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬が紅葉。映り込みが最も強く出ます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑の映り込み。緑で同じ構図が成立します。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑の森。人も少なく落ち着いて歩けます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "外が明るい時間ほど床の映り込みが濃く出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "開園直後は来園者が少なく、床を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "床の映り込みだけを画面に入れると上下が分からなくなります",
+      "実景と映り込みを半分ずつにする構図も試します",
+      "私有地なので、撮影の規則を受付で確認します"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_81eeb56a6409",
     "slug": "kannawa-yukemuri",
     "name": "鉄輪の湯けむり",
@@ -31692,6 +32010,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_752012b3334f",
+    "slug": "karatsu-kunchi",
+    "name": "唐津くんち",
+    "nameEn": "Karatsu Kunchi Festival",
+    "reading": "からつくんち",
+    "aliases": [
+      "唐津神社 曳山",
+      "曳山展示場"
+    ],
+    "address": "佐賀県唐津市南城内 唐津神社ほか市内",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.45,
+      "lng": 129.97
+    },
+    "category": "festival",
+    "summary": "漆で仕上げた十四台の曳山が町を巡ります。獅子や兜の形をした山車は重さ二トンを超えます。",
+    "description": "十一月二日から四日に行われる唐津神社の祭りで、ユネスコ無形文化遺産です。曳山は和紙を何層も貼り重ねて漆で仕上げたもので、獅子、兜、鯛など形が一台ずつ違います。重さは二トンを超え、数百人が曳きます。二日目の御旅所神幸では、砂地に曳き込む場面が最大の見せ場です。祭り以外の時期は曳山展示場で十四台をまとめて見られます。",
+    "highlights": [
+      "形が一台ずつ違う十四台の曳山",
+      "砂地への曳き込み",
+      "通年で見られる曳山展示場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月二日から四日が本番。前後は展示場での見学になります。"
+      },
+      {
+        "season": "winter",
+        "text": "展示場は通年。十四台を並べて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "御旅所神幸は日中。砂地の曳き込みが見せ場です。"
+      },
+      {
+        "time": "night",
+        "text": "初日の宵曳山は夜。提灯を付けた曳山が町を進みます。"
+      }
+    ],
+    "compositionTips": [
+      "曳山は下から煽って高さと漆の艶を出します",
+      "曳く人を入れて二トンという重さを伝えます",
+      "沿道の所定の位置から撮り、進行を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_185757ab72db",
@@ -32048,6 +32426,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_be8bedf5d5a3",
+    "slug": "kashima-gatalympic",
+    "name": "鹿島 干潟",
+    "nameEn": "Kashima Tidal Flat",
+    "reading": "かしま ひがた",
+    "aliases": [
+      "七浦海浜スポーツ公園",
+      "ガタリンピック"
+    ],
+    "address": "佐賀県鹿島市音成甲4427-6",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "鹿島市"
+    },
+    "coords": {
+      "lat": 33.07,
+      "lng": 130.11
+    },
+    "category": "nature",
+    "summary": "有明海の干満差は最大およそ六メートル。潮が引くと沖の数キロ先まで泥の平面が現れます。",
+    "description": "有明海に面した鹿島の海岸は干満の差が大きく、最大で約六メートルに達します。潮が引くと沖まで泥の干潟が広がり、水平線まで泥の平面が続く状態になります。ラムサール条約に登録されており、ムツゴロウやシオマネキが泥の上を動きます。毎年六月には泥の上で競技を行うガタリンピックが開かれます。潮見表を見ないと海にも干潟にも当たりません。",
+    "highlights": [
+      "水平線まで続く泥の平面",
+      "ムツゴロウとシオマネキ",
+      "六月のガタリンピック"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "六月のガタリンピック。ムツゴロウの活動も活発な季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、干潟の縞模様がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "渡り鳥が飛来します。干潟が静かになる季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は泥の面が光を反射し、潮汐の筋が浮き出ます。"
+      },
+      {
+        "time": "day",
+        "text": "干潮の時間に合わせるのが前提。潮見表を確認して向かいます。"
+      }
+    ],
+    "compositionTips": [
+      "泥の面の筋を手前から奥へ通して平面の広さを見せます",
+      "ムツゴロウは望遠で距離を保って撮ります",
+      "干潟に立ち入る場合は足を取られるので装備を整えます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kashima.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_5fac597c88a7",
@@ -36370,6 +36812,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2e4ac252724c",
+    "slug": "kiyomizu-taki",
+    "name": "小城 清水の滝",
+    "nameEn": "Kiyomizu Falls, Ogi",
+    "reading": "おぎ きよみずのたき",
+    "aliases": [
+      "清水観音",
+      "小城 鯉料理"
+    ],
+    "address": "佐賀県小城市小城町松尾",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "小城市"
+    },
+    "coords": {
+      "lat": 33.29,
+      "lng": 130.19
+    },
+    "category": "nature",
+    "summary": "落差七十五メートルの滝が杉木立の奥に落ちます。滝行が行われる場で、参道に石段が続きます。",
+    "description": "天山の南麓にある滝で、落差約七十五メートル、幅約十三メートルです。日本の名水百選に選ばれています。滝壺の前には清水観音の堂があり、古くから滝行が行われてきました。参道は杉木立の中の石段で、途中に石仏が並びます。滝の周辺は年間を通して気温が低く保たれます。麓には湧水を使った鯉料理の店が並びます。夏は納涼、秋は紅葉が見どころです。",
+    "highlights": [
+      "落差七十五メートルの滝",
+      "杉木立の参道と石仏",
+      "滝行が行われる清水観音"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "谷が涼しく、水量もあります。納涼の季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬の紅葉。滝と赤が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "滝が凍ることがあります。石段は凍結に注意が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が滝壺に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で七十五メートルの落差を取ります",
+      "杉を左右に入れて谷の奥にあることを示します",
+      "遅いシャッターで水を線にすると落差が読めます"
+    ],
+    "officialWebsiteUrl": "https://www.city.ogi.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a951d3c84706",
     "slug": "kiyomizudera",
     "name": "清水寺",
@@ -39817,6 +40323,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c978531c6644",
+    "slug": "kurokami",
+    "name": "黒髪山",
+    "nameEn": "Mt. Kurokami",
+    "reading": "くろかみやま",
+    "aliases": [
+      "天童岩",
+      "有田 黒髪山"
+    ],
+    "address": "佐賀県武雄市山内町宮野",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "武雄市"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 129.96
+    },
+    "category": "mountain",
+    "summary": "標高五百十六メートルながら岩峰が連なる山。頂上の天童岩は四方が切れ落ちた岩の塔です。",
+    "description": "標高は五百十六メートルと低いものの、山体が浸食に強い岩でできているため、切り立った岩峰が連なります。頂上の天童岩は四方が切れ落ちた岩の塔で、狭い頂上に立つと足元が見えません。鎖場を含む登山道があり、標高のわりに登り応えがあります。周囲には乳待坊公園などの展望地があり、岩峰群を横から見られます。有田の磁器の原料である陶石の産地でもあります。",
+    "highlights": [
+      "四方が切れ落ちた天童岩",
+      "低山ながら連なる岩峰",
+      "乳待坊公園からの岩峰群の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、ツツジが岩の間に咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、岩峰の周囲が色づきます。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して岩の形がむき出しになり、構造が読めます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が岩峰の側面を照らし、立体感が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は順光で岩が平坦に見えるので、寄りに切り替えます。"
+      }
+    ],
+    "compositionTips": [
+      "岩峰は横から撮って塔の形を見せます",
+      "人を入れて岩のスケールを示します",
+      "鎖場では撮影より安全を優先します"
+    ],
+    "officialWebsiteUrl": "https://www.city.takeo.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_db4f3aba96a1",
@@ -49411,6 +49981,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6aae83d22d39",
+    "slug": "nagoya-castle",
+    "name": "名護屋城跡",
+    "nameEn": "Nagoya Castle Site",
+    "reading": "なごやじょうあと",
+    "aliases": [
+      "肥前名護屋城",
+      "陣跡群"
+    ],
+    "address": "佐賀県唐津市鎮西町名護屋1931-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.53,
+      "lng": 129.87
+    },
+    "category": "landmark",
+    "summary": "秀吉が朝鮮出兵の拠点として築いた城の跡。一時は大坂城に次ぐ規模で、周囲に百三十の陣が並びました。",
+    "description": "一五九二年、豊臣秀吉が朝鮮出兵の拠点として五か月で築いた城です。面積は約十七ヘクタールで当時は大坂城に次ぐ規模でしたが、出兵の終了後に廃されました。現在は石垣と曲輪の跡が残り、天守台からは玄界灘と壱岐が見渡せます。周囲三キロの範囲に諸大名の陣跡が百三十以上点在し、その多くが国の特別史跡に含まれます。草地の中に石垣が露出します。",
+    "highlights": [
+      "天守台から見る玄界灘と壱岐",
+      "草地に露出する石垣",
+      "周囲に点在する百三十の陣跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "草地が緑になり、石垣との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、壱岐までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて石垣の輪郭が最もよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、天守台からの海も澄んでいます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石垣に横から光が入り、積み方が浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "天守台から海を入れて出兵の拠点だった立地を示します",
+      "石垣は草地に埋もれた部分ごと撮ると廃城であることが伝わります",
+      "広いので、人を入れてスケールを示します"
+    ],
+    "officialWebsiteUrl": "https://saga-museum.jp/nagoya/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6317afd95694",
     "slug": "nagoya-port-aquarium",
     "name": "名古屋港水族館",
@@ -55740,6 +56374,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_ec73ef93be36",
+    "slug": "okawachiyama",
+    "name": "大川内山",
+    "nameEn": "Okawachiyama",
+    "reading": "おおかわちやま",
+    "aliases": [
+      "伊万里 秘窯の里"
+    ],
+    "address": "佐賀県伊万里市大川内町乙",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "伊万里市"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 129.89
+    },
+    "category": "landmark",
+    "summary": "屏風のような岩山に囲まれた谷に窯元が三十軒集まります。鍋島藩が技術を隠した秘窯の里です。",
+    "description": "鍋島藩が将軍家への献上品を焼くため、技術の流出を防ぐ目的で窯を集めた谷です。三方を屏風のような岩山に囲まれ、入口に関所が置かれていました。現在も三十軒ほどの窯元が集まり、石畳の坂道に沿って並びます。煙突が家並みの上に突き出し、背後に岩山が迫ります。陶片を埋め込んだ壁や橋の欄干など、磁器が町の意匠に使われています。",
+    "highlights": [
+      "屏風のような岩山に囲まれた谷",
+      "石畳の坂道に並ぶ窯元",
+      "陶片を埋め込んだ壁と欄干"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が岩山を覆い、谷が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、岩山の周囲が色づきます。斜めの光も入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根に乗り、岩山との対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、岩山が霧の上に出ることがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩山に光が当たり、谷との位置関係が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "岩山を背景に入れて谷に囲まれた立地を見せます",
+      "煙突は家並み越しに望遠で圧縮します",
+      "窯元での撮影は必ず作り手に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.imari-ookawachiyama.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b3059aed0aed",
     "slug": "okayama-art",
     "name": "奈義町現代美術館",
@@ -59605,6 +60302,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f065facba1bd",
+    "slug": "oura-tanada",
+    "name": "蕨野の棚田",
+    "nameEn": "Warabino Terraced Fields",
+    "reading": "わらびののたなだ",
+    "aliases": [
+      "唐津 蕨野",
+      "八十八ヶ所石段"
+    ],
+    "address": "佐賀県唐津市相知町蕨野",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.34,
+      "lng": 130.06
+    },
+    "category": "nature",
+    "summary": "高さ八.五メートルに達する石積みが棚田を支えます。日本で最も高い部類の畦石積みです。",
+    "description": "作礼山の北斜面に広がる棚田で、石積みの高さが特徴です。最も高い畦で八.五メートルに達し、棚田の石積みとしては国内でも有数の高さです。斜面の傾斜が急なため、田の面積を確保するには高く積むしかなかったとされます。国の重要文化的景観に選定されています。標高百五十から四百メートルの範囲に広がり、下から見上げると石の壁が段になって連なります。",
+    "highlights": [
+      "高さ八.五メートルに達する畦石積み",
+      "標高差二百五十メートルの棚田",
+      "下から見上げる石の壁の段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の代掻きから田植え。水面が段ごとに光ります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の段が斜面を埋めます。石積みの灰色が挟まります。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月の稲刈り前、黄金色の段になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が石積みの一段ずつに影を作ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、棚田が霧の上に出ることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "下から見上げて石積みの高さを主題にします",
+      "人を入れて八.五メートルという高さを示します",
+      "田は私有地なので畦に入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8f181b0d2d7a",
     "slug": "oura-tenshudo",
     "name": "大浦天主堂",
@@ -62974,6 +63735,253 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_88a8c1cc19c5",
+    "slug": "saga-balloon",
+    "name": "佐賀インターナショナルバルーンフェスタ",
+    "nameEn": "Saga International Balloon Fiesta",
+    "reading": "さがいんたーなしょなるばるーんふぇすた",
+    "aliases": [
+      "嘉瀬川河川敷 バルーン"
+    ],
+    "address": "佐賀県佐賀市嘉瀬町 嘉瀬川河川敷",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "佐賀市"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 130.29
+    },
+    "category": "festival",
+    "summary": "百機を超える熱気球が嘉瀬川の河川敷から一斉に上がります。アジア最大規模の競技大会です。",
+    "description": "毎年十月末から十一月初めに開かれる熱気球の国際大会で、参加機数は百を超えます。朝は日の出前後に一斉離陸があり、無風に近い時間帯に機体が次々と浮かび上がります。夕方には地上で係留した気球にバーナーを焚いて光らせるバルーンイリュージョンが行われます。会場の嘉瀬川河川敷にはJRの臨時駅が設けられます。朝は冷え込みます。",
+    "highlights": [
+      "百機を超える一斉離陸",
+      "夕方のバルーンイリュージョン",
+      "河川敷という広い会場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月末から十一月初めの開催。この時期だけの行事です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "日の出前後の一斉離陸が本番。暗いうちに会場へ入ります。"
+      },
+      {
+        "time": "night",
+        "text": "バルーンイリュージョンは日没後。炎で内側から光る球体が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で気球を圧縮すると数の多さが出ます",
+      "地上の人を入れて球体の大きさを示します",
+      "夜のイリュージョンはバーナーの明滅に合わせて連写します"
+    ],
+    "officialWebsiteUrl": "https://www.sibf.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_6d98e0ee1916",
+    "slug": "saga-castle",
+    "name": "佐賀城本丸歴史館",
+    "nameEn": "Saga Castle History Museum",
+    "reading": "さがじょうほんまるれきしかん",
+    "aliases": [
+      "佐賀城 鯱の門",
+      "本丸御殿 復元"
+    ],
+    "address": "佐賀県佐賀市城内2-18-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "佐賀市"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 130.3
+    },
+    "category": "landmark",
+    "summary": "木造で復元された本丸御殿。四十五メートルの畳廊下が一直線に続き、床の反射が奥まで伸びます。",
+    "description": "佐賀藩鍋島家の居城の本丸御殿を、二〇〇四年に木造で復元した施設です。延床面積約二千五百平方メートルは木造復元建物として国内最大級で、御座間や外御書院が当時の間取りで再現されています。なかでも長さ約四十五メートルの畳廊下は一直線に続き、障子からの光が床に反射して奥まで伸びます。現存する鯱の門は重要文化財で、戊辰戦争の弾痕が残ります。",
+    "highlights": [
+      "長さ四十五メートルの畳廊下",
+      "木造復元として国内最大級の御殿",
+      "弾痕が残る現存の鯱の門"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の桜。鯱の門と花を重ねられます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が畳廊下に長く差し込みます。"
+      },
+      {
+        "season": "winter",
+        "text": "来館者が少なく、廊下を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、廊下を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は障子からの光が畳に回り、廊下の奥行きが出ます。"
+      }
+    ],
+    "compositionTips": [
+      "畳廊下は消失点まで通して四十五メートルの長さを見せます",
+      "障子の光と畳の反射を階調として残します",
+      "鯱の門の弾痕は寄って記録として撮ります"
+    ],
+    "officialWebsiteUrl": "https://saga-museum.jp/sagajou/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_85abc158eade",
+    "slug": "saga-kyushu-ceramic",
+    "name": "九州陶磁文化館",
+    "nameEn": "Kyushu Ceramic Museum",
+    "reading": "きゅうしゅうとうじぶんかかん",
+    "aliases": [
+      "有田 陶磁文化館",
+      "からくりオルゴール時計"
+    ],
+    "address": "佐賀県西松浦郡有田町戸杓乙3100-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "有田町"
+    },
+    "coords": {
+      "lat": 33.2,
+      "lng": 129.88
+    },
+    "category": "landmark",
+    "summary": "九州の陶磁器を集めた館。柴田夫妻コレクション一万点余りが年代と様式で並べられています。",
+    "description": "九州各地の陶磁器を収集する県立の博物館で、常設展示は無料です。柴田夫妻コレクションは江戸期の有田焼一万点余りで、年代順と様式別に整理されて並びます。同じ形の器が大量に並ぶ展示は反復として撮れます。館内には有田焼の部品で作られたからくりオルゴール時計があり、定刻に動きます。建物は丘の上にあり、有田の町を見下ろせます。",
+    "highlights": [
+      "一万点余りの柴田夫妻コレクション",
+      "有田焼で作られたからくり時計",
+      "丘の上から見る有田の町"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の陶器市の時期は来館者が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。"
+      },
+      {
+        "season": "autumn",
+        "text": "丘からの眺めが色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心。照明が一定なので時間帯の影響は小さいです。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、展示を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶ器は望遠で圧縮して反復の密度を出します",
+      "一点に寄って染付の筆致を見せる対比も入れます",
+      "ガラスケースは反射するのでレンズを近づけます"
+    ],
+    "officialWebsiteUrl": "https://saga-museum.jp/ceramic/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_159aa8b30415",
+    "slug": "saga-mitsuse",
+    "name": "三瀬の棚田",
+    "nameEn": "Mitsuse Terraced Fields",
+    "reading": "みつせのたなだ",
+    "aliases": [
+      "佐賀市 三瀬村",
+      "三瀬 そばの花"
+    ],
+    "address": "佐賀県佐賀市三瀬村三瀬",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "佐賀市"
+    },
+    "coords": {
+      "lat": 33.44,
+      "lng": 130.25
+    },
+    "category": "nature",
+    "summary": "標高五百メートルの高原に広がる棚田。九月から十月には白いそばの花が段を覆います。",
+    "description": "脊振山地の南斜面、標高約五百メートルにある高原の集落で、棚田と畑が斜面に広がります。夏でも平地より気温が数度低く、高冷地の野菜とそばが作られています。九月下旬から十月にかけてはそばの花が咲き、段になった畑が白く染まります。福岡市街から車で四十分ほどの距離にありながら、山間の農村の景観が続きます。道路から段全体を見渡せる地点が複数あります。",
+    "highlights": [
+      "標高五百メートルの高原の棚田",
+      "九月下旬から十月の白いそばの花",
+      "道路から段全体を見渡せる地点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の代掻きから田植え。水面が段ごとに光ります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の段が斜面を埋めます。平地より涼しく歩けます。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月、そばの花が段を白く覆います。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が段の影を長くし、起伏が立体的になります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、棚田が霧の上に出ることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "段の曲線を手前から奥へ通して斜面の高さを見せます",
+      "そばの花は白飛びしやすいのでマイナス補正を基本にします",
+      "田畑は私有地なので立ち入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.sagabai.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b5af2bebf58a",
     "slug": "sagano-torokko",
     "name": "嵯峨野トロッコ列車",
@@ -65408,6 +66416,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7c06b152a7d7",
+    "slug": "sefuri",
+    "name": "脊振山",
+    "nameEn": "Mt. Sefuri",
+    "reading": "せふりさん",
+    "aliases": [
+      "脊振山地",
+      "脊振神社上宮"
+    ],
+    "address": "佐賀県神埼市脊振町広滝",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "神埼市"
+    },
+    "coords": {
+      "lat": 33.44,
+      "lng": 130.36
+    },
+    "category": "mountain",
+    "summary": "佐賀と福岡の県境に立つ山。山頂から北は博多湾、南は佐賀平野と有明海が同時に見渡せます。",
+    "description": "標高千五十五メートルで、脊振山地の主峰です。山頂は佐賀県と福岡県の境にあり、北を向けば福岡市街と博多湾、南を向けば佐賀平野と有明海が見えます。玄界灘側と有明海側を一つの山頂から見分けられる立地です。山頂まで車道が通じ、そこから数分で立てます。山頂には脊振神社の上宮があります。冬は霧氷が付き、路面が凍結します。",
+    "highlights": [
+      "北の博多湾と南の有明海を同時に望む立地",
+      "山頂の脊振神社上宮",
+      "冬の霧氷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と、空気が澄む日が増える季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "視程が最も伸び、両方の海が同時に見える確率が上がります。"
+      },
+      {
+        "season": "winter",
+        "text": "霧氷が付く日があります。道路の凍結に注意が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は平野に霧が溜まり、両側に雲海が出ることがあります。"
+      },
+      {
+        "time": "night",
+        "text": "福岡市街の夜景が北側に広がります。"
+      }
+    ],
+    "compositionTips": [
+      "北と南を撮り比べて一つの山頂から二つの海が見えることを示します",
+      "夜景は望遠で市街を圧縮して灯りの密度を出します",
+      "霧氷は逆光で透かすと形が浮きます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kanzaki.saga.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1d8d337a54b0",
@@ -77899,6 +78971,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c17323f39d0e",
+    "slug": "tenzan",
+    "name": "天山",
+    "nameEn": "Mt. Tenzan",
+    "reading": "てんざん",
+    "aliases": [
+      "佐賀 天山",
+      "天山 キスゲ"
+    ],
+    "address": "佐賀県小城市・佐賀市富士町",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "小城市"
+    },
+    "coords": {
+      "lat": 33.34,
+      "lng": 130.17
+    },
+    "category": "mountain",
+    "summary": "山頂部が平らな草原の山。七月にはニッコウキスゲの分布の南限とされる群落が黄色く咲きます。",
+    "description": "標高千四十六メートル、佐賀県では最高峰に近い山です。山頂部が平らで樹木が少なく、草原が広がります。七月にはニッコウキスゲが咲き、この群落は分布の南限とされます。頂上からは佐賀平野、有明海、雲仙まで見渡せます。登山口まで車道が通じ、そこから三十分ほどで山頂に立てます。標高のわりに到達が容易で、日の出と雲海を狙いやすい山です。",
+    "highlights": [
+      "樹木の少ない平らな山頂の草原",
+      "ニッコウキスゲの南限の群落",
+      "佐賀平野と有明海の眺望"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月のニッコウキスゲ。山頂の草原が黄色く染まります。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、空気が澄んで雲仙まで見えます。"
+      },
+      {
+        "season": "winter",
+        "text": "霧氷が付く日があります。風が強く冷えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は佐賀平野に霧が溜まり、山頂から雲海を見下ろせます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は有明海が光り、草原が横から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "草原の起伏を前景に取って平野へ視線を運びます",
+      "キスゲは群落として面で捉えます",
+      "雲海の日は稜線を画面下三分の一に置いて雲を主役にします"
+    ],
+    "officialWebsiteUrl": "https://www.city.ogi.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8f87cc157b04",
     "slug": "teriha-kyo",
     "name": "照葉峡",
@@ -85048,6 +86184,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_fdc20c2e19bf",
+    "slug": "ureshino",
+    "name": "嬉野温泉",
+    "nameEn": "Ureshino Onsen",
+    "reading": "うれしのおんせん",
+    "aliases": [
+      "嬉野 豊玉姫神社",
+      "嬉野茶畑"
+    ],
+    "address": "佐賀県嬉野市嬉野町下宿",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "嬉野市"
+    },
+    "coords": {
+      "lat": 33.1,
+      "lng": 130
+    },
+    "category": "landmark",
+    "summary": "日本三大美肌の湯とされる温泉。周囲の丘は茶畑で、整った畝の曲線が斜面を覆います。",
+    "description": "重曹を多く含む泉質で、日本三大美肌の湯の一つとされます。温泉街は嬉野川沿いにあり、川べりに足湯と公衆浴場が並びます。町の周囲の丘は茶畑で、嬉野茶は釜炒り製法の玉緑茶として知られます。茶畑は畝が丘の等高線に沿って曲線を描き、その反復が斜面を覆います。豊玉姫神社には白いナマズの像があり、肌の神様として信仰されています。",
+    "highlights": [
+      "丘を覆う茶畑の畝の曲線",
+      "川沿いの温泉街と足湯",
+      "豊玉姫神社の白いナマズ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月が新茶の季節。畝の緑が最も明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "茶畑の緑が濃く、畝の線がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "温泉街に湯気が立ちます。茶畑は色が落ち着きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は茶畑に霧が残ることがあり、畝の層が見えます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が畝の影を伸ばし、曲線が立体的になります。"
+      }
+    ],
+    "compositionTips": [
+      "茶畑の畝は望遠で圧縮して曲線の反復を密にします",
+      "斜光のときに畝の影が最もよく出ます",
+      "茶畑は私有地なので立ち入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://ureshino-ar.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4225d0f93d34",
     "slug": "urikawari",
     "name": "瓜割の滝",
@@ -87951,6 +89151,69 @@
       "畑は私有地なので立ち入らず、道路から撮ります"
     ],
     "officialWebsiteUrl": "https://www.city.yawatahama.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_781e5089d6ef",
+    "slug": "yobuko",
+    "name": "呼子の朝市",
+    "nameEn": "Yobuko Morning Market",
+    "reading": "よぶこのあさいち",
+    "aliases": [
+      "呼子 朝市通り"
+    ],
+    "address": "佐賀県唐津市呼子町呼子",
+    "region": {
+      "country": "日本",
+      "prefecture": "佐賀県",
+      "city": "唐津市"
+    },
+    "coords": {
+      "lat": 33.54,
+      "lng": 129.9
+    },
+    "category": "landmark",
+    "summary": "毎朝二百メートルの通りに露店が並びます。売り手の多くが女性で、地面に品物を広げる形が残ります。",
+    "description": "日本三大朝市の一つとされ、元日以外の毎朝七時半から正午まで開かれます。朝市通り約二百メートルに露店が並び、イカ、干物、野菜、加工品が売られます。売り手の多くは近隣の女性で、地面や低い台に品物を広げる昔ながらの形が残っています。呼子はイカの水揚げで知られ、店先に干されたイカが風に回る光景が見られます。市場は営業の場です。",
+    "highlights": [
+      "地面に品物を広げる露店の形",
+      "風に回る干しイカ",
+      "二百メートルの朝市通り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "イカの最盛期。店先の干しイカが最も多くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "人出が落ち着き、通りを歩きやすくなります。"
+      },
+      {
+        "season": "spring",
+        "text": "光が明るく、品物の色が素直に出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "七時半から正午まで。早い時間ほど品が揃い、人も動きます。"
+      },
+      {
+        "time": "day",
+        "text": "正午で終わるので、午後は通りが空になります。"
+      }
+    ],
+    "compositionTips": [
+      "干しイカは逆光で透かすと形が浮きます",
+      "通りは望遠で圧縮して露店の連なりを見せます",
+      "売り手や商品を撮るときは必ず断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.karatsu-kankou.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
