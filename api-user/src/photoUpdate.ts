@@ -9,6 +9,9 @@ import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
+// 絞った写真の実体を `private/` へ動かす（案A・`docs/restricted-image-delivery.md`）
+import { planMove, isNoop, type MovePlan } from "./privateMove";
+import { copyAll, dropOld } from "./s3Move";
 import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
@@ -195,6 +198,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const effectiveAudience = hasAudience
             ? sanitizeAudience(body.audience)
             : sanitizeAudience(existing.Item.audience);
+
+        // **公開範囲が切り替わったか。** 行の更新より前に要る——実体を
+        // 動かしてから、その新しい URL を同じ更新で書き込むため（下）
+        const wasRestricted = !!sanitizeAudience(existing.Item.audience);
+        const nowRestricted = !!effectiveAudience;
+        const audienceChanged = hasAudience && wasRestricted !== nowRestricted;
 
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
@@ -400,6 +409,46 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             metaChanged = true;
         }
 
+        /**
+         * 🔴 **実体を動かす（案A）。コピーしてから、行を書き換える。**
+         *
+         * 公開範囲を守っているのは API だけで、`/uploads/**` の画像そのものに
+         * 権限の判定は無い——絞る前に URL を手にした人は取り続けられる。
+         * だから**絞った写真だけ `private/` へ動かし**、そちらの振る舞いに
+         * だけ署名必須を付ける（`docs/restricted-image-delivery.md` の案A・
+         * owner 承認済み 2026-09-23）。
+         *
+         * **コピーが1つでも失敗したら、公開範囲そのものを変えない。**
+         * 「絞った」と表示しながら画像が公開 URL に残るのは、**守れない
+         * 約束を画面に書く**ことになる。分からないなら止める側に倒す。
+         *
+         * 元を消すのは**行を書き換えたあと**（下）。逆だと、途中で落ちた
+         * ときに**行が存在しない実体を指す**（写真が割れる）。
+         */
+        let movePlan: MovePlan | null = null;
+        if (audienceChanged) {
+            const plan = planMove(existing.Item, nowRestricted);
+            if (!isNoop(plan)) {
+                if (!await copyAll(plan.moves, `photoUpdate(${id})`)) {
+                    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
+                        error: "画像を移せませんでした。公開範囲は変えていません",
+                    }) };
+                }
+                movePlan = plan;
+                // 新しい URL を**同じ更新で**書き込む（別の更新にすると、
+                // あいだで落ちたときに行と実体がちぐはぐになる）
+                let n = 0;
+                for (const [field, value] of Object.entries(plan.rewritten)) {
+                    const nameKey = `#mv${n}`;
+                    const valueKey = `:mv${n}`;
+                    names[nameKey] = field;
+                    values[valueKey] = value;
+                    sets.push(`${nameKey} = ${valueKey}`);
+                    n += 1;
+                }
+            }
+        }
+
         let expr = `SET ${sets.join(", ")}`;
         if (removes.length) expr += ` REMOVE ${removes.join(", ")}`;
         await ddb.send(new UpdateCommand({
@@ -418,6 +467,18 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // stories.ts の viewStory も同型の穴をこれで塞いだ。
             ConditionExpression: "attribute_exists(id)",
         }));
+
+        // **行を書き換えたあとに、元を消す。** ここで落ちても S3 に孤児が
+        // 残るだけで、画面は正しく出る（行は新しい URL を指している）。
+        // `dropOld` は `s3DeleteMany` を通すので**エッジの無効化まで**行く
+        // ——アップロードは1年で配っているので、消しただけでは古い URL が
+        // 取れ続ける＝「絞ったのに取り続けられる」が直らない。
+        if (movePlan) {
+            const failed = await dropOld(movePlan.moves, `photoUpdate(${id})`);
+            if (failed > 0) {
+                console.warn(`photoUpdate(${id}): 元の実体 ${failed} 件を消せませんでした`);
+            }
+        }
         // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
         //
         // 一度「published が実際に変わったときだけ」に絞ったが、これは狭すぎた。
@@ -468,9 +529,8 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         //
         // この PR は「絞った写真は静的サイトに出さない」と書いているが、
         // それが本当になるのは**次のビルドから**だった。
-        const wasRestricted = !!sanitizeAudience(existing.Item.audience);
-        const nowRestricted = !!effectiveAudience;
-        const audienceChanged = hasAudience && wasRestricted !== nowRestricted;
+        // （`wasRestricted` / `nowRestricted` / `audienceChanged` は
+        //   実体の移動に要るので、行の更新より前で導いてある）
         // **公開されていた写真を絞った**＝既に公開のページが在る
         const becameRestricted = audienceChanged && nowRestricted && wasPublished;
         const requested = visibilityChanged || metaChanged || audienceChanged;

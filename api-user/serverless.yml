@@ -470,6 +470,19 @@ functions:
   # 静的な一覧（photos.json）には出さないので、ここでだけ返す
   getRestrictedFeed:
     handler: src/restrictedFeed.getRestrictedFeed
+    environment:
+      # 絞った写真の画像 URL に期限を付ける鍵（案A・
+      # `docs/restricted-image-delivery.md`）。
+      #
+      # **この関数にだけ配る**（`provider` には置かない。IAM-2 と同じ方針
+      # ——再ビルドのトークンが `rebuild` を呼ぶ関数にしか渡っていないのと同じ）。
+      # 署名を作るのはここだけなので、他の関数が秘密鍵を持つ理由が無い。
+      #
+      # **未設定でも何も壊れない**——空なら `isConfigured()` が false で
+      # 署名しないだけ（`src/signedUrl.ts`）。owner が鍵を作った時点で
+      # **コードの変更なしに**効く。
+      CLOUDFRONT_KEY_PAIR_ID: ${param:cloudfrontKeyPairId, ''}
+      CLOUDFRONT_PRIVATE_KEY: ${param:cloudfrontPrivateKey, ''}
     events:
       - httpApi:
           path: /feed/restricted

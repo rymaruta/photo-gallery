@@ -415,6 +415,45 @@ describe("getInvite: アルバムの写真", () => {
         expect(bodyOf(r).photos.map((p: { id: string }) => p.id)).toEqual(["pub"]);
     });
 
+    // 🔴 **公開範囲を絞った写真も出さない。**
+    //
+    // `published !== false` だけでは通ってしまう——絞った写真は
+    // **公開されている**（`published: true`）ので下書きではない。
+    // この口は未認証で叩けるので、招待リンクを持っているだけの人に
+    // 「フォロワーのみ」の写真が渡っていた。
+    //
+    // ⚠️ **署名で解く問題ではない**（署名付き URL を返すと、招待リンクを
+    // 持つ誰にでも有効な鍵を配ることになる）。出さないのが正しい。
+    it("公開範囲を絞った写真は出さない（未認証の口なので判定できない）", async () => {
+        serve({ title: "旅", photoIds: ["pub", "fol", "close"] }, {
+            pub: { id: "pub", src: "https://cdn/pub.jpg", published: true },
+            fol: { id: "fol", src: "https://cdn/HIDDEN-followers.jpg", published: true, audience: "followers" },
+            close: { id: "close", src: "https://cdn/HIDDEN-close.jpg", published: true, audience: "closeFriends" },
+        });
+        const r = await call(getInvite, tok);
+        expect(r.body, "絞った写真が未認証で読める").not.toContain("HIDDEN");
+        expect(bodyOf(r).photos.map((p: { id: string }) => p.id)).toEqual(["pub"]);
+    });
+
+    // **知らない綴りも隠す側に倒す**（`sanitizeAudience` とはわざと違う判定）。
+    // 「知っている値だけ隠す」にすると、綴りを間違えた行が公開に戻る
+    it("知らない公開範囲の綴りも出さない", async () => {
+        serve({ title: "旅", photoIds: ["pub", "weird"] }, {
+            pub: { id: "pub", src: "https://cdn/pub.jpg" },
+            weird: { id: "weird", src: "https://cdn/HIDDEN-weird.jpg", audience: "folowers" },
+        });
+        const r = await call(getInvite, tok);
+        expect(r.body, "綴り違いの行が公開に戻っている").not.toContain("HIDDEN");
+    });
+
+    // 空文字・空白だけは「持っていない」（消したあとに残りうる形）
+    it("公開範囲が空文字の行は出す", async () => {
+        serve({ title: "旅", photoIds: ["blank"] }, {
+            blank: { id: "blank", src: "https://cdn/blank.jpg", audience: "  " },
+        });
+        expect(bodyOf(await call(getInvite, tok)).photos.map((p: { id: string }) => p.id)).toEqual(["blank"]);
+    });
+
     // 未指定は公開（リポジトリ全体の慣習）
     it("published を持たない古い行は出す", async () => {
         serve({ title: "旅", photoIds: ["old"] }, { old: { id: "old", src: "https://cdn/old.jpg" } });
