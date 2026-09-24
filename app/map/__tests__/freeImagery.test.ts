@@ -21,9 +21,9 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("registers official imagery from nine overseas countries alongside Japan without keys", () => {
+    it("registers official imagery from ten overseas countries alongside Japan without keys", () => {
         expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(
-            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL"]),
+            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL", "AU"]),
         );
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
@@ -66,5 +66,9 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         expect(be?.url).toContain("LAYER=omwrgbmrvl&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL");
         expect(pl?.url).toContain("LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857");
         expect([at, cz, be, pl].every((source) => source?.url.startsWith("https://"))).toBe(true);
+        const au = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "AU");
+        expect(au?.url).toContain("public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}");
+        expect(au?.bounds[0]).toBeGreaterThan(140);
+        expect(au?.bounds[2]).toBeLessThan(155);
     });
 });
