@@ -2,9 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import type { Spot } from "@/lib/data/spots";
+import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
-import { usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -17,7 +16,12 @@ import { usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
  * だから**テーマの一覧は持たない**——台帳の `category` を数えて、
  * **実際に在るものだけ**をチップにする。0件のテーマは存在しようがない。
  */
-type Props = { spots: Spot[] };
+/**
+ * **受け取るのは解いたあとの軽い形だけ**（`SpotIndexItem`）。
+ * 台帳の `Spot` をそのまま受けると、全文がこのページの HTML に乗る
+ * ——実測 518KB／120件。`lib/data/spotLink.ts` の注記を参照。
+ */
+type Props = { spots: SpotIndexItem[] };
 
 export default function SpotIndexClient({ spots }: Props) {
     const { locale } = useLocale();
@@ -80,10 +84,11 @@ export default function SpotIndexClient({ spots }: Props) {
             ) : (
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 m-0 p-0" style={{ listStyle: "none" }}>
                     {shown.map((s) => {
-                        const where = [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ");
-                        const noImage = usesMapHero(s);
+                        const where = s.region;
+                        // 出すかどうかの判断はサーバー側で済んでいる（`cover` が null なら写真なし）
+                        const noImage = !s.cover;
                         return (
-                            <li key={s.spotId}>
+                            <li key={s.slug}>
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
                                       className="group block rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                     <div className="relative w-full aspect-[3/2] overflow-hidden">
@@ -96,12 +101,12 @@ export default function SpotIndexClient({ spots }: Props) {
                                         ) : (
                                             <>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={s.coverImage!.src} alt={s.coverImage!.alt}
+                                                <img src={s.cover!.src} alt={s.cover!.alt}
                                                      className="absolute inset-0 w-full h-full object-cover" />
-                                                {needsVisibleCredit(s) && (
+                                                {s.cover!.credit && (
                                                     <span className="absolute bottom-1 right-2 text-white/70"
                                                           style={{ fontSize: "9px" }}>
-                                                        {s.coverImage!.requiredCreditText || `Photo: ${s.coverImage!.credit}`}
+                                                        {`Photo: ${s.cover!.credit}`}
                                                     </span>
                                                 )}
                                             </>

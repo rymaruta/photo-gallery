@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import SpotIndexClient from "@/app/components/SpotIndexClient";
 import { SPOTS } from "@/lib/data/spots";
+import { spotIndexItems } from "@/lib/data/spotLink";
 import { publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 
@@ -31,5 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function SpotIndexPage() {
-    return <SpotIndexClient spots={publishableSpots(SPOTS)} />;
+    // **台帳をそのまま渡さない。** クライアント部品への props は HTML に
+    // 埋め込まれるので、渡したぶんが訪問のたびに落ちる
+    // （`lib/data/spotLink.ts` の `SpotIndexItem` の注記に実測がある）
+    return <SpotIndexClient spots={spotIndexItems()} />;
 }

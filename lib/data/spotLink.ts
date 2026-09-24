@@ -76,6 +76,41 @@ export function toSpotLink(spot: Spot): SpotLink {
 }
 
 /**
+ * 🔴 **索引（`/spots`）が読む形。**
+ *
+ * `SpotLink` ＋ テーマのチップに使う `category` **だけ**。
+ *
+ * ## なぜ足したか（2026-09-24・実ビルドで数えた）
+ *
+ * `app/spots/page.tsx` は `publishableSpots(SPOTS)` を**そのまま**
+ * `"use client"` の `SpotIndexClient` に渡していた。Next はクライアント
+ * 部品への props を RSC ペイロードとして**HTMLに埋め込む**ので、
+ * **台帳の全文が索引ページに載っていた**:
+ *
+ *     out/spots.html   120件で **518,880 バイト**（1件あたり約4.3KB）
+ *
+ * 画面が読むのは name / slug / region / summary / category / cover の
+ * 6つだけで、`description`・`highlights`・季節・時間帯・構図・`sources`
+ * ——つまり1件の大半——は**誰も読まずにHTMLに乗っていた**。
+ *
+ * ⚠️ `spotLedgerClientImport.test.ts` は「クライアントが `SPOTS` を
+ * import していないか」を見るが、**props で渡す経路は素通りする**。
+ * この形が2つ目の抜け道だった。
+ *
+ * `deploy-static-site.js` は HTML を `no-cache, no-store` で配るので、
+ * ここは**訪問のたびに落ちるバイト**になる（`CLAUDE.md` の表示速度の節）。
+ */
+export type SpotIndexItem = SpotLink & { category?: string };
+
+/** 索引に渡す一覧。**公開できるものだけ**を、上の軽い形にして返す */
+export function spotIndexItems(): SpotIndexItem[] {
+    return publishableSpots(SPOTS).map((s) => ({
+        ...toSpotLink(s),
+        ...(s.category ? { category: s.category } : {}),
+    }));
+}
+
+/**
  * 写真が指しているスポット。**`spotId` でしか照合しない。**
  *
  * owner の指示書 第11章:「写真の `location` 文字列が似ているだけで、未確認の
