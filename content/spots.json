@@ -2350,6 +2350,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1ac9aa7a5a3b",
+    "slug": "anmon-no-taki",
+    "name": "暗門の滝",
+    "nameEn": "Anmon Falls",
+    "reading": "あんもんのたき",
+    "aliases": [
+      "暗門渓谷"
+    ],
+    "address": "青森県中津軽郡西目屋村川原平",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "西目屋村"
+    },
+    "coords": {
+      "lat": 40.55,
+      "lng": 140.19
+    },
+    "category": "nature",
+    "summary": "白神山地の谷を遡った先に三段で落ちる滝。岩壁が両側から迫る谷筋そのものが、滝と同じくらいの見どころです。",
+    "description": "アクアグリーンビレッジANMONから沢沿いを歩き、第三の滝、第二の滝、第一の滝と遡ります。第一の滝は落差四十二メートル。谷は両岸が切り立ち、天井が狭く空が細く見えます。歩道は増水や落石で通行制限がかかることがあり、開通期間は例年六月から十月ごろ。長靴の貸し出しがあり、沢を何度も横切る前提の道です。",
+    "highlights": [
+      "落差四十二メートルの第一の滝",
+      "両岸が迫る狭い谷筋",
+      "沢を渡りながら遡る歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "谷は日陰が多く涼しい季節。水量もあり、滝の迫力が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、谷の上部が色づきます。狭い空との対比が効く時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "谷底には正午前後しか光が入りません。時間帯を選べないぶん、曇天が扱いやすいです。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は水が澄み、通行者も少なめ。ただし谷は暗いので高感度の備えが要ります。"
+      }
+    ],
+    "compositionTips": [
+      "人を小さく入れると滝の落差が伝わります",
+      "谷の壁を左右に入れた縦構図が土地の形に合います",
+      "水しぶきでレンズが濡れるので、拭くものを必ず携行します"
+    ],
+    "officialWebsiteUrl": "https://www.shirakami-visitorcenter.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_cc3ab43306c7",
     "slug": "anorizaki",
     "name": "安乗埼灯台",
@@ -3390,6 +3449,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_8ebd20b2257b",
+    "slug": "ashino-koen",
+    "name": "芦野公園",
+    "nameEn": "Ashino Park",
+    "reading": "あしのこうえん",
+    "aliases": [
+      "津軽鉄道 芦野公園駅",
+      "桜のトンネル 芦野"
+    ],
+    "address": "青森県五所川原市金木町芦野84-171",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "五所川原市"
+    },
+    "coords": {
+      "lat": 40.89,
+      "lng": 140.45
+    },
+    "category": "nature",
+    "summary": "津軽鉄道の線路が桜のトンネルを抜ける公園。四月下旬、満開の枝の下を走るディーゼル車を正面から撮れます。",
+    "description": "芦野湖を囲む公園で、約二千二百本の桜があります。園内を津軽鉄道が横切り、芦野公園駅の前後は線路の両側から枝が覆いかぶさって桜のトンネルになります。列車は一日十数本で本数が限られるため、時刻表を見てから場所を決めるのが前提です。旧駅舎は喫茶店として使われており、木造の駅舎も被写体になります。線路には立ち入れません。",
+    "highlights": [
+      "線路を覆う桜のトンネル",
+      "木造の旧駅舎",
+      "芦野湖と約二千二百本の桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬が見頃。本州のなかでは遅く、ゴールデンウィークに重なる年もあります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の中を走るストーブ列車の季節。桜はありませんが津軽らしい画になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、トンネルを無人で撮れます。列車の本数も確認しておきます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は桜が暖色に寄り、駅舎の灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "列車は望遠でトンネルを圧縮し、桜を画面いっぱいに詰めます",
+      "列車がない時間は線路の消失点だけで構図を作れます",
+      "線路敷地には入らず、踏切や駅の所定の場所から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.goshogawara.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_a86807cdc513",
@@ -9045,6 +9164,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bf0d96346dec",
+    "slug": "fujita-kinen-teien",
+    "name": "藤田記念庭園",
+    "nameEn": "Fujita Memorial Garden",
+    "reading": "ふじたきねんていえん",
+    "aliases": [
+      "弘前 藤田記念庭園"
+    ],
+    "address": "青森県弘前市上白銀町8-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "弘前市"
+    },
+    "coords": {
+      "lat": 40.6,
+      "lng": 140.47
+    },
+    "category": "nature",
+    "summary": "弘前城の西にある高低差のある日本庭園。高台の洋館と低地の池が段になっていて、正面に岩木山が入ります。",
+    "description": "大正期に実業家の藤田謙一が別邸として造らせた庭園です。台地の縁を利用して高台部と低地部に分かれ、高台には洋館と和館、低地には滝と池を配した回遊式庭園があります。高台の縁からは岩木山が正面に見えます。洋館は喫茶として使われており、窓ごしの庭も撮れます。弘前公園から徒歩圏で、桜の時期は合わせて回れます。",
+    "highlights": [
+      "高台と低地で構成が変わる庭園",
+      "大正期の洋館と和館",
+      "高台から正面に見える岩木山"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、弘前の桜の時期と重なります。庭園は公園より人が少なめです。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。池への映り込みが最も濃くなる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪吊りと雪の庭。洋館の窓ごしに撮ると温度差が画になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は水面が静かで、池の映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は洋館の窓に光が入り、建物側が主役になります。"
+      }
+    ],
+    "compositionTips": [
+      "高低差を活かし、低地から高台の建物を見上げる一枚を入れます",
+      "池は水面いっぱいまで下げて映り込みを取ります",
+      "岩木山を入れるときは高台の縁から望遠で圧縮します"
+    ],
+    "officialWebsiteUrl": "https://www.hirosakipark.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1017f135ff28",
@@ -18805,6 +18987,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_127298e394df",
+    "slug": "inakadate-tanbo-art",
+    "name": "田舎館村 田んぼアート",
+    "nameEn": "Inakadate Rice Paddy Art",
+    "reading": "いなかだてむら たんぼあーと",
+    "aliases": [
+      "田んぼアート 田舎館"
+    ],
+    "address": "青森県南津軽郡田舎館村田舎舘中辻123-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "田舎館村"
+    },
+    "coords": {
+      "lat": 40.65,
+      "lng": 140.55
+    },
+    "category": "nature",
+    "summary": "色の違う稲を植え分けて水田に絵を描く取り組み。役場の展望台から見下ろす形でのみ全体像が成立します。",
+    "description": "一九九三年に始まった取り組みで、葉や穂の色が異なる古代米などを植え分け、水田に大きな絵を描きます。田舎館村役場の天守閣型展望台と、第二会場の展望台から見下ろします。見頃は七月中旬から八月下旬で、九月以降は色が落ちます。絵は毎年変わり、見る角度を計算して植えられているので、指定された展望位置から撮るのが前提です。",
+    "highlights": [
+      "色の違う稲で描かれた大きな絵",
+      "役場展望台からの俯瞰",
+      "毎年変わる図柄"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月中旬から八月下旬が見頃。八月に入ると色が最も濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月以降は穂が出て色が揃い、絵が崩れます。訪れるなら八月までです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は斜光で色の差がはっきり出ます。展望台の開館時間を確認しておきます。"
+      },
+      {
+        "time": "day",
+        "text": "日中の順光は色が均一に出ますが、立体感は弱くなります。"
+      }
+    ],
+    "compositionTips": [
+      "展望台の指定位置から撮るのが前提で、角度を変えると絵が歪みます",
+      "広角の樽型歪みが絵を曲げるので、標準域で撮って周辺を整えます",
+      "田の外周を少し入れると水田であることが伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.vill.inakadate.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4088a5a6ce79",
     "slug": "inamuragasaki",
     "name": "稲村ヶ崎",
@@ -20479,6 +20720,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_506d6d28620c",
+    "slug": "iwakisan",
+    "name": "岩木山",
+    "nameEn": "Mt. Iwaki",
+    "reading": "いわきさん",
+    "aliases": [
+      "津軽富士",
+      "岩木山神社"
+    ],
+    "address": "青森県弘前市百沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "弘前市"
+    },
+    "coords": {
+      "lat": 40.66,
+      "lng": 140.3
+    },
+    "category": "mountain",
+    "summary": "津軽平野にただ一つ立つ独立峰。周囲に高い山がないため、りんご畑や田んぼのどこからでも裾野ごと山が入ります。",
+    "description": "標高千六百二十五メートル。津軽富士と呼ばれる独立峰で、平野のどこからでも見えるのが最大の特徴です。八合目まで津軽岩木スカイラインが通じ、そこからリフトと徒歩で山頂へ。麓の岩木山神社は参道から山頂を正面に見る配置になっており、社殿と山を一枚に収められます。スカイラインは冬期閉鎖です。",
+    "highlights": [
+      "平野に一つだけ立つ独立峰",
+      "りんご畑や田んぼと組み合わせられる裾野",
+      "山頂を正面に見る岩木山神社の参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、りんごの白い花と残雪の山。津軽らしさがいちばん出る季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "水を張った田に山が映ります。六月前後の朝は無風で鏡面になりやすいです。"
+      },
+      {
+        "season": "winter",
+        "text": "全山が白くなり、平野の茶色との対比が強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、輪郭が出ます。田の映り込みも朝が安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は西日が山の東面を照らさないため、シルエットとして扱うほうが素直です。"
+      }
+    ],
+    "compositionTips": [
+      "裾野を切らずに入れると独立峰であることが伝わります",
+      "前景にりんご畑や田を置いて土地の生業を重ねます",
+      "神社の参道からは鳥居と山を縦構図で重ねられます"
+    ],
+    "officialWebsiteUrl": "https://www.hirosaki-kanko.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_ce48d2c74461",
     "slug": "iwami-ginzan",
     "name": "石見銀山 龍源寺間歩",
@@ -21633,6 +21938,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7d6fec2a906b",
+    "slug": "jogakura-ohashi",
+    "name": "城ヶ倉大橋",
+    "nameEn": "Jogakura Bridge",
+    "reading": "じょうがくらおおはし",
+    "aliases": [
+      "城ヶ倉渓谷"
+    ],
+    "address": "青森県青森市荒川南荒川山",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "青森市"
+    },
+    "coords": {
+      "lat": 40.67,
+      "lng": 140.83
+    },
+    "category": "landmark",
+    "summary": "八甲田の渓谷に架かる上路式アーチ橋。橋の上から百二十二メートル下の谷を見下ろすと、紅葉が一面に広がります。",
+    "description": "城ヶ倉渓谷をひと跨ぎする全長三百六十メートルの橋で、上路式アーチとしては日本有数の規模です。歩道が両側にあり、欄干から真下の谷を覗けます。高さは約百二十二メートル。十月中旬の紅葉期は谷全体が色づき、橋の上から俯瞰できる数少ない紅葉スポットになります。冬期は通行止めになる期間があります。",
+    "highlights": [
+      "谷を一跨ぎするアーチ橋",
+      "高さ百二十二メートルからの俯瞰",
+      "十月中旬の谷一面の紅葉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "谷が濃い緑で埋まります。朝は霧が谷に溜まることがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬が紅葉の最盛期。駐車場が混むので朝早い時間が確実です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、層になった紅葉が立体的に見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷底まで光が入り、色が均一に出ます。影が落ちる時間帯は避けます。"
+      }
+    ],
+    "compositionTips": [
+      "橋上からは真下ではなく斜め下へ向けると谷の奥行きが出ます",
+      "橋そのものを撮るなら駐車場側の展望所からアーチの形を狙います",
+      "広角で全部入れるより、望遠で色の塊を抜くほうが紅葉は締まります"
+    ],
+    "officialWebsiteUrl": "https://www.atca.info/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_5e84b214ad0f",
@@ -39034,6 +39398,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_76f29b5365bf",
+    "slug": "nakano-momijiyama",
+    "name": "中野もみじ山",
+    "nameEn": "Nakano Momijiyama",
+    "reading": "なかのもみじやま",
+    "aliases": [
+      "中野神社の紅葉"
+    ],
+    "address": "青森県黒石市南中野不動舘27",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "黒石市"
+    },
+    "coords": {
+      "lat": 40.6,
+      "lng": 140.66
+    },
+    "category": "nature",
+    "summary": "二百年前に京都から移された楓が育った紅葉の名所。渓流と滝、石段の参道が紅葉の下に収まります。",
+    "description": "中野神社の境内を含む一帯で、江戸後期に京都の楓が移植されたのが始まりとされます。境内を流れる中野川に不動の滝が落ち、赤い橋と石段の参道が紅葉に覆われます。面積は広くありませんが要素の密度が高く、短い動線で構図を変えられるのが特徴です。見頃は十月下旬から十一月上旬。期間中は夜間のライトアップがあります。",
+    "highlights": [
+      "二百年の樹齢を持つ楓",
+      "渓流と不動の滝",
+      "夜間ライトアップ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬が見頃。青森県内では遅めに色づきます。"
+      },
+      {
+        "season": "summer",
+        "text": "青もみじと渓流。人が少なく、水の流れを落ち着いて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、参道の石段を無人で撮れます。光は谷に入りにくいので曇天向きです。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ期は水面への映り込みが強く出ます。三脚の可否は現地表示に従います。"
+      }
+    ],
+    "compositionTips": [
+      "滝と紅葉を一枚に入れるなら縦構図で上から下へ通します",
+      "赤が画面を埋めるので、石段や橋の直線を混ぜて整理します",
+      "逆光で葉を透かすと赤が明るく抜けます"
+    ],
+    "officialWebsiteUrl": "https://kuroishi.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2c452b3f1eba",
     "slug": "nakanoshima-library",
     "name": "大阪府立中之島図書館",
@@ -44520,6 +44943,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c08917dd0306",
+    "slug": "omazaki",
+    "name": "大間崎",
+    "nameEn": "Cape Oma",
+    "reading": "おおまざき",
+    "aliases": [
+      "本州最北端の地"
+    ],
+    "address": "青森県下北郡大間町大間",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "大間町"
+    },
+    "coords": {
+      "lat": 41.53,
+      "lng": 140.91
+    },
+    "category": "nature",
+    "summary": "本州最北端の岬。海を十七キロ隔てて北海道の函館方面が見え、沖には弁天島の灯台が浮かびます。",
+    "description": "下北半島の先端で、津軽海峡をはさんだ北海道までわずか十七キロ余り。晴れた日は対岸の街並みや山が肉眼で分かります。岬には本州最北端の碑とマグロ一本釣りのモニュメントがあり、沖合の弁天島には赤白の灯台が立ちます。漁港のある町なので、朝は漁船の動きが被写体になります。",
+    "highlights": [
+      "本州最北端の碑",
+      "海の向こうに見える北海道",
+      "弁天島の灯台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "視程が伸び、北海道の稜線まで見える日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れ、対岸が雪をかぶります。防寒と風対策が前提です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "漁港が動く時間。船と海峡を絡めると土地の生業が入ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は海峡に光の道ができます。灯台をシルエットで抜きます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で対岸を引き寄せると距離の近さが伝わります",
+      "モニュメントは主役にせず、海を主題にしたほうが土地が出ます",
+      "海面の反射は偏光フィルターで調整します"
+    ],
+    "officialWebsiteUrl": "https://www.town.oma.aomori.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_56a3f47141ad",
     "slug": "omi-jingu",
     "name": "近江神宮",
@@ -46207,6 +46689,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4ffc7c19f378",
+    "slug": "osorezan",
+    "name": "恐山",
+    "nameEn": "Mt. Osore",
+    "reading": "おそれざん",
+    "aliases": [
+      "恐山菩提寺",
+      "宇曽利湖"
+    ],
+    "address": "青森県むつ市田名部宇曽利山3-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "むつ市"
+    },
+    "coords": {
+      "lat": 41.32,
+      "lng": 141.09
+    },
+    "category": "temple",
+    "summary": "硫黄で白く焼けた岩場と、エメラルド色の宇曽利湖が隣り合う霊場。荒れ地と静かな湖面の落差が強い場所です。",
+    "description": "日本三大霊場の一つで、カルデラ湖である宇曽利湖の北岸に菩提寺があります。境内の奥は硫黄の噴気で岩が白く変色し、積まれた石と風車が点在します。そのすぐ先に白い砂浜と透明度の高い湖が広がり、荒涼とした景観と穏やかな湖面が短い距離で切り替わります。開山期間は例年五月から十月。参拝の場であることを踏まえ、人や供物を撮らない配慮が要ります。",
+    "highlights": [
+      "硫黄で白く変色した岩場",
+      "エメラルド色の宇曽利湖",
+      "岩場に点在する石積みと風車"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "湖の色が最も鮮やかに出る季節。噴気も見えやすくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、周囲の山が色づきます。開山期間の終わりに近く、人も減ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、噴気も気温差で立ちやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は湖の青が最も濃く出ます。白い砂浜との対比を狙います。"
+      }
+    ],
+    "compositionTips": [
+      "岩場の白と湖の青を一枚に入れると場所の性格が出ます",
+      "風車は動きを残すか止めるかで印象が変わります",
+      "参拝者や供養の品は写さないよう画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.shimokita-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_957ee2d78220",
@@ -52219,6 +52761,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_134ac8e85610",
+    "slug": "senjojiki-kaigan",
+    "name": "千畳敷海岸",
+    "nameEn": "Senjojiki Coast",
+    "reading": "せんじょうじきかいがん",
+    "aliases": [
+      "深浦 千畳敷"
+    ],
+    "address": "青森県西津軽郡深浦町北金ケ沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "深浦町"
+    },
+    "coords": {
+      "lat": 40.72,
+      "lng": 140.06
+    },
+    "category": "nature",
+    "summary": "地震で隆起した岩棚が海際に平らに広がる海岸。五能線の駅が目の前にあり、日本海に沈む夕日を正面から受けられます。",
+    "description": "江戸期の大地震で海底が隆起してできた岩棚が、数百メートルにわたって平らに続きます。潮が引くと岩の上を歩け、潮だまりが鏡のように空を映します。JR五能線の千畳敷駅が海岸のすぐ脇にあり、列車と海を組み合わせることもできます。西向きの海岸なので夕日が正面に落ち、冬は波しぶきが高く上がります。",
+    "highlights": [
+      "平らに広がる隆起岩棚",
+      "潮だまりの反射",
+      "日本海に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "日が長く、干潮と夕景の時間が重なりやすい季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "荒れた日本海の波が岩棚に砕けます。強風と高波には近づきすぎないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕日が正面に落ちます。潮だまりに空の色を写し込むのが定番です。"
+      },
+      {
+        "time": "day",
+        "text": "干潮の時間に合わせると岩棚の広さが出ます。潮見表を確認してから向かいます。"
+      }
+    ],
+    "compositionTips": [
+      "潮だまりを前景に置いて空を二重に入れます",
+      "岩の割れ目の線を手前から奥へ通すと誘導線になります",
+      "夕日は露出を海面に合わせ、岩をシルエットで残すと締まります"
+    ],
+    "officialWebsiteUrl": "https://www.town.fukaura.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4346d0efbac7",
     "slug": "senjuji",
     "name": "専修寺",
@@ -52950,6 +53551,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1ff02db61d81",
+    "slug": "shayokan",
+    "name": "斜陽館",
+    "nameEn": "Shayokan (Dazai Osamu Memorial Hall)",
+    "reading": "しゃようかん",
+    "aliases": [
+      "太宰治記念館"
+    ],
+    "address": "青森県五所川原市金木町朝日山412-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "五所川原市"
+    },
+    "coords": {
+      "lat": 40.88,
+      "lng": 140.45
+    },
+    "category": "landmark",
+    "summary": "太宰治の生家を公開した木造建築。米蔵まで備えた大地主の屋敷で、階段や欄間の造作が被写体になります。",
+    "description": "大正期に建てられた入母屋造りの屋敷で、国の重要文化財です。一階は和室が続き、二階には洋間があり、和洋が同居しています。ケヤキの階段や凝った欄間、赤い絨毯の洋間など、造作の一つひとつが見どころです。太宰治記念館として公開されており、館内は撮影可能な範囲が決まっています。周辺の金木の町並みも併せて歩けます。",
+    "highlights": [
+      "重要文化財の木造屋敷",
+      "和室と洋間が同居する構成",
+      "ケヤキの階段と欄間の造作"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "雪に囲まれた屋敷。屋内から窓ごしに雪を入れる構図が組めます。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭木が色づき、障子ごしの光が暖色に寄ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、部屋を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は障子から回り込む光が均一で、木の質感がよく出ます。"
+      }
+    ],
+    "compositionTips": [
+      "障子や襖の直線で画面を分割すると和室の構成が整理されます",
+      "階段は下から見上げて木の量感を出します",
+      "館内は撮影可能な範囲が決まっているので表示に従います"
+    ],
+    "officialWebsiteUrl": "https://dazai.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9bf2c28663ea",
@@ -54722,6 +55382,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_fc05fee8aa0a",
+    "slug": "shirakami-buna",
+    "name": "白神山地 ブナ林",
+    "nameEn": "Shirakami-Sanchi Beech Forest",
+    "reading": "しらかみさんち ぶなりん",
+    "aliases": [
+      "白神山地",
+      "ブナ林散策道"
+    ],
+    "address": "青森県中津軽郡西目屋村",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "西目屋村"
+    },
+    "coords": {
+      "lat": 40.52,
+      "lng": 140.17
+    },
+    "category": "nature",
+    "summary": "人の手が入らないまま残った世界遺産のブナ原生林。幹の白さと重なり合う葉の層が、森そのものを被写体にできる場所です。",
+    "description": "青森と秋田にまたがる山地で、東アジア最大級のブナ原生林が世界自然遺産に登録されています。核心地域は入山に手続きが要りますが、西目屋村側の散策道やブナ林散策道は整備されていて、誰でも歩けます。白い幹が林立し、葉を透かした光が地面まで届く構造は、広葉樹林のなかでも独特です。熊の生息域なので単独行は避けます。",
+    "highlights": [
+      "世界遺産のブナ原生林",
+      "白い幹が林立する森の構造",
+      "葉を透かす柔らかい光"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月下旬から六月、芽吹きの薄緑が森全体を覆います。残雪が残る年もあります。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑と深い日陰。光の筋が差す朝方が最も森らしい表情になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬から下旬、黄葉。白い幹と黄色の葉の対比がこの森の代表的な画です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、幹の奥行きが層になって見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日の明暗差が大きいので、曇りの日のほうが均質に写ります。"
+      }
+    ],
+    "compositionTips": [
+      "幹を縦線のリズムとして扱い、広角で林立感を出します",
+      "足元の落葉や苔を前景に入れると森の湿り気が伝わります",
+      "明暗差が強い日は露出を葉に合わせ、幹を白飛びさせないこと"
+    ],
+    "officialWebsiteUrl": "https://www.shirakami-visitorcenter.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a97b4292220a",
     "slug": "shirakawa-ko-suibotsurin",
     "name": "白川湖の水没林",
@@ -55242,6 +55966,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bb9862747011",
+    "slug": "shiriyazaki",
+    "name": "尻屋崎",
+    "nameEn": "Cape Shiriya",
+    "reading": "しりやざき",
+    "aliases": [
+      "寒立馬"
+    ],
+    "address": "青森県下北郡東通村尻屋",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "東通村"
+    },
+    "coords": {
+      "lat": 41.43,
+      "lng": 141.46
+    },
+    "category": "nature",
+    "summary": "草原に白い灯台が立つ岬。寒立馬と呼ばれる在来馬が放牧され、馬と灯台と海を一枚に収められます。",
+    "description": "下北半島の北東端で、日本最大級の煉瓦造灯台が草原に立っています。一帯には寒立馬が放牧され、季節によって放牧地が移動します。ゲートは開放時間が決まっており、冬期は閉鎖されます。地形が平坦で視界を遮るものがないので、馬・灯台・海の三つを自由に配置できるのが特徴です。馬には近づきすぎないよう距離を保ちます。",
+    "highlights": [
+      "草原に立つ煉瓦造の灯台",
+      "放牧された寒立馬",
+      "遮るもののない平坦な岬"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、草が緑になり子馬が見られることがあります。"
+      },
+      {
+        "season": "summer",
+        "text": "霧が出やすく、灯台が霧のなかに浮かぶ画になる日があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、馬の毛色との対比が落ち着きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が残りやすく、灯台の輪郭が柔らかく出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の横からの光が草原の起伏と馬の体を立体的に見せます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で馬と灯台を圧縮すると両方を大きく入れられます",
+      "地平線を低く置いて空を広く取ると岬の広さが出ます",
+      "馬には近づかず、望遠で距離を保って撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.vill.higashidoori.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_63be0917cad4",
@@ -57146,6 +57933,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a7ca0270e241",
+    "slug": "sukayu",
+    "name": "酸ヶ湯温泉",
+    "nameEn": "Sukayu Onsen",
+    "reading": "すかゆおんせん",
+    "aliases": [
+      "ヒバ千人風呂"
+    ],
+    "address": "青森県青森市荒川南荒川山国有林酸湯沢50",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "青森市"
+    },
+    "coords": {
+      "lat": 40.65,
+      "lng": 140.86
+    },
+    "category": "landmark",
+    "summary": "八甲田の懐にある湯治場。木造の宿と、冬に積み上がる数メートルの雪壁が、この土地の気候をそのまま写せます。",
+    "description": "三百年続く湯治場で、総ヒバ造りの大浴場で知られます。撮影の対象になるのは建物と周囲の環境で、浴場内は撮影できません。積雪量が日本有数で、冬は宿の周りに数メートルの雪壁ができ、屋根まで雪が届く年もあります。周辺は八甲田の登山口でもあり、地獄沼や湿原の木道が徒歩圏にあります。",
+    "highlights": [
+      "木造の湯治宿",
+      "冬に数メートル積み上がる雪",
+      "徒歩圏の地獄沼と湿原"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "周囲の湿原が緑になり、木道から八甲田の山並みが見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、周辺の紅葉と湯気の組み合わせ。気温差で湯気が立ちやすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の量そのものが被写体になります。除雪された道の壁の高さを人と比べて撮ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷え込んだ朝は湯気が濃く立ちます。逆光にすると湯気が白く浮きます。"
+      },
+      {
+        "time": "night",
+        "text": "冬の夜は宿の灯りと雪。長時間露光で雪面の質感を残します。"
+      }
+    ],
+    "compositionTips": [
+      "雪壁は人や車を入れてスケールを示します",
+      "湯気は逆光で狙うと形が出ます",
+      "浴場内は撮影禁止なので、被写体は建物と周辺環境に絞ります"
+    ],
+    "officialWebsiteUrl": "https://sukayu.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f333c3da83f7",
     "slug": "sumatakyo-yume-no-tsuribashi",
     "name": "寸又峡 夢の吊橋",
@@ -57661,6 +58511,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d70e7cf4d2c9",
+    "slug": "tachineputa",
+    "name": "五所川原立佞武多",
+    "nameEn": "Goshogawara Tachineputa Festival",
+    "reading": "ごしょがわらたちねぷた",
+    "aliases": [
+      "立佞武多の館"
+    ],
+    "address": "青森県五所川原市大町21-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "五所川原市"
+    },
+    "coords": {
+      "lat": 40.81,
+      "lng": 140.44
+    },
+    "category": "festival",
+    "summary": "高さ二十メートル超の山車が市街を練る祭り。見上げる角度でしか全体が入らない、縦方向に極端な被写体です。",
+    "description": "八月四日から八日に行われる祭りで、高さ二十三メートルに達する立佞武多が市街地を巡行します。電線を地中化した経路を通るため、この高さが可能になっています。祭り期間外も立佞武多の館で実物を展示しており、館内は吹き抜けの高さを活かした構成です。巡行は夜で、灯りが入った状態が本番になります。",
+    "highlights": [
+      "高さ二十三メートルの山車",
+      "夜の巡行で灯りが入る",
+      "祭り期間外も館で実物を見られる"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月四日から八日が巡行。それ以外の時期は館の展示が対象になります。"
+      },
+      {
+        "season": "winter",
+        "text": "館内展示は通年。雪の季節は屋内で腰を据えて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "巡行は夜。山車の内側から光る状態が本番で、感度を上げて手持ちで追います。"
+      },
+      {
+        "time": "day",
+        "text": "館内展示は日中。吹き抜けの上階から目線の高さを変えて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図が前提。広角で見上げると高さの誇張が効きます",
+      "館内は上階の回廊から撮ると山車の上部が正面に入ります",
+      "夜の巡行は被写体が動くので、シャッター速度を稼いで手ブレより被写体ブレを優先して抑えます"
+    ],
+    "officialWebsiteUrl": "https://www.tachineputa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6e63cf5bd65f",
@@ -58645,6 +59554,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0c127e2c6c97",
+    "slug": "takayama-inari",
+    "name": "高山稲荷神社",
+    "nameEn": "Takayama Inari Shrine",
+    "reading": "たかやまいなりじんじゃ",
+    "aliases": [
+      "千本鳥居 高山稲荷"
+    ],
+    "address": "青森県つがる市牛潟町鷲野沢147-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "つがる市"
+    },
+    "coords": {
+      "lat": 40.94,
+      "lng": 140.29
+    },
+    "category": "shrine",
+    "summary": "庭園の起伏に沿って赤い鳥居が波のように連なる神社。上から見下ろすと鳥居の列が蛇行する形がよく分かります。",
+    "description": "日本海に近い砂丘地に建つ稲荷神社です。千本鳥居は直線ではなく、池を巡る庭園の起伏に沿って左右に折れながら続くのが特徴で、高い位置から見下ろすと赤い線が連なって見えます。池には赤い橋が架かり、周囲は手入れされた日本庭園。境内の奥には狐の石像が並ぶ一画もあります。冬は雪と赤の対比が強く出ます。",
+    "highlights": [
+      "起伏に沿って蛇行する千本鳥居",
+      "池と赤い橋のある庭園",
+      "並ぶ狐の石像"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、庭園の新緑とツツジ。赤と緑の彩度が高くなる時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月、紅葉と鳥居の赤が重なります。色を整理して撮る判断が要ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪に埋もれた鳥居。白と赤だけになり、画面が最も単純になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、鳥居の列を無人で抜けます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は鳥居の内側に光が回り、朱色が明るく出ます。"
+      }
+    ],
+    "compositionTips": [
+      "高い位置から俯瞰して蛇行する線を見せるのがこの社の本命です",
+      "鳥居の内側からの定番構図は望遠で圧縮すると密度が出ます",
+      "赤が飽和しやすいので、彩度を上げすぎないこと"
+    ],
+    "officialWebsiteUrl": "https://takayamainari.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_cb5539330561",
@@ -59679,6 +60651,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_8743e018e88a",
+    "slug": "tappizaki",
+    "name": "龍飛崎",
+    "nameEn": "Cape Tappi",
+    "reading": "たっぴざき",
+    "aliases": [
+      "竜飛崎",
+      "階段国道"
+    ],
+    "address": "青森県東津軽郡外ヶ浜町三厩龍浜",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "外ヶ浜町"
+    },
+    "coords": {
+      "lat": 41.26,
+      "lng": 140.34
+    },
+    "category": "nature",
+    "summary": "津軽半島の北端。断崖の上に白い灯台が立ち、晴れた日には津軽海峡ごしに北海道の山影が見えます。",
+    "description": "本州最北西端の岬で、風が強いことで知られます。断崖の上に龍飛埼灯台が立ち、眼下に津軽海峡。視界が良ければ対岸の北海道まで見通せます。岬には車が通れない階段国道三三九号があり、集落から灯台まで石段が続く珍しい区間です。冬は地吹雪と強風で道路が閉鎖されることがあります。",
+    "highlights": [
+      "断崖に立つ白い灯台",
+      "津軽海峡ごしの北海道",
+      "車が通れない階段国道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "視界が良く、海の青が濃く出ます。風は年間を通して強い土地です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸の北海道が見える確率が上がります。"
+      },
+      {
+        "season": "winter",
+        "text": "地吹雪と荒れた海。到達の可否を道路情報で確認してから向かいます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "日本海側に日が落ちるので、灯台をシルエットにした夕景が組めます。"
+      },
+      {
+        "time": "night",
+        "text": "灯台の光芒を長時間露光で捉えられます。三脚は風で倒れないよう低く構えます。"
+      }
+    ],
+    "compositionTips": [
+      "風が強いので手前の草の揺れを活かすか、速いシャッターで止めるか決めます",
+      "階段国道は上から見下ろして段の連なりを見せます",
+      "灯台は低く構えて空を広く取ると岬の孤立感が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.town.sotogahama.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f63411d62308",
@@ -62613,6 +63649,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_bf497e27b404",
+    "slug": "towada-art-center",
+    "name": "十和田市現代美術館",
+    "nameEn": "Towada Art Center",
+    "reading": "とわだしげんだいびじゅつかん",
+    "aliases": [
+      "アート広場 十和田"
+    ],
+    "address": "青森県十和田市西二番町10-9",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "十和田市"
+    },
+    "coords": {
+      "lat": 40.61,
+      "lng": 141.21
+    },
+    "category": "landmark",
+    "summary": "白い箱を並べた建物と、屋外に点在する立体作品。通りそのものが展示場になっていて、街と作品が同じ画に入ります。",
+    "description": "西沢立衛の設計で、白い直方体を敷地に分散して配置した建物です。作品ごとに独立した部屋があり、外からもガラス越しに見える構成になっています。建物の前の官庁街通りとアート広場には屋外作品が点在し、こちらは無料で見られます。屋内作品の撮影可否は作品ごとに異なるため、館内表示に従います。",
+    "highlights": [
+      "白い箱を分散配置した建築",
+      "通りに点在する屋外作品",
+      "街路と作品が同じ画に入る配置"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "官庁街通りの桜と松の並木が咲き、白い建物との対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と白い建築で画面が白に寄ります。作品の色だけが残る構図が作れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋外作品は日中の順光で色が素直に出ます。影の落ち方で立体感を調整します。"
+      },
+      {
+        "time": "night",
+        "text": "夜は建物からの光が屋外に漏れ、作品が浮かび上がります。"
+      }
+    ],
+    "compositionTips": [
+      "白い壁を背景として使い、作品の色を主役に置きます",
+      "街路を入れて生活の場にあることを見せます",
+      "屋内は撮影可否が作品ごとに違うので表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://towadaartcenter.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_052d44de3245",
     "slug": "toyako",
     "name": "洞爺湖",
@@ -63722,6 +64817,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_db2bbed289e9",
+    "slug": "tsuru-no-maihashi",
+    "name": "鶴の舞橋",
+    "nameEn": "Tsuru-no-Maihashi Bridge",
+    "reading": "つるのまいはし",
+    "aliases": [
+      "津軽富士見湖の木橋"
+    ],
+    "address": "青森県北津軽郡鶴田町廻堰大沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "鶴田町"
+    },
+    "coords": {
+      "lat": 40.75,
+      "lng": 140.43
+    },
+    "category": "landmark",
+    "summary": "津軽富士見湖に架かる全長三百メートルの三連太鼓橋。水面に映る弧と、背後に立つ岩木山が一枚に収まります。",
+    "description": "青森産のヒバを使った木造の三連橋で、日本一長い木橋とされます。湖面に橋の弧が映り込み、天気が良ければ背後に岩木山が入ります。橋は老朽化による架け替え工事が行われた経緯があるため、通行可否は事前確認が確実です。周囲は遊歩道が一周しており、光の向きに応じて立ち位置を変えられます。",
+    "highlights": [
+      "全長三百メートルの木造三連橋",
+      "湖面に映る弧",
+      "背後にそびえる岩木山"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、周囲の桜と橋。岩木山にはまだ雪が残る時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月、周囲の木々が色づき、水面の映り込みも濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の橋と白い岩木山。無風の朝は湖面が鏡になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "夜明け直後は風がなく、映り込みが最も安定します。朝焼けと重なる日もあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は橋の木肌が暖色に染まります。岩木山はシルエット寄りになります。"
+      }
+    ],
+    "compositionTips": [
+      "橋と映り込みを上下対称に置くと三連の弧が効きます",
+      "岩木山を入れるなら望遠で圧縮して山を大きく見せます",
+      "風がある日は映り込みを諦め、橋の構造そのものに寄ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.tsuruta.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_dff003423ded",
     "slug": "tsuru-no-yu",
     "name": "乳頭温泉郷 鶴の湯",
@@ -64014,6 +65172,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2615223fb4c1",
+    "slug": "tsutanuma",
+    "name": "蔦沼",
+    "nameEn": "Tsutanuma Pond",
+    "reading": "つたぬま",
+    "aliases": [
+      "蔦七沼"
+    ],
+    "address": "青森県十和田市奥瀬字蔦野湯",
+    "region": {
+      "country": "日本",
+      "prefecture": "青森県",
+      "city": "十和田市"
+    },
+    "coords": {
+      "lat": 40.6,
+      "lng": 140.94
+    },
+    "category": "nature",
+    "summary": "十月下旬の夜明け、朝日が対岸のブナを赤く照らし、その色が無風の水面に丸ごと映り込むことで知られる沼です。",
+    "description": "蔦温泉の奥にある沼で、周囲をブナ林に囲まれています。十月下旬の早朝、東から差す光が対岸の斜面だけを赤く染め、水面が鏡になると上下が同じ色で埋まります。この時期の朝は撮影者が集中するため、近年は事前予約と協力金の制度が導入されています。条件（無風・快晴の朝）が揃う日は限られます。",
+    "highlights": [
+      "夜明けに赤く染まる対岸のブナ",
+      "無風の水面の映り込み",
+      "周囲を巡る蔦七沼の散策路"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月下旬が本番。紅葉のピークと無風の朝が重なる日は数日しかありません。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の季節は人が少なく、散策路から七つの沼を巡って静かに撮れます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の沼はアクセスが限られますが、白一色の静かな画になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "日の出から十数分が勝負。それを過ぎると光が全体に回って赤みが消えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は順光で色が均一になります。映り込みを狙うなら風の弱い時間を選びます。"
+      }
+    ],
+    "compositionTips": [
+      "水平線を画面中央に置き、上下対称に構えるのが定番です",
+      "赤に露出を合わせると水面が沈むので、ハーフNDか段階露光で整えます",
+      "混雑期は三脚の場所が限られるので、到着時刻から逆算して動きます"
+    ],
+    "officialWebsiteUrl": "https://towadako.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6e9e5ecb6b4d",
