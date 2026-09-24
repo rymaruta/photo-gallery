@@ -75,7 +75,7 @@ jobs:
           done
           cat /tmp/jp-next-map.log
           exit 1
-      - name: Capture REAL vector tile map screenshots (not schematic HTML)
+      - name: Capture REAL Japan and official national imagery screenshots
         shell: bash
         run: |
           mkdir -p /tmp/journey-real-map-screens
@@ -126,6 +126,40 @@ jobs:
               } else { failed = true; console.error(name + " has no real official pin"); }
               if (errors.length) { failed = true; console.error(name + " errors:", errors.slice(0, 6)); }
               await page.close();
+              // Each overseas screenshot must receive a genuine image from its
+              // OWN national mapping agency. A successful map load alone is
+              // not evidence of an orthophoto; never publish an unverified shot.
+              const overseas = [
+                { slug: "US", hash: "#13/40.7484/-73.9857", provider: "basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/" },
+                { slug: "FR", hash: "#13/48.8584/2.2945", provider: "data.geopf.fr/wmts?" },
+                { slug: "ES", hash: "#13/40.4168/-3.7038", provider: "www.ign.es/wmts/pnoa-ma?" },
+              ];
+              for (const country of overseas) {
+                const foreign = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+                const images = [];
+                const foreignErrors = [];
+                foreign.on("pageerror", (error) => foreignErrors.push(String(error)));
+                foreign.on("response", (response) => {
+                  if (response.url().includes(country.provider) && response.status() === 200
+                    && (response.headers()["content-type"] || "").toLowerCase().startsWith("image/"))
+                    images.push(response.url());
+                });
+                try {
+                  await foreign.goto("http://127.0.0.1:3000/map/design-proof" + country.hash,
+                    { waitUntil: "domcontentloaded", timeout: 90000 });
+                  await foreign.locator('[data-basemap="free-imagery-ready"]').waitFor({ timeout: 65000 });
+                  await foreign.waitForTimeout(5000);
+                  if (!images.length || foreignErrors.length) {
+                    failed = true;
+                    console.error(name, country.slug, "NO VERIFIED official imagery response or browser errors",
+                      { images: images.length, errors: foreignErrors.slice(0, 5) });
+                  } else {
+                    await foreign.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-" + country.slug + "-OFFICIAL-IMAGERY.png", fullPage: true });
+                    console.log(name, country.slug, "official image HTTP 200:", images.length);
+                  }
+                } catch (error) { failed = true; console.error(name, country.slug, String(error)); }
+                finally { await foreign.close(); }
+              }
             }
             await browser.close();
             if (failed) process.exitCode = 1;
