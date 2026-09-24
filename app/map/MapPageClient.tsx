@@ -130,18 +130,33 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
     // 一覧で見たければ「リスト」を押す
     const onSearchArea = useCallback((b: MapBounds | null) => setArea(b), []);
 
+    // 写真とは別の台帳でも「このエリアを検索」は同じ地図範囲を使用する。
+    // 公式撮影地が0件なら空の宣伝セクションを増やさない。
+    const spotsInArea = useMemo(() => area
+        ? spots.filter((sp) => sp.lat >= area.south && sp.lat <= area.north
+            && (area.west <= area.east
+                ? sp.lng >= area.west && sp.lng <= area.east
+                : sp.lng >= area.west || sp.lng <= area.east))
+        : spots, [spots, area]);
+
     const emptyHint = query || category !== "all" || area
         ? (en ? "No photos match. Try clearing the search or filters." : "該当する写真がありません。検索や絞り込みを外してみてください。")
         : undefined;
 
     // 位置情報のある写真が1枚も無い／まだ届いていないときは、地図も操作も出さない
-    const nothingToShow = geo.length === 0;
+    const nothingToShow = geo.length === 0 && spots.length === 0;
 
     return (
-        <main className="mx-auto w-full max-w-[1400px] px-4 pt-4 pb-28 lg:px-6">
+        <main className="journey-map-page mx-auto w-full max-w-[1500px] px-3 sm:px-5 pt-3 pb-28 lg:px-6">
             {/* **見出しは読み上げにだけ。** モックの画面に題は無く、先頭は検索欄。
                 消してしまうと読み上げの人がこのページが何かを掴めないので残す */}
             <h1 className="sr-only">{en ? "Map" : "撮影地マップ"}</h1>
+            <header className="journey-map-heading mb-3">
+                <p className="m-0 text-[11px] font-bold tracking-[0.18em] text-link">JOURNEY PHOTO / EXPLORE</p>
+                <p className="m-0 mt-1 font-serif text-[20px] sm:text-[25px] font-bold text-white">
+                    {en ? "The map to your next photograph." : "撮ったあの場所が、次の旅につながる。"}
+                </p>
+            </header>
 
             {nothingToShow && !loaded ? (
                 // **まだ届いていないなら「まだ」と言わない。** 手元の断面に座標が
@@ -260,7 +275,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             ガイドへの経路」で、`MapPhotoList` と同じ役目。
                             **絞り込み（語・カテゴリ・範囲）には連動しない**
                             ——あれは写真の値を見る仕組みで、台帳は別の持ち物 */}
-                        <MapSpotList spots={spots} locale={locale} />
+                        <MapSpotList spots={spotsInArea} locale={locale} />
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
 
@@ -300,7 +315,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             spots={spots}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
-                            className="h-[62vh] min-h-[320px] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
+                            className="h-[62dvh] min-h-[340px] lg:h-[calc(100dvh-215px)] lg:min-h-[480px]"
                         />
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
