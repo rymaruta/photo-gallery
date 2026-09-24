@@ -37,6 +37,7 @@ type VectorMap = {
     addSource: (id: string, source: Record<string, unknown>) => void;
     addLayer: (layer: Record<string, unknown>, before?: string) => void;
     setPaintProperty: (layerId: string, property: string, value: unknown) => void;
+    setLayoutProperty: (layerId: string, property: string, value: unknown) => void;
 };
 type VectorLayer = LeafletLayer & {
     getMaplibreMap: () => VectorMap;
@@ -218,6 +219,68 @@ function addLowZoomRelief(gl: VectorMap): boolean {
 }
 
 /**
+ * Completely keyless imagery from the Geospatial Information Authority of
+ * Japan. Tile URLs and zoom limits are from GSI's official tile list:
+ * https://maps.gsi.go.jp/development/ichiran.html
+ *
+ * Global MODIS: z2-8, comparatively coarse. Within Japan, Landsat imagery:
+ * z2-13, seamless orthophotos: z14-18 where the agency has coverage. No
+ * paid map API, metered account or browser key. Missing/offshore imagery
+ * reveals the real OpenFreeMap vector map underneath; we never fake detail.
+ *
+ * For geographic image layers, the same MapLibre rendering surface and
+ * Leaflet markers/selection controls are retained. Attribution stays visible.
+ */
+export const FREE_GSI_IMAGERY = {
+    world: "https://cyberjapandata.gsi.go.jp/xyz/modis/{z}/{x}/{y}.png",
+    japan: "https://cyberjapandata.gsi.go.jp/xyz/lndst/{z}/{x}/{y}.png",
+    japanDetail: "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+} as const;
+
+function addFreeImagery(gl: VectorMap): boolean {
+    // Keep satellite pictures ON TOP of roads/borders but BELOW actual place
+    // labels, photo pins and the rest of the app interface.
+    const firstLabel = gl.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+    try {
+        const imagery = [
+            { id: "gsi-global", url: FREE_GSI_IMAGERY.world, min: 2, max: 8, until: 8.5 },
+            { id: "gsi-japan-land", url: FREE_GSI_IMAGERY.japan, min: 2, max: 13, until: 13.5,
+                bounds: [122, 20, 154, 46] },
+            { id: "gsi-japan-ortho", url: FREE_GSI_IMAGERY.japanDetail, min: 14, max: 18, until: 19,
+                bounds: [122, 20, 154, 46] },
+        ];
+        for (const item of imagery) {
+            gl.addSource(item.id, {
+                type: "raster",
+                tiles: [item.url],
+                tileSize: 256,
+                minzoom: item.min,
+                maxzoom: item.max,
+                ...("bounds" in item ? { bounds: item.bounds } : {}),
+            });
+            gl.addLayer({
+                id: `journey-${item.id}`,
+                type: "raster",
+                source: item.id,
+                minzoom: item.min,
+                maxzoom: item.until,
+                paint: { "raster-opacity": 1, "raster-fade-duration": 0 },
+            }, firstLabel);
+        }
+        // Do not display borders even where GSI tiles are unavailable.
+        for (const layer of gl.getStyle().layers ?? []) {
+            if (/boundary|border|admin|maritime|marine|disputed|territorial/i.test(layer.id)) {
+                try { gl.setLayoutProperty(layer.id, "visibility", "none"); }
+                catch { /* the basemap remains usable */ }
+            }
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Switches the base layer only AFTER actual vector tiles rendered.
  * Keep the readable OSM fallback in place on script/style failure.
  * Caller owns map lifecycle; cleanup is registered by the caller's effect.
@@ -227,7 +290,7 @@ export async function upgradeToRealVectorBasemap(
     map: LeafletMap,
     fallback: LeafletLayer,
     shouldContinue: () => boolean,
-    onState: (state: "vector-ready" | "fallback") => void,
+    onState: (state: "free-imagery-ready" | "vector-ready" | "fallback") => void,
 ): Promise<void> {
     let vector: VectorLayer | null = null;
     try {
@@ -259,17 +322,21 @@ export async function upgradeToRealVectorBasemap(
         });
         if (!shouldContinue()) { map.removeLayer(activeLayer); return; }
         applyReadableMapPalette(gl);
-        const reliefAdded = addLowZoomRelief(gl);
+        // Replace shaded-relief-only texture with GSI's real true-color
+        // aerial/satellite photographs. No MapTiler/Mapbox key is used.
+        const imageryAdded = addFreeImagery(gl);
         map.removeLayer(fallback);
-        if (reliefAdded) map.attributionControl?.addAttribution(
-            '<a href="https://gibs.earthdata.nasa.gov/">NASA GIBS / Blue Marble</a>',
+        if (imageryAdded) map.attributionControl?.addAttribution(
+            '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院（地理院タイル）</a>'
+            + ' ・Landsat8: GSI, TSIC, GEO Grid/AIST, USGS'
+            + ' ・Global MODIS: NASA LP DAAC / USGS EROS',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
             + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> '
             + '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
         );
-        onState("vector-ready");
+        onState(imageryAdded ? "free-imagery-ready" : "vector-ready");
     } catch {
         if (vector && shouldContinue()) map.removeLayer(vector);
         if (shouldContinue()) {
