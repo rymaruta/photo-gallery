@@ -27,6 +27,28 @@ const NASA_RELIEF = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarb
 // outlines overpower photo pins at the Greece/Japan travel zoom levels.
 export const REAL_DARK_MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 
+/** MapTiler's licensed real satellite imagery with map-label overlay.
+ * Public browser key required. We do not hard-code, proxy or guess a key. */
+export function satelliteHybridStyle(key: string): string | null {
+    const clean = key.trim();
+    if (!clean || /^(YOUR_|REPLACE_|PLACEHOLDER|undefined|null)/i.test(clean)) return null;
+    return `https://api.maptiler.com/maps/hybrid-v4/style.json?key=${encodeURIComponent(clean)}`;
+}
+
+/** Hide administrative/maritime boundaries, noisy POIs and minor road labels
+ * only in the SATELLITE HYBRID style; keep geographic/place labels visible.
+ * Rendered satellite tiles must stay unmodified and visibly attributed.
+ */
+export function shouldHideSatelliteLayer(layer: { id: string; type: string }): boolean {
+    const id = layer.id.toLowerCase();
+    if (/boundary|border|admin|maritime|marine|disputed|territorial|country-line|state-line/.test(id)) return true;
+    if (layer.type === "symbol" && /(^|[_-])(poi|shop|restaurant|commercial|house_number|housenumber|road_name|highway_name)([_-]|$)/.test(id)) return true;
+    // MapTiler satellite style might include street line overlays; imagery
+    // already contains roads. Only labels for recognisable places are needed.
+    if (layer.type === "line" && /(^|[_-])(highway|road|street|railway|rail)([_-]|$)/.test(id)) return true;
+    return false;
+}
+
 type VectorMap = {
     once: (event: string, callback: () => void) => void;
     on: (event: string, callback: (event?: unknown) => void) => void;
@@ -37,6 +59,7 @@ type VectorMap = {
     addSource: (id: string, source: Record<string, unknown>) => void;
     addLayer: (layer: Record<string, unknown>, before?: string) => void;
     setPaintProperty: (layerId: string, property: string, value: unknown) => void;
+    setLayoutProperty: (layerId: string, property: string, value: unknown) => void;
 };
 type VectorLayer = LeafletLayer & {
     getMaplibreMap: () => VectorMap;
@@ -107,6 +130,16 @@ export function loadVectorAdapter(leaflet: typeof import("leaflet")): Promise<Ad
         throw error;
     });
     return adapterPromise;
+}
+
+/** The hide pass runs after MapTiler's hybrid style has loaded.
+ * We never alter satellite imagery pixels or remove provider attribution.
+ */
+function simplifySatelliteLabels(gl: VectorMap): void {
+    for (const layer of gl.getStyle().layers ?? []) {
+        if (!shouldHideSatelliteLayer(layer)) continue;
+        try { gl.setLayoutProperty(layer.id, "visibility", "none"); } catch { /* provider style changed */ }
+    }
 }
 
 /**
@@ -227,14 +260,16 @@ export async function upgradeToRealVectorBasemap(
     map: LeafletMap,
     fallback: LeafletLayer,
     shouldContinue: () => boolean,
-    onState: (state: "vector-ready" | "fallback") => void,
+    onState: (state: "satellite-ready" | "vector-ready" | "fallback") => void,
+    mapTilerKey?: string,
 ): Promise<void> {
     let vector: VectorLayer | null = null;
+    const satelliteUrl = satelliteHybridStyle(mapTilerKey ?? "");
     try {
         const adapter = await loadVectorAdapter(leaflet);
         if (!shouldContinue()) return;
         vector = adapter({
-            style: REAL_DARK_MAP_STYLE,
+            style: satelliteUrl ?? REAL_DARK_MAP_STYLE,
             interactive: false,
             attributionControl: false,
         });
@@ -258,8 +293,12 @@ export async function upgradeToRealVectorBasemap(
             if (gl.loaded()) finish(true);
         });
         if (!shouldContinue()) { map.removeLayer(activeLayer); return; }
-        applyReadableMapPalette(gl);
-        const reliefAdded = addLowZoomRelief(gl);
+        // Satellite imagery is already real, highly detailed geography.
+        // Do not cover it with shaded-relief rasters or dark-blue fill layers.
+        // Boundary/territorial lines and noisy POIs are suppressed in hybrid.
+        if (satelliteUrl) simplifySatelliteLabels(gl);
+        else applyReadableMapPalette(gl);
+        const reliefAdded = satelliteUrl ? false : addLowZoomRelief(gl);
         map.removeLayer(fallback);
         if (reliefAdded) map.attributionControl?.addAttribution(
             '<a href="https://gibs.earthdata.nasa.gov/">NASA GIBS / Blue Marble</a>',
@@ -269,7 +308,10 @@ export async function upgradeToRealVectorBasemap(
             + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> '
             + '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
         );
-        onState("vector-ready");
+        if (satelliteUrl) map.attributionControl?.addAttribution(
+            '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener noreferrer">MapTiler</a> &amp; imagery providers',
+        );
+        onState(satelliteUrl ? "satellite-ready" : "vector-ready");
     } catch {
         if (vector && shouldContinue()) map.removeLayer(vector);
         if (shouldContinue()) {
