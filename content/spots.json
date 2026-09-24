@@ -4133,6 +4133,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_00873bd5b8c7",
+    "slug": "ashizu",
+    "name": "芦津渓谷",
+    "nameEn": "Ashizu Valley",
+    "reading": "あしづけいこく",
+    "aliases": [
+      "芦津の杉林",
+      "三滝渓"
+    ],
+    "address": "鳥取県八頭郡智頭町芦津",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "智頭町"
+    },
+    "coords": {
+      "lat": 35.24,
+      "lng": 134.29
+    },
+    "category": "nature",
+    "summary": "人工の杉林と自然のブナ林が隣り合う渓谷。手入れされた杉の直線と原生林の乱れが対比になります。",
+    "description": "智頭杉の産地の奥にある渓谷で、下流側は数百年手入れされてきた人工の杉林、上流側は自然のブナ林という構成になっています。同じ谷で林の性格が変わるため、人の手の入り方の違いが一目で分かります。遊歩道が谷に沿って整備され、三滝と呼ばれる滝もあります。森林セラピー基地に認定されており、道は歩きやすく保たれています。",
+    "highlights": [
+      "手入れされた杉の直線的な林",
+      "上流のブナの自然林",
+      "谷沿いの遊歩道と滝"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の芽吹き。ブナの薄緑と杉の濃い緑が分かれます。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、杉林の中は暗く沈みます。木漏れ日が筋になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、ブナが黄葉します。常緑の杉との対比が最も強い時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、杉の縦線が層になって見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が下草に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "杉は幹の縦線を反復として使い、整然さを見せます",
+      "ブナ林との境界を一枚に入れると対比が伝わります",
+      "滝は遅いシャッターで流して谷の湿度を表します"
+    ],
+    "officialWebsiteUrl": "https://chizukanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a86807cdc513",
     "slug": "asuka-tanada",
     "name": "明日香村の棚田",
@@ -6819,6 +6883,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_44a1cbc7a662",
+    "slug": "chizu-juku",
+    "name": "智頭宿",
+    "nameEn": "Chizu-juku",
+    "reading": "ちづしゅく",
+    "aliases": [
+      "智頭 石谷家",
+      "智頭往来"
+    ],
+    "address": "鳥取県八頭郡智頭町智頭",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "智頭町"
+    },
+    "coords": {
+      "lat": 35.26,
+      "lng": 134.22
+    },
+    "category": "landmark",
+    "summary": "因幡街道の宿場町。杉の産地として栄えた町で、山林経営で財を成した家の大規模な屋敷が残ります。",
+    "description": "鳥取と姫路を結ぶ因幡街道の宿場で、参勤交代の経路でもありました。周囲は杉の産地で、林業で栄えた町です。街道沿いには町家が続き、なかでも石谷家住宅は約三千坪の敷地に四十余りの部屋を持つ大規模な屋敷で、重要文化財です。和風と近代の様式が混ざった造りで、内部の庭園も公開されています。町は歩いて回れる規模です。",
+    "highlights": [
+      "因幡街道の宿場町の町並み",
+      "三千坪の石谷家住宅",
+      "杉の産地としての町の成り立ち"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑の杉と町並み。通りも明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、石谷家の庭園が色づきます。屋内からの眺めが本番です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の宿場。杉の緑と雪の白だけになる季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、街道の全景が撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "屋敷の内部は日中の光が障子から入る時間が向きます。"
+      }
+    ],
+    "compositionTips": [
+      "座敷から庭を見る額縁構図が屋敷の構成に合います",
+      "街道は望遠で圧縮して町家の連なりを見せます",
+      "屋敷内は撮影可否を受付で確認します"
+    ],
+    "officialWebsiteUrl": "https://chizukanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8886efb66374",
@@ -9535,6 +9663,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_8f5b42705098",
+    "slug": "enchoen",
+    "name": "燕趙園",
+    "nameEn": "Enchoen Chinese Garden",
+    "reading": "えんちょうえん",
+    "aliases": [
+      "中国庭園 燕趙園"
+    ],
+    "address": "鳥取県東伯郡湯梨浜町引地565-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "湯梨浜町"
+    },
+    "coords": {
+      "lat": 35.48,
+      "lng": 133.91
+    },
+    "category": "landmark",
+    "summary": "東郷池のほとりに建つ日本最大級の中国庭園。河北省の技術者が設計し、材料も現地から運ばれました。",
+    "description": "鳥取県と中国河北省の友好の記念として一九九五年に造られた庭園です。設計は河北省が行い、瓦や石材も現地から運ばれています。池を中心に楼閣、回廊、橋が配され、皇家園林の様式を再現しています。東郷池に面しているため、庭園の池と湖が連続して見える構成になっています。中国衣装の貸出があり、園内での撮影に使われます。",
+    "highlights": [
+      "河北省の設計による本格的な中国庭園",
+      "池に面した楼閣と回廊",
+      "東郷池と庭園の池が連続する構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "園内の花と新緑。瓦の色との対比が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、瓦屋根の反りに影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と朱の建物。日本の庭園とは違う色構成が雪に映えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は人が少なく、回廊を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は建物の色に光が回り、意匠の細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "回廊の柱の反復を奥へ通して奥行きを作ります",
+      "池の映り込みで楼閣を上下対称にします",
+      "屋根の反りは側面から撮ると形が分かります"
+    ],
+    "officialWebsiteUrl": "https://www.encho-en.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7fd1e98f89da",
@@ -16597,6 +16788,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2a6f9064cc57",
+    "slug": "hawai-onsen",
+    "name": "はわい温泉",
+    "nameEn": "Hawai Onsen",
+    "reading": "はわいおんせん",
+    "aliases": [
+      "湯梨浜 はわい温泉"
+    ],
+    "address": "鳥取県東伯郡湯梨浜町はわい温泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "湯梨浜町"
+    },
+    "coords": {
+      "lat": 35.49,
+      "lng": 133.89
+    },
+    "category": "landmark",
+    "summary": "東郷池の西岸に突き出した半島の温泉地。宿が水際まで建ち、湖上に張り出した浴場があります。",
+    "description": "東郷池に半島状に突き出した土地にある温泉で、地名の羽合が由来です。宿は湖の水際まで建ち、一部は湖上に張り出した浴場を持ちます。対岸から見ると建物が水面に浮かんで見えます。湖を挟んだ東郷温泉とは橋で結ばれています。温泉街は小さく、湖岸の遊歩道を歩けば十数分で回れます。朝は湖面が静かで映り込みが安定します。",
+    "highlights": [
+      "湖の水際に建つ宿",
+      "湖上に張り出した浴場",
+      "対岸から見る水面の映り込み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "湖岸の桜と宿。水面も穏やかになる時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "湯気が湖面に立ち、宿が霧の中に沈む朝があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸からの見通しが利きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で、宿の映り込みが最も安定します。"
+      },
+      {
+        "time": "night",
+        "text": "夜は宿の灯りが湖面に伸びます。長時間露光で水面を平らにできます。"
+      }
+    ],
+    "compositionTips": [
+      "対岸から望遠で圧縮して宿が水に浮く形を見せます",
+      "映り込みは上下対称に構えます",
+      "入浴中の人が写らない角度を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.yurihama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_97ab210d822c",
     "slug": "hayachine",
     "name": "早池峰山",
@@ -17433,6 +17687,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_cee79f379287",
+    "slug": "hiezu",
+    "name": "霊石山",
+    "nameEn": "Mt. Reiseki",
+    "reading": "れいせきさん",
+    "aliases": [
+      "因幡万葉歴史館 周辺",
+      "霊石山 パラグライダー"
+    ],
+    "address": "鳥取県鳥取市河原町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "鳥取市"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 134.2
+    },
+    "category": "mountain",
+    "summary": "標高三百三十四メートルの山で、頂上近くの草地から千代川の谷と因幡平野を一望できます。",
+    "description": "鳥取市南部にある山で、山頂近くの西側が開けた草地になっています。ここはパラグライダーの発進地として使われており、遮るものがないため千代川の蛇行と因幡平野、遠く日本海まで見渡せます。秋から冬の朝には谷に霧が溜まり、雲海が見られることがあります。山頂近くまで車道が通じ、そこから徒歩で数分です。",
+    "highlights": [
+      "千代川の蛇行と因幡平野の一望",
+      "パラグライダーの発進地の草地",
+      "秋冬の朝に出る雲海"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月から十一月、朝の冷え込みで雲海が出やすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、日本海までの視程が最も伸びます。"
+      },
+      {
+        "season": "spring",
+        "text": "草地が緑になり、谷の新緑と合わせられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "雲海は日の出前後の短い時間。暗いうちに現地へ入ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は平野が西日を受け、川面が光ります。"
+      }
+    ],
+    "compositionTips": [
+      "川の蛇行を手前から奥へ通して平野へ視線を運びます",
+      "雲海は稜線を画面下三分の一に置いて雲を主役にします",
+      "パラグライダーが飛ぶ日は動きを入れてスケールを示します"
+    ],
+    "officialWebsiteUrl": "https://www.torican.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_64ff5284da9e",
@@ -26244,6 +26562,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_8efdd796630b",
+    "slug": "kaike",
+    "name": "皆生温泉",
+    "nameEn": "Kaike Onsen",
+    "reading": "かいけおんせん",
+    "aliases": [
+      "皆生海岸"
+    ],
+    "address": "鳥取県米子市皆生温泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "米子市"
+    },
+    "coords": {
+      "lat": 35.45,
+      "lng": 133.36
+    },
+    "category": "landmark",
+    "summary": "海岸に湧く温泉で、源泉が海中から見つかった経緯があります。浜からは大山が正面に見えます。",
+    "description": "一九〇〇年頃に海中に湧く湯が見つかったのが始まりで、日本では数少ない海に面した温泉地です。海岸沿いに宿が並び、浜からは大山が正面に見えます。トライアスロン発祥の地でもあり、毎年夏に大会が開かれます。海岸には遊歩道が整備され、夕方には日本海に日が落ちます。米子市街から近く、境港や大山への起点にもなります。",
+    "highlights": [
+      "海に面した温泉地",
+      "浜から正面に見える大山",
+      "日本海に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "大山が雪をかぶり、空気も澄みます。海は荒れる季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "海水浴とトライアスロンの季節。海岸が賑わいます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "日本海に日が落ちます。海岸から正面で見られます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は大山がよく見え、浜も人が少ない時間です。"
+      }
+    ],
+    "compositionTips": [
+      "浜から大山を望遠で引き寄せて海と山を二層にします",
+      "波打ち際を前景に入れて海の温泉地であることを示します",
+      "夕景は露出を空に合わせて海面を沈めます"
+    ],
+    "officialWebsiteUrl": "https://kaike-onsen.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0c62ed8c5906",
     "slug": "kaimondake-nagasakibana",
     "name": "開聞岳と長崎鼻",
@@ -34758,6 +35139,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_b121cf132f17",
+    "slug": "koyamaike",
+    "name": "湖山池",
+    "nameEn": "Lake Koyama",
+    "reading": "こやまいけ",
+    "aliases": [
+      "青島 湖山池"
+    ],
+    "address": "鳥取県鳥取市湖山町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "鳥取市"
+    },
+    "coords": {
+      "lat": 35.51,
+      "lng": 134.16
+    },
+    "category": "nature",
+    "summary": "池としては日本最大の汽水湖。市街に接しながら五つの島が浮かび、夕日が池の向こうに落ちます。",
+    "description": "面積約七平方キロメートルで、池と名の付く水面としては日本最大です。海と細い水路で繋がる汽水湖で、青島をはじめ五つの島が浮かびます。青島には橋で渡れ、園地と展望所があります。西を向いた湖なので夕日が水面に落ち、島がシルエットになります。市街地から近く、公園と遊歩道が整備されています。冬は渡り鳥が飛来します。",
+    "highlights": [
+      "池としては日本最大の水面",
+      "浮かぶ五つの島",
+      "水面に落ちる夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "青島の桜が咲きます。湖面と合わせて撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "渡り鳥が飛来します。湖面が静かな季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が水面に落ちます。島をシルエットにできます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が静かになり、島の映り込みが出ます。"
+      }
+    ],
+    "compositionTips": [
+      "島を点として配置し、水面の広さの目安にします",
+      "夕景は露出を水面に合わせて島を沈めます",
+      "望遠で対岸の市街を圧縮すると立地が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.torican.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_85ac10769ed3",
     "slug": "koyasan-okunoin",
     "name": "高野山 奥之院",
@@ -40667,6 +41111,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_8e8bd5653216",
+    "slug": "misasa",
+    "name": "三朝温泉",
+    "nameEn": "Misasa Onsen",
+    "reading": "みささおんせん",
+    "aliases": [
+      "三朝橋",
+      "河原風呂"
+    ],
+    "address": "鳥取県東伯郡三朝町三朝",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "三朝町"
+    },
+    "coords": {
+      "lat": 35.4,
+      "lng": 133.88
+    },
+    "category": "landmark",
+    "summary": "三徳川の両岸に木造の宿が並ぶ温泉地。川の河原に囲いのない露天風呂があり、橋の上から見えます。",
+    "description": "世界有数のラドン濃度を持つ放射能泉で、八百年以上の歴史があります。三徳川の両岸に木造三階建ての宿が並び、川沿いの景観が保たれています。河原風呂は川べりにある露天風呂で、囲いがほとんどなく三朝橋から見える位置にあります。温泉街には射的場や飲み屋が残り、昭和の温泉地の空気があります。夏には川沿いで灯ろう流しが行われます。",
+    "highlights": [
+      "川の両岸に並ぶ木造の宿",
+      "囲いのない河原風呂",
+      "昭和の面影が残る温泉街"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月、川沿いの桜と木造の宿が重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "川床が涼しく、夜は灯ろう流しが行われます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と湯気。木造建築の屋根に雪が乗る形が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は川から湯気が立ち、宿が霧の中に沈みます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は宿の灯りが川面に落ちます。長時間露光で川を流せます。"
+      }
+    ],
+    "compositionTips": [
+      "三朝橋から川と宿の両方を一枚に入れます",
+      "木造三階建ては見上げて高さを取ります",
+      "河原風呂には入浴者がいるので、人が写らない角度を選びます"
+    ],
+    "officialWebsiteUrl": "https://misasaonsen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c63d77aa2b5b",
     "slug": "misen",
     "name": "宮島 弥山",
@@ -44629,6 +45137,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_252eb3c39bc0",
+    "slug": "nagashibina",
+    "name": "流しびなの館",
+    "nameEn": "Nagashibina Doll Museum",
+    "reading": "ながしびなのやかた",
+    "aliases": [
+      "用瀬 流しびな"
+    ],
+    "address": "鳥取県鳥取市用瀬町別府32-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "鳥取市"
+    },
+    "coords": {
+      "lat": 35.32,
+      "lng": 134.21
+    },
+    "category": "landmark",
+    "summary": "千代川に雛を流す行事を伝える館。館内には全国の雛人形が並び、三月には実際の流しびなが行われます。",
+    "description": "用瀬町に伝わる流しびなは、桟俵に男女一対の紙雛を乗せて千代川に流す行事で、旧暦三月三日に行われます。館ではその由来と道具を展示し、全国各地の雛人形を時代別に並べています。行事の当日は着物姿の人が川岸から桟俵を流し、川面に雛が連なります。館は通年で開いており、行事のない時期も展示を見られます。",
+    "highlights": [
+      "川面に連なる桟俵の雛",
+      "時代別に並ぶ全国の雛人形",
+      "旧暦三月三日の行事"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "旧暦三月三日の流しびな。実際に川へ流す様子が撮れる唯一の日です。"
+      },
+      {
+        "season": "winter",
+        "text": "館内展示が中心。雛人形の展示が始まる時期でもあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "行事は日中に行われます。川岸の位置取りは早めに決めます。"
+      },
+      {
+        "time": "morning",
+        "text": "館は開館直後が空いており、展示を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "流れる雛は水面すれすれの低い位置から狙います",
+      "並ぶ雛人形は望遠で圧縮して数を見せます",
+      "参加者を撮るときは断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.torican.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_06ff86397583",
@@ -49699,6 +50266,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a6fa361b15ee",
+    "slug": "ogamiyama",
+    "name": "大神山神社奥宮",
+    "nameEn": "Ogamiyama Shrine Okumiya",
+    "reading": "おおがみやまじんじゃおくみや",
+    "aliases": [
+      "大山 自然石の参道"
+    ],
+    "address": "鳥取県西伯郡大山町大山",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "大山町"
+    },
+    "coords": {
+      "lat": 35.39,
+      "lng": 133.54
+    },
+    "category": "shrine",
+    "summary": "日本最長とされる約七百メートルの自然石の石畳参道の先にある社。権現造の社殿としては国内最大級です。",
+    "description": "大山の中腹にある社で、参道は自然石を敷いた石畳が約七百メートル続きます。加工していない石を組んだもので、この形式では国内最長とされます。両側はブナと杉の林で、途中に古い石灯籠が並びます。社殿は権現造で、国内最大級の規模。白檀の漆塗りの内部は国内最大とされます。参道は不揃いな石なので、歩きやすい靴が要ります。",
+    "highlights": [
+      "約七百メートルの自然石の参道",
+      "国内最大級の権現造社殿",
+      "参道を囲むブナと杉の林"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の新緑。参道に緑の光が差し込みます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬の紅葉。石畳に落葉が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の参道。石が雪に隠れ、林の縦線だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、参道の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が石畳に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "石畳の不揃いな面を低い位置から撮って質感を出します",
+      "参道は消失点まで通して長さを見せます",
+      "社殿は正面から撮って権現造の構成を記録します"
+    ],
+    "officialWebsiteUrl": "https://www.daisen.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_868804e11fb4",
@@ -58108,6 +58738,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c1dc35acf3db",
+    "slug": "sand-museum",
+    "name": "砂の美術館",
+    "nameEn": "The Sand Museum",
+    "reading": "すなのびじゅつかん",
+    "aliases": [
+      "鳥取 砂像"
+    ],
+    "address": "鳥取県鳥取市福部町湯山2083-17",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "鳥取市"
+    },
+    "coords": {
+      "lat": 35.54,
+      "lng": 134.23
+    },
+    "category": "landmark",
+    "summary": "砂だけで作った彫刻を屋内展示する世界唯一の美術館。会期ごとに全作品を壊して作り直します。",
+    "description": "鳥取砂丘の入口にある施設で、砂と水だけで固めた砂像を展示します。接着剤を使わないため、会期が終わると全て崩して砂に戻し、次の会期に別のテーマで作り直します。国内外の砂像彫刻家が制作にあたり、高さ数メートルの作品が並びます。屋内なので天候に左右されず、照明が作品に合わせて当てられています。会期の切り替え時は休館します。",
+    "highlights": [
+      "砂と水だけで作られた大型彫刻",
+      "会期ごとに作り直される展示",
+      "屋内の照明で見せる構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新しい会期が始まる時期。作品が入れ替わります。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響がありません。砂丘が荒れる季節の行き先になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示なので照明が一定です。時間帯の影響は小さくなります。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、作品を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "砂の質感は斜めからの照明で最も出ます",
+      "人を入れて作品の高さを示します",
+      "ストロボは陰影を消すので使わず、高感度で撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.sandmuseum.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f42d6d2ba4ab",
     "slug": "sandanbeki",
     "name": "三段壁",
@@ -59983,6 +60672,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_98ed8f9cb401",
+    "slug": "senjosan",
+    "name": "船上山",
+    "nameEn": "Mt. Senjo",
+    "reading": "せんじょうさん",
+    "aliases": [
+      "船上山 屏風岩",
+      "千丈滝"
+    ],
+    "address": "鳥取県東伯郡琴浦町山川",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "琴浦町"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 133.61
+    },
+    "category": "mountain",
+    "summary": "頂上が平らで、南面が高さ百メートルを超える屏風岩の絶壁になっている山。後醍醐天皇が籠もった場所です。",
+    "description": "大山の東に連なる標高六百十五メートルの山で、頂上部が溶岩台地のため平らです。南側は屏風岩と呼ばれる柱状節理の絶壁が屏風を立てたように連なり、高さは百メートルを超えます。一三三三年、隠岐を脱出した後醍醐天皇がこの山に籠もりました。山頂には行宮跡があり、千丈滝が絶壁から落ちます。登山道は整備されています。",
+    "highlights": [
+      "柱状節理が連なる屏風岩",
+      "平らな溶岩台地の山頂",
+      "後醍醐天皇の行宮跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、新緑と千丈滝の水量。滝が最も見応えのある時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、屏風岩の周囲が色づきます。岩の灰色が引き立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "絶壁に氷柱が下がることがあります。登山は装備が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が屏風岩の柱を一本ずつ分離させます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は順光で岩壁が平坦に見えるので、寄りに切り替えます。"
+      }
+    ],
+    "compositionTips": [
+      "屏風岩は縦構図で柱の垂直線を取ります",
+      "斜光のときに柱の分離が最もよく出ます",
+      "人を入れて百メートルの高さを示します"
+    ],
+    "officialWebsiteUrl": "https://www.kotoura-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4346d0efbac7",
     "slug": "senjuji",
     "name": "専修寺",
@@ -61129,6 +61882,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2be16039189c",
+    "slug": "shikano",
+    "name": "鹿野の町並み",
+    "nameEn": "Shikano Old Town",
+    "reading": "しかののまちなみ",
+    "aliases": [
+      "鹿野城跡公園",
+      "鹿野往来"
+    ],
+    "address": "鳥取県鳥取市鹿野町鹿野",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "鳥取市"
+    },
+    "coords": {
+      "lat": 35.44,
+      "lng": 134.07
+    },
+    "category": "landmark",
+    "summary": "城下町の区画がそのまま残る小さな町。堀と水路が道に沿って流れ、城跡の石垣が水面に映ります。",
+    "description": "亀井茲矩が整備した城下町で、碁盤目状の街路と水路がいまも残ります。鹿野城跡公園には堀と石垣があり、春は桜が水面に映ります。町なかの道沿いには水路が流れ、古い町家と土塀が続きます。観光地化が進んでいないぶん、生活の場としての城下町の姿が残ります。町は小さく、一時間ほどで歩いて回れます。",
+    "highlights": [
+      "城下町の碁盤目状の区画",
+      "道沿いを流れる水路",
+      "堀と石垣が残る鹿野城跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。堀の水面に石垣と桜が映ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "町並みが落ち着いて歩ける季節。光も斜めで土塀の陰影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と水路。凍らない水が黒い線として残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、堀の水面も静かです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は土塀が暖色に染まり、水路に光が落ちます。"
+      }
+    ],
+    "compositionTips": [
+      "水路の線を手前から奥へ通して町の構造を見せます",
+      "堀は映り込みを入れて上下対称にします",
+      "生活の場なので、住宅の敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.torican.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_cdd539d6a530",
@@ -71313,6 +72130,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_18bd6cecac70",
+    "slug": "tojo-ike",
+    "name": "東郷池",
+    "nameEn": "Lake Togo",
+    "reading": "とうごういけ",
+    "aliases": [
+      "東郷湖",
+      "湯の湖"
+    ],
+    "address": "鳥取県東伯郡湯梨浜町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "湯梨浜町"
+    },
+    "coords": {
+      "lat": 35.48,
+      "lng": 133.9
+    },
+    "category": "nature",
+    "summary": "湖底から温泉が湧く汽水湖。湖岸の二か所に温泉地があり、湖面に湯気が立つ朝があります。",
+    "description": "周囲約十二キロの汽水湖で、湖底や湖岸から温泉が湧きます。北岸に東郷温泉、西岸にはわい温泉があり、湖に張り出した宿もあります。湖面に湯気が立つ日があり、湯の湖とも呼ばれてきました。シジミの産地で、漁の小舟が湖上に出ます。周囲には遊歩道が整備され、湖を一周できます。西岸からは大山が見える日があります。",
+    "highlights": [
+      "湖底から湧く温泉",
+      "湖に張り出した宿",
+      "シジミ漁の小舟"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "湖岸の桜と静かな水面。気候も穏やかです。"
+      },
+      {
+        "season": "winter",
+        "text": "冷え込んだ朝は湖面に湯気が立ちます。この湖の特徴が出る季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、西岸から大山が見える日が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湯気と無風の水面。この湖は朝が本命です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湖面が光り、宿のシルエットが出ます。"
+      }
+    ],
+    "compositionTips": [
+      "湯気は逆光で狙うと白く浮きます",
+      "湖に張り出した宿は横から撮って構造を見せます",
+      "漁の小舟は点として配置し、湖の広さを示します"
+    ],
+    "officialWebsiteUrl": "https://www.yurihama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7cc7e3722510",
     "slug": "tokoname-yakimono",
     "name": "常滑 やきもの散歩道",
@@ -72471,6 +73352,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_59144a3e26a5",
+    "slug": "tottori-hanakairo",
+    "name": "とっとり花回廊",
+    "nameEn": "Tottori Hanakairo Flower Park",
+    "reading": "とっとりはなかいろう",
+    "aliases": [
+      "花回廊 フラワードーム"
+    ],
+    "address": "鳥取県西伯郡南部町鶴田110",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "南部町"
+    },
+    "coords": {
+      "lat": 35.39,
+      "lng": 133.37
+    },
+    "category": "nature",
+    "summary": "大山を借景にした花の公園。直径五十メートルのガラスドームと、一キロの屋根付き回廊が園を囲みます。",
+    "description": "国内最大級の花の公園で、大山を背景に設計されています。中心のフラワードームは直径五十メートルのガラス温室で、天井から吊られた花が季節ごとに入れ替わります。園を囲む展望回廊は全長約一キロで屋根があり、雨の日でも歩けます。回廊の高い位置からは花壇の全体と大山を同時に見渡せます。冬はイルミネーションが行われます。",
+    "highlights": [
+      "直径五十メートルのガラスドーム",
+      "全長一キロの屋根付き回廊",
+      "大山を借景にした花壇"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "チューリップとパンジー。大山にはまだ雪が残る時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "ユリとヒマワリ。夕方まで開園する日があります。"
+      },
+      {
+        "season": "winter",
+        "text": "イルミネーション期間。花は少なくなりますが光の展示が中心になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は大山が見えやすく、花にも露が残ります。"
+      },
+      {
+        "time": "night",
+        "text": "イルミネーション期は夜が本番。三脚の可否は園の規則に従います。"
+      }
+    ],
+    "compositionTips": [
+      "回廊の高い位置から花壇と大山を二層に入れます",
+      "ドームは内部から見上げて天井の構造を取ります",
+      "花は群として面で捉えるほうが規模が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.tottorihanakairou.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1b93e0d97767",
     "slug": "tottori-jo",
     "name": "鳥取城跡",
@@ -72543,6 +73487,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ba5ed6fac853",
+    "slug": "tottori-nijisseiki",
+    "name": "二十世紀梨記念館",
+    "nameEn": "Nijisseiki Pear Museum",
+    "reading": "にじっせいきなしきねんかん",
+    "aliases": [
+      "倉吉 なしっこ館"
+    ],
+    "address": "鳥取県倉吉市駄経寺町198-4",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "倉吉市"
+    },
+    "coords": {
+      "lat": 35.44,
+      "lng": 133.82
+    },
+    "category": "landmark",
+    "summary": "梨だけをテーマにした世界唯一の博物館。館内に樹齢二十年の梨の大木が枝を広げて立っています。",
+    "description": "鳥取県が主産地の二十世紀梨を扱う博物館で、梨専門の施設としては世界唯一とされます。中心にあるのは館内に移植された二十世紀梨の大木で、幹回り約三メートル、枝が直径二十メートルに広がります。屋内で樹木を見せる構成が珍しく、天井の高い空間に枝が水平に伸びます。栽培の歴史と、世界各地の梨の標本も展示されています。",
+    "highlights": [
+      "館内に立つ梨の大木",
+      "直径二十メートルに広がる枝",
+      "世界各地の梨の標本"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "梨の収穫期。試食の種類が最も多くなる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響がありません。館内の大木は落葉します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心。天窓からの自然光が入る時間帯が向きます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、大木を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "大木は下から見上げて枝の水平の広がりを取ります",
+      "広角で天井ごと入れると屋内であることが伝わります",
+      "展示の撮影可否は館内表示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.1174.sanin.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6b1849fce203",
@@ -76680,6 +77683,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4e9040109ff8",
+    "slug": "utsubuki",
+    "name": "打吹公園",
+    "nameEn": "Utsubuki Park",
+    "reading": "うつぶきこうえん",
+    "aliases": [
+      "倉吉 打吹山",
+      "飛龍閣"
+    ],
+    "address": "鳥取県倉吉市仲ノ町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "倉吉市"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 133.83
+    },
+    "category": "nature",
+    "summary": "打吹山の麓に広がる公園。日本さくら名所百選に選ばれ、明治期の木造の迎賓施設 飛龍閣が残ります。",
+    "description": "一九〇四年に皇太子の来訪を機に整備された公園で、日本さくら名所百選と日本の都市公園百選に選ばれています。約四千本の桜とツツジがあり、四月から五月にかけて咲き継ぎます。園内の飛龍閣は当時の迎賓施設として建てられた木造建築で、国の登録有形文化財です。打吹山の登山口でもあり、山頂には倉吉城跡があります。白壁土蔵群から徒歩圏です。",
+    "highlights": [
+      "約四千本の桜とツツジ",
+      "明治期の木造建築 飛龍閣",
+      "白壁土蔵群から徒歩圏の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の桜、五月のツツジと咲き継ぎます。花の期間が長い公園です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。飛龍閣と紅葉が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して打吹山の斜面が見え、公園の地形が分かります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、飛龍閣を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "桜の期間はぼんぼりが灯り、夜桜が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "飛龍閣は桜と重ねて明治期の建物であることを見せます",
+      "斜面の桜は下から見上げて層を作ります",
+      "白壁土蔵群と合わせて回ると町の構成が分かります"
+    ],
+    "officialWebsiteUrl": "https://www.kurayoshi-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_36613661d82d",
     "slug": "utsukushigahara",
     "name": "美ヶ原高原",
@@ -77045,6 +78112,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_9fe1f021b1e5",
+    "slug": "wakasa-railway",
+    "name": "若桜鉄道",
+    "nameEn": "Wakasa Railway",
+    "reading": "わかさてつどう",
+    "aliases": [
+      "若桜駅 転車台",
+      "隼駅"
+    ],
+    "address": "鳥取県八頭郡若桜町若桜",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "若桜町"
+    },
+    "coords": {
+      "lat": 35.34,
+      "lng": 134.4
+    },
+    "category": "landmark",
+    "summary": "郡家から若桜まで十九キロの路線。駅舎や転車台など二十三の施設が国の登録有形文化財です。",
+    "description": "一九三〇年開業の路線で、木造駅舎、給水塔、転車台、機関車庫など開業当時の施設が多数残り、二十三件が国の登録有形文化財に登録されています。終点の若桜駅には手押しの転車台があり、実演が行われる日があります。隼駅はバイクの名前と同じことから愛好者が集まる駅になりました。列車は一日十数本で、時刻表の確認が前提です。",
+    "highlights": [
+      "手押しの転車台が残る若桜駅",
+      "開業時の木造駅舎と給水塔",
+      "二十三件の登録有形文化財"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月、沿線の桜と列車。若桜の町並みも同時期に見頃です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、沿線の山が色づきます。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の中を走る一両編成。画面が単純になり車体の色だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は光が斜めで、木造駅舎の板壁の質感が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は車体に横から光が当たり、色が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "転車台は上から俯瞰して円を見せます",
+      "駅舎は正面から撮って開業時の意匠を記録します",
+      "線路敷地には入らず、ホームや公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.infosakyu.ne.jp/wakatetu/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e78f3e91ea43",
@@ -78809,6 +79940,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f78c4818a56f",
+    "slug": "yonago-suitori",
+    "name": "米子水鳥公園",
+    "nameEn": "Yonago Waterbird Sanctuary",
+    "reading": "よなごみずとりこうえん",
+    "aliases": [
+      "中海 コハクチョウ"
+    ],
+    "address": "鳥取県米子市彦名新田665",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "米子市"
+    },
+    "coords": {
+      "lat": 35.44,
+      "lng": 133.31
+    },
+    "category": "nature",
+    "summary": "中海に面したラムサール条約登録湿地。冬はコハクチョウが越冬し、背後に大山が入ります。",
+    "description": "中海の一角にある湿地で、ラムサール条約に登録されています。冬季にはコハクチョウが千羽規模で越冬し、朝夕に飛び立ちと戻りが見られます。観察棟は暖房が入った屋内で、望遠鏡が備えられています。ガラス越しに撮ることになりますが、鳥に気づかれずに近い距離で観察できます。晴れた日は水面の向こうに大山が見えます。",
+    "highlights": [
+      "千羽規模で越冬するコハクチョウ",
+      "屋内の観察棟からの観察",
+      "水面の向こうに見える大山"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十一月から二月がコハクチョウの季節。数も最も多くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "渡りの途中の鳥が立ち寄ります。種類は変わります。"
+      },
+      {
+        "season": "summer",
+        "text": "鳥は少なく、湿地の植物と昆虫が中心になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は飛び立ちの時間。開館前の時間帯は外から見ることになります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は餌場から戻る群れ。大山が夕日で染まることもあります。"
+      }
+    ],
+    "compositionTips": [
+      "ガラス越しはレンズを近づけて反射を消します",
+      "群れは面として捉え、数の多さを見せます",
+      "大山を背景に入れると土地が分かります"
+    ],
+    "officialWebsiteUrl": "https://www.yonago-mizudori.net/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_738acaecb327",
     "slug": "yonaha-maehama",
     "name": "宮古島 与那覇前浜",
@@ -80019,6 +81213,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ff80082c4166",
+    "slug": "yumigahama",
+    "name": "弓ヶ浜",
+    "nameEn": "Yumigahama Beach",
+    "reading": "ゆみがはま",
+    "aliases": [
+      "弓ヶ浜半島",
+      "夜見ヶ浜"
+    ],
+    "address": "鳥取県境港市・米子市",
+    "region": {
+      "country": "日本",
+      "prefecture": "鳥取県",
+      "city": "米子市"
+    },
+    "coords": {
+      "lat": 35.47,
+      "lng": 133.32
+    },
+    "category": "nature",
+    "summary": "約二十キロの弧を描く砂州の海岸。晴れた日は砂浜の先に大山が正面に立ち、弧と山が一枚に入ります。",
+    "description": "境港から米子へ、約二十キロにわたって弓なりに続く砂州です。日本の白砂青松百選に選ばれ、松林が浜に沿って続きます。海岸線が大きく湾曲しているため、浜の一点から見ると砂浜の弧の先に大山が立ちます。この構図は日本海側でも珍しいもので、空気が澄む季節に成立します。浜は広く、人も少なめです。",
+    "highlights": [
+      "二十キロの弓なりの砂州",
+      "砂浜の弧の先に立つ大山",
+      "浜に沿う松林"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、大山が雪をかぶります。構図が最も決まる季節です。"
+      },
+      {
+        "season": "spring",
+        "text": "四月頃まで大山に雪が残ります。気候も穏やかです。"
+      },
+      {
+        "season": "summer",
+        "text": "大山は霞むことが多く、海と松林が中心になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、大山の輪郭が最もはっきり出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は日本海側に日が落ち、砂浜が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "波打ち際の弧を手前から奥へ通して大山へ視線を運びます",
+      "望遠で大山を引き寄せると浜との距離感が変わります",
+      "低い位置から構えると弧の曲がりが強調されます"
+    ],
+    "officialWebsiteUrl": "https://www.yonago-navi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b74a20068f84",
