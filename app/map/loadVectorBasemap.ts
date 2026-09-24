@@ -10,14 +10,16 @@ import type { Map as LeafletMap, Layer as LeafletLayer } from "leaflet";
  * fake/image-based basemap. For production, install audited npm dependencies
  * and ship their JS/CSS with the app instead of depending on runtime CDN.
  *
- * Background style is the REAL OpenFreeMap Fiord vector style: coastline,
+ * Background style is the REAL OpenFreeMap Dark vector style: coastline,
  * streets, place labels and geographic coordinates from OpenStreetMap.
  * https://openfreemap.org/quick_start/
  */
 const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js";
 const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css";
 const LEAFLET_BRIDGE = "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/dist/leaflet-maplibre-gl.js";
-export const REAL_DARK_MAP_STYLE = "https://tiles.openfreemap.org/styles/fiord";
+// "dark" is the restrained editorial/vector style. Fiord's bright contour
+// outlines overpower photo pins at the Greece/Japan travel zoom levels.
+export const REAL_DARK_MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
 
 type VectorMap = {
     once: (event: string, callback: () => void) => void;
