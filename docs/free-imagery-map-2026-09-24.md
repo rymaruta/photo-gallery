@@ -131,3 +131,13 @@ Official references:
 - Nationwide BKG DOP20 *not* used (restricted entitlement): https://gdz.bkg.bund.de/index.php/default/webdienste/digitale-orthophotos/wmts-digitale-orthophotos-bodenauflosung-20cm-wmts-dop.html
 
 CI proof: the same existing screenshot workflow now checks Tallinn and Cologne at z13 on mobile and desktop. Screenshots for these regions are saved **only if the matching national agency returns an actual HTTP 200 image**. The screenshot must also be reviewed for visible alignment, meaningful aerial detail, unwanted country-border rectangles, and false-positive blank imagery. Do not claim country-wide completion on the basis of one city tile. No new subscription, card, key, hosting, merge or deployment.
+
+## Luxembourg CC0 orthophoto (2026-09-25)
+
+The official Luxembourg Administration du cadastre et de la topographie (ACT) publishes nationwide orthoimagery and keyless Web Mercator WMTS as CC0 open data:
+https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/
+
+The WMTS GetCapabilities advertises `ortho_2023`, `GLOBAL_WEBMERCATOR_4_V3`, `image/jpeg`, and a REST ResourceURL with **TileCol then TileRow**:
+https://wmts1.geoportail.lu/opendata/wmts/1.0.0/WMTSCapabilities.xml
+
+The draft source uses `https://wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg` within Luxembourg's published bounds and requested z10–19. Explicitly use the 2023 dataset instead of assuming any later imagery is automatically CC0. Confirm actual imagery requests and visual geographic alignment in Luxembourg City via the updated CI/mobile/desktop screenshot proof. Do not label the entire country as quality-checked from one city test. No cost, registration, new API key, merge or deployment.
