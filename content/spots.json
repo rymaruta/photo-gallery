@@ -7622,6 +7622,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4a281bbb217a",
+    "slug": "chinoike",
+    "name": "血の池地獄",
+    "nameEn": "Chinoike Jigoku",
+    "reading": "ちのいけじごく",
+    "aliases": [
+      "別府 赤い池"
+    ],
+    "address": "大分県別府市野田778",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "別府市"
+    },
+    "coords": {
+      "lat": 33.33,
+      "lng": 131.47
+    },
+    "category": "nature",
+    "summary": "酸化鉄を含む熱泥で池全体が赤く染まります。豊後国風土記に記録が残る日本最古の天然地獄です。",
+    "description": "酸化鉄と酸化マグネシウムを含む熱泥が噴き出し、池の水と泥が赤く染まります。面積は約千三百平方メートル、深さは三十メートル以上とされます。豊後国風土記に赤湯泉として記録があり、日本最古の天然地獄とされます。赤い水面から湯気が上がり、周囲の緑との対比が強く出ます。国の名勝で、別府地獄めぐりの一つです。赤さは気温や天候で濃淡が変わります。",
+    "highlights": [
+      "酸化鉄で赤く染まった池",
+      "赤い水面から上がる湯気",
+      "周囲の緑との強い対比"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "気温が低く、湯気が最も濃く立ちます。"
+      },
+      {
+        "season": "summer",
+        "text": "周囲の緑が濃く、赤との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が水面に入り、赤の濃淡が読めます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は湯気が濃く、赤い水面が煙に包まれます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面に光が届き、赤が最も濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "赤は飽和しやすいので露出をやや下げ、彩度を上げすぎないこと",
+      "湯気は逆光で狙うと白く浮きます",
+      "緑を画面に入れて赤との対比を作ります"
+    ],
+    "officialWebsiteUrl": "https://www.chinoike.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d09263b774e0",
     "slug": "chiran-bukeyashiki",
     "name": "知覧 武家屋敷庭園",
@@ -16739,6 +16802,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0c2a66e0e4df",
+    "slug": "hakusui-dam",
+    "name": "白水ダム",
+    "nameEn": "Hakusui Dam",
+    "reading": "はくすいだむ",
+    "aliases": [
+      "白水溜池堰堤",
+      "竹田 石造ダム"
+    ],
+    "address": "大分県竹田市次倉",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "竹田市"
+    },
+    "coords": {
+      "lat": 32.92,
+      "lng": 131.43
+    },
+    "category": "landmark",
+    "summary": "石造の堰堤を水が薄く流れ落ちます。落下の衝撃を弱めるため、左右で違う形に造られています。",
+    "description": "一九三八年に完成した農業用の石造堰堤で、重要文化財です。水が堰堤の表面を薄く広がって流れ落ちる形をしており、白い布を垂らしたように見えます。この形は水の落下の衝撃を弱めて堰堤を守るためのもので、左岸と右岸で階段の形が違います。周囲に人工物がほとんどなく、石と水と緑だけの構成になります。道は細く、駐車場から徒歩で降ります。",
+    "highlights": [
+      "石の表面を薄く流れる水",
+      "左右で形が違う堰堤の階段",
+      "人工物のほとんどない環境"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。水の白と緑の対比が最も明るい時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、石の灰色と水の白が際立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲が色づき、水の白に赤が加わります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は石に光が当たり、階段の形が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで水を面にすると布のように見えます",
+      "左右の形の違いが分かる正面からの構図を取ります",
+      "道が細いので、駐車場所を確認してから向かいます"
+    ],
+    "officialWebsiteUrl": "https://www.city.taketa.oita.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e4ec025c3b26",
     "slug": "hakuto-jinja",
     "name": "白兎神社と白兎海岸",
@@ -20554,6 +20681,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a9e9f348ff1a",
+    "slug": "himeshima",
+    "name": "姫島",
+    "nameEn": "Himeshima Island",
+    "reading": "ひめしま",
+    "aliases": [
+      "姫島 観音崎",
+      "黒曜石 姫島"
+    ],
+    "address": "大分県東国東郡姫島村",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "姫島村"
+    },
+    "coords": {
+      "lat": 33.72,
+      "lng": 131.65
+    },
+    "category": "nature",
+    "summary": "観音崎の崖に乳白色の黒曜石が露出します。国内では珍しい白い黒曜石の産地として知られる島です。",
+    "description": "瀬戸内海の西端に浮かぶ島で、火山活動でできました。観音崎の崖には乳白色の黒曜石が露出しており、一般的な黒い黒曜石と違う色をしています。この石は縄文期に広く交易されました。島にはアサギマダラが春と秋に立ち寄り、スナビキソウとフジバカマに集まります。盆には仮装して踊る姫島盆踊りが行われ、狐踊りが知られます。船で三十分ほどです。",
+    "highlights": [
+      "乳白色の黒曜石が露出する崖",
+      "春と秋のアサギマダラ",
+      "盆の姫島盆踊りの狐踊り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、アサギマダラがスナビキソウに集まります。"
+      },
+      {
+        "season": "summer",
+        "text": "盆の姫島盆踊り。狐の扮装で踊ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、アサギマダラがフジバカマに集まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "蝶は朝から午前中が活発です。海も静かな時間です。"
+      },
+      {
+        "time": "day",
+        "text": "黒曜石の崖は日中の光で乳白色がよく出ます。"
+      }
+    ],
+    "compositionTips": [
+      "黒曜石は寄って乳白色の質感を主題にします",
+      "蝶は望遠で近づかずに撮り、飛ばさないこと",
+      "便数が限られるので往復の時刻を先に確認します"
+    ],
+    "officialWebsiteUrl": "https://www.himeshima.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_350f9317cee7",
     "slug": "himi",
     "name": "氷見漁港",
@@ -21693,6 +21884,70 @@
       "蔵の内部は必ず許可を得てから撮ります"
     ],
     "officialWebsiteUrl": "https://shodoshima.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_e6212b143f4a",
+    "slug": "hita-mameda",
+    "name": "日田 豆田町",
+    "nameEn": "Mameda-machi, Hita",
+    "reading": "ひた まめだまち",
+    "aliases": [
+      "日田 天領",
+      "廣瀬資料館"
+    ],
+    "address": "大分県日田市豆田町",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "日田市"
+    },
+    "coords": {
+      "lat": 33.33,
+      "lng": 130.94
+    },
+    "category": "landmark",
+    "summary": "江戸幕府の直轄地だった町。碁盤目の街路に町家が並び、屋根の高さと軒の線が揃っています。",
+    "description": "江戸期に幕府の直轄地として代官所が置かれた町で、重要伝統的建造物群保存地区です。街路が碁盤目に整備され、そこに町家が並びます。屋根の高さと軒の線が揃っているため、通りを望遠で見ると水平線が連続します。廣瀬資料館や草野本家など、内部を公開している建物が複数あります。三月には各戸が雛人形を飾る天領日田おひなまつりが行われます。",
+    "highlights": [
+      "碁盤目の街路と揃った軒の線",
+      "内部を公開する町家",
+      "三月の天領日田おひなまつり"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月のおひなまつり。各戸の雛人形が公開されます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が軒下と格子に影を作ります。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、通りの全景を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りを撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は木肌が暖色に染まり、格子の奥に灯りが入ります。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で通りを圧縮して軒の線が揃っていることを見せます",
+      "格子は正面から撮って反復のリズムを取ります",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.oidehita.com/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -38086,6 +38341,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f339c72124a8",
+    "slug": "kitsuki",
+    "name": "杵築の城下町",
+    "nameEn": "Kitsuki Castle Town",
+    "reading": "きつきのじょうかまち",
+    "aliases": [
+      "酢屋の坂",
+      "志保屋の坂"
+    ],
+    "address": "大分県杵築市杵築",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "杵築市"
+    },
+    "coords": {
+      "lat": 33.42,
+      "lng": 131.62
+    },
+    "category": "landmark",
+    "summary": "南北の高台が武家屋敷、谷が商人の町という構成。坂を挟んで二つの身分の町が向かい合います。",
+    "description": "杵築は二つの高台に武家屋敷、その間の谷に商人の町が配された城下町で、日本唯一のサンドイッチ型城下町と呼ばれます。北台と南台を結ぶのが酢屋の坂と志保屋の坂で、片方の坂の上から見ると、谷の商人町を挟んで向かいの坂が正面に見えます。坂の両側は土塀で、石畳が敷かれています。町は歩いて回れる規模で、着物を着て歩く人も多くいます。",
+    "highlights": [
+      "谷を挟んで向かい合う二つの坂",
+      "坂の両側に続く土塀",
+      "武家と商人の町が層になる構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "坂の上の桜。土塀越しに花が覗きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が土塀に影を落とし、坂の勾配が読めます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、坂を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、坂の全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は土塀が暖色に染まり、石畳に影が伸びます。"
+      }
+    ],
+    "compositionTips": [
+      "片方の坂の上から向かいの坂を望遠で抜くのが定番です",
+      "谷の商人町を挟むことで構成が伝わります",
+      "土塀の線を坂の勾配に沿わせて画面に通します"
+    ],
+    "officialWebsiteUrl": "https://www.kit-suki.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2e4ac252724c",
     "slug": "kiyomizu-taki",
     "name": "小城 清水の滝",
@@ -40537,6 +40856,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_96b8a408ed30",
+    "slug": "kuju",
+    "name": "くじゅう連山",
+    "nameEn": "Kuju Mountains",
+    "reading": "くじゅうれんざん",
+    "aliases": [
+      "久住山",
+      "中岳 御池"
+    ],
+    "address": "大分県竹田市久住町",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "竹田市"
+    },
+    "coords": {
+      "lat": 33.09,
+      "lng": 131.25
+    },
+    "category": "mountain",
+    "summary": "九州本土の最高峰を含む火山群。六月のミヤマキリシマと冬の霧氷、噴気を上げる硫黄山が見どころです。",
+    "description": "標高千七百メートル級の山が集まる火山群で、中岳は九州本土の最高峰です。牧ノ戸峠から久住山へは登り二時間ほど。山上には御池という火口湖があり、冬は結氷します。六月上旬から中旬にはミヤマキリシマが山腹を一面ピンクに染めます。冬は霧氷が付き、白い樹林が広がります。硫黄山からは噴気が上がり続け、火山であることが分かります。",
+    "highlights": [
+      "六月のミヤマキリシマの群落",
+      "冬の霧氷と結氷した御池",
+      "硫黄山から上がり続ける噴気"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "六月上旬から中旬のミヤマキリシマ。山腹が一面ピンクになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬の紅葉。空気も澄んで遠くまで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "霧氷と結氷。装備と経験が前提になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲海が谷に出ることがあり、稜線から見下ろせます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は山肌が横から照らされ、起伏が立体的になります。"
+      }
+    ],
+    "compositionTips": [
+      "ミヤマキリシマは群落として面で捉え、山を背景に置きます",
+      "御池は水面に空を映して二層にします",
+      "噴気を入れると火山であることが伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.city.taketa.oita.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d2397d7adff4",
     "slug": "kujukuri",
     "name": "九十九里浜",
@@ -41092,6 +41475,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1c33e38757db",
+    "slug": "kunisaki-futago",
+    "name": "両子寺",
+    "nameEn": "Futago-ji Temple",
+    "reading": "ふたごじ",
+    "aliases": [
+      "国東半島 両子寺",
+      "仁王像 石段"
+    ],
+    "address": "大分県国東市安岐町両子1548",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "国東市"
+    },
+    "coords": {
+      "lat": 33.56,
+      "lng": 131.6
+    },
+    "category": "temple",
+    "summary": "国東半島の中央にある山岳寺院。石段の両脇に高さ二メートル超の石造仁王像が立ちます。",
+    "description": "国東半島の中央、両子山の中腹にある寺で、六郷満山の総持院とされます。参道の石段の両脇には江戸期の石造仁王像が立ち、高さは二メートルを超えます。苔と落葉に覆われた石段の上に立つ姿は、この寺の代表的な画になります。奥の院は岩を背にした懸造りで、背後の岩盤から湧水が出ます。紅葉が知られ、十一月中旬から下旬が見頃です。",
+    "highlights": [
+      "石段の両脇に立つ石造仁王像",
+      "岩を背にした奥の院の懸造り",
+      "十一月中旬から下旬の紅葉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。この寺の本番です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が参道に入り、苔の緑も濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、仁王像を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、参道の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が石段に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "仁王像は下から煽って石段ごと入れます",
+      "苔と落葉を前景に置いて参道の湿り気を伝えます",
+      "奥の院は岩と一緒に入れて懸造りの構造を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.futagoji.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8f6ed41a6494",
@@ -50189,6 +50636,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7c99960ea0d9",
+    "slug": "myoban",
+    "name": "明礬温泉 湯の花小屋",
+    "nameEn": "Myoban Onsen Yunohana Huts",
+    "reading": "みょうばんおんせん ゆのはなごや",
+    "aliases": [
+      "明礬 湯の花",
+      "湯の花採取場"
+    ],
+    "address": "大分県別府市明礬6組",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "別府市"
+    },
+    "coords": {
+      "lat": 33.31,
+      "lng": 131.44
+    },
+    "category": "landmark",
+    "summary": "藁葺きの小屋の中で、噴気と青粘土から湯の花の結晶を育てます。江戸期からの製法が続きます。",
+    "description": "別府の山手にある温泉地で、斜面に藁葺きの小屋が並びます。小屋の中に青粘土を敷き、地面からの噴気を当てて数十日かけて湯の花の結晶を析出させる製法が、江戸中期から変わらず続いています。国の重要無形民俗文化財です。小屋の周囲は硫黄で白く変色し、湯気が絶えず上がります。見学できる小屋があり、内部で結晶の育つ様子が見られます。",
+    "highlights": [
+      "斜面に並ぶ藁葺きの小屋",
+      "小屋の中で育つ湯の花の結晶",
+      "硫黄で白く変色した地面"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "気温が低く、噴気と湯気が最も濃く立ちます。"
+      },
+      {
+        "season": "spring",
+        "text": "周囲の緑が芽吹き、白い地面との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が藁葺きの質感を浮かび上がらせます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は噴気が濃く、小屋が煙に包まれます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は藁葺きが暖色に染まり、湯気が逆光で白く浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "湯気は逆光で狙うと形が出ます",
+      "小屋の並びを望遠で圧縮して反復にします",
+      "内部の結晶は寄って質感を主題にします"
+    ],
+    "officialWebsiteUrl": "https://www.gokuraku-jigoku-beppu.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3237bd1df735",
     "slug": "myogi-jinja",
     "name": "妙義神社",
@@ -51613,6 +52124,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2ca379f20f03",
+    "slug": "nagayu",
+    "name": "長湯温泉",
+    "nameEn": "Nagayu Onsen",
+    "reading": "ながゆおんせん",
+    "aliases": [
+      "ラムネ温泉館",
+      "芹川 長湯"
+    ],
+    "address": "大分県竹田市直入町大字長湯",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "竹田市"
+    },
+    "coords": {
+      "lat": 33.07,
+      "lng": 131.34
+    },
+    "category": "landmark",
+    "summary": "炭酸ガスを多く含む湯で、浸かると肌に細かい泡が付きます。ラムネ温泉館は藤森照信の設計です。",
+    "description": "日本有数の炭酸泉で、湯に浸かると体に細かい泡が付きます。泉質のため湯の色は茶褐色で、湯船の縁に成分が積もって固まります。ラムネ温泉館は建築史家でもある藤森照信の設計で、黒く焼いた杉板と白い漆喰の縞模様の外壁、屋根に松を生やした塔が特徴です。芹川沿いには無料の露天風呂があります。町には飲泉場も点在します。",
+    "highlights": [
+      "肌に泡が付く炭酸泉",
+      "藤森照信設計のラムネ温泉館",
+      "屋根に松を生やした塔"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "外気との差で湯気が立ちます。炭酸泉は低温なので入浴は長めです。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲の山が色づき、黒白の外壁との対比が出ます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が川沿いに入り、建物が明るく写ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、建物を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白い漆喰が暖色に染まり、縞の対比が和らぎます。"
+      }
+    ],
+    "compositionTips": [
+      "縞模様の外壁は正面から撮って反復を主題にします",
+      "屋根の松は下から煽って塔ごと入れます",
+      "浴場内は撮影できないので、被写体を建物と町に絞ります"
+    ],
+    "officialWebsiteUrl": "https://www.lamune-onsen.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_940e73bc1852",
     "slug": "nageiredo",
     "name": "三徳山三佛寺 投入堂",
@@ -52453,6 +53028,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_430678d98c35",
+    "slug": "nakatsu-castle",
+    "name": "中津城",
+    "nameEn": "Nakatsu Castle",
+    "reading": "なかつじょう",
+    "aliases": [
+      "扇城",
+      "黒田官兵衛 中津"
+    ],
+    "address": "大分県中津市二ノ丁本丸",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "中津市"
+    },
+    "coords": {
+      "lat": 33.6,
+      "lng": 131.19
+    },
+    "category": "landmark",
+    "summary": "黒田官兵衛が築いた水城。石垣の一部に、黒田期と細川期の積み方の境目がそのまま残ります。",
+    "description": "一五八八年に黒田官兵衛が築城を始め、後に細川忠興が引き継いだ城です。中津川の河口に面し、堀に海水が入る水城です。石垣には黒田期の野面積みと細川期の打込接が接する箇所があり、時代の違う積み方の境目が一目で分かります。天守は一九六四年の再建です。周囲には福澤諭吉旧居など、中津ゆかりの建物が点在します。",
+    "highlights": [
+      "二つの時代の積み方が接する石垣",
+      "海水が入る堀",
+      "市街に点在する中津ゆかりの建物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。堀端から天守と花を重ねられます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が石垣に当たり、積み方の違いが読めます。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、天守の輪郭がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は堀の水面が静かで、映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石垣に横から光が入り、境目が浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "石垣の境目は寄って二つの積み方を一枚に入れます",
+      "堀の映り込みで天守を上下対称にします",
+      "斜光のときに石の凹凸が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.nakatsujyo.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1a0c6f8135ee",
@@ -57948,6 +58587,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_101c082d8068",
+    "slug": "oita-takasakiyama",
+    "name": "高崎山",
+    "nameEn": "Takasakiyama Monkey Park",
+    "reading": "たかさきやま",
+    "aliases": [
+      "高崎山自然動物園",
+      "別府湾 サル"
+    ],
+    "address": "大分県大分市神崎3098-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "大分市"
+    },
+    "coords": {
+      "lat": 33.26,
+      "lng": 131.57
+    },
+    "category": "nature",
+    "summary": "野生のニホンザル千数百頭が二つの群れで暮らします。群れが交代で寄せ場に下りてきます。",
+    "description": "別府湾に面した山で、野生のニホンザルが千数百頭生息します。餌付けによって群れが山から下りてくる寄せ場があり、そこで間近に観察できます。群れは複数あり、時間を分けて交代で下りてくるため、群れ同士が鉢合わせしないよう管理されています。柵はなく、サルが人のすぐ横を通ります。触れない、目を合わせない、食べ物を見せないという規則があります。",
+    "highlights": [
+      "柵なしで間近に見られる野生のサル",
+      "交代で下りてくる複数の群れ",
+      "別府湾に面した立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から六月は出産期で、子ザルが見られます。"
+      },
+      {
+        "season": "winter",
+        "text": "毛が厚くなり、群れが身を寄せ合う姿が見られます。"
+      },
+      {
+        "season": "autumn",
+        "text": "毛が生え変わり、群れの動きも活発になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は来園者が少なく、落ち着いて撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "群れが下りてくる時間が決まっているので、先に確認します。"
+      }
+    ],
+    "compositionTips": [
+      "目にピントを置き、絞りを開けて背景を整理します",
+      "目を合わせると威嚇と取られるので、ファインダー越しでも注意します",
+      "食べ物や光るものを見せない規則を守ります"
+    ],
+    "officialWebsiteUrl": "https://www.takasakiyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_092ceb9c0f82",
     "slug": "oiwasan",
     "name": "大岩山日石寺",
@@ -58005,6 +58708,70 @@
       "堂内の撮影可否は現地の表示を確認します"
     ],
     "officialWebsiteUrl": "https://www.town.kamiichi.toyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_ff60a0a8d6a7",
+    "slug": "oka-castle",
+    "name": "岡城跡",
+    "nameEn": "Oka Castle Ruins",
+    "reading": "おかじょうあと",
+    "aliases": [
+      "臥牛城",
+      "荒城の月"
+    ],
+    "address": "大分県竹田市大字竹田2889",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "竹田市"
+    },
+    "coords": {
+      "lat": 32.97,
+      "lng": 131.4
+    },
+    "category": "landmark",
+    "summary": "三方が断崖の台地に石垣だけが残ります。滝廉太郎が荒城の月を着想した城として知られます。",
+    "description": "稲葉川と白滝川に挟まれた台地の上に築かれた城で、三方が断崖です。建物は明治に取り壊され、石垣と曲輪だけが残ります。台地の縁ぎりぎりまで石垣が積まれており、下から見上げると崖と石垣が連続して見えます。滝廉太郎が少年期を過ごし、荒城の月の着想を得た城とされます。本丸跡からはくじゅう連山と阿蘇の外輪山が見渡せます。",
+    "highlights": [
+      "断崖の縁に積まれた石垣",
+      "くじゅう連山と阿蘇を望む本丸跡",
+      "荒城の月ゆかりの城"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。石垣の上に花が乗ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月の紅葉。断崖と石垣が色で囲まれます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して石垣と断崖の連続がよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が溜まり、城が雲海の上に出ることがあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石垣に横から光が入り、積み方が浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "下から見上げて断崖と石垣の連続を見せます",
+      "本丸跡からは山並みを入れて立地を示します",
+      "雲海の日は石垣を画面下に置いて雲を主役にします"
+    ],
+    "officialWebsiteUrl": "https://www.city.taketa.oita.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -63791,6 +64558,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_710363a4ed52",
+    "slug": "rakanji",
+    "name": "羅漢寺",
+    "nameEn": "Rakan-ji Temple",
+    "reading": "らかんじ",
+    "aliases": [
+      "中津 羅漢寺",
+      "五百羅漢 中津"
+    ],
+    "address": "大分県中津市本耶馬渓町跡田1501",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "中津市"
+    },
+    "coords": {
+      "lat": 33.48,
+      "lng": 131.14
+    },
+    "category": "temple",
+    "summary": "岩山の洞窟に三千七百体を超える石仏が納まります。五百羅漢としては国内最古とされます。",
+    "description": "羅漢山の中腹、岩壁の窪みに建てられた寺で、無漏窟には三千七百体を超える石仏が壁面を埋めます。五百羅漢は一三三八年頃に作られたとされ、国内最古の五百羅漢です。表情が一体ずつ違い、同じ形が並ばない反復になります。参道は岩の間を縫う急な石段で、途中にも石仏が並びます。リフトもあります。堂内は撮影禁止の区画があるので確認が要ります。",
+    "highlights": [
+      "洞窟を埋める三千七百体の石仏",
+      "国内最古とされる五百羅漢",
+      "岩の間を縫う急な参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の耶馬渓が色づきます。岩壁と赤が対になります。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が岩壁の周囲に入り、参道が明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、参道を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が当たり、寺の立地が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "岩壁と堂を一枚に入れて立地の特異さを見せます",
+      "石仏は一体に寄って表情の違いを撮ります",
+      "堂内は撮影禁止の区画があるので必ず確認します"
+    ],
+    "officialWebsiteUrl": "https://nakatsuyaba.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_48da593d04cb",
     "slug": "ranzan-keikoku",
     "name": "嵐山渓谷",
@@ -66231,6 +67062,70 @@
       "渦は速いシャッターで形を止めます"
     ],
     "officialWebsiteUrl": "https://www.saikaibashi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_65fdf0cf3b64",
+    "slug": "saiki",
+    "name": "佐伯 鶴御崎",
+    "nameEn": "Cape Tsurumisaki, Saiki",
+    "reading": "さいき つるみさき",
+    "aliases": [
+      "九州最東端",
+      "鶴御崎灯台"
+    ],
+    "address": "大分県佐伯市鶴見大字丹賀浦",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "佐伯市"
+    },
+    "coords": {
+      "lat": 32.93,
+      "lng": 132.08
+    },
+    "category": "nature",
+    "summary": "九州最東端の岬。標高二百メートル超の断崖の上に灯台が立ち、豊後水道を見渡せます。",
+    "description": "九州本土で最も東に突き出した岬で、断崖の高さは二百メートルを超えます。その上に白い鶴御崎灯台が立ち、灯台としては高い位置にあります。豊後水道を挟んで四国が見え、晴れた日は佐田岬まで見通せます。九州で最も早く日の出を迎える場所の一つです。遊歩道が断崖沿いに整備され、旧日本軍の砲台跡も残ります。風が強い岬です。",
+    "highlights": [
+      "九州最東端という立地",
+      "高さ二百メートル超の断崖の上の灯台",
+      "豊後水道越しに見える四国"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、岬のツツジが咲きます。海も穏やかです。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、四国までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "風が強く、波も高くなります。防寒が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "九州で最も早く日が昇る場所の一つ。日の出が本命です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海の色が最も濃く、断崖との対比が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "灯台は下から煽って断崖ごと入れます",
+      "四国を入れるなら望遠で圧縮して距離を縮めます",
+      "断崖の縁には近づきすぎず、風の強い日は特に注意します"
+    ],
+    "officialWebsiteUrl": "https://www.visit-saiki.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -72422,6 +73317,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_cd82626ba37e",
+    "slug": "shiraike",
+    "name": "白池地獄",
+    "nameEn": "Shiraike Jigoku",
+    "reading": "しらいけじごく",
+    "aliases": [
+      "別府 白池"
+    ],
+    "address": "大分県別府市鉄輪283-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "別府市"
+    },
+    "coords": {
+      "lat": 33.32,
+      "lng": 131.47
+    },
+    "category": "nature",
+    "summary": "噴出時は透明な湯が、池に落ちて温度と圧力が下がると青白く濁ります。日本庭園の中にあります。",
+    "description": "噴き出す瞬間は無色透明の熱湯が、池に落ちて温度と圧力が下がることで青白く変化します。含まれる珪酸と塩化物が析出するためで、変化の過程がそのまま見られます。池は日本庭園の中に配置されており、松や石組みと組み合わせられているのが他の地獄と違う点です。国の名勝で、別府地獄めぐりの一つです。敷地内には熱帯魚館が併設されています。",
+    "highlights": [
+      "透明から青白へ変化する湯",
+      "日本庭園の中に配置された池",
+      "庭の松や石組みとの組み合わせ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "気温が低く、湯気が濃く立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭園の木が色づき、青白い水面との対比が出ます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が池に映り、水の色が明るく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は湯気が濃く、庭が霧に沈みます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面に光が届き、青白い色が最も出ます。"
+      }
+    ],
+    "compositionTips": [
+      "庭の要素を入れて他の地獄との違いを見せます",
+      "水の色は偏光フィルターで反射を調整すると出ます",
+      "湯気は逆光で狙うと形が見えます"
+    ],
+    "officialWebsiteUrl": "https://www.beppu-jigoku.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7dcb1575e698",
     "slug": "shiraishi",
     "name": "白石島",
@@ -77257,6 +78215,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c89eba1c727b",
+    "slug": "tadewara",
+    "name": "タデ原湿原",
+    "nameEn": "Tadewara Wetland",
+    "reading": "ただわらしつげん",
+    "aliases": [
+      "長者原 湿原",
+      "くじゅう 野焼き"
+    ],
+    "address": "大分県玖珠郡九重町田野",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "九重町"
+    },
+    "coords": {
+      "lat": 33.1,
+      "lng": 131.24
+    },
+    "category": "nature",
+    "summary": "標高千メートルにある中間湿原。背後にくじゅう連山が並び、木道から湿原と山を一枚に収められます。",
+    "description": "長者原にある湿原で、ラムサール条約に登録されています。中間湿原としては国内最大級で、千年以上続く野焼きによって樹林化を免れてきました。木道が湿原を通り、歩きながら背後のくじゅう連山を望めます。秋はススキと草紅葉で一面が金色になります。春の野焼きの後は地面が黒くなり、そこから新しい草が芽吹く過程が見られます。",
+    "highlights": [
+      "湿原の背後に並ぶくじゅう連山",
+      "秋のススキと草紅葉",
+      "野焼きで保たれてきた植生"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月の野焼き後、黒い地面から草が芽吹きます。"
+      },
+      {
+        "season": "summer",
+        "text": "湿原植物が咲きます。霧が出ることもあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月から十一月、ススキと草紅葉で一面が金色になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の逆光でススキの穂が銀色に光ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は霧が湿原に溜まり、山が霧の上に出ることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "木道の線を前景に通して山へ視線を運びます",
+      "ススキは逆光で撮って穂を光らせます",
+      "木道から外れず、湿原に踏み込まないこと"
+    ],
+    "officialWebsiteUrl": "https://www.kokonoe-yume.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_554831b66a1d",
@@ -86305,6 +87327,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_247e4e81ae3d",
+    "slug": "tsurumidake",
+    "name": "鶴見岳",
+    "nameEn": "Mt. Tsurumi",
+    "reading": "つるみだけ",
+    "aliases": [
+      "別府ロープウェイ",
+      "鶴見岳 霧氷"
+    ],
+    "address": "大分県別府市南立石字寒原10-7",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "別府市"
+    },
+    "coords": {
+      "lat": 33.29,
+      "lng": 131.43
+    },
+    "category": "mountain",
+    "summary": "別府湾を見下ろす標高千三百七十五メートルの火山。冬は霧氷が枝を覆い、街と海が眼下に広がります。",
+    "description": "別府市街の背後にそびえる火山で、山頂までロープウェイが通じています。標高千三百七十五メートルの山頂からは、眼下に別府市街と別府湾、反対側にくじゅう連山と由布岳が見えます。冬は霧氷が付くことが多く、白い枝と街の灯りを同じ日に撮れます。春はツツジ、秋は紅葉が山腹を覆います。山頂には七福神の石像が点在します。",
+    "highlights": [
+      "別府市街と湾の俯瞰",
+      "冬の霧氷",
+      "山頂に点在する七福神の石像"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "霧氷が枝を白く覆います。街の夜景も澄んで見えます。"
+      },
+      {
+        "season": "spring",
+        "text": "四月下旬から五月のツツジ。山腹が染まります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月の紅葉。空気も澄んで視程が伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で、別府湾まで見通せます。"
+      },
+      {
+        "time": "night",
+        "text": "夜間運行の日は別府の夜景が眼下に広がります。"
+      }
+    ],
+    "compositionTips": [
+      "霧氷は逆光で透かすと枝の形が浮きます",
+      "市街と湾を二層にして高さを示します",
+      "夜景は望遠で灯りを圧縮すると密度が上がります"
+    ],
+    "officialWebsiteUrl": "https://www.beppu-ropeway.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_cbc88de2d39e",
     "slug": "tsuruoka-park",
     "name": "鶴岡公園",
@@ -88789,6 +89875,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_eb431e9b18d4",
+    "slug": "usa-jingu",
+    "name": "宇佐神宮",
+    "nameEn": "Usa Jingu Shrine",
+    "reading": "うさじんぐう",
+    "aliases": [
+      "八幡宮 総本宮",
+      "八幡造"
+    ],
+    "address": "大分県宇佐市南宇佐2859",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "宇佐市"
+    },
+    "coords": {
+      "lat": 33.53,
+      "lng": 131.38
+    },
+    "category": "shrine",
+    "summary": "全国四万余の八幡宮の総本宮。本殿は切妻の建物を前後に繋いだ八幡造で、三棟とも国宝です。",
+    "description": "七二五年の創建と伝わり、全国の八幡宮の総本宮です。本殿は三棟が横に並び、いずれも切妻の建物を前後に繋いだ八幡造という形式で、国宝に指定されています。屋根の谷が前後の建物の間にでき、側面から見るとその構造がよく分かります。境内は広く、上宮と下宮に分かれます。参道には呉橋という屋根付きの朱塗りの橋があり、普段は通行できません。",
+    "highlights": [
+      "国宝の八幡造の本殿三棟",
+      "前後の建物の間にできる屋根の谷",
+      "屋根付きの朱塗りの呉橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の桜。参道と朱の建物が花と重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、朱の社殿との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が屋根の谷に影を作り、八幡造の構造が読めます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、社殿を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は朱に光が回り、色が最も濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "本殿は側面から撮って八幡造の前後二棟の構造を見せます",
+      "呉橋は正面から撮って屋根付きの形を記録します",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.usajinguu.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_393a4ee3fcbf",
     "slug": "ushiku-chateau",
     "name": "牛久シャトー",
@@ -89142,6 +90292,134 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_13d2a21e1c9a",
+    "slug": "usuki-machinami",
+    "name": "臼杵の町並み",
+    "nameEn": "Usuki Historic Town",
+    "reading": "うすきのまちなみ",
+    "aliases": [
+      "二王座歴史の道",
+      "臼杵 竹宵"
+    ],
+    "address": "大分県臼杵市二王座",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "臼杵市"
+    },
+    "coords": {
+      "lat": 33.12,
+      "lng": 131.8
+    },
+    "category": "landmark",
+    "summary": "凝灰岩を削った切通しの坂道に、寺と武家屋敷の白壁が続きます。道幅が狭く、曲がりが多い町です。",
+    "description": "臼杵藩の城下町で、二王座地区は凝灰岩の丘を削って道を通した切通しの構造になっています。道の両側は削り残した岩壁と白壁の塀で、幅が狭く、曲がりが連続します。寺が密集する一画でもあり、白壁、石段、瓦屋根が層になって見えます。十一月には竹宵という行事があり、町中に竹の灯籠が並びます。車が入れない区間が多く、歩いて回ります。",
+    "highlights": [
+      "凝灰岩を削った切通しの坂道",
+      "白壁と石段が層になる構成",
+      "十一月の竹宵の灯籠"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月の竹宵。町中に竹の灯籠が並びます。"
+      },
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁と岩壁の対比がはっきり出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "切通しの中は日陰で、岩の湿り気が写ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、坂道を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "竹宵の期間は夜が本番。灯籠の光が石段と白壁を照らします。"
+      }
+    ],
+    "compositionTips": [
+      "坂道の曲がりを活かして先が見えない構図を作ります",
+      "岩壁と白壁が同時に入る位置を探します",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.usuki-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_7449ccbc780d",
+    "slug": "usuki-sekibutsu",
+    "name": "臼杵石仏",
+    "nameEn": "Usuki Stone Buddhas",
+    "reading": "うすきせきぶつ",
+    "aliases": [
+      "臼杵磨崖仏",
+      "古園石仏 大日如来"
+    ],
+    "address": "大分県臼杵市深田804-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "大分県",
+      "city": "臼杵市"
+    },
+    "coords": {
+      "lat": 33.11,
+      "lng": 131.75
+    },
+    "category": "temple",
+    "summary": "凝灰岩の崖に彫られた六十体以上の磨崖仏群。石仏としては全国で唯一、国宝に指定されています。",
+    "description": "平安後期から鎌倉期にかけて彫られた磨崖仏で、四つの群に六十体以上が残ります。石仏として国宝に指定されているのは全国でここだけです。中心の古園石仏の大日如来は、長らく仏頭が落ちて台座に置かれていましたが、一九九三年に復位されました。岩に直接彫られているため、彫りの深さと岩の質感が同時に写ります。覆屋の下にあり、光は限られます。",
+    "highlights": [
+      "石仏として唯一の国宝",
+      "六十体以上が残る磨崖仏群",
+      "岩の質感と彫りの深さ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の菜の花と桜。石仏の灰色との対比が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、覆屋の下が暗くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が覆屋の下に届き、彫りの凹凸が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石仏を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は覆屋の下に光が回り込み、表情が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "斜光のときに彫りの凹凸が最もよく出ます",
+      "岩ごと入れて磨崖仏であることを示します",
+      "覆屋の下は暗いので高感度が前提になります"
+    ],
+    "officialWebsiteUrl": "https://sekibutsu.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_cf986181e2e1",
