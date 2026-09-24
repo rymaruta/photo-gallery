@@ -2336,6 +2336,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_341e40bc1896",
+    "slug": "amakusa-iruka",
+    "name": "天草 イルカウォッチング",
+    "nameEn": "Amakusa Dolphin Watching",
+    "reading": "あまくさ いるかうぉっちんぐ",
+    "aliases": [
+      "通詞島 イルカ",
+      "五和 イルカ"
+    ],
+    "address": "熊本県天草市五和町二江",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "天草市"
+    },
+    "coords": {
+      "lat": 32.5,
+      "lng": 130.15
+    },
+    "category": "nature",
+    "summary": "天草の早崎瀬戸には野生のミナミハンドウイルカが約二百頭、定住しています。遭遇率は高めです。",
+    "description": "天草下島の北端、早崎瀬戸には野生のミナミハンドウイルカの群れが約二百頭定住しています。回遊ではなく一年を通して同じ海域にいるため、遭遇の確率が高いとされます。小型船で沖へ出ると、船と並走したり跳ねたりする姿が見られます。船は揺れ、イルカは速く動くため、撮影条件としては難しい部類です。天候と海況で欠航します。",
+    "highlights": [
+      "一年中定住する約二百頭の群れ",
+      "船と並走するイルカ",
+      "高めの遭遇率"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海が穏やかで、欠航が少ない季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "光が強く、水中のイルカの姿も見えやすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて欠航が増えます。出航状況の確認が必要です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "午前は海が穏やかなことが多く、揺れも小さくなります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は光が水面に届き、イルカの体色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "シャッター速度は千分の一秒以上を確保します",
+      "連写で跳ねる瞬間を押さえ、後から選びます",
+      "船縁から身を乗り出さず、機材の落下に注意します"
+    ],
+    "officialWebsiteUrl": "https://www.t-island.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_105a726b7d44",
     "slug": "amami-mangrove",
     "name": "奄美 マングローブ原生林",
@@ -4567,6 +4631,198 @@
       "滝は遅いシャッターで流して谷の湿度を表します"
     ],
     "officialWebsiteUrl": "https://chizukanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5d3c76e5f015",
+    "slug": "aso-jinja",
+    "name": "阿蘇神社",
+    "nameEn": "Aso Shrine",
+    "reading": "あそじんじゃ",
+    "aliases": [
+      "阿蘇 楼門",
+      "門前町商店街"
+    ],
+    "address": "熊本県阿蘇市一の宮町宮地3083-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "阿蘇市"
+    },
+    "coords": {
+      "lat": 32.95,
+      "lng": 131.12
+    },
+    "category": "shrine",
+    "summary": "二〇一六年の地震で倒壊した楼門が二〇二三年に再建されました。日本三大楼門の一つとされます。",
+    "description": "阿蘇山を神体とする古社で、参道が社殿に対して横向きに通る珍しい配置をしています。高さ十八メートルの楼門は日本三大楼門の一つとされ、二〇一六年の熊本地震で倒壊しましたが、元の部材を可能な限り使って二〇二三年に再建されました。拝殿も再建されています。門前町の商店街には水基と呼ばれる湧水の水汲み場が点在し、歩いて回れます。",
+    "highlights": [
+      "再建された高さ十八メートルの楼門",
+      "社殿に対して横向きの参道",
+      "門前町に点在する水基"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、楼門の木部と対になります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、門前町の水の音が涼しく響きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が楼門の組物に影を作ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、楼門を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は組物に光が回り、木組みの細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "楼門は下から煽って十八メートルの高さを出します",
+      "横向きの参道が分かる角度から配置を見せます",
+      "水基は寄って湧水の流れを主題にします"
+    ],
+    "officialWebsiteUrl": "https://asojinja.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_fe8e21f4821b",
+    "slug": "aso-komezuka",
+    "name": "米塚",
+    "nameEn": "Komezuka Volcanic Cone",
+    "reading": "こめづか",
+    "aliases": [
+      "阿蘇 米塚",
+      "草千里 米塚"
+    ],
+    "address": "熊本県阿蘇市乙姫",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "阿蘇市"
+    },
+    "coords": {
+      "lat": 32.89,
+      "lng": 131.05
+    },
+    "category": "mountain",
+    "summary": "高さ八十メートルの小さな火山。全面が草に覆われ、頂上の窪みがはっきり残っています。",
+    "description": "阿蘇のカルデラの中にある小さな火山で、約三千年前の噴火でできました。高さは約八十メートルで、全面が草に覆われているため形が滑らかに見えます。頂上には噴火口の窪みが残り、上から見ると円い穴が開いています。神話では健磐龍命が積んだ米の山とされ、窪みは米を掬った跡と伝わります。登山は禁止で、周囲の道路や展望地点から見ます。",
+    "highlights": [
+      "草に覆われた滑らかな円錐",
+      "頂上に残る噴火口の窪み",
+      "阿蘇カルデラの中という立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月の野焼き後は黒く、その後一斉に緑になります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が最も濃く、円錐の形が滑らかに見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、窪みの影がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が窪みに影を作り、火口の形が読めます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、周囲の山並みまで見通せます。"
+      }
+    ],
+    "compositionTips": [
+      "窪みが見える角度を探すのがこの山の要点です",
+      "周囲の草原を広く取って阿蘇の中にあることを示します",
+      "登山禁止なので、道路や展望地点から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.aso.ne.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_9cc4e70b00ec",
+    "slug": "aso-nakadake",
+    "name": "阿蘇中岳火口",
+    "nameEn": "Mt. Aso Nakadake Crater",
+    "reading": "あそなかだけかこう",
+    "aliases": [
+      "阿蘇 火口見学",
+      "湯だまり"
+    ],
+    "address": "熊本県阿蘇市黒川",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "阿蘇市"
+    },
+    "coords": {
+      "lat": 32.88,
+      "lng": 131.09
+    },
+    "category": "mountain",
+    "summary": "いまも活動する火口を縁から見下ろせます。底には湯だまりと呼ばれる緑色の火口湖があります。",
+    "description": "阿蘇山の中岳は活動中の火山で、火口の縁まで道路が通じており、条件が良ければ直径約六百メートルの火口を見下ろせます。底には湯だまりと呼ばれる強酸性の緑色の水がたまり、噴気とともに見えます。火山ガスの濃度と噴火警戒レベルによって立入が規制され、規制中は近づけません。訪れる前に当日の規制状況を必ず確認します。退避壕が周囲に設置されています。",
+    "highlights": [
+      "直径六百メートルの活火口",
+      "緑色の湯だまり",
+      "立ち上る噴気"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、視界が利く日が増えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、火口の底まで見える確率が上がります。"
+      },
+      {
+        "season": "winter",
+        "text": "寒さで噴気が濃くなりますが、規制と天候の影響も大きくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は風が弱く、噴気が垂直に上がることがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は火口の底に光が届き、湯だまりの色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "湯だまりの色は望遠で抜いて主題にします",
+      "人と退避壕を入れると火山であることが伝わります",
+      "規制状況を必ず確認し、規制区域には入らないこと"
+    ],
+    "officialWebsiteUrl": "https://www.aso.ne.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -6874,6 +7130,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "slug": "chibusan",
+    "name": "チブサン古墳",
+    "nameEn": "Chibusan Kofun",
+    "reading": "ちぶさんこふん",
+    "aliases": [
+      "山鹿 装飾古墳",
+      "熊本県立装飾古墳館"
+    ],
+    "address": "熊本県山鹿市城2163",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "山鹿市"
+    },
+    "coords": {
+      "lat": 33,
+      "lng": 130.7
+    },
+    "category": "landmark",
+    "summary": "石室の壁に赤・白・黒の幾何学文様が描かれた装飾古墳。六世紀の彩色がそのまま残ります。",
+    "description": "六世紀の前方後円墳で、石室の奥の石屋形に赤、白、黒で幾何学的な文様と人物が描かれています。菱形や円が並ぶ構成で、乳房に見える二つの円が名前の由来とされます。装飾古墳としては保存状態が良く、国の史跡です。保護のため内部の公開は限定され、予約制の見学日が設けられています。近くの熊本県立装飾古墳館には精密な複製があり、こちらは常時見られます。",
+    "highlights": [
+      "赤・白・黒の幾何学文様",
+      "六世紀の彩色が残る石室",
+      "装飾古墳館の精密な複製"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の緑が芽吹き、墳丘の形が見やすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて墳丘の輪郭が最もよく分かります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、古墳群全体を歩いて回りやすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "内部の見学は予約制の日時に限られます。事前確認が前提です。"
+      },
+      {
+        "time": "morning",
+        "text": "装飾古墳館は開館直後が空いており、複製を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "文様は正面から撮って平面として記録します",
+      "内部は撮影可否が厳しく定められているので必ず確認します",
+      "複製は照明が安定しているので細部を撮るのに向きます"
+    ],
+    "officialWebsiteUrl": "https://kofunkan.pref.kumamoto.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0f52983a37ef",
@@ -11038,6 +11358,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_2bba2c7dd9b1",
+    "slug": "ezuko",
+    "name": "江津湖",
+    "nameEn": "Lake Ezu",
+    "reading": "えずこ",
+    "aliases": [
+      "熊本市 江津湖",
+      "水前寺江津湖公園"
+    ],
+    "address": "熊本県熊本市東区画図町",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "熊本市"
+    },
+    "coords": {
+      "lat": 32.78,
+      "lng": 130.74
+    },
+    "category": "nature",
+    "summary": "市街地にありながら一日四十万トンの湧水で満たされる湖。水草が水中で緑の帯を作ります。",
+    "description": "熊本市街の東にある湖で、水の大半が阿蘇の地下水の湧水です。一日の湧出量は約四十万トンとされ、そのため水温が年間を通して一定に保たれます。水中にはスイゼンジノリやミズユキノシタなどの水草が茂り、上から見ると緑の帯が水の流れに沿って揺れます。冬も水が温かいため渡り鳥が集まります。市街地から自転車で行ける距離にあります。",
+    "highlights": [
+      "水中で揺れる水草の緑の帯",
+      "一日四十万トンの湧水",
+      "冬に集まる渡り鳥"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水草が最も茂り、水中の緑が濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "水温が高いため湯気が立ち、渡り鳥も集まります。"
+      },
+      {
+        "season": "spring",
+        "text": "湖畔の桜と新緑。水面に映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は水面に湯気が立ち、鳥も活発です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水中まで光が届き、水草の緑が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を消すと水草が見えます",
+      "遅いシャッターで水草の揺れを線にできます",
+      "鳥は望遠で距離を保って撮ります"
+    ],
+    "officialWebsiteUrl": "https://kumamoto-guide.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_cd35802b71fa",
     "slug": "farm-tomita",
     "name": "ファーム富田",
@@ -14471,6 +14855,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_fd51be02ad97",
+    "slug": "gokanosho",
+    "name": "五家荘",
+    "nameEn": "Gokanosho",
+    "reading": "ごかのしょう",
+    "aliases": [
+      "八代 五家荘",
+      "梅の木轟公園吊橋"
+    ],
+    "address": "熊本県八代市泉町葉木",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "八代市"
+    },
+    "coords": {
+      "lat": 32.53,
+      "lng": 131
+    },
+    "category": "nature",
+    "summary": "平家の落人が住んだと伝わる山深い五つの集落。深い谷に長さ百十六メートルの吊橋が架かります。",
+    "description": "九州山地の奥、標高六百から千メートルの範囲に点在する五つの集落の総称です。平家の落人と菅原氏の子孫が住み着いたと伝わり、外部との往来が限られた歴史があります。谷が深く、梅の木轟公園吊橋は長さ百十六メートル、谷底から五十五メートルの高さに架かります。紅葉は十月下旬から十一月上旬。集落には茅葺きの民家が残り、公開されているものもあります。",
+    "highlights": [
+      "谷底から五十五メートルの吊橋",
+      "山深い五つの集落",
+      "茅葺きの民家"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬が紅葉。この地域の本番です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が谷を覆い、吊橋の下が緑で埋まります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があります。道路の凍結に注意が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が溜まり、吊橋が霧の上に出ることがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷底まで光が入り、紅葉の色が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "吊橋は横から撮って谷底までの高さを見せます",
+      "橋の上からは下を見下ろして深さを取ります",
+      "道が細く長いので、移動時間を多めに見込みます"
+    ],
+    "officialWebsiteUrl": "https://www.city.yatsushiro.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7ff916e0424d",
@@ -21544,6 +21992,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6b9be15fca0d",
+    "slug": "hitoyoshi",
+    "name": "人吉 青井阿蘇神社",
+    "nameEn": "Aoi Aso Shrine, Hitoyoshi",
+    "reading": "ひとよし あおいあそじんじゃ",
+    "aliases": [
+      "青井さん",
+      "人吉 球磨"
+    ],
+    "address": "熊本県人吉市上青井町118",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "人吉市"
+    },
+    "coords": {
+      "lat": 32.22,
+      "lng": 130.76
+    },
+    "category": "shrine",
+    "summary": "本殿から楼門まで五棟が国宝。茅葺きの社殿に桃山様式の彫刻が入る、他に例のない組み合わせです。",
+    "description": "一六一三年から四年で建てられた社殿群で、本殿、廊、幣殿、拝殿、楼門の五棟が国宝です。屋根はすべて茅葺きで、そこに桃山期の極彩色の彫刻が組み合わされています。茅葺きと彫刻という組み合わせは他に例が少なく、球磨地方独自の様式とされます。楼門の軒下には陰陽で対になった人面が彫られています。二〇二〇年の水害で被害を受け、修復が進められました。",
+    "highlights": [
+      "国宝五棟の茅葺きの社殿群",
+      "茅葺きと極彩色の彫刻の組み合わせ",
+      "楼門の軒下の人面の彫刻"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、茅葺きの茶色と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が彫刻の凹凸に影を作ります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、楼門を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、社殿を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は軒下に光が回り込み、彫刻の細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "茅葺きと彫刻が同時に入る角度を探すのがこの社の要点です",
+      "人面の彫刻は望遠で抜いて記録します",
+      "楼門は下から煽って茅葺きの厚みを見せます"
+    ],
+    "officialWebsiteUrl": "https://www.aoisan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_83a04c1e5b79",
     "slug": "hitsujiyama-park",
     "name": "羊山公園 芝桜の丘",
@@ -26402,6 +26914,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_68b3a3e12fdd",
+    "slug": "isshingyo",
+    "name": "一心行の大桜",
+    "nameEn": "Isshingyo no Osakura",
+    "reading": "いっしんぎょうのおおざくら",
+    "aliases": [
+      "南阿蘇 大桜",
+      "一心行公園"
+    ],
+    "address": "熊本県阿蘇郡南阿蘇村中松3226-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "南阿蘇村"
+    },
+    "coords": {
+      "lat": 32.81,
+      "lng": 131.02
+    },
+    "category": "nature",
+    "summary": "樹齢四百年のヤマザクラが一本で立ちます。周囲は菜の花畑で、桜色と黄色が二層になります。",
+    "description": "戦国期の武将の菩提を弔って植えられたと伝わるヤマザクラで、樹齢は約四百年、枝の広がりは東西二十一メートルに及びます。周囲は菜の花畑で、四月上旬の同時期に咲くため、手前に黄色、奥に桜色という二層の構成になります。背後には阿蘇の外輪山が入ります。台風で大枝を失った経緯があり、その後も花をつけ続けています。開花期は有料になります。",
+    "highlights": [
+      "樹齢四百年の一本のヤマザクラ",
+      "手前を埋める菜の花",
+      "背後に入る阿蘇の外輪山"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬が見頃。桜と菜の花が同時に咲く短い期間です。"
+      },
+      {
+        "season": "winter",
+        "text": "葉を落とした枝ぶり。樹形そのものを撮るなら冬です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、外輪山も見えやすい時間です。"
+      },
+      {
+        "time": "night",
+        "text": "開花期はライトアップが行われる年があります。"
+      }
+    ],
+    "compositionTips": [
+      "菜の花を前景に低く構えて二層にします",
+      "外輪山を入れて阿蘇の中にあることを示します",
+      "枝の広がりを欠けさせない画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.vill.minamiaso.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9f11bdc0aa78",
@@ -35750,6 +36322,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_2a2ed8eab3b4",
+    "slug": "kikuchi-castle",
+    "name": "鞠智城",
+    "nameEn": "Kikuchi Castle Site",
+    "reading": "きくちじょう",
+    "aliases": [
+      "八角形鼓楼",
+      "歴史公園鞠智城"
+    ],
+    "address": "熊本県山鹿市菊鹿町米原443-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "山鹿市"
+    },
+    "coords": {
+      "lat": 33.02,
+      "lng": 130.76
+    },
+    "category": "landmark",
+    "summary": "七世紀の古代山城。復元された八角形の鼓楼が丘に立ち、他に例のない形をしています。",
+    "description": "白村江の戦いの後、大和朝廷が西日本に築いた古代山城の一つで、国の史跡です。発掘調査で八角形の建物跡が見つかり、鼓楼として復元されました。八角形の建物は古代の城では他に例がなく、この城の象徴になっています。丘の上の広い草地に、米倉、兵舎、板倉も復元されています。周囲に高い建物がなく、空と草地と建物だけの構成になります。",
+    "highlights": [
+      "他に例のない八角形の鼓楼",
+      "広い草地に点在する復元建物",
+      "遮るもののない丘の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "草地が緑になり、建物の木部との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、周囲の山並みまで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れ色になり、八角形の輪郭が浮き出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が鼓楼の八面に影の差を作ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、草地を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "鼓楼は角を正面に置くと八角形であることが分かります",
+      "草地を広く取って遮るもののない立地を示します",
+      "斜光のときに八面の陰影の差が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://kikuchijo.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d5efe3e3fd31",
     "slug": "kikuchi-keikoku",
     "name": "菊池渓谷",
@@ -41027,6 +41663,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_102ead191c60",
+    "slug": "kurokawa",
+    "name": "黒川温泉",
+    "nameEn": "Kurokawa Onsen",
+    "reading": "くろかわおんせん",
+    "aliases": [
+      "入湯手形",
+      "黒川 田の原川"
+    ],
+    "address": "熊本県阿蘇郡南小国町満願寺",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "南小国町"
+    },
+    "coords": {
+      "lat": 33.09,
+      "lng": 131.14
+    },
+    "category": "landmark",
+    "summary": "看板と建物の色を町全体で統一した温泉地。谷底の川沿いに宿が並び、露天風呂が点在します。",
+    "description": "田の原川の谷底にある温泉地で、一九八〇年代から町全体で景観を統一する取り組みを続けてきました。看板は木製で小さく、建物の外観も土壁や木を基調に揃えられています。派手な色が排除されているため、通りの写真に現代的な要素がほとんど入りません。入湯手形で複数の宿の露天風呂を巡れます。冬には湯あかりという竹の灯籠が川沿いに並びます。",
+    "highlights": [
+      "色と看板を統一した町並み",
+      "谷底の川沿いに並ぶ宿",
+      "冬の湯あかりの竹灯籠"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十二月から三月の湯あかり。竹の灯籠が川沿いに並びます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。谷全体が色づきます。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、緑が濃くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は川から湯気が立ち、宿が霧の中に沈みます。"
+      },
+      {
+        "time": "night",
+        "text": "湯あかりの期間は夜が本番。竹の灯籠を長時間露光で撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "谷底なので、上の道から見下ろすと宿の密度が出ます",
+      "統一された看板を含めて撮ると町の取り組みが伝わります",
+      "入浴者が写らない角度を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.kurokawaonsen.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_518b642afc21",
     "slug": "kuroshima",
     "name": "黒島天主堂",
@@ -41884,6 +42584,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7227f2cdc14e",
+    "slug": "kyusendo",
+    "name": "球泉洞",
+    "nameEn": "Kyusendo Cave",
+    "reading": "きゅうせんどう",
+    "aliases": [
+      "球磨 鍾乳洞"
+    ],
+    "address": "熊本県球磨郡球磨村大字大瀬1121-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "球磨村"
+    },
+    "coords": {
+      "lat": 32.29,
+      "lng": 130.66
+    },
+    "category": "nature",
+    "summary": "全長四千八百メートルの鍾乳洞で、九州最大級です。うち約八百メートルが公開されています。",
+    "description": "球磨川沿いの石灰岩地帯にある鍾乳洞で、全長は約四千八百メートル、九州では最大級とされます。一九七三年に発見され、現在は約八百メートルが観光コースとして公開されています。洞内には鍾乳石、石筍、石柱が密集する区画があり、照明で形が浮き上がります。内部は年間を通して十六度前後。足元は濡れており、階段が多いコースです。",
+    "highlights": [
+      "九州最大級の全長四千八百メートル",
+      "鍾乳石が密集する区画",
+      "年間を通して十六度前後の洞内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "外との温度差が大きく、洞内が涼しく感じられます。"
+      },
+      {
+        "season": "winter",
+        "text": "洞内のほうが暖かく、レンズが曇りやすくなります。"
+      },
+      {
+        "season": "spring",
+        "text": "球磨川沿いの新緑と合わせて回れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "洞内は照明が一定なので時間帯の影響はありません。"
+      },
+      {
+        "time": "morning",
+        "text": "開洞直後は見学者が少なく、通路を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "照明の色が強いのでホワイトバランスを固定します",
+      "鍾乳石は人を入れてスケールを示します",
+      "外との温度差でレンズが曇るので、入る前に数分置きます"
+    ],
+    "officialWebsiteUrl": "https://www.kuma-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e817b40cf295",
@@ -46542,6 +47305,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_cb870f9cd960",
+    "slug": "misumi",
+    "name": "三角西港",
+    "nameEn": "Misumi West Port",
+    "reading": "みすみにしこう",
+    "aliases": [
+      "旧三角海運倉庫",
+      "三角 石積み埠頭"
+    ],
+    "address": "熊本県宇城市三角町三角浦",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "宇城市"
+    },
+    "coords": {
+      "lat": 32.62,
+      "lng": 130.47
+    },
+    "category": "landmark",
+    "summary": "明治二十年完成の石積み港がほぼ完全に残ります。七百五十六メートルの石積み埠頭が現役です。",
+    "description": "一八八七年に完成した明治期の港で、オランダ人技師の設計により石積みで築かれました。全長七百五十六メートルの埠頭と、排水路、道路が当時のまま残り、世界遺産の構成資産です。明治期の三大築港のうち、原型をとどめているのはここだけとされます。石積みの目地が緻密で、曲線を描いて海に接します。周囲には浦島屋などの明治期の建物が残ります。",
+    "highlights": [
+      "七百五十六メートルの石積み埠頭",
+      "緻密な目地の石積み",
+      "周囲に残る明治期の建物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、石の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が石積みの目地に影を作り、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、埠頭を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は石が暖色に染まり、海面も光ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は海が静かで、石積みの映り込みが安定します。"
+      }
+    ],
+    "compositionTips": [
+      "埠頭の曲線を手前から奥へ通して七百五十六メートルを見せます",
+      "石積みは寄って目地の緻密さを主題にします",
+      "斜光のときに石の凹凸が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.city.uki.kumamoto.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a060221d72a0",
     "slug": "mitarai-keikoku",
     "name": "みたらい渓谷",
@@ -49579,6 +50406,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e2ff40796b51",
+    "slug": "myokenura",
+    "name": "天草 妙見浦",
+    "nameEn": "Myokenura, Amakusa",
+    "reading": "あまくさ みょうけんうら",
+    "aliases": [
+      "象の鼻 妙見浦",
+      "十三仏公園"
+    ],
+    "address": "熊本県天草市天草町下田南",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "天草市"
+    },
+    "coords": {
+      "lat": 32.44,
+      "lng": 130
+    },
+    "category": "nature",
+    "summary": "波が岩を貫いてできた穴が象の鼻に見えます。天草灘に面し、夕日が海に落ちる海岸です。",
+    "description": "天草下島の西岸にある海食地形で、海に突き出した岩塊の下部が波に抉られて穴が開いています。その形が象が鼻を水に浸けている姿に見えることから象の鼻とも呼ばれます。国の名勝天然記念物です。十三仏公園の展望所から見下ろせ、遊覧船で穴の近くまで行くこともできます。西向きの海岸なので夕日が正面に落ち、岩がシルエットになります。",
+    "highlights": [
+      "象の鼻に見える貫通した岩",
+      "十三仏公園からの俯瞰",
+      "天草灘に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、岩の黒との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れ、岩に波が砕けます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。岩をシルエットにできます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は穴の向こうの海が明るく、形が分かりやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "穴を通して向こうの海を見せると構造が伝わります",
+      "象の鼻に見える角度を展望所で探します",
+      "夕景は露出を空に合わせて岩を沈めます"
+    ],
+    "officialWebsiteUrl": "https://www.t-island.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b9c4d206a638",
@@ -62973,6 +63864,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_92df7a8877eb",
+    "slug": "reihoku",
+    "name": "苓北 富岡城",
+    "nameEn": "Tomioka Castle, Reihoku",
+    "reading": "れいほく とみおかじょう",
+    "aliases": [
+      "富岡城跡",
+      "巴崎"
+    ],
+    "address": "熊本県天草郡苓北町富岡",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "苓北町"
+    },
+    "coords": {
+      "lat": 32.52,
+      "lng": 130.03
+    },
+    "category": "landmark",
+    "summary": "砂州で陸と繋がった岬の上に建つ城。島原の乱でも落ちず、三方を海に囲まれています。",
+    "description": "天草下島の北西端、砂州で陸と繋がった陸繋島の上に築かれた城です。三方が海に囲まれており、島原・天草一揆の際には一揆勢の攻撃を受けながら落ちませんでした。現在は櫓と長屋が復元され、資料館になっています。城跡からは巴崎の砂州と有明海が見渡せ、砂州の曲線が海に伸びる様子が一枚に入ります。天草の歴史を伝える展示があります。",
+    "highlights": [
+      "砂州で陸と繋がった陸繋島の立地",
+      "城跡から見る巴崎の砂州",
+      "復元された櫓と長屋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、砂州を歩いて回れます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、砂州の白との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸まで見通せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、砂州の曲線が浮き出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は海が静かで、砂州の形がはっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "城跡から砂州の曲線を手前から奥へ通します",
+      "三方が海であることが分かる引きの構図を取ります",
+      "櫓は下から煽って海を背景に入れます"
+    ],
+    "officialWebsiteUrl": "https://www.town.reihoku.kumamoto.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_9df6c9e074ac",
     "slug": "rikugien",
     "name": "六義園",
@@ -71740,6 +72695,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a35ba477f27b",
+    "slug": "shirakawa-suigen",
+    "name": "白川水源",
+    "nameEn": "Shirakawa Spring",
+    "reading": "しらかわすいげん",
+    "aliases": [
+      "南阿蘇 白川吉見神社"
+    ],
+    "address": "熊本県阿蘇郡南阿蘇村白川2040",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "南阿蘇村"
+    },
+    "coords": {
+      "lat": 32.83,
+      "lng": 131
+    },
+    "category": "nature",
+    "summary": "毎分六十トンの水が砂を巻き上げながら湧きます。湧き口の砂が絶えず動く様子が見られます。",
+    "description": "白川の源流の一つで、毎分約六十トンが湧き出します。水温は年間を通して十四度前後。湧き口では砂が水圧で巻き上げられ、砂地が絶えず動いて見えます。水の透明度が高く、底の砂の動きがそのまま観察できます。周囲は白川吉見神社の境内で、杉の巨木が湧水池を囲みます。日本名水百選に選ばれ、持ち帰り用の汲み場があります。",
+    "highlights": [
+      "砂を巻き上げる湧き口",
+      "毎分六十トンの湧出量",
+      "池を囲む杉の巨木"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "外気との差で水の冷たさが際立ちます。緑も濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "水温が高いため湯気が立つことがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "落葉が水面に浮かび、透明な水に色が点在します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、水面も波立ちません。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水中まで光が届き、砂の動きが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を消すと湧き口が見えます",
+      "砂の動きは速いシャッターで一瞬を止めます",
+      "杉を入れて境内の中にあることを示します"
+    ],
+    "officialWebsiteUrl": "https://www.vill.minamiaso.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8fa3d05c162e",
     "slug": "shirakawago",
     "name": "白川郷 荻町合掌造り集落",
@@ -75216,6 +76234,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_3caf48fe2288",
+    "slug": "suizenji",
+    "name": "水前寺成趣園",
+    "nameEn": "Suizenji Jojuen Garden",
+    "reading": "すいぜんじじょうじゅえん",
+    "aliases": [
+      "水前寺公園",
+      "東海道五十三次の庭"
+    ],
+    "address": "熊本県熊本市中央区水前寺公園8-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "熊本市"
+    },
+    "coords": {
+      "lat": 32.79,
+      "lng": 130.73
+    },
+    "category": "nature",
+    "summary": "阿蘇の伏流水が湧く池を中心にした回遊式庭園。築山と芝が東海道五十三次に見立てられています。",
+    "description": "細川氏が造営した桃山様式の回遊式庭園で、国の名勝史跡です。池の水は阿蘇の伏流水が湧いたもので、透明度が高く保たれます。園内の築山、芝、池が東海道五十三次の風景に見立てられ、富士山を模した築山が中心に置かれています。刈り込まれた芝のなだらかな起伏が特徴で、余計な要素が少ない構成です。園内には古今伝授の間という茶室が移築されています。",
+    "highlights": [
+      "阿蘇の伏流水が湧く透明な池",
+      "富士山を模した築山",
+      "刈り込まれた芝のなだらかな起伏"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "芝が緑に変わり、築山の起伏がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬の紅葉。池への映り込みが濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "芝が枯れ色になり、築山の形が最もよく読めます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は無風で、池の映り込みが安定します。"
+      },
+      {
+        "time": "day",
+        "text": "日中は芝の起伏に光が当たり、立体感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "築山の曲線を主題にして余計な要素を外します",
+      "池は水面を半分以上取って映り込みを見せます",
+      "透明度を出すなら偏光フィルターで反射を調整します"
+    ],
+    "officialWebsiteUrl": "https://www.suizenji.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a7ca0270e241",
     "slug": "sukayu",
     "name": "酸ヶ湯温泉",
@@ -76937,6 +78019,70 @@
       "営業中の店なので、客や店員を撮るときは断ってからにします"
     ],
     "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_0285931fb1b9",
+    "slug": "takamori-tunnel",
+    "name": "高森 湧水トンネル",
+    "nameEn": "Takamori Spring Water Tunnel",
+    "reading": "たかもり ゆうすいとんねる",
+    "aliases": [
+      "高森湧水トンネル公園",
+      "ウォーターパール"
+    ],
+    "address": "熊本県阿蘇郡高森町高森1034-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "高森町"
+    },
+    "coords": {
+      "lat": 32.83,
+      "lng": 131.12
+    },
+    "category": "landmark",
+    "summary": "鉄道の工事で大量出水し放棄されたトンネル。いまは湧水が流れる五百五十メートルの通路です。",
+    "description": "高森と高千穂を結ぶ鉄道の工事中に大量の出水が起きて工事が中止され、放棄されたトンネルです。毎分三十トン以上の湧水が出続けるため、そのまま公園として整備されました。全長二千キロ超のうち五百五十メートルが公開され、通路の中央を水路が流れます。奥にはウォーターパールという、水滴が止まって見える光の装置があります。内部は年間を通して低温です。",
+    "highlights": [
+      "中央を水が流れる五百五十メートルの通路",
+      "水滴が止まって見えるウォーターパール",
+      "鉄道工事が中止された経緯"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "トンネル内は低温で、外との差が大きくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "クリスマスの飾りが通路に並ぶ期間があります。"
+      },
+      {
+        "season": "spring",
+        "text": "七夕の飾りが並ぶ期間があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内なので時間帯の影響は小さいですが、開園時間内に限られます。"
+      },
+      {
+        "time": "morning",
+        "text": "開園直後は来園者が少なく、通路を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "水路の線を消失点まで通して五百五十メートルの長さを見せます",
+      "トンネル内は暗いので三脚か高感度が前提です",
+      "外との温度差でレンズが曇るので、入る前に数分置きます"
+    ],
+    "officialWebsiteUrl": "https://www.town.takamori.kumamoto.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -86788,6 +87934,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1af41085d65d",
+    "slug": "unagi",
+    "name": "鵜の子滝",
+    "nameEn": "Unokotaki Falls",
+    "reading": "うのことたき",
+    "aliases": [
+      "美里町 鵜の子滝"
+    ],
+    "address": "熊本県下益城郡美里町坂本",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "美里町"
+    },
+    "coords": {
+      "lat": 32.61,
+      "lng": 130.79
+    },
+    "category": "nature",
+    "summary": "三方を岩壁に囲まれた滝壺に水が落ちます。周囲の岩が円く抉れ、閉じた空間になっています。",
+    "description": "緑川の支流にある滝で、落差は大きくありませんが、滝壺の周囲が三方とも岩壁に囲まれています。長年の浸食で岩が円く抉れ、滝壺が閉じた空間のようになっているのが特徴です。中に入ると音が反響します。川沿いの遊歩道から降りて近づけますが、足場は岩で濡れると滑ります。周囲は照葉樹林で、日中でも滝壺は暗く保たれます。増水時は近づけません。",
+    "highlights": [
+      "三方を岩壁に囲まれた滝壺",
+      "円く抉れた岩の形",
+      "周囲の照葉樹林"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。滝壺の緑が最も明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "滝壺が涼しく、暗さと水音が最も印象的な季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲が色づき、暗い滝壺に色が落ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "日中でも滝壺は暗いので、光が差し込む短い時間を待ちます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、滝壺を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "広角で三方の岩壁を入れて閉じた空間を見せます",
+      "遅いシャッターで水を線にすると岩の形が際立ちます",
+      "岩は濡れると滑るので、足元を優先して立ち位置を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.town.kumamoto-misato.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_05e5fd207a74",
     "slug": "ungan-ji",
     "name": "雲巌寺",
@@ -89740,6 +90949,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_42ccd7028dbb",
+    "slug": "yamaga",
+    "name": "山鹿 八千代座",
+    "nameEn": "Yachiyoza Theater, Yamaga",
+    "reading": "やまが やちよざ",
+    "aliases": [
+      "山鹿灯籠",
+      "八千代座 天井絵"
+    ],
+    "address": "熊本県山鹿市山鹿1499",
+    "region": {
+      "country": "日本",
+      "prefecture": "熊本県",
+      "city": "山鹿市"
+    },
+    "coords": {
+      "lat": 33.02,
+      "lng": 130.69
+    },
+    "category": "landmark",
+    "summary": "一九一〇年築の現役の芝居小屋。天井には当時の商店の広告を描いた絵が枡目に並びます。",
+    "description": "山鹿の商人が株を出し合って建てた芝居小屋で、重要文化財です。建物は木造二階建て、内部は桝席と花道を備えます。天井には当時の商店の広告を描いた絵が枡目に並び、色鮮やかな面になります。舞台には手動の廻り舞台とすっぽんが残り、奈落も見学できます。山鹿は和紙で作る山鹿灯籠でも知られ、八月には頭に灯籠を載せた千人灯籠踊りが行われます。",
+    "highlights": [
+      "広告を描いた色鮮やかな天井絵",
+      "手動の廻り舞台と奈落",
+      "八月の千人灯籠踊り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月の山鹿灯籠まつり。千人灯籠踊りが行われます。"
+      },
+      {
+        "season": "winter",
+        "text": "見学者が少なく、客席を無人で撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が窓から客席に入り、木の質感が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "見学時間内のみ。天井絵は照明が入る時間が向きます。"
+      },
+      {
+        "time": "night",
+        "text": "灯籠踊りは夜。金灯籠の光が主光源になります。"
+      }
+    ],
+    "compositionTips": [
+      "天井絵は真上を向いて枡目の反復を取ります",
+      "客席側から舞台を正面に入れて劇場の構造を見せます",
+      "灯籠踊りは高い位置から円の隊形を見せます"
+    ],
+    "officialWebsiteUrl": "https://yachiyoza.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_05e15d7e9926",
