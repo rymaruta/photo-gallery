@@ -20105,6 +20105,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_43922e8aa25b",
+    "slug": "hishio-no-sato",
+    "name": "小豆島 醤の郷",
+    "nameEn": "Hishio no Sato, Shodoshima",
+    "reading": "しょうどしま ひしおのさと",
+    "aliases": [
+      "馬木 醤油蔵",
+      "小豆島 醤油"
+    ],
+    "address": "香川県小豆郡小豆島町馬木甲",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "小豆島町"
+    },
+    "coords": {
+      "lat": 34.48,
+      "lng": 134.32
+    },
+    "category": "landmark",
+    "summary": "黒い杉板に覆われた醤油蔵が密集する一画。蔵の壁は発酵の菌で黒く染まり、町全体に匂いが漂います。",
+    "description": "小豆島は四百年続く醤油の産地で、馬木と苗羽の一帯に醸造蔵が集まります。蔵の外壁は杉板張りで、長年の発酵で付いた菌により黒く変色しています。その黒い壁が通りの両側に続く光景がこの一画の特徴です。いまも杉桶で仕込む蔵が複数あり、一部は見学できます。もろみ蔵に入ると天井や梁まで黒く、独特の匂いがします。佃煮の工場も集まっています。",
+    "highlights": [
+      "発酵の菌で黒く染まった杉板の壁",
+      "杉桶で仕込む現役の醸造蔵",
+      "通りの両側に続く蔵の連なり"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、黒い壁の木目が見えるようになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が杉板の凹凸に影を落とし、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "仕込みの季節。蔵の中の作業が見られる時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景が撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は黒い壁に光が回り、板の目地が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "黒い壁は露出が引っ張られるのでプラス補正で潰れを防ぎます",
+      "通りは望遠で圧縮して蔵の連なりを見せます",
+      "蔵の内部は必ず許可を得てから撮ります"
+    ],
+    "officialWebsiteUrl": "https://shodoshima.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_566cd6445f69",
     "slug": "hitachi-izumo",
     "name": "常陸国出雲大社",
@@ -21182,6 +21246,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "slug": "honjima",
+    "name": "本島 笠島",
+    "nameEn": "Kasashima, Honjima",
+    "reading": "ほんじま かさしま",
+    "aliases": [
+      "塩飽本島",
+      "笠島まち並保存地区"
+    ],
+    "address": "香川県丸亀市本島町笠島",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "丸亀市"
+    },
+    "coords": {
+      "lat": 34.38,
+      "lng": 133.81
+    },
+    "category": "landmark",
+    "summary": "塩飽水軍の本拠だった島の集落。大工の技術が残り、格子と漆喰の町家が細い通りに並びます。",
+    "description": "塩飽諸島の中心だった島で、笠島地区が重要伝統的建造物群保存地区に選定されています。島は塩飽大工と呼ばれる船大工から転じた建築職人を多く出しており、町家の細工に技術が見えます。通りは曲がりくねっていて先が見通せない構造で、これは防御のためと言われます。丸亀港から船で三十五分。島内は歩いて回れます。",
+    "highlights": [
+      "塩飽大工の技術が見える町家",
+      "先が見通せない曲がった通り",
+      "塩飽水軍の本拠としての歴史"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、島を歩きやすい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が格子と白壁に影を落とします。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、通りを無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、通りの全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は木肌と漆喰が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "曲がった通りは先が見えない構図を活かします",
+      "格子は正面から撮って細工の密度を見せます",
+      "最終便の時刻から逆算して回ります"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d38b34f0e44d",
@@ -27747,6 +27875,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c686a7d1177b",
+    "slug": "kagawa-ayagawa",
+    "name": "綾川 滝宮",
+    "nameEn": "Takinomiya, Ayagawa",
+    "reading": "あやがわ たきのみや",
+    "aliases": [
+      "滝宮天満宮",
+      "滝宮念仏踊"
+    ],
+    "address": "香川県綾歌郡綾川町滝宮1314",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "綾川町"
+    },
+    "coords": {
+      "lat": 34.25,
+      "lng": 133.94
+    },
+    "category": "shrine",
+    "summary": "菅原道真が讃岐守を務めた地に建つ社。国の重要無形民俗文化財の念仏踊が奉納されます。",
+    "description": "菅原道真が讃岐国司だった頃の官舎の跡地に建つとされる神社です。隣には滝宮神社があり、両社の間を綾川が流れます。毎年八月二十五日に奉納される滝宮念仏踊は、雨乞いの成就に感謝して始まったと伝わり、国の重要無形民俗文化財です。太鼓と鉦に合わせて踊り手が輪を作ります。境内には梅が植えられ、二月から三月に咲きます。",
+    "highlights": [
+      "国の重要無形民俗文化財の念仏踊",
+      "菅原道真ゆかりの由緒",
+      "境内の梅"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "二月から三月の梅。天神様らしい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "八月二十五日の念仏踊。輪になって踊る様子が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内が色づきます。参拝者も少なく静かです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、境内を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "念仏踊は日中に奉納されます。位置取りは早めに決めます。"
+      }
+    ],
+    "compositionTips": [
+      "念仏踊は高い位置から輪の形を見せます",
+      "梅は枝の一部に寄って花の密度を出します",
+      "奉納の撮影は社の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.town.ayagawa.kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2c37e39597e3",
@@ -36953,6 +37145,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_91e631a64041",
+    "slug": "kotohira-kanamaruza",
+    "name": "旧金毘羅大芝居 金丸座",
+    "nameEn": "Kanamaruza Kabuki Theater",
+    "reading": "きゅうこんぴらおおしばい かなまるざ",
+    "aliases": [
+      "金丸座"
+    ],
+    "address": "香川県仲多度郡琴平町乙1241",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "琴平町"
+    },
+    "coords": {
+      "lat": 34.19,
+      "lng": 133.82
+    },
+    "category": "landmark",
+    "summary": "現存最古の芝居小屋。一八三五年築で、奈落の回り舞台や空井戸が人力のまま残ります。",
+    "description": "一八三五年に建てられた日本最古の現存する芝居小屋で、重要文化財です。桟敷席、花道、大向う、すっぽんといった江戸期の劇場の構造がそのまま残ります。舞台の下の奈落には人力で回す回り舞台の装置があり、その仕組みを見学できます。天井の葡萄棚から紙吹雪を降らせる仕掛けも残ります。毎年春には歌舞伎公演が行われます。",
+    "highlights": [
+      "人力で回す奈落の回り舞台",
+      "桟敷席と花道の江戸期の構造",
+      "天井の葡萄棚の仕掛け"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の歌舞伎公演。公演中は見学できない期間があります。"
+      },
+      {
+        "season": "winter",
+        "text": "見学者が少なく、客席を無人で撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が窓から客席に入り、木の質感が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "見学時間内のみ。窓からの自然光が客席に落ちる時間が向きます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "客席側から舞台を正面に入れて劇場の構造を見せます",
+      "奈落は暗いので高感度で、木の機構に寄ります",
+      "天井の葡萄棚は真上を向いて構造を取ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.kotohira.kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_22d649676bad",
     "slug": "kotohiragu",
     "name": "金刀比羅宮",
@@ -41607,6 +41862,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b176a3c12429",
+    "slug": "megijima",
+    "name": "女木島",
+    "nameEn": "Megijima Island",
+    "reading": "めぎじま",
+    "aliases": [
+      "鬼ヶ島大洞窟",
+      "オーテ"
+    ],
+    "address": "香川県高松市女木町",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "高松市"
+    },
+    "coords": {
+      "lat": 34.41,
+      "lng": 134.05
+    },
+    "category": "nature",
+    "summary": "冬の季節風を防ぐオーテという高い石垣が家の前に連なります。山上には鬼ヶ島大洞窟があります。",
+    "description": "高松港から船で二十分の島で、桃太郎伝説の鬼ヶ島とされます。集落の特徴はオーテと呼ばれる石垣で、冬の強い季節風から家を守るため、道に面して人の背丈を超える高さで積まれています。道を歩くと石垣が両側に続きます。山上には人工的に掘られた大洞窟があり、内部が公開されています。山頂の展望台からは瀬戸内海の島々を見渡せます。",
+    "highlights": [
+      "背丈を超える石垣オーテ",
+      "山上の鬼ヶ島大洞窟",
+      "展望台からの瀬戸内海の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山上の桜。展望台からは海と花を同時に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、石垣の灰色との対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "季節風が強く、オーテが存在する理由が体感できます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は光が斜めで、石垣の積み方に影が出ます。"
+      },
+      {
+        "time": "day",
+        "text": "展望台からは日中が最も海の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "オーテは道に沿って望遠で圧縮すると連なりが見えます",
+      "人を入れて石垣の高さを示します",
+      "洞窟内は暗いので高感度が前提になります"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0178026044fe",
@@ -50810,6 +51129,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d9887ba6367a",
+    "slug": "nijushi-no-hitomi",
+    "name": "二十四の瞳映画村",
+    "nameEn": "Nijushi-no-Hitomi Movie Village",
+    "reading": "にじゅうしのひとみえいがむら",
+    "aliases": [
+      "岬の分教場"
+    ],
+    "address": "香川県小豆郡小豆島町田浦甲931",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "小豆島町"
+    },
+    "coords": {
+      "lat": 34.48,
+      "lng": 134.36
+    },
+    "category": "landmark",
+    "summary": "映画の撮影に使われた昭和初期の漁村のセットが海際に残ります。木造の分教場もそのまま建ちます。",
+    "description": "壺井栄の小説を原作とする映画の撮影のために建てられたオープンセットで、撮影後も保存されています。昭和初期の漁村を模した木造の建物が海際に並び、映画に出た分教場の建物も残ります。近くには実際に使われていた岬の分教場の校舎もあり、こちらは明治期の建物です。海に面しているため、建物と海を一枚に入れられます。",
+    "highlights": [
+      "海際に並ぶ昭和初期の漁村のセット",
+      "木造の分教場の建物",
+      "実物の岬の分教場が近接"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、屋外の建物を歩いて回りやすい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、木造の建物との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が板壁に影を落とし、質感が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開村直後は来村者が少なく、セットを無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は板壁が暖色に染まり、海も光ります。"
+      }
+    ],
+    "compositionTips": [
+      "現代の要素が入らない画角を探すのがセットの要点です",
+      "海を背景に入れて漁村であることを示します",
+      "分教場は教室の内部から窓越しに海を入れられます"
+    ],
+    "officialWebsiteUrl": "https://24hitomi.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_de81570c34b9",
     "slug": "nikko-toshogu",
     "name": "日光東照宮",
@@ -53064,6 +53446,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_214974caeb1d",
+    "slug": "ogijima",
+    "name": "男木島",
+    "nameEn": "Ogijima Island",
+    "reading": "おぎじま",
+    "aliases": [
+      "男木島の魂",
+      "男木島灯台"
+    ],
+    "address": "香川県高松市男木町",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "高松市"
+    },
+    "coords": {
+      "lat": 34.43,
+      "lng": 134.06
+    },
+    "category": "nature",
+    "summary": "斜面に家が密集し、細い路地が段をなします。港には文字を透かした白い屋根の待合所が建ちます。",
+    "description": "高松港から船で四十分の島で、集落が急斜面に密集しています。路地は人がやっと通れる幅で、坂と階段が入り組みます。港のフェリーターミナルは世界各国の文字を透かした白い屋根を持ち、日が差すと地面に文字の影が落ちます。島の北端には御影石造の男木島灯台があり、無塗装のため石の色がそのまま見えます。瀬戸内国際芸術祭の会場です。",
+    "highlights": [
+      "斜面に密集する集落と細い路地",
+      "文字を透かした港の屋根",
+      "無塗装の御影石造の灯台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、路地を歩きやすい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "日が高く、港の屋根の文字の影がはっきり落ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、路地を無人で撮れます。便は減ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "港の屋根は太陽が高い時間に影の文字が最もはっきり出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は斜面の家並みが横から照らされ、路地に影が伸びます。"
+      }
+    ],
+    "compositionTips": [
+      "港の屋根は影が落ちた地面を主題にします",
+      "路地は狭いので広角で両側の壁を入れます",
+      "最終便の時刻から逆算して島内の移動を組みます"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8f02bf75a245",
     "slug": "ogose-bairin",
     "name": "越生梅林",
@@ -54514,6 +54960,70 @@
       "橋は揺れるので、片手はしっかり握ったまま撮ります"
     ],
     "officialWebsiteUrl": "https://miyoshi-tourism.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5a4a3a204daa",
+    "slug": "okuboji",
+    "name": "大窪寺",
+    "nameEn": "Okubo-ji Temple",
+    "reading": "おおくぼじ",
+    "aliases": [
+      "結願の寺",
+      "八十八番札所"
+    ],
+    "address": "香川県さぬき市多和兼割96",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "さぬき市"
+    },
+    "coords": {
+      "lat": 34.2,
+      "lng": 134.21
+    },
+    "category": "temple",
+    "summary": "四国八十八箇所の最後の札所。遍路を終えた人が奉納した金剛杖が宝杖堂に積み上がります。",
+    "description": "結願の寺として知られる八十八番札所で、山あいの谷に伽藍が建ちます。背後に女体山の岩壁がそびえ、寺と岩が一体に見えます。宝杖堂には遍路を終えた人が納めた金剛杖が多数積まれ、その数が巡礼の蓄積を示します。秋の紅葉が知られ、参道と境内が色づきます。八十八箇所を回り終える場所という性格上、参拝者の様子も被写体になります。",
+    "highlights": [
+      "背後にそびえる女体山の岩壁",
+      "宝杖堂に積まれた金剛杖",
+      "結願の寺としての性格"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。この寺が最も知られる季節です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が岩壁の周囲に入り、境内が明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、境内を静かに撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、境内と岩壁を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が当たり、伽藍との位置関係が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "岩壁と伽藍を一枚に入れて立地を見せます",
+      "金剛杖は望遠で圧縮して数の多さを面にします",
+      "遍路の人を撮るときは断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -62529,6 +63039,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7ff877f1212b",
+    "slug": "sanuki-manno",
+    "name": "満濃池",
+    "nameEn": "Manno Pond",
+    "reading": "まんのういけ",
+    "aliases": [
+      "空海 修築の池",
+      "まんのう公園"
+    ],
+    "address": "香川県仲多度郡まんのう町神野",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "まんのう町"
+    },
+    "coords": {
+      "lat": 34.18,
+      "lng": 133.89
+    },
+    "category": "nature",
+    "summary": "日本最大のため池。周囲約二十キロで、空海が修築したと伝わる堤が今も水を支えています。",
+    "description": "灌漑用のため池としては日本最大で、周囲約二十キロ、貯水量は千五百万立方メートルを超えます。八世紀の築造とされ、決壊したのを空海が修築したと伝わります。毎年六月には田に水を送るゆる抜きという放水が行われ、堤の底から水が噴き出します。池畔には国営讃岐まんのう公園があり、高い位置から池を俯瞰できます。周囲に山が迫ります。",
+    "highlights": [
+      "日本最大のため池",
+      "六月のゆる抜きの放水",
+      "公園から見下ろす池の全景"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "満水期で水面が広がります。周囲の山も芽吹きます。"
+      },
+      {
+        "season": "summer",
+        "text": "六月のゆる抜き。堤から水が噴き出す短い期間です。"
+      },
+      {
+        "season": "autumn",
+        "text": "水位が下がり、湖底の地形が現れます。周囲も色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が鏡になり、周囲の山が映ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は水面が光り、堤のシルエットが出ます。"
+      }
+    ],
+    "compositionTips": [
+      "高い位置から俯瞰して二十キロの周囲を面で見せます",
+      "ゆる抜きは放水の勢いを速いシャッターで止めます",
+      "映り込みは風のない朝に狙います"
+    ],
+    "officialWebsiteUrl": "https://www.town.manno.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c567a8affff4",
     "slug": "sanzenin",
     "name": "大原 三千院",
@@ -64747,6 +65321,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_d0a0129de29b",
+    "slug": "seto-ohashi-park",
+    "name": "瀬戸大橋記念公園",
+    "nameEn": "Seto Ohashi Memorial Park",
+    "reading": "せとおおはしきねんこうえん",
+    "aliases": [
+      "坂出 瀬戸大橋タワー",
+      "櫃石島"
+    ],
+    "address": "香川県坂出市番の州緑町6-13",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "坂出市"
+    },
+    "coords": {
+      "lat": 34.37,
+      "lng": 133.81
+    },
+    "category": "landmark",
+    "summary": "瀬戸大橋の真下にある公園。橋の斜張の構造を見上げる位置から、塔と鋼材の密度が撮れます。",
+    "description": "瀬戸大橋の四国側の取り付け部に整備された公園で、橋の真下から見上げられます。瀬戸大橋は吊橋、斜張橋、トラス橋を繋いだ全長約十三キロの構造で、公園からはその始まりの部分が正面に立ち上がります。回転式の展望タワーがあり、上からは橋と瀬戸内海の島々を見渡せます。夜は橋がライトアップされる日があります。",
+    "highlights": [
+      "橋を真下から見上げる位置",
+      "吊橋と斜張橋を繋いだ構造",
+      "回転式展望タワーからの眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "園内の芝生が緑になり、橋の灰色との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、橋の先の島々まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "日没が早く、夕景と夜景を短い時間で両方撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は橋がシルエットになり、海面が光ります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップの日は橋の線が光で描かれます。実施日は事前に確認します。"
+      }
+    ],
+    "compositionTips": [
+      "真下から超広角で見上げると鋼材の密度が出ます",
+      "塔の垂直線を画面に立てて構造の規模を示します",
+      "タワーからは望遠で橋を圧縮して島と重ねます"
+    ],
+    "officialWebsiteUrl": "https://www.setoohashi-park.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_41c59cfd873c",
     "slug": "settsukyo",
     "name": "摂津峡",
@@ -65529,6 +66167,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_941c9283b195",
+    "slug": "shikoku-mura",
+    "name": "四国村",
+    "nameEn": "Shikoku Mura Village",
+    "reading": "しこくむら",
+    "aliases": [
+      "四国民家博物館",
+      "祖谷のかずら橋 移築"
+    ],
+    "address": "香川県高松市屋島中町91",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "高松市"
+    },
+    "coords": {
+      "lat": 34.35,
+      "lng": 134.1
+    },
+    "category": "landmark",
+    "summary": "四国各地の民家を屋島の山麓に移築した野外博物館。かずら橋を渡って入る構成になっています。",
+    "description": "屋島の山麓の傾斜地に、四国各地から移築した民家や産業施設を配置した野外博物館です。入口は祖谷から移したかずら橋で、そこを渡って園内に入ります。砂糖しめ小屋、醤油蔵、灯台守の官舎など、住居以外の建物も多く含まれます。傾斜地に点在するため、歩くと高低差があります。安藤忠雄が設計したギャラリーも併設されています。",
+    "highlights": [
+      "入口のかずら橋",
+      "四国各地から移築された民家と産業施設",
+      "傾斜地に点在する配置"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と茅葺き。園内の木も芽吹きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬、園内が色づきます。茅葺きと赤が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して建物の配置が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は来園者が少なく、建物を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は茅葺きが暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "かずら橋は渡る人を入れてスケールを示します",
+      "茅葺きは側面から撮って屋根の勾配を見せます",
+      "傾斜地なので高低差が分かる角度を探します"
+    ],
+    "officialWebsiteUrl": "https://www.shikokumura.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e26b49908456",
@@ -68209,6 +68911,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_81a56003c175",
+    "slug": "shishijima",
+    "name": "志々島",
+    "nameEn": "Shishijima Island",
+    "reading": "ししじま",
+    "aliases": [
+      "志々島の大楠"
+    ],
+    "address": "香川県三豊市詫間町志々島",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "三豊市"
+    },
+    "coords": {
+      "lat": 34.27,
+      "lng": 133.65
+    },
+    "category": "nature",
+    "summary": "樹齢千二百年とされる大楠が島の斜面に立ちます。枝張りが四十メートル近くに広がります。",
+    "description": "三豊市の沖に浮かぶ小さな島で、住民は十数人です。島の中腹に立つ大楠は樹齢千二百年とされ、樹高約二十二メートル、枝の広がりは四十メートル近くに達します。根元には小屋のような木組みの支えがあります。かつては花卉栽培が盛んで、段々畑の跡が斜面に残ります。船は一日数便で、滞在時間が限られます。島に商店はありません。",
+    "highlights": [
+      "枝張り四十メートル近い大楠",
+      "斜面に残る段々畑の跡",
+      "住民十数人の静かな島"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑の大楠。葉が入れ替わり、樹冠が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "葉が最も茂り、樹冠が濃い緑の塊になります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、島から対岸までの見通しが利きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の便で渡ると島内を歩く時間が取れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は大楠の樹冠に光が回り、枝の広がりが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "大楠は下から見上げて枝張りを画面いっぱいに取ります",
+      "人を入れて四十メートルの広がりを示します",
+      "便数が少ないので往復の時刻を先に確認します"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2f559b5710f0",
     "slug": "shishiku",
     "name": "獅子吼高原",
@@ -68501,6 +69266,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_280ebba2a8a0",
+    "slug": "shodoshima-olive",
+    "name": "小豆島オリーブ公園",
+    "nameEn": "Shodoshima Olive Park",
+    "reading": "しょうどしまおりーぶこうえん",
+    "aliases": [
+      "ギリシャ風車 小豆島"
+    ],
+    "address": "香川県小豆郡小豆島町西村甲1941-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "小豆島町"
+    },
+    "coords": {
+      "lat": 34.47,
+      "lng": 134.29
+    },
+    "category": "nature",
+    "summary": "瀬戸内海を見下ろす斜面にオリーブ畑が広がります。白いギリシャ風車が海を背に立ちます。",
+    "description": "日本のオリーブ栽培の発祥地である小豆島に作られた公園で、約二千本のオリーブが斜面に植えられています。園内の白いギリシャ風車は姉妹島提携の記念に建てられたもので、海を背景に立つ姿が知られます。銀色を帯びたオリーブの葉と青い海の組み合わせは、日本では他に例が少ない色構成です。ハーブガーデンと資料館も併設されています。",
+    "highlights": [
+      "海を背に立つ白いギリシャ風車",
+      "銀色を帯びたオリーブの葉",
+      "斜面に広がる約二千本のオリーブ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、オリーブの白い小花が咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月から十一月が収穫期。実が緑から黒へ変わります。"
+      },
+      {
+        "season": "summer",
+        "text": "海が最も青く、白い風車との対比が強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は風車と海が同時に暖色に染まります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、風車を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "風車は下から煽って空と海を背景に入れます",
+      "オリーブの葉は逆光で銀色を出します",
+      "斜面の傾きを画面に入れると立地が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.olive-pk.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2c2535b944d5",
@@ -71934,6 +72762,133 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_8f8042ba85da",
+    "slug": "takamatsu-castle",
+    "name": "高松城跡",
+    "nameEn": "Takamatsu Castle Site",
+    "reading": "たかまつじょうあと",
+    "aliases": [
+      "玉藻公園",
+      "水城 高松"
+    ],
+    "address": "香川県高松市玉藻町2-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "高松市"
+    },
+    "coords": {
+      "lat": 34.35,
+      "lng": 134.05
+    },
+    "category": "landmark",
+    "summary": "堀に海水を引き込んだ日本三大水城の一つ。潮で水位が変わり、堀には鯛が泳いでいます。",
+    "description": "瀬戸内海に直接面して築かれた城で、日本三大水城の一つです。堀は海と繋がっており、潮の満ち引きで水位が変わります。海水なので鯛が泳ぎ、堀の上に架かる鞘橋の近くで餌やりができます。現存する月見櫓と艮櫓は重要文化財で、天守台は積み直されて登れます。園内には披雲閣という大正期の書院造の建物と庭園があります。",
+    "highlights": [
+      "海水を引き込んだ堀と泳ぐ鯛",
+      "重要文化財の月見櫓と艮櫓",
+      "大正期の披雲閣と庭園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "園内の桜。櫓と花を重ねられる角度があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "披雲閣の庭園が色づきます。斜めの光も入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、堀の水面が静かになります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、堀の水面も静かで映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は櫓の白壁が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "堀の映り込みで櫓を上下対称にします",
+      "鯛を入れると海水の堀であることが伝わります",
+      "天守台からは市街と港を一緒に入れます"
+    ],
+    "officialWebsiteUrl": "https://www.takamatsujyo.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5d3783486aa6",
+    "slug": "takamatsu-kitahama",
+    "name": "北浜アリー",
+    "nameEn": "Kitahama Alley",
+    "reading": "きたはまありー",
+    "aliases": [
+      "高松 北浜倉庫群"
+    ],
+    "address": "香川県高松市北浜町4-14",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "高松市"
+    },
+    "coords": {
+      "lat": 34.36,
+      "lng": 134.05
+    },
+    "category": "landmark",
+    "summary": "高松港の古い倉庫群を改装した一画。錆びたトタンと木の外観を残したまま店舗が入っています。",
+    "description": "高松港に面した昭和初期からの倉庫群を、外観をほとんど変えずに改装した一画です。錆びたトタン、古い木の柱、色の剥げた壁がそのまま残され、その中にカフェや雑貨店、美容室が入っています。路地は狭く、建物の間に階段や渡り廊下が通ります。夜は店の灯りが路地に漏れ、錆びた金属の面を照らします。港に面した側からは海が見えます。",
+    "highlights": [
+      "外観を残したまま改装された倉庫",
+      "錆びたトタンと古い木の質感",
+      "建物の間の狭い路地と階段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、錆びた金属の色の変化が見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が壁の凹凸に影を落とし、質感が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "港の海が青く、倉庫の茶色との対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は錆びた面が暖色に染まり、店の灯りが入り始めます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は路地に灯りが漏れ、金属の面が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "錆と木の質感は寄って主題にします",
+      "路地は狭いので広角で両側を入れます",
+      "営業中の店なので、客や店員を撮るときは断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.my-kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2ff9dc0b622e",
     "slug": "takaoka-daibutsu",
     "name": "高岡大仏",
@@ -75175,6 +76130,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_35858d99621d",
+    "slug": "teshima",
+    "name": "豊島美術館",
+    "nameEn": "Teshima Art Museum",
+    "reading": "てしまびじゅつかん",
+    "aliases": [
+      "豊島 棚田",
+      "母型"
+    ],
+    "address": "香川県小豆郡土庄町豊島唐櫃607",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "土庄町"
+    },
+    "coords": {
+      "lat": 34.48,
+      "lng": 134.1
+    },
+    "category": "landmark",
+    "summary": "柱のない水滴形のコンクリート殻に、床から水が湧き続けます。展示物は水そのものです。",
+    "description": "西沢立衛が設計し、内藤礼の作品を収める施設です。建物は柱のない水滴形のコンクリート殻で、天井に二つの開口があり、そこから光と風と雨が直接入ります。床からは一日を通して水が滲み出し、集まっては流れて消えます。作品はこの水の動きそのものです。館内は撮影禁止で、被写体は外観と周囲の棚田になります。棚田は再生された耕作地です。",
+    "highlights": [
+      "柱のない水滴形の殻",
+      "天井の開口から入る光と雨",
+      "周囲の再生された棚田"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "棚田に水が入り、建物と田の水面が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "棚田の緑が濃く、白い建物との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "稲刈り前の黄金色の棚田と建物が重なります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は来館者が少なく、外観を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は建物の白い面に光が回り、曲面の形が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "館内は撮影禁止なので、外観と棚田に被写体を絞ります",
+      "棚田の段と建物の曲面を一枚に入れて対比を作ります",
+      "高い位置から俯瞰すると水滴形の平面が分かります"
+    ],
+    "officialWebsiteUrl": "https://benesse-artsite.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6635624f4ee0",
     "slug": "to-no-hetsuri",
     "name": "塔のへつり",
@@ -78403,6 +79422,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4afe75fbd82d",
+    "slug": "tsudanomatsubara",
+    "name": "津田の松原",
+    "nameEn": "Tsuda no Matsubara",
+    "reading": "つだのまつばら",
+    "aliases": [
+      "琴林公園",
+      "さぬき市 津田"
+    ],
+    "address": "香川県さぬき市津田町津田",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "さぬき市"
+    },
+    "coords": {
+      "lat": 34.28,
+      "lng": 134.22
+    },
+    "category": "nature",
+    "summary": "約一キロの白い砂浜に沿って千本を超えるクロマツが並びます。樹齢六百年の古木も含まれます。",
+    "description": "約一キロの砂浜に沿ってクロマツの林が続き、その数は千本を超えます。なかには樹齢六百年とされる古木もあり、幹が曲がりくねった形をしています。日本の白砂青松百選と日本の名松百選の両方に選ばれています。林の中に遊歩道が通り、木漏れ日が砂の地面に落ちます。海側に出れば白い砂浜と瀬戸内海が広がります。",
+    "highlights": [
+      "千本を超えるクロマツの林",
+      "樹齢六百年の曲がった古木",
+      "林から出るとすぐの白い砂浜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海水浴の季節。海が青く、松の緑との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、松の幹の質感がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、林を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の低い光が松の幹を側面から照らし、曲がりが強調されます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は砂浜が暖色に染まり、松がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "古木は幹の曲線を主題にして単独で撮ります",
+      "林は幹の縦線の反復を使います",
+      "松越しに海を抜く構図で立地を示します"
+    ],
+    "officialWebsiteUrl": "https://www.city.sanuki.kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e7507ae34693",
     "slug": "tsugaike",
     "name": "栂池自然園",
@@ -81518,6 +82601,69 @@
       "霧の日はコントラストが落ちるので現像で締める前提で撮ります"
     ],
     "officialWebsiteUrl": "https://miyoshi-tourism.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_6144f1e354b1",
+    "slug": "unpenji-ropeway",
+    "name": "雲辺寺山頂公園",
+    "nameEn": "Unpenji Summit Park",
+    "reading": "うんぺんじさんちょうこうえん",
+    "aliases": [
+      "天空のブランコ 雲辺寺"
+    ],
+    "address": "香川県観音寺市大野原町丸井",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "観音寺市"
+    },
+    "coords": {
+      "lat": 34.05,
+      "lng": 133.72
+    },
+    "category": "mountain",
+    "summary": "標高九百メートルの稜線に開けた公園。斜面の縁に置かれたブランコから瀬戸内海を見下ろせます。",
+    "description": "雲辺寺ロープウェイの山頂駅に接する公園で、香川県側の斜面に開けています。斜面の縁にブランコが設置され、座ると足元に何もない状態で瀬戸内海と観音寺の市街が広がります。冬はスキー場になる斜面で、樹氷が付く日もあります。晴れた日は瀬戸大橋から中国地方の山まで見渡せます。寺の伽藍は徳島県側にあり、歩いて行けます。",
+    "highlights": [
+      "斜面の縁に置かれたブランコ",
+      "瀬戸内海と観音寺市街の俯瞰",
+      "冬の樹氷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が斜面を覆い、海との二層構成になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、瀬戸大橋まで見える日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "樹氷が付く日があります。標高が高く冷え込みます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲海が谷に出ることがあり、稜線から見下ろせます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は瀬戸内海が光り、島影がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "ブランコは低い位置から撮ると足元の空間が強調されます",
+      "海と市街を二層にして高さを示します",
+      "雲海の日は稜線を画面下に置いて雲を主役にします"
+    ],
+    "officialWebsiteUrl": "https://www.unpenjiropeway.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -87261,6 +88407,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_9810dfb76c7f",
+    "slug": "zenigata",
+    "name": "銭形砂絵",
+    "nameEn": "Zenigata Sand Coin",
+    "reading": "ぜにがたすなえ",
+    "aliases": [
+      "寛永通宝 砂絵",
+      "琴弾公園"
+    ],
+    "address": "香川県観音寺市有明町",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "観音寺市"
+    },
+    "coords": {
+      "lat": 34.13,
+      "lng": 133.64
+    },
+    "category": "landmark",
+    "summary": "砂浜に描かれた周囲三百四十五メートルの寛永通宝。展望台から見ると正円に見える設計です。",
+    "description": "有明浜の砂に描かれた巨大な銭形で、東西百二十二メートル、南北九十メートル、周囲三百四十五メートルあります。実際は縦長の楕円ですが、琴弾公園山頂の展望台から見下ろすとちょうど正円に見えるよう計算されています。江戸初期に藩主を迎えるため一夜で作られたと伝わります。年に数回、地元住民の手で砂が整えられます。夜はライトアップされます。",
+    "highlights": [
+      "展望台から正円に見える設計",
+      "周囲三百四十五メートルの規模",
+      "夜間ライトアップ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "砂が乾いて白く、輪郭がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、展望台からの視程が最も利きます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、展望台の位置取りが楽になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が砂の溝に影を作り、文字が読みやすくなります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ時は輪郭が光で縁取られます。"
+      }
+    ],
+    "compositionTips": [
+      "展望台の決められた位置から撮らないと正円に見えません",
+      "海を一緒に入れると砂浜にあることが伝わります",
+      "斜光のときに砂の溝の影が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kanonji.kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d2439ceb359b",
     "slug": "zenkoji",
     "name": "善光寺",
@@ -87333,6 +88543,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_63526dbf9424",
+    "slug": "zentsuji",
+    "name": "善通寺",
+    "nameEn": "Zentsu-ji Temple",
+    "reading": "ぜんつうじ",
+    "aliases": [
+      "空海誕生の地",
+      "善通寺 五重塔"
+    ],
+    "address": "香川県善通寺市善通寺町3-3-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "香川県",
+      "city": "善通寺市"
+    },
+    "coords": {
+      "lat": 34.23,
+      "lng": 133.79
+    },
+    "category": "temple",
+    "summary": "空海が生まれた地とされる寺。高さ四十五メートルの五重塔が立ち、境内は東西二院に分かれます。",
+    "description": "四国八十八箇所の七十五番札所で、空海の生誕地とされます。境内は東院と西院に分かれ、東院には高さ約四十五メートルの五重塔と金堂、西院には御影堂があります。五重塔は江戸後期の再建で、木造の塔としては国内でも高い部類です。境内には樹齢千年を超えるクスノキがあり、空海が生まれた頃から立っていたと伝わります。市街地にあり平坦です。",
+    "highlights": [
+      "高さ四十五メートルの五重塔",
+      "東西に分かれた広い境内",
+      "樹齢千年超のクスノキ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の桜。五重塔と花を重ねる角度があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が塔の各層に影を落とし、重なりが読めます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、塔を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、境内が静かです。"
+      },
+      {
+        "time": "night",
+        "text": "五重塔はライトアップされる日があり、夜に浮かび上がります。"
+      }
+    ],
+    "compositionTips": [
+      "五重塔は下から煽って四十五メートルの高さを出します",
+      "クスノキは幹の太さが分かる位置から人を入れて撮ります",
+      "境内が広いので、二つ以上の建物を重ねて奥行きを作ります"
+    ],
+    "officialWebsiteUrl": "https://www.zentsuji.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e96c465145cb",
