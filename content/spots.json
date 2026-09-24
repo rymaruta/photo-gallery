@@ -2840,6 +2840,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_d814db4457a3",
+    "slug": "anan",
+    "name": "安芸 野良時計",
+    "nameEn": "Nora Dokei Clock Tower, Aki",
+    "reading": "あき のらどけい",
+    "aliases": [
+      "安芸 土居廓中"
+    ],
+    "address": "高知県安芸市土居",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "安芸市"
+    },
+    "coords": {
+      "lat": 33.5,
+      "lng": 133.9
+    },
+    "category": "landmark",
+    "summary": "明治期に地主が時計を分解して独学で作った時計台。田の中に立ち、いまも時を刻み続けています。",
+    "description": "時計が珍しかった明治の中頃、地元の地主が分解した時計を研究して歯車から自作したと伝わる時計台です。白壁の土蔵風の建物の上に文字盤が付き、周囲は田畑です。個人の所有物で内部は非公開ですが、外からいつでも見られます。近くの土居廓中は武家屋敷の地区で、生け垣と土塀が続く通りが残ります。安芸は阪神タイガースのキャンプ地でもあります。",
+    "highlights": [
+      "独学で作られた明治期の時計台",
+      "田の中に立つ立地",
+      "近くの土居廓中の武家屋敷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "田に水が入り、時計台が水面に映る時期があります。"
+      },
+      {
+        "season": "summer",
+        "text": "稲が育ち、緑の面に白い時計台が立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "稲刈り前の黄金色と白壁の対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、田も静かです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "田を前景に入れて農村の中にあることを示します",
+      "文字盤は望遠で抜いて時計であることを見せます",
+      "個人の所有物なので敷地に入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.akikanko.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a8d9825e7057",
     "slug": "angel-road",
     "name": "小豆島 エンジェルロード",
@@ -7036,6 +7099,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ae73ec8ddcb7",
+    "slug": "chikurinji",
+    "name": "竹林寺",
+    "nameEn": "Chikurin-ji Temple",
+    "reading": "ちくりんじ",
+    "aliases": [
+      "土佐 竹林寺 五重塔",
+      "夢窓疎石の庭"
+    ],
+    "address": "高知県高知市五台山3577",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.55,
+      "lng": 133.58
+    },
+    "category": "temple",
+    "summary": "五台山の上にある四国霊場。高さ三十一メートルの五重塔が立ち、夢窓疎石作と伝わる庭園があります。",
+    "description": "四国八十八箇所の三十一番札所で、五台山の山上にあります。本堂は室町期の建築で重要文化財。境内の五重塔は一九八〇年の再建で高さ約三十一メートル、杉の木立の間から立ち上がります。書院の裏の庭園は夢窓疎石の作と伝わり、池と石組みで構成された国の名勝です。境内には苔の生えた石段があり、木立が濃いため日中も暗く保たれます。",
+    "highlights": [
+      "杉木立から立つ五重塔",
+      "夢窓疎石作と伝わる名勝庭園",
+      "苔の生えた石段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が木立に入り、境内が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬の紅葉。五重塔と赤が重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "苔が最も濃く、石段の緑が深くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段と塔を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が苔に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "五重塔は杉の間から抜いて山上にあることを示します",
+      "石段は苔を前景に低い位置から撮ります",
+      "庭園は書院から座った目線で額縁構図を作ります"
+    ],
+    "officialWebsiteUrl": "https://www.chikurinji.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8c06db535e57",
@@ -14019,6 +14146,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7298aaad2ad0",
+    "slug": "godaisan",
+    "name": "五台山展望台",
+    "nameEn": "Godaisan Observatory",
+    "reading": "ごだいさんてんぼうだい",
+    "aliases": [
+      "五台山公園"
+    ],
+    "address": "高知県高知市吸江",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.55,
+      "lng": 133.57
+    },
+    "category": "mountain",
+    "summary": "高知市街を見下ろす標高百四十六メートルの山。浦戸湾と市街の灯りが同時に入る夜景が撮れます。",
+    "description": "高知市の東にある山で、山頂の展望台から市街地と浦戸湾を一望できます。市街の灯りと湾の水面が同じ画面に入るため、夜景では光の陸と暗い海の対比ができます。山頂まで車道が通じ、展望台は無料で開放されています。同じ山に竹林寺と牧野植物園があり、合わせて回れます。空気が澄んだ日は太平洋まで見通せます。",
+    "highlights": [
+      "市街地と浦戸湾の一望",
+      "光の陸と暗い海の対比",
+      "同じ山の竹林寺と植物園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山の緑が芽吹き、市街との境界がはっきりします。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、太平洋までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "日没が早く、夕景と夜景を短い時間で両方撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾が光り、そのまま夜景へ移る時間帯が狙い目です。"
+      },
+      {
+        "time": "night",
+        "text": "夜景が本命。三脚は通路を塞がない位置に置きます。"
+      }
+    ],
+    "compositionTips": [
+      "湾の水面を画面に入れて光と闇を分けます",
+      "望遠で市街の灯りを圧縮すると密度が上がります",
+      "夜景は長時間露光で車の光跡を線にできます"
+    ],
+    "officialWebsiteUrl": "https://visitkochijapan.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_59a8f2f9548f",
     "slug": "godzilla-iwa",
     "name": "ゴジラ岩",
@@ -16942,6 +17132,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5fcc9f004c17",
+    "slug": "harimayabashi",
+    "name": "はりまや橋",
+    "nameEn": "Harimaya Bridge",
+    "reading": "はりまやばし",
+    "aliases": [
+      "高知 朱塗りの橋"
+    ],
+    "address": "高知県高知市はりまや町1",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.56,
+      "lng": 133.54
+    },
+    "category": "landmark",
+    "summary": "よさこい節に歌われた橋。現在の朱塗りの太鼓橋は復元で、長さ二十メートルほどの小さなものです。",
+    "description": "純信とお馬の物語とよさこい節で知られる橋です。実物は市街地の交差点にあり、現在の朱塗りの太鼓橋は公園内に復元されたもので、長さ約二十メートルと小さなものです。期待より小さいことでも知られます。周囲は再整備され、水路と橋が公園として見られるようになっています。路面電車の停留所が隣接し、電車と橋を一枚に入れられます。",
+    "highlights": [
+      "朱塗りの復元された太鼓橋",
+      "隣接する路面電車の停留所",
+      "よさこい節ゆかりの場所"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の緑が芽吹き、朱色との対比が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "よさこい祭りの時期は周辺が踊り子で埋まります。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、橋を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、橋を正面から撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜はライトアップされ、朱が暗い背景に浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "路面電車と一緒に入れると高知の街であることが伝わります",
+      "小さい橋なので、寄って朱の質感を主題にします",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://visitkochijapan.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e14b72952471",
@@ -20074,6 +20327,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5793237213cb",
+    "slug": "hirome",
+    "name": "ひろめ市場",
+    "nameEn": "Hirome Market",
+    "reading": "ひろめいちば",
+    "aliases": [
+      "高知 ひろめ",
+      "屋台村 高知"
+    ],
+    "address": "高知県高知市帯屋町2-3-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.56,
+      "lng": 133.53
+    },
+    "category": "landmark",
+    "summary": "六十以上の店が並ぶ屋内の市場。共用の席で客が入り混じり、昼から酒を飲む土地柄が見えます。",
+    "description": "高知城のすぐ近くにある屋内の市場で、飲食店と物販合わせて六十以上が並びます。店ごとに席を持たず、中央の共用テーブルで客が入り混じって食べるのが特徴です。カツオの藁焼きを実演する店があり、藁が燃え上がる瞬間が被写体になります。昼間から酒を飲む人が多く、その空気そのものが土地の性格を表します。営業の場なので撮影には配慮が要ります。",
+    "highlights": [
+      "藁焼きのカツオの炎",
+      "共用席で入り混じる客",
+      "六十以上の店が並ぶ屋内空間"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "初ガツオの季節。藁焼きの実演が増えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "戻りガツオの季節。人出も多くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響がありません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "昼から賑わいます。混雑のピークは避けたほうが撮りやすいです。"
+      },
+      {
+        "time": "night",
+        "text": "夜は人が密集し、屋内の灯りで暖色に寄ります。"
+      }
+    ],
+    "compositionTips": [
+      "藁焼きの炎は速いシャッターで立ち上がる瞬間を止めます",
+      "人が多いので、顔が特定できる撮り方は避けます",
+      "店や店員を撮るときは必ず断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://hirome.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e903146bd2c7",
@@ -28744,6 +29061,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6b80de99729b",
+    "slug": "kaiyodo",
+    "name": "海洋堂ホビー館四万十",
+    "nameEn": "Kaiyodo Hobby Museum Shimanto",
+    "reading": "かいようどうほびーかんしまんと",
+    "aliases": [
+      "打井川 ホビー館"
+    ],
+    "address": "高知県高岡郡四万十町打井川1458-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "四万十町"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 133.06
+    },
+    "category": "landmark",
+    "summary": "山奥の廃校跡に建つ模型の博物館。建物は巨大な船の形で、内部に数万点のフィギュアが並びます。",
+    "description": "模型メーカー海洋堂が、創業者ゆかりの地である四万十町の山中に建てた施設です。最寄り駅から十キロ以上ある山奥にあり、建物は木造の巨大な船を模した形をしています。内部には創業以来の模型、フィギュア、食玩が数万点並び、同じ棚に細かい造形が密集します。近くには海洋堂かっぱ館もあります。道は細く、到達するまでが長い施設です。",
+    "highlights": [
+      "船を模した木造の外観",
+      "数万点のフィギュアが並ぶ棚",
+      "山奥の廃校跡という立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の山が芽吹き、木造の建物と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "山が色づきます。道中の谷も見どころになります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、船の形の建物が森に埋もれて見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心。照明が一定なので時間帯の影響は小さいです。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、展示を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶフィギュアは望遠で圧縮して密度を出します",
+      "一点に寄って造形の細かさを見せる対比も入れます",
+      "外観は森ごと入れて山奥にあることを示します"
+    ],
+    "officialWebsiteUrl": "https://www.kaiyodohobbykan.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_9ce30c15cdd3",
     "slug": "kaiyukan",
     "name": "海遊館",
@@ -32311,6 +32691,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a13a899d7e20",
+    "slug": "katsura-sakamoto",
+    "name": "坂本龍馬記念館",
+    "nameEn": "Sakamoto Ryoma Memorial Museum",
+    "reading": "さかもとりょうまきねんかん",
+    "aliases": [
+      "浦戸 龍馬記念館"
+    ],
+    "address": "高知県高知市浦戸城山830",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.5,
+      "lng": 133.57
+    },
+    "category": "landmark",
+    "summary": "太平洋に突き出した崖の上に建つ館。赤い箱が海へ迫り出し、屋上から水平線を見渡せます。",
+    "description": "桂浜の東の丘に建つ記念館で、一九九一年に開館しました。建物は赤く塗られた直方体が海に向かって迫り出す形で、周囲の緑と海の青の中で強い色として立ちます。屋上は展望スペースになっており、太平洋の水平線が二百度近く開けます。館内には龍馬の手紙などの資料が並びます。桂浜から歩いて登れる距離にあります。",
+    "highlights": [
+      "海へ迫り出す赤い直方体",
+      "屋上から見る太平洋の水平線",
+      "崖の上という立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が最も青く、赤い建物との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、水平線までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "来館者が少なく、屋上を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので日の出が海から上がります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は建物の赤が暖色の光と重なります。"
+      }
+    ],
+    "compositionTips": [
+      "赤い建物と青い海を二色の対比として構成します",
+      "屋上からは水平線を低く置いて空を広く取ります",
+      "館内の展示は撮影可否を確認します"
+    ],
+    "officialWebsiteUrl": "https://ryoma-kinenkan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_c0a3419d6e85",
@@ -36233,6 +36676,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_34ad3ff824e9",
+    "slug": "kochi-castle",
+    "name": "高知城",
+    "nameEn": "Kochi Castle",
+    "reading": "こうちじょう",
+    "aliases": [
+      "鷹城",
+      "高知城 追手門"
+    ],
+    "address": "高知県高知市丸ノ内1-2-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.56,
+      "lng": 133.53
+    },
+    "category": "landmark",
+    "summary": "天守と本丸御殿が両方残る唯一の城。追手門と天守を一枚に収められる構図も、ここだけのものです。",
+    "description": "山内一豊が築いた城で、現存十二天守の一つです。天守だけでなく本丸の御殿がそろって残るのは全国でここだけで、天守から御殿へ直接歩いて入れます。追手門と天守が同時に画面に収まる位置があり、これも現存天守の城では珍しい構成です。石垣には雨の多い土地に合わせた石樋という排水装置が組み込まれています。市街の中心にあります。",
+    "highlights": [
+      "天守と本丸御殿が揃って現存",
+      "追手門と天守が一枚に入る構図",
+      "石垣に組まれた石樋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。追手門と天守と花を同時に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、白い天守との対比が強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して石垣と石樋が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、追手門と天守を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "天守はライトアップされ、暗い空に白壁が浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "追手門の下から天守を抜く構図がこの城の代表です",
+      "石樋は寄って排水の仕組みを記録します",
+      "御殿の内部は縁側から庭と天守を額縁に入れられます"
+    ],
+    "officialWebsiteUrl": "https://kochipark.jp/kochijyo/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_55aafc4eff86",
     "slug": "kochomon",
     "name": "越前海岸 呼鳥門",
@@ -38057,6 +38564,69 @@
       "紅葉は望遠で屋根の一部と組み合わせて色を絞ります"
     ],
     "officialWebsiteUrl": "https://www.city.shimonoseki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_07fa54be2787",
+    "slug": "kubokawa",
+    "name": "窪川 岩本寺",
+    "nameEn": "Iwamoto-ji Temple, Kubokawa",
+    "reading": "くぼかわ いわもとじ",
+    "aliases": [
+      "岩本寺 天井画"
+    ],
+    "address": "高知県高岡郡四万十町茂串町3-13",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "四万十町"
+    },
+    "coords": {
+      "lat": 33.21,
+      "lng": 133.14
+    },
+    "category": "temple",
+    "summary": "本堂の格天井に五百七十五枚の絵が並びます。仏画から花鳥、現代の絵まで作者も題材も揃いません。",
+    "description": "四国八十八箇所の三十七番札所です。最大の特徴は本堂の格天井で、一九七八年に全国から公募した絵五百七十五枚がはめ込まれています。仏画や花鳥に混ざって、人物や抽象画、現代的な題材まで並び、作者も題材も統一されていません。見上げると雑多な絵が碁盤目に敷き詰められた画面になります。市街地にあり、平坦で歩きやすい寺です。",
+    "highlights": [
+      "五百七十五枚の格天井画",
+      "題材が統一されていない構成",
+      "平坦で歩きやすい境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、堂の木肌と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、堂内に届く光が変わります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、天井を落ち着いて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、堂内を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は堂内に光が回り、天井画の色が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "真上を向いて碁盤目の反復を画面いっぱいに取ります",
+      "一部を望遠で抜いて題材の雑多さを見せます",
+      "堂内の撮影可否は必ず確認してから撮ります"
+    ],
+    "officialWebsiteUrl": "https://iwamotoji.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -40760,6 +41330,70 @@
       "広すぎて散らかりやすいので、木や柵を一つ手前に置いて画面を締めます"
     ],
     "officialWebsiteUrl": "https://www.makibakouen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_20e4c3b7b5be",
+    "slug": "makino",
+    "name": "牧野植物園",
+    "nameEn": "Makino Botanical Garden",
+    "reading": "まきのしょくぶつえん",
+    "aliases": [
+      "高知県立牧野植物園",
+      "牧野富太郎"
+    ],
+    "address": "高知県高知市五台山4200-6",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.55,
+      "lng": 133.58
+    },
+    "category": "nature",
+    "summary": "植物学者牧野富太郎を記念した植物園。内藤廣の設計で、木造の曲線屋根が園路を覆います。",
+    "description": "五台山の山上に約八ヘクタールの敷地を持ち、三千種類以上の植物を扱います。建物は内藤廣の設計で、回廊の屋根が木造の曲線を描き、地形に沿って上下します。屋根の下は半屋外の通路になっており、雨でも歩けます。温室はドーム型で、内部に滝と熱帯の植物が配されています。展示館では牧野富太郎の植物画が見られます。竹林寺と隣接しています。",
+    "highlights": [
+      "木造の曲線屋根が続く回廊",
+      "ドーム型温室の内部の滝",
+      "牧野富太郎の植物画"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、園内の花が最も多くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "温室の熱帯植物が茂ります。屋外は緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "園内が色づき、木造の屋根と赤が重なります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開園直後は来園者が少なく、回廊を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は回廊の屋根から漏れる光が床に落ちます。"
+      }
+    ],
+    "compositionTips": [
+      "回廊は曲線の屋根を消失点まで通します",
+      "温室は下から見上げてドームの構造を取ります",
+      "植物画の撮影可否は館内の表示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.makino.or.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -46215,6 +46849,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_ad55b5bcca4c",
+    "slug": "monobe",
+    "name": "物部 別府峡",
+    "nameEn": "Beppu Gorge, Monobe",
+    "reading": "ものべ べふきょう",
+    "aliases": [
+      "香美市 別府峡"
+    ],
+    "address": "高知県香美市物部町別府",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "香美市"
+    },
+    "coords": {
+      "lat": 33.75,
+      "lng": 133.86
+    },
+    "category": "nature",
+    "summary": "物部川の上流にある峡谷。十一月上旬に谷全体が色づき、吊橋から紅葉を見下ろせます。",
+    "description": "四国山地の奥、物部川の上流にある峡谷で、両岸が急斜面のまま川まで落ちています。紅葉が高知県内では早く、十一月上旬が見頃です。谷に架かる吊橋から下流方向を見ると、両岸の色づいた斜面が川に向かって収束する構図になります。遊歩道が谷沿いに続き、渓流沿いを歩けます。奥には別府峡温泉があります。道は狭く、冬は凍結します。",
+    "highlights": [
+      "吊橋から見下ろす紅葉の谷",
+      "両岸が川まで落ちる急斜面",
+      "谷沿いの遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月上旬が紅葉の見頃。この峡谷の本番です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と水量。人が少なく落ち着いて撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、水の色が最も出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、斜面の紅葉が層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷底まで光が入り、水と紅葉の色が同時に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "吊橋から川を中心に置いて両岸を左右対称に構えます",
+      "望遠で斜面を圧縮すると色の密度が上がります",
+      "吊橋は揺れるのでシャッター速度を確保します"
+    ],
+    "officialWebsiteUrl": "https://www.city.kami.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_581be4f21989",
     "slug": "morioka-ishiwarizakura",
     "name": "盛岡 石割桜",
@@ -47176,6 +47873,70 @@
       "高山植物は登山道から外れずに撮ります"
     ],
     "officialWebsiteUrl": "https://www.alpen-route.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_2131e86776d1",
+    "slug": "muroto-geo",
+    "name": "室戸ジオパーク 乱礁遊歩道",
+    "nameEn": "Muroto Geopark Ranshou Trail",
+    "reading": "むろとじおぱーく らんしょうゆうほどう",
+    "aliases": [
+      "室戸 乱礁",
+      "ビシャゴ岩"
+    ],
+    "address": "高知県室戸市室戸岬町",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "室戸市"
+    },
+    "coords": {
+      "lat": 33.25,
+      "lng": 134.18
+    },
+    "category": "nature",
+    "summary": "隆起した海底が岩場として海際に露出します。遊歩道が二.六キロ続き、地層の褶曲が間近で見られます。",
+    "description": "室戸岬は年に数ミリずつ隆起を続けており、かつての海底が陸上に露出しています。乱礁遊歩道は海際を約二.六キロ通り、タービダイトと呼ばれる砂と泥の互層や、力を受けて曲がった褶曲が手の届く距離で見られます。ビシャゴ岩などの奇岩が点在し、亜熱帯性の植物が岩の間に生えます。世界ジオパークに認定されています。",
+    "highlights": [
+      "手の届く距離の地層の褶曲",
+      "隆起した海底の岩場",
+      "岩の間に生える亜熱帯性の植物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、遊歩道を歩きやすい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、岩の灰色との対比が強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、岩に砕ける白波が主役になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので日の出が海から上がります。岩をシルエットにできます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は地層の縞に光が当たり、褶曲の線が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "褶曲は寄って層の曲がりを主題にします",
+      "人を入れて岩場のスケールを示します",
+      "波が来る位置には立たず、足元を優先します"
+    ],
+    "officialWebsiteUrl": "https://www.muroto-geo.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -48794,6 +49555,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5ce10e073985",
+    "slug": "nahari",
+    "name": "奈半利の町並み",
+    "nameEn": "Nahari Old Town",
+    "reading": "なはりのまちなみ",
+    "aliases": [
+      "奈半利 水切り瓦",
+      "いしぐろ"
+    ],
+    "address": "高知県安芸郡奈半利町乙",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "奈半利町"
+    },
+    "coords": {
+      "lat": 33.42,
+      "lng": 134.02
+    },
+    "category": "landmark",
+    "summary": "土佐漆喰の壁に水切り瓦が何段も張り出します。雨の多い土地に合わせた形が町並みに揃います。",
+    "description": "土佐材の集散地として栄えた町で、白い土佐漆喰の壁に水切り瓦という庇状の瓦が何段も水平に張り出す建物が並びます。雨の多い土地で壁を守るための工夫で、建物によって段数が違います。石を積んだいしぐろと呼ばれる塀も残ります。観光施設は少なく、生活の場としての町並みが続きます。国の重要文化的景観に選定されています。",
+    "highlights": [
+      "何段も張り出す水切り瓦",
+      "白い土佐漆喰の壁",
+      "石を積んだいしぐろの塀"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁と黒い瓦の対比がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が水切り瓦の段に影を作り、段数が読めます。"
+      },
+      {
+        "season": "summer",
+        "text": "雨の日は水切り瓦の役割が実際に見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、瓦の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "水切り瓦は側面から斜光で撮ると段の影が出ます",
+      "段数の違う建物を並べて一枚に入れます",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.nahari.kochi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7875ac5ba291",
@@ -72177,6 +73002,65 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_3100debd8649",
+    "slug": "sukumo",
+    "name": "宿毛 だるま夕日",
+    "nameEn": "Daruma Sunset, Sukumo",
+    "reading": "すくも だるまゆうひ",
+    "aliases": [
+      "宿毛湾 だるま夕日"
+    ],
+    "address": "高知県宿毛市 宿毛湾",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "宿毛市"
+    },
+    "coords": {
+      "lat": 32.94,
+      "lng": 132.71
+    },
+    "category": "nature",
+    "summary": "冬の宿毛湾で、沈む太陽が水面の像と繋がってだるまの形に見えます。発生は年に数十回です。",
+    "description": "海面近くの冷たい空気と海水の温度差によって光が屈折し、沈む太陽とその水面への映り込みが繋がって見える現象です。上下がくびれた形からだるま夕日と呼ばれます。宿毛湾では十一月から二月にかけて条件が揃いやすく、シーズン中に数十回観測されます。風が弱く、空気が澄み、海面との温度差が大きい日が条件です。海岸沿いの複数の地点から見られます。",
+    "highlights": [
+      "太陽と映り込みが繋がる形",
+      "十一月から二月に集中する発生",
+      "海岸沿いの複数の観測地点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十一月から二月がシーズン。気温が下がるほど確率が上がります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月から始まります。まだ発生は少なめです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "日没の直前数分が全てです。位置取りは早めに済ませます。"
+      },
+      {
+        "time": "night",
+        "text": "日没後も空の色が残る時間は海と空の階調が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で太陽を大きく引き寄せるとだるまの形が分かります",
+      "露出は太陽に合わせて周囲を沈めます",
+      "条件が揃わない日も多いので、複数日の余裕を見ます"
+    ],
+    "officialWebsiteUrl": "https://sukumo-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f333c3da83f7",
     "slug": "sumatakyo-yume-no-tsuribashi",
     "name": "寸又峡 夢の吊橋",
@@ -76232,6 +77116,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_fe09bacc8d1c",
+    "slug": "tatsukushi-kochi",
+    "name": "竜串海岸",
+    "nameEn": "Tatsukushi Coast",
+    "reading": "たつくしかいがん",
+    "aliases": [
+      "土佐清水 竜串",
+      "見残し海岸"
+    ],
+    "address": "高知県土佐清水市竜串",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "土佐清水市"
+    },
+    "coords": {
+      "lat": 32.78,
+      "lng": 132.86
+    },
+    "category": "nature",
+    "summary": "砂岩が波と風に削られ、蜂の巣状や大竹小竹と呼ばれる縞模様の奇岩が海際に並びます。",
+    "description": "約二千万年前の砂岩層が浸食されてできた海岸で、国の天然記念物です。岩の表面には蜂の巣状の穴が無数に開いた部分や、平行な縞が走る大竹小竹と呼ばれる部分があり、同じ岩でも場所によって模様が違います。遊歩道が岩場を通り、間近で見られます。対岸の見残し海岸は船でのみ行け、さらに奇岩が集中します。足摺海底館も近接します。",
+    "highlights": [
+      "蜂の巣状に穴が開いた岩",
+      "平行な縞が走る大竹小竹",
+      "船でのみ行ける見残し海岸"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、砂岩の白との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩の模様がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高くなります。岩場では足元に注意が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が岩の穴に影を作り、模様が立体的になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は順光で模様が平坦に見えるので、寄りに切り替えます。"
+      }
+    ],
+    "compositionTips": [
+      "蜂の巣状の穴は寄って反復の粒を主題にします",
+      "斜光のときに模様の影が最もよく出ます",
+      "岩は濡れると滑るので、波の来ない位置に立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.city.tosashimizu.kochi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7b86a35d9b03",
     "slug": "tatsuno",
     "name": "龍野の町並み",
@@ -79560,6 +80508,134 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ecdc76eb75f9",
+    "slug": "tosa-kuroshio",
+    "name": "土佐くろしお鉄道",
+    "nameEn": "Tosa Kuroshio Railway",
+    "reading": "とさくろしおてつどう",
+    "aliases": [
+      "ごめん・なはり線",
+      "夜須 海の駅"
+    ],
+    "address": "高知県香南市夜須町千切",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "香南市"
+    },
+    "coords": {
+      "lat": 33.52,
+      "lng": 133.75
+    },
+    "category": "landmark",
+    "summary": "土佐湾に沿って走る高架の路線。海に面したホームが複数あり、列車と海を一枚に収められます。",
+    "description": "後免から奈半利まで土佐湾沿いを走る路線で、ほぼ全区間が高架です。そのため車窓から海が遮られずに見え、駅のホームからも同様です。西分、夜須、安芸などの駅は海に近く、列車と海を同時に撮れます。各駅にはやなせたかしがデザインしたキャラクターが設置されています。本数は一時間に一本程度で、時刻表の確認が前提です。",
+    "highlights": [
+      "海に面した高架のホーム",
+      "土佐湾沿いを走る車窓",
+      "各駅のキャラクター"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海が穏やかで、光も明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "海が最も青く、列車の色との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、水平線までの視程が伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きの海なので朝日と列車を重ねられます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、列車がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "高架と海を一枚に入れて路線の性格を見せます",
+      "列車を小さくして海を主役にすると土地が伝わります",
+      "線路敷地には入らず、ホームや公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.tosakuro.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_023fe7c0a9f4",
+    "slug": "tosa-washi",
+    "name": "土佐和紙",
+    "nameEn": "Tosa Washi Paper",
+    "reading": "とさわし",
+    "aliases": [
+      "いの町 紙の博物館",
+      "仁淀川 和紙"
+    ],
+    "address": "高知県吾川郡いの町幸町110-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "いの町"
+    },
+    "coords": {
+      "lat": 33.55,
+      "lng": 133.43
+    },
+    "category": "landmark",
+    "summary": "仁淀川の水で漉く和紙の産地。厚さ〇.〇三ミリの土佐典具帖紙は世界最薄級とされます。",
+    "description": "いの町は仁淀川の清流を使った和紙の産地で、千年の歴史があるとされます。なかでも土佐典具帖紙は厚さ〇.〇三ミリと極めて薄く、かげろうの羽とも呼ばれ、文化財の修復に世界中で使われています。紙の博物館では工程の展示と紙漉き体験ができます。町内には工房が点在し、乾燥板に貼られた紙が並ぶ光景が見られます。",
+    "highlights": [
+      "厚さ〇.〇三ミリの土佐典具帖紙",
+      "乾燥板に並ぶ紙",
+      "仁淀川の水を使った漉きの工程"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "水が冷たい季節が紙漉きの本番とされます。"
+      },
+      {
+        "season": "spring",
+        "text": "工房の光が明るく、紙の白が素直に出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "仁淀川の水が澄み、原料を晒す風景も見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "工房は自然光が入る時間帯が向きます。作業時間の確認が前提です。"
+      },
+      {
+        "time": "morning",
+        "text": "博物館は開館直後が空いており、展示を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "薄い紙は透過光にかざして向こうが透ける様子を見せます",
+      "乾燥板の並びは望遠で圧縮して反復にします",
+      "職人の作業は必ず断ってから撮ります"
+    ],
+    "officialWebsiteUrl": "https://kamihaku.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_637d91eced2a",
@@ -86544,6 +87620,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_249f853bfc9f",
+    "slug": "yanase",
+    "name": "馬路村 魚梁瀬",
+    "nameEn": "Yanase, Umaji Village",
+    "reading": "うまじむら やなせ",
+    "aliases": [
+      "魚梁瀬千本山",
+      "魚梁瀬ダム"
+    ],
+    "address": "高知県安芸郡馬路村魚梁瀬",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "馬路村"
+    },
+    "coords": {
+      "lat": 33.53,
+      "lng": 134.06
+    },
+    "category": "nature",
+    "summary": "魚梁瀬杉の産地。千本山には樹齢二百年を超える杉が林立し、幹回り五メートル級の木もあります。",
+    "description": "日本三大美林の一つとされる魚梁瀬杉の産地で、千本山には天然の杉の巨木が残ります。樹齢二百年から三百年、幹回り五メートルを超える個体もあり、遊歩道から見上げられます。林業で栄えた歴史から、森林鉄道の遺構が村内に残り、一部で観光用の列車が走ります。魚梁瀬ダムの湖もあります。集落までの道は長く、時間に余裕が要ります。",
+    "highlights": [
+      "樹齢数百年の魚梁瀬杉の巨木",
+      "森林鉄道の遺構",
+      "魚梁瀬ダムの湖"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が杉の間に入り、林床が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "杉が濃く、林内が暗く沈みます。木漏れ日が筋になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "広葉樹が色づき、常緑の杉との対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、杉の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が林床に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "杉は下から見上げて樹高を取ります",
+      "人を入れて幹回り五メートルの太さを示します",
+      "森林鉄道の遺構は周囲の森と一緒に入れて立地を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.vill.umaji.kochi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b489e3b09780",
     "slug": "yasaka-koshindo",
     "name": "八坂庚申堂",
@@ -87584,6 +88724,62 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_10a13cc98230",
+    "slug": "yosakoi",
+    "name": "よさこい祭り",
+    "nameEn": "Yosakoi Festival",
+    "reading": "よさこいまつり",
+    "aliases": [
+      "高知 よさこい",
+      "鳴子"
+    ],
+    "address": "高知県高知市 追手筋ほか市内各所",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "高知市"
+    },
+    "coords": {
+      "lat": 33.56,
+      "lng": 133.54
+    },
+    "category": "festival",
+    "summary": "八月に二万人が市内十六か所で踊ります。鳴子を持つことと地方車を伴うことだけが決まりです。",
+    "description": "一九五四年に始まった祭りで、毎年八月九日から十二日に行われます。参加は約二百チーム、一万八千人を超えます。決まりは鳴子を手に持つことと、よさこい節のフレーズを曲に入れること、音響を積んだ地方車を伴うことだけで、衣装も音楽も自由です。そのためチームごとに全く違う見え方になります。追手筋の本部競演場が中心ですが、市内十六か所で同時に踊られます。",
+    "highlights": [
+      "チームごとに全く違う衣装と音楽",
+      "手に持つ鳴子の音",
+      "装飾された地方車"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月九日から十二日。前夜祭と後夜祭を含めた四日間です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "日中は衣装の色が最も出ます。日差しは強く、露出の振れに注意します。"
+      },
+      {
+        "time": "night",
+        "text": "夜は地方車の照明が主光源。高感度で被写体ブレを抑えます。"
+      }
+    ],
+    "compositionTips": [
+      "鳴子は速いシャッターで手の動きを止めます",
+      "隊列は望遠で圧縮すると人数の多さが出ます",
+      "沿道の所定の位置から撮り、進行を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.cciweb.or.jp/kochi/yosakoiweb/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d98c61a3bf75",
@@ -88909,6 +90105,70 @@
       "畑は私有地なので立ち入らず、道路から撮ります"
     ],
     "officialWebsiteUrl": "https://www.uwajima.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_e31bb6e957f0",
+    "slug": "yusuhara-kumo",
+    "name": "梼原 雲の上の図書館",
+    "nameEn": "Yusuhara Cloud Library",
+    "reading": "ゆすはら くものうえのとしょかん",
+    "aliases": [
+      "梼原 隈研吾建築群",
+      "雲の上のホテル"
+    ],
+    "address": "高知県高岡郡梼原町梼原1212-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "高知県",
+      "city": "梼原町"
+    },
+    "coords": {
+      "lat": 33.39,
+      "lng": 132.93
+    },
+    "category": "landmark",
+    "summary": "杉材を天井から斜めに突き出した図書館。人口三千人の町に隈研吾の建築が六棟集まります。",
+    "description": "四国山地の標高約四百八十メートルにある町で、隈研吾が設計した建物が六棟集まります。図書館は地元の杉材を斜めに組んで天井から突き出させた構造で、内部は木の棒が幾重にも重なります。他に茅葺きを外壁に使ったマルシェ、木の格子で覆われた役場などがあります。人口三千人ほどの町に現代建築が集中する構成が特徴です。",
+    "highlights": [
+      "天井から突き出す杉材の重なり",
+      "町に集まる六棟の建築",
+      "茅葺きを外壁に使ったマルシェ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の山が芽吹き、木造の建物と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "山が色づき、木の建物との色が近づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があり、木と白の対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "図書館は自然光が入る時間帯に木材の重なりが読めます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は利用者が少なく、内部を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "図書館は真上を見上げて木材の斜めの重なりを取ります",
+      "六棟を歩いて回り、素材の使い方の違いを並べます",
+      "利用者がいる施設なので、人が写らない画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://kumonoue-lib.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
