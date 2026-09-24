@@ -4,7 +4,8 @@ import React, { useMemo, useState } from "react";
 import type { Photo, Locale } from "@/lib/data/photos";
 import GalleryGrid from "./GalleryGrid";
 import { GRID_SIZES_5XL } from "./gridSizes";
-import { visibleColorBuckets } from "../../lib/color/buckets";
+import { visibleColorBuckets, photoColorBucket } from "../../lib/color/buckets";
+import { useBlurColors } from "../../lib/color/useBlurColors";
 
 /**
  * Color Journey — 写真の**色**でさがす。
@@ -66,8 +67,22 @@ const STYLE = {
 export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpenPhoto }: Props) {
     const [selected, setSelected] = useState<string | null>(null);
 
-    // 色の仕分けは写真が変わったときだけ
-    const buckets = useMemo(() => visibleColorBuckets(photos), [photos]);
+    /**
+     * 🔴 **色はぼかし画像から決め直す。**
+     *
+     * `dominantColor`（sharp の「いちばん多い1ビン」）は、写真ではたいてい
+     * **影の色**になる。本番39枚で数えたら **21枚（54%）で中身と食い違い**、
+     * 「黒」と出ている16枚のうち**無彩色しか無いのは1枚だけ**だった
+     * （`maintenance` の `photo-colors`・2026-09-24）。
+     *
+     * **決まるまでは `dominantColor` のまま出す**（`useBlurColors` は空の Map を
+     * 返し、`photoColorBucket` に落ちる）。ぼかしを持たない写真も同じ。
+     */
+    const blurColors = useBlurColors(photos);
+    const buckets = useMemo(
+        () => visibleColorBuckets(photos, (p) => blurColors.get(p.id) ?? photoColorBucket(p)),
+        [photos, blurColors],
+    );
 
     /**
      * **選んだ色が消えたら、選択そのものを捨てる。**

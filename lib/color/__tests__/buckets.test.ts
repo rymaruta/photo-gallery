@@ -262,3 +262,43 @@ describe("本番39枚（実測値）での発火数", () => {
         expect(MIN_PHOTOS_PER_COLOR).toBe(2);
     });
 });
+
+/**
+ * **色の決め方を差し替える口（`bucketOf`）。**
+ *
+ * 画面は `useBlurColors` が決めたぶんだけ差し替えて渡す——`dominantColor` は
+ * 「いちばん多い1ビン＝たいてい影」で、本番39枚のうち**21枚で中身と
+ * 食い違っていた**（実測 2026-09-24）。差し替えが本当に効くこと、
+ * **渡さなければ今までどおり**であることの両方を縛る。
+ */
+describe("色の決め方の差し替え", () => {
+    // `dominantColor` は黒、差し替えでは橙——**どちらが使われたかが結果で分かる**
+    const SHADOWY = [
+        { id: "a", dominantColor: "#080808" },
+        { id: "b", dominantColor: "#181818" },
+    ];
+    const asOrange = () => "orange";
+
+    it("渡さなければ `dominantColor`（今までどおり）", () => {
+        expect(groupPhotosByColor(SHADOWY).get("black")).toHaveLength(2);
+        expect(visibleColorBuckets(SHADOWY).map((x) => x.bucket.id)).toEqual(["black"]);
+    });
+    it("渡せばそちらで仕分ける", () => {
+        expect(groupPhotosByColor(SHADOWY, asOrange).get("orange")).toHaveLength(2);
+        expect(groupPhotosByColor(SHADOWY, asOrange).has("black")).toBe(false);
+    });
+    it("`visibleColorBuckets` も同じ口を下へ渡す", () => {
+        const out = visibleColorBuckets(SHADOWY, asOrange);
+        expect(out.map((x) => x.bucket.id)).toEqual(["orange"]);
+        expect(out[0].photos.map((p) => p.id)).toEqual(["a", "b"]);
+    });
+    it("差し替えが `null` を返した写真は、今までどおり落ちる", () => {
+        const only = (p: { id: string }) => (p.id === "a" ? "orange" : null);
+        expect(groupPhotosByColor(SHADOWY, only).get("orange")).toHaveLength(1);
+        expect(groupPhotosByColor(SHADOWY, only).size).toBe(1);
+    });
+    it("最小枚数の線は差し替えても同じ（1枚のチップは出ない）", () => {
+        const one = (p: { id: string }) => (p.id === "a" ? "orange" : "blue");
+        expect(visibleColorBuckets(SHADOWY, one)).toHaveLength(0);
+    });
+});
