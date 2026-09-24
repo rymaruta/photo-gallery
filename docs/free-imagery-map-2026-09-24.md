@@ -45,14 +45,16 @@ Map photo post coordinates remain subject to existing public/approximately-round
 
 The existing GSI MODIS layer remains a *low-resolution world overview*, not a
 worldwide close-up satellite map. `OFFICIAL_COUNTRY_IMAGERY` in
-`app/map/loadVectorBasemap.ts` now registers six geographic extents spanning
-three additional countries, in addition to Japan:
+`app/map/loadVectorBasemap.ts` now registers eight geographic extents spanning
+five additional countries, in addition to Japan:
 
 | Country/area | Government source | Keyless endpoint / technical notes | Implementation status |
 |---|---|---|---|
 | United States: contiguous US, Alaska, Hawaii | USGS The National Map, Imagery Only; mostly USDA NAIP imagery in the contiguous US | ArcGIS cached image tiles in `/{z}/{y}/{x}` order, requested at z9–16. USGS says its own National Map map-service data are free/public domain, but Alaska imagery can contain third-party restrictions. | Source configured; region imagery/browser checks pending |
 | Metropolitan France (including Corsica in bounding box) | IGN Géoplateforme, `ORTHOIMAGERY.ORTHOPHOTOS` | Public WMTS `data.geopf.fr/wmts`, PM Web Mercator matrix, z9–19 requested; check the actual layer matrix limits, format, CORS and terms before release. French overseas territories not included. | Source configured; tile response and license/service checks pending |
 | Spain mainland + Balearic Islands and Canary Islands | Spain IGN/CNIG PNOA `OI.OrthoimageCoverage` | Public WMTS, `GoogleMapsCompatible` matrix, z9–19 requested. CNIG PNOA licensing requires origin/property attribution and is described as CC-BY-4.0-compatible; inspect service terms for application use. | Source configured; tile response and license/service checks pending |
+| Switzerland | Federal Office of Topography swisstopo SWISSIMAGE | Keyless 3857 WMTS orthophoto z9–19 requested. Its geoservices are free without signup within a documented fair-use request limit; exceeding that limit may require a paid contract, which this project must not enter. | Source configured; actual tiles/fair-use sizing pending |
+| Netherlands | Dutch government PDOK / Beeldmateriaal `Actueel_ortho25` | Open aerial imagery WMTS with 3857 tiles, z9–19 requested, source attribution required. | Source configured; actual tile response/terms pending |
 
 Official references (not inferred rights for third-party content):
 
@@ -62,10 +64,14 @@ Official references (not inferred rights for third-party content):
 - France imagery catalogue: https://cartes.gouv.fr/
 - Spain PNOA official service: https://pnoa.ign.es/pnoa-lidar/visualizadores-y-servicios-web
 - Spain CNIG PNOA license example: https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=11547781
+- swisstopo open data and fair-use request limits: https://www.swisstopo.admin.ch/en/faq-free-geodata
+- swisstopo WMTS technical documentation: https://docs.geo.admin.ch/visualize-data/wmts.html
+- Dutch PDOK open aerial photo service: https://www.pdok.nl/ogc-webservices/-/article/pdok-luchtfoto-rgb-open-
+- Dutch PDOK raw WMTS tile URL reference: https://github.com/geo-frontend/nlmaps
 
 **Coverage is not national-border-accurate yet.** MapLibre raster-source `bounds`
 are rectangular request limits, not country masks. Near borders (notably
-France/Spain, Spain/Portugal, US/Canada/Mexico), providers may return blank
+France/Spain, France/Switzerland, Netherlands/Belgium, Spain/Portugal, US/Canada/Mexico), providers may return blank
 tiles or mixed/low-resolution imagery. Check that those tiles do not cover
 neighboring imagery incorrectly; if needed, use country-clipped raster
 tiles or an audited per-region masking strategy before production.
@@ -83,7 +89,7 @@ remains instead of fake detail or paid API usage.
 Run `npx vitest run app/map/__tests__/freeImagery.test.ts` and
 `node scripts/capture-free-imagery-local.mjs` in an internet-connected
 development environment with dependencies installed. The latter creates
-**temporary** proof pages for Japan, world overview, US, France and Spain,
+**temporary** proof pages for Japan, world overview, US, France, Spain, Switzerland and the Netherlands,
 checks for a real HTTP 200 image response from each corresponding provider,
 and only then saves mobile/desktop screenshots. Static tests do not prove
 tile access. This environment could not fetch the remote tiles or run the
