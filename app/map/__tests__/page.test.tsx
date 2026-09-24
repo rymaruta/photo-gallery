@@ -497,6 +497,15 @@ describe("公式撮影地ガイドのピン", () => {
         expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
     });
 
+    it("スマホのリスト表示でも公式ガイドが消えない", () => {
+        photosState.current = [];
+        ledger.pins = [PIN];
+        render(<MapPage />);
+        fireEvent.click(screen.getByRole("button", { name: /リスト/ }));
+        expect(screen.getByTestId("map-spot-list")).toBeInTheDocument();
+        expect(screen.getByTestId("map-spot-list").textContent).toContain("高屋神社");
+    });
+
     it("このエリアを検索すると公式スポット一覧も同じ範囲で絞られる", () => {
         photosState.current = [P("a")];
         ledger.pins = [PIN, { ...PIN, slug: "far-away", name: "離れた場所", lat: 45, lng: 140 }];
