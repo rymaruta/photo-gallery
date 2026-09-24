@@ -45,8 +45,8 @@ Map photo post coordinates remain subject to existing public/approximately-round
 
 The existing GSI MODIS layer remains a *low-resolution world overview*, not a
 worldwide close-up satellite map. `OFFICIAL_COUNTRY_IMAGERY` in
-`app/map/loadVectorBasemap.ts` now registers eight geographic extents spanning
-five additional countries, in addition to Japan:
+`app/map/loadVectorBasemap.ts` now registers twelve geographic extents spanning
+nine additional countries, in addition to Japan (Belgium: Flanders only):
 
 | Country/area | Government source | Keyless endpoint / technical notes | Implementation status |
 |---|---|---|---|
@@ -55,6 +55,10 @@ five additional countries, in addition to Japan:
 | Spain mainland + Balearic Islands and Canary Islands | Spain IGN/CNIG PNOA `OI.OrthoimageCoverage` | Public WMTS, `GoogleMapsCompatible` matrix, z9–19 requested. CNIG PNOA licensing requires origin/property attribution and is described as CC-BY-4.0-compatible; inspect service terms for application use. | Source configured; tile response and license/service checks pending |
 | Switzerland | Federal Office of Topography swisstopo SWISSIMAGE | Keyless 3857 WMTS orthophoto z9–19 requested. Its geoservices are free without signup within a documented fair-use request limit; exceeding that limit may require a paid contract, which this project must not enter. | Source configured; actual tiles/fair-use sizing pending |
 | Netherlands | Dutch government PDOK / Beeldmateriaal `Actueel_ortho25` | Open aerial imagery WMTS with 3857 tiles, z9–19 requested, source attribution required. | Source configured; actual tile response/terms pending |
+| Austria | Austrian provinces and Vienna basemap.at Orthofoto | Public, keyless Google3857 WMTS REST cache with z/y/x order; z9–19 requested; basemap.at requires linked source credit and permits commercial use under CC BY 4.0. | Source configured; live browser proof pending |
+| Czechia | ČÚZK Ortofoto ČR | Web Mercator ArcGIS cached tiles (z/y/x); z9–20 requested. Source dataset is provided as open data under CC BY 4.0; check individual service terms and attribution in released app. | Source configured; live browser proof pending |
+| Belgium (Flanders and imagery-covered parts of Brussels only) | Digitaal Vlaanderen `omwrgbmrvl` winter orthophoto | Free public WMTS with `GoogleMapsVL` matrix and PNG tiles; requested z9–19. **Not a claim of coverage of the Walloon region or all of Brussels.** | Source configured; live browser proof pending |
+| Poland | GUGiK Geoportal `ORTOFOTOMAPA` | Public national orthophoto `StandardResolution` WMTS using EPSG:3857 and JPEG; z9–19 requested. National dataset is described as free to download and use; confirm separate live tile access and web-service terms. | Source configured; live browser proof pending |
 
 Official references (not inferred rights for third-party content):
 
@@ -68,10 +72,18 @@ Official references (not inferred rights for third-party content):
 - swisstopo WMTS technical documentation: https://docs.geo.admin.ch/visualize-data/wmts.html
 - Dutch PDOK open aerial photo service: https://www.pdok.nl/ogc-webservices/-/article/pdok-luchtfoto-rgb-open-
 - Dutch PDOK raw WMTS tile URL reference: https://github.com/geo-frontend/nlmaps
+- basemap.at Austrian Orthofoto and terms: https://basemap.at/en/orthofoto/ and https://basemap.at/
+- basemap.at official migrated WMTS domain: https://cdn.basemap.at/basemap.at%20und%20ViennaGIS%20WMTS_URL_Umstellung_2023.pdf
+- ČÚZK Web Mercator tiled ArcGIS service: https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer
+- ČÚZK open orthophoto rights: https://www.cuzk.gov.cz/Uvod/Produkty-a-sluzby/Otevrena-data/Otevrena-data-zakladni-informace.aspx
+- Digitaal Vlaanderen current orthophoto service catalogue: https://www.vlaanderen.be/datavindplaats/catalogus/wmts-orthofotomozaiek-middenschalig-winteropnamen
+- Digitaal Vlaanderen WMTS tile matrix example: https://www.vlaanderen.be/digitaal-vlaanderen/nieuws-0/lambert-2008-projectie-beschikbaar-voor-tegeldiensten-wmts
+- Polish government WMTS Orthophotomap documentation: https://www.geoportal.gov.pl/en/data/orthophotomap-orto/
+- Polish WMTS `StandardResolution` service: https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS%26REQUEST=GetCapabilities
 
 **Coverage is not national-border-accurate yet.** MapLibre raster-source `bounds`
 are rectangular request limits, not country masks. Near borders (notably
-France/Spain, France/Switzerland, Netherlands/Belgium, Spain/Portugal, US/Canada/Mexico), providers may return blank
+France/Spain, France/Switzerland, Austria/Switzerland, Czechia/Poland, Netherlands/Belgium, Belgium/France, Spain/Portugal, US/Canada/Mexico), providers may return blank
 tiles or mixed/low-resolution imagery. Check that those tiles do not cover
 neighboring imagery incorrectly; if needed, use country-clipped raster
 tiles or an audited per-region masking strategy before production.
@@ -89,12 +101,10 @@ remains instead of fake detail or paid API usage.
 Run `npx vitest run app/map/__tests__/freeImagery.test.ts` and
 `node scripts/capture-free-imagery-local.mjs` in an internet-connected
 development environment with dependencies installed. The latter creates
-**temporary** proof pages for Japan, world overview, US, France, Spain, Switzerland and the Netherlands,
+**temporary** proof pages for Japan, world overview, US, France, Spain, Switzerland, the Netherlands, Austria, Czechia, Flanders and Poland,
 checks for a real HTTP 200 image response from each corresponding provider,
 and only then saves mobile/desktop screenshots. Static tests do not prove
-tile access. This environment could not fetch the remote tiles or run the
-application, and the previously blocked GitHub Actions runner remains an
-independent obstacle; **do not mark country screenshots as verified yet.**
+tile access. The screenshot CI for the original five-country expansion was later confirmed successful on GitHub, but the four newly added country/region checks must be validated on the corresponding updated-branch run. A successful HTTP 200 image response is still not a full visual/rights/availability audit. **Do not mark the new regions fully verified before reviewing the new screenshots and service terms.**
 
 No PR merge, production deploy, account signup, card registration, paid API
 or paid runner was performed.
