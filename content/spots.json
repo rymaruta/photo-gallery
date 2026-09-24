@@ -3129,6 +3129,65 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_274d3b583ebb",
+    "slug": "aquas",
+    "name": "しまね海洋館アクアス",
+    "nameEn": "Aquas Aquarium",
+    "reading": "しまねかいようかんあくあす",
+    "aliases": [
+      "アクアス シロイルカ"
+    ],
+    "address": "島根県浜田市久代町1117-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "浜田市"
+    },
+    "coords": {
+      "lat": 34.94,
+      "lng": 132.17
+    },
+    "category": "landmark",
+    "summary": "シロイルカが口から吐く輪状の泡で知られる水族館。日本海に面し、中国四国地方では最大級の規模です。",
+    "description": "日本海に面した水族館で、シロイルカの飼育で知られます。口から吐き出す輪状の泡を見せる行動が有名になり、広告にも使われました。パフォーマンスの時間が決まっており、その時間に合わせて訪れる必要があります。他に大型のシロワニやペンギンの展示があります。館の裏手は日本海に面しており、外に出れば海岸も撮れます。",
+    "highlights": [
+      "シロイルカの輪状の泡",
+      "中国四国最大級の規模",
+      "日本海に面した立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。日本海が荒れる季節の行き先になります。"
+      },
+      {
+        "season": "summer",
+        "text": "来館者が多く、水槽前の位置取りに時間がかかります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "パフォーマンスの時間が決まっています。先に確認して合わせます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、水槽前を取りやすい時間です。"
+      }
+    ],
+    "compositionTips": [
+      "泡は一瞬なので連写して形の整った一枚を選びます",
+      "レンズをガラスに近づけて反射を消します",
+      "ストロボは禁止。高感度で絞りを開けて撮ります"
+    ],
+    "officialWebsiteUrl": "https://aquas.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1bd7d8c25134",
     "slug": "arafune-fuketsu",
     "name": "荒船風穴",
@@ -8304,6 +8363,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_9aabd3d99834",
+    "slug": "dandan",
+    "name": "壇鏡の滝",
+    "nameEn": "Dangyo Falls",
+    "reading": "だんぎょうのたき",
+    "aliases": [
+      "壇鏡神社",
+      "隠岐 裏見の滝"
+    ],
+    "address": "島根県隠岐郡隠岐の島町那久",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "隠岐の島町"
+    },
+    "coords": {
+      "lat": 36.19,
+      "lng": 133.15
+    },
+    "category": "nature",
+    "summary": "壇鏡神社の社殿の背後に雄滝と雌滝が落ちます。雄滝は裏側に回り込め、水の幕を内側から見られます。",
+    "description": "隠岐島後の山中にある滝で、二筋の滝に挟まれる形で壇鏡神社の社殿が建ちます。雄滝は落差約四十メートルで、岩がえぐれているため裏側に回り込めます。裏から見ると水の幕を通して外の光が見える構図になります。滝の水は名水百選に選ばれています。参道は杉の巨木に挟まれ、社殿まで石段が続きます。冬は凍ることがあります。",
+    "highlights": [
+      "裏側に回り込める雄滝",
+      "二筋の滝に挟まれた社殿",
+      "杉の巨木が並ぶ参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "水量が多く、新緑も入ります。滝が最も見応えのある時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、滝の周囲だけ気温が下がります。"
+      },
+      {
+        "season": "winter",
+        "text": "滝が凍ることがあります。道路状況の確認が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、滝を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "裏側からは外の光が水の幕を透かす時間が向きます。"
+      }
+    ],
+    "compositionTips": [
+      "裏から撮ると水の幕と外光の対比が作れます",
+      "社殿と滝を一枚に入れて位置関係を見せます",
+      "水しぶきでレンズが濡れるので拭くものを携行します"
+    ],
+    "officialWebsiteUrl": "https://oki-geopark.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2bf6955cde65",
     "slug": "danjo-garan",
     "name": "壇上伽藍",
@@ -10153,6 +10276,69 @@
       "池は偏光フィルターで反射を残すか消すかを選び、意図を決めてから撮ります"
     ],
     "officialWebsiteUrl": "https://erinji.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_95825034d44c",
+    "slug": "eshima-ohashi",
+    "name": "江島大橋",
+    "nameEn": "Eshima Ohashi Bridge",
+    "reading": "えしまおおはし",
+    "aliases": [
+      "ベタ踏み坂"
+    ],
+    "address": "島根県松江市八束町江島",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.53,
+      "lng": 133.22
+    },
+    "category": "landmark",
+    "summary": "中海を渡る全長一.四キロのコンクリート橋。望遠で見ると勾配が壁のように立って見えます。",
+    "description": "島根県松江市の江島と鳥取県境港市を結ぶ橋で、下を大型船が通るため桁下が高く取られています。島根側の勾配は約六.一パーセントで、実際に走ると急坂という程ではありませんが、遠方から望遠レンズで圧縮すると勾配が誇張され、壁のように立って見えます。この見え方が広く知られるきっかけになりました。撮影は島根側の離れた位置から行います。",
+    "highlights": [
+      "望遠で壁のように見える勾配",
+      "全長一.四キロのコンクリート橋",
+      "中海を渡る立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、遠方からの望遠でも像が安定します。"
+      },
+      {
+        "season": "autumn",
+        "text": "陽炎が少なく、望遠圧縮の画質が最も出る季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "陽炎で像が揺れやすく、望遠での撮影には不利です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は橋がシルエットになり、勾配の輪郭が際立ちます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は陽炎が少なく、望遠の像が安定します。"
+      }
+    ],
+    "compositionTips": [
+      "圧縮効果が全てなので、焦点距離二百ミリ以上で離れた位置から狙います",
+      "車を入れると勾配のスケールが伝わります",
+      "路上に停車せず、撮影用の駐車可能な場所から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.kankou-matsue.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -18581,6 +18767,133 @@
       "川を入れると桜並木が堤にあることが伝わります"
     ],
     "officialWebsiteUrl": "https://kakunodate-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_7a373f71aa80",
+    "slug": "hinomisaki",
+    "name": "日御碕灯台",
+    "nameEn": "Hinomisaki Lighthouse",
+    "reading": "ひのみさきとうだい",
+    "aliases": [
+      "出雲日御碕灯台"
+    ],
+    "address": "島根県出雲市大社町日御碕1478",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "出雲市"
+    },
+    "coords": {
+      "lat": 35.43,
+      "lng": 132.63
+    },
+    "category": "landmark",
+    "summary": "石造りの灯台としては日本一高い四十三.六メートル。内壁と外壁の二重構造で、参観して上まで登れます。",
+    "description": "一九〇三年に点灯した石造灯台で、高さ四十三.六メートルは石造では日本一です。外壁は地元産の石、内壁は煉瓦という二重構造で、その間を螺旋階段が上がります。上からは日本海と出雲の海岸線が見渡せます。周囲は柱状節理の岩場で、遊歩道が海岸に沿って通っています。西向きのため夕日が正面に落ち、灯台がシルエットになります。",
+    "highlights": [
+      "石造では日本一高い灯台",
+      "二重構造の内部と螺旋階段",
+      "周囲の柱状節理の岩場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、白い灯台との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "日本海が荒れ、岩場に白波が砕けます。風が強い季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。灯台をシルエットにできます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は順光で白い壁が素直に写り、人も少ない時間です。"
+      }
+    ],
+    "compositionTips": [
+      "下から煽って空を広く取ると高さが出ます",
+      "岩場を前景に入れて地形と一緒に見せます",
+      "白壁は露出オーバーになりやすいのでマイナス補正を基本にします"
+    ],
+    "officialWebsiteUrl": "https://www.izumo-kankou.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_6187e4a32b75",
+    "slug": "hinomisaki-jinja",
+    "name": "日御碕神社",
+    "nameEn": "Hinomisaki Shrine",
+    "reading": "ひのみさきじんじゃ",
+    "aliases": [
+      "日沈宮",
+      "神の宮"
+    ],
+    "address": "島根県出雲市大社町日御碕455",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "出雲市"
+    },
+    "coords": {
+      "lat": 35.43,
+      "lng": 132.63
+    },
+    "category": "shrine",
+    "summary": "朱塗りの社殿が段差をつけて二社並ぶ権現造。海際にありながら、鮮やかな色彩が周囲の緑と対になります。",
+    "description": "下の宮の日沈宮と上の宮の神の宮からなり、高低差をつけて配置されています。現在の社殿は徳川家光の命で一六三四年から造られたもので、朱塗りに極彩色の装飾が施された権現造です。重要文化財に指定されています。伊勢神宮が日の出を祀るのに対し、こちらは日の入りを祀るとされます。海岸から近く、日御碕灯台と合わせて回れます。",
+    "highlights": [
+      "段差をつけて配置された二社",
+      "朱塗りと極彩色の権現造",
+      "日の入りを祀る社の由緒"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の緑が芽吹き、朱との対比が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、朱がいっそう際立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、社殿を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、楼門から社殿を正面に入れられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は朱に光が回り、装飾の色が最も出ます。"
+      }
+    ],
+    "compositionTips": [
+      "楼門を額縁にして奥の社殿を置きます",
+      "高低差が分かる角度から二社を一枚に入れます",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.izumo-kankou.gr.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -28229,6 +28542,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_96e24a249a10",
+    "slug": "kamosu",
+    "name": "神魂神社",
+    "nameEn": "Kamosu Shrine",
+    "reading": "かもすじんじゃ",
+    "aliases": [
+      "大庭の大宮"
+    ],
+    "address": "島根県松江市大庭町563",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.43,
+      "lng": 133.08
+    },
+    "category": "shrine",
+    "summary": "現存最古の大社造の本殿。一三四六年の建立で国宝、装飾のない簡素な構造がそのまま残ります。",
+    "description": "出雲地方に多い大社造の建物のうち、現存する最古のもので国宝に指定されています。一三四六年の建立とされ、出雲大社の本殿より小ぶりですが、様式はより古い形を保ちます。屋根は檜皮葺で妻入り、正面に階段が付き、内部は心御柱を中心に区画されています。境内は木立に囲まれ、自然石を積んだ急な石段が参道になっています。",
+    "highlights": [
+      "現存最古の大社造本殿",
+      "自然石を積んだ急な石段",
+      "装飾のない簡素な構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が境内に入り、檜皮の茶色と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木が色づきます。光も斜めで構造が読みやすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、本殿を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段と本殿を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は檜皮葺に光が回り、屋根の重なりが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "本殿は妻側から撮って大社造の構造を見せます",
+      "石段は下から撮って自然石の不揃いさを出します",
+      "簡素な建物なので、余計な要素を画面から外します"
+    ],
+    "officialWebsiteUrl": "https://www.kankou-matsue.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f75efac3dc28",
     "slug": "kamui-misaki",
     "name": "神威岬",
@@ -31817,6 +32193,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bfa1443474f8",
+    "slug": "kiganji",
+    "name": "清水寺 安来",
+    "nameEn": "Kiyomizu-dera, Yasugi",
+    "reading": "きよみずでら やすぎ",
+    "aliases": [
+      "瑞光山 清水寺",
+      "安来 三重塔"
+    ],
+    "address": "島根県安来市清水町528",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "安来市"
+    },
+    "coords": {
+      "lat": 35.39,
+      "lng": 133.25
+    },
+    "category": "temple",
+    "summary": "山中に伽藍が散在する古刹。島根県唯一の木造三重塔が立ち、内部の階段で最上階まで登れます。",
+    "description": "五八七年の開創と伝わる寺で、山の斜面に根本堂や三重塔などが点在します。根本堂は一三九三年の建立で重要文化財。三重塔は一八五九年の建立で高さ三十三メートル、島根県で唯一の木造三重塔です。内部に階段があり、最上階まで登れる三重塔は全国でも数少ない例です。参道は杉並木で、紅葉期は境内全体が色づきます。",
+    "highlights": [
+      "登れる木造三重塔",
+      "重要文化財の根本堂",
+      "杉並木の参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が参道に入り、塔の木肌と合います。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。境内全体が色づく本番の季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の三重塔。屋根の重なりに雪が乗って線が白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、塔を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は塔に光が回り、三層の重なりが読めます。"
+      }
+    ],
+    "compositionTips": [
+      "三重塔は下から煽って三十三メートルの高さを出します",
+      "塔の最上階からは境内の伽藍の配置が見えます",
+      "紅葉は望遠で塔の一部と組み合わせて色を絞ります"
+    ],
+    "officialWebsiteUrl": "https://www.kiyomizudera.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d5efe3e3fd31",
@@ -38819,6 +39259,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_93f34de49b1e",
+    "slug": "matsue-horikawa",
+    "name": "松江 堀川めぐり",
+    "nameEn": "Matsue Horikawa Boat Tour",
+    "reading": "まつえ ほりかわめぐり",
+    "aliases": [
+      "松江堀川 遊覧船"
+    ],
+    "address": "島根県松江市黒田町507-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.48,
+      "lng": 133.05
+    },
+    "category": "landmark",
+    "summary": "松江城を囲む堀を小舟で一周します。低い橋が十七ある区間では屋根を下げてくぐります。",
+    "description": "松江城の内堀と外堀を約五十分で一周する遊覧船です。航路には十七の橋があり、そのうち四つは船の屋根を下げないと通れない低さです。乗客も身をかがめます。水面からの視点では石垣が高く見え、武家屋敷の塀や堀端の柳が近い距離を通り過ぎます。冬はこたつ舟になります。堀は市街地の中を通るため、船から見る松江の裏側が撮れます。",
+    "highlights": [
+      "屋根を下げてくぐる低い橋",
+      "水面から見上げる石垣",
+      "堀端の武家屋敷と柳"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "堀端の桜。水面から見上げる角度になります。"
+      },
+      {
+        "season": "summer",
+        "text": "柳の緑が濃く、水面に影を落とします。"
+      },
+      {
+        "season": "winter",
+        "text": "こたつ舟の季節。雪の堀と石垣が撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は水面が静かで、映り込みも安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石垣が暖色に染まり、水面が光ります。"
+      }
+    ],
+    "compositionTips": [
+      "水面すれすれの視点を活かして石垣を見上げます",
+      "橋をくぐる瞬間は広角で天井の近さを見せます",
+      "船は動くのでシャッター速度を確保します"
+    ],
+    "officialWebsiteUrl": "https://www.matsue-horikawameguri.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7d49f02b856e",
     "slug": "matsumoto-castle",
     "name": "松本城",
@@ -40183,6 +40686,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d9d041b7cb2b",
+    "slug": "miho-jinja",
+    "name": "美保神社",
+    "nameEn": "Miho Shrine",
+    "reading": "みほじんじゃ",
+    "aliases": [
+      "美保関 青石畳通り"
+    ],
+    "address": "島根県松江市美保関町美保関608",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.56,
+      "lng": 133.32
+    },
+    "category": "shrine",
+    "summary": "大社造を二棟並べて中央で繋いだ美保造の本殿。港に面し、社の前から漁港の町並みが続きます。",
+    "description": "えびす神の総本社とされ、本殿は美保造または比翼大社造と呼ばれる形式です。大社造の建物を二棟並べ、中央を繋いだ構造で、他に例がありません。重要文化財に指定されています。社は美保関の港に面し、参道からそのまま漁港へ出られます。社の横から続く青石畳通りは、雨に濡れると石が青く変わる敷石の道です。朝夕に神事が行われます。",
+    "highlights": [
+      "二棟を繋いだ美保造の本殿",
+      "港に面した立地",
+      "雨に濡れると青くなる青石畳通り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月七日と八日の青柴垣神事。船を飾る行事が行われます。"
+      },
+      {
+        "season": "summer",
+        "text": "港の海が青く、社殿と町並みが明るく写ります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、境内と通りを静かに撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の巫女による神事の時間。参拝者も少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "青石畳通りは雨の日か、打ち水の後に石の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "本殿は正面から撮って二棟の構造を見せます",
+      "青石畳は雨の日に低い位置から石の色を主題にします",
+      "神事の撮影は社の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://mihojinja.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1138232ef728",
@@ -41611,6 +42177,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d1b11185d58e",
+    "slug": "mito-tamatsukuri",
+    "name": "玉造温泉",
+    "nameEn": "Tamatsukuri Onsen",
+    "reading": "たまつくりおんせん",
+    "aliases": [
+      "玉湯川 温泉街",
+      "玉作湯神社"
+    ],
+    "address": "島根県松江市玉湯町玉造",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 133.01
+    },
+    "category": "landmark",
+    "summary": "奈良期の文献に出る古い温泉地。玉湯川の両岸に宿が並び、川沿いの遊歩道に足湯と勾玉の意匠が続きます。",
+    "description": "出雲国風土記に記されている古い温泉で、周辺は古代から勾玉の産地でした。玉湯川の両岸に宿が並び、川沿いに遊歩道と足湯が整備されています。川の中に勾玉の形をした石や橋が置かれ、地名の由来が景観に反映されています。上流の玉作湯神社には願い石と呼ばれる丸い石があります。四月には川沿いの桜が咲きます。",
+    "highlights": [
+      "玉湯川の両岸に並ぶ宿",
+      "川沿いの遊歩道と足湯",
+      "玉作湯神社の願い石"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬、川沿いの桜。水面に花が映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "川床が涼しく、夜は灯りが水面に落ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と湯気。川沿いの宿が霧の中に沈む朝があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、川沿いの遊歩道を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は宿の灯りが川面に伸びます。長時間露光で水面を平らにできます。"
+      }
+    ],
+    "compositionTips": [
+      "川を画面の中心に置いて両岸の宿を左右に入れます",
+      "勾玉の意匠は寄って土地の由来を示します",
+      "入浴中の人が写らない角度を選びます"
+    ],
+    "officialWebsiteUrl": "https://tamayado.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_346f2f2ea85b",
@@ -49914,6 +50544,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_88037c7ae941",
+    "slug": "oda-sanbe",
+    "name": "三瓶山",
+    "nameEn": "Mt. Sanbe",
+    "reading": "さんべさん",
+    "aliases": [
+      "三瓶山 西の原",
+      "埋没林"
+    ],
+    "address": "島根県大田市三瓶町",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "大田市"
+    },
+    "coords": {
+      "lat": 35.14,
+      "lng": 132.62
+    },
+    "category": "mountain",
+    "summary": "六つの峰が輪になって並ぶ火山。西の原の草原から見ると、峰の連なりが横一列に広がります。",
+    "description": "男三瓶、女三瓶など六つの峰が環状に並ぶ火山で、中央に室の内という凹地があります。麓の西の原は広い草原で、そこから見上げると峰の連なりが横に広がります。草原には一本のクヌギが立ち、構図の要になります。近くの三瓶小豆原埋没林では、四千年前の噴火で埋まった巨木が立ったまま発掘され、地下で見学できます。",
+    "highlights": [
+      "環状に並ぶ六つの峰",
+      "西の原の草原と一本のクヌギ",
+      "立ったまま埋まった埋没林"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の山焼き後、草原が一斉に緑になります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の草原と積乱雲。草の起伏が光で立体的になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、空気も澄んで峰の輪郭が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で峰がよく見え、草に露が残ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が草原の起伏と一本のクヌギの影を伸ばします。"
+      }
+    ],
+    "compositionTips": [
+      "草原の起伏を前景に取って峰の連なりへ視線を運びます",
+      "一本のクヌギを主題にして山を背景に置きます",
+      "埋没林は地下で暗いので高感度が前提です"
+    ],
+    "officialWebsiteUrl": "https://www.sanbesan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0464e217f1bb",
     "slug": "odaigahara",
     "name": "大台ヶ原",
@@ -51252,6 +51946,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7c3c5dcee42d",
+    "slug": "oki-kuniga",
+    "name": "隠岐 国賀海岸",
+    "nameEn": "Kuniga Coast, Oki",
+    "reading": "おき くにがかいがん",
+    "aliases": [
+      "摩天崖",
+      "通天橋"
+    ],
+    "address": "島根県隠岐郡西ノ島町浦郷",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "西ノ島町"
+    },
+    "coords": {
+      "lat": 36.1,
+      "lng": 132.94
+    },
+    "category": "nature",
+    "summary": "高さ二百五十七メートルの摩天崖が海に落ちます。崖の上は放牧地で、牛馬が草を食む中を歩けます。",
+    "description": "西ノ島の西岸にある海食崖で、摩天崖は高さ約二百五十七メートル、海に直接落ちる崖としては国内有数です。崖の上はなだらかな草地で、牛と馬が放牧されています。遊歩道が崖の縁に沿って通り、牧草地の中を歩きます。海食で岩が抜けた通天橋や、赤壁と呼ばれる赤褐色の断崖も同じ海岸線にあります。遊覧船からも見られます。",
+    "highlights": [
+      "高さ二百五十七メートルの摩天崖",
+      "崖の上の放牧地と牛馬",
+      "岩が抜けた通天橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "草地が緑になり、放牧も始まります。海も穏やかな時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、崖の緑との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、崖の輪郭と海の色が同時に締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が海に落ち、崖が横から照らされます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は崖の面に光が回り、地層の縞が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "牛馬を入れると二百五十七メートルの高さが伝わります",
+      "遊歩道の線を縁に沿って通して地形を見せます",
+      "崖の縁には近づきすぎず、風の強い日は特に注意します"
+    ],
+    "officialWebsiteUrl": "https://oki-geopark.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d615809ceab7",
@@ -52612,6 +53370,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2290108a9c91",
+    "slug": "omori-cho",
+    "name": "大森の町並み",
+    "nameEn": "Omori Historic Town",
+    "reading": "おおもりのまちなみ",
+    "aliases": [
+      "石見銀山 大森地区",
+      "熊谷家住宅"
+    ],
+    "address": "島根県大田市大森町",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "大田市"
+    },
+    "coords": {
+      "lat": 35.11,
+      "lng": 132.44
+    },
+    "category": "landmark",
+    "summary": "石見銀山の管理拠点だった町。武家と商家の建物が同じ通りに混在し、約八百メートル続きます。",
+    "description": "銀山の経営と管理にあたった代官所が置かれた町で、世界遺産の構成資産です。武家屋敷と商家が同じ通りに並ぶのが特徴で、身分の違う建物が混在する町並みは珍しいものです。熊谷家住宅は銀山経営に関わった商家で、重要文化財として公開されています。通りは約八百メートル、車の通行が制限されており、歩くか自転車で回ります。",
+    "highlights": [
+      "武家と商家が混在する町並み",
+      "重要文化財の熊谷家住宅",
+      "車が制限された歩きやすい通り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が山に入り、町並みの背後が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、土壁と格子の陰影が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の町並み。人が少なく、通りの全景を撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、通りを無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は土壁が暖色に染まり、格子の奥に灯りが入ります。"
+      }
+    ],
+    "compositionTips": [
+      "武家と商家が並ぶ位置を探して一枚に収めます",
+      "通りは望遠で圧縮して建物の連なりを見せます",
+      "住居が多いので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.ginzan-wm.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_fceab1ec5544",
@@ -57493,6 +58315,69 @@
       "ショップの商品を撮るときは店員に断ってからにします"
     ],
     "officialWebsiteUrl": "https://www.megane.gr.jp/museum/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_910e0844a6d8",
+    "slug": "sada-jinja",
+    "name": "佐太神社",
+    "nameEn": "Sada Shrine",
+    "reading": "さだじんじゃ",
+    "aliases": [
+      "佐陀神能"
+    ],
+    "address": "島根県松江市鹿島町佐陀宮内73",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.53,
+      "lng": 133
+    },
+    "category": "shrine",
+    "summary": "大社造の本殿が三棟横に並ぶ珍しい構成。ここで伝わる佐陀神能はユネスコ無形文化遺産です。",
+    "description": "出雲国二ノ宮で、正中殿、北殿、南殿の三棟の大社造本殿が横一列に並びます。この形式は他に例がなく、重要文化財に指定されています。社に伝わる佐陀神能は、能の様式を取り入れた神楽で、全国の神楽に影響を与えたとされ、ユネスコ無形文化遺産に登録されています。毎年九月二十四日と二十五日に奉納されます。境内は静かです。",
+    "highlights": [
+      "三棟横並びの大社造本殿",
+      "ユネスコ無形文化遺産の佐陀神能",
+      "静かな境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "九月二十四日と二十五日に佐陀神能が奉納されます。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が境内に入り、檜皮の屋根と対になります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、三棟の並びを無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、本殿の並びを正面から撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "神能の奉納は夜に及びます。暗いので高感度が前提です。"
+      }
+    ],
+    "compositionTips": [
+      "三棟の並びは正面から左右対称に構えると特異さが出ます",
+      "斜めから撮ると奥行きと棟数の両方が入ります",
+      "神事の撮影は社の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.kankou-matsue.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -66639,6 +67524,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_5385b147ee89",
+    "slug": "sugatani",
+    "name": "須佐神社",
+    "nameEn": "Susa Shrine",
+    "reading": "すさじんじゃ",
+    "aliases": [
+      "須佐之男命 御本社",
+      "大杉さん"
+    ],
+    "address": "島根県出雲市佐田町須佐730",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "出雲市"
+    },
+    "coords": {
+      "lat": 35.24,
+      "lng": 132.7
+    },
+    "category": "shrine",
+    "summary": "須佐之男命を祀る山あいの社。本殿の背後に樹齢千三百年とされる大杉が立ち、幹回りは七メートルに達します。",
+    "description": "須佐之男命が最後に鎮まったと伝わる社で、山と川に囲まれた谷にあります。本殿は大社造で、その背後に立つ大杉は樹齢千三百年、幹回り約七メートル、高さ二十四メートルとされます。根元は柵で囲われ、離れた位置から見上げる形になります。境内は狭く、建物と樹木が近い距離にあります。周囲には塩の井など七不思議と呼ばれる場所が点在します。",
+    "highlights": [
+      "樹齢千三百年の大杉",
+      "大社造の本殿",
+      "山と川に囲まれた谷の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が境内に入り、杉の濃い緑と分かれます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が最も濃く、境内が暗く沈みます。大杉の存在感が増します。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、大杉を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残ることがあり、大杉の上部が霞みます。"
+      },
+      {
+        "time": "day",
+        "text": "日中も境内は暗いので、高感度か三脚が前提になります。"
+      }
+    ],
+    "compositionTips": [
+      "大杉は下から見上げて二十四メートルの高さを取ります",
+      "本殿と一緒に入れて大きさの対比を作ります",
+      "柵の内側には入らず、定められた位置から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.izumo-kankou.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f423040880ce",
     "slug": "sugi-namiki",
     "name": "日光杉並木街道",
@@ -67363,6 +68312,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0dbce8b57169",
+    "slug": "tachikue",
+    "name": "立久恵峡",
+    "nameEn": "Tachikue Gorge",
+    "reading": "たちくえきょう",
+    "aliases": [
+      "山陰の耶馬渓"
+    ],
+    "address": "島根県出雲市乙立町",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "出雲市"
+    },
+    "coords": {
+      "lat": 35.27,
+      "lng": 132.75
+    },
+    "category": "nature",
+    "summary": "神戸川沿いに高さ百から二百メートルの奇岩の柱が約二キロ連なります。柱状の岩が屏風のように立ちます。",
+    "description": "凝灰岩が浸食されてできた峡谷で、両岸に高さ百から二百メートルの岩の柱が並びます。柱状の岩が屏風を立てたように連続する景観から、山陰の耶馬渓とも呼ばれます。川沿いに遊歩道が整備され、岩壁を見上げながら歩けます。岩の間には五百羅漢の石仏が置かれています。国の名勝天然記念物です。紅葉期が最も知られます。",
+    "highlights": [
+      "高さ二百メートルに達する岩の柱",
+      "約二キロ続く峡谷",
+      "岩の間に並ぶ五百羅漢"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と灰色の岩。川の水量も多い時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬から中旬が紅葉。この峡谷が最も知られる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して岩の形がむき出しになり、柱の構造が読めます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、岩壁の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁の上部に光が当たり、下部が影になって層ができます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で岩の柱の高さを取ります",
+      "川面を前景に入れて岩の高さを測れるようにします",
+      "五百羅漢は岩と一緒に入れて立地を示します"
+    ],
+    "officialWebsiteUrl": "https://www.izumo-kankou.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d70e7cf4d2c9",
@@ -70060,6 +71072,69 @@
       "餌やりや過度な接触は禁じられているので、距離を保って望遠で撮ります"
     ],
     "officialWebsiteUrl": "https://www.city.ishinomaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_805868c22789",
+    "slug": "tatami-ga-ura",
+    "name": "畳ヶ浦",
+    "nameEn": "Tatamigaura",
+    "reading": "たたみがうら",
+    "aliases": [
+      "国分海岸 千畳敷"
+    ],
+    "address": "島根県浜田市国分町",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "浜田市"
+    },
+    "coords": {
+      "lat": 34.92,
+      "lng": 132.11
+    },
+    "category": "nature",
+    "summary": "地震で隆起した岩棚に、丸いノジュールが畳の目のように並びます。千畳敷と呼ばれる広い平らな岩場です。",
+    "description": "一八七二年の浜田地震で隆起してできた岩棚で、国の天然記念物です。表面に炭酸塩が固まったノジュールという丸い塊が無数に突き出し、畳を敷き詰めたように見えます。岩棚の奥には海食洞があり、トンネルを抜けて浜に出ます。断崖には貝の化石を含む地層が露出しており、隆起の過程が読み取れます。潮位で歩ける範囲が変わります。",
+    "highlights": [
+      "岩棚に並ぶ丸いノジュール",
+      "浜へ抜ける海食洞のトンネル",
+      "貝の化石を含む断崖の地層"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "潮が引く時間が長く、岩棚を広く歩ける季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "日本海が荒れ、岩棚に波が上がります。近づきすぎないこと。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩の質感と地層の縞がよく出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "干潮の時間に合わせるのが前提。潮見表を確認して向かいます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面。岩棚が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "ノジュールは低い位置から撮って反復の粒を見せます",
+      "トンネルは中から外を抜いて構造を示します",
+      "潮位で危険が変わるので、満ち始めたら早めに引き返します"
+    ],
+    "officialWebsiteUrl": "https://www.kanko-hamada.org/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -76841,6 +77916,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_b16ba5dd5cc1",
+    "slug": "unnan-sakura",
+    "name": "斐伊川堤防桜並木",
+    "nameEn": "Hii River Cherry Trees",
+    "reading": "ひいかわていぼうさくらなみき",
+    "aliases": [
+      "木次 桜並木"
+    ],
+    "address": "島根県雲南市木次町木次",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "雲南市"
+    },
+    "coords": {
+      "lat": 35.29,
+      "lng": 132.9
+    },
+    "category": "nature",
+    "summary": "斐伊川の堤に約二キロ、八百本の桜が続きます。ヤマタノオロチの伝説が残る川に沿った並木です。",
+    "description": "斐伊川の堤防に約八百本のソメイヨシノが約二キロにわたって植えられ、日本さくら名所百選に選ばれています。川は古代からたびたび氾濫し、ヤマタノオロチ伝説の舞台とされてきました。堤防の上を歩くと桜が頭上で重なり、トンネルになります。見頃は四月上旬。夜はぼんぼりが灯ります。JR木次駅から歩いて行ける距離です。",
+    "highlights": [
+      "約二キロ八百本の桜並木",
+      "堤防上の桜のトンネル",
+      "ヤマタノオロチ伝説の川"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬が見頃。夜はぼんぼりが灯ります。"
+      },
+      {
+        "season": "summer",
+        "text": "葉桜の並木と川。人がおらず、堤防の長さだけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、トンネルを無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "ぼんぼりの灯りで、枝の下が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "堤防の道を消失点まで通してトンネルの長さを見せます",
+      "川を入れると堤防の桜であることが伝わります",
+      "夜はぼんぼりの色に合わせてホワイトバランスを固定します"
+    ],
+    "officialWebsiteUrl": "https://www.unnan-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_24b916a84bad",
     "slug": "unosu-dangai",
     "name": "鵜の巣断崖",
@@ -78658,6 +79792,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_13c5ccb5c960",
+    "slug": "yaegaki",
+    "name": "八重垣神社",
+    "nameEn": "Yaegaki Shrine",
+    "reading": "やえがきじんじゃ",
+    "aliases": [
+      "鏡の池",
+      "八重垣神社 壁画"
+    ],
+    "address": "島根県松江市佐草町227",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "松江市"
+    },
+    "coords": {
+      "lat": 35.43,
+      "lng": 133.07
+    },
+    "category": "shrine",
+    "summary": "奥の院の鏡の池で紙を浮かべて占う社。境内の宝物収蔵庫には平安期の板絵壁画が残ります。",
+    "description": "須佐之男命と稲田姫を祀る社で、縁結びの社として知られます。本殿から林を抜けた奥にある鏡の池では、硬貨を乗せた紙を浮かべ、沈むまでの時間で占います。池は木立に囲まれて薄暗く、水面が静かです。宝物収蔵庫には日本最古級の神社壁画とされる板絵著色神像が収蔵されています。境内は広くなく、三十分ほどで回れます。",
+    "highlights": [
+      "木立に囲まれた鏡の池",
+      "平安期の板絵著色神像",
+      "林を抜ける奥の院への道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が池の周囲に入り、水面に緑が映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "木立が濃く、池が最も暗く沈みます。静けさが出る季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "落葉が水面に浮かび、暗い池に色が点在します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、池を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中も池は暗いので、木漏れ日が差す瞬間を待ちます。"
+      }
+    ],
+    "compositionTips": [
+      "池は水面に露出を合わせず、周囲の緑を基準にして水を沈めます",
+      "占う人が写らない角度を選びます",
+      "壁画の撮影可否は収蔵庫の表示に従います"
+    ],
+    "officialWebsiteUrl": "https://yaegakijinja.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8cac13b6750d",
     "slug": "yagachi-higanbana",
     "name": "矢勝川の彼岸花",
@@ -80284,6 +81482,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d98c61a3bf75",
+    "slug": "yoshida-furusato",
+    "name": "菅谷たたら山内",
+    "nameEn": "Sugaya Tatara Sannai",
+    "reading": "すがやたたらさんない",
+    "aliases": [
+      "吉田 たたら製鉄"
+    ],
+    "address": "島根県雲南市吉田町吉田4210-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "島根県",
+      "city": "雲南市"
+    },
+    "coords": {
+      "lat": 35.11,
+      "lng": 132.87
+    },
+    "category": "landmark",
+    "summary": "たたら製鉄の炉が建物ごと残る唯一の遺構。高殿と呼ばれる作業場と、周囲の職人集落が保存されています。",
+    "description": "砂鉄と木炭で鉄を作るたたら製鉄の作業場が、建物ごと残る全国唯一の例です。高殿と呼ばれる木造の建屋の中央に炉があり、周囲に炭置き場や鉄池が配されます。一七五一年から一九二一年まで操業しました。周囲には職人が暮らした山内集落があり、住居や施設が残ります。国の重要有形民俗文化財です。映画の舞台にもなりました。",
+    "highlights": [
+      "建物ごと残るたたらの高殿",
+      "中央に据えられた炉の跡",
+      "職人が暮らした山内集落"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が集落を囲み、木造の建物と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の山が色づきます。光も斜めで建物の構造が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の高殿。屋根の勾配に雪が乗る形が見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "高殿の内部は暗く、天窓からの光が炉に落ちる時間が向きます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、内部を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "高殿の内部は広角で炉と屋根組みを一緒に入れます",
+      "天窓からの光の筋を活かすと作業場の空気が出ます",
+      "内部は暗いので高感度か三脚が前提になります"
+    ],
+    "officialWebsiteUrl": "https://www.unnan-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_40ba0925a3d5",
