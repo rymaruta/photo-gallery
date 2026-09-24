@@ -706,6 +706,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_9bb8a2983e38",
+    "slug": "aizumi-ai",
+    "name": "藍住 藍の館",
+    "nameEn": "Ai no Yakata Indigo Museum",
+    "reading": "あいずみ あいのやかた",
+    "aliases": [
+      "奥村家住宅",
+      "阿波藍"
+    ],
+    "address": "徳島県板野郡藍住町徳命前須西172",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "藍住町"
+    },
+    "coords": {
+      "lat": 34.13,
+      "lng": 134.47
+    },
+    "category": "landmark",
+    "summary": "藍商の屋敷を使った資料館。藍を発酵させる寝床と、藍甕が床に埋まった藍染場が残ります。",
+    "description": "阿波藍で財を成した奥村家の屋敷を使った資料館で、母屋、寝床、藍納屋などが県の有形文化財です。寝床では藍の葉を発酵させてすくもを作る工程が再現され、藍染場には藍甕が床に埋め込まれています。濃い藍色の布が干された様子や、甕の中の藍液の表面に立つ泡が被写体になります。藍染の体験もできます。屋内が多く、光は限られます。",
+    "highlights": [
+      "床に埋まった藍甕の列",
+      "すくも作りの寝床の再現",
+      "干された藍染の布"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "藍の生育期。屋外の藍畑も緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "すくも作りの季節。寝床の展示が実際の時期と重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内が中心なので天候の影響が小さい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内が中心。開口部からの自然光が入る時間帯が向きます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、藍染場を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "藍甕は上から見下ろして床に並ぶ円を見せます",
+      "藍色は転びやすいのでホワイトバランスを固定します",
+      "屋内は暗いので高感度が前提になります"
+    ],
+    "officialWebsiteUrl": "https://ainoyakata.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_a772be00696a",
     "slug": "akagi-onuma",
     "name": "赤城山 大沼",
@@ -2711,6 +2775,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a320cc2ca82e",
+    "slug": "anabuki",
+    "name": "穴吹川",
+    "nameEn": "Anabuki River",
+    "reading": "あなぶきがわ",
+    "aliases": [
+      "美馬 穴吹川"
+    ],
+    "address": "徳島県美馬市穴吹町",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "美馬市"
+    },
+    "coords": {
+      "lat": 34.02,
+      "lng": 134.15
+    },
+    "category": "nature",
+    "summary": "四国で最も水質が良いとされる川。川底の石が水越しにそのまま見え、色が青緑に抜けます。",
+    "description": "吉野川の支流で、国の水質調査でたびたび四国一に選ばれてきました。透明度が高いため、水深が数メートルある淵でも川底の石が見えます。流れが緩い区間では水が青緑に見え、岩の白との対比が出ます。舞中島や貞光の河原など、車で降りられる地点が複数あります。夏は川遊びの人が入ります。増水時は流れが速く危険です。",
+    "highlights": [
+      "水越しに見える川底の石",
+      "青緑に見える淵の水",
+      "河原まで降りられる地点が多い"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水。人も少なく、水の色を落ち着いて撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "水が最も澄む季節ですが、川遊びの人が増えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲が色づき、水面に落葉が浮きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高い正午前後が水中まで光が届き、色が最も出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、水面も波立ちません。"
+      }
+    ],
+    "compositionTips": [
+      "偏光フィルターで水面の反射を消すと川底が見えます",
+      "岩の白と水の青緑を対比させて色を主題にします",
+      "増水時は河原に降りず、高い位置から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.mima.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_a8d9825e7057",
@@ -4748,6 +4875,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b7ed8bf5cb0a",
+    "slug": "awagami",
+    "name": "阿波和紙",
+    "nameEn": "Awagami Washi Paper",
+    "reading": "あわわし",
+    "aliases": [
+      "阿波和紙伝統産業会館",
+      "山川 和紙"
+    ],
+    "address": "徳島県吉野川市山川町川東141",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "吉野川市"
+    },
+    "coords": {
+      "lat": 34.05,
+      "lng": 134.29
+    },
+    "category": "landmark",
+    "summary": "千三百年続く和紙の産地。紙を漉く工程と、乾燥板に貼られた紙の並びが被写体になります。",
+    "description": "吉野川の南岸で千三百年続くとされる和紙の産地です。伝統産業会館では原料の楮や三椏から紙になるまでの工程が見られ、職人が漉く様子を見学できます。乾燥のために板に貼られた紙が壁一面に並ぶ光景は、白い面の反復になります。紙は透過光で繊維が見えるため、光にかざす撮り方が向きます。紙漉き体験もできます。",
+    "highlights": [
+      "職人が紙を漉く工程",
+      "乾燥板に並ぶ白い紙",
+      "透過光で見える紙の繊維"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "水が冷たい季節が紙漉きの本番とされます。"
+      },
+      {
+        "season": "spring",
+        "text": "工房の光が明るくなり、紙の白が素直に出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "工房は自然光が入る時間帯が向きます。作業時間の確認が前提です。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、工程を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "紙は透過光にかざして繊維を見せます",
+      "乾燥板の並びは望遠で圧縮して反復にします",
+      "職人の作業は必ず断ってから撮り、手元を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://awagami.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e21b4117e34d",
@@ -8882,6 +9069,70 @@
       "石段は上下どちらからも撮って勾配を比べます"
     ],
     "officialWebsiteUrl": "https://www.dewasanzan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_e9e28cd8b946",
+    "slug": "dochu",
+    "name": "阿波の土柱",
+    "nameEn": "Awa no Dochu Earth Pillars",
+    "reading": "あわのどちゅう",
+    "aliases": [
+      "波濤嶽",
+      "阿波市 土柱"
+    ],
+    "address": "徳島県阿波市阿波町桜ノ岡",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "阿波市"
+    },
+    "coords": {
+      "lat": 34.1,
+      "lng": 134.33
+    },
+    "category": "nature",
+    "summary": "礫層が雨に削られてできた土の柱が林立します。この規模のものは国内ではここだけとされます。",
+    "description": "百万年以上前の礫層が雨水に削られ、硬い部分だけが柱として残った地形です。高さは最大で十数メートル、幅が狭い柱が斜面に並びます。国の天然記念物で、同様の地形としては国内で最大の規模とされます。展望台と遊歩道が整備され、下からと上からの両方から見られます。土なので崩れやすく、柵の外には出られません。夜はライトアップされます。",
+    "highlights": [
+      "雨に削られてできた土の柱",
+      "国内最大規模の同種地形",
+      "下と上の両方からの視点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "落葉して柱の全体が見えやすくなります。空気も澄みます。"
+      },
+      {
+        "season": "spring",
+        "text": "周囲の緑と土の色の対比が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が茂り、柱の一部が隠れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が柱の側面を照らし、縦の線が浮きます。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ時は下から照らされ、柱の陰影が強調されます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で柱の垂直線を取ります",
+      "人を入れて十数メートルの高さを示します",
+      "柵の外には出ず、決められた位置から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.awa.lg.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -26175,6 +26426,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f4d2c932bd4d",
+    "slug": "jigenji",
+    "name": "慈眼寺",
+    "nameEn": "Jigen-ji Temple",
+    "reading": "じげんじ",
+    "aliases": [
+      "穴禅定",
+      "四国別格二十霊場"
+    ],
+    "address": "徳島県勝浦郡上勝町正木灌頂瀧18",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "上勝町"
+    },
+    "coords": {
+      "lat": 33.89,
+      "lng": 134.33
+    },
+    "category": "temple",
+    "summary": "鍾乳洞そのものが行場になっている寺。白装束で狭い洞内を進む穴禅定という修行が行われます。",
+    "description": "空海が開いたと伝わる寺で、本堂の奥に鍾乳洞があります。この洞窟が灌頂ヶ滝とともに行場になっており、穴禅定と呼ばれる修行として白装束で中を進みます。洞内は人がやっと通れる幅の区間があり、先達の案内がないと入れません。手前の灌頂ヶ滝は落差約八十メートルで、朝日が当たると虹が立つことがあります。予約制の修行のため、事前の申込が要ります。",
+    "highlights": [
+      "鍾乳洞そのものが行場",
+      "落差八十メートルの灌頂ヶ滝",
+      "白装束で行う穴禅定"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "滝の水量が多く、新緑も入ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲が色づきます。滝と紅葉を一枚に入れられます。"
+      },
+      {
+        "season": "winter",
+        "text": "滝が凍ることがあります。道路状況の確認が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝日が滝に当たる時間に虹が立つことがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷に光が入り、滝の水しぶきが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "滝は縦構図で八十メートルの落差を取ります",
+      "洞内は撮影の可否と安全を先達に確認します",
+      "虹を狙うなら朝の早い時間に滝の正面に立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.kamikatsu.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e20c34b7ebcc",
     "slug": "jigokudani-yaen",
     "name": "地獄谷野猿公苑",
@@ -27507,6 +27822,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_03cdf61fd882",
+    "slug": "kaifu",
+    "name": "海部 大砂海岸",
+    "nameEn": "Osuna Beach, Kaifu",
+    "reading": "かいふ おおすなかいがん",
+    "aliases": [
+      "海陽町 大砂"
+    ],
+    "address": "徳島県海部郡海陽町大砂",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "海陽町"
+    },
+    "coords": {
+      "lat": 33.6,
+      "lng": 134.35
+    },
+    "category": "nature",
+    "summary": "白い砂と透明度の高い水が続く太平洋の浜。徳島の南端に近く、海水浴場としても使われます。",
+    "description": "海陽町の海岸で、砂が白く水の透明度が高いため、浅瀬が明るい青に見えます。太平洋に直接面しており、沖に遮るものがないので波は高めです。周囲に高い建物がなく、砂浜と海と空だけの構成になります。近くの宍喰にはサーフィンの好適地があり、波乗りの人が入ります。ウミガメの産卵記録もある海岸です。夜は光害が少なく星が見えます。",
+    "highlights": [
+      "白い砂と透明度の高い浅瀬",
+      "遮るもののない太平洋の水平線",
+      "光害の少ない夜空"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海水浴の季節。水の色が最も濃く出ますが人も増えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、水平線までの視程が伸びます。人も減ります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高くなります。誰もいない浜を撮れる季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので日の出が海から上がります。足跡のない砂も撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "光害が少なく、天の川が見える日があります。"
+      }
+    ],
+    "compositionTips": [
+      "砂の白は露出がアンダーに寄るのでプラス補正を基本にします",
+      "波打ち際の曲線を手前から奥へ通します",
+      "星を撮るなら波の音がする方向を背にして構えます"
+    ],
+    "officialWebsiteUrl": "https://www.town.kaiyo.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8efdd796630b",
     "slug": "kaike",
     "name": "皆生温泉",
@@ -28756,6 +29134,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_69a9f7d63b09",
+    "slug": "kamikatsu",
+    "name": "上勝の棚田",
+    "nameEn": "Kamikatsu Terraced Rice Fields",
+    "reading": "かみかつのたなだ",
+    "aliases": [
+      "樫原の棚田"
+    ],
+    "address": "徳島県勝浦郡上勝町生実",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "上勝町"
+    },
+    "coords": {
+      "lat": 33.9,
+      "lng": 134.36
+    },
+    "category": "nature",
+    "summary": "江戸期の地割がそのまま残る棚田。標高五百メートルの斜面に石積みの段が幾重にも重なります。",
+    "description": "樫原の棚田は江戸期の絵図と現在の区画がほぼ一致しており、当時の地割が残る例として国の重要文化的景観に選定されています。標高約五百メートルの斜面に石積みで支えられた田が段をなし、山の中腹を埋めます。周囲に高い建物がなく、山と段だけの構成になります。上勝町はごみの分別で知られ、ゼロ・ウェイストセンターも町内にあります。",
+    "highlights": [
+      "江戸期の地割が残る棚田",
+      "石積みで支えられた段",
+      "標高五百メートルの立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の代掻きから田植え。水面が空を映します。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の段が斜面を埋めます。雲の影が動きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月の稲刈り前、黄金色の段。短い期間です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が段の影を長くし、起伏が立体的になります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、棚田が霧の上に出ることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "段の曲線を手前から奥へ通して斜面の高さを見せます",
+      "望遠で圧縮すると段の重なりが密になります",
+      "田は私有地なので畦に入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.kamikatsu.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_05c7e236ab14",
     "slug": "kamikochi-kappabashi",
     "name": "上高地 河童橋",
@@ -29113,6 +29554,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_601668700477",
+    "slug": "kamiyama",
+    "name": "神山",
+    "nameEn": "Kamiyama Town",
+    "reading": "かみやま",
+    "aliases": [
+      "神山温泉",
+      "大粟山"
+    ],
+    "address": "徳島県名西郡神山町神領",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "神山町"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 134.35
+    },
+    "category": "nature",
+    "summary": "鮎喰川の谷に開けた山あいの町。古民家を改修した施設が点在し、しだれ桜の名所でもあります。",
+    "description": "鮎喰川沿いの谷に集落が点在する町で、移住者の受け入れとサテライトオフィスの誘致で知られるようになりました。空き家や古民家が改修されて工房やカフェになり、山村の建物と現代の使い方が同居しています。大粟山などにはしだれ桜が植えられ、四月には谷の各所で花が咲きます。川の水は澄み、河原まで降りられる地点が複数あります。",
+    "highlights": [
+      "改修された古民家と工房",
+      "谷に点在するしだれ桜",
+      "澄んだ鮎喰川の流れ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月、谷の各所でしだれ桜が咲きます。標高差で開花がずれます。"
+      },
+      {
+        "season": "summer",
+        "text": "川の水が澄み、河原が涼しくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "谷が色づきます。人も少なく落ち着いて回れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、集落が霧の中に沈みます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は谷の斜面が横から照らされ、家の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "古民家と現代の使われ方が同時に分かる角度を探します",
+      "しだれ桜は下から見上げて枝の流れを取ります",
+      "生活の場なので、敷地に入らず道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.kamiyama.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f10834f5a9f6",
@@ -36041,6 +36546,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_fe12b7bd3247",
+    "slug": "konose-kyo",
+    "name": "高の瀬峡",
+    "nameEn": "Konose Gorge",
+    "reading": "こうのせきょう",
+    "aliases": [
+      "那賀川源流 高の瀬"
+    ],
+    "address": "徳島県那賀郡那賀町海川",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "那賀町"
+    },
+    "coords": {
+      "lat": 33.82,
+      "lng": 134.14
+    },
+    "category": "nature",
+    "summary": "那賀川の源流部にある峡谷。剣山系の山に挟まれ、十月中旬から下旬に谷全体が色づきます。",
+    "description": "剣山国定公園の一部で、那賀川の源流部にあたります。切り立った斜面に囲まれた谷で、川が岩を縫って流れます。標高が高いため県内では紅葉が早く、十月中旬から下旬が見頃です。谷沿いに道路が通り、複数の展望地点があります。奥には剣山の登山口へ続く道があります。冬期は路面の凍結があり、通行止めになる区間があります。",
+    "highlights": [
+      "源流部の澄んだ水",
+      "切り立った斜面に囲まれた谷",
+      "十月中旬から下旬の紅葉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。谷が明るくなる時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、水の色が最も出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬から下旬が紅葉。この峡谷の本番です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、斜面の紅葉が層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷底まで光が入り、水と紅葉の色が同時に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "斜面の紅葉は望遠で圧縮して色の塊にします",
+      "川と斜面を一枚に入れて谷の深さを見せます",
+      "道幅が狭いので、駐車帯や展望地点から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.tokushima-naka.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_88034bde6ae1",
@@ -45512,6 +46080,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4d7f6f4b1d61",
+    "slug": "mugi",
+    "name": "牟岐 出羽島",
+    "nameEn": "Teba Island, Mugi",
+    "reading": "むぎ てばじま",
+    "aliases": [
+      "出羽島 ミセ造り"
+    ],
+    "address": "徳島県海部郡牟岐町出羽島",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "牟岐町"
+    },
+    "coords": {
+      "lat": 33.65,
+      "lng": 134.43
+    },
+    "category": "landmark",
+    "summary": "自動車が一台もない島。港沿いにミセ造りという折り畳み式の縁台を備えた家が連なっています。",
+    "description": "牟岐港から連絡船で十五分の小さな島で、島内に自動車が一台もありません。港に面した集落には、軒先に折り畳める縁台を備えたミセ造りの家が残ります。かつては商いや近所づきあいに使われた構造で、重要伝統的建造物群保存地区に選定されています。島は一周一時間ほどで歩け、シュロの群生地や大池もあります。便数は限られます。",
+    "highlights": [
+      "折り畳み式の縁台を持つミセ造り",
+      "自動車が一台もない集落",
+      "一周一時間で歩ける島の規模"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、海も静か。歩いて回りやすい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、港の水が明るくなります。便も増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、集落の路地を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は漁の動きがあり、港が生活の場として写ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は家並みが横から照らされ、ミセの影が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "ミセ造りは側面から撮ると折り畳みの構造が分かります",
+      "路地は狭いので広角で両側を入れます",
+      "最終便の時刻から逆算して島内の移動を組みます"
+    ],
+    "officialWebsiteUrl": "https://www.town.mugi.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_72e8a07ff8cd",
     "slug": "munakata-taisha",
     "name": "宗像大社 辺津宮",
@@ -49195,6 +49826,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_8c6116c8bb36",
+    "slug": "naruto-renkon",
+    "name": "鳴門のれんこん畑",
+    "nameEn": "Naruto Lotus Root Fields",
+    "reading": "なるとのれんこんばたけ",
+    "aliases": [
+      "鳴門 蓮田"
+    ],
+    "address": "徳島県鳴門市大津町",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "鳴門市"
+    },
+    "coords": {
+      "lat": 34.15,
+      "lng": 134.58
+    },
+    "category": "nature",
+    "summary": "旧吉野川の低地一帯が蓮田になります。夏は大きな葉が水面を埋め、朝に白や桃色の花が開きます。",
+    "description": "鳴門市大津町一帯はれんこんの産地で、旧吉野川沿いの低湿地に蓮田が広がります。夏には直径数十センチの葉が水面を覆い、その間から花が立ち上がります。花は朝に開き昼過ぎには閉じるため、撮るなら早朝です。秋から冬にかけては収穫が行われ、泥の中から掘り出す作業が見られます。畑は私有地なので、農道から撮ります。",
+    "highlights": [
+      "水面を覆う大きな蓮の葉",
+      "早朝に開く花",
+      "冬の収穫作業"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月から八月が花の季節。葉も最も大きく広がります。"
+      },
+      {
+        "season": "autumn",
+        "text": "葉が枯れ始め、収穫が近づきます。景色が茶色に寄ります。"
+      },
+      {
+        "season": "winter",
+        "text": "収穫作業の季節。泥の中から掘り出す様子が見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "花は朝に開きます。日の出から数時間が唯一の時間帯です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は葉の面が横から照らされ、起伏が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "葉を面として捉え、花を点として配置します",
+      "低い位置から葉の下を覗くと構造が見えます",
+      "畑は私有地なので立ち入らず、農道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.naruto-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c3092e716df8",
     "slug": "naruto-whirlpools",
     "name": "鳴門の渦潮（渦の道）",
@@ -51752,6 +52446,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c3f43eb82919",
+    "slug": "ochiai",
+    "name": "落合集落",
+    "nameEn": "Ochiai Village",
+    "reading": "おちあいしゅうらく",
+    "aliases": [
+      "東祖谷 落合",
+      "天空の集落"
+    ],
+    "address": "徳島県三好市東祖谷落合",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "三好市"
+    },
+    "coords": {
+      "lat": 33.89,
+      "lng": 133.92
+    },
+    "category": "landmark",
+    "summary": "傾斜地に家と畑が段をなす集落。最下部と最上部の標高差は約三百九十メートルあります。",
+    "description": "祖谷川の支流沿いの急斜面に築かれた集落で、重要伝統的建造物群保存地区に選定されています。集落内の標高差は約三百九十メートルで、家、石垣、段畑が斜面に貼り付くように並びます。対岸の展望所から全体を一枚に収められ、そこから見ると家が空中に浮かんでいるように見えます。石積みで支えられた耕地は急傾斜地農耕システムとして世界農業遺産にも認定されています。",
+    "highlights": [
+      "標高差三百九十メートルの集落",
+      "対岸の展望所からの全景",
+      "斜面を支える石積みの段畑"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、新緑と畑の作付け。斜面が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の山が色づきます。集落の輪郭も出やすい季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根と段畑に乗り、斜面の構造が白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が溜まり、集落が霧の上に浮かぶことがあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は斜面が横から照らされ、段の影が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "対岸の展望所から望遠で圧縮すると斜面の急さが強調されます",
+      "人家と段畑を一枚に入れて生活の場であることを示します",
+      "住民の生活の場なので、集落内では敷地に入らず道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://miyoshi-tourism.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_88037c7ae941",
     "slug": "oda-sanbe",
     "name": "三瓶山",
@@ -53697,6 +54455,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ae893ab7c02f",
+    "slug": "oku-iya",
+    "name": "奥祖谷二重かずら橋",
+    "nameEn": "Oku-Iya Double Vine Bridges",
+    "reading": "おくいやにじゅうかずらばし",
+    "aliases": [
+      "男橋女橋",
+      "野猿 奥祖谷"
+    ],
+    "address": "徳島県三好市東祖谷菅生620",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "三好市"
+    },
+    "coords": {
+      "lat": 33.86,
+      "lng": 134.03
+    },
+    "category": "landmark",
+    "summary": "かずらで編んだ橋が二本並んで架かります。手で綱を引いて渡る野猿という籠も同じ場所にあります。",
+    "description": "祖谷川の上流にあるかずら橋で、男橋と女橋の二本が並んで架かります。西祖谷のかずら橋より奥にあり、訪れる人は少なめです。橋はシラクチカズラを編んで作られ、足元の丸太の間から川が見えます。同じ場所には野猿と呼ばれる人力のロープウェイがあり、乗った人が自分で綱を引いて対岸へ渡ります。冬期は閉鎖されます。",
+    "highlights": [
+      "二本並ぶかずら橋",
+      "自分で綱を引く野猿",
+      "西祖谷より人が少ない環境"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の開通から新緑の季節。川の水量も多い時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、谷が涼しくなります。水の色も出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。閉鎖前の短い期間です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、橋を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷に光が入り、川面の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "二本の橋を一枚に入れて並びを見せます",
+      "足元の丸太の隙間から川を見せる縦構図も撮ります",
+      "橋は揺れるので、片手はしっかり握ったまま撮ります"
+    ],
+    "officialWebsiteUrl": "https://miyoshi-tourism.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f91a7a547a60",
@@ -56476,6 +57298,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_3978ed694d19",
+    "slug": "otsuka-museum",
+    "name": "大塚国際美術館",
+    "nameEn": "Otsuka Museum of Art",
+    "reading": "おおつかこくさいびじゅつかん",
+    "aliases": [
+      "鳴門 陶板名画美術館",
+      "システィーナ・ホール"
+    ],
+    "address": "徳島県鳴門市鳴門町土佐泊浦福池65-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "鳴門市"
+    },
+    "coords": {
+      "lat": 34.24,
+      "lng": 134.65
+    },
+    "category": "landmark",
+    "summary": "世界の名画を陶板で原寸複製した美術館。複製なので全館が撮影可能で、触れることもできます。",
+    "description": "西洋美術の名画千点余りを陶板で原寸大に複製した美術館です。複製であるため著作権の制約がなく、全館で撮影が認められています。システィーナ礼拝堂は天井画ごと再現され、スクロヴェーニ礼拝堂やポンペイの壁画も空間として復元されています。山を掘って造られており、地下三階から地上二階へ上がる構成です。鑑賞に半日はかかります。",
+    "highlights": [
+      "空間ごと再現されたシスティーナ礼拝堂",
+      "全館が撮影可能",
+      "山を掘って造られた館の構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。鳴門の海が荒れる季節の行き先になります。"
+      },
+      {
+        "season": "summer",
+        "text": "来館者が多く、礼拝堂の位置取りに時間がかかります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内は照明が一定です。閉館前の時間は人が減ります。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、礼拝堂を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "礼拝堂は広角で天井ごと入れて空間として見せます",
+      "人を入れると原寸であることが伝わります",
+      "照明の色が強いのでホワイトバランスを固定します"
+    ],
+    "officialWebsiteUrl": "https://o-museum.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7b40e5c1298a",
@@ -70558,6 +71440,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_368ef03f9e23",
+    "slug": "tairyuji",
+    "name": "太龍寺",
+    "nameEn": "Tairyu-ji Temple",
+    "reading": "たいりゅうじ",
+    "aliases": [
+      "西の高野",
+      "太龍寺ロープウェイ"
+    ],
+    "address": "徳島県阿南市加茂町龍山2",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "阿南市"
+    },
+    "coords": {
+      "lat": 33.89,
+      "lng": 134.51
+    },
+    "category": "temple",
+    "summary": "標高六百メートルの山上にある四国霊場。杉の巨木に囲まれ、西の高野と呼ばれてきました。",
+    "description": "四国八十八箇所の二十一番札所で、山上に伽藍が広がります。空海が若い頃に虚空蔵求聞持法を修めた場所と伝わり、舎心ヶ嶽にその像が立ちます。境内は杉の巨木に囲まれ、本堂へは石段が続きます。麓からロープウェイが通じており、全長二千七百七十五メートル、途中で谷を越え尾根を越える路線です。歩いて登る遍路道も残っています。",
+    "highlights": [
+      "杉の巨木に囲まれた山上の伽藍",
+      "舎心ヶ嶽の空海像",
+      "谷と尾根を越えるロープウェイ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が杉の間に入り、境内が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲の山が色づきます。ロープウェイからの俯瞰も本番です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があります。杉と雪だけの単純な画面になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、杉の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が石段に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "杉の幹を縦線の反復として画面の両側に置きます",
+      "ロープウェイからは谷の深さが分かる角度を狙います",
+      "舎心ヶ嶽の像は背後の山並みと一緒に入れます"
+    ],
+    "officialWebsiteUrl": "https://www.tairyuji.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e0ccb0e33a76",
     "slug": "taishakukyo",
     "name": "帝釈峡 雄橋",
@@ -73373,6 +74319,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_58aedc5d8d51",
+    "slug": "tatsue",
+    "name": "立江寺",
+    "nameEn": "Tatsue-ji Temple",
+    "reading": "たつえじ",
+    "aliases": [
+      "関所寺 立江寺",
+      "黒髪堂"
+    ],
+    "address": "徳島県小松島市立江町若松13",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "小松島市"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 134.58
+    },
+    "category": "temple",
+    "summary": "四国霊場の関所寺。本堂の格天井には日本画家の手で二百八十六枚の花鳥画が描き込まれています。",
+    "description": "四国八十八箇所の十九番札所で、邪心があると先へ進めないとされる関所寺の一つです。本堂の格天井には日本画家によって二百八十六枚の花鳥画が描かれ、見上げると碁盤目状に絵が並びます。境内には黒髪堂があり、鐘の緒に髪が巻き付いたという伝承が残ります。市街地に近く、平坦な境内で歩きやすい寺です。",
+    "highlights": [
+      "二百八十六枚の格天井画",
+      "関所寺としての由緒",
+      "平坦で歩きやすい境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、堂の木肌と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、堂の内部に届く光が変わります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、本堂の天井を落ち着いて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、堂内を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は堂内に光が回り、天井画の色が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "天井画は真上を向いて碁盤目の反復を見せます",
+      "広角で天井全体を入れると枚数の多さが伝わります",
+      "堂内の撮影可否は必ず確認してから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.awanavi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7b86a35d9b03",
     "slug": "tatsuno",
     "name": "龍野の町並み",
@@ -75444,6 +76454,133 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4b265e914c55",
+    "slug": "tokushima-castle",
+    "name": "徳島城跡",
+    "nameEn": "Tokushima Castle Site",
+    "reading": "とくしまじょうあと",
+    "aliases": [
+      "徳島中央公園",
+      "表御殿庭園"
+    ],
+    "address": "徳島県徳島市徳島町城内1",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "徳島市"
+    },
+    "coords": {
+      "lat": 34.08,
+      "lng": 134.56
+    },
+    "category": "landmark",
+    "summary": "青みを帯びた緑色片岩を積んだ石垣が残ります。表御殿庭園は同じ石を使った枯山水と池泉の庭です。",
+    "description": "蜂須賀家政が築いた城で、建物は残りませんが石垣と庭園が残ります。石垣には阿波の青石と呼ばれる緑色片岩が使われ、他の城の灰色の石垣とは色が違います。濡れるとさらに青みが増します。表御殿庭園は桃山期の作庭で国の名勝、枯山水と池泉回遊の両方を持ち、ここにも大量の青石が使われています。城山は登れ、市街を見下ろせます。",
+    "highlights": [
+      "青みを帯びた緑色片岩の石垣",
+      "青石を多用した表御殿庭園",
+      "城山からの市街の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。園内に多数あり、石垣と重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "雨の日は石が濡れて青みが増します。あえて雨天に行く価値があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭園が色づき、青石との対比が強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、庭園を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は石垣に光が当たり、緑色片岩の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "石垣は寄って石の色そのものを主題にします",
+      "庭園の青石は他の要素と重ねず単独で置くと色が読めます",
+      "雨の日は石が濡れて色が濃くなります"
+    ],
+    "officialWebsiteUrl": "https://www.awanavi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_0f4aa9cce076",
+    "slug": "tokushima-kaminaka",
+    "name": "那賀町 大轟の滝",
+    "nameEn": "Odoro Falls, Naka",
+    "reading": "なかちょう おおとどろのたき",
+    "aliases": [
+      "大轟の滝"
+    ],
+    "address": "徳島県那賀郡那賀町沢谷",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "那賀町"
+    },
+    "coords": {
+      "lat": 33.83,
+      "lng": 134.22
+    },
+    "category": "nature",
+    "summary": "道路のすぐ脇に三段で落ちる滝。車を降りてすぐ正面に立てるため、装備を選ばず撮れます。",
+    "description": "剣山へ向かう国道沿いにある滝で、落差約二十メートルを三段に分かれて落ちます。道路のすぐ脇にあり、駐車帯から数歩で正面に立てます。岩が段状に張り出しているため、水が幅を変えながら落ちる形になります。周囲は広葉樹の谷で、秋は紅葉が滝を囲みます。下流には大釜の滝もあり、あわせて回れます。国道は道幅が狭い区間があります。",
+    "highlights": [
+      "三段に分かれて落ちる水",
+      "道路脇からすぐ正面に立てる立地",
+      "秋に滝を囲む紅葉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。滝が最も勢いのある時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲が色づきます。滝と紅葉を一枚に入れられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面が光ります。偏光フィルターで反射を調整します。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで水を線にすると三段の形が読めます",
+      "縦構図で落差を取り、周囲の岩を左右に入れます",
+      "国道沿いなので、車の通行を妨げない位置に立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.town.tokushima-naka.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_ebfcecc4c37e",
@@ -80324,6 +81461,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_587f2d6a3b69",
+    "slug": "unpenji",
+    "name": "雲辺寺",
+    "nameEn": "Unpen-ji Temple",
+    "reading": "うんぺんじ",
+    "aliases": [
+      "五百羅漢 雲辺寺",
+      "雲辺寺ロープウェイ"
+    ],
+    "address": "徳島県三好市池田町白地ノロウチ763",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "三好市"
+    },
+    "coords": {
+      "lat": 34.05,
+      "lng": 133.72
+    },
+    "category": "temple",
+    "summary": "標高九百十一メートル、四国霊場で最も高い札所。参道には表情の違う五百羅漢の石像が並びます。",
+    "description": "四国八十八箇所の六十六番札所で、寺としては徳島県にありますが、参道の多くは香川県側にかかります。標高九百十一メートルは八十八箇所で最高で、境内は雲の中に入ることがあります。参道沿いには表情の異なる五百体の羅漢像が並び、同じ形が続かない反復になります。麓からのロープウェイは高低差六百五十七メートルを七分で上がります。",
+    "highlights": [
+      "表情の異なる五百体の羅漢像",
+      "四国霊場で最も高い標高",
+      "高低差六百五十七メートルのロープウェイ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、山上の新緑。麓より季節が遅れて進みます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬の紅葉。標高が高いぶん早く色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もり、羅漢像に雪が乗ります。霧氷が出る日もあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、羅漢像が霧の中に浮かびます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は像の表情に光が回り、一体ずつの違いが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "羅漢は望遠で圧縮して顔の並びを密にします",
+      "一体に寄って表情の違いを見せる対比も入れます",
+      "霧の日はコントラストが落ちるので現像で締める前提で撮ります"
+    ],
+    "officialWebsiteUrl": "https://miyoshi-tourism.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d062ff89c8da",
     "slug": "unzen-jigoku",
     "name": "雲仙地獄",
@@ -82482,6 +83683,70 @@
       "広角で原の広さを出すか、寄って岩の質感を撮るかを決めてから動きます"
     ],
     "officialWebsiteUrl": "https://www.city.hachimantai.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_a103544f13de",
+    "slug": "yakuoji",
+    "name": "薬王寺",
+    "nameEn": "Yakuo-ji Temple",
+    "reading": "やくおうじ",
+    "aliases": [
+      "厄除け薬王寺",
+      "瑜祇塔"
+    ],
+    "address": "徳島県海部郡美波町奥河内寺前285-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "徳島県",
+      "city": "美波町"
+    },
+    "coords": {
+      "lat": 33.73,
+      "lng": 134.54
+    },
+    "category": "temple",
+    "summary": "厄除けの寺として知られる四国霊場。石段が男厄坂女厄坂と続き、山上の瑜祇塔から海が見えます。",
+    "description": "四国八十八箇所の二十三番札所で、厄除けの寺として知られます。参道の石段は女厄坂三十三段、男厄坂四十二段と続き、段数が厄年に対応しています。上りきった先の本堂からさらに登ると、朱塗りの瑜祇塔が立ちます。塔の上からは日和佐の町と太平洋が見渡せます。近くの大浜海岸はウミガメの産卵地で、合わせて回れます。",
+    "highlights": [
+      "厄年に対応した石段",
+      "山上の朱塗りの瑜祇塔",
+      "塔から見る日和佐の町と太平洋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、朱の塔との対比が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、塔からの眺めが最も色濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "初詣の時期は参拝者が集中します。石段の人の列が被写体になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は塔が暖色に染まり、町にも灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から望遠で圧縮して段数の多さを見せます",
+      "塔からは町と海を二層にして立地を示します",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://yakuouji.net/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
