@@ -1528,6 +1528,18 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             >
                                 {locale === "en" ? "Archive →" : "アーカイブ →"}
                             </Link>
+                            {/* 旅行プラン（本人だけ）。**他人のページには出さない**
+                                ——中身は本人しか読めないので、押しても
+                                「ログインしてください」にしかならない
+                                （計画書 §11「本人のページだけ」） */}
+                            <Link
+                                href={ROUTES.TRIPS}
+                                prefetch={false}
+                                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors"
+                                style={{ touchAction: "manipulation" }}
+                            >
+                                {locale === "en" ? "Trips →" : "旅行プラン →"}
+                            </Link>
                         </div>
                     )}
 

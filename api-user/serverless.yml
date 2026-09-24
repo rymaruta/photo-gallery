@@ -611,6 +611,46 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 旅行プラン（行きたい場所を「いつ・どの順で回るか」に並べる）。
+  # **すべて本人のみ。** 行 ID は JWT の sub からしか作らないので、
+  # 「誰のプランか」を受け取る口はパスにもクエリにも本文にも無い
+  getMyTrips:
+    handler: src/tripPlans.getMyTrips
+    events:
+      - httpApi:
+          path: /user/trips
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  createTrip:
+    handler: src/tripPlans.createTrip
+    events:
+      - httpApi:
+          path: /user/trips
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  updateTrip:
+    handler: src/tripPlans.updateTrip
+    events:
+      - httpApi:
+          path: /user/trips/{planId}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **planId はパスで受ける**（本文のある DELETE は経路で落とされることがある）
+  deleteTrip:
+    handler: src/tripPlans.deleteTrip
+    events:
+      - httpApi:
+          path: /user/trips/{planId}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
   getComments:
     handler: src/comments.getComments
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ

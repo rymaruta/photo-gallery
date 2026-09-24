@@ -91,38 +91,30 @@ function coverOf(photos: Photo[], match: (p: Photo) => boolean): Photo | undefin
 }
 
 /**
- * 節の項目のリンク。**柱だけ素の `<a>` にする。**
+ * 節の項目のリンク。**全部 `<Link>`。**
  *
- * 🔴 **`<Link>` で `/search?…` へ飛ぶと、クエリが落ちて全件になる。**
- * 実測（Chromium・`out/` を配って計測）:
+ * 🔴 **以前はここだけ素の `<a>` にしていた。** `<Link>` で `/search?…` へ
+ * 飛ぶとクエリが落ちて全件になっていたため（実測: `/search?category=landscape`
+ * を直接ひらくと16枚・押すと `/search`・30枚）。
  *
- *     直接ひらく    /search?category=landscape  → 16件 ✅
- *     直接ひらく    /search?q=山中湖             →  2件 ✅
- *     `<Link>` で押す                           → `/search`・30件 ❌
- *     `location.assign` で同じURLへ             → 16件 ✅
+ * 根っこは `useGallery` にあった——`history` の呼び出しを全部記録すると:
  *
- * `useGallery` は URL を **`useState` の初期化**（＝レンダー中）で読む。
- * クライアント側の遷移では、新しい画面が描かれる時点でまだ履歴が
- * 書き変わっていないので**空の絞り込みで始まり**、直後の URL 同期
- * （`replaceState`）が `?category=` を消す。
+ *     1889.6ms  pushState     /search?category=landscape   ← Next の <Link>
+ *     1953.2ms  replaceState  /search                      ← useGallery が消す
  *
- * **だから 404 救済と同じ「全ページ遷移」にする**——`NotFoundClient` が
- * `window.location.replace(target)` を使っているのと同じ理由で、
- * あちらが効いているのもそのおかげ（`<Link>` だったら同じく落ちていた）。
- * このサイトは公開ページの先読みを全部切ってあるので、`<Link>` との差は
- * 「文書を1本取り直す」だけ。
+ * **URL は一度は正しくなっていた。** 消していたのは `urlFilters` の依存が
+ * `[clientRender]` だけで、水和のときに一度読んだきり読み直さなかったから。
+ * そちらを直した（`lib/hooks/useGallery.ts` の `subscribeToUrl`）ので、
+ * 回避策は要らない。
  *
- * ⚠️ **ここを `<Link>` に戻さないこと。** 戻すと絞り込みが効かなくなる
- * （画面は出るので気づきにくい）。見張りは
- * `DiscoverSections.test.tsx` の「柱は素の `<a>` で全ページ遷移する」。
- * 根っこ（`useGallery` が遷移後の URL を読み直さない）を直せば
- * `<Link>` に戻してよい。
+ * ⚠️ **戻したときの見張りは `useGallery` 側**（`urlFilters` が URL に追随する）。
+ * ここを `<a>` に戻しても壊れはしないが、**押すたびに HTML を1本落とし直す**
+ * （実測 gzip 15,477 B ／ `<Link>` の RSC の控えは 3,934 B）。
  */
-function ItemLink({ href, rail, className, style, children }: {
-    href: string; rail: boolean; className: string;
+function ItemLink({ href, className, style, children }: {
+    href: string; className: string;
     style?: React.CSSProperties; children: React.ReactNode;
 }) {
-    if (rail) return <a href={href} className={className} style={style}>{children}</a>;
     return <Link href={href} prefetch={false} className={className} style={style}>{children}</Link>;
 }
 
@@ -214,7 +206,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                             const cover = coverFor(c, "category");
                             return (
                                 <li key={c.slug} className="flex-shrink-0">
-                                    <ItemLink rail={isRail} href={linkTo("category", c.slug, variant)}
+                                    <ItemLink href={linkTo("category", c.slug, variant)}
                                           className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
                                           style={{ width: "72px", touchAction: "manipulation" }}>
                                         <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line"
@@ -246,7 +238,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                             if (isRail) {
                                 return (
                                     <li key={s.slug}>
-                                        <ItemLink rail={isRail} href={linkTo("location", s.slug, variant)}
+                                        <ItemLink href={linkTo("location", s.slug, variant)}
                                               className="flex items-center gap-2.5 rounded-xl p-1 -m-1 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
                                               style={{ touchAction: "manipulation" }}>
                                             <span className="block relative flex-shrink-0 bg-surface ring-1 ring-line rounded-[10px] overflow-hidden"
@@ -265,7 +257,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                             }
                             return (
                                 <li key={s.slug} className="flex-shrink-0">
-                                    <ItemLink rail={isRail} href={linkTo("location", s.slug, variant)}
+                                    <ItemLink href={linkTo("location", s.slug, variant)}
                                           className="block rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ width: "150px", touchAction: "manipulation" }}>
                                         <span className="block relative bg-surface ring-1 ring-line rounded-xl overflow-hidden"
@@ -295,7 +287,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
-                                <ItemLink rail={isRail} href={linkTo("camera", c.slug, variant)}
+                                <ItemLink href={linkTo("camera", c.slug, variant)}
                                       className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors"
                                       style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 11px", touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}

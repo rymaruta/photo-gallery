@@ -29,6 +29,16 @@ vi.mock("../GalleryGrid", () => ({
     ),
 }));
 
+// 色を決め直す仕掛けは差し替える（復号の道具は jsdom に無い）。
+// ここで見たいのは「どちらの色を採るか」の**配線**だけ。
+const { blurColors, seenByHook } = vi.hoisted(() => ({
+    blurColors: new Map<string, string>(),
+    seenByHook: [] as unknown[],
+}));
+vi.mock("../../../lib/color/useBlurColors", () => ({
+    useBlurColors: (photos: unknown) => { seenByHook.push(photos); return blurColors; },
+}));
+
 const ColorJourney = (await import("../ColorJourney")).default;
 
 const photo = (id: string, dominantColor?: string, category?: string): Photo =>
@@ -181,5 +191,57 @@ describe("一覧が入れ替わったとき", () => {
         expect(container.firstChild).not.toBeNull();
         redraw(rerender, [photo("a"), photo("b")]);
         expect(container.firstChild).toBeNull();
+    });
+});
+
+/**
+ * 🔴 **ぼかしから決め直した色が、`dominantColor` より優先されること。**
+ *
+ * owner:「色タグが仕事してない気がする」。本番39枚で数えたら、
+ * **21枚（54%）でタグと中身が食い違い**、「黒」と出ている16枚のうち
+ * **無彩色しか無いのは1枚だけ**だった（`photo-colors`・2026-09-24）。
+ * `dominantColor` は sharp の「いちばん多い1ビン」＝たいてい影の色。
+ *
+ * ここで見るのは**配線**（どちらを採るか）。色の決め方そのものは
+ * `lib/color/__tests__/useBlurColors.test.ts` が見る。
+ */
+describe("ぼかしから決め直した色", () => {
+    // `dominantColor` は真っ黒。ぼかしが「橙」と言えば橙に出る、が肝
+    const shadowy = () => [photo("a", "#080808"), photo("b", "#181818")];
+
+    beforeEach(() => blurColors.clear());
+
+    it("ぼかしが決まった写真は、その色のチップに出る（`dominantColor` を上書き）", () => {
+        blurColors.set("a", "orange");
+        blurColors.set("b", "orange");
+        draw(shadowy());
+        expect(screen.queryByRole("button", { name: /黒/ }), "影の色のチップが残っている").toBeNull();
+        expect(screen.getByRole("button", { name: "橙 (2)" })).toBeTruthy();
+    });
+
+    it("まだ決まっていない間は `dominantColor` のまま（チップが消えない）", () => {
+        draw(shadowy());
+        expect(screen.getByRole("button", { name: "黒 (2)" })).toBeTruthy();
+    });
+
+    it("決まった写真と、まだの写真が混ざっても両方出る", () => {
+        blurColors.set("a", "orange");
+        blurColors.set("c", "orange");
+        draw([...shadowy(), photo("c", "#080808"), photo("d", "#080808")]);
+        expect(screen.getByRole("button", { name: "橙 (2)" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "黒 (2)" })).toBeTruthy();
+    });
+
+    it("色を持たない写真でも、ぼかしが決まれば出る", () => {
+        blurColors.set("a", "green");
+        blurColors.set("b", "green");
+        draw([photo("a"), photo("b")]);
+        expect(screen.getByRole("button", { name: "緑 (2)" })).toBeTruthy();
+    });
+
+    it("決め直す仕掛けには、描いている一覧をそのまま渡す", () => {
+        const photos = shadowy();
+        draw(photos);
+        expect(seenByHook.at(-1)).toBe(photos);
     });
 });

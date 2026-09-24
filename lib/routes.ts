@@ -63,7 +63,20 @@ export const ROUTES = {
      * `/favorites` と同じ扱い（`noindexMetadata`）。
      */
     SAVED_SPOTS: "/saved-spots",
+    /**
+     * 旅行プラン。**行きたい場所を「いつ・どの順で回るか」に並べる面**で、
+     * `SAVED_SPOTS`（保存しただけの一覧）とは別。
+     * **検索結果に出さない**——本人だけが見られる中身なので
+     * `/favorites`・`/saved-spots` と同じ扱い（`noindexMetadata`）。
+     */
+    TRIPS: "/trips",
     MAP: "/map",
+    /**
+     * 公式撮影地ガイドの索引。**`/location`（写真から作る撮影地の索引）とは
+     * 別の面**——あちらは写真の集約、こちらは運営が書いたガイド。
+     * 写真が0枚の場所も載る。
+     */
+    SPOTS: "/spots",
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
     PRIVACY: "/privacy",

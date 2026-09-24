@@ -347,3 +347,91 @@ body {
 .photo-map-frame .leaflet-control-attribution a {
   color: rgb(255 255 255 / 0.75);
 }
+
+/* ───────── 公式撮影地ガイドのピン（`/map`） ─────────
+
+   **写真のピンと形を分ける。** 写真入りの丸（`.photo-map-pin`）と同じ見た目に
+   すると「ここに写真がある」と読める。こちらは**運営が台帳に書いた地点**で、
+   投稿が0枚でも立つ。現在地を丸い点にしてあるのと同じ判断。
+
+   `.photo-map-pin-icon` と同じく、`L.divIcon` に `className` を渡しているので
+   `leaflet-div-icon` の既定（白背景・灰色の枠）は付かない。 */
+.spot-map-pin-icon.leaflet-marker-icon,
+.spot-map-pin-icon {
+  background: transparent;
+  border: 0;
+}
+
+.spot-map-pin {
+  display: block;
+  position: relative;
+  width: 28px;
+  height: 36px;
+}
+
+/* 面。**白地に主色の枠**——写真のピン（主色の下地に写真）と逆に組んで、
+   遠目でも別物と分かるようにする */
+.spot-map-pin::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 2.5px #2080f6, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* 中の印。文字は入れない（利用者の入力も運営の言葉も入らない＝翻訳も要らない）。
+   名前は marker の `title` / `alt` が持つので読み上げには届く */
+.spot-map-pin__dot {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #2080f6;
+}
+
+/* 下向きの尖り。先端が座標（`iconAnchor` が下端）。
+   **写真のピンは白い尖り**なので、こちらは主色で塗って区別する */
+.spot-map-pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 9px solid #2080f6;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+}
+
+/* 選んだピン。**大きくして光らせる**（写真のピンと同じ作法）。
+   `iconAnchor` は下端（28x36 基準）なので、横は増えた 12px の半分、
+   **縦は増えた 14px ぶん丸ごと**引き上げる（写真のピンで一度ずらした） */
+.spot-map-pin.is-selected {
+  width: 40px;
+  height: 50px;
+  margin-left: -6px;
+  margin-top: -14px;
+}
+.spot-map-pin.is-selected::before {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 0 0 3px #2080f6, 0 0 0 9px rgb(32 128 246 / 0.4), 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.spot-map-pin.is-selected .spot-map-pin__dot {
+  top: 13px;
+  left: 13px;
+  width: 14px;
+  height: 14px;
+}
+.spot-map-pin.is-selected::after {
+  border-left-width: 7px;
+  border-right-width: 7px;
+  border-top-width: 12px;
+}
