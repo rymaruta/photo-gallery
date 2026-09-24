@@ -80,6 +80,10 @@ jobs:
         run: |
           curl --location --silent --output /dev/null --max-time 15 --write-out "NASA GIBS relief tile HTTP %{http_code}\\n" \
             "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/5/12/18.jpeg"
+      - name: Inspect current live map style for legible palette
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error --max-time 20 https://tiles.openfreemap.org/styles/dark | python3 -c 'import sys,json; j=json.load(sys.stdin); print("STYLE",j.get("name")); [print("STYLE_LAYER",x["id"],x["type"],str(x.get("paint",{}))[:240]) for x in j.get("layers",[]) if x["type"] in ("background","fill","line","symbol")][:80]'
       - name: Capture REAL vector tile map screenshots (not schematic HTML)
         shell: bash
         run: |
