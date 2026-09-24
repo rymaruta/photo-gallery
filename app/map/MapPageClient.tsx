@@ -275,7 +275,9 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             ガイドへの経路」で、`MapPhotoList` と同じ役目。
                             **絞り込み（語・カテゴリ・範囲）には連動しない**
                             ——あれは写真の値を見る仕組みで、台帳は別の持ち物 */}
-                        <MapSpotList spots={spotsInArea} locale={locale} />
+                        <div className="hidden lg:block">
+                            <MapSpotList spots={spotsInArea} locale={locale} testId="map-spot-list-desktop" />
+                        </div>
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
 
@@ -317,6 +319,11 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             selectedSpotSlug={spotSheet?.slug ?? null}
                             className="h-[62dvh] min-h-[340px] lg:h-[calc(100dvh-215px)] lg:min-h-[480px]"
                         />
+
+                        {/* スマホでは地図の直下に。地図上の写真とスポットを見比べた後に保存できる。 */}
+                        <div className="lg:hidden">
+                            <MapSpotList spots={spotsInArea} locale={locale} />
+                        </div>
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
                             （white/40 は紺地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
