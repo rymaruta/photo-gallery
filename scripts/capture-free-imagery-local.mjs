@@ -54,6 +54,22 @@ const routes = [
     source: "service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/",
     description: "PDOK official Dutch orthophotos in Amsterdam",
     pins: [["proof-amsterdam", "アムステルダム（検証用）", "オランダ", 52.3676, 4.9041]] },
+  { slug: "austria", label: "Austria", hash: "#13/48.2082/16.3738",
+    source: "mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/",
+    description: "Austrian basemap.at government Orthofoto in Vienna",
+    pins: [["proof-vienna", "ウィーン（検証用）", "オーストリア", 48.2082, 16.3738]] },
+  { slug: "czechia", label: "Czechia", hash: "#13/50.0755/14.4378",
+    source: "ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/",
+    description: "Czech ČÚZK government Ortofoto in Prague",
+    pins: [["proof-prague", "プラハ（検証用）", "チェコ", 50.0755, 14.4378]] },
+  { slug: "belgium-flanders", label: "Belgium Flanders", hash: "#13/51.0543/3.7174",
+    source: "geo.api.vlaanderen.be/OMWRGBMRVL/wmts?",
+    description: "Digitaal Vlaanderen official Flemish orthoimage in Ghent, NOT all of Belgium",
+    pins: [["proof-ghent", "ヘント（検証用）", "ベルギー・フランドル地方", 51.0543, 3.7174]] },
+  { slug: "poland", label: "Poland", hash: "#13/52.2297/21.0122",
+    source: "mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?",
+    description: "Polish GUGiK official orthophotomap in Warsaw",
+    pins: [["proof-warsaw", "ワルシャワ（検証用）", "ポーランド", 52.2297, 21.0122]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
