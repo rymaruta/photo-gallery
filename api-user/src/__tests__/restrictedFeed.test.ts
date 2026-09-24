@@ -266,3 +266,105 @@ describe("外したあと、次の要求から見えなくなる", () => {
         expect((ddb.send as any).mock.calls.length).toBeGreaterThan(before);
     });
 });
+
+// **配線の抜けを見る。** 署名の関数を単体で試すだけだと
+// 「関数は在るのに `body` に通していない」を誰も見ない
+// （#134 が `stripPrivate` でまったく同じ穴を指摘している）
+describe("一覧の本文に、署名が乗っているか", () => {
+    const ME = "11111111-1111-1111-1111-111111111111";
+    const event = { requestContext: { authorizer: { jwt: { claims: { sub: ME } } } } };
+
+    it("鍵があれば、返す画像 URL に期限が付く", async () => {
+        const { generateKeyPairSync } = await import("node:crypto");
+        const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            privateKeyEncoding: { type: "pkcs1", format: "pem" },
+            publicKeyEncoding: { type: "spki", format: "pem" },
+        });
+        vi.stubEnv("CLOUDFRONT_KEY_PAIR_ID", "K2EXAMPLE");
+        vi.stubEnv("CLOUDFRONT_PRIVATE_KEY", privateKey as unknown as string);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            if ((cmd.input as Record<string, unknown>).KeyConditionExpression) {
+                return Promise.resolve({ Items: [{
+                    id: "r1", src: "https://cdn/r1.jpg", thumbSrc: "https://cdn/r1-t.jpg",
+                    userId: ME, audience: "followers",
+                }] });
+            }
+            return Promise.resolve({});
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getRestrictedFeed as any)(event);
+        const body = JSON.parse(res.body) as { src: string; thumbSrc: string }[];
+        expect(body[0].src, "src に署名が乗っていない").toContain("Signature=");
+        expect(body[0].thumbSrc, "派生に署名が乗っていない").toContain("Signature=");
+        vi.unstubAllEnvs();
+    });
+
+    // **鍵が無いいまの本番では、今までどおり**（機能を壊さない）
+    it("鍵が無ければ、素の URL のまま返す", async () => {
+        vi.unstubAllEnvs();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            if ((cmd.input as Record<string, unknown>).KeyConditionExpression) {
+                return Promise.resolve({ Items: [{
+                    id: "r1", src: "https://cdn/r1.jpg", userId: ME, audience: "followers",
+                }] });
+            }
+            return Promise.resolve({});
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getRestrictedFeed as any)(event);
+        expect((JSON.parse(res.body) as { src: string }[])[0].src).toBe("https://cdn/r1.jpg");
+    });
+});
+
+// 🔴 **落とすことと署名することは、どちらも要る。**
+//
+// この1行を2つの PR が別々に書き換えていた（#134 が `stripPrivate`・
+// #136 が `signPhotoImages`）。機械任せのマージなら片方が黙って消え、
+// **片側だけのテストは緑のまま通る**——だから両方を1本で縛る。
+describe("落としてから署名する（両方が同時に効く）", () => {
+    const ME = "11111111-1111-1111-1111-111111111111";
+    const event = { requestContext: { authorizer: { jwt: { claims: { sub: ME } } } } };
+
+    it("原本は消え、残った画像には期限が付く", async () => {
+        const { generateKeyPairSync } = await import("node:crypto");
+        const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            privateKeyEncoding: { type: "pkcs1", format: "pem" },
+            publicKeyEncoding: { type: "spki", format: "pem" },
+        });
+        vi.stubEnv("CLOUDFRONT_KEY_PAIR_ID", "K2EXAMPLE");
+        vi.stubEnv("CLOUDFRONT_PRIVATE_KEY", privateKey as unknown as string);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockReset().mockImplementation((cmd: any) => {
+            if ((cmd.input as Record<string, unknown>).KeyConditionExpression) {
+                return Promise.resolve({ Items: [{
+                    id: "r1", userId: ME, audience: "followers",
+                    src: "https://cdn/r1.jpg", thumbSrc: "https://cdn/r1-t.jpg",
+                    // 外に出してはいけないもの（#134）
+                    srcOriginal: "https://cdn/originals/r1.jpg",
+                    key: "uploads/me/r1.jpg", staticStale: true,
+                    publicFeed: "restricted", keptFrom: "story-1",
+                }] });
+            }
+            return Promise.resolve({});
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (getRestrictedFeed as any)(event);
+        const body = res.body as string;
+
+        // #134 の側: 内部の項目は1つも出ない
+        for (const field of ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"]) {
+            expect(body, `${field} が漏れている`).not.toContain(field);
+        }
+        // #136 の側: 残った画像には期限が付く
+        const rows = JSON.parse(body) as { src: string; thumbSrc: string }[];
+        expect(rows[0].src, "src に署名が無い").toContain("Signature=");
+        expect(rows[0].thumbSrc, "派生に署名が無い").toContain("Signature=");
+        vi.unstubAllEnvs();
+    });
+});
+
+

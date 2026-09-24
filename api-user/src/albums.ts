@@ -24,6 +24,8 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer, APIGatewayProxyHandlerV
 import { randomUUID } from "node:crypto";
 import { GetCommand, PutCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
+// **公開範囲を絞った写真を、招待リンクの下見に出さない**（下の `getInvite`）
+import { isRestrictedRow } from "./sanitize";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
 import {
@@ -382,6 +384,21 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
         // 「下書きに入れたつもりの写真が、リンクを持つ誰にでも読める」。
         // 判定は `published !== false`（未指定は公開）——リポジトリ全体の慣習。
         if (p.published === false) continue;
+        // 🔴 **公開範囲を絞った写真も出さない。**
+        //
+        // **この口は未認証で叩ける**（`APIGatewayProxyHandlerV2`——JWT の
+        // 認可を付けていない）。招待リンクを持っているだけの人に、
+        // 「フォロワーのみ」「親しい友達」の写真の URL を渡していた。
+        // `published !== false` だけでは通ってしまう——絞った写真は
+        // **公開されている**（`published: true`）ので、下書きではない。
+        //
+        // ⚠️ **ここは署名で解く問題ではない。** 署名付き URL を返すと、
+        // 招待リンクを持つ**誰にでも有効な鍵を配る**ことになり、かえって
+        // 悪くなる。誰に見せてよいかを判定できない口では**出さない**。
+        //
+        // 判定は `api/src/photos.ts` の `isRestricted` と同じ規則
+        // （**持っていれば一律**。知らない綴りも隠す側に倒す）。
+        if (isRestrictedRow(p)) continue;
         // **返すのは表示に要るものだけ。** 原本（GPS 入り）・S3 のキー・
         // 内部の印は外に出さない（`api/src/photos.ts` の PRIVATE_FIELDS と同じ考え）
         photos.push({

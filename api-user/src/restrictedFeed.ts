@@ -10,6 +10,8 @@ import { hiddenUserIds } from "./blockCheck";
 // 引き連れていて、読み込みの輪を作る）。**写しを作らない**——develop が
 // 同じ理由でここへ切り出していたので、そちらに寄せた
 import { followingId } from "./followCheck";
+// **画像の URL に期限を付ける。** 鍵が無い環境では何もしない（`signedUrl.ts`）
+import { signPhotoImages } from "./signedUrl";
 
 /**
  * GET /feed/restricted — 公開範囲を絞った写真のうち、**自分に見えるぶん**。
@@ -79,7 +81,22 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(visible.map(stripPrivate)),
+            // 🔴 **落としてから、署名する。順番に意味がある。**
+            //
+            // この1行を2つの PR が別々に書き換えていた（#134 が
+            // `stripPrivate`・#136 が `signPhotoImages`）。**機械任せに
+            // すると片方が黙って消える**——`stripPrivate` が消えれば
+            // GPS 入り原本の URL が戻り、`signPhotoImages` が消えれば
+            // 署名が効かない。**要るのは両方。**
+            //
+            // 先に落とすのは、これから捨てる項目（`srcOriginal`）に
+            // 署名しないため。署名してから落としても結果は同じだが、
+            // **捨てるものに鍵をかける**のは読む人を迷わせる。
+            //
+            //  - `stripPrivate`   … 原本・S3 のキー・内部の印を外に出さない
+            //  - `signPhotoImages`… 残った画像の URL に期限を付ける
+            //                       （鍵が無い環境では何もしない）
+            body: JSON.stringify(visible.map((p) => signPhotoImages(stripPrivate(p)))),
         };
     } catch (e) {
         console.error("getRestrictedFeed error:", e);
