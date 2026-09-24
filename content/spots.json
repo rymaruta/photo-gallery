@@ -7750,6 +7750,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a970fa65828e",
+    "slug": "dewa-sanzan",
+    "name": "出羽三山神社",
+    "nameEn": "Dewa Sanzan Shrine",
+    "reading": "でわさんざんじんじゃ",
+    "aliases": [
+      "三神合祭殿",
+      "羽黒山 杉並木"
+    ],
+    "address": "山形県鶴岡市羽黒町手向字手向7",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.71,
+      "lng": 139.98
+    },
+    "category": "shrine",
+    "summary": "羽黒山の山頂に建つ三神合祭殿。茅葺きの屋根は厚さ二メートル超で、日本最大級の規模があります。",
+    "description": "羽黒山、月山、湯殿山の三山の神を一つの社殿に祀る形で、冬に月山と湯殿山が雪で閉ざされるためこの形になりました。屋根は茅葺きで厚さが二メートルを超え、重量感のある造りです。参道は随神門から二千四百四十六段の石段が続き、両側の杉並木は樹齢三百年から六百年。石段の途中には国宝の五重塔が立ちます。山頂までは車道もあります。",
+    "highlights": [
+      "厚さ二メートル超の茅葺き屋根",
+      "二千四百四十六段の石段",
+      "樹齢数百年の杉並木"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、杉並木に新緑が入り、参道が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "杉の緑が濃く、石段が暗く沈みます。木漏れ日が差す時間が狙い目です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪をかぶった茅葺き屋根。参道の石段は積雪で歩けない区間があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参道に霧が出ることがあり、杉並木の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は社殿の茅葺きに光が当たり、厚みの質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "茅葺きは軒先を横から撮って厚さを見せます",
+      "参道は望遠で圧縮すると杉の密度が出ます",
+      "石段は上下どちらからも撮って勾配を比べます"
+    ],
+    "officialWebsiteUrl": "https://www.dewasanzan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c5e112fcc8e9",
     "slug": "dogashima",
     "name": "堂ヶ島 天窓洞",
@@ -11182,6 +11246,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7afee5a87676",
+    "slug": "gassan",
+    "name": "月山",
+    "nameEn": "Mt. Gassan",
+    "reading": "がっさん",
+    "aliases": [
+      "月山 弥陀ヶ原"
+    ],
+    "address": "山形県東田川郡庄内町立谷沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "庄内町"
+    },
+    "coords": {
+      "lat": 38.55,
+      "lng": 140.03
+    },
+    "category": "mountain",
+    "summary": "夏まで雪が残る山で、八合目の弥陀ヶ原には池塘が点在します。雪渓と高山植物が同じ季節に並びます。",
+    "description": "出羽三山の主峰で標高千九百八十四メートル。日本海からの雪雲が直接当たるため積雪が多く、七月でも雪渓が残ります。八合目の弥陀ヶ原は湿原で、大小の池塘が散らばり木道が通っています。山頂の月山神社本宮までは弥陀ヶ原から二時間ほど。姥沢側にはリフトがあり、夏スキーが行われます。天候の変化が早い山です。",
+    "highlights": [
+      "夏まで残る雪渓",
+      "池塘が点在する弥陀ヶ原",
+      "山頂の月山神社本宮"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月から八月、雪渓と高山植物が同時に見られます。霧が出やすい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月上旬、草紅葉と池塘の組み合わせ。初雪が早い年もあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が晴れやすく、池塘の水面も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "日中は霧が上がってくることが多く、視界が消える時間もあります。"
+      }
+    ],
+    "compositionTips": [
+      "池塘は水面に空を映して二層にします",
+      "雪渓は緑と並べて夏であることを示します",
+      "木道から外れず、湿原に踏み込まないこと"
+    ],
+    "officialWebsiteUrl": "https://www.dewasanzan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_38b1a9740ce6",
@@ -16388,6 +16511,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f203728b1a56",
+    "slug": "hijiori",
+    "name": "肘折温泉",
+    "nameEn": "Hijiori Onsen",
+    "reading": "ひじおりおんせん",
+    "aliases": [
+      "肘折 朝市"
+    ],
+    "address": "山形県最上郡大蔵村南山",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "大蔵村"
+    },
+    "coords": {
+      "lat": 38.61,
+      "lng": 140.23
+    },
+    "category": "landmark",
+    "summary": "カルデラの底にある温泉地。木造の旅館が一本の細い道に並び、朝は路上に朝市が立ちます。",
+    "description": "銅山川沿いのカルデラ地形の底に開けた温泉地で、開湯千二百年とされます。三階建ての木造旅館が細い道の両側に密集し、独特の町並みを作っています。四月下旬から十一月まで、朝には道に朝市が立ち、近隣の農家が野菜や山菜を並べます。日本有数の豪雪地で、積雪が四メートルを超える年もあります。",
+    "highlights": [
+      "木造旅館が密集する細い道",
+      "路上に立つ朝市",
+      "四メートルを超える積雪"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬から朝市が始まります。山菜が並ぶ時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、周囲のカルデラ壁が色づきます。朝市も続く時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "積雪が本番。軒まで雪が届く年があり、町並みの見え方が変わります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝市の時間が本命。早朝から人が出るので早めに着きます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は旅館の灯りが道に落ちます。湯気と合わせると温泉地らしくなります。"
+      }
+    ],
+    "compositionTips": [
+      "細い道は望遠で圧縮して建物の密集を見せます",
+      "朝市は売り手に断ってから撮ります",
+      "木造三階建ての高さは見上げて取ります"
+    ],
+    "officialWebsiteUrl": "https://hijiori.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_efe8481c4162",
     "slug": "hikone-castle",
     "name": "彦根城",
@@ -18327,6 +18513,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_704bd729854b",
+    "slug": "homma-museum",
+    "name": "本間美術館",
+    "nameEn": "Homma Museum of Art",
+    "reading": "ほんまびじゅつかん",
+    "aliases": [
+      "鶴舞園",
+      "清遠閣"
+    ],
+    "address": "山形県酒田市御成町7-7",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 38.92,
+      "lng": 139.84
+    },
+    "category": "landmark",
+    "summary": "酒田の豪商本間家の別荘と庭園を公開した美術館。座敷から鶴舞園ごしに鳥海山を借景で望めます。",
+    "description": "一八一三年に本間家が港で働く人々の冬場の仕事として造らせた別荘と庭園です。庭は鶴舞園と呼ばれる池泉回遊式で、正面に鳥海山を借景として取り込む設計になっています。建物の清遠閣は木造二階建てで、二階の座敷からの眺めが最もよく計算されています。館内では本間家伝来の美術品が展示されます。",
+    "highlights": [
+      "鳥海山を借景にした庭園",
+      "木造二階建ての清遠閣",
+      "池泉回遊式の鶴舞園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の桜と残雪の鳥海山。借景が最もよく効く時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。池への映り込みが濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の庭と白い鳥海山。線が単純になり、構成が読みやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は鳥海山が見えやすく、池も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "日中は座敷からの光の入り方が安定し、額縁構図が撮りやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "座敷の柱と鴨居で庭を囲む額縁構図が設計の意図に合います",
+      "鳥海山を入れるときは池と庭木を手前に三層にします",
+      "館内展示の撮影可否は表示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.homma-museum.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_dbc3666735a4",
@@ -23281,6 +23531,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_552b59ef3e7c",
+    "slug": "jionji",
+    "name": "慈恩寺",
+    "nameEn": "Jion-ji Temple",
+    "reading": "じおんじ",
+    "aliases": [
+      "本山慈恩寺"
+    ],
+    "address": "山形県寒河江市大字慈恩寺31",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "寒河江市"
+    },
+    "coords": {
+      "lat": 38.42,
+      "lng": 140.29
+    },
+    "category": "temple",
+    "summary": "茅葺きの本堂と三重塔が山の斜面に散在する寺。国指定史跡の境内全体が中世の伽藍配置を残します。",
+    "description": "奈良期の開基と伝わり、中世には広大な寺領を持ちました。茅葺き寄棟造の本堂は江戸初期の再建で、正面の幅が大きく重量感があります。境内の斜面には三重塔、薬師堂、鐘楼が散らばり、間に杉の大木が立ちます。多数の仏像が伝わり、国指定重要文化財が複数あります。境内全体が国の史跡に指定されています。",
+    "highlights": [
+      "茅葺き寄棟造の本堂",
+      "斜面に立つ三重塔",
+      "杉の大木が点在する境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の桜と新緑。茅葺きの茶色との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。三重塔と色づいた木が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の茅葺き屋根。勾配に雪が乗る形が最もよく分かります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、境内を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は茅葺きに光が当たり、屋根の厚みの質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "本堂は正面からより斜めから撮ると屋根の量感が出ます",
+      "三重塔は杉の間から抜いて斜面にあることを示します",
+      "仏像の撮影可否は拝観時に確認します"
+    ],
+    "officialWebsiteUrl": "https://jionji.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_29c507c9fe09",
     "slug": "jododaira",
     "name": "浄土平（吾妻小富士）",
@@ -25624,6 +25937,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_517f31a2ce62",
+    "slug": "kaminoyama-castle",
+    "name": "上山城",
+    "nameEn": "Kaminoyama Castle",
+    "reading": "かみのやまじょう",
+    "aliases": [
+      "月岡城"
+    ],
+    "address": "山形県上山市元城内3-7",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "上山市"
+    },
+    "coords": {
+      "lat": 38.15,
+      "lng": 140.27
+    },
+    "category": "landmark",
+    "summary": "温泉町を見下ろす丘に建つ復元天守。最上階からは蔵王連峰と上山の町並みが正面に見渡せます。",
+    "description": "一九八二年に郷土資料館として再建された天守で、月岡公園の高台に建ちます。最上階の展望室からは蔵王連峰、上山の温泉街、置賜盆地が見渡せます。城下には武家屋敷が四棟保存されており、茅葺きの門と塀が続く一画があります。麓には足湯もあります。桜の時期には天守と桜を一枚に収められます。",
+    "highlights": [
+      "最上階から見る蔵王連峰",
+      "保存された四棟の武家屋敷",
+      "温泉街を見下ろす立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の桜。天守と桜を重ねる角度が公園内にあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、蔵王側が色づき、展望室からの眺めが変わります。"
+      },
+      {
+        "season": "winter",
+        "text": "白い蔵王連峰と雪の町。空気が澄んで山が最も締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は蔵王が見えやすく、展望室からの視程も伸びます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は天守の白壁が暖色に染まり、町に灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "天守は下から見上げて屋根の重なりを出します",
+      "展望室からは望遠で蔵王を引き寄せて町と重ねます",
+      "武家屋敷は茅葺きの門と塀の線を主題にします"
+    ],
+    "officialWebsiteUrl": "https://kaminoyama-castle.info/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_16f0ccde3fd6",
     "slug": "kamishikimi-kumanoza",
     "name": "上色見熊野座神社",
@@ -25769,6 +26145,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f10834f5a9f6",
+    "slug": "kamo-aquarium",
+    "name": "加茂水族館",
+    "nameEn": "Kamo Aquarium",
+    "reading": "かもすいぞくかん",
+    "aliases": [
+      "クラゲドリーム館"
+    ],
+    "address": "山形県鶴岡市今泉字大久保657-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.76,
+      "lng": 139.75
+    },
+    "category": "landmark",
+    "summary": "クラゲの展示種類数で世界有数の水族館。直径五メートルの大水槽に一万匹が浮かぶクラゲドリームシアターがあります。",
+    "description": "経営難からクラゲの展示に活路を見出した経緯で知られる水族館です。六十種類以上のクラゲを展示し、中心となるクラゲドリームシアターは直径五メートルの円形水槽にミズクラゲ約一万匹が漂います。照明の色が時間とともに変わり、水槽全体の色調が移ります。暗い館内で被写体が動くため、撮影条件としては難しい部類に入ります。",
+    "highlights": [
+      "直径五メートルのクラゲ水槽",
+      "六十種類以上のクラゲ展示",
+      "色が移り変わる照明"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。日本海が荒れる季節の行き先になります。"
+      },
+      {
+        "season": "summer",
+        "text": "来館者が多く、水槽前の位置取りに時間がかかります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "開館直後か閉館前が空きます。大水槽は常に暗いので時間帯の影響は小さいです。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は水槽前が空き、落ち着いて構えられます。"
+      }
+    ],
+    "compositionTips": [
+      "ストロボは禁止。高感度と開放絞りで、シャッター速度を稼ぎます",
+      "レンズをガラスに近づけて反射を消します",
+      "クラゲは動くので連写し、形の整った一枚を選びます"
+    ],
+    "officialWebsiteUrl": "https://kamo-kurage.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f75efac3dc28",
@@ -44555,6 +44990,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_575118d407b3",
+    "slug": "nishikawa-gassan",
+    "name": "月山湖",
+    "nameEn": "Lake Gassan",
+    "reading": "がっさんこ",
+    "aliases": [
+      "月山湖大噴水",
+      "寒河江ダム"
+    ],
+    "address": "山形県西村山郡西川町大字砂子関",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "西川町"
+    },
+    "coords": {
+      "lat": 38.44,
+      "lng": 140.15
+    },
+    "category": "nature",
+    "summary": "寒河江ダムのダム湖。高さ百十二メートルまで上がる大噴水があり、湖面と山並みを背景に水柱が立ちます。",
+    "description": "寒河江川をせき止めた寒河江ダムによってできた湖で、周囲を月山と朝日連峰に囲まれます。湖畔の月山湖大噴水は水面から百十二メートルまで吹き上がり、日本有数の高さです。噴き上げは時間が決まっていて、四月下旬から十一月上旬の期間に実施されます。湖を渡る道路からは湖面と山並みを同時に見られます。",
+    "highlights": [
+      "高さ百十二メートルの大噴水",
+      "月山と朝日連峰に囲まれた湖",
+      "湖岸道路からの眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "残雪の山と噴水。雪解け水で湖の水位も上がる時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑と青い湖面。噴水の水しぶきに虹が出ることがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、周囲が色づきます。噴水期間の終わりに近い時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "噴き上げ時刻が決まっているので先に確認します。日中は虹が出やすい時間です。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は湖面が静かで、山の映り込みが安定します。"
+      }
+    ],
+    "compositionTips": [
+      "噴水は縦構図で高さを取り、山を左右に置きます",
+      "水しぶきの虹は太陽を背にした位置から見えます",
+      "湖面の映り込みは風のない朝に狙います"
+    ],
+    "officialWebsiteUrl": "https://www.gassan-info.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_56960651ee7d",
     "slug": "nishinokawara",
     "name": "草津 西の河原公園",
@@ -46363,6 +46862,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_957be4e2edb6",
+    "slug": "oisawa",
+    "name": "大井沢",
+    "nameEn": "Oisawa",
+    "reading": "おおいさわ",
+    "aliases": [
+      "大井沢自然と匠の伝承館"
+    ],
+    "address": "山形県西村山郡西川町大井沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "西川町"
+    },
+    "coords": {
+      "lat": 38.38,
+      "lng": 140.05
+    },
+    "category": "nature",
+    "summary": "朝日連峰の登山口にある山あいの集落。豪雪地の暮らしと、寒河江川上流の渓流が被写体になります。",
+    "description": "朝日連峰の北側の登山口にあたる集落で、冬は積雪が三メートルを超えます。集落には自然と匠の伝承館があり、山村の生活道具や山菜・きのこの資料が展示されています。周囲は寒河江川の上流で、渓流とブナ林が広がります。集落から先は登山道で、日暮沢小屋を経て朝日連峰へ続きます。冬期は道路が閉鎖される区間があります。",
+    "highlights": [
+      "朝日連峰の登山口の集落",
+      "寒河江川上流の渓流とブナ林",
+      "山村の暮らしを伝える展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、雪解けでブナが芽吹きます。渓流の水量も最大です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬、ブナの黄葉。朝日連峰の稜線も色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "三メートルを超える積雪。集落の屋根と雪の量が主題になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、ブナ林の奥行きが出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は集落に低い光が差し、山影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "集落と山を一枚に入れて立地を見せます",
+      "ブナ林は幹の縦線を反復として使います",
+      "住居が近いので、生活の場への配慮を優先します"
+    ],
+    "officialWebsiteUrl": "https://www.town.nishikawa.yamagata.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2c7940be1836",
@@ -53327,6 +53889,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c71b5859d5ff",
+    "slug": "sakata-somaro",
+    "name": "舞娘茶屋 相馬樓",
+    "nameEn": "Somaro Maiko Teahouse",
+    "reading": "まいこぢゃや そうまろう",
+    "aliases": [
+      "相馬樓"
+    ],
+    "address": "山形県酒田市日吉町1-2-20",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 38.92,
+      "lng": 139.83
+    },
+    "category": "landmark",
+    "summary": "江戸期から続いた料亭を改装した施設。紅殻色の壁と大広間が残り、酒田舞娘の踊りが披露されます。",
+    "description": "港町酒田で栄えた料亭相馬屋の建物を改装し、国の登録有形文化財として公開されています。外観と内部は紅殻色で塗られ、二階の大広間は百畳敷き。ここで酒田舞娘による踊りが上演されます。館内には竹久夢二の作品を集めた美術館も併設されています。踊りの上演中は撮影の可否が定められているので、受付で確認します。",
+    "highlights": [
+      "紅殻色で統一された内部",
+      "百畳敷きの大広間",
+      "酒田舞娘の踊り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候に左右されません。雪の港町と合わせて回れます。"
+      },
+      {
+        "season": "spring",
+        "text": "外の光が明るく、紅殻の壁の色が素直に出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "上演時間が決まっているので、先に確認して合わせます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、大広間を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "紅殻の壁は色が転びやすいのでホワイトバランスを固定します",
+      "大広間は畳の目を奥行きの線として使います",
+      "上演中の撮影可否は必ず現地の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.somaro.net/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_9781d2d3b85d",
     "slug": "sakitama",
     "name": "さきたま古墳群",
@@ -58575,6 +59196,66 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4b7ead08a21c",
+    "slug": "shirataka-ayumi",
+    "name": "白鷹 最上川の桜",
+    "nameEn": "Shirataka Cherry Trees by the Mogami River",
+    "reading": "しらたか もがみがわのさくら",
+    "aliases": [
+      "薬師桜",
+      "釜の越桜"
+    ],
+    "address": "山形県西置賜郡白鷹町",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "白鷹町"
+    },
+    "coords": {
+      "lat": 38.21,
+      "lng": 140.1
+    },
+    "category": "nature",
+    "summary": "樹齢数百年の一本桜が町内に点在します。田や集落の中に単独で立つため、樹形がそのまま構図になります。",
+    "description": "白鷹町には樹齢五百年を超えるエドヒガンが複数残り、釜の越桜、薬師桜、十二の桜などが点在します。いずれも群植ではなく一本または数本で、田や集落の中に単独で立ちます。背景に朝日連峰の残雪が入る場所もあります。見頃は四月中旬から下旬。各所に駐車場と案内が整備され、車で巡る形になります。",
+    "highlights": [
+      "樹齢五百年超のエドヒガン",
+      "田や集落に単独で立つ樹形",
+      "背後の朝日連峰の残雪"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬から下旬が見頃。木によって開花に数日の差があります。"
+      },
+      {
+        "season": "winter",
+        "text": "葉を落とした枝ぶりと雪。樹形そのものを撮るなら冬が向きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、山も見えやすい時間です。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップされる木があり、星空と合わせられます。実施状況は確認します。"
+      }
+    ],
+    "compositionTips": [
+      "一本桜は低く構えて枝の広がりを画面に収めます",
+      "背景に山を入れて土地の高さを示します",
+      "田の畦に立ち入らず、道路や指定された場所から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.shirataka.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1937fa6f3dfd",
     "slug": "shirataki-san",
     "name": "因島 白滝山",
@@ -59927,6 +60608,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_5426f332df8a",
+    "slug": "shonai-eiga-mura",
+    "name": "庄内映画村",
+    "nameEn": "Shonai Movie Village Open Set",
+    "reading": "しょうないえいがむら",
+    "aliases": [
+      "スタジオセディック庄内オープンセット"
+    ],
+    "address": "山形県鶴岡市羽黒町川代字東増川山102",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.65,
+      "lng": 139.94
+    },
+    "category": "landmark",
+    "summary": "月山の麓に広がる野外撮影所。農村、漁村、宿場町、戦国の砦が実寸で建ち、背後に山並みが入ります。",
+    "description": "約八十八ヘクタールの敷地に、時代の異なる町並みが区画ごとに建てられています。茅葺きの農村集落、海を模した漁村、宿場町、山の斜面に築かれた戦国の砦まであり、それぞれが実際の撮影に使われています。背後には月山や鳥海山の山並みが入るため、セットでありながら地形の奥行きが本物です。冬期は閉村します。",
+    "highlights": [
+      "実寸で建つ複数の時代の町並み",
+      "背後に入る月山の山並み",
+      "八十八ヘクタールの広大な敷地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の開村。残雪の山を背景に入れられる時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、茅葺きの集落が季節の風景として成立します。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月から十一月、周囲が色づきます。閉村前の短い期間です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、セットが時代の場面らしく見えます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が茅葺きと土壁を横から照らします。"
+      }
+    ],
+    "compositionTips": [
+      "現代の要素が入らない画角を探すのが最大の作業です",
+      "背後の山を入れると土地の奥行きが本物として効きます",
+      "敷地が広いので移動手段と回る順を先に決めます"
+    ],
+    "officialWebsiteUrl": "https://s-openset.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9e0c5e795438",
@@ -62181,6 +62925,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_7e7fcd3943d5",
+    "slug": "takahata-wine",
+    "name": "高畠ワイナリー",
+    "nameEn": "Takahata Winery",
+    "reading": "たかはたわいなりー",
+    "aliases": [
+      "高畠 ぶどう畑"
+    ],
+    "address": "山形県東置賜郡高畠町大字糠野目2700-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "高畠町"
+    },
+    "coords": {
+      "lat": 38,
+      "lng": 140.29
+    },
+    "category": "landmark",
+    "summary": "置賜盆地のぶどう産地にあるワイナリー。畑と醸造所が隣り合い、秋は実った房と山並みが同じ画に入ります。",
+    "description": "高畠町は山形有数のぶどう産地で、ワイナリーの周囲に畑が広がります。敷地内には醸造所の見学路と樽が並ぶ貯蔵庫があり、ステンレスタンクと木樽の質感の違いが撮れます。屋外の畑では九月から十月に収穫が行われ、実った房ごしに吾妻連峰の山並みが入ります。畑は生産者の私有地なので、指定された区画から撮ります。",
+    "highlights": [
+      "実ったぶどうと吾妻連峰",
+      "醸造所のタンクと木樽",
+      "収穫期の作業風景"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "葉が茂り、緑のトンネルのような畝が見られます。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月から十月が収穫期。房と山を同時に入れられる本番の季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "剪定後の裸の樹形と雪。畝の線だけが残る単純な画面になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は山が見えやすく、房に露が残ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が畝の列を横から照らして立体的にします。"
+      }
+    ],
+    "compositionTips": [
+      "畝の線を手前から奥へ通して山へ視線を運びます",
+      "房は逆光で透かすと粒の張りが出ます",
+      "畑は私有地なので、立入可能な区画を確認してから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.takahata-winery.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_10737ae1b0f4",
@@ -64441,6 +65248,66 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_efb847041ef4",
+    "slug": "tendo-shogi",
+    "name": "天童 将棋駒",
+    "nameEn": "Tendo Shogi Pieces",
+    "reading": "てんどう しょうぎこま",
+    "aliases": [
+      "天童市将棋資料館",
+      "人間将棋"
+    ],
+    "address": "山形県天童市本町1-1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "天童市"
+    },
+    "coords": {
+      "lat": 38.36,
+      "lng": 140.38
+    },
+    "category": "landmark",
+    "summary": "将棋駒の生産量が全国の大半を占める町。資料館に駒が並び、四月には舞鶴山で人間将棋が行われます。",
+    "description": "天童は江戸後期から将棋駒作りが続く町で、国内生産の大半を担ってきました。天童市将棋資料館には歴史と製造工程、各地の駒が展示されています。町中には駒を模した看板や石碑が点在します。四月中旬には舞鶴山の山頂広場で、甲冑姿の人が駒になって指す人間将棋が開かれ、周囲の桜と合わせて撮れます。",
+    "highlights": [
+      "将棋駒の製造工程の展示",
+      "四月の人間将棋",
+      "町中に点在する駒の意匠"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の人間将棋。舞鶴山の桜と同時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内の資料館が中心になります。工房の見学は事前確認が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "人間将棋も資料館も日中。人間将棋は高い位置から盤面が見えます。"
+      },
+      {
+        "time": "morning",
+        "text": "資料館は開館直後が空いており、展示を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "人間将棋は俯瞰できる位置から盤全体を入れます",
+      "駒は寄って書体の彫りを主題にします",
+      "工房での撮影は必ず職人に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://bussan-tendo.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7b5ca173a195",
     "slug": "tenkaiho",
     "name": "展海峰（九十九島）",
@@ -64878,6 +65745,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f0b13927dc39",
+    "slug": "tobishima",
+    "name": "飛島",
+    "nameEn": "Tobishima Island",
+    "reading": "とびしま",
+    "aliases": [
+      "飛島 賽の河原"
+    ],
+    "address": "山形県酒田市飛島",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "酒田市"
+    },
+    "coords": {
+      "lat": 39.19,
+      "lng": 139.55
+    },
+    "category": "nature",
+    "summary": "山形県唯一の有人島。対馬暖流の影響で暖かく、本州では見られない植物と渡り鳥の中継地になっています。",
+    "description": "酒田港から定期船で約七十五分の島で、周囲約十キロ。暖流の影響で冬も比較的暖かく、タブノキなどの照葉樹が育ちます。春と秋は渡り鳥の中継地となり、多くの種が観察できます。島の北部には石が積まれた賽の河原があり、海岸に石塔が並ぶ独特の景観です。宿と商店は限られ、便数も少ないので日程は余裕を持ちます。",
+    "highlights": [
+      "石が積まれた賽の河原",
+      "渡り鳥の中継地",
+      "本州と異なる照葉樹の植生"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、渡り鳥の最盛期。観察目的の来島者が増えます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の透明度が高く、岩場と水の色が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて欠航が増えます。渡る前に運航状況の確認が必須です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "鳥は朝が活発です。島内の移動時間も朝のほうが取れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "西向きの海岸で日本海に日が落ちます。賽の河原と合わせられます。"
+      }
+    ],
+    "compositionTips": [
+      "賽の河原は石塔を反復として扱い、海を背景に置きます",
+      "鳥は望遠で距離を保ち、繁殖期は近づかないこと",
+      "帰りの便の時刻から逆算して島内の移動を組みます"
+    ],
+    "officialWebsiteUrl": "https://sakata-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b05427835159",
@@ -68641,6 +69571,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_cbc88de2d39e",
+    "slug": "tsuruoka-park",
+    "name": "鶴岡公園",
+    "nameEn": "Tsuruoka Park",
+    "reading": "つるおかこうえん",
+    "aliases": [
+      "鶴ヶ岡城跡",
+      "大宝館"
+    ],
+    "address": "山形県鶴岡市馬場町4",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.73,
+      "lng": 139.82
+    },
+    "category": "landmark",
+    "summary": "鶴ヶ岡城の堀が残る公園。周囲に洋風の大宝館と旧西田川郡役所が建ち、和と洋が近接して並びます。",
+    "description": "庄内藩酒井氏の居城跡で、堀と土塁が残ります。園内には大正期に建てられた大宝館があり、赤い尖塔と白壁の擬洋風建築が堀端に立ちます。隣接する致道博物館には旧西田川郡役所や多層民家が移築され、和洋の建物が徒歩圏に集まります。桜の名所で、四月中旬には堀端の並木が水面に映ります。",
+    "highlights": [
+      "城の堀と土塁",
+      "擬洋風建築の大宝館",
+      "致道博物館の移築建物群"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の桜。堀の水面に並木が映る時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。洋風建築との色の対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と白壁の建物。輪郭だけが残る単純な画面になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は堀が静かで映り込みが安定し、人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は大宝館の白壁が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "堀を前景に置いて建物を映り込みと合わせます",
+      "洋風建築は正面より斜めから撮って尖塔の立体感を出します",
+      "致道博物館の多層民家は屋根の勾配を側面から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.tsuruokakanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2615223fb4c1",
@@ -72819,6 +73813,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4b4eaee1e21f",
+    "slug": "yonezawa-uesugi",
+    "name": "上杉神社",
+    "nameEn": "Uesugi Shrine",
+    "reading": "うえすぎじんじゃ",
+    "aliases": [
+      "米沢城跡",
+      "松が岬公園"
+    ],
+    "address": "山形県米沢市丸の内1-4-13",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "米沢市"
+    },
+    "coords": {
+      "lat": 37.91,
+      "lng": 140.1
+    },
+    "category": "shrine",
+    "summary": "米沢城の本丸跡に建つ神社。堀が四角く城の形を残し、社殿は伊東忠太の設計で建てられています。",
+    "description": "上杉謙信を祀る神社で、米沢城の本丸跡に位置します。大正期の火災後に再建された社殿は、築地本願寺などを手がけた伊東忠太の設計です。周囲の堀は城の輪郭をそのまま残し、水面に橋と石垣が映ります。参道には上杉鷹山の像があり、四月下旬には堀端の桜が咲きます。二月には雪灯篭まつりが境内で行われます。",
+    "highlights": [
+      "城の輪郭を残す四角い堀",
+      "伊東忠太設計の社殿",
+      "二月の雪灯篭まつり"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の桜。堀の水面に並木と橋が映ります。"
+      },
+      {
+        "season": "winter",
+        "text": "二月の雪灯篭まつり。境内に雪の灯篭が並び、夜に火が入ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、堀端の木が色づきます。人も少なく落ち着いて回れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は堀が静かで映り込みが安定します。参拝者も少ない時間です。"
+      },
+      {
+        "time": "night",
+        "text": "雪灯篭まつりは夜が本番。雪面の反射で露出が上がりやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "堀の直線を画面に通して城の輪郭を示します",
+      "社殿は正面から左右対称に構えると設計の意図が出ます",
+      "雪灯篭は望遠で圧縮して灯りの列を密にします"
+    ],
+    "officialWebsiteUrl": "https://www.uesugi-jinja.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b12cf5413a8b",
     "slug": "yoro-keikoku",
     "name": "養老渓谷",
@@ -73550,6 +74608,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1bb878d41a5e",
+    "slug": "yudonosan",
+    "name": "湯殿山神社",
+    "nameEn": "Yudonosan Shrine",
+    "reading": "ゆどのさんじんじゃ",
+    "aliases": [
+      "湯殿山 大鳥居"
+    ],
+    "address": "山形県鶴岡市田麦俣六十里山7",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "鶴岡市"
+    },
+    "coords": {
+      "lat": 38.53,
+      "lng": 139.98
+    },
+    "category": "shrine",
+    "summary": "社殿を持たず、湯の湧く巨岩そのものを御神体とする神社。参拝路の入口には朱の大鳥居が立ちます。",
+    "description": "出羽三山の奥の院とされ、建物ではなく温泉が湧き出る赤褐色の巨岩を御神体とします。御神体の前は撮影と言及が禁じられており、古くから「語るなかれ、聞くなかれ」と伝えられてきました。参道の入口には高さ数メートルの朱塗りの大鳥居があり、こちらは撮影できます。開山期間は例年六月から十一月上旬。冬期は道路が閉鎖されます。",
+    "highlights": [
+      "朱塗りの大鳥居",
+      "社殿を持たない信仰の形",
+      "開山期間だけ入れる参拝路"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "開山期間の中心。周囲の緑が濃く、鳥居の朱が際立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、周囲が色づきます。閉山前の短い時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、大鳥居を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は鳥居の朱に光が回り、山の緑との対比が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "大鳥居は見上げて山を背景に入れます",
+      "御神体とその周辺は撮影禁止なので、立入前に必ず確認します",
+      "紅葉期は鳥居を望遠で抜いて色を絞ります"
+    ],
+    "officialWebsiteUrl": "https://www.dewasanzan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b6c02d93cc7f",
@@ -74346,6 +75463,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a5d4321ae121",
+    "slug": "zao-dokko",
+    "name": "蔵王 ドッコ沼",
+    "nameEn": "Dokkonuma Pond, Zao",
+    "reading": "ざおう どっこぬま",
+    "aliases": [
+      "ドッコ沼"
+    ],
+    "address": "山形県山形市蔵王温泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "山形市"
+    },
+    "coords": {
+      "lat": 38.16,
+      "lng": 140.43
+    },
+    "category": "nature",
+    "summary": "ロープウェイの中腹にある緑色の沼。周囲をブナ林が囲み、無風のときは岸の木がそのまま水面に映ります。",
+    "description": "蔵王ロープウェイの樹氷高原駅から歩いて数分の位置にある沼で、水が緑がかって見えます。周囲は遊歩道が一周しており、岸に沿ってブナやダケカンバが立ちます。沼の名は形が仏具の独鈷に似ていることに由来するとされます。標高が高く、紅葉は九月下旬から十月中旬。冬はスキー場のコース脇になるため、訪れる形が変わります。",
+    "highlights": [
+      "緑色に見える水",
+      "沼を囲むブナ林",
+      "無風時の映り込み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "緑が濃く、水の色との差が出ます。平地より涼しい標高です。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月中旬が紅葉。水面の映り込みが色づく本番です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が静かです。ロープウェイの始発に合わせます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水に光が入り、緑色が最も出ます。偏光フィルターで調整します。"
+      }
+    ],
+    "compositionTips": [
+      "水面を半分以上取って映り込みを主題にします",
+      "遊歩道を一周して光の向きに合う岸を選びます",
+      "偏光フィルターは効かせ方で水の色が変わるので加減します"
+    ],
+    "officialWebsiteUrl": "https://zaoropeway.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_5e19c470b823",
     "slug": "zao-juhyo",
     "name": "蔵王の樹氷",
@@ -74490,6 +75666,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bec33ea945ed",
+    "slug": "zao-onsen-rotenburo",
+    "name": "蔵王温泉 大露天風呂",
+    "nameEn": "Zao Onsen Dai-Rotenburo",
+    "reading": "ざおうおんせん だいろてんぶろ",
+    "aliases": [
+      "蔵王温泉 酢川"
+    ],
+    "address": "山形県山形市蔵王温泉荒敷853-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "山形市"
+    },
+    "coords": {
+      "lat": 38.17,
+      "lng": 140.4
+    },
+    "category": "landmark",
+    "summary": "渓流沿いの斜面に石組みの浴槽が段状に並ぶ露天風呂。強酸性の湯が白濁し、周囲は原生林に囲まれます。",
+    "description": "蔵王温泉の上手、酢川の渓流沿いにある露天風呂で、斜面に沿って複数の浴槽が段になっています。湯は強酸性の硫黄泉で、白く濁ります。浴場内は撮影できませんが、周囲の渓流、温泉街の湯畑、酢川温泉神社の石段などが被写体になります。例年四月から十一月の営業で、冬期は閉鎖されます。温泉街には共同浴場と足湯が点在します。",
+    "highlights": [
+      "渓流沿いの原生林",
+      "温泉街の湯の流れと湯気",
+      "酢川温泉神社の石段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "緑が濃く、渓流の水量もあります。営業期間の中心です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬から下旬、周囲が色づきます。閉鎖前の短い期間です。"
+      },
+      {
+        "season": "winter",
+        "text": "露天風呂は閉鎖されますが、温泉街の雪と湯気は撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷え込んだ朝は湯気が濃く立ちます。温泉街の路地も静かです。"
+      },
+      {
+        "time": "night",
+        "text": "温泉街の灯りと湯気。長時間露光で湯気の流れを残せます。"
+      }
+    ],
+    "compositionTips": [
+      "浴場内は撮影禁止なので、渓流と温泉街に被写体を絞ります",
+      "湯気は逆光で狙うと形が出ます",
+      "白濁した湯の流れは遅いシャッターで線にします"
+    ],
+    "officialWebsiteUrl": "https://www.zao-spa.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_4412fe5258e2",
