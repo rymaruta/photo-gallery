@@ -4216,6 +4216,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_5a92cfd06ffc",
+    "slug": "asuwayama",
+    "name": "足羽山",
+    "nameEn": "Mt. Asuwa",
+    "reading": "あすわやま",
+    "aliases": [
+      "足羽神社",
+      "足羽川の桜並木"
+    ],
+    "address": "福井県福井市山奥町",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "福井市"
+    },
+    "coords": {
+      "lat": 36.05,
+      "lng": 136.21
+    },
+    "category": "nature",
+    "summary": "福井市街に接する標高百十六メートルの丘。山上の足羽神社にはしだれ桜があり、麓の足羽川には桜並木が続きます。",
+    "description": "市街地のすぐ南にある丘で、古墳群と笏谷石の採石跡が残ります。山上の足羽神社には樹齢三百七十年を超えるしだれ桜があり、四月上旬に咲きます。麓を流れる足羽川の堤防には約六百本のソメイヨシノが二キロ以上続き、桜のトンネルになります。丘の上からは福井市街と、晴れた日には白山連峰まで見渡せます。",
+    "highlights": [
+      "足羽神社の樹齢三百七十年のしだれ桜",
+      "足羽川堤の二キロの桜並木",
+      "市街と白山連峰の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬が桜の見頃。しだれとソメイヨシノがほぼ同時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、丘の木々が色づきます。市街の見通しも良くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、笏谷石の採石跡の岩肌が際立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、堤防の桜のトンネルを無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "桜の期間は堤防がライトアップされ、川面に映ります。"
+      }
+    ],
+    "compositionTips": [
+      "堤防の道を消失点まで通してトンネルの長さを見せます",
+      "しだれ桜は下から見上げて枝の広がりを取ります",
+      "丘の上からは望遠で白山を引き寄せて市街と重ねます"
+    ],
+    "officialWebsiteUrl": "https://www.fuku-e.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_5a995103aab8",
     "slug": "atsumi-nanohana",
     "name": "渥美半島の菜の花畑",
@@ -8672,6 +8736,133 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6cfe84e90826",
+    "slug": "echizen-cape",
+    "name": "越前岬",
+    "nameEn": "Cape Echizen",
+    "reading": "えちぜんみさき",
+    "aliases": [
+      "越前岬灯台",
+      "越前水仙の里"
+    ],
+    "address": "福井県丹生郡越前町血ヶ平",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "越前町"
+    },
+    "coords": {
+      "lat": 35.99,
+      "lng": 135.95
+    },
+    "category": "nature",
+    "summary": "日本海に突き出す岬で、断崖の上に白い灯台が立ちます。冬から早春は斜面一面に越前水仙が咲きます。",
+    "description": "越前海岸のほぼ中央にある岬で、標高約百三十メートルの断崖の上に灯台があります。西向きなので日本海に日が沈み、岬の先端から遮るもののない夕景が見られます。斜面は越前水仙の産地で、十二月から二月にかけて白い花が海を背景に咲きます。水仙は急斜面の段々畑で栽培されており、道路から見上げる形になります。",
+    "highlights": [
+      "断崖の上の白い灯台",
+      "冬から早春の越前水仙",
+      "遮るもののない日本海の夕景"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十二月から二月が水仙の見頃。日本海の荒れた波とも合わせられます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、灯台の白との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、日没の色が濃く出る日が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。灯台をシルエットにできます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は順光で灯台の白と水仙の白が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "水仙は低い位置から海を背景に入れます",
+      "灯台は空を広く取ると岬の孤立感が出ます",
+      "水仙畑は農地なので立ち入らず、道路や遊歩道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.echizen.fukui.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_8d0704012a5c",
+    "slug": "echizen-daibutsu",
+    "name": "越前大仏",
+    "nameEn": "Echizen Great Buddha",
+    "reading": "えちぜんだいぶつ",
+    "aliases": [
+      "清大寺"
+    ],
+    "address": "福井県勝山市片瀬50-1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "勝山市"
+    },
+    "coords": {
+      "lat": 36.06,
+      "lng": 136.51
+    },
+    "category": "temple",
+    "summary": "高さ十七メートルの坐像と、壁面を埋める千二百八十一体の石仏。奈良の大仏より大きい像が堂内に納まります。",
+    "description": "一九八七年に建てられた寺で、大仏殿の中に高さ十七メートルの毘盧遮那仏が座ります。堂内の壁は全面が石仏で埋められ、その数は千二百八十一体。同じ形が壁一面に反復する構成が独特です。境内には高さ七十五メートルの五重塔もあり、上階から勝山の市街と白山連峰を見渡せます。敷地は広く、訪れる人は多くありません。",
+    "highlights": [
+      "高さ十七メートルの大仏",
+      "壁面を埋める千二百八十一体の石仏",
+      "高さ七十五メートルの五重塔"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の桜と白山の残雪。五重塔の上階から両方が見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲が色づき、塔からの眺望が最も開ける季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の境内。広い敷地に人がほとんどおらず、静かな画になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "堂内は照明があり日中が基本。塔からの眺望も日中が明るく出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "開門直後は参拝者が少なく、堂内を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "石仏の壁は望遠で圧縮して反復の密度を見せます",
+      "大仏は下から煽って堂の高さごと入れます",
+      "堂内は照明の色が強いのでホワイトバランスを固定します"
+    ],
+    "officialWebsiteUrl": "https://www.city.katsuyama.fukui.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1e22b9b83890",
     "slug": "echizen-ono-castle",
     "name": "越前大野城",
@@ -8743,6 +8934,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f0e6542b74be",
+    "slug": "echizen-ware",
+    "name": "越前陶芸村",
+    "nameEn": "Echizen Pottery Village",
+    "reading": "えちぜんとうげいむら",
+    "aliases": [
+      "福井県陶芸館",
+      "越前焼"
+    ],
+    "address": "福井県丹生郡越前町小曽原120-61",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "越前町"
+    },
+    "coords": {
+      "lat": 35.93,
+      "lng": 136.11
+    },
+    "category": "landmark",
+    "summary": "六古窯の一つ越前焼の産地に作られた公園。広い芝生に石の彫刻が点在し、窯元が周囲に散らばります。",
+    "description": "越前焼は日本六古窯の一つで、釉薬を使わず土と炎だけで焼き締める作風が特徴です。陶芸村には福井県陶芸館、茶苑、陶芸教室があり、広い芝生の公園に石彫が点在します。周囲には窯元が散在し、登り窯を持つ工房もあります。作品の表面は自然釉が流れた跡が残るため、光の当て方で表情が大きく変わります。",
+    "highlights": [
+      "釉薬を使わない越前焼の質感",
+      "芝生公園に点在する石彫",
+      "周囲に散らばる窯元"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、芝生が緑になり石彫との対比が出ます。陶芸まつりも開かれます。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、器の表面の凹凸が出やすい季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の公園。石彫が白い面に置かれた形になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示は日中。窓からの自然光が入る時間を選びます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "屋外の石彫は夕方の低い光で凹凸が最も出ます。"
+      }
+    ],
+    "compositionTips": [
+      "器は斜めからの光で自然釉の流れを見せます",
+      "石彫は空を背景にして輪郭を抜きます",
+      "工房での撮影は必ず作り手に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.tougeikan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e6c517925707",
@@ -16377,6 +16632,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_93fdff259714",
+    "slug": "heisenji",
+    "name": "平泉寺白山神社",
+    "nameEn": "Heisenji Hakusan Shrine",
+    "reading": "へいせんじはくさんじんじゃ",
+    "aliases": [
+      "苔の平泉寺"
+    ],
+    "address": "福井県勝山市平泉寺町平泉寺56-63",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "勝山市"
+    },
+    "coords": {
+      "lat": 36.05,
+      "lng": 136.55
+    },
+    "category": "shrine",
+    "summary": "杉木立の下が一面の苔で覆われた境内。中世には数千の坊院が建ち並んだ巨大な宗教都市の跡です。",
+    "description": "白山信仰の拠点として栄え、最盛期には四十八社・三十六堂・六千坊が山中に広がっていたと伝わります。一五七四年に焼き討ちされ、現在は杉の巨木と苔だけが残ります。参道から境内まで地面が厚い苔に覆われ、木漏れ日が苔の上に落ちる光景が知られます。発掘調査で中世の石畳道や坊院の跡が見つかっており、遺構が林の中に点在します。",
+    "highlights": [
+      "一面を覆う苔の地面",
+      "杉の巨木が並ぶ参道",
+      "林に点在する中世の坊院跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、苔が最も鮮やかになります。雨の後が特に色が濃く出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "深い緑と木漏れ日。境内が暗く、光の筋が見えやすい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "落葉が苔の上に散り、緑と赤褐色が混ざります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、杉と苔の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が苔に落ちます。明暗差が大きいので露出を苔に合わせます。"
+      }
+    ],
+    "compositionTips": [
+      "低い位置から苔を前景に大きく取ると地面の厚みが出ます",
+      "杉の幹を縦線の反復として使います",
+      "苔の上には立ち入らず、参道と石畳から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.katsuyama.fukui.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1f14d1892d85",
     "slug": "hibara",
     "name": "桧原湖",
@@ -16433,6 +16751,69 @@
       "氷上は自己判断で立ち入らず、管理された区域だけを使います"
     ],
     "officialWebsiteUrl": "https://www.urabandai-inf.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_4902c6267c97",
+    "slug": "hibiki-tanada",
+    "name": "日引の棚田",
+    "nameEn": "Hibiki Terraced Rice Fields",
+    "reading": "ひびきのたなだ",
+    "aliases": [
+      "高浜町 日引"
+    ],
+    "address": "福井県大飯郡高浜町日引",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "高浜町"
+    },
+    "coords": {
+      "lat": 35.52,
+      "lng": 135.51
+    },
+    "category": "nature",
+    "summary": "内浦湾に面した斜面に石積みの棚田が段をなします。田の向こうに海が見え、水と水が二層になります。",
+    "description": "若狭湾の内浦湾に面した集落で、海に向かって落ちる斜面に石積みの棚田が広がります。日本の棚田百選に選ばれており、約二百枚の田が段になっています。田に水が入る五月には、水面と海が同じ画面に二層で並びます。集落は小さく、道は狭いので車の扱いに注意が要ります。田は個人の所有なので、道路と展望地点から撮ります。",
+    "highlights": [
+      "海に向かって落ちる石積みの棚田",
+      "田の水面と海の二層構成",
+      "約二百枚の田が段をなす規模"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の代掻きから田植え期。水面が光り、海と二層になります。"
+      },
+      {
+        "season": "summer",
+        "text": "稲が育ち、緑の段と青い海の対比になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "稲刈り前の黄金色と海。九月上旬が短い見頃です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は水面が西日を受けて光ります。海も同時に染まります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、海の対岸まで見通せます。"
+      }
+    ],
+    "compositionTips": [
+      "棚田の段の曲線を手前から奥へ通して海へ視線を運びます",
+      "望遠で圧縮すると段の重なりが密になります",
+      "田は私有地なので畦に立ち入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.wakasa-takahama.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -27589,6 +27970,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2c4b8c47ebb3",
+    "slug": "kanegasaki",
+    "name": "金ヶ崎城跡",
+    "nameEn": "Kanegasaki Castle Site",
+    "reading": "かねがさきじょうあと",
+    "aliases": [
+      "金崎宮",
+      "花換まつり"
+    ],
+    "address": "福井県敦賀市金ヶ崎町1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "敦賀市"
+    },
+    "coords": {
+      "lat": 35.66,
+      "lng": 136.07
+    },
+    "category": "landmark",
+    "summary": "敦賀湾に突き出た丘の城跡。織田信長が朝倉攻めから撤退した金ヶ崎の退き口の舞台で、湾を見下ろせます。",
+    "description": "南北朝期と戦国期の二度、歴史の転換点になった城跡です。一五七〇年、朝倉義景を攻めていた織田信長が浅井長政の離反を受けて撤退した金ヶ崎の退き口の場所として知られます。丘の上からは敦賀湾と港が見渡せます。麓の金崎宮は桜の名所で、四月に花換まつりが行われます。山頂の月見御殿跡が最も展望の利く地点です。",
+    "highlights": [
+      "丘の上から見る敦賀湾と港",
+      "金ヶ崎の退き口の舞台",
+      "四月の花換まつりと桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜と花換まつり。参道が桜で覆われます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、湾の対岸まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、湾を静かに見下ろせます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湾が静かで、港の動きも見られます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾の水面が光り、港のクレーンがシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "湾は望遠で港の設備を抜いて土地の性格を見せます",
+      "桜は参道の石段と重ねて奥行きを作ります",
+      "城跡の遺構は地形が主なので、斜面の段を斜光で撮ります"
+    ],
+    "officialWebsiteUrl": "https://tsuruga-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d47b5123fefb",
     "slug": "kankakei",
     "name": "寒霞渓",
@@ -29909,6 +30354,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_cd2042b3e0ab",
+    "slug": "kehi-jingu",
+    "name": "氣比神宮",
+    "nameEn": "Kehi Jingu Shrine",
+    "reading": "けひじんぐう",
+    "aliases": [
+      "氣比神宮 大鳥居"
+    ],
+    "address": "福井県敦賀市曙町11-68",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "敦賀市"
+    },
+    "coords": {
+      "lat": 35.66,
+      "lng": 136.07
+    },
+    "category": "shrine",
+    "summary": "高さ十一メートルの朱塗りの大鳥居が建つ越前国一之宮。木造の大鳥居としては国内でも数少ない規模です。",
+    "description": "北陸道の総鎮守とされる神社で、正面の大鳥居は高さ約十一メートル、一六四五年の建立で国の重要文化財です。木造の大鳥居としては春日大社、厳島神社と並ぶ規模とされます。社殿は戦災で焼失し戦後に再建されましたが、鳥居は残りました。境内には松尾芭蕉の句碑と、神水として使われてきた長命水があります。敦賀駅から徒歩圏です。",
+    "highlights": [
+      "高さ十一メートルの木造大鳥居",
+      "一六四五年建立の重要文化財",
+      "境内の長命水と芭蕉の句碑"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、朱の鳥居と緑の対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、鳥居の柱の丸みが陰影で出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が笠木に積もり、朱と白の対比が最も強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、鳥居を正面から無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜はライトアップされ、朱色が暗い背景に浮き上がります。"
+      }
+    ],
+    "compositionTips": [
+      "鳥居は下から煽って高さを出します",
+      "鳥居を額縁にして参道の奥を抜く構図も定番です",
+      "朱色が飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://kehijingu.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_f3c6b4414a53",
@@ -34009,6 +34517,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_3ad83e7e3123",
+    "slug": "kumagawa-juku",
+    "name": "熊川宿",
+    "nameEn": "Kumagawa-juku",
+    "reading": "くまがわじゅく",
+    "aliases": [
+      "鯖街道 熊川宿",
+      "前川"
+    ],
+    "address": "福井県三方上中郡若狭町熊川",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "若狭町"
+    },
+    "coords": {
+      "lat": 35.42,
+      "lng": 135.87
+    },
+    "category": "landmark",
+    "summary": "若狭と京を結んだ鯖街道の宿場町。道の脇を前川という用水が流れ、水音が町並み全体に響きます。",
+    "description": "小浜で揚がった鯖を京へ運んだ鯖街道の宿場で、重要伝統的建造物群保存地区に選定されています。街道沿いに約一キロ、町家が続きます。特徴は道の片側を流れる前川で、勢いのある流れが家々の前を通り、各戸に水を引く「かわと」が設けられています。町並みは切妻造と入母屋造が混在し、妻入りと平入りも混ざります。",
+    "highlights": [
+      "道沿いを流れる前川",
+      "各戸に設けられたかわと",
+      "妻入りと平入りが混ざる町家"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "水量が多く、流れの音が最も強い季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、水路の流れが涼しさとして写ります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の宿場と流れる水。凍らない水路が黒い線として残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、街道の全景を撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は町家の木肌が暖色になり、水面も光ります。"
+      }
+    ],
+    "compositionTips": [
+      "水路の線を手前から奥へ通して町並みへ視線を運びます",
+      "かわとは寄って構造を記録します",
+      "遅いシャッターで水を流すと音の印象が写ります"
+    ],
+    "officialWebsiteUrl": "https://kumagawa-juku.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6b657b61f7b9",
     "slug": "kumagaya-sakura",
     "name": "熊谷桜堤",
@@ -36480,6 +37052,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_50f6aa46ac4e",
+    "slug": "maruoka-castle",
+    "name": "丸岡城",
+    "nameEn": "Maruoka Castle",
+    "reading": "まるおかじょう",
+    "aliases": [
+      "霞ヶ城 丸岡"
+    ],
+    "address": "福井県坂井市丸岡町霞町1-59",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "坂井市"
+    },
+    "coords": {
+      "lat": 36.15,
+      "lng": 136.27
+    },
+    "category": "landmark",
+    "summary": "石瓦で葺いた屋根を持つ現存天守。瓦が笏谷石でできているため、雨に濡れると屋根が青く変わります。",
+    "description": "現存十二天守の一つで、二層三階の小ぶりな天守です。最大の特徴は屋根に使われた石瓦で、福井産の笏谷石を加工したもの。寒冷地で粘土瓦が凍害で割れるのを避けるために使われたとされます。乾いた状態では灰色ですが、濡れると青みが増します。天守内部は急勾配の階段で、綱を頼りに上がります。周囲は公園で、四百本の桜があります。",
+    "highlights": [
+      "笏谷石で葺いた屋根",
+      "雨に濡れると青くなる石瓦",
+      "現存する二層三階の天守"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。天守を囲む約四百本が同時に咲きます。"
+      },
+      {
+        "season": "summer",
+        "text": "雨の日は石瓦が青く変わるので、あえて雨天に行く価値があります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と石瓦。屋根の色が周囲と同化して輪郭だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、天守を正面から無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "桜の時期はライトアップがあり、石瓦の色が照明で変わります。"
+      }
+    ],
+    "compositionTips": [
+      "雨の日に屋根を望遠で抜いて青い石瓦を主題にします",
+      "天守は下から煽って小ぶりな姿に高さを与えます",
+      "内部の階段は急なので、撮影時も片手は綱にかけます"
+    ],
+    "officialWebsiteUrl": "https://maruoka-castle.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b83a12e2b2cb",
     "slug": "maruyama-senmaida",
     "name": "丸山千枚田",
@@ -38627,6 +39262,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4cfe84abd959",
+    "slug": "mikuni-minato",
+    "name": "三国湊",
+    "nameEn": "Mikuni Minato",
+    "reading": "みくにみなと",
+    "aliases": [
+      "旧岸名家",
+      "三国湊きたまえ通り"
+    ],
+    "address": "福井県坂井市三国町北本町",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "坂井市"
+    },
+    "coords": {
+      "lat": 36.22,
+      "lng": 136.15
+    },
+    "category": "landmark",
+    "summary": "北前船で栄えた港町。かぐら建てと呼ばれる、二階の前面が前へせり出した独特の町家が残ります。",
+    "description": "九頭竜川の河口にあり、江戸から明治にかけて北前船の寄港地として栄えました。町家にはかぐら建てという形式が見られ、二階の前面が一階より前に張り出しています。旧岸名家が公開されており、内部の構造を見られます。きたまえ通りを中心に町家と土蔵が並び、洋風の旧森田銀行本店も残ります。河口の港と町並みが徒歩圏です。",
+    "highlights": [
+      "二階が前へせり出すかぐら建て",
+      "公開されている旧岸名家",
+      "洋風の旧森田銀行本店"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "通りが明るくなり、町家の木肌の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、かぐら建ての張り出しの影が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の町並み。日本海側らしい重い空と合わせられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景が撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は河口に日が落ち、港と町並みの両方が暖色になります。"
+      }
+    ],
+    "compositionTips": [
+      "かぐら建ては側面から撮ると張り出しの構造が分かります",
+      "通りは望遠で圧縮して町家の連なりを見せます",
+      "旧森田銀行は洋風の意匠を正面から記録します"
+    ],
+    "officialWebsiteUrl": "https://mikuni-minato.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3ac9bed848fd",
     "slug": "mikuni-toge",
     "name": "三国峠",
@@ -40499,6 +41198,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_dd986cee30fc",
+    "slug": "mizushima",
+    "name": "水島",
+    "nameEn": "Mizushima Island",
+    "reading": "みずしま",
+    "aliases": [
+      "敦賀 水島"
+    ],
+    "address": "福井県敦賀市色浜沖",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "敦賀市"
+    },
+    "coords": {
+      "lat": 35.73,
+      "lng": 136.05
+    },
+    "category": "nature",
+    "summary": "敦賀半島の沖に浮かぶ細長い無人島。白い砂浜と透明度の高い水で、北陸のハワイとも呼ばれます。",
+    "description": "敦賀半島の先端近くに浮かぶ全長約五百メートルの無人島で、渡し船でのみ行けます。砂は白く、水の透明度が高いため浅瀬が明るい青緑に見えます。島には施設が最小限しかなく、夏季のみ渡し船が運航します。冬から春は上陸できません。日帰り前提で、最終便の時刻から逆算して動く必要があります。飲食物は持ち込みます。",
+    "highlights": [
+      "白い砂浜と透明度の高い水",
+      "細長い無人島の地形",
+      "夏季のみ運航する渡し船"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "渡し船の運航期間。七月から八月が中心で、水の色も最も出ます。"
+      },
+      {
+        "season": "spring",
+        "text": "上陸はできませんが、対岸から島影を見ることはできます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "水の色は太陽が高い正午前後が最も鮮やかに出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、砂浜に足跡のない状態を撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "浅瀬の色は偏光フィルターで反射を消すと出ます",
+      "砂浜の曲線を手前から奥へ通します",
+      "最終便の時刻を確認し、撮影に夢中になって乗り遅れないこと"
+    ],
+    "officialWebsiteUrl": "https://tsuruga-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_706c5b8be24f",
@@ -47406,6 +48164,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_98236d5e0064",
+    "slug": "obama-myotsuji",
+    "name": "小浜 明通寺",
+    "nameEn": "Myotsu-ji Temple, Obama",
+    "reading": "おばま みょうつうじ",
+    "aliases": [
+      "明通寺 三重塔"
+    ],
+    "address": "福井県小浜市門前5-21",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "小浜市"
+    },
+    "coords": {
+      "lat": 35.47,
+      "lng": 135.77
+    },
+    "category": "temple",
+    "summary": "福井県で唯一、本堂と三重塔の二棟が国宝の寺。杉木立に囲まれた谷あいに、鎌倉期の建物が残ります。",
+    "description": "八〇六年に坂上田村麻呂が創建したと伝わる寺で、現在の本堂は一二五八年、三重塔は一二七〇年の建立です。どちらも鎌倉中期の建築で、ともに国宝に指定されています。境内は山あいの谷にあり、杉の大木に囲まれています。三重塔は高さ二十二メートル余りで、木立の間から見上げる形になります。若狭には古寺が多く、周辺と合わせて回れます。",
+    "highlights": [
+      "国宝の本堂と三重塔",
+      "鎌倉中期の建築が二棟残る境内",
+      "杉木立に囲まれた谷の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑の杉と古材の色。境内が明るくなる時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。三重塔と色づいた木が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の境内は静かで、建物の輪郭だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、塔を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が境内に落ちます。明暗差が大きいので露出に注意します。"
+      }
+    ],
+    "compositionTips": [
+      "三重塔は杉の間から抜いて谷にあることを示します",
+      "本堂は正面から撮って鎌倉期の簡素な構成を見せます",
+      "堂内の撮影可否は拝観時に確認します"
+    ],
+    "officialWebsiteUrl": "https://wakasa-obama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b7838d3d82ef",
@@ -55034,6 +55855,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_925fa7e138b0",
+    "slug": "sabae-glasses",
+    "name": "めがねミュージアム",
+    "nameEn": "Megane Museum",
+    "reading": "めがねみゅーじあむ",
+    "aliases": [
+      "鯖江 めがねの街"
+    ],
+    "address": "福井県鯖江市新横江2-3-4",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "鯖江市"
+    },
+    "coords": {
+      "lat": 35.96,
+      "lng": 136.19
+    },
+    "category": "landmark",
+    "summary": "国産眼鏡枠の大半を作る鯖江の産業館。百年分の眼鏡が年代順に並び、小さな金属部品の反復が被写体になります。",
+    "description": "鯖江は国産眼鏡フレームの九割以上を作ってきた産地で、その歴史と技術を展示する施設です。明治期の丸眼鏡から現代のチタンフレームまでが年代順に並び、形の変遷が一望できます。体験工房ではフレーム磨きなどができます。ショップには産地の各社の製品が並び、金属とセルロイドの質感の違いが見られます。工程の展示もあります。",
+    "highlights": [
+      "年代順に並ぶ百年分の眼鏡",
+      "金属フレームの製造工程の展示",
+      "産地各社の製品が並ぶショップ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。雪の季節の行き先になります。"
+      },
+      {
+        "season": "summer",
+        "text": "来館者が多い時期。展示前の位置取りに時間がかかります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心。照明が安定しているので時間帯の影響は小さいです。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、展示ケースを正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶフレームは望遠で圧縮して反復を見せます",
+      "金属は反射するので、照明の映り込む角度を外します",
+      "ショップの商品を撮るときは店員に断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.megane.gr.jp/museum/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_73f9f51fe39d",
@@ -63528,6 +64408,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0b870f0ad9e7",
+    "slug": "sotomo",
+    "name": "蘇洞門",
+    "nameEn": "Sotomo Coastal Cliffs",
+    "reading": "そとも",
+    "aliases": [
+      "大門小門"
+    ],
+    "address": "福井県小浜市 内外海半島",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "小浜市"
+    },
+    "coords": {
+      "lat": 35.52,
+      "lng": 135.73
+    },
+    "category": "nature",
+    "summary": "若狭湾の波が岩を削ってできた奇岩群が約六キロ続きます。大門小門と呼ばれる岩の門は船で抜けられます。",
+    "description": "内外海半島の外海側にある海食地形で、花崗岩の断崖、洞門、洞窟が約六キロにわたって連なります。中心の大門小門は波が岩を貫いてできた門で、穏やかな日は遊覧船が近くまで入ります。陸路はなく、小浜港からの遊覧船が唯一の手段です。波が高いと欠航または上陸中止になるため、当日の運航状況の確認が前提になります。",
+    "highlights": [
+      "岩を貫く大門小門",
+      "六キロ続く海食地形",
+      "遊覧船からしか見られない立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が穏やかで欠航が少なく、水の色も最も濃く出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩肌の質感がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて欠航が増えます。運航状況を必ず確認します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "午前は海が穏やかなことが多く、揺れも小さくなります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩に光が回り、洞門の奥まで見えます。"
+      }
+    ],
+    "compositionTips": [
+      "門は穴を通して向こうの海を見せると構造が伝わります",
+      "船上は揺れるのでシャッター速度を確保します",
+      "断崖は縦構図で高さを取ります"
+    ],
+    "officialWebsiteUrl": "https://wakasa-obama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_76b2ae5e2a87",
     "slug": "sounkyo-ginga-ryusei",
     "name": "層雲峡 銀河の滝・流星の滝",
@@ -65981,6 +66924,128 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c1e7f0fe1a96",
+    "slug": "takeda-shidare",
+    "name": "竹田の里 しだれ桜",
+    "nameEn": "Takeda Weeping Cherry Trees",
+    "reading": "たけだのさと しだれざくら",
+    "aliases": [
+      "たけくらべ広場"
+    ],
+    "address": "福井県坂井市丸岡町山竹田",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "坂井市"
+    },
+    "coords": {
+      "lat": 36.13,
+      "lng": 136.39
+    },
+    "category": "nature",
+    "summary": "山あいの集落に約三百本のしだれ桜が植えられています。棚田と川に沿って枝が垂れ、里山の形に添います。",
+    "description": "旧竹田村の集落で、住民が植え育てたしだれ桜が約三百本あります。中心のたけくらべ広場には樹形の整った木が集まり、周囲の道沿いにも点在します。棚田と竹田川に沿って植えられているため、桜だけでなく里山の地形と一緒に写せます。見頃は四月中旬で、県内では遅めです。期間中は夜間のライトアップが行われます。",
+    "highlights": [
+      "約三百本のしだれ桜",
+      "棚田と川に沿う配置",
+      "夜間ライトアップ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬が見頃。標高があるぶん平地より遅く咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "棚田の稲刈り後と桜の黄葉。人がおらず静かな時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が谷に残り、桜が霧の中に浮かぶことがあります。"
+      },
+      {
+        "time": "night",
+        "text": "ライトアップ期は枝の垂れ方が照明で強調されます。"
+      }
+    ],
+    "compositionTips": [
+      "しだれは下から見上げて枝の流れを画面に入れます",
+      "棚田や川を入れて里山であることを示します",
+      "私有地が多いので、道路と広場から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.mitene.or.jp/~takekura/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_f1a8df593194",
+    "slug": "takefu-kura",
+    "name": "武生 蔵の辻",
+    "nameEn": "Takefu Kura no Tsuji",
+    "reading": "たけふ くらのつじ",
+    "aliases": [
+      "越前市 蔵の辻"
+    ],
+    "address": "福井県越前市蓬莱町",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "越前市"
+    },
+    "coords": {
+      "lat": 35.9,
+      "lng": 136.17
+    },
+    "category": "landmark",
+    "summary": "白壁の土蔵に囲まれた石畳の広場。物資の集散地だった蔵群を、開かれた空間として再生した一画です。",
+    "description": "かつて北陸道の宿場町だった武生の中心部で、物資を保管した白壁の土蔵が集まっていた区画を整備したものです。蔵を壊さず、間の路地を広げて石畳の広場にしたため、白い壁に四方を囲まれた空間になっています。蔵は飲食店や店舗として使われています。周辺には総社大神宮や紫式部ゆかりの地があり、歩いて回れます。",
+    "highlights": [
+      "白壁の土蔵に囲まれた広場",
+      "石畳の路地",
+      "現役の店として使われる蔵"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁が素直な白で写ります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が白壁に影を落とし、立体感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と白壁で画面が白に寄り、黒い瓦の線だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、広場を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は店の灯りと足元の照明で、白壁が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "白壁は露出オーバーになりやすいのでマイナス補正を基本にします",
+      "石畳の目地を手前から奥へ通して広場の奥行きを出します",
+      "蔵の妻面の形を正面から記録する一枚も入れます"
+    ],
+    "officialWebsiteUrl": "https://www.city.echizen.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0b2b1d4bba62",
@@ -71836,6 +72901,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c61421f3f248",
+    "slug": "tsuruga-akarenga",
+    "name": "敦賀赤レンガ倉庫",
+    "nameEn": "Tsuruga Red Brick Warehouse",
+    "reading": "つるがあかれんがそうこ",
+    "aliases": [
+      "敦賀 鉄道と港のジオラマ"
+    ],
+    "address": "福井県敦賀市金ケ崎町4-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "敦賀市"
+    },
+    "coords": {
+      "lat": 35.66,
+      "lng": 136.07
+    },
+    "category": "landmark",
+    "summary": "一九〇五年に石油貯蔵庫として建てられた煉瓦倉庫。二棟が並び、内部に敦賀の街の大型ジオラマがあります。",
+    "description": "外国人技師の設計で一九〇五年に建てられ、石油の貯蔵庫として使われました。煉瓦造の二棟が並び、国の登録有形文化財です。現在は一方がレストラン、もう一方に鉄道と港をテーマにした大型のジオラマが置かれています。ジオラマは昭和初期の敦賀の街を再現したもので、模型列車が走ります。隣接する敦賀港には欧亜国際連絡列車の資料館もあります。",
+    "highlights": [
+      "一九〇五年築の煉瓦倉庫二棟",
+      "昭和初期の敦賀を再現したジオラマ",
+      "隣接する敦賀港の鉄道遺構"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の緑と煉瓦の赤。芝生の広場も明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が煉瓦の目地に影を作り、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と煉瓦。赤と白の対比が最も強くなる季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光で煉瓦の赤が最も濃く出ます。"
+      },
+      {
+        "time": "night",
+        "text": "夜はライトアップされ、煉瓦の面が下から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "煉瓦は斜光で目地の陰影を出すのが基本です",
+      "二棟の並びを横から撮って反復を見せます",
+      "ジオラマは低い位置から人の目線で撮ると街らしく写ります"
+    ],
+    "officialWebsiteUrl": "https://tsuruga-akarenga.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_20fa86b3ce49",
     "slug": "tsurugajo",
     "name": "鶴ヶ城（会津若松城）",
@@ -73845,6 +74973,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_4225d0f93d34",
+    "slug": "urikawari",
+    "name": "瓜割の滝",
+    "nameEn": "Urikawari Falls",
+    "reading": "うりわりのたき",
+    "aliases": [
+      "天徳寺 瓜割の滝"
+    ],
+    "address": "福井県三方上中郡若狭町天徳寺",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "若狭町"
+    },
+    "coords": {
+      "lat": 35.5,
+      "lng": 135.87
+    },
+    "category": "nature",
+    "summary": "年間を通して十一度前後の湧水が湧き続ける水源。水が冷たくて瓜が割れたという伝承が名前の由来です。",
+    "description": "天徳寺の境内奥にある湧水で、日本名水百選に選ばれています。滝といっても落差は小さく、岩の間から湧いた水が流れ落ちる形です。水温は年間を通して十一度前後で安定し、夏は冷たく冬は湯気が立ちます。水が湧く岩のまわりは苔と羊歯に覆われ、緑が濃い一画になっています。水汲み場が整備され、地元の人が汲みに来ます。",
+    "highlights": [
+      "年間を通して十一度前後の湧水",
+      "苔と羊歯に覆われた岩",
+      "冬に湯気が立つ水面"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "周囲だけ気温が低く、苔が最も濃い緑になります。"
+      },
+      {
+        "season": "winter",
+        "text": "外気との差で水面から湯気が立ちます。この滝の冬の見どころです。"
+      },
+      {
+        "season": "autumn",
+        "text": "落葉が水面に浮かび、緑の苔に色が点在します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、冷えた日は湯気も立ちやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "谷間なので日中も光が柔らかく、苔の緑が均一に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで水を線にすると湧き出しの形が見えます",
+      "苔を前景に大きく取って湿度を伝えます",
+      "水汲みに来る人の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://wakasa-mikatagoko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_393a4ee3fcbf",
     "slug": "ushiku-chateau",
     "name": "牛久シャトー",
@@ -74647,6 +75838,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e78f3e91ea43",
+    "slug": "wakasahiko",
+    "name": "若狭彦神社",
+    "nameEn": "Wakasahiko Shrine",
+    "reading": "わかさひこじんじゃ",
+    "aliases": [
+      "若狭姫神社",
+      "上社下社"
+    ],
+    "address": "福井県小浜市竜前28-7",
+    "region": {
+      "country": "日本",
+      "prefecture": "福井県",
+      "city": "小浜市"
+    },
+    "coords": {
+      "lat": 35.47,
+      "lng": 135.76
+    },
+    "category": "shrine",
+    "summary": "若狭国一之宮で、上社と下社が一.五キロ離れて建ちます。上社の参道は杉の巨木に挟まれ、日中も暗く沈みます。",
+    "description": "若狭彦神社を上社、若狭姫神社を下社と呼び、二社で一つの一之宮を構成します。上社の参道は樹齢数百年の杉が両側に並び、社殿まで薄暗い道が続きます。社殿は簡素な檜皮葺で、装飾が少ないぶん構造が見えます。下社には千年杉と呼ばれる巨木があります。両社とも参拝者が少なく、静かに撮れる場所です。徒歩なら二社を三十分ほどで結べます。",
+    "highlights": [
+      "杉の巨木に挟まれた上社の参道",
+      "装飾の少ない檜皮葺の社殿",
+      "下社の千年杉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が参道に入り、暗い道に緑の光が差します。"
+      },
+      {
+        "season": "summer",
+        "text": "杉が最も濃く、参道が暗く沈みます。木漏れ日が筋として見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の落葉樹が色づき、常緑の杉との対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、杉の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中でも参道は暗いので、高感度か三脚が前提になります。"
+      }
+    ],
+    "compositionTips": [
+      "参道は杉の幹を縦線の反復として使います",
+      "社殿は正面から撮って簡素な構成を見せます",
+      "暗い参道は露出を持ち上げすぎず、暗さごと残します"
+    ],
+    "officialWebsiteUrl": "https://wakasa-obama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_619751623394",
