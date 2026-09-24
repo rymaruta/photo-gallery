@@ -14756,6 +14756,133 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_681ba38a631b",
+    "slug": "goto-dozaki",
+    "name": "五島 堂崎天主堂",
+    "nameEn": "Dozaki Church, Goto",
+    "reading": "ごとう どうざきてんしゅどう",
+    "aliases": [
+      "福江島 堂崎"
+    ],
+    "address": "長崎県五島市奥浦町堂崎2019",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "五島市"
+    },
+    "coords": {
+      "lat": 32.72,
+      "lng": 128.87
+    },
+    "category": "landmark",
+    "summary": "五島で最初に建てられた煉瓦造の教会。海際に立ち、満潮時は波打ち際まで水が来ます。",
+    "description": "一九〇八年に完成した煉瓦造の教会で、五島列島では最初の洋風教会建築です。海に面した入り江の岸に建ち、満潮時には建物のすぐ前まで水が来ます。現在は資料館として公開され、五島の潜伏キリシタンに関する資料が展示されています。内部はリブ・ヴォールトの天井で、木の床が残ります。周囲に建物が少なく、教会と海と空だけの構成になります。",
+    "highlights": [
+      "海際に立つ煉瓦造の教会",
+      "満潮時に迫る水面",
+      "リブ・ヴォールトの天井"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、煉瓦の赤との対比が最も強くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、島を回りやすい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海の色が締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は煉瓦が暖色に染まり、海面も光ります。"
+      },
+      {
+        "time": "day",
+        "text": "満潮の時刻に合わせると水が建物に迫る画になります。"
+      }
+    ],
+    "compositionTips": [
+      "海と教会を一枚に入れて海際の立地を示します",
+      "満潮の時刻を調べてから向かいます",
+      "内部の撮影可否は受付で確認します"
+    ],
+    "officialWebsiteUrl": "https://kyoukaigun.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_4075fd9028dd",
+    "slug": "gotoretto",
+    "name": "五島列島 高浜海水浴場",
+    "nameEn": "Takahama Beach, Goto",
+    "reading": "ごとうれっとう たかはまかいすいよくじょう",
+    "aliases": [
+      "福江島 高浜",
+      "魚藍観音展望所"
+    ],
+    "address": "長崎県五島市三井楽町貝津",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "五島市"
+    },
+    "coords": {
+      "lat": 32.77,
+      "lng": 128.64
+    },
+    "category": "nature",
+    "summary": "白い砂と透明度の高い水で知られる浜。高台の展望所から浜の弧と水の色の階調を俯瞰できます。",
+    "description": "福江島の西岸にある砂浜で、砂が白く水の透明度が高いため、浅瀬から沖へ向かって水の色が段階的に変わります。魚藍観音展望所や高浜園地の高台から見下ろすと、浜の弧と色の階調が一枚に収まります。背後は緑の丘で、人工物がほとんど画面に入りません。周辺には頓泊海水浴場もあり、同じような水の色が見られます。夏以外は人がほとんどいません。",
+    "highlights": [
+      "浅瀬から沖へ変わる水の色の階調",
+      "高台から見下ろす浜の弧",
+      "人工物がほとんど入らない環境"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水の色が最も鮮やかに出ます。海水浴の季節で人も増えます。"
+      },
+      {
+        "season": "spring",
+        "text": "人が少なく、砂に足跡のない浜を撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、水の色と丘の緑が同時に締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高い正午前後が水中に光が届き、色の階調が最も出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は西向きの海に日が落ち、浜が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "高台から俯瞰して色の階調を面として見せます",
+      "偏光フィルターで反射を消すと色が濃く出ます",
+      "浜の弧を手前から奥へ通して長さを見せます"
+    ],
+    "officialWebsiteUrl": "https://goto.nagasaki-tabinet.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b7aa1c5a503b",
     "slug": "gozaisho-dake",
     "name": "御在所岳",
@@ -17116,6 +17243,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f3d3dec29d9c",
+    "slug": "harajo",
+    "name": "原城跡",
+    "nameEn": "Hara Castle Ruins",
+    "reading": "はらじょうあと",
+    "aliases": [
+      "島原の乱 原城",
+      "南島原 原城"
+    ],
+    "address": "長崎県南島原市南有馬町乙",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "南島原市"
+    },
+    "coords": {
+      "lat": 32.62,
+      "lng": 130.25
+    },
+    "category": "landmark",
+    "summary": "島原の乱で三万七千人が籠城した城の跡。海に突き出した台地に石垣と草地だけが残ります。",
+    "description": "一六三七年の島原・天草一揆で、天草四郎を旗頭とする三万七千人が籠城し、翌年に落城した城の跡です。世界遺産の構成資産で、発掘調査で大量の人骨と十字架が出土しました。現在は海に突き出した台地に石垣と草地が残るだけで、建物はありません。本丸跡からは有明海と天草の島々が見渡せます。慰霊の場でもあり、十字架と像が立ちます。",
+    "highlights": [
+      "海に突き出した台地の立地",
+      "草地に残る石垣",
+      "本丸跡から見る有明海と天草"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "草地が緑になり、石垣との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、天草の島々まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて石垣の輪郭が最もよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、海も静かです。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石垣に横から光が入り、台地の起伏が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "何もない草地の広さを取って籠城の規模を想像させます",
+      "海を入れて台地が海に突き出していることを示します",
+      "慰霊の場なので説明的に撮り、演出を加えないこと"
+    ],
+    "officialWebsiteUrl": "https://www.city.minamishimabara.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_dd6836ee6760",
     "slug": "haraoka-sanbashi",
     "name": "原岡桟橋（岡本桟橋）",
@@ -17542,6 +17733,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_25ca6db6a76f",
+    "slug": "hasami",
+    "name": "波佐見焼",
+    "nameEn": "Hasami Ware",
+    "reading": "はさみやき",
+    "aliases": [
+      "中尾山 登り窯跡",
+      "西の原"
+    ],
+    "address": "長崎県東彼杵郡波佐見町中尾郷",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "波佐見町"
+    },
+    "coords": {
+      "lat": 33.14,
+      "lng": 129.89
+    },
+    "category": "landmark",
+    "summary": "日用食器の産地。中尾山には全長百六十メートルを超えた世界最大級の登り窯の跡が残ります。",
+    "description": "四百年続く磁器の産地で、庶民の日用食器を大量に作ってきました。中尾山地区には江戸期の登り窯の跡が残り、なかでも大新登窯跡は全長約百六十メートル、三十三室という世界最大級の規模でした。斜面に階段状の窯の基礎が連なります。町内には陶磁器の破片を埋め込んだ壁や坂道があります。西の原地区は製陶所の跡を改装した店舗群になっています。",
+    "highlights": [
+      "全長百六十メートルの登り窯跡",
+      "陶片を埋め込んだ壁と坂道",
+      "製陶所跡を改装した西の原"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月の陶器まつり。町全体が市になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が窯跡の段に影を落とし、構造が読めます。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて窯跡の基礎が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、窯跡と坂道を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は陶片の壁に光が回り、破片の色が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "登り窯跡は斜面に沿って撮ると段の連なりが見えます",
+      "陶片の壁は寄って破片の形と色を主題にします",
+      "窯元での撮影は必ず作り手に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://hasami-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1bcff168ce5c",
@@ -18583,6 +18838,70 @@
       "苔の上には立ち入らず、参道と石畳から撮ります"
     ],
     "officialWebsiteUrl": "https://www.city.katsuyama.fukui.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_fbf917161e1a",
+    "slug": "heiwa",
+    "name": "平和公園",
+    "nameEn": "Nagasaki Peace Park",
+    "reading": "へいわこうえん",
+    "aliases": [
+      "平和祈念像",
+      "爆心地公園"
+    ],
+    "address": "長崎県長崎市松山町9",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "長崎市"
+    },
+    "coords": {
+      "lat": 32.77,
+      "lng": 129.86
+    },
+    "category": "landmark",
+    "summary": "原爆の爆心地に隣接する公園。高さ約十メートルの平和祈念像が立ち、地下には被爆した地層が残ります。",
+    "description": "一九四五年八月九日の原爆の爆心地に隣接して整備された公園です。平和祈念像は高さ約十メートルで、右手が天を、左手が水平を指します。爆心地公園には落下中心地の標柱があり、地層をそのまま保存した断面の展示では、瓦礫が混じった被爆当時の地面が見られます。浦上天主堂の被爆した遺構も移設されています。追悼の場としての振る舞いが求められます。",
+    "highlights": [
+      "高さ約十メートルの平和祈念像",
+      "被爆当時の地層の断面展示",
+      "落下中心地の標柱"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月九日の式典。参列者が集まる日です。"
+      },
+      {
+        "season": "spring",
+        "text": "園内の桜。祈念像と花を重ねる角度があります。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、静かに向き合える季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、園内を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は像に光が回り、彫りの細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "像は正面から撮って両手の指し示す方向を見せます",
+      "地層の断面は説明的に撮り、演出を加えないこと",
+      "参列者や献花を写さない画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.city.nagasaki.lg.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -20094,6 +20413,134 @@
       "夜景は長時間露光で船の航跡を線にできます"
     ],
     "officialWebsiteUrl": "https://www.city.shimonoseki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_51431336d750",
+    "slug": "hirado-castle",
+    "name": "平戸城",
+    "nameEn": "Hirado Castle",
+    "reading": "ひらどじょう",
+    "aliases": [
+      "亀岡城",
+      "平戸 幸橋"
+    ],
+    "address": "長崎県平戸市岩の上町1458",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "平戸市"
+    },
+    "coords": {
+      "lat": 33.37,
+      "lng": 129.56
+    },
+    "category": "landmark",
+    "summary": "三方を海に囲まれた丘の上に建つ城。天守から平戸瀬戸と赤い平戸大橋、対岸の九州本土まで見渡せます。",
+    "description": "松浦氏の居城で、平戸港に突き出した丘の上に建ちます。三方が海に囲まれ、天守からは平戸瀬戸と赤い平戸大橋、対岸の九州本土が見渡せます。現在の天守は一九六二年の再建ですが、狸櫓と北虎口門は現存の建物です。城下にはオランダ商館の跡とオランダ塀、石造の幸橋があり、交易港だった歴史が残ります。城と教会が同じ画面に入る構図も市内にあります。",
+    "highlights": [
+      "三方を海に囲まれた丘の立地",
+      "天守から見る平戸大橋と瀬戸",
+      "現存する狸櫓と北虎口門"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。天守と花を重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、白い天守との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸までの視程が伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は瀬戸が光り、平戸大橋がシルエットになります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、天守を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "天守から瀬戸と橋を望遠で圧縮します",
+      "海を入れて三方が海であることを示します",
+      "城と教会が同時に入る市内の構図も探します"
+    ],
+    "officialWebsiteUrl": "https://hirado-castle.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_2db531992802",
+    "slug": "hirado-tabira",
+    "name": "田平天主堂",
+    "nameEn": "Tabira Church",
+    "reading": "たびらてんしゅどう",
+    "aliases": [
+      "瀬戸山天主堂",
+      "鉄川与助 田平"
+    ],
+    "address": "長崎県平戸市田平町小手田免19",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "平戸市"
+    },
+    "coords": {
+      "lat": 33.36,
+      "lng": 129.57
+    },
+    "category": "landmark",
+    "summary": "煉瓦造の教会堂。信徒が自ら煉瓦を積み、設計と施工を鉄川与助が手がけた最後期の作品です。",
+    "description": "一九一八年に完成した煉瓦造の教会で、重要文化財です。設計と施工は長崎の教会建築を多く手がけた鉄川与助で、彼の煉瓦造教会としては最後期にあたります。信徒が浜から砂を運び、煉瓦を積む作業にも加わりました。外壁は色の異なる煉瓦を組み合わせ、装飾的な帯を作っています。内部はリブ・ヴォールトの天井で、ステンドグラスから色が落ちます。丘の上にあり、周囲は畑です。",
+    "highlights": [
+      "色の違う煉瓦を組んだ外壁",
+      "リブ・ヴォールトの天井",
+      "丘の上という立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の畑が緑になり、煉瓦の赤との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が煉瓦の目地に影を落とし、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、建物の輪郭がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光で煉瓦の赤が最も濃く出ます。"
+      },
+      {
+        "time": "day",
+        "text": "内部はステンドグラスから色が落ちる日中が向きます。"
+      }
+    ],
+    "compositionTips": [
+      "煉瓦は斜光で目地の陰影を出すのが基本です",
+      "内部は天井のリブを見上げて構造を取ります",
+      "礼拝の場なので、内部の撮影可否と時間を確認します"
+    ],
+    "officialWebsiteUrl": "https://kyoukaigun.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -23639,6 +24086,133 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ec9851bce03e",
+    "slug": "iki-monkey",
+    "name": "壱岐 猿岩",
+    "nameEn": "Saruiwa Monkey Rock, Iki",
+    "reading": "いき さるいわ",
+    "aliases": [
+      "黒崎半島 猿岩"
+    ],
+    "address": "長崎県壱岐市郷ノ浦町新田触",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "壱岐市"
+    },
+    "coords": {
+      "lat": 33.75,
+      "lng": 129.65
+    },
+    "category": "nature",
+    "summary": "高さ四十五メートルの玄武岩が猿の横顔に見えます。角度が決まっており、ずれると形が崩れます。",
+    "description": "壱岐の西端、黒崎半島の先端にある玄武岩の岩塊で、高さは約四十五メートルです。特定の角度から見ると、そっぽを向いた猿の横顔にしか見えない形をしています。角度が少しずれると単なる岩の塊になるため、展望所の位置が決まっています。背後は玄界灘で、遮るものがありません。近くには旧日本軍の砲台跡が残ります。夕日が海に落ちる位置です。",
+    "highlights": [
+      "猿の横顔に見える玄武岩",
+      "角度が決まっている展望所",
+      "背後に広がる玄界灘"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、黒い岩との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩の輪郭がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "玄界灘が荒れ、岩の下に白波が砕けます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面。岩をシルエットにできます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は順光で岩の質感が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "展望所の指定位置から撮らないと猿に見えません",
+      "空を広く取ると岩の孤立感が出ます",
+      "夕景は露出を空に合わせて岩を沈めます"
+    ],
+    "officialWebsiteUrl": "https://www.ikikankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_1ea899aa2ce6",
+    "slug": "ikitsuki",
+    "name": "生月島 塩俵の断崖",
+    "nameEn": "Shiodawara Cliffs, Ikitsuki",
+    "reading": "いきつきしま しおだわらのだんがい",
+    "aliases": [
+      "生月サンセットウェイ",
+      "大バエ灯台"
+    ],
+    "address": "長崎県平戸市生月町壱部",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "平戸市"
+    },
+    "coords": {
+      "lat": 33.4,
+      "lng": 129.4
+    },
+    "category": "nature",
+    "summary": "柱状節理が五百メートルにわたって海際に並びます。柱が俵を積んだように見える断崖です。",
+    "description": "生月島の西岸にある柱状節理の断崖で、高さ約二十メートル、長さ約五百メートルにわたって六角形の柱が並びます。柱が積み重なった形が塩の俵に似ていることが名の由来です。県の天然記念物です。島の西岸には生月サンセットウェイと呼ばれる道路が海沿いを走り、遮るもののない夕景が続きます。北端の大バエ灯台からは東シナ海が三百六十度近く開けます。",
+    "highlights": [
+      "五百メートル続く柱状節理",
+      "海沿いを走るサンセットウェイ",
+      "大バエ灯台からの視界"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、黒い柱状節理との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れ、断崖に波が砕けます。風が強い季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。断崖が暖色に染まります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝の斜光が柱の一本ずつに影を作り、分離が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "柱状節理は縦構図で垂直線を強調します",
+      "斜光のときに柱の分離が最もよく出ます",
+      "サンセットウェイは道路の曲線を手前から奥へ通します"
+    ],
+    "officialWebsiteUrl": "https://www.hirado-net.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6837e51f7371",
@@ -32566,6 +33140,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a0e0ac7cafa3",
+    "slug": "kashiragashima",
+    "name": "頭ヶ島天主堂",
+    "nameEn": "Kashiragashima Church",
+    "reading": "かしらがしまてんしゅどう",
+    "aliases": [
+      "石造教会 頭ヶ島",
+      "新上五島"
+    ],
+    "address": "長崎県南松浦郡新上五島町友住郷頭ヶ島638",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "新上五島町"
+    },
+    "coords": {
+      "lat": 32.99,
+      "lng": 129.15
+    },
+    "category": "landmark",
+    "summary": "国内でも数少ない石造の教会。島で切り出した砂岩を信徒が積み、十年かけて建てました。",
+    "description": "一九一九年に完成した石造の教会で、重要文化財です。日本の教会建築で石造は極めて少なく、この建物は島で切り出した砂岩を信徒自身が積み上げて十年かけて建てました。外壁の石は色と大きさが不揃いで、手作業の跡が見えます。内部の天井には椿の花が装飾として描かれ、五島らしい意匠になっています。世界遺産の構成資産で、見学は事前連絡制です。",
+    "highlights": [
+      "国内で数少ない石造の教会堂",
+      "色と大きさが不揃いな外壁の石",
+      "天井に描かれた椿の装飾"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の椿が咲きます。天井の装飾と重なる季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、灰色の石との対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて便が減ります。運航状況の確認が必要です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "内部は自然光が入る日中が向きます。見学は事前連絡制です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が石の面に当たり、不揃いさが浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "外壁の石は斜光で撮ると不揃いな積み方が見えます",
+      "天井の椿は真上を向いて装飾を取ります",
+      "見学は事前連絡制なので、必ず手続きしてから訪れます"
+    ],
+    "officialWebsiteUrl": "https://kyoukaigun.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_50514b1ce172",
     "slug": "kashiwajima",
     "name": "柏島",
@@ -40382,6 +41020,69 @@
       "鎖場では撮影より安全を優先します"
     ],
     "officialWebsiteUrl": "https://www.city.takeo.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_518b642afc21",
+    "slug": "kuroshima",
+    "name": "黒島天主堂",
+    "nameEn": "Kuroshima Church",
+    "reading": "くろしまてんしゅどう",
+    "aliases": [
+      "黒島 潜伏キリシタン"
+    ],
+    "address": "長崎県佐世保市黒島町3333",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "佐世保市"
+    },
+    "coords": {
+      "lat": 33.1,
+      "lng": 129.56
+    },
+    "category": "landmark",
+    "summary": "島の住民の大半がカトリックという島の教会。信徒が焼いた四十万個の煉瓦で建てられました。",
+    "description": "禁教期に潜伏キリシタンが移り住んだ島で、いまも住民の多くがカトリックです。一九〇二年に完成した教会堂は、信徒自身が焼いた約四十万個の煉瓦で建てられました。内部の床は有田焼のタイルで、祭壇には島で採れた大理石が使われています。柱頭の装飾など細部に島で調達した材料が使われ、共同体で建てた経緯が形に残ります。船でのみ渡れます。",
+    "highlights": [
+      "信徒が焼いた四十万個の煉瓦",
+      "有田焼のタイルの床",
+      "島で採れた大理石の祭壇"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海が穏やかで、島へ渡りやすい季節です。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、煉瓦の赤との対比が強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて欠航が増えます。運航状況の確認が必要です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "内部はステンドグラスから色が落ちる日中が向きます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は煉瓦の赤が最も濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "床のタイルと煉瓦の壁を一枚に入れて材料の由来を見せます",
+      "外観は周囲の島の環境ごと入れて立地を示します",
+      "内部の見学は事前連絡が要る場合があるため確認します"
+    ],
+    "officialWebsiteUrl": "https://kyoukaigun.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -49694,6 +50395,62 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d9ecaee49896",
+    "slug": "nagasaki-kunchi",
+    "name": "長崎くんち",
+    "nameEn": "Nagasaki Kunchi Festival",
+    "reading": "ながさきくんち",
+    "aliases": [
+      "諏訪神社 奉納踊",
+      "龍踊"
+    ],
+    "address": "長崎県長崎市上西山町18-15 諏訪神社ほか",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "長崎市"
+    },
+    "coords": {
+      "lat": 32.75,
+      "lng": 129.88
+    },
+    "category": "festival",
+    "summary": "諏訪神社の秋の大祭。中国やオランダの影響を受けた奉納踊が、町ごとに七年に一度回ってきます。",
+    "description": "十月七日から九日に行われる諏訪神社の大祭で、国の重要無形民俗文化財です。奉納踊は長崎の各町が担当し、同じ町の番は七年に一度しか回りません。演目には中国由来の龍踊、オランダ船やポルトガル船を模した船回しなどがあり、交易港だった歴史が形に残っています。踊場は諏訪神社、お旅所、八坂神社、中央公園の四か所です。桟敷席は抽選です。",
+    "highlights": [
+      "中国由来の龍踊",
+      "船を模した山車の船回し",
+      "七年に一度回ってくる町の当番"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月七日から九日の三日間のみ。前日には庭見せがあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "初日の早朝から踊場が動きます。位置取りは早めに済ませます。"
+      },
+      {
+        "time": "night",
+        "text": "夜の演目は提灯の灯りが主光源。高感度で被写体ブレを抑えます。"
+      }
+    ],
+    "compositionTips": [
+      "龍踊は速いシャッターで龍の動きを止めます",
+      "船回しは回転する瞬間を連写で押さえます",
+      "桟敷以外からは視界が限られるので、事前に位置を調べます"
+    ],
+    "officialWebsiteUrl": "https://nagasaki-kunchi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4e0fb29f4777",
     "slug": "nagasaki-lantern",
     "name": "長崎ランタンフェスティバル",
@@ -49766,6 +50523,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4e9acb80eccb",
+    "slug": "nagasaki-shrine",
+    "name": "山王神社 一本柱鳥居",
+    "nameEn": "Sanno Shrine One-Legged Torii",
+    "reading": "さんのうじんじゃ いっぽんばしらとりい",
+    "aliases": [
+      "片足鳥居",
+      "被爆クスノキ"
+    ],
+    "address": "長崎県長崎市坂本2-6-56",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "長崎市"
+    },
+    "coords": {
+      "lat": 32.77,
+      "lng": 129.87
+    },
+    "category": "shrine",
+    "summary": "原爆で片側の柱だけが残った鳥居。もう半分は倒れたまま、境内に横たえて置かれています。",
+    "description": "爆心地から約八百メートルにあり、原爆の爆風で二の鳥居の片側の柱だけが残りました。倒れた側の笠木と柱は境内の脇に横たえて保存されています。残った柱は現在も立ち続け、被爆の物証として知られます。境内には被爆したクスノキ二本があり、幹に瓦礫が食い込んだまま新しい枝を伸ばしています。住宅街の中にあり、静かな場所です。",
+    "highlights": [
+      "片側だけ残った一本柱鳥居",
+      "横たえて保存された倒壊部分",
+      "瓦礫が食い込んだ被爆クスノキ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月九日前後は訪れる人が増えます。"
+      },
+      {
+        "season": "spring",
+        "text": "クスノキの葉が入れ替わり、樹冠が明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、鳥居を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、鳥居を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中はクスノキの樹冠に光が回り、枝の広がりが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "鳥居は片側が欠けていることが分かる角度から撮ります",
+      "倒壊部分と立っている柱を一枚に入れて対にします",
+      "被爆遺構なので説明的に撮り、演出を加えないこと"
+    ],
+    "officialWebsiteUrl": "https://www.city.nagasaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_252eb3c39bc0",
@@ -53847,6 +54668,70 @@
       "白壁は露出オーバーになりやすいので補正を前提にします"
     ],
     "officialWebsiteUrl": "https://nisshinkan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_ad85a10c0446",
+    "slug": "nita-toge",
+    "name": "雲仙 仁田峠",
+    "nameEn": "Nita Pass, Unzen",
+    "reading": "うんぜん にたとうげ",
+    "aliases": [
+      "妙見岳 ロープウェイ",
+      "平成新山 展望"
+    ],
+    "address": "長崎県雲仙市小浜町雲仙",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "雲仙市"
+    },
+    "coords": {
+      "lat": 32.76,
+      "lng": 130.27
+    },
+    "category": "mountain",
+    "summary": "平成新山を正面に望む峠。春はミヤマキリシマが斜面を染め、冬は霧氷が枝を白く覆います。",
+    "description": "雲仙岳の中腹、標高約千八十メートルの峠で、一九九〇年代の噴火でできた平成新山が正面に見えます。溶岩ドームの荒い山肌が間近に立ち上がります。五月中旬から下旬はミヤマキリシマが斜面一面に咲き、ピンクの面になります。冬は霧氷が付き、白い枝と溶岩ドームの対比ができます。ロープウェイで妙見岳へ上がれます。峠への道路は一方通行です。",
+    "highlights": [
+      "正面に立つ平成新山の溶岩ドーム",
+      "五月のミヤマキリシマ",
+      "冬の霧氷"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月中旬から下旬のミヤマキリシマ。斜面が一面ピンクになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬の紅葉。溶岩ドームと色の対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "霧氷が枝を白く覆います。道路の凍結に注意が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で平成新山が見えやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は溶岩ドームに光が当たり、岩肌の凹凸が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "花を前景に置いて溶岩ドームを奥に配し二層にします",
+      "霧氷は逆光で透かすと枝の形が浮きます",
+      "溶岩ドームは望遠で抜いて荒い質感を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.unzen.org/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -64334,6 +65219,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_2bee84aa2620",
+    "slug": "saikai-bridge",
+    "name": "西海橋",
+    "nameEn": "Saikai Bridge",
+    "reading": "さいかいばし",
+    "aliases": [
+      "針尾瀬戸 渦潮",
+      "新西海橋"
+    ],
+    "address": "長崎県佐世保市針尾東町",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "佐世保市"
+    },
+    "coords": {
+      "lat": 33.07,
+      "lng": 129.75
+    },
+    "category": "landmark",
+    "summary": "針尾瀬戸に架かる鋼アーチ橋。下の海峡では潮の干満で渦潮が立ち、橋の上から見下ろせます。",
+    "description": "一九五五年に完成した鋼アーチ橋で、完成当時は世界で三番目の規模でした。下を流れる針尾瀬戸は幅が狭く、大村湾と外海の水位差で潮流が速くなり、渦潮が立ちます。隣接する新西海橋には歩道と、床が格子になった覗き窓があり、真下の渦を見下ろせます。橋の周辺は公園として整備され、春は桜が咲きます。渦は潮の時刻で決まります。",
+    "highlights": [
+      "針尾瀬戸に立つ渦潮",
+      "新西海橋の床の覗き窓",
+      "鋼アーチの構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月から四月が潮の干満差が大きく、渦が最も立つ時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、白いアーチとの対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、橋の構造がはっきり写ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "渦は潮の時刻で決まります。潮見表を見てから向かいます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方はアーチがシルエットになり、海面が光ります。"
+      }
+    ],
+    "compositionTips": [
+      "渦は真上から見下ろすと回転が分かります",
+      "アーチは横から撮って構造の曲線を見せます",
+      "渦は速いシャッターで形を止めます"
+    ],
+    "officialWebsiteUrl": "https://www.saikaibashi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_5a7554d08e98",
     "slug": "saiko-iyashi-no-sato",
     "name": "西湖いやしの里根場",
@@ -69098,6 +70047,134 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_fd80f40707eb",
+    "slug": "shimabara-castle",
+    "name": "島原城",
+    "nameEn": "Shimabara Castle",
+    "reading": "しまばらじょう",
+    "aliases": [
+      "森岳城",
+      "島原 武家屋敷"
+    ],
+    "address": "長崎県島原市城内1-1183-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "島原市"
+    },
+    "coords": {
+      "lat": 32.79,
+      "lng": 130.36
+    },
+    "category": "landmark",
+    "summary": "白壁の層塔型天守が平地に立ちます。四万石の藩に不相応な規模が島原の乱の一因とされます。",
+    "description": "松倉重政が一六一八年から七年かけて築いた城で、四万石の石高に対して過大な規模でした。築城の負担が領民に重くのしかかり、島原の乱の背景の一つとされます。天守は一九六四年の再建で、白壁の五層が平地に立ちます。石垣は高く、堀に映ります。城から続く鉄砲町には武家屋敷が保存され、道の中央を水路が流れます。背後に雲仙普賢岳が見えます。",
+    "highlights": [
+      "平地に立つ白壁の層塔型天守",
+      "堀に映る高い石垣",
+      "水路が中央を流れる武家屋敷の道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。堀端から天守と花を重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、白壁との対比が強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、背後の雲仙普賢岳が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は堀の水面が静かで、天守の映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "堀の映り込みで天守を上下対称にします",
+      "武家屋敷の水路は線として手前から奥へ通します",
+      "普賢岳を入れるなら望遠で圧縮して城と重ねます"
+    ],
+    "officialWebsiteUrl": "https://shimabarajou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_b36975954535",
+    "slug": "shimabara-yusui",
+    "name": "島原 湧水庭園",
+    "nameEn": "Shimabara Spring Gardens",
+    "reading": "しまばら ゆうすいていえん",
+    "aliases": [
+      "四明荘",
+      "鯉の泳ぐまち"
+    ],
+    "address": "長崎県島原市新町2-125",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "島原市"
+    },
+    "coords": {
+      "lat": 32.79,
+      "lng": 130.37
+    },
+    "category": "nature",
+    "summary": "町のあちこちで湧水が出ます。四明荘は座敷のすぐ下まで池が入り、鯉が畳の際を泳ぎます。",
+    "description": "雲仙の伏流水が市街地の各所で湧き出す町で、湧水地は六十か所以上あります。四明荘は明治期の別邸で、庭の池が建物のすぐ下まで入り込み、座敷に座ると畳の際を鯉が泳ぎます。池の底から水が湧いているため、常に透明度が保たれます。近くの水路には錦鯉が放され、鯉の泳ぐまちと呼ばれる通りになっています。水音が町に響きます。",
+    "highlights": [
+      "座敷の際まで入り込む池",
+      "池の底から湧き続ける水",
+      "水路を泳ぐ錦鯉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水の冷たさと音が最も感じられる季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "庭の木が色づき、水面に映ります。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が池に映り、水の色が明るくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、座敷を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面に光が入り、透明度と鯉の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "座敷から水面すれすれの視点で鯉を入れます",
+      "偏光フィルターで水面の反射を消すと底まで見えます",
+      "水路の鯉は上から撮ると色の配置が分かります"
+    ],
+    "officialWebsiteUrl": "https://www.shimabaraonsen.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_cde01fa421ea",
     "slug": "shimamui-kaigan",
     "name": "積丹 島武意海岸",
@@ -73192,6 +74269,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_455476dce1f4",
+    "slug": "sofukuji",
+    "name": "崇福寺",
+    "nameEn": "Sofuku-ji Temple",
+    "reading": "そうふくじ",
+    "aliases": [
+      "長崎 唐寺",
+      "第一峰門"
+    ],
+    "address": "長崎県長崎市鍛冶屋町7-5",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "長崎市"
+    },
+    "coords": {
+      "lat": 32.74,
+      "lng": 129.88
+    },
+    "category": "temple",
+    "summary": "中国の様式で建てられた唐寺。第一峰門と大雄宝殿は国宝で、軒下の組物が赤く密に組まれます。",
+    "description": "一六二九年に長崎の中国人が創建した寺で、建物は中国の職人が本国で刻んで運び、現地で組み上げたものです。第一峰門と大雄宝殿が国宝に指定されています。軒下の組物は四手先という複雑な形式で、赤く塗られた部材が密に重なります。日本の寺院建築とは配色も構造も違い、門をくぐると異なる様式の中に入る感覚があります。市街地の斜面にあります。",
+    "highlights": [
+      "国宝の第一峰門と大雄宝殿",
+      "赤く密に組まれた軒下の組物",
+      "日本の寺院とは違う配色と構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、赤い建物との対比が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が組物の隙間に入り、立体感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、門を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、門を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は軒下に光が回り込み、組物の細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "軒下の組物は望遠で抜いて密度を主題にします",
+      "門は下から煽って重なりの深さを取ります",
+      "赤が飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.at-nagasaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_ad34234f3874",
     "slug": "sogi-no-taki",
     "name": "曽木の滝",
@@ -73529,6 +74670,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_77886f0411ec",
+    "slug": "sotome",
+    "name": "外海 出津教会堂",
+    "nameEn": "Shitsu Church, Sotome",
+    "reading": "そとめ しつきょうかいどう",
+    "aliases": [
+      "ド・ロ神父",
+      "外海 潜伏キリシタン"
+    ],
+    "address": "長崎県長崎市西出津町2602",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "長崎市"
+    },
+    "coords": {
+      "lat": 32.83,
+      "lng": 129.71
+    },
+    "category": "landmark",
+    "summary": "海風に耐えるため低く平たく建てられた教会。ド・ロ神父が設計し、外海の斜面に立ちます。",
+    "description": "一八八二年にド・ロ神父の設計で建てられた教会で、重要文化財です。外海は角力灘からの風が強いため、建物は屋根を低く抑え、平たい形にしてあります。白い漆喰の壁と小さな鐘塔が斜面に立ちます。ド・ロ神父は教会の建築だけでなく、授産施設や医療でも地域を支えました。近くにはド・ロ神父記念館と、遠藤周作文学館があります。海を見下ろす斜面です。",
+    "highlights": [
+      "風に耐えるため低く平たい形",
+      "白い漆喰の壁と小さな鐘塔",
+      "海を見下ろす斜面の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の緑が芽吹き、白い壁との対比が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "角力灘が荒れ、風の強さが体感できます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きの海なので夕日が正面に落ちます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、教会を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "海を背景に入れて外海の立地を示します",
+      "低く平たい形が分かる横からの角度を選びます",
+      "礼拝の場なので、内部の撮影可否と時間を確認します"
+    ],
+    "officialWebsiteUrl": "https://kyoukaigun.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0b870f0ad9e7",
@@ -84011,6 +85216,70 @@
       "致道博物館の多層民家は屋根の勾配を側面から撮ります"
     ],
     "officialWebsiteUrl": "https://www.tsuruokakanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_9d16846b19a8",
+    "slug": "tsushima-watatsumi",
+    "name": "対馬 和多都美神社",
+    "nameEn": "Watatsumi Shrine, Tsushima",
+    "reading": "つしま わたつみじんじゃ",
+    "aliases": [
+      "海中鳥居 対馬",
+      "浅茅湾"
+    ],
+    "address": "長崎県対馬市豊玉町仁位55",
+    "region": {
+      "country": "日本",
+      "prefecture": "長崎県",
+      "city": "対馬市"
+    },
+    "coords": {
+      "lat": 34.37,
+      "lng": 129.29
+    },
+    "category": "shrine",
+    "summary": "社殿から海へ一直線に並ぶ五つの鳥居のうち二つが海中に立ち、満潮になると根元が水に沈みます。",
+    "description": "浅茅湾の入り江に面した神社で、社殿から海に向かって五つの鳥居が一直線に並びます。そのうち二つは海の中に立っており、満潮時には根元が水没して鳥居だけが海面から出ます。干潮時は歩いて鳥居の下まで行けます。海幸彦と山幸彦の神話に関わる社とされます。周囲はリアス式の浅茅湾で、入り江が複雑に入り組んでいます。潮位で見え方が大きく変わります。",
+    "highlights": [
+      "海中に立つ二つの鳥居",
+      "満潮と干潮で変わる見え方",
+      "リアス式の浅茅湾"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、鳥居の朱との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、湾の対岸まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、鳥居を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湾が静かで、鳥居の映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、鳥居がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "満潮と干潮の両方を撮ると場所の性格が伝わります",
+      "鳥居を一直線に重ねて奥行きを作ります",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.tsushima-net.org/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
