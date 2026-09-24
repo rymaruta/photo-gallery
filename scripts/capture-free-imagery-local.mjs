@@ -3,7 +3,7 @@
  * FREE local screenshot path when GitHub-hosted Actions cannot start a job.
  *
  * Uses the REAL Next.js MapPageClient, temporary CI-style fixtures and public
- * GSI tiles. The fixtures are never committed to published app content.
+ * GSI and selected national-agency tiles. The fixtures are never committed to published app content.
  *
  * From repository root, on a computer with internet:
  *   npm ci
@@ -36,6 +36,16 @@ const routes = [
       ["proof-naxos", "ナクソス島（検証用）", "ギリシャ", 37.105, 25.376],
       ["proof-athens", "アテネ（検証用）", "ギリシャ", 37.98, 23.72],
     ] },
+  { slug: "united-states", label: "United States", hash: "#13/40.7484/-73.9857",
+    source: "basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/",
+    description: "USGS The National Map official orthoimagery in New York",
+    pins: [["proof-nyc", "ニューヨーク（検証用）", "米国", 40.7484, -73.9857]] },
+  { slug: "france", label: "France", hash: "#13/48.8584/2.2945",
+    source: "data.geopf.fr/wmts?", description: "IGN France official orthophotos in Paris",
+    pins: [["proof-paris", "パリ（検証用）", "フランス", 48.8584, 2.2945]] },
+  { slug: "spain", label: "Spain", hash: "#13/40.4168/-3.7038",
+    source: "www.ign.es/wmts/pnoa-ma?", description: "Spain PNOA official orthophotos in Madrid",
+    pins: [["proof-madrid", "マドリード（検証用）", "スペイン", 40.4168, -3.7038]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
@@ -92,7 +102,9 @@ try {
       const tiles = [];
       const errors = [];
       page.on("response", (response) => {
-        if (response.url().includes("cyberjapandata.gsi.go.jp" + route.source) && response.status() === 200)
+        const requiredUrl = route.source.startsWith("/") ? "cyberjapandata.gsi.go.jp" + route.source : route.source;
+        if (response.url().includes(requiredUrl) && response.status() === 200
+            && (response.headers()["content-type"] ?? "").toLowerCase().startsWith("image/"))
           tiles.push(response.url());
       });
       page.on("pageerror", (error) => errors.push(String(error)));
