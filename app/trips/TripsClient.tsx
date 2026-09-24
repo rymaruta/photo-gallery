@@ -11,7 +11,7 @@ import { useTripPlans, type TripPlan, type TripItem } from "../../lib/hooks/useT
 import { ROUTES, loginWithNext } from "../../lib/routes";
 import { collectEntries } from "../../lib/utils/collections";
 import { parseSavedKey, dedupeSavedKeys } from "../../lib/utils/savedSpotKey";
-import type { SpotLink } from "../../lib/data/spotLink";
+import type { SpotRef } from "../../lib/data/spotLink";
 
 /**
  * 旅行プラン——**行きたい場所を「いつ・どの順で回るか」に並べる**画面。
@@ -37,9 +37,10 @@ import type { SpotLink } from "../../lib/data/spotLink";
  *
  * `content/spots.json` を `"use client"` のここから読むと**全文がこの
  * ページのチャンクに載る**（`lib/data/spotLink.ts` の実測）。
- * **受け取るのは解いたあとの `SpotLink` だけ**——解くのは `page.tsx`。
+ * **受け取るのは `name` と `slug` だけ**（`SpotRef`）——解くのは `page.tsx`。
+ * 解いた `SpotLink` をそのまま渡すのも駄目で、props は HTML に乗る。
  */
-export default function TripsClient({ spots }: { spots: Record<string, SpotLink> }) {
+export default function TripsClient({ spots }: { spots: Record<string, SpotRef> }) {
     const { locale } = useLocale();
     const en = locale === "en";
     const { isAuthenticated, loading: authLoading } = useAuth();
@@ -161,7 +162,7 @@ function countItems(plan: TripPlan): number {
 function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }: {
     en: boolean;
     plan: TripPlan;
-    spots: Record<string, SpotLink>;
+    spots: Record<string, SpotRef>;
     open: boolean;
     busy: boolean;
     onUpdate: ReturnType<typeof useTripPlans>["update"];
@@ -243,7 +244,7 @@ function period(plan: TripPlan): string {
 function PlanEditor({ en, plan, spots, busy, onUpdate }: {
     en: boolean;
     plan: TripPlan;
-    spots: Record<string, SpotLink>;
+    spots: Record<string, SpotRef>;
     busy: boolean;
     onUpdate: ReturnType<typeof useTripPlans>["update"];
 }) {
@@ -416,7 +417,7 @@ export function splitChoice(value: string): ["spot" | "location" | null, string]
  * ——「不明な場所」のような、こちらで作った言葉を置かない
  * （`/saved-spots` と同じ判断）。
  */
-export function itemLabel(item: TripItem, spots: Record<string, SpotLink>): string {
+export function itemLabel(item: TripItem, spots: Record<string, SpotRef>): string {
     if (item.kind === "spot") return spots[item.spotId]?.name || item.spotId;
     try {
         return decodeURIComponent(item.slug);

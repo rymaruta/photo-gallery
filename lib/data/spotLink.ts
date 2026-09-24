@@ -175,6 +175,38 @@ export function spotLinksById(): Record<string, SpotLink> {
 }
 
 /**
+ * 🔴 **旅行プラン（`/trips`）が読む項目だけ。**
+ *
+ * `spotLinksById` の docstring は「クライアントから台帳を import しない」
+ * ことを書いているが、**props で渡す経路が抜けていた**——Next は
+ * クライアント部品への props を RSC ペイロードとして**HTMLに埋め込む**ので、
+ * 渡した `SpotLink` の全項目がそのページに乗る。`/spots` が同じ形で
+ * 踏んでいる（`SpotIndexItem` の注記）。
+ *
+ * `TripsClient` が読むのは **`name`（項目の見出し）と `slug`（保存済みの
+ * 行きたい場所との突き合わせ）の2つだけ**。実測（2026-09-24・台帳474件）:
+ *
+ *     spotLinksById()   97,043 バイト
+ *     name + slug だけ  28,294 バイト   → **68,749 バイト（71%）が余分**
+ *
+ * `/trips` の HTML も `no-cache, no-store` で配る
+ * （`scripts/deploy-static-site.js` の `isHtmlOrTxt`）ので、この差は
+ * **訪問のたびに落ちるバイト**になる。
+ *
+ * `SpotLink` の部分型にしてあるので、`SpotLink` を渡す側はそのまま通る。
+ */
+export type SpotRef = Pick<SpotLink, "slug" | "name">;
+
+/** 旅行プランに渡す一覧。`spotId` で引ける形で、**名前と綴りだけ** */
+export function spotRefsById(): Record<string, SpotRef> {
+    const out: Record<string, SpotRef> = {};
+    for (const spot of publishableSpots(SPOTS)) {
+        out[spot.spotId] = { slug: spot.slug, name: spot.name };
+    }
+    return out;
+}
+
+/**
  * 🔴 **`/spots` は都道府県の一覧にする。**
  *
  * 全件を1ページに並べると、伸びたぶんだけ索引が重くなる。実測（2026-09-24）:

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SPOTS } from "../../lib/data/spots";
-import { spotAreas, spotIndexItemsForArea } from "../../lib/data/spotLink";
+import { spotAreas, spotIndexItemsForArea, spotLinksById, spotRefsById } from "../../lib/data/spotLink";
 import { publishableSpots } from "../../lib/utils/spotGuide";
 
 /**
@@ -85,6 +85,39 @@ describe("撮影スポット索引のペイロード", () => {
         const full = JSON.stringify(publishableSpots(SPOTS)).length;
         expect(biggest, `1区画が台帳の1/3を超えている（台帳 ${full} / 最大の区画 ${biggest}）`)
             .toBeLessThan(full / 3);
+    });
+
+    /**
+     * 🔴 **`/trips` も同じ穴を持っていた。**
+     *
+     * `app/trips/page.tsx` は `spotLinksById()` を丸ごと `"use client"` の
+     * `TripsClient` に渡していた。`spotLinksById` の docstring は
+     * 「クライアントから台帳を import しない」ことを書いているが、
+     * **props で渡す経路が抜けていた**——`/spots` とまったく同じ形。
+     *
+     * 実測（2026-09-24・台帳474件）:
+     *
+     *     spotLinksById()   97,043 バイト
+     *     name + slug だけ  28,294 バイト   → **68,749 バイト（71%）が余分**
+     *
+     * 画面が読むのは `name`（項目の見出し）と `slug`（保存済みの行きたい
+     * 場所との突き合わせ）の2つだけ。`/trips` の HTML も `no-store` で配る。
+     */
+    it("`/trips` は name と slug だけを渡している", () => {
+        const tripsSrc = readFileSync(join(process.cwd(), "app", "trips", "page.tsx"), "utf8");
+        expect(tripsSrc, "spotRefsById() を使っていない").toContain("spotRefsById()");
+        expect(/spots=\{\s*spotLinksById\(\s*\)\s*\}/.test(tripsSrc),
+            "解いた台帳をそのまま渡している").toBe(false);
+
+        const refs = spotRefsById();
+        const keys = new Set<string>();
+        for (const v of Object.values(refs)) for (const k of Object.keys(v)) keys.add(k);
+        expect([...keys].sort(), "name と slug 以外を運んでいる").toEqual(["name", "slug"]);
+
+        const full = JSON.stringify(spotLinksById()).length;
+        const light = JSON.stringify(refs).length;
+        expect(light, `軽い形が解いた台帳の半分を超えている（${full} / ${light}）`)
+            .toBeLessThan(full / 2);
     });
 
     /**

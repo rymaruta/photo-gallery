@@ -185,6 +185,53 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(hits, "簡体字が混ざっている").toEqual([]);
     });
 
+    /**
+     * 🔴 **項目の「形」が `Spot` の宣言と合っている。**
+     *
+     * `lib/data/spots.ts` は `spotsJson as Spot[]` と**キャスト**しているので、
+     * **型検査は台帳の中身を一切見ない**。文字列を書くべき所に配列を、
+     * 配列を書くべき所に文字列を入れても `tsc` は緑のまま通る。
+     *
+     * 2026-09-24、実際に踏んだ——`kamakurakokomae-crossing` の
+     * `safetyNotes` を**文字列**で書いた（正しくは `string[]`）。
+     * 単体テストも型検査も lint も緑で、**`next build` だけが落ちた**:
+     *
+     *     Error occurred prerendering page "/spots/kamakurakokomae-crossing"
+     *     TypeError: a.safetyNotes.map is not a function
+     *
+     * CLAUDE.md の「`vitest` だけでは落ちないと言えない」の実例。
+     * ビルドは10分かかるので、**同じ間違いを数秒で捕まえる**ためにここで見る。
+     */
+    const SHAPE: Record<string, "string" | "number" | "boolean" | "array" | "object"> = {
+        spotId: "string", slug: "string", name: "string", nameEn: "string",
+        reading: "string", address: "string", category: "string",
+        summary: "string", description: "string", status: "string",
+        officialWebsiteUrl: "string", verifiedAt: "string",
+        createdAt: "string", updatedAt: "string",
+        verified: "boolean",
+        aliases: "array", highlights: "array", compositionTips: "array",
+        seasonalGuide: "array", timeOfDayGuide: "array",
+        safetyNotes: "array", sources: "array",
+        region: "object", coords: "object", access: "object",
+        parking: "object", coverImage: "object",
+    };
+
+    const kindOf = (v: unknown) =>
+        Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
+
+    it("項目の形が Spot の宣言と合っている（キャストで型検査が効かないため）", () => {
+        const bad: string[] = [];
+        for (const s of SPOTS) {
+            for (const [k, want] of Object.entries(SHAPE)) {
+                const v = (s as unknown as Record<string, unknown>)[k];
+                if (v === undefined) continue;
+                const got = kindOf(v);
+                if (got !== want) bad.push(`${s.slug}.${k}: ${want} のはずが ${got}`);
+            }
+        }
+        expect(bad, "台帳の項目の形が宣言と違う").toEqual([]);
+    });
+
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
         // 名前を鍵にすると (1) 同名異所を混ぜる (2) 改名で鍵が変わる
         const bad = SPOTS.filter((s) => !SPOT_ID_RE.test(s.spotId)).map((s) => s.spotId);
