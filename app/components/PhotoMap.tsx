@@ -395,13 +395,22 @@ export default function PhotoMap({
             // ピンが収まる範囲。決め方は `chooseInitialView` を参照——
             // 「写真を開いて戻るたびに全体へ戻される」を止めるのが目的
             const initial = chooseInitialView(window.location.hash, readSavedView());
-            const b = boundsOf(photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
+            // Photo and published official spots share the initial geographic extent.
+            // A map with zero photo posts must NOT default to Japan when its
+            // first published official guide is elsewhere in the world.
+            const points = [
+                ...photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })),
+                ...spotsRef.current.map((sp) => ({ id: `official:${sp.slug}`, lat: sp.lat, lng: sp.lng })),
+            ];
+            const b = boundsOf(points);
             if (initial) {
                 map.setView([initial.lat, initial.lng], initial.zoom);
+            } else if (points.length === 1) {
+                map.setView([points[0].lat, points[0].lng], 10);
             } else if (b) {
                 map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
             } else {
-                map.setView([36, 138], 4);   // 写真が無ければ日本全体
+                map.setView([36, 138], 4);   // No published map data: Japan overview.
             }
             draw();
             map.on("zoomend", draw);
