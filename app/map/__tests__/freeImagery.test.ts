@@ -21,8 +21,10 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("includes keyless, official sources for the US, France, Spain, Switzerland and the Netherlands alongside Japan", () => {
-        expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(new Set(["US", "FR", "ES", "CH", "NL"]));
+    it("registers official imagery from nine overseas countries alongside Japan without keys", () => {
+        expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(
+            new Set(["US", "FR", "ES", "CH", "NL", "AT", "CZ", "BE", "PL"]),
+        );
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
             expect(source.url).toContain("{z}");
@@ -55,5 +57,14 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         const nl = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "NL");
         expect(ch?.url).toContain("ch.swisstopo.swissimage/default/current/3857/");
         expect(nl?.url).toContain("Actueel_ortho25/EPSG:3857/");
+        const at = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "AT");
+        const cz = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "CZ");
+        const be = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "BE");
+        const pl = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "PL");
+        expect(at?.url).toContain("bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg");
+        expect(cz?.url).toContain("ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}");
+        expect(be?.url).toContain("LAYER=omwrgbmrvl&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL");
+        expect(pl?.url).toContain("LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857");
+        expect([at, cz, be, pl].every((source) => source?.url.startsWith("https://"))).toBe(true);
     });
 });
