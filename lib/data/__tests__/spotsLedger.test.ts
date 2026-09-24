@@ -183,6 +183,20 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(missing, "この都道府県のスポットがまだ無い").toEqual([]);
     });
 
+    /**
+     * **どの県も入口が2つ以上ある。**
+     *
+     * 1件だけの県は、その1件が季節限定（藤・芝桜・雪）だったときに
+     * 年の大半で「その県には何も無い」ページになる。47県に1件ずつ置いた
+     * 時点では満たせていなかった条件で、2026-09-24 に全県2件以上にした。
+     */
+    it("どの都道府県も2件以上ある", () => {
+        const count = new Map<string, number>();
+        for (const p of jpPrefectures()) count.set(p, (count.get(p) ?? 0) + 1);
+        const thin = PREFECTURES.filter((p) => (count.get(p) ?? 0) < 2);
+        expect(thin, "この都道府県がまだ1件以下").toEqual([]);
+    });
+
     it("知らない都道府県名を書いていない（綴りの揺れを止める）", () => {
         const known = new Set<string>(PREFECTURES);
         const bad = [...new Set(jpPrefectures())].filter((p) => !known.has(p));
