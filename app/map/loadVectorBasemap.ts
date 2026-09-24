@@ -36,6 +36,7 @@ type VectorMap = {
     getSource: (id: string) => unknown;
     addSource: (id: string, source: Record<string, unknown>) => void;
     addLayer: (layer: Record<string, unknown>, before?: string) => void;
+    setPaintProperty: (layerId: string, property: string, value: unknown) => void;
 };
 type VectorLayer = LeafletLayer & {
     getMaplibreMap: () => VectorMap;
@@ -109,6 +110,76 @@ export function loadVectorAdapter(leaflet: typeof import("leaflet")): Promise<Ad
 }
 
 /**
+ * Readable midnight-blue palette for the REAL vector basemap.
+ *
+ * OpenFreeMap "dark" defaults to almost-black land (#0c0c0c), water (#1b1b1d),
+ * road lines (#181818) and place names (#656565); on a phone the geography
+ * disappears. Change ONLY visual paint in this one shared map instance.
+ * Actual coastline/roads/labels remain provider-supplied vector geometry.
+ *
+ * Explicit IDs were checked against the live OpenFreeMap dark style on
+ * 2026-09-24. Ignore absent IDs so provider changes cannot blank the map.
+ */
+function applyReadableMapPalette(gl: VectorMap): void {
+    const layers = new Set(gl.getStyle().layers?.map((layer) => layer.id) ?? []);
+    const paint = (id: string, property: string, value: unknown) => {
+        if (!layers.has(id)) return;
+        try { gl.setPaintProperty(id, property, value); } catch { /* retain source style */ }
+    };
+
+    // Geographic contrast: lighter slate-blue land against a deeper blue sea.
+    paint("background", "background-color", "#2D455B");
+    paint("water", "fill-color", "#113653");
+    paint("waterway", "line-color", "#2F6586");
+    paint("landcover_ice_shelf", "fill-color", "#667C8F");
+    paint("landcover_glacier", "fill-color", "#637789");
+    paint("landuse_residential", "fill-color", "#395368");
+    paint("landcover_wood", "fill-color", "#355765");
+    paint("landuse_park", "fill-color", "#3C625D");
+    paint("building", "fill-color", "#365066");
+    paint("building", "fill-outline-color", "#54718A");
+
+    // Routes must be visible even where the NASA terrain texture is present.
+    // Motorway casing remains darker than the road center for definition.
+    paint("highway_path", "line-color", "#8EA6B9");
+    paint("highway_minor", "line-color", "#708DA4");
+    paint("highway_major_casing", "line-color", "#304B63");
+    paint("highway_major_inner", "line-color", "#9AB2C7");
+    paint("highway_major_subtle", "line-color", "#8AA4BC");
+    paint("highway_motorway_casing", "line-color", "#385A75");
+    paint("highway_motorway_inner", "line-color", "#C0D2E3");
+    paint("highway_motorway_subtle", "line-color", "#A3BAD0");
+    paint("railway", "line-color", "#7E9CB3");
+    paint("railway_minor", "line-color", "#7894AA");
+    paint("railway_transit", "line-color", "#7894AA");
+    paint("railway_dashline", "line-color", "#324C63");
+    paint("railway_minor_dashline", "line-color", "#324C63");
+    paint("railway_transit_dashline", "line-color", "#324C63");
+    paint("boundary_state", "line-color", "#7189A0");
+    paint("boundary_country_z0-4", "line-color", "#8DA5BC");
+    paint("boundary_country_z5-", "line-color", "#8DA5BC");
+
+    // Explicitly lighten map labels, not Journey Photo's data-driven cards.
+    // Dark halos keep long and small Japanese/English names readable.
+    for (const layer of gl.getStyle().layers ?? []) {
+        if (layer.type !== "symbol") continue;
+        if (layer.id.startsWith("place_")) {
+            paint(layer.id, "text-color", "#E4EEF8");
+            paint(layer.id, "text-halo-color", "#1A2F44");
+            paint(layer.id, "text-halo-width", 1.4);
+        } else if (layer.id.startsWith("highway_name_")) {
+            paint(layer.id, "text-color", "#B8D0E4");
+            paint(layer.id, "text-halo-color", "#1A2F44");
+            paint(layer.id, "text-halo-width", 1.2);
+        } else if (layer.id === "water_name") {
+            paint(layer.id, "text-color", "#AFD7ED");
+            paint(layer.id, "text-halo-color", "#103451");
+            paint(layer.id, "text-halo-width", 1.4);
+        }
+    }
+}
+
+/**
  * The screenshot reference has geographical relief instead of a flat black sea.
  * Overlay real NASA shaded-relief imagery *below place-name symbol layers*
  * (not a CSS graphic or fake geographic texture). Stop at zoom 8 where the
@@ -133,9 +204,10 @@ function addLowZoomRelief(gl: VectorMap): boolean {
             minzoom: 0,
             maxzoom: 8.5,
             paint: {
-                "raster-opacity": 0.43,
-                "raster-saturation": -0.5,
-                "raster-brightness-max": 0.64,
+                // Relief should be a texture, not a dark veil over the map.
+                "raster-opacity": 0.17,
+                "raster-saturation": -0.45,
+                "raster-brightness-max": 0.88,
                 "raster-fade-duration": 180,
             },
         }, firstLabel);
@@ -186,6 +258,7 @@ export async function upgradeToRealVectorBasemap(
             if (gl.loaded()) finish(true);
         });
         if (!shouldContinue()) { map.removeLayer(activeLayer); return; }
+        applyReadableMapPalette(gl);
         const reliefAdded = addLowZoomRelief(gl);
         map.removeLayer(fallback);
         if (reliefAdded) map.attributionControl?.addAttribution(
