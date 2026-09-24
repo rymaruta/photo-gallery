@@ -119,7 +119,9 @@ describe("一覧と削除", () => {
         })];
         draw();
         expect(screen.getByText("冬のフィンランド")).toBeTruthy();
-        expect(screen.getByText("2026-12-24 〜 2026-12-28 ・ 2 か所")).toBeTruthy();
+        // **サイトの他の画面と同じ形**（`2026-12-24` の生の値では出さない）
+        expect(screen.getByText("2026年12月24日 〜 2026年12月28日 ・ 2 か所")).toBeTruthy();
+        expect(screen.queryByText(/2026-12-24/), "保存されている生の値がそのまま出ている").toBeNull();
     });
 
     /**
@@ -127,6 +129,13 @@ describe("一覧と削除", () => {
      * 「日程未定」のような字を足すと、書いたのか書いていないのかが
      * 画面から読めなくなる（`/saved-spots` の「不明な場所」と同じ判断）。
      */
+    it("🔴 読めない日付は出さない（作り話の日付を作らない）", () => {
+        hooks.trips.plans = [plan("a", { startDate: "こわれ", endDate: "2026-13-99" })];
+        draw();
+        expect(screen.getByText("0 か所")).toBeTruthy();
+        expect(screen.queryByText(/こわれ|2026/), "読めない値をそのまま出している").toBeNull();
+    });
+
     it("🔴 日付が無ければ、期間の欄ごと出さない", () => {
         hooks.trips.plans = [plan("a", { days: [{ items: [{ kind: "location", slug: "パリ" }] }] })];
         draw();
@@ -137,7 +146,7 @@ describe("一覧と削除", () => {
     it("片方だけの日付は、その1つを出す", () => {
         hooks.trips.plans = [plan("a", { startDate: "2026-12-24" })];
         draw();
-        expect(screen.getByText("2026-12-24 ・ 0 か所")).toBeTruthy();
+        expect(screen.getByText("2026年12月24日 ・ 0 か所")).toBeTruthy();
     });
 
     it("🔴 消す前に一度聞く（押しただけでは消えない）", () => {
@@ -185,6 +194,23 @@ describe("日程の編集", () => {
     it("🔴 変えていなければ保存を押せない（他のタブの編集を打ち消さない）", () => {
         open();
         expect(screen.getByRole("button", { name: "保存" }).hasAttribute("disabled")).toBe(true);
+    });
+
+    /**
+     * 🔴 **日の見出しの日付も、サイトの形で出す。**
+     * 期間（カードの上）だけ直して、日程の中の日付を生のまま残す
+     * ——同じ画面に2つの見え方が並ぶ形を作らない。
+     */
+    it("🔴 日の見出しの日付も年月日の形で出す", () => {
+        open({ days: [{ date: "2026-12-24", items: [] }] });
+        expect(screen.getByText("1 日目・2026年12月24日")).toBeTruthy();
+        expect(screen.queryByText(/2026-12-24/), "保存されている生の値がそのまま出ている").toBeNull();
+    });
+
+    it("読めない日付の日は、日付を出さずに「N 日目」だけ", () => {
+        open({ days: [{ date: "2026-13-99", items: [] }] });
+        expect(screen.getByText("1 日目")).toBeTruthy();
+        expect(screen.queryByText(/2026/), "読めない値をそのまま出している").toBeNull();
     });
 
     it("🔴 項目は「行きたい場所」から選ぶ（自由入力の欄が無い）", () => {
