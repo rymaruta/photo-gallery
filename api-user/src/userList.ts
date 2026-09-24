@@ -46,15 +46,15 @@ export class UserListError extends Error {
  *   （この一覧からは決めない）。決めてしまうと、溢れた相手に対して
  *   画面が「まだ」と表示し、押すと解除が飛ぶ形になる。
  */
-export async function updateUserList(
+export async function updateUserList<T = string>(
     rowId: string,
     uid: string,
     max: number,
-    mutate: (list: string[]) => string[] | null,
+    mutate: (list: T[]) => T[] | null,
 ): Promise<void> {
     for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
-        const current = Array.isArray(res.Item?.list) ? (res.Item.list as string[]) : [];
+        const current = Array.isArray(res.Item?.list) ? (res.Item.list as T[]) : [];
         const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
 
         const next = mutate([...current]);
@@ -101,14 +101,29 @@ export async function updateUserList(
     throw new UserListError(`${rowId} の一覧更新が競合し続けました`);
 }
 
-/** `rowId` の `list` を読む（形の違う要素は落とす） */
-export async function readUserList(rowId: string, valid: (x: string) => boolean, label: string): Promise<string[]> {
+/**
+ * `rowId` の `list` を読む（形の違う要素は落とす）。
+ *
+ * **中身が文字列とは限らない。** 旅行プラン（`trips#<uid>`）は同じ行の形で
+ * オブジェクトを持つので、判定を呼ぶ側から渡す。文字列の一覧は下の
+ * `readUserList` が薄く包む——**読み取りの実装は1つ**。
+ */
+export async function readUserRows<T>(
+    rowId: string,
+    valid: (x: unknown) => x is T,
+    label: string,
+): Promise<T[]> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
     const list = res.Item?.list;
     if (!Array.isArray(list)) return [];
-    const out = list.filter((x): x is string => typeof x === "string" && valid(x));
+    const out = (list as unknown[]).filter(valid);
     if (out.length !== list.length) {
         console.warn(`${label}: 形の違う値を ${list.length - out.length} 件落としました`);
     }
     return out;
+}
+
+/** `rowId` の `list` を**文字列の一覧として**読む（形の違う要素は落とす） */
+export async function readUserList(rowId: string, valid: (x: string) => boolean, label: string): Promise<string[]> {
+    return readUserRows(rowId, (x): x is string => typeof x === "string" && valid(x), label);
 }
