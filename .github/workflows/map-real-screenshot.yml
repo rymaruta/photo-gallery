@@ -32,6 +32,8 @@ jobs:
         run: npm run type-check
       - name: Lint the map changes
         run: npx eslint app/components/PhotoMap.tsx app/map/loadVectorBasemap.ts app/map/MapPageClient.tsx
+      - name: Existing map, sheet and privacy regression tests
+        run: npx vitest run app/map/__tests__/page.test.tsx app/map/__tests__/MapPhotoSheet.test.tsx
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Create test-only route on the runner (NEVER committed or deployed)
@@ -45,26 +47,21 @@ jobs:
           cat > app/map/design-proof/Proof.tsx <<'TSX'
           "use client";
           import React from "react";
-          import PhotoMap from "../../components/PhotoMap";
+          import MapPageClient from "../MapPageClient";
           import type { SpotPin } from "../../../lib/data/spotLink";
-          import MapSpotSheet from "../MapSpotSheet";
           const SPOTS: SpotPin[] = [
-            { slug: "proof-santorini", name: "サントリーニ島（検証用）", region: "ギリシャ", summary: "CIで地図の位置・ピン・カードだけを確認する架空の掲載状態です。", lat: 36.4615, lng: 25.375, cover: null },
+            { slug: "proof-santorini", name: "サントリーニ島（検証用）", region: "ギリシャ", summary: "位置とカードのCI検証に限ったダミー掲載状態です。", lat: 36.4615, lng: 25.375, cover: null },
             { slug: "proof-naxos", name: "ナクソス島（検証用）", region: "ギリシャ", lat: 37.105, lng: 25.376, cover: null },
             { slug: "proof-athens", name: "アテネ（検証用）", region: "ギリシャ", lat: 37.98, lng: 23.72, cover: null },
           ];
           export default function Proof() {
-            const [selected, setSelected] = React.useState<string | null>(null);
-            const spot = SPOTS.find((s) => s.slug === selected) ?? null;
             return (
-              <main className="journey-map-page mx-auto max-w-[1450px] px-3 pt-2 text-white">
-                <p className="mb-2 text-xs text-link">CI TEST DATA ONLY / NOT A PUBLISHED SPOT GUIDE</p>
-                <PhotoMap photos={[]} spots={SPOTS} locale="ja"
-                  selectedSpotSlug={selected} onSelectSpot={setSelected}
-                  sheetOpen={!!spot} className="h-[70dvh] min-h-[360px] lg:h-[calc(100dvh-190px)]" />
-                {spot && <MapSpotSheet spot={spot} onClose={() => setSelected(null)} locale="ja" />}
-                <p className="pt-3 text-xs text-white/70">This map uses real OpenFreeMap vector tiles; markers and names are test fixtures.</p>
-              </main>
+              <div>
+                <p className="px-4 pt-2 text-xs text-link">CI TEST DATA ONLY / NOT A PUBLISHED SPOT GUIDE</p>
+                {/* Render the actual /map client, not a hand-made lookalike. Only
+                    its spot props are fixtures, created on this CI runner. */}
+                <MapPageClient spots={SPOTS} />
+              </div>
             );
           }
           TSX
