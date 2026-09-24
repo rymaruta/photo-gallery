@@ -41,7 +41,7 @@ This prototype deliberately keeps Leaflet rather than migrating to MapLibre in o
 
 ## 2026-09-24 継続実装：実在するベクター地図へ変更
 
-**以前のオフラインHTMLで描いた架空の地図は採用しない。** オーナーから「本物の地図になっていない」という再指摘があり、今回の変更で **`PhotoMap` の既定のベースマップを本物のOpenFreeMap Fiordベクタースタイル**（`https://tiles.openfreemap.org/styles/fiord`）に変更した。
+**以前のオフラインHTMLで描いた架空の地図は採用しない。** オーナーから「本物の地図になっていない」という再指摘があり、今回の変更で **`PhotoMap` の既定のベースマップを本物のOpenFreeMap Darkベクタースタイル**（`https://tiles.openfreemap.org/styles/fiord`）に変更した。
 
 - 1つの既存Leaflet地図を使い、MapLibre GL JS 5.16.0 + `@maplibre/maplibre-gl-leaflet` 0.1.4で**背景地図のレイヤーだけ**を描画する。海岸線・道路・町名は実際の地図ベクターデータであり、CSSで色を塗った模式図ではない。
 - ピン・現在地・地図履歴・既存の公式スポットカード・検索範囲はLeafletのまま。**2つ目の地図インスタンスは作らない。**
@@ -49,3 +49,11 @@ This prototype deliberately keeps Leaflet rather than migrating to MapLibre in o
 - **重要: 今回はDraft試作限定のCDNランタイム読み込み。** MapLibre/Leafletブリッジを固定バージョンのCDNから読み込むため、CDN停止、SRI未設定、CSP、通信状態に依存する。**本番リリース前にnpmで依存関係を管理・固定し、監査済みのJS/CSSを同一サイトのアセットとして配信する実装へ切り替える**。実機でWebGL・CSP・低速通信を確認するまで本番にはマージしない。
 - OpenFreeMapの公式説明はキー不要の公共インスタンスであることを示すが、サービスの提供条件・帰属・運用負荷は公開前に改めて確認する。MapLibre本体とOpenFreeMapのライセンス・帰属を維持する。
 - **この接続からは実際の地図タイルの描画確認ができない**。従来のスクリーンショットは依然「架空の背景図によるHTMLプレビュー」であり、新しい実ベクター地図を証明しない。実アプリで地図のタイルと地名が描画された**新規の**390px/1280pxスクショが必要。
+
+
+## 実アプリでのスクリーンショット検証結果（2026-09-24）
+
+- GitHub Actions [run #35947646735](https://github.com/rymaruta/photo-gallery/actions/runs/35947646735) で、**実際のNext.js `MapPageClient`** を起動し、390×844と1280×800の未選択・ピン選択状態をChromiumで撮影した。**ベースマップは架空図ではなくOpenFreeMapの実ベクターデータとNASA GIBSの実地形画像。** NASAのタイルはHTTP 200。地図読み込み状態は`vector-ready`でスクショを採取した。
+- CIでは`npm ci`、TypeScript、対象eslint、マップ関連Vitest **71/71成功**、実アプリのブラウザ撮影がすべて成功。
+- **ただし** 撮影地3件の名前と代表画像無しの状態は、CIランナーで一時的に投入したテスト専用`SpotPin` fixture。公開済みの撮影地ガイドが3件あるという意味ではない。写真ピンは投稿0件状態を検証したため、参考画像のような投稿写真・多写真クラスターはこの4枚の証拠には現れていない。公開用台帳には一切変更なし。
+- 実アプリの描画は確認できたが、**参考モックと同等の衛星写真の細部、写真ピンが多い状態、個別の撮影スポットの権利確認済みカバー画像などは未到達**。本番前には写真・ガイドの実データを使った再撮影、低速回線、WebGLがない環境、地域ごとの地形確認、CDN依存の解消とNASA画像の配信/帰属の確認を行う。
