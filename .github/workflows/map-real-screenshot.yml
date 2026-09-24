@@ -133,6 +133,8 @@ jobs:
                 { slug: "US", hash: "#13/40.7484/-73.9857", provider: "basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/" },
                 { slug: "FR", hash: "#13/48.8584/2.2945", provider: "data.geopf.fr/wmts?" },
                 { slug: "ES", hash: "#13/40.4168/-3.7038", provider: "www.ign.es/wmts/pnoa-ma?" },
+                { slug: "CH", hash: "#13/47.3769/8.5417", provider: "wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/" },
+                { slug: "NL", hash: "#13/52.3676/4.9041", provider: "service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/" },
               ];
               for (const country of overseas) {
                 const foreign = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
