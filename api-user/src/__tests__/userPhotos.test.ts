@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { generateKeyPairSync } from "node:crypto";
 
 const mockDdbSend = vi.hoisted(() => vi.fn());
 
@@ -84,6 +85,58 @@ describe("getMyPhotos handler", () => {
         mockDdbSend.mockRejectedValueOnce(new Error("boom"));
         const res = await invoke(event("u1"));
         expect(res.statusCode).toBe(500);
+    });
+
+    // 🔴 **自分の写真を自分で見られなくなる穴。**
+    //
+    // 「フォロワーのみ」に変えた写真は `photoUpdate.ts` が**行の `src` 自体**を
+    // `/private/…` に書き換える。owner が CloudFront に「署名必須」を入れると、
+    // ここが素の URL を返していたぶんは**本人にも 403** になる。
+    // 署名していたのは `restrictedFeed.ts` だけだった。
+    describe("署名付き URL", () => {
+        const { privateKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            privateKeyEncoding: { type: "pkcs1", format: "pem" },
+            publicKeyEncoding: { type: "spki", format: "pem" },
+        });
+
+        beforeEach(() => {
+            vi.stubEnv("CLOUDFRONT_KEY_PAIR_ID", "K2EXAMPLE");
+            vi.stubEnv("CLOUDFRONT_PRIVATE_KEY", privateKey as unknown as string);
+        });
+        afterEach(() => { vi.unstubAllEnvs(); });
+
+        it("表紙も2枚目以降も署名して返す", async () => {
+            mockDdbSend.mockResolvedValueOnce({
+                Items: [{
+                    id: "p1",
+                    src: "https://cdn/private/u1/a.jpg",
+                    thumbSrc: "https://cdn/private/u1/a-thumb.jpg",
+                    extraImages: [{ src: "https://cdn/private/u1/b.jpg" }],
+                }],
+                LastEvaluatedKey: undefined,
+            });
+            const res = await invoke(event("u1"));
+            expect(res.statusCode).toBe(200);
+            const [photo] = JSON.parse(res.body) as Record<string, unknown>[];
+            expect(String(photo.src)).toContain("Signature=");
+            expect(String(photo.thumbSrc)).toContain("Signature=");
+            const extras = photo.extraImages as Record<string, unknown>[];
+            expect(String(extras[0].src)).toContain("Signature=");
+        });
+
+        // **鍵が無い環境では何もしない**（owner が設定する前に機能を壊さない）
+        it("鍵が無ければ素の URL のまま返す", async () => {
+            vi.stubEnv("CLOUDFRONT_KEY_PAIR_ID", "");
+            vi.stubEnv("CLOUDFRONT_PRIVATE_KEY", "");
+            mockDdbSend.mockResolvedValueOnce({
+                Items: [{ id: "p1", src: "https://cdn/uploads/u1/a.jpg" }],
+                LastEvaluatedKey: undefined,
+            });
+            const res = await invoke(event("u1"));
+            const [photo] = JSON.parse(res.body) as Record<string, unknown>[];
+            expect(photo.src).toBe("https://cdn/uploads/u1/a.jpg");
+        });
     });
 });
 
