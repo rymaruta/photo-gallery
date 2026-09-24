@@ -10835,6 +10835,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_d2d25c8bb77a",
+    "slug": "ei-kaigan",
+    "name": "頴娃 釜蓋神社",
+    "nameEn": "Kamafuta Shrine, Ei",
+    "reading": "えい かまふたじんじゃ",
+    "aliases": [
+      "射楯兵主神社",
+      "南九州市 釜蓋"
+    ],
+    "address": "鹿児島県南九州市頴娃町別府6827",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "南九州市"
+    },
+    "coords": {
+      "lat": 31.25,
+      "lng": 130.47
+    },
+    "category": "shrine",
+    "summary": "東シナ海に突き出した岩場に建つ社。釜の蓋を頭に載せて参道を歩く風習で知られます。",
+    "description": "東シナ海に突き出した小さな岬に建つ神社で、正式には射楯兵主神社といいます。釜の蓋を頭に載せて鳥居から拝殿まで落とさずに歩けると願いが叶うという風習があり、蓋が用意されています。社殿の背後はすぐ海で、荒れた日は波しぶきが境内まで届きます。晴れた日は開聞岳が海越しに見えます。周囲は岩場で、遊歩道から海と岩の地形が見られます。",
+    "highlights": [
+      "海に突き出した岩場の立地",
+      "釜の蓋を頭に載せて歩く風習",
+      "海越しに見える開聞岳"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、白い波と社殿の対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、開聞岳がはっきり見えます。波も高くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、岩場を歩きやすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、開聞岳がシルエットになります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、社殿を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "海を背景に入れて岬に建つ立地を示します",
+      "開聞岳を入れるなら望遠で圧縮します",
+      "波が高い日は岩場に近づきすぎないこと"
+    ],
+    "officialWebsiteUrl": "https://www.kagoshima-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e6c517925707",
     "slug": "eigenji",
     "name": "永源寺",
@@ -24944,6 +25008,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_57b54f98a837",
+    "slug": "ibusuki-sunamushi",
+    "name": "指宿 砂むし温泉",
+    "nameEn": "Ibusuki Sand Bath",
+    "reading": "いぶすき すなむしおんせん",
+    "aliases": [
+      "摺ヶ浜 砂むし",
+      "指宿 砂蒸し"
+    ],
+    "address": "鹿児島県指宿市湯の浜5-25-18",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "指宿市"
+    },
+    "coords": {
+      "lat": 31.25,
+      "lng": 130.65
+    },
+    "category": "landmark",
+    "summary": "海岸の砂浜が地熱で温められ、そこに首まで埋まります。浴衣姿の人が砂に並ぶ光景が撮れます。",
+    "description": "指宿の海岸では地下の温泉で砂が温められており、その砂に首まで埋まる砂むし温泉が三百年以上続いています。砂の温度は五十度から六十度ほどで、十分程度が目安です。浴衣を着た人が砂の上に並び、顔だけを出した状態になります。海のすぐ際で行うため、波の音が聞こえます。砂かけの職人がスコップで砂をかける作業も被写体になります。入浴者の撮影には配慮が要ります。",
+    "highlights": [
+      "砂に首まで埋まる人の列",
+      "スコップで砂をかける職人の作業",
+      "波打ち際で行う立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "外気との差が大きく、湯気が立ちます。海も静かな日が多くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "砂が熱く、入浴時間は短くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、屋外の砂むしが快適な季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷えた朝は砂から湯気が立ちます。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は海が光り、砂の上の人影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "湯気は逆光で狙うと白く浮きます",
+      "入浴者の顔が特定できる撮り方は避けます",
+      "職人の作業は断ってから撮り、動きを妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://sa-raku.sakura.ne.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4ee4e3e1d1f4",
     "slug": "ichijodani",
     "name": "一乗谷朝倉氏遺跡",
@@ -25299,6 +25427,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_963bc956b189",
+    "slug": "ikeda-ko",
+    "name": "池田湖",
+    "nameEn": "Lake Ikeda",
+    "reading": "いけだこ",
+    "aliases": [
+      "イッシー 池田湖",
+      "指宿 菜の花"
+    ],
+    "address": "鹿児島県指宿市池田",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "指宿市"
+    },
+    "coords": {
+      "lat": 31.24,
+      "lng": 130.57
+    },
+    "category": "nature",
+    "summary": "九州最大のカルデラ湖。湖越しに開聞岳が立ち、一月には湖畔が菜の花で黄色くなります。",
+    "description": "周囲約十五キロ、水深二百三十三メートルの九州最大のカルデラ湖です。約五千五百年前の噴火でできました。南岸から見ると湖の向こうに開聞岳が立ち、水面と円錐形の山が一枚に収まります。湖畔には一月から菜の花が咲き、黄色の面と青い湖、その奥に開聞岳という三層の構成になります。大ウナギが生息し、未確認生物の伝承もあります。",
+    "highlights": [
+      "湖越しに立つ開聞岳",
+      "一月から咲く湖畔の菜の花",
+      "水深二百三十三メートルのカルデラ湖"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "一月から二月の菜の花。開聞岳との三層構成が成立します。"
+      },
+      {
+        "season": "spring",
+        "text": "空気が澄み、開聞岳の輪郭がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "湖面が静かで、開聞岳の映り込みが安定します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が鏡になり、開聞岳が映ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は開聞岳が逆光でシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "菜の花を前景に低く構えて三層にします",
+      "映り込みは風のない朝に狙います",
+      "望遠で開聞岳を引き寄せると山が大きく見えます"
+    ],
+    "officialWebsiteUrl": "https://www.ibusuki.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_ec9851bce03e",
@@ -28719,6 +28911,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_bd1036202433",
+    "slug": "izumi-tsuru",
+    "name": "出水 ツル渡来地",
+    "nameEn": "Izumi Crane Migration Grounds",
+    "reading": "いずみ つるとらいち",
+    "aliases": [
+      "出水平野 ナベヅル",
+      "ツル観察センター"
+    ],
+    "address": "鹿児島県出水市荘2478-4",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "出水市"
+    },
+    "coords": {
+      "lat": 32.09,
+      "lng": 130.32
+    },
+    "category": "nature",
+    "summary": "冬に一万羽を超えるツルが渡来します。世界のナベヅルの多くがこの平野に集まります。",
+    "description": "出水平野には毎年十月から三月にかけてナベヅルとマナヅルが渡来し、その数は一万羽を超えます。世界のナベヅルの大半がここで越冬するとされ、国の特別天然記念物に指定されています。刈り取り後の田がねぐらと餌場になり、朝は一斉に飛び立ち、夕方に戻ります。ツル観察センターから見下ろせます。田は保護区で、立入が制限されています。",
+    "highlights": [
+      "一万羽を超えるツルの群れ",
+      "朝の一斉の飛び立ち",
+      "観察センターからの俯瞰"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十二月から二月が最盛期。数が最も多くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月から渡来が始まります。数はまだ少なめです。"
+      },
+      {
+        "season": "spring",
+        "text": "三月に北へ帰ります。旅立ちの群れが見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "夜明け前後の飛び立ちが本番。暗いうちに位置を決めます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は餌場から戻る群れ。夕焼けと重なることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "群れは面として捉え、数の多さを見せます",
+      "飛翔は速いシャッターで止めるか遅くして軌跡にします",
+      "保護区なので立入制限を守り、鳥を驚かせないこと"
+    ],
+    "officialWebsiteUrl": "https://www.izumi-navi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_74c3e09ab561",
     "slug": "izumo-taisha",
     "name": "出雲大社",
@@ -30043,6 +30299,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_eda088912b77",
+    "slug": "jomonsugi",
+    "name": "縄文杉",
+    "nameEn": "Jomon Sugi",
+    "reading": "じょうもんすぎ",
+    "aliases": [
+      "屋久島 最大の屋久杉"
+    ],
+    "address": "鹿児島県熊毛郡屋久島町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "屋久島町"
+    },
+    "coords": {
+      "lat": 30.34,
+      "lng": 130.54
+    },
+    "category": "nature",
+    "summary": "胸高周囲十六メートルの屋久杉。往復十時間の道のりで、大半は廃線となったトロッコ道を歩きます。",
+    "description": "屋久島で確認されている最大の屋久杉で、胸高周囲は約十六.四メートル、樹高二十五.三メートルです。樹齢は二千年台から七千年台まで諸説あります。荒川登山口から往復およそ十時間、前半は伐採に使われていたトロッコ道の線路の上を歩きます。保護のため展望デッキが設けられ、離れた位置からのみ見られます。登山口へはシャトルバスのみで、マイカー規制があります。",
+    "highlights": [
+      "胸高周囲十六メートルの幹",
+      "廃線のトロッコ道を歩く行程",
+      "保護のための展望デッキ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と、比較的雨の少ない時期が重なります。"
+      },
+      {
+        "season": "summer",
+        "text": "気温が高く、屋久島特有の雨も多くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "標高が高いため積雪があり、装備と経験が前提になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "往復十時間のため、夜明け前に登山口を出発します。"
+      },
+      {
+        "time": "day",
+        "text": "縄文杉に着くのは昼前後。森の中は光が限られます。"
+      }
+    ],
+    "compositionTips": [
+      "展望デッキからしか撮れないので、画角は限られます",
+      "幹の質感を出すには望遠で部分を抜きます",
+      "森は暗いので高感度が前提。三脚はデッキの規則に従います"
+    ],
+    "officialWebsiteUrl": "https://yakukan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_49b76ca6fbef",
     "slug": "joren-no-taki",
     "name": "浄蓮の滝",
@@ -30736,6 +31055,70 @@
       "奉納の撮影は社の指示に従います"
     ],
     "officialWebsiteUrl": "https://www.town.ayagawa.kagawa.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_e195c1e50738",
+    "slug": "kagoshima-shiroyama",
+    "name": "城山展望台",
+    "nameEn": "Shiroyama Observatory",
+    "reading": "しろやまてんぼうだい",
+    "aliases": [
+      "鹿児島 城山",
+      "西郷隆盛洞窟"
+    ],
+    "address": "鹿児島県鹿児島市城山町22",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿児島市"
+    },
+    "coords": {
+      "lat": 31.6,
+      "lng": 130.55
+    },
+    "category": "mountain",
+    "summary": "鹿児島市街と錦江湾ごしに桜島が正面に立ちます。市街と活火山を一枚に収められる展望台です。",
+    "description": "鹿児島市街の西にある標高百七メートルの丘で、山頂の展望台から市街地、錦江湾、桜島が一直線に並んで見えます。街の向こうに活火山が立つ構図は他に例が少なく、この街の性格を一枚で示します。城山は西南戦争最後の激戦地で、西郷隆盛が最期を過ごした洞窟が中腹に残ります。山は照葉樹林に覆われ、遊歩道が通っています。",
+    "highlights": [
+      "市街と錦江湾と桜島が一直線に並ぶ眺め",
+      "西郷隆盛が最期を過ごした洞窟",
+      "照葉樹林に覆われた丘"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、桜島の輪郭が最もはっきり出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "噴煙が上がる日が多く、活火山であることが分かります。"
+      },
+      {
+        "season": "autumn",
+        "text": "視程が伸び、湾の対岸まで見通せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は桜島に雲がかかりにくく、街も澄んで見えます。"
+      },
+      {
+        "time": "night",
+        "text": "市街の夜景と桜島のシルエットが同時に入ります。"
+      }
+    ],
+    "compositionTips": [
+      "街と湾と山を三層にして構図を作ります",
+      "望遠で桜島を引き寄せると街との距離の近さが出ます",
+      "噴煙が上がる日はその流れも画面に入れます"
+    ],
+    "officialWebsiteUrl": "https://www.kagoshima-kankou.com/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -32873,6 +33256,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a4a491078bf5",
+    "slug": "kanami-soten",
+    "name": "金作原原生林",
+    "nameEn": "Kinsakubaru Primeval Forest",
+    "reading": "きんさくばるげんせいりん",
+    "aliases": [
+      "奄美大島 金作原",
+      "ヒカゲヘゴ"
+    ],
+    "address": "鹿児島県奄美市名瀬朝戸",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "奄美市"
+    },
+    "coords": {
+      "lat": 28.34,
+      "lng": 129.45
+    },
+    "category": "nature",
+    "summary": "奄美大島の亜熱帯照葉樹林。高さ数メートルのヒカゲヘゴが林立し、恐竜時代の植生に近い景観です。",
+    "description": "奄美大島の中央部に残る亜熱帯の原生林で、世界自然遺産の区域に含まれます。高さ数メートルに達するヒカゲヘゴという木生シダが林立し、羽状の葉が頭上に広がります。シダが樹木のように育つ景観は本土では見られません。アマミノクロウサギをはじめ固有種が多く生息します。保護のため入林には認定ガイドの同行が必要で、事前の手配が要ります。",
+    "highlights": [
+      "高さ数メートルのヒカゲヘゴ",
+      "亜熱帯の照葉樹林",
+      "固有種が多く生息する環境"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新芽が出る時期。ヒカゲヘゴの若葉が渦巻き状に伸びます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が最も濃く、林内が暗く沈みます。"
+      },
+      {
+        "season": "winter",
+        "text": "常緑なので景観は変わりません。気温は穏やかです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、シダの層が見えるようになります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が林床に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "ヒカゲヘゴは下から見上げて羽状の葉を画面に広げます",
+      "若葉の渦巻きは寄って形を主題にします",
+      "入林には認定ガイドの同行が必要なので、事前に手配します"
+    ],
+    "officialWebsiteUrl": "https://www.amami-tourism.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d2cb6aa00aa5",
     "slug": "kanayamachi",
     "name": "金屋町",
@@ -33648,6 +34095,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e1da6cf8645d",
+    "slug": "kanoya-bara",
+    "name": "かのやばら園",
+    "nameEn": "Kanoya Rose Garden",
+    "reading": "かのやばらえん",
+    "aliases": [
+      "鹿屋 ばら園",
+      "霧島ヶ丘公園"
+    ],
+    "address": "鹿児島県鹿屋市浜田町1250",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿屋市"
+    },
+    "coords": {
+      "lat": 31.33,
+      "lng": 130.86
+    },
+    "category": "nature",
+    "summary": "八ヘクタールに三万五千株のバラが植えられています。丘の上にあり、錦江湾と桜島が背景に入ります。",
+    "description": "霧島ヶ丘公園の中にある日本最大級のバラ園で、面積約八ヘクタールに三万五千株、三千五百品種が植えられています。丘の上にあるため、バラ越しに錦江湾と桜島が見える位置があります。見頃は春が五月上旬から六月上旬、秋が十月下旬から十一月中旬の二回です。園内は起伏があり、高い位置から花壇の全体を俯瞰できます。夜間開園が行われる期間があります。",
+    "highlights": [
+      "八ヘクタールに三万五千株のバラ",
+      "バラ越しに見える錦江湾と桜島",
+      "春と秋の二回の見頃"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月上旬から六月上旬が春の見頃。株数が最も多く咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月中旬が秋の見頃。色が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "剪定後で花は少なく、園の起伏が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は花に露が残り、桜島も見えやすい時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は花が暖色に染まり、湾も光ります。"
+      }
+    ],
+    "compositionTips": [
+      "バラを前景に取って桜島を奥に置き二層にします",
+      "高い位置から俯瞰して花壇の面積を見せます",
+      "一輪に寄るときは背景を絞りで整理します"
+    ],
+    "officialWebsiteUrl": "https://www.baranomachi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0a18b0c327a1",
@@ -37086,6 +37597,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_b417d8c913f8",
+    "slug": "kikaijima",
+    "name": "喜界島 サトウキビ道",
+    "nameEn": "Sugarcane Road, Kikaijima",
+    "reading": "きかいじま さとうきびみち",
+    "aliases": [
+      "喜界島 一本道",
+      "隆起珊瑚礁の島"
+    ],
+    "address": "鹿児島県大島郡喜界町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "喜界町"
+    },
+    "coords": {
+      "lat": 28.32,
+      "lng": 129.93
+    },
+    "category": "nature",
+    "summary": "サトウキビ畑の中を約三.五キロの道が直線で伸びます。両側が畑だけの構図が成立します。",
+    "description": "喜界島は隆起珊瑚礁でできた平坦な島で、農地の大半がサトウキビ畑です。島の中央部には畑の中を直線で貫く約三.五キロの道があり、両側がキビ畑だけという構図になります。背の高いキビが両脇を固める季節は、道が緑の壁に挟まれた形になります。島は年に約二ミリずつ隆起しており、段丘が階段状に残ります。空港から自転車でも回れる規模です。",
+    "highlights": [
+      "畑の中を貫く三.五キロの直線道路",
+      "両脇を固める背の高いサトウキビ",
+      "隆起による階段状の段丘"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "キビが最も高く育ち、道が緑の壁に挟まれます。"
+      },
+      {
+        "season": "winter",
+        "text": "一月から三月が収穫期。刈り取られて視界が開けます。"
+      },
+      {
+        "season": "spring",
+        "text": "植え付け後で丈が低く、道と空だけの構図になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は道が横から照らされ、キビの影が路面に伸びます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、道を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "道を消失点まで通して三.五キロの直線を見せます",
+      "望遠で圧縮するとキビの壁がより密に見えます",
+      "農道なので通行の妨げにならない位置で撮ります"
+    ],
+    "officialWebsiteUrl": "https://kikaijima.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2a2ed8eab3b4",
     "slug": "kikuchi-castle",
     "name": "鞠智城",
@@ -38124,6 +38699,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6a291b5dfd0b",
+    "slug": "kirishima-art",
+    "name": "霧島アートの森",
+    "nameEn": "Kirishima Open-Air Museum",
+    "reading": "きりしまあーとのもり",
+    "aliases": [
+      "湧水町 野外美術館",
+      "草原の中の彫刻"
+    ],
+    "address": "鹿児島県姶良郡湧水町木場6340-220",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "湧水町"
+    },
+    "coords": {
+      "lat": 32,
+      "lng": 130.68
+    },
+    "category": "landmark",
+    "summary": "標高七百メートルの草原に現代彫刻が点在します。作家が現地を見て作った作品が多くあります。",
+    "description": "栗野岳の中腹、標高約七百メートルの草原に整備された野外美術館です。作品の多くは作家が現地を訪れ、その場所のために制作したもので、地形や視界を前提にした配置になっています。草原、林、丘の上など置かれる環境が作品ごとに違います。標高が高いため霧が出やすく、彫刻が霧に沈む日があります。屋内の展示棟も併設されています。",
+    "highlights": [
+      "場所のために作られた現代彫刻",
+      "標高七百メートルの草原の環境",
+      "霧に沈む彫刻"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "草原が緑になり、彫刻の素材との対比が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "霧が出やすく、彫刻が霧の中に消える画が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、彫刻の輪郭が浮き出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、作品が霧に沈みます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光で彫刻の凹凸と影が最も出ます。"
+      }
+    ],
+    "compositionTips": [
+      "彫刻は空を背景にして輪郭を抜きます",
+      "周囲の地形を入れて場所のために作られたことを示します",
+      "霧の日はコントラストが落ちるので現像で締める前提で撮ります"
+    ],
+    "officialWebsiteUrl": "https://open-air-museum.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b9280ab06c96",
@@ -40700,6 +41339,70 @@
       "公演中の撮影可否は必ず現地の指示に従います"
     ],
     "officialWebsiteUrl": "https://korakukan.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5a5e3e54918a",
+    "slug": "koshikijima",
+    "name": "甑島 鹿の子百合",
+    "nameEn": "Kanoko Lily, Koshikijima",
+    "reading": "こしきしま かのこゆり",
+    "aliases": [
+      "甑列島",
+      "長目の浜"
+    ],
+    "address": "鹿児島県薩摩川内市上甑町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "薩摩川内市"
+    },
+    "coords": {
+      "lat": 31.83,
+      "lng": 129.88
+    },
+    "category": "nature",
+    "summary": "七月下旬から八月、東シナ海の断崖にカノコユリが自生します。国内でも数少ない自生地です。",
+    "description": "東シナ海に浮かぶ列島で、上甑島、中甑島、下甑島などからなります。夏には断崖や海沿いの斜面にカノコユリが自生し、その花期は七月下旬から八月です。園芸種として海外へ渡った花の原産地の一つで、自生地は限られています。上甑島の長目の浜は砂州によって海と隔てられた三つの池が並ぶ地形で、展望所から俯瞰できます。島々は橋で繋がりました。",
+    "highlights": [
+      "断崖に自生するカノコユリ",
+      "砂州が海と隔てた三つの池",
+      "橋で繋がった列島の地形"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月下旬から八月がカノコユリの花期です。"
+      },
+      {
+        "season": "spring",
+        "text": "海が穏やかで、島を回りやすい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、長目の浜の地形がはっきり見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "花は朝のうちが状態が良く、海も静かな時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は東シナ海に日が落ち、断崖がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "ユリは背景に海を入れて自生地であることを示します",
+      "長目の浜は高い位置から俯瞰して三つの池の並びを見せます",
+      "断崖の縁には近づきすぎないこと"
+    ],
+    "officialWebsiteUrl": "https://koshikijima.net/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -44511,6 +45214,70 @@
       "植物画の撮影可否は館内の表示に従います"
     ],
     "officialWebsiteUrl": "https://www.makino.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5f7b017b0cc6",
+    "slug": "makurazaki",
+    "name": "枕崎 火之神公園",
+    "nameEn": "Hinokami Park, Makurazaki",
+    "reading": "まくらざき ひのかみこうえん",
+    "aliases": [
+      "立神岩",
+      "枕崎 海岸"
+    ],
+    "address": "鹿児島県枕崎市火之神町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "枕崎市"
+    },
+    "coords": {
+      "lat": 31.26,
+      "lng": 130.3
+    },
+    "category": "nature",
+    "summary": "高さ四十二メートルの立神岩が海に立ちます。東シナ海に沈む夕日と重なる位置にあります。",
+    "description": "枕崎の海岸にある公園で、沖に高さ約四十二メートルの立神岩がそびえます。海面から垂直に立つ岩の塔で、枕崎の象徴になっています。公園は西を向いており、東シナ海に日が沈みます。季節によっては太陽が立神岩の近くに落ち、岩と夕日を重ねられます。晴れた日は開聞岳も見えます。枕崎はカツオの水揚げで知られ、港も近くにあります。",
+    "highlights": [
+      "高さ四十二メートルの立神岩",
+      "東シナ海に沈む夕日",
+      "晴れた日に見える開聞岳"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、岩の黒との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、岩に砕ける白波が激しくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。岩と夕日を重ねられます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は順光で岩の質感が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "岩は縦構図で四十二メートルの高さを取ります",
+      "夕景は露出を空に合わせて岩をシルエットにします",
+      "日没の位置は季節で動くので事前に調べます"
+    ],
+    "officialWebsiteUrl": "https://www.city.makurazaki.lg.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -59059,6 +59826,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_3391bd7ff17c",
+    "slug": "ohko-no-taki",
+    "name": "屋久島 大川の滝",
+    "nameEn": "Ohko Falls, Yakushima",
+    "reading": "やくしま おおこのたき",
+    "aliases": [
+      "大川の滝"
+    ],
+    "address": "鹿児島県熊毛郡屋久島町栗生",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "屋久島町"
+    },
+    "coords": {
+      "lat": 30.25,
+      "lng": 130.42
+    },
+    "category": "nature",
+    "summary": "落差八十八メートルの滝が花崗岩の岩壁を落ちます。滝壺のすぐそばまで歩いて近づけます。",
+    "description": "屋久島の南西部にある滝で、落差は約八十八メートル、島で最大です。日本の滝百選に選ばれています。花崗岩の岩壁を水が落ち、滝壺のすぐそばまで遊歩道が続くため、水しぶきがかかる距離まで近づけます。周囲は照葉樹林で、岩には苔が付きます。雨の多い屋久島では水量が大きく変わり、雨の後は轟音とともに落ちます。駐車場から数分です。",
+    "highlights": [
+      "落差八十八メートルの屋久島最大の滝",
+      "滝壺のすぐそばまで近づける遊歩道",
+      "雨後に大きく増える水量"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。滝が最も勢いのある時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "水しぶきが涼しく、緑も最も濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "水量が落ち着き、岩の形が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、滝壺を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が当たり、滝との規模の差が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で八十八メートルの落差を取ります",
+      "人を入れて岩壁の大きさを示します",
+      "水しぶきでレンズが濡れるので拭くものを必ず携行します"
+    ],
+    "officialWebsiteUrl": "https://yakukan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7fb4e96f2333",
     "slug": "ohori-park",
     "name": "大濠公園",
@@ -60276,6 +61106,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6b55033ca376",
+    "slug": "okinoerabu",
+    "name": "沖永良部島 昇竜洞",
+    "nameEn": "Shoryudo Cave, Okinoerabujima",
+    "reading": "おきのえらぶじま しょうりゅうどう",
+    "aliases": [
+      "沖永良部 鍾乳洞"
+    ],
+    "address": "鹿児島県大島郡知名町住吉",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "知名町"
+    },
+    "coords": {
+      "lat": 27.36,
+      "lng": 128.56
+    },
+    "category": "nature",
+    "summary": "全長三.五キロの鍾乳洞で、うち六百メートルが公開されています。島全体に二百以上の洞窟があります。",
+    "description": "沖永良部島は隆起珊瑚礁でできており、島内に大小二百以上の鍾乳洞があります。昇竜洞は全長約三.五キロで、そのうち六百メートルが公開されています。フローストーンと呼ばれる流れ落ちる形の鍾乳石が発達しており、壁面が布を垂らしたような形になります。洞内は年間を通して温度が一定です。島には探検向けのケイビングツアーもあり、未整備の洞窟へ入れます。",
+    "highlights": [
+      "布のように垂れるフローストーン",
+      "全長三.五キロのうち六百メートルが公開",
+      "島内に二百以上ある鍾乳洞"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "外との温度差が大きく、洞内が涼しく感じられます。"
+      },
+      {
+        "season": "winter",
+        "text": "外気が下がるため、洞内のほうが暖かく感じます。"
+      },
+      {
+        "season": "spring",
+        "text": "島全体が花の季節。洞窟と合わせて回れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "洞内は照明が一定なので時間帯の影響はありません。"
+      },
+      {
+        "time": "morning",
+        "text": "開洞直後は見学者が少なく、通路を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "フローストーンは横から光が当たる角度で襞の形を出します",
+      "照明の色が強いのでホワイトバランスを固定します",
+      "外との温度差でレンズが曇るので、入る前に数分置きます"
+    ],
+    "officialWebsiteUrl": "https://www.town.china.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_54202ab1866d",
@@ -70089,6 +70982,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_15791ebe3d97",
+    "slug": "sata-misaki",
+    "name": "佐多岬",
+    "nameEn": "Cape Sata",
+    "reading": "さたみさき",
+    "aliases": [
+      "本土最南端",
+      "佐多岬灯台"
+    ],
+    "address": "鹿児島県肝属郡南大隅町佐多馬籠",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "南大隅町"
+    },
+    "coords": {
+      "lat": 30.99,
+      "lng": 130.66
+    },
+    "category": "nature",
+    "summary": "九州本土最南端の岬。亜熱帯の植生に覆われ、沖の岩礁には日本最古級の洋式灯台が立ちます。",
+    "description": "九州本土の最南端で、北緯三十一度の亜熱帯に属します。ソテツやアコウなどの植物が自生し、遊歩道は本土とは思えない植生の中を通ります。沖の大輪島には一八七一年初点灯の佐多岬灯台が立ち、日本最古級の洋式灯台の一つです。展望台からは大隅海峡の向こうに種子島と屋久島が見えます。展望台までは駐車場から十五分ほど歩きます。",
+    "highlights": [
+      "本土最南端という立地",
+      "ソテツとアコウの亜熱帯の植生",
+      "沖の岩礁に立つ日本最古級の灯台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、種子島と屋久島が見える確率が上がります。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、亜熱帯の緑が最も濃くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、遊歩道を歩きやすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、島影がはっきり出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、灯台がシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "ソテツを前景に入れて亜熱帯であることを示します",
+      "灯台は望遠で抜いて岩礁の上にあることを見せます",
+      "島影を入れるなら望遠で圧縮して距離を縮めます"
+    ],
+    "officialWebsiteUrl": "https://www.town.minamiosumi.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3af802089af4",
     "slug": "sawara",
     "name": "佐原の町並み",
@@ -70738,6 +71695,134 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_deed81898040",
+    "slug": "sengan-ishibashi",
+    "name": "石橋記念公園",
+    "nameEn": "Ishibashi Memorial Park",
+    "reading": "いしばしきねんこうえん",
+    "aliases": [
+      "西田橋",
+      "甲突川 石橋"
+    ],
+    "address": "鹿児島県鹿児島市浜町1-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿児島市"
+    },
+    "coords": {
+      "lat": 31.6,
+      "lng": 130.57
+    },
+    "category": "landmark",
+    "summary": "水害で流失を免れた江戸期の石橋三基を移設して保存した公園。アーチの石積みが間近で見られます。",
+    "description": "甲突川に架かっていた五基の石橋のうち、一九九三年の水害で残った三基を移設して保存した公園です。西田橋、高麗橋、玉江橋の三基で、いずれも一八四〇年代に肥後の石工が架けたものです。アーチの石積みが水面近くから見られ、橋の下に降りて内側の構造を確認できます。西田橋には御門が復元されています。錦江湾に面し、背後に桜島が見えます。",
+    "highlights": [
+      "江戸期の石造アーチ三基",
+      "橋の下から見る石積みの構造",
+      "背後に見える桜島"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "公園の緑が芽吹き、石の灰色との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が石積みの目地に影を落とします。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、背後の桜島がはっきり見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、橋を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は石が暖色に染まり、アーチの影が強くなります。"
+      }
+    ],
+    "compositionTips": [
+      "橋の下からアーチの曲線を見上げて構造を見せます",
+      "石積みは寄って目地の組み方を記録します",
+      "桜島を入れるなら橋越しに望遠で圧縮します"
+    ],
+    "officialWebsiteUrl": "https://www.kagoshima-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_fee1697bffe4",
+    "slug": "senganen",
+    "name": "仙巌園",
+    "nameEn": "Sengan-en Garden",
+    "reading": "せんがんえん",
+    "aliases": [
+      "磯庭園",
+      "尚古集成館"
+    ],
+    "address": "鹿児島県鹿児島市吉野町9700-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "鹿児島市"
+    },
+    "coords": {
+      "lat": 31.62,
+      "lng": 130.59
+    },
+    "category": "nature",
+    "summary": "桜島を築山、錦江湾を池に見立てた庭園。借景の規模が国内の庭園では突出しています。",
+    "description": "島津家の別邸として一六五八年に築かれた庭園で、桜島を築山、錦江湾を池として取り込む借景の構成です。庭の正面に活火山がそのまま入るという規模は他に例がありません。隣接する尚古集成館は幕末に島津斉彬が建てた機械工場で、日本最古級の洋式工場建築として世界遺産の構成資産です。庭には反射炉の跡や、中国由来の意匠を持つ門も残ります。",
+    "highlights": [
+      "桜島を築山とした借景",
+      "世界遺産の尚古集成館",
+      "庭に残る反射炉の跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月の桜と、四月のツツジ。桜島との組み合わせが撮れます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、桜島の噴煙も見えやすい季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、桜島の輪郭が最もはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湾が静かで、桜島も雲がかかりにくい時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は庭が暖色に染まり、桜島がシルエットに寄ります。"
+      }
+    ],
+    "compositionTips": [
+      "庭の構成要素と桜島を一枚に入れて借景を見せます",
+      "望遠で桜島を引き寄せると築山としての意図が強まります",
+      "尚古集成館は石造の外観を正面から記録します"
+    ],
+    "officialWebsiteUrl": "https://www.senganen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8a1ea2106f59",
@@ -85162,6 +86247,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_cb63f8556cb4",
+    "slug": "tokunoshima",
+    "name": "徳之島 犬の門蓋",
+    "nameEn": "Inno-Jofuta, Tokunoshima",
+    "reading": "とくのしま いんのじょうふた",
+    "aliases": [
+      "メガネ岩",
+      "徳之島 海食崖"
+    ],
+    "address": "鹿児島県大島郡天城町兼久",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "天城町"
+    },
+    "coords": {
+      "lat": 27.82,
+      "lng": 128.89
+    },
+    "category": "nature",
+    "summary": "隆起珊瑚礁が波に削られ、穴の開いた奇岩が並びます。二つ穴の開いたメガネ岩が知られます。",
+    "description": "徳之島の西海岸にある海食地形で、隆起した珊瑚礁が長年の波で削られてできました。岩が複雑に抉れ、穴が開いた形が連続します。なかでも二つ並んだ穴が眼鏡に見えるメガネ岩が知られますが、台風で片方が崩れた経緯があります。名前は、かつて作物を荒らす犬を追い込んだ場所という伝承に由来します。遊歩道と展望所が整備されています。",
+    "highlights": [
+      "穴の開いた隆起珊瑚礁の奇岩",
+      "二つ穴のメガネ岩",
+      "西向きの海岸に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、白い珊瑚岩との対比が最も強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、岩に砕ける白波が激しくなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、岩場を歩きやすい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので日没が正面。穴を通して夕日を抜けます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海の色が最も濃く、岩の白と対比になります。"
+      }
+    ],
+    "compositionTips": [
+      "穴を通して向こうの海や夕日を見せると構造が伝わります",
+      "隆起珊瑚礁の質感は寄って撮ります",
+      "岩は鋭く、濡れると滑るので足元に注意します"
+    ],
+    "officialWebsiteUrl": "https://tokunoshima-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_4b265e914c55",
     "slug": "tokushima-castle",
     "name": "徳島城跡",
@@ -93428,6 +94577,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_150e685b4bd1",
+    "slug": "yakusugi-land",
+    "name": "ヤクスギランド",
+    "nameEn": "Yakusugi Land",
+    "reading": "やくすぎらんど",
+    "aliases": [
+      "屋久島 自然休養林",
+      "仏陀杉"
+    ],
+    "address": "鹿児島県熊毛郡屋久島町荒川",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "屋久島町"
+    },
+    "coords": {
+      "lat": 30.31,
+      "lng": 130.58
+    },
+    "category": "nature",
+    "summary": "標高千メートルの自然休養林。三十分から二百五十分まで四つのコースがあり、装備を選ばず屋久杉を見られます。",
+    "description": "標高約一千メートルにある自然休養林で、樹齢千年を超える屋久杉が点在します。三十分、五十分、八十分、百五十分、二百五十分と複数のコースが整備され、短いものは木道と階段だけなので装備を選びません。仏陀杉、千年杉などの巨木があり、苔むした岩と谷川が森の中を通ります。縄文杉と違い、間近まで近づける杉が複数あります。雨が多い土地です。",
+    "highlights": [
+      "装備を選ばず歩ける短いコース",
+      "間近まで近づける屋久杉",
+      "苔むした岩と谷川"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と苔が最も鮮やかになります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、雨上がりは苔が水を含んで光ります。"
+      },
+      {
+        "season": "winter",
+        "text": "標高が高いため雪が積もる日があります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、森の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が苔に落ちます。明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "苔は低い位置から前景に大きく取って湿度を伝えます",
+      "杉は下から見上げて幹の太さと樹高を取ります",
+      "雨の日のほうが苔と樹皮の色が濃く出ます"
+    ],
+    "officialWebsiteUrl": "https://yakukan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e5f38019a2c7",
     "slug": "yamadera-risshakuji",
     "name": "山寺 宝珠山立石寺",
@@ -95079,6 +96292,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_cc911e2fc3bb",
+    "slug": "yoron",
+    "name": "与論島 百合ヶ浜",
+    "nameEn": "Yurigahama, Yoronjima",
+    "reading": "よろんとう ゆりがはま",
+    "aliases": [
+      "幻の砂浜 与論"
+    ],
+    "address": "鹿児島県大島郡与論町",
+    "region": {
+      "country": "日本",
+      "prefecture": "鹿児島県",
+      "city": "与論町"
+    },
+    "coords": {
+      "lat": 27.05,
+      "lng": 128.45
+    },
+    "category": "nature",
+    "summary": "沖合の海中に、春から夏の大潮の干潮時だけ白い砂浜が現れます。周囲は浅瀬の海だけです。",
+    "description": "大金久海岸の沖合約一.五キロの海中に、春から夏の大潮の干潮時にだけ現れる砂州です。現れる日時は潮位で決まり、年に数十回程度、それぞれ数時間しか出ません。砂は星砂を含む有孔虫の殻でできており、白く細かい粒です。周囲は水深の浅い海で、砂州の上に立つと三百六十度が海になります。グラスボートで渡ります。出現日は事前に調べる必要があります。",
+    "highlights": [
+      "大潮の干潮時だけ現れる砂州",
+      "三百六十度が海になる立地",
+      "星砂を含む白い砂"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月から出現が始まります。人も少なめです。"
+      },
+      {
+        "season": "summer",
+        "text": "出現の頻度が高く、水の色も最も鮮やかに出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "出現が減ります。行く前に出現予測の確認が必須です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "干潮の時刻に合わせるしかありません。太陽が高いほど水の色が出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "干潮が朝にあたる日は人も少なく、砂に足跡が残りません。"
+      }
+    ],
+    "compositionTips": [
+      "砂州を小さく置いて周囲の海の広さを見せます",
+      "偏光フィルターで反射を消すと水の色の階調が出ます",
+      "出現日時を事前に調べてから渡航の日程を決めます"
+    ],
+    "officialWebsiteUrl": "https://www.yorontou.info/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_10a13cc98230",
