@@ -112,3 +112,22 @@ tile access. The screenshot CI for the original five-country expansion was later
 
 No PR merge, production deploy, account signup, card registration, paid API
 or paid runner was performed.
+
+## Next regions in PR #157 — Estonia and Germany/NRW (2026-09-25)
+
+**Two more countries registered as draft preview sources, not production-complete countries.**
+
+| Area | Official service and license | Source URL shape | Honest scope / required verification |
+|---|---|---|---|
+| Estonia | Republic of Estonia Land and Spatial Development Board (Maa- ja Ruumiamet), national orthophoto. Official public web-service terms expressly permit commercial reuse with attribution (data title, approximate date/year, agency) and prohibit disruptive request rates. | Official public tile service `https://tiles.maaamet.ee/tm/wmts`, `LAYER=foto`, Web Mercator `TILEMATRIXSET=GMC`, z9–18 requested; service-identification parameters `ASUTUS=JOURNEYPHOTO&KESKKOND=LIVE&IS=JOURNEYPHOTO` used in place of a proxy as described in the agency's older technical guide. | Actual tile response, content-type, matrix IDs, browser CORS, current service identification requirements and year-specific attribution pending CI and release audit. Request volume must remain moderate. |
+| Germany — North Rhine-Westphalia (NRW) only | German Land Geobasis NRW official DOP orthophotos under government open-data licensing; **not** the nationwide BKG DOP20 service restricted to government/entitled users. | WMTS cache `https://www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/{z}/{y}/{x}`; z9–16 requested. | The provider has several tile matrices and REST patterns; verify actual Web Mercator alignment via Cologne photo proof. Coverage limited to NRW, not Germany as a whole. |
+
+Official references:
+- Estonia WMTS layers and projections (orthophoto in national and Web Mercator matrices): https://geoportaal.maaamet.ee/docs/WMS/MapCache_teenused_juhend_v2.pdf
+- Estonia public map service conditions (free, commercial permitted with attribution, no guaranteed SLA, avoid disruptive access): https://geoportaal.maaamet.ee/index.php?lang_id=1&page_id=24
+- Estonia official TMS/WMTS guidance and identification requirements: https://geoportaal.maaamet.ee/est/Teenused/WMS-teenused/TMS-WMS-C-ja-WMTS-teenused-p481.html
+- Geobasis NRW official open imagery licensing catalog: https://www.govdata.de/suche/daten/digitale-orthophotos-nwadd54
+- German NRW WMTS service: https://www.wmts.nrw.de/geobasis/wmts_nw_dop/1.0.0/WMTSCapabilities.xml
+- Nationwide BKG DOP20 *not* used (restricted entitlement): https://gdz.bkg.bund.de/index.php/default/webdienste/digitale-orthophotos/wmts-digitale-orthophotos-bodenauflosung-20cm-wmts-dop.html
+
+CI proof: the same existing screenshot workflow now checks Tallinn and Cologne at z13 on mobile and desktop. Screenshots for these regions are saved **only if the matching national agency returns an actual HTTP 200 image**. The screenshot must also be reviewed for visible alignment, meaningful aerial detail, unwanted country-border rectangles, and false-positive blank imagery. Do not claim country-wide completion on the basis of one city tile. No new subscription, card, key, hosting, merge or deployment.
