@@ -53,9 +53,17 @@ jobs:
   # 値はここに直書きする。どれも公開識別子（シークレットではない）。
   # 1つでも空なら止める——空のまま進むと serverless のパラメータが空文字になり、
   # 何が起きるか読めないため。
+  # 環境を決め、**バックエンドのテストを通し**、どちらのスタックを配るかを決める。
+  #
+  # 🔴 **もとは「環境を決める」と「テスト」で別のジョブだった。**
+  # GitHub は**ジョブごとに分単位で切り上げて課金する**ので、5秒で終わる
+  # 環境決めだけで**毎回まるまる1分**取られていた（run 303 の実測）。
+  # 畳んでも順番は変わらない——環境の検査は最初の段なので、値が欠けていれば
+  # 今までどおりテストより先に落ちる。
   config:
-    name: Resolve environment
+    name: Resolve environment and test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       envName: ${{ steps.pick.outputs.envName }}
       photosTable: ${{ steps.pick.outputs.photosTable }}
@@ -71,6 +79,9 @@ jobs:
       # 削除そのものは成功する。本番だけ設定する（staging は検索避けなので不要）。
       rebuildRepo: ${{ steps.pick.outputs.rebuildRepo }}
       musicSearchReserved: ${{ steps.pick.outputs.musicSearchReserved }}
+      # **どちらのスタックを配るか。** 疑わしい回は両方 "true" に倒れる
+      deployAdmin: ${{ steps.targets.outputs.admin }}
+      deployUser: ${{ steps.targets.outputs.user }}
     steps:
       - id: pick
         run: |
@@ -142,13 +153,43 @@ jobs:
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
 
-  # デプロイ前にバックエンドのテストを必ず通す（落ちたらデプロイされない）
-  test:
-    name: Run API tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
+      # **直前のコミットとの差分を取るため、履歴を全部取る。**
+      # 既定の浅い取得だと `git diff <before> <after>` が引けず、
+      # 毎回「辿れない」＝両方配るに落ちて節約が効かない
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # **変わった領域だけ配る。** ここは判断だけで、配るのは下のジョブ。
+      #
+      # 判断は `scripts/lib/deployTargets.mjs`（純粋な関数・
+      # `scripts/__tests__/deployTargets.test.ts` が見張る）。
+      # **疑わしい回はすべて両方配る**——「API を直したのに反映されない」は
+      # `CLAUDE.md` が実際に踏んだ、いちばん静かな壊れ方なので。
+      - name: どちらのスタックを配るか決める
+        id: targets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TARGET: ${{ github.event.inputs.target }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          changed=""
+          if [ "$EVENT_NAME" = "push" ]; then
+            # 直前のコミットが辿れなければ空のまま（＝両方配る）。
+            # 枝の作り直し・force push・浅い履歴のどれでもここに落ちる
+            if [ -n "${BEFORE:-}" ] \
+               && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              changed="$(git diff --name-only "$BEFORE" "$AFTER" || true)"
+            else
+              echo "直前のコミット (${BEFORE:-なし}) を辿れません。両方配ります"
+            fi
+          fi
+          printf '%s' "$changed" > "$RUNNER_TEMP/changed.txt"
+          node scripts/pick-deploy-targets.mjs "$RUNNER_TEMP/changed.txt"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -181,8 +222,10 @@ jobs:
 
   deploy-admin-api:
     name: Deploy admin API (api/)
-    needs: [test, config]
-    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'admin-api' }}
+    needs: [config]
+    # **変わった領域だけ配る**（判断は config の `deployAdmin`。
+    # 手動実行で選んだ `target` もそちらが見ている）
+    if: ${{ needs.config.outputs.deployAdmin == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -237,8 +280,8 @@ jobs:
 
   deploy-user-api:
     name: Deploy user API (api-user/)
-    needs: [test, config]
-    if: ${{ github.event_name == 'push' || github.event.inputs.target == 'both' || github.event.inputs.target == 'user-api' }}
+    needs: [config]
+    if: ${{ needs.config.outputs.deployUser == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
