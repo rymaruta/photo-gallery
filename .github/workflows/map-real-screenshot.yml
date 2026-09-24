@@ -135,6 +135,10 @@ jobs:
                 { slug: "ES", hash: "#13/40.4168/-3.7038", provider: "www.ign.es/wmts/pnoa-ma?" },
                 { slug: "CH", hash: "#13/47.3769/8.5417", provider: "wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/" },
                 { slug: "NL", hash: "#13/52.3676/4.9041", provider: "service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/" },
+                { slug: "AT", hash: "#13/48.2082/16.3738", provider: "mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/" },
+                { slug: "CZ", hash: "#13/50.0755/14.4378", provider: "ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/" },
+                { slug: "BE-FLANDERS", hash: "#13/51.0543/3.7174", provider: "geo.api.vlaanderen.be/OMWRGBMRVL/wmts?" },
+                { slug: "PL", hash: "#13/52.2297/21.0122", provider: "mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?" },
               ];
               for (const country of overseas) {
                 const foreign = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
