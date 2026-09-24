@@ -2629,6 +2629,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_45f626a232a7",
+    "slug": "appi-kogen",
+    "name": "安比高原 ブナの森",
+    "nameEn": "Appi Kogen Beech Forest",
+    "reading": "あっぴこうげん ぶなのもり",
+    "aliases": [
+      "中のまき",
+      "安比 ブナ二次林"
+    ],
+    "address": "岩手県八幡平市安比高原",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "八幡平市"
+    },
+    "coords": {
+      "lat": 40,
+      "lng": 140.95
+    },
+    "category": "nature",
+    "summary": "牧草地とブナの二次林が隣り合う高原。森の縁と草地の境界がはっきりしていて、林の構造を外から撮れます。",
+    "description": "スキー場で知られる高原の一角に、かつての放牧地と、その周囲に再生したブナ林が広がります。中のまきと呼ばれる草地は開けており、その縁から森を見ると幹の列が壁のように立ちます。散策路が整備され、標高差も小さいので歩きやすい森です。奥には湧水地もあります。熊の生息域なので音を出して歩きます。",
+    "highlights": [
+      "草地と森の明確な境界",
+      "再生したブナの二次林",
+      "歩きやすい散策路"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月下旬の芽吹き。草地が緑に変わり、林との色差が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑と霧。朝の霧が林に入ると幹が層になって見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬の黄葉。白い幹と黄色の葉が重なる時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、森の奥行きが表現しやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は草地が明るく、森が暗く落ちます。露出をどちらに合わせるか決めます。"
+      }
+    ],
+    "compositionTips": [
+      "草地から森を見て幹の列を横に並べます",
+      "森の中に入ったら下から見上げて葉の層を撮ります",
+      "霧の日はコントラストが落ちるので、現像で締めることを前提に撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.appi.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1bd7d8c25134",
     "slug": "arafune-fuketsu",
     "name": "荒船風穴",
@@ -11508,6 +11572,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_6b65f4c0ea2e",
+    "slug": "goishi-kaigan",
+    "name": "碁石海岸",
+    "nameEn": "Goishi Coast",
+    "reading": "ごいしかいがん",
+    "aliases": [
+      "雷岩",
+      "穴通磯"
+    ],
+    "address": "岩手県大船渡市末崎町大浜",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "大船渡市"
+    },
+    "coords": {
+      "lat": 39,
+      "lng": 141.77
+    },
+    "category": "nature",
+    "summary": "黒い碁石のような小石が敷き詰められた浜と、三つの穴が抜けた岩礁。短い遊歩道に見どころが連続します。",
+    "description": "大船渡市の末崎半島にある海岸で、名前の由来になった碁石浜は黒く丸い石で埋まっています。遊歩道沿いには波が穴に入って音を立てる雷岩、三つの海食洞が貫通した穴通磯などが点在します。穴通磯は遊覧船からのほうがよく見えますが、展望所からも形が分かります。松林の中の道なので、夏でも歩きやすい場所です。",
+    "highlights": [
+      "黒い丸石が敷き詰められた浜",
+      "三つの穴が抜けた穴通磯",
+      "波の音が響く雷岩"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海の色が濃く出ます。霧の日は岩礁が霞んで奥行きが変わります。"
+      },
+      {
+        "season": "autumn",
+        "text": "松の緑と澄んだ海。人も減って落ち着いて回れます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、雷岩の音と水しぶきが最も激しくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きの海岸なので朝日が正面から当たります。岩礁のシルエットが作れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海の透明度が高く、碁石浜の石の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "碁石浜は寄って石の粒を画面いっぱいに入れます",
+      "穴通磯は穴を通して向こうの海を見せると構造が伝わります",
+      "波の動きは遅いシャッターで流すか速く止めるかを決めて撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.ofunato.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_9ad5a832e698",
     "slug": "gojogawa-sakura",
     "name": "五条川の桜並木",
@@ -12168,6 +12296,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f4737e76d57f",
+    "slug": "hachimantai-aspite",
+    "name": "八幡平アスピーテライン",
+    "nameEn": "Hachimantai Aspite Line",
+    "reading": "はちまんたいあすぴーてらいん",
+    "aliases": [
+      "八幡平 雪の回廊"
+    ],
+    "address": "岩手県八幡平市緑ヶ丘",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "八幡平市"
+    },
+    "coords": {
+      "lat": 39.96,
+      "lng": 140.86
+    },
+    "category": "landmark",
+    "summary": "八幡平を横断する観光道路。開通直後の四月は、除雪でできた高さ数メートルの雪の壁が道の両側に続きます。",
+    "description": "岩手と秋田を結ぶ全長約二十七キロの山岳道路です。冬期閉鎖され、四月中旬の開通直後は除雪で積み上がった雪の壁が道の両側に残り、雪の回廊と呼ばれます。壁の高さは年によって数メートルに達します。開通日には歩行者天国の行事が行われる年もあります。標高が高く、夏は高山植物、秋は紅葉が沿線で見られます。",
+    "highlights": [
+      "四月の雪の回廊",
+      "標高千六百メートル近い峠からの眺望",
+      "沿線の高山植物と紅葉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の開通直後が雪の壁の最盛期。日が経つほど低くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "峠の周辺に湿原と高山植物。夏でも涼しく霧が出やすい土地です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月上旬から中旬、沿線が色づきます。県内では紅葉が早い場所です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲の上に出ることがあり、峠から雲海を見下ろせる日があります。"
+      },
+      {
+        "time": "day",
+        "text": "雪の壁は日中の順光で白が明るく出ます。青空との対比が効きます。"
+      }
+    ],
+    "compositionTips": [
+      "雪の壁は人や車を入れて高さを示します",
+      "道路上での撮影は歩行者天国の日以外は避け、駐車帯から撮ります",
+      "峠からの眺望は望遠で山並みを圧縮すると層が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.hachimantai.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e753a626dd05",
@@ -14441,6 +14632,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_446132fbc43e",
+    "slug": "hashino-tekkozan",
+    "name": "橋野鉄鉱山",
+    "nameEn": "Hashino Iron Mining Site",
+    "reading": "はしのてっこうざん",
+    "aliases": [
+      "橋野高炉跡"
+    ],
+    "address": "岩手県釜石市橋野町第2地割15",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "釜石市"
+    },
+    "coords": {
+      "lat": 39.42,
+      "lng": 141.71
+    },
+    "category": "landmark",
+    "summary": "現存する日本最古の洋式高炉跡。山の中に石組みの炉の土台が三基残り、水路の跡も追えます。",
+    "description": "一八五八年に操業を始めた洋式高炉の跡で、世界遺産「明治日本の産業革命遺産」の構成資産です。残っているのは石で組まれた高炉の基部三基と、鉄鉱石を運んだ道、動力に使った水路の跡です。建物ではなく石積みの遺構なので、光の向きで形の見え方が大きく変わります。山中にあり、インフォメーションセンターから歩いて回ります。",
+    "highlights": [
+      "現存最古の洋式高炉跡",
+      "石組みの炉の基部三基",
+      "水路と運搬路の遺構"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "周囲が緑に覆われ、石積みとの対比が出ます。虫除けがあると快適です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、周囲の広葉樹が色づきます。遺構の石の灰色が引き立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もると石組みの輪郭だけが残り、構造が読みやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が石積みの目地を描き出します。山中なので光が入る時間は限られます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は遺構全体に光が回り、配置を説明的に撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "斜めからの光で石の凹凸を出すのが基本です",
+      "遺構単体より、山と一緒に入れて立地を見せます",
+      "説明板を入れた一枚も記録として残しておくと後で役立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kamaishi.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c992c0bd0f00",
     "slug": "hate-no-hama",
     "name": "久米島 はての浜",
@@ -14586,6 +14840,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_97ab210d822c",
+    "slug": "hayachine",
+    "name": "早池峰山",
+    "nameEn": "Mt. Hayachine",
+    "reading": "はやちねさん",
+    "aliases": [
+      "ハヤチネウスユキソウ"
+    ],
+    "address": "岩手県花巻市大迫町内川目",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "花巻市"
+    },
+    "coords": {
+      "lat": 39.56,
+      "lng": 141.49
+    },
+    "category": "mountain",
+    "summary": "蛇紋岩でできた山で、ここにしかない固有の高山植物が咲きます。岩場と花を同じ画に入れられる山です。",
+    "description": "標高千九百十七メートル。山体が蛇紋岩でできているため土壌が特殊で、ハヤチネウスユキソウをはじめ固有種を含む高山植物が育ちます。小田越コースは登り三時間ほどですが、上部は岩場と鎖場があります。花期の週末はマイカー規制が敷かれ、シャトルバスに乗り換えます。天候の変化が早い山なので、装備は夏でも防寒を含めます。",
+    "highlights": [
+      "蛇紋岩の岩場",
+      "ハヤチネウスユキソウなど固有の高山植物",
+      "山頂からの北上山地の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "六月下旬から七月が花期。この時期だけマイカー規制があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月、上部から色づきます。人が減って静かになります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で展望が利きます。花も朝露をまとう時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩場のコントラストが強くなります。花は日陰を選んで撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "花は背景に岩場を入れてこの山の土壌を示します",
+      "接写だけでなく、群落と山体を一緒に入れた引きも撮ります",
+      "登山道の外に踏み込まず、植生を傷めない位置から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.hanamaki.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_daca5ef6d6de",
@@ -15690,6 +16003,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_83c8f09d7739",
+    "slug": "himekamisan",
+    "name": "姫神山",
+    "nameEn": "Mt. Himekami",
+    "reading": "ひめかみさん",
+    "aliases": [
+      "姫神山 一本杉コース"
+    ],
+    "address": "岩手県盛岡市玉山区・八幡平市",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "盛岡市"
+    },
+    "coords": {
+      "lat": 39.87,
+      "lng": 141.27
+    },
+    "category": "mountain",
+    "summary": "岩手山と向かい合う円錐形の山。山頂は花崗岩の露岩で、岩手山を真正面に置いた構図が取れます。",
+    "description": "標高千百二十四メートル。北上川をはさんで岩手山と対峙する位置にあり、山頂に立つと岩手山が正面に大きく見えます。山頂部は花崗岩の巨岩が積み重なり、そこが展望台になります。一本杉コースなら登り二時間ほど。裾野が円錐形に整っているので、麓からの遠望も被写体になります。冬は雪が深くなります。",
+    "highlights": [
+      "山頂から正面に見る岩手山",
+      "花崗岩の露岩が積む山頂",
+      "麓から見た整った円錐形"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、山頂から見る岩手山にまだ残雪があり、手前は新緑になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、中腹の紅葉と澄んだ空気。展望がいちばん利く季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の山頂からの岩手山は白一色。装備と経験が前提になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "早朝は北上川沿いに雲海が出ることがあり、山頂から見下ろせます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩手山に雲がかかりやすく、午前の早い時間が有利です。"
+      }
+    ],
+    "compositionTips": [
+      "山頂の巨岩を前景に置くと岩手山の距離が出ます",
+      "雲海の日は稜線を画面下三分の一に置いて雲を主役にします",
+      "麓からは水田や北上川を入れて円錐形を強調します"
+    ],
+    "officialWebsiteUrl": "https://www.city.morioka.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_43854c97c804",
     "slug": "himenuma-rishiri",
     "name": "利尻島 姫沼",
@@ -15762,6 +16138,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1e01b968b562",
+    "slug": "hiraizumi-takkoku",
+    "name": "達谷窟毘沙門堂",
+    "nameEn": "Takkoku no Iwaya Bishamondo",
+    "reading": "たっこくのいわや びしゃもんどう",
+    "aliases": [
+      "達谷窟"
+    ],
+    "address": "岩手県西磐井郡平泉町平泉北沢16",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "平泉町"
+    },
+    "coords": {
+      "lat": 38.98,
+      "lng": 141.07
+    },
+    "category": "temple",
+    "summary": "岩壁のくぼみに半分めり込むように建つ朱塗りの堂。崖と建物が一体になった構造そのものが被写体です。",
+    "description": "坂上田村麻呂の創建と伝わる堂で、高さ数十メートルの岩壁の窪みに懸造りで建てられています。堂の背面は岩そのもので、正面から見ると建物が崖に吸い込まれているように見えます。傍の岩壁には北限の磨崖仏とされる岩面大佛が刻まれ、顔の部分が今も残ります。境内は撮影できますが、堂内は撮影禁止です。",
+    "highlights": [
+      "岩壁に食い込む懸造りの堂",
+      "岩面大佛の磨崖仏",
+      "朱塗りと岩肌の色の対比"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、周囲の新緑が朱色を引き立てます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬、崖の上の木が色づき、岩・朱・赤の三色になります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が岩壁に積もると、堂の朱だけが残って画面が単純になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、堂の正面を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が回り、堂の背後の岩の質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "崖を大きく入れて堂を小さく置くと構造の異様さが伝わります",
+      "縦構図で岩壁の高さを取ります",
+      "堂内は撮影禁止なので、外観と磨崖仏に絞ります"
+    ],
+    "officialWebsiteUrl": "https://iwayabetto.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e6ed29dadf99",
@@ -20856,6 +21295,133 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b2e2fad3bbb1",
+    "slug": "iwate-sanriku-railway",
+    "name": "三陸鉄道",
+    "nameEn": "Sanriku Railway",
+    "reading": "さんりくてつどう",
+    "aliases": [
+      "三陸鉄道リアス線",
+      "堀内駅"
+    ],
+    "address": "岩手県下閉伊郡普代村堀内",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "普代村"
+    },
+    "coords": {
+      "lat": 40.02,
+      "lng": 141.88
+    },
+    "category": "landmark",
+    "summary": "三陸海岸を縦に貫く鉄道。トンネルと橋梁が連続し、橋の上で海を渡る瞬間だけ列車が外に出ます。",
+    "description": "宮古から久慈を経て盛まで続くリアス線は、海岸段丘を貫くトンネルと谷を渡る橋梁の連続で成り立っています。堀内駅や大沢橋梁は海を背景に列車を撮れる有名な地点で、駅のホームからも海が見えます。本数が少ないので、時刻表を先に確認してから場所を決めます。線路や橋の敷地には立ち入れません。",
+    "highlights": [
+      "海を渡る橋梁を行く列車",
+      "ホームから海が見える駅",
+      "トンネルと橋が連続する路線構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海の色が濃く、霧が出ると列車が霧の中から現れる画になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海と山の色が同時に締まります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と海。積雪はそれほど多くないので、雪と海を一枚に入れやすい土地です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きの海岸なので朝日と列車を重ねられます。本数の確認が前提です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は山側から光が当たり、車体の赤が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "橋梁は横から狙い、海を大きく入れて路線の性格を見せます",
+      "列車は小さくてよく、地形を主役にすると土地が伝わります",
+      "線路敷地や橋には立ち入らず、公道や駅の所定の場所から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.sanrikutetsudou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_5991a7a05a12",
+    "slug": "iwatesan",
+    "name": "岩手山",
+    "nameEn": "Mt. Iwate",
+    "reading": "いわてさん",
+    "aliases": [
+      "南部片富士"
+    ],
+    "address": "岩手県八幡平市・滝沢市",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "八幡平市"
+    },
+    "coords": {
+      "lat": 39.85,
+      "lng": 141
+    },
+    "category": "mountain",
+    "summary": "盛岡の北にそびえる独立峰。東からは整った円錐に、西からは片側が崩れた形に見え、方角で表情が変わります。",
+    "description": "標高二千三十八メートルの成層火山で、南部片富士とも呼ばれます。東側の滝沢方面から見ると富士に似た形ですが、西側からは山体崩壊の跡で非対称に見えます。盛岡市街からも見えるため、街と山を組み合わせた構図が成立します。登山は馬返しからの柳沢コースが一般的で、山頂までは片道五時間ほど。冬期の登山は経験者向けです。",
+    "highlights": [
+      "方角で形が変わる独立峰",
+      "盛岡市街から見える大きさ",
+      "麓のりんご畑や田との組み合わせ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、残雪が縞模様になる時期。麓の新緑との高低差が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "七月から八月、山頂周辺のコマクサ。晴天率は高くありません。"
+      },
+      {
+        "season": "winter",
+        "text": "全山が白くなり、盛岡市街からの遠望が最も締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で、山頂まで見える確率が高い時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は東面が陰るので、西側から夕日を受ける角度を選びます。"
+      }
+    ],
+    "compositionTips": [
+      "非対称の稜線が見える西側からのほうが山の個性が出ます",
+      "市街地を前景に入れると盛岡の土地感が伝わります",
+      "望遠で山だけ抜くと形の違いが分かりにくいので、裾野まで入れます"
+    ],
+    "officialWebsiteUrl": "https://www.city.hachimantai.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_496cb2d5bb67",
@@ -27087,6 +27653,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a759a1da0f96",
+    "slug": "kenji-dowamura",
+    "name": "宮沢賢治童話村",
+    "nameEn": "Miyazawa Kenji Fairy Tale Village",
+    "reading": "みやざわけんじどうわむら",
+    "aliases": [
+      "賢治の学校"
+    ],
+    "address": "岩手県花巻市高松26-19",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "花巻市"
+    },
+    "coords": {
+      "lat": 39.38,
+      "lng": 141.14
+    },
+    "category": "landmark",
+    "summary": "宮沢賢治の作品世界を建物と林で再現した施設。夜間にライトアップされる林の光の演出が撮影の目当てになります。",
+    "description": "花巻市が整備した施設で、賢治の学校と呼ばれる展示棟と、屋外の妖精の小径、ログハウス群からなります。屋外の林は夏から秋にかけて夜間ライトアップされ、木々に色つきの光が当たって林全体が舞台のようになります。展示棟内は万華鏡や星空を模した部屋があり、撮影可否は場所ごとに異なります。宮沢賢治記念館が近接しています。",
+    "highlights": [
+      "夜間ライトアップされる林",
+      "作品世界を模した屋外の小径",
+      "展示棟の光と鏡の部屋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夜間ライトアップの期間。日没が遅いので開始時刻を確認して向かいます。"
+      },
+      {
+        "season": "autumn",
+        "text": "紅葉とライトアップが重なる時期があり、色が二重になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "ライトアップが本番。三脚可否は現地表示に従い、なければ高感度で撮ります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は屋外の小径と建物が対象。林は逆光で葉を透かすと明るく抜けます。"
+      }
+    ],
+    "compositionTips": [
+      "夜は色光が混ざるのでホワイトバランスを固定して撮ります",
+      "林は望遠で圧縮すると光の粒が重なって密度が出ます",
+      "屋内は撮影可否が部屋ごとに違うため表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.city.hanamaki.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_31f0b7a9dc52",
     "slug": "kenrokuen",
     "name": "兼六園",
@@ -30178,6 +30803,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_9b961d23f775",
+    "slug": "kosode-kaigan",
+    "name": "小袖海岸",
+    "nameEn": "Kosode Coast",
+    "reading": "こそでかいがん",
+    "aliases": [
+      "小袖海女センター",
+      "つりがね洞"
+    ],
+    "address": "岩手県久慈市長内町",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "久慈市"
+    },
+    "coords": {
+      "lat": 40.15,
+      "lng": 141.84
+    },
+    "category": "nature",
+    "summary": "北限の海女が潜る海岸。奇岩のつりがね洞と、夏の実演を行う海女センター周辺の岩礁が撮影対象です。",
+    "description": "久慈市の海岸線で、北限の海女による素潜り漁で知られます。夏季には海女センター前で実演が行われ、事前に日程を確認する必要があります。海岸沿いには波の浸食でできたつりがね洞があり、かつて中央に鐘の形の岩が垂れていたことから名がつきました。道路が狭い区間があるので、車の場合は所定の駐車場を使います。",
+    "highlights": [
+      "北限の海女の実演",
+      "浸食でできたつりがね洞",
+      "岩礁が連続する海岸線"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海女の実演期間。晴天の日は海の色が濃く出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、岩礁の輪郭がはっきりします。人も減ります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高くなり、岩に砕ける白波が主役になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので朝日が海から上がります。岩礁をシルエットで抜けます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海の透明度が高く、浅瀬の岩の色まで出ます。"
+      }
+    ],
+    "compositionTips": [
+      "つりがね洞は穴を通して海を見せると形が伝わります",
+      "実演は望遠で距離を保ち、演者の許可の範囲で撮ります",
+      "波は速いシャッターで砕ける瞬間を止めると迫力が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.city.kuji.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_22d649676bad",
     "slug": "kotohiragu",
     "name": "金刀比羅宮",
@@ -30395,6 +31084,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_fba7fd518bae",
+    "slug": "kuji-amber",
+    "name": "久慈琥珀博物館",
+    "nameEn": "Kuji Amber Museum",
+    "reading": "くじこはくはくぶつかん",
+    "aliases": [
+      "琥珀坑道 久慈"
+    ],
+    "address": "岩手県久慈市小久慈町19-156-133",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "久慈市"
+    },
+    "coords": {
+      "lat": 40.17,
+      "lng": 141.77
+    },
+    "category": "landmark",
+    "summary": "国内最大の琥珀産地にある博物館。坑道跡を歩け、光を透かした琥珀の色そのものが被写体になります。",
+    "description": "久慈は白亜紀の地層から琥珀が採れる国内最大の産地です。博物館には標本と加工品が展示され、屋外には採掘坑道の跡が公開されていて中を歩けます。琥珀は透過光で色が出る素材なので、展示ケースの照明の向きが写りを左右します。敷地内では琥珀採掘の体験もでき、周囲は林に囲まれています。",
+    "highlights": [
+      "歩ける採掘坑道の跡",
+      "透過光で色が出る琥珀の標本",
+      "林に囲まれた敷地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "坑道内は涼しく、外との温度差でレンズが曇ることがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "敷地周囲の林が色づき、屋外の建物と合わせて撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心なので時間帯の影響は小さめ。坑道は常に暗いです。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、展示を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "琥珀は透過光を意識し、光源が背後に来る角度を探します",
+      "坑道は高感度と手ブレ補正で撮り、ストロボは反射するので避けます",
+      "展示の撮影可否は館内表示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.kuji.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d2397d7adff4",
@@ -37117,6 +37865,129 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_e0b483e172cc",
+    "slug": "morioka-jozan",
+    "name": "盛岡城跡公園",
+    "nameEn": "Morioka Castle Site Park",
+    "reading": "もりおかじょうせきこうえん",
+    "aliases": [
+      "岩手公園",
+      "盛岡城 石垣"
+    ],
+    "address": "岩手県盛岡市内丸1-37",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "盛岡市"
+    },
+    "coords": {
+      "lat": 39.7,
+      "lng": 141.15
+    },
+    "category": "landmark",
+    "summary": "花崗岩を高く積んだ石垣が市街の中心に残る城跡。天守はなく、石垣と樹木だけで構成された公園です。",
+    "description": "南部氏の居城だった盛岡城の跡で、建物は失われていますが本丸・二の丸の石垣が良好に残ります。地元産の花崗岩を使っているため石が白っぽく、苔や木の緑との対比が強く出ます。高低差があり、石垣の上からは市街と岩手山が見えます。中津川に面した側は水辺の景観も入ります。桜と紅葉の名所で、夜間の照明が入る期間があります。",
+    "highlights": [
+      "白っぽい花崗岩の高石垣",
+      "石垣の上から見る岩手山",
+      "中津川に面した水辺"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の桜。石垣と桜を重ねられる角度が園内に複数あります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月、紅葉と石垣。色と石の質感が拮抗します。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もると石垣の稜線だけが白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、石垣の面に斜光が当たって積み方が読めます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は花崗岩が暖色に染まり、白さが和らぎます。"
+      }
+    ],
+    "compositionTips": [
+      "石垣は真正面より斜めから撮ると勾配が出ます",
+      "石の目地を主題にした寄りの一枚も残します",
+      "岩手山を入れるなら本丸側の高い位置から望遠で圧縮します"
+    ],
+    "officialWebsiteUrl": "https://www.city.morioka.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_2e8cc309b3a1",
+    "slug": "morioka-kaiunbashi",
+    "name": "開運橋",
+    "nameEn": "Kaiunbashi Bridge",
+    "reading": "かいうんばし",
+    "aliases": [
+      "二度泣き橋"
+    ],
+    "address": "岩手県盛岡市盛岡駅前通",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "盛岡市"
+    },
+    "coords": {
+      "lat": 39.7,
+      "lng": 141.14
+    },
+    "category": "landmark",
+    "summary": "盛岡駅前の北上川に架かる橋。橋の上から川の上流を向くと、街並みの上に岩手山が正面に立ちます。",
+    "description": "盛岡駅と市街地を結ぶ橋で、白いアーチが特徴です。橋上から北上川の上流を見ると、川の両岸の街並みの奥に岩手山が構図の中心に収まります。駅から徒歩数分なので、到着してすぐに撮れる場所です。転勤で来たときと去るときに泣くことから二度泣き橋とも呼ばれます。歩道が広く、三脚を使わなければ通行の妨げになりません。",
+    "highlights": [
+      "街並みの奥に正面から立つ岩手山",
+      "白いアーチの橋",
+      "盛岡駅から徒歩数分"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、川沿いの桜と残雪の岩手山が同時に入ります。"
+      },
+      {
+        "season": "winter",
+        "text": "白い岩手山と雪の街。空気が澄んで山の輪郭が最も出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は山が見えやすく、通勤前で歩道も空いています。"
+      },
+      {
+        "time": "night",
+        "text": "夜は川面に街の灯りが映ります。手すりにカメラを固定すると安定します。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で岩手山を引き寄せると街の奥の山が大きく見えます",
+      "川面の反射を入れて上下に厚みを作ります",
+      "歩道は通行があるので三脚は避け、手持ちか手すり固定で撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.odette.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c3b62fd8a739",
     "slug": "mosaic-tile-museum",
     "name": "多治見市モザイクタイルミュージアム",
@@ -37403,6 +38274,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_54eea535e065",
+    "slug": "motsuji",
+    "name": "毛越寺",
+    "nameEn": "Motsu-ji Temple",
+    "reading": "もうつうじ",
+    "aliases": [
+      "浄土庭園 毛越寺",
+      "大泉が池"
+    ],
+    "address": "岩手県西磐井郡平泉町平泉字大沢58",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "平泉町"
+    },
+    "coords": {
+      "lat": 38.99,
+      "lng": 141.1
+    },
+    "category": "temple",
+    "summary": "平安期の浄土庭園がほぼ当時の姿で残る寺。大泉が池を中心に、州浜や立石が水面と対になって配置されています。",
+    "description": "藤原氏二代基衡が造営した寺で、建物の多くは失われましたが庭園の遺構が良好に残り、世界遺産の構成資産になっています。中心の大泉が池には州浜、荒磯風の出島、立石が配され、池を一周しながら角度を変えて見る構成です。水面が静かな朝は対岸の木が丸ごと映ります。六月の菖蒲、九月の萩など、季節の草花も植えられています。",
+    "highlights": [
+      "平安期の浄土庭園の遺構",
+      "大泉が池の州浜と立石",
+      "水面の映り込み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "六月下旬から七月上旬の花菖蒲。池の周囲が紫に埋まります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。池への映り込みが最も色づく時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の庭園は線が単純になり、州浜や立石の配置がよく分かります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開門直後は無風で、池が鏡になる確率が高い時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水の透明度が上がり、州浜の石が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "水面を画面の半分以上取って映り込みを主題にします",
+      "立石は他の要素と重ねず、単独で置くと庭の意図が伝わります",
+      "池は一周できるので、光の向きに応じて対岸へ回ります"
+    ],
+    "officialWebsiteUrl": "https://www.motsuji.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7ba0c31947ed",
@@ -59306,6 +60241,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_dba0bf1121b8",
+    "slug": "takata-matsubara",
+    "name": "高田松原 奇跡の一本松",
+    "nameEn": "Takata Matsubara, Miracle Pine",
+    "reading": "たかたまつばら きせきのいっぽんまつ",
+    "aliases": [
+      "奇跡の一本松"
+    ],
+    "address": "岩手県陸前高田市気仙町字土手影180",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "陸前高田市"
+    },
+    "coords": {
+      "lat": 39,
+      "lng": 141.63
+    },
+    "category": "landmark",
+    "summary": "津波で失われた松原にただ一本残った松を保存したモニュメント。周囲は復興祈念公園として整備されています。",
+    "description": "かつて七万本の松が並んだ高田松原は、二〇一一年の津波でほぼ失われました。一本だけ残った松はその後枯死しましたが、保存処理をして同じ場所に立てられています。周囲は高田松原津波復興祈念公園として整備され、震災遺構のユースホステル、東日本大震災津波伝承館が隣接します。追悼の場であることを踏まえた振る舞いが求められます。",
+    "highlights": [
+      "保存された一本の松",
+      "復興祈念公園の広い園地",
+      "隣接する震災遺構と伝承館"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "再生の取り組みで植えられた若い松が育っています。春は周囲が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海と松と空の三層が整理して写せます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、静かに向き合える季節です。海風が強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の低い光が松の幹を側面から照らします。海側が明るくなる時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は松をシルエットにできますが、感傷的に寄りすぎない扱いを選びます。"
+      }
+    ],
+    "compositionTips": [
+      "松を中央に置いて周囲を大きく空けると、失われた松原の広さが伝わります",
+      "遺構は説明的に撮り、演出を加えすぎないこと",
+      "追悼に来た人を写さない画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://iwate-tsunami-memorial.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_39bc4f3c3826",
     "slug": "takato-joshi",
     "name": "高遠城址公園",
@@ -63282,6 +64280,136 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_082dd974bced",
+    "slug": "tono-denshoen",
+    "name": "遠野ふるさと村",
+    "nameEn": "Tono Furusato Village",
+    "reading": "とおのふるさとむら",
+    "aliases": [
+      "遠野 南部曲り家"
+    ],
+    "address": "岩手県遠野市附馬牛町上附馬牛5-89-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "遠野市"
+    },
+    "coords": {
+      "lat": 39.4,
+      "lng": 141.51
+    },
+    "category": "landmark",
+    "summary": "茅葺きの南部曲り家を移築して集落の形に並べた施設。田や水車を含め、昔の農村の配置ごと再現されています。",
+    "description": "江戸から明治の曲り家を数棟移築し、水車小屋や水田、畑を配して一つの集落として見せています。曲り家は母屋と厩がL字に繋がる岩手特有の形式で、屋内には囲炉裏が焚かれています。煙が茅葺きの下に流れる様子は屋内からのほうがよく撮れます。田植えや稲刈りなど季節の作業が行われ、そのときは人の動きも被写体になります。",
+    "highlights": [
+      "L字型の南部曲り家",
+      "囲炉裏の煙と茅葺き",
+      "水車小屋と田畑を含む集落の配置"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、水を張った田に曲り家が映ります。山にはまだ残雪があります。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑と茅葺きの茶色。夏草が伸びて集落らしさが出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "稲刈りと稲架掛け。農作業の風景が撮れる短い期間です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の曲り家と囲炉裏の煙。屋根の勾配に雪が乗る形が見どころです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は囲炉裏に火が入り、煙が屋内に漂います。逆光で光の筋が出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は茅葺きが暖色に染まり、集落全体が落ち着いた色になります。"
+      }
+    ],
+    "compositionTips": [
+      "屋内から開口部を通して外の田を見せる構図が曲り家の構造を語ります",
+      "煙は逆光で狙うと形が出ます",
+      "集落全体は高い位置から俯瞰して配置を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.tono-furusato.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_f176551e6d9e",
+    "slug": "tono-kappabuchi",
+    "name": "遠野 カッパ淵",
+    "nameEn": "Kappabuchi, Tono",
+    "reading": "とおの かっぱぶち",
+    "aliases": [
+      "常堅寺のカッパ淵"
+    ],
+    "address": "岩手県遠野市土淵町土淵",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "遠野市"
+    },
+    "coords": {
+      "lat": 39.37,
+      "lng": 141.59
+    },
+    "category": "nature",
+    "summary": "遠野物語に出てくる河童の淵。小川に木が覆いかぶさり、水面が暗く沈んだ狭い空間が続いています。",
+    "description": "常堅寺の裏手を流れる小川の一区間で、『遠野物語』に河童が棲むと書かれた場所です。川幅は狭く、両岸から木が張り出して水面をほとんど覆うため、昼でも暗く沈んでいます。岸には祠と小さな社があり、河童を釣るための竿が置かれています。周囲は田園で、そこだけ空気が変わるような場所の切り替わりが見どころです。",
+    "highlights": [
+      "木に覆われた暗い水面",
+      "岸の祠と河童の竿",
+      "周囲の田園との落差"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "緑が最も濃く、水面が暗く沈みます。場所の雰囲気がいちばん出る季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "落葉が水面に浮かび、暗い水に色が点在します。"
+      },
+      {
+        "season": "winter",
+        "text": "葉が落ちて明るくなり、川の構造そのものが見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、川霧が出ることがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中でも暗いので、木漏れ日が差し込む瞬間を待つと画になります。"
+      }
+    ],
+    "compositionTips": [
+      "暗い水面に露出を合わせず、葉の緑を基準にして水を沈めます",
+      "川幅の狭さを出すため、両岸を画面の端に入れます",
+      "祠や竿は説明的な要素として一枚だけ押さえます"
+    ],
+    "officialWebsiteUrl": "https://tonojikan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c76b561c85d9",
     "slug": "tono-meganebashi",
     "name": "遠野 めがね橋（宮守川橋梁）",
@@ -66556,6 +67684,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_24b916a84bad",
+    "slug": "unosu-dangai",
+    "name": "鵜の巣断崖",
+    "nameEn": "Unosu Cliffs",
+    "reading": "うのすだんがい",
+    "aliases": [
+      "鵜の巣断崖 展望台"
+    ],
+    "address": "岩手県下閉伊郡田野畑村真木沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "田野畑村"
+    },
+    "coords": {
+      "lat": 39.9,
+      "lng": 141.92
+    },
+    "category": "nature",
+    "summary": "高さ二百メートルの断崖が五つの連なりになって海へ落ちる場所。展望台からは崖の列が横に並んで見えます。",
+    "description": "三陸海岸の北部にある断崖で、高さ約二百メートルの崖が五つ連続して海に落ちています。駐車場から松林を十分ほど歩くと展望台に出て、そこから崖の連なりを横から見られます。崖の下には小さな浜があり、海食による地形がそのまま残っています。柵の外は急斜面なので、展望台の内側から撮ります。",
+    "highlights": [
+      "高さ二百メートルの断崖",
+      "五つ連なる崖の列",
+      "展望台までの松林の道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "やませによる霧が出ると、崖が霧のなかに消える画になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、崖の列の奥まで見通せます。海の青も濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、崖の下に白い波頭が並びます。風が強いので足場に注意します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので朝は逆光になりますが、海面の反射を活かせます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は崖の面に光が回り、地層の縞が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で崖を圧縮すると五つの連なりが重なって見えます",
+      "海面を少なめにして崖の高さを強調します",
+      "柵の内側から撮り、身を乗り出さないこと"
+    ],
+    "officialWebsiteUrl": "https://www.vill.tanohata.iwate.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d062ff89c8da",
     "slug": "unzen-jigoku",
     "name": "雲仙地獄",
@@ -68150,6 +69341,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d7b0d30e94a6",
+    "slug": "yakehashiri",
+    "name": "焼走り熔岩流",
+    "nameEn": "Yakehashiri Lava Flow",
+    "reading": "やけはしりようがんりゅう",
+    "aliases": [
+      "焼走り溶岩流"
+    ],
+    "address": "岩手県八幡平市平笠24-728",
+    "region": {
+      "country": "日本",
+      "prefecture": "岩手県",
+      "city": "八幡平市"
+    },
+    "coords": {
+      "lat": 39.88,
+      "lng": 141.06
+    },
+    "category": "nature",
+    "summary": "江戸期の噴火で流れ出た熔岩が、黒い岩の原のまま残っています。三百年経っても植生がほとんど入りません。",
+    "description": "一七一九年の岩手山の噴火でできた熔岩流で、幅最大千五百メートル、長さ約四キロにわたって黒い岩塊が積み重なっています。三百年を経てもほとんど植物が根づかず、当時の姿に近い状態で残るため国の特別天然記念物に指定されています。遊歩道が原の中を通り、正面に岩手山が立ち上がります。足場は溶岩塊なので靴を選びます。",
+    "highlights": [
+      "植生がほとんど入らない黒い岩の原",
+      "原の正面にそびえる岩手山",
+      "岩塊の上を通る遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、残雪の岩手山と黒い熔岩の対比が最も強い時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "黒い岩が熱を持つので、朝夕に歩くほうが快適です。"
+      },
+      {
+        "season": "autumn",
+        "text": "周囲の林が色づき、黒・赤・青空の三色で構成できます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が岩塊の凹凸を立体的に描きます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は岩が暖色を帯び、黒一色から質感が浮き出ます。"
+      }
+    ],
+    "compositionTips": [
+      "遊歩道の線を手前から奥へ通し、岩手山へ視線を運びます",
+      "黒い岩は露出が引っ張られるので、プラス補正で潰れを防ぎます",
+      "広角で原の広さを出すか、寄って岩の質感を撮るかを決めてから動きます"
+    ],
+    "officialWebsiteUrl": "https://www.city.hachimantai.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6b91c208167d",
