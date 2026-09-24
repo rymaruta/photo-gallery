@@ -40,3 +40,55 @@ Map photo post coordinates remain subject to existing public/approximately-round
 - EOX cloudless tiles for recent years specify **non-commercial** use for their free service; not a safe default for a public photo SNS without further licensing.
 - Sentinel/Copernicus satellite data itself is openly licensed, but downloading, assembling and distributing an always-on global high-resolution commercial map is a separate storage, processing and tile delivery problem with potential operational costs.
 - Free quotas of subscription mapping services are not a permanent zero-cost service guarantee.
+
+## World-map expansion: official national imagery (2026-09-24)
+
+The existing GSI MODIS layer remains a *low-resolution world overview*, not a
+worldwide close-up satellite map. `OFFICIAL_COUNTRY_IMAGERY` in
+`app/map/loadVectorBasemap.ts` now registers six geographic extents spanning
+three additional countries, in addition to Japan:
+
+| Country/area | Government source | Keyless endpoint / technical notes | Implementation status |
+|---|---|---|---|
+| United States: contiguous US, Alaska, Hawaii | USGS The National Map, Imagery Only; mostly USDA NAIP imagery in the contiguous US | ArcGIS cached image tiles in `/{z}/{y}/{x}` order, requested at z9–16. USGS says its own National Map map-service data are free/public domain, but Alaska imagery can contain third-party restrictions. | Source configured; region imagery/browser checks pending |
+| Metropolitan France (including Corsica in bounding box) | IGN Géoplateforme, `ORTHOIMAGERY.ORTHOPHOTOS` | Public WMTS `data.geopf.fr/wmts`, PM Web Mercator matrix, z9–19 requested; check the actual layer matrix limits, format, CORS and terms before release. French overseas territories not included. | Source configured; tile response and license/service checks pending |
+| Spain mainland + Balearic Islands and Canary Islands | Spain IGN/CNIG PNOA `OI.OrthoimageCoverage` | Public WMTS, `GoogleMapsCompatible` matrix, z9–19 requested. CNIG PNOA licensing requires origin/property attribution and is described as CC-BY-4.0-compatible; inspect service terms for application use. | Source configured; tile response and license/service checks pending |
+
+Official references (not inferred rights for third-party content):
+
+- USGS Imagery Only service: https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer
+- USGS map service terms: https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map
+- France IGN WMTS public access and GetTile syntax: https://cartes.gouv.fr/aide/fr/guides-utilisateur/utiliser-les-services-de-la-geoplateforme/diffusion/wmts/
+- France imagery catalogue: https://cartes.gouv.fr/
+- Spain PNOA official service: https://pnoa.ign.es/pnoa-lidar/visualizadores-y-servicios-web
+- Spain CNIG PNOA license example: https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=11547781
+
+**Coverage is not national-border-accurate yet.** MapLibre raster-source `bounds`
+are rectangular request limits, not country masks. Near borders (notably
+France/Spain, Spain/Portugal, US/Canada/Mexico), providers may return blank
+tiles or mixed/low-resolution imagery. Check that those tiles do not cover
+neighboring imagery incorrectly; if needed, use country-clipped raster
+tiles or an audited per-region masking strategy before production.
+No maritime border or political boundary overlay should be introduced.
+
+**Do not call this “all countries complete.”** The remaining countries,
+French overseas regions and international waters do not yet have a validated
+keyless official high-detail imagery source. Adding each country requires
+verifying whether that agency offers an open service, its permitted use,
+attribution, correct projection/tiling, sufficient coverage, CORS, rate
+limits and long-term availability. If any source is unavailable or unsuitable,
+the existing GSI low-resolution global overview or real free vector basemap
+remains instead of fake detail or paid API usage.
+
+Run `npx vitest run app/map/__tests__/freeImagery.test.ts` and
+`node scripts/capture-free-imagery-local.mjs` in an internet-connected
+development environment with dependencies installed. The latter creates
+**temporary** proof pages for Japan, world overview, US, France and Spain,
+checks for a real HTTP 200 image response from each corresponding provider,
+and only then saves mobile/desktop screenshots. Static tests do not prove
+tile access. This environment could not fetch the remote tiles or run the
+application, and the previously blocked GitHub Actions runner remains an
+independent obstacle; **do not mark country screenshots as verified yet.**
+
+No PR merge, production deploy, account signup, card registration, paid API
+or paid runner was performed.
