@@ -46,6 +46,14 @@ const routes = [
   { slug: "spain", label: "Spain", hash: "#13/40.4168/-3.7038",
     source: "www.ign.es/wmts/pnoa-ma?", description: "Spain PNOA official orthophotos in Madrid",
     pins: [["proof-madrid", "マドリード（検証用）", "スペイン", 40.4168, -3.7038]] },
+  { slug: "switzerland", label: "Switzerland", hash: "#13/47.3769/8.5417",
+    source: "wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage/",
+    description: "swisstopo official Swiss orthophotos in Zurich",
+    pins: [["proof-zurich", "チューリヒ（検証用）", "スイス", 47.3769, 8.5417]] },
+  { slug: "netherlands", label: "Netherlands", hash: "#13/52.3676/4.9041",
+    source: "service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/",
+    description: "PDOK official Dutch orthophotos in Amsterdam",
+    pins: [["proof-amsterdam", "アムステルダム（検証用）", "オランダ", 52.3676, 4.9041]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
