@@ -17,12 +17,6 @@ import type { Map as LeafletMap, Layer as LeafletLayer } from "leaflet";
 const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js";
 const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css";
 const LEAFLET_BRIDGE = "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/dist/leaflet-maplibre-gl.js";
-/** NASA's actual geographic shaded-relief tiles; no fabricated coastline.
- * Only used as a subtle LOW-ZOOM texture atop real OpenFreeMap vector geography.
- * Public GIBS WMTS EPSG3857 GoogleMapsCompatible_Level8 static basemap.
- */
-const NASA_RELIEF = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg";
-
 // "dark" is the restrained editorial/vector style. Fiord's bright contour
 // outlines overpower photo pins at the Greece/Japan travel zoom levels.
 export const REAL_DARK_MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -181,44 +175,6 @@ function applyReadableMapPalette(gl: VectorMap): void {
 }
 
 /**
- * The screenshot reference has geographical relief instead of a flat black sea.
- * Overlay real NASA shaded-relief imagery *below place-name symbol layers*
- * (not a CSS graphic or fake geographic texture). Stop at zoom 8 where the
- * source lacks finer data; the OpenFreeMap real roads and labels remain.
- * A NASA tile outage must never hide the live vector basemap.
- */
-function addLowZoomRelief(gl: VectorMap): boolean {
-    if (gl.getSource("journey-nasa-relief")) return true;
-    try {
-        gl.addSource("journey-nasa-relief", {
-            type: "raster",
-            tiles: [NASA_RELIEF],
-            tileSize: 256,
-            maxzoom: 8,
-            attribution: "Imagery: NASA GIBS / Blue Marble",
-        });
-        const firstLabel = gl.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
-        gl.addLayer({
-            id: "journey-nasa-relief-overlay",
-            type: "raster",
-            source: "journey-nasa-relief",
-            minzoom: 0,
-            maxzoom: 8.5,
-            paint: {
-                // Relief should be a texture, not a dark veil over the map.
-                "raster-opacity": 0.17,
-                "raster-saturation": -0.45,
-                "raster-brightness-max": 0.88,
-                "raster-fade-duration": 180,
-            },
-        }, firstLabel);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-/**
  * Completely keyless imagery from the Geospatial Information Authority of
  * Japan. Tile URLs and zoom limits are from GSI's official tile list:
  * https://maps.gsi.go.jp/development/ichiran.html
@@ -281,6 +237,8 @@ function addFreeImagery(gl: VectorMap): boolean {
 }
 
 /**
+ * Shows actual GSI imagery over one existing vector basemap. Note that source
+ * coverage and source zoom are limited; never claim Google-Earth-level detail.
  * Switches the base layer only AFTER actual vector tiles rendered.
  * Keep the readable OSM fallback in place on script/style failure.
  * Caller owns map lifecycle; cleanup is registered by the caller's effect.
