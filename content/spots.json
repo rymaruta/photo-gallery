@@ -852,6 +852,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_82ac71ff1cab",
+    "slug": "akama",
+    "name": "赤間神宮",
+    "nameEn": "Akama Shrine",
+    "reading": "あかまじんぐう",
+    "aliases": [
+      "水天門",
+      "耳なし芳一"
+    ],
+    "address": "山口県下関市阿弥陀寺町4-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下関市"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 130.95
+    },
+    "category": "shrine",
+    "summary": "竜宮城を模した朱と白の水天門が海峡に面して立ちます。壇ノ浦で入水した安徳天皇を祀る社です。",
+    "description": "壇ノ浦の戦いで入水した幼い安徳天皇を祀る社で、関門海峡に面して建ちます。正面の水天門は竜宮城を模した朱塗りの楼門で、白い壁と朱の柱の対比が強く、海を背にすると特に目立ちます。境内には平家一門の墓と、耳なし芳一の伝承にちなむ芳一堂があります。対岸の門司が近く、海峡の船の往来が背景に入ります。",
+    "highlights": [
+      "竜宮城を模した水天門",
+      "海峡を背にした立地",
+      "平家一門の墓と芳一堂"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の先帝祭。上臈道中が行われる日です。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、朱の門との対比が最も強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、門を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、門を正面から撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜はライトアップされ、朱が暗い海を背に浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "門は正面から左右対称に構えて竜宮の形を見せます",
+      "海峡を背景に入れると立地が伝わります",
+      "朱は飽和しやすいので露出をやや下げます"
+    ],
+    "officialWebsiteUrl": "https://www.tiki.ne.jp/~akama-jingu/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_814e922dec18",
     "slug": "akame-48-taki",
     "name": "赤目四十八滝",
@@ -7001,6 +7065,70 @@
       "屋敷内は撮影可否を受付で確認します"
     ],
     "officialWebsiteUrl": "https://chizukanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_9465d2ed162a",
+    "slug": "chofu",
+    "name": "長府の城下町",
+    "nameEn": "Chofu Castle Town",
+    "reading": "ちょうふのじょうかまち",
+    "aliases": [
+      "長府 古江小路",
+      "長府毛利邸"
+    ],
+    "address": "山口県下関市長府侍町",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下関市"
+    },
+    "coords": {
+      "lat": 33.99,
+      "lng": 130.99
+    },
+    "category": "landmark",
+    "summary": "土塀が続く武家屋敷の通り。古江小路の練塀は苔がつき、長さのわりに車が入らず静かです。",
+    "description": "長府毛利家五万石の城下町で、侍町一帯に武家屋敷の土塀が残ります。古江小路は両側が練塀で、路面は舗装されていますが車がほとんど通りません。塀は瓦を載せた土塀で、下部に苔がつき年季が見えます。長府毛利邸は明治期の邸宅で庭園が公開されています。功山寺、忌宮神社も徒歩圏にあり、まとめて歩けます。",
+    "highlights": [
+      "両側が土塀の古江小路",
+      "苔のついた練塀",
+      "明治期の長府毛利邸と庭園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "塀越しに桜が覗きます。苔も緑が濃くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "苔が最も濃く、土塀の下部が緑に染まります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬、毛利邸の庭園が色づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、小路を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は土塀が暖色に染まり、瓦の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "小路は消失点まで通して塀の長さを見せます",
+      "苔と土の質感は寄って撮ります",
+      "住居が多いので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.shimonoseki.lg.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -14699,6 +14827,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7b51b4c571e1",
+    "slug": "hagi-meirinkan",
+    "name": "萩 明倫学舎",
+    "nameEn": "Hagi Meirin Gakusha",
+    "reading": "はぎ めいりんがくしゃ",
+    "aliases": [
+      "旧明倫小学校"
+    ],
+    "address": "山口県萩市江向602",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "萩市"
+    },
+    "coords": {
+      "lat": 34.41,
+      "lng": 131.4
+    },
+    "category": "landmark",
+    "summary": "藩校明倫館の跡に建つ木造校舎。一九三五年築で、木造校舎としては国内最大級の規模が残ります。",
+    "description": "萩藩の藩校明倫館の敷地に建てられた小学校の校舎で、一九三五年の竣工です。木造二階建ての校舎が四棟並び、この規模の木造校舎が現存する例は多くありません。二〇一四年まで小学校として使われ、その後展示施設になりました。廊下の長さと窓の連続が特徴で、木の床と柱がそのまま残ります。敷地内には藩校時代の遺構も残ります。",
+    "highlights": [
+      "国内最大級の現存木造校舎",
+      "長い廊下と連続する窓",
+      "藩校明倫館の遺構"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "敷地の木が芽吹き、木造校舎と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が廊下に長く差し込み、床板が光ります。"
+      },
+      {
+        "season": "winter",
+        "text": "来館者が少なく、廊下を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の光が廊下の窓から低く入り、床に影の列を作ります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は教室内が均一に明るく、木の質感が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "廊下は消失点まで通して長さを見せます",
+      "窓の反復を光と影のリズムとして使います",
+      "床の木目は低い位置から撮ると年季が伝わります"
+    ],
+    "officialWebsiteUrl": "https://hagi-meirin.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_bb0448505800",
     "slug": "haguro-goju-no-to",
     "name": "羽黒山 五重塔",
@@ -19023,6 +19214,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_d24c44664ca5",
+    "slug": "hinoyama",
+    "name": "火の山",
+    "nameEn": "Mt. Hinoyama",
+    "reading": "ひのやま",
+    "aliases": [
+      "火の山公園",
+      "関門橋 展望"
+    ],
+    "address": "山口県下関市みもすそ川町",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下関市"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 130.97
+    },
+    "category": "mountain",
+    "summary": "関門海峡を見下ろす標高二百六十八メートルの山。橋と海峡と対岸の街を一枚に収められます。",
+    "description": "下関側で海峡に最も近い高台で、山頂の展望台から関門橋を真上から見下ろせます。海峡の幅は最も狭い部分で約七百メートル、そこを船が絶えず通ります。夜は橋と両岸の街の灯りが同時に入ります。ロープウェイと車道があり、山頂まで簡単に上がれます。かつて砲台が置かれた場所で、その遺構も残ります。",
+    "highlights": [
+      "関門橋を見下ろす視点",
+      "狭い海峡を通る船の往来",
+      "夜の橋と両岸の灯り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "山頂の桜。橋と花を一枚に入れられます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸の街までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "日没が早く、夕景と夜景を短い時間で両方撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海峡が光り、そのまま夜景へ移る時間帯が狙い目です。"
+      },
+      {
+        "time": "night",
+        "text": "橋のライトアップと街の灯り。三脚は通路を塞がない位置に置きます。"
+      }
+    ],
+    "compositionTips": [
+      "橋の曲線を手前から奥へ通して対岸へ視線を運びます",
+      "船を入れると海峡が現役の航路であることが伝わります",
+      "夜景は長時間露光で船の航跡を線にできます"
+    ],
+    "officialWebsiteUrl": "https://www.city.shimonoseki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1e01b968b562",
     "slug": "hiraizumi-takkoku",
     "name": "達谷窟毘沙門堂",
@@ -20181,6 +20436,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_21e5065c661a",
+    "slug": "hofu-tenmangu",
+    "name": "防府天満宮",
+    "nameEn": "Hofu Tenmangu",
+    "reading": "ほうふてんまんぐう",
+    "aliases": [
+      "防府 石段",
+      "御神幸祭 裸坊祭"
+    ],
+    "address": "山口県防府市松崎町14-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "防府市"
+    },
+    "coords": {
+      "lat": 34.05,
+      "lng": 131.57
+    },
+    "category": "shrine",
+    "summary": "日本で最初に建てられた天神様とされる社。石段の上から防府の市街と瀬戸内海を見渡せます。",
+    "description": "九〇四年の創建と伝わり、日本で最初に創建された天満宮とされます。参道の石段を上がった高い位置に社殿があり、そこから防府の市街と瀬戸内海が見渡せます。境内には大専坊など塔頭の遺構が残り、歴史館には国の重要文化財の松崎天神縁起絵巻が収蔵されています。十一月の御神幸祭は裸坊祭とも呼ばれ、白装束の男たちが重い神輿を担ぎます。",
+    "highlights": [
+      "石段の上からの市街と瀬戸内海",
+      "重要文化財の松崎天神縁起絵巻",
+      "十一月の御神幸祭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "二月から三月、境内の梅。天神様らしい季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月の御神幸祭。夜に白装束の列が石段を上がります。"
+      },
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、社殿の朱と対になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段と社殿を無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "御神幸祭は夜。松明と人の動きを高感度で追います。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から望遠で圧縮して社殿を奥に置きます",
+      "上からは市街と海を入れて立地を示します",
+      "祭りは沿道の所定の位置から撮り、行列を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.hofutenmangu.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_5ffcf99dbc76",
@@ -24654,6 +24973,70 @@
       "神社の参道からは鳥居と山を縦構図で重ねられます"
     ],
     "officialWebsiteUrl": "https://www.hirosaki-kanko.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_3cf9c8159876",
+    "slug": "iwakuni-castle",
+    "name": "岩国城",
+    "nameEn": "Iwakuni Castle",
+    "reading": "いわくにじょう",
+    "aliases": [
+      "岩国 城山",
+      "南蛮造"
+    ],
+    "address": "山口県岩国市横山3",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "岩国市"
+    },
+    "coords": {
+      "lat": 34.17,
+      "lng": 132.17
+    },
+    "category": "landmark",
+    "summary": "城山の頂に建つ天守。最上階が下階より張り出す南蛮造で、麓の錦帯橋から見上げる構図が定番です。",
+    "description": "吉川広家が築いた城で、一六一五年の一国一城令でわずか七年で取り壊されました。現在の天守は一九六二年の再建で、最上階が下の階より外へ張り出す南蛮造という形式です。山頂からは錦川の蛇行と岩国の市街、瀬戸内海まで見渡せます。麓の錦帯橋からロープウェイで上がります。本来の天守台は再建天守の隣に発掘されて残っています。",
+    "highlights": [
+      "最上階が張り出す南蛮造の天守",
+      "山頂からの錦川の蛇行の眺め",
+      "発掘された本来の天守台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。麓の錦帯橋と合わせて一日で回れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、瀬戸内海までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して城山の地形と天守台の位置が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、山頂からの展望も澄んでいます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は天守の白壁が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "麓から望遠で天守を抜くと城山の高さが伝わります",
+      "山頂からは錦川の蛇行を手前から奥へ通します",
+      "南蛮造の張り出しは側面から撮ると形が分かります"
+    ],
+    "officialWebsiteUrl": "https://kankou.iwakuni-city.net/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -30068,6 +30451,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0172f55bf61e",
+    "slug": "kasayama",
+    "name": "笠山 椿群生林",
+    "nameEn": "Kasayama Camellia Grove",
+    "reading": "かさやま つばきぐんせいりん",
+    "aliases": [
+      "萩 笠山",
+      "明神池"
+    ],
+    "address": "山口県萩市椿東越ヶ浜",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "萩市"
+    },
+    "coords": {
+      "lat": 34.44,
+      "lng": 131.43
+    },
+    "category": "nature",
+    "summary": "海際の林に二万五千本のヤブツバキが自生します。落ちた花が地面を赤く埋める光景で知られます。",
+    "description": "標高百十二メートルの小さな火山の裾に、約十ヘクタール二万五千本のヤブツバキが自生します。見頃は二月中旬から三月中旬。枝の花だけでなく、落ちた花が林床を赤く埋める光景が知られ、そちらを目当てに訪れる人が多くいます。近くの明神池は海と繋がった池で、海水魚が泳ぎます。山頂には火口があり、萩の海岸線を見渡せます。",
+    "highlights": [
+      "林床を埋める落ちた椿の花",
+      "二万五千本のヤブツバキ自生林",
+      "海と繋がる明神池"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "二月中旬から咲き始めます。落花が積もるのはこの時期からです。"
+      },
+      {
+        "season": "spring",
+        "text": "三月中旬まで見頃。落花が最も厚く積もる時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "花はありませんが、山頂の火口と海岸線が見通せます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は林内が均一に暗く、落花の赤が沈んで濃く出ます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が林床に落ち、明暗差が大きくなります。"
+      }
+    ],
+    "compositionTips": [
+      "落花は低い位置から撮って地面の赤を面として見せます",
+      "曇りの日のほうが赤の飽和を抑えられます",
+      "遊歩道から外れず、落花を踏み荒らさないこと"
+    ],
+    "officialWebsiteUrl": "https://www.hagishi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1125dd60a5d8",
@@ -36283,6 +36730,134 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_a84c73f23abd",
+    "slug": "kozanji",
+    "name": "功山寺",
+    "nameEn": "Kozan-ji Temple",
+    "reading": "こうざんじ",
+    "aliases": [
+      "功山寺 仏殿",
+      "高杉晋作 挙兵"
+    ],
+    "address": "山口県下関市長府川端1-2-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下関市"
+    },
+    "coords": {
+      "lat": 33.99,
+      "lng": 130.99
+    },
+    "category": "temple",
+    "summary": "一三二〇年建立の仏殿は国宝。唐様の屋根が檜皮葺で反り上がり、日本最古級の禅宗様建築です。",
+    "description": "鎌倉末期の一三二〇年に建てられた仏殿が国宝に指定されています。禅宗様の建築で、屋根は檜皮葺、軒の反りが強く、扇状に配された垂木が特徴です。年代が明らかな禅宗様仏殿としては国内最古級です。境内は木立に囲まれ、参道から仏殿までが落ち着いた構成になっています。一八六四年、高杉晋作がここで挙兵しました。長府の城下町の中にあります。",
+    "highlights": [
+      "国宝の禅宗様仏殿",
+      "扇状に配された垂木",
+      "木立に囲まれた参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が境内に入り、檜皮の色と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月下旬の紅葉。仏殿と赤が重なる本番の季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、仏殿を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、仏殿を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は軒下に光が回り込み、垂木の扇状の配置が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "軒下を見上げて扇垂木の放射を主題にします",
+      "仏殿は正面から撮って禅宗様の構成を記録します",
+      "紅葉は望遠で屋根の一部と組み合わせて色を絞ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.shimonoseki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_3fff1602eea7",
+    "slug": "kudamatsu",
+    "name": "笠戸島",
+    "nameEn": "Kasado Island",
+    "reading": "かさどじま",
+    "aliases": [
+      "笠戸大橋",
+      "夕日岬"
+    ],
+    "address": "山口県下松市笠戸島",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下松市"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 131.86
+    },
+    "category": "nature",
+    "summary": "下松港の沖に浮かぶ島。橋で渡れ、夕日岬からは瀬戸内海に沈む日と島影が一枚に入ります。",
+    "description": "笠戸大橋で本州と繋がる島で、周囲は瀬戸内海の島々に囲まれています。西岸の夕日岬は名前のとおり日没の展望地で、海に沈む日と重なる島影が撮れます。島の南には白い砂浜の大城海水浴場があり、ハイキングコースも整備されています。笠戸ひらめの養殖で知られ、漁港の施設も見られます。下松市街から車で近い距離です。",
+    "highlights": [
+      "夕日岬からの日没と島影",
+      "白い砂浜の海水浴場",
+      "笠戸大橋からの眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、砂浜の白との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "視程が伸び、遠くの島まで層になって見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕日岬が本命。日没の位置は季節で動くので事前に調べます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、海面も静かです。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で島影を圧縮すると瀬戸内らしい層ができます",
+      "夕景は露出を空に合わせて島をシルエットにします",
+      "橋は横から撮って島との位置関係を見せます"
+    ],
+    "officialWebsiteUrl": "https://kudamatsu-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_fba7fd518bae",
     "slug": "kuji-amber",
     "name": "久慈琥珀博物館",
@@ -42024,6 +42599,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_35d812366186",
+    "slug": "mine-omine",
+    "name": "大寧寺",
+    "nameEn": "Taine-ji Temple",
+    "reading": "たいねいじ",
+    "aliases": [
+      "長門 大寧寺",
+      "盤石橋"
+    ],
+    "address": "山口県長門市深川湯本1074",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "長門市"
+    },
+    "coords": {
+      "lat": 34.36,
+      "lng": 131.18
+    },
+    "category": "temple",
+    "summary": "大内義隆が自刃した寺。境内を流れる川に自然石を組んだ盤石橋が架かり、紅葉の名所として知られます。",
+    "description": "一四一〇年開創の曹洞宗の寺で、一五五一年に大内義隆がここで自刃しました。境内を大寧寺川が流れ、加工していない自然石を組み合わせた盤石橋が架かります。継ぎ手も接着もない石橋で、山口県の有形文化財です。紅葉の名所として知られ、十一月には川沿いの木が色づきます。すぐ近くに長門湯本温泉があり、合わせて回れます。",
+    "highlights": [
+      "自然石を組んだ盤石橋",
+      "川沿いの紅葉",
+      "大内義隆終焉の地としての由緒"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。この寺が最も知られる季節です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑と川の水。石橋の灰色が引き立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、石橋を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、川面も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "日中は川に光が入り、水面の映り込みが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "盤石橋は横から撮って自然石の組み方を見せます",
+      "川面の映り込みを入れて紅葉を上下二層にします",
+      "遅いシャッターで水を流すと石の形が際立ちます"
+    ],
+    "officialWebsiteUrl": "https://nanavi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_ad62213f8d2c",
@@ -63163,6 +63802,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_3db7b09914b2",
+    "slug": "sesshutei",
+    "name": "常栄寺雪舟庭",
+    "nameEn": "Joei-ji Sesshu Garden",
+    "reading": "じょうえいじ せっしゅうてい",
+    "aliases": [
+      "山口 雪舟庭"
+    ],
+    "address": "山口県山口市宮野下2001",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "山口市"
+    },
+    "coords": {
+      "lat": 34.2,
+      "lng": 131.49
+    },
+    "category": "temple",
+    "summary": "画僧雪舟が作庭したと伝わる庭。石組みが林の中に点在し、絵画的な構図で配置されています。",
+    "description": "大内政弘が雪舟に作らせたと伝わる庭園で、国の史跡名勝に指定されています。池を中心に、背後の林に向かって石組みが段状に配されます。整った幾何学ではなく、絵を描くように石が置かれているのが特徴です。書院から座って見ると、林と石と水が奥行きのある一枚の画面になります。紅葉期が最も知られますが、新緑と雪の季節も見どころです。",
+    "highlights": [
+      "雪舟の作庭と伝わる石組み",
+      "書院から見る絵画的な構図",
+      "背後の林へ段をなす配置"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の新緑。石の灰色と若葉の対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。庭が最も知られる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の庭は線が単純になり、石組みの配置がよく分かります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開門直後は無風で、池の映り込みが安定します。"
+      },
+      {
+        "time": "day",
+        "text": "日中は林に光が入り、奥行きが層になります。"
+      }
+    ],
+    "compositionTips": [
+      "書院の柱と鴨居で庭を囲む額縁構図が作庭の意図に合います",
+      "石組みは他の要素と重ねず、単独で置くと配置が読めます",
+      "池は水面を半分以上取って映り込みを主題にします"
+    ],
+    "officialWebsiteUrl": "https://yamaguchi-city.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_41c59cfd873c",
     "slug": "settsukyo",
     "name": "摂津峡",
@@ -64311,6 +65013,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6def624c2c3d",
+    "slug": "shimonoseki-karato",
+    "name": "唐戸市場",
+    "nameEn": "Karato Market",
+    "reading": "からといちば",
+    "aliases": [
+      "下関 唐戸",
+      "活きいき馬関街"
+    ],
+    "address": "山口県下関市唐戸町5-50",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "下関市"
+    },
+    "coords": {
+      "lat": 33.95,
+      "lng": 130.94
+    },
+    "category": "landmark",
+    "summary": "関門海峡に面した魚市場。週末はフグをはじめ寿司や海鮮の露店が並び、人と食材が同じ画面に収まります。",
+    "description": "下関の海沿いにある市場で、平日は業者向け、週末と祝日は一般向けに開かれます。関門海峡に面しており、建物を出れば対岸の門司が見えます。フグの取扱量が多く、店頭に並ぶ姿が被写体になります。二階のテラスからは海峡と関門橋が見渡せます。市場は営業の場なので、店頭や商品を撮るときは店の人に断るのが前提です。",
+    "highlights": [
+      "店頭に並ぶフグと海産物",
+      "関門海峡に面した立地",
+      "二階テラスからの関門橋の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "フグの最盛期。店頭の種類と量が最も多くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "海が明るく、テラスからの海峡の色が濃くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "人出が増えます。露店の賑わいそのものが被写体になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝が市場の本番。品が揃い、人の動きも最も多い時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方はテラスから海峡に落ちる光と関門橋が撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "店頭と人を一緒に入れて市場の場を見せます",
+      "商品や店の人を撮るときは必ず断ってからにします",
+      "テラスからは望遠で関門橋を引き寄せます"
+    ],
+    "officialWebsiteUrl": "https://www.karatoichiba.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_0cb6d3971e48",
@@ -67138,6 +67904,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_638897a897ce",
+    "slug": "shokasonjuku",
+    "name": "松下村塾",
+    "nameEn": "Shoka Sonjuku Academy",
+    "reading": "しょうかそんじゅく",
+    "aliases": [
+      "松陰神社 松下村塾"
+    ],
+    "address": "山口県萩市椿東1537",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "萩市"
+    },
+    "coords": {
+      "lat": 34.41,
+      "lng": 131.41
+    },
+    "category": "landmark",
+    "summary": "吉田松陰が教えた木造平屋の小屋。八畳一間と十畳半だけの建物が当時の場所に残ります。",
+    "description": "松陰神社の境内にある木造平屋建てで、世界遺産の構成資産です。講義に使われた八畳の部屋と、後から増築された十畳半の部屋だけの小さな建物で、ここから明治維新の主要人物が多数出ました。外から覗く形で内部を見られ、当時の机も置かれています。隣には松陰幽囚ノ旧宅があります。建物が小さいため、規模の小ささ自体が被写体になります。",
+    "highlights": [
+      "八畳一間から始まった塾",
+      "当時の場所に残る建物",
+      "隣接する幽囚ノ旧宅"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、木造の建物と対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が板壁に影を落とし、質感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、建物を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、建物の正面を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は障子越しの光で内部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "建物全体を一枚に入れて規模の小ささを見せます",
+      "縁側から内部を覗く角度で机と部屋を撮ります",
+      "内部には入れないので、外からの角度を丁寧に探します"
+    ],
+    "officialWebsiteUrl": "https://www.hagishi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6b1a1db6a8bc",
     "slug": "shokawa-zakura",
     "name": "荘川桜",
@@ -69037,6 +69866,133 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ecc4d81561c8",
+    "slug": "suo-oshima",
+    "name": "周防大島",
+    "nameEn": "Suo-Oshima Island",
+    "reading": "すおうおおしま",
+    "aliases": [
+      "屋代島",
+      "片添ヶ浜"
+    ],
+    "address": "山口県大島郡周防大島町",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "周防大島町"
+    },
+    "coords": {
+      "lat": 33.92,
+      "lng": 132.24
+    },
+    "category": "nature",
+    "summary": "瀬戸内海で三番目に大きい島。ハワイへの移民を多く出した歴史があり、南岸には椰子の並ぶ浜があります。",
+    "description": "瀬戸内海で淡路島、小豆島に次ぐ大きさの島で、大島大橋で本州と繋がります。明治期に多くの住民がハワイへ移民した歴史があり、ハワイと姉妹提携しています。南岸の片添ヶ浜には椰子が並び、瀬戸内では珍しい景観です。島の中央には嵩山があり、山頂の展望台からは島々と瀬戸内海を見渡せます。ミカンの段々畑が斜面に広がります。",
+    "highlights": [
+      "椰子が並ぶ片添ヶ浜",
+      "嵩山からの瀬戸内海の眺め",
+      "斜面のミカンの段々畑"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、椰子との組み合わせが最も出る季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "ミカンが色づき、斜面が橙色になります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、嵩山からの視程が最も伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海が光り、島影が層になります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、対岸の島までの輪郭が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "椰子を前景に入れて瀬戸内らしからぬ画面を作ります",
+      "嵩山からは望遠で島影を圧縮して層を見せます",
+      "ミカン畑は私有地なので道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.suo-oshima.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_6ef1c01fdf08",
+    "slug": "susa-hornfels",
+    "name": "須佐ホルンフェルス",
+    "nameEn": "Susa Hornfels Cliff",
+    "reading": "すさほるんふぇるす",
+    "aliases": [
+      "高山 須佐湾"
+    ],
+    "address": "山口県萩市須佐",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "萩市"
+    },
+    "coords": {
+      "lat": 34.63,
+      "lng": 131.6
+    },
+    "category": "nature",
+    "summary": "白と黒の縞が斜めに走る断崖。高さ十二メートルの岩壁が海に落ち、地層の縞がそのまま見えます。",
+    "description": "泥岩と砂岩の層がマグマの熱で変成してできた岩体で、白と黒の縞が明瞭に現れます。高さ約十二メートルの断崖が日本海に落ち、波打ち際まで降りられます。縞は斜めに走っており、規則的な模様が壁一面に続きます。国の天然記念物で、日本の地質百選にも選ばれています。駐車場から徒歩十分ほど。風が強い日と高波の日は危険です。",
+    "highlights": [
+      "白と黒の縞が走る断崖",
+      "波打ち際まで降りられる地形",
+      "高さ十二メートルの岩壁"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、白黒の縞との対比が最も強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、縞の線がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "日本海が荒れ、波が岩壁に砕けます。近づかないこと。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は順光で縞のコントラストが素直に出ます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は岩が暖色を帯び、白黒の差が和らぎます。"
+      }
+    ],
+    "compositionTips": [
+      "縞の斜めの線を画面の対角に置くと動きが出ます",
+      "人を入れて十二メートルの高さを示します",
+      "高波の日は波打ち際に降りず、上から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.hagishi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_080ac728176b",
@@ -74279,6 +75235,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_228c74021ac7",
+    "slug": "toko-ji",
+    "name": "東光寺",
+    "nameEn": "Toko-ji Temple",
+    "reading": "とうこうじ",
+    "aliases": [
+      "萩 毛利家墓所",
+      "五百基の石灯籠"
+    ],
+    "address": "山口県萩市椿東1647",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "萩市"
+    },
+    "coords": {
+      "lat": 34.41,
+      "lng": 131.42
+    },
+    "category": "temple",
+    "summary": "毛利家の墓所に約五百基の石灯籠が整然と並びます。同じ形が奥へ続く反復が構図になります。",
+    "description": "萩藩主毛利家の菩提寺で、奇数代の藩主が葬られています。墓所には家臣が寄進した約五百基の石灯籠が左右に整然と並び、参道の奥へ規則的に続きます。同じ形が反復する光景が、この寺の中心的な被写体です。伽藍は黄檗宗の様式で、総門、三門、大雄宝殿が一直線に並びます。八月十五日には全ての灯籠に火が入ります。",
+    "highlights": [
+      "整然と並ぶ約五百基の石灯籠",
+      "黄檗宗の一直線の伽藍配置",
+      "八月十五日の万灯会"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月十五日の万灯会。全灯籠に火が入る夜です。"
+      },
+      {
+        "season": "autumn",
+        "text": "墓所の周囲が色づき、石の灰色と赤が対になります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、灯籠の列を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が灯籠の列に影を作り、反復が強調されます。"
+      },
+      {
+        "time": "night",
+        "text": "万灯会の夜は灯籠の火が列として続きます。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で灯籠の列を圧縮すると反復の密度が上がります",
+      "参道の中心線に立って左右対称に構えます",
+      "斜光のときに石の質感と影が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.hagishi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7cc7e3722510",
     "slug": "tokoname-yakimono",
     "name": "常滑 やきもの散歩道",
@@ -74424,6 +75444,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ebfcecc4c37e",
+    "slug": "tokuyama",
+    "name": "周南コンビナート夜景",
+    "nameEn": "Shunan Industrial Night View",
+    "reading": "しゅうなんこんびなーとやけい",
+    "aliases": [
+      "徳山 工場夜景",
+      "晴海親水公園"
+    ],
+    "address": "山口県周南市晴海町",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "周南市"
+    },
+    "coords": {
+      "lat": 34.03,
+      "lng": 131.81
+    },
+    "category": "landmark",
+    "summary": "瀬戸内海に面した石油化学コンビナートの夜景。配管とタンクの照明が水面に映り、帯になって伸びます。",
+    "description": "周南市の臨海部には石油化学の工場群が連続し、夜は保安用の照明が配管とタンクの輪郭を描きます。晴海親水公園や永源山公園から対岸のコンビナートを望め、水面に灯りが帯になって映ります。工場夜景として全国的に知られ、観覧のクルーズも運航されています。工場は稼働中の施設なので、敷地には立ち入れません。三脚は公園内の指定された場所で使います。",
+    "highlights": [
+      "配管とタンクを描く保安照明",
+      "水面に映る灯りの帯",
+      "対岸から望める観覧地点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、灯りの粒が最もはっきり写ります。日没も早い季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "気温が下がり、陽炎による揺れが減ります。"
+      },
+      {
+        "season": "summer",
+        "text": "日没が遅く、待ち時間が長くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "日没後三十分から一時間が本番。空に色が残る時間が最も写ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "日没直後は空の青と工場の灯りが両立します。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で配管を圧縮すると構造の密度が出ます",
+      "水面の映り込みを半分入れて上下二層にします",
+      "工場の敷地には入らず、公園や公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.shunan-culture.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_586a124abd9d",
@@ -78176,6 +79260,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0ec3a39b216a",
+    "slug": "ube-tokiwa",
+    "name": "ときわ公園",
+    "nameEn": "Tokiwa Park, Ube",
+    "reading": "ときわこうえん",
+    "aliases": [
+      "宇部 常盤湖",
+      "彫刻の丘"
+    ],
+    "address": "山口県宇部市則貞3-4-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "宇部市"
+    },
+    "coords": {
+      "lat": 33.95,
+      "lng": 131.28
+    },
+    "category": "nature",
+    "summary": "常盤湖を囲む公園に屋外彫刻が約百点点在します。野外彫刻の国際展を六十年以上続けてきた町の集積です。",
+    "description": "周囲約十二キロの常盤湖を中心にした公園で、一九六一年から続く野外彫刻の国際展の受賞作が園内に設置されてきました。その数は約百点で、湖畔、芝生、林の中に点在します。彫刻を見に歩くと自然と園内を一周することになります。動物園と植物館も併設されています。春は桜、初夏は菖蒲、秋は紅葉が彫刻の背景になります。",
+    "highlights": [
+      "園内に点在する約百点の彫刻",
+      "周囲十二キロの常盤湖",
+      "六十年以上続く野外彫刻展"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の桜。彫刻と花を同じ画面に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、彫刻の金属や石の質感が引き立ちます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。彫刻の背景が変わります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光で彫刻の凹凸と影が最も出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、湖面も静かで映り込みが安定します。"
+      }
+    ],
+    "compositionTips": [
+      "彫刻は空を背景にして輪郭を抜きます",
+      "湖を入れると作品が屋外にあることが伝わります",
+      "斜光のときに素材の質感が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.tokiwapark.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_791f175de431",
     "slug": "uchiko-machinami",
     "name": "内子 八日市護国の町並み",
@@ -81488,6 +82636,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_05e15d7e9926",
+    "slug": "yamaguchi-xavier",
+    "name": "山口ザビエル記念聖堂",
+    "nameEn": "Xavier Memorial Church, Yamaguchi",
+    "reading": "やまぐちざびえるきねんせいどう",
+    "aliases": [
+      "亀山公園 聖堂"
+    ],
+    "address": "山口県山口市亀山町4-1B",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "山口市"
+    },
+    "coords": {
+      "lat": 34.18,
+      "lng": 131.47
+    },
+    "category": "landmark",
+    "summary": "白い二本の塔とテント型の屋根を持つ聖堂。一九九八年に再建され、内部は色ガラスが壁を埋めます。",
+    "description": "フランシスコ・ザビエルの来訪四百年を記念して一九五二年に建てられ、火災の後一九九八年に再建されました。現在の建物は白い壁と二本の塔、テントを思わせる三角形の屋根が特徴です。内部は正面と側面に色ガラスが入り、日中は床と壁に色が落ちます。丘の上にあり、山口市街から見上げる位置にあります。撮影可否は内部の表示に従います。",
+    "highlights": [
+      "白い二本の塔とテント型の屋根",
+      "内部を埋める色ガラス",
+      "市街を見下ろす丘の立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の桜と白い建物。丘が明るくなる時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、白い塔の輪郭がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が色ガラスを通して内部に長く差します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "色ガラスは日が高い時間に内部へ色を落とします。"
+      },
+      {
+        "time": "night",
+        "text": "夜はライトアップされ、二本の塔が暗い空に浮きます。"
+      }
+    ],
+    "compositionTips": [
+      "塔は下から煽って二本の垂直線を画面に立てます",
+      "内部は色が落ちる床や壁を主題にします",
+      "礼拝の場なので、内部の撮影可否と時間を確認します"
+    ],
+    "officialWebsiteUrl": "https://yamaguchi-city.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0019c2669f4d",
     "slug": "yamashiro-kosoyu",
     "name": "山代温泉 古総湯",
@@ -81633,6 +82844,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_ea4d9c915f7f",
+    "slug": "yanai-shirakabe",
+    "name": "柳井 白壁の町並み",
+    "nameEn": "Yanai Shirakabe District",
+    "reading": "やない しらかべのまちなみ",
+    "aliases": [
+      "柳井 金魚ちょうちん",
+      "柳井 古市金屋"
+    ],
+    "address": "山口県柳井市柳井津",
+    "region": {
+      "country": "日本",
+      "prefecture": "山口県",
+      "city": "柳井市"
+    },
+    "coords": {
+      "lat": 33.96,
+      "lng": 132.11
+    },
+    "category": "landmark",
+    "summary": "白漆喰の町家が約二百メートル続きます。軒先に赤い金魚ちょうちんが下がり、白壁に色の点が並びます。",
+    "description": "室町期から商都として栄えた町で、古市金屋地区が重要伝統的建造物群保存地区に選定されています。白漆喰の塗り込め造りの町家が約二百メートル続き、妻入りと平入りが混ざります。軒先には柳井の民芸品である金魚ちょうちんが下がり、白い壁に赤い点が並ぶ構成になります。八月には金魚ちょうちん祭りが行われ、町中に数千個が灯ります。",
+    "highlights": [
+      "白漆喰の町家の連なり",
+      "軒先に下がる金魚ちょうちん",
+      "八月の金魚ちょうちん祭り"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月の金魚ちょうちん祭り。夜に数千個が灯ります。"
+      },
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁と赤の対比がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、通りの全景を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りを無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "祭りの夜はちょうちんの内側から光が出ます。高感度で撮ります。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で通りを圧縮するとちょうちんの赤が点として並びます",
+      "白壁は露出オーバーになりやすいのでマイナス補正を基本にします",
+      "ちょうちんに寄って民芸品としての作りを見せる一枚も入れます"
+    ],
+    "officialWebsiteUrl": "https://www.yanai-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_c52857e65462",
