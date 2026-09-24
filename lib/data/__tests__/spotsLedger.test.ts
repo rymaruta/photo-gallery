@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SPOTS, type Spot } from "../spots";
 import { publishBlockers, publishableSpots, SOURCED_FIELDS } from "../../utils/spotGuide";
+import { PREFECTURES as PREFECTURE_TABLE } from "../prefectures";
 
 /**
  * 🔴 **`content/spots.json` の中身そのものを見る。**
@@ -163,19 +164,31 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 「東京」（「都」抜け）のように揺れると、下の「知らない都道府県名」が
      * 落ちる——揺れたまま通すと、県ごとの集計が静かに割れる。
      */
-    const PREFECTURES = [
-        "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
-        "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
-        "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
-        "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
-        "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
-        "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
-        "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
-    ] as const;
+    /**
+     * **綴りの正は `lib/data/prefectures.ts`。** ここで別に並べ直さない
+     * ——`/spots/area/<slug>` の行き先を決めているのがあの表なので、
+     * 台帳の綴りをそちらに合わせないと、そのスポットは**どの県のページにも
+     * 出ないまま静かに消える**。
+     */
+    const PREFECTURES = PREFECTURE_TABLE.map((p) => p.name);
 
     const jpPrefectures = () => SPOTS
         .filter((s) => s.region?.country === "日本")
         .map((s) => s.region?.prefecture ?? "");
+
+    /**
+     * 🔴 **`/spots/<slug>` と `/spots/area/<x>` は同じ親の下にある。**
+     *
+     * `output: export` なので `/spots/area` は `out/spots/area/` という
+     * **ディレクトリ**になる。`area` という綴りのスポットを台帳に入れると、
+     * その個別ページが `out/spots/area.html` を作ろうとして、県ごとの一覧が
+     * 丸ごと壊れる（か、ビルドが落ちる）。**台帳の側で止める**。
+     */
+    it("ルートとぶつかる綴りを使っていない", () => {
+        const RESERVED = ["area"];
+        const hit = SPOTS.filter((s) => RESERVED.includes(s.slug)).map((s) => s.slug);
+        expect(hit, "`/spots/` の下の固定ルートと同じ綴りのスポットがある").toEqual([]);
+    });
 
     it("47都道府県すべてに1件以上ある", () => {
         const have = new Set(jpPrefectures());

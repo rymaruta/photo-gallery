@@ -30,6 +30,10 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { publishableSpots, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
+import {
+    PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
+    prefectureByName, type RegionName,
+} from "./prefectures";
 
 /**
  * 画面がスポットへリンクするのに要る項目**だけ**。
@@ -102,14 +106,6 @@ export function toSpotLink(spot: Spot): SpotLink {
  */
 export type SpotIndexItem = SpotLink & { category?: string };
 
-/** 索引に渡す一覧。**公開できるものだけ**を、上の軽い形にして返す */
-export function spotIndexItems(): SpotIndexItem[] {
-    return publishableSpots(SPOTS).map((s) => ({
-        ...toSpotLink(s),
-        ...(s.category ? { category: s.category } : {}),
-    }));
-}
-
 /**
  * 写真が指しているスポット。**`spotId` でしか照合しない。**
  *
@@ -160,4 +156,67 @@ export function spotLinksBySlug(): Record<string, SpotLink> {
     const out: Record<string, SpotLink> = {};
     for (const spot of publishableSpots(SPOTS)) out[spot.slug] = toSpotLink(spot);
     return out;
+}
+
+/**
+ * 🔴 **`/spots` は都道府県の一覧にする。**
+ *
+ * 全件を1ページに並べると、伸びたぶんだけ索引が重くなる。実測（2026-09-24）:
+ *
+ *     1件あたり 1,809 バイト（`SpotIndexItem` に落としたあと）
+ *     × 1,410件（各県30件）＝ **約2.4MB** が1枚のHTMLに乗る
+ *
+ * HTML は `no-cache, no-store` で配る（`scripts/deploy-static-site.js` の
+ * `isHtmlOrTxt`）ので、これは**訪問のたびに落ちるバイト**になる。
+ *
+ * だからこの関数が返すのは**県の名前と件数だけ**。1件あたり50バイト前後で、
+ * 47県でも 3KB に満たない。スポットの一覧は `/spots/area/<slug>` に分ける。
+ */
+export type SpotArea = {
+    slug: string;
+    name: string;
+    nameEn: string;
+    /** 地方。`null` は海外 */
+    region: RegionName | null;
+    count: number;
+};
+
+/** 台帳の1件が属する区画のスラッグ。**国内は都道府県・海外は一括** */
+function areaSlugOf(spot: Spot): string | null {
+    if (spot.region?.country !== "日本") return OVERSEAS_SLUG;
+    return prefectureByName(spot.region?.prefecture)?.slug ?? null;
+}
+
+/**
+ * 公開できるスポットが**1件以上ある区画だけ**を、件数つきで返す。
+ *
+ * **0件の県は出さない。** `SpotIndexClient` が「0件のテーマは作らない」と
+ * しているのと同じ理由——押しても何も無いリンクは、見た人の役に立たない。
+ */
+export function spotAreas(): SpotArea[] {
+    const counts = new Map<string, number>();
+    for (const s of publishableSpots(SPOTS)) {
+        const slug = areaSlugOf(s);
+        if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+    const out: SpotArea[] = [];
+    for (const p of PREFECTURES) {
+        const n = counts.get(p.slug) ?? 0;
+        if (n > 0) out.push({ slug: p.slug, name: p.name, nameEn: p.nameEn, region: p.region, count: n });
+    }
+    const overseas = counts.get(OVERSEAS_SLUG) ?? 0;
+    if (overseas > 0) {
+        out.push({
+            slug: OVERSEAS_SLUG, name: OVERSEAS_NAME, nameEn: OVERSEAS_NAME_EN,
+            region: null, count: overseas,
+        });
+    }
+    return out;
+}
+
+/** その区画のスポット。索引と同じ軽い形（`/spots/area/<slug>` が読む） */
+export function spotIndexItemsForArea(slug: string): SpotIndexItem[] {
+    return publishableSpots(SPOTS)
+        .filter((s) => areaSlugOf(s) === slug)
+        .map((s) => ({ ...toSpotLink(s), ...(s.category ? { category: s.category } : {}) }));
 }

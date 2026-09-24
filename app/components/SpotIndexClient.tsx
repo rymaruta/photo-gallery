@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
+import { ROUTES } from "@/lib/routes";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -21,9 +22,16 @@ import { useLocale } from "@/app/i18n/context";
  * 台帳の `Spot` をそのまま受けると、全文がこのページの HTML に乗る
  * ——実測 518KB／120件。`lib/data/spotLink.ts` の注記を参照。
  */
-type Props = { spots: SpotIndexItem[] };
+type Props = {
+    spots: SpotIndexItem[];
+    /**
+     * どの区画の一覧か（`/spots/area/<slug>`）。見出しとパンくずに使う。
+     * 省くと区画名のない一覧になる。
+     */
+    area?: { name: string; nameEn: string };
+};
 
-export default function SpotIndexClient({ spots }: Props) {
+export default function SpotIndexClient({ spots, area }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
     const [theme, setTheme] = React.useState<string | null>(null);
@@ -42,13 +50,22 @@ export default function SpotIndexClient({ spots }: Props) {
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
+            {/* **戻り道を必ず出す。** 区画のページは `/spots` からしか辿れない */}
+            <p className="m-0 mb-2" style={{ fontSize: "13px", lineHeight: "18px" }}>
+                <Link href={ROUTES.SPOTS} prefetch={false}
+                      className="text-white/60 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                    {isJa ? "← 撮影スポットをさがす" : "← Find a place to shoot"}
+                </Link>
+            </p>
             <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
-                {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
+                {area
+                    ? (isJa ? `${area.name}の撮影スポット` : `Photo spots in ${area.nameEn}`)
+                    : (isJa ? "撮影スポットをさがす" : "Find a place to shoot")}
             </h1>
             <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
                 {isJa
-                    ? "運営が調べた撮影地のガイドです。写真の投稿がまだ無い場所も載っています。"
-                    : "Guides we researched. Places with no photos yet are listed too."}
+                    ? `運営が調べた撮影地のガイドです（${spots.length}件）。写真の投稿がまだ無い場所も載っています。`
+                    : `Guides we researched (${spots.length}). Places with no photos yet are listed too.`}
             </p>
 
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
