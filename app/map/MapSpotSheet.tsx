@@ -54,38 +54,32 @@ export default function MapSpotSheet({
             data-testid="map-spot-sheet"
         >
             <div
-                className="pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 lg:shadow-none"
-                style={{ maxWidth: "560px", padding: "12px 12px 14px" }}
+                className="journey-spot-sheet pointer-events-auto mx-auto rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 lg:shadow-none"
+                style={{ maxWidth: "560px", padding: "14px 14px 16px" }}
             >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3">
                     {/* 代表写真。**権利の判断はサーバー側で済んでいる**
                         （`lib/data/spotLink.ts` の `toSpotLink`）ので、
                         ここは在れば出す・無ければ枠ごと出さないだけ */}
                     {spot.cover && (
                         <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5 relative"
-                              style={{ width: "72px", height: "72px" }}>
+                              style={{ width: "102px", height: "122px" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={spot.cover.src} alt={spot.cover.alt} width={72} height={72}
+                            <img src={spot.cover.src} alt={spot.cover.alt} width={102} height={122}
                                  loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                            {spot.cover.credit && (
-                                <span className="absolute bottom-0 right-0 bg-black/60 text-white/85"
-                                      style={{ fontSize: "8px", lineHeight: "12px", padding: "0 3px" }}
-                                      data-testid="map-spot-credit">
-                                    {spot.cover.credit}
-                                </span>
-                            )}
+
                         </span>
                     )}
                     <div className="min-w-0 flex-1">
-                        <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
+                        <p className="m-0 flex items-center gap-1.5 text-link font-bold tracking-[0.1em]" style={{ fontSize: "11px", lineHeight: "16px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                             {/* **「公式」と名乗るのは、運営が台帳に書いたものだけ**
                                 （`publishableSpots` を通ったもの）。利用者の投稿から
                                 作った撮影地ページと見分けが付くようにする */}
-                            {en ? "Official spot" : "公式撮影スポット"}
+                            {en ? "OFFICIAL GUIDE" : "OFFICIAL GUIDE ・公式撮影地"}
                         </p>
                         <p className="m-0 mt-1 font-serif font-bold text-white wrap-anywhere"
-                           style={{ fontSize: "17px", lineHeight: "23px" }}>
+                           style={{ fontSize: "19px", lineHeight: "26px" }}>
                             {spot.name}
                         </p>
                         {spot.region && (
@@ -93,6 +87,8 @@ export default function MapSpotSheet({
                                 {spot.region}
                             </p>
                         )}
+                        {spot.summary && <p className="m-0 mt-2 line-clamp-2 text-white/85" style={{ fontSize: "12px", lineHeight: "18px" }}>{spot.summary}</p>}
+                        {spot.cover?.credit && <p data-testid="map-spot-credit" className="m-0 mt-2 break-words text-white/75" style={{ fontSize: "11px", lineHeight: "16px" }}>{spot.cover.credit}</p>}
                     </div>
                     <button
                         type="button"
@@ -109,7 +105,7 @@ export default function MapSpotSheet({
                     <Link
                         href={`${ROUTES.SPOTS}/${spot.slug}`}
                         prefetch={false}
-                        className="inline-flex items-center rounded-full bg-accent-fill text-white font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-white font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}
                         data-testid="map-spot-guide-link"
                     >
