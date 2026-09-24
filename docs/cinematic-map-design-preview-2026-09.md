@@ -37,3 +37,15 @@ This prototype deliberately keeps Leaflet rather than migrating to MapLibre in o
 3. Check marker click vs map-background click, current-location denied/allowed, photo privacy/GPS rounding, search-area sync, a currently selected marker outside the new bounds, long title/credit text and bottom-nav/MiniPlayer/sheet overlap.
 4. Obtain owner review of both the mobile and desktop real-app screenshots before merging this alternative or conflicting PR #148 into develop/main.
 5. Once the owner selects one map approach, resolve the conflicts explicitly. Do **not** merge the second Leaflet/OfficialSpotExplorer implementation from PR #148 into this branch.
+
+
+## 2026-09-24 継続実装：実在するベクター地図へ変更
+
+**以前のオフラインHTMLで描いた架空の地図は採用しない。** オーナーから「本物の地図になっていない」という再指摘があり、今回の変更で **`PhotoMap` の既定のベースマップを本物のOpenFreeMap Fiordベクタースタイル**（`https://tiles.openfreemap.org/styles/fiord`）に変更した。
+
+- 1つの既存Leaflet地図を使い、MapLibre GL JS 5.16.0 + `@maplibre/maplibre-gl-leaflet` 0.1.4で**背景地図のレイヤーだけ**を描画する。海岸線・道路・町名は実際の地図ベクターデータであり、CSSで色を塗った模式図ではない。
+- ピン・現在地・地図履歴・既存の公式スポットカード・検索範囲はLeafletのまま。**2つ目の地図インスタンスは作らない。**
+- 見える地図を確保するため、ベクタースタイルの実読込が終わるまでOSMの実タイルを表示。ライブラリ/外部地図への接続が失敗した場合はOSM地図を残し、失敗メッセージを表示する。OSMタイルをCSS反転して「実地図風」に見せる処理を削除した。
+- **重要: 今回はDraft試作限定のCDNランタイム読み込み。** MapLibre/Leafletブリッジを固定バージョンのCDNから読み込むため、CDN停止、SRI未設定、CSP、通信状態に依存する。**本番リリース前にnpmで依存関係を管理・固定し、監査済みのJS/CSSを同一サイトのアセットとして配信する実装へ切り替える**。実機でWebGL・CSP・低速通信を確認するまで本番にはマージしない。
+- OpenFreeMapの公式説明はキー不要の公共インスタンスであることを示すが、サービスの提供条件・帰属・運用負荷は公開前に改めて確認する。MapLibre本体とOpenFreeMapのライセンス・帰属を維持する。
+- **この接続からは実際の地図タイルの描画確認ができない**。従来のスクリーンショットは依然「架空の背景図によるHTMLプレビュー」であり、新しい実ベクター地図を証明しない。実アプリで地図のタイルと地名が描画された**新規の**390px/1280pxスクショが必要。
