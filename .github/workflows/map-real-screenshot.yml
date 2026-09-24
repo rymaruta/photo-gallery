@@ -143,6 +143,8 @@ jobs:
                 { slug: "EE", hash: "#13/59.437/24.745", provider: "tiles.maaamet.ee/tm/wmts?" },
                 { slug: "DE-NRW", hash: "#13/50.9375/6.9603", provider: "www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/" },
                 { slug: "LU", hash: "#13/49.6116/6.1319", provider: "wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/" },
+                { slug: "CA-TORONTO", hash: "#13/43.6532/-79.3832", provider: "gis.toronto.ca/arcgis/rest/services/basemap/cot_ortho/MapServer/tile/" },
+                { slug: "BR-SAO-PAULO", hash: "#13/-23.5505/-46.6333", provider: "datageo.ambiente.sp.gov.br/geoimage/datageoimg/ows?" },
               ];
               for (const country of overseas) {
                 const foreign = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
