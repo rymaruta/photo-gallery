@@ -251,6 +251,12 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "gugik-poland", country: "PL", provider: "GUGiK Geoportal Ortofotomapa",
         url: "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg",
         bounds: [14.1, 48.9, 24.2, 55.1], min: 9, max: 19, until: 20 },
+    // Australia: NSW only, not all Australia. State Spatial Services public
+    // Web Mercator cached imagery contains third-party imagery; release review
+    // must confirm per-source copyright alongside NSW government CC BY terms.
+    { id: "nsw-australia", country: "AU", provider: "NSW Spatial Services imagery (NSW only)",
+        url: "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}",
+        bounds: [140.7, -38.0, 154.1, -28.0], min: 9, max: 18, until: 19 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -361,7 +367,8 @@ export async function upgradeToRealVectorBasemap(
             + ' ・Datenquelle: <a href="https://basemap.at/" target="_blank" rel="noopener noreferrer">basemap.at</a>'
             + ' ・<a href="https://geoportal.cuzk.gov.cz/" target="_blank" rel="noopener noreferrer">© ČÚZK</a>'
             + ' ・<a href="https://www.vlaanderen.be/digitaal-vlaanderen" target="_blank" rel="noopener noreferrer">© Digitaal Vlaanderen (Flanders orthophoto)</a>'
-            + ' ・<a href="https://www.geoportal.gov.pl/" target="_blank" rel="noopener noreferrer">GUGiK Geoportal (Poland)</a>',
+            + ' ・<a href="https://www.geoportal.gov.pl/" target="_blank" rel="noopener noreferrer">GUGiK Geoportal (Poland)</a>'
+            + ' ・<a href="https://www.spatial.nsw.gov.au/" target="_blank" rel="noopener noreferrer">© NSW Department of Customer Service / NSW Spatial Services</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
