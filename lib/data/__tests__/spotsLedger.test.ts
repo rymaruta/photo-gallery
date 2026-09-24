@@ -49,6 +49,50 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(new Set(slugs).size, "slug が重複している").toBe(slugs.length);
     });
 
+    /**
+     * 🔴 **同じ場所を2回書いていない。**
+     *
+     * 鍵（`spotId` / `slug`）の重複は上で止まるが、**綴りを変えれば素通りする**。
+     * 2026-09-24、実際にこれで7件の重複を作りかけた——`osaka-castle-park`
+     * （既にある `osaka-castle`）・`hitsujiyama-shibazakura`（`hitsujiyama-park`）・
+     * `nomizo-no-taki`（`kiyosumi-keiryu-hiroba`）・`fukiware-no-taki`
+     * （`fukiware-falls`）など。**鍵が違うので既存の見張りは全部緑だった。**
+     *
+     * 重複が入ると、県の一覧に同じ場所が2回出て、サイトマップにも2本載る
+     * ——検索側から見れば中身の重なる薄いページが2枚になる。
+     *
+     * 見るのは2つ:
+     *   1. **名前**（かっこ書きと空白を落とした形）が他と同じでないか
+     *   2. **別名**が他のスポットの名前と同じでないか
+     *      （`大阪城公園` の別名 `大阪城` が、既存の `大阪城` と衝突する形）
+     */
+    const coreName = (n: string) =>
+        n.replace(/[（(][^）)]*[）)]/g, "").replace(/[\s\u3000]/g, "");
+
+    it("同じ場所を2回書いていない（名前と別名で見る）", () => {
+        const byCore = new Map<string, string[]>();
+        for (const s of SPOTS) {
+            const k = coreName(s.name);
+            byCore.set(k, [...(byCore.get(k) ?? []), s.slug]);
+        }
+        const dupNames = [...byCore.entries()]
+            .filter(([, slugs]) => slugs.length > 1)
+            .map(([k, slugs]) => `${k}: ${slugs.join(" / ")}`);
+        expect(dupNames, "同じ名前のスポットが2件以上ある").toEqual([]);
+
+        const nameOwner = new Map([...byCore].map(([k, slugs]) => [k, slugs[0]]));
+        const aliasHits: string[] = [];
+        for (const s of SPOTS) {
+            for (const a of s.aliases ?? []) {
+                const owner = nameOwner.get(coreName(a));
+                if (owner && owner !== s.slug) {
+                    aliasHits.push(`${s.slug} の別名「${a}」が ${owner} の名前と同じ`);
+                }
+            }
+        }
+        expect(aliasHits, "別名が他のスポットの名前と衝突している").toEqual([]);
+    });
+
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
         // 名前を鍵にすると (1) 同名異所を混ぜる (2) 改名で鍵が変わる
         const bad = SPOTS.filter((s) => !SPOT_ID_RE.test(s.spotId)).map((s) => s.spotId);
