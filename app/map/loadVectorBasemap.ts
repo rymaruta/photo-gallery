@@ -231,6 +231,20 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "pdok-netherlands", country: "NL", provider: "PDOK / Beeldmateriaal",
         url: "https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_ortho25/EPSG:3857/{z}/{x}/{y}.jpeg",
         bounds: [3.25, 50.5, 7.6, 54], min: 9, max: 19, until: 20 },
+    // Austrian federal/provincial open government basemap.at Orthofoto.
+    // Its WMTS REST template uses {z}/{y}/{x}, not generic XYZ order.
+    { id: "basemap-austria", country: "AT", provider: "basemap.at Orthofoto",
+        url: "https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg",
+        bounds: [9.4, 46.35, 17.1, 49.05], min: 9, max: 19, until: 20 },
+    // Czech state survey ČÚZK publishes a Web Mercator ArcGIS cached orthophoto.
+    { id: "cuzk-czechia", country: "CZ", provider: "ČÚZK Ortofoto ČR",
+        url: "https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}",
+        bounds: [12.05, 48.5, 18.9, 51.1], min: 9, max: 20, until: 21 },
+    // Belgian Flemish Region (+ available Brussels coverage), NOT all Belgium.
+    // Government's GoogleMapsVL is a Web Mercator WMTS matrix series.
+    { id: "vlaanderen-flanders", country: "BE", provider: "Digitaal Vlaanderen Orthofotomozaïek",
+        url: "https://geo.api.vlaanderen.be/OMWRGBMRVL/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=omwrgbmrvl&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+        bounds: [2.48, 50.63, 5.93, 51.53], min: 9, max: 19, until: 20 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -337,7 +351,10 @@ export async function upgradeToRealVectorBasemap(
             + ' ・<a href="https://cartes.gouv.fr/" target="_blank" rel="noopener noreferrer">IGN France</a>'
             + ' ・<a href="https://pnoa.ign.es/" target="_blank" rel="noopener noreferrer">IGN España / CNIG / PNOA</a>'
             + ' ・<a href="https://www.swisstopo.admin.ch/" target="_blank" rel="noopener noreferrer">© swisstopo</a>'
-            + ' ・<a href="https://www.pdok.nl/" target="_blank" rel="noopener noreferrer">PDOK / Beeldmateriaal</a>',
+            + ' ・<a href="https://www.pdok.nl/" target="_blank" rel="noopener noreferrer">PDOK / Beeldmateriaal</a>'
+            + ' ・Datenquelle: <a href="https://basemap.at/" target="_blank" rel="noopener noreferrer">basemap.at</a>'
+            + ' ・<a href="https://geoportal.cuzk.gov.cz/" target="_blank" rel="noopener noreferrer">© ČÚZK</a>'
+            + ' ・<a href="https://www.vlaanderen.be/digitaal-vlaanderen" target="_blank" rel="noopener noreferrer">© Digitaal Vlaanderen (Flanders orthophoto)</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
