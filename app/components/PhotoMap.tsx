@@ -6,6 +6,7 @@ import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
 import type { SpotPin } from "../../lib/data/spotLink";
+import { upgradeToRealVectorBasemap } from "../map/loadVectorBasemap";
 
 /** 既定の空配列。**毎回作らない**（作ると ref の更新が毎描画で走る） */
 const EMPTY_SPOTS: readonly SpotPin[] = [];
@@ -141,6 +142,7 @@ export default function PhotoMap({
     className?: string;
 }) {
     const en = locale === "en";
+    const [basemapState, setBasemapState] = useState<"loading" | "vector-ready" | "fallback">("loading");
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const layerRef = useRef<LayerGroup | null>(null);
@@ -201,18 +203,19 @@ export default function PhotoMap({
                 markerZoomAnimation: !reduceMotion, inertia: !reduceMotion,
             });
             mapRef.current = map;
-            // 既存のLeaflet地図を1つだけ使用。MapTilerの公開用キーを設定した
-            // プレビューではダークタイルを利用。未設定なら元のOSMへフォールバック。
-            // APIキーはWeb向けの公開キーであり、MapTiler側でサイトドメインを制限すること。
-            const mapTilerKey = process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY;
-            L.tileLayer(mapTilerKey
-                ? `https://api.maptiler.com/maps/streets-v4-dark/256/{z}/{x}/{y}.png?key=${encodeURIComponent(mapTilerKey)}`
-                : "https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            // OSM is a legible fallback while the REAL OpenFreeMap vector tiles
+            // load. The keyless vector provider draws coastline, roads and labels.
+            // No inverted screenshot/pseudo-map, and no second Leaflet instance.
+            const fallback = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 maxZoom: MAP_MAX_ZOOM,
-                attribution: mapTilerKey
-                    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>'
-                    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             }).addTo(map);
+            setBasemapState("loading");
+            void upgradeToRealVectorBasemap(
+                L, map, fallback,
+                () => !cancelled && mapRef.current === map,
+                setBasemapState,
+            );
             const layer = L.layerGroup().addTo(map);
             layerRef.current = layer;
 
@@ -558,7 +561,7 @@ export default function PhotoMap({
             // 外枠でスタッキングコンテキストを作れば、地図の中の重なり順は
             // どれだけ大きい値でもこの枠から出ない。
             className={`photo-map-frame journey-photo-map relative isolate w-full rounded-2xl overflow-hidden ring-1 ring-white/10 ${className || "h-[70vh] min-h-[320px]"}`}
-            data-basemap={process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY ? "maptiler-dark" : "osm-fallback"}
+            data-basemap={basemapState}
         >
             <div
                 ref={containerRef}
@@ -578,6 +581,12 @@ export default function PhotoMap({
                 className="photo-map-shell isolate absolute inset-0"
                 data-testid="photo-map"
             />
+
+            {basemapState === "fallback" && (
+                <p role="status" className="journey-map-basemap-warning pointer-events-none absolute left-3 top-2 z-[1001] max-w-[calc(100%-80px)] rounded-lg bg-surface-2/95 px-3 py-2 text-xs leading-5 text-white/85">
+                    {en ? "High-detail map unavailable. Standard map shown." : "高精細な地図を読み込めませんでした。標準地図を表示しています。"}
+                </p>
+            )}
 
             {/* 操作のボタン。**地図の容器の外**に置くので Leaflet のドラッグ・
                 ホイールに触られない。`z-[1001]` は Leaflet のコントロール層
