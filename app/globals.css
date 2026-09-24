@@ -435,3 +435,83 @@ body {
   border-right-width: 7px;
   border-top-width: 12px;
 }
+
+/* Journey Photo cinematic map prototype — scoped to /map only.
+   Leaflet is still the ONE interactive map. Photos and official pins share it.
+   This restyles an OSM fallback for preview; a licensed MapTiler Dark key provides
+   the production-quality cartography. Never filter attribution or marker panes. */
+.journey-map-page .journey-map-heading { border-bottom: 1px solid rgb(117 158 208 / .13); padding-bottom: 12px; }
+.journey-map-page .photo-map-frame.journey-photo-map {
+  border: 1px solid rgb(109 157 214 / .32);
+  background: #071729;
+  box-shadow: 0 16px 48px rgb(0 0 0 / .24);
+}
+.journey-photo-map .photo-map-shell.leaflet-container { background: #071729; }
+.journey-photo-map[data-basemap="osm-fallback"] .leaflet-tile-pane .leaflet-tile {
+  filter: invert(.94) hue-rotate(180deg) saturate(.68) brightness(.78) contrast(1.12);
+}
+.journey-photo-map .leaflet-control-attribution {
+  background: rgb(5 14 23 / .88) !important;
+  color: #d4e3f6 !important;
+  text-shadow: none;
+  padding: 2px 7px;
+  border-radius: 7px 0 0 0;
+}
+.journey-photo-map .leaflet-control-attribution a { color: #c0dfff !important; }
+.journey-photo-map .photo-map-pin::before {
+  box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgb(32 128 246 / .3), 0 6px 18px rgb(0 0 0 / .55);
+}
+.journey-photo-map .photo-map-pin.is-selected::before {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(32 128 246 / .24), 0 8px 24px rgb(0 0 0 / .65);
+}
+.journey-photo-map .spot-map-pin::before {
+  border: 2px solid #fff;
+  background: linear-gradient(140deg, #337fe8, #124cbe);
+  box-shadow: 0 0 0 3px rgb(32 128 246 / .32), 0 3px 12px rgb(0 0 0 / .5);
+}
+.journey-photo-map .spot-map-pin__dot {
+  background: #fff;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.journey-photo-map .spot-map-pin::after { border-top-color: #1b5dca; }
+.journey-photo-map .spot-map-pin.is-selected::before {
+  background: linear-gradient(140deg, #429aff, #155dc9);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(32 128 246 / .34), 0 4px 18px rgb(0 0 0 / .6);
+}
+.journey-map-page .journey-map-spot-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 12px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.journey-map-page .journey-map-spot-tile {
+  flex: 0 0 min(76vw, 310px);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.journey-map-page .journey-map-spot-card {
+  border: 1px solid rgb(109 157 214 / .19);
+  box-shadow: 0 8px 22px rgb(0 0 0 / .14);
+}
+.journey-map-page .journey-spot-sheet > div {
+  background: rgb(12 26 43 / .97);
+  border: 1px solid rgb(126 169 224 / .32);
+  box-shadow: 0 18px 50px rgb(0 0 0 / .50);
+}
+@media (min-width: 1024px) {
+  .journey-map-page .journey-map-spot-strip {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(39dvh, 390px);
+    padding-right: 4px;
+  }
+  .journey-map-page .journey-map-spot-tile { flex: 0 0 auto; width: 100%; }
+  .journey-map-page .journey-spot-sheet > div { box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-map-page .journey-map-spot-strip { scroll-behavior: auto; }
+}
