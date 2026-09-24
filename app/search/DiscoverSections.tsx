@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
-import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import Thumb from "../components/Thumb";
 
 /**
@@ -47,12 +46,10 @@ type Props = {
      *            貼り付かなくなる）。行き先は**「さがす」の検索結果**
      *            （owner の指示・`linkTo` の doc）
      */
-    variant?: "page" | "rail";
 };
 
 /** 節に出す数（`page` は横スクロール1画面ぶん／`rail` は貼り付いたまま収まる高さ） */
 const SHOWN = 8;
-const SHOWN_RAIL = 4;
 
 /** `collectEntries` と同じ規則でスラッグにする（写真の生の値から） */
 function slugOf(raw: string, type: "category" | "location"): string {
@@ -78,11 +75,8 @@ function slugOf(raw: string, type: "category" | "location"): string {
  * 撮影地と機材に専用の絞り込みが無く `?q=` に載るのも、あちらの判断のまま
  * （`useGallery` の検索対象に撮影地・カメラ名が入っているのが対）。
  */
-function linkTo(type: "category" | "location" | "camera", slug: string, variant: "page" | "rail"): string {
-    const path = collectionPath(type, slug);
-    if (variant !== "rail") return path;
-    // 写像が無い種別は集約ページのまま（いまは3種とも在る。保険）
-    return resolveNotFoundRedirect(path) ?? path;
+function linkTo(type: "category" | "location" | "camera", slug: string): string {
+    return collectionPath(type, slug);
 }
 
 /** その集約の代表写真（新しい順の先頭）。無ければ undefined */
@@ -167,19 +161,16 @@ function SectionHead({ id, title, href, moreLabel }: {
     );
 }
 
-export default function DiscoverSections({ photos, locale, categoryDisplayMap, variant = "page" }: Props) {
+export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
     const isJa = locale !== "en";
-    const isRail = variant === "rail";
     const more = isJa ? "すべて見る ›" : "See all ›";
-    const shown = isRail ? SHOWN_RAIL : SHOWN;
+    const shown = SHOWN;
     /**
      * 溢れの逃がし方。⚠️ **`overflow-x-auto` と `flex-wrap` は共存できない**
      * ので、`lg:` で `overflow-visible` へ戻してから折り返させる
      * （`FilterBar` の `WRAPPING_ROW` と同じ形）。柱は最初から折り返す。
      */
-    const row = isRail
-        ? "flex flex-wrap gap-3"
-        : "flex gap-3 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap";
+    const row = "flex gap-3 overflow-x-auto no-scrollbar lg:overflow-visible lg:flex-wrap";
 
     const categories = React.useMemo(() => collectEntries(photos, "category").slice(0, shown), [photos, shown]);
     const spots = React.useMemo(() => collectEntries(photos, "location").slice(0, shown), [photos, shown]);
@@ -206,7 +197,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                             const cover = coverFor(c, "category");
                             return (
                                 <li key={c.slug} className="flex-shrink-0">
-                                    <ItemLink href={linkTo("category", c.slug, variant)}
+                                    <ItemLink href={linkTo("category", c.slug)}
                                           className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
                                           style={{ width: "72px", touchAction: "manipulation" }}>
                                         <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line"
@@ -230,34 +221,12 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                         閲覧数も保存数も持っていない（指示書 7） */}
                     <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
                                  href={collectionIndexPath("location")} moreLabel={more} />
-                    {/* **柱では縦に並べた行**（150px のカードを2列にすると、
-                        柱が画面の高さを超えて貼り付きが効かなくなる） */}
-                    <ul className={`${isRail ? "flex flex-col gap-2" : row} m-0 p-0`} style={{ listStyle: "none" }}>
+                    <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {spots.map((s) => {
                             const cover = coverFor(s, "location");
-                            if (isRail) {
-                                return (
-                                    <li key={s.slug}>
-                                        <ItemLink href={linkTo("location", s.slug, variant)}
-                                              className="flex items-center gap-2.5 rounded-xl p-1 -m-1 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
-                                              style={{ touchAction: "manipulation" }}>
-                                            <span className="block relative flex-shrink-0 bg-surface ring-1 ring-line rounded-[10px] overflow-hidden"
-                                                  style={{ width: "56px", height: "56px" }}>
-                                                {cover && <Thumb photo={cover} alt="" sizes="56px" />}
-                                            </span>
-                                            <span className="min-w-0">
-                                                <span className="block text-white truncate" style={{ fontSize: "13px" }}>{s.label}</span>
-                                                <span className="block text-white/60" style={{ fontSize: "11px" }}>
-                                                    {isJa ? `${s.count}枚` : `${s.count} photos`}
-                                                </span>
-                                            </span>
-                                        </ItemLink>
-                                    </li>
-                                );
-                            }
                             return (
                                 <li key={s.slug} className="flex-shrink-0">
-                                    <ItemLink href={linkTo("location", s.slug, variant)}
+                                    <ItemLink href={linkTo("location", s.slug)}
                                           className="block rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ width: "150px", touchAction: "manipulation" }}>
                                         <span className="block relative bg-surface ring-1 ring-line rounded-xl overflow-hidden"
@@ -287,7 +256,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap, v
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
-                                <ItemLink href={linkTo("camera", c.slug, variant)}
+                                <ItemLink href={linkTo("camera", c.slug)}
                                       className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors"
                                       style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 11px", touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}
