@@ -17,6 +17,12 @@ import type { Map as LeafletMap, Layer as LeafletLayer } from "leaflet";
 const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js";
 const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css";
 const LEAFLET_BRIDGE = "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/dist/leaflet-maplibre-gl.js";
+/** NASA's actual geographic shaded-relief tiles; no fabricated coastline.
+ * Only used as a subtle LOW-ZOOM texture atop real OpenFreeMap vector geography.
+ * Public GIBS WMTS EPSG3857 GoogleMapsCompatible_Level8 static basemap.
+ */
+const NASA_RELIEF = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg";
+
 // "dark" is the restrained editorial/vector style. Fiord's bright contour
 // outlines overpower photo pins at the Greece/Japan travel zoom levels.
 export const REAL_DARK_MAP_STYLE = "https://tiles.openfreemap.org/styles/dark";
@@ -26,6 +32,10 @@ type VectorMap = {
     on: (event: string, callback: (event?: unknown) => void) => void;
     off: (event: string, callback: (event?: unknown) => void) => void;
     loaded: () => boolean;
+    getStyle: () => { layers?: Array<{ id: string; type: string }> };
+    getSource: (id: string) => unknown;
+    addSource: (id: string, source: Record<string, unknown>) => void;
+    addLayer: (layer: Record<string, unknown>, before?: string) => void;
 };
 type VectorLayer = LeafletLayer & {
     getMaplibreMap: () => VectorMap;
@@ -99,6 +109,43 @@ export function loadVectorAdapter(leaflet: typeof import("leaflet")): Promise<Ad
 }
 
 /**
+ * The screenshot reference has geographical relief instead of a flat black sea.
+ * Overlay real NASA shaded-relief imagery *below place-name symbol layers*
+ * (not a CSS graphic or fake geographic texture). Stop at zoom 8 where the
+ * source lacks finer data; the OpenFreeMap real roads and labels remain.
+ * A NASA tile outage must never hide the live vector basemap.
+ */
+function addLowZoomRelief(gl: VectorMap): boolean {
+    if (gl.getSource("journey-nasa-relief")) return true;
+    try {
+        gl.addSource("journey-nasa-relief", {
+            type: "raster",
+            tiles: [NASA_RELIEF],
+            tileSize: 256,
+            maxzoom: 8,
+            attribution: "Imagery: NASA GIBS / Blue Marble",
+        });
+        const firstLabel = gl.getStyle().layers?.find((layer) => layer.type === "symbol")?.id;
+        gl.addLayer({
+            id: "journey-nasa-relief-overlay",
+            type: "raster",
+            source: "journey-nasa-relief",
+            minzoom: 0,
+            maxzoom: 8.5,
+            paint: {
+                "raster-opacity": 0.43,
+                "raster-saturation": -0.5,
+                "raster-brightness-max": 0.64,
+                "raster-fade-duration": 180,
+            },
+        }, firstLabel);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Switches the base layer only AFTER actual vector tiles rendered.
  * Keep the readable OSM fallback in place on script/style failure.
  * Caller owns map lifecycle; cleanup is registered by the caller's effect.
@@ -139,7 +186,11 @@ export async function upgradeToRealVectorBasemap(
             if (gl.loaded()) finish(true);
         });
         if (!shouldContinue()) { map.removeLayer(activeLayer); return; }
+        const reliefAdded = addLowZoomRelief(gl);
         map.removeLayer(fallback);
+        if (reliefAdded) map.attributionControl?.addAttribution(
+            '<a href="https://gibs.earthdata.nasa.gov/">NASA GIBS / Blue Marble</a>',
+        );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
             + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> '
