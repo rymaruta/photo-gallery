@@ -1248,6 +1248,187 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_529811ce08c4",
+    "slug": "akita-museum",
+    "name": "秋田県立美術館",
+    "nameEn": "Akita Museum of Art",
+    "reading": "あきたけんりつびじゅつかん",
+    "aliases": [
+      "藤田嗣治 秋田の行事"
+    ],
+    "address": "秋田県秋田市中通1-4-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "秋田市"
+    },
+    "coords": {
+      "lat": 39.72,
+      "lng": 140.13
+    },
+    "category": "landmark",
+    "summary": "安藤忠雄の設計で、柱のない三角形の螺旋階段が吹き抜けに架かります。建築そのものが撮影の対象になります。",
+    "description": "藤田嗣治の壁画《秋田の行事》を収蔵するために建てられた美術館で、安藤忠雄が設計しました。エントランスの吹き抜けには、支柱を持たない三角形の螺旋階段が架かり、コンクリートの面と光だけで構成されています。二階のラウンジは水庭ごしに千秋公園を望む大きな開口を持ちます。作品の撮影可否は展示ごとに異なります。",
+    "highlights": [
+      "支柱のない三角形の螺旋階段",
+      "コンクリートと光の吹き抜け",
+      "水庭ごしに千秋公園を望むラウンジ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "ラウンジの窓から千秋公園の桜が見えます。屋内から外を切り取る構図が成立します。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の日は外光が拡散し、コンクリートの面が均質に照らされます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "吹き抜けに自然光が入る時間帯が建築の見え方の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は人が少なく、階段を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "階段は真下から見上げて三角形の構成を出します",
+      "コンクリートの面は露出を切り詰めて階調を残します",
+      "収蔵作品の撮影可否は展示ごとに違うので表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.akita-museum-of-art.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_7b64251fdd9a",
+    "slug": "akita-nairiku",
+    "name": "秋田内陸縦貫鉄道",
+    "nameEn": "Akita Nairiku Line",
+    "reading": "あきたないりくじゅうかんてつどう",
+    "aliases": [
+      "内陸線 大又川橋梁"
+    ],
+    "address": "秋田県北秋田市阿仁",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "北秋田市"
+    },
+    "coords": {
+      "lat": 39.98,
+      "lng": 140.4
+    },
+    "category": "landmark",
+    "summary": "鷹巣と角館を結ぶ九十四キロのローカル線。山と川の谷筋を縫い、橋梁で渓谷を渡る区間が撮影地になります。",
+    "description": "森吉山の西側を縦に走る第三セクターの路線で、全長約九十四キロ。阿仁川沿いの谷を進み、大又川橋梁のように渓谷を高い位置で渡る区間があります。冬は雪の中を一両か二両の車両が走り、白一色の画面に車体の色だけが残ります。本数が少なく一日十本程度なので、時刻表を確認してから撮影地を決めます。線路に立ち入ることはできません。",
+    "highlights": [
+      "渓谷を渡る橋梁を行く列車",
+      "雪の中を走る冬の姿",
+      "九十四キロの山あいの路線"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬から五月、沿線の桜と残雪の山を同時に入れられます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、谷が色づきます。橋梁と紅葉の組み合わせが定番です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の中の一両編成。画面が単純になり、車体の色だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残ることがあり、列車が霧から現れる画になります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は車体に横から光が当たり、色が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "橋梁は離れた位置から望遠で狙い、谷の深さを入れます",
+      "列車を小さくして風景を主役にすると土地が伝わります",
+      "線路敷地には入らず、公道や展望地点から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.akita-nairiku.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_4ebc0a0af5ff",
+    "slug": "akitainu-no-sato",
+    "name": "秋田犬の里",
+    "nameEn": "Akita Dog Visitor Center",
+    "reading": "あきたいぬのさと",
+    "aliases": [
+      "大館 秋田犬の里"
+    ],
+    "address": "秋田県大館市御成町1-13-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "大館市"
+    },
+    "coords": {
+      "lat": 40.27,
+      "lng": 140.56
+    },
+    "category": "landmark",
+    "summary": "秋田犬の展示と資料を集めた施設。ガラス越しに実物を撮れ、建物は旧渋谷駅の駅舎を模しています。",
+    "description": "秋田犬の原産地である大館市が整備した施設で、展示室では実際の秋田犬をガラス越しに見られます。建物の外観は、忠犬ハチ公が待った旧渋谷駅の駅舎を再現したもの。館内には秋田犬の歴史とハチ公にまつわる資料が並びます。犬の展示時間は決まっており、体調によって中止されることもあるため、当日の情報を確認します。",
+    "highlights": [
+      "ガラス越しに見られる秋田犬",
+      "旧渋谷駅を模した外観",
+      "ハチ公に関する資料展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "雪の季節は秋田犬の毛が最も厚くなります。屋外の建物も雪と合います。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、犬の展示時間も安定しやすい時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "展示時間が限られるので、事前に確認して合わせます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、ガラス前の位置を取りやすいです。"
+      }
+    ],
+    "compositionTips": [
+      "ガラス越しは反射が出るのでレンズをガラスに近づけます",
+      "ストロボは禁止。高感度で絞りを開けて撮ります",
+      "犬の負担にならないよう、長時間ガラス前に留まらないこと"
+    ],
+    "officialWebsiteUrl": "https://akitainu-no-sato.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f65228ba0f65",
     "slug": "akiu-otaki",
     "name": "秋保大滝",
@@ -6192,6 +6373,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_8886efb66374",
+    "slug": "chokai-nakajima",
+    "name": "鳥海山 鉾立",
+    "nameEn": "Hokodate, Mt. Chokai",
+    "reading": "ちょうかいさん ほこだて",
+    "aliases": [
+      "鉾立展望台",
+      "奈曽渓谷"
+    ],
+    "address": "秋田県にかほ市象潟町小滝",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "にかほ市"
+    },
+    "coords": {
+      "lat": 39.12,
+      "lng": 140
+    },
+    "category": "mountain",
+    "summary": "鳥海ブルーラインの峠にある展望台。眼下に深い奈曽渓谷が切れ込み、背後に鳥海山の山頂部が立ち上がります。",
+    "description": "標高約千百五十メートルの鉾立は、鳥海山の秋田側登山口であり展望地でもあります。展望台からはV字に深く切れ込んだ奈曽渓谷を見下ろし、その奥に鳥海山の山体が見えます。反対側には日本海と象潟の海岸線が広がり、晴れた日は男鹿半島まで見えます。鳥海ブルーラインは冬期閉鎖で、例年四月下旬に開通します。",
+    "highlights": [
+      "深く切れ込む奈曽渓谷",
+      "背後にそびえる鳥海山",
+      "日本海と象潟の海岸線"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の開通直後は残雪が多く、雪渓と渓谷が同時に入ります。"
+      },
+      {
+        "season": "summer",
+        "text": "登山道沿いの高山植物。日中は雲が湧きやすく、朝が有利です。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月、上部から色づきます。空気も澄みます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は山頂が見えやすく、渓谷に霧が溜まることもあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は日本海に日が落ちます。海と山を同じ画に入れられる位置です。"
+      }
+    ],
+    "compositionTips": [
+      "渓谷を縦構図で取り、鳥海山を上に置いて高低差を出します",
+      "海側は望遠で象潟の海岸線を圧縮します",
+      "雲が動く日は時間差で複数枚残します"
+    ],
+    "officialWebsiteUrl": "https://www.nikaho-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_c603e9a4d396",
@@ -11817,6 +12062,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_59a8f2f9548f",
+    "slug": "godzilla-iwa",
+    "name": "ゴジラ岩",
+    "nameEn": "Godzilla Rock",
+    "reading": "ごじらいわ",
+    "aliases": [
+      "潮瀬崎 ゴジラ岩"
+    ],
+    "address": "秋田県男鹿市船川港本山門前字潮瀬崎",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "男鹿市"
+    },
+    "coords": {
+      "lat": 39.85,
+      "lng": 139.71
+    },
+    "category": "nature",
+    "summary": "海際の岩がゴジラの横顔に見える場所。夕日が口の位置に重なると、火を吐いたような一枚が撮れます。",
+    "description": "男鹿半島南端の潮瀬崎にある奇岩で、横から見ると怪獣が首をもたげた形に見えます。西を向いた海岸なので日没が正面に来て、季節によって太陽が岩の口の位置に重なります。その時刻は日によって変わるため、日没方位を調べてから行くのが前提です。岩場は濡れると滑り、潮位によって近づける範囲が変わります。",
+    "highlights": [
+      "怪獣の形に見える奇岩",
+      "口の位置に重なる夕日",
+      "潮瀬崎の岩礁地帯"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "日没方位が北寄りに移動し、岩との重なりの角度が変わります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、夕焼けの色が濃く出る日が増えます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く近づける範囲が狭まります。荒れた海と岩の組み合わせになります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "日没が本番。太陽と岩の重なりは位置取りを数十センチ単位で調整します。"
+      },
+      {
+        "time": "night",
+        "text": "日没後も空の色が残る二十分ほどが、岩のシルエットに向きます。"
+      }
+    ],
+    "compositionTips": [
+      "岩をシルエットにするため露出は空に合わせます",
+      "太陽を入れるときは絞り込んで光条を出します",
+      "岩場は滑るので足元を確認し、三脚は安定した岩の上に置きます"
+    ],
+    "officialWebsiteUrl": "https://www.namegata.akita.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6b65f4c0ea2e",
     "slug": "goishi-kaigan",
     "name": "碁石海岸",
@@ -12469,6 +12777,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_66e5c038d9bf",
+    "slug": "hachibodai",
+    "name": "八望台",
+    "nameEn": "Hachibodai Viewpoint",
+    "reading": "はちぼうだい",
+    "aliases": [
+      "一ノ目潟",
+      "二ノ目潟"
+    ],
+    "address": "秋田県男鹿市戸賀塩浜",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "男鹿市"
+    },
+    "coords": {
+      "lat": 39.94,
+      "lng": 139.75
+    },
+    "category": "nature",
+    "summary": "男鹿半島の高台から、マールと呼ばれる円い火口湖と戸賀湾を同時に見下ろせる展望台です。",
+    "description": "水蒸気爆発でできたマールが三つ並ぶ一帯を見渡す展望台です。二ノ目潟と一ノ目潟は木々に囲まれた円い湖で、外から見ると地面に穴が空いたような形をしています。反対側には戸賀湾と日本海が広がり、湾の丸い入り江も火口の名残です。駐車場から展望台まではすぐで、湖と海を一度に見られる場所は限られます。",
+    "highlights": [
+      "円い火口湖のマール",
+      "戸賀湾と日本海の眺め",
+      "湖と海を同時に見られる立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑で湖を囲む森が明るくなり、水面との境界がはっきりします。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、周囲が色づきます。空気も澄んで湖の輪郭が出ます。"
+      },
+      {
+        "season": "summer",
+        "text": "海の青が最も濃く、湾と湖の色の違いが分かれます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "日中は湖面に光が入り、水の色が出ます。順光の時間を選びます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は日本海側に日が落ち、湾が光ります。"
+      }
+    ],
+    "compositionTips": [
+      "湖の円い形を欠けさせないよう画角を決めます",
+      "湖と海を一枚に入れると地形の成り立ちが伝わります",
+      "望遠で湖だけを抜くとマールの円さが強調されます"
+    ],
+    "officialWebsiteUrl": "https://oganavi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e317a4dcd0de",
     "slug": "hachiman-bori",
     "name": "近江八幡 八幡堀",
@@ -12677,6 +13049,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a3b3f21e64fc",
+    "slug": "hachimantai-goshogake",
+    "name": "後生掛温泉",
+    "nameEn": "Goshogake Onsen",
+    "reading": "ごしょうがけおんせん",
+    "aliases": [
+      "後生掛自然研究路",
+      "泥火山"
+    ],
+    "address": "秋田県鹿角市八幡平熊沢国有林",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "鹿角市"
+    },
+    "coords": {
+      "lat": 39.96,
+      "lng": 140.79
+    },
+    "category": "nature",
+    "summary": "泥が沸き立つ泥火山や噴気孔が並ぶ地熱地帯。木道が地獄の中を通り、地面が動く様子を間近で見られます。",
+    "description": "八幡平の秋田側にある温泉で、宿の周囲が広い地熱地帯になっています。自然研究路の木道を歩くと、泥を吹き上げる泥火山、蒸気を噴く噴気孔、沸騰する泥の池が連続します。地面が白や黄色に変色し、硫黄の匂いが強い一帯です。木道の外は高温なので絶対に出ないこと。冬期はアスピーテラインの閉鎖で到達できません。",
+    "highlights": [
+      "泥を吹き上げる泥火山",
+      "連続する噴気孔と泥の池",
+      "地熱で変色した地面"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "研究路を一周できる季節。噴気は気温が高いと見えにくくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月上旬、周囲の紅葉と白い噴気の対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "気温が低い朝は噴気が濃く立ち、形がよく見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は泥の色が出ますが、噴気は薄くなります。"
+      }
+    ],
+    "compositionTips": [
+      "泥火山は連写で泡が弾ける瞬間を捉えます",
+      "噴気は逆光で狙うと白く浮き上がります",
+      "木道から出ず、高温部に三脚を立てないこと"
+    ],
+    "officialWebsiteUrl": "https://www.hachimantai.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_3f174b299125",
@@ -16385,6 +16817,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_97e8f67cc1b6",
+    "slug": "hinokinaigawa",
+    "name": "桧木内川堤",
+    "nameEn": "Hinokinaigawa Riverbank",
+    "reading": "ひのきないがわてい",
+    "aliases": [
+      "角館 桜並木"
+    ],
+    "address": "秋田県仙北市角館町",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "仙北市"
+    },
+    "coords": {
+      "lat": 39.6,
+      "lng": 140.56
+    },
+    "category": "nature",
+    "summary": "桧木内川の堤に二キロ続くソメイヨシノの並木。堤防の上を歩くと桜が頭上で繋がったトンネルになります。",
+    "description": "角館の町を流れる桧木内川の左岸堤防に、約四百本のソメイヨシノが約二キロにわたって植えられています。国の名勝に指定されており、堤防の上を歩くと枝が頭上で重なってトンネルになります。武家屋敷通りのシダレザクラとは種類も景観も異なり、両方を一日で回るのが角館の定番です。見頃は四月下旬。河川敷から見上げる構図も取れます。",
+    "highlights": [
+      "二キロ続くソメイヨシノの並木",
+      "堤防上の桜のトンネル",
+      "河川敷から見上げる構図"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬が見頃。武家屋敷のシダレザクラとほぼ同時期に咲きます。"
+      },
+      {
+        "season": "summer",
+        "text": "葉桜の並木と川。人がおらず、堤防の長さだけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、堤防の道を無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は花が暖色に染まり、川面に色が落ちます。"
+      }
+    ],
+    "compositionTips": [
+      "堤防の道を消失点まで通してトンネルの長さを見せます",
+      "河川敷から見上げると花と空だけの画面になります",
+      "川を入れると桜並木が堤にあることが伝わります"
+    ],
+    "officialWebsiteUrl": "https://kakunodate-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1e01b968b562",
     "slug": "hiraizumi-takkoku",
     "name": "達谷窟毘沙門堂",
@@ -18569,6 +19060,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a0d8c61e29c2",
+    "slug": "hottai-no-taki",
+    "name": "法体の滝",
+    "nameEn": "Hottai Falls",
+    "reading": "ほったいのたき",
+    "aliases": [
+      "法体園地"
+    ],
+    "address": "秋田県由利本荘市鳥海町百宅",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "由利本荘市"
+    },
+    "coords": {
+      "lat": 39.15,
+      "lng": 140.29
+    },
+    "category": "nature",
+    "summary": "鳥海山を源とする子吉川の上流に、三段で落ちる幅の広い滝。岩盤の上を水が面のように滑り落ちます。",
+    "description": "一の滝、二の滝、三の滝と続く全長五十七メートルの滝で、最下段は幅が広く、扇形に開いて落ちます。滝の周囲は一枚岩の岩盤が露出し、水がその上を薄く流れる区間があります。園地が整備され、滝の正面と上部の両方から見られます。紅葉期が有名ですが、新緑の水量の多い時期も見応えがあります。冬期は道路が閉鎖されます。",
+    "highlights": [
+      "扇形に開いて落ちる最下段",
+      "一枚岩の岩盤を滑る流れ",
+      "正面と上部の両方から見られる園地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、雪解けで水量が最大になります。新緑も同時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、周囲が色づきます。この滝が最も知られる季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面が光ります。偏光フィルターで反射を調整します。"
+      }
+    ],
+    "compositionTips": [
+      "扇形の広がりを見せるなら横構図で正面から撮ります",
+      "遅いシャッターで水を面にすると岩盤の形が出ます",
+      "上部からは落ち口の水の薄さを狙うと滝の構造が分かります"
+    ],
+    "officialWebsiteUrl": "https://www.yurihonjo-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e1ad5b6552c4",
@@ -23452,6 +24002,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1656c0011d49",
+    "slug": "jurokurakan",
+    "name": "十六羅漢岩",
+    "nameEn": "Jurokurakan Rock Carvings",
+    "reading": "じゅうろくらかんいわ",
+    "aliases": [
+      "吹浦 十六羅漢岩"
+    ],
+    "address": "山形県飽海郡遊佐町吹浦字大岡",
+    "region": {
+      "country": "日本",
+      "prefecture": "山形県",
+      "city": "遊佐町"
+    },
+    "coords": {
+      "lat": 39.03,
+      "lng": 139.86
+    },
+    "category": "landmark",
+    "summary": "日本海に面した溶岩の海岸に、二十二体の仏像が直接彫られています。波打ち際の岩が像になっている場所です。",
+    "description": "鳥海山の溶岩が海に流れ込んでできた岩礁に、明治初期、海難事故の犠牲者を供養するため僧が五年かけて仏像を彫りました。十六羅漢に釈迦、文殊、普賢などを加えた二十二体が、自然の岩の形に合わせて配置されています。波の高い日は像の足元まで海水が上がります。遊歩道が岩場を通り、像のそばまで行けます。",
+    "highlights": [
+      "溶岩に直接彫られた二十二体の仏像",
+      "波打ち際に並ぶ配置",
+      "日本海に沈む夕日"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が穏やかで岩場を歩きやすい季節。夕日の位置も像に近づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、像に波がかかります。荒れた海との組み合わせが撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "西向きなので夕日が正面。像をシルエットにできます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は順光で彫りの細部が出ます。人も少ない時間です。"
+      }
+    ],
+    "compositionTips": [
+      "像と海を一枚に入れて彫られた場所の意味を見せます",
+      "低い位置から波を前景にすると足元の高さが伝わります",
+      "岩場は濡れると滑るので、波の来ない位置を選んで立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.town.yuza.yamagata.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c2f85704ad19",
     "slug": "kabira-bay",
     "name": "川平湾",
@@ -25821,6 +26430,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0a18b0c327a1",
+    "slug": "kanpuzan",
+    "name": "寒風山",
+    "nameEn": "Mt. Kanpu",
+    "reading": "かんぷうざん",
+    "aliases": [
+      "寒風山回転展望台"
+    ],
+    "address": "秋田県男鹿市脇本富永字寒風山",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "男鹿市"
+    },
+    "coords": {
+      "lat": 39.9,
+      "lng": 139.9
+    },
+    "category": "mountain",
+    "summary": "樹木のない芝草だけの山。山頂の回転展望台から、男鹿半島と八郎潟の干拓地が三百六十度見渡せます。",
+    "description": "標高三百五十五メートルの火山で、全山が芝草に覆われ、木がほとんど生えていません。そのため山頂からの視界が全方向に開け、日本海、男鹿半島、八郎潟の干拓地、遠くに鳥海山まで見えます。山頂には回転展望台があり、車道で直接登れます。草原の斜面には火口跡の窪みが複数あり、地形そのものが読み取れます。",
+    "highlights": [
+      "樹木のない芝草の山体",
+      "三百六十度の展望",
+      "八郎潟干拓地の俯瞰"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の山焼き後、新しい芝が一斉に緑になります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑の斜面と青い海。雲の影が草原を移動する様子が撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、空気が澄んで鳥海山まで見える日が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は八郎潟側に霧が溜まることがあり、干拓地が雲海に見えます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は日本海に日が落ち、草の斜面が横から照らされます。"
+      }
+    ],
+    "compositionTips": [
+      "火口跡の窪みを画面に入れると火山であることが伝わります",
+      "草原の曲線を前景に置いて海へ視線を運びます",
+      "八郎潟の区画は望遠で圧縮すると幾何学模様になります"
+    ],
+    "officialWebsiteUrl": "https://oganavi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_de01779fadf6",
@@ -28571,6 +29243,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_68ce23596832",
+    "slug": "kimimachizaka",
+    "name": "きみまち阪公園",
+    "nameEn": "Kimimachizaka Park",
+    "reading": "きみまちざかこうえん",
+    "aliases": [
+      "二ツ井 きみまち阪"
+    ],
+    "address": "秋田県能代市二ツ井町小繋字泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "能代市"
+    },
+    "coords": {
+      "lat": 40.21,
+      "lng": 140.24
+    },
+    "category": "nature",
+    "summary": "米代川沿いの奇岩と紅葉で知られる公園。岩壁の下を川が流れ、切り立った岩と水面が近い距離で並びます。",
+    "description": "米代川の右岸に切り立った岩壁があり、その下に公園が整備されています。明治天皇の巡幸の際に皇后からの手紙をここで受け取ったという逸話が名前の由来です。岩壁の上には展望台があり、米代川の流れと白神山地方面の山並みを見渡せます。秋の紅葉が有名で、岩の灰色と赤が同じ画面に入ります。対岸には七座山が見えます。",
+    "highlights": [
+      "川沿いに切り立つ岩壁",
+      "展望台からの米代川の眺め",
+      "岩と紅葉の対比"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と岩壁。川の水量が多く、流れの表情が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬が紅葉の見頃。この公園の本番です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が岩の棚に積もり、水平の線が浮き出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は川霧が出ることがあり、岩壁の下が白く沈みます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が当たり、紅葉の色が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "岩壁と川を一枚に入れて地形の成り立ちを見せます",
+      "紅葉は望遠で岩の一部と組み合わせて色を絞ります",
+      "展望台からは川の蛇行を入れると土地の形が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.city.noshiro.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_bf09ea56ba90",
@@ -31358,6 +32093,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_3004eeb10ec0",
+    "slug": "kosaka-korakukan",
+    "name": "康楽館",
+    "nameEn": "Korakukan Theater",
+    "reading": "こうらくかん",
+    "aliases": [
+      "小坂鉱山 康楽館"
+    ],
+    "address": "秋田県鹿角郡小坂町小坂鉱山字松ノ下2",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "小坂町"
+    },
+    "coords": {
+      "lat": 40.31,
+      "lng": 140.75
+    },
+    "category": "landmark",
+    "summary": "一九一〇年に建てられた現役の芝居小屋。外観は洋風、内部は桟敷と回り舞台を持つ和風という構成です。",
+    "description": "小坂鉱山の厚生施設として建てられた芝居小屋で、国の重要文化財でありながら現在も常打ち公演が行われています。外観は下見板張りの洋風ですが、中に入ると畳の桟敷席、花道、手動の回り舞台という江戸以来の劇場の形が残ります。舞台裏や奈落も見学でき、木製の機構がそのまま動く様子が見られます。公演中の撮影は制限があります。",
+    "highlights": [
+      "洋風の外観と和風の内部",
+      "手動の回り舞台と奈落",
+      "現役で公演が続く劇場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "隣接する小坂鉱山事務所周辺にアカシアが咲き、町並みが明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と白い洋風建築。屋外の撮影が単純な構成になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "見学時間内のみ内部に入れます。天窓や窓からの光が舞台に落ちます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、客席を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "客席側から舞台を正面に入れて劇場の構造を見せます",
+      "奈落は暗いので高感度で、木の機構に寄ります",
+      "公演中の撮影可否は必ず現地の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://korakukan.co.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9b961d23f775",
@@ -34391,6 +35185,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bd05700ffbaa",
+    "slug": "masuda-uchigura",
+    "name": "増田の内蔵",
+    "nameEn": "Masuda Uchigura Storehouses",
+    "reading": "ますだのうちぐら",
+    "aliases": [
+      "増田 重要伝統的建造物群保存地区"
+    ],
+    "address": "秋田県横手市増田町増田",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "横手市"
+    },
+    "coords": {
+      "lat": 39.21,
+      "lng": 140.61
+    },
+    "category": "landmark",
+    "summary": "家の中に蔵を建て、それを屋根で覆った「内蔵」が並ぶ町。外からは見えず、通りの奥に入って初めて現れます。",
+    "description": "豪雪地帯の商家が、蔵を風雪から守るため主屋の内部に取り込んだのが内蔵です。通りから見ると普通の町家ですが、奥に長い土間を進むと、磨き上げられた黒漆喰の蔵が屋内に立っています。重要伝統的建造物群保存地区に選定され、複数の家が公開されています。屋内なので光は少なく、土間の奥から差す光が蔵の正面を照らす構成になります。",
+    "highlights": [
+      "屋内に建つ黒漆喰の蔵",
+      "奥に長い土間の通り庭",
+      "通りからは見えない構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "雪の季節こそ内蔵が生まれた理由が分かります。外の雪と屋内の対比が効きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "公開家屋が多く、通りも落ち着いて歩ける時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内が中心なので日中の明るい時間が前提です。窓からの光を読みます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、土間を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "土間の奥行きを使い、通り庭の消失点に蔵を置きます",
+      "黒漆喰は露出を上げすぎず、艶の反射を残します",
+      "公開家屋は個人の住居でもあるため、撮影の可否を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.masuda-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_676160911921",
@@ -44940,6 +45793,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c22f4174e4b1",
+    "slug": "oga-namahage",
+    "name": "なまはげ館",
+    "nameEn": "Namahage Museum",
+    "reading": "なまはげかん",
+    "aliases": [
+      "男鹿真山伝承館"
+    ],
+    "address": "秋田県男鹿市北浦真山字水喰沢",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "男鹿市"
+    },
+    "coords": {
+      "lat": 39.92,
+      "lng": 139.83
+    },
+    "category": "landmark",
+    "summary": "男鹿の各集落に伝わるなまはげの面百五十体以上が一堂に並びます。集落ごとに造形が違うことが一目で分かります。",
+    "description": "ユネスコ無形文化遺産に登録された男鹿のなまはげについて、実際に使われてきた面と衣装を集めた施設です。展示室には集落ごとの面が百五十体以上並び、角の有無、色、表情が地区によってまったく違うことが分かります。隣の男鹿真山伝承館では、民家の座敷でなまはげの所作を再現する実演が行われています。",
+    "highlights": [
+      "集落ごとに異なる百五十体以上の面",
+      "藁の衣装と道具の展示",
+      "隣接する伝承館の実演"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "本来の大晦日の行事に近い季節。二月には柴灯まつりが行われます。"
+      },
+      {
+        "season": "summer",
+        "text": "館内展示は通年。屋外の真山神社の参道も合わせて歩けます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "屋内展示が中心。実演の時間が決まっているので先に確認します。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、展示室を正面から撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶ面は望遠で圧縮して数と差異を同時に見せます",
+      "一体に寄って彫りと塗りの質感を撮る対比の一枚も入れます",
+      "実演は暗い座敷なので高感度で、ストロボは使わないこと"
+    ],
+    "officialWebsiteUrl": "https://www.namahage.co.jp/namahagekan/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_275faf52e0ce",
     "slug": "ogaki-castle",
     "name": "大垣城と水門川",
@@ -46624,6 +47536,61 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_330e073291fb",
+    "slug": "omagari-hanabi",
+    "name": "大曲の花火",
+    "nameEn": "Omagari Fireworks",
+    "reading": "おおまがりのはなび",
+    "aliases": [
+      "全国花火競技大会"
+    ],
+    "address": "秋田県大仙市大曲 雄物川河川敷",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "大仙市"
+    },
+    "coords": {
+      "lat": 39.46,
+      "lng": 140.48
+    },
+    "category": "festival",
+    "summary": "花火師が技を競う全国大会。昼花火という煙の色で見せる競技があり、夜だけでない点が他と違います。",
+    "description": "八月下旬、雄物川の河川敷で行われる全国花火競技大会です。花火師自身が設計から打ち上げまで行い、審査を受けます。昼の部では煙の色と形で見せる昼花火が上がり、これは全国でもほとんど残っていない競技です。夜の部は創造花火と十号玉の競技。観覧席は有料で事前販売、当日は交通規制が広範囲に敷かれます。",
+    "highlights": [
+      "煙の色で競う昼花火",
+      "花火師が競う夜の創造花火",
+      "雄物川の河川敷という広い打ち上げ場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "八月第四土曜が基本。宿と席は数か月前から埋まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "昼花火は日中。青空を背景に煙の色を見るので、露出は空基準にします。"
+      },
+      {
+        "time": "night",
+        "text": "夜の部が本番。三脚と長時間露光が基本で、席の条件を事前に確認します。"
+      }
+    ],
+    "compositionTips": [
+      "夜は絞りF8前後、バルブで開花から消えるまで開けます",
+      "昼花火は煙の色が主題なので望遠で抜きます",
+      "有料席以外での三脚使用は制限があるため、規則を先に確認します"
+    ],
+    "officialWebsiteUrl": "https://www.oomagari-hanabi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c08917dd0306",
     "slug": "omazaki",
     "name": "大間崎",
@@ -47710,6 +48677,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1b0ec6978ea8",
+    "slug": "onuma-hachimantai",
+    "name": "八幡平 大沼",
+    "nameEn": "Onuma Pond, Hachimantai",
+    "reading": "はちまんたい おおぬま",
+    "aliases": [
+      "大沼自然研究路"
+    ],
+    "address": "秋田県鹿角市八幡平熊沢国有林",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "鹿角市"
+    },
+    "coords": {
+      "lat": 39.97,
+      "lng": 140.77
+    },
+    "category": "nature",
+    "summary": "湿原に囲まれた沼で、木道が一周しています。池塘と草紅葉、対岸の森が水面に映る構図が取れます。",
+    "description": "八幡平ビジターセンターに隣接する沼で、周囲を一時間弱で一周できる木道が整備されています。沼のまわりは湿原で、ワタスゲやモウセンゴケなどの湿原植物が見られます。風がない朝は水面が鏡になり、対岸の森がそのまま映ります。標高が高く、九月下旬には草紅葉が始まります。冬期はアスピーテラインの閉鎖で到達できません。",
+    "highlights": [
+      "沼を一周する木道",
+      "湿原の植物と池塘",
+      "無風の朝の映り込み"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "六月から七月、ワタスゲが湿原を白く覆います。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月、草紅葉と木々の色が同時に来ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が鏡になり、霧が出ることもあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は湿原の植物に光が回り、池塘の水が透けます。"
+      }
+    ],
+    "compositionTips": [
+      "水面を半分以上取って映り込みを主題にします",
+      "木道の線を前景に入れて奥行きを作ります",
+      "湿原に踏み込まず、木道の上から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.hachimantai.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_89c4ebd28f1d",
@@ -54857,6 +55883,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_da67b163ab08",
+    "slug": "senshu-park",
+    "name": "千秋公園",
+    "nameEn": "Senshu Park",
+    "reading": "せんしゅうこうえん",
+    "aliases": [
+      "久保田城跡",
+      "御隅櫓"
+    ],
+    "address": "秋田県秋田市千秋公園1-39",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "秋田市"
+    },
+    "coords": {
+      "lat": 39.72,
+      "lng": 140.12
+    },
+    "category": "landmark",
+    "summary": "秋田市街の中心にある久保田城の跡。石垣を築かず土塁で守った城で、その構造が園内に残っています。",
+    "description": "佐竹氏の居城だった久保田城の跡です。天守も高石垣も築かず、土塁と堀で守る構えだったのが特徴で、いまも土の斜面と堀が園内に残ります。復元された御隅櫓が本丸の隅に立ち、上階から市街を見渡せます。堀にはハスが茂り、七月から八月に花をつけます。桜と紅葉の名所でもあり、市街地から歩いて行ける距離です。",
+    "highlights": [
+      "石垣を使わない土塁の城",
+      "復元された御隅櫓",
+      "堀を埋めるハスの花"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬の桜。堀端の枝が水面に垂れる場所があります。"
+      },
+      {
+        "season": "summer",
+        "text": "七月から八月、堀一面のハス。朝のうちに花が開きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。土塁の斜面が色で覆われます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "ハスは午前中に開くので朝が本番。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は櫓の白壁が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "土塁の斜面を入れて石垣のない城であることを示します",
+      "ハスは低い位置から水面すれすれに構えます",
+      "櫓は木立の隙間から抜くと市街の城らしさが出ます"
+    ],
+    "officialWebsiteUrl": "https://www.city.akita.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_94b07fe3c218",
     "slug": "sensoji",
     "name": "浅草寺",
@@ -58114,6 +59204,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_2fc057d6adc8",
+    "slug": "shishigahana",
+    "name": "獅子ヶ鼻湿原",
+    "nameEn": "Shishigahana Wetland",
+    "reading": "ししがはなしつげん",
+    "aliases": [
+      "鳥海マリモ",
+      "あがりこ大王"
+    ],
+    "address": "秋田県にかほ市象潟町横岡",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "にかほ市"
+    },
+    "coords": {
+      "lat": 39.15,
+      "lng": 140.07
+    },
+    "category": "nature",
+    "summary": "鳥海山の伏流水が湧く湿原。幹が途中で分かれた奇形のブナが林立し、水中には緑の苔玉が育ちます。",
+    "description": "鳥海山の伏流水が年間を通して十度前後で湧き続ける湿原です。かつて炭焼きのために伐られたブナが、切り口から複数の幹を伸ばして育った「あがりこ」と呼ばれる異形の木が林立します。なかでもあがりこ大王は幹回り七メートル超。湧水の流れの中には鳥海マリモと呼ばれる苔の塊が育ちます。木道と登山道を歩く一時間ほどの行程です。",
+    "highlights": [
+      "幹が分かれた異形のブナ",
+      "幹回り七メートルのあがりこ大王",
+      "湧水中の鳥海マリモ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月下旬から六月、ブナの芽吹き。湧水の量も多い時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "湧水が冷たく、周囲だけ気温が低くなります。緑が最も濃い季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬、ブナの黄葉と苔の緑が対比になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湧水の上に霧が立つことがあり、森の空気が写ります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水中の苔に光が届き、緑が明るく出ます。"
+      }
+    ],
+    "compositionTips": [
+      "あがりこは幹の分岐が分かるよう下から見上げます",
+      "水中の苔は偏光フィルターで反射を消すと見えます",
+      "木道と登山道から外れず、湧水に立ち入らないこと"
+    ],
+    "officialWebsiteUrl": "https://www.nikaho-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2f559b5710f0",
@@ -61999,6 +63153,66 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4209d78692fe",
+    "slug": "tamagawa-onsen",
+    "name": "玉川温泉",
+    "nameEn": "Tamagawa Onsen",
+    "reading": "たまがわおんせん",
+    "aliases": [
+      "大噴",
+      "北投石"
+    ],
+    "address": "秋田県仙北市田沢湖玉川",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "仙北市"
+    },
+    "coords": {
+      "lat": 39.95,
+      "lng": 140.71
+    },
+    "category": "nature",
+    "summary": "毎分九千リットルが一か所から湧く大噴を中心に、白い岩の斜面から蒸気が上がる強酸性の温泉地です。",
+    "description": "日本一の湧出量を単一の源泉から出す大噴があり、強酸性の湯が岩の上を流れ下ります。周囲は硫黄で白く変色した斜面で、あちこちから蒸気が上がります。特別天然記念物の北投石が産出することでも知られます。自然研究路の木道が地熱地帯を通り、岩盤浴をする人の姿もあります。療養の場でもあるため、人を撮るときは配慮が要ります。",
+    "highlights": [
+      "毎分九千リットルの大噴",
+      "白く変色した岩の斜面",
+      "各所から上がる蒸気"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "研究路を歩きやすい季節。蒸気は気温が低い朝夕のほうが見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、周囲の紅葉と白い地肌の対比が最も強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "冷え込んだ朝は蒸気が最も濃く、斜面全体が煙って見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は白い岩と湯の流れの色が出ます。露出は白に引っ張られます。"
+      }
+    ],
+    "compositionTips": [
+      "白い地面は露出がアンダーに寄るのでプラス補正を基本にします",
+      "湯の流れは遅いシャッターで線にすると斜面の勾配が出ます",
+      "療養で滞在する人を写さない画角を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.tamagawa-onsen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_c9d7de14d585",
@@ -71402,6 +72616,61 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_de58f86fd905",
+    "slug": "yokote-kamakura",
+    "name": "横手のかまくら",
+    "nameEn": "Yokote Kamakura Festival",
+    "reading": "よこてのかまくら",
+    "aliases": [
+      "横手雪まつり"
+    ],
+    "address": "秋田県横手市中央町",
+    "region": {
+      "country": "日本",
+      "prefecture": "秋田県",
+      "city": "横手市"
+    },
+    "coords": {
+      "lat": 39.31,
+      "lng": 140.56
+    },
+    "category": "festival",
+    "summary": "二月十五日と十六日、市内に百基ほどの雪室が作られ、中に灯りが入ります。雪の壁が内側から光る夜景です。",
+    "description": "四百五十年以上続く小正月行事で、雪で作ったかまくらの中に水神様を祀り、子どもが甘酒や餅をふるまいます。かまくらは高さ三メートルほどで、内部にろうそくが灯ると壁全体が柔らかく光ります。市内数か所の会場に計百基ほどが並び、蛇の崎川原には小さなミニかまくらが数千個置かれ、こちらは面としての光になります。",
+    "highlights": [
+      "内側から光る雪室",
+      "蛇の崎川原の数千のミニかまくら",
+      "四百五十年続く小正月行事"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "二月十五日と十六日の二日間のみ。前後の日には点灯されません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "日没後の点灯が本番。雪面が光を返すので、露出は切り詰め気味にします。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "空に色が残る時間はかまくらの形と空が両立します。点灯直後が狙い目です。"
+      }
+    ],
+    "compositionTips": [
+      "かまくらの開口部を正面に置くと内部の光が主役になります",
+      "ミニかまくらは望遠で圧縮して光の粒を敷き詰めます",
+      "子どもがいる場では保護者に断ってから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.yokote.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_dc6ab42aedc0",
