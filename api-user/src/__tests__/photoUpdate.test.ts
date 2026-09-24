@@ -15,6 +15,14 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 const mockS3DeleteMany = vi.hoisted(() => vi.fn(async (keys: string[]) => { void keys; }));
 vi.mock("../s3Delete", () => ({ s3DeleteMany: (keys: string[]) => mockS3DeleteMany(keys) }));
 // アルバムへの出し入れは境界としてモックする（実体は `albums.test.ts`）
+// 案A: 実体を `private/` へ動かす経路
+const mockCopyAll = vi.hoisted(() => vi.fn(async () => true));
+const mockDropOld = vi.hoisted(() => vi.fn(async () => 0));
+vi.mock("../s3Move", () => ({
+    copyAll: (...a: unknown[]) => mockCopyAll(...(a as [])),
+    dropOld: (...a: unknown[]) => mockDropOld(...(a as [])),
+}));
+
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockIsAlbumMember = vi.hoisted(() => vi.fn(async () => true));
@@ -1315,4 +1323,103 @@ describe("公開範囲を絞ったら、公開のページを作り直す", () =
         expect(JSON.parse(res.body).staticStale).toBeFalsy();
     });
 });
+
+// 🔴 **案A: 絞ったら実体を `private/` へ動かす**
+// （`docs/restricted-image-delivery.md`・owner 承認済み 2026-09-23）
+describe("公開範囲を絞ったら、実体も動かす", () => {
+    const U = "22222222-2222-2222-2222-222222222222";
+    const CDN = "https://d1s3dwwzgxf5ni.cloudfront.net";
+    const publicRow = (audience?: string) => ({
+        Item: {
+            id: "p1", userId: "u1", published: true,
+            key: `uploads/${U}/p1.jpg`,
+            src: `${CDN}/uploads/${U}/p1.jpg`,
+            thumbSrc: `${CDN}/uploads/${U}/p1-t.jpg`,
+            ...(audience ? { audience } : {}),
+        },
+    });
+    const update = () => (mockDdbSend.mock.calls
+        .map((c) => (c[0] as { input: Record<string, unknown> }).input)
+        .find((i) => "UpdateExpression" in i)) as
+        { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } | undefined;
+
+    beforeEach(() => {
+        mockCopyAll.mockReset().mockResolvedValue(true);
+        mockDropOld.mockReset().mockResolvedValue(0);
+    });
+
+    it("コピーしてから、行に新しい URL を書く", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(publicRow()).mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockCopyAll).toHaveBeenCalled();
+
+        const input = update();
+        const values = input?.ExpressionAttributeValues ?? {};
+        // 🔴 **値を積んだだけでは行は変わらない。** `SET` 句に入っている
+        // ことまで見る——最初これを見ていなくて、`sets.push` を消す変異が
+        // **1件も落ちなかった**（行が更新されないのにテストは緑）
+        const written = Object.entries(values)
+            .filter(([key]) => key.startsWith(":mv"))
+            .filter(([key]) => input?.UpdateExpression.includes(key));
+        expect(written.length, "新しい URL が SET 句に入っていない").toBeGreaterThan(0);
+
+        const urls = written.map(([, v]) => String(v));
+        expect(urls.some((v) => v.includes("/private/")), "URL が書き換わっていない").toBe(true);
+        expect(urls.some((v) => v === `private/${U}/p1.jpg`), "生キーも書き換える").toBe(true);
+        // 名前も対で入っていること（`#mv0 = :mv0`）
+        expect(input?.UpdateExpression).toMatch(/#mv\d+ = :mv\d+/);
+    });
+
+    // 🔴 **順番。** 逆だと、途中で落ちたときに行が存在しない実体を指す
+    it("元を消すのは、行を書き換えた**あと**", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(publicRow()).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockCopyAll.mock.invocationCallOrder[0])
+            .toBeLessThan(mockDropOld.mock.invocationCallOrder[0]);
+    });
+
+    // 🔴 **「絞った」と表示しながら画像が公開 URL に残るのは、
+    //     守れない約束を画面に書くこと。** 分からないなら止める
+    it("コピーに失敗したら 500。公開範囲も変えない", async () => {
+        mockCopyAll.mockResolvedValue(false);
+        mockDdbSend.mockReset().mockResolvedValueOnce(publicRow()).mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode).toBe(500);
+        expect(update(), "行を1つも書き換えていないこと").toBeUndefined();
+        expect(mockDropOld, "元を消していないこと").not.toHaveBeenCalled();
+    });
+
+    it("解除したら、逆へ戻す", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: {
+                id: "p1", userId: "u1", published: true, audience: "followers",
+                key: `private/${U}/p1.jpg`, src: `${CDN}/private/${U}/p1.jpg`,
+            } })
+            .mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { audience: null }));
+        const input = update();
+        const back = Object.entries(input?.ExpressionAttributeValues ?? {})
+            .filter(([k]) => k.startsWith(":mv") && input?.UpdateExpression.includes(k))
+            .map(([, v]) => String(v));
+        expect(back.some((v) => v.includes("/uploads/")), "SET 句で戻していない").toBe(true);
+    });
+
+    // **公開範囲を触らない保存では、1つも動かさない**（題を直しただけで
+    // S3 が動いたら、編集のたびに実体が往復する）
+    it("公開範囲を触らない保存では、何も動かさない", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(publicRow()).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { title: "新しい題" }));
+        expect(mockCopyAll).not.toHaveBeenCalled();
+        expect(mockDropOld).not.toHaveBeenCalled();
+    });
+
+    // **同じ値で保存し直しても動かさない**（二度押しで往復しない）
+    it("既に絞ってある写真を、もう一度絞っても動かさない", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce(publicRow("followers")).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(mockCopyAll).not.toHaveBeenCalled();
+    });
+});
+
 

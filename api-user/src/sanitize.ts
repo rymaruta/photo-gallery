@@ -268,3 +268,21 @@ export function sameStoredValue(a: unknown, b: unknown): boolean {
     }
     return false;
 }
+
+/**
+ * **公開範囲を絞った写真か**（「フォロワーのみ」「親しい友達」）。
+ *
+ * **`sanitizeAudience` とは別の判定で、わざとそうしてある。**
+ * あちらは「知らない綴りは `undefined`」＝**公開に倒す**（保存のとき、
+ * 受け取った値を1つに正す役）。こちらは「**持っていれば一律で絞った扱い**」
+ * ＝**隠す側に倒す**（読むとき、誰に見せるかを決める前のふるい）。
+ * 逆にすると、綴りを間違えた行や将来足した値が**公開に戻ります**。
+ *
+ * 同じ規則が `api/src/photos.ts` の `isRestricted` にもあります
+ * （別のパッケージなので import できない）。ずれないように
+ * `api-user/src/__tests__/restrictedRuleParity.test.ts` が突き合わせます。
+ */
+export function isRestrictedRow(row: { audience?: unknown }): boolean {
+    const a = row.audience;
+    return typeof a === "string" ? a.trim() !== "" : a != null;
+}
