@@ -64,6 +64,12 @@ export const ROUTES = {
      */
     SAVED_SPOTS: "/saved-spots",
     MAP: "/map",
+    /**
+     * 公式撮影地ガイドの索引。**`/location`（写真から作る撮影地の索引）とは
+     * 別の面**——あちらは写真の集約、こちらは運営が書いたガイド。
+     * 写真が0枚の場所も載る。
+     */
+    SPOTS: "/spots",
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
     PRIVACY: "/privacy",
