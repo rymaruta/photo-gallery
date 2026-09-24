@@ -142,7 +142,7 @@ export default function PhotoMap({
     className?: string;
 }) {
     const en = locale === "en";
-    const [basemapState, setBasemapState] = useState<"loading" | "vector-ready" | "fallback">("loading");
+    const [basemapState, setBasemapState] = useState<"loading" | "free-imagery-ready" | "vector-ready" | "fallback">("loading");
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const layerRef = useRef<LayerGroup | null>(null);
@@ -591,6 +591,11 @@ export default function PhotoMap({
                 data-testid="photo-map"
             />
 
+            {basemapState === "vector-ready" && (
+                <p role="status" className="journey-map-basemap-warning pointer-events-none absolute left-3 top-2 z-[1001] max-w-[calc(100%-80px)] rounded-lg bg-surface-2/95 px-3 py-2 text-xs leading-5 text-white/85">
+                    {en ? "Free aerial imagery unavailable. Showing a real vector map." : "無料の衛星・空中写真を読み込めませんでした。通常の地図を表示しています。"}
+                </p>
+            )}
             {basemapState === "fallback" && (
                 <p role="status" className="journey-map-basemap-warning pointer-events-none absolute left-3 top-2 z-[1001] max-w-[calc(100%-80px)] rounded-lg bg-surface-2/95 px-3 py-2 text-xs leading-5 text-white/85">
                     {en ? "High-detail map unavailable. Standard map shown." : "高精細な地図を読み込めませんでした。標準地図を表示しています。"}
