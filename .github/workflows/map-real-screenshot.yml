@@ -50,9 +50,9 @@ jobs:
           import MapPageClient from "../MapPageClient";
           import type { SpotPin } from "../../../lib/data/spotLink";
           const SPOTS: SpotPin[] = [
-            { slug: "proof-santorini", name: "サントリーニ島（検証用）", region: "ギリシャ", summary: "位置とカードのCI検証に限ったダミー掲載状態です。", lat: 36.4615, lng: 25.375, cover: null },
-            { slug: "proof-naxos", name: "ナクソス島（検証用）", region: "ギリシャ", lat: 37.105, lng: 25.376, cover: null },
-            { slug: "proof-athens", name: "アテネ（検証用）", region: "ギリシャ", lat: 37.98, lng: 23.72, cover: null },
+            { slug: "proof-fuji-a", name: "河口湖周辺A（検証用）", region: "山梨県・検証用", summary: "空中写真とスポットカードの動作を確認するためだけのCIデータです。", lat: 35.502, lng: 138.755, cover: null },
+            { slug: "proof-fuji-b", name: "河口湖周辺B（検証用）", region: "山梨県・検証用", lat: 35.503, lng: 138.759, cover: null },
+            { slug: "proof-fuji-c", name: "河口湖周辺C（検証用）", region: "山梨県・検証用", lat: 35.504, lng: 138.758, cover: null },
           ];
           export default function Proof() {
             return (
@@ -101,18 +101,21 @@ jobs:
                 failed = true;
                 console.error(name + " did not start free geographic imagery. State: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
               }
-              // Layer readiness alone does not prove images arrived. Verify a
-              // successful GSI HTTP tile before labelling the screenshot aerial.
-              await page.waitForTimeout(3000);
-              if (!gsiTileResponses.length) {
+              // The actual Japan orthophoto is served at zoom 14+, not at the
+              // earlier Greek test coordinates. Zoom into Japan before capture.
+              await page.getByRole("button", { name: "拡大" }).click();
+              await page.getByRole("button", { name: "拡大" }).click();
+              await page.waitForTimeout(4000);
+              const actualOrthophoto = gsiTileResponses.filter((url) => url.includes("/xyz/seamlessphoto/"));
+              if (!actualOrthophoto.length) {
                 failed = true;
-                console.error(name + " loaded no real GSI imagery tiles; never call this a satellite screenshot");
-              } else console.log(name + " GSI imagery tiles HTTP 200:", gsiTileResponses.length);
-              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-FREE-REAL-IMAGERY.png", fullPage: true });
+                console.error(name + " received NO real Japanese orthophoto tiles HTTP 200; not a verified aerial screenshot");
+              } else console.log(name + " GSI orthophoto HTTP 200:", actualOrthophoto.length);
+              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-JAPAN-REAL-ORTHOPHOTO.png", fullPage: true });
               const pin = page.locator(".spot-map-pin-icon").first();
               if (await pin.count()) {
                 await pin.click({ timeout: 10000 });
-                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-FREE-REAL-IMAGERY.png", fullPage: true });
+                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-JAPAN-REAL-ORTHOPHOTO.png", fullPage: true });
               } else { failed = true; console.error(name + " has no real official pin"); }
               if (errors.length) { failed = true; console.error(name + " errors:", errors.slice(0, 6)); }
               await page.close();
