@@ -27,44 +27,41 @@ import { ROUTES } from "../../lib/routes";
  *
  * **寸法は px。** 640px 未満で root が 14px に落ちるため。
  */
-export default function MapSpotList({ spots, locale }: {
+export default function MapSpotList({ spots, locale, testId = "map-spot-list" }: {
     spots: readonly SpotPin[];
     locale: "ja" | "en";
+    testId?: string;
 }) {
     const en = locale === "en";
     if (spots.length === 0) return null;
 
     return (
-        <section aria-labelledby="map-spot-list-heading" style={{ marginTop: "12px" }}>
-            <h2
-                id="map-spot-list-heading"
-                className="m-0 font-serif font-bold text-white"
-                style={{ fontSize: "14px", lineHeight: "20px", marginBottom: "8px" }}
-            >
+        <section className="journey-map-spots mt-4" aria-label={en ? "Official shooting spots" : "公式撮影スポット"}>
+            <h2 className="m-0 mb-2 font-serif font-bold text-white" style={{ fontSize: "15px", lineHeight: "22px" }}>
                 {en ? "Official shooting spots" : "公式撮影スポット"}
             </h2>
-            <ul className="list-none m-0 p-0" data-testid="map-spot-list">
+            <ul className="journey-map-spot-strip list-none m-0 p-0" data-testid={testId}>
                 {spots.map((s) => (
-                    <li key={s.slug} style={{ marginBottom: "8px" }}>
+                    <li key={s.slug} className="journey-map-spot-tile">
                         <Link
                             href={`${ROUTES.SPOTS}/${s.slug}`}
                             prefetch={false}
-                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-white/10 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                            style={{ gap: "12px", padding: "8px" }}
+                            className="journey-map-spot-card group flex h-full items-center rounded-2xl bg-surface-2/85 ring-1 ring-white/10 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            style={{ gap: "11px", padding: "9px" }}
                         >
                             {/* 代表写真。**権利の判断はサーバー側で済んでいる**ので、
                                 在れば出す・無ければ地図の印を置くだけ */}
                             <span
                                 className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-white/5"
-                                style={{ width: "56px", height: "56px" }}
+                                style={{ width: "70px", height: "72px" }}
                             >
                                 {s.cover ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                         src={s.cover.src}
                                         alt=""
-                                        width={56}
-                                        height={56}
+                                        width={70}
+                                        height={72}
                                         loading="lazy"
                                         decoding="async"
                                         className="w-full h-full object-cover"
@@ -77,10 +74,11 @@ export default function MapSpotList({ spots, locale }: {
                                 <span className="block truncate font-semibold text-white" style={{ fontSize: "14px", lineHeight: "20px" }}>
                                     {s.name}
                                 </span>
-                                <span className="block text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
+                                <span className="block text-white/70" style={{ fontSize: "11px", lineHeight: "16px" }}>
                                     {en ? "Official guide" : "公式撮影地ガイド"}
                                     {s.region ? ` ・ ${s.region}` : ""}
                                 </span>
+                                {s.cover?.credit && <span className="mt-1 block break-words text-white/75" style={{ fontSize: "11px", lineHeight: "15px" }}>{s.cover.credit}</span>}
                             </span>
                             {/* 濃さは `MapPhotoList` の同じ矢印に揃える（`/40` は
                                 黒地で約3.7:1 で、見張りが落とす） */}
