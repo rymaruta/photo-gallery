@@ -21,8 +21,8 @@ describe("keyless GSI satellite and aerial imagery", () => {
 });
 
 describe("official regional aerial imagery additions to the worldwide map", () => {
-    it("includes keyless, official sources for the US, France and Spain alongside Japan", () => {
-        expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(new Set(["US", "FR", "ES"]));
+    it("includes keyless, official sources for the US, France, Spain, Switzerland and the Netherlands alongside Japan", () => {
+        expect(new Set(OFFICIAL_COUNTRY_IMAGERY.map((source) => source.country))).toEqual(new Set(["US", "FR", "ES", "CH", "NL"]));
         for (const source of OFFICIAL_COUNTRY_IMAGERY) {
             expect(source.url).toMatch(/^https:\/\//);
             expect(source.url).toContain("{z}");
@@ -51,5 +51,9 @@ describe("official regional aerial imagery additions to the worldwide map", () =
         expect(es?.url).toContain("TILEMATRIXSET=GoogleMapsCompatible");
         expect(fr?.url).toContain("ORTHOIMAGERY.ORTHOPHOTOS");
         expect(es?.url).toContain("OI.OrthoimageCoverage");
+        const ch = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "CH");
+        const nl = OFFICIAL_COUNTRY_IMAGERY.find((source) => source.country === "NL");
+        expect(ch?.url).toContain("ch.swisstopo.swissimage/default/current/3857/");
+        expect(nl?.url).toContain("Actueel_ortho25/EPSG:3857/");
     });
 });
