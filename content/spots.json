@@ -12703,6 +12703,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7ff916e0424d",
+    "slug": "gokayama-suganuma",
+    "name": "五箇山 菅沼集落",
+    "nameEn": "Suganuma Village, Gokayama",
+    "reading": "ごかやま すがぬましゅうらく",
+    "aliases": [
+      "菅沼合掌造り集落"
+    ],
+    "address": "富山県南砺市菅沼",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "南砺市"
+    },
+    "coords": {
+      "lat": 36.42,
+      "lng": 136.93
+    },
+    "category": "landmark",
+    "summary": "庄川の河岸段丘に九棟の合掌造りが残る小さな集落。相倉より規模が小さく、一枚に全体が収まります。",
+    "description": "世界遺産の構成資産で、合掌造り家屋九棟が段丘の上にまとまっています。規模が小さいぶん、展望台から一枚に全体が入るのが特徴です。集落内には塩硝の館と民俗館があり、五箇山が火薬の原料である塩硝を作っていた歴史が展示されています。国道から集落へはエレベーターとトンネルで降ります。住民が生活する場です。",
+    "highlights": [
+      "九棟がまとまる小さな集落",
+      "展望台から全体が一枚に入る規模",
+      "塩硝作りの歴史展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、田に水が入り、集落と新緑が並びます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、茅葺きの茶色が際立ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と合掌造り。ライトアップが行われる日があり、事前確認が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、集落が霧の中に浮かぶことがあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は茅葺きが暖色に染まり、家の灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "展望台から全体を一枚に収めるのがこの集落の強みです",
+      "合掌の切妻は側面から撮って勾配を見せます",
+      "住民の生活の場なので、敷地内に入らず住宅を覗き込まないこと"
+    ],
+    "officialWebsiteUrl": "https://www.gokayama-info.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_830ae3102fb8",
     "slug": "gongendo-tsutsumi",
     "name": "権現堂堤",
@@ -17384,6 +17447,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_350f9317cee7",
+    "slug": "himi",
+    "name": "氷見漁港",
+    "nameEn": "Himi Fishing Port",
+    "reading": "ひみぎょこう",
+    "aliases": [
+      "氷見 定置網",
+      "比美乃江大橋"
+    ],
+    "address": "富山県氷見市比美町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "氷見市"
+    },
+    "coords": {
+      "lat": 36.86,
+      "lng": 136.99
+    },
+    "category": "landmark",
+    "summary": "富山湾越しに立山連峰が正面に見える漁港。海の向こうに三千メートル級の山が並ぶ構図が取れます。",
+    "description": "定置網漁で知られる港で、冬の寒ブリが有名です。港の背後ではなく正面、海の向こうに立山連峰が見えるのがこの土地の特徴で、標高差三千メートルが水平距離約四十キロの中に収まります。比美乃江大橋や海岸沿いの道路からこの景色が開けます。早朝には漁船が戻り、市場が動きます。山が見える日は限られ、冬の晴天時が最も確率が高くなります。",
+    "highlights": [
+      "海の向こうに並ぶ立山連峰",
+      "定置網漁の漁船と市場",
+      "比美乃江大橋からの視点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "空気が澄み、立山連峰が見える確率が最も高い季節です。寒ブリの時期でもあります。"
+      },
+      {
+        "season": "spring",
+        "text": "四月頃までは山に雪が残り、稜線が白く際立ちます。"
+      },
+      {
+        "season": "summer",
+        "text": "山は霞むことが多く、港と漁の風景が中心になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は山が見えやすく、漁船も戻る時間です。両方が重なります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は山が逆光でシルエットになり、海面が光ります。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で山を引き寄せると標高差が強調されます",
+      "漁船を前景に置いて海と山の三層にします",
+      "市場での撮影は関係者に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.kitokitohimi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_97e8f67cc1b6",
     "slug": "hinokinaigawa",
     "name": "桧木内川堤",
@@ -19547,6 +19674,57 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_239d55dae328",
+    "slug": "hotaruika",
+    "name": "ホタルイカの身投げ",
+    "nameEn": "Firefly Squid Stranding",
+    "reading": "ほたるいかのみなげ",
+    "aliases": [
+      "滑川 ホタルイカ"
+    ],
+    "address": "富山県滑川市中川原",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "滑川市"
+    },
+    "coords": {
+      "lat": 36.77,
+      "lng": 137.34
+    },
+    "category": "nature",
+    "summary": "春の深夜、産卵にきたホタルイカが波打ち際に打ち上がり、青く光ります。条件が揃う夜は限られます。",
+    "description": "富山湾では三月から五月にかけて、産卵のため浮上したホタルイカが波打ち際まで押し寄せることがあります。身投げと呼ばれる現象で、刺激を受けたイカが青白く発光し、渚が光の線になります。新月に近く、南寄りの風が強くなく、波が穏やかという条件が重なる深夜から未明に起きやすいとされます。滑川から魚津にかけての海岸が観察地です。",
+    "highlights": [
+      "波打ち際で青く光るホタルイカ",
+      "春の深夜という限られた時間",
+      "滑川から魚津の海岸"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月から五月が発生期。新月の前後が条件として有利とされます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "深夜から未明が中心。潮位と月齢を調べてから現地に入ります。"
+      }
+    ],
+    "compositionTips": [
+      "三脚と明るいレンズで、数秒から十数秒の露光が基本です",
+      "白い光を当てるとイカが光をやめるので、赤い弱い灯りで足元を確認します",
+      "暗い海岸なので単独行動を避け、波に近づきすぎないこと"
+    ],
+    "officialWebsiteUrl": "https://www.city.namerikawa.toyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8b22d246db98",
     "slug": "hotokegaura",
     "name": "仏ヶ浦",
@@ -20967,6 +21145,70 @@
       "田の外周を少し入れると水田であることが伝わります"
     ],
     "officialWebsiteUrl": "https://www.vill.inakadate.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_adbd5d58076b",
+    "slug": "inami-zuisenji",
+    "name": "井波 瑞泉寺",
+    "nameEn": "Zuisen-ji Temple, Inami",
+    "reading": "いなみ ずいせんじ",
+    "aliases": [
+      "井波彫刻",
+      "八日町通り"
+    ],
+    "address": "富山県南砺市井波3050",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "南砺市"
+    },
+    "coords": {
+      "lat": 36.56,
+      "lng": 136.97
+    },
+    "category": "temple",
+    "summary": "木彫の町井波の中心にある寺。山門や本堂の彫刻が密で、門前の通りには彫刻工房が並びます。",
+    "description": "一三九〇年開創の浄土真宗の寺で、度重なる焼失のたびに再建され、そこに集まった大工と彫刻師が井波彫刻の始まりになりました。山門の彫刻は非常に密で、龍や獅子が軒下を埋めます。本堂は北陸最大級の木造建築の一つです。門前の八日町通りには彫刻工房が並び、通りから作業の様子が見えます。彫刻の音が町に響きます。",
+    "highlights": [
+      "軒下を埋める山門の彫刻",
+      "北陸最大級の木造本堂",
+      "門前に並ぶ彫刻工房"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、境内の木が芽吹き、木彫の色と合います。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、境内が色づきます。彫刻の陰影も出やすい季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が軒に積もり、彫刻の凹凸が白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、山門を正面から撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は軒下に光が回り込み、彫刻の細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "彫刻は望遠で部分を抜いて密度を見せます",
+      "山門は下から見上げて軒の重なりを取ります",
+      "工房での撮影は必ず職人に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.tabi-nanto.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -22913,6 +23155,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1ec0a2ec36a5",
+    "slug": "iwase",
+    "name": "岩瀬の町並み",
+    "nameEn": "Iwase Historic District",
+    "reading": "いわせのまちなみ",
+    "aliases": [
+      "岩瀬大町通り",
+      "森家"
+    ],
+    "address": "富山県富山市岩瀬大町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.76,
+      "lng": 137.21
+    },
+    "category": "landmark",
+    "summary": "北前船の廻船問屋が並んだ通り。間口が狭く奥行きの長い町家が続き、いまは酒蔵やガラス工房が入っています。",
+    "description": "江戸から明治にかけて北前船の寄港地として栄えた町で、大町通りには廻船問屋の町家が残ります。間口に対して奥行きが極端に長い構造で、通り庭が奥まで続きます。重要文化財の森家は内部が公開されています。近年は酒蔵やガラス工房、飲食店が入り、現役の商業地として使われています。富山ライトレールで市街から直接行けます。",
+    "highlights": [
+      "奥行きの長い廻船問屋の町家",
+      "重要文化財の森家",
+      "現役で使われる酒蔵と工房"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "通りが明るくなり、格子と土壁の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、格子の陰影が濃くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の通り。人が少なく、町並みの構成だけを撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景が撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は店の灯りが格子越しに漏れ、町家の奥行きが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "通り庭の奥行きを消失点まで通すのがこの町家の構造に合います",
+      "格子は正面から撮って反復のリズムを見せます",
+      "営業中の店が多いので、客や店員を撮るときは断ってからにします"
+    ],
+    "officialWebsiteUrl": "https://www.toyamashi-kankoukyoukai.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b2e2fad3bbb1",
     "slug": "iwate-sanriku-railway",
     "name": "三陸鉄道",
@@ -24453,6 +24759,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_0b379c039562",
+    "slug": "johana",
+    "name": "城端の町並み",
+    "nameEn": "Johana Old Town",
+    "reading": "じょうはなのまちなみ",
+    "aliases": [
+      "城端曳山祭",
+      "城端別院善徳寺"
+    ],
+    "address": "富山県南砺市城端",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "南砺市"
+    },
+    "coords": {
+      "lat": 36.53,
+      "lng": 136.9
+    },
+    "category": "landmark",
+    "summary": "善徳寺の門前町として栄えた町。格子の町家が坂道に並び、五月には曳山祭の山車が狭い道を進みます。",
+    "description": "城端別院善徳寺の門前町で、絹織物の産地としても栄えました。町家が坂道の両側に並び、格子と土蔵が続きます。五月四日と五日の城端曳山祭はユネスコ無形文化遺産で、庵屋台という囃子の屋台と山車が町を巡ります。夜は提灯を灯した曳山が狭い道を進み、建物との距離が近い祭りです。町には曳山会館があり、通年で山車を見られます。",
+    "highlights": [
+      "格子と土蔵が続く町家",
+      "五月の城端曳山祭",
+      "通年で山車を見られる曳山会館"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月四日と五日が曳山祭。夜の曳山が最も撮り応えがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "町並みが落ち着いて歩ける季節。光も斜めで格子の陰影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の町並み。格子に雪が乗って線が白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "祭りの夜は提灯の灯りが主光源。高感度で被写体ブレを抑えます。"
+      },
+      {
+        "time": "morning",
+        "text": "平時の朝は人が少なく、町並みの全景を撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "坂道の勾配を活かして手前から奥へ通します",
+      "格子は正面から撮って反復のリズムを見せます",
+      "祭りは沿道の所定の位置から撮り、行列を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.tabi-nanto.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_cf21ab6b00e5",
@@ -26786,6 +27156,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d2cb6aa00aa5",
+    "slug": "kanayamachi",
+    "name": "金屋町",
+    "nameEn": "Kanayamachi District",
+    "reading": "かなやまち",
+    "aliases": [
+      "高岡 千本格子の町並み"
+    ],
+    "address": "富山県高岡市金屋町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "高岡市"
+    },
+    "coords": {
+      "lat": 36.75,
+      "lng": 137.01
+    },
+    "category": "landmark",
+    "summary": "高岡銅器の発祥の町。千本格子の町家が石畳の通りに続き、鋳物師が住んだ区画がそのまま残ります。",
+    "description": "一六一一年に前田利長が鋳物師を招いて開かれた町で、高岡銅器の発祥地です。通りの両側に千本格子と呼ばれる細い格子を持つ町家が並び、路面は石畳。重要伝統的建造物群保存地区に選定されています。格子の桟が細く数が多いため、正面から見ると縞の密度が高くなります。鋳物工房と資料館があり、通りから作業を見られる場所もあります。",
+    "highlights": [
+      "桟の細い千本格子",
+      "石畳の通り",
+      "鋳物師の町として開かれた区画"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "通りが明るくなり、格子の陰影と木の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、格子の縞が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が石畳に積もり、格子の線と地面の白が対になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りの全景が撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "夜は格子の内側から灯りが漏れ、桟の線が浮き上がります。"
+      }
+    ],
+    "compositionTips": [
+      "格子は正面から撮ると縞のテクスチャが主題になります",
+      "望遠で通りを圧縮すると格子の反復が続いて見えます",
+      "住居なので敷地に入らず、公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.takaoka.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_912e3bd071a0",
@@ -36194,6 +36627,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_78ab7f7ed1d8",
+    "slug": "masuda",
+    "name": "増山城",
+    "nameEn": "Masuyama Castle Site",
+    "reading": "ますやまじょう",
+    "aliases": [
+      "増山城跡"
+    ],
+    "address": "富山県砺波市増山",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "砺波市"
+    },
+    "coords": {
+      "lat": 36.6,
+      "lng": 136.99
+    },
+    "category": "landmark",
+    "summary": "山全体を削って作った中世の山城跡。石垣ではなく土を掘った堀切と曲輪が、林の中にそのまま残ります。",
+    "description": "越中三大山城の一つで、国の史跡です。石垣を持たない土の城で、尾根を断ち切る堀切、削平した曲輪、土塁が山中に良好に残ります。建物は一切ありませんが、地形の加工の跡が明瞭で、中世の築城技術がそのまま読み取れます。散策路が整備され、主要な遺構を二時間ほどで回れます。落葉期のほうが地形が見えます。",
+    "highlights": [
+      "尾根を断ち切る堀切",
+      "削平された曲輪の段",
+      "石を使わない土の城の構造"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "落葉して地形がむき出しになり、堀切や土塁が最もよく見えます。"
+      },
+      {
+        "season": "spring",
+        "text": "四月、新緑の前なら地形がまだ読めます。歩きやすい気候です。"
+      },
+      {
+        "season": "summer",
+        "text": "下草が茂って遺構が隠れます。虫と蛇への備えが要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は斜光が堀切の溝に影を作り、深さが分かります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は林内が均一に明るくなり、遺構の形が平坦に見えます。"
+      }
+    ],
+    "compositionTips": [
+      "堀切は底から見上げて深さを出します",
+      "人を入れると土木量のスケールが伝わります",
+      "落葉期に撮るのが地形を見せる最短の方法です"
+    ],
+    "officialWebsiteUrl": "https://www.city.tonami.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_bd05700ffbaa",
     "slug": "masuda-uchigura",
     "name": "増田の内蔵",
@@ -37632,6 +38128,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0136995e7fba",
+    "slug": "midagahara-tateyama",
+    "name": "立山 弥陀ヶ原",
+    "nameEn": "Midagahara, Tateyama",
+    "reading": "たてやま みだがはら",
+    "aliases": [
+      "弥陀ヶ原 ガキの田"
+    ],
+    "address": "富山県中新川郡立山町芦峅寺弥陀ヶ原",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "立山町"
+    },
+    "coords": {
+      "lat": 36.56,
+      "lng": 137.53
+    },
+    "category": "nature",
+    "summary": "標高二千メートル前後に広がる高層湿原。ガキの田と呼ばれる無数の池塘が斜面に点在します。",
+    "description": "立山の西側斜面に広がる湿原で、ラムサール条約に登録されています。地塘はガキの田と呼ばれ、大小の水たまりが斜面に散らばります。木道が湿原を通り、一周三十分ほどの短い周回路から二時間近い長い道まで選べます。晴れた日は湿原の先に富山平野と日本海が見えます。室堂よりも標高が低く、紅葉は十月中旬が中心です。",
+    "highlights": [
+      "斜面に散らばる池塘",
+      "湿原を通る木道",
+      "湿原の先に見える富山平野と日本海"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月から八月、湿原植物が咲きます。霧が出やすい季節でもあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月中旬の草紅葉。湿原全体が赤褐色になり、池塘が点として残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が晴れやすく、池塘の水面も静かです。"
+      },
+      {
+        "time": "day",
+        "text": "日中は霧が上がってくることが多く、視界が変わりやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "高い位置から俯瞰して池塘の散らばりを面で見せます",
+      "木道を前景に通して奥行きを作ります",
+      "湿原に踏み込まず、木道の上から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.alpen-route.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_286947844128",
     "slug": "midosuji-icho",
     "name": "御堂筋 イチョウ並木",
@@ -38144,6 +38699,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4d2052981d82",
+    "slug": "mikurigaike",
+    "name": "みくりが池",
+    "nameEn": "Mikurigaike Pond",
+    "reading": "みくりがいけ",
+    "aliases": [
+      "室堂 みくりが池"
+    ],
+    "address": "富山県中新川郡立山町芦峅寺室堂",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "立山町"
+    },
+    "coords": {
+      "lat": 36.58,
+      "lng": 137.6
+    },
+    "category": "nature",
+    "summary": "室堂平にある火口湖。水深十五メートルで透明度が高く、無風の日は立山三山がそのまま水面に映ります。",
+    "description": "室堂バスターミナルから徒歩十五分ほどの火口湖で、周囲約六百三十メートル、水深十五メートル。北アルプスでは最も深い高山湖とされます。湖面は静かな日に立山三山を丸ごと映し、山と水面が上下対称になります。周囲は遊歩道が一周し、季節によって雪に埋まる区間があります。近くには地獄谷の噴気が見え、火山地形であることが分かります。",
+    "highlights": [
+      "立山三山の映り込み",
+      "透明度の高い高山湖",
+      "周囲をめぐる遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "六月頃まで湖面が凍結しているか雪に覆われています。"
+      },
+      {
+        "season": "summer",
+        "text": "七月下旬から水面が開き、映り込みが撮れるようになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月上旬、周囲の草紅葉と山が同時に映り込みます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で水面が鏡になります。この池は朝が本命です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は風が出て水面が波立つことが多くなります。"
+      }
+    ],
+    "compositionTips": [
+      "水平線を画面中央に置き上下対称に構えます",
+      "岸の岩を前景に入れて距離感を作ります",
+      "遊歩道から外れず、湖岸の植生を踏まないこと"
+    ],
+    "officialWebsiteUrl": "https://www.alpen-route.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8d0f9633fa4f",
@@ -41237,6 +41855,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_8e5b430ac51d",
+    "slug": "murodo",
+    "name": "室堂平",
+    "nameEn": "Murododaira",
+    "reading": "むろどうだいら",
+    "aliases": [
+      "立山 室堂"
+    ],
+    "address": "富山県中新川郡立山町芦峅寺室堂",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "立山町"
+    },
+    "coords": {
+      "lat": 36.58,
+      "lng": 137.6
+    },
+    "category": "mountain",
+    "summary": "標高二千四百五十メートルの台地。立山三山が正面に立ち、バスで着いた場所から高山の景観が始まります。",
+    "description": "立山黒部アルペンルートの中心で、バスターミナルを出ると目の前に雄山・大汝山・富士ノ折立の立山三山がそびえます。台地には遊歩道が整備され、みくりが池、血の池、地獄谷の噴気が徒歩圏に収まります。標高のわりに歩く距離が短く、高山の景観に短時間で到達できるのが特徴です。開通期間は例年四月中旬から十一月末です。",
+    "highlights": [
+      "正面にそびえる立山三山",
+      "石畳の遊歩道が通る高山台地",
+      "徒歩圏の池と噴気地帯"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から六月は雪の世界。除雪された道の両側に雪壁が残ります。"
+      },
+      {
+        "season": "summer",
+        "text": "七月から八月、雪解けとともに高山植物が咲きます。雷鳥が見られる季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "九月下旬から十月上旬の紅葉。ナナカマドの赤と雪が重なる年もあります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で三山が見えます。宿泊しないと取れない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は山肌が赤く染まります。最終のバスの時刻から逆算します。"
+      }
+    ],
+    "compositionTips": [
+      "遊歩道の線を前景に通して三山へ視線を運びます",
+      "人を入れて標高と規模を示します",
+      "高山植物は登山道から外れずに撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.alpen-route.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e0efac34d10d",
@@ -47948,6 +48629,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_092ceb9c0f82",
+    "slug": "oiwasan",
+    "name": "大岩山日石寺",
+    "nameEn": "Oiwasan Nisseki-ji Temple",
+    "reading": "おおいわさん にっせきじ",
+    "aliases": [
+      "大岩不動",
+      "六本滝"
+    ],
+    "address": "富山県中新川郡上市町大岩163",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "上市町"
+    },
+    "coords": {
+      "lat": 36.68,
+      "lng": 137.4
+    },
+    "category": "temple",
+    "summary": "岩壁に彫られた高さ三メートルの不動明王が本尊。六本の樋から落ちる六本滝で滝行が行われます。",
+    "description": "巨大な岩の表面に不動明王とその眷属が刻まれており、これが本尊です。像高は三メートル余りで、平安後期の作とされ国の重要文化財です。本堂はこの磨崖仏を覆うように建てられています。境内には六本の樋から水が落ちる六本滝があり、滝行の場になっています。渓流沿いの参道には石段と茶屋が並び、夏はそうめんで知られます。",
+    "highlights": [
+      "岩に彫られた高さ三メートルの不動明王",
+      "六本の樋から落ちる六本滝",
+      "渓流沿いの石段と茶屋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "渓流が涼しく、滝行も行われます。参道の茶屋も賑わう季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、渓谷が色づきます。石段と紅葉が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の石段と滝。凍結するので足元の装備が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、磨崖仏を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中も堂内は暗いので、高感度が前提になります。"
+      }
+    ],
+    "compositionTips": [
+      "磨崖仏は岩と一体であることが分かる引きで撮ります",
+      "六本滝は縦構図で六本の流れを並べます",
+      "堂内の撮影可否は現地の表示を確認します"
+    ],
+    "officialWebsiteUrl": "https://www.town.kamiichi.toyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_67e79b820628",
     "slug": "okage-yokocho",
     "name": "おかげ横丁",
@@ -51464,6 +52209,61 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e890c9e4e673",
+    "slug": "owara",
+    "name": "おわら風の盆",
+    "nameEn": "Owara Kaze no Bon",
+    "reading": "おわらかぜのぼん",
+    "aliases": [
+      "越中八尾"
+    ],
+    "address": "富山県富山市八尾町",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.57,
+      "lng": 137.13
+    },
+    "category": "festival",
+    "summary": "九月一日から三日、編笠で顔を隠した踊り手が坂の町を流します。胡弓の音と灯りだけの、静かな祭りです。",
+    "description": "越中八尾の町で二百年以上続く行事で、二百十日の風を鎮めるために踊られてきました。踊り手は編笠を目深にかぶって顔を見せず、三味線・胡弓・太鼓の囃子に合わせて町を流します。掛け声がなく、灯りも坊主提灯とぼんぼりだけという静かな祭りです。石畳の坂道が舞台になります。混雑が激しく、撮影位置は事前の確認が要ります。",
+    "highlights": [
+      "編笠で顔を隠した踊り手",
+      "胡弓の音と灯りだけの静かな進行",
+      "石畳の坂道が舞台になる構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "九月一日から三日の三日間のみ。前夜祭が八月二十日から行われます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "夜が本番。光源は提灯だけなので高感度と明るいレンズが前提です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "日暮れ前は踊り手の所作が見え、空の色も残ります。"
+      }
+    ],
+    "compositionTips": [
+      "ストロボは雰囲気を壊すので使わないこと",
+      "坂道の勾配を活かして踊りの列を奥へ通します",
+      "沿道の指定された位置から撮り、進行を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.yatsuo.net/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d313b95f9bc1",
@@ -55767,6 +56567,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_05732c880394",
+    "slug": "sankyoson",
+    "name": "砺波の散居村",
+    "nameEn": "Tonami Scattered Settlement",
+    "reading": "となみのさんきょそん",
+    "aliases": [
+      "散居村展望台",
+      "カイニョ"
+    ],
+    "address": "富山県砺波市五谷",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "砺波市"
+    },
+    "coords": {
+      "lat": 36.63,
+      "lng": 136.91
+    },
+    "category": "nature",
+    "summary": "屋敷林に囲まれた家が水田の中に点々と散らばる地形。高台から俯瞰すると、緑の島が平野に浮かんで見えます。",
+    "description": "砺波平野では、家が集まらず一軒ずつ田の中に散らばって建つ散居村の形が続いてきました。各戸は屋敷林に囲まれており、これをカイニョと呼びます。風雪から家を守るための林です。高台の散居村展望台からは、水田の中に緑の塊が点々と並ぶ全景が見えます。春の田植え期には水面が光り、家が水の上に浮いているように見えます。",
+    "highlights": [
+      "田の中に散らばる屋敷林",
+      "展望台からの全景",
+      "田植え期の水面の反射"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の田植え期。水を張った田が光り、屋敷林が水に浮いて見えます。"
+      },
+      {
+        "season": "summer",
+        "text": "稲が育ち、緑の面に濃い緑の塊が並ぶ構成になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "稲刈り後の茶色の田と屋敷林。輪郭がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は水田が西日を反射し、家の影が長く伸びます。この土地の本命です。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、屋敷林が霧の上に頭を出します。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で平野を圧縮すると屋敷林の密度が上がります",
+      "田の反射を主題にして家をシルエットにします",
+      "田や私有地に立ち入らず、展望台や公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.tonamigaku.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b375f46c0987",
@@ -61382,6 +62246,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2c2535b944d5",
+    "slug": "shogawa-kyo",
+    "name": "庄川峡",
+    "nameEn": "Shogawa Gorge",
+    "reading": "しょうがわきょう",
+    "aliases": [
+      "庄川遊覧船",
+      "小牧ダム"
+    ],
+    "address": "富山県砺波市庄川町小牧",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "砺波市"
+    },
+    "coords": {
+      "lat": 36.53,
+      "lng": 136.96
+    },
+    "category": "nature",
+    "summary": "ダム湖になった庄川の峡谷。道路が通じない区間が多く、遊覧船で水面から両岸の紅葉を見上げる視点が取れます。",
+    "description": "小牧ダムによってできた湖状の峡谷で、両岸が急斜面のまま水面まで落ちています。道路が通っていない区間が多く、遊覧船が主要な移動手段になります。水面からの視点では、両岸の斜面が高く立ち上がって見えます。紅葉期は斜面全体が色づき、水面に映ります。ダムは一九三〇年完成で、近代化遺産としても価値があります。",
+    "highlights": [
+      "水面から見上げる両岸の斜面",
+      "遊覧船からの視点",
+      "一九三〇年完成の小牧ダム"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月の新緑。水面の色も明るく、斜面との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬から中旬が紅葉。この峡谷が最も知られる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の斜面と黒い水面。運航が減るので事前に確認します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は水面が静かで映り込みが安定します。霧が出ることもあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は斜面に光が入り、紅葉の色が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "船上からは縦構図で斜面の高さを取ります",
+      "水面の映り込みを半分入れて上下二層にします",
+      "船は揺れるのでシャッター速度を確保します"
+    ],
+    "officialWebsiteUrl": "https://www.shogawa-yuransen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7906fc04b763",
     "slug": "shogun-sugi",
     "name": "将軍杉",
@@ -64241,6 +65169,69 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_2ff9dc0b622e",
+    "slug": "takaoka-daibutsu",
+    "name": "高岡大仏",
+    "nameEn": "Takaoka Great Buddha",
+    "reading": "たかおかだいぶつ",
+    "aliases": [
+      "大佛寺 高岡"
+    ],
+    "address": "富山県高岡市大手町11-29",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "高岡市"
+    },
+    "coords": {
+      "lat": 36.75,
+      "lng": 137.02
+    },
+    "category": "temple",
+    "summary": "高岡銅器の技術で作られた青銅の大仏。台座を含め高さ約十六メートルで、市街地の中に立っています。",
+    "description": "一九三三年に完成した青銅製の阿弥陀如来坐像で、高岡が四百年続けてきた銅器鋳造の技術で作られました。台座を含めた高さは約十六メートル。台座の内部は回廊になっていて、旧大仏の仏頭と、明治期の焼失を伝える資料が置かれています。市街地の中にあり、周囲に高い建物があるため、仰ぎ見る角度が限られます。",
+    "highlights": [
+      "高岡銅器の技術による青銅像",
+      "台座内部の回廊と旧仏頭",
+      "市街地の中に立つ立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の木が芽吹き、青銅の色と合います。"
+      },
+      {
+        "season": "autumn",
+        "text": "光が斜めになり、像の面に陰影が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が肩や膝に積もると、青銅の緑と白の対比が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、正面から無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は像の面に光が回り、鋳造の継ぎ目まで見えます。"
+      }
+    ],
+    "compositionTips": [
+      "下から煽って空を入れると高さが出ます",
+      "青銅の緑青は色が転びやすいのでホワイトバランスを確認します",
+      "台座内部は暗いので高感度で撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.takaoka.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_10737ae1b0f4",
     "slug": "takaosan",
     "name": "高尾山",
@@ -66131,6 +67122,125 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_b9ff9d13ca4e",
+    "slug": "tateyama-daikanbo",
+    "name": "立山 大観峰",
+    "nameEn": "Daikanbo, Tateyama",
+    "reading": "たてやま だいかんぼう",
+    "aliases": [
+      "立山ロープウェイ 大観峰駅"
+    ],
+    "address": "富山県中新川郡立山町芦峅寺",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "立山町"
+    },
+    "coords": {
+      "lat": 36.59,
+      "lng": 137.64
+    },
+    "category": "mountain",
+    "summary": "断崖に駅が張り付く展望地。黒部湖を眼下に、後立山連峰が正面に並び、ロープウェイが空中を渡ります。",
+    "description": "立山ロープウェイとトンネルトロリーバスの接続点にあたる駅で、断崖の途中に建っています。屋上の展望台からは眼下に黒部湖、正面に針ノ木岳や赤沢岳など後立山連峰が並びます。ロープウェイは途中に支柱がなく、一気に五百メートルの高低差を下るため、ゴンドラが谷の上に浮かんで見えます。紅葉期は斜面全体が色づきます。",
+    "highlights": [
+      "眼下の黒部湖",
+      "正面に並ぶ後立山連峰",
+      "支柱のないロープウェイ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "残雪の稜線と黒部湖。開通直後は雪の量が多い時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月上旬、斜面が色づきます。ロープウェイからの俯瞰が本番です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、後立山の稜線がはっきり出ます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は黒部湖の水の色が最も出ます。順光の時間を選びます。"
+      }
+    ],
+    "compositionTips": [
+      "ロープウェイを画面に入れて斜面の勾配を示します",
+      "黒部湖は望遠で抜いて水の色を主題にします",
+      "展望台は混むので、位置取りを早めに決めます"
+    ],
+    "officialWebsiteUrl": "https://www.alpen-route.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_0dd252acfc0c",
+    "slug": "tateyama-mine",
+    "name": "立山カルデラ",
+    "nameEn": "Tateyama Caldera",
+    "reading": "たてやまかるでら",
+    "aliases": [
+      "立山カルデラ砂防博物館",
+      "白岩堰堤"
+    ],
+    "address": "富山県中新川郡立山町芦峅寺",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "立山町"
+    },
+    "coords": {
+      "lat": 36.56,
+      "lng": 137.5
+    },
+    "category": "nature",
+    "summary": "崩壊が続く巨大な凹地と、そこを抑える砂防施設。日本最大級の白岩堰堤は世界遺産級の土木構造物です。",
+    "description": "東西六キロ、南北四キロの巨大な凹地で、常願寺川の源流部にあたります。一八五八年の地震による大崩壊以来、土砂の流出を抑えるために百年以上の砂防工事が続いています。中心となる白岩堰堤は落差約百八メートルで、国の重要文化財。カルデラ内は一般立入禁止で、見学は砂防体験学習会への申込制です。博物館からは概要を学べます。",
+    "highlights": [
+      "落差百八メートルの白岩堰堤",
+      "崩壊が続くカルデラ地形",
+      "百年以上続く砂防の記録"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "学習会の実施期間。晴れた日はカルデラ内の地肌がよく見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、周囲の斜面が色づきます。学習会の期間の終わりに近づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "見学は日中の決められた時間のみ。個人での立入はできません。"
+      },
+      {
+        "time": "morning",
+        "text": "学習会は朝に出発することが多く、光も斜めで地形が読みやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "堰堤は人を入れて百八メートルの高さを示します",
+      "崩壊地は広角で斜面の面積を取ります",
+      "立入禁止区域には入らず、見学会の指示に従います"
+    ],
+    "officialWebsiteUrl": "https://www.pref.toyama.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7b86a35d9b03",
@@ -69369,6 +70479,129 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_9f8d8a287ba8",
+    "slug": "toyama-castle",
+    "name": "富山城址公園",
+    "nameEn": "Toyama Castle Park",
+    "reading": "とやまじょうしこうえん",
+    "aliases": [
+      "富山城",
+      "松川の桜"
+    ],
+    "address": "富山県富山市本丸1-62",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.69,
+      "lng": 137.21
+    },
+    "category": "landmark",
+    "summary": "市街の中心に石垣と堀が残る城跡。隣接する松川には桜が並び、船から水面越しに天守閣を見られます。",
+    "description": "佐々成政が改修した城の跡で、本丸の石垣と堀が残ります。一九五四年に模擬天守が建てられ、いまは郷土博物館として使われています。隣を流れる松川は旧神通川の流路で、両岸に桜が並びます。春には遊覧船が運航し、水面の高さから桜と天守閣を見上げられます。市街地の中心にあり、駅から徒歩圏です。",
+    "highlights": [
+      "市街中心に残る石垣と堀",
+      "松川沿いの桜並木",
+      "春の遊覧船からの視点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。松川の遊覧船はこの時期が本番です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。石垣との対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪と石垣。立山連峰が見える日は市街からも山が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、堀の水面も静かです。"
+      },
+      {
+        "time": "night",
+        "text": "天守閣がライトアップされ、堀に映り込みます。"
+      }
+    ],
+    "compositionTips": [
+      "堀を前景に置いて天守閣の映り込みを取ります",
+      "船からは低い視点で桜を見上げる構図になります",
+      "石垣は斜めから撮って積み方を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.toyamashi-kankoukyoukai.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_0c3a8e22049c",
+    "slug": "toyama-glass",
+    "name": "富山市ガラス美術館",
+    "nameEn": "Toyama Glass Art Museum",
+    "reading": "とやましがらすびじゅつかん",
+    "aliases": [
+      "TOYAMAキラリ"
+    ],
+    "address": "富山県富山市西町5-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "富山市"
+    },
+    "coords": {
+      "lat": 36.69,
+      "lng": 137.21
+    },
+    "category": "landmark",
+    "summary": "隈研吾の設計で、吹き抜けを県産材の板が斜めに横切ります。木とガラスとアルミが層をなす内部が被写体です。",
+    "description": "図書館と複合した施設で、建物は隈研吾の設計です。六階まで貫く吹き抜けに、県産のスギ材の板が角度を変えながら架かり、上を見上げると木の層が重なって見えます。外壁は御影石、ガラス、アルミの三素材で構成されています。展示室ではガラス作品を収蔵し、デイル・チフーリの常設インスタレーションがあります。撮影可否は展示ごとに異なります。",
+    "highlights": [
+      "吹き抜けを斜めに横切る木の板",
+      "三素材で構成された外壁",
+      "ガラス作品の常設展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "屋内なので天候の影響を受けません。外が暗いぶん内部の光が際立ちます。"
+      },
+      {
+        "season": "summer",
+        "text": "外光が強く、吹き抜けに落ちる光の量が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "吹き抜けに自然光が入る時間帯が建築の見え方の本番です。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は人が少なく、吹き抜けを無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "吹き抜けは真上を見上げて木の層の重なりを取ります",
+      "階段の踊り場から斜めに見下ろす角度も試します",
+      "展示作品の撮影可否は表示に従います"
+    ],
+    "officialWebsiteUrl": "https://toyama-glass-art-museum.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b35a70d03476",
     "slug": "toyokawa-inari",
     "name": "豊川稲荷",
@@ -72404,6 +73637,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_dfffc42ce4a7",
+    "slug": "uozu-shinkirou",
+    "name": "魚津 蜃気楼",
+    "nameEn": "Uozu Mirage",
+    "reading": "うおづ しんきろう",
+    "aliases": [
+      "魚津 海の駅蜃気楼"
+    ],
+    "address": "富山県魚津市村木定坊割2500-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "富山県",
+      "city": "魚津市"
+    },
+    "coords": {
+      "lat": 36.83,
+      "lng": 137.4
+    },
+    "category": "nature",
+    "summary": "春の富山湾で対岸の景色が伸びたり反転したりして見える現象。発生は年に数十回で、条件が限られます。",
+    "description": "魚津の海岸からは、春に対岸の富山市方面の建物や船が上下に伸びたり、反転して二重に見える蜃気楼が観測されます。海面近くの冷たい空気と上層の暖かい空気の温度差で光が曲がる現象です。発生は三月下旬から六月上旬に集中し、晴れて北寄りの弱い風がある日の午前から午後に多いとされます。年間の出現日数は限られ、待つ覚悟が要ります。",
+    "highlights": [
+      "対岸の景色が伸び反転する現象",
+      "春に集中する発生時期",
+      "海の駅蜃気楼からの観測"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月下旬から六月上旬が発生期。四月から五月が最も確率が高い時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "冬には寒気による別種の蜃気楼が出ることがありますが、条件は異なります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "午前から午後にかけてが発生の中心。気温が上がる過程で出やすくなります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝のうちに現地に入り、条件が揃うか観察しながら待ちます。"
+      }
+    ],
+    "compositionTips": [
+      "超望遠が必須で、対岸の建物を大きく引き寄せます",
+      "陽炎で像が揺れるので連写して安定した一枚を選びます",
+      "比較のため通常時の同じ画角も撮っておきます"
+    ],
+    "officialWebsiteUrl": "https://www.uozu-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_8aaa6cd3d9ca",
