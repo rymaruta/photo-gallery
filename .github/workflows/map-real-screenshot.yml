@@ -88,11 +88,17 @@ jobs:
               const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
               const errors = [];
               const gsiTileResponses = [];
+              const gsiTileFailures = [];
               page.on("pageerror", (err) => errors.push(String(err)));
               page.on("response", (response) => {
-                if (response.url().includes("cyberjapandata.gsi.go.jp/xyz/") && response.status() === 200) {
-                  gsiTileResponses.push(response.url());
+                if (response.url().includes("cyberjapandata.gsi.go.jp/xyz/")) {
+                  if (response.status() === 200) gsiTileResponses.push(response.url());
+                  else gsiTileFailures.push(response.status() + " " + response.url());
                 }
+              });
+              page.on("requestfailed", (request) => {
+                if (request.url().includes("cyberjapandata.gsi.go.jp/xyz/"))
+                  gsiTileFailures.push(String(request.failure()?.errorText) + " " + request.url());
               });
               await page.goto("http://127.0.0.1:3000/map/design-proof", { waitUntil: "domcontentloaded", timeout: 90000 });
               try {
@@ -103,9 +109,14 @@ jobs:
               }
               // The actual Japan orthophoto is served at zoom 14+, not at the
               // earlier Greek test coordinates. Zoom into Japan before capture.
-              await page.getByRole("button", { name: "拡大" }).click();
-              await page.getByRole("button", { name: "拡大" }).click();
-              await page.waitForTimeout(4000);
+              // Default multi-pin fitBounds is capped at zoom 12.
+              // Force zoom 16-17 to request the native orthophoto z14-18.
+              for (let step = 0; step < 5; step++) {
+                await page.getByRole("button", { name: "拡大" }).click();
+              }
+              await page.waitForTimeout(5200);
+              console.log(name + " GSI OK samples", gsiTileResponses.slice(-10));
+              console.log(name + " GSI failure samples", gsiTileFailures.slice(-10));
               const actualOrthophoto = gsiTileResponses.filter((url) => url.includes("/xyz/seamlessphoto/"));
               if (!actualOrthophoto.length) {
                 failed = true;
