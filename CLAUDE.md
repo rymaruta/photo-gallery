@@ -243,35 +243,37 @@ setup ファイルはテストモジュールより**先に登録される**の�
 **直さない判断も測ってから書く。** 推測で「直っている／直っていない」と
 書くと、次に読む人がそれを前提に動く。
 
-### 1. ホームの柱は `<a>` のまま（`<Link>` に戻さない）
+### 1. ~~ホームの柱は `<a>` のまま~~ → **11分後に自分で覆した。いまは `<Link>`**
 
-9/22 に `useGallery` の水和失敗（`#418`）を直したが、**直ったのは
-「クエリ付きの URL を直接ひらく」経路だけ**。柱を `<Link>` に戻して
-本番と同じ環境変数でビルドし、Chromium で実測した（2026-09-23）:
+🔴 **この節はいちど「`<Link>` に戻さない」と書いた。その11分後に根っこを
+直して回避策を撤去したのに、ここを消し忘れた。** 読んだ人が古い方を信じて
+素の `<a>` に戻す事故が実際に起きている（PR #142 の `DiscoverRail` が
+「#141 はまだ develop に入っていない」を根拠に全リンクを `<a>` にした。
+#141 はその時点で入っていた）。
 
-    行き先                        直接ひらく    ホームから <Link> で押す
-    /search?category=landscape      16件 ✅      30件・URL は `/search` ❌
-    /search?category=architecture    6件 ✅      30件・URL は `/search` ❌
-    /search?category=nature          5件 ✅      30件・URL は `/search` ❌
-                                                （絞り込み無しの全件＝30件）
+    08:42  57cb9a19  docs: …「直さない」判断2件を記録   ← ここで「<a> のまま」と書いた
+    08:53  77b84005  🔴 `<Link>` で…（回避策を撤去）      ← 11分後にコードが追い越した
+                                                          台帳だけ古いまま残った
 
-**クエリは落ちたままで、URL からも消える。** 理由は水和とは別:
-`readFiltersFromUrl` を呼ぶ `useMemo` の依存が `[clientRender]` だけなので、
-**クライアント遷移のあとに URL を読み直さない**（遷移の瞬間はまだ
-`window.location` が古い）。直後の URL 同期が `?category=` を消す。
+**いまの事実**（`origin/develop` を読んで確認・2026-09-24）:
 
-だから `DiscoverSections.tsx` の「ここを `<Link>` に戻さないこと」は
-**いまも有効**。見張りは `DiscoverSections.test.tsx`。
+- `app/search/DiscoverSections.tsx:114-118` の `ItemLink` は**全項目 `<Link prefetch={false}>`**
+- 根っこは `lib/hooks/useGallery.ts` に入っている——`subscribeToUrl` を
+  `useSyncExternalStore` に繋いだ（`:215` の `urlSearch`）ので、
+  **クライアント遷移のあとも URL を読み直す**。`useMemo` の依存が
+  `[clientRender]` だけだった、というのが当時の原因で、それは直っている
+- 戻すと**押すたびに HTML を1本落とし直す**（実測 gzip 15,477 B ／
+  `<Link>` の RSC の控えは 3,934 B）
 
-**根っこを直すときの道具はもう repo にある**——`app/components/SearchParamWatcher.tsx`
-（`useSearchParams()` を `Suspense` で隔離した部品。`output: export` で
-部分木が静的HTMLに焼けなくなる問題を避けるためにこの形になっている）。
-`GalleryPageClient` は `?photo=` を**既にこれで**見張っている
-（`<SearchParamWatcher name="photo" onChange={setPhotoParam} />`）。
-絞り込み側も同じ形に寄せれば `<Link>` に戻せる。**新しい仕組みは要らない。**
-やらなかったのは、ホームと「さがす」の両方を描く中核フックの書き換えに
-なるのに対し、**いま人が踏む不具合は1つも無い**（柱は `<a>`・404救済は
-`location.replace`・`/login?next=` は `useSearchParams`）から。
+**新しくホームや「さがす」の柱を作るときは `<Link prefetch={false}>`。**
+素の `<a>` にする理由はもう無い。
+
+⚠️ **見張りは効かない。** `app/__tests__/linkPrefetch.test.ts` は `<Link` を
+数えるので、**`<a>` に退化した箇所は素通りする**（`DiscoverSections.test.tsx`
+は `<Link>` に印を付けて見分けているが、それは `DiscoverSections` だけ）。
+
+**教訓: 「直さない」と書いたら、直したときに同じ手で消す。**
+台帳とコードが食い違ったときは**コミット時刻の新しい方が正**。
 
 ### 2. `FilterBar` / `ColorJourney` の `aria-pressed` はそのまま
 
