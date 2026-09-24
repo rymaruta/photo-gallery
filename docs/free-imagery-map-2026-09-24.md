@@ -45,8 +45,8 @@ Map photo post coordinates remain subject to existing public/approximately-round
 
 The existing GSI MODIS layer remains a *low-resolution world overview*, not a
 worldwide close-up satellite map. `OFFICIAL_COUNTRY_IMAGERY` in
-`app/map/loadVectorBasemap.ts` now registers twelve geographic extents spanning
-nine additional countries, in addition to Japan (Belgium: Flanders only):
+`app/map/loadVectorBasemap.ts` now registers thirteen geographic extents spanning
+ten additional countries, in addition to Japan (Belgium: Flanders only; Australia: New South Wales only):
 
 | Country/area | Government source | Keyless endpoint / technical notes | Implementation status |
 |---|---|---|---|
@@ -59,6 +59,7 @@ nine additional countries, in addition to Japan (Belgium: Flanders only):
 | Czechia | ČÚZK Ortofoto ČR | Web Mercator ArcGIS cached tiles (z/y/x); z9–20 requested. Source dataset is provided as open data under CC BY 4.0; check individual service terms and attribution in released app. | Source configured; live browser proof pending |
 | Belgium (Flanders and imagery-covered parts of Brussels only) | Digitaal Vlaanderen `omwrgbmrvl` winter orthophoto | Free public WMTS with `GoogleMapsVL` matrix and PNG tiles; requested z9–19. **Not a claim of coverage of the Walloon region or all of Brussels.** | Source configured; live browser proof pending |
 | Poland | GUGiK Geoportal `ORTOFOTOMAPA` | Public national orthophoto `StandardResolution` WMTS using EPSG:3857 and JPEG; z9–19 requested. National dataset is described as free to download and use; confirm separate live tile access and web-service terms. | Source configured; live browser proof pending |
+| Australia (New South Wales only) | NSW Spatial Services `NSW_Imagery` | NSW state government publishes public Web Mercator ArcGIS image tile cache, requested at z9–18. NSW data catalogue lists public imagery WMTS under CC BY 3.0 and its spatial services terms require state attribution; source includes externally copyrighted aerial images, so verify third-party rights before any public commercial release. **Not Australia-wide.** | Source configured; Sydney live browser proof and third-party rights pending |
 
 Official references (not inferred rights for third-party content):
 
@@ -80,6 +81,9 @@ Official references (not inferred rights for third-party content):
 - Digitaal Vlaanderen WMTS tile matrix example: https://www.vlaanderen.be/digitaal-vlaanderen/nieuws-0/lambert-2008-projectie-beschikbaar-voor-tegeldiensten-wmts
 - Polish government WMTS Orthophotomap documentation: https://www.geoportal.gov.pl/en/data/orthophotomap-orto/
 - Polish WMTS `StandardResolution` service: https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS%26REQUEST=GetCapabilities
+- NSW Spatial Services active cached imagery: https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer
+- NSW government spatial-services terms (third-party data caveat): https://www.spatial.nsw.gov.au/products_and_services/web_services/terms_and_conditions
+- NSW government imagery catalogue and license listing: https://data.nsw.gov.au/data/en/dataset/nsw-imagery/resource/ea1cad4d-3a56-4b3c-9b55-3da83086877a
 
 **Coverage is not national-border-accurate yet.** MapLibre raster-source `bounds`
 are rectangular request limits, not country masks. Near borders (notably
@@ -101,7 +105,7 @@ remains instead of fake detail or paid API usage.
 Run `npx vitest run app/map/__tests__/freeImagery.test.ts` and
 `node scripts/capture-free-imagery-local.mjs` in an internet-connected
 development environment with dependencies installed. The latter creates
-**temporary** proof pages for Japan, world overview, US, France, Spain, Switzerland, the Netherlands, Austria, Czechia, Flanders and Poland,
+**temporary** proof pages for Japan, world overview, US, France, Spain, Switzerland, the Netherlands, Austria, Czechia, Flanders, Poland and NSW (Australia),
 checks for a real HTTP 200 image response from each corresponding provider,
 and only then saves mobile/desktop screenshots. Static tests do not prove
 tile access. The screenshot CI for the original five-country expansion was later confirmed successful on GitHub, but the four newly added country/region checks must be validated on the corresponding updated-branch run. A successful HTTP 200 image response is still not a full visual/rights/availability audit. **Do not mark the new regions fully verified before reviewing the new screenshots and service terms.**
