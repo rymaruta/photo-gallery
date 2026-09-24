@@ -245,6 +245,12 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "vlaanderen-flanders", country: "BE", provider: "Digitaal Vlaanderen Orthofotomozaïek",
         url: "https://geo.api.vlaanderen.be/OMWRGBMRVL/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=omwrgbmrvl&STYLE=&FORMAT=image/png&TILEMATRIXSET=GoogleMapsVL&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
         bounds: [2.48, 50.63, 5.93, 51.53], min: 9, max: 19, until: 20 },
+    // GUGiK Polish Geoportal standard orthophotomap. Source WMTS is published
+    // by the national survey authority; confirm response headers and service
+    // usage conditions in browser checks prior to production release.
+    { id: "gugik-poland", country: "PL", provider: "GUGiK Geoportal Ortofotomapa",
+        url: "https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&TILEMATRIXSET=EPSG:3857&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg",
+        bounds: [14.1, 48.9, 24.2, 55.1], min: 9, max: 19, until: 20 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -354,7 +360,8 @@ export async function upgradeToRealVectorBasemap(
             + ' ・<a href="https://www.pdok.nl/" target="_blank" rel="noopener noreferrer">PDOK / Beeldmateriaal</a>'
             + ' ・Datenquelle: <a href="https://basemap.at/" target="_blank" rel="noopener noreferrer">basemap.at</a>'
             + ' ・<a href="https://geoportal.cuzk.gov.cz/" target="_blank" rel="noopener noreferrer">© ČÚZK</a>'
-            + ' ・<a href="https://www.vlaanderen.be/digitaal-vlaanderen" target="_blank" rel="noopener noreferrer">© Digitaal Vlaanderen (Flanders orthophoto)</a>',
+            + ' ・<a href="https://www.vlaanderen.be/digitaal-vlaanderen" target="_blank" rel="noopener noreferrer">© Digitaal Vlaanderen (Flanders orthophoto)</a>'
+            + ' ・<a href="https://www.geoportal.gov.pl/" target="_blank" rel="noopener noreferrer">GUGiK Geoportal (Poland)</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
