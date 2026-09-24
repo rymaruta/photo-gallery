@@ -297,7 +297,15 @@ export async function upgradeToRealVectorBasemap(
         // Do not cover it with shaded-relief rasters or dark-blue fill layers.
         // Boundary/territorial lines and noisy POIs are suppressed in hybrid.
         if (satelliteUrl) simplifySatelliteLabels(gl);
-        else applyReadableMapPalette(gl);
+        else {
+            applyReadableMapPalette(gl);
+            // Even a keyless fallback must not draw distracting sea/admin borders.
+            for (const layer of gl.getStyle().layers ?? []) {
+                if (/boundary|border|admin|maritime|marine|disputed|territorial/i.test(layer.id)) {
+                    try { gl.setLayoutProperty(layer.id, "visibility", "none"); } catch { /* keep map operational */ }
+                }
+            }
+        }
         const reliefAdded = satelliteUrl ? false : addLowZoomRelief(gl);
         map.removeLayer(fallback);
         if (reliefAdded) map.attributionControl?.addAttribution(
