@@ -207,10 +207,11 @@ export const MIN_PHOTOS_PER_COLOR = 2;
  */
 export function groupPhotosByColor<T extends Pick<Photo, "dominantColor">>(
     photos: readonly T[],
+    bucketOf: (photo: T) => string | null = photoColorBucket,
 ): Map<string, T[]> {
     const out = new Map<string, T[]>();
     for (const photo of photos) {
-        const id = photoColorBucket(photo);
+        const id = bucketOf(photo);
         if (id === null) continue;
         const list = out.get(id);
         if (list) list.push(photo);
@@ -227,8 +228,16 @@ export function groupPhotosByColor<T extends Pick<Photo, "dominantColor">>(
  */
 export function visibleColorBuckets<T extends Pick<Photo, "dominantColor">>(
     photos: readonly T[],
+    /**
+     * 色の決め方を差し替える口。**既定は `dominantColor`**。
+     *
+     * 画面は `useBlurColors` が決めたぶんだけ差し替えて渡す
+     * ——`dominantColor` は「いちばん多い1ビン＝たいてい影」で、
+     * 本番39枚のうち**21枚で中身と食い違っていた**（実測 2026-09-24）。
+     */
+    bucketOf: (photo: T) => string | null = photoColorBucket,
 ): { bucket: ColorBucket; photos: T[] }[] {
-    const grouped = groupPhotosByColor(photos);
+    const grouped = groupPhotosByColor(photos, bucketOf);
     const out: { bucket: ColorBucket; photos: T[] }[] = [];
     for (const bucket of COLOR_BUCKETS) {
         const list = grouped.get(bucket.id);
