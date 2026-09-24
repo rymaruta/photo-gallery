@@ -193,6 +193,10 @@ export const FREE_GSI_IMAGERY = {
     japanDetail: "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
 } as const;
 
+export function isBoundaryLayer(id: string): boolean {
+    return /boundary|border|admin|maritime|marine|disputed|territorial/i.test(id);
+}
+
 function addFreeImagery(gl: VectorMap): boolean {
     // Keep satellite pictures ON TOP of roads/borders but BELOW actual place
     // labels, photo pins and the rest of the app interface.
@@ -225,7 +229,7 @@ function addFreeImagery(gl: VectorMap): boolean {
         }
         // Do not display borders even where GSI tiles are unavailable.
         for (const layer of gl.getStyle().layers ?? []) {
-            if (/boundary|border|admin|maritime|marine|disputed|territorial/i.test(layer.id)) {
+            if (isBoundaryLayer(layer.id)) {
                 try { gl.setLayoutProperty(layer.id, "visibility", "none"); }
                 catch { /* the basemap remains usable */ }
             }
