@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
 import {
     collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry,
@@ -30,12 +31,26 @@ import Thumb from "./Thumb";
  * **そのまま使う**（`DiscoverSections` と同じ関数）。自前で数え直すと、
  * 柱の枚数と飛んだ先の枚数が食い違う（撮影地は「緩い一致」で数えるため）。
  *
- * ## リンクは素の `<a>`（いまの develop に合わせる）
+ * ## リンクは `<Link prefetch={false}>`
  *
- * `/search?…` へ `<Link>` で飛ぶと、行き先のクエリが落ちて全件になる
- * ——**その根っこは PR #141 が直している**が、この枝の土台（develop）には
- * まだ入っていない。**入るまでは素の `<a>`**（develop の
- * `DiscoverSections` と同じ形）。#141 が入ったら `<Link>` に寄せる。
+ * 🔴 **この部品は素の `<a>` のまま本番に出ていた（2026-09-24）。**
+ * 書かれた当時（9/23）は「`/search?…` へ `<Link>` で飛ぶとクエリが落ちて
+ * 全件になる」ので素の `<a>` にしてあり、**このコメント自身が
+ * 「#141 が入ったら `<Link>` に寄せる」と書いていた**。
+ * #141 は **9/23 に本番反映済み**（`55d27db3`）で、面の中
+ * （`DiscoverSections`）は既に `<Link>` に直っている——**この枝だけが
+ * 取り残され、そのまま出た**。
+ *
+ * 代償は `DiscoverSections` が実測して書いている:
+ * **押すたびに HTML を1本落とし直す（gzip 15,477 B ／ `<Link>` の
+ * RSC の控えは 3,934 B）。**
+ *
+ * ⚠️ **守りが死んだ側に残っていたので、誰も捕まえられなかった。**
+ * 「柱も `<Link>`」を見るテストは `DiscoverSections` の
+ * `variant="rail"`（もう本体から呼ばれない）側に在った。
+ * **コードを移したら、守りも一緒に移す。**
+ *
+ * `prefetch={false}` は公開ページの決まり（`app/__tests__/linkPrefetch.test.ts`）。
  *
  * ## 出さないもの
  *
@@ -90,11 +105,11 @@ function RailHead({ id, title, href, more }: { id: string; title: string; href: 
                 style={{ fontSize: "15px", lineHeight: "20px" }}>
                 {title}
             </h2>
-            <a href={href}
+            <Link href={href} prefetch={false}
                className="flex-shrink-0 text-white/55 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
                style={{ fontSize: "11px", lineHeight: "16px" }}>
                 {more} <span aria-hidden="true">›</span>
-            </a>
+            </Link>
         </div>
     );
 }
@@ -130,7 +145,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             const c = cover("location", s);
                             return (
                                 <li key={s.slug}>
-                                    <a href={linkTo("location", s.slug)}
+                                    <Link href={linkTo("location", s.slug)} prefetch={false}
                                        className="group block relative overflow-hidden rounded-xl bg-surface ring-1 ring-line focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                        style={{ aspectRatio: "1 / 1", touchAction: "manipulation" }}>
                                         {c && <Thumb photo={c} alt="" sizes="200px" />}
@@ -144,7 +159,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                                 {isJa ? `${s.count}枚` : `${s.count} photos`}
                                             </span>
                                         </span>
-                                    </a>
+                                    </Link>
                                 </li>
                             );
                         })}
@@ -162,7 +177,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             const cv = cover("category", c);
                             return (
                                 <li key={c.slug}>
-                                    <a href={linkTo("category", c.slug)}
+                                    <Link href={linkTo("category", c.slug)} prefetch={false}
                                        className="block text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full"
                                        style={{ touchAction: "manipulation" }}>
                                         <span className="block relative rounded-full overflow-hidden bg-surface ring-1 ring-line mx-auto"
@@ -173,7 +188,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                               style={{ fontSize: "11px", lineHeight: "15px" }}>
                                             {categoryDisplayMap[c.slug] ?? c.label}
                                         </span>
-                                    </a>
+                                    </Link>
                                 </li>
                             );
                         })}
@@ -192,12 +207,12 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                     <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
                             <li key={c.slug}>
-                                <a href={linkTo("camera", c.slug)}
+                                <Link href={linkTo("camera", c.slug)} prefetch={false}
                                    className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                    style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
                                     {c.label}
                                     <span className="text-white/60" style={{ fontSize: "10px" }}>{c.count}</span>
-                                </a>
+                                </Link>
                             </li>
                         ))}
                     </ul>
