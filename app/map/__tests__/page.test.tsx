@@ -614,7 +614,7 @@ describe("公式撮影地ガイドのピン", () => {
         const sheet = screen.getByTestId("map-spot-sheet");
         expect(within(sheet).getByText("高屋神社")).toBeTruthy();
         expect(within(sheet).getByText("香川県 観音寺市")).toBeTruthy();
-        expect(within(sheet).getByText("公式撮影スポット")).toBeTruthy();
+        expect(within(sheet).getByText(/OFFICIAL GUIDE ・公式撮影地/)).toBeTruthy();
     });
 
     /// 🔴 **地図 → ガイド**（コアの鎖の次の輪）
