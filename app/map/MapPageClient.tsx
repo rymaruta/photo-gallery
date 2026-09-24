@@ -278,6 +278,13 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                         <div className="hidden lg:block">
                             <MapSpotList spots={spotsInArea} locale={locale} testId="map-spot-list-desktop" />
                         </div>
+                        {/* List mode must still expose official guides on mobile.
+                            Keep only ONE mobile instance for stable test/ARIA IDs. */}
+                        {view === "list" && (
+                            <div className="lg:hidden">
+                                <MapSpotList spots={spotsInArea} locale={locale} />
+                            </div>
+                        )}
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
 
@@ -321,9 +328,11 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                         />
 
                         {/* スマホでは地図の直下に。地図上の写真とスポットを見比べた後に保存できる。 */}
-                        <div className="lg:hidden">
-                            <MapSpotList spots={spotsInArea} locale={locale} />
-                        </div>
+                        {view === "map" && (
+                            <div className="lg:hidden">
+                                <MapSpotList spots={spotsInArea} locale={locale} />
+                            </div>
+                        )}
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
                             （white/40 は紺地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
