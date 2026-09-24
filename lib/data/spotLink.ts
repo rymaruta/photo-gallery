@@ -97,6 +97,8 @@ export type SpotPin = {
     slug: string;
     name: string;
     region: string;
+    /** 公開済みガイドの固有紹介。地図のシートは最多2行で表示する */
+    summary?: string;
     lat: number;
     lng: number;
     /**
@@ -114,8 +116,8 @@ export function spotPins(): SpotPin[] {
     const out: SpotPin[] = [];
     for (const spot of publishableSpots(SPOTS)) {
         if (!spot.coords) continue;
-        const { slug, name, region, cover } = toSpotLink(spot);
-        out.push({ slug, name, region, cover, lat: spot.coords.lat, lng: spot.coords.lng });
+        const { slug, name, region, summary, cover } = toSpotLink(spot);
+        out.push({ slug, name, region, summary, cover, lat: spot.coords.lat, lng: spot.coords.lng });
     }
     return out;
 }
