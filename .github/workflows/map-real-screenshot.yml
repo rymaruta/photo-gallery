@@ -1,11 +1,11 @@
-name: Real map visual proof (draft #150 only)
+name: Satellite hybrid map preview (dependent draft)
 
 # Only this explicitly approved map prototype; NEVER deploy. Owner's other
 # workflows remain manual. One read-only screenshot job for the PR branch.
 on:
   pull_request:
-    types: [synchronize]
-    branches: [develop]
+    types: [opened, synchronize, reopened]
+    branches: [design/cinematic-map-preview-20260924]
     paths:
       - ".github/workflows/map-real-screenshot.yml"
       - "app/components/PhotoMap.tsx"
@@ -17,9 +17,13 @@ permissions:
 
 jobs:
   screenshot:
-    if: github.head_ref == 'design/cinematic-map-preview-20260924' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.head_ref == 'design/satellite-hybrid-map-20260924' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 22
+    env:
+      # The user must explicitly configure an origin-authorised preview key.
+      # A missing key MUST NOT be reported as a satellite screenshot.
+      NEXT_PUBLIC_JOURNEY_MAPTILER_KEY: ${{ secrets.JOURNEY_MAPTILER_PREVIEW_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,7 +37,7 @@ jobs:
       - name: Lint the map changes
         run: npx eslint app/components/PhotoMap.tsx app/map/loadVectorBasemap.ts app/map/MapPageClient.tsx
       - name: Existing map, sheet and privacy regression tests
-        run: npx vitest run app/map/__tests__/page.test.tsx app/map/__tests__/MapPhotoSheet.test.tsx
+        run: npx vitest run app/map/__tests__/page.test.tsx app/map/__tests__/MapPhotoSheet.test.tsx app/map/__tests__/satelliteHybrid.test.ts
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Create test-only route on the runner (NEVER committed or deployed)
@@ -75,16 +79,15 @@ jobs:
           done
           cat /tmp/jp-next-map.log
           exit 1
-      - name: Check actual NASA geographic relief tile response
+      - name: Report whether satellite imagery is configured
         shell: bash
         run: |
-          curl --location --silent --output /dev/null --max-time 15 --write-out "NASA GIBS relief tile HTTP %{http_code}\\n" \
-            "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/5/12/18.jpeg"
-      - name: Inspect current live map style for legible palette
-        shell: bash
-        run: |
-          curl --fail --location --silent --show-error --max-time 20 https://tiles.openfreemap.org/styles/dark | python3 -c 'import sys,json; j=json.load(sys.stdin); print("STYLE",j.get("name")); [print("STYLE_LAYER",x["id"],x["type"],str(x.get("paint",{}))[:240]) for x in j.get("layers",[]) if x["type"] in ("background","fill","line","symbol")][:80]'
-      - name: Capture REAL vector tile map screenshots (not schematic HTML)
+          if [ -z "${NEXT_PUBLIC_JOURNEY_MAPTILER_KEY}" ]; then
+            echo "NO SATELLITE KEY: screenshot will show labelled vector fallback, NOT satellite imagery."
+          else
+            echo "SATELLITE PREVIEW KEY configured; browser must load real satellite imagery."
+          fi
+      - name: Capture actual Next.js map in satellite mode when a key is present
         shell: bash
         run: |
           mkdir -p /tmp/journey-real-map-screens
@@ -98,19 +101,22 @@ jobs:
               const errors = [];
               page.on("pageerror", (err) => errors.push(String(err)));
               await page.goto("http://127.0.0.1:3000/map/design-proof", { waitUntil: "domcontentloaded", timeout: 90000 });
+              const satelliteConfigured = Boolean(process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY);
+              const expectedState = satelliteConfigured ? "satellite-ready" : "vector-ready";
               try {
-                await page.locator('[data-basemap="vector-ready"]').waitFor({ timeout: 65000 });
+                await page.locator('[data-basemap="' + expectedState + '"]').waitFor({ timeout: 65000 });
               } catch {
                 failed = true;
-                console.error(name + " did not render real vector tiles. State: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
+                console.error(name + " did not render the requested map. Wanted: " + expectedState
+                  + ", got: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
               }
-              // Wait for real NASA textured raster overlay after the vector style is ready.
-              await page.waitForTimeout(2200);
-              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-real-tiles.png", fullPage: true });
+              await page.waitForTimeout(1500);
+              const captureKind = satelliteConfigured ? "real-satellite" : "VECTOR-FALLBACK-NO-KEY";
+              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-" + captureKind + ".png", fullPage: true });
               const pin = page.locator(".spot-map-pin-icon").first();
               if (await pin.count()) {
                 await pin.click({ timeout: 10000 });
-                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-real-tiles.png", fullPage: true });
+                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-" + captureKind + ".png", fullPage: true });
               } else { failed = true; console.error(name + " has no real official pin"); }
               if (errors.length) { failed = true; console.error(name + " errors:", errors.slice(0, 6)); }
               await page.close();
@@ -124,7 +130,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: journey-photo-real-vector-map
+          name: journey-photo-satellite-hybrid-proof
           path: /tmp/journey-real-map-screens/*.png
           if-no-files-found: warn
           retention-days: 3
