@@ -276,6 +276,17 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "act-luxembourg-2023", country: "LU", provider: "ACT Luxembourg orthophoto 2023",
         url: "https://wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg",
         bounds: [5.72, 49.43, 6.55, 50.19], min: 10, max: 19, until: 20 },
+    // Canada: City of Toronto Open Data orthophoto Web Mercator tile cache.
+    // City service/terms DO NOT grant coverage or licensing outside Toronto.
+    { id: "toronto-canada", country: "CA", provider: "City of Toronto Open Data aerial imagery (Toronto only)",
+        url: "https://gis.toronto.ca/arcgis/rest/services/basemap/cot_ortho/MapServer/tile/{z}/{y}/{x}",
+        bounds: [-79.69, 43.53, -79.06, 43.93], min: 9, max: 19, until: 20 },
+    // Brazil: São Paulo state's IGC 2023/24 official orthophotos via
+    // state-hosted public WMS 1.1.1 (dynamic EPSG:3857 BBOX requested by
+    // MapLibre). This is a DRAFT only pending usage rights and imagery QA.
+    { id: "igc-sao-paulo-brazil", country: "BR", provider: "IGC-SP / DataGEO São Paulo 2023–24",
+        url: "https://datageo.ambiente.sp.gov.br/geoimage/datageoimg/ows?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=ORTOFOTOS_SP_2023_2024&STYLES=&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256",
+        bounds: [-53.2, -25.43, -44.11, -19.71], min: 9, max: 19, until: 20 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -390,7 +401,9 @@ export async function upgradeToRealVectorBasemap(
             + ' ・<a href="https://www.spatial.nsw.gov.au/" target="_blank" rel="noopener noreferrer">© NSW Department of Customer Service / NSW Spatial Services</a>'
             + ' ・<a href="https://geoportaal.maaamet.ee/" target="_blank" rel="noopener noreferrer">Maa- ja Ruumiamet (Estonia orthophoto)</a>'
             + ' ・<a href="https://www.bezreg-koeln.nrw.de/geobasis-nrw" target="_blank" rel="noopener noreferrer">Geobasis NRW (Germany, NRW orthophoto)</a>'
-            + ' ・<a href="https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/" target="_blank" rel="noopener noreferrer">ACT Luxembourg — ortho_2023 (CC0)</a>',
+            + ' ・<a href="https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/" target="_blank" rel="noopener noreferrer">ACT Luxembourg — ortho_2023 (CC0)</a>'
+            + ' ・<a href="https://open.toronto.ca/dataset/web-map-services/" target="_blank" rel="noopener noreferrer">City of Toronto Open Data (Canada / Toronto)</a>'
+            + ' ・<a href="https://datageo.ambiente.sp.gov.br/" target="_blank" rel="noopener noreferrer">IGC-SP / DataGEO (Brazil / São Paulo)</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
