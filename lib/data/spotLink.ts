@@ -159,6 +159,22 @@ export function spotLinksBySlug(): Record<string, SpotLink> {
 }
 
 /**
+ * 公開してよいスポットを、**台帳の鍵（`spotId`）で引ける形**にして全部返す。
+ *
+ * 旅行プラン（`api-user/src/tripPlans.ts`）が保存するのは `spotId` で、
+ * スラッグではない——`spots.ts` が書いているとおり、**スラッグは URL に
+ * 出る綴りで、鍵は改名しても変わらない**。保存するものは鍵の方に寄せる。
+ *
+ * `SpotLink` に `spotId` を足さないのは、あの型が**写真ページ30枚の
+ * チャンクに乗る**ため（同ファイル冒頭の実測）。引ける形を作るだけにする。
+ */
+export function spotLinksById(): Record<string, SpotLink> {
+    const out: Record<string, SpotLink> = {};
+    for (const spot of publishableSpots(SPOTS)) out[spot.spotId] = toSpotLink(spot);
+    return out;
+}
+
+/**
  * 🔴 **`/spots` は都道府県の一覧にする。**
  *
  * 全件を1ページに並べると、伸びたぶんだけ索引が重くなる。実測（2026-09-24）:
