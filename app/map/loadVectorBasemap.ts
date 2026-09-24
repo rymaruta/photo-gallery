@@ -269,6 +269,13 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "nrw-germany", country: "DE", provider: "Geobasis NRW DOP (NRW only)",
         url: "https://www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/{z}/{y}/{x}",
         bounds: [5.8, 50.3, 9.5, 52.55], min: 9, max: 16, until: 17 },
+    // Grand Duchy of Luxembourg: ACT government open-data 2023 orthophoto.
+    // Official WMTS REST ResourceURL uses TileCol BEFORE TileRow. Matrix IDs
+    // z>=10 are unpadded and align with standard global Web Mercator tile z.
+    // Official open-data publication designates this orthophoto dataset CC0.
+    { id: "act-luxembourg-2023", country: "LU", provider: "ACT Luxembourg orthophoto 2023",
+        url: "https://wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg",
+        bounds: [5.72, 49.43, 6.55, 50.19], min: 10, max: 19, until: 20 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -382,7 +389,8 @@ export async function upgradeToRealVectorBasemap(
             + ' ・<a href="https://www.geoportal.gov.pl/" target="_blank" rel="noopener noreferrer">GUGiK Geoportal (Poland)</a>'
             + ' ・<a href="https://www.spatial.nsw.gov.au/" target="_blank" rel="noopener noreferrer">© NSW Department of Customer Service / NSW Spatial Services</a>'
             + ' ・<a href="https://geoportaal.maaamet.ee/" target="_blank" rel="noopener noreferrer">Maa- ja Ruumiamet (Estonia orthophoto)</a>'
-            + ' ・<a href="https://www.bezreg-koeln.nrw.de/geobasis-nrw" target="_blank" rel="noopener noreferrer">Geobasis NRW (Germany, NRW orthophoto)</a>',
+            + ' ・<a href="https://www.bezreg-koeln.nrw.de/geobasis-nrw" target="_blank" rel="noopener noreferrer">Geobasis NRW (Germany, NRW orthophoto)</a>'
+            + ' ・<a href="https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/" target="_blank" rel="noopener noreferrer">ACT Luxembourg — ortho_2023 (CC0)</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
