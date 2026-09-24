@@ -193,6 +193,38 @@ export const FREE_GSI_IMAGERY = {
     japanDetail: "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
 } as const;
 
+/**
+ * Regional official orthophotos layered over the global low-resolution map.
+ * A source is registered only after finding its publicly documented tile endpoint.
+ * Geographic bounds are REQUEST LIMITS, not precise national borders; the
+ * provider controls actual pixel coverage. Review license, attribution, service
+ * availability and displayed imagery before enabling a region in production.
+ * Do not substitute a commercial/free-trial API or claim every country is covered.
+ */
+export const OFFICIAL_COUNTRY_IMAGERY = [
+    // USGS The National Map. ArcGIS cache ordering is {z}/{y}/{x} (NOT XYZ).
+    { id: "usgs-contiguous-us", country: "US", provider: "USGS / USDA NAIP",
+        url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        bounds: [-125, 24, -66, 50], min: 9, max: 16, until: 17 },
+    { id: "usgs-alaska", country: "US", provider: "USGS / USDA NAIP",
+        url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        bounds: [-170, 51, -129, 72], min: 9, max: 16, until: 17 },
+    { id: "usgs-hawaii", country: "US", provider: "USGS / USDA NAIP",
+        url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        bounds: [-161, 18, -154, 23], min: 9, max: 16, until: 17 },
+    // IGN France Géoplateforme, PM = Google-compatible EPSG:3857 tile matrix.
+    { id: "ign-france", country: "FR", provider: "IGN France / Géoplateforme",
+        url: "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+        bounds: [-5.6, 41.2, 9.8, 51.3], min: 9, max: 19, until: 20 },
+    // Spain's national PNOA maximum-current orthophoto; also covers islands.
+    { id: "ign-spain-mainland", country: "ES", provider: "IGN España / CNIG / PNOA",
+        url: "https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&FORMAT=image/png&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+        bounds: [-10, 35, 5, 44], min: 9, max: 19, until: 20 },
+    { id: "ign-spain-canaries", country: "ES", provider: "IGN España / CNIG / PNOA",
+        url: "https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&FORMAT=image/png&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+        bounds: [-19, 27, -12, 30], min: 9, max: 19, until: 20 },
+] as const;
+
 export function isBoundaryLayer(id: string): boolean {
     return /boundary|border|admin|maritime|marine|disputed|territorial/i.test(id);
 }
@@ -208,6 +240,7 @@ function addFreeImagery(gl: VectorMap): boolean {
                 bounds: [122, 20, 154, 46] },
             { id: "gsi-japan-ortho", url: FREE_GSI_IMAGERY.japanDetail, min: 14, max: 18, until: 19,
                 bounds: [122, 20, 154, 46] },
+            ...OFFICIAL_COUNTRY_IMAGERY,
         ];
         for (const item of imagery) {
             gl.addSource(item.id, {
@@ -241,7 +274,7 @@ function addFreeImagery(gl: VectorMap): boolean {
 }
 
 /**
- * Shows actual GSI imagery over one existing vector basemap. Note that source
+ * Shows GSI global/Japan imagery plus selected official national imagery over one existing vector basemap. Note that source
  * coverage and source zoom are limited; never claim Google-Earth-level detail.
  * Switches the base layer only AFTER actual vector tiles rendered.
  * Keep the readable OSM fallback in place on script/style failure.
@@ -291,7 +324,10 @@ export async function upgradeToRealVectorBasemap(
         if (imageryAdded) map.attributionControl?.addAttribution(
             '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院（地理院タイル）</a>'
             + ' ・Landsat8: GSI, TSIC, GEO Grid/AIST, USGS'
-            + ' ・Global MODIS: NASA LP DAAC / USGS EROS',
+            + ' ・Global MODIS: NASA LP DAAC / USGS EROS'
+            + ' ・<a href="https://www.usgs.gov/the-national-map" target="_blank" rel="noopener noreferrer">USGS / USDA NAIP</a>'
+            + ' ・<a href="https://cartes.gouv.fr/" target="_blank" rel="noopener noreferrer">IGN France</a>'
+            + ' ・<a href="https://pnoa.ign.es/" target="_blank" rel="noopener noreferrer">IGN España / CNIG / PNOA</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
