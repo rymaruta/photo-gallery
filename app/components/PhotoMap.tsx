@@ -142,7 +142,10 @@ export default function PhotoMap({
     className?: string;
 }) {
     const en = locale === "en";
-    const [basemapState, setBasemapState] = useState<"loading" | "vector-ready" | "fallback">("loading");
+    const [basemapState, setBasemapState] = useState<"loading" | "satellite-ready" | "vector-ready" | "fallback">("loading");
+    // MapTiler browser key is deliberately PUBLIC and must be origin-restricted
+    // in MapTiler Cloud. This branch never commits a real credential.
+    const satelliteKey = process.env.NEXT_PUBLIC_JOURNEY_MAPTILER_KEY;
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<LeafletMap | null>(null);
     const layerRef = useRef<LayerGroup | null>(null);
@@ -215,6 +218,7 @@ export default function PhotoMap({
                 L, map, fallback,
                 () => !cancelled && mapRef.current === map,
                 setBasemapState,
+                satelliteKey,
             );
             const layer = L.layerGroup().addTo(map);
             layerRef.current = layer;
@@ -593,7 +597,12 @@ export default function PhotoMap({
 
             {basemapState === "fallback" && (
                 <p role="status" className="journey-map-basemap-warning pointer-events-none absolute left-3 top-2 z-[1001] max-w-[calc(100%-80px)] rounded-lg bg-surface-2/95 px-3 py-2 text-xs leading-5 text-white/85">
-                    {en ? "High-detail map unavailable. Standard map shown." : "高精細な地図を読み込めませんでした。標準地図を表示しています。"}
+                    {en ? "Satellite/map unavailable. Standard map shown." : "衛星写真または地図を読み込めませんでした。標準地図を表示しています。"}
+                </p>
+            )}
+            {basemapState === "vector-ready" && !satelliteKey && (
+                <p role="status" className="journey-map-basemap-warning pointer-events-none absolute left-3 top-2 z-[1001] max-w-[calc(100%-80px)] rounded-lg bg-surface-2/95 px-3 py-2 text-xs leading-5 text-white/85">
+                    {en ? "Satellite preview requires a MapTiler key. Showing map instead." : "衛星写真の表示にはMapTilerキーが必要です。現在は通常の地図を表示しています。"}
                 </p>
             )}
 
