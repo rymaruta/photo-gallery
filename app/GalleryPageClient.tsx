@@ -6,6 +6,7 @@ import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import ColorJourney from "./components/ColorJourney";
 import DiscoverSections from "./search/DiscoverSections";
+import DiscoverRail from "./components/DiscoverRail";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
 import useGallery from "../lib/hooks/useGallery";
@@ -471,11 +472,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
    */
   const discoverRail = (
     <nav aria-label={locale === "en" ? "Browse photos" : "写真をさがす"}>
-      <DiscoverSections
+      <DiscoverRail
         photos={PHOTOS}
         locale={locale}
         categoryDisplayMap={categoryDisplayMap}
-        variant="rail"
       />
     </nav>
   );
