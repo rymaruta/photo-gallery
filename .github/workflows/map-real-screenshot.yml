@@ -1,0 +1,125 @@
+name: Real map visual proof (draft #150 only)
+
+# Only this explicitly approved map prototype; NEVER deploy. Owner's other
+# workflows remain manual. One read-only screenshot job for the PR branch.
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [develop]
+    paths:
+      - ".github/workflows/map-real-screenshot.yml"
+      - "app/components/PhotoMap.tsx"
+      - "app/map/**"
+      - "app/globals.css"
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    if: github.head_ref == 'design/cinematic-map-preview-20260924' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install exactly the repository lockfile
+        run: npm ci
+      - name: Typecheck the committed source
+        run: npm run type-check
+      - name: Lint the map changes
+        run: npx eslint app/components/PhotoMap.tsx app/map/loadVectorBasemap.ts app/map/MapPageClient.tsx
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Create test-only route on the runner (NEVER committed or deployed)
+        shell: bash
+        run: |
+          mkdir -p app/map/design-proof
+          cat > app/map/design-proof/page.tsx <<'TSX'
+          import Proof from "./Proof";
+          export default function Page() { return <Proof />; }
+          TSX
+          cat > app/map/design-proof/Proof.tsx <<'TSX'
+          "use client";
+          import React from "react";
+          import PhotoMap from "../../components/PhotoMap";
+          import type { SpotPin } from "../../../lib/data/spotLink";
+          import MapSpotSheet from "../MapSpotSheet";
+          const SPOTS: SpotPin[] = [
+            { slug: "proof-santorini", name: "サントリーニ島（検証用）", region: "ギリシャ", summary: "CIで地図の位置・ピン・カードだけを確認する架空の掲載状態です。", lat: 36.4615, lng: 25.375, cover: null },
+            { slug: "proof-naxos", name: "ナクソス島（検証用）", region: "ギリシャ", lat: 37.105, lng: 25.376, cover: null },
+            { slug: "proof-athens", name: "アテネ（検証用）", region: "ギリシャ", lat: 37.98, lng: 23.72, cover: null },
+          ];
+          export default function Proof() {
+            const [selected, setSelected] = React.useState<string | null>(null);
+            const spot = SPOTS.find((s) => s.slug === selected) ?? null;
+            return (
+              <main className="journey-map-page mx-auto max-w-[1450px] px-3 pt-2 text-white">
+                <p className="mb-2 text-xs text-link">CI TEST DATA ONLY / NOT A PUBLISHED SPOT GUIDE</p>
+                <PhotoMap photos={[]} spots={SPOTS} locale="ja"
+                  selectedSpotSlug={selected} onSelectSpot={setSelected}
+                  sheetOpen={!!spot} className="h-[70dvh] min-h-[360px] lg:h-[calc(100dvh-190px)]" />
+                {spot && <MapSpotSheet spot={spot} onClose={() => setSelected(null)} locale="ja" />}
+                <p className="pt-3 text-xs text-white/70">This map uses real OpenFreeMap vector tiles; markers and names are test fixtures.</p>
+              </main>
+            );
+          }
+          TSX
+      - name: Start real Next.js application locally
+        shell: bash
+        run: |
+          (npm run dev -- --hostname 127.0.0.1 > /tmp/jp-next-map.log 2>&1 &)
+          for i in $(seq 1 75); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:3000/map/design-proof; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/jp-next-map.log
+          exit 1
+      - name: Capture REAL vector tile map screenshots (not schematic HTML)
+        shell: bash
+        run: |
+          mkdir -p /tmp/journey-real-map-screens
+          cat > /tmp/journey-real-map-screens/proof.cjs <<'JS'
+          const { chromium } = require(process.cwd() + "/node_modules/playwright");
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            let failed = false;
+            for (const [name, width, height] of [["mobile", 390, 844], ["desktop", 1280, 800]]) {
+              const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+              const errors = [];
+              page.on("pageerror", (err) => errors.push(String(err)));
+              await page.goto("http://127.0.0.1:3000/map/design-proof", { waitUntil: "domcontentloaded", timeout: 90000 });
+              try {
+                await page.locator('[data-basemap="vector-ready"]').waitFor({ timeout: 65000 });
+              } catch {
+                failed = true;
+                console.error(name + " did not render real vector tiles. State: " + await page.locator(".journey-photo-map").getAttribute("data-basemap"));
+              }
+              await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-real-tiles.png", fullPage: true });
+              const pin = page.locator(".spot-map-pin-icon").first();
+              if (await pin.count()) {
+                await pin.click({ timeout: 10000 });
+                await page.screenshot({ path: "/tmp/journey-real-map-screens/" + name + "-selected-real-tiles.png", fullPage: true });
+              } else { failed = true; console.error(name + " has no real official pin"); }
+              if (errors.length) { failed = true; console.error(name + " errors:", errors.slice(0, 6)); }
+              await page.close();
+            }
+            await browser.close();
+            if (failed) process.exitCode = 1;
+          })().catch(err => { console.error(err); process.exitCode = 1; });
+          JS
+          node /tmp/journey-real-map-screens/proof.cjs
+      - name: Upload exact real-app screenshot evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-photo-real-vector-map
+          path: /tmp/journey-real-map-screens/*.png
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Show map server diagnostics on failure
+        if: failure()
+        run: tail -150 /tmp/jp-next-map.log || true
