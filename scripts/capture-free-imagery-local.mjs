@@ -70,6 +70,10 @@ const routes = [
     source: "mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution?",
     description: "Polish GUGiK official orthophotomap in Warsaw",
     pins: [["proof-warsaw", "ワルシャワ（検証用）", "ポーランド", 52.2297, 21.0122]] },
+  { slug: "australia-nsw", label: "Australia: NSW", hash: "#13/-33.8688/151.2093",
+    source: "maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/",
+    description: "NSW Spatial Services official NSW-only imagery in Sydney (not whole Australia)",
+    pins: [["proof-sydney", "シドニー（検証用）", "オーストラリア・NSW州", -33.8688, 151.2093]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
