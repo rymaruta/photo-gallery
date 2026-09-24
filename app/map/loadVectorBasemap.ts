@@ -257,6 +257,18 @@ export const OFFICIAL_COUNTRY_IMAGERY = [
     { id: "nsw-australia", country: "AU", provider: "NSW Spatial Services imagery (NSW only)",
         url: "https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Imagery/MapServer/tile/{z}/{y}/{x}",
         bounds: [140.7, -38.0, 154.1, -28.0], min: 9, max: 18, until: 19 },
+    // Republic of Estonia Land and Spatial Development Board. The official
+    // WMTS Web Mercator (GMC) orthophoto is distinct from native LEST/TMS.
+    // Add the provider-requested service identification query parameters.
+    { id: "maaruum-estonia", country: "EE", provider: "Maa- ja Ruumiamet orthophoto",
+        url: "https://tiles.maaamet.ee/tm/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=foto&STYLE=default&FORMAT=image/png&TILEMATRIXSET=GMC&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&ASUTUS=JOURNEYPHOTO&KESKKOND=LIVE&IS=JOURNEYPHOTO",
+        bounds: [21.7, 57.5, 28.3, 59.9], min: 9, max: 18, until: 19 },
+    // Germany: North Rhine-Westphalia ONLY. Geobasis NRW Open Data orthophoto
+    // cache advertises 3857 tile matrix; do not substitute Germany-wide BKG
+    // DOP service, which is subject to federal entitlement restrictions.
+    { id: "nrw-germany", country: "DE", provider: "Geobasis NRW DOP (NRW only)",
+        url: "https://www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/{z}/{y}/{x}",
+        bounds: [5.8, 50.3, 9.5, 52.55], min: 9, max: 16, until: 17 },
 ] as const;
 
 export function isBoundaryLayer(id: string): boolean {
@@ -368,7 +380,9 @@ export async function upgradeToRealVectorBasemap(
             + ' ・<a href="https://geoportal.cuzk.gov.cz/" target="_blank" rel="noopener noreferrer">© ČÚZK</a>'
             + ' ・<a href="https://www.vlaanderen.be/digitaal-vlaanderen" target="_blank" rel="noopener noreferrer">© Digitaal Vlaanderen (Flanders orthophoto)</a>'
             + ' ・<a href="https://www.geoportal.gov.pl/" target="_blank" rel="noopener noreferrer">GUGiK Geoportal (Poland)</a>'
-            + ' ・<a href="https://www.spatial.nsw.gov.au/" target="_blank" rel="noopener noreferrer">© NSW Department of Customer Service / NSW Spatial Services</a>',
+            + ' ・<a href="https://www.spatial.nsw.gov.au/" target="_blank" rel="noopener noreferrer">© NSW Department of Customer Service / NSW Spatial Services</a>'
+            + ' ・<a href="https://geoportaal.maaamet.ee/" target="_blank" rel="noopener noreferrer">Maa- ja Ruumiamet (Estonia orthophoto)</a>'
+            + ' ・<a href="https://www.bezreg-koeln.nrw.de/geobasis-nrw" target="_blank" rel="noopener noreferrer">Geobasis NRW (Germany, NRW orthophoto)</a>',
         );
         map.attributionControl?.addAttribution(
             '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> '
