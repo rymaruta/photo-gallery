@@ -93,6 +93,39 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(aliasHits, "別名が他のスポットの名前と衝突している").toEqual([]);
     });
 
+    /**
+     * 🔴 **日本語の文章に、別の文字体系が紛れ込んでいない。**
+     *
+     * 2026-09-24、実際に2件見つかった——`palais-garnier` の
+     * 「アルジェリア大理石の **двойного** 階段」と、`sasagawa-nagare` の
+     * 「**гроット** のような洞窟」。どちらもキリル文字で、**前者は既に
+     * 公開状態の台帳に入っていた**。
+     *
+     * 人が読めば一目で分かるが、**件数が増えるほど誰も読まなくなる**。
+     * JSON として妥当で、`publishBlockers` も通り、型検査も通るので、
+     * この形の壊れ方は機械でしか捕まえられない。
+     *
+     * 通すのは日本語（かな・漢字）・ラテン文字・数字・記号まで。
+     * キリル・アラビア・タイ・ハングル・デーヴァナーガリーを弾く。
+     */
+    const FOREIGN_RE = /[\u0400-\u04FF\u0500-\u052F\u0600-\u06FF\u0E00-\u0E7F\uAC00-\uD7AF\u0900-\u097F]/;
+
+    it("文章に別の文字体系が紛れていない", () => {
+        const hits: string[] = [];
+        const walk = (v: unknown, path: string) => {
+            if (typeof v === "string") {
+                const m = FOREIGN_RE.exec(v);
+                if (m) hits.push(`${path}: 「${m[0]}」（${v.slice(Math.max(0, m.index - 12), m.index + 12)}）`);
+            } else if (Array.isArray(v)) {
+                v.forEach((x, i) => walk(x, `${path}[${i}]`));
+            } else if (v && typeof v === "object") {
+                for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+            }
+        };
+        for (const s of SPOTS) walk(s, s.slug);
+        expect(hits, "日本語の文章に別の文字体系が混ざっている").toEqual([]);
+    });
+
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
         // 名前を鍵にすると (1) 同名異所を混ぜる (2) 改名で鍵が変わる
         const bad = SPOTS.filter((s) => !SPOT_ID_RE.test(s.spotId)).map((s) => s.spotId);
