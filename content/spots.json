@@ -2482,6 +2482,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_5e2affd3b6bb",
+    "slug": "aoba-castle",
+    "name": "仙台城跡",
+    "nameEn": "Sendai Castle Site",
+    "reading": "せんだいじょうあと",
+    "aliases": [
+      "青葉城址",
+      "伊達政宗騎馬像"
+    ],
+    "address": "宮城県仙台市青葉区川内1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "仙台市"
+    },
+    "coords": {
+      "lat": 38.25,
+      "lng": 140.85
+    },
+    "category": "landmark",
+    "summary": "青葉山の上にある城跡。本丸からは仙台市街を一望でき、夜は街の灯りが眼下いっぱいに広がります。",
+    "description": "伊達政宗が築いた城の跡で、建物は残っていませんが高石垣と本丸の平場があります。本丸の東の縁が展望台になっており、広瀬川の谷をはさんで市街地が正面に開けます。政宗の騎馬像はこの縁に立ち、市街を背景に撮れます。石垣は積み直しが行われていて、直線的な稜線が残っています。駐車場から本丸まではすぐです。",
+    "highlights": [
+      "本丸からの仙台市街の眺め",
+      "高く積まれた石垣",
+      "市街を背にした騎馬像"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月、園内の桜。市街を背景に入れられる角度があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、市街の奥の太平洋まで見える日があります。"
+      },
+      {
+        "season": "winter",
+        "text": "日没が早く、夕景と夜景を短い時間で両方撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は市街が西日を受け、そのまま夜景へ移る時間帯が狙い目です。"
+      },
+      {
+        "time": "night",
+        "text": "夜景が本命。三脚を使う場合は通路を塞がない位置を選びます。"
+      }
+    ],
+    "compositionTips": [
+      "騎馬像は下から煽って空を入れると像の姿勢が出ます",
+      "夜景は広瀬川の橋の灯りを手前に置くと奥行きが出ます",
+      "石垣は側面から撮って稜線の直線を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.sentabi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_1326bdef665f",
     "slug": "aomori-nebuta",
     "name": "青森ねぶた祭",
@@ -2838,6 +2902,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4c92be4776db",
+    "slug": "arahama-shogakko",
+    "name": "荒浜小学校",
+    "nameEn": "Former Arahama Elementary School",
+    "reading": "あらはましょうがっこう",
+    "aliases": [
+      "震災遺構 仙台市立荒浜小学校"
+    ],
+    "address": "宮城県仙台市若林区荒浜字新堀端32-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "仙台市"
+    },
+    "coords": {
+      "lat": 38.22,
+      "lng": 140.99
+    },
+    "category": "landmark",
+    "summary": "津波が二階まで達した校舎をそのまま残した震災遺構。壁の損傷と、屋上から見る何もない海岸が記録として残ります。",
+    "description": "海岸から約七百メートルの場所にあった小学校で、二〇一一年の津波が二階の床上まで達しました。校舎は震災遺構として保存され、一階と二階の被災部分、屋上が公開されています。屋上からは、かつて住宅が並んでいた海岸沿いの平地が見渡せます。展示には当時の写真と証言が併設されています。追悼と学習の場であることを前提に行動します。",
+    "highlights": [
+      "津波の痕跡が残る校舎",
+      "屋上から見る海岸の平地",
+      "当時の写真と証言の展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲に植えられた木が育ち、平地の見え方が年ごとに変わります。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて地形がむき出しになり、平地の広さが最も伝わります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "開館時間内のみ入れます。屋上は日中が明るく、海まで見通せます。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は見学者が少なく、校舎内を静かに撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "損傷部分は演出せず、正面から説明的に撮ります",
+      "屋上からは海と校舎の距離が分かる画角を選びます",
+      "他の見学者や献花を写さないよう配慮します"
+    ],
+    "officialWebsiteUrl": "https://www.city.sendai.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6fffdf09d726",
@@ -4232,6 +4355,65 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a3903f69a193",
+    "slug": "banjiiwa",
+    "name": "二口渓谷 磐司岩",
+    "nameEn": "Futakuchi Valley, Banjiiwa",
+    "reading": "ふたくちけいこく ばんじいわ",
+    "aliases": [
+      "磐司岩"
+    ],
+    "address": "宮城県仙台市太白区秋保町馬場",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "仙台市"
+    },
+    "coords": {
+      "lat": 38.28,
+      "lng": 140.61
+    },
+    "category": "nature",
+    "summary": "高さ百メートル超の岩壁が三キロにわたって連なる渓谷。柱状の岩が屏風のように並ぶ規模が特徴です。",
+    "description": "名取川の上流、秋保の奥にある渓谷で、凝灰岩が浸食されてできた岩壁が約三キロ続きます。高さは最大で百数十メートル。柱状に割れた岩が横に並び、屏風を立てたような壁面になります。二口林道沿いから見上げられ、姉滝や白糸の滝も近くにあります。林道は冬期閉鎖され、落石による通行止めも起きます。",
+    "highlights": [
+      "三キロ続く岩壁",
+      "柱状に割れた岩の反復",
+      "近隣の姉滝と白糸の滝"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "濃い緑と灰色の岩壁。渓谷なので平地より涼しく歩けます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬が紅葉。岩壁と色づいた木が拮抗します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に光が入らず、岩壁が均一に写ります。霧が出ることもあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁の上部に光が当たり、下部が影になって層ができます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で岩壁の高さを取ります",
+      "横に長い壁は望遠でパンして分割し、あとで並べて見せます",
+      "道路上に立ち止まらず、駐車帯や展望地点から撮ります"
+    ],
+    "officialWebsiteUrl": "https://akiu.ne.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_3b466022ca58",
@@ -9876,6 +10058,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c1f527dd8798",
+    "slug": "fukuurajima",
+    "name": "福浦島",
+    "nameEn": "Fukuurajima Island",
+    "reading": "ふくうらじま",
+    "aliases": [
+      "福浦橋"
+    ],
+    "address": "宮城県宮城郡松島町松島字仙随39-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "松島町"
+    },
+    "coords": {
+      "lat": 38.37,
+      "lng": 141.07
+    },
+    "category": "nature",
+    "summary": "松島湾に浮かぶ島へ、全長二百五十二メートルの朱塗りの橋で渡ります。島からは湾の島々を低い視点で見渡せます。",
+    "description": "松島海岸から福浦橋で結ばれた島で、島全体が自然植物公園になっています。橋は朱塗りで、海面すれすれの高さを一直線に渡します。島内には遊歩道があり、対岸の松島の街や湾内の島々を海面近くの視点から見られます。展望台からは湾が広く開けます。橋の通行には料金がかかり、時間も決まっています。",
+    "highlights": [
+      "全長二百五十二メートルの朱塗りの橋",
+      "海面に近い視点から見る松島湾",
+      "島内の遊歩道と展望台"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "島の樹木が芽吹き、朱色の橋と新緑が対になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、島内が色づきます。湾の青と赤の対比が出る時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、橋を無人で撮れる確率が高くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湾が静かで、島影の映り込みが安定します。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は橋の朱が濃くなり、湾の水面に光の道ができます。"
+      }
+    ],
+    "compositionTips": [
+      "橋は真横から撮ると二百五十二メートルの直線が効きます",
+      "島からは手前に岩や松を置いて湾の奥行きを作ります",
+      "朱色が飽和しやすいので、露出をやや下げて撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.matsushima-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_ed94cb0bfee7",
@@ -20654,6 +20899,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_ea81906f7048",
+    "slug": "ishinomaki-hiyoriyama",
+    "name": "日和山公園",
+    "nameEn": "Hiyoriyama Park",
+    "reading": "ひよりやまこうえん",
+    "aliases": [
+      "石巻 日和山"
+    ],
+    "address": "宮城県石巻市日和が丘2-1-10",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "石巻市"
+    },
+    "coords": {
+      "lat": 38.42,
+      "lng": 141.31
+    },
+    "category": "landmark",
+    "summary": "石巻市街と旧北上川の河口、太平洋を一望する丘。震災前後の土地の変化を同じ視点から見られる場所です。",
+    "description": "石巻の市街に接する標高約六十メートルの丘で、旧北上川の河口と太平洋、市街地を見渡せます。津波で被害を受けた南浜地区がこの丘から見下ろせ、現在は石巻南浜津波復興祈念公園として整備されています。園内は桜の名所でもあり、四月中旬には四百本以上が咲きます。展望台からは中瀬の建物も見えます。",
+    "highlights": [
+      "市街と河口と海の一望",
+      "復興祈念公園の俯瞰",
+      "四百本以上の桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の桜。手前に桜、奥に海という二層の構図が組めます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海までの視程が伸びます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、日の出が海から上がる位置に近づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので日の出が正面から上がります。河口の水面が光ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は市街に灯りが入り始め、夜景へ移る時間が撮りやすいです。"
+      }
+    ],
+    "compositionTips": [
+      "桜の枝を上部に入れて眼下の街を額縁にします",
+      "望遠で河口の水門や橋を抜くと土地の構造が見えます",
+      "被災地を含む眺めなので、説明的に淡々と撮る姿勢を保ちます"
+    ],
+    "officialWebsiteUrl": "https://www.city.ishinomaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_230b22ee4e8d",
     "slug": "ishiyamadera",
     "name": "石山寺",
@@ -21859,6 +22167,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_bbd236d0f4ce",
+    "slug": "izunuma",
+    "name": "伊豆沼",
+    "nameEn": "Izunuma Marsh",
+    "reading": "いずぬま",
+    "aliases": [
+      "伊豆沼・内沼"
+    ],
+    "address": "宮城県栗原市若柳字上畑岡敷味17-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "栗原市"
+    },
+    "coords": {
+      "lat": 38.71,
+      "lng": 141.09
+    },
+    "category": "nature",
+    "summary": "冬に数万羽のマガンが渡ってくるラムサール条約登録湿地。夜明けに一斉に飛び立つ塒立ちが最大の見どころです。",
+    "description": "宮城県北部の浅い沼で、内沼と合わせてラムサール条約に登録されています。十月から二月にかけてマガンやハクチョウが渡来し、越冬地としては国内最大級です。早朝、沼で夜を過ごしたガンが一斉に飛び立つ塒立ちは日の出前後の十数分に集中します。夕方は逆に、餌場から戻る群れが空を埋めます。堤防や観察施設から撮ります。",
+    "highlights": [
+      "夜明けの塒立ち",
+      "数万羽のマガンの群れ",
+      "夏はハスが沼を覆う"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十二月から二月がガンの最盛期。朝の冷え込みが強いほど空気が澄みます。"
+      },
+      {
+        "season": "summer",
+        "text": "七月下旬から八月、沼の一部がハスで埋まります。鳥は少ない季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、渡りが始まります。数はまだ少なめですが人も少ないです。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "日の出前後の十数分が塒立ち。位置取りは暗いうちに済ませます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は餌場から戻る群れ。夕焼けと重なると空が埋まります。"
+      }
+    ],
+    "compositionTips": [
+      "群れは速いシャッターで止めるか、遅くして軌跡にするかを決めて撮ります",
+      "空を広く取り、群れを面として扱うと数の多さが出ます",
+      "鳥を驚かせないよう、大きな音や急な動きを避けます"
+    ],
+    "officialWebsiteUrl": "https://www.kuriharacity.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_c27414e0fb20",
@@ -26255,6 +26626,65 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_a16bfe293c7e",
+    "slug": "katanuma",
+    "name": "潟沼",
+    "nameEn": "Katanuma Crater Lake",
+    "reading": "かたぬま",
+    "aliases": [
+      "鳴子 潟沼"
+    ],
+    "address": "宮城県大崎市鳴子温泉字湯元",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "大崎市"
+    },
+    "coords": {
+      "lat": 38.74,
+      "lng": 140.72
+    },
+    "category": "nature",
+    "summary": "強酸性の火口湖で、水が乳白色から青緑まで条件で変わります。周囲は草木が少なく、荒れた岩肌が湖を囲みます。",
+    "description": "鳴子温泉の南にある火口湖で、世界有数の強酸性湖として知られます。水の色は天候や季節で変わり、青緑、乳白、灰色と幅があります。岸辺では湯気が上がる箇所があり、湖水も場所によって温かい部分があります。周囲は酸性土壌で植生が乏しく、荒れた地肌が露出しています。湖畔まで車道が通じていますが、冬期は閉鎖されます。",
+    "highlights": [
+      "条件で色が変わる強酸性の湖水",
+      "湖畔から上がる湯気",
+      "植生の乏しい荒れた地肌"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水の色が最も鮮やかに出る季節。周囲の緑との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、周囲の斜面が色づきます。鳴子峡と合わせて回れる時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は湯気が立ちやすく、水面も静かで色が読みやすい時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中の順光で水の色が最も濃く出ます。偏光フィルターで反射を調整します。"
+      }
+    ],
+    "compositionTips": [
+      "水面の色を主題にするなら岸の岩を少しだけ入れて対比を作ります",
+      "湯気は逆光で狙うと形が見えます",
+      "偏光フィルターは効かせすぎると色が不自然になるので加減します"
+    ],
+    "officialWebsiteUrl": "https://www.naruko.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f479d1c7e794",
     "slug": "katayamazu",
     "name": "片山津温泉 柴山潟",
@@ -27785,6 +28215,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_dfd72bdb13f0",
+    "slug": "kesennuma-oshima",
+    "name": "気仙沼大島",
+    "nameEn": "Kesennuma Oshima Island",
+    "reading": "けせんぬまおおしま",
+    "aliases": [
+      "亀山 展望台",
+      "小田の浜"
+    ],
+    "address": "宮城県気仙沼市字亀山",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "気仙沼市"
+    },
+    "coords": {
+      "lat": 38.87,
+      "lng": 141.63
+    },
+    "category": "nature",
+    "summary": "橋で本土と繋がった島。亀山の展望台からは気仙沼湾とリアス海岸の入り組んだ地形を一望できます。",
+    "description": "二〇一九年に気仙沼大島大橋が開通し、車で渡れるようになりました。島の北にある亀山は標高二百三十五メートルで、山頂の展望台から気仙沼湾、唐桑半島、晴れた日には岩手の山まで見渡せます。島の東側には遠浅の小田の浜、南には十八鳴浜という鳴き砂の浜があります。亀山へは登山道と車道があります。",
+    "highlights": [
+      "亀山からの気仙沼湾の一望",
+      "鳴き砂の十八鳴浜",
+      "気仙沼大島大橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "亀山は椿とツツジの季節。海と花を同時に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "小田の浜の水の色が最も濃く出ます。海水浴期は人が多くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、展望台からの視程が最も伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので朝日が海から上がります。展望台からの朝が本命です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾の水面が光り、島影が層になります。"
+      }
+    ],
+    "compositionTips": [
+      "展望台からは望遠で入り江を圧縮するとリアス地形が分かります",
+      "大橋は島側から撮ると本土との距離が出ます",
+      "浜は波打ち際を低い位置から撮って砂の質感を入れます"
+    ],
+    "officialWebsiteUrl": "https://kesennuma-kanko.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_e4da6f471459",
     "slug": "keta-taisha",
     "name": "気多大社",
@@ -28223,6 +28717,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_170cff5f5b91",
+    "slug": "kinkasan",
+    "name": "金華山",
+    "nameEn": "Kinkasan Island",
+    "reading": "きんかさん",
+    "aliases": [
+      "黄金山神社"
+    ],
+    "address": "宮城県石巻市鮎川浜金華山5",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "石巻市"
+    },
+    "coords": {
+      "lat": 38.28,
+      "lng": 141.57
+    },
+    "category": "shrine",
+    "summary": "牡鹿半島の沖に浮かぶ信仰の島。島全体が神域で、鹿が自由に歩き回り、人家はほとんどありません。",
+    "description": "周囲約二十六キロの島で、島そのものが黄金山神社の神域とされてきました。定期船か渡船で渡り、港から参道の石段を上がると社殿に出ます。島には野生の鹿が多数おり、参道や境内を歩き回ります。島内には山頂へ続く登山道があり、頂上の大海祇神社からは太平洋と牡鹿半島を見渡せます。便数が限られるので往復の時間を先に確認します。",
+    "highlights": [
+      "島全体が神域",
+      "参道を歩く野生の鹿",
+      "山頂からの太平洋の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑の季節。海も穏やかで、渡船が欠航しにくい時期です。"
+      },
+      {
+        "season": "autumn",
+        "text": "鹿の角が立派になる時期。島の木々も色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "海が荒れて欠航が増えます。渡る前に必ず運航状況を確認します。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の便で渡ると島内を歩く時間が取れます。鹿も朝は活発です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海が明るく、山頂からの眺望が最も開けます。"
+      }
+    ],
+    "compositionTips": [
+      "鹿と社殿を一枚に入れると島の性格が伝わります",
+      "参道の石段は上下どちらからも撮って奥行きを比べます",
+      "帰りの便の時刻から逆算し、山頂へ登るかを先に決めます"
+    ],
+    "officialWebsiteUrl": "https://kinkasan.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_957ca948879a",
@@ -34420,6 +34977,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_dc076b05c822",
+    "slug": "matsushima-saigyo",
+    "name": "西行戻しの松公園",
+    "nameEn": "Saigyo Modoshi no Matsu Park",
+    "reading": "さいぎょうもどしのまつこうえん",
+    "aliases": [
+      "西行戻しの松"
+    ],
+    "address": "宮城県宮城郡松島町松島字犬田8-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "松島町"
+    },
+    "coords": {
+      "lat": 38.38,
+      "lng": 141.06
+    },
+    "category": "nature",
+    "summary": "松島湾を高い位置から見下ろす丘の公園。手前に桜、奥に島々が並ぶ構図が組める数少ない場所です。",
+    "description": "松島海岸の西側にある高台で、湾に浮かぶ島々を俯瞰できます。園内には約二百六十本の桜があり、四月中旬には手前に桜、奥に湾という二層の構図が成立します。西行法師がここで童子と問答して引き返したという伝承が名前の由来です。駐車場から展望のきく位置まではすぐで、海抜差のわりに歩く距離は短い場所です。",
+    "highlights": [
+      "湾と島々の俯瞰",
+      "約二百六十本の桜",
+      "短い距離で展望に出られる立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬、桜と湾の二層構図が成立する短い期間です。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、湾の奥の島まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、湾を静かに撮れます。日の出の位置も湾の島に近づきます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "湾の東側から日が上がるので、朝は逆光の海面がきらめきます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は島の緑と海の青が分離して出ます。"
+      }
+    ],
+    "compositionTips": [
+      "桜の枝を画面上部に入れて湾を額縁にします",
+      "望遠で島だけを抜くと松島の島の密度が伝わります",
+      "逆光の海面は露出を下げて島をシルエットにします"
+    ],
+    "officialWebsiteUrl": "https://www.matsushima-kanko.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_95e2146cb038",
     "slug": "matsuyama-castle",
     "name": "松山城",
@@ -35666,6 +36286,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_8d0f9633fa4f",
+    "slug": "minamisanriku-sunsun",
+    "name": "南三陸さんさん商店街",
+    "nameEn": "Minamisanriku Sansan Shopping Village",
+    "reading": "みなみさんりくさんさんしょうてんがい",
+    "aliases": [
+      "南三陸 中橋"
+    ],
+    "address": "宮城県本吉郡南三陸町志津川字五日町201-5",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "南三陸町"
+    },
+    "coords": {
+      "lat": 38.68,
+      "lng": 141.45
+    },
+    "category": "landmark",
+    "summary": "隈研吾の設計による木造の商店街。同じ勾配の屋根が並ぶ町並みと、川に架かる木の橋が一体で設計されています。",
+    "description": "津波で被災した志津川地区に再建された商店街で、隈研吾が設計を担当しました。低い木造の棟が同じ勾配の屋根で並び、通路が屋根に覆われます。隣接する中橋も同じ設計者による木の橋で、南三陸町震災復興祈念公園へ繋がります。公園内には旧防災対策庁舎が震災遺構として残されています。町の再建の形そのものが見どころです。",
+    "highlights": [
+      "木造で統一された商店街の町並み",
+      "設計が連続する中橋",
+      "隣接する復興祈念公園"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲が明るくなり、木の建物の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄んで陰影がはっきりします。木部の質感が出る季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根に乗ると、同じ勾配の反復が白い線として見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は通路に人が少なく、建築の構成だけを撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は木部が暖色に染まり、灯りが入り始めます。"
+      }
+    ],
+    "compositionTips": [
+      "同じ屋根の反復を望遠で圧縮すると設計の意図が出ます",
+      "橋は横から撮って木の構造を見せます",
+      "震災遺構は説明的に撮り、演出を加えないこと"
+    ],
+    "officialWebsiteUrl": "https://www.sansan-minamisanriku.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_fb4aa076975a",
     "slug": "minato-line",
     "name": "ひたちなか海浜鉄道 湊線",
@@ -36909,6 +37592,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e310b8a9c7c5",
+    "slug": "miyagi-zao-fox",
+    "name": "蔵王キツネ村",
+    "nameEn": "Zao Fox Village",
+    "reading": "ざおうきつねむら",
+    "aliases": [
+      "宮城蔵王キツネ村"
+    ],
+    "address": "宮城県白石市福岡八宮字川原子11-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "白石市"
+    },
+    "coords": {
+      "lat": 38.02,
+      "lng": 140.55
+    },
+    "category": "landmark",
+    "summary": "百頭を超えるキツネが放し飼いにされた施設。柵の内側で自由に動く個体を、近い距離から撮れます。",
+    "description": "山あいの斜面を使った施設で、キタキツネやギンギツネなど六種百頭以上が放し飼いにされています。来園者は放飼場の中を歩けるため、キツネとの距離が非常に近くなります。冬毛の時期は毛並みが厚く、雪の中を歩く姿が撮れます。餌やりは決められた場所のみ、しゃがむ姿勢や持ち物の扱いに規則があり、安全のため必ず従います。",
+    "highlights": [
+      "放し飼いのキツネを近距離で撮れる",
+      "冬毛の厚い毛並み",
+      "雪の中を歩く姿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十二月から二月、毛が最も厚くなります。雪と組み合わせられる本命の季節です。"
+      },
+      {
+        "season": "spring",
+        "text": "四月から五月、子ギツネが見られる時期。換毛期で毛並みは乱れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "冬毛に変わり始め、周囲の紅葉と合わせられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は動きが活発で、寝ている個体が少ない時間です。"
+      },
+      {
+        "time": "day",
+        "text": "日中は日向で丸くなる個体が増えます。寝姿を狙うならこの時間です。"
+      }
+    ],
+    "compositionTips": [
+      "目にピントを置き、絞りを開けて背景を整理します",
+      "低い位置から撮るとキツネの目線になります",
+      "園の規則に従い、しゃがみ込みや荷物の持ち方に注意します"
+    ],
+    "officialWebsiteUrl": "https://zao-fox-village.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_39a7c6014fb8",
@@ -47334,6 +48080,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_46973b0c935c",
+    "slug": "osaki-hachimangu",
+    "name": "大崎八幡宮",
+    "nameEn": "Osaki Hachimangu Shrine",
+    "reading": "おおさきはちまんぐう",
+    "aliases": [
+      "国宝 大崎八幡宮社殿"
+    ],
+    "address": "宮城県仙台市青葉区八幡4-6-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "仙台市"
+    },
+    "coords": {
+      "lat": 38.28,
+      "lng": 140.84
+    },
+    "category": "shrine",
+    "summary": "黒漆に金の飾り金具を打った国宝の社殿。安土桃山期の建築がそのまま残る、東北では数少ない例です。",
+    "description": "伊達政宗が一六〇七年に建てた社殿で、本殿と石の間、拝殿が一体になった権現造の初期の例として国宝に指定されています。外部は黒漆塗りで、そこに金の金具と彩色の彫刻が入ります。長い石段と杉並木の参道が社殿まで続き、正月の松焚祭では境内に大きな火が立ちます。社殿の内部は非公開です。",
+    "highlights": [
+      "国宝の権現造社殿",
+      "黒漆に金の飾り金具",
+      "杉並木の長い参道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "参道の新緑と黒い社殿。色数が少ないぶん建物の造作が主役になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "境内の木々が色づき、黒漆との対比が最も強くなる時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "一月十四日の松焚祭。大きな火と参拝者の列が被写体になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、社殿を正面から無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は金具に光が当たり、黒地の中で金だけが光ります。"
+      }
+    ],
+    "compositionTips": [
+      "黒漆は露出が難しいので、金具を基準に測って黒を沈めます",
+      "彫刻は望遠で部分を抜いて密度を見せます",
+      "参道は石段の反復を使って社殿へ視線を運びます"
+    ],
+    "officialWebsiteUrl": "https://www.oosaki-hachiman.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b1319d5a87bc",
     "slug": "osanbashi",
     "name": "横浜港大さん橋 国際客船ターミナル",
@@ -55721,6 +56530,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f2d354cf0c39",
+    "slug": "shiogama-jinja",
+    "name": "鹽竈神社",
+    "nameEn": "Shiogama Shrine",
+    "reading": "しおがまじんじゃ",
+    "aliases": [
+      "志波彦神社",
+      "塩竈神社 表坂"
+    ],
+    "address": "宮城県塩竈市一森山1-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "塩竈市"
+    },
+    "coords": {
+      "lat": 38.32,
+      "lng": 141.02
+    },
+    "category": "shrine",
+    "summary": "二百二段の石段を上がった丘の上に社殿が並びます。境内からは塩釜港と松島湾が見下ろせます。",
+    "description": "陸奥国一之宮で、一森山の上に左宮・右宮・別宮の三つの社殿が配置されています。表参道の石段は二百二段あり、下から見上げると鳥居の奥に段が消えていきます。境内の博物館側の高台からは塩釜港と松島湾を望めます。境内の塩竈桜は天然記念物で、四月下旬の遅い時期に八重の花をつけます。",
+    "highlights": [
+      "二百二段の表参道",
+      "三つ並ぶ社殿の配置",
+      "境内から見る塩釜港と松島湾"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬、天然記念物の塩竈桜。ソメイヨシノより遅く八重で咲きます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が濃く、石段の上部が暗くなります。上から見下ろす構図が向きます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の石段は滑りますが、段の線が白く浮いて形が出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、石段を無人で撮れます。海側も朝が澄みます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は社殿の朱と白に光が回ります。"
+      }
+    ],
+    "compositionTips": [
+      "石段は下から望遠で圧縮すると段数の多さが伝わります",
+      "鳥居を額縁にして社殿を奥に置きます",
+      "港を入れるなら高台から望遠で船を主題にします"
+    ],
+    "officialWebsiteUrl": "https://www.shiogamajinja.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_3e3625a686b7",
     "slug": "shiorutoge",
     "name": "枝折峠の滝雲",
@@ -57037,6 +57910,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_06d7cf5ab2dd",
+    "slug": "shiroishi-castle",
+    "name": "白石城",
+    "nameEn": "Shiroishi Castle",
+    "reading": "しろいしじょう",
+    "aliases": [
+      "白石城 三階櫓"
+    ],
+    "address": "宮城県白石市益岡町1-16",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "白石市"
+    },
+    "coords": {
+      "lat": 38,
+      "lng": 140.62
+    },
+    "category": "landmark",
+    "summary": "木造で復元された三階櫓が建つ城。コンクリートではなく伝統工法で建てられており、内部の柱や梁が見えます。",
+    "description": "伊達家の家臣片倉氏の居城で、一九九五年に三階櫓と大手門が木造で復元されました。鉄骨やコンクリートを使わず、当時の工法で建てられているため、内部は太い柱と梁がそのまま露出しています。城山公園として整備され、春は桜が櫓を囲みます。市街地からすぐで、麓の武家屋敷と合わせて回れます。",
+    "highlights": [
+      "木造で復元された三階櫓",
+      "内部に露出する柱と梁",
+      "櫓を囲む桜"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月中旬の桜。白い櫓と桜が重なる角度が城山公園内にあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、園内が色づきます。櫓の白壁との対比が効きます。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根に乗ると白壁と一体化し、輪郭だけが残ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は白壁が素直な色で写ります。人も少ない時間です。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、木部の色が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "櫓は見上げて撮ると屋根の反りが出ます",
+      "内部は柱と梁の交差を主題にすると木造であることが伝わります",
+      "白壁は露出オーバーになりやすいのでマイナス補正を基本にします"
+    ],
+    "officialWebsiteUrl": "https://www.shiro-f.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_fdbdf87dc6ca",
@@ -61715,6 +62651,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_b2bd4ee6da32",
+    "slug": "tashirojima",
+    "name": "田代島",
+    "nameEn": "Tashirojima Island",
+    "reading": "たしろじま",
+    "aliases": [
+      "猫島 田代島",
+      "猫神社"
+    ],
+    "address": "宮城県石巻市田代浜",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "石巻市"
+    },
+    "coords": {
+      "lat": 38.3,
+      "lng": 141.42
+    },
+    "category": "nature",
+    "summary": "住民より猫が多いとされる島。漁港と集落のどこにでも猫がいて、生活の場としての猫を撮れます。",
+    "description": "石巻港から定期船で約一時間の小さな島で、猫が大切にされてきた歴史があります。島の中ほどには猫神社があり、漁の安全を猫に祈ってきた土地の信仰が残ります。猫は観光用ではなく島で暮らしているので、無理に触らない、餌を勝手に与えないといった規則があります。犬の持ち込みは禁止です。便数が少なく、日帰りは時間の管理が要ります。",
+    "highlights": [
+      "集落と漁港で暮らす猫",
+      "猫神社",
+      "起伏のある島の集落"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで猫も外に出ています。渡船も比較的安定します。"
+      },
+      {
+        "season": "summer",
+        "text": "日中は猫が日陰に入ります。朝夕のほうが動きがあります。"
+      },
+      {
+        "season": "winter",
+        "text": "猫が身を寄せ合う姿が見られますが、海が荒れて欠航が増えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は漁港に人が出て、猫もそこに集まります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が集落の路地と猫を横から照らします。"
+      }
+    ],
+    "compositionTips": [
+      "猫だけでなく集落や港を背景に入れて土地を見せます",
+      "目線の高さまで下げて撮ると猫の生活圏が写ります",
+      "餌やりや過度な接触は禁じられているので、距離を保って望遠で撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.ishinomaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f63411d62308",
     "slug": "tatara-numa",
     "name": "多々良沼",
@@ -63252,6 +64252,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_1d0eab585692",
+    "slug": "togatta-kokeshi",
+    "name": "遠刈田温泉",
+    "nameEn": "Togatta Onsen",
+    "reading": "とおがったおんせん",
+    "aliases": [
+      "遠刈田こけし",
+      "みやぎ蔵王こけし館"
+    ],
+    "address": "宮城県刈田郡蔵王町遠刈田温泉",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "蔵王町"
+    },
+    "coords": {
+      "lat": 38.09,
+      "lng": 140.61
+    },
+    "category": "landmark",
+    "summary": "蔵王の麓の温泉町で、遠刈田系こけしの産地。工房が点在し、こけし館には五千本以上が並びます。",
+    "description": "蔵王連峰の東麓にある温泉地で、江戸期から続くこけしの産地です。遠刈田系は頭が大きく、胴に重ね菊を描くのが特徴。町内には工人の工房が点在し、みやぎ蔵王こけし館には全国のこけし五千本以上が並びます。同じ形が壁一面に並ぶ展示は、反復そのものが被写体になります。温泉街には共同浴場と足湯があります。",
+    "highlights": [
+      "壁一面に並ぶ五千本のこけし",
+      "点在する工人の工房",
+      "蔵王の麓の温泉街"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬から五月、周囲の新緑と残雪の蔵王が同時に見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬、蔵王エコーラインの紅葉と合わせて回れる時期です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪の温泉街。屋内のこけし館が中心になりますが、町並みも画になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "館内展示が中心なので日中が基本。窓からの自然光が入る時間を選びます。"
+      },
+      {
+        "time": "night",
+        "text": "温泉街は夜に灯りが入ります。湯気と灯りの組み合わせが撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶこけしは望遠で圧縮して反復を強調します",
+      "一本に寄って絵付けの筆致を撮る対比の一枚も入れます",
+      "工房での撮影は必ず工人に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.zao-machi.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_40d5c3268745",
@@ -65493,6 +66557,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_6fec141a88d6",
+    "slug": "tsukinoura",
+    "name": "月浦",
+    "nameEn": "Tsukinoura",
+    "reading": "つきのうら",
+    "aliases": [
+      "支倉常長 出帆の地"
+    ],
+    "address": "宮城県石巻市長浜町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "石巻市"
+    },
+    "coords": {
+      "lat": 38.39,
+      "lng": 141.42
+    },
+    "category": "nature",
+    "summary": "支倉常長の慶長遣欧使節が出帆した入り江。小さな湾を高台から見下ろす静かな漁村の風景が残ります。",
+    "description": "牡鹿半島の付け根にある小さな入り江で、一六一三年に支倉常長がサン・ファン・バウティスタ号でここから出帆しました。高台には常長の像と展望所があり、湾と牡鹿半島の海岸線を見渡せます。現在も漁村としての姿が残り、湾内に係留された小舟や段々に建つ家並みが被写体になります。観光施設は少なく、静かな場所です。",
+    "highlights": [
+      "慶長遣欧使節が出帆した入り江",
+      "高台からの湾の俯瞰",
+      "漁村の家並みと小舟"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "海が穏やかで、湾の水面が静かになります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、対岸の半島までの輪郭が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人がほとんどおらず、漁村の静けさが最も出る季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は漁の動きがあり、湾が生活の場であることが写ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は湾の水面が光り、家並みが逆光で層になります。"
+      }
+    ],
+    "compositionTips": [
+      "高台から湾全体を入れて地形を見せます",
+      "小舟を点として配置し、湾の広さの目安にします",
+      "住宅が近いので、生活の場への配慮を優先します"
+    ],
+    "officialWebsiteUrl": "https://www.city.ishinomaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_ea440610e24b",
@@ -71667,6 +72794,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_1b763a1e3c9b",
+    "slug": "zaimokuiwa",
+    "name": "材木岩",
+    "nameEn": "Zaimokuiwa Rock Columns",
+    "reading": "ざいもくいわ",
+    "aliases": [
+      "材木岩公園"
+    ],
+    "address": "宮城県白石市小原字上台地内",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "白石市"
+    },
+    "coords": {
+      "lat": 37.98,
+      "lng": 140.4
+    },
+    "category": "nature",
+    "summary": "柱状節理が川べりに屏風のように並ぶ国の天然記念物。角柱が垂直に揃って立つ壁面は高さ六十五メートルに達します。",
+    "description": "白石川の上流、七ヶ宿への道沿いにある柱状節理です。溶結凝灰岩が冷えるときにできた五角形や六角形の柱が垂直に並び、材木を立てかけたように見えることが名前の由来です。高さ約六十五メートル、幅約百メートル。川を挟んだ公園側から正面に見られ、河原まで降りられます。冬は柱の隙間に氷柱が下がります。",
+    "highlights": [
+      "垂直に並ぶ柱状節理の壁",
+      "高さ六十五メートルの規模",
+      "冬に下がる氷柱"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の新緑と灰色の岩。公園の桜も同時期に咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬、対岸の木が色づき、岩の灰色を引き立てます。"
+      },
+      {
+        "season": "winter",
+        "text": "柱の隙間に氷柱が下がり、壁面の垂直線がさらに強調されます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は光が斜めに入り、柱の一本ずつに影ができて分離します。"
+      },
+      {
+        "time": "day",
+        "text": "日中の順光は壁面が平坦に見えるので、寄りの構図に切り替えます。"
+      }
+    ],
+    "compositionTips": [
+      "縦構図で柱の垂直線を強調します",
+      "川面を前景に入れると壁の高さが測れます",
+      "斜光のときに柱の分離が最もよく出ます"
+    ],
+    "officialWebsiteUrl": "https://www.city.shiroishi.miyagi.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_260129e38153",
     "slug": "zakimi-jo",
     "name": "座喜味城跡",
@@ -72398,6 +73588,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_45149fbb9eb0",
+    "slug": "zuihoden",
+    "name": "瑞鳳殿",
+    "nameEn": "Zuihoden Mausoleum",
+    "reading": "ずいほうでん",
+    "aliases": [
+      "伊達政宗の霊屋"
+    ],
+    "address": "宮城県仙台市青葉区霊屋下23-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮城県",
+      "city": "仙台市"
+    },
+    "coords": {
+      "lat": 38.25,
+      "lng": 140.86
+    },
+    "category": "temple",
+    "summary": "伊達政宗の霊屋。杉木立の石段を上がった先に、金と極彩色で埋め尽くされた桃山様式の建物が現れます。",
+    "description": "一六三七年の創建で、戦災で焼失した後に復元されました。涅槃門から続く石段の両側には杉の大木が立ち、参道は暗く落ち着いていますが、上りきると彫刻と彩色で覆われた本殿が正面に現れます。竜や花鳥の彫り物が軒下を埋め、金箔と群青・朱が使われています。隣接して二代忠宗の感仙殿、三代綱宗の善応殿があります。",
+    "highlights": [
+      "極彩色と金箔の桃山様式",
+      "杉木立に挟まれた石段の参道",
+      "並び建つ感仙殿と善応殿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "杉の緑が濃く、参道が暗くなります。建物に出たときの明暗差が効きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月中旬から下旬の紅葉。期間中は夜間の照明が入る年があります。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が屋根に乗ると、彩色と白のコントラストが強くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "開門直後は人が少なく、参道と建物を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は彫刻に光が回り、細部の色が出ます。"
+      }
+    ],
+    "compositionTips": [
+      "軒下の彫刻は望遠で抜いて密度を見せます",
+      "石段は下から見上げて参道の暗さと本殿の明るさを対比させます",
+      "彩度が高い被写体なので、現像で上げすぎないこと"
+    ],
+    "officialWebsiteUrl": "https://www.zuihoden.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_386480257888",
