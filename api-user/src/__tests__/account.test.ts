@@ -114,6 +114,14 @@ describe("deleteAccount", () => {
         expect(ids).toContain("spots#me");
         // 写真の「保存」の一覧（`saves.ts` の `saves#<uid>`）も同じ扱い
         expect(ids).toContain("saves#me");
+        // 🔴 **旅行プラン**（`tripPlans.ts` の `trips#<uid>`）。中身は本人が
+        // 書いた文章（題・日付・場所ごとのひとこと）で、掃除役は居ない。
+        // **足した当日（2026-09-24）に置いてきていた**
+        expect(ids).toContain("trips#me");
+        // 🔴 **親しい友達**（`closeFriends.ts` の `closefriends#<uid>`）。
+        // 「誰を親しいと決めたか」＝`spots#` と同じ性質の行動履歴。
+        // **この仕組みを入れた日から一度も消されていなかった**
+        expect(ids).toContain("closefriends#me");
 
         // プロフィール行は**消すのではなく墓石に置き換える**。
         // ただ消すと、期限まで有効な古いトークンを持った別端末が

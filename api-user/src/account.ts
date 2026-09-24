@@ -22,7 +22,10 @@ import { readUserList } from "./userList";
 //   - 自分の写真/ストーリー … GSI(userId-createdAt-index) で列挙 → S3 本体 + DDB item 削除
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
-//   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/spots#/saves#/likes#
+//   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/
+//                            spots#/saves#/likes#/trips#/closefriends#
+//     ⚠️ **この一覧を手で書き足さない。** 足すべき行が増えたかどうかは
+//     `api-user/src/__tests__/accountCleanupRows.test.ts` が走査して見る
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
 // 写真・アバターの削除失敗は数え、残っていれば Cognito を消す前に 500 で
 // 止める（再実行で収束する。付帯文書だけベストエフォート続行）。成功時 { ok: true }。
@@ -703,6 +706,20 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 消すべき個人データは「何にいいねしたか」の一覧で、写真の `likes` は
         // その写真側の集計。減らすかどうかは別の判断として残す。
         await ddbDelete(PHOTOS_TABLE, { id: `likes#${uid}` });
+        // 旅行プラン（`tripPlans.ts` の `trips#<uid>`）。**`spots#` と同じ扱い。**
+        // 中身は**本人が書いた文章**（プランの題・日付・場所ごとのひとこと）で、
+        // 残すと退会後もテーブルに残り、掃除役は居ない。**本人しか読めない
+        // 一覧なので、ここで消せば完全に消える**（他人側へ散る要素を持たない）。
+        //
+        // ⚠️ この行は**足した当日に置いてきていた**（2026-09-24）。上の一覧が
+        // 手書きで、新しい入れ物を足したときに誰も突き合わせていなかった
+        // ——下の `accountCleanupRows.test.ts` がその見張り
+        await ddbDelete(PHOTOS_TABLE, { id: `trips#${uid}` });
+        // 親しい友達（`closeFriends.ts` の `closefriends#<uid>`）。同じ扱い。
+        // 中身は**利用者IDの一覧**＝「誰を親しいと決めたか」で、
+        // `spots#`（どこへ行きたかったか）と同じ性質の行動履歴。
+        // **この行はこの仕組みを入れた日から一度も消されていなかった**
+        await ddbDelete(PHOTOS_TABLE, { id: `closefriends#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)
