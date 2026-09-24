@@ -5491,6 +5491,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_b513c4475f5c",
+    "slug": "bansuiso",
+    "name": "萬翠荘",
+    "nameEn": "Bansuiso Villa",
+    "reading": "ばんすいそう",
+    "aliases": [
+      "松山 フランス風洋館"
+    ],
+    "address": "愛媛県松山市一番町3-3-7",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "松山市"
+    },
+    "coords": {
+      "lat": 33.84,
+      "lng": 132.77
+    },
+    "category": "landmark",
+    "summary": "一九二二年築のフランス風洋館。松山城の麓に建ち、内部のステンドグラスと階段が残ります。",
+    "description": "旧松山藩主家の久松家が別邸として建てた洋館で、一九二二年の竣工、国の重要文化財です。設計者がフランスで学んだため、様式はフランス・ルネサンス風にまとめられています。玄関ホールの階段の踊り場にはステンドグラスがあり、日中は光が階段に落ちます。松山城の登城道の途中にあり、背後に城山の緑が入ります。内部は公開されています。",
+    "highlights": [
+      "フランス風の外観",
+      "階段の踊り場のステンドグラス",
+      "背後に城山の緑が入る立地"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "周囲の桜と洋館。城山の緑も明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光がステンドグラスを通して階段に長く差します。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して建物の全体が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "ステンドグラスは日が高い時間に階段へ色を落とします。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、階段を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "階段はステンドグラスを背に見上げて撮ります",
+      "外観は城山の緑を背景に入れて立地を示します",
+      "撮影可否は館内の表示に従います"
+    ],
+    "officialWebsiteUrl": "https://bansuisou.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8c44f802512b",
     "slug": "bentenike",
     "name": "別府弁天池",
@@ -12955,6 +13018,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_b9c081a780be",
+    "slug": "garyu-sanso",
+    "name": "臥龍山荘",
+    "nameEn": "Garyu Sanso Villa",
+    "reading": "がりゅうさんそう",
+    "aliases": [
+      "不老庵",
+      "大洲 臥龍淵"
+    ],
+    "address": "愛媛県大洲市大洲411-2",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "大洲市"
+    },
+    "coords": {
+      "lat": 33.51,
+      "lng": 132.55
+    },
+    "category": "landmark",
+    "summary": "肱川の崖の上に建つ数寄屋。不老庵は船の形を模し、天井が竹の網代で弓なりに張られています。",
+    "description": "明治期に貿易商が建てた数寄屋造の山荘で、重要文化財です。肱川が曲がる臥龍淵の崖の上に建ち、川面が眼下に見えます。中心の不老庵は崖から迫り出した懸造りで、屋形船を模した設計です。天井は竹を網代に組んで弓なりに張られ、川面からの反射光が天井に当たって室内を照らします。庭は苔と石で構成され、細部の造作が凝っています。",
+    "highlights": [
+      "崖から迫り出した不老庵",
+      "船を模した弓なりの竹網代天井",
+      "川面の反射で照らされる室内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が崖を覆い、室内から見る緑が濃くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、対岸が色づきます。室内から額縁のように見えます。"
+      },
+      {
+        "season": "summer",
+        "text": "川面の反射が最も強く、天井が明るく照らされます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "川面の反射が天井に当たる時間帯が設計の意図に合います。"
+      },
+      {
+        "time": "morning",
+        "text": "開館直後は来館者が少なく、室内を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "不老庵は室内から川へ向けて額縁構図を作ります",
+      "天井の網代は真上を向いて弓なりの曲面を取ります",
+      "外観は対岸から撮って崖に迫り出す構造を見せます"
+    ],
+    "officialWebsiteUrl": "https://www.garyusanso.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7afee5a87676",
     "slug": "gassan",
     "name": "月山",
@@ -15286,6 +15413,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_f2c89d2b8892",
+    "slug": "hakata",
+    "name": "伯方島",
+    "nameEn": "Hakatajima Island",
+    "reading": "はかたじま",
+    "aliases": [
+      "伯方・大島大橋",
+      "開山公園"
+    ],
+    "address": "愛媛県今治市伯方町",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.2,
+      "lng": 133.07
+    },
+    "category": "nature",
+    "summary": "しまなみ海道の塩の島。開山公園の山頂から、桜ごしに大橋と瀬戸内の島々が重なる構図が取れます。",
+    "description": "塩の産地として知られる島で、しまなみ海道の中ほどに位置します。島の中央にある開山は標高百四十九メートルで、山頂の公園には約千本の桜があります。四月には桜の枝の向こうに伯方・大島大橋と瀬戸内海の島々が並ぶ構図が成立します。島の周囲は海岸線が入り組み、船折瀬戸では潮流が速く渦が立ちます。自転車で一周できます。",
+    "highlights": [
+      "開山公園の桜と橋の重なり",
+      "潮流の速い船折瀬戸",
+      "自転車で一周できる規模"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。開山公園の本番で、橋と島を同時に入れられます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、橋の白との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、島影の層がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海面が光り、島影がシルエットになります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、遠くの島まで見通せます。"
+      }
+    ],
+    "compositionTips": [
+      "桜の枝を画面上部に入れて橋を額縁にします",
+      "望遠で島影を圧縮すると瀬戸内らしい層になります",
+      "潮流は速いシャッターで渦の形を止めます"
+    ],
+    "officialWebsiteUrl": "https://www.go-shimanami.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_291c2ed57c5c",
@@ -23161,6 +23352,134 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7c9802cf693a",
+    "slug": "imabari-castle",
+    "name": "今治城",
+    "nameEn": "Imabari Castle",
+    "reading": "いまばりじょう",
+    "aliases": [
+      "吹揚城",
+      "海城 今治"
+    ],
+    "address": "愛媛県今治市通町3-1-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.07,
+      "lng": 133
+    },
+    "category": "landmark",
+    "summary": "海水を引き込んだ堀を持つ海城。堀には鯛やボラが泳ぎ、潮の満ち引きで水位が変わります。",
+    "description": "藤堂高虎が築いた城で、日本三大水城の一つです。海に接して築かれ、堀は水路で瀬戸内海と繋がっているため海水が入ります。潮の満ち引きで水位が変わり、海の魚が堀を泳ぎます。石垣は高く直線的で、藤堂高虎の築城の特徴が出ています。天守は一九八〇年の再建。城内には藤堂高虎の騎馬像と、鉄御門が復元されています。市街地にあり平坦です。",
+    "highlights": [
+      "海水が入る堀と泳ぐ海の魚",
+      "藤堂高虎らしい高く直線的な石垣",
+      "復元された鉄御門"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "堀端の桜。水面に花と天守が映ります。"
+      },
+      {
+        "season": "summer",
+        "text": "堀の水が澄み、魚が見えやすくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、天守の輪郭がはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は堀の水面が静かで、映り込みが安定します。"
+      },
+      {
+        "time": "night",
+        "text": "天守と石垣がライトアップされ、堀に映ります。"
+      }
+    ],
+    "compositionTips": [
+      "堀の映り込みで天守を上下対称にします",
+      "石垣は側面から撮って直線的な積み方を見せます",
+      "魚を入れると海水の堀であることが伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.oideya.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_e55b9734b00d",
+    "slug": "imabari-towel",
+    "name": "今治タオル",
+    "nameEn": "Imabari Towel",
+    "reading": "いまばりたおる",
+    "aliases": [
+      "今治タオル本店",
+      "テクスポート今治"
+    ],
+    "address": "愛媛県今治市東門町5-14-3",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.06,
+      "lng": 133.01
+    },
+    "category": "landmark",
+    "summary": "国内タオル生産の中心地。工場では糸が織機にかかる工程が見られ、色糸の並びが被写体になります。",
+    "description": "今治は明治期から続くタオルの産地で、国内生産の大きな割合を占めます。蒼社川の水が晒しに適していたことが産地化の理由とされます。今治タオル本店では製品と産地の歴史が展示され、工場見学を受け付けている会社もあります。織機にかかる色糸が平行に並ぶ様子や、染め上がった糸が干される光景が、色と線の被写体になります。見学は予約制が多いです。",
+    "highlights": [
+      "織機に平行に並ぶ色糸",
+      "染め上がって干される糸",
+      "産地の歴史を伝える展示"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "工場の光が明るく、糸の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が糸の束に影を作り、立体感が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "屋内が中心なので天候の影響が小さい季節です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "工場は稼働時間に合わせます。見学は予約制が多いので事前確認が要ります。"
+      },
+      {
+        "time": "morning",
+        "text": "店舗は開店直後が空いており、製品を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "色糸は望遠で圧縮して平行線の密度を出します",
+      "織機は動いている状態を速いシャッターで止めます",
+      "工場での撮影は必ず許可を得て、作業を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.imabaritowel.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_95ad851d2f33",
     "slug": "imoriike",
     "name": "妙高 いもり池",
@@ -24783,6 +25102,70 @@
       "被災地を含む眺めなので、説明的に淡々と撮る姿勢を保ちます"
     ],
     "officialWebsiteUrl": "https://www.city.ishinomaki.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_cd6b9d45e5a7",
+    "slug": "ishiteji",
+    "name": "石手寺",
+    "nameEn": "Ishite-ji Temple",
+    "reading": "いしてじ",
+    "aliases": [
+      "道後 石手寺",
+      "石手寺 二王門"
+    ],
+    "address": "愛媛県松山市石手2-9-21",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "松山市"
+    },
+    "coords": {
+      "lat": 33.85,
+      "lng": 132.79
+    },
+    "category": "temple",
+    "summary": "国宝の二王門を持つ四国霊場の札所。参道は屋根に覆われた回廊で、両側に土産物の店が並びます。",
+    "description": "四国八十八箇所の五十一番札所で、道後温泉から徒歩圏にあります。一三一八年建立の二王門は国宝で、仁王像が両脇に立ちます。参道は屋根のある回廊になっており、両側に土産物の店が並ぶため、寺というより市場のような空間です。境内には三重塔、鐘楼、訶梨帝母天堂など重要文化財が複数あり、建物の密度が高い寺です。洞窟の参道もあります。",
+    "highlights": [
+      "国宝の二王門",
+      "屋根に覆われた参道の回廊",
+      "重要文化財が密集する境内"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "境内の木が芽吹き、古い木部との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が回廊に差し込み、店の並びに影が落ちます。"
+      },
+      {
+        "season": "winter",
+        "text": "初詣の時期は参拝者が集中します。人の流れが被写体になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は店が開く前で、回廊を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は二王門に光が回り、木組みの細部が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "回廊は消失点まで通して屋根の連なりを見せます",
+      "二王門は下から煽って木組みの重なりを取ります",
+      "建物が密集するので、二つ以上を重ねて奥行きを作ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.matsuyama.ehime.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -33918,6 +34301,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_94341bd8f506",
+    "slug": "kikuma",
+    "name": "菊間 瓦",
+    "nameEn": "Kikuma Roof Tiles",
+    "reading": "きくま かわら",
+    "aliases": [
+      "菊間瓦",
+      "かわら館"
+    ],
+    "address": "愛媛県今治市菊間町浜3067",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.03,
+      "lng": 132.88
+    },
+    "category": "landmark",
+    "summary": "七百五十年続く瓦の産地。いぶし銀の瓦が干し場に並び、鬼瓦の職人が手作業で彫ります。",
+    "description": "鎌倉期から続くとされる瓦の産地で、菊間瓦の名で知られます。燻して炭素の膜を作るいぶし瓦で、表面が銀色に光ります。町には瓦工場が点在し、干し場に未焼成の瓦が整然と並ぶ光景が見られます。鬼瓦は型を使わず手で彫られ、工房ではその作業が見られます。瓦のふるさと公園のかわら館には、各時代の瓦と大型の鬼瓦が展示されています。",
+    "highlights": [
+      "干し場に整然と並ぶ瓦",
+      "銀色に光るいぶし瓦の表面",
+      "手彫りの鬼瓦の工程"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、いぶし瓦の銀色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が瓦の反りに影を落とし、形が読めます。"
+      },
+      {
+        "season": "summer",
+        "text": "干し場の瓦が最も多くなる時期です。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝の斜光が瓦の反復に影を作り、並びが強調されます。"
+      },
+      {
+        "time": "day",
+        "text": "日中はいぶし瓦の銀色が最も光ります。"
+      }
+    ],
+    "compositionTips": [
+      "並ぶ瓦は望遠で圧縮して反復の密度を出します",
+      "いぶし瓦は反射するので、光源の映り込む角度を選びます",
+      "工房での撮影は必ず職人に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.oideya.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_8a91d70fa3d8",
     "slug": "kimiidera",
     "name": "紀三井寺",
@@ -42440,6 +42887,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_bffff7e23757",
+    "slug": "mezuru-daira",
+    "name": "四国カルスト 姫鶴平",
+    "nameEn": "Mezuru-daira, Shikoku Karst",
+    "reading": "しこくかるすと めづるだいら",
+    "aliases": [
+      "姫鶴平 牧場"
+    ],
+    "address": "愛媛県上浮穴郡久万高原町西谷",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "久万高原町"
+    },
+    "coords": {
+      "lat": 33.48,
+      "lng": 132.92
+    },
+    "category": "mountain",
+    "summary": "標高千三百メートルの草原に石灰岩が点在します。稜線の道を牛が歩き、夜は星が近く見えます。",
+    "description": "四国カルストの愛媛県側にあたる高原で、標高約千三百メートルの稜線に草原が広がります。白い石灰岩が草の間から突き出し、点として散らばります。放牧された牛が草を食み、道路まで出てくることがあります。宿泊施設とキャンプ場があり、夜は光害が少ないため星がよく見えます。高原を貫く道路は冬期閉鎖されます。",
+    "highlights": [
+      "草原に点在する白い石灰岩",
+      "稜線を歩く放牧の牛",
+      "光害の少ない夜空"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月、草が芽吹いて一面が緑になります。放牧も始まります。"
+      },
+      {
+        "season": "summer",
+        "text": "緑と入道雲。標高が高く涼しいので長時間撮れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "草が枯れ色に変わり、石灰岩の白が際立ちます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が草の起伏と石灰岩の影を伸ばします。"
+      },
+      {
+        "time": "night",
+        "text": "光害が少なく、天の川が見える日があります。"
+      }
+    ],
+    "compositionTips": [
+      "石灰岩を点として配置し、草原の広さの目安にします",
+      "稜線の道を手前から奥へ通して高原の長さを見せます",
+      "牛には近づきすぎず、望遠で距離を保って撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.kumakogen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_0136995e7fba",
     "slug": "midagahara-tateyama",
     "name": "立山 弥陀ヶ原",
@@ -49202,6 +49712,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0b1f304e1739",
+    "slug": "nametoko",
+    "name": "滑床渓谷",
+    "nameEn": "Nametoko Valley",
+    "reading": "なめとこけいこく",
+    "aliases": [
+      "雪輪の滝",
+      "松野町 滑床"
+    ],
+    "address": "愛媛県北宇和郡松野町目黒",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "松野町"
+    },
+    "coords": {
+      "lat": 33.18,
+      "lng": 132.75
+    },
+    "category": "nature",
+    "summary": "花崗岩の一枚岩を水が薄く滑り落ちます。雪輪の滝は落差八十メートルの巨大な斜面です。",
+    "description": "目黒川の上流にある渓谷で、名前のとおり滑らかな一枚岩の川床が続きます。中心の雪輪の滝は落差約八十メートル、幅広い岩の斜面を水が薄く広がって流れ落ちるため、水が雪の輪のような模様を描きます。垂直に落ちる滝とは形が違い、面としての水が主題になります。遊歩道が谷沿いに整備され、キャニオニングも行われています。",
+    "highlights": [
+      "落差八十メートルの雪輪の滝",
+      "滑らかな一枚岩の川床",
+      "面として流れる水の模様"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。滝の模様が最もはっきり出る時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、キャニオニングの季節でもあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月上旬の紅葉。岩の灰色と赤が対になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩に光が当たり、水の薄さが見えます。"
+      }
+    ],
+    "compositionTips": [
+      "遅いシャッターで水を面にすると模様が描かれます",
+      "横に広い滝なので横構図で全体を取ります",
+      "岩は濡れると滑るので、足元を優先して立ち位置を選びます"
+    ],
+    "officialWebsiteUrl": "https://www.town.matsuno.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_6ab13ef11ebd",
     "slug": "naminoue-gu",
     "name": "波上宮",
@@ -54277,6 +54851,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_abe15797fce0",
+    "slug": "okamura",
+    "name": "岡村島",
+    "nameEn": "Okamurajima Island",
+    "reading": "おかむらじま",
+    "aliases": [
+      "とびしま海道",
+      "岡村港"
+    ],
+    "address": "愛媛県今治市関前岡村",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.2,
+      "lng": 132.87
+    },
+    "category": "nature",
+    "summary": "広島県側から橋で繋がる愛媛の島。とびしま海道の終点で、県境を橋で越える珍しい構成です。",
+    "description": "行政区は愛媛県今治市ですが、陸路は広島県呉市側から架かる岡村大橋でのみ繋がります。橋の途中に県境があり、路面に県境の表示があります。島は柑橘の段々畑に覆われ、斜面が石積みで支えられています。ナガタニ展望台からは来島海峡方面と瀬戸内海の島々が見渡せます。観光施設は少なく、集落と畑が中心の静かな島です。",
+    "highlights": [
+      "橋の途中にある県境",
+      "石積みに支えられた柑橘の段々畑",
+      "展望台からの瀬戸内海の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "柑橘の白い花。斜面全体が香ります。"
+      },
+      {
+        "season": "winter",
+        "text": "柑橘が色づき、段々畑が橙色になります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、展望台からの視程が伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は段々畑が横から照らされ、石積みの影が出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は海が静かで、島影が層になって見えます。"
+      }
+    ],
+    "compositionTips": [
+      "橋の県境表示は路面ごと撮って位置を示します",
+      "段々畑は望遠で圧縮して段の重なりを密にします",
+      "畑は私有地なので道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.oideya.gr.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_b3059aed0aed",
     "slug": "okayama-art",
     "name": "奈義町現代美術館",
@@ -55951,6 +56589,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_7f6a8d5bd2d2",
+    "slug": "omishima",
+    "name": "大三島",
+    "nameEn": "Omishima Island",
+    "reading": "おおみしま",
+    "aliases": [
+      "伊東豊雄建築ミュージアム",
+      "大三島橋"
+    ],
+    "address": "愛媛県今治市大三島町",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "今治市"
+    },
+    "coords": {
+      "lat": 34.25,
+      "lng": 133
+    },
+    "category": "nature",
+    "summary": "しまなみ海道で愛媛県最北の島。多々羅大橋が架かり、斜張橋の主塔が海から立ち上がります。",
+    "description": "しまなみ海道の中ほどにある島で、広島県との県境に多々羅大橋が架かります。全長千四百八十メートルの斜張橋で、主塔の高さは約二百二十六メートル。橋の下の広場では手を叩くと多々羅鳴き龍と呼ばれる反響が起きます。島には伊東豊雄建築ミュージアムと今治市岩田健母と子のミュージアムがあり、どちらも海に面した建物です。柑橘畑が斜面を覆います。",
+    "highlights": [
+      "多々羅大橋の斜張の主塔",
+      "橋の下で起きる反響現象",
+      "海に面した二つの美術館"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "柑橘の白い花が咲き、島全体に香りが漂います。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、白い主塔との対比が最も強くなります。"
+      },
+      {
+        "season": "winter",
+        "text": "柑橘が色づき、斜面が橙色になります。空気も澄みます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は橋が逆光でシルエットになり、海面が光ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、主塔のケーブルまではっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "斜張のケーブルを放射として画面に入れます",
+      "橋の真下から見上げて主塔の高さを取ります",
+      "柑橘畑を前景に入れると島の生業が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.go-shimanami.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f7f38c38ccbc",
     "slug": "omiwa-jinja",
     "name": "大神神社",
@@ -56096,6 +56798,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_06de24dab85c",
+    "slug": "omogo",
+    "name": "面河渓",
+    "nameEn": "Omogo Valley",
+    "reading": "おもごけい",
+    "aliases": [
+      "石鎚山 南面",
+      "亀腹"
+    ],
+    "address": "愛媛県上浮穴郡久万高原町若山",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "久万高原町"
+    },
+    "coords": {
+      "lat": 33.71,
+      "lng": 133.15
+    },
+    "category": "nature",
+    "summary": "石鎚山の南麓にある渓谷。花崗岩の白い岩と水の青緑が強く、亀腹という巨大な岩壁がそびえます。",
+    "description": "石鎚山系の南面を流れる面河川の上流部で、四国最大級の渓谷です。花崗岩が浸食されてできた白い岩肌と、深い淵の青緑の水の対比が強く出ます。亀腹と呼ばれる高さ百メートルを超える一枚岩の岩壁が谷にそびえます。遊歩道が谷沿いに整備され、紅葉期は十月下旬から十一月上旬。石鎚山の登山口の一つでもあります。",
+    "highlights": [
+      "花崗岩の白い岩と青緑の水",
+      "高さ百メートル超の亀腹の岩壁",
+      "谷沿いの遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。白い岩との三色が最も鮮やかな時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、水の青緑が最も濃く出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬が紅葉。岩と赤の対比が効きます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の色が素直に出ます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面が光ります。偏光フィルターで反射を調整します。"
+      }
+    ],
+    "compositionTips": [
+      "白い岩は露出がアンダーに寄るのでプラス補正を基本にします",
+      "水の青緑は偏光フィルターで反射を消すと出ます",
+      "亀腹は人を入れて百メートルの高さを示します"
+    ],
+    "officialWebsiteUrl": "https://www.kumakogen.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2290108a9c91",
@@ -59084,6 +59850,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_60ee23e01eac",
+    "slug": "ozu-castle",
+    "name": "大洲城",
+    "nameEn": "Ozu Castle",
+    "reading": "おおずじょう",
+    "aliases": [
+      "肱川 大洲城",
+      "木造復元天守"
+    ],
+    "address": "愛媛県大洲市大洲903",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "大洲市"
+    },
+    "coords": {
+      "lat": 33.51,
+      "lng": 132.54
+    },
+    "category": "landmark",
+    "summary": "二〇〇四年に木造で復元された天守。古写真と工事の図面が残っていたため、正確な再現ができました。",
+    "description": "肱川のほとりに建つ城で、天守は二〇〇四年に木造で復元されました。明治に解体される前の古写真、天守の雛形、工事の設計図が残っていたため、四層四階の構造を正確に再現できたとされます。鉄骨やコンクリートを使わない伝統工法で建てられ、内部は柱と梁が露出しています。両脇の台所櫓と高欄櫓は現存で重要文化財です。肱川の対岸から全景を撮れます。",
+    "highlights": [
+      "木造で正確に復元された四層天守",
+      "現存の台所櫓と高欄櫓",
+      "肱川の対岸からの全景"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬の桜。川沿いから天守と花を重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "肱川の川霧が朝に出ることがあります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、天守の木部の色が素直に出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は川霧が出ることがあり、天守が霧の上に浮かびます。"
+      },
+      {
+        "time": "night",
+        "text": "天守はライトアップされ、川面に映ります。"
+      }
+    ],
+    "compositionTips": [
+      "対岸から望遠で天守と川を圧縮します",
+      "内部は柱と梁の交差を主題にして木造であることを見せます",
+      "川面の映り込みは風のない朝に狙います"
+    ],
+    "officialWebsiteUrl": "https://www.ozucastle.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_c07e5931ba4d",
     "slug": "palais-garnier",
     "name": "オペラ・ガルニエ（パレ・ガルニエ）",
@@ -61541,6 +62371,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_82da9fa5ed10",
+    "slug": "saijo-uchinuki",
+    "name": "西条 うちぬき",
+    "nameEn": "Saijo Uchinuki Springs",
+    "reading": "さいじょう うちぬき",
+    "aliases": [
+      "西条 自噴井",
+      "アクアトピア水系"
+    ],
+    "address": "愛媛県西条市明屋敷",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "西条市"
+    },
+    "coords": {
+      "lat": 33.92,
+      "lng": 133.18
+    },
+    "category": "nature",
+    "summary": "市街地の各所で地下水が自噴します。管を差し込むだけで水が噴き出し、水路が町を巡ります。",
+    "description": "石鎚山系の伏流水が地下で圧力を持つため、パイプを打ち込むだけで水が自噴します。市内に約二千か所あるとされ、道端や家の敷地から水が湧き続けます。水路が市街地を巡り、アクアトピア水系として整備されています。うちぬきの水は名水百選に選ばれています。水路には鯉が泳ぎ、夏には水の音が町に響きます。市街地なので徒歩で回れます。",
+    "highlights": [
+      "道端から自噴する地下水",
+      "市街地を巡る水路",
+      "水路を泳ぐ鯉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水の音と涼しさが最も感じられる季節です。"
+      },
+      {
+        "season": "winter",
+        "text": "外気との差で湯気が立つことがあります。"
+      },
+      {
+        "season": "spring",
+        "text": "水路沿いの緑が芽吹き、水面に映ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、水路を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は水面に光が入り、透明度が分かります。"
+      }
+    ],
+    "compositionTips": [
+      "自噴する水は速いシャッターで粒を止めます",
+      "水路は線として手前から奥へ通します",
+      "住宅の敷地にあるものは、断ってから撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.saijo.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d1647744ffa0",
@@ -76267,6 +77161,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_2ca214092ef1",
+    "slug": "tobe",
+    "name": "砥部焼",
+    "nameEn": "Tobe Ware",
+    "reading": "とべやき",
+    "aliases": [
+      "砥部 陶板の道",
+      "砥部焼伝統産業会館"
+    ],
+    "address": "愛媛県伊予郡砥部町大南",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "砥部町"
+    },
+    "coords": {
+      "lat": 33.74,
+      "lng": 132.79
+    },
+    "category": "landmark",
+    "summary": "白磁に呉須の藍で描く磁器の産地。町の道には陶板が埋め込まれ、歩道そのものが作品になっています。",
+    "description": "二百年以上続く磁器の産地で、厚手の白磁に呉須の藍で簡素な文様を描くのが特徴です。町内には窯元が点在し、登り窯の煙突が見られます。中心部には陶板の道があり、町民と陶工が作った陶板約五百枚が歩道に埋め込まれています。砥部焼伝統産業会館には歴代の作品が並びます。多くの窯元が見学と購入を受け付けています。",
+    "highlights": [
+      "歩道に埋め込まれた約五百枚の陶板",
+      "白磁に藍の簡素な文様",
+      "点在する窯元と登り窯"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月の砥部焼まつり。窯元の器が一堂に並びます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が陶板の凹凸に影を落とし、絵柄が読めます。"
+      },
+      {
+        "season": "summer",
+        "text": "日が高く、陶板の色が明るく出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "陶板の道は日中の順光で絵柄の色が出ます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、歩道の陶板を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "陶板は真上から撮って絵柄を平面として記録します",
+      "器は斜光で白磁の厚みと藍の濃淡を見せます",
+      "窯元での撮影は必ず作り手に断ってから行います"
+    ],
+    "officialWebsiteUrl": "https://www.town.tobe.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_f0b13927dc39",
     "slug": "tobishima",
     "name": "飛島",
@@ -82481,6 +83439,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_1c16ecf49ba0",
+    "slug": "unomachi",
+    "name": "宇和 卯之町の町並み",
+    "nameEn": "Unomachi Historic District",
+    "reading": "うわ うのまちのまちなみ",
+    "aliases": [
+      "開明学校",
+      "宇和町 中町通り"
+    ],
+    "address": "愛媛県西予市宇和町卯之町",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "西予市"
+    },
+    "coords": {
+      "lat": 33.36,
+      "lng": 132.68
+    },
+    "category": "landmark",
+    "summary": "白壁と格子の町家が約六百メートル続きます。日本最古級の擬洋風の小学校校舎も残ります。",
+    "description": "宇和島街道の宿場町で、重要伝統的建造物群保存地区に選定されています。白壁に出格子を持つ町家が約六百メートル続き、屋根の高さが揃っています。町内の開明学校は一八八二年築の擬洋風建築で、現存する小学校校舎としては国内最古級、重要文化財です。アーチ形の窓が並ぶ外観と、和風の町並みが同じ町に同居しています。宇和米博物館の長い廊下も近くにあります。",
+    "highlights": [
+      "白壁と出格子の町家",
+      "擬洋風の開明学校校舎",
+      "和洋が同居する町の構成"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "光が明るく、白壁の色が素直に出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が出格子に影を落とし、線が濃く出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "人が少なく、通りの全景を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人も車も少なく、通りを撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、格子の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "通りは望遠で圧縮して屋根の高さが揃っていることを見せます",
+      "開明学校はアーチ窓の反復を正面から撮ります",
+      "和風と洋風が同時に入る位置を探すと町の性格が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.city.seiyo.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_24b916a84bad",
     "slug": "unosu-dangai",
     "name": "鵜の巣断崖",
@@ -83652,6 +84674,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_ed0f49892d91",
+    "slug": "uwajima-castle",
+    "name": "宇和島城",
+    "nameEn": "Uwajima Castle",
+    "reading": "うわじまじょう",
+    "aliases": [
+      "鶴島城",
+      "宇和島 現存天守"
+    ],
+    "address": "愛媛県宇和島市丸之内1",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "宇和島市"
+    },
+    "coords": {
+      "lat": 33.22,
+      "lng": 132.56
+    },
+    "category": "landmark",
+    "summary": "現存十二天守の一つ。藤堂高虎が築いた縄張りは五角形で、四角形に見せる工夫がされています。",
+    "description": "藤堂高虎が築き、後に伊達家の居城となった城です。現存する天守は伊達宗利による一六六六年頃の建て替えで、三層三階の小ぶりな姿ながら装飾が整っています。城の縄張りは上から見ると不等辺の五角形で、攻め手に四角形と誤認させる意図があったとされます。城山は市街の中にあり、登り口から天守まで十五分ほどです。上からは宇和海が見えます。",
+    "highlights": [
+      "現存する三層三階の天守",
+      "五角形の縄張り",
+      "城山からの宇和海の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "城山の桜。天守と花を重ねる角度があります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、天守の白壁と木部の対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して城山の地形と石垣が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、天守を正面から無人で撮れます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は白壁が暖色に染まり、木部の色が濃く出ます。"
+      }
+    ],
+    "compositionTips": [
+      "天守は下から煽って小ぶりな姿に高さを与えます",
+      "石垣は側面から撮って藤堂高虎の積み方を見せます",
+      "城山からは宇和海を入れて立地を示します"
+    ],
+    "officialWebsiteUrl": "https://www.uwajima.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_144cfa023635",
     "slug": "vories",
     "name": "近江八幡のヴォーリズ建築",
@@ -84189,6 +85275,70 @@
       "畑は農地なので畦に立ち入らず、遊歩道から撮ります"
     ],
     "officialWebsiteUrl": "https://www.nirasaki-kankou.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_354641c917ba",
+    "slug": "warei",
+    "name": "和霊神社",
+    "nameEn": "Warei Shrine",
+    "reading": "われいじんじゃ",
+    "aliases": [
+      "宇和島 和霊大祭",
+      "牛鬼"
+    ],
+    "address": "愛媛県宇和島市和霊町1451",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "宇和島市"
+    },
+    "coords": {
+      "lat": 33.23,
+      "lng": 132.57
+    },
+    "category": "shrine",
+    "summary": "日本最大級の石造大鳥居が立つ社。七月の和霊大祭では牛鬼が街を練り、川に神輿が入ります。",
+    "description": "宇和島藩の家老山家清兵衛を祀る社で、参道には高さ十二メートルを超える石造の大鳥居が立ちます。石造としては国内最大級です。七月二十三日から二十四日の和霊大祭では、長い首と赤い体を持つ牛鬼の山車が街を練り、夜には須賀川で走り込みという神事が行われます。神輿が川に入り、若者が飛び込んで御幣を奪い合います。",
+    "highlights": [
+      "高さ十二メートル超の石造大鳥居",
+      "七月の和霊大祭と牛鬼",
+      "川で行われる走り込み神事"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "七月二十三日と二十四日の和霊大祭。牛鬼と神事が撮れます。"
+      },
+      {
+        "season": "spring",
+        "text": "参道の木が芽吹き、石鳥居の灰色と対になります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、大鳥居を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "走り込みは夜の神事。高感度で人の動きを追います。"
+      },
+      {
+        "time": "day",
+        "text": "牛鬼の巡行は日中。沿道から街と一緒に撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "大鳥居は人を入れて十二メートルの高さを示します",
+      "牛鬼は望遠で長い首を圧縮すると形が強調されます",
+      "神事は沿道の所定の位置から撮り、進行を妨げないこと"
+    ],
+    "officialWebsiteUrl": "https://www.uwajima.org/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -85602,6 +86752,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_4c1a3169ce05",
+    "slug": "yawatahama",
+    "name": "八幡浜 段々畑",
+    "nameEn": "Yawatahama Terraced Groves",
+    "reading": "やわたはま だんだんばたけ",
+    "aliases": [
+      "日土 みかん段々畑",
+      "八幡浜 真穴"
+    ],
+    "address": "愛媛県八幡浜市真網代",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "八幡浜市"
+    },
+    "coords": {
+      "lat": 33.43,
+      "lng": 132.44
+    },
+    "category": "nature",
+    "summary": "海に落ちる急斜面が石積みの段々畑でみかん一色になります。海と空と畑が三層に重なります。",
+    "description": "宇和海に面した急斜面が石積みで段に造成され、みかんが植えられています。傾斜が非常に急で、上の段から見下ろすと畑の先がそのまま海に落ちて見えます。海からの反射光、石積みからの放射熱、太陽の直射という三つの光が当たるため味が良いとされます。収穫期は十一月から十二月で、斜面が橙色になります。畑は私有地なので道路から撮ります。",
+    "highlights": [
+      "海に落ちて見える急斜面の段々畑",
+      "収穫期に橙色に染まる斜面",
+      "石積みで支えられた段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十一月から十二月の収穫期。斜面が橙色に染まります。"
+      },
+      {
+        "season": "spring",
+        "text": "五月、みかんの白い花。斜面全体が香ります。"
+      },
+      {
+        "season": "summer",
+        "text": "濃い緑の葉と青い海。石積みの灰色が挟まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方は海が光り、段の影が長く伸びます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は空気が澄み、対岸の半島まで見通せます。"
+      }
+    ],
+    "compositionTips": [
+      "段と海を一枚に入れて斜面の急さを見せます",
+      "望遠で圧縮すると段の重なりが密になります",
+      "畑は私有地なので立ち入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.city.yawatahama.ehime.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6cccbf925ba9",
@@ -87636,6 +88850,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_a9ff306e2bb8",
+    "slug": "yusu-dandabata",
+    "name": "遊子水荷浦の段畑",
+    "nameEn": "Yusu Mizugaura Terraced Fields",
+    "reading": "ゆす みずがうらのだんばた",
+    "aliases": [
+      "水荷浦 段畑",
+      "だんだん畑"
+    ],
+    "address": "愛媛県宇和島市遊子水荷浦",
+    "region": {
+      "country": "日本",
+      "prefecture": "愛媛県",
+      "city": "宇和島市"
+    },
+    "coords": {
+      "lat": 33.24,
+      "lng": 132.49
+    },
+    "category": "nature",
+    "summary": "幅一メートルほどの畑が石垣で海際まで積み上がります。段の幅が狭く、壁のように見えます。",
+    "description": "宇和海に突き出した半島の急斜面に、石積みで造られた段畑が海面近くまで続きます。一段の幅は一メートル前後と極端に狭く、斜面を下から見上げると石垣が壁のように連なって見えます。作られているのは主に馬鈴薯です。国の重要文化的景観に選定されており、保全のための活動が続いています。斜面の下の道路と海上からの両方で見られます。",
+    "highlights": [
+      "幅一メートルほどの極端に狭い段",
+      "海面近くまで続く石積み",
+      "下から見上げる壁のような景観"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月から四月、馬鈴薯の葉が緑に揃い、段の線が緑で描かれます。"
+      },
+      {
+        "season": "winter",
+        "text": "作付け前で石垣がむき出しになり、構造が最もよく見えます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海と段の輪郭が同時に締まります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が石垣の一段ずつに影を作ります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は海が静かで、段と海を落ち着いて撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "下から見上げて段を壁として見せるのがこの畑の特徴です",
+      "海を一緒に入れて海際まで続くことを示します",
+      "畑は私有地なので立ち入らず、道路から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.uwajima.org/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7e4013ba95cf",
