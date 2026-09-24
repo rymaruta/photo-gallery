@@ -81,6 +81,10 @@ const routes = [
     source: "www.wmts.nrw.de/geobasis/wmts_nw_dop/tiles/nw_dop/EPSG_3857_16/",
     description: "German Geobasis NRW orthophoto in Cologne, NOT all Germany",
     pins: [["proof-cologne", "ケルン（検証用）", "ドイツ・NRW州", 50.9375, 6.9603]] },
+  { slug: "luxembourg", label: "Luxembourg", hash: "#13/49.6116/6.1319",
+    source: "wmts1.geoportail.lu/opendata/wmts/ortho_2023/GLOBAL_WEBMERCATOR_4_V3/",
+    description: "Luxembourg ACT open-data CC0 ortho_2023, city of Luxembourg",
+    pins: [["proof-luxembourg", "ルクセンブルク市（検証用）", "ルクセンブルク", 49.6116, 6.1319]] },
 ];
 const port = 3037;
 const output = await mkdtemp(join(tmpdir(), "journey-map-real-imagery-"));
