@@ -410,6 +410,30 @@ describe("撮影スポット台帳（content/spots.json）", () => {
     });
 
     /**
+     * 🔴 **`region.country` に都道府県名が入っていないこと。**
+     *
+     * 2026-09-24、`tsubaki-jinja` を書くときに `country` を「三重県」と
+     * 打った。**`publishBlockers` は「国が空でないこと」しか見ない**ので通り、
+     * 型検査も `string` なので通り、上の「知らない都道府県名」の検査も
+     * `prefecture` しか見ないので通る——**画面には「三重県 三重県 鈴鹿市」と
+     * 出るまで誰も気づかない**。
+     *
+     * 国名は件数が少なく、増えるのも稀なので、**一覧に無い値は必ず疑う**。
+     * 新しい国を足すときはこの一覧に1行足すこと。
+     */
+    const KNOWN_COUNTRIES = new Set(["日本", "フランス", "スペイン"]);
+
+    it("国名が一覧にある（都道府県名を国の欄に書いていない）", () => {
+        const bad = SPOTS
+            .filter((s: Spot) => {
+                const c = s.region?.country?.trim();
+                return Boolean(c) && !KNOWN_COUNTRIES.has(c as string);
+            })
+            .map((s) => `${s.slug}: ${s.region?.country}`);
+        expect(bad, "一覧に無い国名がある（都道府県名を書いていないか確かめる）").toEqual([]);
+    });
+
+    /**
      * **国が無いと公開できない**（`publishBlockers`）が、都道府県・市区町村は
      * 任意。ただし日本国内の地点で都道府県が空だと、画面の「どこにあるか」が
      * 国名だけになるので、ここで気づけるようにしておく。
