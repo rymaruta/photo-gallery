@@ -2621,6 +2621,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_32d89fb4e514",
+    "slug": "amanoiwato",
+    "name": "天岩戸神社 西本宮",
+    "nameEn": "Amano Iwato Shrine West Shrine",
+    "reading": "あまのいわとじんじゃ にしほんぐう",
+    "aliases": [
+      "天岩戸 遥拝所"
+    ],
+    "address": "宮崎県西臼杵郡高千穂町岩戸1073-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "高千穂町"
+    },
+    "coords": {
+      "lat": 32.72,
+      "lng": 131.34
+    },
+    "category": "shrine",
+    "summary": "本殿を持たず、対岸の洞窟を御神体として拝む社。遥拝所からは岩戸川の谷越しに岩屋を望みます。",
+    "description": "天照大神が隠れたと伝わる洞窟を御神体とする神社で、西本宮には本殿がありません。社殿の裏の遥拝所から、岩戸川を挟んだ対岸の岩屋を拝む形になります。遥拝所は神職の案内がないと入れず、そこからの撮影は禁じられています。境内には樹齢数百年の杉が立ち、神楽殿があります。岩戸川を三十分ほど遡ると天安河原に着きます。",
+    "highlights": [
+      "本殿を持たない社の構成",
+      "境内の樹齢数百年の杉",
+      "神楽が奉納される神楽殿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が谷に入り、境内が明るくなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、岩戸川の谷が色づきます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、境内を静かに撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、杉と社殿を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が境内に落ちます。"
+      }
+    ],
+    "compositionTips": [
+      "遥拝所からの撮影は禁じられているので、被写体を境内に絞ります",
+      "杉は下から見上げて樹高を取ります",
+      "撮影可否は神職の案内に従います"
+    ],
+    "officialWebsiteUrl": "https://amanoiwato-jinja.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_bb1cc7f79fd6",
     "slug": "amarube-sora-no-eki",
     "name": "余部鉄橋「空の駅」",
@@ -5450,6 +5513,70 @@
       "撮影可否は社務所で確認してから始めます"
     ],
     "officialWebsiteUrl": "https://www.kada.jp/awashima/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_943d26eb3997",
+    "slug": "aya-shoyo",
+    "name": "綾の照葉樹林",
+    "nameEn": "Aya Evergreen Broadleaf Forest",
+    "reading": "あやのしょうようじゅりん",
+    "aliases": [
+      "綾川 照葉樹林",
+      "綾の森"
+    ],
+    "address": "宮崎県東諸県郡綾町南俣",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "綾町"
+    },
+    "coords": {
+      "lat": 32,
+      "lng": 131.18
+    },
+    "category": "nature",
+    "summary": "国内最大級の照葉樹林。常緑の葉が幾重にも重なり、林床まで光が届かない密な森です。",
+    "description": "綾川流域に広がる照葉樹林で、まとまった面積としては国内最大級です。ユネスコエコパークに登録されています。カシ、シイ、タブなどの常緑広葉樹が主で、葉に厚みと光沢があるため、光を反射して森全体が暗く深く見えます。落葉樹林と違い、冬でも葉が落ちません。林内は湿度が高く、着生植物が枝に育ちます。遊歩道と吊橋から見られます。",
+    "highlights": [
+      "国内最大級の照葉樹林",
+      "光沢のある葉が重なる密な樹冠",
+      "枝に育つ着生植物"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、常緑樹の新芽が赤や黄に色づきます。"
+      },
+      {
+        "season": "summer",
+        "text": "緑が最も濃く、林床が暗く沈みます。"
+      },
+      {
+        "season": "winter",
+        "text": "葉が落ちないので、冬でも森の密度が変わりません。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出やすく、樹冠の層が見えるようになります。"
+      },
+      {
+        "time": "day",
+        "text": "日中でも林床は暗いので、光が差し込む筋を待ちます。"
+      }
+    ],
+    "compositionTips": [
+      "葉の光沢を活かすため、逆光で透かす角度を探します",
+      "吊橋から樹冠を俯瞰すると葉の重なりが面で見えます",
+      "林内は暗いので高感度か三脚が前提になります"
+    ],
+    "officialWebsiteUrl": "https://www.town.aya.miyazaki.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -8388,6 +8515,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_31f9934130d5",
+    "slug": "cross-sea",
+    "name": "日向 クルスの海",
+    "nameEn": "Cross Sea, Hyuga",
+    "reading": "ひゅうが くるすのうみ",
+    "aliases": [
+      "願いが叶うクルスの海"
+    ],
+    "address": "宮崎県日向市細島",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "日向市"
+    },
+    "coords": {
+      "lat": 32.44,
+      "lng": 131.68
+    },
+    "category": "nature",
+    "summary": "海食でできた岩の裂け目が十字に交わります。展望台から見下ろすと漢字の叶の形に見えます。",
+    "description": "波の浸食で岩盤に入った裂け目が十字に交差し、さらに岩の形と合わせて上から見ると漢字の叶に見えることで知られます。展望台が整備され、そこからの角度でのみこの形が成立します。周囲は柱状節理の海岸で、波が岩に砕けます。日向岬一帯には馬ヶ背などの断崖もあり、合わせて回れます。柵の外は断崖なので、展望台の内側から撮ります。",
+    "highlights": [
+      "十字に交わる岩の裂け目",
+      "展望台からのみ成立する角度",
+      "周囲の柱状節理の海岸"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、岩の裂け目の線がはっきり出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、海の色が締まります。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、裂け目に白波が入ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高い時間は水中まで光が届き、裂け目の形が読めます。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、展望台の位置を取りやすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "展望台の指定位置から撮らないと形が成立しません",
+      "偏光フィルターで海面の反射を消すと裂け目が見えます",
+      "柵の外には出ず、展望台の内側から撮ります"
+    ],
+    "officialWebsiteUrl": "https://hyuga.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_84b6b13a39c5",
@@ -14984,6 +15174,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_1d590b65e4ed",
+    "slug": "gokase",
+    "name": "五ヶ瀬 祇園山",
+    "nameEn": "Mt. Gion, Gokase",
+    "reading": "ごかせ ぎおんやま",
+    "aliases": [
+      "日本最古の地層",
+      "五ヶ瀬ハイランド"
+    ],
+    "address": "宮崎県西臼杵郡五ヶ瀬町鞍岡",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "五ヶ瀬町"
+    },
+    "coords": {
+      "lat": 32.66,
+      "lng": 131.15
+    },
+    "category": "mountain",
+    "summary": "四億三千万年前の地層が露出する山。日本最古の化石を含む岩が山頂近くで見られます。",
+    "description": "標高千三百七メートルの山で、シルル紀の石灰岩が露出しています。約四億三千万年前の地層で、日本最古級のサンゴやウミユリの化石を含みます。山頂近くの岩に化石が見える箇所があり、登山道から観察できます。山麓には日本最南端のスキー場があります。登山道は整備されており、山頂からは阿蘇と九州山地が見渡せます。化石の採取は禁止されています。",
+    "highlights": [
+      "四億三千万年前のシルル紀の地層",
+      "岩に見える日本最古級の化石",
+      "山頂からの阿蘇と九州山地の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と、山頂からの視程が伸びる季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月下旬の紅葉。空気も澄んで阿蘇まで見通せます。"
+      },
+      {
+        "season": "winter",
+        "text": "麓のスキー場が開きます。山頂は雪と氷で装備が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に雲海が出ることがあり、山頂から見下ろせます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩の露頭に光が当たり、化石の形が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "化石は寄って形を記録し、周囲の岩も一緒に入れます",
+      "山頂からは山並みを層にして九州山地の深さを見せます",
+      "化石の採取は禁止なので、撮るだけにとどめます"
+    ],
+    "officialWebsiteUrl": "https://www.town.gokase.miyazaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_7ff916e0424d",
     "slug": "gokayama-suganuma",
     "name": "五箇山 菅沼集落",
@@ -20809,6 +21063,70 @@
     "updatedAt": "2026-09-24"
   },
   {
+    "spotId": "sp_4a3fb1dbf258",
+    "slug": "hinokage",
+    "name": "日之影 旧線路跡",
+    "nameEn": "Hinokage Former Railway",
+    "reading": "ひのかげ きゅうせんろあと",
+    "aliases": [
+      "高千穂あまてらす鉄道",
+      "日之影温泉駅"
+    ],
+    "address": "宮崎県西臼杵郡日之影町岩井川",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "日之影町"
+    },
+    "coords": {
+      "lat": 32.66,
+      "lng": 131.4
+    },
+    "category": "landmark",
+    "summary": "台風で廃止された高千穂鉄道の線路跡。橋とトンネルが五ヶ瀬川の谷にそのまま残ります。",
+    "description": "二〇〇五年の台風被害で廃止された高千穂鉄道の路線跡です。五ヶ瀬川の谷に沿って橋梁とトンネルが残り、一部は遊歩道として歩けます。日之影温泉駅は駅舎がそのまま温泉施設になり、ホームと線路も残っています。高千穂側では線路の一部を使ってスーパーカートが運行され、高さ百五メートルの鉄橋の上まで行けます。廃線区間への立入は場所によって禁止されています。",
+    "highlights": [
+      "谷に残る橋梁とトンネル",
+      "温泉施設になった日之影温泉駅",
+      "高さ百五メートルの鉄橋"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が谷を覆い、鉄骨の錆色との対比が出ます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、谷が色づきます。橋と紅葉が重なります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して線路跡の構造が見えやすくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が残り、橋が霧の上に出ることがあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は谷底まで光が入り、橋の構造が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "橋は横から撮って谷底までの高さを見せます",
+      "トンネルは中から外を抜いて廃線であることを示します",
+      "立入禁止区間には入らず、遊歩道と公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.town.hinokage.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_97e8f67cc1b6",
     "slug": "hinokinaigawa",
     "name": "桧木内川堤",
@@ -23373,6 +23691,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_f1e8d1a300d2",
+    "slug": "horikiri",
+    "name": "堀切峠",
+    "nameEn": "Horikiri Pass",
+    "reading": "ほりきりとうげ",
+    "aliases": [
+      "日南海岸 フェニックス",
+      "道の駅フェニックス"
+    ],
+    "address": "宮崎県宮崎市内海",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "宮崎市"
+    },
+    "coords": {
+      "lat": 31.79,
+      "lng": 131.47
+    },
+    "category": "nature",
+    "summary": "フェニックスの並木ごしに日南海岸の鬼の洗濯板が見下ろせます。南国らしい構図が成立する峠です。",
+    "description": "日南海岸沿いの国道が海に迫る地点で、道路脇にフェニックスの並木が続きます。峠からは眼下に波状の岩が海面に広がる鬼の洗濯板が見え、その向こうに日向灘が開けます。フェニックスの葉を前景に入れると、日本とは思えない構図になります。隣接する道の駅フェニックスからも同じ眺望が得られます。東向きなので日の出が海から上がります。",
+    "highlights": [
+      "フェニックスの並木",
+      "眼下に広がる鬼の洗濯板",
+      "東向きで海から上がる日の出"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が最も青く、フェニックスの緑との対比が強くなります。"
+      },
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、光も明るくなります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、水平線までの視程が伸びます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので日の出が海から上がります。干潮なら洗濯板も見えます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は海の色が濃く、岩の縞もはっきり出ます。"
+      }
+    ],
+    "compositionTips": [
+      "フェニックスの葉を画面の端に入れて南国らしさを出します",
+      "洗濯板の縞は干潮時に最もよく見えます",
+      "国道沿いなので、駐車帯や道の駅から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.kanko-miyazaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_cbb91c23815a",
     "slug": "horyuji",
     "name": "法隆寺",
@@ -24360,6 +24742,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_69affc29fd92",
+    "slug": "hyuga-umagase",
+    "name": "日向 馬ヶ背",
+    "nameEn": "Umagase Cliffs, Hyuga",
+    "reading": "ひゅうが うまがせ",
+    "aliases": [
+      "日向岬",
+      "馬ヶ背 柱状節理"
+    ],
+    "address": "宮崎県日向市細島",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "日向市"
+    },
+    "coords": {
+      "lat": 32.45,
+      "lng": 131.69
+    },
+    "category": "nature",
+    "summary": "高さ七十メートルの柱状節理の断崖が海に落ちます。裂け目の底まで波が入り込みます。",
+    "description": "日向岬の先端にある断崖で、高さは約七十メートル、幅十メートルほどの裂け目が奥まで切れ込んでいます。断崖は柱状節理でできており、垂直の柱が並んで壁を作ります。裂け目の底まで波が入り込み、上から覗くと海面が見えます。遊歩道が断崖の上を通り、展望台からは日向灘が一望できます。日本三大あぶない岬の一つと言われ、柵の外は危険です。",
+    "highlights": [
+      "高さ七十メートルの柱状節理の断崖",
+      "奥まで切れ込む狭い裂け目",
+      "展望台からの日向灘の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "海が青く、黒い柱状節理との対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、断崖の輪郭がはっきり出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "波が高く、裂け目に打ち込む白波が激しくなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "東向きなので朝日が海から上がります。断崖をシルエットにできます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は断崖の面に光が当たり、柱の分離が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "裂け目は真上から覗いて奥行きを取ります",
+      "柱状節理は縦構図で垂直線を強調します",
+      "柵の外には出ず、展望台と遊歩道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://hyuga.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6131fa29df17",
@@ -35245,6 +35691,69 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_0ae46945ff6b",
+    "slug": "kawaminami",
+    "name": "川南湿原",
+    "nameEn": "Kawaminami Wetland",
+    "reading": "かわみなみしつげん",
+    "aliases": [
+      "川南湿原植物群落"
+    ],
+    "address": "宮崎県児湯郡川南町川南",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "川南町"
+    },
+    "coords": {
+      "lat": 32.19,
+      "lng": 131.54
+    },
+    "category": "nature",
+    "summary": "台地の上にある低地性の湿原。南方系と北方系の植物が同じ場所に混在する珍しい群落です。",
+    "description": "シラス台地の上に湧水によって形成された湿原で、国の天然記念物です。低地でありながら高層湿原に近い植物が育ち、さらに南方系と北方系の種が同じ場所に混在しています。ヒメコウホネやノハナショウブなど、約三百種が記録されています。木道が整備され、季節ごとに咲く花が変わります。面積は広くありませんが、植物の多様性が特徴です。",
+    "highlights": [
+      "南方系と北方系が混在する植物群落",
+      "台地の上にできた湿原",
+      "季節ごとに変わる花"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月から五月、ハルリンドウやトキソウが咲きます。"
+      },
+      {
+        "season": "summer",
+        "text": "六月から八月、ノハナショウブとサギソウの季節です。"
+      },
+      {
+        "season": "autumn",
+        "text": "草紅葉と、遅咲きの湿原植物が見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は花に露が残り、湿原に霧が出ることもあります。"
+      },
+      {
+        "time": "day",
+        "text": "日中は花に光が回り、色が素直に出ます。"
+      }
+    ],
+    "compositionTips": [
+      "花は接写だけでなく、湿原ごと入れた引きも撮ります",
+      "木道から外れず、湿原に踏み込まないこと",
+      "小さな花が多いので、マクロか望遠が有効です"
+    ],
+    "officialWebsiteUrl": "https://www.town.kawaminami.miyazaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_d73df574ab0a",
     "slug": "kawaramachi",
     "name": "岐阜 川原町の町並み",
@@ -39352,6 +39861,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_c429e2622182",
+    "slug": "kojima",
+    "name": "幸島",
+    "nameEn": "Koshima Island",
+    "reading": "こうじま",
+    "aliases": [
+      "芋を洗うサル",
+      "串間 幸島"
+    ],
+    "address": "宮崎県串間市市木",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "串間市"
+    },
+    "coords": {
+      "lat": 31.45,
+      "lng": 131.34
+    },
+    "category": "nature",
+    "summary": "芋を海水で洗うニホンザルで知られる島。行動が群れに伝わった過程が長年記録されてきました。",
+    "description": "周囲約三.五キロの小さな島で、野生のニホンザルが生息します。一九五三年に一頭の若いメスが芋を水で洗う行動を始め、それが群れの他の個体へ広がった過程が記録され、文化の伝播の研究として世界的に知られるようになりました。渡船で渡れますが上陸には条件があり、砂浜からの観察が中心です。干潮時には対岸から歩いて渡れる時間帯があります。",
+    "highlights": [
+      "芋を海水で洗うニホンザル",
+      "行動の伝播が記録された島",
+      "干潮時に歩いて渡れる時間帯"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "気候が穏やかで、海も静かです。子ザルも見られます。"
+      },
+      {
+        "season": "summer",
+        "text": "海が青く、砂浜との対比が出ます。"
+      },
+      {
+        "season": "winter",
+        "text": "毛が厚くなり、群れが身を寄せ合う姿が見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は群れの動きが活発です。潮の時刻と合わせて計画します。"
+      },
+      {
+        "time": "day",
+        "text": "日中は砂浜に光が回り、サルの動きが見やすくなります。"
+      }
+    ],
+    "compositionTips": [
+      "望遠で距離を保ち、サルに近づきすぎないこと",
+      "洗う動作は連写で一連の流れを押さえます",
+      "餌を与えず、持ち物を見せないようにします"
+    ],
+    "officialWebsiteUrl": "https://www.kushima-city.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_20e94ac7fb13",
     "slug": "kokonoe-yume-bridge",
     "name": "九重\"夢\"大吊橋",
@@ -41475,6 +42048,69 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_e514e0f7ce33",
+    "slug": "kunimigaoka",
+    "name": "国見ヶ丘",
+    "nameEn": "Kunimigaoka",
+    "reading": "くにみがおか",
+    "aliases": [
+      "高千穂 雲海展望"
+    ],
+    "address": "宮崎県西臼杵郡高千穂町押方",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "高千穂町"
+    },
+    "coords": {
+      "lat": 32.74,
+      "lng": 131.29
+    },
+    "category": "mountain",
+    "summary": "秋の朝、五ヶ瀬川の谷に雲海が溜まります。標高五百十三メートルの丘から見下ろせます。",
+    "description": "高千穂の町の北にある丘で、標高は約五百十三メートルです。九月中旬から十一月下旬にかけて、晴れて風がなく、前日との気温差が大きい朝に、五ヶ瀬川の谷に雲海が発生します。丘の上からは雲海の向こうに阿蘇五岳と祖母連山が見えます。雲海が出ない日も、棚田と山並みの眺望があります。駐車場から展望地点まではすぐです。日の出前から人が集まります。",
+    "highlights": [
+      "谷を埋める雲海",
+      "雲海の向こうの阿蘇五岳と祖母連山",
+      "駐車場からすぐの展望地点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "九月中旬から十一月下旬が雲海の季節。条件の揃う朝に出ます。"
+      },
+      {
+        "season": "spring",
+        "text": "雲海はありませんが、棚田と新緑の眺望があります。"
+      },
+      {
+        "season": "winter",
+        "text": "空気が澄み、山並みの輪郭が最もはっきり出ます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "雲海は日の出前後の短い時間。暗いうちに現地へ入ります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は山並みが逆光でシルエットになります。"
+      }
+    ],
+    "compositionTips": [
+      "稜線を画面下三分の一に置いて雲海を主役にします",
+      "阿蘇と祖母を入れると土地の位置が伝わります",
+      "日の出前から場所取りが始まるので、早めに到着します"
+    ],
+    "officialWebsiteUrl": "https://takachiho-kanko.info/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1c33e38757db",
@@ -48527,6 +49163,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_d59ed6d73e4b",
+    "slug": "miyakonojo",
+    "name": "都城 母智丘",
+    "nameEn": "Mochio Park, Miyakonojo",
+    "reading": "みやこのじょう もちお",
+    "aliases": [
+      "母智丘公園",
+      "母智丘神社"
+    ],
+    "address": "宮崎県都城市横市町6691",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "都城市"
+    },
+    "coords": {
+      "lat": 31.75,
+      "lng": 131.03
+    },
+    "category": "nature",
+    "summary": "参道の両側に二千六百本の桜が二キロ続きます。丘の上の神社まで一直線の桜のトンネルです。",
+    "description": "母智丘神社の参道に沿って、約二キロにわたり二千六百本の桜が植えられています。参道は丘に向かって直線で伸びるため、下から見上げると桜のトンネルが消失点まで続きます。日本さくら名所百選に選ばれています。丘の上の神社の裏には巨石が積み重なった磐座があり、信仰の対象になっています。四月上旬が見頃で、期間中は夜間のぼんぼりが灯ります。",
+    "highlights": [
+      "二キロ続く直線の桜のトンネル",
+      "参道の消失点まで続く桜",
+      "神社裏の巨石の磐座"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月上旬が見頃。夜はぼんぼりが灯ります。"
+      },
+      {
+        "season": "summer",
+        "text": "葉桜の参道。人がおらず、直線の長さだけが残ります。"
+      },
+      {
+        "season": "winter",
+        "text": "落葉して参道の直線と磐座がよく見えます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、トンネルを無人で撮れます。"
+      },
+      {
+        "time": "night",
+        "text": "ぼんぼりの灯りで、枝の下が暖色に染まります。"
+      }
+    ],
+    "compositionTips": [
+      "参道を消失点まで通してトンネルの長さを見せます",
+      "望遠で圧縮すると桜の密度が上がります",
+      "磐座は人を入れて巨石のスケールを示します"
+    ],
+    "officialWebsiteUrl": "https://www.city.miyakonojo.miyazaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_947be1f2b43d",
     "slug": "miyama-kayabuki",
     "name": "美山かやぶきの里",
@@ -48672,6 +49372,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_d4a9b91c5960",
+    "slug": "miyazaki-jingu",
+    "name": "宮崎神宮",
+    "nameEn": "Miyazaki Jingu",
+    "reading": "みやざきじんぐう",
+    "aliases": [
+      "神武天皇 宮崎",
+      "オオシラフジ"
+    ],
+    "address": "宮崎県宮崎市神宮2-4-1",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "宮崎市"
+    },
+    "coords": {
+      "lat": 31.93,
+      "lng": 131.43
+    },
+    "category": "shrine",
+    "summary": "神武天皇を祀る社。境内には樹齢六百年とされるオオシラフジがあり、四月下旬に白い房が垂れます。",
+    "description": "神武天皇を主祭神とする神社で、社殿は狭野杉を使った素木造りです。装飾を抑えた白木の建物が、周囲の照葉樹林に囲まれて建ちます。境内のオオシラフジは樹齢六百年以上とされ、国の天然記念物です。四月下旬に白い花房が長く垂れ下がります。参道は広く、両側に木が並びます。十月には神武大祭が行われ、神輿と行列が市街を進みます。",
+    "highlights": [
+      "装飾を抑えた素木造りの社殿",
+      "樹齢六百年のオオシラフジ",
+      "十月の神武大祭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "四月下旬のオオシラフジ。白い花房が長く垂れます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月の神武大祭。神輿と行列が市街を進みます。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、社殿を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は参拝者が少なく、参道と社殿を静かに撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は白木の社殿に光が回り、木目が見えます。"
+      }
+    ],
+    "compositionTips": [
+      "素木の社殿は白飛びしやすいのでマイナス補正を基本にします",
+      "フジは下から見上げて花房の長さを取ります",
+      "参道は木の列を反復として使います"
+    ],
+    "officialWebsiteUrl": "https://miyazakijingu.or.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_b6e989b91761",
@@ -50207,6 +50971,70 @@
       "最終便の時刻から逆算して島内の移動を組みます"
     ],
     "officialWebsiteUrl": "https://www.town.mugi.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_bc7ec1739241",
+    "slug": "mukabaki",
+    "name": "行縢の滝",
+    "nameEn": "Mukabaki Falls",
+    "reading": "むかばきのたき",
+    "aliases": [
+      "行縢山",
+      "延岡 行縢"
+    ],
+    "address": "宮崎県延岡市行縢町",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "延岡市"
+    },
+    "coords": {
+      "lat": 32.62,
+      "lng": 131.6
+    },
+    "category": "nature",
+    "summary": "落差七十七メートルの滝が花崗岩の岩壁を落ちます。行縢山の雄岳と雌岳の間に懸かります。",
+    "description": "行縢山の雄岳と雌岳を分ける谷に懸かる滝で、落差は約七十七メートルです。日本の滝百選に選ばれています。周囲は花崗岩の巨大な一枚岩で、滝はその壁面を落ちます。登山口から滝見橋まで四十分ほど。さらに登ると山頂に出て、日向灘まで見渡せます。滝の水量は雨の後に大きく増えます。岩壁の規模が滝の落差を実際より小さく見せます。",
+    "highlights": [
+      "落差七十七メートルの滝",
+      "滝を囲む花崗岩の一枚岩",
+      "山頂からの日向灘の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑と水量。滝が最も勢いのある時期です。"
+      },
+      {
+        "season": "summer",
+        "text": "谷が涼しく、岩壁の白と緑の対比が強くなります。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月の紅葉。岩壁と赤が対になります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に直射が入らず、水の白飛びを抑えられます。"
+      },
+      {
+        "time": "day",
+        "text": "日中は岩壁に光が当たり、滝との規模の差が読めます。"
+      }
+    ],
+    "compositionTips": [
+      "岩壁ごと入れて滝の周囲の規模を見せます",
+      "縦構図で七十七メートルの落差を取ります",
+      "人を入れると岩壁の大きさが伝わります"
+    ],
+    "officialWebsiteUrl": "https://nobekan.jp/",
     "status": "published",
     "verified": true,
     "verifiedAt": "2026-09-24",
@@ -57128,6 +57956,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_434f69a7fad6",
+    "slug": "obi",
+    "name": "飫肥の城下町",
+    "nameEn": "Obi Castle Town",
+    "reading": "おびのじょうかまち",
+    "aliases": [
+      "飫肥城 大手門",
+      "九州の小京都"
+    ],
+    "address": "宮崎県日南市飫肥",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "日南市"
+    },
+    "coords": {
+      "lat": 31.62,
+      "lng": 131.35
+    },
+    "category": "landmark",
+    "summary": "飫肥杉を使った大手門と、石垣と土塀が続く道。九州で最初に重伝建に選定された町並みです。",
+    "description": "伊東氏の城下町で、九州で最初に重要伝統的建造物群保存地区に選定されました。飫肥城の大手門は飫肥杉を使って復元されたもので、石垣の上に建ちます。城下には武家屋敷、石垣、土塀が残り、道幅と曲がりが往時のまま保たれています。旧本丸跡は杉の林になっており、苔の上に杉が立つ静かな空間です。城下町の通りは歩いて回れます。",
+    "highlights": [
+      "飫肥杉で復元された大手門",
+      "石垣と土塀が続く道",
+      "杉と苔だけの旧本丸跡"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "城内の桜。大手門と花を重ねられます。"
+      },
+      {
+        "season": "summer",
+        "text": "旧本丸跡の苔が最も濃く、杉の林が暗く沈みます。"
+      },
+      {
+        "season": "autumn",
+        "text": "斜めの光が土塀と石垣に影を落とします。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、通りと大手門を無人で撮れます。"
+      },
+      {
+        "time": "day",
+        "text": "旧本丸跡は木漏れ日が苔に落ちる日中が向きます。"
+      }
+    ],
+    "compositionTips": [
+      "大手門は下から煽って石垣ごと入れます",
+      "旧本丸跡は杉の縦線と苔の面で構成します",
+      "生活の場なので、敷地に入らず公道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://obi-culture.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6c58031ea749",
@@ -67279,6 +68171,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_68a22659460b",
+    "slug": "saitobaru",
+    "name": "西都原古墳群",
+    "nameEn": "Saitobaru Burial Mounds",
+    "reading": "さいとばるこふんぐん",
+    "aliases": [
+      "西都原 菜の花",
+      "男狭穂塚"
+    ],
+    "address": "宮崎県西都市三宅",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "西都市"
+    },
+    "coords": {
+      "lat": 32.12,
+      "lng": 131.38
+    },
+    "category": "landmark",
+    "summary": "三百基を超える古墳が台地に点在する日本最大級の古墳群。春は菜の花と桜が墳丘の間を埋めます。",
+    "description": "東西二.六キロ、南北四.二キロの台地に三百基以上の古墳が分布する日本最大級の古墳群で、国の特別史跡です。前方後円墳、円墳、方墳が混在し、草に覆われた墳丘が緩やかな起伏として並びます。春には菜の花と桜が植えられた区画があり、黄色とピンクの面の中に墳丘が浮かびます。建物がほとんどなく、台地と空と墳丘だけの構成になります。",
+    "highlights": [
+      "三百基以上の墳丘が並ぶ台地",
+      "春の菜の花と桜",
+      "建物のほとんどない開けた景観"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "三月下旬から四月上旬、菜の花と桜が同時に咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十月、コスモスが咲きます。空気も澄みます。"
+      },
+      {
+        "season": "winter",
+        "text": "草が枯れて墳丘の形が最もよく分かります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕方の低い光が墳丘に影を作り、起伏が立体的になります。"
+      },
+      {
+        "time": "morning",
+        "text": "朝は人が少なく、花畑を無人で撮れます。"
+      }
+    ],
+    "compositionTips": [
+      "花を前景に取って墳丘を奥に置き二層にします",
+      "斜光のときに墳丘の起伏が最もよく出ます",
+      "望遠で墳丘を圧縮すると数の多さが見えます"
+    ],
+    "officialWebsiteUrl": "https://saitobaru.pref.miyazaki.gov.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_da12fa31d382",
     "slug": "sakai-todai",
     "name": "旧堺燈台",
@@ -68563,6 +69519,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_c1fe954cf1f4",
+    "slug": "sano-jinja",
+    "name": "狭野神社",
+    "nameEn": "Sano Shrine",
+    "reading": "さのじんじゃ",
+    "aliases": [
+      "狭野杉 並木",
+      "高原町 狭野"
+    ],
+    "address": "宮崎県西諸県郡高原町蒲牟田117",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "高原町"
+    },
+    "coords": {
+      "lat": 31.91,
+      "lng": 130.94
+    },
+    "category": "shrine",
+    "summary": "参道に樹齢四百年の狭野杉が二列に並びます。高さ五十メートル級の杉が一キロ近く続きます。",
+    "description": "神武天皇の生誕地と伝わる社で、霧島六社権現の一つです。参道には狭野杉と呼ばれる杉並木があり、樹齢は約四百年、高さは五十メートルに達するものもあります。国の天然記念物です。並木は一キロ近く続き、その間は日中でも暗く保たれます。社殿は簡素な造りで、装飾がほとんどありません。高千穂峰の登山口の一つでもあります。",
+    "highlights": [
+      "樹齢四百年の狭野杉の並木",
+      "高さ五十メートル級の杉",
+      "装飾のない簡素な社殿"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が参道に入り、杉の間に緑の光が差します。"
+      },
+      {
+        "season": "summer",
+        "text": "杉が最も濃く、参道が暗く沈みます。木漏れ日が筋になります。"
+      },
+      {
+        "season": "winter",
+        "text": "参拝者が少なく、並木を無人で撮れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は霧が出ることがあり、杉の奥行きが層になります。"
+      },
+      {
+        "time": "day",
+        "text": "日中でも参道は暗いので、高感度か三脚が前提になります。"
+      }
+    ],
+    "compositionTips": [
+      "杉の幹を縦線の反復として画面の両側に置きます",
+      "下から見上げて五十メートルの樹高を取ります",
+      "参道は消失点まで通して一キロの長さを見せます"
+    ],
+    "officialWebsiteUrl": "https://www.town.takaharu.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_7ff877f1212b",
@@ -71400,6 +72420,70 @@
     "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
+    "spotId": "sp_e11f1a2461c6",
+    "slug": "shiitsu",
+    "name": "椎葉村",
+    "nameEn": "Shiiba Village",
+    "reading": "しいばそん",
+    "aliases": [
+      "鶴富屋敷",
+      "椎葉 焼畑"
+    ],
+    "address": "宮崎県東臼杵郡椎葉村下福良",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "椎葉村"
+    },
+    "coords": {
+      "lat": 32.51,
+      "lng": 131.17
+    },
+    "category": "landmark",
+    "summary": "平家の落人が住んだと伝わる山村。部屋が一列に並ぶ椎葉型の民家が急斜面に張り付きます。",
+    "description": "九州山地の奥にある村で、平家の落人伝説が残ります。民家は椎葉型と呼ばれる細長い平屋で、部屋が一列に並ぶ構造です。急斜面に建てるため間口を横に伸ばした形とされます。鶴富屋敷は国の重要文化財で、内部が公開されています。いまも焼畑農業が一部で続けられており、日本民俗学の出発点となった土地でもあります。集落間の移動に時間がかかります。",
+    "highlights": [
+      "部屋が一列に並ぶ椎葉型の民家",
+      "重要文化財の鶴富屋敷",
+      "急斜面に張り付く集落"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "新緑が山を覆い、集落が緑の中に浮かびます。"
+      },
+      {
+        "season": "autumn",
+        "text": "十一月、山が色づきます。焼畑のそばも収穫期です。"
+      },
+      {
+        "season": "winter",
+        "text": "雪が積もる日があり、屋根の形が白く縁取られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は谷に霧が溜まり、集落が霧の上に出ることがあります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は斜面が横から照らされ、家の影が長くなります。"
+      }
+    ],
+    "compositionTips": [
+      "椎葉型の民家は横から撮って細長い形を見せます",
+      "斜面ごと入れて集落の立地を示します",
+      "住民の生活の場なので、敷地に入らず道から撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.vill.shiiba.miyazaki.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
     "spotId": "sp_2be16039189c",
     "slug": "shikano",
     "name": "鹿野の町並み",
@@ -74204,6 +75288,70 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_15bb21ac8227",
+    "slug": "shiratori",
+    "name": "白鳥神社",
+    "nameEn": "Shiratori Shrine",
+    "reading": "しらとりじんじゃ",
+    "aliases": [
+      "えびの 白鳥神社",
+      "霧島六社権現"
+    ],
+    "address": "宮崎県えびの市末永1405",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "えびの市"
+    },
+    "coords": {
+      "lat": 31.96,
+      "lng": 130.84
+    },
+    "category": "shrine",
+    "summary": "霧島の山中にある古社。周囲は照葉樹とモミの原生林で、参道は木立の中を静かに通ります。",
+    "description": "霧島六社権現の一つで、白鳥山の中腹にあります。周囲は照葉樹とモミの原生林で、参道は木立の中を通ります。近くには六観音御池という火口湖があり、周囲の原生林が水面に映ります。えびの高原に近く、秋は一帯が色づきます。社殿は簡素で、山中の静けさがそのまま残ります。参拝者は多くなく、落ち着いて歩ける場所です。",
+    "highlights": [
+      "原生林に囲まれた参道",
+      "水面に映る六観音御池の紅葉",
+      "霧島六社権現の一つという由緒"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "autumn",
+        "text": "十月下旬から十一月上旬の紅葉。池への映り込みが本番です。"
+      },
+      {
+        "season": "spring",
+        "text": "新緑が原生林に入り、参道が明るくなります。"
+      },
+      {
+        "season": "summer",
+        "text": "標高が高く涼しく、木立の緑が最も濃くなります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は無風で、池の映り込みが最も安定します。"
+      },
+      {
+        "time": "day",
+        "text": "日中は木漏れ日が参道に落ちます。"
+      }
+    ],
+    "compositionTips": [
+      "池は水面を半分以上取って映り込みを主題にします",
+      "参道は木立の縦線を反復として使います",
+      "映り込みは風のない朝に狙います"
+    ],
+    "officialWebsiteUrl": "https://ebino-kankou.com/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d46ed58ac866",
@@ -78783,6 +79931,130 @@
     "verifiedAt": "2026-09-24",
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-24T00:00:00.000Z"
+  },
+  {
+    "spotId": "sp_3c036a51f334",
+    "slug": "takachiho-yokagura",
+    "name": "高千穂神楽",
+    "nameEn": "Takachiho Kagura",
+    "reading": "たかちほかぐら",
+    "aliases": [
+      "夜神楽 高千穂",
+      "高千穂神社 神楽殿"
+    ],
+    "address": "宮崎県西臼杵郡高千穂町三田井1037",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "高千穂町"
+    },
+    "coords": {
+      "lat": 32.71,
+      "lng": 131.31
+    },
+    "category": "festival",
+    "summary": "秋から春にかけて各集落で夜通し三十三番を舞います。高千穂神社では毎晩四番が公開されます。",
+    "description": "十一月から二月にかけて、高千穂の各集落で夜を徹して三十三番の神楽が奉納されます。国の重要無形民俗文化財です。民家や公民館に注連縄を張った神庭を設け、夕方から翌朝まで続きます。これとは別に、高千穂神社の神楽殿では毎晩二十時から代表的な四番が公開され、こちらは通年で見られます。屋内で光は限られ、動きも速い被写体です。",
+    "highlights": [
+      "夜通し三十三番を舞う集落の夜神楽",
+      "高千穂神社で毎晩公開される四番",
+      "注連縄を張った神庭"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "十一月から二月が集落の夜神楽の期間です。"
+      },
+      {
+        "season": "summer",
+        "text": "高千穂神社の神楽殿は通年で毎晩公開されています。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "神楽はすべて夜。高感度と明るいレンズが前提になります。"
+      },
+      {
+        "time": "morning",
+        "text": "集落の夜神楽は明け方まで続き、朝の番もあります。"
+      }
+    ],
+    "compositionTips": [
+      "ストロボは禁止。高感度で被写体ブレを抑えます",
+      "面と手の動きに焦点を置き、連写で形の決まる瞬間を選びます",
+      "集落の神楽は地元の行事なので、撮影の可否を必ず確認します"
+    ],
+    "officialWebsiteUrl": "https://takachiho-kanko.info/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
+  },
+  {
+    "spotId": "sp_57097083d5d1",
+    "slug": "takachihonomine",
+    "name": "高千穂峰",
+    "nameEn": "Mt. Takachiho-no-mine",
+    "reading": "たかちほのみね",
+    "aliases": [
+      "天逆鉾",
+      "霧島 高千穂峰"
+    ],
+    "address": "宮崎県西諸県郡高原町蒲牟田",
+    "region": {
+      "country": "日本",
+      "prefecture": "宮崎県",
+      "city": "高原町"
+    },
+    "coords": {
+      "lat": 31.89,
+      "lng": 130.92
+    },
+    "category": "mountain",
+    "summary": "山頂に天逆鉾が刺さる霧島連山の一峰。火山礫の急斜面を登り、途中に御鉢という火口を通ります。",
+    "description": "標高千五百七十四メートルで、山頂に天逆鉾と呼ばれる鉾が刺さっています。天孫降臨の伝承地とされ、坂本龍馬が新婚旅行で登った山としても知られます。高千穂河原から登ると、途中に御鉢という直径六百メートルの火口があり、その縁を歩いて山頂へ向かいます。斜面は火山礫で滑りやすく、風が強い日は御鉢の縁が危険です。山頂からは霧島連山と桜島が見えます。",
+    "highlights": [
+      "山頂に刺さる天逆鉾",
+      "直径六百メートルの御鉢の火口",
+      "山頂から見る霧島連山と桜島"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "五月から六月、ミヤマキリシマが山腹に咲きます。"
+      },
+      {
+        "season": "autumn",
+        "text": "空気が澄み、桜島まで見える確率が上がります。"
+      },
+      {
+        "season": "winter",
+        "text": "霧氷が付く日があります。風が強く、装備が要ります。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "朝は雲が湧く前で、御鉢と山頂が同時に見えます。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕方は火山礫の斜面が赤く染まりますが、下山の時刻に注意します。"
+      }
+    ],
+    "compositionTips": [
+      "御鉢の縁を歩く人を入れて火口の規模を示します",
+      "天逆鉾は空を背景にして輪郭を抜きます",
+      "火山礫は滑りやすいので、撮影時も足元を優先します"
+    ],
+    "officialWebsiteUrl": "https://www.town.takaharu.lg.jp/",
+    "status": "published",
+    "verified": true,
+    "verifiedAt": "2026-09-24",
+    "createdAt": "2026-09-24",
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_2c9e6c960ac3",
