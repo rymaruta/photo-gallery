@@ -155,8 +155,15 @@ describe("高さとスクロール", () => {
         expect(rules.some((r) => r.sel === "html" && /(^|[;\s])height:\s*100%/.test(r.body))).toBe(true);
     });
 
-    it("ページ内の位置合わせでヘッダーの下に潜らせない", () => {
-        expect(css).toMatch(/html\s*\{[^}]*scroll-padding-top:\s*var\(--header-h\)/);
+    it("html に scroll-padding-top を置かない（ヘッダーへのフォーカスでページが跳ぶ）", () => {
+        // a07e342 で置いたら、メニューを閉じるたびにページが約330px 上へ跳んだ
+        // （戻り先のメニューボタンが「隠れる扱い」の帯の中にあるため）。
+        expect(css).not.toMatch(/scroll-padding-top/);
+    });
+
+    it("「コメントを見る」の行き先は、ヘッダーの高さぶん手前で止まる", () => {
+        const src = code("app/photo/[id]/PhotoPageClient.tsx");
+        expect(src).toMatch(/ref=\{tabsRef\}[^>]*scrollMarginTop:\s*"var\(--header-h\)"/);
     });
 
     it("遷移のスクロールはなめらかにしない（Next 16 は html の data 属性を見て遷移の間だけ切る）", () => {
