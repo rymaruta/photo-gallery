@@ -24,7 +24,10 @@ export default function AddToHomeScreenHint() {
             const dismissed = localStorage.getItem(DISMISS_KEY) === "1";
             // マウント時に一度だけクライアント環境を判定して表示可否を決める（意図的な同期setState）
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setShow(shouldShowIosInstallHint({ userAgent: navigator.userAgent, standalone, dismissed }));
+            setShow(shouldShowIosInstallHint({
+                userAgent: navigator.userAgent, standalone, dismissed,
+                maxTouchPoints: navigator.maxTouchPoints ?? 0,
+            }));
         } catch {
             // navigator/localStorage 不可の環境では出さない
         }
@@ -45,9 +48,12 @@ export default function AddToHomeScreenHint() {
         <div className="mb-4 flex items-start gap-2 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 p-3 text-xs text-white/70">
             <ArrowUpOnSquareIcon className="w-4 h-4 mt-0.5 text-link flex-shrink-0" />
             <p className="flex-1 leading-relaxed">
+                {/* **ログインは引き継がれないことも言う。** ホーム画面のアプリは
+                    Safari と保存場所が別なので、追加した直後は必ず未ログインになる
+                    （このヒントが出るのはログイン中の投稿画面） */}
                 {locale === "en"
-                    ? "Tip: tap Share → “Add to Home Screen” to open this like an app (full-screen, one tap)."
-                    : "ヒント: 共有 →「ホーム画面に追加」で、アプリのように全画面・1タップで開けます。"}
+                    ? "Tip: tap Share → “Add to Home Screen” to open this like an app (full-screen, one tap). You'll need to log in once more there."
+                    : "ヒント: 共有 →「ホーム画面に追加」で、アプリのように全画面・1タップで開けます。追加したアプリでは、もう一度ログインが必要です。"}
             </p>
             <button
                 onClick={dismiss}

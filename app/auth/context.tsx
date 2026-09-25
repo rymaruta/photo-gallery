@@ -231,6 +231,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [checkAuth]);
 
     /**
+     * **戻るで復元されたページ（bfcache）は、ログイン状態を確かめ直す。**
+     * 止まっている間のページには storage イベントも届かないので、素の `<a>` で
+     * 移った先でログアウトしてから戻ると、ヘッダーがログイン中の見た目のまま
+     * 残り、いいね等が失敗していた（#12）。`persisted` のときだけ
+     * （普通の読み込みでは上の effect が確かめる）。
+     */
+    useEffect(() => {
+        const onPageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) void checkAuth();
+        };
+        window.addEventListener("pageshow", onPageShow);
+        return () => window.removeEventListener("pageshow", onPageShow);
+    }, [checkAuth]);
+
+    /**
      * **確かめられなかったまま留まらない。**
      *
      * 通信が届かなかった回は前の状態を保つ（`lookupSession` の
