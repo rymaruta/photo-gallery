@@ -40,7 +40,11 @@ import { readFileSync } from "node:fs";
  * 上下の行で重ならない（18px ＋ `gap-1.5` の頃は22pxで重なっていた）。
  */
 const CHIP_ROWS = [
-    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /px-2 py-0\.5 rounded-full/],
+    // 板（`PhotoDetail.dc.html`）の寸法に合わせて **32px** になった（2026-09-25）。
+    // `/user/upload` と同じ理由で**間隔はむしろ広がった**——32px のチップと
+    // `gap-2`（8px）で**行の間隔は40px**なので、24px の円は上下の行で重ならない。
+    // 綴りは `CHIP_CLASS` 1つ（カテゴリとタグが割れないように寄せてある）。
+    ["app/photo/[id]/PhotoPageClient.tsx", "写真ページのタグ（公開・検索の着地点）", /min-h-\[32px\] px-3 rounded-full/],
     ["app/user/edit/page.tsx", "編集画面のカテゴリとタグ", /px-2 py-0\.5 rounded-full/],
     // ⚠️ **チップ専用の行で見る。** 最初 `/minHeight: "32px"/` だけにしていたが、
     // ヘッダーの「下書き保存」のピルも同じ値を持つので、**チップを18pxに
