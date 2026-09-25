@@ -14,8 +14,9 @@ describe("isImeKey", () => {
         expect(isImeKey({ isComposing: true, keyCode: 13 })).toBe(true);
     });
 
-    // `isComposing` を持たない環境向けの保険（変換中のキーを 229 で送る実装）
-    it("keyCode 229 も true", () => {
+    // **Safari（mac / iOS）の本命。** 確定の Enter は compositionend のあとに
+    // isComposing=false・keyCode=229 で届く。ここを消すと Safari で変換確定と同時に送信される
+    it("keyCode 229 も true（Safari の確定の Enter）", () => {
         expect(isImeKey({ isComposing: false, keyCode: 229 })).toBe(true);
     });
 

@@ -55,8 +55,17 @@ export async function copyToClipboard(text: string): Promise<boolean> {
         textArea.value = text;
         textArea.style.position = "fixed";
         textArea.style.opacity = "0";
+        // 16px 未満の欄にフォーカスすると iOS が画面を拡大する
+        textArea.style.fontSize = "16px";
+        // キーボードを出さない（iOS は readOnly でも選択はできる）
+        textArea.readOnly = true;
         document.body.appendChild(textArea);
+        // **iOS は `select()` だけでは選択範囲を作らない。** 範囲を明示しないと
+        // execCommand("copy") が空をコピーして失敗する（共有シートを断られた
+        // あとのコピーが iOS で落ちていた。#18）
+        textArea.focus();
         textArea.select();
+        try { textArea.setSelectionRange(0, text.length); } catch { /* 未対応なら select() に任せる */ }
         let ok = false;
         try {
             ok = document.execCommand("copy");

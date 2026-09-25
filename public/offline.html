@@ -33,6 +33,8 @@
     border-radius: 9999px; background: #1d6ce8; color: #fff; font-size: 0.875rem;
     font-weight: 600; text-decoration: none;
   }
+  a.sub { background: transparent; color: rgba(255,255,255,.75); margin-top: 8px; }
+  main a { margin: 0 4px; }
 </style>
 </head>
 <body>
@@ -42,7 +44,14 @@
       通信が届いていません。<br>
       一度開いたページは、そのまま開けることがあります。
     </p>
-    <a href="/">トップページを開く</a>
+    <!--
+      **開き直す道を先に置く。** ホーム画面から起動したアプリにはアドレスバーも
+      引っ張って更新する操作も無く、電波が戻っても元のページを開き直せなかった
+      （トップへ行くしか無かった）。この受け皿は元の URL のまま出るので、
+      空の href（＝同じ URL）で開き直せる。JavaScript は使わない。
+    -->
+    <a href="">もう一度読み込む</a>
+    <a href="/" class="sub">トップページを開く</a>
   </main>
 </body>
 </html>

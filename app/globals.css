@@ -26,15 +26,54 @@
 :root {
   --color-background: var(--color-bg);
   --color-foreground: #ffffff;
+  /* **共通ヘッダーの実際の高さ（上の安全領域を含む）。**
+     ホーム画面から起動すると `black-translucent` ＋ `viewport-fit=cover` で
+     ページが時計・電池の帯の下まで広がる。ヘッダーはそのぶんを上に空けるので、
+     ヘッダーの下に貼る面（メニュー・通知）もこの値で位置を決める。
+     64px / 72px をそれぞれの場所に書くと、帯のぶんだけ食い込む。 */
+  --header-h: calc(64px + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 768px) {
+  :root {
+    --header-h: calc(72px + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* 四辺の安全領域ぶんの内側の余白。`sm:` などの幅の条件と組み合わせて使う
+   （写真モーダルは、スマホでは黒い内枠に、それより広い画面では外枠に持たせる）。 */
+@utility pad-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
 }
 
 html {
   scroll-behavior: smooth;
+  /* ⚠️ **ここに `scroll-padding-top` を置かないこと。** sticky のヘッダーは
+     その「隠れる扱い」の帯の中に居続けるので、ヘッダーの中の要素に
+     フォーカスが当たるたびにブラウザが見えるところまでスクロールする
+     ——メニューを閉じると（戻り先がヘッダーのボタン）ページが約330px
+     上へ跳んだ（実測）。位置合わせの余白が要る要素は、その要素に
+     `scroll-margin-top: var(--header-h)` を持たせる。
+     （一覧から写真ページへ移ると「戻る」がヘッダーに隠れた件は、
+     下の body の高さの固定が原因で、それを外したら 0 に着くようになった。） */
+}
+
+/* **body に高さを固定しない（html だけ 100%）。**
+   以前は `html, body { height: 100% }` で、body の箱が画面1枚ぶんで止まり、
+   中身はその外へはみ出していた。そのせいで
+     - sticky のヘッダーが body の箱の中でしか貼り付かず、画面1枚ぶん
+       スクロールすると一緒に流れて消えた（実測 390x664: scrollY 560 から）
+     - 下の `padding-bottom`（タブバーのぶん）が箱の内側に入って効かず、
+       フッターの最後の行がタブバーの裏に残った
+   高さの下限は body の `min-h-screen`（と下の `100dvh`）が持つ。 */
+html {
+  height: 100%;
 }
 
 html,
 body {
-  height: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -64,6 +103,42 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* **タッチ端末では入力欄の文字を 16px 未満にしない。**
+   iOS Safari は 16px 未満の欄にフォーカスすると画面を拡大し、そのまま
+   戻さない。スマホ幅では基準の文字が 14px（下の @media）なので `text-sm`
+   は 12.25px、`text-base` も 14px になり、ほぼ全部の欄が拡大していた
+   （実測: ログイン・登録・退会 12.25px、検索 13px。横向きでも 14px）。
+   インラインで小さく指定している欄（検索の 13px）もあるので !important。
+   16px より大きく指定している欄は今のところ無い（あれば縮む。足すときは
+   ここで除外する）。
+   マウスの画面は拡大が起きないので、見た目は今までどおり。 */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* **入力欄は、親が `select-none` でも選択・カーソル移動・ペーストができる。**
+   WebKit は `-webkit-user-select` を子へ受け継ぐので、ストーリーの画面
+   （外枠が `select-none`）の返信欄と通報欄で、範囲選択や長押しのペーストが
+   効かなかった（#25）。欄の中の文字は常に選べてよい。 */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 自前の消去ボタン（✕）を持つ検索欄だけ、ブラウザの消去ボタンを消す
+   （出ると2つ並ぶ。Tailwind の preflight が消すのは decoration の方だけ）。
+   **全部の検索欄に効かせないこと。** 自前の ✕ を持たない欄（管理画面の
+   写真検索）では、ブラウザの ✕ が唯一の消去手段になっている。 */
+.search-own-clear::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Instagram IAB / iOS Safari: button/a に cursor:pointer がないとタップが効かないことがある */
 button, a {
   cursor: pointer;
@@ -86,6 +161,12 @@ button, a {
    ぶんを自分の内側に持つので、二重に空けない）。 */
 body {
   padding-bottom: var(--bottom-bar-h, calc(env(safe-area-inset-bottom, 0px) + 57px));
+  /* **横向きの iPhone で、中身がノッチ・Dynamic Island の下に入らないように。**
+     `viewport-fit=cover` を宣言しているので、左右の安全領域は自分で空ける。
+     縦向きでは 0 なので見た目は変わらない。画面に固定した部品
+     （タブバー・モーダル）は body の余白の外なので、それぞれで空ける。 */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* HeaderNav で使用 */

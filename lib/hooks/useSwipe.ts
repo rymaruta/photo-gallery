@@ -132,7 +132,11 @@ export function useSwipe(options: SwipeOptions = {}) {
         // 「次の写真」「閉じる」に化けた（`touch-action: manipulation` は
         // ダブルタップズームだけを切るので、ピンチ自体は成立する）。
         onTouchStart: (e) => {
-            if (e.touches.length > 1) {
+            // **2本指で拡大しているあいだの1本指は、見回すための移動。**
+            // 払いと読むと、拡大した写真を横に見回しただけで次の写真へ
+            // 送られていた（#14）。拡大の度合いは visualViewport が持つ
+            const zoomed = typeof window !== "undefined" && (window.visualViewport?.scale ?? 1) > 1.01;
+            if (e.touches.length > 1 || zoomed) {
                 isDraggingRef.current = false;
                 touchStartRef.current = null;
                 return;

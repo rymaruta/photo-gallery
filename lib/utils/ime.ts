@@ -13,8 +13,10 @@
  * Escape も同じで、変換中の Escape は「変換の取り消し」なのに、
  * ページからは普通の Escape に見える。
  *
- * `keyCode === 229` は `isComposing` を持たない古い環境向けの保険。
- * 変換中のキーをまとめて 229 として送る実装があるため、両方見る。
+ * **`keyCode === 229` は保険ではない。Safari（mac / iOS）ではこちらが本命。**
+ * Safari は確定の Enter を `compositionend` の**あと**に送るので、そのときは
+ * `isComposing=false`・`keyCode=229` になる。`isComposing` だけに簡略化すると、
+ * Safari で変換を確定した瞬間に送信される。両方見ること（#37）。
  *
  * **ネイティブのイベントを渡すこと。** React の合成イベントは
  * `isComposing` を持たないので、`onKeyDown={(e) => ... isImeKey(e.nativeEvent)}`

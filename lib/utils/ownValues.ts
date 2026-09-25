@@ -61,7 +61,7 @@ export function collectOwnValues(photos: readonly Photo[] | null | undefined, li
 export function appendTag(current: string, tag: string): string {
     const add = tag.trim();
     if (!add) return current;
-    const parts = current.split(",").map((t) => t.trim()).filter(Boolean);
+    const parts = splitTags(current);
     // **同じタグかどうかは `tagKey` で見る。** 完全一致だと、`fuji` と
     // 書いてある欄に候補の `Fuji` を押すと `"fuji, Fuji"` になり、
     // 1枚の写真に同じタグが2つ付く（絞り込みは畳むが、写真のタグ欄には
@@ -69,6 +69,24 @@ export function appendTag(current: string, tag: string): string {
     const key = tagKey(add);
     if (parts.some((t) => tagKey(t) === key)) return current;
     return joinTags([...parts, add]);
+}
+
+/**
+ * **タグ欄の区切り。** 半角のカンマだけにしない。
+ *
+ * iPhone のかなキーボードでいちばん自然に打てる区切りは「、」で、
+ * 半角の `,` は記号の面へ切り替えないと出ない。区切りを `,` だけに
+ * していた頃は「桜、紅葉」が**1つのタグ**として保存され
+ * （`/tag/桜、紅葉` という1枚だけのページができる）、打った瞬間に
+ * 候補チップも全部消えていた（「桜、」全体を打ちかけと読むため）。
+ * 全角の「，」と半角の「､」も同じ扱いにする。空白では区切らない
+ * （`New York` のように語の中に空白を持つタグがありうる）。
+ */
+export const TAG_SEPARATOR = /[,，、､]/;
+
+/** タグ欄の文字列をタグに分ける（前後の空白を落とし、空は捨てる） */
+export function splitTags(input: string): string[] {
+    return input.split(TAG_SEPARATOR).map((t) => t.trim()).filter(Boolean);
 }
 
 /**
@@ -99,7 +117,7 @@ export function hasTag(current: string, tag: string): boolean {
     // `tagKey` は中で trim するので、ここでは trim しない
     const key = tagKey(tag);
     if (!key) return false;
-    return current.split(",").some((t) => tagKey(t.trim()) === key);
+    return splitTags(current).some((t) => tagKey(t) === key);
 }
 
 /**
@@ -136,7 +154,7 @@ export function toggleTag(current: string, tag: string): string {
     const key = tagKey(t);
     // 外したあとも同じ形（末尾に区切り）。**押す→打つ が主動線**なので、
     // 足すときだけ揃えても半分にしかならない
-    return joinTags(current.split(",").filter((x) => tagKey(x.trim()) !== key));
+    return joinTags(splitTags(current).filter((x) => tagKey(x) !== key));
 }
 
 /**
@@ -150,7 +168,7 @@ export function toggleTag(current: string, tag: string): string {
  * 「打つから表記が割れる」を減らすことなのに、**新しい綴りを増やしていた**。
  */
 export function typingFragment(all: readonly string[], current: string): string {
-    const frag = (current.split(",").pop() ?? "").trim();
+    const frag = (current.split(TAG_SEPARATOR).pop() ?? "").trim();
     if (!frag) return "";
     const key = tagKey(frag);
     return all.some((t) => tagKey(t) === key) ? "" : frag;
@@ -159,7 +177,11 @@ export function typingFragment(all: readonly string[], current: string): string 
 /** 打ちかけの欠片を欄から落とす（チップを押すときに使う） */
 export function dropFragment(all: readonly string[], current: string): string {
     if (!typingFragment(all, current)) return current;
-    const cut = current.lastIndexOf(",");
+    // 最後の区切り（どの区切り文字でも）より前を残す
+    let cut = -1;
+    for (let i = current.length - 1; i >= 0; i--) {
+        if (TAG_SEPARATOR.test(current[i])) { cut = i; break; }
+    }
     return cut < 0 ? "" : current.slice(0, cut);
 }
 

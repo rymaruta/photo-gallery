@@ -15,6 +15,7 @@ import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
+import { forgetUploadDraftOnSignOut } from "../../lib/utils/uploadDraft";
 import { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } from "../../lib/stories";
 import { setFavoritesUser, removeFavoritesUserData } from "../../lib/hooks/useFavorites";
 
@@ -29,6 +30,9 @@ function clearAccountLocalState(): void {
     // PWA 共有シートのペイロード（写真の実体）。残すと1時間以内に
     // ログインした**別の人**のアップロード画面へ自動取り込みされる
     void clearSharedPayload();
+    // 投稿画面の書きかけ（写真の**原本**ごと。位置情報も入っている）。
+    // 残すと、同じ端末で次にログインした**別の人**の投稿画面に戻ってしまう
+    void forgetUploadDraftOnSignOut();
     // 未ログインで付いた既読記録（共有キー）だけ掃除する。
     // **ログイン中のぶんは消さない**——鍵が利用者ごとに分かれたので
     // 前の人の既読が次の人に見えることはもう無く、消していたせいで
@@ -228,6 +232,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         window.addEventListener("storage", onStorage);
         return () => window.removeEventListener("storage", onStorage);
+    }, [checkAuth]);
+
+    /**
+     * **戻るで復元されたページ（bfcache）は、ログイン状態を確かめ直す。**
+     * 止まっている間のページには storage イベントも届かないので、素の `<a>` で
+     * 移った先でログアウトしてから戻ると、ヘッダーがログイン中の見た目のまま
+     * 残り、いいね等が失敗していた（#12）。`persisted` のときだけ
+     * （普通の読み込みでは上の effect が確かめる）。
+     */
+    useEffect(() => {
+        const onPageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) void checkAuth();
+        };
+        window.addEventListener("pageshow", onPageShow);
+        return () => window.removeEventListener("pageshow", onPageShow);
     }, [checkAuth]);
 
     /**

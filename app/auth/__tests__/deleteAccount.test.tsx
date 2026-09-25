@@ -57,6 +57,7 @@ vi.mock("../../../lib/auth/session", () => ({
 }));
 vi.mock("../../../lib/hooks/useFollow", () => ({ resetFollowingCache: vi.fn() }));
 vi.mock("../../../lib/utils/shareStore", () => ({ clearSharedPayload: vi.fn(async () => { /* noop */ }) }));
+vi.mock("../../../lib/utils/uploadDraft", () => ({ forgetUploadDraftOnSignOut: vi.fn(async () => { /* noop */ }) }));
 // **列挙式のモックは、実装が新しく使い始めた export で undefined になる**
 // （その分岐を通るテストだけが落ちる。台帳の既知の型）
 vi.mock("../../../lib/stories", () => ({
@@ -72,6 +73,7 @@ vi.mock("../../../lib/hooks/useFavorites", () => ({
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
+const { forgetUploadDraftOnSignOut } = await import("../../../lib/utils/uploadDraft");
 const { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } = await import("../../../lib/stories");
 const { setFavoritesUser, removeFavoritesUserData } = await import("../../../lib/hooks/useFavorites");
 
@@ -124,6 +126,7 @@ beforeEach(() => {
     // 他のテストの呼び出しを拾って空振りする（55b20b1 レビューの指摘）。
     vi.mocked(resetFollowingCache).mockClear();
     vi.mocked(clearSharedPayload).mockClear();
+    vi.mocked(forgetUploadDraftOnSignOut).mockClear();
     vi.mocked(clearSeenStories).mockClear();
     vi.mocked(setFavoritesUser).mockClear();
     vi.mocked(removeFavoritesUserData).mockClear();
@@ -188,6 +191,8 @@ describe("退会: 消す前に、後段が通ることを確かめる", () => {
         expect(resetFollowingCache).toHaveBeenCalled();
         // 共有シートのペイロードとストーリー既読も、前の人の分を残さない
         expect(clearSharedPayload).toHaveBeenCalled();
+        // 投稿画面の書きかけ（写真の原本・位置情報入り）も残さない
+        expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
         expect(clearSeenStories).toHaveBeenCalled();
         // お気に入りは共有キー（未ログイン）に戻し、消したアカウントの
         // 鍵付きデータも端末から消す
@@ -254,6 +259,8 @@ describe("端末に残る前の人のデータの掃除", () => {
         render(<AuthProvider><LogoutHarness /></AuthProvider>);
         await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }));
         expect(clearSharedPayload).toHaveBeenCalled();
+        // 書きかけの写真（原本）が、次にログインした別の人の投稿画面に戻らない
+        expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
         expect(clearSeenStories).toHaveBeenCalled();
         expect(setFavoritesUser).toHaveBeenCalledWith(null);
     });

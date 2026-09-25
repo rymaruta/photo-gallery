@@ -228,7 +228,7 @@ export function hasLocationMarker(bytes: Uint8Array): boolean {
  * ——`ftyp` があるので例外にもならず、確認も走らない。このファイルが
  * 直そうとした「消せていないのに上げる」がそのまま残っていた。
  */
-async function topLevelBoxes(file: File): Promise<Box[] | null> {
+export async function topLevelBoxes(file: Blob): Promise<Box[] | null> {
     const out: Box[] = [];
     let offset = 0;
     while (offset < file.size) {

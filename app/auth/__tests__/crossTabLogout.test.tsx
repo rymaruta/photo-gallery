@@ -135,3 +135,33 @@ describe("別タブでのログアウト", () => {
         expect(mockGetCurrentSession.mock.calls.length).toBe(before);
     });
 });
+
+// 戻るで復元されたページ（bfcache）には storage イベントが届かない。素の <a> で
+// 移った先でログアウトしてから戻ると、ログイン中の見た目のまま残っていた
+// （docs/ios-bug-audit-2026-09-25.md #12）。
+describe("戻るで復元されたページ", () => {
+    const pageshow = (persisted: boolean) => act(() => {
+        const e = new Event("pageshow") as PageTransitionEvent;
+        Object.defineProperty(e, "persisted", { value: persisted });
+        window.dispatchEvent(e);
+    });
+
+    it("復元されたら確かめ直し、ログアウトしていれば合わせる", async () => {
+        mockGetCurrentSession.mockResolvedValue(session("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("in"));
+        mockGetCurrentSession.mockResolvedValue(null);
+        pageshow(true);
+        await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("out"));
+    });
+
+    it("普通の読み込み（persisted でない）では確かめ直さない", async () => {
+        mockGetCurrentSession.mockResolvedValue(session("u1"));
+        render(<AuthProvider><Harness /></AuthProvider>);
+        await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("in"));
+        const calls = mockGetCurrentSession.mock.calls.length;
+        pageshow(false);
+        await new Promise((r) => setTimeout(r, 20));
+        expect(mockGetCurrentSession.mock.calls.length).toBe(calls);
+    });
+});

@@ -43,11 +43,10 @@ export default function Footer() {
              * （2026-09-22 に実測: `/user/highlights` と `/user/edit` で
              *  いちばん下まで送ると7本とも `elementFromPoint` が帯を返した）。
              *
-             * **`body` の `padding-bottom` では効かない。** この木は
-             * `body` が `min-h-screen flex flex-col` で、中身が溢れても
-             * `body` の箱は伸びない——余白は箱の内側に入ったままで、
-             * フッターは外へはみ出す（実測: `body` の余白を 123px にしても
-             * フッターの下端は画面の下端のままだった）。だから**受け取る側**で空ける。
+             * `body` の `padding-bottom` が空けるのは下部タブバーのぶん
+             * （`--bottom-bar-h`）だけなので、画面ごとの帯のぶんはここで足す。
+             * （以前は `body` に高さが固定されていて、その余白自体が効いて
+             * いなかった。`globals.css` の `html` の注を見よ。）
              *
              * 高さは帯自身が出す（`usePageBarHeight`）。帯の無い画面では 0。
              */

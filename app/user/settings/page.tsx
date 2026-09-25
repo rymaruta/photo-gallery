@@ -394,6 +394,26 @@ export default function SettingsPage() {
 
                         <div className="pt-1 border-t border-white/10" />
 
+                        {/* **パスワードの変更は <form> で送り、ユーザー名の欄も置く。**
+                            iOS のパスワード管理（キーチェーン）は、フォームの送信と
+                            `autocomplete="username"` の欄を手がかりに「パスワードを
+                            更新しますか」と聞く。ボタンの onClick だけで送っていた頃は
+                            新しいパスワードを覚えず、次のログインで古い方が入って失敗した。
+                            ユーザー名の欄は見せない（`hidden` で支援技術からも外れる。読み取り専用）。 */}
+                        <form
+                            className="space-y-3"
+                            onSubmit={(e) => { e.preventDefault(); void handleChangePassword(); }}
+                        >
+                        <input
+                            type="text"
+                            name="username"
+                            autoComplete="username"
+                            value={currentEmail ?? ""}
+                            readOnly
+                            hidden
+                            aria-label={locale === "en" ? "Username" : "ユーザー名"}
+                            tabIndex={-1}
+                        />
                         <p className="text-sm font-semibold text-white/90">
                             {locale === "en" ? "Change password" : "パスワードを変更"}
                         </p>
@@ -433,8 +453,7 @@ export default function SettingsPage() {
                             </p>
                         </div>
                         <button
-                            type="button"
-                            onClick={() => void handleChangePassword()}
+                            type="submit"
                             // **押せるのに必ず失敗する形にしない。** 空欄のうちは
                             // 押しても往復するだけ
                             disabled={changingPassword || !curPassword || !newPassword}
@@ -446,6 +465,7 @@ export default function SettingsPage() {
                                 ? (locale === "en" ? "Changing..." : "変更中...")
                                 : (locale === "en" ? "Change password" : "パスワードを変更する")}
                         </button>
+                        </form>
 
                         <div className="pt-1 border-t border-white/10" />
 
