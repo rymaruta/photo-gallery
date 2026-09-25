@@ -470,6 +470,9 @@ function UploadPageInner() {
         allowUploadDraft();
         if (prev && prev !== userId) {
             ownerGenRef.current++;
+            // 前の人の控えを持っていた印も捨てる（A → B → A と戻ったとき、古い印で
+            // 置き場の A の控え＝別のタブで書いたもの、を消さないように）
+            draftOwnedByRef.current = null;
             // **上げている最中なら止める。** 止めないと、ループは前の人の写真を
             // 持ったまま進み、新しい人のログイン情報で置き場所の発行も保存も
             // 通って、前の人の写真が新しい人の名で公開される
