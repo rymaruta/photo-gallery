@@ -12,9 +12,14 @@ vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photo
 
 // ブロックの判定は境界としてモックする（実際の判定は `block.test.ts`）
 const mockIsBlocked = vi.hoisted(() => vi.fn(async () => false));
-vi.mock("../blockCheck", () => ({
+// ⚠️ **全置換にしない。** このファイルが新しい読み取りを import した瞬間に、
+// 書いていない export が**エラーではなく `undefined`** になって静かに壊れる
+// （`notify.ts` が `hiddenUserIds` を読み始めたときに実際そうなった）
+vi.mock("../blockCheck", async (importActual) => ({
+    ...(await importActual<typeof import("../blockCheck")>()),
     isBlocked: (...a: unknown[]) => mockIsBlocked(...(a as [])),
     blockMarkerId: (a: string, b: string) => `block#${a}#${b}`,
+    hiddenUserIds: async () => new Set<string>(),
 }));
 
 vi.stubEnv("USERS_TABLE", "users-test");

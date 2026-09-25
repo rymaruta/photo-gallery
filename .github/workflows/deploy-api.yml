@@ -79,6 +79,12 @@ jobs:
       # 削除そのものは成功する。本番だけ設定する（staging は検索避けなので不要）。
       rebuildRepo: ${{ steps.pick.outputs.rebuildRepo }}
       musicSearchReserved: ${{ steps.pick.outputs.musicSearchReserved }}
+      # プッシュ通知（APNs）。鍵（.p8）だけ Secrets から。**未設定でも
+      # 通知は積まれる**（端末に飛ばないだけ）ので、必須にはしない
+      apnsTopic: ${{ steps.pick.outputs.apnsTopic }}
+      apnsHost: ${{ steps.pick.outputs.apnsHost }}
+      apnsKeyId: ${{ steps.pick.outputs.apnsKeyId }}
+      apnsTeamId: ${{ steps.pick.outputs.apnsTeamId }}
       # **どちらのスタックを配るか。** 疑わしい回は両方 "true" に倒れる
       deployAdmin: ${{ steps.targets.outputs.admin }}
       deployUser: ${{ steps.targets.outputs.user }}
@@ -98,6 +104,15 @@ jobs:
               cognitoUserPoolId=ap-northeast-1_ZbuhDQsWz
               cognitoClientId=21cs4cd8dkttmg3snloj72u8mu
               cognitoPoolName=prod-journey-photo-client-spa
+              # プッシュ通知（APNs）。**鍵そのものは Secrets から渡す**——
+              # ここに書くのは公開識別子だけ（Bundle ID・Key ID・Team ID）
+              apnsTopic=com.journeyphoto.JourneyPhoto
+              # TestFlight / App Store のビルドは本番の APNs
+              apnsHost=api.push.apple.com
+              # 鍵の識別子。**秘密ではない**（Cognito の ID と同じ扱い）。
+              # 鍵そのもの（.p8）は secrets.APNS_PRIVATE_KEY から渡す
+              apnsKeyId=DDYJB5893J
+              apnsTeamId=5428GX5UM8
               # 削除・非公開のあとに再ビルドを頼む先
               rebuildRepo=${{ github.repository }}
               # **予約しない。** 以前ここは 10 だったが、本番へ初めて流した
@@ -128,6 +143,13 @@ jobs:
               cognitoUserPoolId=ap-northeast-1_DSQ16c6vO
               cognitoClientId=1qjl9c8gmqidigps55jhv4foi
               cognitoPoolName=staging-journey-photo-client-spa
+              # staging のアプリは Bundle ID が別（`Config/Staging.xcconfig`）。
+              # Xcode から直接入れたビルドは **sandbox** の APNs
+              apnsTopic=com.journeyphoto.JourneyPhoto.staging
+              apnsHost=api.sandbox.push.apple.com
+              # 鍵は Team Scoped（全アプリ共通）なので本番と同じものを使う
+              apnsKeyId=DDYJB5893J
+              apnsTeamId=5428GX5UM8
               # staging は検索避け（robots で全拒否）なので再ビルドは頼まない
               rebuildRepo=""
               # 予約は本番に譲る。両方で取ると未予約の枠が最低値を下回り、
@@ -149,6 +171,11 @@ jobs:
             echo "$k=$v" >> "$GITHUB_OUTPUT"
           done
           echo "rebuildRepo=$rebuildRepo" >> "$GITHUB_OUTPUT"
+          # プッシュ通知は**設定が無ければ送らないだけ**なので、必須にしない
+          echo "apnsTopic=$apnsTopic" >> "$GITHUB_OUTPUT"
+          echo "apnsHost=$apnsHost" >> "$GITHUB_OUTPUT"
+          echo "apnsKeyId=$apnsKeyId" >> "$GITHUB_OUTPUT"
+          echo "apnsTeamId=$apnsTeamId" >> "$GITHUB_OUTPUT"
           echo "musicSearchReserved=$musicSearchReserved" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
@@ -316,6 +343,13 @@ jobs:
           REBUILD_TOKEN: ${{ secrets.REBUILD_DISPATCH_TOKEN }}
           REBUILD_MONTHLY_MAX: ${{ vars.REBUILD_MONTHLY_MAX }}
           MUSIC_SEARCH_RESERVED: ${{ needs.config.outputs.musicSearchReserved }}
+          # プッシュ通知（APNs）。**鍵（.p8）だけが秘密**で、あとは公開識別子。
+          # 鍵が無ければ旗ごと渡さない＝通知は積まれるが端末には飛ばない
+          APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+          APNS_KEY_ID: ${{ needs.config.outputs.apnsKeyId }}
+          APNS_TEAM_ID: ${{ needs.config.outputs.apnsTeamId }}
+          APNS_TOPIC: ${{ needs.config.outputs.apnsTopic }}
+          APNS_HOST: ${{ needs.config.outputs.apnsHost }}
           # 絞った写真の画像 URL に期限を付ける鍵（案A・`docs/restricted-image-delivery.md`）。
           # **未登録でも何も壊れない**——空なら `isConfigured()` が false で
           # 署名しないだけ（`api-user/src/signedUrl.ts`）。先に配線だけ
@@ -329,6 +363,16 @@ jobs:
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
           if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
           if [ -n "$MUSIC_SEARCH_RESERVED" ]; then extra+=(--param "musicSearchReserved=$MUSIC_SEARCH_RESERVED"); fi
+          # **鍵が無いときは APNs の旗を1つも渡さない。** 中途半端に
+          # Key ID だけ入ると「設定済みのつもりで送れない」になる
+          if [ -n "${APNS_PRIVATE_KEY:-}" ]; then
+            extra+=(--param "apnsPrivateKey=$APNS_PRIVATE_KEY")
+            extra+=(--param "apnsKeyId=$APNS_KEY_ID")
+            extra+=(--param "apnsTeamId=$APNS_TEAM_ID")
+            extra+=(--param "apnsTopic=$APNS_TOPIC")
+            extra+=(--param "apnsHost=$APNS_HOST")
+          fi
+          echo "プッシュ通知: $([ -n "${APNS_PRIVATE_KEY:-}" ] && echo "設定あり（$APNS_TOPIC → $APNS_HOST）" || echo '(なし・端末には飛ばない)')"
           # **空なら旗ごと渡さない**（serverless v3 は `--param "k="` を
           # 「不正な形式」として弾き、全変数の解決に失敗してデプロイが落ちる
           # ——上の注記と同じ罠）
