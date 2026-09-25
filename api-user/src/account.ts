@@ -23,7 +23,7 @@ import { readUserList } from "./userList";
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
 //   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/
-//                            spots#/saves#/likes#/trips#/closefriends#
+//                            spots#/saves#/likes#/trips#/closefriends#/devices#
 //     ⚠️ **この一覧を手で書き足さない。** 足すべき行が増えたかどうかは
 //     `api-user/src/__tests__/accountCleanupRows.test.ts` が走査して見る
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
@@ -720,6 +720,19 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // `spots#`（どこへ行きたかったか）と同じ性質の行動履歴。
         // **この行はこの仕組みを入れた日から一度も消されていなかった**
         await ddbDelete(PHOTOS_TABLE, { id: `closefriends#${uid}` });
+        // 端末の宛先（`devices.ts` の `devices#<uid>`）。**プッシュ通知の
+        // APNs トークンの集合。**
+        //
+        // 消さないと2つ困る。ひとつは**退会したのに端末の識別子が残る**こと
+        // ——本人しか読めない行で、掃除役は居ない（`trips#` と同じ）。
+        // もうひとつは、Cognito が同じ `sub` を配ることは無いにせよ、
+        // **`pushNotification` が宛先を引くのはこの1行だけ**なので、
+        // 残った行は「誰のものでもない宛先」として生き続ける。
+        //
+        // ⚠️ **APNs 側への通知は要らない。** 宛先が無効になれば APNs が
+        // 410 を返し、`notify.ts` の `deliverPush` が `forgetTokens` で
+        // 外す（`devices.ts` の注記）。ここで消すのは行そのもの
+        await ddbDelete(PHOTOS_TABLE, { id: `devices#${uid}` });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)
