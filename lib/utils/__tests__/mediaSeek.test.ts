@@ -36,6 +36,20 @@ describe("seekWhenReady", () => {
         expect(a.currentTime).toBe(7);
     });
 
+    it("前の曲を鳴らした要素に差し替えた直後（currentSrc がまだ前の曲）でも合わせる", () => {
+        // 要素を使い回す試聴（StoriesBar）の2曲目以降。`src` を書いた直後は
+        // `currentSrc` が前の曲のまま残る（Chromium で実測）
+        const a = fakeAudio("https://p.test/a.m4a");
+        a.readyState = 4;
+        a.src = "https://p.test/b.m4a"; // currentSrc は a のまま
+        a.readyState = 0;
+        seekWhenReady(a as unknown as HTMLMediaElement, 12);
+        a.currentSrc = "https://p.test/b.m4a";
+        a.readyState = 1;
+        a.fire("loadedmetadata");
+        expect(a.currentTime).toBe(12);
+    });
+
     it("情報が届く前に別の曲へ差し替わったら、古い頭出しは当てない", () => {
         const a = fakeAudio("https://p.test/a.m4a");
         seekWhenReady(a as unknown as HTMLMediaElement, 12);

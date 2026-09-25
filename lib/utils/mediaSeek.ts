@@ -14,9 +14,12 @@ export function seekWhenReady(a: HTMLMediaElement, sec: number): void {
     const HAVE_METADATA = 1;
     try { a.currentTime = sec; } catch { /* seek 未対応は無視 */ }
     if (a.readyState >= HAVE_METADATA) return;
-    const src = a.currentSrc || a.src;
+    // **`currentSrc` は見ない。** `src` を書き換えた直後は、`currentSrc` が
+    // まだ前の曲を指している（Chromium で実測）。それを控えると、新しい曲の
+    // 情報が届いた時点で「別の曲」と読んで頭出しを捨てる
+    const src = a.src;
     a.addEventListener("loadedmetadata", () => {
-        if ((a.currentSrc || a.src) !== src) return;
+        if (a.src !== src) return;
         try { a.currentTime = sec; } catch { /* seek 未対応は無視 */ }
     }, { once: true });
 }

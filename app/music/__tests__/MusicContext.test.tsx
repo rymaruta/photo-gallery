@@ -234,6 +234,15 @@ describe("ロック画面の曲情報と操作（Media Session）", () => {
             expect(ms.playbackState).toBe("paused");
             act(() => handlers.play!());
             expect(result.current.playing).toBe(true);
+
+            // 状態は「再生中」のまま、iOS が音を止めた（pause がまだ届いていない）。
+            // ロック画面の ▶ は実際の音を見て鳴らす
+            const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+            playSpy.mockClear();
+            const pausedGet = vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(true);
+            act(() => handlers.play!());
+            expect(playSpy, "状態を見て ▶ が何もしなかった").toHaveBeenCalledTimes(1);
+            pausedGet.mockRestore();
         } finally {
             delete (navigator as unknown as Record<string, unknown>).mediaSession;
             vi.unstubAllGlobals();

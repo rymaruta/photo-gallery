@@ -158,8 +158,8 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
     // （Media Session）。無いと曲名の代わりにページの題が出て、「次へ／前へ」が
     // 無く、ポケットに入れたまま曲を送れなかった（#20）。
     // 操作は画面のボタンと同じ入口（toggle / next / prev）を通す。
-    const actionsRef = useRef({ toggle, next, prev, playing: st.playing });
-    actionsRef.current = { toggle, next, prev, playing: st.playing };
+    const actionsRef = useRef({ next, prev });
+    actionsRef.current = { next, prev };
     React.useEffect(() => {
         if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
         const ms = navigator.mediaSession;
@@ -178,8 +178,21 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         const set = (action: MediaSessionAction, fn: (() => void) | null) => {
             try { ms.setActionHandler(action, fn); } catch { /* その操作に未対応の環境 */ }
         };
-        set("play", () => { if (!actionsRef.current.playing) actionsRef.current.toggle(); });
-        set("pause", () => { if (actionsRef.current.playing) actionsRef.current.toggle(); });
+        // 再生・一時停止は**実際の音**（`paused`）を見て決める。状態で決めると、
+        // iOS が止めたときの pause がまだ届いていない間は「再生中」と読んで
+        // ▶ が何もしない
+        set("play", () => {
+            const a = audioRef.current;
+            if (!a || !a.paused) return;
+            void a.play().catch(() => setSt((p) => ({ ...p, playing: false })));
+            setSt((p) => ({ ...p, playing: true }));
+        });
+        set("pause", () => {
+            const a = audioRef.current;
+            if (!a) return;
+            a.pause();
+            setSt((p) => ({ ...p, playing: false }));
+        });
         const many = st.queue.length > 1;
         set("nexttrack", many ? () => actionsRef.current.next() : null);
         set("previoustrack", many ? () => actionsRef.current.prev() : null);
