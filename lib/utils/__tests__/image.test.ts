@@ -400,6 +400,25 @@ describe("stripJpegExifDetailed: 後ろにぶら下がった画像", () => {
         expect(r.stripped, "後ろの GPS が残ったまま「消せた」と言っている").toBe(false);
     });
 
+    it("EOI の無い主画像の直後に大きな（65KB 超の）後ろの画像があっても、その位置情報を写さない", async () => {
+        // 後ろの画像の SOI（FF D8）を長さ付きの区切りとして読むと、続く FF E1 が
+        // 長さ 65505 に見え、後ろの画像の APP1 を丸ごと写していた（レビューの実測で約3%）
+        const big: number[] = [];
+        for (let k = 0; k < 80_000; k++) big.push((k * 37) % 250);
+        const tail = [0xFF, 0xD8, ...segment(0xE1, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...SECRET]),
+            ...segment(0xDB, [0x00]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, ...big, 0xFF, 0xD9];
+        for (const landing of [0xD9, 0xDA]) {
+            const primary = [0xFF, 0xD8, ...segment(0xDB, [0x00]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x11, 0x22];
+            const withLanding = [...tail];
+            // 長さ 0xFFE1 の着地点に、D9 / DA を置く（complete と読まれうる形）
+            const at = primary.length + 2 + 0xFFE1 + 1;
+            if (at < primary.length + withLanding.length) withLanding[at - primary.length] = landing;
+            const r = await stripJpegExifDetailed(asFile([...primary, ...withLanding]));
+            const leaked = r.stripped && has(await bytesOf(r.file), SECRET);
+            expect(leaked, `着地点 ${landing.toString(16)}: 「消せた」と言いながら後ろの位置情報が残った`).toBe(false);
+        }
+    });
+
     it("走査のあいだに置かれた APP1 も落とす", async () => {
         const primary = [
             0xFF, 0xD8,

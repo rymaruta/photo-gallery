@@ -83,12 +83,18 @@ function copyPrimaryImage(buf: Uint8Array, sosAt: number): { parts: Uint8Array[]
     const parts: Uint8Array[] = [];
     let i = sosAt;
     while (i + 1 < buf.length) {
-        // i は 0xFF（区切りの先頭）を指している。fill byte を飛ばす
+        // i は 0xFF（区切りの先頭）を指しているはず。違えば構造が壊れている
+        if (buf[i] !== 0xFF) break;
+        // fill byte を飛ばす
         let m = i + 1;
         while (m < buf.length && buf[m] === 0xFF) m++;
         if (m >= buf.length) break;
         const marker = buf[m];
         if (marker === 0xD9) { parts.push(buf.slice(i, m + 1)); return { parts, complete: true }; } // EOI
+        // **長さを持たないマーカー（SOI・TEM・RSTn）がここに来るのは壊れている**
+        // ——EOI の無い主画像の直後に、後ろの画像の SOI（FF D8）が来た形。
+        // 長さとして読むと、後ろの画像の APP1（位置情報）を丸ごと写してしまう
+        if (marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) break;
         if (m + 2 >= buf.length) break;
         const len = (buf[m + 1] << 8) | buf[m + 2];
         if (len < 2) break;
@@ -119,6 +125,7 @@ function hasMetadataSignature(buf: Uint8Array, from: number): boolean {
     const sigs = [
         [0x45, 0x78, 0x69, 0x66, 0x00, 0x00],                         // "Exif\0\0"
         [0x68, 0x74, 0x74, 0x70, 0x3A, 0x2F, 0x2F, 0x6E, 0x73, 0x2E], // "http://ns." (XMP)
+        [0x50, 0x68, 0x6F, 0x74, 0x6F, 0x73, 0x68, 0x6F, 0x70, 0x20, 0x33, 0x2E, 0x30], // "Photoshop 3.0" (IPTC)
     ];
     for (let k = from; k < buf.length; k++) {
         for (const sig of sigs) {
@@ -171,10 +178,18 @@ export async function stripJpegExifDetailed(
                 // 丸ごと残していたので、そちらのメタデータが公開されていた（#46）。
                 const primary = copyPrimaryImage(buf, i);
                 // **EOI まで読めなかった（壊れている・途中で切れている）ときは、
-                // 残りに EXIF / XMP の目印があれば「消せた」と言わない。** 後ろに
-                // ぶら下がった画像の位置情報が、主画像と区別できないまま残るため
+                // 残りに EXIF / XMP / IPTC の目印があれば「消せた」と言わない。**
+                // 後ろにぶら下がった画像の位置情報が、主画像と区別できないまま残るため
                 if (!primary.complete && hasMetadataSignature(buf, i)) return { file, stripped: false };
-                parts.push(...primary.parts);
+                // **読み切れたと思っても、出すものに目印が残っていないか確かめる。**
+                // 構造の読み違い（壊れたファイル）で後ろの画像を写していても、
+                // ここで止まる。圧縮データに偶然 6バイト以上の目印が並ぶ確率は
+                // 5MB あたりおよそ 2e-8 で、普通の写真を断ることは事実上無い
+                const out = new Uint8Array(primary.parts.reduce((n, p) => n + p.length, 0));
+                let at = 0;
+                for (const p of primary.parts) { out.set(p, at); at += p.length; }
+                if (hasMetadataSignature(out, 0)) return { file, stripped: false };
+                parts.push(out);
                 i = buf.length;
                 break;
             }
