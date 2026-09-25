@@ -48,8 +48,36 @@ describe("#33 検索欄", () => {
         }
     });
 
-    it("ブラウザの消去ボタンを消す（自前の ✕ と2つ並ぶ）", () => {
-        expect(read("app/globals.css")).toMatch(/input\[type="search"\]::-webkit-search-cancel-button\s*\{[^}]*appearance:\s*none/);
+    it("ブラウザの消去ボタンは、自前の ✕ を持つ欄でだけ消す", () => {
+        const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(css).toMatch(/\.search-own-clear::-webkit-search-cancel-button\s*\{[^}]*appearance:\s*none/);
+        // 全部の検索欄に効かせると、自前の ✕ を持たない欄（管理画面）で
+        // 消す手段が無くなる（0cc8421 のレビューで見つかった）
+        expect(css).not.toMatch(/input\[type="search"\]::-webkit-search-cancel-button/);
+    });
+
+    it("type=\"search\" の欄は全部、自前の ✕ を持つなら印を付け、持たないなら付けない", () => {
+        const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+            if (d.name === "node_modules" || d.name === "__tests__" || d.name.startsWith(".")) return [];
+            const p = path.join(dir, d.name);
+            return d.isDirectory() ? walk(p) : p.endsWith(".tsx") ? [p] : [];
+        });
+        const found: string[] = [];
+        for (const f of walk(path.join(root, "app"))) {
+            const src = code(path.relative(root, f));
+            let i = src.indexOf('type="search"');
+            while (i >= 0) {
+                const tag = src.slice(src.lastIndexOf("<input", i), src.indexOf("/>", i));
+                const rel = path.relative(root, f);
+                found.push(rel);
+                // 自前の ✕ = 欄の後ろ（同じ入れ物の中）に「消す／クリア」のボタンがある
+                const after = src.slice(i, i + 3000);
+                const hasOwnClear = /aria-label=\{[^}]*(Clear|クリア|消す)/.test(after);
+                expect(tag.includes("search-own-clear"), `${rel}: 自前の ✕ ${hasOwnClear ? "あり" : "なし"}`).toBe(hasOwnClear);
+                i = src.indexOf('type="search"', i + 1);
+            }
+        }
+        expect(found.length).toBeGreaterThanOrEqual(4);
     });
 });
 
@@ -102,5 +130,16 @@ describe("#27 パスワードの変更", () => {
         expect(form).toMatch(/onSubmit=/);
         expect(form).toMatch(/autoComplete="username"/);
         expect(form).toMatch(/type="submit"/);
+    });
+});
+
+describe("#2 の副作用: 16px に上げた欄が横に押し出さない", () => {
+    it("共同アルバムの名前の欄は min-w-0 で縮める（320px 幅で「作る」が右へはみ出した）", () => {
+        const src = code("app/user/albums/page.tsx");
+        for (const id of ['id="album-title"', "id={`rename-${a.id}`}"]) {
+            const i = src.indexOf(id);
+            const tag = src.slice(src.lastIndexOf("<input", i), src.indexOf("/>", i));
+            expect(tag, id).toMatch(/flex-1 min-w-0/);
+        }
     });
 });

@@ -92,7 +92,7 @@ export default function UserSearchPage() {
                     enterKeyHint="search"
                     placeholder={isJa ? "名前・@ユーザー名" : "Name or @username"}
                     aria-label={isJa ? "ユーザーを検索" : "Search people"}
-                    className="w-full rounded-full bg-white/[0.07] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 outline-none transition"
+                    className="search-own-clear w-full rounded-full bg-white/[0.07] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 outline-none transition"
                     style={{ padding: "12px 40px 12px 40px", fontSize: "16px" }}
                 />
                 {input && (

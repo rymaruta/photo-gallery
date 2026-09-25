@@ -264,7 +264,7 @@ export default function AlbumsPage() {
                         onChange={(e) => setTitle(e.target.value)}
                         maxLength={60}
                         placeholder="例: 北欧の冬"
-                        className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                        className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
                     />
                     {/* 🔴 **`aria-disabled` だけにしない。** 以前はこれで、
                         名前が空でも**見た目はそのまま押せて、押しても何も
@@ -320,7 +320,7 @@ export default function AlbumsPage() {
                                             value={editing.title}
                                             onChange={(e) => setEditing({ id: a.id, title: e.target.value })}
                                             maxLength={60}
-                                            className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                                            className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
                                         />
                                         {/* **空の名前でも押せて無反応**だった
                                             （`rename` は `!name` で黙って return するのに、

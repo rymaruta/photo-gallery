@@ -378,7 +378,7 @@ function FilterBarInner({
                             }}
                             enterKeyHint="search"
                             placeholder={labels.search.placeholder}
-                            className="w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
+                            className="search-own-clear w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
                             style={{ padding: "8px 38px 8px 38px", fontSize: 13, minHeight: 36 }}
                         />
                         {/* クリアボタン（入力時のみ表示） */}
