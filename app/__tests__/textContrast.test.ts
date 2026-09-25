@@ -131,8 +131,13 @@ function unreadableTokens(cls: string, monochromeOnly = false): string[] {
         // **意図して付けた色**。目印を書いた行でだけ「逃がしていないか」を見る
         if (hue !== "white" && hue !== "black") { if (!monochromeOnly) bad.push(m[0].trim()); continue; }
         if (amount === undefined) continue;                                            // 素の white/black は 21:1
-        const n = Number(amount);
-        if (!Number.isFinite(n)) { bad.push(m[0].trim()); continue; }                   // /[0.3] のような任意値
+        // **任意値も計算する**（`text-white/[0.82]`）。以前は綴りが数字でない
+        // というだけで一律に弾いていたので、**濃くて安全な値まで落ちて**いた。
+        // 弾く側は何も緩んでいない——`/[0.3]` は 30 と読んで下の線で落ちる。
+        // 色の任意値（`text-[#444444]`）を計算する方針と、ここで揃う。
+        const bracket = /^\[([0-9]*\.?[0-9]+)\]$/.exec(amount)?.[1];
+        const n = bracket !== undefined ? Number(bracket) * (Number(bracket) <= 1 ? 100 : 1) : Number(amount);
+        if (!Number.isFinite(n)) { bad.push(m[0].trim()); continue; }                   // 読めない任意値
         const min = hue === "white" ? 46 : 55;
         if (n < min) bad.push(m[0].trim());
     }
@@ -262,6 +267,9 @@ describe("読めない濃さの文字に戻っていないか", () => {
         expect(unreadableTokens('text-[#ff453a]', true), "取り消しの赤（6.16:1）を弾いている").toEqual([]);
         expect(unreadableTokens('text-[#888]', true), "#888（5.92:1）を弾いている").toEqual([]);
         expect(unreadableTokens('text-gray-400', true), "gray-400（8.27:1）を弾いている").toEqual([]);
+        // 不透明度の任意値も同じ（`/[0.3]` は上の「弾く」側に居るまま）
+        expect(unreadableTokens('text-white/[0.82]', true), "白82%（約13:1）を弾いている").toEqual([]);
+        expect(unreadableTokens('text-white/[82]', true), "白82%（%表記）を弾いている").toEqual([]);
         // hover / placeholder は土台と別。ここでは見ない
         expect(unreadableTokens('text-white/50 hover:text-white/40')).toEqual([]);
         expect(unreadableTokens('text-white placeholder:text-white/35')).toEqual([]);
