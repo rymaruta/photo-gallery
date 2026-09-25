@@ -965,8 +965,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     同じ端末の字体だけ（ダウンロードは0バイト）。板は先頭に
                     Shippori Mincho B1 を置いているが、あれは Google Fonts から
                     落とす字体なので採らない（1書体ぶん重くなる）。 */}
-                <h1 className="font-bold break-words m-0"
-                    style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
+                <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
 
                 {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
                 {photo.userId && photo.displayName && (
