@@ -32,7 +32,7 @@ function photosForSpot(photos: Awaited<ReturnType<typeof loadAllPhotos>>, spotId
 export default async function SpotGuidePage({ slug }: { slug: string }) {
     const spot = visibleSpots(SPOTS).find((s) => s.slug === slug);
     // **建てる条件を満たさないものはページを作らない**（`draft`・情報不足）。
-    // `review`（運営未確認の下書き）は建てる——帯と noindex はクライアント側と
+    // `review`（運営未確認の下書き）は `BUILD_DRAFT_SPOTS` が true のときだけ建つ——帯と noindex はクライアント側と
     // `generateMetadata` が付ける
     if (!spot) notFound();
 

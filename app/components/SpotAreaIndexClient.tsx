@@ -18,7 +18,7 @@ import { ROUTES } from "@/lib/routes";
  */
 type Props = {
     areas: SpotArea[];
-    /** ページを建てているスポットの数（下書きを含む） */
+    /** ページを建てているスポットの数（下書きを建てる設定なら下書きを含む） */
     total: number;
     /** うち運営未確認の下書き。`total` と同じなら全部が下書き */
     draftCount: number;

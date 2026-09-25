@@ -8,7 +8,7 @@ import { spotIndexFeedJson } from "@/lib/data/spotFeed";
  * 写真の `app/data/photos.json` の隣に置く——iOS の `AppConfig.publicSpotsURL`
  * が前からこの場所を指していた（Web 側が配っていなかっただけ）。
  *
- * 中身は `lib/data/spotFeed.ts` が決める（下書きを含む・`stage` で区別）。
+ * 中身は `lib/data/spotFeed.ts` が決める（いまは公開済みだけ。下書きを建てる設定なら `stage` で区別して載る）。
  * `scripts/deploy-static-site.js` は `.json` を `public, max-age=3600` で配る
  * （`NO_CACHE_KEYS` には入れない。台帳は人が PR で書く＝日に何度も変わらない）。
  */

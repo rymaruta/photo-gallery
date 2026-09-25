@@ -207,13 +207,21 @@ export function publishableSpots(spots: readonly Spot[]): Spot[] {
  *
  * **環境では分けない**（上の「門は2段」の理由と同じ）。staging も本番も同じ値で、
  * 下書きを見たくなったらここを `true` にする。下書きの描き方（帯・`noindex`・
- * 「未確認のリンク」）はそのまま残してあり、テストは `includeDrafts: true` で通す。
+ * 「未確認のリンク」・県ページの「下書き」の題）はそのまま残してある。
+ *
+ * ⚠️ **false の間、`next build` と実ブラウザのスモークは下書きの経路を一度も
+ * 通らない**（単体テストが `includeDrafts: true` で門を見るだけ）。`true` に
+ * 戻すときは `npm run verify` を通し直し、下書きのページを目で1枚見ること。
+ * ⚠️ 下書きを配った環境へ false の版を出すと、HTML の大半が消える側に回り
+ * `scripts/deploy-static-site.js` の大量削除の見張りで止まる。その1回だけ
+ * `ALLOW_BULK_DELETE=1` で流す（2026-09-25 時点で下書きを配った環境は無い）。
  */
 export const BUILD_DRAFT_SPOTS = false;
 
 /**
- * **ページを建ててよいスポット。** 画面・地図・アプリ向けの JSON・サイトマップは
- * すべてこれを母集合にする（ここ1か所で出す／出さないが決まる）。
+ * **ページを建ててよいスポット。** 画面・地図・アプリ向けの JSON・県ページは
+ * すべてこれを母集合にする（ここ1か所で出す／出さないが決まる）。サイトマップの
+ * 個別ページは、より狭い `publishableSpots` を読む。
  *
  * 公開済み（`publishBlockers` が空）は常に。下書き（`review`・`reviewBlockers` が空）は
  * `includeDrafts` のときだけ（既定は `BUILD_DRAFT_SPOTS`）。

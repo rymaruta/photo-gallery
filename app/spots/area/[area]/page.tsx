@@ -45,11 +45,16 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
     // 建てるが `noindex`。題も「N選」と名乗らない（運営が調べたと読める）
     const indexable = found.publishedCount >= MIN_INDEXABLE_AREA;
     const drafts = found.count - found.publishedCount;
+    // **「検索に出すか」と「下書きと名乗るか」は別の条件。** 確かめた1件だけの県は
+    // noindex だが下書きではない——同じ条件で分けると「（下書き・1件）」と嘘を名乗る
+    // （下書きを建てなくなった 2026-09-25 に、公開済み4県が全部これになった）
     // 「N選」「運営が調べた」に数えるのは**人が確かめた件数だけ**。下書きは別に数える
     const title = indexable
         ? `${found.name}の撮影スポット${found.publishedCount}選`
-        : `${found.name}の撮影スポット（下書き・${found.count}件）`;
-    const description = indexable
+        : drafts === 0
+            ? `${found.name}の撮影スポット（${found.publishedCount}件）`
+            : `${found.name}の撮影スポット（下書き・${found.count}件）`;
+    const description = indexable || drafts === 0
         ? `${found.name}で写真を撮りに行ける場所のガイド（${found.publishedCount}件${drafts > 0 ? `・ほかに下書き${drafts}件` : ""}）。`
             + "見どころ・季節・時間帯・アクセスまで、運営が調べてまとめています。"
         : `${found.name}で写真を撮りに行ける場所のガイドの下書き（${found.count}件）。`

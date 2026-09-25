@@ -128,7 +128,8 @@
 
 ## 撮影スポットの台帳は「運営未確認の下書き」（2026-09-25）
 
-- `content/spots.json` の 1,417件は AI が1日で書き、**誰も確かめていない**。
+- `content/spots.json` の 1,417件は AI が1日で書いた。**owner が確かめて公開したのは
+  4件（2026-09-25）**、残り 1,413件は誰も確かめていない下書き。
   `status: "review"`・`draftedAt` を持ち、`verified` は型から消した。
   「確認済み」は **`verifiedBy`（人名）＋ `verifiedAt`** でしか主張できない
 - **`verified: true` や `verifiedAt` を機械で書き戻さない。** 見張りは
@@ -136,10 +137,12 @@
   を掛けて差分0・旧い `verified` の鍵を持つ行が無い）。詳細は
   `docs/spot-guide-2026-09-23.md` §11c
 - **下書きはページを建てない**（2026-09-25・owner の「本番に出せるものだけ出したい」）。
-  画面・地図・アプリ向け JSON・サイトマップは全部 `visibleSpots` を通り、
+  画面・地図・アプリ向け JSON・県ページは全部 `visibleSpots` を通り（サイトマップの
+  個別ページはより狭い `publishableSpots`）、
   既定は `BUILD_DRAFT_SPOTS = false`（`lib/utils/spotGuide.ts`）で公開済みだけ。
   **環境では分けない**（staging も同じ）。下書きの描き方（帯・`noindex`・
-  「未確認のリンク」）は残してあり、`true` にすれば戻る
+  「未確認のリンク」）は残してあり、`true` にすれば戻る。**戻すときは verify を
+  通し直す**（false の間はビルドもスモークも下書きの経路を通らない）
 - 出るのは owner が確かめて `published` に上げた行だけ（2026-09-25 時点で4件）
 
 ## タグの入力（2026-09-13・owner の「決まったのを選ぶ方が楽？」への答え）

@@ -235,7 +235,7 @@ export type SpotArea = {
     nameEn: string;
     /** 地方。`null` は海外 */
     region: RegionName | null;
-    /** ページを建てられる件数（下書きを含む） */
+    /** ページを建てている件数（下書きを建てる設定なら下書きを含む） */
     count: number;
     /**
      * 人が確かめた件数。**検索に載せるか（サイトマップ・robots）はこちらで見る**
