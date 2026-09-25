@@ -8,14 +8,20 @@
 // `verifiedAt: "2026-09-24"` を書いていた。画面はそれを「情報の最終確認:
 // 2026-09-24」と描く。**人は1件も確かめていない。**
 //
-// このスクリプトは `verifiedBy`（確かめた人の名前）を持たない行を
-// **下書き（`status: "review"`）** に落とす:
+// このスクリプトは **2026-09-24 に AI が書いた行**（＝旧い `verified` の鍵を
+// 持つ行。人が書く行は型から消えたこの鍵を持たない）のうち、`verifiedBy`
+// （確かめた人の名前）を持たない行を**下書き（`status: "review"`）** に落とす:
 //
 //   - `verified` を消す（型からも消えた。`lib/data/spots.ts`）
 //   - `verifiedAt` を消す（人の確認日の欄。機械の日付は嘘になる）
 //   - `draftedAt`（createdAt の日付部）と `draftedBy: "claude"` を足す
 //   - 本文の `**強調**` を剥がす（画面は Markdown を描かない。810件で
 //     アスタリスクがそのまま出ていた）
+//
+// **人が書いた行は触らない。** `verified` を持たない行は、`verifiedAt` が
+// あっても消さず、`draftedBy` も付けない（名前の書き忘れは台帳のテストが
+// 「verifiedAt があるなら verifiedBy もある」で赤にして知らせる。スクリプトが
+// 黙って直すと、人の入力が消える）。強調の剥がしだけは全行に掛ける。
 //
 // **冪等。** 2回掛けても同じ結果になるので、`--check` をテストから呼んで
 // 「verifiedAt や `**` の書き戻し」を二度と入れないようにできる
@@ -80,15 +86,32 @@ export function hasHumanVerification(spot) {
 }
 
 /**
- * 1件を下書きの段階に落とす。**確認者を持つ行は段階を変えない**
- * （強調だけ剥がす）。`draft` は `draft` のまま（ページを作らない下書き）。
+ * 2026-09-24 に AI が書いた行か。**旧い `verified` の鍵を持つこと**が印
+ * （型から消えたので、人がこれから書く行には現れない）。
+ */
+export function isLegacyAiRow(spot) {
+    return Object.prototype.hasOwnProperty.call(spot, "verified");
+}
+
+/**
+ * 1件を下書きの段階に落とす。
+ *
+ *   - AI が書いた行でなければ**強調だけ剥がす**（人の入力を消さない）
+ *   - AI が書いた行でも確認者を持つなら、旧い `verified` を消すだけ
+ *   - それ以外（AI が書き、誰も確かめていない）を review に落とす。
+ *     `draft` は `draft` のまま（ページを作らない下書き）
  *
  * 鍵の並びは元の並びを保ち、消した `verified` / `verifiedAt` の位置に
  * `draftedAt` / `draftedBy` を置く（差分を読めるようにするため）。
  */
 export function reviewStageOne(spot) {
     const stripped = stripEmphasisFrom(spot);
-    if (hasHumanVerification(spot)) return stripped;
+    if (!isLegacyAiRow(spot)) return stripped;
+    if (hasHumanVerification(spot)) {
+        const { verified: _legacy, ...rest } = stripped;
+        void _legacy;
+        return rest;
+    }
 
     const out = {};
     let placed = false;
@@ -215,7 +238,9 @@ function main(argv) {
     const next = reviewStage(spots);
     const changed = spots.filter((s, i) => JSON.stringify(s) !== JSON.stringify(next[i])).length;
     if (args.includes("--check")) {
-        if (changed === 0 && formatLedger(spots) === raw) {
+        // 改行コードの違い（CRLF）だけで赤にしない
+        const normalized = raw.replace(/\r\n/g, "\n");
+        if (changed === 0 && formatLedger(spots) === normalized) {
             console.log("[spots] 台帳は下書きの段階に揃っています");
             return 0;
         }

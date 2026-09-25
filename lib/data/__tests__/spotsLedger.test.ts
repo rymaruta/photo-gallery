@@ -45,13 +45,16 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 無い行は published になれない**。
      */
     it("段階ごとの条件を満たしている（満たさない行は理由つきで落とす）", () => {
-        const bad = SPOTS
+        // `draft`（ページを作らない下書き）は門を通さなくてよい
+        const staged = SPOTS.filter((s) => s.status !== "draft");
+        const bad = staged
             .map((s) => [s.slug || "(綴り無し)", s.status === "published" ? publishBlockers(s) : reviewBlockers(s)] as const)
             .filter(([, b]) => b.length > 0)
             .map(([slug, b]) => `${slug}: ${b.join(" / ")}`);
         expect(bad, "ページを建てられない行がある").toEqual([]);
         // 上が空でも `visibleSpots` が空なら意味が無い（台帳が空の場合）
-        expect(visibleSpots(SPOTS).length).toBe(SPOTS.length);
+        expect(visibleSpots(SPOTS).length).toBe(staged.length);
+        expect(staged.length).toBeGreaterThanOrEqual(MIN_SPOTS);
     });
 
     it("published の行は確認者（verifiedBy）と確認日を対で持つ", () => {
@@ -68,7 +71,9 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 「確認した」は人が名乗るもの。機械の名前で埋めれば門はまた自己申告に戻る。
      */
     it("verifiedBy / checkedBy が AI の名前ではない", () => {
-        const AI_NAME_RE = /^(ai|claude|assistant|bot|gpt|chatgpt|copilot|llm)\b/i;
+        // **値そのものが AI の名前**のときだけ弾く（先頭一致にすると "Ai Sato" や
+        // "Bot Lee" のような実在の名前まで拒む）
+        const AI_NAME_RE = /^(ai|claude|chatgpt|gpt(-?[\d.]+)?|copilot|assistant|llm|gemini|anthropic|openai|bot)$/i;
         const bad: string[] = [];
         for (const s of SPOTS) {
             if (s.verifiedBy && AI_NAME_RE.test(s.verifiedBy.trim())) bad.push(`${s.slug}.verifiedBy=${s.verifiedBy}`);

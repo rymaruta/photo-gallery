@@ -85,6 +85,8 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                     label: sp?.name || decodeSlug(parsed.slug) || key,
                     href: sp ? `${ROUTES.SPOTS}/${parsed.slug}` : null,
                     note: sp ? sp.region : "",
+                    // 「公式」と名乗るのは人が確かめた行だけ。下書きは「下書き」
+                    stage: sp?.stage ?? null,
                 };
             }
             const entry = bySlug.get(parsed.slug);
@@ -95,6 +97,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                 href: collectionPath("location", parsed.slug),
                 // 一覧がまだ届いていない間は「0枚」と言い切らない
                 note: entry ? `${entry.count}${en ? "" : "枚"}` : (loaded ? "" : "…"),
+                stage: null,
             };
         });
     }, [photos, slugs, en, loaded, spots]);
@@ -160,7 +163,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                 />
             ) : (
                 <ul className="flex flex-col gap-2">
-                    {entries.map(({ key, kind, label, href, note }) => (
+                    {entries.map(({ key, kind, label, href, note, stage }) => (
                         <li
                             key={key}
                             className="flex items-center gap-3 rounded-xl bg-white/5 ring-1 ring-white/10 px-4 py-3"
@@ -171,7 +174,9 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                                 非公開になった／まだ届いていない（`loaded` が
                                 false）／台帳からそのスポットが下りたとき */}
                             <Row href={href} label={label} note={note}
-                                 badge={kind === "spot" ? (en ? "Official" : "公式") : null} />
+                                 badge={kind !== "spot" ? null
+                                     : stage === "published" ? (en ? "Official" : "公式")
+                                         : (en ? "Draft" : "下書き")} />
                             <button
                                 type="button"
                                 onClick={() => void toggle(key)}

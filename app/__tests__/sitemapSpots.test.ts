@@ -68,6 +68,10 @@ describe("サイトマップ: 撮影スポットは人が確かめた行だけ",
     it("全件が下書きなら、/spots も県の一覧も個別ページも1本も載らない", async () => {
         ledger.spots = [spot("a", "香川県"), spot("b", "香川県"), spot("c", "北海道")];
         const urls = [...new Set((await sitemap()).map((e) => e.url))];
-        expect(urls.filter((u) => u.includes("/spots"))).toEqual([]);
+        const isSpots = (u: string) => {
+            const path = new URL(u).pathname;
+            return path === "/spots" || path.startsWith("/spots/");
+        };
+        expect(urls.filter(isSpots)).toEqual([]);
     });
 });

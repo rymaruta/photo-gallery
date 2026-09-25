@@ -183,6 +183,16 @@ describe("行きたい場所の一覧", () => {
             expect(within(link).getByText("公式")).toBeTruthy();
         });
 
+        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは「下書き」
+        it("下書きのスポットは「公式」ではなく「下書き」の札", async () => {
+            ledger.spots = [{ ...SPOT("takaya-jinja", "高屋神社"), status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24" }];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const link = await screen.findByRole("link", { name: /高屋神社/ });
+            expect(within(link).getByText("下書き")).toBeTruthy();
+            expect(within(link).queryByText("公式")).toBeNull();
+        });
+
         /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を
         /// 勝手に同一スポットとして統合しないでください」
         it("同じ綴りの撮影地と公式スポットは、2行として残る", async () => {

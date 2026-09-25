@@ -48,14 +48,28 @@ describe("確認者の無い行は下書き（review）に落とす", () => {
         expect(keys.indexOf("draftedBy")).toBeLessThan(keys.indexOf("summary"));
     });
 
-    it("確認者（verifiedBy）を持つ行は段階を変えない", () => {
-        const verified = { ...base, verifiedBy: "運営", verified: undefined };
-        delete (verified as Record<string, unknown>).verified;
-        const [s] = reviewStage([verified]);
+    it("AI が書いた行でも確認者（verifiedBy）を持つなら、旧い verified を消すだけ", () => {
+        const [s] = reviewStage([{ ...base, verifiedBy: "運営" }]);
         expect(s.status).toBe("published");
         expect(s.verifiedAt).toBe("2026-09-24");
         expect(s.verifiedBy).toBe("運営");
+        expect("verified" in s).toBe(false);
         expect("draftedAt" in s).toBe(false);
+    });
+
+    /// 🔴 **人が書いた行（旧い verified を持たない）は触らない。** 名前の
+    /// 書き忘れをスクリプトが黙って「下書き」に直すと、人の日付が消える
+    /// ——それは台帳のテストが赤にして知らせる仕事
+    it("人が書いた行は、確認者が無くても verifiedAt を消さず draftedBy も付けない", () => {
+        const human = { ...base } as Record<string, unknown>;
+        delete human.verified;
+        const [s] = reviewStage([human]);
+        expect(s.status).toBe("published");
+        expect(s.verifiedAt).toBe("2026-09-24");
+        expect("draftedBy" in s).toBe(false);
+        expect("draftedAt" in s).toBe(false);
+        // 強調だけは剥がす
+        expect(s.description).not.toContain("**");
     });
 
     it("draft は draft のまま（ページを作らない下書き）", () => {

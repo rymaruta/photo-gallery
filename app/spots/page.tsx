@@ -22,9 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
     const verified = publishableSpots(SPOTS).length;
     const areas = spotAreas().length;
     const title = "撮影スポットをさがす";
+    // 件数に「運営が調べた」と読める形で数えるのは、人が確かめた行だけ
     const description = n > 0
         ? (verified >= MIN_INDEXABLE_SPOTS
-            ? `写真を撮りに行ける場所のガイド（${areas}地域・${n}件）。見どころ・季節・時間帯・アクセスまで。`
+            ? `写真を撮りに行ける場所のガイド（${areas}地域・${verified}件${n > verified ? `・ほかに下書き${n - verified}件` : ""}）。見どころ・季節・時間帯・アクセスまで。`
             : `写真を撮りに行ける場所のガイドの下書き（${areas}地域・${n}件）。運営がまだ確認していない情報を含みます。`)
         : "写真を撮りに行ける場所のガイド。";
     return {
