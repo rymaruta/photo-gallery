@@ -467,7 +467,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     /** 進捗バーを 0 に戻す（DOM 直書きなので state のリセットは無い） */
     const resetProgressBar = useCallback(() => {
         const bar = progressBarRef.current;
-        if (bar) bar.style.transform = "scaleX(0)";
+        if (bar) bar.style.transform = "translateX(-100%)";
     }, []);
 
     // 動画の進捗を毎フレーム書く。
@@ -484,7 +484,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             const bar = progressBarRef.current;
             if (v && bar && Number.isFinite(v.duration) && v.duration > 0) {
                 const ratio = Math.min(1, Math.max(0, v.currentTime / v.duration));
-                bar.style.transform = `scaleX(${ratio})`;
+                // `translateX`。`scaleX` だと先端の角丸が潰れる（globals.css）
+                bar.style.transform = `translateX(${(ratio - 1) * 100}%)`;
             }
             raf = requestAnimationFrame(tick);
         };
@@ -1228,25 +1229,34 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {/* z-20: 下のタップ領域(z-10)より前面。ノッチ端末では safe-area の分だけ
                 ヘッダーが下がり、曲チップがタップ領域に潜って押せなくなるため。 */}
             <div className="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-black/70 to-transparent pt-2 pb-8 px-2 pointer-events-none">
-                <div className="flex gap-1 mb-3" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+                {/* 寸法はアーティファクトの板（StoryViewer.dc.html）に合わせる:
+                    高さ3px・角丸2px・間隔4px・左右10px。**px で書く**——640px 未満は
+                    root が 14px なので `gap-1` は 3.5px、`px-2` は 7px に縮む（実測）。
+                    外側が 7px なので、ここで +3px して 10px にする。
+                    `role="group"` を付けるのは、**素の div の `aria-label` は読み上げに
+                    渡らない**ため（板は div のままだが、それでは名前が届かない）。 */}
+                <div className="flex gap-[4px] mb-3 px-[3px]" role="group"
+                     aria-label={locale === "en" ? `${i + 1} of ${group.items.length}`
+                                                 : `${group.items.length}本中${i + 1}本目`}
+                     style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
                     {group.items.map((s, idx) => {
                         const done = idx < i;
                         const active = idx === i;
                         return (
-                            <div key={s.id} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
+                            <div key={s.id} className="flex-1 h-[3px] rounded-[2px] bg-white/30 overflow-hidden">
                                 {active ? (
                                     isVideo ? (
                                         // 動画: rAF が毎フレーム scaleX を書く（補間は要らない）
                                         <div
                                             ref={progressBarRef}
-                                            className="h-full w-full bg-white rounded-full origin-left"
-                                            style={{ transform: "scaleX(0)" }}
+                                            className="h-full w-full bg-white rounded-[2px] story-progress-video"
+                                            style={{ transform: "translateX(-100%)" }}
                                         />
                                     ) : (
                                         // 画像: CSS アニメーションが 0→100% を滑らかに駆動
                                         <div
                                             key={`${item.id}-${replay}`}
-                                            className="h-full w-full bg-white rounded-full story-progress-fill"
+                                            className="h-full w-full bg-white rounded-[2px] story-progress-fill"
                                             style={{
                                                 animationDuration: `${storyDurationMs(item.durationSec)}ms`,
                                                 animationPlayState: frozen ? "paused" : "running",
@@ -1256,8 +1266,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     )
                                 ) : (
                                     <div
-                                        className="h-full w-full bg-white rounded-full origin-left"
-                                        style={{ transform: done ? "scaleX(1)" : "scaleX(0)" }}
+                                        className="h-full w-full bg-white rounded-[2px]"
+                                        style={{ transform: done ? "translateX(0)" : "translateX(-100%)" }}
                                     />
                                 )}
                             </div>

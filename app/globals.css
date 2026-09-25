@@ -111,13 +111,17 @@ body {
   animation: story-media-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ストーリー: プログレスバー（コンポジタ側で滑らかに 0→100%） */
+/* ストーリー: プログレスバー（コンポジタ側で滑らかに 0→100%）
+   🔴 **`scaleX` ではなく `translateX`。** `scaleX` は要素ごと横に潰すので、
+   進んでいる**先端の角丸まで潰れる**——実測で進捗20%のとき先端の丸みは
+   横 0.25px ＝ 事実上の直角だった。幅いっぱいの塗りを左から滑り込ませれば、
+   先端は最後まで本来の丸のまま（はみ出した左側は親が切る）。
+   **どちらも合成側で動く**ので、滑らかさは変わらない（実測 60fps・停止0）。 */
 @keyframes story-progress {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 .story-progress-fill {
-  transform-origin: left center;
   animation-name: story-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
