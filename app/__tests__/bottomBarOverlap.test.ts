@@ -128,7 +128,14 @@ describe("画面下に固定した帯は、タブバーの上へ逃がす", () =
          * 高さを出させると、開いている間だけフッターが大きく下がる。
          * **座標を持つ写真が本番に出たら、ここは測り直すこと。**
          */
-        const SHEETS = new Set(["app/map/MapPhotoSheet.tsx"]);
+        const SHEETS = new Set([
+            "app/map/MapPhotoSheet.tsx",
+            // 公式撮影地ガイドのピンを押したときのシート。**同じ性質**
+            // （地図の上に浮くカード・ページ幅の帯ではない）。台帳が
+            // まだ空なので本番では一度も開かない——スポットを載せたら
+            // ここも測り直すこと
+            "app/map/MapSpotSheet.tsx",
+        ]);
         const silent = files
             .filter((f) => !SHEETS.has(f))
             .filter((f) => !nodeFs.readFileSync(nodePath.join(ROOT, f), "utf8").includes("usePageBarHeight"));

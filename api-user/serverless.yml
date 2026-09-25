@@ -470,6 +470,19 @@ functions:
   # 静的な一覧（photos.json）には出さないので、ここでだけ返す
   getRestrictedFeed:
     handler: src/restrictedFeed.getRestrictedFeed
+    environment:
+      # 絞った写真の画像 URL に期限を付ける鍵（案A・
+      # `docs/restricted-image-delivery.md`）。
+      #
+      # **この関数にだけ配る**（`provider` には置かない。IAM-2 と同じ方針
+      # ——再ビルドのトークンが `rebuild` を呼ぶ関数にしか渡っていないのと同じ）。
+      # 署名を作るのはここだけなので、他の関数が秘密鍵を持つ理由が無い。
+      #
+      # **未設定でも何も壊れない**——空なら `isConfigured()` が false で
+      # 署名しないだけ（`src/signedUrl.ts`）。owner が鍵を作った時点で
+      # **コードの変更なしに**効く。
+      CLOUDFRONT_KEY_PAIR_ID: ${param:cloudfrontKeyPairId, ''}
+      CLOUDFRONT_PRIVATE_KEY: ${param:cloudfrontPrivateKey, ''}
     events:
       - httpApi:
           path: /feed/restricted
@@ -609,6 +622,46 @@ functions:
     events:
       - httpApi:
           path: /user/spots/{slug}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 旅行プラン（行きたい場所を「いつ・どの順で回るか」に並べる）。
+  # **すべて本人のみ。** 行 ID は JWT の sub からしか作らないので、
+  # 「誰のプランか」を受け取る口はパスにもクエリにも本文にも無い
+  getMyTrips:
+    handler: src/tripPlans.getMyTrips
+    events:
+      - httpApi:
+          path: /user/trips
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  createTrip:
+    handler: src/tripPlans.createTrip
+    events:
+      - httpApi:
+          path: /user/trips
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  updateTrip:
+    handler: src/tripPlans.updateTrip
+    events:
+      - httpApi:
+          path: /user/trips/{planId}
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  # **planId はパスで受ける**（本文のある DELETE は経路で落とされることがある）
+  deleteTrip:
+    handler: src/tripPlans.deleteTrip
+    events:
+      - httpApi:
+          path: /user/trips/{planId}
           method: DELETE
           authorizer:
             name: cognitoAuthorizer

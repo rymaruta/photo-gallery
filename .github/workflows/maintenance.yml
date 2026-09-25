@@ -34,6 +34,7 @@ on:
           - unused-resources   # AWS に在るものと、このリポジトリが使っているものを突き合わせる（読み取りのみ・消さない）
           - purge-leftover-resources # 消した環境の残骸を消す（一覧に名前を書いたものだけ・既定は読むだけ・apply で実行）
           - content-opportunities # どこを直すと「検索に出せるページ」が増えるかを数える（読み取りのみ）
+          - photo-colors      # 色タグが「写真の色」と合っているかの材料を出す（読み取りのみ・判定はしない）
           - orphan-uploads    # どの行からも参照されていないアップロード実体を探す
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
           - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
@@ -273,6 +274,20 @@ jobs:
       - name: どこを直すと検索の面積が増えるか
         if: inputs.task == 'content-opportunities'
         run: npx tsx scripts/content-opportunities.ts
+        timeout-minutes: 10
+
+      # owner の報告（2026-09-23）:「色タグが仕事してない気がする。写真の色と
+      # 違うタグが選ばれてることもある」。
+      #
+      # **この道具は判定しない。** 原因は `lib/color/buckets.ts` が既に書いて
+      # いる——`dominantColor` は「いちばん多い1ビン」＝たいてい影の色。
+      # 代わりにぼかしの分布を取る案は一度試して、「閾値の取り方で答えが
+      # 変わる」「正解を確かめる術が無い」として採らなかった。
+      # 足りないのは実装ではなく**正解**なので、2つの見方を数字で並べるだけ
+      # にして、owner が写真と見比べて決められるようにする。
+      - name: 色タグが写真の色と合っているかの材料を出す
+        if: inputs.task == 'photo-colors'
+        run: npx tsx scripts/audit-photo-colors.ts
         timeout-minutes: 10
 
       - name: 本番の設定を読む（診断）

@@ -5,6 +5,10 @@ import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
 import { clusterPoints, boundsOf, type GeoPoint } from "../../lib/utils/mapClusters";
+import type { SpotPin } from "../../lib/data/spotLink";
+
+/** 既定の空配列。**毎回作らない**（作ると ref の更新が毎描画で走る） */
+const EMPTY_SPOTS: readonly SpotPin[] = [];
 import {
     MAP_MIN_ZOOM, MAP_MAX_ZOOM, chooseInitialView, readSavedView, saveView, clearSavedView,
 } from "../../lib/utils/mapView";
@@ -37,6 +41,14 @@ type Point = GeoPoint & { photo: MapPhoto };
  */
 const PIN_PX = 40;
 const PIN_H = 50;
+/**
+ * 公式スポットのピン。**写真のピンより小さくする**——写真が主役のサイトで、
+ * 運営が置いた印が写真より大きいと主客が入れ替わる。
+ * 指で押す的は Leaflet の当たり判定がアイコン全体なので、28×36 で足りる
+ * （WCAG 2.5.8 の24px を超え、隣のピンとは升で離れている）。
+ */
+const SPOT_PIN_PX = 28;
+const SPOT_PIN_H = 36;
 const CELL_PX = 56;
 
 /** 「現在地」で寄るズーム。写真の座標は約1km に丸めてあるので、これ以上寄せない */
@@ -86,9 +98,23 @@ const LOCATE_ZOOM = 12;
  */
 export default function PhotoMap({
     photos, locale, onSelect, selectedId, onSearchArea, areaActive = false, sheetOpen = false, className = "",
+    spots = EMPTY_SPOTS, onSelectSpot, selectedSpotSlug = null,
 }: {
     photos: readonly MapPhoto[];
     locale: "ja" | "en";
+    /**
+     * 公式撮影地ガイドのスポット（運営が台帳に書いたもの）。
+     *
+     * **写真の束（`clusterPoints`）には混ぜない。** 混ぜると束の数字が
+     * 「N枚」と名乗ったまま写真でないものを数える。別の層として、
+     * **別の形のピン**で立てる——「ここに写真がある」と読ませない
+     * （現在地の点を丸にしてあるのと同じ判断）。
+     */
+    spots?: readonly SpotPin[];
+    /** 公式スポットのピンが押された */
+    onSelectSpot?: (slug: string) => void;
+    /** いま選ばれている公式スポット（そのピンを目立たせる） */
+    selectedSpotSlug?: string | null;
     /** ピンが押された（`null` は地図の余白が押された＝閉じる） */
     onSelect?: (selection: MapSelection | null) => void;
     /** いま選ばれている写真（そのピンを大きく出す） */
@@ -129,6 +155,14 @@ export default function PhotoMap({
     onSelectRef.current = onSelect;
     const selectedIdRef = useRef(selectedId);
     selectedIdRef.current = selectedId;
+    /** 公式スポットのピンの DOM（スラッグ → 要素）。写真のピンと同じ扱い */
+    const spotElsRef = useRef(new Map<string, HTMLElement>());
+    const spotsRef = useRef(spots);
+    spotsRef.current = spots;
+    const onSelectSpotRef = useRef(onSelectSpot);
+    onSelectSpotRef.current = onSelectSpot;
+    const selectedSpotRef = useRef(selectedSpotSlug);
+    selectedSpotRef.current = selectedSpotSlug;
     /** 現在地。**state に置くだけで、保存も送信もしない** */
     const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
     const hereRef = useRef(here);
@@ -226,6 +260,7 @@ export default function PhotoMap({
             const draw = () => {
                 layer.clearLayers();
                 pinElsRef.current.clear();
+                spotElsRef.current.clear();
                 const points: Point[] = photosRef.current.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng, photo: p }));
                 for (const c of clusterPoints(points, map.getZoom(), CELL_PX)) {
                     if (c.items.length === 1) {
@@ -291,6 +326,52 @@ export default function PhotoMap({
                         marker.addTo(layer);
                     }
                 }
+                /**
+                 * 公式撮影地ガイドのピン。**写真の束には混ぜない。**
+                 *
+                 * 混ぜると束の数字が「N枚」と名乗ったまま写真でないものを
+                 * 数える。**形も別**（写真入りの丸ではなく、印の入った小さい
+                 * ピン）にして、「ここに写真がある」と読ませない
+                 * ——現在地の点を丸にしてあるのと同じ判断。
+                 *
+                 * **束ねない。** 台帳は人が書くもので数が少なく（公開条件を
+                 * 満たすものだけ）、束ねると押した先が「どのスポットか」を
+                 * 決められない（写真は束ねてもシートで送れるが、スポットは
+                 * 1件ずつページが違う）。
+                 */
+                for (const sp of spotsRef.current) {
+                    const el = document.createElement("span");
+                    el.className = "spot-map-pin";
+                    if (sp.slug === selectedSpotRef.current) el.classList.add("is-selected");
+                    // **中身は印だけ。** 利用者の入力は入らない（名前は
+                    // marker の `title` / `alt` が持つ＝読み上げにも届く）
+                    const dot = document.createElement("span");
+                    dot.className = "spot-map-pin__dot";
+                    dot.setAttribute("aria-hidden", "true");
+                    el.appendChild(dot);
+                    spotElsRef.current.set(sp.slug, el);
+                    // 「公式」は人が確かめた行だけ（`stage`）。下書きはそう名乗る
+                    const label = sp.stage === "published"
+                        ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
+                        : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
+                    const marker = L.marker([sp.lat, sp.lng], {
+                        icon: L.divIcon({
+                            html: el,
+                            className: "spot-map-pin-icon",
+                            iconSize: [SPOT_PIN_PX, SPOT_PIN_H],
+                            iconAnchor: [SPOT_PIN_PX / 2, SPOT_PIN_H],
+                        }),
+                        title: label,
+                        alt: label,
+                        keyboard: true,
+                        // **写真のピンより手前に置く。** 同じ升に写真の束が
+                        // 在ると、下に隠れて押せない
+                        zIndexOffset: 1000,
+                    });
+                    onActivate(marker, () => onSelectSpotRef.current?.(sp.slug));
+                    marker.addTo(layer);
+                }
+
                 // 現在地の点。**写真のピンとは別の形**（丸い点）にして、
                 // 「ここに写真がある」と読ませない
                 const h = hereRef.current;
@@ -375,10 +456,11 @@ export default function PhotoMap({
         map.fire("zoomend");
     }, [photos]);
 
-    // 現在地が付いた／消えたときも点を描き直す
+    // 現在地が付いた／消えたときも点を描き直す。
+    // 公式スポットが増減したときも同じ（描き直しの入口を2つ作らない）
     useEffect(() => {
         mapRef.current?.fire("zoomend");
-    }, [here]);
+    }, [here, spots]);
 
     // **選ばれたピンは描き直さずにクラスだけ付け替える。** 描き直すと
     // 画像の要求がやり直しになり、押すたびにピンが一瞬消える
@@ -387,6 +469,13 @@ export default function PhotoMap({
             el.classList.toggle("is-selected", id === selectedId);
         }
     }, [selectedId, photos]);
+
+    // 公式スポットも同じ（描き直さずクラスだけ）
+    useEffect(() => {
+        for (const [slug, el] of spotElsRef.current) {
+            el.classList.toggle("is-selected", slug === selectedSpotSlug);
+        }
+    }, [selectedSpotSlug, spots]);
 
     const zoomBy = useCallback((delta: number) => {
         const map = mapRef.current;

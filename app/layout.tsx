@@ -352,7 +352,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       抜き方は**明るさをそのまま透明度にする**だけで、形は1画素も
                       変えていない（しきい値で切ると縁がギザギザになる）。
                       装飾なので読み上げには渡さない（`aria-hidden`＋空の `alt`）。 */}
-                  <p className="font-serif text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0">
+                  <p className="font-serif text-[20px] min-[360px]:text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0 flex-1">
                     <Link
                       href="/"
                       prefetch={false}
@@ -366,6 +366,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           文字が途中で断ち切られていた**（実測: 文字サイズ200%・幅390px で
                           48px ぶん欠けて「Journey Phot」になる。owner のスクショがこれ）。
                           縮む側は文字だけにして、詰まったときは「Journey Ph…」と見せる。 */}
+                      {/* 🔴 **「Journey Photo」は最後まで出す。**
+                          owner の報告（2026-09-23・スマホで途切れる）。原因は
+                          文字の大きさではなく**箱が広がらなかったこと**——
+                          実測で、ロゴの箱は画面幅を変えても 162px のままで、
+                          430px の端末では**141px が空いたまま**その狭い箱の中で
+                          切れていた。外側の `<p>` に `flex-1` を入れて、
+                          空いている場所を文字に使わせる。
+
+                          ⚠️ **この容れ物の実測は当てにならない。** コンテナに CJK
+                          フォントが1つしか無く `font-serif` が sans と同じ幅になる
+                          （上の `inter` の docstring と同じ理由）。ここでは 97px に
+                          収まるが、実機の本物の serif はこれより広い。だから
+                          「入る幅にする」ではなく「**空いている場所を全部使う**」
+                          側で直してある。
+
+                          `truncate` は残す。これは拡大時に横スクロールを出さない
+                          ための最後の受け皿で（WCAG 1.4.10・`16e89966`）、
+                          通常の文字サイズでは一度も効かない。
+
+                          **320px の端末だけ 20px に落とす**（`min-[360px]:text-[22px]`）。
+                          箱を広げてもここだけ余裕が無く、実測で文字125%のとき
+                          30px 欠けた。360px 以上（iPhone SE 第2世代以降・Android の
+                          ほぼ全部）は 22px のまま——**owner の端末で字が小さくなる
+                          変更にはしない**。 */}
                       <span className="relative z-10 min-w-0 truncate">Journey Photo</span>
                       <span className="absolute inset-0 bg-white/5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-0" />
               </Link>

@@ -24,6 +24,32 @@ vi.mock("../../../lib/hooks/usePhotos", () => ({ usePhotos: () => photosState })
 const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/utils/api", () => ({ userFetch: fetchMock }));
 
+/**
+ * **公式スポットの台帳は差し替える。**
+ *
+ * `content/spots.json` はいま空（人が書く棚で、まだ1件も入っていない）。
+ * 実データに寄りかかると、台帳に1件入った日に**この判定が別のことを見る**。
+ */
+const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
+vi.mock("../../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
+
+/** 公開条件を全部満たす1件（`spotGuide.publishBlockers` を通す） */
+const SPOT = (slug: string, name: string) => ({
+    spotId: `sp_${slug}`,
+    slug,
+    name,
+    summary: "あ".repeat(40),
+    region: { country: "日本", prefecture: "香川県", city: "観音寺市" },
+    coords: { lat: 34.1, lng: 133.6 },
+    highlights: ["雲海が出る朝がある"],
+    officialWebsiteUrl: "https://example.example/",
+    status: "published",
+    verifiedBy: "運営",
+    verifiedAt: "2026-09-23",
+    createdAt: "2026-09-23T00:00:00.000Z",
+    updatedAt: "2026-09-23T00:00:00.000Z",
+});
+
 import SavedSpotsPage from "../page";
 
 const P = (id: string, location: string): Photo =>
@@ -40,6 +66,7 @@ beforeEach(() => {
         P("4", "山中湖"), P("5", "山中湖"),
     ];
     photosState.loaded = true;
+    ledger.spots = [];
 });
 
 describe("行きたい場所の一覧", () => {
@@ -137,6 +164,135 @@ describe("行きたい場所の一覧", () => {
         a.click();
         await waitFor(() => expect(a).toBeDisabled());
         expect(b, "他の行が押せるのに無反応になる").toBeDisabled();
+    });
+
+    /**
+     * **公式撮影地ガイドと、撮影地の集約ページが同じ一覧に並ぶ。**
+     *
+     * 鍵は `SPOT-<slug>`。**API は1行も変えていない**——サーバーは
+     * 「`#` を含まない文字列」を受けるだけで、種別を知らない。
+     */
+    describe("公式撮影地ガイド", () => {
+        it("台帳の名前で出し、`/spots/<slug>` へ送る", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社")];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const link = await screen.findByRole("link", { name: /高屋神社/ });
+            expect(link.getAttribute("href")).toBe("/spots/takaya-jinja");
+            // 見分けが付く（撮影地の集約ページと同じ見た目にしない）
+            expect(within(link).getByText("公式")).toBeTruthy();
+        });
+
+        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは「下書き」
+        it("下書きのスポットは「公式」ではなく「下書き」の札", async () => {
+            ledger.spots = [{ ...SPOT("takaya-jinja", "高屋神社"), status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24" }];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const link = await screen.findByRole("link", { name: /高屋神社/ });
+            expect(within(link).getByText("下書き")).toBeTruthy();
+            expect(within(link).queryByText("公式")).toBeNull();
+        });
+
+        /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を
+        /// 勝手に同一スポットとして統合しないでください」
+        it("同じ綴りの撮影地と公式スポットは、2行として残る", async () => {
+            ledger.spots = [SPOT("山中湖", "山中湖（公式）")];
+            fetchMock.mockResolvedValue(ok(["SPOT-山中湖", "山中湖"]));
+            render(<SavedSpotsPage />);
+            const items = await screen.findAllByRole("listitem");
+            expect(items).toHaveLength(2);
+            expect(items[0].textContent).toContain("山中湖（公式）");
+            expect(items[1].textContent).toContain("2枚");
+        });
+
+        /**
+         * **台帳から下りたスポットは、行ごと消さない。**
+         *
+         * 消すと本人が外す手段を失う（サーバーには残ったまま）。
+         * リンクだけ外す——押しても 404 のページへ送らない。
+         */
+        it("台帳に無いスポットは、リンクを外して残す", async () => {
+            fetchMock.mockResolvedValue(ok(["SPOT-kieta"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            expect(within(item).queryByRole("link")).toBeNull();
+            expect(item.textContent).toContain("kieta");
+            expect(within(item).getByRole("button", { name: "「kieta」を外す" })).toBeTruthy();
+        });
+
+        /**
+         * 🔴 **地域名は名前と同じ行に置かない。**
+         *
+         * 同じ枠（`shrink-0`）に入れると、**縮む側が名前だけ**になる。
+         * 320px で本物の CSS を当てて実測（2026-09-23）:
+         *
+         *     同じ行   「高屋神社（天空の鳥居）」 名前の枠 85px → 切れる
+         *     次の行   同                        名前の枠 135px → 切れない
+         *
+         * 行の高さは変わらない（2行でも `minHeight: 44` に収まる）。
+         * 撮影地の「3枚」は短く長さも決まっているので同じ行のまま。
+         */
+        it("地域名は次の行（縮むのが名前だけにならない）", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社（天空の鳥居）")];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            const region = within(item).getByText("香川県 観音寺市");
+            const name = within(item).getByText("高屋神社（天空の鳥居）");
+            // 地域は自由長なので**縮める**。名前と同じ行の固定枠に入れない
+            expect(region.className, "地域が縮まないと、名前だけが縮む").toContain("truncate");
+            expect(region.className).not.toContain("shrink-0");
+            // 名前と地域は別の行（同じ親の中で並んでいない）
+            expect(name.parentElement).not.toBe(region.parentElement);
+        });
+
+        it("撮影地の枚数は名前と同じ行のまま（短く長さが決まっている）", async () => {
+            fetchMock.mockResolvedValue(ok(["パリ"]));
+            render(<SavedSpotsPage />);
+            const item = (await screen.findAllByRole("listitem"))[0];
+            const count = within(item).getByText("3枚");
+            const name = within(item).getByText("パリ");
+            expect(count.className).toContain("shrink-0");
+            expect(name.parentElement).toBe(count.parentElement);
+        });
+
+        it("外すときも、保存したときと同じ鍵を送る", async () => {
+            ledger.spots = [SPOT("takaya-jinja", "高屋神社")];
+            fetchMock.mockResolvedValueOnce(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const remove = await screen.findByRole("button", { name: "「高屋神社」を外す" });
+            fetchMock.mockResolvedValueOnce(ok([]));
+            remove.click();
+            await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+                "/user/spots/SPOT-takaya-jinja", { method: "DELETE" },
+            ));
+        });
+
+        /**
+         * 🔴 **スラッグの無い壊れた鍵も、行として残す。**
+         *
+         * 一度は落としていたが、**落とすと画面に出ないのにサーバーには残り、
+         * 本人が外す手段を失う**（レビューが指摘）。入る隙は
+         * `publishBlockers` が塞いだが、既に入ったものは外せるようにする。
+         * 名前が作れないので**鍵そのもの**を出す（こちらで言葉を作らない）。
+         */
+        it("スラッグの無い鍵も残し、外せるようにする", async () => {
+            fetchMock.mockResolvedValue(ok(["SPOT-", "パリ"]));
+            render(<SavedSpotsPage />);
+            const items = await screen.findAllByRole("listitem");
+            expect(items).toHaveLength(2);
+            expect(items[0].textContent).toContain("SPOT-");
+            expect(within(items[0]).getByRole("button", { name: "「SPOT-」を外す" })).toBeTruthy();
+            expect(screen.getByText("保存した場所 2 件")).toBeTruthy();
+        });
+
+        /// 件数は**描く一覧そのもの**で数える（畳んだぶんと行数が食い違わない）
+        it("同じ鍵が2つ来ても、件数と行数は一致する", async () => {
+            fetchMock.mockResolvedValue(ok(["パリ", "パリ", "山中湖"]));
+            render(<SavedSpotsPage />);
+            expect(await screen.findByText("保存した場所 2 件")).toBeTruthy();
+            expect(screen.getAllByRole("listitem")).toHaveLength(2);
+        });
     });
 
     it("外すと、サーバーが返した一覧をそのまま映す", async () => {

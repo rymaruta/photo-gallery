@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, render } from "@testing-library/react";
+import React, { useLayoutEffect } from "react";
 import useGallery from "../useGallery";
 import type { Photo } from "../../data/photos";
 
@@ -823,5 +824,115 @@ describe("useGallery", () => {
             });
             expect(result.current.currentIndex).toBe(0);
         });
+    });
+});
+
+/**
+ * 🔴 **`<Link>` で飛んだ行き先のクエリを、読み直して追随する。**
+ *
+ * 2026-09-23 まで、`urlFilters` の依存は `[clientRender]` だけだった
+ * ——水和のときに一度読んだきり読み直さないので、`<Link>` の遷移で
+ * 行き先の `?category=` を知らないまま、空の絞り込みを URL へ書き戻していた。
+ * 実ブラウザで `history` の呼び出しを記録して確かめた症状:
+ *
+ *     1889.6ms  pushState     /search?category=landscape   ← Next の <Link>
+ *     1953.2ms  replaceState  /search                      ← useGallery が消す
+ *
+ * **URL は一度は正しくなっている。** 消していたのはこのフック自身だった。
+ */
+describe("URL の読み直し（<Link> の遷移）", () => {
+    it("pushState で `?category=` が付いたら、絞り込みが追随する", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        expect(result.current.filteredPhotos, "はじめは全件").toHaveLength(3);
+        act(() => {
+            window.history.pushState({}, "", "/search?category=landscape");
+        });
+        expect(result.current.filters.category, "行き先のクエリを読んでいない").toBe("landscape");
+        expect(result.current.filteredPhotos).toHaveLength(1);
+        expect(result.current.filteredPhotos[0].id).toBe("2");
+    });
+
+    /**
+     * 🔴 **消さない。** 追随できても、直後の同期が空の絞り込みで
+     * 書き戻したら同じことになる（それが元の症状）。
+     */
+    /**
+     * 🔴 **本物の `<Link>` と同じ順序を作る。**
+     *
+     * 実ブラウザで記録した順は **行き先の描画 → `pushState` → 効果**。
+     * つまり効果が走るとき、描画が見ていた URL は**1つ古い**。そのまま
+     * 書くと行き先のクエリを消す——これが元の症状そのもの。
+     *
+     * `useLayoutEffect` は passive な `useEffect` より先に走るので、
+     * 「描き終わったが、こちらの同期はまだ」という隙間をここで作れる。
+     * （`pushState` を直に呼ぶ上のテストでは、知らせ → 描き直しが先に
+     * 済んでしまうので、この順序は作れない＝門を外しても落ちなかった。）
+     */
+    it("描画のあとに URL が変わっても、クエリを消さない", () => {
+        const seen: string[] = [];
+        function Probe() {
+            const g = useGallery(mockPhotos);
+            useLayoutEffect(() => {
+                // 描き終わった直後・同期の前に、行き先の URL になる
+                if (window.location.search === "") window.history.pushState({}, "", "/search?category=landscape");
+            });
+            seen.push(g.filters.category ?? "");
+            return null;
+        }
+        render(React.createElement(Probe));
+        expect(window.location.search, "同期が行き先のクエリを消した").toBe("?category=landscape");
+        expect(seen.at(-1), "最後の描画で絞り込みを読めていない").toBe("landscape");
+    });
+
+    it("追随したあと、URL からクエリが消えない", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => {
+            window.history.pushState({}, "", "/search?category=landscape");
+        });
+        expect(result.current.filters.category).toBe("landscape");
+        expect(window.location.search, "同期がクエリを消した").toBe("?category=landscape");
+    });
+
+    /**
+     * ⚠️ **`replaceState` ＋ `popstate` を投げる形では見張れない。**
+     * `replaceState` はこちらが包んでいるので、その時点で知らせが行く
+     * ——`popstate` を1行も聞かなくても通ってしまう（変異で確認）。
+     * **本物の「戻る」**（`history.back()`）は履歴を動かすだけで
+     * `pushState` / `replaceState` を通らないので、こちらで見る。
+     */
+    it("戻ると、絞り込みも戻る（popstate）", async () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => {
+            window.history.pushState({}, "", "/search?category=landscape");
+        });
+        expect(result.current.filters.category).toBe("landscape");
+        await act(async () => {
+            // jsdom の `back()` は履歴の移動を**非同期**で行う。
+            // 固定の待ちだと取りこぼすので、`popstate` が来るまで待つ
+            const back = new Promise<void>((resolve) => {
+                window.addEventListener("popstate", () => resolve(), { once: true });
+            });
+            window.history.back();
+            await back;
+        });
+        expect(window.location.search, "URL が戻っていない（前提が崩れている）").toBe("");
+        expect(result.current.filters.category, "戻ったのに絞り込みが残っている").toBe("all");
+    });
+
+    /**
+     * **人が触ったぶんは URL より強い**（外した絞り込みが URL から生き返らない）。
+     * この性質は前からあるもので、読み直しを入れても変わっていない。
+     */
+    it("人が外した絞り込みは、URL から生き返らない", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => {
+            window.history.pushState({}, "", "/search?category=landscape");
+        });
+        expect(result.current.filters.category).toBe("landscape");
+        act(() => {
+            result.current.setFilters({ category: "all" });
+        });
+        expect(result.current.filters.category, "URL の値が生き返っている").toBe("all");
+        expect(result.current.filteredPhotos).toHaveLength(3);
     });
 });

@@ -4,6 +4,9 @@ import { existsSync } from "fs";
 import path from "path";
 import { siteConfig, publicImageUrl } from "../lib/utils/seo";
 import { collectEntries, collectionPath, collectionIndexPath, isIndexableCollection, isIndexableCollectionIndex, photosInCollection, type CollectionType } from "../lib/utils/collections";
+import { SPOTS } from "../lib/data/spots";
+import { spotAreas } from "../lib/data/spotLink";
+import { publishableSpots } from "../lib/utils/spotGuide";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
@@ -111,6 +114,50 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.5,
         }));
 
+    /**
+     * **公式撮影地ガイド。**
+     *
+     * 🔴 **写真の枚数では絞らない。** 投稿0枚でも、公開の条件
+     * （`publishBlockers`）を満たすガイドは索引に出す——それが今回の設計の肝
+     * （owner:「写真件数を、公式撮影地ガイドの公開条件にしないでください」）。
+     *
+     * **未公開のスポットは載せない**（`publishableSpots` が下書きと情報不足を落とす）。
+     * `lastModified` は**そのスポットの確認日**——中身は写真ではなく人が書いた
+     * 文章なので、写真の更新に連動させると嘘になる。
+     */
+    const spots = publishableSpots(SPOTS);
+    const spotUrls: MetadataRoute.Sitemap = spots.map((sp) => ({
+        url: `${baseUrl}/spots/${sp.slug}`,
+        lastModified: sp.updatedAt ? new Date(sp.updatedAt) : now,
+        changeFrequency: "monthly" as const,
+        priority: 0.7,
+    }));
+    /** 索引は**中身が3件以上あるときだけ**（`/location` と同じ判断） */
+    const spotIndexUrls: MetadataRoute.Sitemap = spots.length >= 3 ? [{
+        url: `${baseUrl}/spots`,
+        lastModified: now,
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+    }] : [];
+    /**
+     * **都道府県ごとの一覧**（`/spots/area/<slug>`）。
+     *
+     * `/spots` を県の一覧に分けたときに生まれたページで、「北海道 撮影スポット」
+     * のような語の着地点になる。**2件以上ある県だけ**——1件の県のページは
+     * そのスポットの個別ページと中身が同じになる（`CLAUDE.md` の撮影地の線と
+     * 同じ考え方）。ページ側の `robots` も同じ線で判断している。
+     */
+    // **人が確かめた件数で見る**（`count` は下書きを含む。下書きしか無い県を
+    // 検索の着地点にしない。ページ側の `robots` も `publishedCount` で判断）
+    const spotAreaUrls: MetadataRoute.Sitemap = spotAreas()
+        .filter((a) => a.publishedCount >= 2)
+        .map((a) => ({
+            url: `${baseUrl}/spots/area/${a.slug}`,
+            lastModified: now,
+            changeFrequency: "weekly" as const,
+            priority: 0.6,
+        }));
+
     return [
         {
             url: baseUrl,
@@ -138,7 +185,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: "weekly",
             priority: 0.5,
         },
+        ...spotIndexUrls,
+        ...spotAreaUrls,
         ...indexUrls,
+        ...spotUrls,
         ...photoUrls,
         ...userUrls,
         ...collectionUrls,

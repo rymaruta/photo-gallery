@@ -42,7 +42,12 @@ describe("serverless の版が、設定と手順で食い違わない", () => {
 // 逆向きになっていた。YAML として読んで、ステップの組で見る。
 describe("API のテストは、出荷される依存で走る", () => {
     const wf = read(".github/workflows/deploy-api.yml");
-    const testJob = wf.slice(wf.indexOf("\n  test:"), wf.indexOf("\n  deploy-admin-api:"));
+    // **`test:` ジョブは `config:` に畳まれた**（2026-09-24）。
+    // GitHub は**ジョブごとに分単位で切り上げて課金する**ので、5秒で終わる
+    // 環境決めだけで毎回1分取られていた。この見張りが見るべきものは
+    // 「テストが、出荷される依存で、デプロイの前に走ること」で、
+    // それがどのジョブに在るかではない——切り出す先だけを移す。
+    const testJob = wf.slice(wf.indexOf("\n  config:"), wf.indexOf("\n  deploy-admin-api:"));
 
     /**
      * ステップ単位に割る。**YAML パーサは使わない**——`js-yaml` は
