@@ -13,6 +13,7 @@ import { log } from "../../../lib/utils/log";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
+import { saveUploadDraft, readUploadDraft, clearUploadDraft } from "../../../lib/utils/uploadDraft";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -423,6 +424,74 @@ function UploadPageInner() {
     // ログインのリダイレクトでは `?from=share` は保たれる（`safeNextPath` が
     // search ごと運ぶ）。それでも 1時間以内のペイロードを次回の表示で拾うのは、
     // **クエリを落としたあと**に開き直した場合の受け皿として。
+    /**
+     * **書きかけを端末に控える**（#8）。iOS はバックグラウンドのページを黙って
+     * 捨てるので、カメラや写真の選択・別のアプリから戻ると読み込み直しになり、
+     * 選んだ写真も打った題名・説明も消えていた。画面が隠れる瞬間に、まだ
+     * 上げていない写真と入力を控え、開き直したときに戻す
+     * （`lib/utils/uploadDraft.ts`）。上げている最中は控えない
+     * （戻すと同じ写真をもう一度上げることになる）。
+     */
+    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false });
+    draftSourceRef.current = { items, category, tags, asOnePost, uploading };
+    useEffect(() => {
+        const persist = () => {
+            const src = draftSourceRef.current;
+            if (src.uploading) return;
+            const keep = src.items.filter((i) => i.status !== "done" && !i.uploaded);
+            if (keep.length === 0) { void clearUploadDraft(); return; }
+            void saveUploadDraft({
+                t: Date.now(),
+                category: src.category,
+                tags: src.tags,
+                asOnePost: src.asOnePost,
+                items: keep.map((i) => ({
+                    file: i.file, title: i.title, description: i.description, location: i.location,
+                    focalPoint: i.focalPoint, dateTimeOriginal: i.dateTimeOriginal,
+                    latitude: i.latitude, longitude: i.longitude,
+                })),
+            });
+        };
+        const onHidden = () => { if (document.visibilityState === "hidden") persist(); };
+        document.addEventListener("visibilitychange", onHidden);
+        window.addEventListener("pagehide", persist);
+        return () => {
+            document.removeEventListener("visibilitychange", onHidden);
+            window.removeEventListener("pagehide", persist);
+        };
+    }, []);
+
+    const restoreDraft = useCallback(async () => {
+        const d = await readUploadDraft();
+        if (!d) return;
+        const restored: Item[] = d.items.map((it) => ({
+            id: makeId(),
+            file: it.file,
+            preview: URL.createObjectURL(it.file),
+            focalPoint: it.focalPoint,
+            title: it.title,
+            description: it.description,
+            location: it.location,
+            dateTimeOriginal: it.dateTimeOriginal,
+            latitude: it.latitude,
+            longitude: it.longitude,
+            status: "pending",
+            progress: 0,
+        }));
+        // もう選び直していたら上書きしない
+        if (draftSourceRef.current.items.length > 0) {
+            for (const r of restored) URL.revokeObjectURL(r.preview);
+            return;
+        }
+        setItems(restored);
+        setCategory(d.category);
+        setTags(d.tags);
+        setAsOnePost(d.asOnePost);
+        showToast(locale === "en"
+            ? `Restored what you were writing (${restored.length} photo(s)).`
+            : `書きかけを戻しました（${restored.length}枚）`, "info");
+    }, [locale, showToast]);
+
     const shareImportedRef = useRef(false);
     useEffect(() => {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
@@ -455,7 +524,11 @@ function UploadPageInner() {
                 return;
             }
             const payload = res.payload;
-            if (!payload) return;
+            if (!payload) {
+                // 共有で来たのでなければ、前に控えた書きかけを戻す（#8）
+                await restoreDraft();
+                return;
+            }
             // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
             // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。
             if (payload.files.length === 0) {
@@ -1101,6 +1174,8 @@ function UploadPageInner() {
                 // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
                 // 公開はトップへ、下書きは下書き一覧へ。
                 if (successCount === pending.length) {
+                    // 全部上がったので、書きかけの控えは要らない
+                    void clearUploadDraft();
                     const dest = published ? "/" : ROUTES.DRAFTS;
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
