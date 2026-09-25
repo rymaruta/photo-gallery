@@ -143,3 +143,13 @@ describe("#2 の副作用: 16px に上げた欄が横に押し出さない", () 
         }
     });
 });
+
+describe("#25 親が select-none でも入力欄は選べる", () => {
+    it("input と textarea は常に文字を選べる（WebKit は -webkit-user-select を子へ受け継ぐ）", () => {
+        const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+        const m = css.match(/(^|\n)input,\s*textarea\s*\{([^}]*)\}/);
+        expect(m, "input, textarea の規則が無い").toBeTruthy();
+        expect(m![2]).toMatch(/-webkit-user-select:\s*text/);
+        expect(m![2]).toMatch(/(^|[;\s])user-select:\s*text/);
+    });
+});

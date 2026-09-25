@@ -177,6 +177,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     // 再描画されていた。
     const progressBarRef = useRef<HTMLDivElement | null>(null);
     const [muted, setMuted] = useState(true);
+    const mutedRef = useRef(muted);
+    mutedRef.current = muted;
 
     // ストーリーBGM: 表示中のストーリーに曲が付いていれば再生する。
     // ブラウザの自動再生ポリシーに合わせて既定はミュート（チップかスピーカーで解除）。
@@ -262,6 +264,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
     const group = groups[g];
     const item = group?.items[i];
+    const itemHasSongRef = useRef(false);
+    itemHasSongRef.current = !!item?.song;
     const isVideo = item?.mediaType === "video";
     const isOwnStory = !!ownUserId && group?.userId === ownUserId;
     // 非同期の中から「今どれを表示しているか」を見るための控え。
@@ -453,6 +457,21 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const [mediaError, setMediaError] = useState(false);
     // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
     const lastReplayRef = useRef(0);
+    const lastAudioItemRef = useRef<string | null>(null);
+
+    /**
+     * 音の入り切り。**要素の muted はタップの中で直接書く。**
+     * 状態だけ変えて effect に任せると、書き換えがタップの処理の外に出る
+     * ——iOS は操作の外で消音を外した再生中のメディアを止める。
+     */
+    const toggleMuted = useCallback(() => {
+        const next = !mutedRef.current;
+        const a = audioRef.current;
+        if (a) a.muted = next;
+        const v = videoRef.current;
+        if (v && !itemHasSongRef.current) v.muted = next;
+        setMuted(next);
+    }, []);
     // 「今のストーリーが始まってからの経過」。左タップの挙動を切り替えるのに使う
     const startedAtRef = useRef(Date.now());
     useEffect(() => { startedAtRef.current = Date.now(); }, [item, replay]);
@@ -588,6 +607,18 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         if (horizontal === -1) { swiped(); goPrev(); }
     }, [onClose, goNext, goPrev]);
 
+    /**
+     * ブラウザが指の動きを取った（`pointercancel`）。長押しで止めていたなら
+     * 再開し、押し始めを捨てる（この後の `pointerleave` で払いと読ませない）。
+     */
+    const onZonePointerCancel = useCallback(() => {
+        if (pressPausedRef.current) {
+            pressPausedRef.current = false;
+            setPaused(false);
+        }
+        pressRef.current = null;
+    }, []);
+
     /** 直前の操作が短いタップだったか（長押し・指の移動があれば false） */
     const wasTap = useCallback((e: React.MouseEvent): boolean => {
         const p = pressRef.current;
@@ -699,7 +730,22 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         const v = videoRef.current;
         if (!v) return;
         if (frozen) v.pause();
-        else void v.play()?.catch?.(() => { /* 自動再生ブロック等は無視 */ });
+        else void v.play()?.catch?.((err: unknown) => {
+            // **iOS が音ありの自動再生を断ったら、消音で鳴らし直す。**
+            // 断られたまま握りつぶすと、動画は最初のコマで止まり、`onEnded` が
+            // 来ないので先へ進まない（進行バーも止まる）。消音にすると
+            // スピーカーの表示も「消音」に揃う（音が出ていないのに「オン」の
+            // 見た目を残さない）。消音でも断られたら（低電力モード）一時停止
+            // にして「再生」ボタンを出す——押せばその操作の中で鳴らせる。
+            if ((err as { name?: string } | null)?.name !== "NotAllowedError") return;
+            if (!v.muted) {
+                v.muted = true;
+                setMuted(true);
+                void v.play().catch(() => setPaused(true));
+            } else {
+                setPaused(true);
+            }
+        });
     }, [frozen, item]);
 
     // ストーリーBGM: 曲つきストーリーの表示中だけ再生（frozenで一時停止）。
@@ -718,11 +764,22 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         // 映像だけ戻って音楽が続くことになる（startSec が 0 のときは条件自体が常に偽）。
         const replayChanged = lastReplayRef.current !== replay;
         lastReplayRef.current = replay;
-        if (replayChanged || a.currentTime < start) {
+        // <audio> はストーリーをまたいで使い回す（下の JSX の注）ので、
+        // 別のストーリーに移ったら必ず頭出しする（同じ曲だと src が変わらず、
+        // 前のストーリーの続きから鳴ってしまう）
+        const itemChanged = lastAudioItemRef.current !== item.id;
+        lastAudioItemRef.current = item.id;
+        if (replayChanged || itemChanged || a.currentTime < start) {
             // 曲の情報を読む前は、iOS が頭出しを捨てることがある
             seekWhenReady(a, start);
         }
-        void a.play().catch(() => { /* 自動再生ブロック等は無視 */ });
+        void a.play().catch((err: unknown) => {
+            // 音ありを断られたら消音で鳴らし直し、スピーカーの表示も揃える
+            if ((err as { name?: string } | null)?.name !== "NotAllowedError" || a.muted) return;
+            a.muted = true;
+            setMuted(true);
+            void a.play().catch(() => { /* 消音でも断られた: 一時停止の扱いは動画側に任せる */ });
+        });
     }, [frozen, item, replay]);
 
     // muted は React の属性反映が不安定なため直接同期する
@@ -1068,7 +1125,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 ? (locale === "en" ? "Unmute" : "ミュート解除")
                 : (locale === "en" ? "Mute" : "ミュート"),
             icon: muted ? <SpeakerXMarkIcon className="w-5 h-5" /> : <SpeakerWaveIcon className="w-5 h-5" />,
-            onSelect: () => setMuted((m) => !m),
+            onSelect: toggleMuted,
         }] : []),
         ...(hasTexts ? [{
             key: "texts",
@@ -1203,9 +1260,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             </div>
 
             {/* ストーリーBGM音源（表示中のストーリーに追従） */}
-            {item.song && (
-                <audio
-                    key={`audio-${item.id}`}
+            {/* **ストーリーごとに作り直さない（`key` を付けない）。** iOS は
+                「タップで音を出してよいと許した」ことを**要素ごと**に覚える。
+                作り直すと自動で次へ進んだ2本目から許可が引き継がれず、
+                音をオンにしていても BGM が鳴らなかった（#3）。曲の無い
+                ストーリーでは src を外して止める（下の effect が pause する）。 */}
+            <audio
                     ref={audioRef}
                     // **出すときにも確かめる。** サーバーの許可リストは
                     // これから保存する値にしか効かず、許可リスト以前の行は
@@ -1214,17 +1274,17 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     // ストーリーはログイン中の全員のトレイに出る
                     // ——`mediaHosts.ts` のコメントが最悪ケースとして
                     // 名指ししているのがこの経路
-                    src={safeSongPreviewUrl(item.song.previewUrl)}
+                    src={item.song ? safeSongPreviewUrl(item.song.previewUrl) : undefined}
                     muted
                     preload="auto"
                     // 指定された「好きな部分」から繰り返す（loop属性だと必ず0秒に戻ってしまう）
                     onEnded={(e) => {
+                        if (!item.song) return;
                         const a = e.currentTarget;
-                        try { a.currentTime = songStartSec(item.song?.startSec); } catch { /* ignore */ }
+                        try { a.currentTime = songStartSec(item.song.startSec); } catch { /* ignore */ }
                         void a.play().catch(() => { /* ignore */ });
                     }}
                 />
-            )}
 
             {/* 上部グラデーション + プログレスバー + ヘッダー */}
             {/* z-20: 下のタップ領域(z-10)より前面。ノッチ端末では safe-area の分だけ
@@ -1332,20 +1392,46 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 自分のストーリー側は今までどおり（あちらは段が出る）。 */}
             <div
                 className="absolute left-0 w-1/3 z-10"
-                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                // **`touch-action: none`（払いは自前で読む）。** `manipulation` だと
+                // 縦の指の動きをブラウザがスクロールとして取り、iOS はゴムのように
+                // 弾ませる——動き出した時点で `pointercancel` が来て `pointerup` が
+                // 来ず、上下の払い（閉じる・メニュー）が効かなかった（#5）。
+                // 画面は全画面の固定表示で、ここにスクロールするものは無い。
+                style={{ top: 80, bottom: zoneBottom, touchAction: "none", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goPrev(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
                 onPointerLeave={onZonePointerUp}
+                onPointerCancel={onZonePointerCancel}
+                aria-hidden="true"
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
-                style={{ top: 80, bottom: zoneBottom, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                // **`touch-action: none`（払いは自前で読む）。** `manipulation` だと
+                // 縦の指の動きをブラウザがスクロールとして取り、iOS はゴムのように
+                // 弾ませる——動き出した時点で `pointercancel` が来て `pointerup` が
+                // 来ず、上下の払い（閉じる・メニュー）が効かなかった（#5）。
+                // 画面は全画面の固定表示で、ここにスクロールするものは無い。
+                style={{ top: 80, bottom: zoneBottom, touchAction: "none", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goNext(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
                 onPointerLeave={onZonePointerUp}
+                onPointerCancel={onZonePointerCancel}
+                aria-hidden="true"
             />
+            {/* **読み上げ（VoiceOver）から前後に送る手段。** 上の2つのタップ領域は
+                指で押す・払う面で、読み上げでは触れない（iPhone には矢印キーも
+                無い）。無いと「前へ」は手段が0で、「次へ」は自動で進むのを待つ
+                しかなかった（#41）。見た目には出さない。 */}
+            <div className="sr-only">
+                <button type="button" onClick={goPrev}>
+                    {locale === "en" ? "Previous story" : "前のストーリー"}
+                </button>
+                <button type="button" onClick={goNext}>
+                    {locale === "en" ? "Next story" : "次のストーリー"}
+                </button>
+            </div>
 
             {/* 一時停止の印（モック09 の状態例「一時停止状態」）。**止まっている
                 ことが画面で分かる**——これまでは進行バーが止まるだけで、
@@ -1356,7 +1442,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {paused && !menuOpen && !confirmDelete && !viewersOpen && !repliesOpen && !reportOpen && (
                 <div className="absolute inset-0 z-[24] flex items-center justify-center pointer-events-none">
                     <button
-                        onClick={() => setPaused(false)}
+                        onClick={() => {
+                            setPaused(false);
+                            // **鳴らすのはこのタップの中で。** 自動再生を断られて
+                            // 止めた（低電力モード）あとは、操作の中の play() しか通らない
+                            void videoRef.current?.play()?.catch?.(() => { /* 下の effect に任せる */ });
+                            if (itemHasSongRef.current) void audioRef.current?.play()?.catch?.(() => { /* 同上 */ });
+                        }}
                         aria-label={locale === "en" ? "Resume" : "再生"}
                         className="pointer-events-auto w-16 h-16 rounded-full bg-black/45 backdrop-blur-sm ring-1 ring-white/20 text-white flex items-center justify-center active:scale-95 transition"
                         style={{ touchAction: "manipulation" }}
@@ -1407,7 +1499,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         一手。操作シートの「ミュート解除」と同じ状態を切り替える） */}
                     {item.song && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+                            onClick={(e) => { e.stopPropagation(); toggleMuted(); }}
                             className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
                             style={{ touchAction: "manipulation", minHeight: "36px" }}
                             aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
@@ -1814,6 +1906,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     items={sheetItems}
                     onClose={() => setMenuOpen(false)}
                     cancelLabel={locale === "en" ? "Cancel" : "キャンセル"}
+                    label={locale === "en" ? "Story actions" : "ストーリーの操作"}
                     openerRef={menuBtnRef}
                 />
             )}

@@ -120,6 +120,16 @@ body {
   }
 }
 
+/* **入力欄は、親が `select-none` でも選択・カーソル移動・ペーストができる。**
+   WebKit は `-webkit-user-select` を子へ受け継ぐので、ストーリーの画面
+   （外枠が `select-none`）の返信欄と通報欄で、範囲選択や長押しのペーストが
+   効かなかった（#25）。欄の中の文字は常に選べてよい。 */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* 自前の消去ボタン（✕）を持つ検索欄だけ、ブラウザの消去ボタンを消す
    （出ると2つ並ぶ。Tailwind の preflight が消すのは decoration の方だけ）。
    **全部の検索欄に効かせないこと。** 自前の ✕ を持たない欄（管理画面の
