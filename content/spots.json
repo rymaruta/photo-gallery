@@ -39760,14 +39760,17 @@
         "field": "safetyNotes",
         "url": "https://www.city.kimitsu.lg.jp/site/kanko/2259.html",
         "title": "清水渓流広場（濃溝の滝・亀岩の洞窟）｜君津市",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       }
     ],
-    "status": "review",
+    "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-24T00:00:00.000Z"
+    "updatedAt": "2026-09-25T00:00:00.000Z",
+    "verifiedBy": "rymaruta",
+    "verifiedAt": "2026-09-25"
   },
   {
     "spotId": "sp_4e7130ac86bd",
@@ -39913,14 +39916,17 @@
         "field": "access",
         "url": "https://kobe-kazamidori.com/access/",
         "title": "アクセス｜風見鶏の館 公式サイト",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       }
     ],
-    "status": "review",
+    "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-24T00:00:00.000Z"
+    "updatedAt": "2026-09-25T00:00:00.000Z",
+    "verifiedBy": "rymaruta",
+    "verifiedAt": "2026-09-25"
   },
   {
     "spotId": "sp_34ad3ff824e9",
@@ -52794,14 +52800,17 @@
         "field": "access",
         "url": "https://ogunitown.info/nabegataki/",
         "title": "小国町・鍋ヶ滝は事前予約制入園！｜ASOおぐに観光協会",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       }
     ],
-    "status": "review",
+    "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-24T00:00:00.000Z"
+    "updatedAt": "2026-09-25T00:00:00.000Z",
+    "verifiedBy": "rymaruta",
+    "verifiedAt": "2026-09-25"
   },
   {
     "spotId": "sp_2e70da8491bc",
@@ -81959,6 +81968,7 @@
     "safetyNotes": [
       "下宮から本宮までは徒歩でおおよそ40分。急な坂と未舗装の道があるため、歩ける靴と服装が要ります。",
       "2026年9月28日から12月25日まで、工事のため山頂行きシャトルバスは運休し、一般車両も通行できません。",
+      "シャトルバスの運行日は、午前10時から午後6時30分まで一般車両は山頂への道を通れません。",
       "参拝の場所です。三脚の設置や立ち位置で参拝者の導線をふさがないようにしてください。"
     ],
     "access": {
@@ -81971,26 +81981,38 @@
         "field": "access",
         "url": "https://kanonji-kanko.jp/news/takaya-access/",
         "title": "天空の鳥居（高屋神社本宮）へのアクセスについて｜観音寺市観光協会",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       },
       {
         "field": "safetyNotes",
         "url": "https://kanonji-kanko.jp/news/takaya-access/",
         "title": "天空の鳥居（高屋神社本宮）へのアクセスについて｜観音寺市観光協会",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       },
       {
         "field": "safetyNotes",
         "url": "https://kanonji-kanko.jp/takaya-shrine/",
         "title": "天空の鳥居（高屋神社）｜観音寺市観光協会",
-        "checkedAt": "2026-09-24"
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
+      },
+      {
+        "field": "safetyNotes",
+        "url": "https://www.city.kanonji.kagawa.jp/soshiki/21/22812.html",
+        "title": "高屋神社（天空の鳥居）へのシャトルバスの運行について｜観音寺市",
+        "checkedAt": "2026-09-25",
+        "checkedBy": "rymaruta"
       }
     ],
-    "status": "review",
+    "status": "published",
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-24T00:00:00.000Z"
+    "updatedAt": "2026-09-25T00:00:00.000Z",
+    "verifiedBy": "rymaruta",
+    "verifiedAt": "2026-09-25"
   },
   {
     "spotId": "sp_0c127e2c6c97",
