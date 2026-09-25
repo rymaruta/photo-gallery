@@ -41,5 +41,6 @@ export default function SpotIndexPage() {
     // 埋め込まれるので、渡したぶんが訪問のたびに落ちる。ここが渡すのは
     // **県の名前と件数だけ**で、47県でも3KBに満たない
     // （実測は `lib/data/spotLink.ts` の `SpotArea` の注記）
-    return <SpotAreaIndexClient areas={spotAreas()} total={visibleSpots(SPOTS).length} />;
+    const total = visibleSpots(SPOTS).length;
+    return <SpotAreaIndexClient areas={spotAreas()} total={total} draftCount={total - publishableSpots(SPOTS).length} />;
 }

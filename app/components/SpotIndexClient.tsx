@@ -37,6 +37,8 @@ export default function SpotIndexClient({ spots, area }: Props) {
     const [theme, setTheme] = React.useState<string | null>(null);
 
     /** 台帳に実際に在るカテゴリと件数（**架空のテーマを出さない**） */
+    // 運営未確認の下書きの数。**「運営が調べた」と言えるのは人が確かめた行だけ**
+    const draftCount = spots.filter((s) => s.stage === "review").length;
     const themes = React.useMemo(() => {
         const m = new Map<string, number>();
         for (const s of spots) {
@@ -63,9 +65,15 @@ export default function SpotIndexClient({ spots, area }: Props) {
                     : (isJa ? "撮影スポットをさがす" : "Find a place to shoot")}
             </h1>
             <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                {isJa
-                    ? `運営が調べた撮影地のガイドです（${spots.length}件）。写真の投稿がまだ無い場所も載っています。`
-                    : `Guides we researched (${spots.length}). Places with no photos yet are listed too.`}
+                {/* **「運営が調べた」と言えるのは、人が確かめた行だけ**（`stage`）。
+                    全部が下書きならそう言う */}
+                {draftCount >= spots.length
+                    ? (isJa
+                        ? `撮影地ガイドの下書きです（${spots.length}件・運営未確認）。写真の投稿がまだ無い場所も載っています。`
+                        : `Draft guides, not checked by us yet (${spots.length}). Places with no photos yet are listed too.`)
+                    : (isJa
+                        ? `運営が調べた撮影地のガイドです（${spots.length}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。写真の投稿がまだ無い場所も載っています。`
+                        : `Guides we researched (${spots.length}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Places with no photos yet are listed too.`)}
             </p>
 
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
@@ -132,8 +140,12 @@ export default function SpotIndexClient({ spots, area }: Props) {
                                     <div className="p-3">
                                         <p className="m-0 font-serif font-bold text-white wrap-anywhere"
                                            style={{ fontSize: "16px", lineHeight: "22px" }}>{s.name}</p>
-                                        {where && (
-                                            <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{where}</p>
+                                        {(where || s.stage === "review") && (
+                                            <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                                                {s.stage === "review" && (isJa ? "下書き" : "Draft")}
+                                                {s.stage === "review" && where ? " ・ " : ""}
+                                                {where}
+                                            </p>
                                         )}
                                         {s.summary && (
                                             <p className="m-0 mt-1.5 text-white/75 line-clamp-2"

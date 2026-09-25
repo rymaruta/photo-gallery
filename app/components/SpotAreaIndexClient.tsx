@@ -16,9 +16,15 @@ import { ROUTES } from "@/lib/routes";
  *
  * 受け取るのは**県の名前と件数だけ**——47県でも3KBに満たない。
  */
-type Props = { areas: SpotArea[]; total: number };
+type Props = {
+    areas: SpotArea[];
+    /** ページを建てているスポットの数（下書きを含む） */
+    total: number;
+    /** うち運営未確認の下書き。`total` と同じなら全部が下書き */
+    draftCount: number;
+};
 
-export default function SpotAreaIndexClient({ areas, total }: Props) {
+export default function SpotAreaIndexClient({ areas, total, draftCount }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
 
@@ -40,9 +46,15 @@ export default function SpotAreaIndexClient({ areas, total }: Props) {
                 {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
             </h1>
             <p className="m-0 mt-2 mb-6 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                {isJa
-                    ? `運営が調べた撮影地のガイドです（${total}件）。地域を選ぶと、その中のスポットが出ます。`
-                    : `Guides we researched (${total}). Pick an area to see the spots in it.`}
+                {/* **「運営が調べた」と言えるのは、人が確かめた行だけ。** 全部が下書きなら
+                    そう言う（2026-09-24 の台帳は 1,417件が未確認のまま「調べた」と名乗っていた） */}
+                {draftCount >= total
+                    ? (isJa
+                        ? `撮影地ガイドの下書きです（${total}件・運営未確認）。地域を選ぶと、その中のスポットが出ます。`
+                        : `Draft guides, not checked by us yet (${total}). Pick an area to see the spots in it.`)
+                    : (isJa
+                        ? `運営が調べた撮影地のガイドです（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
+                        : `Guides we researched (${total}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Pick an area to see the spots in it.`)}
             </p>
 
             {groups.length === 0 ? (

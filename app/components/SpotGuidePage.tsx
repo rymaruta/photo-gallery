@@ -63,7 +63,9 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
 
     return (
         <SpotGuideClient
-            spot={spot}
+            // `draftedBy`（下書きを書いた主体）は台帳の中だけに持つ。props は
+            // RSC ペイロードとして HTML に埋まるので、ここで落とす
+            spot={{ ...spot, draftedBy: undefined }}
             photos={mine.map(slimForGrid)}
             nearby={nearby}
             locationPath={locationPath}

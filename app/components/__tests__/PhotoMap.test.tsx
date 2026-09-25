@@ -518,7 +518,7 @@ describe("動きを減らす設定", () => {
  *  3. **押すと親へスラッグが渡る**（中身は画面側のシートが描く）
  */
 describe("公式撮影地ガイドのピン", () => {
-    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null, stage: "review" as const };
+    const SPOT = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null, stage: "published" as const };
 
     const drawWithSpot = async (photos: MapPhoto[], onSelectSpot?: (slug: string) => void) => {
         render(<PhotoMap photos={photos} locale="ja" spots={[SPOT]} onSelectSpot={onSelectSpot} />);
@@ -556,6 +556,13 @@ describe("公式撮影地ガイドのピン", () => {
         expect(spotMarker()?.opts.alt).toBe("高屋神社（公式撮影スポット）");
         const html = (spotMarker()?.opts.icon as { html?: HTMLElement }).html;
         expect(html?.textContent, "ピンの中に文字を入れない").toBe("");
+    });
+
+    /// 「公式」は人が確かめた行だけ。下書きは読み上げでもそう名乗る
+    it("下書きのピンは読み上げに「下書き」を渡す", async () => {
+        render(<PhotoMap photos={[]} locale="ja" spots={[{ ...SPOT, stage: "review" }]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        expect(spotMarker()?.opts.title).toBe("高屋神社（撮影スポット・下書き）");
     });
 
     it("押すとスラッグが親へ渡る", async () => {

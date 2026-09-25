@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import type { Spot } from "@/lib/data/spots";
 import type { Photo } from "@/lib/data/photos";
-import { showsField, sourcesFor, needsVisibleCredit, usesMapHero } from "@/lib/utils/spotGuide";
+import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import GalleryGrid from "./GalleryGrid";
@@ -91,6 +91,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
     const isJa = locale !== "en";
     const mapHero = usesMapHero(spot);
     const cover = spot.coverImage;
+    // **人が確かめたか。** false のあいだは「下書き（運営未確認）」の帯を出し、
+    // 「情報の最終確認」を描かず、公式サイトのリンクを「未確認」と名乗らせる
+    const verified = isVerified(spot);
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
 
@@ -154,6 +157,18 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                   style={{ fontSize: "11px", padding: "2px 8px" }}>{spot.category}</span>
                         )}
                     </p>
+                    {/* 🔴 **下書き（運営未確認）の帯。** 2026-09-24 の台帳は AI が1日で書き、
+                        誰も確かめていないのに「確認済み」を名乗っていた。人が確かめて
+                        `published` に上げるまで、読む人にそう伝える（文字と rel だけ。
+                        色・部品・余白は変えない） */}
+                    {!verified && (
+                        <p role="note" className="m-0 mt-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                            {isJa
+                                ? "下書き（運営未確認）：この内容は運営がまだ公式サイト・現地で確かめていません。行く前に公式サイトで確認してください。"
+                                : "Draft — not checked by us yet. We have not verified this against the official site or on location. Please check the official site before you go."}
+                            {spot.draftedAt && (isJa ? ` 下書き作成: ${spot.draftedAt}` : ` Drafted: ${spot.draftedAt}`)}
+                        </p>
+                    )}
                     {spot.summary && (
                         <p className="m-0 mt-3 text-white/85" style={{ fontSize: "15px", lineHeight: "24px" }}>
                             {spot.summary}
@@ -173,10 +188,16 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                         {isJa ? "地図で見る" : "View on map"}
                     </Link>
                     {spot.officialWebsiteUrl && (
-                        <a href={spot.officialWebsiteUrl} target="_blank" rel="noopener noreferrer"
+                        /* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
+                           推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */
+                        <a href={spot.officialWebsiteUrl} target="_blank"
+                           rel={verified ? "noopener noreferrer" : "noopener noreferrer nofollow"}
                            className="inline-flex items-center rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                            style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
-                            {isJa ? "公式サイト" : "Official site"} <span aria-hidden="true" className="ml-1">↗</span>
+                            {verified
+                                ? (isJa ? "公式サイト" : "Official site")
+                                : (isJa ? "公式サイト（未確認のリンク）" : "Official site (unchecked link)")}
+                            {" "}<span aria-hidden="true" className="ml-1">↗</span>
                         </a>
                     )}
                 </div>
@@ -401,9 +422,11 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                             </Link>
                         )}
 
-                        {spot.verifiedAt && (
+                        {/* **人が確かめたときだけ。** 以前は台帳の日付をそのまま描き、
+                            AI が書いた日が「情報の最終確認」として全ページに出ていた */}
+                        {verified && spot.verifiedAt && (
                             <p className="m-0 mt-5 text-white/60" style={{ fontSize: "11px" }}>
-                                {isJa ? `情報の最終確認: ${spot.verifiedAt}` : `Last checked: ${spot.verifiedAt}`}
+                                {isJa ? `情報の最終確認: ${spot.verifiedAt}（運営）` : `Last checked: ${spot.verifiedAt} (by our team)`}
                             </p>
                         )}
                     </aside>

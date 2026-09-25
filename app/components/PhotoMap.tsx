@@ -350,7 +350,10 @@ export default function PhotoMap({
                     dot.setAttribute("aria-hidden", "true");
                     el.appendChild(dot);
                     spotElsRef.current.set(sp.slug, el);
-                    const label = en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`;
+                    // 「公式」は人が確かめた行だけ（`stage`）。下書きはそう名乗る
+                    const label = sp.stage === "published"
+                        ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
+                        : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
                     const marker = L.marker([sp.lat, sp.lng], {
                         icon: L.divIcon({
                             html: el,
