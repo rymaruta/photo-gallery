@@ -183,14 +183,16 @@ describe("行きたい場所の一覧", () => {
             expect(within(link).getByText("公式")).toBeTruthy();
         });
 
-        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは「下書き」
-        it("下書きのスポットは「公式」ではなく「下書き」の札", async () => {
+        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは**ページを建てない**
+        /// （`BUILD_DRAFT_SPOTS = false`・2026-09-25）ので、保存してあってもリンクにしない
+        /// ——押すと 404 へ送ることになる。行と「外す」は残す（台帳から下りた行と同じ扱い）
+        it("下書きのスポットはリンクにせず、「公式」とも名乗らない", async () => {
             ledger.spots = [{ ...SPOT("takaya-jinja", "高屋神社"), status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24" }];
             fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
             render(<SavedSpotsPage />);
-            const link = await screen.findByRole("link", { name: /高屋神社/ });
-            expect(within(link).getByText("下書き")).toBeTruthy();
-            expect(within(link).queryByText("公式")).toBeNull();
+            await screen.findByRole("button", { name: /を外す/ });
+            expect(screen.queryByRole("link", { name: /高屋神社|takaya-jinja/ })).toBeNull();
+            expect(screen.queryByText("公式")).toBeNull();
         });
 
         /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を

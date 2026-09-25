@@ -52,9 +52,16 @@ describe("撮影スポット台帳（content/spots.json）", () => {
             .filter(([, b]) => b.length > 0)
             .map(([slug, b]) => `${slug}: ${b.join(" / ")}`);
         expect(bad, "ページを建てられない行がある").toEqual([]);
-        // 上が空でも `visibleSpots` が空なら意味が無い（台帳が空の場合）
-        expect(visibleSpots(SPOTS).length).toBe(staged.length);
+        // 上が空でも `visibleSpots` が空なら意味が無い（台帳が空の場合）。
+        // 下書きを建てる設定のときに全件が通ることを見る（門の側の検査）
+        expect(visibleSpots(SPOTS, { includeDrafts: true }).length).toBe(staged.length);
         expect(staged.length).toBeGreaterThanOrEqual(MIN_SPOTS);
+        // **いま建てるのは公開済みだけ**（`BUILD_DRAFT_SPOTS`）。下書きが1件でも
+        // 混ざれば、本番の URL に未確認のページが出る
+        const built = visibleSpots(SPOTS);
+        expect(built.map((s) => s.slug).sort())
+            .toEqual(staged.filter((s) => s.status === "published").map((s) => s.slug).sort());
+        expect(built.length, "公開済みが0件＝/spots が空になる").toBeGreaterThan(0);
     });
 
     it("published の行は確認者（verifiedBy）と確認日を対で持つ", () => {

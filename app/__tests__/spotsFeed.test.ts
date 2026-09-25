@@ -11,7 +11,7 @@ import * as route from "../app/data/spots.json/route";
  * ここで固定するのは:
  *   1. 鍵の集合（重い項目・製品名・確認者を運ばない）
  *   2. `stage` と `draftedAt` が必ずある。`verifiedAt` は人が確かめた行だけ
- *   3. 実際の台帳で作った索引の大きさと、`**` が無いこと
+ *   3. 実際の台帳で作った索引は公開済みだけ・大きさと、`**` が無いこと
  *   4. route が force-static で、CLI と同じ文字列を返す
  */
 const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
@@ -54,8 +54,9 @@ describe("アプリ向けの索引", () => {
             spot("verified", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25", draftedAt: undefined }),
             spot("hidden", { status: "draft" }),
         ];
-        const items = spotIndexFeed();
-        expect(items.map((s) => s.slug)).toEqual(["draft", "verified"]);
+        // 配るのは公開済みだけ（`BUILD_DRAFT_SPOTS`）。下書きの形は toSpotFeedItem で見る
+        expect(spotIndexFeed().map((s) => s.slug)).toEqual(["verified"]);
+        const items = [...spotIndexFeed(), toSpotFeedItem(ledger.spots[0] as Spot)];
         for (const item of items) {
             const extra = Object.keys(item).filter((k) => !ALLOWED.includes(k));
             expect(extra, `${item.slug} に余計な鍵`).toEqual([]);
@@ -67,11 +68,8 @@ describe("アプリ向けの索引", () => {
     });
 
     it("stage と draftedAt は必ず、verifiedAt は人が確かめた行だけ", () => {
-        ledger.spots = [
-            spot("draft", { verifiedAt: "2026-09-24" }),
-            spot("verified", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }),
-        ];
-        const [draft, verified] = spotIndexFeed();
+        const draft = toSpotFeedItem(spot("draft", { verifiedAt: "2026-09-24" }));
+        const verified = toSpotFeedItem(spot("verified", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }));
         expect(draft.stage).toBe("review");
         expect(draft.draftedAt).toBe("2026-09-24");
         expect("verifiedAt" in draft, "確認者の無い行の日付を運んでいる").toBe(false);
@@ -86,7 +84,8 @@ describe("アプリ向けの索引", () => {
     });
 
     it("route は force-static で、GET は同じ文字列を JSON として返す", async () => {
-        ledger.spots = [spot("a"), spot("b")];
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        ledger.spots = [spot("a", pub), spot("b", pub), spot("c")];
         expect(route.dynamic).toBe("force-static");
         const res = route.GET();
         expect(res.headers.get("Content-Type")).toContain("application/json");
@@ -99,10 +98,11 @@ describe("実際の台帳で作った索引", () => {
     const items = buildSpotFeed(rawLedger as unknown as Spot[]);
     const json = JSON.stringify(items);
 
-    it("全件が載り、stage と draftedAt を持つ", () => {
-        expect(items.length).toBe((rawLedger as unknown[]).length);
-        expect(items.every((s) => s.stage === "review" || s.stage === "published")).toBe(true);
-        expect(items.every((s) => Boolean(s.draftedAt) || s.stage === "published")).toBe(true);
+    it("公開済みだけが載る（下書きはアプリにも配らない）", () => {
+        const published = (rawLedger as unknown as Spot[]).filter((s) => s.status === "published");
+        expect(items.map((s) => s.slug).sort()).toEqual(published.map((s) => s.slug).sort());
+        expect(items.length).toBeGreaterThan(0);
+        expect(items.every((s) => s.stage === "published" && Boolean(s.verifiedAt))).toBe(true);
     });
 
     /** 目安は 850KB（minify・gzip 前）。超えたら項目か件数を見直す */
