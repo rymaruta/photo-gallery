@@ -1,6 +1,7 @@
 "use client";
 
 import { usableRows } from "../../../lib/utils/apiRows";
+import { seekWhenReady } from "../../../lib/utils/mediaSeek";
 import { safeSongPreviewUrl } from "../../../lib/utils/mediaHosts";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { publicImageUrl } from "@/lib/utils/seo";
@@ -718,7 +719,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         const replayChanged = lastReplayRef.current !== replay;
         lastReplayRef.current = replay;
         if (replayChanged || a.currentTime < start) {
-            try { a.currentTime = start; } catch { /* seek 未対応は無視 */ }
+            // 曲の情報を読む前は、iOS が頭出しを捨てることがある
+            seekWhenReady(a, start);
         }
         void a.play().catch(() => { /* 自動再生ブロック等は無視 */ });
     }, [frozen, item, replay]);

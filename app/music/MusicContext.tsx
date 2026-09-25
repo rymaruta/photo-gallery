@@ -6,7 +6,7 @@
 // 画面下のミニプレイヤー（MiniPlayer）に常駐表示される。
 
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
-import { safeSongPreviewUrl } from "../../lib/utils/mediaHosts";
+import { safeSongPreviewUrl, safeSongArtworkUrl } from "../../lib/utils/mediaHosts";
 
 export type SongEntry = {
     title: string;
@@ -154,6 +154,45 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [current?.previewUrl, st.queueKey]);
 
+    // **ロック画面・コントロールセンターに曲を出し、そこから操作できるようにする**
+    // （Media Session）。無いと曲名の代わりにページの題が出て、「次へ／前へ」が
+    // 無く、ポケットに入れたまま曲を送れなかった（#20）。
+    // 操作は画面のボタンと同じ入口（toggle / next / prev）を通す。
+    const actionsRef = useRef({ toggle, next, prev, playing: st.playing });
+    actionsRef.current = { toggle, next, prev, playing: st.playing };
+    React.useEffect(() => {
+        if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+        const ms = navigator.mediaSession;
+        if (!current) {
+            ms.metadata = null;
+            return;
+        }
+        const art = safeSongArtworkUrl(current.artwork);
+        if (typeof MediaMetadata !== "undefined") {
+            ms.metadata = new MediaMetadata({
+                title: current.title,
+                artist: current.artist ?? "",
+                artwork: art ? [{ src: art }] : [],
+            });
+        }
+        const set = (action: MediaSessionAction, fn: (() => void) | null) => {
+            try { ms.setActionHandler(action, fn); } catch { /* その操作に未対応の環境 */ }
+        };
+        set("play", () => { if (!actionsRef.current.playing) actionsRef.current.toggle(); });
+        set("pause", () => { if (actionsRef.current.playing) actionsRef.current.toggle(); });
+        const many = st.queue.length > 1;
+        set("nexttrack", many ? () => actionsRef.current.next() : null);
+        set("previoustrack", many ? () => actionsRef.current.prev() : null);
+        return () => {
+            for (const a of ["play", "pause", "nexttrack", "previoustrack"] as MediaSessionAction[]) set(a, null);
+        };
+    }, [current, st.queue.length]);
+
+    React.useEffect(() => {
+        if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+        navigator.mediaSession.playbackState = current ? (st.playing ? "playing" : "paused") : "none";
+    }, [current, st.playing]);
+
     const api: MusicApi = { ...st, current, play, toggle, next, prev, stop, toggleShuffle, toggleRepeatOne, getAudio };
 
     return (
@@ -179,6 +218,18 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
                     // 「空の src で現在のページを取り直す」型もここでは起きない
                     src={safeSongPreviewUrl(current.previewUrl)}
                     preload="none"
+                    // **画面の外で止まった・鳴り出したのを状態に映す**（#19）。
+                    // ロック画面・コントロールセンター・AirPods を外す・着信・Siri で
+                    // iOS が止めても、状態は画面から操作したときしか変わらず、
+                    // ミニプレイヤーは「再生中」のまま——▶ を押すと toggle が
+                    // pause() を呼ぶだけで、2回押さないと鳴らなかった。
+                    // 読む時点の `paused` を見る: 曲の差し替えや頭出しの直後に届く
+                    // pause は、もう play() が呼ばれていれば無視する。
+                    onPlay={() => setSt((p) => (p.playing || !p.queue.length ? p : { ...p, playing: true }))}
+                    onPause={(e) => {
+                        if (!e.currentTarget.paused) return;
+                        setSt((p) => (p.playing ? { ...p, playing: false } : p));
+                    }}
                     onEnded={() => {
                         if (st.repeatOne) {
                             const a = audioRef.current;

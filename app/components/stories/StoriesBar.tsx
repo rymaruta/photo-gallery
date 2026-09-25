@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { seekWhenReady } from "../../../lib/utils/mediaSeek";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon, MapPinIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
@@ -582,7 +583,8 @@ export default function StoriesBar() {
             ? { start: startSec, end: Math.min(SONG_PREVIEW_SEC, startSec + loopSec) }
             : null;
         if (a.src !== song.previewUrl) a.src = song.previewUrl;
-        try { a.currentTime = startSec; } catch { /* seek 未対応は無視 */ }
+        // 差し替えた直後は曲の情報が無く、iOS は頭出しを捨てることがある
+        seekWhenReady(a, startSec);
         setPreviewTime(startSec);
         void a.play()
             .then(() => setPreviewingId(song.id))

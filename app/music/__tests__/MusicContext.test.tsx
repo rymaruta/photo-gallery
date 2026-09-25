@@ -159,3 +159,84 @@ describe("同じ曲を持つ別の写真から再生する", () => {
         vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => { /* noop */ });
     });
 });
+
+// ロック画面・コントロールセンター・AirPods を外す・着信で iOS が止めても、
+// 状態は画面から操作したときしか変わらなかった。ミニプレイヤーは「再生中」の
+// まま、▶ を押すと toggle が pause() を呼ぶだけで、2回押さないと鳴らなかった
+// （docs/ios-bug-audit-2026-09-25.md #19）。
+describe("画面の外で止まった・鳴り出したのを状態に映す", () => {
+    it("iOS 側で止まったら「止まっている」になり、次の1回で鳴る", () => {
+        const pausedGet = vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(false);
+        const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        expect(result.current.playing).toBe(true);
+
+        // ロック画面で一時停止した（要素は止まり、pause が届く）
+        pausedGet.mockReturnValue(true);
+        const audio = document.querySelector("audio")!;
+        act(() => { audio.dispatchEvent(new Event("pause")); });
+        expect(result.current.playing, "止まったのに「再生中」のまま").toBe(false);
+
+        playSpy.mockClear();
+        act(() => result.current.toggle());
+        expect(playSpy, "1回押しても鳴らない").toHaveBeenCalledTimes(1);
+        expect(result.current.playing).toBe(true);
+        pausedGet.mockRestore();
+    });
+
+    it("曲の差し替えの直後に届く pause は、もう鳴らしていれば無視する", () => {
+        const pausedGet = vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockReturnValue(false);
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        const audio = document.querySelector("audio")!;
+        act(() => { audio.dispatchEvent(new Event("pause")); });
+        expect(result.current.playing).toBe(true);
+        pausedGet.mockRestore();
+    });
+
+    it("iOS 側で鳴り出したら「再生中」になる", () => {
+        const { result } = renderHook(() => useMusic(), { wrapper });
+        act(() => result.current.play("bgm:u1", songs, 0));
+        act(() => result.current.toggle());
+        expect(result.current.playing).toBe(false);
+        const audio = document.querySelector("audio")!;
+        act(() => { audio.dispatchEvent(new Event("play")); });
+        expect(result.current.playing).toBe(true);
+    });
+});
+
+// ロック画面に曲名が出ず、「次へ／前へ」も無かった（#20）。
+describe("ロック画面の曲情報と操作（Media Session）", () => {
+    it("曲名・歌手・ジャケットを出し、次へ・前へ・再生・一時停止を受ける", () => {
+        const handlers: Record<string, (() => void) | null> = {};
+        const ms = { metadata: null as unknown, playbackState: "none", setActionHandler: (a: string, fn: (() => void) | null) => { handlers[a] = fn; } };
+        Object.defineProperty(navigator, "mediaSession", { value: ms, configurable: true });
+        class FakeMeta { constructor(public init: Record<string, unknown>) {} }
+        vi.stubGlobal("MediaMetadata", FakeMeta);
+        try {
+            const q: SongEntry[] = [
+                { title: "曲A", artist: "歌手A", artwork: "https://is1-ssl.mzstatic.com/a.jpg", previewUrl: "https://p.test/a.m4a" },
+                songs[1],
+            ];
+            const { result } = renderHook(() => useMusic(), { wrapper });
+            act(() => result.current.play("bgm:u1", q, 0));
+            const meta = (ms.metadata as FakeMeta).init;
+            expect(meta.title).toBe("曲A");
+            expect(meta.artist).toBe("歌手A");
+            expect(ms.playbackState).toBe("playing");
+            expect(handlers.nexttrack).toBeTypeOf("function");
+
+            act(() => handlers.nexttrack!());
+            expect(result.current.index).toBe(1);
+            act(() => handlers.pause!());
+            expect(result.current.playing).toBe(false);
+            expect(ms.playbackState).toBe("paused");
+            act(() => handlers.play!());
+            expect(result.current.playing).toBe(true);
+        } finally {
+            delete (navigator as unknown as Record<string, unknown>).mediaSession;
+            vi.unstubAllGlobals();
+        }
+    });
+});
