@@ -153,3 +153,22 @@ describe("#25 親が select-none でも入力欄は選べる", () => {
         expect(m![2]).toMatch(/(^|[;\s])user-select:\s*text/);
     });
 });
+
+describe("#31 焦点の枠のドラッグが、長押しのメニューで途切れない", () => {
+    it("掴む写真に -webkit-touch-callout: none", () => {
+        const src = code("app/components/CropFramePicker.tsx");
+        const i = src.indexOf("onPointerDown={draggable");
+        const tag = src.slice(src.lastIndexOf("<img", i), src.indexOf("/>", i));
+        expect(tag).toMatch(/WebkitTouchCallout:\s*"none"/);
+    });
+});
+
+describe("#45 動画の上限は、何が収まるかを伝える", () => {
+    it("動画が 50MB を超えたときは、動画用の言い方にする（1080p でおよそ何秒か）", () => {
+        const src = code("app/components/stories/StoriesBar.tsx");
+        const i = src.indexOf("if (file.size > MAX_FILE_BYTES)");
+        const block = src.slice(i, src.indexOf("return;", i));
+        expect(block).toContain("isVideo");
+        expect(block).toMatch(/1080p/);
+    });
+});

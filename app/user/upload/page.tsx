@@ -589,6 +589,16 @@ function UploadPageInner() {
         // マウント時の addFiles を掴んでいるので、state だと復元前の
         // 初期値（true）に張り付く。
         if (gpsAutofillRef.current) {
+            // **位置情報が1枚も無かったら、そう言う。** iPhone の「写真を撮る」で
+            // 撮った写真は、iOS が位置情報を外して渡す（写真ライブラリからでも
+            // 設定次第で外れる）。黙っていると、自動入力が壊れているのか
+            // 写真に無いのか分からない（#10）
+            const withImages = exifResults.filter((r) => newItems.find((it) => it.id === r.id)?.file.type.startsWith("image/"));
+            if (withImages.length > 0 && withImages.every((r) => r.meta.latitude === undefined || r.meta.longitude === undefined)) {
+                showToast(locale === "en"
+                    ? "No location in this photo, so the place wasn't filled in. (Photos taken with the camera from this screen often have location removed.)"
+                    : "写真に位置情報が無かったので、撮影地は入れていません（この画面のカメラで撮った写真は、位置情報が外れていることがあります）", "info");
+            }
             for (const r of exifResults) {
                 if (leftPageRef.current) break;   // 画面を離れた。続きは投げない
                 // **毎回トグルを見る。** 入るときに1回見るだけだと、待っている
@@ -606,7 +616,7 @@ function UploadPageInner() {
         } finally {
             setMetaJobs((n) => Math.max(0, n - 1));
         }
-    }, [locale]);
+    }, [locale, showToast]);
 
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
