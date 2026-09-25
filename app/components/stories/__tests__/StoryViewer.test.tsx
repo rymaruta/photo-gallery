@@ -66,7 +66,7 @@ describe("StoryViewer", () => {
         // していたので、寸法をアーティファクトの板（3px）に合わせた日に
         // **0本を数えて落ちた**——見たい性質（本数＝枚数）は何も変わって
         // いないのに。行そのものを掴んで、その子を数える。
-        const row = screen.getByRole("group", { name: /本目|of / });
+        const row = screen.getByRole("progressbar", { name: /本目|of / });
         expect(row.children.length).toBe(2);
         // 読み上げにも同じ数が出る（画面の本数と食い違わない）
         expect(row.getAttribute("aria-label")).toBe("2本中1本目");

@@ -1235,9 +1235,10 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     外側が 7px なので、ここで +3px して 10px にする。
                     `role="group"` を付けるのは、**素の div の `aria-label` は読み上げに
                     渡らない**ため（板は div のままだが、それでは名前が届かない）。 */}
-                <div className="flex gap-[4px] mb-3 px-[3px]" role="group"
-                     aria-label={locale === "en" ? `${i + 1} of ${group.items.length}`
-                                                 : `${group.items.length}本中${i + 1}本目`}
+                <div className="flex gap-[4px] mb-3 px-[3px]" role="progressbar"
+                     aria-label={locale === "en"
+                         ? `${i + 1} of ${group.items.length}${frozen ? " · paused" : ""}`
+                         : `${group.items.length}本中${i + 1}本目${frozen ? "・止まっています" : ""}`}
                      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
                     {group.items.map((s, idx) => {
                         const done = idx < i;
@@ -1275,7 +1276,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     })}
                 </div>
                 <div className="flex items-start gap-2 px-1 pr-24">
-                    <UserAvatar userId={group.userId} className="w-8 h-8" iconClassName="w-5 h-5" />
+                    {/* 板（StoryViewer.dc.html）は 34px。`w-8` は 640px 未満で 28px に縮むので px で書く */}
+                    <UserAvatar userId={group.userId} className="w-[34px] h-[34px]" iconClassName="w-[22px] h-[22px]" />
                     <div className="min-w-0">
                         {/* モック② のヘッダー: 1段目が名前、2段目が細い字の1行。
                             時刻を名前の隣から2段目へ移した——モックの並びで、
@@ -1288,8 +1290,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             文字列**なので、両方に出すと**同じ文字が画面に2度**
                             並ぶ（実測: 「横浜 みなとみらい」が上下に重なる）。
                             押せる方（④・チップ）に寄せる。 */}
-                        <div className="text-sm font-semibold text-white drop-shadow truncate">{group.displayName}</div>
-                        <p className="text-[11px] text-white/60 drop-shadow truncate max-w-full">
+                        <div className="text-[14px] font-semibold text-white drop-shadow truncate">{group.displayName}</div>
+                        <p className="text-[12px] text-white/[0.82] drop-shadow truncate max-w-full">
                             {timeAgo(item.createdAt, locale)}
                         </p>
                     </div>
@@ -1627,7 +1629,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                     disabled={replySending}
                                     placeholder={locale === "en" ? "Send a message…" : "メッセージを送る…"}
                                     aria-label={locale === "en" ? "Reply to this story" : "このストーリーに返信"}
-                                    className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-white/40"
+                                    className="min-w-0 flex-1 px-4 py-2.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/20 text-white text-[16px] placeholder:text-white/50 focus:outline-none focus:ring-white/40"
                                 />
                                 {/* ♡: いちばん多い反応をひと押しで送る（モック⑥
                                     「いいね（♡）で気持ちを伝えられます」）。
