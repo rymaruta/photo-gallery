@@ -300,6 +300,8 @@ const GalleryItem = React.memo(function GalleryItem({
                         sizes={sizes}
                         priority={isPriority}
                         objectPosition={objectPosition}
+                        // マスは 4:3（上の paddingTop: 75%）
+                        cellAspect={4 / 3}
                     />
 
                                 {/* お気に入りアイコン */}

@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
-import { publishableSpots } from "@/lib/utils/spotGuide";
+import { visibleSpots } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 
@@ -30,15 +30,17 @@ function photosForSpot(photos: Awaited<ReturnType<typeof loadAllPhotos>>, spotId
 }
 
 export default async function SpotGuidePage({ slug }: { slug: string }) {
-    const spot = publishableSpots(SPOTS).find((s) => s.slug === slug);
-    // **公開の条件を満たさないものはページを作らない**（下書き・情報不足）
+    const spot = visibleSpots(SPOTS).find((s) => s.slug === slug);
+    // **建てる条件を満たさないものはページを作らない**（`draft`・情報不足）。
+    // `review`（運営未確認の下書き）は `BUILD_DRAFT_SPOTS` が true のときだけ建つ——帯と noindex はクライアント側と
+    // `generateMetadata` が付ける
     if (!spot) notFound();
 
     const photos = await loadAllPhotos();
     const mine = photosForSpot(photos, spot.spotId);
 
     // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）
-    const published = publishableSpots(SPOTS);
+    const published = visibleSpots(SPOTS);
     const nearby = (spot.nearbySpotIds ?? [])
         .map((id) => published.find((s) => s.spotId === id))
         .filter((s): s is NonNullable<typeof s> => Boolean(s))
@@ -59,9 +61,15 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     );
     const locationPath = hasLocationPage ? collectionPath("location", locSlug) : null;
 
+    // `draftedBy`（下書きを書いた主体）は台帳の中だけに持つ。props は RSC
+    // ペイロードとして HTML に埋まるので、鍵ごと落とす（`undefined` を入れると
+    // 鍵は `"$undefined"` として残る）
+    const { draftedBy: _omitted, ...spotForClient } = spot;
+    void _omitted;
+
     return (
         <SpotGuideClient
-            spot={spot}
+            spot={spotForClient}
             photos={mine.map(slimForGrid)}
             nearby={nearby}
             locationPath={locationPath}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { isIOS, isIOSSafari } from "@/lib/utils/pwa";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
@@ -350,7 +351,10 @@ export default function PhotoMap({
                     dot.setAttribute("aria-hidden", "true");
                     el.appendChild(dot);
                     spotElsRef.current.set(sp.slug, el);
-                    const label = en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`;
+                    // 「公式」は人が確かめた行だけ（`stage`）。下書きはそう名乗る
+                    const label = sp.stage === "published"
+                        ? (en ? `${sp.name} (official spot)` : `${sp.name}（公式撮影スポット）`)
+                        : (en ? `${sp.name} (spot, draft)` : `${sp.name}（撮影スポット・下書き）`);
                     const marker = L.marker([sp.lat, sp.lng], {
                         icon: L.divIcon({
                             html: el,
@@ -510,13 +514,31 @@ export default function PhotoMap({
                 setHere({ lat: latitude, lng: longitude });
                 mapRef.current?.setView([latitude, longitude], LOCATE_ZOOM);
             },
-            () => {
+            (err) => {
                 setLocating(false);
-                // 断られた理由は分けない（拒否・失敗・時間切れのどれでも
-                // 人ができることは同じ＝ブラウザの許可を見直す）
-                setLocateError(en
-                    ? "Couldn't get your location. Check the location permission in your browser."
-                    : "現在地を取得できませんでした。ブラウザの位置情報の許可をご確認ください。");
+                // 断られた理由はおおむね分けない（拒否・失敗・時間切れのどれでも
+                // 人ができることは同じ＝許可を見直す）。**ただし iPhone / iPad で
+                // 拒否されたときは、見直す場所を具体的に言う**——「ブラウザの許可」
+                // では、どこを開けばよいか分からない（#32）
+                const ua = navigator.userAgent;
+                const touch = navigator.maxTouchPoints ?? 0;
+                const denied = err?.code === 1 && isIOS(ua, touch);
+                // Safari と、iOS の Chrome などでは設定の場所が違う。ホーム画面から
+                // 起動したアプリは UA に Safari を含まないが、許可の場所は Safari 側
+                const standalone = (navigator as unknown as { standalone?: boolean }).standalone === true;
+                const deniedOnIOS = denied && (standalone || isIOSSafari(ua, touch));
+                const deniedOnIOSOther = denied && !deniedOnIOS;
+                setLocateError(deniedOnIOS
+                    ? (en
+                        ? "Location is turned off for this site. Open Settings → Privacy & Security → Location Services → Safari Websites and allow it."
+                        : "位置情報が許可されていません。「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari の Web サイト」で許可してください。")
+                    : deniedOnIOSOther
+                    ? (en
+                        ? "Location is turned off for this browser. Open Settings → this browser's app (e.g. Chrome) → Location and allow it."
+                        : "位置情報が許可されていません。「設定」→ このブラウザのアプリ（Chrome など）→「位置情報」で許可してください。")
+                    : (en
+                        ? "Couldn't get your location. Check the location permission in your browser."
+                        : "現在地を取得できませんでした。ブラウザの位置情報の許可をご確認ください。"));
             },
             // **高精度は要らない。** 写真の座標は約1km に丸めてあるので、
             // 細かく測っても地図の上では同じ。電池と待ち時間だけ増える

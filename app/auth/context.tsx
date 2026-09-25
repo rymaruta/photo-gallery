@@ -15,6 +15,7 @@ import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
+import { forgetUploadDraftOnSignOut } from "../../lib/utils/uploadDraft";
 import { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } from "../../lib/stories";
 import { setFavoritesUser, removeFavoritesUserData } from "../../lib/hooks/useFavorites";
 
@@ -29,6 +30,14 @@ function clearAccountLocalState(): void {
     // PWA 共有シートのペイロード（写真の実体）。残すと1時間以内に
     // ログインした**別の人**のアップロード画面へ自動取り込みされる
     void clearSharedPayload();
+    // 投稿画面の書きかけ（写真の**原本**ごと。位置情報も入っている）。
+    // 残すと、同じ端末で次にログインした**別の人**の投稿画面に戻ってしまう
+    void forgetUploadDraftOnSignOut();
+    // プッシュの宛先を覚えた印。**サーバーへは送らない**（ログアウトは
+    // `unregisterPushToken` が外し、退会は `deleteAccount` が消す）。
+    // 残すと、次にこの端末でログインした人の `registerPushToken` が
+    // 「もう預けてある」と判断して送らない
+    void import("../../lib/push/deviceToken").then((m) => m.forgetStoredDeviceToken());
     // 未ログインで付いた既読記録（共有キー）だけ掃除する。
     // **ログイン中のぶんは消さない**——鍵が利用者ごとに分かれたので
     // 前の人の既読が次の人に見えることはもう無く、消していたせいで
@@ -231,6 +240,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [checkAuth]);
 
     /**
+     * **戻るで復元されたページ（bfcache）は、ログイン状態を確かめ直す。**
+     * 止まっている間のページには storage イベントも届かないので、素の `<a>` で
+     * 移った先でログアウトしてから戻ると、ヘッダーがログイン中の見た目のまま
+     * 残り、いいね等が失敗していた（#12）。`persisted` のときだけ
+     * （普通の読み込みでは上の effect が確かめる）。
+     */
+    useEffect(() => {
+        const onPageShow = (e: PageTransitionEvent) => {
+            if (e.persisted) void checkAuth();
+        };
+        window.addEventListener("pageshow", onPageShow);
+        return () => window.removeEventListener("pageshow", onPageShow);
+    }, [checkAuth]);
+
+    /**
      * **確かめられなかったまま留まらない。**
      *
      * 通信が届かなかった回は前の状態を保つ（`lookupSession` の
@@ -327,6 +351,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // （`signOut` → 手元の掃除 → 画面 → 遷移）。
     // 呼び手（`HeaderNav`）は戻り値を見ないので、async にしても影響しない
     const logout = useCallback(async () => {
+        // 🔴 **プッシュの宛先を外すのは `signOut()` より前。** `userFetch` は
+        // Cognito の ID トークンを付けるので、あとでは「認証が必要です」で
+        // 落ちる——**ログアウトしたのに宛先が残り**、次にこの端末で別の人が
+        // ログインするまで前の人宛ての通知が届き続ける（サーバー側の持ち主の
+        // 付け替えが救うのは、その次のログインの瞬間から）。
+        // 見張りは `app/auth/__tests__/pushLogout.test.tsx`（順序を固定）。
+        // **待つが、失敗でも進む**（`unregisterPushToken` は投げない）。
+        // 覚えている宛先が無ければ1往復も起きない＝ブラウザだけの人には無料
+        // **呼び出し側でも握る。** `unregisterPushToken` は投げない契約だが、
+        // ここで投げられると `logout` が止まって**ログアウトできなくなる**
+        // ——通知が届かないより、ずっと悪い。契約に頼らず倒れる向きを決める
+        await import("../../lib/push/deviceToken")
+            .then((m) => m.unregisterPushToken())
+            .catch((e) => log.warn("logout: プッシュの宛先を外せませんでした", e));
         const { signOut } = await import("../../lib/auth/cognito");
         signOut();
         // フォロー中の一覧はモジュール変数に持っている。ログアウトは

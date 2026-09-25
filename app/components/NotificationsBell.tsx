@@ -794,8 +794,8 @@ export default function NotificationsBell() {
             // （WCAG 2.1.1）
             tabIndex={0}
             className={wide
-                ? "max-h-96 overflow-y-auto no-scrollbar"
-                : "flex-1 min-h-0 overflow-y-auto no-scrollbar"}
+                ? "max-h-96 overflow-y-auto overscroll-contain no-scrollbar"
+                : "flex-1 min-h-0 overflow-y-auto overscroll-contain no-scrollbar"}
         >
             {/* **そのタブだけ空**のときは、全体が0件のときと別の文を出す。
                 同じ「まだ届いていません」にすると、絞っていることを忘れた人に
@@ -1028,14 +1028,15 @@ export default function NotificationsBell() {
 
                    **ヘッダーの下から始める。** モックもヘッダー（ロゴ・
                    ベル・アバター）を残したまま下に一覧を敷いているので、
-                   `HeaderNav` のメニューと同じ `top-[64px] md:top-[72px]`
-                   に合わせる。ベルがそのまま閉じる口として残る。 */
+                   `HeaderNav` のメニューと同じく、ヘッダーの実際の高さ
+                   （`--header-h`・上の安全領域込み）に合わせる。ベルがそのまま
+                   閉じる口として残る。 */
                 <div
                     ref={sheetRef}
                     role="dialog"
                     aria-modal="true"
                     aria-label={locale === "en" ? "Notifications" : "通知"}
-                    className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50 flex flex-col bg-bg"
+                    className="fixed left-0 right-0 bottom-0 top-[var(--header-h)] z-50 flex flex-col bg-bg"
                     // ホームインジケーターの下に一覧の最後の行が隠れないように
                     style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                 >

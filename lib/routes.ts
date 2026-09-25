@@ -77,6 +77,12 @@ export const ROUTES = {
      * 写真が0枚の場所も載る。
      */
     SPOTS: "/spots",
+    /**
+     * 都道府県ごとの撮影スポット一覧。`/spots` を県の一覧に分けたときの行き先
+     * （`app/spots/area/[area]/page.tsx`）。**`area` という綴りのスポットを
+     * 台帳に入れるとここと衝突する**——見張りは `spotsLedger.test.ts`。
+     */
+    SPOT_AREA: (area: string) => `/spots/area/${encodeURIComponent(area)}`,
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
     PRIVACY: "/privacy",

@@ -41,7 +41,10 @@ export default function MapSpotList({ spots, locale }: {
                 className="m-0 font-serif font-bold text-white"
                 style={{ fontSize: "14px", lineHeight: "20px", marginBottom: "8px" }}
             >
-                {en ? "Official shooting spots" : "公式撮影スポット"}
+                {/* 全部が下書きなら見出しもそう名乗る（「公式」は人が確かめた行だけ） */}
+                {spots.every((s) => s.stage !== "published")
+                    ? (en ? "Shooting spots (drafts)" : "撮影スポット（下書き）")
+                    : (en ? "Official shooting spots" : "公式撮影スポット")}
             </h2>
             <ul className="list-none m-0 p-0" data-testid="map-spot-list">
                 {spots.map((s) => (
@@ -78,7 +81,9 @@ export default function MapSpotList({ spots, locale }: {
                                     {s.name}
                                 </span>
                                 <span className="block text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
-                                    {en ? "Official guide" : "公式撮影地ガイド"}
+                                    {s.stage === "published"
+                                        ? (en ? "Official guide" : "公式撮影地ガイド")
+                                        : (en ? "Guide (draft)" : "撮影地ガイド（下書き）")}
                                     {s.region ? ` ・ ${s.region}` : ""}
                                 </span>
                             </span>

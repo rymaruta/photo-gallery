@@ -26,11 +26,34 @@ import { publicImageUrl } from "@/lib/utils/seo";
  * **出す側で揃えれば、その実行を待たずに表示は1オリジンになる**。
  */
 
-/** 256w/512w の srcset 文字列を組み立てる（無い分は除外） */
-function buildSrcSet(w256?: string, w512?: string): string | undefined {
+type Shape = { width?: number; height?: number; aspectRatio?: number };
+
+/**
+ * **派生の実際の幅を申告する。** 派生は長辺で 256 / 512 に縮めている
+ * （`createThumbnail`・`generate-thumbnails.js` の `fit: "inside"`）ので、
+ * `512w` が本当に幅 512 なのは横長の写真だけ。iPhone の縦位置（3:4）は
+ * 384 × 512、パノラマは 512 × 128。ブラウザは申告を信じて候補を選ぶので、
+ * 幅を多く申告すると足りない方を選んで**引き伸ばして表示する**（#40）。
+ *
+ * `cellAspect`（マスの 幅 ÷ 高さ）を渡すと、`object-cover` で**高さが足りなく
+ * なる**ぶんも見る（横長のマスに縦長・超横長を敷き詰めると、決めるのは高さ）。
+ * 寸法を持たない写真は、今までどおり長辺をそのまま申告する。
+ */
+export function thumbDescriptor(edge: number, shape: Shape, cellAspect?: number): number {
+    const ar = shape.aspectRatio
+        ?? (shape.width && shape.height ? shape.width / shape.height : undefined);
+    if (!ar || !Number.isFinite(ar) || ar <= 0) return edge;
+    const w = ar >= 1 ? edge : edge * ar;
+    const h = ar >= 1 ? edge / ar : edge;
+    const effective = cellAspect ? Math.min(w, h * cellAspect) : w;
+    return Math.max(1, Math.round(effective));
+}
+
+/** 256/512 の srcset 文字列を組み立てる（無い分は除外） */
+function buildSrcSet(w256?: string, w512?: string, shape: Shape = {}, cellAspect?: number): string | undefined {
     const parts: string[] = [];
-    if (w256) parts.push(`${publicImageUrl(w256)} 256w`);
-    if (w512) parts.push(`${publicImageUrl(w512)} 512w`);
+    if (w256) parts.push(`${publicImageUrl(w256)} ${thumbDescriptor(256, shape, cellAspect)}w`);
+    if (w512) parts.push(`${publicImageUrl(w512)} ${thumbDescriptor(512, shape, cellAspect)}w`);
     return parts.length ? parts.join(", ") : undefined;
 }
 
@@ -55,9 +78,12 @@ function useHydratedFromHtml(): boolean {
 }
 
 type Props = {
-    photo: Pick<Photo, "src" | "thumbSrc" | "thumbAvif" | "thumbSm" | "thumbSmAvif" | "blurDataURL">;
+    photo: Pick<Photo, "src" | "thumbSrc" | "thumbAvif" | "thumbSm" | "thumbSmAvif" | "blurDataURL">
+        & Partial<Pick<Photo, "width" | "height" | "aspectRatio">>;
     alt: string;
     sizes?: string;
+    /** マスの 幅 ÷ 高さ（`object-cover` で敷くマス）。渡すと派生の選び方が正しくなる */
+    cellAspect?: number;
     priority?: boolean;
     objectPosition?: string;
     className?: string;
@@ -68,7 +94,7 @@ type Props = {
  * 存在する派生だけ <source> にする（無ければ従来 thumbSrc/src にフォールバック）。
  * 親の相対配置ボックスに absolute で敷き詰める前提。blur-up・フェード・エラー処理を内包。
  */
-export default function Thumb({ photo, alt, sizes, priority = false, objectPosition, className = "" }: Props) {
+export default function Thumb({ photo, alt, sizes, priority = false, objectPosition, className = "", cellAspect }: Props) {
     // **ハイドレーションまでは隠さない。** 以前は `loaded=false` から始めて
     // `opacity-0` を静的HTMLに焼いていたので、JS が届いて React が付くまで
     // 画像が透明のままだった（Chromium 実測・Fast 3G + CPU 4倍: 画像は
@@ -107,8 +133,8 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     const loaded = phase === "loaded";
 
     const fallback = publicImageUrl(photo.thumbSrc || photo.src);
-    const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif) : undefined;
-    const webpSet = photo.thumbSm ? buildSrcSet(photo.thumbSm, photo.thumbSrc) : undefined;
+    const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif, photo, cellAspect) : undefined;
+    const webpSet = photo.thumbSm ? buildSrcSet(photo.thumbSm, photo.thumbSrc, photo, cellAspect) : undefined;
 
     if (error) {
         return (

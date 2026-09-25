@@ -59,6 +59,7 @@ const ledger = vi.hoisted(() => ({
     pins: [] as Array<{
         slug: string; name: string; region: string; lat: number; lng: number;
         cover: { src: string; alt: string; credit: string | null } | null;
+        stage: "review" | "published";
     }>,
 }));
 vi.mock("../../../lib/data/spotLink", () => ({ spotPins: () => ledger.pins }));
@@ -479,7 +480,7 @@ describe("/map", () => {
  * 旅行プラン → 写真SNS）で、地図から次の2つへ繋ぐのがこのシートの役目。
  */
 describe("公式撮影地ガイドのピン", () => {
-    const PIN = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null };
+    const PIN = { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", lat: 34.1, lng: 133.6, cover: null, stage: "published" as const };
     const COVER = { src: "/spots/takaya.jpg", alt: "高屋神社の鳥居", credit: "丸田 竜平" };
     const P = (id: string): Photo => ({
         id, src: `https://cdn/${id}.jpg`, userId: "u1", title: { ja: `写真${id}` },
@@ -585,6 +586,21 @@ describe("公式撮影地ガイドのピン", () => {
         expect(within(sheet).getByText("高屋神社")).toBeTruthy();
         expect(within(sheet).getByText("香川県 観音寺市")).toBeTruthy();
         expect(within(sheet).getByText("公式撮影スポット")).toBeTruthy();
+    });
+
+    /// 🔴 **「公式」と名乗るのは人が確かめた行だけ。** 運営未確認の下書きは
+    /// シートでも一覧でも「下書き」と名乗る（2026-09-24 の台帳は 1,417件が
+    /// 未確認のまま「公式」を名乗っていた）
+    it("下書きのピンは「公式」と名乗らない", async () => {
+        photosState.current = [P("a")];
+        ledger.pins = [{ ...PIN, stage: "review" }];
+        render(<MapPage />);
+        await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+        const sheet = screen.getByTestId("map-spot-sheet");
+        expect(within(sheet).getByText("撮影スポット（下書き）")).toBeTruthy();
+        expect(within(sheet).queryByText("公式撮影スポット")).toBeNull();
+        expect(screen.queryByText("公式撮影スポット")).toBeNull();
+        expect(screen.getByText("撮影地ガイド（下書き）", { exact: false })).toBeTruthy();
     });
 
     /// 🔴 **地図 → ガイド**（コアの鎖の次の輪）

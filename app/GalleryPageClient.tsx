@@ -97,7 +97,7 @@ function HomeColumns({ rail, children }: { rail: React.ReactNode; children: Reac
           **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
           柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
           作ると隠れる */}
-      <aside className="hidden lg:block lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">{rail}</aside>
+      <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh_-_var(--header-h)_-_96px_-_env(safe-area-inset-bottom,0px))] lg:overflow-y-auto">{rail}</aside>
     </div>
   );
 }
@@ -678,12 +678,12 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
        * 変えるたびに上まで戻ることになる。マップ（左に一覧／右に地図）と
        * 同じ考え方。
        *
-       * 柱は `lg:top-[88px]`＝ヘッダー（`md:` で 72px）の下 16px。
+       * 柱はヘッダー（`--header-h`・安全領域込み）の下 16px に貼り付く。
        * **`overflow-y-auto` は付けない**——並び替えの一覧が
        * `absolute` で吊り下がるので、切り取られる箱を作ると隠れる。
        */
       <div className="lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
-      <div className="lg:sticky lg:top-[88px]">
+      <div className="lg:sticky lg:top-[calc(var(--header-h)_+_16px)]">
       <FilterBar
         categories={categories}
         tags={tags}

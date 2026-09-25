@@ -57,8 +57,12 @@ type UserProfile = {
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
+// **欄に `inputMode="numeric"` を付けないこと。** iPhone の数字キーパッドには
+// 「:」が無く、「1:12」と打てずに「112」と打つと 112秒（1:52）で黙って
+// 保存された。かなキーボードの数字は全角（「１：１２」）で来るので、
+// NFKC で半角に寄せてから読む。
 function mmssToSec(v: string): number | undefined {
-    const t = v.trim();
+    const t = v.normalize("NFKC").trim();
     if (!t) return undefined;
     if (/^\d+$/.test(t)) return Number(t);
     const m = t.match(/^(\d+):([0-5]?\d)$/);
@@ -604,7 +608,10 @@ export default function ProfileEditPage() {
                                 </div>
                             )}
                         </div>
-                        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* **上げている間は、触れていなくても出す。** 以前は hover でしか出ず、
+                            タッチ端末（hover が無い）では写真を選んでから完了まで
+                            何も変わらなかった（#23） */}
+                        <div className={`absolute inset-0 rounded-full flex items-center justify-center bg-black/50 transition-opacity ${avatarUploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                             {avatarUploading
                                 ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 : <CameraIcon className="w-6 h-6 text-white" />
@@ -761,7 +768,13 @@ export default function ProfileEditPage() {
                                 id="profile-instagram"
                                 type="text"
                                 value={instagram}
-                                onChange={e => setInstagram(e.target.value.replace(/^@/, ""))}
+                                // 全角の「＠」（日本語キーボード）も落とす
+                                onChange={e => setInstagram(e.target.value.replace(/^[@＠]/, ""))}
+                                // iPhone は先頭を大文字にし、自動修正で英単語に置き換える。
+                                // 黙って別人のアカウントへのリンクが保存されるので切る
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 maxLength={100}
                                 placeholder="username"
                                 className={`${inputClass} rounded-l-none`}
@@ -870,7 +883,9 @@ export default function ProfileEditPage() {
                                                     className="relative w-10 h-10 ml-2 my-2 rounded-md overflow-hidden bg-white/10 flex-shrink-0 group"
                                                 >
                                                     <SongArtwork src={song.artwork} className="absolute inset-0 w-full h-full object-cover" />
-                                                    <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+                                                    {/* タッチ端末（hover が無い）では ▶ の印を常に出す。出さないと、ジャケットを
+                                                        押すと試聴できることが分からなかった（#54） */}
+                                                    <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"} transition-opacity`}>
                                                         {isPreviewing ? <PauseIcon className="w-4 h-4 text-white" /> : <PlayIcon className="w-4 h-4 text-white ml-0.5" />}
                                                     </span>
                                                 </button>
@@ -942,7 +957,6 @@ export default function ProfileEditPage() {
                                                             <input
                                                                 id="profile-song-start"
                                                                 type="text"
-                                                                inputMode="numeric"
                                                                 value={songStartText}
                                                                 onChange={e => setSongStartText(e.target.value)}
                                                                 disabled={!isYouTubePreview}
@@ -955,7 +969,6 @@ export default function ProfileEditPage() {
                                                             <input
                                                                 id="profile-song-end"
                                                                 type="text"
-                                                                inputMode="numeric"
                                                                 value={songEndText}
                                                                 onChange={e => setSongEndText(e.target.value)}
                                                                 disabled={!isYouTubePreview}

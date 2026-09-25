@@ -4,7 +4,7 @@ import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import Thumb, { buildSrcSet } from "../Thumb";
+import Thumb, { buildSrcSet, thumbDescriptor } from "../Thumb";
 
 // ここで見るのは**組み立て方**（並び順と幅の指定）。
 // URL を1本ずつ `publicImageUrl` に通すようになったので、入力は
@@ -21,6 +21,45 @@ describe("buildSrcSet", () => {
         expect(buildSrcSet(undefined, B)).toBe(`${B} 512w`);
         expect(buildSrcSet(A, undefined)).toBe(`${A} 256w`);
         expect(buildSrcSet(undefined, undefined)).toBeUndefined();
+    });
+});
+
+// 派生は長辺で縮めているので、`512w` が本当に幅 512 なのは横長だけ。
+// iPhone の縦位置（3:4）は 384 × 512。幅を多く申告すると、ブラウザは足りない方を
+// 選んで引き伸ばす（docs/ios-bug-audit-2026-09-25.md #40）。
+describe("派生の実際の幅を申告する", () => {
+    const A = "https://cdn.example/a256.webp";
+    const B = "https://cdn.example/b512.webp";
+
+    it("縦位置（3:4）は長辺ではなく実際の幅", () => {
+        expect(buildSrcSet(A, B, { width: 3024, height: 4032 })).toBe(`${A} 192w, ${B} 384w`);
+    });
+
+    it("横長はそのまま（今までと同じ）", () => {
+        expect(buildSrcSet(A, B, { width: 4032, height: 3024 })).toBe(`${A} 256w, ${B} 512w`);
+    });
+
+    it("寸法が無ければ今までどおり長辺を申告する", () => {
+        expect(buildSrcSet(A, B, {})).toBe(`${A} 256w, ${B} 512w`);
+    });
+
+    it("4:3 のマスに敷くパノラマは、足りなくなる高さで決まる", () => {
+        // 512 × 128 を 4:3 のマスに cover で敷くと、使える幅は 128 × 4/3 ≒ 171
+        expect(thumbDescriptor(512, { width: 16000, height: 4000 }, 4 / 3)).toBe(171);
+        // 縦位置は幅で決まる（384）
+        expect(thumbDescriptor(512, { aspectRatio: 0.75 }, 4 / 3)).toBe(384);
+    });
+
+    it("一覧のグリッドは寸法を渡し、マスの形（4:3）も渡す", () => {
+        const { container } = render(
+            <Thumb
+                photo={{ src: "https://cdn/x.jpg", thumbSrc: B, thumbSm: A, width: 3000, height: 4000 }}
+                alt="" cellAspect={4 / 3}
+            />,
+        );
+        expect(container.querySelector('source[type="image/webp"]')?.getAttribute("srcset")).toBe(`${A} 192w, ${B} 384w`);
+        const grid = readFileSync(join(__dirname, "../GalleryGrid.tsx"), "utf8");
+        expect(grid).toMatch(/cellAspect=\{4 \/ 3\}/);
     });
 });
 

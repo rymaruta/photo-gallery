@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isImeKey } from "../../lib/utils/ime";
 import debounce from "lodash.debounce";
 import {
     MagnifyingGlassIcon, XMarkIcon, MapIcon, ListBulletIcon,
@@ -111,9 +112,16 @@ export default function MapControls({
                         composingRef.current = false;
                         apply(e.currentTarget.value);
                     }}
+                    onKeyDown={(e) => {
+                        // 確定キー（iPhone では「検索」）でキーボードを閉じる。結果は打つたびに
+                        // 出ているので、閉じないとキーボードが結果を隠したまま残る。
+                        // 変換の確定の Enter は除く
+                        if (e.key === "Enter" && !isImeKey(e.nativeEvent)) e.currentTarget.blur();
+                    }}
+                    enterKeyHint="search"
                     placeholder={en ? "Search places and titles" : "撮影地・写真の題で検索"}
                     aria-label={en ? "Search places and titles" : "撮影地・写真の題で検索"}
-                    className="w-full rounded-[20px] bg-surface-2/90 text-white placeholder:text-white/50 ring-1 ring-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="search-own-clear w-full rounded-[20px] bg-surface-2/90 text-white placeholder:text-white/50 ring-1 ring-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     style={{
                         height: "48px", fontSize: "15px",
                         paddingLeft: "44px", paddingRight: local ? "44px" : "16px",

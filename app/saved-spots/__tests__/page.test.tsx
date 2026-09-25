@@ -44,6 +44,7 @@ const SPOT = (slug: string, name: string) => ({
     highlights: ["雲海が出る朝がある"],
     officialWebsiteUrl: "https://example.example/",
     status: "published",
+    verifiedBy: "運営",
     verifiedAt: "2026-09-23",
     createdAt: "2026-09-23T00:00:00.000Z",
     updatedAt: "2026-09-23T00:00:00.000Z",
@@ -180,6 +181,18 @@ describe("行きたい場所の一覧", () => {
             expect(link.getAttribute("href")).toBe("/spots/takaya-jinja");
             // 見分けが付く（撮影地の集約ページと同じ見た目にしない）
             expect(within(link).getByText("公式")).toBeTruthy();
+        });
+
+        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは**ページを建てない**
+        /// （`BUILD_DRAFT_SPOTS = false`・2026-09-25）ので、保存してあってもリンクにしない
+        /// ——押すと 404 へ送ることになる。行と「外す」は残す（台帳から下りた行と同じ扱い）
+        it("下書きのスポットはリンクにせず、「公式」とも名乗らない", async () => {
+            ledger.spots = [{ ...SPOT("takaya-jinja", "高屋神社"), status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24" }];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            await screen.findByRole("button", { name: /を外す/ });
+            expect(screen.queryByRole("link", { name: /高屋神社|takaya-jinja/ })).toBeNull();
+            expect(screen.queryByText("公式")).toBeNull();
         });
 
         /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を

@@ -31,6 +31,12 @@ const SHARE_STYLE: React.CSSProperties = {
     touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
     minHeight: "44px",
+    // 幅も 44px。スマホ幅は基準の文字が 14px なので、余白とアイコンだけでは
+    // 32px しか無かった（実測・#50）。**px で書く**（rem だと縮む）
+    minWidth: "44px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
 };
 
 export default function ModalCaption({
@@ -42,7 +48,7 @@ export default function ModalCaption({
 
     return (
         <div
-            className="flex-shrink-0 overflow-y-auto bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
+            className="flex-shrink-0 overflow-y-auto overscroll-contain bg-black text-white/90 px-4 sm:px-6 py-3 sm:py-4"
             style={{
                 // **枠（`95dvh`）を基準にも縛る。** `100dvh - 60dvh - 40px`
                 // だけだと、画像の `60dvh` と合わせて `100dvh - 40px` になり、
@@ -51,7 +57,11 @@ export default function ModalCaption({
                 // ボタンの行に掛かる（TAP-7 と同じ症状が、今度は大きい画面で）。
                 // 画像が 60dvh なので、キャプションに使えるのは残りの 35dvh。
                 // 小さい画面では今までどおり `40dvh - 40px` の方が先に効く。
-                maxHeight: "min(calc(100dvh - 60dvh - 40px), 35dvh)",
+                // **上下の安全領域のぶんも引く。** モーダルの外枠が安全領域の
+                // 内側に収まる（`GalleryModal/index.tsx`）ので、ホーム画面から
+                // 起動した縦向き（上 59px＋下 34px）では使える高さがその分減る。
+                // 引かないと共有ボタンの行が枠の外で切られる。
+                maxHeight: "min(calc(100dvh - 60dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)), 35dvh)",
                 // **下限を画面の高さに連動させる（TAP-7）。** 200px 固定だと、
                 // 画像の下限（300px）と合わせて 500px になり、横向きのスマホの
                 // 外枠（95vh = 356px @ 667x375）に入らない。両方 `flex-shrink-0`

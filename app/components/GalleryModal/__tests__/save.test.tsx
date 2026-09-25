@@ -253,3 +253,18 @@ describe("一覧から分かっている保存（savedIds）", () => {
         await waitFor(() => expect(saveGets().length).toBeGreaterThan(0));
     });
 });
+
+// 前後に送っても、フォーカスは矢印のボタンに残ったまま題と写真が黙って
+// 入れ替わっていた（docs/ios-bug-audit-2026-09-25.md #44）
+describe("読み上げ", () => {
+    it("どの写真になったかを polite で伝える", () => {
+        const { rerender } = setup(0);
+        const live = () => document.querySelector('[aria-live="polite"]');
+        expect(live()?.textContent).toBe("2枚中 1枚目: 写真");
+        rerender(
+            <GalleryModal photos={[photo("p1"), photo("p2")]} currentIndex={1}
+                onClose={vi.fn()} onNext={vi.fn()} onPrev={vi.fn()} locale="ja" />,
+        );
+        expect(live()?.textContent).toBe("2枚中 2枚目: 写真");
+    });
+});

@@ -140,6 +140,24 @@ export function sanitizeAudience(value: unknown): Audience | undefined {
     return value === "followers" || value === "closeFriends" ? value : undefined;
 }
 
+/**
+ * 同じ投稿としてまとめる印（`groupId`）。
+ *
+ * **画面が作る値をそのまま信じない。** 鍵の一部にはしない（行のIDは
+ * 上げた鍵から導く）ので、悪い値が入っても他人の行には触れないが、
+ * 長い文字列や制御文字が静的HTMLまで届くのは別の話。
+ *
+ * 受けるのは**英数字とハイフンだけ・64文字まで**（UUID がそのまま通る形）。
+ * それ以外は**まとめない**方に倒す——まとめ損なっても写真は1枚ずつ出るが、
+ * 変な値でまとまると関係のない写真が同じ投稿に見える。
+ */
+export function sanitizeGroupId(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    const trimmed = v.trim();
+    if (!trimmed || trimmed.length > 64) return undefined;
+    return /^[A-Za-z0-9-]+$/.test(trimmed) ? trimmed : undefined;
+}
+
 export function sanitizeDate(v: unknown): string | undefined {
     if (typeof v !== "string" || !v.trim()) return undefined;
     const s = v.trim();

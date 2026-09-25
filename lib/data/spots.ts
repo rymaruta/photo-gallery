@@ -76,10 +76,33 @@ export type Spot = {
     category?: string;
     /** 代表写真。**公開写真の id** を1つだけ持つ */
     coverPhotoId?: string;
-    /** 下書きは公開ページを作らない */
-    status?: "draft" | "published";
-    /** 人が確かめたか（未確認のまま出さない判断に使う） */
-    verified?: boolean;
+    /**
+     * 段階。**3つ**:
+     *
+     *   `draft`      … 下書き。ページを作らない
+     *   `review`     … **運営がまだ確かめていない下書き**。ページは作るが
+     *                  `noindex`・サイトマップ外・「下書き（運営未確認）」の帯つき。
+     *                  出典が要る項目（`SOURCED_FIELDS`）は**無条件に出さない**
+     *   `published`  … 人が確かめた。`verifiedBy`・`verifiedAt` が揃って初めて
+     *                  検索に載り「公式」と名乗る
+     *
+     * 🔴 **2026-09-24 の実態。** 1,417件は Claude のセッションが1日で書いた。
+     * その環境は外部サイトへ出られず（PR #164 自身が「到達できない」と明記）、
+     * 公式サイトの URL も事実も**誰も確かめていない**のに、全件に
+     * `verified: true`・`verifiedAt: "2026-09-24"` が付いていた。**AI が
+     * true と書けば通る1ビット**だったので、`verified` は型ごと消した
+     * （2026-09-25）。確認は**人名**（`verifiedBy`）でしか主張できない。
+     */
+    status?: "draft" | "review" | "published";
+    /**
+     * **確かめた人の名前。** `published` に上げる条件で、`verifiedAt` と対で書く。
+     * AI の名前（claude / gpt / assistant …）は `spotsLedger.test.ts` が拒む。
+     */
+    verifiedBy?: string;
+    /** 下書きを書いた日（ISO の日付）。**確認日ではない** */
+    draftedAt?: string;
+    /** 下書きを書いた主体（例: "claude"）。台帳の中だけに持ち、画面・アプリには出さない */
+    draftedBy?: string;
 
     // ── ここから公式ガイド（2026-09-23・owner の指示書 第4章）───────────
     //
@@ -124,7 +147,11 @@ export type Spot = {
      * 推測で埋めないでください」）。人の注意力ではなく**表示側で機械的に**効かせる。
      */
     sources?: SpotSource[];
-    /** 最終確認日（ISO）。`verified` の真偽を日付に格上げしたもの */
+    /**
+     * 人が最後に確かめた日（ISO の日付）。**`verifiedBy` と対でしか書けない**
+     * ——`spotsLedger.test.ts` が「verifiedAt があるなら verifiedBy もある」を見る。
+     * 機械が書いた日付を入れる場所ではない（それは `draftedAt`）。
+     */
     verifiedAt?: string;
 
     createdAt: string;
@@ -149,6 +176,12 @@ export type SpotSource = {
     title?: string;
     /** 確認した日（ISO の日付） */
     checkedAt: string;
+    /**
+     * **確かめた人の名前。** これが無い出典は「候補」で、画面の裏付けにならない
+     * （`sourcesFor` が数えない）。2026-09-24 の17件は AI が書いた当日の
+     * `checkedAt` だけを持ち、人は開いていない。
+     */
+    checkedBy?: string;
 };
 
 /**

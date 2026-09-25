@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { isHevcVideo } from "../../../lib/utils/videoCodec";
+import { seekWhenReady } from "../../../lib/utils/mediaSeek";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon, MapPinIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
@@ -582,7 +584,8 @@ export default function StoriesBar() {
             ? { start: startSec, end: Math.min(SONG_PREVIEW_SEC, startSec + loopSec) }
             : null;
         if (a.src !== song.previewUrl) a.src = song.previewUrl;
-        try { a.currentTime = startSec; } catch { /* seek 未対応は無視 */ }
+        // 差し替えた直後は曲の情報が無く、iOS は頭出しを捨てることがある
+        seekWhenReady(a, startSec);
         setPreviewTime(startSec);
         void a.play()
             .then(() => setPreviewingId(song.id))
@@ -773,7 +776,15 @@ export default function StoriesBar() {
             return;
         }
         if (file.size > MAX_FILE_BYTES) {
-            showToast(locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）", "error");
+            // **動画は「60秒」より先に「50MB」に当たる。** iPhone の既定（1080p・
+            // HEVC）はおよそ 1分で 60MB（H.264 に変換されて渡るとその倍近く）、
+            // 4K なら数秒で超える。上限はサーバーも
+            // 50MB（`api-user/src/upload.ts`）なので、ここでは何が収まるかを伝える（#45）
+            showToast(isVideo
+                ? (locale === "en"
+                    ? "Video too large (max 50MB — under a minute at 1080p; 4K goes over in seconds)"
+                    : "動画が大きすぎます（最大50MB。1080p で1分弱まで、4K は数秒で超えます）")
+                : (locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）"), "error");
             return;
         }
         let prepared = file;
@@ -783,6 +794,14 @@ export default function StoriesBar() {
                 if (duration > MAX_VIDEO_SECONDS) {
                     showToast(locale === "en" ? "Video must be 60s or shorter" : "動画は60秒以内にしてください", "error");
                     return;
+                }
+                // **HEVC は知らせる（止めない）。** iPhone の既定の形式で、再生
+                // できない環境ではストーリーが黙って飛ばされる。ブラウザの中で
+                // 作り直す手段は無いので、避け方を伝える（#43）
+                if (await isHevcVideo(file)) {
+                    showToast(locale === "en"
+                        ? "This video is HEVC and may not play on some Android phones and PCs. To avoid this, set Camera → Formats → Most Compatible in iPhone Settings."
+                        : "この動画は HEVC 形式のため、Android や一部のパソコンでは再生できないことがあります（iPhone の「設定」→「カメラ」→「フォーマット」→「互換性優先」で撮ると避けられます）", "info", 7000);
                 }
             } catch {
                 showToast(locale === "en" ? "Could not read the video" : "動画を読み込めませんでした", "error");

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     SOURCED_FIELDS, sourcesFor, showsField, coverImageProblems,
     needsVisibleCredit, publishBlockers, publishableSpots, usesMapHero, SUMMARY_MIN,
+    reviewBlockers, visibleSpots, BUILD_DRAFT_SPOTS, isVerified,
 } from "../spotGuide";
 import type { Spot } from "@/lib/data/spots";
 
@@ -26,6 +27,7 @@ function fullSpot(over: Partial<Spot> = {}): Spot {
         highlights: ["雲海が出る朝がある"],
         officialWebsiteUrl: "https://example.example/",
         status: "published",
+        verifiedBy: "運営",
         verifiedAt: "2026-09-23",
         createdAt: "2026-09-23T00:00:00.000Z",
         updatedAt: "2026-09-23T00:00:00.000Z",
@@ -52,19 +54,43 @@ describe("出典が無ければ出さない", () => {
         expect(showsField(s, "access")).toBe(false);
     });
 
-    it("出典を足すと出る", () => {
+    it("確認者つきの出典を足すと出る", () => {
         const s = fullSpot({
             access: { car: "国道から15分" },
-            sources: [{ field: "access", url: "https://example.example/access", checkedAt: "2026-09-23" }],
+            sources: [{ field: "access", url: "https://example.example/access", checkedAt: "2026-09-23", checkedBy: "運営" }],
         });
         expect(showsField(s, "access")).toBe(true);
         expect(sourcesFor(s, "access")).toHaveLength(1);
     });
 
+    /// 🔴 **url と日付だけの出典は「候補」。** 2026-09-24 の17件は AI が書いた
+    /// 当日の `checkedAt` を持つだけで、人は1本も開いていない
+    it("確認者（checkedBy）の無い出典は、published でも数えない", () => {
+        const s = fullSpot({
+            access: { car: "国道から15分" },
+            sources: [{ field: "access", url: "https://example.example/access", checkedAt: "2026-09-23" }],
+        });
+        expect(showsField(s, "access")).toBe(false);
+        expect(sourcesFor(s, "access")).toHaveLength(0);
+    });
+
+    /// 🔴 **下書き（review）の段階では、出典があっても出さない。**
+    /// 帯1本の注意書きに駐車場や交通規制まで負わせない
+    it("review では確認者つきの出典があっても出さない", () => {
+        const s = fullSpot({
+            status: "review",
+            access: { car: "国道から15分" },
+            sources: [{ field: "access", url: "https://example.example/access", checkedAt: "2026-09-23", checkedBy: "運営" }],
+        });
+        expect(showsField(s, "access")).toBe(false);
+        // 助言の項目は下書きでも出す（事実ではないので出典を求めない）
+        expect(showsField(s, "highlights")).toBe(true);
+    });
+
     it("別の項目の出典では効かない", () => {
         const s = fullSpot({
             parking: { available: true },
-            sources: [{ field: "access", url: "https://example.example/", checkedAt: "2026-09-23" }],
+            sources: [{ field: "access", url: "https://example.example/", checkedAt: "2026-09-23", checkedBy: "運営" }],
         });
         expect(showsField(s, "parking"), "access の出典が parking を通している").toBe(false);
     });
@@ -173,8 +199,26 @@ describe("正式公開の条件（薄いページを索引へ入れない）", (
     });
 
     it("確認日が無ければ公開しない", () => {
-        expect(publishBlockers(fullSpot({ verifiedAt: undefined, verified: undefined }))
+        expect(publishBlockers(fullSpot({ verifiedAt: undefined }))
             .some((m) => m.includes("確認日"))).toBe(true);
+    });
+
+    /// 🔴 **日付だけでは足りない。名前が要る。** 2026-09-24 は全件に機械の日付が
+    /// 付いていて、それだけで「人が確かめた」ことになっていた
+    it("確認者（verifiedBy）が無ければ、確認日があっても公開しない", () => {
+        const blockers = publishBlockers(fullSpot({ verifiedBy: undefined }));
+        expect(blockers.some((m) => m.includes("確認者"))).toBe(true);
+        expect(isVerified(fullSpot({ verifiedBy: undefined }))).toBe(false);
+        expect(isVerified(fullSpot())).toBe(true);
+        expect(isVerified(fullSpot({ status: "review" }))).toBe(false);
+    });
+
+    it("出典が要る項目を書いているのに確認者つきの出典が無ければ公開しない", () => {
+        const s = fullSpot({
+            parking: { available: true, note: "無料" },
+            sources: [{ field: "parking", url: "https://example.example/", checkedAt: "2026-09-23" }],
+        });
+        expect(publishBlockers(s).some((m) => m.includes("parking") && m.includes("checkedBy"))).toBe(true);
     });
 
     /// アクセスは**出典が無ければ「無い」と同じ**なので、公式サイトが要る
@@ -187,7 +231,7 @@ describe("正式公開の条件（薄いページを索引へ入れない）", (
         const s = fullSpot({
             access: { transit: "駅からバス20分" },
             officialWebsiteUrl: undefined,
-            sources: [{ field: "access", url: "https://example.example/", checkedAt: "2026-09-23" }],
+            sources: [{ field: "access", url: "https://example.example/", checkedAt: "2026-09-23", checkedBy: "運営" }],
         });
         expect(publishBlockers(s)).toEqual([]);
     });
@@ -211,5 +255,46 @@ describe("正式公開の条件（薄いページを索引へ入れない）", (
         const ok = fullSpot();
         const ng = fullSpot({ spotId: "sp_000000000002", slug: "ng", status: "draft" });
         expect(publishableSpots([ok, ng]).map((s) => s.slug)).toEqual(["example-spot"]);
+    });
+});
+
+describe("下書き（review）の門", () => {
+    /** 人が確かめていない下書き。確認者・確認日を持たない */
+    const review = (over: Partial<Spot> = {}) =>
+        fullSpot({ status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24", ...over });
+
+    it("確認日が無くてもページは建てられる（確認日は publish の条件）", () => {
+        expect(reviewBlockers(review())).toEqual([]);
+        expect(publishBlockers(review()).some((m) => m.includes("確認"))).toBe(true);
+    });
+
+    it("draft は建てない・review は建てる・published は公開の条件で建てる", () => {
+        const draft = review({ spotId: "sp_000000000003", slug: "draft", status: "draft" });
+        const half = fullSpot({ spotId: "sp_000000000004", slug: "half", verifiedBy: undefined });
+        expect(reviewBlockers(draft)).toContain("status が review か published でない");
+        expect(visibleSpots([fullSpot(), review(), draft, half], { includeDrafts: true }).map((s) => s.slug))
+            .toEqual(["example-spot", "example-spot"]);
+        // published と書いてあっても確認者が無ければ建てない（嘘のまま出さない）
+        expect(visibleSpots([half], { includeDrafts: true })).toEqual([]);
+        expect(publishableSpots([review()])).toEqual([]);
+    });
+
+    /**
+     * 🔴 **いまは下書きを建てない**（owner の「本番に出せるものだけ」・2026-09-25）。
+     * 既定のまま呼ぶ画面・地図・アプリ向け JSON・サイトマップから、下書きが消える。
+     */
+    it("既定では下書きを建てない（公開済みだけ）", () => {
+        expect(BUILD_DRAFT_SPOTS).toBe(false);
+        const published = fullSpot({ spotId: "sp_000000000005", slug: "published" });
+        expect(visibleSpots([review(), published]).map((s) => s.slug)).toEqual(["published"]);
+        expect(visibleSpots([review()])).toEqual([]);
+    });
+
+    it("review でも綴り・座標・紹介文・見どころ・導線は要る", () => {
+        expect(reviewBlockers(review({ slug: "" })).some((m) => m.includes("綴り"))).toBe(true);
+        expect(reviewBlockers(review({ coords: undefined })).some((m) => m.includes("座標"))).toBe(true);
+        expect(reviewBlockers(review({ summary: "短い" })).some((m) => m.includes("紹介文"))).toBe(true);
+        expect(reviewBlockers(review({ officialWebsiteUrl: undefined }))
+            .some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
     });
 });
