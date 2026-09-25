@@ -188,6 +188,9 @@ describe("#32 位置情報を断られたとき（iPhone）", () => {
         const src = code("app/components/PhotoMap.tsx");
         expect(src).toContain("位置情報サービス");
         expect(src).toMatch(/err\?\.code === 1/);
+        // iOS の Chrome などは Safari の設定ではなく、そのアプリの設定を見る
+        expect(src).toMatch(/isIOSSafari\(ua, touch\)/);
+        expect(src).toContain("このブラウザのアプリ");
     });
 });
 

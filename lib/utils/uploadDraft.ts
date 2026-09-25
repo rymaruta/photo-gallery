@@ -25,6 +25,12 @@ export type DraftItem = {
     dateTimeOriginal?: string;
     latitude?: number;
     longitude?: number;
+    /**
+     * S3 までは上がったが保存で落ちた写真の置き場所。**控えて戻す**——
+     * 押し直したときに同じ置き場所を使い回す（取り直すと、参照されない
+     * オブジェクトが S3 に増える。投稿画面の `Item.uploaded` と同じ理由）
+     */
+    uploaded?: { key: string; publicUrl: string; thumbUrl?: string };
 };
 
 export type UploadDraft = {
@@ -69,21 +75,33 @@ function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<
  * （ログアウトを通らない）のときは止めない——写真を守っている最中だから。
  */
 let blockedAfterSignOut = false;
+/**
+ * **別のタブでのログアウト・退会にも効かせる。** モジュールの変数はタブごと
+ * なので、投稿画面を開いている別のタブは気づかず、前の人の写真を書き戻して
+ * いた。印を localStorage にも置く（タブをまたいで読める）
+ */
+const SIGNED_OUT_KEY = "jp_upload_draft_signed_out";
+
+function signedOutElsewhere(): boolean {
+    try { return localStorage.getItem(SIGNED_OUT_KEY) === "1"; } catch { return false; }
+}
 
 /** ログアウト・退会で呼ぶ。控えを消し、次にログインするまで書かせない */
 export async function forgetUploadDraftOnSignOut(): Promise<void> {
     blockedAfterSignOut = true;
+    try { localStorage.setItem(SIGNED_OUT_KEY, "1"); } catch { /* 使えない端末ではこのタブだけ止める */ }
     await clearUploadDraft();
 }
 
 /** ログインが分かったら呼ぶ（書いてよい状態に戻す） */
 export function allowUploadDraft(): void {
     blockedAfterSignOut = false;
+    try { localStorage.removeItem(SIGNED_OUT_KEY); } catch { /* 無くてよい */ }
 }
 
 /** 控える。**失敗しても投げない**（プライベートモード・容量不足。画面は止めない） */
 export async function saveUploadDraft(draft: UploadDraft): Promise<void> {
-    if (typeof indexedDB === "undefined" || blockedAfterSignOut) return;
+    if (typeof indexedDB === "undefined" || blockedAfterSignOut || signedOutElsewhere()) return;
     try { await run("readwrite", (s) => s.put(draft, DRAFT_KEY)); } catch { /* 控えられなくても続ける */ }
 }
 

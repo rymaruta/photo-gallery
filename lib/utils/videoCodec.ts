@@ -1,3 +1,5 @@
+import { readBox, topLevelBoxes } from "./video";
+
 /**
  * **iPhone の動画が HEVC（H.265）か。**
  *
@@ -7,50 +9,54 @@
  * （docs/ios-bug-audit-2026-09-25.md #43）。ブラウザの中で H.264 に作り直す
  * 手段は無いので、選んだ時点で投稿した人に知らせる。
  *
- * 見分け方: MP4 / MOV の最上位の箱をたどって `moov`（形式の情報）だけを読み、
- * その中の `stsd` に並ぶ4文字の印 `hvc1` / `hev1`（HEVC）を探す。圧縮データ
- * （`mdat`）は読まない——偶然同じ4バイトが並んでいても取り違えない。
- * `moov` は先頭にも末尾にも置かれうる。読めなければ false
- * （知らせないだけで、投稿は止めない）。
+ * 見分け方: `moov/trak/mdia/minf/stbl/stsd` まで箱をたどり、並んでいる
+ * 形式の箱の種別が `hvc1` / `hev1` かを見る。**`moov` 全体を文字列として
+ * 探さない**——`stco`/`stsz` の数値に同じ4バイトが偶然並ぶことがある
+ * （`video.ts` が `moov` を丸ごと探さない理由と同じ）。箱の読み方は
+ * `video.ts` の `readBox` / `topLevelBoxes` を使う（二重に書かない）。
+ * 読めなければ false（知らせないだけで、投稿は止めない）。
  */
+
 /** moov がこれより大きければ読まない（普通は数十KB〜数MB） */
 const MAX_MOOV_BYTES = 16 * 1024 * 1024;
+const PATH = ["trak", "mdia", "minf", "stbl", "stsd"] as const;
 
-export function containsHevcTag(buf: Uint8Array): boolean {
-    for (let i = 0; i + 4 <= buf.length; i++) {
-        if (buf[i] !== 0x68) continue; // 'h'
-        const a = buf[i + 1], b = buf[i + 2], c = buf[i + 3];
-        // "hvc1" / "hev1"
-        if ((a === 0x76 && b === 0x63 && c === 0x31) || (a === 0x65 && b === 0x76 && c === 0x31)) return true;
-    }
-    return false;
+/** `moov` の中身（ファイル上の `base` から始まる）で、stsd の形式に HEVC があるか */
+export function moovHasHevc(view: DataView, base: number, start: number, end: number): boolean {
+    const walk = (from: number, to: number, depth: number): boolean => {
+        let off = from;
+        while (off < to) {
+            const box = readBox(view, off, to, base);
+            if (!box) return false;
+            if (box.type === PATH[depth]) {
+                const inner = box.start + box.headerSize;
+                if (box.type === "stsd") {
+                    // 版と旗（4バイト）＋ 個数（4バイト）のあとに形式の箱が並ぶ
+                    let e = inner + 8;
+                    while (e < box.boxEnd) {
+                        const entry = readBox(view, e, box.boxEnd, base);
+                        if (!entry) break;
+                        if (entry.type === "hvc1" || entry.type === "hev1") return true;
+                        e = entry.boxEnd;
+                    }
+                } else if (walk(inner, box.boxEnd, depth + 1)) {
+                    return true;
+                }
+            }
+            off = box.boxEnd;
+        }
+        return false;
+    };
+    return walk(start, end, 0);
 }
 
 export async function isHevcVideo(file: Blob): Promise<boolean> {
     try {
-        let offset = 0;
-        for (let n = 0; n < 64 && offset + 8 <= file.size; n++) {
-            const h = new DataView(await file.slice(offset, offset + 16).arrayBuffer());
-            let size = h.getUint32(0);
-            const type = String.fromCharCode(h.getUint8(4), h.getUint8(5), h.getUint8(6), h.getUint8(7));
-            let header = 8;
-            if (size === 1) {
-                if (h.byteLength < 16) return false;
-                const big = h.getBigUint64(8);
-                if (big > BigInt(Number.MAX_SAFE_INTEGER)) return false;
-                size = Number(big);
-                header = 16;
-            } else if (size === 0) {
-                size = file.size - offset; // 末尾まで
-            }
-            if (size < header) return false; // 壊れている
-            if (type === "moov") {
-                if (size > MAX_MOOV_BYTES) return false;
-                return containsHevcTag(new Uint8Array(await file.slice(offset, offset + size).arrayBuffer()));
-            }
-            offset += size;
-        }
-        return false;
+        const boxes = await topLevelBoxes(file);
+        const moov = boxes?.find((b) => b.type === "moov");
+        if (!moov || moov.boxEnd - moov.start > MAX_MOOV_BYTES) return false;
+        const view = new DataView(await file.slice(moov.start, moov.boxEnd).arrayBuffer());
+        return moovHasHevc(view, moov.start, moov.start + moov.headerSize, moov.boxEnd);
     } catch {
         return false;
     }

@@ -28,6 +28,15 @@ describe("isHevcVideo", () => {
         expect(await isHevcVideo(file([box("ftyp", ascii("isom")), mdat, moov("avc1")]))).toBe(false);
     });
 
+    it("moov の中でも stsd 以外（stco の数値など）に偶然 hvc1 が並んでも、取り違えない", async () => {
+        const stbl = box("stbl", [
+            ...box("stsd", [0, 0, 0, 0, 0, 0, 0, 1, ...box("avc1", new Array(20).fill(0))]),
+            ...box("stco", [0, 0, 0, 0, 0, 0, 0, 1, ...ascii("hvc1")]),
+        ]);
+        const m = box("moov", box("trak", box("mdia", box("minf", stbl))));
+        expect(await isHevcVideo(file([box("ftyp", ascii("isom")), m]))).toBe(false);
+    });
+
     it("壊れていても投げない（知らせないだけ）", async () => {
         expect(await isHevcVideo(new Blob([new Uint8Array([0, 0, 0, 3, 1, 2, 3, 4])]))).toBe(false);
         expect(await isHevcVideo(new Blob([]))).toBe(false);

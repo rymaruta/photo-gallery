@@ -464,10 +464,11 @@ function UploadPageInner() {
             if (!draftReadyRef.current) return;
             // **上げている最中も書き直す。** 飛ばすと、上げている最中に離れた・
             // 一部だけ上がった回に古い控えが残り、次に開くと公開済みの写真が
-            // 戻っていた（二重投稿）。上がった・上げ始めた写真は含めない
-            // （上げ始めた写真は、保存まで届いたか分からない）
-            const keep = src.items.filter((i) => i.status === "pending" || i.status === "error")
-                .filter((i) => !i.uploaded);
+            // 戻っていた（二重投稿）。**公開まで済んだ写真（done）だけ除く。**
+            // 上げている途中・保存で落ちた写真も残す——除くと、iOS がページを
+            // 捨てたときにその写真だけ投稿にも控えにも残らない。S3 まで
+            // 上がったものは置き場所（uploaded）ごと控え、押し直したときに使い回す
+            const keep = src.items.filter((i) => i.status !== "done");
             if (keep.length === 0 || !src.userId) { void clearUploadDraft(); return; }
             void saveUploadDraft({
                 t: Date.now(),
@@ -479,6 +480,7 @@ function UploadPageInner() {
                     file: i.file, title: i.title, description: i.description, location: i.location,
                     focalPoint: i.focalPoint, dateTimeOriginal: i.dateTimeOriginal,
                     latitude: i.latitude, longitude: i.longitude,
+                    uploaded: i.uploaded,
                 })),
             });
         };
@@ -517,6 +519,7 @@ function UploadPageInner() {
             dateTimeOriginal: it.dateTimeOriginal,
             latitude: it.latitude,
             longitude: it.longitude,
+            uploaded: it.uploaded,
             status: "pending",
             progress: 0,
         }));

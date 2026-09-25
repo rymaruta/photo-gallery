@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { isIOS } from "@/lib/utils/pwa";
+import { isIOS, isIOSSafari } from "@/lib/utils/pwa";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { Photo } from "../../lib/data/photos";
@@ -517,12 +517,20 @@ export default function PhotoMap({
                 // 人ができることは同じ＝許可を見直す）。**ただし iPhone / iPad で
                 // 拒否されたときは、見直す場所を具体的に言う**——「ブラウザの許可」
                 // では、どこを開けばよいか分からない（#32）
-                const deniedOnIOS = err?.code === 1
-                    && isIOS(navigator.userAgent, navigator.maxTouchPoints ?? 0);
+                const ua = navigator.userAgent;
+                const touch = navigator.maxTouchPoints ?? 0;
+                const denied = err?.code === 1 && isIOS(ua, touch);
+                // Safari と、iOS の Chrome などでは設定の場所が違う
+                const deniedOnIOS = denied && isIOSSafari(ua, touch);
+                const deniedOnIOSOther = denied && !deniedOnIOS;
                 setLocateError(deniedOnIOS
                     ? (en
                         ? "Location is turned off for this site. Open Settings → Privacy & Security → Location Services → Safari Websites and allow it."
                         : "位置情報が許可されていません。「設定」→「プライバシーとセキュリティ」→「位置情報サービス」→「Safari の Web サイト」で許可してください。")
+                    : deniedOnIOSOther
+                    ? (en
+                        ? "Location is turned off for this browser. Open Settings → this browser's app (e.g. Chrome) → Location and allow it."
+                        : "位置情報が許可されていません。「設定」→ このブラウザのアプリ（Chrome など）→「位置情報」で許可してください。")
                     : (en
                         ? "Couldn't get your location. Check the location permission in your browser."
                         : "現在地を取得できませんでした。ブラウザの位置情報の許可をご確認ください。"));

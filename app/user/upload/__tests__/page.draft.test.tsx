@@ -221,3 +221,43 @@ describe("アップロード画面: 書きかけの控え（7d2ea8f のレビュ
         expect(names.length, "公開済みの写真まで控えに残っている").toBe(1);
     });
 });
+
+describe("アップロード画面: 書きかけの控え（76f7c7b のレビュー）", () => {
+    it("S3 まで上がって保存で落ちた写真は、置き場所ごと控える", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/photos") return Promise.resolve({ ok: true, json: async () => [] });
+            if (url === "/upload/presigned-url") {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/a.jpg", key: "uploads/me/a.jpg" }) });
+            }
+            if (url === "/upload/save") return Promise.resolve({ ok: false, status: 401, json: async () => ({}) });
+            return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+        });
+        const { container } = render(<UploadPage />);
+        await ready();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+        const publish = await screen.findByRole("button", { name: /投稿する|アップロード/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        draft.save.mockClear();
+        await userEvent.click(publish);
+        await waitFor(() => expect(draft.save, "保存で落ちた写真を控えていない").toHaveBeenCalled());
+        const items = (draft.save.mock.calls.at(-1)![0] as { items: { file: File; uploaded?: { key: string } }[] }).items;
+        expect(items).toHaveLength(1);
+        expect(items[0].uploaded?.key).toBe("uploads/me/a.jpg");
+    });
+
+    it("戻した写真に置き場所があれば、押し直したとき取り直さずに使い回す", async () => {
+        draft.read.mockResolvedValue({
+            t: Date.now(), userId: "me", category: "", tags: "", asOnePost: false,
+            items: [{ file: new File(["x"], "a.jpg", { type: "image/jpeg" }), title: "", description: "", location: "",
+                uploaded: { key: "uploads/me/a.jpg", publicUrl: "https://cdn/uploads/me/a.jpg" } }],
+        });
+        render(<UploadPage />);
+        const publish = await screen.findByRole("button", { name: /投稿する|アップロード/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        mockUserFetch.mockClear();
+        await userEvent.click(publish);
+        await waitFor(() => expect(savedBody(), "保存に届いていない").not.toBeNull());
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/presigned-url"), "置き場所を取り直した（S3 に孤児が増える）").toBe(false);
+    });
+});

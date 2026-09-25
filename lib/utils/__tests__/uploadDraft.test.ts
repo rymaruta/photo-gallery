@@ -38,3 +38,23 @@ describe("ログアウト・退会のあと", () => {
         }
     });
 });
+
+// 投稿画面を開いた別のタブは、こちらのタブのモジュール変数に気づかない（76f7c7b のレビュー）
+describe("別のタブでのログアウト", () => {
+    it("localStorage の印があれば、このタブのモジュール変数に関係なく書かない", async () => {
+        const { allowUploadDraft, saveUploadDraft: save } = await import("../uploadDraft");
+        allowUploadDraft();
+        const opened: string[] = [];
+        vi.stubGlobal("indexedDB", { open: (name: string) => { opened.push(name); return {}; } });
+        try {
+            localStorage.setItem("jp_upload_draft_signed_out", "1"); // 別のタブがログアウトした
+            void save({ t: 1, userId: "a", category: "", tags: "", asOnePost: false, items: [] });
+            expect(opened, "別のタブでログアウトしたのに書いた").toEqual([]);
+            allowUploadDraft(); // 次にログインした
+            expect(localStorage.getItem("jp_upload_draft_signed_out")).toBeNull();
+        } finally {
+            vi.unstubAllGlobals();
+            localStorage.removeItem("jp_upload_draft_signed_out");
+        }
+    });
+});
