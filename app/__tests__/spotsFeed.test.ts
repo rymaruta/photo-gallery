@@ -107,7 +107,8 @@ describe("実際の台帳で作った索引", () => {
 
     /** 目安は 850KB（minify・gzip 前）。超えたら項目か件数を見直す */
     it("大きさが目安に収まり、`**` が無い", () => {
-        expect(json.length, `索引が ${json.length} バイト`).toBeLessThan(850_000);
+        const bytes = Buffer.byteLength(json, "utf8");
+        expect(bytes, `索引が ${bytes} バイト`).toBeLessThan(850_000);
         expect(json).not.toContain("**");
         expect(json).not.toContain("claude");
     });

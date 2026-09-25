@@ -45,6 +45,8 @@ export default function SpotAreaIndexClient({ areas, total, draftCount }: Props)
             <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
                 {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
             </h1>
+            {/* 0件のときは下の「まだありません」だけを出す（「0件の下書きです」と並べない） */}
+            {total > 0 && (
             <p className="m-0 mt-2 mb-6 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
                 {/* **「運営が調べた」と言えるのは、人が確かめた行だけ。** 全部が下書きなら
                     そう言う（2026-09-24 の台帳は 1,417件が未確認のまま「調べた」と名乗っていた） */}
@@ -56,6 +58,7 @@ export default function SpotAreaIndexClient({ areas, total, draftCount }: Props)
                         ? `運営が調べた撮影地のガイドです（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
                         : `Guides we researched (${total}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Pick an area to see the spots in it.`)}
             </p>
+            )}
 
             {groups.length === 0 ? (
                 /* **架空の県で埋めない。** 0件なら0件と言う */

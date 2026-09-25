@@ -132,8 +132,9 @@
   `status: "review"`・`draftedAt` を持ち、`verified` は型から消した。
   「確認済み」は **`verifiedBy`（人名）＋ `verifiedAt`** でしか主張できない
 - **`verified: true` や `verifiedAt` を機械で書き戻さない。** 見張りは
-  `lib/data/__tests__/spotsLedger.test.ts`（`scripts/spots-review-stage.mjs
-  --check` と同じ判定）。詳細は `docs/spot-guide-2026-09-23.md` §11c
+  `lib/data/__tests__/spotsLedger.test.ts`（`scripts/spots-review-stage.mjs`
+  を掛けて差分0・旧い `verified` の鍵を持つ行が無い）。詳細は
+  `docs/spot-guide-2026-09-23.md` §11c
 - 下書きは建てるが `noindex`・サイトマップ外・「公式」と名乗らない。
   本番の `/spots` が検索に載るのは owner が確かめて `published` に上げた行だけ
 

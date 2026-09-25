@@ -61,11 +61,15 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     );
     const locationPath = hasLocationPage ? collectionPath("location", locSlug) : null;
 
+    // `draftedBy`（下書きを書いた主体）は台帳の中だけに持つ。props は RSC
+    // ペイロードとして HTML に埋まるので、鍵ごと落とす（`undefined` を入れると
+    // 鍵は `"$undefined"` として残る）
+    const { draftedBy: _omitted, ...spotForClient } = spot;
+    void _omitted;
+
     return (
         <SpotGuideClient
-            // `draftedBy`（下書きを書いた主体）は台帳の中だけに持つ。props は
-            // RSC ペイロードとして HTML に埋まるので、ここで落とす
-            spot={{ ...spot, draftedBy: undefined }}
+            spot={spotForClient}
             photos={mine.map(slimForGrid)}
             nearby={nearby}
             locationPath={locationPath}

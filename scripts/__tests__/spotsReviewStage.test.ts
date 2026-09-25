@@ -60,6 +60,17 @@ describe("確認者の無い行は下書き（review）に落とす", () => {
     /// 🔴 **人が書いた行（旧い verified を持たない）は触らない。** 名前の
     /// 書き忘れをスクリプトが黙って「下書き」に直すと、人の日付が消える
     /// ——それは台帳のテストが赤にして知らせる仕事
+    /// 古い例を写して `verified: true` を書いてしまった人の行も、AI の行では
+    /// ない（作った日が違う）。黙って下書きに落とさない——台帳のテストが知らせる
+    it("verified を写してしまった人の行（AI の日付でない）も触らない", () => {
+        const copied = { ...base, createdAt: "2026-10-01T00:00:00.000Z", verifiedAt: "2026-10-01" };
+        const [s] = reviewStage([copied]);
+        expect(s.status).toBe("published");
+        expect(s.verifiedAt).toBe("2026-10-01");
+        expect("verified" in s).toBe(true);
+        expect("draftedBy" in s).toBe(false);
+    });
+
     it("人が書いた行は、確認者が無くても verifiedAt を消さず draftedBy も付けない", () => {
         const human = { ...base } as Record<string, unknown>;
         delete human.verified;

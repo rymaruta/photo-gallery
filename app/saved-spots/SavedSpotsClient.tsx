@@ -174,7 +174,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                                 非公開になった／まだ届いていない（`loaded` が
                                 false）／台帳からそのスポットが下りたとき */}
                             <Row href={href} label={label} note={note}
-                                 badge={kind !== "spot" ? null
+                                 badge={kind !== "spot" || stage === null ? null
                                      : stage === "published" ? (en ? "Official" : "公式")
                                          : (en ? "Draft" : "下書き")} />
                             <button

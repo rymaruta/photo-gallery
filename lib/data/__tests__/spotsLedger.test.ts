@@ -94,7 +94,20 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         const changed = SPOTS
             .filter((s, i) => JSON.stringify(s) !== JSON.stringify(staged[i]))
             .map((s) => s.slug);
-        expect(changed, "node scripts/spots-review-stage.mjs を実行してください").toEqual([]);
+        expect(changed, "AI が書いた行が下書きに揃っていない（`**` か旧い verified）。node scripts/spots-review-stage.mjs を実行").toEqual([]);
+    });
+
+    /**
+     * 🔴 **旧い `verified` の鍵を持つ行は無い。** 型から消えた鍵で、古い例を
+     * 写すと紛れ込む。**スクリプトでは直さない**（AI の行と区別できない行を
+     * 黙って下書きに落とすと人の日付が消える）——鍵を手で消し、確かめたなら
+     * `verifiedBy` と `verifiedAt` を書く。
+     */
+    it("旧い verified の鍵を持つ行は無い（手で消して verifiedBy を書く）", () => {
+        const bad = SPOTS
+            .filter((s) => Object.prototype.hasOwnProperty.call(s, "verified"))
+            .map((s) => s.slug);
+        expect(bad, "verified は使わない。鍵を消して、確かめたなら verifiedBy と verifiedAt を書く").toEqual([]);
     });
 
     it("本文に Markdown の **強調** が残っていない（画面は素の文字列で描く）", () => {

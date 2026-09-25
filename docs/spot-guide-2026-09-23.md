@@ -483,14 +483,17 @@ owner 自身が撮っていて、**地点として特定できる**もの。
 | サイトマップ | **載せない**（`/spots`・県の一覧も `publishedCount` で見る） | 載せる |
 | 「公式」の語 | 名乗らない（地図・一覧・読み上げも「下書き」） | 名乗る |
 | 公式サイトのリンク | 「未確認のリンク」＋ `rel=nofollow` | そのまま |
-| アクセス・駐車場・注意点 | **無条件に出さない** | `checkedBy` 付きの出典があるときだけ |
+| アクセス・駐車場・注意点（出典が要る項目） | **無条件に出さない**（住所と地図は出す） | `checkedBy` 付きの出典があるときだけ |
 | アプリ向け JSON（`/app/data/spots.json`） | `stage: "review"` で載せる | `stage: "published"` |
 
 - `verified`（真偽1つ）は**型ごと消した**。AI が true と書けば通る門だった。
   確認は `verifiedBy`（人名）でしか主張できず、`spotsLedger.test.ts` が
   AI の名前（claude / gpt / assistant …）を拒む
-- 台帳の変換は `scripts/spots-review-stage.mjs`（冪等）。`--check` を
-  ledger test が呼ぶので、`verifiedAt` や `**` の書き戻しは二度と入らない
+- 台帳の変換は `scripts/spots-review-stage.mjs`（冪等）。対象は旧い
+  `verified` を持ち 2026-09-24 に作られた行（AI の行）だけで、人の行は触らない。
+  ledger test が「掛けて差分0」と「旧い `verified` の鍵を持つ行は無い」を
+  見るので、`verifiedAt` や `**` の書き戻しは二度と入らない（`--check` は
+  それに加えてファイルの書式も見る）
 - **環境で分岐しない**（staging と本番は同じページ。差は `robots.txt` だけ）
   ——`npm run verify` は本番と同じ環境変数で建てるので、env で分けると
   下書きの経路を関門が一度も通らない
@@ -499,8 +502,8 @@ owner 自身が撮っていて、**地点として特定できる**もの。
 
 **owner の作業（これが無いと本番の `/spots` は検索に0本）**:
 `node scripts/spots-review-stage.mjs --report` が確認キューを書く
-（出典の無い「変わりやすい事実」約390件・最上級・疑わしいドメイン・
-出典つき17件）。行ったことのある場所から、公式サイトを開いて
+（出典の無い「変わりやすい事実」512件・最上級 368件・疑わしいドメイン 1件・
+出典つき17件。2026-09-25 の実行結果）。行ったことのある場所から、公式サイトを開いて
 `status: "published"`・`verifiedBy`・`verifiedAt`、出典に `checkedBy` を
 書く PR を出す。1件 10〜15分の見込み。
 

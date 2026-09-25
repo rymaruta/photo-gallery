@@ -64,6 +64,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                     ? (isJa ? `${area.name}の撮影スポット` : `Photo spots in ${area.nameEn}`)
                     : (isJa ? "撮影スポットをさがす" : "Find a place to shoot")}
             </h1>
+            {spots.length > 0 && (
             <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
                 {/* **「運営が調べた」と言えるのは、人が確かめた行だけ**（`stage`）。
                     全部が下書きならそう言う */}
@@ -75,6 +76,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                         ? `運営が調べた撮影地のガイドです（${spots.length}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。写真の投稿がまだ無い場所も載っています。`
                         : `Guides we researched (${spots.length}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Places with no photos yet are listed too.`)}
             </p>
+            )}
 
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
             {themes.length > 0 && (

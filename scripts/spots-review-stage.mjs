@@ -85,12 +85,19 @@ export function hasHumanVerification(spot) {
     return typeof spot.verifiedBy === "string" && spot.verifiedBy.trim().length > 0;
 }
 
+/** AI が台帳を書いた日。この日に作られた行だけを「AI の行」と見なす */
+export const AI_BATCH_DATE = "2026-09-24";
+
 /**
- * 2026-09-24 に AI が書いた行か。**旧い `verified` の鍵を持つこと**が印
- * （型から消えたので、人がこれから書く行には現れない）。
+ * 2026-09-24 に AI が書いた行か。**旧い `verified` の鍵を持ち、その日に
+ * 作られたこと**が印。`verified` だけで判定すると、人が古い例を写して
+ * `verified: true` を書いた行まで「AI の行」として黙って下書きに落とし、
+ * 人の日付が消える。人の行の書き間違いは台帳のテストが赤にして知らせる
+ * （「旧い verified の鍵を持つ行は無い」）。
  */
 export function isLegacyAiRow(spot) {
-    return Object.prototype.hasOwnProperty.call(spot, "verified");
+    return Object.prototype.hasOwnProperty.call(spot, "verified")
+        && String(spot.createdAt ?? "").startsWith(AI_BATCH_DATE);
 }
 
 /**
