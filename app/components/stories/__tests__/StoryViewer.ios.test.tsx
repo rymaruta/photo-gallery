@@ -100,12 +100,50 @@ describe("#3 自動で次へ進んでも BGM が鳴る", () => {
     });
 });
 
+describe("#3 鳴らし直しの途中で止めた・送ったときは一時停止にしない", () => {
+    const twoVideos = () => [
+        item("v1", { mediaType: "video", src: "https://cdn/x/v1.mp4" }),
+        item("v2", { mediaType: "video", src: "https://cdn/x/v2.mp4" }),
+        item("i3"),
+    ];
+    const reject = (name: string) => { const e = new Error(name); e.name = name; return Promise.reject(e); };
+
+    it("消音の鳴らし直しが AbortError（シートを開いた・送った）で失敗しても「再生」を出さない", async () => {
+        playImpl = function (this: HTMLMediaElement) {
+            if (this.tagName !== "VIDEO" || !this.getAttribute("src")?.includes("v2")) return Promise.resolve();
+            return this.muted ? reject("AbortError") : reject("NotAllowedError");
+        };
+        view(twoVideos());
+        fireEvent.click(screen.getByRole("button", { name: /その他|メニュー|操作/ }));
+        fireEvent.click(screen.getByRole("button", { name: "ミュート解除" }));
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "次のストーリー" })); });
+        await act(async () => { fireEvent.loadedData(document.querySelector("video")!); });
+        await act(async () => { for (let k = 0; k < 5; k++) await Promise.resolve(); });
+        expect(screen.queryByRole("button", { name: "再生" }), "中断を「断られた」と読んで止めた").toBeNull();
+    });
+
+    it("消音でも断られて止めたのは、送ったら解く（先の画像まで止まったままにしない）", async () => {
+        playImpl = function (this: HTMLMediaElement) {
+            if (this.tagName !== "VIDEO" || !this.getAttribute("src")?.includes("v2")) return Promise.resolve();
+            return reject("NotAllowedError");
+        };
+        view(twoVideos());
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "次のストーリー" })); });
+        await act(async () => { fireEvent.loadedData(document.querySelector("video")!); });
+        await act(async () => { for (let k = 0; k < 5; k++) await Promise.resolve(); });
+        expect(screen.getByRole("button", { name: "再生" }), "低電力モードの前提が作れていない").toBeTruthy();
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "次のストーリー" })); });
+        expect(screen.queryByRole("button", { name: "再生" }), "画像まで止まったまま").toBeNull();
+    });
+});
+
 describe("#5 上下の払い", () => {
     it("タップ領域はブラウザに指の動きを取らせない（取られると pointercancel で払いが消える）", () => {
         view([item("s1")]);
         const zones = [...document.querySelectorAll<HTMLElement>("div.absolute.z-10")].filter((z) => z.style.top === "80px");
         expect(zones).toHaveLength(2);
-        for (const z of zones) expect(z.style.touchAction).toBe("none");
+        // pan を許すとブラウザが指を取る。ピンチでの拡大は残す（弱視の人が拡大できるように）
+        for (const z of zones) expect(z.style.touchAction).toBe("pinch-zoom");
     });
 
     it("pointercancel が来たら押し始めを捨て、長押しの一時停止も解く", () => {

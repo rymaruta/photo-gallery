@@ -458,6 +458,10 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     // BGM の頭出し判定用（「再生し直しで値が変わったか」を見る）
     const lastReplayRef = useRef(0);
     const lastAudioItemRef = useRef<string | null>(null);
+    /** いまの一時停止が「自動再生を断られた」せいか（送ったら解く） */
+    const pausedByAutoplayRef = useRef(false);
+    /** 止まっているか（タップの処理から読む。`frozen` はこの下で決まる） */
+    const frozenRef = useRef(false);
 
     /**
      * 音の入り切り。**要素の muted はタップの中で直接書く。**
@@ -467,7 +471,14 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     const toggleMuted = useCallback(() => {
         const next = !mutedRef.current;
         const a = audioRef.current;
-        if (a) a.muted = next;
+        if (a) {
+            a.muted = next;
+            // 音を出すなら、止まっている BGM もこのタップの中で鳴らす
+            // （消音の自動再生まで断られた低電力モードでは、effect からは鳴らせない）
+            if (!next && itemHasSongRef.current && a.paused && !frozenRef.current) {
+                void a.play().catch(() => { /* 鳴らせなければ何もしない */ });
+            }
+        }
         const v = videoRef.current;
         if (v && !itemHasSongRef.current) v.muted = next;
         setMuted(next);
@@ -721,6 +732,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
         // 操作シート・報告の間も進めない（開いたときと押したときで対象がずれる）
         || menuOpen || reportOpen
         || (!mediaReady && !mediaError);
+    frozenRef.current = frozen;
+    // 自分で再開したら「自動再生を断られた」印は消す（そのあと自分で止めた
+    // 一時停止を、送ったときに解いてしまわないように）
+    useEffect(() => {
+        if (!paused) pausedByAutoplayRef.current = false;
+    }, [paused]);
 
     // 画像の進捗は CSS アニメーション（60fps・再描画なし）が駆動し、
     // 完了は onAnimationEnd で検知する。動画は下の onTimeUpdate で進捗を更新。
@@ -737,16 +754,28 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             // スピーカーの表示も「消音」に揃う（音が出ていないのに「オン」の
             // 見た目を残さない）。消音でも断られたら（低電力モード）一時停止
             // にして「再生」ボタンを出す——押せばその操作の中で鳴らせる。
-            if ((err as { name?: string } | null)?.name !== "NotAllowedError") return;
+            const notAllowed = (e: unknown) => (e as { name?: string } | null)?.name === "NotAllowedError";
+            if (!notAllowed(err)) return;
+            // 一時停止は「断られた」ときだけ。鳴らし直しの途中でシートを開いた・
+            // 送った（`AbortError`）ときまで止めると、閉じても送っても止まったまま残る
+            const blocked = () => { pausedByAutoplayRef.current = true; setPaused(true); };
             if (!v.muted) {
                 v.muted = true;
                 setMuted(true);
-                void v.play().catch(() => setPaused(true));
+                void v.play().catch((e2: unknown) => { if (notAllowed(e2)) blocked(); });
             } else {
-                setPaused(true);
+                blocked();
             }
         });
     }, [frozen, item]);
+
+    // 自動再生を断られて止めたのは、そのストーリーだけの事情。次へ送ったら解く
+    // （残すと、その先の画像まで止まったまま進まない）
+    useEffect(() => {
+        if (!pausedByAutoplayRef.current) return;
+        pausedByAutoplayRef.current = false;
+        setPaused(false);
+    }, [item?.id]);
 
     // ストーリーBGM: 曲つきストーリーの表示中だけ再生（frozenで一時停止）。
     // 投稿者が「好きな部分」を指定していればそこから流す。
@@ -1392,12 +1421,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 自分のストーリー側は今までどおり（あちらは段が出る）。 */}
             <div
                 className="absolute left-0 w-1/3 z-10"
-                // **`touch-action: none`（払いは自前で読む）。** `manipulation` だと
+                // **`touch-action: pinch-zoom`（1本指の払いは自前で読む）。** `manipulation` だと
                 // 縦の指の動きをブラウザがスクロールとして取り、iOS はゴムのように
                 // 弾ませる——動き出した時点で `pointercancel` が来て `pointerup` が
                 // 来ず、上下の払い（閉じる・メニュー）が効かなかった（#5）。
                 // 画面は全画面の固定表示で、ここにスクロールするものは無い。
-                style={{ top: 80, bottom: zoneBottom, touchAction: "none", WebkitTapHighlightColor: "transparent" }}
+                // ピンチでの拡大は残す（`none` にすると弱視の人が拡大できない）
+                style={{ top: 80, bottom: zoneBottom, touchAction: "pinch-zoom", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goPrev(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
@@ -1407,12 +1437,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             />
             <div
                 className="absolute right-0 w-2/3 z-10"
-                // **`touch-action: none`（払いは自前で読む）。** `manipulation` だと
+                // **`touch-action: pinch-zoom`（1本指の払いは自前で読む）。** `manipulation` だと
                 // 縦の指の動きをブラウザがスクロールとして取り、iOS はゴムのように
                 // 弾ませる——動き出した時点で `pointercancel` が来て `pointerup` が
                 // 来ず、上下の払い（閉じる・メニュー）が効かなかった（#5）。
                 // 画面は全画面の固定表示で、ここにスクロールするものは無い。
-                style={{ top: 80, bottom: zoneBottom, touchAction: "none", WebkitTapHighlightColor: "transparent" }}
+                // ピンチでの拡大は残す（`none` にすると弱視の人が拡大できない）
+                style={{ top: 80, bottom: zoneBottom, touchAction: "pinch-zoom", WebkitTapHighlightColor: "transparent" }}
                 onClick={(e) => { if (wasTap(e)) goNext(); }}
                 onPointerDown={onZonePointerDown}
                 onPointerUp={onZonePointerUp}
