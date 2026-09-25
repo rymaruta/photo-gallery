@@ -24,7 +24,7 @@ import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTags, type OwnValues } from "../../../lib/utils/ownValues";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
@@ -451,7 +451,7 @@ function EditContent() {
      * 送れば同じこと）。published はボタンの選択そのものなので常に送る。
      */
     const buildFields = useCallback(() => {
-        const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+        const tags = splitTags(tagsInput);
         const nextDescription = mergeLocalizedDescription(original?.description, description);
         const nextFields: Record<string, unknown> = {
             // 英語側が入っていれば残したまま日本語だけ差し替える
@@ -1006,6 +1006,7 @@ function EditContent() {
                         <div className="col-span-2">
                             <label className={labelCls} htmlFor="edit-tags">{isJa ? "タグ（カンマ区切り）" : "Tags (comma separated)"}</label>
                             <input id="edit-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+                                autoCapitalize="none" autoCorrect="off" spellCheck={false}
                                 className={inputCls} style={{ fontSize: "16px" }} placeholder={isJa ? "自然, 山" : "nature, mountain"} />
                             {/* タグはカンマ区切りなので datalist が効かない（欄全体を
                                 置き換えてしまう）。**押して選ぶチップにする**——押し直すと外れ、

@@ -103,6 +103,29 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* **タッチ端末では入力欄の文字を 16px 未満にしない。**
+   iOS Safari は 16px 未満の欄にフォーカスすると画面を拡大し、そのまま
+   戻さない。スマホ幅では基準の文字が 14px（下の @media）なので `text-sm`
+   は 12.25px、`text-base` も 14px になり、ほぼ全部の欄が拡大していた
+   （実測: ログイン・登録・退会 12.25px、検索 13px。横向きでも 14px）。
+   インラインで小さく指定している欄（検索の 13px）もあるので !important。
+   それより大きい欄（`text-xl` 以上）は小さくしない。
+   マウスの画面は拡大が起きないので、見た目は今までどおり。 */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([class*="text-xl"]):not([class*="text-2xl"]):not([class*="text-3xl"]):not([class*="text-4xl"]),
+  textarea:not([class*="text-xl"]):not([class*="text-2xl"]):not([class*="text-3xl"]),
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* 検索欄は3つとも自前の消去ボタン（✕）を持つ。ブラウザの消去ボタンも出ると
+   2つ並ぶ（Tailwind の preflight が消すのは decoration の方だけ） */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Instagram IAB / iOS Safari: button/a に cursor:pointer がないとタップが効かないことがある */
 button, a {
   cursor: pointer;

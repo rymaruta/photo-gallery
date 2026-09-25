@@ -10,6 +10,7 @@ import React, {
     memo,
 } from "react";
 import debounce from "lodash.debounce";
+import { isImeKey } from "../../lib/utils/ime";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
@@ -369,6 +370,13 @@ function FilterBarInner({
                             onChange={(e) => onQueryChange(e.target.value)}
                             onCompositionStart={() => { composingRef.current = true; }}
                             onCompositionEnd={onCompositionEnd}
+                            onKeyDown={(e) => {
+                                // 確定キー（iPhone では「検索」）でキーボードを閉じる。結果は打つたびに
+                                // 出ているので、閉じないとキーボードが結果を隠したまま残る。
+                                // 変換の確定の Enter は除く
+                                if (e.key === "Enter" && !isImeKey(e.nativeEvent)) e.currentTarget.blur();
+                            }}
+                            enterKeyHint="search"
                             placeholder={labels.search.placeholder}
                             className="w-full rounded-full bg-white/[0.06] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 transition-all duration-200 outline-none"
                             style={{ padding: "8px 38px 8px 38px", fontSize: 13, minHeight: 36 }}

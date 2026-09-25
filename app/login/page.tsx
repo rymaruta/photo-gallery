@@ -334,6 +334,9 @@ function LoginForm() {
                                 autoComplete="one-time-code"
                                 id="reset-code"
                                 type="text"
+                                // 数字だけのコード。登録・設定の確認コードと揃える（ここだけ
+                                // 全文字のキーボードが出ていた）
+                                inputMode="numeric"
                                 value={resetCode}
                                 onChange={(e) => setResetCode(e.target.value)}
                                 required

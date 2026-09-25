@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { isImeKey } from "../../../lib/utils/ime";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
@@ -82,6 +83,13 @@ export default function UserSearchPage() {
                     onChange={(e) => onChange(e.target.value)}
                     onCompositionStart={() => { composingRef.current = true; }}
                     onCompositionEnd={(e) => { composingRef.current = false; onChange(e.currentTarget.value); }}
+                    onKeyDown={(e) => {
+                        // 確定キー（iPhone では「検索」）でキーボードを閉じる。結果は打つたびに
+                        // 出ているので、閉じないとキーボードが結果を隠したまま残る。
+                        // 変換の確定の Enter は除く
+                        if (e.key === "Enter" && !isImeKey(e.nativeEvent)) e.currentTarget.blur();
+                    }}
+                    enterKeyHint="search"
                     placeholder={isJa ? "名前・@ユーザー名" : "Name or @username"}
                     aria-label={isJa ? "ユーザーを検索" : "Search people"}
                     className="w-full rounded-full bg-white/[0.07] text-white placeholder:text-white/35 border border-transparent focus:border-white/20 focus:bg-white/10 outline-none transition"

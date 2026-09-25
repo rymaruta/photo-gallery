@@ -57,8 +57,12 @@ type UserProfile = {
 };
 
 // "1:23" / "83" → 秒。空や不正は undefined。
+// **欄に `inputMode="numeric"` を付けないこと。** iPhone の数字キーパッドには
+// 「:」が無く、「1:12」と打てずに「112」と打つと 112秒（1:52）で黙って
+// 保存された。かなキーボードの数字は全角（「１：１２」）で来るので、
+// NFKC で半角に寄せてから読む。
 function mmssToSec(v: string): number | undefined {
-    const t = v.trim();
+    const t = v.normalize("NFKC").trim();
     if (!t) return undefined;
     if (/^\d+$/.test(t)) return Number(t);
     const m = t.match(/^(\d+):([0-5]?\d)$/);
@@ -761,7 +765,13 @@ export default function ProfileEditPage() {
                                 id="profile-instagram"
                                 type="text"
                                 value={instagram}
-                                onChange={e => setInstagram(e.target.value.replace(/^@/, ""))}
+                                // 全角の「＠」（日本語キーボード）も落とす
+                                onChange={e => setInstagram(e.target.value.replace(/^[@＠]/, ""))}
+                                // iPhone は先頭を大文字にし、自動修正で英単語に置き換える。
+                                // 黙って別人のアカウントへのリンクが保存されるので切る
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 maxLength={100}
                                 placeholder="username"
                                 className={`${inputClass} rounded-l-none`}
@@ -942,7 +952,6 @@ export default function ProfileEditPage() {
                                                             <input
                                                                 id="profile-song-start"
                                                                 type="text"
-                                                                inputMode="numeric"
                                                                 value={songStartText}
                                                                 onChange={e => setSongStartText(e.target.value)}
                                                                 disabled={!isYouTubePreview}
@@ -955,7 +964,6 @@ export default function ProfileEditPage() {
                                                             <input
                                                                 id="profile-song-end"
                                                                 type="text"
-                                                                inputMode="numeric"
                                                                 value={songEndText}
                                                                 onChange={e => setSongEndText(e.target.value)}
                                                                 disabled={!isYouTubePreview}

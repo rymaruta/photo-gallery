@@ -22,7 +22,7 @@ import { unstrippableMessage, gifRejectedLabel } from "../../../lib/utils/upload
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTags, TAG_SEPARATOR, type OwnValues } from "../../../lib/utils/ownValues";
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
@@ -344,7 +344,7 @@ function UploadPageInner() {
         // キーで外すため）。畳んだ結果は**最初に打った綴り**を残す
         const seen = new Set<string>();
         const out: string[] = [];
-        for (const raw of tags.split(",")) {
+        for (const raw of tags.split(TAG_SEPARATOR)) {
             const t = raw.trim();
             if (!t) continue;
             const key = tagKey(t) || t;
@@ -709,7 +709,7 @@ function UploadPageInner() {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const apiFetch = userFetch;
 
-            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+            const tagList = tags ? splitTags(tags) : undefined;
             // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
             // 上限は画面に対応物が無く、超えた分は 200 のまま消える
             if (tagList && tagList.length > TAGS_MAX) {
@@ -1629,6 +1629,10 @@ function UploadPageInner() {
                                 type="text"
                                 value={tags}
                                 onChange={(e) => setTags(e.target.value)}
+                                // iPhone が先頭を大文字にし（`Nature`）、自動修正で綴りを変える
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 placeholder={isJa ? "タグ（カンマ区切り）" : "Tags (comma-separated)"}
                                 className={fieldCls}
                                 style={{ ...fieldStyle, height: "40px" }}
