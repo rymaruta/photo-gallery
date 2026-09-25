@@ -440,6 +440,8 @@ function UploadPageInner() {
     // iOS がページを捨てたときに全部失う。明示的なログアウトは
     // forgetUploadDraftOnSignOut が書き込みを止める
     const lastUserIdRef = useRef<string | null>(null);
+    /** 持ち主が入れ替わるたびに進む番号。待っている間に入れ替わった処理の結果を捨てる */
+    const ownerGenRef = useRef(0);
     // **別の人に入れ替わったら、前の人の写真を捨てる。** 投稿画面を開いたまま
     // 別のタブで A がログアウトし B がログインすると、このタブの userId は
     // A → null → B と変わる。前の人の写真（原本）を B の控えとして書いたり、
@@ -452,10 +454,17 @@ function UploadPageInner() {
         lastUserIdRef.current = userId;
         allowUploadDraft();
         if (prev && prev !== userId) {
+            ownerGenRef.current++;
+            // **上げている最中なら止める。** 止めないと、ループは前の人の写真を
+            // 持ったまま進み、新しい人のログイン情報で置き場所の発行も保存も
+            // 通って、前の人の写真が新しい人の名で公開される
+            uploadAbortRef.current?.abort(new DOMException("owner switched", "AbortError"));
             setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
             setCategory("");
             setTags("");
-            void clearUploadDraft();
+            // 控えは消さない: 置き場は1つだけで、いま入っているのが新しい人の
+            // 控えのこともある（凍っていたタブが戻ってきた場合）。前の人の控えは
+            // 読むときに持ち主の違いで捨てられる（readUploadDraft）
         }
     }, [userId]);
     // 控えの持ち主: 分かっている人と同じならその人。セッションが切れた（null）
@@ -491,8 +500,11 @@ function UploadPageInner() {
             // 上げている途中・保存で落ちた写真も残す——除くと、iOS がページを
             // 捨てたときにその写真だけ投稿にも控えにも残らない。S3 まで
             // 上がったものは置き場所（uploaded）ごと控え、押し直したときに使い回す
+            // 持ち主が分からない（入れ替わった直後）ときは触らない——消すと、
+            // 置き場に入っている新しい人の控えまで消えることがある
+            if (!src.userId) return;
             const keep = src.items.filter((i) => i.status !== "done");
-            if (keep.length === 0 || !src.userId) { void clearUploadDraft(); return; }
+            if (keep.length === 0) { void clearUploadDraft(); return; }
             void saveUploadDraft({
                 t: Date.now(),
                 userId: src.userId,
@@ -527,8 +539,11 @@ function UploadPageInner() {
     const restoreDraft = useCallback(async () => {
         const uid = draftSourceRef.current.userId;
         if (!uid) return;
+        const gen = ownerGenRef.current;
         const d = await readUploadDraft(uid);
         if (!d) return;
+        // 読んでいる間に別の人へ入れ替わったら、戻さない
+        if (gen !== ownerGenRef.current) return;
         // 読み込み中に選び直していたら、その写真を上書きしない（反映前の一瞬も
         // 下の関数形の setItems で守る）
         const restored: Item[] = d.items.map((it) => ({
@@ -573,7 +588,10 @@ function UploadPageInner() {
             }
         })();
         async function importSharedOrDraft() {
+            const gen = ownerGenRef.current;
             const res = await readSharedResult();
+            // 読んでいる間に別の人へ入れ替わったら、取り込まない
+            if (gen !== ownerGenRef.current) return;
             // **`from=share` は使い終わったら URL から落とす。**
             // 残っていると (a) 戻る・進む・リロードのたびに同じ話をする
             // (b)「受け皿が空」を失敗と呼べない——共有の直後に空なら、

@@ -263,22 +263,49 @@ describe("アップロード画面: 書きかけの控え（76f7c7b のレビュ
 });
 
 describe("アップロード画面: 別の人に入れ替わったとき（f310f53 のレビュー）", () => {
-    it("A がログアウトして B がログインしたら、A の写真を画面からも控えからも消す（B の名で控えない）", async () => {
+    it("A がログアウトして B がログインしたら、A の写真を画面から消し、B の名で控えない", async () => {
         const { container, rerender } = render(<UploadPage />);
         await ready();
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
         await waitFor(() => expect(container.querySelectorAll('img[src^="blob:"]').length).toBeGreaterThan(0));
+        draft.clear.mockClear();
         // 別のタブで A がログアウト → B がログイン
         auth.userId = null; rerender(<UploadPage />);
         auth.userId = "someone-else"; rerender(<UploadPage />);
-        await waitFor(() => expect(draft.clear).toHaveBeenCalled());
+        await waitFor(() => expect(container.querySelectorAll('img[src^="blob:"]').length, "前の人の写真が画面に残っている").toBe(0));
+        // 入れ替わっただけでは控えを消さない（置き場に新しい人の控えがあることもある。
+        // 前の人の控えは読むときに持ち主の違いで捨てられる）
+        expect(draft.clear, "入れ替わりで新しい人の控えまで消しうる").not.toHaveBeenCalled();
         draft.save.mockClear();
         hide();
         await new Promise((r) => setTimeout(r, 20));
         const savedAsOther = draft.save.mock.calls.some((c) => (c[0] as { userId: string; items: unknown[] }).items.length > 0);
         expect(savedAsOther, "前の人の写真を次の人の名で控えた").toBe(false);
-        expect(screen.queryByDisplayValue("a.jpg")).toBeNull();
-        expect(container.querySelectorAll('img[src^="blob:"]').length, "前の人の写真が画面に残っている").toBe(0);
+    });
+
+    it("上げている最中に入れ替わったら、上げるのを止める（前の人の写真を新しい人の名で公開しない）", async () => {
+        let releasePut: (() => void) | null = null;
+        const firstPut = new Promise<void>((r) => { releasePut = r; });
+        let puts = 0;
+        vi.stubGlobal("fetch", vi.fn(async () => { if (++puts === 1) await firstPut; return { ok: true, status: 200 }; }));
+        const { container, rerender } = render(<UploadPage />);
+        await ready();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [
+            new File(["x"], "a.jpg", { type: "image/jpeg" }),
+            new File(["y"], "b.jpg", { type: "image/jpeg" }),
+        ]);
+        const publish = await screen.findByRole("button", { name: /投稿する|アップロード/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(puts).toBe(1)); // 1枚目の PUT で止まっている
+        mockUserFetch.mockClear();
+        // 別のタブで A がログアウトし B がログインした
+        auth.userId = null; rerender(<UploadPage />);
+        auth.userId = "someone-else"; rerender(<UploadPage />);
+        await act(async () => { releasePut!(); await new Promise((r) => setTimeout(r, 50)); });
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"), "入れ替わったあとに保存した").toBe(false);
+        expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/presigned-url"), "入れ替わったあとに次の写真を上げ始めた").toBe(false);
     });
 });
