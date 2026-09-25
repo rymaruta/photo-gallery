@@ -13,9 +13,9 @@
 //             注意点・出典（全文 3.5MB。索引は約 0.6MB / gzip 0.2MB）、
 //             draftedBy（製品名を画面・アプリに出さない）、verifiedBy
 //
-// **母集合は `visibleSpots`**（画面と同じ）。下書き（`review`）も載せるが
-// `stage` で区別し、アプリは「下書き・未確認」と描く。人が確かめて
-// `published` に上げた行だけ `stage: "published"` になる。
+// **母集合は `visibleSpots`**（画面と同じ）。**いまは公開済みだけ**が載る
+// （`BUILD_DRAFT_SPOTS` が false・owner の判断 2026-09-25）。下書きを建てる設定に
+// 戻せば `stage: "review"` の行も載り、アプリは「下書き・未確認」と描く。
 //
 // 🔴 このモジュールは台帳（`SPOTS`）を値で読む。**`"use client"` から
 // import しない**（`app/__tests__/spotLedgerClientImport.test.ts` が見張る）。

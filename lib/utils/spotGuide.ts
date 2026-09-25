@@ -198,14 +198,34 @@ export function publishableSpots(spots: readonly Spot[]): Spot[] {
 }
 
 /**
- * **ページを建ててよいスポット**——下書き（`review`）と公開済みの両方。
- * 画面・地図・アプリ向けの JSON はこちらを母集合にする。
+ * **下書き（`review`）のページを建てるか。いまは建てない**（owner の判断・2026-09-25）。
+ *
+ * 台帳の 1,413件は AI が書いて誰も確かめていない。検索に載せない（noindex）
+ * 形でも、本番の URL で「下書き（運営未確認）」のページを見せるより、
+ * **確かめた行だけを出す**——owner の「本番に出せるものだけ出したい」への答え
+ * （`docs/spot-guide-2026-09-23.md` §11c の「owner の判断待ち」の1つ目）。
+ *
+ * **環境では分けない**（上の「門は2段」の理由と同じ）。staging も本番も同じ値で、
+ * 下書きを見たくなったらここを `true` にする。下書きの描き方（帯・`noindex`・
+ * 「未確認のリンク」）はそのまま残してあり、テストは `includeDrafts: true` で通す。
  */
-export function visibleSpots(spots: readonly Spot[]): Spot[] {
+export const BUILD_DRAFT_SPOTS = false;
+
+/**
+ * **ページを建ててよいスポット。** 画面・地図・アプリ向けの JSON・サイトマップは
+ * すべてこれを母集合にする（ここ1か所で出す／出さないが決まる）。
+ *
+ * 公開済み（`publishBlockers` が空）は常に。下書き（`review`・`reviewBlockers` が空）は
+ * `includeDrafts` のときだけ（既定は `BUILD_DRAFT_SPOTS`）。
+ */
+export function visibleSpots(
+    spots: readonly Spot[],
+    { includeDrafts = BUILD_DRAFT_SPOTS }: { includeDrafts?: boolean } = {},
+): Spot[] {
     return spots.filter((s) =>
         s.status === "published"
             ? publishBlockers(s).length === 0
-            : s.status === "review" && reviewBlockers(s).length === 0,
+            : includeDrafts && s.status === "review" && reviewBlockers(s).length === 0,
     );
 }
 

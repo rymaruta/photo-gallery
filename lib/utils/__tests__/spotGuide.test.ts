@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     SOURCED_FIELDS, sourcesFor, showsField, coverImageProblems,
     needsVisibleCredit, publishBlockers, publishableSpots, usesMapHero, SUMMARY_MIN,
-    reviewBlockers, visibleSpots, isVerified,
+    reviewBlockers, visibleSpots, BUILD_DRAFT_SPOTS, isVerified,
 } from "../spotGuide";
 import type { Spot } from "@/lib/data/spots";
 
@@ -272,11 +272,22 @@ describe("下書き（review）の門", () => {
         const draft = review({ spotId: "sp_000000000003", slug: "draft", status: "draft" });
         const half = fullSpot({ spotId: "sp_000000000004", slug: "half", verifiedBy: undefined });
         expect(reviewBlockers(draft)).toContain("status が review か published でない");
-        expect(visibleSpots([fullSpot(), review(), draft, half]).map((s) => s.slug))
+        expect(visibleSpots([fullSpot(), review(), draft, half], { includeDrafts: true }).map((s) => s.slug))
             .toEqual(["example-spot", "example-spot"]);
         // published と書いてあっても確認者が無ければ建てない（嘘のまま出さない）
-        expect(visibleSpots([half])).toEqual([]);
+        expect(visibleSpots([half], { includeDrafts: true })).toEqual([]);
         expect(publishableSpots([review()])).toEqual([]);
+    });
+
+    /**
+     * 🔴 **いまは下書きを建てない**（owner の「本番に出せるものだけ」・2026-09-25）。
+     * 既定のまま呼ぶ画面・地図・アプリ向け JSON・サイトマップから、下書きが消える。
+     */
+    it("既定では下書きを建てない（公開済みだけ）", () => {
+        expect(BUILD_DRAFT_SPOTS).toBe(false);
+        const published = fullSpot({ spotId: "sp_000000000005", slug: "published" });
+        expect(visibleSpots([review(), published]).map((s) => s.slug)).toEqual(["published"]);
+        expect(visibleSpots([review()])).toEqual([]);
     });
 
     it("review でも綴り・座標・紹介文・見どころ・導線は要る", () => {

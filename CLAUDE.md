@@ -135,8 +135,12 @@
   `lib/data/__tests__/spotsLedger.test.ts`（`scripts/spots-review-stage.mjs`
   を掛けて差分0・旧い `verified` の鍵を持つ行が無い）。詳細は
   `docs/spot-guide-2026-09-23.md` §11c
-- 下書きは建てるが `noindex`・サイトマップ外・「公式」と名乗らない。
-  本番の `/spots` が検索に載るのは owner が確かめて `published` に上げた行だけ
+- **下書きはページを建てない**（2026-09-25・owner の「本番に出せるものだけ出したい」）。
+  画面・地図・アプリ向け JSON・サイトマップは全部 `visibleSpots` を通り、
+  既定は `BUILD_DRAFT_SPOTS = false`（`lib/utils/spotGuide.ts`）で公開済みだけ。
+  **環境では分けない**（staging も同じ）。下書きの描き方（帯・`noindex`・
+  「未確認のリンク」）は残してあり、`true` にすれば戻る
+- 出るのは owner が確かめて `published` に上げた行だけ（2026-09-25 時点で4件）
 
 ## タグの入力（2026-09-13・owner の「決まったのを選ぶ方が楽？」への答え）
 
