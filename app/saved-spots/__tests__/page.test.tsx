@@ -44,6 +44,7 @@ const SPOT = (slug: string, name: string) => ({
     highlights: ["雲海が出る朝がある"],
     officialWebsiteUrl: "https://example.example/",
     status: "published",
+    verifiedBy: "運営",
     verifiedAt: "2026-09-23",
     createdAt: "2026-09-23T00:00:00.000Z",
     updatedAt: "2026-09-23T00:00:00.000Z",

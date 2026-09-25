@@ -29,7 +29,7 @@
 // ファイルが `SPOTS` を値として import していたら落ちる。
 
 import { SPOTS, type Spot } from "./spots";
-import { publishableSpots, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
+import { visibleSpots, isVerified, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
 import {
     PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
     prefectureByName, type RegionName,
@@ -54,6 +54,12 @@ export type SpotLink = {
      * `null` なら画面は「写真なし」を出す。
      */
     cover: { src: string; alt: string; credit: string | null } | null;
+    /**
+     * **運営未確認の下書き（review）か、人が確かめた公開済みか。**
+     * 画面はこれで「下書き」の札と「公式」の語を出し分ける（`isVerified` を
+     * サーバー側で解いた値。クライアントに台帳の判定を持ち込まない）。
+     */
+    stage: "review" | "published";
 };
 
 /** 台帳の1件を、画面に渡す形へ落とす */
@@ -76,6 +82,7 @@ export function toSpotLink(spot: Spot): SpotLink {
         summary: spot.summary,
         coords: spot.coords,
         cover,
+        stage: isVerified(spot) ? "published" : "review",
     };
 }
 
@@ -114,7 +121,7 @@ export type SpotIndexItem = SpotLink & { category?: string };
  */
 export function spotLinkForPhoto(spotId: string | undefined | null): SpotLink | null {
     if (!spotId) return null;
-    const spot = publishableSpots(SPOTS).find((s) => s.spotId === spotId);
+    const spot = visibleSpots(SPOTS).find((s) => s.spotId === spotId);
     return spot ? toSpotLink(spot) : null;
 }
 
@@ -138,15 +145,17 @@ export type SpotPin = {
      * ぶんが `/map` のチャンクに、スポットの数だけ乗る。
      */
     cover: SpotLink["cover"];
+    /** 下書きか公開済みか（`SpotLink.stage` と同じ） */
+    stage: SpotLink["stage"];
 };
 
-/** 地図に立てられる公式スポット（公開条件を満たし、座標を持つもの） */
+/** 地図に立てられるスポット（ページを建てられる条件を満たし、座標を持つもの） */
 export function spotPins(): SpotPin[] {
     const out: SpotPin[] = [];
-    for (const spot of publishableSpots(SPOTS)) {
+    for (const spot of visibleSpots(SPOTS)) {
         if (!spot.coords) continue;
-        const { slug, name, region, cover } = toSpotLink(spot);
-        out.push({ slug, name, region, cover, lat: spot.coords.lat, lng: spot.coords.lng });
+        const { slug, name, region, cover, stage } = toSpotLink(spot);
+        out.push({ slug, name, region, cover, stage, lat: spot.coords.lat, lng: spot.coords.lng });
     }
     return out;
 }
@@ -154,7 +163,7 @@ export function spotPins(): SpotPin[] {
 /** 公開してよいスポットを、スラッグで引ける形にして全部返す */
 export function spotLinksBySlug(): Record<string, SpotLink> {
     const out: Record<string, SpotLink> = {};
-    for (const spot of publishableSpots(SPOTS)) out[spot.slug] = toSpotLink(spot);
+    for (const spot of visibleSpots(SPOTS)) out[spot.slug] = toSpotLink(spot);
     return out;
 }
 
@@ -170,7 +179,7 @@ export function spotLinksBySlug(): Record<string, SpotLink> {
  */
 export function spotLinksById(): Record<string, SpotLink> {
     const out: Record<string, SpotLink> = {};
-    for (const spot of publishableSpots(SPOTS)) out[spot.spotId] = toSpotLink(spot);
+    for (const spot of visibleSpots(SPOTS)) out[spot.spotId] = toSpotLink(spot);
     return out;
 }
 
@@ -200,7 +209,7 @@ export type SpotRef = Pick<SpotLink, "slug" | "name">;
 /** 旅行プランに渡す一覧。`spotId` で引ける形で、**名前と綴りだけ** */
 export function spotRefsById(): Record<string, SpotRef> {
     const out: Record<string, SpotRef> = {};
-    for (const spot of publishableSpots(SPOTS)) {
+    for (const spot of visibleSpots(SPOTS)) {
         out[spot.spotId] = { slug: spot.slug, name: spot.name };
     }
     return out;
@@ -226,7 +235,13 @@ export type SpotArea = {
     nameEn: string;
     /** 地方。`null` は海外 */
     region: RegionName | null;
+    /** ページを建てられる件数（下書きを含む） */
     count: number;
+    /**
+     * 人が確かめた件数。**検索に載せるか（サイトマップ・robots）はこちらで見る**
+     * ——下書きしか無い県のページを検索に出さない。
+     */
+    publishedCount: number;
 };
 
 /** 台帳の1件が属する区画のスラッグ。**国内は都道府県・海外は一括** */
@@ -243,20 +258,28 @@ function areaSlugOf(spot: Spot): string | null {
  */
 export function spotAreas(): SpotArea[] {
     const counts = new Map<string, number>();
-    for (const s of publishableSpots(SPOTS)) {
+    const published = new Map<string, number>();
+    for (const s of visibleSpots(SPOTS)) {
         const slug = areaSlugOf(s);
-        if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1);
+        if (!slug) continue;
+        counts.set(slug, (counts.get(slug) ?? 0) + 1);
+        if (isVerified(s)) published.set(slug, (published.get(slug) ?? 0) + 1);
     }
     const out: SpotArea[] = [];
     for (const p of PREFECTURES) {
         const n = counts.get(p.slug) ?? 0;
-        if (n > 0) out.push({ slug: p.slug, name: p.name, nameEn: p.nameEn, region: p.region, count: n });
+        if (n > 0) {
+            out.push({
+                slug: p.slug, name: p.name, nameEn: p.nameEn, region: p.region,
+                count: n, publishedCount: published.get(p.slug) ?? 0,
+            });
+        }
     }
     const overseas = counts.get(OVERSEAS_SLUG) ?? 0;
     if (overseas > 0) {
         out.push({
             slug: OVERSEAS_SLUG, name: OVERSEAS_NAME, nameEn: OVERSEAS_NAME_EN,
-            region: null, count: overseas,
+            region: null, count: overseas, publishedCount: published.get(OVERSEAS_SLUG) ?? 0,
         });
     }
     return out;
@@ -264,7 +287,7 @@ export function spotAreas(): SpotArea[] {
 
 /** その区画のスポット。索引と同じ軽い形（`/spots/area/<slug>` が読む） */
 export function spotIndexItemsForArea(slug: string): SpotIndexItem[] {
-    return publishableSpots(SPOTS)
+    return visibleSpots(SPOTS)
         .filter((s) => areaSlugOf(s) === slug)
         .map((s) => ({ ...toSpotLink(s), ...(s.category ? { category: s.category } : {}) }));
 }

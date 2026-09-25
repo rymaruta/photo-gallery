@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SPOTS } from "../../lib/data/spots";
 import { spotAreas, spotIndexItemsForArea, spotLinksById, spotRefsById } from "../../lib/data/spotLink";
-import { publishableSpots } from "../../lib/utils/spotGuide";
+import { visibleSpots } from "../../lib/utils/spotGuide";
 
 /**
  * 🔴 **索引（`/spots`）に台帳を積まない。**
@@ -50,13 +50,13 @@ describe("撮影スポット索引のペイロード", () => {
     it("`/spots` がスポットの一覧を props で渡していない", () => {
         const passesSpots = /spots=\{/;
         expect(passesSpots.test(indexSrc), "`/spots` がスポットを渡している").toBe(false);
-        const passesLedger = /(publishableSpots\(\s*SPOTS\s*\)|[^a-zA-Z]SPOTS\s*\})\s*\}/;
+        const passesLedger = /((publishableSpots|visibleSpots)\(\s*SPOTS\s*\)|[^a-zA-Z]SPOTS\s*\})\s*\}/;
         expect(passesLedger.test(indexSrc), "台帳をそのまま渡している").toBe(false);
     });
 
     it("`/spots/area/[area]` は区画ぶんだけを渡している", () => {
         expect(areaSrc, "spotIndexItemsForArea() を使っていない").toContain("spotIndexItemsForArea(");
-        expect(/spots=\{\s*(publishableSpots\(\s*SPOTS\s*\)|SPOTS)\s*\}/.test(areaSrc),
+        expect(/spots=\{\s*((publishableSpots|visibleSpots)\(\s*SPOTS\s*\)|SPOTS)\s*\}/.test(areaSrc),
             "区画のページが台帳をそのまま渡している").toBe(false);
     });
 
@@ -69,7 +69,7 @@ describe("撮影スポット索引のペイロード", () => {
         // 空回りの検出（区画が0なら下の比較は意味を持たない）
         expect(areas.length, "区画が1つも無い").toBeGreaterThan(0);
 
-        const full = JSON.stringify(publishableSpots(SPOTS)).length;
+        const full = JSON.stringify(visibleSpots(SPOTS)).length;
         const light = JSON.stringify(areas).length;
         expect(light, `区画の一覧が台帳の1/20を超えている（台帳 ${full} / 索引 ${light}）`)
             .toBeLessThan(full / 20);
@@ -82,7 +82,7 @@ describe("撮影スポット索引のペイロード", () => {
     it("1区画に渡す量は、台帳全体よりはっきり小さい", () => {
         const areas = spotAreas();
         const biggest = Math.max(...areas.map((a) => JSON.stringify(spotIndexItemsForArea(a.slug)).length));
-        const full = JSON.stringify(publishableSpots(SPOTS)).length;
+        const full = JSON.stringify(visibleSpots(SPOTS)).length;
         expect(biggest, `1区画が台帳の1/3を超えている（台帳 ${full} / 最大の区画 ${biggest}）`)
             .toBeLessThan(full / 3);
     });
@@ -146,6 +146,6 @@ describe("撮影スポット索引のペイロード", () => {
      */
     it("公開中のスポットは全部、どこかの区画に入っている", () => {
         const inAreas = spotAreas().reduce((n, a) => n + a.count, 0);
-        expect(inAreas, "区画のどこにも入っていないスポットがある").toBe(publishableSpots(SPOTS).length);
+        expect(inAreas, "区画のどこにも入っていないスポットがある").toBe(visibleSpots(SPOTS).length);
     });
 });

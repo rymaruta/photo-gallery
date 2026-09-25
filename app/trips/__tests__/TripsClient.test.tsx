@@ -35,7 +35,7 @@ const TripsClient = (await import("../TripsClient")).default;
 const { splitChoice, itemLabel } = await import("../TripsClient");
 
 const SPOTS: Record<string, SpotLink> = {
-    sp_0123456789ab: { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", cover: null },
+    sp_0123456789ab: { slug: "takaya-jinja", name: "高屋神社", region: "香川県 観音寺市", cover: null, stage: "review" },
 };
 
 const draw = () => render(<TripsClient spots={SPOTS} />);

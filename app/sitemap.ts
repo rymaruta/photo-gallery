@@ -147,8 +147,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
      * そのスポットの個別ページと中身が同じになる（`CLAUDE.md` の撮影地の線と
      * 同じ考え方）。ページ側の `robots` も同じ線で判断している。
      */
+    // **人が確かめた件数で見る**（`count` は下書きを含む。下書きしか無い県を
+    // 検索の着地点にしない。ページ側の `robots` も `publishedCount` で判断）
     const spotAreaUrls: MetadataRoute.Sitemap = spotAreas()
-        .filter((a) => a.count >= 2)
+        .filter((a) => a.publishedCount >= 2)
         .map((a) => ({
             url: `${baseUrl}/spots/area/${a.slug}`,
             lastModified: now,

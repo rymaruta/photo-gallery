@@ -41,16 +41,23 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
     const found = spotAreas().find((a) => a.slug === area);
     if (!found) return { robots: { index: false, follow: true } };
 
-    const title = `${found.name}の撮影スポット${found.count}選`;
-    const description =
-        `${found.name}で写真を撮りに行ける場所のガイド（${found.count}件）。`
-        + "見どころ・季節・時間帯・アクセスまで、運営が調べてまとめています。";
+    // **人が確かめた件数で検索に出すかを決める。** 下書きしか無い県のページは
+    // 建てるが `noindex`。題も「N選」と名乗らない（運営が調べたと読める）
+    const indexable = found.publishedCount >= MIN_INDEXABLE_AREA;
+    const title = indexable
+        ? `${found.name}の撮影スポット${found.count}選`
+        : `${found.name}の撮影スポット（下書き・${found.count}件）`;
+    const description = indexable
+        ? `${found.name}で写真を撮りに行ける場所のガイド（${found.count}件）。`
+            + "見どころ・季節・時間帯・アクセスまで、運営が調べてまとめています。"
+        : `${found.name}で写真を撮りに行ける場所のガイドの下書き（${found.count}件）。`
+            + "運営がまだ確認していない情報を含みます。";
     const url = `${siteConfig.url}/spots/area/${found.slug}`;
     return {
         title,
         description,
         alternates: { canonical: url },
-        robots: found.count >= MIN_INDEXABLE_AREA ? undefined : { index: false, follow: true },
+        robots: indexable ? undefined : { index: false, follow: true },
         openGraph: {
             type: "website", url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,
