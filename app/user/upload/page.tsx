@@ -442,6 +442,21 @@ function UploadPageInner() {
     const lastUserIdRef = useRef<string | null>(null);
     /** 持ち主が入れ替わるたびに進む番号。待っている間に入れ替わった処理の結果を捨てる */
     const ownerGenRef = useRef(0);
+    /**
+     * **このタブが控えを書いた・読んだ持ち主。** 控えを消してよいのは、その人の
+     * 控えだと分かっているときだけ。置き場は1つで、入れ替わったあと（凍っていた
+     * タブが戻ってきた場合など）は別の人の控えが入っていることがある——写真0枚で
+     * 隠れた・上げ始めた、のたびに無条件に消すと、それを消してしまう
+     */
+    const draftOwnedByRef = useRef<string | null>(null);
+    const clearOwnDraft = useCallback(() => {
+        const owner = draftSourceRef.current.userId;
+        if (!owner || draftOwnedByRef.current !== owner) return;
+        draftOwnedByRef.current = null;
+        void clearUploadDraft();
+    }, []);
+    /** 入れ替わりで上げるのを止めた（新しい人に「やめました」を出さない） */
+    const abortedBySwitchRef = useRef(false);
     // **別の人に入れ替わったら、前の人の写真を捨てる。** 投稿画面を開いたまま
     // 別のタブで A がログアウトし B がログインすると、このタブの userId は
     // A → null → B と変わる。前の人の写真（原本）を B の控えとして書いたり、
@@ -458,7 +473,10 @@ function UploadPageInner() {
             // **上げている最中なら止める。** 止めないと、ループは前の人の写真を
             // 持ったまま進み、新しい人のログイン情報で置き場所の発行も保存も
             // 通って、前の人の写真が新しい人の名で公開される
-            uploadAbortRef.current?.abort(new DOMException("owner switched", "AbortError"));
+            if (uploadAbortRef.current) {
+                abortedBySwitchRef.current = true;
+                uploadAbortRef.current.abort(new DOMException("owner switched", "AbortError"));
+            }
             setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
             setCategory("");
             setTags("");
@@ -486,10 +504,10 @@ function UploadPageInner() {
     // 残り、次に開くと公開済みの写真が戻っていた（二重投稿）
     const wasUploadingRef = useRef(false);
     useEffect(() => {
-        if (uploading && !wasUploadingRef.current) void clearUploadDraft();
+        if (uploading && !wasUploadingRef.current) clearOwnDraft();
         if (!uploading && wasUploadingRef.current) persistDraftRef.current();
         wasUploadingRef.current = uploading;
-    }, [uploading]);
+    }, [uploading, clearOwnDraft]);
     useEffect(() => {
         const persist = () => {
             const src = draftSourceRef.current;
@@ -504,7 +522,8 @@ function UploadPageInner() {
             // 置き場に入っている新しい人の控えまで消えることがある
             if (!src.userId) return;
             const keep = src.items.filter((i) => i.status !== "done");
-            if (keep.length === 0) { void clearUploadDraft(); return; }
+            if (keep.length === 0) { clearOwnDraft(); return; }
+            draftOwnedByRef.current = src.userId;
             void saveUploadDraft({
                 t: Date.now(),
                 userId: src.userId,
@@ -531,10 +550,10 @@ function UploadPageInner() {
             // 離れたのに、前に隠れたときの控えが残り、次に開くと外した写真が戻る。
             // **上げている最中に離れたら消す。** 上げる処理は画面が閉じても続くので、
             // 控えに残した写真はこのあと上がる＝次に開くと二重に投稿される
-            if (draftSourceRef.current.uploading) void clearUploadDraft();
+            if (draftSourceRef.current.uploading) clearOwnDraft();
             else persist();
         };
-    }, []);
+    }, [clearOwnDraft]);
 
     const restoreDraft = useCallback(async () => {
         const uid = draftSourceRef.current.userId;
@@ -544,6 +563,8 @@ function UploadPageInner() {
         if (!d) return;
         // 読んでいる間に別の人へ入れ替わったら、戻さない
         if (gen !== ownerGenRef.current) return;
+        // この人の控えがある（戻さなかったとしても、あとで消してよい）
+        draftOwnedByRef.current = uid;
         // 読み込み中に選び直していたら、その写真を上書きしない（反映前の一瞬も
         // 下の関数形の setItems で守る）
         const restored: Item[] = d.items.map((it) => ({
@@ -872,6 +893,7 @@ function UploadPageInner() {
         }
 
         setUploading(true);
+        abortedBySwitchRef.current = false;
         setStopping(false);
         const controller = new AbortController();
         uploadAbortRef.current = controller;
@@ -1230,6 +1252,8 @@ function UploadPageInner() {
             // `cancelled` が立たず、「アップロードしました」と出してトップへ
             // 移していた（やめたのに遷移する）
             if (cancelled || signal.aborted) {
+                // 別の人に入れ替わって止めた回は、新しい人に前の人の話をしない
+                if (abortedBySwitchRef.current) { abortedBySwitchRef.current = false; return; }
                 // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
                 // やめたことだけ伝えて、この画面に留まる（遷移しない）
                 showToast(locale === "en"
@@ -1269,7 +1293,7 @@ function UploadPageInner() {
                 // 公開はトップへ、下書きは下書き一覧へ。
                 if (successCount === pending.length) {
                     // 全部上がったので、書きかけの控えは要らない
-                    void clearUploadDraft();
+                    clearOwnDraft();
                     const dest = published ? "/" : ROUTES.DRAFTS;
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
@@ -1287,7 +1311,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;

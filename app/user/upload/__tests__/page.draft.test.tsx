@@ -88,19 +88,21 @@ beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
 });
 
-async function uploadOne(container: HTMLElement) {
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
-    const publish = await screen.findByRole("button", { name: /投稿する/ });
-    await waitFor(() => expect(publish).not.toBeDisabled());
-    await userEvent.click(publish);
-    await waitFor(() => expect(savedBody(), "保存に届いていない").not.toBeNull());
-}
 
 const hide = () => act(() => {
     Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
     document.dispatchEvent(new Event("visibilitychange"));
 });
+/** このタブがこの人の控えを持つ状態にする（写真を1枚選んで隠れる＝控えを書く） */
+const ownDraft = async (container: HTMLElement) => {
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(["x"], "IMG_0001.jpg", { type: "image/jpeg" }));
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+    await waitFor(() => expect(draft.save).toHaveBeenCalled());
+};
+
 /** 控えを戻す判断が済むまで待つ（済むまでは書かない・消さない） */
 const ready = async () => {
     await waitFor(() => expect(draft.read).toHaveBeenCalled());
@@ -124,11 +126,23 @@ describe("アップロード画面: 書きかけの控え", () => {
         expect(saved.tags).toBe("桜");
     });
 
-    it("写真が無いときに隠れたら、控えを消す", async () => {
+    it("自分の控えがあって、写真を全部外してから隠れたら、控えを消す", async () => {
+        const { container } = render(<UploadPage />);
+        await ready();
+        await ownDraft(container);
+        await userEvent.click(screen.getByRole("button", { name: "表示中の写真を外す" }));
+        draft.clear.mockClear(); draft.save.mockClear();
+        hide();
+        await waitFor(() => expect(draft.clear).toHaveBeenCalled());
+        expect(draft.save).not.toHaveBeenCalled();
+    });
+
+    it("このタブが控えを書いていない（置き場に別の人の控えがありうる）なら、写真0枚で隠れても消さない", async () => {
         render(<UploadPage />);
         await ready();
         hide();
-        await waitFor(() => expect(draft.clear).toHaveBeenCalled());
+        await new Promise((r) => setTimeout(r, 20));
+        expect(draft.clear).not.toHaveBeenCalled();
         expect(draft.save).not.toHaveBeenCalled();
     });
 
@@ -154,8 +168,10 @@ describe("アップロード画面: 書きかけの控え", () => {
     });
 
     it("画面の中の移動で離れるときも、今の状態で書き直す（外した写真を次に戻さない）", async () => {
-        const { unmount } = render(<UploadPage />);
+        const { unmount, container } = render(<UploadPage />);
         await ready();
+        await ownDraft(container);
+        await userEvent.click(screen.getByRole("button", { name: "表示中の写真を外す" }));
         draft.clear.mockClear();
         unmount();
         await waitFor(() => expect(draft.clear, "写真が無いまま離れたのに、古い控えが残る").toHaveBeenCalled());
@@ -172,7 +188,12 @@ describe("アップロード画面: 書きかけの控え", () => {
 
     it("全部上げ終わったら控えを消す", async () => {
         const { container } = render(<UploadPage />);
-        await uploadOne(container);
+        await ready();
+        await ownDraft(container);
+        const publish = await screen.findByRole("button", { name: /投稿する/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        await userEvent.click(publish);
+        await waitFor(() => expect(savedBody(), "保存に届いていない").not.toBeNull());
         await waitFor(() => expect(draft.clear).toHaveBeenCalled());
     });
 });
@@ -211,6 +232,10 @@ describe("アップロード画面: 書きかけの控え（7d2ea8f のレビュ
             new File(["x"], "a.jpg", { type: "image/jpeg" }),
             new File(["y"], "b.jpg", { type: "image/jpeg" }),
         ]);
+        // 隠れて控えを書いた（このタブの控え）
+        hide();
+        await waitFor(() => expect(draft.save).toHaveBeenCalled());
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
         const publish = await screen.findByRole("button", { name: /投稿する|アップロード/ });
         await waitFor(() => expect(publish).not.toBeDisabled());
         draft.clear.mockClear(); draft.save.mockClear();
@@ -282,6 +307,8 @@ describe("アップロード画面: 別の人に入れ替わったとき（f310f
         await new Promise((r) => setTimeout(r, 20));
         const savedAsOther = draft.save.mock.calls.some((c) => (c[0] as { userId: string; items: unknown[] }).items.length > 0);
         expect(savedAsOther, "前の人の写真を次の人の名で控えた").toBe(false);
+        // 入れ替わったあとに隠れても消さない（置き場の控えは新しい人のものかもしれない）
+        expect(draft.clear, "入れ替わったあとに隠れて、新しい人の控えを消しうる").not.toHaveBeenCalled();
     });
 
     it("上げている最中に入れ替わったら、上げるのを止める（前の人の写真を新しい人の名で公開しない）", async () => {
@@ -307,5 +334,6 @@ describe("アップロード画面: 別の人に入れ替わったとき（f310f
         await act(async () => { releasePut!(); await new Promise((r) => setTimeout(r, 50)); });
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/save"), "入れ替わったあとに保存した").toBe(false);
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/presigned-url"), "入れ替わったあとに次の写真を上げ始めた").toBe(false);
+        expect(mockShowToast.mock.calls.some((c) => String(c[0]).includes("やめました")), "新しい人に前の人の「やめました」を出した").toBe(false);
     });
 });
