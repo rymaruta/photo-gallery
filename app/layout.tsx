@@ -379,7 +379,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link
                       href="/"
                       prefetch={false}
-                      className="inline-flex items-center gap-2 min-w-0 max-w-full hover:opacity-70 transition-opacity duration-200 relative group"
+                      // 押せる高さを 44px に（ヘッダーは 64px あるので見た目は変わらない。#50）
+                      className="inline-flex items-center gap-2 min-w-0 max-w-full min-h-[44px] hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/logo-aperture.png" alt="" aria-hidden="true" width={32} height={32}

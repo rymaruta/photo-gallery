@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { isHevcVideo } from "../../../lib/utils/videoCodec";
 import { seekWhenReady } from "../../../lib/utils/mediaSeek";
 import { PlusIcon, XMarkIcon, MusicalNoteIcon, TrashIcon, ChevronDoubleUpIcon, EyeIcon, EyeSlashIcon, MapPinIcon, FaceSmileIcon } from "@heroicons/react/24/outline";
 import { onStoryFileHandoff, takeHandedStoryFile } from "@/lib/utils/storyHandoff";
@@ -793,6 +794,14 @@ export default function StoriesBar() {
                 if (duration > MAX_VIDEO_SECONDS) {
                     showToast(locale === "en" ? "Video must be 60s or shorter" : "動画は60秒以内にしてください", "error");
                     return;
+                }
+                // **HEVC は知らせる（止めない）。** iPhone の既定の形式で、再生
+                // できない環境ではストーリーが黙って飛ばされる。ブラウザの中で
+                // 作り直す手段は無いので、避け方を伝える（#43）
+                if (await isHevcVideo(file)) {
+                    showToast(locale === "en"
+                        ? "This video is HEVC and may not play on some Android phones and PCs. To avoid this, set Camera → Formats → Most Compatible in iPhone Settings."
+                        : "この動画は HEVC 形式のため、Android や一部のパソコンでは再生できないことがあります（iPhone の「設定」→「カメラ」→「フォーマット」→「互換性優先」で撮ると避けられます）", "info", 7000);
                 }
             } catch {
                 showToast(locale === "en" ? "Could not read the video" : "動画を読み込めませんでした", "error");

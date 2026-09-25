@@ -182,3 +182,32 @@ describe("#23・#54 タッチ端末（hover が無い）でも出す", () => {
         expect(code("app/user/profile/page.tsx")).toContain("[@media(hover:none)]:opacity-100");
     });
 });
+
+describe("#32 位置情報を断られたとき（iPhone）", () => {
+    it("見直す場所を iOS の設定の名前で言う", () => {
+        const src = code("app/components/PhotoMap.tsx");
+        expect(src).toContain("位置情報サービス");
+        expect(src).toMatch(/err\?\.code === 1/);
+    });
+});
+
+describe("#50 押せる大きさ（44px）", () => {
+    it("写真モーダルの共有ボタンは幅も 44px", () => {
+        const src = code("app/components/GalleryModal/ModalCaption.tsx");
+        const style = src.slice(src.indexOf("const SHARE_STYLE"), src.indexOf("};", src.indexOf("const SHARE_STYLE")));
+        expect(style).toMatch(/minWidth:\s*"44px"/);
+    });
+    it("撮影者のリンクは見た目を動かさずに押せる高さを足す", () => {
+        expect(code("app/components/ProfileLink.tsx")).toContain("py-[10px] -my-[10px]");
+    });
+    it("ヘッダーのロゴは押せる高さ 44px", () => {
+        expect(code("app/layout.tsx")).toMatch(/href="\/"[\s\S]{0,200}min-h-\[44px\]/);
+    });
+});
+
+describe("#43 HEVC の動画は、選んだ時点で知らせる", () => {
+    it("ストーリーの動画を選んだとき isHevcVideo で見て、止めずに知らせる", () => {
+        const src = code("app/components/stories/StoriesBar.tsx");
+        expect(src).toMatch(/if \(await isHevcVideo\(file\)\) \{\s*showToast\([\s\S]{0,400}"info"/);
+    });
+});

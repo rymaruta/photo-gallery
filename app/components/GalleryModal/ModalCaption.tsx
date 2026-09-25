@@ -31,6 +31,12 @@ const SHARE_STYLE: React.CSSProperties = {
     touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
     minHeight: "44px",
+    // 幅も 44px。スマホ幅は基準の文字が 14px なので、余白とアイコンだけでは
+    // 32px しか無かった（実測・#50）。**px で書く**（rem だと縮む）
+    minWidth: "44px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
 };
 
 export default function ModalCaption({
