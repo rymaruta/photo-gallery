@@ -172,3 +172,13 @@ describe("#45 動画の上限は、何が収まるかを伝える", () => {
         expect(block).toMatch(/1080p/);
     });
 });
+
+describe("#23・#54 タッチ端末（hover が無い）でも出す", () => {
+    it("アバターを上げている間のスピナーは hover を待たずに出る", () => {
+        const src = code("app/user/profile/page.tsx");
+        expect(src).toMatch(/avatarUploading \? "opacity-100" : "opacity-0 group-hover:opacity-100"/);
+    });
+    it("曲の試聴の ▶ はタッチ端末では常に出る", () => {
+        expect(code("app/user/profile/page.tsx")).toContain("[@media(hover:none)]:opacity-100");
+    });
+});

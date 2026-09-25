@@ -608,7 +608,10 @@ export default function ProfileEditPage() {
                                 </div>
                             )}
                         </div>
-                        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* **上げている間は、触れていなくても出す。** 以前は hover でしか出ず、
+                            タッチ端末（hover が無い）では写真を選んでから完了まで
+                            何も変わらなかった（#23） */}
+                        <div className={`absolute inset-0 rounded-full flex items-center justify-center bg-black/50 transition-opacity ${avatarUploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                             {avatarUploading
                                 ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 : <CameraIcon className="w-6 h-6 text-white" />
@@ -880,7 +883,9 @@ export default function ProfileEditPage() {
                                                     className="relative w-10 h-10 ml-2 my-2 rounded-md overflow-hidden bg-white/10 flex-shrink-0 group"
                                                 >
                                                     <SongArtwork src={song.artwork} className="absolute inset-0 w-full h-full object-cover" />
-                                                    <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+                                                    {/* タッチ端末（hover が無い）では ▶ の印を常に出す。出さないと、ジャケットを
+                                                        押すと試聴できることが分からなかった（#54） */}
+                                                    <span className={`absolute inset-0 flex items-center justify-center bg-black/45 ${isPreviewing ? "" : "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"} transition-opacity`}>
                                                         {isPreviewing ? <PauseIcon className="w-4 h-4 text-white" /> : <PlayIcon className="w-4 h-4 text-white ml-0.5" />}
                                                     </span>
                                                 </button>

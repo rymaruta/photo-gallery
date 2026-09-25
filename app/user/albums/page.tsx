@@ -6,6 +6,8 @@ import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
+import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { useEscapeKey } from "../../../lib/hooks/useEscapeKey";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { ROUTES } from "../../../lib/routes";
@@ -97,6 +99,12 @@ export default function AlbumsPage() {
     }, [gate, hasUnsavedWork, locale, showToast]);
     /** 消す前に一度聞く。**押し間違いで消させない**（削除は元に戻せない） */
     const [confirming, setConfirming] = useState<Album | null>(null);
+    // **削除の確認は、他のダイアログと同じくフォーカスを閉じ込める。** ここだけ
+    // useFocusTrap を使っておらず、開いても中へ入らず、Tab で裏へ抜け、Esc でも
+    // 閉じず、閉じたあと元のボタンへ戻らなかった（#49）
+    const confirmRef = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(!!confirming, confirmRef);
+    useEscapeKey(!!confirming && !busy, () => setConfirming(null));
 
     const load = useCallback(async () => {
         // **失敗を「0件」に潰さない。**
@@ -390,7 +398,7 @@ export default function AlbumsPage() {
                     「写真は残る」ことも書く——アルバムは束ねているだけで、
                     写真そのものは投稿した人のもの */}
                 {confirming && (
-                    <div role="dialog" aria-modal="true" aria-label="アルバムを消す"
+                    <div ref={confirmRef} role="dialog" aria-modal="true" aria-label="アルバムを消す"
                         className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50"
                         // 下端に寄せて出すので、ホームへ戻る帯のぶんを下に足す
                         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>

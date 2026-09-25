@@ -270,6 +270,15 @@ export default function GalleryModal({
                 className="relative w-full h-full max-sm:pad-safe sm:h-auto sm:max-h-[min(95dvh,100%)] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
                 style={{ maxWidth: "980px" }}
             >
+                {/* **前後に送ったら、どの写真になったかを読み上げる。** フォーカスは
+                    矢印のボタンに残ったまま、題と写真が黙って入れ替わっていた
+                    （VoiceOver では何が起きたか分からない。#44）。写真ページ側は
+                    同じ形の読み上げ領域を持っている */}
+                <p className="sr-only" aria-live="polite" aria-atomic="true">
+                    {locale === "en"
+                        ? `Photo ${currentIndex + 1} of ${photos.length}: ${titleText || "Photo"}`
+                        : `${photos.length}枚中 ${currentIndex + 1}枚目: ${titleText || "写真"}`}
+                </p>
                 {/* 画像エリア。
                     **下限を持たせない（TAP-7）。** 以前は `minHeight: 300px` が
                     あり、キャプションの 200px と合わせて 500px。横向きのスマホでは

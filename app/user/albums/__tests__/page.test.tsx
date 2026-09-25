@@ -258,3 +258,16 @@ describe("空の入力で押せてしまわない", () => {
         expect(screen.getByRole("button", { name: "保存" }), "空のまま保存が押せる").toBeDisabled();
     });
 });
+
+// 他の13個のダイアログと違って useFocusTrap を使っておらず、開いても中へ
+// 入らず、Esc でも閉じなかった（docs/ios-bug-audit-2026-09-25.md #49）
+describe("消す確認のフォーカス", () => {
+    it("開くとフォーカスが中に入り、Esc で閉じる", async () => {
+        render(<AlbumsPage />);
+        await userEvent.click(await screen.findByRole("button", { name: "消す" }));
+        const dialog = screen.getByRole("dialog", { name: "アルバムを消す" });
+        await waitFor(() => expect(dialog.contains(document.activeElement), "フォーカスが中に入っていない").toBe(true));
+        await userEvent.keyboard("{Escape}");
+        await waitFor(() => expect(screen.queryByRole("dialog", { name: "アルバムを消す" })).toBeNull());
+    });
+});
