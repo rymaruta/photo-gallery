@@ -69,8 +69,13 @@ export default function SpotLinkCard({ spot, locale }: { spot: SpotLink | null; 
                     <span className="min-w-0 flex-1">
                         <span className="block font-serif font-bold text-white wrap-anywhere"
                               style={{ fontSize: "16px", lineHeight: "22px" }}>{spot.name}</span>
-                        {where && (
-                            <span className="block mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{where}</span>
+                        {(where || spot.stage === "review") && (
+                            <span className="block mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                                {/* 運営未確認の下書きはそう名乗る（「公式」の語はここに無いが、印も無いと確認済みに見える） */}
+                                {spot.stage === "review" && (isJa ? "下書き" : "Draft")}
+                                {spot.stage === "review" && where ? " ・ " : ""}
+                                {where}
+                            </span>
                         )}
                         {spot.summary && (
                             <span className="block mt-1 text-white/75 line-clamp-2"

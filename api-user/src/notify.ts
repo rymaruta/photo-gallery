@@ -1,7 +1,9 @@
 import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
-import { isBlocked } from "./blockCheck";
+import { isBlocked, hiddenUserIds } from "./blockCheck";
+import { apnsConfigured, sendPush } from "./apns";
+import { deviceTokens, forgetTokens } from "./devices";
 
 // 通知の共通ヘルパー。
 // 通知は "notifs#<uid>" 文書に list_append + ADD unread でアトミックに追記する
@@ -199,6 +201,9 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // 外れたら諦めてよい——次の通知がまた切り詰める。
         // **切り詰めが触るのは `items` だけ。`unread` には手を出さない。**
         //
+        // ⚠️ **「生の値を読むのは getNotifications だけ」ではなくなった**
+        // ——プッシュのバッジ（`deliverPush`）が2人目の読み手。だから丸めは
+        // `visibleUnread` に切り出して**両方が同じ数を出す**ようにしてある。
         // 一度ここで `unread` も NOTIFS_MAX に丸めていたが、それが
         // 「消したはずのバッジが復活する」の原因だった。この書き込みは
         // 「読む → 書き戻す」なので、その隙に通知欄を開かれると
@@ -210,6 +215,12 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // ここで丸めても**利用者に見える結果は変わらない**。競合する書き込みは
         // 守るより無くす方が確実で、しかも安い——通知が上限に達した人は
         // 毎回ここを通るので、丸めを残すと書き込みが常時3本になっていた。
+        // **端末にも届ける。** ここが通知を作る唯一の場所なので、
+        // 送信もここ1か所に置く（口ごとに配線すると、次に経路が増えたときに
+        // 必ず1つ漏れる——ブロックの判定が同じ理由でここに在る）。
+        // **落ちても通知は積まれたまま**（アプリを開けば読める）
+        await deliverPush(ownerId, notif, res.Attributes?.unread, res.Attributes?.items);
+
         const items = res.Attributes?.items;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
             await ddb.send(new UpdateCommand({
@@ -226,5 +237,87 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         }
     } catch (e) {
         console.error("pushNotification error:", e);
+    }
+}
+
+/**
+ * 端末の `Localizable.strings` の鍵。**文面はサーバーで作らない**
+ * ——相手の言語を知らないので、作ると英語の端末にも日本語が届く。
+ *
+ * **種類を足したら、アプリの `Localizable.strings` にも足すこと。**
+ * 足さないと iOS は鍵の文字列（`NOTIF_LIKE`）をそのまま通知に出す。
+ */
+const LOC_KEYS: Record<Notif["type"], string> = {
+    like: "NOTIF_LIKE",
+    comment: "NOTIF_COMMENT",
+    follow: "NOTIF_FOLLOW",
+    storyreply: "NOTIF_STORY_REPLY",
+};
+
+/**
+ * 通知を端末へ送る。**best-effort**（落ちても本体は成功）。
+ *
+ * ブロックの判定は呼び出し元（`pushNotification`）で済んでいる
+ * ——積まない相手には、ここまで来ない。
+ */
+/**
+ * 画面に出る未読数。**`getNotifications` とプッシュのバッジで同じ数を出す**
+ * ための1か所。
+ *
+ * 素のカウンタ（DynamoDB の `unread`）はそのままでは使えない:
+ *
+ *   - **保存件数を超えて伸びる**（開かずに溜めると 53 になるが中身は50件）
+ *   - **ブロックした相手のぶんを含む**。人がブロックを押すのは「その人から
+ *     立て続けに通知が来た直後」なので、**未読がまるごとブロック相手のもの**が
+ *     いちばん起きる形
+ *
+ * 未読は「先頭 `stored` 件」＝**位置の意味を持つ数**なので、全体の長さで
+ * 丸めるだけでは足りない（落ちたのが先頭側だったことを見ていない）。
+ * `min(stored, items.length)` だと `[B,B,B,X,Y] / unread=3` で**2**が残り、
+ * 「バッジ2 → 開くと『まだ届いていません』」に戻る。
+ */
+export function visibleUnread(storedUnread: unknown, items: unknown, hidden: ReadonlySet<string>): number {
+    const all = Array.isArray(items) ? items : [];
+    const stored = typeof storedUnread === "number" ? storedUnread : 0;
+    const headCount = Math.max(0, Math.min(stored, all.length));
+    if (hidden.size === 0) return headCount;
+    return all.slice(0, headCount).filter((n) => {
+        const by = (n as { byId?: unknown })?.byId;
+        return !(typeof by === "string" && hidden.has(by));
+    }).length;
+}
+
+async function deliverPush(ownerId: string, notif: Notif, storedUnread?: unknown, items?: unknown): Promise<void> {
+    if (!apnsConfigured()) return;
+    try {
+        const tokens = await deviceTokens(ownerId);
+        if (tokens.length === 0) return;
+        // **ブロック一覧を引くのはここまで来たときだけ。** 上の2つの門
+        // （設定が無い／端末が1つも無い）で落ちる人には1回も払わせない
+        // ——`visibleReplyCount` が「ブロックしていなければ読まない」で
+        // 往復を抑えているのと同じ形。
+        // **読めなければ空集合**＝丸めだけ効く（`getNotifications` と同じ判断。
+        // 倒しすぎると通知が誰にも出なくなる側なので、ここは出す側に倒す）
+        const hidden = await hiddenUserIds(ownerId).catch((e) => {
+            console.error(`deliverPush: ブロック一覧を読めませんでした（${ownerId}）:`, e);
+            return new Set<string>();
+        });
+        const badge = visibleUnread(storedUnread, items, hidden);
+        const result = await sendPush(tokens, {
+            locKey: LOC_KEYS[notif.type],
+            locArgs: [notif.byName],
+            badge,
+            // 押したときの行き先。**写真が無い通知（follow）もある**
+            data: {
+                type: notif.type,
+                ...(notif.photoId ? { photoId: notif.photoId } : {}),
+                ...(notif.byId ? { byId: notif.byId } : {}),
+                ...(notif.targetUserId ? { targetUserId: notif.targetUserId } : {}),
+            },
+        });
+        // **無効だった宛先だけ外す**（送信の失敗では外さない）
+        if (result.invalid.length > 0) await forgetTokens(ownerId, result.invalid);
+    } catch (e) {
+        console.error(`deliverPush: 送れませんでした（${ownerId}）:`, e);
     }
 }

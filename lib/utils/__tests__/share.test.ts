@@ -110,3 +110,23 @@ describe("copyToClipboard", () => {
         expect(await copyToClipboard("x")).toBe(true);
     });
 });
+
+// iOS は textarea.select() だけでは選択範囲を作らず、execCommand("copy") が
+// 空をコピーして失敗する（docs/ios-bug-audit-2026-09-25.md #18）。
+describe("copyToClipboard の予備（iOS）", () => {
+    it("範囲を明示して選び、拡大させない大きさ・キーボードを出さない形にする", async () => {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new Error("denied")) } });
+        let seen: { start: number | null; end: number | null; fontSize: string; readOnly: boolean } | null = null;
+        Object.defineProperty(document, "execCommand", {
+            configurable: true,
+            value: () => {
+                const ta = document.querySelector("textarea")!;
+                seen = { start: ta.selectionStart, end: ta.selectionEnd, fontSize: ta.style.fontSize, readOnly: ta.readOnly };
+                return true;
+            },
+        });
+        const url = "https://journey-photo.com/photo/abc";
+        expect(await copyToClipboard(url)).toBe(true);
+        expect(seen).toEqual({ start: 0, end: url.length, fontSize: "16px", readOnly: true });
+    });
+});

@@ -218,7 +218,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const webSiteStructuredData = generateWebSiteStructuredData();
   
   return (
-    <html lang="ja">
+    // **`data-scroll-behavior="smooth"` は Next 16 への合図。** `globals.css` が
+    // `html { scroll-behavior: smooth }` を持っているので、これが無いと
+    // ページ遷移の位置合わせまでなめらかに流れる（実測: 508 → 65 を約430ms。
+    // 新しいページの途中が見えてから上へ流れていく）。付けると、遷移の間だけ
+    // Next が一時的に切る。ページ内のなめらかなスクロールはそのまま。
+    <html lang="ja" data-scroll-behavior="smooth">
       <head>
         {/*
           CSS が届かなかったときの最低限の下地。
@@ -331,7 +336,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <MusicProvider>
               {/* Header: 紺の下地に白字（最終版モック） */}
-              <header className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10">
+              <header
+                className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10"
+                // **ホーム画面から起動したとき、時計・電池の帯のぶんを上に空ける。**
+                // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、
+                // 空けないとロゴとメニューが時計・Dynamic Island と重なる。
+                // Safari のタブで見ているときは 0 なので見た目は変わらない。
+                //
+                // **横向きでは地を画面の端まで伸ばす。** 本文は左右の安全領域を
+                // 空ける（`globals.css` の body）ので、そのままだとヘッダーの地も
+                // 細くなり、ノッチ側だけ下地の色が見える。body の余白を打ち消して
+                // 端まで伸ばし、中身は同じぶん内側に戻す。縦向きでは全部 0。
+                style={{
+                  paddingTop: "env(safe-area-inset-top, 0px)",
+                  marginLeft: "calc(-1 * env(safe-area-inset-left, 0px))",
+                  marginRight: "calc(-1 * env(safe-area-inset-right, 0px))",
+                  paddingLeft: "env(safe-area-inset-left, 0px)",
+                  paddingRight: "env(safe-area-inset-right, 0px)",
+                }}
+              >
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
                   {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
@@ -356,7 +379,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link
                       href="/"
                       prefetch={false}
-                      className="inline-flex items-center gap-2 min-w-0 max-w-full hover:opacity-70 transition-opacity duration-200 relative group"
+                      // 押せる高さを 44px に（ヘッダーは 64px あるので見た目は変わらない。#50）
+                      className="inline-flex items-center gap-2 min-w-0 max-w-full min-h-[44px] hover:opacity-70 transition-opacity duration-200 relative group"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/logo-aperture.png" alt="" aria-hidden="true" width={32} height={32}

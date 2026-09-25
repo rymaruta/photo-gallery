@@ -79,10 +79,12 @@ export default function MapSpotSheet({
                     <div className="min-w-0 flex-1">
                         <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                            {/* **「公式」と名乗るのは、運営が台帳に書いたものだけ**
-                                （`publishableSpots` を通ったもの）。利用者の投稿から
+                            {/* **「公式」と名乗るのは、人が確かめたものだけ**（`stage`）。
+                                運営未確認の下書きは「下書き」と名乗る。利用者の投稿から
                                 作った撮影地ページと見分けが付くようにする */}
-                            {en ? "Official spot" : "公式撮影スポット"}
+                            {spot.stage === "published"
+                                ? (en ? "Official spot" : "公式撮影スポット")
+                                : (en ? "Spot (draft)" : "撮影スポット（下書き）")}
                         </p>
                         <p className="m-0 mt-1 font-serif font-bold text-white wrap-anywhere"
                            style={{ fontSize: "17px", lineHeight: "23px" }}>

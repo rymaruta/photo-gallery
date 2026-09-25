@@ -25,7 +25,9 @@ export default function ProfileLink({ userId, displayName, size = "md", onClick 
             href={href}
             prefetch={false}
             onClick={onClick}
-            className="inline-flex items-center gap-2.5 group"
+            // **押せる高さを 44px にする（見た目は動かさない）。** 上下に余白を足し、
+            // 同じだけ負の外側の余白で打ち消す。モーダルでは高さ 25px しか無かった（#50）
+            className="inline-flex items-center gap-2.5 group py-[10px] -my-[10px]"
             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
         >
             {/* アバター */}

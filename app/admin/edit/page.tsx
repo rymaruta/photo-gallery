@@ -17,6 +17,7 @@ import { changedFields } from "../../../lib/utils/changedFields";
 import { readApiError } from "../../../lib/utils/api";
 import { toastWithStaticPage } from "../../../lib/utils/staticPage";
 import { publicImageUrl } from "@/lib/utils/seo";
+import { splitTags } from "../../../lib/utils/ownValues";
 
 // text-base（16px）にする。iOS Safari は 16px 未満の入力欄にフォーカスすると
 // ページを拡大し、blur しても戻さない。他のページでは inline style で
@@ -207,7 +208,7 @@ function AdminEditContent() {
         setSaving(true);
         try {
             const { authenticatedFetch } = await import("../../../lib/utils/api");
-            const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+            const tags = splitTags(tagsInput);
 
             // サーバーは exif を丸ごと置き換える。このフォームは7項目しか扱わないので、
             // 組み直すと imageSize や dateTimeOriginal など画面に出ない項目が消える

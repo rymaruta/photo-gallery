@@ -59,20 +59,25 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
     return (
         <div
             ref={dialogRef}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            // **入り切らないときはスクロールできるようにする。** 横向きの iPhone
+            // （高さ 390px）では本体が 432px あり、中央寄せのまま上下が切れて
+            // スクロールもできなかった（実測）。キーボードが出るとさらに狭くなる。
+            // 本体の `my-auto` で、入るときは今までどおり真ん中に置く
+            // （`items-center` だとはみ出した上側がスクロールでも戻らない）。
+            className="fixed inset-0 z-50 flex justify-center p-4 overflow-y-auto overscroll-contain"
             role="dialog"
             aria-modal="true"
             aria-label={locale === "en" ? "Delete your account?" : "本当に退会しますか？"}
         >
             {/* オーバーレイ */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={deleting ? undefined : onClose}
                 aria-hidden="true"
             />
 
             {/* モーダル本体 */}
-            <div className="relative z-10 w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 story-media-in">
+            <div className="relative z-10 my-auto w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 story-media-in">
                 <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
                     <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
                     <ExclamationTriangleIcon className="relative w-6 h-6 text-red-400" />
