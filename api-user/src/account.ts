@@ -10,6 +10,7 @@ import { purgeBlocksFor } from "./block";
 import { updateFollowersQuietly } from "./follow";
 import { requireEnv } from "./env";
 import { requestSiteRebuild } from "./rebuild";
+import { deviceTokens, deviceOwnerId } from "./devices";
 import { isDeletedProfile } from "./types";
 import { albumKey, albumMemberKey, albumsOfUserKey } from "./invite";
 import { removePhotosFromAlbum } from "./albumCleanup";
@@ -732,7 +733,15 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // ⚠️ **APNs 側への通知は要らない。** 宛先が無効になれば APNs が
         // 410 を返し、`notify.ts` の `deliverPush` が `forgetTokens` で
         // 外す（`devices.ts` の注記）。ここで消すのは行そのもの
+        //
+        // **逆引きの行も消す**（`devicetoken#<トークン>` → 持ち主）。
+        // 集合だけ消すと、**端末の識別子が「退会した人のもの」として残る**
+        // ——次に同じ端末で誰かが登録すれば上書きされるが、それを待つ理由は無い。
+        // 先に読む（集合を消したあとでは、どのトークンを消すか分からない）
+        const myTokens = await deviceTokens(uid, true)
+            .catch((e) => { console.error(`deleteAccount: 端末を読めませんでした（${uid}）:`, e); return []; });
         await ddbDelete(PHOTOS_TABLE, { id: `devices#${uid}` });
+        for (const t of myTokens) await ddbDelete(PHOTOS_TABLE, { id: deviceOwnerId(t) });
         // ブロックの行（印・自分の一覧・被ブロックの一覧）。
         // **失敗しても退会は止めない**（フォローの掃除と同じ扱い）
         await purgeBlocksFor(uid)

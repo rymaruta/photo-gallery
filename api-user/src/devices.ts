@@ -16,6 +16,25 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
  * （`notify.ts` の切り詰めが同じ形で一度踏んでいる）。
  */
 export const devicesId = (uid: string) => `devices#${uid}`;
+/**
+ * 🔴 **トークン → いま持っている人**。1台につき1行。
+ *
+ * これが無いと、**同じ端末を別の人が使ったときに通知が他人へ届く**:
+ *
+ *   1. A がログイン → `devices#A` にトークン T が入る
+ *   2. `DELETE /user/devices` を呼べないままログアウト（強制ログアウト・
+ *      クラッシュ・アプリ削除・通信断）。解除は端末側からしか呼べない
+ *   3. 同じ端末で B がログイン → `devices#B` にも T が入る
+ *   4. A にいいねが来ると、`deliverPush` が `devices#A` から T を引いて送る
+ *      → **B の端末に A 宛ての通知（行動した人の名前）とバッジが出る**
+ *
+ * APNs は T を有効なトークンとして 200 を返すので、**410 では絶対に
+ * 消えない**（`isDeadToken` が正しく働いているのに救えない形）。
+ * 退会時の掃除（`account.ts`）が塞ぐのは「本人が退会した場合」だけ。
+ *
+ * だから**登録のたびに持ち主を書き換え、前の持ち主から外す**。
+ */
+export const deviceOwnerId = (token: string) => `devicetoken#${token}`;
 
 /**
  * 1人が持てる端末の数。
@@ -101,6 +120,13 @@ export const registerDevice: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     if (!isDeviceToken(token)) return jsonError(400, "端末のトークンが不正です");
 
     try {
+        // **先に前の持ち主から外す。** 逆引きの行を自分に書き換え、
+        // 返ってきた古い値が別人なら、その人の集合から T を落とす。
+        //
+        // **順番はこちらが先。** あとにすると、外す前に相手へ通知が飛ぶ窓が
+        // 残る（`ADD` は即座に効く）。逆に先に外して登録が落ちた場合は
+        // 「誰にも届かない」で止まるので、倒れる向きが安全
+        await releasePreviousOwner(token, userId);
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: devicesId(userId) },
@@ -137,6 +163,32 @@ async function trimTokens(uid: string, keep: string): Promise<void> {
     if (tokens.length <= DEVICES_MAX) return;
     const extra = tokens.filter((t) => t !== keep).slice(0, tokens.length - DEVICES_MAX);
     await forgetTokens(uid, extra);
+}
+
+/**
+ * この端末の持ち主を `userId` にし、**前の持ち主から外す**。
+ *
+ * 書き込みは1回（`ALL_OLD` で古い値が返る）。前の持ち主が同じ人なら何もしない。
+ * **失敗しても登録は続ける**——ここで止めると通知が1つも届かなくなるが、
+ * 通した場合の最悪は「前の人の端末にも届く」で、次の登録で直る。
+ * ただし**黙って飲まない**（記録は残す）。
+ */
+async function releasePreviousOwner(token: string, userId: string): Promise<void> {
+    try {
+        const res = await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: deviceOwnerId(token) },
+            UpdateExpression: "SET uid = :uid, updatedAt = :now",
+            ExpressionAttributeValues: { ":uid": userId, ":now": new Date().toISOString() },
+            ReturnValues: "ALL_OLD",
+        }));
+        const previous = res.Attributes?.uid;
+        if (typeof previous === "string" && previous && previous !== userId) {
+            await forgetTokens(previous, [token]);
+        }
+    } catch (e) {
+        console.error(`releasePreviousOwner: 前の持ち主を外せませんでした（${token.slice(0, 8)}…）:`, e);
+    }
 }
 
 /** 端末を外す（ログアウト・通知オフ）。`DELETE /user/devices` */
