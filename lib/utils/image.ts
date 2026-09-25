@@ -58,6 +58,53 @@ function buildOrientationApp1(orientation: number): Uint8Array {
     ]);
 }
 
+/** APP2 の中身が MPF（"MPF\0"）か */
+function isMpfSegment(buf: Uint8Array, dataStart: number, segEnd: number): boolean {
+    return segEnd - dataStart >= 4
+        && buf[dataStart] === 0x4D && buf[dataStart + 1] === 0x50
+        && buf[dataStart + 2] === 0x46 && buf[dataStart + 3] === 0x00;
+}
+
+/**
+ * 最初の SOS（`sosAt` の位置の 0xFF）から、主画像の EOI の直後までの位置を返す。
+ * 見つからなければ（壊れている・途中で切れている）末尾を返す＝今までどおり全部残す。
+ *
+ * 圧縮データの中の 0xFF は必ず 0x00（詰め物）か RSTn（D0〜D7）が続く。
+ * それ以外のマーカーは、プログレッシブ JPEG の次の走査（SOS・DHT など、
+ * 長さを持つ区切り）か EOI。区切りは長さで読み飛ばす——中身のバイトに
+ * FF D9 が偶然あっても EOI と取り違えない。
+ */
+function primaryImageEnd(buf: Uint8Array, sosAt: number): number {
+    let i = sosAt;
+    while (i + 3 < buf.length) {
+        // i は 0xFF（区切りの先頭）を指している。fill byte を飛ばす
+        let m = i + 1;
+        while (m < buf.length && buf[m] === 0xFF) m++;
+        if (m >= buf.length) return buf.length;
+        const marker = buf[m];
+        if (marker === 0xD9) return m + 1; // EOI
+        if (m + 2 >= buf.length) return buf.length;
+        const len = (buf[m + 1] << 8) | buf[m + 2];
+        if (len < 2) return buf.length;
+        let j = m + 1 + len;
+        if (j > buf.length) return buf.length;
+        if (marker === 0xDA) {
+            // 圧縮データを読み進め、次の本物のマーカーを探す
+            while (j + 1 < buf.length) {
+                if (buf[j] === 0xFF) {
+                    const n = buf[j + 1];
+                    if (n === 0x00 || (n >= 0xD0 && n <= 0xD7) || n === 0xFF) { j += n === 0xFF ? 1 : 2; continue; }
+                    break;
+                }
+                j++;
+            }
+            if (j + 1 >= buf.length) return buf.length;
+        }
+        i = j;
+    }
+    return buf.length;
+}
+
 /**
  * JPEG から EXIF（APP1）/ IPTC（APP13）セグメントをバイトレベルで除去する。
  * canvas 圧縮が失敗して元ファイルをアップロードするフォールバック時に、
@@ -94,8 +141,13 @@ export async function stripJpegExifDetailed(
             if (m >= buf.length) break;
             const marker = buf[m];
             const segStart = m + 1;
-            if (marker === 0xDA) { // SOS: 以降は画像データなので全部保持
-                parts.push(buf.slice(i));
+            if (marker === 0xDA) { // SOS: ここから画像データ
+                // **主画像の終わり（EOI）までで切る。** iPhone の JPEG は MPF で
+                // 後ろに2枚目以降の JPEG（HDR のゲインマップ・深度など）をぶら下げ、
+                // それぞれが自分の APP1（EXIF/XMP）を持てる。以前は SOS 以降を
+                // 丸ごと残していたので、そちらのメタデータが公開されていた（#46）。
+                const end = primaryImageEnd(buf, i);
+                parts.push(buf.slice(i, end));
                 i = buf.length;
                 break;
             }
@@ -104,8 +156,13 @@ export async function stripJpegExifDetailed(
             if (len < 2) break;
             const segEnd = segStart + len;
             if (segEnd > buf.length) break; // 長さが壊れている — 以降はそのまま保持
-            // APP1 (Exif/XMP) と APP13 (IPTC) を除去、それ以外は保持
-            if (marker !== 0xE1 && marker !== 0xED) {
+            // APP1 (Exif/XMP) と APP13 (IPTC) を除去、それ以外は保持。
+            // APP2 のうち MPF（後ろにぶら下げた画像の索引）も落とす——
+            // 後ろの画像は上で切り捨てるので、残すと無い画像を指す索引になる。
+            // 同じ APP2 でも ICC_PROFILE（色）は残す
+            if (marker === 0xE2 && isMpfSegment(buf, segStart + 2, segEnd)) {
+                // 落とす
+            } else if (marker !== 0xE1 && marker !== 0xED) {
                 parts.push(buf.slice(i, segEnd));
             } else if (marker === 0xE1 && orientation === undefined) {
                 // 落とす前に**向きだけ**控える（値1つ。バイトは持ち出さない）
@@ -188,14 +245,32 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
 
 // canvas を WebP 優先でエンコードする。WebP は JPEG より 25〜35% 小さく透過も保持できる。
 // 非対応ブラウザ（toBlob が null または別 type を返す）は従来どおり PNG/JPEG に落とす。
+//
+// **書き出せないと分かったら、次からは試さない。** Safari（iOS）は
+// `toBlob("image/webp")` に PNG を返す。毎回試すと、1枚ごとに圧縮とサムネで
+// 2回、1920px の PNG を作って捨てていた（メモリの細い iPhone で重い）。
+// 「別の形式が返ってきた」＝書き出せない、が確定したときだけ覚える
+// （null は一時的な失敗かもしれないので覚えない）。
+let canvasWebp: boolean | null = null;
+/** テスト用: 覚えた結果を捨てる */
+export function resetCanvasWebpProbe(): void { canvasWebp = null; }
+
+/** 使い終わった canvas の画素を手放す（iOS は canvas の合計メモリに上限がある） */
+function releaseCanvas(canvas: HTMLCanvasElement): void {
+    canvas.width = 0;
+    canvas.height = 0;
+}
 async function encodeCanvas(
     canvas: HTMLCanvasElement,
     img: HTMLImageElement,
     sourceType: string,
     quality: number,
 ): Promise<{ blob: Blob; type: string; ext: string } | null> {
-    const webp = await canvasToBlob(canvas, "image/webp", quality);
-    if (webp && webp.type === "image/webp") return { blob: webp, type: "image/webp", ext: "webp" };
+    if (canvasWebp !== false) {
+        const webp = await canvasToBlob(canvas, "image/webp", quality);
+        if (webp && webp.type === "image/webp") { canvasWebp = true; return { blob: webp, type: "image/webp", ext: "webp" }; }
+        if (webp) canvasWebp = false;
+    }
 
     // フォールバック: PNG は透過保持のため PNG のまま、それ以外は白背景の JPEG
     const outputType = sourceType === "image/png" ? "image/png" : "image/jpeg";
@@ -236,18 +311,28 @@ export async function compressImage(file: File, maxPx = 1920, quality = 0.85): P
  * デコードを2回要求するのは筋が悪い。
  */
 async function compressLoadedImage(img: HTMLImageElement, file: File, maxPx: number, quality: number): Promise<File> {
-    const { width, height } = scaleDimensions(img.width, img.height, maxPx);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(img, 0, 0, width, height);
-
-    const encoded = await encodeCanvas(canvas, img, file.type, quality);
-    if (!encoded) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, "");
-    return new File([encoded.blob], `${baseName}.${encoded.ext}`, { type: encoded.type });
+    const once = async (px: number): Promise<File | null> => {
+        const { width, height } = scaleDimensions(img.width, img.height, px);
+        const canvas = document.createElement("canvas");
+        try {
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, width, height);
+            const encoded = await encodeCanvas(canvas, img, file.type, quality);
+            if (!encoded) return null;
+            const baseName = file.name.replace(/\.[^.]+$/, "");
+            return new File([encoded.blob], `${baseName}.${encoded.ext}`, { type: encoded.type });
+        } finally {
+            releaseCanvas(canvas);
+        }
+    };
+    // **canvas が取れなければ、小さくしてもう一度。** iOS は canvas の合計メモリに
+    // 上限があり、当たると getContext / toBlob が null を返す。そのまま諦めると
+    // 呼び出し側の保険（バイト除去）に落ち、**縮めていない原寸**（12〜48MP・
+    // 数MB〜十数MB）が本体として公開されていた（#6）
+    return (await once(maxPx)) ?? (maxPx > 1280 ? await once(1280) : null) ?? file;
 }
 
 /**
@@ -362,15 +447,19 @@ export async function createThumbnail(file: File, maxPx = 512, quality = 0.75): 
         const img = await loadImageFromFile(file);
         const { width, height } = scaleDimensions(img.width, img.height, maxPx);
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return null;
-        ctx.drawImage(img, 0, 0, width, height);
+        try {
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, width, height);
 
-        const encoded = await encodeCanvas(canvas, img, file.type, quality);
-        if (!encoded) return null;
-        return new File([encoded.blob], thumbFileName(file.name, encoded.ext), { type: encoded.type });
+            const encoded = await encodeCanvas(canvas, img, file.type, quality);
+            if (!encoded) return null;
+            return new File([encoded.blob], thumbFileName(file.name, encoded.ext), { type: encoded.type });
+        } finally {
+            releaseCanvas(canvas);
+        }
     } catch {
         return null;
     }
@@ -387,18 +476,22 @@ export async function createBlurPlaceholder(file: File, maxPx = 20): Promise<str
         const img = await loadImageFromFile(file);
         const { width, height } = scaleDimensions(img.width, img.height, maxPx);
         const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, width);
-        canvas.height = Math.max(1, height);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return null;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // toDataURL は未対応形式だと image/png を返すため、要求形式と一致した時だけ採用
-        for (const type of ["image/webp", "image/jpeg"]) {
-            const url = canvas.toDataURL(type, 0.4);
-            if (url.startsWith(`data:${type}`) && url.length <= 4000) return url;
+        try {
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // toDataURL は未対応形式だと image/png を返すため、要求形式と一致した時だけ採用
+            for (const type of ["image/webp", "image/jpeg"]) {
+                const url = canvas.toDataURL(type, 0.4);
+                if (url.startsWith(`data:${type}`) && url.length <= 4000) return url;
+            }
+            const png = canvas.toDataURL("image/png");
+            return png.length <= 4000 ? png : null;
+        } finally {
+            releaseCanvas(canvas);
         }
-        const png = canvas.toDataURL("image/png");
-        return png.length <= 4000 ? png : null;
     } catch {
         return null;
     }
@@ -431,12 +524,16 @@ export async function extractDominantColor(file: File): Promise<string | null> {
         const img = await loadImageFromFile(file);
         const size = 16; // 16x16 に縮小して平均を取れば十分
         const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return null;
-        ctx.drawImage(img, 0, 0, size, size);
-        return averagePixelsToHex(ctx.getImageData(0, 0, size, size).data);
+        try {
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return null;
+            ctx.drawImage(img, 0, 0, size, size);
+            return averagePixelsToHex(ctx.getImageData(0, 0, size, size).data);
+        } finally {
+            releaseCanvas(canvas);
+        }
     } catch {
         return null;
     }

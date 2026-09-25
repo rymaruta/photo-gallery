@@ -827,7 +827,10 @@ function UploadPageInner() {
                     // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
                     try {
                         if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
-                        const thumb = await createThumbnail(item.file);
+                        // **縮めた方から作る。** 原寸（24〜48MP）を読み直すと、1枚ごとに
+                        // 4回デコードすることになり、iPhone でタブが落ちやすかった（#26）。
+                        // 縮めた方は向きも反映済み（または EXIF の向きを残している）
+                        const thumb = await createThumbnail(uploadFile);
                         if (thumb) {
                             const thumbPresign = await apiFetch("/upload/presigned-url", {
                                 method: "POST",
@@ -885,17 +888,17 @@ function UploadPageInner() {
                         : undefined;
 
                     // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
-                    const dominantColor = await extractDominantColor(item.file);
+                    const dominantColor = await extractDominantColor(uploadFile);
 
                     // ぼかしプレビュー（blur-up 用の極小画像）。失敗しても続行
-                    const blurDataURL = await createBlurPlaceholder(item.file);
+                    const blurDataURL = await createBlurPlaceholder(uploadFile);
 
                     // 撮影情報（カメラ・レンズ・絞り等）: 圧縮で EXIF が失われる前に
                     // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
                     const cameraExif = await extractCameraExif(item.file);
 
-                    // **重い処理のあとにもう一度見る。** 代表色・ぼかし・EXIF は
-                    // 原寸を3回デコードするが、どれも `signal` を見ない。その間に
+                    // **重い処理のあとにもう一度見る。** 代表色・ぼかしのデコードと
+                    // EXIF の読み取りは、どれも `signal` を見ない。その間に
                     // 押した「やめる」は保存まで効かず、写真が1枚できあがる
                     // （実 `userFetch` はセッション取得に最大10秒使うので、
                     //   保存の口に届いてから止まるのでは遅い）

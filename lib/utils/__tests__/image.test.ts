@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { stripJpegExif, stripJpegExifDetailed, scaleDimensions, thumbFileName, toUploadSafeFile, UnstrippableFileError } from "../image";
+import { stripJpegExif, stripJpegExifDetailed, scaleDimensions, thumbFileName, toUploadSafeFile, UnstrippableFileError, compressImage, resetCanvasWebpProbe } from "../image";
 
 // 合成 JPEG バイト列を組み立てるヘルパー
 function segment(marker: number, payload: number[]): number[] {
@@ -343,5 +343,122 @@ describe("toUploadSafeFile", () => {
     it("エラーには形式が入る（原因が分かるように）", async () => {
         const heic = new File([bytes()], "a.heic", { type: "image/heic" });
         await expect(toUploadSafeFile(heic)).rejects.toThrow(/image\/heic/);
+    });
+});
+
+// iPhone の JPEG は MPF で後ろに2枚目以降（HDR のゲインマップ・深度など）を
+// ぶら下げ、それぞれが自分の APP1（EXIF/XMP）を持てる。以前は SOS 以降を
+// 丸ごと残していたので、後ろの画像のメタデータがそのまま公開されていた
+// （docs/ios-bug-audit-2026-09-25.md #46）。
+describe("stripJpegExifDetailed: 後ろにぶら下がった画像", () => {
+    const asFile = (b: number[]) => new File([new Uint8Array(b) as BlobPart], "IMG_0001.jpg", { type: "image/jpeg" });
+    const bytesOf = async (f: File) => [...new Uint8Array(await f.arrayBuffer())];
+    const MPF = [0x4D, 0x50, 0x46, 0x00, 0x49, 0x49, 0x2A, 0x00];
+    const ICC = [0x49, 0x43, 0x43, 0x5F, 0x50, 0x52, 0x4F, 0x46, 0x49, 0x4C, 0x45, 0x00, 0x01, 0x01];
+    const SECRET = [0x47, 0x50, 0x53, 0x21, 0x21]; // 後ろの画像の EXIF に入った目印
+    const trailing = [0xFF, 0xD8, ...segment(0xE1, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...SECRET]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x55, 0xFF, 0xD9];
+    const has = (hay: number[], needle: number[]) => hay.some((_, k) => needle.every((b, t) => hay[k + t] === b));
+
+    it("主画像の EOI で切り、後ろの画像（とその EXIF）を落とす。MPF の索引も落とし、色（ICC）は残す", async () => {
+        const primary = [
+            0xFF, 0xD8,
+            ...segment(0xE1, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x01]),
+            ...segment(0xE2, MPF),
+            ...segment(0xE2, ICC),
+            ...segment(0xDB, [0x00, 0x01]),
+            0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02,
+            0x11, 0xFF, 0x00, 0x22, 0xFF, 0xD3, 0x33, // 詰め物と RST を含む圧縮データ
+            0xFF, 0xD9,
+        ];
+        const r = await stripJpegExifDetailed(asFile([...primary, ...trailing]));
+        expect(r.stripped).toBe(true);
+        const out = await bytesOf(r.file);
+        expect(has(out, SECRET), "後ろの画像の EXIF が残っている").toBe(false);
+        expect(out.slice(-2)).toEqual([0xFF, 0xD9]);
+        expect(has(out, MPF), "無い画像を指す MPF の索引が残っている").toBe(false);
+        expect(has(out, ICC), "色のプロファイルまで落とした").toBe(true);
+    });
+
+    it("プログレッシブ（走査が複数）でも主画像の最後まで残す。区切りの中身の FF D9 で切らない", async () => {
+        const primary = [
+            0xFF, 0xD8,
+            ...segment(0xDB, [0x00, 0x01]),
+            0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x10, 0x20,         // 1回目の走査
+            ...segment(0xC4, [0x10, 0xFF, 0xD9, 0x01]),              // DHT の中身に FF D9
+            0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x30, 0x40,         // 2回目の走査
+            0xFF, 0xD9,
+        ];
+        const r = await stripJpegExifDetailed(asFile([...primary, ...trailing]));
+        const out = await bytesOf(r.file);
+        expect(out).toEqual(primary);
+    });
+
+    it("EOI が見つからない（途中で切れている）ときは、今までどおり残りを全部残す", async () => {
+        const cut = [0xFF, 0xD8, ...segment(0xDB, [0x00]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x11, 0x22];
+        const r = await stripJpegExifDetailed(asFile(cut));
+        expect(await bytesOf(r.file)).toEqual(cut);
+    });
+});
+
+/**
+ * iOS は canvas の合計メモリに上限があり、当たると getContext / toBlob が null を
+ * 返す。そのまま諦めると保険（バイト除去）に落ち、縮めていない原寸が公開されて
+ * いた（docs/ios-bug-audit-2026-09-25.md #6・#26）。
+ */
+describe("canvas の資源を大事に使う（iOS のメモリ上限）", () => {
+    let widths: number[];
+    let canvases: HTMLCanvasElement[];
+    let blobTypes: string[];
+    let ctxNullTimes: number;
+
+    beforeEach(() => {
+        resetCanvasWebpProbe();
+        widths = []; canvases = []; blobTypes = []; ctxNullTimes = 0;
+        Object.defineProperty(window.Image.prototype, "src", {
+            configurable: true,
+            set(this: HTMLImageElement) {
+                Object.defineProperty(this, "width", { configurable: true, value: 4000 });
+                Object.defineProperty(this, "height", { configurable: true, value: 3000 });
+                Object.defineProperty(this, "naturalWidth", { configurable: true, value: 4000 });
+                Object.defineProperty(this, "naturalHeight", { configurable: true, value: 3000 });
+                queueMicrotask(() => this.onload?.(new Event("load")));
+            },
+        });
+        window.URL.createObjectURL = () => "blob:test";
+        window.URL.revokeObjectURL = () => {};
+        vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function (this: HTMLCanvasElement) {
+            widths.push(this.width);
+            if (!canvases.includes(this)) canvases.push(this);
+            if (ctxNullTimes > 0) { ctxNullTimes--; return null; }
+            return { drawImage() {}, fillRect() {}, fillStyle: "" } as unknown as CanvasRenderingContext2D;
+        } as never);
+        // Safari と同じく、WebP を頼まれても PNG を返す
+        HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback, type?: string) {
+            blobTypes.push(type ?? "");
+            cb(new Blob(["x"], { type: type === "image/webp" ? "image/png" : type }));
+        };
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it("canvas が取れなければ、小さくしてもう一度作る（原寸に落とさない）", async () => {
+        ctxNullTimes = 1;
+        const out = await compressImage(new File(["x"], "IMG_0001.jpg", { type: "image/jpeg" }));
+        expect([...new Set(widths)]).toEqual([1920, 1280]);
+        expect(out.type).toBe("image/jpeg");
+        expect(out.name).toBe("IMG_0001.jpg");
+    });
+
+    it("使い終わった canvas の画素を手放す", async () => {
+        await compressImage(new File(["x"], "a.jpg", { type: "image/jpeg" }));
+        expect(canvases.length).toBeGreaterThan(0);
+        for (const c of canvases) expect([c.width, c.height]).toEqual([0, 0]);
+    });
+
+    it("WebP を書き出せないと分かったら、次からは試さない", async () => {
+        await compressImage(new File(["x"], "a.jpg", { type: "image/jpeg" }));
+        expect(blobTypes.filter((t) => t === "image/webp")).toHaveLength(1);
+        blobTypes = [];
+        await compressImage(new File(["x"], "b.jpg", { type: "image/jpeg" }));
+        expect(blobTypes, "毎回 PNG を作って捨てている").not.toContain("image/webp");
     });
 });
