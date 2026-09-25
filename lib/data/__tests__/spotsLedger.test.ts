@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { SPOTS, type Spot } from "../spots";
-import { publishBlockers, publishableSpots, SOURCED_FIELDS } from "../../utils/spotGuide";
+import {
+    publishBlockers, reviewBlockers, visibleSpots, sourcesFor, SOURCED_FIELDS,
+} from "../../utils/spotGuide";
 import { PREFECTURES as PREFECTURE_TABLE } from "../prefectures";
+import { reviewStage, TEXT_FIELDS, TEXT_ARRAY_FIELDS, TEXT_OBJECT_ARRAY_FIELDS } from "../../../scripts/spots-review-stage.mjs";
 
 /**
  * 🔴 **`content/spots.json` の中身そのものを見る。**
@@ -32,14 +35,76 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(SPOTS.length, "台帳が空か、減りすぎている").toBeGreaterThanOrEqual(MIN_SPOTS);
     });
 
-    it("公開の条件を満たしている（満たさない行は理由つきで落とす）", () => {
+    /**
+     * 🔴 **段階ごとの門を全行が通る。**
+     *
+     * `review`（運営未確認の下書き）は `reviewBlockers`、`published` は
+     * `publishBlockers`。2026-09-24 までは全件 `published`＋`verified: true` で
+     * 「全件公開可能」だったが、人は1件も確かめていなかった
+     * （`lib/data/spots.ts` の `status` の注記）。いまは**確認者の名前が
+     * 無い行は published になれない**。
+     */
+    it("段階ごとの条件を満たしている（満たさない行は理由つきで落とす）", () => {
         const bad = SPOTS
-            .map((s) => [s.slug || "(綴り無し)", publishBlockers(s)] as const)
+            .map((s) => [s.slug || "(綴り無し)", s.status === "published" ? publishBlockers(s) : reviewBlockers(s)] as const)
             .filter(([, b]) => b.length > 0)
             .map(([slug, b]) => `${slug}: ${b.join(" / ")}`);
-        expect(bad, "公開できない行がある").toEqual([]);
-        // 上が空でも `publishableSpots` が空なら意味が無い（台帳が空の場合）
-        expect(publishableSpots(SPOTS).length).toBe(SPOTS.length);
+        expect(bad, "ページを建てられない行がある").toEqual([]);
+        // 上が空でも `visibleSpots` が空なら意味が無い（台帳が空の場合）
+        expect(visibleSpots(SPOTS).length).toBe(SPOTS.length);
+    });
+
+    it("published の行は確認者（verifiedBy）と確認日を対で持つ", () => {
+        const bad = SPOTS
+            .filter((s) => s.status === "published" && !(s.verifiedBy?.trim() && s.verifiedAt?.trim()))
+            .map((s) => s.slug);
+        expect(bad, "確認者か確認日の無い published がある").toEqual([]);
+        const dateOnly = SPOTS.filter((s) => s.verifiedAt && !s.verifiedBy?.trim()).map((s) => s.slug);
+        expect(dateOnly, "verifiedAt だけがある（誰が確かめたか分からない）").toEqual([]);
+    });
+
+    /**
+     * 🔴 **確認者・出典の確認者に AI の名前を書かない。**
+     * 「確認した」は人が名乗るもの。機械の名前で埋めれば門はまた自己申告に戻る。
+     */
+    it("verifiedBy / checkedBy が AI の名前ではない", () => {
+        const AI_NAME_RE = /^(ai|claude|assistant|bot|gpt|chatgpt|copilot|llm)\b/i;
+        const bad: string[] = [];
+        for (const s of SPOTS) {
+            if (s.verifiedBy && AI_NAME_RE.test(s.verifiedBy.trim())) bad.push(`${s.slug}.verifiedBy=${s.verifiedBy}`);
+            for (const src of s.sources ?? []) {
+                if (src.checkedBy && AI_NAME_RE.test(src.checkedBy.trim())) bad.push(`${s.slug}.sources[${src.field}].checkedBy=${src.checkedBy}`);
+            }
+        }
+        expect(bad).toEqual([]);
+    });
+
+    /**
+     * 🔴 **台帳は `scripts/spots-review-stage.mjs` を掛けても変わらない**（冪等）。
+     * これが「`verified: true`・`verifiedAt`・`**強調**` の書き戻しを二度と
+     * 入れない」見張り。差分が出たらスクリプトを流す。
+     */
+    it("下書きの段階に揃っている（spots-review-stage を掛けて差分0）", () => {
+        const staged = reviewStage(SPOTS as unknown as Record<string, unknown>[]);
+        const changed = SPOTS
+            .filter((s, i) => JSON.stringify(s) !== JSON.stringify(staged[i]))
+            .map((s) => s.slug);
+        expect(changed, "node scripts/spots-review-stage.mjs を実行してください").toEqual([]);
+    });
+
+    it("本文に Markdown の **強調** が残っていない（画面は素の文字列で描く）", () => {
+        const bad: string[] = [];
+        for (const s of SPOTS) {
+            const r = s as unknown as Record<string, unknown>;
+            const texts: string[] = [];
+            for (const f of TEXT_FIELDS) if (typeof r[f] === "string") texts.push(r[f] as string);
+            for (const f of TEXT_ARRAY_FIELDS) if (Array.isArray(r[f])) texts.push(...(r[f] as string[]));
+            for (const f of TEXT_OBJECT_ARRAY_FIELDS) {
+                if (Array.isArray(r[f])) texts.push(...(r[f] as { text?: string }[]).map((x) => x?.text ?? ""));
+            }
+            if (texts.some((t) => t.includes("**"))) bad.push(s.slug);
+        }
+        expect(bad, "`**` がそのまま画面に出る").toEqual([]);
     });
 
     it("鍵が重複していない（spotId も slug も）", () => {
@@ -208,7 +273,7 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         summary: "string", description: "string", status: "string",
         officialWebsiteUrl: "string", verifiedAt: "string",
         createdAt: "string", updatedAt: "string",
-        verified: "boolean",
+        verifiedBy: "string", draftedAt: "string", draftedBy: "string",
         aliases: "array", highlights: "array", compositionTips: "array",
         seasonalGuide: "array", timeOfDayGuide: "array",
         safetyNotes: "array", sources: "array",
@@ -281,13 +346,22 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(bad).toEqual([]);
     });
 
+    /**
+     * 出典が要る項目は、書いてあるなら出典もある。
+     *
+     * `published` は**確認者つき**（`sourcesFor` が数える形）。`review` は
+     * 候補（url と日付）でよい——下書きの段階では画面に出さないが、
+     * 「出典の当ても無いまま書いた駐車場」は下書きにも置かない。
+     */
     it("出典が要る項目は、書いてあるなら出典もある", () => {
         const bad: string[] = [];
         for (const s of SPOTS) {
             for (const f of SOURCED_FIELDS) {
                 const v = (s as unknown as Record<string, unknown>)[f];
                 if (v === undefined) continue;
-                const has = (s.sources ?? []).some((x) => x.field === f && x.url && x.checkedAt);
+                const has = s.status === "published"
+                    ? sourcesFor(s, f).length > 0
+                    : (s.sources ?? []).some((x) => x.field === f && x.url && x.checkedAt);
                 if (!has) bad.push(`${s.slug}: ${f} に出典が無い（書いても画面に出ない）`);
             }
         }
@@ -329,11 +403,16 @@ describe("撮影スポット台帳（content/spots.json）", () => {
             if (!/^\d{4}-\d{2}-\d{2}/.test(d)) { bad.push(`${label}: 形が ISO でない (${d})`); return; }
             if (d.slice(0, 10) > today) bad.push(`${label}: 未来の日付 (${d})`);
         };
+        let seen = 0;
         for (const s of SPOTS) {
             check(`${s.slug}.verifiedAt`, s.verifiedAt);
+            check(`${s.slug}.draftedAt`, s.draftedAt);
+            if (s.verifiedAt || s.draftedAt) seen += 1;
             for (const src of s.sources ?? []) check(`${s.slug}.sources[${src.field}]`, src.checkedAt);
         }
         expect(bad).toEqual([]);
+        // 日付を1つも持たない台帳なら上は空回り（verifiedAt が全件から消えたあとの形）
+        expect(seen, "確認日も下書きの日付も無い").toBeGreaterThan(0);
     });
 
     /**
