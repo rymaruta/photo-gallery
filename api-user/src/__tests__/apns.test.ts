@@ -226,3 +226,45 @@ describe("送り先（APNS_HOST）", () => {
         expect(apnsConfigured()).toBe(true);
     });
 });
+
+/**
+ * 🔴 **403 が続くときに 429 へ悪化させない。**
+ *
+ * `InvalidProviderToken` は期限切れではなく**設定ミス**（Key ID と鍵の
+ * 不一致・失効・Team ID 違い）でも返る。下限が無いと「いいね1回ごとに
+ * 新しい JWT」になり、APNs の「20分より短い間隔で作り直すと断る」に当たって
+ * `TooManyProviderTokenUpdates` に変わる。**直したあとも 429 が続くぶん、
+ * 届かない時間が伸びる。**
+ */
+describe("署名の作り直しの下限", () => {
+    const env = { APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM, APNS_TOPIC: "t", APNS_HOST: "h" };
+
+    it("まだ一度も署名していなければ作り直せる", async () => {
+        const { canResign } = await load(env);
+        expect(canResign()).toBe(true);
+    });
+
+    it("作った直後は作り直さない（20分の壁を守る）", async () => {
+        const { canResign, providerToken } = await load(env);
+        const t0 = 1_800_000_000_000;
+        providerToken(t0);
+        expect(canResign(t0 + 60_000), "1分後に作り直そうとしている").toBe(false);
+        expect(canResign(t0 + 19 * 60_000), "19分後に作り直そうとしている").toBe(false);
+    });
+
+    it("20分を過ぎたら作り直せる", async () => {
+        const { canResign, providerToken } = await load(env);
+        const t0 = 1_800_000_000_000;
+        providerToken(t0);
+        expect(canResign(t0 + 20 * 60_000)).toBe(true);
+    });
+
+    // 期限切れ（50分）で作り直す従来の道は塞がない
+    it("使い回しの期限（50分）とは両立する", async () => {
+        const { providerToken } = await load(env);
+        const t0 = 1_800_000_000_000;
+        const a = providerToken(t0);
+        expect(providerToken(t0 + 49 * 60_000), "50分未満で作り直している").toBe(a);
+        expect(providerToken(t0 + 51 * 60_000)).not.toBe(a);
+    });
+});

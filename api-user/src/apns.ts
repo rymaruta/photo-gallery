@@ -84,6 +84,22 @@ export function resetProviderToken(): void {
     cachedToken = null;
 }
 
+/**
+ * 作り直してよいか。**「20分より短い間隔で作り直すと断られる」を守る。**
+ *
+ * `InvalidProviderToken` は期限切れではなく**設定ミス**でも返る
+ * （Key ID と鍵の不一致・鍵の失効・Team ID 違い）。その状態で下限が無いと
+ * **いいね1回ごとに新しい JWT** を作り、20分の壁に当たって
+ * `TooManyProviderTokenUpdates`（429）へ悪化する。直したあとも 429 が
+ * 続くぶん、届かない時間が伸びる。
+ *
+ * 作り直していない（まだ1度も署名していない）ときは素通し。
+ */
+const RESIGN_FLOOR_MS = 20 * 60 * 1000;
+export function canResign(now = Date.now()): boolean {
+    return !cachedToken || now - cachedToken.at >= RESIGN_FLOOR_MS;
+}
+
 export type PushMessage = {
     /** 端末の `Localizable.strings` の鍵（例: `NOTIF_LIKE`） */
     locKey: string;
@@ -216,7 +232,9 @@ function sendOne(
             const verdict = classifyResponse(token, status, payload);
             // **断られた署名は捨てる。** 放っておくと、この温まった
             // コンテナは50分ずっと同じ JWT で失敗し続ける
-            if (verdict.resign) resetProviderToken();
+            // **下限つきで作り直す**（設定ミスで 403 が続くときに 429 へ
+            // 悪化させない。`canResign` の注記を参照）
+            if (verdict.resign && canResign()) resetProviderToken();
             if (status !== 200) {
                 console.warn(`APNs ${status} ${verdict.reason ?? ""}`.trim());
             }
