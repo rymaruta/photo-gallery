@@ -429,8 +429,9 @@ function UploadPageInner() {
      * 捨てるので、カメラや写真の選択・別のアプリから戻ると読み込み直しになり、
      * 選んだ写真も打った題名・説明も消えていた。画面が隠れる瞬間に、まだ
      * 上げていない写真と入力を控え、開き直したときに戻す
-     * （`lib/utils/uploadDraft.ts`）。上げている最中は控えない
-     * （戻すと同じ写真をもう一度上げることになる）。
+     * （`lib/utils/uploadDraft.ts`）。上げ始めたら消し、上げ終わったら残り
+     * （失敗した写真）で書き直す。上げている最中に画面を離れたら消す
+     * （上げる処理は画面が閉じても続くので、残すと二重に上がる）。
      */
     const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false, userId: null as string | null });
     // **最後に分かっていた持ち主を覚えておく。** セッションが切れると userId は
@@ -439,9 +440,31 @@ function UploadPageInner() {
     // iOS がページを捨てたときに全部失う。明示的なログアウトは
     // forgetUploadDraftOnSignOut が書き込みを止める
     const lastUserIdRef = useRef<string | null>(null);
-    if (userId) lastUserIdRef.current = userId;
-    useEffect(() => { if (userId) allowUploadDraft(); }, [userId]);
-    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId: userId ?? lastUserIdRef.current };
+    // **別の人に入れ替わったら、前の人の写真を捨てる。** 投稿画面を開いたまま
+    // 別のタブで A がログアウトし B がログインすると、このタブの userId は
+    // A → null → B と変わる。前の人の写真（原本）を B の控えとして書いたり、
+    // B がそのまま投稿したりしないよう、画面からも控えからも消す。
+    // 持ち主の更新はこの effect だけで行う——描画の途中で B に変えると、
+    // effect までの間に隠れたときに A の写真を B の名で控えてしまう
+    useEffect(() => {
+        if (!userId) return;
+        const prev = lastUserIdRef.current;
+        lastUserIdRef.current = userId;
+        allowUploadDraft();
+        if (prev && prev !== userId) {
+            setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
+            setCategory("");
+            setTags("");
+            void clearUploadDraft();
+        }
+    }, [userId]);
+    // 控えの持ち主: 分かっている人と同じならその人。セッションが切れた（null）
+    // なら最後に分かっていた人。**別の人に変わった直後は「分からない」**
+    // （書かずに消す側に倒れる）
+    const draftOwner = userId
+        ? (lastUserIdRef.current === null || lastUserIdRef.current === userId ? userId : null)
+        : lastUserIdRef.current;
+    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId: draftOwner };
     /**
      * 控えを戻す判断が済んだか。**済むまでは書かない・消さない**——ログインの
      * 確認中（写真0枚に見える）に画面が隠れると、戻す前の控えを消してしまう

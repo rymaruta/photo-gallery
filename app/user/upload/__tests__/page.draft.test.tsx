@@ -261,3 +261,24 @@ describe("アップロード画面: 書きかけの控え（76f7c7b のレビュ
         expect(mockUserFetch.mock.calls.some((c) => c[0] === "/upload/presigned-url"), "置き場所を取り直した（S3 に孤児が増える）").toBe(false);
     });
 });
+
+describe("アップロード画面: 別の人に入れ替わったとき（f310f53 のレビュー）", () => {
+    it("A がログアウトして B がログインしたら、A の写真を画面からも控えからも消す（B の名で控えない）", async () => {
+        const { container, rerender } = render(<UploadPage />);
+        await ready();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+        await waitFor(() => expect(container.querySelectorAll('img[src^="blob:"]').length).toBeGreaterThan(0));
+        // 別のタブで A がログアウト → B がログイン
+        auth.userId = null; rerender(<UploadPage />);
+        auth.userId = "someone-else"; rerender(<UploadPage />);
+        await waitFor(() => expect(draft.clear).toHaveBeenCalled());
+        draft.save.mockClear();
+        hide();
+        await new Promise((r) => setTimeout(r, 20));
+        const savedAsOther = draft.save.mock.calls.some((c) => (c[0] as { userId: string; items: unknown[] }).items.length > 0);
+        expect(savedAsOther, "前の人の写真を次の人の名で控えた").toBe(false);
+        expect(screen.queryByDisplayValue("a.jpg")).toBeNull();
+        expect(container.querySelectorAll('img[src^="blob:"]').length, "前の人の写真が画面に残っている").toBe(0);
+    });
+});

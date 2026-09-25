@@ -191,6 +191,8 @@ describe("#32 位置情報を断られたとき（iPhone）", () => {
         // iOS の Chrome などは Safari の設定ではなく、そのアプリの設定を見る
         expect(src).toMatch(/isIOSSafari\(ua, touch\)/);
         expect(src).toContain("このブラウザのアプリ");
+        // ホーム画面から起動したアプリ（UA に Safari が入らない）は Safari 側の案内
+        expect(src).toMatch(/standalone \|\| isIOSSafari\(ua, touch\)/);
     });
 });
 

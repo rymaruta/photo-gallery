@@ -520,8 +520,10 @@ export default function PhotoMap({
                 const ua = navigator.userAgent;
                 const touch = navigator.maxTouchPoints ?? 0;
                 const denied = err?.code === 1 && isIOS(ua, touch);
-                // Safari と、iOS の Chrome などでは設定の場所が違う
-                const deniedOnIOS = denied && isIOSSafari(ua, touch);
+                // Safari と、iOS の Chrome などでは設定の場所が違う。ホーム画面から
+                // 起動したアプリは UA に Safari を含まないが、許可の場所は Safari 側
+                const standalone = (navigator as unknown as { standalone?: boolean }).standalone === true;
+                const deniedOnIOS = denied && (standalone || isIOSSafari(ua, touch));
                 const deniedOnIOSOther = denied && !deniedOnIOS;
                 setLocateError(deniedOnIOS
                     ? (en
