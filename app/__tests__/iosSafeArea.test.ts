@@ -57,9 +57,13 @@ describe("上の安全領域（ホーム画面から起動したとき）", () =
         // 外枠は押すと閉じる半透明の面。スマホでここを空けると、帯が透けて
         // 押すと閉じる（レビューで指摘）。スマホは内枠（黒）の側で空ける
         const overlay = src.slice(src.indexOf('role="dialog"'), src.indexOf(">", src.indexOf("className=", src.indexOf('role="dialog"'))));
-        expect(overlay).toContain("sm:pad-safe");
-        expect(overlay).not.toMatch(/(?<![:\w-])pad-safe/);
-        expect(src).toContain("max-sm:pad-safe");
+        // `max-sm:pad-safe` も「sm:pad-safe」を含むので、前に文字が付かない形で探す
+        // （含むだけで見ると、出し分けを逆にしても通ってしまう）
+        expect(overlay).toMatch(/(?<![\w:-])sm:pad-safe/);
+        expect(overlay).not.toMatch(/max-sm:pad-safe/);
+        expect(overlay).not.toMatch(/(?<![\w:-])pad-safe/);
+        const inner = src.slice(src.indexOf("max-sm:pad-safe") - 200, src.indexOf("max-sm:pad-safe") + 200);
+        expect(inner).toContain("bg-black");
     });
 
     it("キャプションの高さの上限から、上下の安全領域を引いている（引かないと共有の行が切れる）", () => {
@@ -80,6 +84,8 @@ describe("横向きの iPhone", () => {
         expect(panel).not.toMatch(/(?<![-\w])overflow-hidden/);
         // 下はホームへ戻る帯のぶんも引く（引かないとログアウトの下端が帯に掛かる）
         expect(panel).toMatch(/maxHeight:\s*"calc\([^"]*safe-area-inset-bottom/);
+        // 右もノッチのぶん内側へ寄せる
+        expect(panel).toMatch(/marginRight:\s*"env\(safe-area-inset-right/);
     });
 
     it("横に貼り付く柱は、ヘッダーの高さを直書きしない", () => {
@@ -88,12 +94,23 @@ describe("横向きの iPhone", () => {
             expect(src, f).not.toContain("lg:top-[88px]");
             expect(src, f).toContain("lg:top-[calc(var(--header-h)_+_16px)]");
         }
+        // 上端を安全領域ぶん下げたら、高さの上限も同じ変数から引く。
+        // 88px 前提の上限のままだと、下端がタブバーの裏に潜る（iPad・ホーム画面起動）
+        for (const f of ["app/GalleryPageClient.tsx", "app/components/SpotGuideClient.tsx"]) {
+            const src = code(f);
+            expect(src, f).not.toContain("100vh-168px");
+            expect(src, f).toContain("lg:max-h-[calc(100vh_-_var(--header-h)_-_96px_-_env(safe-area-inset-bottom,0px))]");
+        }
     });
 
     it("ヘッダーの地は本文の左右の余白を打ち消して端まで届く", () => {
         const src = code("app/layout.tsx");
         expect(src).toMatch(/marginLeft:\s*"calc\(-1 \* env\(safe-area-inset-left/);
         expect(src).toMatch(/marginRight:\s*"calc\(-1 \* env\(safe-area-inset-right/);
+        // 地を伸ばしたぶん、中身は内側へ戻す（戻さないとロゴとメニューがノッチの下）
+        const header = src.slice(src.indexOf("<header"), src.indexOf("<header") + 2500);
+        expect(header).toMatch(/paddingLeft:\s*"env\(safe-area-inset-left/);
+        expect(header).toMatch(/paddingRight:\s*"env\(safe-area-inset-right/);
     });
 
     it("本文が左右の安全領域を空ける", () => {

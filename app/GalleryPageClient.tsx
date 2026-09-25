@@ -97,7 +97,7 @@ function HomeColumns({ rail, children }: { rail: React.ReactNode; children: Reac
           **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
           柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
           作ると隠れる */}
-      <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">{rail}</aside>
+      <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh_-_var(--header-h)_-_96px_-_env(safe-area-inset-bottom,0px))] lg:overflow-y-auto">{rail}</aside>
     </div>
   );
 }
