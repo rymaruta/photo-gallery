@@ -1,0 +1,101 @@
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * 🔴 **iPhone の安全領域（時計・電池の帯／ノッチ／ホームへ戻る帯）を空けていること。**
+ *
+ * `app/layout.tsx` は `viewportFit: "cover"` と `statusBarStyle: "black-translucent"`
+ * を宣言している。ホーム画面から起動すると、ページは時計・電池の帯の下まで、
+ * 横向きではノッチの下まで広がる。空けるのは各部品の責任になる。
+ *
+ * 空けていなかった箇所（2026-09-25 の洗い出し `docs/ios-bug-audit-2026-09-25.md`）:
+ *
+ *   #1  ヘッダーのロゴとメニューが時計・Dynamic Island と重なる
+ *       写真モーダルの「閉じる・いいね・保存」が電池の表示の下に入る
+ *   #38 横向き・ログイン中にメニューを開くと「設定」「ログアウト」が画面の外
+ *       （実測 844x390: パネルの下端 489px。中はスクロールできなかった）
+ *   #42 横向きで本文と写真モーダルの矢印がノッチの下に入る
+ *
+ * jsdom は CSS を解釈しないので、**描いて測る形では捕まえられない**。
+ * `bottomBarOverlap.test.ts` と同じく、そう書いてあるかをソースで見る。
+ */
+
+const root = path.resolve(__dirname, "../..");
+const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
+
+/** コメントを落とす（理由を書くほど、綴りで見る判定が自分の説明に当たる） */
+const code = (rel: string): string =>
+    read(rel).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+describe("上の安全領域（ホーム画面から起動したとき）", () => {
+    it("共通ヘッダーが上の安全領域を空けている", () => {
+        const src = code("app/layout.tsx");
+        const header = src.slice(src.indexOf("<header"), src.indexOf(">", src.indexOf("paddingTop", src.indexOf("<header"))));
+        expect(header).toMatch(/paddingTop:\s*"env\(safe-area-inset-top/);
+    });
+
+    it("ヘッダーの下に貼る面は、ヘッダーの高さを直書きしない（安全領域込みの変数を使う）", () => {
+        for (const f of ["app/components/HeaderNav.tsx", "app/components/NotificationsBell.tsx"]) {
+            const src = code(f);
+            expect(src, f).not.toMatch(/top-\[64px\]/);
+            expect(src, f).not.toMatch(/top-\[72px\]/);
+            expect(src, f).toContain("top-[var(--header-h)]");
+        }
+        const css = read("app/globals.css");
+        expect(css).toMatch(/--header-h:\s*calc\(64px \+ env\(safe-area-inset-top/);
+        expect(css).toMatch(/--header-h:\s*calc\(72px \+ env\(safe-area-inset-top/);
+    });
+
+    it("写真モーダルの外枠が四辺の安全領域の内側に収まる", () => {
+        const src = code("app/components/GalleryModal/index.tsx");
+        for (const side of ["Top", "Right", "Bottom", "Left"]) {
+            expect(src).toMatch(new RegExp(`padding${side}:\\s*"env\\(safe-area-inset-${side.toLowerCase()}`));
+        }
+    });
+
+    it("キャプションの高さの上限から、上下の安全領域を引いている（引かないと共有の行が切れる）", () => {
+        const src = code("app/components/GalleryModal/ModalCaption.tsx");
+        const line = src.split("\n").find((l) => l.includes("maxHeight:")) ?? "";
+        expect(line).toContain("safe-area-inset-top");
+        expect(line).toContain("safe-area-inset-bottom");
+    });
+});
+
+describe("横向きの iPhone", () => {
+    it("メニューのパネルは画面が低いと中でスクロールする", () => {
+        const src = code("app/components/HeaderNav.tsx");
+        const i = src.indexOf("max-w-[220px]");
+        expect(i).toBeGreaterThan(0);
+        const panel = src.slice(src.lastIndexOf("<div", i), src.indexOf("<nav", i));
+        expect(panel).toContain("overflow-y-auto");
+        expect(panel).not.toMatch(/(?<![-\w])overflow-hidden/);
+        expect(panel).toMatch(/maxHeight:/);
+    });
+
+    it("本文が左右の安全領域を空ける", () => {
+        const css = read("app/globals.css");
+        expect(css).toMatch(/padding-left:\s*env\(safe-area-inset-left/);
+        expect(css).toMatch(/padding-right:\s*env\(safe-area-inset-right/);
+    });
+});
+
+describe("下の安全領域（ホームへ戻る帯）", () => {
+    it("下から出るシートが帯のぶんを下に足す", () => {
+        expect(code("app/components/ReportDialog.tsx")).toMatch(/paddingBottom:\s*"calc\([^"]*safe-area-inset-bottom/);
+        expect(code("app/user/albums/page.tsx")).toMatch(/paddingBottom:\s*"calc\([^"]*safe-area-inset-bottom/);
+    });
+});
+
+describe("iOS Safari の細部", () => {
+    it("写真モーダルのボタンのぼかしに -webkit- 付きも書く（React はインラインに接頭辞を足さない）", () => {
+        const src = code("app/components/GalleryModal/ModalControls.tsx");
+        expect(src).toMatch(/WebkitBackdropFilter:/);
+    });
+
+    it("中でスクロールする面は、端で画面全体を弾ませない", () => {
+        expect(code("app/components/GalleryModal/ModalCaption.tsx")).toContain("overscroll-contain");
+        expect(code("app/components/ReportDialog.tsx")).toContain("overscroll-contain");
+        expect(code("app/components/NotificationsBell.tsx")).toContain("overscroll-contain");
+    });
+});

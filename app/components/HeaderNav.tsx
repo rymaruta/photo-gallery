@@ -207,7 +207,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     aria-modal="true"
                     aria-label={locale === "en" ? "Menu" : "メニュー"}
                     ref={panelRef}
-                    className="fixed left-0 right-0 bottom-0 top-[64px] md:top-[72px] z-50"
+                    className="fixed left-0 right-0 bottom-0 top-[var(--header-h)] z-50"
                 >
                     {/* Backdrop */}
                     <div
@@ -218,8 +218,13 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
                     {/* Menu panel */}
                     <div
-                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in"
-                        style={{ backgroundColor: "#16181c", zIndex: 10 }}
+                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-x-hidden overflow-y-auto overscroll-contain story-media-in"
+                        // **画面が低いときは中でスクロールさせる。** 横向きの iPhone
+                        // （高さ 390px）ではログイン中の項目が入り切らず、「設定」
+                        // 「ログアウト」が画面の外に出ていた（実測: パネルの下端 489px）。
+                        // ページのスクロールは `lockBodyScroll` で止めているので、
+                        // パネル自身が縮まないと届く手段が無い。下は 8px 空ける。
+                        style={{ backgroundColor: "#16181c", zIndex: 10, maxHeight: "calc(100% - 16px)" }}
                     >
                         <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>

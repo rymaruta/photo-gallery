@@ -26,6 +26,17 @@
 :root {
   --color-background: var(--color-bg);
   --color-foreground: #ffffff;
+  /* **共通ヘッダーの実際の高さ（上の安全領域を含む）。**
+     ホーム画面から起動すると `black-translucent` ＋ `viewport-fit=cover` で
+     ページが時計・電池の帯の下まで広がる。ヘッダーはそのぶんを上に空けるので、
+     ヘッダーの下に貼る面（メニュー・通知）もこの値で位置を決める。
+     64px / 72px をそれぞれの場所に書くと、帯のぶんだけ食い込む。 */
+  --header-h: calc(64px + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 768px) {
+  :root {
+    --header-h: calc(72px + env(safe-area-inset-top, 0px));
+  }
 }
 
 html {
@@ -86,6 +97,12 @@ button, a {
    ぶんを自分の内側に持つので、二重に空けない）。 */
 body {
   padding-bottom: var(--bottom-bar-h, calc(env(safe-area-inset-bottom, 0px) + 57px));
+  /* **横向きの iPhone で、中身がノッチ・Dynamic Island の下に入らないように。**
+     `viewport-fit=cover` を宣言しているので、左右の安全領域は自分で空ける。
+     縦向きでは 0 なので見た目は変わらない。画面に固定した部品
+     （タブバー・モーダル）は body の余白の外なので、それぞれで空ける。 */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* HeaderNav で使用 */

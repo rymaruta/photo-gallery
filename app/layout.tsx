@@ -331,7 +331,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <MusicProvider>
               {/* Header: 紺の下地に白字（最終版モック） */}
-              <header className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10">
+              <header
+                className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10"
+                // **ホーム画面から起動したとき、時計・電池の帯のぶんを上に空ける。**
+                // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、
+                // 空けないとロゴとメニューが時計・Dynamic Island と重なる。
+                // Safari のタブで見ているときは 0 なので見た目は変わらない。
+                style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+              >
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
                   {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の

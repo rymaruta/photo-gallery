@@ -391,7 +391,9 @@ export default function AlbumsPage() {
                     写真そのものは投稿した人のもの */}
                 {confirming && (
                     <div role="dialog" aria-modal="true" aria-label="アルバムを消す"
-                        className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50">
+                        className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50"
+                        // 下端に寄せて出すので、ホームへ戻る帯のぶんを下に足す
+                        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
                         <div className="bg-surface-2 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
                             <p className="text-sm">「{confirming.title}」を消しますか？</p>
                             <p className="text-xs text-white/60 mt-2">

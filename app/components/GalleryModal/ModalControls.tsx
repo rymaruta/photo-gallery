@@ -15,6 +15,9 @@ const BTN_BASE =
 
 const BTN_STYLE: React.CSSProperties = {
     backdropFilter: "blur(8px)",
+    // iOS 17 以前の Safari は接頭辞付きしか読まない。React はインラインの
+    // style に接頭辞を足さない（Tailwind のクラスは足す）ので、自分で書く
+    WebkitBackdropFilter: "blur(8px)",
     touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
     minWidth: "44px",

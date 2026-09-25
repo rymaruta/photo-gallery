@@ -251,6 +251,16 @@ export default function GalleryModal({
             aria-label={titleText || "写真"}
             onClick={handleOverlayClick}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md"
+            // **安全領域の内側に収める。** 上は時計・電池の帯（ホーム画面から
+            // 起動したとき）、左右は横向きのノッチ・Dynamic Island、下は
+            // ホームへ戻る帯。空けないと「閉じる・いいね・保存」が帯の下に、
+            // 前後の矢印がノッチの下に入る。安全領域が無い画面では 0。
+            style={{
+                paddingTop: "env(safe-area-inset-top, 0px)",
+                paddingRight: "env(safe-area-inset-right, 0px)",
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+                paddingLeft: "env(safe-area-inset-left, 0px)",
+            }}
         >
             {/* **`dvh` で測る。** 枠は `h-full`（実際の表示領域）なのに中身は
                 `vh`（ツールバーを含む高さ）で、iOS Safari や Instagram の内蔵
@@ -260,7 +270,7 @@ export default function GalleryModal({
                 `app/globals.css` が body に `100dvh` を入れているのは同じ理由。 */}
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full h-full sm:h-auto sm:max-h-[95dvh] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
+                className="relative w-full h-full sm:h-auto sm:max-h-[min(95dvh,100%)] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
                 style={{ maxWidth: "980px" }}
             >
                 {/* 画像エリア。
