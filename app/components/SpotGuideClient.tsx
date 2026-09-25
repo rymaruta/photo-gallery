@@ -314,7 +314,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                         **ホームの柱と同じ形**（`max-h` + `overflow-y-auto`）。
                         上だけで留めると、画面が低いときに下の節へ**永久に届かない**
                         （1280×600 で実測済み・`app/GalleryPageClient.tsx` の注記） */}
-                    <aside className="pt-8 lg:pt-6 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">
+                    <aside className="pt-8 lg:pt-6 lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh-168px)] lg:overflow-y-auto">
                         {/* ── 6. アクセス ── */}
                         {(showsField(spot, "access") || showsField(spot, "parking") || spot.address) && (
                             <section className="mb-7" aria-labelledby="spot-access">

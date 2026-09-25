@@ -47,11 +47,19 @@ describe("上の安全領域（ホーム画面から起動したとき）", () =
         expect(css).toMatch(/--header-h:\s*calc\(72px \+ env\(safe-area-inset-top/);
     });
 
-    it("写真モーダルの外枠が四辺の安全領域の内側に収まる", () => {
-        const src = code("app/components/GalleryModal/index.tsx");
-        for (const side of ["Top", "Right", "Bottom", "Left"]) {
-            expect(src).toMatch(new RegExp(`padding${side}:\\s*"env\\(safe-area-inset-${side.toLowerCase()}`));
+    it("写真モーダルが四辺の安全領域の内側に収まる（スマホは黒い内枠、広い画面は外枠で空ける）", () => {
+        const css = read("app/globals.css");
+        const util = css.slice(css.indexOf("@utility pad-safe"), css.indexOf("}", css.indexOf("@utility pad-safe")));
+        for (const side of ["top", "right", "bottom", "left"]) {
+            expect(util).toContain(`padding-${side}: env(safe-area-inset-${side}`);
         }
+        const src = code("app/components/GalleryModal/index.tsx");
+        // 外枠は押すと閉じる半透明の面。スマホでここを空けると、帯が透けて
+        // 押すと閉じる（レビューで指摘）。スマホは内枠（黒）の側で空ける
+        const overlay = src.slice(src.indexOf('role="dialog"'), src.indexOf(">", src.indexOf("className=", src.indexOf('role="dialog"'))));
+        expect(overlay).toContain("sm:pad-safe");
+        expect(overlay).not.toMatch(/(?<![:\w-])pad-safe/);
+        expect(src).toContain("max-sm:pad-safe");
     });
 
     it("キャプションの高さの上限から、上下の安全領域を引いている（引かないと共有の行が切れる）", () => {
@@ -70,7 +78,22 @@ describe("横向きの iPhone", () => {
         const panel = src.slice(src.lastIndexOf("<div", i), src.indexOf("<nav", i));
         expect(panel).toContain("overflow-y-auto");
         expect(panel).not.toMatch(/(?<![-\w])overflow-hidden/);
-        expect(panel).toMatch(/maxHeight:/);
+        // 下はホームへ戻る帯のぶんも引く（引かないとログアウトの下端が帯に掛かる）
+        expect(panel).toMatch(/maxHeight:\s*"calc\([^"]*safe-area-inset-bottom/);
+    });
+
+    it("横に貼り付く柱は、ヘッダーの高さを直書きしない", () => {
+        for (const f of ["app/GalleryPageClient.tsx", "app/components/SpotGuideClient.tsx", "app/user/upload/page.tsx"]) {
+            const src = code(f);
+            expect(src, f).not.toContain("lg:top-[88px]");
+            expect(src, f).toContain("lg:top-[calc(var(--header-h)_+_16px)]");
+        }
+    });
+
+    it("ヘッダーの地は本文の左右の余白を打ち消して端まで届く", () => {
+        const src = code("app/layout.tsx");
+        expect(src).toMatch(/marginLeft:\s*"calc\(-1 \* env\(safe-area-inset-left/);
+        expect(src).toMatch(/marginRight:\s*"calc\(-1 \* env\(safe-area-inset-right/);
     });
 
     it("本文が左右の安全領域を空ける", () => {

@@ -39,6 +39,15 @@
   }
 }
 
+/* 四辺の安全領域ぶんの内側の余白。`sm:` などの幅の条件と組み合わせて使う
+   （写真モーダルは、スマホでは黒い内枠に、それより広い画面では外枠に持たせる）。 */
+@utility pad-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
 html {
   scroll-behavior: smooth;
 }

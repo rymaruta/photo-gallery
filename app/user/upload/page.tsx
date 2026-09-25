@@ -1237,7 +1237,7 @@ function UploadPageInner() {
             <div className={`${COLUMN} pb-40 lg:grid lg:grid-cols-[minmax(0,392px)_minmax(0,1fr)] lg:gap-8 lg:items-start`}>
 
                 {/* ───────── 写真（モック①②） ───────── */}
-                <div className="pt-3 lg:sticky lg:top-[88px]">
+                <div className="pt-3 lg:sticky lg:top-[calc(var(--header-h)_+_16px)]">
                     {selected ? (
                         <>
                             {/* ヒーロー（モック①）。中身は `CropFramePicker`

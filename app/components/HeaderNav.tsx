@@ -223,8 +223,15 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         // （高さ 390px）ではログイン中の項目が入り切らず、「設定」
                         // 「ログアウト」が画面の外に出ていた（実測: パネルの下端 489px）。
                         // ページのスクロールは `lockBodyScroll` で止めているので、
-                        // パネル自身が縮まないと届く手段が無い。下は 8px 空ける。
-                        style={{ backgroundColor: "#16181c", zIndex: 10, maxHeight: "calc(100% - 16px)" }}
+                        // パネル自身が縮まないと届く手段が無い。下は 8px と
+                        // ホームへ戻る帯のぶん空ける（帯の上で押すとホームへ戻る
+                        // 操作と取り合う）。右もノッチのぶん内側へ寄せる。
+                        style={{
+                            backgroundColor: "#16181c",
+                            zIndex: 10,
+                            maxHeight: "calc(100% - 16px - env(safe-area-inset-bottom, 0px))",
+                            marginRight: "env(safe-area-inset-right, 0px)",
+                        }}
                     >
                         <nav aria-label="メインメニュー">
                             <ul className="flex flex-col m-0 p-0 divide-y divide-white/5" style={{ listStyle: "none" }}>

@@ -337,7 +337,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、
                 // 空けないとロゴとメニューが時計・Dynamic Island と重なる。
                 // Safari のタブで見ているときは 0 なので見た目は変わらない。
-                style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+                //
+                // **横向きでは地を画面の端まで伸ばす。** 本文は左右の安全領域を
+                // 空ける（`globals.css` の body）ので、そのままだとヘッダーの地も
+                // 細くなり、ノッチ側だけ下地の色が見える。body の余白を打ち消して
+                // 端まで伸ばし、中身は同じぶん内側に戻す。縦向きでは全部 0。
+                style={{
+                  paddingTop: "env(safe-area-inset-top, 0px)",
+                  marginLeft: "calc(-1 * env(safe-area-inset-left, 0px))",
+                  marginRight: "calc(-1 * env(safe-area-inset-right, 0px))",
+                  paddingLeft: "env(safe-area-inset-left, 0px)",
+                  paddingRight: "env(safe-area-inset-right, 0px)",
+                }}
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
