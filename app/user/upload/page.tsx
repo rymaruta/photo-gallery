@@ -13,7 +13,7 @@ import { log } from "../../../lib/utils/log";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
-import { saveUploadDraft, readUploadDraft, clearUploadDraft } from "../../../lib/utils/uploadDraft";
+import { saveUploadDraft, readUploadDraft, clearUploadDraft, allowUploadDraft } from "../../../lib/utils/uploadDraft";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -433,17 +433,41 @@ function UploadPageInner() {
      * （戻すと同じ写真をもう一度上げることになる）。
      */
     const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false, userId: null as string | null });
-    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId };
+    // **最後に分かっていた持ち主を覚えておく。** セッションが切れると userId は
+    // null になるが、画面は写真を守ったまま「別のタブでログインし直して」と
+    // 案内する（holdingWork）。その案内どおりに離れた瞬間に控えを消すと、
+    // iOS がページを捨てたときに全部失う。明示的なログアウトは
+    // forgetUploadDraftOnSignOut が書き込みを止める
+    const lastUserIdRef = useRef<string | null>(null);
+    if (userId) lastUserIdRef.current = userId;
+    useEffect(() => { if (userId) allowUploadDraft(); }, [userId]);
+    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId: userId ?? lastUserIdRef.current };
     /**
      * 控えを戻す判断が済んだか。**済むまでは書かない・消さない**——ログインの
      * 確認中（写真0枚に見える）に画面が隠れると、戻す前の控えを消してしまう
      */
     const draftReadyRef = useRef(false);
+    /** 今の状態で控えを書き直す（上げ終わったとき、成功・失敗にかかわらず呼ぶ） */
+    const persistDraftRef = useRef<() => void>(() => { /* 下の effect が差し替える */ });
+    // **上げ始めたら控えを消し、上げ終わったら残り（失敗した写真）で書き直す。**
+    // 全部成功したときしか消していなかったので、一部だけ上がった回は古い控えが
+    // 残り、次に開くと公開済みの写真が戻っていた（二重投稿）
+    const wasUploadingRef = useRef(false);
+    useEffect(() => {
+        if (uploading && !wasUploadingRef.current) void clearUploadDraft();
+        if (!uploading && wasUploadingRef.current) persistDraftRef.current();
+        wasUploadingRef.current = uploading;
+    }, [uploading]);
     useEffect(() => {
         const persist = () => {
             const src = draftSourceRef.current;
-            if (!draftReadyRef.current || src.uploading) return;
-            const keep = src.items.filter((i) => i.status !== "done" && !i.uploaded);
+            if (!draftReadyRef.current) return;
+            // **上げている最中も書き直す。** 飛ばすと、上げている最中に離れた・
+            // 一部だけ上がった回に古い控えが残り、次に開くと公開済みの写真が
+            // 戻っていた（二重投稿）。上がった・上げ始めた写真は含めない
+            // （上げ始めた写真は、保存まで届いたか分からない）
+            const keep = src.items.filter((i) => i.status === "pending" || i.status === "error")
+                .filter((i) => !i.uploaded);
             if (keep.length === 0 || !src.userId) { void clearUploadDraft(); return; }
             void saveUploadDraft({
                 t: Date.now(),
@@ -458,6 +482,7 @@ function UploadPageInner() {
                 })),
             });
         };
+        persistDraftRef.current = persist;
         const onHidden = () => { if (document.visibilityState === "hidden") persist(); };
         document.addEventListener("visibilitychange", onHidden);
         window.addEventListener("pagehide", persist);
@@ -466,8 +491,11 @@ function UploadPageInner() {
             window.removeEventListener("pagehide", persist);
             // **画面の中の移動（タブバー・リンク）では隠れる合図が来ない。**
             // 離れるときにも今の状態で書き直す——でないと、写真を全部外して
-            // 離れたのに、前に隠れたときの控えが残り、次に開くと外した写真が戻る
-            persist();
+            // 離れたのに、前に隠れたときの控えが残り、次に開くと外した写真が戻る。
+            // **上げている最中に離れたら消す。** 上げる処理は画面が閉じても続くので、
+            // 控えに残した写真はこのあと上がる＝次に開くと二重に投稿される
+            if (draftSourceRef.current.uploading) void clearUploadDraft();
+            else persist();
         };
     }, []);
 

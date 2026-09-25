@@ -15,7 +15,7 @@ import { userFetch, NETWORK_UNREACHABLE_MESSAGE } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
 import { resetFollowingCache } from "../../lib/hooks/useFollow";
 import { clearSharedPayload } from "../../lib/utils/shareStore";
-import { clearUploadDraft } from "../../lib/utils/uploadDraft";
+import { forgetUploadDraftOnSignOut } from "../../lib/utils/uploadDraft";
 import { clearSeenStories, setSeenStoriesUser, removeSeenStoriesUserData } from "../../lib/stories";
 import { setFavoritesUser, removeFavoritesUserData } from "../../lib/hooks/useFavorites";
 
@@ -32,7 +32,7 @@ function clearAccountLocalState(): void {
     void clearSharedPayload();
     // 投稿画面の書きかけ（写真の**原本**ごと。位置情報も入っている）。
     // 残すと、同じ端末で次にログインした**別の人**の投稿画面に戻ってしまう
-    void clearUploadDraft();
+    void forgetUploadDraftOnSignOut();
     // 未ログインで付いた既読記録（共有キー）だけ掃除する。
     // **ログイン中のぶんは消さない**——鍵が利用者ごとに分かれたので
     // 前の人の既読が次の人に見えることはもう無く、消していたせいで

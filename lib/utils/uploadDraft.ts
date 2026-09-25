@@ -62,9 +62,28 @@ function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<
     }));
 }
 
+/**
+ * **ログアウト・退会のあとは、次にログインするまで控えない。**
+ * 投稿画面はログアウトの直後に閉じる（アンマウントで今の状態を書き直す）ので、
+ * 消した控えを前の人の写真で書き戻さないようにする。セッションが切れただけ
+ * （ログアウトを通らない）のときは止めない——写真を守っている最中だから。
+ */
+let blockedAfterSignOut = false;
+
+/** ログアウト・退会で呼ぶ。控えを消し、次にログインするまで書かせない */
+export async function forgetUploadDraftOnSignOut(): Promise<void> {
+    blockedAfterSignOut = true;
+    await clearUploadDraft();
+}
+
+/** ログインが分かったら呼ぶ（書いてよい状態に戻す） */
+export function allowUploadDraft(): void {
+    blockedAfterSignOut = false;
+}
+
 /** 控える。**失敗しても投げない**（プライベートモード・容量不足。画面は止めない） */
 export async function saveUploadDraft(draft: UploadDraft): Promise<void> {
-    if (typeof indexedDB === "undefined") return;
+    if (typeof indexedDB === "undefined" || blockedAfterSignOut) return;
     try { await run("readwrite", (s) => s.put(draft, DRAFT_KEY)); } catch { /* 控えられなくても続ける */ }
 }
 

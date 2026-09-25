@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { isDraftFresh, DRAFT_MAX_AGE_MS, readUploadDraft, saveUploadDraft, clearUploadDraft } from "../uploadDraft";
 
 describe("書きかけの控え（docs/ios-bug-audit-2026-09-25.md #8）", () => {
@@ -14,5 +14,27 @@ describe("書きかけの控え（docs/ios-bug-audit-2026-09-25.md #8）", () =>
         await expect(saveUploadDraft({ t: 1, userId: "u1", category: "", tags: "", asOnePost: false, items: [] })).resolves.toBeUndefined();
         await expect(readUploadDraft("u1")).resolves.toBeNull();
         await expect(clearUploadDraft()).resolves.toBeUndefined();
+    });
+});
+
+// 投稿画面はログアウトの直後に閉じ、閉じるときに今の状態を書き直す。
+// 消した控えを前の人の写真で書き戻さないよう、次にログインするまで書かない。
+describe("ログアウト・退会のあと", () => {
+    it("forgetUploadDraftOnSignOut のあとは、allowUploadDraft まで書かない", async () => {
+        const { forgetUploadDraftOnSignOut, allowUploadDraft, saveUploadDraft: save } = await import("../uploadDraft");
+        const opened: string[] = [];
+        const fakeIdb = { open: (name: string) => { opened.push(name); return { set onsuccess(_f: unknown) {}, set onerror(_f: unknown) {}, set onupgradeneeded(_f: unknown) {} }; } };
+        vi.stubGlobal("indexedDB", fakeIdb);
+        try {
+            void forgetUploadDraftOnSignOut();
+            opened.length = 0;
+            void save({ t: 1, userId: "a", category: "", tags: "", asOnePost: false, items: [] });
+            expect(opened, "ログアウトのあとに書いた").toEqual([]);
+            allowUploadDraft();
+            void save({ t: 1, userId: "b", category: "", tags: "", asOnePost: false, items: [] });
+            expect(opened).toEqual(["journey-photo-draft"]);
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });

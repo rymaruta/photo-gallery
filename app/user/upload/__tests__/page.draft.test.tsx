@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const q = vi.hoisted(() => ({ search: "" }));
-const auth = vi.hoisted(() => ({ loading: false }));
+const auth = vi.hoisted(() => ({ loading: false, userId: "me" as string | null }));
 const draft = vi.hoisted(() => ({
     save: vi.fn<(d: unknown) => Promise<undefined>>(async () => undefined),
     read: vi.fn<(uid: string) => Promise<unknown>>(async () => null),
@@ -19,6 +19,7 @@ vi.mock("../../../../lib/utils/uploadDraft", () => ({
     saveUploadDraft: (d: unknown) => draft.save(d),
     readUploadDraft: (uid: string) => draft.read(uid),
     clearUploadDraft: () => draft.clear(),
+    allowUploadDraft: () => undefined,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -26,7 +27,7 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams(q.search),
 }));
 vi.mock("../../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: auth.loading, userId: "me" }),
+    useAuth: () => ({ isAuthenticated: auth.userId !== null, isAdminUser: false, isGeneralUser: true, loading: auth.loading, userId: auth.userId }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -71,6 +72,7 @@ function savedBody(): Record<string, unknown> | null {
 beforeEach(() => {
     q.search = "";
     auth.loading = false;
+    auth.userId = "me";
     draft.save.mockClear(); draft.read.mockReset().mockResolvedValue(null); draft.clear.mockClear();
     mockShowToast.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
@@ -172,5 +174,50 @@ describe("アップロード画面: 書きかけの控え", () => {
         const { container } = render(<UploadPage />);
         await uploadOne(container);
         await waitFor(() => expect(draft.clear).toHaveBeenCalled());
+    });
+});
+
+describe("アップロード画面: 書きかけの控え（7d2ea8f のレビュー）", () => {
+    it("セッションが切れて写真を守っている間に隠れても、控えを消さずに残す", async () => {
+        const { container, rerender } = render(<UploadPage />);
+        await ready();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "IMG_0001.jpg", { type: "image/jpeg" }));
+        // セッションが切れた（ログアウトは通っていない）
+        auth.userId = null;
+        rerender(<UploadPage />);
+        draft.clear.mockClear(); draft.save.mockClear();
+        hide();
+        await waitFor(() => expect(draft.save, "守っている写真の控えを書いていない").toHaveBeenCalled());
+        expect(draft.clear).not.toHaveBeenCalled();
+        expect((draft.save.mock.calls.at(-1)![0] as { userId: string }).userId).toBe("me");
+    });
+
+    it("上げ始めたら控えを消し、一部だけ失敗したら残り（失敗した写真）で書き直す", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (url === "/user/photos") return Promise.resolve({ ok: true, json: async () => [] });
+            if (url === "/upload/presigned-url") {
+                return Promise.resolve({ ok: true, json: async () => ({ presignedUrl: "https://s3/put", publicUrl: "https://cdn/uploads/me/a.jpg", key: "uploads/me/a.jpg" }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+        });
+        // 2枚目の S3 への PUT だけ失敗させる
+        let puts = 0;
+        vi.stubGlobal("fetch", vi.fn(async () => (++puts === 2 ? { ok: false, status: 500 } : { ok: true, status: 200 })));
+        const { container } = render(<UploadPage />);
+        await ready();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [
+            new File(["x"], "a.jpg", { type: "image/jpeg" }),
+            new File(["y"], "b.jpg", { type: "image/jpeg" }),
+        ]);
+        const publish = await screen.findByRole("button", { name: /投稿する|アップロード/ });
+        await waitFor(() => expect(publish).not.toBeDisabled());
+        draft.clear.mockClear(); draft.save.mockClear();
+        await userEvent.click(publish);
+        await waitFor(() => expect(draft.clear, "上げ始めても古い控えが残っている").toHaveBeenCalled());
+        await waitFor(() => expect(draft.save, "上げ終わっても書き直していない").toHaveBeenCalled());
+        const names = (draft.save.mock.calls.at(-1)![0] as { items: { file: File }[] }).items.map((i) => i.file.name);
+        expect(names.length, "公開済みの写真まで控えに残っている").toBe(1);
     });
 });
