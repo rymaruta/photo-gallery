@@ -592,12 +592,13 @@ function UploadPageInner() {
             // **位置情報が1枚も無かったら、そう言う。** iPhone の「写真を撮る」で
             // 撮った写真は、iOS が位置情報を外して渡す（写真ライブラリからでも
             // 設定次第で外れる）。黙っていると、自動入力が壊れているのか
-            // 写真に無いのか分からない（#10）
-            const withImages = exifResults.filter((r) => newItems.find((it) => it.id === r.id)?.file.type.startsWith("image/"));
-            if (withImages.length > 0 && withImages.every((r) => r.meta.latitude === undefined || r.meta.longitude === undefined)) {
+            // 写真に無いのか分からない（#10）。画面を離れていたら言わない
+            // （全画面共通のトーストなので、よその画面に出る）。長めに出す
+            if (!leftPageRef.current && exifResults.length > 0
+                && exifResults.every((r) => r.meta.latitude === undefined || r.meta.longitude === undefined)) {
                 showToast(locale === "en"
-                    ? "No location in this photo, so the place wasn't filled in. (Photos taken with the camera from this screen often have location removed.)"
-                    : "写真に位置情報が無かったので、撮影地は入れていません（この画面のカメラで撮った写真は、位置情報が外れていることがあります）", "info");
+                    ? "No location data in the photo(s), so the place wasn't filled in. (Photos taken with the camera from this screen often have location removed.)"
+                    : "写真に位置情報が無かったので、撮影地は入れていません（この画面のカメラで撮った写真は、位置情報が外れていることがあります）", "info", 6000);
             }
             for (const r of exifResults) {
                 if (leftPageRef.current) break;   // 画面を離れた。続きは投げない

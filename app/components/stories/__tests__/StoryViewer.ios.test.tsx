@@ -137,6 +137,51 @@ describe("#3 鳴らし直しの途中で止めた・送ったときは一時停�
     });
 });
 
+describe("#3 自動再生の一時停止の印（レビューで見張りが無いと指摘された2点）", () => {
+    const reject = () => { const e = new Error("x"); e.name = "NotAllowedError"; return Promise.reject(e); };
+
+    it("自分で再開したあとに自分で止めた一時停止は、送っても解かない", async () => {
+        // タップで「再生」を押すまでは断られ、押したあとは通る（iOS はタップで許す）
+        let unlocked = false;
+        playImpl = function (this: HTMLMediaElement) {
+            if (this.tagName !== "VIDEO" || !this.getAttribute("src")?.includes("v2")) return Promise.resolve();
+            return unlocked ? Promise.resolve() : reject();
+        };
+        view([
+            item("v1", { mediaType: "video", src: "https://cdn/x/v1.mp4" }),
+            item("v2", { mediaType: "video", src: "https://cdn/x/v2.mp4" }),
+            item("i3"), item("i4"),
+        ]);
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "次のストーリー" })); });
+        await act(async () => { fireEvent.loadedData(document.querySelector("video")!); });
+        await act(async () => { for (let k = 0; k < 5; k++) await Promise.resolve(); });
+        // 自動再生を断られて止まった → 同じストーリーで自分で再開 → 自分で止める → 送る
+        unlocked = true;
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "再生" })); });
+        expect(screen.queryByRole("button", { name: "再生" }), "再開できていない（前提）").toBeNull();
+        await act(async () => { fireEvent.keyDown(document, { key: " " }); });
+        expect(screen.getByRole("button", { name: "再生" }), "自分で止められていない（前提）").toBeTruthy();
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "次のストーリー" })); });
+        expect(screen.queryByRole("button", { name: "再生" }), "自分で止めたのに、送ったら解かれた").toBeTruthy();
+    });
+
+    it("曲付きの画像で消音の自動再生まで断られても、「音を出す」を押せばそのタップの中で鳴らす", async () => {
+        const audioCalls: boolean[] = [];
+        playImpl = function (this: HTMLMediaElement) {
+            if (this.tagName !== "AUDIO") return Promise.resolve();
+            audioCalls.push(this.muted);
+            // 低電力モード: 操作の外では消音でも断る。操作の中（muted を外した直後）は通す
+            return this.muted ? reject() : Promise.resolve();
+        };
+        view([item("s1", { song: { title: "曲1", previewUrl: SONG } })]);
+        await act(async () => { for (let k = 0; k < 5; k++) await Promise.resolve(); });
+        expect(audioCalls, "前提: 自動で鳴らそうとしていない").toContain(true);
+        audioCalls.length = 0;
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "音を出す" })); });
+        expect(audioCalls, "「音を出す」を押しても鳴らしていない").toContain(false);
+    });
+});
+
 describe("#5 上下の払い", () => {
     it("タップ領域はブラウザに指の動きを取らせない（取られると pointercancel で払いが消える）", () => {
         view([item("s1")]);

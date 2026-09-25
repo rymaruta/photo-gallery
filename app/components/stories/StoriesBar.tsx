@@ -776,12 +776,13 @@ export default function StoriesBar() {
         }
         if (file.size > MAX_FILE_BYTES) {
             // **動画は「60秒」より先に「50MB」に当たる。** iPhone の既定（1080p・
-            // HEVC）はおよそ 1分で 60MB、4K なら数秒で超える。上限はサーバーも
+            // HEVC）はおよそ 1分で 60MB（H.264 に変換されて渡るとその倍近く）、
+            // 4K なら数秒で超える。上限はサーバーも
             // 50MB（`api-user/src/upload.ts`）なので、ここでは何が収まるかを伝える（#45）
             showToast(isVideo
                 ? (locale === "en"
-                    ? "Video too large (max 50MB — about 50s at 1080p; 4K goes over in seconds)"
-                    : "動画が大きすぎます（最大50MB。1080p でおよそ50秒まで、4K は数秒で超えます）")
+                    ? "Video too large (max 50MB — under a minute at 1080p; 4K goes over in seconds)"
+                    : "動画が大きすぎます（最大50MB。1080p で1分弱まで、4K は数秒で超えます）")
                 : (locale === "en" ? "File too large (max 50MB)" : "ファイルが大きすぎます（最大50MB）"), "error");
             return;
         }
