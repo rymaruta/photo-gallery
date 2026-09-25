@@ -29,6 +29,8 @@ export type DraftItem = {
 
 export type UploadDraft = {
     t: number;
+    /** 控えた人。**別の人には戻さない**（ログアウトを通らずにセッションが切れた端末） */
+    userId: string;
     category: string;
     tags: string;
     asOnePost: boolean;
@@ -66,13 +68,13 @@ export async function saveUploadDraft(draft: UploadDraft): Promise<void> {
     try { await run("readwrite", (s) => s.put(draft, DRAFT_KEY)); } catch { /* 控えられなくても続ける */ }
 }
 
-/** 戻せる控えを読む。無い・古い・読めないは null（古いものはついでに消す） */
-export async function readUploadDraft(now = Date.now()): Promise<UploadDraft | null> {
+/** 戻せる控えを読む。無い・古い・別の人の・読めないは null（戻せないものはついでに消す） */
+export async function readUploadDraft(userId: string, now = Date.now()): Promise<UploadDraft | null> {
     if (typeof indexedDB === "undefined") return null;
     try {
         const d = await run<UploadDraft | undefined>("readonly", (s) => s.get(DRAFT_KEY));
         if (!d || !Array.isArray(d.items) || d.items.length === 0) return null;
-        if (!isDraftFresh(d, now)) { await clearUploadDraft(); return null; }
+        if (!isDraftFresh(d, now) || !userId || d.userId !== userId) { await clearUploadDraft(); return null; }
         return d;
     } catch {
         return null;

@@ -11,8 +11,8 @@ describe("書きかけの控え（docs/ios-bug-audit-2026-09-25.md #8）", () =>
 
     it("IndexedDB が無い環境では何もしない（投げない）", async () => {
         expect(typeof indexedDB).toBe("undefined");
-        await expect(saveUploadDraft({ t: 1, category: "", tags: "", asOnePost: false, items: [] })).resolves.toBeUndefined();
-        await expect(readUploadDraft()).resolves.toBeNull();
+        await expect(saveUploadDraft({ t: 1, userId: "u1", category: "", tags: "", asOnePost: false, items: [] })).resolves.toBeUndefined();
+        await expect(readUploadDraft("u1")).resolves.toBeNull();
         await expect(clearUploadDraft()).resolves.toBeUndefined();
     });
 });

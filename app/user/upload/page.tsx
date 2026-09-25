@@ -140,7 +140,7 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
 }
 
 function UploadPageInner() {
-    const { isAuthenticated, isAdminUser, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, loading, userId } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { locale } = useLocale();
@@ -432,16 +432,22 @@ function UploadPageInner() {
      * （`lib/utils/uploadDraft.ts`）。上げている最中は控えない
      * （戻すと同じ写真をもう一度上げることになる）。
      */
-    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false });
-    draftSourceRef.current = { items, category, tags, asOnePost, uploading };
+    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false, userId: null as string | null });
+    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId };
+    /**
+     * 控えを戻す判断が済んだか。**済むまでは書かない・消さない**——ログインの
+     * 確認中（写真0枚に見える）に画面が隠れると、戻す前の控えを消してしまう
+     */
+    const draftReadyRef = useRef(false);
     useEffect(() => {
         const persist = () => {
             const src = draftSourceRef.current;
-            if (src.uploading) return;
+            if (!draftReadyRef.current || src.uploading) return;
             const keep = src.items.filter((i) => i.status !== "done" && !i.uploaded);
-            if (keep.length === 0) { void clearUploadDraft(); return; }
+            if (keep.length === 0 || !src.userId) { void clearUploadDraft(); return; }
             void saveUploadDraft({
                 t: Date.now(),
+                userId: src.userId,
                 category: src.category,
                 tags: src.tags,
                 asOnePost: src.asOnePost,
@@ -458,12 +464,20 @@ function UploadPageInner() {
         return () => {
             document.removeEventListener("visibilitychange", onHidden);
             window.removeEventListener("pagehide", persist);
+            // **画面の中の移動（タブバー・リンク）では隠れる合図が来ない。**
+            // 離れるときにも今の状態で書き直す——でないと、写真を全部外して
+            // 離れたのに、前に隠れたときの控えが残り、次に開くと外した写真が戻る
+            persist();
         };
     }, []);
 
     const restoreDraft = useCallback(async () => {
-        const d = await readUploadDraft();
+        const uid = draftSourceRef.current.userId;
+        if (!uid) return;
+        const d = await readUploadDraft(uid);
         if (!d) return;
+        // 読み込み中に選び直していたら、その写真を上書きしない（反映前の一瞬も
+        // 下の関数形の setItems で守る）
         const restored: Item[] = d.items.map((it) => ({
             id: makeId(),
             file: it.file,
@@ -483,7 +497,7 @@ function UploadPageInner() {
             for (const r of restored) URL.revokeObjectURL(r.preview);
             return;
         }
-        setItems(restored);
+        setItems((prev) => (prev.length > 0 ? prev : restored));
         setCategory(d.category);
         setTags(d.tags);
         setAsOnePost(d.asOnePost);
@@ -497,6 +511,14 @@ function UploadPageInner() {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
         shareImportedRef.current = true;
         void (async () => {
+            try {
+                await importSharedOrDraft();
+            } finally {
+                // ここから先の「隠れた・離れた」で控えを書いてよい
+                draftReadyRef.current = true;
+            }
+        })();
+        async function importSharedOrDraft() {
             const res = await readSharedResult();
             // **`from=share` は使い終わったら URL から落とす。**
             // 残っていると (a) 戻る・進む・リロードのたびに同じ話をする
@@ -547,7 +569,7 @@ function UploadPageInner() {
             await addFiles(payload.files, { title: payload.title, text: payload.text });
             await clearSharedPayload();
             showToast(locale === "en" ? `${payload.files.length} photo(s) imported` : `${payload.files.length} 枚を取り込みました`, "success");
-        })();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fromShare, loading, isAuthenticated]);
 

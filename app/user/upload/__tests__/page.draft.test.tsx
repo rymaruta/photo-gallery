@@ -9,14 +9,15 @@ import userEvent from "@testing-library/user-event";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const q = vi.hoisted(() => ({ search: "" }));
+const auth = vi.hoisted(() => ({ loading: false }));
 const draft = vi.hoisted(() => ({
     save: vi.fn<(d: unknown) => Promise<undefined>>(async () => undefined),
-    read: vi.fn(async (): Promise<unknown> => null),
+    read: vi.fn<(uid: string) => Promise<unknown>>(async () => null),
     clear: vi.fn(async () => undefined),
 }));
 vi.mock("../../../../lib/utils/uploadDraft", () => ({
     saveUploadDraft: (d: unknown) => draft.save(d),
-    readUploadDraft: () => draft.read(),
+    readUploadDraft: (uid: string) => draft.read(uid),
     clearUploadDraft: () => draft.clear(),
 }));
 
@@ -25,7 +26,7 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams(q.search),
 }));
 vi.mock("../../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false }),
+    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: auth.loading, userId: "me" }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -69,6 +70,7 @@ function savedBody(): Record<string, unknown> | null {
 
 beforeEach(() => {
     q.search = "";
+    auth.loading = false;
     draft.save.mockClear(); draft.read.mockReset().mockResolvedValue(null); draft.clear.mockClear();
     mockShowToast.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
@@ -97,6 +99,11 @@ const hide = () => act(() => {
     Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
     document.dispatchEvent(new Event("visibilitychange"));
 });
+/** 控えを戻す判断が済むまで待つ（済むまでは書かない・消さない） */
+const ready = async () => {
+    await waitFor(() => expect(draft.read).toHaveBeenCalled());
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+};
 afterEach(() => {
     Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
 });
@@ -117,6 +124,7 @@ describe("アップロード画面: 書きかけの控え", () => {
 
     it("写真が無いときに隠れたら、控えを消す", async () => {
         render(<UploadPage />);
+        await ready();
         hide();
         await waitFor(() => expect(draft.clear).toHaveBeenCalled());
         expect(draft.save).not.toHaveBeenCalled();
@@ -124,13 +132,40 @@ describe("アップロード画面: 書きかけの控え", () => {
 
     it("開いたときに控えがあれば戻して、そう伝える", async () => {
         draft.read.mockResolvedValue({
-            t: Date.now(), category: "", tags: "海", asOnePost: false,
+            t: Date.now(), userId: "me", category: "", tags: "海", asOnePost: false,
             items: [{ file: new File(["x"], "IMG_0002.jpg", { type: "image/jpeg" }), title: "夕焼け", description: "", location: "" }],
         });
         render(<UploadPage />);
         await waitFor(() => expect(mockShowToast.mock.calls.some((c) => String(c[0]).includes("書きかけを戻しました"))).toBe(true));
         expect((screen.getByPlaceholderText("タグ（カンマ区切り）") as HTMLInputElement).value).toBe("海");
         expect(screen.getByDisplayValue("夕焼け")).toBeTruthy();
+    });
+
+    it("控えは自分のもの（userId）として保存し、読むときも自分の分だけを頼む", async () => {
+        const { container } = render(<UploadPage />);
+        await waitFor(() => expect(draft.read).toHaveBeenCalledWith("me"));
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "IMG_0001.jpg", { type: "image/jpeg" }));
+        hide();
+        await waitFor(() => expect(draft.save).toHaveBeenCalled());
+        expect((draft.save.mock.calls.at(-1)![0] as { userId: string }).userId).toBe("me");
+    });
+
+    it("画面の中の移動で離れるときも、今の状態で書き直す（外した写真を次に戻さない）", async () => {
+        const { unmount } = render(<UploadPage />);
+        await ready();
+        draft.clear.mockClear();
+        unmount();
+        await waitFor(() => expect(draft.clear, "写真が無いまま離れたのに、古い控えが残る").toHaveBeenCalled());
+    });
+
+    it("ログインの確認中（戻す前）に隠れても、控えを消さない", async () => {
+        auth.loading = true;
+        render(<UploadPage />);
+        hide();
+        await new Promise((r) => setTimeout(r, 30));
+        expect(draft.clear, "戻す前の控えを消した").not.toHaveBeenCalled();
+        expect(draft.save).not.toHaveBeenCalled();
     });
 
     it("全部上げ終わったら控えを消す", async () => {
