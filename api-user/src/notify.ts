@@ -1,7 +1,7 @@
 import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
-import { isBlocked } from "./blockCheck";
+import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { apnsConfigured, sendPush } from "./apns";
 import { deviceTokens, forgetTokens } from "./devices";
 
@@ -201,6 +201,9 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // 外れたら諦めてよい——次の通知がまた切り詰める。
         // **切り詰めが触るのは `items` だけ。`unread` には手を出さない。**
         //
+        // ⚠️ **「生の値を読むのは getNotifications だけ」ではなくなった**
+        // ——プッシュのバッジ（`deliverPush`）が2人目の読み手。だから丸めは
+        // `visibleUnread` に切り出して**両方が同じ数を出す**ようにしてある。
         // 一度ここで `unread` も NOTIFS_MAX に丸めていたが、それが
         // 「消したはずのバッジが復活する」の原因だった。この書き込みは
         // 「読む → 書き戻す」なので、その隙に通知欄を開かれると
@@ -216,8 +219,7 @@ export async function pushNotification(ownerId: string, notif: Notif): Promise<v
         // 送信もここ1か所に置く（口ごとに配線すると、次に経路が増えたときに
         // 必ず1つ漏れる——ブロックの判定が同じ理由でここに在る）。
         // **落ちても通知は積まれたまま**（アプリを開けば読める）
-        const unread = res.Attributes?.unread;
-        await deliverPush(ownerId, notif, typeof unread === "number" ? unread : undefined);
+        await deliverPush(ownerId, notif, res.Attributes?.unread, res.Attributes?.items);
 
         const items = res.Attributes?.items;
         if (Array.isArray(items) && items.length > NOTIFS_MAX) {
@@ -258,11 +260,49 @@ const LOC_KEYS: Record<Notif["type"], string> = {
  * ブロックの判定は呼び出し元（`pushNotification`）で済んでいる
  * ——積まない相手には、ここまで来ない。
  */
-async function deliverPush(ownerId: string, notif: Notif, badge?: number): Promise<void> {
+/**
+ * 画面に出る未読数。**`getNotifications` とプッシュのバッジで同じ数を出す**
+ * ための1か所。
+ *
+ * 素のカウンタ（DynamoDB の `unread`）はそのままでは使えない:
+ *
+ *   - **保存件数を超えて伸びる**（開かずに溜めると 53 になるが中身は50件）
+ *   - **ブロックした相手のぶんを含む**。人がブロックを押すのは「その人から
+ *     立て続けに通知が来た直後」なので、**未読がまるごとブロック相手のもの**が
+ *     いちばん起きる形
+ *
+ * 未読は「先頭 `stored` 件」＝**位置の意味を持つ数**なので、全体の長さで
+ * 丸めるだけでは足りない（落ちたのが先頭側だったことを見ていない）。
+ * `min(stored, items.length)` だと `[B,B,B,X,Y] / unread=3` で**2**が残り、
+ * 「バッジ2 → 開くと『まだ届いていません』」に戻る。
+ */
+export function visibleUnread(storedUnread: unknown, items: unknown, hidden: ReadonlySet<string>): number {
+    const all = Array.isArray(items) ? items : [];
+    const stored = typeof storedUnread === "number" ? storedUnread : 0;
+    const headCount = Math.max(0, Math.min(stored, all.length));
+    if (hidden.size === 0) return headCount;
+    return all.slice(0, headCount).filter((n) => {
+        const by = (n as { byId?: unknown })?.byId;
+        return !(typeof by === "string" && hidden.has(by));
+    }).length;
+}
+
+async function deliverPush(ownerId: string, notif: Notif, storedUnread?: unknown, items?: unknown): Promise<void> {
     if (!apnsConfigured()) return;
     try {
         const tokens = await deviceTokens(ownerId);
         if (tokens.length === 0) return;
+        // **ブロック一覧を引くのはここまで来たときだけ。** 上の2つの門
+        // （設定が無い／端末が1つも無い）で落ちる人には1回も払わせない
+        // ——`visibleReplyCount` が「ブロックしていなければ読まない」で
+        // 往復を抑えているのと同じ形。
+        // **読めなければ空集合**＝丸めだけ効く（`getNotifications` と同じ判断。
+        // 倒しすぎると通知が誰にも出なくなる側なので、ここは出す側に倒す）
+        const hidden = await hiddenUserIds(ownerId).catch((e) => {
+            console.error(`deliverPush: ブロック一覧を読めませんでした（${ownerId}）:`, e);
+            return new Set<string>();
+        });
+        const badge = visibleUnread(storedUnread, items, hidden);
         const result = await sendPush(tokens, {
             locKey: LOC_KEYS[notif.type],
             locArgs: [notif.byName],

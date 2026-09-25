@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME, visibleUnread } from "./notify";
 import { hiddenUserIds } from "./blockCheck";
 
 // 通知の取得と既読化。
@@ -70,10 +70,11 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         // `min(stored, items.length)` だと `[B,B,B,X,Y] / unread=3` で
         // **2**（既に読んだ X・Y のぶん）が残り、「バッジ2 → 開くと
         // 『まだ届いていません』」という、この修正が消したはずの症状に戻る。
-        const headCount = Math.max(0, Math.min(stored, all.length));
-        const unread = hidden.size === 0
-            ? headCount
-            : all.slice(0, headCount).filter(visible).length;
+        // **プッシュのバッジと同じ関数を通す**（`notify.ts` の `visibleUnread`）。
+        // 別々に書いていた頃、バッジだけ素のカウンタを送っていて
+        // 「アプリのバッジ 53 → 開くと50件」「ブロック直後にバッジが戻る」に
+        // なっていた。**読み手が2人になったら計算は1か所に置く**
+        const unread = visibleUnread(stored, all, hidden);
 
         // **退会した人の名前は出さない。**
         //
