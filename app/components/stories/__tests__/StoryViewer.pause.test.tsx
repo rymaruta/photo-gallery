@@ -102,6 +102,23 @@ describe("ストーリーの自動送りを止める", () => {
         expect(playState()).toBe("running");
     });
 
+    /**
+     * **止まっていることが読み上げにも届く**（板 `StoryViewerReply.dc.html` が
+     * `aria-label="4本中2本目・止まっています"` と書いている）。
+     *
+     * 画面では中央に印が出るので目で見れば分かるが、読み上げだけの人には
+     * 「進んでいるのか止まっているのか」を知る手がかりが1つも無かった。
+     */
+    it("止めると、進行バーの読み上げ名にも「止まっています」が付く", () => {
+        view();
+        const row = () => screen.getByRole("progressbar");
+        expect(row().getAttribute("aria-label")).toBe("1本中1本目");
+        fireEvent.keyDown(document, { key: " " });
+        expect(row().getAttribute("aria-label")).toBe("1本中1本目・止まっています");
+        fireEvent.keyDown(document, { key: " " });
+        expect(row().getAttribute("aria-label")).toBe("1本中1本目");
+    });
+
     // **ボタンで止めたぶんを、指を離したときに再開しない。**
     // 長押しの解除は「長押しで止めたとき」だけ効かせる
     it("シートで止めたあと、画面に触れて離しても止まったまま", () => {

@@ -29,6 +29,19 @@
  * `scripts/__tests__/storyTextParity.test.ts` がコードの一致で縛る。
  */
 
+/**
+ * **端末に在る明朝の並び。**
+ *
+ * 写真ページの題（`PhotoPageClient`）も同じ並びを使う——板
+ * （`PhotoDetail.dc.html`）が題を明朝で組んでいるため。**同じ字体の並びを
+ * 2か所に書かない**（片方だけ直して系統がずれる、が台帳のいちばん多い型）。
+ *
+ * ⚠️ **webfont は足さない。** 板は先頭に Shippori Mincho B1 を置いているが、
+ * あれは Google Fonts から落とす字体で、1書体ぶん重くなる。ここに並ぶのは
+ * 端末が既に持っているものだけなので、**ダウンロードは0バイト**。
+ */
+export const MINCHO_STACK = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+
 /** 字体。**ファミリと太さの組み合わせ**（見た目の系統として1つの鍵にする） */
 export const STORY_FONTS = {
     // 既定。本文と同じ系統
@@ -36,7 +49,7 @@ export const STORY_FONTS = {
     // 太ゴシック。インスタの既定に近い、写真の上でいちばん強い
     bold: { label: "太ゴシック", css: '"Hiragino Sans","Noto Sans JP",system-ui,-apple-system,sans-serif', weight: 900 },
     // 明朝。旅の写真に添える一言に合う
-    mincho: { label: "明朝", css: '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif', weight: 600 },
+    mincho: { label: "明朝", css: MINCHO_STACK, weight: 600 },
     // 丸ゴシック。⚠️ **端末に無ければゴシックに落ちる**（iOS/macOS には在るが、
     // Android と Windows は標準で持たない）。落ちても読める並びにしてある
     maru: { label: "丸ゴシック", css: '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Hiragino Sans",system-ui,sans-serif', weight: 600 },

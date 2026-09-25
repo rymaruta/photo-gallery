@@ -62,9 +62,14 @@ describe("StoryViewer", () => {
 
     it("プログレスバーの本数はグループ内の枚数と一致する", () => {
         setup();
-        // 先頭グループは2枚 → セグメント2本（h-[2.5px] のトラック）
-        const segments = document.body.querySelectorAll('[class*="h-[2.5px]"]');
-        expect(segments.length).toBe(2);
+        // **高さの綴りでは探さない。** 以前は `[class*="h-[2.5px]"]` を目印に
+        // していたので、寸法をアーティファクトの板（3px）に合わせた日に
+        // **0本を数えて落ちた**——見たい性質（本数＝枚数）は何も変わって
+        // いないのに。行そのものを掴んで、その子を数える。
+        const row = screen.getByRole("progressbar", { name: /本目|of / });
+        expect(row.children.length).toBe(2);
+        // 読み上げにも同じ数が出る（画面の本数と食い違わない）
+        expect(row.getAttribute("aria-label")).toBe("2本中1本目");
     });
 
     it("表示中のストーリーを onSeen で通知する", () => {

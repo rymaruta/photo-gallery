@@ -2,6 +2,21 @@
 
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
+
+/**
+ * カテゴリ・タグのチップ。**板（`PhotoDetail.dc.html`）の寸法**
+ * ——高さ32px・字12px・角丸999・白5%地・1px白10%枠。
+ *
+ * 🔴 **同じ行に2種類の綴りが並んでいた。** カテゴリとタグは見た目が同じ
+ * チップなのに className を別々に書いていたので、片方だけ直したら
+ * **大小のチップが1行に混ざった**（直す前より悪い）。1か所に置いて両方から使う。
+ *
+ * 🔴 **直す前は高さ 17.5px・字 10.5px** だった——`py-0.5` と `text-xs` が
+ * 640px 未満（root 14px）で縮むため。指で押す的としても、読む字としても
+ * 小さすぎた。**px で書く。**
+ */
+const CHIP_CLASS = "inline-flex items-center min-h-[32px] px-3 rounded-full bg-chip ring-1 ring-line text-[12px] text-chip-text hover:bg-surface-2 hover:text-white transition-colors";
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
@@ -944,7 +959,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             <div className="px-4 pt-3 lg:px-0 lg:pt-0 space-y-3">
                 {/* 題。`break-words`: 長い URL・連続文字でページごと横に流れるのを防ぐ
                     （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
-                <h1 className="font-bold break-words m-0" style={{ fontSize: "20px", lineHeight: "28px" }}>{titleText}</h1>
+                {/* 板（`PhotoDetail.dc.html`）の題は **明朝 32px / 行間1.2**。
+                    検索の着地点で、題を「作品の名前」として見せる形。
+                    **字体は足していない**——`lib/utils/storyText.ts` の明朝と
+                    同じ端末の字体だけ（ダウンロードは0バイト）。板は先頭に
+                    Shippori Mincho B1 を置いているが、あれは Google Fonts から
+                    落とす字体なので採らない（1書体ぶん重くなる）。 */}
+                <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
 
                 {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
                 {photo.userId && photo.displayName && (
@@ -1021,7 +1042,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                             <Link
                                 href={collectionPath("category", slugify(photo.category, "category"))}
                                 prefetch={false}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-chip ring-1 ring-line text-xs text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                                className={CHIP_CLASS}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {categoryDisplayName}
@@ -1035,7 +1056,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 key={tag}
                                 href={collectionPath("tag", slugify(tag, "tag"))}
                                 prefetch={false}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-chip ring-1 ring-line text-xs text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                                className={CHIP_CLASS}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 #{tag}

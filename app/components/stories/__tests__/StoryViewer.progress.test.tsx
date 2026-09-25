@@ -25,9 +25,20 @@ const groupsOf = (item: Record<string, unknown>) =>
     ([{ userId: "me", displayName: "自分", items: [item] }] as unknown as StoryGroup[]);
 
 /** active な進捗バーの transform */
-function barTransform(): string {
-    const bar = document.querySelector<HTMLElement>(".origin-left");
-    return bar?.style.transform ?? "";
+/**
+ * **どこまで進んだか**（0〜1）で見る。CSS の綴りでは見ない。
+ *
+ * 以前は `transform` の文字列をそのまま突き合わせていたが、掴み先が
+ * `.origin-left` だった——`scaleX` をやめた日にその class が消え、
+ * **セレクタが何も掴まないまま空文字どうしで通る**（＝何も検証しない
+ * テストになる）ところだった。進み方という性質で見れば、表現が
+ * `scaleX` でも `translateX` でも同じことを確かめ続けられる。
+ */
+function barRatio(): number | null {
+    const bar = document.querySelector<HTMLElement>(".story-progress-video");
+    if (!bar) return null;
+    const m = /translateX\(([-0-9.]+)%\)/.exec(bar.style.transform);
+    return m ? Math.round((1 + Number(m[1]) / 100) * 1e6) / 1e6 : null;
 }
 
 const origRaf = globalThis.requestAnimationFrame;
@@ -76,30 +87,41 @@ function renderVideoStory() {
 describe("動画ストーリーの進捗バー", () => {
     it("timeupdate を待たず、毎フレーム currentTime から書き換える", () => {
         renderVideoStory();
-        expect(barTransform()).toBe("scaleX(0)");
+        expect(barRatio()).toBe(0);
 
         setVideoTime(2.5);   // 10秒中の 2.5秒
         tick();
-        expect(barTransform()).toBe("scaleX(0.25)");
+        expect(barRatio()).toBe(0.25);
 
         // timeupdate を一度も発火させていないのに、次のフレームで進む
         setVideoTime(7.5);
         tick();
-        expect(barTransform()).toBe("scaleX(0.75)");
+        expect(barRatio()).toBe(0.75);
     });
 
     it("duration が未確定（NaN）の間は書き換えない", () => {
         renderVideoStory();
         setVideoTime(1, NaN);
         tick();
-        expect(barTransform()).toBe("scaleX(0)");
+        expect(barRatio()).toBe(0);
+    });
+
+    // 🔴 **`NaN` だけでは門を見たことにならない。** `translateX(NaN%)` は
+    // CSS が無効値として捨てるので、門を外しても**バーは動かないまま**＝
+    // 観測できない（変異が素通りした）。効きが出るのは **duration が 0** の回で、
+    // 門が無いと `0 除算 → Infinity → 1` で**いきなり満杯**に飛ぶ。
+    it("duration が 0 の間も書き換えない（0除算で満杯に飛ばさない）", () => {
+        renderVideoStory();
+        setVideoTime(1, 0);
+        tick();
+        expect(barRatio()).toBe(0);
     });
 
     it("currentTime が duration を超えても 1 で止める", () => {
         renderVideoStory();
         setVideoTime(12);
         tick();
-        expect(barTransform()).toBe("scaleX(1)");
+        expect(barRatio()).toBe(1);
     });
 
     it("閉じるとフレームの購読を解除する（裏で回り続けない）", () => {
