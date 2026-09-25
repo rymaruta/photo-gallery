@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import type { Spot } from "@/lib/data/spots";
+import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
-import { usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
+import { ROUTES } from "@/lib/routes";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -17,14 +17,28 @@ import { usesMapHero, needsVisibleCredit } from "@/lib/utils/spotGuide";
  * だから**テーマの一覧は持たない**——台帳の `category` を数えて、
  * **実際に在るものだけ**をチップにする。0件のテーマは存在しようがない。
  */
-type Props = { spots: Spot[] };
+/**
+ * **受け取るのは解いたあとの軽い形だけ**（`SpotIndexItem`）。
+ * 台帳の `Spot` をそのまま受けると、全文がこのページの HTML に乗る
+ * ——実測 518KB／120件。`lib/data/spotLink.ts` の注記を参照。
+ */
+type Props = {
+    spots: SpotIndexItem[];
+    /**
+     * どの区画の一覧か（`/spots/area/<slug>`）。見出しとパンくずに使う。
+     * 省くと区画名のない一覧になる。
+     */
+    area?: { name: string; nameEn: string };
+};
 
-export default function SpotIndexClient({ spots }: Props) {
+export default function SpotIndexClient({ spots, area }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
     const [theme, setTheme] = React.useState<string | null>(null);
 
     /** 台帳に実際に在るカテゴリと件数（**架空のテーマを出さない**） */
+    // 運営未確認の下書きの数。**「運営が調べた」と言えるのは人が確かめた行だけ**
+    const draftCount = spots.filter((s) => s.stage === "review").length;
     const themes = React.useMemo(() => {
         const m = new Map<string, number>();
         for (const s of spots) {
@@ -38,14 +52,31 @@ export default function SpotIndexClient({ spots }: Props) {
 
     return (
         <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
-            <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
-                {isJa ? "撮影スポットをさがす" : "Find a place to shoot"}
-            </h1>
-            <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                {isJa
-                    ? "運営が調べた撮影地のガイドです。写真の投稿がまだ無い場所も載っています。"
-                    : "Guides we researched. Places with no photos yet are listed too."}
+            {/* **戻り道を必ず出す。** 区画のページは `/spots` からしか辿れない */}
+            <p className="m-0 mb-2" style={{ fontSize: "13px", lineHeight: "18px" }}>
+                <Link href={ROUTES.SPOTS} prefetch={false}
+                      className="text-white/60 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                    {isJa ? "← 撮影スポットをさがす" : "← Find a place to shoot"}
+                </Link>
             </p>
+            <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">
+                {area
+                    ? (isJa ? `${area.name}の撮影スポット` : `Photo spots in ${area.nameEn}`)
+                    : (isJa ? "撮影スポットをさがす" : "Find a place to shoot")}
+            </h1>
+            {spots.length > 0 && (
+            <p className="m-0 mt-2 mb-5 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+                {/* **「運営が調べた」と言えるのは、人が確かめた行だけ**（`stage`）。
+                    全部が下書きならそう言う */}
+                {draftCount >= spots.length
+                    ? (isJa
+                        ? `撮影地ガイドの下書きです（${spots.length}件・運営未確認）。写真の投稿がまだ無い場所も載っています。`
+                        : `Draft guides, not checked by us yet (${spots.length}). Places with no photos yet are listed too.`)
+                    : (isJa
+                        ? `運営が調べた撮影地のガイドです（${spots.length}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。写真の投稿がまだ無い場所も載っています。`
+                        : `Guides we researched (${spots.length}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Places with no photos yet are listed too.`)}
+            </p>
+            )}
 
             {/* 旅のテーマ＝**台帳に在るカテゴリだけ**。0件のテーマは作らない */}
             {themes.length > 0 && (
@@ -80,10 +111,11 @@ export default function SpotIndexClient({ spots }: Props) {
             ) : (
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 m-0 p-0" style={{ listStyle: "none" }}>
                     {shown.map((s) => {
-                        const where = [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ");
-                        const noImage = usesMapHero(s);
+                        const where = s.region;
+                        // 出すかどうかの判断はサーバー側で済んでいる（`cover` が null なら写真なし）
+                        const noImage = !s.cover;
                         return (
-                            <li key={s.spotId}>
+                            <li key={s.slug}>
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
                                       className="group block rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                                     <div className="relative w-full aspect-[3/2] overflow-hidden">
@@ -96,12 +128,12 @@ export default function SpotIndexClient({ spots }: Props) {
                                         ) : (
                                             <>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={s.coverImage!.src} alt={s.coverImage!.alt}
+                                                <img src={s.cover!.src} alt={s.cover!.alt}
                                                      className="absolute inset-0 w-full h-full object-cover" />
-                                                {needsVisibleCredit(s) && (
+                                                {s.cover!.credit && (
                                                     <span className="absolute bottom-1 right-2 text-white/70"
                                                           style={{ fontSize: "9px" }}>
-                                                        {s.coverImage!.requiredCreditText || `Photo: ${s.coverImage!.credit}`}
+                                                        {`Photo: ${s.cover!.credit}`}
                                                     </span>
                                                 )}
                                             </>
@@ -110,8 +142,12 @@ export default function SpotIndexClient({ spots }: Props) {
                                     <div className="p-3">
                                         <p className="m-0 font-serif font-bold text-white wrap-anywhere"
                                            style={{ fontSize: "16px", lineHeight: "22px" }}>{s.name}</p>
-                                        {where && (
-                                            <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{where}</p>
+                                        {(where || s.stage === "review") && (
+                                            <p className="m-0 mt-0.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                                                {s.stage === "review" && (isJa ? "下書き" : "Draft")}
+                                                {s.stage === "review" && where ? " ・ " : ""}
+                                                {where}
+                                            </p>
                                         )}
                                         {s.summary && (
                                             <p className="m-0 mt-1.5 text-white/75 line-clamp-2"

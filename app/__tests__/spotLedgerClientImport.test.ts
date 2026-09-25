@@ -31,7 +31,10 @@ const ROOT = join(__dirname, "..", "..");
 const SCAN_DIRS = ["app", "lib"];
 
 /** 台帳を読む経路（値として import すると JSON が付いてくるファイル） */
-const LEDGER_MODULES = ["lib/data/spots", "lib/data/spotLink", "@/lib/data/spots", "@/lib/data/spotLink"];
+const LEDGER_MODULES = [
+    "lib/data/spots", "lib/data/spotLink", "lib/data/spotFeed",
+    "@/lib/data/spots", "@/lib/data/spotLink", "@/lib/data/spotFeed",
+];
 
 function walk(dir: string, out: string[] = []): string[] {
     for (const name of readdirSync(dir)) {
@@ -61,7 +64,7 @@ function ledgerValueImports(src: string): string[] {
     let m: RegExpExecArray | null;
     while ((m = re.exec(code))) {
         const [, clause, mod] = m;
-        if (!LEDGER_MODULES.some((x) => mod === x || mod.endsWith("/data/spots") || mod.endsWith("/data/spotLink"))) continue;
+        if (!LEDGER_MODULES.some((x) => mod === x || mod.endsWith("/data/spots") || mod.endsWith("/data/spotLink") || mod.endsWith("/data/spotFeed"))) continue;
         const bare = clause.trim();
         if (bare.startsWith("type ")) continue;                 // import type { Spot } from …
         const inner = bare.replace(/^\{|\}$/g, "");

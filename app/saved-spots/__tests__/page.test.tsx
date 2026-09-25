@@ -44,6 +44,7 @@ const SPOT = (slug: string, name: string) => ({
     highlights: ["雲海が出る朝がある"],
     officialWebsiteUrl: "https://example.example/",
     status: "published",
+    verifiedBy: "運営",
     verifiedAt: "2026-09-23",
     createdAt: "2026-09-23T00:00:00.000Z",
     updatedAt: "2026-09-23T00:00:00.000Z",
@@ -180,6 +181,16 @@ describe("行きたい場所の一覧", () => {
             expect(link.getAttribute("href")).toBe("/spots/takaya-jinja");
             // 見分けが付く（撮影地の集約ページと同じ見た目にしない）
             expect(within(link).getByText("公式")).toBeTruthy();
+        });
+
+        /// 「公式」と名乗るのは人が確かめた行だけ。運営未確認の下書きは「下書き」
+        it("下書きのスポットは「公式」ではなく「下書き」の札", async () => {
+            ledger.spots = [{ ...SPOT("takaya-jinja", "高屋神社"), status: "review", verifiedBy: undefined, verifiedAt: undefined, draftedAt: "2026-09-24" }];
+            fetchMock.mockResolvedValue(ok(["SPOT-takaya-jinja"]));
+            render(<SavedSpotsPage />);
+            const link = await screen.findByRole("link", { name: /高屋神社/ });
+            expect(within(link).getByText("下書き")).toBeTruthy();
+            expect(within(link).queryByText("公式")).toBeNull();
         });
 
         /// 🔴 **同じ綴りでも別物として残す。** owner:「対応関係が不明な項目を
