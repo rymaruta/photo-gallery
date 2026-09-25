@@ -429,15 +429,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.city.suzu.lg.jp/soshiki/2/1690.html",
-        "title": "能登の揚浜式製塩の技術 - 珠洲市ホームページ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_b49cee381f21",
@@ -711,15 +703,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.tif.ne.jp/jp/entry/article.html?spot=2224",
-        "title": "福満虚空藏菩薩圓藏寺 - ふくしまの旅",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_9bb8a2983e38",
@@ -1580,15 +1564,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.ana.co.jp/travelandlife/article/002358/",
-        "title": "夏の東北旅：青森、仙台、秋田、東北三大祭り関係者に聞く「お祭り」のある街の魅力|ANA",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_529811ce08c4",
@@ -1916,33 +1892,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://yamaguchi-tourism.jp/spot/detail_14537.html",
-        "title": "秋吉台｜日本最大級のカルスト台地【公式】山口県観光/旅行サイト おいでませ山口へ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "aliases",
-        "url": "https://yamaguchi-tourism.jp/feature/akiyoshidai",
-        "title": "日本最大級！カルスト台地 秋吉台・大鍾乳洞秋芳洞の楽しみ方【公式】山口県観光/旅行サイト おいでませ山口へ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://yamaguchi-tourism.jp/spot/detail_14537.html",
-        "title": "秋吉台｜日本最大級のカルスト台地【公式】山口県観光/旅行サイト おいでませ山口へ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://yamaguchi-tourism.jp/feature/akiyoshidai",
-        "title": "日本最大級！カルスト台地 秋吉台・大鍾乳洞秋芳洞の楽しみ方【公式】山口県観光/旅行サイト おいでませ山口へ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_79e45de568f9",
@@ -2016,21 +1966,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://karusuto.com/journal/%E3%80%90%E7%A5%9E%E7%A7%98%E3%81%A8%E5%86%92%E9%99%BA%E3%81%AB%E6%BA%80%E3%81%A1%E3%81%9F%E6%97%A5%E6%9C%AC%E6%9C%80%E5%A4%A7%E7%B4%9A%E3%81%AE%E9%8D%BE%E4%B9%B3%E6%B4%9E%E3%80%8C%E7%A7%8B%E8%8A%B3/",
-        "title": "【神秘と冒険に満ちた日本最大級の鍾乳洞「秋芳洞」 】 - 【公式】山口県美祢市 秋吉台国定公園 観光情報",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://yamaguchi-tourism.jp/spot/detail_14475.html",
-        "title": "秋芳洞｜秋吉台の地下に広がる日本最大級の大鍾乳洞 【公式】山口県観光/旅行サイト おいでませ山口へ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_370a87bf0fd7",
@@ -2202,7 +2138,7 @@
     },
     "category": "公園",
     "summary": "潜水艦が接岸する岸壁を間近で見られる公園。旧呉海軍工廠の赤煉瓦倉庫も残り、黒い艦体と並べて撮れます。",
-    "description": "潜水艦が目の前に並んでいるという、他に無い被写体があります。海上自衛隊の潜水艦が数隻、岸壁に横付けされていて、公園の柵越しに数十メートルの距離で見られます。黒い船体は光を吸うので、露出計が明るく振ります——暗く落とすほうが潜水艦らしく写る。係留の本数と艦の種類は日によって変わるので、同じ構図でも行くたびに違います。公園には旧呉海軍工廠の赤煉瓦の倉庫が残り、黒い艦体と赤い煉瓦の対比が撮れる。撮影が制限される区域と時期があるので、掲示と現地の指示に必ず従ってください。呉駅から車で10分ほどです。",
+    "description": "潜水艦が目の前に並んでいるのが、この公園の被写体です。海上自衛隊の潜水艦が数隻、岸壁に横付けされていて、公園の柵越しに数十メートルの距離で見られます。黒い船体は光を吸うので、露出計が明るく振ります——暗く落とすほうが潜水艦らしく写る。係留の本数と艦の種類は日によって変わるので、同じ構図でも行くたびに違います。公園には旧呉海軍工廠の赤煉瓦の倉庫が残り、黒い艦体と赤い煉瓦の対比が撮れる。撮影が制限される区域と時期があるので、掲示と現地の指示に必ず従ってください。呉駅から車で10分ほどです。",
     "highlights": [
       "岸壁に並ぶ潜水艦。柵越しに数十メートルの距離です",
       "旧呉海軍工廠の赤煉瓦倉庫。黒い艦体と対比します",
@@ -2901,21 +2837,9 @@
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "aliases",
-        "url": "https://www.city.tottori.lg.jp/www/contents/1096976555250/",
-        "title": "04 日本の滝百選 雨滝 - 鳥取市",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "summary",
         "url": "https://www.city.tottori.lg.jp/page/45215.html",
         "title": "雨滝（日本の滝百選） - 鳥取市",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.city.tottori.lg.jp/www/contents/1096976555250/",
-        "title": "04 日本の滝百選 雨滝 - 鳥取市",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -3460,15 +3384,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.ana.co.jp/travelandlife/article/002358/",
-        "title": "夏の東北旅：青森、仙台、秋田、東北三大祭り関係者に聞く「お祭り」のある街の魅力|ANA",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_42c26b2b6f30",
@@ -3664,33 +3580,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "highlights",
-        "url": "https://www.kankou-shimane.com/destination/20259",
-        "title": "しまね海洋館アクアス | しまね観光ナビ｜島根県公式観光情報サイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://kankou-hamada.or.jp/guidepost/6267",
-        "title": "島根県立しまね海洋館 アクアス | はまナビ 浜田市観光協会公式サイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.kankou-shimane.com/destination/20259",
-        "title": "しまね海洋館アクアス | しまね観光ナビ｜島根県公式観光情報サイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://kankou-hamada.or.jp/guidepost/6267",
-        "title": "島根県立しまね海洋館 アクアス | はまナビ 浜田市観光協会公式サイト",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_1bd7d8c25134",
@@ -3839,12 +3729,6 @@
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.maff.go.jp/kinki/tiiki/wakayama/photo/img/2019tanadaaragijima/201909tanadaaragijima.html",
-        "title": "日本棚田百選「あらぎ島」の親子稲作体験 - 和歌山県拠点",
-        "checkedAt": "2026-09-25"
-      },
       {
         "field": "aliases",
         "url": "https://www.maff.go.jp/j/nousin/tanada/attach/pdf/tanadasen-1.pdf",
@@ -4721,27 +4605,9 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "aliases",
-        "url": "https://www.city.ashikaga.tochigi.jp/education/000029/000169/000627/p001274.html",
-        "title": "足利学校跡（聖廟及び附属建物を含む）（あしかががっこうあと せいびょうおよびふぞくたてものをふくむ） | 足利市 公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "aliases",
-        "url": "https://www.city.ashikaga.tochigi.jp/living/000025/001059/p005760.html",
-        "title": "日本最古の学び舎 足利学校",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "summary",
         "url": "https://www.city.ashikaga.tochigi.jp/education/000029/000169/000627/p001274.html",
         "title": "足利学校跡（聖廟及び附属建物を含む）（あしかががっこうあと せいびょうおよびふぞくたてものをふくむ） | 足利市 公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.city.ashikaga.tochigi.jp/living/000025/001059/p005760.html",
-        "title": "日本最古の学び舎 足利学校",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -4934,12 +4800,6 @@
     "createdAt": "2026-09-24",
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
-      {
-        "field": "summary",
-        "url": "https://asojinja.or.jp/about/",
-        "title": "阿蘇神社について – 阿蘇神社",
-        "checkedAt": "2026-09-25"
-      },
       {
         "field": "description",
         "url": "https://asojinja.or.jp/about/",
@@ -6370,33 +6230,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.env.go.jp/water/meisui/H27senkyo/sight/sight_e17.html",
-        "title": "環境省_名水百選_名水百選選抜総選挙_観光地として素晴らしい名水部門に参加した名水の情報 別府弁天池湧水",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "aliases",
-        "url": "https://karusuto.com/spot/beppubentenike/",
-        "title": "名水百選 別府弁天池 - 【公式】山口県美祢市 秋吉台国定公園 観光情報",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.env.go.jp/water/meisui/H27senkyo/sight/sight_e17.html",
-        "title": "環境省_名水百選_名水百選選抜総選挙_観光地として素晴らしい名水部門に参加した名水の情報 別府弁天池湧水",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://karusuto.com/spot/beppubentenike/",
-        "title": "名水百選 別府弁天池 - 【公式】山口県美祢市 秋吉台国定公園 観光情報",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_f41923490efa",
@@ -6699,18 +6533,6 @@
       },
       {
         "field": "highlights",
-        "url": "https://www.okayama-kanko.jp/feature/matsuyamacastle/1",
-        "title": "天守が残る唯一の山城｜岡山観光WEB【公式】- 岡山県の観光・旅行情報ならココ！",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.city.takahashi.lg.jp/soshiki/9/shiro4240131.html",
-        "title": "備中松山城 - 高梁市公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
         "url": "https://www.okayama-kanko.jp/feature/matsuyamacastle/1",
         "title": "天守が残る唯一の山城｜岡山観光WEB【公式】- 岡山県の観光・旅行情報ならココ！",
         "checkedAt": "2026-09-25"
@@ -7768,21 +7590,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.kankokeizai.com/%E3%81%98%E3%82%83%E3%82%89%E3%82%93%E3%80%8C%E8%A1%8C%E3%81%A3%E3%81%A6%E3%81%BF%E3%81%9F%E3%81%84%E5%A4%95%E6%97%A5%E7%B5%B6%E6%99%AF%E3%83%A9%E3%83%B3%E3%82%AD%E3%83%B3%E3%82%B0%E3%80%8D%E3%80%81/",
-        "title": "じゃらん「行ってみたい夕日絶景ランキング」、１位香川県「父母ヶ浜」・２位秋田県「ゴジラ岩」・３位沖縄県「砂山ビーチ」 - 観光経済新聞",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.mitoyo-kanko.com/chichibugahama/",
-        "title": "【公式】父母ヶ浜（ちちぶがはま）",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_88b557ada1de",
@@ -9452,15 +9260,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.daiowasabi.co.jp/",
-        "title": "大王わさび農場 | 信州安曇野に広がる日本一のわさび園",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_25134f67fce9",
@@ -10287,7 +10087,7 @@
     "description": "百万年以上前の礫層が雨水に削られ、硬い部分だけが柱として残った地形です。高さは最大で十数メートル、幅が狭い柱が斜面に並びます。国の天然記念物です。展望台と遊歩道が整備され、下からと上からの両方から見られます。土なので崩れやすく、柵の外には出られません。夜はライトアップされます。",
     "highlights": [
       "雨に削られてできた土の柱",
-      "世界三大土柱の一つとされる地形",
+      "雨に削られた土の柱が斜面に並ぶ地形",
       "下と上の両方からの視点"
     ],
     "seasonalGuide": [
@@ -10324,15 +10124,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "highlights",
-        "url": "https://www.awa-kankou.jp/odekake/awanodochu/",
-        "title": "阿波の土柱 国の天然記念物 – 【四国・徳島県】阿波市観光協会",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_c5e112fcc8e9",
@@ -15724,7 +15516,7 @@
     },
     "category": "山岳",
     "summary": "四億三千万年前の地層が露出する山。サンゴや三葉虫の化石を含む岩が山頂近くで見られます。",
-    "description": "標高千三百七メートルの山で、シルル紀の石灰岩が露出しています。約四億三千万年前の地層で、日本最古級のサンゴやウミユリの化石を含みます。山頂近くの岩に化石が見える箇所があり、登山道から観察できます。山麓には日本最南端のスキー場があります。登山道は整備されており、山頂からは阿蘇と九州山地が見渡せます。化石の採取は禁止されています。",
+    "description": "標高千三百七メートルの山で、シルル紀の石灰岩が露出しています。約四億三千万年前の地層で、サンゴやウミユリの化石を含みます。山頂近くの岩に化石が見える箇所があり、登山道から観察できます。山麓には日本最南端のスキー場があります。登山道は整備されており、山頂からは阿蘇と九州山地が見渡せます。化石の採取は禁止されています。",
     "highlights": [
       "四億三千万年前のシルル紀の地層",
       "岩に見える四億三千万年前の化石",
@@ -15767,25 +15559,25 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "highlights",
+        "field": "summary",
         "url": "https://www.dinosaur.pref.fukui.jp/dino/faq/r02099.html",
         "title": "日本にある地層で一番古いのは？｜恐竜・古生物 Q&A｜FPDM: 福井県立恐竜博物館",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "highlights",
+        "field": "summary",
         "url": "https://www.kitahimuka.jp/kanko/gion/",
         "title": "祇園山 ｜ ひむか共和国 – 宮崎県北部広域行政事務 ...",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "summary",
+        "field": "highlights",
         "url": "https://www.dinosaur.pref.fukui.jp/dino/faq/r02099.html",
         "title": "日本にある地層で一番古いのは？｜恐竜・古生物 Q&A｜FPDM: 福井県立恐竜博物館",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "summary",
+        "field": "highlights",
         "url": "https://www.kitahimuka.jp/kanko/gion/",
         "title": "祇園山 ｜ ひむか共和国 – 宮崎県北部広域行政事務 ...",
         "checkedAt": "2026-09-25"
@@ -19556,20 +19348,8 @@
     "sources": [
       {
         "field": "summary",
-        "url": "https://tabitabi-japan.net/articles/iwate-hashino-ironmine",
-        "title": "橋野鉄鉱山｜岩手県の世界遺産・日本最古の西洋式高炉跡を巡る | たびたびJAPAN",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
         "url": "https://kamaishi-kankou.jp/learn/hashinotekkouzan/",
         "title": "橋野鉄鉱山（三陸ジオパーク） - 【釜石の観光 かまなび】釜石観光物産協会公式サイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://tabitabi-japan.net/articles/iwate-hashino-ironmine",
-        "title": "橋野鉄鉱山｜岩手県の世界遺産・日本最古の西洋式高炉跡を巡る | たびたびJAPAN",
         "checkedAt": "2026-09-25"
       },
       {
@@ -21876,33 +21656,15 @@
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "summary",
-        "url": "https://www.tokokai.org/lighthouse/japanlist01/",
-        "title": "灯台日本一くらべ | 「灯台のことなら」 公益社団法人 燈光会",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://www.kaiho.mlit.go.jp/soshiki/koutsuu/toudai/oasis/8-izumohinomisaki.html",
         "title": "出雲日御碕灯台｜海上保安庁",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "description",
-        "url": "https://www.tokokai.org/lighthouse/japanlist01/",
-        "title": "灯台日本一くらべ | 「灯台のことなら」 公益社団法人 燈光会",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "highlights",
         "url": "https://www.kaiho.mlit.go.jp/soshiki/koutsuu/toudai/oasis/8-izumohinomisaki.html",
         "title": "出雲日御碕灯台｜海上保安庁",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://www.tokokai.org/lighthouse/japanlist01/",
-        "title": "灯台日本一くらべ | 「灯台のことなら」 公益社団法人 燈光会",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -22371,15 +22133,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://kitaq.media/2786/",
-        "title": "日本3大カルスト「平尾台」 “天然記念物”で楽しむ鍾乳洞など自然体験 | 北九州ノコト",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_faa779748eed",
@@ -23877,33 +23631,15 @@
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "summary",
-        "url": "https://online.bunka.go.jp/heritages/detail/429741",
-        "title": "法起寺三重塔 文化遺産オンライン",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://yamatoji.nara-kankou.or.jp/01shaji/02tera/02west_area/hokiji/",
         "title": "法起寺｜奈良県観光[公式サイト] あをによし なら旅ネット｜斑鳩町｜生駒・信貴・斑鳩・葛城エリア｜神社・仏閣｜神社・仏閣",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "description",
-        "url": "https://online.bunka.go.jp/heritages/detail/429741",
-        "title": "法起寺三重塔 文化遺産オンライン",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "highlights",
         "url": "https://yamatoji.nara-kankou.or.jp/01shaji/02tera/02west_area/hokiji/",
         "title": "法起寺｜奈良県観光[公式サイト] あをによし なら旅ネット｜斑鳩町｜生駒・信貴・斑鳩・葛城エリア｜神社・仏閣｜神社・仏閣",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://online.bunka.go.jp/heritages/detail/429741",
-        "title": "法起寺三重塔 文化遺産オンライン",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -24559,12 +24295,6 @@
         "field": "summary",
         "url": "https://online.bunka.go.jp/special_content/hlink1",
         "title": "法隆寺地域の仏教建造物 - 文化遺産オンライン",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.pref.nara.jp/miryoku/ikasu-nara/sekai/",
-        "title": "奈良県の世界遺産 / 奈良県",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -25900,12 +25630,6 @@
         "url": "https://www.enjoy-minakami.jp/updata/cli/pdf/attache_481_1.pdf",
         "title": "みなかみ町 深緑の「一ノ倉沢」岩壁鑑賞ハイキング みなかみ町 日本三大岩壁「一ノ倉沢」岩壁鑑賞ハイキング",
         "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.jreast.co.jp/hiking/course/gunma15_15sp/index.html",
-        "title": "みなかみ町 日本三大岩壁 「一ノ倉沢」観賞ハイキング",
-        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -26606,21 +26330,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://imabari.keizai.biz/headline/223/",
-        "title": "今治城を映したリフレクション写真、SNSで話題に 日本三大水城の一つ - 今治経済新聞",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://shiro-trip.com/shiro/detail_49.html",
-        "title": "今治城｜日本百名城、日本三大水城｜城トリップ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_e55b9734b00d",
@@ -26956,13 +26666,13 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "highlights",
+        "field": "description",
         "url": "https://culture-archives.city.nanto.toyama.jp/culture/bunkazai/bunkazai0042/",
         "title": "南砺市文化芸術アーカイブズ",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "description",
+        "field": "highlights",
         "url": "https://culture-archives.city.nanto.toyama.jp/culture/bunkazai/bunkazai0042/",
         "title": "南砺市文化芸術アーカイブズ",
         "checkedAt": "2026-09-25"
@@ -30162,12 +29872,6 @@
         "url": "https://www.kobe-np.co.jp/news/sougou/202106/0014403033.shtml",
         "title": "どちらが日本最古の時計台か… 札幌市時計台と豊岡の辰鼓楼 “論争”に終止符",
         "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://kabannoyakata.jp/sightseeing/%E8%BE%B0%E9%BC%93%E6%A5%BC/",
-        "title": "辰鼓楼 明治14年に時を刻み始めた、日本で二番目に古い時計台 | かばんの館 豊岡鞄取扱店",
-        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -30512,21 +30216,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.yamanashi-kankou.jp/kankou/spot/p1_4256.html",
-        "title": "実相寺／山高神代桜／富士の国やまなし観光ネット 山梨県公式観光情報",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.hananokai.or.jp/sakura/sakura-area/sakura-care-info1/",
-        "title": "国指定天然記念物 山高神代ザクラの樹勢回復 | 公益財団法人日本花の会",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_552b59ef3e7c",
@@ -42921,12 +42611,6 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "summary",
-        "url": "https://online.bunka.go.jp/heritages/detail/157735",
-        "title": "功山寺仏殿 - 文化遺産オンライン",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://online.bunka.go.jp/heritages/detail/157735",
         "title": "功山寺仏殿 - 文化遺産オンライン",
@@ -43118,15 +42802,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.city.kuji.lg.jp/soshiki/shokokanko/1/1/8/2/1539.html",
-        "title": "久慈琥珀／久慈市",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_96b8a408ed30",
@@ -43601,15 +43277,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.hongu.jp/kumanokodo/hongu-taisya/ooyunohara/",
-        "title": "熊野本宮大社旧社地「大斎原」 – 熊野本宮観光協会",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_d107b4ef6a24",
@@ -44314,21 +43982,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.kurobe-dam.com/kankou/",
-        "title": "観光情報｜黒部ダムオフィシャルサイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.info-toyama.com/attractions/31038",
-        "title": "黒部ダム | スポット・体験 | 【公式】富山県の観光/旅行サイト ...",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_ab978057c53d",
@@ -45467,27 +45121,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://kyusendo.jp/",
-        "title": "球泉洞公式サイト - 球磨森林組合 | 熊本県の南部の球磨村にある「球泉洞」は、九州最大の鍾乳洞です。…",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://kyusendo.jp/",
-        "title": "球泉洞公式サイト - 球磨森林組合 | 熊本県の南部の球磨村にある「球泉洞」は、九州最大の鍾乳洞です。…",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://kyusendo.jp/",
-        "title": "球泉洞公式サイト - 球磨森林組合 | 熊本県の南部の球磨村にある「球泉洞」は、九州最大の鍾乳洞です。…",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_e817b40cf295",
@@ -45636,20 +45270,8 @@
     "sources": [
       {
         "field": "summary",
-        "url": "https://www.city.semboku.akita.jp/sightseeing/travel/nature/index.html",
-        "title": "日本一深い田沢湖には",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
         "url": "https://www.mlit.go.jp/tagengo-db/common/001555088.pdf",
         "title": "田沢湖の景色 水深423.4 メートルの田沢湖は、日本で最も深い湖です。鮮やかな青色の水は緑豊かな",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "seasonalGuide",
-        "url": "https://www.city.semboku.akita.jp/sightseeing/travel/nature/index.html",
-        "title": "日本一深い田沢湖には",
         "checkedAt": "2026-09-25"
       },
       {
@@ -46781,15 +46403,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.maruyamasenmaida.jp/",
-        "title": "日本の棚田百選 | 丸山千枚田（まるやませんまいだ） | 三重県熊野市紀和町",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_5a015fefacc9",
@@ -47139,15 +46753,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.city.bungotakada.oita.jp/site/showanomachi/1462.html",
-        "title": "日本の夕陽百選「真玉海岸・干潟夕陽ごよみ」（9・10月分） - 昭和の町・豊後高田市公式観光サイト - 豊後高田市ホームページ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_89f629449710",
@@ -51111,12 +50717,6 @@
         "url": "https://www.city.miyakonojo.miyazaki.jp/site/kanko/4641.html",
         "title": "母智丘公園 - 宮崎県都城市ホームページ",
         "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2022/09/sakura_100sen_202209.pdf",
-        "title": "平成2年3月、財団法人日本さくらの会創立25周年を記念し、 全国都道府県の推薦をもとに「さくら名所100選の地」を設定。 NO. 都道府県 市町村名",
-        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -51692,21 +51292,9 @@
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "aliases",
-        "url": "https://tabiyomi.yomiuri-ryokou.co.jp/article/002856.html",
-        "title": "日本新三大夜景都市の絶景とシメパフェを楽しむ大人旅 札幌 ...",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "summary",
         "url": "https://mt-moiwa.jp/2022/03/25/%E5%A4%9C%E6%99%AF%E3%82%B5%E3%83%9F%E3%83%83%E3%83%882022in%E6%9C%AD%E5%B9%8C%E3%81%AB%E3%81%A6%E6%9C%AD%E5%B9%8C%E5%B8%82%E3%81%8C%E6%97%A5%E6%9C%AC%E6%96%B0%E4%B8%89%E5%A4%A7%E5%A4%9C%E6%99%AF/",
         "title": "夜景サミット2022in札幌にて札幌市が日本新三大夜景に認定されました！ – 札幌もいわ山ロープウェイ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://tabiyomi.yomiuri-ryokou.co.jp/article/002856.html",
-        "title": "日本新三大夜景都市の絶景とシメパフェを楽しむ大人旅 札幌 ...",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -52959,21 +52547,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.kanko-miyazaki.jp/spot/1068",
-        "title": "行縢山・行縢の滝 | 観光スポット | 宮崎県公式観光サイト ...",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://tabi-mag.jp/mz0117/",
-        "title": "行縢の滝 | ニッポン旅マガジン",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_72e8a07ff8cd",
@@ -53614,21 +53188,9 @@
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "aliases",
-        "url": "https://www.town.shimonita.lg.jp/kanko/m03/m05/07.html",
-        "title": "下仁田町ホームページ ： 妙義山",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "summary",
         "url": "https://gunma-kanko.jp/features/14",
         "title": "スリルと絶景を堪能！山のガイドとゆく日本三奇勝・妙義山登山ツアー | 特集一覧 | 心にググっと観光ぐんま",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.town.shimonita.lg.jp/kanko/m03/m05/07.html",
-        "title": "下仁田町ホームページ ： 妙義山",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -53704,33 +53266,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.city.hakui.lg.jp/soshiki/sangyoukensetsubu/syoukoukankouka/12/1/2500.html",
-        "title": "能登の至宝 五重塔を含む重要文化財10棟！妙成寺(みょうじょうじ)|羽咋市公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.city.hakui.lg.jp/soshiki/sangyoukensetsubu/syoukoukankouka/12/1/2500.html",
-        "title": "能登の至宝 五重塔を含む重要文化財10棟！妙成寺(みょうじょうじ)|羽咋市公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.city.hakui.lg.jp/soshiki/sangyoukensetsubu/syoukoukankouka/12/1/2500.html",
-        "title": "能登の至宝 五重塔を含む重要文化財10棟！妙成寺(みょうじょうじ)|羽咋市公式ホームページ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://www.city.hakui.lg.jp/soshiki/sangyoukensetsubu/syoukoukankouka/12/1/2500.html",
-        "title": "能登の至宝 五重塔を含む重要文化財10棟！妙成寺(みょうじょうじ)|羽咋市公式ホームページ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_e2ff40796b51",
@@ -56049,7 +55585,7 @@
     },
     "category": "渓谷",
     "summary": "秋元湖に注ぐ中津川がつくる渓谷。磐梯吾妻レークラインの中津川レストハウスから遊歩道を下ると、岩と淵の続く渓谷に降りられます。",
-    "description": "降りないと撮れない渓谷です。道路からは木に隠れて見えず、遊歩道を約15分下って初めて川に出る。岩は大きく、水は透明で淵が青緑に見える。紅葉期は谷全体が赤くなり、裏磐梯随一の紅葉名所とされます。見頃は10月下旬から11月上旬。下りた分だけ登り返すので、時間と体力の計算が要ります。冬期はレークラインが閉鎖されます。",
+    "description": "降りないと撮れない渓谷です。道路からは木に隠れて見えず、遊歩道を約15分下って初めて川に出る。岩は大きく、水は透明で淵が青緑に見える。紅葉期は谷全体が赤くなります。裏磐梯随一の紅葉名所とされます。見頃は10月下旬から11月上旬。下りた分だけ登り返すので、時間と体力の計算が要ります。冬期はレークラインが閉鎖されます。",
     "highlights": [
       "岩と淵の続く渓流。水が透明で淵が青緑に見えます",
       "10月下旬から11月上旬の紅葉。谷全体が赤くなります",
@@ -56097,21 +55633,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.urabandai-inf.com/?page_id=24984",
-        "title": "中津川渓谷 – 裏磐梯観光協会",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.bandaisan.or.jp/sight/shin-hakkei07/",
-        "title": "中津川渓谷 | 猪苗代観光協会【公式ホームページ】",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_bac95ec027fd",
@@ -56184,33 +55706,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.maff.go.jp/kanto/nouson/chiiki/tanada/index.html",
-        "title": "棚田百選の認定：関東農政局",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "aliases",
-        "url": "https://www.town.shodoshima.lg.jp/kanko/miru/nature/sennmaida.html",
-        "title": "中山千枚田 - 小豆島町",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.maff.go.jp/kanto/nouson/chiiki/tanada/index.html",
-        "title": "棚田百選の認定：関東農政局",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.town.shodoshima.lg.jp/kanko/miru/nature/sennmaida.html",
-        "title": "中山千枚田 - 小豆島町",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_742ba44fd6db",
@@ -57221,12 +56717,6 @@
         "url": "https://tokimeguri.jp/guide/naraijuku/",
         "title": "中山道 奈良井宿 | 塩尻市観光協会",
         "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.go-nagano.net/hubfs/naraijuku_map_ja.pdf",
-        "title": "地下歩道 夏草会の碑 600m 三ノ段 奈良井宿 奈良井宿 奈良井川周遊道路 日本一の宿場町 標高1,197m 長泉寺 文部科学省選定 重要伝統的建造物群",
-        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -57305,27 +56795,15 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "highlights",
-        "url": "https://gangoji-tera.or.jp/watch/feature.html",
-        "title": "各建物の特徴と説明｜元興寺 - 奈良の国宝・世界文化遺産",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://narashikanko.or.jp/spot/detail_10027.html",
-        "title": "世界遺産 元興寺｜スポット・体験｜奈良市観光協会公式サイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://gangoji-tera.or.jp/watch/feature.html",
         "title": "各建物の特徴と説明｜元興寺 - 奈良の国宝・世界文化遺産",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "description",
-        "url": "https://narashikanko.or.jp/spot/detail_10027.html",
-        "title": "世界遺産 元興寺｜スポット・体験｜奈良市観光協会公式サイト",
+        "field": "highlights",
+        "url": "https://gangoji-tera.or.jp/watch/feature.html",
+        "title": "各建物の特徴と説明｜元興寺 - 奈良の国宝・世界文化遺産",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -57610,21 +57088,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.pref.tokushima.lg.jp/japanese/tourism/spot/uzushio",
-        "title": "鳴門の渦潮｜ようこそ徳島県へ",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.east-tokushima.jp/feature/detail.php?id=48",
-        "title": "大迫力の絶景にわくわく♪ 世界最大級の“鳴門の渦潮” | 特集 | イーストとくしま観光推進機構",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_e231ccdb335a",
@@ -65257,12 +64721,6 @@
         "url": "https://tabi.jtb.or.jp/res/270013-",
         "title": "天神橋筋商店街 | 全国観光資源台帳(公財)日本交通公社",
         "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://osaka-info.jp/spot/tenjimbashisuji-shopping-street/",
-        "title": "日本一長い天神橋筋商店街の観光ガイド｜グルメ・アクセス情報",
-        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -65679,15 +65137,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.city.mutsu.lg.jp/bunka/spot/reijyouosorezann.html",
-        "title": "霊場恐山｜観光・文化・スポーツ - むつ市",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_957ee2d78220",
@@ -66181,21 +65631,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.pref.nagasaki.jp/bunkadb/index.php/view/182",
-        "title": "大浦天主堂 - 長崎県の文化財",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://nagasaki-oura-church.jp/history",
-        "title": "歴史 | 国宝 大浦天主堂",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_ed2ba60dc59c",
@@ -66543,21 +65979,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www4.city.kanazawa.lg.jp/soshikikarasagasu/bunkazaihogoka/gyomuannai/3/1/1/bunkazai_tagengo/2/20926.html",
-        "title": "尾山神社神門／金沢市公式ホームページ いいね金沢",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.pref.ishikawa.lg.jp/kyoiku/bunkazai/kenzoubutu/8.html",
-        "title": "尾山神社神門・成巽閣 | 石川県",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_a901db8a12d2",
@@ -66949,18 +66371,6 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "summary",
-        "url": "https://www.city.kazuno.lg.jp/soshiki/bunkazai_sekai-isan/oyustonecirclekan/gyomu/1/1/2188.html",
-        "title": "大湯環状列石とは - 鹿角市",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://jomon-japan.jp/learn/jomon-sites/oyu",
-        "title": "大湯環状列石 – 【公式】世界遺産 北海道・北東北の縄文遺跡群",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "highlights",
         "url": "https://www.city.kazuno.lg.jp/soshiki/bunkazai_sekai-isan/oyustonecirclekan/gyomu/1/1/2188.html",
         "title": "大湯環状列石とは - 鹿角市",
@@ -67054,7 +66464,6 @@
     "reading": "くまのほんぐうたいしゃ おおゆのはら",
     "aliases": [
       "大斎原",
-      "日本一の大鳥居",
       "熊野本宮"
     ],
     "address": "和歌山県田辺市本宮町本宮",
@@ -67117,21 +66526,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://japaneserecords.org/japanese-records/6337/",
-        "title": "日本で最も高い鳥居 – 日本記録 | 日本記録認定協会（公式）",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://dime.jp/genre/819997/",
-        "title": "全高33.9×全幅42m！日本一大きい鳥居は、社がない田畑にそびえる「熊野本宮大社 旧社寺 大斎原 大鳥居」｜@DIME アットダイム",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_23cfa1775794",
@@ -67490,8 +66885,7 @@
     "aliases": [
       "ピナイサーラ",
       "西表島 滝",
-      "ヒナイ川",
-      "沖縄県最大の落差"
+      "ヒナイ川"
     ],
     "address": "沖縄県八重山郡竹富町上原",
     "region": {
@@ -67553,15 +66947,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://takipedia.com/detail/286",
-        "title": "ピナイサーラの滝 | 沖縄県 | 滝ペディア～日本の滝をめぐる～",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_16b4da8c07f9",
@@ -67879,7 +67265,7 @@
     },
     "category": "寺社",
     "summary": "岩山の洞窟に三千七百体を超える石仏が納まります。五百羅漢としては国内最古とされます。",
-    "description": "羅漢山の中腹、岩壁の窪みに建てられた寺で、無漏窟には三千七百体を超える石仏が壁面を埋めます。五百羅漢は一三三八年頃に作られたとされ、国内最古の五百羅漢とされます。表情が一体ずつ違い、同じ形が並ばない反復になります。参道は岩の間を縫う急な石段で、途中にも石仏が並びます。リフトもあります。堂内は撮影禁止の区画があるので確認が要ります。",
+    "description": "羅漢山の中腹、岩壁の窪みに建てられた寺で、無漏窟には三千七百体を超える石仏が壁面を埋めます。五百羅漢は一三三八年頃に作られたとされ、五百羅漢としては国内最古といわれます。表情が一体ずつ違い、同じ形が並ばない反復になります。参道は岩の間を縫う急な石段で、途中にも石仏が並びます。リフトもあります。堂内は撮影禁止の区画があるので確認が要ります。",
     "highlights": [
       "洞窟を埋める三千七百体の石仏",
       "国内最古とされる五百羅漢",
@@ -67919,27 +67305,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "highlights",
-        "url": "https://japan-heritage.bunka.go.jp/ja/culturalproperties/result/3536/",
-        "title": "五百羅漢石仏（羅漢寺と羅漢寺探勝道）｜日本遺産ポータルサイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://japan-heritage.bunka.go.jp/ja/culturalproperties/result/3536/",
-        "title": "五百羅漢石仏（羅漢寺と羅漢寺探勝道）｜日本遺産ポータルサイト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://japan-heritage.bunka.go.jp/ja/culturalproperties/result/3536/",
-        "title": "五百羅漢石仏（羅漢寺と羅漢寺探勝道）｜日本遺産ポータルサイト",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_48da593d04cb",
@@ -72641,39 +72007,9 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "highlights",
-        "url": "https://toudai.uminohi.jp/column/post-6365/",
-        "title": "人里離れた難所に建設され灯台守とその家族の労苦を後世に残す 【鹿児島県肝属郡南大隅町 佐多岬灯台】 | 海と灯台プロジェクト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "highlights",
-        "url": "https://www.kaiho.mlit.go.jp/10kanku/toudai/toudaimeguri/satamisakitoudai.html",
-        "title": "佐多岬灯台",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://toudai.uminohi.jp/column/post-6365/",
-        "title": "人里離れた難所に建設され灯台守とその家族の労苦を後世に残す 【鹿児島県肝属郡南大隅町 佐多岬灯台】 | 海と灯台プロジェクト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.kaiho.mlit.go.jp/10kanku/toudai/toudaimeguri/satamisakitoudai.html",
-        "title": "佐多岬灯台",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://toudai.uminohi.jp/column/post-6365/",
         "title": "人里離れた難所に建設され灯台守とその家族の労苦を後世に残す 【鹿児島県肝属郡南大隅町 佐多岬灯台】 | 海と灯台プロジェクト",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.kaiho.mlit.go.jp/10kanku/toudai/toudaimeguri/satamisakitoudai.html",
-        "title": "佐多岬灯台",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -73109,12 +72445,6 @@
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
-      {
-        "field": "description",
-        "url": "https://www.city.kameyama.mie.jp/docs/2014112311914/",
-        "title": "関宿の歴史と文化 | 亀山市",
-        "checkedAt": "2026-09-25"
-      },
       {
         "field": "description",
         "url": "https://bunka.nii.ac.jp/heritages/detail/24094",
@@ -73704,12 +73034,6 @@
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
-      {
-        "field": "description",
-        "url": "https://www.kankou-komagane.com/kankou/1700/",
-        "title": "駒ヶ岳ロープウェイ | 駒ヶ根観光協会",
-        "checkedAt": "2026-09-25"
-      },
       {
         "field": "description",
         "url": "https://www.chuo-alps.com/model/climbing/",
@@ -74333,21 +73657,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://smtrc.jp/town-archives/city/ueno/p06.html",
-        "title": "6：都内最古の寺院「浅草寺」 ～ 上野・浅草 | このまちアーカイブス | 不動産購入・不動産売却なら三井住友トラスト不動産",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://www.senso-ji.jp/guide/guide02.html",
-        "title": "仲見世 - 浅草寺",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_b5711ac4d281",
@@ -82793,6 +82103,12 @@
         "url": "https://www.town-takachiho.jp/top/kanko_bunka/kanko_supotto/781.html",
         "title": "高千穂峡／高千穂町",
         "checkedAt": "2026-09-25"
+      },
+      {
+        "field": "description",
+        "url": "https://www.kanko-miyazaki.jp/spot/1001",
+        "title": "高千穂峡 | 観光スポット | 宮崎県公式観光サイト「みやざき ...",
+        "checkedAt": "2026-09-25"
       }
     ]
   },
@@ -83118,15 +82434,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "summary",
-        "url": "https://shiro-trip.com/shiro/takamatsu/",
-        "title": "高松城｜日本百名城、日本三大水城｜城トリップ",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-25T00:00:00.000Z"
   },
   {
     "spotId": "sp_5d3783486aa6",
@@ -83393,13 +82701,13 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "highlights",
+        "field": "description",
         "url": "https://www.takaotozan.co.jp/sp/cable/",
         "title": "乗る ケーブルカー | 高尾登山電鉄株式会社",
         "checkedAt": "2026-09-25"
       },
       {
-        "field": "description",
+        "field": "highlights",
         "url": "https://www.takaotozan.co.jp/sp/cable/",
         "title": "乗る ケーブルカー | 高尾登山電鉄株式会社",
         "checkedAt": "2026-09-25"
@@ -83698,18 +83006,6 @@
       },
       {
         "field": "highlights",
-        "url": "https://yamatoji.nara-kankou.or.jp/03history/07castle/03east_area/takatorijoato/",
-        "title": "高取城跡｜奈良県観光[公式サイト] あをによし なら旅ネット｜高取町｜山の辺・飛鳥・橿原・宇陀エリア｜歴史・文化｜観光",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.pref.nara.lg.jp/n094/46478.html",
-        "title": "奈良県景観資産－日本三大山城 高取城跡－ / 奈良県",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
         "url": "https://yamatoji.nara-kankou.or.jp/03history/07castle/03east_area/takatorijoato/",
         "title": "高取城跡｜奈良県観光[公式サイト] あをによし なら旅ネット｜高取町｜山の辺・飛鳥・橿原・宇陀エリア｜歴史・文化｜観光",
         "checkedAt": "2026-09-25"
@@ -91193,7 +90489,7 @@
     },
     "category": "橋",
     "summary": "津軽富士見湖に架かる全長三百メートルの三連太鼓橋。水面に映る弧と、背後に立つ岩木山が一枚に収まります。",
-    "description": "青森産のヒバを使った木造の三連橋で、木造の三連太鼓橋としては日本一長いとされます。湖面に橋の弧が映り込み、天気が良ければ背後に岩木山が入ります。橋は老朽化による架け替え工事が行われた経緯があるため、通行可否は事前確認が確実です。周囲は遊歩道が一周しており、光の向きに応じて立ち位置を変えられます。",
+    "description": "青森産のヒバを使った木造の三連太鼓橋で、この形の橋としては日本一長いとされます。湖面に橋の弧が映り込み、天気が良ければ背後に岩木山が入ります。橋は老朽化による架け替え工事が行われた経緯があるため、通行可否は事前確認が確実です。周囲は遊歩道が一周しており、光の向きに応じて立ち位置を変えられます。",
     "highlights": [
       "全長三百メートルの木造三連橋",
       "湖面に映る弧",
@@ -91458,12 +90754,6 @@
     "createdAt": "2026-09-24T00:00:00.000Z",
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
-      {
-        "field": "summary",
-        "url": "https://www.tsurugajo.com/tsurugajo/tensyukaku/",
-        "title": "鶴ヶ城のご案内 | 一般財団法人 会津若松観光ビューロー",
-        "checkedAt": "2026-09-25"
-      },
       {
         "field": "highlights",
         "url": "https://www.tsurugajo.com/tsurugajo/tensyukaku/",
@@ -94140,18 +93430,6 @@
     "updatedAt": "2026-09-25T00:00:00.000Z",
     "sources": [
       {
-        "field": "summary",
-        "url": "https://www.asobo-saga.jp/spots/detail/c8f447ad-5b1a-4c3f-acd2-57bfa35f70fe",
-        "title": "嬉野温泉 | 観光地 | 【公式】佐賀県観光サイト あそぼーさが",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "summary",
-        "url": "https://spa-u.net/post-1.php",
-        "title": "美肌の湯と呼ばれるその理由は？ | 嬉野温泉観光協会うれしの温泉のほほーん情報局",
-        "checkedAt": "2026-09-25"
-      },
-      {
         "field": "description",
         "url": "https://spa-u.net/post-1.php",
         "title": "美肌の湯と呼ばれるその理由は？ | 嬉野温泉観光協会うれしの温泉のほほーん情報局",
@@ -94388,7 +93666,7 @@
       "lng": 140.18
     },
     "category": "仏像",
-    "summary": "全高120m（像高100m・台座20m）の青銅製立像。奈良の大仏が手のひらに乗る大きさで、ブロンズ製の仏像として世界一の高さでギネス世界記録に登録されています。",
+    "summary": "全高120m（像高100m・台座20m）の青銅製立像。奈良の大仏が手のひらに乗る大きさで、ブロンズ製の仏像としては世界一の高さで、ギネス世界記録に登録されています。",
     "description": "大きすぎて距離が取れないことが撮影上の課題です。近くに寄ると台座しか入らず、離れすぎると周囲の景色に埋もれる。結果として、手前に何を置くかが構図の全てになります——春は花畑、夏は緑、周囲の田んぼ。胸の高さ（地上85m）に展望室があり、そこから関東平野を見渡せます。大仏の背後に何も無いので、空の状態がそのまま作品の良し悪しになります。",
     "highlights": [
       "全高120mの立像。周囲に比較対象が無いぶん、空との関係が主題になります",
@@ -94870,15 +94148,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24T00:00:00.000Z",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "aliases",
-        "url": "https://www.kankou-gifu.jp/spot/detail_921.html",
-        "title": "根尾谷淡墨ザクラ ｜観光スポット｜岐阜県観光公式サイト 「岐阜の旅ガイド」",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24T00:00:00.000Z"
   },
   {
     "spotId": "sp_c95b71c3f2b6",
@@ -95027,18 +94297,6 @@
         "field": "summary",
         "url": "https://www.sakuranokai.or.jp/wp-sakuranokai/wp-content/themes/sakuranokai/images/2022/09/sakura_100sen_202209.pdf",
         "title": "平成2年3月、財団法人日本さくらの会創立25周年を記念し、 全国都道府県の推薦をもとに「さくら名所100選の地」を設定。 NO. 都道府県 市町村名",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.kurayoshi-kankou.jp/utsubuki-kouen/",
-        "title": "打吹公園 - 倉吉観光情報",
-        "checkedAt": "2026-09-25"
-      },
-      {
-        "field": "description",
-        "url": "https://www.city.kurayoshi.lg.jp/5490.htm",
-        "title": "全国100選/倉吉市公式ウェブサイト",
         "checkedAt": "2026-09-25"
       }
     ]
@@ -95694,8 +94952,8 @@
       "lng": 138.43
     },
     "category": "樹木",
-    "summary": "畑のなかに一本だけ立つ樹齢三百年超のエドヒガン。北を向けば八ヶ岳、南に回れば富士山が背景に入ります。",
-    "description": "韮崎市神山町、なだらかな畑地に塚が一つあり、その上にエドヒガンが立っています。周囲に遮るものがないので三百六十度どこからでも撮れ、北を向けば八ヶ岳、南に回れば富士山が入ります。見頃は四月上旬。期間中は夜間ライトアップが行われます。駐車場は臨時のものが用意されますが、混雑期は満車になります。",
+    "summary": "畑のなかに一本だけ立つ樹齢三百年超のエドヒガン。北を向けば八ヶ岳、南を向けば富士山が背景に入ります。",
+    "description": "韮崎市神山町、なだらかな畑地に塚が一つあり、その上にエドヒガンが立っています。周囲に遮るものがないので三百六十度どこからでも撮れ、北を向けば八ヶ岳、南を向けば富士山が入ります。見頃は四月上旬。期間中は夜間ライトアップが行われます。駐車場は臨時のものが用意されますが、混雑期は満車になります。",
     "highlights": [
       "遮るもののない一本桜",
       "背景に八ヶ岳の稜線",
@@ -95795,15 +95053,7 @@
     "draftedAt": "2026-09-24",
     "draftedBy": "claude",
     "createdAt": "2026-09-24",
-    "updatedAt": "2026-09-25T00:00:00.000Z",
-    "sources": [
-      {
-        "field": "description",
-        "url": "https://www.iyokannet.jp/spot/666",
-        "title": "和霊神社 - 愛媛県",
-        "checkedAt": "2026-09-25"
-      }
-    ]
+    "updatedAt": "2026-09-24"
   },
   {
     "spotId": "sp_6253f83c2c29",
