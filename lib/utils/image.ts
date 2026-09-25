@@ -65,29 +65,36 @@ function isMpfSegment(buf: Uint8Array, dataStart: number, segEnd: number): boole
         && buf[dataStart + 2] === 0x46 && buf[dataStart + 3] === 0x00;
 }
 
+/** 走査のあいだに置かれていても落とす区切り（位置情報を持ちうるもの） */
+const isMetadataSegment = (buf: Uint8Array, marker: number, dataStart: number, segEnd: number): boolean =>
+    marker === 0xE1 || marker === 0xED || (marker === 0xE2 && isMpfSegment(buf, dataStart, segEnd));
+
 /**
- * 最初の SOS（`sosAt` の位置の 0xFF）から、主画像の EOI の直後までの位置を返す。
- * 見つからなければ（壊れている・途中で切れている）末尾を返す＝今までどおり全部残す。
+ * 最初の SOS（`sosAt` の位置の 0xFF）から主画像の EOI までを、メタデータの
+ * 区切りを除いて写し取る。`complete` は EOI まで読めたか。
  *
  * 圧縮データの中の 0xFF は必ず 0x00（詰め物）か RSTn（D0〜D7）が続く。
  * それ以外のマーカーは、プログレッシブ JPEG の次の走査（SOS・DHT など、
  * 長さを持つ区切り）か EOI。区切りは長さで読み飛ばす——中身のバイトに
  * FF D9 が偶然あっても EOI と取り違えない。
+ * **走査のあいだの APP1 / APP13 / MPF も落とす**（ヘッダの外に置く機材がある）。
  */
-function primaryImageEnd(buf: Uint8Array, sosAt: number): number {
+function copyPrimaryImage(buf: Uint8Array, sosAt: number): { parts: Uint8Array[]; complete: boolean } {
+    const parts: Uint8Array[] = [];
     let i = sosAt;
-    while (i + 3 < buf.length) {
+    while (i + 1 < buf.length) {
         // i は 0xFF（区切りの先頭）を指している。fill byte を飛ばす
         let m = i + 1;
         while (m < buf.length && buf[m] === 0xFF) m++;
-        if (m >= buf.length) return buf.length;
+        if (m >= buf.length) break;
         const marker = buf[m];
-        if (marker === 0xD9) return m + 1; // EOI
-        if (m + 2 >= buf.length) return buf.length;
+        if (marker === 0xD9) { parts.push(buf.slice(i, m + 1)); return { parts, complete: true }; } // EOI
+        if (m + 2 >= buf.length) break;
         const len = (buf[m + 1] << 8) | buf[m + 2];
-        if (len < 2) return buf.length;
-        let j = m + 1 + len;
-        if (j > buf.length) return buf.length;
+        if (len < 2) break;
+        const segEnd = m + 1 + len;
+        if (segEnd > buf.length) break;
+        let j = segEnd;
         if (marker === 0xDA) {
             // 圧縮データを読み進め、次の本物のマーカーを探す
             while (j + 1 < buf.length) {
@@ -98,11 +105,27 @@ function primaryImageEnd(buf: Uint8Array, sosAt: number): number {
                 }
                 j++;
             }
-            if (j + 1 >= buf.length) return buf.length;
+            if (j + 1 >= buf.length) { parts.push(buf.slice(i)); return { parts, complete: false }; }
         }
+        if (!isMetadataSegment(buf, marker, m + 3, segEnd)) parts.push(buf.slice(i, j));
         i = j;
     }
-    return buf.length;
+    parts.push(buf.slice(i));
+    return { parts, complete: false };
+}
+
+/** 残りのバイトに EXIF / XMP の目印があるか（EOI が見つからなかったときの確認） */
+function hasMetadataSignature(buf: Uint8Array, from: number): boolean {
+    const sigs = [
+        [0x45, 0x78, 0x69, 0x66, 0x00, 0x00],                         // "Exif\0\0"
+        [0x68, 0x74, 0x74, 0x70, 0x3A, 0x2F, 0x2F, 0x6E, 0x73, 0x2E], // "http://ns." (XMP)
+    ];
+    for (let k = from; k < buf.length; k++) {
+        for (const sig of sigs) {
+            if (k + sig.length <= buf.length && sig.every((b, t) => buf[k + t] === b)) return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -146,8 +169,12 @@ export async function stripJpegExifDetailed(
                 // 後ろに2枚目以降の JPEG（HDR のゲインマップ・深度など）をぶら下げ、
                 // それぞれが自分の APP1（EXIF/XMP）を持てる。以前は SOS 以降を
                 // 丸ごと残していたので、そちらのメタデータが公開されていた（#46）。
-                const end = primaryImageEnd(buf, i);
-                parts.push(buf.slice(i, end));
+                const primary = copyPrimaryImage(buf, i);
+                // **EOI まで読めなかった（壊れている・途中で切れている）ときは、
+                // 残りに EXIF / XMP の目印があれば「消せた」と言わない。** 後ろに
+                // ぶら下がった画像の位置情報が、主画像と区別できないまま残るため
+                if (!primary.complete && hasMetadataSignature(buf, i)) return { file, stripped: false };
+                parts.push(...primary.parts);
                 i = buf.length;
                 break;
             }

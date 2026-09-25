@@ -393,6 +393,27 @@ describe("stripJpegExifDetailed: 後ろにぶら下がった画像", () => {
         expect(out).toEqual(primary);
     });
 
+    it("EOI が見つからず、残りに EXIF がある（後ろの画像と区別できない）ときは「消せた」と言わない", async () => {
+        // 主画像の EOI が無いまま、後ろに GPS 入りの JPEG が付いている壊れたファイル
+        const broken = [0xFF, 0xD8, ...segment(0xDB, [0x00]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x11, 0x22, ...trailing];
+        const r = await stripJpegExifDetailed(asFile(broken));
+        expect(r.stripped, "後ろの GPS が残ったまま「消せた」と言っている").toBe(false);
+    });
+
+    it("走査のあいだに置かれた APP1 も落とす", async () => {
+        const primary = [
+            0xFF, 0xD8,
+            ...segment(0xDB, [0x00, 0x01]),
+            0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x10, 0x20,
+            ...segment(0xE1, [0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...SECRET]), // 走査のあいだの EXIF
+            0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x30, 0x40,
+            0xFF, 0xD9,
+        ];
+        const r = await stripJpegExifDetailed(asFile(primary));
+        expect(r.stripped).toBe(true);
+        expect(has(await bytesOf(r.file), SECRET)).toBe(false);
+    });
+
     it("EOI が見つからない（途中で切れている）ときは、今までどおり残りを全部残す", async () => {
         const cut = [0xFF, 0xD8, ...segment(0xDB, [0x00]), 0xFF, 0xDA, 0x00, 0x04, 0x01, 0x02, 0x11, 0x22];
         const r = await stripJpegExifDetailed(asFile(cut));
