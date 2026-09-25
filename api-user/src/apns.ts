@@ -23,14 +23,30 @@ const PRIVATE_KEY = (process.env.APNS_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
 /** 送り先のアプリ（Bundle ID） */
 const TOPIC = process.env.APNS_TOPIC ?? "";
 /**
- * **既定は本番の APNs。** TestFlight と App Store のビルドはこちら。
- * Xcode から直接入れたビルドだけ `api.sandbox.push.apple.com`。
+ * 送り先。`api.push.apple.com`（TestFlight と App Store）か
+ * `api.sandbox.push.apple.com`（Xcode から直接入れたビルド）。
+ *
+ * 🔴 **既定値を置かない。** 以前は `|| "api.push.apple.com"` と書いていたが、
+ * それは CLAUDE ルールの「本番値のフォールバックは置かない。未設定なら
+ * 止める」に反するうえ、**壊れ方が「動かない」ではなく「データを壊す」**側
+ * だった:
+ *
+ *   1. 鍵・Key ID・Team ID・Topic は入っていて `APNS_HOST` だけ空
+ *      （手でデプロイして旗を1つ忘れた回。`serverless.yml` の既定は `''`）
+ *   2. `apnsConfigured()` が host を見ていないので「設定済み」と判定し、
+ *      **staging から本番の APNs を向く**
+ *   3. sandbox のトークンを本番 APNs に送ると 400 `BadDeviceToken`
+ *   4. `isDeadToken` がそれを「死んだ宛先」と読み、`forgetTokens` が
+ *      **DynamoDB からトークンを消す**
+ *
+ * 利用者が再インストールするまで二度と通知が届かない。**未設定なら
+ * 送らない側に倒す**（通知は積まれるので、アプリを開けば読める）。
  */
-const HOST = process.env.APNS_HOST || "api.push.apple.com";
+const HOST = process.env.APNS_HOST ?? "";
 
 /** 設定が揃っているか。揃っていなければ送信そのものを飛ばす */
 export function apnsConfigured(): boolean {
-    return !!(KEY_ID && TEAM_ID && PRIVATE_KEY && TOPIC);
+    return !!(KEY_ID && TEAM_ID && PRIVATE_KEY && TOPIC && HOST);
 }
 
 /**
@@ -157,19 +173,19 @@ export async function sendPush(
             client?.once("error", reject);
         });
         const jwt = providerToken();
+        // **タイマーは片付ける。** Lambda は応答後に凍るので実害は薄いが、
+        // 残すと1回の送信ごとに2秒のタイマーが積む（テストで待たされる）
+        let deadline: ReturnType<typeof setTimeout> | undefined;
         const results = await Promise.race([
             Promise.all(tokens.map((token) => sendOne(client!, jwt, token, body))),
             failed,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), DEADLINE_MS)),
-        ]);
+            new Promise<null>((resolve) => { deadline = setTimeout(() => resolve(null), DEADLINE_MS); }),
+        ]).finally(() => { if (deadline) clearTimeout(deadline); });
         if (!results) {
             console.warn(`sendPush: ${DEADLINE_MS}ms で返らなかったので諦めました`);
             return { sent: 0, invalid: [] };
         }
-        return {
-            sent: results.filter((r) => r.ok).length,
-            invalid: results.filter((r) => r.invalid).map((r) => r.token),
-        };
+        return aggregate(results);
     } catch (e) {
         console.error("sendPush error:", e);
         return { sent: 0, invalid: [] };
@@ -197,21 +213,55 @@ function sendOne(
         request.on("data", (chunk: string) => { payload += chunk; });
         request.on("error", () => resolve({ token, ok: false, invalid: false }));
         request.on("end", () => {
-            // **無効と判じるのは2つだけ。** 400 の中身は理由で分かれていて、
-            // `PayloadTooLarge` のような**こちらの間違い**で宛先を捨てると、
-            // 直したあとも誰にも届かない
-            const reason = readReason(payload);
-            const invalid = isDeadToken(status, reason);
+            const verdict = classifyResponse(token, status, payload);
             // **断られた署名は捨てる。** 放っておくと、この温まった
             // コンテナは50分ずっと同じ JWT で失敗し続ける
-            if (shouldResignAfter(status, reason)) resetProviderToken();
+            if (verdict.resign) resetProviderToken();
             if (status !== 200) {
-                console.warn(`APNs ${status} ${reason ?? ""}`.trim());
+                console.warn(`APNs ${status} ${verdict.reason ?? ""}`.trim());
             }
-            resolve({ token, ok: status === 200, invalid });
+            resolve({ token: verdict.token, ok: verdict.ok, invalid: verdict.invalid });
         });
         request.end(body);
     });
+}
+
+/**
+ * 1件の応答から「どう扱うか」を決める。**HTTP/2 を建てずに試せる形**に
+ * 切り出してある。
+ *
+ * 🔴 **ここは宛先を消すかどうかを決める場所。** 切り出した理由は、
+ * 切り出す前は `sendPush` を走らせるテストが1本も無く、
+ * `isDeadToken(status, reason)` を `status !== 200` に書き換えても
+ * **42件とも緑だった**（2026-09-25 に変異で実測）。ネットワーク不通や
+ * APNs の 500 で宛先を消す実装に退化しても誰も気づけない状態だった。
+ *
+ * **無効と判じるのは2つだけ**（`isDeadToken`）。400 の中身は理由で
+ * 分かれていて、`PayloadTooLarge` のような**こちらの間違い**で宛先を
+ * 捨てると、直したあとも誰にも届かない。
+ */
+export function classifyResponse(token: string, status: number, payload: string): {
+    token: string; ok: boolean; invalid: boolean; resign: boolean; reason?: string;
+} {
+    const reason = readReason(payload);
+    return {
+        token,
+        ok: status === 200,
+        invalid: isDeadToken(status, reason),
+        resign: shouldResignAfter(status, reason),
+        ...(reason === undefined ? {} : { reason }),
+    };
+}
+
+/**
+ * 送信の結果をまとめる。**`invalid` に入ったものだけが消される**
+ * （`notify.ts` の `deliverPush` が `forgetTokens` に渡す）。
+ */
+export function aggregate(results: readonly { token: string; ok: boolean; invalid: boolean }[]): PushResult {
+    return {
+        sent: results.filter((r) => r.ok).length,
+        invalid: results.filter((r) => r.invalid).map((r) => r.token),
+    };
 }
 
 function readReason(payload: string): string | undefined {

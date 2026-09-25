@@ -35,13 +35,24 @@ export function isDeviceToken(v: unknown): v is string {
     return typeof v === "string" && /^[0-9a-f]{32,200}$/i.test(v.trim());
 }
 
+/**
+ * 保存する形に揃える。**小文字に畳む。**
+ *
+ * 16進なので `AB…` と `ab…` は同じ端末だが、**DynamoDB の Set では別の
+ * メンバー**になる。畳まないと同じ端末が2枠（`DEVICES_MAX` の 10 のうち2つ）を
+ * 占め、通知が二重に届き、片方の綴りで解除しても他方が残る。APNs は
+ * どちらの綴りも受けるので 410 では消えない。
+ */
+export const normalizeDeviceToken = (v: string) => v.trim().toLowerCase();
+
 /** その人の端末トークン。引けなければ空（通知が飛ばないだけ） */
-export async function deviceTokens(uid: string): Promise<string[]> {
+export async function deviceTokens(uid: string, consistent = false): Promise<string[]> {
     try {
         const res = await ddb.send(new GetCommand({
             TableName: PHOTOS_TABLE,
             Key: { id: devicesId(uid) },
             ProjectionExpression: "tokens",
+            ...(consistent ? { ConsistentRead: true } : {}),
         }));
         const tokens = res.Item?.tokens;
         // lib-dynamodb は DynamoDB の Set を JS の Set にして返す
@@ -86,7 +97,7 @@ export const registerDevice: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     } catch {
         return jsonError(400, "不正なリクエスト");
     }
-    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const token = typeof body.token === "string" ? normalizeDeviceToken(body.token) : "";
     if (!isDeviceToken(token)) return jsonError(400, "端末のトークンが不正です");
 
     try {
@@ -119,7 +130,10 @@ export const registerDevice: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
  * （無効なトークンは APNs の 410 で自然に消えていく）。
  */
 async function trimTokens(uid: string, keep: string): Promise<void> {
-    const tokens = await deviceTokens(uid);
+    // **強整合で読む。** いま `ADD` した1台が見えない読みが返ると件数が
+    // 1少なく見えて切り詰めが飛ぶ／2台がほぼ同時に登録すると同じ古い
+    // 断面から各々 `extra` を計算して 10 未満まで削る
+    const tokens = await deviceTokens(uid, true);
     if (tokens.length <= DEVICES_MAX) return;
     const extra = tokens.filter((t) => t !== keep).slice(0, tokens.length - DEVICES_MAX);
     await forgetTokens(uid, extra);
@@ -136,7 +150,7 @@ export const unregisterDevice: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
     } catch {
         return jsonError(400, "不正なリクエスト");
     }
-    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const token = typeof body.token === "string" ? normalizeDeviceToken(body.token) : "";
     // **無いトークンを外せと言われても 200。** ログアウトの後始末なので、
     // ここで止めると「ログアウトできない」になる
     if (!isDeviceToken(token)) {

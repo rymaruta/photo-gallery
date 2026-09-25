@@ -139,3 +139,90 @@ describe("送る中身と、宛先を捨てる判断", () => {
         expect(shouldResignAfter(410, "Unregistered")).toBe(false);
     });
 });
+
+/**
+ * 🔴 **宛先を消す判断の見張り。**
+ *
+ * 切り出す前は `sendPush` を走らせるテストが1本も無く、
+ * `isDeadToken(status, reason)` を **`status !== 200` に書き換えても
+ * 42件とも緑**だった（2026-09-25 に変異で実測）。ネットワーク不通や
+ * APNs の 500 で宛先を消す実装に退化しても誰も気づけなかった。
+ *
+ * 消えた宛先は**利用者が再インストールするまで戻らない**。
+ * `apns.ts` の冒頭が「ここを壊すと本番の端末トークンを消すのに、
+ * テストは緑のままになる」と書いている、まさにその場所。
+ */
+describe("応答の判定（宛先を消すかどうか）", () => {
+    const env = { APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM, APNS_TOPIC: "t", APNS_HOST: "h" };
+    const T = "a".repeat(64);
+    const body = (reason: string) => JSON.stringify({ reason });
+
+    it("死んだ宛先だけを invalid にする", async () => {
+        const { classifyResponse } = await load(env);
+        expect(classifyResponse(T, 410, body("Unregistered")).invalid, "410 を外していない").toBe(true);
+        expect(classifyResponse(T, 400, body("BadDeviceToken")).invalid).toBe(true);
+        expect(classifyResponse(T, 400, body("DeviceTokenNotForTopic")).invalid).toBe(true);
+    });
+
+    // **ここが本題。** 送信の失敗で外すと、直したあとも届かない
+    it.each([
+        [500, "InternalServerError"],
+        [503, "ServiceUnavailable"],
+        [429, "TooManyRequests"],
+        [400, "PayloadTooLarge"],
+        [403, "InvalidProviderToken"],
+        [413, "PayloadTooLarge"],
+    ])("%i %s では外さない（送信の失敗を「死んだ宛先」と混ぜない）", async (status, reason) => {
+        const { classifyResponse } = await load(env);
+        const v = classifyResponse(T, status, body(reason));
+        expect(v.invalid, `${status} ${reason} で宛先を消している`).toBe(false);
+        expect(v.ok).toBe(false);
+    });
+
+    it("200 は成功で、外さない", async () => {
+        const { classifyResponse } = await load(env);
+        expect(classifyResponse(T, 200, "")).toMatchObject({ ok: true, invalid: false, resign: false });
+    });
+
+    // 本文が空・壊れていても落ちない（APNs は 200 で本文を返さない）
+    it("理由が読めない応答でも外さない", async () => {
+        const { classifyResponse } = await load(env);
+        for (const payload of ["", "{", "null", "[]"]) {
+            expect(classifyResponse(T, 500, payload).invalid, JSON.stringify(payload)).toBe(false);
+        }
+    });
+
+    it("まとめるときも、invalid に入ったものだけを渡す", async () => {
+        const { aggregate } = await load(env);
+        expect(aggregate([
+            { token: "t1", ok: true, invalid: false },
+            { token: "t2", ok: false, invalid: false },   // 送信の失敗
+            { token: "t3", ok: false, invalid: true },    // 死んだ宛先
+        ])).toEqual({ sent: 1, invalid: ["t3"] });
+    });
+});
+
+/**
+ * 🔴 **`APNS_HOST` に既定値を置かない。**
+ *
+ * 以前は `|| "api.push.apple.com"` だった。鍵だけ入って host が空だと
+ * staging から本番の APNs を向き、sandbox のトークンが 400
+ * `BadDeviceToken` を受けて**消される**（`classifyResponse` は正しく
+ * 動いているのに救えない形）。
+ */
+describe("送り先（APNS_HOST）", () => {
+    it("host が空なら「未設定」＝送らない", async () => {
+        const { apnsConfigured } = await load({
+            APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM, APNS_TOPIC: "t", APNS_HOST: "",
+        });
+        expect(apnsConfigured(), "host が無いのに本番へ送ろうとしている").toBe(false);
+    });
+
+    it("5つ揃って初めて「設定済み」", async () => {
+        const { apnsConfigured } = await load({
+            APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM,
+            APNS_TOPIC: "t", APNS_HOST: "api.sandbox.push.apple.com",
+        });
+        expect(apnsConfigured()).toBe(true);
+    });
+});
