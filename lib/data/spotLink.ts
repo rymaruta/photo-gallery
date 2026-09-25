@@ -30,6 +30,10 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { publishableSpots, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
+import {
+    PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
+    prefectureByName, type RegionName,
+} from "./prefectures";
 
 /**
  * 画面がスポットへリンクするのに要る項目**だけ**。
@@ -74,6 +78,33 @@ export function toSpotLink(spot: Spot): SpotLink {
         cover,
     };
 }
+
+/**
+ * 🔴 **索引（`/spots`）が読む形。**
+ *
+ * `SpotLink` ＋ テーマのチップに使う `category` **だけ**。
+ *
+ * ## なぜ足したか（2026-09-24・実ビルドで数えた）
+ *
+ * `app/spots/page.tsx` は `publishableSpots(SPOTS)` を**そのまま**
+ * `"use client"` の `SpotIndexClient` に渡していた。Next はクライアント
+ * 部品への props を RSC ペイロードとして**HTMLに埋め込む**ので、
+ * **台帳の全文が索引ページに載っていた**:
+ *
+ *     out/spots.html   120件で **518,880 バイト**（1件あたり約4.3KB）
+ *
+ * 画面が読むのは name / slug / region / summary / category / cover の
+ * 6つだけで、`description`・`highlights`・季節・時間帯・構図・`sources`
+ * ——つまり1件の大半——は**誰も読まずにHTMLに乗っていた**。
+ *
+ * ⚠️ `spotLedgerClientImport.test.ts` は「クライアントが `SPOTS` を
+ * import していないか」を見るが、**props で渡す経路は素通りする**。
+ * この形が2つ目の抜け道だった。
+ *
+ * `deploy-static-site.js` は HTML を `no-cache, no-store` で配るので、
+ * ここは**訪問のたびに落ちるバイト**になる（`CLAUDE.md` の表示速度の節）。
+ */
+export type SpotIndexItem = SpotLink & { category?: string };
 
 /**
  * 写真が指しているスポット。**`spotId` でしか照合しない。**
@@ -141,4 +172,99 @@ export function spotLinksById(): Record<string, SpotLink> {
     const out: Record<string, SpotLink> = {};
     for (const spot of publishableSpots(SPOTS)) out[spot.spotId] = toSpotLink(spot);
     return out;
+}
+
+/**
+ * 🔴 **旅行プラン（`/trips`）が読む項目だけ。**
+ *
+ * `spotLinksById` の docstring は「クライアントから台帳を import しない」
+ * ことを書いているが、**props で渡す経路が抜けていた**——Next は
+ * クライアント部品への props を RSC ペイロードとして**HTMLに埋め込む**ので、
+ * 渡した `SpotLink` の全項目がそのページに乗る。`/spots` が同じ形で
+ * 踏んでいる（`SpotIndexItem` の注記）。
+ *
+ * `TripsClient` が読むのは **`name`（項目の見出し）と `slug`（保存済みの
+ * 行きたい場所との突き合わせ）の2つだけ**。実測（2026-09-24・台帳474件）:
+ *
+ *     spotLinksById()   97,043 バイト
+ *     name + slug だけ  28,294 バイト   → **68,749 バイト（71%）が余分**
+ *
+ * `/trips` の HTML も `no-cache, no-store` で配る
+ * （`scripts/deploy-static-site.js` の `isHtmlOrTxt`）ので、この差は
+ * **訪問のたびに落ちるバイト**になる。
+ *
+ * `SpotLink` の部分型にしてあるので、`SpotLink` を渡す側はそのまま通る。
+ */
+export type SpotRef = Pick<SpotLink, "slug" | "name">;
+
+/** 旅行プランに渡す一覧。`spotId` で引ける形で、**名前と綴りだけ** */
+export function spotRefsById(): Record<string, SpotRef> {
+    const out: Record<string, SpotRef> = {};
+    for (const spot of publishableSpots(SPOTS)) {
+        out[spot.spotId] = { slug: spot.slug, name: spot.name };
+    }
+    return out;
+}
+
+/**
+ * 🔴 **`/spots` は都道府県の一覧にする。**
+ *
+ * 全件を1ページに並べると、伸びたぶんだけ索引が重くなる。実測（2026-09-24）:
+ *
+ *     1件あたり 1,809 バイト（`SpotIndexItem` に落としたあと）
+ *     × 1,410件（各県30件）＝ **約2.4MB** が1枚のHTMLに乗る
+ *
+ * HTML は `no-cache, no-store` で配る（`scripts/deploy-static-site.js` の
+ * `isHtmlOrTxt`）ので、これは**訪問のたびに落ちるバイト**になる。
+ *
+ * だからこの関数が返すのは**県の名前と件数だけ**。1件あたり50バイト前後で、
+ * 47県でも 3KB に満たない。スポットの一覧は `/spots/area/<slug>` に分ける。
+ */
+export type SpotArea = {
+    slug: string;
+    name: string;
+    nameEn: string;
+    /** 地方。`null` は海外 */
+    region: RegionName | null;
+    count: number;
+};
+
+/** 台帳の1件が属する区画のスラッグ。**国内は都道府県・海外は一括** */
+function areaSlugOf(spot: Spot): string | null {
+    if (spot.region?.country !== "日本") return OVERSEAS_SLUG;
+    return prefectureByName(spot.region?.prefecture)?.slug ?? null;
+}
+
+/**
+ * 公開できるスポットが**1件以上ある区画だけ**を、件数つきで返す。
+ *
+ * **0件の県は出さない。** `SpotIndexClient` が「0件のテーマは作らない」と
+ * しているのと同じ理由——押しても何も無いリンクは、見た人の役に立たない。
+ */
+export function spotAreas(): SpotArea[] {
+    const counts = new Map<string, number>();
+    for (const s of publishableSpots(SPOTS)) {
+        const slug = areaSlugOf(s);
+        if (slug) counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+    const out: SpotArea[] = [];
+    for (const p of PREFECTURES) {
+        const n = counts.get(p.slug) ?? 0;
+        if (n > 0) out.push({ slug: p.slug, name: p.name, nameEn: p.nameEn, region: p.region, count: n });
+    }
+    const overseas = counts.get(OVERSEAS_SLUG) ?? 0;
+    if (overseas > 0) {
+        out.push({
+            slug: OVERSEAS_SLUG, name: OVERSEAS_NAME, nameEn: OVERSEAS_NAME_EN,
+            region: null, count: overseas,
+        });
+    }
+    return out;
+}
+
+/** その区画のスポット。索引と同じ軽い形（`/spots/area/<slug>` が読む） */
+export function spotIndexItemsForArea(slug: string): SpotIndexItem[] {
+    return publishableSpots(SPOTS)
+        .filter((s) => areaSlugOf(s) === slug)
+        .map((s) => ({ ...toSpotLink(s), ...(s.category ? { category: s.category } : {}) }));
 }
