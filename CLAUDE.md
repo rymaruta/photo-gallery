@@ -255,35 +255,50 @@ setup ファイルはテストモジュールより**先に登録される**の�
 **直さない判断も測ってから書く。** 推測で「直っている／直っていない」と
 書くと、次に読む人がそれを前提に動く。
 
-### 1. ホームの柱は `<a>` のまま（`<Link>` に戻さない）
+### 1. ~~ホームの柱は `<a>` のまま~~ → **同じ日の夜に覆した。いまは `<Link>`**
 
-9/22 に `useGallery` の水和失敗（`#418`）を直したが、**直ったのは
-「クエリ付きの URL を直接ひらく」経路だけ**。柱を `<Link>` に戻して
-本番と同じ環境変数でビルドし、Chromium で実測した（2026-09-23）:
+🔴 **この節はいちど「`<Link>` に戻さない」と書いた。同じ日の夜に根っこを
+直して回避策を撤去したのに、ここを消し忘れた。**
 
-    行き先                        直接ひらく    ホームから <Link> で押す
-    /search?category=landscape      16件 ✅      30件・URL は `/search` ❌
-    /search?category=architecture    6件 ✅      30件・URL は `/search` ❌
-    /search?category=nature          5件 ✅      30件・URL は `/search` ❌
-                                                （絞り込み無しの全件＝30件）
+    09-23 08:55  #140 マージ  この節が develop に入る（「<a> のまま」）
+    09-23 21:51  #141 マージ  根っこを直し、`DiscoverSections` の回避策を撤去
+                              → この節はその時点で古くなった。消さなかった
 
-**クエリは落ちたままで、URL からも消える。** 理由は水和とは別:
-`readFiltersFromUrl` を呼ぶ `useMemo` の依存が `[clientRender]` だけなので、
-**クライアント遷移のあとに URL を読み直さない**（遷移の瞬間はまだ
-`window.location` が古い）。直後の URL 同期が `?category=` を消す。
+**いまの事実**（`origin/develop` を読んで確認・2026-09-24）:
 
-だから `DiscoverSections.tsx` の「ここを `<Link>` に戻さないこと」は
-**いまも有効**。見張りは `DiscoverSections.test.tsx`。
+- `app/search/DiscoverSections.tsx:114-118` の `ItemLink` は**全項目 `<Link prefetch={false}>`**
+- 根っこは `lib/hooks/useGallery.ts` に入っている——`subscribeToUrl` を
+  `useSyncExternalStore` に繋いだ（`:215` の `urlSearch`）ので、
+  **クライアント遷移のあとも URL を読み直す**。`useMemo` の依存が
+  `[clientRender]` だけだった、というのが当時の原因で、それは直っている
+- 戻すと**押すたびに HTML を1本落とし直す**（実測 gzip 15,477 B ／
+  `<Link>` の RSC の控えは 3,934 B）
 
-**根っこを直すときの道具はもう repo にある**——`app/components/SearchParamWatcher.tsx`
-（`useSearchParams()` を `Suspense` で隔離した部品。`output: export` で
-部分木が静的HTMLに焼けなくなる問題を避けるためにこの形になっている）。
-`GalleryPageClient` は `?photo=` を**既にこれで**見張っている
-（`<SearchParamWatcher name="photo" onChange={setPhotoParam} />`）。
-絞り込み側も同じ形に寄せれば `<Link>` に戻せる。**新しい仕組みは要らない。**
-やらなかったのは、ホームと「さがす」の両方を描く中核フックの書き換えに
-なるのに対し、**いま人が踏む不具合は1つも無い**（柱は `<a>`・404救済は
-`location.replace`・`/login?next=` は `useSearchParams`）から。
+**新しくホームや「さがす」の柱を作るときは `<Link prefetch={false}>`。**
+
+### ⚠️ ただし「枝に入っているか」を必ず見ること
+
+**この節を読んで枝の実装を責めない。** 9/23 の日中に切った枝には
+`subscribeToUrl` が**入っていない**ので、その枝では `<a>` が正しい。
+
+実例: PR #142 は 09:19 に `#140` のマージ地点から切られた（#141 はまだ
+open）。`DiscoverRail` が全リンクを `<a>` にし、doc に「#141 が入ったら
+`<Link>` に寄せる」と書いてある——**その判断は当時の土台に対して正しい**。
+直す順序は **① develop を取り込む → ② `<Link>` に寄せる**。①を飛ばして
+②だけやると、その枝では本当にクエリが落ちる。
+
+    git show origin/<枝>:lib/hooks/useGallery.ts | grep -c subscribeToUrl
+    # 0 なら、その枝ではまだ `<a>` が正しい
+
+⚠️ **見張りは効かない。** `app/__tests__/linkPrefetch.test.ts` は `<Link` を
+数えるので、**`<a>` に退化した箇所は素通りする**（`DiscoverSections.test.tsx`
+は `<Link>` に印を付けて見分けているが、それは `DiscoverSections` だけ）。
+
+**教訓は2つ。** 「直さない」と書いたら、直したときに同じ手で消す。
+そして**台帳の日付とコミットの authored 時刻を混ぜない**——この節を最初に
+書き直したとき、`57cb9a19`(08:42) と `77b84005`(08:53) の authored 時刻を
+並べて「11分後に覆した」と書いたが、**develop に入った順は 08:55 と 21:51**
+で、実際は約13時間空いている。**枝の上の時刻は、入った順ではない。**
 
 ### 2. `FilterBar` / `ColorJourney` の `aria-pressed` はそのまま
 
