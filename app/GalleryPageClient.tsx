@@ -554,9 +554,17 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           （`app/users/UserProfileClient.tsx`・2026-09-22）。
           矢印キーの計算は `lib/utils/tabKeys.ts` を使い回す——**同じ計算を
           もう1つ書かない**（あちらのコメントが名指ししている形） */}
+      {/* 板（`Main.dc.html`）のタブ。**丸薬から下線へ。**
+         採った数値: 間隔 24px ／ 1つの高さ 44px ／ 字 15px ／
+         選択中だけ太字＋下線（`inset 0 -2px 0 #fff`）／
+         列の下に 1px の細い線。
+         🔴 **高さ 28px はタップ領域の基準（44px）に届いていなかった。**
+         見た目の話の前に、指で押す的が小さすぎた。
+         **px で書く**——640px 未満は root が 14px なので `gap-6` も
+         `text-sm` も縮む（`gap-6` は 21px にしかならない）。 */}
       {surface === "home" && (
         <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
-             className="inline-flex items-center gap-1 p-1 mb-3 rounded-full bg-white/5 ring-1 ring-white/10">
+             className="flex items-stretch gap-[24px] mb-3 border-b border-white/[0.12]">
           {HOME_TABS.map((t) => {
             const active = filters.scope === t.key;
             return (
@@ -571,8 +579,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                 tabIndex={active ? 0 : -1}
                 onClick={() => setFilters({ scope: t.key })}
                 onKeyDown={onHomeTabKeyDown}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  active ? "bg-accent-fill text-white" : "text-white/70 hover:text-white"
+                className={`min-h-[44px] px-0 text-[15px] transition-colors ${
+                  active ? "text-white font-semibold shadow-[inset_0_-2px_0_#fff]" : "text-white/60 hover:text-white"
                 }`}
                 style={{ touchAction: "manipulation" }}
               >
