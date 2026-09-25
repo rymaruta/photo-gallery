@@ -139,3 +139,45 @@ describe("iOS Safari の細部", () => {
         expect(code("app/components/NotificationsBell.tsx")).toContain("overscroll-contain");
     });
 });
+
+/**
+ * 🔴 **高さとスクロール**（`docs/ios-bug-audit-2026-09-25.md` #4・#24・#39・#7・#47・#51）。
+ * どれも実測で見つけたもの（Chromium・iPhone の画面を真似た・本番と同じ設定のビルド）。
+ */
+describe("高さとスクロール", () => {
+    const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+
+    it("body に高さを固定しない（sticky のヘッダーが画面1枚ぶんで流れて消えた）", () => {
+        // `html, body { … height: 100% … }` の形が残っていないこと
+        const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] }));
+        const bodyHeight = rules.filter((r) => r.sel.split(",").map((x) => x.trim()).includes("body") && /(^|[;\s])height:\s*100%/.test(r.body));
+        expect(bodyHeight.map((r) => r.sel)).toEqual([]);
+        expect(rules.some((r) => r.sel === "html" && /(^|[;\s])height:\s*100%/.test(r.body))).toBe(true);
+    });
+
+    it("ページ内の位置合わせでヘッダーの下に潜らせない", () => {
+        expect(css).toMatch(/html\s*\{[^}]*scroll-padding-top:\s*var\(--header-h\)/);
+    });
+
+    it("遷移のスクロールはなめらかにしない（Next 16 は html の data 属性を見て遷移の間だけ切る）", () => {
+        expect(code("app/layout.tsx")).toMatch(/<html[^>]*data-scroll-behavior="smooth"/);
+    });
+
+    it("トーストは下部タブバーの上に出す", () => {
+        expect(code("app/components/Toast.tsx")).toMatch(/bottom:\s*"calc\(var\(--bottom-bar-h/);
+    });
+
+    it("退会の確認は入り切らないときスクロールできる（横向きで上下が切れていた）", () => {
+        const src = code("app/components/DeleteAccountModal.tsx");
+        const outer = src.slice(src.indexOf("ref={dialogRef}"), src.indexOf("role=\"dialog\""));
+        expect(outer).toContain("overflow-y-auto");
+        expect(outer).not.toContain("items-center");
+        expect(src).toContain("my-auto");
+    });
+
+    it("地図の下限は、スマホでは見えている高さを超えない", () => {
+        const src = code("app/map/MapPageClient.tsx");
+        expect(src).not.toMatch(/(?<![\w:-])min-h-\[320px\]/);
+        expect(src).toContain("min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,57px)_-_24px))]");
+    });
+});

@@ -218,7 +218,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const webSiteStructuredData = generateWebSiteStructuredData();
   
   return (
-    <html lang="ja">
+    // **`data-scroll-behavior="smooth"` は Next 16 への合図。** `globals.css` が
+    // `html { scroll-behavior: smooth }` を持っているので、これが無いと
+    // ページ遷移の位置合わせまでなめらかに流れる（実測: 508 → 65 を約430ms。
+    // 新しいページの途中が見えてから上へ流れていく）。付けると、遷移の間だけ
+    // Next が一時的に切る。ページ内のなめらかなスクロールはそのまま。
+    <html lang="ja" data-scroll-behavior="smooth">
       <head>
         {/*
           CSS が届かなかったときの最低限の下地。

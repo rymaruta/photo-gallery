@@ -78,7 +78,12 @@ export default function ToastContainer() {
     return (
         <div
             className="fixed inset-x-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none"
-            style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+            // **下部タブバー（と画面ごとの下の帯）の上に出す。** 以前は
+            // ホームへ戻る帯のぶんしか空けておらず、タブバーの上に重なって、
+            // 出ている間はタブが押せなかった（前面・`pointer-events-auto`）。
+            // タブバーの高さは安全領域込みでバー自身が `--bottom-bar-h` に出す。
+            // 出る前（と出ない画面）は同じ見積もり（`globals.css` の body と同じ式）
+            style={{ bottom: "calc(var(--bottom-bar-h, calc(env(safe-area-inset-bottom, 0px) + 57px)) + var(--page-bar-h, 0px) + 16px)" }}
             aria-live="assertive"
         >
             {toasts.map((toast) => (

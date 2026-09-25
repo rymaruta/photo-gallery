@@ -289,6 +289,10 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
 
                     {/* 右（PC）／下（スマホ）: 地図 */}
                     <div className={`${view === "map" ? "" : "hidden lg:block"} lg:flex-1 lg:min-w-0`} style={{ marginTop: "12px" }}>
+                        {/* **スマホの下限は「画面に見えている高さ」を超えない。** 固定の 320px
+                            だと、横向きの iPhone（高さ 390px）ではヘッダーとタブバーを引いた
+                            見える高さ（約240px）より高くなり、地図の上の1本指はページでなく
+                            地図を動かすので、地図の下へ抜けにくかった */}
                         <PhotoMap
                             photos={filtered}
                             locale={locale}
@@ -300,7 +304,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             spots={spots}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
-                            className="h-[62vh] min-h-[320px] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
+                            className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,57px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
                         />
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**

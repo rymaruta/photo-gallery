@@ -50,11 +50,28 @@
 
 html {
   scroll-behavior: smooth;
+  /* **ページ内の位置合わせでヘッダーの下に潜らせない。**
+     ヘッダーは sticky で上に貼り付くので、ブラウザが要素を画面の上端へ
+     合わせる（Next の遷移後の位置合わせ・`scrollIntoView`・#アンカー）と、
+     その要素がヘッダーの裏に入る。一覧を下へ送ってから写真ページへ移ると、
+     上部の「戻る・共有・その他」が押せなかった（実測: 着いた先が scrollY 65）。 */
+  scroll-padding-top: var(--header-h);
+}
+
+/* **body に高さを固定しない（html だけ 100%）。**
+   以前は `html, body { height: 100% }` で、body の箱が画面1枚ぶんで止まり、
+   中身はその外へはみ出していた。そのせいで
+     - sticky のヘッダーが body の箱の中でしか貼り付かず、画面1枚ぶん
+       スクロールすると一緒に流れて消えた（実測 390x664: scrollY 560 から）
+     - 下の `padding-bottom`（タブバーのぶん）が箱の内側に入って効かず、
+       フッターの最後の行がタブバーの裏に残った
+   高さの下限は body の `min-h-screen`（と下の `100dvh`）が持つ。 */
+html {
+  height: 100%;
 }
 
 html,
 body {
-  height: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
