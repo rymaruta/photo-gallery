@@ -1240,8 +1240,10 @@ describe("1画面ぶんの通知一覧（スマホ）と PC の板", () => {
         const sheet = screen.getByRole("dialog", { name: "通知" });
         expect(sheet, "全画面のシートになっていない").toBeInTheDocument();
         // **ヘッダーの下から始める**（モックもロゴとベルを残している）。
-        // 画面の一番上から覆うと、閉じる手段がシートの中だけになる
-        expect(sheet.className).toContain("top-[64px]");
+        // 画面の一番上から覆うと、閉じる手段がシートの中だけになる。
+        // 高さは安全領域込みの変数で見る（ホーム画面から起動したときは
+        // ヘッダーが時計・電池の帯のぶん高くなる）
+        expect(sheet.className).toContain("top-[var(--header-h)]");
         expect(sheet.className).toContain("fixed");
     });
 

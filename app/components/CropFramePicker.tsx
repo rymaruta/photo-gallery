@@ -121,7 +121,16 @@ export default function CropFramePicker({ src, hint, focalPoint, onChange, fallb
                     // **縦スクロールを奪わない。** 動かせるのが横だけの写真で
                     // `touch-none` にすると、写真の上で指を上下に振っても
                     // ページが動かなくなる
-                    style={draggable ? { touchAction: movable.x && movable.y ? "none" : movable.x ? "pan-y" : "pan-x" } : undefined}
+                    //
+                    // **長押しで画像のメニュー（保存・共有）を出させない。** 押したまま
+                    // 少し待ってから動かすと iOS がメニューを出し、`pointercancel` で
+                    // ドラッグが途切れた（`pointerdown` の preventDefault では止まらない）
+                    style={draggable ? {
+                        touchAction: movable.x && movable.y ? "none" : movable.x ? "pan-y" : "pan-x",
+                        WebkitTouchCallout: "none",
+                        WebkitUserSelect: "none",
+                        userSelect: "none",
+                    } : undefined}
                 />
                 {box && (
                     <div

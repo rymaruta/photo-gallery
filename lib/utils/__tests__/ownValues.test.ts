@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment } from "../ownValues";
+import { collectOwnValues, appendTag, toggleTag, hasTag, suggestTags, dropFragment, typingFragment, splitTags } from "../ownValues";
 import type { Photo } from "../../data/photos";
 
 const P = (over: Partial<Photo>) => ({ id: "x", src: "s", ...over }) as Photo;
@@ -354,5 +354,28 @@ describe("押したあとに打つと、新しいタグになる", () => {
     // 押した直後は「打ちかけ」が無いので、候補は絞られていない
     it("押した直後の欄は、打ちかけとして扱われない", () => {
         expect(typingFragment(pool, press("", "sauna"))).toBe("");
+    });
+});
+
+// iPhone のかなキーボードでいちばん自然に打てる区切りは「、」。
+// `,` だけを区切りにしていた頃は「桜、紅葉」が1つのタグとして保存され、
+// 打った瞬間に候補チップも全部消えていた（docs/ios-bug-audit-2026-09-25.md #21）。
+describe("日本語の区切り（、 ，）", () => {
+    it("「、」「，」「､」でも分ける。空白では分けない", () => {
+        expect(splitTags("桜、紅葉，海､ 山, New York")).toEqual(["桜", "紅葉", "海", "山", "New York"]);
+    });
+
+    it("「、」で区切った後の打ちかけでも候補を絞る（区切りの前は選び終えた扱い）", () => {
+        expect(typingFragment(["桜", "紅葉"], "桜、紅")).toBe("紅");
+        expect(suggestTags(["桜", "紅葉", "海"], "桜、紅").map(String)).toContain("紅葉");
+    });
+
+    it("「、」で区切った欄でも、既に入っているタグは入っていると分かる", () => {
+        expect(hasTag("桜、紅葉", "紅葉")).toBe(true);
+        expect(toggleTag("桜、紅葉", "紅葉")).toBe("桜, ");
+    });
+
+    it("チップを押すと、「、」の後ろの打ちかけだけを落とす", () => {
+        expect(dropFragment(["桜", "紅葉"], "桜、紅")).toBe("桜");
     });
 });

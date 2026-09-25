@@ -117,8 +117,8 @@ export default function StoryTextOverlay({
                 // `rotate` を実際に持たない
                 const rotate = clampStoryTextRotate(t.rotate);
                 return (
+                    <React.Fragment key={i}>
                     <p
-                        key={i}
                         data-story-text-index={i}
                         onPointerDown={onPickIndex ? (e) => onPickIndex(i, e) : undefined}
                         // **キーボードでも選べて、動かせる。** 指でなぞる以外の
@@ -361,6 +361,37 @@ export default function StoryTextOverlay({
                             </button>
                         )}
                     </p>
+                    {/* **読み上げ（VoiceOver）から動かす・回す・大きさを変える手段。**
+                        上の操作は指でなぞるか矢印キーで、iPhone の VoiceOver では
+                        どちらも使えず、置き場所も傾きも変えられなかった（#53）。
+                        選んでいる1つにだけ、見えないボタンを出す */}
+                    {editable && selected && (onNudge || onTransform) && (
+                        <div className="sr-only">
+                            {onNudge && ([
+                                [locale === "en" ? "Move up" : "上へ動かす", 0, -0.05],
+                                [locale === "en" ? "Move down" : "下へ動かす", 0, 0.05],
+                                [locale === "en" ? "Move left" : "左へ動かす", -0.05, 0],
+                                [locale === "en" ? "Move right" : "右へ動かす", 0.05, 0],
+                            ] as const).map(([label, dx, dy]) => (
+                                <button key={label} type="button" className="pointer-events-auto" onClick={() => onNudge(i, dx, dy)}>{label}</button>
+                            ))}
+                            {onTransform && (<>
+                                <button type="button" className="pointer-events-auto" onClick={() => onTransform(i, { rotate: rotate - ROTATE_STEP_DEG_COARSE })}>
+                                    {locale === "en" ? "Rotate left" : "左に回す"}
+                                </button>
+                                <button type="button" className="pointer-events-auto" onClick={() => onTransform(i, { rotate: rotate + ROTATE_STEP_DEG_COARSE })}>
+                                    {locale === "en" ? "Rotate right" : "右に回す"}
+                                </button>
+                                <button type="button" className="pointer-events-auto" onClick={() => onTransform(i, { size: stepSize(t.size, 1) })}>
+                                    {locale === "en" ? "Larger" : "大きくする"}
+                                </button>
+                                <button type="button" className="pointer-events-auto" onClick={() => onTransform(i, { size: stepSize(t.size, -1) })}>
+                                    {locale === "en" ? "Smaller" : "小さくする"}
+                                </button>
+                            </>)}
+                        </div>
+                    )}
+                    </React.Fragment>
                 );
             })}
         </div>

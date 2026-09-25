@@ -1341,7 +1341,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             {/* タブ: コメント (N) ／ 関連写真。**両方の中身を描いて、見えない側は `hidden`**
                 ——関連写真の `/photo/<id>` リンクは静的HTMLに焼かれている必要がある
                 （回遊＝SEO。本番のスモークも「ほかの写真への導線」を数える） */}
-            <div ref={tabsRef} className="mt-5 px-4 lg:px-0">
+            {/* 「コメントを見る」で `scrollIntoView` する先。ヘッダーは sticky で
+                上に貼り付くので、その高さぶん手前で止める（止めないとタブが
+                ヘッダーの裏に入る） */}
+            <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
                      className="flex border-b border-white/10">
                     {([

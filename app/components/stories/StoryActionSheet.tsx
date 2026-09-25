@@ -34,10 +34,12 @@ export type StorySheetItem = {
  * （写真ページ・スポット）で、モック09 はこの全幅のシートを描いている。
  * 片方をもう片方に寄せると、寄せた側の画面のモックから外れる。
  */
-export default function StoryActionSheet({ items, onClose, cancelLabel, description, openerRef }: {
+export default function StoryActionSheet({ items, onClose, cancelLabel, description, openerRef, label }: {
     items: StorySheetItem[];
     onClose: () => void;
     cancelLabel: string;
+    /** 読み上げの名前（説明が無いときに使う） */
+    label?: string;
     /** 確認に使うときの説明文（メニューでは省く） */
     description?: string;
     /** 閉じたときにフォーカスを戻す先（「…」ボタン） */
@@ -58,7 +60,17 @@ export default function StoryActionSheet({ items, onClose, cancelLabel, descript
             className="absolute inset-0 z-40 flex items-end justify-center bg-black/60 px-3 pb-3"
             onClick={onClose}
         >
-            <div ref={panelRef} className="w-full max-w-[340px] space-y-2" onClick={(e) => e.stopPropagation()}>
+            {/* **ダイアログと名乗る。** 名乗らないと VoiceOver のスワイプ
+                （Tab ではない）で裏の閉じる・返信欄へ出てしまう（#48）。
+                名前は説明があればそれ、無ければ呼び手が渡す名前 */}
+            <div
+                ref={panelRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={description || label}
+                className="w-full max-w-[340px] space-y-2"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="rounded-2xl bg-surface-2/95 backdrop-blur-xl overflow-hidden">
                     {description && (
                         <p className="px-4 py-3.5 text-center text-[13px] text-white/55 leading-snug">{description}</p>

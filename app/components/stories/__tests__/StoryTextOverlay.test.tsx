@@ -548,3 +548,32 @@ describe("StoryTextOverlay: 投票に票を入れる", () => {
         expect(buttons()).toHaveLength(0);
     });
 });
+
+// iPhone の VoiceOver では、指でなぞることも矢印キーも使えない。
+// 置いた文字を動かす・回す・大きさを変える手段が無かった
+// （docs/ios-bug-audit-2026-09-25.md #53）。
+describe("VoiceOver から動かせる", () => {
+    it("選んでいる文字にだけ、動かす・回す・大きさのボタンを出す", () => {
+        const onNudge = vi.fn();
+        const onTransform = vi.fn();
+        render(
+            <StoryTextOverlay
+                texts={[t({ text: "あ" }), t({ text: "い", rotate: 0 })]} box={box} selectedIndex={1}
+                onPickIndex={vi.fn()} onNudge={onNudge} onTransform={onTransform} locale="ja"
+            />,
+        );
+        expect(screen.getAllByRole("button", { name: "上へ動かす" })).toHaveLength(1);
+        fireEvent.click(screen.getByRole("button", { name: "右へ動かす" }));
+        expect(onNudge).toHaveBeenCalledWith(1, 0.05, 0);
+        fireEvent.click(screen.getByRole("button", { name: "右に回す" }));
+        expect(onTransform.mock.calls[0][0]).toBe(1);
+        expect(onTransform.mock.calls[0][1].rotate).toBeGreaterThan(0);
+        fireEvent.click(screen.getByRole("button", { name: "大きくする" }));
+        expect(onTransform.mock.calls[1][1].size).toBeGreaterThan(STORY_SIZE_DEFAULT);
+    });
+
+    it("見る側（動かせない）には出さない", () => {
+        render(<StoryTextOverlay texts={[t()]} box={box} selectedIndex={0} locale="ja" />);
+        expect(screen.queryByRole("button", { name: "上へ動かす" })).toBeNull();
+    });
+});

@@ -13,6 +13,7 @@ import { log } from "../../../lib/utils/log";
 import { createThumbnail, toUploadSafeFile, UnstrippableFileError, extractDominantColor, createBlurPlaceholder } from "../../../lib/utils/image";
 import { extractExifFromFile, extractCameraExif, reverseGeocode } from "../../../lib/utils/exif";
 import { readSharedResult, clearSharedPayload } from "../../../lib/utils/shareStore";
+import { saveUploadDraft, readUploadDraft, clearUploadDraft, allowUploadDraft } from "../../../lib/utils/uploadDraft";
 import { ROUTES } from "../../../lib/routes";
 import { formatStoredDateTime } from "../../../lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
@@ -22,7 +23,7 @@ import { unstrippableMessage, gifRejectedLabel } from "../../../lib/utils/upload
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
-import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, type OwnValues } from "../../../lib/utils/ownValues";
+import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTags, TAG_SEPARATOR, type OwnValues } from "../../../lib/utils/ownValues";
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
@@ -139,7 +140,7 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
 }
 
 function UploadPageInner() {
-    const { isAuthenticated, isAdminUser, loading } = useAuth();
+    const { isAuthenticated, isAdminUser, loading, userId } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { locale } = useLocale();
@@ -344,7 +345,7 @@ function UploadPageInner() {
         // キーで外すため）。畳んだ結果は**最初に打った綴り**を残す
         const seen = new Set<string>();
         const out: string[] = [];
-        for (const raw of tags.split(",")) {
+        for (const raw of tags.split(TAG_SEPARATOR)) {
             const t = raw.trim();
             if (!t) continue;
             const key = tagKey(t) || t;
@@ -423,12 +424,198 @@ function UploadPageInner() {
     // ログインのリダイレクトでは `?from=share` は保たれる（`safeNextPath` が
     // search ごと運ぶ）。それでも 1時間以内のペイロードを次回の表示で拾うのは、
     // **クエリを落としたあと**に開き直した場合の受け皿として。
+    /**
+     * **書きかけを端末に控える**（#8）。iOS はバックグラウンドのページを黙って
+     * 捨てるので、カメラや写真の選択・別のアプリから戻ると読み込み直しになり、
+     * 選んだ写真も打った題名・説明も消えていた。画面が隠れる瞬間に、まだ
+     * 上げていない写真と入力を控え、開き直したときに戻す
+     * （`lib/utils/uploadDraft.ts`）。上げ始めたら消し、上げ終わったら残り
+     * （失敗した写真）で書き直す。上げている最中に画面を離れたら消す
+     * （上げる処理は画面が閉じても続くので、残すと二重に上がる）。
+     */
+    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false, userId: null as string | null });
+    // **最後に分かっていた持ち主を覚えておく。** セッションが切れると userId は
+    // null になるが、画面は写真を守ったまま「別のタブでログインし直して」と
+    // 案内する（holdingWork）。その案内どおりに離れた瞬間に控えを消すと、
+    // iOS がページを捨てたときに全部失う。明示的なログアウトは
+    // forgetUploadDraftOnSignOut が書き込みを止める
+    const lastUserIdRef = useRef<string | null>(null);
+    /** 持ち主が入れ替わるたびに進む番号。待っている間に入れ替わった処理の結果を捨てる */
+    const ownerGenRef = useRef(0);
+    /**
+     * **このタブが控えを書いた・読んだ持ち主。** 控えを消してよいのは、その人の
+     * 控えだと分かっているときだけ。置き場は1つで、入れ替わったあと（凍っていた
+     * タブが戻ってきた場合など）は別の人の控えが入っていることがある——写真0枚で
+     * 隠れた・上げ始めた、のたびに無条件に消すと、それを消してしまう
+     */
+    const draftOwnedByRef = useRef<string | null>(null);
+    const clearOwnDraft = useCallback(() => {
+        const owner = draftSourceRef.current.userId;
+        if (!owner || draftOwnedByRef.current !== owner) return;
+        draftOwnedByRef.current = null;
+        void clearUploadDraft();
+    }, []);
+    /** 入れ替わりで上げるのを止めた（新しい人に「やめました」を出さない） */
+    const abortedBySwitchRef = useRef(false);
+    // **別の人に入れ替わったら、前の人の写真を捨てる。** 投稿画面を開いたまま
+    // 別のタブで A がログアウトし B がログインすると、このタブの userId は
+    // A → null → B と変わる。前の人の写真（原本）を B の控えとして書いたり、
+    // B がそのまま投稿したりしないよう、画面からも控えからも消す。
+    // 持ち主の更新はこの effect だけで行う——描画の途中で B に変えると、
+    // effect までの間に隠れたときに A の写真を B の名で控えてしまう
+    useEffect(() => {
+        if (!userId) return;
+        const prev = lastUserIdRef.current;
+        lastUserIdRef.current = userId;
+        allowUploadDraft();
+        if (prev && prev !== userId) {
+            ownerGenRef.current++;
+            // 前の人の控えを持っていた印も捨てる（A → B → A と戻ったとき、古い印で
+            // 置き場の A の控え＝別のタブで書いたもの、を消さないように）
+            draftOwnedByRef.current = null;
+            // **上げている最中なら止める。** 止めないと、ループは前の人の写真を
+            // 持ったまま進み、新しい人のログイン情報で置き場所の発行も保存も
+            // 通って、前の人の写真が新しい人の名で公開される
+            if (uploadAbortRef.current) {
+                abortedBySwitchRef.current = true;
+                uploadAbortRef.current.abort(new DOMException("owner switched", "AbortError"));
+            }
+            setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
+            setCategory("");
+            setTags("");
+            // 控えは消さない: 置き場は1つだけで、いま入っているのが新しい人の
+            // 控えのこともある（凍っていたタブが戻ってきた場合）。前の人の控えは
+            // 読むときに持ち主の違いで捨てられる（readUploadDraft）
+        }
+    }, [userId]);
+    // 控えの持ち主: 分かっている人と同じならその人。セッションが切れた（null）
+    // なら最後に分かっていた人。**別の人に変わった直後は「分からない」**
+    // （書かずに消す側に倒れる）
+    const draftOwner = userId
+        ? (lastUserIdRef.current === null || lastUserIdRef.current === userId ? userId : null)
+        : lastUserIdRef.current;
+    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId: draftOwner };
+    /**
+     * 控えを戻す判断が済んだか。**済むまでは書かない・消さない**——ログインの
+     * 確認中（写真0枚に見える）に画面が隠れると、戻す前の控えを消してしまう
+     */
+    const draftReadyRef = useRef(false);
+    /** 今の状態で控えを書き直す（上げ終わったとき、成功・失敗にかかわらず呼ぶ） */
+    const persistDraftRef = useRef<() => void>(() => { /* 下の effect が差し替える */ });
+    // **上げ始めたら控えを消し、上げ終わったら残り（失敗した写真）で書き直す。**
+    // 全部成功したときしか消していなかったので、一部だけ上がった回は古い控えが
+    // 残り、次に開くと公開済みの写真が戻っていた（二重投稿）
+    const wasUploadingRef = useRef(false);
+    useEffect(() => {
+        if (uploading && !wasUploadingRef.current) clearOwnDraft();
+        if (!uploading && wasUploadingRef.current) persistDraftRef.current();
+        wasUploadingRef.current = uploading;
+    }, [uploading, clearOwnDraft]);
+    useEffect(() => {
+        const persist = () => {
+            const src = draftSourceRef.current;
+            if (!draftReadyRef.current) return;
+            // **上げている最中も書き直す。** 飛ばすと、上げている最中に離れた・
+            // 一部だけ上がった回に古い控えが残り、次に開くと公開済みの写真が
+            // 戻っていた（二重投稿）。**公開まで済んだ写真（done）だけ除く。**
+            // 上げている途中・保存で落ちた写真も残す——除くと、iOS がページを
+            // 捨てたときにその写真だけ投稿にも控えにも残らない。S3 まで
+            // 上がったものは置き場所（uploaded）ごと控え、押し直したときに使い回す
+            // 持ち主が分からない（入れ替わった直後）ときは触らない——消すと、
+            // 置き場に入っている新しい人の控えまで消えることがある
+            if (!src.userId) return;
+            const keep = src.items.filter((i) => i.status !== "done");
+            if (keep.length === 0) { clearOwnDraft(); return; }
+            draftOwnedByRef.current = src.userId;
+            void saveUploadDraft({
+                t: Date.now(),
+                userId: src.userId,
+                category: src.category,
+                tags: src.tags,
+                asOnePost: src.asOnePost,
+                items: keep.map((i) => ({
+                    file: i.file, title: i.title, description: i.description, location: i.location,
+                    focalPoint: i.focalPoint, dateTimeOriginal: i.dateTimeOriginal,
+                    latitude: i.latitude, longitude: i.longitude,
+                    uploaded: i.uploaded,
+                })),
+            });
+        };
+        persistDraftRef.current = persist;
+        const onHidden = () => { if (document.visibilityState === "hidden") persist(); };
+        document.addEventListener("visibilitychange", onHidden);
+        window.addEventListener("pagehide", persist);
+        return () => {
+            document.removeEventListener("visibilitychange", onHidden);
+            window.removeEventListener("pagehide", persist);
+            // **画面の中の移動（タブバー・リンク）では隠れる合図が来ない。**
+            // 離れるときにも今の状態で書き直す——でないと、写真を全部外して
+            // 離れたのに、前に隠れたときの控えが残り、次に開くと外した写真が戻る。
+            // **上げている最中に離れたら消す。** 上げる処理は画面が閉じても続くので、
+            // 控えに残した写真はこのあと上がる＝次に開くと二重に投稿される
+            if (draftSourceRef.current.uploading) clearOwnDraft();
+            else persist();
+        };
+    }, [clearOwnDraft]);
+
+    const restoreDraft = useCallback(async () => {
+        const uid = draftSourceRef.current.userId;
+        if (!uid) return;
+        const gen = ownerGenRef.current;
+        const d = await readUploadDraft(uid);
+        if (!d) return;
+        // 読んでいる間に別の人へ入れ替わったら、戻さない
+        if (gen !== ownerGenRef.current) return;
+        // この人の控えがある（戻さなかったとしても、あとで消してよい）
+        draftOwnedByRef.current = uid;
+        // 読み込み中に選び直していたら、その写真を上書きしない（反映前の一瞬も
+        // 下の関数形の setItems で守る）
+        const restored: Item[] = d.items.map((it) => ({
+            id: makeId(),
+            file: it.file,
+            preview: URL.createObjectURL(it.file),
+            focalPoint: it.focalPoint,
+            title: it.title,
+            description: it.description,
+            location: it.location,
+            dateTimeOriginal: it.dateTimeOriginal,
+            latitude: it.latitude,
+            longitude: it.longitude,
+            uploaded: it.uploaded,
+            status: "pending",
+            progress: 0,
+        }));
+        // もう選び直していたら上書きしない
+        if (draftSourceRef.current.items.length > 0) {
+            for (const r of restored) URL.revokeObjectURL(r.preview);
+            return;
+        }
+        setItems((prev) => (prev.length > 0 ? prev : restored));
+        setCategory(d.category);
+        setTags(d.tags);
+        setAsOnePost(d.asOnePost);
+        showToast(locale === "en"
+            ? `Restored what you were writing (${restored.length} photo(s)).`
+            : `書きかけを戻しました（${restored.length}枚）`, "info");
+    }, [locale, showToast]);
+
     const shareImportedRef = useRef(false);
     useEffect(() => {
         if (loading || !isAuthenticated || shareImportedRef.current) return;
         shareImportedRef.current = true;
         void (async () => {
+            try {
+                await importSharedOrDraft();
+            } finally {
+                // ここから先の「隠れた・離れた」で控えを書いてよい
+                draftReadyRef.current = true;
+            }
+        })();
+        async function importSharedOrDraft() {
+            const gen = ownerGenRef.current;
             const res = await readSharedResult();
+            // 読んでいる間に別の人へ入れ替わったら、取り込まない
+            if (gen !== ownerGenRef.current) return;
             // **`from=share` は使い終わったら URL から落とす。**
             // 残っていると (a) 戻る・進む・リロードのたびに同じ話をする
             // (b)「受け皿が空」を失敗と呼べない——共有の直後に空なら、
@@ -455,7 +642,11 @@ function UploadPageInner() {
                 return;
             }
             const payload = res.payload;
-            if (!payload) return;
+            if (!payload) {
+                // 共有で来たのでなければ、前に控えた書きかけを戻す（#8）
+                await restoreDraft();
+                return;
+            }
             // 空のペイロード（共有シートがファイル無しで来た）も捨てる。
             // 残すと IndexedDB に居座り続ける（他の分岐は必ず消している）。
             if (payload.files.length === 0) {
@@ -474,7 +665,7 @@ function UploadPageInner() {
             await addFiles(payload.files, { title: payload.title, text: payload.text });
             await clearSharedPayload();
             showToast(locale === "en" ? `${payload.files.length} photo(s) imported` : `${payload.files.length} 枚を取り込みました`, "success");
-        })();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fromShare, loading, isAuthenticated]);
 
@@ -589,6 +780,17 @@ function UploadPageInner() {
         // マウント時の addFiles を掴んでいるので、state だと復元前の
         // 初期値（true）に張り付く。
         if (gpsAutofillRef.current) {
+            // **位置情報が1枚も無かったら、そう言う。** iPhone の「写真を撮る」で
+            // 撮った写真は、iOS が位置情報を外して渡す（写真ライブラリからでも
+            // 設定次第で外れる）。黙っていると、自動入力が壊れているのか
+            // 写真に無いのか分からない（#10）。画面を離れていたら言わない
+            // （全画面共通のトーストなので、よその画面に出る）。長めに出す
+            if (!leftPageRef.current && exifResults.length > 0
+                && exifResults.every((r) => r.meta.latitude === undefined || r.meta.longitude === undefined)) {
+                showToast(locale === "en"
+                    ? "No location data in the photo(s), so the place wasn't filled in. (Photos taken with the camera from this screen often have location removed.)"
+                    : "写真に位置情報が無かったので、撮影地は入れていません（この画面のカメラで撮った写真は、位置情報が外れていることがあります）", "info", 6000);
+            }
             for (const r of exifResults) {
                 if (leftPageRef.current) break;   // 画面を離れた。続きは投げない
                 // **毎回トグルを見る。** 入るときに1回見るだけだと、待っている
@@ -606,7 +808,7 @@ function UploadPageInner() {
         } finally {
             setMetaJobs((n) => Math.max(0, n - 1));
         }
-    }, [locale]);
+    }, [locale, showToast]);
 
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
@@ -694,6 +896,7 @@ function UploadPageInner() {
         }
 
         setUploading(true);
+        abortedBySwitchRef.current = false;
         setStopping(false);
         const controller = new AbortController();
         uploadAbortRef.current = controller;
@@ -709,7 +912,7 @@ function UploadPageInner() {
             const { userFetch, readApiError } = await import("../../../lib/utils/api");
             const apiFetch = userFetch;
 
-            const tagList = tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+            const tagList = tags ? splitTags(tags) : undefined;
             // 編集画面と同じ理由（`app/user/edit/page.tsx` を見よ）。
             // 上限は画面に対応物が無く、超えた分は 200 のまま消える
             if (tagList && tagList.length > TAGS_MAX) {
@@ -817,7 +1020,10 @@ function UploadPageInner() {
                     // サムネ生成/アップロードに失敗しても本体の投稿は成立させる。
                     try {
                         if (thumbUrl) throw new SkipThumb(); // 前回上げた分を使う
-                        const thumb = await createThumbnail(item.file);
+                        // **縮めた方から作る。** 原寸（24〜48MP）を読み直すと、1枚ごとに
+                        // 4回デコードすることになり、iPhone でタブが落ちやすかった（#26）。
+                        // 縮めた方は向きも反映済み（または EXIF の向きを残している）
+                        const thumb = await createThumbnail(uploadFile);
                         if (thumb) {
                             const thumbPresign = await apiFetch("/upload/presigned-url", {
                                 method: "POST",
@@ -875,17 +1081,17 @@ function UploadPageInner() {
                         : undefined;
 
                     // 代表色: グリッドの読み込みプレースホルダーに使う（失敗しても続行）
-                    const dominantColor = await extractDominantColor(item.file);
+                    const dominantColor = await extractDominantColor(uploadFile);
 
                     // ぼかしプレビュー（blur-up 用の極小画像）。失敗しても続行
-                    const blurDataURL = await createBlurPlaceholder(item.file);
+                    const blurDataURL = await createBlurPlaceholder(uploadFile);
 
                     // 撮影情報（カメラ・レンズ・絞り等）: 圧縮で EXIF が失われる前に
                     // 元ファイルから抽出して保存する。GPS は含めない（coords で別管理）
                     const cameraExif = await extractCameraExif(item.file);
 
-                    // **重い処理のあとにもう一度見る。** 代表色・ぼかし・EXIF は
-                    // 原寸を3回デコードするが、どれも `signal` を見ない。その間に
+                    // **重い処理のあとにもう一度見る。** 代表色・ぼかしのデコードと
+                    // EXIF の読み取りは、どれも `signal` を見ない。その間に
                     // 押した「やめる」は保存まで効かず、写真が1枚できあがる
                     // （実 `userFetch` はセッション取得に最大10秒使うので、
                     //   保存の口に届いてから止まるのでは遅い）
@@ -1049,6 +1255,8 @@ function UploadPageInner() {
             // `cancelled` が立たず、「アップロードしました」と出してトップへ
             // 移していた（やめたのに遷移する）
             if (cancelled || signal.aborted) {
+                // 別の人に入れ替わって止めた回は、新しい人に前の人の話をしない
+                if (abortedBySwitchRef.current) { abortedBySwitchRef.current = false; return; }
                 // 上げ終わったぶんは残る（画面にも「完了」で出ている）。
                 // やめたことだけ伝えて、この画面に留まる（遷移しない）
                 showToast(locale === "en"
@@ -1087,6 +1295,8 @@ function UploadPageInner() {
                 // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
                 // 公開はトップへ、下書きは下書き一覧へ。
                 if (successCount === pending.length) {
+                    // 全部上がったので、書きかけの控えは要らない
+                    clearOwnDraft();
                     const dest = published ? "/" : ROUTES.DRAFTS;
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
@@ -1104,7 +1314,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1237,7 +1447,7 @@ function UploadPageInner() {
             <div className={`${COLUMN} pb-40 lg:grid lg:grid-cols-[minmax(0,392px)_minmax(0,1fr)] lg:gap-8 lg:items-start`}>
 
                 {/* ───────── 写真（モック①②） ───────── */}
-                <div className="pt-3 lg:sticky lg:top-[88px]">
+                <div className="pt-3 lg:sticky lg:top-[calc(var(--header-h)_+_16px)]">
                     {selected ? (
                         <>
                             {/* ヒーロー（モック①）。中身は `CropFramePicker`
@@ -1629,6 +1839,10 @@ function UploadPageInner() {
                                 type="text"
                                 value={tags}
                                 onChange={(e) => setTags(e.target.value)}
+                                // iPhone が先頭を大文字にし（`Nature`）、自動修正で綴りを変える
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 placeholder={isJa ? "タグ（カンマ区切り）" : "Tags (comma-separated)"}
                                 className={fieldCls}
                                 style={{ ...fieldStyle, height: "40px" }}

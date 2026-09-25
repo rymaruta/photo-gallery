@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText, sanitizeDate } from "../sanitize";
+import { sanitizeBlurDataURL, sanitizeTags, sanitizeTitle, sanitizeText, sanitizeDate, sanitizeAudience, sanitizeGroupId } from "../sanitize";
 
 describe("sanitizeBlurDataURL", () => {
     it("webp/jpeg/png の base64 data URI を許可", () => {
@@ -139,3 +139,42 @@ describe("sanitizeDate（撮影日）", () => {
         expect(sanitizeDate(future)).toBeUndefined();
     });
 });
+
+// 🔴 **`sanitizeAudience` と `sanitizeGroupId` は、同じファイルの
+// 同じ場所で競合した**（#130 と #128）。機械任せのマージなら片方が
+// 黙って消える。**両方を1本で縛る**——今日 `restrictedFeed.ts` で
+// まったく同じ形をやったので、同じ守り方をする。
+describe("公開範囲とまとめる印は、どちらも生きている", () => {
+    it("`sanitizeAudience` は絞る側の2つだけ通す", () => {
+        expect(sanitizeAudience("followers")).toBe("followers");
+        expect(sanitizeAudience("closeFriends")).toBe("closeFriends");
+        // 知らない値は**全体に公開へ倒さない**
+        expect(sanitizeAudience("public")).toBeUndefined();
+        expect(sanitizeAudience("follower")).toBeUndefined();
+    });
+
+    it("`sanitizeGroupId` は英数字とハイフンだけ・64文字まで", () => {
+        expect(sanitizeGroupId("0199a1b2-c3d4-7e8f-9012-3456789abcde"))
+            .toBe("0199a1b2-c3d4-7e8f-9012-3456789abcde");
+        expect(sanitizeGroupId("a".repeat(65))).toBeUndefined();
+        expect(sanitizeGroupId("あ")).toBeUndefined();
+        expect(sanitizeGroupId("a b")).toBeUndefined();
+    });
+
+    // **どちらも `upload.ts` から呼ばれていること**（配線の抜けを見る）
+    it("投稿の口が、両方を通している", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const src = readFileSync(join(__dirname, "..", "upload.ts"), "utf8");
+        // 🔴 **文字列が在るだけでは足りない。** `audience` は
+        // `publicFeed` の行にも同じ呼び出しが在るので、単に grep すると
+        // **属性を書く行を消しても緑のまま**通る（実際そうなった）。
+        // **行に書く形**まで見る
+        expect(src, "groupId を行に書いていない").toMatch(/sanitizeGroupId\(body\.groupId\)[^]{0,80}\{ groupId: /);
+        expect(src, "audience を行に書いていない").toMatch(/sanitizeAudience\(body\.audience\)[^]{0,80}\{ audience: /);
+        // 索引の仕切りも `audience` から決めていること
+        expect(src, "publicFeed を audience から決めていない")
+            .toMatch(/publicFeed: sanitizeAudience\(body\.audience\)/);
+    });
+});
+

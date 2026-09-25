@@ -212,6 +212,20 @@ describe("マルチタッチ", () => {
         expect(touchSwipe([{ x: 200, y: 200 }, { x: 120, y: 210 }], false)).toEqual(["left"]);
     });
 
+    // 2本指で拡大したあとの1本指は「見回す」。払いと読むと、拡大した写真を
+    // 横に見回しただけで次の写真へ送られていた（docs/ios-bug-audit-2026-09-25.md #14）
+    it("画面を拡大しているあいだの1本指は送らない", () => {
+        const vv = Object.getOwnPropertyDescriptor(window, "visualViewport");
+        Object.defineProperty(window, "visualViewport", { configurable: true, value: { scale: 2.5 } });
+        try {
+            expect(touchSwipe([{ x: 200, y: 200 }, { x: 120, y: 210 }], false), "拡大中の見回しで送った").toEqual([]);
+        } finally {
+            if (vv) Object.defineProperty(window, "visualViewport", vv);
+            else delete (window as unknown as Record<string, unknown>).visualViewport;
+        }
+        expect(touchSwipe([{ x: 200, y: 200 }, { x: 120, y: 210 }], false), "拡大をやめたら送る").toEqual(["left"]);
+    });
+
     it("取り消されたら状態を残さない", () => {
         const calls: string[] = [];
         const { result } = renderHook(() => useSwipe({ onSwipeLeft: () => calls.push("left") }));
