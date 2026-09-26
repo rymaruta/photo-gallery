@@ -9,6 +9,9 @@ import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton from "./SaveSpotButton";
+import { ArrowUpOnSquareIcon } from "@heroicons/react/24/outline";
+import { shareUrl } from "@/lib/utils/share";
+import { useToast } from "@/lib/hooks/useToast";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -96,6 +99,18 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
     const verified = isVerified(spot);
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
+    const { showToast } = useToast();
+    // シェア（デザイン「13 スポット」の3つ目のボタン）。写真ページと同じ `shareUrl`
+    // ——共有シートが無い／拒まれる環境ではコピーに落ち、結果で文言を出し分ける
+    const handleShare = async () => {
+        const url = `${window.location.origin}${ROUTES.SPOTS}/${spot.slug}`;
+        const result = await shareUrl(url, spot.name);
+        if (result === "copied") {
+            showToast(isJa ? "リンクをクリップボードにコピーしました" : "Link copied to clipboard!", "success");
+        } else if (result === "failed") {
+            showToast(isJa ? "共有できませんでした" : "Could not share", "error");
+        }
+    };
 
     return (
         <main className="min-h-screen text-white bg-bg">
@@ -187,6 +202,12 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>
                         {isJa ? "地図で見る" : "View on map"}
                     </Link>
+                    <button type="button" onClick={() => void handleShare()}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>
+                        <ArrowUpOnSquareIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
+                        {isJa ? "シェア" : "Share"}
+                    </button>
                     {spot.officialWebsiteUrl && (
                         /* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
                            推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */
