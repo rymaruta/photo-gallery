@@ -150,12 +150,23 @@ describe("実際の台帳で作った索引", () => {
         const published = (rawLedger as unknown as Spot[]).filter((s) => s.status === "published");
         expect(items.map((s) => s.slug).sort()).toEqual(published.map((s) => s.slug).sort());
         expect(items.length).toBeGreaterThan(0);
-        expect(items.every((s) => s.stage === "published" && Boolean(s.verifiedAt))).toBe(true);
+        expect(items.every((s) => s.stage === "published")).toBe(true);
+        // 人の確認日を運ぶのは人が確かめた行だけ（AI 照合の行は持たない）
+        const human = (rawLedger as unknown as Spot[]).filter((s) => s.status === "published" && s.verifiedBy).map((s) => s.slug).sort();
+        expect(items.filter((s) => s.verifiedAt).map((s) => s.slug).sort()).toEqual(human);
     });
 
-    it("公開済みの4件は、owner が確かめた写真を持つ（2026-09-26）", () => {
+    /// 写真が付くのは「owner が写真を確かめた行」と「AI 照合で写真も照らした行」だけ
+    it("写真は、owner が確かめたか AI 照合で照らした行だけに付く（2026-09-26）", () => {
         const withImage = items.filter((s) => s.image);
-        expect(withImage.map((s) => s.slug).sort()).toEqual(["kiyosumi-keiryu-hiroba", "kobe-kitano-ijinkan", "nabegataki", "takaya-jinja"]);
+        const ledger = rawLedger as unknown as Spot[];
+        const expected = ledger
+            .filter((s) => s.status === "published")
+            .filter((s) => ["kiyosumi-keiryu-hiroba", "kobe-kitano-ijinkan", "nabegataki", "takaya-jinja"].includes(s.slug)
+                || s.aiCheck?.imageChecked === true)
+            .map((s) => s.slug).sort();
+        expect(withImage.map((s) => s.slug).sort()).toEqual(expected);
+        expect(withImage.length, "owner の4件が消えている").toBeGreaterThanOrEqual(4);
         for (const s of withImage) {
             expect(s.image!.author, s.slug).toBeTruthy();
             expect(s.image!.license, s.slug).toBeTruthy();
