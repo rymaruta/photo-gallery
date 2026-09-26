@@ -1,0 +1,45 @@
+{
+  "kiyosumi-keiryu-hiroba": {
+    "status": "ok",
+    "wikidata": "Q66091467",
+    "distanceKm": 6.07,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.18538888888889,
+      "lng": 140.06008333333332
+    }
+  },
+  "kobe-kitano-ijinkan": {
+    "status": "ok",
+    "wikidata": "Q10855753",
+    "distanceKm": 0.14
+  },
+  "nabegataki": {
+    "status": "ok",
+    "wikidata": "Q11650601",
+    "distanceKm": 0.98
+  },
+  "takaya-jinja": {
+    "status": "ok",
+    "wikidata": "Q137295901",
+    "distanceKm": 3.44,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.1603987,
+      "lng": 133.654848
+    }
+  },
+  "abashiri-ryuhyo": {
+    "status": "not-found"
+  },
+  "abukumado": {
+    "status": "ok",
+    "wikidata": "Q4670566",
+    "distanceKm": 4.15,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.344716666667,
+      "lng": 140.67347222222
+    }
+  }
+}

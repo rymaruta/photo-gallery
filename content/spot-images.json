@@ -1,0 +1,70 @@
+{
+  "abukumado": {
+    "wikidata": "Q4670566",
+    "file": "File:Flowstones and Mushroom Rocks inside Abukuma-do Cave.JPG",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Flowstones_and_Mushroom_Rocks_inside_Abukuma-do_Cave.JPG",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/1/14/Flowstones_and_Mushroom_Rocks_inside_Abukuma-do_Cave.JPG",
+    "author": "Brian Adler 09:29, 17 June 2007 (UTC)",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "distanceKm": 4.15,
+    "coordsMismatch": true,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
+  },
+  "kiyosumi-keiryu-hiroba": {
+    "wikidata": "Q66091467",
+    "file": "File:Kameiwa Cave (41005911481).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kameiwa_Cave_(41005911481).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Kameiwa_Cave_%2841005911481%29.jpg/960px-Kameiwa_Cave_%2841005911481%29.jpg",
+    "author": "Tetsuji Sakakibara",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "distanceKm": 6.07,
+    "coordsMismatch": true,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
+  },
+  "kobe-kitano-ijinkan": {
+    "wikidata": "Q10855753",
+    "file": "File:Kitano Street Kobe02s3s4272.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Kitano_Street_Kobe02s3s4272.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Kitano_Street_Kobe02s3s4272.jpg/960px-Kitano_Street_Kobe02s3s4272.jpg",
+    "author": "663highland",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "distanceKm": 0.14,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
+  },
+  "nabegataki": {
+    "wikidata": "Q11650601",
+    "file": "File:Nabegataki Falls, Kumamoto, Japan; July 2018 (02).jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Nabegataki_Falls,_Kumamoto,_Japan;_July_2018_(02).jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Nabegataki_Falls%2C_Kumamoto%2C_Japan%3B_July_2018_%2802%29.jpg/960px-Nabegataki_Falls%2C_Kumamoto%2C_Japan%3B_July_2018_%2802%29.jpg",
+    "author": "Big Ben in Japan",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "distanceKm": 0.98,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
+  },
+  "takaya-jinja": {
+    "wikidata": "Q137295901",
+    "file": "File:Takayazinzya 26.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Takayazinzya_26.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Takayazinzya_26.jpg/960px-Takayazinzya_26.jpg",
+    "author": "Dokudami",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "distanceKm": 3.44,
+    "coordsMismatch": true,
+    "method": "wikidata-P18",
+    "fetchedAt": "2026-09-26",
+    "reviewedBy": null
+  }
+}
