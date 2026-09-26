@@ -222,7 +222,7 @@ function Row({ href, label, note, badge }: { href: string | null; label: string;
             <span className="flex items-center min-w-0">
                 <span className="truncate text-sm font-semibold">{label}</span>
                 {badge && (
-                    <span className="ml-2 shrink-0 rounded-full bg-chip text-chip-text" style={{ fontSize: "10px", padding: "2px 8px" }}>
+                    <span className="ml-2 shrink-0 rounded-full bg-chip text-chip-text ring-1 ring-line" style={{ fontSize: "10px", padding: "2px 8px" }}>
                         {badge}
                     </span>
                 )}

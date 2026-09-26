@@ -85,7 +85,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                     <button type="button" role="switch" aria-checked={theme === null}
                             onClick={() => setTheme(null)}
                             className={`inline-flex items-center rounded-full transition-colors ${
-                                theme === null ? "bg-white text-black" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                theme === null ? "bg-white text-black" : "bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white"
                             }`}
                             style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                         {isJa ? "すべて" : "All"}
@@ -94,7 +94,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                         <button key={c} type="button" role="switch" aria-checked={theme === c}
                                 onClick={() => setTheme(theme === c ? null : c)}
                                 className={`inline-flex items-center gap-1.5 rounded-full transition-colors ${
-                                    theme === c ? "bg-white text-black" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                    theme === c ? "bg-white text-black" : "bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white"
                                 }`}
                                 style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                             {c}<span className="text-white/60" style={{ fontSize: "11px" }}>{n}</span>

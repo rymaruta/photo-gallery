@@ -78,7 +78,7 @@ export default function SpotAreaIndexClient({ areas, total, draftCount }: Props)
                             {items.map((a) => (
                                 <li key={a.slug}>
                                     <Link href={ROUTES.SPOT_AREA(a.slug)} prefetch={false}
-                                          className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                          className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                                         {isJa ? a.name : a.nameEn}
                                         <span className="text-white/60" style={{ fontSize: "11px" }}>{a.count}</span>

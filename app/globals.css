@@ -275,8 +275,8 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 9999px;
-  background: #2080f6;   /* 主色（`--color-accent`）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
-  color: #fff;
+  background: #c9a66b;   /* 真鍮（`--color-accent`）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
+  color: #1a140a;        /* 墨。真鍮に白は 2.81:1 で読めない（墨なら 7.97:1） */
   font-weight: 700;
   font-size: 13px;
   box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -363,7 +363,7 @@ body {
 .photo-map-pin.is-selected::before {
   width: 64px;
   height: 64px;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(32 128 246 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(201 166 107 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 .photo-map-shell .leaflet-marker-pane .photo-map-pin.is-selected .photo-map-pin__img,
 .photo-map-pin.is-selected .photo-map-pin__img {
@@ -454,8 +454,9 @@ body {
   height: 36px;
 }
 
-/* 面。**白地に主色の枠**——写真のピン（主色の下地に写真）と逆に組んで、
-   遠目でも別物と分かるようにする */
+/* 面。**真鍮の丸・墨の印・白の縁**（デザインの板「07 撮影スポットのピン」の決定
+   「写真なし: 真鍮の丸」の色。印はカメラではなく点のまま）。写真のピン
+   （写真の丸）とは中身で見分ける */
 .spot-map-pin::before {
   content: "";
   position: absolute;
@@ -463,8 +464,8 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 0 0 2.5px #2080f6, 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: #c9a66b;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* 中の印。文字は入れない（利用者の入力も運営の言葉も入らない＝翻訳も要らない）。
@@ -476,11 +477,11 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 9999px;
-  background: #2080f6;
+  background: #1a140a;
 }
 
 /* 下向きの尖り。先端が座標（`iconAnchor` が下端）。
-   **写真のピンは白い尖り**なので、こちらは主色で塗って区別する */
+   **写真のピンは白い尖り**なので、こちらは真鍮で塗って区別する */
 .spot-map-pin::after {
   content: "";
   position: absolute;
@@ -491,7 +492,7 @@ body {
   transform: translateX(-50%);
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 9px solid #2080f6;
+  border-top: 9px solid #c9a66b;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
 }
 
@@ -507,7 +508,7 @@ body {
 .spot-map-pin.is-selected::before {
   width: 40px;
   height: 40px;
-  box-shadow: 0 0 0 3px #2080f6, 0 0 0 9px rgb(32 128 246 / 0.4), 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px #ffffff, 0 0 0 9px rgb(201 166 107 / 0.45), 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 .spot-map-pin.is-selected .spot-map-pin__dot {
   top: 13px;

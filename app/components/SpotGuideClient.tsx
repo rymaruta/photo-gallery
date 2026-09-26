@@ -168,7 +168,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                        style={{ fontSize: "13px", lineHeight: "18px" }}>
                         {region && <span>{region}</span>}
                         {spot.category && (
-                            <span className="inline-flex items-center rounded-full bg-chip text-chip-text"
+                            <span className="inline-flex items-center rounded-full bg-chip text-chip-text ring-1 ring-line"
                                   style={{ fontSize: "11px", padding: "2px 8px" }}>{spot.category}</span>
                         )}
                     </p>
@@ -267,7 +267,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                         <ul className="m-0 p-0 flex flex-col gap-2" style={{ listStyle: "none" }}>
                                             {spot.seasonalGuide!.map((s) => (
                                                 <li key={s.season} className="flex gap-2.5">
-                                                    <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
+                                                    <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text ring-1 ring-line"
                                                           style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
                                                         {SEASON_LABEL[s.season] ?? s.season}
                                                     </span>
@@ -286,7 +286,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                         <ul className="m-0 p-0 flex flex-col gap-2" style={{ listStyle: "none" }}>
                                             {spot.timeOfDayGuide!.map((t) => (
                                                 <li key={t.time} className="flex gap-2.5">
-                                                    <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
+                                                    <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text ring-1 ring-line"
                                                           style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
                                                         {TIME_LABEL[t.time] ?? t.time}
                                                     </span>

@@ -234,7 +234,7 @@ export default function TimelineCard({
                             key={t}
                             href={collectionPath("tag", slugify(t, "tag"))}
                             prefetch={false}
-                            className="inline-flex items-center rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                            className="inline-flex items-center rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors"
                             style={{ fontSize: "12px", lineHeight: "16px", padding: "3px 9px", touchAction: "manipulation" }}
                         >
                             #{t.replace(/^#/, "")}

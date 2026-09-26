@@ -208,7 +208,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                         {cameras.map((c) => (
                             <li key={c.slug}>
                                 <Link href={linkTo("camera", c.slug)} prefetch={false}
-                                   className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                   className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                    style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
                                     {c.label}
                                     <span className="text-white/60" style={{ fontSize: "10px" }}>{c.count}</span>

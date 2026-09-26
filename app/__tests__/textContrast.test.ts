@@ -51,8 +51,8 @@ function luminance(rgb: number[]): number {
     const lin = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
     return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
 }
-function ratioOnBlack(hexColor: string, alpha = 1): number {
-    const base = hexToRgb(BASE_BG);
+function ratioOnBlack(hexColor: string, alpha = 1, bgHex = BASE_BG): number {
+    const base = hexToRgb(bgHex);
     const fg = hexToRgb(hexColor).map((v, i) => v * alpha + base[i] * (1 - alpha));
     return (luminance(fg) + 0.05) / (luminance(base) + 0.05);
 }
@@ -295,6 +295,11 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         // 紺の頃は /45 が 4.51 で届いていた。黒では 4.41 で届かない
         expect(ratioOnBlack("#ffffff", 0.45)).toBeLessThan(4.5);
         expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.5);
+    });
+    it("半透明は下地に合成してから測っている（黒以外の下地で確かめる）", () => {
+        // 黒の上では「下地に合成」と「黒に溶かす」が同じ値になるので見分けられない。
+        // 灰 #404040 の上の白80%: 合成すると 7.33、黒に溶かしてから比べると 6.46
+        expect(ratioOnBlack("#ffffff", 0.8, "#404040")).toBeGreaterThan(7);
     });
     it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／黒の上の真鍮・リンク／チップの文字）", () => {
         const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
