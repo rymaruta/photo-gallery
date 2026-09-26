@@ -503,10 +503,11 @@
     "via": "sparql"
   },
   "azuchi-castle": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q786888",
     "distanceKm": 0.45,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "bandaibashi": {
     "status": "ok",
@@ -584,10 +585,11 @@
     }
   },
   "bizan": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q17224370",
     "distanceKm": 0.47,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "byobugaura": {
     "status": "ok",
@@ -867,10 +869,11 @@
     "via": "sparql"
   },
   "dazaifu-tenmangu": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q11665779",
     "distanceKm": 0.48,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "dejima": {
     "status": "ok",
@@ -966,10 +969,11 @@
     }
   },
   "eigenji": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q1303021",
     "distanceKm": 1.36,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 2.0"
   },
   "eiheiji": {
     "status": "ok",
@@ -1312,10 +1316,11 @@
     "via": "sparql"
   },
   "ginkakuji": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q257473",
     "distanceKm": 0.4,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "ginzan-onsen": {
     "status": "ok",
@@ -1538,10 +1543,11 @@
     }
   },
   "hamarikyu": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q1033333",
     "distanceKm": 0.18,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "hana-no-miyako-koen": {
     "status": "ok",
@@ -3055,10 +3061,11 @@
     "via": "sparql"
   },
   "karatsu-kunchi": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q493695",
     "distanceKm": 0.59,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 2.5"
   },
   "karikomi-ike": {
     "status": "too-far",
@@ -3895,7 +3902,7 @@
     }
   },
   "kurushima-kaikyo-ohashi": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q2740666",
     "distanceKm": 2.49,
     "via": "sparql",
@@ -3903,7 +3910,8 @@
     "wikidataCoords": {
       "lat": 34.1211,
       "lng": 133.001
-    }
+    },
+    "license": "CC BY-SA 3.0"
   },
   "kusasenrigahama": {
     "status": "ok",
@@ -4315,10 +4323,11 @@
     }
   },
   "mikurigaike": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q11341916",
     "distanceKm": 0.26,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "minamisanriku-sunsun": {
     "status": "ok",
@@ -4851,10 +4860,11 @@
     "via": "sparql"
   },
   "nakanoshima-library": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q7105601",
     "distanceKm": 0.5,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "nakanoshima-ohashi": {
     "status": "ok",
@@ -6297,10 +6307,11 @@
     "via": "sparql"
   },
   "sanzenin": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q1072538",
     "distanceKm": 0.41,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "sarakurayama": {
     "status": "ok",
@@ -6355,10 +6366,11 @@
     "via": "sparql"
   },
   "sefa-utaki": {
-    "status": "ok",
+    "status": "no-author",
     "wikidata": "Q3087076",
     "distanceKm": 0.5,
-    "via": "sparql"
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
   },
   "sefuri": {
     "status": "ok",

@@ -79,6 +79,22 @@ export function isAllowedLicense(shortName) {
     return false;
 }
 
+/** 作者の名前が要らないライセンス（パブリックドメイン・CC0） */
+export function isPublicDomain(shortName) {
+    const s = String(shortName ?? "").trim();
+    return /^cc0\b/i.test(s) || /^cc[- ]zero/i.test(s) || /^public domain$/i.test(s) || /^pd\b|^pd-/i.test(s);
+}
+
+/**
+ * **出典として出せる作者名。** CC BY・CC BY-SA は作者の表示が使う条件なので、
+ * 作者が空なら使えない（null）。パブリックドメイン・CC0 は「作者不明」でよい
+ */
+export function creditFor(author, license) {
+    const a = String(author ?? "").trim();
+    if (a) return a;
+    return isPublicDomain(license) ? "作者不明" : null;
+}
+
 /** 作者の欄（HTML）を平文にする。リンク・タグ・実体参照を剥がし、空白を畳む */
 export function stripHtml(html) {
     return String(html ?? "")
@@ -226,6 +242,9 @@ export async function lookup(spot, today) {
     const info = await imageInfo(best.image);
     if (!info) return { status: "no-image", ...where };
     if (!isAllowedLicense(info.license)) return { status: "license-rejected", ...where, license: info.license };
+    const credit = creditFor(info.author, info.license);
+    if (!credit) return { status: "no-author", ...where, license: info.license };
+    info.author = credit;
     return {
         status: "ok",
         ...where,
@@ -354,6 +373,9 @@ export async function lookupBatch(spots, today) {
         const info = best.image ? infos.get(best.image) : null;
         if (!info) { out.set(slug, { status: "no-image", ...where }); continue; }
         if (!isAllowedLicense(info.license)) { out.set(slug, { status: "license-rejected", ...where, license: info.license }); continue; }
+        const credit = creditFor(info.author, info.license);
+        if (!credit) { out.set(slug, { status: "no-author", ...where, license: info.license }); continue; }
+        info.author = credit;
         out.set(slug, {
             status: "ok", ...where,
             record: {

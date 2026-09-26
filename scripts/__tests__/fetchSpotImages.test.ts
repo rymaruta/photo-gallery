@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import {
     isAllowedLicense, stripHtml, searchNames, pickCandidate, distanceKm, maxDistanceKm,
-    normalizeName, cleanUrl, IMAGES_PATH, LEDGER_PATH, SAME_NAME_KM, parseWktPoint, fileFromCommonsUri,
+    normalizeName, cleanUrl, IMAGES_PATH, LEDGER_PATH, SAME_NAME_KM, parseWktPoint, fileFromCommonsUri, creditFor,
 } from "../fetch-spot-images.mjs";
 
 /**
@@ -20,6 +20,18 @@ describe("採ってよいライセンス", () => {
         "", "CC BY-NC 2.0", "CC BY-NC-SA 4.0", "CC BY-ND 2.0", "CC BY-NC-ND 4.0",
         "GFDL", "All rights reserved", "Attribution-NonCommercial",
     ])("%s は捨てる", (s) => expect(isAllowedLicense(s)).toBe(false));
+});
+
+describe("出典の作者名", () => {
+    it("🔴 CC BY・CC BY-SA で作者が空なら使えない（表示が使う条件）", () => {
+        expect(creditFor("", "CC BY-SA 3.0")).toBeNull();
+        expect(creditFor("  ", "CC BY 2.5")).toBeNull();
+    });
+    it("パブリックドメイン・CC0 は「作者不明」でよい。作者があればそのまま", () => {
+        expect(creditFor("", "Public domain")).toBe("作者不明");
+        expect(creditFor("", "CC0")).toBe("作者不明");
+        expect(creditFor("663highland", "CC BY 2.5")).toBe("663highland");
+    });
 });
 
 describe("作者の欄", () => {
