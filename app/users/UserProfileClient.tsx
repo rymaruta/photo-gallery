@@ -40,6 +40,7 @@ import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
+import VerifiedBadge from "../components/VerifiedBadge";
 
 type SongEntry = {
     title: string;
@@ -71,6 +72,8 @@ type UserProfile = {
     themeColor?: string;
     statusText?: string;
     pinnedPhotoIds?: string[];
+    /** 認証済みの印。立てられるのは運営だけ（`scripts/set-verified.js`） */
+    verified?: boolean;
 };
 
 
@@ -1298,8 +1301,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             ボタン側は縮ませないので、長い名前でも崩れない。 */}
                         <div className="mt-3.5 mb-3 flex items-start gap-3">
                             <div className="min-w-0 flex-1">
-                                <h1 className="text-2xl sm:text-3xl font-bold leading-tight truncate">
-                                    {displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                                <h1 className="text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-2 min-w-0">
+                                    {/* 名前だけを切り詰め、印は縮ませない（長い名前でも印が消えない） */}
+                                    <span className="truncate">{displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}</span>
+                                    <VerifiedBadge verified={userProfile?.verified} size={20} locale={locale} />
                                 </h1>
                                 {userProfile?.username && (
                                     <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
