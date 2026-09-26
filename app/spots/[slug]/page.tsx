@@ -4,6 +4,7 @@ import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
+import { spotCoverImage } from "@/lib/data/spotImages";
 
 // 静的エクスポート: 列挙した slug のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -39,8 +40,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         + (spot.summary ?? `${spot.name}で写真を撮るための情報。`);
     const url = `${siteConfig.url}/spots/${spot.slug}`;
     // **代表写真があるときだけ OGP に出す。** 無ければ画像を申告しない
-    const image = spot.coverImage?.src
-        ? (spot.coverImage.src.startsWith("http") ? spot.coverImage.src : `${siteConfig.url}${spot.coverImage.src}`)
+    const cover = spotCoverImage(spot);
+    const image = cover?.src
+        ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
         : undefined;
 
     return {

@@ -133,7 +133,24 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                         {needsVisibleCredit(spot) && (
                             <p className="absolute bottom-2 right-3 m-0 text-white/70 text-right"
                                style={{ fontSize: "10px", lineHeight: "14px" }}>
-                                {cover!.requiredCreditText || `Photo: ${cover!.credit}`}
+                                {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
+                                    ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}
+                                {cover!.licenseLabel ? (
+                                    <>
+                                        {isJa ? "写真: " : "Photo: "}{cover!.credit}{" / "}
+                                        {cover!.licenseUrl ? (
+                                            <a href={cover!.licenseUrl} target="_blank" rel="noopener noreferrer license"
+                                               className="text-white/70 underline underline-offset-2">{cover!.licenseLabel}</a>
+                                        ) : cover!.licenseLabel}
+                                        {cover!.sourceUrl && (
+                                            <>
+                                                {" / "}
+                                                <a href={cover!.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                                   className="text-white/70 underline underline-offset-2">Wikimedia Commons</a>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (cover!.requiredCreditText || `Photo: ${cover!.credit}`)}
                             </p>
                         )}
                     </>
