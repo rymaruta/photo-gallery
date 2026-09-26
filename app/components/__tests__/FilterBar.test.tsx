@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import FilterBar from "../FilterBar";
 import type { FilterValues } from "../../../lib/types/gallery";
+import { expectNoWhiteOnFill } from "./whiteOnFill";
 
 const baseValues: FilterValues = { category: "all", selectedTags: [], query: "", sort: "new", scope: "all" };
 
@@ -39,6 +40,14 @@ describe("FilterBar", () => {
         const { onChange } = setup();
         fireEvent.click(screen.getByRole("switch", { name: /swan/ }));
         expect(onChange).toHaveBeenCalledWith({ selectedTags: ["swan"] });
+    });
+
+    it("選んだタグのチップ（白の塗り）の件数が白で消えない", () => {
+        // 件数は2枚以上で出る。選んだチップだけ文字色が別の文字列で決まっていた
+        setup({ values: { ...baseValues, selectedTags: ["swan"] }, tagCounts: { swan: 3, lake: 2 } });
+        const chip = screen.getByRole("switch", { name: /swan/ });
+        expect(chip.textContent).toContain("3");
+        expectNoWhiteOnFill(chip.parentElement!);
     });
 
     it("選択済みタグをクリックすると解除される", () => {

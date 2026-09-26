@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
+import { expectNoWhiteOnFill } from "./whiteOnFill";
 
 /**
  * **「色でさがす」が、渡された一覧の形で正しく出る／正しく出ない ことの見張り。**
@@ -96,6 +97,12 @@ describe("チップの操作", () => {
         draw(five());
         for (const el of screen.getAllByRole("button")) expect(el.getAttribute("aria-pressed")).toBe("false");
         expect(screen.queryByTestId("grid")).toBeNull();
+    });
+
+    it("選んだ色のチップ（白の塗り）の件数・フォーカス枠が白で消えない", () => {
+        const { container } = draw(five());
+        fireEvent.click(screen.getByRole("button", { name: /青/ }));
+        expectNoWhiteOnFill(container);
     });
 
     it("押すと選ばれ、その色の枚数だけグリッドに渡る", () => {

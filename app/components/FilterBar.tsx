@@ -331,7 +331,8 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-white" : "text-white/50"}`}>{count}</span> : null}
+                        {/* 選択中は白の塗りなので墨の60%（5.03:1）。白のままだと塗りに溶けて消える */}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-ink/60" : "text-white/50"}`}>{count}</span> : null}
                     </button>
                 );
             }),

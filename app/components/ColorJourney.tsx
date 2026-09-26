@@ -133,7 +133,7 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                             // **押し直すと外れる。** 足すだけのチップは、既に選んで
                             // いる色を押しても無反応になる（タグ入力で踏んだ形）
                             onClick={() => setSelected(active ? null : bucket.id)}
-                            className={`inline-flex items-center gap-1.5 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+                            className={`inline-flex items-center gap-1.5 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                                 active
                                     ? "bg-accent-fill text-ink font-medium"
                                     : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"
@@ -149,12 +149,13 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                                 style={{
                                     ...STYLE.swatch,
                                     backgroundColor: bucket.swatch,
-                                    // 黒い丸は黒地に沈むので、縁を1本引く
-                                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                                    // 黒い丸は黒地に沈むので、縁を1本引く。選択中は白の塗りの
+                                    // 上なので、白い丸が沈まないよう暗い縁にする
+                                    boxShadow: active ? "inset 0 0 0 1px rgba(0,0,0,0.3)" : "inset 0 0 0 1px rgba(255,255,255,0.25)",
                                 }}
                             />
                             <span>{bucket.label}</span>
-                            <span className={active ? "text-white text-[11px]" : "text-white/50 text-[11px]"}>
+                            <span className={active ? "text-ink/60 text-[11px]" : "text-white/50 text-[11px]"}>
                                 {inBucket.length}
                             </span>
                         </button>
