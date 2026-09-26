@@ -12,6 +12,7 @@
 //   node scripts/fetch-spot-images.mjs --limit=50      先頭から50件だけ
 //   node scripts/fetch-spot-images.mjs --slug=a,b      指定のスポットだけ
 //   node scripts/fetch-spot-images.mjs --refresh       記録済みも取り直す
+//   node scripts/fetch-spot-images.mjs --batch         名前の完全一致でまとめて聞く（速い）
 //
 // **機械で決められるものだけ採る:**
 //   - Wikidata の候補は**座標で確かめる**（点の場所 2km・広い場所 5km 以内）。
@@ -236,6 +237,135 @@ export async function lookup(spot, today) {
     };
 }
 
+// ---- まとめて問い合わせる（SPARQL） ------------------------------------------
+//
+// 1件ずつの検索（wbsearchentities）は、共有の出口 IP だと 429 で1件1〜2分かかる
+// （2026-09-26 実測: 12分で7件）。**名前の完全一致**で 40件ずつ Wikidata の
+// SPARQL に聞き、画像の情報も Commons に 50件ずつまとめて聞く。
+// 名前が Wikidata の表記と違うスポットはここでは当たらないので、
+// `status: "not-found"`・`via: "sparql"` として残し、あとで1件ずつの検索に回せる。
+
+const SPARQL = "https://query.wikidata.org/sparql";
+
+/** SPARQL の座標（`Point(経度 緯度)`）を `{ lat, lng }` に */
+export function parseWktPoint(wkt) {
+    const m = /^Point\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)$/.exec(String(wkt ?? "").trim());
+    return m ? { lat: Number(m[2]), lng: Number(m[1]) } : null;
+}
+
+/** `http://commons.wikimedia.org/wiki/Special:FilePath/X%20Y.jpg` → `X Y.jpg` */
+export function fileFromCommonsUri(uri) {
+    const m = /Special:FilePath\/(.+)$/.exec(String(uri ?? ""));
+    return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** SPARQL の文字列リテラル（" と \\ を逃がす） */
+function literal(s) {
+    return `"${String(s).replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"@ja`;
+}
+
+async function sparql(query) {
+    for (let attempt = 0; attempt < 6; attempt++) {
+        const wait = lastCall + 1500 - Date.now();
+        if (wait > 0) await sleep(wait);
+        lastCall = Date.now();
+        const res = await fetch(SPARQL, {
+            method: "POST",
+            headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/sparql-results+json" },
+            body: new URLSearchParams({ query }),
+        });
+        if (res.status === 429 || res.status >= 500) {
+            await sleep((Number(res.headers.get("retry-after")) || 10 * (attempt + 1)) * 1000);
+            continue;
+        }
+        if (!res.ok) throw new Error(`SPARQL ${res.status}`);
+        return (await res.json()).results.bindings;
+    }
+    throw new Error("SPARQL が応答しません");
+}
+
+/** 名前（完全一致・ラベルか別名）から候補を引く。戻り値: 名前 → 候補の配列 */
+async function candidatesByNames(names) {
+    const q = `SELECT ?name ?item ?coord ?image WHERE {
+  VALUES ?name { ${names.map(literal).join(" ")} }
+  { ?item rdfs:label ?name } UNION { ?item skos:altLabel ?name }
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P18 ?image }
+}`;
+    const out = new Map();
+    for (const b of await sparql(q)) {
+        const name = b.name.value;
+        const id = b.item.value.replace(/^.*\//, "");
+        const list = out.get(name) ?? [];
+        if (list.some((c) => c.id === id)) continue;
+        list.push({ id, label: name, coords: parseWktPoint(b.coord?.value), image: fileFromCommonsUri(b.image?.value) });
+        out.set(name, list);
+    }
+    return out;
+}
+
+/** 画像の情報を 50件ずつまとめて引く。戻り値: ファイル名 → 情報 */
+async function imageInfos(files) {
+    const out = new Map();
+    for (let i = 0; i < files.length; i += 50) {
+        const chunk = files.slice(i, i + 50);
+        const r = await api(COMMONS, {
+            action: "query", titles: chunk.map((f) => `File:${f}`).join("|"), prop: "imageinfo",
+            iiprop: "url|extmetadata", iiurlwidth: "640",
+        });
+        const norm = new Map((r.query?.normalized ?? []).map((n) => [n.to, n.from]));
+        for (const page of Object.values(r.query?.pages ?? {})) {
+            const info = page?.imageinfo?.[0];
+            if (!info) continue;
+            const meta = info.extmetadata ?? {};
+            const asked = (norm.get(page.title) ?? page.title).replace(/^File:/, "");
+            out.set(asked, {
+                file: page.title,
+                pageUrl: info.descriptionurl,
+                thumbUrl: cleanUrl(info.thumburl ?? info.url),
+                author: stripHtml(meta.Artist?.value) || stripHtml(meta.Credit?.value) || "",
+                license: meta.LicenseShortName?.value ?? "",
+                licenseUrl: meta.LicenseUrl?.value ?? "",
+            });
+        }
+    }
+    return out;
+}
+
+/** 何件かのスポットをまとめて調べる。戻り値: slug → `{ status, record? }` */
+export async function lookupBatch(spots, today) {
+    const names = [...new Set(spots.flatMap(searchNames))];
+    const byName = await candidatesByNames(names);
+    const picks = new Map();
+    for (const s of spots) {
+        if (!s.coords) { picks.set(s.slug, { status: "no-coords" }); continue; }
+        const cands = searchNames(s).flatMap((n) => byName.get(n) ?? []);
+        const best = pickCandidate(s, cands);
+        if (!best) { picks.set(s.slug, { status: cands.length ? "too-far" : "not-found", via: "sparql" }); continue; }
+        picks.set(s.slug, { best });
+    }
+    const files = [...new Set([...picks.values()].map((p) => p.best?.image).filter(Boolean))];
+    const infos = await imageInfos(files);
+    const out = new Map();
+    for (const [slug, p] of picks) {
+        if (!p.best) { out.set(slug, p); continue; }
+        const best = p.best;
+        const where = { wikidata: best.id, distanceKm: best.distanceKm, via: "sparql", ...(best.coordsMismatch ? { coordsMismatch: true, wikidataCoords: best.coords } : {}) };
+        const info = best.image ? infos.get(best.image) : null;
+        if (!info) { out.set(slug, { status: "no-image", ...where }); continue; }
+        if (!isAllowedLicense(info.license)) { out.set(slug, { status: "license-rejected", ...where, license: info.license }); continue; }
+        out.set(slug, {
+            status: "ok", ...where,
+            record: {
+                wikidata: best.id, ...info, distanceKm: best.distanceKm,
+                ...(best.coordsMismatch ? { coordsMismatch: true } : {}),
+                method: "wikidata-P18", fetchedAt: today, reviewedBy: null,
+            },
+        });
+    }
+    return out;
+}
+
 // ---- CLI --------------------------------------------------------------------
 
 function readJson(p, fallback) {
@@ -257,8 +387,34 @@ async function main(argv) {
     targets = targets.slice(0, limit);
     const today = new Date().toISOString().slice(0, 10);
 
+    const save = () => {
+        const sorted = Object.fromEntries(Object.keys(images).sort().map((k) => [k, images[k]]));
+        fs.writeFileSync(IMAGES_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
+        fs.writeFileSync(logPath, `${JSON.stringify(log, null, 2)}\n`);
+    };
+
+    if (args.includes("--batch")) {
+        for (let i = 0; i < targets.length; i += 40) {
+            const chunk = targets.slice(i, i + 40);
+            try {
+                const res = await lookupBatch(chunk, today);
+                for (const [slug, r] of res) {
+                    if (r.record) images[slug] = r.record;
+                    const rest = { ...r };
+                    delete rest.record;
+                    log[slug] = rest;
+                }
+                const ok = [...res.values()].filter((r) => r.status === "ok").length;
+                console.log(`[${Math.min(i + 40, targets.length)}/${targets.length}] 写真あり ${ok}/${chunk.length}`);
+            } catch (e) {
+                console.log(`[${i}] error ${e.message}`);
+            }
+            save();
+        }
+    }
+
     let n = 0;
-    for (const spot of targets) {
+    for (const spot of args.includes("--batch") ? [] : targets) {
         n++;
         try {
             const r = await lookup(spot, today);

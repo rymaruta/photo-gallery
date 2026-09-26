@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import {
     isAllowedLicense, stripHtml, searchNames, pickCandidate, distanceKm, maxDistanceKm,
-    normalizeName, cleanUrl, IMAGES_PATH, LEDGER_PATH, SAME_NAME_KM,
+    normalizeName, cleanUrl, IMAGES_PATH, LEDGER_PATH, SAME_NAME_KM, parseWktPoint, fileFromCommonsUri,
 } from "../fetch-spot-images.mjs";
 
 /**
@@ -93,6 +93,17 @@ describe("画像の URL", () => {
     it("追跡用の引数を落とし、配信元を upload.wikimedia.org に揃える", () => {
         expect(cleanUrl("https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/X.jpg/960px-X.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"))
             .toBe("https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/X.jpg/960px-X.jpg");
+    });
+});
+
+describe("SPARQL の答えを読む", () => {
+    it("座標は Point(経度 緯度) の順", () => {
+        expect(parseWktPoint("Point(133.6549 34.1609)")).toEqual({ lat: 34.1609, lng: 133.6549 });
+        expect(parseWktPoint("")).toBeNull();
+    });
+    it("画像の URI からファイル名を取り出す（URL の符号を戻す）", () => {
+        expect(fileFromCommonsUri("http://commons.wikimedia.org/wiki/Special:FilePath/Takayazinzya%2026.jpg")).toBe("Takayazinzya 26.jpg");
+        expect(fileFromCommonsUri(undefined)).toBeNull();
     });
 });
 
