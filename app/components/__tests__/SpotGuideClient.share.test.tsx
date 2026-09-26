@@ -51,6 +51,8 @@ afterEach(() => {
     else delete (navigator as { share?: unknown }).share;
     if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard);
     else delete (navigator as { clipboard?: unknown }).clipboard;
+    // 途中の assert で落ちても差し替えたまま残さない
+    delete (document as { execCommand?: unknown }).execCommand;
 });
 
 describe("公式撮影地ガイドの「シェア」", () => {
@@ -87,6 +89,5 @@ describe("公式撮影地ガイドの「シェア」", () => {
         fireEvent.click(screen.getByRole("button", { name: "シェア" }));
         expect(await screen.findByText("共有できませんでした")).toBeTruthy();
         expect(exec).toHaveBeenCalledWith("copy");
-        delete (document as { execCommand?: unknown }).execCommand;
     });
 });
