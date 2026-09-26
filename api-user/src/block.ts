@@ -5,7 +5,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
 import { blockMarkerId, blocksId, blockedById, ids } from "./blockCheck";
-import { lookupDisplayNameIfSet, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { lookupListIdentity, deletedUserIds, DELETED_USER_NAME } from "./notify";
 
 // **読み取りは全部 `blockCheck.ts` にある**（`isBlocked` / `hiddenUserIds` /
 // キーの綴り）。ここに残すのは書き込みと口だけ。
@@ -244,7 +244,7 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
         // **`.catch` は現状発火しない。** `deletedUserIds` は
         // `notify.ts` の中で握って空集合を返すので reject しない
-        // ——4行下の `lookupDisplayNameIfSet` と同じ「保険」として置く。
+        // ——下の `lookupListIdentity` と同じ「保険」として置く。
         // あちらが投げるようになった日に、この口だけは 500 に倒したくない
         // （**ブロックを解除できる唯一の入口**なので、伏せられないどころか
         //   外せなくなる）。他の6本は裸の `await` のままでよい
@@ -257,13 +257,14 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             ? await deletedUserIds().catch((e) => { console.error("listBlocks deletedUserIds:", e); return new Set<string>(); })
             : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
-        // **それを保証しているのは `lookupDisplayNameIfSet` の側**——あちらが
+        // **それを保証しているのは `lookupListIdentity` の側**——あちらが
         // 内部で握って `undefined` を返すので、ここの `.catch` は現状
         // 発火しない。あちらが投げるようになった日のための保険として置く
         const users = await Promise.all(named.map(async (id) => {
             if (gone.has(id)) return { id, name: DELETED_USER_NAME, deleted: true };
-            const name = await lookupDisplayNameIfSet(id).catch(() => undefined);
-            return name ? { id, name } : { id };
+            // 名前と @ユーザー名（板 45 の2行目）を1回の読みで
+            const who = await lookupListIdentity(id).catch(() => ({} as { name?: string; username?: string }));
+            return { id, ...who };
         }));
         // **上限を超えたぶんも伏せる。** ここだけ `gone` を見ていなかった
         // ので、101人目以降にいる退会者は画面のフォールバック（「旅人」）に

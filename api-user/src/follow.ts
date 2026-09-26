@@ -4,7 +4,7 @@ import { UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dy
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { updateUserList } from "./userList";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, lookupDisplayNameIfSet, deletedUserIds } from "./notify";
+import { pushNotification, lookupDisplayName, lookupListIdentity, deletedUserIds } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
@@ -690,7 +690,7 @@ async function withoutHidden(list: string[], me: string | undefined, where: stri
  * 新しい口だけ素通りさせる理由が無い（片側だけの防御を作らない）。
  *
  * **退会した人は名前ではなく印で伝える。** 墓石の行には `displayName` が
- * 無いので `lookupDisplayNameIfSet` は `undefined` を返すが、画面はそれを
+ * 無いので `lookupListIdentity` は名前を返さないが、画面はそれを
  * 「名前を設定していない人」と区別できず、**「旅人」という普通の行**として
  * 出して空のプロフィールへリンクしていた。しかも退会は自分の
  * `following#` しか消さないので（`account.ts`）、**他人の一覧には残り続ける**。
@@ -715,8 +715,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
-            const name = await lookupDisplayNameIfSet(id);
-            return name ? { id, name } : { id };
+            // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで
+            return { id, ...(await lookupListIdentity(id)) };
         }));
         return {
             statusCode: 200,
@@ -786,8 +786,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
-            const name = await lookupDisplayNameIfSet(id);
-            return name ? { id, name } : { id };
+            // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで
+            return { id, ...(await lookupListIdentity(id)) };
         }));
         return {
             statusCode: 200,

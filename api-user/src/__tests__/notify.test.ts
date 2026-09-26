@@ -23,7 +23,7 @@ vi.mock("../blockCheck", async (importActual) => ({
 }));
 
 vi.stubEnv("USERS_TABLE", "users-test");
-const { pushNotification, lookupDisplayName, NOTIFS_MAX, notifsId,
+const { pushNotification, lookupDisplayName, lookupListIdentity, NOTIFS_MAX, notifsId,
     deletedUserIds, resetDeletedUsersCache } = await import("../notify");
 
 type Input = {
@@ -153,6 +153,28 @@ describe("lookupDisplayName", () => {
     it("読めなくても既定名で続ける", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("ddb down"));
         expect(await lookupDisplayName("u1")).toBe("名前未設定さん");
+    });
+});
+
+describe("lookupListIdentity（一覧の名前と @ユーザー名）", () => {
+    it("名前と @ユーザー名を1回の読みで返す", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { displayName: " 旅人B ", username: "tabibito_b" } });
+        expect(await lookupListIdentity("u1")).toEqual({ name: "旅人B", username: "tabibito_b" });
+        expect(mockDdbSend, "人数ぶんの往復を倍にしている").toHaveBeenCalledTimes(1);
+        const input = mockDdbSend.mock.calls[0][0].input as { TableName: string; ExpressionAttributeNames: Record<string, string> };
+        expect(input.TableName).toBe("users-test");
+        expect(Object.values(input.ExpressionAttributeNames).sort()).toEqual(["displayName", "username"]);
+    });
+
+    // 空の「@」や空の名前を画面に出させない
+    it("設定していない・空・型違いの項目は鍵ごと付けない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { displayName: "  ", username: 42 } });
+        expect(await lookupListIdentity("u1")).toEqual({});
+    });
+
+    it("読めなくても投げない（一覧は返す）", async () => {
+        mockDdbSend.mockRejectedValueOnce(new Error("ddb down"));
+        expect(await lookupListIdentity("u1")).toEqual({});
     });
 });
 

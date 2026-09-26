@@ -130,6 +130,33 @@ export async function lookupDisplayNameIfSet(uid: string): Promise<string | unde
     }
 }
 
+/**
+ * 一覧の1行に出す「表示名と @ユーザー名」を1回の読みで引く。
+ *
+ * ブロックした人・フォロー／フォロワーの一覧（アプリの板 45・34）は
+ * 名前の下に `@username` を出す。名前だけ引く `lookupDisplayNameIfSet` を
+ * 呼んだあとにもう1回引くと、人数ぶんの往復が倍になる。
+ *
+ * **どちらも「設定されているときだけ」返す**（空文字・型違いは入れない）。
+ * 読めなければ空のオブジェクト——`lookupDisplayNameIfSet` と同じく投げない。
+ */
+export async function lookupListIdentity(uid: string): Promise<{ name?: string; username?: string }> {
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: USERS_TABLE,
+            Key: { userId: uid },
+            // 予約語かどうかに左右されないよう名前は置き換えて書く
+            ProjectionExpression: "#n, #u",
+            ExpressionAttributeNames: { "#n": "displayName", "#u": "username" },
+        }));
+        const name = typeof res.Item?.displayName === "string" ? res.Item.displayName.trim() : "";
+        const username = typeof res.Item?.username === "string" ? res.Item.username.trim() : "";
+        return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
+    } catch {
+        return {};
+    }
+}
+
 /** 表示名を Users テーブルから引く（クライアント申告を信用しない）。無ければ既定名 */
 export async function lookupDisplayName(uid: string): Promise<string> {
     return (await lookupDisplayNameIfSet(uid)) ?? DEFAULT_NAME;
