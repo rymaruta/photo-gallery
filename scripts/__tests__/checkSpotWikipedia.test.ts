@@ -136,6 +136,7 @@ describe("1件の判定", () => {
     it("記事に出てこない数があれば unsupported（間違いとは決めつけず一覧に出す）", () => {
         const r = checkSpot({ ...spot, summary: "標高450mの山頂。1922年の社殿" }, {}, article);
         expect(r.verdict).toBe("unsupported");
-        expect(r.missing).toEqual(["450m"]);
+        // 記事がある回の結果だけ missing を持つ（無い回は verdict だけ）
+        expect("missing" in r ? r.missing : undefined).toEqual(["450m"]);
     });
 });
