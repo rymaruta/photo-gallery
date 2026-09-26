@@ -14,7 +14,7 @@
  * これらを戻せるかは、下の「読むだけ」の回で出す材料（PITR・S3 のバージョン）で判断する。
  *
  * 使い方（Maintenance ワークフローの restore-account）:
- *   owner_user_id を空で実行   → 直近24時間の墓石を一覧（読むだけ）
+ *   owner_user_id を空で実行   → 墓石を新しい順に10件（読むだけ）
  *   owner_user_id を指定       → その人の墓石・PITR・S3 の残り具合を出す（読むだけ）
  *   owner_user_id ＋ apply     → **その人の墓石を1行だけ消す**（deletedAt があるときだけ）
  */
@@ -45,7 +45,9 @@ async function safe(label, fn) {
 }
 
 async function listRecentTombstones() {
-    const since = new Date(Date.now() - 24 * 3600e3).toISOString();
+    // 期間で絞らず全件から新しい順に10件（「今日消した」が時差や時刻の
+    // 思い違いで24時間の外に出ても拾えるように）
+    const since = "0";
     const items = [];
     let key;
     do {
@@ -59,8 +61,8 @@ async function listRecentTombstones() {
         items.push(...(r.Items ?? []));
         key = r.LastEvaluatedKey;
     } while (key);
-    console.log(`直近24時間の墓石: ${items.length} 件`);
-    for (const i of items.sort((a, b) => String(a.deletedAt).localeCompare(String(b.deletedAt)))) {
+    console.log(`墓石: 全 ${items.length} 件（新しい順に10件）`);
+    for (const i of items.sort((a, b) => String(b.deletedAt).localeCompare(String(a.deletedAt))).slice(0, 10)) {
         console.log(`  ${i.deletedAt}  userId=${i.userId}  username=${i.username ?? "（なし）"}`);
     }
 }
