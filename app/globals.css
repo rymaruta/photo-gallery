@@ -275,11 +275,15 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 9999px;
-  background: #c9a66b;   /* 真鍮（`--color-accent`）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
-  color: #1a140a;        /* 墨。真鍮に白は 2.81:1 で読めない（墨なら 7.97:1） */
+  /* **白の丸・墨の数字・黒の縁。** 撮影スポットのピン（真鍮の丸・墨の点）と
+     同じ地図に並ぶので、真鍮にすると見分けられない（d525bb3 で一度そうした）。
+     白はデザインシステムで「位置と選択」の役。値は直書きして leaflet.css との
+     順序に依存させない */
+  background: #ebebeb;   /* primary（白92%） */
+  color: #07090a;        /* 墨（15:1 を超える） */
   font-weight: 700;
   font-size: 13px;
-  box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 2px #000, 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 /* ───────── 写真入りのピン（最終版モック 06-map.jpg の②） ─────────
@@ -312,7 +316,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 9999px;
-  background: #16324f;
+  background: #121212;   /* 写真が来るまでの下地（surface） */
   box-shadow: 0 0 0 2.5px #fff, 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
@@ -350,7 +354,7 @@ body {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
 
-/* 選んだピン。**大きくして青く光らせる**（モックの「サントリーニ島」） */
+/* 選んだピン。**大きくして真鍮で光らせる**（旧モックの「サントリーニ島」の形） */
 .photo-map-pin.is-selected {
   width: 64px;
   height: 78px;
