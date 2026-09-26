@@ -118,3 +118,28 @@ describe("AI 照合で公開した撮影地ガイド（owner の委任・2026-09
         expect(screen.getByText(/AI 照合 2026-09-26/)).toBeTruthy();
     });
 });
+
+describe("Commons の写真の出典（2026-09-26）", () => {
+    // `spotCoverImage` が組み立てる形（サイト内に置いた縮小版）
+    const WITH_PHOTO: Spot = {
+        ...VERIFIED,
+        coverImage: {
+            src: "/images/spots/takaya-jinja.jpg", alt: "高屋神社", aspectRatio: 1.5,
+            credit: "Someone", license: "cc-by-sa",
+            sourceUrl: "https://commons.wikimedia.org/wiki/File:X.jpg",
+            licenseLabel: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+            checkedAt: "2026-09-26", verifiedPlace: true,
+        },
+    };
+
+    it("写真を頭に出し、作者・ライセンスの文面へのリンク・出典へのリンクを添える（CC BY-SA の表示条件）", () => {
+        view(WITH_PHOTO);
+        expect(screen.getByRole("img", { name: "高屋神社" }).getAttribute("src")).toBe("/images/spots/takaya-jinja.jpg");
+        expect(screen.queryByText("代表写真はまだありません")).toBeNull();
+        const license = screen.getByRole("link", { name: "CC BY-SA 4.0" });
+        expect(license.getAttribute("href")).toBe("https://creativecommons.org/licenses/by-sa/4.0");
+        const source = screen.getByRole("link", { name: "Wikimedia Commons" });
+        expect(source.getAttribute("href")).toBe("https://commons.wikimedia.org/wiki/File:X.jpg");
+        expect(source.parentElement!.textContent).toContain("写真: Someone / CC BY-SA 4.0 / Wikimedia Commons");
+    });
+});

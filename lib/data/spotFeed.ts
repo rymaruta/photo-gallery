@@ -24,7 +24,8 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
-import { SPOT_IMAGES, reviewedSpotImage, type SpotImage } from "./spotImages";
+import { SPOT_IMAGES, cleanAuthor, shownSpotImage, type SpotImage } from "./spotImages";
+import { siteConfig } from "../utils/seo";
 
 /**
  * スポットの写真。**作者とライセンスは必ず一緒に出す**（CC BY・CC BY-SA の条件）。
@@ -67,13 +68,8 @@ function compact<T extends object>(obj: T): T {
 export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES): SpotFeedItem {
     const published = isPublished(spot);
     const verified = isVerified(spot);
-    // 下書きには写真も付けない（本文と同じく誰も確かめていない行）。
-    // 写真は **人が確かめたもの**か、**AI 照合で写真も照らしたもの**（座標のずれ無し）だけ
-    const checkedImage = images[spot.slug];
-    const image = !published
-        ? undefined
-        : reviewedSpotImage(spot.slug, images)
-            ?? (spot.aiCheck?.imageChecked && checkedImage && !checkedImage.coordsMismatch ? checkedImage : undefined);
+    // 出してよい写真の判定は画面と同じ1か所（`shownSpotImage`）
+    const image = shownSpotImage(spot, images);
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
@@ -89,8 +85,10 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
         verifiedAt: verified ? spot.verifiedAt : undefined,
         image: image
             ? compact({
-                url: image.thumbUrl,
-                author: image.author,
+                // **サイトに置いた縮小版（横 960px）を優先。** 元画像は数MBあり、
+                // スポットの画面の大きい写真に使うと重い
+                url: image.local ? `${siteConfig.url}${image.local.src}` : image.thumbUrl,
+                author: cleanAuthor(image.author),
                 license: image.license,
                 licenseUrl: image.licenseUrl || undefined,
                 pageUrl: image.pageUrl,
