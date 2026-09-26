@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SpotGuidePage from "@/app/components/SpotGuidePage";
 import { SPOTS } from "@/lib/data/spots";
-import { visibleSpots, isVerified } from "@/lib/utils/spotGuide";
+import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
 
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const spot = visibleSpots(SPOTS).find((s) => s.slug === slug);
     if (!spot) return { robots: { index: false, follow: true } };
 
-    const verified = isVerified(spot);
+    const verified = isPublished(spot);
     const where = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const title = where ? `${spot.name}（${where}）の撮影ガイド` : `${spot.name} の撮影ガイド`;
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）

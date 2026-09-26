@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     SOURCED_FIELDS, sourcesFor, showsField, coverImageProblems,
     needsVisibleCredit, publishBlockers, publishableSpots, usesMapHero, SUMMARY_MIN,
-    reviewBlockers, visibleSpots, BUILD_DRAFT_SPOTS, isVerified,
+    reviewBlockers, visibleSpots, BUILD_DRAFT_SPOTS, isVerified, isPublished, hasAiCheck,
 } from "../spotGuide";
 import type { Spot } from "@/lib/data/spots";
 
@@ -296,5 +296,49 @@ describe("下書き（review）の門", () => {
         expect(reviewBlockers(review({ summary: "短い" })).some((m) => m.includes("紹介文"))).toBe(true);
         expect(reviewBlockers(review({ officialWebsiteUrl: undefined }))
             .some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
+    });
+});
+
+/**
+ * **AI 照合**（owner の委任・2026-09-26）。人の確認とは別の印で公開する。
+ * 「運営が確かめた」（`isVerified`）は人の確認だけのまま。
+ */
+describe("AI 照合で公開する", () => {
+    const AI = {
+        verifiedBy: undefined, verifiedAt: undefined,
+        aiCheck: {
+            checkedAt: "2026-09-26", delegatedBy: "rymaruta",
+            sources: [{ url: "https://ja.wikipedia.org/wiki/%E4%BE%8B", title: "Wikipedia「例」" }],
+        },
+    };
+
+    it("印が揃っていれば公開してよい。ただし「人が確かめた」にはならない", () => {
+        const s = fullSpot(AI);
+        expect(publishBlockers(s)).toEqual([]);
+        expect(isPublished(s)).toBe(true);
+        expect(hasAiCheck(s)).toBe(true);
+        expect(isVerified(s), "AI 照合を「運営が確かめた」にしている").toBe(false);
+    });
+
+    it("出典が無い・http・題が空の出典だけなら公開しない", () => {
+        for (const sources of [[], [{ url: "http://ja.wikipedia.org/x", title: "x" }], [{ url: "https://ja.wikipedia.org/x", title: " " }]]) {
+            const s = fullSpot({ ...AI, aiCheck: { ...AI.aiCheck, sources } });
+            expect(isPublished(s), JSON.stringify(sources)).toBe(false);
+            expect(publishBlockers(s).some((m) => m.includes("AI 照合"))).toBe(true);
+        }
+    });
+
+    it("委任した人・照合日が無ければ公開しない", () => {
+        expect(isPublished(fullSpot({ ...AI, aiCheck: { ...AI.aiCheck, delegatedBy: "" } }))).toBe(false);
+        expect(isPublished(fullSpot({ ...AI, aiCheck: { ...AI.aiCheck, checkedAt: "" } }))).toBe(false);
+    });
+
+    it("下書き（review）のままなら、印があっても公開しない", () => {
+        expect(isPublished(fullSpot({ ...AI, status: "review" }))).toBe(false);
+    });
+
+    it("出典の要る項目（アクセスなど）は AI 照合では出せない（確認者つきの出典が要るまま）", () => {
+        const s = fullSpot({ ...AI, parking: { available: true } });
+        expect(publishBlockers(s).some((m) => m.includes("parking"))).toBe(true);
     });
 });

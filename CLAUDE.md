@@ -144,6 +144,16 @@
   「未確認のリンク」）は残してあり、`true` にすれば戻る。**戻すときは verify を
   通し直す**（false の間はビルドもスモークも下書きの経路を通らない）
 - 出るのは owner が確かめて `published` に上げた行だけ（2026-09-25 時点で4件）
+- **AI 照合（2026-09-26・owner の委任）。** owner:「嘘がなかったら本番に出していい」
+  「全部 AI 照合みたいな感じでいい／出典元を書いとけばいい」。AI が日本語版 Wikipedia と
+  照らし、裏付けの無い文を削った行を `status: "published"` ＋ **`aiCheck`**
+  （`checkedAt`・`delegatedBy`＝委任した人の名前・`sources`・`imageChecked`）で出す
+  - **人の確認（`verifiedBy`）とは別の印。** `isVerified` は偽のまま＝画面に
+    「情報の最終確認（運営）」を出さず、「出典: …（AI 照合 日付）」を出す
+  - 公開の判定は `isPublished`（人の確認か AI 照合）。`delegatedBy` に AI の名前は
+    書けない（`spotsLedger.test.ts`）。出典の要る項目（access・parking・safetyNotes）は
+    AI 照合では出せない（確認者つきの出典が要るまま）
+  - 写真（`spot-images.json`）は `aiCheck.imageChecked` かつ座標のずれ無しのときだけアプリに出す
 
 ## タグの入力（2026-09-13・owner の「決まったのを選ぶ方が楽？」への答え）
 
