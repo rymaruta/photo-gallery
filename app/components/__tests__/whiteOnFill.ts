@@ -9,17 +9,28 @@ import { expect } from "vitest";
  * `textContrast.test.ts` は `text-white` を「濃い色」として通すので捕まえない。
  *
  * 描いた画面を見て、塗りの要素とその子孫を全部調べる。
+ *
+ * ⚠️ **見るのはクラス名だけ。** inline style（`boxShadow` の白い縁など）は見ない。
+ * クラスは `getAttribute("class")` で読む——SVG の `className` は
+ * SVGAnimatedString で、`toString()` が "[object SVGAnimatedString]" になり
+ * **黙って素通りする**（jsdom で確かめた）。
  */
 export function expectNoWhiteOnFill(root: HTMLElement): void {
     const fills = Array.from(root.querySelectorAll<HTMLElement>("[class]"))
-        .filter((el) => el.className.toString().split(/\s+/).includes("bg-accent-fill"));
+        .filter((el) => classes(el).some((t) => t === "bg-accent-fill" || t.startsWith("bg-accent-fill/")));
     expect(fills.length, "塗りの要素が1つも無い（試験の前提が崩れている）").toBeGreaterThan(0);
     for (const fill of fills) {
         for (const el of [fill, ...Array.from(fill.querySelectorAll<HTMLElement>("[class]"))]) {
-            const tokens = el.className.toString().split(/\s+/);
-            expect(tokens, `白の塗りの上に白い文字: ${el.outerHTML.slice(0, 120)}`).not.toContain("text-white");
-            expect(tokens.filter((t) => t.startsWith("focus-visible:ring-white")),
+            const tokens = classes(el);
+            // 半透明の白（text-white/90）も塗りの上では溶ける
+            expect(tokens.filter((t) => /^(text|fill|stroke)-white(\/\d+)?$/.test(t)),
+                `白の塗りの上に白い文字・図形: ${el.outerHTML.slice(0, 120)}`).toEqual([]);
+            expect(tokens.filter((t) => /^focus(-visible)?:ring-white/.test(t)),
                 `白の塗りに白いフォーカス枠: ${el.outerHTML.slice(0, 120)}`).toEqual([]);
         }
     }
+}
+
+function classes(el: Element): string[] {
+    return (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
 }

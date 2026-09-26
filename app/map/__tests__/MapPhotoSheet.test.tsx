@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { MapPhoto } from "../../components/PhotoMap";
 import { ROUTES } from "../../../lib/routes";
+import { expectNoWhiteOnFill } from "../../components/__tests__/whiteOnFill";
 
 // **配信のホストを先に決める。** `lib/utils/seo.ts` の `CDN_HOST` は
 // モジュール読み込み時に `NEXT_PUBLIC_CLOUDFRONT_URL` から決まるので、
@@ -40,6 +41,15 @@ function setup(photos: MapPhoto[], index = 0) {
 }
 
 describe("撮影地マップのボトムシート", () => {
+    it("主ボタン（白の塗り）の上に白い文字・白いフォーカス枠が無い", () => {
+        render(
+            <MapPhotoSheet photos={[photo("a")]} index={0} onIndexChange={vi.fn()} onClose={vi.fn()} locale="ja"
+                relatedHref="/location/takaya" />,
+        );
+        expect(screen.getByTestId("map-sheet-location-link")).toBeTruthy();
+        expectNoWhiteOnFill(screen.getByTestId("map-photo-sheet"));
+    });
+
     it("サムネ・題・撮影地・説明・日付を出す", () => {
         setup([photo("a", {
             thumbSrc: "https://cdn.example.com/uploads/a_thumb.webp",
