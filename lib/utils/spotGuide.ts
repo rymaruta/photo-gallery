@@ -178,9 +178,15 @@ export function publishBlockers(spot: Spot): string[] {
 
     if (spot.status !== "published") missing.push("status が published でない");
 
-    // 同一性: 人が確かめたか。**名前と日付の両方**
-    if (!spot.verifiedBy?.trim()) missing.push("確認者（verifiedBy）が無い");
-    if (!spot.verifiedAt?.trim()) missing.push("確認日（verifiedAt）が無い");
+    // 同一性: 人が確かめたか（名前と日付の両方）、または AI 照合の印が揃っているか
+    if (!hasHumanCheck(spot) && !hasAiCheck(spot)) {
+        if (spot.aiCheck) {
+            missing.push("AI 照合の印が不完全（checkedAt・delegatedBy・出典1本以上）");
+        } else {
+            if (!spot.verifiedBy?.trim()) missing.push("確認者（verifiedBy）が無い");
+            if (!spot.verifiedAt?.trim()) missing.push("確認日（verifiedAt）が無い");
+        }
+    }
 
     for (const field of SOURCED_FIELDS) {
         const written = (spot as Record<string, unknown>)[field] !== undefined;
@@ -237,6 +243,30 @@ export function visibleSpots(
     );
 }
 
+function hasHumanCheck(spot: Spot): boolean {
+    return Boolean(spot.verifiedBy?.trim()) && Boolean(spot.verifiedAt?.trim());
+}
+
+/**
+ * **AI 照合の印が揃っているか**（owner の委任・2026-09-26）。
+ * 照合日・委任した人・出典（https）1本以上。**人の確認とは別**——`isVerified` は偽のまま
+ */
+export function hasAiCheck(spot: Spot): boolean {
+    const c = spot.aiCheck;
+    return Boolean(c?.checkedAt?.trim())
+        && Boolean(c?.delegatedBy?.trim())
+        && Array.isArray(c?.sources)
+        && c!.sources.some((s) => /^https:\/\//.test(s.url ?? "") && Boolean(s.title?.trim()));
+}
+
+/**
+ * **公開済みか**（下書きの帯・検索避け・アプリの「下書き」札を出し分ける）。
+ * 人の確認でも AI 照合でもよい。「運営が確かめた」と書くのは `isVerified` だけ
+ */
+export function isPublished(spot: Spot): boolean {
+    return spot.status === "published" && publishBlockers(spot).length === 0;
+}
+
 /**
  * **人が確かめたスポットか**（画面が読む純関数）。
  *
@@ -244,9 +274,7 @@ export function visibleSpots(
  * `status` だけを見ない——`published` と書いてあっても名前と日付が無ければ嘘になる。
  */
 export function isVerified(spot: Spot): boolean {
-    return spot.status === "published"
-        && Boolean(spot.verifiedBy?.trim())
-        && Boolean(spot.verifiedAt?.trim());
+    return spot.status === "published" && hasHumanCheck(spot);
 }
 
 /**

@@ -29,7 +29,7 @@
 // ファイルが `SPOTS` を値として import していたら落ちる。
 
 import { SPOTS, type Spot } from "./spots";
-import { visibleSpots, isVerified, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
+import { visibleSpots, isPublished, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
 import {
     PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
     prefectureByName, type RegionName,
@@ -55,8 +55,8 @@ export type SpotLink = {
      */
     cover: { src: string; alt: string; credit: string | null } | null;
     /**
-     * **運営未確認の下書き（review）か、人が確かめた公開済みか。**
-     * 画面はこれで「下書き」の札と「公式」の語を出し分ける（`isVerified` を
+     * **運営未確認の下書き（review）か、公開済み（人の確認か AI 照合）か。**
+     * 画面はこれで「下書き」の札と「公式」の語を出し分ける（`isPublished` を
      * サーバー側で解いた値。クライアントに台帳の判定を持ち込まない）。
      */
     stage: "review" | "published";
@@ -82,7 +82,7 @@ export function toSpotLink(spot: Spot): SpotLink {
         summary: spot.summary,
         coords: spot.coords,
         cover,
-        stage: isVerified(spot) ? "published" : "review",
+        stage: isPublished(spot) ? "published" : "review",
     };
 }
 
@@ -263,7 +263,7 @@ export function spotAreas(): SpotArea[] {
         const slug = areaSlugOf(s);
         if (!slug) continue;
         counts.set(slug, (counts.get(slug) ?? 0) + 1);
-        if (isVerified(s)) published.set(slug, (published.get(slug) ?? 0) + 1);
+        if (isPublished(s)) published.set(slug, (published.get(slug) ?? 0) + 1);
     }
     const out: SpotArea[] = [];
     for (const p of PREFECTURES) {

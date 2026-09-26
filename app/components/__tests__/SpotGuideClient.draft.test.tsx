@@ -96,3 +96,25 @@ describe("人が確かめた撮影地ガイド", () => {
         expect(link.textContent).not.toContain("未確認");
     });
 });
+
+describe("AI 照合で公開した撮影地ガイド（owner の委任・2026-09-26）", () => {
+    const AI_CHECKED: Spot = {
+        ...DRAFT,
+        status: "published",
+        draftedAt: undefined,
+        aiCheck: {
+            checkedAt: "2026-09-26", delegatedBy: "rymaruta",
+            sources: [{ url: "https://ja.wikipedia.org/wiki/%E9%AB%98%E5%B1%8B%E7%A5%9E%E7%A4%BE", title: "Wikipedia「高屋神社」" }],
+        },
+    };
+
+    it("下書きの帯は出ず、出典と「AI 照合」を出す。「運営」とは名乗らない", () => {
+        view(AI_CHECKED);
+        expect(screen.queryByRole("note")).toBeNull();
+        expect(screen.queryByText(/情報の最終確認/)).toBeNull();
+        expect(screen.queryByText(/（運営）/)).toBeNull();
+        const source = screen.getByRole("link", { name: "Wikipedia「高屋神社」" });
+        expect(source.getAttribute("href")).toBe("https://ja.wikipedia.org/wiki/%E9%AB%98%E5%B1%8B%E7%A5%9E%E7%A4%BE");
+        expect(screen.getByText(/AI 照合 2026-09-26/)).toBeTruthy();
+    });
+});
