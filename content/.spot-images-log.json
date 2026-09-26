@@ -41,5 +41,33 @@
       "lat": 37.344716666667,
       "lng": 140.67347222222
     }
+  },
+  "adachi-museum-garden": {
+    "status": "ok",
+    "wikidata": "Q140407631",
+    "distanceKm": 4.05,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.380318,
+      "lng": 133.194152
+    }
+  },
+  "adatarayama": {
+    "status": "ok",
+    "wikidata": "Q352675",
+    "distanceKm": 1.59
+  },
+  "adera-keikoku": {
+    "status": "ok",
+    "wikidata": "Q22124539",
+    "distanceKm": 1.44
+  },
+  "agehama": {
+    "status": "not-found"
+  },
+  "aichi-prefectural-office": {
+    "status": "ok",
+    "wikidata": "Q4352855",
+    "distanceKm": 0.3
   }
 }
