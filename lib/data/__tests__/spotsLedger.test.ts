@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SPOTS, type Spot } from "../spots";
-import {
+import { hasAiCheck,
     publishBlockers, reviewBlockers, visibleSpots, sourcesFor, SOURCED_FIELDS,
 } from "../../utils/spotGuide";
 import { PREFECTURES as PREFECTURE_TABLE } from "../prefectures";
@@ -64,11 +64,13 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         expect(built.length, "公開済みが0件＝/spots が空になる").toBeGreaterThan(0);
     });
 
-    it("published の行は確認者（verifiedBy）と確認日を対で持つ", () => {
+    /// published は「人の確認（verifiedBy＋verifiedAt）」か「AI 照合の印（aiCheck）」のどちらか。
+    /// AI 照合は owner の委任（2026-09-26）で、**委任した人の名前**と出典を必ず持つ
+    it("published の行は確認者（verifiedBy）と確認日を対で持つ（または AI 照合の印を持つ）", () => {
         const bad = SPOTS
-            .filter((s) => s.status === "published" && !(s.verifiedBy?.trim() && s.verifiedAt?.trim()))
+            .filter((s) => s.status === "published" && !(s.verifiedBy?.trim() && s.verifiedAt?.trim()) && !hasAiCheck(s))
             .map((s) => s.slug);
-        expect(bad, "確認者か確認日の無い published がある").toEqual([]);
+        expect(bad, "確認者か確認日の無い published がある（AI 照合の印も無い）").toEqual([]);
         const dateOnly = SPOTS.filter((s) => s.verifiedAt && !s.verifiedBy?.trim()).map((s) => s.slug);
         expect(dateOnly, "verifiedAt だけがある（誰が確かめたか分からない）").toEqual([]);
     });
@@ -87,6 +89,8 @@ describe("撮影スポット台帳（content/spots.json）", () => {
             for (const src of s.sources ?? []) {
                 if (src.checkedBy && AI_NAME_RE.test(src.checkedBy.trim())) bad.push(`${s.slug}.sources[${src.field}].checkedBy=${src.checkedBy}`);
             }
+            // AI 照合の「委任した人」も人の名前（AI が自分に委任したことにしない）
+            if (s.aiCheck && AI_NAME_RE.test((s.aiCheck.delegatedBy ?? "").trim())) bad.push(`${s.slug}.aiCheck.delegatedBy=${s.aiCheck.delegatedBy}`);
         }
         expect(bad).toEqual([]);
     });

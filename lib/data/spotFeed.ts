@@ -23,7 +23,7 @@
 // import しない**（`app/__tests__/spotLedgerClientImport.test.ts` が見張る）。
 
 import { SPOTS, type Spot } from "./spots";
-import { visibleSpots, isVerified } from "../utils/spotGuide";
+import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
 import { SPOT_IMAGES, reviewedSpotImage, type SpotImage } from "./spotImages";
 
 /**
@@ -65,9 +65,15 @@ function compact<T extends object>(obj: T): T {
 
 /** 台帳の1件を索引の形へ */
 export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES): SpotFeedItem {
+    const published = isPublished(spot);
     const verified = isVerified(spot);
-    // 下書きには写真も付けない（本文と同じく運営が確かめていない行）
-    const image = verified ? reviewedSpotImage(spot.slug, images) : undefined;
+    // 下書きには写真も付けない（本文と同じく誰も確かめていない行）。
+    // 写真は **人が確かめたもの**か、**AI 照合で写真も照らしたもの**（座標のずれ無し）だけ
+    const checkedImage = images[spot.slug];
+    const image = !published
+        ? undefined
+        : reviewedSpotImage(spot.slug, images)
+            ?? (spot.aiCheck?.imageChecked && checkedImage && !checkedImage.coordsMismatch ? checkedImage : undefined);
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
@@ -78,7 +84,7 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
         coords: spot.coords,
         category: spot.category,
         summary: spot.summary,
-        stage: verified ? "published" : "review",
+        stage: published ? "published" : "review",
         draftedAt: spot.draftedAt,
         verifiedAt: verified ? spot.verifiedAt : undefined,
         image: image

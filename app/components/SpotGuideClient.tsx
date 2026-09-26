@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import type { Spot } from "@/lib/data/spots";
 import type { Photo } from "@/lib/data/photos";
-import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified } from "@/lib/utils/spotGuide";
+import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import GalleryGrid from "./GalleryGrid";
@@ -91,9 +91,12 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
     const isJa = locale !== "en";
     const mapHero = usesMapHero(spot);
     const cover = spot.coverImage;
-    // **人が確かめたか。** false のあいだは「下書き（運営未確認）」の帯を出し、
-    // 「情報の最終確認」を描かず、公式サイトのリンクを「未確認」と名乗らせる
-    const verified = isVerified(spot);
+    // **公開済みか**（人の確認か AI 照合）。false のあいだは「下書き（運営未確認）」の
+    // 帯を出し、公式サイトのリンクを「未確認」と名乗らせる
+    const verified = isPublished(spot);
+    // **「運営が確かめた」と書けるのは人が確かめた行だけ**（AI 照合は出典を書く）
+    const humanChecked = isVerified(spot);
+    const aiChecked = !humanChecked && hasAiCheck(spot) ? spot.aiCheck : undefined;
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
 
@@ -424,9 +427,24 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
 
                         {/* **人が確かめたときだけ。** 以前は台帳の日付をそのまま描き、
                             AI が書いた日が「情報の最終確認」として全ページに出ていた */}
-                        {verified && spot.verifiedAt && (
+                        {humanChecked && spot.verifiedAt && (
                             <p className="m-0 mt-5 text-white/60" style={{ fontSize: "11px" }}>
                                 {isJa ? `情報の最終確認: ${spot.verifiedAt}（運営）` : `Last checked: ${spot.verifiedAt} (by our team)`}
+                            </p>
+                        )}
+                        {/* **AI 照合の行は出典を書く**（owner の委任・2026-09-26）。
+                            「運営が確かめた」とは名乗らない */}
+                        {aiChecked && (
+                            <p className="m-0 mt-5 text-white/60" style={{ fontSize: "11px", lineHeight: "17px" }}>
+                                {isJa ? "出典: " : "Source: "}
+                                {aiChecked.sources.map((s, i) => (
+                                    <React.Fragment key={s.url}>
+                                        {i > 0 && "、"}
+                                        <a href={s.url} target="_blank" rel="noopener noreferrer"
+                                           className="underline underline-offset-2 hover:text-white">{s.title}</a>
+                                    </React.Fragment>
+                                ))}
+                                {isJa ? `（AI 照合 ${aiChecked.checkedAt}）` : ` (checked by AI against the source, ${aiChecked.checkedAt})`}
                             </p>
                         )}
                     </aside>

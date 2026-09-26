@@ -153,6 +153,15 @@ export type Spot = {
      * 機械が書いた日付を入れる場所ではない（それは `draftedAt`）。
      */
     verifiedAt?: string;
+    /**
+     * **AI 照合**（owner の委任・2026-09-26）。人の確認（`verifiedBy`）とは**別の印**。
+     *
+     * owner:「嘘がなかったら本番に出していい」「全部 AI 照合みたいな感じでいい／
+     * 出典元を書いとけばいい」。AI が出典（日本語版 Wikipedia）と照らし、
+     * 裏付けの無い文を削った行だけに付ける。画面は「情報の最終確認（運営）」ではなく
+     * 「出典: …（AI 照合）」と出す——**人が確かめたとは名乗らない**。
+     */
+    aiCheck?: SpotAiCheck;
 
     createdAt: string;
     updatedAt: string;
@@ -168,6 +177,18 @@ export type SpotTimeOfDay = "dawn" | "morning" | "day" | "goldenHour" | "dusk" |
  *
  * 1件のスポットに複数（アクセスは市の公式サイト、注意点は施設の掲示、など）。
  */
+/** AI 照合の記録（`Spot.aiCheck`） */
+export type SpotAiCheck = {
+    /** 照合した日（ISO の日付） */
+    checkedAt: string;
+    /** 委任した人の名前（owner）。**AI の名前は書かない**（`spotsLedger.test.ts`） */
+    delegatedBy: string;
+    /** 照らした出典。**1本以上** */
+    sources: { url: string; title: string }[];
+    /** 写真（`content/spot-images.json`）も照らしたか（Wikidata の代表画像・座標のずれ無し） */
+    imageChecked?: boolean;
+};
+
 export type SpotSource = {
     /** 裏付ける項目名（`Spot` のキー。例: "access" / "parking" / "safetyNotes"） */
     field: string;
