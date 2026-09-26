@@ -232,6 +232,12 @@ export type SpotCoverImage = {
     sourceUrl?: string;
     /** 許諾の条件として画面に必ず出す文字（あれば） */
     requiredCreditText?: string;
+    /**
+     * ライセンスの名前と、その文面の URL（Commons の写真・CC BY / BY-SA の表示条件）。
+     * あれば画面は「写真: 作者 / ライセンス（リンク）/ Wikimedia Commons（リンク）」と出す
+     */
+    licenseLabel?: string;
+    licenseUrl?: string;
     /** 確認した日（ISO）。**必須** */
     checkedAt: string;
     /**

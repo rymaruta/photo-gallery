@@ -49,7 +49,9 @@ function listPublic(dir = PUBLIC_DIR): string[] {
  */
 function referenced(file: string): boolean {
     const base = file.split("/").pop()!;
-    const roots = ["app", "lib", "scripts", "public", ".github"];
+    // `content/` も数える: スポットの写真（`public/images/spots/*.jpg`）は
+    // `content/spot-images.json` の `local.src` が名前を持つ（2026-09-26）
+    const roots = ["app", "lib", "scripts", "public", ".github", "content"];
     const stack = roots.map((r) => join(process.cwd(), r));
     while (stack.length > 0) {
         const dir = stack.pop()!;

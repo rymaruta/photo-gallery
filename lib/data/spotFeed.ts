@@ -24,7 +24,7 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
-import { SPOT_IMAGES, shownSpotImage, type SpotImage } from "./spotImages";
+import { SPOT_IMAGES, cleanAuthor, shownSpotImage, type SpotImage } from "./spotImages";
 import { siteConfig } from "../utils/seo";
 
 /**
@@ -88,7 +88,7 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
                 // **サイトに置いた縮小版（横 960px）を優先。** 元画像は数MBあり、
                 // スポットの画面の大きい写真に使うと重い
                 url: image.local ? `${siteConfig.url}${image.local.src}` : image.thumbUrl,
-                author: image.author,
+                author: cleanAuthor(image.author),
                 license: image.license,
                 licenseUrl: image.licenseUrl || undefined,
                 pageUrl: image.pageUrl,

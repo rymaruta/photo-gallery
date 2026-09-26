@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
 import type { Spot } from "../spots";
-import { coverLicenseOf, shownSpotImage, spotCoverImage, type SpotImage } from "../spotImages";
+import { cleanAuthor, coverLicenseOf, shownSpotImage, spotCoverImage, type SpotImage } from "../spotImages";
 
 // 実際の台帳から、AI 照合で写真も照らした公開済みの行を土台にする
 const ledger = rawLedger as unknown as Spot[];
@@ -33,7 +33,7 @@ describe("スポットの写真（Commons）", () => {
             verifiedPlace: true,
             checkedAt: base.aiCheck!.checkedAt,
         });
-        expect(cover!.requiredCreditText).toContain("CC BY-SA 4.0");
+        expect(cover).toMatchObject({ licenseLabel: "CC BY-SA 4.0" });
         expect(cover!.aspectRatio).toBeCloseTo(1.5);
     });
 
@@ -62,6 +62,25 @@ describe("スポットの写真（Commons）", () => {
         expect(coverLicenseOf("CC BY-NC 2.0")).toBeUndefined();
         expect(coverLicenseOf("CC BY-ND 4.0")).toBeUndefined();
         expect(coverLicenseOf("GFDL")).toBeUndefined();
+        // NC・ND は順番や区切りが揺れても通さない（レビューで見つかった抜け）
+        expect(coverLicenseOf("CC BY-SA-NC 2.0")).toBeUndefined();
+        expect(coverLicenseOf("CC BY NC 2.0")).toBeUndefined();
+        expect(coverLicenseOf("CC BY-NC-SA 2.0")).toBeUndefined();
+        expect(coverLicenseOf("CC BY-SA 2.0 de")).toBe("cc-by-sa");
+        expect(coverLicenseOf("PD-self")).toBe("public-domain");
+        expect(coverLicenseOf("Pdf")).toBeUndefined();
         expect(spotCoverImage(base, images({ license: "CC BY-NC 2.0" }))).toBeUndefined();
+    });
+});
+
+describe("作者の表記", () => {
+    it("Wiki の「( talk )」だけ落とし、作者の求める表記は残す", () => {
+        expect(cleanAuthor("Sakaori ( talk )")).toBe("Sakaori");
+        expect(cleanAuthor("Ans~jawiki at Japanese Wikipedia")).toBe("Ans~jawiki at Japanese Wikipedia");
+    });
+
+    it("ライセンスの文面の URL は https にそろえる", () => {
+        const cover = spotCoverImage(base, images({ licenseUrl: "http://creativecommons.org/licenses/by-sa/3.0/" }));
+        expect(cover!.licenseUrl).toBe("https://creativecommons.org/licenses/by-sa/3.0/");
     });
 });

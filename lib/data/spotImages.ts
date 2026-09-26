@@ -70,11 +70,19 @@ export function shownSpotImage(
 /** Commons のライセンスの短い名前を、代表写真の利用根拠へ。使えないものは undefined */
 export function coverLicenseOf(shortName: string): SpotImageLicense | undefined {
     const s = shortName.trim().toLowerCase();
+    // **商用不可（NC）・改変不可（ND）は、どの書き方でも先に落とす**
+    // （"CC BY-SA-NC"・"CC BY NC" のように順番や区切りが揺れても通さない）
+    if (/\bnc\b|\bnd\b/.test(s.replace(/-/g, " "))) return undefined;
     if (/^cc0\b/.test(s)) return "cc0";
-    if (s === "public domain" || s.startsWith("pd")) return "public-domain";
+    if (s === "public domain" || s === "pd" || /^pd[-\s]/.test(s)) return "public-domain";
     if (/^cc by-sa\b/.test(s)) return "cc-by-sa";
-    if (/^cc by\b/.test(s) && !/-(nc|nd)\b/.test(s)) return "cc-by";
+    if (/^cc by\b/.test(s)) return "cc-by";
     return undefined;
+}
+
+/** 作者の欄に残る Wiki の書き方（「( talk )」）を落とす。それ以外は作者の求める表記のまま */
+export function cleanAuthor(author: string): string {
+    return author.replace(/\s*\(\s*talk\s*\)\s*$/i, "").trim();
 }
 
 /**
@@ -94,11 +102,12 @@ export function spotCoverImage(
         src: image.local.src,
         alt: spot.name,
         aspectRatio: image.local.width / image.local.height,
-        credit: image.author,
+        credit: cleanAuthor(image.author),
         license,
         sourceUrl: image.pageUrl,
-        // CC BY・CC BY-SA は作者・ライセンス・出典の表示が条件
-        requiredCreditText: `写真: ${image.author}（${image.license}）/ Wikimedia Commons`,
+        // CC BY・CC BY-SA は作者・ライセンス（文面へのリンク）・出典の表示が条件
+        licenseLabel: image.license,
+        licenseUrl: image.licenseUrl ? image.licenseUrl.replace(/^http:\/\//, "https://") : undefined,
         checkedAt: image.reviewedAt ?? spot.aiCheck?.checkedAt ?? image.fetchedAt,
         verifiedPlace: true,
     };
