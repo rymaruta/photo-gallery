@@ -13,8 +13,14 @@ vi.mock("../dynamodb", () => ({
 // 表示名の引きは境界としてモックする（`notify` は USERS_TABLE を要求する）
 const mockName = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 const mockGone = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 vi.mock("../notify", () => ({
-    lookupDisplayNameIfSet: (...a: unknown[]) => mockName(...(a as [string])),
+    // 名前と @ユーザー名を1回で引く（`lookupListIdentity`）。名前は `mockName` が答える
+    lookupListIdentity: async (uid: string) => {
+        const name = await mockName(uid);
+        const username = await mockUsername(uid);
+        return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
+    },
     deletedUserIds: () => mockGone(),
     DELETED_USER_NAME: "退会したユーザー",
 }));
@@ -66,7 +72,7 @@ function world(rows: Record<string, Record<string, unknown>> = {}) {
 // `cmd.constructor` を読むと、その呼び出しだけ `undefined` で落ちる
 // ——「1つ前のテストが原因」に見えるので、たどり着くのに時間がかかった。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); mockGone.mockReset().mockResolvedValue(new Set()); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); mockGone.mockReset().mockResolvedValue(new Set()); mockUsername.mockReset().mockResolvedValue(undefined); });
 
 // **やり取りの口を持つ以上の最低限。** ストーリーへの返信を足した時点で、
 // ログインしていれば誰でも誰の通知にも文字を送れるようになった
@@ -222,6 +228,16 @@ describe("listBlocks", () => {
         mockName.mockImplementation(async (id: string) => (id === THEM ? "しつこい人" : undefined));
         const r = await invoke(listBlocks, ev(ME));
         expect(bodyOf(r).users).toEqual([{ id: THEM, name: "しつこい人" }, { id: OTHER }]);
+    });
+
+    // **@ユーザー名も返す**（アプリの板 45 は名前の下に `@username`）。
+    // 設定していない人には鍵ごと付けない（空の「@」を出させない）
+    it("@ユーザー名も返す（設定している人だけ）", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM, OTHER] } });
+        mockName.mockImplementation(async (id: string) => (id === THEM ? "しつこい人" : undefined));
+        mockUsername.mockImplementation(async (id: string) => (id === THEM ? "pesky" : undefined));
+        const r = await invoke(listBlocks, ev(ME));
+        expect(bodyOf(r).users).toEqual([{ id: THEM, name: "しつこい人", username: "pesky" }, { id: OTHER }]);
     });
 
     // 名前が引けないことより、**解除できないこと**の方が困る

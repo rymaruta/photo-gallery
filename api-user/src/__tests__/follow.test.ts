@@ -4,6 +4,8 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
 const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
+// @ユーザー名（一覧の2行目）。名前と同じ読みで返る（`lookupListIdentity`）
+const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 const mockDeleted = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
 const mockHidden = vi.hoisted(() => vi.fn<(uid: string) => Promise<Set<string>>>(async () => new Set<string>()));
@@ -16,7 +18,12 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    lookupDisplayNameIfSet: (...a: unknown[]) => mockLookupIfSet(...(a as [string])),
+    // 一覧は名前と @ユーザー名を1回で引く。名前は従来どおり `mockLookupIfSet` が答える
+    lookupListIdentity: async (uid: string) => {
+        const name = await mockLookupIfSet(uid);
+        const username = await mockUsername(uid);
+        return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
+    },
     deletedUserIds: () => mockDeleted(),
 }));
 // **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
@@ -101,6 +108,7 @@ beforeEach(() => {
     mockLookup.mockReset().mockResolvedValue("旅人A");
     mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
+    mockUsername.mockReset().mockResolvedValue(undefined);
     mockDeleted.mockReset().mockResolvedValue(new Set<string>());
     mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
@@ -1004,6 +1012,20 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD }]);
         expect(JSON.parse(res.body).total).toBe(2);
         expect(JSON.parse(res.body).listed).toBe(2);
+    });
+
+    // **@ユーザー名も返す**（アプリの板 34 は名前の下に `@username`）。
+    // 名前と同じ1回の読みで引く（人数ぶんの往復を倍にしない）
+    it("@ユーザー名も返す（設定している人だけ）", async () => {
+        mockDdbSend.mockImplementation((cmd: { input: { Key?: { id?: string } } }) => {
+            const id = cmd.input.Key?.id ?? "";
+            if (id === `followstats#${ME}`) return Promise.resolve({ Item: { followers: 0, following: 2 } });
+            return Promise.resolve({ Item: { list: [OTHER, THIRD] } });
+        });
+        mockLookupIfSet.mockImplementation(async (id: string) => (id === OTHER ? "旅人B" : undefined));
+        mockUsername.mockImplementation(async (id: string) => (id === OTHER ? "tabibito_b" : undefined));
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B", username: "tabibito_b" }, { id: THIRD }]);
     });
 
     // **`total` は数（`followstats#`）。** 一覧の長さを返していた頃は、
