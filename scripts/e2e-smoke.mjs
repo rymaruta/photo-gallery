@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, webkit } from "playwright-core";
 import { stubImageFor } from "./lib/smokeStubImages.mjs";
+import { heroKeys } from "./lib/smokeHero.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, "..", "out");
@@ -436,14 +437,16 @@ async function runChecks(browser, eng) {
         const id = photoPages[0].replace(/\.html$/, "");
         await page.goto(`http://localhost:${PORT}/photo/${encodeURIComponent(id)}`, { waitUntil: "domcontentloaded" });
         check(`[${eng}] 写真ページ: ハイドレーション完了`, await waitForHydration(page));
-        const detail = await page.evaluate((photoId) => ({
+        // 主役の鍵: 写真の id と、画像のファイル名（今の投稿は別の名前・`smokeHero.mjs`）
+        const keys = heroKeys(id, JSON.parse(fs.readFileSync(path.join(__dirname, "..", "app", "data", "photos.json"), "utf8")));
+        const detail = await page.evaluate((keys) => ({
             h1: document.querySelector("h1")?.textContent?.trim() ?? "",
             imgs: document.querySelectorAll("img").length,
             // **主役の1枚を名指しで数える。** ただの `img > 0` では、
             // アバターや「ほかにこんな写真も」のサムネが残るので
             // **主役を消しても緑のまま**だった（変異で確認）
             hero: [...document.querySelectorAll("img")]
-                .filter((i) => (i.getAttribute("src") ?? "").includes(photoId)).length,
+                .filter((i) => keys.some((k) => (i.getAttribute("src") ?? "").includes(k))).length,
             broken: [...document.querySelectorAll("img")].filter((i) => i.complete && i.naturalWidth === 0).length,
             // 回遊: 投稿者・集約ページ・ほかの写真のどれかへ出られること
             // **投稿者リンク1本で緑になる `> 0` では何も見ていない**
@@ -454,7 +457,7 @@ async function runChecks(browser, eng) {
                 "a[href^='/users/'],a[href^='/tag/'],a[href^='/location/'],a[href^='/category/'],a[href^='/camera/']",
             ).length,
             otherPhotos: document.querySelectorAll("a[href^='/photo/'],a[href^='/?photo=']").length,
-        }), id);
+        }), keys);
         check(`[${eng}] 写真ページ: 見出しが出る`, detail.h1.length > 0, detail.h1);
         // **水和のあとに数える。** 主役の1枚が消える形はここでしか出ない
         check(`[${eng}] 写真ページ: 主役の写真が出る`, detail.hero > 0, `hero=${detail.hero} / img=${detail.imgs}`);
