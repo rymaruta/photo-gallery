@@ -40,6 +40,7 @@ on:
           - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
           - verify-origin-failover # **staging** でオリジングループが 404ページより先に効くか確かめる（動的化の関門）
           - restore-account   # 間違えて退会したアカウントを戻す（owner_user_id 空=直近の墓石一覧・指定=状況を読む・apply=墓石を消す）
+          - set-verified      # 認証済みの印を付ける（target_user を指定・既定は読むだけ・apply で付ける・unverify で外す）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -49,6 +50,14 @@ on:
         description: "who-liked・restore-account のときの対象ユーザーID"
         type: string
         default: ""
+      target_user:
+        description: "set-verified のときの対象（@ユーザー名 か userId）"
+        type: string
+        default: ""
+      unverify:
+        description: "set-verified で印を外すとき true"
+        type: boolean
+        default: false
       geocode_skip:
         description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
         type: string
@@ -137,6 +146,14 @@ jobs:
         run: node scripts/restore-account.js ${{ inputs.apply && '--apply' || '' }}
         env:
           OWNER_USER_ID: ${{ inputs.owner_user_id }}
+
+      # 認証済みの印を付ける・外す（scripts/set-verified.js）。
+      # 既定は読むだけ（対象の表示名を出す）。apply はその1行の verified だけを書く
+      - name: 認証済みの印を付ける
+        if: inputs.task == 'set-verified'
+        run: node scripts/set-verified.js ${{ inputs.apply && '--apply' || '' }} ${{ inputs.unverify && '--unverify' || '' }}
+        env:
+          TARGET_USER: ${{ inputs.target_user }}
 
       - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'
