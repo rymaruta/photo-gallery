@@ -8,7 +8,9 @@
 //
 //   載せる    spotId / slug / name / nameEn / reading / region（都道府県・市）/
 //             coords（約1km精度）/ category / summary / stage / draftedAt /
-//             verifiedAt（人が確かめた行だけ）
+//             verifiedAt（人が確かめた行だけ）/
+//             image（写真・作者・ライセンス。**owner が写真を確かめた公開済みの行だけ**
+//             ・2026-09-26。`lib/data/spotImages.ts`）
 //   載せない  description・highlights・季節・時間帯・構図・アクセス・駐車場・
 //             注意点・出典（全文 3.5MB。索引は約 0.6MB / gzip 0.2MB）、
 //             draftedBy（製品名を画面・アプリに出さない）、verifiedBy
@@ -22,6 +24,19 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified } from "../utils/spotGuide";
+import { SPOT_IMAGES, reviewedSpotImage, type SpotImage } from "./spotImages";
+
+/**
+ * スポットの写真。**作者とライセンスは必ず一緒に出す**（CC BY・CC BY-SA の条件）。
+ * `pageUrl` は出典のリンク先（Commons のファイルのページ）
+ */
+export type SpotFeedImage = {
+    url: string;
+    author: string;
+    license: string;
+    licenseUrl?: string;
+    pageUrl: string;
+};
 
 export type SpotFeedItem = {
     spotId: string;
@@ -39,6 +54,8 @@ export type SpotFeedItem = {
     draftedAt?: string;
     /** 人が最後に確かめた日。`published` のときだけ */
     verifiedAt?: string;
+    /** 写真。**公開済みで、owner が写真を確かめた行だけ** */
+    image?: SpotFeedImage;
 };
 
 /** `undefined` の鍵を落とす（JSON に `"x": null` を出さない・鍵の集合を固定する） */
@@ -47,8 +64,10 @@ function compact<T extends object>(obj: T): T {
 }
 
 /** 台帳の1件を索引の形へ */
-export function toSpotFeedItem(spot: Spot): SpotFeedItem {
+export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES): SpotFeedItem {
     const verified = isVerified(spot);
+    // 下書きには写真も付けない（本文と同じく運営が確かめていない行）
+    const image = verified ? reviewedSpotImage(spot.slug, images) : undefined;
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
@@ -62,12 +81,24 @@ export function toSpotFeedItem(spot: Spot): SpotFeedItem {
         stage: verified ? "published" : "review",
         draftedAt: spot.draftedAt,
         verifiedAt: verified ? spot.verifiedAt : undefined,
+        image: image
+            ? compact({
+                url: image.thumbUrl,
+                author: image.author,
+                license: image.license,
+                licenseUrl: image.licenseUrl || undefined,
+                pageUrl: image.pageUrl,
+            })
+            : undefined,
     });
 }
 
 /** 純関数。テストは固定の台帳を渡す */
-export function buildSpotFeed(spots: readonly Spot[]): SpotFeedItem[] {
-    return visibleSpots(spots).map(toSpotFeedItem);
+export function buildSpotFeed(
+    spots: readonly Spot[],
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): SpotFeedItem[] {
+    return visibleSpots(spots).map((s) => toSpotFeedItem(s, images));
 }
 
 /** 実際に配る索引 */
