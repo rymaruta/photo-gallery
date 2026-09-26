@@ -1,6 +1,7 @@
 import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
+import { isDeletedProfile } from "./types";
 import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { apnsConfigured, sendPush } from "./apns";
 import { deviceTokens, forgetTokens } from "./devices";
@@ -127,6 +128,40 @@ export async function lookupDisplayNameIfSet(uid: string): Promise<string | unde
         return name || undefined;
     } catch {
         return undefined;
+    }
+}
+
+/**
+ * 一覧の1行に出す「表示名と @ユーザー名」を1回の読みで引く。
+ *
+ * ブロックした人・フォロー／フォロワーの一覧（アプリの板 45・34）は
+ * 名前の下に `@username` を出す。名前だけ引く `lookupDisplayNameIfSet` を
+ * 呼んだあとにもう1回引くと、人数ぶんの往復が倍になる。
+ *
+ * **どちらも「設定されているときだけ」返す**（空文字・型違いは入れない）。
+ * 読めなければ空のオブジェクト——`lookupDisplayNameIfSet` と同じく投げない。
+ *
+ * 🔴 **墓石（退会した人の行）からは何も返さない。** 墓石には予約をやり直せる
+ * ように旧ハンドルが残る（`account.ts`）。一覧は `deletedUserIds()` で先に伏せるが、
+ * その集合は読めないと空・走査の打ち切り・60秒の控えで**漏れることがある**。
+ * 漏れた退会者に解放済みのハンドル（別人が取り直せる）を付けて出さない。
+ * 公開プロフィール（`userProfile.ts`）と検索（`userSearch.ts`）と同じ防御
+ */
+export async function lookupListIdentity(uid: string): Promise<{ name?: string; username?: string }> {
+    try {
+        const res = await ddb.send(new GetCommand({
+            TableName: USERS_TABLE,
+            Key: { userId: uid },
+            // 予約語かどうかに左右されないよう名前は置き換えて書く
+            ProjectionExpression: "#n, #u, #d",
+            ExpressionAttributeNames: { "#n": "displayName", "#u": "username", "#d": "deletedAt" },
+        }));
+        if (isDeletedProfile(res.Item)) return {};
+        const name = typeof res.Item?.displayName === "string" ? res.Item.displayName.trim() : "";
+        const username = typeof res.Item?.username === "string" ? res.Item.username.trim() : "";
+        return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
+    } catch {
+        return {};
     }
 }
 
