@@ -145,8 +145,6 @@ describe("どのタブを光らせるか（activeTab）", () => {
         [ROUTES.HOME, "home"],
         [ROUTES.SEARCH, "search"],
         [ROUTES.MAP, "map"],
-        ["/users/abc", "me"],
-        ["/users", "me"],           // クエリ版（/users?id=）
         ["/user/profile", "me"],
         ["/user/drafts", "me"],
     ])("%s → %s", (path, key) => {
@@ -162,10 +160,50 @@ describe("どのタブを光らせるか（activeTab）", () => {
         expect(activeTab(path)).toBeNull();
     });
 
-    it("/users で始まるだけの別ページを巻き込まない", () => {
-        // `/users/search`（人をさがす）は「マイページ」ではない…が、
-        // いまは前置きで拾う。**そうと分かって拾っている**ことを固定する
-        // （分けるなら `ROUTES.USER_SEARCH` を先に見る1行を足す）
-        expect(activeTab(ROUTES.USER_SEARCH)).toBe("me");
+    it("自分のプロフィールは「マイページ」（静的・クエリ版の両方）", () => {
+        expect(activeTab("/users/me-1", "", "me-1")).toBe("me");
+        expect(activeTab("/users", "?id=me-1", "me-1")).toBe("me");
+        // 書き出しの末尾スラッシュ・符号化された id でも同じ
+        expect(activeTab("/users/me-1/", "", "me-1")).toBe("me");
+        expect(activeTab("/users/a%20b", "", "a b")).toBe("me");
+    });
+
+    it("他の人のプロフィールでは「マイページ」を光らせない", () => {
+        // 以前は `/users/` の前置きだけで見ていて、誰のページでも光った
+        expect(activeTab("/users/someone", "", "me-1")).toBeNull();
+        expect(activeTab("/users", "?id=someone", "me-1")).toBeNull();
+    });
+
+    it("誰か分からない（未ログイン）ときは、プロフィールでも光らせない", () => {
+        expect(activeTab("/users/someone")).toBeNull();
+        expect(activeTab("/users", "?id=someone", null)).toBeNull();
+        expect(activeTab("/users", "", null)).toBeNull();
+    });
+
+    it("/users/search（人をさがす）はマイページではない", () => {
+        expect(activeTab(ROUTES.USER_SEARCH, "", "me-1")).toBeNull();
+    });
+
+    it("描画: 他の人のプロフィールを開くと、どのタブも aria-current を持たない", () => {
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = "/users/someone";
+        render(<BottomNav />);
+        const marked = screen.getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
+        expect(marked).toEqual([]);
+    });
+
+    it("描画: クエリ版の自分のページでは「マイページ」が光る", () => {
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = "/users";
+        window.history.replaceState(null, "", "/users?id=me-1");
+        try {
+            render(<BottomNav />);
+            const marked = screen.getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
+            expect(marked.map((a) => a.textContent)).toEqual(["マイページ"]);
+        } finally {
+            window.history.replaceState(null, "", "/");
+        }
     });
 });

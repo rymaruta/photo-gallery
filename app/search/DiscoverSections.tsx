@@ -98,7 +98,7 @@ function coverOf(photos: Photo[], match: (p: Photo) => boolean): Photo | undefin
  *
  * **URL は一度は正しくなっていた。** 消していたのは `urlFilters` の依存が
  * `[clientRender]` だけで、水和のときに一度読んだきり読み直さなかったから。
- * そちらを直した（`lib/hooks/useGallery.ts` の `subscribeToUrl`）ので、
+ * そちらを直した（`lib/utils/urlSearch.ts` の `subscribeToUrl`・`useGallery` が使う）ので、
  * 回避策は要らない。
  *
  * ⚠️ **戻したときの見張りは `useGallery` 側**（`urlFilters` が URL に追随する）。

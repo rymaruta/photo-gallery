@@ -14,6 +14,7 @@ import { ROUTES } from "../../lib/routes";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { useBottomBarHeight } from "../../lib/hooks/useBottomBarHeight";
+import { subscribeToUrl, readSearch, readSearchOnServer } from "../../lib/utils/urlSearch";
 import PostSheet from "./PostSheet";
 
 /**
@@ -50,15 +51,30 @@ type TabKey = "home" | "search" | "map" | "me";
  * `/users/<id>`（静的）と `/users?id=`（クエリ版）の2形があり、
  * プロフィール設定や下書きも「自分のところ」に見える。
  *
+ * **`/users/…` は自分のときだけ「マイページ」。** 以前は前置きだけで見て
+ * いたので、**他の人のプロフィールを開いても「マイページ」が光った**
+ * （2026-09-26・実ブラウザで確認）。誰のページかは URL にしか無いので、
+ * クエリ版は `search` の `id` を読む。ログインしていない・まだ分からない
+ * （`myId` が無い）ときは光らせない。
+ *
  * 綴りではなく `ROUTES` の値と前置きで見る（直書きの `href` を増やさない）。
  */
-export function activeTab(pathname: string): TabKey | null {
+export function activeTab(pathname: string, search = "", myId?: string | null): TabKey | null {
     if (pathname === ROUTES.HOME) return "home";
     if (pathname === ROUTES.SEARCH) return "search";
     if (pathname === ROUTES.MAP) return "map";
-    if (pathname === "/users" || pathname.startsWith("/users/")) return "me";
+    if (pathname === "/users" || pathname.startsWith("/users/")) {
+        const owner = pathname === "/users"
+            ? new URLSearchParams(search).get("id")
+            : safeDecode(pathname.slice("/users/".length).replace(/\/+$/, ""));
+        return myId && owner === myId ? "me" : null;
+    }
     if (pathname.startsWith("/user/")) return "me";
     return null;
+}
+
+function safeDecode(s: string): string {
+    try { return decodeURIComponent(s); } catch { return s; }
 }
 
 export default function BottomNav() {
@@ -109,7 +125,9 @@ export default function BottomNav() {
 
     const closePost = React.useCallback(() => setSheetOpen(false), []);
 
-    const current = activeTab(pathname);
+    // クエリ版（`/users?id=`）は、パスが同じまま `id` だけ変わる
+    const search = React.useSyncExternalStore(subscribeToUrl, readSearch, readSearchOnServer);
+    const current = activeTab(pathname, search, isAuthenticated ? userId : null);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 
     const items: Array<{
