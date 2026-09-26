@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-    HomeIcon, MagnifyingGlassIcon, MapIcon, UserIcon, PlusIcon,
+    HomeIcon, MagnifyingGlassIcon, MapIcon, UserIcon,
 } from "@heroicons/react/24/outline";
 import {
     HomeIcon as HomeSolid, MagnifyingGlassIcon as SearchSolid,
@@ -154,19 +154,27 @@ export default function BottomNav() {
         { key: "me", href: me, label: locale === "en" ? "You" : "マイページ", Outline: UserIcon, Solid: UserSolid },
     ];
 
-    const cell = "flex flex-col items-center justify-center gap-[3px] min-h-[56px]";
-    const labelStyle: React.CSSProperties = { fontSize: "11px", lineHeight: "13px" };
+    // 板「01 ホーム」の下部タブ: 1つの升は 54px の丸い面。選択中は白16%の面＋太字
+    // （色だけで状態を言わない——デザインシステムの決まり）
+    const cell = "flex flex-col items-center justify-center gap-[2px] min-h-[54px] rounded-full";
+    const labelStyle: React.CSSProperties = { fontSize: "10px", lineHeight: "12px", letterSpacing: "0.02em" };
     const iconStyle: React.CSSProperties = { width: "24px", height: "24px" };
 
     return (
         <>
+            {/* **浮いたガラスの錠剤**（板「01 ホーム」・2026-09-26 に帯から変えた）。
+                外枠は透明で押せない（`pointer-events-none`）——錠剤の外の隙間の
+                下にある中身は押せるままにする。実寸（錠剤＋下の隙間）を
+                `--bottom-bar-h` に出すので、ページの余白とミニプレイヤーは自動で追う。
+                PC は錠剤を 480px までに留める（板はスマホだけ・横に引き伸ばさない） */}
             <nav
                 ref={barRef}
                 aria-label={locale === "en" ? "Main" : "メインメニュー"}
-                className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 backdrop-blur-md"
-                style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                className="fixed inset-x-0 bottom-0 z-40 px-4 pointer-events-none"
+                style={{ paddingBottom: "var(--bottom-bar-gap)" }}
             >
-                <div className="max-w-5xl mx-auto grid grid-cols-5">
+                <div className="pointer-events-auto max-w-[480px] mx-auto grid grid-cols-5 rounded-full border border-white/[0.14] bg-[rgba(40,40,42,0.62)] backdrop-blur-[22px] backdrop-saturate-[1.6] shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                     style={{ padding: "3px", minHeight: "62px" }}>
                     {items.slice(0, 2).map((it) => (
                         <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
@@ -182,10 +190,12 @@ export default function BottomNav() {
                         className={`${cell} text-white/60 hover:text-white transition-colors`}
                         style={{ touchAction: "manipulation" }}
                     >
-                        <span className="flex items-center justify-center rounded-[10px] ring-1 ring-white/20 bg-white/5"
-                              style={{ width: "40px", height: "28px" }}>
-                            <PlusIcon aria-hidden="true" style={iconStyle} />
-                        </span>
+                        {/* 板では他の升と同じ形（角丸の四角に＋）。枠付きの箱はやめた */}
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}
+                             strokeLinecap="round" strokeLinejoin="round" style={iconStyle}>
+                            <rect x="3" y="3" width="18" height="18" rx="5" />
+                            <path d="M12 8v8M8 12h8" />
+                        </svg>
                         <span style={labelStyle}>{locale === "en" ? "Post" : "投稿"}</span>
                     </button>
 
@@ -216,7 +226,7 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
             aria-current={active ? "page" : undefined}
-            className={`${cell} transition-colors ${active ? "text-accent" : "text-white/60 hover:text-white"}`}
+            className={`${cell} transition-colors ${active ? "bg-white/[0.16] text-white font-semibold" : "text-white/60 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />

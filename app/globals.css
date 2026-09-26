@@ -159,11 +159,18 @@ button, a {
    バー自身が実測値を `--bottom-bar-h` に出す（safe-area 込み）ので、
    JS が動いたあとはそれが正。**動く前の見積もりが要る**——変数が未設定の
    ままだと 0 になり、最初の描画でフッターがバーの裏に隠れて、測った瞬間に
-   跳ねる。見積もりは 56px（押せる面）+ 1px（上の線）+ safe-area。
-   ノッチ・ホームインジケーター対応もこれに含まれる（バーが safe-area の
-   ぶんを自分の内側に持つので、二重に空けない）。 */
+   跳ねる。見積もりは `--bottom-bar-est`（下の :root）。
+   ノッチ・ホームインジケーター対応もこれに含まれる（バーが下の隙間を
+   自分の内側に持つので、二重に空けない）。 */
+:root {
+  /* 浮いた錠剤（板「01 ホーム」の下部タブ）: 高さ 62px ＋ 下の隙間。
+     隙間は板の 22px（iPhone の safe-area 34px の内側）＝ safe-area − 12px、
+     ただし safe-area の無い端末では 16px。`BottomNav` の paddingBottom と同じ式 */
+  --bottom-bar-gap: max(16px, calc(env(safe-area-inset-bottom, 0px) - 12px));
+  --bottom-bar-est: calc(62px + var(--bottom-bar-gap));
+}
 body {
-  padding-bottom: var(--bottom-bar-h, calc(env(safe-area-inset-bottom, 0px) + 57px));
+  padding-bottom: var(--bottom-bar-h, var(--bottom-bar-est));
   /* **横向きの iPhone で、中身がノッチ・Dynamic Island の下に入らないように。**
      `viewport-fit=cover` を宣言しているので、左右の安全領域は自分で空ける。
      縦向きでは 0 なので見た目は変わらない。画面に固定した部品

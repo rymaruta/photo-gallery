@@ -48,6 +48,18 @@ describe("画面下の5つのタブ", () => {
         expect(marked.map((a) => a.textContent)).toEqual(["マップ"]);
     });
 
+    it("選択中は白の面＋太字（真鍮にしない・色だけで状態を言わない）", () => {
+        // 板「01 ホーム」の下部タブ。デザインシステム「下部ナビのアイコン＝白」
+        nav.pathname = ROUTES.MAP;
+        render(<BottomNav />);
+        const on = screen.getAllByRole("link").find((a) => a.getAttribute("aria-current") === "page")!;
+        const off = screen.getByRole("link", { name: "ホーム" });
+        expect(on.className).toContain("bg-white/[0.16]");
+        expect(on.className).toContain("font-semibold");
+        expect(on.className).not.toContain("text-accent");
+        expect(off.className).not.toContain("bg-white/[0.16]");
+    });
+
     it("未ログインだと、投稿はログインへ送る（戻り先つき）", () => {
         render(<BottomNav />);
         fireEvent.click(screen.getByRole("button", { name: "投稿" }));

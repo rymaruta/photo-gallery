@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
@@ -33,7 +35,14 @@ describe("ToastContainer - ヘッダーと重ならない配置の回帰ガー�
     it("ホームインジケーターの領域を空ける", () => {
         const { container } = render(<ToastContainer />);
         const root = container.firstElementChild as HTMLElement;
-        expect(root.style.bottom, "safe-area を空けていない").toContain("safe-area-inset-bottom");
+        // 見積もりは `globals.css` の `--bottom-bar-est` に1本化した（BottomNav と同じ式）。
+        // 使っていること、その定義が safe-area を含むことの両方を見る
+        const bottom = root.style.bottom;
+        const css = readFileSync(join(process.cwd(), "app", "globals.css"), "utf8");
+        const est = /--bottom-bar-est:\s*([^;]+);/.exec(css)?.[1] ?? "";
+        const gap = /--bottom-bar-gap:\s*([^;]+);/.exec(css)?.[1] ?? "";
+        expect(bottom.includes("safe-area-inset-bottom") || bottom.includes("--bottom-bar-est"), "safe-area を空けていない").toBe(true);
+        expect(`${est} ${gap}`, "見積もりが safe-area を含まない").toContain("safe-area-inset-bottom");
     });
 
     it("コンテナ自体はクリックを透過する（空き領域がヘッダー操作を奪わない）", () => {
