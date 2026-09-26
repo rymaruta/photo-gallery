@@ -109,6 +109,23 @@ describe("アプリ向けの索引", () => {
         expect("image" in toSpotFeedItem(spot("none", pub), images)).toBe(false);
     });
 
+    /// AI 照合（owner の委任）の行は公開済み。**人の確認日は運ばない**。
+    /// 写真は「写真も照らした」印があり、座標のずれが無いときだけ
+    it("AI 照合の行は公開済みとして載り、verifiedAt は運ばない。写真は照らしたものだけ", () => {
+        const ai = {
+            status: "published" as const,
+            aiCheck: { checkedAt: "2026-09-26", delegatedBy: "rymaruta", sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "x" }] },
+        };
+        const images = { a: image(), b: image(), c: image({ coordsMismatch: true }) };
+        const withPhoto = toSpotFeedItem(spot("a", { ...ai, aiCheck: { ...ai.aiCheck, imageChecked: true } }), images);
+        expect(withPhoto.stage).toBe("published");
+        expect("verifiedAt" in withPhoto, "AI 照合の行に人の確認日を運んでいる").toBe(false);
+        expect(withPhoto.image?.url).toBe("https://upload.wikimedia.org/a/640px-A.jpg");
+        expect("image" in toSpotFeedItem(spot("b", ai), images), "写真を照らしていないのに出している").toBe(false);
+        expect("image" in toSpotFeedItem(spot("c", { ...ai, aiCheck: { ...ai.aiCheck, imageChecked: true } }), images),
+            "座標のずれた写真を出している").toBe(false);
+    });
+
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
         const item = toSpotFeedItem(spot("bare", { nameEn: undefined, reading: undefined, category: undefined, coords: undefined }));
         expect(Object.keys(item).sort()).toEqual(["draftedAt", "name", "region", "slug", "spotId", "stage", "summary"]);
