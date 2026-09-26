@@ -41,7 +41,8 @@ export function normalizeDigits(text) {
 // 記事に書かれないことが多く、「裏付けなし」ばかりになって一覧が読めなくなる
 const UNIT_FORMS = {
     m: ["メートル", "ｍ", "m"],
-    km: ["キロメートル", "km", "㎞", "キロ"],
+    // **`キロ` 単独は数えない。** `20キログラム`・`50キロワット` を km と読んでいた
+    km: ["キロメートル", "km", "㎞"],
     年: ["年"],
     段: ["段"],
     万本: ["万本"],
@@ -56,9 +57,8 @@ const FORM_TO_UNIT = Object.entries(UNIT_FORMS)
     .sort((x, y) => y[0].length - x[0].length);
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const ANY_FORM = FORM_TO_UNIT.map(([f]) => escapeRe(f)).join("|");
-const CLAIM_RE = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${ANY_FORM})(?![a-zA-Z])`, "g");
-/** 丸めて書かれる量（長さ・面積）。数え物と年は含めない */
-const MEASURES = new Set(["m", "km", "ha"]);
+// 単位の後ろに英字・数字・²³ が続けば別の単位（`500m2` は面積・`5mm`）
+const CLAIM_RE = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${ANY_FORM})(?![a-zA-Z0-9²³])`, "g");
 const unitOf = (form) => FORM_TO_UNIT.find(([f]) => f === form)?.[1];
 
 /**
@@ -72,6 +72,8 @@ export function numericClaims(text) {
         const value = m[1];
         if (Number(value) < 10) continue;
         const unit = unitOf(m[2]);
+        // **年は西暦の4桁だけ。** 「20年ごと」が記事の「昭和20年」に当たっていた
+        if (unit === "年" && !/^\d{4}$/.test(value)) continue;
         const key = `${value}${unit}`;
         if (!seen.has(key)) seen.set(key, { value, unit, raw: m[0] });
     }
@@ -83,9 +85,8 @@ export function numericClaims(text) {
  *
  * - 単位まで見る。数だけ見ると「300本」が「300円」に、「700段」が「樹齢700年」に
  *   当たっていた（実データの match に29件）
- * - 長さ・面積だけ、丸めた数を許す: 説明の「24m」と記事の「24.4メートル」は
- *   同じ数と見る（差が 3% 以内。「約」で丸めて書くため）。**年・段・本は
- *   ぴったりだけ**（3% だと「1959年」が「1933年」に当たる）
+ * - **丸めた数は許さない。** 3% の幅を持たせると記事の中の別の数に当たった
+ *   （榛名湖の「約1100m」が妙義山の「1103メートル」に）。取りこぼす向きの方が安全
  * - 前後が数字の一部でないこと（`300` が `1300` に当たらない）
  */
 export function articleHasNumber(article, claim) {
@@ -97,7 +98,6 @@ export function articleHasNumber(article, claim) {
         if (unitOf(m[2]) !== claim.unit) continue;
         const found = Number(m[1]);
         if (found === target) return true;
-        if (MEASURES.has(claim.unit) && Math.abs(found - target) / target <= 0.03) return true;
     }
     return false;
 }
@@ -166,8 +166,12 @@ export function sameSubject(spot, title) {
     // **題がスポット名を含む向きは認めない。** `神島` に `鳥羽市立神島中学校`、
     // `西海橋` に `新西海橋`、`七里ヶ浜` に `七里ヶ浜駅` が当たっていた。
     // 認めるのは「同じ」か「スポット名が題を含む」（`勝連城跡` と `勝連城`・
-    // `史跡足利学校` と `足利学校`）だけで、後者は題が3字以上のとき
-    return subjectNames(spot.name).some((n) => n === t || (t.length >= 3 && n.includes(t)));
+    // `史跡足利学校` と `足利学校`）だけ
+    //
+    // 「名前が題を含む」も、**残りが `跡`・`址`・`史跡` のときだけ**。それ以外は
+    // 題の方が親（`道後温泉本館` → `道後温泉`・`亀老山展望公園` → `亀老山`）
+    return subjectNames(spot.name).some((n) =>
+        n === t || (n.includes(t) && /^(史跡)?(跡|址)?$/.test(n.replace(t, ""))));
 }
 
 /** スポットの文章（数を拾う範囲）。題・要約・説明・見どころ */
@@ -178,7 +182,8 @@ function spotText(spot) {
 /**
  * 1件を突き合わせる。
  *
- * - `match`       題・場所・位置が合い、**説明の数が1つ以上、全部**記事と合う
+ * - `match`       題・場所・位置が合い、説明の数が**2つ以上あって全部**記事と合う
+ * - `single`      同じだが、合った数が1つだけ（偶然1つ当たることがある）
  * - `located`     題・場所・位置は合うが、説明に照らせる数が無い
  *                 （中身は一度も照合していない。`match` と分けて数える）
  * - `unsupported` 題・場所・位置は合うが、記事に出てこない数か市町村がある
@@ -210,7 +215,8 @@ export function checkSpot(spot, logRow, article) {
     if (!regionHit) return { verdict: "place", ...base };
     if (logRow?.coordsMismatch) return { verdict: "coords", ...base };
     if (!cityHit || missing.length > 0) return { verdict: "unsupported", ...base };
-    return { verdict: claims.length > 0 ? "match" : "located", ...base };
+    if (claims.length === 0) return { verdict: "located", ...base };
+    return { verdict: claims.length >= 2 ? "match" : "single", ...base };
 }
 
 function main(argv) {

@@ -35,7 +35,7 @@ describe("記事に数があるか", () => {
     });
     it("🔴 別の数の一部には当てない（300 が 1300 や 300.5 に当たらない）", () => {
         expect(has("標高1300メートル", "300m")).toBe(false);
-        expect(has("標高300.5の年", "300年")).toBe(false);
+        expect(has("標高300.5メートル", "300m")).toBe(false);
         expect(has("標高300メートル", "300m")).toBe(true);
     });
     it("🔴 単位が違えば当てない（実データ: 300本 ← 300円・700段 ← 樹齢700年・12m ← 12日）", () => {
@@ -44,10 +44,18 @@ describe("記事に数があるか", () => {
         expect(has("毎年8月12日に", "12m")).toBe(false);
         expect(has("16時30分まで", "30m")).toBe(false);
     });
-    it("長さは丸めた数を許す（24m と 24.4メートル）。年・段は許さない", () => {
-        expect(has("樹高24.4メートル", "24m")).toBe(true);
+    it("🔴 丸めた数は許さない（榛名湖の約1100m が妙義山の 1103メートルに当たっていた）", () => {
+        expect(has("妙義山（標高1103メートル）", "1100m")).toBe(false);
         expect(has("1933年に竣工", "1959年")).toBe(false);
-        expect(has("石段は390段", "398段")).toBe(false);
+    });
+    it("🔴 `キロ` 単独・面積の m2 は長さとして読まない", () => {
+        expect(numericClaims("重さ20キログラム・出力50キロワット")).toEqual([]);
+        expect(has("面積500m2", "500m")).toBe(false);
+        expect(has("延長12キロメートル", "12km")).toBe(true);
+    });
+    it("🔴 年は西暦の4桁だけ（「20年ごと」が「昭和20年」に当たっていた）", () => {
+        expect(numericClaims("20年ごとの式年遷宮")).toEqual([]);
+        expect(numericClaims("1958年に完成").map((c) => c.value)).toEqual(["1958"]);
     });
 });
 
@@ -72,6 +80,7 @@ describe("記事がそのスポットそのものか", () => {
     });
     it("同じか、名前が題を含めば同じもの（異体字・「の」も揃える）", () => {
         expect(sameSubject({ name: "勝連城跡" }, "勝連城")).toBe(true);
+        expect(sameSubject({ name: "史跡足利学校" }, "足利学校")).toBe(true);
         expect(sameSubject({ name: "眼鏡橋" }, "眼鏡橋 (長崎市)")).toBe(true);
         expect(sameSubject({ name: "柳津 圓蔵寺" }, "円蔵寺")).toBe(true);
         expect(sameSubject({ name: "三保松原" }, "三保の松原")).toBe(true);
@@ -84,6 +93,9 @@ describe("記事がそのスポットそのものか", () => {
         expect(sameSubject({ name: "神島" }, "鳥羽市立神島中学校")).toBe(false);
         expect(sameSubject({ name: "西海橋" }, "新西海橋")).toBe(false);
         expect(sameSubject({ name: "七里ヶ浜" }, "七里ヶ浜駅")).toBe(false);
+        // 🔴 名前が題を含んでも、題が親のことがある（温泉地・山）
+        expect(sameSubject({ name: "道後温泉本館" }, "道後温泉")).toBe(false);
+        expect(sameSubject({ name: "亀老山展望公園" }, "亀老山")).toBe(false);
         // 島の記事はビーチの記事ではない
         expect(sameSubject({ name: "座間味島 古座間味ビーチ" }, "座間味島")).toBe(false);
     });
@@ -93,14 +105,17 @@ describe("1件の判定", () => {
     const spot = {
         name: "高屋神社",
         region: { country: "日本", prefecture: "香川県", city: "観音寺市" },
-        summary: "標高404mの稲積山の山頂にある神社。",
+        summary: "標高404mの稲積山の山頂にある神社。1922年に建てた社殿。",
         description: "",
         highlights: [],
     };
-    const article = { status: "ok", title: "高屋神社", url: "u", revid: 1, text: "香川県観音寺市の稲積山（標高404メートル）の山頂に鎮座する。" };
+    const article = { status: "ok", title: "高屋神社", url: "u", revid: 1, text: "香川県観音寺市の稲積山（標高404メートル）の山頂に鎮座する。社殿は1922年の建立。" };
 
     it("場所・位置・数が全部合えば match", () => {
         expect(checkSpot(spot, { distanceKm: 0.1 }, article).verdict).toBe("match");
+    });
+    it("🔴 合った数が1つだけなら match にしない（single。偶然1つ当たることがある）", () => {
+        expect(checkSpot({ ...spot, summary: "標高404mの山頂にある神社。" }, {}, article).verdict).toBe("single");
     });
     it("🔴 照らせる数が無ければ match にしない（located。中身は一度も照合していない）", () => {
         expect(checkSpot({ ...spot, summary: "山頂にある神社。" }, {}, article).verdict).toBe("located");
@@ -113,13 +128,13 @@ describe("1件の判定", () => {
         expect(checkSpot(spot, {}, { ...article, title: "観音寺市役所" }).verdict).toBe("subject");
     });
     it("記事に県が出てこなければ place", () => {
-        expect(checkSpot(spot, {}, { ...article, text: "標高404メートルの山頂に鎮座する。観音寺" }).verdict).toBe("place");
+        expect(checkSpot(spot, {}, { ...article, text: "標高404メートルの山頂に鎮座する。1922年。観音寺" }).verdict).toBe("place");
     });
     it("🔴 台帳の座標が遠ければ、ほかが合っても coords（座標を直すまで出さない）", () => {
         expect(checkSpot(spot, { coordsMismatch: true, distanceKm: 3.4 }, article).verdict).toBe("coords");
     });
     it("記事に出てこない数があれば unsupported（間違いとは決めつけず一覧に出す）", () => {
-        const r = checkSpot({ ...spot, summary: "標高450mの山頂" }, {}, article);
+        const r = checkSpot({ ...spot, summary: "標高450mの山頂。1922年の社殿" }, {}, article);
         expect(r.verdict).toBe("unsupported");
         expect(r.missing).toEqual(["450m"]);
     });
