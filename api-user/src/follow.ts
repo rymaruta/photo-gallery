@@ -690,7 +690,7 @@ async function withoutHidden(list: string[], me: string | undefined, where: stri
  * 新しい口だけ素通りさせる理由が無い（片側だけの防御を作らない）。
  *
  * **退会した人は名前ではなく印で伝える。** 墓石の行には `displayName` が
- * 無いので `lookupListIdentity` は名前を返さないが、画面はそれを
+ * 無いので名前が引けないが（`lookupListIdentity` は墓石から何も返さない）、画面はそれを
  * 「名前を設定していない人」と区別できず、**「旅人」という普通の行**として
  * 出して空のプロフィールへリンクしていた。しかも退会は自分の
  * `following#` しか消さないので（`account.ts`）、**他人の一覧には残り続ける**。

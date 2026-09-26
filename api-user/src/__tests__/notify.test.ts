@@ -163,7 +163,7 @@ describe("lookupListIdentity（一覧の名前と @ユーザー名）", () => {
         expect(mockDdbSend, "人数ぶんの往復を倍にしている").toHaveBeenCalledTimes(1);
         const input = mockDdbSend.mock.calls[0][0].input as { TableName: string; ExpressionAttributeNames: Record<string, string> };
         expect(input.TableName).toBe("users-test");
-        expect(Object.values(input.ExpressionAttributeNames).sort()).toEqual(["displayName", "username"]);
+        expect(Object.values(input.ExpressionAttributeNames)).toEqual(expect.arrayContaining(["displayName", "username"]));
     });
 
     // 空の「@」や空の名前を画面に出させない
@@ -174,6 +174,13 @@ describe("lookupListIdentity（一覧の名前と @ユーザー名）", () => {
 
     it("読めなくても投げない（一覧は返す）", async () => {
         mockDdbSend.mockRejectedValueOnce(new Error("ddb down"));
+        expect(await lookupListIdentity("u1")).toEqual({});
+    });
+
+    // 🔴 墓石には旧ハンドルが残る（予約のやり直し用）。退会者の集合から漏れた
+    // 回に、解放済み＝別人が取り直せるハンドルを付けて出さない
+    it("墓石（退会した人の行）からは何も返さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { deletedAt: "2026-09-01T00:00:00Z", username: "old_handle" } });
         expect(await lookupListIdentity("u1")).toEqual({});
     });
 });

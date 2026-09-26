@@ -258,7 +258,7 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
             : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
         // **それを保証しているのは `lookupListIdentity` の側**——あちらが
-        // 内部で握って `undefined` を返すので、ここの `.catch` は現状
+        // 内部で握って空のオブジェクトを返すので、ここの `.catch` は現状
         // 発火しない。あちらが投げるようになった日のための保険として置く
         const users = await Promise.all(named.map(async (id) => {
             if (gone.has(id)) return { id, name: DELETED_USER_NAME, deleted: true };
