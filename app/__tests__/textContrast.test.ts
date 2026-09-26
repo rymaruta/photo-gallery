@@ -301,11 +301,11 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         // 灰 #404040 の上の白80%: 合成すると 7.33、黒に溶かしてから比べると 6.46
         expect(ratioOnBlack("#ffffff", 0.8, "#404040")).toBeGreaterThan(7);
     });
-    it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／黒の上の真鍮・リンク／チップの文字）", () => {
+    it("トークンの色は、置かれる下地で 4.5:1 に届く（墨を載せる白の塗り／黒の上の真鍮・リンク／チップの文字）", () => {
         const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
         const tok = (name: string) => { const m = new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i").exec(css); expect(m, `--color-${name} が無い`).not.toBeNull(); return m![1]; };
         const on = (fg: string, bg: string) => { const a = luminance(hexToRgb(fg)), b = luminance(hexToRgb(bg)); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
-        expect(on("#ffffff", tok("accent-fill"))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("ink"), tok("accent-fill"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("accent"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("surface"))).toBeGreaterThanOrEqual(4.5);

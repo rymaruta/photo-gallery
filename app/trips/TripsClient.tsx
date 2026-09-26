@@ -108,7 +108,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
                     type="button"
                     onClick={() => void onCreate()}
                     disabled={busy !== null || !newTitle.trim()}
-                    className="shrink-0 rounded-full bg-accent-fill text-white px-4 text-sm font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition inline-flex items-center gap-1"
+                    className="shrink-0 rounded-full bg-accent-fill text-ink px-4 text-sm font-semibold ring-1 ring-accent-fill hover:brightness-110 disabled:opacity-60 transition inline-flex items-center gap-1"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     <PlusIcon className="w-4 h-4" aria-hidden />
@@ -411,7 +411,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                     onClick={() => void onUpdate(plan.planId, { days, startDate: start, endDate: end })}
                     // **変えていなければ押させない**（無駄な往復と、他のタブの編集の打ち消しを避ける）
                     disabled={busy || !dirty}
-                    className="rounded-full bg-accent-fill text-white px-4 text-xs font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition"
+                    className="rounded-full bg-accent-fill text-ink px-4 text-xs font-semibold ring-1 ring-accent-fill hover:brightness-110 disabled:opacity-60 transition"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     {en ? "Save" : "保存"}

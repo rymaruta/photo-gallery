@@ -1428,7 +1428,7 @@ function UploadPageInner() {
                         type="button"
                         onClick={() => handleUploadAll(false)}
                         disabled={uploading || pendingCount === 0}
-                        className="justify-self-end px-4 rounded-full bg-accent-fill text-white font-semibold hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="justify-self-end px-4 rounded-full bg-accent-fill text-ink font-semibold hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ minHeight: "32px", fontSize: "13px", touchAction: "manipulation" }}
                     >
                         {isJa ? "下書き保存" : "Save draft"}
@@ -1786,7 +1786,7 @@ function UploadPageInner() {
                                             // 名前を種別で分ける（すぐ下のタグのチップと綴りが
                                             // 重なる語がある。見えている語はそのまま含める）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-surface-2 ring-line text-white/80 hover:brightness-125"}`}
+                                            className={`${chipCls} ${on ? "bg-accent-fill text-ink font-medium ring-accent-fill" : "bg-surface-2 ring-line text-white/80 hover:brightness-125"}`}
                                             style={chipStyle}
                                         >
                                             {c}
@@ -1863,7 +1863,7 @@ function UploadPageInner() {
                                                 disabled={uploading}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-chip ring-line text-chip-text hover:brightness-125"}`}
+                                                className={`${chipCls} ${on ? "bg-accent-fill text-ink font-medium ring-accent-fill" : "bg-chip ring-line text-chip-text hover:brightness-125"}`}
                                                 style={chipStyle}
                                             >
                                                 #{t}
@@ -2029,7 +2029,7 @@ function UploadPageInner() {
                         <button
                             onClick={() => handleUploadAll(true)}
                             disabled={uploading || metaLoading || pendingCount === 0}
-                            className="flex-1 lg:flex-none lg:w-[420px] lg:ml-auto inline-flex items-center justify-center gap-2 bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex-1 lg:flex-none lg:w-[420px] lg:ml-auto inline-flex items-center justify-center gap-2 bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             style={{ touchAction: "manipulation", minHeight: "46px", fontSize: "17px" }}
                         >
                             <PaperAirplaneIcon className="w-5 h-5" aria-hidden="true" />

@@ -198,7 +198,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                 <div className="flex flex-wrap items-start gap-2 pb-6 border-b border-white/10">
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" />
                     <Link href={mapHref} prefetch={false}
-                          className="inline-flex items-center rounded-full bg-accent-fill text-white font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          className="inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>
                         {isJa ? "地図で見る" : "View on map"}
                     </Link>
@@ -343,7 +343,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                             : "No photos have been shared for this spot yet."}
                                     </p>
                                     <Link href={ROUTES.UPLOAD} prefetch={false}
-                                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-white font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
                                         {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
                                     </Link>

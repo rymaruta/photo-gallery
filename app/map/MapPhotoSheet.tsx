@@ -296,7 +296,7 @@ export default function MapPhotoSheet({
                         <Link
                             href={relatedHref}
                             prefetch={false}
-                            className="flex items-center justify-center rounded-full bg-accent-fill text-white font-medium hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                            className="flex items-center justify-center rounded-full bg-accent-fill text-ink font-medium hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                             style={{ flex: "1.25 1 0%", height: "44px", fontSize: "14px", touchAction: "manipulation" }}
                             data-testid="map-sheet-location-link"
                         >

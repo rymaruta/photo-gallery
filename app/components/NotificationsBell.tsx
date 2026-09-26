@@ -707,12 +707,11 @@ export default function NotificationsBell() {
                         tabIndex={selected ? 0 : -1}
                         onClick={() => setTab(key)}
                         onKeyDown={onTabKeyDown}
-                        // **選択中の塗りは `accent-fill`。** モックの青
-                        // （`#2080f6`）に白文字は 3.83:1 で AA に届かないので、
-                        // `globals.css` がそのために持っている塗り（4.81:1）を使う。
+                        // **選択中の塗りは `accent-fill`（白）＋墨の文字。** 板の
+                        // 「選択中チップ＝白」。塗りと文字の組は `globals.css` が持つ。
                         // 非選択は `/70`（`/46` が下限・`textContrast.test.ts`）
                         className={`flex-shrink-0 rounded-full transition ${selected
-                            ? "bg-accent-fill text-white font-semibold"
+                            ? "bg-accent-fill text-ink font-semibold"
                             : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）
                         style={{
@@ -772,7 +771,7 @@ export default function NotificationsBell() {
                     <Link
                         href={ROUTES.UPLOAD}
                         onClick={closePanel}
-                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-white font-semibold hover:brightness-110 transition"
+                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-ink font-semibold hover:brightness-110 transition"
                         style={{ fontSize: 13, minHeight: 40, paddingLeft: 18, paddingRight: 18, marginTop: 16, touchAction: "manipulation" }}
                     >
                         {locale === "en" ? "Post a photo" : "写真を投稿する"}

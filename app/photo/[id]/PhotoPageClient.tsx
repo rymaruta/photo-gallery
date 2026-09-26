@@ -689,7 +689,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     </p>
                     <button
                         onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 active:scale-95 transition"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Retry" : "もう一度読み込む"}

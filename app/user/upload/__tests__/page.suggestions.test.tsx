@@ -141,7 +141,7 @@ describe("アップロード画面の入力候補", () => {
         // 分からない」＝見た目の話なので、`aria-checked` だけでは足りない
         // （選択中の色を未選択と同じに戻す変異が素通りしていた）
         expect(chip.className, "選択中の見た目になっていない").toContain("bg-accent-fill ");
-        expect(chip.className).toContain("text-white ");
+        expect(chip.className).toContain("text-ink ");
 
         await userEvent.click(chip);
         expect(field.value, "押し直しても外れない（押しても何も起きないボタン）").toBe("");
