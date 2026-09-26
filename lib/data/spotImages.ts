@@ -12,6 +12,8 @@
 // `author` と `license` を写真の近くに出す。
 
 import raw from "@/content/spot-images.json";
+import type { Spot, SpotCoverImage, SpotImageLicense } from "./spots";
+import { isPublished } from "@/lib/utils/spotGuide";
 
 export type SpotImage = {
     wikidata: string;
@@ -30,6 +32,11 @@ export type SpotImage = {
     /** 写真が合っていると確かめた人の名前。**機械は書かない** */
     reviewedBy: string | null;
     reviewedAt?: string;
+    /**
+     * **サイトの中に置いた縮小版**（横 960px の JPEG・`scripts/localize-spot-images.mjs`）。
+     * Web のページはこれだけを代表写真に使う（外部へのホットリンクはしない）
+     */
+    local?: { src: string; width: number; height: number };
 };
 
 export const SPOT_IMAGES: Readonly<Record<string, SpotImage>> = raw as Record<string, SpotImage>;
@@ -41,4 +48,58 @@ export function reviewedSpotImage(
 ): SpotImage | undefined {
     const image = images[slug];
     return image && image.reviewedBy?.trim() ? image : undefined;
+}
+
+/**
+ * **画面・アプリに出してよい写真**（無ければ undefined）。
+ *
+ * 下書きには付けない（本文と同じく誰も確かめていない行）。出すのは
+ * **人が確かめた写真**か、**AI 照合で写真も照らしたもの**（座標のずれ無し）だけ
+ */
+export function shownSpotImage(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): SpotImage | undefined {
+    if (!isPublished(spot)) return undefined;
+    const reviewed = reviewedSpotImage(spot.slug, images);
+    if (reviewed) return reviewed;
+    const image = images[spot.slug];
+    return spot.aiCheck?.imageChecked === true && image && !image.coordsMismatch ? image : undefined;
+}
+
+/** Commons のライセンスの短い名前を、代表写真の利用根拠へ。使えないものは undefined */
+export function coverLicenseOf(shortName: string): SpotImageLicense | undefined {
+    const s = shortName.trim().toLowerCase();
+    if (/^cc0\b/.test(s)) return "cc0";
+    if (s === "public domain" || s.startsWith("pd")) return "public-domain";
+    if (/^cc by-sa\b/.test(s)) return "cc-by-sa";
+    if (/^cc by\b/.test(s) && !/-(nc|nd)\b/.test(s)) return "cc-by";
+    return undefined;
+}
+
+/**
+ * **スポットのページの代表写真**。台帳が自前の `coverImage` を持てばそれを優先し、
+ * 無ければ Commons の写真を**サイト内に置いた縮小版**（`local`）から組み立てる。
+ * 置いていない・ライセンスが読めない写真は使わない（地図の代わりの見た目のまま）
+ */
+export function spotCoverImage(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): SpotCoverImage | undefined {
+    if (spot.coverImage) return spot.coverImage;
+    const image = shownSpotImage(spot, images);
+    const license = image && coverLicenseOf(image.license);
+    if (!image?.local || !license) return undefined;
+    return {
+        src: image.local.src,
+        alt: spot.name,
+        aspectRatio: image.local.width / image.local.height,
+        credit: image.author,
+        license,
+        sourceUrl: image.pageUrl,
+        // CC BY・CC BY-SA は作者・ライセンス・出典の表示が条件
+        requiredCreditText: `写真: ${image.author}（${image.license}）/ Wikimedia Commons`,
+        checkedAt: image.reviewedAt ?? spot.aiCheck?.checkedAt ?? image.fetchedAt,
+        verifiedPlace: true,
+    };
 }

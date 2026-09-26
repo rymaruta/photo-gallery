@@ -255,7 +255,9 @@ export type SpotImageLicense =
     | "owner"               // owner 本人が撮った
     | "permission-granted"  // 権利者から許諾を得た（`sourceUrl` にやり取りの記録）
     | "cc-by"
-    | "cc-by-sa";
+    | "cc-by-sa"
+    | "cc0"                 // Wikimedia Commons の CC0（表示の義務は無いが出す）
+    | "public-domain";      // 同・パブリックドメイン
 
 import spotsJson from "@/content/spots.json";
 

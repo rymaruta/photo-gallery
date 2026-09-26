@@ -133,7 +133,13 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                         {needsVisibleCredit(spot) && (
                             <p className="absolute bottom-2 right-3 m-0 text-white/70 text-right"
                                style={{ fontSize: "10px", lineHeight: "14px" }}>
-                                {cover!.requiredCreditText || `Photo: ${cover!.credit}`}
+                                {/* 出典のページがあればそこへ（CC BY・CC BY-SA は出典の表示が条件） */}
+                                {cover!.sourceUrl ? (
+                                    <a href={cover!.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                       className="text-white/70 underline underline-offset-2">
+                                        {cover!.requiredCreditText || `Photo: ${cover!.credit}`}
+                                    </a>
+                                ) : (cover!.requiredCreditText || `Photo: ${cover!.credit}`)}
                             </p>
                         )}
                     </>

@@ -12,6 +12,7 @@
 
 import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
+import { spotCoverImage } from "@/lib/data/spotImages";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots } from "@/lib/utils/spotGuide";
@@ -64,8 +65,11 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // `draftedBy`（下書きを書いた主体）は台帳の中だけに持つ。props は RSC
     // ペイロードとして HTML に埋まるので、鍵ごと落とす（`undefined` を入れると
     // 鍵は `"$undefined"` として残る）
-    const { draftedBy: _omitted, ...spotForClient } = spot;
+    const { draftedBy: _omitted, ...rest } = spot;
     void _omitted;
+    // 代表写真。台帳に無ければ Commons の写真（サイト内に置いた縮小版）で埋める
+    const cover = spotCoverImage(spot);
+    const spotForClient = cover ? { ...rest, coverImage: cover } : rest;
 
     return (
         <SpotGuideClient

@@ -4,6 +4,9 @@ import type { Spot } from "../../lib/data/spots";
 import { buildSpotFeed, spotIndexFeed, spotIndexFeedJson, toSpotFeedItem } from "../../lib/data/spotFeed";
 import type { SpotImage } from "../../lib/data/spotImages";
 import * as route from "../app/data/spots.json/route";
+import fs from "node:fs";
+import path from "node:path";
+import { siteConfig } from "../../lib/utils/seo";
 
 /**
  * **アプリが読む索引（`/app/data/spots.json`）の形を固定する。**
@@ -170,7 +173,9 @@ describe("実際の台帳で作った索引", () => {
         for (const s of withImage) {
             expect(s.image!.author, s.slug).toBeTruthy();
             expect(s.image!.license, s.slug).toBeTruthy();
-            expect(s.image!.url, s.slug).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
+            // **サイトに置いた縮小版を指し、そのファイルが実在する**（元画像は数MBある）
+            expect(s.image!.url, s.slug).toBe(`${siteConfig.url}/images/spots/${s.slug}.jpg`);
+            expect(fs.existsSync(path.join(process.cwd(), "public", "images", "spots", `${s.slug}.jpg`)), s.slug).toBe(true);
         }
     });
 
