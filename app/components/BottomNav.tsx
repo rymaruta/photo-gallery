@@ -77,6 +77,20 @@ function safeDecode(s: string): string {
     try { return decodeURIComponent(s); } catch { return s; }
 }
 
+/**
+ * URL の購読を**1マイクロタスク遅らせて**受ける。Next の `HistoryUpdater` は
+ * 遷移の URL を `useInsertionEffect` の中で書くので、その場で知らせを受けると
+ * 開発版 React が "useInsertionEffect must not schedule updates." を出す
+ * ——このバーは全ページに居るので、**全ページで出る**ことになる（2026-09-26 に再現）。
+ * `useGallery` はその場で受ける前提のテストを持つので、共有の包みは変えず、
+ * 遅らせるのはこちらの受け口だけにする。
+ */
+function subscribeDeferred(onChange: () => void): () => void {
+    let live = true;
+    const off = subscribeToUrl(() => queueMicrotask(() => { if (live) onChange(); }));
+    return () => { live = false; off(); };
+}
+
 export default function BottomNav() {
     const pathname = usePathname() || "/";
     const router = useRouter();
@@ -126,7 +140,7 @@ export default function BottomNav() {
     const closePost = React.useCallback(() => setSheetOpen(false), []);
 
     // クエリ版（`/users?id=`）は、パスが同じまま `id` だけ変わる
-    const search = React.useSyncExternalStore(subscribeToUrl, readSearch, readSearchOnServer);
+    const search = React.useSyncExternalStore(subscribeDeferred, readSearch, readSearchOnServer);
     const current = activeTab(pathname, search, isAuthenticated ? userId : null);
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 

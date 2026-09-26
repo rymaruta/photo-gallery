@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ROUTES } from "@/lib/routes";
 
 /**
@@ -191,6 +191,48 @@ describe("どのタブを光らせるか（activeTab）", () => {
         render(<BottomNav />);
         const marked = screen.getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
         expect(marked).toEqual([]);
+    });
+
+    it("描画: パスが同じまま id だけ変わっても追いかける（/users?id=me-1 → ?id=someone）", async () => {
+        // `usePathname` は変わらないので、描き直しは URL の購読だけが頼り
+        auth.isAuthenticated = true;
+        auth.userId = "me-1";
+        nav.pathname = "/users";
+        window.history.replaceState(null, "", "/users?id=me-1");
+        try {
+            render(<BottomNav />);
+            const lit = () => screen.getAllByRole("link")
+                .filter((a) => a.getAttribute("aria-current") === "page").map((a) => a.textContent);
+            expect(lit()).toEqual(["マイページ"]);
+            await act(async () => { window.history.pushState(null, "", "/users?id=someone"); });
+            expect(lit()).toEqual([]);
+            await act(async () => { window.history.pushState(null, "", "/users?id=me-1"); });
+            expect(lit()).toEqual(["マイページ"]);
+        } finally {
+            window.history.replaceState(null, "", "/");
+        }
+    });
+
+    it("useInsertionEffect の中の pushState でも、開発版 React の警告を出さない", async () => {
+        // Next の `HistoryUpdater` は遷移の URL を `useInsertionEffect` の中で書く。
+        // 包みがその場で知らせると、React が「insertion effect で更新を予約した」と
+        // console.error を出す（BottomNav は全ページに居るので全ページで出る）
+        nav.pathname = "/users";
+        window.history.replaceState(null, "", "/users?id=a");
+        const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+        function Navigator({ to }: { to: string }) {
+            React.useInsertionEffect(() => { window.history.pushState(null, "", to); }, [to]);
+            return null;
+        }
+        try {
+            const { rerender } = render(<><BottomNav /><Navigator to="/users?id=a" /></>);
+            await act(async () => { rerender(<><BottomNav /><Navigator to="/users?id=b" /></>); });
+            const msgs = errors.mock.calls.map((c) => String(c[0]));
+            expect(msgs.filter((m) => m.includes("useInsertionEffect must not schedule updates"))).toEqual([]);
+        } finally {
+            errors.mockRestore();
+            window.history.replaceState(null, "", "/");
+        }
     });
 
     it("描画: クエリ版の自分のページでは「マイページ」が光る", () => {
