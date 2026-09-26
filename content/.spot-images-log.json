@@ -1,0 +1,8875 @@
+{
+  "kiyosumi-keiryu-hiroba": {
+    "status": "ok",
+    "wikidata": "Q66091467",
+    "distanceKm": 6.07,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.18538888888889,
+      "lng": 140.06008333333332
+    }
+  },
+  "kobe-kitano-ijinkan": {
+    "status": "ok",
+    "wikidata": "Q10855753",
+    "distanceKm": 0.14
+  },
+  "nabegataki": {
+    "status": "ok",
+    "wikidata": "Q11650601",
+    "distanceKm": 0.98
+  },
+  "takaya-jinja": {
+    "status": "ok",
+    "wikidata": "Q137295901",
+    "distanceKm": 3.44,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.1603987,
+      "lng": 133.654848
+    }
+  },
+  "abashiri-ryuhyo": {
+    "status": "not-found"
+  },
+  "abukumado": {
+    "status": "ok",
+    "wikidata": "Q4670566",
+    "distanceKm": 4.15,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.344716666667,
+      "lng": 140.67347222222
+    }
+  },
+  "adachi-museum-garden": {
+    "status": "ok",
+    "wikidata": "Q140407631",
+    "distanceKm": 4.05,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.380318,
+      "lng": 133.194152
+    }
+  },
+  "adatarayama": {
+    "status": "ok",
+    "wikidata": "Q352675",
+    "distanceKm": 1.59
+  },
+  "adera-keikoku": {
+    "status": "ok",
+    "wikidata": "Q22124539",
+    "distanceKm": 1.44
+  },
+  "agehama": {
+    "status": "not-found"
+  },
+  "aichi-prefectural-office": {
+    "status": "ok",
+    "wikidata": "Q4352855",
+    "distanceKm": 0.3
+  },
+  "ainokura": {
+    "status": "too-far"
+  },
+  "aizu-sazaedo": {
+    "status": "ok",
+    "wikidata": "Q11535740",
+    "distanceKm": 1.34
+  },
+  "aizu-yanaizu": {
+    "status": "ok",
+    "wikidata": "Q11394848",
+    "distanceKm": 1.51
+  },
+  "aizumi-ai": {
+    "status": "too-far"
+  },
+  "akagi-onuma": {
+    "status": "not-found"
+  },
+  "akagi-senbonzakura": {
+    "status": "too-far"
+  },
+  "akama": {
+    "status": "ok",
+    "wikidata": "Q712617",
+    "distanceKm": 0.14
+  },
+  "akame-48-taki": {
+    "status": "ok",
+    "wikidata": "Q11635843",
+    "distanceKm": 3.71,
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.559167,
+      "lng": 136.091667
+    }
+  },
+  "akanko": {
+    "status": "ok",
+    "wikidata": "Q429402",
+    "distanceKm": 0.22
+  },
+  "akashi-castle": {
+    "status": "ok",
+    "wikidata": "Q11393018",
+    "distanceKm": 0.17
+  },
+  "akashi-kaikyo-ohashi": {
+    "status": "ok",
+    "wikidata": "Q184213",
+    "distanceKm": 0.4
+  },
+  "akebono-kodomo": {
+    "status": "ok",
+    "wikidata": "Q21652340",
+    "distanceKm": 2.52
+  },
+  "akebonoyama": {
+    "status": "ok",
+    "wikidata": "Q11257083",
+    "distanceKm": 4.95
+  },
+  "akechidaira": {
+    "status": "ok",
+    "wikidata": "Q4700568",
+    "distanceKm": 1.47
+  },
+  "akita-kanto": {
+    "status": "ok",
+    "wikidata": "Q4701224",
+    "distanceKm": 0.32
+  },
+  "akita-museum": {
+    "status": "ok",
+    "wikidata": "Q11483668",
+    "distanceKm": 0.78
+  },
+  "akita-nairiku": {
+    "status": "ok",
+    "wikidata": "Q11595259",
+    "distanceKm": 2.23
+  },
+  "akitainu-no-sato": {
+    "status": "ok",
+    "wikidata": "Q110990382",
+    "distanceKm": 1.89
+  },
+  "akiu-otaki": {
+    "status": "ok",
+    "wikidata": "Q4701257",
+    "distanceKm": 0.84
+  },
+  "akiyoshidai": {
+    "status": "ok",
+    "wikidata": "Q1765187",
+    "distanceKm": 1.1
+  },
+  "akiyoshido": {
+    "status": "ok",
+    "wikidata": "Q11595801",
+    "distanceKm": 0.38,
+    "via": "sparql"
+  },
+  "akizuki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ako-misaki": {
+    "status": "ok",
+    "wikidata": "Q11379249",
+    "distanceKm": 2.59,
+    "via": "sparql"
+  },
+  "alley-karasukojima": {
+    "status": "ok",
+    "wikidata": "Q17192369",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "amabiki": {
+    "status": "ok",
+    "wikidata": "Q3915984",
+    "distanceKm": 5.31,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.330833,
+      "lng": 140.120833
+    }
+  },
+  "amaharashi-coast": {
+    "status": "ok",
+    "wikidata": "Q11659737",
+    "distanceKm": 3.53,
+    "via": "sparql"
+  },
+  "amakusa-iruka": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "amami-mangrove": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "amano-yasukawara": {
+    "status": "ok",
+    "wikidata": "Q2841102",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "amanohashidate": {
+    "status": "no-image",
+    "wikidata": "Q11387301",
+    "distanceKm": 0.88,
+    "via": "sparql"
+  },
+  "amanoiwato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "amarube-sora-no-eki": {
+    "status": "ok",
+    "wikidata": "Q50183",
+    "distanceKm": 0.04,
+    "via": "sparql"
+  },
+  "ametaki": {
+    "status": "ok",
+    "wikidata": "Q11659756",
+    "distanceKm": 7.62,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.478333333,
+      "lng": 134.404166666
+    }
+  },
+  "amidagataki": {
+    "status": "ok",
+    "wikidata": "Q11657413",
+    "distanceKm": 3.48,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.95965,
+      "lng": 136.817717
+    }
+  },
+  "anabuki": {
+    "status": "no-image",
+    "wikidata": "Q11597210",
+    "distanceKm": 4.51,
+    "via": "sparql"
+  },
+  "anan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "angel-road": {
+    "status": "ok",
+    "wikidata": "Q11291322",
+    "distanceKm": 1.73,
+    "via": "sparql"
+  },
+  "anmon-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11514918",
+    "distanceKm": 4.28,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 40.520833333,
+      "lng": 140.156944444
+    }
+  },
+  "anorizaki": {
+    "status": "ok",
+    "wikidata": "Q867904",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "aoba-castle": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "aomori-nebuta": {
+    "status": "ok",
+    "wikidata": "Q862407",
+    "distanceKm": 1.05,
+    "via": "sparql"
+  },
+  "aoshima": {
+    "status": "no-image",
+    "wikidata": "Q117462824",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "appi-kogen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "aquas": {
+    "status": "ok",
+    "wikidata": "Q11476470",
+    "distanceKm": 3.17,
+    "via": "sparql"
+  },
+  "arafune-fuketsu": {
+    "status": "ok",
+    "wikidata": "Q66092099",
+    "distanceKm": 5.65,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.2467,
+      "lng": 138.6353
+    }
+  },
+  "aragijima": {
+    "status": "ok",
+    "wikidata": "Q11258573",
+    "distanceKm": 4.8,
+    "via": "sparql"
+  },
+  "arahama-shogakko": {
+    "status": "ok",
+    "wikidata": "Q11377970",
+    "distanceKm": 0.89,
+    "via": "sparql"
+  },
+  "arahira-tenjin": {
+    "status": "ok",
+    "wikidata": "Q20038554",
+    "distanceKm": 7.92,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.379583333,
+      "lng": 130.777416666
+    }
+  },
+  "arakurayama-sengen-park": {
+    "status": "ok",
+    "wikidata": "Q105949368",
+    "distanceKm": 0.05,
+    "via": "sparql"
+  },
+  "arashiyama-bamboo-grove": {
+    "status": "ok",
+    "wikidata": "Q23579173",
+    "distanceKm": 1.21,
+    "via": "sparql"
+  },
+  "aridagawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "arima-onsen": {
+    "status": "ok",
+    "wikidata": "Q4790673",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "arita": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "arita-sueyama-jinja": {
+    "status": "ok",
+    "wikidata": "Q251156",
+    "distanceKm": 1.52,
+    "via": "sparql"
+  },
+  "asahidake": {
+    "status": "ok",
+    "wikidata": "Q4803378",
+    "distanceKm": 3.04,
+    "via": "sparql"
+  },
+  "asamayama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ashikaga-flower-park": {
+    "status": "ok",
+    "wikidata": "Q11257294",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "ashikaga-gakko": {
+    "status": "ok",
+    "wikidata": "Q1053852",
+    "distanceKm": 0.91,
+    "via": "sparql"
+  },
+  "ashino-koen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ashizu": {
+    "status": "no-image",
+    "wikidata": "Q11614892",
+    "distanceKm": 4.54,
+    "via": "sparql"
+  },
+  "aso-jinja": {
+    "status": "no-image",
+    "wikidata": "Q135041486",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "aso-komezuka": {
+    "status": "ok",
+    "wikidata": "Q31454691",
+    "distanceKm": 1.81,
+    "via": "sparql"
+  },
+  "aso-nakadake": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "asuka-tanada": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "asuke": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "asuwayama": {
+    "status": "ok",
+    "wikidata": "Q11637044",
+    "distanceKm": 0.86,
+    "via": "sparql"
+  },
+  "atsumi-nanohana": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "atsuta-jingu": {
+    "status": "ok",
+    "wikidata": "Q482065",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "awa-odori": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "awagami": {
+    "status": "no-image",
+    "wikidata": "Q28691969",
+    "distanceKm": 5.45,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.04594444,
+      "lng": 134.23102778
+    }
+  },
+  "awaji-hanasajiki": {
+    "status": "ok",
+    "wikidata": "Q17209168",
+    "distanceKm": 5.1,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.553611111,
+      "lng": 134.977777777
+    }
+  },
+  "awashima": {
+    "status": "ok",
+    "wikidata": "Q7007362",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "aya-shoyo": {
+    "status": "no-image",
+    "wikidata": "Q22678692",
+    "distanceKm": 6.38,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.0567,
+      "lng": 131.1906
+    }
+  },
+  "aya-teruha-ohtsuribashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "azuchi-castle": {
+    "status": "no-author",
+    "wikidata": "Q786888",
+    "distanceKm": 0.45,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "bandaibashi": {
+    "status": "ok",
+    "wikidata": "Q4854329",
+    "distanceKm": 0.28,
+    "via": "sparql"
+  },
+  "bandaisan": {
+    "status": "ok",
+    "wikidata": "Q714605",
+    "distanceKm": 0.22,
+    "via": "sparql"
+  },
+  "banjiiwa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "banna-ji": {
+    "status": "ok",
+    "wikidata": "Q2882839",
+    "distanceKm": 0.86,
+    "via": "sparql"
+  },
+  "bansuiso": {
+    "status": "ok",
+    "wikidata": "Q11620495",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "bentenike": {
+    "status": "ok",
+    "wikidata": "Q11396721",
+    "distanceKm": 5.68,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.255138888,
+      "lng": 131.244888888
+    }
+  },
+  "biei-patchwork": {
+    "status": "license-rejected",
+    "wikidata": "Q17990887",
+    "distanceKm": 2.2,
+    "via": "sparql",
+    "license": "Copyrighted free use"
+  },
+  "bijinbayashi": {
+    "status": "ok",
+    "wikidata": "Q62946776",
+    "distanceKm": 4.73,
+    "via": "sparql"
+  },
+  "bise-fukugi-namiki": {
+    "status": "no-image",
+    "wikidata": "Q34810364",
+    "distanceKm": 1.37,
+    "via": "sparql"
+  },
+  "bitchu-matsuyama-castle": {
+    "status": "ok",
+    "wikidata": "Q577273",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "biwako-valley": {
+    "status": "no-image",
+    "wikidata": "Q11276859",
+    "distanceKm": 2.23,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.202944,
+      "lng": 135.907056
+    }
+  },
+  "bizan": {
+    "status": "no-author",
+    "wikidata": "Q17224370",
+    "distanceKm": 0.47,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "byobugaura": {
+    "status": "ok",
+    "wikidata": "Q5004737",
+    "distanceKm": 2.1,
+    "via": "sparql"
+  },
+  "byobuiwa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "byodoin": {
+    "status": "ok",
+    "wikidata": "Q122767989",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "cape-ashizuri": {
+    "status": "ok",
+    "wikidata": "Q11636890",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "centrair-skydeck": {
+    "status": "ok",
+    "wikidata": "Q679345",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "chateau-de-versailles": {
+    "status": "ok",
+    "wikidata": "Q2946",
+    "distanceKm": 0.53,
+    "via": "sparql"
+  },
+  "chatsubomigoke": {
+    "status": "ok",
+    "wikidata": "Q11609917",
+    "distanceKm": 4.73,
+    "via": "sparql"
+  },
+  "chausuyama-kogen": {
+    "status": "ok",
+    "wikidata": "Q11618019",
+    "distanceKm": 4.02,
+    "via": "sparql"
+  },
+  "chiba-port-tower": {
+    "status": "ok",
+    "wikidata": "Q5095310",
+    "distanceKm": 0.18,
+    "via": "sparql"
+  },
+  "chibusan": {
+    "status": "ok",
+    "wikidata": "Q4557656",
+    "distanceKm": 2.91,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.99366667,
+      "lng": 130.66969444
+    }
+  },
+  "chichibu-yomatsuri": {
+    "status": "ok",
+    "wikidata": "Q2963366",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "chichibugahama": {
+    "status": "ok",
+    "wikidata": "Q60997790",
+    "distanceKm": 6.93,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.188333333,
+      "lng": 133.649083333
+    }
+  },
+  "chidorigafuchi": {
+    "status": "ok",
+    "wikidata": "Q4204321",
+    "distanceKm": 0.12,
+    "via": "sparql"
+  },
+  "chikubushima": {
+    "status": "ok",
+    "wikidata": "Q3080736",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "chikurinji": {
+    "status": "ok",
+    "wikidata": "Q426742",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "chikyu-marumieru": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "chinoike": {
+    "status": "ok",
+    "wikidata": "Q123378080",
+    "distanceKm": 0.82,
+    "via": "sparql"
+  },
+  "chiran-bukeyashiki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "chirihama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "chizu-juku": {
+    "status": "ok",
+    "wikidata": "Q11514804",
+    "distanceKm": 0.83,
+    "via": "sparql"
+  },
+  "chofu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "chokai-nakajima": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "choshi-dentetsu": {
+    "status": "ok",
+    "wikidata": "Q5697162",
+    "distanceKm": 3.47,
+    "via": "sparql"
+  },
+  "choshigawa": {
+    "status": "ok",
+    "wikidata": "Q55583142",
+    "distanceKm": 4.66,
+    "via": "sparql"
+  },
+  "churaumi": {
+    "status": "ok",
+    "wikidata": "Q1445750",
+    "distanceKm": 0.53,
+    "via": "sparql"
+  },
+  "chusonji": {
+    "status": "ok",
+    "wikidata": "Q2660144",
+    "distanceKm": 0.16,
+    "via": "sparql"
+  },
+  "chuzenji-ko": {
+    "status": "ok",
+    "wikidata": "Q117923",
+    "distanceKm": 1.97,
+    "via": "sparql"
+  },
+  "cross-sea": {
+    "status": "ok",
+    "wikidata": "Q11299478",
+    "distanceKm": 2.5,
+    "via": "sparql"
+  },
+  "daibosatsu": {
+    "status": "ok",
+    "wikidata": "Q11438685",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "daigenta-ko": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "daigo-zakura": {
+    "status": "ok",
+    "wikidata": "Q55527106",
+    "distanceKm": 5.18,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.024,
+      "lng": 133.64719444
+    }
+  },
+  "daigoji": {
+    "status": "ok",
+    "wikidata": "Q1157535",
+    "distanceKm": 0.13,
+    "via": "sparql"
+  },
+  "daikakuji-osawaike": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "daikanbo": {
+    "status": "ok",
+    "wikidata": "Q11438960",
+    "distanceKm": 2.8,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.996389,
+      "lng": 131.067222
+    }
+  },
+  "daimonzaka": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "daio-wasabi": {
+    "status": "ok",
+    "wikidata": "Q5209528",
+    "distanceKm": 1.49,
+    "via": "sparql"
+  },
+  "daiozaki": {
+    "status": "ok",
+    "wikidata": "Q11437802",
+    "distanceKm": 0.68,
+    "via": "sparql"
+  },
+  "daisekirinzan": {
+    "status": "ok",
+    "wikidata": "Q55434454",
+    "distanceKm": 1.49,
+    "via": "sparql"
+  },
+  "daisenryo-kofun": {
+    "status": "license-rejected",
+    "wikidata": "Q4250584",
+    "distanceKm": 0.49,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "daishoin": {
+    "status": "ok",
+    "wikidata": "Q3012169",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "dake-onsen": {
+    "status": "no-image",
+    "wikidata": "Q11475763",
+    "distanceKm": 1.05,
+    "via": "sparql"
+  },
+  "dakigaeri-gorge": {
+    "status": "ok",
+    "wikidata": "Q10856424",
+    "distanceKm": 7.88,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.611111111,
+      "lng": 140.666666666
+    }
+  },
+  "dandan": {
+    "status": "no-image",
+    "wikidata": "Q11429459",
+    "distanceKm": 9.55,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.240556,
+      "lng": 133.236111
+    }
+  },
+  "danjo-garan": {
+    "status": "ok",
+    "wikidata": "Q1203429",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "dazaifu-tenmangu": {
+    "status": "no-author",
+    "wikidata": "Q11665779",
+    "distanceKm": 0.48,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "dejima": {
+    "status": "ok",
+    "wikidata": "Q640267",
+    "distanceKm": 0.48,
+    "via": "sparql"
+  },
+  "dewa-sanzan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "dochu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "dogashima": {
+    "status": "ok",
+    "wikidata": "Q11427843",
+    "distanceKm": 1.44,
+    "via": "sparql"
+  },
+  "dogo-onsen-honkan": {
+    "status": "ok",
+    "wikidata": "Q1037748",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "dojoji": {
+    "status": "ok",
+    "wikidata": "Q1272708",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "dorogawa": {
+    "status": "ok",
+    "wikidata": "Q11555835",
+    "distanceKm": 1.55,
+    "via": "sparql"
+  },
+  "dorokyo": {
+    "status": "ok",
+    "wikidata": "Q11401454",
+    "distanceKm": 2.13,
+    "via": "sparql"
+  },
+  "dotonbori": {
+    "status": "ok",
+    "wikidata": "Q11495351",
+    "distanceKm": 0.16,
+    "via": "sparql"
+  },
+  "doya-tanada": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ebino-kogen": {
+    "status": "ok",
+    "wikidata": "Q11392513",
+    "distanceKm": 1.86,
+    "via": "sparql"
+  },
+  "echizen-cape": {
+    "status": "no-image",
+    "wikidata": "Q11636418",
+    "distanceKm": 1.15,
+    "via": "sparql"
+  },
+  "echizen-daibutsu": {
+    "status": "no-image",
+    "wikidata": "Q11636414",
+    "distanceKm": 1.09,
+    "via": "sparql"
+  },
+  "echizen-ono-castle": {
+    "status": "ok",
+    "wikidata": "Q1072530",
+    "distanceKm": 0.96,
+    "via": "sparql"
+  },
+  "echizen-ware": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ei-kaigan": {
+    "status": "ok",
+    "wikidata": "Q28685365",
+    "distanceKm": 5.11,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.249788,
+      "lng": 130.4161958
+    }
+  },
+  "eigenji": {
+    "status": "no-author",
+    "wikidata": "Q1303021",
+    "distanceKm": 1.36,
+    "via": "sparql",
+    "license": "CC BY-SA 2.0"
+  },
+  "eiheiji": {
+    "status": "ok",
+    "wikidata": "Q1303633",
+    "distanceKm": 0.79,
+    "via": "sparql"
+  },
+  "enakyo": {
+    "status": "ok",
+    "wikidata": "Q11432126",
+    "distanceKm": 1.31,
+    "via": "sparql"
+  },
+  "enchoen": {
+    "status": "ok",
+    "wikidata": "Q5375437",
+    "distanceKm": 2.2,
+    "via": "sparql"
+  },
+  "engakuji": {
+    "status": "ok",
+    "wikidata": "Q954860",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "engyoji": {
+    "status": "ok",
+    "wikidata": "Q3054354",
+    "distanceKm": 3.48,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.891139,
+      "lng": 134.658139
+    }
+  },
+  "enkoji": {
+    "status": "ok",
+    "wikidata": "Q3054422",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "enoshima": {
+    "status": "ok",
+    "wikidata": "Q989803",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "entsuin-matsushima": {
+    "status": "ok",
+    "wikidata": "Q3055370",
+    "distanceKm": 0.13,
+    "via": "sparql"
+  },
+  "erinji": {
+    "status": "ok",
+    "wikidata": "Q6430158",
+    "distanceKm": 2.66,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.72991667,
+      "lng": 138.71377778
+    }
+  },
+  "eshima-ohashi": {
+    "status": "ok",
+    "wikidata": "Q11550847",
+    "distanceKm": 2.17,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.519167,
+      "lng": 133.2
+    }
+  },
+  "ezuko": {
+    "status": "ok",
+    "wikidata": "Q11551239",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "farm-tomita": {
+    "status": "ok",
+    "wikidata": "Q10954584",
+    "distanceKm": 1.09,
+    "via": "sparql"
+  },
+  "fossa-magna": {
+    "status": "ok",
+    "wikidata": "Q98582375",
+    "distanceKm": 1.49,
+    "via": "sparql"
+  },
+  "fudekageyama": {
+    "status": "no-image",
+    "wikidata": "Q31487554",
+    "distanceKm": 2.14,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.37667,
+      "lng": 133.08167
+    }
+  },
+  "fuefuki-momo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "fugan-unga-kansui": {
+    "status": "ok",
+    "wikidata": "Q11456932",
+    "distanceKm": 1.09,
+    "via": "sparql"
+  },
+  "fuji-5th-yoshida": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "fuji-shibazakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "fujinomiya-5th": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "fujisan-hongu-sengen": {
+    "status": "ok",
+    "wikidata": "Q653180",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "fujita-kinen-teien": {
+    "status": "ok",
+    "wikidata": "Q11624898",
+    "distanceKm": 0.94,
+    "via": "sparql"
+  },
+  "fujiwarakyo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "fukiji": {
+    "status": "ok",
+    "wikidata": "Q3090693",
+    "distanceKm": 4.1,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.53771944,
+      "lng": 131.52875278
+    }
+  },
+  "fukiware-falls": {
+    "status": "ok",
+    "wikidata": "Q11416484",
+    "distanceKm": 3.29,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.702167,
+      "lng": 139.207417
+    }
+  },
+  "fukiya-furusato-mura": {
+    "status": "ok",
+    "wikidata": "Q11416500",
+    "distanceKm": 2.68,
+    "via": "sparql"
+  },
+  "fukui-dinosaur-museum": {
+    "status": "ok",
+    "wikidata": "Q3247157",
+    "distanceKm": 4.86,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.082909,
+      "lng": 136.506666
+    }
+  },
+  "fukuoka-castle": {
+    "status": "ok",
+    "wikidata": "Q11613685",
+    "distanceKm": 0.86,
+    "via": "sparql"
+  },
+  "fukuoka-tower": {
+    "status": "ok",
+    "wikidata": "Q847033",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "fukuroda-falls": {
+    "status": "ok",
+    "wikidata": "Q37321",
+    "distanceKm": 1.68,
+    "via": "sparql"
+  },
+  "fukuurajima": {
+    "status": "ok",
+    "wikidata": "Q49638605",
+    "distanceKm": 0.38,
+    "via": "sparql"
+  },
+  "fukuyama-castle": {
+    "status": "ok",
+    "wikidata": "Q1071869",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "furumine": {
+    "status": "ok",
+    "wikidata": "Q106697652",
+    "distanceKm": 4.15,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.654889,
+      "lng": 139.526472
+    }
+  },
+  "fushimi-inari-taisha": {
+    "status": "ok",
+    "wikidata": "Q714828",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "futami-meotoiwa": {
+    "status": "ok",
+    "wikidata": "Q11371796",
+    "distanceKm": 0.14,
+    "via": "sparql"
+  },
+  "futarasan": {
+    "status": "no-image",
+    "wikidata": "Q135258895",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "futatsugame": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "futtsu-misaki": {
+    "status": "ok",
+    "wikidata": "Q11457112",
+    "distanceKm": 0.86,
+    "via": "sparql"
+  },
+  "gamagori-takeshima": {
+    "status": "ok",
+    "wikidata": "Q11391688",
+    "distanceKm": 1.18,
+    "via": "sparql"
+  },
+  "gangala": {
+    "status": "ok",
+    "wikidata": "Q38266947",
+    "distanceKm": 0.35,
+    "via": "sparql"
+  },
+  "gangi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ganmon": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "garyu-sanso": {
+    "status": "ok",
+    "wikidata": "Q11612440",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "gassan": {
+    "status": "ok",
+    "wikidata": "Q3174863",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "geibikei": {
+    "status": "ok",
+    "wikidata": "Q3100169",
+    "distanceKm": 2.42,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.99,
+      "lng": 141.25111111
+    }
+  },
+  "genbaku-dome": {
+    "status": "ok",
+    "wikidata": "Q231140",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "genbikei": {
+    "status": "ok",
+    "wikidata": "Q3100364",
+    "distanceKm": 4,
+    "via": "sparql"
+  },
+  "genbudo": {
+    "status": "ok",
+    "wikidata": "Q11572293",
+    "distanceKm": 2.45,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.588433,
+      "lng": 134.804928
+    }
+  },
+  "genkyuen": {
+    "status": "ok",
+    "wikidata": "Q11572274",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "gero-onsen": {
+    "status": "ok",
+    "wikidata": "Q11360701",
+    "distanceKm": 1.04,
+    "via": "sparql"
+  },
+  "ghibli-park": {
+    "status": "ok",
+    "wikidata": "Q11493428",
+    "distanceKm": 0.85,
+    "via": "sparql"
+  },
+  "gifu-castle": {
+    "status": "ok",
+    "wikidata": "Q6921672",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "ginkakuji": {
+    "status": "no-author",
+    "wikidata": "Q257473",
+    "distanceKm": 0.4,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "ginzan-onsen": {
+    "status": "ok",
+    "wikidata": "Q5563313",
+    "distanceKm": 1.15,
+    "via": "sparql"
+  },
+  "gion-shirakawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "glover-garden": {
+    "status": "ok",
+    "wikidata": "Q63465",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "godaisan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "godzilla-iwa": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "goishi-kaigan": {
+    "status": "ok",
+    "wikidata": "Q248622",
+    "distanceKm": 2.88,
+    "via": "sparql"
+  },
+  "gojogawa-sakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "gokanosho": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "gokase": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "gokayama-suganuma": {
+    "status": "ok",
+    "wikidata": "Q66087934",
+    "distanceKm": 4.24,
+    "via": "sparql"
+  },
+  "gongendo-tsutsumi": {
+    "status": "ok",
+    "wikidata": "Q11542313",
+    "distanceKm": 1.3,
+    "via": "sparql"
+  },
+  "goryokaku": {
+    "status": "ok",
+    "wikidata": "Q1196357",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "goshikinuma": {
+    "status": "ok",
+    "wikidata": "Q3214907",
+    "distanceKm": 0.93,
+    "via": "sparql"
+  },
+  "goto-dozaki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "gotoretto": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "gozaisho-dake": {
+    "status": "ok",
+    "wikidata": "Q6920956",
+    "distanceKm": 0.06,
+    "via": "sparql"
+  },
+  "gujo-hachiman": {
+    "status": "ok",
+    "wikidata": "Q2969384",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "gunkanjima": {
+    "status": "ok",
+    "wikidata": "Q285468",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "gyoda-tanbo-art": {
+    "status": "ok",
+    "wikidata": "Q11410920",
+    "distanceKm": 1.82,
+    "via": "sparql"
+  },
+  "hachibodai": {
+    "status": "ok",
+    "wikidata": "Q138659909",
+    "distanceKm": 2,
+    "via": "sparql"
+  },
+  "hachiman-bori": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hachimantai-aspite": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "hachimantai-dragon-eye": {
+    "status": "ok",
+    "wikidata": "Q140299429",
+    "distanceKm": 0.73,
+    "via": "sparql"
+  },
+  "hachimantai-goshogake": {
+    "status": "no-image",
+    "wikidata": "Q11488358",
+    "distanceKm": 1.6,
+    "via": "sparql"
+  },
+  "hadonomisaki": {
+    "status": "no-image",
+    "wikidata": "Q21654199",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "hagi-jokamachi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hagi-meirinkan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "haguro-goju-no-to": {
+    "status": "ok",
+    "wikidata": "Q1155726",
+    "distanceKm": 7.01,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.63864,
+      "lng": 139.98847
+    }
+  },
+  "haigamine": {
+    "status": "ok",
+    "wikidata": "Q11567005",
+    "distanceKm": 2.32,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.270139,
+      "lng": 132.593444
+    }
+  },
+  "hakata": {
+    "status": "ok",
+    "wikidata": "Q1799188",
+    "distanceKm": 0.81,
+    "via": "sparql"
+  },
+  "hakata-sennenmon": {
+    "status": "ok",
+    "wikidata": "Q113460431",
+    "distanceKm": 0.82,
+    "via": "sparql"
+  },
+  "hakkoda-juhyo": {
+    "status": "no-image",
+    "wikidata": "Q31491184",
+    "distanceKm": 1.4,
+    "via": "sparql"
+  },
+  "hakone-heiwa-no-torii": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hakone-open-air-museum": {
+    "status": "ok",
+    "wikidata": "Q1134422",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "hakone-tozan-ajisai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hakusui-dam": {
+    "status": "ok",
+    "wikidata": "Q2885145",
+    "distanceKm": 9.74,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.90521667,
+      "lng": 131.32712222
+    }
+  },
+  "hakuto-jinja": {
+    "status": "ok",
+    "wikidata": "Q246667",
+    "distanceKm": 1.55,
+    "via": "sparql"
+  },
+  "hamanoura-tanada": {
+    "status": "ok",
+    "wikidata": "Q141434862",
+    "distanceKm": 7.72,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.4894,
+      "lng": 129.8468
+    }
+  },
+  "hamarikyu": {
+    "status": "no-author",
+    "wikidata": "Q1033333",
+    "distanceKm": 0.18,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "hana-no-miyako-koen": {
+    "status": "ok",
+    "wikidata": "Q3126659",
+    "distanceKm": 1.17,
+    "via": "sparql"
+  },
+  "hanamiyama": {
+    "status": "ok",
+    "wikidata": "Q11615667",
+    "distanceKm": 1.16,
+    "via": "sparql"
+  },
+  "hananoiwaya": {
+    "status": "ok",
+    "wikidata": "Q11615617",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "hananuki-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hanazono-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "handa-unga": {
+    "status": "ok",
+    "wikidata": "Q17173651",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "hangetsuyama": {
+    "status": "ok",
+    "wikidata": "Q101097333",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "hannyaji": {
+    "status": "ok",
+    "wikidata": "Q1576651",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "happo-ike": {
+    "status": "ok",
+    "wikidata": "Q136412296",
+    "distanceKm": 1.83,
+    "via": "sparql"
+  },
+  "harajiri-no-taki": {
+    "status": "ok",
+    "wikidata": "Q3127241",
+    "distanceKm": 5.46,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.963889,
+      "lng": 131.451111
+    }
+  },
+  "harajo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "haraoka-sanbashi": {
+    "status": "ok",
+    "wikidata": "Q116679674",
+    "distanceKm": 1.02,
+    "via": "sparql"
+  },
+  "harie": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "harimayabashi": {
+    "status": "ok",
+    "wikidata": "Q11498729",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "harukas-300": {
+    "status": "ok",
+    "wikidata": "Q118213997",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "haruna-jinja": {
+    "status": "ok",
+    "wikidata": "Q3128007",
+    "distanceKm": 3.37,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.454237,
+      "lng": 138.850161
+    }
+  },
+  "haruna-ko": {
+    "status": "ok",
+    "wikidata": "Q3214922",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "hasami": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "hasedera": {
+    "status": "ok",
+    "wikidata": "Q1457787",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "hashidate": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hashidate-shonyudo": {
+    "status": "ok",
+    "wikidata": "Q11544129",
+    "distanceKm": 1.04,
+    "via": "sparql"
+  },
+  "hashigui-iwa": {
+    "status": "ok",
+    "wikidata": "Q11121906",
+    "distanceKm": 0.79,
+    "via": "sparql"
+  },
+  "hashino-tekkozan": {
+    "status": "ok",
+    "wikidata": "Q11544148",
+    "distanceKm": 8.79,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.343861,
+      "lng": 141.682417
+    }
+  },
+  "hate-no-hama": {
+    "status": "license-rejected",
+    "wikidata": "Q17219306",
+    "distanceKm": 3.95,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "hattoji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hattori-ryokuchi": {
+    "status": "ok",
+    "wikidata": "Q11508426",
+    "distanceKm": 1.42,
+    "via": "sparql"
+  },
+  "hawai-onsen": {
+    "status": "no-image",
+    "wikidata": "Q11610057",
+    "distanceKm": 1.48,
+    "via": "sparql"
+  },
+  "hayachine": {
+    "status": "ok",
+    "wikidata": "Q3695496",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "hebens-sonohara": {
+    "status": "ok",
+    "wikidata": "Q1203279",
+    "distanceKm": 11.04,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.443805555,
+      "lng": 137.747527777
+    }
+  },
+  "hedo-misaki": {
+    "status": "ok",
+    "wikidata": "Q4521065",
+    "distanceKm": 0.49,
+    "via": "sparql"
+  },
+  "heian-jingu": {
+    "status": "ok",
+    "wikidata": "Q385141",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "heijokyo": {
+    "status": "ok",
+    "wikidata": "Q862509",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "heisenji": {
+    "status": "ok",
+    "wikidata": "Q11483206",
+    "distanceKm": 0.98,
+    "via": "sparql"
+  },
+  "heiwa": {
+    "status": "ok",
+    "wikidata": "Q93490",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "hibara": {
+    "status": "ok",
+    "wikidata": "Q3070902",
+    "distanceKm": 1.53,
+    "via": "sparql"
+  },
+  "hibiki-tanada": {
+    "status": "ok",
+    "wikidata": "Q140600813",
+    "distanceKm": 4.3,
+    "via": "sparql"
+  },
+  "hida-daishonyudo": {
+    "status": "ok",
+    "wikidata": "Q11665894",
+    "distanceKm": 5.15,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.184633,
+      "lng": 137.424481
+    }
+  },
+  "hida-furukawa": {
+    "status": "ok",
+    "wikidata": "Q11566623",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "hida-takayama-sanmachi": {
+    "status": "ok",
+    "wikidata": "Q11356789",
+    "distanceKm": 0.05,
+    "via": "sparql"
+  },
+  "hieizan-enryakuji": {
+    "status": "ok",
+    "wikidata": "Q15717263",
+    "distanceKm": 0.1,
+    "via": "sparql"
+  },
+  "hiezu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "higashi-chaya": {
+    "status": "ok",
+    "wikidata": "Q5897562",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "higashi-hennazaki": {
+    "status": "ok",
+    "wikidata": "Q11060860",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "higashiushirobata": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hijiori": {
+    "status": "ok",
+    "wikidata": "Q11611454",
+    "distanceKm": 5.47,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.609111111,
+      "lng": 140.167027777
+    }
+  },
+  "hikone-castle": {
+    "status": "ok",
+    "wikidata": "Q11572274",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "hikosan": {
+    "status": "ok",
+    "wikidata": "Q3077886",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "himakajima": {
+    "status": "license-rejected",
+    "wikidata": "Q393031",
+    "distanceKm": 1.48,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "himeji-castle": {
+    "status": "ok",
+    "wikidata": "Q188754",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "himekamisan": {
+    "status": "ok",
+    "wikidata": "Q11447445",
+    "distanceKm": 3.48,
+    "via": "sparql"
+  },
+  "himenuma-rishiri": {
+    "status": "ok",
+    "wikidata": "Q2154758",
+    "distanceKm": 4.6,
+    "via": "sparql"
+  },
+  "himeshima": {
+    "status": "no-image",
+    "wikidata": "Q3785700",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "himi": {
+    "status": "ok",
+    "wikidata": "Q11549647",
+    "distanceKm": 0.14,
+    "via": "sparql"
+  },
+  "hinokage": {
+    "status": "ok",
+    "wikidata": "Q11504810",
+    "distanceKm": 1.5,
+    "via": "sparql"
+  },
+  "hinokinaigawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hinomisaki": {
+    "status": "ok",
+    "wikidata": "Q10896678",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "hinomisaki-jinja": {
+    "status": "ok",
+    "wikidata": "Q1619446",
+    "distanceKm": 0.07,
+    "via": "sparql"
+  },
+  "hinoyama": {
+    "status": "ok",
+    "wikidata": "Q11566834",
+    "distanceKm": 1.78,
+    "via": "sparql"
+  },
+  "hirado-castle": {
+    "status": "ok",
+    "wikidata": "Q1191029",
+    "distanceKm": 0.27,
+    "via": "sparql"
+  },
+  "hirado-tabira": {
+    "status": "ok",
+    "wikidata": "Q11576769",
+    "distanceKm": 2.36,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.339667,
+      "lng": 129.577139
+    }
+  },
+  "hiraizumi-takkoku": {
+    "status": "ok",
+    "wikidata": "Q11641901",
+    "distanceKm": 1.65,
+    "via": "sparql"
+  },
+  "hirakubozaki": {
+    "status": "ok",
+    "wikidata": "Q60990228",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "hiraodai": {
+    "status": "ok",
+    "wikidata": "Q11482445",
+    "distanceKm": 1.85,
+    "via": "sparql"
+  },
+  "hirasawa": {
+    "status": "no-image",
+    "wikidata": "Q11483169",
+    "distanceKm": 2.03,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.17805556,
+      "lng": 140.10333333
+    }
+  },
+  "hirayu-otaki": {
+    "status": "ok",
+    "wikidata": "Q11483228",
+    "distanceKm": 1.45,
+    "via": "sparql"
+  },
+  "hirome": {
+    "status": "ok",
+    "wikidata": "Q11276774",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "hirosaki-park": {
+    "status": "ok",
+    "wikidata": "Q11288816",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "hiroshima-castle": {
+    "status": "ok",
+    "wikidata": "Q41977",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "hiruzen-kogen": {
+    "status": "ok",
+    "wikidata": "Q11621255",
+    "distanceKm": 2.26,
+    "via": "sparql"
+  },
+  "hishio-no-sato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hita-mameda": {
+    "status": "ok",
+    "wikidata": "Q11486411",
+    "distanceKm": 0.48,
+    "via": "sparql"
+  },
+  "hitachi-izumo": {
+    "status": "ok",
+    "wikidata": "Q107410070",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "hitachi-seaside-park": {
+    "status": "ok",
+    "wikidata": "Q10855585",
+    "distanceKm": 0.14,
+    "via": "sparql"
+  },
+  "hitachi-station": {
+    "status": "ok",
+    "wikidata": "Q39929",
+    "distanceKm": 1.5,
+    "via": "sparql"
+  },
+  "hitome-senbonzakura": {
+    "status": "no-image",
+    "wikidata": "Q11614042",
+    "distanceKm": 2.22,
+    "via": "sparql"
+  },
+  "hitoyoshi": {
+    "status": "ok",
+    "wikidata": "Q2857960",
+    "distanceKm": 1.01,
+    "via": "sparql"
+  },
+  "hitsujiyama-park": {
+    "status": "ok",
+    "wikidata": "Q28690451",
+    "distanceKm": 0.99,
+    "via": "sparql"
+  },
+  "hiyoshi-taisha": {
+    "status": "ok",
+    "wikidata": "Q656451",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "hizen-hama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hobikisen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hodosan": {
+    "status": "ok",
+    "wikidata": "Q11452649",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "hofu-tenmangu": {
+    "status": "ok",
+    "wikidata": "Q704898",
+    "distanceKm": 1.52,
+    "via": "sparql"
+  },
+  "hokekyoji": {
+    "status": "no-image",
+    "wikidata": "Q134534266",
+    "distanceKm": 1.92,
+    "via": "sparql"
+  },
+  "hokiji": {
+    "status": "ok",
+    "wikidata": "Q1351209",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "hokodate-tenbodai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hokokuji": {
+    "status": "ok",
+    "wikidata": "Q3146363",
+    "distanceKm": 0.06,
+    "via": "sparql"
+  },
+  "homma-museum": {
+    "status": "ok",
+    "wikidata": "Q140364277",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "hondoji": {
+    "status": "ok",
+    "wikidata": "Q11519907",
+    "distanceKm": 1.17,
+    "via": "sparql"
+  },
+  "honjima": {
+    "status": "ok",
+    "wikidata": "Q11520216",
+    "distanceKm": 3.79,
+    "via": "sparql"
+  },
+  "horaibashi": {
+    "status": "ok",
+    "wikidata": "Q4304536",
+    "distanceKm": 1.96,
+    "via": "sparql"
+  },
+  "horaijisan": {
+    "status": "ok",
+    "wikidata": "Q11675275",
+    "distanceKm": 4.92,
+    "via": "sparql"
+  },
+  "horikiri": {
+    "status": "ok",
+    "wikidata": "Q11641059",
+    "distanceKm": 2.47,
+    "via": "sparql"
+  },
+  "horyuji": {
+    "status": "ok",
+    "wikidata": "Q261932",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "hosenin": {
+    "status": "ok",
+    "wikidata": "Q11452598",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "hoshi-no-buranko": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hoshinomura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hoshitoge-tanada": {
+    "status": "ok",
+    "wikidata": "Q140596413",
+    "distanceKm": 13.6,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.124311,
+      "lng": 138.529528
+    }
+  },
+  "hotaruika": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "hotokegaura": {
+    "status": "ok",
+    "wikidata": "Q784871",
+    "distanceKm": 4.23,
+    "via": "sparql"
+  },
+  "hotokuji": {
+    "status": "no-image",
+    "wikidata": "Q135417782",
+    "distanceKm": 2.82,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.452723,
+      "lng": 139.317251
+    }
+  },
+  "hottai-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11555021",
+    "distanceKm": 12.06,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.10508333,
+      "lng": 140.16269444
+    }
+  },
+  "hottarakashi-onsen": {
+    "status": "ok",
+    "wikidata": "Q11277778",
+    "distanceKm": 6.13,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.706111,
+      "lng": 138.652222
+    }
+  },
+  "hozenji-yokocho": {
+    "status": "ok",
+    "wikidata": "Q11555078",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "hozugawa-kudari": {
+    "status": "ok",
+    "wikidata": "Q117351229",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "hyakusaiji": {
+    "status": "ok",
+    "wikidata": "Q11580781",
+    "distanceKm": 2.25,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.126889,
+      "lng": 136.288833
+    }
+  },
+  "hyoko": {
+    "status": "ok",
+    "wikidata": "Q3214939",
+    "distanceKm": 0.96,
+    "via": "sparql"
+  },
+  "hyuga-umagase": {
+    "status": "no-image",
+    "wikidata": "Q55526873",
+    "distanceKm": 3.11,
+    "via": "sparql"
+  },
+  "ibara-nakatsuiwa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ibukiyama": {
+    "status": "ok",
+    "wikidata": "Q2624360",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "ibusuki-sunamushi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ichijodani": {
+    "status": "ok",
+    "wikidata": "Q2968274",
+    "distanceKm": 1.22,
+    "via": "sparql"
+  },
+  "ichinokurasawa": {
+    "status": "ok",
+    "wikidata": "Q1109030",
+    "distanceKm": 0.97,
+    "via": "sparql"
+  },
+  "iga-ueno-castle": {
+    "status": "ok",
+    "wikidata": "Q1333693",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "iimoriyama": {
+    "status": "ok",
+    "wikidata": "Q11666635",
+    "distanceKm": 1.47,
+    "via": "sparql"
+  },
+  "ikaho-ishidangai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ikeda-ko": {
+    "status": "license-rejected",
+    "wikidata": "Q3214941",
+    "distanceKm": 0.81,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "iki-monkey": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ikitsuki": {
+    "status": "ok",
+    "wikidata": "Q70363164",
+    "distanceKm": 5.27,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.44,
+      "lng": 129.430555555
+    }
+  },
+  "ikoma-kogen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ikuno-ginzan": {
+    "status": "ok",
+    "wikidata": "Q16664574",
+    "distanceKm": 1.57,
+    "via": "sparql"
+  },
+  "ikuta-jinja": {
+    "status": "ok",
+    "wikidata": "Q710086",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "imabari-castle": {
+    "status": "ok",
+    "wikidata": "Q1071856",
+    "distanceKm": 0.97,
+    "via": "sparql"
+  },
+  "imabari-towel": {
+    "status": "ok",
+    "wikidata": "Q11319161",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "imoriike": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "inabe-bairin": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "inakadate-tanbo-art": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "inami-zuisenji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "inamuragasaki": {
+    "status": "ok",
+    "wikidata": "Q11596647",
+    "distanceKm": 1.43,
+    "via": "sparql"
+  },
+  "inasa-no-hama": {
+    "status": "ok",
+    "wikidata": "Q11596453",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "inasayama": {
+    "status": "ok",
+    "wikidata": "Q3031841",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "inawashiro": {
+    "status": "ok",
+    "wikidata": "Q1140672",
+    "distanceKm": 2.81,
+    "via": "sparql"
+  },
+  "inbe": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ine-no-funaya": {
+    "status": "ok",
+    "wikidata": "Q11379620",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "inokashira-park": {
+    "status": "ok",
+    "wikidata": "Q1200884",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "inubosaki-lighthouse": {
+    "status": "ok",
+    "wikidata": "Q2937063",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "inuyama-castle": {
+    "status": "ok",
+    "wikidata": "Q1155484",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "irabu-ohashi": {
+    "status": "ok",
+    "wikidata": "Q4520855",
+    "distanceKm": 2.69,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 24.799166666,
+      "lng": 125.233333333
+    }
+  },
+  "iragomisaki": {
+    "status": "ok",
+    "wikidata": "Q371114",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "irohazaka": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "irozaki": {
+    "status": "ok",
+    "wikidata": "Q11586512",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "ise-jingu-geku": {
+    "status": "ok",
+    "wikidata": "Q11633343",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "ise-jingu-naiku": {
+    "status": "ok",
+    "wikidata": "Q687168",
+    "distanceKm": 0.67,
+    "via": "sparql"
+  },
+  "ishibutai-kofun": {
+    "status": "ok",
+    "wikidata": "Q3816159",
+    "distanceKm": 5.94,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.41678889,
+      "lng": 135.82615
+    }
+  },
+  "ishigami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ishikiri-sanmyaku": {
+    "status": "no-image",
+    "wikidata": "Q109359187",
+    "distanceKm": 3.58,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.3749,
+      "lng": 140.2053
+    }
+  },
+  "ishinomaki-hiyoriyama": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "ishiteji": {
+    "status": "ok",
+    "wikidata": "Q3155277",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "ishiyamadera": {
+    "status": "ok",
+    "wikidata": "Q1082791",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "ishizuchisan": {
+    "status": "ok",
+    "wikidata": "Q2744214",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "isshingyo": {
+    "status": "no-image",
+    "wikidata": "Q11352664",
+    "distanceKm": 4.06,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.83575,
+      "lng": 131.050805555
+    }
+  },
+  "isumi-railway": {
+    "status": "ok",
+    "wikidata": "Q6381717",
+    "distanceKm": 2.68,
+    "via": "sparql"
+  },
+  "itako-ayame": {
+    "status": "ok",
+    "wikidata": "Q11397147",
+    "distanceKm": 1.81,
+    "via": "sparql"
+  },
+  "itoshima-shiraito": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "itsukushima-jinja": {
+    "status": "ok",
+    "wikidata": "Q191763",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "iwadonoyama": {
+    "status": "ok",
+    "wikidata": "Q11475242",
+    "distanceKm": 0.18,
+    "via": "sparql"
+  },
+  "iwakisan": {
+    "status": "ok",
+    "wikidata": "Q713857",
+    "distanceKm": 0.93,
+    "via": "sparql"
+  },
+  "iwakuni-castle": {
+    "status": "ok",
+    "wikidata": "Q1156906",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "iwami-ginzan": {
+    "status": "no-image",
+    "wikidata": "Q97118988",
+    "distanceKm": 1.68,
+    "via": "sparql"
+  },
+  "iwase": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "iwate-sanriku-railway": {
+    "status": "ok",
+    "wikidata": "Q11427309",
+    "distanceKm": 3.98,
+    "via": "sparql"
+  },
+  "iwatesan": {
+    "status": "ok",
+    "wikidata": "Q713836",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "iwawakisan": {
+    "status": "ok",
+    "wikidata": "Q11475373",
+    "distanceKm": 3.34,
+    "via": "sparql"
+  },
+  "iya-kazurabashi": {
+    "status": "ok",
+    "wikidata": "Q11263836",
+    "distanceKm": 1.69,
+    "via": "sparql"
+  },
+  "iyakei-shonben-kozo": {
+    "status": "ok",
+    "wikidata": "Q107723579",
+    "distanceKm": 4.6,
+    "via": "sparql"
+  },
+  "izanagi-jingu": {
+    "status": "ok",
+    "wikidata": "Q10884977",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "izumi-tsuru": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "izumo-taisha": {
+    "status": "ok",
+    "wikidata": "Q696362",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "izumozaki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "izunuma": {
+    "status": "ok",
+    "wikidata": "Q3156508",
+    "distanceKm": 1.14,
+    "via": "sparql"
+  },
+  "izura-rokkakudo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "izuruhara": {
+    "status": "no-image",
+    "wikidata": "Q126762137",
+    "distanceKm": 1.18,
+    "via": "sparql"
+  },
+  "izushi-shinkoro": {
+    "status": "ok",
+    "wikidata": "Q11395756",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "jaxa-tsukuba": {
+    "status": "ok",
+    "wikidata": "Q1586339",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "jet-coaster-road": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "jigenji": {
+    "status": "ok",
+    "wikidata": "Q11495028",
+    "distanceKm": 10.84,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.940202777,
+      "lng": 134.430744444
+    }
+  },
+  "jigokudani-yaen": {
+    "status": "ok",
+    "wikidata": "Q5302436",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "jindaizakura": {
+    "status": "ok",
+    "wikidata": "Q10860801",
+    "distanceKm": 1.98,
+    "via": "sparql"
+  },
+  "jionji": {
+    "status": "ok",
+    "wikidata": "Q11494999",
+    "distanceKm": 3.58,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.41025,
+      "lng": 140.250888888
+    }
+  },
+  "jododaira": {
+    "status": "ok",
+    "wikidata": "Q718441",
+    "distanceKm": 0,
+    "via": "sparql"
+  },
+  "jodogahama": {
+    "status": "ok",
+    "wikidata": "Q11271084",
+    "distanceKm": 1,
+    "via": "sparql"
+  },
+  "jogakura-ohashi": {
+    "status": "ok",
+    "wikidata": "Q95688204",
+    "distanceKm": 2.25,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 40.649972222,
+      "lng": 140.825805555
+    }
+  },
+  "jogasaki-kaigan": {
+    "status": "ok",
+    "wikidata": "Q11425937",
+    "distanceKm": 2.03,
+    "via": "sparql"
+  },
+  "jogashima": {
+    "status": "license-rejected",
+    "wikidata": "Q908857",
+    "distanceKm": 0.89,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "johana": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "jomine": {
+    "status": "ok",
+    "wikidata": "Q21653306",
+    "distanceKm": 5.48,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.12375,
+      "lng": 139.024472222
+    }
+  },
+  "jomonsugi": {
+    "status": "ok",
+    "wikidata": "Q589967",
+    "distanceKm": 2.44,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 30.360833333,
+      "lng": 130.531944444
+    }
+  },
+  "joren-no-taki": {
+    "status": "ok",
+    "wikidata": "Q38148",
+    "distanceKm": 1.64,
+    "via": "sparql"
+  },
+  "jouge": {
+    "status": "ok",
+    "wikidata": "Q6322186",
+    "distanceKm": 5.52,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.695583333,
+      "lng": 133.1165
+    }
+  },
+  "jozenji-dori": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "juniko-aoike": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "jurokurakan": {
+    "status": "ok",
+    "wikidata": "Q6322353",
+    "distanceKm": 4.87,
+    "via": "sparql"
+  },
+  "kabira-bay": {
+    "status": "ok",
+    "wikidata": "Q2654598",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "kabukuri-numa": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "kabushima": {
+    "status": "ok",
+    "wikidata": "Q29051264",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "kagamiyama": {
+    "status": "ok",
+    "wikidata": "Q11651238",
+    "distanceKm": 1.76,
+    "via": "sparql"
+  },
+  "kagawa-ayagawa": {
+    "status": "ok",
+    "wikidata": "Q11565102",
+    "distanceKm": 1.92,
+    "via": "sparql"
+  },
+  "kagoshima-shiroyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kaida-kogen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kaifu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kaike": {
+    "status": "ok",
+    "wikidata": "Q11580978",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "kaimondake-nagasakibana": {
+    "status": "ok",
+    "wikidata": "Q713847",
+    "distanceKm": 7.17,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.18,
+      "lng": 130.528333333
+    }
+  },
+  "kairakuen": {
+    "status": "ok",
+    "wikidata": "Q71952",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "kaiwomaru-park": {
+    "status": "ok",
+    "wikidata": "Q365055",
+    "distanceKm": 0.9,
+    "via": "sparql"
+  },
+  "kaiyodo": {
+    "status": "ok",
+    "wikidata": "Q118411189",
+    "distanceKm": 9.8,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.15275,
+      "lng": 133.045055555
+    }
+  },
+  "kaiyukan": {
+    "status": "ok",
+    "wikidata": "Q1191885",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "kaizu-osaki": {
+    "status": "ok",
+    "wikidata": "Q11559016",
+    "distanceKm": 1.9,
+    "via": "sparql"
+  },
+  "kajikabashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kakegawa-castle": {
+    "status": "ok",
+    "wikidata": "Q2969457",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "kakitagawa": {
+    "status": "ok",
+    "wikidata": "Q6349486",
+    "distanceKm": 1.28,
+    "via": "sparql"
+  },
+  "kakunodate-bukeyashiki": {
+    "status": "ok",
+    "wikidata": "Q11630890",
+    "distanceKm": 0.13,
+    "via": "sparql"
+  },
+  "kakusenkei": {
+    "status": "ok",
+    "wikidata": "Q11258463",
+    "distanceKm": 0.79,
+    "via": "sparql"
+  },
+  "kamado-jinja": {
+    "status": "ok",
+    "wikidata": "Q11597744",
+    "distanceKm": 1.77,
+    "via": "sparql"
+  },
+  "kamakura-daibutsu": {
+    "status": "ok",
+    "wikidata": "Q12366269",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "kamakura-hasedera": {
+    "status": "ok",
+    "wikidata": "Q1034293",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "kamakurakokomae-crossing": {
+    "status": "ok",
+    "wikidata": "Q119693119",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "kameido-tenjin": {
+    "status": "ok",
+    "wikidata": "Q11370953",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "kamiiso-no-torii": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kamikatsu": {
+    "status": "ok",
+    "wikidata": "Q24870309",
+    "distanceKm": 2.32,
+    "via": "sparql"
+  },
+  "kamikochi-kappabashi": {
+    "status": "ok",
+    "wikidata": "Q1048234",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "kamikura": {
+    "status": "ok",
+    "wikidata": "Q11588748",
+    "distanceKm": 0.9,
+    "via": "sparql"
+  },
+  "kaminoyama-castle": {
+    "status": "ok",
+    "wikidata": "Q847251",
+    "distanceKm": 0.99,
+    "via": "sparql"
+  },
+  "kamishikimi-kumanoza": {
+    "status": "ok",
+    "wikidata": "Q99887523",
+    "distanceKm": 3.23,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.8545,
+      "lng": 131.158666666
+    }
+  },
+  "kamishima": {
+    "status": "ok",
+    "wikidata": "Q11675088",
+    "distanceKm": 0.53,
+    "via": "sparql"
+  },
+  "kamiyama": {
+    "status": "no-image",
+    "wikidata": "Q11589546",
+    "distanceKm": 2.28,
+    "via": "sparql"
+  },
+  "kamo-aquarium": {
+    "status": "ok",
+    "wikidata": "Q11675955",
+    "distanceKm": 2.18,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.762222,
+      "lng": 139.724972
+    }
+  },
+  "kamosu": {
+    "status": "ok",
+    "wikidata": "Q3192477",
+    "distanceKm": 1.47,
+    "via": "sparql"
+  },
+  "kamui-misaki": {
+    "status": "ok",
+    "wikidata": "Q5034886",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "kanami-soten": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kanayamachi": {
+    "status": "ok",
+    "wikidata": "Q11646932",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "kanazawa-21st-museum": {
+    "status": "ok",
+    "wikidata": "Q3242206",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "kanazawa-castle-park": {
+    "status": "no-image",
+    "wikidata": "Q140317473",
+    "distanceKm": 0.46,
+    "via": "sparql"
+  },
+  "kanazawa-station": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kanba-no-taki": {
+    "status": "no-image",
+    "wikidata": "Q11589686",
+    "distanceKm": 8.29,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.11675,
+      "lng": 133.67941
+    }
+  },
+  "kanda-myojin": {
+    "status": "ok",
+    "wikidata": "Q717682",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "kanegasaki": {
+    "status": "ok",
+    "wikidata": "Q11647043",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "kankakei": {
+    "status": "ok",
+    "wikidata": "Q6363627",
+    "distanceKm": 1.14,
+    "via": "sparql"
+  },
+  "kankyo-geijutsu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kannawa-yukemuri": {
+    "status": "ok",
+    "wikidata": "Q30921762",
+    "distanceKm": 3.58,
+    "via": "sparql"
+  },
+  "kannonzaki": {
+    "status": "ok",
+    "wikidata": "Q17240005",
+    "distanceKm": 0.71,
+    "via": "sparql"
+  },
+  "kanoya-bara": {
+    "status": "ok",
+    "wikidata": "Q11660871",
+    "distanceKm": 4.62,
+    "via": "sparql"
+  },
+  "kanpuzan": {
+    "status": "ok",
+    "wikidata": "Q11457452",
+    "distanceKm": 3.88,
+    "via": "sparql"
+  },
+  "karasawayama": {
+    "status": "ok",
+    "wikidata": "Q11418605",
+    "distanceKm": 1.81,
+    "via": "sparql"
+  },
+  "karatsu-castle": {
+    "status": "ok",
+    "wikidata": "Q1073585",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "karatsu-kunchi": {
+    "status": "no-author",
+    "wikidata": "Q493695",
+    "distanceKm": 0.59,
+    "via": "sparql",
+    "license": "CC BY-SA 2.5"
+  },
+  "karikomi-ike": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "karuizawa-shiraito": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kasama-inari": {
+    "status": "ok",
+    "wikidata": "Q704876",
+    "distanceKm": 0.87,
+    "via": "sparql"
+  },
+  "kasayama": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "kashihara-jingu": {
+    "status": "ok",
+    "wikidata": "Q710333",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "kashima-gatalympic": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kashima-jingu": {
+    "status": "ok",
+    "wikidata": "Q706499",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "kashiragashima": {
+    "status": "ok",
+    "wikidata": "Q11664924",
+    "distanceKm": 3.95,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.012403,
+      "lng": 129.182856
+    }
+  },
+  "kashiwajima": {
+    "status": "ok",
+    "wikidata": "Q11533729",
+    "distanceKm": 9.29,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.76936111,
+      "lng": 132.62144444
+    }
+  },
+  "kashiya-yokocho": {
+    "status": "ok",
+    "wikidata": "Q11619944",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "kasuga-taisha": {
+    "status": "ok",
+    "wikidata": "Q714559",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "kasugayama": {
+    "status": "ok",
+    "wikidata": "Q11513607",
+    "distanceKm": 0.84,
+    "via": "sparql"
+  },
+  "katanuma": {
+    "status": "ok",
+    "wikidata": "Q11565664",
+    "distanceKm": 0.81,
+    "via": "sparql"
+  },
+  "katayamazu": {
+    "status": "ok",
+    "wikidata": "Q49310390",
+    "distanceKm": 2.25,
+    "via": "sparql"
+  },
+  "katori-jingu": {
+    "status": "ok",
+    "wikidata": "Q372380",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "katsuoji": {
+    "status": "ok",
+    "wikidata": "Q2747522",
+    "distanceKm": 1.04,
+    "via": "sparql"
+  },
+  "katsura-sakamoto": {
+    "status": "ok",
+    "wikidata": "Q5965394",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "katsurahama": {
+    "status": "ok",
+    "wikidata": "Q11536831",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "katsuren-jo": {
+    "status": "ok",
+    "wikidata": "Q2471589",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "katsuura-asaichi": {
+    "status": "ok",
+    "wikidata": "Q11400398",
+    "distanceKm": 1.06,
+    "via": "sparql"
+  },
+  "katsuyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kawachi-fujien": {
+    "status": "ok",
+    "wikidata": "Q18458746",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "kawagoe-hikawa": {
+    "status": "ok",
+    "wikidata": "Q11549607",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "kawagoe-kurazukuri": {
+    "status": "ok",
+    "wikidata": "Q17221309",
+    "distanceKm": 0.49,
+    "via": "sparql"
+  },
+  "kawaguchiko-momiji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kawaminami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kawaramachi": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "kawasaki-factory-night": {
+    "status": "no-image",
+    "wikidata": "Q11406910",
+    "distanceKm": 0.87,
+    "via": "sparql"
+  },
+  "kawazu-nanadaru": {
+    "status": "ok",
+    "wikidata": "Q11553985",
+    "distanceKm": 1.47,
+    "via": "sparql"
+  },
+  "kawazu-zakura": {
+    "status": "ok",
+    "wikidata": "Q11553991",
+    "distanceKm": 5.32,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.742611,
+      "lng": 138.997529
+    }
+  },
+  "kazuemachi": {
+    "status": "ok",
+    "wikidata": "Q11368794",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "kegon-falls": {
+    "status": "ok",
+    "wikidata": "Q37580",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "kehi-jingu": {
+    "status": "ok",
+    "wikidata": "Q11129346",
+    "distanceKm": 0.73,
+    "via": "sparql"
+  },
+  "kehi-no-matsubara": {
+    "status": "ok",
+    "wikidata": "Q11548084",
+    "distanceKm": 0.49,
+    "via": "sparql"
+  },
+  "keino-matsubara": {
+    "status": "no-image",
+    "wikidata": "Q11495178",
+    "distanceKm": 3.12,
+    "via": "sparql"
+  },
+  "kenchoji": {
+    "status": "ok",
+    "wikidata": "Q1396078",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "kenji-dowamura": {
+    "status": "ok",
+    "wikidata": "Q125386211",
+    "distanceKm": 3.18,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.397718,
+      "lng": 141.16909
+    }
+  },
+  "kenrokuen": {
+    "status": "ok",
+    "wikidata": "Q998239",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "kesennuma-oshima": {
+    "status": "ok",
+    "wikidata": "Q3594049",
+    "distanceKm": 1.55,
+    "via": "sparql"
+  },
+  "keta-taisha": {
+    "status": "ok",
+    "wikidata": "Q11129340",
+    "distanceKm": 1.73,
+    "via": "sparql"
+  },
+  "keya-no-oto": {
+    "status": "no-image",
+    "wikidata": "Q30935934",
+    "distanceKm": 3.98,
+    "via": "sparql"
+  },
+  "kibitsu": {
+    "status": "ok",
+    "wikidata": "Q712824",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "kibitsuhiko": {
+    "status": "ok",
+    "wikidata": "Q500763",
+    "distanceKm": 1.52,
+    "via": "sparql"
+  },
+  "kifune-jinja": {
+    "status": "ok",
+    "wikidata": "Q276779",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "kiganji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kikaijima": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kikuchi-castle": {
+    "status": "ok",
+    "wikidata": "Q11663924",
+    "distanceKm": 3.4,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.001277777,
+      "lng": 130.788833333
+    }
+  },
+  "kikuchi-keikoku": {
+    "status": "ok",
+    "wikidata": "Q11619820",
+    "distanceKm": 6.33,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.005,
+      "lng": 130.940944
+    }
+  },
+  "kikuma": {
+    "status": "ok",
+    "wikidata": "Q24871976",
+    "distanceKm": 3.6,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.03211389,
+      "lng": 132.84106667
+    }
+  },
+  "kimiidera": {
+    "status": "ok",
+    "wikidata": "Q11153117",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "kimimachizaka": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kinchakuda": {
+    "status": "ok",
+    "wikidata": "Q11479964",
+    "distanceKm": 2.24,
+    "via": "sparql"
+  },
+  "kinkakuji": {
+    "status": "ok",
+    "wikidata": "Q270983",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "kinkasan": {
+    "status": "ok",
+    "wikidata": "Q6413909",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "kinojo": {
+    "status": "ok",
+    "wikidata": "Q1064626",
+    "distanceKm": 2.55,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.727694,
+      "lng": 133.767778
+    }
+  },
+  "kinomiya-jinja": {
+    "status": "ok",
+    "wikidata": "Q11523682",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "kinosaki-onsen": {
+    "status": "ok",
+    "wikidata": "Q11439183",
+    "distanceKm": 0.91,
+    "via": "sparql"
+  },
+  "kinrinko": {
+    "status": "ok",
+    "wikidata": "Q11648024",
+    "distanceKm": 2.08,
+    "via": "sparql"
+  },
+  "kintaikyo": {
+    "status": "ok",
+    "wikidata": "Q1196460",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "kirifuri": {
+    "status": "ok",
+    "wikidata": "Q11660918",
+    "distanceKm": 2.77,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.776972,
+      "lng": 139.627167
+    }
+  },
+  "kirigamine-kurumayama": {
+    "status": "ok",
+    "wikidata": "Q3695499",
+    "distanceKm": 2.07,
+    "via": "sparql"
+  },
+  "kirishima-art": {
+    "status": "ok",
+    "wikidata": "Q10855706",
+    "distanceKm": 11.48,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.939598,
+      "lng": 130.778691
+    }
+  },
+  "kirishima-jingu": {
+    "status": "ok",
+    "wikidata": "Q704622",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "kirosan": {
+    "status": "ok",
+    "wikidata": "Q11371022",
+    "distanceKm": 1.66,
+    "via": "sparql"
+  },
+  "kiryu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kisakata-kujukushima": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kishiwada-castle": {
+    "status": "ok",
+    "wikidata": "Q2969493",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "kitagawa-monet": {
+    "status": "ok",
+    "wikidata": "Q28682676",
+    "distanceKm": 10.13,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.439694,
+      "lng": 134.034778
+    }
+  },
+  "kitaguchi-sengen": {
+    "status": "ok",
+    "wikidata": "Q11401286",
+    "distanceKm": 2.15,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.47075,
+      "lng": 138.792416666
+    }
+  },
+  "kitain": {
+    "status": "ok",
+    "wikidata": "Q3080561",
+    "distanceKm": 0.84,
+    "via": "sparql"
+  },
+  "kitakata-kura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kitayamazaki": {
+    "status": "ok",
+    "wikidata": "Q11401451",
+    "distanceKm": 4.5,
+    "via": "sparql"
+  },
+  "kitsuki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kiyomizu-taki": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "kiyomizudera": {
+    "status": "ok",
+    "wikidata": "Q221716",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "kiyotsu-gorge-tunnel": {
+    "status": "ok",
+    "wikidata": "Q11561258",
+    "distanceKm": 1.65,
+    "via": "sparql"
+  },
+  "kochi-castle": {
+    "status": "ok",
+    "wikidata": "Q1012815",
+    "distanceKm": 0.18,
+    "via": "sparql"
+  },
+  "kochomon": {
+    "status": "ok",
+    "wikidata": "Q11636431",
+    "distanceKm": 2.54,
+    "via": "sparql"
+  },
+  "kodaiji": {
+    "status": "ok",
+    "wikidata": "Q2702064",
+    "distanceKm": 0.13,
+    "via": "sparql"
+  },
+  "kodokan": {
+    "status": "ok",
+    "wikidata": "Q3081773",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "kofu-castle": {
+    "status": "ok",
+    "wikidata": "Q969909",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "kofukuji": {
+    "status": "ok",
+    "wikidata": "Q11572131",
+    "distanceKm": 0.17,
+    "via": "sparql"
+  },
+  "koga-momo": {
+    "status": "ok",
+    "wikidata": "Q11411392",
+    "distanceKm": 2.22,
+    "via": "sparql"
+  },
+  "koiwai-ipponzakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kojima": {
+    "status": "no-image",
+    "wikidata": "Q49650072",
+    "distanceKm": 3.38,
+    "via": "sparql"
+  },
+  "kokonoe-yume-bridge": {
+    "status": "ok",
+    "wikidata": "Q11660657",
+    "distanceKm": 3.51,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.169139,
+      "lng": 131.225556
+    }
+  },
+  "kokura-castle": {
+    "status": "ok",
+    "wikidata": "Q581644",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "kokyo-higashi-gyoen": {
+    "status": "license-rejected",
+    "wikidata": "Q6631907",
+    "distanceKm": 0.36,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "koma-jinja": {
+    "status": "ok",
+    "wikidata": "Q10855289",
+    "distanceKm": 1.29,
+    "via": "sparql"
+  },
+  "kominato-railway": {
+    "status": "ok",
+    "wikidata": "Q7850090",
+    "distanceKm": 5.4,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.302222222,
+      "lng": 140.139388888
+    }
+  },
+  "kongorinji": {
+    "status": "ok",
+    "wikidata": "Q11646547",
+    "distanceKm": 3.66,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.16125,
+      "lng": 136.28305556
+    }
+  },
+  "konose-kyo": {
+    "status": "no-image",
+    "wikidata": "Q11668622",
+    "distanceKm": 6.63,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.788591,
+      "lng": 134.078962
+    }
+  },
+  "korakei": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "korankei": {
+    "status": "ok",
+    "wikidata": "Q11667254",
+    "distanceKm": 2.11,
+    "via": "sparql"
+  },
+  "koriyama-castle": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kosaka-korakukan": {
+    "status": "ok",
+    "wikidata": "Q11486261",
+    "distanceKm": 1.89,
+    "via": "sparql"
+  },
+  "koshikijima": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kosode-kaigan": {
+    "status": "ok",
+    "wikidata": "Q11272526",
+    "distanceKm": 3.21,
+    "via": "sparql"
+  },
+  "kotohira-kanamaruza": {
+    "status": "ok",
+    "wikidata": "Q4409991",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "kotohiragu": {
+    "status": "ok",
+    "wikidata": "Q94760",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "kouri-ohashi": {
+    "status": "ok",
+    "wikidata": "Q24834962",
+    "distanceKm": 0.82,
+    "via": "sparql"
+  },
+  "koyamaike": {
+    "status": "ok",
+    "wikidata": "Q3214989",
+    "distanceKm": 1.09,
+    "via": "sparql"
+  },
+  "koyasan-okunoin": {
+    "status": "ok",
+    "wikidata": "Q4333366",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "kozagawa": {
+    "status": "ok",
+    "wikidata": "Q11411253",
+    "distanceKm": 7.4,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.547138888,
+      "lng": 135.720555555
+    }
+  },
+  "kozanji": {
+    "status": "ok",
+    "wikidata": "Q1088510",
+    "distanceKm": 2.98,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.976988,
+      "lng": 130.961739
+    }
+  },
+  "kubokawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kudamatsu": {
+    "status": "ok",
+    "wikidata": "Q11599897",
+    "distanceKm": 1.35,
+    "via": "sparql"
+  },
+  "kuji-amber": {
+    "status": "ok",
+    "wikidata": "Q74825456",
+    "distanceKm": 3.93,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 40.169917,
+      "lng": 141.723778
+    }
+  },
+  "kuju": {
+    "status": "ok",
+    "wikidata": "Q6921721",
+    "distanceKm": 1.22,
+    "via": "sparql"
+  },
+  "kujukuri": {
+    "status": "ok",
+    "wikidata": "Q996212",
+    "distanceKm": 3.82,
+    "via": "sparql"
+  },
+  "kumagawa-juku": {
+    "status": "ok",
+    "wikidata": "Q11567891",
+    "distanceKm": 3.84,
+    "via": "sparql"
+  },
+  "kumagaya-sakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kumamoto-castle": {
+    "status": "ok",
+    "wikidata": "Q613355",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "kumano-hayatama": {
+    "status": "ok",
+    "wikidata": "Q335618",
+    "distanceKm": 0.64,
+    "via": "sparql"
+  },
+  "kumano-hongu": {
+    "status": "ok",
+    "wikidata": "Q705035",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "kumano-magaibutsu": {
+    "status": "ok",
+    "wikidata": "Q3200358",
+    "distanceKm": 2.82,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.47837,
+      "lng": 131.52593
+    }
+  },
+  "kumobaike": {
+    "status": "ok",
+    "wikidata": "Q11660047",
+    "distanceKm": 2.42,
+    "via": "sparql"
+  },
+  "kunimigaoka": {
+    "status": "ok",
+    "wikidata": "Q104602846",
+    "distanceKm": 2.64,
+    "via": "sparql"
+  },
+  "kunisaki-futago": {
+    "status": "ok",
+    "wikidata": "Q3091228",
+    "distanceKm": 1.59,
+    "via": "sparql"
+  },
+  "kunozan-toshogu": {
+    "status": "ok",
+    "wikidata": "Q712162",
+    "distanceKm": 0.87,
+    "via": "sparql"
+  },
+  "kuonji": {
+    "status": "ok",
+    "wikidata": "Q11637222",
+    "distanceKm": 0.9,
+    "via": "sparql"
+  },
+  "kuramadera": {
+    "status": "ok",
+    "wikidata": "Q608668",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "kurashiki-bikan": {
+    "status": "ok",
+    "wikidata": "Q11386772",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "kurayoshi-shirakabe": {
+    "status": "no-image",
+    "wikidata": "Q11497222",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "kurobe-dam": {
+    "status": "ok",
+    "wikidata": "Q1208749",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "kurobe-gorge-torokko": {
+    "status": "ok",
+    "wikidata": "Q11449258",
+    "distanceKm": 0.8,
+    "via": "sparql"
+  },
+  "kurokami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kurokawa": {
+    "status": "ok",
+    "wikidata": "Q11678251",
+    "distanceKm": 1.3,
+    "via": "sparql"
+  },
+  "kuroshima": {
+    "status": "ok",
+    "wikidata": "Q11678150",
+    "distanceKm": 4.85,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.139139,
+      "lng": 129.537
+    }
+  },
+  "kurushima-kaikyo-ohashi": {
+    "status": "no-author",
+    "wikidata": "Q2740666",
+    "distanceKm": 2.49,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.1211,
+      "lng": 133.001
+    },
+    "license": "CC BY-SA 3.0"
+  },
+  "kusasenrigahama": {
+    "status": "ok",
+    "wikidata": "Q31454860",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "kusatsu-yubatake": {
+    "status": "ok",
+    "wikidata": "Q3137477",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "kushida-jinja": {
+    "status": "ok",
+    "wikidata": "Q1749262",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "kushimoto-kaichu": {
+    "status": "ok",
+    "wikidata": "Q11367893",
+    "distanceKm": 5.1,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.480861,
+      "lng": 135.744972
+    }
+  },
+  "kushiro-shitsugen-hosooka": {
+    "status": "ok",
+    "wikidata": "Q11648300",
+    "distanceKm": 1.31,
+    "via": "sparql"
+  },
+  "kussharo-sunayu": {
+    "status": "ok",
+    "wikidata": "Q1329458",
+    "distanceKm": 1.58,
+    "via": "sparql"
+  },
+  "kuzuryu-ko": {
+    "status": "ok",
+    "wikidata": "Q6449322",
+    "distanceKm": 5.08,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.88944444,
+      "lng": 136.68805556
+    }
+  },
+  "kyoto-station-building": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "kyu-kyoryuchi": {
+    "status": "ok",
+    "wikidata": "Q11511037",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "kyudai-no-mori": {
+    "status": "no-image",
+    "wikidata": "Q52126222",
+    "distanceKm": 4.33,
+    "via": "sparql"
+  },
+  "kyusendo": {
+    "status": "ok",
+    "wikidata": "Q11573505",
+    "distanceKm": 4.55,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.275,
+      "lng": 130.615
+    }
+  },
+  "lake-mashu": {
+    "status": "ok",
+    "wikidata": "Q1194619",
+    "distanceKm": 1.14,
+    "via": "sparql"
+  },
+  "lake-tazawa": {
+    "status": "ok",
+    "wikidata": "Q174309",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "lake-towada": {
+    "status": "ok",
+    "wikidata": "Q1196132",
+    "distanceKm": 3.74,
+    "via": "sparql"
+  },
+  "lake-yamanaka": {
+    "status": "license-rejected",
+    "wikidata": "Q1203756",
+    "distanceKm": 0.59,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "little-world": {
+    "status": "ok",
+    "wikidata": "Q6652601",
+    "distanceKm": 2.64,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.37444444,
+      "lng": 137.02305556
+    }
+  },
+  "madoiwa": {
+    "status": "ok",
+    "wikidata": "Q11515248",
+    "distanceKm": 5.36,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.460875,
+      "lng": 137.077725
+    }
+  },
+  "maeda-misaki": {
+    "status": "no-image",
+    "wikidata": "Q11661070",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "magome-juku": {
+    "status": "ok",
+    "wikidata": "Q1433284",
+    "distanceKm": 1.21,
+    "via": "sparql"
+  },
+  "magose-toge": {
+    "status": "ok",
+    "wikidata": "Q11668067",
+    "distanceKm": 2,
+    "via": "sparql"
+  },
+  "makiba": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "makino": {
+    "status": "ok",
+    "wikidata": "Q3780715",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "makurazaki": {
+    "status": "ok",
+    "wikidata": "Q123310417",
+    "distanceKm": 2.7,
+    "via": "sparql"
+  },
+  "manabeshima": {
+    "status": "ok",
+    "wikidata": "Q3285144",
+    "distanceKm": 8.49,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.354012,
+      "lng": 133.577785
+    }
+  },
+  "manzamo": {
+    "status": "ok",
+    "wikidata": "Q11353838",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "marugame-castle": {
+    "status": "ok",
+    "wikidata": "Q250658",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "maruike-sama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "maruoka-castle": {
+    "status": "ok",
+    "wikidata": "Q1143892",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "maruyama-senmaida": {
+    "status": "ok",
+    "wikidata": "Q11368172",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "mashiko": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "masuda": {
+    "status": "ok",
+    "wikidata": "Q11429184",
+    "distanceKm": 7.41,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.65214722,
+      "lng": 137.04176667
+    }
+  },
+  "masuda-uchigura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "matabei-zakura": {
+    "status": "ok",
+    "wikidata": "Q11410214",
+    "distanceKm": 2.08,
+    "via": "sparql"
+  },
+  "matama-kaigan": {
+    "status": "no-image",
+    "wikidata": "Q11583313",
+    "distanceKm": 4.87,
+    "via": "sparql"
+  },
+  "matsudai-tanada": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "matsue-castle": {
+    "status": "ok",
+    "wikidata": "Q151776",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "matsue-horikawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "matsumoto-castle": {
+    "status": "ok",
+    "wikidata": "Q739612",
+    "distanceKm": 0.14,
+    "via": "sparql"
+  },
+  "matsumoto-toge": {
+    "status": "ok",
+    "wikidata": "Q11531018",
+    "distanceKm": 1.24,
+    "via": "sparql"
+  },
+  "matsusaka-castle": {
+    "status": "ok",
+    "wikidata": "Q11488892",
+    "distanceKm": 0.91,
+    "via": "sparql"
+  },
+  "matsushima": {
+    "status": "ok",
+    "wikidata": "Q107315800",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "matsushima-saigyo": {
+    "status": "ok",
+    "wikidata": "Q117475667",
+    "distanceKm": 1.54,
+    "via": "sparql"
+  },
+  "matsuyama-castle": {
+    "status": "ok",
+    "wikidata": "Q981357",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "maya-kikuseidai": {
+    "status": "ok",
+    "wikidata": "Q6406436",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "megane-bashi": {
+    "status": "ok",
+    "wikidata": "Q74710",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "megijima": {
+    "status": "ok",
+    "wikidata": "Q339004",
+    "distanceKm": 1.64,
+    "via": "sparql"
+  },
+  "meigetsuin": {
+    "status": "ok",
+    "wikidata": "Q3304613",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "meiji-jingu": {
+    "status": "ok",
+    "wikidata": "Q287165",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "meiji-jingu-gaien-icho": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "meijimura": {
+    "status": "ok",
+    "wikidata": "Q985290",
+    "distanceKm": 8.72,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.34191,
+      "lng": 136.989271
+    }
+  },
+  "mekari-park": {
+    "status": "ok",
+    "wikidata": "Q1196470",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "meriken-park": {
+    "status": "ok",
+    "wikidata": "Q798766",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "metasequoia-namiki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mezuru-daira": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "midagahara-tateyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "midosuji-icho": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mifuneyama-rakuen": {
+    "status": "ok",
+    "wikidata": "Q30096249",
+    "distanceKm": 0.99,
+    "via": "sparql"
+  },
+  "miharu-takizakura": {
+    "status": "ok",
+    "wikidata": "Q3132219",
+    "distanceKm": 2.21,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.40778,
+      "lng": 140.50029
+    }
+  },
+  "miho-jinja": {
+    "status": "ok",
+    "wikidata": "Q3313076",
+    "distanceKm": 1.29,
+    "via": "sparql"
+  },
+  "miho-museum": {
+    "status": "ok",
+    "wikidata": "Q1268542",
+    "distanceKm": 1.51,
+    "via": "sparql"
+  },
+  "miho-no-matsubara": {
+    "status": "ok",
+    "wikidata": "Q869275",
+    "distanceKm": 1.69,
+    "via": "sparql"
+  },
+  "miidera": {
+    "status": "ok",
+    "wikidata": "Q1756307",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "mikuni-minato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mikuni-toge": {
+    "status": "ok",
+    "wikidata": "Q11354739",
+    "distanceKm": 12.12,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 43.58694444,
+      "lng": 143.12916667
+    }
+  },
+  "mikurigaike": {
+    "status": "no-author",
+    "wikidata": "Q11341916",
+    "distanceKm": 0.26,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "minamisanriku-sunsun": {
+    "status": "ok",
+    "wikidata": "Q21654832",
+    "distanceKm": 0.27,
+    "via": "sparql"
+  },
+  "minato-line": {
+    "status": "ok",
+    "wikidata": "Q11642790",
+    "distanceKm": 3.24,
+    "via": "sparql"
+  },
+  "minato-mirai": {
+    "status": "ok",
+    "wikidata": "Q1140617",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "minato-no-mieru-oka": {
+    "status": "ok",
+    "wikidata": "Q27658685",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "mine-omine": {
+    "status": "ok",
+    "wikidata": "Q11434510",
+    "distanceKm": 3.87,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.328222,
+      "lng": 131.162833
+    }
+  },
+  "minoo-otaki": {
+    "status": "ok",
+    "wikidata": "Q11603215",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "minuma": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "miraishin-no-oka": {
+    "status": "no-image",
+    "wikidata": "Q123496899",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "misasa": {
+    "status": "ok",
+    "wikidata": "Q11355561",
+    "distanceKm": 1.68,
+    "via": "sparql"
+  },
+  "misen": {
+    "status": "ok",
+    "wikidata": "Q3109237",
+    "distanceKm": 0.04,
+    "via": "sparql"
+  },
+  "mishakaike": {
+    "status": "ok",
+    "wikidata": "Q11488930",
+    "distanceKm": 0.85,
+    "via": "sparql"
+  },
+  "mishima-skywalk": {
+    "status": "ok",
+    "wikidata": "Q22119967",
+    "distanceKm": 5.98,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.152277777,
+      "lng": 138.980638888
+    }
+  },
+  "misotsuchi-tsurara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "misumi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mitarai-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mitarai-machinami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mito-tamatsukuri": {
+    "status": "ok",
+    "wikidata": "Q3514711",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "mitsukejima": {
+    "status": "ok",
+    "wikidata": "Q94714",
+    "distanceKm": 3.31,
+    "via": "sparql"
+  },
+  "mitsumine-jinja": {
+    "status": "ok",
+    "wikidata": "Q11355207",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "mitsutoge": {
+    "status": "ok",
+    "wikidata": "Q11353973",
+    "distanceKm": 0.12,
+    "via": "sparql"
+  },
+  "miyagase-dam": {
+    "status": "ok",
+    "wikidata": "Q1744937",
+    "distanceKm": 4.04,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.54197,
+      "lng": 139.24884
+    }
+  },
+  "miyagawa-asaichi": {
+    "status": "ok",
+    "wikidata": "Q11454701",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "miyagi-zao-fox": {
+    "status": "ok",
+    "wikidata": "Q11454001",
+    "distanceKm": 2.9,
+    "via": "sparql"
+  },
+  "miyajidake-jinja": {
+    "status": "ok",
+    "wikidata": "Q3317296",
+    "distanceKm": 1.88,
+    "via": "sparql"
+  },
+  "miyakonojo": {
+    "status": "ok",
+    "wikidata": "Q140316246",
+    "distanceKm": 1.66,
+    "via": "sparql"
+  },
+  "miyama-kayabuki": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "miyanohara-pit": {
+    "status": "ok",
+    "wikidata": "Q6845423",
+    "distanceKm": 2.92,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.014,
+      "lng": 130.456
+    }
+  },
+  "miyazaki-jingu": {
+    "status": "ok",
+    "wikidata": "Q704686",
+    "distanceKm": 1.15,
+    "via": "sparql"
+  },
+  "miyoshi-kirinoumi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mizuki-shigeru-road": {
+    "status": "ok",
+    "wikidata": "Q11548750",
+    "distanceKm": 0.73,
+    "via": "sparql"
+  },
+  "mizushima": {
+    "status": "ok",
+    "wikidata": "Q11548463",
+    "distanceKm": 1.21,
+    "via": "sparql"
+  },
+  "mogami-kyo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "moiwayama": {
+    "status": "ok",
+    "wikidata": "Q11625132",
+    "distanceKm": 0.85,
+    "via": "sparql"
+  },
+  "mojiko-retro": {
+    "status": "ok",
+    "wikidata": "Q1051866",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "momijidani": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "momijidani-bridge": {
+    "status": "ok",
+    "wikidata": "Q11428619",
+    "distanceKm": 4.64,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.951944444,
+      "lng": 139.884444444
+    }
+  },
+  "momoiwa-tenbodai": {
+    "status": "ok",
+    "wikidata": "Q623490",
+    "distanceKm": 9.86,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 45.368611111,
+      "lng": 141.015277777
+    }
+  },
+  "monet-no-ike": {
+    "status": "ok",
+    "wikidata": "Q24867437",
+    "distanceKm": 6.51,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.651944,
+      "lng": 136.821111
+    }
+  },
+  "monobe": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "morioka-ishiwarizakura": {
+    "status": "ok",
+    "wikidata": "Q11585194",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "morioka-jozan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "morioka-kaiunbashi": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "mosaic-tile-museum": {
+    "status": "ok",
+    "wikidata": "Q78909892",
+    "distanceKm": 0.87,
+    "via": "sparql"
+  },
+  "motodaki-fukuryusui": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "motonosumi-jinja": {
+    "status": "ok",
+    "wikidata": "Q22120637",
+    "distanceKm": 1.15,
+    "via": "sparql"
+  },
+  "motosuko-nakanokura": {
+    "status": "ok",
+    "wikidata": "Q1262329",
+    "distanceKm": 1.38,
+    "via": "sparql"
+  },
+  "motsuji": {
+    "status": "ok",
+    "wikidata": "Q975227",
+    "distanceKm": 0.73,
+    "via": "sparql"
+  },
+  "mt-daisen": {
+    "status": "ok",
+    "wikidata": "Q715498",
+    "distanceKm": 2.78,
+    "via": "sparql"
+  },
+  "mt-hakodate": {
+    "status": "ok",
+    "wikidata": "Q3526214",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "mugi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "mukabaki": {
+    "status": "ok",
+    "wikidata": "Q11626188",
+    "distanceKm": 2.7,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.626388888,
+      "lng": 131.572222222
+    }
+  },
+  "munakata-taisha": {
+    "status": "ok",
+    "wikidata": "Q66111215",
+    "distanceKm": 0.39,
+    "via": "sparql"
+  },
+  "murakami-kurobei": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "murodo": {
+    "status": "ok",
+    "wikidata": "Q11452989",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "muroto-geo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "muroto-misaki": {
+    "status": "ok",
+    "wikidata": "Q11453014",
+    "distanceKm": 0.46,
+    "via": "sparql"
+  },
+  "murouji": {
+    "status": "ok",
+    "wikidata": "Q1088506",
+    "distanceKm": 1.23,
+    "via": "sparql"
+  },
+  "myoban": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "myogi-jinja": {
+    "status": "ok",
+    "wikidata": "Q11446997",
+    "distanceKm": 1.18,
+    "via": "sparql"
+  },
+  "myogisan": {
+    "status": "ok",
+    "wikidata": "Q994071",
+    "distanceKm": 1.4,
+    "via": "sparql"
+  },
+  "myojoji": {
+    "status": "ok",
+    "wikidata": "Q11446902",
+    "distanceKm": 2.99,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.95449444,
+      "lng": 136.77601389
+    }
+  },
+  "myokenura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "myoryuji": {
+    "status": "ok",
+    "wikidata": "Q3342007",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "nabana-no-sato": {
+    "status": "ok",
+    "wikidata": "Q17229517",
+    "distanceKm": 2.71,
+    "via": "sparql"
+  },
+  "nachi-no-taki": {
+    "status": "ok",
+    "wikidata": "Q1365882",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "naegi-jo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "naena-taki": {
+    "status": "ok",
+    "wikidata": "Q11616112",
+    "distanceKm": 2.05,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.850083333,
+      "lng": 138.133083333
+    }
+  },
+  "nagahama-kurokabe": {
+    "status": "ok",
+    "wikidata": "Q11678066",
+    "distanceKm": 0.27,
+    "via": "sparql"
+  },
+  "nagai-botanical-garden": {
+    "status": "ok",
+    "wikidata": "Q6149771",
+    "distanceKm": 0.16,
+    "via": "sparql"
+  },
+  "nagamachi": {
+    "status": "ok",
+    "wikidata": "Q11653513",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "nagaoka-hanabi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nagaragawa-ukai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nagasaki-kunchi": {
+    "status": "ok",
+    "wikidata": "Q114712",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "nagasaki-lantern": {
+    "status": "ok",
+    "wikidata": "Q63229",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "nagasaki-shrine": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nagashibina": {
+    "status": "ok",
+    "wikidata": "Q16900173",
+    "distanceKm": 2.67,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.343111,
+      "lng": 134.201833
+    }
+  },
+  "nagatoro-iwadatami": {
+    "status": "ok",
+    "wikidata": "Q11653371",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "nagayu": {
+    "status": "no-image",
+    "wikidata": "Q11653343",
+    "distanceKm": 3.16,
+    "via": "sparql"
+  },
+  "nageiredo": {
+    "status": "ok",
+    "wikidata": "Q6922220",
+    "distanceKm": 1.43,
+    "via": "sparql"
+  },
+  "nagoya-castle": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nagoya-port-aquarium": {
+    "status": "ok",
+    "wikidata": "Q7231211",
+    "distanceKm": 0.18,
+    "via": "sparql"
+  },
+  "nagoyajo": {
+    "status": "ok",
+    "wikidata": "Q648629",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "nahari": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nakagusuku-jo": {
+    "status": "ok",
+    "wikidata": "Q1013209",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "nakahechi": {
+    "status": "ok",
+    "wikidata": "Q3141012",
+    "distanceKm": 9.6,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.862222,
+      "lng": 135.720694
+    }
+  },
+  "nakaminato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nakano-momijiyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nakanoshima-library": {
+    "status": "no-author",
+    "wikidata": "Q7105601",
+    "distanceKm": 0.5,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "nakanoshima-ohashi": {
+    "status": "ok",
+    "wikidata": "Q11362769",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "nakanoshima-rose-garden": {
+    "status": "ok",
+    "wikidata": "Q6960289",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "nakatsu-castle": {
+    "status": "ok",
+    "wikidata": "Q10875792",
+    "distanceKm": 0.81,
+    "via": "sparql"
+  },
+  "nakatsu-keikoku": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "nakatsugawa-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nakayama-senmaida": {
+    "status": "ok",
+    "wikidata": "Q122974441",
+    "distanceKm": 1.85,
+    "via": "sparql"
+  },
+  "nakijin-jo": {
+    "status": "ok",
+    "wikidata": "Q508866",
+    "distanceKm": 0.1,
+    "via": "sparql"
+  },
+  "nakoso": {
+    "status": "no-image",
+    "wikidata": "Q104696519",
+    "distanceKm": 1.78,
+    "via": "sparql"
+  },
+  "namba-yasaka-jinja": {
+    "status": "ok",
+    "wikidata": "Q11659527",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "nametoko": {
+    "status": "ok",
+    "wikidata": "Q11659948",
+    "distanceKm": 9.78,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.200328,
+      "lng": 132.647697
+    }
+  },
+  "naminoue-gu": {
+    "status": "ok",
+    "wikidata": "Q704636",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "nanatsugama": {
+    "status": "ok",
+    "wikidata": "Q11353344",
+    "distanceKm": 5.57,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.549,
+      "lng": 129.932444
+    }
+  },
+  "naniwanomiya": {
+    "status": "ok",
+    "wikidata": "Q3608523",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "nankinmachi": {
+    "status": "ok",
+    "wikidata": "Q912392",
+    "distanceKm": 0.28,
+    "via": "sparql"
+  },
+  "nanko-himawari": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nanukamachi": {
+    "status": "ok",
+    "wikidata": "Q6964422",
+    "distanceKm": 0.16,
+    "via": "sparql"
+  },
+  "nanzenji-suirokaku": {
+    "status": "ok",
+    "wikidata": "Q2753954",
+    "distanceKm": 5.99,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.01125,
+      "lng": 135.85575
+    }
+  },
+  "nanzoin": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "naoshima-akakabocha": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "narai-juku": {
+    "status": "ok",
+    "wikidata": "Q3336018",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "naramachi": {
+    "status": "ok",
+    "wikidata": "Q1203099",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "naritasan": {
+    "status": "ok",
+    "wikidata": "Q3083875",
+    "distanceKm": 0.46,
+    "via": "sparql"
+  },
+  "naruko-gorge": {
+    "status": "no-image",
+    "wikidata": "Q11675320",
+    "distanceKm": 1.85,
+    "via": "sparql"
+  },
+  "naruto-renkon": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "naruto-whirlpools": {
+    "status": "ok",
+    "wikidata": "Q1292175",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "nasudake": {
+    "status": "ok",
+    "wikidata": "Q11618022",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "natadera": {
+    "status": "ok",
+    "wikidata": "Q11642859",
+    "distanceKm": 2.6,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.31340833,
+      "lng": 136.42039167
+    }
+  },
+  "natsui-senbonzakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "negoroji": {
+    "status": "ok",
+    "wikidata": "Q1552446",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "nezame-no-toko": {
+    "status": "ok",
+    "wikidata": "Q11457580",
+    "distanceKm": 2.52,
+    "via": "sparql"
+  },
+  "nezu-jinja": {
+    "status": "ok",
+    "wikidata": "Q335612",
+    "distanceKm": 0.07,
+    "via": "sparql"
+  },
+  "nienmonjima": {
+    "status": "ok",
+    "wikidata": "Q11376329",
+    "distanceKm": 1.98,
+    "via": "sparql"
+  },
+  "nihondaira-yume-terrace": {
+    "status": "ok",
+    "wikidata": "Q4026928",
+    "distanceKm": 0.8,
+    "via": "sparql"
+  },
+  "nihonmatsu-castle": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "niji-no-matsubara": {
+    "status": "ok",
+    "wikidata": "Q5370854",
+    "distanceKm": 2.73,
+    "via": "sparql"
+  },
+  "nijojo": {
+    "status": "ok",
+    "wikidata": "Q1013399",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "nijubashi": {
+    "status": "ok",
+    "wikidata": "Q17211768",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "nijushi-no-hitomi": {
+    "status": "ok",
+    "wikidata": "Q11371381",
+    "distanceKm": 7.86,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.44541667,
+      "lng": 134.28518056
+    }
+  },
+  "nikko-toshogu": {
+    "status": "ok",
+    "wikidata": "Q696641",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "niko-buchi": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "nirai-kanai-bashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nirayama-hansharo": {
+    "status": "ok",
+    "wikidata": "Q20042067",
+    "distanceKm": 1.1,
+    "via": "sparql"
+  },
+  "nishi-chaya": {
+    "status": "ok",
+    "wikidata": "Q11274768",
+    "distanceKm": 0.8,
+    "via": "sparql"
+  },
+  "nishikawa-gassan": {
+    "status": "ok",
+    "wikidata": "Q11457411",
+    "distanceKm": 9.85,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.455277777,
+      "lng": 140.038611111
+    }
+  },
+  "nishinokawara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nishizawa-keikoku": {
+    "status": "no-image",
+    "wikidata": "Q11628996",
+    "distanceKm": 1.24,
+    "via": "sparql"
+  },
+  "nisshinkan": {
+    "status": "ok",
+    "wikidata": "Q9050252",
+    "distanceKm": 3.28,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.55883333,
+      "lng": 139.94447222
+    }
+  },
+  "nita-toge": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "nojimazaki": {
+    "status": "ok",
+    "wikidata": "Q11645357",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "nokogiriyama": {
+    "status": "ok",
+    "wikidata": "Q3341454",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "nokonoshima": {
+    "status": "ok",
+    "wikidata": "Q10859834",
+    "distanceKm": 1.35,
+    "via": "sparql"
+  },
+  "norikura-tatamidaira": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "notoroko-sangoso": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "numazawa": {
+    "status": "no-image",
+    "wikidata": "Q11554492",
+    "distanceKm": 6.65,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.455277777,
+      "lng": 139.572777777
+    }
+  },
+  "nunobiki-no-taki": {
+    "status": "ok",
+    "wikidata": "Q3695449",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "nyudozaki": {
+    "status": "ok",
+    "wikidata": "Q11389045",
+    "distanceKm": 5.01,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 40.005,
+      "lng": 139.70166667
+    }
+  },
+  "oasis21-tv-tower": {
+    "status": "ok",
+    "wikidata": "Q5359224",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "obama-myotsuji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "obara-shikizakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "obasute-tanada": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "obi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oboke-gorge": {
+    "status": "ok",
+    "wikidata": "Q11436747",
+    "distanceKm": 3.93,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.886667,
+      "lng": 133.760556
+    }
+  },
+  "obuchi-sasaba": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ochiai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oda-sanbe": {
+    "status": "ok",
+    "wikidata": "Q4179256",
+    "distanceKm": 1.07,
+    "via": "sparql"
+  },
+  "odaigahara": {
+    "status": "ok",
+    "wikidata": "Q3139461",
+    "distanceKm": 10.1,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.11,
+      "lng": 136.03
+    }
+  },
+  "odawara-castle": {
+    "status": "ok",
+    "wikidata": "Q1013437",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "ode-no-tsuribashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oga-namahage": {
+    "status": "ok",
+    "wikidata": "Q48747294",
+    "distanceKm": 5.5,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.92916667,
+      "lng": 139.76658333
+    }
+  },
+  "ogaki-castle": {
+    "status": "ok",
+    "wikidata": "Q1067359",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "ogamiyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ogi-taraibune": {
+    "status": "ok",
+    "wikidata": "Q24869151",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "ogijima": {
+    "status": "ok",
+    "wikidata": "Q3349795",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "ogose-bairin": {
+    "status": "ok",
+    "wikidata": "Q11636583",
+    "distanceKm": 1.48,
+    "via": "sparql"
+  },
+  "ohama-kaigan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ohara-museum": {
+    "status": "ok",
+    "wikidata": "Q2977589",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "ohko-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11435119",
+    "distanceKm": 5.59,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 30.299986,
+      "lng": 130.414136
+    }
+  },
+  "ohori-park": {
+    "status": "ok",
+    "wikidata": "Q139781914",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "oigawa-sl": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oirase-keiryu": {
+    "status": "no-image",
+    "wikidata": "Q34750085",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "oisawa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oishi-kogen": {
+    "status": "ok",
+    "wikidata": "Q11574831",
+    "distanceKm": 1.56,
+    "via": "sparql"
+  },
+  "oishi-park": {
+    "status": "no-image",
+    "wikidata": "Q125680709",
+    "distanceKm": 0.81,
+    "via": "sparql"
+  },
+  "oita-takasakiyama": {
+    "status": "ok",
+    "wikidata": "Q11669751",
+    "distanceKm": 4.36,
+    "via": "sparql"
+  },
+  "oiwasan": {
+    "status": "ok",
+    "wikidata": "Q11509943",
+    "distanceKm": 2.14,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.66213889,
+      "lng": 137.39108333
+    }
+  },
+  "oka-castle": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "okage-yokocho": {
+    "status": "ok",
+    "wikidata": "Q11261371",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "okamura": {
+    "status": "ok",
+    "wikidata": "Q7081764",
+    "distanceKm": 1.55,
+    "via": "sparql"
+  },
+  "okawachiyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "okayama-art": {
+    "status": "ok",
+    "wikidata": "Q15933226",
+    "distanceKm": 1.61,
+    "via": "sparql"
+  },
+  "okayama-castle": {
+    "status": "ok",
+    "wikidata": "Q1013448",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "okayama-korakuen": {
+    "status": "ok",
+    "wikidata": "Q1377689",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "okazaki-castle": {
+    "status": "ok",
+    "wikidata": "Q1013445",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "oki-kuniga": {
+    "status": "no-image",
+    "wikidata": "Q66310871",
+    "distanceKm": 3.05,
+    "via": "sparql"
+  },
+  "oki-rousokujima": {
+    "status": "ok",
+    "wikidata": "Q11350955",
+    "distanceKm": 5.97,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.312361,
+      "lng": 133.210611
+    }
+  },
+  "okinoerabu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "okinoshima-tateyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "okishima": {
+    "status": "ok",
+    "wikidata": "Q2017235",
+    "distanceKm": 2.07,
+    "via": "sparql"
+  },
+  "okoshiki-kaigan": {
+    "status": "ok",
+    "wikidata": "Q127699461",
+    "distanceKm": 7.08,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.664688,
+      "lng": 130.534561
+    }
+  },
+  "oku-iya": {
+    "status": "ok",
+    "wikidata": "Q11446081",
+    "distanceKm": 1.62,
+    "via": "sparql"
+  },
+  "okuboji": {
+    "status": "ok",
+    "wikidata": "Q667111",
+    "distanceKm": 1,
+    "via": "sparql"
+  },
+  "okukuji": {
+    "status": "ok",
+    "wikidata": "Q11445594",
+    "distanceKm": 2.36,
+    "via": "sparql"
+  },
+  "okunoshima": {
+    "status": "ok",
+    "wikidata": "Q385313",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "okuoi-kojo-station": {
+    "status": "ok",
+    "wikidata": "Q7082786",
+    "distanceKm": 5.62,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.16791944,
+      "lng": 138.18094444
+    }
+  },
+  "okushima-ko": {
+    "status": "ok",
+    "wikidata": "Q7496817",
+    "distanceKm": 3.34,
+    "via": "sparql"
+  },
+  "okutadami-ko": {
+    "status": "ok",
+    "wikidata": "Q1331360",
+    "distanceKm": 3.84,
+    "via": "sparql"
+  },
+  "okutamako": {
+    "status": "ok",
+    "wikidata": "Q34887734",
+    "distanceKm": 0.08,
+    "via": "sparql"
+  },
+  "okutsukei": {
+    "status": "no-image",
+    "wikidata": "Q11445968",
+    "distanceKm": 2.97,
+    "via": "sparql"
+  },
+  "omaezaki": {
+    "status": "ok",
+    "wikidata": "Q3271367",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "omagari-hanabi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "omazaki": {
+    "status": "ok",
+    "wikidata": "Q10938344",
+    "distanceKm": 1.76,
+    "via": "sparql"
+  },
+  "omi-jingu": {
+    "status": "ok",
+    "wikidata": "Q385407",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "omicho-ichiba": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "omijima": {
+    "status": "ok",
+    "wikidata": "Q11662600",
+    "distanceKm": 5.24,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.428944,
+      "lng": 131.222167
+    }
+  },
+  "omishima": {
+    "status": "ok",
+    "wikidata": "Q9009869",
+    "distanceKm": 1.07,
+    "via": "sparql"
+  },
+  "omiwa-jinja": {
+    "status": "ok",
+    "wikidata": "Q705542",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "omiya-hikawa": {
+    "status": "ok",
+    "wikidata": "Q703633",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "omogo": {
+    "status": "ok",
+    "wikidata": "Q11663794",
+    "distanceKm": 4.36,
+    "via": "sparql"
+  },
+  "omori-cho": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "omuroyama": {
+    "status": "ok",
+    "wikidata": "Q11434371",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "ondo-no-seto": {
+    "status": "ok",
+    "wikidata": "Q115223040",
+    "distanceKm": 0.84,
+    "via": "sparql"
+  },
+  "oni-no-shitaburui": {
+    "status": "ok",
+    "wikidata": "Q11673379",
+    "distanceKm": 6.12,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.168333,
+      "lng": 133.023333
+    }
+  },
+  "onigajo": {
+    "status": "ok",
+    "wikidata": "Q11673387",
+    "distanceKm": 1.66,
+    "via": "sparql"
+  },
+  "onjuku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "onneto": {
+    "status": "license-rejected",
+    "wikidata": "Q3215112",
+    "distanceKm": 1.8,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "onogame": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "onomichi-watashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "onouchi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "onuma-hachimantai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "orizuru-tower": {
+    "status": "ok",
+    "wikidata": "Q27103981",
+    "distanceKm": 0.77,
+    "via": "sparql"
+  },
+  "osaka-castle": {
+    "status": "no-image",
+    "wikidata": "Q102178360",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "osaka-chuo-kokaido": {
+    "status": "ok",
+    "wikidata": "Q10938355",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "osaka-taki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "osaka-tenmangu": {
+    "status": "ok",
+    "wikidata": "Q385793",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "osaki-hachimangu": {
+    "status": "ok",
+    "wikidata": "Q874428",
+    "distanceKm": 0.97,
+    "via": "sparql"
+  },
+  "osanbashi": {
+    "status": "ok",
+    "wikidata": "Q3518430",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "oshi-castle": {
+    "status": "ok",
+    "wikidata": "Q1074393",
+    "distanceKm": 0.71,
+    "via": "sparql"
+  },
+  "oshino-hakkai": {
+    "status": "ok",
+    "wikidata": "Q66089904",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "oshitoishi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "osorezan": {
+    "status": "ok",
+    "wikidata": "Q10711273",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "otaki-castle": {
+    "status": "ok",
+    "wikidata": "Q2968402",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "otaru-canal": {
+    "status": "ok",
+    "wikidata": "Q10959355",
+    "distanceKm": 0.14,
+    "via": "sparql"
+  },
+  "otsuka-museum": {
+    "status": "ok",
+    "wikidata": "Q3329659",
+    "distanceKm": 1.39,
+    "via": "sparql"
+  },
+  "ouchi-juku": {
+    "status": "ok",
+    "wikidata": "Q3594058",
+    "distanceKm": 2.69,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.334173,
+      "lng": 139.860778
+    }
+  },
+  "ouo-jinja-kaichu-torii": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oura-tanada": {
+    "status": "ok",
+    "wikidata": "Q21655226",
+    "distanceKm": 5.66,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.293343,
+      "lng": 130.03558
+    }
+  },
+  "oura-tenshudo": {
+    "status": "ok",
+    "wikidata": "Q430626",
+    "distanceKm": 0.46,
+    "via": "sparql"
+  },
+  "owakudani": {
+    "status": "ok",
+    "wikidata": "Q1134429",
+    "distanceKm": 0.22,
+    "via": "sparql"
+  },
+  "owara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "oya-history-museum": {
+    "status": "ok",
+    "wikidata": "Q17989677",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "oyama-afuri": {
+    "status": "ok",
+    "wikidata": "Q11434713",
+    "distanceKm": 1.39,
+    "via": "sparql"
+  },
+  "oyama-jinja": {
+    "status": "ok",
+    "wikidata": "Q998709",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "oyama-senmaida": {
+    "status": "ok",
+    "wikidata": "Q11434595",
+    "distanceKm": 5.99,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.129722222,
+      "lng": 139.974166666
+    }
+  },
+  "oyamazumi-jinja": {
+    "status": "ok",
+    "wikidata": "Q703904",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "oyashirazu": {
+    "status": "ok",
+    "wikidata": "Q11641498",
+    "distanceKm": 4.88,
+    "via": "sparql"
+  },
+  "oyasukyo-daifunyu": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "oyu-kanjo-resseki": {
+    "status": "ok",
+    "wikidata": "Q11437550",
+    "distanceKm": 0.38,
+    "via": "sparql"
+  },
+  "oyu-no-taki": {
+    "status": "ok",
+    "wikidata": "Q65292179",
+    "distanceKm": 12.28,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.200305555,
+      "lng": 130.825277777
+    }
+  },
+  "oyunohara": {
+    "status": "ok",
+    "wikidata": "Q705035",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "oze-ga-hara": {
+    "status": "ok",
+    "wikidata": "Q2043091",
+    "distanceKm": 2.13,
+    "via": "sparql"
+  },
+  "oze-numa": {
+    "status": "license-rejected",
+    "wikidata": "Q11465382",
+    "distanceKm": 1.45,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "ozu-castle": {
+    "status": "ok",
+    "wikidata": "Q1036874",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "palais-garnier": {
+    "status": "ok",
+    "wikidata": "Q187840",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "panoramadai": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "pinaisara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "place-vendome": {
+    "status": "ok",
+    "wikidata": "Q643520",
+    "distanceKm": 0.28,
+    "via": "sparql"
+  },
+  "rainbow-bridge": {
+    "status": "ok",
+    "wikidata": "Q1046736",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "rainbow-line": {
+    "status": "ok",
+    "wikidata": "Q21686820",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "rairaikyo": {
+    "status": "no-image",
+    "wikidata": "Q11587847",
+    "distanceKm": 4.5,
+    "via": "sparql"
+  },
+  "rakanji": {
+    "status": "ok",
+    "wikidata": "Q3418038",
+    "distanceKm": 4.3,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.48088889,
+      "lng": 131.18633333
+    }
+  },
+  "ranzan-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "reihoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "rikugien": {
+    "status": "ok",
+    "wikidata": "Q1889010",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "rinku-marble-beach": {
+    "status": "ok",
+    "wikidata": "Q11281491",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "rinnoji": {
+    "status": "ok",
+    "wikidata": "Q15277559",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "ritsurin-garden": {
+    "status": "ok",
+    "wikidata": "Q1071520",
+    "distanceKm": 0.36,
+    "via": "sparql"
+  },
+  "rokkaen": {
+    "status": "ok",
+    "wikidata": "Q11392512",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "rokko-garden-terrace": {
+    "status": "ok",
+    "wikidata": "Q11392445",
+    "distanceKm": 0.79,
+    "via": "sparql"
+  },
+  "rokugozaki": {
+    "status": "ok",
+    "wikidata": "Q11591167",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "rurikoin": {
+    "status": "ok",
+    "wikidata": "Q54152981",
+    "distanceKm": 2.08,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.063333333,
+      "lng": 135.808611111
+    }
+  },
+  "rurikoji": {
+    "status": "ok",
+    "wikidata": "Q11573988",
+    "distanceKm": 0.16,
+    "via": "sparql"
+  },
+  "ryoanji": {
+    "status": "ok",
+    "wikidata": "Q587371",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "ryugado": {
+    "status": "ok",
+    "wikidata": "Q11180557",
+    "distanceKm": 5.71,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.603164,
+      "lng": 133.745178
+    }
+  },
+  "ryuganbuchi": {
+    "status": "ok",
+    "wikidata": "Q11565668",
+    "distanceKm": 6.01,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.144527,
+      "lng": 138.685768
+    }
+  },
+  "ryugukutsu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ryujin": {
+    "status": "no-image",
+    "wikidata": "Q3916758",
+    "distanceKm": 1.14,
+    "via": "sparql"
+  },
+  "ryujin-ohtsuribashi": {
+    "status": "no-image",
+    "wikidata": "Q11598381",
+    "distanceKm": 4.39,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.684166666,
+      "lng": 140.467222222
+    }
+  },
+  "ryumon-no-taki": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "ryuokyo": {
+    "status": "ok",
+    "wikidata": "Q11679305",
+    "distanceKm": 1.61,
+    "via": "sparql"
+  },
+  "ryusendo": {
+    "status": "ok",
+    "wikidata": "Q7385643",
+    "distanceKm": 1.19,
+    "via": "sparql"
+  },
+  "ryuzu-no-taki": {
+    "status": "ok",
+    "wikidata": "Q37814",
+    "distanceKm": 0.79,
+    "via": "sparql"
+  },
+  "sabae-glasses": {
+    "status": "no-image",
+    "wikidata": "Q109604125",
+    "distanceKm": 2.08,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.942666666,
+      "lng": 136.198833333
+    }
+  },
+  "sada-jinja": {
+    "status": "ok",
+    "wikidata": "Q3461072",
+    "distanceKm": 2.42,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.508917,
+      "lng": 133.006444
+    }
+  },
+  "sadamisaki": {
+    "status": "ok",
+    "wikidata": "Q11383355",
+    "distanceKm": 1.8,
+    "via": "sparql"
+  },
+  "sado-kinzan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "saga-balloon": {
+    "status": "ok",
+    "wikidata": "Q7398902",
+    "distanceKm": 4.58,
+    "via": "sparql"
+  },
+  "saga-castle": {
+    "status": "ok",
+    "wikidata": "Q104784030",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "saga-kyushu-ceramic": {
+    "status": "ok",
+    "wikidata": "Q6452794",
+    "distanceKm": 2.34,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.178944444,
+      "lng": 129.880694444
+    }
+  },
+  "saga-mitsuse": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sagano-torokko": {
+    "status": "ok",
+    "wikidata": "Q130250",
+    "distanceKm": 0.17,
+    "via": "sparql"
+  },
+  "sagrada-familia": {
+    "status": "ok",
+    "wikidata": "Q48435",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "saijo-sakagura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "saijo-uchinuki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "saijoinari": {
+    "status": "ok",
+    "wikidata": "Q11515459",
+    "distanceKm": 1.58,
+    "via": "sparql"
+  },
+  "saikai-bridge": {
+    "status": "ok",
+    "wikidata": "Q11504062",
+    "distanceKm": 1.74,
+    "via": "sparql"
+  },
+  "saiki": {
+    "status": "ok",
+    "wikidata": "Q11676022",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "saiko-iyashi-no-sato": {
+    "status": "ok",
+    "wikidata": "Q11629111",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "saimyoji": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "saitobaru": {
+    "status": "license-rejected",
+    "wikidata": "Q11578168",
+    "distanceKm": 0.47,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "sakai-todai": {
+    "status": "ok",
+    "wikidata": "Q11511016",
+    "distanceKm": 1.78,
+    "via": "sparql"
+  },
+  "sakaori-tanada": {
+    "status": "ok",
+    "wikidata": "Q21653151",
+    "distanceKm": 8.5,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.51825,
+      "lng": 137.28658333
+    }
+  },
+  "sakata-somaro": {
+    "status": "ok",
+    "wikidata": "Q48755105",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "sakitama": {
+    "status": "ok",
+    "wikidata": "Q11368078",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "sakitsu-shuraku": {
+    "status": "ok",
+    "wikidata": "Q21653164",
+    "distanceKm": 4.45,
+    "via": "sparql"
+  },
+  "sakoshi": {
+    "status": "ok",
+    "wikidata": "Q11439397",
+    "distanceKm": 2.93,
+    "via": "sparql"
+  },
+  "sakurai-futamigaura": {
+    "status": "ok",
+    "wikidata": "Q21654514",
+    "distanceKm": 4.54,
+    "via": "sparql"
+  },
+  "sakurajima-yunohira": {
+    "status": "ok",
+    "wikidata": "Q110582222",
+    "distanceKm": 2.13,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.5915,
+      "lng": 130.6299
+    }
+  },
+  "sakushima": {
+    "status": "license-rejected",
+    "wikidata": "Q11382608",
+    "distanceKm": 1.25,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "samegai-baikamo": {
+    "status": "ok",
+    "wikidata": "Q3470759",
+    "distanceKm": 1.42,
+    "via": "sparql"
+  },
+  "sand-museum": {
+    "status": "ok",
+    "wikidata": "Q7415842",
+    "distanceKm": 0.73,
+    "via": "sparql"
+  },
+  "sandanbeki": {
+    "status": "ok",
+    "wikidata": "Q11356066",
+    "distanceKm": 0.82,
+    "via": "sparql"
+  },
+  "sandankyo": {
+    "status": "ok",
+    "wikidata": "Q3137717",
+    "distanceKm": 1.32,
+    "via": "sparql"
+  },
+  "sankeien": {
+    "status": "ok",
+    "wikidata": "Q4249885",
+    "distanceKm": 0.77,
+    "via": "sparql"
+  },
+  "sankyo-soko": {
+    "status": "ok",
+    "wikidata": "Q11467781",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "sankyoson": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sannai-maruyama": {
+    "status": "ok",
+    "wikidata": "Q911970",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "sannenzaka": {
+    "status": "ok",
+    "wikidata": "Q11574990",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "sano-jinja": {
+    "status": "ok",
+    "wikidata": "Q3472357",
+    "distanceKm": 2.81,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.908333,
+      "lng": 130.969722
+    }
+  },
+  "sanuki-manno": {
+    "status": "ok",
+    "wikidata": "Q20983084",
+    "distanceKm": 2.58,
+    "via": "sparql"
+  },
+  "sanzenin": {
+    "status": "no-author",
+    "wikidata": "Q1072538",
+    "distanceKm": 0.41,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "sarakurayama": {
+    "status": "ok",
+    "wikidata": "Q11581132",
+    "distanceKm": 1.57,
+    "via": "sparql"
+  },
+  "saruhashi": {
+    "status": "ok",
+    "wikidata": "Q4329112",
+    "distanceKm": 2.81,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.61572222,
+      "lng": 138.98022222
+    }
+  },
+  "sarushima": {
+    "status": "ok",
+    "wikidata": "Q75413",
+    "distanceKm": 1.36,
+    "via": "sparql"
+  },
+  "sasagawa-nagare": {
+    "status": "ok",
+    "wikidata": "Q11641442",
+    "distanceKm": 5.07,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.374444444,
+      "lng": 139.458138888
+    }
+  },
+  "sasayama": {
+    "status": "ok",
+    "wikidata": "Q2760134",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "sata-misaki": {
+    "status": "ok",
+    "wikidata": "Q7425874",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "sawara": {
+    "status": "ok",
+    "wikidata": "Q11383027",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "sefa-utaki": {
+    "status": "no-author",
+    "wikidata": "Q3087076",
+    "distanceKm": 0.5,
+    "via": "sparql",
+    "license": "CC BY-SA 3.0"
+  },
+  "sefuri": {
+    "status": "ok",
+    "wikidata": "Q11612199",
+    "distanceKm": 0.89,
+    "via": "sparql"
+  },
+  "seiunji": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "seizanso": {
+    "status": "ok",
+    "wikidata": "Q11627901",
+    "distanceKm": 2.46,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.54125,
+      "lng": 140.506305555
+    }
+  },
+  "seki-juku": {
+    "status": "ok",
+    "wikidata": "Q11641542",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "sekigahara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sekinoo-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11655547",
+    "distanceKm": 5.55,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.761111,
+      "lng": 130.987222
+    }
+  },
+  "senba-ko": {
+    "status": "license-rejected",
+    "wikidata": "Q11405690",
+    "distanceKm": 0.02,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "sengan-ishibashi": {
+    "status": "ok",
+    "wikidata": "Q6080130",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "senganen": {
+    "status": "ok",
+    "wikidata": "Q10884282",
+    "distanceKm": 1.27,
+    "via": "sparql"
+  },
+  "sengokuhara-susuki": {
+    "status": "ok",
+    "wikidata": "Q11378164",
+    "distanceKm": 1.07,
+    "via": "sparql"
+  },
+  "senjogahara": {
+    "status": "ok",
+    "wikidata": "Q6133107",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "senjojiki-cirque": {
+    "status": "ok",
+    "wikidata": "Q11405757",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "senjojiki-kaigan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "senjojiki-shirahama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "senjosan": {
+    "status": "no-image",
+    "wikidata": "Q11613971",
+    "distanceKm": 2.64,
+    "via": "sparql"
+  },
+  "senjuji": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "senkakuwan": {
+    "status": "ok",
+    "wikidata": "Q140428985",
+    "distanceKm": 2.08,
+    "via": "sparql"
+  },
+  "senkoji-park": {
+    "status": "ok",
+    "wikidata": "Q11405378",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "senpiro-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11405452",
+    "distanceKm": 3.63,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 30.262444,
+      "lng": 130.581889
+    }
+  },
+  "senshu-park": {
+    "status": "ok",
+    "wikidata": "Q11405791",
+    "distanceKm": 0.41,
+    "via": "sparql"
+  },
+  "sensoji": {
+    "status": "ok",
+    "wikidata": "Q2378708",
+    "distanceKm": 0.35,
+    "via": "sparql"
+  },
+  "sensuijima": {
+    "status": "ok",
+    "wikidata": "Q11378204",
+    "distanceKm": 0.71,
+    "via": "sparql"
+  },
+  "sera-kogen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sesoko-beach": {
+    "status": "ok",
+    "wikidata": "Q137962",
+    "distanceKm": 0.84,
+    "via": "sparql"
+  },
+  "sessho-seki": {
+    "status": "ok",
+    "wikidata": "Q2616914",
+    "distanceKm": 4.69,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.10147222,
+      "lng": 139.99891667
+    }
+  },
+  "sesshutei": {
+    "status": "ok",
+    "wikidata": "Q140316598",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "seto-ohashi-park": {
+    "status": "ok",
+    "wikidata": "Q11566601",
+    "distanceKm": 2.42,
+    "via": "sparql"
+  },
+  "settsukyo": {
+    "status": "ok",
+    "wikidata": "Q11498555",
+    "distanceKm": 1.79,
+    "via": "sparql"
+  },
+  "shayokan": {
+    "status": "ok",
+    "wikidata": "Q1179272",
+    "distanceKm": 2.57,
+    "via": "sparql"
+  },
+  "shibuya-scramble": {
+    "status": "ok",
+    "wikidata": "Q21083961",
+    "distanceKm": 0.07,
+    "via": "sparql"
+  },
+  "shibuya-sky": {
+    "status": "ok",
+    "wikidata": "Q64026922",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "shichirigahama": {
+    "status": "ok",
+    "wikidata": "Q858960",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "shichirimihama": {
+    "status": "ok",
+    "wikidata": "Q3482030",
+    "distanceKm": 7.95,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.788889,
+      "lng": 136.039
+    }
+  },
+  "shiitsu": {
+    "status": "ok",
+    "wikidata": "Q1205964",
+    "distanceKm": 4.88,
+    "via": "sparql"
+  },
+  "shikano": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shikaumi-jinja": {
+    "status": "ok",
+    "wikidata": "Q11491171",
+    "distanceKm": 0.93,
+    "via": "sparql"
+  },
+  "shikemichi": {
+    "status": "ok",
+    "wikidata": "Q7496572",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "shikisai-no-oka": {
+    "status": "ok",
+    "wikidata": "Q11419849",
+    "distanceKm": 3.11,
+    "via": "sparql"
+  },
+  "shikoku-karst": {
+    "status": "ok",
+    "wikidata": "Q11419667",
+    "distanceKm": 2.58,
+    "via": "sparql"
+  },
+  "shikoku-mura": {
+    "status": "ok",
+    "wikidata": "Q4250629",
+    "distanceKm": 0.95,
+    "via": "sparql"
+  },
+  "shikotsuko": {
+    "status": "ok",
+    "wikidata": "Q1196295",
+    "distanceKm": 1.36,
+    "via": "sparql"
+  },
+  "shimabara-castle": {
+    "status": "ok",
+    "wikidata": "Q1322463",
+    "distanceKm": 0.68,
+    "via": "sparql"
+  },
+  "shimabara-yusui": {
+    "status": "no-image",
+    "wikidata": "Q131198556",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "shimamui-kaigan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shimanto-chinkabashi": {
+    "status": "ok",
+    "wikidata": "Q124878",
+    "distanceKm": 10.23,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.933272222,
+      "lng": 132.996280555
+    }
+  },
+  "shimaonsen-sekizenkan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shimonada-station": {
+    "status": "ok",
+    "wikidata": "Q899167",
+    "distanceKm": 7.61,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.6551,
+      "lng": 132.5892
+    }
+  },
+  "shimonoseki-karato": {
+    "status": "ok",
+    "wikidata": "Q11418545",
+    "distanceKm": 0.92,
+    "via": "sparql"
+  },
+  "shinhotaka-ropeway": {
+    "status": "ok",
+    "wikidata": "Q7497511",
+    "distanceKm": 1.42,
+    "via": "sparql"
+  },
+  "shinjiko-yomegashima": {
+    "status": "ok",
+    "wikidata": "Q11447761",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "shinjuku-gyoen": {
+    "status": "ok",
+    "wikidata": "Q776863",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "shiogama-jinja": {
+    "status": "ok",
+    "wikidata": "Q133753",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "shionomisaki": {
+    "status": "ok",
+    "wikidata": "Q11565690",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "shiorutoge": {
+    "status": "no-image",
+    "wikidata": "Q11533546",
+    "distanceKm": 4.68,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.15277778,
+      "lng": 139.12972222
+    }
+  },
+  "shioyazaki": {
+    "status": "ok",
+    "wikidata": "Q11428680",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "shirahama-engetsuto": {
+    "status": "ok",
+    "wikidata": "Q5377606",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "shirahama-hanabatake": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shirahama-jinja": {
+    "status": "ok",
+    "wikidata": "Q11379183",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "shirahama-shirasaki": {
+    "status": "ok",
+    "wikidata": "Q11579677",
+    "distanceKm": 5.27,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.976666666,
+      "lng": 135.070333333
+    }
+  },
+  "shirahige-jinja": {
+    "status": "ok",
+    "wikidata": "Q705303",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "shirahige-no-taki": {
+    "status": "ok",
+    "wikidata": "Q17228813",
+    "distanceKm": 10.64,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 43.474667,
+      "lng": 142.639194
+    }
+  },
+  "shiraike": {
+    "status": "ok",
+    "wikidata": "Q5709027",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "shiraishi": {
+    "status": "ok",
+    "wikidata": "Q7498240",
+    "distanceKm": 4.48,
+    "via": "sparql"
+  },
+  "shiraito-no-taki": {
+    "status": "ok",
+    "wikidata": "Q38411",
+    "distanceKm": 0.84,
+    "via": "sparql"
+  },
+  "shirakami-buna": {
+    "status": "ok",
+    "wikidata": "Q501638",
+    "distanceKm": 8.12,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 40.450277777,
+      "lng": 140.198611111
+    }
+  },
+  "shirakawa-ko-suibotsurin": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shirakawa-suigen": {
+    "status": "ok",
+    "wikidata": "Q131444332",
+    "distanceKm": 8.86,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.824479,
+      "lng": 131.094545
+    }
+  },
+  "shirakawago": {
+    "status": "ok",
+    "wikidata": "Q66087931",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "shiramizu-amidado": {
+    "status": "ok",
+    "wikidata": "Q3095180",
+    "distanceKm": 3,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.03651,
+      "lng": 140.8372
+    }
+  },
+  "shirane-ropeway": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shirarahama": {
+    "status": "ok",
+    "wikidata": "Q11580327",
+    "distanceKm": 0.86,
+    "via": "sparql"
+  },
+  "shirataka-ayumi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shirataki-san": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shiratani-unsuikyo": {
+    "status": "ok",
+    "wikidata": "Q11580376",
+    "distanceKm": 3.46,
+    "via": "sparql"
+  },
+  "shiratori": {
+    "status": "ok",
+    "wikidata": "Q11580591",
+    "distanceKm": 2.42,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 31.978972222,
+      "lng": 130.827333333
+    }
+  },
+  "shirayama-hime": {
+    "status": "ok",
+    "wikidata": "Q704702",
+    "distanceKm": 5.04,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.434886,
+      "lng": 136.635835
+    }
+  },
+  "shiretoko-goko": {
+    "status": "ok",
+    "wikidata": "Q11584571",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "shiriyazaki": {
+    "status": "ok",
+    "wikidata": "Q11464883",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "shirogane-blue-pond": {
+    "status": "ok",
+    "wikidata": "Q11661016",
+    "distanceKm": 1.47,
+    "via": "sparql"
+  },
+  "shiroishi-castle": {
+    "status": "ok",
+    "wikidata": "Q1037902",
+    "distanceKm": 0.38,
+    "via": "sparql"
+  },
+  "shirotori-garden": {
+    "status": "ok",
+    "wikidata": "Q11580565",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "shiroyone-senmaida": {
+    "status": "ok",
+    "wikidata": "Q11580283",
+    "distanceKm": 5.94,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.42544444,
+      "lng": 136.99977778
+    }
+  },
+  "shishigahana": {
+    "status": "no-image",
+    "wikidata": "Q22123048",
+    "distanceKm": 3.91,
+    "via": "sparql"
+  },
+  "shishijima": {
+    "status": "ok",
+    "wikidata": "Q11490807",
+    "distanceKm": 2.51,
+    "via": "sparql"
+  },
+  "shishiku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shitennoji": {
+    "status": "ok",
+    "wikidata": "Q339859",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "shizugatake": {
+    "status": "ok",
+    "wikidata": "Q225562",
+    "distanceKm": 3.03,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.505916666,
+      "lng": 136.192722222
+    }
+  },
+  "shizutani-gakko": {
+    "status": "ok",
+    "wikidata": "Q847290",
+    "distanceKm": 4.11,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.797946,
+      "lng": 134.219477
+    }
+  },
+  "shodoshima-olive": {
+    "status": "no-image",
+    "wikidata": "Q11463790",
+    "distanceKm": 1.62,
+    "via": "sparql"
+  },
+  "shogawa-kyo": {
+    "status": "ok",
+    "wikidata": "Q11462781",
+    "distanceKm": 5.22,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.556666666,
+      "lng": 137.008055555
+    }
+  },
+  "shogun-sugi": {
+    "status": "ok",
+    "wikidata": "Q11458636",
+    "distanceKm": 8.96,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 37.720389,
+      "lng": 139.3605
+    }
+  },
+  "shojiko": {
+    "status": "ok",
+    "wikidata": "Q11190939",
+    "distanceKm": 0.13,
+    "via": "sparql"
+  },
+  "shokaikyo": {
+    "status": "ok",
+    "wikidata": "Q1056242",
+    "distanceKm": 3.9,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.215,
+      "lng": 130.361944444
+    }
+  },
+  "shokasonjuku": {
+    "status": "ok",
+    "wikidata": "Q2326743",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "shokawa-zakura": {
+    "status": "ok",
+    "wikidata": "Q11618917",
+    "distanceKm": 1.33,
+    "via": "sparql"
+  },
+  "shomyo-daki": {
+    "status": "ok",
+    "wikidata": "Q731954",
+    "distanceKm": 1.8,
+    "via": "sparql"
+  },
+  "shonai-eiga-mura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shosenkyo": {
+    "status": "ok",
+    "wikidata": "Q9336171",
+    "distanceKm": 4.22,
+    "via": "sparql"
+  },
+  "showa-kinen-park": {
+    "status": "ok",
+    "wikidata": "Q3915473",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "shukkeien": {
+    "status": "ok",
+    "wikidata": "Q2576732",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "shukunegi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "shurijo": {
+    "status": "ok",
+    "wikidata": "Q907052",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "shutoken-gaikaku-hosuiro": {
+    "status": "ok",
+    "wikidata": "Q1887758",
+    "distanceKm": 0.85,
+    "via": "sparql"
+  },
+  "shuzenji-chikurin": {
+    "status": "ok",
+    "wikidata": "Q11386312",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "sofukuji": {
+    "status": "ok",
+    "wikidata": "Q63208",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "sogi-no-taki": {
+    "status": "ok",
+    "wikidata": "Q11515310",
+    "distanceKm": 0.98,
+    "via": "sparql"
+  },
+  "sogi-park": {
+    "status": "ok",
+    "wikidata": "Q48745914",
+    "distanceKm": 7.52,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.296167,
+      "lng": 137.263056
+    }
+  },
+  "soja-bitchu-kokubunji": {
+    "status": "ok",
+    "wikidata": "Q10889244",
+    "distanceKm": 1.88,
+    "via": "sparql"
+  },
+  "soma-nomaoi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sonihara-kogen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sotome": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sotomo": {
+    "status": "no-image",
+    "wikidata": "Q11625218",
+    "distanceKm": 5.41,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.566275,
+      "lng": 135.711472
+    }
+  },
+  "sounkyo-ginga-ryusei": {
+    "status": "ok",
+    "wikidata": "Q3511708",
+    "distanceKm": 1.23,
+    "via": "sparql"
+  },
+  "soya-misaki": {
+    "status": "ok",
+    "wikidata": "Q389239",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "spa-resort": {
+    "status": "ok",
+    "wikidata": "Q7572157",
+    "distanceKm": 0.77,
+    "via": "sparql"
+  },
+  "sugatani": {
+    "status": "ok",
+    "wikidata": "Q11664502",
+    "distanceKm": 3.42,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.234586,
+      "lng": 132.737013
+    }
+  },
+  "sugi-namiki": {
+    "status": "ok",
+    "wikidata": "Q2873976",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "suigo": {
+    "status": "ok",
+    "wikidata": "Q17211143",
+    "distanceKm": 2.43,
+    "via": "sparql"
+  },
+  "suizenji": {
+    "status": "ok",
+    "wikidata": "Q1090968",
+    "distanceKm": 0.48,
+    "via": "sparql"
+  },
+  "sukayu": {
+    "status": "ok",
+    "wikidata": "Q7635737",
+    "distanceKm": 0.85,
+    "via": "sparql"
+  },
+  "sukumo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "sumatakyo-yume-no-tsuribashi": {
+    "status": "ok",
+    "wikidata": "Q11457662",
+    "distanceKm": 1.35,
+    "via": "sparql"
+  },
+  "sumida-park": {
+    "status": "ok",
+    "wikidata": "Q11630974",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "sumiyoshi-taisha": {
+    "status": "ok",
+    "wikidata": "Q11253490",
+    "distanceKm": 0.34,
+    "via": "sparql"
+  },
+  "sun-messe-nichinan": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "suo-oshima": {
+    "status": "ok",
+    "wikidata": "Q1083890",
+    "distanceKm": 2.49,
+    "via": "sparql"
+  },
+  "susa-hornfels": {
+    "status": "ok",
+    "wikidata": "Q11664494",
+    "distanceKm": 0.8,
+    "via": "sparql"
+  },
+  "suwa-taisha": {
+    "status": "ok",
+    "wikidata": "Q218813",
+    "distanceKm": 1.15,
+    "via": "sparql"
+  },
+  "suwako": {
+    "status": "ok",
+    "wikidata": "Q138456227",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "suwakyo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tachikue": {
+    "status": "ok",
+    "wikidata": "Q11597754",
+    "distanceKm": 3.15,
+    "via": "sparql"
+  },
+  "tachineputa": {
+    "status": "ok",
+    "wikidata": "Q11597769",
+    "distanceKm": 0.3,
+    "via": "sparql"
+  },
+  "tadami-daiichi-viewpoint": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tadewara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tado-taisha": {
+    "status": "ok",
+    "wikidata": "Q116140",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "taga-taisha": {
+    "status": "ok",
+    "wikidata": "Q402091",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "tairyuji": {
+    "status": "ok",
+    "wikidata": "Q11444739",
+    "distanceKm": 1.38,
+    "via": "sparql"
+  },
+  "taishakukyo": {
+    "status": "no-image",
+    "wikidata": "Q3077314",
+    "distanceKm": 2.31,
+    "via": "sparql"
+  },
+  "taisho-ike": {
+    "status": "ok",
+    "wikidata": "Q11436714",
+    "distanceKm": 1.45,
+    "via": "sparql"
+  },
+  "taiyo-no-to": {
+    "status": "no-image",
+    "wikidata": "Q3275446",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "takachiho-gorge": {
+    "status": "ok",
+    "wikidata": "Q2027215",
+    "distanceKm": 1.02,
+    "via": "sparql"
+  },
+  "takachiho-yokagura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "takachihonomine": {
+    "status": "ok",
+    "wikidata": "Q3514128",
+    "distanceKm": 0.42,
+    "via": "sparql"
+  },
+  "takada-johshi-koen": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "takahata-wine": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "takamatsu-castle": {
+    "status": "no-image",
+    "wikidata": "Q140315706",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "takamatsu-kitahama": {
+    "status": "ok",
+    "wikidata": "Q11402357",
+    "distanceKm": 1.16,
+    "via": "sparql"
+  },
+  "takamori-tunnel": {
+    "status": "ok",
+    "wikidata": "Q21993283",
+    "distanceKm": 1.85,
+    "via": "sparql"
+  },
+  "takaoka-daibutsu": {
+    "status": "ok",
+    "wikidata": "Q11669490",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "takaosan": {
+    "status": "ok",
+    "wikidata": "Q1329959",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "takasaki-byakue-kannon": {
+    "status": "ok",
+    "wikidata": "Q11669782",
+    "distanceKm": 0.12,
+    "via": "sparql"
+  },
+  "takata-matsubara": {
+    "status": "ok",
+    "wikidata": "Q15920177",
+    "distanceKm": 0.57,
+    "via": "sparql"
+  },
+  "takato-joshi": {
+    "status": "ok",
+    "wikidata": "Q11672955",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "takatori-castle": {
+    "status": "ok",
+    "wikidata": "Q5369622",
+    "distanceKm": 1.87,
+    "via": "sparql"
+  },
+  "takayama-inari": {
+    "status": "ok",
+    "wikidata": "Q25104460",
+    "distanceKm": 1.89,
+    "via": "sparql"
+  },
+  "takayama-jinya": {
+    "status": "ok",
+    "wikidata": "Q11669454",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "takebe": {
+    "status": "no-image",
+    "wikidata": "Q11270953",
+    "distanceKm": 4.11,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.856111,
+      "lng": 133.871944
+    }
+  },
+  "takeda-castle-ruins": {
+    "status": "ok",
+    "wikidata": "Q8013060",
+    "distanceKm": 0.11,
+    "via": "sparql"
+  },
+  "takeda-jinja": {
+    "status": "ok",
+    "wikidata": "Q402368",
+    "distanceKm": 1,
+    "via": "sparql"
+  },
+  "takeda-shidare": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "takefu-kura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "takehara-machinami": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "takeo-no-okusu": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "taketomijima": {
+    "status": "ok",
+    "wikidata": "Q474560",
+    "distanceKm": 0.63,
+    "via": "sparql"
+  },
+  "tamagawa-onsen": {
+    "status": "no-image",
+    "wikidata": "Q7680539",
+    "distanceKm": 1.95,
+    "via": "sparql"
+  },
+  "tamasudare-no-taki": {
+    "status": "ok",
+    "wikidata": "Q66817691",
+    "distanceKm": 8.69,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 38.997055555,
+      "lng": 140.053277777
+    }
+  },
+  "tamatorizaki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tambara": {
+    "status": "no-image",
+    "wikidata": "Q11572414",
+    "distanceKm": 2.81,
+    "via": "sparql"
+  },
+  "tanabe-tokei": {
+    "status": "ok",
+    "wikidata": "Q11656593",
+    "distanceKm": 0.36,
+    "via": "sparql"
+  },
+  "tanesashi-kaigan": {
+    "status": "ok",
+    "wikidata": "Q7682565",
+    "distanceKm": 2.08,
+    "via": "sparql"
+  },
+  "tanigumi": {
+    "status": "ok",
+    "wikidata": "Q11620047",
+    "distanceKm": 4.79,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.537372,
+      "lng": 136.607897
+    }
+  },
+  "tanize-tsuribashi": {
+    "status": "ok",
+    "wikidata": "Q11633037",
+    "distanceKm": 2.48,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.101291,
+      "lng": 135.763121
+    }
+  },
+  "tanukiko": {
+    "status": "ok",
+    "wikidata": "Q3133232",
+    "distanceKm": 2.54,
+    "via": "sparql"
+  },
+  "tanzan-jinja": {
+    "status": "ok",
+    "wikidata": "Q488618",
+    "distanceKm": 1,
+    "via": "sparql"
+  },
+  "tappizaki": {
+    "status": "ok",
+    "wikidata": "Q11598416",
+    "distanceKm": 0.26,
+    "via": "sparql"
+  },
+  "tashirojima": {
+    "status": "license-rejected",
+    "wikidata": "Q1061394",
+    "distanceKm": 0.29,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "tatami-ga-ura": {
+    "status": "ok",
+    "wikidata": "Q11587189",
+    "distanceKm": 2.65,
+    "via": "sparql"
+  },
+  "tatara-numa": {
+    "status": "ok",
+    "wikidata": "Q11430587",
+    "distanceKm": 1.4,
+    "via": "sparql"
+  },
+  "tatara-ohashi": {
+    "status": "ok",
+    "wikidata": "Q11641134",
+    "distanceKm": 1.73,
+    "via": "sparql"
+  },
+  "tateyama-daikanbo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tateyama-mine": {
+    "status": "license-rejected",
+    "wikidata": "Q11579631",
+    "distanceKm": 3.33,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.548611111,
+      "lng": 137.534444444
+    },
+    "license": "Attribution"
+  },
+  "tatsue": {
+    "status": "ok",
+    "wikidata": "Q11598034",
+    "distanceKm": 2.54,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.967861111,
+      "lng": 134.605805555
+    }
+  },
+  "tatsukushi-kochi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tatsuno": {
+    "status": "ok",
+    "wikidata": "Q10856352",
+    "distanceKm": 0.49,
+    "via": "sparql"
+  },
+  "taushubetsu": {
+    "status": "ok",
+    "wikidata": "Q59210661",
+    "distanceKm": 5.66,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 43.394444444,
+      "lng": 143.197222222
+    }
+  },
+  "tedorikyo": {
+    "status": "ok",
+    "wikidata": "Q120467885",
+    "distanceKm": 8.88,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.340277777,
+      "lng": 136.635833333
+    }
+  },
+  "tempozan-ferris-wheel": {
+    "status": "ok",
+    "wikidata": "Q548263",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "tendaki": {
+    "status": "ok",
+    "wikidata": "Q11442860",
+    "distanceKm": 3.4,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.335277777,
+      "lng": 134.6075
+    }
+  },
+  "tendo-shogi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tenkaiho": {
+    "status": "ok",
+    "wikidata": "Q11465727",
+    "distanceKm": 3.35,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.132361111,
+      "lng": 129.692861111
+    }
+  },
+  "tenku-no-chabatake": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tenku-no-torii": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "tenryukyo": {
+    "status": "ok",
+    "wikidata": "Q11443338",
+    "distanceKm": 4.39,
+    "via": "sparql"
+  },
+  "tenzan": {
+    "status": "ok",
+    "wikidata": "Q11442554",
+    "distanceKm": 2.53,
+    "via": "sparql"
+  },
+  "teriha-kyo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "teshima": {
+    "status": "ok",
+    "wikidata": "Q2379884",
+    "distanceKm": 1.41,
+    "via": "sparql"
+  },
+  "to-no-hetsuri": {
+    "status": "ok",
+    "wikidata": "Q11428345",
+    "distanceKm": 4.13,
+    "via": "sparql"
+  },
+  "tobe": {
+    "status": "ok",
+    "wikidata": "Q11587568",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "tobishima": {
+    "status": "license-rejected",
+    "wikidata": "Q49493",
+    "distanceKm": 0.5,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "tochigi-kuranomachi": {
+    "status": "ok",
+    "wikidata": "Q11419375",
+    "distanceKm": 1.01,
+    "via": "sparql"
+  },
+  "tocho-observatory": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "todaiji": {
+    "status": "ok",
+    "wikidata": "Q460367",
+    "distanceKm": 0.1,
+    "via": "sparql"
+  },
+  "todoroki-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "todoroki-taki": {
+    "status": "ok",
+    "wikidata": "Q11637784",
+    "distanceKm": 2.41,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.697806,
+      "lng": 134.254303
+    }
+  },
+  "tofukuji": {
+    "status": "ok",
+    "wikidata": "Q101034230",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "togakushi-kagamiike": {
+    "status": "ok",
+    "wikidata": "Q136352800",
+    "distanceKm": 0.19,
+    "via": "sparql"
+  },
+  "togakushi-okusha": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "togatta-kokeshi": {
+    "status": "no-image",
+    "wikidata": "Q140089129",
+    "distanceKm": 4.67,
+    "via": "sparql"
+  },
+  "togetsukyo": {
+    "status": "ok",
+    "wikidata": "Q11561923",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "toi-misaki": {
+    "status": "ok",
+    "wikidata": "Q11643472",
+    "distanceKm": 0.93,
+    "via": "sparql"
+  },
+  "tojinbo": {
+    "status": "ok",
+    "wikidata": "Q648937",
+    "distanceKm": 0.53,
+    "via": "sparql"
+  },
+  "tojo-ike": {
+    "status": "ok",
+    "wikidata": "Q3070802",
+    "distanceKm": 0.68,
+    "via": "sparql"
+  },
+  "toko-ji": {
+    "status": "ok",
+    "wikidata": "Q11526033",
+    "distanceKm": 0.62,
+    "via": "sparql"
+  },
+  "tokoname-yakimono": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tokugawaen": {
+    "status": "ok",
+    "wikidata": "Q7813713",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "tokunoshima": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tokushima-castle": {
+    "status": "ok",
+    "wikidata": "Q11489666",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "tokushima-kaminaka": {
+    "status": "ok",
+    "wikidata": "Q11439292",
+    "distanceKm": 6.37,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.861436,
+      "lng": 134.277628
+    }
+  },
+  "tokuyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tokyo-international-forum": {
+    "status": "ok",
+    "wikidata": "Q1359892",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "tokyo-skytree": {
+    "status": "ok",
+    "wikidata": "Q57965",
+    "distanceKm": 0.07,
+    "via": "sparql"
+  },
+  "tokyo-station": {
+    "status": "ok",
+    "wikidata": "Q124037631",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "tokyo-tower": {
+    "status": "no-image",
+    "wikidata": "Q139816081",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "tomioka-silk-mill": {
+    "status": "ok",
+    "wikidata": "Q7818931",
+    "distanceKm": 0.61,
+    "via": "sparql"
+  },
+  "tomogashima": {
+    "status": "ok",
+    "wikidata": "Q20669152",
+    "distanceKm": 1.12,
+    "via": "sparql"
+  },
+  "tomonoura": {
+    "status": "ok",
+    "wikidata": "Q8194022",
+    "distanceKm": 0.09,
+    "via": "sparql"
+  },
+  "tonami-tulip": {
+    "status": "no-image",
+    "wikidata": "Q11587638",
+    "distanceKm": 1.02,
+    "via": "sparql"
+  },
+  "tonaru": {
+    "status": "ok",
+    "wikidata": "Q11339828",
+    "distanceKm": 4.95,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.901444444,
+      "lng": 133.3095
+    }
+  },
+  "tono-denshoen": {
+    "status": "ok",
+    "wikidata": "Q11642412",
+    "distanceKm": 2.65,
+    "via": "sparql"
+  },
+  "tono-kappabuchi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tono-meganebashi": {
+    "status": "ok",
+    "wikidata": "Q11454051",
+    "distanceKm": 7.18,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 39.34711,
+      "lng": 141.3495
+    }
+  },
+  "tonomine-kogen": {
+    "status": "ok",
+    "wikidata": "Q11587562",
+    "distanceKm": 10.33,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.152806,
+      "lng": 134.689139
+    }
+  },
+  "tosa-kuroshio": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tosa-washi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "toshodaiji": {
+    "status": "ok",
+    "wikidata": "Q973175",
+    "distanceKm": 0.66,
+    "via": "sparql"
+  },
+  "tottori-hanakairo": {
+    "status": "ok",
+    "wikidata": "Q11273221",
+    "distanceKm": 6.73,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.348055555,
+      "lng": 133.423472222
+    }
+  },
+  "tottori-jo": {
+    "status": "ok",
+    "wikidata": "Q11369438",
+    "distanceKm": 0.07,
+    "via": "sparql"
+  },
+  "tottori-nijisseiki": {
+    "status": "ok",
+    "wikidata": "Q7828506",
+    "distanceKm": 1.71,
+    "via": "sparql"
+  },
+  "tottori-sakyu": {
+    "status": "ok",
+    "wikidata": "Q780905",
+    "distanceKm": 0.23,
+    "via": "sparql"
+  },
+  "towada-art-center": {
+    "status": "ok",
+    "wikidata": "Q11404944",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "toyako": {
+    "status": "ok",
+    "wikidata": "Q20155437",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "toyama-castle": {
+    "status": "ok",
+    "wikidata": "Q11456417",
+    "distanceKm": 0.33,
+    "via": "sparql"
+  },
+  "toyama-glass": {
+    "status": "ok",
+    "wikidata": "Q21653817",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "toyokawa-inari": {
+    "status": "ok",
+    "wikidata": "Q3080596",
+    "distanceKm": 1.25,
+    "via": "sparql"
+  },
+  "tsubaki-jinja": {
+    "status": "ok",
+    "wikidata": "Q3541617",
+    "distanceKm": 2.71,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.964299,
+      "lng": 136.452029
+    }
+  },
+  "tsuboya-yachimun": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsudanomatsubara": {
+    "status": "ok",
+    "wikidata": "Q11641369",
+    "distanceKm": 3.11,
+    "via": "sparql"
+  },
+  "tsugaike": {
+    "status": "ok",
+    "wikidata": "Q109602486",
+    "distanceKm": 2.85,
+    "via": "sparql"
+  },
+  "tsujunkyo": {
+    "status": "ok",
+    "wikidata": "Q11641521",
+    "distanceKm": 2.07,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 32.681444444,
+      "lng": 130.991638888
+    }
+  },
+  "tsukechikyo": {
+    "status": "ok",
+    "wikidata": "Q11377660",
+    "distanceKm": 4.28,
+    "via": "sparql"
+  },
+  "tsukiji-honganji": {
+    "status": "ok",
+    "wikidata": "Q943255",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "tsukimachi-no-taki": {
+    "status": "no-image",
+    "wikidata": "Q11516101",
+    "distanceKm": 6.78,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.810013888,
+      "lng": 140.37375
+    }
+  },
+  "tsukinoura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsukubasan": {
+    "status": "ok",
+    "wikidata": "Q1754619",
+    "distanceKm": 0.65,
+    "via": "sparql"
+  },
+  "tsumago-juku": {
+    "status": "ok",
+    "wikidata": "Q1079904",
+    "distanceKm": 0.69,
+    "via": "sparql"
+  },
+  "tsumagoi-panorama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsumekizaki": {
+    "status": "ok",
+    "wikidata": "Q11569441",
+    "distanceKm": 0.68,
+    "via": "sparql"
+  },
+  "tsunan-himawari": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsunoshima-ohashi": {
+    "status": "ok",
+    "wikidata": "Q11630705",
+    "distanceKm": 0.7,
+    "via": "sparql"
+  },
+  "tsuru-no-maihashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsuru-no-yu": {
+    "status": "ok",
+    "wikidata": "Q11370596",
+    "distanceKm": 2.22,
+    "via": "sparql"
+  },
+  "tsuruga-akarenga": {
+    "status": "ok",
+    "wikidata": "Q11499558",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "tsurugajo": {
+    "status": "ok",
+    "wikidata": "Q1365061",
+    "distanceKm": 0.25,
+    "via": "sparql"
+  },
+  "tsurugaoka-hachimangu": {
+    "status": "ok",
+    "wikidata": "Q701403",
+    "distanceKm": 0.54,
+    "via": "sparql"
+  },
+  "tsurugisan": {
+    "status": "ok",
+    "wikidata": "Q3695995",
+    "distanceKm": 0.56,
+    "via": "sparql"
+  },
+  "tsurumidake": {
+    "status": "ok",
+    "wikidata": "Q6924219",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "tsuruoka-park": {
+    "status": "ok",
+    "wikidata": "Q11675949",
+    "distanceKm": 0.51,
+    "via": "sparql"
+  },
+  "tsushima-watatsumi": {
+    "status": "ok",
+    "wikidata": "Q4812258",
+    "distanceKm": 5.26,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.33167,
+      "lng": 129.25639
+    }
+  },
+  "tsutanuma": {
+    "status": "no-image",
+    "wikidata": "Q123485998",
+    "distanceKm": 0.87,
+    "via": "sparql"
+  },
+  "tsutenkaku-shinsekai": {
+    "status": "ok",
+    "wikidata": "Q1148463",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "tsutsuga-ginkgo": {
+    "status": "no-image",
+    "wikidata": "Q109594705",
+    "distanceKm": 6.01,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.558528,
+      "lng": 132.243389
+    }
+  },
+  "tsutsuji-tsuribashi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsutsujigaoka": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsuwano-tonomachi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "tsuyama-castle": {
+    "status": "ok",
+    "wikidata": "Q767818",
+    "distanceKm": 0.92,
+    "via": "sparql"
+  },
+  "tsuyama-jotoku": {
+    "status": "ok",
+    "wikidata": "Q55530206",
+    "distanceKm": 0.91,
+    "via": "sparql"
+  },
+  "ubara": {
+    "status": "ok",
+    "wikidata": "Q65270530",
+    "distanceKm": 1.69,
+    "via": "sparql"
+  },
+  "ube-tokiwa": {
+    "status": "ok",
+    "wikidata": "Q11273042",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "uchiko-machinami": {
+    "status": "ok",
+    "wikidata": "Q1018717",
+    "distanceKm": 1.09,
+    "via": "sparql"
+  },
+  "uda-matsuyama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "udatsu-machinami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "udo-jingu": {
+    "status": "ok",
+    "wikidata": "Q704430",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "ueda-castle": {
+    "status": "ok",
+    "wikidata": "Q11359740",
+    "distanceKm": 0.58,
+    "via": "sparql"
+  },
+  "ueno-park": {
+    "status": "ok",
+    "wikidata": "Q5365093",
+    "distanceKm": 0.15,
+    "via": "sparql"
+  },
+  "ukiha-inari": {
+    "status": "no-image",
+    "wikidata": "Q119929659",
+    "distanceKm": 2.76,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.323083,
+      "lng": 130.791722
+    }
+  },
+  "ukiha-yoshii": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ukimido": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "umeda-sky-building": {
+    "status": "ok",
+    "wikidata": "Q1151808",
+    "distanceKm": 0.53,
+    "via": "sparql"
+  },
+  "umi-jigoku": {
+    "status": "ok",
+    "wikidata": "Q135237471",
+    "distanceKm": 4.54,
+    "via": "sparql"
+  },
+  "unagi": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "ungan-ji": {
+    "status": "ok",
+    "wikidata": "Q11660051",
+    "distanceKm": 8.11,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 36.852778,
+      "lng": 140.209444
+    }
+  },
+  "unnan-sakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "unomachi": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "unosu-dangai": {
+    "status": "ok",
+    "wikidata": "Q11675693",
+    "distanceKm": 3.42,
+    "via": "sparql"
+  },
+  "unpenji": {
+    "status": "ok",
+    "wikidata": "Q7897282",
+    "distanceKm": 1.48,
+    "via": "sparql"
+  },
+  "unpenji-ropeway": {
+    "status": "ok",
+    "wikidata": "Q100235820",
+    "distanceKm": 1.64,
+    "via": "sparql"
+  },
+  "unzen-jigoku": {
+    "status": "ok",
+    "wikidata": "Q11660005",
+    "distanceKm": 1.38,
+    "via": "sparql"
+  },
+  "uozu-shinkirou": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "uradome-kaigan": {
+    "status": "no-image",
+    "wikidata": "Q7899552",
+    "distanceKm": 1.2,
+    "via": "sparql"
+  },
+  "urayama-dam": {
+    "status": "ok",
+    "wikidata": "Q1153341",
+    "distanceKm": 1.75,
+    "via": "sparql"
+  },
+  "ureshino": {
+    "status": "no-image",
+    "wikidata": "Q11447797",
+    "distanceKm": 1.43,
+    "via": "sparql"
+  },
+  "urikawari": {
+    "status": "no-image",
+    "wikidata": "Q11574145",
+    "distanceKm": 4.92,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.461685,
+      "lng": 135.842904
+    }
+  },
+  "usa-jingu": {
+    "status": "no-image",
+    "wikidata": "Q135041477",
+    "distanceKm": 0.67,
+    "via": "sparql"
+  },
+  "ushiku-chateau": {
+    "status": "ok",
+    "wikidata": "Q11307700",
+    "distanceKm": 0.28,
+    "via": "sparql"
+  },
+  "ushiku-daibutsu": {
+    "status": "ok",
+    "wikidata": "Q542324",
+    "distanceKm": 3.63,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.9825,
+      "lng": 140.220277777
+    }
+  },
+  "ushimado": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "ushimado-olive": {
+    "status": "ok",
+    "wikidata": "Q4333775",
+    "distanceKm": 1.78,
+    "via": "sparql"
+  },
+  "usui-meganebashi": {
+    "status": "ok",
+    "wikidata": "Q11587749",
+    "distanceKm": 1.87,
+    "via": "sparql"
+  },
+  "usuki-machinami": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "usuki-sekibutsu": {
+    "status": "ok",
+    "wikidata": "Q2921458",
+    "distanceKm": 2.5,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.09011,
+      "lng": 131.76248
+    }
+  },
+  "usuzumi-zakura": {
+    "status": "ok",
+    "wikidata": "Q10859722",
+    "distanceKm": 3.25,
+    "via": "sparql"
+  },
+  "utatsuyama": {
+    "status": "ok",
+    "wikidata": "Q6924291",
+    "distanceKm": 1.03,
+    "via": "sparql"
+  },
+  "utsubuki": {
+    "status": "ok",
+    "wikidata": "Q11665996",
+    "distanceKm": 1.24,
+    "via": "sparql"
+  },
+  "utsukushigahara": {
+    "status": "ok",
+    "wikidata": "Q11608718",
+    "distanceKm": 0.52,
+    "via": "sparql"
+  },
+  "uwajima-castle": {
+    "status": "ok",
+    "wikidata": "Q909515",
+    "distanceKm": 0.47,
+    "via": "sparql"
+  },
+  "vories": {
+    "status": "ok",
+    "wikidata": "Q11510924",
+    "distanceKm": 1.16,
+    "via": "sparql"
+  },
+  "wajima-asaichi": {
+    "status": "ok",
+    "wikidata": "Q11637709",
+    "distanceKm": 0.74,
+    "via": "sparql"
+  },
+  "wakakusayama": {
+    "status": "ok",
+    "wikidata": "Q2428328",
+    "distanceKm": 1.3,
+    "via": "sparql"
+  },
+  "wakasa-juku": {
+    "status": "ok",
+    "wikidata": "Q1156116",
+    "distanceKm": 0.09,
+    "via": "sparql"
+  },
+  "wakasa-railway": {
+    "status": "ok",
+    "wikidata": "Q11616555",
+    "distanceKm": 0.6,
+    "via": "sparql"
+  },
+  "wakasahiko": {
+    "status": "ok",
+    "wikidata": "Q11616630",
+    "distanceKm": 1.73,
+    "via": "sparql"
+  },
+  "wakayama-castle": {
+    "status": "ok",
+    "wikidata": "Q1151269",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "wanizuka": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "warei": {
+    "status": "ok",
+    "wikidata": "Q11418237",
+    "distanceKm": 0.44,
+    "via": "sparql"
+  },
+  "washi-no-sato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "washuzan": {
+    "status": "ok",
+    "wikidata": "Q11676287",
+    "distanceKm": 0.55,
+    "via": "sparql"
+  },
+  "watarase-keikoku": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yabakei-hitomehakkei": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yaegaki": {
+    "status": "ok",
+    "wikidata": "Q3571285",
+    "distanceKm": 0.35,
+    "via": "sparql"
+  },
+  "yagachi-higanbana": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yagigahana": {
+    "status": "no-image",
+    "wikidata": "Q65249077",
+    "distanceKm": 1.25,
+    "via": "sparql"
+  },
+  "yahiko-jinja": {
+    "status": "no-image",
+    "wikidata": "Q135040462",
+    "distanceKm": 0.5,
+    "via": "sparql"
+  },
+  "yakehashiri": {
+    "status": "no-image",
+    "wikidata": "Q11567680",
+    "distanceKm": 1.77,
+    "via": "sparql"
+  },
+  "yakuoji": {
+    "status": "ok",
+    "wikidata": "Q11622491",
+    "distanceKm": 1.18,
+    "via": "sparql"
+  },
+  "yakushiji": {
+    "status": "ok",
+    "wikidata": "Q945913",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "yakusugi-land": {
+    "status": "ok",
+    "wikidata": "Q127698135",
+    "distanceKm": 0.72,
+    "via": "sparql"
+  },
+  "yamadera-risshakuji": {
+    "status": "ok",
+    "wikidata": "Q1760419",
+    "distanceKm": 0.36,
+    "via": "sparql"
+  },
+  "yamaga": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yamaguchi-xavier": {
+    "status": "ok",
+    "wikidata": "Q11466600",
+    "distanceKm": 0.29,
+    "via": "sparql"
+  },
+  "yamashiro-kosoyu": {
+    "status": "no-image",
+    "wikidata": "Q121287278",
+    "distanceKm": 2.57,
+    "via": "sparql"
+  },
+  "yanagawa-kudari": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yanai-shirakabe": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yanaka-ginza": {
+    "status": "ok",
+    "wikidata": "Q11430153",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "yanase": {
+    "status": "ok",
+    "wikidata": "Q8048264",
+    "distanceKm": 8.52,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 33.593055555,
+      "lng": 134.112222222
+    }
+  },
+  "yasaka-koshindo": {
+    "status": "ok",
+    "wikidata": "Q3571897",
+    "distanceKm": 0.21,
+    "via": "sparql"
+  },
+  "yashajin": {
+    "status": "ok",
+    "wikidata": "Q11431240",
+    "distanceKm": 4.33,
+    "via": "sparql"
+  },
+  "yashima": {
+    "status": "ok",
+    "wikidata": "Q11465681",
+    "distanceKm": 1.63,
+    "via": "sparql"
+  },
+  "yawatahama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yobuko": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yogo-ko": {
+    "status": "ok",
+    "wikidata": "Q11385251",
+    "distanceKm": 2.01,
+    "via": "sparql"
+  },
+  "yokkaichi-konbinato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yokohama-akarenga": {
+    "status": "ok",
+    "wikidata": "Q5363823",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "yokohama-chukagai": {
+    "status": "ok",
+    "wikidata": "Q1141498",
+    "distanceKm": 0.48,
+    "via": "sparql"
+  },
+  "yokote-kamakura": {
+    "status": "ok",
+    "wikidata": "Q115680256",
+    "distanceKm": 0.67,
+    "via": "sparql"
+  },
+  "yokoyama-tenbodai": {
+    "status": "ok",
+    "wikidata": "Q11542547",
+    "distanceKm": 3,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 34.324417,
+      "lng": 136.788028
+    }
+  },
+  "yonago-suitori": {
+    "status": "ok",
+    "wikidata": "Q11604109",
+    "distanceKm": 2.04,
+    "via": "sparql"
+  },
+  "yonaha-maehama": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yonezawa-uesugi": {
+    "status": "ok",
+    "wikidata": "Q10867478",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "yoro-keikoku": {
+    "status": "ok",
+    "wikidata": "Q11671890",
+    "distanceKm": 2.34,
+    "via": "sparql"
+  },
+  "yoro-no-taki": {
+    "status": "ok",
+    "wikidata": "Q3695472",
+    "distanceKm": 1.17,
+    "via": "sparql"
+  },
+  "yoron": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yosakoi": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yoshida-furusato": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yoshimi-hyakuana": {
+    "status": "ok",
+    "wikidata": "Q11414302",
+    "distanceKm": 0.2,
+    "via": "sparql"
+  },
+  "yoshinogari": {
+    "status": "ok",
+    "wikidata": "Q1049645",
+    "distanceKm": 0.67,
+    "via": "sparql"
+  },
+  "yoshinoyama": {
+    "status": "ok",
+    "wikidata": "Q1036938",
+    "distanceKm": 1.91,
+    "via": "sparql"
+  },
+  "yoshitaka-ozakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yoteizan": {
+    "status": "ok",
+    "wikidata": "Q713619",
+    "distanceKm": 0.43,
+    "via": "sparql"
+  },
+  "yotsuya-senmaida": {
+    "status": "ok",
+    "wikidata": "Q124661704",
+    "distanceKm": 13.21,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.051388888,
+      "lng": 137.569444444
+    }
+  },
+  "yuasa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yubara": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yubujima": {
+    "status": "ok",
+    "wikidata": "Q16580941",
+    "distanceKm": 6.92,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 24.342777777,
+      "lng": 123.933611111
+    }
+  },
+  "yudaki": {
+    "status": "ok",
+    "wikidata": "Q11563734",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "yudonosan": {
+    "status": "ok",
+    "wikidata": "Q11563607",
+    "distanceKm": 1.39,
+    "via": "sparql"
+  },
+  "yufudake": {
+    "status": "ok",
+    "wikidata": "Q705288",
+    "distanceKm": 0.31,
+    "via": "sparql"
+  },
+  "yuki": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yuki-no-otani": {
+    "status": "ok",
+    "wikidata": "Q11452989",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "yumigahama": {
+    "status": "too-far",
+    "via": "sparql"
+  },
+  "yumura-onsen": {
+    "status": "no-image",
+    "wikidata": "Q138605818",
+    "distanceKm": 3.01,
+    "via": "sparql"
+  },
+  "yunishigawa-kamakura": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yusu-dandabata": {
+    "status": "ok",
+    "wikidata": "Q11640356",
+    "distanceKm": 4.9,
+    "via": "sparql"
+  },
+  "yusuhara-kumo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "yutoku-inari": {
+    "status": "ok",
+    "wikidata": "Q251682",
+    "distanceKm": 1.83,
+    "via": "sparql"
+  },
+  "yuushien": {
+    "status": "ok",
+    "wikidata": "Q11577586",
+    "distanceKm": 2.57,
+    "via": "sparql",
+    "coordsMismatch": true,
+    "wikidataCoords": {
+      "lat": 35.490988,
+      "lng": 133.176162
+    }
+  },
+  "zaimokuiwa": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "zakimi-jo": {
+    "status": "ok",
+    "wikidata": "Q2338956",
+    "distanceKm": 0.27,
+    "via": "sparql"
+  },
+  "zamami": {
+    "status": "license-rejected",
+    "wikidata": "Q145371",
+    "distanceKm": 1.63,
+    "via": "sparql",
+    "license": "Attribution"
+  },
+  "zanpa-misaki": {
+    "status": "ok",
+    "wikidata": "Q11125269",
+    "distanceKm": 0.38,
+    "via": "sparql"
+  },
+  "zao-dokko": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "zao-juhyo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "zao-okama": {
+    "status": "ok",
+    "wikidata": "Q11489343",
+    "distanceKm": 0.4,
+    "via": "sparql"
+  },
+  "zao-onsen-rotenburo": {
+    "status": "not-found",
+    "via": "sparql"
+  },
+  "zeniarai-benzaiten": {
+    "status": "ok",
+    "wikidata": "Q642681",
+    "distanceKm": 0.67,
+    "via": "sparql"
+  },
+  "zenigata": {
+    "status": "ok",
+    "wikidata": "Q3363843",
+    "distanceKm": 0.45,
+    "via": "sparql"
+  },
+  "zenkoji": {
+    "status": "ok",
+    "wikidata": "Q189640",
+    "distanceKm": 0.27,
+    "via": "sparql"
+  },
+  "zentsuji": {
+    "status": "ok",
+    "wikidata": "Q787035",
+    "distanceKm": 1.56,
+    "via": "sparql"
+  },
+  "zoheikyoku-sakura": {
+    "status": "ok",
+    "wikidata": "Q1130777",
+    "distanceKm": 0.37,
+    "via": "sparql"
+  },
+  "zojoji": {
+    "status": "ok",
+    "wikidata": "Q249139",
+    "distanceKm": 0.32,
+    "via": "sparql"
+  },
+  "zuiganji": {
+    "status": "ok",
+    "wikidata": "Q3140498",
+    "distanceKm": 0.24,
+    "via": "sparql"
+  },
+  "zuihoden": {
+    "status": "ok",
+    "wikidata": "Q115856",
+    "distanceKm": 0.59,
+    "via": "sparql"
+  },
+  "zuiryuji": {
+    "status": "not-found",
+    "via": "sparql"
+  }
+}

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import rawLedger from "../../content/spots.json";
 import type { Spot } from "../../lib/data/spots";
 import { buildSpotFeed, spotIndexFeed, spotIndexFeedJson, toSpotFeedItem } from "../../lib/data/spotFeed";
+import type { SpotImage } from "../../lib/data/spotImages";
 import * as route from "../app/data/spots.json/route";
 
 /**
@@ -45,7 +46,17 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image"];
+
+/** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
+function image(over: Partial<SpotImage> = {}): SpotImage {
+    return {
+        wikidata: "Q1", file: "File:A.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+        thumbUrl: "https://upload.wikimedia.org/a/640px-A.jpg", author: "撮った人", license: "CC BY-SA 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", method: "wikidata-P18", fetchedAt: "2026-09-26",
+        reviewedBy: null, ...over,
+    };
+}
 
 describe("アプリ向けの索引", () => {
     it("鍵の集合が固定されている（重い項目・製品名・確認者を運ばない）", () => {
@@ -78,6 +89,26 @@ describe("アプリ向けの索引", () => {
         expect(verified.region).toEqual({ prefecture: "香川県", city: "観音寺市" });
     });
 
+    it("写真は、公開済みで owner が写真を確かめた行だけ。作者とライセンスを必ず一緒に運ぶ", () => {
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        const images = {
+            ok: image({ reviewedBy: "rymaruta", reviewedAt: "2026-09-26" }),
+            unreviewed: image(),
+            draft: image({ reviewedBy: "rymaruta" }),
+        };
+        const ok = toSpotFeedItem(spot("ok", pub), images);
+        expect(ok.image).toEqual({
+            url: "https://upload.wikimedia.org/a/640px-A.jpg", author: "撮った人", license: "CC BY-SA 4.0",
+            licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", pageUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+        });
+        // 🔴 機械が選んだだけ（reviewedBy が空）の写真は出さない
+        expect("image" in toSpotFeedItem(spot("unreviewed", pub), images)).toBe(false);
+        // 🔴 下書きには写真を付けない（本文と同じく運営が確かめていない行）
+        expect("image" in toSpotFeedItem(spot("draft"), images)).toBe(false);
+        // 写真の無いスポットには鍵ごと出さない
+        expect("image" in toSpotFeedItem(spot("none", pub), images)).toBe(false);
+    });
+
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
         const item = toSpotFeedItem(spot("bare", { nameEn: undefined, reading: undefined, category: undefined, coords: undefined }));
         expect(Object.keys(item).sort()).toEqual(["draftedAt", "name", "region", "slug", "spotId", "stage", "summary"]);
@@ -103,6 +134,16 @@ describe("実際の台帳で作った索引", () => {
         expect(items.map((s) => s.slug).sort()).toEqual(published.map((s) => s.slug).sort());
         expect(items.length).toBeGreaterThan(0);
         expect(items.every((s) => s.stage === "published" && Boolean(s.verifiedAt))).toBe(true);
+    });
+
+    it("公開済みの4件は、owner が確かめた写真を持つ（2026-09-26）", () => {
+        const withImage = items.filter((s) => s.image);
+        expect(withImage.map((s) => s.slug).sort()).toEqual(["kiyosumi-keiryu-hiroba", "kobe-kitano-ijinkan", "nabegataki", "takaya-jinja"]);
+        for (const s of withImage) {
+            expect(s.image!.author, s.slug).toBeTruthy();
+            expect(s.image!.license, s.slug).toBeTruthy();
+            expect(s.image!.url, s.slug).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
+        }
     });
 
     /** 目安は 850KB（minify・gzip 前）。超えたら項目か件数を見直す */
