@@ -5212,7 +5212,8 @@
     "coordsMismatch": true,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": "rymaruta",
+    "reviewedAt": "2026-09-26"
   },
   "kiyotsu-gorge-tunnel": {
     "wikidata": "Q11561258",
@@ -5238,7 +5239,8 @@
     "distanceKm": 0.14,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": "rymaruta",
+    "reviewedAt": "2026-09-26"
   },
   "kochi-castle": {
     "wikidata": "Q1012815",
@@ -7020,7 +7022,8 @@
     "distanceKm": 0.98,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": "rymaruta",
+    "reviewedAt": "2026-09-26"
   },
   "nachi-no-taki": {
     "wikidata": "Q1365882",
@@ -10927,7 +10930,8 @@
     "coordsMismatch": true,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": "rymaruta",
+    "reviewedAt": "2026-09-26"
   },
   "takayama-inari": {
     "wikidata": "Q25104460",
