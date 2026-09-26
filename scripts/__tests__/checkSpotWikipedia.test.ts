@@ -27,23 +27,39 @@ describe("数の読み取り", () => {
 });
 
 describe("記事に数があるか", () => {
+    const has = (article: string, text: string) => articleHasNumber(article, numericClaims(text)[0]);
+
     it("桁区切りや単位の書き方が違っても当たる", () => {
-        expect(articleHasNumber("全長3,911メートル", "3911")).toBe(true);
+        expect(has("全長3,911メートル", "全長3911m")).toBe(true);
+        expect(has("延長12㎞", "12km")).toBe(true);
     });
     it("🔴 別の数の一部には当てない（300 が 1300 や 300.5 に当たらない）", () => {
-        expect(articleHasNumber("標高1300メートル", "300")).toBe(false);
-        expect(articleHasNumber("300.5メートル", "300")).toBe(false);
-        expect(articleHasNumber("標高300メートル", "300")).toBe(true);
+        expect(has("標高1300メートル", "300m")).toBe(false);
+        expect(has("標高300.5の年", "300年")).toBe(false);
+        expect(has("標高300メートル", "300m")).toBe(true);
+    });
+    it("🔴 単位が違えば当てない（実データ: 300本 ← 300円・700段 ← 樹齢700年・12m ← 12日）", () => {
+        expect(has("入園料 一般 300円", "300本")).toBe(false);
+        expect(has("樹齢は約700年", "700段")).toBe(false);
+        expect(has("毎年8月12日に", "12m")).toBe(false);
+        expect(has("16時30分まで", "30m")).toBe(false);
+    });
+    it("長さは丸めた数を許す（24m と 24.4メートル）。年・段は許さない", () => {
+        expect(has("樹高24.4メートル", "24m")).toBe(true);
+        expect(has("1933年に竣工", "1959年")).toBe(false);
+        expect(has("石段は390段", "398段")).toBe(false);
     });
 });
 
 describe("場所の名前", () => {
-    it("郡を外し、市町村の字を外した形も探す", () => {
-        expect(placeNames("西臼杵郡高千穂町")).toEqual(["西臼杵郡高千穂町", "高千穂町", "高千穂"]);
+    it("郡を外した形も探す。🔴 市町村の字を外した短い形は使わない（`府中` はどこにでも出る）", () => {
+        expect(placeNames("西臼杵郡高千穂町")).toEqual(["西臼杵郡高千穂町", "高千穂町"]);
+        expect(placeNames("府中市")).toEqual(["府中市"]);
         expect(placeNames(undefined)).toEqual([]);
     });
-    it("県は `県` を外した形も・海外は国名", () => {
-        expect(regionNames({ country: "日本", prefecture: "香川県" })).toEqual(["香川県", "香川"]);
+    it("🔴 県は正式名だけ（`京都` は `東京都` に含まれる）。東京都だけ `東京` も・海外は国名", () => {
+        expect(regionNames({ country: "日本", prefecture: "京都府" })).toEqual(["京都府"]);
+        expect(regionNames({ country: "日本", prefecture: "東京都" })).toEqual(["東京都", "東京"]);
         expect(regionNames({ country: "日本", prefecture: "北海道" })).toEqual(["北海道"]);
         expect(regionNames({ country: "フランス" })).toEqual(["フランス"]);
     });
@@ -54,7 +70,8 @@ describe("記事がそのスポットそのものか", () => {
         expect(subjectNames("利尻島 姫沼")).toEqual(["姫沼"]);
         expect(subjectNames("オペラ・ガルニエ（パレ・ガルニエ）")).toEqual(["オペラガルニエ", "パレガルニエ"]);
     });
-    it("題と名前のどちらかがもう一方を含めば同じもの（異体字・「の」も揃える）", () => {
+    it("同じか、名前が題を含めば同じもの（異体字・「の」も揃える）", () => {
+        expect(sameSubject({ name: "勝連城跡" }, "勝連城")).toBe(true);
         expect(sameSubject({ name: "眼鏡橋" }, "眼鏡橋 (長崎市)")).toBe(true);
         expect(sameSubject({ name: "柳津 圓蔵寺" }, "円蔵寺")).toBe(true);
         expect(sameSubject({ name: "三保松原" }, "三保の松原")).toBe(true);
@@ -63,6 +80,10 @@ describe("記事がそのスポットそのものか", () => {
         expect(sameSubject({ name: "明石城跡", aliases: ["明石公園"] }, "兵庫県立明石公園第一野球場")).toBe(false);
         // 別名に祭りが入っていても、別名では合わせない
         expect(sameSubject({ name: "櫛田神社", aliases: ["博多祇園山笠"] }, "博多祇園山笠")).toBe(false);
+        // 🔴 題がスポット名を含む向き（実データの match にあった）
+        expect(sameSubject({ name: "神島" }, "鳥羽市立神島中学校")).toBe(false);
+        expect(sameSubject({ name: "西海橋" }, "新西海橋")).toBe(false);
+        expect(sameSubject({ name: "七里ヶ浜" }, "七里ヶ浜駅")).toBe(false);
         // 島の記事はビーチの記事ではない
         expect(sameSubject({ name: "座間味島 古座間味ビーチ" }, "座間味島")).toBe(false);
     });
@@ -81,6 +102,9 @@ describe("1件の判定", () => {
     it("場所・位置・数が全部合えば match", () => {
         expect(checkSpot(spot, { distanceKm: 0.1 }, article).verdict).toBe("match");
     });
+    it("🔴 照らせる数が無ければ match にしない（located。中身は一度も照合していない）", () => {
+        expect(checkSpot({ ...spot, summary: "山頂にある神社。" }, {}, article).verdict).toBe("located");
+    });
     it("記事が無ければ no-article", () => {
         expect(checkSpot(spot, undefined, undefined).verdict).toBe("no-article");
         expect(checkSpot(spot, undefined, { status: "no-article" }).verdict).toBe("no-article");
@@ -95,8 +119,8 @@ describe("1件の判定", () => {
         expect(checkSpot(spot, { coordsMismatch: true, distanceKm: 3.4 }, article).verdict).toBe("coords");
     });
     it("記事に出てこない数があれば unsupported（間違いとは決めつけず一覧に出す）", () => {
-        const r = checkSpot({ ...spot, summary: "標高405mの山頂" }, {}, article);
+        const r = checkSpot({ ...spot, summary: "標高450mの山頂" }, {}, article);
         expect(r.verdict).toBe("unsupported");
-        expect(r.missing).toEqual(["405m"]);
+        expect(r.missing).toEqual(["450m"]);
     });
 });

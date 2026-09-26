@@ -37,51 +37,96 @@ export function normalizeDigits(text) {
         .replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
 }
 
-// 数える単位。**月・時・分・度は数えない**——見頃や時刻は記事に書かれないことが
-// 多く、「裏付けなし」ばかりになって一覧が読めなくなる
-const UNIT = "(?:メートル|ｍ|m|キロメートル|km|キロ|年|段|本|万本|万株|種|haha|ヘクタール|ha)";
-const CLAIM_RE = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UNIT})(?![a-zA-Z])`, "g");
+// 数える単位と、記事の側での書き方。**月・時・分・度は数えない**——見頃や時刻は
+// 記事に書かれないことが多く、「裏付けなし」ばかりになって一覧が読めなくなる
+const UNIT_FORMS = {
+    m: ["メートル", "ｍ", "m"],
+    km: ["キロメートル", "km", "㎞", "キロ"],
+    年: ["年"],
+    段: ["段"],
+    万本: ["万本"],
+    本: ["本"],
+    万株: ["万株"],
+    種: ["種"],
+    ha: ["ヘクタール", "ha"],
+};
+/** 書き方 → 単位（長い書き方から当てる。`キロメートル` を `キロ` と読まない） */
+const FORM_TO_UNIT = Object.entries(UNIT_FORMS)
+    .flatMap(([unit, forms]) => forms.map((f) => [f, unit]))
+    .sort((x, y) => y[0].length - x[0].length);
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ANY_FORM = FORM_TO_UNIT.map(([f]) => escapeRe(f)).join("|");
+const CLAIM_RE = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${ANY_FORM})(?![a-zA-Z])`, "g");
+/** 丸めて書かれる量（長さ・面積）。数え物と年は含めない */
+const MEASURES = new Set(["m", "km", "ha"]);
+const unitOf = (form) => FORM_TO_UNIT.find(([f]) => f === form)?.[1];
 
 /**
- * 文章に書いた数（高さ・距離・年など）。
+ * 文章に書いた数（高さ・距離・年など）と、その単位。
  * **10 未満の数は拾わない**（「2本の滝」の類は記事と照らしても意味が薄い）。
- * 同じ数は1つにまとめる。
+ * 同じ数と単位は1つにまとめる。
  */
 export function numericClaims(text) {
     const seen = new Map();
     for (const m of normalizeDigits(text).matchAll(CLAIM_RE)) {
         const value = m[1];
         if (Number(value) < 10) continue;
-        const unit = m[2] === "ｍ" ? "m" : m[2];
+        const unit = unitOf(m[2]);
         const key = `${value}${unit}`;
         if (!seen.has(key)) seen.set(key, { value, unit, raw: m[0] });
     }
     return [...seen.values()];
 }
 
-/** 数が記事に出てくるか。前後が数字の一部でないこと（`300` が `1300` に当たらない） */
-export function articleHasNumber(article, value) {
+/**
+ * **同じ単位で**その数が記事に出てくるか。
+ *
+ * - 単位まで見る。数だけ見ると「300本」が「300円」に、「700段」が「樹齢700年」に
+ *   当たっていた（実データの match に29件）
+ * - 長さ・面積だけ、丸めた数を許す: 説明の「24m」と記事の「24.4メートル」は
+ *   同じ数と見る（差が 3% 以内。「約」で丸めて書くため）。**年・段・本は
+ *   ぴったりだけ**（3% だと「1959年」が「1933年」に当たる）
+ * - 前後が数字の一部でないこと（`300` が `1300` に当たらない）
+ */
+export function articleHasNumber(article, claim) {
     const text = normalizeDigits(article);
-    // 後ろが `.5` のような小数の続きでも別の数（`300` が `300.5` に当たらない）
-    const re = new RegExp(`(?<![\\d.])${value.replace(".", "\\.")}(?!\\d|\\.\\d)`);
-    return re.test(text);
+    const target = Number(claim.value);
+    for (const m of text.matchAll(CLAIM_RE)) {
+        const before = text[m.index - 1];
+        if (before && /[\d.]/.test(before)) continue;
+        if (unitOf(m[2]) !== claim.unit) continue;
+        const found = Number(m[1]);
+        if (found === target) return true;
+        if (MEASURES.has(claim.unit) && Math.abs(found - target) / target <= 0.03) return true;
+    }
+    return false;
 }
 
-/** 市町村の探す形。郡を外し、`市`・`町`・`村`・`区` を外した形も候補にする */
+/**
+ * 市町村の探す形。郡を外した形も候補にする。
+ *
+ * **`市`・`町`・`村` を外した短い形は使わない。** `府中` `中央` のような形は
+ * たいていの記事に出てくるので、場所の裏付けにならない。
+ */
 export function placeNames(city) {
     if (!city) return [];
     const bare = city.replace(/^.+?郡/, "");
-    const stem = bare.replace(/(市|町|村|区)$/, "");
-    return [...new Set([city, bare, stem].filter((s) => s.length >= 2))];
+    return [...new Set([city, bare].filter((s) => s.length >= 2))];
 }
 
-/** 県・国の探す形（`東京都`→`東京`・`北海道`はそのまま） */
+/**
+ * 県・国の探す形。
+ *
+ * **`府`・`県` を外した短い形は使わない。** `京都` は `東京都` に含まれる。
+ * `東京都` だけは `東京` も認める（記事は「東京の〜」と書くことが多く、
+ * `東京` を含む別の県名は無い）。
+ */
 export function regionNames(region) {
     if (!region) return [];
     if (region.country && region.country !== "日本") return [region.country];
     const pref = region.prefecture ?? "";
-    const stem = pref === "北海道" ? pref : pref.replace(/(都|府|県)$/, "");
-    return [...new Set([pref, stem].filter((s) => s.length >= 2))];
+    if (!pref) return [];
+    return pref === "東京都" ? ["東京都", "東京"] : [pref];
 }
 
 /** 名前を比べる形。括弧書き・空白・中黒・鉤括弧・「の」を落とし、異体字と `ヶ/ヵ/ケ` を揃える */
@@ -106,8 +151,7 @@ export function subjectKey(name) {
  * そこで県や数字が合っても、確かめたのは別のものになる。
  *
  * だから**別名は使わない**（関連する別のものが入っている）。比べるのは名前の
- * **最後の語**（`利尻島 姫沼` の `姫沼`）と括弧の中の呼び名だけで、題とどちらかが
- * もう一方を含むこと。「明石」のような共通の欠片だけでは合わせない。
+ * **最後の語**（`利尻島 姫沼` の `姫沼`）と括弧の中の呼び名だけ。
  */
 export function subjectNames(name) {
     const raw = String(name ?? "").trim();
@@ -119,7 +163,11 @@ export function subjectNames(name) {
 export function sameSubject(spot, title) {
     const t = subjectKey(title);
     if (t.length < 2) return false;
-    return subjectNames(spot.name).some((n) => n.includes(t) || t.includes(n));
+    // **題がスポット名を含む向きは認めない。** `神島` に `鳥羽市立神島中学校`、
+    // `西海橋` に `新西海橋`、`七里ヶ浜` に `七里ヶ浜駅` が当たっていた。
+    // 認めるのは「同じ」か「スポット名が題を含む」（`勝連城跡` と `勝連城`・
+    // `史跡足利学校` と `足利学校`）だけで、後者は題が3字以上のとき
+    return subjectNames(spot.name).some((n) => n === t || (t.length >= 3 && n.includes(t)));
 }
 
 /** スポットの文章（数を拾う範囲）。題・要約・説明・見どころ */
@@ -130,8 +178,10 @@ function spotText(spot) {
 /**
  * 1件を突き合わせる。
  *
- * - `match`       場所・位置・数が全部合う（公開の候補）
- * - `unsupported` 場所と位置は合うが、記事に出てこない数か市町村がある
+ * - `match`       題・場所・位置が合い、**説明の数が1つ以上、全部**記事と合う
+ * - `located`     題・場所・位置は合うが、説明に照らせる数が無い
+ *                 （中身は一度も照合していない。`match` と分けて数える）
+ * - `unsupported` 題・場所・位置は合うが、記事に出てこない数か市町村がある
  * - `coords`      台帳の座標が記事の場所から遠い（座標を直すまで出さない）
  * - `subject`     記事の題がスポットの名前・別名と合わない（別のものの記事）
  * - `place`       記事に県（国）が出てこない（別の場所の記事の疑い）
@@ -146,7 +196,7 @@ export function checkSpot(spot, logRow, article) {
     const cityNames = placeNames(spot.region?.city);
     const cityHit = cityNames.length === 0 || cityNames.some((n) => text.includes(n));
     const claims = numericClaims(spotText(spot));
-    const missing = claims.filter((c) => !articleHasNumber(text, c.value)).map((c) => c.raw);
+    const missing = claims.filter((c) => !articleHasNumber(text, c)).map((c) => c.raw);
     const base = {
         title: article.title,
         url: article.url,
@@ -160,7 +210,7 @@ export function checkSpot(spot, logRow, article) {
     if (!regionHit) return { verdict: "place", ...base };
     if (logRow?.coordsMismatch) return { verdict: "coords", ...base };
     if (!cityHit || missing.length > 0) return { verdict: "unsupported", ...base };
-    return { verdict: "match", ...base };
+    return { verdict: claims.length > 0 ? "match" : "located", ...base };
 }
 
 function main(argv) {
