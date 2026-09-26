@@ -39,13 +39,14 @@ on:
           - verify-upload     # **staging** で presign が本当に使えるか確かめる（apply が要る）
           - verify-invalidate # **staging** で削除時のエッジ掃除が Lambda の中で動くか確かめる（apply が要る）
           - verify-origin-failover # **staging** でオリジングループが 404ページより先に効くか確かめる（動的化の関門）
+          - restore-account   # 間違えて退会したアカウントを戻す（owner_user_id 空=直近の墓石一覧・指定=状況を読む・apply=墓石を消す）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
         type: boolean
         default: false
       owner_user_id:
-        description: "who-liked のときの対象ユーザーID（必須）"
+        description: "who-liked・restore-account のときの対象ユーザーID"
         type: string
         default: ""
       geocode_skip:
@@ -129,6 +130,14 @@ jobs:
           OLD_HOSTS: d1s3dwwzgxf5ni.cloudfront.net
 
       # 読み取り専用。apply の指定は不要
+      # 間違えて退会したアカウントを戻す（scripts/restore-account.js）。
+      # 既定は読むだけ。apply は owner_user_id の墓石1行だけを消す
+      - name: 退会したアカウントを戻す
+        if: inputs.task == 'restore-account'
+        run: node scripts/restore-account.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          OWNER_USER_ID: ${{ inputs.owner_user_id }}
+
       - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'
         run: node scripts/who-liked.js
