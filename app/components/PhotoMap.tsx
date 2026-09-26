@@ -374,11 +374,12 @@ export default function PhotoMap({
                 }
 
                 // 現在地の点。**写真のピンとは別の形**（丸い点）にして、
-                // 「ここに写真がある」と読ませない
+                // 「ここに写真がある」と読ませない。色はデザインシステムの
+                // `location`（地図の現在地だけに使う淡い青・黒 2px の縁）
                 const h = hereRef.current;
                 if (h) {
                     L.circleMarker([h.lat, h.lng], {
-                        radius: 7, color: "#ffffff", weight: 3, fillColor: "#2080f6", fillOpacity: 1,
+                        radius: 7, color: "#000000", weight: 2, fillColor: "#9cc3e6", fillOpacity: 1,
                         interactive: false,
                     }).addTo(layer);
                 }

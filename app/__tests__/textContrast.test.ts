@@ -23,20 +23,16 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..");
 
 /**
- * **下地は紺（`--color-bg: #050e17`・2026-09-21）。** それまでは純黒で、
- * 半透明の文字はここで「黒に溶かした色」として比を出していた。紺は黒より
- * 僅かに明るい（相対輝度 0.0045）が、**半透明の文字は下地の上に合成される**
- * ので分子も一緒に増え、比はほぼ変わらない（計算して確かめた。最初「下がる」と
- * 書いて自己確認が落ちた）:
+ * **下地は純黒（`--color-bg: #000000`・2026-09-26 に紺から戻した）。**
+ * 9/21〜9/26 は紺（`#050e17`）で、紺は黒より僅かに明るいぶん境界が1段下がり
+ * `/45` が辛うじて届いていた。**黒では届かない**（計算した値）:
  *
- *   text-white/44  4.25:1（黒）→ 4.36:1（紺）  ← どちらも届かない
- *   text-white/45  4.41:1（黒）→ 4.51:1（紺）  ← 紺では**辛うじて届く**（境界が1段下がる）
- *   text-white/46  4.58:1（黒）→ 4.66:1（紺）
- *   text-white/50  5.28:1（黒）→ 5.32:1（紺）
+ *   text-white/44  4.25:1  ← 届かない
+ *   text-white/45  4.41:1  ← 届かない（紺の頃は 4.51 で届いていた）
+ *   text-white/46  4.58:1
+ *   text-white/50  5.28:1
  *
- * **`/45` を新しく使ってよいとは読まないこと**（この行に閉じ記号を書くと
- *  コメントが終わる。書きかけて踏んだ）。4.51 は JPEG の実測値から
- * 決めた下地に対する計算で、下地を1段暗くすれば落ちる。使うのは /50 から。
+ * 使うのは /50 から。半透明は下地の上に**合成してから**測る。
  *
  * `globals.css` の `@theme` と同じ値をここに持つ。ずれると見張りが嘘をつくので
  * 下の it で突き合わせる。
@@ -45,7 +41,7 @@ const ROOT = join(__dirname, "..", "..");
  * したら、取り消し操作の赤 `text-[#ff453a]`（6.16:1）まで弾いた。分からないなら
  * 計算すればよい）。半透明は下地の上に**合成してから**測る。
  */
-const BASE_BG = "#050e17";
+const BASE_BG = "#000000";
 function hexToRgb(hexColor: string): number[] {
     const h = hexColor.replace("#", "");
     const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
@@ -294,13 +290,13 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         expect(m?.[1]?.toLowerCase(), "globals.css に --color-bg が無い").toBeDefined();
         expect(m![1].toLowerCase()).toBe(BASE_BG);
     });
-    it("紺の下地での境界（/44 は届かず /46 は届く。合成してから測っている証拠）", () => {
+    it("黒の下地での境界（/45 は届かず /46 は届く）", () => {
         expect(ratioOnBlack("#ffffff", 0.44)).toBeLessThan(4.5);
+        // 紺の頃は /45 が 4.51 で届いていた。黒では 4.41 で届かない
+        expect(ratioOnBlack("#ffffff", 0.45)).toBeLessThan(4.5);
         expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.5);
-        // 合成を忘れて「黒に溶かす」式に戻すと、/46 が 4.58 に戻る＝紺の値（4.66）と区別できる
-        expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.6);
     });
-    it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／紺の上の主色・リンク／チップの文字）", () => {
+    it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／黒の上の真鍮・リンク／チップの文字）", () => {
         const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
         const tok = (name: string) => { const m = new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i").exec(css); expect(m, `--color-${name} が無い`).not.toBeNull(); return m![1]; };
         const on = (fg: string, bg: string) => { const a = luminance(hexToRgb(fg)), b = luminance(hexToRgb(bg)); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
@@ -317,7 +313,7 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
      * 免除。`[ファイル, その行を見分ける印, 理由]`。
      * **印にはその行のクラス指定そのものを書く**（アイコン名だけだと、同じ
      * アイコンを使う別の行や `import` の行まで黙らせる）。
-     * 比率は下地（`BASE_BG`・紺）に合成して出す（`scripts/audit-text-contrast.mjs` と同じ式）。
+     * 比率は下地（`BASE_BG`・黒）に合成して出す（`scripts/audit-text-contrast.mjs` と同じ式）。
      */
     const EXEMPT: Array<[string, string, string]> = [
         // 純粋な装飾のアイコン（WCAG 1.4.11 の対象外。比率は参考）

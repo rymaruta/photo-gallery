@@ -37,7 +37,7 @@ describe("テーマカラー", () => {
         expect(String(viewport.themeColor).toLowerCase()).toBe(String(manifest.theme_color).toLowerCase());
     });
 
-    // 背景色もマニフェスト側にある。**同じ色**（いまは紺）であることを確かめる
+    // 背景色もマニフェスト側にある。**同じ色**（いまは黒）であることを確かめる
     // （起動画面とツールバーで色が割れると、開いた瞬間にちらつく）
     it("マニフェストの背景色とツールバーの色が同じ", () => {
         expect(String(manifest.background_color).toLowerCase()).toBe(String(manifest.theme_color).toLowerCase());

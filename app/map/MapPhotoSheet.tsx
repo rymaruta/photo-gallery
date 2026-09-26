@@ -307,7 +307,7 @@ export default function MapPhotoSheet({
 
                 <div className="flex items-center justify-between" style={{ gap: "8px", marginTop: "10px" }}>
                     {/* 日付。**小さい字なので色は薄くしない**（white/40 は
-                        紺地で約3.7:1＝小さい文字の基準 4.5:1 に届かない） */}
+                        黒地で約3.66:1＝小さい文字の基準 4.5:1 に届かない） */}
                     <p className="text-white/60 tabular-nums" style={{ fontSize: "12px" }}>{date}</p>
 
                     {/* 何枚目か。**1枚のときは出さない**——「1/1」と

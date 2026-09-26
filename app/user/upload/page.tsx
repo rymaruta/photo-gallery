@@ -1654,7 +1654,7 @@ function UploadPageInner() {
                                     onChange={(e) => setAsOnePost(e.target.checked)}
                                     disabled={uploading || tooManyToGroup}
                                     aria-describedby="group-hint"
-                                    className="w-4 h-4 accent-[#2080f6]"
+                                    className="w-4 h-4 accent-[#c9a66b]"
                                 />
                                 <span className="text-white/80" style={{ fontSize: "13px" }}>
                                     {isJa
@@ -1938,7 +1938,7 @@ function UploadPageInner() {
                             checked={gpsAutofill}
                             onChange={toggleGpsAutofill}
                             disabled={uploading}
-                            className="w-4 h-4 accent-[#2080f6]"
+                            className="w-4 h-4 accent-[#c9a66b]"
                         />
                         <span className="text-white/60" style={{ fontSize: "12px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5 mr-0.5" />

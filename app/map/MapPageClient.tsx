@@ -308,7 +308,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                         />
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**
-                            （white/40 は紺地で約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
+                            （white/40 は黒地で約3.66:1 ＝ 小さい文字の基準 4.5:1 に届かない） */}
                         <p className="mt-3 text-xs text-white/60">
                             {en
                                 ? "Pins are rounded to about 1 km. "

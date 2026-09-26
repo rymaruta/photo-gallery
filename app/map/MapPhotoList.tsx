@@ -99,8 +99,8 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                                     </span>
                                 )}
                                 {date && (
-                                    // **小さい字なので色は薄くしない**（white/40 は紺地で
-                                    // 約3.7:1 ＝ 小さい文字の基準 4.5:1 に届かない）
+                                    // **小さい字なので色は薄くしない**（white/40 は黒地で
+                                    // 約3.66:1 ＝ 小さい文字の基準 4.5:1 に届かない）
                                     <span className="block text-white/60 tabular-nums" style={{ fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
                                         {date}
                                     </span>
