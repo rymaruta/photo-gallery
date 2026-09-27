@@ -870,7 +870,7 @@ async function main() {
     //         素材（Step 1）を全部上げ終えてから始めるので、どの HTML を先に
     //         置いても指す先は揃っている＝**1件ずつ順に書く理由は無い**。
     //         以前は1件ずつで、撮影スポットのページが増えた 2026-09-27 に
-    //         この段だけで13分を超え、ジョブの30分の上限で打ち切られた
+    //         S3 の段が13分を超え、ジョブの30分の上限で打ち切られた
     //         （本番は途中まで入れ替わった状態で止まった）。素材と同じ並びで書く。
     console.log(`[deploy] Step 2/3: uploading ${htmlFiles.length} HTML/txt file(s)...`);
     await runPool(htmlFiles, uploadFile, 12);

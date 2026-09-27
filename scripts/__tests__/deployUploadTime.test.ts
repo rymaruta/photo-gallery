@@ -7,7 +7,8 @@ import { join } from "node:path";
 // ページが増えた分だけ伸びたため。本番は途中まで入れ替わった状態で止まった。
 // ここで固定するのは2つ:
 //   1. HTML も素材と同じく並べて書く（素材を先に上げ終えるので順番は要らない）
-//   2. フロントのジョブの上限に余裕がある
+//   2. フロントのジョブの上限と、S3 の段の上限の両方に余裕がある
+//      （書き込みはすべて S3 の段の中。ジョブだけ広げても段の上限で止まる）
 const root = join(__dirname, "..", "..");
 /** コメントを落とす。**コメントに書いてあるだけ**を緑にしないため */
 const strip = (s: string) => s.replace(/^\s*(\/\/|#).*$/gm, "");
@@ -35,5 +36,14 @@ describe("本番の反映が S3 への書き込みで時間切れにならない
         const m = /timeout-minutes:\s*(\d+)/.exec(job);
         expect(m, "deploy-frontend に timeout-minutes が無い").not.toBeNull();
         expect(Number(m![1])).toBeGreaterThanOrEqual(45);
+    });
+
+    it("S3 の段の上限は30分以上（ジョブの上限は超えない）", () => {
+        const step = workflow.slice(workflow.indexOf("- name: Deploy to S3"));
+        const m = /timeout-minutes:\s*(\d+)/.exec(step);
+        expect(m, "Deploy to S3 に timeout-minutes が無い").not.toBeNull();
+        expect(Number(m![1])).toBeGreaterThanOrEqual(30);
+        const job = /timeout-minutes:\s*(\d+)/.exec(workflow.slice(workflow.indexOf("needs: [config, api-gate]")));
+        expect(Number(m![1])).toBeLessThan(Number(job![1]));
     });
 });
