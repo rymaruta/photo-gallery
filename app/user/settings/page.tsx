@@ -556,7 +556,7 @@ export default function SettingsPage() {
 
                 {/* ── 危険な操作 ───────────────────────────────── */}
                 <section className="mt-10 pt-6 border-t border-white/10">
-                    <h2 className="text-[11px] tracking-widest uppercase text-danger/70 mb-2">
+                    <h2 className="text-[11px] tracking-widest uppercase text-danger mb-2">
                         {locale === "en" ? "Danger zone" : "危険な操作"}
                     </h2>
                     <div className="rounded-2xl bg-danger/[0.05] ring-1 ring-danger/15 p-4">

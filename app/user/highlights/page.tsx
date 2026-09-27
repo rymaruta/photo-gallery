@@ -390,7 +390,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                             <button
                                 type="button"
                                 onClick={() => setConfirmDelete(true)}
-                                className="px-3 py-2 text-sm text-danger hover:text-danger"
+                                className="px-3 py-2 text-sm text-danger hover:underline"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {isJa ? "このハイライトを削除" : "Delete this highlight"}
