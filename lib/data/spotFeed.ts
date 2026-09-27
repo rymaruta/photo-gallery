@@ -10,10 +10,12 @@
 //             coords（約1km精度）/ category / summary / stage / draftedAt /
 //             verifiedAt（人が確かめた行だけ）/
 //             image（写真・作者・ライセンス。**owner が写真を確かめた公開済みの行だけ**
-//             ・2026-09-26。`lib/data/spotImages.ts`）
-//   載せない  description・highlights・季節・時間帯・構図・アクセス・駐車場・
-//             注意点・出典（全文 3.5MB。索引は約 0.6MB / gzip 0.2MB）、
-//             draftedBy（製品名を画面・アプリに出さない）、verifiedBy
+//             ・2026-09-26。`lib/data/spotImages.ts`）/
+//             seasonalGuide（季節の案内。**公開済みの行だけ**・2026-09-27。アプリの
+//             「いつ行く？」と「いまが見頃」が全部の場所の季節を一度に要るため。約 52KB）
+//   載せない  description・highlights・時間帯・構図・アクセス・駐車場・
+//             注意点・出典、draftedBy（製品名を画面・アプリに出さない）、verifiedBy。
+//             **本文は場所ごとのファイル**（`/app/data/spots/<slug>.json`・`spotBody.ts`）
 //
 // **母集合は `visibleSpots`**（画面と同じ）。**いまは公開済みだけ**が載る
 // （`BUILD_DRAFT_SPOTS` が false・owner の判断 2026-09-25）。下書きを建てる設定に
@@ -57,6 +59,8 @@ export type SpotFeedItem = {
     verifiedAt?: string;
     /** 写真。**公開済みで、owner が写真を確かめた行だけ** */
     image?: SpotFeedImage;
+    /** 季節の案内（台帳の文のまま）。**公開済みの行だけ**——下書きの文はアプリに出さない */
+    seasonalGuide?: { season: string; text: string }[];
 };
 
 /** `undefined` の鍵を落とす（JSON に `"x": null` を出さない・鍵の集合を固定する） */
@@ -93,6 +97,9 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
                 licenseUrl: image.licenseUrl || undefined,
                 pageUrl: image.pageUrl,
             })
+            : undefined,
+        seasonalGuide: published && spot.seasonalGuide?.length
+            ? spot.seasonalGuide.map((g) => ({ season: g.season, text: g.text }))
             : undefined,
     });
 }
