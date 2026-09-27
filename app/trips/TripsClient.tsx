@@ -79,7 +79,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
         // **数を出すのは、聞けたときだけ**（失敗した回に「0件」と言い切らない）
         <Shell en={en} count={pending || failed ? null : plans.length}>
             {failed && (
-                <p role="alert" className="mb-4 text-sm text-amber-300/90">
+                <p role="alert" className="mb-4 text-sm text-danger">
                     {en ? "Couldn't load your trips. " : "旅行プランを読み込めませんでした。"}
                     <button onClick={retry} className="underline text-white/80 hover:text-white">
                         {en ? "Retry" : "再試行"}
@@ -88,7 +88,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
             )}
             {/* **サーバーの言い分をそのまま出す。** 上限（403）と混雑（503）を
                 「保存に失敗しました」に潰すと、何をすれば直るか分からない */}
-            {error && <p role="alert" className="mb-4 text-sm text-amber-300/90">{error}</p>}
+            {error && <p role="alert" className="mb-4 text-sm text-danger">{error}</p>}
 
             {/* 作る口は、取れていなくても出す——**新しく作るのに一覧は要らない** */}
             <div className="mb-4 flex gap-2">

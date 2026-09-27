@@ -800,7 +800,7 @@ export default function ProfileEditPage() {
                     {/* テーマソング */}
                     <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
-                            <MusicalNoteIcon className="w-4 h-4 text-fuchsia-400" />
+                            <MusicalNoteIcon className="w-4 h-4 text-accent" />
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                         </div>
 
@@ -896,7 +896,7 @@ export default function ProfileEditPage() {
                                                     className="min-w-0 flex-1 flex items-center py-2.5 text-left active:opacity-70 transition"
                                                 >
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-sm truncate ${isPreviewing ? "text-fuchsia-300" : "text-white"}`}>{song.title}</p>
+                                                        <p className={`text-sm truncate ${isPreviewing ? "text-accent" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
                                                     <span className="text-[11px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
@@ -941,7 +941,7 @@ export default function ProfileEditPage() {
                                                     className={inputClass}
                                                 />
                                                 {songInvalid && (
-                                                    <p className="text-xs text-amber-400/80 mt-1.5">
+                                                    <p className="text-xs text-danger mt-1.5">
                                                         {locale === "en"
                                                             ? "Unsupported link. Use Spotify, YouTube, or Apple Music."
                                                             : "未対応のリンクです。Spotify / YouTube / Apple Music を使ってください。"}

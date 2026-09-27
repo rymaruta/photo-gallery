@@ -119,7 +119,7 @@ export default function SaveSpotButton({
                 （押すと既に保存済みのものをもう一度保存することになる）。
                 `/favorites` が同じ場面で同じ断りを出している */}
             {failed && (
-                <p role="alert" className="text-xs text-amber-300/90">
+                <p role="alert" className="text-xs text-danger">
                     {en ? "Couldn't load your saved spots. " : "保存した場所を読み込めませんでした。"}
                     <button onClick={retry} className="underline text-white/80 hover:text-white">
                         {en ? "Retry" : "再試行"}

@@ -415,7 +415,7 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         // 見分けが付かなくなっていた（実際に一度上げてしまい、戻した）
         ["app/components/AddToHomeScreenHint.tsx", '"-m-1 p-1 text-white/40 hover:text-white/70"', "閉じる（3.66:1）"],
         ["app/components/CommentSection.tsx", "p-1 text-white/40 hover:text-danger", "コメントを削除（3.66:1）"],
-        ["app/components/MiniPlayer.tsx", '"text-fuchsia-300" : "text-white/40', "シャッフル・リピートの「切」（3.66:1）"],
+        ["app/components/MiniPlayer.tsx", '"text-accent" : "text-white/40', "シャッフル・リピートの「切」（3.66:1）"],
         ["app/components/MiniPlayer.tsx", 'aria-label="閉じる" className="p-1.5 text-white/40', "閉じる（3.66:1）"],
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-danger', "曲を削除（3.66:1）"],

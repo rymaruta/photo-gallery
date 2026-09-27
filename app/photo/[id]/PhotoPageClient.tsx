@@ -1160,7 +1160,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     {mvEmbed && (
                         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
-                                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                 <button
                                     onClick={() => setMvOpen((v) => !v)}
@@ -1243,7 +1243,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     onClick={() => setSongPickerOpen(true)}
                                     className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
                                 >
-                                    <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-300" />
+                                    <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                     {photoSong
                                         ? (locale === "en" ? "Change BGM" : "BGMを変更")
                                         : (locale === "en" ? "Add a BGM to this photo" : "この写真にBGMを付ける")}

@@ -211,12 +211,12 @@ function LoginForm() {
 
                 {/* 未確認アカウント誘導 */}
                 {needsVerification && step === "login" && (
-                    <div className="mb-6 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
-                        <p className="text-amber-300/80 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
+                    <div className="mb-6 px-4 py-3 rounded-lg bg-accent-soft border border-accent/20 text-sm">
+                        <p className="text-white/85 mb-2 text-xs">確認コードのメールが届いているか確認してください。</p>
                         <Link
                             href={`/signup?email=${encodeURIComponent(username)}`}
                             prefetch={false}
-                            className="text-amber-300 hover:text-amber-200 underline text-xs transition-colors"
+                            className="text-accent hover:text-accent-strong underline text-xs transition-colors"
                         >
                             確認コードを入力・再送する →
                         </Link>

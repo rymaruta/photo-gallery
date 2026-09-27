@@ -253,7 +253,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     onClick={(e) => { e.preventDefault(); onTogglePin(photo.id, !pinned); }}
                     className={`absolute top-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         pinned
-                            ? "bg-amber-400/90 text-black"
+                            ? "bg-primary text-ink"
                             : OWNER_CHIP_IDLE
                     }`}
                     title={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
@@ -263,7 +263,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     {pinned ? <StarIcon className="w-4 h-4" /> : <StarIconOutline className="w-4 h-4" />}
                 </button>
             ) : pinned ? (
-                <span className="absolute top-1.5 left-1.5 p-1 rounded-full bg-black/50 text-amber-300 z-10 pointer-events-none">
+                <span className="absolute top-1.5 left-1.5 p-1 rounded-full bg-black/50 text-white z-10 pointer-events-none">
                     <StarIcon className="w-3.5 h-3.5" />
                 </span>
             ) : null}
@@ -1122,7 +1122,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
-                    <p className="text-xs text-amber-200/90 bg-amber-500/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-white/85 bg-accent-soft ring-1 ring-accent/20 rounded-lg px-3 py-2">
                         {loadError === "ownPhotos"
                             ? (locale === "en"
                                 ? "Couldn't load your photo list. Drafts and private photos are not shown. "
@@ -1136,7 +1136,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     : "プロフィールを読み込めませんでした。")}
                         <button
                             onClick={() => setReloadKey((k) => k + 1)}
-                            className="underline text-amber-100 hover:text-white ml-1"
+                            className="underline text-accent hover:text-accent-strong ml-1"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Retry" : "再読み込み"}
@@ -1466,7 +1466,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     ) : songEmbed && (
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
-                                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                                 <span className="ml-auto text-[10px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
                                 {/* MV(YouTube)は大きいので折りたたみ式 */}

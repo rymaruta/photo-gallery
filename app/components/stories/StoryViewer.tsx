@@ -1549,7 +1549,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         >
                             {muted
                                 ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
-                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-fuchsia-300" />}
+                                : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-white" />}
                             <span className="truncate">
                                 {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
                             </span>
@@ -1667,7 +1667,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <p
                     // **z は投票カード（25）と閉じる段（26）より上、返信の帯（30）より下。**
                     // z-20 だと、下寄りに置かれた白い投票カード自体が文言を覆う
-                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-rose-300"
+                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-white"
                     // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
                     // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
                     // ——あちらは自分のストーリー（帯が出ない）限定の文言。
@@ -1684,7 +1684,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
             {keepError && isOwnStory && (
                 <p
-                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-rose-300"
+                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-white"
                     style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                     role="alert"
                 >{keepError}</p>
@@ -1785,7 +1785,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 </button>
                             </div>
                             {replyError && (
-                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{replyError}</p>
+                                <p className="pt-1.5 text-center text-[11px] text-white" role="alert">{replyError}</p>
                             )}
                         </>
                     )}
@@ -1906,7 +1906,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                                     onClick={() => void blockSender(r.uid)}
                                                     disabled={blocking === r.uid}
                                                     aria-label={locale === "en" ? `Block ${r.name}` : `${r.name} さんをブロック`}
-                                                    className="text-[11px] text-white/50 hover:text-rose-300 disabled:opacity-40 active:scale-95 transition"
+                                                    className="text-[11px] text-white/50 hover:text-danger disabled:opacity-40 active:scale-95 transition"
                                                     style={{ touchAction: "manipulation" }}
                                                 >
                                                     {blocking === r.uid
@@ -1935,7 +1935,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             )}
                             {/* ブロックが効かなかった理由（`replyError` と同じ形） */}
                             {blockError && (
-                                <p className="pt-1.5 text-center text-[11px] text-rose-300" role="alert">{blockError}</p>
+                                <p className="pt-1.5 text-center text-[11px] text-danger" role="alert">{blockError}</p>
                             )}
                         </div>
                         )}

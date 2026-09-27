@@ -864,21 +864,21 @@ export default function NotificationsBell() {
                                                 </>
                                             ) : n.type === "like" ? (
                                                 <>
-                                                    <HeartIcon className="w-3.5 h-3.5 text-rose-400 inline -mt-0.5 mr-1" />
+                                                    <HeartIcon className="w-3.5 h-3.5 text-white inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
                                                 </>
                                             ) : n.type === "storyreply" ? (
                                                 <>
-                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-amber-300 inline -mt-0.5 mr-1" />
+                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> replied to your story</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたのストーリーに返信しました</>}
                                                 </>
                                             ) : n.type === "comment" ? (
                                                 <>
-                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
+                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> commented on your photo</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にコメントしました</>}

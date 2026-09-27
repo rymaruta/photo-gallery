@@ -2086,7 +2086,7 @@ export default function StoriesBar() {
                                 disabled={posting}
                                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 hover:bg-black/70 text-white/85 text-xs active:scale-95 transition"
                             >
-                                <MusicalNoteIcon className="w-4 h-4 text-fuchsia-300" />
+                                <MusicalNoteIcon className="w-4 h-4 text-white" />
                                 {locale === "en" ? "Add music" : "曲を付ける"}
                             </button>
                         )}
