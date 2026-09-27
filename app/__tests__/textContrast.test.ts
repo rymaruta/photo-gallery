@@ -310,12 +310,15 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
 });
 
 /**
- * **塗りと文字の組を、行の単位で縛る。** 紺＋青の頃は `bg-accent-fill text-white`
+ * **塗りと文字の組を、行の単位で縛る。** 見る塗りは `bg-accent-fill`・`bg-primary`・
+ * `bg-white`（`bg-white/10` のような薄い白は暗い面なので見ない。**`bg-primary/90` は見る**——
+ * 写真の上の白い札で、明るい塗りのまま）。`bg-white` を
+ * 見ていなかったので、撮影スポット一覧の選んだテーマの件数が白地に白のまま通っていた。 紺＋青の頃は `bg-accent-fill text-white`
  * が正しい組で、71か所に書かれていた。真鍮の塗りに白は 2.81:1 で読めないので、
  * 値だけ差し替えると**全部が一度に読めなくなる**。同じ行に白い文字を書いたら落とす。
  */
 describe("app 全体: 明るい塗りに白い文字を載せない", () => {
-    it("bg-accent-fill / bg-primary の行に text-white が無い", async () => {
+    it("bg-accent-fill / bg-primary / bg-white の行に text-white が無い", async () => {
         const { readdirSync, statSync } = await import("node:fs");
         const files: string[] = [];
         const walk = (rel: string) => {
@@ -336,9 +339,9 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
             src.forEach((line, i) => {
                 // 三項演算子の片側ごとに見る（非選択側の `text-white/70` を巻き込まない）
                 const segs = line.split(/["'`]/);
-                if (!segs.some((seg) => /\bbg-(accent-fill|primary)\b/.test(seg))) return;
+                if (!segs.some((seg) => /\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))/.test(seg))) return;
                 for (const seg of segs) {
-                    if (!/\bbg-(accent-fill|primary)\b/.test(seg)) continue;
+                    if (!/\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))/.test(seg)) continue;
                     seen++;
                     if (WHITE.test(seg)) bad.push(`${rel}:${i + 1} ${seg.trim().slice(0, 80)}`);
                 }
@@ -365,6 +368,9 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
                     parts.forEach((seg, k) => {
                         if (!WHITE.test(seg)) return;
                         if (k > 0 && /:\s*$/.test(parts[k - 1])) return;
+                        // 子が**自分で暗い地を敷いている**なら白い文字で正しい
+                        // （白い QR カードの中の黒い「閉じる」ボタン）
+                        if (/(^|\s)bg-(black|bg|surface|surface-2|ink|accent-deep|danger-fill)(\s|$)/.test(seg)) return;
                         bad.push(`${rel}:${j + 1} （子）${seg.trim().slice(0, 80)}`);
                     });
                 }
