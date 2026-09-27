@@ -62,7 +62,12 @@ export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = asyn
             // 自分を「親しい友達」に入れている人は、その人の行を読まないと
             // 分からない。**出している人ぶんだけ**あとで読む（下）
             Promise.resolve(new Set<string>()),
-            hiddenUserIds(userId).catch(() => new Set<string>()),
+            // 🔴 **読めなければ返さない（500）。** 空の集合に倒すと、ブロックした
+            // 相手に「親しい友達」の写真が渡る——`isVisiblePhoto` の closeFriends は
+            // フォローを見ず、`block.ts` は親しい友達から外さない。フォローの解除も
+            // 失敗を握りつぶすので、「フォロワーのみ」も安全とは言えない。
+            // ここは限定公開だけを返す口なので、閉じる側に倒す（公開の一覧は別の口）
+            hiddenUserIds(userId),
         ]);
 
         const followingSet = new Set(following);
