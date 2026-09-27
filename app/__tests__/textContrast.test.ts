@@ -345,6 +345,7 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
                 // **子の要素も見る。** 親を墨にしても、子が自分で `text-white` を
                 // 持っていれば白地に白のまま（絞り込みのチップの件数で実際に踏んだ）。
                 // 子＝この行を含む**開きタグ**より深く字下げされた行（閉じタグの手前まで）。
+                // 子を持たない要素（`/>` で閉じる）はそこで止まる。
                 // 起点を `className` の行にすると、三項演算子の行は子より深いので
                 // 子に届く前に打ち切る（最初そう書いて、件数の白を見逃した）。
                 // 三項演算子の「そうでないとき」の側（`: "text-white/50"`）は
@@ -356,7 +357,9 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
                 for (let j = i + 1; j < src.length && j < i + 60; j++) {
                     const child = src[j];
                     if (!child.trim()) continue;
-                    if (indent(child) <= base) break;
+                    // 開きタグを閉じる `>` は開きタグと同じ字下げに来る。そこで止めると
+                    // 子に1行も届かない（実際そう書いて、件数の白を見逃した）
+                    if (indent(child) <= base) { if (child.trim() === ">") continue; break; }
                     children++;
                     const parts = child.split(/["'`]/);
                     parts.forEach((seg, k) => {
