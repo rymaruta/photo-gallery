@@ -307,7 +307,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                 {/* お気に入りアイコン */}
                                 {isFav && (
                                     <div className="absolute top-2 right-2 z-10">
-                                        <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 drop-shadow-lg" />
+                                        <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white drop-shadow-lg" />
                                     </div>
                                 )}
 

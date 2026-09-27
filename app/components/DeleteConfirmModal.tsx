@@ -65,9 +65,9 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
 
             {/* モーダル本体 */}
             <div className="relative z-10 w-full max-w-sm rounded-3xl bg-surface ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center story-media-in">
-                <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
-                    <TrashIcon className="relative w-6 h-6 text-red-400" />
+                <div className="relative w-14 h-14 rounded-full bg-danger/12 ring-1 ring-danger/25 flex items-center justify-center mx-auto mb-4">
+                    <div className="absolute inset-0 rounded-full bg-danger/20 blur-xl" aria-hidden="true" />
+                    <TrashIcon className="relative w-6 h-6 text-danger" />
                 </div>
                 <h2 className="text-base font-bold tracking-tight text-white mb-1.5">
                     {locale === "en" ? "Delete this photo?" : "この写真を削除しますか？"}
@@ -82,7 +82,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
                     <button
                         onClick={onConfirm}
                         disabled={deleting}
-                        className="w-full py-3 rounded-2xl bg-gradient-to-b from-[#ff4d4d] to-[#e5322f] text-white font-semibold text-[15px] shadow-lg shadow-red-900/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-1.5"
+                        className="w-full py-3 rounded-2xl bg-danger-fill text-white font-semibold text-[15px] shadow-lg shadow-black/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 flex items-center justify-center gap-1.5"
                         style={{ touchAction: "manipulation" }}
                     >
                         {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}

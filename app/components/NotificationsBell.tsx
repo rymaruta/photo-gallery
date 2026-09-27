@@ -994,7 +994,7 @@ export default function NotificationsBell() {
             >
                 <BellIcon className="w-6 h-6" />
                 {unread > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-[10px] font-bold text-ink flex items-center justify-center">
                         {unread > 9 ? "9+" : unread}
                     </span>
                 )}

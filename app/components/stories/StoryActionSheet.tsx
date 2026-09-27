@@ -87,7 +87,7 @@ export default function StoryActionSheet({ items, onClose, cancelLabel, descript
                             disabled={it.disabled || it.busy}
                             className={`w-full px-4 py-3.5 flex items-center gap-3 text-[16px] hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50
                                 ${idx > 0 || description ? "border-t border-white/10" : ""}
-                                ${it.danger ? "text-[#ff453a]" : "text-white"}`}
+                                ${it.danger ? "text-danger" : "text-white"}`}
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {/* 印の幅を揃える（文字とアイコンが混ざっても行頭が揃う） */}

@@ -212,7 +212,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
                         type="button"
                         onClick={() => { setConfirming(false); void onRemove(plan.planId); }}
                         disabled={busy}
-                        className="rounded-full px-3 text-xs bg-red-500/20 ring-1 ring-red-400/40 text-red-200 hover:bg-red-500/30 disabled:opacity-60 transition"
+                        className="rounded-full px-3 text-xs bg-danger/20 ring-1 ring-danger/40 text-danger hover:bg-danger/30 disabled:opacity-60 transition"
                         style={{ touchAction: "manipulation", minHeight: 44 }}
                     >
                         {en ? "Delete" : "削除する"}

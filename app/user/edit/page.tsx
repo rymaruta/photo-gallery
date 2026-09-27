@@ -1129,7 +1129,7 @@ function EditContent() {
                             <button
                                 type="button"
                                 onClick={() => { setConfirmLeave(false); router.push(backHref); }}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                                className="w-full py-3.5 border-t border-white/10 text-danger text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {isJa ? "破棄して戻る" : "Discard and go back"}
@@ -1181,10 +1181,10 @@ function EditContent() {
                                 type="button"
                                 onClick={() => void handleDelete()}
                                 disabled={deleting}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full py-3.5 border-t border-white/10 text-danger text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
                                 style={{ touchAction: "manipulation" }}
                             >
-                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
+                                {deleting && <div className="w-3.5 h-3.5 border-2 border-danger/40 border-t-danger rounded-full animate-spin" />}
                                 {isJa ? "削除" : "Delete"}
                             </button>
                         </div>
@@ -1227,7 +1227,7 @@ function EditContent() {
                         type="button"
                         onClick={() => setConfirmDelete(true)}
                         disabled={saving || deleting}
-                        className="px-4 py-3 text-[#ff453a] text-sm font-semibold rounded-full ring-1 ring-[#ff453a]/30 hover:bg-[#ff453a]/10 transition-colors disabled:opacity-40"
+                        className="px-4 py-3 text-danger text-sm font-semibold rounded-full ring-1 ring-danger/30 hover:bg-danger/10 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {isJa ? "削除" : "Delete"}

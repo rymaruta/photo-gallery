@@ -7,8 +7,8 @@
 /**
  * 未読リング＝真鍮の単色（`--color-accent`）。デザインシステム「黒塗りの真鍮」で
  * 「未見のストーリーの輪」は真鍮の役目（iOS と同じ）。以前は Instagram の
- * ブランドグラデーションだった
+ * ブランドグラデーションだった。値は `globals.css` の `@theme` だけが持つ（ここに写さない）
  */
-export const RING_UNSEEN = "#c9a66b";
+export const RING_UNSEEN = "var(--color-accent)";
 /** 既読リング（`--color-outline`）。ハイライトは既読・未読を持たないのでこちら */
-export const RING_SEEN = "#666666";
+export const RING_SEEN = "var(--color-outline)";

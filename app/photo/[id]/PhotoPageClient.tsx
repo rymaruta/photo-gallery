@@ -1101,7 +1101,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         aria-label={isFav
                             ? (locale === "en" ? "Unlike" : "いいねを取り消す")
                             : (locale === "en" ? "Like" : "いいね")}
-                        className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-red-500" : "text-white/85 hover:text-white"}`}
+                        className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-white" : "text-white/85 hover:text-white"}`}
                         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px" }}
                     >
                         {isFav

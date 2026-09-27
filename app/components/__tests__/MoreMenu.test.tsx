@@ -40,7 +40,7 @@ describe("MoreMenu（⋯）", () => {
     it("危険な項目は赤", () => {
         render(<MoreMenu items={items} label="その他" />);
         fireEvent.click(screen.getByRole("button", { name: "その他" }));
-        expect(screen.getByRole("menuitem", { name: "この投稿を通報する" }).className).toContain("text-red-400");
-        expect(screen.getByRole("menuitem", { name: "リンクをコピー" }).className).not.toContain("text-red-400");
+        expect(screen.getByRole("menuitem", { name: "この投稿を通報する" }).className).toContain("text-danger");
+        expect(screen.getByRole("menuitem", { name: "リンクをコピー" }).className).not.toContain("text-danger");
     });
 });

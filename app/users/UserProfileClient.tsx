@@ -340,7 +340,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             {isOwner && onDelete && (
                 <button
                     onClick={(e) => { e.preventDefault(); onDelete(photo); }}
-                    className={`absolute bottom-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 hover:text-red-300 ${OWNER_CHIP_IDLE}`}
+                    className={`absolute bottom-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 hover:text-danger ${OWNER_CHIP_IDLE}`}
                     aria-label={locale === "en" ? "Delete this photo" : "この写真を削除"}
                     title={locale === "en" ? "Delete this photo" : "この写真を削除"}
                 >

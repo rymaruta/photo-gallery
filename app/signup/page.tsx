@@ -245,7 +245,7 @@ function SignupForm() {
 
                 {/* エラー */}
                 {error && (
-                    <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <div role="alert" className="mb-6 px-4 py-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
                         {error}
                     </div>
                 )}

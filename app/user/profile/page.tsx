@@ -565,7 +565,7 @@ export default function ProfileEditPage() {
                 {/* 読み込めていないことを黙って空欄で見せると、書き直して保存され
                     既存のプロフィールが消える。はっきり伝えて保存させない。 */}
                 {loadFailed && (
-                    <div className="mb-8 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs leading-relaxed text-red-200">
+                    <div className="mb-8 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-xs leading-relaxed text-danger">
                         {locale === "en"
                             ? "Could not load your profile. The fields below are empty because of this, not because your profile is empty. Reload before editing — saving now would erase it."
                             : "プロフィールを読み込めませんでした。下の欄が空なのはそのためで、登録内容が消えたわけではありません。このまま保存すると上書きされてしまうので、再読み込みしてください。"}
@@ -826,7 +826,7 @@ export default function ProfileEditPage() {
                                             className="px-1.5 py-1 text-white/50 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
                                         <button type="button" onClick={() => removeSong(song.previewUrl)}
                                             aria-label={locale === "en" ? "Remove" : "削除"}
-                                            className="px-1.5 py-1 text-white/40 hover:text-red-400 active:scale-90 transition">
+                                            className="px-1.5 py-1 text-white/40 hover:text-danger active:scale-90 transition">
                                             <XMarkIcon className="w-4 h-4" />
                                         </button>
                                     </li>

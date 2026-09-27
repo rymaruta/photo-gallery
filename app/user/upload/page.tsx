@@ -1636,7 +1636,7 @@ function UploadPageInner() {
                         </p>
                     )}
 
-                    {fileError && <p role="alert" className="mt-2 text-red-400" style={{ fontSize: "13px" }}>{fileError}</p>}
+                    {fileError && <p role="alert" className="mt-2 text-danger" style={{ fontSize: "13px" }}>{fileError}</p>}
 
                     {/* **1件の投稿にまとめる**（モックは1投稿＝複数枚だが、この画面の
                         既定は今までどおり「N枚選ぶ → N件の投稿」。既定を変えると
@@ -1968,11 +1968,11 @@ function UploadPageInner() {
                         <ul className="mt-4 space-y-1">
                             {items.map((it, i) => (
                                 it.status === "done" ? (
-                                    <li key={it.id} className="text-green-400 inline-flex items-center gap-1" style={{ fontSize: "12px" }}>
+                                    <li key={it.id} className="text-success inline-flex items-center gap-1" style={{ fontSize: "12px" }}>
                                         <CheckCircleIcon className="w-4 h-4" />{i + 1}{isJa ? "枚目: アップロード完了" : ": Uploaded"}
                                     </li>
                                 ) : it.status === "error" ? (
-                                    <li key={it.id} className="text-red-400 inline-flex items-center gap-1 break-words" style={{ fontSize: "12px" }}>
+                                    <li key={it.id} className="text-danger inline-flex items-center gap-1 break-words" style={{ fontSize: "12px" }}>
                                         <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />{i + 1}{isJa ? "枚目: " : ": "}{it.error ?? (isJa ? "失敗" : "Failed")}
                                     </li>
                                 ) : null

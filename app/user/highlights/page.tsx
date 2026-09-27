@@ -371,7 +371,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                                     type="button"
                                     onClick={() => void remove()}
                                     disabled={deleting}
-                                    className="px-3 py-2 rounded-full bg-red-500/90 text-white text-sm font-semibold disabled:opacity-50"
+                                    className="px-3 py-2 rounded-full bg-danger-fill text-white text-sm font-semibold disabled:opacity-50"
                                     style={{ touchAction: "manipulation", minHeight: "44px" }}
                                 >
                                     {deleting ? (isJa ? "削除中…" : "Deleting…") : (isJa ? "削除する" : "Delete")}
@@ -390,7 +390,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                             <button
                                 type="button"
                                 onClick={() => setConfirmDelete(true)}
-                                className="px-3 py-2 text-sm text-red-400 hover:text-red-300"
+                                className="px-3 py-2 text-sm text-danger hover:text-danger"
                                 style={{ touchAction: "manipulation", minHeight: "44px" }}
                             >
                                 {isJa ? "このハイライトを削除" : "Delete this highlight"}
