@@ -85,6 +85,15 @@ describe("アプリ向けの本文", () => {
         expect(draft.status).toBe(404);
         expect(spotBodyJson("a")).toBeUndefined();
     });
+
+    it("公開済みが0件でも仮の1件を返してビルドを落とさない（中身は null）", async () => {
+        ledger.spots = [spot("d")];
+        const params = route.generateStaticParams();
+        expect(params).toHaveLength(1);
+        const res = await route.GET(new Request("https://x/"), { params: Promise.resolve(params[0]) });
+        expect(res.status).toBe(200);
+        expect(await res.text()).toBe("null");
+    });
 });
 
 describe("実際の台帳で作った本文", () => {
