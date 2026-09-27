@@ -867,8 +867,13 @@ async function main() {
     await runPool(assets, uploadFile, 12);
 
     // Step 2: Swap HTML — users now receive HTML pointing at the new assets.
+    //         素材（Step 1）を全部上げ終えてから始めるので、どの HTML を先に
+    //         置いても指す先は揃っている＝**1件ずつ順に書く理由は無い**。
+    //         以前は1件ずつで、撮影スポットのページが増えた 2026-09-27 に
+    //         この段だけで13分を超え、ジョブの30分の上限で打ち切られた
+    //         （本番は途中まで入れ替わった状態で止まった）。素材と同じ並びで書く。
     console.log(`[deploy] Step 2/3: uploading ${htmlFiles.length} HTML/txt file(s)...`);
-    for (const f of htmlFiles) await uploadFile(f);
+    await runPool(htmlFiles, uploadFile, 12);
 
     // Step 3: Remove stale objects (assets get a grace period; see deleteStaleKeys).
     console.log("[deploy] Step 3/3: removing stale S3 objects...");
