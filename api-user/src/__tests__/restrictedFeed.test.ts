@@ -247,6 +247,23 @@ describe("外したあと、次の要求から見えなくなる", () => {
         expect(await idsFrom()).toEqual([]);
     });
 
+    // 🔴 **ブロックの一覧を読めなかったら、何も返さない。** 空に倒すと
+    // ブロックした相手に「親しい友達」の写真が渡る（2026-09-27 の監査 #27）
+    it("ブロックの一覧を読めないときは、限定公開を1枚も返さない", async () => {
+        photos = [{ id: "r7", src: "https://cdn/r7.jpg", userId: OWNER, audience: "closeFriends" }];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const base = (ddb.send as any).getMockImplementation();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ddb.send as any).mockImplementation((cmd: any) => {
+            const id = (cmd.input.Key as { id?: string } | undefined)?.id;
+            if (id === `blockedby#${ME}`) return Promise.reject(new Error("ProvisionedThroughputExceeded"));
+            return base(cmd);
+        });
+        const res = await call();
+        expect(res.statusCode).toBe(500);
+        expect(res.body).not.toContain("r7");
+    });
+
     // **自分のぶんは、誰を外しても残る**（外しすぎの見張り）
     it("自分の写真は、フォローもブロックも関係なく残る", async () => {
         photos = [{ id: "mine", src: "https://cdn/mine.jpg", userId: ME, audience: "closeFriends" }];
