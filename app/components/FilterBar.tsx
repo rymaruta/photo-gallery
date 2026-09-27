@@ -268,7 +268,7 @@ function FilterBarInner({
                         onClick={() => onChange({ category: c })}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-primary text-ink font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -289,7 +289,7 @@ function FilterBarInner({
                 onClick={() => onChange({ category: "all" })}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${values.category === "all" ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus:ring-0 transition-colors ${values.category === "all" ? "bg-primary text-ink font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -321,7 +321,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-accent-fill text-white font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
+                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus:ring-0 transition-colors ${active ? "bg-primary text-ink font-medium" : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -331,7 +331,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-white" : "text-white/50"}`}>{count}</span> : null}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-ink/70" : "text-white/50"}`}>{count}</span> : null}
                     </button>
                 );
             }),

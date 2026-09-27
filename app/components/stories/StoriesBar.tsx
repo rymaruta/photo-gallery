@@ -1191,13 +1191,13 @@ export default function StoriesBar() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={posting}
-                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-bg flex items-center justify-center active:scale-90 transition disabled:opacity-50"
-                            style={{ background: "#0095F6", touchAction: "manipulation" }}
+                            className="absolute top-[50px] right-0 w-[22px] h-[22px] rounded-full ring-[3px] ring-bg bg-accent-fill text-ink flex items-center justify-center active:scale-90 transition disabled:opacity-50"
+                            style={{ touchAction: "manipulation" }}
                             aria-label={locale === "en" ? "Add a story" : "ストーリーを追加"}
                         >
                             {posting
-                                ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                : <PlusIcon className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                                ? <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                : <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} />}
                         </button>
                         <span className="text-[11px] text-white/70 leading-none">
                             {locale === "en" ? "Your story" : "あなた"}
@@ -1453,10 +1453,10 @@ export default function StoriesBar() {
                         <button
                             onClick={() => void handlePost()}
                             disabled={posting || voteIncomplete}
-                            className="flex-shrink-0 px-5 py-2 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="flex-shrink-0 px-5 py-2 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             style={{ touchAction: "manipulation" }}
                         >
-                            {posting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {posting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {posting
                                 ? (locale === "en" ? "Posting..." : "投稿中...")
                                 : (locale === "en" ? "Share to story" : "ストーリーに投稿")}
@@ -1475,7 +1475,7 @@ export default function StoriesBar() {
                         <div className="relative flex justify-center pb-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
                             <button
                                 onClick={() => setPhotoOnly(false)}
-                                className="px-6 py-3 rounded-full bg-accent-fill text-white text-sm font-semibold active:scale-95 transition"
+                                className="px-6 py-3 rounded-full bg-accent-fill text-ink text-sm font-semibold active:scale-95 transition"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {locale === "en" ? "Done" : "完了"}
@@ -1514,7 +1514,7 @@ export default function StoriesBar() {
                                     <span
                                         aria-hidden="true"
                                         className={`rounded-full flex items-center justify-center ring-1 transition ${composerTool === key
-                                            ? "bg-accent-fill text-white ring-accent"
+                                            ? "bg-primary text-ink ring-primary"
                                             : "bg-black/55 text-white/85 ring-white/15"}`}
                                         style={{ width: "48px", height: "48px" }}
                                     >
@@ -1795,7 +1795,7 @@ export default function StoriesBar() {
                                             aria-checked={currentText?.font === k}
                                             disabled={posting}
                                             onClick={() => patchSelected({ font: k })}
-                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.font === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                            className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.font === k ? "bg-primary text-ink ring-primary" : "bg-black/55 text-white/85 ring-white/15"}`}
                                             style={{ minHeight: "36px", fontFamily: STORY_FONTS[k].css, fontWeight: STORY_FONTS[k].weight, fontSize: "13px" }}
                                         >
                                             {STORY_FONTS[k].label}
@@ -1859,7 +1859,7 @@ export default function StoriesBar() {
                                                 aria-checked={currentText?.bg === k}
                                                 disabled={posting}
                                                 onClick={() => patchSelected({ bg: k })}
-                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.bg === k ? "bg-accent-fill text-white ring-accent" : "bg-black/55 text-white/85 ring-white/15"}`}
+                                                className={`flex-shrink-0 px-3 rounded-full ring-1 transition ${currentText?.bg === k ? "bg-primary text-ink ring-primary" : "bg-black/55 text-white/85 ring-white/15"}`}
                                                 style={{ minHeight: "36px", fontSize: "12px" }}
                                             >
                                                 {k === "none"
@@ -2118,7 +2118,7 @@ export default function StoriesBar() {
                                             disabled={posting}
                                             aria-pressed={durationSec === s}
                                             className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s
-                                                ? "bg-accent-fill text-white font-semibold"
+                                                ? "bg-primary text-ink font-semibold"
                                                 : "bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white/70"}`}
                                         >
                                             {s}

@@ -174,7 +174,7 @@ export default function StoryArchivePage() {
                         </p>
                         <button
                             onClick={() => void load()}
-                            className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
+                            className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors"
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {isJa ? "再試行" : "Retry"}

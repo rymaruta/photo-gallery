@@ -23,20 +23,14 @@ import { join } from "node:path";
 const ROOT = join(__dirname, "..", "..");
 
 /**
- * **下地は紺（`--color-bg: #050e17`・2026-09-21）。** それまでは純黒で、
- * 半透明の文字はここで「黒に溶かした色」として比を出していた。紺は黒より
- * 僅かに明るい（相対輝度 0.0045）が、**半透明の文字は下地の上に合成される**
- * ので分子も一緒に増え、比はほぼ変わらない（計算して確かめた。最初「下がる」と
- * 書いて自己確認が落ちた）:
+ * **下地は純黒（`--color-bg: #000000`・2026-09-27 のデザインシステム「黒塗りの真鍮」）。**
+ * 2026-09-21〜09-27 は紺（`#050e17`）だった。半透明の文字は下地の上に
+ * **合成してから**測る（紺のときはこの差で境界が1段動いた）:
  *
- *   text-white/44  4.25:1（黒）→ 4.36:1（紺）  ← どちらも届かない
- *   text-white/45  4.41:1（黒）→ 4.51:1（紺）  ← 紺では**辛うじて届く**（境界が1段下がる）
- *   text-white/46  4.58:1（黒）→ 4.66:1（紺）
- *   text-white/50  5.28:1（黒）→ 5.32:1（紺）
- *
- * **`/45` を新しく使ってよいとは読まないこと**（この行に閉じ記号を書くと
- *  コメントが終わる。書きかけて踏んだ）。4.51 は JPEG の実測値から
- * 決めた下地に対する計算で、下地を1段暗くすれば落ちる。使うのは /50 から。
+ *   text-white/44  4.25:1（黒）  ← 届かない
+ *   text-white/45  4.41:1（黒）  ← 届かない（紺では 4.51 で辛うじて届いていた）
+ *   text-white/46  4.58:1（黒）
+ *   text-white/50  5.28:1（黒）
  *
  * `globals.css` の `@theme` と同じ値をここに持つ。ずれると見張りが嘘をつくので
  * 下の it で突き合わせる。
@@ -45,7 +39,7 @@ const ROOT = join(__dirname, "..", "..");
  * したら、取り消し操作の赤 `text-[#ff453a]`（6.16:1）まで弾いた。分からないなら
  * 計算すればよい）。半透明は下地の上に**合成してから**測る。
  */
-const BASE_BG = "#050e17";
+const BASE_BG = "#000000";
 function hexToRgb(hexColor: string): number[] {
     const h = hexColor.replace("#", "");
     const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
@@ -294,21 +288,89 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         expect(m?.[1]?.toLowerCase(), "globals.css に --color-bg が無い").toBeDefined();
         expect(m![1].toLowerCase()).toBe(BASE_BG);
     });
-    it("紺の下地での境界（/44 は届かず /46 は届く。合成してから測っている証拠）", () => {
-        expect(ratioOnBlack("#ffffff", 0.44)).toBeLessThan(4.5);
+    it("黒の下地での境界（/45 は届かず /46 は届く）", () => {
+        expect(ratioOnBlack("#ffffff", 0.45)).toBeLessThan(4.5);
         expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.5);
-        // 合成を忘れて「黒に溶かす」式に戻すと、/46 が 4.58 に戻る＝紺の値（4.66）と区別できる
-        expect(ratioOnBlack("#ffffff", 0.46)).toBeGreaterThan(4.6);
     });
-    it("トークンの色は、置かれる下地で 4.5:1 に届く（白文字を載せる塗り／紺の上の主色・リンク／チップの文字）", () => {
+    it("トークンの色は、置かれる下地で 4.5:1 に届く（塗りの上の墨／黒の上の真鍮・リンク／チップの文字）", () => {
         const css = readFileSync(join(ROOT, "app", "globals.css"), "utf8");
         const tok = (name: string) => { const m = new RegExp(`--color-${name}:\\s*(#[0-9a-f]{6})`, "i").exec(css); expect(m, `--color-${name} が無い`).not.toBeNull(); return m![1]; };
         const on = (fg: string, bg: string) => { const a = luminance(hexToRgb(fg)), b = luminance(hexToRgb(bg)); const [hi, lo] = a > b ? [a, b] : [b, a]; return (hi + 0.05) / (lo + 0.05); };
-        expect(on("#ffffff", tok("accent-fill"))).toBeGreaterThanOrEqual(4.5);
+        // **真鍮の塗りに載せるのは墨。** 白は 2.81:1 で届かない（デザインシステムの値）
+        expect(on(tok("ink"), tok("accent-fill"))).toBeGreaterThanOrEqual(4.5);
+        expect(on("#ffffff", tok("accent-fill"))).toBeLessThan(4.5);
+        expect(on(tok("ink"), tok("primary"))).toBeGreaterThanOrEqual(4.5);
+        // 白を載せる暗い真鍮（トグル・地図の印）
+        expect(on("#ffffff", tok("accent-deep"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("accent"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("surface"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("chip-text"), tok("chip"))).toBeGreaterThanOrEqual(4.5);
+    });
+});
+
+/**
+ * **塗りと文字の組を、行の単位で縛る。** 紺＋青の頃は `bg-accent-fill text-white`
+ * が正しい組で、71か所に書かれていた。真鍮の塗りに白は 2.81:1 で読めないので、
+ * 値だけ差し替えると**全部が一度に読めなくなる**。同じ行に白い文字を書いたら落とす。
+ */
+describe("app 全体: 明るい塗りに白い文字を載せない", () => {
+    it("bg-accent-fill / bg-primary の行に text-white が無い", async () => {
+        const { readdirSync, statSync } = await import("node:fs");
+        const files: string[] = [];
+        const walk = (rel: string) => {
+            for (const name of readdirSync(join(ROOT, rel))) {
+                const child = rel ? `${rel}/${name}` : name;
+                if (statSync(join(ROOT, child)).isDirectory()) { if (name !== "__tests__") walk(child); }
+                else if (name.endsWith(".tsx")) files.push(child);
+            }
+        };
+        walk("app");
+        let seen = 0;
+        let children = 0;
+        const bad: string[] = [];
+        const WHITE = /(^|\s)(text-white|border-t-white)(\/|\s|$)/;
+        const indent = (l: string) => l.length - l.trimStart().length;
+        for (const rel of files) {
+            const src = stripComments(readFileSync(join(ROOT, rel), "utf8")).split("\n");
+            src.forEach((line, i) => {
+                // 三項演算子の片側ごとに見る（非選択側の `text-white/70` を巻き込まない）
+                const segs = line.split(/["'`]/);
+                if (!segs.some((seg) => /\bbg-(accent-fill|primary)\b/.test(seg))) return;
+                for (const seg of segs) {
+                    if (!/\bbg-(accent-fill|primary)\b/.test(seg)) continue;
+                    seen++;
+                    if (WHITE.test(seg)) bad.push(`${rel}:${i + 1} ${seg.trim().slice(0, 80)}`);
+                }
+                // **子の要素も見る。** 親を墨にしても、子が自分で `text-white` を
+                // 持っていれば白地に白のまま（絞り込みのチップの件数で実際に踏んだ）。
+                // 子＝この行を含む**開きタグ**より深く字下げされた行（閉じタグの手前まで）。
+                // 起点を `className` の行にすると、三項演算子の行は子より深いので
+                // 子に届く前に打ち切る（最初そう書いて、件数の白を見逃した）。
+                // 三項演算子の「そうでないとき」の側（`: "text-white/50"`）は
+                // 塗られていない状態なので見ない
+                let tag = i;
+                while (tag > i - 20 && tag > 0 && !/^\s*<[A-Za-z]/.test(src[tag])) tag--;
+                if (!/^\s*<[A-Za-z]/.test(src[tag])) return;
+                const base = indent(src[tag]);
+                for (let j = i + 1; j < src.length && j < i + 60; j++) {
+                    const child = src[j];
+                    if (!child.trim()) continue;
+                    if (indent(child) <= base) break;
+                    children++;
+                    const parts = child.split(/["'`]/);
+                    parts.forEach((seg, k) => {
+                        if (!WHITE.test(seg)) return;
+                        if (k > 0 && /:\s*$/.test(parts[k - 1])) return;
+                        bad.push(`${rel}:${j + 1} （子）${seg.trim().slice(0, 80)}`);
+                    });
+                }
+            });
+        }
+        expect(children, "子の要素を1行も見ていない").toBeGreaterThan(50);
+        // 空振りしていない（走査が1件も拾わないまま緑にならない）
+        expect(seen, "bg-accent-fill / bg-primary の行を1件も拾えていない").toBeGreaterThan(50);
+        expect(bad, `明るい塗りに白い文字:\n${bad.join("\n")}`).toEqual([]);
     });
 });
 

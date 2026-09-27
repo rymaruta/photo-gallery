@@ -282,7 +282,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                         <p className="text-sm mb-4">{isJa ? "アーカイブを読み込めませんでした" : "Could not load your archive"}</p>
                         <button
                             onClick={() => void loadArchive()}
-                            className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
+                            className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors"
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {isJa ? "再試行" : "Retry"}
@@ -320,14 +320,14 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                                         </span>
                                     ) : (
                                         <span
-                                            className={`absolute right-1 top-1 w-[22px] h-[22px] rounded-full flex items-center justify-center ring-2 ring-white ${isSelected ? "bg-accent-fill text-white" : "bg-black/40"}`}
+                                            className={`absolute right-1 top-1 w-[22px] h-[22px] rounded-full flex items-center justify-center ring-2 ring-white ${isSelected ? "bg-primary text-ink" : "bg-black/40"}`}
                                             aria-hidden="true"
                                         >
                                             {isSelected && <CheckIcon className="w-3.5 h-3.5" strokeWidth={3} />}
                                         </span>
                                     )}
                                     {isSelected && cover === s.id && (
-                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-accent-fill text-white font-semibold" style={{ fontSize: "10px" }}>
+                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-primary text-ink font-semibold" style={{ fontSize: "10px" }}>
                                             {isJa ? "表紙" : "Cover"}
                                         </span>
                                     )}
@@ -401,7 +401,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                         type="button"
                         onClick={() => void save()}
                         disabled={!canSave}
-                        className="ml-auto px-6 py-2.5 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50"
+                        className="ml-auto px-6 py-2.5 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-50"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "保存" : "Save")}

@@ -294,7 +294,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     onClick={(e) => { e.preventDefault(); onSetCover(photo.id); }}
                     className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         coverSelected
-                            ? "bg-accent text-black"
+                            ? "bg-primary text-ink"
                             : OWNER_CHIP_IDLE
                     }`}
                     aria-label={coverSelected
@@ -1169,7 +1169,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
-                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-accent-fill text-white ring-accent" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-primary text-ink ring-primary" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
                                 title={locale === "en" ? "Share" : "共有"}
                                 aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
                             >
@@ -1287,7 +1287,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     aria-haspopup="dialog"
                                     aria-expanded={postOpen}
                                     aria-label={locale === "en" ? "Create" : "投稿する"}
-                                    className="absolute right-0 bottom-0 inline-flex items-center justify-center rounded-full bg-accent-fill text-white ring-[3px] ring-bg hover:brightness-110 active:scale-95 transition"
+                                    className="absolute right-0 bottom-0 inline-flex items-center justify-center rounded-full bg-accent-fill text-ink ring-[3px] ring-bg hover:brightness-110 active:scale-95 transition"
                                     style={{ width: "28px", height: "28px", touchAction: "manipulation" }}
                                 >
                                     <PlusIcon aria-hidden="true" style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
@@ -1642,7 +1642,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
+                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}

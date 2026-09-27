@@ -111,7 +111,7 @@ export default function MapSpotSheet({
                     <Link
                         href={`${ROUTES.SPOTS}/${spot.slug}`}
                         prefetch={false}
-                        className="inline-flex items-center rounded-full bg-accent-fill text-white font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        className="inline-flex items-center rounded-full bg-accent-fill text-ink font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}
                         data-testid="map-spot-guide-link"
                     >

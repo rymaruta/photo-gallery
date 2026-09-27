@@ -103,12 +103,12 @@ describe("入力候補", () => {
         const chip = await screen.findByRole("switch", { name: "冬" });
         expect(chip, "付いているのに未選択に見える").toHaveAttribute("aria-checked", "true");
         // 見た目でも分かること（`aria-checked` だけだと、色を戻す変異が素通りする）
-        expect(chip.className, "選択中の見た目になっていない").toContain("bg-accent-fill ");
-        expect(chip.className).toContain("text-white ");
+        expect(chip.className, "選択中の見た目になっていない").toContain("bg-primary ");
+        expect(chip.className, "白い塗りの上の文字が墨になっていない").toContain("text-ink ");
         await userEvent.click(chip);
         await waitFor(() => expect(tags.value, "押し直しても外れない").toBe(""));
         expect(chip).toHaveAttribute("aria-checked", "false");
-        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("bg-accent-fill");
+        expect(chip.className, "外したのに選択中の見た目のまま").not.toContain("bg-primary");
     });
 
     // **候補を state に入れると「毎回新しいオブジェクト」になる。**
