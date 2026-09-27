@@ -153,7 +153,13 @@ export function reviewBlockers(spot: Spot): string[] {
     const hasAccess = showsField(spot, "access")
         && Boolean(spot.access?.transit || spot.access?.car || spot.access?.walk);
     const hasOfficial = Boolean(spot.officialWebsiteUrl?.trim());
-    if (!hasAccess && !hasOfficial) missing.push("アクセスも公式サイトも無い");
+    // **AI 照合で公開した行だけは、座標（ページの「地図で見る」）を導線と認める**
+    // （owner の判断・2026-09-27）。公式サイトを記事で確かめられない行（観光協会・
+    // 自治体のページしか無い）を丸ごと見送っていたため。アクセスは確認者つきの
+    // 出典が要るので AI 照合では書けない。人が確かめる行・下書きは今までどおり
+    const mapRouteForAiCheck = spot.status === "published" && hasAiCheck(spot)
+        && Boolean(spot.coords && Number.isFinite(spot.coords.lat) && Number.isFinite(spot.coords.lng));
+    if (!hasAccess && !hasOfficial && !mapRouteForAiCheck) missing.push("アクセスも公式サイトも無い");
 
     // 画像があるなら、権利が確認できていること
     const img = coverImageProblems(spot);
