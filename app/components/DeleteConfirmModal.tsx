@@ -64,7 +64,7 @@ export default function DeleteConfirmModal({ photo, isOpen, onClose, onConfirm, 
             />
 
             {/* モーダル本体 */}
-            <div className="relative z-10 w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center story-media-in">
+            <div className="relative z-10 w-full max-w-sm rounded-3xl bg-surface ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 text-center story-media-in">
                 <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
                     <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
                     <TrashIcon className="relative w-6 h-6 text-red-400" />

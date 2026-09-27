@@ -158,7 +158,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
                     aria-label={navLabels.mypage || "My Page"}
                     title={navLabels.mypage || "My Page"}
-                    className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
+                    className="rounded-full p-[2px] bg-outline hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
                     <span className="block rounded-full p-[2px] bg-bg">
@@ -227,7 +227,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         // ホームへ戻る帯のぶん空ける（帯の上で押すとホームへ戻る
                         // 操作と取り合う）。右もノッチのぶん内側へ寄せる。
                         style={{
-                            backgroundColor: "#16181c",
+                            backgroundColor: "var(--color-surface)",
                             zIndex: 10,
                             maxHeight: "calc(100% - 16px - env(safe-area-inset-bottom, 0px))",
                             marginRight: "env(safe-area-inset-right, 0px)",

@@ -154,7 +154,7 @@ export default function GalleryGrid({
                 // 写真ページ本体・モーダル・OGP に無かった**ので、効かせたい1枚
                 // （画像検索が見る本体画像）にだけ効いていなかった
                 const localizedAlt = photoAltText(p, locale);
-                const placeholderColor = p.dominantColor ?? "#111";
+                const placeholderColor = p.dominantColor ?? "#121212";
                 const objectPosition =
                     p.focalPoint ? `${Math.round(p.focalPoint.x * 100)}% ${Math.round(p.focalPoint.y * 100)}%` : undefined;
 
