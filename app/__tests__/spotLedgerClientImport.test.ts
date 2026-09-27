@@ -32,8 +32,8 @@ const SCAN_DIRS = ["app", "lib"];
 
 /** 台帳を読む経路（値として import すると JSON が付いてくるファイル） */
 const LEDGER_MODULES = [
-    "lib/data/spots", "lib/data/spotLink", "lib/data/spotFeed",
-    "@/lib/data/spots", "@/lib/data/spotLink", "@/lib/data/spotFeed",
+    "lib/data/spots", "lib/data/spotLink", "lib/data/spotFeed", "lib/data/spotBody",
+    "@/lib/data/spots", "@/lib/data/spotLink", "@/lib/data/spotFeed", "@/lib/data/spotBody",
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
