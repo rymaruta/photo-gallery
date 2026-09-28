@@ -49,7 +49,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "aiCheck"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -136,6 +136,32 @@ describe("アプリ向けの索引", () => {
         expect("seasonalGuide" in toSpotFeedItem(spot("d")), "下書きの季節の文を運んでいる").toBe(false);
         const none = toSpotFeedItem(spot("n", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25", seasonalGuide: [] }));
         expect("seasonalGuide" in none, "空の季節を鍵ごと出している").toBe(false);
+    });
+
+    /// 🔴 **AI 照合の行は出典を運ぶ**（2026-09-27）。公開の条件が owner の
+    /// 「出典元を書いとけばいい」なので、アプリも出典なしで概要を出さない。
+    /// 委任した人の名前は運ばない（確認者の名前と同じ扱い）
+    it("AI 照合の行は照合日と出典を運び、委任した人の名前は運ばない", () => {
+        const ai = {
+            status: "published" as const,
+            aiCheck: {
+                checkedAt: "2026-09-26", delegatedBy: "rymaruta",
+                sources: [
+                    { url: "https://ja.wikipedia.org/wiki/x", title: " x " },
+                    { url: "http://example.com/insecure", title: "http は落とす" },
+                    { url: "https://example.com/untitled", title: "" },
+                ],
+            },
+        };
+        const item = toSpotFeedItem(spot("a", ai));
+        expect(item.aiCheck).toEqual({
+            checkedAt: "2026-09-26",
+            sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "x" }],
+        });
+        expect(JSON.stringify(item)).not.toContain("rymaruta");
+        // 人が確かめた行・下書きには載せない（画面と同じ）
+        expect("aiCheck" in toSpotFeedItem(spot("h", { ...ai, verifiedBy: "運営", verifiedAt: "2026-09-25" }))).toBe(false);
+        expect("aiCheck" in toSpotFeedItem(spot("d", { ...ai, status: "review" as const }))).toBe(false);
     });
 
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {

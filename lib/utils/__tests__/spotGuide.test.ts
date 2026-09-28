@@ -227,6 +227,23 @@ describe("正式公開の条件（薄いページを索引へ入れない）", (
         expect(publishBlockers(s).some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
     });
 
+    /// 🔴 **AI 照合で公開した行は、座標（「地図で見る」）を導線と認める**（owner の判断・2026-09-27）。
+    /// 人が確かめる行・下書き・AI 照合の印が不完全な行は今までどおり公式サイトかアクセスが要る
+    it("AI 照合で公開した行だけは、公式サイトが無くても座標があれば出す", () => {
+        const aiCheck = { checkedAt: "2026-09-27", delegatedBy: "rymaruta",
+            sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }] };
+        const ai = fullSpot({ officialWebsiteUrl: undefined, verifiedBy: undefined, verifiedAt: undefined, aiCheck });
+        expect(publishBlockers(ai)).toEqual([]);
+        // 座標が無ければ導線にならない
+        expect(publishBlockers({ ...ai, coords: undefined }).some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
+        // 印が不完全（出典が無い）なら認めない
+        expect(publishBlockers({ ...ai, aiCheck: { ...aiCheck, sources: [] } })
+            .some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
+        // 人が確かめる行は今までどおり
+        expect(publishBlockers(fullSpot({ officialWebsiteUrl: undefined }))
+            .some((m) => m.includes("アクセスも公式サイトも無い"))).toBe(true);
+    });
+
     it("出典つきのアクセスがあれば、公式サイトが無くてもよい", () => {
         const s = fullSpot({
             access: { transit: "駅からバス20分" },
