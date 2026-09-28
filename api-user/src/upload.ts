@@ -161,6 +161,14 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 /**
+ * **静的サイトに載る行か。** 公開中（`published` 未指定は公開）で、公開範囲を
+ * 絞っていないもの——`scripts/sync-photos-from-ddb.js` の選別と同じ線。
+ */
+function onStaticSite(p: { published?: unknown; audience?: unknown }): boolean {
+    return p.published !== false && !p.audience;
+}
+
+/**
  * 写真を1枚 公開したら、静的サイトを作り直してもらう。
  *
  * **これが無いと、投稿しても世に出ない。** このサイトは静的エクスポートで、
@@ -202,14 +210,6 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
  * なお `REBUILD_DISPATCH_TOKEN` が未設定の本番では、ここは警告1行を出して
  * 何もしない——**この関数が効くのは owner がトークンを登録してから**。
  */
-/**
- * **静的サイトに載る行か。** 公開中（`published` 未指定は公開）で、公開範囲を
- * 絞っていないもの——`scripts/sync-photos-from-ddb.js` の選別と同じ線。
- */
-function onStaticSite(p: { published?: unknown; audience?: unknown }): boolean {
-    return p.published !== false && !p.audience;
-}
-
 async function requestRebuildForNewPhoto(id: string, isPublished: boolean): Promise<void> {
     if (!isPublished) return;
     // 投げさせない。**呼び出し元では `putPhoto` が既に成功している**ので、
@@ -425,7 +425,11 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
         // **公開範囲を絞った写真は頼まない。** 静的サイトには載らない
         // （`scripts/sync-photos-from-ddb.js` が落とす）ので、作り直しても
-        // 何も変わらない——月の予算と Actions の枠を1本ずつ食うだけ
+        // ページは変わらない——月の予算と Actions の枠を1本ずつ食うだけ。
+        // ⚠️ 代わりに失うもの: ビルドの中の `generate-thumbnails.js` は絞った
+        // 写真も処理する（`audience` を見ない）ので、寸法・AVIF などの派生は
+        // **次のビルド（定期は週1）まで付かない**。画面は派生が無くても
+        // `src` で出る（下書きから公開した写真と同じ扱い）ので、それを許容する
         await requestRebuildForNewPhoto(photo.id, onStaticSite(photo));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
