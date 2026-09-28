@@ -13,7 +13,7 @@ import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
-import { HeartIcon, StarIcon, UserGroupIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, StarIcon, UserGroupIcon, LockClosedIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
@@ -246,14 +246,17 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                 {/* **絵だけの小さな丸で、削除ボタンの上に積む。** 四隅は持ち主のボタン
                     （左下の削除・右下の編集・左上のピン・右上の枚数と公開の切り替え）で
                     埋まっていて、文字つきの印は削除ボタンの下に隠れていた。
-                    親しい友達は**輪郭の星**（ピン留めは塗りの星）。意味は名前が伝える */}
+                    **星は使わない**——ピン留めしていないときのピンボタンが「暗い丸に輪郭の星」で、
+                    同じ見た目になり、押せるボタンと押せない印が見分けられなかった。
+                    親しい友達は鍵（選んだ人だけに限る）、フォロワーのみは人。意味は名前が伝える。
+                    高さはタイルの縦の中央（幅 320px の端末で上のピンボタンと重なっていた） */}
                 {audienceLabel && (
                     <span className="absolute left-1.5 inline-flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                          style={{ bottom: 40, width: 22, height: 22 }}
+                          style={{ top: "50%", marginTop: -11, width: 22, height: 22 }}
                           title={audienceLabel}
                           aria-hidden="true">
                         {audience === "closeFriends"
-                            ? <StarIconOutline className="w-3.5 h-3.5" />
+                            ? <LockClosedIcon className="w-3.5 h-3.5" />
                             : <UserGroupIcon className="w-3.5 h-3.5" />}
                     </span>
                 )}
