@@ -17,7 +17,10 @@ import { useBottomBarHeight } from "../../lib/hooks/useBottomBarHeight";
 import PostSheet from "./PostSheet";
 
 /**
- * 画面下の5つのタブ（ホーム／さがす／投稿／マップ／マイページ）。
+ * 画面下の5つのタブ（ホーム／探す／投稿／マップ／マイページ）。
+ *
+ * **文言は iOS の `L("…")` に揃える**（「探す」・英語の「My Page」。2026-09-28）。
+ * ページの題や見出しの「さがす」は SEO の題に響くので、画面ごとの段で直す。
  *
  * owner が出した新デザインのモック**17枚すべて**に居る。それまでの入口は
  * ヘッダーのハンバーガーだけで、**投稿の入口はマイページの中にしか無かった**。
@@ -125,9 +128,9 @@ export default function BottomNav() {
         Outline: typeof HomeIcon; Solid: typeof HomeSolid;
     }> = [
         { key: "home", href: ROUTES.HOME, label: locale === "en" ? "Home" : "ホーム", Outline: HomeIcon, Solid: HomeSolid },
-        { key: "search", href: ROUTES.SEARCH, label: locale === "en" ? "Search" : "さがす", Outline: MagnifyingGlassIcon, Solid: SearchSolid },
+        { key: "search", href: ROUTES.SEARCH, label: locale === "en" ? "Search" : "探す", Outline: MagnifyingGlassIcon, Solid: SearchSolid },
         { key: "map", href: ROUTES.MAP, label: locale === "en" ? "Map" : "マップ", Outline: MapIcon, Solid: MapSolid },
-        { key: "me", href: me, label: locale === "en" ? "You" : "マイページ", Outline: UserIcon, Solid: UserSolid },
+        { key: "me", href: me, label: locale === "en" ? "My Page" : "マイページ", Outline: UserIcon, Solid: UserSolid },
     ];
 
     // カプセルの中の1マス。選んでいるマスは白16%の丸い面（`Tab`）
