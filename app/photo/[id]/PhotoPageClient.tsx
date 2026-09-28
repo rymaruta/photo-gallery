@@ -1352,6 +1352,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {reportOpen && (
                     <ReportDialog
                         photoId={photo.id}
+                        blockTargetId={photo.userId && photo.userId !== authUserId ? photo.userId : undefined}
                         locale={locale}
                         onClose={() => setReportOpen(false)}
                         openerRef={reportBtnRef}

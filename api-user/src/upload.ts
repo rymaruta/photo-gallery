@@ -161,6 +161,14 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 /**
+ * **静的サイトに載る行か。** 公開中（`published` 未指定は公開）で、公開範囲を
+ * 絞っていないもの——`scripts/sync-photos-from-ddb.js` の選別と同じ線。
+ */
+function onStaticSite(p: { published?: unknown; audience?: unknown }): boolean {
+    return p.published !== false && !p.audience;
+}
+
+/**
  * 写真を1枚 公開したら、静的サイトを作り直してもらう。
  *
  * **これが無いと、投稿しても世に出ない。** このサイトは静的エクスポートで、
@@ -415,7 +423,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 console.error(`savePhoto: アルバムに足せませんでした（写真は保存済み・${photo.id}）:`, e);
             });
         }
-        await requestRebuildForNewPhoto(photo.id, isPublished);
+        // **公開範囲を絞った写真は頼まない。** 静的サイトには載らない
+        // （`scripts/sync-photos-from-ddb.js` が落とす）ので、作り直しても
+        // ページは変わらない——月の予算と Actions の枠を1本ずつ食うだけ。
+        // ⚠️ 代わりに失うもの: ビルドの中の `generate-thumbnails.js` は絞った
+        // 写真も処理する（`audience` を見ない）ので、寸法・AVIF などの派生は
+        // **次のビルド（定期は週1）まで付かない**。画面は派生が無くても
+        // `src` で出る（下書きから公開した写真と同じ扱い）ので、それを許容する
+        await requestRebuildForNewPhoto(photo.id, onStaticSite(photo));
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
@@ -534,7 +549,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // ほか photoUpdate・account・userProfile・sync スクリプト）、
                 // `=== true` はここだけだった＝対の乖離。`published` を持たない
                 // 古い行では「下書きだった」と読み、二重送信のたびに予算を食う。
-                const wasPublished = existing.published !== false;
+                // **「静的サイトに載っていたか」で比べる。** 公開範囲を絞った行は
+                // 公開でも載らないので、絞った → 全体に公開 の再送は頼む側、
+                // 絞ったままの公開は頼まない側に入る
+                const wasOnStaticSite = onStaticSite(existing);
                 // **`staticStale` を下ろす対がここには作れない。**
                 // `photoUpdate.ts:353` は「依頼が届いたら REMOVE」を持って
                 // いるが、`requestRebuildForNewPhoto` は `Promise<void>` で
@@ -542,7 +560,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // （下ろすなら戻り値を通すところから）。倒す先としては
                 // 「余分に頼む」側が安全ではある——印を落として実際には
                 // 届いていなければ、古い静的ページを誰も覚えていない。
-                await requestRebuildForNewPhoto(photo.id, isPublished && !wasPublished);
+                await requestRebuildForNewPhoto(photo.id, onStaticSite(photo) && !wasOnStaticSite);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }

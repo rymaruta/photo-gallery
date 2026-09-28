@@ -47,6 +47,56 @@ export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled])
  * 移す前に今の挙動を7本のテストに写し取り、それが旧実装で緑になることを
  * 確かめてから置き換えてある）。自前のトラップはもう残っていない。
  */
+/**
+ * **開いている閉じ込めの一覧**（開いた順）。Tab を扱うのは**最前面の1つだけ**。
+ *
+ * 全部が document の keydown を聞いているので、2つ同時に開くと取り合う
+ * ——片方が「中に居ない」と引き戻し、もう片方も引き戻す。写真の拡大表示
+ * （`?photo=` で開く）の上に「はじめる前に」が出ると、Tab を押すたびに
+ * 同意画面の先頭へ戻され、**「同意してはじめる」にキーボードで届かなかった**
+ * （閉じる手段はそれだけなので、出られない）。
+ *
+ * 最前面の決め方:
+ *   - **優先度**が高い方（同意画面のように、何が後から開いても一番上に居るもの）
+ *   - 片方がもう片方の中にある → **内側**が扱う（ストーリーの中の通報など。
+ *     親子が同じコミットで開くと、effect は子が先に走るので「開いた順」は逆になる）
+ *   - どちらも相手の中に無い → **後から開いた方**が扱う
+ *
+ * 優先度が要るのは、**クリックなしで裏に開くもの**があるから。新しく投稿した
+ * 写真の共有リンクは、一覧が届いてから拡大表示が開く——同意画面より後に
+ * 開くことがあり、「後から開いた方」だけで決めると裏の拡大表示が Tab を取った。
+ */
+const openTraps: Array<{ token: object; priority: number; getEl: () => HTMLElement | null }> = [];
+
+/**
+ * **優先度のある閉じ込め（同意画面）が開いているか。**
+ *
+ * 裏に開いている画面が自前で持つキー操作（拡大表示の矢印・Escape・`h` の
+ * いいね、ストーリーの送り）は、これが真の間は何もしないこと。
+ * 同意画面の裏で `h` を押すと、**見えない写真にいいねが付いていた**。
+ */
+export function isBehindPriorityOverlay(): boolean {
+    return openTraps.some((t) => t.priority > 0);
+}
+
+function isFrontmost(token: object, el: HTMLElement): boolean {
+    const mine = openTraps.findIndex((t) => t.token === token);
+    const myPriority = openTraps[mine]?.priority ?? 0;
+    for (let i = 0; i < openTraps.length; i++) {
+        if (i === mine) continue;
+        const other = openTraps[i].getEl();
+        if (!other || other === el) continue;
+        if (openTraps[i].priority !== myPriority) {
+            if (openTraps[i].priority > myPriority) return false;
+            continue;
+        }
+        if (el.contains(other)) return false;        // 内側に別の閉じ込めがある
+        if (other.contains(el)) continue;            // 自分が内側
+        if (i > mine) return false;                  // 後から開いた別の閉じ込め
+    }
+    return true;
+}
+
 export function useFocusTrap(
     active: boolean,
     containerRef: RefObject<HTMLElement | null>,
@@ -66,6 +116,11 @@ export function useFocusTrap(
      * 指名を無視すると、開いた瞬間にフォーカスが当たる場所が変わる。
      */
     initialFocusRef?: RefObject<HTMLElement | null>,
+    /**
+     * 優先度（既定 0）。高いものが開いている間は、低いものは Tab を扱わず、
+     * 開いたときにフォーカスも奪わない。**同意画面（`LegalGate`）だけが 1**
+     */
+    priority: number = 0,
 ): void {
     useEffect(() => {
         if (!active) return;
@@ -90,8 +145,11 @@ export function useFocusTrap(
         // 閉じたときに戻す先。指定があればそちら、無ければ開いた瞬間の位置
         const restoreTo = restoreRef?.current ?? (document.activeElement as HTMLElement | null);
 
+        // **上に優先度の高い閉じ込めが開いているなら、フォーカスを奪わない。**
+        // 同意画面の裏で拡大表示が開いた瞬間に、見えない「前へ」へ移っていた
+        const shadowed = openTraps.some((t) => t.priority > priority);
         // 中に既にフォーカスがあるなら動かさない（autoFocus を尊重する）
-        if (container && !container.contains(document.activeElement)) {
+        if (container && !shadowed && !container.contains(document.activeElement)) {
             const first = initialFocusRef?.current ?? container.querySelector<HTMLElement>(FOCUSABLE);
             if (first) {
                 // **`preventScroll` を付ける。** `focus()` は既定でその要素が
@@ -111,12 +169,16 @@ export function useFocusTrap(
             }
         }
 
+        const token = {};
+        openTraps.push({ token, priority, getEl: () => containerRef.current });
         const onKey = (e: KeyboardEvent) => {
             // 毎回読み直す。エフェクトの時点では空でも、押されるときには
             // 付いている（差し替わっていても正しい方を見る）
             const el = containerRef.current;
             if (!el) return;
             if (e.key !== "Tab") return;
+            // 最前面の閉じ込めだけが扱う（上の `openTraps` を見よ）
+            if (!isFrontmost(token, el)) return;
             // Ctrl+Tab / Cmd+Tab はブラウザやOSの操作。0件のときは境界に
             // 関係なく全部の Tab を止めるので、そこだけ当たりが広くなる
             if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -164,6 +226,8 @@ export function useFocusTrap(
         document.addEventListener("keydown", onKey);
         return () => {
             document.removeEventListener("keydown", onKey);
+            const i = openTraps.findIndex((t) => t.token === token);
+            if (i >= 0) openTraps.splice(i, 1);
             // **トラップが実際に働いた時だけ戻す。** 容器が無いまま
             // `active` が false に戻った場合、フォーカスは一度も動かして
             // いないので、ここで戻すと**ユーザーが今いる場所から奪う**
@@ -173,5 +237,5 @@ export function useFocusTrap(
             if (!container) return;
             if (restoreTo && typeof restoreTo.focus === "function") restoreTo.focus();
         };
-    }, [active, containerRef, restoreRef, initialFocusRef]);
+    }, [active, containerRef, restoreRef, initialFocusRef, priority]);
 }
