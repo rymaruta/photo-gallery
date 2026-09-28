@@ -17,7 +17,6 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ 
 vi.mock("../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: false, loading: false, userId: null }) }));
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
 vi.mock("../NotificationsBell", () => ({ default: () => null }));
-vi.mock("../UserAvatar", () => ({ default: () => null }));
 
 const HeaderNav = (await import("../HeaderNav")).default;
 

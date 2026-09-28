@@ -14,6 +14,7 @@ import UserAvatar from "./UserAvatar";
 import { FollowAction } from "./FollowButton";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
@@ -63,9 +64,9 @@ const WIDE_QUERY = "(min-width: 1024px)";
  * PC 幅か。
  *
  * **CSS だけでは切り替えられない。** 全画面のシートは `position: fixed` で
- * body へポータルする必要があり（ヘッダーが `backdrop-blur` を持つので、
- * CSS 仕様により固定配置の**包含ブロックがヘッダーになる**——`HeaderNav` が
- * メニューを body へ出しているのと同じ理由）、PC の板はベルに吊るので
+ * body へポータルする必要があり（ヘッダーが `backdrop-blur` を持つと、
+ * CSS 仕様により固定配置の**包含ブロックがヘッダーになる**——いまのヘッダーは
+ * ぼかしを持たないが、戻しても壊れないよう `HeaderNav` のメニューと同じく出したまま）、PC の板はベルに吊るので
  * ポータルできない。**置き場所そのものが違う**ので、両方を描いて
  * `lg:hidden` で隠す形は採れない——id（`notif-tab-*`）と読み上げの中身が
  * 二重になる。
@@ -989,10 +990,12 @@ export default function NotificationsBell() {
                 onClick={toggleOpen}
                 aria-label={locale === "en" ? "Notifications" : "通知"}
                 aria-expanded={open}
-                className="relative inline-flex items-center justify-center w-11 h-11 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition"
-                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                // **探す・メニューと同じ丸い押し面**（iOS: 箱なし・44px・アイコン22px・線1.7）。
+                // 以前はここだけ `rounded-md` で、スマホでは rem の `w-11` が 38.5px に縮んでいた
+                className={HEADER_ICON_BTN}
+                style={HEADER_ICON_BTN_STYLE}
             >
-                <BellIcon className="w-6 h-6" />
+                <BellIcon aria-hidden="true" style={HEADER_ICON_STYLE} />
                 {unread > 0 && (
                     <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-[10px] font-bold text-ink flex items-center justify-center">
                         {unread > 9 ? "9+" : unread}
@@ -1019,14 +1022,15 @@ export default function NotificationsBell() {
                 </>
             ) : createPortal(
                 /* ───── スマホ: モックのとおり「1画面ぶんの通知一覧」 ─────
-                   **body へポータルする。** ヘッダーは `backdrop-blur` を
-                   持つので、CSS 仕様により固定配置の**包含ブロックが
+                   **body へポータルする。** ヘッダーが `backdrop-blur` を
+                   持つと、CSS 仕様により固定配置の**包含ブロックが
                    ヘッダーになる**——ベルの中に置いたままでは
-                   `fixed inset-0` が画面いっぱいにならない
-                   （`HeaderNav` がメニューを body へ出しているのと同じ理由）。
+                   `fixed inset-0` が画面いっぱいにならない（いまのヘッダーは
+                   ぼかしを持たないが、戻しても壊れないよう出したまま。
+                   `HeaderNav` がメニューを body へ出しているのと同じ）。
 
                    **ヘッダーの下から始める。** モックもヘッダー（ロゴ・
-                   ベル・アバター）を残したまま下に一覧を敷いているので、
+                   探す・ベル・メニュー）を残したまま下に一覧を敷いているので、
                    `HeaderNav` のメニューと同じく、ヘッダーの実際の高さ
                    （`--header-h`・上の安全領域込み）に合わせる。ベルがそのまま
                    閉じる口として残る。 */

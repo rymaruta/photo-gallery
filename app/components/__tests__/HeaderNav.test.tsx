@@ -76,7 +76,7 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(items).toContain("Logout");
         expect(items).not.toContain("Manage");
         expect(items).not.toContain("Login");
-        // プロフィール編集はマイページ/ヘッダーアバターへ集約したためメニューからは除外
+        // プロフィール編集はマイページへ集約したためメニューからは除外
         expect(items).not.toContain("Profile");
         // アップロードはマイページの「写真を追加」に集約したためメニューからは除外
         expect(items).not.toContain("Upload");
@@ -107,21 +107,34 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
-    it("ログイン中もヘッダーにアバターを出さない（iOS と同じ3つ。マイページは下部タブとメニュー）", () => {
+    it("ログイン中もヘッダーは 探す・お知らせ・メニュー の3つだけ（アバターを出さない）", () => {
+        // ラベルで引くと、別のラベルで戻ったアバターが素通りする。**並びごと**見る
         setRole("general");
         render(<HeaderNav />);
-        expect(screen.queryByLabelText("My Page")).toBeNull();
+        const nav = screen.getByRole("navigation", { name: "ヘッダー" });
+        const buttons = Array.from(nav.querySelectorAll(":scope button")).filter((b) => !b.closest("[role=dialog]"));
+        expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "通知", "メニューを開く"]);
+        expect(nav.querySelector("img")).toBeNull();
     });
 
-    it("ヘッダーの押せるものは箱を持たない（iOS: 44px・アイコン22px）", () => {
+    it("ヘッダーの押せるものは3つとも箱を持たない丸い面（iOS: 44px 固定・アイコン22px・線1.7）", () => {
         setRole("general");
         render(<HeaderNav />);
-        const toggle = screen.getByRole("button", { name: "メニューを開く" });
-        const cls = toggle.className.split(/\s+/);
-        expect(cls).not.toContain("bg-surface");
-        expect(cls).not.toContain("ring-1");
-        expect(cls).toContain("w-11");
-        expect((toggle.querySelector("svg") as SVGElement).style.width).toBe("22px");
+        const nav = screen.getByRole("navigation", { name: "ヘッダー" });
+        const buttons = Array.from(nav.querySelectorAll(":scope button")).filter((b) => !b.closest("[role=dialog]")) as HTMLElement[];
+        expect(buttons).toHaveLength(3);
+        for (const b of buttons) {
+            const cls = b.className.split(/\s+/);
+            expect(cls, b.getAttribute("aria-label") ?? "").toContain("rounded-full");
+            expect(cls).not.toContain("bg-surface");
+            expect(cls).not.toContain("rounded-md");
+            // rem の w-11 は 640px 未満で 38.5px に縮むので、px の下限を持つこと
+            expect(b.style.minWidth).toBe("44px");
+            expect(b.style.minHeight).toBe("44px");
+            const svg = b.querySelector("svg") as SVGElement;
+            expect(svg.style.width).toBe("22px");
+            expect(svg.style.strokeWidth).toBe("1.7");
+        }
     });
 
     it("未ログインではヘッダーにアバターを出さない", () => {

@@ -1247,7 +1247,7 @@ describe("1画面ぶんの通知一覧（スマホ）と PC の板", () => {
         expect(sheet.className).toContain("fixed");
     });
 
-    it("スマホのシートは body へ出す（ヘッダーの backdrop-blur に閉じ込められない）", async () => {
+    it("スマホのシートは body へ出す（ヘッダーが backdrop-blur を持っても閉じ込められない）", async () => {
         await open();
         const sheet = screen.getByRole("dialog", { name: "通知" });
         // ベルの隣に置いたままだと、ヘッダーが `position: fixed` の

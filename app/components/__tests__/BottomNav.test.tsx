@@ -32,6 +32,8 @@ beforeEach(() => {
     nav.pathname = "/";
     auth.isAuthenticated = false;
     auth.userId = null;
+    // 英語のテストが後始末を忘れても、次のテストへ漏らさない
+    localeMock.locale = "ja";
     document.documentElement.style.removeProperty("--bottom-bar-h");
 });
 
