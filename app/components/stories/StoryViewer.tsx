@@ -1679,7 +1679,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             : "calc(4rem + env(safe-area-inset-bottom, 0px))",
                     }}
                     role="alert"
-                ><span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-3 py-1"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />{voteError}</span></p>
+                ><span className="inline-flex items-start gap-1 rounded-xl bg-black/55 px-3 py-1"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />{voteError}</span></p>
             )}
 
             {keepError && isOwnStory && (
@@ -1687,7 +1687,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-white"
                     style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                     role="alert"
-                ><span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-3 py-1"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />{keepError}</span></p>
+                ><span className="inline-flex items-start gap-1 rounded-xl bg-black/55 px-3 py-1"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />{keepError}</span></p>
             )}
 
             {/* **見た人が反応する道。** 自分のストーリーには出さない
