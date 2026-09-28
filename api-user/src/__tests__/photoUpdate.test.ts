@@ -1526,6 +1526,8 @@ describe("ストーリーから残した写真（元のストーリーが残っ�
         mockDdbSend.mockReset().mockResolvedValueOnce({ Item: kept }).mockResolvedValueOnce({});
         const res = await invoke(event("u1", "p1", { title: "港の夕暮れ" }));
         expect(res.statusCode, res.body).toBe(200);
+        const readStory = mockDdbSend.mock.calls.some((c) => (c[0] as { input: { Key?: { id?: string } } }).input.Key?.id === "story-1");
+        expect(readStory, "関係の無い保存でストーリーを読みにいっている").toBe(false);
     });
 
     it("ストーリーが消えたあとは、公開範囲を変えられる", async () => {
@@ -1538,8 +1540,11 @@ describe("ストーリーから残した写真（元のストーリーが残っ�
 
 describe("移した元は、ほかの行が使っていれば消さない", () => {
     const U = "22222222-2222-2222-2222-222222222222";
+    // `keptFrom` は持たせない——残した写真は元のストーリーが残っている間は門で断る。
+    // ここで見るのは「ほかの行（サムネに同じ URL を渡した別の写真・ストーリー）が
+    // 使っている実体」
     const row = {
-        id: "p1", userId: "u1", published: true, keptFrom: "story-1",
+        id: "p1", userId: "u1", published: true,
         src: `${CDN}/uploads/${U}/p1.jpg`,
     };
     const dropped = () => mockDropOld.mock.calls.flatMap((c) => c[0] as { from: string }[]).map((m) => m.from);
@@ -1550,9 +1555,7 @@ describe("移した元は、ほかの行が使っていれば消さない", () =
         mockListMyMedia.mockReset().mockResolvedValue([]);
     });
 
-    // ストーリーから残した写真は、生きているストーリーと実体を共有している
-    // （`storyKeep.ts`）。元を消すとストーリーが割れていた
-    it("ストーリーと共有している実体は、絞っても消さない", async () => {
+    it("ほかの行（ストーリー）が使っている実体は、絞っても消さない", async () => {
         mockListMyMedia.mockResolvedValue([{ id: "story-1", story: true, src: `${CDN}/uploads/${U}/p1.jpg` }]);
         mockDdbSend.mockReset().mockResolvedValueOnce({ Item: row }).mockResolvedValueOnce({});
         const res = await invoke(event("u1", "p1", { audience: "followers" }));

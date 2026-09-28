@@ -302,6 +302,19 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
     // このリポジトリは「未指定は公開」で揃っている（同じ関数の `isPublished`
     // 自身がそう）。`=== true` で書くとここだけ慣習と逆になり、古い行の
     // 二重送信で予算を1本ずつ食う
+    // 🔴 **ストーリーから残した印を落とさない。** 落とすと、元のストーリーが残って
+    // いる間の門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせる
+    it("再送で書き直しても、ストーリーから残した印（keptFrom）は引き継ぐ", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false, keptFrom: "story-1",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().keptFrom).toBe("story-1");
+    });
+
     it("再送で published を持たない行なら、公開済みとして頼まない", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({

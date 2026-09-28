@@ -546,6 +546,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 "width", "height", "aspectRatio", "dominantColor", "blurDataURL",
                 "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif", "src256", "srcOriginal",
                 "song", "songYoutubeUrl",
+                // **ストーリーから残した印。** 落とすと、元のストーリーが残っている間の
+                // 門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせ、
+                // `deleteMyPhoto` もストーリーを一緒に消さなくなる（レビューで指摘）
+                "keptFrom",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
             for (const k of SERVER_OWNED_FIELDS) {
