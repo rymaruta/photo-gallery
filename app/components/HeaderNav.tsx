@@ -4,13 +4,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/utils/scrollLock";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
-import { XMarkIcon, Bars3Icon } from "@heroicons/react/24/solid";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, Bars3Icon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
-import UserAvatar from "./UserAvatar";
 import NotificationsBell from "./NotificationsBell";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
@@ -26,17 +24,12 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     }, [isAuthenticated, isAdminUser, loading]);
 
     const navLabels = labels.navigation || {};
-    // **メニューのボタンの色は直書きしない。** 見た目の土台（`app/globals.css` の
-    // `@theme`）が入る前の値がここだけ残っていて、**ヘッダーの中でここだけ
-    // 灰色寄りの黒**だった（owner から「なんでこれだけ色違うの？」と報告）。
-    //
-    //     ここ      背景 #07090a（灰色寄りの黒）・枠 rgba(255,255,255,0.26)
-    //     ヘッダー  #050e17（当時の紺。2026-09-27 からは黒）
-    //
-    // 下地は `--color-surface`、枠は `--color-line`（白 12% の髪線）＝ほかの
-    // 押せるものと同じ組み合わせにする。影は落とす——暗い地の上で黒い影は
-    // 「浮いた黒い箱」に見える側にしか働かない。
-    const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.03)";
+    // **ヘッダーの押せるものは箱を持たない**（iOS: 44px の面・アイコン22px・線1.7）。
+    // 以前メニューだけ `bg-surface` の四角い箱を持っていた（その前は直書きの
+    // 灰色寄りの黒で、owner に「なんでこれだけ色違うの？」と言われた）。
+    // iOS は3つとも箱なしで揃うので、押したときの丸い面（白10%）だけ残す。
+    const iconBtn = "inline-flex items-center justify-center w-11 h-11 rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30";
+    const iconStyle: React.CSSProperties = { width: 22, height: 22, strokeWidth: 1.7 };
 
     // **「開いた画面」ごと覚える。**
     //
@@ -145,27 +138,15 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 onClick={() => handleNavigation(ROUTES.USER_SEARCH)}
                 aria-label={locale === "en" ? "Find people" : "ユーザーを探す"}
                 title={locale === "en" ? "Find people" : "ユーザーを探す"}
-                className="p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+                className={iconBtn}
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px", minWidth: "44px" }}
             >
-                <MagnifyingGlassIcon className="h-6 w-6" />
+                <MagnifyingGlassIcon aria-hidden="true" style={iconStyle} />
             </button>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
-            {/* ログイン中は自分のアバターを表示 → ワンタップでマイページ */}
-            {isAuthenticated && userId && (
-                <button
-                    onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
-                    aria-label={navLabels.mypage || "My Page"}
-                    title={navLabels.mypage || "My Page"}
-                    className="rounded-full p-[2px] bg-outline hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
-                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-                >
-                    <span className="block rounded-full p-[2px] bg-bg">
-                        <UserAvatar userId={userId} className="w-8 h-8" iconClassName="w-5 h-5" />
-                    </span>
-                </button>
-            )}
+            {/* **自分のアバターは出さない**（iOS のヘッダーは 探す・お知らせ・メニュー の3つ）。
+                マイページへは下部タブ（全ページ・全幅に常駐）とメニューから1タップで行ける */}
             <button
                 ref={toggleRef}
                 aria-expanded={open}
@@ -186,15 +167,14 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                 data-e2e="menu-toggle"
                 onClick={() => setOpen(!open)}
                 style={{
-                    boxShadow: subtleInset,
                     touchAction: "manipulation",
                     WebkitTapHighlightColor: "transparent",
                     minWidth: "44px",
                     minHeight: "44px",
                 }}
-                className="inline-flex items-center justify-center w-11 h-11 rounded-md bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                className={iconBtn}
             >
-                {open ? <XMarkIcon className="h-6 w-6 text-white" /> : <Bars3Icon className="h-6 w-6 text-white" />}
+                {open ? <XMarkIcon aria-hidden="true" style={iconStyle} /> : <Bars3Icon aria-hidden="true" style={iconStyle} />}
             </button>
 
             {/* メニューは body へポータルする。ヘッダーは backdrop-blur を持ち、

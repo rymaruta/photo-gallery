@@ -107,14 +107,21 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
-    it("ログイン中はヘッダーのアバターからマイページへ直行できる", () => {
+    it("ログイン中もヘッダーにアバターを出さない（iOS と同じ3つ。マイページは下部タブとメニュー）", () => {
         setRole("general");
         render(<HeaderNav />);
-        const avatarBtn = screen.getByLabelText("My Page");
-        fireEvent.click(avatarBtn);
-        expect(mockPush).toHaveBeenCalledTimes(1);
-        const dest = mockPush.mock.calls[0][0] as string;
-        expect(dest === "/users/user-1" || dest === "/users?id=user-1").toBe(true);
+        expect(screen.queryByLabelText("My Page")).toBeNull();
+    });
+
+    it("ヘッダーの押せるものは箱を持たない（iOS: 44px・アイコン22px）", () => {
+        setRole("general");
+        render(<HeaderNav />);
+        const toggle = screen.getByRole("button", { name: "メニューを開く" });
+        const cls = toggle.className.split(/\s+/);
+        expect(cls).not.toContain("bg-surface");
+        expect(cls).not.toContain("ring-1");
+        expect(cls).toContain("w-11");
+        expect((toggle.querySelector("svg") as SVGElement).style.width).toBe("22px");
     });
 
     it("未ログインではヘッダーにアバターを出さない", () => {
