@@ -911,6 +911,39 @@ async function runSignedInChecks(browser, eng) {
             } catch { /* localStorage が無い環境ならそのまま */ }
         }, { cid: SIGNED_IN_CLIENT_ID, s: sub, id: idToken, at: accessToken });
 
+        // **同意画面（「はじめる前に」）は1回目のページで確かめ、以後は同意済みにする。**
+        // ログインした人に全面で出るので、同意済みにしないと下の画面の検査が
+        // 全部「押せない操作がある」になる（同意画面が覆っている＝意図どおり）。
+        // キーは `lib/utils/legalConsent.ts` の LEGAL_CONSENT_KEY と同じ
+        {
+            const page = await ctx.newPage();
+            const tag = `[${eng}] ${w}px 同意画面`;
+            try {
+                await page.goto(`http://localhost:${PORT}/user/settings`, { waitUntil: "domcontentloaded" });
+                const dialog = page.getByRole("dialog", { name: "はじめる前に" });
+                await dialog.waitFor({ state: "visible", timeout: 15000 });
+                const button = page.getByRole("button", { name: "同意してはじめる" });
+                await button.scrollIntoViewIfNeeded();
+                // 押せる（上に何も被っていない）こと
+                const box = await button.boundingBox();
+                const onTop = box ? await page.evaluate(({ x, y }) => {
+                    const el = document.elementFromPoint(x, y);
+                    return !!el?.closest("button")?.textContent?.includes("同意してはじめる");
+                }, { x: box.x + box.width / 2, y: box.y + box.height / 2 }) : false;
+                check(`${tag}: 未同意のログイン済みに出て、ボタンが押せる`, onTop, "同意ボタンが見えない／覆われている");
+                await button.click();
+                await dialog.waitFor({ state: "detached", timeout: 5000 });
+                const stored = await page.evaluate(() => localStorage.getItem("legal.consent.version"));
+                check(`${tag}: 同意すると閉じて記録が残る`, stored === "1", `記録=${stored}`);
+            } catch (e) {
+                check(`${tag}: 出る・閉じる`, false, String(e.message ?? e).split("\n")[0]);
+            }
+            await page.close();
+        }
+        await ctx.addInitScript(() => {
+            try { localStorage.setItem("legal.consent.version", "1"); } catch { /* ignore */ }
+        });
+
         for (const [url, label] of screens) {
             const page = await ctx.newPage();
             const bag = attachDiagnostics(page);

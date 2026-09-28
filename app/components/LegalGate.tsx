@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CameraIcon, ShieldCheckIcon, LockClosedIcon } from "@heroicons/react/24/outline";
@@ -8,7 +8,7 @@ import { useAuth } from "../auth/context";
 import { useLocale } from "../i18n/context";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
-import { needsLegalConsent, acceptLegalConsent } from "../../lib/utils/legalConsent";
+import { needsLegalConsent, acceptLegalConsent, LEGAL_CONSENT_KEY } from "../../lib/utils/legalConsent";
 import { ROUTES } from "../../lib/routes";
 
 /**
@@ -20,18 +20,27 @@ import { ROUTES } from "../../lib/routes";
  * **閉じる手段は「同意してはじめる」だけ**（iOS と同じ）。Escape・背景では閉じない。
  * 規約とプライバシーポリシーのページでは出さない——覆うと読めない。
  */
+/** 別のタブで同意したら、こちらも閉じる（`storage` は他のタブの書き込みでだけ飛ぶ） */
+function subscribeConsent(onChange: () => void): () => void {
+    const onStorage = (e: StorageEvent) => { if (e.key === null || e.key === LEGAL_CONSENT_KEY) onChange(); };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+}
+
 export default function LegalGate() {
     const { isAuthenticated, loading } = useAuth();
     const { locale } = useLocale();
     const pathname = usePathname();
     const isJa = locale !== "en";
-    const [needs, setNeeds] = useState(false);
+    /** この画面で同意を押した（記録が書けない端末でも閉じるため、画面側でも覚える） */
+    const [agreed, setAgreed] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    // 記録は端末にしか無いので、読むのは水和のあと（サーバーの HTML には出さない）
-    useEffect(() => {
-        setNeeds(!loading && isAuthenticated && needsLegalConsent());
-    }, [isAuthenticated, loading]);
+    // 記録は端末にしか無いので、**サーバーの HTML と水和の最初の描画では「要らない」**
+    // （第3引数）。水和のあとに端末の記録を読む（effect で state に写すと、
+    // 描画がもう1回余計に走る——lint の react-hooks/set-state-in-effect）
+    const unconsented = useSyncExternalStore(subscribeConsent, () => needsLegalConsent(), () => false);
+    const needs = !agreed && !loading && isAuthenticated && unconsented;
 
     const path = (pathname ?? "").replace(/\/+$/, "");
     const exempt = path === ROUTES.TERMS || path === ROUTES.PRIVACY;
@@ -50,7 +59,7 @@ export default function LegalGate() {
     const agree = () => {
         // 書けなくても閉じる（出られなくなるとサイトが使えない）。次に開いたときにまた出る
         acceptLegalConsent();
-        setNeeds(false);
+        setAgreed(true);
     };
 
     const items = [
