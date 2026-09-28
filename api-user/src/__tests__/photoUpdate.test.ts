@@ -20,7 +20,13 @@ const mockCopyAll = vi.hoisted(() => vi.fn(async () => true));
 const mockDropOld = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("../s3Move", () => ({
     copyAll: (...a: unknown[]) => mockCopyAll(...(a as [])),
-    dropOld: (...a: unknown[]) => mockDropOld(...(a as [])),
+    // 本物の `dropOld` は `s3DeleteMany` を呼ぶだけ。差し替えの古い実体も
+    // `dropUnused.ts` → `dropOld` を通るようになったので、同じ記録に残す
+    dropOld: async (...a: unknown[]) => {
+        const r = await mockDropOld(...(a as []));
+        await mockS3DeleteMany((a[0] as { from: string }[]).map((m) => m.from));
+        return r;
+    },
 }));
 
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
@@ -1393,6 +1399,85 @@ describe("絞った写真の差し替えも private/ へ", () => {
         await invoke(event(UID, "p1", { replace }));
         expect(mockCopyAll).not.toHaveBeenCalled();
         expect(lastUpdate().ExpressionAttributeValues[":r_src"]).toBe(mine("new.webp"));
+    });
+});
+
+// 🔴 **消す鍵は「今の行 − 最終形」で1か所で決める**（レビューで見つかった形）
+describe("差し替えで消す鍵", () => {
+    const priv = (p: string) => `${CDN}/private/${UID}/${p}`;
+    const replace = { key: `uploads/${UID}/new.webp`, publicUrl: mine("new.webp") };
+    const deleted = () => mockS3DeleteMany.mock.calls.flatMap((c) => c[0] as string[]);
+    const lastUpdate = () => (mockDdbSend.mock.calls[1][0] as {
+        input: { UpdateExpression: string; ExpressionAttributeNames: Record<string, string> };
+    }).input;
+
+    beforeEach(() => {
+        mockCopyAll.mockReset().mockResolvedValue(true);
+        mockDropOld.mockReset().mockResolvedValue(0);
+        mockListMyMedia.mockReset().mockResolvedValue([]);
+    });
+
+    // 以前は「差し替えた項目」だけで最終形を見ていたので、行に残る2枚目以降まで
+    // 古い実体として消していた（公開写真でも。画面は複数枚でも差し替えを出す）
+    it("公開写真の差し替えで、2枚目以降の実体を消さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: {
+            id: "p1", userId: UID, published: true, src: mine("old.webp"),
+            extraImages: [{ src: mine("e1.webp"), thumbSrc: mine("e1_t.webp") }],
+        } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(deleted()).toContain(`uploads/${UID}/old.webp`);
+        expect(deleted(), "2枚目を消している（割れる）").not.toContain(`uploads/${UID}/e1.webp`);
+        expect(deleted()).not.toContain(`uploads/${UID}/e1_t.webp`);
+    });
+
+    it("差し替え＋絞るでも、ほかの行が使っている元は消さない", async () => {
+        mockListMyMedia.mockResolvedValue([{ id: "p2", src: mine("e1.webp") }]);
+        mockDdbSend.mockResolvedValueOnce({ Item: {
+            id: "p1", userId: UID, published: true, src: mine("old.webp"),
+            extraImages: [{ src: mine("e1.webp") }],
+        } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace, audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(deleted(), "ほかの写真の実体を消している").not.toContain(`uploads/${UID}/e1.webp`);
+        expect(deleted()).toContain(`uploads/${UID}/old.webp`);
+    });
+
+    it("ストーリーから残した写真の差し替えでは key も外し、古い画像を指し続けない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: {
+            id: "p1", userId: UID, published: true, audience: "followers", keptFrom: "story-1",
+            key: `private/${UID}/k.jpg`, src: priv("k.jpg"),
+        } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(lastUpdate().UpdateExpression).toMatch(/REMOVE[^]*#key/);
+        expect(deleted(), "差し替えた古い画像が残る").toContain(`private/${UID}/k.jpg`);
+    });
+
+    // 差し替えが消す派生（srcAvif など）を最終形から外さないと、移動が同じ属性を
+    // SET し、差し替えが REMOVE する——DynamoDB が式ごと拒否する（500）
+    it("差し替え＋絞るで、消す派生を SET と REMOVE の両方で触らない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: {
+            id: "p1", userId: UID, published: true, src: mine("old.webp"), srcAvif: mine("old.avif"),
+        } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace, audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        const u = lastUpdate();
+        const [setPart, removePart = ""] = u.UpdateExpression.split(" REMOVE ");
+        const setAttrs = setPart.replace(/^SET /, "").split(", ").map((a) => u.ExpressionAttributeNames[a.split(" = ")[0]] ?? a.split(" = ")[0]);
+        const removeAttrs = removePart.split(", ").map((a) => u.ExpressionAttributeNames[a.trim()] ?? a.trim());
+        expect(setAttrs.filter((a) => removeAttrs.includes(a)), "同じ属性を SET と REMOVE の両方で触っている").toEqual([]);
+    });
+
+    // 前回が行を書いたあと元を消す前に落ちていたら、元が公開の置き場に残る
+    it("差し替えの再送でも、移し済みの元は消す候補に入れる", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: {
+            id: "p1", userId: UID, published: true, audience: "followers", src: priv("new.webp"),
+        } }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockCopyAll).not.toHaveBeenCalled();
+        expect(deleted(), "公開の置き場に新しい画像が残ったまま").toContain(`uploads/${UID}/new.webp`);
+        expect(deleted()).not.toContain(`private/${UID}/new.webp`);
     });
 });
 

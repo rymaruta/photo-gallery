@@ -35,6 +35,12 @@ export async function dropUnusedKeys(userId: string, keys: string[], logPrefix: 
     }
     const drop = [...new Set(keys)].filter((k) => !inUse.has(k));
     if (drop.length === 0) return;
-    const failed = await dropOld(drop.map((k) => ({ from: k, to: k })), logPrefix);
-    if (failed > 0) console.warn(`${logPrefix}: ${failed} 件を消せませんでした`);
+    // **投げさせない。** 呼び出し側は行を書き終えている——ここで例外が上がると、
+    // 済んだ更新について 500 を返す。残るのは孤児だけ（`orphan-uploads` が拾える）
+    try {
+        const failed = await dropOld(drop.map((k) => ({ from: k, to: k })), logPrefix);
+        if (failed > 0) console.warn(`${logPrefix}: ${failed} 件を消せませんでした`);
+    } catch (e) {
+        console.warn(`${logPrefix}: 消せませんでした（更新は済んでいる）`, (e as Error)?.name);
+    }
 }
