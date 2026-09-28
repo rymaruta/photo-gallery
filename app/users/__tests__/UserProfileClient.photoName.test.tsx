@@ -133,4 +133,24 @@ describe("マイページの写真タイルの名前", () => {
         await openAsVisitor([{ ...photo(P1, "Opera at dawn"), likes: 2 }]);
         expect(tiles()[0].getAttribute("aria-label")).toBe("Open Opera at dawn (2 likes)");
     });
+
+    /**
+     * **公開範囲を絞った写真の印。** 絞った写真はウェブサイトに載らないので、
+     * 持ち主の一覧で印が無いと「なぜトップに無いのか」が分からない。名前にも入れる
+     */
+    it("公開範囲を絞った写真は、印と名前で分かる", async () => {
+        await openAsVisitor([
+            { ...photo(P1, "山の朝"), audience: "followers" },
+            { ...photo(P2, "海の夜"), audience: "closeFriends" },
+        ]);
+        expect(tiles().map((a) => a.getAttribute("aria-label")))
+            .toEqual(["山の朝 を開く（フォロワーのみ）", "海の夜 を開く（親しい友達）"]);
+        expect(tiles()[0].textContent).toContain("フォロワーのみ");
+    });
+
+    it("全体に公開の写真には印を付けない", async () => {
+        await openAsVisitor([photo(P1, "山の朝")]);
+        expect(tiles()[0].getAttribute("aria-label")).toBe("山の朝 を開く");
+        expect(tiles()[0].textContent).not.toContain("フォロワーのみ");
+    });
 });

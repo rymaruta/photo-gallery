@@ -13,7 +13,7 @@ import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
-import { HeartIcon, StarIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, StarIcon, UserGroupIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
@@ -41,6 +41,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
+import { readAudience } from "../../lib/utils/audience";
 
 type SongEntry = {
     title: string;
@@ -184,6 +185,14 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 }) {
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
+    // **公開範囲を絞った写真の印**（持ち主の一覧にだけ来る）。絞った写真はウェブサイトに
+    // 載らないので、印が無いと「なぜトップに無いのか」が分からない
+    const audience = readAudience((photo as { audience?: unknown }).audience);
+    const audienceLabel = audience === "followers"
+        ? (locale === "en" ? "Followers" : "フォロワーのみ")
+        : audience === "closeFriends"
+            ? (locale === "en" ? "Close friends" : "親しい友達")
+            : null;
 
     const likeCount = typeof photo.likes === "number" && photo.likes > 0 ? photo.likes : 0;
     // 複数枚の印。**壊れた要素は数えない**（「1/3」と出して開くと2枚、を作らない）
@@ -213,7 +222,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                  * `GalleryGrid` は同じ状況でも名前が残る（あちらは
                  * `aria-label` を持っている）。揃える。
                  */
-                aria-label={photoCardLabel(title, likeCount, locale)}
+                aria-label={`${photoCardLabel(title, likeCount, locale)}${audienceLabel ? `（${audienceLabel}）` : ""}`}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -232,6 +241,16 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                           style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
                           aria-hidden="true">
                         1/{extraCount + 1}
+                    </span>
+                )}
+                {audienceLabel && (
+                    <span className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                          style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
+                          aria-hidden="true">
+                        {audience === "closeFriends"
+                            ? <StarIcon className="w-3 h-3" />
+                            : <UserGroupIcon className="w-3 h-3" />}
+                        {audienceLabel}
                     </span>
                 )}
                 {/* ホバー: いいね数オーバーレイ。
