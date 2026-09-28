@@ -22,7 +22,8 @@ const auth = vi.hoisted(() => ({ isAuthenticated: false, userId: null as string 
 vi.mock("../../auth/context", () => ({
     useAuth: () => ({ isAuthenticated: auth.isAuthenticated, userId: auth.userId }),
 }));
-vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
+const localeMock = vi.hoisted(() => ({ locale: "ja" as "ja" | "en" }));
+vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: localeMock.locale, labels: {} }) }));
 
 import BottomNav, { activeTab } from "../BottomNav";
 
@@ -31,16 +32,30 @@ beforeEach(() => {
     nav.pathname = "/";
     auth.isAuthenticated = false;
     auth.userId = null;
+    // 英語のテストが後始末を忘れても、次のテストへ漏らさない
+    localeMock.locale = "ja";
     document.documentElement.style.removeProperty("--bottom-bar-h");
 });
 
 describe("画面下の5つのタブ", () => {
-    it("ホーム・さがす・投稿・マップ・マイページが、この並びで出る", () => {
+    it("英語の文言も iOS と同じ（Search・My Page）", () => {
+        localeMock.locale = "en";
+        try {
+            render(<BottomNav />);
+            const bar = screen.getByRole("navigation", { name: "Main" });
+            const cells = Array.from(bar.querySelectorAll("a,button")).map((el) => el.textContent);
+            expect(cells).toEqual(["Home", "Search", "Post", "Map", "My Page"]);
+        } finally {
+            localeMock.locale = "ja";
+        }
+    });
+
+    it("ホーム・探す・投稿・マップ・マイページが、この並びで出る", () => {
         render(<BottomNav />);
         // 並びごと見る（`toContain` の羅列だと入れ替えが素通りする）
         const bar = screen.getByRole("navigation", { name: "メインメニュー" });
         const cells = Array.from(bar.querySelectorAll("a,button")).map((el) => el.textContent);
-        expect(cells).toEqual(["ホーム", "さがす", "投稿", "マップ", "マイページ"]);
+        expect(cells).toEqual(["ホーム", "探す", "投稿", "マップ", "マイページ"]);
     });
 
     it("いま居る場所のタブだけが aria-current を持つ", () => {
@@ -161,7 +176,7 @@ describe("浮いたカプセル（iOS の案B・owner の決定 2026-09-27）", 
         const withSurface = Array.from(
             screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
         ).filter((el) => el.className.split(/\s+/).includes("bg-white/16"));
-        expect(withSurface.map((el) => el.textContent)).toEqual(["さがす"]);
+        expect(withSurface.map((el) => el.textContent)).toEqual(["探す"]);
     });
 
     it("写真が透けても字が読める: 非選択は白72%・透けた写真は brightness 0.6 で暗くする", () => {

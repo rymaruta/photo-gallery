@@ -336,9 +336,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LocaleProvider>
             <AuthProvider>
               <MusicProvider>
-              {/* Header: 紺の下地に白字（最終版モック） */}
+              {/* Header: 黒一色の地に白字（iOS の `Main.dc.html`・「黒塗りの真鍮」の地は `#000`）。
+                  以前は 70% の地＋ぼかし＋上からの白いにじみだったが、iOS は透けない黒 */}
               <header
-                className="sticky top-0 z-50 bg-bar/70 backdrop-blur-md border-b border-white/10"
+                className="sticky top-0 z-50 bg-bar border-b border-white/10"
                 // **ホーム画面から起動したとき、時計・電池の帯のぶんを上に空ける。**
                 // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、
                 // 空けないとロゴとメニューが時計・Dynamic Island と重なる。
@@ -356,8 +357,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   paddingRight: "env(safe-area-inset-right, 0px)",
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-                <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-6 md:px-8">
+                {/* **左右の余白は `px-4 sm:px-6 md:px-8`**（以前は `px-6 md:px-8`）。iOS の画面の
+                    余白は 16px だが、640px 未満は root が 14px なので `px-4` は 14px。
+                    **スマホ幅（640px 未満）では、どの画面の本文とも左端が揃う**（本文も 14px）。
+                    ⚠️ 640px 以上は画面ごとに本文の形が違い（`px-4` だけ・`max-w-2xl` で中央寄せ・
+                    `lg:max-w-6xl` など）、ヘッダーと揃わない画面がある。揃えるなら本文側の作業 */}
+                <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-4 sm:px-6 md:px-8">
                   {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
                       既定（`min-width:auto`）で縮まず、文字サイズ200%でヘッダーが
                       画面から 27px はみ出して**全ページが横スクロール**していた
