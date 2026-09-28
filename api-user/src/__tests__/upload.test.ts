@@ -416,6 +416,7 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
             { from: "uploads/u1/p1_thumb.webp", to: "private/u1/p1_thumb.webp" },
         ]));
         expect(JSON.parse(res.body).photo.src, "応答も新しい置き場を返す").toBe(PRIV);
+        expect(droppedFrom(), "消すのは元だけ（コピーは消さない）").toEqual(["uploads/u1/p1.webp", "uploads/u1/p1_thumb.webp"]);
     });
 
     it("2枚目以降も移す", async () => {
@@ -500,6 +501,17 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    it("他人の行とぶつかったとき（409）も、コピーは消さない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "someone-else", src: PRIV, audience: "followers",
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
         const res = await invoke(event("u1", { ...BASE, audience: "followers" }));

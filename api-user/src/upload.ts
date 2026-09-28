@@ -515,7 +515,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **上でコピーした分も片づけない。** 別タブの写真の編集が同じ
                 // `private/` の鍵へ移している最中かもしれない（鍵は機械的に決まる）
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
-                    error: "この写真は保存済みです。公開範囲を変えるときは、写真の編集から変えてください",
+                    error: "この写真は保存済みです。公開範囲は、写真の編集から変えられます",
                 }) };
             }
             if (!existing || (existing.userId ?? existing.uploadedBy) !== userId || existing.src !== photo.src) {
@@ -630,8 +630,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 resendMoves = [...moves, ...missing];
             }
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
-                // **行を読み直してから消す。** 読んだあとに別タブで公開に戻され、
-                // 行が `uploads/` を指し直していることがある
+                // **行を読み直してから消す**（読んだあとに別タブで公開に戻され、
+                // 行が `uploads/` を指し直していることがある）。一覧は結果整合なので
+                // 窓を狭めるだけで、塞ぎはしない（`dropUnusedKeys` の注記）
                 await dropUnusedKeys(userId, sourcesOf(resendMoves), `savePhoto(${photo.id})`);
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
