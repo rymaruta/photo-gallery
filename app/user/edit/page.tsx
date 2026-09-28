@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -755,7 +755,7 @@ function EditContent() {
                     <p className="text-sm text-white/70 mb-4">{message}</p>
                     <Link
                         href={ROUTES.DRAFTS}
-                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {isJa ? "下書き一覧へ" : "Back to drafts"}
@@ -905,7 +905,8 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
                         {isEnglishOnly(photo?.title) && (
-                            <p className="text-[11px] text-amber-300/80 mb-1">
+                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語のタイトルしか持っていません。この欄の文字はそのまま日本語タイトルとして保存されます。"
                                     : "This photo only has an English title. What you see here will be saved as the Japanese title."}
@@ -920,7 +921,8 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-description">{isJa ? "説明" : "Description"}</label>
                         {isEnglishOnly(photo?.description) && (
-                            <p className="text-[11px] text-amber-300/80 mb-1">
+                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語の説明しか持っていません。この欄の文字はそのまま日本語の説明として保存されます。"
                                     : "This photo only has an English description. What you see here will be saved as the Japanese description."}
@@ -981,7 +983,7 @@ function EditContent() {
                                             // 並ぶことになる（`749bfce2` で潰した型）。
                                             // 見えている語はそのまま含める（WCAG 2.5.3）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             {c}
@@ -1022,7 +1024,7 @@ function EditContent() {
                                                 onClick={() => setTagsInput((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {t}
@@ -1129,7 +1131,7 @@ function EditContent() {
                             <button
                                 type="button"
                                 onClick={() => { setConfirmLeave(false); router.push(backHref); }}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
+                                className="w-full py-3.5 border-t border-white/10 text-danger text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {isJa ? "破棄して戻る" : "Discard and go back"}
@@ -1181,10 +1183,10 @@ function EditContent() {
                                 type="button"
                                 onClick={() => void handleDelete()}
                                 disabled={deleting}
-                                className="w-full py-3.5 border-t border-white/10 text-[#ff453a] text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full py-3.5 border-t border-white/10 text-danger text-[17px] font-semibold hover:bg-white/5 active:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
                                 style={{ touchAction: "manipulation" }}
                             >
-                                {deleting && <div className="w-3.5 h-3.5 border-2 border-[#ff453a]/40 border-t-[#ff453a] rounded-full animate-spin" />}
+                                {deleting && <div className="w-3.5 h-3.5 border-2 border-danger/40 border-t-danger rounded-full animate-spin" />}
                                 {isJa ? "削除" : "Delete"}
                             </button>
                         </div>
@@ -1227,7 +1229,7 @@ function EditContent() {
                         type="button"
                         onClick={() => setConfirmDelete(true)}
                         disabled={saving || deleting}
-                        className="px-4 py-3 text-[#ff453a] text-sm font-semibold rounded-full ring-1 ring-[#ff453a]/30 hover:bg-[#ff453a]/10 transition-colors disabled:opacity-40"
+                        className="px-4 py-3 text-danger text-sm font-semibold rounded-full ring-1 ring-danger/30 hover:bg-danger/10 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {isJa ? "削除" : "Delete"}
@@ -1250,7 +1252,7 @@ function EditContent() {
                         type="button"
                         onClick={() => void save(true)}
                         disabled={saving}
-                        className="px-6 py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40"
+                        className="px-6 py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving

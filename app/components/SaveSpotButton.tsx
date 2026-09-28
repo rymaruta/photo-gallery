@@ -102,7 +102,7 @@ export default function SaveSpotButton({
                 // 分からない間に `false` を渡すと「押されていない」と読み上げる
                 aria-pressed={saved === undefined ? undefined : saved}
                 aria-busy={saved === undefined || working}
-                className={`${BTN} ${saved ? "bg-accent-fill ring-accent text-white hover:brightness-110" : "bg-white/10 ring-white/20 text-white hover:bg-white/20"} disabled:opacity-60`}
+                className={`${BTN} ${saved ? "bg-primary ring-primary text-ink hover:brightness-110" : "bg-white/10 ring-white/20 text-white hover:bg-white/20"} disabled:opacity-60`}
                 style={{ touchAction: "manipulation", minHeight: 44 }}
             >
                 {saved
@@ -119,7 +119,7 @@ export default function SaveSpotButton({
                 （押すと既に保存済みのものをもう一度保存することになる）。
                 `/favorites` が同じ場面で同じ断りを出している */}
             {failed && (
-                <p role="alert" className="text-xs text-amber-300/90">
+                <p role="alert" className="text-xs text-danger">
                     {en ? "Couldn't load your saved spots. " : "保存した場所を読み込めませんでした。"}
                     <button onClick={retry} className="underline text-white/80 hover:text-white">
                         {en ? "Retry" : "再試行"}
@@ -134,6 +134,6 @@ const BTN =
     "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold " +
     // **面と枠は状態ごとに付ける。** ここに `bg-white/10 ring-white/20` を置くと、
     // Tailwind v4 は同じプロパティの utility を候補名の順で並べるので
-    // `bg-accent-fill` より `bg-white/10` が後ろに来て**保存済みの青が一度も出ない**
+    // `bg-primary` より `bg-white/10` が後ろに来て**保存済みの塗りが一度も出ない**
     // （レビューが生成 CSS で確認。白塗りの頃から同じ順で負けていた）
     "ring-1 active:scale-95 transition";

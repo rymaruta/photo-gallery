@@ -565,7 +565,7 @@ export default function ProfileEditPage() {
                 {/* 読み込めていないことを黙って空欄で見せると、書き直して保存され
                     既存のプロフィールが消える。はっきり伝えて保存させない。 */}
                 {loadFailed && (
-                    <div className="mb-8 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs leading-relaxed text-red-200">
+                    <div className="mb-8 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-xs leading-relaxed text-danger">
                         {locale === "en"
                             ? "Could not load your profile. The fields below are empty because of this, not because your profile is empty. Reload before editing — saving now would erase it."
                             : "プロフィールを読み込めませんでした。下の欄が空なのはそのためで、登録内容が消えたわけではありません。このまま保存すると上書きされてしまうので、再読み込みしてください。"}
@@ -800,7 +800,7 @@ export default function ProfileEditPage() {
                     {/* テーマソング */}
                     <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
-                            <MusicalNoteIcon className="w-4 h-4 text-fuchsia-400" />
+                            <MusicalNoteIcon className="w-4 h-4 text-accent" />
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                         </div>
 
@@ -826,7 +826,7 @@ export default function ProfileEditPage() {
                                             className="px-1.5 py-1 text-white/50 hover:text-white disabled:opacity-25 active:scale-90 transition text-sm">↓</button>
                                         <button type="button" onClick={() => removeSong(song.previewUrl)}
                                             aria-label={locale === "en" ? "Remove" : "削除"}
-                                            className="px-1.5 py-1 text-white/40 hover:text-red-400 active:scale-90 transition">
+                                            className="px-1.5 py-1 text-white/40 hover:text-danger active:scale-90 transition">
                                             <XMarkIcon className="w-4 h-4" />
                                         </button>
                                     </li>
@@ -896,7 +896,7 @@ export default function ProfileEditPage() {
                                                     className="min-w-0 flex-1 flex items-center py-2.5 text-left active:opacity-70 transition"
                                                 >
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-sm truncate ${isPreviewing ? "text-fuchsia-300" : "text-white"}`}>{song.title}</p>
+                                                        <p className={`text-sm truncate ${isPreviewing ? "text-accent" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
                                                     <span className="text-[11px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
@@ -941,7 +941,7 @@ export default function ProfileEditPage() {
                                                     className={inputClass}
                                                 />
                                                 {songInvalid && (
-                                                    <p className="text-xs text-amber-400/80 mt-1.5">
+                                                    <p className="text-xs text-danger mt-1.5">
                                                         {locale === "en"
                                                             ? "Unsupported link. Use Spotify, YouTube, or Apple Music."
                                                             : "未対応のリンクです。Spotify / YouTube / Apple Music を使ってください。"}
@@ -1018,7 +1018,7 @@ export default function ProfileEditPage() {
                         <button
                             onClick={() => void handleSave()}
                             disabled={saving || avatarUploading}
-                            className="w-full py-3 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving

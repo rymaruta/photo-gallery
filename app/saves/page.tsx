@@ -104,7 +104,7 @@ export default function SavesPage() {
 
             {/* 取りに行って失敗した回は、黙って短い一覧を出さない */}
             {failed && (
-                <p role="alert" className="mb-4 text-sm text-amber-300/90">
+                <p role="alert" className="mb-4 text-sm text-danger">
                     {en
                         ? "Couldn't load your saved photos. "
                         : "保存した写真を読み込めませんでした。"}

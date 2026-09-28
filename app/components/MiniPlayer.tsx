@@ -149,7 +149,7 @@ export default function MiniPlayer() {
                     getAudio={music.getAudio}
                     active
                     className="absolute top-0 left-0 right-0 h-0.5"
-                    barClassName="bg-fuchsia-400/80"
+                    barClassName="bg-accent/80"
                 />
 
                 <div className="flex items-center gap-2.5 pl-2.5 pr-1.5 py-2">
@@ -186,7 +186,7 @@ export default function MiniPlayer() {
                             onClick={music.toggleShuffle}
                             aria-label="シャッフル"
                             aria-pressed={shuffle}
-                            className={`p-1.5 active:scale-90 transition ${shuffle ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
+                            className={`p-1.5 active:scale-90 transition ${shuffle ? "text-accent" : "text-white/40 hover:text-white/70"}`}
                         >
                             <ArrowsRightLeftIcon className="w-4 h-4" />
                         </button>
@@ -195,7 +195,7 @@ export default function MiniPlayer() {
                         onClick={music.toggleRepeatOne}
                         aria-label="1曲リピート"
                         aria-pressed={repeatOne}
-                        className={`p-1.5 active:scale-90 transition ${repeatOne ? "text-fuchsia-300" : "text-white/40 hover:text-white/70"}`}
+                        className={`p-1.5 active:scale-90 transition ${repeatOne ? "text-accent" : "text-white/40 hover:text-white/70"}`}
                     >
                         <ArrowPathIcon className="w-4 h-4" />
                     </button>
@@ -207,7 +207,7 @@ export default function MiniPlayer() {
                     <button
                         onClick={music.toggle}
                         aria-label={playing ? "一時停止" : "再生"}
-                        className="w-8 h-8 rounded-full bg-accent-fill text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0"
+                        className="w-8 h-8 rounded-full bg-accent-fill text-ink flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0"
                     >
                         {playing ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 ml-0.5" />}
                     </button>

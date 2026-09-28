@@ -21,7 +21,7 @@ import { useLocale } from "../i18n/context";
 export default function SongSearchError() {
     const { locale } = useLocale();
     return (
-        <p className="text-xs text-amber-400/80" role="alert">
+        <p className="text-xs text-danger" role="alert">
             {locale === "en" ? "Search failed. Try again." : "検索に失敗しました。もう一度お試しください。"}
         </p>
     );

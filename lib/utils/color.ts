@@ -18,6 +18,6 @@ export function themeRingGradient(themeColor?: string): string {
         const light = mixWithWhite(themeColor, 0.55);
         return `conic-gradient(from 0deg, ${themeColor}, ${light}, ${themeColor})`;
     }
-    // 既定: 旅パレット（sky → emerald）
-    return "conic-gradient(from 0deg, #38bdf8, #34d399, #2dd4bf, #38bdf8)";
+    // 既定: 真鍮（デザインシステム「黒塗りの真鍮」。以前は旅パレットの sky → emerald）
+    return "conic-gradient(from 0deg, #c9a66b, #e3c98f, #796440, #c9a66b)";
 }

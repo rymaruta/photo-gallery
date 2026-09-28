@@ -289,7 +289,7 @@ export default function SpotPageClient({
                             className="relative w-full overflow-hidden"
                             style={{
                                 paddingTop: "66.6667%",
-                                backgroundColor: hero.dominantColor ?? "#0d1a26",
+                                backgroundColor: hero.dominantColor ?? "#121212",
                                 fontSize: 0,
                                 lineHeight: 0,
                             }}
@@ -581,7 +581,7 @@ export default function SpotPageClient({
                                             className="relative w-full overflow-hidden"
                                             style={{
                                                 paddingTop: "66.6667%",
-                                                backgroundColor: n.cover.dominantColor ?? "#0d1a26",
+                                                backgroundColor: n.cover.dominantColor ?? "#121212",
                                                 fontSize: 0,
                                                 lineHeight: 0,
                                             }}

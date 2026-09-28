@@ -72,7 +72,7 @@ export default function FavoritesPage() {
             {/* 取りに行って失敗した回は、黙って短い一覧を出さない
                 （端末の控えぶんは出るので、足りていないことだけ伝える） */}
             {serverLikes.failed && (
-                <p role="alert" className="mb-4 text-sm text-amber-300/90">
+                <p role="alert" className="mb-4 text-sm text-danger">
                     {locale === "en"
                         ? "Couldn't load the likes saved on your account. Some photos may be missing. "
                         : "アカウントに保存されたいいねを読み込めませんでした。表示されていない写真があるかもしれません。"}

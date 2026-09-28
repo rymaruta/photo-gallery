@@ -94,7 +94,7 @@ export default function MoreMenu({ items, label, buttonRef, className = "" }: Pr
                             type="button"
                             role="menuitem"
                             onClick={() => { setOpen(false); it.onSelect(); }}
-                            className={`block w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${it.danger ? "text-red-400" : "text-white"}`}
+                            className={`block w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${it.danger ? "text-danger" : "text-white"}`}
                             style={{ touchAction: "manipulation", minHeight: "44px" }}
                         >
                             {it.label}

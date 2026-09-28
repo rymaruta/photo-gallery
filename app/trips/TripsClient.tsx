@@ -79,7 +79,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
         // **数を出すのは、聞けたときだけ**（失敗した回に「0件」と言い切らない）
         <Shell en={en} count={pending || failed ? null : plans.length}>
             {failed && (
-                <p role="alert" className="mb-4 text-sm text-amber-300/90">
+                <p role="alert" className="mb-4 text-sm text-danger">
                     {en ? "Couldn't load your trips. " : "旅行プランを読み込めませんでした。"}
                     <button onClick={retry} className="underline text-white/80 hover:text-white">
                         {en ? "Retry" : "再試行"}
@@ -88,7 +88,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
             )}
             {/* **サーバーの言い分をそのまま出す。** 上限（403）と混雑（503）を
                 「保存に失敗しました」に潰すと、何をすれば直るか分からない */}
-            {error && <p role="alert" className="mb-4 text-sm text-amber-300/90">{error}</p>}
+            {error && <p role="alert" className="mb-4 text-sm text-danger">{error}</p>}
 
             {/* 作る口は、取れていなくても出す——**新しく作るのに一覧は要らない** */}
             <div className="mb-4 flex gap-2">
@@ -108,7 +108,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
                     type="button"
                     onClick={() => void onCreate()}
                     disabled={busy !== null || !newTitle.trim()}
-                    className="shrink-0 rounded-full bg-accent-fill text-white px-4 text-sm font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition inline-flex items-center gap-1"
+                    className="shrink-0 rounded-full bg-accent-fill text-ink px-4 text-sm font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition inline-flex items-center gap-1"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     <PlusIcon className="w-4 h-4" aria-hidden />
@@ -212,7 +212,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
                         type="button"
                         onClick={() => { setConfirming(false); void onRemove(plan.planId); }}
                         disabled={busy}
-                        className="rounded-full px-3 text-xs bg-red-500/20 ring-1 ring-red-400/40 text-red-200 hover:bg-red-500/30 disabled:opacity-60 transition"
+                        className="rounded-full px-3 text-xs ring-1 ring-danger/50 text-danger hover:bg-danger/10 disabled:opacity-60 transition"
                         style={{ touchAction: "manipulation", minHeight: 44 }}
                     >
                         {en ? "Delete" : "削除する"}
@@ -411,7 +411,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                     onClick={() => void onUpdate(plan.planId, { days, startDate: start, endDate: end })}
                     // **変えていなければ押させない**（無駄な往復と、他のタブの編集の打ち消しを避ける）
                     disabled={busy || !dirty}
-                    className="rounded-full bg-accent-fill text-white px-4 text-xs font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition"
+                    className="rounded-full bg-accent-fill text-ink px-4 text-xs font-semibold ring-1 ring-accent hover:brightness-110 disabled:opacity-60 transition"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     {en ? "Save" : "保存"}

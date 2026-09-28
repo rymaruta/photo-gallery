@@ -131,7 +131,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
             {/* 取りに行って失敗した回は、黙って短い一覧を出さない
                 （`/favorites` が同じ場面で同じ断りを出している） */}
             {failed && (
-                <p role="alert" className="mb-4 text-sm text-amber-300/90">
+                <p role="alert" className="mb-4 text-sm text-danger">
                     {en
                         ? "Couldn't load your saved spots. "
                         : "保存した場所を読み込めませんでした。"}

@@ -1428,7 +1428,7 @@ function UploadPageInner() {
                         type="button"
                         onClick={() => handleUploadAll(false)}
                         disabled={uploading || pendingCount === 0}
-                        className="justify-self-end px-4 rounded-full bg-accent-fill text-white font-semibold hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="justify-self-end px-4 rounded-full bg-accent-fill text-ink font-semibold hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ minHeight: "32px", fontSize: "13px", touchAction: "manipulation" }}
                     >
                         {isJa ? "下書き保存" : "Save draft"}
@@ -1625,7 +1625,8 @@ function UploadPageInner() {
                     {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
                         取れていなければ何も出さない（推測した数字は見せない）。 */}
                     {remainingSlots !== null && (
-                        <p className={`mt-2 ${remainingSlots === 0 ? "text-amber-400/90" : "text-white/50"}`} style={{ fontSize: "12px" }}>
+                        <p className={`mt-2 ${remainingSlots === 0 ? "text-white flex items-start gap-1" : "text-white/50"}`} style={{ fontSize: "12px" }}>
+                            {remainingSlots === 0 && <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />}
                             {remainingSlots === 0
                                 ? (isJa
                                     ? `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`
@@ -1636,7 +1637,7 @@ function UploadPageInner() {
                         </p>
                     )}
 
-                    {fileError && <p role="alert" className="mt-2 text-red-400" style={{ fontSize: "13px" }}>{fileError}</p>}
+                    {fileError && <p role="alert" className="mt-2 text-danger" style={{ fontSize: "13px" }}>{fileError}</p>}
 
                     {/* **1件の投稿にまとめる**（モックは1投稿＝複数枚だが、この画面の
                         既定は今までどおり「N枚選ぶ → N件の投稿」。既定を変えると
@@ -1654,7 +1655,7 @@ function UploadPageInner() {
                                     onChange={(e) => setAsOnePost(e.target.checked)}
                                     disabled={uploading || tooManyToGroup}
                                     aria-describedby="group-hint"
-                                    className="w-4 h-4 accent-[#2080f6]"
+                                    className="w-4 h-4 accent-[#796440]"
                                 />
                                 <span className="text-white/80" style={{ fontSize: "13px" }}>
                                     {isJa
@@ -1786,7 +1787,7 @@ function UploadPageInner() {
                                             // 名前を種別で分ける（すぐ下のタグのチップと綴りが
                                             // 重なる語がある。見えている語はそのまま含める）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-surface-2 ring-line text-white/80 hover:brightness-125"}`}
+                                            className={`${chipCls} ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-surface-2 ring-line text-white/80 hover:brightness-125"}`}
                                             style={chipStyle}
                                         >
                                             {c}
@@ -1863,7 +1864,7 @@ function UploadPageInner() {
                                                 disabled={uploading}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`${chipCls} ${on ? "bg-accent-fill text-white font-medium ring-accent" : "bg-chip ring-line text-chip-text hover:brightness-125"}`}
+                                                className={`${chipCls} ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-chip ring-line text-chip-text hover:brightness-125"}`}
                                                 style={chipStyle}
                                             >
                                                 #{t}
@@ -1938,7 +1939,7 @@ function UploadPageInner() {
                             checked={gpsAutofill}
                             onChange={toggleGpsAutofill}
                             disabled={uploading}
-                            className="w-4 h-4 accent-[#2080f6]"
+                            className="w-4 h-4 accent-[#796440]"
                         />
                         <span className="text-white/60" style={{ fontSize: "12px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 inline -mt-0.5 mr-0.5" />
@@ -1968,11 +1969,11 @@ function UploadPageInner() {
                         <ul className="mt-4 space-y-1">
                             {items.map((it, i) => (
                                 it.status === "done" ? (
-                                    <li key={it.id} className="text-green-400 inline-flex items-center gap-1" style={{ fontSize: "12px" }}>
+                                    <li key={it.id} className="text-success inline-flex items-center gap-1" style={{ fontSize: "12px" }}>
                                         <CheckCircleIcon className="w-4 h-4" />{i + 1}{isJa ? "枚目: アップロード完了" : ": Uploaded"}
                                     </li>
                                 ) : it.status === "error" ? (
-                                    <li key={it.id} className="text-red-400 inline-flex items-center gap-1 break-words" style={{ fontSize: "12px" }}>
+                                    <li key={it.id} className="text-danger inline-flex items-center gap-1 break-words" style={{ fontSize: "12px" }}>
                                         <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />{i + 1}{isJa ? "枚目: " : ": "}{it.error ?? (isJa ? "失敗" : "Failed")}
                                     </li>
                                 ) : null
@@ -2029,7 +2030,7 @@ function UploadPageInner() {
                         <button
                             onClick={() => handleUploadAll(true)}
                             disabled={uploading || metaLoading || pendingCount === 0}
-                            className="flex-1 lg:flex-none lg:w-[420px] lg:ml-auto inline-flex items-center justify-center gap-2 bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="flex-1 lg:flex-none lg:w-[420px] lg:ml-auto inline-flex items-center justify-center gap-2 bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             style={{ touchAction: "manipulation", minHeight: "46px", fontSize: "17px" }}
                         >
                             <PaperAirplaneIcon className="w-5 h-5" aria-hidden="true" />

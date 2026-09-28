@@ -287,7 +287,7 @@ export default function AlbumsPage() {
                         type="button"
                         onClick={create}
                         disabled={busy || !title.trim()}
-                        className="rounded-lg bg-accent-fill text-white text-sm px-4 disabled:opacity-50"
+                        className="rounded-lg bg-accent-fill text-ink text-sm px-4 disabled:opacity-50"
                         style={{ minHeight: 44 }}
                     >
                         作る
@@ -334,7 +334,7 @@ export default function AlbumsPage() {
                                             （`rename` は `!name` で黙って return するのに、
                                             ここは `busy` しか見ていなかった）。条件を揃える */}
                                         <button type="button" onClick={rename} disabled={busy || !editing.title.trim()}
-                                            className="rounded-lg bg-accent-fill text-white text-sm px-3 disabled:opacity-50" style={{ minHeight: 44 }}>
+                                            className="rounded-lg bg-accent-fill text-ink text-sm px-3 disabled:opacity-50" style={{ minHeight: 44 }}>
                                             保存
                                         </button>
                                         <button type="button" onClick={() => setEditing(null)}
@@ -412,7 +412,7 @@ export default function AlbumsPage() {
                                 <button type="button" onClick={() => setConfirming(null)}
                                     className="text-sm px-4" style={{ minHeight: 44 }}>やめる</button>
                                 <button type="button" onClick={() => remove(confirming)} disabled={busy}
-                                    className="rounded-lg bg-accent-fill text-white text-sm px-4 disabled:opacity-50" style={{ minHeight: 44 }}>
+                                    className="rounded-lg bg-accent-fill text-ink text-sm px-4 disabled:opacity-50" style={{ minHeight: 44 }}>
                                     消す
                                 </button>
                             </div>

@@ -556,10 +556,10 @@ export default function SettingsPage() {
 
                 {/* ── 危険な操作 ───────────────────────────────── */}
                 <section className="mt-10 pt-6 border-t border-white/10">
-                    <h2 className="text-[11px] tracking-widest uppercase text-red-400/70 mb-2">
+                    <h2 className="text-[11px] tracking-widest uppercase text-danger mb-2">
                         {locale === "en" ? "Danger zone" : "危険な操作"}
                     </h2>
-                    <div className="rounded-2xl bg-red-500/[0.05] ring-1 ring-red-500/15 p-4">
+                    <div className="rounded-2xl bg-danger/[0.05] ring-1 ring-danger/15 p-4">
                         <p className="text-sm font-semibold text-white/90 mb-1">
                             {locale === "en" ? "Delete account" : "退会（アカウント削除）"}
                         </p>
@@ -572,7 +572,7 @@ export default function SettingsPage() {
                             type="button"
                             ref={deleteAccountBtnRef}
                             onClick={() => setShowDeleteModal(true)}
-                            className="w-full py-2.5 rounded-xl bg-transparent text-red-400 text-sm font-medium ring-1 ring-inset ring-red-500/30 hover:bg-red-500/10 active:scale-[0.98] transition"
+                            className="w-full py-2.5 rounded-xl bg-transparent text-danger text-sm font-medium ring-1 ring-inset ring-danger/30 hover:bg-danger/10 active:scale-[0.98] transition"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Delete my account" : "退会する"}

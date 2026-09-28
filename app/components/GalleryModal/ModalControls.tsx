@@ -88,7 +88,7 @@ export default function ModalControls({
                 style={BTN_STYLE}
             >
                 {isFav
-                    ? <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
+                    ? <HeartIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     : <HeartIconOutline className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 }
             </button>

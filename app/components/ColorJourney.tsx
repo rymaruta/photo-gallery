@@ -135,7 +135,7 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                             onClick={() => setSelected(active ? null : bucket.id)}
                             className={`inline-flex items-center gap-1.5 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
                                 active
-                                    ? "bg-accent-fill text-white font-medium"
+                                    ? "bg-primary text-ink font-medium"
                                     : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"
                             }`}
                             style={{
@@ -149,12 +149,13 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                                 style={{
                                     ...STYLE.swatch,
                                     backgroundColor: bucket.swatch,
-                                    // 黒い丸は黒地に沈むので、縁を1本引く
-                                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                                    // 黒い丸は黒地に沈むので、縁を1本引く。選択中は白い塗りの上に
+                                    // 載るので、白い見本が溶けないよう縁を暗くする
+                                    boxShadow: active ? "inset 0 0 0 1px rgba(0,0,0,0.3)" : "inset 0 0 0 1px rgba(255,255,255,0.25)",
                                 }}
                             />
                             <span>{bucket.label}</span>
-                            <span className={active ? "text-white text-[11px]" : "text-white/50 text-[11px]"}>
+                            <span className={active ? "text-ink/70 text-[11px]" : "text-white/50 text-[11px]"}>
                                 {inBucket.length}
                             </span>
                         </button>
