@@ -357,9 +357,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   paddingRight: "env(safe-area-inset-right, 0px)",
                 }}
               >
-                {/* **左右の余白は本文と同じ刻み**（`p-4 sm:p-6 md:p-8`）。iOS の画面の余白は
-                    16px だが、640px 未満は root が 14px なので `px-4` は 14px になる——本文も
-                    同じ 14px なので、ロゴと本文の左端はどの幅でも揃う（揃える方を優先した） */}
+                {/* **左右の余白は、ホーム・写真・プロフィールの本文と同じ刻み**（`p-4 sm:p-6 md:p-8`）。
+                    iOS の画面の余白は 16px だが、640px 未満は root が 14px なので `px-4` は 14px
+                    ——本文も同じ 14px なので、これらの画面ではロゴと本文の左端が揃う。
+                    ⚠️ 集約ページ・スポット・地図・規約など本文が `px-4` だけの画面は、640px 以上で
+                    揃わない（640〜767px で 8px・768px 以上で 16px。後者は前から）。直すなら本文側 */}
                 <div className="relative max-w-5xl mx-auto flex items-center justify-between h-[64px] md:h-[72px] px-4 sm:px-6 md:px-8">
                   {/* **文字を大きくしたときに譲る側。** `min-w-0` が無いと flex の
                       既定（`min-width:auto`）で縮まず、文字サイズ200%でヘッダーが

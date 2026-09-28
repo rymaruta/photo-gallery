@@ -112,16 +112,16 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
-        const buttons = Array.from(nav.querySelectorAll(":scope button")).filter((b) => !b.closest("[role=dialog]"));
-        expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "通知", "メニューを開く"]);
-        expect(nav.querySelector("img")).toBeNull();
+        // `<a>`（Link）で戻ったアバターも数えるよう、リンクとボタンの両方を見る
+        const controls = Array.from(nav.querySelectorAll("a, button"));
+        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "通知", "メニューを開く"]);
     });
 
     it("ヘッダーの押せるものは3つとも箱を持たない丸い面（iOS: 44px 固定・アイコン22px・線1.7）", () => {
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
-        const buttons = Array.from(nav.querySelectorAll(":scope button")).filter((b) => !b.closest("[role=dialog]")) as HTMLElement[];
+        const buttons = Array.from(nav.querySelectorAll("a, button")) as HTMLElement[];
         expect(buttons).toHaveLength(3);
         for (const b of buttons) {
             const cls = b.className.split(/\s+/);
@@ -134,13 +134,17 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
             const svg = b.querySelector("svg") as SVGElement;
             expect(svg.style.width).toBe("22px");
             expect(svg.style.strokeWidth).toBe("1.7");
+            // キーボードの枠は黒の地で 3:1 以上（白30%は 2.47:1）
+            expect(cls).toContain("focus-visible:ring-white/60");
         }
     });
 
-    it("未ログインではヘッダーにアバターを出さない", () => {
+    it("未ログインではヘッダーは 探す・メニュー の2つだけ（アバター・ベルを出さない）", () => {
         setRole("anonymous");
         render(<HeaderNav />);
-        expect(screen.queryByLabelText("My Page")).toBeNull();
+        const nav = screen.getByRole("navigation", { name: "ヘッダー" });
+        const controls = Array.from(nav.querySelectorAll("a, button"));
+        expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "メニューを開く"]);
     });
 });
 
