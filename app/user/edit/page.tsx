@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useAuth } from "../../auth/context";
 import { useLocale } from "../../i18n/context";
 import { useToast } from "../../../lib/hooks/useToast";
-import { ArrowLeftIcon, PhotoIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, PhotoIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { Photo, LocalizedParagraphs } from "@/lib/data/photos";
 import { log } from "../../../lib/utils/log";
 import { ROUTES } from "../../../lib/routes";
@@ -905,7 +905,8 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
                         {isEnglishOnly(photo?.title) && (
-                            <p className="text-[11px] text-white/80 mb-1">
+                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語のタイトルしか持っていません。この欄の文字はそのまま日本語タイトルとして保存されます。"
                                     : "This photo only has an English title. What you see here will be saved as the Japanese title."}
@@ -920,7 +921,8 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-description">{isJa ? "説明" : "Description"}</label>
                         {isEnglishOnly(photo?.description) && (
-                            <p className="text-[11px] text-white/80 mb-1">
+                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語の説明しか持っていません。この欄の文字はそのまま日本語の説明として保存されます。"
                                     : "This photo only has an English description. What you see here will be saved as the Japanese description."}

@@ -1625,7 +1625,8 @@ function UploadPageInner() {
                     {/* 残り枚数。**上限に当たるまで見えなかった**ので、選ぶ前に出す。
                         取れていなければ何も出さない（推測した数字は見せない）。 */}
                     {remainingSlots !== null && (
-                        <p className={`mt-2 ${remainingSlots === 0 ? "text-white" : "text-white/50"}`} style={{ fontSize: "12px" }}>
+                        <p className={`mt-2 ${remainingSlots === 0 ? "text-white flex items-start gap-1" : "text-white/50"}`} style={{ fontSize: "12px" }}>
+                            {remainingSlots === 0 && <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />}
                             {remainingSlots === 0
                                 ? (isJa
                                     ? `アップロードの上限（${PHOTO_LIMIT_PER_USER}枚）に達しています。写真を削除すると空きができます。`

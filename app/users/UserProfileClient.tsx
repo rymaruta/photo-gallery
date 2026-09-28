@@ -1122,7 +1122,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
-                    <p className="text-xs text-white/85 bg-accent-soft ring-1 ring-accent/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-danger bg-danger/10 ring-1 ring-danger/20 rounded-lg px-3 py-2">
                         {loadError === "ownPhotos"
                             ? (locale === "en"
                                 ? "Couldn't load your photo list. Drafts and private photos are not shown. "
@@ -1136,7 +1136,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     : "プロフィールを読み込めませんでした。")}
                         <button
                             onClick={() => setReloadKey((k) => k + 1)}
-                            className="underline text-accent hover:text-accent-strong ml-1"
+                            className="underline text-white hover:text-white/80 ml-1"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Retry" : "再読み込み"}
@@ -1265,7 +1265,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         プロフィールヘッダーを横方向に活用し、写真一覧を複数カラムで」）。
                         スマホ（1024px 未満）は最終版モックのまま縦に積む */}
                     <div className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8">
-                        {/* アバター（オリジナルのオーロラリング: 既定は主色で回転）。
+                        {/* アバター（オリジナルのオーロラリング: 既定は真鍮で回転）。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
                         <div className="relative w-fit rounded-full shadow-lg shadow-accent/20 lg:flex-shrink-0">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}

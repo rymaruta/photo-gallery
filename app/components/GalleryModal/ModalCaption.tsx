@@ -89,7 +89,7 @@ export default function ModalCaption({
                         music.play(`photo:${photo.id}`, [photo.song!], 0, locale === "en" ? "Photo BGM" : "この写真のBGM");
                     }}
                     onTouchStart={stop}
-                    className="mb-2 inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-accent-soft ring-1 ring-accent/30 text-accent text-xs hover:bg-accent/15 active:scale-95 transition"
+                    className="mb-2 inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-accent-soft ring-1 ring-accent/30 text-accent text-xs hover:bg-accent/25 active:scale-95 transition"
                     style={SHARE_STYLE}
                 >
                     <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0" />
