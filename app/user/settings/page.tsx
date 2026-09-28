@@ -60,9 +60,10 @@ import {
     signOutEverywhere,
 } from "../../../lib/auth/cognito";
 import BlockedUsers from "./BlockedUsers";
+import CloseFriends from "./CloseFriends";
 
 export default function SettingsPage() {
-    const { isAuthenticated, loading, deleteAccount } = useAuth();
+    const { isAuthenticated, loading, deleteAccount, userId } = useAuth();
     const { locale } = useLocale();
     const router = useRouter();
     const { showToast } = useToast();
@@ -506,6 +507,9 @@ export default function SettingsPage() {
                         **解除できる場所がここしか無い**——ストーリーの返信から
                         ブロックできるようにしたぶん、戻す口が要る */}
                     <BlockedUsers locale={locale as "ja" | "en"} />
+                    {/* 親しい友達（iOS の設定の「プライバシー」と同じ場所）。
+                        公開範囲を「親しい友達」にした写真を見られる人を選ぶ */}
+                    {userId && <CloseFriends locale={locale as "ja" | "en"} userId={userId} />}
                     <div className={cardClass}>
                         {/* **在るものだけ並べる。** この2つは実在するページ
                             （`app/privacy` / `app/terms`）。同じ節に「広告の

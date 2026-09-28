@@ -40,6 +40,12 @@ export type UploadDraft = {
     category: string;
     tags: string;
     asOnePost: boolean;
+    /**
+     * 公開範囲（`lib/utils/audience.ts` の値）。**控えないと、戻ったときに黙って
+     * 「全体に公開」になる**——「親しい友達」を選んで設定へ行き、戻って投稿すると
+     * ウェブサイトと検索に載った（情報が開く方へ倒れる）。古い控えには無い
+     */
+    audience?: string;
     items: DraftItem[];
 };
 

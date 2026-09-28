@@ -355,3 +355,74 @@ describe("容器が一度も付かなければ、閉じてもフォーカスを�
         expect(document.activeElement).toBe(screen.getByText("開く"));
     });
 });
+
+/**
+ * **2つ同時に開いたとき、Tab を扱うのは最前面の1つだけ。**
+ *
+ * 写真の拡大表示（`?photo=`）の上に「はじめる前に」が出ると、両方が
+ * document の keydown を聞いていて、Tab を押すたびに同意画面の先頭へ
+ * 戻された——「同意してはじめる」にキーボードで届かなかった。
+ */
+function Trap({ open, label, children, priority }: { open: boolean; label: string; children?: React.ReactNode; priority?: number }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    useFocusTrap(open, ref, undefined, undefined, priority);
+    return open ? (
+        <div ref={ref} role="dialog" aria-label={label}>
+            <button>{label}1</button>
+            {children}
+            <button>{label}2</button>
+        </div>
+    ) : null;
+}
+
+describe("useFocusTrap: 2つ同時に開いたとき", () => {
+    it("並んだ2つなら、後から開いた方の中を Tab で最後まで進める", () => {
+        const { rerender } = render(<><Trap open label="下" /><Trap open={false} label="上" /></>);
+        rerender(<><Trap open label="下" /><Trap open label="上" /></>);
+        expect(document.activeElement).toBe(screen.getByText("上1"));
+        // 先頭から次へは**既定の動き**に任せる（閉じ込めは端でしか止めない）。
+        // 以前は下の閉じ込めが「中に居ない」と既定を止めて引き戻し、上がまた
+        // 引き戻すので、**Tab が何も起こさなかった**（先頭から動けない）
+        expect(tab(), "Tab の既定の動きを止めている（上の中を進めない）").toBe(true);
+        screen.getByText("上2").focus();
+        tab();   // 末尾から折り返す
+        expect(document.activeElement, "上の閉じ込めの中で折り返していない").toBe(screen.getByText("上1"));
+        screen.getByText("上1").focus();
+        tab(true);
+        expect(document.activeElement).toBe(screen.getByText("上2"));
+    });
+
+    it("最前面が閉じたら、下の閉じ込めがまた効く", () => {
+        const { rerender } = render(<><Trap open label="下" /><Trap open label="上" /></>);
+        rerender(<><Trap open label="下" /><Trap open={false} label="上" /></>);
+        screen.getByText("下2").focus();
+        tab();
+        expect(document.activeElement).toBe(screen.getByText("下1"));
+    });
+
+    it("入れ子なら内側が扱う（同じコミットで開いて、子の effect が先に走っても）", () => {
+        render(<Trap open label="外"><Trap open label="内" /></Trap>);
+        screen.getByText("内1").focus();
+        expect(tab(), "内側の中を進めない").toBe(true);
+        screen.getByText("内2").focus();
+        tab();
+        expect(document.activeElement, "外側の閉じ込めが内側の折り返しを奪った").toBe(screen.getByText("内1"));
+    });
+
+    /**
+     * **優先度の高い方（同意画面）が先に開き、あとから裏で別のものが開く。**
+     * 新しく投稿した写真の共有リンクは、一覧が届いてから拡大表示が開くので、
+     * 同意画面より後になることがある。「後から開いた方」で決めると裏が勝ち、
+     * 開いた瞬間に見えない「前へ」へフォーカスが移っていた
+     */
+    it("優先度の高い閉じ込めは、あとから開いた普通の閉じ込めにフォーカスも Tab も奪われない", () => {
+        const { rerender } = render(<><Trap open label="同意" priority={1} /><Trap open={false} label="拡大" /></>);
+        expect(document.activeElement).toBe(screen.getByText("同意1"));
+        rerender(<><Trap open label="同意" priority={1} /><Trap open label="拡大" /></>);
+        expect(document.activeElement, "裏で開いた閉じ込めがフォーカスを奪った").toBe(screen.getByText("同意1"));
+        expect(tab(), "同意画面の中を進めない").toBe(true);
+        screen.getByText("同意2").focus();
+        tab();
+        expect(document.activeElement, "同意画面の中で折り返していない").toBe(screen.getByText("同意1"));
+    });
+});
