@@ -1,6 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ROUTES } from "@/lib/routes";
 
 /**
@@ -20,7 +22,8 @@ const auth = vi.hoisted(() => ({ isAuthenticated: false, userId: null as string 
 vi.mock("../../auth/context", () => ({
     useAuth: () => ({ isAuthenticated: auth.isAuthenticated, userId: auth.userId }),
 }));
-vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
+const localeMock = vi.hoisted(() => ({ locale: "ja" as "ja" | "en" }));
+vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: localeMock.locale, labels: {} }) }));
 
 import BottomNav, { activeTab } from "../BottomNav";
 
@@ -29,16 +32,30 @@ beforeEach(() => {
     nav.pathname = "/";
     auth.isAuthenticated = false;
     auth.userId = null;
+    // 英語のテストが後始末を忘れても、次のテストへ漏らさない
+    localeMock.locale = "ja";
     document.documentElement.style.removeProperty("--bottom-bar-h");
 });
 
 describe("画面下の5つのタブ", () => {
-    it("ホーム・さがす・投稿・マップ・マイページが、この並びで出る", () => {
+    it("英語の文言も iOS と同じ（Search・My Page）", () => {
+        localeMock.locale = "en";
+        try {
+            render(<BottomNav />);
+            const bar = screen.getByRole("navigation", { name: "Main" });
+            const cells = Array.from(bar.querySelectorAll("a,button")).map((el) => el.textContent);
+            expect(cells).toEqual(["Home", "Search", "Post", "Map", "My Page"]);
+        } finally {
+            localeMock.locale = "ja";
+        }
+    });
+
+    it("ホーム・探す・投稿・マップ・マイページが、この並びで出る", () => {
         render(<BottomNav />);
         // 並びごと見る（`toContain` の羅列だと入れ替えが素通りする）
         const bar = screen.getByRole("navigation", { name: "メインメニュー" });
         const cells = Array.from(bar.querySelectorAll("a,button")).map((el) => el.textContent);
-        expect(cells).toEqual(["ホーム", "さがす", "投稿", "マップ", "マイページ"]);
+        expect(cells).toEqual(["ホーム", "探す", "投稿", "マップ", "マイページ"]);
     });
 
     it("いま居る場所のタブだけが aria-current を持つ", () => {
@@ -137,6 +154,52 @@ describe("画面下の5つのタブ", () => {
         // jsdom は offsetHeight が 0 だが、**変数が設定されること**が肝
         // （設定されないと body の見積もりのままで、実寸とずれる）
         expect(document.documentElement.style.getPropertyValue("--bottom-bar-h")).toBe("0px");
+    });
+});
+
+describe("浮いたカプセル（iOS の案B・owner の決定 2026-09-27）", () => {
+    it("帯の外側の隙間は押せず、押せるのはカプセルの中だけ", () => {
+        // `nav` は下端いっぱいに敷く透明な帯。隙間まで押せる形にすると、
+        // そこに透けて見えている写真やリンクが押せなくなる
+        render(<BottomNav />);
+        const bar = screen.getByRole("navigation", { name: "メインメニュー" });
+        expect(bar.className.split(/\s+/)).toContain("pointer-events-none");
+        const capsule = bar.firstElementChild as HTMLElement;
+        expect(capsule.className.split(/\s+/)).toContain("pointer-events-auto");
+        // 5つのマスはすべてカプセルの中にある
+        expect(capsule.querySelectorAll("a,button")).toHaveLength(5);
+    });
+
+    it("選んでいるタブだけが白16%の丸い面を持つ", () => {
+        nav.pathname = ROUTES.SEARCH;
+        render(<BottomNav />);
+        const withSurface = Array.from(
+            screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
+        ).filter((el) => el.className.split(/\s+/).includes("bg-white/16"));
+        expect(withSurface.map((el) => el.textContent)).toEqual(["探す"]);
+    });
+
+    it("写真が透けても字が読める: 非選択は白72%・透けた写真は brightness 0.6 で暗くする", () => {
+        // モックの値（白60%・ぼかしだけ）だと真っ白な写真の上で 2.62:1
+        // （レビューが計算）。72% ＋ 0.6 で最悪でも 4.93:1
+        nav.pathname = ROUTES.MAP;
+        render(<BottomNav />);
+        const cells = Array.from(
+            screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
+        ).filter((el) => el.getAttribute("aria-current") !== "page");
+        expect(cells).toHaveLength(4);
+        for (const el of cells) expect(el.className.split(/\s+/)).toContain("text-white/72");
+        const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8");
+        const rule = css.slice(css.indexOf(".tabbar-capsule {"), css.indexOf("}", css.indexOf(".tabbar-capsule {")));
+        expect(rule).toMatch(/[^-]backdrop-filter:[^;]*brightness\(0\.6\)/);
+        expect(rule).toMatch(/-webkit-backdrop-filter:[^;]*brightness\(0\.6\)/);
+    });
+
+    it("下の隙間は 22px と safe-area の大きい方（ホームインジケーターに被らない）", () => {
+        // **ソースで見る。** jsdom の CSS の解釈は `max()` と `env()` を落とすので、
+        // 描いた DOM の style からは読めない（実ブラウザでは効く）
+        const src = readFileSync(resolve(__dirname, "../BottomNav.tsx"), "utf8");
+        expect(src).toContain('paddingBottom: "max(22px, env(safe-area-inset-bottom, 0px))"');
     });
 });
 

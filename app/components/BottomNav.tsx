@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-    HomeIcon, MagnifyingGlassIcon, MapIcon, UserIcon, PlusIcon,
+    HomeIcon, MagnifyingGlassIcon, MapIcon, UserIcon,
 } from "@heroicons/react/24/outline";
 import {
     HomeIcon as HomeSolid, MagnifyingGlassIcon as SearchSolid,
@@ -17,25 +17,36 @@ import { useBottomBarHeight } from "../../lib/hooks/useBottomBarHeight";
 import PostSheet from "./PostSheet";
 
 /**
- * 画面下の5つのタブ（ホーム／さがす／投稿／マップ／マイページ）。
+ * 画面下の5つのタブ（ホーム／探す／投稿／マップ／マイページ）。
+ *
+ * **文言は iOS の `L("…")` に揃える**（「探す」・英語の「My Page」。2026-09-28）。
+ * ページの題や見出しの「さがす」は SEO の題に響くので、画面ごとの段で直す。
  *
  * owner が出した新デザインのモック**17枚すべて**に居る。それまでの入口は
  * ヘッダーのハンバーガーだけで、**投稿の入口はマイページの中にしか無かった**。
  *
  * **全ページ・全幅に出す。** 幅で出し分けない——PC だけ「投稿」の入口が
  * 消えることになる（ハンバーガーは マップ／いいねした写真／マイページ／
- * アルバム／管理 で、投稿を持っていない）。中身はヘッダーと同じ
- * `max-w-5xl` に寄せるので、広い画面で間延びしない。
+ * アルバム／管理 で、投稿を持っていない）。カプセルは端末の幅ほど
+ * （`max-w-[480px]`）で止めて中央に置くので、広い画面で間延びしない。
  *
  * **寸法と字は px で固定する。** このサイトは 640px 未満で root を 14px に
  * 落とすので、rem の指定（`w-6`・`text-xs`）は端末で 21px・10.5px に縮む
- * （`96eb86db` で踏んだ）。押せる面は 56px 以上。
+ * （`96eb86db` で踏んだ）。押せる面は 44px 以上（カプセルの内寸 54px）。
  *
  * **高さは `--bottom-bar-h` に出す**（`useBottomBarHeight`）。`MiniPlayer` が
- * それを読んで上に逃げる。**safe-area のぶんも含めた実寸**を出すので、
+ * それを読んで上に逃げる。**下の隙間と safe-area のぶんも含めた実寸**
+ * （`nav` の高さ＝カプセル62＋下の隙間）を出すので、
  * 読み手は safe-area を自分で足してはいけない（足すと notch 端末で
  * 34px 浮く）。`app/globals.css` の `body` は、JS が測るまでの間だけ
  * 同じ形の見積もりを使う。
+ *
+ * **形は「浮いたカプセル」**（owner の決定 2026-09-27・iOS の `Main.dc.html`
+ * ＝案B。`docs/ios-alignment-2026-09-27.md` §7）。画面の端から左右16・下22
+ * 離した高さ62・角丸31のすりガラスの帯で、選んでいるタブは白16%の丸い面。
+ * **帯の外側（左右と下の隙間）は押せないようにする**（`pointer-events-none`）
+ * ——`nav` は下端いっぱいに敷くので、そのままだと隙間に見えている写真や
+ * リンクが押せなくなる。押せるのはカプセルの中だけ。
  *
  * **全画面のものより後ろに置く**（z-40）。ギャラリーの拡大表示は z-50、
  * ストーリーは z-[90] なので、どちらもこのバーを覆う。`MiniPlayer` と
@@ -117,43 +128,55 @@ export default function BottomNav() {
         Outline: typeof HomeIcon; Solid: typeof HomeSolid;
     }> = [
         { key: "home", href: ROUTES.HOME, label: locale === "en" ? "Home" : "ホーム", Outline: HomeIcon, Solid: HomeSolid },
-        { key: "search", href: ROUTES.SEARCH, label: locale === "en" ? "Search" : "さがす", Outline: MagnifyingGlassIcon, Solid: SearchSolid },
+        { key: "search", href: ROUTES.SEARCH, label: locale === "en" ? "Search" : "探す", Outline: MagnifyingGlassIcon, Solid: SearchSolid },
         { key: "map", href: ROUTES.MAP, label: locale === "en" ? "Map" : "マップ", Outline: MapIcon, Solid: MapSolid },
-        { key: "me", href: me, label: locale === "en" ? "You" : "マイページ", Outline: UserIcon, Solid: UserSolid },
+        { key: "me", href: me, label: locale === "en" ? "My Page" : "マイページ", Outline: UserIcon, Solid: UserSolid },
     ];
 
-    const cell = "flex flex-col items-center justify-center gap-[3px] min-h-[56px]";
-    const labelStyle: React.CSSProperties = { fontSize: "11px", lineHeight: "13px" };
-    const iconStyle: React.CSSProperties = { width: "24px", height: "24px" };
+    // カプセルの中の1マス。選んでいるマスは白16%の丸い面（`Tab`）
+    const cell = "flex flex-col items-center justify-center gap-[2px] rounded-full min-h-[44px]";
+    const labelStyle: React.CSSProperties = { fontSize: "10px", lineHeight: "12px", letterSpacing: "0.02em" };
+    const iconStyle: React.CSSProperties = { width: "22px", height: "22px" };
 
     return (
         <>
             <nav
                 ref={barRef}
                 aria-label={locale === "en" ? "Main" : "メインメニュー"}
-                className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 backdrop-blur-md"
-                style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+                // 帯そのものは透明で押せない。**下の隙間は safe-area と大きい方**
+                // （ホーム画面から起動した iPhone ではホームインジケーターの上に乗る）
+                className="pointer-events-none fixed inset-x-0 bottom-0 z-40"
+                style={{
+                    paddingBottom: "max(22px, env(safe-area-inset-bottom, 0px))",
+                    paddingLeft: "calc(16px + env(safe-area-inset-left, 0px))",
+                    paddingRight: "calc(16px + env(safe-area-inset-right, 0px))",
+                }}
             >
-                <div className="max-w-5xl mx-auto grid grid-cols-5">
+                <div
+                    // 広い画面で間延びしないよう、端末の幅ほどで止める
+                    className="tabbar-capsule pointer-events-auto mx-auto grid max-w-[480px] grid-cols-5 rounded-full ring-1 ring-white/14 shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+                    style={{ height: "62px", padding: "4px" }}
+                >
                     {items.slice(0, 2).map((it) => (
                         <Tab key={it.key} item={it} active={current === it.key} cell={cell} labelStyle={labelStyle} iconStyle={iconStyle} />
                     ))}
 
                     {/* 「投稿」は行き先ではなく2択のシートを開く（`PostSheet`）。
-                        真ん中に枠を持つのはモックどおり */}
+                        アイコンは iOS と同じ「角丸の四角に＋」 */}
                     <button
                         ref={postBtnRef}
                         type="button"
                         onClick={openPost}
                         aria-haspopup="dialog"
                         aria-expanded={sheetOpen}
-                        className={`${cell} text-white/60 hover:text-white transition-colors`}
+                        className={`${cell} text-white/72 hover:text-white transition-colors`}
                         style={{ touchAction: "manipulation" }}
                     >
-                        <span className="flex items-center justify-center rounded-[10px] ring-1 ring-white/20 bg-white/5"
-                              style={{ width: "40px", height: "28px" }}>
-                            <PlusIcon aria-hidden="true" style={iconStyle} />
-                        </span>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" style={iconStyle}>
+                            <rect x="3" y="3" width="18" height="18" rx="5" />
+                            <path d="M12 8v8M8 12h8" />
+                        </svg>
                         <span style={labelStyle}>{locale === "en" ? "Post" : "投稿"}</span>
                     </button>
 
@@ -184,9 +207,12 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
             aria-current={active ? "page" : undefined}
-            // **選択中は白**（デザインシステム「黒塗りの真鍮」: 下部ナビのアイコンは白。
-            // 真鍮は合図の色で、選択は担わない）。塗りつぶしのアイコンで形も変わる
-            className={`${cell} transition-colors ${active ? "text-white" : "text-white/60 hover:text-white"}`}
+            // **選んでいないタブは白72%**（デザインシステムの非選択 `#B8B8B8`）。
+            // カプセルは写真が透けるので、白60%だと明るい写真の上で 2.6:1 まで
+            // 落ちる（`.tabbar-capsule` の brightness と合わせて 4.5:1 を保つ）。
+            // **選択中は白＋白16%の丸い面**（デザインシステム「黒塗りの真鍮」: 下部ナビの
+            // アイコンは白。真鍮は合図の色で、選択は担わない）。塗りつぶしのアイコンで形も変わる
+            className={`${cell} transition-colors ${active ? "bg-white/16 text-white" : "text-white/72 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />
