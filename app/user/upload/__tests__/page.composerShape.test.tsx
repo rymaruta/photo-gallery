@@ -157,10 +157,17 @@ describe("投稿作成画面: 実装の無い設定は出さない（owner 指�
         expect(screen.queryByText(/BGM/), "投稿時に曲を付ける口が無いのに欄がある").toBeNull();
     });
 
-    it("公開範囲の行を置かない", async () => {
+    /**
+     * **公開範囲は「実装のある設定」になった**（2026-09-28）。サーバーは `audience` を
+     * 受けて静的サイトから外す（`api-user/src/upload.ts`）。以前ここは「置かない」を
+     * 縛っていた——当時は published の真偽しか無かったため。
+     * 残す見張りは「**サーバーに無い選択肢を出さない**」: 「自分のみ」は無い（下書きが担う）。
+     * 行が保存に効くことは `page.audience.test.tsx` が見る
+     */
+    it("公開範囲はサーバーにある三択だけ（「自分のみ」は出さない）", async () => {
         await withOnePhoto();
-        expect(screen.queryByText(/公開範囲/), "公開範囲は published の真偽しか無い").toBeNull();
-        expect(screen.queryByText(/フォロワーのみ/)).toBeNull();
+        expect(screen.getAllByRole("radio").map((r) => (r as HTMLInputElement).value).filter((v) => ["everyone", "followers", "closeFriends"].includes(v)))
+            .toEqual(["everyone", "followers", "closeFriends"]);
         expect(screen.queryByText(/自分のみ/)).toBeNull();
     });
 
@@ -168,7 +175,8 @@ describe("投稿作成画面: 実装の無い設定は出さない（owner 指�
     // どこにも根拠が無い（owner 指示「架空のデータを出さない」）
     it("持っていない数字を出さない", async () => {
         await withOnePhoto();
-        for (const word of [/人気/, /レビュー/, /評価/, /フォロワー/]) {
+        // フォロワーは**数**を探す（公開範囲の「フォロワーのみ」は数ではない）
+        for (const word of [/人気/, /レビュー/, /評価/, /フォロワー\s*[0-9０-９]|[0-9０-９]+\s*(人の)?フォロワー/]) {
             expect(screen.queryByText(word), `${word} の欄がある`).toBeNull();
         }
     });

@@ -1,5 +1,7 @@
 "use client";
 
+import AudiencePicker from "../../components/AudiencePicker";
+import { audienceForSave, type Audience } from "../../../lib/utils/audience";
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import CropFramePicker from "../../components/CropFramePicker";
@@ -178,6 +180,8 @@ function UploadPageInner() {
     /** 送り返さずに留めている状態（未ログインだが、まだ上げていない写真がある） */
     const holdingWork = gate === "anonymous" && pendingWork;
     const [category, setCategory] = useState("");
+    /** 公開範囲。**既定は全体に公開**（絞るとウェブサイトに載らず、検索から見つからない） */
+    const [audience, setAudience] = useState<Audience>("everyone");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
     /**
@@ -1133,6 +1137,7 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             // 共同アルバム（案C）。メンバーでなければサーバーが断る
                             ...(albumId ? { albumId } : {}),
+                            ...audienceForSave(audience),
                         }),
                     });
                     if (!saveResponse.ok) {
@@ -1221,6 +1226,7 @@ function UploadPageInner() {
                             ...(cover.thumbUrl ? { thumbUrl: cover.thumbUrl } : {}),
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
+                            ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
                             // 確かめる（`api-user/src/photoImages.ts`）ので、
                             // 通らなかったぶんは黙って落ちる——だから枚数は
@@ -1314,7 +1320,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1949,16 +1955,18 @@ function UploadPageInner() {
                         </span>
                     </label>
 
-                    {/* **BGM と公開範囲の行は置かない**（モック⑥⑦）。
-                        - BGM: 投稿時に曲を付ける口が無い（`/upload/save` は `song` を
-                          受け取らない）。公開したあと写真ページで付ける経路だけがある
-                        - 公開範囲: いまの写真は `published` の真偽しか持たない。
-                          「フォロワーのみ」「自分のみ」は**データにもAPIにも無い**
-                          （`docs/redesign-2026-09.md` P6・P7）。2択は
-                          「下書き保存」と「投稿する」の2つのボタンがそのまま担う
-                        どちらも `api-user/**` を触らないと動かないので、
-                        **動かないボタンとしては出さない**（owner の指示 2026-09-22）。
-                        同じ理由で、モックの「人気」「評価」の類はこの画面に無い */}
+                    {/* **公開範囲**（iOS の新規投稿と同じ三択）。サーバーは前から `audience`
+                        を受けていた（`api-user/src/upload.ts`・`sanitizeAudience`）——以前ここに
+                        「データにもAPIにも無い」と書いてあったのは、その後に入った API を
+                        見落とした古い記述。既定は全体に公開（絞るとウェブサイトに載らない）。
+
+                        **BGM の行は置かない**（モック⑥）。投稿時に曲を付ける口が無い
+                        （`/upload/save` は `song` を受け取らない）。公開したあと写真ページで
+                        付ける経路だけがあり、**動かないボタンとしては出さない**
+                        （owner の指示 2026-09-22）。モックの「人気」「評価」の類も同じ理由で無い */}
+                    <div className="mt-4">
+                        <AudiencePicker value={audience} onChange={setAudience} locale={locale} disabled={uploading} />
+                    </div>
 
                     {/* 上げ終わった・失敗した写真の状態。
                         ここは role="alert" にしない。逐次ループなので、
