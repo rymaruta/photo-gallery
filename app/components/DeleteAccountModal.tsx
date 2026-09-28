@@ -77,10 +77,10 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
             />
 
             {/* モーダル本体 */}
-            <div className="relative z-10 my-auto w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1c1f25] to-[#141619] ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 story-media-in">
-                <div className="relative w-14 h-14 rounded-full bg-red-500/12 ring-1 ring-red-500/25 flex items-center justify-center mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl" aria-hidden="true" />
-                    <ExclamationTriangleIcon className="relative w-6 h-6 text-red-400" />
+            <div className="relative z-10 my-auto w-full max-w-sm rounded-3xl bg-surface ring-1 ring-white/10 shadow-2xl shadow-black/60 p-6 pt-7 story-media-in">
+                <div className="relative w-14 h-14 rounded-full bg-danger/12 ring-1 ring-danger/25 flex items-center justify-center mx-auto mb-4">
+                    <div className="absolute inset-0 rounded-full bg-danger/20 blur-xl" aria-hidden="true" />
+                    <ExclamationTriangleIcon className="relative w-6 h-6 text-danger" />
                 </div>
                 <h2 className="text-base font-bold tracking-tight text-white mb-1.5 text-center">
                     {locale === "en" ? "Delete your account?" : "本当に退会しますか？"}
@@ -113,7 +113,7 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
                     disabled={deleting}
                     autoFocus
                     autoComplete="off"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-red-500/50 transition-colors mb-6"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-danger/50 transition-colors mb-6"
                     placeholder={CONFIRM_WORD}
                 />
 
@@ -121,7 +121,7 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
                     <button
                         onClick={onConfirm}
                         disabled={!canDelete}
-                        className="w-full py-3 rounded-2xl bg-gradient-to-b from-[#ff4d4d] to-[#e5322f] text-white font-semibold text-[15px] shadow-lg shadow-red-900/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                        className="w-full py-3 rounded-2xl bg-danger-fill text-white font-semibold text-[15px] shadow-lg shadow-black/40 ring-1 ring-inset ring-white/15 hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                         style={{ touchAction: "manipulation" }}
                     >
                         {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}

@@ -160,7 +160,7 @@ export default function MapControls({
                                 onClick={() => onCategoryChange(on && c.slug !== "all" ? "all" : c.slug)}
                                 className={`flex-shrink-0 rounded-full whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                                     on
-                                        ? "bg-accent-fill text-white font-medium"
+                                        ? "bg-primary text-ink font-medium"
                                         : "bg-surface-2/80 text-white/80 ring-1 ring-white/12 hover:text-white"
                                 }`}
                                 style={{ height: "32px", paddingLeft: "14px", paddingRight: "14px", fontSize: "13px", touchAction: "manipulation" }}
@@ -189,7 +189,7 @@ export default function MapControls({
                             aria-pressed={on}
                             onClick={() => onViewChange(v)}
                             className={`flex-1 flex items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-                                on ? "bg-accent-fill text-white font-medium" : "text-white/70 hover:text-white"
+                                on ? "bg-primary text-ink font-medium" : "text-white/70 hover:text-white"
                             }`}
                             style={{ height: "34px", fontSize: "13px", gap: "6px", touchAction: "manipulation" }}
                             data-testid={`map-view-${v}`}

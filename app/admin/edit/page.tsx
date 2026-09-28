@@ -328,7 +328,7 @@ function AdminEditContent() {
                     </p>
                     <Link
                         href={ROUTES.ADMIN}
-                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-white font-semibold rounded-full hover:brightness-110 transition-colors"
+                        className="inline-block px-4 py-2.5 text-sm bg-accent-fill text-ink font-semibold rounded-full hover:brightness-110 transition-colors"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Back to admin" : "管理画面へ"}
@@ -480,7 +480,7 @@ function AdminEditContent() {
                             aria-label={isJa ? "公開" : "Published"}
                             aria-checked={published}
                             onClick={() => setPublished((v) => !v)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${published ? "bg-accent" : "bg-white/20"}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${published ? "bg-accent-deep" : "bg-white/20"}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${published ? "translate-x-6" : "translate-x-1"}`}
@@ -498,7 +498,7 @@ function AdminEditContent() {
                             aria-label={isJa ? "おすすめに出す" : "Feature on home"}
                             aria-checked={featured}
                             onClick={() => setFeatured((v) => !v)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featured ? "bg-accent" : "bg-white/20"}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featured ? "bg-accent-deep" : "bg-white/20"}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${featured ? "translate-x-6" : "translate-x-1"}`}
@@ -516,7 +516,7 @@ function AdminEditContent() {
                         <button
                             type="submit"
                             disabled={saving}
-                            className="flex-1 py-2 bg-accent-fill text-white rounded-lg font-medium text-sm hover:brightness-110 disabled:opacity-50 transition-colors"
+                            className="flex-1 py-2 bg-accent-fill text-ink rounded-lg font-medium text-sm hover:brightness-110 disabled:opacity-50 transition-colors"
                         >
                             {saving ? (isJa ? "保存中…" : "Saving…") : (isJa ? "保存" : "Save")}
                         </button>

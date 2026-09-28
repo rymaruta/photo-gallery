@@ -36,9 +36,9 @@ function ToastItem({ toast }: { toast: ToastType }) {
     const getIcon = () => {
         switch (toast.type) {
             case "success":
-                return <span className="w-7 h-7 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0"><CheckCircleIcon className="w-[18px] h-[18px] text-green-400" /></span>;
+                return <span className="w-7 h-7 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0"><CheckCircleIcon className="w-[18px] h-[18px] text-success" /></span>;
             case "error":
-                return <span className="w-7 h-7 rounded-full bg-red-500/15 flex items-center justify-center flex-shrink-0"><ExclamationCircleIcon className="w-[18px] h-[18px] text-red-400" /></span>;
+                return <span className="w-7 h-7 rounded-full bg-danger/15 flex items-center justify-center flex-shrink-0"><ExclamationCircleIcon className="w-[18px] h-[18px] text-danger" /></span>;
             case "info":
                 return <span className="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center flex-shrink-0"><InformationCircleIcon className="w-[18px] h-[18px] text-link" /></span>;
             default:

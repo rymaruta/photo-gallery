@@ -158,7 +158,7 @@ export default function ReportDialog({ photoId, locale, onClose, openerRef }: Pr
                         type="button"
                         onClick={() => void submit()}
                         disabled={!reason || sending}
-                        className="px-4 py-2 rounded-lg text-sm font-medium bg-accent-fill text-white disabled:bg-white/20 disabled:text-white/50"
+                        className="px-4 py-2 rounded-lg text-sm font-medium bg-accent-fill text-ink disabled:bg-white/20 disabled:text-white/50"
                         style={{ touchAction: "manipulation" }}
                     >
                         {sending ? (isJa ? "送信中…" : "Sending…") : (isJa ? "通報する" : "Report")}

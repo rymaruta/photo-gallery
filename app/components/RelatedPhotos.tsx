@@ -41,7 +41,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                         >
                             <div
                                 className="relative w-full overflow-hidden rounded-lg ring-1 ring-white/10"
-                                style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "#16181c" }}
+                                style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "#121212" }}
                             >
                                 <Thumb
                                     photo={p}

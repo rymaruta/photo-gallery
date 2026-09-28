@@ -195,7 +195,7 @@ export default function TimelineCard({
             >
                 <div
                     className="relative mx-2 rounded-xl overflow-hidden"
-                    style={{ paddingTop: `${ratio}%`, backgroundColor: photo.dominantColor ?? "#0d1a26", fontSize: 0, lineHeight: 0 }}
+                    style={{ paddingTop: `${ratio}%`, backgroundColor: photo.dominantColor ?? "#121212", fontSize: 0, lineHeight: 0 }}
                 >
                     <Thumb photo={photo} alt={alt} sizes={FEED_SIZES_XL} priority={priority} />
 

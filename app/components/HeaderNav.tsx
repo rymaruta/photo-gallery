@@ -31,10 +31,10 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     // 灰色寄りの黒**だった（owner から「なんでこれだけ色違うの？」と報告）。
     //
     //     ここ      背景 #07090a（灰色寄りの黒）・枠 rgba(255,255,255,0.26)
-    //     ヘッダー  #050e17（紺）
+    //     ヘッダー  #050e17（当時の紺。2026-09-27 からは黒）
     //
-    // 下地は `--color-surface`、枠は `--color-line`（青みの線）＝ほかの
-    // 押せるものと同じ組み合わせにする。影は落とす——紺の上で黒い影は
+    // 下地は `--color-surface`、枠は `--color-line`（白 12% の髪線）＝ほかの
+    // 押せるものと同じ組み合わせにする。影は落とす——暗い地の上で黒い影は
     // 「浮いた黒い箱」に見える側にしか働かない。
     const subtleInset = "inset 0 1px 0 rgba(255,255,255,0.03)";
 
@@ -158,7 +158,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                     onClick={() => handleNavigation(ROUTES.USER_PROFILE(userId))}
                     aria-label={navLabels.mypage || "My Page"}
                     title={navLabels.mypage || "My Page"}
-                    className="rounded-full p-[2px] bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
+                    className="rounded-full p-[2px] bg-outline hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/30 transition-opacity"
                     style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
                     <span className="block rounded-full p-[2px] bg-bg">
@@ -227,7 +227,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                         // ホームへ戻る帯のぶん空ける（帯の上で押すとホームへ戻る
                         // 操作と取り合う）。右もノッチのぶん内側へ寄せる。
                         style={{
-                            backgroundColor: "#16181c",
+                            backgroundColor: "var(--color-surface)",
                             zIndex: 10,
                             maxHeight: "calc(100% - 16px - env(safe-area-inset-bottom, 0px))",
                             marginRight: "env(safe-area-inset-right, 0px)",

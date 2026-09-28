@@ -1,24 +1,37 @@
 @import "tailwindcss";
 
-/* **最終版モックの見た目（2026-09-21・owner「全く同じにしたい」）。**
-   10枚のモックの画素から測った値（`docs/redesign-2026-09.md` の「見た目の規則」）。
-   下地は純黒ではなく紺。**`bg-white/5`・`ring-white/10` の類は触っていない**
-   ——白の透過は紺の上で勝手に紺色の面（`#111a23` ≒ モックのカード `#0d1a26`）に
-   なるので、面と線の大半はこのトークン1つで寄る（CSS 注入の試作で確認した）。
-   青は2段。`accent` はアイコン・選択中・リング用で、**白文字を載せる塗りは
-   `accent-fill`**（モックの青 `#2080f6` に白文字は 3.83:1 で AA に届かない。
-   `#1d6ce8` なら 4.81:1。`textContrast.test.ts` が 4.5 を要求する）。 */
+/* **デザインシステム「黒塗りの真鍮」（2026-09-25・iOS 版と同じ値）。**
+   出どころは iOS の `BrandPalette.swift` と、アーティファクトの
+   `DesignSystem.dc.html`（両者は全色一致。`docs/ios-alignment-2026-09-27.md` §2）。
+   それまでの紺＋青（2026-09-21 のモック）は、シート自身が「紺はやめる」と書いて置き換えた。
+
+   **規則は1行: 白＝位置と選択、真鍮＝合図と手がかり。写真の上には白しか置かない。**
+     - 選択中のチップ・タブ・写真の上の押せるもの → `primary`（白92%）＋ `ink`
+     - 写真の無い画面の主ボタン → `accent-fill`（真鍮）＋ `ink`。
+       **真鍮の塗りに白文字は 2.81:1 で読めない**（`textContrast.test.ts` が縛る）
+     - 文字・点・輪・リンク・フォーカスの枠 → `accent`（黒の上で 9.15:1）
+   **ライトは無い。** iOS も端末の明暗に従わない（`RootView.swift` の `.preferredColorScheme(.dark)`）。 */
 @theme {
-  --color-bg: #050e17;           /* 画面の下地（実測 #030d16〜#070f17） */
-  --color-bar: #0b1420;          /* ヘッダー・タブバー（実測 #09121c〜#0e1827） */
-  --color-surface: #0d1a26;      /* カード（実測 #0c141f・#0d1a26） */
-  --color-surface-2: #132238;    /* 入力欄・枠線ボタン（実測 #1a2c40・#102033） */
-  --color-line: rgb(64 120 200 / 0.22);   /* 青みの線 */
-  --color-accent: #2080f6;       /* アイコン・選択中・リング（紺の上で 5.07:1） */
-  --color-accent-fill: #1d6ce8;  /* 白文字を載せる塗り（白で 4.81:1） */
-  --color-link: #5aa0ff;         /* 「もっと見る」「すべて見る」（紺の上で 7.31:1） */
-  --color-chip: #13233a;         /* ハッシュタグのチップの面 */
-  --color-chip-text: #8fbcf8;    /* 同・文字（8.06:1） */
+  --color-bg: #000000;           /* 画面の下地（純黒） */
+  --color-bar: #000000;          /* ヘッダー（アーティファクトは下地と同じ黒） */
+  --color-surface: #121212;      /* カード・チップ（白 7%） */
+  --color-surface-2: #1a1a1a;    /* 入力欄・副ボタン（白 10%） */
+  --color-line: rgb(255 255 255 / 0.12);  /* 装飾の髪線（部品の縁には使わない。黒の上で 1.27） */
+  --color-outline: #666666;      /* 入力欄・枠線ボタンの縁（部品の縁は 3:1 が要る。黒の上で 3.66） */
+  --color-primary: #ebebeb;      /* 白の塗り（白 92%）。上の字は ink（16.74:1） */
+  --color-ink: #07090a;          /* 白・真鍮の塗りに載せる文字（墨） */
+  --color-accent: #c9a66b;       /* 真鍮。文字・アイコン・点・輪・フォーカス（黒の上で 9.15:1） */
+  --color-accent-strong: #e3c98f;/* リンクを押している間 */
+  --color-accent-fill: #b8955a;  /* 写真の無い画面の主ボタン（墨で 7.11:1・白は 2.81:1 で不可） */
+  --color-accent-deep: #796440;  /* 白を載せる真鍮（白で 5.66:1）。トグル・地図の印 */
+  --color-accent-soft: #201b11;  /* 案内の帯（真鍮 16%）。選択状態は担わない */
+  --color-link: #c9a66b;         /* 「もっと見る」「すべて見る」（＝真鍮） */
+  --color-chip: #1a1a1a;         /* チップの面 */
+  --color-chip-text: #d4d4d4;    /* 同・文字（白 82% 相当） */
+  --color-danger: #f0565a;       /* 削除・通報・エラーの文字（黒の上で 6.18:1） */
+  --color-danger-fill: #c8323a;  /* アカウント削除の確定だけ（白で 5.29:1） */
+  --color-success: #7fc489;      /* 成功のアイコンだけ */
+  --color-location: #9cc3e6;     /* 地図の現在地だけ（黒 2px の縁と組む） */
 }
 
 /* body が読む2つだけ。以前ここにあった `--fg` `--muted` `--accent-bg` 等は
@@ -275,7 +288,7 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 9999px;
-  background: #2080f6;   /* 主色（`--color-accent`）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
+  background: #796440;   /* 白を載せる真鍮（`--color-accent-deep`・白で 5.66:1）。@theme の変数はレイヤーの外でも読めるが、値を直書きして leaflet.css との順序に依存させない */
   color: #fff;
   font-weight: 700;
   font-size: 13px;
@@ -304,7 +317,7 @@ body {
   height: 50px;
 }
 
-/* 写真の丸。中身が読めない間も丸が見えるよう、下地は主色に寄せる */
+/* 写真の丸。中身が読めない間も丸が見えるよう、下地は地図の印の色（`--color-accent-deep`）に寄せる */
 .photo-map-pin::before {
   content: "";
   position: absolute;
@@ -312,7 +325,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 9999px;
-  background: #16324f;
+  background: #796440;
   box-shadow: 0 0 0 2.5px #fff, 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
@@ -363,7 +376,7 @@ body {
 .photo-map-pin.is-selected::before {
   width: 64px;
   height: 64px;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(32 128 246 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px #fff, 0 0 0 10px rgb(201 166 107 / 0.45), 0 6px 18px rgba(0, 0, 0, 0.5);
 }
 .photo-map-shell .leaflet-marker-pane .photo-map-pin.is-selected .photo-map-pin__img,
 .photo-map-pin.is-selected .photo-map-pin__img {
@@ -424,7 +437,7 @@ body {
    **2クラスで書く**（leaflet.css の `.leaflet-control-attribution` に勝つ） */
 .photo-map-shell .leaflet-control-attribution,
 .photo-map-frame .leaflet-control-attribution {
-  background: rgb(11 18 32 / 0.72);
+  background: rgb(0 0 0 / 0.72);
   color: rgb(255 255 255 / 0.6);
   font-size: 10px;
 }
@@ -454,7 +467,7 @@ body {
   height: 36px;
 }
 
-/* 面。**白地に主色の枠**——写真のピン（主色の下地に写真）と逆に組んで、
+/* 面。**白地に真鍮（`--color-accent-deep`）の枠**——写真のピン（主色の下地に写真）と逆に組んで、
    遠目でも別物と分かるようにする */
 .spot-map-pin::before {
   content: "";
@@ -464,7 +477,7 @@ body {
   height: 28px;
   border-radius: 9999px;
   background: #ffffff;
-  box-shadow: 0 0 0 2.5px #2080f6, 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 2.5px #796440, 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* 中の印。文字は入れない（利用者の入力も運営の言葉も入らない＝翻訳も要らない）。
@@ -476,11 +489,11 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 9999px;
-  background: #2080f6;
+  background: #796440;
 }
 
 /* 下向きの尖り。先端が座標（`iconAnchor` が下端）。
-   **写真のピンは白い尖り**なので、こちらは主色で塗って区別する */
+   **写真のピンは白い尖り**なので、こちらは真鍮（`--color-accent-deep`）で塗って区別する */
 .spot-map-pin::after {
   content: "";
   position: absolute;
@@ -491,7 +504,7 @@ body {
   transform: translateX(-50%);
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 9px solid #2080f6;
+  border-top: 9px solid #796440;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
 }
 
@@ -507,7 +520,7 @@ body {
 .spot-map-pin.is-selected::before {
   width: 40px;
   height: 40px;
-  box-shadow: 0 0 0 3px #2080f6, 0 0 0 9px rgb(32 128 246 / 0.4), 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px #796440, 0 0 0 9px rgb(201 166 107 / 0.4), 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 .spot-map-pin.is-selected .spot-map-pin__dot {
   top: 13px;

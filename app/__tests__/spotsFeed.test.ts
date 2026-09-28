@@ -49,7 +49,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "aiCheck"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "aiCheck"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -127,6 +127,15 @@ describe("アプリ向けの索引", () => {
         expect("image" in toSpotFeedItem(spot("b", ai), images), "写真を照らしていないのに出している").toBe(false);
         expect("image" in toSpotFeedItem(spot("c", { ...ai, aiCheck: { ...ai.aiCheck, imageChecked: true } }), images),
             "座標のずれた写真を出している").toBe(false);
+    });
+
+    /// 季節の案内（2026-09-27）。アプリの「いつ行く？」「いまが見頃」用。**下書きには載せない**
+    it("季節の案内は公開済みの行だけに載り、台帳の文のまま", () => {
+        const pub = toSpotFeedItem(spot("p", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }));
+        expect(pub.seasonalGuide).toEqual([{ season: "spring", text: "春" }]);
+        expect("seasonalGuide" in toSpotFeedItem(spot("d")), "下書きの季節の文を運んでいる").toBe(false);
+        const none = toSpotFeedItem(spot("n", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25", seasonalGuide: [] }));
+        expect("seasonalGuide" in none, "空の季節を鍵ごと出している").toBe(false);
     });
 
     /// 🔴 **AI 照合の行は出典を運ぶ**（2026-09-27）。公開の条件が owner の

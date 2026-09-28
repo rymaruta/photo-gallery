@@ -37,6 +37,23 @@ describe("classifyStaleObjects（デプロイ時の削除判定）", () => {
         expect(toDelete).toEqual([]);
     });
 
+    /// 🔴 下書きに戻した場所の本文を30日配り続けない（Web のページは同じ回に消える）
+    it("ビルドに無いスポットの本文（app/data/spots/*.json）は猶予なしで削除される", () => {
+        const { toDelete, kept } = classifyStaleObjects(
+            ["app/data/spots.json", "app/data/spots/kept.json"],
+            [
+                { key: "app/data/spots/kept.json", lastModified: new Date(NOW - 1000) },
+                { key: "app/data/spots/unpublished.json", lastModified: new Date(NOW - 1000) },
+                // 索引の隣の別のデータは今までどおり猶予の内
+                { key: "app/data/other.json", lastModified: new Date(NOW - 1000) },
+            ],
+            NOW,
+            ASSET_GRACE_MS,
+        );
+        expect(toDelete).toEqual(["app/data/spots/unpublished.json"]);
+        expect(kept).toBe(1);
+    });
+
     it("ビルドに無い古いHTMLは即削除される（no-store配信のため安全）", () => {
         const { toDelete } = classifyStaleObjects(
             ["index.html"],

@@ -23,11 +23,11 @@ describe("themeRingGradient", () => {
         expect(g).toContain("#f472b6");
         expect(g).toContain("conic-gradient");
     });
-    it("未設定なら既定の旅パレット", () => {
-        expect(themeRingGradient(undefined)).toContain("#38bdf8");
-        expect(themeRingGradient(undefined)).toContain("#34d399");
+    it("未設定なら既定の真鍮", () => {
+        expect(themeRingGradient(undefined)).toContain("#c9a66b");
+        expect(themeRingGradient(undefined)).not.toContain("#38bdf8");
     });
     it("不正な値なら既定にフォールバック", () => {
-        expect(themeRingGradient("javascript:alert(1)")).toContain("#38bdf8");
+        expect(themeRingGradient("javascript:alert(1)")).toContain("#c9a66b");
     });
 });

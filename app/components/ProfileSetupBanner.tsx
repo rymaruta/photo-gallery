@@ -71,7 +71,7 @@ export default function ProfileSetupBanner() {
             </p>
             <Link
                 href={ROUTES.PROFILE_EDIT}
-                className="flex-shrink-0 px-4 py-2 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition"
+                className="flex-shrink-0 px-4 py-2 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition"
                 style={{ touchAction: "manipulation" }}
             >
                 {isJa ? "決める" : "Set"}
