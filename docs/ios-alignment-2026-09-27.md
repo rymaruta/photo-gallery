@@ -228,6 +228,7 @@ iOS の文言は `Localizable.strings`（権限の説明だけ・11行）では�
 | 招待画面の「N枚」 | サーバーが写真の枚数を返さない（消えた写真の ID を持ち続けるので数えると嘘になる・`app/j/page.tsx:132`） | 出さない（今のまま） |
 | プッシュ通知の切り替え | ネイティブの通知。Web の設定画面に置いても効かない | 置かない（Capacitor で包むときに足す） |
 | 写真の控え（データとストレージ） | iOS の端末保存。Web の相当は Service Worker（別物） | 置かない |
+| 絞った写真の画像を `private/` へ移す | Lambda に `private/` の権限が無く、CloudFront に `/private/*` の振る舞いも無い見込み。権限だけ足すと移した画像が 404 になる（`docs/restricted-image-delivery.md` の「もう1つ」・2026-09-28） | owner が `setup-private-delivery.sh --apply` を流してから、権限と投稿時の移動を入れる。**それまで絞った写真の画像は URL を知っていれば取れる**（iOS も同じ） |
 | 投稿時の曲 | `/upload/save` が `song` を受け取らない（`upload/page.tsx` のコメント。iOS も投稿後に付ける経路のはず・未確認） | 投稿後に写真ページで付ける今の経路のまま |
 
 ## 6. 着手順（提案）
