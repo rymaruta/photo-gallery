@@ -19,6 +19,11 @@ vi.mock("../ddb-photos", () => ({
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
 vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 
+// 絞った写真の実体の移動（`s3Move.ts`）。**本物は S3 を掴む**ので作り物にする
+const mockCopyAll = vi.hoisted(() => vi.fn());
+const mockDropOld = vi.hoisted(() => vi.fn());
+vi.mock("../s3Move", () => ({ copyAll: mockCopyAll, dropOld: mockDropOld }));
+
 const mockRequestSiteRebuild = vi.hoisted(() => vi.fn());
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
 
@@ -55,6 +60,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
 const { savePhoto, presignedUrl, discardUpload, PHOTO_LIMIT_PER_USER } = await import("../upload");
 import type { Photo } from "../types";
+import { idFromUploadKey } from "../uploadPolicy";
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +97,8 @@ beforeEach(() => {
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
     mockRequestSiteRebuild.mockReset().mockResolvedValue(true);
+    mockCopyAll.mockReset().mockResolvedValue(true);
+    mockDropOld.mockReset().mockResolvedValue(0);
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
 });
@@ -294,6 +302,19 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
     // このリポジトリは「未指定は公開」で揃っている（同じ関数の `isPublished`
     // 自身がそう）。`=== true` で書くとここだけ慣習と逆になり、古い行の
     // 二重送信で予算を1本ずつ食う
+    // 🔴 **ストーリーから残した印を落とさない。** 落とすと、元のストーリーが残って
+    // いる間の門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせる
+    it("再送で書き直しても、ストーリーから残した印（keptFrom）は引き継ぐ", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false, keptFrom: "story-1",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().keptFrom).toBe("story-1");
+    });
+
     it("再送で published を持たない行なら、公開済みとして頼まない", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
@@ -374,15 +395,206 @@ describe("savePhoto: 公開範囲を絞った写真では作り直しを頼ま�
         expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
     });
 
-    it("再送で下書き → 絞った公開に変わっても頼まない", async () => {
+    it("再送で下書き → 絞った公開に変わっても頼まない（公開範囲を変えた再送は断る）", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: BASE.publicUrl, published: false,
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
         const res = await invoke(event("u1", { ...BASE, published: true, audience: "closeFriends" }));
-        expect(res.statusCode).toBe(200);
+        expect(res.statusCode).toBe(409);
         expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+});
+
+// 🔴 **最初から絞った写真も `private/` へ移す**（案A）。これまで移すのは
+// あとから絞ったとき（`photoUpdate.ts`）だけで、最初から絞って上げた写真は
+// `uploads/` のまま＝URL を手にした人は取り続けられた
+describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () => {
+    const PRIV = "https://cdn.example.com/private/u1/p1.webp";
+    beforeEach(() => { mockListMyMedia.mockReset().mockResolvedValue([]); });
+    const droppedFrom = () => mockDropOld.mock.calls.flatMap((c) => c[0] as { from: string }[]).map((m) => m.from);
+
+    it("コピー → 行を書く（新しい置き場を指す）→ 元を消す、の順", async () => {
+        const order: string[] = [];
+        mockCopyAll.mockImplementation(async () => { order.push("copy"); return true; });
+        mockPutPhoto.mockImplementation(async () => { order.push("put"); });
+        mockDropOld.mockImplementation(async () => { order.push("drop"); return 0; });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(res.statusCode).toBe(200);
+        expect(order).toEqual(["copy", "put", "drop"]);
+        expect(savedPhoto().src).toBe(PRIV);
+        expect(savedPhoto().thumbSrc).toBe("https://cdn.example.com/private/u1/p1_thumb.webp");
+        expect(mockCopyAll.mock.calls[0][0]).toEqual(expect.arrayContaining([
+            { from: "uploads/u1/p1.webp", to: "private/u1/p1.webp" },
+            { from: "uploads/u1/p1_thumb.webp", to: "private/u1/p1_thumb.webp" },
+        ]));
+        expect(JSON.parse(res.body).photo.src, "応答も新しい置き場を返す").toBe(PRIV);
+        expect(droppedFrom(), "消すのは元だけ（コピーは消さない）").toEqual(["uploads/u1/p1.webp", "uploads/u1/p1_thumb.webp"]);
+    });
+
+    it("2枚目以降も移す", async () => {
+        await invoke(event("u1", {
+            ...BASE, audience: "closeFriends",
+            extraImages: [{ key: "uploads/u1/p2.webp", src: "https://cdn.example.com/uploads/u1/p2.webp" }],
+        }));
+        expect((savedPhoto().extraImages as { src: string }[])[0].src).toBe("https://cdn.example.com/private/u1/p2.webp");
+        expect(mockCopyAll.mock.calls[0][0]).toContainEqual({ from: "uploads/u1/p2.webp", to: "private/u1/p2.webp" });
+    });
+
+    // 🔴 入口は「自分の領域か」しか見ない。サムネに**自分の別の写真**の URL を
+    // 渡されると、それを移して消し、その写真が割れる（取り返しがつかない）
+    it("自分の別の写真が使っている実体は、元を消さない", async () => {
+        mockListMyMedia.mockResolvedValue([{ id: "X", src: "https://cdn.example.com/uploads/u1/X.webp" }]);
+        await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/X.webp" }));
+        expect(droppedFrom()).toContain("uploads/u1/p1.webp");
+        expect(droppedFrom(), "別の写真の実体を消している").not.toContain("uploads/u1/X.webp");
+    });
+
+    it("使用中かを確かめられなければ、元は消さない（孤児が残るだけで済む側）", async () => {
+        mockListMyMedia.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockDropOld).not.toHaveBeenCalled();
+    });
+
+    // 🔴 **この口ではコピー（`private/`）を一切消さない。** 鍵は `uploads/` から
+    // 機械的に決まるので、同時に走る本送信や別タブの編集が同じ鍵を指す行を
+    // 書いている最中かもしれない。使用中かの一覧（結果整合）では見えない
+    // ——片づけると表示中の写真の本体を消しうる（レビューで3回再現）
+    it("保存できなかったとき、作ったコピーは消さない（孤児が残る側に倒す）", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("throttled"));
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(500);
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    it("コピーできなければ保存しない（絞ったと表示しながら公開の置き場に残さない）", async () => {
+        mockCopyAll.mockResolvedValue(false);
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(500);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+        expect(mockDropOld).not.toHaveBeenCalled();
+    });
+
+    it("全体に公開では移さない", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect(mockCopyAll).not.toHaveBeenCalled();
+        expect(savedPhoto().src).toBe(BASE.publicUrl);
+    });
+
+    // 前回の保存が通って元を消したあとの再送。コピーは元が無いので失敗するが、
+    // 行はあるので「保存済み」として扱う
+    it("再送（前回で移し済み）は成功で返し、行を割らない", async () => {
+        mockCopyAll.mockResolvedValueOnce(false);
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().src, "uploads/ の消えた実体を指し直している").toBe(PRIV);
+    });
+
+    it("再送で今回だけ増えた画像（サムネ）も移す", async () => {
+        mockCopyAll.mockResolvedValueOnce(false);   // 表紙は前回で移し済み
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockCopyAll.mock.calls[1][0]).toEqual([{ from: "uploads/u1/p1_thumb.webp", to: "private/u1/p1_thumb.webp" }]);
+        expect(savedRewrite().thumbSrc).toBe("https://cdn.example.com/private/u1/p1_thumb.webp");
+        expect(droppedFrom()).toEqual(["uploads/u1/p1_thumb.webp"]);
+    });
+
+    it("公開範囲を変えた再送で断るときも、コピーは消さない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    it("他人の行とぶつかったとき（409）も、コピーは消さない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "someone-else", src: PRIV, audience: "followers",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    it("再送で足りないぶんのコピーに失敗したら、500 で止め、何も消さない", async () => {
+        mockCopyAll.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(res.statusCode).toBe(500);
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    // 一覧は結果整合なので、書き直した直後は**同じ写真の古い版**が見えうる。
+    // それを「使用中」と読むと元を消さず、**絞ったのに公開の置き場に残る**
+    it("一覧に同じ写真の古い版が見えても、元は消す（自分の行は一覧で見ない）", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const selfId = idFromUploadKey(BASE.key);
+        mockListMyMedia.mockResolvedValue([{ id: selfId, src: PRIV, thumbSrc: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }]);
+        await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(droppedFrom()).toContain("uploads/u1/p1_thumb.webp");
+    });
+
+    it("再送で書き直したあとも、別の行が使っている元は消さない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockListMyMedia.mockResolvedValue([{ id: "X", src: "https://cdn.example.com/uploads/u1/X.webp" }]);
+        await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/X.webp" }));
+        expect(droppedFrom()).not.toContain("uploads/u1/X.webp");
+    });
+
+    it("再送で書き直せなかった（あいだで誰かが書いた）ら、元は触らない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockOverwriteOwnPhoto.mockResolvedValue(false);
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        await invoke(event("u1", { ...BASE, audience: "followers" }));
+        // **コピーも消さない。** 使用中かの一覧（結果整合）は直前の書き込みを
+        // 見落としうるので、片づけると表示中の写真の本体を消しうる（レビューで再現）
+        expect(droppedFrom(), "元かコピーを消している").toEqual([]);
+    });
+
+    it("公開範囲を変えた再送は断る（置き場が食い違う）", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).error).toContain("写真の編集");
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(droppedFrom(), "コピーを消している").toEqual([]);
     });
 });
 
