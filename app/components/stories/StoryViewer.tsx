@@ -1961,6 +1961,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <ReportDialog
                     photoId={item.id}
                     blockTargetId={!isOwnStory && group?.userId ? group.userId : undefined}
+                    // 通報と一緒にブロックしたら、「このユーザーを非表示」と同じ
+                    // 後片付け（ブロック済みの印・バーの取り直し・この画面を閉じる）
+                    onBlocked={(uid) => {
+                        setBlockedIds((prev) => new Set(prev).add(uid));
+                        onBlocked?.(uid);
+                        onClose();
+                    }}
                     locale={locale}
                     onClose={() => setReportOpen(false)}
                     openerRef={menuBtnRef}

@@ -166,5 +166,44 @@ describe("通報のダイアログ", () => {
             expect(mockToast).toHaveBeenCalledWith(expect.stringContaining("ブロックはできませんでした"), "error");
             expect(mockSevered).not.toHaveBeenCalled();
         });
+
+        /** 呼ぶ側の後片付け（ストーリーは束を閉じてバーを取り直す）。効いたときだけ */
+        it("ブロックが効いたら onBlocked を呼び、失敗したら呼ばない", async () => {
+            const onBlocked = vi.fn();
+            const { unmount } = render(<ReportDialog photoId="p1" blockTargetId="u9" onBlocked={onBlocked} locale="ja" onClose={onClose} />);
+            await userEvent.click(screen.getByLabelText("広告・勧誘・スパム"));
+            await userEvent.click(screen.getByRole("checkbox", { name: /ブロックする/ }));
+            await userEvent.click(screen.getByRole("button", { name: "通報する" }));
+            await waitFor(() => expect(onClose).toHaveBeenCalled());
+            expect(onBlocked).toHaveBeenCalledWith("u9");
+            unmount();
+
+            onBlocked.mockReset(); onClose.mockReset();
+            mockUserFetch
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+                .mockResolvedValueOnce({ ok: false, json: async () => ({ error: "x" }) });
+            render(<ReportDialog photoId="p1" blockTargetId="u9" onBlocked={onBlocked} locale="ja" onClose={onClose} />);
+            await userEvent.click(screen.getByLabelText("広告・勧誘・スパム"));
+            await userEvent.click(screen.getByRole("checkbox", { name: /ブロックする/ }));
+            await userEvent.click(screen.getByRole("button", { name: "通報する" }));
+            await waitFor(() => expect(onClose).toHaveBeenCalled());
+            expect(onBlocked).not.toHaveBeenCalled();
+        });
+
+        /** 閉じても送信は続くので、「やめた」つもりの人がブロックされる */
+        it("送信中はキャンセルもチェックも押せない", async () => {
+            let release: (v: unknown) => void = () => {};
+            mockUserFetch.mockReturnValueOnce(new Promise((r) => { release = r; }));
+            openWithTarget();
+            await userEvent.click(screen.getByLabelText("広告・勧誘・スパム"));
+            await userEvent.click(screen.getByRole("checkbox", { name: /ブロックする/ }));
+            await userEvent.click(screen.getByRole("button", { name: "通報する" }));
+            expect(screen.getByRole("button", { name: "キャンセル" })).toBeDisabled();
+            expect(screen.getByRole("checkbox", { name: /ブロックする/ })).toBeDisabled();
+            await userEvent.keyboard("{Escape}");
+            expect(onClose, "送信中に Escape で閉じた").not.toHaveBeenCalled();
+            release({ ok: true, json: async () => ({ success: true }) });
+            await waitFor(() => expect(onClose).toHaveBeenCalled());
+        });
     });
 });

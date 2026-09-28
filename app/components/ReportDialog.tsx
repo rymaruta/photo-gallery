@@ -44,12 +44,17 @@ type Props = {
      * 渡さない——渡したときだけ「この人をブロックする」を出す（iOS の通報画面と同じ）
      */
     blockTargetId?: string;
+    /**
+     * ブロックが効いたときに呼ぶ。**呼ぶ側の後片付け**のため——ストーリーは
+     * 相手の束を閉じてバーを取り直す（`StoryViewer` の `blockSender` と同じ）
+     */
+    onBlocked?: (userId: string) => void;
     locale: string;
     onClose: () => void;
     openerRef?: React.RefObject<HTMLElement | null>;
 };
 
-export default function ReportDialog({ photoId, blockTargetId, locale, onClose, openerRef }: Props) {
+export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale, onClose, openerRef }: Props) {
     const isJa = locale !== "en";
     const panelRef = useRef<HTMLDivElement>(null);
     const [reason, setReason] = useState("");
@@ -61,7 +66,9 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
     // 外へ漏らさない・閉じたら押した場所へ戻す（このリポジトリの8か所と同じ道具）
     useFocusTrap(true, panelRef, openerRef);
     // `document` で聞く（合成イベントだと本文をタップした時点で効かなくなる）
-    useEscapeKey(true, onClose);
+    // **送信中は閉じない。** 閉じても送信は続くので、「やめた」つもりで
+    // Escape を押した人の通報とブロックがそのまま通る
+    useEscapeKey(!sending, onClose);
     React.useEffect(() => {
         lockBodyScroll();
         return () => unlockBodyScroll();
@@ -86,8 +93,10 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
             if (alsoBlock && blockTargetId) {
                 try {
                     const b = await userFetch(`/users/${encodeURIComponent(blockTargetId)}/block`, { method: "POST" });
-                    if (b.ok) noteFollowSevered(blockTargetId);
-                    else blockFailed = true;
+                    if (b.ok) {
+                        noteFollowSevered(blockTargetId);
+                        onBlocked?.(blockTargetId);
+                    } else blockFailed = true;
                 } catch (e) {
                     log.error("block after report failed:", e);
                     blockFailed = true;
@@ -118,7 +127,7 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4">
             {/* 背景。キーボードの経路は Escape が担保している */}
-            <div className="absolute inset-0" aria-hidden="true" onClick={onClose} />
+            <div className="absolute inset-0" aria-hidden="true" onClick={sending ? undefined : onClose} />
             <div
                 ref={panelRef}
                 role="dialog"
@@ -178,6 +187,7 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
                         <input
                             type="checkbox"
                             checked={alsoBlock}
+                            disabled={sending}
                             onChange={(e) => setAlsoBlock(e.target.checked)}
                             className="mt-0.5 w-4 h-4 accent-[#796440]"
                         />
@@ -185,8 +195,8 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
                             <span className="block text-sm text-white/85">{isJa ? "この人をブロックする" : "Block this user"}</span>
                             <span className="block text-xs text-white/60 mt-0.5">
                                 {isJa
-                                    ? "ブロックすると、おたがいの投稿・ストーリー・通知が見えなくなります。"
-                                    : "You won't see each other's posts, stories, or notifications."}
+                                    ? "返信・コメント・フォローができなくなり、お互いのフォローは外れます。"
+                                    : "They can't reply, comment, or follow you, and follows in both directions are removed."}
                             </span>
                         </span>
                     </label>
@@ -196,7 +206,8 @@ export default function ReportDialog({ photoId, blockTargetId, locale, onClose, 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/5"
+                        disabled={sending}
+                        className="px-4 py-2 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/5 disabled:opacity-40"
                         style={{ touchAction: "manipulation" }}
                     >
                         {isJa ? "キャンセル" : "Cancel"}
