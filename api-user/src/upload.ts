@@ -163,34 +163,33 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 /**
- * 移した元（`uploads/`）を消す。**自分のどの行も使っていないものだけ。**
+ * **自分のどの行も使っていない実体だけ消す。** 移した元（`uploads/`）も、
+ * 保存しなかったときのコピー（`private/`）も、必ずここを通す。
  *
  * 入口の確かめ（`isOwnUploadUrl`）は「自分の領域か」しか見ないので、サムネや
- * 2枚目に**自分の別の写真の URL**を渡されると、それを移して消してしまう
- * ——取り返しのつかない削除。`discardUpload` と同じく、行を読み直して
- * 使用中なら消さない。読めなければ**消さない**（孤児が残るだけで済む側）。
+ * 2枚目に**自分の別の写真の URL**を渡せる。`private/` の置き場は `uploads/` の
+ * 鍵から機械的に決まるので、**2つの行が同じ実体を指しうる**——確かめずに
+ * 消すと、その写真が割れる（取り返しのつかない削除）。
+ * `discardUpload` と同じく行を読み直し、読めなければ**消さない**
+ * （孤児が残るだけで済む側）。
  */
-async function dropUnusedSources(userId: string, moves: Move[], logPrefix: string): Promise<void> {
-    if (moves.length === 0) return;
+async function dropUnusedKeys(userId: string, keys: string[], logPrefix: string): Promise<void> {
+    if (keys.length === 0) return;
     let inUse: Set<string>;
     try {
         const mine = await listMyMediaItems(userId);
         inUse = new Set(mine.flatMap((p) => mediaKeys(p as unknown as Record<string, unknown>)));
     } catch (e) {
-        console.warn(`${logPrefix}: 使用中かを確かめられないので、元は消しません`, (e as Error)?.name);
+        console.warn(`${logPrefix}: 使用中かを確かめられないので消しません`, (e as Error)?.name);
         return;
     }
-    const drop = moves.filter((m) => !inUse.has(m.from));
+    const drop = [...new Set(keys)].filter((k) => !inUse.has(k));
     if (drop.length === 0) return;
-    const failed = await dropOld(drop, logPrefix);
-    if (failed > 0) console.warn(`${logPrefix}: 元の実体 ${failed} 件を消せませんでした`);
+    const failed = await dropOld(drop.map((k) => ({ from: k, to: k })), logPrefix);
+    if (failed > 0) console.warn(`${logPrefix}: ${failed} 件を消せませんでした`);
 }
-
-/** 作ったコピー（`private/`）を消す。保存しなかったとき、孤児を残さないため */
-async function dropCopies(moves: Move[], logPrefix: string): Promise<void> {
-    if (moves.length === 0) return;
-    await dropOld(moves.map((m) => ({ from: m.to, to: m.from })), logPrefix);
-}
+const sourcesOf = (moves: Move[]) => moves.map((m) => m.from);
+const copiesOf = (moves: Move[]) => moves.map((m) => m.to);
 
 /** 置き場（`uploads/` と `private/`）の違いを除けば同じ実体を指すか */
 function sameUpload(a: unknown, b: unknown): boolean {
@@ -477,11 +476,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
     }
 
+    /** 行を書き終えたか。**書いたあとはコピーを消さない**（行がそれを指している） */
+    let written = false;
     try {
         await putPhoto(photo);
         // **行を書いたあとに元を消す。** ここで落ちても孤児が残るだけで、画面は
         // 正しく出る（行は新しい置き場を指している）
-        await dropUnusedSources(userId, moves, `savePhoto(${photo.id})`);
+        written = true;
+        await dropUnusedKeys(userId, sourcesOf(moves), `savePhoto(${photo.id})`);
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
         // 足せなくても投稿は成功で返す（写真はもう保存されている）。
@@ -513,7 +515,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             if (existing && (existing.userId ?? existing.uploadedBy) === userId
                 && existing.src !== photo.src && sameUpload(existing.src, photo.src)) {
                 // 上でコピーした分は誰も指さない（行は元の置き場のまま）
-                await dropCopies(moves, `savePhoto(${photo.id})`);
+                await dropUnusedKeys(userId, copiesOf(moves), `savePhoto(${photo.id})`);
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
                     error: "この写真は保存済みです。公開範囲を変えるときは、写真の編集から変えてください",
                 }) };
@@ -620,6 +622,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                     .filter((k) => k.startsWith(PRIVATE_PREFIX) && !existingKeys.has(k) && !moves.some((m) => m.to === k))
                     .map((k) => ({ from: PUBLIC_PREFIX + k.slice(PRIVATE_PREFIX.length), to: k }));
                 if (missing.length > 0 && !await copyAll(missing, `savePhoto(${photo.id})`)) {
+                    await dropUnusedKeys(userId, copiesOf([...moves, ...missing]), `savePhoto(${photo.id})`);
                     return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
                         error: "画像を移せませんでした。前回の保存はそのまま残っています",
                     }) };
@@ -629,7 +632,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
                 // **行を読み直してから消す。** 読んだあとに別タブで公開に戻され、
                 // 行が `uploads/` を指し直していることがある
-                await dropUnusedSources(userId, resendMoves, `savePhoto(${photo.id})`);
+                await dropUnusedKeys(userId, sourcesOf(resendMoves), `savePhoto(${photo.id})`);
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
                 // ここを呼ばないと**直ってほしい操作で直らない**。
@@ -666,14 +669,17 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
             // **書き直せなかった**（あいだで誰かが書いた）。元は触らない
-            // ——今の行がどちらを指しているか分からないので、消すと割れうる
+            // ——今の行がどちらを指しているか分からないので、消すと割れうる。
+            // この回で作ったコピーは、どの行も使っていなければ片づける
+            await dropUnusedKeys(userId, copiesOf(resendMoves), `savePhoto(${photo.id})`);
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
         console.error("savePhoto error:", e);
-        // 保存できなかった。**上で作ったコピーは誰も指さない**ので消す
-        // （`private/` は画面からも `discardUpload` からも消せない）
-        await dropCopies(moves, `savePhoto(${photo.id})`);
+        // 保存できなかった。上で作ったコピーは、どの行も使っていなければ消す
+        // （`private/` は画面からも `discardUpload` からも消せない）。
+        // **行を書き終えたあとの失敗なら触らない**（行がコピーを指している）
+        if (!written) await dropUnusedKeys(userId, copiesOf(moves), `savePhoto(${photo.id})`);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }
 };

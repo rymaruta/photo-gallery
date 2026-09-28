@@ -492,6 +492,38 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         expect(droppedFrom()).toEqual(["uploads/u1/p1_thumb.webp"]);
     });
 
+    // 🔴 `private/` の置き場は `uploads/` の鍵から機械的に決まるので、2つの行が
+    // 同じ実体を指しうる。確かめずに消すと、もう1つの写真が割れる
+    it("断るときに消すコピーも、別の行が使っていれば消さない", async () => {
+        mockListMyMedia.mockResolvedValue([{ id: "R", src: "https://cdn.example.com/private/u9/r.webp", thumbSrc: PRIV }]);
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(droppedFrom(), "別の写真のサムネを消している").not.toContain("private/u1/p1.webp");
+    });
+
+    it("再送で書き直したあとも、別の行が使っている元は消さない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockListMyMedia.mockResolvedValue([{ id: "X", src: "https://cdn.example.com/uploads/u1/X.webp" }]);
+        await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/X.webp" }));
+        expect(droppedFrom()).not.toContain("uploads/u1/X.webp");
+    });
+
+    it("行を書き終えたあとの失敗では、コピーを消さない（行がそれを指している）", async () => {
+        mockDropOld.mockRejectedValueOnce(new Error("s3 down"));   // 元を消すところで投げる
+        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
+        expect(res.statusCode).toBe(500);
+        expect(droppedFrom(), "書いた行が指すコピーを消している").not.toContain("private/u1/p1.webp");
+    });
+
     it("再送で書き直せなかった（あいだで誰かが書いた）ら、元は触らない", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockOverwriteOwnPhoto.mockResolvedValue(false);
@@ -500,7 +532,7 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
         await invoke(event("u1", { ...BASE, audience: "followers" }));
-        expect(mockDropOld).not.toHaveBeenCalled();
+        expect(droppedFrom().filter((k) => k.startsWith("uploads/")), "元を消している").toEqual([]);
     });
 
     it("公開範囲を変えた再送は断る（置き場が食い違う）", async () => {
