@@ -104,7 +104,7 @@ export default function CloseFriends({ locale, userId }: Props) {
                 ]);
                 if (!cf.ok || !fl.ok) throw new Error(`${cf.status}/${fl.status}`);
                 const cfData = await cf.json() as { userIds?: unknown };
-                const flData = await fl.json() as { users?: unknown; total?: unknown };
+                const flData = await fl.json() as { users?: unknown; total?: unknown; listed?: unknown };
                 const rows = usableUserRows(flData.users, "following");
                 // **配列でなければ「取れなかった」**（0人と壊れた応答を混ぜない）
                 if (!rows || !Array.isArray(cfData.userIds)) throw new Error("shape");
@@ -112,7 +112,10 @@ export default function CloseFriends({ locale, userId }: Props) {
                 if (cancelled) return;
                 const live = rows.filter((r) => !r.deleted);
                 setFollowing(live);
-                setListCut(rows.length >= FOLLOWING_PAGE);
+                // **切れたかは `listed`（隠す人を落としたあと・切る前の人数）で見る。**
+                // 見える人がちょうど50人でも切れてはいない。古いサーバーで `listed` が
+                // 無ければ、50人に届いたかで見る
+                setListCut(typeof flData.listed === "number" ? flData.listed > rows.length : rows.length >= FOLLOWING_PAGE);
                 setFollowingTotal(typeof flData.total === "number" ? flData.total : live.length);
                 // **退会した人の印はフォロー一覧だけが持つ**（公開プロフィールでは分からない）
                 const gone = new Map<string, Looked>(rows.filter((r) => r.deleted).map((r) => [r.id, { deleted: true }]));

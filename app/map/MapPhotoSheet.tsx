@@ -9,6 +9,7 @@ import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { publicImageUrl } from "../../lib/utils/seo";
 import { ROUTES } from "../../lib/routes";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
+import { isBehindPriorityOverlay } from "../../lib/hooks/useFocusTrap";
 
 /** 関連写真のサムネを並べる数。これを超えたぶんは「+N」に畳む（モックと同じ） */
 const RELATED_SHOWN = 3;
@@ -103,6 +104,8 @@ export default function MapPhotoSheet({
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+            // 同意画面が上にある間は、見えない裏の写真を送らない
+            if (isBehindPriorityOverlay()) return;
             const t = e.target as HTMLElement | null;
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
             e.preventDefault();

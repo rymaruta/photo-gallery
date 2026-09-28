@@ -16,12 +16,12 @@ vi.mock("../../../../lib/utils/api", async (importActual) => ({
 import CloseFriends from "../CloseFriends";
 
 const ok = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
-function serve(closeIds: string[], following: unknown[], write: (url: string, method: string) => boolean = () => true, total?: number) {
+function serve(closeIds: string[], following: unknown[], write: (url: string, method: string) => boolean = () => true, total?: number, listed?: number) {
     mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
         const u = String(url);
         const m = init?.method;
         if (u === "/user/close-friends" && !m) return ok({ userIds: closeIds });
-        if (u === "/users/me/following" && !m) return ok({ users: following, total: total ?? following.length });
+        if (u === "/users/me/following" && !m) return ok({ users: following, total: total ?? following.length, ...(listed !== undefined ? { listed } : {}) });
         if (m === "PUT" || m === "DELETE") {
             return write(u, m) ? ok({ success: true }) : Promise.resolve({ ok: false, json: async () => ({ error: "だめ" }) });
         }
@@ -103,6 +103,22 @@ describe("親しい友達", () => {
     it("フォロー中が一覧に入りきらない（50人で切れた）ときは、そう伝える", async () => {
         const fifty = Array.from({ length: 50 }, (_, i) => ({ id: `f${i}`, name: `人${i}` }));
         serve([], fifty, () => true, 80);
+        view();
+        expect(await screen.findByText("フォロー中 80人のうち、新しい 50人を表示しています。")).toBeInTheDocument();
+    });
+
+    /** 見える人がちょうど50人（ブロック関係の人が総数にだけ入っている）なら、切れてはいない */
+    it("見える人がちょうど50人なら、切れていないので言わない（listed で見る）", async () => {
+        const fifty = Array.from({ length: 50 }, (_, i) => ({ id: `f${i}`, name: `人${i}` }));
+        serve([], fifty, () => true, 53, 50);
+        view();
+        await star("人0");
+        expect(screen.queryByText(/人を表示しています/)).toBeNull();
+    });
+
+    it("listed が行より多ければ、切れているので言う", async () => {
+        const fifty = Array.from({ length: 50 }, (_, i) => ({ id: `f${i}`, name: `人${i}` }));
+        serve([], fifty, () => true, 80, 78);
         view();
         expect(await screen.findByText("フォロー中 80人のうち、新しい 50人を表示しています。")).toBeInTheDocument();
     });
