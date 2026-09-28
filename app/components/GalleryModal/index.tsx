@@ -19,7 +19,7 @@ import ModalImage from "./ModalImage";
 import ModalControls from "./ModalControls";
 import ModalCaption from "./ModalCaption";
 import ModalKeyboardHelp from "./ModalKeyboardHelp";
-import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { useFocusTrap, isBehindPriorityOverlay } from "../../../lib/hooks/useFocusTrap";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 
 type Props = {
@@ -174,6 +174,9 @@ export default function GalleryModal({
     // キーボード操作 + body scroll lock
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // **同意画面が上にある間は何もしない。** 見えない写真がめくられ、
+            // `h` で見えない写真にいいねが付いていた
+            if (isBehindPriorityOverlay()) return;
             if (e.key === "ArrowRight") { e.preventDefault(); onNext(); return; }
             if (e.key === "ArrowLeft")  { e.preventDefault(); onPrev(); return; }
             if (e.key === "Escape") {

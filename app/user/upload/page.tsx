@@ -1,5 +1,7 @@
 "use client";
 
+import AudiencePicker from "../../components/AudiencePicker";
+import { audienceForSave, audienceRank, readAudience, type Audience } from "../../../lib/utils/audience";
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import CropFramePicker from "../../components/CropFramePicker";
@@ -178,6 +180,8 @@ function UploadPageInner() {
     /** 送り返さずに留めている状態（未ログインだが、まだ上げていない写真がある） */
     const holdingWork = gate === "anonymous" && pendingWork;
     const [category, setCategory] = useState("");
+    /** 公開範囲。**既定は全体に公開**（絞るとウェブサイトに載らず、検索から見つからない） */
+    const [audience, setAudience] = useState<Audience>("everyone");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
     /**
@@ -433,7 +437,7 @@ function UploadPageInner() {
      * （失敗した写真）で書き直す。上げている最中に画面を離れたら消す
      * （上げる処理は画面が閉じても続くので、残すと二重に上がる）。
      */
-    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, uploading: false, userId: null as string | null });
+    const draftSourceRef = useRef({ items: [] as Item[], category: "", tags: "", asOnePost: false, audience: "everyone" as Audience, uploading: false, userId: null as string | null });
     // **最後に分かっていた持ち主を覚えておく。** セッションが切れると userId は
     // null になるが、画面は写真を守ったまま「別のタブでログインし直して」と
     // 案内する（holdingWork）。その案内どおりに離れた瞬間に控えを消すと、
@@ -483,6 +487,7 @@ function UploadPageInner() {
             setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
             setCategory("");
             setTags("");
+            setAudience("everyone");
             // 控えは消さない: 置き場は1つだけで、いま入っているのが新しい人の
             // 控えのこともある（凍っていたタブが戻ってきた場合）。前の人の控えは
             // 読むときに持ち主の違いで捨てられる（readUploadDraft）
@@ -494,7 +499,7 @@ function UploadPageInner() {
     const draftOwner = userId
         ? (lastUserIdRef.current === null || lastUserIdRef.current === userId ? userId : null)
         : lastUserIdRef.current;
-    draftSourceRef.current = { items, category, tags, asOnePost, uploading, userId: draftOwner };
+    draftSourceRef.current = { items, category, tags, asOnePost, audience, uploading, userId: draftOwner };
     /**
      * 控えを戻す判断が済んだか。**済むまでは書かない・消さない**——ログインの
      * 確認中（写真0枚に見える）に画面が隠れると、戻す前の控えを消してしまう
@@ -533,6 +538,7 @@ function UploadPageInner() {
                 category: src.category,
                 tags: src.tags,
                 asOnePost: src.asOnePost,
+                audience: src.audience,
                 items: keep.map((i) => ({
                     file: i.file, title: i.title, description: i.description, location: i.location,
                     focalPoint: i.focalPoint, dateTimeOriginal: i.dateTimeOriginal,
@@ -594,6 +600,11 @@ function UploadPageInner() {
         setCategory(d.category);
         setTags(d.tags);
         setAsOnePost(d.asOnePost);
+        // 古い控え（公開範囲を持たない）は全体に公開＝控えた当時の既定と同じ。
+        // **広げる方向には当てない**: 控えを読んでいる間に絞った人の選択を、
+        // 控えのより広い範囲で上書きしない（どの順で起きても開く方へ倒れない）
+        const fromDraft = readAudience(d.audience);
+        setAudience((cur) => (audienceRank(fromDraft) < audienceRank(cur) ? cur : fromDraft));
         showToast(locale === "en"
             ? `Restored what you were writing (${restored.length} photo(s)).`
             : `書きかけを戻しました（${restored.length}枚）`, "info");
@@ -1133,6 +1144,7 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             // 共同アルバム（案C）。メンバーでなければサーバーが断る
                             ...(albumId ? { albumId } : {}),
+                            ...audienceForSave(audience),
                         }),
                     });
                     if (!saveResponse.ok) {
@@ -1221,6 +1233,7 @@ function UploadPageInner() {
                             ...(cover.thumbUrl ? { thumbUrl: cover.thumbUrl } : {}),
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
+                            ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
                             // 確かめる（`api-user/src/photoImages.ts`）ので、
                             // 通らなかったぶんは黙って落ちる——だから枚数は
@@ -1292,12 +1305,27 @@ function UploadPageInner() {
                                 : `${successCount} 枚を下書き保存しました。あとで編集して公開できます`)),
                     "success",
                 );
+                // **絞った写真はウェブサイトに載らない**（静的サイトにも、ホームの一覧にも
+                // 出ない）。言わないと「上げたのに無い＝失敗した」と読める
+                const restricted = published && audience !== "everyone";
+                if (restricted) {
+                    showToast(locale === "en"
+                        ? (audience === "followers"
+                            ? "Shared with your followers only — it won't appear on the website."
+                            : "Shared with your close friends only — it won't appear on the website.")
+                        : (audience === "followers"
+                            ? "フォロワーのみに公開しました。ウェブサイトには載りません。"
+                            : "親しい友達だけに公開しました。ウェブサイトには載りません。"), "info");
+                }
                 // 全件成功時に遷移（items はループ開始時のクロージャなのでカウントで判定する）。
-                // 公開はトップへ、下書きは下書き一覧へ。
+                // 公開はトップへ、下書きは下書き一覧へ。**絞った写真はトップに出ない**ので、
+                // 自分の写真が並ぶプロフィールへ（持ち主には全件見える）
                 if (successCount === pending.length) {
                     // 全部上がったので、書きかけの控えは要らない
                     clearOwnDraft();
-                    const dest = published ? "/" : ROUTES.DRAFTS;
+                    const dest = !published ? ROUTES.DRAFTS
+                        : restricted && userId ? ROUTES.USER_PROFILE(userId)
+                        : "/";
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
             }
@@ -1314,7 +1342,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1949,16 +1977,23 @@ function UploadPageInner() {
                         </span>
                     </label>
 
-                    {/* **BGM と公開範囲の行は置かない**（モック⑥⑦）。
-                        - BGM: 投稿時に曲を付ける口が無い（`/upload/save` は `song` を
-                          受け取らない）。公開したあと写真ページで付ける経路だけがある
-                        - 公開範囲: いまの写真は `published` の真偽しか持たない。
-                          「フォロワーのみ」「自分のみ」は**データにもAPIにも無い**
-                          （`docs/redesign-2026-09.md` P6・P7）。2択は
-                          「下書き保存」と「投稿する」の2つのボタンがそのまま担う
-                        どちらも `api-user/**` を触らないと動かないので、
-                        **動かないボタンとしては出さない**（owner の指示 2026-09-22）。
-                        同じ理由で、モックの「人気」「評価」の類はこの画面に無い */}
+                    {/* **公開範囲**（iOS の新規投稿と同じ三択）。サーバーは前から `audience`
+                        を受けていた（`api-user/src/upload.ts`・`sanitizeAudience`）——以前ここに
+                        「データにもAPIにも無い」と書いてあったのは、その後に入った API を
+                        見落とした古い記述。既定は全体に公開（絞るとウェブサイトに載らない）。
+
+                        **BGM の行は置かない**（モック⑥）。投稿時に曲を付ける口が無い
+                        （`/upload/save` は `song` を受け取らない）。公開したあと写真ページで
+                        付ける経路だけがあり、**動かないボタンとしては出さない**
+                        （owner の指示 2026-09-22）。モックの「人気」「評価」の類も同じ理由で無い */}
+                    {/* **写真を選んでから出す。** 写真0枚では控え（離れても戻れる仕組み）が
+                        残らないので、先に絞ってから設定へ行って戻ると、黙って全体に公開に
+                        戻っていた（公開範囲は写真に付くもの。iOS も写真を選んだあとの画面） */}
+                    {items.length > 0 && (
+                        <div className="mt-4">
+                            <AudiencePicker value={audience} onChange={setAudience} locale={locale} disabled={uploading} />
+                        </div>
+                    )}
 
                     {/* 上げ終わった・失敗した写真の状態。
                         ここは role="alert" にしない。逐次ループなので、

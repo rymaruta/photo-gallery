@@ -13,11 +13,11 @@ import { usableRows } from "./apiRows";
  *
  * 判定は共有の `usableRows` に通したうえで、`id` を持つ行だけ残す。
  */
-export type UserRow = { id: string; name?: string; deleted?: boolean };
+export type UserRow = { id: string; name?: string; username?: string; deleted?: boolean };
 
 /** @returns 配列でなければ `null`（呼び出し側が「取れなかった」と扱えるように） */
 export function usableUserRows(data: unknown, label: string): UserRow[] | null {
-    const rows = usableRows<{ id?: unknown; name?: unknown; deleted?: unknown }>(data, label);
+    const rows = usableRows<{ id?: unknown; name?: unknown; username?: unknown; deleted?: unknown }>(data, label);
     if (!rows) return null;
     const out: UserRow[] = [];
     for (const r of rows) {
@@ -25,6 +25,7 @@ export function usableUserRows(data: unknown, label: string): UserRow[] | null {
         out.push({
             id: r.id,
             ...(typeof r.name === "string" && r.name ? { name: r.name } : {}),
+            ...(typeof r.username === "string" && r.username ? { username: r.username } : {}),
             ...(r.deleted === true ? { deleted: true } : {}),
         });
     }

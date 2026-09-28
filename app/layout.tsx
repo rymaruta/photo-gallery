@@ -10,6 +10,7 @@ import ToastProvider from "./components/ToastProvider";
 import DisableSave from "./components/DisableSave";
 import AssetRecovery from "./components/AssetRecovery";
 import ProfileSetupBanner from "./components/ProfileSetupBanner";
+import LegalGate from "./components/LegalGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import Analytics from "./components/Analytics";
@@ -425,6 +426,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* 名前が未設定のログインユーザーに、名前を決めてもらうよう促す */}
         <ProfileSetupBanner />
+
+        {/* 「はじめる前に」。ログインした人に、同意の記録が無ければ一度だけ出す（iOS と同じ） */}
+        <LegalGate />
 
         {/* Main - 各ページで管理 */}
           <div className="flex-1">

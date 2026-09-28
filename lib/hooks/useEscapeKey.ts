@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { isImeKey } from "../utils/ime";
+import { isBehindPriorityOverlay } from "./useFocusTrap";
 
 /**
  * 開いている間だけ Escape を拾う。
@@ -28,7 +29,9 @@ export function useEscapeKey(active: boolean, onEscape: () => void): void {
             // 退会の確認モーダルは `退会` と打たせる＝**IME 必須**なので、
             // 「たいかい」の変換をやめようとしただけでモーダルごと閉じ、
             // 打ち直しになっていた（Chromium で再現：`onClose` が呼ばれた）。
-            if (e.key === "Escape" && !isImeKey(e)) onEscape();
+            // **同意画面（優先度のある閉じ込め）が上にある間は閉じない。** 見えない裏の
+            // シート・確認画面が Escape で閉じていた（同意画面は自分では Escape を聞かない）
+            if (e.key === "Escape" && !isImeKey(e) && !isBehindPriorityOverlay()) onEscape();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);

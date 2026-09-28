@@ -136,3 +136,47 @@ describe("GalleryModal: 今のフォーカスの挙動", () => {
         expect(document.activeElement).toBe(items[items.length - 1]);
     });
 });
+
+/**
+ * **同意画面（優先度のある閉じ込め）が上にある間、裏の拡大表示のキー操作は効かない。**
+ * 共有リンクの拡大表示の上に「はじめる前に」が出ていると、`h` で見えない写真に
+ * いいねが付き、矢印で見えない写真がめくられ、Escape で裏が閉じていた。
+ */
+import { useFocusTrap as useTrapForGate } from "../../../lib/hooks/useFocusTrap";
+function GateLike() {
+    const ref = React.useRef<HTMLDivElement | null>(null);
+    useTrapForGate(true, ref, undefined, undefined, 1);
+    return <div ref={ref} role="dialog" aria-label="はじめる前に"><button>同意してはじめる</button></div>;
+}
+
+describe("GalleryModal: 同意画面の裏では、キー操作を受けない", () => {
+    beforeEach(() => { onClose.mockReset(); onNext.mockReset(); onPrev.mockReset(); });
+
+    it("h・矢印・Escape が裏の写真に効かない", async () => {
+        render(
+            <div>
+                <GalleryModal photos={[photo("p1"), photo("p2")]} currentIndex={0}
+                    onClose={onClose} onNext={onNext} onPrev={onPrev} locale="ja" />
+                <GateLike />
+            </div>,
+        );
+        fireEvent.keyDown(window, { key: "h" });
+        fireEvent.keyDown(window, { key: "ArrowRight" });
+        fireEvent.keyDown(window, { key: "ArrowLeft" });
+        fireEvent.keyDown(window, { key: "Escape" });
+        // 書き込み（POST・DELETE）だけを数える。開いたときの状態の読み出しは数えない
+        await new Promise((r) => setTimeout(r, 20));
+        const writes = mockUserFetch.mock.calls.filter((c) =>
+            ["POST", "DELETE", "PUT"].includes(String((c[1] as { method?: string } | undefined)?.method ?? "")));
+        expect(writes, "同意画面の裏でいいねが送られた").toEqual([]);
+        expect(onNext).not.toHaveBeenCalled();
+        expect(onPrev).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("同意画面が無ければ、今までどおり効く（見張りが空振りしていない）", () => {
+        setup();
+        fireEvent.keyDown(window, { key: "ArrowRight" });
+        expect(onNext).toHaveBeenCalled();
+    });
+});

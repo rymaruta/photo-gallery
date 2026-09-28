@@ -13,7 +13,7 @@ import { haversineKm } from "../../lib/utils/journey";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
-import { HeartIcon, StarIcon } from "@heroicons/react/24/solid";
+import { HeartIcon, StarIcon, UserGroupIcon, LockClosedIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
@@ -41,6 +41,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
+import { readAudience } from "../../lib/utils/audience";
 
 type SongEntry = {
     title: string;
@@ -184,6 +185,14 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
 }) {
     const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
     const isHidden = photo.published === false;
+    // **公開範囲を絞った写真の印**（持ち主の一覧にだけ来る）。絞った写真はウェブサイトに
+    // 載らないので、印が無いと「なぜトップに無いのか」が分からない
+    const audience = readAudience((photo as { audience?: unknown }).audience);
+    const audienceLabel = audience === "followers"
+        ? (locale === "en" ? "Followers" : "フォロワーのみ")
+        : audience === "closeFriends"
+            ? (locale === "en" ? "Close friends" : "親しい友達")
+            : null;
 
     const likeCount = typeof photo.likes === "number" && photo.likes > 0 ? photo.likes : 0;
     // 複数枚の印。**壊れた要素は数えない**（「1/3」と出して開くと2枚、を作らない）
@@ -213,7 +222,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                  * `GalleryGrid` は同じ状況でも名前が残る（あちらは
                  * `aria-label` を持っている）。揃える。
                  */
-                aria-label={photoCardLabel(title, likeCount, locale)}
+                aria-label={`${photoCardLabel(title, likeCount, locale)}${audienceLabel ? (locale === "en" ? ` (${audienceLabel})` : `（${audienceLabel}）`) : ""}`}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -232,6 +241,23 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                           style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
                           aria-hidden="true">
                         1/{extraCount + 1}
+                    </span>
+                )}
+                {/* **絵だけの小さな丸で、削除ボタンの上に積む。** 四隅は持ち主のボタン
+                    （左下の削除・右下の編集・左上のピン・右上の枚数と公開の切り替え）で
+                    埋まっていて、文字つきの印は削除ボタンの下に隠れていた。
+                    **星は使わない**——ピン留めしていないときのピンボタンが「暗い丸に輪郭の星」で、
+                    同じ見た目になり、押せるボタンと押せない印が見分けられなかった。
+                    親しい友達は鍵（選んだ人だけに限る）、フォロワーのみは人。意味は名前が伝える。
+                    高さはタイルの縦の中央（幅 320px の端末で上のピンボタンと重なっていた） */}
+                {audienceLabel && (
+                    <span className="absolute left-1.5 inline-flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                          style={{ top: "50%", marginTop: -11, width: 22, height: 22 }}
+                          title={audienceLabel}
+                          aria-hidden="true">
+                        {audience === "closeFriends"
+                            ? <LockClosedIcon className="w-3.5 h-3.5" />
+                            : <UserGroupIcon className="w-3.5 h-3.5" />}
                     </span>
                 )}
                 {/* ホバー: いいね数オーバーレイ。

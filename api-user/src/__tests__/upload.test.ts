@@ -341,6 +341,51 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
     });
 });
 
+// **公開範囲を絞った写真は静的サイトに載らない**（`sync-photos-from-ddb.js` が
+// 落とす）。作り直しても何も変わらないので頼まない——月の予算と Actions の枠を
+// 1本ずつ食うだけになる
+describe("savePhoto: 公開範囲を絞った写真では作り直しを頼まない", () => {
+    it("フォロワーのみで公開しても頼まない", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: true, audience: "followers" }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().audience).toBe("followers");
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    it("親しい友達で公開しても頼まない", async () => {
+        await invoke(event("u1", { ...BASE, published: true, audience: "closeFriends" }));
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    it("知らない値は全体に公開に倒れるので、頼む", async () => {
+        await invoke(event("u1", { ...BASE, published: true, audience: "everyone" }));
+        expect(savedPhoto().audience).toBeUndefined();
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("再送で絞った → 全体に公開に変わったら頼む（静的サイトに初めて載る）", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true, audience: "followers",
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+    });
+
+    it("再送で下書き → 絞った公開に変わっても頼まない", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true, audience: "closeFriends" }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+});
+
 describe("savePhoto: thumbUrl（一覧グリッド用サムネイル）", () => {
     it("https の thumbUrl は thumbSrc として保存される", async () => {
         const thumbUrl = "https://cdn.example.com/uploads/u1/t1.webp";
