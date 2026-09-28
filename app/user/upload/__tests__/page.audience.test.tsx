@@ -76,9 +76,15 @@ beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
 });
 
-async function uploadOne(container: HTMLElement) {
+/** 写真を選ぶ（公開範囲の欄は写真を選んでから出る） */
+async function pickPhoto(container: HTMLElement) {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "a.jpg", { type: "image/jpeg" }));
+    await screen.findByRole("radio", { name: /全体に公開/ });
+}
+
+async function uploadOne(container: HTMLElement) {
+    if (!container.querySelector('input[type="radio"]')) await pickPhoto(container);
     const publish = await screen.findByRole("button", { name: /投稿する/ });
     await waitFor(() => expect(publish).not.toBeDisabled());
     await userEvent.click(publish);
@@ -90,6 +96,7 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
     /** 既定は全体に公開で、**送らない**（サーバーも属性を書かない形で持つ） */
     it("既定は全体に公開で、audience を載せない", async () => {
         const { container, getByRole } = render(<UploadPage />);
+        await pickPhoto(container);
         expect(getByRole("radio", { name: /全体に公開/ })).toBeChecked();
         await uploadOne(container);
         expect("audience" in savedBody()!, "全体に公開なのに audience を送っている").toBe(false);
@@ -97,6 +104,7 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
 
     it("「フォロワーのみ」を選ぶと audience: followers を載せる", async () => {
         const { container, getByRole } = render(<UploadPage />);
+        await pickPhoto(container);
         await userEvent.click(getByRole("radio", { name: /フォロワーのみ/ }));
         await uploadOne(container);
         expect(savedBody()!.audience).toBe("followers");
@@ -104,6 +112,7 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
 
     it("「親しい友達」を選ぶと audience: closeFriends を載せ、選ぶ場所へ案内する", async () => {
         const { container, getByRole, getByText } = render(<UploadPage />);
+        await pickPhoto(container);
         await userEvent.click(getByRole("radio", { name: /親しい友達/ }));
         expect(getByText(/設定の「親しい友達」/)).toHaveAttribute("href", "/user/settings");
         await uploadOne(container);
@@ -111,9 +120,19 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
     });
 
     /** 絞るとウェブサイトに載らない（検索から見つからない）。選ぶ前に分かるように */
-    it("絞った選択肢は「ウェブサイトには載りません」と言う", () => {
-        const { getAllByText } = render(<UploadPage />);
+    it("絞った選択肢は「ウェブサイトには載りません」と言う", async () => {
+        const { container, getAllByText } = render(<UploadPage />);
+        await pickPhoto(container);
         expect(getAllByText(/ウェブサイトには載りません/)).toHaveLength(2);
+    });
+
+    /**
+     * **写真を選ぶまで出さない。** 写真0枚では控えが残らないので、先に絞ってから
+     * 設定へ行って戻ると、黙って全体に公開に戻っていた（レビュー指摘）
+     */
+    it("写真を選ぶまで公開範囲の欄は出ない", () => {
+        const { queryByRole } = render(<UploadPage />);
+        expect(queryByRole("radio", { name: /親しい友達/ })).toBeNull();
     });
 
     /**
@@ -122,6 +141,7 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
      */
     it("絞って公開したら、ウェブサイトに載らないと伝え、プロフィールへ移る", async () => {
         const { container, getByRole } = render(<UploadPage />);
+        await pickPhoto(container);
         await userEvent.click(getByRole("radio", { name: /フォロワーのみ/ }));
         await uploadOne(container);
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("ウェブサイトには載りません"), "info"));

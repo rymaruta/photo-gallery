@@ -188,6 +188,24 @@ describe("アップロード画面: 書きかけの控え", () => {
         expect(screen.getByRole("radio", { name: /全体に公開/ })).toBeChecked();
     });
 
+    /** 控えを読んでいる間に絞った選択を、控えの「全体に公開」で広げない */
+    it("控えを戻しても、いま絞っている公開範囲を広げない", async () => {
+        let release: (v: unknown) => void = () => {};
+        draft.read.mockReturnValue(new Promise((r) => { release = r; }));
+        const { container } = render(<UploadPage />);
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "IMG_0006.jpg", { type: "image/jpeg" }));
+        await userEvent.click(await screen.findByRole("radio", { name: /親しい友達/ }));
+        await act(async () => {
+            release({
+                t: Date.now(), userId: "me", category: "", tags: "", asOnePost: false, audience: "everyone",
+                items: [{ file: new File(["x"], "IMG_0007.jpg", { type: "image/jpeg" }), title: "", description: "", location: "" }],
+            });
+            await new Promise((r) => setTimeout(r, 0));
+        });
+        expect(screen.getByRole("radio", { name: /親しい友達/ }), "控えの値で広げた").toBeChecked();
+    });
+
     it("控えは自分のもの（userId）として保存し、読むときも自分の分だけを頼む", async () => {
         const { container } = render(<UploadPage />);
         await waitFor(() => expect(draft.read).toHaveBeenCalledWith("me"));

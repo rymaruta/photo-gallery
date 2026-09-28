@@ -600,8 +600,11 @@ function UploadPageInner() {
         setCategory(d.category);
         setTags(d.tags);
         setAsOnePost(d.asOnePost);
-        // 古い控え（公開範囲を持たない）は全体に公開＝控えた当時の既定と同じ
-        setAudience(readAudience(d.audience));
+        // 古い控え（公開範囲を持たない）は全体に公開＝控えた当時の既定と同じ。
+        // **広げる方向には当てない**: 控えを読んでいる間に絞った人の選択を、
+        // 控えの「全体に公開」で上書きしない（どの順で起きても開く方へ倒れない）
+        const fromDraft = readAudience(d.audience);
+        setAudience((cur) => (fromDraft === "everyone" && cur !== "everyone" ? cur : fromDraft));
         showToast(locale === "en"
             ? `Restored what you were writing (${restored.length} photo(s)).`
             : `書きかけを戻しました（${restored.length}枚）`, "info");
@@ -1983,9 +1986,14 @@ function UploadPageInner() {
                         （`/upload/save` は `song` を受け取らない）。公開したあと写真ページで
                         付ける経路だけがあり、**動かないボタンとしては出さない**
                         （owner の指示 2026-09-22）。モックの「人気」「評価」の類も同じ理由で無い */}
-                    <div className="mt-4">
-                        <AudiencePicker value={audience} onChange={setAudience} locale={locale} disabled={uploading} />
-                    </div>
+                    {/* **写真を選んでから出す。** 写真0枚では控え（離れても戻れる仕組み）が
+                        残らないので、先に絞ってから設定へ行って戻ると、黙って全体に公開に
+                        戻っていた（公開範囲は写真に付くもの。iOS も写真を選んだあとの画面） */}
+                    {items.length > 0 && (
+                        <div className="mt-4">
+                            <AudiencePicker value={audience} onChange={setAudience} locale={locale} disabled={uploading} />
+                        </div>
+                    )}
 
                     {/* 上げ終わった・失敗した写真の状態。
                         ここは role="alert" にしない。逐次ループなので、
