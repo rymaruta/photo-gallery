@@ -532,7 +532,9 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
         });
         await invoke(event("u1", { ...BASE, audience: "followers" }));
-        expect(droppedFrom().filter((k) => k.startsWith("uploads/")), "元を消している").toEqual([]);
+        // **コピーも消さない。** 使用中かの一覧（結果整合）は直前の書き込みを
+        // 見落としうるので、片づけると表示中の写真の本体を消しうる（レビューで再現）
+        expect(droppedFrom(), "元かコピーを消している").toEqual([]);
     });
 
     it("公開範囲を変えた再送は断る（置き場が食い違う）", async () => {

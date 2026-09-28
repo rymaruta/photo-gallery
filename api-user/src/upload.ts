@@ -622,7 +622,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                     .filter((k) => k.startsWith(PRIVATE_PREFIX) && !existingKeys.has(k) && !moves.some((m) => m.to === k))
                     .map((k) => ({ from: PUBLIC_PREFIX + k.slice(PRIVATE_PREFIX.length), to: k }));
                 if (missing.length > 0 && !await copyAll(missing, `savePhoto(${photo.id})`)) {
-                    await dropUnusedKeys(userId, copiesOf([...moves, ...missing]), `savePhoto(${photo.id})`);
+                    // **コピーは片づけない。** 再送の経路は「同時にもう1本が書いている」
+                    // ことがあり、使用中かの一覧（結果整合）は直前の書き込みを見落とす
+                    // ——片づけると表示中の写真の本体を消しうる。孤児が残る側に倒す
                     return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
                         error: "画像を移せませんでした。前回の保存はそのまま残っています",
                     }) };
@@ -668,10 +670,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
-            // **書き直せなかった**（あいだで誰かが書いた）。元は触らない
-            // ——今の行がどちらを指しているか分からないので、消すと割れうる。
-            // この回で作ったコピーは、どの行も使っていなければ片づける
-            await dropUnusedKeys(userId, copiesOf(resendMoves), `savePhoto(${photo.id})`);
+            // **書き直せなかった**（あいだで誰かが書いた）。元もコピーも触らない
+            // ——今の行がどちらを指しているか分からず、使用中かの一覧（結果整合）は
+            // その直前の書き込みを見落としうる。消すと割れうるので、孤児が残る側に倒す
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
