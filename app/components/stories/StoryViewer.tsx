@@ -1960,6 +1960,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {reportOpen && (
                 <ReportDialog
                     photoId={item.id}
+                    blockTargetId={!isOwnStory && group?.userId ? group.userId : undefined}
                     locale={locale}
                     onClose={() => setReportOpen(false)}
                     openerRef={menuBtnRef}

@@ -8,6 +8,7 @@ import { userFetch, readApiError } from "../../lib/utils/api";
 import { useToast } from "../../lib/hooks/useToast";
 import { sessionErrorMessage } from "../../lib/utils/api";
 import { log } from "../../lib/utils/log";
+import { noteFollowSevered } from "../../lib/hooks/useFollow";
 
 /**
  * **不適切な投稿の通報。**
@@ -38,16 +39,22 @@ export const NOTE_MAX = 500;
 
 type Props = {
     photoId: string;
+    /**
+     * **ブロックできる相手**（投稿者）。自分の投稿・持ち主の分からない投稿では
+     * 渡さない——渡したときだけ「この人をブロックする」を出す（iOS の通報画面と同じ）
+     */
+    blockTargetId?: string;
     locale: string;
     onClose: () => void;
     openerRef?: React.RefObject<HTMLElement | null>;
 };
 
-export default function ReportDialog({ photoId, locale, onClose, openerRef }: Props) {
+export default function ReportDialog({ photoId, blockTargetId, locale, onClose, openerRef }: Props) {
     const isJa = locale !== "en";
     const panelRef = useRef<HTMLDivElement>(null);
     const [reason, setReason] = useState("");
     const [note, setNote] = useState("");
+    const [alsoBlock, setAlsoBlock] = useState(false);
     const [sending, setSending] = useState(false);
     const { showToast } = useToast();
 
@@ -72,11 +79,32 @@ export default function ReportDialog({ photoId, locale, onClose, openerRef }: Pr
                 showToast(await readApiError(res, isJa ? "通報できませんでした" : "Could not report"), "error");
                 return;
             }
+            // **ブロックは通報が通ってから。** 通報が断られたのにブロックだけ
+            // 効くと、「通報した」つもりで何も届いていない状態になる。
+            // ブロックだけ失敗したら、通報は受け付けた旨と分けて伝える
+            let blockFailed = false;
+            if (alsoBlock && blockTargetId) {
+                try {
+                    const b = await userFetch(`/users/${encodeURIComponent(blockTargetId)}/block`, { method: "POST" });
+                    if (b.ok) noteFollowSevered(blockTargetId);
+                    else blockFailed = true;
+                } catch (e) {
+                    log.error("block after report failed:", e);
+                    blockFailed = true;
+                }
+            }
             // **「対応しました」とは言わない。** 読むのは人で、すぐには終わらない
             showToast(
-                isJa ? "通報を受け付けました。運営が確認します。" : "Report received. We'll review it.",
+                alsoBlock && blockTargetId && !blockFailed
+                    ? (isJa
+                        ? "通報を受け付け、この人をブロックしました。解除は設定の「ブロックした人」からできます。"
+                        : "Report received and this user is blocked. You can unblock from Settings.")
+                    : (isJa ? "通報を受け付けました。運営が確認します。" : "Report received. We'll review it."),
                 "success",
             );
+            if (blockFailed) {
+                showToast(isJa ? "ブロックはできませんでした。プロフィールからもう一度お試しください。" : "Couldn't block this user. Try again from their profile.", "error");
+            }
             onClose();
         } catch (e) {
             log.error("report failed:", e);
@@ -144,6 +172,25 @@ export default function ReportDialog({ photoId, locale, onClose, openerRef }: Pr
                         placeholder={isJa ? "分かる範囲でお書きください" : "Anything that helps us review"}
                     />
                 </div>
+
+                {blockTargetId && (
+                    <label className="mt-4 flex items-start gap-2.5 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={alsoBlock}
+                            onChange={(e) => setAlsoBlock(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 accent-[#796440]"
+                        />
+                        <span>
+                            <span className="block text-sm text-white/85">{isJa ? "この人をブロックする" : "Block this user"}</span>
+                            <span className="block text-xs text-white/60 mt-0.5">
+                                {isJa
+                                    ? "ブロックすると、おたがいの投稿・ストーリー・通知が見えなくなります。"
+                                    : "You won't see each other's posts, stories, or notifications."}
+                            </span>
+                        </span>
+                    </label>
+                )}
 
                 <div className="mt-5 flex gap-2.5 justify-end">
                     <button
