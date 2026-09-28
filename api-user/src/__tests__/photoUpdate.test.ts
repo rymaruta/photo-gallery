@@ -1481,6 +1481,58 @@ describe("差し替えで消す鍵", () => {
     });
 });
 
+// 🔴 **ストーリーから残した写真の印（元のストーリーの `keptAs`）を、行の最終形に合わせる。**
+// 印があるストーリーは期限切れの掃除が実体を消さない。写真が実体を指さなくなったのに
+// 印を残すと、24時間で消えるはずのストーリーの画像がどこからも消されない
+describe("ストーリーから残した写真の印", () => {
+    const U = "22222222-2222-2222-2222-222222222222";
+    const storyRow = { id: "story-1", story: true, userId: "u1", key: `uploads/${U}/k.jpg`, src: `${CDN}/uploads/${U}/k.jpg`, keptAs: "p1" };
+    const storyWrite = () => mockDdbSend.mock.calls
+        .map((c) => (c[0] as { input: { Key?: { id?: string }; UpdateExpression?: string } }).input)
+        .find((i) => i.Key?.id === "story-1" && i.UpdateExpression);
+
+    beforeEach(() => {
+        mockCopyAll.mockReset().mockResolvedValue(true);
+        mockDropOld.mockReset().mockResolvedValue(0);
+        mockListMyMedia.mockReset().mockResolvedValue([storyRow]);
+    });
+
+    it("絞って private/ へ移したら、印を外す（掃除にストーリーの実体を消させる）", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, keptFrom: "story-1", key: storyRow.key, src: storyRow.src } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: storyRow })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(storyWrite()?.UpdateExpression).toBe("REMOVE keptAs");
+    });
+
+    it("公開に戻して同じ実体を指すようになったら、印を立て直す（掃除に写真の実体を消させない）", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: {
+                id: "p1", userId: "u1", published: true, audience: "followers", keptFrom: "story-1",
+                key: `private/${U}/k.jpg`, src: `${CDN}/private/${U}/k.jpg`,
+            } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Item: { ...storyRow, keptAs: undefined } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: null }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(storyWrite()?.UpdateExpression).toBe("SET keptAs = :id");
+    });
+
+    it("ストーリーがもう無ければ、何も書かない", async () => {
+        mockDdbSend.mockReset()
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, keptFrom: "story-1", key: storyRow.key, src: storyRow.src } })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(storyWrite()).toBeUndefined();
+    });
+});
+
 describe("移した元は、ほかの行が使っていれば消さない", () => {
     const U = "22222222-2222-2222-2222-222222222222";
     const row = {

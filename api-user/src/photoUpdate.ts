@@ -537,6 +537,50 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             ].filter((k) => !finalKeys.has(k));
             await dropUnusedKeys(ownerId, replacedKeys, `photoUpdate(${id})`, id);
         }
+        /*
+         * **ストーリーから残した写真の印（元のストーリーの `keptAs`）を、行の最終形に合わせる。**
+         *
+         * 印があるストーリーは、期限切れの掃除が実体を消さない（持ち主は写真、という
+         * 約束・`stories.ts` の `storyMediaKeys`）。差し替えや公開範囲の変更（`private/` へ
+         * 移す）で写真がその実体を**指さなくなったら印を外す**——残すと、24時間で消える
+         * はずのストーリーの画像がどこからも消されない（上の `dropUnusedKeys` は、まだ
+         * 生きているストーリーが使っている実体を残すため）。公開に戻して**また指すように
+         * なったら印を立て直す**——立てないと、期限切れの掃除が写真の実体を消す。
+         * ストーリーがもう無ければ何もしない（条件で落ちる）
+         */
+        const keptFrom = existing.Item.keptFrom;
+        if ((body.replace || movePlan) && typeof keptFrom === "string" && keptFrom) {
+            let story: Record<string, unknown> | undefined;
+            try {
+                story = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: keptFrom } })))?.Item;
+            } catch (e) {
+                console.warn(`photoUpdate(${id}): 元のストーリーを読めませんでした`, (e as Error)?.name);
+            }
+            const storyKeys = story ? mediaKeys(story) : [];
+            if (storyKeys.length > 0) {
+                const finalKeys = new Set(mediaKeys(finalRow));
+                const stillShared = storyKeys.some((k) => finalKeys.has(k));
+                try {
+                    await ddb.send(new UpdateCommand(stillShared
+                    ? {
+                        TableName: PHOTOS_TABLE, Key: { id: keptFrom },
+                        UpdateExpression: "SET keptAs = :id",
+                        ConditionExpression: "attribute_exists(id) AND (attribute_not_exists(keptAs) OR keptAs = :id)",
+                        ExpressionAttributeValues: { ":id": id },
+                    }
+                    : {
+                        TableName: PHOTOS_TABLE, Key: { id: keptFrom },
+                        UpdateExpression: "REMOVE keptAs",
+                        ConditionExpression: "keptAs = :id",
+                        ExpressionAttributeValues: { ":id": id },
+                    }));
+                } catch (e) {
+                    if ((e as { name?: string })?.name !== "ConditionalCheckFailedException") {
+                        console.warn(`photoUpdate(${id}): 元のストーリーの印を合わせられませんでした`, (e as Error)?.name);
+                    }
+                }
+            }
+        }
         // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
         //
         // 一度「published が実際に変わったときだけ」に絞ったが、これは狭すぎた。
