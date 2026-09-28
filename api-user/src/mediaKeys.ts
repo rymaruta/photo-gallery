@@ -6,7 +6,7 @@ import { extraImageUrls } from "./photoImages";
 // 片方だけ直すと、もう片方に消し残しが出る。定義は1か所にする。
 
 /**
- * URL もしくは生キーから uploads/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字）。
+ * URL もしくは生キーから uploads/・private/ 配下の S3 オブジェクトキーを導出する（それ以外は空文字）。
  *
  * パスは**デコードしてから**判定する。保存時の検証（uploadPolicy.isOwnUploadUrl）は
  * デコードして見ているのに、ここが生のままだったため、両者の判断が食い違っていた:
@@ -17,10 +17,19 @@ import { extraImageUrls } from "./photoImages";
  * つまり「写真を消しても、退会しても、実体だけ公開URLに残り続ける」状態を
  * 自分で作れた。消えたと表示され、成功も返るのに残る——一番まずい壊れ方。
  */
+/**
+ * 消してよい置き場。**`private/` は公開範囲を絞った写真の置き場**
+ * （`privateMove.ts`）——絞った写真を移すようになったので、ここが
+ * `uploads/` だけだと**移した写真は削除・退会で消えずに残る**。
+ * `profiles/`（アイコン・固定キー）は入れない。
+ */
+const MEDIA_PREFIXES = ["uploads/", "private/"] as const;
+const underMedia = (k: string) => MEDIA_PREFIXES.some((p) => k.startsWith(p));
+
 export function deriveUploadKey(v: unknown): string {
     if (typeof v !== "string" || !v) return "";
     const decodeOnce = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
-    if (v.startsWith("uploads/")) {
+    if (underMedia(v)) {
         // docstring の「`..` を含むキーは扱わない」は URL 経路にしか
         // 入っておらず、生キーだけ素通りだった（テストまで逆の挙動を
         // 固定していた）。今の保存経路では `..` 入りのキーは作れないが、
@@ -36,7 +45,7 @@ export function deriveUploadKey(v: unknown): string {
         // ".." を含むキーは扱わない（S3 のキーとしては正当だが、
         // 意図せず別の場所を指す形になっていないかを確かめる術が無い）
         if (path.includes("..")) return "";
-        if (path.startsWith("uploads/")) return path;
+        if (underMedia(path)) return path;
     } catch { /* URL でなければ無視 */ }
     return "";
 }

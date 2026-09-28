@@ -71,6 +71,12 @@ provider:
             - s3:PutObject
             - s3:DeleteObject
           Resource: arn:aws:s3:::${param:uploadBucket}/uploads/*
+        # 公開範囲を絞った写真の置き場（api-user の `privateMove.ts` が移す）。
+        # 管理者の削除で消せないと、実体だけが残る。**消すだけ**（書かない）
+        - Effect: Allow
+          Action:
+            - s3:DeleteObject
+          Resource: arn:aws:s3:::${param:uploadBucket}/private/*
         # 管理者削除で消した実体を、エッジからも消す（LEFT-4）。
         # アップロードは max-age=31536000（1年）で配っていて、`/uploads/*` の
         # maxTTL も 31536000（本番実測 2026-09-05）。S3 から消すだけでは

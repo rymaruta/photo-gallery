@@ -71,6 +71,25 @@ provider:
           Resource:
             - arn:aws:s3:::${param:uploadBucket}/uploads/*
             - arn:aws:s3:::${param:uploadBucket}/profiles/*
+            # 公開範囲を絞った写真の置き場（`privateMove.ts`）。移したあとに
+            # 元を消す・移した写真を削除や退会で消す、の両方に要る
+            - arn:aws:s3:::${param:uploadBucket}/private/*
+        # **絞った写真を `private/` へ移す**（`s3Move.ts` の CopyObject）。
+        # CopyObject は「元の読み取り」と「先の書き込み」の両方が要る。
+        # 2026-09-28 まで無く、本番では移動が必ず AccessDenied だった
+        # （公開範囲をあとから変えると 500。`docs/restricted-image-delivery.md`）。
+        # 戻す（絞りを外す）ときは逆向きなので、両方の置き場で読み書きする
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+          Resource:
+            - arn:aws:s3:::${param:uploadBucket}/uploads/*
+            - arn:aws:s3:::${param:uploadBucket}/private/*
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+          Resource:
+            - arn:aws:s3:::${param:uploadBucket}/private/*
         # 削除・退会・期限切れストーリーで消した実体を、エッジからも消す。
         # アップロードは max-age=31536000（1年）で配っているので、S3 から
         # 消すだけでは**URL を知っていれば取れ続ける**（GPS 入りの原本も同じ）。
