@@ -31,11 +31,11 @@ describe("曲検索の失敗の一行", () => {
         expect(screen.getByRole("alert")).toHaveTextContent("Search failed. Try again.");
     });
 
-    // **見た目は変えない**（`role` は描画に出ない属性）。
-    // 色と大きさは3か所の元のマークアップと同じ
-    it("見た目は元のまま", () => {
+    // **見た目を縛る**（`role` は描画に出ない属性）。色は失敗の文言の色
+    // （`danger`・デザインシステム「黒塗りの真鍮」2026-09-27 に琥珀から変えた）
+    it("見た目は失敗の文言の色", () => {
         locale.value = "ja";
         const { container } = render(<SongSearchError />);
-        expect(container.querySelector("p")?.className).toBe("text-xs text-amber-400/80");
+        expect(container.querySelector("p")?.className).toBe("text-xs text-danger");
     });
 });

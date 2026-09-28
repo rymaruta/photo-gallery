@@ -689,7 +689,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     </p>
                     <button
                         onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent-fill text-ink text-sm font-semibold hover:brightness-110 active:scale-95 transition"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {locale === "en" ? "Retry" : "もう一度読み込む"}
@@ -1101,7 +1101,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         aria-label={isFav
                             ? (locale === "en" ? "Unlike" : "いいねを取り消す")
                             : (locale === "en" ? "Like" : "いいね")}
-                        className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-red-500" : "text-white/85 hover:text-white"}`}
+                        className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-white" : "text-white/85 hover:text-white"}`}
                         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px" }}
                     >
                         {isFav
@@ -1160,7 +1160,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     {mvEmbed && (
                         <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
-                                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                 <button
                                     onClick={() => setMvOpen((v) => !v)}
@@ -1243,7 +1243,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     onClick={() => setSongPickerOpen(true)}
                                     className="inline-flex items-center gap-1 text-xs text-white/50 hover:text-white/80 active:scale-95 transition"
                                 >
-                                    <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-300" />
+                                    <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                     {photoSong
                                         ? (locale === "en" ? "Change BGM" : "BGMを変更")
                                         : (locale === "en" ? "Add a BGM to this photo" : "この写真にBGMを付ける")}

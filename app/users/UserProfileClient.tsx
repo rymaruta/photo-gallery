@@ -253,7 +253,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     onClick={(e) => { e.preventDefault(); onTogglePin(photo.id, !pinned); }}
                     className={`absolute top-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         pinned
-                            ? "bg-amber-400/90 text-black"
+                            ? "bg-primary text-ink"
                             : OWNER_CHIP_IDLE
                     }`}
                     title={pinned ? (locale === "en" ? "Unpin" : "ピン留め解除") : (locale === "en" ? "Pin to top" : "先頭にピン留め")}
@@ -263,7 +263,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     {pinned ? <StarIcon className="w-4 h-4" /> : <StarIconOutline className="w-4 h-4" />}
                 </button>
             ) : pinned ? (
-                <span className="absolute top-1.5 left-1.5 p-1 rounded-full bg-black/50 text-amber-300 z-10 pointer-events-none">
+                <span className="absolute top-1.5 left-1.5 p-1 rounded-full bg-black/50 text-white z-10 pointer-events-none">
                     <StarIcon className="w-3.5 h-3.5" />
                 </span>
             ) : null}
@@ -294,7 +294,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     onClick={(e) => { e.preventDefault(); onSetCover(photo.id); }}
                     className={`absolute bottom-1.5 right-1.5 p-1.5 rounded-full transition-colors z-10 ${
                         coverSelected
-                            ? "bg-accent text-black"
+                            ? "bg-primary text-ink"
                             : OWNER_CHIP_IDLE
                     }`}
                     aria-label={coverSelected
@@ -340,7 +340,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
             {isOwner && onDelete && (
                 <button
                     onClick={(e) => { e.preventDefault(); onDelete(photo); }}
-                    className={`absolute bottom-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 hover:text-red-300 ${OWNER_CHIP_IDLE}`}
+                    className={`absolute bottom-1.5 left-1.5 p-1.5 rounded-full transition-colors z-10 hover:text-danger ${OWNER_CHIP_IDLE}`}
                     aria-label={locale === "en" ? "Delete this photo" : "この写真を削除"}
                     title={locale === "en" ? "Delete this photo" : "この写真を削除"}
                 >
@@ -1122,7 +1122,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 // 取得の失敗を無言にしない。プロフィールが「未設定の人」に、
                 // オーナーの一覧が「非公開が消えた」ように見える（SW-b9）
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pt-3">
-                    <p className="text-xs text-amber-200/90 bg-amber-500/10 ring-1 ring-amber-400/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-danger bg-danger/10 ring-1 ring-danger/20 rounded-lg px-3 py-2">
                         {loadError === "ownPhotos"
                             ? (locale === "en"
                                 ? "Couldn't load your photo list. Drafts and private photos are not shown. "
@@ -1136,7 +1136,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     : "プロフィールを読み込めませんでした。")}
                         <button
                             onClick={() => setReloadKey((k) => k + 1)}
-                            className="underline text-amber-100 hover:text-white ml-1"
+                            className="underline text-white hover:text-white/80 ml-1"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Retry" : "再読み込み"}
@@ -1169,7 +1169,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setShareOpen((v) => !v)}
                                 aria-haspopup="menu"
                                 aria-expanded={shareOpen}
-                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-accent-fill text-white ring-accent" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full backdrop-blur-md ring-1 transition shadow-lg shadow-black/30 active:scale-95 ${shareOpen ? "bg-primary text-ink ring-primary" : "bg-black/40 text-white/90 ring-white/15 hover:bg-black/60"}`}
                                 title={locale === "en" ? "Share" : "共有"}
                                 aria-label={locale === "en" ? "Share profile" : "プロフィールを共有"}
                             >
@@ -1265,7 +1265,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         プロフィールヘッダーを横方向に活用し、写真一覧を複数カラムで」）。
                         スマホ（1024px 未満）は最終版モックのまま縦に積む */}
                     <div className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8">
-                        {/* アバター（オリジナルのオーロラリング: 既定は主色で回転）。
+                        {/* アバター（オリジナルのオーロラリング: 既定は真鍮で回転）。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
                         <div className="relative w-fit rounded-full shadow-lg shadow-accent/20 lg:flex-shrink-0">
                             {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
@@ -1287,7 +1287,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     aria-haspopup="dialog"
                                     aria-expanded={postOpen}
                                     aria-label={locale === "en" ? "Create" : "投稿する"}
-                                    className="absolute right-0 bottom-0 inline-flex items-center justify-center rounded-full bg-accent-fill text-white ring-[3px] ring-bg hover:brightness-110 active:scale-95 transition"
+                                    className="absolute right-0 bottom-0 inline-flex items-center justify-center rounded-full bg-accent-fill text-ink ring-[3px] ring-bg hover:brightness-110 active:scale-95 transition"
                                     style={{ width: "28px", height: "28px", touchAction: "manipulation" }}
                                 >
                                     <PlusIcon aria-hidden="true" style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
@@ -1466,7 +1466,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     ) : songEmbed && (
                         <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
-                                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                                <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "My BGM" : "マイBGM"}</span>
                                 <span className="ml-auto text-[10px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
                                 {/* MV(YouTube)は大きいので折りたたみ式 */}
@@ -1642,7 +1642,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             </div>
                             <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
                             {isOwner && (
-                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
+                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
                                     {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
                                 </Link>
                             )}

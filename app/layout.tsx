@@ -131,8 +131,8 @@ export const viewport: Viewport = {
   // 明るいツールバーが乗っていた。
   //
   // **新しい色を決めていない**——マニフェストが既に宣言している色を、
-  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ値。2026-09-21 に紺 `#050e17` へ——`globals.css` の `--color-bg` と同じ）。
-  themeColor: "#050e17",
+  // 閲覧中にも届くようにしただけ（`public/manifest.webmanifest` と同じ値。2026-09-21 に紺 `#050e17`、2026-09-27 に黒 `#000000` へ——`globals.css` の `--color-bg` と同じ）。
+  themeColor: "#000000",
 };
 
 // **OGP 画像はビルド時に決める（静的な `metadata` から関数に変えた理由）。**
@@ -231,7 +231,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           見えてしまう。下の自己修復が効くまでの数百ミリ秒を、せめて紺の下地で見せる。
           本体CSS（globals.css）が同じ値を指定するので、正常時の見た目は変わらない。
         */}
-        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#050e17;color:#fff;margin:0}" }} />
+        <style dangerouslySetInnerHTML={{ __html: "html,body{background:#000000;color:#fff;margin:0}" }} />
         {/* **画像配信元への事前接続はもう出さない。**
             以前はここで CloudFront の既定ドメインへ preconnect / dns-prefetch を
             張っていた。「最初の画像の DNS+TLS 待ちを削る」ためだが、

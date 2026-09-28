@@ -232,7 +232,7 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
                     ? "bg-black/30 backdrop-blur-md ring-1 ring-white/15 text-white/85 hover:bg-black/40"
                     : variant === "outline"
                         ? "bg-transparent ring-1 ring-accent text-accent hover:bg-accent/10"
-                        : "bg-accent-fill text-white hover:brightness-110"
+                        : "bg-primary text-ink hover:brightness-110"
             }`}
             // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）。
             // 小さい側はモックの画素から——フォローバックの錠剤は実測 28 画像px

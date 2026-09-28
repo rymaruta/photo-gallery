@@ -100,7 +100,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     <button
                         onClick={() => void submit()}
                         disabled={pending || !text.trim()}
-                        className="flex-shrink-0 px-4 py-2 bg-accent-fill text-white text-sm font-semibold rounded-full hover:brightness-110 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-shrink-0 px-4 py-2 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {pending
@@ -180,7 +180,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                         : "コメントを削除できませんでした。もう一度お試しください", "error");
                                                 })}
                                                 aria-label={locale === "en" ? "Delete comment" : "コメントを削除"}
-                                                className="ml-auto flex-shrink-0 p-1 text-white/40 hover:text-red-400 transition"
+                                                className="ml-auto flex-shrink-0 p-1 text-white/40 hover:text-danger transition"
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 <TrashIcon className="w-3.5 h-3.5" />

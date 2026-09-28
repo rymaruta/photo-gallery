@@ -204,7 +204,7 @@ describe("アップロード中にやめる", () => {
         // ——中断を失敗として扱う変異が素通りしていた（変異テストで気づいた）
         expect(screen.queryByText(UPLOAD_FAILED_MESSAGE), "やめただけなのに失敗の文言を出している").toBeNull();
         // 赤い注意書き自体が出ていないこと
-        expect(document.querySelector(".text-red-400"), "やめただけなのに赤い注意書きが出ている").toBeNull();
+        expect(document.querySelector(".text-danger"), "やめただけなのに赤い注意書きが出ている").toBeNull();
         // **看板そのものを見る。** ここを見ていなかったので、
         // 「やめました」を出して遷移しない分岐を**丸ごと消しても緑**だった
         expect(toasts(), "やめたと伝えていない").toContain("info:アップロードをやめました");
@@ -412,7 +412,7 @@ describe("アップロード中にやめる", () => {
 
         await waitFor(() => expect(toasts()).toContain("info:アップロードをやめました"));
         expect(toasts().filter((t) => t.startsWith("error:")), "やめただけなのに失敗を出している").toEqual([]);
-        expect(document.querySelector(".text-red-400"), "やめただけなのに赤い注意書きが出ている").toBeNull();
+        expect(document.querySelector(".text-danger"), "やめただけなのに赤い注意書きが出ている").toBeNull();
     });
 
     it("サムネの途中でやめたときも、理由に関係なくそこで止める", async () => {

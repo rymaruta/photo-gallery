@@ -154,7 +154,7 @@ export default function GalleryGrid({
                 // 写真ページ本体・モーダル・OGP に無かった**ので、効かせたい1枚
                 // （画像検索が見る本体画像）にだけ効いていなかった
                 const localizedAlt = photoAltText(p, locale);
-                const placeholderColor = p.dominantColor ?? "#111";
+                const placeholderColor = p.dominantColor ?? "#121212";
                 const objectPosition =
                     p.focalPoint ? `${Math.round(p.focalPoint.x * 100)}% ${Math.round(p.focalPoint.y * 100)}%` : undefined;
 
@@ -306,8 +306,10 @@ const GalleryItem = React.memo(function GalleryItem({
 
                                 {/* お気に入りアイコン */}
                                 {isFav && (
-                                    <div className="absolute top-2 right-2 z-10">
-                                        <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 drop-shadow-lg" />
+                                    // 白いハートは明るい写真（雪・曇り空）に溶けるので、
+                                    // 隣の「1/N」と同じく暗い丸い地に載せる
+                                    <div className="absolute top-2 right-2 z-10 rounded-full bg-black/60 p-1">
+                                        <HeartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                     </div>
                                 )}
 

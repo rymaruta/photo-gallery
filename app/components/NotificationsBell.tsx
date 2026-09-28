@@ -707,12 +707,11 @@ export default function NotificationsBell() {
                         tabIndex={selected ? 0 : -1}
                         onClick={() => setTab(key)}
                         onKeyDown={onTabKeyDown}
-                        // **選択中の塗りは `accent-fill`。** モックの青
-                        // （`#2080f6`）に白文字は 3.83:1 で AA に届かないので、
-                        // `globals.css` がそのために持っている塗り（4.81:1）を使う。
+                        // **選択中は白の塗り（`primary`）に墨。** デザインシステムの
+                        // 「白＝位置と選択」。真鍮は合図の色で、選択状態は担わない
                         // 非選択は `/70`（`/46` が下限・`textContrast.test.ts`）
                         className={`flex-shrink-0 rounded-full transition ${selected
-                            ? "bg-accent-fill text-white font-semibold"
+                            ? "bg-primary text-ink font-semibold"
                             : "bg-white/[0.07] text-white/70 hover:bg-white/15 hover:text-white/90"}`}
                         // **px で書く**（640px 未満で root が 14px に落ちるので rem 系は縮む）
                         style={{
@@ -772,7 +771,7 @@ export default function NotificationsBell() {
                     <Link
                         href={ROUTES.UPLOAD}
                         onClick={closePanel}
-                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-white font-semibold hover:brightness-110 transition"
+                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-ink font-semibold hover:brightness-110 transition"
                         style={{ fontSize: 13, minHeight: 40, paddingLeft: 18, paddingRight: 18, marginTop: 16, touchAction: "manipulation" }}
                     >
                         {locale === "en" ? "Post a photo" : "写真を投稿する"}
@@ -865,21 +864,21 @@ export default function NotificationsBell() {
                                                 </>
                                             ) : n.type === "like" ? (
                                                 <>
-                                                    <HeartIcon className="w-3.5 h-3.5 text-rose-400 inline -mt-0.5 mr-1" />
+                                                    <HeartIcon className="w-3.5 h-3.5 text-white inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> liked your photo</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にいいねしました</>}
                                                 </>
                                             ) : n.type === "storyreply" ? (
                                                 <>
-                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-amber-300 inline -mt-0.5 mr-1" />
+                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> replied to your story</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたのストーリーに返信しました</>}
                                                 </>
                                             ) : n.type === "comment" ? (
                                                 <>
-                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-fuchsia-400 inline -mt-0.5 mr-1" />
+                                                    <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
                                                     {locale === "en"
                                                         ? <><span className="font-semibold">{n.byName}</span> commented on your photo</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真にコメントしました</>}
@@ -995,7 +994,7 @@ export default function NotificationsBell() {
             >
                 <BellIcon className="w-6 h-6" />
                 {unread > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-[10px] font-bold text-ink flex items-center justify-center">
                         {unread > 9 ? "9+" : unread}
                     </span>
                 )}

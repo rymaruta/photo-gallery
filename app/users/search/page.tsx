@@ -125,7 +125,7 @@ export default function UserSearchPage() {
             )}
 
             {showFailed && (
-                <p className="text-sm text-amber-200/80 text-center py-10" role="alert">
+                <p className="text-sm text-danger text-center py-10" role="alert">
                     {isJa ? "検索できませんでした。少し待ってからもう一度お試しください。" : "Couldn't search right now. Please try again in a moment."}
                 </p>
             )}

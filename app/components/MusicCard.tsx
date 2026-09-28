@@ -45,7 +45,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
     return (
         <div className={`rounded-2xl bg-surface ring-1 ring-line overflow-hidden ${compact ? "" : "max-w-md"}`}>
             <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1.5" hidden={compact}>
-                <MusicalNoteIcon className="w-3.5 h-3.5 text-fuchsia-400" />
+                <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                 <span className="text-[11px] tracking-widest uppercase text-white/50">
                     {label}{songs.length > 1 ? ` ${index + 1}/${songs.length}` : ""}
                 </span>
@@ -78,7 +78,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 <button
                     onClick={() => music.play(queueKey, songs, index, label)}
                     aria-label={playing ? (locale === "en" ? "Pause" : "一時停止") : (locale === "en" ? "Play" : "再生")}
-                    className="w-10 h-10 rounded-full bg-accent-fill text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
+                    className="w-10 h-10 rounded-full bg-accent-fill text-ink flex items-center justify-center hover:brightness-110 active:scale-95 transition flex-shrink-0 shadow-lg shadow-black/30"
                 >
                     {playing ? <PauseIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5 ml-0.5" />}
                 </button>
