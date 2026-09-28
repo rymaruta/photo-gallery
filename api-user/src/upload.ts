@@ -10,6 +10,9 @@ import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, saniti
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
+import { planMove, PUBLIC_PREFIX, PRIVATE_PREFIX, type Move } from "./privateMove";
+import { copyAll } from "./s3Move";
+import { dropUnusedKeys } from "./dropUnused";
 import { requestSiteRebuild } from "./rebuild";
 import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
@@ -159,6 +162,14 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
         body: JSON.stringify({ presignedUrl: presigned, key, publicUrl, photoId, contentType: safeContentType }),
     };
 };
+
+const sourcesOf = (moves: Move[]) => moves.map((m) => m.from);
+
+/** 置き場（`uploads/` と `private/`）の違いを除けば同じ実体を指すか */
+function sameUpload(a: unknown, b: unknown): boolean {
+    const norm = (v: unknown) => typeof v === "string" ? v.replace(`/${PRIVATE_PREFIX}`, `/${PUBLIC_PREFIX}`) : "";
+    return !!norm(a) && norm(a) === norm(b);
+}
 
 /**
  * **静的サイトに載る行か。** 公開中（`published` 未指定は公開）で、公開範囲を
@@ -330,7 +341,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // 対象から漏れる余地が残る。**2枚目以降の重複判定にも使う。**
     const safeSrc = canonicalUploadUrl(publicUrl, CLOUDFRONT_URL);
 
-    const photo: Photo = {
+    let photo: Photo = {
         // **IDは鍵から導出する（uuid v5）。** ここで毎回採番し直していたので、
         // 保存の再送が**同じ写真をもう1枚**作っていた: 「公開」を押す →
         // サーバーには届いたが応答が失われる（モバイル回線・API Gateway の
@@ -410,8 +421,40 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         updatedAt: new Date().toISOString(),
     };
 
+    /**
+     * 🔴 **最初から公開範囲を絞った写真も `private/` へ移す**（案A）。
+     *
+     * これまで移すのは `photoUpdate.ts`（あとから絞る）だけで、**最初から絞って
+     * 上げた写真は `uploads/` のまま**＝URL を手にした人は取り続けられた。
+     *
+     * 順番は `photoUpdate.ts` と同じ: **コピー → 行を書く → 最後に元を消す**。
+     * コピーが1つでも失敗したら**保存しない**（「絞った」と表示しながら画像が
+     * 公開の置き場に残るのは、守れない約束を画面に書くことになる）。
+     */
+    const restricted = !!photo.audience;
+    let moves: Move[] = [];
+    if (restricted) {
+        const plan = planMove(photo as unknown as Record<string, unknown>, true);
+        photo = { ...photo, ...plan.rewritten } as Photo;
+        moves = plan.moves;
+        if (moves.length > 0 && !await copyAll(moves, `savePhoto(${photo.id})`)) {
+            // **再送なら元はもう移ってある**（前回の保存が通り、元を消した）ので
+            // コピーは失敗する。行があれば下の putPhoto が重複で落ち、再送の経路で扱う
+            const already = await getPhotoById(photo.id);
+            if (!already) {
+                return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
+                    error: "画像を移せませんでした。投稿は保存していません",
+                }) };
+            }
+            moves = [];
+        }
+    }
+
     try {
         await putPhoto(photo);
+        // **行を書いたあとに元を消す。** ここで落ちても孤児が残るだけで、画面は
+        // 正しく出る（行は新しい置き場を指している）
+        await dropUnusedKeys(userId, sourcesOf(moves), `savePhoto(${photo.id})`, photo.id);
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
         // 足せなくても投稿は成功で返す（写真はもう保存されている）。
@@ -438,6 +481,16 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 中身まで見るのは、他人のIDとぶつかった場合に「成功しました」と
             // 返さないため（存在を教えることにもなる）。
             const existing = await getPhotoById(photo.id);
+            // **公開範囲を変えた再送は断る。** 画像の置き場（`uploads/` と `private/`）が
+            // 変わるので、今回の本文で書き直すと行と実体が食い違う。変えるなら写真の編集から
+            if (existing && (existing.userId ?? existing.uploadedBy) === userId
+                && existing.src !== photo.src && sameUpload(existing.src, photo.src)) {
+                // **上でコピーした分も片づけない。** 別タブの写真の編集が同じ
+                // `private/` の鍵へ移している最中かもしれない（鍵は機械的に決まる）
+                return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
+                    error: "この写真は保存済みです。公開範囲は、写真の編集から変えられます",
+                }) };
+            }
             if (!existing || (existing.userId ?? existing.uploadedBy) !== userId || existing.src !== photo.src) {
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: "この画像はすでに登録されています" }) };
             }
@@ -493,6 +546,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 "width", "height", "aspectRatio", "dominantColor", "blurDataURL",
                 "thumbSrc", "thumbAvif", "thumbSm", "thumbSmAvif", "srcAvif", "src256", "srcOriginal",
                 "song", "songYoutubeUrl",
+                // **ストーリーから残した印。** 落とすと、元のストーリーが残っている間の
+                // 門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせ、
+                // `deleteMyPhoto` もストーリーを一緒に消さなくなる（レビューで指摘）
+                "keptFrom",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
             for (const k of SERVER_OWNED_FIELDS) {
@@ -528,7 +585,32 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 ...(mergedExtra ? { extraImages: mergedExtra } : {}),
                 createdAt: existing.createdAt ?? photo.createdAt,
             };
+            /**
+             * **絞った写真の再送。** 行は既に `private/` を指している（前回の保存が
+             * 移した）。今回の本文にだけある画像（前回は無かったサムネなど）は
+             * まだ `uploads/` にあるので、ここで移す。
+             */
+            const existingKeys = new Set(mediaKeys(existing as unknown as Record<string, unknown>));
+            let resendMoves: Move[] = moves;
+            if (restricted) {
+                const missing = mediaKeys(rewritten as unknown as Record<string, unknown>)
+                    .filter((k) => k.startsWith(PRIVATE_PREFIX) && !existingKeys.has(k) && !moves.some((m) => m.to === k))
+                    .map((k) => ({ from: PUBLIC_PREFIX + k.slice(PRIVATE_PREFIX.length), to: k }));
+                if (missing.length > 0 && !await copyAll(missing, `savePhoto(${photo.id})`)) {
+                    // **コピーは片づけない。** 再送の経路は「同時にもう1本が書いている」
+                    // ことがあり、使用中かの一覧（結果整合）は直前の書き込みを見落とす
+                    // ——片づけると表示中の写真の本体を消しうる。孤児が残る側に倒す
+                    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
+                        error: "画像を移せませんでした。前回の保存はそのまま残っています",
+                    }) };
+                }
+                resendMoves = [...moves, ...missing];
+            }
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
+                // **行を読み直してから消す**（読んだあとに別タブで公開に戻され、
+                // 行が `uploads/` を指し直していることがある）。一覧は結果整合なので
+                // 窓を狭めるだけで、塞ぎはしない（`dropUnusedKeys` の注記）
+                await dropUnusedKeys(userId, sourcesOf(resendMoves), `savePhoto(${photo.id})`, photo.id);
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
                 // ここを呼ばないと**直ってほしい操作で直らない**。
@@ -564,10 +646,16 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
+            // **書き直せなかった**（あいだで誰かが書いた）。元もコピーも触らない
+            // ——今の行がどちらを指しているか分からず、使用中かの一覧（結果整合）は
+            // その直前の書き込みを見落としうる。消すと割れうるので、孤児が残る側に倒す
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
         console.error("savePhoto error:", e);
+        // **上で作ったコピーは片づけない。** 同じ写真の本送信が同時に走っていれば、
+        // 同じ `private/` の鍵を指す行をこれから書く（鍵は機械的に決まる）
+        // ——一覧で確かめても、まだ書かれていない行は見えない。孤児が残る側に倒す
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }
 };

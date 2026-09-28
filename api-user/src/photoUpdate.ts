@@ -10,8 +10,9 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./medi
 import { mediaKeys } from "./mediaKeys";
 import { s3DeleteMany } from "./s3Delete";
 // 絞った写真の実体を `private/` へ動かす（案A・`docs/restricted-image-delivery.md`）
-import { planMove, isNoop, type MovePlan } from "./privateMove";
-import { copyAll, dropOld } from "./s3Move";
+import { planMove, type MovePlan } from "./privateMove";
+import { copyAll } from "./s3Move";
+import { dropUnusedKeys } from "./dropUnused";
 import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
@@ -205,6 +206,36 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const nowRestricted = !!effectiveAudience;
         const audienceChanged = hasAudience && wasRestricted !== nowRestricted;
 
+        /*
+         * 🔴 **ストーリーから残した写真は、元のストーリーが残っている間、公開範囲の変更と
+         * 差し替えを断る。**
+         *
+         * その間、写真とストーリーは**同じ S3 の実体を共有**していて、ストーリーの
+         * `keptAs` が「掃除は実体を消さない」の印になっている（`storyKeep.ts`）。
+         * 移動・差し替えで写真が実体を指さなくなると、印を残せばストーリーの画像が
+         * 永久に残り、印を付け外しすると期限切れの掃除と競合して**写真の実体を
+         * 失いうる**（レビューで3回、別の形で再現した）。
+         * ストーリーの行が消えれば（期限切れの掃除・毎時）実体は写真だけのものに
+         * なるので、そこからは普通に移せる。残した写真は下書きで作られるので、
+         * その間は下書きのままにしておけば公開されない。
+         * 読めなければ**断る**（分からないなら止める）
+         */
+        const keptFrom = existing.Item.keptFrom;
+        if ((audienceChanged || body.replace) && typeof keptFrom === "string" && keptFrom) {
+            let storyAlive: boolean;
+            try {
+                storyAlive = !!(await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: keptFrom } })))?.Item;
+            } catch (e) {
+                console.warn(`photoUpdate(${id}): 元のストーリーを読めませんでした`, (e as Error)?.name);
+                return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: "確認できませんでした。時間をおいてもう一度お試しください" }) };
+            }
+            if (storyAlive) {
+                return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
+                    error: "元のストーリーが出ている間（最大25時間）は、公開範囲の変更と写真の差し替えはできません。ストーリーを削除すれば、すぐに変えられます",
+                }) };
+            }
+        }
+
         const values: Record<string, unknown> = { ":t": new Date().toISOString() };
         const names: Record<string, string> = {};
         const removes: string[] = [];
@@ -265,6 +296,8 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         let replacedKeys: string[] = [];
         /** 差し替えが実際に書いた項目（下の `geoApprox` の判定で見る） */
         let replaceSets: Record<string, unknown> = {};
+        /** 差し替えが消した項目（下の移動の計画で、行の最終形から外す） */
+        let replaceClears: string[] = [];
         if (body.replace) {
             const why = replaceRefusal(body.replace, callerId);
             if (why) {
@@ -281,7 +314,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             }
 
             const built = buildReplace(body.replace, callerId, cdnUrl());
-            const clears = built.clears;
+            const clears = [...built.clears];
             /**
              * 🔴 **同じ属性を2か所から触らない。**
              *
@@ -320,8 +353,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
              * （変異テストで露見。鍵1つの比較では観測できなかった）。
              */
             replaceSets = rSets;
-            const nextKeys = new Set(mediaKeys(rSets));
-            replacedKeys = mediaKeys(existing.Item).filter((k) => !nextKeys.has(k));
+            /*
+             * **`key`（ストーリーから残した写真だけが持つ・元の実体の鍵）も外す。**
+             * 差し替えは `key` を書かないので、残すと**差し替えた古い画像を行が
+             * 指し続け**、消されない（絞った写真では古い画像を移し直していた）
+             */
+            if (typeof existing.Item.key === "string" && existing.Item.key && !("key" in rSets)) {
+                clears.push("key");
+            }
+            replaceClears = [...clears];
             for (const [col, value] of Object.entries(rSets)) {
                 names[`#${col}`] = col;
                 sets.push(`#${col} = :r_${col}`);
@@ -425,20 +465,43 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
          * 元を消すのは**行を書き換えたあと**（下）。逆だと、途中で落ちた
          * ときに**行が存在しない実体を指す**（写真が割れる）。
          */
+        /*
+         * **絞った写真の差し替えも移す。** 差し替えは新しい画像を `uploads/` に
+         * 書く（`buildReplace`）ので、公開範囲が変わらなくても移さないと
+         * **絞った写真の新しい画像が公開の置き場に出る**。
+         *
+         * 計画は**行の最終形**（今の行 ＋ 差し替え − 差し替えが消した項目）で立てる。
+         * 今の行だけで立てると、差し替えと公開範囲の変更を同時に送ったときに
+         * 差し替えの `#src` と移動の書き込みが**同じ属性を2か所から触り**、
+         * DynamoDB が式ごと拒否する（500。コピー済みの分は孤児になる）。
+         */
         let movePlan: MovePlan | null = null;
-        if (audienceChanged) {
-            const plan = planMove(existing.Item, nowRestricted);
-            if (!isNoop(plan)) {
-                if (!await copyAll(plan.moves, `photoUpdate(${id})`)) {
-                    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
-                        error: "画像を移せませんでした。公開範囲は変えていません",
-                    }) };
-                }
-                movePlan = plan;
+        /** 行の最終形（今の行 ＋ 差し替え − 差し替えが消した項目 ＋ 移した先の URL） */
+        const finalRow: Record<string, unknown> = { ...existing.Item, ...replaceSets };
+        for (const col of replaceClears) delete finalRow[col];
+        if (audienceChanged || (body.replace && nowRestricted)) {
+            const plan = planMove(finalRow, nowRestricted);
+            // **差し替えの再送では、前回で移し済みの実体はコピーしない**
+            // （元はもう消えているのでコピーが失敗し、500 で止まってしまう）
+            const existingKeys = new Set(mediaKeys(existing.Item));
+            const pending = plan.moves.filter((m) => !existingKeys.has(m.to));
+            if (pending.length > 0 && !await copyAll(pending, `photoUpdate(${id})`)) {
+                return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({
+                    error: audienceChanged
+                        ? "画像を移せませんでした。公開範囲は変えていません"
+                        : "画像を移せませんでした。写真は差し替えていません",
+                }) };
+            }
+            if (Object.keys(plan.rewritten).length > 0) {
                 // 新しい URL を**同じ更新で**書き込む（別の更新にすると、
-                // あいだで落ちたときに行と実体がちぐはぐになる）
+                // あいだで落ちたときに行と実体がちぐはぐになる）。
+                // **差し替えが書く項目は、その値を差し替える**（別名で2回 SET しない）
                 let n = 0;
                 for (const [field, value] of Object.entries(plan.rewritten)) {
+                    if (field in replaceSets) {
+                        values[`:r_${field}`] = value;
+                        continue;
+                    }
                     const nameKey = `#mv${n}`;
                     const valueKey = `:mv${n}`;
                     names[nameKey] = field;
@@ -446,6 +509,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                     sets.push(`${nameKey} = ${valueKey}`);
                     n += 1;
                 }
+                Object.assign(finalRow, plan.rewritten);
+                // 元はコピーを飛ばした分（再送で移し済み）も含めて消す候補にする
+                // ——前回が行を書いたあと元を消す前に落ちていたら、元が公開の
+                // 置き場に残ったまま二度と掃除されない
+                movePlan = { moves: plan.moves, rewritten: plan.rewritten };
             }
         }
 
@@ -473,11 +541,29 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // `dropOld` は `s3DeleteMany` を通すので**エッジの無効化まで**行く
         // ——アップロードは1年で配っているので、消しただけでは古い URL が
         // 取れ続ける＝「絞ったのに取り続けられる」が直らない。
-        if (movePlan) {
-            const failed = await dropOld(movePlan.moves, `photoUpdate(${id})`);
-            if (failed > 0) {
-                console.warn(`photoUpdate(${id}): 元の実体 ${failed} 件を消せませんでした`);
-            }
+        //
+        // **自分のほかの行が使っている元は消さない**（`dropUnusedKeys`）。サムネや
+        // 2枚目に自分の別の写真の URL を渡せるので、2つの行が同じ実体を指しうる。
+        // （ストーリーから残した写真は、元のストーリーが残っている間は上の門で
+        // 断るので、ここまで来るのはストーリーが消えたあとだけ）
+        //
+        // **消す鍵は1か所で決める**: 今の行が指していて、行の最終形が指さないもの
+        // （差し替えた古い画像）＋ 移した元。別々に決めていた頃は、差し替えの側が
+        // 「差し替えた項目」だけで最終形を見ていたので、**行に残る2枚目以降まで
+        // 古い実体として消していた**（公開写真の差し替えで2枚目以降が割れる）。
+        // 差し替えの側は使用中も確かめず、移動の側が残した共有中の実体を消していた。
+        //
+        // **行を書き換えたあとに消す**（逆だと、途中で落ちたときに行が存在しない
+        // 実体を指す）。`dropOld` → `s3DeleteMany` がエッジの無効化まで行く
+        // （実体は1年で配っているので、消すだけでは古い URL が取れ続ける・LEFT-4）。
+        // 失敗しても更新自体は成功。残るのは孤児で、`orphan-uploads` が拾える
+        if (body.replace || movePlan) {
+            const finalKeys = new Set(mediaKeys(finalRow));
+            replacedKeys = [
+                ...mediaKeys(existing.Item),
+                ...(movePlan ? movePlan.moves.map((m) => m.from) : []),
+            ].filter((k) => !finalKeys.has(k));
+            await dropUnusedKeys(ownerId, replacedKeys, `photoUpdate(${id})`, id);
         }
         // 静的ページに焼かれる内容が変わったら、作り直しを頼む。
         //
@@ -537,29 +623,6 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         const dispatched = requested
             ? await requestSiteRebuild(`photo updated: ${id}`, { coalesce: true })
             : false;
-
-        /**
-         * **差し替えた古い実体を消す。行を書き換えたあとに。**
-         *
-         * 順番が逆だと、消したあとに行の更新が落ちた場合に
-         * **行が存在しない実体を指す**（写真ページが割れる）。この順なら
-         * 最悪でも S3 に孤児が残るだけで、画面は正しく出る
-         * ——台帳の「取り返しのつかない側に倒さない」に合わせる。
-         *
-         * `s3DeleteMany` はエッジの無効化まで面倒を見る。**これが要る**
-         * ——実体は `max-age=31536000` で配られるので、消すだけだと
-         * CloudFront のエッジに古い写真が最大1年残る（`LEFT-4` で一度踏んだ）。
-         *
-         * **失敗しても差し替え自体は成功**（利用者から見れば終わっている）。
-         * 残るのは誰からも参照されない孤児で、`orphan-uploads` が拾える。
-         */
-        if (replacedKeys.length > 0) {
-            try {
-                await s3DeleteMany(replacedKeys);
-            } catch (e) {
-                console.warn("[photoUpdate] 差し替え前の実体を消せませんでした（差し替えは成功）", (e as Error)?.name);
-            }
-        }
 
         // **下書きから公開に変えたら、共同アルバムに入れる。**
         //

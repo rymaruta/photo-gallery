@@ -301,7 +301,10 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // （`extraImages`）からも同じ導出が要る。写すと片方だけ直す形になる。
         const addKeyOf = (v: unknown): void => {
             if (typeof v !== "string" || !v) return;
-            if (v.startsWith("uploads/")) {
+            // **`private/` は公開範囲を絞った写真の置き場**（api-user の
+            // `privateMove.ts`）。ここが `uploads/` だけだと、移した写真は
+            // 管理者が消しても実体が残る。api-user の `mediaKeys` と対
+            if (v.startsWith("uploads/") || v.startsWith("private/")) {
                 let raw = v;
                 try { raw = decodeURIComponent(v); } catch { /* 不正な % はそのまま */ }
                 if (!raw.includes("..")) keys.add(raw);
@@ -319,7 +322,7 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 // 消してよいのはアップロード領域だけ。src は過去に検証なしで保存された
                 // ものがあり、そのままキーにすると他人のアイコン（profiles/...）まで
                 // 消せてしまう。
-                if (key.startsWith("uploads/") && !key.includes("..")) keys.add(key);
+                if ((key.startsWith("uploads/") || key.startsWith("private/")) && !key.includes("..")) keys.add(key);
                 else console.warn(`deletePhoto: skip S3 delete for unexpected key ${key}`);
             } catch { /* URL でなければ無視 */ }
         };

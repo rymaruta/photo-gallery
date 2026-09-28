@@ -66,6 +66,20 @@ describe("管理APIの写真削除", () => {
         ]));
     });
 
+    // **公開範囲を絞った写真は `private/` に移っている**（api-user の
+    // `privateMove.ts`）。拾わないと、管理者が消しても実体が残る
+    it("private/ に移った写真の実体も消す", async () => {
+        mockGetPhoto.mockResolvedValue({
+            id: "p1", userId: "someone", audience: "followers",
+            src: "https://cdn.test/private/someone/p1.jpg",
+            thumbSrc: "private/someone/p1_thumb.webp",
+        });
+        const res = await invoke();
+        expect(res.statusCode).toBe(200);
+        const deleted = mockS3Send.mock.calls.map((c) => (c[0] as { input: { Key: string } }).input.Key);
+        expect(deleted).toEqual(expect.arrayContaining(["private/someone/p1.jpg", "private/someone/p1_thumb.webp"]));
+    });
+
         // **掃除を頼めたかを応答に載せる。**
     //
     // `requestSiteRebuild` の**戻り値を捨てて**いたので、管理画面は削除の

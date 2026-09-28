@@ -15,6 +15,22 @@ describe("deriveUploadKey", () => {
         expect(deriveUploadKey("uploads/u1/a.jpg")).toBe("uploads/u1/a.jpg");
     });
 
+    // **公開範囲を絞った写真の置き場**（`privateMove.ts`）。拾わないと、
+    // 移した写真は削除・退会で消えずに残る
+    it("private/ 配下も拾う（URL・生キーとも）", () => {
+        expect(deriveUploadKey("https://cdn.example.com/private/u1/a.jpg")).toBe("private/u1/a.jpg");
+        expect(deriveUploadKey("private/u1/a.jpg")).toBe("private/u1/a.jpg");
+        expect(deriveUploadKey("private/../profiles/victim")).toBe("");
+    });
+
+    it("移した写真の派生も2枚目以降も全部集める", () => {
+        expect(mediaKeys({
+            src: "https://cdn.example.com/private/u1/a.jpg",
+            thumbSrc: "https://cdn.example.com/private/u1/a_thumb.webp",
+            extraImages: [{ src: "https://cdn.example.com/private/u1/b.jpg" }],
+        }).sort()).toEqual(["private/u1/a.jpg", "private/u1/a_thumb.webp", "private/u1/b.jpg"]);
+    });
+
     it("profiles/ は拾わない（他人のアイコンを消させない）", () => {
         expect(deriveUploadKey("https://cdn.example.com/profiles/victim")).toBe("");
         expect(deriveUploadKey("profiles/victim")).toBe("");
