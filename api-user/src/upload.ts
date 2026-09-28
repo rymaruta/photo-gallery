@@ -162,6 +162,36 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     };
 };
 
+/**
+ * 移した元（`uploads/`）を消す。**自分のどの行も使っていないものだけ。**
+ *
+ * 入口の確かめ（`isOwnUploadUrl`）は「自分の領域か」しか見ないので、サムネや
+ * 2枚目に**自分の別の写真の URL**を渡されると、それを移して消してしまう
+ * ——取り返しのつかない削除。`discardUpload` と同じく、行を読み直して
+ * 使用中なら消さない。読めなければ**消さない**（孤児が残るだけで済む側）。
+ */
+async function dropUnusedSources(userId: string, moves: Move[], logPrefix: string): Promise<void> {
+    if (moves.length === 0) return;
+    let inUse: Set<string>;
+    try {
+        const mine = await listMyMediaItems(userId);
+        inUse = new Set(mine.flatMap((p) => mediaKeys(p as unknown as Record<string, unknown>)));
+    } catch (e) {
+        console.warn(`${logPrefix}: 使用中かを確かめられないので、元は消しません`, (e as Error)?.name);
+        return;
+    }
+    const drop = moves.filter((m) => !inUse.has(m.from));
+    if (drop.length === 0) return;
+    const failed = await dropOld(drop, logPrefix);
+    if (failed > 0) console.warn(`${logPrefix}: 元の実体 ${failed} 件を消せませんでした`);
+}
+
+/** 作ったコピー（`private/`）を消す。保存しなかったとき、孤児を残さないため */
+async function dropCopies(moves: Move[], logPrefix: string): Promise<void> {
+    if (moves.length === 0) return;
+    await dropOld(moves.map((m) => ({ from: m.to, to: m.from })), logPrefix);
+}
+
 /** 置き場（`uploads/` と `private/`）の違いを除けば同じ実体を指すか */
 function sameUpload(a: unknown, b: unknown): boolean {
     const norm = (v: unknown) => typeof v === "string" ? v.replace(`/${PRIVATE_PREFIX}`, `/${PUBLIC_PREFIX}`) : "";
@@ -451,10 +481,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         await putPhoto(photo);
         // **行を書いたあとに元を消す。** ここで落ちても孤児が残るだけで、画面は
         // 正しく出る（行は新しい置き場を指している）
-        if (moves.length > 0) {
-            const failed = await dropOld(moves, `savePhoto(${photo.id})`);
-            if (failed > 0) console.warn(`savePhoto(${photo.id}): 元の実体 ${failed} 件を消せませんでした`);
-        }
+        await dropUnusedSources(userId, moves, `savePhoto(${photo.id})`);
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
         // 足せなくても投稿は成功で返す（写真はもう保存されている）。
@@ -485,6 +512,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 変わるので、今回の本文で書き直すと行と実体が食い違う。変えるなら写真の編集から
             if (existing && (existing.userId ?? existing.uploadedBy) === userId
                 && existing.src !== photo.src && sameUpload(existing.src, photo.src)) {
+                // 上でコピーした分は誰も指さない（行は元の置き場のまま）
+                await dropCopies(moves, `savePhoto(${photo.id})`);
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
                     error: "この写真は保存済みです。公開範囲を変えるときは、写真の編集から変えてください",
                 }) };
@@ -597,13 +626,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 }
                 resendMoves = [...moves, ...missing];
             }
-            /** 元（`uploads/`）を消す。**行が指しているものは消さない** */
-            const dropResendSources = async () => {
-                const drop = resendMoves.filter((m) => !existingKeys.has(m.from));
-                if (drop.length > 0) await dropOld(drop, `savePhoto(${photo.id})`);
-            };
             if (stored && await overwriteOwnPhoto(rewritten, stored)) {
-                await dropResendSources();
+                // **行を読み直してから消す。** 読んだあとに別タブで公開に戻され、
+                // 行が `uploads/` を指し直していることがある
+                await dropUnusedSources(userId, resendMoves, `savePhoto(${photo.id})`);
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
                 // ここを呼ばないと**直ってほしい操作で直らない**。
@@ -639,11 +665,15 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
-            await dropResendSources();
+            // **書き直せなかった**（あいだで誰かが書いた）。元は触らない
+            // ——今の行がどちらを指しているか分からないので、消すと割れうる
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
         console.error("savePhoto error:", e);
+        // 保存できなかった。**上で作ったコピーは誰も指さない**ので消す
+        // （`private/` は画面からも `discardUpload` からも消せない）
+        await dropCopies(moves, `savePhoto(${photo.id})`);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }
 };
