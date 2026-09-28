@@ -70,8 +70,10 @@ export default function LegalGate() {
         },
     ];
 
+    // **z はトースト（z-[100]）の下・ストーリー（z-[95]）の上。** 上に置くと、
+    // ログイン直後のトーストが同意画面の裏に出て消える
     return (
-        <div className="fixed inset-0 z-[200] bg-bg overflow-y-auto overscroll-contain pad-safe">
+        <div className="fixed inset-0 z-[96] bg-bg overflow-y-auto overscroll-contain pad-safe">
             <div
                 ref={panelRef}
                 role="dialog"
@@ -80,7 +82,8 @@ export default function LegalGate() {
                 className="mx-auto flex min-h-full max-w-md flex-col px-6 pt-12 pb-8"
             >
                 <p className="text-[11px] uppercase tracking-[0.16em] text-accent">
-                    {isJa ? "Before you start" : "Before you start"}
+                    {/* iOS も日本語の画面でこの英字の眉を出す（LegalGateView） */}
+                    Before you start
                 </p>
                 <h2 id="legal-gate-title" className="mt-2 text-2xl font-bold text-white">
                     {isJa ? "はじめる前に" : "Before you start"}

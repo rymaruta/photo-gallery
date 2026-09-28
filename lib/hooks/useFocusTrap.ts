@@ -47,6 +47,35 @@ export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled])
  * 移す前に今の挙動を7本のテストに写し取り、それが旧実装で緑になることを
  * 確かめてから置き換えてある）。自前のトラップはもう残っていない。
  */
+/**
+ * **開いている閉じ込めの一覧**（開いた順）。Tab を扱うのは**最前面の1つだけ**。
+ *
+ * 全部が document の keydown を聞いているので、2つ同時に開くと取り合う
+ * ——片方が「中に居ない」と引き戻し、もう片方も引き戻す。写真の拡大表示
+ * （`?photo=` で開く）の上に「はじめる前に」が出ると、Tab を押すたびに
+ * 同意画面の先頭へ戻され、**「同意してはじめる」にキーボードで届かなかった**
+ * （閉じる手段はそれだけなので、出られない）。
+ *
+ * 最前面の決め方:
+ *   - 片方がもう片方の中にある → **内側**が扱う（ストーリーの中の通報など。
+ *     親子が同じコミットで開くと、effect は子が先に走るので「開いた順」は逆になる）
+ *   - どちらも相手の中に無い → **後から開いた方**が扱う
+ */
+const openTraps: Array<{ token: object; getEl: () => HTMLElement | null }> = [];
+
+function isFrontmost(token: object, el: HTMLElement): boolean {
+    const mine = openTraps.findIndex((t) => t.token === token);
+    for (let i = 0; i < openTraps.length; i++) {
+        if (i === mine) continue;
+        const other = openTraps[i].getEl();
+        if (!other || other === el) continue;
+        if (el.contains(other)) return false;        // 内側に別の閉じ込めがある
+        if (other.contains(el)) continue;            // 自分が内側
+        if (i > mine) return false;                  // 後から開いた別の閉じ込め
+    }
+    return true;
+}
+
 export function useFocusTrap(
     active: boolean,
     containerRef: RefObject<HTMLElement | null>,
@@ -111,12 +140,16 @@ export function useFocusTrap(
             }
         }
 
+        const token = {};
+        openTraps.push({ token, getEl: () => containerRef.current });
         const onKey = (e: KeyboardEvent) => {
             // 毎回読み直す。エフェクトの時点では空でも、押されるときには
             // 付いている（差し替わっていても正しい方を見る）
             const el = containerRef.current;
             if (!el) return;
             if (e.key !== "Tab") return;
+            // 最前面の閉じ込めだけが扱う（上の `openTraps` を見よ）
+            if (!isFrontmost(token, el)) return;
             // Ctrl+Tab / Cmd+Tab はブラウザやOSの操作。0件のときは境界に
             // 関係なく全部の Tab を止めるので、そこだけ当たりが広くなる
             if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -164,6 +197,8 @@ export function useFocusTrap(
         document.addEventListener("keydown", onKey);
         return () => {
             document.removeEventListener("keydown", onKey);
+            const i = openTraps.findIndex((t) => t.token === token);
+            if (i >= 0) openTraps.splice(i, 1);
             // **トラップが実際に働いた時だけ戻す。** 容器が無いまま
             // `active` が false に戻った場合、フォーカスは一度も動かして
             // いないので、ここで戻すと**ユーザーが今いる場所から奪う**
