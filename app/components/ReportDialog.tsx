@@ -183,7 +183,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                 </div>
 
                 {blockTargetId && (
-                    <label className="mt-4 flex items-start gap-2.5 cursor-pointer">
+                    <label className={`mt-4 flex items-start gap-2.5 ${sending ? "opacity-40" : "cursor-pointer"}`}>
                         <input
                             type="checkbox"
                             checked={alsoBlock}
@@ -207,7 +207,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                         type="button"
                         onClick={onClose}
                         disabled={sending}
-                        className="px-4 py-2 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/5 disabled:opacity-40"
+                        className="px-4 py-2 rounded-lg text-sm text-white/70 enabled:hover:text-white enabled:hover:bg-white/5 disabled:opacity-40"
                         style={{ touchAction: "manipulation" }}
                     >
                         {isJa ? "キャンセル" : "Cancel"}
