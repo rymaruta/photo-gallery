@@ -271,9 +271,22 @@ async function listS3Objects() {
 // HTML は no-cache なので即削除してよいが、アセットは猶予期間だけ残す。
 const ASSET_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30日（コスト僅少・安全側に倒す）
 
+/**
+ * ビルドに無くなったら**猶予なしで消す**キーか。
+ *
+ * - HTML/txt（no-store 配信・古いページが古いアセットを参照するだけ）
+ * - **アプリ向けの撮影スポットの本文**（`app/data/spots/<slug>.json`・2026-09-27）。
+ *   下書きに戻した場所の本文が30日配られ続けると、Web のページは消えたのに
+ *   アプリ（圏外の控えの索引から取りに行く）だけ確かめていない文を出す。
+ *   参照する古い HTML は無いので、猶予を置く理由が無い
+ */
+function deletesImmediately(key) {
+    return isHtmlOrTxt(key) || key.startsWith("app/data/spots/");
+}
+
 // 削除対象の判定（純関数・テスト対象）。
 // - 今回のビルドに含まれるキーは絶対に削除しない
-// - ビルドに無い HTML/txt は即削除（HTML は no-store 配信のため安全）
+// - ビルドに無い HTML/txt・スポットの本文は即削除（`deletesImmediately`）
 // - ビルドに無いアセットは猶予期間内なら保持（古い HTML を持つ端末の 404 防止）
 function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
     const localSet = new Set(localKeys.map(k => k.split(path.sep).join("/")));
@@ -281,9 +294,9 @@ function classifyStaleObjects(localKeys, remoteObjects, now, graceMs) {
     let kept = 0;
     for (const obj of remoteObjects) {
         if (localSet.has(obj.key)) continue;
-        const isHtml = isHtmlOrTxt(obj.key);
+        const immediate = deletesImmediately(obj.key);
         const age = obj.lastModified ? now - obj.lastModified.getTime() : Infinity;
-        if (isHtml || age > graceMs) {
+        if (immediate || age > graceMs) {
             toDelete.push(obj.key);
         } else {
             kept++;
@@ -927,7 +940,7 @@ async function main() {
 module.exports = {
     verifyOgImage,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
-    FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys, isInvalidatable,
+    FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, deletesImmediately, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys, isInvalidatable,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys,
     pageCheckTargets, runnerLooksReachable };
 
