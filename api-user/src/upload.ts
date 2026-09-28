@@ -11,7 +11,8 @@ import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUpl
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
 import { planMove, PUBLIC_PREFIX, PRIVATE_PREFIX, type Move } from "./privateMove";
-import { copyAll, dropOld } from "./s3Move";
+import { copyAll } from "./s3Move";
+import { dropUnusedKeys } from "./dropUnused";
 import { requestSiteRebuild } from "./rebuild";
 import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
@@ -162,34 +163,6 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     };
 };
 
-/**
- * **移した元（`uploads/`）を消す。自分のどの行も使っていないものだけ。**
- *
- * 入口の確かめ（`isOwnUploadUrl`）は「自分の領域か」しか見ないので、サムネや
- * 2枚目に**自分の別の写真の URL**を渡せる。確かめずに消すと、その写真が割れる
- * （取り返しのつかない削除）。`discardUpload` と同じく行を読み直し、読めなければ
- * **消さない**（孤児が残るだけで済む側）。
- *
- * ⚠️ 一覧は結果整合（GSI）なので、**直前に書かれた行は見落としうる**。だから
- * **コピー（`private/`）はこの口では一切消さない**——同じ写真の本送信・別タブの
- * 編集が同じ鍵へ書いている最中でも見えないため。元を消す側に残る窓（書き直した
- * 直後に別タブで公開へ戻された場合）は、`photoUpdate.ts` の移動と同じ幅で許容する。
- */
-async function dropUnusedKeys(userId: string, keys: string[], logPrefix: string): Promise<void> {
-    if (keys.length === 0) return;
-    let inUse: Set<string>;
-    try {
-        const mine = await listMyMediaItems(userId);
-        inUse = new Set(mine.flatMap((p) => mediaKeys(p as unknown as Record<string, unknown>)));
-    } catch (e) {
-        console.warn(`${logPrefix}: 使用中かを確かめられないので消しません`, (e as Error)?.name);
-        return;
-    }
-    const drop = [...new Set(keys)].filter((k) => !inUse.has(k));
-    if (drop.length === 0) return;
-    const failed = await dropOld(drop.map((k) => ({ from: k, to: k })), logPrefix);
-    if (failed > 0) console.warn(`${logPrefix}: ${failed} 件を消せませんでした`);
-}
 const sourcesOf = (moves: Move[]) => moves.map((m) => m.from);
 
 /** 置き場（`uploads/` と `private/`）の違いを除けば同じ実体を指すか */
@@ -481,7 +454,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         await putPhoto(photo);
         // **行を書いたあとに元を消す。** ここで落ちても孤児が残るだけで、画面は
         // 正しく出る（行は新しい置き場を指している）
-        await dropUnusedKeys(userId, sourcesOf(moves), `savePhoto(${photo.id})`);
+        await dropUnusedKeys(userId, sourcesOf(moves), `savePhoto(${photo.id})`, photo.id);
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
         // 足せなくても投稿は成功で返す（写真はもう保存されている）。
@@ -633,7 +606,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **行を読み直してから消す**（読んだあとに別タブで公開に戻され、
                 // 行が `uploads/` を指し直していることがある）。一覧は結果整合なので
                 // 窓を狭めるだけで、塞ぎはしない（`dropUnusedKeys` の注記）
-                await dropUnusedKeys(userId, sourcesOf(resendMoves), `savePhoto(${photo.id})`);
+                await dropUnusedKeys(userId, sourcesOf(resendMoves), `savePhoto(${photo.id})`, photo.id);
                 // **再送でもアルバムに足す。** 1回目の `addPhotoToAlbum` が
                 // 落ちた（スロットル・500枚上限）あとに押し直す場面で、
                 // ここを呼ばないと**直ってほしい操作で直らない**。

@@ -14,17 +14,31 @@ import { join } from "node:path";
 const root = join(__dirname, "..", "..");
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-/** `- Effect: Allow` の塊ごとに、Action と Resource を取り出す（共通ロールの statements） */
-function statements(yml: string): { actions: string[]; resources: string[] }[] {
+/**
+ * `- Effect:` の塊ごとに、効果・Action・Resource を取り出す（共通ロールの statements）。
+ *
+ * **`Allow` だけで区切らない。** そうすると `Deny` の文が直前の `Allow` の塊に
+ * 吸収され、GetObject を `Deny` に書き換えても**テストは緑のまま**だった（レビューで実測）
+ */
+function statements(yml: string): { effect: string; actions: string[]; resources: string[] }[] {
     const roleStart = yml.indexOf("  iam:\n    role:\n      statements:");
+    if (roleStart < 0) return [];
     const body = yml.slice(roleStart, yml.indexOf("\nfunctions:", roleStart));
-    return body.split(/\n\s*- Effect: Allow/).slice(1).map((chunk) => ({
-        actions: [...chunk.matchAll(/-\s*(s3:\w+)/g)].map((m) => m[1]),
-        resources: [...chunk.matchAll(/arn:aws:s3:::\$\{param:uploadBucket\}\/([\w*/]+)/g)].map((m) => m[1]),
-    }));
+    const parts = body.split(/\n\s*- Effect: (\w+)/);
+    const out: { effect: string; actions: string[]; resources: string[] }[] = [];
+    for (let i = 1; i < parts.length; i += 2) {
+        const chunk = parts[i + 1] ?? "";
+        out.push({
+            effect: parts[i],
+            actions: [...chunk.matchAll(/-\s*(s3:\w+)/g)].map((m) => m[1]),
+            resources: [...chunk.matchAll(/arn:aws:s3:::\$\{param:uploadBucket\}\/([\w*/]+)/g)].map((m) => m[1]),
+        });
+    }
+    return out;
 }
 const allows = (yml: string, action: string, resource: string) =>
-    statements(yml).some((s) => s.actions.includes(action) && s.resources.includes(resource));
+    statements(yml).some((s) => s.effect === "Allow" && s.actions.includes(action) && s.resources.includes(resource))
+    && !statements(yml).some((s) => s.effect === "Deny" && s.actions.includes(action) && s.resources.includes(resource));
 
 describe("api-user: 絞った写真を移す権限", () => {
     const yml = read("api-user/serverless.yml");

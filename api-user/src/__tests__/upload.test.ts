@@ -60,6 +60,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mockGetSignedUrl
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.example.com");
 const { savePhoto, presignedUrl, discardUpload, PHOTO_LIMIT_PER_USER } = await import("../upload");
 import type { Photo } from "../types";
+import { idFromUploadKey } from "../uploadPolicy";
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -530,6 +531,20 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         expect(res.statusCode).toBe(500);
         expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
         expect(droppedFrom()).toEqual([]);
+    });
+
+    // 一覧は結果整合なので、書き直した直後は**同じ写真の古い版**が見えうる。
+    // それを「使用中」と読むと元を消さず、**絞ったのに公開の置き場に残る**
+    it("一覧に同じ写真の古い版が見えても、元は消す（自分の行は一覧で見ない）", async () => {
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const selfId = idFromUploadKey(BASE.key);
+        mockListMyMedia.mockResolvedValue([{ id: selfId, src: PRIV, thumbSrc: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }]);
+        await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(droppedFrom()).toContain("uploads/u1/p1_thumb.webp");
     });
 
     it("再送で書き直したあとも、別の行が使っている元は消さない", async () => {

@@ -26,6 +26,13 @@ vi.mock("../s3Move", () => ({
 const mockAddToAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockRemoveFromAlbum = vi.hoisted(() => vi.fn(async () => undefined));
 const mockIsAlbumMember = vi.hoisted(() => vi.fn(async () => true));
+// 移した元を消す前の「使用中か」の読み直し（`dropUnused.ts`）。
+// **本物は GSI を掴む**ので作り物にする。既定は「ほかに使っている行は無い」
+const mockListMyMedia = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []));
+vi.mock("../ddb-photos", async (importActual) => ({
+    ...(await importActual<typeof import("../ddb-photos")>()),
+    listMyMediaItems: (...a: unknown[]) => mockListMyMedia(...(a as [])),
+}));
 vi.mock("../albums", () => ({
     addPhotoToAlbum: (...a: unknown[]) => mockAddToAlbum(...(a as [])),
     removePhotoFromAlbum: (...a: unknown[]) => mockRemoveFromAlbum(...(a as [])),
@@ -1321,6 +1328,105 @@ describe("公開範囲を絞ったら、公開のページを作り直す", () =
         mockRebuild.mockReset().mockResolvedValue(false);
         const res = await invoke(event("u1", "p1", { audience: "followers" }));
         expect(JSON.parse(res.body).staticStale).toBeFalsy();
+    });
+});
+
+// 🔴 **絞った写真の差し替え・ストーリーと共有している実体**（レビューで見つかった2件）
+describe("絞った写真の差し替えも private/ へ", () => {
+    const priv = (p: string) => `${CDN}/private/${UID}/${p}`;
+    const restrictedRow = {
+        id: "p1", userId: UID, published: true, audience: "followers",
+        src: priv("old.webp"), thumbSrc: priv("old_thumb.webp"),
+    };
+    const replace = { key: `uploads/${UID}/new.webp`, publicUrl: mine("new.webp") };
+    const lastUpdate = () => (mockDdbSend.mock.calls[1][0] as {
+        input: { UpdateExpression: string; ExpressionAttributeNames: Record<string, string>; ExpressionAttributeValues: Record<string, unknown> };
+    }).input;
+    /** SET 句で同じ属性を2か所から触っていないか（DynamoDB が式ごと拒否する） */
+    const setTargets = () => {
+        const u = lastUpdate();
+        const setPart = u.UpdateExpression.split(" REMOVE ")[0].replace(/^SET /, "");
+        return setPart.split(", ").map((a) => {
+            const lhs = a.split(" = ")[0].trim();
+            return u.ExpressionAttributeNames?.[lhs] ?? lhs;
+        });
+    };
+
+    beforeEach(() => {
+        mockCopyAll.mockReset().mockResolvedValue(true);
+        mockDropOld.mockReset().mockResolvedValue(0);
+        mockListMyMedia.mockReset().mockResolvedValue([]);
+        mockS3DeleteMany.mockClear();
+    });
+
+    it("新しい画像を private/ へ移してから行に書く（公開の置き場に出さない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: restrictedRow }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(mockCopyAll.mock.calls[0][0]).toContainEqual({ from: `uploads/${UID}/new.webp`, to: `private/${UID}/new.webp` });
+        expect(lastUpdate().ExpressionAttributeValues[":r_src"]).toBe(priv("new.webp"));
+        expect(mockDropOld.mock.calls.flatMap((c) => c[0] as { from: string }[]).map((m) => m.from))
+            .toContain(`uploads/${UID}/new.webp`);
+    });
+
+    it("差し替えと公開範囲の変更を同時に送っても、同じ属性を2か所から触らない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...restrictedRow, audience: undefined, src: mine("old.webp"), thumbSrc: mine("old_thumb.webp") } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace, audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        const targets = setTargets();
+        expect(new Set(targets).size, `重複: ${targets.join(",")}`).toBe(targets.length);
+        expect(lastUpdate().ExpressionAttributeValues[":r_src"]).toBe(priv("new.webp"));
+    });
+
+    it("差し替えの再送（前回で移し済み）では、いま指している実体を消さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { ...restrictedRow, src: priv("new.webp") } }).mockResolvedValueOnce({});
+        const res = await invoke(event(UID, "p1", { replace }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(mockCopyAll, "元はもう無いのにコピーしている（500 になる）").not.toHaveBeenCalled();
+        const deleted = mockS3DeleteMany.mock.calls.flat(2);
+        expect(deleted, "いま指している実体を消している").not.toContain(`private/${UID}/new.webp`);
+    });
+
+    it("公開の写真の差し替えでは移さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: UID, published: true, src: mine("old.webp") } }).mockResolvedValueOnce({});
+        await invoke(event(UID, "p1", { replace }));
+        expect(mockCopyAll).not.toHaveBeenCalled();
+        expect(lastUpdate().ExpressionAttributeValues[":r_src"]).toBe(mine("new.webp"));
+    });
+});
+
+describe("移した元は、ほかの行が使っていれば消さない", () => {
+    const U = "22222222-2222-2222-2222-222222222222";
+    const row = {
+        id: "p1", userId: "u1", published: true, keptFrom: "story-1",
+        src: `${CDN}/uploads/${U}/p1.jpg`,
+    };
+    const dropped = () => mockDropOld.mock.calls.flatMap((c) => c[0] as { from: string }[]).map((m) => m.from);
+
+    beforeEach(() => {
+        mockCopyAll.mockReset().mockResolvedValue(true);
+        mockDropOld.mockReset().mockResolvedValue(0);
+        mockListMyMedia.mockReset().mockResolvedValue([]);
+    });
+
+    // ストーリーから残した写真は、生きているストーリーと実体を共有している
+    // （`storyKeep.ts`）。元を消すとストーリーが割れていた
+    it("ストーリーと共有している実体は、絞っても消さない", async () => {
+        mockListMyMedia.mockResolvedValue([{ id: "story-1", story: true, src: `${CDN}/uploads/${U}/p1.jpg` }]);
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: row }).mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(dropped(), "ストーリーの実体を消している").not.toContain(`uploads/${U}/p1.jpg`);
+    });
+
+    // 一覧は結果整合なので、書き換えた直後は同じ写真の古い版が見えうる。
+    // それを「使用中」と読むと、絞ったのに公開の置き場に残る
+    it("一覧に同じ写真の古い版が見えても、元は消す", async () => {
+        mockListMyMedia.mockResolvedValue([{ id: "p1", src: `${CDN}/uploads/${U}/p1.jpg` }]);
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: row }).mockResolvedValueOnce({});
+        await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(dropped()).toContain(`uploads/${U}/p1.jpg`);
     });
 });
 
