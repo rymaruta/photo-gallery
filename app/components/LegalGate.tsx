@@ -37,7 +37,8 @@ export default function LegalGate() {
     const exempt = path === ROUTES.TERMS || path === ROUTES.PRIVACY;
     const open = needs && !exempt;
 
-    useFocusTrap(open, panelRef);
+    // **優先度 1**: 裏で後から開くもの（共有リンクの拡大表示）に Tab を奪わせない
+    useFocusTrap(open, panelRef, undefined, undefined, 1);
     useEffect(() => {
         if (!open) return;
         lockBodyScroll();
@@ -70,7 +71,7 @@ export default function LegalGate() {
         },
     ];
 
-    // **z はトースト（z-[100]）の下・ストーリー（z-[95]）の上。** 上に置くと、
+    // **z はトースト（z-[100]）の下・ストーリーの下書き（z-[95]）の上。** 上に置くと、
     // ログイン直後のトーストが同意画面の裏に出て消える
     return (
         <div className="fixed inset-0 z-[96] bg-bg overflow-y-auto overscroll-contain pad-safe">
