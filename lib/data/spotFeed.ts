@@ -13,13 +13,14 @@
 //             ・2026-09-26。`lib/data/spotImages.ts`）/
 //             seasonalGuide（季節の案内。**公開済みの行だけ**・2026-09-27。アプリの
 //             「いつ行く？」と「いまが見頃」が全部の場所の季節を一度に要るため。約 52KB）/
-//             aiCheck（照合日と出典の題・URL。**AI 照合で公開した行だけ**・2026-09-27。
-//             画面と同じく「出典: …（AI 照合 日付）」を出すため——公開の条件が
-//             owner の「出典元を書いとけばいい」なので、アプリも出典なしで概要を出さない）
 //   載せない  description・highlights・時間帯・構図・アクセス・駐車場・
 //             注意点・項目ごとの出典、draftedBy（製品名を画面・アプリに出さない）、verifiedBy・
-//             aiCheck.delegatedBy（人の名前は運ばない）。
-//             **本文は場所ごとのファイル**（`/app/data/spots/<slug>.json`・`spotBody.ts`）
+//             aiCheck（照合日・出典・委任した人）。
+//             **本文は場所ごとのファイル**（`/app/data/spots/<slug>.json`・`spotBody.ts`）。
+//             AI 照合の出典もそちらの `check` で運ぶ——アプリはスポットの画面で
+//             「出典: …（AI 照合 日付）」をそこから出す（`SpotBodyText.checkLine`）。
+//             索引にも載せていた時期がある（2026-09-28 の数時間）が、アプリは読んで
+//             おらず全件で約 100KB 重くなるだけだったので外した
 //
 // **母集合は `visibleSpots`**（画面と同じ）。**いまは公開済みだけ**が載る
 // （`BUILD_DRAFT_SPOTS` が false・owner の判断 2026-09-25）。下書きを建てる設定に
@@ -29,7 +30,7 @@
 // import しない**（`app/__tests__/spotLedgerClientImport.test.ts` が見張る）。
 
 import { SPOTS, type Spot } from "./spots";
-import { visibleSpots, isVerified, isPublished, hasAiCheck } from "../utils/spotGuide";
+import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
 import { SPOT_IMAGES, cleanAuthor, shownSpotImage, type SpotImage } from "./spotImages";
 import { siteConfig } from "../utils/seo";
 
@@ -65,18 +66,6 @@ export type SpotFeedItem = {
     image?: SpotFeedImage;
     /** 季節の案内（台帳の文のまま）。**公開済みの行だけ**——下書きの文はアプリに出さない */
     seasonalGuide?: { season: string; text: string }[];
-    /**
-     * AI 照合の記録。**人が確かめていない公開済みの行で、照合の記録が揃うときだけ**
-     * （画面の `SpotGuideClient` と同じ条件）。アプリはこれで「出典: …（AI 照合 日付）」を出す
-     */
-    aiCheck?: SpotFeedAiCheck;
-};
-
-export type SpotFeedAiCheck = {
-    /** 照合した日（ISO の日付） */
-    checkedAt: string;
-    /** 照らした出典（https で題のあるものだけ） */
-    sources: { url: string; title: string }[];
 };
 
 /** `undefined` の鍵を落とす（JSON に `"x": null` を出さない・鍵の集合を固定する） */
@@ -90,15 +79,6 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
     const verified = isVerified(spot);
     // 出してよい写真の判定は画面と同じ1か所（`shownSpotImage`）
     const image = shownSpotImage(spot, images);
-    // 出典の条件は画面と同じ（人が確かめた行は「運営の確認」を出すので載せない）
-    const aiCheck = published && !verified && hasAiCheck(spot) && spot.aiCheck
-        ? {
-            checkedAt: spot.aiCheck.checkedAt.trim(),
-            sources: spot.aiCheck.sources
-                .filter((s) => /^https:\/\//.test(s.url ?? "") && Boolean(s.title?.trim()))
-                .map((s) => ({ url: s.url, title: s.title.trim() })),
-        }
-        : undefined;
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
@@ -126,7 +106,6 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
         seasonalGuide: published && spot.seasonalGuide?.length
             ? spot.seasonalGuide.map((g) => ({ season: g.season, text: g.text }))
             : undefined,
-        aiCheck,
     });
 }
 

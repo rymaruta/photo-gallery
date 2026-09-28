@@ -49,7 +49,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "aiCheck"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -138,30 +138,22 @@ describe("アプリ向けの索引", () => {
         expect("seasonalGuide" in none, "空の季節を鍵ごと出している").toBe(false);
     });
 
-    /// 🔴 **AI 照合の行は出典を運ぶ**（2026-09-27）。公開の条件が owner の
-    /// 「出典元を書いとけばいい」なので、アプリも出典なしで概要を出さない。
-    /// 委任した人の名前は運ばない（確認者の名前と同じ扱い）
-    it("AI 照合の行は照合日と出典を運び、委任した人の名前は運ばない", () => {
-        const ai = {
+    /// **AI 照合の出典は索引に載せない**（2026-09-28）。アプリは場所ごとの本文
+    /// （`/app/data/spots/<slug>.json` の `check`）から「出典: …（AI 照合 日付）」を
+    /// 出していて、索引の側は誰も読まない。全件ぶん索引が重くなるだけだった
+    it("AI 照合の行でも、照合の記録（日付・出典・委任した人）は索引に載せない", () => {
+        const item = toSpotFeedItem(spot("a", {
             status: "published" as const,
             aiCheck: {
                 checkedAt: "2026-09-26", delegatedBy: "rymaruta",
-                sources: [
-                    { url: "https://ja.wikipedia.org/wiki/x", title: " x " },
-                    { url: "http://example.com/insecure", title: "http は落とす" },
-                    { url: "https://example.com/untitled", title: "" },
-                ],
+                sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }],
             },
-        };
-        const item = toSpotFeedItem(spot("a", ai));
-        expect(item.aiCheck).toEqual({
-            checkedAt: "2026-09-26",
-            sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "x" }],
-        });
-        expect(JSON.stringify(item)).not.toContain("rymaruta");
-        // 人が確かめた行・下書きには載せない（画面と同じ）
-        expect("aiCheck" in toSpotFeedItem(spot("h", { ...ai, verifiedBy: "運営", verifiedAt: "2026-09-25" }))).toBe(false);
-        expect("aiCheck" in toSpotFeedItem(spot("d", { ...ai, status: "review" as const }))).toBe(false);
+        }));
+        expect(item.stage, "AI 照合の行が公開として載っていない").toBe("published");
+        expect("aiCheck" in item, "索引に照合の記録を載せている").toBe(false);
+        const json = JSON.stringify(item);
+        expect(json).not.toContain("rymaruta");
+        expect(json).not.toContain("wikipedia");
     });
 
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
