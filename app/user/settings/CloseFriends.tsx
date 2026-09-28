@@ -17,12 +17,44 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
-import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
+import { userFetch, userPublicFetch, readApiError, sessionErrorMessage } from "../../../lib/utils/api";
 import { usableUserRows, type UserRow } from "../../../lib/utils/userRows";
 import UserAvatar from "../../components/UserAvatar";
 
 /** サーバーの `CLOSE_FRIENDS_MAX` と同じ */
 export const CLOSE_FRIENDS_MAX = 200;
+
+/**
+ * 一覧に出ない人の名前を引くときに同時に送る数（iOS の `lookupWidth` と同じ）。
+ * 最大200人を一度に引くと、アカウント全体で10本しかない Lambda の同時実行枠を埋める
+ */
+const LOOKUP_WIDTH = 8;
+
+type Looked = { name?: string; username?: string; deleted?: boolean };
+
+/** 公開プロフィールから名前を引く。**引けなくても行は出す**（名前より外せることが先） */
+async function lookupNames(ids: string[]): Promise<Map<string, Looked>> {
+    const out = new Map<string, Looked>();
+    let next = 0;
+    const worker = async () => {
+        while (next < ids.length) {
+            const id = ids[next++];
+            try {
+                const res = await userPublicFetch(`/profile/${encodeURIComponent(id)}`);
+                // 404 は「退会した・見つからない」。取れなかった（通信の失敗など）と分ける
+                if (res.status === 404) { out.set(id, { deleted: true }); continue; }
+                if (!res.ok) continue;
+                const p = await res.json() as { displayName?: unknown; username?: unknown };
+                out.set(id, {
+                    ...(typeof p.displayName === "string" && p.displayName.trim() ? { name: p.displayName.trim() } : {}),
+                    ...(typeof p.username === "string" && p.username.trim() ? { username: p.username.trim() } : {}),
+                });
+            } catch { /* 名前なしのまま出す */ }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(LOOKUP_WIDTH, ids.length) }, worker));
+    return out;
+}
 
 type Props = { locale: "ja" | "en"; userId: string };
 
@@ -30,6 +62,13 @@ export default function CloseFriends({ locale, userId }: Props) {
     const isJa = locale !== "en";
     const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
     const [following, setFollowing] = useState<UserRow[]>([]);
+    /**
+     * フォロー中の**総数**。一覧は新しい順に50人までしか返らない
+     * （`follow.ts` の `FOLLOWING_PAGE`）ので、超えていたらそう言う
+     */
+    const [followingTotal, setFollowingTotal] = useState(0);
+    /** 一覧に出ない人の名前（公開プロフィールから引いたもの） */
+    const [looked, setLooked] = useState<Map<string, Looked>>(new Map());
     /** サーバーに入っている人（保存が効いたぶんだけ進める） */
     const [saved, setSaved] = useState<Set<string>>(new Set());
     /** 画面で選んでいる人 */
@@ -49,16 +88,25 @@ export default function CloseFriends({ locale, userId }: Props) {
                 ]);
                 if (!cf.ok || !fl.ok) throw new Error(`${cf.status}/${fl.status}`);
                 const cfData = await cf.json() as { userIds?: unknown };
-                const flData = await fl.json() as { users?: unknown };
+                const flData = await fl.json() as { users?: unknown; total?: unknown };
                 const rows = usableUserRows(flData.users, "following");
                 // **配列でなければ「取れなかった」**（0人と壊れた応答を混ぜない）
                 if (!rows || !Array.isArray(cfData.userIds)) throw new Error("shape");
                 const ids = (cfData.userIds as unknown[]).filter((x): x is string => typeof x === "string" && !!x);
                 if (cancelled) return;
-                setFollowing(rows.filter((r) => !r.deleted));
+                const live = rows.filter((r) => !r.deleted);
+                setFollowing(live);
+                setFollowingTotal(typeof flData.total === "number" ? flData.total : live.length);
                 setSaved(new Set(ids));
                 setChosen(new Set(ids));
                 setState("ready");
+                // 一覧に出ない人の名前を引く（出してから埋める——待たせない）
+                const listed = new Set(live.map((r) => r.id));
+                const missing = ids.filter((id) => !listed.has(id));
+                if (missing.length > 0) {
+                    const names = await lookupNames(missing);
+                    if (!cancelled) setLooked(names);
+                }
             } catch {
                 if (!cancelled) setState("failed");
             }
@@ -70,7 +118,9 @@ export default function CloseFriends({ locale, userId }: Props) {
     /** 選んであるのにフォロー中の一覧に出ない人（フォローを外した人など） */
     const outside = useMemo(() => [...chosen].filter((id) => !followingIds.has(id)), [chosen, followingIds]);
     const q = query.trim().toLowerCase();
-    const shown = q ? following.filter((r) => (r.name ?? "").toLowerCase().includes(q)) : following;
+    const shown = q
+        ? following.filter((r) => `${r.name ?? ""} ${r.username ?? ""}`.toLowerCase().includes(q))
+        : following;
 
     const dirty = chosen.size !== saved.size || [...chosen].some((id) => !saved.has(id));
     const overLimit = chosen.size > CLOSE_FRIENDS_MAX;
@@ -114,9 +164,12 @@ export default function CloseFriends({ locale, userId }: Props) {
         }
     }, [saving, dirty, overLimit, chosen, saved, isJa]);
 
-    const row = (id: string, name: string | undefined) => {
+    const row = (id: string, name: string | undefined, username?: string, deleted?: boolean) => {
         const on = chosen.has(id);
-        const label = name ?? (isJa ? "名前の分からない人" : "Unknown user");
+        // 名前が無ければ @ユーザー名、それも無ければ id の頭（行ごとに読み上げが区別できるように）
+        const label = deleted
+            ? (isJa ? "退会した人" : "Deleted account")
+            : name ?? (username ? `@${username}` : (isJa ? `名前の分からない人（${id.slice(0, 6)}）` : `Unknown user (${id.slice(0, 6)})`));
         return (
             <li key={id} className="flex items-center gap-3 py-2">
                 <UserAvatar userId={id} className="w-9 h-9" iconClassName="w-5 h-5" />
@@ -180,19 +233,31 @@ export default function CloseFriends({ locale, userId }: Props) {
                     </label>
                     {shown.length === 0
                         ? <p className="text-xs text-white/60">{isJa ? "見つかりませんでした" : "No matches"}</p>
-                        : <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto">{shown.map((r) => row(r.id, r.name))}</ul>}
+                        : <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto">{shown.map((r) => row(r.id, r.name, r.username))}</ul>}
+                    {followingTotal > following.length && (
+                        <p className="text-[11px] text-white/60">
+                            {isJa
+                                ? `フォロー中 ${followingTotal}人のうち、新しい ${following.length}人を表示しています。`
+                                : `Showing the ${following.length} most recent of ${followingTotal} people you follow.`}
+                        </p>
+                    )}
                 </>
             )}
 
             {state === "ready" && outside.length > 0 && (
                 <div className="pt-1">
-                    <p className="text-xs font-semibold text-white/80">{isJa ? "フォロー中の一覧に出ない人" : "Not in your following list"}</p>
+                    <p className="text-xs font-semibold text-white/80">{isJa ? "上の一覧に出ない人" : "Not in the list above"}</p>
+                    {/* **「フォローを外した人」と決めつけない。** 一覧は新しい50人までなので、
+                        まだフォロー中の古い人もここに来る（外すよう促すことになっていた） */}
                     <p className="text-[11px] text-white/60 mt-0.5">
                         {isJa
-                            ? "フォローを外した人などです。星を外して保存すると、「親しい友達」の写真が見えなくなります。"
-                            : "People you've unfollowed, for example. Unstar and save to stop sharing Close friends photos with them."}
+                            ? "フォローを外した人、上の一覧に入りきらない人、退会した人などです。星を外して保存すると、その人には「親しい友達」の写真が見えなくなります。"
+                            : "People you've unfollowed, people beyond the list above, or deleted accounts. Unstar and save to stop sharing Close friends photos with them."}
                     </p>
-                    <ul className="divide-y divide-white/5">{outside.map((id) => row(id, undefined))}</ul>
+                    <ul className="divide-y divide-white/5">{outside.map((id) => {
+                        const l = looked.get(id);
+                        return row(id, l?.name, l?.username, l?.deleted);
+                    })}</ul>
                 </div>
             )}
 

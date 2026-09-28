@@ -6,20 +6,22 @@ import userEvent from "@testing-library/user-event";
 // 「親しい友達」（iOS の CloseFriendsView と同じ）。API は前からあったのに、
 // Web には呼ぶ画面が無かった。選ぶのはフォロー中の人から、保存は押したときに差分だけ。
 const mockUserFetch = vi.hoisted(() => vi.fn());
+const mockPublicFetch = vi.hoisted(() => vi.fn());
 vi.mock("../../../../lib/utils/api", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/utils/api")>()),
     userFetch: (...a: unknown[]) => mockUserFetch(...a),
+    userPublicFetch: (...a: unknown[]) => mockPublicFetch(...a),
 }));
 
 import CloseFriends from "../CloseFriends";
 
 const ok = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
-function serve(closeIds: string[], following: unknown[], write: (url: string, method: string) => boolean = () => true) {
+function serve(closeIds: string[], following: unknown[], write: (url: string, method: string) => boolean = () => true, total?: number) {
     mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
         const u = String(url);
         const m = init?.method;
         if (u === "/user/close-friends" && !m) return ok({ userIds: closeIds });
-        if (u === "/users/me/following" && !m) return ok({ users: following, total: following.length });
+        if (u === "/users/me/following" && !m) return ok({ users: following, total: total ?? following.length });
         if (m === "PUT" || m === "DELETE") {
             return write(u, m) ? ok({ success: true }) : Promise.resolve({ ok: false, json: async () => ({ error: "だめ" }) });
         }
@@ -32,7 +34,10 @@ const writes = () => mockUserFetch.mock.calls
 const view = () => render(<CloseFriends locale="ja" userId="me" />);
 const star = (name: string) => screen.findByRole("switch", { name: `${name} を親しい友達にする` });
 
-beforeEach(() => { mockUserFetch.mockReset(); });
+beforeEach(() => {
+    mockUserFetch.mockReset();
+    mockPublicFetch.mockReset().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+});
 
 describe("親しい友達", () => {
     it("フォロー中の人を並べ、選んである人は星が付いている", async () => {
@@ -72,13 +77,44 @@ describe("親しい友達", () => {
         await waitFor(() => expect(writes(), "効いた分まで送り直している").toEqual(["PUT /user/close-friends/u3"]));
     });
 
-    it("フォロー中の一覧に出ない人も外せる（フォローを外した人など）", async () => {
-        serve(["gone"], [{ id: "u2", name: "佐藤" }]);
+    it("上の一覧に出ない人も外せる。名前は公開プロフィールから引き、退会した人はそう出す", async () => {
+        serve(["gone", "dead"], [{ id: "u2", name: "佐藤" }]);
+        mockPublicFetch.mockImplementation((url: string) => {
+            if (String(url) === "/profile/gone") return ok({ displayName: "古い友達", username: "old" });
+            if (String(url) === "/profile/dead") return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
+            return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+        });
         view();
-        expect(await screen.findByText("フォロー中の一覧に出ない人")).toBeInTheDocument();
-        await userEvent.click(await star("名前の分からない人"));
+        expect(await screen.findByText("上の一覧に出ない人")).toBeInTheDocument();
+        // **「フォローを外した人」と決めつけない**（まだフォロー中の古い人も来る）
+        expect(screen.getByText(/上の一覧に入りきらない人/)).toBeInTheDocument();
+        expect(await star("退会した人")).toHaveAttribute("aria-checked", "true");
+        await userEvent.click(await star("古い友達"));
         await userEvent.click(screen.getByRole("button", { name: "保存" }));
         await waitFor(() => expect(writes()).toEqual(["DELETE /user/close-friends/gone"]));
+    });
+
+    /** 一覧は新しい順に50人まで（`follow.ts` の FOLLOWING_PAGE）。黙って切らない */
+    it("フォロー中が一覧に入りきらないときは、そう伝える", async () => {
+        serve([], [{ id: "u1", name: "山田" }], () => true, 80);
+        view();
+        expect(await screen.findByText("フォロー中 80人のうち、新しい 1人を表示しています。")).toBeInTheDocument();
+    });
+
+    it("入りきるときは注記を出さない", async () => {
+        serve([], [{ id: "u1", name: "山田" }]);
+        view();
+        await star("山田");
+        expect(screen.queryByText(/人を表示しています/)).toBeNull();
+    });
+
+    it("名前の無い人は @ユーザー名で出し、ユーザー名でも絞り込める", async () => {
+        serve([], [{ id: "u1", name: "山田" }, { id: "u3", username: "tabibito" }]);
+        view();
+        expect(await star("@tabibito")).toBeInTheDocument();
+        await userEvent.type(screen.getByPlaceholderText("名前で探す"), "tabi");
+        expect(screen.queryByRole("switch", { name: "山田 を親しい友達にする" })).toBeNull();
+        expect(screen.getByRole("switch", { name: "@tabibito を親しい友達にする" })).toBeInTheDocument();
     });
 
     it("名前で絞り込める", async () => {
