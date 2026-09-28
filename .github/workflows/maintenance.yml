@@ -16,6 +16,8 @@ on:
         type: choice
         options:
           - cdn-error-pages   # 存在しないURLを自作404へ
+          - add-private-behavior # 絞った写真の置き場 private/* を配れるようにする（本番・既定は下見・apply で足す）
+          - add-private-behavior-staging # 同じことを **staging** に
           - shrink-profiles   # 既存のプロフィール画像を縮小
           - enable-cdn-logs   # CloudFront のアクセスログを有効化
           - who-liked         # 自分の写真にいいねした人を特定
@@ -109,6 +111,23 @@ jobs:
         run: node scripts/fix-cdn-error-pages.js ${{ inputs.apply && '--apply' || '' }}
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      # 絞った写真の置き場（private/）を CloudFront から配れるようにする
+      # （docs/restricted-image-delivery.md の案A 第1段）。uploads/* の振る舞いを
+      # 写して経路だけ変えたものを1つ足す。**uploads/* は一切書き換えない**
+      # （スクリプトが送る直前に比べて止まる）。署名はまだ付けない
+      - name: private/* の振る舞いを足す（本番）
+        if: inputs.task == 'add-private-behavior'
+        run: node scripts/add-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      - name: private/* の振る舞いを足す（staging）
+        if: inputs.task == 'add-private-behavior-staging'
+        run: node scripts/add-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          # **staging を明示する。** 上の env は本番向け
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
 
       - name: 既存のプロフィール画像を縮小
         if: inputs.task == 'shrink-profiles'
