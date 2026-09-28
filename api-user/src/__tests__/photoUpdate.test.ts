@@ -1443,14 +1443,17 @@ describe("差し替えで消す鍵", () => {
         expect(deleted()).toContain(`uploads/${UID}/old.webp`);
     });
 
+    // 元のストーリーが消えたあと（実体は写真だけのもの）の差し替え
     it("ストーリーから残した写真の差し替えでは key も外し、古い画像を指し続けない", async () => {
         mockDdbSend.mockResolvedValueOnce({ Item: {
             id: "p1", userId: UID, published: true, audience: "followers", keptFrom: "story-1",
             key: `private/${UID}/k.jpg`, src: priv("k.jpg"),
-        } }).mockResolvedValueOnce({});
+        } }).mockResolvedValueOnce({}).mockResolvedValueOnce({});   // 写真 → ストーリー（もう無い）→ 更新
         const res = await invoke(event(UID, "p1", { replace }));
         expect(res.statusCode, res.body).toBe(200);
-        expect(lastUpdate().UpdateExpression).toMatch(/REMOVE[^]*#key/);
+        const upd = mockDdbSend.mock.calls.map((c) => (c[0] as { input: { UpdateExpression?: string } }).input)
+            .find((i) => i.UpdateExpression);
+        expect(upd?.UpdateExpression).toMatch(/REMOVE[^]*#key/);
         expect(deleted(), "差し替えた古い画像が残る").toContain(`private/${UID}/k.jpg`);
     });
 
@@ -1481,55 +1484,55 @@ describe("差し替えで消す鍵", () => {
     });
 });
 
-// 🔴 **ストーリーから残した写真の印（元のストーリーの `keptAs`）を、行の最終形に合わせる。**
-// 印があるストーリーは期限切れの掃除が実体を消さない。写真が実体を指さなくなったのに
-// 印を残すと、24時間で消えるはずのストーリーの画像がどこからも消されない
-describe("ストーリーから残した写真の印", () => {
+// 🔴 **元のストーリーが残っている間は、残した写真の公開範囲の変更と差し替えを断る。**
+// その間は写真とストーリーが同じ実体を共有していて、`keptAs` の付け外しは
+// 期限切れの掃除と競合して写真の実体を失いうる（レビューで3回、別の形で再現）
+describe("ストーリーから残した写真（元のストーリーが残っている間）", () => {
     const U = "22222222-2222-2222-2222-222222222222";
-    const storyRow = { id: "story-1", story: true, userId: "u1", key: `uploads/${U}/k.jpg`, src: `${CDN}/uploads/${U}/k.jpg`, keptAs: "p1" };
-    const storyWrite = () => mockDdbSend.mock.calls
-        .map((c) => (c[0] as { input: { Key?: { id?: string }; UpdateExpression?: string } }).input)
-        .find((i) => i.Key?.id === "story-1" && i.UpdateExpression);
+    const kept = { id: "p1", userId: "u1", published: false, keptFrom: "story-1", key: `uploads/${U}/k.jpg`, src: `${CDN}/uploads/${U}/k.jpg` };
+    const replace = { key: `uploads/${U}/new.webp`, publicUrl: `${CDN}/uploads/${U}/new.webp` };
+    const wrote = () => mockDdbSend.mock.calls.some((c) => "UpdateExpression" in ((c[0] as { input: object }).input));
 
     beforeEach(() => {
         mockCopyAll.mockReset().mockResolvedValue(true);
         mockDropOld.mockReset().mockResolvedValue(0);
-        mockListMyMedia.mockReset().mockResolvedValue([storyRow]);
+        mockS3DeleteMany.mockClear();
     });
 
-    it("絞って private/ へ移したら、印を外す（掃除にストーリーの実体を消させる）", async () => {
-        mockDdbSend.mockReset()
-            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, keptFrom: "story-1", key: storyRow.key, src: storyRow.src } })
-            .mockResolvedValueOnce({})
-            .mockResolvedValueOnce({ Item: storyRow })
-            .mockResolvedValueOnce({});
+    it("公開範囲の変更を断る（何も動かさない）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: kept }).mockResolvedValueOnce({ Item: { id: "story-1", story: true } });
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode).toBe(409);
+        expect(mockCopyAll).not.toHaveBeenCalled();
+        expect(wrote(), "行を書いている").toBe(false);
+    });
+
+    it("差し替えを断る", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { ...kept, userId: "u1" } }).mockResolvedValueOnce({ Item: { id: "story-1", story: true } });
+        const res = await invoke(event("u1", "p1", { replace }));
+        expect(res.statusCode, res.body).toBe(409);
+        expect(wrote()).toBe(false);
+        expect(mockS3DeleteMany).not.toHaveBeenCalled();
+    });
+
+    it("ストーリーを読めなければ断る（分からないなら止める）", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: kept }).mockRejectedValueOnce(new Error("throttled"));
+        const res = await invoke(event("u1", "p1", { audience: "followers" }));
+        expect(res.statusCode).toBe(503);
+        expect(mockCopyAll).not.toHaveBeenCalled();
+    });
+
+    it("公開範囲も差し替えも触らない保存（題など）は、これまでどおり通す", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: kept }).mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { title: "港の夕暮れ" }));
+        expect(res.statusCode, res.body).toBe(200);
+    });
+
+    it("ストーリーが消えたあとは、公開範囲を変えられる", async () => {
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: kept }).mockResolvedValueOnce({}).mockResolvedValueOnce({});
         const res = await invoke(event("u1", "p1", { audience: "followers" }));
         expect(res.statusCode, res.body).toBe(200);
-        expect(storyWrite()?.UpdateExpression).toBe("REMOVE keptAs");
-    });
-
-    it("公開に戻して同じ実体を指すようになったら、印を立て直す（掃除に写真の実体を消させない）", async () => {
-        mockDdbSend.mockReset()
-            .mockResolvedValueOnce({ Item: {
-                id: "p1", userId: "u1", published: true, audience: "followers", keptFrom: "story-1",
-                key: `private/${U}/k.jpg`, src: `${CDN}/private/${U}/k.jpg`,
-            } })
-            .mockResolvedValueOnce({})
-            .mockResolvedValueOnce({ Item: { ...storyRow, keptAs: undefined } })
-            .mockResolvedValueOnce({});
-        const res = await invoke(event("u1", "p1", { audience: null }));
-        expect(res.statusCode, res.body).toBe(200);
-        expect(storyWrite()?.UpdateExpression).toBe("SET keptAs = :id");
-    });
-
-    it("ストーリーがもう無ければ、何も書かない", async () => {
-        mockDdbSend.mockReset()
-            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, keptFrom: "story-1", key: storyRow.key, src: storyRow.src } })
-            .mockResolvedValueOnce({})
-            .mockResolvedValueOnce({});
-        const res = await invoke(event("u1", "p1", { audience: "followers" }));
-        expect(res.statusCode, res.body).toBe(200);
-        expect(storyWrite()).toBeUndefined();
+        expect(mockCopyAll).toHaveBeenCalled();
     });
 });
 

@@ -2,8 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { putPhoto, getPhotoById } from "./ddb-photos";
-import { mediaKeys } from "./mediaKeys";
+import { putPhoto } from "./ddb-photos";
 import { photoLimitError } from "./photoLimit";
 import { idFromUploadKey, keyFromUploadUrl, isOwnUploadUrlFromEnv as isOwnUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { sanitizeTitle, sanitizeBlurDataURL } from "./sanitize";
@@ -181,18 +180,6 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 押し直しなど）。**その写真を指して成功にする**——ここで 500 に
             // すると、印だけが立たないまま永久に残せなくなる
             if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
-            // **差し替え済みの写真には印を立て直さない。** 写真の画像を差し替えると
-            // `photoUpdate` がストーリーの印を外す（持ち主でなくなったので、
-            // 期限切れの掃除に実体を消させる）。ここで立て直すと、ストーリーの
-            // 画像がどこからも消されなくなる
-            const already = await getPhotoById(photoId);
-            // 置き場（`uploads/` と `private/`）の違いは同じ実体として見る
-            // （公開範囲を絞った写真は `private/` へ移っている）
-            const counterpart = key.startsWith("uploads/") ? `private/${key.slice("uploads/".length)}` : key;
-            const alreadyKeys = already ? mediaKeys(already as unknown as Record<string, unknown>) : [];
-            if (already && !alreadyKeys.includes(key) && !alreadyKeys.includes(counterpart)) {
-                return jsonError(409, "この投稿は既にギャラリーに残し、写真を差し替えています");
-            }
         }
 
         // ストーリーに印を立てる。**これが「S3 の実体を消さない」の根拠**

@@ -10,9 +10,7 @@ vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
 }));
-// 同じ鍵の写真が先にあったときの読み直し。既定は「同じ実体を指す写真」
-const mockGetPhotoById = vi.hoisted(() => vi.fn());
-vi.mock("../ddb-photos", () => ({ putPhoto: mockPutPhoto, getPhotoById: (...a: unknown[]) => mockGetPhotoById(...a) }));
+vi.mock("../ddb-photos", () => ({ putPhoto: mockPutPhoto }));
 vi.mock("../photoLimit", () => ({ photoLimitError: () => mockCountUserPhotos() }));
 vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
 
@@ -106,31 +104,10 @@ describe("keepStory: ストーリーをギャラリーに残す", () => {
     // **そこで 500 にすると永久に残せなくなる**
     it("写真だけ先にできていたら、印を立て直して成功にする", async () => {
         world(STORY);
-        mockGetPhotoById.mockResolvedValueOnce({ id: "p", src: STORY.src, key: KEY });
         mockPutPhoto.mockRejectedValueOnce(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
         const r = await invoke(ev("me", "story-1"));
         expect(r.statusCode).toBe(200);
         expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("keptAs"))).toBe(true);
-    });
-
-    // 写真の画像を差し替えると `photoUpdate` がストーリーの印を外す（持ち主で
-    // なくなったので、期限切れの掃除に実体を消させる）。ここで立て直すと、
-    // ストーリーの画像がどこからも消されなくなる
-    it("先にある写真が差し替え済み（同じ実体を指さない）なら、印を立て直さず断る", async () => {
-        world(STORY);
-        mockPutPhoto.mockRejectedValueOnce(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
-        mockGetPhotoById.mockResolvedValueOnce({ id: "p", src: "https://cdn.example.com/uploads/me/other.webp" });
-        const r = await invoke(ev("me", "story-1"));
-        expect(r.statusCode).toBe(409);
-        expect(inputs().some((i) => String(i.UpdateExpression ?? "").includes("keptAs")), "印を立て直している").toBe(false);
-    });
-
-    it("先にある写真が private/ に移っていても、同じ実体として印を立て直す", async () => {
-        world(STORY);
-        mockPutPhoto.mockRejectedValueOnce(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
-        mockGetPhotoById.mockResolvedValueOnce({ id: "p", src: `https://cdn.example.com/${KEY.replace(/^uploads\//, "private/")}` });
-        const r = await invoke(ev("me", "story-1"));
-        expect(r.statusCode).toBe(200);
     });
 
     // **印を立てられなかったら、作った写真を片付ける。**
