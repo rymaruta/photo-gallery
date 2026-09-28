@@ -529,7 +529,7 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 国名は件数が少なく、増えるのも稀なので、**一覧に無い値は必ず疑う**。
      * 新しい国を足すときはこの一覧に1行足すこと。
      */
-    const KNOWN_COUNTRIES = new Set(["日本", "フランス", "スペイン"]);
+    const KNOWN_COUNTRIES = new Set(["日本", "フランス", "スペイン", "フィンランド"]);
 
     it("国名が一覧にある（都道府県名を国の欄に書いていない）", () => {
         const bad = SPOTS
