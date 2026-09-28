@@ -8629,10 +8629,11 @@
   {
     "spotId": "sp_2b2f0c8ad8cb",
     "slug": "daisekirinzan",
-    "name": "大石林山",
-    "nameEn": "Daisekirinzan",
-    "reading": "だいせきりんざん",
+    "name": "ASMUI Spiritual Hikes（旧・大石林山）",
+    "nameEn": "ASMUI Spiritual Hikes",
+    "reading": "あすむい すぴりちゅある はいくす",
     "aliases": [
+      "大石林山",
       "安須杜",
       "やんばる 奇岩",
       "国頭 大石林山"
