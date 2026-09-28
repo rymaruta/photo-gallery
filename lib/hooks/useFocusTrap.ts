@@ -68,6 +68,17 @@ export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled])
  */
 const openTraps: Array<{ token: object; priority: number; getEl: () => HTMLElement | null }> = [];
 
+/**
+ * **優先度のある閉じ込め（同意画面）が開いているか。**
+ *
+ * 裏に開いている画面が自前で持つキー操作（拡大表示の矢印・Escape・`h` の
+ * いいね、ストーリーの送り）は、これが真の間は何もしないこと。
+ * 同意画面の裏で `h` を押すと、**見えない写真にいいねが付いていた**。
+ */
+export function isBehindPriorityOverlay(): boolean {
+    return openTraps.some((t) => t.priority > 0);
+}
+
 function isFrontmost(token: object, el: HTMLElement): boolean {
     const mine = openTraps.findIndex((t) => t.token === token);
     const myPriority = openTraps[mine]?.priority ?? 0;

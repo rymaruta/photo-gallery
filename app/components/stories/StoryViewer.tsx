@@ -19,7 +19,7 @@ import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
 import type { StoryVoteChoice, StoryVoteState } from "@/lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
-import { useFocusTrap } from "../../../lib/hooks/useFocusTrap";
+import { useFocusTrap, isBehindPriorityOverlay } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
 import { wasShortTap, type PressPoint } from "@/lib/utils/tap";
 import { swipeDirection, verticalSwipeDirection } from "@/lib/utils/swipe";
@@ -1074,6 +1074,8 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             // 報告のダイアログは自前で Escape を聞く（`useEscapeKey`）ので、
             // ここは**何もしない**で返す（二重に閉じない・背後を送らない）
             if (reportOpen) return;
+            // 同意画面が上にある間も何もしない（見えないストーリーを送らない）
+            if (isBehindPriorityOverlay()) return;
             if (confirmDelete || viewersOpen || repliesOpen || menuOpen) {
                 if (e.key === "Escape") { setConfirmDelete(false); setInsights(null); setMenuOpen(false); }
                 return;
