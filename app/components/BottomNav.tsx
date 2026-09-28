@@ -190,7 +190,9 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />
-            <span style={labelStyle}>{item.label}</span>
+            {/* 選択中は太字（案B「浮いたカプセル」の選択中＝600）。白と形だけだと、
+                PC でカーソルを載せたタブと見分けにくい */}
+            <span style={active ? { ...labelStyle, fontWeight: 600 } : labelStyle}>{item.label}</span>
         </Link>
     );
 }
