@@ -1,7 +1,7 @@
 "use client";
 
 import AudiencePicker from "../../components/AudiencePicker";
-import { audienceForSave, readAudience, type Audience } from "../../../lib/utils/audience";
+import { audienceForSave, audienceRank, readAudience, type Audience } from "../../../lib/utils/audience";
 import React, { useState, useMemo, useCallback, useEffect, useRef, Suspense } from "react";
 import { usePageBarHeight } from "../../../lib/hooks/useBottomBarHeight";
 import CropFramePicker from "../../components/CropFramePicker";
@@ -602,9 +602,9 @@ function UploadPageInner() {
         setAsOnePost(d.asOnePost);
         // 古い控え（公開範囲を持たない）は全体に公開＝控えた当時の既定と同じ。
         // **広げる方向には当てない**: 控えを読んでいる間に絞った人の選択を、
-        // 控えの「全体に公開」で上書きしない（どの順で起きても開く方へ倒れない）
+        // 控えのより広い範囲で上書きしない（どの順で起きても開く方へ倒れない）
         const fromDraft = readAudience(d.audience);
-        setAudience((cur) => (fromDraft === "everyone" && cur !== "everyone" ? cur : fromDraft));
+        setAudience((cur) => (audienceRank(fromDraft) < audienceRank(cur) ? cur : fromDraft));
         showToast(locale === "en"
             ? `Restored what you were writing (${restored.length} photo(s)).`
             : `書きかけを戻しました（${restored.length}枚）`, "info");

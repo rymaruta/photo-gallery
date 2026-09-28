@@ -222,7 +222,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                  * `GalleryGrid` は同じ状況でも名前が残る（あちらは
                  * `aria-label` を持っている）。揃える。
                  */
-                aria-label={`${photoCardLabel(title, likeCount, locale)}${audienceLabel ? `（${audienceLabel}）` : ""}`}
+                aria-label={`${photoCardLabel(title, likeCount, locale)}${audienceLabel ? (locale === "en" ? ` (${audienceLabel})` : `（${audienceLabel}）`) : ""}`}
                 className={`absolute inset-0 overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${isHidden ? "opacity-40" : ""}`}
                 style={photo.dominantColor ? { backgroundColor: photo.dominantColor } : undefined}
             >
@@ -243,14 +243,18 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                         1/{extraCount + 1}
                     </span>
                 )}
+                {/* **絵だけの小さな丸で、削除ボタンの上に積む。** 四隅は持ち主のボタン
+                    （左下の削除・右下の編集・左上のピン・右上の枚数と公開の切り替え）で
+                    埋まっていて、文字つきの印は削除ボタンの下に隠れていた。
+                    親しい友達は**輪郭の星**（ピン留めは塗りの星）。意味は名前が伝える */}
                 {audienceLabel && (
-                    <span className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                          style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
+                    <span className="absolute left-1.5 inline-flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                          style={{ bottom: 40, width: 22, height: 22 }}
+                          title={audienceLabel}
                           aria-hidden="true">
                         {audience === "closeFriends"
-                            ? <StarIcon className="w-3 h-3" />
-                            : <UserGroupIcon className="w-3 h-3" />}
-                        {audienceLabel}
+                            ? <StarIconOutline className="w-3.5 h-3.5" />
+                            : <UserGroupIcon className="w-3.5 h-3.5" />}
                     </span>
                 )}
                 {/* ホバー: いいね数オーバーレイ。

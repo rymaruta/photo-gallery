@@ -30,6 +30,15 @@ export const AUDIENCES: ReadonlyArray<{
     },
 ];
 
+/**
+ * **狭さの順序**（大きいほど見られる人が少ない）。控えを戻すときに、いまの選択を
+ * より広い値で上書きしないために使う。親しい友達はフォロワーに限らず選べるが、
+ * 選んだ人だけに絞るので「見る人が少ない側」として扱う
+ */
+export function audienceRank(a: Audience): number {
+    return a === "closeFriends" ? 2 : a === "followers" ? 1 : 0;
+}
+
 /** サーバーから来た値を読む。**知らない値は全体に公開**（サーバーの `sanitizeAudience` と同じ倒し方） */
 export function readAudience(value: unknown): Audience {
     return value === "followers" || value === "closeFriends" ? value : "everyone";
