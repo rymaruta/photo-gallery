@@ -1,6 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ROUTES } from "@/lib/routes";
 
 /**
@@ -137,6 +139,36 @@ describe("画面下の5つのタブ", () => {
         // jsdom は offsetHeight が 0 だが、**変数が設定されること**が肝
         // （設定されないと body の見積もりのままで、実寸とずれる）
         expect(document.documentElement.style.getPropertyValue("--bottom-bar-h")).toBe("0px");
+    });
+});
+
+describe("浮いたカプセル（iOS の案B・owner の決定 2026-09-27）", () => {
+    it("帯の外側の隙間は押せず、押せるのはカプセルの中だけ", () => {
+        // `nav` は下端いっぱいに敷く透明な帯。隙間まで押せる形にすると、
+        // そこに透けて見えている写真やリンクが押せなくなる
+        render(<BottomNav />);
+        const bar = screen.getByRole("navigation", { name: "メインメニュー" });
+        expect(bar.className.split(/\s+/)).toContain("pointer-events-none");
+        const capsule = bar.firstElementChild as HTMLElement;
+        expect(capsule.className.split(/\s+/)).toContain("pointer-events-auto");
+        // 5つのマスはすべてカプセルの中にある
+        expect(capsule.querySelectorAll("a,button")).toHaveLength(5);
+    });
+
+    it("選んでいるタブだけが白16%の丸い面を持つ", () => {
+        nav.pathname = ROUTES.SEARCH;
+        render(<BottomNav />);
+        const withSurface = Array.from(
+            screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
+        ).filter((el) => el.className.split(/\s+/).includes("bg-white/16"));
+        expect(withSurface.map((el) => el.textContent)).toEqual(["さがす"]);
+    });
+
+    it("下の隙間は 22px と safe-area の大きい方（ホームインジケーターに被らない）", () => {
+        // **ソースで見る。** jsdom の CSS の解釈は `max()` と `env()` を落とすので、
+        // 描いた DOM の style からは読めない（実ブラウザでは効く）
+        const src = readFileSync(resolve(__dirname, "../BottomNav.tsx"), "utf8");
+        expect(src).toContain('paddingBottom: "max(22px, env(safe-area-inset-bottom, 0px))"');
     });
 });
 

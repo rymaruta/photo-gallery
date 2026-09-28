@@ -169,17 +169,31 @@ button, a {
    バー自身が実測値を `--bottom-bar-h` に出す（safe-area 込み）ので、
    JS が動いたあとはそれが正。**動く前の見積もりが要る**——変数が未設定の
    ままだと 0 になり、最初の描画でフッターがバーの裏に隠れて、測った瞬間に
-   跳ねる。見積もりは 56px（押せる面）+ 1px（上の線）+ safe-area。
-   ノッチ・ホームインジケーター対応もこれに含まれる（バーが safe-area の
-   ぶんを自分の内側に持つので、二重に空けない）。 */
+   跳ねる。見積もりは 62px（浮いたカプセル）+ 下の隙間（22px と safe-area の
+   大きい方）。ノッチ・ホームインジケーター対応もこれに含まれる（バーが
+   safe-area のぶんを自分の内側に持つので、二重に空けない）。 */
 body {
-  padding-bottom: var(--bottom-bar-h, calc(env(safe-area-inset-bottom, 0px) + 57px));
+  padding-bottom: var(--bottom-bar-h, calc(max(22px, env(safe-area-inset-bottom, 0px)) + 62px));
   /* **横向きの iPhone で、中身がノッチ・Dynamic Island の下に入らないように。**
      `viewport-fit=cover` を宣言しているので、左右の安全領域は自分で空ける。
      縦向きでは 0 なので見た目は変わらない。画面に固定した部品
      （タブバー・モーダル）は body の余白の外なので、それぞれで空ける。 */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 画面下の浮いたカプセル（`BottomNav`・iOS の `Main.dc.html` の案B）。
+   すりガラスが効かない端末では、同じ色の不透明な面に落とす
+   （透けた 62% のままだと、下の写真の上で字が読めなくなる）。 */
+.tabbar-capsule {
+  background: rgb(40 40 42 / 0.62);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar-capsule {
+    background: rgb(40 40 42);
+  }
 }
 
 /* HeaderNav で使用 */

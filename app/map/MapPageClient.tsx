@@ -304,7 +304,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             spots={spots}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
-                            className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,57px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
+                            className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"
                         />
 
                         {/* 位置の出どころの断り。**小さい字なので色は薄くしない**

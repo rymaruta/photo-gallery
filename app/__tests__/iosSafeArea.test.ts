@@ -185,6 +185,6 @@ describe("高さとスクロール", () => {
     it("地図の下限は、スマホでは見えている高さを超えない", () => {
         const src = code("app/map/MapPageClient.tsx");
         expect(src).not.toMatch(/(?<![\w:-])min-h-\[320px\]/);
-        expect(src).toContain("min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,57px)_-_24px))]");
+        expect(src).toContain("min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_24px))]");
     });
 });
