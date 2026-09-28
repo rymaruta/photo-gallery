@@ -32,17 +32,29 @@ const LOOKUP_WIDTH = 8;
 
 type Looked = { name?: string; username?: string; deleted?: boolean };
 
-/** 公開プロフィールから名前を引く。**引けなくても行は出す**（名前より外せることが先） */
-async function lookupNames(ids: string[]): Promise<Map<string, Looked>> {
+/**
+ * 一覧が切れる人数（`follow.ts` の `FOLLOWING_PAGE`）。**これに届いたときだけ**
+ * 「新しい何人を表示」と言う——`total` は退会した人やブロック関係の人も
+ * 数えるので、`total` との差で判断すると切れていないのに言ってしまう
+ */
+const FOLLOWING_PAGE = 50;
+
+/**
+ * 公開プロフィールから名前を引く。**引けなくても行は出す**（名前より外せることが先）。
+ *
+ * ⚠️ **退会したかどうかはここでは分からない。** 公開プロフィールは、退会した人にも
+ * 名前を一度も決めていない人にも同じ 200 `{ userId }` を返す（`userProfile.ts`
+ * の `getPublicProfile`。墓石を未設定と同じ見え方にするため）。
+ * 退会の印はフォロー一覧の `deleted: true` だけから取る
+ */
+async function lookupNames(ids: string[], signal: AbortSignal): Promise<Map<string, Looked>> {
     const out = new Map<string, Looked>();
     let next = 0;
     const worker = async () => {
-        while (next < ids.length) {
+        while (next < ids.length && !signal.aborted) {
             const id = ids[next++];
             try {
-                const res = await userPublicFetch(`/profile/${encodeURIComponent(id)}`);
-                // 404 は「退会した・見つからない」。取れなかった（通信の失敗など）と分ける
-                if (res.status === 404) { out.set(id, { deleted: true }); continue; }
+                const res = await userPublicFetch(`/profile/${encodeURIComponent(id)}`, { signal });
                 if (!res.ok) continue;
                 const p = await res.json() as { displayName?: unknown; username?: unknown };
                 out.set(id, {
@@ -67,6 +79,8 @@ export default function CloseFriends({ locale, userId }: Props) {
      * （`follow.ts` の `FOLLOWING_PAGE`）ので、超えていたらそう言う
      */
     const [followingTotal, setFollowingTotal] = useState(0);
+    /** 一覧が `FOLLOWING_PAGE` で実際に切れたか */
+    const [listCut, setListCut] = useState(false);
     /** 一覧に出ない人の名前（公開プロフィールから引いたもの） */
     const [looked, setLooked] = useState<Map<string, Looked>>(new Map());
     /** サーバーに入っている人（保存が効いたぶんだけ進める） */
@@ -80,6 +94,8 @@ export default function CloseFriends({ locale, userId }: Props) {
 
     useEffect(() => {
         let cancelled = false;
+        // 閉じたら名前の問い合わせも止める（最大200件を最後まで引かない）
+        const abort = new AbortController();
         void (async () => {
             try {
                 const [cf, fl] = await Promise.all([
@@ -96,22 +112,26 @@ export default function CloseFriends({ locale, userId }: Props) {
                 if (cancelled) return;
                 const live = rows.filter((r) => !r.deleted);
                 setFollowing(live);
+                setListCut(rows.length >= FOLLOWING_PAGE);
                 setFollowingTotal(typeof flData.total === "number" ? flData.total : live.length);
+                // **退会した人の印はフォロー一覧だけが持つ**（公開プロフィールでは分からない）
+                const gone = new Map<string, Looked>(rows.filter((r) => r.deleted).map((r) => [r.id, { deleted: true }]));
+                setLooked(gone);
                 setSaved(new Set(ids));
                 setChosen(new Set(ids));
                 setState("ready");
                 // 一覧に出ない人の名前を引く（出してから埋める——待たせない）
                 const listed = new Set(live.map((r) => r.id));
-                const missing = ids.filter((id) => !listed.has(id));
+                const missing = ids.filter((id) => !listed.has(id) && !gone.has(id));
                 if (missing.length > 0) {
-                    const names = await lookupNames(missing);
-                    if (!cancelled) setLooked(names);
+                    const names = await lookupNames(missing, abort.signal);
+                    if (!cancelled) setLooked(new Map([...gone, ...names]));
                 }
             } catch {
                 if (!cancelled) setState("failed");
             }
         })();
-        return () => { cancelled = true; };
+        return () => { cancelled = true; abort.abort(); };
     }, [userId]);
 
     const followingIds = useMemo(() => new Set(following.map((r) => r.id)), [following]);
@@ -234,7 +254,7 @@ export default function CloseFriends({ locale, userId }: Props) {
                     {shown.length === 0
                         ? <p className="text-xs text-white/60">{isJa ? "見つかりませんでした" : "No matches"}</p>
                         : <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto">{shown.map((r) => row(r.id, r.name, r.username))}</ul>}
-                    {followingTotal > following.length && (
+                    {listCut && followingTotal > following.length && (
                         <p className="text-[11px] text-white/60">
                             {isJa
                                 ? `フォロー中 ${followingTotal}人のうち、新しい ${following.length}人を表示しています。`

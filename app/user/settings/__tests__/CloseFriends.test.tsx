@@ -77,28 +77,42 @@ describe("親しい友達", () => {
         await waitFor(() => expect(writes(), "効いた分まで送り直している").toEqual(["PUT /user/close-friends/u3"]));
     });
 
-    it("上の一覧に出ない人も外せる。名前は公開プロフィールから引き、退会した人はそう出す", async () => {
-        serve(["gone", "dead"], [{ id: "u2", name: "佐藤" }]);
+    /**
+     * **退会の印はフォロー一覧の `deleted: true` だけ。** 公開プロフィールは退会した人にも
+     * 名前の無い人にも同じ 200 `{ userId }` を返すので、そちらでは分からない
+     * （最初「404＝退会」と書いたが、本番では一度も当たらない判定だった）
+     */
+    it("上の一覧に出ない人も外せる。名前は公開プロフィールから引き、退会はフォロー一覧の印で出す", async () => {
+        serve(["gone", "dead"], [{ id: "u2", name: "佐藤" }, { id: "dead", deleted: true }]);
         mockPublicFetch.mockImplementation((url: string) => {
             if (String(url) === "/profile/gone") return ok({ displayName: "古い友達", username: "old" });
-            if (String(url) === "/profile/dead") return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
-            return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            return ok({ userId: "x" });   // 本番の「未設定・退会」の応答
         });
         view();
         expect(await screen.findByText("上の一覧に出ない人")).toBeInTheDocument();
         // **「フォローを外した人」と決めつけない**（まだフォロー中の古い人も来る）
         expect(screen.getByText(/上の一覧に入りきらない人/)).toBeInTheDocument();
         expect(await star("退会した人")).toHaveAttribute("aria-checked", "true");
+        expect(mockPublicFetch.mock.calls.map((c) => String(c[0])), "退会と分かっている人まで引いた").toEqual(["/profile/gone"]);
         await userEvent.click(await star("古い友達"));
         await userEvent.click(screen.getByRole("button", { name: "保存" }));
         await waitFor(() => expect(writes()).toEqual(["DELETE /user/close-friends/gone"]));
     });
 
     /** 一覧は新しい順に50人まで（`follow.ts` の FOLLOWING_PAGE）。黙って切らない */
-    it("フォロー中が一覧に入りきらないときは、そう伝える", async () => {
-        serve([], [{ id: "u1", name: "山田" }], () => true, 80);
+    it("フォロー中が一覧に入りきらない（50人で切れた）ときは、そう伝える", async () => {
+        const fifty = Array.from({ length: 50 }, (_, i) => ({ id: `f${i}`, name: `人${i}` }));
+        serve([], fifty, () => true, 80);
         view();
-        expect(await screen.findByText("フォロー中 80人のうち、新しい 1人を表示しています。")).toBeInTheDocument();
+        expect(await screen.findByText("フォロー中 80人のうち、新しい 50人を表示しています。")).toBeInTheDocument();
+    });
+
+    /** 総数は退会した人・ブロック関係の人も数えるので、切れていないのにずれる */
+    it("総数とずれていても、50人に届いていなければ「新しい何人」とは言わない", async () => {
+        serve([], [{ id: "u1", name: "山田" }], () => true, 3);
+        view();
+        await star("山田");
+        expect(screen.queryByText(/人を表示しています/)).toBeNull();
     });
 
     it("入りきるときは注記を出さない", async () => {
