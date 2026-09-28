@@ -2,24 +2,22 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ROUTES } from "../../../../lib/routes";
 
-// **共同アルバム（案C）の受け取り側。**
-// 招待ページの「写真を追加する」は `?album=<id>` を付けて送ってくる。
-// ここが読んでいないと、**導線は繋がっているのに写真がアルバムに入らない**
-// （画面上は成功して見えるので、気づけない壊れ方）。
-//
-// 権限の判断はしていない——メンバーでなければサーバーが 404 で断る。
-// ここは「どこに入れるつもりか」を運ぶだけ。
+// **公開範囲**（iOS の新規投稿と同じ三択）。サーバーは前から `audience` を受けていた
+// （`api-user/src/upload.ts`・`sanitizeAudience`）。絞った写真はウェブサイトに載らない。
+// 保存の中身を見る仕組みは page.album.test.tsx と同じ。
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
-const q = vi.hoisted(() => ({ search: "album=alb-1" }));
+const mockPush = vi.hoisted(() => vi.fn());
+const q = vi.hoisted(() => ({ search: "" }));
 
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+    useRouter: () => ({ push: mockPush, replace: vi.fn() }),
     useSearchParams: () => new URLSearchParams(q.search),
 }));
 vi.mock("../../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false }),
+    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false, userId: "me" }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -62,7 +60,8 @@ function savedBody(): Record<string, unknown> | null {
 }
 
 beforeEach(() => {
-    q.search = "album=alb-1";
+    q.search = "";
+    mockPush.mockReset();
     mockShowToast.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
         if (url === "/user/photos") return Promise.resolve({ ok: true, json: async () => [] });
@@ -87,7 +86,6 @@ async function uploadOne(container: HTMLElement) {
 }
 
 describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ三択）", () => {
-    beforeEach(() => { q.search = ""; });
 
     /** 既定は全体に公開で、**送らない**（サーバーも属性を書かない形で持つ） */
     it("既定は全体に公開で、audience を載せない", async () => {
@@ -116,5 +114,24 @@ describe("アップロード画面: 公開範囲（iOS の新規投稿と同じ�
     it("絞った選択肢は「ウェブサイトには載りません」と言う", () => {
         const { getAllByText } = render(<UploadPage />);
         expect(getAllByText(/ウェブサイトには載りません/)).toHaveLength(2);
+    });
+
+    /**
+     * **絞った写真はトップに出ない。** 「上げたのに無い＝失敗した」と読まれないよう、
+     * そう伝えて、自分の写真が並ぶプロフィールへ送る（持ち主には全件見える）
+     */
+    it("絞って公開したら、ウェブサイトに載らないと伝え、プロフィールへ移る", async () => {
+        const { container, getByRole } = render(<UploadPage />);
+        await userEvent.click(getByRole("radio", { name: /フォロワーのみ/ }));
+        await uploadOne(container);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("ウェブサイトには載りません"), "info"));
+        await waitFor(() => expect(mockPush).toHaveBeenCalledWith(ROUTES.USER_PROFILE("me")), { timeout: 3000 });
+    });
+
+    it("全体に公開なら、今までどおりトップへ移り、載らないとは言わない", async () => {
+        const { container } = render(<UploadPage />);
+        await uploadOne(container);
+        await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/"), { timeout: 3000 });
+        expect(mockShowToast.mock.calls.some((c) => String(c[0]).includes("ウェブサイトには載りません"))).toBe(false);
     });
 });

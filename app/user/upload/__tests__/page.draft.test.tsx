@@ -157,6 +157,37 @@ describe("アップロード画面: 書きかけの控え", () => {
         expect(screen.getByDisplayValue("夕焼け")).toBeTruthy();
     });
 
+    /**
+     * **公開範囲も控えて戻す。** 控えないと、「親しい友達」を選んで設定へ行き
+     * （画面が案内する）、戻って投稿すると黙って全体に公開されていた
+     */
+    it("公開範囲を控え、戻すときも戻す（黙って全体に公開にしない）", async () => {
+        const { container } = render(<UploadPage />);
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, new File(["x"], "IMG_0003.jpg", { type: "image/jpeg" }));
+        await userEvent.click(screen.getByRole("radio", { name: /親しい友達/ }));
+        hide();
+        await waitFor(() => expect(draft.save).toHaveBeenCalled());
+        expect((draft.save.mock.calls.at(-1)![0] as { audience?: string }).audience).toBe("closeFriends");
+    });
+
+    it("控えの公開範囲を戻す。古い控え（公開範囲なし）は全体に公開", async () => {
+        draft.read.mockResolvedValue({
+            t: Date.now(), userId: "me", category: "", tags: "", asOnePost: false, audience: "followers",
+            items: [{ file: new File(["x"], "IMG_0004.jpg", { type: "image/jpeg" }), title: "", description: "", location: "" }],
+        });
+        const { unmount } = render(<UploadPage />);
+        await waitFor(() => expect(screen.getByRole("radio", { name: /フォロワーのみ/ })).toBeChecked());
+        unmount();
+        draft.read.mockResolvedValue({
+            t: Date.now(), userId: "me", category: "", tags: "", asOnePost: false,
+            items: [{ file: new File(["x"], "IMG_0005.jpg", { type: "image/jpeg" }), title: "", description: "", location: "" }],
+        });
+        render(<UploadPage />);
+        await waitFor(() => expect(mockShowToast.mock.calls.some((c) => String(c[0]).includes("書きかけを戻しました"))).toBe(true));
+        expect(screen.getByRole("radio", { name: /全体に公開/ })).toBeChecked();
+    });
+
     it("控えは自分のもの（userId）として保存し、読むときも自分の分だけを頼む", async () => {
         const { container } = render(<UploadPage />);
         await waitFor(() => expect(draft.read).toHaveBeenCalledWith("me"));
