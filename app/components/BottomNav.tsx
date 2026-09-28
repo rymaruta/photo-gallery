@@ -184,7 +184,9 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
             aria-current={active ? "page" : undefined}
-            className={`${cell} transition-colors ${active ? "text-accent" : "text-white/60 hover:text-white"}`}
+            // **選択中は白**（デザインシステム「黒塗りの真鍮」: 下部ナビのアイコンは白。
+            // 真鍮は合図の色で、選択は担わない）。塗りつぶしのアイコンで形も変わる
+            className={`${cell} transition-colors ${active ? "text-white" : "text-white/60 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />
