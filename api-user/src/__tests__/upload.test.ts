@@ -443,11 +443,15 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         expect(mockDropOld).not.toHaveBeenCalled();
     });
 
-    it("保存できなかったら、作ったコピーを消す（private/ は誰にも消せない孤児になる）", async () => {
+    // 🔴 **この口ではコピー（`private/`）を一切消さない。** 鍵は `uploads/` から
+    // 機械的に決まるので、同時に走る本送信や別タブの編集が同じ鍵を指す行を
+    // 書いている最中かもしれない。使用中かの一覧（結果整合）では見えない
+    // ——片づけると表示中の写真の本体を消しうる（レビューで3回再現）
+    it("保存できなかったとき、作ったコピーは消さない（孤児が残る側に倒す）", async () => {
         mockPutPhoto.mockRejectedValue(new Error("throttled"));
         const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
         expect(res.statusCode).toBe(500);
-        expect(droppedFrom()).toEqual(["private/u1/p1.webp"]);
+        expect(droppedFrom()).toEqual([]);
     });
 
     it("コピーできなければ保存しない（絞ったと表示しながら公開の置き場に残さない）", async () => {
@@ -492,10 +496,7 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         expect(droppedFrom()).toEqual(["uploads/u1/p1_thumb.webp"]);
     });
 
-    // 🔴 `private/` の置き場は `uploads/` の鍵から機械的に決まるので、2つの行が
-    // 同じ実体を指しうる。確かめずに消すと、もう1つの写真が割れる
-    it("断るときに消すコピーも、別の行が使っていれば消さない", async () => {
-        mockListMyMedia.mockResolvedValue([{ id: "R", src: "https://cdn.example.com/private/u9/r.webp", thumbSrc: PRIV }]);
+    it("公開範囲を変えた再送で断るときも、コピーは消さない", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: BASE.publicUrl, published: true,
@@ -503,7 +504,20 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         });
         const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
         expect(res.statusCode).toBe(409);
-        expect(droppedFrom(), "別の写真のサムネを消している").not.toContain("private/u1/p1.webp");
+        expect(droppedFrom()).toEqual([]);
+    });
+
+    it("再送で足りないぶんのコピーに失敗したら、500 で止め、何も消さない", async () => {
+        mockCopyAll.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: PRIV, audience: "followers", published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/p1_thumb.webp" }));
+        expect(res.statusCode).toBe(500);
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(droppedFrom()).toEqual([]);
     });
 
     it("再送で書き直したあとも、別の行が使っている元は消さない", async () => {
@@ -515,13 +529,6 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         mockListMyMedia.mockResolvedValue([{ id: "X", src: "https://cdn.example.com/uploads/u1/X.webp" }]);
         await invoke(event("u1", { ...BASE, audience: "followers", thumbUrl: "https://cdn.example.com/uploads/u1/X.webp" }));
         expect(droppedFrom()).not.toContain("uploads/u1/X.webp");
-    });
-
-    it("行を書き終えたあとの失敗では、コピーを消さない（行がそれを指している）", async () => {
-        mockDropOld.mockRejectedValueOnce(new Error("s3 down"));   // 元を消すところで投げる
-        const res = await invoke(event("u1", { ...BASE, audience: "followers" }));
-        expect(res.statusCode).toBe(500);
-        expect(droppedFrom(), "書いた行が指すコピーを消している").not.toContain("private/u1/p1.webp");
     });
 
     it("再送で書き直せなかった（あいだで誰かが書いた）ら、元は触らない", async () => {
@@ -547,7 +554,7 @@ describe("savePhoto: 公開範囲を絞った写真は private/ へ移す", () =
         expect(res.statusCode).toBe(409);
         expect(JSON.parse(res.body).error).toContain("写真の編集");
         expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
-        expect(droppedFrom(), "上で作ったコピーが孤児で残る").toEqual(["private/u1/p1.webp"]);
+        expect(droppedFrom(), "コピーを消している").toEqual([]);
     });
 });
 

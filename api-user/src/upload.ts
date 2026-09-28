@@ -163,15 +163,17 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
 };
 
 /**
- * **自分のどの行も使っていない実体だけ消す。** 移した元（`uploads/`）も、
- * 保存しなかったときのコピー（`private/`）も、必ずここを通す。
+ * **移した元（`uploads/`）を消す。自分のどの行も使っていないものだけ。**
  *
  * 入口の確かめ（`isOwnUploadUrl`）は「自分の領域か」しか見ないので、サムネや
- * 2枚目に**自分の別の写真の URL**を渡せる。`private/` の置き場は `uploads/` の
- * 鍵から機械的に決まるので、**2つの行が同じ実体を指しうる**——確かめずに
- * 消すと、その写真が割れる（取り返しのつかない削除）。
- * `discardUpload` と同じく行を読み直し、読めなければ**消さない**
- * （孤児が残るだけで済む側）。
+ * 2枚目に**自分の別の写真の URL**を渡せる。確かめずに消すと、その写真が割れる
+ * （取り返しのつかない削除）。`discardUpload` と同じく行を読み直し、読めなければ
+ * **消さない**（孤児が残るだけで済む側）。
+ *
+ * ⚠️ 一覧は結果整合（GSI）なので、**直前に書かれた行は見落としうる**。だから
+ * **コピー（`private/`）はこの口では一切消さない**——同じ写真の本送信・別タブの
+ * 編集が同じ鍵へ書いている最中でも見えないため。元を消す側に残る窓（書き直した
+ * 直後に別タブで公開へ戻された場合）は、`photoUpdate.ts` の移動と同じ幅で許容する。
  */
 async function dropUnusedKeys(userId: string, keys: string[], logPrefix: string): Promise<void> {
     if (keys.length === 0) return;
@@ -189,7 +191,6 @@ async function dropUnusedKeys(userId: string, keys: string[], logPrefix: string)
     if (failed > 0) console.warn(`${logPrefix}: ${failed} 件を消せませんでした`);
 }
 const sourcesOf = (moves: Move[]) => moves.map((m) => m.from);
-const copiesOf = (moves: Move[]) => moves.map((m) => m.to);
 
 /** 置き場（`uploads/` と `private/`）の違いを除けば同じ実体を指すか */
 function sameUpload(a: unknown, b: unknown): boolean {
@@ -476,13 +477,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         }
     }
 
-    /** 行を書き終えたか。**書いたあとはコピーを消さない**（行がそれを指している） */
-    let written = false;
     try {
         await putPhoto(photo);
         // **行を書いたあとに元を消す。** ここで落ちても孤児が残るだけで、画面は
         // 正しく出る（行は新しい置き場を指している）
-        written = true;
         await dropUnusedKeys(userId, sourcesOf(moves), `savePhoto(${photo.id})`);
         // **写真を書いてからアルバムに足す。** 逆にすると、保存に失敗した
         // ときにアルバムへ「存在しない写真の ID」が残る。
@@ -514,8 +512,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 変わるので、今回の本文で書き直すと行と実体が食い違う。変えるなら写真の編集から
             if (existing && (existing.userId ?? existing.uploadedBy) === userId
                 && existing.src !== photo.src && sameUpload(existing.src, photo.src)) {
-                // 上でコピーした分は誰も指さない（行は元の置き場のまま）
-                await dropUnusedKeys(userId, copiesOf(moves), `savePhoto(${photo.id})`);
+                // **上でコピーした分も片づけない。** 別タブの写真の編集が同じ
+                // `private/` の鍵へ移している最中かもしれない（鍵は機械的に決まる）
                 return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({
                     error: "この写真は保存済みです。公開範囲を変えるときは、写真の編集から変えてください",
                 }) };
@@ -677,10 +675,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
         }
         console.error("savePhoto error:", e);
-        // 保存できなかった。上で作ったコピーは、どの行も使っていなければ消す
-        // （`private/` は画面からも `discardUpload` からも消せない）。
-        // **行を書き終えたあとの失敗なら触らない**（行がコピーを指している）
-        if (!written) await dropUnusedKeys(userId, copiesOf(moves), `savePhoto(${photo.id})`);
+        // **上で作ったコピーは片づけない。** 同じ写真の本送信が同時に走っていれば、
+        // 同じ `private/` の鍵を指す行をこれから書く（鍵は機械的に決まる）
+        // ——一覧で確かめても、まだ書かれていない行は見えない。孤児が残る側に倒す
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "保存に失敗しました" }) };
     }
 };
