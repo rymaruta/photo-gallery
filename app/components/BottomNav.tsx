@@ -24,8 +24,8 @@ import PostSheet from "./PostSheet";
  *
  * **全ページ・全幅に出す。** 幅で出し分けない——PC だけ「投稿」の入口が
  * 消えることになる（ハンバーガーは マップ／いいねした写真／マイページ／
- * アルバム／管理 で、投稿を持っていない）。中身はヘッダーと同じ
- * `max-w-5xl` に寄せるので、広い画面で間延びしない。
+ * アルバム／管理 で、投稿を持っていない）。カプセルは端末の幅ほど
+ * （`max-w-[480px]`）で止めて中央に置くので、広い画面で間延びしない。
  *
  * **寸法と字は px で固定する。** このサイトは 640px 未満で root を 14px に
  * 落とすので、rem の指定（`w-6`・`text-xs`）は端末で 21px・10.5px に縮む
@@ -166,7 +166,7 @@ export default function BottomNav() {
                         onClick={openPost}
                         aria-haspopup="dialog"
                         aria-expanded={sheetOpen}
-                        className={`${cell} text-white/60 hover:text-white transition-colors`}
+                        className={`${cell} text-white/72 hover:text-white transition-colors`}
                         style={{ touchAction: "manipulation" }}
                     >
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -204,9 +204,12 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // どちらも `no-store` で配る＝画面に出入りするたび落とし直す
             prefetch={false}
             aria-current={active ? "page" : undefined}
+            // **選んでいないタブは白72%**（デザインシステムの非選択 `#B8B8B8`）。
+            // カプセルは写真が透けるので、白60%だと明るい写真の上で 2.6:1 まで
+            // 落ちる（`.tabbar-capsule` の brightness と合わせて 4.5:1 を保つ）。
             // **選択中は白＋白16%の丸い面**（デザインシステム「黒塗りの真鍮」: 下部ナビの
             // アイコンは白。真鍮は合図の色で、選択は担わない）。塗りつぶしのアイコンで形も変わる
-            className={`${cell} transition-colors ${active ? "bg-white/16 text-white" : "text-white/60 hover:text-white"}`}
+            className={`${cell} transition-colors ${active ? "bg-white/16 text-white" : "text-white/72 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />

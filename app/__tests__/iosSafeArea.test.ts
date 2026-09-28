@@ -99,7 +99,9 @@ describe("横向きの iPhone", () => {
         for (const f of ["app/GalleryPageClient.tsx", "app/components/SpotGuideClient.tsx"]) {
             const src = code(f);
             expect(src, f).not.toContain("100vh-168px");
-            expect(src, f).toContain("lg:max-h-[calc(100vh_-_var(--header-h)_-_96px_-_env(safe-area-inset-bottom,0px))]");
+            // 下部タブは実寸の変数（safe-area 込み）で引く。決め打ちの数だと
+            // タブの形が変わったときに柱の下端が潜る（カプセル化で 4px 潜った）
+            expect(src, f).toContain("lg:max-h-[calc(100vh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_32px)]");
         }
     });
 

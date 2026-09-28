@@ -164,6 +164,22 @@ describe("浮いたカプセル（iOS の案B・owner の決定 2026-09-27）", 
         expect(withSurface.map((el) => el.textContent)).toEqual(["さがす"]);
     });
 
+    it("写真が透けても字が読める: 非選択は白72%・透けた写真は brightness 0.6 で暗くする", () => {
+        // モックの値（白60%・ぼかしだけ）だと真っ白な写真の上で 2.62:1
+        // （レビューが計算）。72% ＋ 0.6 で最悪でも 4.93:1
+        nav.pathname = ROUTES.MAP;
+        render(<BottomNav />);
+        const cells = Array.from(
+            screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
+        ).filter((el) => el.getAttribute("aria-current") !== "page");
+        expect(cells).toHaveLength(4);
+        for (const el of cells) expect(el.className.split(/\s+/)).toContain("text-white/72");
+        const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8");
+        const rule = css.slice(css.indexOf(".tabbar-capsule {"), css.indexOf("}", css.indexOf(".tabbar-capsule {")));
+        expect(rule).toMatch(/[^-]backdrop-filter:[^;]*brightness\(0\.6\)/);
+        expect(rule).toMatch(/-webkit-backdrop-filter:[^;]*brightness\(0\.6\)/);
+    });
+
     it("下の隙間は 22px と safe-area の大きい方（ホームインジケーターに被らない）", () => {
         // **ソースで見る。** jsdom の CSS の解釈は `max()` と `env()` を落とすので、
         // 描いた DOM の style からは読めない（実ブラウザでは効く）

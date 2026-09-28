@@ -93,11 +93,14 @@ function HomeColumns({ rail, children }: { rail: React.ReactNode; children: Reac
           **高さを画面に収める。** 貼り付いたまま画面より高くなると、
           下の節（機材）が**どうやっても読めない**——本文を送っても柱は
           動かないので、届く手段が1つも無い（レビューが 1280×600 で計測）。
-          引くのはヘッダー 72 ＋ 上の余白 16 ＋ 下部タブ 64 ＋ 下の余白 16。
+          引くのはヘッダー ＋ 上の余白 16 ＋ 下部タブ（`--bottom-bar-h`・浮いた
+          カプセル62＋下の隙間22、safe-area 込みの実寸）＋ 下の余白 16。
+          下部タブを決め打ちの数で引くと、形が変わったとき柱がタブの裏に潜る
+          （57px の頃の「96px」のままカプセルにしたら 4px 潜った）。
           **`overflow-y-auto` を付けられるのはこちらだけ**——「さがす」の
           柱は並び替えの一覧が `absolute` で吊り下がるので、切り取る箱を
           作ると隠れる */}
-      <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh_-_var(--header-h)_-_96px_-_env(safe-area-inset-bottom,0px))] lg:overflow-y-auto">{rail}</aside>
+      <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--header-h)_+_16px)] lg:max-h-[calc(100vh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_32px)] lg:overflow-y-auto">{rail}</aside>
     </div>
   );
 }

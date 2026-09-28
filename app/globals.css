@@ -184,11 +184,15 @@ body {
 
 /* 画面下の浮いたカプセル（`BottomNav`・iOS の `Main.dc.html` の案B）。
    すりガラスが効かない端末では、同じ色の不透明な面に落とす
-   （透けた 62% のままだと、下の写真の上で字が読めなくなる）。 */
+   （透けた 62% のままだと、下の写真の上で字が読めなくなる）。
+   **透けた写真を暗くする（brightness 0.6）。** モックの値（62%・ぼかしだけ）
+   では真っ白な写真の上で、選んでいないタブ（白72%）が 3.07:1・選んだタブの
+   10px のラベルが 3.23:1 まで落ちる。0.6 でそれぞれ 4.93:1・5.06:1。
+   暗い写真の上では見た目が変わらない（黒は暗くしても黒）。 */
 .tabbar-capsule {
   background: rgb(40 40 42 / 0.62);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%) brightness(0.6);
+  backdrop-filter: blur(22px) saturate(160%) brightness(0.6);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .tabbar-capsule {
