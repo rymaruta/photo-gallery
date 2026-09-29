@@ -44,6 +44,9 @@ import { spotSavedKey } from "../../lib/utils/savedSpotKey";
  *    **並べる親は `grid grid-cols-3`**（`flex-1` だと、外箱で包んだ側だけ
  *    内側の余白ぶん狭くなる——実測 82 / 96 / 96px）。外箱は作らず、失敗の断りは
  *    行の下に1段ぶち抜きで出す（`col-span-3`・細い列に押し込まない）。
+ *    🔴 **断りには `order-last` が要る。** 格子は前の空きへ戻って詰めないので、
+ *    「行きたい」の直後に3列ぶんの断りがあると、地図とシェアが3段目へ落ちる
+ *    （Chromium 実測: 1段目は「行きたい」だけ）。DOM の順は変えない＝読み上げの順も同じ。
  *    字は iOS と同じ短い文言（`Want to go`）で、読み込み中も字を変えない
  *    （「読み込み中…」は狭い列で溢れる。まだ分からないことは押せない＋`aria-busy` で伝える）
  *
@@ -146,7 +149,7 @@ export default function SaveSpotButton({
        （押すと既に保存済みのものをもう一度保存することになる）。
        `/favorites` が同じ場面で同じ断りを出している */
     const alert = failed ? (
-        <p role="alert" className={tile ? "col-span-3 m-0 text-xs text-danger" : "text-xs text-danger"}>
+        <p role="alert" className={tile ? "col-span-3 order-last m-0 text-xs text-danger" : "text-xs text-danger"}>
             {en ? "Couldn't load your saved spots. " : "保存した場所を読み込めませんでした。"}
             <button onClick={retry}
                     className={tile ? "underline text-white/80 hover:text-white min-h-[44px] px-1" : "underline text-white/80 hover:text-white"}>

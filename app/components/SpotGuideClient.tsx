@@ -296,7 +296,8 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
                     部品は撮影地ページと同じ `SaveSpotButton`（形だけ `tile`）——
                     同じ3状態の扱いを2つ作らない。
-                    「地図で見る」は iOS では端末の地図アプリ、Web はサイトの撮影地マップ。
+                    「地図で見る」は iOS では端末の地図アプリ（英語 Open in Maps）、Web はサイトの
+                    撮影地マップなので英語は Map（端末の地図アプリとは名乗らない）。
                     **格子で3等分**（`flex-1` だと包んだ側だけ狭くなる）。PC は本文の列の幅
                     （36rem）で止める——スマホの形を横に引き伸ばさない（owner の指示） */}
                 <div className="pb-6 border-b border-white/10">

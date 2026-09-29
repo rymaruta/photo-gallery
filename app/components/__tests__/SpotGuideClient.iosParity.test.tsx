@@ -78,6 +78,14 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         expect(document.querySelector("header p.font-mono")!.className).not.toContain("text-accent");
     });
 
+    it("公開の小見出しは読み上げから外し（パンくずと同じ語）、下書きの「下書き・未確認」は読ませる", () => {
+        const { unmount } = view();
+        expect(document.querySelector("header p.font-mono")!.getAttribute("aria-hidden")).toBe("true");
+        unmount();
+        view({ ...SPOT, status: "review", verifiedBy: undefined, verifiedAt: undefined } as Spot);
+        expect(document.querySelector("header p.font-mono")!.hasAttribute("aria-hidden")).toBe(false);
+    });
+
     it("見出しの下は「地域 · N枚の写真」（数えた枚数）", () => {
         const { unmount } = view();
         expect(screen.getByText("香川県 観音寺市 · 0枚の写真")).toBeTruthy();
@@ -134,6 +142,8 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         view();
         const alert = await screen.findByRole("alert");
         expect(alert.className).toContain("col-span-3");
+        // 格子は前の空きへ戻らない。後ろへ回さないと地図とシェアが3段目へ落ちる（Chromium 実測）
+        expect(alert.className).toContain("order-last");
         expect(alert.parentElement).toBe(screen.getByRole("link", { name: "地図で見る" }).parentElement);
         expect(screen.getByRole("button", { name: "再試行" }).className).toContain("min-h-[44px]");
     });
