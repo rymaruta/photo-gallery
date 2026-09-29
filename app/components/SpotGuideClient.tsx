@@ -85,7 +85,7 @@ function SpotRows({ rows, isJa }: { rows: SpotRow[]; isJa: boolean }) {
                                 {n.region && <span className="block text-white/55 truncate" style={{ fontSize: "11px", lineHeight: "15px" }}>{n.region}</span>}
                             </span>
                             {dist && <span className="flex-shrink-0 text-white/55" style={{ fontSize: "13px" }}>{dist}</span>}
-                            <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/40" aria-hidden />
+                            <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/55" aria-hidden />
                         </Link>
                     </li>
                 );
