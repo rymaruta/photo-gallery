@@ -22,6 +22,25 @@ function setup(over: Partial<React.ComponentProps<typeof FilterBar>> = {}) {
 }
 
 describe("FilterBar", () => {
+    it("チップは iOS の色: 未選択は #1A1A1A＋白12%の縁＋#D4D4D4、選択中は白＋墨の600", () => {
+        setup({ values: { ...baseValues, category: "nature", selectedTags: ["swan"] } });
+        const cls = (el: HTMLElement) => el.className.split(/\s+/);
+        for (const off of [screen.getByRole("button", { name: "すべて" }), screen.getByRole("switch", { name: /lake/ })]) {
+            expect(cls(off)).toEqual(expect.arrayContaining(["bg-chip", "text-chip-text", "ring-1", "ring-inset", "ring-line"]));
+            expect(off.className).not.toContain("bg-white/[0.07]");
+            // キーボードの輪がある（以前は focus:ring-0 で、Tab で移ると縁まで消えていた）
+            expect(cls(off)).toEqual(expect.arrayContaining(["focus-visible:ring-2", "focus-visible:ring-accent"]));
+            expect(cls(off)).not.toContain("focus:ring-0");
+        }
+        for (const on of [screen.getByRole("button", { name: "自然" }), screen.getByRole("switch", { name: /swan/ })]) {
+            expect(cls(on)).toEqual(expect.arrayContaining(["bg-primary", "text-ink", "font-semibold"]));
+            expect(cls(on)).not.toContain("ring-line");
+            // 選択中の輪は内側の墨（白い地の上で真鍮は 1.93:1 で見えない・外側だと行で上下が切れる）
+            expect(cls(on)).toEqual(expect.arrayContaining(["ring-inset", "focus-visible:ring-2", "focus-visible:ring-ink"]));
+            expect(cls(on)).not.toContain("focus-visible:ring-accent");
+        }
+    });
+
     it("「すべて」と各カテゴリのチップが描画され、選択中に aria-pressed が付く", () => {
         setup();
         expect(screen.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true");

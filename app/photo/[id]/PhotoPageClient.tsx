@@ -16,7 +16,7 @@ import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
  * 640px 未満（root 14px）で縮むため。指で押す的としても、読む字としても
  * 小さすぎた。**px で書く。**
  */
-const CHIP_CLASS = "inline-flex items-center min-h-[32px] px-3 rounded-full bg-chip ring-1 ring-line text-[12px] text-chip-text hover:bg-surface-2 hover:text-white transition-colors";
+const CHIP_CLASS = `inline-flex items-center min-h-[32px] px-3 rounded-full ${CHIP_OFF} text-[12px] transition-colors`;
 import { ArrowLeftIcon } from "@heroicons/react/24/solid";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartIconOutline } from "@heroicons/react/24/outline";
@@ -65,6 +65,7 @@ import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import SpotLinkCard from "../../components/SpotLinkCard";
 import type { SpotLink } from "@/lib/data/spotLink";
+import { CHIP_OFF } from "@/app/components/chipStyles";
 
 // EXIF情報の型定義
 type ExtractedExif = {

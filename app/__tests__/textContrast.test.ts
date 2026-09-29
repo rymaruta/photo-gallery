@@ -318,8 +318,19 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
  * 薄い白は暗い面なので見ない。**`bg-primary/90` は見る**（写真の上の白い札で、
  * 明るい塗りのまま）。`bg-white` を見ていなかったので、撮影スポット一覧の
  * 選んだテーマの件数が白地に白のまま通っていた。
+ *
+ * **`CHIP_ON`（`app/components/chipStyles.ts`・中身は `bg-primary`）も塗りとして見る。**
+ * チップの色を定数に移したら、行に `bg-primary` の綴りが無くなり、この検査が
+ * 絞り込みとスポット一覧のチップを黙って見なくなった（件数の下限は満たすので空振りにもならない）。
  */
 describe("app 全体: 明るい塗りに白い文字を載せない", () => {
+    it("CHIP_ON は明るい塗り（bg-primary）のまま——変えたら上の走査の見方も変える", async () => {
+        const { CHIP_ON } = await import("../components/chipStyles");
+        expect(CHIP_ON.split(/\s+/)).toContain("bg-primary");
+        // 定数の中身は .tsx の走査に入らないので、ここで墨であることを見る
+        expect(CHIP_ON).not.toMatch(/(^|\s|:)text-white/);   // hover:・focus-visible: の白も（白い地に白）
+    });
+
     it("bg-accent-fill / bg-primary / bg-white の行に text-white が無い", async () => {
         const { readdirSync, statSync } = await import("node:fs");
         const files: string[] = [];
@@ -341,9 +352,9 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
             src.forEach((line, i) => {
                 // 三項演算子の片側ごとに見る（非選択側の `text-white/70` を巻き込まない）
                 const segs = line.split(/["'`]/);
-                if (!segs.some((seg) => /\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))/.test(seg))) return;
+                if (!segs.some((seg) => /\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))|\bCHIP_ON\b/.test(seg))) return;
                 for (const seg of segs) {
-                    if (!/\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))/.test(seg)) continue;
+                    if (!/\bbg-(?:(?:accent-fill|primary)\b|white(?![\w/-]))|\bCHIP_ON\b/.test(seg)) continue;
                     seen++;
                     if (WHITE.test(seg)) bad.push(`${rel}:${i + 1} ${seg.trim().slice(0, 80)}`);
                 }
