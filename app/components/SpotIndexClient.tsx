@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
+import { CHIP_ON, CHIP_OFF } from "./chipStyles";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -85,7 +86,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                     <button type="button" role="switch" aria-checked={theme === null}
                             onClick={() => setTheme(null)}
                             className={`inline-flex items-center rounded-full transition-colors ${
-                                theme === null ? "bg-primary text-ink" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                theme === null ? CHIP_ON : CHIP_OFF
                             }`}
                             style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                         {isJa ? "すべて" : "All"}
@@ -94,7 +95,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                         <button key={c} type="button" role="switch" aria-checked={theme === c}
                                 onClick={() => setTheme(theme === c ? null : c)}
                                 className={`inline-flex items-center gap-1.5 rounded-full transition-colors ${
-                                    theme === c ? "bg-primary text-ink" : "bg-chip text-chip-text hover:bg-surface-2 hover:text-white"
+                                    theme === c ? CHIP_ON : CHIP_OFF
                                 }`}
                                 style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
                             {c}

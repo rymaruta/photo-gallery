@@ -16,6 +16,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import Thumb from "./Thumb";
 import UserAvatar from "./UserAvatar";
 import { FEED_SIZES_XL } from "./gridSizes";
+import { CHIP_OFF } from "./chipStyles";
 
 type Props = {
     photo: Photo;
@@ -234,7 +235,7 @@ export default function TimelineCard({
                             key={t}
                             href={collectionPath("tag", slugify(t, "tag"))}
                             prefetch={false}
-                            className="inline-flex items-center rounded-full bg-chip text-chip-text hover:bg-surface-2 hover:text-white transition-colors"
+                            className={`inline-flex items-center rounded-full ${CHIP_OFF} transition-colors`}
                             style={{ fontSize: "12px", lineHeight: "16px", padding: "3px 9px", touchAction: "manipulation" }}
                         >
                             #{t.replace(/^#/, "")}
