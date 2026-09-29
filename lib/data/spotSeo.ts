@@ -73,7 +73,6 @@ export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
     };
 }
 
-
 /** `km` はこのスポットからの距離（両方に座標があるときだけ・画面の「約◯km」） */
 export type SameAreaSpot = { slug: string; name: string; region?: string; km?: number };
 
@@ -88,6 +87,37 @@ export type SameAreaSpot = { slug: string; name: string; region?: string; km?: n
  * - 手で選んだ近くのスポットと重ねない
  * - 座標の無いものは最後に、名前の順で
  */
+/**
+ * 画面の「約◯km」に使う距離。**小数2桁に丸めて渡す**（丸めない値は 1ページ平均 137 バイト
+ * 余計に HTML へ焼かれる）。0.1 で丸めると 0.95〜1km が「1km以内」から「約1.0km」に変わるので
+ * 2桁（`distanceLabel` の刻みの境目を動かさない）
+ */
+function roundKm(d: number): number {
+    return Math.round(d * 100) / 100;
+}
+
+/** 一覧の1行の形（同じ県の一覧と、手で選んだ近くのスポットで共用） */
+function toRow(s: Spot, here: Spot["coords"]): SameAreaSpot {
+    return {
+        slug: s.slug,
+        name: s.name,
+        region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
+        ...(here && s.coords ? { km: roundKm(haversineKm(here, s.coords)) } : {}),
+    };
+}
+
+/**
+ * **手で選んだ「近くの撮影スポット」**（`nearbySpotIds` の順のまま）。
+ * 画面に出してよいもの（`visibleSpots`）だけ。距離は両方に座標があるときだけ付く
+ */
+export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): SameAreaSpot[] {
+    const shown = visibleSpots(spots);
+    return (spot.nearbySpotIds ?? [])
+        .map((id) => shown.find((s) => s.spotId === id))
+        .filter((s): s is Spot => Boolean(s))
+        .map((s) => toRow(s, spot.coords));
+}
+
 export function sameAreaSpots(spot: Spot, spots: readonly Spot[] = SPOTS, limit = 6): SameAreaSpot[] {
     const handPicked = new Set(spot.nearbySpotIds ?? []);
     const here = spot.coords;
@@ -97,12 +127,7 @@ export function sameAreaSpots(spot: Spot, spots: readonly Spot[] = SPOTS, limit 
         .map((s) => ({ s, d: here && s.coords ? haversineKm(here, s.coords) : Number.POSITIVE_INFINITY }))
         .sort((x, y) => x.d - y.d || x.s.name.localeCompare(y.s.name, "ja"))
         .slice(0, limit)
-        .map(({ s, d }) => ({
-            slug: s.slug,
-            name: s.name,
-            region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
-            ...(Number.isFinite(d) ? { km: d } : {}),
-        }));
+        .map(({ s }) => toRow(s, here));
 }
 
 /** 同じ県の節の見出しに使う名前。**海外は区画名（海外）ではなく国名** */

@@ -238,7 +238,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                 )}
             </div>
             {!mapHero && needsVisibleCredit(spot) && (
-                <p className="m-0 mt-1.5 px-4 sm:px-6 md:px-8 text-white/60 text-right"
+                /* 左右は本文の列にそろえる（最大幅まで同じ箱。余白だけ合わせると
+                   1152px を超える画面で右端が本文から外れた・実測 1440px で 144px） */
+                <p className="m-0 mt-1.5 mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 text-white/60 text-right"
                    style={{ fontSize: "11px", lineHeight: "15px" }}>
                     {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
                         ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}

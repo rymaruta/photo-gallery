@@ -212,7 +212,10 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         const credit = screen.getByRole("link", { name: "Wikimedia Commons" }).closest("p")!;
         expect(box.contains(credit), "出典が写真に重なっている").toBe(false);
         expect(before(box, credit)).toBe(true);
-        expect(box.querySelector("[class*='gradient']"), "写真に幕が掛かっている").toBeNull();
+        // 写真の箱の中は写真だけ（幕の書き方は `bg-gradient-*` も `bg-linear-*` もあるので、クラスでなく中身で見る）
+        expect(Array.from(box.children).map((c) => c.tagName), "写真の上に何か重なっている").toEqual(["IMG"]);
+        // 出典の行は本文の列と同じ箱（最大幅まで・1152px を超えると外れた）
+        expect(credit.className.split(/\s+/)).toEqual(expect.arrayContaining(["mx-auto", "max-w-5xl", "lg:max-w-6xl"]));
     });
 
     it("ほかのスポットの行は面の箱に、名前・距離・矢印（距離は iOS と同じ刻み）", () => {
