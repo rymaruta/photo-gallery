@@ -174,9 +174,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（日付として読み取れないか、1990年より前・未来の日付です）" }) };
     }
 
-    // **形の違うスポットは断る**（外すのは null か空文字）。読めない値を REMOVE に倒すと、
-    // 送り損ねただけで付けてあった紐付けが黙って消える（撮影日と同じ理由）
-    if (typeof body.spotId === "string" && body.spotId.trim() !== "" && !sanitizeSpotId(body.spotId)) {
+    // **形の違うスポットは断る**（外すのは null か空文字だけ）。読めない値を REMOVE に倒すと、
+    // 送り損ねただけで付けてあった紐付けが黙って消える（撮影日と同じ理由）。
+    // 数・真偽・オブジェクトも同じ——文字列だけ見ていると `123` で消えた
+    if ("spotId" in body && body.spotId !== null
+        && !(typeof body.spotId === "string" && body.spotId.trim() === "")
+        && !sanitizeSpotId(body.spotId)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの指定が正しくありません" }) };
     }
 

@@ -152,10 +152,27 @@ describe("updatePhotoVisibility", () => {
             expect(upd().UpdateExpression).toMatch(/REMOVE .*#spotId/);
         });
 
+        it("空文字でも外せる", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", spotId: SPOT } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { spotId: "" }));
+            expect(res.statusCode).toBe(200);
+            expect(upd().UpdateExpression).toMatch(/REMOVE .*#spotId/);
+        });
+
         it("形の違う spotId は 400（付けてあった紐付けを黙って消さない）", async () => {
-            const res = await invoke(event("u1", "p1", { spotId: "高屋神社" }));
-            expect(res.statusCode).toBe(400);
-            expect(mockDdbSend).not.toHaveBeenCalled();
+            // 文字列だけでなく、数・真偽・オブジェクトも（文字列だけ見ていると `123` で消えた）
+            for (const spotId of ["高屋神社", "sp_XYZ", 123, false, {}, ["sp_0123456789ab"]]) {
+                mockDdbSend.mockReset();
+                const res = await invoke(event("u1", "p1", { spotId }));
+                expect(res.statusCode, JSON.stringify(spotId)).toBe(400);
+                expect(mockDdbSend).not.toHaveBeenCalled();
+            }
+        });
+
+        it("付け替えたら静的サイトを作り直す（スポットのページに出す）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { spotId: SPOT }));
+            expect(mockRebuild).toHaveBeenCalled();
         });
 
         it("他人の写真には付けられない", async () => {
