@@ -8,10 +8,11 @@
 // 台帳（`SPOTS`）を読むので**サーバー側だけで呼ぶ**（`spotLink.ts` の冒頭と同じ理由）。
 
 import { SPOTS, type Spot } from "./spots";
-import { spotAreaOf, sameAreaAs, type SpotAreaRef } from "./spotLink";
+import { sameAreaAs, type SpotAreaRef } from "./spotLink";
 import { visibleSpots, isPublished } from "../utils/spotGuide";
 import { siteConfig } from "../utils/seo";
 import { ROUTES } from "../routes";
+import { haversineKm, kmForLabel } from "../utils/journey";
 
 /** スポットのページの URL（canonical と同じ形） */
 export function spotPageUrl(spot: Pick<Spot, "slug">): string {
@@ -72,17 +73,30 @@ export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
     };
 }
 
-/** 2点間の距離（km）。並べる順に使うだけなので球面の近似で足りる */
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-    const rad = Math.PI / 180;
-    const dLat = (b.lat - a.lat) * rad;
-    const dLng = (b.lng - a.lng) * rad;
-    const h = Math.sin(dLat / 2) ** 2
-        + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-    return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+/** `km` はこのスポットからの距離（両方に座標があるときだけ・画面の「約◯km」） */
+export type SameAreaSpot = { slug: string; name: string; region?: string; km?: number };
+
+/** 一覧の1行の形（同じ県の一覧と、手で選んだ近くのスポットで共用） */
+function toRow(s: Spot, here: Spot["coords"]): SameAreaSpot {
+    return {
+        slug: s.slug,
+        name: s.name,
+        region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
+        ...(here && s.coords ? { km: kmForLabel(haversineKm(here, s.coords)) } : {}),
+    };
 }
 
-export type SameAreaSpot = { slug: string; name: string; region?: string };
+/**
+ * **手で選んだ「近くの撮影スポット」**（`nearbySpotIds` の順のまま）。
+ * 画面に出してよいもの（`visibleSpots`）だけ。距離は両方に座標があるときだけ付く
+ */
+export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): SameAreaSpot[] {
+    const shown = visibleSpots(spots);
+    return (spot.nearbySpotIds ?? [])
+        .map((id) => shown.find((s) => s.spotId === id))
+        .filter((s): s is Spot => Boolean(s))
+        .map((s) => toRow(s, spot.coords));
+}
 
 /**
  * **同じ県（海外は同じ国）のほかのスポット。** 近い順に `limit` 件。
@@ -101,14 +115,10 @@ export function sameAreaSpots(spot: Spot, spots: readonly Spot[] = SPOTS, limit 
     return visibleSpots(spots)
         .filter((s) => isPublished(s) && s.spotId !== spot.spotId && !handPicked.has(s.spotId)
             && sameAreaAs(spot, s))
-        .map((s) => ({ s, d: here && s.coords ? distanceKm(here, s.coords) : Number.POSITIVE_INFINITY }))
+        .map((s) => ({ s, d: here && s.coords ? haversineKm(here, s.coords) : Number.POSITIVE_INFINITY }))
         .sort((x, y) => x.d - y.d || x.s.name.localeCompare(y.s.name, "ja"))
         .slice(0, limit)
-        .map(({ s }) => ({
-            slug: s.slug,
-            name: s.name,
-            region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
-        }));
+        .map(({ s }) => toRow(s, here));
 }
 
 /** 同じ県の節の見出しに使う名前。**海外は区画名（海外）ではなく国名** */
