@@ -21,3 +21,15 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
         Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
+
+/**
+ * 距離の言い方（iOS の `NearbyPhotos.label` と同じ段の刻み）。
+ * 1km 未満は「1km以内」（座標が約1kmに丸めてあるので、それより細かく言わない）、
+ * 10km 未満は小数1桁、それ以上は整数。**数値でない・負なら空**（`NaNkm` を出さない）
+ */
+export function distanceLabel(km: number, isJa: boolean): string {
+    if (!Number.isFinite(km) || km < 0) return "";
+    if (km < 1) return isJa ? "1km以内" : "within 1 km";
+    if (km < 10) return isJa ? `約${km.toFixed(1)}km` : `about ${km.toFixed(1)} km`;
+    return isJa ? `約${Math.round(km)}km` : `about ${Math.round(km)} km`;
+}

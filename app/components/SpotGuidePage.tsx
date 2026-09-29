@@ -21,6 +21,7 @@ import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
+import { haversineKm } from "@/lib/utils/journey";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
@@ -56,6 +57,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
             slug: s.slug,
             name: s.name,
             region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
+            ...(spot.coords && s.coords ? { km: haversineKm(spot.coords, s.coords) } : {}),
         }));
 
     /**

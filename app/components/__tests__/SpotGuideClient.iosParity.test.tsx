@@ -194,4 +194,51 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         expect(before(screen.getByRole("heading", { name: "この場所の魅力" }), photos)).toBe(true);
         expect(screen.getByRole("link", { name: "ここで撮った写真を投稿する" })).toBeTruthy();
     });
+
+    // iOS の `heroPhoto`: スマホは 4:3、出典は写真の下（写真に重ねて暗くしない）
+    it("代表写真はスマホで 4:3、出典は写真の箱の外（下）に出し、写真を暗くする幕を掛けない", () => {
+        view({
+            ...SPOT,
+            coverImage: {
+                src: "/images/spots/takaya-jinja.jpg", alt: "高屋神社", aspectRatio: 1.5,
+                credit: "Someone", license: "cc-by-sa",
+                sourceUrl: "https://commons.wikimedia.org/wiki/File:X.jpg",
+                licenseLabel: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+                checkedAt: "2026-09-26", verifiedPlace: true,
+            },
+        } as Spot);
+        const box = screen.getByRole("img", { name: "高屋神社" }).parentElement!;
+        expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["aspect-[4/3]", "sm:aspect-[12/5]"]));
+        const credit = screen.getByRole("link", { name: "Wikimedia Commons" }).closest("p")!;
+        expect(box.contains(credit), "出典が写真に重なっている").toBe(false);
+        expect(before(box, credit)).toBe(true);
+        expect(box.querySelector("[class*='gradient']"), "写真に幕が掛かっている").toBeNull();
+    });
+
+    it("ほかのスポットの行は面の箱に、名前・距離・矢印（距離は iOS と同じ刻み）", () => {
+        render(
+            <ToastProvider>
+                <SpotGuideClient spot={SPOT} photos={[]} nearby={[]} locationPath={null} pageUrl={PAGE}
+                    area={{ slug: "kagawa", name: "香川県", nameEn: "Kagawa" }}
+                    sameArea={{ label: "香川県", spots: [
+                        { slug: "a", name: "父母ヶ浜", region: "香川県 三豊市", km: 12.4 },
+                        { slug: "b", name: "銭形砂絵", region: "香川県 観音寺市", km: 0.4 },
+                        { slug: "c", name: "座標なし", region: "香川県" },
+                    ] }} />
+            </ToastProvider>,
+        );
+        const list = screen.getByRole("heading", { name: "香川県の撮影スポット" }).nextElementSibling!;
+        expect(list.tagName).toBe("UL");
+        expect(list.className.split(/\s+/)).toEqual(expect.arrayContaining(["bg-surface", "rounded-2xl"]));
+        const rows = Array.from(list.querySelectorAll("a"));
+        expect(rows.map((a) => a.getAttribute("href"))).toEqual(["/spots/a", "/spots/b", "/spots/c"]);
+        expect(rows[0].textContent).toContain("約12km");
+        expect(rows[1].textContent).toContain("1km以内");
+        // 座標が無い行は距離を出さない（`NaNkm` を出さない）
+        expect(rows[2].textContent).not.toMatch(/km/);
+        for (const a of rows) {
+            expect(a.style.minHeight).toBe("54px");
+            expect(a.querySelectorAll("svg")).toHaveLength(2);   // 印と矢印
+        }
+    });
 });

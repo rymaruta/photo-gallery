@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { haversineKm } from "../journey";
+import { haversineKm, distanceLabel } from "../journey";
 
 // **プロフィールの「旅した総移動距離」を出している計算**。画面に数字が
 // 出るのに、テストが1本も無かった（この隣にあった `buildJourneyPoints` は
@@ -52,5 +52,23 @@ describe("haversineKm", () => {
         // 経度 179 と -179 は実距離2度ぶんだが、haversine は差の sin で
         // 見るので短い方（約222km）になる——この性質を明示しておく
         expect(haversineKm({ lat: 0, lng: 179 }, { lat: 0, lng: -179 })).toBeCloseTo(222.39, 1);
+    });
+});
+
+// iOS の `NearbyPhotos.label` と同じ刻み（1km 未満・10km 未満は小数1桁・それ以上は整数）
+describe("distanceLabel", () => {
+    it("刻みは iOS と同じ", () => {
+        expect(distanceLabel(0.4, true)).toBe("1km以内");
+        expect(distanceLabel(1, true)).toBe("約1.0km");
+        expect(distanceLabel(9.94, true)).toBe("約9.9km");
+        expect(distanceLabel(10, true)).toBe("約10km");
+        expect(distanceLabel(12.5, true)).toBe("約13km");
+        expect(distanceLabel(0.4, false)).toBe("within 1 km");
+        expect(distanceLabel(3.25, false)).toBe("about 3.3 km");
+    });
+    it("数でない・負の値は空（NaNkm を出さない）", () => {
+        expect(distanceLabel(Number.NaN, true)).toBe("");
+        expect(distanceLabel(Number.POSITIVE_INFINITY, true)).toBe("");
+        expect(distanceLabel(-1, true)).toBe("");
     });
 });

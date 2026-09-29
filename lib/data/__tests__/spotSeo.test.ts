@@ -80,6 +80,8 @@ describe("sameAreaSpots", () => {
         expect(spots.some((s) => s.spotId === ginzan.spotId)).toBe(false);
         const d = spots.map((s) => km(ginzan.coords!, s.coords!));
         expect(d).toEqual([...d].sort((a, b) => a - b));
+        // 画面の「約◯km」に使う距離を一緒に返す（並べた距離と同じ値）
+        list.forEach((x, i) => expect(x.km, x.slug).toBeCloseTo(d[i], 6));
     });
 
     it("近い順に選ぶ（名前の順ではない）: 選ばれなかった同じ県のスポットは、選んだどれより遠い", () => {
