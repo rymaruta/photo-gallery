@@ -50,6 +50,8 @@ export type Photo = {
     createdAt?: string;
     updatedAt?: string;
     coords?: { lat: number; lng: number }; // 撮影地（約1km精度に丸め済み）
+    /** 撮影スポット（`content/spots.json`）。撮った本人がスポットの画面から選んだときだけ */
+    spotId?: string;
     /**
      * 一覧（正方形に切り抜く場所）で写真のどこを中心に置くか。0〜1 の割合で、
      * `object-position: x% y%` になる。**未設定なら中央**（今までの挙動）。

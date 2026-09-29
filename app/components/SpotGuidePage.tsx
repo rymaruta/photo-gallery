@@ -26,11 +26,13 @@ import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
 /**
- * そのスポットの写真。**`spotId` が確認済みで付いているものだけ。**
+ * そのスポットの写真。**`spotId` が付いているものだけ。**
  *
  * owner:「写真の `location` 文字列が似ているだけで、未確認のスポットへ
- * 紐付けないでください」。だから**文字列の一致では拾わない**——
- * `spotId` は人が確認したものしか入らない（`lib/utils/spots.ts` の `linkStates`）。
+ * 紐付けないでください」。だから**文字列の一致では拾わない**。`spotId` が入る道は2つ:
+ * - 運営が候補を確かめた紐付け（`lib/utils/spots.ts` の `linkStates`）
+ * - **撮った本人がスポットの画面から選んだもの**（`api-user` の投稿・編集・2026-09-29）。
+ *   運営の確認は挟まない——本人が「ここで撮った」と言ったものを信じる
  */
 function photosForSpot(photos: Awaited<ReturnType<typeof loadAllPhotos>>, spotId: string) {
     return photos.filter((p) => p.published !== false && p.spotId === spotId);

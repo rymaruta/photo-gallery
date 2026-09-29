@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { randomUUID } from "crypto";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { updateUserList, readUserRows, UserListError } from "./userList";
-import { sanitizeText } from "./sanitize";
+import { sanitizeText, sanitizeSpotId } from "./sanitize";
 
 /**
  * 旅行プラン——**行きたい場所を「いつ・どの順で回るか」に並べる**口。
@@ -110,7 +110,7 @@ export const TRIP_PLAN_BUDGET_BYTES = 128 * 1024;
  * 外している）。`savedSpots.ts` がスラッグの**形**しか見ないのと同じ立場
  * ——実在しない ID を入れても、画面が出すときに解けずに落ちるだけ。
  */
-const isSpotId = (x: string) => /^sp_[0-9a-f]{12}$/.test(x);
+const isSpotId = (x: string) => sanitizeSpotId(x) === x;
 
 /** 撮影地スラッグの上限（**バイト**）。`savedSpots.ts` と同じ理由・同じ値 */
 const MAX_SLUG_BYTES = 200;
