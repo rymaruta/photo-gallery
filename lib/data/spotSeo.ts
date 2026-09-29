@@ -12,7 +12,7 @@ import { sameAreaAs, type SpotAreaRef } from "./spotLink";
 import { visibleSpots, isPublished } from "../utils/spotGuide";
 import { siteConfig } from "../utils/seo";
 import { ROUTES } from "../routes";
-import { haversineKm } from "../utils/journey";
+import { haversineKm, kmForLabel } from "../utils/journey";
 
 /** スポットのページの URL（canonical と同じ形） */
 export function spotPageUrl(spot: Pick<Spot, "slug">): string {
@@ -76,33 +76,13 @@ export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
 /** `km` はこのスポットからの距離（両方に座標があるときだけ・画面の「約◯km」） */
 export type SameAreaSpot = { slug: string; name: string; region?: string; km?: number };
 
-/**
- * **同じ県（海外は同じ国）のほかのスポット。** 近い順に `limit` 件。
- *
- * 「近くの撮影スポット」（手で選んだ `nearbySpotIds`）とは**別の節**で、関係があるとは
- * 名乗らない——見出しは「◯◯の撮影スポット」。近い順に並べるのは owner の判断
- * （2026-09-29「近くのスポットを座標から自動で出す」を了承）。手で選んだ節は残し、重ねない。
- *
- * - **人が確かめたもの（`published`）だけ**を指す（下書きへ検索の導線を張らない）
- * - 手で選んだ近くのスポットと重ねない
- * - 座標の無いものは最後に、名前の順で
- */
-/**
- * 画面の「約◯km」に使う距離。**小数2桁に丸めて渡す**（丸めない値は 1ページ平均 137 バイト
- * 余計に HTML へ焼かれる）。0.1 で丸めると 0.95〜1km が「1km以内」から「約1.0km」に変わるので
- * 2桁（`distanceLabel` の刻みの境目を動かさない）
- */
-function roundKm(d: number): number {
-    return Math.round(d * 100) / 100;
-}
-
 /** 一覧の1行の形（同じ県の一覧と、手で選んだ近くのスポットで共用） */
 function toRow(s: Spot, here: Spot["coords"]): SameAreaSpot {
     return {
         slug: s.slug,
         name: s.name,
         region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
-        ...(here && s.coords ? { km: roundKm(haversineKm(here, s.coords)) } : {}),
+        ...(here && s.coords ? { km: kmForLabel(haversineKm(here, s.coords)) } : {}),
     };
 }
 
@@ -118,6 +98,17 @@ export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): Sa
         .map((s) => toRow(s, spot.coords));
 }
 
+/**
+ * **同じ県（海外は同じ国）のほかのスポット。** 近い順に `limit` 件。
+ *
+ * 「近くの撮影スポット」（手で選んだ `nearbySpotIds`）とは**別の節**で、関係があるとは
+ * 名乗らない——見出しは「◯◯の撮影スポット」。近い順に並べるのは owner の判断
+ * （2026-09-29「近くのスポットを座標から自動で出す」を了承）。手で選んだ節は残し、重ねない。
+ *
+ * - **人が確かめたもの（`published`）だけ**を指す（下書きへ検索の導線を張らない）
+ * - 手で選んだ近くのスポットと重ねない
+ * - 座標の無いものは最後に、名前の順で
+ */
 export function sameAreaSpots(spot: Spot, spots: readonly Spot[] = SPOTS, limit = 6): SameAreaSpot[] {
     const handPicked = new Set(spot.nearbySpotIds ?? []);
     const here = spot.coords;

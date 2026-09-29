@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { haversineKm, distanceLabel } from "../journey";
+import { haversineKm, distanceLabel, kmForLabel } from "../journey";
 
 // **プロフィールの「旅した総移動距離」を出している計算**。画面に数字が
 // 出るのに、テストが1本も無かった（この隣にあった `buildJourneyPoints` は
@@ -70,5 +70,26 @@ describe("distanceLabel", () => {
         expect(distanceLabel(Number.NaN, true)).toBe("");
         expect(distanceLabel(Number.POSITIVE_INFINITY, true)).toBe("");
         expect(distanceLabel(-1, true)).toBe("");
+    });
+});
+
+// 画面へ渡す前に丸めても、言い方は丸める前と同じ（2回丸めで 6.445km が「約6.5km」になった）
+describe("kmForLabel", () => {
+    it("実データで言い方が変わった値が、丸めても同じ言い方のまま", () => {
+        for (const d of [6.445, 35.498, 0.996, 1.249, 2.345, 10.495]) {
+            expect(distanceLabel(kmForLabel(d), true), String(d)).toBe(distanceLabel(d, true));
+        }
+    });
+    it("0〜200km を細かく振っても、変わるのは 9.95〜10km（約10.0km → 約10km）だけ", () => {
+        const changed: number[] = [];
+        for (let i = 0; i <= 200_000; i++) {
+            const d = i / 1000 + 0.0003;
+            if (distanceLabel(kmForLabel(d), true) !== distanceLabel(d, true)) changed.push(d);
+        }
+        expect(changed.every((d) => d >= 9.95 && d < 10), String(changed.slice(0, 5))).toBe(true);
+    });
+    it("数でない・負の値はそのまま（distanceLabel が空にする）", () => {
+        expect(kmForLabel(Number.NaN)).toBeNaN();
+        expect(distanceLabel(kmForLabel(-1), true)).toBe("");
     });
 });

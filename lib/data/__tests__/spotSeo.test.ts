@@ -3,6 +3,7 @@ import { SPOTS, type Spot } from "../spots";
 import { spotAreaOf } from "../spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "../spotSeo";
 import { isPublished } from "../../utils/spotGuide";
+import { distanceLabel } from "../../utils/journey";
 import { siteConfig } from "../../utils/seo";
 
 /**
@@ -81,9 +82,8 @@ describe("sameAreaSpots", () => {
         const d = spots.map((s) => km(ginzan.coords!, s.coords!));
         expect(d).toEqual([...d].sort((a, b) => a - b));
         // 画面の「約◯km」に使う距離を一緒に返す（並べた距離と同じ値）
-        // 小数2桁に丸めて渡す（HTML に焼く桁を増やさない）
-        list.forEach((x, i) => expect(x.km, x.slug).toBeCloseTo(d[i], 2));
-        for (const x of list) expect(Number.isInteger(Math.round(x.km! * 100 * 1e6) / 1e6), x.slug).toBe(true);
+        // 見せる桁に丸めて渡す——**言い方は丸める前と同じ**（2回丸めで変わった）
+        list.forEach((x, i) => expect(distanceLabel(x.km!, true), x.slug).toBe(distanceLabel(d[i], true)));
     });
 
     it("近い順に選ぶ（名前の順ではない）: 選ばれなかった同じ県のスポットは、選んだどれより遠い", () => {
@@ -125,12 +125,14 @@ describe("sameAreaLabel", () => {
 describe("handPickedNearby", () => {
     const pub = SPOTS.filter(isPublished).filter((s) => s.coords);
     const [a, b, c] = pub;
-    it("書かれた順のまま、距離（小数2桁）を付けて返す・画面に出せないものと在らない id は落とす", () => {
-        const here = { ...a, nearbySpotIds: [c.spotId, "sp_does_not_exist", b.spotId] } as Spot;
-        const rows = handPickedNearby(here);
+    it("書かれた順のまま、距離を付けて返す・下書きと在らない id は落とす", () => {
+        // 画面に出せない下書き（`visibleSpots` が落とす）
+        const draft = { ...b, spotId: "sp_draft_x", slug: "draft-x", status: "review" } as Spot;
+        const here = { ...a, nearbySpotIds: [c.spotId, "sp_does_not_exist", draft.spotId, b.spotId] } as Spot;
+        const rows = handPickedNearby(here, [...SPOTS, draft]);
         expect(rows.map((r) => r.slug)).toEqual([c.slug, b.slug]);
-        expect(rows[0].km).toBeCloseTo(km(a.coords!, c.coords!), 2);
-        expect(rows[1].km).toBeCloseTo(km(a.coords!, b.coords!), 2);
+        expect(distanceLabel(rows[0].km!, true)).toBe(distanceLabel(km(a.coords!, c.coords!), true));
+        expect(distanceLabel(rows[1].km!, true)).toBe(distanceLabel(km(a.coords!, b.coords!), true));
     });
     it("座標が無ければ距離を付けない", () => {
         const here = { ...a, coords: undefined, nearbySpotIds: [b.spotId] } as Spot;
