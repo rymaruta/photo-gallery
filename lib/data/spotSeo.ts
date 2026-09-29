@@ -31,17 +31,19 @@ export function spotBreadcrumb(spot: Spot, area: SpotAreaRef | null): Array<{ na
     ];
 }
 
-/** 国名を住所の `addressCountry` に。**日本だけ ISO の JP**（ほかは台帳の表記のまま） */
+/**
+ * 住所の `addressCountry`。schema.org は ISO の2文字を求めるので**日本（JP）だけ書く**
+ * ——台帳の海外の国名は日本語表記（「フランス」）で、コードへの対応表を持っていない
+ */
 function countryOf(spot: Spot): string | undefined {
-    const c = spot.region?.country;
-    if (!c) return undefined;
-    return c === "日本" ? "JP" : c;
+    return spot.region?.country === "日本" ? "JP" : undefined;
 }
 
 /**
  * 観光地の構造化データ。**台帳に在る項目だけ書く**（無い項目を空で出さない）。
  *
- * - 座標は台帳の値（約1km に丸めてある）。地点を名乗るのには足りる
+ * - **座標（`geo`）は書かない。** 台帳の座標は約1km に丸めてあり、画面も「位置はおおよそ」と
+ *   断っている。構造化データに書くと、ずれたピンを正確な地点として渡すことになる（住所で足りる）
  * - 画像は**表に出せる代表写真があるときだけ**（`generateMetadata` の OGP と同じ判断）
  */
 export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
@@ -62,9 +64,6 @@ export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
         ...(spot.summary ? { description: spot.summary } : {}),
         url: spotPageUrl(spot),
         ...(opts.image ? { image: opts.image } : {}),
-        ...(spot.coords
-            ? { geo: { "@type": "GeoCoordinates", latitude: spot.coords.lat, longitude: spot.coords.lng } }
-            : {}),
         ...(address ? { address } : {}),
     };
 }
@@ -85,8 +84,8 @@ export type SameAreaSpot = { slug: string; name: string; region?: string };
  * **同じ県（海外は同じ国）のほかのスポット。** 近い順に `limit` 件。
  *
  * 「近くの撮影スポット」（手で選んだ `nearbySpotIds`）とは**別の節**で、関係があるとは
- * 名乗らない——見出しは「◯◯の撮影スポット」。座標が近い＝関係がある、とは限らない
- * （`SpotGuidePage` の注記）ので、手で選んだ節の代わりにはしない。
+ * 名乗らない——見出しは「◯◯の撮影スポット」。近い順に並べるのは owner の判断
+ * （2026-09-29「近くのスポットを座標から自動で出す」を了承）。手で選んだ節は残し、重ねない。
  *
  * - **人が確かめたもの（`published`）だけ**を指す（下書きへ検索の導線を張らない）
  * - 手で選んだ近くのスポットと重ねない

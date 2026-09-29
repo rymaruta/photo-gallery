@@ -15,7 +15,7 @@ import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
-import { visibleSpots } from "@/lib/utils/spotGuide";
+import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
@@ -46,7 +46,8 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const photos = await loadAllPhotos();
     const mine = photosForSpot(photos, spot.spotId);
 
-    // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）
+    // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）。
+    // 座標で近い順に並べる節は別に「◯◯県の撮影スポット」として出す（`sameAreaSpots`・2026-09-29）
     const published = visibleSpots(SPOTS);
     const nearby = (spot.nearbySpotIds ?? [])
         .map((id) => published.find((s) => s.spotId === id))
@@ -82,14 +83,16 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const coverUrl = cover?.src
         ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
         : undefined;
-    const placeData = spotStructuredData(spot, { image: coverUrl });
+    // 観光地の構造化データは**人が確かめた行だけ**（下書きを建てる設定のとき、noindex の
+    // ページから「確かな場所」として読ませない）
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl }) : null;
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
 
     return (
         <>
-            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(placeData) }} />
+            {placeData && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(placeData) }} />}
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbData) }} />
             <SpotGuideClient
                 spot={spotForClient}

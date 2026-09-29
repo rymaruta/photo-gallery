@@ -460,7 +460,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             手で選んだ「近くの撮影スポット」とは別。見出しは関係を名乗らない */}
                         {sameArea && sameArea.spots.length > 0 && (
                             <section className="mb-7" aria-labelledby="spot-same-area">
-                                <Head id="spot-same-area">{isJa ? `${sameArea.label}の撮影スポット` : `More spots in ${area?.nameEn ?? sameArea.label}`}</Head>
+                                <Head id="spot-same-area">{isJa ? `${sameArea.label}の撮影スポット`
+                                    // 英語の国名は台帳に無い（海外の区画名 Outside Japan では中身と合わない）
+                                    : spot.region?.country === "日本" && area ? `More spots in ${area.nameEn}` : "More photo spots"}</Head>
                                 <ul className="m-0 p-0 flex flex-col gap-1.5" style={{ listStyle: "none" }}>
                                     {sameArea.spots.map((n) => (
                                         <li key={n.slug}>

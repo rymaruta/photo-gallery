@@ -32,7 +32,8 @@ describe("spotStructuredData", () => {
         expect(data.name).toBe(ginzan.name);
         expect(data.url).toBe(`${siteConfig.url}/spots/ginzan-onsen`);
         expect(data.image).toBe("https://example.com/a.jpg");
-        expect(data.geo).toEqual({ "@type": "GeoCoordinates", latitude: ginzan.coords!.lat, longitude: ginzan.coords!.lng });
+        // 座標は約1km に丸めてあるので書かない（画面も「位置はおおよそ」と断っている）
+        expect(data).not.toHaveProperty("geo");
         expect(data.address).toMatchObject({ "@type": "PostalAddress", addressCountry: "JP", addressRegion: "山形県" });
     });
 
@@ -44,9 +45,9 @@ describe("spotStructuredData", () => {
         }
     });
 
-    it("海外は国名をそのまま住所に書く", () => {
+    it("海外は国のコードを書かない（日本語の国名を ISO の欄に入れない）", () => {
         const v = bySlug("chateau-de-versailles");
-        expect(spotStructuredData(v).address).toMatchObject({ addressCountry: v.region!.country });
+        expect(spotStructuredData(v).address).not.toHaveProperty("addressCountry");
     });
 });
 
@@ -83,8 +84,9 @@ describe("sameAreaSpots", () => {
         const ginzan = bySlug("ginzan-onsen");
         const chosen = new Set(sameAreaSpots(ginzan).map((x) => x.slug));
         const farthest = Math.max(...[...chosen].map((slug) => km(ginzan.coords!, bySlug(slug).coords!)));
+        const picked = new Set(ginzan.nearbySpotIds ?? []);
         const rest = SPOTS.filter((s) => isPublished(s) && s.region?.prefecture === "山形県"
-            && s.spotId !== ginzan.spotId && !chosen.has(s.slug) && s.coords);
+            && s.spotId !== ginzan.spotId && !picked.has(s.spotId) && !chosen.has(s.slug) && s.coords);
         for (const s of rest) expect(km(ginzan.coords!, s.coords!)).toBeGreaterThanOrEqual(farthest);
     });
 
