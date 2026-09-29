@@ -19,7 +19,7 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
-import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel } from "@/lib/data/spotSeo";
+import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -101,6 +101,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 locationPath={locationPath}
                 area={area ? { slug: area.slug, name: area.name, nameEn: area.nameEn } : null}
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
+                pageUrl={spotPageUrl(spot)}
             />
         </>
     );

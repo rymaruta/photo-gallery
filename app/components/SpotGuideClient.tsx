@@ -7,8 +7,11 @@ import type { Photo } from "@/lib/data/photos";
 import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
+import { MapIcon, ArrowUpOnSquareIcon } from "@heroicons/react/24/outline";
+import { useToast } from "@/lib/hooks/useToast";
+import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
-import SaveSpotButton from "./SaveSpotButton";
+import SaveSpotButton, { TILE, TILE_OFF } from "./SaveSpotButton";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -53,6 +56,8 @@ type Props = {
      * **手で選んだ「近くの撮影スポット」とは別の節**で、関係があるとは名乗らない
      */
     sameArea?: { label: string; spots: { slug: string; name: string; region?: string }[] } | null;
+    /** このページの URL（canonical と同じ形・サーバーが組む）。「シェア」で配る */
+    pageUrl?: string;
 };
 
 const SEASON_LABEL: Record<string, string> = {
@@ -93,8 +98,9 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl }: Props) {
     const { locale } = useLocale();
+    const { showToast } = useToast();
     const isJa = locale !== "en";
     const mapHero = usesMapHero(spot);
     const cover = spot.coverImage;
@@ -106,6 +112,63 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const aiChecked = !humanChecked && hasAiCheck(spot) ? spot.aiCheck : undefined;
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
+    // 「[都道府県] [市区町村] · N枚の写真」（iOS の `SpotScreen.subtitle`）。N は数えた値
+    const photoCountLabel = isJa ? `${photos.length}枚の写真` : (photos.length === 1 ? "1 photo" : `${photos.length} photos`);
+
+    // 「シェア」: 共有シートが使えなければリンクをコピー（`SpotPageClient` と同じ扱い）。
+    // 配るのは**サーバーが組んだ canonical**（`window.location` だとクエリが付いたまま配られる）
+    const handleShare = async () => {
+        const url = pageUrl ?? (typeof window === "undefined" ? "" : window.location.href.split(/[?#]/)[0]);
+        const result = await shareUrl(url, spot.name, region || undefined);
+        if (result === "copied") {
+            showToast(isJa ? "リンクをクリップボードにコピーしました" : "Link copied to clipboard!", "success");
+        } else if (result === "failed") {
+            showToast(isJa ? "共有できませんでした" : "Could not share", "error");
+        }
+    };
+
+    /* 公式サイト（iOS と同じく本文の後ろ・行動の3つには入れない） */
+    const officialSite = spot.officialWebsiteUrl ? (
+        <div className="pt-6">
+            {/* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
+                推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */}
+            <a href={spot.officialWebsiteUrl} target="_blank"
+               rel={verified ? "noopener noreferrer" : "noopener noreferrer nofollow"}
+               className="inline-flex items-center rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+               style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
+                {verified
+                    ? (isJa ? "公式サイト" : "Official site")
+                    : (isJa ? "公式サイト（未確認のリンク）" : "Official site (unchecked link)")}
+                {" "}<span aria-hidden="true" className="ml-1">↗</span>
+            </a>
+        </div>
+    ) : null;
+
+    /* ── この場所の写真 ─────────────────────────
+       **ここだけがユーザー投稿に触れる節。** 0枚でも上は完成している。
+       iOS と同じく**写真がある場所は本文より先**（写真が主役）、0枚の場所は本文の後ろ */
+    const photosSection = (
+        <section className={photos.length > 0 ? "pt-6" : "pt-8"} aria-labelledby="spot-photos">
+            <Head id="spot-photos">{isJa ? `この場所の写真（${photos.length}）` : `Photos here (${photos.length})`}</Head>
+            {photos.length > 0 ? (
+                <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
+                              columnsClassName="grid-cols-2 sm:grid-cols-3" />
+            ) : (
+                <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
+                    <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+                        {isJa
+                            ? "この撮影地の写真は、まだ投稿されていません。"
+                            : "No photos have been shared for this spot yet."}
+                    </p>
+                    <Link href={ROUTES.UPLOAD} prefetch={false}
+                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
+                        {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
+                    </Link>
+                </div>
+            )}
+        </section>
+    );
 
     return (
         <main className="min-h-screen text-white bg-bg">
@@ -183,6 +246,12 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             </>
                         )}
                     </nav>
+                    {/* 小見出し（iOS の `SpotScreen.eyebrow`・等幅11・字間1.5・大文字）。
+                        🔴 **下書きを「撮影スポット」と名乗らない**——真鍮ではなく薄い色で「下書き・未確認」 */}
+                    <p className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
+                       style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>
+                        {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
+                    </p>
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"
                         style={{ fontSize: "clamp(24px, 4.5vw, 38px)", lineHeight: "1.18" }}>
                         {spot.name}
@@ -194,7 +263,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     )}
                     <p className="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-white/70"
                        style={{ fontSize: "13px", lineHeight: "18px" }}>
-                        {region && <span>{region}</span>}
+                        <span>{region ? `${region} · ${photoCountLabel}` : photoCountLabel}</span>
                         {spot.category && (
                             <span className="inline-flex items-center rounded-full bg-chip text-chip-text"
                                   style={{ fontSize: "11px", padding: "2px 8px" }}>{spot.category}</span>
@@ -219,35 +288,33 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     )}
                 </header>
 
-                {/* ── 3. 主な操作 ──────────────────────────────
+                {/* ── 3. 主な操作（iOS の行動3つ: 行きたい・地図で見る・シェア）──────
+                    **横に等分・高さ48・角12**（`SpotDetailParts.actionLabel`）。
                     「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
-                    部品は撮影地ページと同じ `SaveSpotButton`——同じ見た目・
-                    同じ3状態の扱いを2つ作らない */}
-                <div className="flex flex-wrap items-start gap-2 pb-6 border-b border-white/10">
-                    <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" />
+                    部品は撮影地ページと同じ `SaveSpotButton`（形だけ `tile`）——
+                    同じ3状態の扱いを2つ作らない。
+                    「地図で見る」は iOS では端末の地図アプリ、Web はサイトの撮影地マップ */}
+                <div className="flex items-start gap-2.5 pb-6 border-b border-white/10">
+                    <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}
-                          className="inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>
+                          className={`${TILE} ${TILE_OFF} flex-1 min-w-0`}
+                          style={{ minHeight: 48, touchAction: "manipulation" }}>
+                        <MapIcon className="w-5 h-5 flex-shrink-0" aria-hidden />
                         {isJa ? "地図で見る" : "View on map"}
                     </Link>
-                    {spot.officialWebsiteUrl && (
-                        /* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
-                           推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */
-                        <a href={spot.officialWebsiteUrl} target="_blank"
-                           rel={verified ? "noopener noreferrer" : "noopener noreferrer nofollow"}
-                           className="inline-flex items-center rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
-                            {verified
-                                ? (isJa ? "公式サイト" : "Official site")
-                                : (isJa ? "公式サイト（未確認のリンク）" : "Official site (unchecked link)")}
-                            {" "}<span aria-hidden="true" className="ml-1">↗</span>
-                        </a>
-                    )}
+                    <button type="button" onClick={handleShare}
+                            className={`${TILE} ${TILE_OFF} flex-1 min-w-0`}
+                            style={{ minHeight: 48, touchAction: "manipulation" }}>
+                        <ArrowUpOnSquareIcon className="w-5 h-5 flex-shrink-0" aria-hidden />
+                        {isJa ? "シェア" : "Share"}
+                    </button>
                 </div>
 
                 {/* PC は2段組。スマホは1列（スマホを横に引き伸ばさない） */}
                 <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:gap-10 lg:items-start">
                     <div className="min-w-0">
+                        {photos.length > 0 && photosSection}
+
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
                             <section className="pt-6" aria-labelledby="spot-charm">
@@ -350,28 +417,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             </section>
                         )}
 
-                        {/* ── 7. みんなが撮影した写真 ───────────
-                            **ここだけがユーザー投稿に触れる節。** 0枚でも上は完成している */}
-                        <section className="pt-8" aria-labelledby="spot-photos">
-                            <Head id="spot-photos">{isJa ? "みんなが撮影した写真" : "Photos from the community"}</Head>
-                            {photos.length > 0 ? (
-                                <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
-                                              columnsClassName="grid-cols-2 sm:grid-cols-3" />
-                            ) : (
-                                <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
-                                    <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                                        {isJa
-                                            ? "この撮影地の写真は、まだ投稿されていません。"
-                                            : "No photos have been shared for this spot yet."}
-                                    </p>
-                                    <Link href={ROUTES.UPLOAD} prefetch={false}
-                                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
-                                        {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
-                                    </Link>
-                                </div>
-                            )}
-                        </section>
+                        {officialSite}
+
+                        {photos.length === 0 && photosSection}
                     </div>
 
                     {/* ── 右カラム（PC）＝所在地・地図・アクセス・周辺 ──────
