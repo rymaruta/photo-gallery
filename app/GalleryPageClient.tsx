@@ -157,10 +157,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   /**
    * **おすすめに出せる写真が1枚でもあるか。**
    *
-   * 「おすすめ」＝運営が選んだ写真（`featured`）で、**人気順ではない**
-   * ——実データは いいね0・コメント0 なので、人気の根拠がどこにも無い
-   * （根拠の無いものを「人気」と名乗らない）。1枚も選ばれていなければ
-   * そのタブは空になるので、既定にしない。
+   * 「おすすめ」は運営が選んだ写真（`featured`）を先に、残りをいいねの多い順に並べる
+   * （iOS の `HomeFeed`・空にならない）。**既定にするのは選ばれた写真があるときだけ**
+   * ——無ければ並びが「新着」と同じになるので、新着を既定のままにする
+   * （静的HTML も新着のまま）。
    */
   const hasFeatured = React.useMemo(() => PHOTOS.some((p) => p.featured === true), [PHOTOS]);
 
@@ -609,44 +609,43 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           </HomeColumns>
         </HomePanel>
       ) : surface === "home" && filters.scope === "featured" ? (
-        /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
-           `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
-           `max-w-5xl` いっぱいである前提**で `sizes` を申告している。
-           36rem の柱の中へ入れると箱は 139.5px なのに 235.5px と申告する
-           ことになり、`gridSizes.ts` が禁じている「申告と実寸のずれ」を
-           作る。**既にカテゴリごとのグリッド＝横を使う形**なので、
-           ここは広いまま置く。付けるなら `FeaturedSections` に `sizes` を
-           渡せるようにするのが先（本番の `featured` は 0枚なので、
-           いま実際に出るのは下の空の知らせ）。
-
-           **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
-           （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
-           持ち場にする——同じものを二度作らない。
-           **人気順ではない**（実データは いいね0・コメント0 で、人気の
-           根拠がどこにも無い）。1枚も選ばれていなければそう言う */
-        <HomePanel scope="featured">{hasFeatured && !narrowedNow ? (
-          <FeaturedSections
-            photos={PHOTOS}
-            categoryNames={labels.category?.names ?? {}}
-            locale={locale}
-            categoryDisplayMap={categoryDisplayMap}
-            onOpenPhoto={openById}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm m-0">
-              {locale === "en" ? "No picks yet." : "まだおすすめは選ばれていません。"}
-            </p>
-            <button
-              type="button"
-              onClick={() => setFilters({ scope: "all" })}
-              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-              style={{ touchAction: "manipulation" }}
-            >
-              {locale === "en" ? "See what's new" : "新着を見る"}
-            </button>
-          </div>
-        )}</HomePanel>
+        /* **おすすめ＝iOS の `HomeFeed.recommended`**（2026-09-29 に揃えた）。
+           1. 運営が選んだ写真があれば、カテゴリごとの段（`FeaturedSections`）
+           2. その下に**全部の写真**を「選ばれた写真を先に、残りはいいねの多い順」で
+              （並べるのは `useGallery`＝モーダルの前後も同じ順）＝**空にならない**
+           ⚠️ **段は PC の柱の外**（`HomeColumns` で包まない）。`FeaturedSections` は
+           中で `GRID_SIZES_5XL` を使う＝容器が `max-w-5xl` いっぱいである前提で `sizes` を
+           申告しているので、柱の中へ入れると申告と実寸がずれる。並びの方は柱に入れる。
+           ⚠️ 本番は featured 0枚・いいね全部 0 なので、いまは「新着」と同じ並びになる */
+        <HomePanel scope="featured">
+          {hasFeatured && !narrowedNow && (
+            <FeaturedSections
+              photos={PHOTOS}
+              categoryNames={labels.category?.names ?? {}}
+              locale={locale}
+              categoryDisplayMap={categoryDisplayMap}
+              onOpenPhoto={openById}
+            />
+          )}
+          {/* 選ばれた写真のカテゴリの段の下に、**全部の写真を「おすすめ」の並びで**
+              （選ばれた写真を先に、残りはいいねの多い順・`useGallery` が並べる）。
+              iOS の `GalleryView` と同じ——段は選ばれた写真があるときだけ、並びは必ず出る */}
+          <HomeColumns rail={discoverRail}>
+            {filteredPhotos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+                <p className="text-sm m-0">
+                  {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+                </p>
+              </div>
+            ) : (
+              <HomeMosaic
+                photos={filteredPhotos}
+                locale={locale === "en" ? "en" : "ja"}
+                priorityCount={hasFeatured && !narrowedNow ? 0 : HOME_PRIORITY_COUNT}
+              />
+            )}
+          </HomeColumns>
+        </HomePanel>
       ) : surface === "home" ? (
         /* **新着は iOS と同じ写真の並び**（`HomeMosaic`・大きく1枚 → 2枚 → 2枚・2026-09-29）。
            以前は縦1列の札（題・説明・タグ・4つの操作）だった。題・説明・タグ・保存・共有は

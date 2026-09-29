@@ -60,13 +60,14 @@ describe("トップの「おすすめ」", () => {
     });
 
     /** 空の見出しだけが残る形は「準備中」と同じ */
-    it("1枚も選ばれていなければ、何も出さない", () => {
+    it("1枚も選ばれていなければ、カテゴリの段は出さず、全部の写真の並びだけ出す（iOS と同じ）", () => {
         photosRef.list = PHOTOS.map((p) => ({ ...p, featured: false }));
         render(<GalleryPageClient />);
         openFeatured();
         expect(screen.queryByRole("heading", { name: "おすすめ" }), "空の節が残っている").toBeNull();
-        // **行き止まりにしない**（空の見出しだけが残る形は「準備中」と同じ）
-        expect(screen.getByText("まだおすすめは選ばれていません。")).toBeInTheDocument();
+        // **行き止まりにしない**——以前は「まだおすすめは選ばれていません。」だけだった
+        expect(screen.queryByText("まだおすすめは選ばれていません。")).toBeNull();
+        expect(document.querySelectorAll("a[data-photo-id]").length, "写真の並びが出ていない").toBeGreaterThan(0);
     });
 
     /**

@@ -8,6 +8,7 @@ import { compareNewest, compareOldest } from "../utils/photoOrder";
 // **履歴の作法は共通部品**（`__NA` を持ち越さないと戻るたびに再読み込みになる）。
 // 撮影スポット詳細のビューアも同じものが要るので、ここから出した
 import { withNextHistoryState } from "../utils/historyState";
+import { recommendedOrder } from "../utils/homeFeed";
 
 /**
  * タグ比較用の正規化。
@@ -245,15 +246,11 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
     const filteredPhotos = useMemo(() => {
         let arr = PHOTOS.slice();
 
-        // **おすすめ**（トップの「おすすめ」タブ）＝**運営が選んだ写真**。
-        //
-        // 人気順ではない。実データは いいね0・コメント0 なので、人気の根拠が
-        // どこにも無い——根拠の無いものを「人気」と名乗らない（owner の
-        // 指示書にも明記がある）。選ぶのは管理APIだけ（`featured` は
-        // `/user/edit` からは触れない。`lib/data/photos.ts` の docstring）。
-        if (filters.scope === "featured") {
-            arr = arr.filter((p) => p.featured === true);
-        }
+        // **おすすめ**（トップの「おすすめ」タブ）は**絞らない**。並びだけ変える（下の末尾）。
+        // iOS の `HomeFeed`（2026-09-29 に揃えた）: 運営が選んだ写真（`featured`）を先に、
+        // 残りはいいねの多い順＝**空にならない**。以前は選ばれた写真だけに絞っていて、
+        // 本番（featured 0枚）では「まだおすすめは選ばれていません」だけの画面だった。
+        // 選ぶのは管理APIだけ（`featured` は `/user/edit` からは触れない）。
         // 「フォロー中」はグリッドではなく `TimelineFeed` が描くので、この一覧は
         // **空にする**。空にしないと `?photo=` が来たとき `openById` が通って
         // **フィードの上にモーダルが重なる**（前後の送りは全写真を回る）。空なら
@@ -372,6 +369,9 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         } else if (filters.sort === "popular") {
             arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
         }
+        // 「おすすめ」は並べ替えの選択より優先（タブが並びを決める・iOS と同じ）。
+        // モーダルの前後もこの並びで回るので、画面と食い違わない
+        if (filters.scope === "featured") arr = recommendedOrder(arr);
 
         return arr;
     }, [filters, PHOTOS, ownUserId]);

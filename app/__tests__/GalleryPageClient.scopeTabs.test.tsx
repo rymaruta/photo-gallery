@@ -234,13 +234,14 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         await waitFor(() => expect(pressed("新着")).toBe(true));
     });
 
-    it("おすすめが1枚も無ければ、そう言って新着への導線を出す", async () => {
+    it("おすすめが1枚も選ばれていなくても空にしない（全部の写真を「おすすめ」の並びで出す・iOS と同じ）", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(pressed("新着")).toBe(true));
         fireEvent.click(tab("おすすめ"));
-        expect(screen.getByText("まだおすすめは選ばれていません。")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "新着を見る" }));
-        await waitFor(() => expect(pressed("新着")).toBe(true));
+        await waitFor(() => expect(pressed("おすすめ")).toBe(true));
+        expect(screen.queryByText("まだおすすめは選ばれていません。")).toBeNull();
+        // いいねが全部 0 なら新しい順（新着と同じ並び）
+        expect(cardIds()).toEqual(["mine-1", "theirs", "mine-2"]);
     });
 });
 
