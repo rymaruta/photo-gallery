@@ -6,7 +6,9 @@
 //
 // ## 載せるもの・載せないもの（2026-09-25）
 //
-//   載せる    spotId / slug / name / nameEn / reading / region（都道府県・市）/
+//   載せる    spotId / slug / name / nameEn / reading / region（都道府県・市。**日本の外の行
+//             だけ国も**・2026-09-29。アプリの地図の「リスト」が海外を国ごとに分けるため。
+//             日本の行には付けない＝無ければ日本——1,000行に「日本」を足して重くしない）/
 //             coords（約1km精度）/ category / summary / stage / draftedAt /
 //             verifiedAt（人が確かめた行だけ）/
 //             image（写真・作者・ライセンス。**owner が写真を確かめた公開済みの行だけ**
@@ -52,7 +54,8 @@ export type SpotFeedItem = {
     name: string;
     nameEn?: string;
     reading?: string;
-    region: { prefecture?: string; city?: string };
+    /** `country` は日本の外の行だけ（無ければ日本） */
+    region: { country?: string; prefecture?: string; city?: string };
     coords?: { lat: number; lng: number };
     category?: string;
     summary?: string;
@@ -85,7 +88,11 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
         name: spot.name,
         nameEn: spot.nameEn,
         reading: spot.reading,
-        region: compact({ prefecture: spot.region?.prefecture, city: spot.region?.city }),
+        region: compact({
+            country: spot.region?.country && spot.region.country !== "日本" ? spot.region.country : undefined,
+            prefecture: spot.region?.prefecture,
+            city: spot.region?.city,
+        }),
         coords: spot.coords,
         category: spot.category,
         summary: spot.summary,
