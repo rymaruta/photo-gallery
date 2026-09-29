@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HeartIcon, Square2StackIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLocalized } from "@/lib/data/photos";
+import { displayTitle } from "@/lib/utils/photoTitle";
 import { ROUTES } from "@/lib/routes";
 import { photoAltText } from "@/lib/utils/photoAlt";
 import { timeAgo } from "@/lib/stories";
@@ -30,39 +31,28 @@ import { MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "./gridSizes";
 type Props = {
     photos: Photo[];
     locale: Locale;
-    /** 最初の画面に入る枚数（`fetchPriority="high"`） */
+    /** 最初に読む枚数（`fetchPriority="high"`）。既定は大きい1枚＋最初の2枚の段＝3枚
+     *  （2枚だと同じ段の右だけ遅れて出る） */
     priorityCount?: number;
 };
 
 /** 段どうし・段の中の隙間（板: 4px） */
 const GAP = 4;
 
-export default function HomeMosaic({ photos, locale, priorityCount = 2 }: Props) {
+export default function HomeMosaic({ photos, locale, priorityCount = 3 }: Props) {
     const rows = React.useMemo(() => editorialRows(photos), [photos]);
-    // 何枚目か（先頭の数枚だけ priority）
-    let n = 0;
+    // 大きい段かどうかを写真ごとに引けるようにする（並びそのものは `editorialRows` が決める）
+    const large = React.useMemo(() => new Set(rows.flatMap((r) => (r.kind === "hero" ? [r.item.id] : []))), [rows]);
     return (
+        // **写真1枚ごとに `<li>`**（大きい1枚は2列ぶん）。段ごとに作ると、一覧が1枚ずれただけで
+        // 全部の段の組み合わせが変わり、全部の写真が作り直される（読み込み途中の画像が一度消える）。
         // スマホは画面の端から端まで（本文の `p-4` を打ち消す）。広い画面は箱の中
-        <ol className="-mx-4 sm:mx-0 flex flex-col m-0 p-0" style={{ gap: GAP, listStyle: "none" }}>
-            {rows.map((row) => {
-                if (row.kind === "hero") {
-                    const i = n++;
-                    return (
-                        <li key={`h-${row.item.id}`} className="m-0 p-0">
-                            <HomeTile photo={row.item} locale={locale} large priority={i < priorityCount} />
-                        </li>
-                    );
-                }
-                const [a, b] = row.items;
-                const ia = n++;
-                const ib = n++;
-                return (
-                    <li key={`p-${a.id}-${b.id}`} className="m-0 p-0 grid grid-cols-2" style={{ gap: GAP }}>
-                        <HomeTile photo={a} locale={locale} priority={ia < priorityCount} />
-                        <HomeTile photo={b} locale={locale} priority={ib < priorityCount} />
-                    </li>
-                );
-            })}
+        <ol className="-mx-4 sm:mx-0 grid grid-cols-2 m-0 p-0" style={{ gap: GAP, listStyle: "none" }}>
+            {photos.map((p, i) => (
+                <li key={p.id} className={`m-0 p-0 ${large.has(p.id) ? "col-span-2" : ""}`}>
+                    <HomeTile photo={p} locale={locale} large={large.has(p.id)} priority={i < priorityCount} />
+                </li>
+            ))}
         </ol>
     );
 }
@@ -81,7 +71,8 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
     photo: Photo; locale: Locale; large?: boolean; priority?: boolean;
 }) {
     const isJa = locale !== "en";
-    const title = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
+    // サーバーが入れていた「無題」は題として読まない（iOS の `PhotoTitle.display` と同じ）
+    const title = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
     const alt = photoAltText(photo, locale);
     const place = shortPlace(photo.location);
     const author = photo.displayName || (isJa ? "旅人" : "Traveler");
@@ -90,6 +81,10 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
     const ago = large && hydrated && photo.createdAt ? timeAgo(photo.createdAt, isJa ? "ja" : "en") : "";
     const byline = ago ? `${author} · ${ago}` : author;
     const likes = photo.likes ?? 0;
+    // 持ち主が選んだ見せたい位置（`CropFramePicker`）。16:9 の枠がいちばん大きく切り落とすので効く
+    const objectPosition = photo.focalPoint
+        ? `${Math.round(photo.focalPoint.x * 100)}% ${Math.round(photo.focalPoint.y * 100)}%`
+        : undefined;
     // **壊れた要素は数えない**（`TimelineCard` と同じ）
     const extraCount = Array.isArray(photo.extraImages)
         ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
@@ -100,7 +95,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
         place && !(title || alt).includes(place) ? place : "",
         byline,
         extraCount > 0 ? (isJa ? "複数枚の投稿" : "Multiple photos") : "",
-        isJa ? `いいね ${likes}件` : `${likes} likes`,
+        isJa ? `いいね ${likes}件` : `${likes} ${likes === 1 ? "like" : "likes"}`,
     ].filter(Boolean).join(isJa ? "、" : ", ");
 
     return (
@@ -118,7 +113,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             } as React.CSSProperties}
         >
             <Thumb photo={photo} alt={alt} sizes={large ? MOSAIC_HERO_SIZES : MOSAIC_PAIR_SIZES}
-                   cellAspect={large ? 16 / 9 : 1} priority={priority} />
+                   cellAspect={large ? 16 / 9 : 1} priority={priority} objectPosition={objectPosition} />
 
             {/* 撮影地と撮った人（板: 明朝の撮影地、その下に小さく）。
                 **撮影地が無い写真は文字を重ねず、下を薄く暗くするだけ**（いいねの丸を読ませる） */}

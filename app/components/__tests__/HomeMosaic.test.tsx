@@ -21,15 +21,52 @@ const photo = (id: string, over: Partial<Photo> = {}): Photo => ({
 const tiles = (c: HTMLElement) => Array.from(c.querySelectorAll<HTMLAnchorElement>("a[data-photo-id]"));
 
 describe("HomeMosaic", () => {
-    it("大きく1枚（16:9）→ 2枚（1:1）→ 2枚 の順に並ぶ", () => {
+    it("大きく1枚（16:9）→ 2枚（1:1）→ 2枚 の順に並ぶ（1枚ずつの項目・大きい1枚は2列ぶん）", () => {
         const { container } = render(<HomeMosaic photos={["a", "b", "c", "d", "e", "f"].map((i) => photo(i))} locale="ja" />);
-        const rows = Array.from(container.querySelectorAll("ol > li"));
-        expect(rows.map((r) => r.querySelectorAll("a").length)).toEqual([1, 2, 2, 1]);
+        const list = container.querySelector("ol")!;
+        expect(list.className).toContain("grid-cols-2");
+        expect(list.style.gap).toBe("4px");
+        const items = Array.from(list.children);
+        expect(items).toHaveLength(6);                     // 写真1枚ごと（段ごとではない）
+        expect(items.map((li) => li.className.includes("col-span-2"))).toEqual([true, false, false, false, false, true]);
         const ratio = tiles(container).map((a) => a.style.aspectRatio);
         expect(ratio).toEqual(["16 / 9", "1 / 1", "1 / 1", "1 / 1", "1 / 1", "16 / 9"]);
-        // 2枚の段は隙間 4px の2列
-        expect(rows[1].className).toContain("grid-cols-2");
-        expect((rows[1] as HTMLElement).style.gap).toBe("4px");
+    });
+
+    it("一覧が1枚ずれても、ほかの写真を作り直さない（段ごとの key だと全部作り直していた）", () => {
+        const all = ["a", "b", "c", "d", "e", "f"].map((i) => photo(i));
+        const { container, rerender } = render(<HomeMosaic photos={all} locale="ja" />);
+        const before = new Map(tiles(container).map((t) => [t.dataset.photoId, t]));
+        rerender(<HomeMosaic photos={all.slice(1)} locale="ja" />);
+        for (const t of tiles(container)) expect(t, t.dataset.photoId).toBe(before.get(t.dataset.photoId));
+    });
+
+    it("最初に読むのは3枚（大きい1枚＋最初の2枚の段）。同じ段の右だけ遅れない", () => {
+        render(<HomeMosaic photos={["a", "b", "c", "d"].map((i) => photo(i))} locale="ja" />);
+        const imgs = screen.getAllByRole("img");
+        expect(imgs.map((i) => i.getAttribute("loading"))).toEqual(["eager", "eager", "eager", "lazy"]);
+    });
+
+    it("重ねた文字・印・いいねの丸は読み上げから外す（リンクの名前が全部を読む）", () => {
+        const { container } = render(<HomeMosaic
+            photos={[photo("a", { extraImages: [{ src: "https://cdn/x.jpg" }] } as Partial<Photo>)]} locale="ja" />);
+        const a = tiles(container)[0];
+        const shown = Array.from(a.children).filter((el) => el.tagName !== "PICTURE" && !el.querySelector("img") && el.tagName !== "IMG");
+        expect(shown.length).toBeGreaterThanOrEqual(3);
+        for (const el of shown) expect(el.getAttribute("aria-hidden"), el.outerHTML.slice(0, 60)).toBe("true");
+    });
+
+    it("サーバーが入れた「無題」は読まない・英語の1件は単数", () => {
+        const { container } = render(<HomeMosaic photos={[photo("a", { title: "無題", likes: 1 })]} locale="en" />);
+        const label = tiles(container)[0].getAttribute("aria-label")!;
+        expect(label).not.toContain("無題");
+        expect(label).toContain("1 like");
+        expect(label).not.toContain("1 likes");
+    });
+
+    it("持ち主が選んだ見せたい位置（focalPoint）で切る", () => {
+        render(<HomeMosaic photos={[photo("a", { focalPoint: { x: 0.2, y: 0.8 } } as Partial<Photo>)]} locale="ja" />);
+        expect((screen.getByRole("img") as HTMLImageElement).style.objectPosition).toBe("20% 80%");
     });
 
     it("スマホでは画面の端から端まで（本文の余白を打ち消す）・角丸なし", () => {

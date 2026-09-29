@@ -63,12 +63,9 @@ vi.mock("../components/GalleryGrid", () => ({
 }));
 // トップの新着は写真の並び（`HomeMosaic`）。**並びの部品そのものは境界としてモックする**
 // （見せ方は `HomeMosaic.test.tsx` の担当。ここで見たいのは「どの写真が
-// どの順で並ぶか」）。フォロー中のタイムラインはまだ `TimelineCard` を使う
+// どの順で並ぶか」）
 vi.mock("../components/HomeMosaic", () => ({
     default: (p: { photos: { id: string }[] }) => <>{p.photos.map((ph) => <div key={ph.id} data-card={ph.id} />)}</>,
-}));
-vi.mock("../components/TimelineCard", () => ({
-    default: (p: { photo: { id: string } }) => <div data-card={p.photo.id} />,
 }));
 
 const PHOTOS = [
