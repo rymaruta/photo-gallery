@@ -9882,7 +9882,12 @@
     "distanceKm": 0.57,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nyudozaki.jpg",
+      "width": 960,
+      "height": 1280
+    }
   },
   "oasis21-tv-tower": {
     "wikidata": "Q5359224",
@@ -9945,7 +9950,12 @@
     "distanceKm": 0,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/odaigahara.jpg",
+      "width": 960,
+      "height": 641
+    }
   },
   "odawara-castle": {
     "wikidata": "Q1013437",
@@ -9976,7 +9986,12 @@
     "distanceKm": 0.31,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oga-namahage.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "ogaki-castle": {
     "wikidata": "Q1067359",
@@ -10074,7 +10089,12 @@
     "distanceKm": 0.4,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ohko-no-taki.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "ohori-park": {
     "wikidata": "Q139781914",
@@ -10258,7 +10278,12 @@
     "distanceKm": 0.27,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oki-rousokujima.jpg",
+      "width": 960,
+      "height": 727
+    }
   },
   "okishima": {
     "wikidata": "Q2017235",
@@ -10289,7 +10314,12 @@
     "distanceKm": 0.67,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/okoshiki-kaigan.jpg",
+      "width": 960,
+      "height": 600
+    }
   },
   "oku-iya": {
     "wikidata": "Q11446081",
@@ -10374,7 +10404,12 @@
     "distanceKm": 0.25,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/okuoi-kojo-station.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "okushima-ko": {
     "wikidata": "Q7496817",
@@ -10490,7 +10525,12 @@
     "distanceKm": 0.23,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/omijima.jpg",
+      "width": 960,
+      "height": 540
+    }
   },
   "omishima": {
     "wikidata": "Q9009869",
@@ -10606,7 +10646,12 @@
     "distanceKm": 0.36,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oni-no-shitaburui.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "onigajo": {
     "wikidata": "Q11673387",
@@ -10844,7 +10889,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oura-tanada.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "oura-tenshudo": {
     "wikidata": "Q430626",
@@ -10947,7 +10997,12 @@
     "distanceKm": 0.38,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oyama-senmaida.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "oyamazumi-jinja": {
     "wikidata": "Q703904",
@@ -11009,7 +11064,12 @@
     "distanceKm": 0.45,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/oyu-no-taki.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "oyunohara": {
     "wikidata": "Q705035",
@@ -11326,7 +11386,12 @@
     "distanceKm": 0.57,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ryugado.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "ryuganbuchi": {
     "wikidata": "Q11565668",
@@ -11600,7 +11665,12 @@
     "distanceKm": 0.37,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/sakaori-tanada.jpg",
+      "width": 960,
+      "height": 526
+    }
   },
   "sakata-somaro": {
     "wikidata": "Q48755105",
@@ -12036,7 +12106,12 @@
     "distanceKm": 0.29,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/sekinoo-no-taki.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "sengan-ishibashi": {
     "wikidata": "Q6080130",
@@ -12361,7 +12436,12 @@
     "distanceKm": 0.15,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shichirimihama.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "shiitsu": {
     "wikidata": "Q1205964",
@@ -12532,7 +12612,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shimonada-station.jpg",
+      "width": 960,
+      "height": 541
+    }
   },
   "shimonoseki-karato": {
     "wikidata": "Q11418545",
@@ -12702,7 +12787,12 @@
     "distanceKm": 0.37,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shirahama-shirasaki.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "shirahige-jinja": {
     "wikidata": "Q705303",
@@ -12733,7 +12823,12 @@
     "distanceKm": 0.52,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shirahige-no-taki.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "shiraike": {
     "wikidata": "Q5709027",
@@ -12905,7 +13000,12 @@
     "distanceKm": 0.66,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shirayama-hime.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "shiretoko-goko": {
     "wikidata": "Q11584571",
@@ -13100,7 +13200,12 @@
     "distanceKm": 0.06,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shogun-sugi.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "shojiko": {
     "wikidata": "Q11190939",
@@ -13337,7 +13442,12 @@
     "distanceKm": 0.51,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/sogi-park.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "soja-bitchu-kokubunji": {
     "wikidata": "Q10889244",
@@ -14215,7 +14325,12 @@
     "distanceKm": 2.9,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/taushubetsu.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "tedorikyo": {
     "wikidata": "Q120467885",
@@ -14570,7 +14685,12 @@
     "distanceKm": 0.27,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tokushima-kaminaka.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "tokyo-international-forum": {
     "wikidata": "Q1359892",
@@ -14713,7 +14833,12 @@
     "distanceKm": 0.32,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tono-meganebashi.jpg",
+      "width": 960,
+      "height": 576
+    }
   },
   "tonomine-kogen": {
     "wikidata": "Q11587562",
@@ -14726,7 +14851,12 @@
     "distanceKm": 0.32,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tonomine-kogen.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "toshodaiji": {
     "wikidata": "Q973175",
@@ -14757,7 +14887,12 @@
     "distanceKm": 0.38,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tottori-hanakairo.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "tottori-jo": {
     "wikidata": "Q11369438",
@@ -15384,7 +15519,12 @@
     "distanceKm": 0.31,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ungan-ji.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "unosu-dangai": {
     "wikidata": "Q11675693",
@@ -16210,7 +16350,12 @@
     "distanceKm": 0.16,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/yotsuya-senmaida.jpg",
+      "width": 960,
+      "height": 639
+    }
   },
   "yubujima": {
     "wikidata": "Q16580941",
@@ -16223,7 +16368,12 @@
     "distanceKm": 0.48,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/yubujima.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "yudaki": {
     "wikidata": "Q11563734",
@@ -17063,7 +17213,12 @@
     "distanceKm": 4.59,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shimaonsen-sekizenkan.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "shirataki-san": {
     "wikidata": "Q11420237",
@@ -17076,7 +17231,12 @@
     "distanceKm": 2.23,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shirataki-san.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "shukunegi": {
     "wikidata": "Q11455626",
@@ -17089,7 +17249,12 @@
     "distanceKm": 2.39,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/shukunegi.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "takamatsu-castle": {
     "wikidata": "Q670725",
@@ -17102,7 +17267,12 @@
     "distanceKm": 0.19,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/takamatsu-castle.jpg",
+      "width": 960,
+      "height": 752
+    }
   },
   "takehara-machinami": {
     "wikidata": "Q11599011",
@@ -17115,7 +17285,12 @@
     "distanceKm": 1.13,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/takehara-machinami.jpg",
+      "width": 960,
+      "height": 641
+    }
   },
   "tashirojima": {
     "wikidata": "Q1061394",
@@ -17128,7 +17303,12 @@
     "distanceKm": 0.29,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tashirojima.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "tocho-observatory": {
     "wikidata": "Q111973",
@@ -17141,7 +17321,12 @@
     "distanceKm": 0.16,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tocho-observatory.jpg",
+      "width": 960,
+      "height": 833
+    }
   },
   "todoroki-keikoku": {
     "wikidata": "Q10844785",
@@ -17154,7 +17339,12 @@
     "distanceKm": 0.57,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/todoroki-keikoku.jpg",
+      "width": 960,
+      "height": 1284
+    }
   },
   "tono-kappabuchi": {
     "wikidata": "Q11294285",
@@ -17167,7 +17357,12 @@
     "distanceKm": 2.43,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tono-kappabuchi.jpg",
+      "width": 960,
+      "height": 643
+    }
   },
   "tsutsujigaoka": {
     "wikidata": "Q11609605",
@@ -17180,7 +17375,12 @@
     "distanceKm": 0.4,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/tsutsujigaoka.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "uda-matsuyama": {
     "wikidata": "Q11529736",
@@ -17193,7 +17393,12 @@
     "distanceKm": 1.97,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/uda-matsuyama.jpg",
+      "width": 960,
+      "height": 643
+    }
   },
   "yamaga": {
     "wikidata": "Q17221956",
@@ -17206,7 +17411,12 @@
     "distanceKm": 0.36,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/yamaga.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "alhambra": {
     "wikidata": "Q47476",
@@ -17219,7 +17429,12 @@
     "distanceKm": 0.44,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/alhambra.jpg",
+      "width": 960,
+      "height": 651
+    }
   },
   "eiffel-tower": {
     "wikidata": "Q243",
@@ -17232,7 +17447,12 @@
     "distanceKm": 0.38,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/eiffel-tower.jpg",
+      "width": 960,
+      "height": 1777
+    }
   },
   "helsinki-cathedral": {
     "wikidata": "Q738015",
@@ -17245,7 +17465,12 @@
     "distanceKm": 0.13,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/helsinki-cathedral.jpg",
+      "width": 960,
+      "height": 1069
+    }
   },
   "montserrat": {
     "wikidata": "Q732115",
@@ -17258,7 +17483,12 @@
     "distanceKm": 2.92,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/montserrat.jpg",
+      "width": 960,
+      "height": 636
+    }
   },
   "musee-d-orsay": {
     "wikidata": "Q23402",
@@ -17271,7 +17501,12 @@
     "distanceKm": 0.25,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/musee-d-orsay.jpg",
+      "width": 960,
+      "height": 256
+    }
   },
   "palais-de-chaillot": {
     "wikidata": "Q13360213",
@@ -17284,7 +17519,12 @@
     "distanceKm": 0.3,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/palais-de-chaillot.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "park-guell": {
     "wikidata": "Q212867",
@@ -17297,7 +17537,12 @@
     "distanceKm": 0.46,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/park-guell.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "plaza-mayor-madrid": {
     "wikidata": "Q1123493",
@@ -17310,7 +17555,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/plaza-mayor-madrid.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "reims-cathedral": {
     "wikidata": "Q206823",
@@ -17323,7 +17573,12 @@
     "distanceKm": 0.53,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/reims-cathedral.jpg",
+      "width": 960,
+      "height": 1284
+    }
   },
   "saint-malo": {
     "wikidata": "Q163108",
@@ -17336,7 +17591,12 @@
     "distanceKm": 4.9,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/saint-malo.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "seville-cathedral": {
     "wikidata": "Q231606",
@@ -17349,7 +17609,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/seville-cathedral.jpg",
+      "width": 960,
+      "height": 708
+    }
   },
   "suomenlinna": {
     "wikidata": "Q1292442",
@@ -17362,7 +17627,12 @@
     "distanceKm": 0.47,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/suomenlinna.jpg",
+      "width": 960,
+      "height": 721
+    }
   },
   "arc-de-triomphe": {
     "wikidata": "Q64436",
@@ -17375,7 +17645,12 @@
     "distanceKm": 0.56,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/arc-de-triomphe.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "etretat": {
     "wikidata": "Q290936",
@@ -17388,7 +17663,12 @@
     "distanceKm": 0.47,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/etretat.jpg",
+      "width": 960,
+      "height": 361
+    }
   },
   "helsinki-central-station": {
     "wikidata": "Q1044613",
@@ -17401,7 +17681,12 @@
     "distanceKm": 0.14,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/helsinki-central-station.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "mezquita-cordoba": {
     "wikidata": "Q33200",
@@ -17414,7 +17699,12 @@
     "distanceKm": 0.14,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mezquita-cordoba.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "notre-dame-de-paris": {
     "wikidata": "Q2981",
@@ -17427,7 +17717,12 @@
     "distanceKm": 0.33,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/notre-dame-de-paris.jpg",
+      "width": 960,
+      "height": 1296
+    }
   },
   "palais-des-papes": {
     "wikidata": "Q143463",
@@ -17440,7 +17735,12 @@
     "distanceKm": 0.22,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/palais-des-papes.jpg",
+      "width": 960,
+      "height": 391
+    }
   },
   "place-de-la-concorde": {
     "wikidata": "Q189503",
@@ -17453,7 +17753,12 @@
     "distanceKm": 0.49,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/place-de-la-concorde.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "pont-du-gard": {
     "wikidata": "Q189764",
@@ -17466,7 +17771,12 @@
     "distanceKm": 0.47,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/pont-du-gard.jpg",
+      "width": 960,
+      "height": 371
+    }
   },
   "sainte-chapelle": {
     "wikidata": "Q193193",
@@ -17479,7 +17789,12 @@
     "distanceKm": 0.63,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/sainte-chapelle.jpg",
+      "width": 960,
+      "height": 1280
+    }
   },
   "sibelius-park": {
     "wikidata": "Q5406924",
@@ -17492,7 +17807,12 @@
     "distanceKm": 0.26,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/sibelius-park.jpg",
+      "width": 960,
+      "height": 662
+    }
   },
   "temppeliaukio-church": {
     "wikidata": "Q1132809",
@@ -17505,7 +17825,12 @@
     "distanceKm": 0.42,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/temppeliaukio-church.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "carcassonne": {
     "wikidata": "Q6582",
@@ -17518,7 +17843,12 @@
     "distanceKm": 0.66,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/carcassonne.jpg",
+      "width": 960,
+      "height": 566
+    }
   },
   "guggenheim-museum-bilbao": {
     "wikidata": "Q179199",
@@ -17531,7 +17861,12 @@
     "distanceKm": 0.36,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/guggenheim-museum-bilbao.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "jardin-du-luxembourg": {
     "wikidata": "Q309458",
@@ -17544,7 +17879,12 @@
     "distanceKm": 0.4,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/jardin-du-luxembourg.jpg",
+      "width": 960,
+      "height": 522
+    }
   },
   "mont-saint-michel": {
     "wikidata": "Q20883",
@@ -17557,7 +17897,12 @@
     "distanceKm": 0.44,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mont-saint-michel.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "palace-of-fontainebleau": {
     "wikidata": "Q201428",
@@ -17570,7 +17915,12 @@
     "distanceKm": 0.25,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/palace-of-fontainebleau.jpg",
+      "width": 960,
+      "height": 678
+    }
   },
   "pantheon-paris": {
     "wikidata": "Q188856",
@@ -17583,7 +17933,12 @@
     "distanceKm": 0.51,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/pantheon-paris.jpg",
+      "width": 960,
+      "height": 651
+    }
   },
   "plaza-de-espana-seville": {
     "wikidata": "Q956018",
@@ -17596,7 +17951,12 @@
     "distanceKm": 0.42,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/plaza-de-espana-seville.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "pont-neuf": {
     "wikidata": "Q335277",
@@ -17609,7 +17969,12 @@
     "distanceKm": 0.3,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/pont-neuf.jpg",
+      "width": 960,
+      "height": 534
+    }
   },
   "royal-palace-of-madrid": {
     "wikidata": "Q171517",
@@ -17622,7 +17987,12 @@
     "distanceKm": 0.43,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/royal-palace-of-madrid.jpg",
+      "width": 960,
+      "height": 726
+    }
   },
   "santa-claus-village": {
     "wikidata": "Q135379",
