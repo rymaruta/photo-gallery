@@ -327,6 +327,8 @@ describe("app 全体: 明るい塗りに白い文字を載せない", () => {
     it("CHIP_ON は明るい塗り（bg-primary）のまま——変えたら上の走査の見方も変える", async () => {
         const { CHIP_ON } = await import("../components/chipStyles");
         expect(CHIP_ON.split(/\s+/)).toContain("bg-primary");
+        // 定数の中身は .tsx の走査に入らないので、ここで墨であることを見る
+        expect(CHIP_ON).not.toMatch(/(^|\s)text-white/);
     });
 
     it("bg-accent-fill / bg-primary / bg-white の行に text-white が無い", async () => {

@@ -261,7 +261,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                                       className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                       style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 11px", touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}
-                                    <span className="text-white/50" style={{ fontSize: "11px" }}>{c.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "11px" }}>{c.count}</span>
                                 </ItemLink>
                             </li>
                         ))}

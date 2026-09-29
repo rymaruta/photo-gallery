@@ -269,7 +269,7 @@ function FilterBarInner({
                         onClick={() => onChange({ category: c })}
                         aria-pressed={active}
                         aria-label={labelForCategory(c)}
-                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
+                        className={`inline-flex items-center justify-center text-[13px] focus:outline-none transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
                         style={{
                             ...STYLE.controlBtn,
                             touchAction: "manipulation",
@@ -290,7 +290,7 @@ function FilterBarInner({
                 onClick={() => onChange({ category: "all" })}
                 aria-pressed={values.category === "all"}
                 aria-label={labelForCategory("all")}
-                className={`inline-flex items-center justify-center text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors ${values.category === "all" ? CHIP_ON : CHIP_OFF}`}
+                className={`inline-flex items-center justify-center text-[13px] focus:outline-none transition-colors ${values.category === "all" ? CHIP_ON : CHIP_OFF}`}
                 style={{
                     ...STYLE.controlBtn,
                     touchAction: "manipulation",
@@ -322,7 +322,7 @@ function FilterBarInner({
                         role="switch"
                         aria-checked={active}
                         aria-label={ariaLabel}
-                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
+                        className={`inline-flex items-center gap-1.5 text-[13px] focus:outline-none transition-colors ${active ? CHIP_ON : CHIP_OFF}`}
                         style={{
                             ...STYLE.chipBase,
                             touchAction: "manipulation",
@@ -332,7 +332,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-ink/70" : "text-white/50"}`}>{count}</span> : null}
+                        {showCount ? <span className={`text-[11px] ${active ? "text-ink/70" : "text-white/60"}`}>{count}</span> : null}
                     </button>
                 );
             }),

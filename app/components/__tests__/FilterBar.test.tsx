@@ -35,6 +35,9 @@ describe("FilterBar", () => {
         for (const on of [screen.getByRole("button", { name: "自然" }), screen.getByRole("switch", { name: /swan/ })]) {
             expect(cls(on)).toEqual(expect.arrayContaining(["bg-primary", "text-ink", "font-semibold"]));
             expect(cls(on)).not.toContain("ring-line");
+            // 選択中の輪は内側の墨（白い地の上で真鍮は 1.93:1 で見えない・外側だと行で上下が切れる）
+            expect(cls(on)).toEqual(expect.arrayContaining(["ring-inset", "focus-visible:ring-2", "focus-visible:ring-ink"]));
+            expect(cls(on)).not.toContain("focus-visible:ring-accent");
         }
     });
 
