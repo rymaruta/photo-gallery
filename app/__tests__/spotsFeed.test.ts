@@ -156,6 +156,13 @@ describe("アプリ向けの索引", () => {
         expect(json).not.toContain("wikipedia");
     });
 
+    it("国は日本の外の行だけに載せる（アプリが海外を国ごとに分ける・日本の行は重くしない）", () => {
+        const japan = toSpotFeedItem(spot("takaya"));
+        expect(japan.region).toEqual({ prefecture: "香川県", city: "観音寺市" });
+        const france = toSpotFeedItem(spot("versailles", { region: { country: "フランス", prefecture: "イヴリーヌ県", city: "ヴェルサイユ" } }));
+        expect(france.region).toEqual({ country: "フランス", prefecture: "イヴリーヌ県", city: "ヴェルサイユ" });
+    });
+
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
         const item = toSpotFeedItem(spot("bare", { nameEn: undefined, reading: undefined, category: undefined, coords: undefined }));
         expect(Object.keys(item).sort()).toEqual(["draftedAt", "name", "region", "slug", "spotId", "stage", "summary"]);
