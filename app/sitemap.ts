@@ -101,8 +101,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
      * 「すべて見る」の行き先で、トップから集約ページへ渡す唯一の1本
      * （柱は `/search?…`＝`robots.txt` で `Disallow`＝行き止まり）。
      *
-     * `/tag` は作っていない——トップの写真カードのタグのチップが
-     * 実ビルドで `/tag/*` へ49本張っており、同じ穴が無い。
+     * `/tag` は作っていない——トップの PC の右の柱（`DiscoverRail`）が**検索に載るタグ
+     * だけ**を `/tag/*` へ直接張り、写真ページのタグも `/tag/*` を張る（2026-09-29 まで
+     * はトップの写真カードのタグのチップが49本張っていた）。
      * lastmod は中身（エントリの一覧）が写真に連動するのでトップと同じ。
      */
     const indexUrls: MetadataRoute.Sitemap = (["location", "category", "camera"] as CollectionType[])

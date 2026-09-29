@@ -59,14 +59,39 @@ describe("トップの「おすすめ」", () => {
         expect(all.map((a) => a.getAttribute("href")).join(" ")).toContain("/category/");
     });
 
+    it("「おすすめ」の並びは、選ばれた写真を先に、残りはいいねの多い順（画面まで配線されている）", () => {
+        // f1・f2 は選ばれた写真、n1 は選ばれていない。新着の順（n1, f2, f1）とは違う
+        photosRef.list = PHOTOS;
+        render(<GalleryPageClient />);
+        openFeatured();
+        const ids = [...document.querySelectorAll("a[data-photo-id]")].map((a) => a.getAttribute("data-photo-id"));
+        expect(ids).toEqual(["f2", "f1", "n1"]);
+    });
+
+    it("「おすすめ」には PC の右の柱を付けない（owner の指示 2026-09-22・意図的な実装）", () => {
+        render(<GalleryPageClient />);
+        openFeatured();
+        expect(document.querySelector("main aside"), "おすすめに柱が付いている").toBeNull();
+    });
+
+    // 柱が無いぶん中央に置くと、タブを切り替えたときに並びが横へ 160〜224px 跳ねる。
+    // 新着（`HomeColumns` の1本目＝PC は左端から 40rem）と同じ位置・同じ幅に置く
+    it("「おすすめ」の並びは PC で新着と同じ位置（左寄せ・40rem）", () => {
+        render(<GalleryPageClient />);
+        openFeatured();
+        const box = document.querySelector("a[data-photo-id]")!.closest("ol")!.parentElement!;
+        expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["lg:mx-0", "lg:max-w-[40rem]"]));
+    });
+
     /** 空の見出しだけが残る形は「準備中」と同じ */
-    it("1枚も選ばれていなければ、何も出さない", () => {
+    it("1枚も選ばれていなければ、カテゴリの段は出さず、全部の写真の並びだけ出す（iOS と同じ）", () => {
         photosRef.list = PHOTOS.map((p) => ({ ...p, featured: false }));
         render(<GalleryPageClient />);
         openFeatured();
         expect(screen.queryByRole("heading", { name: "おすすめ" }), "空の節が残っている").toBeNull();
-        // **行き止まりにしない**（空の見出しだけが残る形は「準備中」と同じ）
-        expect(screen.getByText("まだおすすめは選ばれていません。")).toBeInTheDocument();
+        // **行き止まりにしない**——以前は「まだおすすめは選ばれていません。」だけだった
+        expect(screen.queryByText("まだおすすめは選ばれていません。")).toBeNull();
+        expect(document.querySelectorAll("a[data-photo-id]").length, "写真の並びが出ていない").toBeGreaterThan(0);
     });
 
     /**

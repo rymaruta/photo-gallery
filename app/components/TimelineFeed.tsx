@@ -6,18 +6,19 @@ import { useAuth } from "../auth/context";
 import { usePhotos } from "../../lib/hooks/usePhotos";
 import { fetchFollowingSet, subscribeFollowingSet } from "../../lib/hooks/useFollow";
 import { timelinePhotos } from "../../lib/utils/timeline";
-import { useMySaves } from "../../lib/hooks/useMySaves";
 import { ROUTES, loginWithNext } from "../../lib/routes";
-import TimelineCard from "./TimelineCard";
-
-/** 最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
-const PRIORITY_COUNT = 2;
+import HomeMosaic from "./HomeMosaic";
 
 type Props = { locale: string };
 
 /**
  * フォローしている人の写真が**投稿の新しい順に流れる**面（Instagram のホームに
  * 当たる）。トップの「フォロー中」タブが描く。
+ *
+ * **並べ方は新着・おすすめと同じ `HomeMosaic`**（iOS の `GalleryView` が3つのタブを
+ * 同じ並びで描くのに揃えた・2026-09-29）。撮った人の名前は撮影地と一緒に写真に重ねる。
+ * **撮影地の無い写真は名前も重ねない**（iOS と同じ）ので、そのときは読み上げと写真ページで分かる。
+ * 以前は縦1列の札（投稿者の行・題・説明・タグ・保存など4つの操作）だった
  *
  * owner:「この画面（トップ）は、タブで切り替えて、自分の写真かフォロー中の人の
  * 写真みれるようにしたい」。以前は別ページ `/timeline` → マイページのタブと
@@ -27,12 +28,8 @@ type Props = { locale: string };
  * 未ログインで描かれることは無いはずだが、その場合はログインへの導線を出す。
  */
 export default function TimelineFeed({ locale }: Props) {
-    const { isAuthenticated, userId, loading: authLoading } = useAuth();
+    const { isAuthenticated, loading: authLoading } = useAuth();
     const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
-    // 保存した写真の id を**1回で**引いてカードに配る（写真ごとに聞きに行かせない）
-    const saves = useMySaves(isAuthenticated, authLoading);
-    const savedIds = React.useMemo(() => (saves.pending || saves.failed ? null : new Set(saves.photoIds)), [saves.pending, saves.failed, saves.photoIds]);
-
     // `null` ＝ まだ分からない。**「0人」と混ぜない**（取得中に「まだ誰も
     // フォローしていません」を出すと、フォローが効いていないように見える）
     const [following, setFollowing] = React.useState<Set<string> | null>(null);
@@ -119,23 +116,7 @@ export default function TimelineFeed({ locale }: Props) {
             </Empty>
         );
     }
-    return (
-        <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
-            {items.map((p, i) => (
-                <li key={p.id} className="m-0 p-0">
-                    <TimelineCard
-                        photo={p}
-                        locale={locale === "en" ? "en" : "ja"}
-                        priority={i < PRIORITY_COUNT}
-                        isAuthenticated={isAuthenticated}
-                        authLoading={authLoading}
-                        savedIds={savedIds}
-                        savesPending={saves.pending}
-                    />
-                </li>
-            ))}
-        </ol>
-    );
+    return <HomeMosaic photos={items} locale={isJa ? "ja" : "en"} />;
 }
 
 const pillClass = "px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors";

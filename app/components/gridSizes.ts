@@ -143,37 +143,34 @@ export const GRID_SIZES_6XL = [
 ].join(", ");
 
 /**
- * トップの「フォロー中」タブ（`TimelineFeed`）の1列カード。
+ * ホームの写真の並び（`HomeMosaic`・iOS の板 01c）の2種類の箱。
  *
- * 外側の容器は `max-w-5xl` ＋ `p-4`（640px 未満は root 14px 固定なので 14px×2）
- * → `sm:p-6`（1.5rem×2）→ `md:p-8`。その中に `max-w-xl`（36rem）の箱を置き、
- * カードは箱いっぱいに描く（箱の内側に余白は無い）:
+ * **531px までは画面の端から端まで**（本文の余白 `p-4` を `-mx-4` で打ち消す）。
+ * 532〜639px は `max-w-xl`（root 14px なので 504px）＋左右 14px ＝ **532px で頭打ち**
+ * （端まで届かない。root が 14px なので `max-w-xl` は 504px）。
+ * 640〜1023px は 36rem（576px）、1024px 以上は PC の2カラムの1本目＝40rem（640px）。
  *
- * - 640px 未満は root が 14px なので箱の上限は 504px。**532px 以上は箱で
- *   頭打ち**——`100vw - 28px` のままだと実寸より大きく申告する
- * - 640px 以上は `100vw - 3rem`（≥592px）が箱の 36rem（576px）を必ず超えるので
- *   最初から頭打ち。メディアクエリの rem は常に 16px なので
- *   `(max-width:35.99rem)` のような条件は 1つ目に含まれて到達しない
+ * ⚠️ **40rem（640px）より広げない。** `Thumb` の派生は **512w まで**なので、箱を
+ * 広げるほど引き伸ばしになる（640px で 1.25倍）。`SPOT_HERO_SIZES` が同じ理由で
+ * 640px に止めているのと同じ線。広げたいなら `generate-thumbnails.js` の variants に
+ * 大きい派生を足すのが先（owner の指示 2026-09-22:「無理に画面幅いっぱいへ引き伸ばさない」）。
+ * Chromium で実測（2026-09-29・`gridSizes.test.tsx` の表）。
  *
- * ## ≥1024px（`lg:`）は **40rem（640px）**（2026-09-22・owner の指示）
- *
- * PC では1列のフィード＋右の柱になり、フィードの枠が
- * `lg:grid-cols-[minmax(0,40rem)_minmax(0,1fr)]` の1本目＝640px で頭打ちになる。
- * owner:「ホームの本文が 576px に制限され、1280px 幅で左右に大きな余白が
- * 残る問題を解消すること。ただし無理に画面幅いっぱいへ引き伸ばさない」。
- *
- * ⚠️ **640px より広げない。** `Thumb` の派生は **512w まで**なので、箱を
- * 広げるほど引き伸ばしになる（640px で 1.25倍）。**`SPOT_HERO_SIZES` が
- * 同じ理由で 640px に止めているのと同じ線**——そちらの doc に
- * 「写真が主役のサイトで、いちばん大きく出す1枚がいちばん粗い、という形に
- * なる」と書いてある。もっと広げたいなら `generate-thumbnails.js` の
- * variants に大きい派生を足すのが先で、**ここだけ上げない**。
+ *   大きい1枚 … 箱いっぱい
+ *   2枚の段   … 箱の半分から隙間の半分（2px）を引いた幅
  */
-export const FEED_SIZES_XL = [
-    "(max-width:531px) calc(100vw - 28px)",
-    "(max-width:639px) 504px",
-    "(max-width:63.99rem) 36rem",   // 640〜1023px: `max-w-xl` の箱
-    "40rem",                        // ≥1024px: PC の2カラムの1本目
+export const MOSAIC_HERO_SIZES = [
+    "(max-width:531px) 100vw",
+    "(max-width:639px) 532px",
+    "(max-width:63.99rem) 36rem",
+    "40rem",
+].join(", ");
+
+export const MOSAIC_PAIR_SIZES = [
+    "(max-width:531px) calc(50vw - 2px)",
+    "(max-width:639px) 264px",
+    "(max-width:63.99rem) calc(18rem - 2px)",
+    "calc(20rem - 2px)",
 ].join(", ");
 
 /**
@@ -188,7 +185,7 @@ export const FEED_SIZES_XL = [
  * 1280px 幅で箱 1120px ＝ 2.2倍）。写真が主役のサイトで、いちばん大きく
  * 出す1枚がいちばん粗い、という形になる。
  *
- * `TimelineCard` が同じ理由で箱を 36rem（576px）に収めているのと**同じ判断**
+ * ホームの並び（`MOSAIC_HERO_SIZES`）が同じ理由で箱を 40rem（640px）に収めているのと**同じ判断**
  * ——「画像は一覧と同じ `Thumb`（512px の派生まで）。押せば写真ページで
  * 原寸に近い方が出る」。ヒーローは**大きく見せる入口**であって原寸の
  * 置き場ではない。

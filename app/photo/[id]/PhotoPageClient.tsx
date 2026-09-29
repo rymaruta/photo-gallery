@@ -1082,7 +1082,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 <SpotLinkCard spot={spotLink ?? null} locale={locale} />
 
                 {/* アクション行: ♡（押せる・数）・💬（数・コメントのタブへ）・🔖 保存・⬆ シェア。
-                    ホームのカードと同じ形（`TimelineCard`）。失敗すると楽観更新が
+                    失敗すると楽観更新が
                     ロールバックしてハートが黙って戻るので、理由の文言を出す（SW-b4） */}
                 <div className="flex items-center gap-5 pt-1">
                     <button

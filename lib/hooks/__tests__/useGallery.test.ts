@@ -575,36 +575,49 @@ describe("useGallery", () => {
             expect(renderHook(() => useGallery(mockPhotos, "me")).result.current.filters.scope).toBe("all");
         });
 
-        // **「自分だけ」のタブは無くなった**（owner の新デザイン。自分の写真は
-        // マイページの「投稿」タブが持つ）。代わりに「おすすめ」＝運営が選んだ
-        // 写真（`featured`）。**人気順ではない**——実データは いいね0・コメント0 で
-        // 人気の根拠がどこにも無く、根拠の無いものを「人気」と名乗らない
-        it("おすすめ: 運営が選んだ写真に絞る。未ログインでも同じ（誰が見ても同じ写真）", () => {
+        // **「おすすめ」は絞らず、並べ替える**（iOS の `HomeFeed` と同じ・2026-09-29）。
+        // 運営が選んだ写真（`featured`）を先に、残りはいいねの多い順＝**空にならない**。
+        // 以前は選ばれた写真だけに絞っていて、本番（featured 0枚）では空だった
+        it("おすすめ: 選ばれた写真を先に、残りはいいねの多い順。未ログインでも同じ", () => {
             const photos = [
-                { ...mockPhotos[0], id: "pick-1", featured: true },
-                { ...mockPhotos[1], id: "plain" },
-                { ...mockPhotos[2], id: "pick-2", featured: true },
+                // いいねは全部明示する（`mockPhotos` がいいねを持っているので、引き継ぐと並びが変わる）
+                { ...mockPhotos[0], id: "plain-liked", likes: 5 },
+                { ...mockPhotos[1], id: "pick-1", featured: true, likes: 0 },
+                { ...mockPhotos[2], id: "plain", likes: 0 },
+                { ...mockPhotos[0], id: "pick-2", featured: true, likes: 2 },
             ];
             window.history.replaceState({}, "", "/?scope=featured");
-            expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id).sort())
-                .toEqual(["pick-1", "pick-2"]);
+            const order = (viewer: string | null) =>
+                renderHook(() => useGallery(photos, viewer)).result.current.filteredPhotos.map((p) => p.id);
+            expect(order("me").slice(0, 3)).toEqual(["pick-2", "pick-1", "plain-liked"]);
+            expect(order("me")).toHaveLength(4);                 // 絞らない
             // **本人の id に依らない。** ここを `ownUserId` で分岐させると、
             // 未ログインの人に「おすすめ」が出なくなる
-            expect(renderHook(() => useGallery(photos, null)).result.current.filteredPhotos.map((p) => p.id).sort())
-                .toEqual(["pick-1", "pick-2"]);
+            expect(order(null)).toEqual(order("me"));
         });
 
-        it("おすすめ: 印が `true` の写真だけ（truthy では拾わない）", () => {
+        it("おすすめの並びはホームだけ。「さがす」に ?scope=featured が残っても、選んだ並べ替えが効く", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "old-liked", likes: 9, createdAt: "2026-01-01T00:00:00Z", date: "2026-01-01" },
+                { ...mockPhotos[1], id: "new", likes: 0, createdAt: "2026-03-01T00:00:00Z", date: "2026-03-01" },
+            ];
+            window.history.replaceState({}, "", "/search?scope=featured&sort=new");
+            const ids = renderHook(() => useGallery(photos, "me", { recommendOnFeatured: false }))
+                .result.current.filteredPhotos.map((p) => p.id);
+            expect(ids, "いいね順に並べ替えて、選んだ「新しい順」を上書きしている").toEqual(["new", "old-liked"]);
+        });
+
+        it("おすすめ: 印が `true` の写真だけを先に出す（truthy では拾わない）", () => {
             // 壊れた値を通す（本番のデータは何でもありうる）。型の穴は
             // **配列ごと**開ける——要素に `@ts-expect-error` を置くと、
             // エラーが出るのは呼び出し側なので「使われていない」と言われる
             const photos = [
-                { ...mockPhotos[0], id: "pick", featured: true },
-                { ...mockPhotos[1], id: "truthy", featured: "yes" },
+                { ...mockPhotos[0], id: "truthy", featured: "yes", likes: 9 },
+                { ...mockPhotos[1], id: "pick", featured: true, likes: 0 },
             ] as unknown as Photo[];
             window.history.replaceState({}, "", "/?scope=featured");
             expect(renderHook(() => useGallery(photos, "me")).result.current.filteredPhotos.map((p) => p.id))
-                .toEqual(["pick"]);
+                .toEqual(["pick", "truthy"]);
         });
 
         // **開けるまで `?photo=` を落とさない。**

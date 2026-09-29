@@ -18,15 +18,16 @@ import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
-import TimelineCard from "./components/TimelineCard";
+import HomeMosaic from "./components/HomeMosaic";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
 
-/** ホームの最初の画面に入る枚数ぶんだけ優先で読む（1列なので2枚で足りる） */
-const HOME_PRIORITY_COUNT = 2;
+/** ホームで優先して読む枚数。**大きい1枚＋最初の2枚の段＝3枚**（`HomeMosaic`）。
+ *  2枚だと同じ段の右だけ遅れて出る */
+const HOME_PRIORITY_COUNT = 3;
 
 /**
  * ホームのタブ（おすすめ／フォロー中／新着）。**順番が矢印キーの順番**。
@@ -41,11 +42,11 @@ const HOME_TABS = [
 const HOME_PANEL_ID = "home-tabpanel";
 
 /**
- * **ホームの PC は「1列のフィード＋右の柱」**（owner の指示書 4・11・17:
+ * **ホームの PC は「左に写真の並び（`HomeMosaic`）＋右の柱」**（owner の指示書 4・11・17:
  * 「PCではスマートフォン画面をそのまま横に引き伸ばすのではなく、
  * Webサイトとして最適なレイアウトを設計してください」）。
  *
- *   < 1024px … 最終版モックのまま（1列のカードだけ）
+ *   < 1024px … 写真の並びだけ（iOS の `HomeMosaic`・大きく1枚 → 2枚 → 2枚）
  *   ≥ 1024px … 左にフィード（**40rem＝640px**）／右に**発見の柱**（余りぜんぶ）
  *
  * **空いた横を埋めるのは別の中身。** スマホでは下部タブの「さがす」で
@@ -64,7 +65,7 @@ const HOME_PANEL_ID = "home-tabpanel";
  *     1920   同上            同上                        57%
  *
  * ⚠️ **フィードを 640px より広げない。** `Thumb` の派生は 512w までなので、
- * 箱を広げるほど引き伸ばしになる（`FEED_SIZES_XL` と `SPOT_HERO_SIZES` の
+ * 箱を広げるほど引き伸ばしになる（`MOSAIC_HERO_SIZES` と `SPOT_HERO_SIZES` の
  * doc に同じ線が引いてある）。**「引き伸ばさない」は owner の言葉でもある。**
  *
  * **柱は `1fr`（余りぜんぶ）にする。** 固定幅にして `justify-center` で
@@ -113,7 +114,7 @@ type Props = {
    * 写真・届く前・絞り込みの解除・トースト。この画面でいちばん手を入れた
    * 100行）を複製することになる。違うのは見せ方だけで、写真の一覧・
    * 絞り込みの状態・集約の数え上げは同じものを見ている。
-   *   `home`   … タブ（おすすめ／フォロー中／新着）＋1列のカード
+   *   `home`   … タブ（おすすめ／フォロー中／新着）＋写真の並び（新着は `HomeMosaic`）
    *   `search` … 絞り込み＋件数＋サムネのグリッド
    */
   surface?: "home" | "search";
@@ -141,7 +142,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     close,
     next,
     prev,
-  } = useGallery(photos, ownUserId);
+  } = useGallery(photos, ownUserId, { recommendOnFeatured: surface === "home" });
 
   /**
    * **ログイン中の既定は「自分」**（owner:「デフォルトは自分のみがいい」）。
@@ -156,10 +157,10 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   /**
    * **おすすめに出せる写真が1枚でもあるか。**
    *
-   * 「おすすめ」＝運営が選んだ写真（`featured`）で、**人気順ではない**
-   * ——実データは いいね0・コメント0 なので、人気の根拠がどこにも無い
-   * （根拠の無いものを「人気」と名乗らない）。1枚も選ばれていなければ
-   * そのタブは空になるので、既定にしない。
+   * 「おすすめ」は運営が選んだ写真（`featured`）を先に、残りをいいねの多い順に並べる
+   * （iOS の `HomeFeed`・空にならない）。**既定にするのは選ばれた写真があるときだけ**
+   * ——無ければ運営の選んだものが1枚も無いタブになるので、新着を既定のままにする
+   * （静的HTML も新着のまま）。
    */
   const hasFeatured = React.useMemo(() => PHOTOS.some((p) => p.featured === true), [PHOTOS]);
 
@@ -201,9 +202,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     // ——結果の件数・グリッド・色の内訳が全部おすすめだけになり、FilterBar には
     // 何も絞っていないように見える（レビューで指摘）
     if (surface !== "home") return;
-    // **「おすすめ」は1枚も選ばれていないと空**（実データは featured 0枚）。
-    // 空のタブを既定にすると、開いた人がまず何も無い画面を見る。
-    // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
+    // **選ばれた写真があるときだけ「おすすめ」を既定にする**（実データは featured 0枚）。
+    // 無ければ既定は「新着」のまま（静的HTML も新着）。おすすめは空にはならないが、
+    // 選ばれた写真が無い間は「いいね順＝ほぼ投稿の新しい順」でしかない
     if (hasFeatured) setFilters({ scope: "featured" });
   }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured, surface]);
 
@@ -597,8 +598,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
 
-      {/* フォロー中: 絞り込み・件数・グリッドは出さず、投稿者つきのカードが投稿順に流れる
-          （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
+      {/* フォロー中: 絞り込み・件数・グリッドは出さず、新着と同じ並び（`HomeMosaic`）で
+          投稿順に流れる。撮った人の名前は撮影地と一緒に写真に重ねる（撮影地が無い写真は
+          重ねない・iOS と同じ・2026-09-29）。
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {surface === "home" && filters.scope === "following" ? (
@@ -608,48 +610,53 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           </HomeColumns>
         </HomePanel>
       ) : surface === "home" && filters.scope === "featured" ? (
-        /* ⚠️ **このタブだけ PC の柱が付かない**（`HomeColumns` で包んでいない）。
-           `FeaturedSections` は中で `GRID_SIZES_5XL` を使う＝**容器が
-           `max-w-5xl` いっぱいである前提**で `sizes` を申告している。
-           36rem の柱の中へ入れると箱は 139.5px なのに 235.5px と申告する
-           ことになり、`gridSizes.ts` が禁じている「申告と実寸のずれ」を
-           作る。**既にカテゴリごとのグリッド＝横を使う形**なので、
-           ここは広いまま置く。付けるなら `FeaturedSections` に `sizes` を
-           渡せるようにするのが先（本番の `featured` は 0枚なので、
-           いま実際に出るのは下の空の知らせ）。
-
-           **おすすめ＝運営が選んだ写真。** 既にある `FeaturedSections`
-           （カテゴリごとに束ねて、そのカテゴリの全部へ行ける）をそのまま
-           持ち場にする——同じものを二度作らない。
-           **人気順ではない**（実データは いいね0・コメント0 で、人気の
-           根拠がどこにも無い）。1枚も選ばれていなければそう言う */
-        <HomePanel scope="featured">{hasFeatured && !narrowedNow ? (
-          <FeaturedSections
-            photos={PHOTOS}
-            categoryNames={labels.category?.names ?? {}}
-            locale={locale}
-            categoryDisplayMap={categoryDisplayMap}
-            onOpenPhoto={openById}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm m-0">
-              {locale === "en" ? "No picks yet." : "まだおすすめは選ばれていません。"}
-            </p>
-            <button
-              type="button"
-              onClick={() => setFilters({ scope: "all" })}
-              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-              style={{ touchAction: "manipulation" }}
-            >
-              {locale === "en" ? "See what's new" : "新着を見る"}
-            </button>
+        /* **おすすめ＝iOS の `HomeFeed.recommended`**（2026-09-29 に揃えた）。
+           1. 運営が選んだ写真があれば、カテゴリごとの段（`FeaturedSections`）
+           2. その下に**全部の写真**を「選ばれた写真を先に、残りはいいねの多い順」で
+              （並べるのは `useGallery`＝モーダルの前後も同じ順）＝**空にならない**
+           🔴 **このタブは PC の右の柱を付けない**（owner の指示 2026-09-22:「おすすめは
+           右側サイドバーを表示していません。これは現在の意図的な実装です。3タブすべてに
+           機械的に同じサイドバーを追加しないでください」・`docs/owner-instructions-2026-09-22.md`）。
+           段（`FeaturedSections`）は中で `GRID_SIZES_HOME_6XL` を使う＝容器いっぱいの前提。
+           並びの方は**新着と同じ位置・同じ幅**（PC は左寄せの 40rem・`MOSAIC_*_SIZES` の申告と合わせる）。
+           中央に置くと、タブを切り替えたときに並びが横へ 160〜224px 跳ねる
+           （owner の指示の確認事項「タブを切り替えても見出し位置が不自然に移動しないか」）。
+           ⚠️ 柱を付けない理由（広い段）は、選ばれた写真が0枚の本番では成り立っていない
+           ——付けるかどうかは owner の判断（`docs/ios-alignment-2026-09-27.md` §3 のホームのカードの行）
+           並び: いいねが全部 0 なら「投稿の新しい順」。**新着（撮影日が先）とは違う並び**になる */
+        <HomePanel scope="featured">
+          {hasFeatured && !narrowedNow && (
+            <FeaturedSections
+              photos={PHOTOS}
+              categoryNames={labels.category?.names ?? {}}
+              locale={locale}
+              categoryDisplayMap={categoryDisplayMap}
+              onOpenPhoto={openById}
+            />
+          )}
+          {/* 選ばれた写真のカテゴリの段の下に、**全部の写真を「おすすめ」の並びで**
+              （選ばれた写真を先に、残りはいいねの多い順・`useGallery` が並べる）。
+              iOS の `GalleryView` と同じ——段は選ばれた写真があるときだけ、並びは必ず出る */}
+          <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-[40rem]">
+            {filteredPhotos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
+                <p className="text-sm m-0">
+                  {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+                </p>
+              </div>
+            ) : (
+              <HomeMosaic
+                photos={filteredPhotos}
+                locale={locale === "en" ? "en" : "ja"}
+                priorityCount={hasFeatured && !narrowedNow ? 0 : HOME_PRIORITY_COUNT}
+              />
+            )}
           </div>
-        )}</HomePanel>
+        </HomePanel>
       ) : surface === "home" ? (
-        /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
-           グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
-           1枚ずつ見るのは別の体験なので、面を分ける */
+        /* **新着は iOS と同じ写真の並び**（`HomeMosaic`・大きく1枚 → 2枚 → 2枚・2026-09-29）。
+           以前は縦1列の札（題・説明・タグ・4つの操作）だった。題・説明・タグ・保存・共有は
+           写真ページにある。サムネを並べる格子は「さがす」の持ち場のまま */
         <HomePanel scope="all"><HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
@@ -658,21 +665,11 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               </p>
             </div>
           ) : (
-            <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
-              {filteredPhotos.map((p, i) => (
-                <li key={p.id} className="m-0 p-0">
-                  <TimelineCard
-                    photo={p}
-                    locale={locale === "en" ? "en" : "ja"}
-                    priority={i < HOME_PRIORITY_COUNT}
-                    isAuthenticated={isAuthenticated}
-                    authLoading={authLoading}
-                    savedIds={savedIds}
-                    savesPending={saves.pending}
-                  />
-                </li>
-              ))}
-            </ol>
+            <HomeMosaic
+              photos={filteredPhotos}
+              locale={locale === "en" ? "en" : "ja"}
+              priorityCount={HOME_PRIORITY_COUNT}
+            />
           )}
         </HomeColumns></HomePanel>
       ) : (
