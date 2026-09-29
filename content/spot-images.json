@@ -9397,7 +9397,12 @@
     "distanceKm": 0.25,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nanatsugama.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "naniwanomiya": {
     "wikidata": "Q3608523",
@@ -9711,7 +9716,12 @@
     "distanceKm": 0.67,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nijushi-no-hitomi.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "nikko-toshogu": {
     "wikidata": "Q696641",
@@ -9778,7 +9788,12 @@
     "distanceKm": 0.54,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nishikawa-gassan.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "nisshinkan": {
     "wikidata": "Q9050252",
@@ -16904,7 +16919,12 @@
     "distanceKm": 0.01,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/morioka-jozan.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "morioka-kaiunbashi": {
     "wikidata": "Q11655321",
@@ -16917,7 +16937,12 @@
     "distanceKm": 0.27,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/morioka-kaiunbashi.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "mugi": {
     "wikidata": "Q11395786",
@@ -16930,7 +16955,12 @@
     "distanceKm": 2.11,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mugi.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "nagasaki-shrine": {
     "wikidata": "Q211522",
@@ -16943,7 +16973,12 @@
     "distanceKm": 0.31,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nagasaki-shrine.jpg",
+      "width": 960,
+      "height": 1439
+    }
   },
   "nagoya-castle": {
     "wikidata": "Q711685",
@@ -16956,7 +16991,12 @@
     "distanceKm": 0.08,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nagoya-castle.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "nakano-momijiyama": {
     "wikidata": "Q11605268",
@@ -16969,7 +17009,12 @@
     "distanceKm": 2.48,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nakano-momijiyama.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "nihonmatsu-castle": {
     "wikidata": "Q685491",
@@ -16982,7 +17027,12 @@
     "distanceKm": 0.58,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/nihonmatsu-castle.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "norikura-tatamidaira": {
     "wikidata": "Q3133588",
@@ -16995,7 +17045,12 @@
     "distanceKm": 1.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/norikura-tatamidaira.jpg",
+      "width": 960,
+      "height": 430
+    }
   },
   "shimaonsen-sekizenkan": {
     "wikidata": "Q30595841",
