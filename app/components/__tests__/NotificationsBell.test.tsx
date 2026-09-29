@@ -159,12 +159,16 @@ describe("NotificationsBell", () => {
         // ボタンの名前は「通知」のまま、数は説明として読まれる
         const bell = screen.getByRole("button", { name: "通知" });
         expect(bell).toHaveAccessibleDescription("未読 12 件");
+        // 説明文そのものは隠す（読み上げを1行ずつ進めたときに二度読ませない）
+        expect(document.getElementById(bell.getAttribute("aria-describedby")!)!.hidden).toBe(true);
     });
 
     it("未読が 0 なら点も説明も出さない", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        // 応答が画面に反映されるまで待つ（呼んだ直後に見ると、反映前の「点なし」を見て通ってしまう）
+        await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
         expect(unreadDot()).toBeNull();
         expect(screen.getByRole("button", { name: "通知" }).getAttribute("aria-describedby")).toBeNull();
     });

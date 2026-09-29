@@ -449,7 +449,7 @@ export default function NotificationsBell() {
      *   何を数えているか … **位置**。追記は `list_append(:new, existing)` で
      *     先頭が新しいので、`unread` は「**先頭 N 件**が未読」の N。
      *     総量ではない
-     *   画面のどこに出るか … ベルのバッジ（`9+` で頭打ち）と、**この操作を
+     *   画面のどこに出るか … ベルの未読の点（数は読み上げの説明「未読 N 件」）と、**この操作を
      *     出すかどうか**の判定だけ。区分の見出し（「新着」）は
      *     **別の値**（`newSince`）で決まる
      *   ずれたらどちらへ倒れるか … ここは 0 を描く側なので、ずれる向きは
@@ -1015,7 +1015,10 @@ export default function NotificationsBell() {
                 )}
             </button>
             {unread > 0 && (
-                <span id={unreadDescId} className="sr-only">
+                // **`hidden` にする**（`sr-only` ではなく）。`aria-describedby` は隠れた要素の
+                // 文字も説明として拾う。`sr-only` だと読み上げを1行ずつ進めたときに、
+                // ボタンの説明のあとでこの span をもう一度「未読 N 件」と読む
+                <span id={unreadDescId} hidden>
                     {locale === "en" ? `${unread} unread` : `未読 ${unread} 件`}
                 </span>
             )}
