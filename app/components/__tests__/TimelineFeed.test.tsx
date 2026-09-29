@@ -29,10 +29,10 @@ const TimelineFeed = (await import("../TimelineFeed")).default;
 const Feed = () => <TimelineFeed locale="ja" />;
 
 const PHOTOS = [
-    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00", date: "2019-01-01", location: "京都" },
-    { id: "a-old", src: "https://cdn/a-old.jpg", userId: "A", displayName: "Aさん", title: "古い方", createdAt: "2026-09-01T10:00:00", date: "2026-09-09", location: "パリ" },
-    { id: "b1", src: "https://cdn/b1.jpg", userId: "B", displayName: "Bさん", title: "Bの写真", createdAt: "2026-09-05T10:00:00" },
-    { id: "me1", src: "https://cdn/me1.jpg", userId: "me", displayName: "自分", title: "自分の写真", createdAt: "2026-09-12T10:00:00" },
+    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00Z", date: "2019-01-01", location: "京都" },
+    { id: "a-old", src: "https://cdn/a-old.jpg", userId: "A", displayName: "Aさん", title: "古い方", createdAt: "2026-09-01T10:00:00Z", date: "2026-09-09", location: "パリ" },
+    { id: "b1", src: "https://cdn/b1.jpg", userId: "B", displayName: "Bさん", title: "Bの写真", createdAt: "2026-09-05T10:00:00Z" },
+    { id: "me1", src: "https://cdn/me1.jpg", userId: "me", displayName: "自分", title: "自分の写真", createdAt: "2026-09-12T10:00:00Z" },
 ];
 
 const cardIds = () => Array.from(document.querySelectorAll("[data-photo-id]")).map((el) => el.getAttribute("data-photo-id"));
@@ -68,7 +68,7 @@ describe("TimelineFeed", () => {
         photosState.current = {
             photos: ["1", "2", "3", "4", "5"].map((n) => ({
                 id: `c${n}`, src: `https://cdn/c${n}.jpg`, userId: "C", displayName: "Cさん", title: `題${n}`,
-                createdAt: `2026-09-0${n}T10:00:00`, location: n === "5" ? "" : "那覇",
+                createdAt: `2026-09-0${n}T10:00:00Z`, location: n === "5" ? "" : "那覇",
             })),
             loading: false, loaded: true, failed: false,
         };
