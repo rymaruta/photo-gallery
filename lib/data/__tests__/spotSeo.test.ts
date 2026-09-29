@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { SPOTS, type Spot } from "../spots";
 import { spotAreaOf } from "../spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "../spotSeo";
-import { isPublished } from "../../utils/spotGuide";
+import { isPublished, visibleSpots } from "../../utils/spotGuide";
 import { distanceLabel } from "../../utils/journey";
 import { siteConfig } from "../../utils/seo";
 
@@ -141,4 +141,23 @@ describe("handPickedNearby", () => {
     it("書かれていなければ空", () => {
         expect(handPickedNearby({ ...a, nearbySpotIds: undefined } as Spot)).toEqual([]);
     });
+});
+
+// 🔴 **実データ全部で、画面の「約◯km」が丸める前と同じ言い方か。** 2桁に丸めてから画面で
+// もう一度丸めていた回は、6,386 行中 98 行で数字が変わっていた（6.445km →「約6.5km」）。
+// 違ってよいのは 9.95〜10km（「約10.0km」→「約10km」）だけ
+it("実データの同じ県の一覧すべてで、距離の言い方が丸める前と同じ（9.95〜10km を除く）", () => {
+    const bad: string[] = [];
+    let rows = 0;
+    for (const s of visibleSpots(SPOTS).filter((x) => isPublished(x) && x.coords)) {
+        for (const r of sameAreaSpots(s)) {
+            if (r.km === undefined) continue;
+            rows++;
+            const raw = km(s.coords!, bySlug(r.slug).coords!);
+            if (raw > 9.95 && raw < 10) continue;
+            if (distanceLabel(r.km, true) !== distanceLabel(raw, true)) bad.push(`${s.slug}→${r.slug} ${raw}`);
+        }
+    }
+    expect(rows).toBeGreaterThan(1000);
+    expect(bad).toEqual([]);
 });
