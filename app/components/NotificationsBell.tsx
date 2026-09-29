@@ -1,7 +1,7 @@
 "use client";
 
 import { usableRows } from "../../lib/utils/apiRows";
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
@@ -415,6 +415,8 @@ export default function NotificationsBell() {
      */
     const sheetRef = useRef<HTMLDivElement | null>(null);
     const bellRef = useRef<HTMLButtonElement | null>(null);
+    // 未読の数を読み上げに渡す説明文の id（ボタンの `aria-describedby` が指す）
+    const unreadDescId = useId();
     useFocusTrap(open && !wide, sheetRef, bellRef);
 
     /**
@@ -447,7 +449,7 @@ export default function NotificationsBell() {
      *   何を数えているか … **位置**。追記は `list_append(:new, existing)` で
      *     先頭が新しいので、`unread` は「**先頭 N 件**が未読」の N。
      *     総量ではない
-     *   画面のどこに出るか … ベルのバッジ（`9+` で頭打ち）と、**この操作を
+     *   画面のどこに出るか … ベルの未読の点（数は読み上げの説明「未読 N 件」）と、**この操作を
      *     出すかどうか**の判定だけ。区分の見出し（「新着」）は
      *     **別の値**（`newSince`）で決まる
      *   ずれたらどちらへ倒れるか … ここは 0 を描く側なので、ずれる向きは
@@ -989,6 +991,7 @@ export default function NotificationsBell() {
                 ref={bellRef}
                 onClick={toggleOpen}
                 aria-label={locale === "en" ? "Notifications" : "通知"}
+                aria-describedby={unread > 0 ? unreadDescId : undefined}
                 aria-expanded={open}
                 // **探す・メニューと同じ丸い押し面**（iOS: 箱なし・44px・アイコン22px・線1.7）。
                 // 以前はここだけ `rounded-md` で、スマホでは rem の `w-11` が 38.5px に縮んでいた
@@ -996,12 +999,31 @@ export default function NotificationsBell() {
                 style={HEADER_ICON_BTN_STYLE}
             >
                 <BellIcon aria-hidden="true" style={HEADER_ICON_STYLE} />
+                {/* **未読は 8px の真鍮の点＋黒 2px の縁**（iOS・デザインシステム「黒塗りの真鍮」:
+                    真鍮＝合図）。以前は数字入りの丸（「9+」まで）だった。
+                    **数は読み上げに渡す**——点は `aria-hidden` にし、「未読 N 件」を画面に
+                    出さない説明文としてボタンに結ぶ（`aria-describedby`）。ボタンの名前は
+                    「通知」のまま据え置く（名前に数を混ぜると、数が変わるたびに呼び名が変わる）。
+                    寸法は px で固定する（640px 未満は root が 14px で rem が縮む） */}
                 {unread > 0 && (
-                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-[10px] font-bold text-ink flex items-center justify-center">
-                        {unread > 9 ? "9+" : unread}
-                    </span>
+                    <span
+                        aria-hidden="true"
+                        data-unread-dot={unread}
+                        className="absolute rounded-full bg-accent"
+                        style={{ top: 10, right: 10, width: 8, height: 8, boxShadow: "0 0 0 2px var(--color-bar)" }}
+                    />
                 )}
             </button>
+            {unread > 0 && (
+                // **`hidden` にする**（`sr-only` ではなく）。`aria-describedby` は隠れた要素の
+                // 文字も説明として拾う。`sr-only` だと読み上げを1行ずつ進めたときに、
+                // ボタンの説明のあとでこの span をもう一度「未読 N 件」と読む
+                // 代償: 説明（ヒント）を読まない設定の読み上げ（iOS VoiceOver でヒントを切った人など）
+                // には数が届かない。既定はどれも読むので、二度読みを消す方を採った
+                <span id={unreadDescId} hidden>
+                    {locale === "en" ? `${unread} unread` : `未読 ${unread} 件`}
+                </span>
+            )}
 
             {open && (wide ? (
                 /* ───── PC（1024px 以上）: ベルから吊る板 ─────
