@@ -28,6 +28,9 @@ describe("FilterBar", () => {
         for (const off of [screen.getByRole("button", { name: "すべて" }), screen.getByRole("switch", { name: /lake/ })]) {
             expect(cls(off)).toEqual(expect.arrayContaining(["bg-chip", "text-chip-text", "ring-1", "ring-inset", "ring-line"]));
             expect(off.className).not.toContain("bg-white/[0.07]");
+            // キーボードの輪がある（以前は focus:ring-0 で、Tab で移ると縁まで消えていた）
+            expect(cls(off)).toEqual(expect.arrayContaining(["focus-visible:ring-2", "focus-visible:ring-accent"]));
+            expect(cls(off)).not.toContain("focus:ring-0");
         }
         for (const on of [screen.getByRole("button", { name: "自然" }), screen.getByRole("switch", { name: /swan/ })]) {
             expect(cls(on)).toEqual(expect.arrayContaining(["bg-primary", "text-ink", "font-semibold"]));

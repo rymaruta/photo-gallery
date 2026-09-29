@@ -6,6 +6,7 @@ import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
+import { CHIP_OFF } from "@/app/components/chipStyles";
 
 /**
  * 「さがす」の発見の面（最終版モックの中段・owner の指示書 7）。
@@ -257,7 +258,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                         {cameras.map((c) => (
                             <li key={c.slug}>
                                 <ItemLink href={linkTo("camera", c.slug)}
-                                      className="inline-flex items-center gap-1.5 rounded-full bg-chip text-chip-text ring-1 ring-line hover:bg-surface-2 hover:text-white transition-colors"
+                                      className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
                                       style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 11px", touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}
                                     <span className="text-white/50" style={{ fontSize: "11px" }}>{c.count}</span>
