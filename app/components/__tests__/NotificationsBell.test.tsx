@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
+/**
+ * 未読の印（真鍮の点）が持つ数。点が無ければ null。
+ * **画面に数字は出さない**ので、文字で探すと必ず外れる（点の `data-unread-dot` を読む）。
+ */
+const unreadDot = () => document.querySelector("[data-unread-dot]")?.getAttribute("data-unread-dot") ?? null;
+
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockUserPublicFetch = vi.hoisted(() => vi.fn());
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -140,13 +146,41 @@ describe("NotificationsBell", () => {
         expect(links.map((a) => a.getAttribute("href"))).toEqual(["/?photo=p1", "/?photo=p2", "/?photo=p3"]);
     });
 
+    it("未読は iOS と同じ 8px の真鍮の点で示し、数は画面に出さず読み上げに渡す", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 12 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(unreadDot()).toBe("12"));
+        const dot = document.querySelector("[data-unread-dot]") as HTMLElement;
+        expect(dot.getAttribute("aria-hidden")).toBe("true");
+        expect(dot.textContent).toBe("");                       // 数字を描かない（以前は「9+」の丸）
+        expect(dot.style.width).toBe("8px");
+        expect(dot.style.height).toBe("8px");
+        expect(dot.className.split(/\s+/)).toContain("bg-accent");
+        // ボタンの名前は「通知」のまま、数は説明として読まれる
+        const bell = screen.getByRole("button", { name: "通知" });
+        expect(bell).toHaveAccessibleDescription("未読 12 件");
+        // 説明文そのものは隠す（読み上げを1行ずつ進めたときに二度読ませない）
+        expect(document.getElementById(bell.getAttribute("aria-describedby")!)!.hidden).toBe(true);
+    });
+
+    it("未読が 0 なら点も説明も出さない", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        // 応答が画面に反映されるまで待つ（呼んだ直後に見ると、反映前の「点なし」を見て通ってしまう）
+        // ⚠️ 初期値も 0 なので、捕まえられるのは「0 を別の値に変える」形の不具合だけ（load にタイマーを挟むと偽の緑になる）
+        await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+        expect(unreadDot()).toBeNull();
+        expect(screen.getByRole("button", { name: "通知" }).getAttribute("aria-describedby")).toBeNull();
+    });
+
     it("未読数バッジを表示し、開くと既読化リクエストを送る", async () => {
         mockUserFetch.mockResolvedValue(fetchOk({ items: ITEMS, unread: 2 }));
         render(<NotificationsBell />);
-        await waitFor(() => expect(screen.getByText("2")).toBeInTheDocument());
+        await waitFor(() => expect(unreadDot()).toBe("2"));
 
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-        expect(screen.queryByText("2")).toBeNull();
+        expect(unreadDot()).toBeNull();
         await waitFor(() => {
             expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" });
         });
@@ -161,7 +195,7 @@ describe("NotificationsBell", () => {
         let release: (v: unknown) => void = () => {};
         mockUserFetch.mockResolvedValueOnce(fetchOk({ items: ITEMS, unread: 2 }));
         render(<NotificationsBell />);
-        await waitFor(() => expect(screen.getByText("2")).toBeInTheDocument());
+        await waitFor(() => expect(unreadDot()).toBe("2"));
 
         mockUserFetch.mockImplementation((path: string, init?: { method?: string }) =>
             init?.method === "PUT"
@@ -169,13 +203,13 @@ describe("NotificationsBell", () => {
                 : new Promise((res) => { release = res; }));
 
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-        expect(screen.queryByText("2")).toBeNull();
+        expect(unreadDot()).toBeNull();
 
         // ここで「既読化より前に投げた GET」が返ってくる
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalledWith("/user/notifications", { method: "PUT" }));
         await act(async () => { release(fetchOk({ items: ITEMS, unread: 2 })); });
 
-        expect(screen.queryByText("2")).toBeNull();
+        expect(unreadDot()).toBeNull();
     });
 
     // 未読数だけ捨てて一覧は採っていた頃、遅い GET が返ってくると
@@ -197,12 +231,12 @@ describe("NotificationsBell", () => {
         const fresh = [{ ...ITEMS[0], photoId: "p9" }];
         mockUserFetch.mockResolvedValueOnce(fetchOk({ items: fresh, unread: 1 }));
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
-        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+        await waitFor(() => expect(unreadDot()).toBe("1"));
 
         // ここで1本目が返る
         await act(async () => { releaseSlow(fetchOk({ items: ITEMS, unread: 5 })); });
 
-        expect(screen.getByText("1")).toBeInTheDocument();                 // 新着が消えない
+        expect(unreadDot()).toBe("1");                 // 新着が消えない
         expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/?photo=p9"]);
     });
 
@@ -744,7 +778,7 @@ describe("通知の見出し（新着・今日・今週）", () => {
             unread: 1,
         }));
         render(<NotificationsBell />);
-        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+        await waitFor(() => expect(unreadDot()).toBe("1"));
 
         // 既読化の後にサーバーが返す形（unread が 0 に落ちている）
         mockUserFetch.mockResolvedValue(fetchOk({
@@ -754,7 +788,7 @@ describe("通知の見出し（新着・今日・今週）", () => {
         fireEvent.click(screen.getByRole("button", { name: "通知" }));
 
         expect(await screen.findByRole("heading", { name: "新着" })).toBeInTheDocument();
-        await waitFor(() => expect(screen.queryByText("1"), "バッジが残っている").toBeNull());
+        await waitFor(() => expect(unreadDot(), "バッジが残っている").toBeNull());
     });
 
     it("閉じてから取り直すと「新着」が消える（次に開いたときは新着なし）", async () => {
@@ -1138,7 +1172,7 @@ describe("通知パネルを閉じる", () => {
         // 最初の取得（閉じている状態）: 未読1件
         mockUserFetch.mockResolvedValueOnce(fetchOk({ items: [ROW], unread: 1 }));
         render(<NotificationsBell />);
-        await waitFor(() => expect(screen.getByText("1")).toBeInTheDocument());
+        await waitFor(() => expect(unreadDot()).toBe("1"));
 
         // 開いたときの GET を手元で止めておく（PUT はすぐ返す）
         let release: (v: unknown) => void = () => {};
