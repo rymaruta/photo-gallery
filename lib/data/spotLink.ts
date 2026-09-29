@@ -117,7 +117,9 @@ export type SpotIndexItem = SpotLink & { category?: string };
  * 写真が指しているスポット。**`spotId` でしか照合しない。**
  *
  * owner の指示書 第11章:「写真の `location` 文字列が似ているだけで、未確認の
- * スポットへ紐付けないでください」。`spotId` は人が確認したものしか入らない。
+ * スポットへ紐付けないでください」。`spotId` は人が選んだものしか入らない
+ * ——運営が候補を確かめたものか、撮った本人がスポットの画面から選んだもの
+ * （`api-user` の投稿・編集・2026-09-29）。
  */
 export function spotLinkForPhoto(spotId: string | undefined | null): SpotLink | null {
     if (!spotId) return null;
