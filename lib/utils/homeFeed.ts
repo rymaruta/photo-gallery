@@ -6,7 +6,7 @@ import { comparePosted } from "./photoOrder";
  *
  *   1. 運営が選んだ写真（`featured === true`）を先に
  *   2. 残りは**いいねの多い順**（持たない写真は 0）
- *   3. 同点は**投稿の新しい順**（`comparePosted`＝`createdAt` を文字列のまま比べ、無ければ
+ *   3. 同点は**投稿の新しい順**（`comparePosted`＝`createdAt` をゾーンの表記を落として文字列で比べ、無ければ
  *      撮影日 `date`、どちらも無いものは末尾、同じなら id）
  *
  * **推薦の仕組みは無い。** 選ばれた写真といいねの数だけで並べる。

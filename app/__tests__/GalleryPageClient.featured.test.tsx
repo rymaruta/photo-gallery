@@ -74,6 +74,15 @@ describe("トップの「おすすめ」", () => {
         expect(document.querySelector("main aside"), "おすすめに柱が付いている").toBeNull();
     });
 
+    // 柱が無いぶん中央に置くと、タブを切り替えたときに並びが横へ 160〜224px 跳ねる。
+    // 新着（`HomeColumns` の1本目＝PC は左端から 40rem）と同じ位置・同じ幅に置く
+    it("「おすすめ」の並びは PC で新着と同じ位置（左寄せ・40rem）", () => {
+        render(<GalleryPageClient />);
+        openFeatured();
+        const box = document.querySelector("a[data-photo-id]")!.closest("ol")!.parentElement!;
+        expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["lg:mx-0", "lg:max-w-[40rem]"]));
+    });
+
     /** 空の見出しだけが残る形は「準備中」と同じ */
     it("1枚も選ばれていなければ、カテゴリの段は出さず、全部の写真の並びだけ出す（iOS と同じ）", () => {
         photosRef.list = PHOTOS.map((p) => ({ ...p, featured: false }));

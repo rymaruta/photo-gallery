@@ -621,7 +621,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
            中央に置くと、タブを切り替えたときに並びが横へ 160〜224px 跳ねる
            （owner の指示の確認事項「タブを切り替えても見出し位置が不自然に移動しないか」）。
            ⚠️ 柱を付けない理由（広い段）は、選ばれた写真が0枚の本番では成り立っていない
-           ——付けるかどうかは owner の判断（方針書 §3 のホームのカード）
+           ——付けるかどうかは owner の判断（`docs/ios-alignment-2026-09-27.md` §3 のホームのカードの行）
            並び: いいねが全部 0 なら「投稿の新しい順」。**新着（撮影日が先）とは違う並び**になる */
         <HomePanel scope="featured">
           {hasFeatured && !narrowedNow && (

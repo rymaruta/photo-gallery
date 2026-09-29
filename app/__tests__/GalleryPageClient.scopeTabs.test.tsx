@@ -140,13 +140,14 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
     });
 
     it("「さがす」に ?scope=featured が残っても、選んだ並べ替えが効く（おすすめの並びはホームだけ・画面の配線）", async () => {
-        // いちばん古い mine-2 にだけいいねを持たせる。おすすめの並びなら先頭に来るが、
-        // 「さがす」では選んだ「新しい順」が効いて最後になるはず
+        // いちばん古い mine-2 にだけいいねを持たせる。おすすめの並びなら mine-2, mine-1, theirs。
+        // **既定と違う「古い順」を選ぶ**——既定の「新しい順」で見ると、選んだ並べ替えを
+        // 無視して常に新しい順にする壊れ方を見分けられない（レビューが変異で確かめた）
         photosState.photos = [PHOTOS[0], PHOTOS[1], { ...PHOTOS[2], likes: 9 }];
-        window.history.replaceState({}, "", "/search?scope=featured&sort=new");
+        window.history.replaceState({}, "", "/search?scope=featured&sort=old");
         render(<GalleryPageClient surface="search" />);
         await waitFor(() => expect(gridProps.ids).not.toBeNull());
-        expect(gridProps.ids, "さがすでおすすめの並びになっている").toEqual(["mine-1", "theirs", "mine-2"]);
+        expect(gridProps.ids, "さがすで選んだ並べ替えが効いていない").toEqual(["mine-2", "theirs", "mine-1"]);
     });
 
     it("「さがす」面では絞り込みとグリッドを出す（カードは出さない）", async () => {
