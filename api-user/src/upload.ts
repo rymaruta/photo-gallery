@@ -6,7 +6,7 @@ import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./d
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
-import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience } from "./sanitize";
+import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience, sanitizeSpotId } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
 import { mediaKeys } from "./mediaKeys";
@@ -269,6 +269,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         audience?: unknown;
         /** 2枚目以降（1投稿に複数枚）。表紙は `publicUrl`。信用しない */
         extraImages?: unknown;
+        /** 撮影スポット（本人がスポットの画面から選んだ）。形が違えば書かない */
+        spotId?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -387,6 +389,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(() => { const t = sanitizeTags(tags); return t && t.length > 0 ? { tags: t } : {}; })(),
         ...(() => { const safeExif = sanitizeExif(exif); return safeExif ? { exif: safeExif } : {}; })(),
         ...(safeCoords ? { coords: safeCoords } : {}),
+        ...(() => { const s = sanitizeSpotId(body.spotId); return s ? { spotId: s } : {}; })(),
         // **使えない値は属性ごと書かない**（`coords` と同じ）。中央のままに
         // 落ちるので、今までの写真と見え方が変わらない
         ...(() => { const f = sanitizeFocalPoint(body.focalPoint); return f ? { focalPoint: f } : {}; })(),

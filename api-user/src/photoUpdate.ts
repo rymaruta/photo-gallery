@@ -4,7 +4,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { removePhotoFromAlbum, addPhotoToAlbum, isAlbumMember } from "./albums";
 import { JSON_HEADERS, getUserId } from "./http";
-import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience } from "./sanitize";
+import { sanitizeText, sanitizeTags, sanitizeTitle, sanitizeDescription, sanitizeCoords, sanitizeFocalPoint, sanitizeDate, dateWasRejected, sameStoredValue, truncate, sanitizeAudience, sanitizeSpotId } from "./sanitize";
 import { requestSiteRebuild } from "./rebuild";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl } from "./mediaHosts";
 import { mediaKeys } from "./mediaKeys";
@@ -33,7 +33,8 @@ type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl:
 // **ここに足し忘れると 400「更新項目がありません」で断られる。**
 // 切り抜き位置だけを直す保存は、この配列に `focalPoint` が無いと
 // 本文に入っていても「何も送られていない」と見なされる
-const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint"] as const;
+// `spotId` は撮影スポットの画面から本人が選んだ紐付け（null・空で外す）
+const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint", "spotId"] as const;
 
 // YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
 // lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
@@ -73,7 +74,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
-        audience?: unknown;
+        audience?: unknown; spotId?: unknown;
         replace?: ReplaceBody;
     };
     try {
@@ -171,6 +172,12 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
     // 日付は実在するのに、黙って落ちていた（実測: `1985-06-01` → undefined）
     if (dateWasRejected(body.date)) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影日が正しくありません（日付として読み取れないか、1990年より前・未来の日付です）" }) };
+    }
+
+    // **形の違うスポットは断る**（外すのは null か空文字）。読めない値を REMOVE に倒すと、
+    // 送り損ねただけで付けてあった紐付けが黙って消える（撮影日と同じ理由）
+    if (typeof body.spotId === "string" && body.spotId.trim() !== "" && !sanitizeSpotId(body.spotId)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの指定が正しくありません" }) };
     }
 
     try {
@@ -417,6 +424,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // `present` がそれを見ている）。使えない値は `undefined` ＝ REMOVE に
         // 倒れるので、「中央に戻す」は `focalPoint: null` を送れば足りる
         applyMeta("focalPoint", "focalPoint" in body, sanitizeFocalPoint(body.focalPoint) ?? undefined);
+        applyMeta("spotId", "spotId" in body, sanitizeSpotId(body.spotId));
         const newCoords = sanitizeCoords(body.coords) ?? undefined;
         applyMeta("coords", "coords" in body, newCoords);
         // **地名から補った座標（geoApprox）は地名に付随する。**

@@ -182,6 +182,28 @@ describe("savePhoto: 共同アルバム", () => {
     });
 });
 
+// **撮影スポットの紐付け**（本人がスポットの画面から選ぶ・2026-09-29）。
+// 形の違う値は書かない（名前などを入れても紐付かない）
+describe("savePhoto: 撮影スポット", () => {
+    it("形の合う spotId を保存する", async () => {
+        await invoke(event("u1", { ...BASE, spotId: "sp_0123456789ab" }));
+        expect(savedPhoto().spotId).toBe("sp_0123456789ab");
+    });
+
+    it("形の違う spotId は書かない", async () => {
+        for (const spotId of ["高屋神社", "sp_XYZ", "sp_0123456789abc", 123, null]) {
+            mockPutPhoto.mockClear();
+            await invoke(event("u1", { ...BASE, spotId }));
+            expect("spotId" in savedPhoto(), String(spotId)).toBe(false);
+        }
+    });
+
+    it("無ければ書かない", async () => {
+        await invoke(event("u1", { ...BASE }));
+        expect("spotId" in savedPhoto()).toBe(false);
+    });
+});
+
 describe("savePhoto: 公開一覧の索引に載せる印", () => {
     it("公開で保存したら印を付ける", async () => {
         await invoke(event("u1", { ...BASE, published: true }));
