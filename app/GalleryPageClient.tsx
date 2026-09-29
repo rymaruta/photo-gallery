@@ -599,7 +599,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
 
       {/* フォロー中: 絞り込み・件数・グリッドは出さず、新着と同じ並び（`HomeMosaic`）で
-          投稿順に流れる。撮った人の名前は写真に重ねる（iOS と同じ・2026-09-29）。
+          投稿順に流れる。撮った人の名前は撮影地と一緒に写真に重ねる（撮影地が無い写真は
+          重ねない・iOS と同じ・2026-09-29）。
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {surface === "home" && filters.scope === "following" ? (

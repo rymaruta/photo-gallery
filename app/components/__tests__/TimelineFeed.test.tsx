@@ -49,10 +49,7 @@ describe("TimelineFeed", () => {
         follow.fetch.mockResolvedValue(new Set(["A"]));
         render(<Feed />);
         await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
-        // 新着・おすすめと同じ並び（iOS の3つのタブと同じ）。2枚なので大きい1枚が2つ
-        expect(document.querySelectorAll("ol > li.col-span-2")).toHaveLength(2);
         // 誰が上げたかが写真に重なって出る（一覧のグリッドには無かったもの）。
-        // 撮影地が無い写真は文字を重ねない（iOS と同じ）ので、読み上げでも確かめる
         expect(screen.getAllByText(/^Aさん/).length).toBe(2);
         for (const id of ["a-new", "a-old"]) {
             expect(document.querySelector(`[data-photo-id="${id}"]`)!.getAttribute("aria-label")).toContain("Aさん");
@@ -63,6 +60,30 @@ describe("TimelineFeed", () => {
         // 写真ページへ（先読みはしない）
         const link = document.querySelector('[data-photo-id="a-new"]') as HTMLAnchorElement;
         expect(link.getAttribute("href")).toMatch(/a-new/);
+    });
+
+    // 新着・おすすめと同じ並び（iOS の3つのタブと同じ）。**1つの並びの中で**
+    // 大きく1枚 → 2枚 → 2枚。1枚ずつ別の並びに割ると全部が大きい1枚になる
+    it("新着と同じ並び（大きく1枚 → 2枚 → 2枚）で描く・撮影地が無い写真は名前を重ねない", async () => {
+        photosState.current = {
+            photos: ["1", "2", "3", "4", "5"].map((n) => ({
+                id: `c${n}`, src: `https://cdn/c${n}.jpg`, userId: "C", displayName: "Cさん", title: `題${n}`,
+                createdAt: `2026-09-0${n}T10:00:00`, location: n === "5" ? "" : "那覇",
+            })),
+            loading: false, loaded: true, failed: false,
+        };
+        follow.fetch.mockResolvedValue(new Set(["C"]));
+        render(<Feed />);
+        await waitFor(() => expect(cardIds()).toEqual(["c5", "c4", "c3", "c2", "c1"]));
+        const lists = document.querySelectorAll("ol");
+        expect(lists, "1つの並びになっていない").toHaveLength(1);
+        const spans = Array.from(lists[0].children).map((li) => li.className.includes("col-span-2"));
+        expect(spans).toEqual([true, false, false, false, false]);
+        // 撮影地の無い c5 は文字を重ねない（iOS と同じ）。誰の写真かは読み上げに残る
+        const c5 = document.querySelector('[data-photo-id="c5"]')!;
+        expect(c5.textContent).not.toContain("Cさん");
+        expect(c5.getAttribute("aria-label")).toContain("Cさん");
+        expect(document.querySelector('[data-photo-id="c4"]')!.textContent).toContain("Cさん");
     });
 
     // 🔴 レビューが発見: `createdAt` は UTC の瞬間なのに、書かれた数字をそのまま出す
