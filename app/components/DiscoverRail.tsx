@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
 import {
-    collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry,
+    collectEntries, collectionPath, collectionIndexPath, slugify, isIndexableCollection, type CollectionEntry,
 } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
@@ -56,7 +56,14 @@ import { CHIP_OFF } from "./chipStyles";
  * ## 出さないもの
  *
  * 架空の数字は1つも出さない（owner の指示書）。ここに出るのは
- * **カテゴリ・撮影地・機材と、その実際の枚数**だけ。
+ * **カテゴリ・撮影地・機材・タグと、その実際の枚数**だけ。
+ *
+ * ## タグは検索に載るページへの内部リンク（2026-09-29）
+ *
+ * ホームの新着を iOS と同じ写真の並び（`HomeMosaic`）にして、カードに付いていた
+ * タグのリンクが消えた。**検索に載るタグページ（`isIndexableCollection`）8本への
+ * リンクがホームから全部なくなった**ので、ここで持つ。**載らないタグは出さない**
+ * （薄いページへ内部リンクを集めない）。行き先は `/search` へ振り替えず、タグページそのもの
  */
 type Props = {
     /** 絞り込み前の全写真（柱は「いま何があるか」を出す面なので、絞り込みに連動させない） */
@@ -70,6 +77,8 @@ type Props = {
 const SHOWN_SPOTS = 4;
 const SHOWN_CATEGORIES = 4;
 const SHOWN_CAMERAS = 4;
+/** タグは**検索に載るものだけ**なので、上限はその数に任せる（今は8つ） */
+const SHOWN_TAGS = 12;
 
 /** `collectEntries` と同じ規則でスラッグにする（写真の生の値から） */
 function keyOf(photo: Photo, type: "category" | "location" | "camera"): string {
@@ -125,6 +134,8 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
         () => collectEntries(photos, "location").slice(0, SHOWN_SPOTS), [photos]);
     const cameras = React.useMemo(
         () => collectEntries(photos, "camera").slice(0, SHOWN_CAMERAS), [photos]);
+    const tags = React.useMemo(
+        () => collectEntries(photos, "tag").filter((e) => isIndexableCollection(e.count, "tag")).slice(0, SHOWN_TAGS), [photos]);
 
     const cover = React.useCallback(
         (type: "category" | "location" | "camera", e: CollectionEntry) => coverOf(photos, type, e.slug),
@@ -213,6 +224,26 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                    style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
                                     {c.label}
                                     <span className="text-white/60" style={{ fontSize: "10px" }}>{c.count}</span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {/* ── タグ: 検索に載るタグページへ（機材と同じ文字のチップ） ── */}
+            {tags.length > 0 && (
+                <section aria-labelledby="rail-tags">
+                    <RailHead id="rail-tags" title={isJa ? "タグからさがす" : "By tag"}
+                              href={collectionIndexPath("tag")} more={more} />
+                    <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
+                        {tags.map((t) => (
+                            <li key={t.slug}>
+                                <Link href={collectionPath("tag", t.slug)} prefetch={false}
+                                   className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                   style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
+                                    #{t.label.replace(/^#/, "")}
+                                    <span className="text-white/60" style={{ fontSize: "10px" }}>{t.count}</span>
                                 </Link>
                             </li>
                         ))}

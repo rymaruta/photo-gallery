@@ -41,16 +41,25 @@ const GAP = 4;
 
 export default function HomeMosaic({ photos, locale, priorityCount = 3 }: Props) {
     const rows = React.useMemo(() => editorialRows(photos), [photos]);
-    // 大きい段かどうかを写真ごとに引けるようにする（並びそのものは `editorialRows` が決める）
-    const large = React.useMemo(() => new Set(rows.flatMap((r) => (r.kind === "hero" ? [r.item.id] : []))), [rows]);
+    // 大きい段かどうかを**何番目か**で引く（並びそのものは `editorialRows` が決める）。
+    // id で引くと、同じ写真が2回入ったときに両方とも大きく出て、2枚の段に穴が空く
+    const large = React.useMemo(() => {
+        const at = new Set<number>();
+        let i = 0;
+        for (const r of rows) {
+            if (r.kind === "hero") at.add(i);
+            i += r.kind === "hero" ? 1 : 2;
+        }
+        return at;
+    }, [rows]);
     return (
         // **写真1枚ごとに `<li>`**（大きい1枚は2列ぶん）。段ごとに作ると、一覧が1枚ずれただけで
         // 全部の段の組み合わせが変わり、全部の写真が作り直される（読み込み途中の画像が一度消える）。
         // スマホは画面の端から端まで（本文の `p-4` を打ち消す）。広い画面は箱の中
         <ol className="-mx-4 sm:mx-0 grid grid-cols-2 m-0 p-0" style={{ gap: GAP, listStyle: "none" }}>
             {photos.map((p, i) => (
-                <li key={p.id} className={`m-0 p-0 ${large.has(p.id) ? "col-span-2" : ""}`}>
-                    <HomeTile photo={p} locale={locale} large={large.has(p.id)} priority={i < priorityCount} />
+                <li key={p.id} className={`m-0 p-0 ${large.has(i) ? "col-span-2" : ""}`}>
+                    <HomeTile photo={p} locale={locale} large={large.has(i)} priority={i < priorityCount} />
                 </li>
             ))}
         </ol>

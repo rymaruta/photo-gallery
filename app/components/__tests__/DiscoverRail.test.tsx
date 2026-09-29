@@ -52,7 +52,7 @@ const draw = (photos: Photo[], map: Record<string, string> = {}) =>
     render(<DiscoverRail photos={photos} locale="ja" categoryDisplayMap={map} />);
 
 /** 節の見出しへのリンク（「すべて見る」）を除いた、項目のリンク */
-const INDEX_HREFS = ["/location", "/category", "/camera"];
+const INDEX_HREFS = ["/location", "/category", "/camera", "/tag"];
 const itemLinks = (c: HTMLElement) =>
     [...c.querySelectorAll("a")].filter((a) => !INDEX_HREFS.includes(a.getAttribute("href") ?? ""));
 
@@ -123,5 +123,28 @@ describe("柱の中身", () => {
     it("写真が1枚も無ければ、節ごと出さない（空の枠を置かない）", () => {
         const { container } = draw([]);
         expect(container.textContent ?? "", "中身が無いのに見出しだけ出ている").not.toContain("撮影地からさがす");
+    });
+});
+
+describe("タグの節（検索に載るタグページへの内部リンク・2026-09-29）", () => {
+    // ホームの新着を写真の並びにして、カードのタグのリンクが消えた。その受け皿
+    const tagged = (tag: string, n: number) =>
+        Array.from({ length: n }, (_, i) => photo(`${tag}-${i}`, { tags: [tag] } as Partial<Photo>));
+
+    it("検索に載るタグ（3枚以上）だけを、タグページそのものへのリンクで出す", () => {
+        const { container } = draw([...tagged("sauna", 3), ...tagged("igloo", 2)]);
+        expect(container.textContent).toContain("タグからさがす");
+        const hrefs = [...container.querySelectorAll('section[aria-labelledby="rail-tags"] a')].map((a) => a.getAttribute("href"));
+        expect(hrefs).toContain("/tag/sauna");
+        expect(hrefs.some((h) => h?.includes("igloo")), "載らないタグ（2枚）へリンクしている").toBe(false);
+        // 行き先は /search へ振り替えない（タグページそのものを内部リンクで支える）
+        expect(hrefs.some((h) => h?.startsWith("/search")), "検索結果へ振り替えている").toBe(false);
+        // 「すべて見る」はタグの一覧
+        expect(hrefs).toContain("/tag");
+    });
+
+    it("載るタグが1つも無ければ節ごと出さない", () => {
+        const { container } = draw(tagged("igloo", 2));
+        expect(container.querySelector('section[aria-labelledby="rail-tags"]')).toBeNull();
     });
 });

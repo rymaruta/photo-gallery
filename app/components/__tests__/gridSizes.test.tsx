@@ -152,7 +152,7 @@ describe("グリッドの sizes が実際の幅と合っている", () => {
     it.each([["5xl", GRID_SIZES_5XL], ["6xl", GRID_SIZES_6XL], ["さがす", GRID_SIZES_SEARCH], ["ホームの大きい1枚", MOSAIC_HERO_SIZES], ["ホームの2枚の段", MOSAIC_PAIR_SIZES]])("%s: 最後の受け皿は固定px（vw ではない）", (_n, sizes) => {
         const last = sizes.split(",").pop()!.trim();
         // 固定幅の計算（rem と px だけの calc）も可。vw を含むものは不可
-        expect(last).toMatch(/^([\d.]+(px|rem)|calc\(\s*[\d.]+(px|rem)\s*-\s*[\d.]+(px|rem)\s*\))$/);
+        expect(last).toMatch(/^([\d.]+(px|rem)|calc\(\s*[\d.]+(px|rem)\s+-\s+[\d.]+(px|rem)\s*\))$/);   // `-` の前後は空白が要る（無いと CSS として無効）
     });
 
     // **境界は Tailwind に合わせて手前で切る。** `sm:` は 640px **から**効くのに

@@ -41,6 +41,14 @@ describe("HomeMosaic", () => {
         for (const t of tiles(container)) expect(t, t.dataset.photoId).toBe(before.get(t.dataset.photoId));
     });
 
+    it("同じ写真が2回入っても、2枚の段に穴を空けない（大きい1枚は何番目かで決める）", () => {
+        const a = photo("a"), b = photo("b"), c = photo("c");
+        const { container } = render(<HomeMosaic photos={[a, a, b, c]} locale="ja" />);
+        const spans = Array.from(container.querySelector("ol")!.children).map((li) => li.className.includes("col-span-2"));
+        // editorialRows: [a] 大 → (a,b) 2枚 → [c] 大
+        expect(spans).toEqual([true, false, false, true]);
+    });
+
     it("最初に読むのは3枚（大きい1枚＋最初の2枚の段）。同じ段の右だけ遅れない", () => {
         render(<HomeMosaic photos={["a", "b", "c", "d"].map((i) => photo(i))} locale="ja" />);
         const imgs = screen.getAllByRole("img");
