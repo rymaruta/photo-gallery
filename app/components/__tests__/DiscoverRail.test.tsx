@@ -140,7 +140,9 @@ describe("タグの節（検索に載るタグページへの内部リンク・2
         // 行き先は /search へ振り替えない（タグページそのものを内部リンクで支える）
         expect(hrefs.some((h) => h?.startsWith("/search")), "検索結果へ振り替えている").toBe(false);
         // 「すべて見る」は出さない——タグの索引ページ（/tag）は無い（出すと 404 へのリンク）
-        expect(hrefs, "存在しない /tag へリンクしている").not.toContain("/tag");
+        // 柱のどこにも（タグの節の外も）存在しない /tag へのリンクを出さない
+        const everywhere = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+        expect(everywhere, "存在しない /tag へリンクしている").not.toContain("/tag");
         expect(container.querySelector('section[aria-labelledby="rail-tags"]')!.textContent).not.toContain("すべて見る");
     });
 

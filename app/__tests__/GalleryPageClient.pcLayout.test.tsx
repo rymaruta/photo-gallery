@@ -111,7 +111,9 @@ describe("PC の設計（指示書 4・11・17）", () => {
             // （2026-09-22 に実ビルドで 0本 と数えた）。
             // 見出しの行き先は下の「索引ページへ行ける」で別に縛る
             const all = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
-            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h));
+            // **タグの節は例外**: 検索に載るタグページ（`/tag/<slug>`）へ直接張る
+            // （集約ページへの内部リンクそのものが目的・`DiscoverRail` の注記）
+            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h) && !/^\/tag\/[^/]+$/.test(h));
             expect(links.length, "柱にリンクが無い").toBeGreaterThan(0);
             for (const href of links) {
                 expect(href, `集約ページのままになっている: ${href}`).toMatch(/^\/search\?/);
