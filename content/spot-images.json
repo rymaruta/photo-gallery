@@ -1521,7 +1521,12 @@
     "distanceKm": 0.31,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/dakigaeri-gorge.jpg",
+      "width": 960,
+      "height": 543
+    }
   },
   "danjo-garan": {
     "wikidata": "Q1203429",
@@ -2714,7 +2719,12 @@
     "distanceKm": 0.6,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hakusui-dam.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "hakuto-jinja": {
     "wikidata": "Q246667",
@@ -2880,7 +2890,12 @@
     "distanceKm": 0.44,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/harajiri-no-taki.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "haraoka-sanbashi": {
     "wikidata": "Q116679674",
@@ -3033,7 +3048,12 @@
     "distanceKm": 0.48,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hashino-tekkozan.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "hattori-ryokuchi": {
     "wikidata": "Q11508426",
@@ -3212,7 +3232,12 @@
     "distanceKm": 0.65,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hida-daishonyudo.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "hida-furukawa": {
     "wikidata": "Q11566623",
@@ -3315,7 +3340,12 @@
     "distanceKm": 0.28,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hijiori.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "hikone-castle": {
     "wikidata": "Q11572274",
@@ -3995,7 +4025,12 @@
     "distanceKm": 0.48,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hoshitoge-tanada.jpg",
+      "width": 960,
+      "height": 681
+    }
   },
   "hotokegaura": {
     "wikidata": "Q784871",
@@ -4026,7 +4061,12 @@
     "distanceKm": 0.59,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hottai-no-taki.jpg",
+      "width": 960,
+      "height": 1280
+    }
   },
   "hottarakashi-onsen": {
     "wikidata": "Q11277778",
@@ -4039,7 +4079,12 @@
     "distanceKm": 0.48,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hottarakashi-onsen.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "hozenji-yokocho": {
     "wikidata": "Q11555078",
@@ -4974,7 +5019,12 @@
     "distanceKm": 0.58,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/jomine.jpg",
+      "width": 960,
+      "height": 718
+    }
   },
   "jomonsugi": {
     "wikidata": "Q589967",
@@ -5191,7 +5241,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kaiyodo.jpg",
+      "width": 960,
+      "height": 1703
+    }
   },
   "kaiyukan": {
     "wikidata": "Q1191885",
@@ -5782,7 +5837,12 @@
     "distanceKm": 0.15,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kashiwajima.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "kashiya-yokocho": {
     "wikidata": "Q11619944",
@@ -6055,7 +6115,12 @@
     "distanceKm": 1.07,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kawazu-zakura.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "kazuemachi": {
     "wikidata": "Q11368794",
@@ -6294,7 +6359,12 @@
     "distanceKm": 1.01,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kikuchi-keikoku.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "kikuma": {
     "wikidata": "Q24871976",
@@ -6506,7 +6576,12 @@
     "distanceKm": 0.13,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kirishima-art.jpg",
+      "width": 960,
+      "height": 540
+    }
   },
   "kirishima-jingu": {
     "wikidata": "Q704622",
@@ -7455,7 +7530,12 @@
     "distanceKm": 0.47,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kushimoto-kaichu.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "kushiro-shitsugen-hosooka": {
     "wikidata": "Q11648300",
@@ -7689,7 +7769,12 @@
     "distanceKm": 0.49,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/manabeshima.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "manzamo": {
     "wikidata": "Q11353838",
@@ -7774,7 +7859,12 @@
     "distanceKm": 0.29,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/masuda.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "matabei-zakura": {
     "wikidata": "Q11410214",
@@ -8010,7 +8100,12 @@
     "distanceKm": 0.22,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/meijimura.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "mekari-park": {
     "wikidata": "Q1196470",
@@ -8153,7 +8248,12 @@
     "distanceKm": 0.78,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mikuni-toge.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "minamisanriku-sunsun": {
     "wikidata": "Q21654832",
@@ -8314,7 +8414,12 @@
     "distanceKm": 0.26,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/mishima-skywalk.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "mito-tamatsukuri": {
     "wikidata": "Q3514711",
@@ -8602,7 +8707,12 @@
     "distanceKm": 0.24,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-26",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/monet-no-ike.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "morioka-ishiwarizakura": {
     "wikidata": "Q11585194",
@@ -16506,7 +16616,12 @@
     "distanceKm": 0.84,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/dewa-sanzan.jpg",
+      "width": 960,
+      "height": 600
+    }
   },
   "goto-dozaki": {
     "wikidata": "Q11427886",
@@ -16519,7 +16634,12 @@
     "distanceKm": 0.53,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/goto-dozaki.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "hakone-heiwa-no-torii": {
     "wikidata": "Q705310",
@@ -16532,7 +16652,12 @@
     "distanceKm": 0.59,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hakone-heiwa-no-torii.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "hoshinomura": {
     "wikidata": "Q570776",
@@ -16545,7 +16670,12 @@
     "distanceKm": 3.98,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/hoshinomura.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "ishinomaki-hiyoriyama": {
     "wikidata": "Q11505196",
@@ -16558,7 +16688,12 @@
     "distanceKm": 0.52,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/ishinomaki-hiyoriyama.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "kagoshima-shiroyama": {
     "wikidata": "Q3862015",
@@ -16571,7 +16706,12 @@
     "distanceKm": 0.31,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kagoshima-shiroyama.jpg",
+      "width": 960,
+      "height": 809
+    }
   },
   "kanazawa-station": {
     "wikidata": "Q1136378",
@@ -16584,7 +16724,12 @@
     "distanceKm": 0.28,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kanazawa-station.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "kimimachizaka": {
     "wikidata": "Q11264974",
@@ -16597,7 +16742,12 @@
     "distanceKm": 1.65,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kimimachizaka.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "kitakata-kura": {
     "wikidata": "Q135006192",
@@ -16610,7 +16760,12 @@
     "distanceKm": 1.02,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kitakata-kura.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "koiwai-ipponzakura": {
     "wikidata": "Q11460030",
@@ -16623,7 +16778,12 @@
     "distanceKm": 1.46,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/koiwai-ipponzakura.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "koriyama-castle": {
     "wikidata": "Q1073899",
@@ -16636,7 +16796,12 @@
     "distanceKm": 0.23,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/koriyama-castle.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "kubokawa": {
     "wikidata": "Q11475095",
@@ -16649,7 +16814,12 @@
     "distanceKm": 0.55,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kubokawa.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "kurokami": {
     "wikidata": "Q11678918",
@@ -16662,7 +16832,12 @@
     "distanceKm": 0.49,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kurokami.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "kyoto-station-building": {
     "wikidata": "Q801046",
@@ -16675,7 +16850,12 @@
     "distanceKm": 0.51,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/kyoto-station-building.jpg",
+      "width": 960,
+      "height": 638
+    }
   },
   "meiji-jingu-gaien-icho": {
     "wikidata": "Q6631448",
@@ -16688,7 +16868,12 @@
     "distanceKm": 0.85,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/meiji-jingu-gaien-icho.jpg",
+      "width": 960,
+      "height": 640
+    }
   },
   "misumi": {
     "wikidata": "Q11357227",
@@ -16701,7 +16886,12 @@
     "distanceKm": 1.37,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null
+    "reviewedBy": null,
+    "local": {
+      "src": "/images/spots/misumi.jpg",
+      "width": 960,
+      "height": 720
+    }
   },
   "morioka-jozan": {
     "wikidata": "Q251650",
