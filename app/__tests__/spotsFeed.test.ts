@@ -206,10 +206,15 @@ describe("実際の台帳で作った索引", () => {
         }
     });
 
-    /** 目安は 850KB（minify・gzip 前）。超えたら項目か件数を見直す */
+    /**
+     * 目安は 950KB（minify・gzip 前）。超えたら項目か件数を見直す。
+     * 2026-09-29 に 850KB → 950KB: 写真の出る行が 315 → 787 になり（1行あたり約290B）、
+     * 季節の案内も載って 862KB。gzip では 229KB。`stage`・`draftedAt` はアプリの
+     * モデルが読むので削らない
+     */
     it("大きさが目安に収まり、`**` が無い", () => {
         const bytes = Buffer.byteLength(json, "utf8");
-        expect(bytes, `索引が ${bytes} バイト`).toBeLessThan(850_000);
+        expect(bytes, `索引が ${bytes} バイト`).toBeLessThan(950_000);
         expect(json).not.toContain("**");
         expect(json).not.toContain("claude");
     });
