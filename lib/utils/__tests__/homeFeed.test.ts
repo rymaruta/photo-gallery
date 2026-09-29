@@ -24,6 +24,15 @@ describe("recommendedOrder（iOS の HomeFeed.arrange(.recommended) と同じ）
         expect(ids(out)).toEqual(["liked", "new", "mid", "old"]);
     });
 
+    it("同点は**投稿日**で決める。撮影日（date）が先の新着とは違う並び", () => {
+        // 撮影日と投稿日が逆向きの2枚。新着（compareNewest）なら撮影の新しい old-post が先
+        const out = recommendedOrder([
+            p("old-post", { date: "2026-05-01", createdAt: "2026-01-01T00:00:00Z" }),
+            p("new-post", { date: "2025-01-01", createdAt: "2026-03-01T00:00:00Z" }),
+        ]);
+        expect(ids(out)).toEqual(["new-post", "old-post"]);
+    });
+
     it("日付の無い写真は同点の末尾", () => {
         expect(ids(recommendedOrder([p("x"), p("y", { createdAt: "2026-01-01T00:00:00Z" })]))).toEqual(["y", "x"]);
     });

@@ -59,6 +59,15 @@ describe("トップの「おすすめ」", () => {
         expect(all.map((a) => a.getAttribute("href")).join(" ")).toContain("/category/");
     });
 
+    it("「おすすめ」の並びは、選ばれた写真を先に、残りはいいねの多い順（画面まで配線されている）", () => {
+        // f1・f2 は選ばれた写真、n1 は選ばれていない。新着の順（n1, f2, f1）とは違う
+        photosRef.list = PHOTOS;
+        render(<GalleryPageClient />);
+        openFeatured();
+        const ids = [...document.querySelectorAll("a[data-photo-id]")].map((a) => a.getAttribute("data-photo-id"));
+        expect(ids).toEqual(["f2", "f1", "n1"]);
+    });
+
     it("「おすすめ」には PC の右の柱を付けない（owner の指示 2026-09-22・意図的な実装）", () => {
         render(<GalleryPageClient />);
         openFeatured();

@@ -97,7 +97,7 @@ beforeEach(() => {
 });
 
 describe("トップの おすすめ / フォロー中 / 新着", () => {
-    it("おすすめが1枚も無ければ、既定は「新着」（空のタブを最初に見せない）", async () => {
+    it("おすすめが1枚も選ばれていなければ、既定は「新着」（運営の選んだものが無いタブを最初に見せない）", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(pressed("新着")).toBe(true));
         expect(cardIds()).toEqual(["mine-1", "theirs", "mine-2"]);
@@ -137,6 +137,16 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         await waitFor(() => expect(cardIds().length).toBeGreaterThan(0));
         expect(screen.queryByTestId("filter-bar")).toBeNull();
         expect(screen.queryByTestId("grid")).toBeNull();
+    });
+
+    it("「さがす」に ?scope=featured が残っても、選んだ並べ替えが効く（おすすめの並びはホームだけ・画面の配線）", async () => {
+        // いちばん古い mine-2 にだけいいねを持たせる。おすすめの並びなら先頭に来るが、
+        // 「さがす」では選んだ「新しい順」が効いて最後になるはず
+        photosState.photos = [PHOTOS[0], PHOTOS[1], { ...PHOTOS[2], likes: 9 }];
+        window.history.replaceState({}, "", "/search?scope=featured&sort=new");
+        render(<GalleryPageClient surface="search" />);
+        await waitFor(() => expect(gridProps.ids).not.toBeNull());
+        expect(gridProps.ids, "さがすでおすすめの並びになっている").toEqual(["mine-1", "theirs", "mine-2"]);
     });
 
     it("「さがす」面では絞り込みとグリッドを出す（カードは出さない）", async () => {

@@ -617,7 +617,11 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
            右側サイドバーを表示していません。これは現在の意図的な実装です。3タブすべてに
            機械的に同じサイドバーを追加しないでください」・`docs/owner-instructions-2026-09-22.md`）。
            段（`FeaturedSections`）は中で `GRID_SIZES_HOME_6XL` を使う＝容器いっぱいの前提。
-           並びの方は新着と同じ 40rem の箱に収めて中央に置く（`MOSAIC_*_SIZES` の申告と合わせる）。
+           並びの方は**新着と同じ位置・同じ幅**（PC は左寄せの 40rem・`MOSAIC_*_SIZES` の申告と合わせる）。
+           中央に置くと、タブを切り替えたときに並びが横へ 160〜224px 跳ねる
+           （owner の指示の確認事項「タブを切り替えても見出し位置が不自然に移動しないか」）。
+           ⚠️ 柱を付けない理由（広い段）は、選ばれた写真が0枚の本番では成り立っていない
+           ——付けるかどうかは owner の判断（方針書 §3 のホームのカード）
            並び: いいねが全部 0 なら「投稿の新しい順」。**新着（撮影日が先）とは違う並び**になる */
         <HomePanel scope="featured">
           {hasFeatured && !narrowedNow && (
@@ -632,7 +636,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           {/* 選ばれた写真のカテゴリの段の下に、**全部の写真を「おすすめ」の並びで**
               （選ばれた写真を先に、残りはいいねの多い順・`useGallery` が並べる）。
               iOS の `GalleryView` と同じ——段は選ばれた写真があるときだけ、並びは必ず出る */}
-          <div className="max-w-xl mx-auto lg:max-w-[40rem]">
+          <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-[40rem]">
             {filteredPhotos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
                 <p className="text-sm m-0">
