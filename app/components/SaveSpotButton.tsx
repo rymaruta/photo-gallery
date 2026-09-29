@@ -40,8 +40,12 @@ import { spotSavedKey } from "../../lib/utils/savedSpotKey";
  *
  *  - `pill` … 撮影地ページ（これまでの形・しおりの印）
  *  - `tile` … 撮影スポットのページ。iOS の `SpotDetailParts.actionLabel` と同じ
- *    **横に等分・高さ48・角12・ハートの印**、押した状態は白地（2026-09-29）。
- *    並べる親が `flex` なら等分になる（外側の箱に `flex-1` を付ける）
+ *    **高さ48・角12・ハートの印**、押した状態は白地（2026-09-29）。
+ *    **並べる親は `grid grid-cols-3`**（`flex-1` だと、外箱で包んだ側だけ
+ *    内側の余白ぶん狭くなる——実測 82 / 96 / 96px）。外箱は作らず、失敗の断りは
+ *    行の下に1段ぶち抜きで出す（`col-span-3`・細い列に押し込まない）。
+ *    字は iOS と同じ短い文言（`Want to go`）で、読み込み中も字を変えない
+ *    （「読み込み中…」は狭い列で溢れる。まだ分からないことは押せない＋`aria-busy` で伝える）
  *
  * ## 大きさは px で書く
  *
@@ -77,6 +81,9 @@ export default function SaveSpotButton({
     // 印: 札はしおり、スポットのタイルはハート（iOS と同じ）
     const IconOff = tile ? HeartOutline : BookmarkOutline;
     const IconOn = tile ? HeartSolid : BookmarkSolid;
+    // タイルの印は縮ませない（狭い列で字に押されて幅0まで潰れた・英語の 320px）
+    const iconClass = tile ? `${TILE_ICON}` : "w-5 h-5";
+    const wantLabel = tile ? (en ? "Want to go" : "行きたい") : (en ? "Save to want-to-go" : "行きたい");
 
     // 未ログインはログインへ。**戻り先は今のページ**（押した場所に返す）
     if (!authLoading && !isAuthenticated) {
@@ -84,11 +91,11 @@ export default function SaveSpotButton({
             <Link
                 href={loginWithNext(typeof window === "undefined" ? null : window.location.pathname)}
                 prefetch={false}
-                className={tile ? `${base} flex-1 ${TILE_OFF}` : base}
+                className={tile ? `${base} min-w-0 ${TILE_OFF}` : base}
                 style={{ touchAction: "manipulation", minHeight: tile ? 48 : 44 }}
             >
-                <IconOff className="w-5 h-5" aria-hidden />
-                {en ? "Save to want-to-go" : "行きたい"}
+                <IconOff className={iconClass} aria-hidden />
+                {tile ? <span className={TILE_TEXT}>{wantLabel}</span> : wantLabel}
             </Link>
         );
     }
@@ -107,8 +114,7 @@ export default function SaveSpotButton({
         );
     };
 
-    return (
-        <div className={tile ? "flex flex-col gap-1 flex-1 min-w-0" : "flex flex-col items-start gap-1"}>
+    const button = (
             <button
                 type="button"
                 onClick={onClick}
@@ -119,31 +125,42 @@ export default function SaveSpotButton({
                 aria-pressed={saved === undefined ? undefined : saved}
                 aria-busy={saved === undefined || working}
                 className={tile
-                    ? `${base} w-full ${saved ? TILE_ON : TILE_OFF} disabled:opacity-60`
+                    ? `${base} min-w-0 ${saved ? TILE_ON : TILE_OFF} disabled:opacity-60`
                     : `${base} ${saved ? "bg-primary ring-primary text-ink hover:brightness-110" : "bg-white/10 ring-white/20 text-white hover:bg-white/20"} disabled:opacity-60`}
                 style={{ touchAction: "manipulation", minHeight: tile ? 48 : 44 }}
             >
                 {saved
-                    ? <IconOn className="w-5 h-5" aria-hidden />
-                    : <IconOff className="w-5 h-5" aria-hidden />}
-                {saved === undefined
+                    ? <IconOn className={iconClass} aria-hidden />
+                    : <IconOff className={iconClass} aria-hidden />}
+                {tile ? (
+                    <span className={TILE_TEXT}>{saved ? (en ? "Saved" : "保存済み") : wantLabel}</span>
+                ) : saved === undefined
                     ? (en ? "Loading…" : "読み込み中…")
                     : saved
                         ? (en ? "Saved" : "保存済み")
-                        : (en ? "Save to want-to-go" : "行きたい")}
+                        : wantLabel}
             </button>
+    );
 
-            {/* 取りに行って失敗した回は、黙って「行きたい」と出さない
-                （押すと既に保存済みのものをもう一度保存することになる）。
-                `/favorites` が同じ場面で同じ断りを出している */}
-            {failed && (
-                <p role="alert" className="text-xs text-danger">
-                    {en ? "Couldn't load your saved spots. " : "保存した場所を読み込めませんでした。"}
-                    <button onClick={retry} className="underline text-white/80 hover:text-white">
-                        {en ? "Retry" : "再試行"}
-                    </button>
-                </p>
-            )}
+    /* 取りに行って失敗した回は、黙って「行きたい」と出さない
+       （押すと既に保存済みのものをもう一度保存することになる）。
+       `/favorites` が同じ場面で同じ断りを出している */
+    const alert = failed ? (
+        <p role="alert" className={tile ? "col-span-3 m-0 text-xs text-danger" : "text-xs text-danger"}>
+            {en ? "Couldn't load your saved spots. " : "保存した場所を読み込めませんでした。"}
+            <button onClick={retry}
+                    className={tile ? "underline text-white/80 hover:text-white min-h-[44px] px-1" : "underline text-white/80 hover:text-white"}>
+                {en ? "Retry" : "再試行"}
+            </button>
+        </p>
+    ) : null;
+
+    // タイルは親の格子に直接並ぶ（外箱で包むと等分が崩れる・上の注記）
+    if (tile) return <>{button}{alert}</>;
+    return (
+        <div className="flex flex-col items-start gap-1">
+            {button}
+            {alert}
         </div>
     );
 }
@@ -161,8 +178,15 @@ const BTN =
  * 面は状態ごとに付ける（上の `BTN` と同じ理由）。**高さは px**（root 14px で縮まない）
  */
 export const TILE =
-    "inline-flex items-center justify-center gap-1.5 rounded-[12px] px-2 text-[14px] font-semibold " +
+    // **390px 未満は印を字の上に積む**（3等分の列が約90px。横に並べると「地図で見る」が
+    // 「地図で見|る」と折れる）。字は折らない（`TILE_TEXT`）
+    "inline-flex flex-col min-[390px]:flex-row items-center justify-center gap-0.5 min-[390px]:gap-1.5 " +
+    "rounded-[12px] px-1.5 font-semibold " +
     "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent active:scale-95 transition";
+/** タイルの字（**px で書く**＝root 14px で縮まない。積むときは 12px） */
+export const TILE_TEXT = "whitespace-nowrap text-[12px] min-[390px]:text-[14px] leading-4";
+/** タイルの印（縮ませない） */
+export const TILE_ICON = "w-[18px] h-[18px] flex-shrink-0";
 /** 押していない: 面（`surface`）に白い字 */
 export const TILE_OFF = "bg-surface text-white hover:bg-surface-2";
 /** 押した: 白地に墨の字（iOS の `filled`） */

@@ -92,6 +92,25 @@ describe("行きたいボタン", () => {
      * ——owner:「対応関係が不明な項目を勝手に同一スポットとして統合しないで
      * ください」。鍵の形は `lib/utils/savedSpotKey.ts` 1つが持つ。
      */
+    // 撮影地ページの丸い札は**形を変えていない**（スポットのページだけ `tile` にした・2026-09-29）
+    it("既定（撮影地ページ）は丸い札・しおりの印・高さ44・外箱あり", async () => {
+        fetchMock.mockResolvedValue(ok([]));
+        const { container } = render(<SaveSpotButton slug="パリ" name="パリ" locale="en" />);
+        const btn = await screen.findByRole("button", { name: "Save to want-to-go" });
+        expect(btn.className).toContain("rounded-full");
+        expect(btn.className).not.toContain("rounded-[12px]");
+        expect(btn.style.minHeight).toBe("44px");
+        expect(btn.parentElement!.className).toContain("items-start");
+        // しおり（heroicons の bookmark）の輪郭。ハートの path とは違う
+        expect(container.querySelector("svg path")!.getAttribute("d")).toMatch(/^M17\.593 3\.322/);
+    });
+
+    it("tile は英語でも短い文言（iOS と同じ Want to go）", async () => {
+        fetchMock.mockResolvedValue(ok([]));
+        render(<SaveSpotButton slug="パリ" name="パリ" locale="en" kind="spot" variant="tile" />);
+        expect(await screen.findByRole("button", { name: "Want to go" })).toBeTruthy();
+    });
+
     describe("公式スポット（kind=\"spot\"）", () => {
         it("送る鍵に頭が付く", async () => {
             fetchMock.mockResolvedValueOnce(ok([]));

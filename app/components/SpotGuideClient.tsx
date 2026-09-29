@@ -11,7 +11,7 @@ import { MapIcon, ArrowUpOnSquareIcon } from "@heroicons/react/24/outline";
 import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
-import SaveSpotButton, { TILE, TILE_OFF } from "./SaveSpotButton";
+import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -21,7 +21,7 @@ import SaveSpotButton, { TILE, TILE_OFF } from "./SaveSpotButton";
  * owner:「**ユーザーの投稿が0枚でも、その撮影地について十分な情報を得られ、
  * 実際に行って撮影したくなるページ**」。
  *
- * だから**ユーザー投稿に触れるのは1つの節だけ**（「みんなが撮影した写真」）。
+ * だから**ユーザー投稿に触れるのは1つの節だけ**（「この場所の写真（N）」）。
  * 代表写真・魅力・撮影ガイド・アクセス・地図は、投稿が0枚でも出る。
  * 空になるのはその1節だけで、**ページ全体が寂しくならない**。
  *
@@ -248,7 +248,10 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     </nav>
                     {/* 小見出し（iOS の `SpotScreen.eyebrow`・等幅11・字間1.5・大文字）。
                         🔴 **下書きを「撮影スポット」と名乗らない**——真鍮ではなく薄い色で「下書き・未確認」 */}
-                    <p className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
+                    {/* 公開の回は読み上げから外す（すぐ上のパンくずが同じ「撮影スポット」を読む）。
+                        「下書き・未確認」は意味を持つので読ませる */}
+                    <p aria-hidden={verified ? true : undefined}
+                       className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>
                         {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
                     </p>
@@ -293,21 +296,25 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
                     部品は撮影地ページと同じ `SaveSpotButton`（形だけ `tile`）——
                     同じ3状態の扱いを2つ作らない。
-                    「地図で見る」は iOS では端末の地図アプリ、Web はサイトの撮影地マップ */}
-                <div className="flex items-start gap-2.5 pb-6 border-b border-white/10">
+                    「地図で見る」は iOS では端末の地図アプリ、Web はサイトの撮影地マップ。
+                    **格子で3等分**（`flex-1` だと包んだ側だけ狭くなる）。PC は本文の列の幅
+                    （36rem）で止める——スマホの形を横に引き伸ばさない（owner の指示） */}
+                <div className="pb-6 border-b border-white/10">
+                <div className="grid grid-cols-3 gap-2.5 max-w-xl">
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}
-                          className={`${TILE} ${TILE_OFF} flex-1 min-w-0`}
+                          className={`${TILE} ${TILE_OFF} min-w-0`}
                           style={{ minHeight: 48, touchAction: "manipulation" }}>
-                        <MapIcon className="w-5 h-5 flex-shrink-0" aria-hidden />
-                        {isJa ? "地図で見る" : "View on map"}
+                        <MapIcon className={TILE_ICON} aria-hidden />
+                        <span className={TILE_TEXT}>{isJa ? "地図で見る" : "Map"}</span>
                     </Link>
                     <button type="button" onClick={handleShare}
-                            className={`${TILE} ${TILE_OFF} flex-1 min-w-0`}
+                            className={`${TILE} ${TILE_OFF} min-w-0`}
                             style={{ minHeight: 48, touchAction: "manipulation" }}>
-                        <ArrowUpOnSquareIcon className="w-5 h-5 flex-shrink-0" aria-hidden />
-                        {isJa ? "シェア" : "Share"}
+                        <ArrowUpOnSquareIcon className={TILE_ICON} aria-hidden />
+                        <span className={TILE_TEXT}>{isJa ? "シェア" : "Share"}</span>
                     </button>
+                </div>
                 </div>
 
                 {/* PC は2段組。スマホは1列（スマホを横に引き伸ばさない） */}
