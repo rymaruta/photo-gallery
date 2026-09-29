@@ -168,6 +168,7 @@ describe("NotificationsBell", () => {
         render(<NotificationsBell />);
         await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
         // 応答が画面に反映されるまで待つ（呼んだ直後に見ると、反映前の「点なし」を見て通ってしまう）
+        // ⚠️ 初期値も 0 なので、捕まえられるのは「0 を別の値に変える」形の不具合だけ（load にタイマーを挟むと偽の緑になる）
         await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
         expect(unreadDot()).toBeNull();
         expect(screen.getByRole("button", { name: "通知" }).getAttribute("aria-describedby")).toBeNull();

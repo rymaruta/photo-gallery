@@ -1018,6 +1018,8 @@ export default function NotificationsBell() {
                 // **`hidden` にする**（`sr-only` ではなく）。`aria-describedby` は隠れた要素の
                 // 文字も説明として拾う。`sr-only` だと読み上げを1行ずつ進めたときに、
                 // ボタンの説明のあとでこの span をもう一度「未読 N 件」と読む
+                // 代償: 説明（ヒント）を読まない設定の読み上げ（iOS VoiceOver でヒントを切った人など）
+                // には数が届かない。既定はどれも読むので、二度読みを消す方を採った
                 <span id={unreadDescId} hidden>
                     {locale === "en" ? `${unread} unread` : `未読 ${unread} 件`}
                 </span>
