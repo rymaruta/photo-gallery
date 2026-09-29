@@ -46,6 +46,13 @@ type Props = {
     nearby: { slug: string; name: string; region?: string }[];
     /** 同じ場所を指す集約ページ（あれば）。無ければ `null` */
     locationPath: string | null;
+    /** 属する県（海外は一括）。パンくずと「すべて見る」の行き先。引けなければ `null` */
+    area?: { slug: string; name: string; nameEn: string } | null;
+    /**
+     * 同じ県（海外は同じ国）のほかのスポット（人が確かめたものだけ・近い順）。
+     * **手で選んだ「近くの撮影スポット」とは別の節**で、関係があるとは名乗らない
+     */
+    sameArea?: { label: string; spots: { slug: string; name: string; region?: string }[] } | null;
 };
 
 const SEASON_LABEL: Record<string, string> = {
@@ -86,7 +93,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
     const mapHero = usesMapHero(spot);
@@ -160,6 +167,22 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
             <div className="mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 pb-10">
                 {/* ── 2. 基本情報 ─────────────────────────────── */}
                 <header className="pt-5 pb-4">
+                    {/* パンくず（構造化データの `BreadcrumbList` と同じ段）。
+                        県の段は区画のページが在るときだけ */}
+                    <nav aria-label={isJa ? "パンくずリスト" : "Breadcrumb"} className="mb-2 text-white/60"
+                         style={{ fontSize: "12px", lineHeight: "18px" }}>
+                        <Link href="/" prefetch={false} className="hover:text-white/90">{isJa ? "ホーム" : "Home"}</Link>
+                        <span className="mx-1.5" aria-hidden>/</span>
+                        <Link href={ROUTES.SPOTS} prefetch={false} className="hover:text-white/90">{isJa ? "撮影スポット" : "Photo spots"}</Link>
+                        {area && (
+                            <>
+                                <span className="mx-1.5" aria-hidden>/</span>
+                                <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false} className="hover:text-white/90">
+                                    {isJa ? area.name : area.nameEn}
+                                </Link>
+                            </>
+                        )}
+                    </nav>
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"
                         style={{ fontSize: "clamp(24px, 4.5vw, 38px)", lineHeight: "1.18" }}>
                         {spot.name}
@@ -430,6 +453,34 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath }: 
                                         </li>
                                     ))}
                                 </ul>
+                            </section>
+                        )}
+
+                        {/* ── 10. 同じ県のほかのスポット（人が確かめたものだけ）──
+                            手で選んだ「近くの撮影スポット」とは別。見出しは関係を名乗らない */}
+                        {sameArea && sameArea.spots.length > 0 && (
+                            <section className="mb-7" aria-labelledby="spot-same-area">
+                                <Head id="spot-same-area">{isJa ? `${sameArea.label}の撮影スポット`
+                                    // 英語の国名は台帳に無い（海外の区画名 Outside Japan では中身と合わない）
+                                    : spot.region?.country === "日本" && area ? `More spots in ${area.nameEn}` : "More photo spots"}</Head>
+                                <ul className="m-0 p-0 flex flex-col gap-1.5" style={{ listStyle: "none" }}>
+                                    {sameArea.spots.map((n) => (
+                                        <li key={n.slug}>
+                                            <Link href={`/spots/${n.slug}`} prefetch={false}
+                                                  className="block rounded-lg px-2 py-1.5 -mx-2 hover:bg-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                                                <span className="block text-white" style={{ fontSize: "13px" }}>{n.name}</span>
+                                                {n.region && <span className="block text-white/55" style={{ fontSize: "11px" }}>{n.region}</span>}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                                {area && (
+                                    <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false}
+                                          className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"
+                                          style={{ fontSize: "12px" }}>
+                                        {isJa ? `${area.name}の撮影スポットをすべて見る` : `See all spots in ${area.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
+                                    </Link>
+                                )}
                             </section>
                         )}
 

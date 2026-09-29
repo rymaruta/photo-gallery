@@ -250,6 +250,29 @@ function areaSlugOf(spot: Spot): string | null {
     return prefectureByName(spot.region?.prefecture)?.slug ?? null;
 }
 
+/** 区画のページ（`/spots/area/<slug>`）を指すのに要る項目 */
+export type SpotAreaRef = { slug: string; name: string; nameEn: string };
+
+/**
+ * 台帳の1件が属する区画。**区画のページが在るときだけ返す**（`spotAreas` と同じ数え方
+ * ——自分自身が数に入るので、見える1件なら必ず在る）。見えない行・県が引けない行は `null`
+ */
+export function spotAreaOf(spot: Spot, spots: readonly Spot[] = SPOTS): SpotAreaRef | null {
+    if (!visibleSpots(spots).some((s) => s.spotId === spot.spotId)) return null;
+    const slug = areaSlugOf(spot);
+    if (!slug) return null;
+    if (slug === OVERSEAS_SLUG) return { slug, name: OVERSEAS_NAME, nameEn: OVERSEAS_NAME_EN };
+    const pref = PREFECTURES.find((p) => p.slug === slug);
+    return pref ? { slug, name: pref.name, nameEn: pref.nameEn } : null;
+}
+
+/** 同じ区画のスポットか。**海外は一括の区画なので、国まで同じもの** */
+export function sameAreaAs(a: Spot, b: Spot): boolean {
+    const slug = areaSlugOf(a);
+    if (!slug || slug !== areaSlugOf(b)) return false;
+    return slug !== OVERSEAS_SLUG || (!!a.region?.country && a.region.country === b.region?.country);
+}
+
 /**
  * 公開できるスポットが**1件以上ある区画だけ**を、件数つきで返す。
  *
