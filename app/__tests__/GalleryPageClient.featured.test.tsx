@@ -59,6 +59,12 @@ describe("トップの「おすすめ」", () => {
         expect(all.map((a) => a.getAttribute("href")).join(" ")).toContain("/category/");
     });
 
+    it("「おすすめ」には PC の右の柱を付けない（owner の指示 2026-09-22・意図的な実装）", () => {
+        render(<GalleryPageClient />);
+        openFeatured();
+        expect(document.querySelector("main aside"), "おすすめに柱が付いている").toBeNull();
+    });
+
     /** 空の見出しだけが残る形は「準備中」と同じ */
     it("1枚も選ばれていなければ、カテゴリの段は出さず、全部の写真の並びだけ出す（iOS と同じ）", () => {
         photosRef.list = PHOTOS.map((p) => ({ ...p, featured: false }));

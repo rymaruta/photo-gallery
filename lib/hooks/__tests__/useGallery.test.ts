@@ -596,6 +596,17 @@ describe("useGallery", () => {
             expect(order(null)).toEqual(order("me"));
         });
 
+        it("おすすめの並びはホームだけ。「さがす」に ?scope=featured が残っても、選んだ並べ替えが効く", () => {
+            const photos = [
+                { ...mockPhotos[0], id: "old-liked", likes: 9, createdAt: "2026-01-01T00:00:00Z", date: "2026-01-01" },
+                { ...mockPhotos[1], id: "new", likes: 0, createdAt: "2026-03-01T00:00:00Z", date: "2026-03-01" },
+            ];
+            window.history.replaceState({}, "", "/search?scope=featured&sort=new");
+            const ids = renderHook(() => useGallery(photos, "me", { recommendOnFeatured: false }))
+                .result.current.filteredPhotos.map((p) => p.id);
+            expect(ids, "いいね順に並べ替えて、選んだ「新しい順」を上書きしている").toEqual(["new", "old-liked"]);
+        });
+
         it("おすすめ: 印が `true` の写真だけを先に出す（truthy では拾わない）", () => {
             // 壊れた値を通す（本番のデータは何でもありうる）。型の穴は
             // **配列ごと**開ける——要素に `@ts-expect-error` を置くと、

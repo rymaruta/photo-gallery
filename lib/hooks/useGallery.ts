@@ -153,7 +153,16 @@ function readFiltersFromUrl(search: string): Partial<GalleryFilters> {
  *   **「自分の写真」タブは無くなった**（owner の新デザイン。自分の写真は
  *   マイページの「投稿」タブが持つ）
  */
-export default function useGallery(raw: Photo[], ownUserId?: string | null) {
+export default function useGallery(
+    raw: Photo[],
+    ownUserId?: string | null,
+    /**
+     * `recommendOnFeatured` … `scope=featured` のとき「おすすめ」の並びにするか（既定 true）。
+     * **ホームだけ**が使う。「さがす」に `?scope=featured` が残ると、並べ替え（古い順など）を
+     * 選んでも効かず、外す手段も無かった（タブはホームにしか無い）
+     */
+    { recommendOnFeatured = true }: { recommendOnFeatured?: boolean } = {},
+) {
     // ISO日付を正規化ステップで一度だけ計算（ソート時の繰り返しパースを回避）
     const PHOTOS = useMemo(
         () =>
@@ -369,12 +378,12 @@ export default function useGallery(raw: Photo[], ownUserId?: string | null) {
         } else if (filters.sort === "popular") {
             arr.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
         }
-        // 「おすすめ」は並べ替えの選択より優先（タブが並びを決める・iOS と同じ）。
+        // 「おすすめ」のタブは並びを決める（ホームには並べ替えの欄が無い）。
         // モーダルの前後もこの並びで回るので、画面と食い違わない
-        if (filters.scope === "featured") arr = recommendedOrder(arr);
+        if (filters.scope === "featured" && recommendOnFeatured) arr = recommendedOrder(arr);
 
         return arr;
-    }, [filters, PHOTOS, ownUserId]);
+    }, [filters, PHOTOS, ownUserId, recommendOnFeatured]);
 
     // filteredPhotos を ref で追跡 → コールバックを安定させる
     const filteredPhotosRef = useRef(filteredPhotos);

@@ -142,7 +142,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     close,
     next,
     prev,
-  } = useGallery(photos, ownUserId);
+  } = useGallery(photos, ownUserId, { recommendOnFeatured: surface === "home" });
 
   /**
    * **ログイン中の既定は「自分」**（owner:「デフォルトは自分のみがいい」）。
@@ -159,7 +159,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
    *
    * 「おすすめ」は運営が選んだ写真（`featured`）を先に、残りをいいねの多い順に並べる
    * （iOS の `HomeFeed`・空にならない）。**既定にするのは選ばれた写真があるときだけ**
-   * ——無ければ並びが「新着」と同じになるので、新着を既定のままにする
+   * ——無ければ運営の選んだものが1枚も無いタブになるので、新着を既定のままにする
    * （静的HTML も新着のまま）。
    */
   const hasFeatured = React.useMemo(() => PHOTOS.some((p) => p.featured === true), [PHOTOS]);
@@ -202,9 +202,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     // ——結果の件数・グリッド・色の内訳が全部おすすめだけになり、FilterBar には
     // 何も絞っていないように見える（レビューで指摘）
     if (surface !== "home") return;
-    // **「おすすめ」は1枚も選ばれていないと空**（実データは featured 0枚）。
-    // 空のタブを既定にすると、開いた人がまず何も無い画面を見る。
-    // 選ばれていれば「おすすめ」、無ければ「新着」に倒す
+    // **選ばれた写真があるときだけ「おすすめ」を既定にする**（実データは featured 0枚）。
+    // 無ければ既定は「新着」のまま（静的HTML も新着）。おすすめは空にはならないが、
+    // 選ばれた写真が無い間は「いいね順＝ほぼ投稿の新しい順」でしかない
     if (hasFeatured) setFilters({ scope: "featured" });
   }, [authLoading, isAuthenticated, filters.scope, setFilters, hasFeatured, surface]);
 
@@ -613,10 +613,12 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
            1. 運営が選んだ写真があれば、カテゴリごとの段（`FeaturedSections`）
            2. その下に**全部の写真**を「選ばれた写真を先に、残りはいいねの多い順」で
               （並べるのは `useGallery`＝モーダルの前後も同じ順）＝**空にならない**
-           ⚠️ **段は PC の柱の外**（`HomeColumns` で包まない）。`FeaturedSections` は
-           中で `GRID_SIZES_5XL` を使う＝容器が `max-w-5xl` いっぱいである前提で `sizes` を
-           申告しているので、柱の中へ入れると申告と実寸がずれる。並びの方は柱に入れる。
-           ⚠️ 本番は featured 0枚・いいね全部 0 なので、いまは「新着」と同じ並びになる */
+           🔴 **このタブは PC の右の柱を付けない**（owner の指示 2026-09-22:「おすすめは
+           右側サイドバーを表示していません。これは現在の意図的な実装です。3タブすべてに
+           機械的に同じサイドバーを追加しないでください」・`docs/owner-instructions-2026-09-22.md`）。
+           段（`FeaturedSections`）は中で `GRID_SIZES_HOME_6XL` を使う＝容器いっぱいの前提。
+           並びの方は新着と同じ 40rem の箱に収めて中央に置く（`MOSAIC_*_SIZES` の申告と合わせる）。
+           並び: いいねが全部 0 なら「投稿の新しい順」。**新着（撮影日が先）とは違う並び**になる */
         <HomePanel scope="featured">
           {hasFeatured && !narrowedNow && (
             <FeaturedSections
@@ -630,7 +632,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           {/* 選ばれた写真のカテゴリの段の下に、**全部の写真を「おすすめ」の並びで**
               （選ばれた写真を先に、残りはいいねの多い順・`useGallery` が並べる）。
               iOS の `GalleryView` と同じ——段は選ばれた写真があるときだけ、並びは必ず出る */}
-          <HomeColumns rail={discoverRail}>
+          <div className="max-w-xl mx-auto lg:max-w-[40rem]">
             {filteredPhotos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
                 <p className="text-sm m-0">
@@ -644,7 +646,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
                 priorityCount={hasFeatured && !narrowedNow ? 0 : HOME_PRIORITY_COUNT}
               />
             )}
-          </HomeColumns>
+          </div>
         </HomePanel>
       ) : surface === "home" ? (
         /* **新着は iOS と同じ写真の並び**（`HomeMosaic`・大きく1枚 → 2枚 → 2枚・2026-09-29）。

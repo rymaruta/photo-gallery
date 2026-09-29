@@ -1,25 +1,21 @@
 import type { Photo } from "@/lib/data/photos";
+import { comparePosted } from "./photoOrder";
 
 /**
  * ホームの「おすすめ」の並び（iOS の `HomeFeed.arrange(.recommended)` と同じ規則）。
  *
- *   1. 運営が選んだ写真（`featured`）を先に
+ *   1. 運営が選んだ写真（`featured === true`）を先に
  *   2. 残りは**いいねの多い順**（持たない写真は 0）
- *   3. 同点は**新しい順**（押すたびに並びが変わって見えないように）
+ *   3. 同点は**投稿の新しい順**（`comparePosted`＝`createdAt` を文字列のまま比べ、無いものは
+ *      末尾、同じなら id。iOS の `GallerySort.byDate` と同じ決着）
  *
  * **推薦の仕組みは無い。** 選ばれた写真といいねの数だけで並べる。
- * ⚠️ 本番は 2026-09-29 時点で featured 0枚・いいね全部 0 なので、並びは「新着」と
- * 同じになる（iOS も同じ）。選ばれた写真やいいねが増えると差が出る。
+ * ⚠️ 本番（2026-09-29: featured 0枚・いいね全部 0）では「投稿の新しい順」になる。
+ * **Web の「新着」（`compareNewest`＝撮影日が先）とは違う並び**（iOS の新着は投稿日なので
+ * iOS では同じになる）。
  */
-type Rankable = Pick<Photo, "featured" | "likes" | "createdAt">;
-
-export function recommendedOrder<T extends Rankable>(photos: readonly T[]): T[] {
-    const time = (p: Rankable) => {
-        const t = Date.parse(p.createdAt ?? "");
-        return Number.isNaN(t) ? -Infinity : t;
-    };
-    const byPopular = (a: Rankable, b: Rankable) =>
-        ((b.likes ?? 0) - (a.likes ?? 0)) || (time(b) - time(a));
+export function recommendedOrder<T extends Photo>(photos: readonly T[]): T[] {
+    const byPopular = (a: T, b: T) => ((b.likes ?? 0) - (a.likes ?? 0)) || comparePosted(a, b);
     const sorted = [...photos].sort(byPopular);
     return [...sorted.filter((p) => p.featured === true), ...sorted.filter((p) => p.featured !== true)];
 }
