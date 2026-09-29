@@ -32,7 +32,10 @@ describe("chipStyles", () => {
         expect(cls(CHIP_ON)).toEqual(expect.arrayContaining(["bg-primary", "text-ink", "font-semibold"]));
     });
 
-    it("使う側で focus:outline-none を足していない（後に並んで forced-colors の輪を消す）", () => {
+    it("使う側で輪を消す・ずらす指定を足していない（後に並んで forced-colors の輪を消す）", () => {
+        // **同じ行だけでは足りない**: className を複数行に分ける書き方（SpotIndexClient）と、
+        // 定数を別名に包む書き方（PhotoPageClient の CHIP_CLASS）がある。定数や別名を使う行の
+        // 前後 3 行を見る。`focus-visible:outline-none` や `outline-0`・offset の上書きも同じ害
         const root = join(__dirname, "../..");
         const files: string[] = [];
         const walk = (d: string) => {
@@ -43,16 +46,21 @@ describe("chipStyles", () => {
             }
         };
         walk(root);
+        const USE = /\b(CHIP_ON|CHIP_OFF|CHIP_CLASS)\b/;
+        const KILL = /(^|[\s"'`])(focus|focus-visible):(outline-none|outline-0|-?outline-offset-)/;
         const bad: string[] = [];
         let uses = 0;
         for (const f of files) {
-            readFileSync(f, "utf8").split("\n").forEach((line, i) => {
-                if (!/\bCHIP_(ON|OFF)\b/.test(line) || /^\s*import\b/.test(line)) return;
+            const lines = readFileSync(f, "utf8").split("\n");
+            lines.forEach((line, i) => {
+                if (!USE.test(line) || /^\s*import\b/.test(line)) return;
                 uses++;
-                if (/focus:outline-none/.test(line)) bad.push(`${f}:${i + 1}`);
+                for (let j = Math.max(0, i - 3); j <= Math.min(lines.length - 1, i + 3); j++) {
+                    if (KILL.test(lines[j])) bad.push(`${f}:${j + 1}`);
+                }
             });
         }
         expect(uses, "定数を使う行を1つも拾えていない").toBeGreaterThan(5);
-        expect(bad).toEqual([]);
+        expect([...new Set(bad)]).toEqual([]);
     });
 });

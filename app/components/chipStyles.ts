@@ -23,7 +23,8 @@
  * その outline は既定で外側（offset 2px）なので、横スクロールの行（縦の余白なし）で上下が切れる
  * ——`-outline-offset-2` で内側に寄せる（生成順で outline-hidden より後に並ぶので勝つ）。
  * ⚠️ **使う側で `focus:outline-none` を足さない。** 後に並ぶので forced-colors の outline を消す
- * （`chipStyles.test.ts` が使う側の行も見ている）
+ * （`chipStyles.test.ts` が、定数と別名 `CHIP_CLASS` を使う行の前後3行を見ている。
+ *  `focus-visible:outline-none`・`outline-0`・offset の上書きも同じく落とす）
  *
  * **カーソルを乗せたら `bg-white/15`。** `hover:bg-surface-2` は `bg-chip` と同じ `#1a1a1a`
  * で何も変わっていなかった（`globals.css` の2つのトークンが同じ値）。
