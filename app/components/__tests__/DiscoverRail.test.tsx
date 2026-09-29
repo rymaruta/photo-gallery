@@ -52,7 +52,7 @@ const draw = (photos: Photo[], map: Record<string, string> = {}) =>
     render(<DiscoverRail photos={photos} locale="ja" categoryDisplayMap={map} />);
 
 /** 節の見出しへのリンク（「すべて見る」）を除いた、項目のリンク */
-const INDEX_HREFS = ["/location", "/category", "/camera", "/tag"];
+const INDEX_HREFS = ["/location", "/category", "/camera"];
 const itemLinks = (c: HTMLElement) =>
     [...c.querySelectorAll("a")].filter((a) => !INDEX_HREFS.includes(a.getAttribute("href") ?? ""));
 
@@ -139,8 +139,9 @@ describe("タグの節（検索に載るタグページへの内部リンク・2
         expect(hrefs.some((h) => h?.includes("igloo")), "載らないタグ（2枚）へリンクしている").toBe(false);
         // 行き先は /search へ振り替えない（タグページそのものを内部リンクで支える）
         expect(hrefs.some((h) => h?.startsWith("/search")), "検索結果へ振り替えている").toBe(false);
-        // 「すべて見る」はタグの一覧
-        expect(hrefs).toContain("/tag");
+        // 「すべて見る」は出さない——タグの索引ページ（/tag）は無い（出すと 404 へのリンク）
+        expect(hrefs, "存在しない /tag へリンクしている").not.toContain("/tag");
+        expect(container.querySelector('section[aria-labelledby="rail-tags"]')!.textContent).not.toContain("すべて見る");
     });
 
     it("載るタグが1つも無ければ節ごと出さない", () => {
