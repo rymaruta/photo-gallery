@@ -15,8 +15,11 @@
  * （選択中の輪が左右の端しか見えなかった・レビューの実測）。
  *   非選択  真鍮（チップの地 #1A1A1A に対して 7.58:1）
  *   選択中  墨（白い地 #EBEBEB に対して 16.74:1。真鍮だと 1.93:1 で見えない）
- * **ブラウザ既定の輪（outline）は消す**（`focus:outline-none`）。消さない画面では外に白・内に
- * 真鍮の二重の輪になっていた（タイムライン・写真ページ・探すの機材・スポット一覧）
+ * **ブラウザ既定の輪（outline）は消す**。消さない画面では外に白・内に真鍮の二重の輪になっていた
+ * （タイムライン・写真ページ・探すの機材・スポット一覧）。
+ * 🔴 **`outline-none` ではなく `outline-hidden`。** 輪は box-shadow なので、Windows のハイコントラスト
+ * （forced-colors）では描かれない。`outline-none` だとフォーカスの印が何も残らない。
+ * `outline-hidden` は普段は同じく消え、forced-colors のときだけ透明の outline を系統色で描く
  *
  * **カーソルを乗せたら `bg-white/15`。** `hover:bg-surface-2` は `bg-chip` と同じ `#1a1a1a`
  * で何も変わっていなかった（`globals.css` の2つのトークンが同じ値）。
@@ -24,5 +27,5 @@
  * ⚠️ **`CHIP_ON` は `bg-primary` のままにする。** `app/__tests__/textContrast.test.ts` が
  * `CHIP_ON` を「明るい塗り」として数え、その上に白い文字が無いかを見ている。
  */
-export const CHIP_OFF = "bg-chip text-chip-text ring-1 ring-inset ring-line hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
-export const CHIP_ON = "bg-primary text-ink font-semibold ring-inset focus:outline-none focus-visible:ring-2 focus-visible:ring-ink";
+export const CHIP_OFF = "bg-chip text-chip-text ring-1 ring-inset ring-line hover:bg-white/15 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent";
+export const CHIP_ON = "bg-primary text-ink font-semibold ring-inset focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ink";

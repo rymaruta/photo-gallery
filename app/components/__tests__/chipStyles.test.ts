@@ -11,7 +11,9 @@ describe("chipStyles", () => {
 
     it("どちらもブラウザ既定の輪を消し、内側 2px の輪を持つ（二重の輪にしない）", () => {
         for (const c of [CHIP_ON, CHIP_OFF]) {
-            expect(cls(c)).toEqual(expect.arrayContaining(["focus:outline-none", "ring-inset", "focus-visible:ring-2"]));
+            expect(cls(c)).toEqual(expect.arrayContaining(["focus:outline-hidden", "ring-inset", "focus-visible:ring-2"]));
+            // outline-none だと forced-colors（ハイコントラスト）でフォーカスの印が何も残らない
+            expect(cls(c)).not.toContain("focus:outline-none");
         }
     });
 
