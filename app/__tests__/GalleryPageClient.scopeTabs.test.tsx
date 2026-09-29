@@ -9,10 +9,9 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
  *
  * - **タブは未ログインにも出る**（「おすすめ」は誰が見ても同じ）。
  *   戻すのは「フォロー中」だけ（本人の id が無いと意味を持たない）
- * - **おすすめ＝運営が選んだ写真**（`featured`）。人気順ではない——実データは
- *   いいね0・コメント0 で、人気の根拠がどこにも無い。1枚も選ばれていなければ
- *   そのタブは空なので、**既定にしない**
- * - 「フォロー中」は `TimelineFeed`／「新着」は1列のカード
+ * - **おすすめ＝運営が選んだ写真を先に、残りはいいねの多い順**（iOS の `HomeFeed`・
+ *   空にならない）。選ばれた写真が1枚も無ければ、**既定にはしない**（新着のまま）
+ * - 「フォロー中」は `TimelineFeed`／「新着」は `HomeMosaic`（どちらも同じ並び）
  * - **絞り込みとグリッドはトップから消えた**（「さがす」の持ち場）
  */
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: true, userId: "me" as string | null, loading: false } }));
@@ -61,11 +60,11 @@ vi.mock("../components/GalleryGrid", () => ({
         gridProps.ids = p.photos.map((x) => x.id); gridProps.open = p.onOpenPhoto ?? null; return <div data-testid="grid" />;
     },
 }));
-// トップは1列のカード。**カードそのものは境界としてモックする**
-// （見せ方は `TimelineCard.test.tsx` の担当。ここで見たいのは「どの写真が
+// トップの新着は写真の並び（`HomeMosaic`）。**並びの部品そのものは境界としてモックする**
+// （見せ方は `HomeMosaic.test.tsx` の担当。ここで見たいのは「どの写真が
 // どの順で並ぶか」）
-vi.mock("../components/TimelineCard", () => ({
-    default: (p: { photo: { id: string } }) => <div data-card={p.photo.id} />,
+vi.mock("../components/HomeMosaic", () => ({
+    default: (p: { photos: { id: string }[] }) => <>{p.photos.map((ph) => <div key={ph.id} data-card={ph.id} />)}</>,
 }));
 
 const PHOTOS = [
@@ -98,7 +97,7 @@ beforeEach(() => {
 });
 
 describe("トップの おすすめ / フォロー中 / 新着", () => {
-    it("おすすめが1枚も無ければ、既定は「新着」（空のタブを最初に見せない）", async () => {
+    it("おすすめが1枚も選ばれていなければ、既定は「新着」（運営の選んだものが無いタブを最初に見せない）", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(pressed("新着")).toBe(true));
         expect(cardIds()).toEqual(["mine-1", "theirs", "mine-2"]);
@@ -133,11 +132,22 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
     });
 
     // 🔴 **トップに絞り込みとグリッドは出さない**（「さがす」の持ち場）
-    it("トップは1列のカード。絞り込みもグリッドも出さない", async () => {
+    it("トップは写真の並び（HomeMosaic）。絞り込みもグリッドも出さない", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(cardIds().length).toBeGreaterThan(0));
         expect(screen.queryByTestId("filter-bar")).toBeNull();
         expect(screen.queryByTestId("grid")).toBeNull();
+    });
+
+    it("「さがす」に ?scope=featured が残っても、選んだ並べ替えが効く（おすすめの並びはホームだけ・画面の配線）", async () => {
+        // いちばん古い mine-2 にだけいいねを持たせる。おすすめの並びなら mine-2, mine-1, theirs。
+        // **既定と違う「古い順」を選ぶ**——既定の「新しい順」で見ると、選んだ並べ替えを
+        // 無視して常に新しい順にする壊れ方を見分けられない（レビューが変異で確かめた）
+        photosState.photos = [PHOTOS[0], PHOTOS[1], { ...PHOTOS[2], likes: 9 }];
+        window.history.replaceState({}, "", "/search?scope=featured&sort=old");
+        render(<GalleryPageClient surface="search" />);
+        await waitFor(() => expect(gridProps.ids).not.toBeNull());
+        expect(gridProps.ids, "さがすで選んだ並べ替えが効いていない").toEqual(["mine-2", "theirs", "mine-1"]);
     });
 
     it("「さがす」面では絞り込みとグリッドを出す（カードは出さない）", async () => {
@@ -234,13 +244,14 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         await waitFor(() => expect(pressed("新着")).toBe(true));
     });
 
-    it("おすすめが1枚も無ければ、そう言って新着への導線を出す", async () => {
+    it("おすすめが1枚も選ばれていなくても空にしない（全部の写真を「おすすめ」の並びで出す・iOS と同じ）", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(pressed("新着")).toBe(true));
         fireEvent.click(tab("おすすめ"));
-        expect(screen.getByText("まだおすすめは選ばれていません。")).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: "新着を見る" }));
-        await waitFor(() => expect(pressed("新着")).toBe(true));
+        await waitFor(() => expect(pressed("おすすめ")).toBe(true));
+        expect(screen.queryByText("まだおすすめは選ばれていません。")).toBeNull();
+        // いいねが全部 0 なら投稿の新しい順（この固定データは撮影日＝投稿日なので新着と同じ）
+        expect(cardIds()).toEqual(["mine-1", "theirs", "mine-2"]);
     });
 });
 

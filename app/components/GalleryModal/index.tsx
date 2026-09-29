@@ -94,7 +94,7 @@ export default function GalleryModal({
     // 渡していなかったので、**送るたびに1本ずつ** `/user/saves/<id>` が
     // 飛んでいた（実測: 3回送ると3本）。呼ぶ側（ホーム）は `useMySaves` で
     // 一覧を持っているのに使っていなかった——カードで直したのと同じ形
-    // （`TimelineCard` / `usePhotoSave` の `known` / `knownPending`）。
+    // （`usePhotoSave` の `known` / `knownPending`）。
     const knownSaved = savedIds ? savedIds.has(p?.id ?? "") : undefined;
     const { saved, pending: savePending, toggle: toggleSave } = usePhotoSave(p?.id ?? "", isAuthenticated, authLoading, knownSaved, savesPending);
     const handleToggleSave = useCallback(() => {

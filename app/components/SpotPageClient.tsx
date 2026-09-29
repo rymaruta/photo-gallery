@@ -284,7 +284,7 @@ export default function SpotPageClient({
                     >
                         {/* **比で枠を予約する**（読み込み後に高さが伸びて下がガタつかない）。
                             `slimForGrid` は `width` / `height` を渡さないので、
-                            `TimelineCard` と同じ 3:2 の既定に倒す */}
+                            3:2 の既定に倒す */}
                         <div
                             className="relative w-full overflow-hidden"
                             style={{

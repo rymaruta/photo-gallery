@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 /**
- * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（マイページの「フォロー中」タブ）。
+ * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（トップの「フォロー中」タブ）。
  *
  * 見ているのは**状態の出し分け**（まだ／未ログイン／失敗／0人／0枚／並ぶ）と、
  * 共有のフォロー一覧が変わったら取り直すこと。中身の決め方は
@@ -25,28 +25,14 @@ vi.mock("../../../lib/hooks/useFollow", () => ({
     fetchFollowingSet: () => follow.fetch(),
     subscribeFollowingSet: (fn: () => void) => { follow.listeners.add(fn); return () => follow.listeners.delete(fn); },
 }));
-// **フォローの操作は境界としてモックする。** このファイルが見ているのは
-// 面の状態の出し分け（まだ／未ログイン／失敗／0人／0枚／並ぶ）で、
-// フォローの押し心地は `FollowButton` 側の試験の担当。
-// 本物を通すと `useFollow`（上でモックした一覧の取得とは別の口）まで
-// 引きずられ、**この面の試験がフォローの通信を模す羽目になる**
-vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../../../lib/hooks/useMySaves", () => ({ useMySaves: () => ({ photoIds: [], pending: false, failed: false, retry: vi.fn() }) }));
-vi.mock("../../../lib/hooks/usePhotoSave", () => ({ usePhotoSave: () => ({ saved: false, pending: false, toggle: vi.fn(async () => ({ ok: true })) }) }));
-vi.mock("../UserAvatar", () => ({ default: () => <span /> }));
-vi.mock("../FollowButton", () => ({
-    FollowAction: () => null,
-    default: () => null,
-}));
-
 const TimelineFeed = (await import("../TimelineFeed")).default;
 const Feed = () => <TimelineFeed locale="ja" />;
 
 const PHOTOS = [
-    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00", date: "2019-01-01" },
-    { id: "a-old", src: "https://cdn/a-old.jpg", userId: "A", displayName: "Aさん", title: "古い方", createdAt: "2026-09-01T10:00:00", date: "2026-09-09", location: "パリ" },
-    { id: "b1", src: "https://cdn/b1.jpg", userId: "B", displayName: "Bさん", title: "Bの写真", createdAt: "2026-09-05T10:00:00" },
-    { id: "me1", src: "https://cdn/me1.jpg", userId: "me", displayName: "自分", title: "自分の写真", createdAt: "2026-09-12T10:00:00" },
+    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00Z", date: "2019-01-01", location: "京都" },
+    { id: "a-old", src: "https://cdn/a-old.jpg", userId: "A", displayName: "Aさん", title: "古い方", createdAt: "2026-09-01T10:00:00Z", date: "2026-09-09", location: "パリ" },
+    { id: "b1", src: "https://cdn/b1.jpg", userId: "B", displayName: "Bさん", title: "Bの写真", createdAt: "2026-09-05T10:00:00Z" },
+    { id: "me1", src: "https://cdn/me1.jpg", userId: "me", displayName: "自分", title: "自分の写真", createdAt: "2026-09-12T10:00:00Z" },
 ];
 
 const cardIds = () => Array.from(document.querySelectorAll("[data-photo-id]")).map((el) => el.getAttribute("data-photo-id"));
@@ -63,14 +49,41 @@ describe("TimelineFeed", () => {
         follow.fetch.mockResolvedValue(new Set(["A"]));
         render(<Feed />);
         await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
-        // 誰が上げたかがカードに出る（一覧のグリッドには無かったもの）
-        expect(screen.getAllByText("Aさん").length).toBe(2);
+        // 誰が上げたかが写真に重なって出る（一覧のグリッドには無かったもの）。
+        expect(screen.getAllByText(/^Aさん/).length).toBe(2);
+        for (const id of ["a-new", "a-old"]) {
+            expect(document.querySelector(`[data-photo-id="${id}"]`)!.getAttribute("aria-label")).toContain("Aさん");
+        }
         expect(screen.queryByText("自分の写真"), "自分の写真が混ざっている").toBeNull();
         expect(screen.queryByText("Bの写真"), "フォローしていない人の写真が混ざっている").toBeNull();
         expect(screen.getByText("パリ")).toBeInTheDocument();
         // 写真ページへ（先読みはしない）
         const link = document.querySelector('[data-photo-id="a-new"]') as HTMLAnchorElement;
         expect(link.getAttribute("href")).toMatch(/a-new/);
+    });
+
+    // 新着・おすすめと同じ並び（iOS の3つのタブと同じ）。**1つの並びの中で**
+    // 大きく1枚 → 2枚 → 2枚。1枚ずつ別の並びに割ると全部が大きい1枚になる
+    it("新着と同じ並び（大きく1枚 → 2枚 → 2枚）で描く・撮影地が無い写真は名前を重ねない", async () => {
+        photosState.current = {
+            photos: ["1", "2", "3", "4", "5"].map((n) => ({
+                id: `c${n}`, src: `https://cdn/c${n}.jpg`, userId: "C", displayName: "Cさん", title: `題${n}`,
+                createdAt: `2026-09-0${n}T10:00:00Z`, location: n === "5" ? "" : "那覇",
+            })),
+            loading: false, loaded: true, failed: false,
+        };
+        follow.fetch.mockResolvedValue(new Set(["C"]));
+        render(<Feed />);
+        await waitFor(() => expect(cardIds()).toEqual(["c5", "c4", "c3", "c2", "c1"]));
+        const lists = document.querySelectorAll("ol");
+        expect(lists, "1つの並びになっていない").toHaveLength(1);
+        const spans = Array.from(lists[0].children).map((li) => li.className.includes("col-span-2"));
+        expect(spans).toEqual([true, false, false, false, false]);
+        // 撮影地の無い c5 は文字を重ねない（iOS と同じ）。誰の写真かは読み上げに残る
+        const c5 = document.querySelector('[data-photo-id="c5"]')!;
+        expect(c5.textContent).not.toContain("Cさん");
+        expect(c5.getAttribute("aria-label")).toContain("Cさん");
+        expect(document.querySelector('[data-photo-id="c4"]')!.textContent).toContain("Cさん");
     });
 
     // 🔴 レビューが発見: `createdAt` は UTC の瞬間なのに、書かれた数字をそのまま出す
@@ -82,12 +95,10 @@ describe("TimelineFeed", () => {
             follow.fetch.mockResolvedValue(new Set(["A"]));
             render(<Feed />);
             await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
-            const times = Array.from(document.querySelectorAll("time")).map((t) => [t.getAttribute("dateTime"), t.textContent]);
+            const bylines = ["a-new", "a-old"].map((id) => document.querySelector(`[data-photo-id="${id}"]`)!.textContent);
             // a-new: 上げたのは 09-10（撮影は 2019）→ 3日前。a-old: 上げたのは 09-01（撮影 09-09）→ 12日前
-            expect(times).toEqual([
-                ["2026-09-10T10:00:00", "3日前"],
-                ["2026-09-01T10:00:00", "12日前"],
-            ]);
+            expect(bylines[0]).toContain("Aさん · 3日前");
+            expect(bylines[1]).toContain("Aさん · 12日前");
         } finally {
             vi.useRealTimers();
         }

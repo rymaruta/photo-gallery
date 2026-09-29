@@ -8,8 +8,9 @@ export type GalleryFilters = {
     sort: "new" | "old" | "popular";
     /**
      * 誰の・どの写真を見るか（トップのタブ）。
-     *   `all`      … 新着（みんなの写真を投稿の新しい順）
-     *   `featured` … おすすめ（**運営が選んだ写真**。人気順ではない）
+     *   `all`      … 新着（みんなの写真。並びは `sort` に従い、既定の「新しい順」は**撮影日があれば撮影日**・`compareNewest`）
+     *   `featured` … おすすめ（運営が選んだ写真を先に、残りはいいねの多い順・同点は投稿の
+     *                新しい順・`recommendedOrder`。iOS の `HomeFeed` と同じ。ホームだけ）
      *   `following`… フォロー中（`TimelineFeed` が描く）
      */
     scope: "all" | "featured" | "following";

@@ -625,8 +625,11 @@ export function canonicalCollectionPath(type: CollectionType, slug: string): str
  * `/camera/*` へ34 が張っている（主に写真ページ）＝トップから2クリックでは届く。
  * 足りなかったのは**トップからの1本**と、「すべて見る」の行き先そのもの。
  *
- * **`/tag` は作っていない。** トップの写真カードのタグのチップが
- * 実ビルドで `/tag/*` へ49本張っているので、同じ穴が無い。
+ * **`/tag` は作っていない。** 以前はトップの写真カードのタグのチップが
+ * 実ビルドで `/tag/*` へ49本張っていたので要らなかった。2026-09-29 にトップを
+ * 写真の並び（`HomeMosaic`）にしてチップが消え、いまは PC の右の柱（`DiscoverRail`）が
+ * **検索に載るタグだけ**を張る（写真ページのタグも `/tag/*` を張る）。
+ * 索引を作るならサイトマップ（`app/sitemap.ts`）と `isIndexableCollectionIndex` も一緒に。
  */
 export function collectionIndexPath(type: CollectionType): string {
     return `/${TYPE_PATH[type]}`;

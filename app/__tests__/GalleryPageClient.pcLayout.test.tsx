@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ja } from "../i18n/labels";
-import { FEED_SIZES_XL } from "../components/gridSizes";
+import { MOSAIC_HERO_SIZES } from "../components/gridSizes";
 
 /**
  * **PC は別設計**（owner の指示書 4・11・17:「PCではスマートフォン画面を
@@ -91,15 +91,15 @@ describe("PC の設計（指示書 4・11・17）", () => {
             expect(aside.className, "はみ出したぶんを送れない").toContain("lg:overflow-y-auto");
         });
 
-        it("🔴 フィードは 40rem で止める（`1fr` にしない・`FEED_SIZES_XL` と対）", () => {
+        it("🔴 フィードは 40rem で止める（`1fr` にしない・`MOSAIC_HERO_SIZES` と対）", () => {
             const { container } = render(<GalleryPageClient surface="home" />);
             const shell = container.querySelector("main aside")!.parentElement!;
             expect(shell.className, "PC の2カラムになっていない").toContain("lg:grid");
-            // **`1fr` にしない**——伸ばすとカードの `sizes` が嘘になる。
+            // **`1fr` にしない**——伸ばすと並びの `sizes` が嘘になる。
             // 640px は `Thumb` の派生（512w）から引いた線で、
             // `SPOT_HERO_SIZES` が 640px に止めているのと同じ理由
             expect(shell.className, "フィードの上限が 40rem ではない").toContain("40rem");
-            expect(FEED_SIZES_XL, "`sizes` を対で動かしていない").toContain("40rem");
+            expect(MOSAIC_HERO_SIZES, "`sizes` を対で動かしていない").toContain("40rem");
         });
 
         it("🔴 柱を押したら「さがす」の検索結果へ行く（集約ページではない）", () => {
@@ -111,7 +111,9 @@ describe("PC の設計（指示書 4・11・17）", () => {
             // （2026-09-22 に実ビルドで 0本 と数えた）。
             // 見出しの行き先は下の「索引ページへ行ける」で別に縛る
             const all = [...container.querySelectorAll("main aside a")].map((a) => a.getAttribute("href") ?? "");
-            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h));
+            // **タグの節は例外**: 検索に載るタグページ（`/tag/<slug>`）へ直接張る
+            // （集約ページへの内部リンクそのものが目的・`DiscoverRail` の注記）
+            const links = all.filter((h) => !/^\/(category|location|camera)$/.test(h) && !/^\/tag\/[^/]+$/.test(h));
             expect(links.length, "柱にリンクが無い").toBeGreaterThan(0);
             for (const href of links) {
                 expect(href, `集約ページのままになっている: ${href}`).toMatch(/^\/search\?/);
