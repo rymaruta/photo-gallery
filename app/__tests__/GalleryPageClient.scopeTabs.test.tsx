@@ -11,7 +11,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
  *   戻すのは「フォロー中」だけ（本人の id が無いと意味を持たない）
  * - **おすすめ＝運営が選んだ写真を先に、残りはいいねの多い順**（iOS の `HomeFeed`・
  *   空にならない）。選ばれた写真が1枚も無ければ、**既定にはしない**（新着のまま）
- * - 「フォロー中」は `TimelineFeed`／「新着」は1列のカード
+ * - 「フォロー中」は `TimelineFeed`／「新着」は `HomeMosaic`（どちらも同じ並び）
  * - **絞り込みとグリッドはトップから消えた**（「さがす」の持ち場）
  */
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: true, userId: "me" as string | null, loading: false } }));

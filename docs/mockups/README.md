@@ -8,7 +8,7 @@ owner が出した「◯◯画面（最終版）」の注釈つきシート10枚
 
 | ファイル | 画面 | 実装 |
 |---|---|---|
-| `01-home.jpg` | ホーム | `app/GalleryPageClient.tsx`・`app/components/TimelineCard.tsx` |
+| `01-home.jpg` | ホーム | `app/GalleryPageClient.tsx`・`app/components/HomeMosaic.tsx` |
 | `02-search.jpg` | さがす | `app/search/**` |
 | `03-photo-detail.jpg` | 写真詳細 | `app/photo/[id]/PhotoPageClient.tsx` |
 | `04-mypage.jpg` | マイページ | `app/users/UserProfileClient.tsx` |

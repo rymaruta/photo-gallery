@@ -38,7 +38,6 @@ vi.mock("../components/GalleryGrid", () => ({
 }));
 vi.mock("../components/GalleryModal", () => ({ default: () => null }));
 vi.mock("../components/SearchParamWatcher", () => ({ default: () => null }));
-vi.mock("../components/TimelineCard", () => ({ default: () => <div data-testid="card" /> }));
 vi.mock("@/lib/utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 // 青3枚（うち landscape 2枚）・黒2枚（architecture）。全部 2026 年で並びは気にしない。

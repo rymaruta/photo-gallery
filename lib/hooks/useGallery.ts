@@ -47,7 +47,7 @@ const normalizeKey = (s?: string) => {
 
 /**
  * 「いまサーバー（＝静的HTML を焼いている側）か、水和が済んだクライアントか」を
- * 見分けるための空の購読。`Thumb` / `TimelineCard` / `PhotoPageClient` が
+ * 見分けるための空の購読。`Thumb` / `HomeMosaic` / `PhotoPageClient` が
  * 同じ形で持っている（**4つ目の言い方を作らない**）。
  */
 const subscribeNoop = () => () => {};
@@ -206,7 +206,7 @@ export default function useGallery(
      * ## 直し方
      *
      * **水和が終わるまではサーバーと同じ姿で描く。** 見分けには
-     * `useSyncExternalStore` を使う——`Thumb` / `TimelineCard` /
+     * `useSyncExternalStore` を使う——`Thumb` / `HomeMosaic` /
      * `PhotoPageClient` が既に同じ形で持っている（**4つ目の言い方を作らない**）。
      *
      *   - サーバーと**水和中**  … `clientRender === false` → URL を読まない

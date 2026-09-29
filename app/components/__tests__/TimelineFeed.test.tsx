@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 /**
- * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（マイページの「フォロー中」タブ）。
+ * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（トップの「フォロー中」タブ）。
  *
  * 見ているのは**状態の出し分け**（まだ／未ログイン／失敗／0人／0枚／並ぶ）と、
  * 共有のフォロー一覧が変わったら取り直すこと。中身の決め方は
@@ -25,25 +25,11 @@ vi.mock("../../../lib/hooks/useFollow", () => ({
     fetchFollowingSet: () => follow.fetch(),
     subscribeFollowingSet: (fn: () => void) => { follow.listeners.add(fn); return () => follow.listeners.delete(fn); },
 }));
-// **フォローの操作は境界としてモックする。** このファイルが見ているのは
-// 面の状態の出し分け（まだ／未ログイン／失敗／0人／0枚／並ぶ）で、
-// フォローの押し心地は `FollowButton` 側の試験の担当。
-// 本物を通すと `useFollow`（上でモックした一覧の取得とは別の口）まで
-// 引きずられ、**この面の試験がフォローの通信を模す羽目になる**
-vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("../../../lib/hooks/useMySaves", () => ({ useMySaves: () => ({ photoIds: [], pending: false, failed: false, retry: vi.fn() }) }));
-vi.mock("../../../lib/hooks/usePhotoSave", () => ({ usePhotoSave: () => ({ saved: false, pending: false, toggle: vi.fn(async () => ({ ok: true })) }) }));
-vi.mock("../UserAvatar", () => ({ default: () => <span /> }));
-vi.mock("../FollowButton", () => ({
-    FollowAction: () => null,
-    default: () => null,
-}));
-
 const TimelineFeed = (await import("../TimelineFeed")).default;
 const Feed = () => <TimelineFeed locale="ja" />;
 
 const PHOTOS = [
-    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00", date: "2019-01-01" },
+    { id: "a-new", src: "https://cdn/a-new.jpg", userId: "A", displayName: "Aさん", title: "新しい方", createdAt: "2026-09-10T10:00:00", date: "2019-01-01", location: "京都" },
     { id: "a-old", src: "https://cdn/a-old.jpg", userId: "A", displayName: "Aさん", title: "古い方", createdAt: "2026-09-01T10:00:00", date: "2026-09-09", location: "パリ" },
     { id: "b1", src: "https://cdn/b1.jpg", userId: "B", displayName: "Bさん", title: "Bの写真", createdAt: "2026-09-05T10:00:00" },
     { id: "me1", src: "https://cdn/me1.jpg", userId: "me", displayName: "自分", title: "自分の写真", createdAt: "2026-09-12T10:00:00" },
@@ -63,8 +49,14 @@ describe("TimelineFeed", () => {
         follow.fetch.mockResolvedValue(new Set(["A"]));
         render(<Feed />);
         await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
-        // 誰が上げたかがカードに出る（一覧のグリッドには無かったもの）
-        expect(screen.getAllByText("Aさん").length).toBe(2);
+        // 新着・おすすめと同じ並び（iOS の3つのタブと同じ）。2枚なので大きい1枚が2つ
+        expect(document.querySelectorAll("ol > li.col-span-2")).toHaveLength(2);
+        // 誰が上げたかが写真に重なって出る（一覧のグリッドには無かったもの）。
+        // 撮影地が無い写真は文字を重ねない（iOS と同じ）ので、読み上げでも確かめる
+        expect(screen.getAllByText(/^Aさん/).length).toBe(2);
+        for (const id of ["a-new", "a-old"]) {
+            expect(document.querySelector(`[data-photo-id="${id}"]`)!.getAttribute("aria-label")).toContain("Aさん");
+        }
         expect(screen.queryByText("自分の写真"), "自分の写真が混ざっている").toBeNull();
         expect(screen.queryByText("Bの写真"), "フォローしていない人の写真が混ざっている").toBeNull();
         expect(screen.getByText("パリ")).toBeInTheDocument();
@@ -82,12 +74,10 @@ describe("TimelineFeed", () => {
             follow.fetch.mockResolvedValue(new Set(["A"]));
             render(<Feed />);
             await waitFor(() => expect(cardIds()).toEqual(["a-new", "a-old"]));
-            const times = Array.from(document.querySelectorAll("time")).map((t) => [t.getAttribute("dateTime"), t.textContent]);
+            const bylines = ["a-new", "a-old"].map((id) => document.querySelector(`[data-photo-id="${id}"]`)!.textContent);
             // a-new: 上げたのは 09-10（撮影は 2019）→ 3日前。a-old: 上げたのは 09-01（撮影 09-09）→ 12日前
-            expect(times).toEqual([
-                ["2026-09-10T10:00:00", "3日前"],
-                ["2026-09-01T10:00:00", "12日前"],
-            ]);
+            expect(bylines[0]).toContain("Aさん · 3日前");
+            expect(bylines[1]).toContain("Aさん · 12日前");
         } finally {
             vi.useRealTimers();
         }

@@ -15,6 +15,7 @@ import { MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "./gridSizes";
 
 /**
  * ホームの写真の並び（iOS の `HomeMosaic`・板 01c と同じ組み・2026-09-29）。
+ * **3つのタブ（おすすめ・フォロー中・新着）すべてがこれで描く**（iOS と同じ）。
  *
  * **大きく1枚（16:9）→ 2枚（1:1）→ 2枚** の繰り返しを、スマホでは端から端まで・
  * 隙間 4px・角なしで組む。撮影地と撮った人は写真の上に重ね、いいねの数は右下の
@@ -24,7 +25,7 @@ import { MOSAIC_HERO_SIZES, MOSAIC_PAIR_SIZES } from "./gridSizes";
  * **iOS と変えたところ（理由つき）**
  * - **いいねの丸は数を見せるだけ**で、押すと写真ページが開く（丸は写真のリンクの中）。
  *   写真ごとのいいねの状態をサーバーへ引くと一覧を開くだけで N 往復になる
- *   （`TimelineCard` から引き継いだ判断・CLAUDE.md の優先度「表示速度」）
+ *   （以前の縦1列の札から引き継いだ判断・CLAUDE.md の優先度「表示速度」）
  * - **「…」（通報・ブロック）は置かない。** Web では写真ページにある
  * - 複数枚の印は `extraImages`（Web は1つの写真に追加の画像を持つ形）
  */
@@ -68,7 +69,7 @@ export default function HomeMosaic({ photos, locale, priorityCount = 3 }: Props)
 
 /**
  * **サーバーでは描かない値**（「3日前」）のための札。静的書き出しはビルド時に文字列を
- * 焼くので、そのまま出すとビルドの翌日以降に水和が食い違う（`TimelineCard` と同じ理由）
+ * 焼くので、そのまま出すとビルドの翌日以降に水和が食い違う（`Thumb` と同じ理由）
  */
 const subscribeNoop = () => () => {};
 function useAfterHydration(): boolean {
@@ -94,7 +95,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
     const objectPosition = photo.focalPoint
         ? `${Math.round(photo.focalPoint.x * 100)}% ${Math.round(photo.focalPoint.y * 100)}%`
         : undefined;
-    // **壊れた要素は数えない**（`TimelineCard` と同じ）
+    // **壊れた要素は数えない**（`src` の無い要素で「複数枚」と言わない）
     const extraCount = Array.isArray(photo.extraImages)
         ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
         : 0;

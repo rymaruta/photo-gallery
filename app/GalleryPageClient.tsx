@@ -65,7 +65,7 @@ const HOME_PANEL_ID = "home-tabpanel";
  *     1920   同上            同上                        57%
  *
  * ⚠️ **フィードを 640px より広げない。** `Thumb` の派生は 512w までなので、
- * 箱を広げるほど引き伸ばしになる（`FEED_SIZES_XL` と `SPOT_HERO_SIZES` の
+ * 箱を広げるほど引き伸ばしになる（`MOSAIC_HERO_SIZES` と `SPOT_HERO_SIZES` の
  * doc に同じ線が引いてある）。**「引き伸ばさない」は owner の言葉でもある。**
  *
  * **柱は `1fr`（余りぜんぶ）にする。** 固定幅にして `justify-center` で
@@ -598,8 +598,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
 
-      {/* フォロー中: 絞り込み・件数・グリッドは出さず、投稿者つきのカードが投稿順に流れる
-          （フォローした人の写真をサムネだけで並べると誰の写真か分からない）。
+      {/* フォロー中: 絞り込み・件数・グリッドは出さず、新着と同じ並び（`HomeMosaic`）で
+          投稿順に流れる。撮った人の名前は写真に重ねる（iOS と同じ・2026-09-29）。
           `useGallery` はこのタブで一覧を空にするので、`?photo=` が来たら上の effect が
           「すべて」へ外して開く（フィードの上にモーダルを重ねない） */}
       {surface === "home" && filters.scope === "following" ? (

@@ -209,8 +209,7 @@ describe("拡大表示の保存ボタン", () => {
  *     …が **送るたびに3本ずつ**
  *
  * `/user/saves/<id>` は一覧で分かっているぶんなので、丸ごと要らない。
- * カードで直したのと同じ形（`TimelineCard` / `usePhotoSave` の
- * `known` / `knownPending`）に揃える。
+ * カードで直したのと同じ形（`usePhotoSave` の `known` / `knownPending`）に揃える。
  *
  * ⚠️ いいねの2本は残る——ホームは**いいねの一覧を引いていない**
  * （`useMyServerLikes` を読むのは `/favorites` だけ）。そこへ新しく
