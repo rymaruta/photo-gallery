@@ -7,8 +7,12 @@ import type { Photo } from "@/lib/data/photos";
 import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
+import { MapIcon, ArrowUpOnSquareIcon, MapPinIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { distanceLabel } from "@/lib/utils/journey";
+import { useToast } from "@/lib/hooks/useToast";
+import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
-import SaveSpotButton from "./SaveSpotButton";
+import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -18,7 +22,7 @@ import SaveSpotButton from "./SaveSpotButton";
  * owner:「**ユーザーの投稿が0枚でも、その撮影地について十分な情報を得られ、
  * 実際に行って撮影したくなるページ**」。
  *
- * だから**ユーザー投稿に触れるのは1つの節だけ**（「みんなが撮影した写真」）。
+ * だから**ユーザー投稿に触れるのは1つの節だけ**（「この場所の写真（N）」）。
  * 代表写真・魅力・撮影ガイド・アクセス・地図は、投稿が0枚でも出る。
  * 空になるのはその1節だけで、**ページ全体が寂しくならない**。
  *
@@ -43,7 +47,7 @@ type Props = {
     /** そのスポットに**確認済みで紐付いた**公開写真だけ */
     photos: Photo[];
     /** 周辺スポット（台帳に登録済みで、手で選んだものだけ） */
-    nearby: { slug: string; name: string; region?: string }[];
+    nearby: SpotRow[];
     /** 同じ場所を指す集約ページ（あれば）。無ければ `null` */
     locationPath: string | null;
     /** 属する県（海外は一括）。パンくずと「すべて見る」の行き先。引けなければ `null` */
@@ -52,8 +56,43 @@ type Props = {
      * 同じ県（海外は同じ国）のほかのスポット（人が確かめたものだけ・近い順）。
      * **手で選んだ「近くの撮影スポット」とは別の節**で、関係があるとは名乗らない
      */
-    sameArea?: { label: string; spots: { slug: string; name: string; region?: string }[] } | null;
+    sameArea?: { label: string; spots: SpotRow[] } | null;
+    /** このページの URL（canonical と同じ形・サーバーが組む）。「シェア」で配る */
+    pageUrl?: string;
 };
+
+/** 一覧の1行（`km` はこのスポットからの距離・両方に座標があるときだけ） */
+type SpotRow = { slug: string; name: string; region?: string; km?: number };
+
+/**
+ * ほかのスポットの一覧（iOS の `nearbyRow`: 面の箱に、印 → 名前 → 距離 → 矢印）。
+ * **距離は計算したもの**（言い方は `distanceLabel`＝iOS の `NearbyPhotos.label` と同じ刻み）。
+ * 地域の行は Web だけ残す（同じ県の一覧で市の違いが分かる）
+ */
+function SpotRows({ rows, isJa }: { rows: SpotRow[]; isJa: boolean }) {
+    return (
+        <ul className="m-0 p-0 rounded-2xl bg-surface overflow-hidden" style={{ listStyle: "none" }}>
+            {rows.map((n, i) => {
+                const dist = n.km === undefined ? "" : distanceLabel(n.km, isJa);
+                return (
+                    <li key={n.slug} className={i > 0 ? "border-t border-white/5" : undefined}>
+                        <Link href={`/spots/${n.slug}`} prefetch={false}
+                              className="flex items-center gap-3 px-3.5 hover:bg-surface-2 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                              style={{ minHeight: 54 }}>
+                            <MapPinIcon className="w-5 h-5 flex-shrink-0 text-white/55" aria-hidden />
+                            <span className="min-w-0 flex-1 py-2">
+                                <span className="block text-white truncate" style={{ fontSize: "15px", lineHeight: "20px" }}>{n.name}</span>
+                                {n.region && <span className="block text-white/55 truncate" style={{ fontSize: "11px", lineHeight: "15px" }}>{n.region}</span>}
+                            </span>
+                            {dist && <span className="flex-shrink-0 text-white/55" style={{ fontSize: "13px" }}>{dist}</span>}
+                            <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/55" aria-hidden />
+                        </Link>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
 
 const SEASON_LABEL: Record<string, string> = {
     spring: "春", summer: "夏", autumn: "秋", winter: "冬",
@@ -93,8 +132,9 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl }: Props) {
     const { locale } = useLocale();
+    const { showToast } = useToast();
     const isJa = locale !== "en";
     const mapHero = usesMapHero(spot);
     const cover = spot.coverImage;
@@ -106,6 +146,63 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const aiChecked = !humanChecked && hasAiCheck(spot) ? spot.aiCheck : undefined;
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
+    // 「[都道府県] [市区町村] · N枚の写真」（iOS の `SpotScreen.subtitle`）。N は数えた値
+    const photoCountLabel = isJa ? `${photos.length}枚の写真` : (photos.length === 1 ? "1 photo" : `${photos.length} photos`);
+
+    // 「シェア」: 共有シートが使えなければリンクをコピー（`SpotPageClient` と同じ扱い）。
+    // 配るのは**サーバーが組んだ canonical**（`window.location` だとクエリが付いたまま配られる）
+    const handleShare = async () => {
+        const url = pageUrl ?? (typeof window === "undefined" ? "" : window.location.href.split(/[?#]/)[0]);
+        const result = await shareUrl(url, spot.name, region || undefined);
+        if (result === "copied") {
+            showToast(isJa ? "リンクをクリップボードにコピーしました" : "Link copied to clipboard!", "success");
+        } else if (result === "failed") {
+            showToast(isJa ? "共有できませんでした" : "Could not share", "error");
+        }
+    };
+
+    /* 公式サイト（iOS と同じく本文の後ろ・行動の3つには入れない） */
+    const officialSite = spot.officialWebsiteUrl ? (
+        <div className="pt-6">
+            {/* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
+                推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */}
+            <a href={spot.officialWebsiteUrl} target="_blank"
+               rel={verified ? "noopener noreferrer" : "noopener noreferrer nofollow"}
+               className="inline-flex items-center rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+               style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
+                {verified
+                    ? (isJa ? "公式サイト" : "Official site")
+                    : (isJa ? "公式サイト（未確認のリンク）" : "Official site (unchecked link)")}
+                {" "}<span aria-hidden="true" className="ml-1">↗</span>
+            </a>
+        </div>
+    ) : null;
+
+    /* ── この場所の写真 ─────────────────────────
+       **ここだけがユーザー投稿に触れる節。** 0枚でも上は完成している。
+       iOS と同じく**写真がある場所は本文より先**（写真が主役）、0枚の場所は本文の後ろ */
+    const photosSection = (
+        <section className={photos.length > 0 ? "pt-6" : "pt-8"} aria-labelledby="spot-photos">
+            <Head id="spot-photos">{isJa ? `この場所の写真（${photos.length}）` : `Photos here (${photos.length})`}</Head>
+            {photos.length > 0 ? (
+                <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
+                              columnsClassName="grid-cols-2 sm:grid-cols-3" />
+            ) : (
+                <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
+                    <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
+                        {isJa
+                            ? "この撮影地の写真は、まだ投稿されていません。"
+                            : "No photos have been shared for this spot yet."}
+                    </p>
+                    <Link href={ROUTES.UPLOAD} prefetch={false}
+                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
+                        {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
+                    </Link>
+                </div>
+            )}
+        </section>
+    );
 
     return (
         <main className="min-h-screen text-white bg-bg">
@@ -118,8 +215,12 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                 単純に横へ引き伸ばさないでください」。
                 さらに `max-height` で上限を切る——縦に長い画面でも、
                 スクロールせずに見出しと概要が見えるようにする */}
-            <section className={`relative w-full overflow-hidden ${
-                mapHero ? "aspect-[2/1] sm:aspect-[16/5]" : "aspect-[3/2] sm:aspect-[12/5]"
+            {/* 写真があるときは **スマホは 4:3**（iOS の `heroPhoto`）・PC は 12:5 のまま。
+                **出典は写真の下に右寄せ**（iOS と同じ）——以前は写真の上に重ね、読ませるために
+                下を黒く暗くしていた。CC BY・CC BY-SA の表示条件は写真と一緒に出ることで満たす */}
+            <section>
+            <div className={`relative w-full overflow-hidden ${
+                mapHero ? "aspect-[2/1] sm:aspect-[16/5]" : "aspect-[4/3] sm:aspect-[12/5]"
             }`} style={{ maxHeight: "min(62vh, 520px)" }}>
                 {mapHero ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface">
@@ -131,37 +232,36 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         </p>
                     </div>
                 ) : (
-                    <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={cover!.src} alt={cover!.alt}
-                             className="absolute inset-0 w-full h-full object-cover" />
-                        <div aria-hidden="true"
-                             className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                        {needsVisibleCredit(spot) && (
-                            <p className="absolute bottom-2 right-3 m-0 text-white/70 text-right"
-                               style={{ fontSize: "10px", lineHeight: "14px" }}>
-                                {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
-                                    ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}
-                                {cover!.licenseLabel ? (
-                                    <>
-                                        {isJa ? "写真: " : "Photo: "}{cover!.credit}{" / "}
-                                        {cover!.licenseUrl ? (
-                                            <a href={cover!.licenseUrl} target="_blank" rel="noopener noreferrer license"
-                                               className="text-white/70 underline underline-offset-2">{cover!.licenseLabel}</a>
-                                        ) : cover!.licenseLabel}
-                                        {cover!.sourceUrl && (
-                                            <>
-                                                {" / "}
-                                                <a href={cover!.sourceUrl} target="_blank" rel="noopener noreferrer"
-                                                   className="text-white/70 underline underline-offset-2">Wikimedia Commons</a>
-                                            </>
-                                        )}
-                                    </>
-                                ) : (cover!.requiredCreditText || `Photo: ${cover!.credit}`)}
-                            </p>
-                        )}
-                    </>
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={cover!.src} alt={cover!.alt}
+                         className="absolute inset-0 w-full h-full object-cover" />
                 )}
+            </div>
+            {!mapHero && needsVisibleCredit(spot) && (
+                /* 左右は本文の列にそろえる（最大幅まで同じ箱。余白だけ合わせると
+                   1152px を超える画面で右端が本文から外れた・実測 1440px で 144px） */
+                <p className="m-0 mt-1.5 mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 text-white/60 text-right"
+                   style={{ fontSize: "11px", lineHeight: "15px" }}>
+                    {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
+                        ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}
+                    {cover!.licenseLabel ? (
+                        <>
+                            {isJa ? "写真: " : "Photo: "}{cover!.credit}{" / "}
+                            {cover!.licenseUrl ? (
+                                <a href={cover!.licenseUrl} target="_blank" rel="noopener noreferrer license"
+                                   className="text-white/60 underline underline-offset-2 hover:text-white">{cover!.licenseLabel}</a>
+                            ) : cover!.licenseLabel}
+                            {cover!.sourceUrl && (
+                                <>
+                                    {" / "}
+                                    <a href={cover!.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                       className="text-white/60 underline underline-offset-2 hover:text-white">Wikimedia Commons</a>
+                                </>
+                            )}
+                        </>
+                    ) : (cover!.requiredCreditText || `Photo: ${cover!.credit}`)}
+                </p>
+            )}
             </section>
 
             <div className="mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 pb-10">
@@ -183,6 +283,15 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             </>
                         )}
                     </nav>
+                    {/* 小見出し（iOS の `SpotScreen.eyebrow`・等幅11・字間1.5・大文字）。
+                        🔴 **下書きを「撮影スポット」と名乗らない**——真鍮ではなく薄い色で「下書き・未確認」 */}
+                    {/* 公開の回は読み上げから外す（すぐ上のパンくずが同じ「撮影スポット」を読む）。
+                        「下書き・未確認」は意味を持つので読ませる */}
+                    <p aria-hidden={verified ? true : undefined}
+                       className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
+                       style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>
+                        {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
+                    </p>
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"
                         style={{ fontSize: "clamp(24px, 4.5vw, 38px)", lineHeight: "1.18" }}>
                         {spot.name}
@@ -194,7 +303,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     )}
                     <p className="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-white/70"
                        style={{ fontSize: "13px", lineHeight: "18px" }}>
-                        {region && <span>{region}</span>}
+                        <span>{region ? `${region} · ${photoCountLabel}` : photoCountLabel}</span>
                         {spot.category && (
                             <span className="inline-flex items-center rounded-full bg-chip text-chip-text"
                                   style={{ fontSize: "11px", padding: "2px 8px" }}>{spot.category}</span>
@@ -219,35 +328,38 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     )}
                 </header>
 
-                {/* ── 3. 主な操作 ──────────────────────────────
+                {/* ── 3. 主な操作（iOS の行動3つ: 行きたい・地図で見る・シェア）──────
+                    **横に等分・高さ48・角12**（`SpotDetailParts.actionLabel`）。
                     「行きたい」は**本物**（`spots#<uid>` に入る・上の注記）。
-                    部品は撮影地ページと同じ `SaveSpotButton`——同じ見た目・
-                    同じ3状態の扱いを2つ作らない */}
-                <div className="flex flex-wrap items-start gap-2 pb-6 border-b border-white/10">
-                    <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" />
+                    部品は撮影地ページと同じ `SaveSpotButton`（形だけ `tile`）——
+                    同じ3状態の扱いを2つ作らない。
+                    「地図で見る」は iOS では端末の地図アプリ（英語 Open in Maps）、Web はサイトの
+                    撮影地マップなので英語は Map（端末の地図アプリとは名乗らない）。
+                    **格子で3等分**（`flex-1` だと包んだ側だけ狭くなる）。PC は本文の列の幅
+                    （36rem）で止める——スマホの形を横に引き伸ばさない（owner の指示） */}
+                <div className="pb-6 border-b border-white/10">
+                <div className="grid grid-cols-3 gap-2.5 max-w-xl">
+                    <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}
-                          className="inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px", touchAction: "manipulation" }}>
-                        {isJa ? "地図で見る" : "View on map"}
+                          className={`${TILE} ${TILE_OFF} min-w-0`}
+                          style={{ minHeight: 48, touchAction: "manipulation" }}>
+                        <MapIcon className={TILE_ICON} aria-hidden />
+                        <span className={TILE_TEXT}>{isJa ? "地図で見る" : "Map"}</span>
                     </Link>
-                    {spot.officialWebsiteUrl && (
-                        /* 下書きの URL は誰も開いていない。**未確認と名乗り、検索エンジンにも
-                           推さない（nofollow）**——1,103 ドメインへ「公式」と名指しして渡さない */
-                        <a href={spot.officialWebsiteUrl} target="_blank"
-                           rel={verified ? "noopener noreferrer" : "noopener noreferrer nofollow"}
-                           className="inline-flex items-center rounded-full bg-surface ring-1 ring-line text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
-                            {verified
-                                ? (isJa ? "公式サイト" : "Official site")
-                                : (isJa ? "公式サイト（未確認のリンク）" : "Official site (unchecked link)")}
-                            {" "}<span aria-hidden="true" className="ml-1">↗</span>
-                        </a>
-                    )}
+                    <button type="button" onClick={handleShare}
+                            className={`${TILE} ${TILE_OFF} min-w-0`}
+                            style={{ minHeight: 48, touchAction: "manipulation" }}>
+                        <ArrowUpOnSquareIcon className={TILE_ICON} aria-hidden />
+                        <span className={TILE_TEXT}>{isJa ? "シェア" : "Share"}</span>
+                    </button>
+                </div>
                 </div>
 
                 {/* PC は2段組。スマホは1列（スマホを横に引き伸ばさない） */}
                 <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:gap-10 lg:items-start">
                     <div className="min-w-0">
+                        {photos.length > 0 && photosSection}
+
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
                             <section className="pt-6" aria-labelledby="spot-charm">
@@ -350,28 +462,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             </section>
                         )}
 
-                        {/* ── 7. みんなが撮影した写真 ───────────
-                            **ここだけがユーザー投稿に触れる節。** 0枚でも上は完成している */}
-                        <section className="pt-8" aria-labelledby="spot-photos">
-                            <Head id="spot-photos">{isJa ? "みんなが撮影した写真" : "Photos from the community"}</Head>
-                            {photos.length > 0 ? (
-                                <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
-                                              columnsClassName="grid-cols-2 sm:grid-cols-3" />
-                            ) : (
-                                <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
-                                    <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
-                                        {isJa
-                                            ? "この撮影地の写真は、まだ投稿されていません。"
-                                            : "No photos have been shared for this spot yet."}
-                                    </p>
-                                    <Link href={ROUTES.UPLOAD} prefetch={false}
-                                          className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                          style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
-                                        {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
-                                    </Link>
-                                </div>
-                            )}
-                        </section>
+                        {officialSite}
+
+                        {photos.length === 0 && photosSection}
                     </div>
 
                     {/* ── 右カラム（PC）＝所在地・地図・アクセス・周辺 ──────
@@ -442,17 +535,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         {nearby.length > 0 && (
                             <section className="mb-7" aria-labelledby="spot-nearby">
                                 <Head id="spot-nearby">{isJa ? "近くの撮影スポット" : "Nearby spots"}</Head>
-                                <ul className="m-0 p-0 flex flex-col gap-1.5" style={{ listStyle: "none" }}>
-                                    {nearby.map((n) => (
-                                        <li key={n.slug}>
-                                            <Link href={`/spots/${n.slug}`} prefetch={false}
-                                                  className="block rounded-lg px-2 py-1.5 -mx-2 hover:bg-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                                                <span className="block text-white" style={{ fontSize: "13px" }}>{n.name}</span>
-                                                {n.region && <span className="block text-white/55" style={{ fontSize: "11px" }}>{n.region}</span>}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <SpotRows rows={nearby} isJa={isJa} />
                             </section>
                         )}
 
@@ -463,17 +546,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 <Head id="spot-same-area">{isJa ? `${sameArea.label}の撮影スポット`
                                     // 英語の国名は台帳に無い（海外の区画名 Outside Japan では中身と合わない）
                                     : spot.region?.country === "日本" && area ? `More spots in ${area.nameEn}` : "More photo spots"}</Head>
-                                <ul className="m-0 p-0 flex flex-col gap-1.5" style={{ listStyle: "none" }}>
-                                    {sameArea.spots.map((n) => (
-                                        <li key={n.slug}>
-                                            <Link href={`/spots/${n.slug}`} prefetch={false}
-                                                  className="block rounded-lg px-2 py-1.5 -mx-2 hover:bg-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                                                <span className="block text-white" style={{ fontSize: "13px" }}>{n.name}</span>
-                                                {n.region && <span className="block text-white/55" style={{ fontSize: "11px" }}>{n.region}</span>}
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <SpotRows rows={sameArea.spots} isJa={isJa} />
                                 {area && (
                                     <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false}
                                           className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"

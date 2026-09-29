@@ -19,7 +19,7 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
-import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel } from "@/lib/data/spotSeo";
+import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -48,15 +48,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
 
     // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）。
     // 座標で近い順に並べる節は別に「◯◯県の撮影スポット」として出す（`sameAreaSpots`・2026-09-29）
-    const published = visibleSpots(SPOTS);
-    const nearby = (spot.nearbySpotIds ?? [])
-        .map((id) => published.find((s) => s.spotId === id))
-        .filter((s): s is NonNullable<typeof s> => Boolean(s))
-        .map((s) => ({
-            slug: s.slug,
-            name: s.name,
-            region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
-        }));
+    const nearby = handPickedNearby(spot);
 
     /**
      * 同じ場所を指す集約ページ。**`/location/*` は維持**（役割が違う）。
@@ -101,6 +93,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 locationPath={locationPath}
                 area={area ? { slug: area.slug, name: area.name, nameEn: area.nameEn } : null}
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
+                pageUrl={spotPageUrl(spot)}
             />
         </>
     );
