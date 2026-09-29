@@ -61,9 +61,12 @@ vi.mock("../components/GalleryGrid", () => ({
         gridProps.ids = p.photos.map((x) => x.id); gridProps.open = p.onOpenPhoto ?? null; return <div data-testid="grid" />;
     },
 }));
-// トップは1列のカード。**カードそのものは境界としてモックする**
-// （見せ方は `TimelineCard.test.tsx` の担当。ここで見たいのは「どの写真が
-// どの順で並ぶか」）
+// トップの新着は写真の並び（`HomeMosaic`）。**並びの部品そのものは境界としてモックする**
+// （見せ方は `HomeMosaic.test.tsx` の担当。ここで見たいのは「どの写真が
+// どの順で並ぶか」）。フォロー中のタイムラインはまだ `TimelineCard` を使う
+vi.mock("../components/HomeMosaic", () => ({
+    default: (p: { photos: { id: string }[] }) => <>{p.photos.map((ph) => <div key={ph.id} data-card={ph.id} />)}</>,
+}));
 vi.mock("../components/TimelineCard", () => ({
     default: (p: { photo: { id: string } }) => <div data-card={p.photo.id} />,
 }));
@@ -133,7 +136,7 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
     });
 
     // 🔴 **トップに絞り込みとグリッドは出さない**（「さがす」の持ち場）
-    it("トップは1列のカード。絞り込みもグリッドも出さない", async () => {
+    it("トップは写真の並び（HomeMosaic）。絞り込みもグリッドも出さない", async () => {
         render(<GalleryPageClient />);
         await waitFor(() => expect(cardIds().length).toBeGreaterThan(0));
         expect(screen.queryByTestId("filter-bar")).toBeNull();

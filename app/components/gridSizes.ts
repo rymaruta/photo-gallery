@@ -177,6 +177,28 @@ export const FEED_SIZES_XL = [
 ].join(", ");
 
 /**
+ * ホームの写真の並び（`HomeMosaic`・iOS の板 01c）の2種類の箱。
+ *
+ * **640px 未満は画面の端から端まで**（本文の余白 `p-4` を `-mx-4` で打ち消す）。
+ * それより広い画面は `FEED_SIZES_XL` と同じ箱（640〜1023px は `max-w-xl`＝36rem、
+ * 1024px 以上は PC の2カラムの1本目＝40rem）。
+ *
+ *   大きい1枚 … 箱いっぱい
+ *   2枚の段   … 箱の半分から隙間の半分（2px）を引いた幅
+ */
+export const MOSAIC_HERO_SIZES = [
+    "(max-width:639px) 100vw",
+    "(max-width:63.99rem) 36rem",
+    "40rem",
+].join(", ");
+
+export const MOSAIC_PAIR_SIZES = [
+    "(max-width:639px) calc(50vw - 2px)",
+    "(max-width:63.99rem) calc(18rem - 2px)",
+    "calc(20rem - 2px)",
+].join(", ");
+
+/**
  * 撮影スポット詳細（`/location/*`）の代表画像（ヒーロー）。
  *
  * **640px 未満は左右いっぱい**（`-mx-4`）なので `100vw`。

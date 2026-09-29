@@ -18,7 +18,7 @@ import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
-import TimelineCard from "./components/TimelineCard";
+import HomeMosaic from "./components/HomeMosaic";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 
@@ -647,9 +647,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           </div>
         )}</HomePanel>
       ) : surface === "home" ? (
-        /* **新着は1列のカード**（owner の新デザイン）。サムネを並べる
-           グリッドは「さがす」の持ち場になった——一覧で見るのと、流し読みで
-           1枚ずつ見るのは別の体験なので、面を分ける */
+        /* **新着は iOS と同じ写真の並び**（`HomeMosaic`・大きく1枚 → 2枚 → 2枚・2026-09-29）。
+           以前は縦1列の札（題・説明・タグ・4つの操作）だった。題・説明・タグ・保存・共有は
+           写真ページにある。サムネを並べる格子は「さがす」の持ち場のまま */
         <HomePanel scope="all"><HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
@@ -658,21 +658,11 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
               </p>
             </div>
           ) : (
-            <ol className="flex flex-col gap-4 sm:gap-6 m-0 p-0" style={{ listStyle: "none" }}>
-              {filteredPhotos.map((p, i) => (
-                <li key={p.id} className="m-0 p-0">
-                  <TimelineCard
-                    photo={p}
-                    locale={locale === "en" ? "en" : "ja"}
-                    priority={i < HOME_PRIORITY_COUNT}
-                    isAuthenticated={isAuthenticated}
-                    authLoading={authLoading}
-                    savedIds={savedIds}
-                    savesPending={saves.pending}
-                  />
-                </li>
-              ))}
-            </ol>
+            <HomeMosaic
+              photos={filteredPhotos}
+              locale={locale === "en" ? "en" : "ja"}
+              priorityCount={HOME_PRIORITY_COUNT}
+            />
           )}
         </HomeColumns></HomePanel>
       ) : (
