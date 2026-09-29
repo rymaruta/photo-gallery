@@ -25,7 +25,7 @@ const km = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
 };
 
 describe("spotStructuredData", () => {
-    it("観光地として名前・URL・座標・住所を書く", () => {
+    it("観光地として名前・URL・画像・住所を書く（座標は書かない）", () => {
         const ginzan = bySlug("ginzan-onsen");
         const data = spotStructuredData(ginzan, { image: "https://example.com/a.jpg" });
         expect(data["@type"]).toBe("TouristAttraction");
@@ -40,14 +40,16 @@ describe("spotStructuredData", () => {
     it("台帳に無い項目は書かない（空で出さない）", () => {
         const bare = { ...bySlug("ginzan-onsen"), summary: undefined, nameEn: undefined, coords: undefined, region: undefined };
         const data = spotStructuredData(bare);
-        for (const key of ["description", "alternateName", "image", "geo", "address"]) {
+        for (const key of ["description", "alternateName", "image", "address"]) {
             expect(data, key).not.toHaveProperty(key);
         }
     });
 
-    it("海外は国のコードを書かない（日本語の国名を ISO の欄に入れない）", () => {
+    it("海外は国名を書く（国しか無い行でも住所が空にならない）", () => {
         const v = bySlug("chateau-de-versailles");
-        expect(spotStructuredData(v).address).not.toHaveProperty("addressCountry");
+        expect(spotStructuredData(v).address).toMatchObject({ addressCountry: v.region!.country });
+        const countryOnly = { ...v, region: { country: v.region!.country } };
+        expect(spotStructuredData(countryOnly).address).toEqual({ "@type": "PostalAddress", addressCountry: v.region!.country });
     });
 });
 

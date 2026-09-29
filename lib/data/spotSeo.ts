@@ -32,11 +32,15 @@ export function spotBreadcrumb(spot: Spot, area: SpotAreaRef | null): Array<{ na
 }
 
 /**
- * 住所の `addressCountry`。schema.org は ISO の2文字を求めるので**日本（JP）だけ書く**
- * ——台帳の海外の国名は日本語表記（「フランス」）で、コードへの対応表を持っていない
+ * 住所の `addressCountry`。schema.org は ISO の2文字を**勧める**（国名の文字列も受ける）。
+ * 日本は JP、海外は台帳の国名（日本語表記）をそのまま——コードの対応表は持っていないが、
+ * 書かないと「イル・ド・フランス」だけの、どの国か分からない住所になる
+ * （国しか無い行では住所そのものが空になる: pompeii・matterhorn など）
  */
 function countryOf(spot: Spot): string | undefined {
-    return spot.region?.country === "日本" ? "JP" : undefined;
+    const c = spot.region?.country;
+    if (!c) return undefined;
+    return c === "日本" ? "JP" : c;
 }
 
 /**
