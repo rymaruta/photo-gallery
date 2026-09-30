@@ -1371,6 +1371,13 @@ describe("createStory: 置いた文字", () => {
         expect(saved().caption, "文言を2か所で持っている").toBe("いち\nに");
     });
 
+    // 文字列でない caption は捨てる（`.trim` で落ちて 500 になっていた）
+    it("文字列でない caption は捨てて保存する", async () => {
+        const res = await post({ caption: 1 });
+        expect(res.statusCode, "500 で落ちている").toBe(201);
+        expect("caption" in saved()).toBe(false);
+    });
+
     it("文字を置いていなければ、これまでどおり caption をそのまま受ける", async () => {
         await post({ caption: "朝の空" });
         expect(saved().caption).toBe("朝の空");
@@ -1409,5 +1416,39 @@ describe("createStory: 置いた文字", () => {
         await post({ texts: "left", caption: "朝" });
         expect("texts" in saved()).toBe(false);
         expect(saved().caption, "caption まで落としている").toBe("朝");
+    });
+
+    // 🔴 **文字の項目が無い `texts`（投票・スタンプだけ）は、送られた caption を使う。**
+    // `texts` が在るだけで `body.caption` を捨てていた頃は、投票付きの投稿の
+    // ひとことが消えた（iOS は仕方なく文字の項目として y=0.86 に置き、
+    // 撮影地・曲の行や投票の札に重なっていた）
+    const vote = { kind: "vote", question: "好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 };
+    const stamp = { kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.14 };
+
+    it("投票だけの texts なら、送られた caption を残す", async () => {
+        await post({ texts: [vote], caption: "  夕焼けの海\n長いひとこと  " });
+        expect(saved().caption, "投票付きのひとことを捨てている").toBe("夕焼けの海\n長いひとこと");
+        expect((saved().texts as unknown[]).length).toBe(1);
+    });
+
+    it("スタンプだけの texts でも、送られた caption を残す", async () => {
+        await post({ texts: [stamp], caption: "朝の空" });
+        expect(saved().caption).toBe("朝の空");
+    });
+
+    it("投票だけの texts で caption も無ければ、caption は持たない", async () => {
+        await post({ texts: [vote] });
+        expect("caption" in saved()).toBe(false);
+    });
+
+    it("投票だけの texts でも、caption は 200 字で切る", async () => {
+        await post({ texts: [vote], caption: "あ".repeat(300) });
+        expect(String(saved().caption)).toHaveLength(200);
+    });
+
+    // **iOS 1.0.39 の形**（ひとことを文字の項目として投票と一緒に送る）は今までどおり
+    it("文字の項目と投票が在れば、caption は文字の項目から作る（送られた caption は使わない）", async () => {
+        await post({ texts: [vote, { ...one, text: "ひとこと", y: 0.86 }], caption: "べつの文言" });
+        expect(saved().caption, "文言を2か所で持っている").toBe("ひとこと");
     });
 });
