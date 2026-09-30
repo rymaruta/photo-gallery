@@ -355,6 +355,16 @@ describe("confirmForgotPassword", () => {
         expect((await confirmForgotPassword("u", "123456", "Password1!")).error).toBe(expected);
     });
 
+    // **登録の有無を教えない。** 未登録でも forgotPassword は成功を返すので、
+    // 利用者はこの画面まで来る。ここで未登録だけ別の文面（汎用のエラー）に
+    // なると、「確認コードが正しくありません」と比べて登録の有無が分かる
+    it("未登録でも、確認コード違いと同じ文面にする", async () => {
+        fail({ code: "UserNotFoundException", message: "Username/client id combination not found." });
+        const res = await confirmForgotPassword("nobody@example.com", "123456", "Password1!");
+        expect(res.success).toBe(false);
+        expect(res.error, "未登録だけ文面が違う（登録の有無が分かる）").toBe("確認コードが正しくありません");
+    });
+
     // **AWS の英文をそのまま出さない**
     it("知らない失敗でも英文は出さない", async () => {
         fail({ code: "SomethingElse", message: "Attempt limit exceeded, please try after some time." });

@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
+// ↑ 色や長さの値を happy-dom が正規化しない（jsdom は #ffd60a → rgb(...)、0 → 0px）。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 /**
@@ -720,5 +722,16 @@ describe("ストーリーの文字: 見せ方の欄は1つずつ", () => {
         fireEvent.pointerDown(document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement, { pointerId: 9, clientX: 50, clientY: 50 });
         fireEvent.pointerUp(document.querySelector('[role="dialog"] .absolute.inset-0') as HTMLElement, { pointerId: 9, clientX: 50, clientY: 50 });
         expect(screen.queryByRole("tab", { name: "字体" }), "効かない欄が残っている").toBeNull();
+    });
+});
+
+// 表示時間は 5・10・15 の3つ（2026-09-30・owner「細かい時間いらない」。アプリも同じ）
+describe("ストーリーの表示時間: 選べるのは3つ", () => {
+    it("5・10・15 秒だけを出す（既定の5秒が選ばれている）", async () => {
+        await pickImage();
+        const group = screen.getByText("表示時間").parentElement as HTMLElement;
+        const labels = within(group).getAllByRole("button").map((b) => b.textContent?.trim());
+        expect(labels).toEqual(["5秒", "10秒", "15秒"]);
+        expect(within(group).getByRole("button", { name: "5秒" })).toHaveAttribute("aria-pressed", "true");
     });
 });

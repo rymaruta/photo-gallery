@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ happy-dom では <img> の属性（loading・srcset・src）が jsdom と違う値になる。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/react";
