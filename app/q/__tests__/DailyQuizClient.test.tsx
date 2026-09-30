@@ -12,8 +12,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 vi.mock("../../i18n/context", () => ({ useLocale: () => ({ locale: "ja", labels: {} }) }));
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: toast }) }));
-const share = vi.hoisted(() => vi.fn(async () => "copied"));
-vi.mock("../../../lib/utils/share", () => ({ shareUrl: share }));
+const share = vi.hoisted(() => vi.fn(async () => "shared"));
+const copy = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../../../lib/utils/share", () => ({ shareUrl: share, copyToClipboard: copy }));
 vi.mock("../../components/SaveSpotButton", () => ({
     default: ({ slug, kind }: { slug: string; kind: string }) => <span data-testid="save">{`${kind}:${slug}`}</span>,
 }));
@@ -50,6 +51,7 @@ beforeEach(() => {
     window.localStorage.clear();
     toast.mockReset();
     share.mockClear();
+    copy.mockClear();
 });
 
 afterEach(() => {
@@ -76,17 +78,84 @@ describe("今日の一問", () => {
         expect(screen.getByRole("link", { name: "ガイドを見る" }).getAttribute("href")).toBe("/spots/ginzan-onsen");
         expect(screen.getByTestId("save").textContent).toBe("spot:ginzan-onsen");
         expect(window.localStorage.getItem("journey-photo:quiz:2026-10-01")).toBe("sp_000000000002");
-        // 答えは1回
-        for (const b of screen.getAllByRole("button", { pressed: false })) expect((b as HTMLButtonElement).disabled).toBe(true);
+        // 答えは1回（4つとも押せない）
+        const group = screen.getByRole("group", { name: "選択肢" });
+        const choices = [...group.querySelectorAll("button")];
+        expect(choices).toHaveLength(4);
+        for (const b of choices) expect(b.disabled).toBe(true);
+        // 読み上げは最初から在る領域の字で・フォーカスは結果の見出しへ
+        expect(screen.getByRole("status").textContent).toBe("正解。銀山温泉。");
+        await waitFor(() => expect(document.activeElement?.textContent).toBe("正解"));
+    });
 
+    it("共有: 共有シートがあれば日付と ✓ だけ・無ければ結果の文ごとコピー（答えの名前は書かない）", async () => {
+        render(<DailyQuizClient />);
+        fireEvent.click(await screen.findByRole("button", { name: "銀山温泉" }));
+
+        // 共有シートの無い端末（jsdom の既定）
         fireEvent.click(screen.getByRole("button", { name: "結果を共有" }));
-        await waitFor(() => expect(share).toHaveBeenCalled());
-        const [url, , text] = share.mock.calls[0] as unknown as [string, string, string];
-        expect(url).toMatch(/\/q$/);
-        expect(text).toContain("10/1");
-        expect(text).toContain("✓");
-        // 答えの名前を共有文に書かない（受け取った人の問題を潰さない）
-        expect(text).not.toContain("銀山温泉");
+        await waitFor(() => expect(copy).toHaveBeenCalled());
+        const copied = (copy.mock.calls[0] as unknown as [string])[0];
+        expect(copied).toContain("10/1");
+        expect(copied).toContain("✓");
+        expect(copied).toMatch(/\/q$/);
+        expect(copied).not.toContain("銀山温泉");
+        expect(share).not.toHaveBeenCalled();
+
+        // 共有シートのある端末
+        Object.defineProperty(navigator, "share", { value: vi.fn(), configurable: true });
+        try {
+            fireEvent.click(screen.getByRole("button", { name: "結果を共有" }));
+            await waitFor(() => expect(share).toHaveBeenCalled());
+            const [url, , text] = share.mock.calls[0] as unknown as [string, string, string];
+            expect(url).toMatch(/\/q$/);
+            expect(text).toContain("✓");
+            expect(text).not.toContain("銀山温泉");
+        } finally {
+            delete (navigator as unknown as { share?: unknown }).share;
+        }
+    });
+
+    it("白地は自分が選んだもの・外したら正解は真鍮の縁と「正解」の字", async () => {
+        render(<DailyQuizClient />);
+        fireEvent.click(await screen.findByRole("button", { name: "山寺" }));
+        const chosen = screen.getByRole("button", { name: "山寺" });
+        const answer = screen.getByRole("button", { name: /銀山温泉/ });
+        expect(chosen.className).toContain("bg-primary");
+        expect(chosen.getAttribute("aria-pressed")).toBe("true");
+        expect(answer.className).not.toContain("bg-primary");
+        expect(answer.className).toContain("ring-accent");
+        expect(answer.textContent).toContain("正解");
+        expect(screen.getByRole("status").textContent).toBe("残念。正解は銀山温泉。");
+    });
+
+    it("端末に残せなくても答えられる", async () => {
+        const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota"); });
+        try {
+            render(<DailyQuizClient />);
+            fireEvent.click(await screen.findByRole("button", { name: "銀山温泉" }));
+            expect(screen.getByTestId("quiz-result").textContent).toContain("正解");
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("開いたまま日付をまたいで戻ってきたら、今日の問題を読み直す", async () => {
+        render(<DailyQuizClient />);
+        await screen.findByText("この写真はどこ？");
+        fetchMock.mockImplementation(async () => ({ ok: true, status: 200, json: async () => QUIZ("2026-10-02") }));
+        vi.setSystemTime(new Date("2026-10-01T15:30:00Z"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/app/data/quiz/2026-10-02.json"));
+        expect(await screen.findByText(/2026\.10\.02/)).toBeTruthy();
+    });
+
+    it("同じ日のうちに戻ってきても読み直さない", async () => {
+        render(<DailyQuizClient />);
+        await screen.findByText("この写真はどこ？");
+        document.dispatchEvent(new Event("visibilitychange"));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it("外すと「残念」と正解の名前", async () => {

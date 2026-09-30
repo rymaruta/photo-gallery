@@ -6,7 +6,7 @@ import SaveSpotButton from "../components/SaveSpotButton";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { ROUTES } from "../../lib/routes";
-import { shareUrl } from "../../lib/utils/share";
+import { copyToClipboard, shareUrl } from "../../lib/utils/share";
 import { todayIn } from "../../lib/utils/sunTimes";
 import {
     parseDailyQuiz, quizStorageKey, regionLine, QUIZ_TIME_ZONE, type DailyQuiz,
@@ -96,6 +96,27 @@ export default function DailyQuizClient() {
         };
     }, [attempt]);
 
+    // **開いたまま日付をまたいだら読み直す。** ホーム画面から開く形（standalone）は
+    // 夜に開いて翌朝戻っても再読み込みされないので、前日の問題が出続ける
+    const shownDate = load.state === "ready" ? load.quiz.date : load.state === "loading" ? null : load.date;
+    React.useEffect(() => {
+        if (load.state === "loading") return;
+        const onVisible = () => {
+            if (document.visibilityState !== "visible") return;
+            if (todayIn(QUIZ_TIME_ZONE) !== shownDate) setAttempt((n) => n + 1);
+        };
+        document.addEventListener("visibilitychange", onVisible);
+        return () => document.removeEventListener("visibilitychange", onVisible);
+    }, [load.state, shownDate]);
+
+    // 答えたら結果の見出しへフォーカスを移す（押したボタンは押せなくなり、フォーカスが行き場を失う）
+    const resultRef = React.useRef<HTMLParagraphElement>(null);
+    // 回数で持つ（真偽だと、日付をまたいで次の問題に答えたときに変化せず、フォーカスが動かない）
+    const [answeredTick, setAnsweredTick] = React.useState(0);
+    React.useEffect(() => {
+        if (answeredTick > 0) resultRef.current?.focus();
+    }, [answeredTick]);
+
     if (load.state === "loading") {
         return (
             <Shell en={en} date={null}>
@@ -142,6 +163,7 @@ export default function DailyQuizClient() {
         if (answered) return;
         writeChosen(quiz.date, spotId);
         setLoad({ state: "ready", quiz, chosen: spotId });
+        setAnsweredTick((n) => n + 1);
     };
 
     const share = async () => {
@@ -149,6 +171,12 @@ export default function DailyQuizClient() {
         const text = en
             ? `Journey Photo · Where is this? ${shortDate(quiz.date)} ${correct ? "✓" : "✗"}`
             : `Journey Photo 今日の一問 ${shortDate(quiz.date)} ${correct ? "✓ 正解" : "✗"}`;
+        // 共有シートが無い端末（PC の多く）は、**結果の文ごと**写す（URL だけだと結果が伝わらない）
+        if (typeof navigator.share !== "function") {
+            const ok = await copyToClipboard(`${text}\n${url}`);
+            showToast(ok ? (en ? "Result copied" : "結果をコピーしました") : (en ? "Couldn't copy." : "コピーできませんでした。"), ok ? "success" : "error");
+            return;
+        }
         const result = await shareUrl(url, en ? "Where is this?" : "今日の一問", text);
         if (result === "copied") showToast(en ? "Link copied" : "リンクをコピーしました", "success");
         if (result === "failed") showToast(en ? "Couldn't share." : "共有できませんでした。", "error");
@@ -187,13 +215,15 @@ export default function DailyQuizClient() {
                 {quiz.choices.map((c) => {
                     const isAnswer = c.spotId === quiz.answer;
                     const isChosen = c.spotId === chosen;
-                    // 答える前は全部同じ見た目。答えたあとは正解を白地、外した選択を赤の縁
+                    // **白地は「自分が選んだもの」**（デザインの決まり: 白＝位置と選択・`globals.css`）。
+                    // 正解は真鍮の縁と「正解」の字で示す（真鍮＝合図）。外したときに白地が
+                    // 押していない正解の側へ付くと、見た目と `aria-pressed` の意味が逆になる
                     const look = !answered
                         ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-white/10"
-                        : isAnswer
-                            ? "bg-primary text-ink font-bold"
-                            : isChosen
-                                ? "bg-surface text-white ring-2 ring-danger"
+                        : isChosen
+                            ? `bg-primary text-ink font-bold${isAnswer ? "" : " ring-2 ring-danger"}`
+                            : isAnswer
+                                ? "bg-surface text-white ring-2 ring-accent"
                                 : "bg-surface text-white/50";
                     return (
                         <button
@@ -205,17 +235,34 @@ export default function DailyQuizClient() {
                             className={`min-h-[48px] px-4 py-2 rounded-xl text-left transition-colors ${look}`}
                             style={{ fontSize: "15px", lineHeight: "1.4", touchAction: "manipulation" }}
                         >
-                            {c.name}
-                            {answered && isAnswer && <span className="sr-only">{en ? " (answer)" : "（正解）"}</span>}
-                            {answered && isChosen && !isAnswer && <span className="sr-only">{en ? " (your choice)" : "（あなたの選択）"}</span>}
+                            <span className="flex items-center justify-between gap-3">
+                                <span className="min-w-0">{c.name}</span>
+                                {answered && isAnswer && (
+                                    <span className={`shrink-0 font-mono font-medium ${isChosen ? "text-ink" : "text-accent"}`}
+                                          style={{ fontSize: "12px", letterSpacing: "1px" }}>
+                                        {en ? "ANSWER" : "正解"}
+                                    </span>
+                                )}
+                            </span>
                         </button>
                     );
                 })}
             </div>
 
+            {/* 読み上げの知らせは**最初から置いておく**領域の字を書き換える（領域ごと差し込むと
+                読まれないことが多い・`SpotPageClient` と同じ形） */}
+            <p className="sr-only" aria-live="polite" role="status">
+                {answered
+                    ? correct
+                        ? (en ? `Correct. ${answer.name}.` : `正解。${answer.name}。`)
+                        : (en ? `Not quite. The answer is ${answer.name}.` : `残念。正解は${answer.name}。`)
+                    : ""}
+            </p>
+
             {answered && (
-                <section className="mt-6 rounded-2xl bg-surface p-4 sm:p-5" aria-live="polite" data-testid="quiz-result">
-                    <p className={`m-0 font-mono font-medium uppercase ${correct ? "text-accent" : "text-white/60"}`}
+                <section className="mt-6 rounded-2xl bg-surface p-4 sm:p-5" data-testid="quiz-result">
+                    <p ref={resultRef} tabIndex={-1}
+                       className={`m-0 font-mono font-medium uppercase outline-none ${correct ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
                         {correct ? (en ? "Correct" : "正解") : (en ? "Not quite" : "残念")}
                     </p>

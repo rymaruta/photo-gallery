@@ -744,7 +744,9 @@ async function runChecks(browser, eng) {
             const result = await page.waitForSelector("[data-testid='quiz-result']", { timeout: 5000 }).then(() => true).catch(() => false);
             const guide = await page.evaluate(() =>
                 document.querySelector("[data-testid='quiz-result'] a[href^='/spots/']")?.getAttribute("href") ?? "");
-            check(`[${eng}] 今日の一問: 答えると結果とガイドへのリンク`, result && /^\/spots\/[a-z0-9-]+$/.test(guide), guide);
+            // 形だけでなく、**行き先のページがビルドに在る**こと（404 のガイドへ送らない）
+            const built = /^\/spots\/[a-z0-9-]+$/.test(guide) && fs.existsSync(path.join(OUT, `${guide.slice(1)}.html`));
+            check(`[${eng}] 今日の一問: 答えると結果とガイドへのリンク（行き先が在る）`, result && built, guide);
         }
     }
 

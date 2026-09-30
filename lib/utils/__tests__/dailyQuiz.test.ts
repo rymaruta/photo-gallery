@@ -206,6 +206,14 @@ describe("日ごとのファイルの読み取り", () => {
         expect(parseDailyQuiz("x", "2026-10-01")).toBeNull();
     });
 
+    it("ライセンスの文面は http でも残す（写真の台帳に http の行がある）・それ以外の形は落とす", () => {
+        const q = good();
+        q.photo.licenseUrl = "http://creativecommons.org/licenses/by-sa/3.0";
+        expect(parseDailyQuiz(q, "2026-10-01")!.photo.licenseUrl).toBe("http://creativecommons.org/licenses/by-sa/3.0");
+        q.photo.licenseUrl = "javascript:alert(1)";
+        expect(parseDailyQuiz(q, "2026-10-01")!.photo.licenseUrl).toBeUndefined();
+    });
+
     it("regionLine は海外なら国から", () => {
         expect(regionLine({ prefecture: "山形県", city: "尾花沢市" })).toBe("山形県 尾花沢市");
         expect(regionLine({ country: "フランス", city: "パリ" })).toBe("フランス パリ");

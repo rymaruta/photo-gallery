@@ -243,7 +243,9 @@ export function parseDailyQuiz(json: unknown, ymd: string): DailyQuiz | null {
     if (new Set(choices.map((c) => c.spotId)).size !== 4 || !choices.some((c) => c.spotId === o.answer)) return null;
     const photo: QuizImage = {
         url: p.url, author: p.author, license: p.license, pageUrl: p.pageUrl,
-        ...(isHttps(p.licenseUrl) ? { licenseUrl: p.licenseUrl } : {}),
+        // ライセンスの文面は `http://creativecommons.org/…` の行がある（写真の台帳で 157 件）。
+        // 捨てるとその日だけライセンスがリンクでなくなる（CC の表示条件）——ガイドは同じ値をリンクで出している
+        ...(isStr(p.licenseUrl) && /^https?:\/\//.test(p.licenseUrl) ? { licenseUrl: p.licenseUrl } : {}),
     };
     return { date: ymd, photo, choices, answer: o.answer };
 }
