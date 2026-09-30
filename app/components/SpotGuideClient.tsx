@@ -127,7 +127,7 @@ function zoneLabel(timeZone: string, isJa: boolean): string {
 
 /**
  * 撮影の光の月別の表（各月15日の計算値）。**天気・山の影は含まない**と書く。
- * 時刻が出ない欄は理由の言葉（白夜・極夜・終日）、日付をまたぐ時刻は「翌」。出てくる言葉だけ凡例に出す。
+ * 時刻が出ない欄は理由の言葉（白夜・極夜・終日・沈まない・明け方まで）、日付をまたぐ時刻は「翌」。出てくる言葉だけ凡例に出す。
  * 狭い画面では表だけ横に流す（ページは横に溢れさせない）。数字は等幅でそろえる
  */
 function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {

@@ -65,3 +65,38 @@ export function tripLightCandidates(plan: TripPlan, todayYmd: string): TripLight
     }
     return out;
 }
+
+/** 本文（`/app/data/spots/<slug>.json`）のうち、当日モードに要るところ */
+export type TripSpotBody = {
+    name: string;
+    coords: { lat: number; lng: number };
+    country?: string;
+    seasonalGuide: { season: string; text: string }[];
+};
+
+/** 本文を当日モードの形へ。頼んだ綴りと違う・座標が無ければ null（光の時刻を出せない） */
+export function parseTripSpotBody(json: unknown, slug: string): TripSpotBody | null {
+    if (!json || typeof json !== "object") return null;
+    const o = json as Record<string, unknown>;
+    if (o.slug !== slug || typeof o.name !== "string" || !o.name.trim()) return null;
+    const c = o.coords as { lat?: unknown; lng?: unknown } | undefined;
+    if (!c || typeof c.lat !== "number" || typeof c.lng !== "number" || !Number.isFinite(c.lat) || !Number.isFinite(c.lng)) return null;
+    const guide = Array.isArray(o.seasonalGuide)
+        ? (o.seasonalGuide as unknown[]).flatMap((g) => {
+            const r = g as { season?: unknown; text?: unknown } | null;
+            return r && typeof r.season === "string" && typeof r.text === "string" && r.text.trim()
+                ? [{ season: r.season, text: r.text.trim() }] : [];
+        })
+        : [];
+    return {
+        name: o.name.trim(),
+        coords: { lat: c.lat, lng: c.lng },
+        ...(typeof o.country === "string" && o.country.trim() ? { country: o.country.trim() } : {}),
+        seasonalGuide: guide,
+    };
+}
+
+/** 月 → 季節（台帳の `seasonalGuide.season` と同じ語） */
+export function seasonOfMonth(month: number): "spring" | "summer" | "autumn" | "winter" {
+    return month >= 3 && month <= 5 ? "spring" : month >= 6 && month <= 8 ? "summer" : month >= 9 && month <= 11 ? "autumn" : "winter";
+}

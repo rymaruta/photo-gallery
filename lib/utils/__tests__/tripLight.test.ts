@@ -45,3 +45,26 @@ describe("今日と明日の候補", () => {
         expect(tripLightCandidates(p, "bad")).toEqual([]);
     });
 });
+
+import { parseTripSpotBody, seasonOfMonth } from "../tripLight";
+
+describe("本文の読み取り（当日モード）", () => {
+    it("名前・座標・国・季節の案内。綴り違い・座標なしは null", () => {
+        const body = { slug: "x", name: " 銀山温泉 ", coords: { lat: 38.58, lng: 140.53 }, country: "フランス",
+            seasonalGuide: [{ season: "autumn", text: "紅葉" }, { season: "winter", text: " " }, { bad: 1 }] };
+        expect(parseTripSpotBody(body, "x")).toEqual({
+            name: "銀山温泉", coords: { lat: 38.58, lng: 140.53 }, country: "フランス",
+            seasonalGuide: [{ season: "autumn", text: "紅葉" }],
+        });
+        expect(parseTripSpotBody(body, "y")).toBeNull();
+        expect(parseTripSpotBody({ ...body, coords: undefined }, "x")).toBeNull();
+        expect(parseTripSpotBody({ ...body, coords: { lat: Number.NaN, lng: 1 } }, "x")).toBeNull();
+        expect(parseTripSpotBody(null, "x")).toBeNull();
+        expect("country" in parseTripSpotBody({ ...body, country: undefined }, "x")!).toBe(false);
+    });
+
+    it("月 → 季節", () => {
+        expect([1, 3, 5, 6, 8, 9, 11, 12].map(seasonOfMonth)).toEqual(
+            ["winter", "spring", "spring", "summer", "summer", "autumn", "autumn", "winter"]);
+    });
+});

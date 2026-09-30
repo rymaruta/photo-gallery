@@ -13,6 +13,7 @@ import { collectEntries } from "../../lib/utils/collections";
 import { parseSavedKey, dedupeSavedKeys } from "../../lib/utils/savedSpotKey";
 import type { SpotRef } from "../../lib/data/spotLink";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
+import TripLightCard from "./TripLightCard";
 
 /**
  * 旅行プラン——**行きたい場所を「いつ・どの順で回るか」に並べる**画面。
@@ -135,6 +136,9 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
                     }
                 />
             ) : (
+                <>
+                {/* 当日モード（前日から最終日まで・今日か明日の撮影スポットの光の時刻）。当たらなければ何も出さない */}
+                <TripLightCard plans={plans} spots={spots} en={en} />
                 <ul className="flex flex-col gap-3">
                     {plans.map((plan) => (
                         <PlanCard
@@ -150,6 +154,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
                         />
                     ))}
                 </ul>
+                </>
             )}
         </Shell>
     );
