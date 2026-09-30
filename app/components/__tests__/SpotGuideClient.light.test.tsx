@@ -44,21 +44,25 @@ beforeEach(() => {
 
 describe("撮影の光", () => {
     it("12か月の行・日本時間・天気や影は含まないと書く", () => {
-        view(lightCalendar(SPOT.coords, undefined, 2026));
+        view(lightCalendar(SPOT.coords, undefined));
         const section = screen.getByTestId("spot-light");
         expect(screen.getByRole("heading", { name: "撮影の光" })).toBeTruthy();
         const rows = section.querySelectorAll("tbody tr");
         expect(rows).toHaveLength(12);
         expect(rows[9].textContent).toContain("10月");
         expect(rows[9].textContent).toMatch(/\d{2}:\d{2}–\d{2}:\d{2}/);
-        expect(section.textContent).toContain("2026年の各月15日の計算値（日本時間）");
+        expect(section.textContent).toContain("各月15日の計算値（日本時間）");
+        expect(screen.queryByTestId("spot-light-legend")).toBeNull();
         expect(section.textContent).toContain("天気や山・建物の影は含みません");
     });
 
-    it("太陽が通らない月は「—」", () => {
-        view(lightCalendar({ lat: 78.2, lng: 15.6 }, "日本", 2026));
-        const first = screen.getByTestId("spot-light").querySelector("tbody tr")!;
-        expect(first.textContent).toBe("1月———");
+    it("北極圏は理由の言葉と凡例（「—」だけにしない）", () => {
+        view(lightCalendar({ lat: 66.5436, lng: 25.8473 }, "フィンランド"));
+        const rows = screen.getByTestId("spot-light").querySelectorAll("tbody tr");
+        expect(rows[0].textContent).toBe("1月10:2114:32終日");
+        expect(rows[5].textContent).toContain("白夜");
+        expect(rows[6].textContent).toContain("翌00:10");
+        expect(screen.getByTestId("spot-light-legend").textContent).toContain("終日＝太陽が一日中低く");
     });
 
     it("表が無い場所は節ごと出さない", () => {
@@ -67,7 +71,7 @@ describe("撮影の光", () => {
     });
 
     it("海外は現地の都市名で時刻帯を書く", () => {
-        view(lightCalendar({ lat: 48.8584, lng: 2.2945 }, "フランス", 2026));
+        view(lightCalendar({ lat: 48.8584, lng: 2.2945 }, "フランス"));
         expect(screen.getByTestId("spot-light").textContent).toContain("現地時刻・Paris");
     });
 });

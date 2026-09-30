@@ -75,6 +75,18 @@ function hourAngleDays(altitude: number, lat: number, decl: number): number | nu
     return Math.acos(cosW) / (2 * Math.PI);
 }
 
+/**
+ * その暦日の太陽の高さの幅（度）: 南中の高さ（いちばん高い）と、その反対側（いちばん低い）。
+ * 時刻が出ない理由を言い分けるのに使う（白夜＝いちばん低くても沈まない・極夜＝いちばん高くても昇らない）
+ */
+export function sunAltitudeRange(ymd: string, coords: { lat: number; lng: number }): { max: number; min: number } | null {
+    if (!Number.isFinite(coords.lat) || Math.abs(coords.lat) > 90) return null;
+    const day = solarDay(ymd, coords.lng);
+    if (!day) return null;
+    const decl = day.decl / RAD;
+    return { max: 90 - Math.abs(coords.lat - decl), min: Math.abs(coords.lat + decl) - 90 };
+}
+
 export function sunTimes(ymd: string, coords: { lat: number; lng: number }): SunTimes | null {
     if (!Number.isFinite(coords.lat) || Math.abs(coords.lat) > 90) return null;
     const day = solarDay(ymd, coords.lng);

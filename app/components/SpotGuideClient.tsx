@@ -14,7 +14,7 @@ import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
-import type { LightCalendar } from "../../lib/utils/lightCalendar";
+import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -127,10 +127,13 @@ function zoneLabel(timeZone: string, isJa: boolean): string {
 
 /**
  * 撮影の光の月別の表（各月15日の計算値）。**天気・山の影は含まない**と書く。
+ * 時刻が出ない欄は理由の言葉（白夜・極夜・終日）、日付をまたぐ時刻は「翌」。出てくる言葉だけ凡例に出す。
  * 狭い画面では表だけ横に流す（ページは横に溢れさせない）。数字は等幅でそろえる
  */
 function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
-    const cell = "py-2 pr-4 whitespace-nowrap";
+    // 320px の画面でも右端の列が隠れない幅（余白 12・見出しは折り返す・9d7ba04e のレビュー）
+    const cell = "py-2 pr-3 whitespace-nowrap";
+    const legend = lightLegend(light.rows, isJa);
     return (
         <section className="pt-8" aria-labelledby="spot-light" data-testid="spot-light">
             <Head id="spot-light">{isJa ? "撮影の光" : "Light through the year"}</Head>
@@ -140,11 +143,11 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
                         {isJa ? "各月15日の日の出・日の入り・夕方のマジックアワー" : "Sunrise, sunset and evening golden hour on the 15th of each month"}
                     </caption>
                     <thead>
-                        <tr className="text-white/60 border-b border-line" style={{ fontSize: "12px" }}>
+                        <tr className="text-white/60 border-b border-line align-bottom" style={{ fontSize: "12px" }}>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "月" : "Month"}</th>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "日の出" : "Sunrise"}</th>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "日の入り" : "Sunset"}</th>
-                            <th scope="col" className={`${cell} font-normal`}>{isJa ? "夕方のマジックアワー" : "Evening golden hour"}</th>
+                            <th scope="col" className="py-2 font-normal">{isJa ? "夕方のマジックアワー" : "Evening golden hour"}</th>
                         </tr>
                     </thead>
                     <tbody className="font-mono tabular-nums text-white/85">
@@ -153,9 +156,9 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
                                 <th scope="row" className={`${cell} font-normal font-sans text-white/60`}>
                                     {isJa ? `${r.month}月` : new Date(Date.UTC(2000, r.month - 1, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" })}
                                 </th>
-                                <td className={cell}>{r.sunrise ?? "—"}</td>
-                                <td className={cell}>{r.sunset ?? "—"}</td>
-                                <td className={cell}>{r.eveningGolden ?? "—"}</td>
+                                <td className={cell}>{lightCellText(r.sunrise, isJa)}</td>
+                                <td className={cell}>{lightCellText(r.sunset, isJa)}</td>
+                                <td className="py-2 whitespace-nowrap">{lightCellText(r.eveningGolden, isJa)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -163,9 +166,14 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
             </div>
             <p className="m-0 mt-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
-                    ? `${light.year}年の各月15日の計算値（${zoneLabel(light.timeZone, true)}）。マジックアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
-                    : `Calculated for the 15th of each month in ${light.year} (${zoneLabel(light.timeZone, false)}). Golden hour is when the sun is between 6° and −4°. Weather and shadows from terrain or buildings are not included.`}
+                    ? `各月15日の計算値（${zoneLabel(light.timeZone, true)}）。マジックアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
+                    : `Calculated for the 15th of each month (${zoneLabel(light.timeZone, false)}). Golden hour is when the sun is between 6° and −4°. Weather and shadows from terrain or buildings are not included.`}
             </p>
+            {legend.length > 0 && (
+                <ul className="m-0 mt-1 p-0 text-white/60" style={{ fontSize: "12px", lineHeight: "18px", listStyle: "none" }} data-testid="spot-light-legend">
+                    {legend.map((l) => <li key={l}>{l}</li>)}
+                </ul>
+            )}
         </section>
     );
 }
