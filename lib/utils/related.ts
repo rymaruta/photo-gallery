@@ -10,8 +10,55 @@ function normalizeLocation(loc?: string): string {
     return (loc ?? "").trim().toLowerCase().replace(/\s+/g, "");
 }
 
+/** 行政区分の字（「福岡**県**」「神戸**市**」）。名前の区切りとして扱う */
+const ADMIN_SUFFIX = /[都道府県市区町村郡]/;
+
+/** 撮影地を語に割る（「,」「、」空白・括弧で区切る。小文字にそろえる） */
+function locationTokens(loc?: string): string[] {
+    return (loc ?? "").toLowerCase().split(/[,、，()（）\s]+/).filter(Boolean);
+}
+
 /**
- * 2つの場所名が「同じ場所」とみなせるか（完全一致 or 一方が他方を含む）。
+ * 語 `t` の中に地名 `l` が**名前として**含まれるか（2026-09-30）。
+ *
+ * 字の包含だけで見ると、「福岡」が「白石市**福岡**八宮」（宮城県の大字）に当たり、
+ * 蔵王キツネ村の写真が `/location/福岡` に載っていた（owner の指摘・本番で確認）。
+ * 名前の前後が語の端か行政区分の字（都道府県市区町村郡）のときだけ認める:
+ *
+ *     「東京都」に「東京」       ○（後ろが「都」）
+ *     「兵庫県神戸市」に「神戸」 ○（前が「県」・後ろが「市」）
+ *     「福岡県福岡市」に「福岡」 ○
+ *     「福岡八宮」に「福岡」     ✗（後ろが「八」）
+ *     「東京都」に「京都」       ✗（前が「東」）
+ */
+function nameInToken(t: string, l: string): boolean {
+    for (let k = t.indexOf(l); k !== -1; k = t.indexOf(l, k + 1)) {
+        const end = k + l.length;
+        const before = k === 0 || ADMIN_SUFFIX.test(t[k - 1]);
+        const after = end === t.length || ADMIN_SUFFIX.test(t[end]) || ADMIN_SUFFIX.test(l[l.length - 1]);
+        if (before && after) return true;
+    }
+    return false;
+}
+
+/**
+ * 撮影地 `inner` が、地名 `outer` を**語の並びとして**含むか（向きがある）。
+ * `outer` の語が `inner` の語の中に同じ順で続けて現れること（「パリ, フランス」は
+ * 「オペラ座, パリ, フランス」に含まれる）。1語なら語の中の名前（`nameInToken`）も見る
+ */
+function locationContains(inner?: string, outer?: string): boolean {
+    if (normalizeLocation(inner).length < 2 || normalizeLocation(outer).length < 2) return false;
+    const it = locationTokens(inner);
+    const ot = locationTokens(outer);
+    if (ot.length === 0) return false;
+    for (let i = 0; i + ot.length <= it.length; i++) {
+        if (ot.every((o, j) => it[i + j] === o || nameInToken(it[i + j], o))) return true;
+    }
+    return false;
+}
+
+/**
+ * 2つの場所名が「同じ場所」とみなせるか（完全一致 or 一方が他方を**名前として**含む）。
  *
  * **これは写真ページの回遊（「この場所の写真」）のための緩い判定。**
  * 向きを見ないので、「ロヴァニエミ, フィンランド」の写真に「フィンランド」の
@@ -24,7 +71,7 @@ export function sameLocation(a?: string, b?: string): boolean {
     const na = normalizeLocation(a);
     const nb = normalizeLocation(b);
     if (na.length < 2 || nb.length < 2) return false;
-    return na === nb || na.includes(nb) || nb.includes(na);
+    return na === nb || locationContains(a, b) || locationContains(b, a);
 }
 
 /**
@@ -32,7 +79,7 @@ export function sameLocation(a?: string, b?: string): boolean {
  *
  * 条件は「**写真の撮影地が、ページの見出しと同じか、より細かい**」。
  *
- * `sameLocation` は対称（`a.includes(b) || b.includes(a)`）なので、
+ * `sameLocation` は対称（名前として含むかを両向きに見る）なので、
  * 集約ページに使うと**広い方の写真が狭いページに載る**:
  *
  *     ページ「フィンランド」        ← 写真「ヘルシンキ, フィンランド」   ○ 正しい
@@ -54,7 +101,8 @@ export function photoIsInLocation(photoLocation?: string, pageLabel?: string): b
     const photo = normalizeLocation(photoLocation);
     const page = normalizeLocation(pageLabel);
     if (photo.length < 2 || page.length < 2) return false;
-    return photo.includes(page);
+    // 空白の有無で語の割れ方が変わる同じ名前（「東京渋谷」と「東京 渋谷」）は同じ
+    return photo === page || locationContains(photoLocation, pageLabel);
 }
 
 // 並べ替えは lib/utils/photoOrder.ts に1本化した（ホーム・集約ページと

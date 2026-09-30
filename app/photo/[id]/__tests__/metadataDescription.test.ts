@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 
 // **説明が無い写真の meta description。**
 //
@@ -21,6 +21,11 @@ vi.mock("@/lib/server/photos", () => ({
 vi.mock("../../../../lib/server/staticParams", () => ({ withPlaceholderParam: (v: unknown) => v }));
 
 afterEach(() => { photos.length = 0; });
+
+// **ページの読み込みは最初に1回だけ、時間に余裕を持って。** 最初のテストの中で
+// 読み込んでいた頃は、全スイートを流したときだけ既定の5秒を超えて落ちた
+// （単独では通る。2026-09-30 実測）。読み込みは件の中身と関係無いので、ここで済ませる
+beforeAll(async () => { await import("../page"); }, 60_000);
 
 async function describeOf(photo: Record<string, unknown>): Promise<string> {
     photos.length = 0;
