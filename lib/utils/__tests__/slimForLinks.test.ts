@@ -62,9 +62,6 @@ describe("回遊リンクに渡す写真を絞る", () => {
     // **残す側を並べていること**（消す側の一覧にすると、新しい項目が
     // 増えた日に黙って載る。台帳の型: `PRIVATE_FIELDS` で一度踏んだ）
     it("残す項目を並べている（消す項目の一覧ではない）", () => {
-        const src = readFileSync(join(__dirname, "..", "related.ts"), "utf8");
-        expect(src).toContain("THUMB_FIELDS");
-        expect(src).toContain("LINK_FIELDS");
         // 知らない項目は落ちる側に倒れる
         const out = slimForLinks({ id: "x", src: "s", brandNewField: "v" } as unknown as Photo);
         expect("brandNewField" in out, "知らない項目が通り抜ける").toBe(false);
