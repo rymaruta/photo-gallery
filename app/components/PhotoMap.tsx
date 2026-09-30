@@ -51,6 +51,11 @@ const PIN_H = 50;
 const SPOT_PIN_PX = 28;
 const SPOT_PIN_H = 36;
 const CELL_PX = 56;
+/**
+ * 公式スポットの束の升（px）。写真の升より小さめ——スポットのピンは写真の丸より
+ * 小さい（28px）ので、同じ升で束ねると、寄っても束のままの時間が長い
+ */
+const SPOT_CELL_PX = 44;
 
 /** 「現在地」で寄るズーム。写真の座標は約1km に丸めてあるので、これ以上寄せない */
 const LOCATE_ZOOM = 12;
@@ -335,12 +340,15 @@ export default function PhotoMap({
                  * ピン）にして、「ここに写真がある」と読ませない
                  * ——現在地の点を丸にしてあるのと同じ判断。
                  *
-                 * **束ねない。** 台帳は人が書くもので数が少なく（公開条件を
-                 * 満たすものだけ）、束ねると押した先が「どのスポットか」を
-                 * 決められない（写真は束ねてもシートで送れるが、スポットは
-                 * 1件ずつページが違う）。
+                 * **広く見ているときはスポットどうしで束ねる**（2026-09-30 のレビュー:
+                 * 広域表示でピンが大量に重なる。台帳は公開済みだけで 1,079件ある）。
+                 * 束は写真の束と**別の形**（白地に真鍮の枠・「N か所」）で、押すと
+                 * その束が収まる範囲まで寄る。寄っても割れない束（同じ約1km の升に
+                 * 複数のスポット）は、個別のピンのまま重ねて立てる——スポットは
+                 * 1件ずつページが違うので、束ごとシートに渡す写真とは扱いが違う。
+                 * **選んだスポットは束ねない**（束に入ると、どこを選んでいるか見失う）
                  */
-                for (const sp of spotsRef.current) {
+                const spotPin = (sp: SpotPin) => {
                     const el = document.createElement("span");
                     el.className = "spot-map-pin";
                     if (sp.slug === selectedSpotRef.current) el.classList.add("is-selected");
@@ -371,7 +379,36 @@ export default function PhotoMap({
                     });
                     onActivate(marker, () => onSelectSpotRef.current?.(sp.slug));
                     marker.addTo(layer);
+                };
+                const selectedSpot = selectedSpotRef.current;
+                const spotPoints = spotsRef.current
+                    .filter((sp) => sp.slug !== selectedSpot)
+                    .map((sp) => ({ id: sp.slug, lat: sp.lat, lng: sp.lng, spot: sp }));
+                for (const c of clusterPoints(spotPoints, map.getZoom(), SPOT_CELL_PX)) {
+                    const inner = c.items.length > 1 ? boundsOf(c.items) : null;
+                    const splittable = !!inner && (inner.north !== inner.south || inner.east !== inner.west) && map.getZoom() < MAP_MAX_ZOOM;
+                    if (!splittable) {
+                        for (const it of c.items) spotPin(it.spot);
+                        continue;
+                    }
+                    const n = c.items.length;
+                    const marker = L.marker([c.lat, c.lng], {
+                        icon: L.divIcon({
+                            html: `<span>${n}</span>`,   // 数字だけ（利用者の入力は入らない）
+                            className: "spot-map-cluster",
+                            iconSize: [36, 36],
+                        }),
+                        title: en ? `${n} shooting spots` : `撮影スポット ${n}か所`,
+                        keyboard: true,
+                        zIndexOffset: 900,
+                    });
+                    onActivate(marker, () => {
+                        map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
+                    });
+                    marker.addTo(layer);
                 }
+                const chosen = selectedSpot ? spotsRef.current.find((sp) => sp.slug === selectedSpot) : undefined;
+                if (chosen) spotPin(chosen);
 
                 // 現在地の点。**写真のピンとは別の形**（丸い点）にして、
                 // 「ここに写真がある」と読ませない。色は現在地だけの `--color-location`
@@ -472,8 +509,14 @@ export default function PhotoMap({
         }
     }, [selectedId, photos]);
 
-    // 公式スポットも同じ（描き直さずクラスだけ）
+    // 公式スポットも同じ（描き直さずクラスだけ）。**ただし選んだスポットが束の中に
+    // いるときは描き直す**——束の中のスポットにはピンの要素が無い（選んだものは束から
+    // 外して立てる＝`draw` の注記）
     useEffect(() => {
+        if (selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) {
+            mapRef.current?.fire("zoomend");
+            return;
+        }
         for (const [slug, el] of spotElsRef.current) {
             el.classList.toggle("is-selected", slug === selectedSpotSlug);
         }

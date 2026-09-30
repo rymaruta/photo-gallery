@@ -574,6 +574,110 @@ describe("公式撮影地ガイドのピン", () => {
         });
     });
 
+    /**
+     * **スポットも写真と同じ絞り込みで絞る**（2026-09-30 のレビュー: 「銀山温泉」で探しても
+     * 絞られるのは写真だけ・スポットの一覧とピンは全件のまま）。件数は写真と別に数える
+     */
+    describe("絞り込みとスポット", () => {
+        const GINZAN = { slug: "ginzan-onsen", name: "銀山温泉", region: "山形県 尾花沢市", lat: 38.58, lng: 140.53, cover: null, stage: "published" as const };
+        /** 検索欄は 250ms 待ってから絞る（`MapControls` の debounce） */
+        const typeQuery = async (value: string) => {
+            fireEvent.change(screen.getByTestId("map-search-input"), { target: { value } });
+            await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+        };
+        const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...PIN, slug: `s${i}`, name: `スポット${i}` }));
+
+        it("語で絞ると、スポットの一覧とピンも絞られる（地域でも当たる）", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            expect(within(screen.getByTestId("map-spot-list")).queryByText("高屋神社")).toBeNull();
+            await typeQuery("香川");
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+        });
+
+        it("写真の件数とスポットの件数を別の行で数える", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(screen.getByTestId("map-spot-count").textContent).toBe("撮影スポット 2か所中 1か所を表示");
+            expect(screen.getByTestId("map-count").textContent).toContain("1枚中 0枚を表示");
+        });
+
+        it("当たるスポットが無ければ、節は残して理由を言う", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(mapProps.spotSlugs).toEqual([]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("検索語や範囲に当たる撮影スポットはありません");
+        });
+
+        it("写真のカテゴリで絞っている間は、スポットを出さず、そう言う", () => {
+            photosState.current = [{ ...P("a"), category: "風景" } as Photo];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            fireEvent.click(screen.getByRole("switch", { name: "風景" }));
+            expect(mapProps.spotSlugs).toEqual([]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("カテゴリは写真の分類");
+        });
+
+        it("「このエリアを検索」でスポットも範囲の中だけになる", () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 38, west: 140, north: 39, east: 141 }); });
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            expect(screen.getByTestId("map-area-note").textContent).toContain("撮影スポット 1か所");
+        });
+
+        it("位置情報のある写真が0枚でも、スポットがあれば地図を出す", () => {
+            photosState.current = [];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("photo-map")).toBeTruthy();
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+            expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+        });
+
+        it("写真がまだ届いていない間は「0枚」と言わない", () => {
+            photosState.current = [];
+            photosState.loaded = false;
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("map-count").textContent).toContain("写真を読み込み中");
+            expect(screen.getByTestId("map-count").textContent).not.toContain("0枚");
+            photosState.loaded = true;
+        });
+
+        /// スマホで長い一覧が地図より前に来ない（「リスト」を押したときだけ）
+        it("スマホでは、地図の表示中はスポットの一覧を隠し、「リスト」で出す", () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            const wrap = screen.getByTestId("map-spot-list").closest("section")!.parentElement!;
+            expect(wrap.className).toContain("hidden");
+            expect(wrap.className).toContain("lg:block");
+            fireEvent.click(screen.getByTestId("map-view-list"));
+            expect(screen.getByTestId("map-spot-list").closest("section")!.parentElement!.className).not.toContain("hidden");
+        });
+
+        it("一覧は30件ずつ（全件を一度に並べない）", () => {
+            photosState.current = [P("a")];
+            ledger.pins = many(95);
+            render(<MapPage />);
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(30);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(90);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(95);
+            expect(screen.queryByTestId("map-spot-more")).toBeNull();
+        });
+    });
+
     it("台帳のスポットを地図へ渡す", () => {
         show();
         expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);

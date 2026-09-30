@@ -11,7 +11,7 @@ import MapControls, { type MapView } from "./MapControls";
 import MapPhotoList from "./MapPhotoList";
 import { collectionPath, slugify } from "../../lib/utils/collections";
 import {
-    filterMapPhotos, mapCategories, photosInBounds, type MapBounds,
+    filterMapPhotos, filterMapSpots, mapCategories, photosInBounds, type MapBounds,
 } from "../../lib/utils/mapFilter";
 import type { SpotPin } from "../../lib/data/spotLink";
 import MapSpotSheet from "./MapSpotSheet";
@@ -56,6 +56,14 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
     const filtered = useMemo(
         () => photosInBounds(filterMapPhotos(geo, { query, category, locale }), area),
         [geo, query, category, locale, area],
+    );
+    /**
+     * 公式スポットも**同じ語・カテゴリ・範囲**で絞る（`filterMapSpots`）。以前は写真だけが
+     * 絞られ、スポットの一覧とピンは全件のまま残っていた。**件数は写真と混ぜない**
+     */
+    const shownSpots = useMemo(
+        () => filterMapSpots(spots, { query, category, area }),
+        [spots, query, category, area],
     );
 
     // ピンを押すと画面下のシートに出す（以前は地図の中のポップアップ）。
@@ -134,8 +142,10 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
         ? (en ? "No photos match. Try clearing the search or filters." : "該当する写真がありません。検索や絞り込みを外してみてください。")
         : undefined;
 
-    // 位置情報のある写真が1枚も無い／まだ届いていないときは、地図も操作も出さない
-    const nothingToShow = geo.length === 0;
+    // 位置情報のある写真が1枚も無い／まだ届いていないときは、地図も操作も出さない。
+    // **公式スポットがあれば地図は出す**——以前は写真が0枚だと、スポットが1,000件あっても
+    // 地図ごと消えていた（写真の少ない環境・写真の取得に失敗した回）
+    const nothingToShow = geo.length === 0 && spots.length === 0;
 
     return (
         <main className="mx-auto w-full max-w-[1400px] px-4 pt-4 pb-28 lg:px-6">
@@ -194,8 +204,8 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             >
                                 <span>
                                     {en
-                                        ? `This area · ${filtered.length} photo${filtered.length === 1 ? "" : "s"}`
-                                        : `このエリアの写真 ${filtered.length}件`}
+                                        ? `This area · ${filtered.length} photo${filtered.length === 1 ? "" : "s"}${spots.length > 0 ? ` · ${shownSpots.length} spot${shownSpots.length === 1 ? "" : "s"}` : ""}`
+                                        : `このエリアの写真 ${filtered.length}件${spots.length > 0 ? `・撮影スポット ${shownSpots.length}か所` : ""}`}
                                 </span>
                                 <button
                                     type="button"
@@ -245,22 +255,45 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             のまま数だけ絞られた値にすると、**サイト全体で5枚しか
                             位置情報を持っていない**と読める嘘になる */}
                         <p className="text-white/60 tabular-nums" style={{ marginTop: "12px", fontSize: "12px" }} data-testid="map-count">
-                            {filtered.length === geo.length
+                            {/* 写真がまだ届いていない（スポットだけで地図を出している）間は「0枚」と言わない */}
+                            {!loaded && geo.length === 0
+                                ? (failed
+                                    ? (en ? "Couldn't load photos." : "写真を読み込めませんでした。")
+                                    : (en ? "Loading photos…" : "写真を読み込み中…"))
+                                : filtered.length === geo.length
                                 ? (en
                                     ? `${geo.length} photo${geo.length === 1 ? "" : "s"} with location`
                                     : `位置情報のある写真 ${geo.length}枚`)
                                 : (en
                                     ? `${filtered.length} of ${geo.length} shown`
                                     : `${geo.length}枚中 ${filtered.length}枚を表示`)}
+                            {/* **スポットは別の行で数える**（写真の枚数と混ぜない） */}
+                            {spots.length > 0 && (
+                                <span className="block" data-testid="map-spot-count">
+                                    {shownSpots.length === spots.length
+                                        ? (en ? `${spots.length} shooting spots` : `撮影スポット ${spots.length}か所`)
+                                        : (en ? `${shownSpots.length} of ${spots.length} spots shown` : `撮影スポット ${spots.length}か所中 ${shownSpots.length}か所を表示`)}
+                                </span>
+                            )}
                         </p>
 
                         {/* 公式撮影スポットの一覧。**タブで写真と分けない**
                             ——地図は1つで、公式スポットのピンと写真のピンが
                             同時に立つ。ここは「地図を操作できない人のための
                             ガイドへの経路」で、`MapPhotoList` と同じ役目。
-                            **絞り込み（語・カテゴリ・範囲）には連動しない**
-                            ——あれは写真の値を見る仕組みで、台帳は別の持ち物 */}
-                        <MapSpotList spots={spots} locale={locale} />
+                            **絞り込み（語・カテゴリ・範囲）に連動する**（2026-09-30 から。
+                            以前は連動せず全件が残っていた）——`filterMapSpots` を見よ */}
+                        {/* **スマホでは「リスト」を押したときだけ**（写真の一覧と同じ）。以前は
+                            地図より前に常に置かれ、全件（1,079件）をスクロールしないと地図に
+                            届かなかった。PC は左の列に常に出す（地図は右にある） */}
+                        <div className={view === "list" ? "" : "hidden lg:block"}>
+                            <MapSpotList
+                                spots={shownSpots}
+                                total={spots.length}
+                                categoryActive={category !== "all"}
+                                locale={locale}
+                            />
+                        </div>
 
                         {/* 一覧。**PC では常に出す**（切り替えはスマホだけ）。
 
@@ -301,7 +334,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             onSearchArea={onSearchArea}
                             areaActive={!!area}
                             sheetOpen={!!sheet || !!spotSheet}
-                            spots={spots}
+                            spots={shownSpots}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
                             className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"

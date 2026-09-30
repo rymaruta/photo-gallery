@@ -119,8 +119,8 @@ export default function MapControls({
                         if (e.key === "Enter" && !isImeKey(e.nativeEvent)) e.currentTarget.blur();
                     }}
                     enterKeyHint="search"
-                    placeholder={en ? "Search places and titles" : "撮影地・写真の題で検索"}
-                    aria-label={en ? "Search places and titles" : "撮影地・写真の題で検索"}
+                    placeholder={en ? "Search places, spots and titles" : "撮影地・スポット・写真の題で検索"}
+                    aria-label={en ? "Search places, spots and titles" : "撮影地・スポット・写真の題で検索"}
                     className="search-own-clear w-full rounded-[20px] bg-surface-2/90 text-white placeholder:text-white/50 ring-1 ring-white/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     style={{
                         height: "48px", fontSize: "15px",
