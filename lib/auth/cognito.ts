@@ -316,7 +316,11 @@ export async function confirmForgotPassword(
                 onSuccess: () => resolve({ success: true }),
                 onFailure: (err: { message?: string; code?: string }) => {
                     let msg = "エラーが発生しました。しばらくしてからもう一度お試しください";
-                    if (err.code === "CodeMismatchException") msg = "確認コードが正しくありません";
+                    // 未登録もコード違いと同じ文面にする（forgotPassword が未登録でも
+                    // 成功を返すので、ここで文面が分かれると登録の有無が分かる）
+                    if (err.code === "CodeMismatchException" || err.code === "UserNotFoundException") {
+                        msg = "確認コードが正しくありません";
+                    }
                     if (err.code === "ExpiredCodeException") msg = "確認コードの有効期限が切れています";
                     if (err.code === "InvalidPasswordException") msg = PASSWORD_RULE_MESSAGE;
                     resolve({ success: false, error: msg });
