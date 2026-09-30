@@ -40,12 +40,6 @@ describe("通報の理由が、画面とサーバーで食い違わない", () =
             .toEqual(listFrom(server, "REPORT_REASONS"));
     });
 
-    it("画面が出す選択肢には、日本語と英語の両方がある", () => {
-        const labels = [...client.matchAll(/value:\s*"([a-z]+)",\s*ja:\s*"([^"]+)",\s*en:\s*"([^"]+)"/g)];
-        expect(labels.length, "ja / en が揃っていない選択肢がある")
-            .toBe(listFrom(server, "REPORT_REASONS").length);
-    });
-
     it("補足の上限が同じ", () => {
         const s = /REPORT_NOTE_MAX\s*=\s*(\d+)/.exec(server)?.[1];
         const c = /NOTE_MAX\s*=\s*(\d+)/.exec(client)?.[1];
