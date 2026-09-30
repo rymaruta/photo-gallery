@@ -272,7 +272,8 @@ gate "型検査（ルート）"        npx tsc --noEmit
 gate "型検査（api）"           check_side_tsc api "$API_BASELINE"
 gate "型検査（api-user）"      check_side_tsc api-user "$API_USER_BASELINE"
 gate "lint"                    npx eslint .
-gate "単体テスト"              npx vitest run
+# 重いテスト（`*.slow.test.ts`）もここでは流す。`npm test`（Actions）では流さない（`vitest.config.ts`）
+gate "単体テスト"              env RUN_SLOW_TESTS=1 npx vitest run
 gate "ビルド（本番と同じ設定）" build_site
 gate "実ブラウザのスモーク"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
 
