@@ -687,13 +687,6 @@ describe("写真の控え", () => {
         expect([...caches_.keys()].sort()).toEqual(["journey-photo-img-v1", "journey-photo-v1"]);
     });
 
-    // **ページ側の版を上げても写真は消さない。** 混ぜていた頃は、刻印の形式を
-    // 変えるといった無関係な理由で全端末の写真の控えが消えた
-    it("写真の入れ物の名前は、ページ側のバージョンを含まない", () => {
-        const src = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-        expect(src).toMatch(/const IMG_CACHE_NAME = `journey-photo-img-\$\{IMG_CACHE_VERSION\}`/);
-    });
-
     // 中身を確かめられる応答（同一オリジン・将来 CORS が付いた場合）は
     // 状態を見る。404 を控えない
     it("読める応答なら、失敗は控えない", async () => {

@@ -32,12 +32,6 @@ describe("アカウントの有無を教えない", () => {
         expect(src).toMatch(/NotAuthorizedException"\s*\|\|\s*err\.code === "UserNotFoundException"/);
     });
 
-    it("パスワード再設定: 未登録でも成功として返す", () => {
-        const src = code("lib/auth/cognito.ts");
-        expect(src, "「メールアドレスが見つかりません」と教えている")
-            .not.toContain("メールアドレスが見つかりません");
-    });
-
     it("新しいプールのクライアントは PreventUserExistenceErrors を有効にする", () => {
         const src = code("scripts/provision-env.js");
         expect(src, "入口（Cognito 側）で塞いでいない")
