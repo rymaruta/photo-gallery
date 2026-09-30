@@ -225,18 +225,6 @@ function UploadPageInner() {
      *  「この画面からは書かない」と言っているのはそちらの変数のこと */
     const pageBarRef = usePageBarHeight();
     const [items, setItems] = useState<Item[]>([]);
-    /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
-    useEffect(() => {
-        if (!spot) return;
-        const ready = items.filter((it) => it.metaRead && spotPendingRef.current.has(it.id));
-        if (ready.length === 0) return;
-        for (const it of ready) spotPendingRef.current.delete(it.id);
-        // **上げ始めた写真は埋めない**——保存は押した時点の中身で送るので、画面だけ
-        // スポット名に変わって保存には入らない、になる
-        const fill = new Set(ready.filter((it) => !it.location && it.status === "pending" && coversSpot(spot, it)).map((it) => it.id));
-        if (fill.size === 0) return;
-        setItems((prev) => prev.map((it) => (fill.has(it.id) && !it.location ? { ...it, location: spot.name } : it)));
-    }, [spot, items]);
     /**
      * 認証ゲート。**取り込んだ写真があるときは送り返させない**——
      * `router.replace` は画面を作り直すので、選んだ写真も打った題名・説明も
@@ -258,6 +246,20 @@ function UploadPageInner() {
     const [audience, setAudience] = useState<Audience>("everyone");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
+    /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
+    useEffect(() => {
+        // **上げている間は判定を保留する**（印も消さない）。保存は押した時点の中身で送るので、
+        // 途中で埋めると画面だけスポット名に変わって保存に入らない。終わったら続きをやる
+        // ——失敗した写真（error）は押し直しの対象なので、そこで埋めた名前は保存に入る
+        if (!spot || uploading) return;
+        const ready = items.filter((it) => it.metaRead && spotPendingRef.current.has(it.id)
+            && (it.status === "pending" || it.status === "error"));
+        if (ready.length === 0) return;
+        for (const it of ready) spotPendingRef.current.delete(it.id);
+        const fill = new Set(ready.filter((it) => !it.location && coversSpot(spot, it)).map((it) => it.id));
+        if (fill.size === 0) return;
+        setItems((prev) => prev.map((it) => (fill.has(it.id) && !it.location ? { ...it, location: spot.name } : it)));
+    }, [spot, items, uploading]);
     /**
      * アップロード中の要求。「やめる」を押したら中断する。
      *
@@ -858,7 +860,8 @@ function UploadPageInner() {
         );
         // **スポットから来た回は、その近くで撮った写真の撮影地をスポット名にする**
         // （逆引きより先。逆引きは空の欄にしか書かないので上書きされない）
-        const spotNow = spotRef.current;
+        // 共有シートから取り込んだ写真は埋めない（判定待ちに入れないのと同じ理由）
+        const spotNow = shared ? null : spotRef.current;
         const onSpot = new Set(spotNow
             ? exifResults.filter((r) => coversSpot(spotNow, { location: "", latitude: r.meta.latitude, longitude: r.meta.longitude })).map((r) => r.id)
             : []);

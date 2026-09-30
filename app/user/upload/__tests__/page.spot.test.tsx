@@ -293,5 +293,45 @@ describe("アップロード画面: 撮影スポットから来た投稿", () =>
         await userEvent.click(btn);
         await waitFor(() => expect(mockPush).toHaveBeenCalled(), { timeout: 4000 });
         expect(mockPush).not.toHaveBeenCalledWith("/spots/ginzan-onsen?posted=1");
+    }, 15000);
+
+    // b29da956 のレビュー 1: 共有の取り込みでも、スポットが EXIF より先に届いた順で埋めない
+    it("共有シートの写真は、スポットが EXIF より先に届いても埋めない", async () => {
+        const e = gate();
+        exif.gate = e.promise;
+        share.payload = { files: [new File(["x"], "shared.jpg", { type: "image/jpeg" })], t: Date.now() };
+        render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        e.open();
+        await publish();
+        expect("spotId" in savedBody()!).toBe(false);
+        expect(savedBody()!.location ?? "").toBe("");
     });
+
+    // b29da956 のレビュー 2: 失敗した写真にスポットが届いたら、押し直しで紐付く
+    it("上げるのに失敗した写真は、あとからスポットが届けば押し直しで紐付く", async () => {
+        const b = gate();
+        body.gate = b.promise;
+        let failed = false;
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            if (url === "/upload/save" && !failed) {
+                failed = true;
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            return base(url, init);
+        });
+        const { container } = render(<UploadPage />);
+        await pick(container);
+        await publish();                       // 1回目: スポットはまだ届いていない・保存は失敗
+        expect("spotId" in savedBody()!).toBe(false);
+        b.open();                              // スポットが届く
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚をスポットに紐付けます"));
+        const btn = await screen.findByRole("button", { name: /投稿する/ });
+        await waitFor(() => expect(btn).not.toBeDisabled());
+        await userEvent.click(btn);
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save").length).toBe(2));
+        const second = JSON.parse((mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save")[1][1] as { body: string }).body);
+        expect(second.spotId, "押し直しても紐付かない").toBe(GINZAN.spotId);
+    }, 15000);
 });
