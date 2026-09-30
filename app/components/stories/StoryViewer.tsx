@@ -1552,9 +1552,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             {muted
                                 ? <SpeakerXMarkIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
                                 : <MusicalNoteIcon className="w-3.5 h-3.5 flex-shrink-0 text-white" />}
-                            <span className="truncate">
-                                {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
-                            </span>
+                            {/* 曲の札を写真に焼き込んだ1本は曲名を出さない（写真の上と2度出る）。
+                                ボタン（音を出す／止める）は残す */}
+                            {item.songOnPhoto !== true && (
+                                <span className="truncate">
+                                    {item.song.title}{item.song.artist ? ` — ${item.song.artist}` : ""}
+                                </span>
+                            )}
                             {muted && (
                                 <span className="text-[10px] text-white/50 flex-shrink-0">
                                     {locale === "en" ? "Tap for sound" : "タップで再生"}
