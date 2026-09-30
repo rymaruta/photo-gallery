@@ -70,29 +70,27 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
             const all = plans.flatMap((plan) => tripLightCandidates(plan, today).map((cand) => ({ plan, cand })));
             all.sort((a, b) => Number(a.cand.isTomorrow) - Number(b.cand.isTomorrow));
             for (const { plan, cand } of all) {
-                {
-                    for (const spotId of cand.spotIds) {
-                        const slug = spots[spotId]?.slug;
-                        if (!slug) continue;
-                        try {
-                            const res = await fetch(spotBodyUrl(slug));
-                            if (!alive) return;
-                            if (!res.ok) continue;
-                            const body = parseTripSpotBody(await res.json(), slug);
-                            if (!alive) return;
-                            const zone = body ? timeZoneForCountry(body.country) : null;
-                            const cells = body && zone ? dayLightCells(cand.ymd, body.coords, zone) : null;
-                            if (!body || !cells) continue;
-                            const season = seasonOfMonth(Number(cand.ymd.slice(5, 7)));
-                            setShown({
-                                planId: plan.planId, slug, name: body.name, ymd: cand.ymd,
-                                isTomorrow: cand.isTomorrow, dayNumber: cand.dayNumber, cells,
-                                guide: body.seasonalGuide.find((g) => g.season === season) ?? null,
-                            });
-                            return;
-                        } catch {
-                            if (!alive) return;
-                        }
+                for (const spotId of cand.spotIds) {
+                    const slug = spots[spotId]?.slug;
+                    if (!slug) continue;
+                    try {
+                        const res = await fetch(spotBodyUrl(slug));
+                        if (!alive) return;
+                        if (!res.ok) continue;
+                        const body = parseTripSpotBody(await res.json(), slug);
+                        if (!alive) return;
+                        const zone = body ? timeZoneForCountry(body.country) : null;
+                        const cells = body && zone ? dayLightCells(cand.ymd, body.coords, zone) : null;
+                        if (!body || !cells) continue;
+                        const season = seasonOfMonth(Number(cand.ymd.slice(5, 7)));
+                        setShown({
+                            planId: plan.planId, slug, name: body.name, ymd: cand.ymd,
+                            isTomorrow: cand.isTomorrow, dayNumber: cand.dayNumber, cells,
+                            guide: body.seasonalGuide.find((g) => g.season === season) ?? null,
+                        });
+                        return;
+                    } catch {
+                        if (!alive) return;
                     }
                 }
             }
@@ -119,9 +117,10 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
                 {en ? `${when} · Day ${shown.dayNumber} · ${m}/${d}` : `${when} · ${shown.dayNumber}日目 · ${m}/${d}`}
             </p>
             <h2 id="trip-light-title" className="m-0 mt-1 font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>
-                {/* リンクは真鍮・下線（押せると分かる）。的は 44px（見た目の行は 24px のまま） */}
+                {/* リンクは真鍮・下線（押せると分かる）。的は 44px——上下の余白 10px を同じだけの負の余白で
+                    打ち消すので、見た目の行（24px）と札の並びは変わらない */}
                 <Link href={`/spots/${shown.slug}`} prefetch={false}
-                      className="inline-flex items-center min-h-[44px] text-accent underline underline-offset-4 decoration-1 hover:text-accent-strong">
+                      className="inline-block py-[10px] -my-[10px] text-accent underline underline-offset-4 decoration-1 hover:text-accent-strong">
                     {shown.name}
                 </Link>
             </h2>

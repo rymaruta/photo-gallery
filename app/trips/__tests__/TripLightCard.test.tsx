@@ -108,7 +108,8 @@ describe("旅行プランの当日モード", () => {
         const link = await screen.findByRole("link", { name: "銀山温泉" });
         expect(link.className).toContain("text-accent");
         expect(link.className).toContain("underline");
-        expect(link.className).toContain("min-h-[44px]");
+        expect(link.className).toContain("py-[10px]");
+        expect(link.className).toContain("-my-[10px]");
     });
 
     it("1件目が読めなければ次の撮影スポットへ", async () => {
