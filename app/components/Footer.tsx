@@ -69,7 +69,7 @@ export default function Footer() {
 
                     {/* ナビゲーション */}
                     <nav aria-label={locale === "en" ? "Footer" : "フッター"}
-                        className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+                        className="flex flex-wrap justify-center gap-x-5">
                         {links.map(({ href, label }) => (
                             // **先読みしない**（理由と実測は `app/components/GalleryGrid.tsx` の
                             // カードのコメント。静的書き出し＋`no-store` 配信なので、画面に
@@ -78,7 +78,10 @@ export default function Footer() {
                                 key={href}
                                 href={href}
                                 prefetch={false}
-                                className="text-xs text-white/50 hover:text-white transition-colors"
+                                // **押す的は高さ24px**（WCAG 2.5.8・Lighthouse の target-size）。
+                                // 字の高さ14pxのままだと全ページで落ちていた。行の間隔は
+                                // 的の高さで取る（以前の gap-y-2 ＝ 行ピッチ21px → 24px）
+                                className="inline-flex items-center min-h-[24px] text-xs text-white/50 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {label}

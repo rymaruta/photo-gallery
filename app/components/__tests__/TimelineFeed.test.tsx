@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { computeAccessibleName } from "dom-accessibility-api";
 
 /**
  * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（トップの「フォロー中」タブ）。
@@ -52,7 +53,7 @@ describe("TimelineFeed", () => {
         // 誰が上げたかが写真に重なって出る（一覧のグリッドには無かったもの）。
         expect(screen.getAllByText(/^Aさん/).length).toBe(2);
         for (const id of ["a-new", "a-old"]) {
-            expect(document.querySelector(`[data-photo-id="${id}"]`)!.getAttribute("aria-label")).toContain("Aさん");
+            expect(computeAccessibleName(document.querySelector(`[data-photo-id="${id}"]`)!)).toContain("Aさん");
         }
         expect(screen.queryByText("自分の写真"), "自分の写真が混ざっている").toBeNull();
         expect(screen.queryByText("Bの写真"), "フォローしていない人の写真が混ざっている").toBeNull();
@@ -81,8 +82,10 @@ describe("TimelineFeed", () => {
         expect(spans).toEqual([true, false, false, false, false]);
         // 撮影地の無い c5 は文字を重ねない（iOS と同じ）。誰の写真かは読み上げに残る
         const c5 = document.querySelector('[data-photo-id="c5"]')!;
-        expect(c5.textContent).not.toContain("Cさん");
-        expect(c5.getAttribute("aria-label")).toContain("Cさん");
+        // 目に見える文字（読み上げ専用の .sr-only を除く）に名前が無い
+        const seen = Array.from(c5.querySelectorAll("p, span:not(.sr-only)")).map((e) => e.textContent).join(" ");
+        expect(seen).not.toContain("Cさん");
+        expect(computeAccessibleName(c5)).toContain("Cさん");
         expect(document.querySelector('[data-photo-id="c4"]')!.textContent).toContain("Cさん");
     });
 

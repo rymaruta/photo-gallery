@@ -78,7 +78,7 @@ describe("写真ページ: 最終版モックの並び", () => {
         const author = screen.getByRole("link", { name: "Haruto" });
         const body = screen.getByText(/エーゲ海に沈む夕日/);
         const tag = screen.getByRole("link", { name: "#ギリシャ" });
-        const like = screen.getByRole("button", { name: "いいね" });
+        const like = screen.getByRole("button", { name: /^いいね \d/ });
         const tabs = screen.getByRole("tablist");
         for (const [a, b] of [[hero, title], [title, author], [author, body], [body, tag], [tag, like], [like, tabs]] as const) {
             expect(before(a, b), "並びがモックと違う").toBe(true);
@@ -120,7 +120,9 @@ describe("写真ページ: 最終版モックの並び", () => {
     it("アクション行: ♡ の数・💬 の数・保存・シェア（文字付き）", async () => {
         page();
         await screen.findByText("夕陽に染まる白い街");
-        expect(screen.getByRole("button", { name: "いいね" }).textContent).toContain("342");
+        // 見えている数（342）が読み上げの名前にも入る（Lighthouse の label-content-name-mismatch）
+        const like = screen.getByRole("button", { name: "いいね 342件" });
+        expect(like.textContent).toContain("342");
         expect(screen.getByRole("button", { name: /コメント 24件/ })).toBeTruthy();
         expect(screen.getByRole("button", { name: "保存" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "シェア" })).toBeTruthy();

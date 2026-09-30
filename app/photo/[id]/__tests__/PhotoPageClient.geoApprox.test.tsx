@@ -84,3 +84,11 @@ describe("撮影地マップへの導線", () => {
         expect(screen.queryByRole("link", { name: "撮影地マップで見る" })).toBeNull();
     });
 });
+
+// 撮影地のリンクの押す的は24px（字の高さ16pxのままだと target-size で落ちた）。
+// 同じだけ負の余白で打ち消して、行の高さは変えない
+it("撮影地のリンクは上下4pxずつ広げた押す的（行の高さは変えない）", async () => {
+    render(<PhotoPageClient photoId="p1" initialPhoto={photo({})} />);
+    await screen.findByText("テスト写真");
+    expect(screen.getByTitle("地図で見る").className.split(/\s+/)).toEqual(expect.arrayContaining(["py-[4px]", "-my-[4px]"]));
+});

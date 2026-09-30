@@ -414,3 +414,17 @@ describe("GalleryGrid: 複数枚の投稿", () => {
         expect(screen.queryByText(/^1\//)).toBeNull();
     });
 });
+
+// 題の帯は読み上げから外す（リンクの名前「◯◯ を開く」が題を読む）。読ませると、撮影地の
+// 無い写真は alt と同じ文が二度読まれ、Lighthouse の image-redundant-alt が一覧の全枚で落ちた
+describe("GalleryGrid: 題の帯の読み上げ", () => {
+    it("写真の上の題の帯は aria-hidden（リンクの名前と alt で足りる）", () => {
+        setup(["a1"]);
+        const link = document.querySelector("a[data-photo-id='a1']")!;
+        const band = Array.from(link.querySelectorAll("div.truncate")).find((d) => d.textContent === "写真");
+        expect(band, "題の帯が無い").toBeTruthy();
+        expect(band!.closest("[aria-hidden='true']"), "題の帯が読み上げに出ている").toBeTruthy();
+        expect(link.getAttribute("aria-label")).toBe("写真 を開く");
+    });
+});
+

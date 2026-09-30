@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
+import { computeAccessibleName } from "dom-accessibility-api";
 import type { Photo } from "@/lib/data/photos";
 import HomeMosaic from "../HomeMosaic";
 import { ROUTES } from "@/lib/routes";
@@ -19,6 +20,8 @@ const photo = (id: string, over: Partial<Photo> = {}): Photo => ({
 } as Photo);
 
 const tiles = (c: HTMLElement) => Array.from(c.querySelectorAll<HTMLAnchorElement>("a[data-photo-id]"));
+/** 読み上げの名前（ブラウザと同じ計算）。空白は1つに畳む */
+const nameOf = (a: Element) => computeAccessibleName(a).replace(/\s+/g, " ").trim();
 
 describe("HomeMosaic", () => {
     it("大きく1枚（16:9）→ 2枚（1:1）→ 2枚 の順に並ぶ（1枚ずつの項目・大きい1枚は2列ぶん）", () => {
@@ -55,21 +58,29 @@ describe("HomeMosaic", () => {
         expect(imgs.map((i) => i.getAttribute("loading"))).toEqual(["eager", "eager", "eager", "lazy"]);
     });
 
-    it("重ねた文字・印・いいねの丸は読み上げから外す（リンクの名前が全部を読む）", () => {
+    // 🔴 **名前は中身から組む**（`aria-label` を付けない）。別の文を `aria-label` に書いていたので、
+    // 見えている文字（撮影地・名前・数）と読み上げの名前が食い違い、Lighthouse の
+    // label-content-name-mismatch がトップの全タイルで落ちていた（2026-09-30 本番で実測）
+    it("読み上げの名前は見えている文字をそのまま含む（写真の説明 → 撮影地 → 撮った人 → 複数枚 → いいね）", () => {
         const { container } = render(<HomeMosaic
             photos={[photo("a", { extraImages: [{ src: "https://cdn/x.jpg" }] } as Partial<Photo>)]} locale="ja" />);
         const a = tiles(container)[0];
-        const shown = Array.from(a.children).filter((el) => el.tagName !== "PICTURE" && !el.querySelector("img") && el.tagName !== "IMG");
-        expect(shown.length).toBeGreaterThanOrEqual(3);
-        for (const el of shown) expect(el.getAttribute("aria-hidden"), el.outerHTML.slice(0, 60)).toBe("true");
+        expect(a.hasAttribute("aria-label"), "中身と違う名前を上書きしている").toBe(false);
+        const name = nameOf(a);
+        // 画面に見えている文字（撮影地・名前と時期・数）が、見えている順のまま名前に入る
+        const visible = ["パリ", "丸田 · 2日前", "3"];
+        let at = 0;
+        for (const v of visible) { const i = name.indexOf(v, at); expect(i, `${v} が名前に無い: ${name}`).toBeGreaterThanOrEqual(0); at = i + v.length; }
+        expect(name.startsWith("題a")).toBe(true);        // 先頭は写真の説明（題）
+        expect(name).toContain("複数枚の投稿");
+        expect(name).toMatch(/、複数枚の投稿、いいね 3件$/);
     });
 
     it("サーバーが入れた「無題」は読まない・英語の1件は単数", () => {
         const { container } = render(<HomeMosaic photos={[photo("a", { title: "無題", likes: 1 })]} locale="en" />);
-        const label = tiles(container)[0].getAttribute("aria-label")!;
+        const label = nameOf(tiles(container)[0]);
         expect(label).not.toContain("無題");
-        expect(label).toContain("1 like");
-        expect(label).not.toContain("1 likes");
+        expect(label).toMatch(/, 1 like$/);
     });
 
     it("持ち主が選んだ見せたい位置（focalPoint）で切る", () => {
@@ -88,8 +99,9 @@ describe("HomeMosaic", () => {
         const { container } = render(<HomeMosaic photos={[photo("a")]} locale="ja" />);
         const a = tiles(container)[0];
         expect(a.getAttribute("href")).toBe(ROUTES.PHOTO("a"));
-        const label = a.getAttribute("aria-label")!;
-        for (const part of ["題a", "パリ", "丸田", "いいね 3件"]) expect(label).toContain(part);
+        const label = nameOf(a);
+        for (const part of ["題a", "パリ", "丸田"]) expect(label).toContain(part);
+        expect(label).toMatch(/、いいね 3件$/);
     });
 
     it("写真の上に撮影地（最初の区切りまで）と「名前 · ◯日前」を重ねる。2枚の段は名前だけ", () => {
@@ -102,9 +114,10 @@ describe("HomeMosaic", () => {
         expect(pair.textContent).not.toContain("日前");
     });
 
-    it("撮影地が無い写真は文字を重ねない", () => {
+    it("撮影地が無い写真は文字を重ねないが、誰の写真かは読ませる", () => {
         const { container } = render(<HomeMosaic photos={[photo("a", { location: "" })]} locale="ja" />);
         expect(tiles(container)[0].querySelector("p.font-serif")).toBeNull();
+        expect(nameOf(tiles(container)[0])).toContain("丸田");
     });
 
     it("「◯日前」は静的HTMLに焼かない（ビルドの翌日以降に水和が食い違う）", () => {
@@ -120,7 +133,8 @@ describe("HomeMosaic", () => {
         expect(first.querySelector(".tabular-nums")?.textContent).toBe("12");
         expect(first.querySelectorAll("svg").length).toBe(2);   // ハート＋複数枚の印
         expect(second.querySelectorAll("svg").length).toBe(1);  // ハートだけ
-        expect(first.getAttribute("aria-label")).toContain("複数枚の投稿");
+        expect(nameOf(first)).toContain("複数枚の投稿");
+        expect(nameOf(second)).not.toContain("複数枚の投稿");
     });
 
     it("画像の大きさの申告は段の種類で分ける", () => {
