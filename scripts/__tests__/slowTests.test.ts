@@ -26,7 +26,12 @@ function slowFiles(dir: string): string[] {
 describe("重いテスト（*.slow.test.ts）", () => {
     it("verify は重いテストを RUN_SLOW_TESTS=1 で、ほかのテストと別に流す", () => {
         const sh = readFileSync(join(ROOT, "scripts", "verify-local.sh"), "utf8");
-        const gates = sh.split("\n").filter((l) => /^gate "/.test(l));
+        // 字下げされた関門（`if` の中）も見る
+        const gates = sh.split("\n").filter((l) => /^\s*gate "/.test(l));
+        // **関門の外で立てない。** `export RUN_SLOW_TESTS=1` などと書くと、
+        // 関門の行に出ないまま全部のテストに効いてしまう
+        const outside = sh.split("\n").filter((l) => /RUN_SLOW_TESTS/.test(l) && !/^\s*#/.test(l) && !/^\s*gate "/.test(l));
+        expect(outside, "関門の外で RUN_SLOW_TESTS を立てている").toEqual([]);
         const slow = gates.find((l) => /RUN_SLOW_TESTS=1/.test(l));
         expect(slow, "重いテストがどこでも流れなくなる").toMatch(/RUN_SLOW_TESTS=1\s+npx vitest run \.slow\.test\./);
         // **ほかのテストと並べない。** 全部を RUN_SLOW_TESTS=1 で一度に流すと、
