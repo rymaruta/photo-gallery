@@ -347,7 +347,8 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // （`hasStoryTextItem`）——ずれると、ひとことが消えるか二重に出る。
     const caption = texts && hasStoryTextItem(texts)
         ? truncate(storyTextsCaption(texts), 200) || undefined
-        : truncate((body.caption ?? "").trim(), 200) || undefined;
+        // 文字列でない caption（数・オブジェクト）は捨てる——`.trim` が落ちて 500 になっていた
+        : truncate((typeof body.caption === "string" ? body.caption : "").trim(), 200) || undefined;
 
     // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
     //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）
