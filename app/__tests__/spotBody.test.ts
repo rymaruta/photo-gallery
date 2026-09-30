@@ -38,7 +38,7 @@ const AI = {
     status: "published" as const,
     aiCheck: { checkedAt: "2026-09-26", delegatedBy: "rymaruta", sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }] },
 };
-const ALLOWED = ["spotId", "slug", "name", "coords", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
+const ALLOWED = ["spotId", "slug", "name", "coords", "country", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
     "compositionTips", "officialWebsiteUrl", "check"];
 
 describe("アプリ向けの本文", () => {
@@ -65,6 +65,14 @@ describe("アプリ向けの本文", () => {
                 expect(json, `${banned} を運んでいる`).not.toContain(banned);
             }
         }
+    });
+
+    it("国は日本の外の行だけ運ぶ（旅行プランの当日モードが時刻帯を引く）", () => {
+        expect(toSpotBody(spot("jp", HUMAN))?.country).toBeUndefined();
+        const fr = toSpotBody(spot("fr", { ...HUMAN, region: { country: "フランス", city: "パリ" } }))!;
+        expect(fr.country).toBe("フランス");
+        const jp2 = toSpotBody(spot("jp2", { ...HUMAN, region: { country: "日本", prefecture: "山形県" } }))!;
+        expect("country" in jp2).toBe(false);
     });
 
     it("空の項目は鍵ごと出さない", () => {

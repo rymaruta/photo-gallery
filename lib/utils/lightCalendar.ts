@@ -57,7 +57,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** 日の出・日の入りの高さ（上端が地平線） */
 const HORIZON = -0.833;
 const GOLDEN_TOP = 6;
-const GOLDEN_BOTTOM = -4;
 
 /** "HH:MM" どうしで、後ろの方が早ければ翌日（日付をまたいだ） */
 const nextDay = (earlier: string, later: string) => (later < earlier ? `翌${later}` : later);
