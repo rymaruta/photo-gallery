@@ -111,3 +111,42 @@ describe("チップの件数と、ページの中身が一致する", () => {
     });
 });
 
+// 🔴 字の包含で見ていたので、「福岡」が宮城県白石市の大字「福岡八宮」に当たり、
+// 蔵王キツネ村の写真が /location/福岡 に載っていた（owner の指摘・本番で確認・2026-09-30）
+describe("撮影地は名前として含むときだけ当てる（字の途中では当てない）", () => {
+    const ZAO = "蔵王キツネ村, 南蔵王七ヶ宿線, 福岡八宮, 白石市, 宮城県, 989-0733, 日本";
+
+    it("蔵王キツネ村は /location/福岡 に載らない・宮城県や白石市には載る", () => {
+        expect(photoIsInLocation(ZAO, "福岡")).toBe(false);
+        expect(photoIsInLocation(ZAO, "宮城県")).toBe(true);
+        expect(photoIsInLocation(ZAO, "白石市")).toBe(true);
+        expect(photoIsInLocation(ZAO, "蔵王キツネ村")).toBe(true);
+    });
+
+    it("行政区分の字の前後なら名前として当てる", () => {
+        expect(photoIsInLocation("東京都 渋谷区", "東京")).toBe(true);
+        expect(photoIsInLocation("兵庫県神戸市", "神戸")).toBe(true);
+        expect(photoIsInLocation("兵庫県神戸市", "兵庫県")).toBe(true);
+        expect(photoIsInLocation("福岡県福岡市", "福岡")).toBe(true);
+        expect(photoIsInLocation("宮崎県西臼杵郡", "宮崎県")).toBe(true);
+    });
+
+    it("別の地名の一部には当てない", () => {
+        expect(photoIsInLocation("東京都", "京都")).toBe(false);
+        expect(photoIsInLocation("大阪城公園", "大阪")).toBe(false);
+    });
+
+    it("括弧の中・語の並びでも当てる（これまでの一致を保つ）", () => {
+        expect(photoIsInLocation("オペラ・ガルニエ（パリ）", "パリ")).toBe(true);
+        expect(photoIsInLocation("香川県 観音寺市 高屋神社", "高屋神社")).toBe(true);
+        expect(photoIsInLocation("オペラ座, パリ, フランス", "パリ, フランス")).toBe(true);
+        expect(photoIsInLocation("パリ, ドイツ, フランス", "パリ, フランス")).toBe(false);
+    });
+
+    it("写真ページの「この場所の写真」（sameLocation）も同じ規則", () => {
+        expect(sameLocation(ZAO, "福岡")).toBe(false);
+        expect(sameLocation("福岡", ZAO)).toBe(false);
+        expect(sameLocation("パリ, フランス", "パリ")).toBe(true);
+    });
+});
+
