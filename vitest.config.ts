@@ -11,6 +11,17 @@ const ROOT = __dirname;
 // 1,582 に膨れていた）。.gitignore だけでは vitest は止まらない。
 const EXCLUDE = ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/__ztmp/**"];
 
+// **重いテスト（`*.slow.test.ts`）は `npm run verify` でだけ流す。**
+//
+// 別のプログラム（`tsc`・`tsx`）を起動するもので、1本で数秒〜30秒かかる。
+// `npm test` は本番反映の Actions（Deploy Site）でも毎回流れ、その分数は
+// owner の財布から出る（CLAUDE.md「GitHub Actions の枠」）。verify は別の枝へ
+// 入れる前に必ず通す決まりなので、そこで流せば確かめる力は落ちない。
+// `scripts/verify-local.sh` が `RUN_SLOW_TESTS=1` を付ける
+// （`scripts/__tests__/slowTests.test.ts` が見張る）。
+const SLOW = "**/*.slow.test.{ts,tsx,js,mjs}";
+const SKIP_SLOW = process.env.RUN_SLOW_TESTS === "1" ? [] : [SLOW];
+
 // **jsdom を建てるのは、DOM を触るテストだけにする。**
 //
 // 全部に jsdom を掛けていた頃の実測（2026-09-22・4コア）:
@@ -54,18 +65,35 @@ export default defineConfig({
                     environment: "node",
                     setupFiles: ["./vitest.setup.ts"],
                     include: NODE_TESTS,
-                    exclude: EXCLUDE,
+                    exclude: [...EXCLUDE, ...SKIP_SLOW],
                 },
             },
+            // **DOM が要るテストは happy-dom で流す**（2026-09-30・owner 了承）。
+            //
+            // 実測（全スイート・4コア）: jsdom だけのとき 288.8秒（environment 291秒・
+            // tests 277秒）→ happy-dom を基本にして 215.4秒（environment 135秒・tests 209秒）。
+            // DOM のテストは約380本あり、1本ごとに建て直す仮想ブラウザの起動が
+            // テスト本体より重かった。
+            //
+            // **happy-dom で動かないテストは、そのファイルの先頭に
+            // `// @vitest-environment jsdom` を書いて jsdom で流す**（画像の `srcset`・
+            // ラベルの結び付け・履歴の扱いなど、実装の違いが出るもの）。
+            // 一覧はここに持たない——ファイル自身が理由とともに名乗る。
+            // happy-dom は jsdom より実ブラウザからは遠いので、最後の確かめは
+            // verify の Chromium スモーク（`scripts/e2e-smoke.mjs`）が担う。
+            //
+            // **前提は jsdom に揃えてある**（`vitest.setup.ts`・`app/__tests__/domEnvParity.test.tsx`）:
+            // `matchMedia` を持たせない・フォーカスできない要素に `focus()` を効かせない。
+            // 揃えないと、テストが黙って別のもの（PC の形・付け忘れた tabIndex）を確かめる
             {
                 ...shared,
                 test: {
-                    name: "jsdom",
+                    name: "dom",
                     globals: true,
-                    environment: "jsdom",
+                    environment: "happy-dom",
                     setupFiles: ["./vitest.setup.ts"],
                     include: ["**/*.test.{ts,tsx,js,mjs}"],
-                    exclude: [...EXCLUDE, ...NODE_TESTS],
+                    exclude: [...EXCLUDE, ...NODE_TESTS, ...SKIP_SLOW],
                 },
             },
         ],

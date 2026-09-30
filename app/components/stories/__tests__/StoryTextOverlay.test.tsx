@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ 色や長さの値を happy-dom が正規化しない（jsdom は #ffd60a → rgb(...)、0 → 0px）。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";

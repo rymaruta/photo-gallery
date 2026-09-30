@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ <label> と入力欄の結び付けの判定が happy-dom では異なる。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";

@@ -8,7 +8,7 @@ import { pickDeployTargets, SHARED } from "../lib/deployTargets.mjs";
  * 書かれていない（vitest/eslint の推移依存に寄りかかることになる）
  * ——`deployConfig.test.ts` が同じ理由で避けている。最初 `js-yaml` で
  * 書いたら、**ルートの `tsc` が型定義を見つけられずに落ち**、
- * `photoIndexParity.test.ts`（中で `tsc` を走らせる）まで巻き添えで
+ * `photoIndexParity.slow.test.ts`（中で `tsc` を走らせる）まで巻き添えで
  * 落ちた。素のテキストで読む。
  */
 const WF = readFileSync(

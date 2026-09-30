@@ -30,6 +30,56 @@ for (const k of [
 process.env.AWS_REGION ??= "ap-northeast-1";
 
 /**
+ * **happy-dom を jsdom と同じ前提に揃える**（DOM のテストの既定は happy-dom・
+ * `vitest.config.ts`）。揃えないと、テストが**黙って別のものを確かめる**:
+ *
+ * 1. **`matchMedia` を持たせない。** jsdom には無く、画面は「無ければスマホの形」に
+ *    倒している（`NotificationsBell.tsx`・`MiniPlayer.tsx` など）。happy-dom は
+ *    持っていて幅の既定が 1024 なので、`(min-width: 1024px)` が真になり、
+ *    モックしていないテストが**PC の形を描く**ようになる（レビューで指摘）。
+ *    テストが自分で `window.matchMedia` を置く場合はそちらが勝つ
+ * 2. **フォーカスできない要素には `focus()` を効かせない。** happy-dom は
+ *    `tabindex` の無い `div` にもフォーカスを入れる。jsdom は入れないので、
+ *    本番で効かない `.focus()`（`tabIndex` の付け忘れ）をテストが見逃さなかった。
+ *    判定は jsdom（HTML の「フォーカスできる領域」）に合わせる
+ */
+const happyWindow = typeof window !== "undefined"
+    ? (window as unknown as { happyDOM?: unknown; matchMedia?: unknown; HTMLElement: typeof HTMLElement })
+    : undefined;
+if (happyWindow?.happyDOM !== undefined) {
+    happyWindow.matchMedia = undefined;
+
+    const focusable = (el: HTMLElement): boolean => {
+        if (el.hasAttribute("tabindex")) return true;
+        if (el.isContentEditable || el.getAttribute("contenteditable") === "true") return true;
+        switch (el.tagName) {
+            case "A":
+            case "AREA":
+                return el.hasAttribute("href");
+            case "INPUT":
+                return (el as HTMLInputElement).type !== "hidden";
+            case "BUTTON":
+            case "SELECT":
+            case "TEXTAREA":
+            case "IFRAME":
+            case "SUMMARY":
+                return true;
+            case "AUDIO":
+            case "VIDEO":
+                return el.hasAttribute("controls");
+            default:
+                return false;
+        }
+    };
+    const proto = happyWindow.HTMLElement.prototype;
+    const original = proto.focus;
+    proto.focus = function (this: HTMLElement, options?: FocusOptions) {
+        if (!focusable(this)) return;
+        return original.call(this, options);
+    };
+}
+
+/**
  * 🔴 **テストをまたいで漏れる `popstate` を、ここで受け取り切る。**
  *
  * `window.history.back()` は**非同期**——jsdom は `popstate` をあとのタスクで
