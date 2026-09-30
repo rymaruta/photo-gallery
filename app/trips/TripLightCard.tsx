@@ -43,16 +43,34 @@ function localToday(): string | null {
 
 export default function TripLightCard({ plans, spots, en }: { plans: readonly TripPlan[]; spots: Record<string, SpotRef>; en: boolean }) {
     const [shown, setShown] = React.useState<Shown | null>(null);
+    // 今日（端末の暦）。**画面に戻ったときに確かめ直す**——ホーム画面から開く形は裏に回しても
+    // ページが生きたまま残るので、前日の夜に開いたまま朝に戻ると「明日」のままだった
+    const [today, setToday] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        const check = () => {
+            if (document.visibilityState !== "visible") return;
+            setToday((prev) => {
+                const now = localToday();
+                return now === prev ? prev : now;
+            });
+        };
+        check();
+        document.addEventListener("visibilitychange", check);
+        return () => document.removeEventListener("visibilitychange", check);
+    }, []);
     // 変わったときだけ読み直す（プランの中身を文字にして比べる）
     const key = JSON.stringify(plans.map((p) => [p.planId, p.startDate, p.endDate, p.days]));
 
     React.useEffect(() => {
-        const today = localToday();
         let alive = true;
         (async () => {
             if (!today) return;
-            for (const plan of plans) {
-                for (const cand of tripLightCandidates(plan, today)) {
+            // **今日の予定を先に**——プランの並びで外側を回すと、一覧の上にある「明日出発」のプランが
+            // 別のプランの「今日」より先に出ていた。今日の候補を全部のプランから先に、明日はその後
+            const all = plans.flatMap((plan) => tripLightCandidates(plan, today).map((cand) => ({ plan, cand })));
+            all.sort((a, b) => Number(a.cand.isTomorrow) - Number(b.cand.isTomorrow));
+            for (const { plan, cand } of all) {
+                {
                     for (const spotId of cand.spotIds) {
                         const slug = spots[spotId]?.slug;
                         if (!slug) continue;
@@ -85,7 +103,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
         };
         // `key` がプランの中身を表す（plans の参照が毎回変わっても読み直さない）
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key, spots]);
+    }, [key, spots, today]);
 
     if (!shown) return null;
     const [m, d] = [Number(shown.ymd.slice(5, 7)), Number(shown.ymd.slice(8, 10))];
@@ -101,7 +119,11 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
                 {en ? `${when} · Day ${shown.dayNumber} · ${m}/${d}` : `${when} · ${shown.dayNumber}日目 · ${m}/${d}`}
             </p>
             <h2 id="trip-light-title" className="m-0 mt-1 font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>
-                <Link href={`/spots/${shown.slug}`} prefetch={false} className="hover:underline underline-offset-4">{shown.name}</Link>
+                {/* リンクは真鍮・下線（押せると分かる）。的は 44px（見た目の行は 24px のまま） */}
+                <Link href={`/spots/${shown.slug}`} prefetch={false}
+                      className="inline-flex items-center min-h-[44px] text-accent underline underline-offset-4 decoration-1 hover:text-accent-strong">
+                    {shown.name}
+                </Link>
             </h2>
             <dl className="m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5" style={{ fontSize: "14px", lineHeight: "20px" }}>
                 {rows.map(([label, value]) => (

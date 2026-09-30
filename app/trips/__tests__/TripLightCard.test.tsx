@@ -83,6 +83,34 @@ describe("旅行プランの当日モード", () => {
         expect(r2.container.textContent).toBe("");
     });
 
+    it("プランが複数あっても今日の予定が先（一覧の上に明日出発のプランがあっても）", async () => {
+        vi.setSystemTime(new Date("2026-10-10T03:00:00Z"));
+        const tomorrowTrip = { ...plan("2026-10-11", "2026-10-12", [["sp_s"], []]), planId: "b" };
+        const todayTrip = { ...plan("2026-10-09", "2026-10-10", [[], ["sp_g"]]), planId: "a" };
+        render(<TripLightCard plans={[tomorrowTrip, todayTrip]} spots={SPOTS} en={false} />);
+        const card = await screen.findByTestId("trip-light");
+        expect(card.textContent).toContain("今日 · 2日目");
+        expect(card.textContent).toContain("銀山温泉");
+    });
+
+    it("開いたまま日付が変わって戻ってきたら、今日に切り替わる", async () => {
+        vi.setSystemTime(new Date("2026-10-09T03:00:00Z"));
+        render(<TripLightCard plans={[plan("2026-10-10", "2026-10-11", [["sp_g"], []])]} spots={SPOTS} en={false} />);
+        expect((await screen.findByTestId("trip-light")).textContent).toContain("明日 · 1日目");
+        vi.setSystemTime(new Date("2026-10-10T03:00:00Z"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await waitFor(() => expect(screen.getByTestId("trip-light").textContent).toContain("今日 · 1日目"));
+    });
+
+    it("スポット名はリンクと分かる形（真鍮・下線）で、的は 44px", async () => {
+        vi.setSystemTime(new Date("2026-10-09T03:00:00Z"));
+        render(<TripLightCard plans={[plan("2026-10-10", "2026-10-11", [["sp_g"], []])]} spots={SPOTS} en={false} />);
+        const link = await screen.findByRole("link", { name: "銀山温泉" });
+        expect(link.className).toContain("text-accent");
+        expect(link.className).toContain("underline");
+        expect(link.className).toContain("min-h-[44px]");
+    });
+
     it("1件目が読めなければ次の撮影スポットへ", async () => {
         vi.setSystemTime(new Date("2026-10-10T03:00:00Z"));
         const spots = { ...SPOTS, sp_x: { slug: "missing", name: "無い" } };
