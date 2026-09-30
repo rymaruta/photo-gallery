@@ -79,7 +79,7 @@ export function sameLocation(a?: string, b?: string): boolean {
  *
  * 条件は「**写真の撮影地が、ページの見出しと同じか、より細かい**」。
  *
- * `sameLocation` は対称（`a.includes(b) || b.includes(a)`）なので、
+ * `sameLocation` は対称（名前として含むかを両向きに見る）なので、
  * 集約ページに使うと**広い方の写真が狭いページに載る**:
  *
  *     ページ「フィンランド」        ← 写真「ヘルシンキ, フィンランド」   ○ 正しい
@@ -101,7 +101,7 @@ export function photoIsInLocation(photoLocation?: string, pageLabel?: string): b
     const photo = normalizeLocation(photoLocation);
     const page = normalizeLocation(pageLabel);
     if (photo.length < 2 || page.length < 2) return false;
-    // 空白の入れ方だけが違う同じ名前（「パリ,フランス」と「パリ, フランス」）は同じ
+    // 空白の有無で語の割れ方が変わる同じ名前（「東京渋谷」と「東京 渋谷」）は同じ
     return photo === page || locationContains(photoLocation, pageLabel);
 }
 

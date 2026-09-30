@@ -6,7 +6,7 @@ import type { Photo } from "../../data/photos";
 /**
  * **集約ページの「この撮影地の写真」には向きが要る。**
  *
- * `sameLocation` は対称（`a.includes(b) || b.includes(a)`）で、写真ページの
+ * `sameLocation` は対称（名前として含むかを両向きに見る）で、写真ページの
  * 回遊（近くの写真を並べる）にはそれでよい。だが集約ページに使うと、
  * **広い方の写真が狭いページに載る**:
  *
@@ -129,6 +129,18 @@ describe("撮影地は名前として含むときだけ当てる（字の途中�
         expect(photoIsInLocation("兵庫県神戸市", "兵庫県")).toBe(true);
         expect(photoIsInLocation("福岡県福岡市", "福岡")).toBe(true);
         expect(photoIsInLocation("宮崎県西臼杵郡", "宮崎県")).toBe(true);
+        expect(photoIsInLocation("北海道札幌市", "札幌")).toBe(true);
+        expect(photoIsInLocation("西臼杵郡高千穂町", "高千穂")).toBe(true);
+    });
+
+    it("最初に当たった位置が名前の途中でも、後ろで名前として当たれば含む", () => {
+        expect(photoIsInLocation("福岡八宮町福岡", "福岡")).toBe(true);
+        expect(photoIsInLocation("福岡八宮福岡市", "福岡")).toBe(false);
+    });
+
+    it("空白の有無で語の割れ方が変わる同じ名前は同じ", () => {
+        expect(photoIsInLocation("東京渋谷", "東京 渋谷")).toBe(true);
+        expect(photoIsInLocation("東京 渋谷", "東京渋谷")).toBe(true);
     });
 
     it("別の地名の一部には当てない", () => {
