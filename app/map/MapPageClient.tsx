@@ -81,15 +81,27 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
      * 絞られ、スポットの一覧とピンは全件のまま残っていた。**件数は写真と混ぜない**
      */
     // 名前の索引（読み・英語名・別名まで）。語が入ったときだけ取りに行く（「さがす」と共有）
-    const spotIndex = useSpotSearchIndex(query);
+    const { rows: spotIndex, pending: spotIndexPending } = useSpotSearchIndex(query);
     const indexMatches = useMemo(
         () => (spotIndex && query.trim() ? new Set(searchSpotRows(spotIndex, query).map((r) => r.s)) : null),
         [spotIndex, query],
     );
+    // 一覧と件数に使う（選んでいるスポットは足さない＝絞り込みの結果そのもの）
     const shownSpots = useMemo(
-        () => filterMapSpots(spots, { query, category, area, indexMatches, keep: spotSlug }),
-        [spots, query, category, area, indexMatches, spotSlug],
+        () => filterMapSpots(spots, { query, category, area, indexMatches }),
+        [spots, query, category, area, indexMatches],
     );
+    /**
+     * 地図のピン。**選んでいるスポットは絞り込みで外れても残す**（ピンが消えてシートだけ
+     * 残る、を作らない）。**含まれていれば同じ配列を返す**——配列が変わると地図は全部の
+     * ピンを描き直し、押したピンのフォーカスが落ちる（選ぶたびに描き直さない）
+     */
+    const pinSpots = useMemo(() => {
+        if (!spotSlug || shownSpots.some((s) => s.slug === spotSlug)) return shownSpots;
+        const kept = spots.find((s) => s.slug === spotSlug);
+        return kept ? [...shownSpots, kept] : shownSpots;
+    }, [shownSpots, spotSlug, spots]);
+
     const onSelect = useCallback((s: MapSelection | null) => {
         setSelection(s ? { ids: s.photos.map((p) => p.id), index: s.index } : null);
         if (s) setSpotSlug(null);
@@ -301,6 +313,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                                 spots={shownSpots}
                                 total={spots.length}
                                 categoryActive={category !== "all"}
+                                searching={spotIndexPending}
                                 locale={locale}
                             />
                         </div>
@@ -344,7 +357,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                             onSearchArea={onSearchArea}
                             areaActive={!!area}
                             sheetOpen={!!sheet || !!spotSheet}
-                            spots={shownSpots}
+                            spots={pinSpots}
                             onSelectSpot={onSelectSpot}
                             selectedSpotSlug={spotSheet?.slug ?? null}
                             className="h-[62vh] min-h-[min(320px,calc(100dvh_-_var(--header-h)_-_var(--bottom-bar-h,84px)_-_24px))] lg:h-[calc(100vh-200px)] lg:min-h-[480px]"

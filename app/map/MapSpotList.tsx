@@ -31,13 +31,15 @@ import { ROUTES } from "../../lib/routes";
  *  写真の一覧に届かない。絞り込み（語・範囲）で減らすのが本筋で、残りは押して足す */
 const PAGE = 30;
 
-export default function MapSpotList({ spots, total = spots.length, categoryActive = false, locale }: {
+export default function MapSpotList({ spots, total = spots.length, categoryActive = false, searching = false, locale }: {
     /** 絞り込み（語・カテゴリ・範囲）を通したあとのスポット */
     spots: readonly SpotPin[];
     /** 絞る前の件数（0 なら台帳が空＝節ごと出さない） */
     total?: number;
     /** 写真のカテゴリで絞っている（スポットは出さない・`filterMapSpots`） */
     categoryActive?: boolean;
+    /** 名前の索引を待っている（読み・英語名で当たるかまだ分からない） */
+    searching?: boolean;
     locale: "ja" | "en";
 }) {
     const en = locale === "en";
@@ -59,7 +61,9 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                     {categoryActive
                         ? (en ? "Categories filter photos only, so spots are hidden. Choose “All” to see spots."
                             : "カテゴリは写真の分類なので、絞っている間は撮影スポットを出していません。「すべて」に戻すと出ます。")
-                        : (en ? "No spots match the search or area." : "検索語や範囲に当たる撮影スポットはありません。")}
+                        : searching
+                            ? (en ? "Searching spots…" : "撮影スポットを探しています…")
+                            : (en ? "No spots match the search or area." : "検索語や範囲に当たる撮影スポットはありません。")}
                 </p>
             </section>
         );

@@ -158,14 +158,11 @@ export function filterMapSpots<T extends MapSpotLike>(
         query = "", category = "all", area = null as MapBounds | null,
         /** 名前の索引（`searchSpotRows`）で当たった綴り。読み・英語名・別名でも当てるため（届く前は無し） */
         indexMatches = null as ReadonlySet<string> | null,
-        /** 選んでいるスポット。**絞り込みで落とさない**（ピンが消えてシートだけ残る、を作らない） */
-        keep = null as string | null,
     } = {},
 ): T[] {
+    if (category !== "all") return [];
     const q = normalizeSpotName(query);
     return spots.filter((s) => {
-        if (keep && s.slug === keep) return true;
-        if (category !== "all") return false;
         const hit = !q || normalizeSpotName(s.name).includes(q) || normalizeSpotName(s.region).includes(q)
             || !!indexMatches?.has(s.slug);
         return hit && (!area || isInBounds({ lat: s.lat, lng: s.lng }, area));

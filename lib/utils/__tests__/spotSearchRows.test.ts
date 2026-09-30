@@ -61,6 +61,10 @@ describe("filterMapSpots", () => {
     it("写真のカテゴリで絞っている間は出さない", () => {
         expect(filterMapSpots(PINS, { category: "風景" })).toEqual([]);
     });
+    it("名前の索引で当たった綴りも残す（読み・英語名・別名）", () => {
+        expect(filterMapSpots(PINS, { query: "ぎんざん", indexMatches: new Set(["ginzan-onsen"]) }).map((p) => p.slug)).toEqual(["ginzan-onsen"]);
+        expect(filterMapSpots(PINS, { query: "ぎんざん" })).toEqual([]);
+    });
     it("範囲の中だけ", () => {
         expect(filterMapSpots(PINS, { area: { south: 38, west: 140, north: 39, east: 141 } }).map((p) => p.slug)).toEqual(["ginzan-onsen"]);
     });

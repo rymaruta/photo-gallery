@@ -33,15 +33,26 @@ export function loadSpotSearchIndex(): Promise<SpotSearchRow[] | null> {
     return cache;
 }
 
-/** 語が入っていれば索引を返す（届くまでは null） */
-export function useSpotSearchIndex(query: string): SpotSearchRow[] | null {
-    const want = query.trim().length > 0;
+/**
+ * 語が入っていれば索引を返す（届くまでは `rows: null`）。
+ * `pending` は「語はあるが、索引を待っている」——失敗したらその語では待たない
+ * （待ち続けると「探しています…」が消えない）
+ */
+export function useSpotSearchIndex(query: string): { rows: SpotSearchRow[] | null; pending: boolean } {
+    const q = query.trim();
     const [rows, setRows] = useState<SpotSearchRow[] | null>(null);
+    /** 取りに行って失敗した語（その語では待たない。打ち足せば取り直す） */
+    const [failedFor, setFailedFor] = useState<string | null>(null);
+    // **語が変わるたびに見直す**（失敗は控えないので、打ち足せば取り直す）。
+    // 取れたあとは `rows` があるので何もしない
     useEffect(() => {
-        if (!want || rows) return;
+        if (!q || rows) return;
         let alive = true;
-        void loadSpotSearchIndex().then((r) => { if (alive && r) setRows(r); });
+        void loadSpotSearchIndex().then((r) => {
+            if (!alive) return;
+            if (r) setRows(r); else setFailedFor(q);
+        });
         return () => { alive = false; };
-    }, [want, rows]);
-    return rows;
+    }, [q, rows]);
+    return { rows, pending: !!q && !rows && failedFor !== q };
 }

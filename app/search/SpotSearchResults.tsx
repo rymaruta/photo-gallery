@@ -31,7 +31,7 @@ const INITIAL = 5;
 export default function SpotSearchResults({ query, locale }: { query: string; locale: string }) {
     const en = locale === "en";
     const q = query.trim();
-    const rows = useSpotSearchIndex(q);
+    const { rows } = useSpotSearchIndex(q);
     /** 開いた語。**語が変わったら自然に畳まれる**（effect で戻さない） */
     const [expandedFor, setExpandedFor] = useState<string | null>(null);
     const expanded = expandedFor === q;

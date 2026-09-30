@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, act, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
@@ -22,6 +22,8 @@ const mapProps = vi.hoisted(() => ({
     areaActive: false,
     sheetOpen: false,
     spotSlugs: [] as string[],
+    /** 地図に渡したスポットの配列そのもの（同じ配列か＝描き直さないかを見る） */
+    spotsArray: null as unknown,
     selectSpot: null as null | ((slug: string) => void),
     selectedSpotSlug: null as string | null,
 }));
@@ -42,6 +44,7 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
             mapProps.areaActive = !!areaActive;
             mapProps.sheetOpen = !!sheetOpen;
             mapProps.spotSlugs = (spots ?? []).map((sp) => sp.slug);
+            mapProps.spotsArray = spots;
             mapProps.selectSpot = onSelectSpot ?? null;
             mapProps.selectedSpotSlug = selectedSpotSlug ?? null;
             return <div data-testid="photo-map">map:{photos.length}</div>;
@@ -682,19 +685,57 @@ describe("公式撮影地ガイドのピン", () => {
             expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
             await typeQuery("Ginzan");
             expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
-            vi.unstubAllGlobals();
         });
 
         // cfc451eb のレビュー 2: 選んだ場所を見失わせない
-        it("選んでいるスポットは、絞り込みで外れてもピンを残す（シートだけ残さない）", async () => {
+        it("選んでいるスポットは、絞り込みで外れてもピンを残す（シートだけ残さない）・一覧と件数には足さない", async () => {
             photosState.current = [P("a")];
             ledger.pins = [PIN, GINZAN];
             render(<MapPage />);
             await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
             await typeQuery("銀山温泉");
-            expect(mapProps.spotSlugs.sort()).toEqual(["ginzan-onsen", "takaya-jinja"]);
+            expect([...mapProps.spotSlugs].sort()).toEqual(["ginzan-onsen", "takaya-jinja"]);
             expect(screen.getByTestId("map-spot-sheet")).toBeTruthy();
+            expect(within(screen.getByTestId("map-spot-list")).queryByText("高屋神社")).toBeNull();
+            expect(screen.getByTestId("map-spot-count").textContent).toBe("撮影スポット 2か所中 1か所を表示");
         });
+
+        it("カテゴリで絞っている間は、選んだピンだけ残し、一覧は理由を言う", async () => {
+            photosState.current = [{ ...P("a"), category: "風景" } as Photo];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            fireEvent.click(screen.getByRole("switch", { name: "風景" }));
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("カテゴリは写真の分類");
+        });
+
+        // 1b658978 のレビュー 2: 選ぶたびに地図へ新しい配列を渡すと、全部のピンが描き直される
+        it("表示中のスポットを選んでも、地図に渡す配列は変わらない（描き直さない）", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            const before = mapProps.spotsArray;
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            expect(mapProps.spotsArray).toBe(before);
+        });
+
+        // 1b658978 のレビュー: 索引を待つ間は「無い」と言わない・失敗したら待ち続けない
+        it("名前の索引を待つ間は「探しています」、取れなければ「当たらない」と言う", async () => {
+            const { resetSpotSearchIndex } = await import("../../../lib/hooks/useSpotSearchIndex");
+            resetSpotSearchIndex();
+            let release: (v: unknown) => void = () => {};
+            vi.stubGlobal("fetch", vi.fn(() => new Promise((r) => { release = r; })));
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            await typeQuery("ぎんざん");
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("探しています");
+            await act(async () => { release({ ok: false, json: async () => null }); await new Promise((r) => setTimeout(r, 20)); });
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("当たる撮影スポットはありません");
+        });
+
+        afterEach(() => { vi.unstubAllGlobals(); photosState.loaded = true; });
 
         it("写真がまだ届いていない間は、写真の一覧も「該当なし」と言わない", () => {
             photosState.current = [];

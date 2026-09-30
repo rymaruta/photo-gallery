@@ -56,6 +56,16 @@ describe("SpotSearchResults", () => {
         expect(screen.queryByTestId("search-spot-results")).toBeNull();
     });
 
+    // 1b658978 のレビュー 4: 失敗したら、打ち足したときに取り直す
+    it("索引の取得に失敗しても、語を打ち足せば取り直す", async () => {
+        fetchMock.mockResolvedValueOnce({ ok: false, json: async () => null });
+        const { rerender } = render(<SpotSearchResults query="銀山" locale="ja" />);
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        rerender(<SpotSearchResults query="銀山温泉" locale="ja" />);
+        expect(await screen.findByRole("link", { name: /銀山温泉/ })).toBeTruthy();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
     it("「人気」「評価」「枚数」を出さない", async () => {
         render(<SpotSearchResults query="山形" locale="ja" />);
         const sec = await screen.findByTestId("search-spot-results");

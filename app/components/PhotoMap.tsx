@@ -170,8 +170,10 @@ export default function PhotoMap({
     onSelectSpotRef.current = onSelectSpot;
     const selectedSpotRef = useRef(selectedSpotSlug);
     selectedSpotRef.current = selectedSpotSlug;
-    /** 写真0枚で地図を作った（あとから写真が届いたら一度だけ寄る） */
+    /** 写真0枚で地図を作った（あとから写真が届いたら一度だけ寄る・人が動かしたら取り消す） */
     const autoFitPendingRef = useRef(false);
+    const areaActiveRef = useRef(areaActive);
+    areaActiveRef.current = areaActive;
     /** 直前に選んでいたスポット（外したら束に戻すため描き直す） */
     const prevSelectedSpotRef = useRef<string | null>(null);
     /** 現在地。**state に置くだけで、保存も送信もしない** */
@@ -445,6 +447,10 @@ export default function PhotoMap({
                 // 写真0枚でも地図を作るので（`MapPageClient` の `nothingToShow`）、
                 // 作った時点で写真が無いと日本全体のまま止まっていた（2026-09-30 のレビュー）
                 autoFitPendingRef.current = true;
+                // **人が地図を動かしたら取り消す**（束を押して寄った・パンした・現在地へ飛んだ
+                // あとで、写真が届いたからと引き剥がさない）。上の `setView` の `movestart` は
+                // 同期で出終わっているので、ここで登録した listener には届かない
+                map.once("movestart zoomstart", () => { autoFitPendingRef.current = false; });
             }
             draw();
             map.on("zoomend", draw);
@@ -503,7 +509,8 @@ export default function PhotoMap({
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        if (autoFitPendingRef.current && photos.length > 0) {
+        // 「このエリアを検索」で範囲を決めている間は寄らない（範囲の指定と喧嘩しない）
+        if (autoFitPendingRef.current && photos.length > 0 && !areaActiveRef.current) {
             autoFitPendingRef.current = false;
             const b = boundsOf(photos.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
             if (b) map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
