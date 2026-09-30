@@ -54,6 +54,20 @@ describe("classifyStaleObjects（デプロイ時の削除判定）", () => {
         expect(kept).toBe(1);
     });
 
+    /// 🔴 過ぎた日の一問が、下書きに戻した場所の名前と写真を30日配り続けない
+    it("ビルドに無い今日の一問（app/data/quiz/*.json）は猶予なしで削除される", () => {
+        const { toDelete } = classifyStaleObjects(
+            ["app/data/quiz/2026-10-01.json"],
+            [
+                { key: "app/data/quiz/2026-10-01.json", lastModified: new Date(NOW - 1000) },
+                { key: "app/data/quiz/2026-09-20.json", lastModified: new Date(NOW - 1000) },
+            ],
+            NOW,
+            ASSET_GRACE_MS,
+        );
+        expect(toDelete).toEqual(["app/data/quiz/2026-09-20.json"]);
+    });
+
     it("ビルドに無い古いHTMLは即削除される（no-store配信のため安全）", () => {
         const { toDelete } = classifyStaleObjects(
             ["index.html"],

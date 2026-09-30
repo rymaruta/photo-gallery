@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDailyQuiz, dayNumber, datesFrom, fnv1a, regionLine, type QuizSpot } from "../dailyQuiz";
+import { buildDailyQuiz, dayNumber, datesFrom, fnv1a, mix32, quizScore, QUIZ_EPOCH, QUIZ_NO_REPEAT_DAYS, type QuizSpot } from "../dailyQuiz";
 
 const img = (id: string) => ({ url: `https://example.com/${id}.jpg`, author: "a", license: "CC BY-SA 4.0", pageUrl: "https://example.com" });
 const spot = (n: number, region: QuizSpot["region"], name = `場所${n}`): QuizSpot => {
@@ -25,11 +25,33 @@ describe("今日の一問の出題", () => {
         expect(b).toEqual(a);
     });
 
-    it("答えは spotId の順に日ごとに1件ずつ進む", () => {
-        const d = dayNumber("2026-10-01")!;
-        const sorted = [...pool].sort((x, y) => (x.spotId < y.spotId ? -1 : 1));
-        expect(buildDailyQuiz(pool, "2026-10-01")!.answer).toBe(sorted[d % sorted.length].spotId);
-        expect(buildDailyQuiz(pool, "2026-10-02")!.answer).toBe(sorted[(d + 1) % sorted.length].spotId);
+    it("起点の日の答えは点数がいちばん高い候補", () => {
+        const q = buildDailyQuiz(pool, QUIZ_EPOCH)!;
+        const top = [...pool].sort((a, b) => quizScore(dayNumber(QUIZ_EPOCH)!, b.spotId) - quizScore(dayNumber(QUIZ_EPOCH)!, a.spotId))[0];
+        expect(q.answer).toBe(top.spotId);
+    });
+
+    it("直近の答えは繰り返さない（候補が少なければ候補数−1日）", () => {
+        const days = datesFrom(QUIZ_EPOCH, 40);
+        const answers = days.map((d) => buildDailyQuiz(pool, d)!.answer);
+        const window = Math.min(QUIZ_NO_REPEAT_DAYS, pool.length - 1);
+        for (let i = 0; i < answers.length; i++) {
+            const prev = answers.slice(Math.max(0, i - window), i);
+            expect(prev, days[i]).not.toContain(answers[i]);
+        }
+        // 大きな候補でも30日は重ならない
+        const big = Array.from({ length: 200 }, (_, n) => spot(n + 1, YAMAGATA));
+        const a2 = datesFrom("2026-10-01", 61).map((d) => buildDailyQuiz(big, d)!.answer);
+        for (let i = 0; i < a2.length; i++) expect(a2.slice(Math.max(0, i - 30), i)).not.toContain(a2[i]);
+    });
+
+    it("🔴 候補を1件足しても、ほとんどの日の答えは変わらない（公開した回のデプロイで問題が差し替わらない）", () => {
+        const big = Array.from({ length: 300 }, (_, n) => spot(n + 1, YAMAGATA));
+        const days = datesFrom("2026-10-01", 61);
+        const before = days.map((d) => buildDailyQuiz(big, d)!.answer);
+        const after = days.map((d) => buildDailyQuiz([...big, spot(999, YAMAGATA)], d)!.answer);
+        const changed = before.filter((a, i) => a !== after[i]).length;
+        expect(changed).toBeLessThan(10);
     });
 
     it("選択肢は4つ・重複なし・正解を含み・写真は正解のもの", () => {
@@ -88,10 +110,17 @@ describe("今日の一問の出題", () => {
         expect(buildDailyQuiz(pool, "2026-10-1")).toBeNull();
     });
 
-    it("写真の無い行・重複した ID は数えない", () => {
+    it("写真の無い行は数えない", () => {
         const noImg = { ...spot(20, YAMAGATA), image: { ...img("x"), url: "" } };
-        const p = [...pool.slice(0, 3), noImg, pool[0]];
-        expect(buildDailyQuiz(p, "2026-10-01")).toBeNull();
+        expect(buildDailyQuiz([...pool.slice(0, 3), noImg], "2026-10-01")).toBeNull();
+    });
+
+    it("同じ ID が2行あっても、どちらを残すかは並びに左右されない", () => {
+        const a = pool.slice(0, 6);
+        const twin = a.map((s) => ({ ...s, image: { ...s.image, url: s.image.url.replace(".jpg", "-b.jpg") } }));
+        for (const ymd of datesFrom("2026-10-01", 10)) {
+            expect(buildDailyQuiz([...twin, ...a], ymd), ymd).toEqual(buildDailyQuiz([...a, ...twin], ymd));
+        }
     });
 });
 
@@ -101,6 +130,7 @@ describe("出題の道具", () => {
         expect(dayNumber("1970-01-02")).toBe(1);
         expect(dayNumber("2024-02-29")).not.toBeNull();
         expect(dayNumber("2025-02-29")).toBeNull();
+        expect(dayNumber("0050-01-01")).toBeNull();
     });
 
     it("datesFrom は月・年をまたぐ", () => {
@@ -114,9 +144,8 @@ describe("出題の道具", () => {
         expect(fnv1a("a")).toBe(0xe40c292c);
     });
 
-    it("regionLine は海外なら国から", () => {
-        expect(regionLine({ prefecture: "山形県", city: "尾花沢市" })).toBe("山形県 尾花沢市");
-        expect(regionLine({ country: "フランス", city: "パリ" })).toBe("フランス パリ");
-        expect(regionLine({ country: "日本", prefecture: "京都府" })).toBe("京都府");
+    it("mix32 は既知の値（アプリも同じ式）", () => {
+        expect(mix32(0)).toBe(0);
+        expect(mix32(1)).toBe(0x514e28b7);
     });
 });

@@ -39,6 +39,10 @@ export function quizDates(now: Date = new Date()): string[] {
     return datesFrom(yesterday, QUIZ_DAYS_AHEAD + 1);
 }
 
-export function dailyQuizFor(ymd: string, items: readonly SpotFeedItem[] = spotIndexFeed()): DailyQuiz | null {
-    return buildDailyQuiz(quizPool(items), ymd);
+/** 実際の候補。ビルドの間は台帳が変わらないので1回だけ作る（日ごとに索引を作り直さない） */
+let cachedPool: QuizSpot[] | null = null;
+
+export function dailyQuizFor(ymd: string, items?: readonly SpotFeedItem[]): DailyQuiz | null {
+    const pool = items ? quizPool(items) : (cachedPool ??= quizPool(spotIndexFeed()));
+    return buildDailyQuiz(pool, ymd);
 }

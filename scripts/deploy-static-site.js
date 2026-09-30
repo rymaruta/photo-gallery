@@ -279,9 +279,11 @@ const ASSET_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30日（コスト僅少・�
  *   下書きに戻した場所の本文が30日配られ続けると、Web のページは消えたのに
  *   アプリ（圏外の控えの索引から取りに行く）だけ確かめていない文を出す。
  *   参照する古い HTML は無いので、猶予を置く理由が無い
+ * - **今日の一問**（`app/data/quiz/<日付>.json`・2026-09-30）。同じ理由——下書きに戻した
+ *   場所の名前と写真を、過ぎた日のファイルが30日配り続けない。読むのは「今日」だけ
  */
 function deletesImmediately(key) {
-    return isHtmlOrTxt(key) || key.startsWith("app/data/spots/");
+    return isHtmlOrTxt(key) || key.startsWith("app/data/spots/") || key.startsWith("app/data/quiz/");
 }
 
 // 削除対象の判定（純関数・テスト対象）。
