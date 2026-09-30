@@ -62,6 +62,21 @@ const many = (field: "location" | "category", n: number) =>
         photo(`p${i}`, { [field]: `場所${Math.floor(i / 2)}` } as Partial<Photo>));
 
 describe("柱の中身", () => {
+    // 2026-09-30 のレビュー: 長い住所を見出しにしない・地域の束は「地域」と名乗る
+    it("撮影地のタイルは具体的な部分を見出しに・地域は2行目に", () => {
+        const { container } = render(<DiscoverRail photos={[
+            photo("a", { location: "茨城県 ひたちなか市 国営ひたち海浜公園" }),
+            photo("b", { location: "パリ" }),
+        ]} locale="ja" categoryDisplayMap={{}} />);
+        const tiles = [...container.querySelectorAll('a[href*="/location/"], a[href*="/search"]')];
+        const park = tiles.find((a) => (a.textContent ?? "").includes("海浜公園"))!;
+        const spans = [...park.querySelectorAll("span")].map((s) => s.textContent);
+        expect(spans).toContain("国営ひたち海浜公園");
+        expect(spans).toContain("茨城県 ひたちなか市・1枚");
+        const paris = tiles.find((a) => (a.textContent ?? "").includes("パリ"))!;
+        expect([...paris.querySelectorAll("span")].map((s) => s.textContent)).toContain("地域・1枚");
+    });
+
     it("カテゴリ・撮影地・機材の3つの節を出す", () => {
         const { container } = draw([
             photo("a", { category: "landscape", location: "パリ", exif: { camera: "SONY ILCE-7M3" } }),

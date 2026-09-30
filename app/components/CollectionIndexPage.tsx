@@ -16,6 +16,7 @@ import {
     type CollectionType,
 } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
+import { placeParts } from "@/lib/utils/placeName";
 import { siteConfig, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
@@ -82,6 +83,9 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
                 {/* **全部並べる**（`collectEntries` の順＝枚数の多い順）。
                     枚数を添えるのは、押す前にどれが厚いページか分かるようにするため
                     ——`CollectionPageClient` の相互リンクと同じ形に揃えてある */}
+                {type === "location" ? (
+                    <LocationGroups entries={entries} />
+                ) : (
                 <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                     {entries.map((e) => (
                         <li key={e.slug}>
@@ -99,6 +103,7 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
                         </li>
                     ))}
                 </ul>
+                )}
 
                 {/* **検索に載る線を、読む人にも書いておく。** 枚数の少ないページは
                     `noindex` だがサイト内からは見られる（`isIndexableCollection`）。
@@ -107,6 +112,50 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
                     {`検索に載せているのは ${entries.filter((e) => isIndexableCollection(e.count, type)).length} 件です（写真が少ないページはサイト内からのみ）。`}
                 </p>
             </main>
+        </>
+    );
+}
+
+/**
+ * **撮影地の索引は「地域」と「場所」に分けて並べる**（2026-09-30 のレビュー: 「フランス」
+ * 「パリ」「フランス ヴェルサイユ」が同じ一覧に並び、地域の写真の束と具体的な撮影地の
+ * 違いが伝わらない・長い住所がそのまま見出しになる）。
+ *
+ * 見出しは具体的な部分だけ（`placeParts`）、地域はその後ろに小さく添える。
+ * **行き先は元の文字列のスラッグのまま**（`collectionPath`）——共有 URL・保存済みの場所は変わらない。
+ * 分け方は文字列からの推定なので、「場所」を公式の撮影スポットとは名乗らない。
+ */
+function LocationGroups({ entries }: { entries: { slug: string; label: string; count: number }[] }) {
+    const rows = entries.map((e) => ({ ...e, parts: placeParts(e.label) }));
+    const areas = rows.filter((r) => r.parts.kind !== "place");
+    const places = rows.filter((r) => r.parts.kind === "place");
+    const group = (id: string, title: string, note: string, list: typeof rows) => list.length > 0 && (
+        <section aria-labelledby={id} className="mb-6">
+            <h2 id={id} className="m-0 font-serif font-bold text-white" style={{ fontSize: "16px", lineHeight: "24px" }}>{title}</h2>
+            <p className="m-0 mb-2 text-white/70" style={{ fontSize: "13px", lineHeight: "20px" }}>{note}</p>
+            <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
+                {list.map((e) => (
+                    <li key={e.slug}>
+                        <Link
+                            href={collectionPath("location", e.slug)}
+                            prefetch={false}
+                            title={e.label}
+                            className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/85 hover:bg-white/10 hover:text-white transition-colors"
+                            style={{ touchAction: "manipulation" }}
+                        >
+                            {e.parts.title}
+                            {e.parts.context && <span className="text-white/60 text-xs">{e.parts.context}</span>}
+                            <span className="text-white/60 text-xs">{e.count}</span>
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+    return (
+        <>
+            {group("loc-places", "場所", "撮影した場所の名前で集めた写真", places)}
+            {group("loc-areas", "地域", "国・都道府県・市区町村の名前で集めた写真（その地域の中のいろいろな場所を含みます）", areas)}
         </>
     );
 }

@@ -38,7 +38,7 @@ const AI = {
     status: "published" as const,
     aiCheck: { checkedAt: "2026-09-26", delegatedBy: "rymaruta", sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }] },
 };
-const ALLOWED = ["spotId", "slug", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
+const ALLOWED = ["spotId", "slug", "name", "coords", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
     "compositionTips", "officialWebsiteUrl", "check"];
 
 describe("アプリ向けの本文", () => {
@@ -70,7 +70,7 @@ describe("アプリ向けの本文", () => {
     it("空の項目は鍵ごと出さない", () => {
         const body = toSpotBody(spot("e", { ...HUMAN, timeOfDayGuide: [], description: "  ",
             compositionTips: undefined }))!;
-        expect(Object.keys(body).sort()).toEqual(["check", "highlights", "officialWebsiteUrl", "seasonalGuide", "slug", "spotId"]);
+        expect(Object.keys(body).sort()).toEqual(["check", "coords", "highlights", "name", "officialWebsiteUrl", "seasonalGuide", "slug", "spotId"]);
     });
 
     it("route は force-static・知らない名前は出さない・同じ文字列を JSON で返す", async () => {

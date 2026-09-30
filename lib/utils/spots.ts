@@ -42,19 +42,57 @@ export function searchSpotsByName(spots: Spot[], query: string, limit = 20): Spo
     if (q.length < 1) return [];
     const scored: Array<{ spot: Spot; rank: number }> = [];
     for (const spot of spots) {
-        const names = [spot.name, ...(spot.aliases ?? [])].map(normalizeSpotName);
-        let rank = -1;
-        for (const name of names) {
-            if (name === q) { rank = 0; break; }
-            if (name.startsWith(q)) { rank = Math.min(rank < 0 ? 1 : rank, 1); continue; }
-            if (name.includes(q)) rank = rank < 0 ? 2 : rank;
-        }
+        const rank = rankByNames([spot.name, ...(spot.aliases ?? [])], q);
         if (rank >= 0) scored.push({ spot, rank });
     }
     return scored
         .sort((a, b) => (a.rank !== b.rank ? a.rank - b.rank : a.spot.name.localeCompare(b.spot.name)))
         .slice(0, limit)
         .map((s) => s.spot);
+}
+
+/**
+ * 名前の並びに対する当たり方。完全一致 0・前方一致 1・部分一致 2・外れ -1
+ * （`searchSpotsByName` と `searchSpotRows` が共有する——同じ語で並びが割れないように）
+ */
+function rankByNames(names: readonly (string | undefined)[], q: string): number {
+    let rank = -1;
+    for (const raw of names) {
+        const name = normalizeSpotName(raw);
+        if (!name) continue;
+        if (name === q) return 0;
+        if (name.startsWith(q)) { rank = rank < 0 ? 1 : Math.min(rank, 1); continue; }
+        if (name.includes(q)) rank = rank < 0 ? 2 : rank;
+    }
+    return rank;
+}
+
+/**
+ * 「さがす」が読む名前だけの索引の1行（`/app/data/spot-search.json`・`lib/data/spotSearchFeed.ts`）。
+ * 鍵は短く（1,000行ぶん乗る）: 綴り・名前・英語名・読み・別名・地域
+ */
+export type SpotSearchRow = { s: string; n: string; e?: string; r?: string; a?: string[]; g?: string };
+
+/**
+ * 名前だけの索引を語で引く（「さがす」の撮影スポットの節）。
+ *
+ * 名前・英語名・読み・別名で当たったものが先（完全 → 前方 → 部分）、
+ * **地域だけで当たったもの**（「山形」で山形県のスポット）はその後ろ。
+ * 同じ段の中は渡された順（台帳の順）——枚数や人気で並べない
+ */
+export function searchSpotRows(rows: readonly SpotSearchRow[], query: string, limit = Infinity): SpotSearchRow[] {
+    const q = normalizeSpotName(query);
+    if (!q) return [];
+    const scored: Array<{ row: SpotSearchRow; rank: number; i: number }> = [];
+    rows.forEach((row, i) => {
+        let rank = rankByNames([row.n, row.e, row.r, ...(row.a ?? [])], q);
+        if (rank < 0 && normalizeSpotName(row.g).includes(q)) rank = 3;
+        if (rank >= 0) scored.push({ row, rank, i });
+    });
+    return scored
+        .sort((a, b) => a.rank - b.rank || a.i - b.i)
+        .slice(0, limit)
+        .map((x) => x.row);
 }
 
 /**

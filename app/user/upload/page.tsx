@@ -28,6 +28,7 @@ import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTags, TAG_SEPARATOR, type OwnValues } from "../../../lib/utils/ownValues";
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
+import { readSpotParam, spotBodyUrl, parseSpotBody, coversSpot, spotIdToSend, type SpotUploadTarget } from "../../../lib/utils/spotUpload";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
@@ -96,6 +97,11 @@ type Item = {
     // オブジェクトが増える（どの削除経路も DynamoDB の項目からキーを
     // 引くので、項目の無いオブジェクトには永久に手が届かない）。
     uploaded?: { key: string; publicUrl: string; thumbUrl?: string };
+    /**
+     * EXIF（撮影日・位置）を読み終えたか。**読む前の写真は位置が「無い」のではなく
+     * 「まだ分からない」**——撮影スポットの判定（近くで撮ったか）はこれが立ってから
+     */
+    metaRead?: boolean;
 };
 
 /** 前回のサムネを使い回すときにアップロード処理を飛ばすための合図 */
@@ -157,6 +163,62 @@ function UploadPageInner() {
      * 「どこに入れるつもりか」を運ぶだけで、権限の判断はしていない。
      */
     const albumId = searchParams?.get("album") || "";
+    /**
+     * **撮影スポットの画面から来た**（`?spot=<slug>`）。名前・ID・座標は本文 JSON から
+     * 読む（`lib/utils/spotUpload.ts`）。どの写真に付けるかは保存の瞬間に写真ごとに決める。
+     * 「外す」で `null` に戻す（URL からも消す——再読込で戻ってこないように）
+     */
+    const spotSlug = readSpotParam(searchParams?.get("spot"));
+    const [spot, setSpot] = useState<SpotUploadTarget | null>(null);
+    /** 本文 JSON を読めなかった（黙って紐付けずに上げると、並ばない理由が分からない） */
+    const [spotFailed, setSpotFailed] = useState(false);
+    /** 取り込み（`addFiles`）はマウント時の閉包を掴む経路があるので、ref からも読む */
+    const spotRef = useRef<SpotUploadTarget | null>(null);
+    spotRef.current = spot;
+    useEffect(() => {
+        if (!spotSlug) return;
+        let alive = true;
+        void (async () => {
+            try {
+                const res = await fetch(spotBodyUrl(spotSlug));
+                const target = res.ok ? parseSpotBody(await res.json(), spotSlug) : null;
+                if (!alive) return;
+                if (target) setSpot(target); else setSpotFailed(true);
+            } catch {
+                // 読めなければ紐付けない（投稿自体はできる）。そのことは帯で言う
+                if (alive) setSpotFailed(true);
+            }
+        })();
+        return () => { alive = false; };
+    }, [spotSlug]);
+    /**
+     * **この画面で選んだ写真のうち、まだスポットの判定をしていないもの**（ID）。
+     *
+     * スポットの本文は非同期で届くので、写真を先に選ぶことがある。届いた時点で
+     * その写真にもスポット名を入れたいが、条件が2つある:
+     *   - **EXIF を読み終えてから**（`metaRead`）。読む前は位置が分からないだけで、
+     *     「位置が無い＝近い」とみなすと、離れた写真の撮影地がスポット名になる
+     *   - **下書きから戻した写真は入れない**。別の日に選んだ写真で、このスポットから
+     *     来たとは限らない（撮影地に名前を自分で書いてあれば、保存の判定で紐付く）
+     * 判定は1枚1回だけ。あとで利用者が撮影地を消しても、入れ直さない
+     */
+    const spotPendingRef = useRef(new Set<string>());
+    /**
+     * スポットに紐付けて**全体に公開できた**投稿があったか。押し直しをまたいで数える
+     * ——1回目で紐付いた写真が上がり、2回目は残りだけ、でもスポットの画面へ戻す
+     */
+    const spotPostedRef = useRef(false);
+    const removeSpot = useCallback(() => {
+        setSpot(null);
+        setSpotFailed(false);
+        spotPendingRef.current.clear();
+        spotPostedRef.current = false;
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("spot");
+            window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        } catch { /* ignore */ }
+    }, []);
 
     /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける）。
      *  **`--bottom-bar-h` には書かない**——このファイルの下の帯のコメントが
@@ -184,6 +246,20 @@ function UploadPageInner() {
     const [audience, setAudience] = useState<Audience>("everyone");
     const [tags, setTags] = useState("");
     const [uploading, setUploading] = useState(false);
+    /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
+    useEffect(() => {
+        // **上げている間は判定を保留する**（印も消さない）。保存は押した時点の中身で送るので、
+        // 途中で埋めると画面だけスポット名に変わって保存に入らない。終わったら続きをやる
+        // ——失敗した写真（error）は押し直しの対象なので、そこで埋めた名前は保存に入る
+        if (!spot || uploading) return;
+        const ready = items.filter((it) => it.metaRead && spotPendingRef.current.has(it.id)
+            && (it.status === "pending" || it.status === "error"));
+        if (ready.length === 0) return;
+        for (const it of ready) spotPendingRef.current.delete(it.id);
+        const fill = new Set(ready.filter((it) => !it.location && coversSpot(spot, it)).map((it) => it.id));
+        if (fill.size === 0) return;
+        setItems((prev) => prev.map((it) => (fill.has(it.id) && !it.location ? { ...it, location: spot.name } : it)));
+    }, [spot, items, uploading]);
     /**
      * アップロード中の要求。「やめる」を押したら中断する。
      *
@@ -485,6 +561,10 @@ function UploadPageInner() {
                 uploadAbortRef.current.abort(new DOMException("owner switched", "AbortError"));
             }
             setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
+            // スポットの判定待ちと「紐付けて公開した」印も前の人のもの。残すと
+            // 新しい人の関係の無い投稿がスポットの画面へ送られる
+            spotPendingRef.current.clear();
+            spotPostedRef.current = false;
             setCategory("");
             setTags("");
             setAudience("everyone");
@@ -763,6 +843,9 @@ function UploadPageInner() {
             status: "pending",
             progress: 0,
         }));
+        // **共有シートから取り込んだ写真は判定待ちに入れない**——別のアプリで選んだ写真で、
+        // このスポットの画面から来たとは限らない（下書きの復元と同じ扱い）
+        if (!shared) for (const it of newItems) spotPendingRef.current.add(it.id);
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。
@@ -775,6 +858,13 @@ function UploadPageInner() {
         const exifResults = await Promise.all(
             newItems.map(async (it) => ({ id: it.id, meta: await extractExifFromFile(it.file) }))
         );
+        // **スポットから来た回は、その近くで撮った写真の撮影地をスポット名にする**
+        // （逆引きより先。逆引きは空の欄にしか書かないので上書きされない）
+        // 共有シートから取り込んだ写真は埋めない（判定待ちに入れないのと同じ理由）
+        const spotNow = shared ? null : spotRef.current;
+        const onSpot = new Set(spotNow
+            ? exifResults.filter((r) => coversSpot(spotNow, { location: "", latitude: r.meta.latitude, longitude: r.meta.longitude })).map((r) => r.id)
+            : []);
         setItems((prev) => prev.map((it) => {
             const found = exifResults.find((r) => r.id === it.id);
             if (!found) return it;
@@ -783,6 +873,8 @@ function UploadPageInner() {
                 dateTimeOriginal: found.meta.dateTimeOriginal,
                 latitude: found.meta.latitude,
                 longitude: found.meta.longitude,
+                metaRead: true,
+                ...(spotNow && onSpot.has(it.id) && !it.location ? { location: spotNow.name } : {}),
             };
         }));
 
@@ -807,6 +899,8 @@ function UploadPageInner() {
                 // **毎回トグルを見る。** 入るときに1回見るだけだと、待っている
                 // 途中で切っても止まらず、公開ボタンが解放されない（実測）
                 if (!gpsAutofillRef.current) break;
+                // スポット名を入れた写真は引かない（Nominatim の1秒を使わない）
+                if (onSpot.has(r.id)) continue;
                 if (r.meta.latitude !== undefined && r.meta.longitude !== undefined) {
                     const place = await reverseGeocode(r.meta.latitude, r.meta.longitude, locale);
                     if (place) {
@@ -1144,6 +1238,8 @@ function UploadPageInner() {
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             // 共同アルバム（案C）。メンバーでなければサーバーが断る
                             ...(albumId ? { albumId } : {}),
+                            // 撮影スポット。**この写真がその近くで、撮影地に名前を含むときだけ**
+                            ...(() => { const id = spotIdToSend(spot, item); return id ? { spotId: id } : {}; })(),
                             ...audienceForSave(audience),
                         }),
                     });
@@ -1153,6 +1249,7 @@ function UploadPageInner() {
                     }
                     updateItem(item.id, { status: "done", progress: 100 });
                     successCount++;
+                    if (spotIdToSend(spot, item) && published && audience === "everyone") spotPostedRef.current = true;
                     // 残り枚数はマウント時に1回取るだけだった。3枚上げても
                     // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
                     // 成功した分をその場で引く（取れていない＝null のときは触らない）。
@@ -1233,6 +1330,8 @@ function UploadPageInner() {
                             ...(cover.thumbUrl ? { thumbUrl: cover.thumbUrl } : {}),
                             ...(Object.keys(cameraExif).length > 0 ? { exif: cameraExif } : {}),
                             ...(albumId ? { albumId } : {}),
+                            // 撮影スポット。1件にまとめる回は表紙の写真で決める（題・撮影地と同じ）
+                            ...(() => { const id = spotIdToSend(spot, c); return id ? { spotId: id } : {}; })(),
                             ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
                             // 確かめる（`api-user/src/photoImages.ts`）ので、
@@ -1252,6 +1351,7 @@ function UploadPageInner() {
                     }
                     for (const g of group) updateItem(g.item.id, { status: "done", progress: 100 });
                     successCount = group.length;
+                    if (spotIdToSend(spot, c) && published && audience === "everyone") spotPostedRef.current = true;
                     // **枠は1件ぶんしか減らない**（投稿が1件なので）。
                     // ここを枚数ぶん引くと「あと N 枚」が実際より少なく出る
                     setUsedSlots((n) => (n === null ? n : n + 1));
@@ -1323,8 +1423,14 @@ function UploadPageInner() {
                 if (successCount === pending.length) {
                     // 全部上がったので、書きかけの控えは要らない
                     clearOwnDraft();
+                    // **スポットに紐付けて全体に公開した回は、そのスポットの画面へ戻す。**
+                    // 静的サイトなので一覧に並ぶのは再ビルドのあと——戻った画面が
+                    // `?posted=1` を見て「まだ並んでいない」ことを言う（`SpotGuideClient`）
+                    // **絞った回は先に分ける**（`userId` が無くてもスポットの画面へは行かない
+                    // ——絞った写真はウェブサイトに載らないので「並びます」は嘘になる）
                     const dest = !published ? ROUTES.DRAFTS
-                        : restricted && userId ? ROUTES.USER_PROFILE(userId)
+                        : restricted ? (userId ? ROUTES.USER_PROFILE(userId) : "/")
+                        : spot && spotPostedRef.current ? `/spots/${spot.slug}?posted=1`
                         : "/";
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
@@ -1342,7 +1448,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1368,6 +1474,25 @@ function UploadPageInner() {
     /** 押したときに1件の投稿になるか（ボタンの文言に出す） */
     const willBeOnePost = pendingCount <= 1 || (asOnePost && !tooManyToGroup);
     const isJa = locale !== "en";
+    /** 帯の2行目。**まとめる回は表紙で決まる**ので1件ぶんで言う */
+    const spotSummary = (target: SpotUploadTarget): string => {
+        const waiting = items.filter((i) => i.status !== "done");
+        if (waiting.length === 0) {
+            return isJa ? "このスポットの写真として投稿します" : "Your photos will be posted to this spot";
+        }
+        if (asOnePost && waiting.length > 1 && waiting.length <= PHOTO_IMAGES_MAX) {
+            return spotIdToSend(target, waiting[0])
+                ? (isJa ? "この投稿をスポットに紐付けます" : "This post will be linked to the spot")
+                : (isJa ? "1枚目が離れた場所の写真か、撮影地にスポット名が無いため、紐付けません" : "Not linked: the first photo is far away or its place doesn't include the spot name");
+        }
+        const linked = waiting.filter((i) => spotIdToSend(target, i)).length;
+        if (linked === waiting.length) {
+            return isJa ? `${linked}枚をスポットに紐付けます` : `${linked} photo(s) will be linked`;
+        }
+        return isJa
+            ? `${waiting.length}枚中${linked}枚を紐付けます（離れた場所の写真・撮影地にスポット名が無い写真は紐付けません）`
+            : `${linked} of ${waiting.length} will be linked (photos far away or without the spot name in the place are not)`;
+    };
 
     /** サムネで選んでいる写真（ヒーローに出る）。消えた ID・未設定のときは先頭 */
     const selected: Item | undefined = items.find((i) => i.id === selectedId) ?? items[0];
@@ -1468,6 +1593,46 @@ function UploadPageInner() {
             <div className={COLUMN}>
                 <AddToHomeScreenHint />
             </div>
+
+            {/* **撮影スポットの帯**（スポットの画面から来たときだけ）。どこに紐付くかを
+                見せ、「外す」で普通の投稿に戻せる。**付くのは近くで撮った写真だけ**なので、
+                選んだ写真のうち何枚が付くかも実数で出す */}
+            {(spot || spotFailed) && (
+                <div className={`${COLUMN} pt-3`}>
+                    <div className="flex items-center gap-3 rounded-2xl bg-surface ring-1 ring-line px-3.5 py-2.5" data-testid="upload-spot-banner">
+                        <MapPinIcon className="w-5 h-5 shrink-0 text-accent" aria-hidden="true" />
+                        <div className="min-w-0 flex-1">
+                            {spot ? (
+                                <>
+                                    <p className="m-0 text-white/60" style={{ fontSize: "12px" }}>
+                                        {isJa ? "撮影スポット" : "Shooting spot"}
+                                    </p>
+                                    <p className="m-0 font-medium truncate" style={{ fontSize: "15px" }}>{spot.name}</p>
+                                    <p className="m-0 text-white/70" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                                        {spotSummary(spot)}
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="m-0 text-white/70" style={{ fontSize: "13px", lineHeight: "20px" }}>
+                                    {isJa
+                                        ? "撮影スポットの情報を読み込めませんでした。このまま投稿すると、スポットには紐付きません。"
+                                        : "Couldn't load the spot. Photos posted now won't be linked to it."}
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={removeSpot}
+                            disabled={uploading}
+                            className="shrink-0 rounded-full px-3 text-white/80 ring-1 ring-line hover:bg-white/10 disabled:opacity-40"
+                            style={{ minHeight: "44px", fontSize: "13px" }}
+                            aria-label={spot ? (isJa ? `撮影スポット「${spot.name}」を外す` : `Unlink ${spot.name}`) : (isJa ? "閉じる" : "Dismiss")}
+                        >
+                            {spot ? (isJa ? "外す" : "Unlink") : (isJa ? "閉じる" : "Dismiss")}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 1024px 以上は「写真の列 ／ 入力の列」の2段組み（モックは iPhone
                 だけなので、横に引き伸ばさず別に組む）。写真の列は貼り付けて
