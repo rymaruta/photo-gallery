@@ -142,6 +142,10 @@ describe("今日の一問", () => {
         // 正解は字で示す。真鍮の輪はフォーカスの印と紛れるので付けない
         expect(answer.className).not.toContain("ring-accent");
         expect(answer.textContent).toContain("✓ 正解");
+        // ✓ は飾り（読み上げの名前に入れない）
+        expect(answer.querySelector("[aria-hidden='true']")?.textContent).toBe("✓ ");
+        // 移った先は本物の見出し
+        await waitFor(() => expect(document.activeElement?.tagName).toBe("H2"));
         await waitFor(() => expect(document.activeElement?.textContent).toBe("残念。銀山温泉"));
     });
 

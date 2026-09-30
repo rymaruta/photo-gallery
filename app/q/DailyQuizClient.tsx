@@ -111,7 +111,7 @@ export default function DailyQuizClient() {
 
     // 答えたら結果の見出しへフォーカスを移す（押したボタンは押せなくなり、フォーカスが行き場を失う）。
     // 移った先が読まれる＝結果の知らせも兼ねる（別に `aria-live` を置かない）
-    const resultRef = React.useRef<HTMLParagraphElement>(null);
+    const resultRef = React.useRef<HTMLHeadingElement>(null);
     // 回数で持つ（真偽だと、日付をまたいで次の問題に答えたときに変化せず、フォーカスが動かない）
     const [answeredTick, setAnsweredTick] = React.useState(0);
     React.useEffect(() => {
@@ -221,7 +221,7 @@ export default function DailyQuizClient() {
                     const isAnswer = c.spotId === quiz.answer;
                     const isChosen = c.spotId === chosen;
                     // **白地は「自分が選んだもの」**（デザインの決まり: 白＝位置と選択・`globals.css`）。
-                    // 正解は真鍮の縁と「正解」の字で示す（真鍮＝合図）。外したときに白地が
+                    // 正解は「✓ 正解」の字で示す（真鍮＝合図）。外したときに白地が
                     // 押していない正解の側へ付くと、見た目と `aria-pressed` の意味が逆になる
                     const look = !answered
                         ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-white/10"
@@ -247,7 +247,8 @@ export default function DailyQuizClient() {
                                 {answered && isAnswer && (
                                     <span className={`shrink-0 font-mono font-medium ${isChosen ? "text-ink" : "text-accent"}`}
                                           style={{ fontSize: "12px", letterSpacing: "1px" }}>
-                                        {en ? "✓ ANSWER" : "✓ 正解"}
+                                        {/* ✓ は飾り（読み上げに「チェックマーク」を入れない） */}
+                                        <span aria-hidden="true">✓ </span>{en ? "ANSWER" : "正解"}
                                     </span>
                                 )}
                             </span>
@@ -258,14 +259,17 @@ export default function DailyQuizClient() {
 
             {answered && (
                 <section className="mt-6 rounded-2xl bg-surface p-4 sm:p-5" data-testid="quiz-result">
-                    <p ref={resultRef} tabIndex={-1}
-                       className={`m-0 font-mono font-medium uppercase outline-none ${correct ? "text-accent" : "text-white/60"}`}
+                    {/* 本物の見出し（フォーカスが移った先として「見出し」と読まれる）。
+                        `outline-hidden`＝ハイコントラスト表示では輪が残る（`chipStyles.test.ts` の決まり） */}
+                    <h2 ref={resultRef} tabIndex={-1}
+                       className={`m-0 font-mono font-medium uppercase outline-hidden ${correct ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
                         {correct ? (en ? "Correct" : "正解") : (en ? "Not quite" : "残念")}
                         {/* 答えたらここへフォーカスが移る＝読み上げはここで1回。名前まで読ませる
                             （読み上げ用の領域を別に置くと、同じことを2回聞くことになる） */}
-                        <span className="sr-only">{en ? `: ${answer.name}` : `。${answer.name}`}</span>
-                    </p>
+                        {/* 親の `uppercase` を継がない（英語の名前を1文字ずつ読まれないように） */}
+                        <span className="sr-only normal-case">{en ? `: ${answer.name}` : `。${answer.name}`}</span>
+                    </h2>
                     <p className="m-0 mt-1 font-serif font-bold text-white" style={{ fontSize: "20px", lineHeight: "1.4" }}>
                         {answer.name}
                     </p>
