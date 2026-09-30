@@ -23,9 +23,13 @@
  *   - DOM が要るのに node と読んだ → テストが**落ちる**（黙って緑にはならない）
  *   - DOM が要らないのに jsdom と読んだ → 遅いだけで、結果は変わらない
  *
- * `@vitest-environment` の docblock も `environmentMatchGlobs` も
- * **Vitest 4 で消えている**（4.1.4 の `node_modules` を grep して確認）。
- * 残っているのは `test.projects` だけなので、この判定を config が使う。
+ * `environmentMatchGlobs` は Vitest 4 で消えている。**`@vitest-environment` の
+ * コメントは残っている**（4.1.4 は、ファイル全体から最初の
+ * `@vitest-environment <名前>` を拾う・`cli-api` の `detectCodeBlock`）。
+ * ——以前ここに「docblock も消えている」と書いていたが誤り（2026-09-30 訂正）。
+ * 組の振り分け（node か DOM か）はこの判定を config が使い、DOM の組の中で
+ * happy-dom で動かないファイルだけが、そのコメントで jsdom を名乗る。
+ * ここの札 `"jsdom"` は「DOM が要る」の意味（実際の環境は `vitest.config.ts`）。
  */
 import fs from "node:fs";
 import path from "node:path";

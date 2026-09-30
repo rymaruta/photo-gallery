@@ -920,8 +920,9 @@ describe("URL の読み直し（<Link> の遷移）", () => {
         });
         expect(result.current.filters.category).toBe("landscape");
         await act(async () => {
-            // jsdom の `back()` は履歴の移動を**非同期**で行う。
-            // 固定の待ちだと取りこぼすので、`popstate` が来るまで待つ
+            // `back()` の `popstate` は環境で時機が違う（jsdom は非同期・happy-dom は
+            // `pushState` で積んだ項目なら同期）。固定の待ちだと取りこぼすので、
+            // 聞き耳を `back()` より先に立てて、`popstate` が来るまで待つ
             const back = new Promise<void>((resolve) => {
                 window.addEventListener("popstate", () => resolve(), { once: true });
             });
