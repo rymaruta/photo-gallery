@@ -300,6 +300,7 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
     let body: {
         publicUrl?: string; caption?: string; mediaType?: string; song?: unknown; durationSec?: unknown;
+        songOnPhoto?: unknown;
         location?: unknown; coords?: unknown; texts?: unknown;
         visibility?: unknown; allowReplies?: unknown; archive?: unknown;
     };
@@ -459,6 +460,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 残したときも「名前の無い点」が地図に増えるだけになる
         ...(location && coords ? { coords } : {}),
         ...(song ? { song } : {}),
+        // 曲の札を写真に焼き込んだ印（アプリの作る画面）。**曲があって `true` のときだけ**
+        // 書く。見る画面はこれで曲名の行を出さない（写真の上の札と2度出る・2026-09-30 owner）
+        ...(song && body.songOnPhoto === true ? { songOnPhoto: true } : {}),
         ...(durationSec ? { durationSec } : {}),
         // 既定は書かない（すぐ上の但し書き）。**`allowReplies` は `false` を
         // 書く**ので、`...(allowReplies ? ...)` では消える——値で分岐しない
