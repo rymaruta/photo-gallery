@@ -6,6 +6,7 @@ import { categoryChipMap } from "@/lib/utils/categoryMap";
 import FilterBar from "./components/FilterBar";
 import ColorJourney from "./components/ColorJourney";
 import DiscoverSections from "./search/DiscoverSections";
+import SpotSearchResults from "./search/SpotSearchResults";
 import DiscoverRail from "./components/DiscoverRail";
 import FeaturedSections from "./components/FeaturedSections";
 import { useLocale } from "./i18n/context";
@@ -705,6 +706,12 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       </div>
 
       <div className="min-w-0">
+      {/* **撮影スポットの結果**（語を打ったときだけ・当たりが無ければ何も出さない）。
+          写真の結果とは別の節で、件数も混ぜない。写真が0枚でも撮影地ガイドへ案内する
+          （2026-09-30 のレビュー: 「銀山温泉」で写真0件・ガイドが案内されない）。
+          **発見の面より上**——探しに来た人の答えを、絞り込みに連動しない節の下に埋めない */}
+      <SpotSearchResults query={filters.query} locale={locale} />
+
       {/* 色でさがす（Color Journey）。**この部品は写真を取りに行かない**——
           絞り込み後の一覧・モーダルを開く関数・カテゴリ名の地図を、下の
           グリッドと同じものとして渡す。以前は `/search` の上に独立して置いて
@@ -724,9 +731,13 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
 
       <>
         <div className="mb-3 sm:mb-4 text-xs sm:text-sm text-white/70">
-            {locale === "en"
-              ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
-              : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
+            {/* 語で探しているときは「写真」と名乗る——上に撮影スポットの節が出るので、
+                「結果: 0件」だとスポットまで0件に読める */}
+            {filters.query.trim()
+              ? (locale === "en" ? `Photos: ${filteredPhotos.length}` : `写真: ${filteredPhotos.length} 件`)
+              : locale === "en"
+                ? `${labels.gallery?.resultsCount ?? "Results"}: ${filteredPhotos.length}`
+                : `${labels.gallery?.resultsCount ?? "結果"}: ${filteredPhotos.length} 件`}
         </div>
 
         {filteredPhotos.length === 0 && PHOTOS.length === 0 ? (

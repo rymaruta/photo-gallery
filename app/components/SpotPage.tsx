@@ -28,6 +28,7 @@ import { relatedCollectionPhotos, slimForGrid, slimForViewer } from "@/lib/utils
 import type { Photo } from "@/lib/data/photos";
 import { spotDetail } from "@/lib/utils/spot";
 import { spotMasterFor } from "@/lib/data/spotMaster";
+import { spotLinkForPhoto, type SpotLink as GuideLink } from "@/lib/data/spotLink";
 import { siteConfig, generateStructuredData, generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 
 /** 「ほかにこんな写真も」を出す枚数の線。これ未満のページにだけ足す（`CollectionPage` と同じ） */
@@ -149,7 +150,25 @@ export default async function SpotPage({ slug }: { slug: string }) {
                 narrower={narrower.map(link)}
                 nearby={nearby.map((n) => ({ ...link(n), km: n.km, approx: n.approx, cover: coverOf(n.slug) }))}
                 related={related}
+                guides={guidesFor(matched)}
             />
         </>
     );
+}
+
+/**
+ * この撮影地の写真が **`spotId` で紐付いている**公式ガイド（重複なし・多い順・最大3件）。
+ * 撮影地の文字列とスポットの名前が似ているだけでは入れない（owner の指示書 第11章）
+ */
+export function guidesFor(matched: readonly Photo[]): GuideLink[] {
+    const count = new Map<string, number>();
+    for (const p of matched) {
+        const id = typeof p.spotId === "string" ? p.spotId : "";
+        if (id) count.set(id, (count.get(id) ?? 0) + 1);
+    }
+    return [...count.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([id]) => spotLinkForPhoto(id))
+        .filter((g): g is GuideLink => !!g)
+        .slice(0, 3);
 }

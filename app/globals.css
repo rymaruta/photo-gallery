@@ -478,6 +478,25 @@ body {
   border: 0;
 }
 
+/* 公式スポットの束（広く見ているとき）。**写真の束（真鍮の地に白い字）と逆に組む**
+   ——白地に真鍮（`--color-accent-deep`）の枠と字。スポットのピンと同じ配色なので
+   「スポットがまとまっている」と読める。字は #796440 on #fff で 5.66:1。
+   2クラスで書く理由は `.photo-map-cluster` と同じ（leaflet.css との強さ負け） */
+.spot-map-cluster.leaflet-marker-icon,
+.spot-map-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #796440;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 0 0 2.5px #796440, 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
 .spot-map-pin {
   display: block;
   position: relative;

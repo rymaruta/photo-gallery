@@ -683,6 +683,49 @@ async function runChecks(browser, eng) {
         }
     }
 
+    /**
+     * 🔴 **「探す → ガイド → 投稿」の導線**（2026-09-30 のレビューの受け入れ条件）。
+     *
+     *   - 「さがす」で「銀山温泉」: 写真が0枚でも撮影スポットの節からガイドへ行ける
+     *   - ガイドの「ここで撮った写真を投稿する」: スポットを運ぶ（`?spot=<slug>`）
+     *   - 地図（スマホ）: 地図の表示中はスポットの長い一覧を出さない（地図より前に置かない）
+     *
+     * **台帳次第**（公開済みに銀山温泉が無いビルド）なので、ページが無ければ飛ばす
+     */
+    if (fs.existsSync(path.join(OUT, "spots", "ginzan-onsen.html"))) {
+        console.log(`\n[${eng}][5d] 探す → ガイド → 投稿`);
+        await page.goto(`http://localhost:${PORT}/search?q=${encodeURIComponent("銀山温泉")}`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const spotLink = await page
+            .waitForSelector("[data-testid='search-spot-results'] a[href='/spots/ginzan-onsen']", { timeout: 10000 })
+            .then(() => true).catch(() => false);
+        check(`[${eng}] さがす: 「銀山温泉」で撮影スポットの節からガイドへ行ける`, spotLink);
+
+        await page.goto(`http://localhost:${PORT}/spots/ginzan-onsen`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const uploadHrefs = await page.evaluate(() =>
+            [...document.querySelectorAll("a")].filter((a) => /ここで撮った写真を投稿する/.test(a.textContent ?? "")).map((a) => a.getAttribute("href")));
+        check(`[${eng}] ガイド: 投稿のリンクがスポットを運ぶ`,
+            uploadHrefs.length > 0 && uploadHrefs.every((h) => h === "/user/upload?spot=ginzan-onsen"), JSON.stringify(uploadHrefs));
+
+        if (fs.existsSync(path.join(OUT, "map.html"))) {
+            await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+            await waitForHydration(page);
+            // 地図（Leaflet）は後から読み込まれる
+            await page.waitForSelector(".leaflet-container", { timeout: 10000 }).catch(() => {});
+            const layout = await page.evaluate(() => {
+                const list = document.querySelector("[data-testid='map-spot-list']");
+                const map = document.querySelector(".leaflet-container");
+                return {
+                    listShown: !!list && list.offsetParent !== null,
+                    mapTop: map ? Math.round(map.getBoundingClientRect().top + window.scrollY) : -1,
+                };
+            });
+            check(`[${eng}] 地図（スマホ）: 地図の表示中はスポットの一覧を出さない`, !layout.listShown, JSON.stringify(layout));
+            check(`[${eng}] 地図（スマホ）: 地図が1画面目に在る`, layout.mapTop >= 0 && layout.mapTop < 400, JSON.stringify(layout));
+        }
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);

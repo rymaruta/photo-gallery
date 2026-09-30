@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, act, fireEvent } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 import { ROUTES } from "@/lib/routes";
@@ -22,6 +22,8 @@ const mapProps = vi.hoisted(() => ({
     areaActive: false,
     sheetOpen: false,
     spotSlugs: [] as string[],
+    /** 地図に渡したスポットの配列そのもの（同じ配列か＝描き直さないかを見る） */
+    spotsArray: null as unknown,
     selectSpot: null as null | ((slug: string) => void),
     selectedSpotSlug: null as string | null,
 }));
@@ -42,6 +44,7 @@ vi.mock("../../components/PhotoMap", async (importOriginal) => {
             mapProps.areaActive = !!areaActive;
             mapProps.sheetOpen = !!sheetOpen;
             mapProps.spotSlugs = (spots ?? []).map((sp) => sp.slug);
+            mapProps.spotsArray = spots;
             mapProps.selectSpot = onSelectSpot ?? null;
             mapProps.selectedSpotSlug = selectedSpotSlug ?? null;
             return <div data-testid="photo-map">map:{photos.length}</div>;
@@ -571,6 +574,190 @@ describe("公式撮影地ガイドのピン", () => {
             render(<MapPage />);
             await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
             expect(within(screen.getByTestId("map-spot-sheet")).queryByTestId("map-spot-credit")).toBeNull();
+        });
+    });
+
+    /**
+     * **スポットも写真と同じ絞り込みで絞る**（2026-09-30 のレビュー: 「銀山温泉」で探しても
+     * 絞られるのは写真だけ・スポットの一覧とピンは全件のまま）。件数は写真と別に数える
+     */
+    describe("絞り込みとスポット", () => {
+        const GINZAN = { slug: "ginzan-onsen", name: "銀山温泉", region: "山形県 尾花沢市", lat: 38.58, lng: 140.53, cover: null, stage: "published" as const };
+        /** 検索欄は 250ms 待ってから絞る（`MapControls` の debounce） */
+        const typeQuery = async (value: string) => {
+            fireEvent.change(screen.getByTestId("map-search-input"), { target: { value } });
+            await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+        };
+        const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...PIN, slug: `s${i}`, name: `スポット${i}` }));
+
+        it("語で絞ると、スポットの一覧とピンも絞られる（地域でも当たる）", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            expect(within(screen.getByTestId("map-spot-list")).queryByText("高屋神社")).toBeNull();
+            await typeQuery("香川");
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+        });
+
+        it("写真の件数とスポットの件数を別の行で数える", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(screen.getByTestId("map-spot-count").textContent).toBe("撮影スポット 2か所中 1か所を表示");
+            expect(screen.getByTestId("map-count").textContent).toContain("1枚中 0枚を表示");
+        });
+
+        it("当たるスポットが無ければ、節は残して理由を言う", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            await typeQuery("銀山温泉");
+            expect(mapProps.spotSlugs).toEqual([]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("検索語や範囲に当たる撮影スポットはありません");
+        });
+
+        it("写真のカテゴリで絞っている間は、スポットを出さず、そう言う", () => {
+            photosState.current = [{ ...P("a"), category: "風景" } as Photo];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            fireEvent.click(screen.getByRole("switch", { name: "風景" }));
+            expect(mapProps.spotSlugs).toEqual([]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("カテゴリは写真の分類");
+        });
+
+        it("「このエリアを検索」でスポットも範囲の中だけになる", () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            act(() => { mapProps.searchArea?.({ south: 38, west: 140, north: 39, east: 141 }); });
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            expect(screen.getByTestId("map-area-note").textContent).toContain("撮影スポット 1か所");
+        });
+
+        it("位置情報のある写真が0枚でも、スポットがあれば地図を出す", () => {
+            photosState.current = [];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("photo-map")).toBeTruthy();
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+            expect(screen.queryByText("位置情報のある写真はまだありません。")).toBeNull();
+        });
+
+        it("写真がまだ届いていない間は「0枚」と言わない", () => {
+            photosState.current = [];
+            photosState.loaded = false;
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("map-count").textContent).toContain("写真を読み込み中");
+            expect(screen.getByTestId("map-count").textContent).not.toContain("0枚");
+            photosState.loaded = true;
+        });
+
+        /// スマホで長い一覧が地図より前に来ない（「リスト」を押したときだけ）
+        it("スマホでは、地図の表示中はスポットの一覧を隠し、「リスト」で出す", () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            const wrap = screen.getByTestId("map-spot-list").closest("section")!.parentElement!;
+            expect(wrap.className).toContain("hidden");
+            expect(wrap.className).toContain("lg:block");
+            fireEvent.click(screen.getByTestId("map-view-list"));
+            expect(screen.getByTestId("map-spot-list").closest("section")!.parentElement!.className).not.toContain("hidden");
+        });
+
+        // cfc451eb のレビュー 3: 地図の語も読み・英語名・別名に当てる（「さがす」と同じ索引）
+        it("読み・英語名でも、スポットのピンが絞られる（名前の索引を共有）", async () => {
+            const { resetSpotSearchIndex } = await import("../../../lib/hooks/useSpotSearchIndex");
+            resetSpotSearchIndex();
+            const fetchMock = vi.fn(async () => ({ ok: true, json: async () => [
+                { s: "ginzan-onsen", n: "銀山温泉", e: "Ginzan Onsen", r: "ぎんざんおんせん", g: "山形県 尾花沢市" },
+                { s: "takaya-jinja", n: "高屋神社", r: "たかやじんじゃ", g: "香川県 観音寺市" },
+            ] }));
+            vi.stubGlobal("fetch", fetchMock);
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("ぎんざん");
+            await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            await typeQuery("Ginzan");
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+        });
+
+        // cfc451eb のレビュー 2: 選んだ場所を見失わせない
+        it("選んでいるスポットは、絞り込みで外れてもピンを残す（シートだけ残さない）・一覧と件数には足さない", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            await typeQuery("銀山温泉");
+            expect([...mapProps.spotSlugs].sort()).toEqual(["ginzan-onsen", "takaya-jinja"]);
+            expect(screen.getByTestId("map-spot-sheet")).toBeTruthy();
+            expect(within(screen.getByTestId("map-spot-list")).queryByText("高屋神社")).toBeNull();
+            expect(screen.getByTestId("map-spot-count").textContent).toBe("撮影スポット 2か所中 1か所を表示");
+        });
+
+        it("カテゴリで絞っている間は、選んだピンだけ残し、一覧は理由を言う", async () => {
+            photosState.current = [{ ...P("a"), category: "風景" } as Photo];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            fireEvent.click(screen.getByRole("switch", { name: "風景" }));
+            expect(mapProps.spotSlugs).toEqual(["takaya-jinja"]);
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("カテゴリは写真の分類");
+        });
+
+        // 1b658978 のレビュー 2: 選ぶたびに地図へ新しい配列を渡すと、全部のピンが描き直される
+        it("表示中のスポットを選んでも、地図に渡す配列は変わらない（描き直さない）", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            const before = mapProps.spotsArray;
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            expect(mapProps.spotsArray).toBe(before);
+        });
+
+        // 1b658978 のレビュー: 索引を待つ間は「無い」と言わない・失敗したら待ち続けない
+        it("名前の索引を待つ間は「探しています」、取れなければ「当たらない」と言う", async () => {
+            const { resetSpotSearchIndex } = await import("../../../lib/hooks/useSpotSearchIndex");
+            resetSpotSearchIndex();
+            let release: (v: unknown) => void = () => {};
+            vi.stubGlobal("fetch", vi.fn(() => new Promise((r) => { release = r; })));
+            photosState.current = [P("a")];
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            await typeQuery("ぎんざん");
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("探しています");
+            await act(async () => { release({ ok: false, json: async () => null }); await new Promise((r) => setTimeout(r, 20)); });
+            expect(screen.getByTestId("map-spot-empty").textContent).toContain("当たる撮影スポットはありません");
+        });
+
+        afterEach(() => { vi.unstubAllGlobals(); photosState.loaded = true; });
+
+        it("写真がまだ届いていない間は、写真の一覧も「該当なし」と言わない", () => {
+            photosState.current = [];
+            photosState.loaded = false;
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("map-list-empty").textContent).toContain("写真を読み込み中");
+            photosState.loaded = true;
+        });
+
+        it("一覧は30件ずつ（全件を一度に並べない）", () => {
+            photosState.current = [P("a")];
+            ledger.pins = many(95);
+            render(<MapPage />);
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(30);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(60);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(90);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(95);
+            expect(screen.queryByTestId("map-spot-more")).toBeNull();
         });
     });
 

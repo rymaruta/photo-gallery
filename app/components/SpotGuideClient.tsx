@@ -13,6 +13,7 @@ import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
+import { spotUploadHref } from "@/lib/utils/spotUpload";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -136,7 +137,29 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
+    /**
+     * 投稿画面から戻ってきたか（`?posted=1`・`app/user/upload/page.tsx` が付ける）。
+     * 静的なページなので**水和のあとに URL を読む**（最初の描画をサーバーと揃える）。
+     * 読んだら URL から外す——再読込や共有で「投稿しました」が出続けないように
+     */
+    const [justPosted, setJustPosted] = React.useState(false);
+    React.useEffect(() => {
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get("posted") !== "1") return;
+            setJustPosted(true);
+            url.searchParams.delete("posted");
+            window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        } catch { /* ignore */ }
+    }, []);
     const mapHero = usesMapHero(spot);
+    /**
+     * 投稿の行き先。**スポットを運ぶのは公開済みの場所だけ**——投稿画面が読む本文 JSON
+     * （`/app/data/spots/<slug>.json`）は公開済みの分しか書き出さない（`toSpotBody`）。
+     * 下書きの画面（`BUILD_DRAFT_SPOTS` を戻したとき）から運ぶと、毎回「読み込めません
+     * でした」になる
+     */
+    const uploadHref = isPublished(spot) ? spotUploadHref(spot.slug) : ROUTES.UPLOAD;
     const cover = spot.coverImage;
     // **公開済みか**（人の確認か AI 照合）。false のあいだは「下書き（運営未確認）」の
     // 帯を出し、公式サイトのリンクを「未確認」と名乗らせる
@@ -184,9 +207,29 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const photosSection = (
         <section className={photos.length > 0 ? "pt-6" : "pt-8"} aria-labelledby="spot-photos">
             <Head id="spot-photos">{isJa ? `この場所の写真（${photos.length}）` : `Photos here (${photos.length})`}</Head>
+            {/* 投稿から戻ってきた（`?posted=1`）。**この一覧はビルド時の写真**なので、
+                いま上げた写真はサイトの更新が終わるまで並ばない——並んだとは言わない */}
+            {justPosted && (
+                <p role="status" className="m-0 mb-3 rounded-xl bg-surface ring-1 ring-line px-4 py-3 text-white/80"
+                   style={{ fontSize: "13px", lineHeight: "20px" }} data-testid="spot-posted-note">
+                    {isJa
+                        ? "投稿しました。この一覧に並ぶのは、サイトの更新が終わってからです。"
+                        : "Posted. It will appear here after the site is updated."}
+                </p>
+            )}
             {photos.length > 0 ? (
-                <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
-                              columnsClassName="grid-cols-2 sm:grid-cols-3" />
+                <>
+                    <GalleryGrid photos={photos} locale={locale} sizes="(min-width:1024px) 300px, 50vw"
+                                  columnsClassName="grid-cols-2 sm:grid-cols-3" />
+                    {/* 写真がある場所にも投稿の入口を置く（0枚のときだけだと、2枚目以降が紐付かない） */}
+                    <div className="mt-3 text-center">
+                        <Link href={uploadHref} prefetch={false}
+                              className="inline-flex items-center rounded-full ring-1 ring-line text-white hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                              style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
+                            {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
+                        </Link>
+                    </div>
+                </>
             ) : (
                 <div className="rounded-xl bg-surface ring-1 ring-line p-5 text-center">
                     <p className="m-0 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
@@ -194,7 +237,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             ? "この撮影地の写真は、まだ投稿されていません。"
                             : "No photos have been shared for this spot yet."}
                     </p>
-                    <Link href={ROUTES.UPLOAD} prefetch={false}
+                    <Link href={uploadHref} prefetch={false}
                           className="mt-3 inline-flex items-center rounded-full bg-accent-fill text-ink font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           style={{ fontSize: "14px", padding: "10px 18px", minHeight: "44px" }}>
                         {isJa ? "ここで撮った写真を投稿する" : "Share a photo"}
