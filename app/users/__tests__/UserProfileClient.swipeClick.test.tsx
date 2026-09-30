@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// ↑ 画像の属性（loading・srcset・sizes・alt）を happy-dom が jsdom と同じに扱わない。DOM のテストの既定は happy-dom（vitest.config.ts）
+// ↑ happy-dom では写真の <img> が alt で見つからない（描かれ方が違う。原因は未調査）。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
