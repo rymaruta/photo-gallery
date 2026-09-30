@@ -177,9 +177,11 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                             {/* 見出しは具体的な部分だけ・地域は2行目（`placeParts`） */}
                                             <span className="block text-white font-medium truncate"
                                                   style={{ fontSize: "12px", lineHeight: "16px" }} title={s.label}>{placeParts(s.label).title}</span>
-                                            <span className="block text-white/80 truncate"
+                                            {/* 地域が長くても**枚数は切らない** */}
+                                            <span className="flex text-white/80"
                                                   style={{ fontSize: "11px", lineHeight: "15px" }}>
-                                                {placeLine(s.label, isJa)}{isJa ? `${s.count}枚` : `${s.count} photos`}
+                                                <span className="truncate min-w-0">{placeLine(s.label, isJa)}</span>
+                                                <span className="shrink-0">{isJa ? `${s.count}枚` : `${s.count} photos`}</span>
                                             </span>
                                         </span>
                                     </Link>

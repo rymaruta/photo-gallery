@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
-import { placeParts, areaKind, COUNTRIES, OVERSEAS_AREAS, PREFECTURES } from "../placeName";
+import { placeParts, placeLine, areaKind, COUNTRIES, OVERSEAS_AREAS, PREFECTURES } from "../placeName";
 
 /**
  * 撮影地の文字列を「見出し／どこの／地域か」に分ける（表示専用・データは変えない）。
@@ -32,6 +32,21 @@ describe("placeParts", () => {
         expect(placeParts("山中湖")).toEqual({ title: "山中湖", context: "", kind: "place" });
         expect(areaKind("高屋神社")).toBe("place");
         expect(areaKind("観音寺市")).toBe("municipality");
+    });
+
+    // 1語の「〜町」「〜村」は地名・施設名のことが多い（祇園町・明治村）。並んだときだけ地域
+    it("区・町・村は、県か市と並んでいるときだけ地域", () => {
+        expect(placeParts("祇園町").kind).toBe("place");
+        expect(placeParts("明治村").kind).toBe("place");
+        expect(placeParts("東京都 渋谷区")).toEqual({ title: "渋谷区", context: "東京都", kind: "municipality" });
+        expect(placeParts("観音寺市").kind).toBe("municipality");
+    });
+
+    it("カードの2行目: 地域でも「どこの」を残す（「パリ」と「パリ, フランス」を見分ける）", () => {
+        expect(placeLine("パリ")).toBe("地域・");
+        expect(placeLine("パリ, フランス")).toBe("フランス・地域・");
+        expect(placeLine("香川県 観音寺市 高屋神社")).toBe("香川県 観音寺市・");
+        expect(placeLine("山中湖")).toBe("");
     });
 
     it("空は空", () => {

@@ -509,8 +509,9 @@ export default function PhotoMap({
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        // 「このエリアを検索」で範囲を決めている間は寄らない（範囲の指定と喧嘩しない）
-        if (autoFitPendingRef.current && photos.length > 0 && !areaActiveRef.current) {
+        // 「このエリアを検索」で範囲を決めたら取り消す（解除したときに急に飛ばない）
+        if (areaActiveRef.current) autoFitPendingRef.current = false;
+        if (autoFitPendingRef.current && photos.length > 0) {
             autoFitPendingRef.current = false;
             const b = boundsOf(photos.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
             if (b) map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
@@ -538,10 +539,22 @@ export default function PhotoMap({
     useEffect(() => {
         const prev = prevSelectedSpotRef.current;
         prevSelectedSpotRef.current = selectedSpotSlug;
-        // 束の中のスポットを選んだ（要素が無い）／選んでいたスポットを外した・替えた
-        // （束から外して立てていたので、束に戻す）ときは描き直す
-        if ((selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) || (prev && prev !== selectedSpotSlug)) {
-            mapRef.current?.fire("zoomend");
+        // 描き直すのは2つのときだけ（描き直すと押したピンのフォーカスが落ちる）:
+        //   - 束の中のスポットを選んだ（そのピンの要素がまだ無い）
+        //   - 外した・替えた前のスポットが、**選んでいなければ束に入る**位置にいた
+        //     （選んでいる間だけ束から外して立てていたので、束に戻す）
+        // 前のスポットが単独のピンのままで済むなら、クラスの付け替えだけにする
+        const map = mapRef.current;
+        const prevBelongsInCluster = (): boolean => {
+            if (!map || !prev || prev === selectedSpotSlug) return false;
+            const pts = spots
+                .filter((sp) => sp.slug !== selectedSpotSlug)
+                .map((sp) => ({ id: sp.slug, lat: sp.lat, lng: sp.lng }));
+            const c = clusterPoints(pts, map.getZoom(), SPOT_CELL_PX).find((x) => x.items.some((it) => it.id === prev));
+            return !!c && c.items.length > 1;
+        };
+        if ((selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) || prevBelongsInCluster()) {
+            map?.fire("zoomend");
             return;
         }
         for (const [slug, el] of spotElsRef.current) {

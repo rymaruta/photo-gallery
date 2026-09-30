@@ -34,8 +34,9 @@ import { ROUTES } from "@/lib/routes";
 export default function SpotLinkCard({ spot, locale, heading, headingId = "photo-spot-card" }: {
     spot: SpotLink | null;
     locale: string;
-    /** 見出しの文言（既定は写真詳細の「この写真の撮影スポット」）。撮影地のページは別の言い方 */
-    heading?: string;
+    /** 見出しの文言（既定は写真詳細の「この写真の撮影スポット」）。撮影地のページは別の言い方。
+     *  `null` なら見出しを出さない（同じ見出しのカードを続けて並べるとき、2枚目以降） */
+    heading?: string | null;
     /** 見出しの id（1画面に複数置くとき重ならないように） */
     headingId?: string;
 }) {
@@ -48,10 +49,13 @@ export default function SpotLinkCard({ spot, locale, heading, headingId = "photo
     const noImage = !spot.cover;
 
     return (
-        <section className="mt-5" aria-labelledby={headingId}>
-            <h2 id={headingId} className="m-0 mb-2 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                {heading ?? (isJa ? "この写真の撮影スポット" : "Where this was taken")}
-            </h2>
+        <section className={heading === null ? "mt-2" : "mt-5"} aria-labelledby={heading === null ? undefined : headingId}
+                 aria-label={heading === null ? spot.name : undefined}>
+            {heading !== null && (
+                <h2 id={headingId} className="m-0 mb-2 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                    {heading ?? (isJa ? "この写真の撮影スポット" : "Where this was taken")}
+                </h2>
+            )}
             <div className="rounded-2xl overflow-hidden bg-surface ring-1 ring-line">
                 <Link href={`/spots/${spot.slug}`} prefetch={false}
                       className="flex gap-3 p-3 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">

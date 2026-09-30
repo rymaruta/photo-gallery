@@ -53,6 +53,15 @@ describe("さがす: 発見の節", () => {
         expect([...france.querySelectorAll("span")].map((s) => s.textContent)).toContain("地域・1枚");
     });
 
+    it("撮影地のカード: 地域が長くても枚数は切らない（枚数は省略の外）", () => {
+        const { container } = render1([photo("a", { location: "茨城県 ひたちなか市 国営ひたち海浜公園" })]);
+        const card = container.querySelector('a[href*="/location/"]')!;
+        const count = [...card.querySelectorAll("span")].find((s) => s.textContent === "1枚")!;
+        expect(count, "枚数が独立していない").toBeTruthy();
+        expect(count.className).toContain("shrink-0");
+        expect(count.className).not.toContain("truncate");
+    });
+
     it("カテゴリ・撮影地・機材の節を、集約ページへのリンクで出す", () => {
         render1([
             photo("a", { category: "landscape", location: "パリ", exif: { camera: "SONY ILCE-7M3" } }),

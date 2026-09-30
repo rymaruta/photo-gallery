@@ -238,8 +238,10 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                                         {/* **見出しは具体的な部分だけ**、地域は2行目に（長い住所を
                                             見出しにしない・地域の束と場所を見分ける・`placeParts`） */}
                                         <span className="block mt-1.5 text-white truncate" style={{ fontSize: "13px" }} title={s.label}>{placeParts(s.label).title}</span>
-                                        <span className="block text-white/70 truncate" style={{ fontSize: "12px" }}>
-                                            {placeLine(s.label, isJa)}{isJa ? `${s.count}枚` : `${s.count} photos`}
+                                        {/* 地域が長くても**枚数は切らない**（地域の方だけ省略する） */}
+                                        <span className="flex text-white/70" style={{ fontSize: "12px" }}>
+                                            <span className="truncate min-w-0">{placeLine(s.label, isJa)}</span>
+                                            <span className="shrink-0">{isJa ? `${s.count}枚` : `${s.count} photos`}</span>
                                         </span>
                                     </ItemLink>
                                 </li>

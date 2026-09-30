@@ -133,6 +133,14 @@ export function spotCoords(photos: Photo[]): SpotCoords | null {
 export type NearbySpot = CollectionEntry & { km: number; approx: boolean };
 
 /**
+ * 「周辺のスポット」と呼んでよい距離（km）。**アプリと同じ値**
+ * （iOS の `DerivedSpot.nearbyMaxKm`・2026-09-30）。以前は上限が無く、写真の少ない
+ * 地域では数百km先（パリから「バルセロナ 約825km」）まで「周辺」と名乗っていた。
+ * 足りなくても遠い場所で埋めない（0件なら節ごと出ない）
+ */
+export const NEARBY_MAX_KM = 50;
+
+/**
  * 周辺のスポット（**距離順**）。
  *
  * **座標を持つスポットどうしでしか出せない。** 片方でも座標が無ければ
@@ -147,14 +155,6 @@ export type NearbySpot = CollectionEntry & { km: number; approx: boolean };
  * `approx` は「その距離が、地名から引いたおおよその位置に基づく」印。
  * 画面はこれを見て断りを書く（`geoApprox` を正確な GPS と区別する）。
  */
-/**
- * 「周辺のスポット」と呼んでよい距離（km）。**アプリと同じ値**
- * （iOS の `DerivedSpot.nearbyMaxKm`・2026-09-30）。以前は上限が無く、写真の少ない
- * 地域では数百km先（パリから「バルセロナ 約825km」）まで「周辺」と名乗っていた。
- * 足りなくても遠い場所で埋めない（0件なら節ごと出ない）
- */
-export const NEARBY_MAX_KM = 50;
-
 export function nearbySpots(
     here: SpotCoords | null,
     others: Array<{ entry: CollectionEntry; coords: SpotCoords | null }>,

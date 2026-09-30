@@ -43,8 +43,14 @@ export const OVERSEAS_AREAS: readonly string[] = [
 const COUNTRY_SET = new Set(COUNTRIES);
 const PREF_SET = new Set([...PREFECTURES, ...PREFECTURES.map((p) => p.replace(/[都府県]$/, "")).filter((p) => p !== "北海")]);
 const OVERSEAS_SET = new Set(OVERSEAS_AREAS);
-/** 日本の市区町村の語尾。「山中湖」「高屋神社」は当たらない */
-const MUNICIPALITY = /^[^\s]{1,8}(市|区|町|村|郡)$/;
+/**
+ * 日本の市区町村の語尾。「山中湖」「高屋神社」は当たらない。
+ * **「市」以外（区・町・村・郡）は、ほかの地域と並んでいるときだけ**地域とみなす
+ * （`placeParts` の `inContext`）——「祇園町」「明治村」「城下町」のような1語の地名・施設名を
+ * 地域と誤らない。「香川県 観音寺市」「東京都 渋谷区」のように並べば地域
+ */
+const CITY = /^[^\s]{1,8}市$/;
+const MUNICIPALITY = /^[^\s]{1,8}(区|町|村|郡)$/;
 
 export type PlaceKind = "country" | "prefecture" | "municipality" | "place";
 
@@ -57,11 +63,12 @@ export type PlaceParts = {
     kind: PlaceKind;
 };
 
-export function areaKind(token: string): PlaceKind {
+export function areaKind(token: string, inContext = false): PlaceKind {
     const t = token.trim();
     if (COUNTRY_SET.has(t)) return "country";
     if (PREF_SET.has(t)) return "prefecture";
-    if (OVERSEAS_SET.has(t) || MUNICIPALITY.test(t)) return "municipality";
+    if (OVERSEAS_SET.has(t) || CITY.test(t)) return "municipality";
+    if (inContext && MUNICIPALITY.test(t)) return "municipality";
     return "place";
 }
 
@@ -90,7 +97,9 @@ export function placeParts(label: string): PlaceParts {
     }
     const tokens = raw.split(/[\s　,、，]+/).filter(Boolean);
     if (tokens.length === 1) return { title: tokens[0], context: "", kind: areaKind(tokens[0]) };
-    const kinds = tokens.map(areaKind);
+    // 区・町・村・郡は、県か市が並んでいるときだけ地域（1語の「祇園町」は場所）
+    const hasAnchor = tokens.some((t) => { const k = areaKind(t); return k === "prefecture" || k === "country" || CITY.test(t); });
+    const kinds = tokens.map((t) => areaKind(t, hasAnchor));
     const places = tokens.filter((_, i) => kinds[i] === "place");
     if (places.length > 0) {
         // 地域でない部分が見出し。地域の部分は広い順に「どこの」へ
@@ -119,6 +128,8 @@ export function isAreaPlace(label: string): boolean {
  */
 export function placeLine(label: string, isJa = true): string {
     const p = placeParts(label);
-    if (p.kind !== "place") return isJa ? "地域・" : "Area · ";
-    return p.context ? `${p.context}${isJa ? "・" : " · "}` : "";
+    const sep = isJa ? "・" : " · ";
+    // 地域でも「どこの」は残す（「パリ」と「パリ, フランス」が同じ見た目の2枚にならない）
+    if (p.kind !== "place") return `${p.context ? p.context + sep : ""}${isJa ? "地域" : "Area"}${sep}`;
+    return p.context ? `${p.context}${sep}` : "";
 }
