@@ -417,6 +417,14 @@ export default function useGallery(
         typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("photo"),
     );
     /**
+     * 最後に「片付いた」写真（閉じた・無いと決まった）。**同じ id が外から届いても残さない**
+     * ——閉じた写真へ「進む」で戻ったとき・同じ通知をもう一度押したときは、読む側が
+     * 開かない（閉じた覚え・`photoParam` が変わらない）ので、残すと画面に出ていない
+     * `?photo=` が URL に居座った（2994c55 のレビューが再現）。その場合は従来どおり落とす
+     */
+    const settledPhotoRef = useRef<string | null>(null);
+    const lastOpenRef = useRef<string | null>(null);
+    /**
      * 待ち id を立てる／捨てる。
      *
      * **立てる方も要る。** マウント時に URL から種を入れるだけでは足りない
@@ -431,6 +439,11 @@ export default function useGallery(
      * 再読込のたびに同じ「見つかりません」が出る。
      */
     const setPendingPhoto = useCallback((id: string | null) => {
+        // 捨てる＝その写真は片付いた（無いと決まった）。待っていなかった回は URL の値を覚える
+        if (id === null && typeof window !== "undefined") {
+            const dropped = pendingPhotoRef.current ?? new URLSearchParams(window.location.search).get("photo");
+            if (dropped) settledPhotoRef.current = dropped;
+        }
         pendingPhotoRef.current = id;
         // 立てるときは URL を触らない（そこから来た値なので既に載っている）
         if (id !== null) return;
@@ -474,6 +487,13 @@ export default function useGallery(
         // そのときは一致しているので書ける。**知らせは必ず来る**——
         // URL を動かす道は `pushState` / `replaceState` / 戻る・進む の
         // 3つだけで、3つとも購読している。
+        // 開いていた写真が閉じたら「片付いた」と覚える（この効果は `openPhotoId` の変化で走る）
+        if (openPhotoId) {
+            lastOpenRef.current = openPhotoId;
+        } else if (lastOpenRef.current) {
+            settledPhotoRef.current = lastOpenRef.current;
+            lastOpenRef.current = null;
+        }
         if (window.location.search !== urlSearch) return;
         const arrived = urlSearch !== seenSearchRef.current;
         seenSearchRef.current = urlSearch;
@@ -501,7 +521,7 @@ export default function useGallery(
             // 決めさせる（開けなければ読む側が `setPendingPhoto(null)` で外す）。
             // 閉じたときは URL が変わっていないので、ここへは来ない
             const incoming = new URLSearchParams(urlSearch).get("photo");
-            if (incoming) params.set("photo", incoming);
+            if (incoming && incoming !== settledPhotoRef.current) params.set("photo", incoming);
         }
         const search = params.toString();
         const url = search ? `?${search}` : window.location.pathname;

@@ -990,4 +990,36 @@ describe("外から届いた ?photo= を消さない", () => {
         expect(new URLSearchParams(window.location.search).get("photo"), "閉じた写真が戻ってきた").toBeNull();
         expect(result.current.currentIndex).toBeNull();
     });
+
+    // 🔴 2994c55 のレビューが再現した回帰: 閉じた写真へ「進む」で戻る・同じ通知を
+    // もう一度押すと、読む側は開かない（閉じた覚え・`photoParam` が変わらない）のに
+    // ?photo= が URL に居座った。「進む」そのものは happy-dom では試せない（`back()` で
+    // 履歴が1件に縮み、進む先が残らない）ので、同じ形＝閉じた id が外から届く、で見る
+    it("同じ通知をもう一度押しても、閉じた写真の ?photo= は残さない", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => { window.history.pushState({}, "", "/?photo=2"); });
+        act(() => { result.current.openById("2"); });
+        act(() => { result.current.close(); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+        act(() => { window.history.pushState({}, "", "/?photo=2"); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+    });
+
+    it("「無い」と決まった写真に同じ URL でもう一度来ても残さない", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => { window.history.pushState({}, "", "/?photo=nope"); });
+        act(() => { result.current.setPendingPhoto(null); });
+        act(() => { window.history.pushState({}, "", "/?photo=nope"); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+    });
+
+    it("別の写真を閉じたあとでも、新しく届いた ?photo= は残す", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => { window.history.pushState({}, "", "/?photo=2"); });
+        act(() => { result.current.openById("2"); });
+        act(() => { result.current.close(); });
+        act(() => { window.history.pushState({}, "", "/?scope=following&photo=3"); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("3");
+    });
 });
+
