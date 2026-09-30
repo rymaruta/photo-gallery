@@ -707,6 +707,11 @@ async function runChecks(browser, eng) {
             [...document.querySelectorAll("a")].filter((a) => /ここで撮った写真を投稿する/.test(a.textContent ?? "")).map((a) => a.getAttribute("href")));
         check(`[${eng}] ガイド: 投稿のリンクがスポットを運ぶ`,
             uploadHrefs.length > 0 && uploadHrefs.every((h) => h === "/user/upload?spot=ginzan-onsen"), JSON.stringify(uploadHrefs));
+        // 撮影の光の表は**建てた HTML に入っている**こと（検索に読ませるため・画面が後から描くのではない）
+        const lightRows = await page.evaluate(() => document.querySelectorAll("[data-testid='spot-light'] tbody tr").length);
+        const rawHtml = fs.readFileSync(path.join(OUT, "spots", "ginzan-onsen.html"), "utf8");
+        check(`[${eng}] ガイド: 撮影の光の表（12か月・静的な HTML に入っている）`,
+            lightRows === 12 && rawHtml.includes("spot-light") && rawHtml.includes("撮影の光"), `行=${lightRows}`);
 
         if (fs.existsSync(path.join(OUT, "map.html"))) {
             await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });

@@ -21,6 +21,7 @@ import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
+import { lightCalendar } from "@/lib/utils/lightCalendar";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
@@ -83,6 +84,8 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
+    // 撮影の光の月別の表。決めた年で計算してページに書き込む（ビルドの結果を日付で変えない）
+    const light = lightCalendar(spot.coords, spot.region?.country);
 
     return (
         <>
@@ -96,6 +99,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 area={area ? { slug: area.slug, name: area.name, nameEn: area.nameEn } : null}
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
                 pageUrl={spotPageUrl(spot)}
+                light={light}
             />
         </>
     );
