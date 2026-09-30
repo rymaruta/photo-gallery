@@ -17,7 +17,7 @@ import UserAvatar from "../UserAvatar";
 import type { StoryGroup, StoryViewer as ViewerEntry } from "@/lib/stories";
 import { timeAgo } from "@/lib/stories";
 import { log } from "@/lib/utils/log";
-import type { StoryVoteChoice, StoryVoteState } from "@/lib/utils/storyText";
+import { hasStoryTextItem, type StoryVoteChoice, type StoryVoteState } from "@/lib/utils/storyText";
 import { useMusic } from "../../music/MusicContext";
 import { useFocusTrap, isBehindPriorityOverlay } from "../../../lib/hooks/useFocusTrap";
 import { isImeKey } from "@/lib/utils/ime";
@@ -1142,6 +1142,13 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
     /** 左下に出すチップ（撮影地・BGM）が1つでも在るか */
     const hasBottomChips = !!item.location || !!item.song;
     const hasTexts = !!item.texts?.length || !!item.caption;
+    /**
+     * 下のひとことの欄を出すか。**文字の項目が在るときだけ隠す**——そのとき
+     * `caption` は置いた文字を繋いだもので、写真の上に描かれている。
+     * 投票・スタンプだけのときの `caption` は送られたひとことで、ここにしか
+     * 出ない。判定はサーバー（`createStory`）と同じ1本
+     */
+    const showCaption = !!item.caption && !hasStoryTextItem(item.texts) && !textsHidden;
     const sheetItems: StorySheetItem[] = [
         {
             key: "pause",
@@ -1505,8 +1512,9 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
             {/* 画面下: 閲覧者数（自分のみ）とキャプションを同じ段に並べる。
                 **置いた場所の文字が在るときは、この段には出さない**
-                （同じ文言が写真の上と下に二重に出る） */}
-            {(hasBottomChips || isOwnStory || (item.caption && !item.texts?.length && !textsHidden)) && (
+                （同じ文言が写真の上と下に二重に出る）。投票・スタンプだけの
+                ときは出す——`caption` は送られたひとことの全文（`showCaption`） */}
+            {(hasBottomChips || isOwnStory || showCaption) && (
                 <div
                     /* モック④: **撮影地と BGM のチップは写真の左下**（返信欄のすぐ上）。
                        以前はどちらもヘッダーの中に在り、名前の下に3段が積み上がって
@@ -1650,7 +1658,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             </button>
                         )
                     )}
-                    {item.caption && !item.texts?.length && !textsHidden && (
+                    {showCaption && (
                         /* **潰れるならキャプションは次の段へ。** ピルは全部
                            `flex-shrink-0` なので、縮むのはここだけ——3つ並ぶと
                            実測（390px）で幅 35px、320px では**ピルが画面の外**へ

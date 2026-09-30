@@ -14,7 +14,7 @@ import { storyRepliesId, visibleReplyCount } from "./storyReplies";
 import { storyVotesId, storyHasVote, storyVoteState, sweepStoryVotes } from "./storyVotes";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
-import { sanitizeStoryTexts, storyTextsCaption } from "./storyText";
+import { hasStoryTextItem, sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
 
@@ -335,12 +335,20 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // 文言の空のものと上限を超えたぶんは落とす。
     const texts = sanitizeStoryTexts(body.texts);
 
-    // **`caption` は文字たちから作る。** 文言を2か所で持つと静かにずれる
-    // ——残したときの題（`storyKeep.ts`）も、検索に出る文章も、この1本を読む。
-    // 文字を置いていない投稿は、これまでどおり `caption` をそのまま受ける。
-    const caption = texts
+    // **文字の項目が在れば、`caption` は文字たちから作る。** 文言を2か所で
+    // 持つと静かにずれる——残したときの題（`storyKeep.ts`）も、検索に出る
+    // 文章も、この1本を読む。
+    //
+    // **文字の項目が無ければ（`texts` 無し・投票やスタンプだけ）、送られた
+    // `caption` の全文を受ける。** ひとことは閲覧画面の下のひとことの欄に
+    // 出る。以前は `texts` が在るだけで `body.caption` を捨てていたので、
+    // 投票付きの投稿はひとことを文字の項目として写真の上に置くしかなく、
+    // 撮影地・曲の行や投票の札に重なっていた。判定は閲覧画面と同じ1本
+    // （`hasStoryTextItem`）——ずれると、ひとことが消えるか二重に出る。
+    const caption = texts && hasStoryTextItem(texts)
         ? truncate(storyTextsCaption(texts), 200) || undefined
-        : truncate((body.caption ?? "").trim(), 200) || undefined;
+        // 文字列でない caption（数・オブジェクト）は捨てる——`.trim` が落ちて 500 になっていた
+        : truncate((typeof body.caption === "string" ? body.caption : "").trim(), 200) || undefined;
 
     // **撮影地。** ストーリーにも場所を持たせる理由は2つある:
     //   1. 見る側に「どこで」が伝わる（Instagram のロケーションと同じ）

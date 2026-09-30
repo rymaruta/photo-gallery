@@ -90,6 +90,34 @@ describe("StoryViewer: 置いた場所の文字", () => {
         expect(placed()!.tabIndex).toBe(-1);
     });
 
+    /**
+     * 🔴 **投票・スタンプだけのときは、ひとことを下の欄に出す。**
+     * そのときの `caption` は送られたひとことで（サーバーの `createStory`）、
+     * 写真の上には描かれていない。`texts` が在るだけで隠すと、ひとことが消える
+     */
+    const vote: StoryText = { kind: "vote", question: "好き？", options: ["はい", "いいえ"], x: 0.5, y: 0.6, size: 0.05 };
+    const stamp: StoryText = { kind: "stamp", stamp: "heart", x: 0.5, y: 0.5, size: 0.14 };
+
+    it("投票だけなら、ひとことを下の欄に出す", () => {
+        setup({ texts: [vote], caption: "夕焼けの海" }, "someone-else");
+        const cap = screen.getByText("夕焼けの海");
+        expect(cap.getAttribute("style") ?? "", "写真の上へ置いている").not.toContain("translate");
+        expect(cap.className).toContain("line-clamp-3");
+    });
+
+    it("スタンプだけでも、ひとことを下の欄に出す", () => {
+        setup({ texts: [stamp], caption: "夕焼けの海" });
+        expect(screen.getByText("夕焼けの海").className).toContain("line-clamp-3");
+    });
+
+    // iOS 1.0.39 の形（ひとことを文字の項目として投票と一緒に送る）は今までどおり
+    it("文字の項目と投票が在れば、下の欄には出さない（二重に出さない）", () => {
+        setup({ texts: [vote, { ...one, text: "ひとこと" }], caption: "ひとこと" }, "someone-else");
+        const found = screen.getAllByText("ひとこと");
+        expect(found, "同じ文言が2か所に出ている").toHaveLength(1);
+        expect(found[0].getAttribute("style") ?? "", "写真の上の文字ではなく下の欄に出している").toContain("translate");
+    });
+
     // 他人のストーリーでも同じに出る（自分のときだけの飾りではない）
     it("他人のストーリーでも同じように出る", () => {
         setup({ texts: [one] }, "someone-else");

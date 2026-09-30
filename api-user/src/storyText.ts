@@ -17,6 +17,11 @@
  * `caption` を読む。**文言を2か所で持たない**ように、`caption` は
  * 置いた文字を繋いだもの（`storyTextsCaption`）をサーバーが書く。
  *
+ * **文字の項目が無い（投票・スタンプだけの）投稿は、送られた `caption` を
+ * そのまま使う**（`hasStoryTextItem`）。ひとことは写真の上ではなく
+ * 閲覧画面の下のひとことの欄に出る——文字として写真の上に置くと、
+ * 撮影地・曲の行や投票の札に重なり、長いと画面を覆う。
+ *
  * ## 鍵で持つ（生の色や px ではなく）
  *
  * 受け取るのは**一覧に在る鍵**だけ。任意の CSS を通さないので、
@@ -280,6 +285,20 @@ export function isStoryVote(t: StoryText): t is StoryVoteItem {
  */
 export function isStoryTextItem(t: StoryText): t is StoryTextItem {
     return t.kind === undefined || t.kind === "text";
+}
+
+/**
+ * 文字の項目が1つでも在るか（投票・スタンプだけなら false）。
+ *
+ * **ひとことの置き場所を決める1本。** 文字の項目が在れば `caption` は
+ * それを繋いだもの（`storyTextsCaption`）で、写真の上に描かれている。
+ * 無ければ `caption` は送られた全文で、閲覧画面の下の決まった欄
+ * （ひとことの欄）に出す。サーバー（`stories.ts` の `createStory`）と
+ * 閲覧画面（`StoryViewer`）が同じ線で読まないと、ひとことが消えるか
+ * 二重に出る。
+ */
+export function hasStoryTextItem(texts: readonly StoryText[] | undefined): boolean {
+    return !!texts?.some(isStoryTextItem);
 }
 
 /**
