@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ ストレージの失敗（容量超過など）の再現が happy-dom では異なる。DOM のテストの既定は happy-dom（vitest.config.ts）
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**

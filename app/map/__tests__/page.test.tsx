@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ happy-dom では結果が変わる（2026-09-30 の切り替えで落ちたもの）。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, act, fireEvent } from "@testing-library/react";

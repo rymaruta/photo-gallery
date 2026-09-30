@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ 画像の属性（loading・srcset・sizes・alt）を happy-dom が jsdom と同じに扱わない。DOM のテストの既定は happy-dom（vitest.config.ts）
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import React from "react";

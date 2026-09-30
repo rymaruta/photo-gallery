@@ -68,12 +68,25 @@ export default defineConfig({
                     exclude: [...EXCLUDE, ...SKIP_SLOW],
                 },
             },
+            // **DOM が要るテストは happy-dom で流す**（2026-09-30・owner 了承）。
+            //
+            // 実測（全スイート・4コア）: jsdom だけのとき 288.8秒（environment 291秒・
+            // tests 277秒）→ happy-dom を基本にして 212.6秒（environment 128秒・tests 203秒）。
+            // DOM のテストは約380本あり、1本ごとに建て直す仮想ブラウザの起動が
+            // テスト本体より重かった。
+            //
+            // **happy-dom で動かないテストは、そのファイルの先頭に
+            // `// @vitest-environment jsdom` を書いて jsdom で流す**（画像の `srcset`・
+            // ラベルの結び付け・履歴の扱いなど、実装の違いが出るもの）。
+            // 一覧はここに持たない——ファイル自身が理由とともに名乗る。
+            // happy-dom は jsdom より実ブラウザからは遠いので、最後の確かめは
+            // verify の Chromium スモーク（`scripts/e2e-smoke.mjs`）が担う
             {
                 ...shared,
                 test: {
-                    name: "jsdom",
+                    name: "dom",
                     globals: true,
-                    environment: "jsdom",
+                    environment: "happy-dom",
                     setupFiles: ["./vitest.setup.ts"],
                     include: ["**/*.test.{ts,tsx,js,mjs}"],
                     exclude: [...EXCLUDE, ...NODE_TESTS, ...SKIP_SLOW],

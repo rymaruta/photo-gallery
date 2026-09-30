@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// ↑ history.back() と popstate の扱いが異なり、happy-dom では終わらない。DOM のテストの既定は happy-dom（vitest.config.ts）
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
