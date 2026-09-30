@@ -260,9 +260,9 @@ export default function DailyQuizClient() {
             {answered && (
                 <section className="mt-6 rounded-2xl bg-surface p-4 sm:p-5" data-testid="quiz-result">
                     {/* 本物の見出し（フォーカスが移った先として「見出し」と読まれる）。
-                        `outline-hidden`＝ハイコントラスト表示では輪が残る（`chipStyles.test.ts` の決まり） */}
+                        `focus:outline-hidden`＝ハイコントラスト表示では輪が残る。`focus:` を外すと常に枠が出る（`chipStyles.test.ts` の決まり） */}
                     <h2 ref={resultRef} tabIndex={-1}
-                       className={`m-0 font-mono font-medium uppercase outline-hidden ${correct ? "text-accent" : "text-white/60"}`}
+                       className={`m-0 font-mono font-medium uppercase focus:outline-hidden ${correct ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
                         {correct ? (en ? "Correct" : "正解") : (en ? "Not quite" : "残念")}
                         {/* 答えたらここへフォーカスが移る＝読み上げはここで1回。名前まで読ませる

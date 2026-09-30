@@ -146,6 +146,12 @@ describe("今日の一問", () => {
         expect(answer.querySelector("[aria-hidden='true']")?.textContent).toBe("✓ ");
         // 移った先は本物の見出し
         await waitFor(() => expect(document.activeElement?.tagName).toBe("H2"));
+        const heading = document.activeElement as HTMLElement;
+        // 枠を消すのはフォーカス中だけ（`focus:` 無しだとハイコントラスト表示で常に枠が出る）
+        expect(heading.className).toMatch(/(^|\s)focus:outline-hidden(\s|$)/);
+        expect(heading.className).not.toMatch(/(^|\s)outline-(hidden|none)(\s|$)/);
+        // 読み上げの名前は親の大文字化を継がない
+        expect(heading.querySelector(".sr-only")?.className).toContain("normal-case");
         await waitFor(() => expect(document.activeElement?.textContent).toBe("残念。銀山温泉"));
     });
 
