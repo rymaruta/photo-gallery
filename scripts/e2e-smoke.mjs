@@ -726,6 +726,33 @@ async function runChecks(browser, eng) {
         }
     }
 
+    /**
+     * **今日の一問（`/q`）。** 問題は画面が日付のファイル（`/app/data/quiz/<日本の今日>.json`）
+     * から読むので、ビルドが今日の分を書き出していないと「まだありません」になる。
+     * 例外にならない壊れ方（日付の食い違い・読み取りの弾きすぎ）はここでしか見えない
+     */
+    if (fs.existsSync(path.join(OUT, "q.html"))) {
+        console.log(`\n[${eng}][5e] 今日の一問`);
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        check(`[${eng}] 今日の一問: トップから入口で行ける`, !!(await page.$("[data-testid='home-quiz-entry'][href='/q']")));
+        await page.goto(`http://localhost:${PORT}/q`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const choices = await page
+            .waitForSelector("[role='group'] button", { timeout: 10000 })
+            .then(() => page.$$("[role='group'] button")).catch(() => []);
+        check(`[${eng}] 今日の一問: 今日の問題が出る（選択肢4つ）`, choices.length === 4, `選択肢=${choices.length}`);
+        if (choices.length === 4) {
+            await choices[0].click();
+            const result = await page.waitForSelector("[data-testid='quiz-result']", { timeout: 5000 }).then(() => true).catch(() => false);
+            const guide = await page.evaluate(() =>
+                document.querySelector("[data-testid='quiz-result'] a[href^='/spots/']")?.getAttribute("href") ?? "");
+            // 形だけでなく、**行き先のページがビルドに在る**こと（404 のガイドへ送らない）
+            const built = /^\/spots\/[a-z0-9-]+$/.test(guide) && fs.existsSync(path.join(OUT, `${guide.slice(1)}.html`));
+            check(`[${eng}] 今日の一問: 答えると結果とガイドへのリンク（行き先が在る）`, result && built, guide);
+        }
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);
