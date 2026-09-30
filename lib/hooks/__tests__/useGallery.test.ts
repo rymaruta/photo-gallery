@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { renderHook, act, render } from "@testing-library/react";
+import { renderHook, act, render, waitFor } from "@testing-library/react";
 import React, { useLayoutEffect } from "react";
 import useGallery from "../useGallery";
 import type { Photo } from "../../data/photos";
@@ -948,5 +948,46 @@ describe("URL の読み直し（<Link> の遷移）", () => {
         });
         expect(result.current.filters.category, "URL の値が生き返っている").toBe("all");
         expect(result.current.filteredPhotos).toHaveLength(3);
+    });
+});
+
+/**
+ * 🔴 **外から届いた `?photo=` を、読まれる前に消さない**（2026-09-30）。
+ *
+ * 通知から `/?scope=following&photo=<id>` へ移ると、URL の同期と `?photo=` の
+ * 読み取り（画面側が `setPendingPhoto` を呼ぶ）が同じ描画のあとに並ぶ。
+ * 同期が先に走ると、開いても待ってもいないので `?photo=` を書かずに URL を
+ * 上書きしていた（CI の Deploy Site run 474 で落ちた）。
+ * ここでは**読み手を置かない**＝同期が必ず先に走る順序を固定して見る。
+ */
+describe("外から届いた ?photo= を消さない", () => {
+    it("pushState で届いた ?photo= は、同期が先に走っても URL に残る", () => {
+        renderHook(() => useGallery(mockPhotos));
+        act(() => {
+            window.history.pushState({}, "", "/?scope=following&photo=2");
+        });
+        expect(new URLSearchParams(window.location.search).get("photo"),
+            "読む側が動く前に ?photo= を消している").toBe("2");
+    });
+
+    it("読む側が「無い」と決めたら外れる（残しっぱなしにしない）", () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => {
+            window.history.pushState({}, "", "/?photo=nope");
+        });
+        act(() => { result.current.setPendingPhoto(null); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBeNull();
+    });
+
+    // 自分で積んだ1件は `history.back()` で戻す（非同期）ので、戻り切るのを待つ
+    it("写真を閉じたら ?photo= は外れる（届いた直後ではない）", async () => {
+        const { result } = renderHook(() => useGallery(mockPhotos));
+        act(() => { result.current.openById("2"); });
+        expect(new URLSearchParams(window.location.search).get("photo")).toBe("2");
+        act(() => { result.current.close(); });
+        await waitFor(() => expect(new URLSearchParams(window.location.search).get("photo")).toBeNull());
+        await new Promise((r) => setTimeout(r, 30));
+        expect(new URLSearchParams(window.location.search).get("photo"), "閉じた写真が戻ってきた").toBeNull();
+        expect(result.current.currentIndex).toBeNull();
     });
 });
