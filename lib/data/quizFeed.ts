@@ -25,9 +25,22 @@ import { todayIn } from "../utils/sunTimes";
 /** 何日ぶん書くか（前日を含む） */
 export const QUIZ_DAYS_AHEAD = 60;
 
+/**
+ * 写真が**サイトに置いた控え**（`/images/spots/…`）か。索引は控えが無いと Commons の元画像の
+ * URL に落ちる（`spotFeed.ts`）が、今日の一問の画面はその URL を `publicImageUrl` を通さずに
+ * 描く（`imageOriginSites.test.ts` の除外）ので、**控えのある行だけ**を候補にする
+ */
+function hasLocalPhoto(url: string): boolean {
+    try {
+        return new URL(url).pathname.startsWith("/images/spots/");
+    } catch {
+        return false;
+    }
+}
+
 export function quizPool(items: readonly SpotFeedItem[]): QuizSpot[] {
     return items
-        .filter((i) => i.stage === "published" && i.image)
+        .filter((i) => i.stage === "published" && i.image && hasLocalPhoto(i.image.url))
         .map((i) => ({ spotId: i.spotId, slug: i.slug, name: i.name, region: i.region, image: i.image! }));
 }
 

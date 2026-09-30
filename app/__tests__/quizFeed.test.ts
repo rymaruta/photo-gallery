@@ -15,7 +15,15 @@ describe("今日の一問のファイル", () => {
             expect(i.stage).toBe("published");
             expect(i.image?.url).toBeTruthy();
         }
+        // いまは写真のある公開済みの行が全部サイトに控えを持つ（減ったら、控えの無い行が出てきた）
         expect(pool.length).toBe(items.filter((i) => i.stage === "published" && i.image).length);
+        for (const s of pool) expect(new URL(s.image.url).pathname.startsWith("/images/spots/"), s.slug).toBe(true);
+    });
+
+    it("写真がサイトの控えでない行（Commons の元画像）は候補にしない", () => {
+        const [base] = spotIndexFeed().filter((i) => i.stage === "published" && i.image);
+        const remote = { ...base, spotId: "sp_ffffffffffff", image: { ...base.image!, url: "https://upload.wikimedia.org/x.jpg" } };
+        expect(quizPool([base, remote]).map((s) => s.spotId)).toEqual([base.spotId]);
     });
 
     it("書き出す日付は日本時間の前日から60日先まで", () => {

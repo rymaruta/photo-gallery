@@ -109,7 +109,8 @@ export default function DailyQuizClient() {
         return () => document.removeEventListener("visibilitychange", onVisible);
     }, [load.state, shownDate]);
 
-    // 答えたら結果の見出しへフォーカスを移す（押したボタンは押せなくなり、フォーカスが行き場を失う）
+    // 答えたら結果の見出しへフォーカスを移す（押したボタンは押せなくなり、フォーカスが行き場を失う）。
+    // 移った先が読まれる＝結果の知らせも兼ねる（別に `aria-live` を置かない）
     const resultRef = React.useRef<HTMLParagraphElement>(null);
     // 回数で持つ（真偽だと、日付をまたいで次の問題に答えたときに変化せず、フォーカスが動かない）
     const [answeredTick, setAnsweredTick] = React.useState(0);
@@ -178,7 +179,11 @@ export default function DailyQuizClient() {
             return;
         }
         const result = await shareUrl(url, en ? "Where is this?" : "今日の一問", text);
-        if (result === "copied") showToast(en ? "Link copied" : "リンクをコピーしました", "success");
+        if (result === "copied") {
+            // 共有シートに断られて URL だけ写った——結果の文ごと写し直す
+            const ok = await copyToClipboard(`${text}\n${url}`);
+            showToast(ok ? (en ? "Result copied" : "結果をコピーしました") : (en ? "Link copied" : "リンクをコピーしました"), "success");
+        }
         if (result === "failed") showToast(en ? "Couldn't share." : "共有できませんでした。", "error");
     };
 
@@ -222,8 +227,10 @@ export default function DailyQuizClient() {
                         ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-white/10"
                         : isChosen
                             ? `bg-primary text-ink font-bold${isAnswer ? "" : " ring-2 ring-danger"}`
+                            // 縁は付けない——真鍮の輪はサイト共通のフォーカスの印（`focus-visible:ring-accent`）と
+                            // 同じ見た目で、キーボードの人には「ここにフォーカスがある」と読めてしまう
                             : isAnswer
-                                ? "bg-surface text-white ring-2 ring-accent"
+                                ? "bg-surface text-white"
                                 : "bg-surface text-white/50";
                     return (
                         <button
@@ -240,7 +247,7 @@ export default function DailyQuizClient() {
                                 {answered && isAnswer && (
                                     <span className={`shrink-0 font-mono font-medium ${isChosen ? "text-ink" : "text-accent"}`}
                                           style={{ fontSize: "12px", letterSpacing: "1px" }}>
-                                        {en ? "ANSWER" : "正解"}
+                                        {en ? "✓ ANSWER" : "✓ 正解"}
                                     </span>
                                 )}
                             </span>
@@ -249,22 +256,15 @@ export default function DailyQuizClient() {
                 })}
             </div>
 
-            {/* 読み上げの知らせは**最初から置いておく**領域の字を書き換える（領域ごと差し込むと
-                読まれないことが多い・`SpotPageClient` と同じ形） */}
-            <p className="sr-only" aria-live="polite" role="status">
-                {answered
-                    ? correct
-                        ? (en ? `Correct. ${answer.name}.` : `正解。${answer.name}。`)
-                        : (en ? `Not quite. The answer is ${answer.name}.` : `残念。正解は${answer.name}。`)
-                    : ""}
-            </p>
-
             {answered && (
                 <section className="mt-6 rounded-2xl bg-surface p-4 sm:p-5" data-testid="quiz-result">
                     <p ref={resultRef} tabIndex={-1}
                        className={`m-0 font-mono font-medium uppercase outline-none ${correct ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
                         {correct ? (en ? "Correct" : "正解") : (en ? "Not quite" : "残念")}
+                        {/* 答えたらここへフォーカスが移る＝読み上げはここで1回。名前まで読ませる
+                            （読み上げ用の領域を別に置くと、同じことを2回聞くことになる） */}
+                        <span className="sr-only">{en ? `: ${answer.name}` : `。${answer.name}`}</span>
                     </p>
                     <p className="m-0 mt-1 font-serif font-bold text-white" style={{ fontSize: "20px", lineHeight: "1.4" }}>
                         {answer.name}

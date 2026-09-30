@@ -83,9 +83,9 @@ describe("今日の一問", () => {
         const choices = [...group.querySelectorAll("button")];
         expect(choices).toHaveLength(4);
         for (const b of choices) expect(b.disabled).toBe(true);
-        // 読み上げは最初から在る領域の字で・フォーカスは結果の見出しへ
-        expect(screen.getByRole("status").textContent).toBe("正解。銀山温泉。");
-        await waitFor(() => expect(document.activeElement?.textContent).toBe("正解"));
+        // フォーカスは結果の見出しへ（そこで名前まで読まれる・読み上げの領域は別に置かない）
+        await waitFor(() => expect(document.activeElement?.textContent).toBe("正解。銀山温泉"));
+        expect(screen.queryByRole("status")).toBeNull();
     });
 
     it("共有: 共有シートがあれば日付と ✓ だけ・無ければ結果の文ごとコピー（答えの名前は書かない）", async () => {
@@ -116,17 +116,33 @@ describe("今日の一問", () => {
         }
     });
 
-    it("白地は自分が選んだもの・外したら正解は真鍮の縁と「正解」の字", async () => {
+    it("共有シートに断られて URL だけ写ったら、結果の文ごと写し直す", async () => {
+        share.mockImplementationOnce(async () => "copied");
+        Object.defineProperty(navigator, "share", { value: vi.fn(), configurable: true });
+        try {
+            render(<DailyQuizClient />);
+            fireEvent.click(await screen.findByRole("button", { name: "銀山温泉" }));
+            fireEvent.click(screen.getByRole("button", { name: "結果を共有" }));
+            await waitFor(() => expect(copy).toHaveBeenCalled());
+            expect((copy.mock.calls[0] as unknown as [string])[0]).toMatch(/✓[\s\S]*\/q$/);
+        } finally {
+            delete (navigator as unknown as { share?: unknown }).share;
+        }
+    });
+
+    it("白地は自分が選んだもの・外したら自分の選択に赤の縁、正解は「✓ 正解」の字", async () => {
         render(<DailyQuizClient />);
         fireEvent.click(await screen.findByRole("button", { name: "山寺" }));
         const chosen = screen.getByRole("button", { name: "山寺" });
         const answer = screen.getByRole("button", { name: /銀山温泉/ });
         expect(chosen.className).toContain("bg-primary");
         expect(chosen.getAttribute("aria-pressed")).toBe("true");
+        expect(chosen.className).toContain("ring-danger");
         expect(answer.className).not.toContain("bg-primary");
-        expect(answer.className).toContain("ring-accent");
-        expect(answer.textContent).toContain("正解");
-        expect(screen.getByRole("status").textContent).toBe("残念。正解は銀山温泉。");
+        // 正解は字で示す。真鍮の輪はフォーカスの印と紛れるので付けない
+        expect(answer.className).not.toContain("ring-accent");
+        expect(answer.textContent).toContain("✓ 正解");
+        await waitFor(() => expect(document.activeElement?.textContent).toBe("残念。銀山温泉"));
     });
 
     it("端末に残せなくても答えられる", async () => {
@@ -148,6 +164,18 @@ describe("今日の一問", () => {
         document.dispatchEvent(new Event("visibilitychange"));
         await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/app/data/quiz/2026-10-02.json"));
         expect(await screen.findByText(/2026\.10\.02/)).toBeTruthy();
+    });
+
+    it("前日に答えたまま日付をまたぐと、今日の問題は答えていない状態で出る", async () => {
+        render(<DailyQuizClient />);
+        fireEvent.click(await screen.findByRole("button", { name: "銀山温泉" }));
+        expect(screen.getByTestId("quiz-result")).toBeTruthy();
+        fetchMock.mockImplementation(async () => ({ ok: true, status: 200, json: async () => QUIZ("2026-10-02") }));
+        vi.setSystemTime(new Date("2026-10-01T15:30:00Z"));
+        document.dispatchEvent(new Event("visibilitychange"));
+        await screen.findByText(/2026\.10\.02/);
+        expect(screen.queryByTestId("quiz-result")).toBeNull();
+        expect((screen.getByRole("button", { name: "銀山温泉" }) as HTMLButtonElement).disabled).toBe(false);
     });
 
     it("同じ日のうちに戻ってきても読み直さない", async () => {
