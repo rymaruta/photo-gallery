@@ -629,6 +629,19 @@ describe("公式撮影地ガイドのピン", () => {
         expect(state.markers.every((m, i) => m === before[i]), "選び替えでピンが作り直された").toBe(true);
     });
 
+    // 661dc2fb のレビュー: 束から外して立てていたスポットを外したら、束に戻す（描き直す側の経路）
+    it("束の中のスポットを選んで外したら、束に戻る", async () => {
+        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
+        const spots = [SPOT, near];
+        const none: MapPhoto[] = [];
+        const { rerender } = render(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+        await waitFor(() => expect(spotMarker()).toBeTruthy());
+        expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(false);
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
+        await waitFor(() => expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(true));
+        expect(spotMarker(), "外したのに単独のまま").toBeUndefined();
+    });
+
     it("`onSelectSpot` を渡さなくても落ちない", async () => {
         await drawWithSpot([]);
         expect(() => spotMarker()?.clickHandler?.()).not.toThrow();
