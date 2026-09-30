@@ -30,6 +30,12 @@ export type Story = {
     /** ストーリーBGM（30秒プレビュー）。付いていると視聴中に再生できる */
     /** startSec = 30秒プレビュー内の再生開始位置（投稿者が「好きな部分」を指定できる） */
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string; startSec?: number };
+    /**
+     * 曲の札を写真に焼き込んだ印（アプリの作る画面が立てる）。立っていれば
+     * 曲の帯に**曲名を出さない**——写真の上の札と2度出る（2026-09-30・owner）。
+     * 帯そのもの（音を出す／止めるボタン）は残す
+     */
+    songOnPhoto?: boolean;
     /** 画像ストーリーの表示秒数（投稿者が指定）。未指定なら既定の5秒 */
     durationSec?: number;
     /**

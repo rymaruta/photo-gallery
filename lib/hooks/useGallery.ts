@@ -455,6 +455,8 @@ export default function useGallery(
      * 送った回数ぶん戻るを押すことになる。
      */
     const modalEntryRef = useRef<"ours" | "url" | null>(null);
+    /** 同期が最後に読んだ URL（外から URL が変わった直後かを見分ける） */
+    const seenSearchRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -473,6 +475,8 @@ export default function useGallery(
         // URL を動かす道は `pushState` / `replaceState` / 戻る・進む の
         // 3つだけで、3つとも購読している。
         if (window.location.search !== urlSearch) return;
+        const arrived = urlSearch !== seenSearchRef.current;
+        seenSearchRef.current = urlSearch;
         const params = new URLSearchParams();
         if (filters.category && filters.category !== "all") params.set("category", filters.category);
         if (filters.query) params.set("q", filters.query);
@@ -485,6 +489,26 @@ export default function useGallery(
             pendingPhotoRef.current = null;   // 開けたのでもう待つ必要は無い
         } else if (pendingPhotoRef.current) {
             params.set("photo", pendingPhotoRef.current);
+        } else if (arrived && modalEntryRef.current === null) {
+            // 🔴 **外から届いたばかりの `?photo=` は、まだ誰も読んでいない。**
+            //
+            // 通知から `/?scope=following&photo=<id>` へ移ると、この同期と
+            // `?photo=` の読み取り（`SearchParamWatcher` → 画面の効果 →
+            // `setPendingPhoto`）が同じ描画の後に並ぶ。こちらが先に走ると、
+            // 開いても待ってもいないので `?photo=` を書かずに URL を上書きし、
+            // **通知で名指しした写真が開かない**（CI の run 474 で落ちた・
+            // 手元でも約15回に1回）。届いた直後の1回だけは残して、読む側に
+            // 決めさせる（開けなければ読む側が `setPendingPhoto(null)` で外す）。
+            // 閉じたときは URL が変わっていないので、ここへは来ない。
+            //
+            // ⚠️ **分かっていて残している形**: 閉じた写真へ「進む」で戻る・同じ通知を
+            // もう一度押すと、読む側は開かない（閉じた覚え）のに `?photo=` が URL に残る
+            // （再読込するとその写真が開く）。「片付いた写真を覚えて落とす」見張りを
+            // 一度足したが、グリッドで開いて閉じた写真の通知が後から届くと**読む前に
+            // 消す**新しい穴を作った（a40fa30 のレビュー）。見た目だけのずれより
+            // 開かない穴の方が重いので、継ぎ足さずにこの形で止めている（2026-09-30）
+            const incoming = new URLSearchParams(urlSearch).get("photo");
+            if (incoming) params.set("photo", incoming);
         }
         const search = params.toString();
         const url = search ? `?${search}` : window.location.pathname;

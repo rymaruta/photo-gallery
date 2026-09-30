@@ -462,6 +462,30 @@ describe("createStory", () => {
         expect(storyPuts()[2].durationSec).toBeUndefined();
     });
 
+    // 曲の札を写真に焼き込んだ印（2026-09-30・owner「曲名が2か所に出てやだ」）
+    it("曲の札の印は、曲があって true のときだけ保存する", async () => {
+        const song = { title: "Song", previewUrl: "https://audio-ssl.itunes.apple.com/p.m4a" };
+        mockDdbSend.mockResolvedValue({ Count: 0 });
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song, songOnPhoto: true }),
+        }));
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song, songOnPhoto: "true" }),
+        }));
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", songOnPhoto: true }),
+        }));
+        await invoke(createStory, authedEvent("u1", {
+            body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg", song }),
+        }));
+        const puts = storyPuts();
+        expect(puts[0].song).toBeDefined();
+        expect(puts[0].songOnPhoto).toBe(true);
+        expect(puts[1].songOnPhoto, "形の違う値で立てている").toBeUndefined();
+        expect(puts[2].songOnPhoto, "曲が無いのに立てている").toBeUndefined();
+        expect(puts[3].songOnPhoto).toBeUndefined();
+    });
+
     it("外部ホストの音源URLは保存しない（曲ごと落とす）", async () => {
         // ストーリーはログイン中の全員のトレイに出るので、任意のURLを
         // 1回仕込むだけで利用者ほぼ全員の IP・User-Agent・時刻を集められた。
