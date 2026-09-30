@@ -45,13 +45,34 @@ describe("今日の一問の出題", () => {
         for (let i = 0; i < a2.length; i++) expect(a2.slice(Math.max(0, i - 30), i)).not.toContain(a2[i]);
     });
 
-    it("🔴 候補を1件足しても、ほとんどの日の答えは変わらない（公開した回のデプロイで問題が差し替わらない）", () => {
+    it("🔴 候補を1件足しても減らしても、ほとんどの日の答えは変わらない（公開した回のデプロイで問題が差し替わらない）", () => {
         const big = Array.from({ length: 300 }, (_, n) => spot(n + 1, YAMAGATA));
         const days = datesFrom("2026-10-01", 61);
-        const before = days.map((d) => buildDailyQuiz(big, d)!.answer);
-        const after = days.map((d) => buildDailyQuiz([...big, spot(999, YAMAGATA)], d)!.answer);
-        const changed = before.filter((a, i) => a !== after[i]).length;
-        expect(changed).toBeLessThan(10);
+        const answers = (p: QuizSpot[]) => days.map((d) => buildDailyQuiz(p, d)!.answer);
+        const before = answers(big);
+        const changed = (after: string[]) => before.filter((a, i) => a !== after[i]).length;
+        expect(changed(answers([...big, spot(999, YAMAGATA)]))).toBeLessThan(10);
+        expect(changed(answers(big.filter((s) => s.spotId !== before[10])))).toBeLessThan(10);
+    });
+
+    it("答えの値を固定する（控えの有無・聞く順で変わらない）", () => {
+        const p50 = Array.from({ length: 50 }, (_, n) => spot(n + 1, n % 2 ? YAMAGATA : KYOTO));
+        const expected: [string, string][] = [
+            ["2026-08-15", "sp_000000000015"], ["2026-09-01", "sp_00000000001c"], ["2026-09-02", "sp_000000000007"],
+            ["2026-10-01", "sp_000000000020"], ["2026-12-31", "sp_00000000001d"], ["2027-06-15", "sp_00000000000e"],
+        ];
+        // 遠い日を先に聞いて控えを伸ばしてから、手前の日を聞く
+        for (const [d, id] of [...expected].reverse()) expect(buildDailyQuiz(p50, d)!.answer, d).toBe(id);
+        // 別の顔ぶれを挟んで控えを捨てさせても同じ
+        buildDailyQuiz(pool, "2027-06-15");
+        for (const [d, id] of expected) expect(buildDailyQuiz(p50, d)!.answer, d).toBe(id);
+    });
+
+    it("除外は30日ちょうど（31件なら31日で全部が1回ずつ出る）", () => {
+        expect(QUIZ_NO_REPEAT_DAYS).toBe(30);
+        const p31 = Array.from({ length: 31 }, (_, n) => spot(n + 1, YAMAGATA));
+        const a = datesFrom(QUIZ_EPOCH, 93).map((d) => buildDailyQuiz(p31, d)!.answer);
+        for (let i = 0; i + 31 <= a.length; i++) expect(new Set(a.slice(i, i + 31)).size, `${i}`).toBe(31);
     });
 
     it("選択肢は4つ・重複なし・正解を含み・写真は正解のもの", () => {
@@ -113,6 +134,14 @@ describe("今日の一問の出題", () => {
     it("写真の無い行は数えない", () => {
         const noImg = { ...spot(20, YAMAGATA), image: { ...img("x"), url: "" } };
         expect(buildDailyQuiz([...pool.slice(0, 3), noImg], "2026-10-01")).toBeNull();
+    });
+
+    it("ID も写真も同じで名前だけ違う2行でも、並びで答えが変わらない", () => {
+        const a = pool.slice(0, 6);
+        const renamed = a.map((s) => ({ ...s, name: `${s.name}（別）` }));
+        for (const ymd of datesFrom("2026-10-01", 10)) {
+            expect(buildDailyQuiz([...renamed, ...a], ymd), ymd).toEqual(buildDailyQuiz([...a, ...renamed], ymd));
+        }
     });
 
     it("同じ ID が2行あっても、どちらを残すかは並びに左右されない", () => {

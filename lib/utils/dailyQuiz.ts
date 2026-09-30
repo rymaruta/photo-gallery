@@ -90,7 +90,10 @@ export const QUIZ_NO_REPEAT_DAYS = 30;
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** 32ビットの混ぜ合わせ（murmur3 の仕上げ）。アプリも同じ式で書く */
+/**
+ * 32ビットの混ぜ合わせ（murmur3 の仕上げ）。
+ * **アプリはこの式を持たない**——日ごとのファイルを読むだけ（冒頭の「規則を2か所に書かない」）
+ */
 export function mix32(x: number): number {
     let h = x >>> 0;
     h ^= h >>> 16;
@@ -101,40 +104,54 @@ export function mix32(x: number): number {
     return h >>> 0;
 }
 
+/** ID の混ぜ合わせ（`fnv1a(spotId)`）と日から点数。答えの選び方と試験が同じ式を使う */
+function scoreOf(idHash: number, day: number): number {
+    return mix32(idHash ^ Math.imul(day, 0x9e3779b1));
+}
+
 /** その日の候補の点数。高い方が答えになる */
 export function quizScore(day: number, spotId: string): number {
-    return mix32(fnv1a(spotId) ^ Math.imul(day, 0x9e3779b1));
+    return scoreOf(fnv1a(spotId), day);
 }
 
 /**
+ * 起点からの答えの控え（候補の顔ぶれごと・最後の1組だけ）。
+ * 起点から数え直すと費用が「起点からの日数 × 候補数」で**年々伸びる**うえ、ビルドは
+ * 同じ 61 日を2回（`generateStaticParams` と `GET`）聞く。控えがあれば数え直しは
+ * 顔ぶれが変わったときの1回だけ（5年後・5,000件でも数百万回の掛け算で済む）
+ */
+let chainMemo: { key: string; picks: number[] } | null = null;
+
+/**
  * その日の答え。起点から1日ずつ決め、直近の答えを除く。
- * `sorted` は spotId 順・重複なし（同点は spotId の小さい方＝並びに左右されない）
+ * `sorted` は spotId 順・重複なし（同点は spotId の小さい方＝並びに左右されない）。
+ * ⚠️ 候補が `QUIZ_NO_REPEAT_DAYS + 1` 件以下だと除外が全部を覆って**決まった輪**になり、
+ * 1件の増減で先の日が軒並み変わる。「変わるのは1〜2日」は本番の数百件が前提
  */
 function answerFor(sorted: readonly QuizSpot[], day: number): QuizSpot {
-    // ID の混ぜ合わせは1回だけ（日ごとに作り直さない）
     const ids = sorted.map((s) => fnv1a(s.spotId));
     const best = (d: number, skip: ReadonlySet<number>): number => {
-        const salt = Math.imul(d, 0x9e3779b1);
         let top = -1;
         let topScore = -1;
         for (let i = 0; i < ids.length; i++) {
             if (skip.has(i)) continue;
-            const sc = mix32(ids[i] ^ salt);
+            const sc = scoreOf(ids[i], d);
             if (sc > topScore) { top = i; topScore = sc; }
         }
         return top;
     };
     const epoch = dayNumber(QUIZ_EPOCH)!;
     if (day < epoch) return sorted[best(day, new Set())];
+
+    const key = sorted.map((s) => s.spotId).join(",");
+    if (chainMemo?.key !== key) chainMemo = { key, picks: [] };
+    const picks = chainMemo.picks;
     const window = Math.min(QUIZ_NO_REPEAT_DAYS, sorted.length - 1);
-    const recent: number[] = [];
-    let pick = 0;
-    for (let d = epoch; d <= day; d++) {
-        pick = best(d, new Set(recent));
-        recent.push(pick);
-        if (recent.length > window) recent.shift();
+    // 控えの続きから伸ばす（除外はいつも「直前 window 日」なので控えから作り直せる）
+    for (let d = epoch + picks.length; d <= day; d++) {
+        picks.push(best(d, new Set(picks.slice(Math.max(0, picks.length - window)))));
     }
-    return sorted[pick];
+    return sorted[picks[day - epoch]];
 }
 
 /** 選択肢をどの範囲から取るか（同じ県 → 同じ国 → 全体） */
@@ -154,8 +171,9 @@ export function buildDailyQuiz(pool: readonly QuizSpot[], ymd: string): DailyQui
     const day = dayNumber(ymd);
     if (day === null) return null;
     // 同じ ID が2度あっても1つに。**どちらを残すかも並びに左右されない**（写真の URL の順で先勝ち）
+    // 最後は行まるごとの文字列で比べる（ID も写真も同じで名前だけ違う2行でも、並びで答えが変わらない）
     const byKey = (a: QuizSpot, b: QuizSpot) =>
-        cmp(a.spotId, b.spotId) || cmp(a.image?.url ?? "", b.image?.url ?? "");
+        cmp(a.spotId, b.spotId) || cmp(a.image?.url ?? "", b.image?.url ?? "") || cmp(JSON.stringify(a), JSON.stringify(b));
     const sorted = [...pool].filter((s) => s.image?.url).sort(byKey)
         .filter((s, i, arr) => i === 0 || arr[i - 1].spotId !== s.spotId);
     if (sorted.length < 4) return null;
