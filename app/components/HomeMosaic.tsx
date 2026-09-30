@@ -4,8 +4,6 @@ import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { HeartIcon, Square2StackIcon } from "@heroicons/react/24/outline";
 import type { Photo, Locale } from "@/lib/data/photos";
-import { getLocalized } from "@/lib/data/photos";
-import { displayTitle } from "@/lib/utils/photoTitle";
 import { ROUTES } from "@/lib/routes";
 import { photoAltText } from "@/lib/utils/photoAlt";
 import { timeAgo } from "@/lib/stories";
@@ -81,8 +79,6 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
     photo: Photo; locale: Locale; large?: boolean; priority?: boolean;
 }) {
     const isJa = locale !== "en";
-    // サーバーが入れていた「無題」は題として読まない（iOS の `PhotoTitle.display` と同じ）
-    const title = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
     const alt = photoAltText(photo, locale);
     const place = shortPlace(photo.location);
     const author = photo.displayName || (isJa ? "旅人" : "Traveler");
@@ -99,20 +95,16 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
     const extraCount = Array.isArray(photo.extraImages)
         ? photo.extraImages.filter((i) => typeof i?.src === "string" && !!i.src).length
         : 0;
-    // 読み上げ（題 → 撮影地 → 撮った人 → 複数枚 → いいね）。画面に出ている文字を全部読む
-    const label = [
-        title || alt,
-        place && !(title || alt).includes(place) ? place : "",
-        byline,
-        extraCount > 0 ? (isJa ? "複数枚の投稿" : "Multiple photos") : "",
-        isJa ? `いいね ${likes}件` : `${likes} ${likes === 1 ? "like" : "likes"}`,
-    ].filter(Boolean).join(isJa ? "、" : ", ");
 
     return (
         <Link
             href={ROUTES.PHOTO(photo.id)}
             prefetch={false}
-            aria-label={label}
+            // **読み上げの名前は中身から組む（`aria-label` を付けない）**（2026-09-30）。
+            // 画像の説明（題・撮影地）→ 撮影地 → 撮った人 → 複数枚 → いいねの数、の順に読む。
+            // `aria-label` で別の文を付けていたので、画面に見えている文字と読み上げの名前が
+            // 食い違っていた（Lighthouse の label-content-name-mismatch・トップの全タイル）。
+            // 見える文字を名前に含めるには、見出しの段を読ませるのが素直な形
             data-photo-id={photo.id}
             className="relative block overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             style={{
@@ -128,13 +120,16 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             {/* 撮影地と撮った人（板: 明朝の撮影地、その下に小さく）。
                 **撮影地が無い写真は文字を重ねず、下を薄く暗くするだけ**（いいねの丸を読ませる） */}
             {place ? (
-                <div aria-hidden="true"
-                     className="absolute inset-x-0 bottom-0 pointer-events-none"
+                <div className="absolute inset-x-0 bottom-0 pointer-events-none"
                      style={{
                          padding: "48px 70px 12px 14px",
                          background: "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.78) 60%, rgba(0,0,0,0.78) 100%)",
                      }}>
-                    <p className="m-0 font-serif font-bold text-white truncate"
+                    {/* 写真の説明（alt）が撮影地を含むなら、ここは読ませない（同じ地名が続けて
+                        二度読まれた。alt は「題（撮影地）」の形）。見える文字のままで名前には
+                        `aria-label` を使っていないので、label-content-name-mismatch には戻らない */}
+                    <p aria-hidden={alt.includes(place) ? true : undefined}
+                       className="m-0 font-serif font-bold text-white truncate"
                        style={{ fontSize: large ? "22px" : "18px", lineHeight: 1.25, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                         {place}
                     </p>
@@ -143,22 +138,34 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
                     </p>
                 </div>
             ) : (
-                <div aria-hidden="true" className="absolute inset-x-0 bottom-0 pointer-events-none"
-                     style={{ height: 56, background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.55))" }} />
+                <>
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 pointer-events-none"
+                         style={{ height: 56, background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.55))" }} />
+                    {/* 撮影地が無い写真は名前を重ねない（iOS と同じ）が、**誰の写真かは読ませる** */}
+                    <span className="sr-only">{byline}</span>
+                </>
             )}
 
             {/* 複数枚の印（板: 右上の重なった四角） */}
             {extraCount > 0 && (
-                <Square2StackIcon aria-hidden="true" className="absolute text-white pointer-events-none"
-                                  style={{ top: 8, right: 8, width: 18, height: 18, filter: "drop-shadow(0 0 3px rgba(0,0,0,0.5))" }} />
+                <>
+                    <Square2StackIcon aria-hidden="true" className="absolute text-white pointer-events-none"
+                                      style={{ top: 8, right: 8, width: 18, height: 18, filter: "drop-shadow(0 0 3px rgba(0,0,0,0.5))" }} />
+                    <span className="sr-only">{isJa ? "、複数枚の投稿" : ", Multiple photos"}</span>
+                </>
             )}
 
             {/* いいねの数（板: 右下のガラスの丸・32px・等幅の数）。押すと写真ページ */}
-            <span aria-hidden="true"
-                  className="absolute inline-flex items-center gap-1 rounded-full text-white bg-black/55 backdrop-blur-md pointer-events-none"
+            {/* 見える数は数字だけ。読み上げは「、いいね 3件」（英語は「, 3 likes」）を**1つの文で**持つ。
+                区切りは文の中に書く——名前の計算は実装によって空白の扱いが違う（jsdom は隣と
+                空白なしでつなぎ「いいね3件」「1like」になった。Chrome は前後に空白を入れる） */}
+            <span className="absolute inline-flex items-center gap-1 rounded-full text-white bg-black/55 backdrop-blur-md pointer-events-none"
                   style={{ right: 6, bottom: 6, minWidth: 44, height: 32, padding: "0 10px", justifyContent: "center" }}>
-                <HeartIcon style={{ width: 14, height: 14, strokeWidth: 2 }} />
-                <span className="font-mono tabular-nums" style={{ fontSize: "11px" }}>{likes.toLocaleString()}</span>
+                <HeartIcon aria-hidden="true" style={{ width: 14, height: 14, strokeWidth: 2 }} />
+                <span aria-hidden="true" className="font-mono tabular-nums" style={{ fontSize: "11px" }}>{likes.toLocaleString()}</span>
+                <span className="sr-only">
+                    {isJa ? `、いいね ${likes.toLocaleString()}件` : `, ${likes.toLocaleString()} ${likes === 1 ? "like" : "likes"}`}
+                </span>
             </span>
         </Link>
     );
