@@ -231,7 +231,9 @@ function UploadPageInner() {
         const ready = items.filter((it) => it.metaRead && spotPendingRef.current.has(it.id));
         if (ready.length === 0) return;
         for (const it of ready) spotPendingRef.current.delete(it.id);
-        const fill = new Set(ready.filter((it) => !it.location && it.status !== "done" && coversSpot(spot, it)).map((it) => it.id));
+        // **上げ始めた写真は埋めない**——保存は押した時点の中身で送るので、画面だけ
+        // スポット名に変わって保存には入らない、になる
+        const fill = new Set(ready.filter((it) => !it.location && it.status === "pending" && coversSpot(spot, it)).map((it) => it.id));
         if (fill.size === 0) return;
         setItems((prev) => prev.map((it) => (fill.has(it.id) && !it.location ? { ...it, location: spot.name } : it)));
     }, [spot, items]);
@@ -557,6 +559,10 @@ function UploadPageInner() {
                 uploadAbortRef.current.abort(new DOMException("owner switched", "AbortError"));
             }
             setItems((cur) => { for (const it of cur) URL.revokeObjectURL(it.preview); return []; });
+            // スポットの判定待ちと「紐付けて公開した」印も前の人のもの。残すと
+            // 新しい人の関係の無い投稿がスポットの画面へ送られる
+            spotPendingRef.current.clear();
+            spotPostedRef.current = false;
             setCategory("");
             setTags("");
             setAudience("everyone");
@@ -835,7 +841,9 @@ function UploadPageInner() {
             status: "pending",
             progress: 0,
         }));
-        for (const it of newItems) spotPendingRef.current.add(it.id);
+        // **共有シートから取り込んだ写真は判定待ちに入れない**——別のアプリで選んだ写真で、
+        // このスポットの画面から来たとは限らない（下書きの復元と同じ扱い）
+        if (!shared) for (const it of newItems) spotPendingRef.current.add(it.id);
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。

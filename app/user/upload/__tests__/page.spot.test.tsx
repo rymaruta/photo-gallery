@@ -37,9 +37,10 @@ vi.mock("../../../../lib/auth/cognito", () => {
     const getCurrentSession = vi.fn(async () => null);
     return { getCurrentSession, lookupSession: async () => ({ session: await getCurrentSession(), unreachable: false }) };
 });
+const share = vi.hoisted(() => ({ payload: null as unknown }));
 vi.mock("../../../../lib/utils/shareStore", () => ({
-    readSharedResult: vi.fn(async () => ({ ok: true, payload: null })),
-    clearSharedPayload: vi.fn(async () => undefined),
+    readSharedResult: vi.fn(async () => ({ ok: true, payload: share.payload })),
+    clearSharedPayload: vi.fn(async () => { share.payload = null; }),
 }));
 vi.mock("../../../../lib/utils/exif", () => ({
     extractExifFromFile: vi.fn(async () => { if (exif.gate) await exif.gate; return exif.meta; }),
@@ -77,6 +78,7 @@ beforeEach(() => {
     body.ok = true;
     body.gate = null;
     auth.userId = null;
+    share.payload = null;
     draft.read.mockReset().mockResolvedValue(null);
     mockShowToast.mockReset();
     mockPush.mockReset();
@@ -209,7 +211,11 @@ describe("アップロード画面: 撮影スポットから来た投稿", () =>
         body.gate = b.promise;
         const { container } = render(<UploadPage />);
         await pick(container);
-        await screen.findByRole("button", { name: /投稿する/ });
+        // **EXIF を読み終えた（投稿できる）状態になってから門を開ける**——
+        // ボタンは写真を選ぶ前から（押せないまま）在るので、在るだけでは順序が保証されない
+        const btn = await screen.findByRole("button", { name: /投稿する/ });
+        await waitFor(() => expect(btn).not.toBeDisabled());
+        expect(screen.queryByTestId("upload-spot-banner"), "スポットが先に届いている（順序が崩れた）").toBeNull();
         b.open();
         await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚をスポットに紐付けます"));
         await publish();
@@ -241,6 +247,51 @@ describe("アップロード画面: 撮影スポットから来た投稿", () =>
         await publish();
         expect(savedBody()!.spotId).toBe(GINZAN.spotId);
         await waitFor(() => expect(mockPush).toHaveBeenCalled(), { timeout: 3000 });
+        expect(mockPush).not.toHaveBeenCalledWith("/spots/ginzan-onsen?posted=1");
+    });
+
+    // レビュー B: 共有シートの受け皿から取り込んだ写真は、このスポットの画面で選んだとは限らない
+    it("共有シートから取り込んだ写真には、スポット名を入れない", async () => {
+        share.payload = { files: [new File(["x"], "shared.jpg", { type: "image/jpeg" })], t: Date.now() };
+        render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚中0枚"));
+        await publish();
+        expect("spotId" in savedBody()!).toBe(false);
+    });
+
+    // レビュー A: 別の人に入れ替わったら、前の人の「紐付けて公開した」印を持ち越さない
+    it("アカウントが入れ替わったら、前の人の公開の印でスポットの画面へ送らない", async () => {
+        auth.userId = "a";
+        let failOnce = true;
+        const base = mockUserFetch.getMockImplementation()!;
+        mockUserFetch.mockImplementation((url: string, init?: unknown) => {
+            // A の2枚目の保存だけ失敗させる（1枚目は紐付いて成功・遷移しない）
+            if (url === "/upload/save" && mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save").length === 2 && failOnce) {
+                failOnce = false;
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            return base(url, init);
+        });
+        const { container, rerender } = render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await userEvent.upload(input, [new File(["x"], "a1.jpg", { type: "image/jpeg" }), new File(["y"], "a2.jpg", { type: "image/jpeg" })]);
+        await publish();
+        await waitFor(() => expect(mockUserFetch.mock.calls.filter((c) => c[0] === "/upload/save").length).toBe(2));
+        await new Promise((r) => setTimeout(r, 1700));
+        expect(mockPush, "1件失敗したのに遷移した").not.toHaveBeenCalled();
+
+        // B に入れ替わる → 遠い写真を上げる
+        auth.userId = "b";
+        rerender(<UploadPage />);
+        exif.meta = { latitude: 41.39, longitude: 2.17 };
+        await waitFor(() => expect(container.querySelectorAll("img").length).toBe(0));
+        await userEvent.upload(container.querySelector('input[type="file"]') as HTMLInputElement, new File(["z"], "b.jpg", { type: "image/jpeg" }));
+        const btn = await screen.findByRole("button", { name: /投稿する/ }, { timeout: 4000 });
+        await waitFor(() => expect(btn).not.toBeDisabled(), { timeout: 4000 });
+        await userEvent.click(btn);
+        await waitFor(() => expect(mockPush).toHaveBeenCalled(), { timeout: 4000 });
         expect(mockPush).not.toHaveBeenCalledWith("/spots/ginzan-onsen?posted=1");
     });
 });
