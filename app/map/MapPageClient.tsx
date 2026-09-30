@@ -16,6 +16,8 @@ import {
 import type { SpotPin } from "../../lib/data/spotLink";
 import MapSpotSheet from "./MapSpotSheet";
 import MapSpotList from "./MapSpotList";
+import { useSpotSearchIndex } from "../../lib/hooks/useSpotSearchIndex";
+import { searchSpotRows } from "../../lib/utils/spots";
 
 /**
  * 撮影地マップ（/map）。位置情報を持つ公開写真を地図に載せる。
@@ -57,14 +59,6 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
         () => photosInBounds(filterMapPhotos(geo, { query, category, locale }), area),
         [geo, query, category, locale, area],
     );
-    /**
-     * 公式スポットも**同じ語・カテゴリ・範囲**で絞る（`filterMapSpots`）。以前は写真だけが
-     * 絞られ、スポットの一覧とピンは全件のまま残っていた。**件数は写真と混ぜない**
-     */
-    const shownSpots = useMemo(
-        () => filterMapSpots(spots, { query, category, area }),
-        [spots, query, category, area],
-    );
 
     // ピンを押すと画面下のシートに出す（以前は地図の中のポップアップ）。
     //
@@ -82,6 +76,20 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
      * 出るので、2枚重なると下が読めない。押した方を採り、もう片方を閉じる。
      */
     const [spotSlug, setSpotSlug] = useState<string | null>(null);
+    /**
+     * 公式スポットも**同じ語・カテゴリ・範囲**で絞る（`filterMapSpots`）。以前は写真だけが
+     * 絞られ、スポットの一覧とピンは全件のまま残っていた。**件数は写真と混ぜない**
+     */
+    // 名前の索引（読み・英語名・別名まで）。語が入ったときだけ取りに行く（「さがす」と共有）
+    const spotIndex = useSpotSearchIndex(query);
+    const indexMatches = useMemo(
+        () => (spotIndex && query.trim() ? new Set(searchSpotRows(spotIndex, query).map((r) => r.s)) : null),
+        [spotIndex, query],
+    );
+    const shownSpots = useMemo(
+        () => filterMapSpots(spots, { query, category, area, indexMatches, keep: spotSlug }),
+        [spots, query, category, area, indexMatches, spotSlug],
+    );
     const onSelect = useCallback((s: MapSelection | null) => {
         setSelection(s ? { ids: s.photos.map((p) => p.id), index: s.index } : null);
         if (s) setSpotSlug(null);
@@ -138,7 +146,9 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
     // 一覧で見たければ「リスト」を押す
     const onSearchArea = useCallback((b: MapBounds | null) => setArea(b), []);
 
-    const emptyHint = query || category !== "all" || area
+    const emptyHint = !loaded && geo.length === 0
+        ? (en ? "Loading photos…" : "写真を読み込み中…")
+        : query || category !== "all" || area
         ? (en ? "No photos match. Try clearing the search or filters." : "該当する写真がありません。検索や絞り込みを外してみてください。")
         : undefined;
 

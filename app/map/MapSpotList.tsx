@@ -127,7 +127,7 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                 ))}
             </ul>
             {spots.length > limit && (
-                <button type="button" onClick={() => setPager({ of: spots, n: limit + PAGE * 2 })}
+                <button type="button" onClick={() => setPager({ of: spots, n: limit + PAGE })}
                         className="rounded-full px-4 text-white/80 ring-1 ring-line hover:bg-white/10"
                         style={{ minHeight: "44px", fontSize: "13px" }}
                         data-testid="map-spot-more">

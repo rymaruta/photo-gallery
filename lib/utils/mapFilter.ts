@@ -137,7 +137,7 @@ export function photosInBounds<T extends WithCoords>(photos: readonly T[], b: Ma
 
 
 /** 地図に立てる公式スポット（`SpotPin` のうち絞り込みが読むところ。循環 import を避けて再掲） */
-type MapSpotLike = { name: string; region: string; lat: number; lng: number };
+type MapSpotLike = { slug: string; name: string; region: string; lat: number; lng: number };
 
 /**
  * **公式スポットを、写真と同じ絞り込みで絞る**（2026-09-30 のレビュー）。
@@ -154,12 +154,20 @@ type MapSpotLike = { name: string; region: string; lat: number; lng: number };
  */
 export function filterMapSpots<T extends MapSpotLike>(
     spots: readonly T[],
-    { query = "", category = "all", area = null as MapBounds | null } = {},
+    {
+        query = "", category = "all", area = null as MapBounds | null,
+        /** 名前の索引（`searchSpotRows`）で当たった綴り。読み・英語名・別名でも当てるため（届く前は無し） */
+        indexMatches = null as ReadonlySet<string> | null,
+        /** 選んでいるスポット。**絞り込みで落とさない**（ピンが消えてシートだけ残る、を作らない） */
+        keep = null as string | null,
+    } = {},
 ): T[] {
-    if (category !== "all") return [];
     const q = normalizeSpotName(query);
-    return spots.filter((s) =>
-        (!q || normalizeSpotName(s.name).includes(q) || normalizeSpotName(s.region).includes(q))
-        && (!area || isInBounds({ lat: s.lat, lng: s.lng }, area)),
-    );
+    return spots.filter((s) => {
+        if (keep && s.slug === keep) return true;
+        if (category !== "all") return false;
+        const hit = !q || normalizeSpotName(s.name).includes(q) || normalizeSpotName(s.region).includes(q)
+            || !!indexMatches?.has(s.slug);
+        return hit && (!area || isInBounds({ lat: s.lat, lng: s.lng }, area));
+    });
 }

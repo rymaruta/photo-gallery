@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import { ROUTES } from "@/lib/routes";
-import { searchSpotRows, type SpotSearchRow } from "@/lib/utils/spots";
+import { searchSpotRows } from "@/lib/utils/spots";
+import { useSpotSearchIndex } from "@/lib/hooks/useSpotSearchIndex";
 
 /**
  * **「さがす」の撮影スポットの結果。** 写真の結果とは別の節で、件数も混ぜない。
@@ -27,39 +28,13 @@ import { searchSpotRows, type SpotSearchRow } from "@/lib/utils/spots";
 /** 最初に見せる件数。「県の名前」で当てると数十件になるので、畳んでおく */
 const INITIAL = 5;
 
-let cache: Promise<SpotSearchRow[] | null> | null = null;
-/** 試験用（モジュールの控えを捨てる） */
-export function resetSpotSearchCache() { cache = null; }
-
-function loadIndex(): Promise<SpotSearchRow[] | null> {
-    if (!cache) {
-        cache = fetch("/app/data/spot-search.json")
-            .then((res) => (res.ok ? res.json() : null))
-            .then((json) => (Array.isArray(json) ? (json as SpotSearchRow[]) : null))
-            .catch(() => null)
-            .then((rows) => {
-                // 失敗は控えない（次に打ったとき取り直す）
-                if (!rows) cache = null;
-                return rows;
-            });
-    }
-    return cache;
-}
-
-export default function SpotSearchResults({ query, locale }: { query: string; locale: "ja" | "en" | string }) {
+export default function SpotSearchResults({ query, locale }: { query: string; locale: string }) {
     const en = locale === "en";
     const q = query.trim();
-    const [rows, setRows] = useState<SpotSearchRow[] | null>(null);
+    const rows = useSpotSearchIndex(q);
     /** 開いた語。**語が変わったら自然に畳まれる**（effect で戻さない） */
     const [expandedFor, setExpandedFor] = useState<string | null>(null);
     const expanded = expandedFor === q;
-
-    useEffect(() => {
-        if (!q || rows) return;
-        let alive = true;
-        void loadIndex().then((r) => { if (alive && r) setRows(r); });
-        return () => { alive = false; };
-    }, [q, rows]);
 
     const hits = useMemo(() => (q && rows ? searchSpotRows(rows, q) : []), [rows, q]);
     if (!q || hits.length === 0) return null;

@@ -665,11 +665,53 @@ describe("公式撮影地ガイドのピン", () => {
             expect(screen.getByTestId("map-spot-list").closest("section")!.parentElement!.className).not.toContain("hidden");
         });
 
+        // cfc451eb のレビュー 3: 地図の語も読み・英語名・別名に当てる（「さがす」と同じ索引）
+        it("読み・英語名でも、スポットのピンが絞られる（名前の索引を共有）", async () => {
+            const { resetSpotSearchIndex } = await import("../../../lib/hooks/useSpotSearchIndex");
+            resetSpotSearchIndex();
+            const fetchMock = vi.fn(async () => ({ ok: true, json: async () => [
+                { s: "ginzan-onsen", n: "銀山温泉", e: "Ginzan Onsen", r: "ぎんざんおんせん", g: "山形県 尾花沢市" },
+                { s: "takaya-jinja", n: "高屋神社", r: "たかやじんじゃ", g: "香川県 観音寺市" },
+            ] }));
+            vi.stubGlobal("fetch", fetchMock);
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await typeQuery("ぎんざん");
+            await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            await typeQuery("Ginzan");
+            expect(mapProps.spotSlugs).toEqual(["ginzan-onsen"]);
+            vi.unstubAllGlobals();
+        });
+
+        // cfc451eb のレビュー 2: 選んだ場所を見失わせない
+        it("選んでいるスポットは、絞り込みで外れてもピンを残す（シートだけ残さない）", async () => {
+            photosState.current = [P("a")];
+            ledger.pins = [PIN, GINZAN];
+            render(<MapPage />);
+            await act(async () => { mapProps.selectSpot?.("takaya-jinja"); });
+            await typeQuery("銀山温泉");
+            expect(mapProps.spotSlugs.sort()).toEqual(["ginzan-onsen", "takaya-jinja"]);
+            expect(screen.getByTestId("map-spot-sheet")).toBeTruthy();
+        });
+
+        it("写真がまだ届いていない間は、写真の一覧も「該当なし」と言わない", () => {
+            photosState.current = [];
+            photosState.loaded = false;
+            ledger.pins = [PIN];
+            render(<MapPage />);
+            expect(screen.getByTestId("map-list-empty").textContent).toContain("写真を読み込み中");
+            photosState.loaded = true;
+        });
+
         it("一覧は30件ずつ（全件を一度に並べない）", () => {
             photosState.current = [P("a")];
             ledger.pins = many(95);
             render(<MapPage />);
             expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(30);
+            fireEvent.click(screen.getByTestId("map-spot-more"));
+            expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(60);
             fireEvent.click(screen.getByTestId("map-spot-more"));
             expect(within(screen.getByTestId("map-spot-list")).getAllByRole("link")).toHaveLength(90);
             fireEvent.click(screen.getByTestId("map-spot-more"));

@@ -52,10 +52,11 @@ const SPOT_PIN_PX = 28;
 const SPOT_PIN_H = 36;
 const CELL_PX = 56;
 /**
- * 公式スポットの束の升（px）。写真の升より小さめ——スポットのピンは写真の丸より
- * 小さい（28px）ので、同じ升で束ねると、寄っても束のままの時間が長い
+ * 公式スポットの束の升（px）。**束の丸（36px）の2倍ほど**にする——束は升の中の重心に
+ * 立つので、升が丸に近い大きさだと隣の升の束と重なる（44px で日本全体を見ると
+ * 数字が重なって読めなかった・実ブラウザの絵で確認）
  */
-const SPOT_CELL_PX = 44;
+const SPOT_CELL_PX = 72;
 
 /** 「現在地」で寄るズーム。写真の座標は約1km に丸めてあるので、これ以上寄せない */
 const LOCATE_ZOOM = 12;
@@ -169,6 +170,10 @@ export default function PhotoMap({
     onSelectSpotRef.current = onSelectSpot;
     const selectedSpotRef = useRef(selectedSpotSlug);
     selectedSpotRef.current = selectedSpotSlug;
+    /** 写真0枚で地図を作った（あとから写真が届いたら一度だけ寄る） */
+    const autoFitPendingRef = useRef(false);
+    /** 直前に選んでいたスポット（外したら束に戻すため描き直す） */
+    const prevSelectedSpotRef = useRef<string | null>(null);
     /** 現在地。**state に置くだけで、保存も送信もしない** */
     const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
     const hereRef = useRef(here);
@@ -400,7 +405,9 @@ export default function PhotoMap({
                         }),
                         title: en ? `${n} shooting spots` : `撮影スポット ${n}か所`,
                         keyboard: true,
-                        zIndexOffset: 900,
+                        // **写真のピンより奥に置く**（写真が主役。束の丸は大きいので、上に
+                        // 置くと写真の束を覆う）。単独のスポットのピンは小さいので手前のまま
+                        zIndexOffset: -100,
                     });
                     onActivate(marker, () => {
                         map.fitBounds([[inner.south, inner.west], [inner.north, inner.east]], { padding: [48, 48], maxZoom: MAP_MAX_ZOOM, animate: reduceMotion ? false : undefined });
@@ -434,6 +441,10 @@ export default function PhotoMap({
                 map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
             } else {
                 map.setView([36, 138], 4);   // 写真が無ければ日本全体
+                // **写真があとから届いたら、一度だけそこへ寄る。** 公式スポットがあると
+                // 写真0枚でも地図を作るので（`MapPageClient` の `nothingToShow`）、
+                // 作った時点で写真が無いと日本全体のまま止まっていた（2026-09-30 のレビュー）
+                autoFitPendingRef.current = true;
             }
             draw();
             map.on("zoomend", draw);
@@ -492,6 +503,11 @@ export default function PhotoMap({
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
+        if (autoFitPendingRef.current && photos.length > 0) {
+            autoFitPendingRef.current = false;
+            const b = boundsOf(photos.map((p) => ({ id: p.id, lat: p.coords.lat, lng: p.coords.lng })));
+            if (b) map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [32, 32], maxZoom: 12 });
+        }
         map.fire("zoomend");
     }, [photos]);
 
@@ -513,7 +529,11 @@ export default function PhotoMap({
     // いるときは描き直す**——束の中のスポットにはピンの要素が無い（選んだものは束から
     // 外して立てる＝`draw` の注記）
     useEffect(() => {
-        if (selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) {
+        const prev = prevSelectedSpotRef.current;
+        prevSelectedSpotRef.current = selectedSpotSlug;
+        // 束の中のスポットを選んだ（要素が無い）／選んでいたスポットを外した・替えた
+        // （束から外して立てていたので、束に戻す）ときは描き直す
+        if ((selectedSpotSlug && !spotElsRef.current.has(selectedSpotSlug)) || (prev && prev !== selectedSpotSlug)) {
             mapRef.current?.fire("zoomend");
             return;
         }

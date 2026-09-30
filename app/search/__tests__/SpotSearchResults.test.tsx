@@ -1,7 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import SpotSearchResults, { resetSpotSearchCache } from "../SpotSearchResults";
+import SpotSearchResults from "../SpotSearchResults";
+import { resetSpotSearchIndex } from "../../../lib/hooks/useSpotSearchIndex";
 
 /**
  * **「さがす」の撮影スポットの節。** 写真が0枚でも撮影地ガイドへ案内する。
@@ -14,7 +15,7 @@ const ROWS = [
 const fetchMock = vi.fn();
 
 beforeEach(() => {
-    resetSpotSearchCache();
+    resetSpotSearchIndex();
     fetchMock.mockReset().mockResolvedValue({ ok: true, json: async () => ROWS });
     vi.stubGlobal("fetch", fetchMock);
 });
