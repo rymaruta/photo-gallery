@@ -39,6 +39,11 @@ export type SpotBody = {
      */
     name: string;
     coords?: { lat: number; lng: number };
+    /**
+     * 国（台帳の `region.country`）。**日本の外の行だけ**——旅行プランの当日モードが、光の時刻を
+     * その土地の時計で言うのに使う（`timeZoneForCountry`）。日本の行は持たない（無ければ日本）
+     */
+    country?: string;
     description?: string;
     highlights?: string[];
     seasonalGuide?: { season: string; text: string }[];
@@ -77,6 +82,7 @@ export function toSpotBody(spot: Spot): SpotBody | undefined {
         slug: spot.slug,
         name: spot.name,
         coords: spot.coords ? { lat: spot.coords.lat, lng: spot.coords.lng } : undefined,
+        country: spot.region?.country && spot.region.country.trim() !== "日本" ? spot.region.country.trim() : undefined,
         description: spot.description?.trim() ? spot.description : undefined,
         highlights: nonEmpty(spot.highlights),
         seasonalGuide: nonEmpty(spot.seasonalGuide)?.map((g) => ({ season: g.season, text: g.text })),
