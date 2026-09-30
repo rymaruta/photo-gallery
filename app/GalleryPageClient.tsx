@@ -20,6 +20,7 @@ import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
+import QuizEntry from "./components/QuizEntry";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 
@@ -595,6 +596,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
           })}
         </div>
       )}
+
+      {/* 今日の一問への入口（1行・タブの直下＝どのタブでも同じ位置）。`QuizEntry` の注記 */}
+      {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}

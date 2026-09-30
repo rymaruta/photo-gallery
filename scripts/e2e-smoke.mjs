@@ -733,6 +733,9 @@ async function runChecks(browser, eng) {
      */
     if (fs.existsSync(path.join(OUT, "q.html"))) {
         console.log(`\n[${eng}][5e] 今日の一問`);
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        check(`[${eng}] 今日の一問: トップから入口で行ける`, !!(await page.$("[data-testid='home-quiz-entry'][href='/q']")));
         await page.goto(`http://localhost:${PORT}/q`, { waitUntil: "domcontentloaded" });
         await waitForHydration(page);
         const choices = await page
