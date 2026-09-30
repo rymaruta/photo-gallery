@@ -85,6 +85,11 @@ export const ROUTES = {
     SPOT_AREA: (area: string) => `/spots/area/${encodeURIComponent(area)}`,
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
+    /**
+     * 今日の一問（毎日1枚の写真で場所を当てる）。**検索結果に出さない**——中身は
+     * 画面が日付のファイルから読むので、HTML は空の殻（`app/q/layout.tsx`）
+     */
+    QUIZ: "/q",
     PRIVACY: "/privacy",
     TERMS: "/terms",
     ADMIN: "/admin",

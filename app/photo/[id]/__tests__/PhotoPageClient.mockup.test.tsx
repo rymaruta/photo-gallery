@@ -21,8 +21,9 @@ vi.mock("../../../../lib/utils/api", async (importOriginal) => ({
     publicFetch: vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),
     userPublicFetch: vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),
 }));
+const likeState = vi.hoisted(() => ({ liked: false }));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
-    usePhotoLikes: () => ({ liked: false, count: 342, pending: false, toggle: async () => ({ ok: true }) }),
+    usePhotoLikes: () => ({ liked: likeState.liked, count: 342, pending: false, toggle: async () => ({ ok: true }) }),
 }));
 const saveState = { current: { saved: false, pending: false, toggle: vi.fn(async () => ({ ok: true })) } };
 vi.mock("../../../../lib/hooks/usePhotoSave", () => ({ usePhotoSave: () => saveState.current }));
@@ -78,7 +79,7 @@ describe("写真ページ: 最終版モックの並び", () => {
         const author = screen.getByRole("link", { name: "Haruto" });
         const body = screen.getByText(/エーゲ海に沈む夕日/);
         const tag = screen.getByRole("link", { name: "#ギリシャ" });
-        const like = screen.getByRole("button", { name: "いいね" });
+        const like = screen.getByRole("button", { name: /^いいね \d/ });
         const tabs = screen.getByRole("tablist");
         for (const [a, b] of [[hero, title], [title, author], [author, body], [body, tag], [tag, like], [like, tabs]] as const) {
             expect(before(a, b), "並びがモックと違う").toBe(true);
@@ -120,7 +121,10 @@ describe("写真ページ: 最終版モックの並び", () => {
     it("アクション行: ♡ の数・💬 の数・保存・シェア（文字付き）", async () => {
         page();
         await screen.findByText("夕陽に染まる白い街");
-        expect(screen.getByRole("button", { name: "いいね" }).textContent).toContain("342");
+        // 見えている数（342）が読み上げの名前にも入る（Lighthouse の label-content-name-mismatch）
+        const like = screen.getByRole("button", { name: "いいね 342件" });
+        expect(like.textContent).toContain("342");
+        expect(like.getAttribute("aria-pressed")).toBe("false");
         expect(screen.getByRole("button", { name: /コメント 24件/ })).toBeTruthy();
         expect(screen.getByRole("button", { name: "保存" })).toBeTruthy();
         expect(screen.getByRole("button", { name: "シェア" })).toBeTruthy();
@@ -188,4 +192,18 @@ describe("写真ページ: 最終版モックの並び", () => {
         const hero = screen.getByAltText(/夕陽に染まる白い街/).closest("div.relative.w-full")?.parentElement as HTMLElement;
         expect(hero.style.touchAction).toBe("");
     });
+});
+
+// 押したあとも**名前は変えない**（押した状態は aria-pressed が伝える）。「いいねを取り消す」＋
+// 「押されています」だと状態が二重で意味が逆に取れる（`ModalControls` の注記と同じ理由）
+it("押したあとも名前は「いいね 342件」のまま、aria-pressed が true", async () => {
+    likeState.liked = true;
+    try {
+        page();
+        await screen.findByText("夕陽に染まる白い街");
+        const like = screen.getByRole("button", { name: "いいね 342件" });
+        expect(like.getAttribute("aria-pressed")).toBe("true");
+    } finally {
+        likeState.liked = false;
+    }
 });

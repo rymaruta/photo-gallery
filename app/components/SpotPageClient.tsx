@@ -22,6 +22,8 @@ import { useViewerHistory } from "../../lib/hooks/useViewerHistory";
 import { shareUrl, copyToClipboard, shareToTwitter, shareToLine } from "../../lib/utils/share";
 import type { Photo } from "@/lib/data/photos";
 import type { SpotCoords, SpotFacts } from "@/lib/utils/spot";
+import type { SpotLink as GuideLink } from "@/lib/data/spotLink";
+import SpotLinkCard from "./SpotLinkCard";
 
 /**
  * **ビューアは後ろへ回す**（レビューの指摘6）。
@@ -66,6 +68,11 @@ type Props = {
     narrower: SpotLink[];
     nearby: NearbyLink[];
     related: SpotLink[];
+    /**
+     * この撮影地の写真が**`spotId` で紐付いている**公式撮影地ガイド（重複なし・最大3件）。
+     * 名前が似ているだけでは入らない（サーバーの `SpotPage` が `spotLinkForPhoto` で解く）
+     */
+    guides?: GuideLink[];
 };
 
 /**
@@ -97,7 +104,7 @@ type Props = {
  */
 export default function SpotPageClient({
     slug, name, canonicalUrl, reading, summary, heading, description, breadcrumb,
-    photos, nearbyPhotos, facts, coords, broader, narrower, nearby, related,
+    photos, nearbyPhotos, facts, coords, broader, narrower, nearby, related, guides = [],
 }: Props) {
     const { locale } = useLocale();
     const en = locale === "en";
@@ -362,7 +369,7 @@ export default function SpotPageClient({
 
                 **`/` 区切りの住所のようには描かない。** 一度そう描いていたが、
                 この並びは**広い順であることを保証できない**——
-                `photoIsInLocation` は字の包含なので「パリ」と「フランス」は
+                `photoIsInLocation` は名前として含むかの判定なので「パリ」と「フランス」は
                 互いに含まず、どちらが広いかをこのデータは知らない。
                 住所の形に描くと、知らない順序を主張することになる。 */}
             {broader.length > 0 && (
@@ -447,6 +454,15 @@ export default function SpotPageClient({
                 ——owner の指示で、`lib/utils/spot.ts` が「無い情報を作らない
                 境界」と書いている通り。**書かれていなければ枠ごと出ない。** */}
             {summary && <p data-testid="spot-summary" className="text-sm text-white/80 mb-4 whitespace-pre-line">{summary}</p>}
+
+            {/* **公式撮影地ガイドへ**（2026-09-30 のレビュー: 正式なスポットが確定している写真は、
+                そのスポットへ自然に辿れるように）。出すのは写真が `spotId` を持つときだけ */}
+            {guides.map((g, i) => (
+                <div key={g.slug} className="mb-4" data-testid="spot-guide-link">
+                    <SpotLinkCard spot={g} locale={locale} headingId={`location-guide-${i}`}
+                                  heading={i > 0 ? null : (en ? "Photo spot guide for these photos" : "この撮影地の写真が紐付いている撮影地ガイド")} />
+                </div>
+            ))}
 
             {/* **その場所の説明**は、既にあるページ固有の文（`collectionCopy`）。
                 ここで新しい紹介文を作らない。**1回だけ出す**——タブだった頃は

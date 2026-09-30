@@ -683,6 +683,81 @@ async function runChecks(browser, eng) {
         }
     }
 
+    /**
+     * 🔴 **「探す → ガイド → 投稿」の導線**（2026-09-30 のレビューの受け入れ条件）。
+     *
+     *   - 「さがす」で「銀山温泉」: 写真が0枚でも撮影スポットの節からガイドへ行ける
+     *   - ガイドの「ここで撮った写真を投稿する」: スポットを運ぶ（`?spot=<slug>`）
+     *   - 地図（スマホ）: 地図の表示中はスポットの長い一覧を出さない（地図より前に置かない）
+     *
+     * **台帳次第**（公開済みに銀山温泉が無いビルド）なので、ページが無ければ飛ばす
+     */
+    if (fs.existsSync(path.join(OUT, "spots", "ginzan-onsen.html"))) {
+        console.log(`\n[${eng}][5d] 探す → ガイド → 投稿`);
+        await page.goto(`http://localhost:${PORT}/search?q=${encodeURIComponent("銀山温泉")}`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const spotLink = await page
+            .waitForSelector("[data-testid='search-spot-results'] a[href='/spots/ginzan-onsen']", { timeout: 10000 })
+            .then(() => true).catch(() => false);
+        check(`[${eng}] さがす: 「銀山温泉」で撮影スポットの節からガイドへ行ける`, spotLink);
+
+        await page.goto(`http://localhost:${PORT}/spots/ginzan-onsen`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const uploadHrefs = await page.evaluate(() =>
+            [...document.querySelectorAll("a")].filter((a) => /ここで撮った写真を投稿する/.test(a.textContent ?? "")).map((a) => a.getAttribute("href")));
+        check(`[${eng}] ガイド: 投稿のリンクがスポットを運ぶ`,
+            uploadHrefs.length > 0 && uploadHrefs.every((h) => h === "/user/upload?spot=ginzan-onsen"), JSON.stringify(uploadHrefs));
+        // 撮影の光の表は**建てた HTML に入っている**こと（検索に読ませるため・画面が後から描くのではない）
+        const lightRows = await page.evaluate(() => document.querySelectorAll("[data-testid='spot-light'] tbody tr").length);
+        const rawHtml = fs.readFileSync(path.join(OUT, "spots", "ginzan-onsen.html"), "utf8");
+        check(`[${eng}] ガイド: 撮影の光の表（12か月・静的な HTML に入っている）`,
+            lightRows === 12 && rawHtml.includes("spot-light") && rawHtml.includes("撮影の光"), `行=${lightRows}`);
+
+        if (fs.existsSync(path.join(OUT, "map.html"))) {
+            await page.goto(`http://localhost:${PORT}/map`, { waitUntil: "domcontentloaded" });
+            await waitForHydration(page);
+            // 地図（Leaflet）は後から読み込まれる
+            await page.waitForSelector(".leaflet-container", { timeout: 10000 }).catch(() => {});
+            const layout = await page.evaluate(() => {
+                const list = document.querySelector("[data-testid='map-spot-list']");
+                const map = document.querySelector(".leaflet-container");
+                return {
+                    listShown: !!list && list.offsetParent !== null,
+                    mapTop: map ? Math.round(map.getBoundingClientRect().top + window.scrollY) : -1,
+                };
+            });
+            check(`[${eng}] 地図（スマホ）: 地図の表示中はスポットの一覧を出さない`, !layout.listShown, JSON.stringify(layout));
+            check(`[${eng}] 地図（スマホ）: 地図が1画面目に在る`, layout.mapTop >= 0 && layout.mapTop < 400, JSON.stringify(layout));
+        }
+    }
+
+    /**
+     * **今日の一問（`/q`）。** 問題は画面が日付のファイル（`/app/data/quiz/<日本の今日>.json`）
+     * から読むので、ビルドが今日の分を書き出していないと「まだありません」になる。
+     * 例外にならない壊れ方（日付の食い違い・読み取りの弾きすぎ）はここでしか見えない
+     */
+    if (fs.existsSync(path.join(OUT, "q.html"))) {
+        console.log(`\n[${eng}][5e] 今日の一問`);
+        await page.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        check(`[${eng}] 今日の一問: トップから入口で行ける`, !!(await page.$("[data-testid='home-quiz-entry'][href='/q']")));
+        await page.goto(`http://localhost:${PORT}/q`, { waitUntil: "domcontentloaded" });
+        await waitForHydration(page);
+        const choices = await page
+            .waitForSelector("[role='group'] button", { timeout: 10000 })
+            .then(() => page.$$("[role='group'] button")).catch(() => []);
+        check(`[${eng}] 今日の一問: 今日の問題が出る（選択肢4つ）`, choices.length === 4, `選択肢=${choices.length}`);
+        if (choices.length === 4) {
+            await choices[0].click();
+            const result = await page.waitForSelector("[data-testid='quiz-result']", { timeout: 5000 }).then(() => true).catch(() => false);
+            const guide = await page.evaluate(() =>
+                document.querySelector("[data-testid='quiz-result'] a[href^='/spots/']")?.getAttribute("href") ?? "");
+            // 形だけでなく、**行き先のページがビルドに在る**こと（404 のガイドへ送らない）
+            const built = /^\/spots\/[a-z0-9-]+$/.test(guide) && fs.existsSync(path.join(OUT, `${guide.slice(1)}.html`));
+            check(`[${eng}] 今日の一問: 答えると結果とガイドへのリンク（行き先が在る）`, result && built, guide);
+        }
+    }
+
     const realErrors = bag.pageErrors.filter((m) => !isExpectedNetworkNoise(m));
     check(`[${eng}] 実行時のJSエラーがない`, realErrors.length === 0, realErrors.slice(0, 3).join(" / "));
     reportDiagnostics(`${eng}/mobile`, bag);

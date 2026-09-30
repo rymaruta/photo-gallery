@@ -15,6 +15,7 @@
 import type { Photo } from "../data/photos";
 import { getLocalized } from "../data/photos";
 import { normalizeForSearch, slugify } from "./collections";
+import { normalizeSpotName } from "./spots";
 
 /** 地図の表示範囲（Leaflet の `getBounds()` を素の数で受ける） */
 export type MapBounds = { south: number; west: number; north: number; east: number };
@@ -134,3 +135,36 @@ export function photosInBounds<T extends WithCoords>(photos: readonly T[], b: Ma
     return photos.filter((p) => isInBounds(p.coords, b));
 }
 
+
+/** 地図に立てる公式スポット（`SpotPin` のうち絞り込みが読むところ。循環 import を避けて再掲） */
+type MapSpotLike = { slug: string; name: string; region: string; lat: number; lng: number };
+
+/**
+ * **公式スポットを、写真と同じ絞り込みで絞る**（2026-09-30 のレビュー）。
+ *
+ * 以前は語・カテゴリ・「このエリアを検索」が写真だけに効き、スポットの一覧とピンは
+ * 全件（1,079件）のまま残っていた——「銀山温泉」と打っても、地図は全国のピンで埋まる。
+ *
+ *   - **語**: 名前と地域（県・市、海外は国）。正規化は撮影スポットの名前の突き合わせと同じ
+ *     （`normalizeSpotName`・全角半角・空白・括弧の揺れを落とす）
+ *   - **カテゴリ**: チップは**写真の分類**（風景・建物…）で、台帳の分類（温泉街・神社…）とは
+ *     別の持ち物。対応表を作ると嘘の対応が混ざるので、**カテゴリで絞っている間はスポットを
+ *     出さない**（画面はそのことを一覧の場所で言う）
+ *   - **範囲**: 写真と同じ `isInBounds`
+ */
+export function filterMapSpots<T extends MapSpotLike>(
+    spots: readonly T[],
+    {
+        query = "", category = "all", area = null as MapBounds | null,
+        /** 名前の索引（`searchSpotRows`）で当たった綴り。読み・英語名・別名でも当てるため（届く前は無し） */
+        indexMatches = null as ReadonlySet<string> | null,
+    } = {},
+): T[] {
+    if (category !== "all") return [];
+    const q = normalizeSpotName(query);
+    return spots.filter((s) => {
+        const hit = !q || normalizeSpotName(s.name).includes(q) || normalizeSpotName(s.region).includes(q)
+            || !!indexMatches?.has(s.slug);
+        return hit && (!area || isInBounds({ lat: s.lat, lng: s.lng }, area));
+    });
+}

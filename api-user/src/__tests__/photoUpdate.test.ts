@@ -132,6 +132,57 @@ describe("updatePhotoVisibility", () => {
         expect(update.ExpressionAttributeValues[":p"]).toBe(false);
     });
 
+    // **撮影スポットの紐付け**（本人がスポットの画面から選ぶ・2026-09-29）
+    describe("spotId", () => {
+        const SPOT = "sp_0123456789ab";
+        const upd = () => (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeNames?: Record<string, string>; ExpressionAttributeValues?: Record<string, unknown> } }).input;
+
+        it("形の合う spotId を付けられる", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { spotId: SPOT }));
+            expect(res.statusCode).toBe(200);
+            expect(upd().UpdateExpression).toMatch(/SET .*#spotId = :spotId/);
+            expect(upd().ExpressionAttributeValues?.[":spotId"]).toBe(SPOT);
+        });
+
+        it("null で外せる", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", spotId: SPOT } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { spotId: null }));
+            expect(res.statusCode).toBe(200);
+            expect(upd().UpdateExpression).toMatch(/REMOVE .*#spotId/);
+        });
+
+        it("空文字でも外せる", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", spotId: SPOT } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { spotId: "" }));
+            expect(res.statusCode).toBe(200);
+            expect(upd().UpdateExpression).toMatch(/REMOVE .*#spotId/);
+        });
+
+        it("形の違う spotId は 400（付けてあった紐付けを黙って消さない）", async () => {
+            // 文字列だけでなく、数・真偽・オブジェクトも（文字列だけ見ていると `123` で消えた）
+            for (const spotId of ["高屋神社", "sp_XYZ", 123, false, {}, ["sp_0123456789ab"]]) {
+                mockDdbSend.mockReset();
+                const res = await invoke(event("u1", "p1", { spotId }));
+                expect(res.statusCode, JSON.stringify(spotId)).toBe(400);
+                expect(mockDdbSend).not.toHaveBeenCalled();
+            }
+        });
+
+        it("付け替えたら静的サイトを作り直す（スポットのページに出す）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { spotId: SPOT }));
+            expect(mockRebuild).toHaveBeenCalled();
+        });
+
+        it("他人の写真には付けられない", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "someone" } });
+            const res = await invoke(event("u1", "p1", { spotId: SPOT }));
+            expect(res.statusCode).toBe(403);
+            expect(mockDdbSend).toHaveBeenCalledTimes(1);
+        });
+    });
+
     // **公開一覧用 GSI の印を一緒に動かす。** 忘れると、非公開にした写真が
     // 一覧に出続ける／公開に戻した写真が二度と一覧に出ない
     it("非公開にしたら、公開一覧の印を外す", async () => {

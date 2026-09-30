@@ -59,7 +59,7 @@ export function broaderSpots(label: string, all: CollectionEntry[]): CollectionE
         // 「フランス」(4文字) で、短いのは**狭い方の「パリ」**。
         //
         // では包含で決められるかというと、**決められない**。
-        // `photoIsInLocation` は字の包含なので、`"パリ"` と `"フランス"` は
+        // `photoIsInLocation` は名前として含むかの判定なので、`"パリ"` と `"フランス"` は
         // **どちらも相手を含まない**——このデータは「フランスの方が広い」を
         // 知らない。知らないものを順番で主張しないこと（画面側も
         // `/` 区切りの住所風には描かない）。
@@ -133,6 +133,14 @@ export function spotCoords(photos: Photo[]): SpotCoords | null {
 export type NearbySpot = CollectionEntry & { km: number; approx: boolean };
 
 /**
+ * 「周辺のスポット」と呼んでよい距離（km）。**アプリと同じ値**
+ * （iOS の `DerivedSpot.nearbyMaxKm`・2026-09-30）。以前は上限が無く、写真の少ない
+ * 地域では数百km先（パリから「バルセロナ 約825km」）まで「周辺」と名乗っていた。
+ * 足りなくても遠い場所で埋めない（0件なら節ごと出ない）
+ */
+export const NEARBY_MAX_KM = 50;
+
+/**
  * 周辺のスポット（**距離順**）。
  *
  * **座標を持つスポットどうしでしか出せない。** 片方でも座標が無ければ
@@ -151,6 +159,7 @@ export function nearbySpots(
     here: SpotCoords | null,
     others: Array<{ entry: CollectionEntry; coords: SpotCoords | null }>,
     limit = 6,
+    maxKm = NEARBY_MAX_KM,
 ): NearbySpot[] {
     if (!here) return [];
     return others
@@ -163,6 +172,8 @@ export function nearbySpots(
                     approx: here.approx || coords.approx,
                 }]
                 : [])
+        // **「周辺」と呼べる距離まで**（上の `NEARBY_MAX_KM` の注記）
+        .filter((x) => x.km <= maxKm)
         // 同点の決着まで書く（`relatedCollectionPhotos` と同じ理由——
         // 書かないと「どれが載るか」が入力配列の順という書いていない規則で決まる）
         .sort((a, b) => a.km - b.km || b.count - a.count || a.slug.localeCompare(b.slug))

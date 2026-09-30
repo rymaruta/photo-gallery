@@ -61,6 +61,13 @@ vi.mock("leaflet", () => {
         // コンポーネントの moveend が走る）
         remove: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
         on: (ev: string, fn: () => void) => { (handlers[ev] ||= []).push(fn); },
+        // 本物と同じく、空白区切りの各名前に一回限りの listener を付ける
+        once: (evs: string, fn: () => void) => {
+            for (const ev of evs.split(/\s+/)) {
+                const wrap = () => { handlers[ev] = (handlers[ev] ?? []).filter((f) => f !== wrap); fn(); };
+                (handlers[ev] ||= []).push(wrap);
+            }
+        },
         fire: (ev: string) => (handlers[ev] ?? []).forEach((f) => f()),
     };
     state.fireMap = map.fire;
@@ -583,6 +590,56 @@ describe("公式撮影地ガイドのピン", () => {
     it("写真のピンより手前に置く", async () => {
         await drawWithSpot([photo("a"), photo("b")]);
         expect(Number(spotMarker()?.opts.zIndexOffset ?? 0)).toBeGreaterThan(0);
+    });
+
+    // 2026-09-30 のレビュー: 広域でスポットのピンが大量に重なる → スポットどうしで束ねる
+    it("近いスポットは束ねる（写真の束とは別の形・写真より奥）", async () => {
+        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
+        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT, near]} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        const cluster = state.markers.find((m) => String(m.opts.title ?? "") === "撮影スポット 2か所");
+        expect(cluster, "束になっていない").toBeTruthy();
+        expect((cluster!.opts.icon as { className?: string }).className).toBe("spot-map-cluster");
+        expect(Number(cluster!.opts.zIndexOffset)).toBeLessThan(0);
+        expect(spotMarker(), "束の中のスポットが単独でも立っている").toBeUndefined();
+    });
+
+    it("選んだスポットは束から外して立てる（どこを選んでいるか見失わない）", async () => {
+        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
+        render(<PhotoMap photos={[]} locale="ja" spots={[SPOT, near]} selectedSpotSlug="takaya-jinja" />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(0));
+        expect(spotMarker()).toBeTruthy();
+        const html = (spotMarker()!.opts.icon as { html?: HTMLElement }).html;
+        expect(html?.className).toContain("is-selected");
+    });
+
+    // 984c2f4e のレビュー: 単独のピンからピンへ選び替えても描き直さない（押したピンのフォーカスを落とさない）
+    it("離れた単独のスポットを選び替えても、ピンを描き直さない", async () => {
+        // 画面（`MapPageClient`）は同じ配列を渡し続ける（`pinSpots` の注記）。ここでも同じ配列・同じ写真
+        const far = { ...SPOT, slug: "far", name: "遠くの場所", lat: 43.0, lng: 141.3 };
+        const spots = [SPOT, far];
+        const none: MapPhoto[] = [];
+        const { rerender } = render(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
+        await waitFor(() => expect(state.markers.length).toBeGreaterThan(1));
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+        const before = state.markers.slice();
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="far" />);
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
+        expect(state.markers.length).toBe(before.length);
+        expect(state.markers.every((m, i) => m === before[i]), "選び替えでピンが作り直された").toBe(true);
+    });
+
+    // 661dc2fb のレビュー: 束から外して立てていたスポットを外したら、束に戻す（描き直す側の経路）
+    it("束の中のスポットを選んで外したら、束に戻る", async () => {
+        const near = { ...SPOT, slug: "near", name: "近くの場所", lat: 34.12, lng: 133.62 };
+        const spots = [SPOT, near];
+        const none: MapPhoto[] = [];
+        const { rerender } = render(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug="takaya-jinja" />);
+        await waitFor(() => expect(spotMarker()).toBeTruthy());
+        expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(false);
+        rerender(<PhotoMap photos={none} locale="ja" spots={spots} selectedSpotSlug={null} />);
+        await waitFor(() => expect(state.markers.some((m) => String(m.opts.title ?? "") === "撮影スポット 2か所")).toBe(true));
+        expect(spotMarker(), "外したのに単独のまま").toBeUndefined();
     });
 
     it("`onSelectSpot` を渡さなくても落ちない", async () => {

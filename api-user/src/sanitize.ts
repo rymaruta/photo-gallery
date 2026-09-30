@@ -158,6 +158,22 @@ export function sanitizeGroupId(v: unknown): string | undefined {
     return /^[A-Za-z0-9-]+$/.test(trimmed) ? trimmed : undefined;
 }
 
+/**
+ * 撮影スポットの ID（`content/spots.json` の `spotId`・`sp_` ＋ 16進12桁）。
+ *
+ * **実在は確かめない**（`tripPlans.ts` と同じ立場）。台帳は `content/` の JSON で、
+ * Lambda に持ち込むと全文がバンドルに乗る。実在しない ID は、画面が出すときに
+ * 解けずに落ちるだけ（`lib/data/spotLink.ts`・`SpotGuidePage` は台帳で引く）。
+ *
+ * 写真に付くのは**撮った本人がスポットの画面から選んだときだけ**（2026-09-29）。
+ * 名前の一致で機械が付けることはしない（owner の決まり・`link-photos-to-spots.ts`）
+ */
+export function sanitizeSpotId(v: unknown): string | undefined {
+    if (typeof v !== "string") return undefined;
+    const trimmed = v.trim();
+    return /^sp_[0-9a-f]{12}$/.test(trimmed) ? trimmed : undefined;
+}
+
 export function sanitizeDate(v: unknown): string | undefined {
     if (typeof v !== "string" || !v.trim()) return undefined;
     const s = v.trim();

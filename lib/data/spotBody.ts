@@ -7,6 +7,7 @@
 //
 // ## 載せるもの（2026-09-27）
 //
+//   name・coords（2026-09-30・Web の投稿画面がスポットを引き継ぐため）・
 //   description・highlights・seasonalGuide・timeOfDayGuide・compositionTips・
 //   officialWebsiteUrl と、**確かめた印**（`check`）:
 //     - 人が確かめた行   → { kind: "human", verifiedAt }（画面は「情報の最終確認（運営）」）
@@ -31,6 +32,18 @@ export type SpotBodyCheck =
 export type SpotBody = {
     spotId: string;
     slug: string;
+    /**
+     * 名前と座標（約1km精度・台帳のまま）。**Web の投稿画面が読む**——スポットの画面から
+     * 投稿するとき、画面に出す名前と送る `spotId` を同じ1本から取り、写真がその近くで
+     * 撮られたかを確かめる（`lib/utils/spotUpload.ts`）。索引（約 865KB）は重いので読まない
+     */
+    name: string;
+    coords?: { lat: number; lng: number };
+    /**
+     * 国（台帳の `region.country`）。**日本の外の行だけ**——旅行プランの当日モードが、光の時刻を
+     * その土地の時計で言うのに使う（`timeZoneForCountry`）。日本の行は持たない（無ければ日本）
+     */
+    country?: string;
     description?: string;
     highlights?: string[];
     seasonalGuide?: { season: string; text: string }[];
@@ -67,6 +80,9 @@ export function toSpotBody(spot: Spot): SpotBody | undefined {
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
+        name: spot.name,
+        coords: spot.coords ? { lat: spot.coords.lat, lng: spot.coords.lng } : undefined,
+        country: spot.region?.country && spot.region.country.trim() !== "日本" ? spot.region.country.trim() : undefined,
         description: spot.description?.trim() ? spot.description : undefined,
         highlights: nonEmpty(spot.highlights),
         seasonalGuide: nonEmpty(spot.seasonalGuide)?.map((g) => ({ season: g.season, text: g.text })),

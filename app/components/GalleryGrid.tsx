@@ -334,8 +334,13 @@ const GalleryItem = React.memo(function GalleryItem({
                                 {/* **題も分類も無ければ、帯ごと出さない。** 題の無い写真に
                                     空の行を敷くと、写真の下だけ黒くなって理由が分からない
                                     （owner:「タイトルなくてもいいよ」） */}
+                                {/* 題の帯は**読み上げから外す**（2026-09-30）。リンクの名前（`aria-label`
+                                    「◯◯ を開く」）が題を読むので、ここを読ませると二重になる。
+                                    撮影地の無い写真は alt が題と同じ文になり、Lighthouse の
+                                    image-redundant-alt が一覧の全枚で落ちていた（実測 /tag/finland 12件） */}
                                 {(localizedTitle || categoryLabel) && (
                                 <div
+                                    aria-hidden="true"
                                     className="absolute left-0 right-0 bottom-0 px-2"
                                     style={{
                                         background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%)",

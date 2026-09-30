@@ -19,18 +19,21 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
-import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel } from "@/lib/data/spotSeo";
+import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
+import { lightCalendar } from "@/lib/utils/lightCalendar";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
 /**
- * そのスポットの写真。**`spotId` が確認済みで付いているものだけ。**
+ * そのスポットの写真。**`spotId` が付いているものだけ。**
  *
  * owner:「写真の `location` 文字列が似ているだけで、未確認のスポットへ
- * 紐付けないでください」。だから**文字列の一致では拾わない**——
- * `spotId` は人が確認したものしか入らない（`lib/utils/spots.ts` の `linkStates`）。
+ * 紐付けないでください」。だから**文字列の一致では拾わない**。`spotId` が入る道は2つ:
+ * - 運営が候補を確かめた紐付け（`lib/utils/spots.ts` の `linkStates`）
+ * - **撮った本人がスポットの画面から選んだもの**（`api-user` の投稿・編集・2026-09-29）。
+ *   運営の確認は挟まない——本人が「ここで撮った」と言ったものを信じる
  */
 function photosForSpot(photos: Awaited<ReturnType<typeof loadAllPhotos>>, spotId: string) {
     return photos.filter((p) => p.published !== false && p.spotId === spotId);
@@ -48,15 +51,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
 
     // 周辺スポット。**手で選んだものだけ**（座標が近い＝関係があるとは限らない）。
     // 座標で近い順に並べる節は別に「◯◯県の撮影スポット」として出す（`sameAreaSpots`・2026-09-29）
-    const published = visibleSpots(SPOTS);
-    const nearby = (spot.nearbySpotIds ?? [])
-        .map((id) => published.find((s) => s.spotId === id))
-        .filter((s): s is NonNullable<typeof s> => Boolean(s))
-        .map((s) => ({
-            slug: s.slug,
-            name: s.name,
-            region: [s.region?.prefecture, s.region?.city].filter(Boolean).join(" ") || undefined,
-        }));
+    const nearby = handPickedNearby(spot);
 
     /**
      * 同じ場所を指す集約ページ。**`/location/*` は維持**（役割が違う）。
@@ -89,6 +84,8 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
+    // 撮影の光の月別の表。決めた年で計算してページに書き込む（ビルドの結果を日付で変えない）
+    const light = lightCalendar(spot.coords, spot.region?.country);
 
     return (
         <>
@@ -101,6 +98,8 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 locationPath={locationPath}
                 area={area ? { slug: area.slug, name: area.name, nameEn: area.nameEn } : null}
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
+                pageUrl={spotPageUrl(spot)}
+                light={light}
             />
         </>
     );

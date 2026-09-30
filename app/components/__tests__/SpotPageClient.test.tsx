@@ -100,6 +100,18 @@ const base = {
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe("撮影スポット詳細", () => {
+    // 2026-09-30 のレビュー: spotId で紐付いた公式ガイドへ辿れる（無ければ何も出さない）
+    it("spotId で紐付いた公式ガイドへのカードを出す・無ければ出さない", () => {
+        const { unmount } = render(<SpotPageClient {...base} guides={[{
+            slug: "opera-garnier", name: "オペラ・ガルニエ", region: "フランス パリ", cover: null, stage: "published",
+        } as never]} />);
+        const card = screen.getByTestId("spot-guide-link");
+        expect(card.querySelector("a")?.getAttribute("href")).toBe("/spots/opera-garnier");
+        unmount();
+        render(<SpotPageClient {...base} />);
+        expect(screen.queryByTestId("spot-guide-link")).toBeNull();
+    });
+
     it("見出しにスポット名が出る", () => {
         render(<SpotPageClient {...base} />);
         expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("パリの写真");
@@ -195,7 +207,7 @@ describe("撮影スポット詳細", () => {
      * **所在地を `/` 区切りの住所のようには描かない。**
      *
      * 一度そう描いていたが、この並びは**広い順であることを保証できない**
-     * ——`photoIsInLocation` は字の包含なので `"パリ"` と `"フランス"` は
+     * ——`photoIsInLocation` は名前として含むかの判定なので `"パリ"` と `"フランス"` は
      * 互いに含まず、どちらが広いかをこのデータは知らない。住所の形に
      * 描くと、知らない順序を主張することになる（実在する
      * `/location/パリ,-フランス` で「パリ / フランス」と**狭い→広い**に
