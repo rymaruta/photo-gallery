@@ -1,8 +1,7 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { computeAccessibleName } from "dom-accessibility-api";
 import type { Photo } from "@/lib/data/photos";
 import HomeMosaic from "../HomeMosaic";
 import { ROUTES } from "@/lib/routes";
@@ -20,8 +19,15 @@ const photo = (id: string, over: Partial<Photo> = {}): Photo => ({
 } as Photo);
 
 const tiles = (c: HTMLElement) => Array.from(c.querySelectorAll<HTMLAnchorElement>("a[data-photo-id]"));
-/** 読み上げの名前（ブラウザと同じ計算）。空白は1つに畳む */
-const nameOf = (a: Element) => computeAccessibleName(a).replace(/\s+/g, " ").trim();
+/**
+ * 読み上げの名前（Testing Library の `getByRole` と同じ計算＝ブラウザの名前の決め方）。
+ * 名前の照合に関数を渡すと、計算した名前を受け取れる。空白は1つに畳む
+ */
+const nameOf = (a: HTMLElement) => {
+    let got = "";
+    within(a.parentElement!).getByRole("link", { name: (n, el) => { if (el === a) got = n; return el === a; } });
+    return got.replace(/\s+/g, " ").trim();
+};
 
 describe("HomeMosaic", () => {
     it("大きく1枚（16:9）→ 2枚（1:1）→ 2枚 の順に並ぶ（1枚ずつの項目・大きい1枚は2列ぶん）", () => {
@@ -145,5 +151,30 @@ describe("HomeMosaic", () => {
         const sizes = imgs.map((i) => i.getAttribute("sizes") ?? i.closest("picture")?.querySelector("source")?.getAttribute("sizes"));
         expect(sizes[0]).toBe(MOSAIC_HERO_SIZES);
         expect(sizes[1]).toBe(MOSAIC_PAIR_SIZES);
+    });
+
+    // alt は「題（撮影地）」の形で撮影地を含む。重ねた撮影地も読ませると、同じ地名が続けて二度読まれた
+    it("写真の説明が撮影地を含むなら、重ねた撮影地は読ませない（同じ地名を二度読まない）", () => {
+        const { container } = render(<HomeMosaic photos={[photo("a"), photo("b", { alt: "夕日の港" } as Partial<Photo>)]} locale="ja" />);
+        const [a, b] = tiles(container);
+        const nameA = nameOf(a);
+        expect(nameA.split("パリ").length - 1, nameA).toBe(1);
+        // 説明が撮影地を含まない写真は、重ねた撮影地を読ませる
+        expect(nameOf(b)).toContain("パリ");
+    });
+
+    // 読み込みに失敗すると `Thumb` は <img> ごと外す。名前を中身から組むので、題が消えないように
+    it("画像を読めなかったときも、写真の説明は名前に残る", () => {
+        const { container } = render(<HomeMosaic photos={[photo("a")]} locale="ja" />);
+        fireEvent.error(container.querySelector("img")!);
+        expect(container.querySelector("img[src*='cdn']"), "画像が残っている（前提が崩れた）").toBeNull();
+        expect(nameOf(tiles(container)[0]).startsWith("題a")).toBe(true);
+    });
+
+    it("いいねの読み上げ文は画面に出さない（sr-only）・見える数字は読ませない", () => {
+        const { container } = render(<HomeMosaic photos={[photo("a")]} locale="ja" />);
+        const said = Array.from(tiles(container)[0].querySelectorAll("span")).find((s) => s.textContent === "、いいね 3件")!;
+        expect(said.className.split(/\s+/)).toContain("sr-only");
+        expect(tiles(container)[0].querySelector(".tabular-nums")!.getAttribute("aria-hidden")).toBe("true");
     });
 });

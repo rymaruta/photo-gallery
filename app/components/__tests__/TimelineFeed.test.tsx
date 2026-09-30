@@ -1,7 +1,13 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { computeAccessibleName } from "dom-accessibility-api";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
+
+/** 読み上げの名前（`getByRole` と同じ計算）。関数で照合すると計算した名前を受け取れる */
+const nameOf = (a: HTMLElement) => {
+    let got = "";
+    within(a.parentElement!).getByRole("link", { name: (n, el) => { if (el === a) got = n; return el === a; } });
+    return got;
+};
 
 /**
  * `TimelineFeed` — フォローしている人の写真が投稿順に流れる面（トップの「フォロー中」タブ）。
@@ -53,7 +59,7 @@ describe("TimelineFeed", () => {
         // 誰が上げたかが写真に重なって出る（一覧のグリッドには無かったもの）。
         expect(screen.getAllByText(/^Aさん/).length).toBe(2);
         for (const id of ["a-new", "a-old"]) {
-            expect(computeAccessibleName(document.querySelector(`[data-photo-id="${id}"]`)!)).toContain("Aさん");
+            expect(nameOf(document.querySelector<HTMLElement>(`[data-photo-id="${id}"]`)!)).toContain("Aさん");
         }
         expect(screen.queryByText("自分の写真"), "自分の写真が混ざっている").toBeNull();
         expect(screen.queryByText("Bの写真"), "フォローしていない人の写真が混ざっている").toBeNull();
@@ -85,7 +91,7 @@ describe("TimelineFeed", () => {
         // 目に見える文字（読み上げ専用の .sr-only を除く）に名前が無い
         const seen = Array.from(c5.querySelectorAll("p, span:not(.sr-only)")).map((e) => e.textContent).join(" ");
         expect(seen).not.toContain("Cさん");
-        expect(computeAccessibleName(c5)).toContain("Cさん");
+        expect(nameOf(c5 as HTMLElement)).toContain("Cさん");
         expect(document.querySelector('[data-photo-id="c4"]')!.textContent).toContain("Cさん");
     });
 

@@ -125,7 +125,11 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
                          padding: "48px 70px 12px 14px",
                          background: "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.78) 60%, rgba(0,0,0,0.78) 100%)",
                      }}>
-                    <p className="m-0 font-serif font-bold text-white truncate"
+                    {/* 写真の説明（alt）が撮影地を含むなら、ここは読ませない（同じ地名が続けて
+                        二度読まれた。alt は「題（撮影地）」の形）。見える文字のままで名前には
+                        `aria-label` を使っていないので、label-content-name-mismatch には戻らない */}
+                    <p aria-hidden={alt.includes(place) ? true : undefined}
+                       className="m-0 font-serif font-bold text-white truncate"
                        style={{ fontSize: large ? "22px" : "18px", lineHeight: 1.25, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                         {place}
                     </p>
@@ -153,8 +157,8 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
 
             {/* いいねの数（板: 右下のガラスの丸・32px・等幅の数）。押すと写真ページ */}
             {/* 見える数は数字だけ。読み上げは「、いいね 3件」（英語は「, 3 likes」）を**1つの文で**持つ。
-                読み上げの名前は隣り合う文字を空白なしでつなぐので、区切りは文の中に書く
-                （空白だけで区切ると「いいね3件」「1like」になった） */}
+                区切りは文の中に書く——名前の計算は実装によって空白の扱いが違う（jsdom は隣と
+                空白なしでつなぎ「いいね3件」「1like」になった。Chrome は前後に空白を入れる） */}
             <span className="absolute inline-flex items-center gap-1 rounded-full text-white bg-black/55 backdrop-blur-md pointer-events-none"
                   style={{ right: 6, bottom: 6, minWidth: 44, height: 32, padding: "0 10px", justifyContent: "center" }}>
                 <HeartIcon aria-hidden="true" style={{ width: 14, height: 14, strokeWidth: 2 }} />

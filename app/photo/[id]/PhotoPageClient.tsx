@@ -1007,10 +1007,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         {shotDate && locationText && <span aria-hidden="true">·</span>}
                         {locationText && (href ? (
                             <a href={href} target="_blank" rel="noopener noreferrer"
-                               // 押す的を上下4pxずつ広げて24pxに。親が flex なので余白は行を押し広げる
-                               // ——同じだけ負の余白で打ち消して**行の高さは変えない**。
+                               // 押す的を**上へ**8px広げて24pxに（負の余白で打ち消し、行の高さは変えない）。
+                               // 下へ広げると、説明文の無い写真で真下のタグチップと4px重なり、
+                               // チップの上端を押すと地図が開いた（この行は下の余白が0）。
                                // 字の高さ16pxのままだと target-size で落ちた
-                               className="hover:text-white underline decoration-white/20 underline-offset-2 py-[4px] -my-[4px]"
+                               className="hover:text-white underline decoration-white/20 underline-offset-2 pt-[8px] -mt-[8px]"
                                title={locale === "ja" ? "地図で見る" : "View on map"}
                                style={{ touchAction: "manipulation" }}>
                                 {locationText}
@@ -1103,10 +1104,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         disabled={likePending}
                         aria-pressed={isFav}
                         // **見えている数を名前に含める**（画面は数字だけ・読み上げが「いいね」だけだと
-                        // Lighthouse の label-content-name-mismatch。コメントのボタンと同じ形）
-                        aria-label={isFav
-                            ? (locale === "en" ? `Unlike (${likeCount.toLocaleString()})` : `いいねを取り消す（${likeCount.toLocaleString()}件）`)
-                            : (locale === "en" ? `Like (${likeCount.toLocaleString()})` : `いいね ${likeCount.toLocaleString()}件`)}
+                        // Lighthouse の label-content-name-mismatch。コメントのボタンと同じ形）。
+                        // **名前は押しても変えない**——押した状態は `aria-pressed` が伝える
+                        // （「いいねを取り消す」＋「押されています」だと状態が二重で意味が逆に取れる）
+                        aria-label={locale === "en" ? `Like (${likeCount.toLocaleString()})` : `いいね ${likeCount.toLocaleString()}件`}
                         className={`flex items-center gap-1.5 transition-colors disabled:opacity-60 ${isFav ? "text-white" : "text-white/85 hover:text-white"}`}
                         style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", minHeight: "44px" }}
                     >
