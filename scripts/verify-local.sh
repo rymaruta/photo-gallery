@@ -25,7 +25,7 @@ FAILED=()
 #
 # ⚠️ **控えるのは `photos.json` だけでは足りない。**
 # `photo-index.json` も、この関門の中で**わざと空にされる**
-# ——`scripts/__tests__/photoIndexParity.test.ts` の「索引が空でも型が通る」が
+# ——`scripts/__tests__/photoIndexParity.slow.test.ts` の「索引が空でも型が通る」が
 # 空の索引を書いて `tsc` を走らせ、`finally` で戻す。その戻しは
 # **SIGKILL では走らない**（`finally` ごと飛ぶ）。
 #
@@ -272,8 +272,11 @@ gate "型検査（ルート）"        npx tsc --noEmit
 gate "型検査（api）"           check_side_tsc api "$API_BASELINE"
 gate "型検査（api-user）"      check_side_tsc api-user "$API_USER_BASELINE"
 gate "lint"                    npx eslint .
-# 重いテスト（`*.slow.test.ts`）もここでは流す。`npm test`（Actions）では流さない（`vitest.config.ts`）
-gate "単体テスト"              env RUN_SLOW_TESTS=1 npx vitest run
+gate "単体テスト"              npx vitest run
+# 重いテスト（`*.slow.test.ts`）は `npm test`（Actions）では流さず、ここでだけ流す（`vitest.config.ts`）。
+# **ほかのテストと並べない。** `photoIndexParity.slow.test.ts` は `photo-index.json` を
+# 約30秒のあいだ空にするので、それを読むテストと重なると落ちうる（レビューで指摘）
+gate "重いテスト（単独で）"     env RUN_SLOW_TESTS=1 npx vitest run .slow.test.
 gate "ビルド（本番と同じ設定）" build_site
 gate "実ブラウザのスモーク"     env "${SMOKE_ENV[@]}" node scripts/e2e-smoke.mjs
 

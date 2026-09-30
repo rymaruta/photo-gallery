@@ -24,11 +24,16 @@ function slowFiles(dir: string): string[] {
 }
 
 describe("重いテスト（*.slow.test.ts）", () => {
-    it("verify の単体テストの関門は RUN_SLOW_TESTS=1 を付けて流す", () => {
+    it("verify は重いテストを RUN_SLOW_TESTS=1 で、ほかのテストと別に流す", () => {
         const sh = readFileSync(join(ROOT, "scripts", "verify-local.sh"), "utf8");
-        const gate = sh.split("\n").find((l) => /^gate "単体テスト"/.test(l));
-        expect(gate, "verify に単体テストの関門が無い").toBeDefined();
-        expect(gate, "重いテストがどこでも流れなくなる").toMatch(/RUN_SLOW_TESTS=1\s+npx vitest run/);
+        const gates = sh.split("\n").filter((l) => /^gate "/.test(l));
+        const slow = gates.find((l) => /RUN_SLOW_TESTS=1/.test(l));
+        expect(slow, "重いテストがどこでも流れなくなる").toMatch(/RUN_SLOW_TESTS=1\s+npx vitest run \.slow\.test\./);
+        // **ほかのテストと並べない。** 全部を RUN_SLOW_TESTS=1 で一度に流すと、
+        // `photo-index.json` を空にするテストと、それを読むテストが並列に走る
+        const all = gates.filter((l) => /npx vitest run/.test(l));
+        expect(all.filter((l) => /RUN_SLOW_TESTS=1/.test(l) && !/\.slow\.test\./.test(l)), "重いテストをほかと一緒に流している").toEqual([]);
+        expect(all.some((l) => /^gate "単体テスト"\s+npx vitest run$/.test(l.trim())), "ふつうのテストの関門が無い").toBe(true);
     });
 
     it("vitest の設定は、RUN_SLOW_TESTS が無いときだけ外す", () => {

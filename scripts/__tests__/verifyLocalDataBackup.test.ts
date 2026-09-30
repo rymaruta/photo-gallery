@@ -14,7 +14,7 @@ const src = readFileSync(SCRIPT, "utf8");
  * この関門は途中で**わざと**データを書き換える:
  *
  *   - `synthesize_derivatives` … `photos.json` に派生（AVIF/WebP）を足す
- *   - `photoIndexParity.test.ts` … `photo-index.json` を**空にして** `tsc` を
+ *   - `photoIndexParity.slow.test.ts` … `photo-index.json` を**空にして** `tsc` を
  *     走らせ、`finally` で戻す。**その戻しは SIGKILL では走らない**
  *
  * どちらも**追跡されているファイル**なので、戻し損ねると偽の中身が
