@@ -11,6 +11,17 @@ const ROOT = __dirname;
 // 1,582 に膨れていた）。.gitignore だけでは vitest は止まらない。
 const EXCLUDE = ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/__ztmp/**"];
 
+// **重いテスト（`*.slow.test.ts`）は `npm run verify` でだけ流す。**
+//
+// 別のプログラム（`tsc`・`tsx`）を起動するもので、1本で数秒〜30秒かかる。
+// `npm test` は本番反映の Actions（Deploy Site）でも毎回流れ、その分数は
+// owner の財布から出る（CLAUDE.md「GitHub Actions の枠」）。verify は別の枝へ
+// 入れる前に必ず通す決まりなので、そこで流せば確かめる力は落ちない。
+// `scripts/verify-local.sh` が `RUN_SLOW_TESTS=1` を付ける
+// （`scripts/__tests__/slowTests.test.ts` が見張る）。
+const SLOW = "**/*.slow.test.{ts,tsx,js,mjs}";
+const SKIP_SLOW = process.env.RUN_SLOW_TESTS === "1" ? [] : [SLOW];
+
 // **jsdom を建てるのは、DOM を触るテストだけにする。**
 //
 // 全部に jsdom を掛けていた頃の実測（2026-09-22・4コア）:
@@ -54,7 +65,7 @@ export default defineConfig({
                     environment: "node",
                     setupFiles: ["./vitest.setup.ts"],
                     include: NODE_TESTS,
-                    exclude: EXCLUDE,
+                    exclude: [...EXCLUDE, ...SKIP_SLOW],
                 },
             },
             {
@@ -65,7 +76,7 @@ export default defineConfig({
                     environment: "jsdom",
                     setupFiles: ["./vitest.setup.ts"],
                     include: ["**/*.test.{ts,tsx,js,mjs}"],
-                    exclude: [...EXCLUDE, ...NODE_TESTS],
+                    exclude: [...EXCLUDE, ...NODE_TESTS, ...SKIP_SLOW],
                 },
             },
         ],
