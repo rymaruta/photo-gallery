@@ -1371,6 +1371,13 @@ describe("createStory: 置いた文字", () => {
         expect(saved().caption, "文言を2か所で持っている").toBe("いち\nに");
     });
 
+    // 文字列でない caption は捨てる（`.trim` で落ちて 500 になっていた）
+    it("文字列でない caption は捨てて保存する", async () => {
+        const res = await post({ caption: 1 });
+        expect(res.statusCode, "500 で落ちている").toBe(201);
+        expect("caption" in saved()).toBe(false);
+    });
+
     it("文字を置いていなければ、これまでどおり caption をそのまま受ける", async () => {
         await post({ caption: "朝の空" });
         expect(saved().caption).toBe("朝の空");
