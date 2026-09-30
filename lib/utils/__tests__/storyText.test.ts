@@ -8,7 +8,7 @@ import {
     clampStoryTextRotate, normalizeStoryRotate, STORY_ROTATE_DEFAULT,
     STORY_STAMPS, STORY_STAMP_KEYS, newStoryStamp, isStoryStamp,
     DEFAULT_STORY_STAMP_SIZE,
-    isStoryVote, isStoryTextItem, newStoryVote, isCompleteStoryVote, type StoryText,
+    isStoryVote, isStoryTextItem, hasStoryTextItem, newStoryVote, isCompleteStoryVote, type StoryText,
     STORY_VOTE_DEFAULT, STORY_VOTE_QUESTION_MAX, STORY_VOTE_OPTION_MAX, DEFAULT_STORY_VOTE_SIZE,
     type StoryTextItem, type StoryVoteItem,
 } from "../storyText";
@@ -532,6 +532,18 @@ describe("投票スタンプ", () => {
     it("`isStoryTextItem` は知らない kind を文字と見ない", () => {
         expect(isStoryTextItem({ kind: "future", x: 0.5, y: 0.5, size: 0.06 } as unknown as StoryText)).toBe(false);
         expect(isStoryTextItem({ kind: "text", text: "朝", x: 0.5, y: 0.5, size: 0.06, font: "bold", color: "white", bg: "none" })).toBe(true);
+    });
+
+    // ひとことの置き場所を決める1本（サーバーの `createStory` と閲覧画面が共有）
+    it("`hasStoryTextItem` は文字の項目が1つでも在るときだけ真", () => {
+        const [t] = sanitizeStoryTexts([{ text: "朝", x: 0.5, y: 0.5 }])!;
+        const [v] = sanitizeStoryTexts([voteIn])!;
+        const stamp = newStoryStamp(STORY_STAMP_KEYS[0], 0.5, 0.5);
+        expect(hasStoryTextItem(undefined)).toBe(false);
+        expect(hasStoryTextItem([])).toBe(false);
+        expect(hasStoryTextItem([v]), "投票だけを文字と見ている").toBe(false);
+        expect(hasStoryTextItem([stamp, v]), "スタンプと投票だけを文字と見ている").toBe(false);
+        expect(hasStoryTextItem([v, t])).toBe(true);
     });
 
     // サーバーも同じ線で落とす（文字に化けさせない）
