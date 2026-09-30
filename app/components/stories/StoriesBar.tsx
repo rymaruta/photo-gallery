@@ -81,7 +81,9 @@ function SettingSwitch({ label, checked, onChange, disabled }: {
 
 // 画像ストーリーの表示秒数。投稿者が選べる（既定5秒）
 const STORY_DEFAULT_DURATION_SEC = 5;
-const STORY_DURATION_CHOICES = [3, 5, 7, 10, 15];
+// 選べる秒数は 5・10・15 の3つ（2026-09-30・owner「細かい時間いらない」。アプリも同じ）。
+// **読む幅（サーバーの 3〜15）は変えない**——前に選べた 3・7 秒で出したものもそのまま流れる
+const STORY_DURATION_CHOICES = [5, 10, 15];
 // iTunes プレビューの長さ。「好きな部分」の開始位置はこの範囲で選ぶ
 const SONG_PREVIEW_SEC = 30;
 
