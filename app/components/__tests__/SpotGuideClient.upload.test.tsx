@@ -24,7 +24,10 @@ const SPOT: Spot = {
     summary: "あ".repeat(40),
     region: { country: "日本", prefecture: "山形県", city: "尾花沢市" },
     coords: { lat: 38.58, lng: 140.53 },
+    highlights: ["木造多層の旅館"],
+    officialWebsiteUrl: "https://example.example/",
     status: "published",
+    verifiedBy: "運営",
     verifiedAt: "2026-09-23",
     createdAt: "2026-09-23T00:00:00.000Z",
     updatedAt: "2026-09-23T00:00:00.000Z",
@@ -56,8 +59,20 @@ describe("スポットの画面から投稿へ", () => {
     it("?posted=1 で戻ってきたら「まだ並んでいない」ことを言い、URL から外す", async () => {
         window.history.replaceState(null, "", "/spots/ginzan-onsen?posted=1");
         view();
-        expect((await screen.findByTestId("spot-posted-note")).textContent).toContain("サイトの更新が終わると");
+        expect((await screen.findByTestId("spot-posted-note")).textContent).toContain("サイトの更新が終わってから");
         expect(window.location.search).toBe("");
+    });
+
+    // 投稿画面が読む本文 JSON は公開済みの分しか無い。下書きの画面から運ぶと毎回読めない
+    it("下書きの場所からは、スポットを運ばない（普通の投稿画面へ）", () => {
+        render(
+            <ToastProvider>
+                <SpotGuideClient spot={{ ...SPOT, status: "review", verifiedAt: undefined, draftedAt: "2026-09-24" } as Spot}
+                                 photos={[]} nearby={[]} locationPath={null} />
+            </ToastProvider>,
+        );
+        const link = screen.getByRole("link", { name: "ここで撮った写真を投稿する" });
+        expect(link.getAttribute("href")).toBe("/user/upload");
     });
 
     it("普通に開いたときは出さない", () => {

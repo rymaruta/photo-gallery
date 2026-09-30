@@ -11,15 +11,23 @@ import userEvent from "@testing-library/user-event";
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const q = vi.hoisted(() => ({ search: "spot=ginzan-onsen" }));
-const exif = vi.hoisted(() => ({ meta: {} as Record<string, unknown> }));
-const body = vi.hoisted(() => ({ json: null as unknown, ok: true }));
+const exif = vi.hoisted(() => ({ meta: {} as Record<string, unknown>, gate: null as Promise<void> | null }));
+const body = vi.hoisted(() => ({ json: null as unknown, ok: true, gate: null as Promise<void> | null }));
+const auth = vi.hoisted(() => ({ userId: null as string | null }));
+const draft = vi.hoisted(() => ({ read: vi.fn<(uid: string) => Promise<unknown>>(async () => null) }));
+vi.mock("../../../../lib/utils/uploadDraft", () => ({
+    saveUploadDraft: async () => undefined,
+    readUploadDraft: (uid: string) => draft.read(uid),
+    clearUploadDraft: async () => undefined,
+    allowUploadDraft: () => undefined,
+}));
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: mockPush, replace: vi.fn() }),
     useSearchParams: () => new URLSearchParams(q.search),
 }));
 vi.mock("../../../auth/context", () => ({
-    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false }),
+    useAuth: () => ({ isAuthenticated: true, isAdminUser: false, isGeneralUser: true, loading: false, userId: auth.userId }),
 }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 const mockShowToast = vi.hoisted(() => vi.fn());
@@ -34,7 +42,7 @@ vi.mock("../../../../lib/utils/shareStore", () => ({
     clearSharedPayload: vi.fn(async () => undefined),
 }));
 vi.mock("../../../../lib/utils/exif", () => ({
-    extractExifFromFile: vi.fn(async () => exif.meta),
+    extractExifFromFile: vi.fn(async () => { if (exif.gate) await exif.gate; return exif.meta; }),
     extractCameraExif: vi.fn(async () => ({})),
     reverseGeocode: vi.fn(async () => "Barcelona, Spain"),
 }));
@@ -64,8 +72,12 @@ function savedBody(): Record<string, unknown> | null {
 beforeEach(() => {
     q.search = "spot=ginzan-onsen";
     exif.meta = {};
+    exif.gate = null;
     body.json = GINZAN;
     body.ok = true;
+    body.gate = null;
+    auth.userId = null;
+    draft.read.mockReset().mockResolvedValue(null);
     mockShowToast.mockReset();
     mockPush.mockReset();
     mockUserFetch.mockReset().mockImplementation((url: string) => {
@@ -80,6 +92,7 @@ beforeEach(() => {
     });
     fetchMock.mockReset().mockImplementation(async (url: string) => {
         if (String(url).startsWith("/app/data/spots/")) {
+            if (body.gate) await body.gate;
             return { ok: body.ok, status: body.ok ? 200 : 404, json: async () => body.json };
         }
         return { ok: true, status: 200 };
@@ -166,5 +179,68 @@ describe("アップロード画面: 撮影スポットから来た投稿", () =>
         expect("spotId" in savedBody()!).toBe(false);
         expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith("/app/data/spots/"))).toBe(false);
         expect(screen.queryByTestId("upload-spot-banner")).toBeNull();
+    });
+
+    /** 手で開ける門（先に届く側を決める） */
+    function gate(): { promise: Promise<void>; open: () => void } {
+        let open = () => {};
+        const promise = new Promise<void>((r) => { open = r; });
+        return { promise, open };
+    }
+
+    // 🔴 レビュー F1: **スポットが EXIF より先に届いても、離れた写真の撮影地をスポット名にしない。**
+    // 読む前の写真は位置が「まだ分からない」だけで、「位置が無い＝近い」ではない
+    it("写真を先に選び、EXIF を読む前にスポットが届いても、離れた写真はスポット名にしない", async () => {
+        const e = gate(); const b = gate();
+        exif.gate = e.promise; body.gate = b.promise;
+        exif.meta = { latitude: 41.39, longitude: 2.17 };
+        const { container } = render(<UploadPage />);
+        await pick(container);
+        b.open();
+        await screen.findByTestId("upload-spot-banner");
+        e.open();
+        await publish();
+        expect(savedBody()!.location, "離れた写真の撮影地がスポット名になった").toBe("Barcelona, Spain");
+        expect("spotId" in savedBody()!).toBe(false);
+    });
+
+    it("EXIF を読み終えてからスポットが届いたら、近い（位置の無い）写真にスポット名を入れて紐付ける", async () => {
+        const b = gate();
+        body.gate = b.promise;
+        const { container } = render(<UploadPage />);
+        await pick(container);
+        await screen.findByRole("button", { name: /投稿する/ });
+        b.open();
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚をスポットに紐付けます"));
+        await publish();
+        expect(savedBody()!.location).toBe("銀山温泉");
+        expect(savedBody()!.spotId).toBe(GINZAN.spotId);
+    });
+
+    // レビュー F2: 下書きから戻した写真は、このスポットから来たとは限らない
+    it("下書きから戻した写真には、スポット名を入れない（紐付けない）", async () => {
+        auth.userId = "me";
+        draft.read.mockResolvedValue({
+            category: "", tags: "", asOnePost: false, audience: "everyone",
+            items: [{ file: new File(["x"], "old.jpg", { type: "image/jpeg" }), title: "", description: "", location: "" }],
+        });
+        render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        await waitFor(() => expect(screen.getByTestId("upload-spot-banner").textContent).toContain("1枚中0枚"));
+        await publish();
+        expect("spotId" in savedBody()!).toBe(false);
+        expect(savedBody()!.location ?? "").toBe("");
+    });
+
+    // レビュー F4: 絞った写真はウェブサイトに載らない。「この一覧に並びます」の画面へ送らない
+    it("フォロワーのみに絞った投稿は、スポットの画面へ戻さない", async () => {
+        const { container } = render(<UploadPage />);
+        await screen.findByTestId("upload-spot-banner");
+        await pick(container);
+        await userEvent.click(screen.getByRole("radio", { name: /フォロワーのみ/ }));
+        await publish();
+        expect(savedBody()!.spotId).toBe(GINZAN.spotId);
+        await waitFor(() => expect(mockPush).toHaveBeenCalled(), { timeout: 3000 });
+        expect(mockPush).not.toHaveBeenCalledWith("/spots/ginzan-onsen?posted=1");
     });
 });

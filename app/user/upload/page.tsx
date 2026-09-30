@@ -97,6 +97,11 @@ type Item = {
     // オブジェクトが増える（どの削除経路も DynamoDB の項目からキーを
     // 引くので、項目の無いオブジェクトには永久に手が届かない）。
     uploaded?: { key: string; publicUrl: string; thumbUrl?: string };
+    /**
+     * EXIF（撮影日・位置）を読み終えたか。**読む前の写真は位置が「無い」のではなく
+     * 「まだ分からない」**——撮影スポットの判定（近くで撮ったか）はこれが立ってから
+     */
+    metaRead?: boolean;
 };
 
 /** 前回のサムネを使い回すときにアップロード処理を飛ばすための合図 */
@@ -187,18 +192,27 @@ function UploadPageInner() {
         return () => { alive = false; };
     }, [spotSlug]);
     /**
-     * スポットが届いた時点で並んでいる写真（下書きの復元・先に選んだ写真）にも、
-     * 近くで撮られていて撮影地が空ならスポット名を入れる。**打ってある撮影地は触らない**
+     * **この画面で選んだ写真のうち、まだスポットの判定をしていないもの**（ID）。
+     *
+     * スポットの本文は非同期で届くので、写真を先に選ぶことがある。届いた時点で
+     * その写真にもスポット名を入れたいが、条件が2つある:
+     *   - **EXIF を読み終えてから**（`metaRead`）。読む前は位置が分からないだけで、
+     *     「位置が無い＝近い」とみなすと、離れた写真の撮影地がスポット名になる
+     *   - **下書きから戻した写真は入れない**。別の日に選んだ写真で、このスポットから
+     *     来たとは限らない（撮影地に名前を自分で書いてあれば、保存の判定で紐付く）
+     * 判定は1枚1回だけ。あとで利用者が撮影地を消しても、入れ直さない
      */
-    useEffect(() => {
-        if (!spot) return;
-        setItems((prev) => prev.some((it) => !it.location && it.status !== "done" && coversSpot(spot, it))
-            ? prev.map((it) => (!it.location && it.status !== "done" && coversSpot(spot, it) ? { ...it, location: spot.name } : it))
-            : prev);
-    }, [spot]);
+    const spotPendingRef = useRef(new Set<string>());
+    /**
+     * スポットに紐付けて**全体に公開できた**投稿があったか。押し直しをまたいで数える
+     * ——1回目で紐付いた写真が上がり、2回目は残りだけ、でもスポットの画面へ戻す
+     */
+    const spotPostedRef = useRef(false);
     const removeSpot = useCallback(() => {
         setSpot(null);
         setSpotFailed(false);
+        spotPendingRef.current.clear();
+        spotPostedRef.current = false;
         try {
             const url = new URL(window.location.href);
             url.searchParams.delete("spot");
@@ -211,6 +225,16 @@ function UploadPageInner() {
      *  「この画面からは書かない」と言っているのはそちらの変数のこと */
     const pageBarRef = usePageBarHeight();
     const [items, setItems] = useState<Item[]>([]);
+    /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
+    useEffect(() => {
+        if (!spot) return;
+        const ready = items.filter((it) => it.metaRead && spotPendingRef.current.has(it.id));
+        if (ready.length === 0) return;
+        for (const it of ready) spotPendingRef.current.delete(it.id);
+        const fill = new Set(ready.filter((it) => !it.location && it.status !== "done" && coversSpot(spot, it)).map((it) => it.id));
+        if (fill.size === 0) return;
+        setItems((prev) => prev.map((it) => (fill.has(it.id) && !it.location ? { ...it, location: spot.name } : it)));
+    }, [spot, items]);
     /**
      * 認証ゲート。**取り込んだ写真があるときは送り返させない**——
      * `router.replace` は画面を作り直すので、選んだ写真も打った題名・説明も
@@ -811,6 +835,7 @@ function UploadPageInner() {
             status: "pending",
             progress: 0,
         }));
+        for (const it of newItems) spotPendingRef.current.add(it.id);
         setItems((prev) => [...prev, ...newItems]);
 
         // EXIF を順次抽出（並列）。GPS リバースジオコードはレート制限のため直列。
@@ -837,6 +862,7 @@ function UploadPageInner() {
                 dateTimeOriginal: found.meta.dateTimeOriginal,
                 latitude: found.meta.latitude,
                 longitude: found.meta.longitude,
+                metaRead: true,
                 ...(spotNow && onSpot.has(it.id) && !it.location ? { location: spotNow.name } : {}),
             };
         }));
@@ -1022,8 +1048,6 @@ function UploadPageInner() {
             }> = [];
 
             let successCount = 0;
-            /** スポットに紐付けて保存できた投稿の数（投稿後にスポットの画面へ戻すか決める） */
-            let spotLinked = 0;
             // **失敗は別に数える。** やめたときは「上げていない残り」が出るので
             // `pending.length - successCount` は使えない（手を付けていない
             // 写真まで「失敗」に数えてしまう）
@@ -1214,7 +1238,7 @@ function UploadPageInner() {
                     }
                     updateItem(item.id, { status: "done", progress: 100 });
                     successCount++;
-                    if (spotIdToSend(spot, item)) spotLinked++;
+                    if (spotIdToSend(spot, item) && published && audience === "everyone") spotPostedRef.current = true;
                     // 残り枚数はマウント時に1回取るだけだった。3枚上げても
                     // 「あと5枚」のままで、押して初めて 403 に戻ってしまう。
                     // 成功した分をその場で引く（取れていない＝null のときは触らない）。
@@ -1316,7 +1340,7 @@ function UploadPageInner() {
                     }
                     for (const g of group) updateItem(g.item.id, { status: "done", progress: 100 });
                     successCount = group.length;
-                    if (spotIdToSend(spot, c)) spotLinked = 1;
+                    if (spotIdToSend(spot, c) && published && audience === "everyone") spotPostedRef.current = true;
                     // **枠は1件ぶんしか減らない**（投稿が1件なので）。
                     // ここを枚数ぶん引くと「あと N 枚」が実際より少なく出る
                     setUsedSlots((n) => (n === null ? n : n + 1));
@@ -1391,9 +1415,11 @@ function UploadPageInner() {
                     // **スポットに紐付けて全体に公開した回は、そのスポットの画面へ戻す。**
                     // 静的サイトなので一覧に並ぶのは再ビルドのあと——戻った画面が
                     // `?posted=1` を見て「まだ並んでいない」ことを言う（`SpotGuideClient`）
+                    // **絞った回は先に分ける**（`userId` が無くてもスポットの画面へは行かない
+                    // ——絞った写真はウェブサイトに載らないので「並びます」は嘘になる）
                     const dest = !published ? ROUTES.DRAFTS
-                        : restricted && userId ? ROUTES.USER_PROFILE(userId)
-                        : spot && spotLinked > 0 ? `/spots/${spot.slug}?posted=1`
+                        : restricted ? (userId ? ROUTES.USER_PROFILE(userId) : "/")
+                        : spot && spotPostedRef.current ? `/spots/${spot.slug}?posted=1`
                         : "/";
                     redirectTimerRef.current = setTimeout(() => router.push(dest), 1500);
                 }
