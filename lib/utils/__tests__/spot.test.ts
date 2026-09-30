@@ -137,7 +137,7 @@ describe("周辺のスポット（距離順）", () => {
 
     it("近い順に並ぶ", () => {
         const got = nearbySpots(at(35.0, 139.0), [
-            { entry: e("遠い"), coords: at(36.0, 139.0) },
+            { entry: e("遠い"), coords: at(35.3, 139.0) },
             { entry: e("近い"), coords: at(35.05, 139.0) },
         ]);
         expect(got.map((x) => x.slug)).toEqual(["近い", "遠い"]);
@@ -168,6 +168,16 @@ describe("周辺のスポット（距離順）", () => {
             { entry: e("正確な相手"), coords: at(35.1, 139.0) },
         ]);
         expect(got2[0].approx).toBe(true);
+    });
+
+    // 🔴 2026-09-30 のレビュー: 「近く」に「バルセロナ・約825km」。遠い場所で件数を埋めない
+    it("50km より遠い撮影地は「周辺」に出さない（境目の内側は出る）", () => {
+        const got = nearbySpots(at(35.0, 139.0), [
+            { entry: e("約44km"), coords: at(35.4, 139.0) },
+            { entry: e("約56km"), coords: at(35.5, 139.0) },
+            { entry: e("バルセロナ"), coords: at(41.39, 2.17) },
+        ]);
+        expect(got.map((x) => x.slug)).toEqual(["約44km"]);
     });
 
     it("上限で切る", () => {

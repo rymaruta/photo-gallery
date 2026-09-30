@@ -31,7 +31,14 @@ import { ROUTES } from "@/lib/routes";
  * **受け取るのは解いたあとの `SpotLink` だけ。**
  * 見張りは `app/__tests__/spotLedgerClientImport.test.ts`。
  */
-export default function SpotLinkCard({ spot, locale }: { spot: SpotLink | null; locale: string }) {
+export default function SpotLinkCard({ spot, locale, heading, headingId = "photo-spot-card" }: {
+    spot: SpotLink | null;
+    locale: string;
+    /** 見出しの文言（既定は写真詳細の「この写真の撮影スポット」）。撮影地のページは別の言い方 */
+    heading?: string;
+    /** 見出しの id（1画面に複数置くとき重ならないように） */
+    headingId?: string;
+}) {
     const isJa = locale !== "en";
 
     if (!spot) return null;
@@ -41,9 +48,9 @@ export default function SpotLinkCard({ spot, locale }: { spot: SpotLink | null; 
     const noImage = !spot.cover;
 
     return (
-        <section className="mt-5" aria-labelledby="photo-spot-card">
-            <h2 id="photo-spot-card" className="m-0 mb-2 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                {isJa ? "この写真の撮影スポット" : "Where this was taken"}
+        <section className="mt-5" aria-labelledby={headingId}>
+            <h2 id={headingId} className="m-0 mb-2 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                {heading ?? (isJa ? "この写真の撮影スポット" : "Where this was taken")}
             </h2>
             <div className="rounded-2xl overflow-hidden bg-surface ring-1 ring-line">
                 <Link href={`/spots/${spot.slug}`} prefetch={false}

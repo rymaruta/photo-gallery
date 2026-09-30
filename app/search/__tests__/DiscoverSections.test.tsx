@@ -38,6 +38,21 @@ const render1 = (photos: Photo[], map: Record<string, string> = {}) =>
     render(<DiscoverSections photos={photos} locale="ja" categoryDisplayMap={map} />);
 
 describe("さがす: 発見の節", () => {
+    // 2026-09-30 のレビュー: 長い住所を見出しにしない・地域と場所を見分ける
+    it("撮影地のカードは、具体的な部分を見出しに・地域は2行目に（地域の束は「地域」と名乗る）", () => {
+        const { container } = render1([
+            photo("a", { location: "香川県 観音寺市 高屋神社" }), photo("b", { location: "香川県 観音寺市 高屋神社" }),
+            photo("c", { location: "フランス" }),
+        ]);
+        const cards = [...container.querySelectorAll('a[href*="/location/"]')];
+        const takaya = cards.find((a) => (a.textContent ?? "").includes("高屋神社"))!;
+        const spans = [...takaya.querySelectorAll("span")].map((s) => s.textContent);
+        expect(spans).toContain("高屋神社");
+        expect(spans.some((t) => t === "香川県 観音寺市・2枚")).toBe(true);
+        const france = cards.find((a) => (a.textContent ?? "").includes("フランス"))!;
+        expect([...france.querySelectorAll("span")].map((s) => s.textContent)).toContain("地域・1枚");
+    });
+
     it("カテゴリ・撮影地・機材の節を、集約ページへのリンクで出す", () => {
         render1([
             photo("a", { category: "landscape", location: "パリ", exif: { camera: "SONY ILCE-7M3" } }),

@@ -10,6 +10,7 @@ import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import Thumb from "./Thumb";
 import { CHIP_OFF } from "./chipStyles";
+import { placeParts, placeLine } from "../../lib/utils/placeName";
 
 /**
  * ホームの PC の右の柱＝**写真で見つける発見エリア**。
@@ -173,11 +174,12 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                         <span aria-hidden="true"
                                               className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
                                         <span className="absolute inset-x-0 bottom-0 p-2">
+                                            {/* 見出しは具体的な部分だけ・地域は2行目（`placeParts`） */}
                                             <span className="block text-white font-medium truncate"
-                                                  style={{ fontSize: "12px", lineHeight: "16px" }}>{s.label}</span>
-                                            <span className="block text-white/70"
-                                                  style={{ fontSize: "10px", lineHeight: "14px" }}>
-                                                {isJa ? `${s.count}枚` : `${s.count} photos`}
+                                                  style={{ fontSize: "12px", lineHeight: "16px" }} title={s.label}>{placeParts(s.label).title}</span>
+                                            <span className="block text-white/80 truncate"
+                                                  style={{ fontSize: "11px", lineHeight: "15px" }}>
+                                                {placeLine(s.label, isJa)}{isJa ? `${s.count}枚` : `${s.count} photos`}
                                             </span>
                                         </span>
                                     </Link>

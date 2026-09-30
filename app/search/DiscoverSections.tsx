@@ -7,6 +7,7 @@ import { collectEntries, collectionPath, collectionIndexPath, slugify, type Coll
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
 import { CHIP_OFF } from "@/app/components/chipStyles";
+import { placeLine, placeParts } from "@/lib/utils/placeName";
 
 /**
  * 「さがす」の発見の面（最終版モックの中段・owner の指示書 7）。
@@ -234,9 +235,11 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                                               style={{ width: "150px", height: "100px" }}>
                                             {cover && <Thumb photo={cover} alt="" sizes="150px" />}
                                         </span>
-                                        <span className="block mt-1.5 text-white truncate" style={{ fontSize: "13px" }}>{s.label}</span>
-                                        <span className="block text-white/60" style={{ fontSize: "11px" }}>
-                                            {isJa ? `${s.count}枚` : `${s.count} photos`}
+                                        {/* **見出しは具体的な部分だけ**、地域は2行目に（長い住所を
+                                            見出しにしない・地域の束と場所を見分ける・`placeParts`） */}
+                                        <span className="block mt-1.5 text-white truncate" style={{ fontSize: "13px" }} title={s.label}>{placeParts(s.label).title}</span>
+                                        <span className="block text-white/70 truncate" style={{ fontSize: "12px" }}>
+                                            {placeLine(s.label, isJa)}{isJa ? `${s.count}枚` : `${s.count} photos`}
                                         </span>
                                     </ItemLink>
                                 </li>
