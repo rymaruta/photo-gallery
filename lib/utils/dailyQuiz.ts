@@ -143,7 +143,7 @@ function answerFor(sorted: readonly QuizSpot[], day: number): QuizSpot {
     const epoch = dayNumber(QUIZ_EPOCH)!;
     if (day < epoch) return sorted[best(day, new Set())];
 
-    const key = sorted.map((s) => s.spotId).join(",");
+    const key = JSON.stringify(sorted.map((s) => s.spotId));
     if (chainMemo?.key !== key) chainMemo = { key, picks: [] };
     const picks = chainMemo.picks;
     const window = Math.min(QUIZ_NO_REPEAT_DAYS, sorted.length - 1);
@@ -208,4 +208,47 @@ export function datesFrom(fromYmd: string, days: number): string[] {
     const start = dayNumber(fromYmd);
     if (start === null || days <= 0) return [];
     return Array.from({ length: days }, (_, i) => new Date((start + i) * 86_400_000).toISOString().slice(0, 10));
+}
+
+/** 地域の短い言い方（「山形県 尾花沢市」・海外は国から）。答えのあとに出す */
+export function regionLine(r: QuizRegion): string {
+    const parts = r.country && r.country !== "日本" ? [r.country, r.prefecture, r.city] : [r.prefecture, r.city];
+    return parts.filter((x): x is string => !!x && !!x.trim()).join(" ");
+}
+
+const isStr = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+const isHttps = (v: unknown): v is string => isStr(v) && /^https:\/\//.test(v);
+
+/**
+ * 日ごとのファイルを画面の形へ。**頼んだ日付と違う・選択肢が4つでない・正解が選択肢に無い・
+ * 写真が https でない**なら `null`（その日は「まだありません」）。
+ * 作者とライセンスが無い写真は出さない（CC の表示条件を満たせない）
+ */
+export function parseDailyQuiz(json: unknown, ymd: string): DailyQuiz | null {
+    if (!json || typeof json !== "object") return null;
+    const o = json as Record<string, unknown>;
+    if (o.date !== ymd || !isStr(o.answer)) return null;
+    const p = o.photo as Record<string, unknown> | undefined;
+    if (!p || !isHttps(p.url) || !isStr(p.author) || !isStr(p.license) || !isHttps(p.pageUrl)) return null;
+    if (!Array.isArray(o.choices) || o.choices.length !== 4) return null;
+    const choices: QuizChoice[] = [];
+    for (const c of o.choices as unknown[]) {
+        const x = c as Record<string, unknown> | null;
+        if (!x || !isStr(x.spotId) || !isStr(x.slug) || !isStr(x.name) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(x.slug)) return null;
+        const r = (x.region && typeof x.region === "object" ? x.region : {}) as Record<string, unknown>;
+        const region: QuizRegion = {};
+        for (const k of ["country", "prefecture", "city"] as const) if (isStr(r[k])) region[k] = r[k] as string;
+        choices.push({ spotId: x.spotId, slug: x.slug, name: x.name, region });
+    }
+    if (new Set(choices.map((c) => c.spotId)).size !== 4 || !choices.some((c) => c.spotId === o.answer)) return null;
+    const photo: QuizImage = {
+        url: p.url, author: p.author, license: p.license, pageUrl: p.pageUrl,
+        ...(isHttps(p.licenseUrl) ? { licenseUrl: p.licenseUrl } : {}),
+    };
+    return { date: ymd, photo, choices, answer: o.answer };
+}
+
+/** 端末に残す「その日に選んだもの」の鍵 */
+export function quizStorageKey(ymd: string): string {
+    return `journey-photo:quiz:${ymd}`;
 }

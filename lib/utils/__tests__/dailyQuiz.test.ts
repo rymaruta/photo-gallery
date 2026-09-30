@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDailyQuiz, dayNumber, datesFrom, fnv1a, mix32, quizScore, QUIZ_EPOCH, QUIZ_NO_REPEAT_DAYS, type QuizSpot } from "../dailyQuiz";
+import { buildDailyQuiz, parseDailyQuiz, regionLine, dayNumber, datesFrom, fnv1a, mix32, quizScore, QUIZ_EPOCH, QUIZ_NO_REPEAT_DAYS, type QuizSpot } from "../dailyQuiz";
 
 const img = (id: string) => ({ url: `https://example.com/${id}.jpg`, author: "a", license: "CC BY-SA 4.0", pageUrl: "https://example.com" });
 const spot = (n: number, region: QuizSpot["region"], name = `場所${n}`): QuizSpot => {
@@ -176,5 +176,39 @@ describe("出題の道具", () => {
     it("mix32 は既知の値（アプリも同じ式）", () => {
         expect(mix32(0)).toBe(0);
         expect(mix32(1)).toBe(0x514e28b7);
+    });
+});
+
+describe("日ごとのファイルの読み取り", () => {
+    const pool = [1, 2, 3, 4, 5, 6].map((n) => spot(n, YAMAGATA));
+    const good = () => JSON.parse(JSON.stringify(buildDailyQuiz(pool, "2026-10-01")));
+
+    it("書き出した形はそのまま読める", () => {
+        expect(parseDailyQuiz(good(), "2026-10-01")).toEqual(buildDailyQuiz(pool, "2026-10-01"));
+    });
+
+    it("日付違い・選択肢が4つでない・正解が無い・同じ選択肢・写真が https でない・作者が無いは読まない", () => {
+        const bad: ((q: ReturnType<typeof good>) => void)[] = [
+            (q) => { q.date = "2026-10-02"; },
+            (q) => { q.choices = q.choices.slice(0, 3); },
+            (q) => { q.answer = "sp_ffffffffffff"; },
+            (q) => { q.choices[1] = q.choices[0]; },
+            (q) => { q.photo.url = "http://example.com/x.jpg"; },
+            (q) => { q.photo.author = ""; },
+            (q) => { q.choices[0].slug = "../x"; },
+        ];
+        for (const [i, f] of bad.entries()) {
+            const q = good();
+            f(q);
+            expect(parseDailyQuiz(q, "2026-10-01"), `${i}`).toBeNull();
+        }
+        expect(parseDailyQuiz(null, "2026-10-01")).toBeNull();
+        expect(parseDailyQuiz("x", "2026-10-01")).toBeNull();
+    });
+
+    it("regionLine は海外なら国から", () => {
+        expect(regionLine({ prefecture: "山形県", city: "尾花沢市" })).toBe("山形県 尾花沢市");
+        expect(regionLine({ country: "フランス", city: "パリ" })).toBe("フランス パリ");
+        expect(regionLine({ country: "日本", prefecture: "京都府" })).toBe("京都府");
     });
 });
