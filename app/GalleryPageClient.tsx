@@ -371,17 +371,41 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
 
   // **短縮リンクを `?photo=` に置き換える。** 一覧（ビルド時の控え → API の一覧）に
   // 1枚だけ当たればその写真へ。まだ一覧が届いていなければ待つ（ビルド後の新着写真は
-  // API の一覧にしか無い）。届いても当たらない・2枚当たる・取れなかったときは、
-  // 8文字のまま `?photo=` に渡して、上の経路に「見つかりません」「読み込めません」を
-  // 言わせる（黙ってトップを出さない）。形の違う値は触らない
+  // API の一覧にしか無い）。届いても当たらない・2枚当たるときは、8文字のまま `?photo=` に
+  // 渡して上の経路に「見つかりません」を言わせる（黙ってトップを出さない）。形の違う値は触らない
+  //
+  // - **値は ref に覚える。** 待っている間に `useGallery` が絞り込みから URL を書き戻すと
+  //   `p` が落ちる（あちらは Next に知らせない書き方なので今は届かないが、それに頼らない）
+  // - **取れなかったときは書かない。** 8文字を `?photo=` に固めると、回線が戻って一覧が
+  //   届いても完全な id に一致せず、二度と開けなかった。一度だけ知らせて待ち、取り直しを待つ
+  // - **`history.replaceState` の state は null で渡す。** Next はこの差し替えを、state に
+  //   `__NA` も `_N` も無いときだけ拾って `useSearchParams` を更新する
+  //   （`next/dist/client/components/app-router.js`）。このリポジトリの他の書き戻しの作法
+  //   （`withNextHistoryState`）に揃えると Next に届かず、`?photo=` の監視が動かない
+  const shortRef = React.useRef<string | null>(null);
+  const shortFailToldRef = React.useRef(false);
   React.useEffect(() => {
-    const result = resolveShortPhotoId(shortParam, PHOTOS.map((p) => p.id));
-    if (result.kind === "invalid") return;
-    if (result.kind === "none" && !photosLoaded && !photosFailed) return;
-    const id = result.kind === "found" ? result.id : (shortParam ?? "").trim().toLowerCase();
-    // Next は history.replaceState を拾って useSearchParams を更新する（14.1 以降）
-    window.history.replaceState(null, "", `/?photo=${encodeURIComponent(id)}`);
-  }, [shortParam, PHOTOS, photosLoaded, photosFailed]);
+    if (shortParam && resolveShortPhotoId(shortParam, []).kind !== "invalid") shortRef.current = shortParam;
+    const short = shortRef.current;
+    if (!short) return;
+    const result = resolveShortPhotoId(short, PHOTOS.map((p) => p.id));
+    if (result.kind === "none" && !photosLoaded) {
+      if (photosFailed && !shortFailToldRef.current) {
+        shortFailToldRef.current = true;
+        showToast(locale === "en"
+          ? "Couldn't load the photo. Check your connection and try again."
+          : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。", "error");
+      }
+      return;
+    }
+    shortRef.current = null;
+    const id = result.kind === "found" ? result.id : short.trim().toLowerCase();
+    // いまの画面（トップ／さがす）とその時点のクエリは残し、`p` だけを `photo` に替える
+    const params = new URLSearchParams(window.location.search);
+    params.delete("p");
+    params.set("photo", id);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  }, [shortParam, PHOTOS, photosLoaded, photosFailed, showToast, locale]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;

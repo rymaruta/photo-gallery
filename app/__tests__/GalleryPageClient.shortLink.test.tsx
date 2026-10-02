@@ -65,9 +65,9 @@ const PHOTOS = [
     { id: "a0e0e987-4686-437a-a5fd-b6eaa2debd84", src: "https://cdn/c.jpg", title: "う", category: "travel", tags: [], date: "2026-01-03", createdAt: "2026-01-03" },
 ];
 /** API の一覧が届く前かどうか。届く前は静的JSON（＝ここでは PHOTOS）だけ */
-const photosState = vi.hoisted(() => ({ extra: [] as Array<Record<string, unknown>>, loaded: true }));
+const photosState = vi.hoisted(() => ({ extra: [] as Array<Record<string, unknown>>, loaded: true, failed: false }));
 vi.mock("../../lib/hooks/usePhotos", () => ({
-    usePhotos: () => ({ photos: [...PHOTOS, ...photosState.extra], loaded: photosState.loaded }),
+    usePhotos: () => ({ photos: [...PHOTOS, ...photosState.extra], loaded: photosState.loaded, failed: photosState.failed }),
 }));
 
 const GalleryPageClient = (await import("../GalleryPageClient")).default;
@@ -79,6 +79,7 @@ beforeEach(() => {
     auth.current = { isAuthenticated: false, userId: null, loading: false };
     photosState.extra = [];
     photosState.loaded = true;
+    photosState.failed = false;
     window.history.replaceState({}, "", "/");
 });
 
@@ -110,6 +111,37 @@ describe("短縮リンク /?p=<先頭8文字>", () => {
         searchParams.short = "deadbeef";
         render(<GalleryPageClient />);
         await waitFor(() => expect(photoInUrl()).toBe("deadbeef"));
+    });
+
+    it("一覧が取れなかったら8文字を書き込まず、一度だけ知らせて取り直しを待つ", async () => {
+        photosState.loaded = false;
+        photosState.failed = true;
+        searchParams.short = "bbbbbbbb";
+        const { rerender } = render(<GalleryPageClient />);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(
+            expect.stringContaining("読み込めませんでした"), "error"));
+        expect(photoInUrl(), "一致しえない8文字を ?photo= に固めている").toBeNull();
+
+        // 回線が戻って一覧が届いたら開く（`?p=` が URL から消えていても覚えている）
+        searchParams.short = "";
+        photosState.extra = [{ id: "bbbbbbbb-1111-4222-8333-444444444444", src: "https://cdn/n.jpg", title: "新",
+                               category: "travel", tags: [], date: "2026-10-02", createdAt: "2026-10-02" }];
+        photosState.failed = false;
+        photosState.loaded = true;
+        rerender(<GalleryPageClient />);
+        await waitFor(() => expect(photoInUrl()).toBe("bbbbbbbb-1111-4222-8333-444444444444"));
+        expect(mockShowToast).toHaveBeenCalledTimes(1);
+    });
+
+    // ほかのクエリ（`utm_*` など）は、トップが開いた時点で絞り込みから URL を書き戻すので
+    // もともと残らない（`useGallery`）。ここではパスを `/` に決め打ちしないことだけを見る
+    it("いまのパスは残し、p だけを photo に替える", async () => {
+        window.history.replaceState({}, "", "/search?utm_source=threads&p=a0e0e987");
+        searchParams.short = "a0e0e987";
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(photoInUrl()).toBe("a0e0e987-4686-437a-a5fd-b6eaa2debd84"));
+        expect(window.location.pathname).toBe("/search");
+        expect(new URLSearchParams(window.location.search).get("p")).toBeNull();
     });
 
     it("短縮の形でない ?p= には触らない", async () => {
