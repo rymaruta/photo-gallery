@@ -15,6 +15,7 @@ import GalleryGrid from "./components/GalleryGrid";
 import { GRID_SIZES_SEARCH, GRID_COLUMNS_SEARCH } from "./components/gridSizes";
 import GalleryModal from "./components/GalleryModal";
 import SearchParamWatcher from "./components/SearchParamWatcher";
+import { resolveShortPhotoId } from "@/lib/utils/shortPhotoLink";
 import { usePhotos } from "../lib/hooks/usePhotos";
 import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
@@ -237,6 +238,9 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
   // タップしても開けず、通知からも開けなかった（唯一の閲覧手段なのに）。
   // useSearchParams は遷移のたびに更新されるので、そちらを見る。
   const [photoParam, setPhotoParam] = React.useState<string | null>(null);
+  // 短縮リンク `/?p=<先頭8文字>`（`lib/utils/shortPhotoLink.ts`）。一覧と照らして
+  // `/?photo=<id>` に置き換え、あとは上の `?photo=` の経路に任せる
+  const [shortParam, setShortParam] = React.useState<string | null>(null);
   // 一度開いて閉じた写真を、同じ ?photo= のまま開き直さないための記録
   const dismissedRef = React.useRef<string | null>(null);
   // 「見つかりません」を同じ写真について2回言わないための記録。
@@ -364,6 +368,20 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
     setPendingPhoto(null);   // 無いと分かったので、死んだ ?photo= を URL に残さない
     showToast(locale === "en" ? "That photo is no longer available." : "その写真は見つかりませんでした。", "error");
   }, [photoParam, filteredPhotos, openById, PHOTOS, photosLoaded, photosFailed, showToast, locale, close, setPendingPhoto, setFilters, filters]);
+
+  // **短縮リンクを `?photo=` に置き換える。** 一覧（ビルド時の控え → API の一覧）に
+  // 1枚だけ当たればその写真へ。まだ一覧が届いていなければ待つ（ビルド後の新着写真は
+  // API の一覧にしか無い）。届いても当たらない・2枚当たる・取れなかったときは、
+  // 8文字のまま `?photo=` に渡して、上の経路に「見つかりません」「読み込めません」を
+  // 言わせる（黙ってトップを出さない）。形の違う値は触らない
+  React.useEffect(() => {
+    const result = resolveShortPhotoId(shortParam, PHOTOS.map((p) => p.id));
+    if (result.kind === "invalid") return;
+    if (result.kind === "none" && !photosLoaded && !photosFailed) return;
+    const id = result.kind === "found" ? result.id : (shortParam ?? "").trim().toLowerCase();
+    // Next は history.replaceState を拾って useSearchParams を更新する（14.1 以降）
+    window.history.replaceState(null, "", `/?photo=${encodeURIComponent(id)}`);
+  }, [shortParam, PHOTOS, photosLoaded, photosFailed]);
 
   const handleClose = React.useCallback(() => {
     dismissedRef.current = openPhotoId ?? null;
@@ -786,6 +804,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       )}
 
       <SearchParamWatcher name="photo" onChange={setPhotoParam} />
+      <SearchParamWatcher name="p" onChange={setShortParam} />
 
       {currentIndex !== null && filteredPhotos[currentIndex] && (
         <GalleryModal
