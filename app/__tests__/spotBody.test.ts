@@ -3,6 +3,7 @@ import rawLedger from "../../content/spots.json";
 import type { Spot } from "../../lib/data/spots";
 import { buildSpotBodies, spotBodyJson, toSpotBody } from "../../lib/data/spotBody";
 import * as route from "../app/data/spots/[file]/route";
+import type { SpotSamplesFile } from "../../lib/data/spotSamples";
 
 /**
  * **アプリが撮影スポットの画面で読む本文（`/app/data/spots/<slug>.json`）の形を固定する。**
@@ -39,7 +40,7 @@ const AI = {
     aiCheck: { checkedAt: "2026-09-26", delegatedBy: "rymaruta", sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }] },
 };
 const ALLOWED = ["spotId", "slug", "name", "coords", "country", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
-    "compositionTips", "officialWebsiteUrl", "check"];
+    "compositionTips", "officialWebsiteUrl", "check", "samples"];
 
 describe("アプリ向けの本文", () => {
     it("下書きは作らない・公開の条件を満たさない行も作らない", () => {
@@ -79,6 +80,30 @@ describe("アプリ向けの本文", () => {
         const body = toSpotBody(spot("e", { ...HUMAN, timeOfDayGuide: [], description: "  ",
             compositionTips: undefined }))!;
         expect(Object.keys(body).sort()).toEqual(["check", "coords", "highlights", "name", "officialWebsiteUrl", "seasonalGuide", "slug", "spotId"]);
+    });
+
+    it("作例（Wikimedia Commons）を足す: 1枚ごとに作者・ライセンス・出典を持ち、無ければ鍵ごと無い", () => {
+        const h = spot("h", HUMAN);
+        const rec = {
+            file: "File:A.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+            thumbUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/A.jpg/1280px-A.jpg",
+            width: 1280, height: 853, author: "撮った人", license: "CC BY-SA 4.0",
+            licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", pickedBy: "auto",
+        };
+        const file: SpotSamplesFile = { [h.spotId]: { slug: "h", name: "h", samples: [rec, { ...rec, file: "File:B.jpg", license: "CC BY-NC 2.0" }] } };
+        const body = toSpotBody(h, file)!;
+        expect(body.samples).toEqual([{
+            src: rec.thumbUrl, width: 1280, height: 853, author: "撮った人", license: "CC BY-SA 4.0",
+            licenseUrl: rec.licenseUrl, sourceUrl: rec.pageUrl,
+        }]);
+        // 前からある鍵は変わらない（いまのアプリはこの鍵を知らないので読み飛ばす）
+        const without = toSpotBody(h, {})!;
+        expect("samples" in without).toBe(false);
+        const { samples: _s, ...rest } = body;
+        void _s;
+        expect(rest).toEqual(without);
+        // 下書きには付かない（本文ごと作らない）
+        expect(toSpotBody(spot("d"), file)).toBeUndefined();
     });
 
     it("route は force-static・知らない名前は出さない・同じ文字列を JSON で返す", async () => {
