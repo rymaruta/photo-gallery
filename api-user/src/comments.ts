@@ -6,6 +6,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
+import { canViewPhoto } from "./restrictedFeed";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -91,8 +92,18 @@ export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
         // 読み取り側だけ何も見ていなかった。
         // 「不適切なコメントが付いたので非公開にする」が効かない状態。
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
-        const photo = photoRes.Item as { src?: string; published?: boolean; story?: boolean } | undefined;
+        const photo = photoRes.Item as {
+            src?: string; published?: boolean; story?: boolean; userId?: string; audience?: unknown;
+        } | undefined;
         if (!photo?.src || photo.published === false || photo.story === true) {
+            return jsonError(404, "写真が見つかりません");
+        }
+        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）は、この口では読ませない。**
+        // 未認証の口なので閲覧者が分からない＝見せてよい相手か判定できない。
+        // 以前は `published` と `story` しか見ていなかったので、写真の ID を
+        // 知った人（元フォロワーなど）が限定写真のコメントを誰でも読めた（S-1）。
+        // 「無い」と同じ 404 にする（絞った写真が在ること自体を教えない）
+        if (!await canViewPhoto(photo, undefined)) {
             return jsonError(404, "写真が見つかりません");
         }
 
@@ -148,13 +159,19 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         const photoRes = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
         const photo = photoRes.Item as {
             src?: string; thumbSrc?: string; userId?: string; uploadedBy?: string; location?: string;
-            published?: boolean; story?: boolean;
+            published?: boolean; story?: boolean; audience?: unknown;
         } | undefined;
         if (!photo || !photo.src) return jsonError(404, "写真が見つかりません");
         // 下書きとストーリーにはコメントさせない。以前は存在チェックだけだったので、
         // IDさえ分かれば非公開の写真にコメントを付けてオーナーに通知を飛ばせた
         // （しかも一覧APIは公開なので、そのコメントは誰でも読めた）。
         if (photo.published === false || photo.story === true) {
+            return jsonError(404, "写真が見つかりません");
+        }
+        // **公開範囲を絞った写真は、見せてよい相手だけが書ける**（S-1）。
+        // 判定は一覧（`/feed/restricted`）と同じ `canViewPhoto`。見ていなかったので、
+        // ID を知った人（元フォロワーなど）が限定写真にコメントでき、持ち主に通知も飛んだ
+        if (!await canViewPhoto(photo, uid)) {
             return jsonError(404, "写真が見つかりません");
         }
 

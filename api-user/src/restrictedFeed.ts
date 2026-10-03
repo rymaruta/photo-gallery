@@ -5,11 +5,12 @@ import { PUBLIC_INDEX, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { readUserList } from "./userList";
 import { closeFriendsId, isUserId } from "./closeFriends";
-import { hiddenUserIds } from "./blockCheck";
+import { hiddenUserIds, isBlocked } from "./blockCheck";
 // 行の名前は `followCheck.ts` が持つ（`follow.ts` は通知・S3・CDN まで
 // 引き連れていて、読み込みの輪を作る）。**写しを作らない**——develop が
 // 同じ理由でここへ切り出していたので、そちらに寄せた
-import { followingId } from "./followCheck";
+import { followingId, isFollowing } from "./followCheck";
+import { isRestrictedRow } from "./sanitize";
 // **画像の URL に期限を付ける。** 鍵が無い環境では何もしない（`signedUrl.ts`）
 import { signPhotoImages } from "./signedUrl";
 
@@ -127,6 +128,55 @@ export function isVisiblePhoto(
     if (item.audience === "followers") return following.has(owner);
     // **印の無いものはここに来ない**（仕切りが違う）。来たら出さない
     return false;
+}
+
+/**
+ * **写真1枚**を、その人に見せてよいか（コメント・いいね・保存の口が使う）。
+ *
+ * 一覧（`getRestrictedFeed`）と**同じ判定**を1枚ぶんで引く。判定そのものは
+ * 上の `isVisiblePhoto` 1つで、ここは材料（フォロー・親しい友達・ブロック）を
+ * 集めて渡すだけ——**2つ目の判定を書かない**。
+ *
+ *   - 公開範囲を絞っていない写真（`isRestrictedRow` が false）は true。
+ *     下書き・ストーリー・不在は**呼び手が今までどおり見る**（ここは見ない）
+ *   - 絞った写真は、閲覧者が分からなければ false（未認証の口）
+ *   - 持ち主本人は常に true（材料を読まない）
+ *   - フォロワーのみ → `isFollowing`（マーカー。一覧は上限で切れる・
+ *     解除の失敗で残るので使わない。`followCheck.ts` の docstring）
+ *   - 親しい友達 → 持ち主の `closefriends#` に自分が居るか
+ *   - どちらかがどちらかをブロックしていたら false（一覧が `hiddenUserIds` で
+ *     落とすのと同じ。1枚なので印を2回引く）
+ *
+ * 🔴 **読めなければ false（閉じる側）。** 一時的な失敗で「見えない」に
+ * なるのは許せるが、「見える」になるのは許せない（`getRestrictedFeed` と同じ約束）。
+ *
+ * 持ち主は `userId` だけで見る（`isVisiblePhoto` と同じ）。絞った写真は
+ * `upload.ts` が必ず `userId` を書くので、`uploadedBy` だけの古い行は来ない
+ * ——来たら閉じる側に倒れる。
+ */
+export async function canViewPhoto(
+    photo: { userId?: unknown; audience?: unknown },
+    viewerId: string | undefined,
+): Promise<boolean> {
+    if (!isRestrictedRow(photo)) return true;
+    if (!viewerId) return false;
+    const owner = String(photo.userId ?? "");
+    if (!owner) return false;
+    if (owner === viewerId) return true;
+    try {
+        const [follows, closeFriendOf, blockedEitherWay] = await Promise.all([
+            photo.audience === "followers" ? isFollowing(owner, viewerId) : Promise.resolve(false),
+            photo.audience === "closeFriends"
+                ? closeFriendsAmong(viewerId, new Set([owner]))
+                : Promise.resolve(new Set<string>()),
+            Promise.all([isBlocked(owner, viewerId), isBlocked(viewerId, owner)]).then(([a, b]) => a || b),
+        ]);
+        if (blockedEitherWay) return false;
+        return isVisiblePhoto(photo, viewerId, follows ? new Set([owner]) : new Set(), closeFriendOf);
+    } catch (e) {
+        console.error("canViewPhoto: 公開範囲を確かめられませんでした:", e);
+        return false;
+    }
 }
 
 async function queryRestricted(): Promise<Record<string, unknown>[]> {

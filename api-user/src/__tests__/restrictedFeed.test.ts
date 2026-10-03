@@ -65,7 +65,7 @@ describe("仕切りと静的サイト", () => {
     it("フォロー一覧の行の名前は followCheck.ts から借りる", () => {
         const feed = readFileSync("api-user/src/restrictedFeed.ts", "utf8");
         expect(feed, "自前で組み立てていない").not.toMatch(/`following#\$\{/);
-        expect(feed).toMatch(/import \{ followingId \} from "\.\/followCheck"/);
+        expect(feed).toMatch(/import \{[^}]*\bfollowingId\b[^}]*\} from "\.\/followCheck"/);
     });
 });
 
