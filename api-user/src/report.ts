@@ -3,6 +3,7 @@ import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
+import { canViewPhoto } from "./restrictedFeed";
 
 /**
  * **不適切な投稿の通報。**
@@ -68,9 +69,15 @@ export const reportPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // 非公開・下書きも通す——通報したい相手が直後に隠すことがある
         const photo = await ddb.send(new GetCommand({
             TableName: PHOTOS_TABLE, Key: { id: photoId },
-            ProjectionExpression: "id, src, userId, uploadedBy, story",
+            ProjectionExpression: "id, src, userId, uploadedBy, story, audience",
         }));
         if (!photo.Item?.src) return jsonError(404, "写真が見つかりません");
+        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）は、見せてよい相手だけ**（S-1）。
+        // 見ていなかったので、ID を知った人が「無い（404）」と「在る（200）」の
+        // 違いで限定写真の存在を確かめられた。判定はコメント・いいね・保存と同じ
+        // `canViewPhoto`、答えは無い写真と同じ 404。
+        // 非公開・下書きは上の理由で今までどおり通す（絞るのは限定写真だけ）
+        if (!await canViewPhoto(photo.Item, me)) return jsonError(404, "写真が見つかりません");
 
         const ownerId = (photo.Item.userId ?? photo.Item.uploadedBy) as string | undefined;
         // **自分の投稿は通報できない。** 通す意味が無く、運営の手間だけ増える

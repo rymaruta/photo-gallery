@@ -63,7 +63,14 @@ function world(pins: string[], photos: Record<string, Record<string, unknown>>) 
         }
         const key = cmd.input.Key as { id?: { S?: string } };
         const photo = photos[key?.id?.S ?? ""];
-        return Promise.resolve(photo ? { Item: marshalled(photo) } : {});
+        if (!photo) return Promise.resolve({});
+        // **射影を本物どおりに効かせる。** 効かせないと、`ProjectionExpression` に
+        // 足し忘れた属性（例: audience）も返ってしまい、判定が素通しでも緑になる
+        const proj = typeof cmd.input.ProjectionExpression === "string"
+            ? new Set(cmd.input.ProjectionExpression.split(",").map((x) => x.trim()))
+            : undefined;
+        const shown = proj ? Object.fromEntries(Object.entries(photo).filter(([k]) => proj.has(k))) : photo;
+        return Promise.resolve({ Item: marshalled(shown) });
     });
 }
 
@@ -130,6 +137,32 @@ describe("公開プロフィールのピン留め", () => {
     it("uploadedBy だけの古い行も本人のものとして返す", async () => {
         world(["old"], { old: { id: "old", uploadedBy: OWNER, src: "https://cdn/old.jpg" } });
         expect(pinsOf(await invoke(OWNER))).toEqual(["old"]);
+    });
+
+    // **公開範囲を絞った写真（S-1）。** この口は未認証で読めるので、閲覧者が
+    // フォロワーかどうか分からない。限定写真の ID を返すと、その ID で
+    // コメント・いいねの口を叩ける
+    it("フォロワーのみ・親しい友達の写真の ID は返さない", async () => {
+        world(["p1", "pf", "pc"], {
+            p1: live,
+            pf: { id: "pf", userId: OWNER, src: "https://cdn/pf.jpg", audience: "followers" },
+            pc: { id: "pc", userId: OWNER, src: "https://cdn/pc.jpg", audience: "closeFriends" },
+        });
+        expect(pinsOf(await invoke(OWNER)), "限定写真の ID が漏れている").toEqual(["p1"]);
+    });
+
+    it("知らない値・空白だけの audience も返さない（閉じる側）", async () => {
+        world(["p1", "odd", "blank"], {
+            p1: live,
+            odd: { id: "odd", userId: OWNER, src: "https://cdn/odd.jpg", audience: "someday" },
+            blank: { id: "blank", userId: OWNER, src: "https://cdn/blank.jpg", audience: "  " },
+        });
+        expect(pinsOf(await invoke(OWNER))).toEqual(["p1"]);
+    });
+
+    it("audience が空文字の行は公開扱いで返す", async () => {
+        world(["e"], { e: { id: "e", userId: OWNER, src: "https://cdn/e.jpg", audience: "" } });
+        expect(pinsOf(await invoke(OWNER))).toEqual(["e"]);
     });
 
     it("全部見えなくなったら項目ごと落とす", async () => {

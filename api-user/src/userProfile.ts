@@ -5,7 +5,7 @@ import { JSON_HEADERS, getUserId } from "./http";
 import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX } from "./mediaHosts";
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
-import { truncate } from "./sanitize";
+import { truncate, isRestrictedRow } from "./sanitize";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -64,13 +64,22 @@ async function publicPinnedIds(ids: string[], ownerId: string): Promise<string[]
                 TableName: PHOTOS_TABLE,
                 Key: marshall({ id }),
                 // userId は古い行に無いことがある（uploadedBy だけの時代の行）
-                ProjectionExpression: "id, userId, uploadedBy, published, story, src",
+                // audience は公開範囲（フォロワーのみ・親しい友達）。下で落とすのに要る
+                ProjectionExpression: "id, userId, uploadedBy, published, story, src, audience",
             }));
             if (!res.Item) return false;
             const p = unmarshall(res.Item) as {
                 userId?: unknown; uploadedBy?: unknown; published?: unknown; story?: unknown; src?: unknown;
+                audience?: unknown;
             };
             if ((p.userId ?? p.uploadedBy) !== ownerId) return false;
+            // **公開範囲を絞った写真は出さない**（S-1）。ここは未認証で読める口で、
+            // 閲覧者が分からない＝見せてよい相手か判定できない。出すと限定写真の
+            // ID が誰にでも渡り、その ID でコメント・いいねの口を叩ける。
+            // `isRestrictedRow` に加えて、**空でない文字列は空白だけでも落とす**
+            // （判定の解釈が将来ずれても、閉じる側に倒しておく）
+            if (isRestrictedRow(p)) return false;
+            if (typeof p.audience === "string" && p.audience !== "") return false;
             // 一覧・いいね・コメントと同じ判定（published が無い古い行は公開扱い）
             return Boolean(p.src) && p.published !== false && p.story !== true;
         } catch (e) {

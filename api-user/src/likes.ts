@@ -155,7 +155,8 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
     }
 };
 
-// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）
+// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）。
+// 応答は `{ liked: boolean, count?: number }`。`count` は写真を見てよい相手のときだけ（S-1）
 //
 // 公開の getLikeCount に混ぜてはいけない。あちらは共有キャッシュに
 // 載せている（public, s-maxage=30）ので、利用者ごとに違う liked を
@@ -199,16 +200,30 @@ export const getMyLike: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const photoId = event.pathParameters?.id;
     if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
     try {
-        const res = await ddb.send(new GetCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: markerId(photoId, userId) },
-            ProjectionExpression: "id",
-        }));
+        const [res, count] = await Promise.all([
+            ddb.send(new GetCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: markerId(photoId, userId) },
+                ProjectionExpression: "id",
+            })),
+            // **いいね数も、見せてよい相手にだけ一緒に返す**（S-1）。
+            // 公開範囲を絞った写真では未認証の `GET /photos/{id}/like` が 404 に
+            // なるので、フォロワーが数を見る道がここしか無い（新しい道は増やさない）。
+            // 読めなかったら数を出さない側に倒す——`liked` は本人の状態なので
+            // 数の読み取りの失敗で巻き添えにしない
+            readLikeCount(photoId, userId).catch((e: unknown) => {
+                console.error("getMyLike: いいね数を読めませんでした:", e);
+                return null;
+            }),
+        ]);
         return {
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ liked: !!res.Item }),
+            // 見せない相手（絞った写真で判定を通らない・下書き・ストーリー・不在）には
+            // **`count` を含めない**。404 にはしない——`liked` は見えなくなった写真でも
+            // 本人が解除の導線を出すのに要る（`likePhoto` の 404 + `liked: true` と同じ考え）
+            body: JSON.stringify({ liked: !!res.Item, ...(count === null ? {} : { count }) }),
         };
     } catch (e) {
         console.error("getMyLike error:", e);
