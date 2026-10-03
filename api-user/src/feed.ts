@@ -5,6 +5,7 @@ import { requireEnv } from "./env";
 import { PUBLIC_INDEX, PUBLIC_FEED_KEY } from "./publicFeed";
 import { JSON_HEADERS, jsonError } from "./http";
 import { stripForPublicList } from "./privateFields";
+import { isRestrictedRow } from "./sanitize";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
@@ -36,7 +37,8 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
  *
  * 索引の仕切り `"1"` に載っているのは公開中の写真だけのはずだが、**印は行の写し**
  * なので、非公開化・ストーリー・公開範囲の変更と書き違えた行が残る可能性はある。
- * 静的な一覧（sync）と同じ条件で**もう一度ふるう**（`isPublicListPhoto`）。
+ * 静的な一覧（sync）と同じ考え方で**もう一度ふるう**（`isPublicListPhoto`。
+ * 食い違う値は隠す側に倒すので、sync より狭いことはあっても広くはならない）。
  * ふるいはコード側で見る——`Limit` はふるう**前**に効くので、
  * 落ちた分だけ続きを読む（上限つき）。
  */
@@ -52,17 +54,25 @@ export const MAX_ROUNDS = 5;
 const MAX_CURSOR_LENGTH = 512;
 
 /**
- * 静的な一覧（`scripts/sync-photos-from-ddb.js` の `scan()`）と同じ条件。
- * **写真（`src` を持つ）・公開中（`published !== false`）・ストーリーでない・
- * 公開範囲を絞っていない**。`audience` は中身を見ず、持っていれば落とす
- * （知らない値でも隠す側に倒す。`api/src/photos.ts` の `isRestricted` と同じ構え）。
+ * 公開一覧に載せてよい行か。**写真（`src` を持つ）・公開中（`published !== false`）・
+ * ストーリーでない・公開範囲を絞っていない**。
+ *
+ * 公開範囲は `sanitize.ts` の `isRestrictedRow` で見る（写しを作らない。
+ * `api/src/photos.ts` の `isRestricted` とは `restrictedRuleParity.test.ts` が突き合わせる）。
+ *
+ * **sync（`scripts/sync-photos-from-ddb.js` の `scan()`）と完全に同じではない。**
+ * 2つの規則が食い違う値は、どちらで見ても**隠す側**に倒す:
+ *   - `isRestrictedRow` は空白だけの文字列（`"  "`）を「絞っていない」と読むが、
+ *     sync の `!item.audience` は落とす → ここでも空の文字列以外の文字列は落とす
+ *   - sync は偽の値（`false`・`0`）を通すが、`isRestrictedRow` は落とす → 落とす
+ * 結果、ここが返す行は sync の `photos.json` に載る行の部分集合になる。
  */
 export function isPublicListPhoto(item: Record<string, unknown>): boolean {
     if (!item.src) return false;
     if (item.published === false) return false;
     if (item.story === true) return false;
-    const a = item.audience;
-    if (typeof a === "string" ? a.trim() !== "" : a != null) return false;
+    if (isRestrictedRow(item)) return false;
+    if (typeof item.audience === "string" && item.audience !== "") return false;
     return true;
 }
 
@@ -208,6 +218,14 @@ export const getFeed: APIGatewayProxyHandlerV2 = async (event) => {
             body: JSON.stringify({ items: named, nextCursor: lastKey ? encodeCursor(lastKey) : null }),
         };
     } catch (e) {
+        // カーソルの形の検査（decodeCursor）を通っても、DynamoDB がキーとして
+        // 受け付けないことはある。カーソル付きの呼び出しでの ValidationException は
+        // 呼んだ側の値の誤りとして 400 にする（カーソル無しなら索引が無いなど
+        // こちらの不具合なので 500 のまま）
+        if (startKey && (e as { name?: unknown })?.name === "ValidationException") {
+            console.warn("getFeed: cursor を DynamoDB が受け付けませんでした:", (e as Error).message);
+            return jsonError(400, "cursor が不正です");
+        }
         console.error("getFeed error:", e);
         return jsonError(500, "取得に失敗しました");
     }
