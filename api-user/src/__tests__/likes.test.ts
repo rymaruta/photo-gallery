@@ -254,10 +254,11 @@ describe("likePhoto", () => {
         mockDdbSend
             .mockResolvedValueOnce({}) // Put marker
             .mockRejectedValueOnce(condFail()) // Update → attribute_exists 失敗
+            .mockResolvedValueOnce({}) // 写真を読み直す（公開範囲を絞った写真か・S-1）→ 無い
             .mockResolvedValueOnce({}); // Delete marker（巻き戻し）
         const res = await invoke(likePhoto, ev("u1", "ghost"));
         expect(res.statusCode).toBe(404);
-        const del = mockDdbSend.mock.calls[2][0] as { input: { Key: { id: string } } };
+        const del = mockDdbSend.mock.calls[3][0] as { input: { Key: { id: string } } };
         expect(del.input.Key.id).toBe("like#ghost#u1");
     });
 
@@ -417,6 +418,7 @@ describe("公開されていない写真のいいね数は返さない", () => {
         mockDdbSend
             .mockResolvedValueOnce({})                 // マーカー作成は成功
             .mockRejectedValueOnce(condFail())         // カウンタ更新が条件で失敗
+            .mockResolvedValueOnce({})                 // 写真を読み直す（絞った写真か・S-1）→ 無い
             .mockResolvedValueOnce({});                // マーカーの巻き戻し
         const res = await invoke(likePhoto, ev("u1", "p1"));
 

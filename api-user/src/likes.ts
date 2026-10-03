@@ -4,6 +4,8 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { pushNotification, lookupDisplayName } from "./notify";
 import { updateUserList, readUserList } from "./userList";
+import { canViewPhoto } from "./restrictedFeed";
+import { isRestrictedRow } from "./sanitize";
 
 // いいねはアグリゲート数を写真レコードの `likes` 属性に持ち、
 // 二重カウント防止のために「誰がいいねしたか」をマーカー item で記録する。
@@ -116,14 +118,19 @@ function definitelyNotApplied(e: unknown): boolean {
  *
  * `published` が無い古い行は公開扱い（一覧・書き込み側と同じ）。
  */
-async function readLikeCount(photoId: string): Promise<number | null> {
+async function readLikeCount(photoId: string, viewerId?: string): Promise<number | null> {
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: photoId },
-        ProjectionExpression: "likes, src, published, story",
+        ProjectionExpression: "likes, src, published, story, userId, audience",
     }));
-    const item = res.Item as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+    const item = res.Item as {
+        likes?: unknown; src?: unknown; published?: unknown; story?: unknown; userId?: unknown; audience?: unknown;
+    } | undefined;
     if (!item?.src || item.published === false || item.story === true) return null;
+    // **公開範囲を絞った写真は、見せてよい相手にだけ数を返す**（S-1）。
+    // 未認証の `getLikeCount` は閲覧者が分からないので、絞った写真は一律 null
+    if (!await canViewPhoto(item, viewerId)) return null;
     const n = item.likes;
     return typeof n === "number" && n > 0 ? n : 0;
 }
@@ -148,7 +155,8 @@ export const getLikeCount: APIGatewayProxyHandlerV2 = async (event) => {
     }
 };
 
-// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）
+// GET /user/likes/{id} — 自分がこの写真にいいねしているか（認証必要）。
+// 応答は `{ liked: boolean, count?: number }`。`count` は写真を見てよい相手のときだけ（S-1）
 //
 // 公開の getLikeCount に混ぜてはいけない。あちらは共有キャッシュに
 // 載せている（public, s-maxage=30）ので、利用者ごとに違う liked を
@@ -192,22 +200,98 @@ export const getMyLike: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const photoId = event.pathParameters?.id;
     if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
     try {
-        const res = await ddb.send(new GetCommand({
-            TableName: PHOTOS_TABLE,
-            Key: { id: markerId(photoId, userId) },
-            ProjectionExpression: "id",
-        }));
+        const [res, count] = await Promise.all([
+            ddb.send(new GetCommand({
+                TableName: PHOTOS_TABLE,
+                Key: { id: markerId(photoId, userId) },
+                ProjectionExpression: "id",
+            })),
+            // **いいね数も、見せてよい相手にだけ一緒に返す**（S-1）。
+            // 公開範囲を絞った写真では未認証の `GET /photos/{id}/like` が 404 に
+            // なるので、フォロワーが数を見る道がここしか無い（新しい道は増やさない）。
+            // 読めなかったら数を出さない側に倒す——`liked` は本人の状態なので
+            // 数の読み取りの失敗で巻き添えにしない
+            readLikeCount(photoId, userId).catch((e: unknown) => {
+                console.error("getMyLike: いいね数を読めませんでした:", e);
+                return null;
+            }),
+        ]);
         return {
             statusCode: 200,
             // 利用者ごとの答えなので共有キャッシュには載せない
             headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify({ liked: !!res.Item }),
+            // 見せない相手（絞った写真で判定を通らない・下書き・ストーリー・不在）には
+            // **`count` を含めない**。404 にはしない——`liked` は見えなくなった写真でも
+            // 本人が解除の導線を出すのに要る（`likePhoto` の 404 + `liked: true` と同じ考え）
+            body: JSON.stringify({ liked: !!res.Item, ...(count === null ? {} : { count }) }),
         };
     } catch (e) {
         console.error("getMyLike error:", e);
         return jsonError(500, "取得に失敗しました");
     }
 };
+
+/**
+ * 写真の `likes` を +1 する条件つき更新の引数。
+ *
+ * attribute_exists(src) が「写真であること」の判定。これが無いと
+ * notifs#<相手のsub> や comments#<写真ID> といった内部の文書にも
+ * likes 属性を書き込めてしまった（同じテーブルに同居しているため）。
+ *
+ * **公開範囲（`audience`）も条件に入れる**（S-1）。
+ *   - `audience` 未指定 … 公開の写真だけ通す（今までの経路。読み取りは増えない）
+ *   - `audience` 指定   … 読んだときと同じ公開範囲のままなら通す。
+ *     判定（フォロー・親しい友達）は条件式に書けないので、呼び手が
+ *     `canViewPhoto` で確かめてから、**その間に変わっていないこと**だけをここで見る
+ */
+function incrementArgs(photoId: string, audience?: string) {
+    return {
+        TableName: PHOTOS_TABLE,
+        Key: { id: photoId },
+        UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
+        ConditionExpression:
+            "attribute_exists(id) AND attribute_exists(src) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)"
+            + (audience === undefined
+                ? " AND (attribute_not_exists(audience) OR audience = :noAud)"
+                : " AND audience = :aud"),
+        ExpressionAttributeValues: {
+            ":z": 0, ":one": 1, ":pub": true,
+            ...(audience === undefined ? { ":noAud": "" } : { ":aud": audience }),
+        },
+        ReturnValues: "ALL_NEW" as const,
+    };
+}
+
+/**
+ * いいね数を +1。**公開の写真は今までどおり1回の更新**で済ませ、
+ * 条件に外れたときだけ写真を読み、**公開範囲を絞った写真で、見せてよい相手なら**
+ * 公開範囲つきの条件でやり直す。
+ *
+ * 見せてはいけない（下書き・ストーリー・不在・見せない相手）なら、
+ * 最初の `ConditionalCheckFailedException` をそのまま投げる——呼び手は
+ * それを「戻してよい失敗」としてマーカーを消し、404 を返す（今までと同じ道）。
+ */
+async function incrementLikes(photoId: string, viewerId: string) {
+    try {
+        return await ddb.send(new UpdateCommand(incrementArgs(photoId)));
+    } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+        const got = await ddb.send(new GetCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: photoId },
+            ProjectionExpression: "src, published, story, userId, audience",
+        }));
+        const photo = got?.Item as {
+            src?: unknown; published?: unknown; story?: unknown; userId?: unknown; audience?: unknown;
+        } | undefined;
+        const live = !!photo?.src && photo.published !== false && photo.story !== true;
+        if (!live || !isRestrictedRow(photo) || typeof photo.audience !== "string"
+            || !await canViewPhoto(photo, viewerId)) {
+            throw e;
+        }
+        return await ddb.send(new UpdateCommand(incrementArgs(photoId, photo.audience)));
+    }
+}
 
 // POST /photos/{id}/like — いいね（認証必要・冪等）
 export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
@@ -231,7 +315,7 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **ここで足し直す。** 一覧の書き込みだけ落ちた回の出口
                 // （マーカーは在るので、状態のずれた端末から押すと通る）
                 await noteLiked(userId, photoId, true);
-                const cur = await readLikeCount(photoId);
+                const cur = await readLikeCount(photoId, userId);
                 if (cur === null) {
                     // **「もう見えない」ことと「あなたのいいねは残っている」ことを
                     // 分けて伝える。** ここに来るのはマーカーが**既にある**
@@ -259,18 +343,7 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // いいねを付けてオーナーに通知を飛ばせた。読み取りを増やさずに済むよう、
         // 判定は既にある ConditionExpression に足している。
         try {
-            const res = await ddb.send(new UpdateCommand({
-                TableName: PHOTOS_TABLE,
-                Key: { id: photoId },
-                UpdateExpression: "SET likes = if_not_exists(likes, :z) + :one",
-                // attribute_exists(src) が「写真であること」の判定。これが無いと
-                // notifs#<相手のsub> や comments#<写真ID> といった内部の文書にも
-                // likes 属性を書き込めてしまった（同じテーブルに同居しているため）。
-                ConditionExpression:
-                    "attribute_exists(id) AND attribute_exists(src) AND (attribute_not_exists(published) OR published = :pub) AND attribute_not_exists(story)",
-                ExpressionAttributeValues: { ":z": 0, ":one": 1, ":pub": true },
-                ReturnValues: "ALL_NEW",
-            }));
+            const res = await incrementLikes(photoId, userId);
             const likes = (res.Attributes?.likes as number | undefined) ?? 1;
 
             // 「自分がいいねした写真」の一覧に足す（表示用の索引）
@@ -347,7 +420,7 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             }));
         } catch (e) {
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                const cur = await readLikeCount(photoId);
+                const cur = await readLikeCount(photoId, userId);
                 if (cur === null) return jsonError(404, "写真が見つかりません");
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
             }
@@ -373,19 +446,24 @@ export const unlikePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
                 // 追加の読み取りを増やさずに済むので `ALL_NEW`。
                 ReturnValues: "ALL_NEW",
             }));
-            const after = res.Attributes as { likes?: unknown; src?: unknown; published?: unknown; story?: unknown } | undefined;
+            const after = res.Attributes as {
+                likes?: unknown; src?: unknown; published?: unknown; story?: unknown; userId?: unknown; audience?: unknown;
+            } | undefined;
             // ここだけ素通しだったので、DELETE の応答が経路で 404 / 200 / 200(実数)
             // の3通りに割れていた。すぐ上の冪等経路と揃える
             if (!after?.src || after.published === false || after.story === true) {
                 return jsonError(404, "写真が見つかりません");
             }
+            // 解除そのものは通す（見えなくなった写真のいいねも本人が外せるように）。
+            // **数だけは、見せてよい相手にしか返さない**（S-1・`readLikeCount` と同じ）
+            if (!await canViewPhoto(after, userId)) return jsonError(404, "写真が見つかりません");
             const likes = (after.likes as number | undefined) ?? 0;
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes }) };
         } catch (e) {
             // likes が既に0 or 写真なし → 現在数（0）を返す。
             // この場合は「減らすものが無かった」だけなので、マーカーは戻さない。
             if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
-                const cur = await readLikeCount(photoId);
+                const cur = await readLikeCount(photoId, userId);
                 // 非公開・写真でない → 数字を返さない（上の経路と揃える）
                 if (cur === null) return jsonError(404, "写真が見つかりません");
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ liked: false, likes: cur }) };
