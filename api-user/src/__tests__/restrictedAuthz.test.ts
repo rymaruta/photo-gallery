@@ -423,3 +423,50 @@ describe("公開の写真は今までどおり", () => {
         expect(await writeCodes(STRANGER, "pub")).toEqual([200, 200, 200]);
     });
 });
+
+describe("公開の写真でも、持ち主にブロックされた人はいいね・保存できない（2026-10-03）", () => {
+    // `canViewPhoto` は公開の写真ではブロックを見ずに通す。公開の写真へのいいねは写真を
+    // 読まずに1回の更新で通していたので、**ブロックされた人も数を増やし、保存の棚にも入れられた**
+    // （コメントの投稿と通知だけは止まっていた）
+    beforeEach(() => {
+        table.set(`block#${OWNER}#${STRANGER}`, { id: `block#${OWNER}#${STRANGER}` });
+    });
+
+    it("コメント・いいね・保存の3つとも 404・通知も飛ばない", async () => {
+        expect(await writeCodes(STRANGER, "pub")).toEqual([404, 404, 404]);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("いいねは数を戻し、印も一覧も残さない", async () => {
+        table.set("pub", photo("pub", { likes: 5 }));
+        const res = await invoke(likePhoto, ev(STRANGER, "pub"));
+        expect(res.statusCode).toBe(404);
+        expect(table.get("pub")?.likes, "ブロックされた人のいいねが数に残った").toBe(5);
+        expect(table.has(`like#pub#${STRANGER}`), "いいねの印を戻していない").toBe(false);
+        expect(table.has(`likes#${STRANGER}`), "自分のいいね一覧に足した").toBe(false);
+    });
+
+    it("保存の印を書かない", async () => {
+        expect((await invoke(savePhoto, ev(STRANGER, "pub"))).statusCode).toBe(404);
+        expect(table.has(`save#pub#${STRANGER}`)).toBe(false);
+    });
+
+    it("古い行（持ち主が uploadedBy だけ）でも見る", async () => {
+        table.set("old", { id: "old", src: "https://cdn/old.jpg", uploadedBy: OWNER, published: true, likes: 2 });
+        expect((await invoke(likePhoto, ev(STRANGER, "old"))).statusCode).toBe(404);
+        expect(table.get("old")?.likes).toBe(2);
+        expect((await invoke(savePhoto, ev(STRANGER, "old"))).statusCode).toBe(404);
+    });
+
+    it("見る人のほうが持ち主をブロックしている向きは、今までどおり通す（コメントの投稿と同じ判定）", async () => {
+        table.delete(`block#${OWNER}#${STRANGER}`);
+        table.set(`block#${STRANGER}#${OWNER}`, { id: `block#${STRANGER}#${OWNER}` });
+        expect(await writeCodes(STRANGER, "pub")).toEqual([200, 200, 200]);
+    });
+
+    it("ブロックされていない人は今までどおり（対照）", async () => {
+        expect(await writeCodes(FOLLOWER, "pub")).toEqual([200, 200, 200]);
+        expect(table.get("pub")?.likes).toBe(1);
+        expect(mockPush).toHaveBeenCalled();
+    });
+});

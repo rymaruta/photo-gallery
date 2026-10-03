@@ -4,6 +4,8 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { updateUserList, readUserList } from "./userList";
 import { canViewPhoto } from "./restrictedFeed";
+import { isBlocked } from "./blockCheck";
+import { isRestrictedRow } from "./sanitize";
 
 // 写真の「保存」（ブックマーク）。あとで見返すための、**自分だけの棚**。
 //
@@ -114,15 +116,23 @@ async function isVisiblePhoto(photoId: string, viewerId: string): Promise<boolea
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: photoId },
-        ProjectionExpression: "src, published, story, userId, audience",
+        ProjectionExpression: "src, published, story, userId, uploadedBy, audience",
     }));
     const item = res.Item as {
-        src?: unknown; published?: unknown; story?: unknown; userId?: unknown; audience?: unknown;
+        src?: unknown; published?: unknown; story?: unknown; userId?: unknown; uploadedBy?: unknown; audience?: unknown;
     } | undefined;
     if (!item?.src || item.published === false || item.story === true) return false;
     // **公開範囲を絞った写真は、見せてよい相手だけが保存できる**（S-1）。
-    // 判定は一覧（`/feed/restricted`）と同じ `canViewPhoto`
-    return canViewPhoto(item, viewerId);
+    // 判定は一覧（`/feed/restricted`）と同じ `canViewPhoto`（ブロックも見る）
+    if (isRestrictedRow(item)) return canViewPhoto(item, viewerId);
+    // 🔴 **公開の写真も、持ち主にブロックされた人は保存できない**（2026-10-03）。
+    // `canViewPhoto` は公開の写真ではブロックを見ずに通すので、ここで見る。
+    // 判定はコメントの投稿・いいねと同じ「持ち主がこの人をブロックしているか」。
+    // 所有者は `userId ?? uploadedBy`（古い行は `uploadedBy` だけ・`likes.ts` と同じ）
+    const ownerRaw = item.userId ?? item.uploadedBy;
+    const owner = typeof ownerRaw === "string" ? ownerRaw : undefined;
+    if (owner && owner !== viewerId && await isBlocked(owner, viewerId)) return false;
+    return true;
 }
 
 /** マーカーが在るか（＝保存済みか）。判定はここ1つ */
