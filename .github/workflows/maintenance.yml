@@ -24,6 +24,7 @@ on:
           - image-perf        # 写真表示の速さに効く材料が揃っているか測る
           - story-index       # ストーリー一覧用の GSI を足す（全件 Scan をやめる）
           - public-feed-index # 公開一覧用の GSI を足す（GET /photos の全件 Scan をやめる）
+          - public-feed-index-staging # 同じことを **staging** に（本番の前に GET /feed を staging で確かめる）
           - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
           - backfill-likes # 既にあるいいねから likes#<uid> を作る
           - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
@@ -199,6 +200,15 @@ jobs:
         if: inputs.task == 'public-feed-index'
         run: node scripts/add-public-feed-index.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
+
+      # 本番の前に staging で索引を作り、`GET /feed` を実際に叩いて確かめる
+      # （2026-10-03）。上の env は本番向けなので、テーブルをここで上書きする
+      - name: 公開一覧用の索引を足す（staging）
+        if: inputs.task == 'public-feed-index-staging'
+        run: node scripts/add-public-feed-index.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+        env:
+          PHOTOS_TABLE: staging-photo-gallery-photos
 
       # `followers#<uid>`（誰にフォローされているか）は、これまで持って
       # いなかった行。`follow.ts` は今後のフォローにしか書かないので、
