@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ToastProvider } from "../../../lib/hooks/useToast";
 import type { Spot } from "@/lib/data/spots";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
@@ -73,5 +73,67 @@ describe("撮影の光", () => {
     it("海外は現地の都市名で時刻帯を書く", () => {
         view(lightCalendar({ lat: 48.8584, lng: 2.2945 }, "フランス"));
         expect(screen.getByTestId("spot-light").textContent).toContain("現地時刻・Paris");
+    });
+});
+
+/**
+ * **光の時刻**（その日の段・`lib/utils/spotLight.ts`）。アプリの撮影スポットの画面と同じ段・同じ文。
+ * 台帳の朝・夕の文はこの節へ移り、撮影ガイドの「時間帯」には日中・夜だけが残る
+ */
+describe("光の時刻", () => {
+    const GUIDED: Spot = {
+        ...SPOT,
+        timeOfDayGuide: [
+            { time: "dawn", text: "朝霧の川" },
+            { time: "night", text: "ガス灯の夜景" },
+            { time: "dusk", text: "日没後の残照" },
+        ],
+    } as Spot;
+    const viewSpot = (spot: Spot) => render(
+        <ToastProvider>
+            <SpotGuideClient spot={spot} photos={[]} nearby={[]} locationPath={null} />
+        </ToastProvider>,
+    );
+
+    it("朝・夕の段（ブルー → 日の出＋方角 → ゴールデン、夕は逆順）と注記", () => {
+        viewSpot(GUIDED);
+        const section = screen.getByTestId("spot-today-light");
+        expect(screen.getByRole("heading", { name: "光の時刻" })).toBeTruthy();
+        const blocks = section.querySelectorAll("[data-testid=spot-today-light-block]");
+        expect(blocks).toHaveLength(2);
+        const labels = (b: Element) => [...b.querySelectorAll("[data-testid=spot-today-light-row] dt")].map((d) => d.textContent);
+        expect(labels(blocks[0])).toEqual(["ブルーアワー", "日の出", "ゴールデンアワー"]);
+        expect(labels(blocks[1])).toEqual(["ゴールデンアワー", "日の入り", "ブルーアワー"]);
+        expect(blocks[0].textContent).toMatch(/東\S* \d+°/);
+        expect(screen.getByTestId("spot-today-light-date").textContent).toContain("· 今日");
+        expect(section.textContent).toContain("時刻は日本時間。");
+        expect(section.textContent).toContain("ゴールデンアワーは太陽の高さが 6° から −4°");
+        // 台帳の文: 朝は朝の段、日没後は夕の段、夜は撮影ガイドに残る
+        expect(blocks[0].textContent).toContain("朝霧の川");
+        expect(blocks[1].textContent).toContain("日没後の残照");
+        expect(section.textContent).not.toContain("ガス灯の夜景");
+        expect(screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent).toContain("ガス灯の夜景");
+        expect(screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent).not.toContain("朝霧の川");
+    });
+
+    it("前後の日へ送れる・今日に戻せる", () => {
+        viewSpot(GUIDED);
+        const date = () => screen.getByTestId("spot-today-light-date").textContent;
+        expect(screen.queryByRole("button", { name: "今日に戻す" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "次の日" }));
+        expect(date()).toContain("· 明日");
+        fireEvent.click(screen.getByRole("button", { name: "前の日" }));
+        fireEvent.click(screen.getByRole("button", { name: "前の日" }));
+        expect(date()).toContain("· 昨日");
+        fireEvent.click(screen.getByRole("button", { name: "今日に戻す" }));
+        expect(date()).toContain("· 今日");
+    });
+
+    it("時刻帯が引けない国は節を出さず、台帳の文は全部撮影ガイドに残す", () => {
+        viewSpot({ ...GUIDED, region: { country: "アメリカ" }, coords: { lat: 40.7, lng: -74.0 } } as Spot);
+        expect(screen.queryByTestId("spot-today-light")).toBeNull();
+        const guide = screen.getByRole("heading", { name: "撮影ガイド" }).parentElement!.textContent;
+        expect(guide).toContain("朝霧の川");
+        expect(guide).toContain("日没後の残照");
     });
 });

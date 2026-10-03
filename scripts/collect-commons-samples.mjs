@@ -16,6 +16,11 @@
 //                                     通信せず、候補ファイルから確定ファイルを選び直す
 //   --radius=500   探す半径（m・300〜500 に収める）
 //   --keep-picks   確定ファイルに既にあるスポットは上書きしない（人が直した分を守る）
+//   node scripts/collect-commons-samples.mjs --refresh-licenses
+//                                     確定ファイルのパブリックドメインの行だけ、ページのテンプレートを
+//                                     Commons に聞き直して決め直す（PD の根拠を licenseCode に・写真そのものが
+//                                     CC BY なら CC BY に・決められなければ "mixed:…"＝表示しない）。
+//                                     ほかの行は触らない（収集も選び直しもしない）
 //
 // ## 2つのファイル
 //
@@ -31,6 +36,12 @@
 //   - ライセンスは CC0・パブリックドメイン・CC BY・CC BY-SA だけ（`isAllowedLicense`）。
 //     NC（商用不可）・ND（改変不可）・GFDL だけ・不明は捨てる。CC BY 系で作者が空なら捨てる
 //   - 人物の権利などの注意書き（`Restrictions`）が付いた写真は候補に残すが、自動では採らない
+//   - **精度（2026-10-03）**——規則は `scripts/lib/commonsSampleRules.mjs`
+//     - 人の目で外した写真（`content/spot-samples-excluded.json`）は二度と選ばない
+//     - 題・カテゴリ・説明で 駅・車両／料理／室内・展示／看板・店／石碑だけ／人物／夜 を外す
+//       （撮影地そのものが駅・市場・祭りなどなら外さない）
+//     - Wikidata 項目があれば P18（代表画像）> P373（カテゴリ）の中 > 半径検索 の順に当て、
+//       P180（写っているもの）が撮影地と一致するものも上げる。前の3つで6枚そろえば半径検索は飛ばす
 //
 // ## 位置情報の扱い
 //
@@ -49,9 +60,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+    exclusionReasons, EXCLUDE_PREFIX, SOURCE_BONUS, SOURCE_REASON, readExcluded, withoutExcluded, isExcluded,
+    parseWikidataEntity, depictsSearch, fileKey,
+} from "./lib/commonsSampleRules.mjs";
 import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
 import {
     stripHtml, authorFromMeta, isUsOnlyPublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+    photoLicenseOf, hasPdBasis,
 } from "../lib/utils/commonsAttribution.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +76,8 @@ export const LEDGER_PATH = path.join(ROOT, "content", "spots.json");
 export const SPOT_IMAGES_PATH = path.join(ROOT, "content", "spot-images.json");
 export const CANDIDATES_PATH = path.join(ROOT, "content", "spot-samples.candidates.json");
 export const SAMPLES_PATH = path.join(ROOT, "content", "spot-samples.json");
+/** 人の目で外した写真（`{spotId, file, reason}` の配列）。ここにあるものは二度と選ばない */
+export const EXCLUDED_PATH = path.join(ROOT, "content", "spot-samples-excluded.json");
 
 export const USER_AGENT = "JourneyPhotoSpotSamples/1.0 (https://journey-photo.com; spot sample collector)";
 const COMMONS = "https://commons.wikimedia.org/w/api.php";
@@ -179,6 +197,13 @@ export function scoreCandidate(spot, c) {
     if (OFF_TOPIC.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("向かない語"); }
     // 人や催しが主役の写真（撮影地が催しそのものなら除く）。表示側（spotSamples.ts）も同じ語で落とす
     if (!isEventSpot(spot) && EVENT_OR_PERSON.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("人・催し"); }
+    // 題・カテゴリ・説明で外す（駅・料理・室内・看板・石碑だけ・人物・夜。撮影地の名前で例外）。
+    // 当たれば自動では採らない（`autoEligible`）。詳しくは scripts/lib/commonsSampleRules.mjs
+    for (const rule of new Set(exclusionReasons(spot, c).map((x) => x.rule))) { score -= 4; reasons.push(`${EXCLUDE_PREFIX}${rule}`); }
+    // 撮影地の Wikidata 項目からの当て方: P18（代表画像）> P373（カテゴリ）の中・P180（写っているもの）
+    for (const k of /** @type {const} */ (["p18", "category", "depicts"])) {
+        if ((c.via ?? []).includes(k)) { score += SOURCE_BONUS[k]; named = true; reasons.push(SOURCE_REASON[k]); }
+    }
     return { score, reasons, named };
 }
 
@@ -193,6 +218,7 @@ export function bigEnough(c) {
 export function autoEligible(c) {
     if (!c.named) return false;
     if (c.reasons?.includes("向かない語") || c.reasons?.includes("人・催し")) return false;
+    if (c.reasons?.some((r) => r.startsWith(EXCLUDE_PREFIX))) return false;
     if (c.personality) return false; // 人物の権利の印（Restrictions・カテゴリ） // 地図・食べ物・被害の記録などは名前が当たっても採らない
     // 種類は候補ファイルに残さない（集めるときに写真だけにしてある）。あるときだけ見る
     if (c.mime !== undefined && !PHOTO_MIMES.has(c.mime)) return false;
@@ -260,8 +286,10 @@ export function parseCommonsPages(pages) {
             continue;
         }
         const licenseCode = String(meta.License?.value ?? "").trim();
-        // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない
-        if (isUsOnlyPublicDomain(license, licenseCode)) {
+        // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない。
+        // 🔴 extmetadata はパブリックドメインなら根拠を問わず "pd" になる（PD-US も）。ここで落とせるのは
+        // 名前に出ているものだけ。残りは確定ファイルに書いた後で `refreshPdBasis` がテンプレートを見て見分ける
+        if (isUsOnlyPublicDomain(`${license} ${stripHtml(meta.UsageTerms?.value)}`, licenseCode)) {
             rejected.license++;
             rejectedLicenses["PD-US"] = (rejectedLicenses["PD-US"] ?? 0) + 1;
             continue;
@@ -293,6 +321,8 @@ export function parseCommonsPages(pages) {
             ...(licenseUrl ? { licenseUrl } : {}),
             ...(plainDate(meta.DateTimeOriginal?.value) ? { dateTimeOriginal: plainDate(meta.DateTimeOriginal?.value) } : {}),
             ...(description ? { description } : {}),
+            // カテゴリは外す規則（scripts/lib/commonsSampleRules.mjs）が見る。候補ファイルには残さない
+            ...(stripHtml(meta.Categories?.value) ? { categories: stripHtml(meta.Categories?.value) } : {}),
             ...(restrictions ? { restrictions } : {}),
             ...(personality ? { personality: true } : {}),
             ...(licenseCode ? { licenseCode } : {}),
@@ -319,14 +349,22 @@ export function searchCenters(spot, wikidataCoords) {
     return centers;
 }
 
-/** 候補を足し合わせる（同じファイルは近い方の距離を残す） */
+/**
+ * 候補を足し合わせる（同じファイルは近い方の距離を残す）。
+ * どこから見つかったか（`via`: p18・category・depicts・geo）は全部の分を合わせる
+ */
 export function mergeCandidates(lists) {
     const byFile = new Map();
+    const via = new Map();
     for (const c of lists.flat()) {
         const prev = byFile.get(c.file);
         if (!prev || (c.distanceM ?? Infinity) < (prev.distanceM ?? Infinity)) byFile.set(c.file, c);
+        for (const v of c.via ?? []) via.set(c.file, new Set([...(via.get(c.file) ?? []), v]));
     }
-    return [...byFile.values()];
+    const order = ["p18", "category", "depicts", "geo"];
+    return [...byFile.values()].map((c) => (via.has(c.file)
+        ? { ...c, via: order.filter((v) => via.get(c.file).has(v)) }
+        : c));
 }
 
 // ---- 通信 --------------------------------------------------------------------
@@ -365,7 +403,7 @@ async function api(base, params) {
  * 取る extmetadata。**Credit は取らない**（作者名に使わない）。Attribution は作者が求める表記、
  * License はテンプレートの名前（PD-US の見分け）、Categories は人物の権利の印を見る
  */
-export const EXTMETA = ["Attribution", "Artist", "LicenseShortName", "License", "LicenseUrl", "DateTimeOriginal",
+export const EXTMETA = ["Attribution", "Artist", "LicenseShortName", "License", "LicenseUrl", "UsageTerms", "DateTimeOriginal",
     "ImageDescription", "ObjectName", "Restrictions", "Categories"];
 
 /** geosearch の問い合わせの引数（テストが縛る） */
@@ -390,25 +428,169 @@ export function geosearchParams(center, radiusM) {
     };
 }
 
-/** 1つの中心の周りの候補（続きのページも辿る） */
-async function geosearch(center, radiusM) {
-    const params = geosearchParams(center, radiusM);
-    const pages = new Map();
-    let cont = {};
-    for (let i = 0; i < 20; i++) {
-        const r = await api(COMMONS, { ...params, ...cont });
-        for (const p of r.query?.pages ?? []) {
-            const prev = pages.get(p.pageid) ?? {};
-            pages.set(p.pageid, { ...prev, ...p, imageinfo: p.imageinfo ?? prev.imageinfo, coordinates: p.coordinates ?? prev.coordinates });
-        }
-        if (!r.continue) break;
-        // 続きは imageinfo・coordinates の取り残しだけ辿る（geosearch の次の束へは進まない＝近い100件まで）
-        const { ggsoffset: _skip, ...rest } = r.continue;
-        void _skip;
-        if (Object.keys(rest).filter((k) => k !== "continue").length === 0) break;
-        cont = rest;
-    }
+/**
+ * 1つの中心の周りの候補（続きのページも辿る）。続きは imageinfo・coordinates の取り残しだけ辿る
+ * （geosearch の次の束へは進まない＝近い100件まで）。`call` はテストが模擬する
+ * @param {(base: string, params: Record<string,string>) => Promise<any>} [call]
+ */
+export async function geosearch(center, radiusM, call = api) {
+    const pages = await queryAllPages((params) => call(COMMONS, params), geosearchParams(center, radiusM), ["ggsoffset"]);
     return [...pages.values()];
+}
+
+// ---- パブリックドメインの根拠（2026-10-03・レビュー） ----------------------------
+
+/** パブリックドメインの行か（LicenseShortName が "Public domain"・"PD…"） */
+export function isPublicDomainRow(r) {
+    return /^(public domain|pd)(\b|[-\s])/i.test(String(r?.license ?? "").trim());
+}
+
+/**
+ * **根拠のテンプレートが分かっていない**パブリックドメインの行のファイル名（重ねない）。
+ * `all` のときは根拠の分かっている行も含める（CC・GFDL が一緒に付いていないか見直す）
+ */
+export function filesMissingPdBasis(samplesFile, { all = false } = {}) {
+    const out = new Set();
+    for (const entry of Object.values(samplesFile ?? {})) {
+        for (const r of entry?.samples ?? []) {
+            if (isPublicDomainRow(r) && (all || !hasPdBasis(r.licenseCode))) out.add(r.file);
+        }
+    }
+    return [...out];
+}
+
+/** ファイルのページが使うテンプレートを聞く引数（50件まで・テストが縛る） */
+export function pdTemplatesParams(files) {
+    return {
+        action: "query",
+        titles: files.join("|"),
+        prop: "templates",
+        tlnamespace: "10",
+        tllimit: "max",
+    };
+}
+
+/**
+ * licenseCode を `toSample` と同じ位置（personality・pickedBy の前）に置く。
+ * 末尾に足すと、手前の行の "," まで変わって差分が2行になる
+ */
+function withLicenseCode(r, code) {
+    const out = {};
+    let placed = false;
+    for (const [k, v] of Object.entries(r)) {
+        if (k === "licenseCode") continue;
+        if (!placed && (k === "personality" || k === "pickedBy")) { out.licenseCode = code; placed = true; }
+        out[k] = v;
+    }
+    if (!placed) out.licenseCode = code;
+    return out;
+}
+
+/**
+ * 写真そのものが CC BY だった行へ。license の値を替え、licenseUrl をその後ろに、licenseCode を
+ * pickedBy の前に置く（作者は Attribution → Artist で取った撮影者のまま）
+ */
+function asCcRow(r, cc) {
+    const out = {};
+    for (const [k, v] of Object.entries(r)) {
+        if (k === "licenseUrl" || k === "licenseCode") continue;
+        if (k === "personality" || k === "pickedBy") {
+            if (!("licenseCode" in out)) out.licenseCode = cc.code;
+        }
+        out[k] = k === "license" ? cc.license : v;
+        if (k === "license") out.licenseUrl = cc.licenseUrl;
+    }
+    if (!("licenseCode" in out)) out.licenseCode = cc.code;
+    return out;
+}
+
+/**
+ * 確定ファイルのパブリックドメインの行を、ページのテンプレート（`photoLicenseOf`）で決め直す。
+ *
+ * - PD だけ → 根拠（`pdBasisOf`）を `licenseCode` に書く。**書くのは licenseCode だけ**
+ * - CC BY が一緒に付き、写真そのものが CC BY と決められる → license・licenseUrl・licenseCode を CC BY に
+ * - 決められない（GFDL も付く など）→ `licenseCode` に "mixed:…"。表示しない（`toSpotSample`）
+ *
+ * 行の数・並び・ほかの項目は変えない（ほかの人が同じファイルの写真を足し引きしていても、差分が
+ * ぶつからないように）。`all` でない限り、根拠の分かっている行は見直さない
+ * @template {Record<string, { samples?: Array<Record<string, unknown>> }>} F
+ * @param {F} samplesFile
+ * @param {Map<string, string[]>} templatesByFile ファイル名 → テンプレートの一覧
+ * @param {{ all?: boolean }} [opts]
+ * @returns {{ file: F, changed: number, missing: string[], toCc: string[], undetermined: string[] }}
+ */
+export function applyPdBasis(samplesFile, templatesByFile, { all = false } = {}) {
+    let changed = 0;
+    const missing = [];
+    const toCc = [];
+    const undetermined = [];
+    const file = /** @type {F} */ ({});
+    for (const [spotId, entry] of Object.entries(samplesFile ?? {})) {
+        file[spotId] = {
+            ...entry,
+            samples: (entry.samples ?? []).map((r) => {
+                if (!isPublicDomainRow(r) || (!all && hasPdBasis(r.licenseCode))) return r;
+                const templates = templatesByFile.get(r.file);
+                if (!templates) { missing.push(r.file); return r; }
+                const result = photoLicenseOf(templates);
+                if (result.kind === "cc") { changed++; toCc.push(r.file); return asCcRow(r, result); }
+                if (result.kind === "unknown") undetermined.push(r.file);
+                if (!result.code) { missing.push(r.file); return r; }
+                if (r.licenseCode === result.code) return r;
+                changed++;
+                return withLicenseCode(r, result.code);
+            }),
+        };
+    }
+    return { file, changed, missing, toCc, undetermined };
+}
+
+/**
+ * 前の確定ファイルで分かっていた根拠（決められなかった "mixed:…" も）を、選び直した行へ引き継ぐ
+ * （候補ファイルは根拠を持たないので、選び直すたびに聞き直さなくてよいように）
+ */
+export function carryPdBasis(samplesFile, previous) {
+    const known = new Map();
+    for (const entry of Object.values(previous ?? {})) {
+        for (const r of entry?.samples ?? []) {
+            const code = String(r.licenseCode ?? "");
+            if (hasPdBasis(code)) known.set(r.file, [code]);
+            else if (code.startsWith("mixed:")) known.set(r.file, code.slice(6).split(","));
+        }
+    }
+    return applyPdBasis(samplesFile, known).file;
+}
+
+/** ファイルごとのテンプレートの一覧を Commons に聞く（50件ずつ・続きのページも辿る） */
+async function fetchTemplates(files) {
+    const out = new Map();
+    for (let i = 0; i < files.length; i += 50) {
+        const batch = files.slice(i, i + 50);
+        // 書き方の揺れ（"_"・頭の小文字）は API が直して返すので、元の名前へ戻せるようにしておく
+        const back = new Map(batch.map((f) => [f, f]));
+        let cont = {};
+        for (let page = 0; page < 20; page++) {
+            const r = await api(COMMONS, { ...pdTemplatesParams(batch), ...cont });
+            for (const n of r.query?.normalized ?? []) back.set(n.to, back.get(n.from) ?? n.from);
+            for (const p of r.query?.pages ?? []) {
+                const key = back.get(p.title) ?? p.title;
+                out.set(key, [...(out.get(key) ?? []), ...(p.templates ?? []).map((t) => t.title)]);
+            }
+            if (!r.continue) break;
+            cont = r.continue;
+        }
+    }
+    return out;
+}
+
+/**
+ * 確定ファイルのうち、根拠の分からないパブリックドメインの行だけを聞き直して埋める。
+ * `all` のときはパブリックドメインの行を全部見直す（`--refresh-licenses`）
+ */
+export async function refreshPdBasis(samplesFile, fetcher = fetchTemplates, { all = false } = {}) {
+    const files = filesMissingPdBasis(samplesFile, { all });
+    if (files.length === 0) return { file: samplesFile, changed: 0, missing: [], toCc: [], undetermined: [] };
+    return applyPdBasis(samplesFile, await fetcher(files), { all });
 }
 
 /** Wikidata の座標を Q-ID ごとに（50件ずつまとめて聞く） */
@@ -419,6 +601,130 @@ async function wikidataCoords(ids) {
         for (const [id, e] of Object.entries(r.entities ?? {})) {
             const v = e?.claims?.P625?.[0]?.mainsnak?.datavalue?.value;
             if (v) out.set(id, { lat: v.latitude, lng: v.longitude });
+        }
+    }
+    return out;
+}
+
+/**
+ * Wikidata の項目から、座標（P625）・代表画像（P18）・Commons のカテゴリ（P373）を Q-ID ごとに
+ * （50件ずつまとめて聞く。1回の要求で3つとも取れる）
+ * @returns {Promise<Map<string, { coords?: {lat:number,lng:number}; image?: string; category?: string }>>}
+ */
+async function wikidataFacts(ids) {
+    const out = new Map();
+    for (let i = 0; i < ids.length; i += 50) {
+        const r = await api(WIKIDATA, { action: "wbgetentities", ids: ids.slice(i, i + 50).join("|"), props: "claims" });
+        for (const [id, e] of Object.entries(r.entities ?? {})) out.set(id, parseWikidataEntity(e));
+    }
+    return out;
+}
+
+// ---- 撮影地の項目からの当て方（2026-10-03・精度） ------------------------------------
+
+/** 画像の情報だけを取る引数（geosearch と同じ項目・同じ言語。座標は取らない） */
+export function imageinfoParams() {
+    const g = geosearchParams({ lat: 0, lng: 0 }, MIN_RADIUS_M);
+    return {
+        action: "query", prop: "imageinfo", iiprop: g.iiprop, iiurlwidth: g.iiurlwidth,
+        iiextmetadatafilter: g.iiextmetadatafilter, iiextmetadatalanguage: g.iiextmetadatalanguage,
+    };
+}
+
+/** 題（"File:…"）を名指しして画像の情報を聞く引数。P18 の代表画像に使う（50件まで） */
+export function fileTitlesParams(titles) {
+    return { ...imageinfoParams(), titles: titles.join("|") };
+}
+
+/** P373（Commons のカテゴリ）の中のファイルを聞く引数（直下のファイルだけ・100件まで） */
+export function categoryParams(category) {
+    return { ...imageinfoParams(), generator: "categorymembers", gcmtitle: `Category:${category}`, gcmtype: "file", gcmlimit: "100" };
+}
+
+/** P180（写っているもの）が撮影地の項目のファイルを探す引数（Commons の構造化データ・50件まで） */
+export function depictsParams(qid) {
+    return { ...imageinfoParams(), generator: "search", gsrsearch: depictsSearch(qid), gsrnamespace: "6", gsrlimit: "50" };
+}
+
+/**
+ * 問い合わせの全ページを辿る。**続きは imageinfo の取り残しだけ**（`skip` の鍵＝ generator の
+ * 次の束へは進まない。カテゴリや検索の先頭の束だけで足りる）
+ * @param {(params: Record<string,string>) => Promise<any>} call
+ */
+export async function queryAllPages(call, params, skip = []) {
+    const pages = new Map();
+    let cont = {};
+    for (let i = 0; i < 20; i++) {
+        const r = await call({ ...params, ...cont });
+        for (const p of r?.query?.pages ?? []) {
+            const key = p.pageid ?? p.title;
+            const prev = pages.get(key) ?? {};
+            pages.set(key, { ...prev, ...p, imageinfo: p.imageinfo ?? prev.imageinfo, coordinates: p.coordinates ?? prev.coordinates });
+        }
+        if (!r?.continue) break;
+        const rest = Object.fromEntries(Object.entries(r.continue).filter(([k]) => !skip.includes(k)));
+        if (Object.keys(rest).filter((k) => k !== "continue").length === 0) break;
+        cont = rest;
+    }
+    return [...pages.values()];
+}
+
+/** 候補に「どこから見つかったか」を付ける */
+const tagVia = (list, via) => list.map((c) => ({ ...c, via: [via] }));
+
+/**
+ * **1つの撮影地の候補を集める。** 当てる順は
+ *   1. P18（代表画像）——`p18Page` は前もって 50 件ずつまとめて聞いたもの
+ *   2. P373（Commons のカテゴリ）の中のファイル
+ *   3. P180（写っているもの）が撮影地の項目のファイル
+ *   4. 半径検索（台帳の座標・Wikidata の座標の周り）
+ * 1〜3 だけで自動で採れる写真が `MAX_SAMPLES` 枚そろえば、4 は飛ばす（要求を減らす）。
+ * `excluded` にある写真（人の目で外したもの）は、ここで落とす
+ * @param {object} spot
+ * @param {{ qid?: string; facts?: { image?: string; category?: string }; p18Page?: any; centers: Array<{lat:number,lng:number}>;
+ *           radiusM: number; excluded?: Set<string>; call: (base: string, params: Record<string,string>) => Promise<any> }} o
+ */
+export async function collectSpotCandidates(spot, { qid, facts = {}, p18Page, centers, radiusM, excluded = new Set(), call }) {
+    const lists = [];
+    const rejected = { license: 0, noAuthor: 0, notPhoto: 0, noInfo: 0 };
+    const rejectedLicenses = {};
+    let found = 0;
+    const take = (pages, via) => {
+        found += pages.length;
+        const parsed = parseCommonsPages(pages);
+        lists.push(tagVia(parsed.candidates, via));
+        for (const k of Object.keys(rejected)) rejected[k] += parsed.rejected[k];
+        for (const [k, v] of Object.entries(parsed.rejectedLicenses)) rejectedLicenses[k] = (rejectedLicenses[k] ?? 0) + v;
+    };
+    const commons = (params) => call(COMMONS, params);
+    if (p18Page) take([p18Page], "p18");
+    if (facts.category) take(await queryAllPages(commons, categoryParams(facts.category), ["gcmcontinue"]), "category");
+    if (qid) take(await queryAllPages(commons, depictsParams(qid), ["gsroffset"]), "depicts");
+    const score = () => mergeCandidates(lists)
+        .filter((c) => !isExcluded(excluded, spot.spotId, c.file))
+        .map((c) => ({ ...c, ...scoreCandidate(spot, c) }));
+    let geoSkipped = false;
+    if (pickSamples(score()).length >= MAX_SAMPLES) geoSkipped = true;
+    else {
+        for (const center of centers) {
+            take(await geosearch(center, radiusM, call), "geo");
+        }
+    }
+    const scored = score().sort((a, b) => b.score - a.score || (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+    return { scored, found, rejected, rejectedLicenses, geoSkipped };
+}
+
+/**
+ * P18 の代表画像のページを、ファイル名（`fileKey`）ごとに（50件ずつまとめて聞く）
+ * @param {string[]} titles
+ * @param {(base: string, params: Record<string,string>) => Promise<any>} call
+ */
+export async function fetchFilePages(titles, call) {
+    const out = new Map();
+    const uniq = [...new Set(titles)];
+    for (let i = 0; i < uniq.length; i += 50) {
+        for (const p of await queryAllPages((params) => call(COMMONS, params), fileTitlesParams(uniq.slice(i, i + 50)))) {
+            if (!p.missing && p.imageinfo) out.set(fileKey(p.title), p);
         }
     }
     return out;
@@ -441,8 +747,8 @@ export async function safeWikidataCoords(ids, fetcher = wikidataCoords) {
 
 /** 候補ファイルに残す形（説明・種類は点数を付けるのに使うだけで残さない＝大きさを抑える） */
 export function forCandidatesFile(c) {
-    const { description: _d, mime: _m, ...rest } = c;
-    void _d; void _m;
+    const { description: _d, mime: _m, categories: _c, ...rest } = c;
+    void _d; void _m; void _c;
     return rest;
 }
 
@@ -529,8 +835,13 @@ export function buildSamplesFile(candidatesFile, spots, previous = {}, keep = fa
         const rescored = (entry.candidates ?? []).map((c) => {
             const r = scoreCandidate(spot, c);
             if (c.description === undefined && c.named && !r.named) {
-                const extra = r.reasons.filter((x) => (x === "向かない語" || x === "人・催し") && !(c.reasons ?? []).includes(x));
+                const extra = r.reasons.filter((x) => (x === "向かない語" || x === "人・催し" || x.startsWith(EXCLUDE_PREFIX)) && !(c.reasons ?? []).includes(x));
                 return { ...c, reasons: [...new Set([...(c.reasons ?? []), ...extra])], score: c.score - 4 * extra.length };
+            }
+            // カテゴリ・説明は候補ファイルに残さないので、それで外れた理由（除外:…）は前の結果を引き継ぐ
+            if (c.description === undefined && c.categories === undefined) {
+                const kept = (c.reasons ?? []).filter((x) => x.startsWith(EXCLUDE_PREFIX) && !r.reasons.includes(x));
+                return { ...c, ...r, reasons: [...r.reasons, ...kept], score: r.score - 4 * kept.length };
             }
             return { ...c, ...r };
         });
@@ -546,6 +857,13 @@ export function buildSamplesFile(candidatesFile, spots, previous = {}, keep = fa
 async function main(argv) {
     const args = argv.slice(2);
     const arg = (n) => args.find((a) => a.startsWith(`--${n}=`))?.slice(n.length + 3);
+    if (args.includes("--refresh-licenses")) {
+        const r = await refreshPdBasis(readJson(SAMPLES_PATH, {}), fetchTemplates, { all: true });
+        writeJson(SAMPLES_PATH, r.file);
+        console.log(`[spot-samples] 書き直した ${r.changed} 枚（うち写真が CC BY ${r.toCc.length}）・`
+            + `決められない ${r.undetermined.length}・根拠が無い ${r.missing.length}（どちらも表示しない）・要求 ${requestCount} 回`);
+        return 0;
+    }
     const spots = readJson(LEDGER_PATH, []);
     const only = arg("slug")?.split(",").filter(Boolean);
     const prefecture = arg("prefecture");
@@ -555,7 +873,9 @@ async function main(argv) {
         console.error("--prefecture=… か --slug=… か --all を付けてください");
         return 1;
     }
-    const candidatesFile = readJson(CANDIDATES_PATH, { spots: {} });
+    // 人の目で外した写真は、候補にあっても二度と選ばない（収集でも --pick-only でも）
+    const excluded = readExcluded(EXCLUDED_PATH);
+    const candidatesFile = withoutExcluded(readJson(CANDIDATES_PATH, { spots: {} }), excluded);
     const refresh = args.includes("--refresh");
     const targets = spots.filter((s) => s.status === "published"
         && (only ? only.includes(s.slug) : true)
@@ -569,40 +889,39 @@ async function main(argv) {
     if (!args.includes("--pick-only")) {
         const images = readJson(SPOT_IMAGES_PATH, {});
         const ids = [...new Set(targets.map((s) => images[s.slug]?.wikidata).filter(Boolean))];
-        // Wikidata は探す中心を足すだけ。落ちても台帳の座標で続ける（全体を止めない）
-        const wd = await safeWikidataCoords(ids);
+        // Wikidata は探す中心・代表画像・カテゴリを足すだけ。落ちても台帳の座標で続ける（全体を止めない）
+        const wd = await safeWikidataCoords(ids, wikidataFacts);
+        // P18（代表画像）は 50 件ずつまとめて先に聞く（1スポット1回にしない）
+        let p18Pages = new Map();
+        try {
+            p18Pages = await fetchFilePages([...wd.values()].map((f) => f.image).filter(Boolean), api);
+        } catch (e) {
+            console.log(`[p18] 代表画像を取れなかった（カテゴリ・半径検索で続ける）: ${e?.message ?? e}`);
+        }
         const today = new Date().toISOString().slice(0, 10);
         let n = 0;
         for (const spot of targets) {
             n++;
-            const centers = searchCenters(spot, wd.get(images[spot.slug]?.wikidata));
-            const lists = [];
-            const rejected = { license: 0, noAuthor: 0, notPhoto: 0, noInfo: 0 };
-            const rejectedLicenses = {};
-            let found = 0;
+            const qid = images[spot.slug]?.wikidata;
+            const facts = wd.get(qid) ?? {};
+            const centers = searchCenters(spot, facts.coords);
+            let collected;
             try {
-                for (const center of centers) {
-                    const pages = await geosearch(center, radiusM);
-                    found += pages.length;
-                    const parsed = parseCommonsPages(pages);
-                    lists.push(parsed.candidates);
-                    for (const k of Object.keys(rejected)) rejected[k] += parsed.rejected[k];
-                    for (const [k, v] of Object.entries(parsed.rejectedLicenses)) rejectedLicenses[k] = (rejectedLicenses[k] ?? 0) + v;
-                }
+                collected = await collectSpotCandidates(spot, {
+                    qid, facts, p18Page: facts.image ? p18Pages.get(fileKey(facts.image)) : undefined,
+                    centers, radiusM, excluded, call: api,
+                });
             } catch (e) {
                 console.log(`[${n}/${targets.length}] ${spot.slug}: error ${e.message}`);
                 continue;
             }
-            const scored = mergeCandidates(lists).map((c) => {
-                const { score, reasons, named } = scoreCandidate(spot, c);
-                return { ...c, score, reasons, named };
-            }).sort((a, b) => b.score - a.score || (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+            const { scored, found, rejected, rejectedLicenses, geoSkipped } = collected;
             // 自動で採るものは必ず残し、残りの枠を点数の高い順に埋める
             const picked = new Set(pickSamples(scored).map((c) => c.file));
             const candidates = trimCandidates(scored).map(forCandidatesFile);
             candidatesFile.spots[spot.spotId] = {
                 slug: spot.slug, name: spot.name, prefecture: spot.region?.prefecture ?? spot.region?.country ?? "",
-                searchedAt: today, radiusM, centers, filesFound: found,
+                searchedAt: today, radiusM, centers, ...(geoSkipped ? { geoSkipped: true } : {}), filesFound: found,
                 usable: scored.length, named: scored.filter((c) => c.named).length,
                 rejected, rejectedLicenses, candidates,
             };
@@ -614,7 +933,9 @@ async function main(argv) {
     }
 
     const previous = readJson(SAMPLES_PATH, {});
-    const samples = buildSamplesFile(candidatesFile, spots, previous, args.includes("--keep-picks"));
+    let samples = carryPdBasis(buildSamplesFile(candidatesFile, spots, previous, args.includes("--keep-picks")), previous);
+    // 根拠の分からないパブリックドメインは表示しない（`toSpotSample`）ので、通信してよいときは聞いて埋める
+    if (!args.includes("--pick-only")) samples = (await refreshPdBasis(samples)).file;
     writeJson(SAMPLES_PATH, samples);
     const total = Object.values(samples).reduce((a, e) => a + e.samples.length, 0);
     console.log(`[spot-samples] 確定 ${Object.keys(samples).length} スポット・${total} 枚`);

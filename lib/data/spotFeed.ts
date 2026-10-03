@@ -15,7 +15,10 @@
 //             ・2026-09-26。`lib/data/spotImages.ts`）/
 //             seasonalGuide（季節の案内。**公開済みの行だけ**・2026-09-27。アプリの
 //             「いつ行く？」と「いまが見頃」が全部の場所の季節を一度に要るため。約 52KB）/
-//   載せない  description・highlights・時間帯・構図・アクセス・駐車場・
+//             timeOfDayGuide（時間帯の案内。**公開済みの行だけ**・2026-10-03。アプリの
+//             探すの「時間帯で絞る」が撮影地にも効くよう。本文・台帳と同じ名前・同じ形
+//             `[{time, text}]`。季節と同じ書き方）/
+//   載せない  description・highlights・構図・アクセス・駐車場・
 //             注意点・項目ごとの出典、draftedBy（製品名を画面・アプリに出さない）、verifiedBy・
 //             aiCheck（照合日・出典・委任した人）。
 //             **本文は場所ごとのファイル**（`/app/data/spots/<slug>.json`・`spotBody.ts`）。
@@ -69,6 +72,8 @@ export type SpotFeedItem = {
     image?: SpotFeedImage;
     /** 季節の案内（台帳の文のまま）。**公開済みの行だけ**——下書きの文はアプリに出さない */
     seasonalGuide?: { season: string; text: string }[];
+    /** 時間帯の案内（台帳の文のまま）。**公開済みの行だけ**。本文（`spotBody.ts`）と同じ名前・同じ形 */
+    timeOfDayGuide?: { time: string; text: string }[];
 };
 
 /** `undefined` の鍵を落とす（JSON に `"x": null` を出さない・鍵の集合を固定する） */
@@ -112,6 +117,9 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
             : undefined,
         seasonalGuide: published && spot.seasonalGuide?.length
             ? spot.seasonalGuide.map((g) => ({ season: g.season, text: g.text }))
+            : undefined,
+        timeOfDayGuide: published && spot.timeOfDayGuide?.length
+            ? spot.timeOfDayGuide.map((g) => ({ time: g.time, text: g.text }))
             : undefined,
     });
 }

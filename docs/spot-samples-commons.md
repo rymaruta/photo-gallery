@@ -34,6 +34,11 @@ Wikimedia Commons で自由なライセンスのもと公開されている写�
 - **台帳の座標は小数2桁で切ってある**（約1km）。例: 天橋立 傘松公園は台帳 35.58,135.19 で、
   半径 500m に写真が0枚（A）。Wikidata の座標がある所はその周りも探しているが、
   `content/spot-images.json` に Wikidata の無いスポットは台帳の座標しか使えない
+- **座標の確かめ（2026-10-03・レビュー）**: B の 24 か所と傘松公園を、Wikidata の P625（同じものを指す項目だけ）と
+  国土地理院の地名・住所検索（番地まで当たるものだけ）に突き合わせ、根拠が一致して台帳が丸めの範囲を外れていた
+  8 か所を直した（傘松公園・大石林山・霞ヶ城公園・石舞台古墳・北浜アリー・湧水庭園・瀬戸大橋記念公園・白鳥庭園）。
+  石舞台古墳は Wikidata の P625 の方が誤り（約5km 南）で、国土地理院の値を使った。残りの多くは座標ではなく
+  名前の当たり方（外国語の名前など）が原因。値は `lib/data/__tests__/spotsLedger.test.ts` が縛る
 - 0枚の一覧の出し方: 候補ファイルの `filesFound`（見つかった数）・`usable`（使えるライセンス）・
   `named`（名前が当たった数）で分けられる
 
@@ -51,9 +56,22 @@ Wikimedia Commons で自由なライセンスのもと公開されている写�
   パブリックドメイン・CC0 なら「作者不明」と出す。規則は `lib/utils/commonsAttribution.mjs` の
   `isPlaceholderAuthor`（収集と表示で同じ1本）
 - **アメリカだけのパブリックドメイン**（PD-US 系。日本では保護期間内のことがある）。
-  extmetadata の `License`（テンプレート名）で見分ける。**2026-10-03 に集めた確定ファイルの行は
-  この項目を持たない**ので、表示側では短い名前（`PD-US`）でしか落とせない。パブリックドメインの
-  60 枚は、次に収集し直すまで PD-US かどうかを機械では見分けられていない
+  🔴 extmetadata の `LicenseShortName`・`License`・`UsageTerms` は、パブリックドメインなら根拠を問わず
+  "Public domain"・"pd"・"Public domain" になる（2026-10-03 に作例の 60 枚で実測）＝**これでは見分けられない**。
+  そこでファイルのページの**根拠のテンプレート**（`Template:PD-self`・`PD-Japan`・`PD-USGov-POTUS` …）を見て、
+  確定ファイルの `licenseCode` に書く（`pdBasisOf`。部品のテンプレートは除き、日本でも通る根拠を先に選ぶ）。
+  - 収集のたびに、根拠の分からないパブリックドメインの行だけを聞き直す。確定ファイルだけ直すときは
+    `node scripts/collect-commons-samples.mjs --refresh-licenses`（`licenseCode` 以外は触らない）
+  - **根拠の分からないパブリックドメインは表示しない**（`toSpotSample`）
+  - 画面の表示は根拠を添える（`Public domain (PD-self)`）
+  - 🔴 **CC BY・CC0・GFDL のテンプレートも一緒に付く PD は、PD として扱わない**（`photoLicenseOf`）。多くは
+    「写っている美術品・文章が PD、写真そのものは CC BY」。写真の欄の印（Art Photo・Self-photographed・
+    Own photograph）があって CC BY が1つだけなら写真は CC BY として出す（文面のリンクつき・作者は撮影者）。
+    決められなければ `licenseCode` に `mixed:…` を書き、表示しない。2026-10-03: 桂浜の龍馬像 2 枚 → CC BY 3.0、
+    若狭の歌碑（GFDL も付き、作者の欄が歌の作者）→ 表示しない
+  - 構造化データの `creator` は `Person`。団体と分かる名前だけ `Organization`（`isOrganizationName`）
+  - 2026-10-03 の取り直しの結果: PD-self 43・PD-author-FlickrPDM 8・PD-Japan 3・PD-Japan-oldphoto 2・
+    PD-old 2・PD-user 1・**PD-USGov-POTUS 1（表示しない）**。`PD-user` を PD-US と取り違えていた判定も直した
 - **人物の権利の印**（`Restrictions` やカテゴリの personality rights など）があるもの
 - **人や催しが主役のもの**（ファイル名に Festival・Rallye・Marathon・Parade・Portrait・コスプレ・
   祭り…）。撮影地そのものが祭り（カテゴリ「祭り」・名前に祭・くんち・ねぶた…）なら落とさない
@@ -86,10 +104,10 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
 - 節の見出しは「作例（Wikimedia Commons より）」。撮影者はこのサイトの利用者ではないと添える
 - パブリックドメイン・CC0 は表示の義務は無いが、同じ形で出す（作者不明なら「作者不明」）
 - 構造化データ（JSON-LD）は `ImageObject` に `name`（題）・`license`・`acquireLicensePage`・`creditText` を書く。
-  `creator` は作者が分かるときだけで、人か団体か分からないので型（Person）は付けない。
+  `creator` は作者が分かるときだけで、型は `Person`（団体と分かる名前だけ `Organization`）。
   パブリックドメインの `license` は Public Domain Mark（`https://creativecommons.org/publicdomain/mark/1.0/`）。
-  **入れるのは人（または目で見る作業 `visual-review`）が選んだ1枚だけ**（`pickedBy` が `auto` 以外）。
-  機械が名前で選んだものは画面には出すが、検索に「この場所の写真」とは渡さない
+  **入れるのは画面に出している作例の全部**（自動で選んだものも。2026-10-03 のレビューで、人が選んだ1枚
+  だけにしていたのをやめた——画面に出す以上、出典の表示は構造化データでも同じにそろえる）
 - 読み込めなかった1枚（Commons で消えた・差し替わった）は、画面でその1枚を出典ごと隠す
 - アプリ向けの本文 JSON の `samples` も、1枚ごとに `title`・`author`・`license`・`licenseUrl`・`sourceUrl` を持つ。
   アプリは写真の下にこれらを出すこと（いまの iOS はこの項目を読まない＝出していない）
