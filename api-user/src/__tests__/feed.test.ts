@@ -201,6 +201,10 @@ describe("GET /feed: 返さないもの", () => {
         ["フォロワーのみ", { audience: "followers" }],
         ["親しい友達", { audience: "closeFriends" }],
         ["知らない公開範囲の値", { audience: "someday" }],
+        // isRestrictedRow は空白だけを「絞っていない」と読むが、静的一覧（sync の
+        // `!item.audience`）は落とす。食い違うときは隠す側に倒す
+        ["空白だけの公開範囲", { audience: "  " }],
+        ["文字列でない公開範囲の値", { audience: true }],
         ["写真でない行（src が無い）", { src: undefined }],
     ])("%s は返さない", async (_label, extra) => {
         rows = [photo(0), photo(1, extra), photo(2)];
@@ -291,6 +295,23 @@ describe("GET /feed: 失敗", () => {
         expect(res.statusCode).toBe(500);
         expect(JSON.stringify(res.body)).not.toContain("index");
     });
+
+    /// 形の検査を通っても、DynamoDB がキーを受け付けないことはある（索引に無い型・
+    /// 範囲外の値など）。それは呼んだ側の値の誤りなので 500 にしない
+    it("カーソル付きで ValidationException が返ったら 400（cursor が不正です）", async () => {
+        (ddb.send as ReturnType<typeof vi.fn>).mockRejectedValue(
+            Object.assign(new Error("The provided starting key is invalid"), { name: "ValidationException" }));
+        const res = await call({ cursor: encodeCursor({ id: "p1", createdAt: at(1) }) });
+        expect(res.statusCode).toBe(400);
+        expect(res.body).toEqual({ error: "cursor が不正です" });
+    });
+
+    it("カーソル付きでも ValidationException 以外は 500", async () => {
+        (ddb.send as ReturnType<typeof vi.fn>).mockRejectedValue(
+            Object.assign(new Error("boom"), { name: "ProvisionedThroughputExceededException" }));
+        const res = await call({ cursor: encodeCursor({ id: "p1", createdAt: at(1) }) });
+        expect(res.statusCode).toBe(500);
+    });
 });
 
 describe("GET /feed: 配線", () => {
@@ -301,14 +322,15 @@ describe("GET /feed: 配線", () => {
         expect(block).toContain("handler: src/feed.getFeed");
         expect(block).toMatch(/path: \/feed\n\s+method: GET/);
         expect(block).not.toContain("authorizer:");
-        expect(block).toMatch(/^\s{4}role: PublicReadRole\s*$/m);
+        // 共有の PublicReadRole ではなく専用ロール（中身は scripts/__tests__/publicLambdaRole.test.ts）
+        expect(block).toMatch(/^\s{4}role: PublicFeedRole\s*$/m);
     });
 
     /// 索引名を yml にも書いているので、`publicFeed.ts` とずれたら Query が AccessDenied で全滅する
-    it("読み取り専用ロールに、この索引の Query だけを足している", () => {
-        expect(yml).toContain(`table/\${param:photosTable}/index/${PUBLIC_INDEX}`);
-        const role = yml.split(/\n {4}PublicReadRole:\n/)[1]?.split(/\n {4}\w+:\n/)[0] ?? "";
+    it("専用ロールに、この索引の Query を名指しで付けている", () => {
+        const role = yml.split(/\n {4}PublicFeedRole:\n/)[1]?.split(/\n {4}\w+:\n/)[0] ?? "";
         expect(role).toContain("dynamodb:Query");
+        expect(role).toContain(`table/\${param:photosTable}/index/${PUBLIC_INDEX}`);
         expect(role, "索引を名指しせず全部に開けている").not.toMatch(/photosTable\}\/index\/\*/);
     });
 });
