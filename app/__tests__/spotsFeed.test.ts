@@ -3,6 +3,7 @@ import rawLedger from "../../content/spots.json";
 import type { Spot } from "../../lib/data/spots";
 import { buildSpotFeed, spotIndexFeed, spotIndexFeedJson, toSpotFeedItem } from "../../lib/data/spotFeed";
 import type { SpotImage } from "../../lib/data/spotImages";
+import { toSpotBody } from "../../lib/data/spotBody";
 import * as route from "../app/data/spots.json/route";
 import fs from "node:fs";
 import path from "node:path";
@@ -34,6 +35,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
         description: "長い説明",
         highlights: ["見どころ"],
         seasonalGuide: [{ season: "spring", text: "春" }],
+        timeOfDayGuide: [{ time: "goldenHour", text: "夕日" }],
         compositionTips: ["構図"],
         region: { country: "日本", prefecture: "香川県", city: "観音寺市" },
         coords: { lat: 34.1, lng: 133.6 },
@@ -49,7 +51,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "timeOfDayGuide"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -138,6 +140,17 @@ describe("アプリ向けの索引", () => {
         expect("seasonalGuide" in none, "空の季節を鍵ごと出している").toBe(false);
     });
 
+    /// 時間帯の案内（2026-10-03）。アプリの探すの「時間帯で絞る」を撮影地にも効かせる。
+    /// **本文（`spotBody.ts`）と同じ名前・同じ形**（iOS の `OfficialSpot.timeOfDayGuide` がこの形で読む）
+    it("時間帯の案内は公開済みの行だけに載り、本文と同じ形 [{time, text}]", () => {
+        const pub = toSpotFeedItem(spot("p", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }));
+        expect(pub.timeOfDayGuide).toEqual([{ time: "goldenHour", text: "夕日" }]);
+        expect(pub.timeOfDayGuide).toEqual(toSpotBody(spot("p", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }), {})?.timeOfDayGuide);
+        expect("timeOfDayGuide" in toSpotFeedItem(spot("d")), "下書きの時間帯の文を運んでいる").toBe(false);
+        const none = toSpotFeedItem(spot("n", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25", timeOfDayGuide: [] }));
+        expect("timeOfDayGuide" in none, "空の時間帯を鍵ごと出している").toBe(false);
+    });
+
     /// **AI 照合の出典は索引に載せない**（2026-09-28）。アプリは場所ごとの本文
     /// （`/app/data/spots/<slug>.json` の `check`）から「出典: …（AI 照合 日付）」を
     /// 出していて、索引の側は誰も読まない。全件ぶん索引が重くなるだけだった
@@ -217,7 +230,9 @@ describe("実際の台帳で作った索引", () => {
      * 目安は 950KB（minify・gzip 前）。超えたら項目か件数を見直す。
      * 2026-09-29 に 850KB → 950KB: 写真の出る行が 315 → 787 になり（1行あたり約290B）、
      * 季節の案内も載って 862KB。gzip では 229KB。`stage`・`draftedAt` はアプリの
-     * モデルが読むので削らない
+     * モデルが読むので削らない。
+     * 2026-10-03 に時間帯の案内を載せて 865KB → 924KB（+58KB・gzip 231KB → 247KB）。
+     * 時間帯を持つのは公開1,079行のうち315行だけ——残りに入るとこの目安を超える
      */
     it("大きさが目安に収まり、`**` が無い", () => {
         const bytes = Buffer.byteLength(json, "utf8");
