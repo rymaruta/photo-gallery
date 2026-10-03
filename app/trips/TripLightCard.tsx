@@ -108,7 +108,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
     const when = shown.isTomorrow ? (en ? "Tomorrow" : "明日") : (en ? "Today" : "今日");
     const rows: [string, string][] = [
         [en ? "Sunrise" : "日の出", lightCellText(shown.cells.sunrise, !en)],
-        [en ? "Evening golden hour" : "夕方のマジックアワー", lightCellText(shown.cells.eveningGolden, !en)],
+        [en ? "Evening golden hour" : "夕方のゴールデンアワー", lightCellText(shown.cells.eveningGolden, !en)],
         [en ? "Sunset" : "日の入り", lightCellText(shown.cells.sunset, !en)],
     ];
     return (

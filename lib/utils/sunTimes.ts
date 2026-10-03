@@ -1,6 +1,6 @@
 // lib/utils/sunTimes.ts
 //
-// **その場所・その日の光の時刻**（日の出・日の入り・マジックアワー・ブルーアワー）。
+// **その場所・その日の光の時刻**（日の出・日の入り・ゴールデンアワー・ブルーアワー）と、日の出・日の入りの方角。
 // 通信しない（座標と日付から計算する）。アプリ（`SunTimes.swift`）と同じ式・同じ試験の値。
 //
 // ## 何に使うか（owner・2026-09-30）
@@ -16,10 +16,18 @@
 // 表示は分まで。「約」は付けない（天文の時刻として定義どおりの値なので）。
 //
 //   - 日の出・日の入り     太陽の上端が地平線（高度 −0.833°・大気差と視半径）
-//   - マジックアワー       高度 +6°〜−4°（写真の世界でゴールデンアワーと呼ぶ範囲）
+//   - ゴールデンアワー     高度 +6°〜−4°（英語は Golden hour。2026-10-03 にアプリと揃えて
+//                          「マジックアワー」から呼び名を替えた）
 //   - ブルーアワー         高度 −4°〜−6°
 //
 // 白夜・極夜で太陽がその高度を通らない日は `null`（作り話の時刻を出さない）。
+//
+// ## 方角（2026-10-03・撮影地ページの「光の時刻」）
+//
+// 日の出・日の入りの方位角を、**北から時計回りの度**で持つ（東 90°・南 180°・西 270°）。
+// 同じ赤緯から球面三角の式で出す（アプリの `SunTimes.swift` の `risingAzimuth` と同じ式）。
+// 国立天文台の暦（東京の夏至・冬至・春分、根室の夏至、鹿児島の冬至）と 0.5° 以内で合う
+// （`__tests__/sunTimes.test.ts`）。日の出・日の入りの時刻が出ない日（白夜・極夜）は方角も `null`。
 
 export type SunEvent = Date | null;
 
@@ -30,12 +38,16 @@ export type SunTimes = {
     sunset: SunEvent;
     /** 朝のブルーアワー（−6°→−4°） */
     morningBlue: { start: SunEvent; end: SunEvent };
-    /** 朝のマジックアワー（−4°→+6°） */
+    /** 朝のゴールデンアワー（−4°→+6°） */
     morningGolden: { start: SunEvent; end: SunEvent };
-    /** 夕方のマジックアワー（+6°→−4°） */
+    /** 夕方のゴールデンアワー（+6°→−4°） */
     eveningGolden: { start: SunEvent; end: SunEvent };
     /** 夕方のブルーアワー（−4°→−6°） */
     eveningBlue: { start: SunEvent; end: SunEvent };
+    /** 日の出の方位角（度・北から時計回り）。日が昇らない／沈まない日は null */
+    sunriseAzimuth: number | null;
+    /** 日の入りの方位角（度・北から時計回り）。日が昇らない／沈まない日は null */
+    sunsetAzimuth: number | null;
 };
 
 const RAD = Math.PI / 180;
@@ -76,6 +88,17 @@ function hourAngleDays(altitude: number, lat: number, decl: number): number | nu
 }
 
 /**
+ * 太陽がその高度（度）にあるときの、朝側の方位角（度・北から時計回り）。夕方側は 360 から引いた値。
+ * 通らなければ null
+ */
+function risingAzimuth(altitude: number, lat: number, decl: number): number | null {
+    const phi = lat * RAD, h = altitude * RAD;
+    const cosA = (Math.sin(decl) - Math.sin(phi) * Math.sin(h)) / (Math.cos(phi) * Math.cos(h));
+    if (!Number.isFinite(cosA) || cosA < -1 || cosA > 1) return null;
+    return Math.acos(cosA) / RAD;
+}
+
+/**
  * その暦日の太陽の高さの幅（度）: 南中の高さ（いちばん高い）と、その反対側（いちばん低い）。
  * 時刻が出ない理由を言い分けるのに使う（白夜＝いちばん低くても沈まない・極夜＝いちばん高くても昇らない）
  */
@@ -95,6 +118,9 @@ export function sunTimes(ymd: string, coords: { lat: number; lng: number }): Sun
         const w = hourAngleDays(altitude, coords.lat, day.decl);
         return w === null ? null : fromJulian(day.transit + side * w);
     };
+    // 日の出・日の入りの時刻が出る日だけ方角を出す（時刻の無い日に方角だけ言わない）
+    const rises = hourAngleDays(-0.833, coords.lat, day.decl) !== null;
+    const azimuth = rises ? risingAzimuth(-0.833, coords.lat, day.decl) : null;
     return {
         sunrise: at(-0.833, -1),
         sunset: at(-0.833, 1),
@@ -102,6 +128,8 @@ export function sunTimes(ymd: string, coords: { lat: number; lng: number }): Sun
         morningGolden: { start: at(-4, -1), end: at(6, -1) },
         eveningGolden: { start: at(6, 1), end: at(-4, 1) },
         eveningBlue: { start: at(-4, 1), end: at(-6, 1) },
+        sunriseAzimuth: azimuth,
+        sunsetAzimuth: azimuth === null ? null : 360 - azimuth,
     };
 }
 
