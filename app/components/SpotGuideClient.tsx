@@ -191,20 +191,36 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
  * アプリの撮影スポットの画面（`OfficialSpotView` の光の時刻）と同じ段・同じ文。日付は前後に送れる。
  *
  * **今日はブラウザで決まる**（静的なページなので、ビルドの日の時刻を書き込まない）。最初の描画は
- * サーバーと同じにするため、時刻の行と日付の帯は水和のあとに出す。節を出すかどうか・台帳の時間帯の文・
- * 注記は日付に依らないので、サーバーの HTML にも入る（検索にも読まれる）
+ * サーバーと同じにするため、時刻の行と日付の帯は水和のあとに出す（それまでは見えない仮の行で高さを取る）。
+ * 節を出すかどうか・台帳の時間帯の文・注記は日付に依らないので、サーバーの HTML にも入る（検索にも読まれる）。
+ * 水和のずれが無いことは `__tests__/SpotGuideClient.hydration.test.tsx` が見る
  */
+/**
+ * 水和の前の仮の段（ふつうの日の3行ずつ）。値は空白だけ——数字を HTML に書くと、見えなくても
+ * 検索や読み上げに「00:00」が拾われうる
+ */
+function placeholderBlocks(isJa: boolean): LightBlock[] {
+    const blue = isJa ? "ブルーアワー" : "Blue hour";
+    const golden = isJa ? "ゴールデンアワー" : "Golden hour";
+    const v = "\u00a0";
+    return [
+        { title: isJa ? "朝" : "Morning", isMorning: true, rows: [
+            { label: blue, value: v }, { label: isJa ? "日の出" : "Sunrise", value: v }, { label: golden, value: v }] },
+        { title: isJa ? "夕" : "Evening", isMorning: false, rows: [
+            { label: golden, value: v }, { label: isJa ? "日の入り" : "Sunset", value: v }, { label: blue, value: v }] },
+    ];
+}
+
 function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: boolean }) {
     const [now, setNow] = React.useState<Date | null>(null);
     const [offset, setOffset] = React.useState(0);
     React.useEffect(() => { setNow(new Date()); }, []);
     const sheet = now && spot.coords ? lightSheet(spot.region?.country, spot.coords, offset, now, isJa) : null;
     const guides = splitGuides(spot.timeOfDayGuide ?? []);
-    // 水和の前は段の札と台帳の文だけ（文の無い段は出さない）
-    const blocks: LightBlock[] = sheet?.blocks ?? [
-        { title: isJa ? "朝" : "Morning", isMorning: true, rows: [] },
-        { title: isJa ? "夕" : "Evening", isMorning: false, rows: [] },
-    ].filter((b) => (b.isMorning ? guides.morning : guides.evening).length > 0);
+    // 水和の前は、ふつうの日と同じ段・同じ行数の**見えない仮の行**で高さを先に取っておく
+    // （読み込み後に時刻の行が出て、下の節が押し下げられないように）。時刻は作らない＝仮の値は見せない
+    const blocks: LightBlock[] = sheet?.blocks ?? placeholderBlocks(isJa);
+    const placeholder = !sheet;
     const step = (d: number) => setOffset((o) => Math.min(Math.max(o + d, -LIGHT_MAX_OFFSET), LIGHT_MAX_OFFSET));
     const stepButton = (d: -1 | 1) => {
         const atEdge = d < 0 ? offset <= -LIGHT_MAX_OFFSET : offset >= LIGHT_MAX_OFFSET;
@@ -221,6 +237,8 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
     return (
         <section className="pt-8" aria-labelledby="spot-today-light" data-testid="spot-today-light">
             <Head id="spot-today-light">{isJa ? "光の時刻" : "Light"}</Head>
+            {/* 日付の帯の高さ（矢印 44px）を水和の前から取っておく */}
+            {!sheet && <div className="h-11 mb-2" aria-hidden data-testid="spot-today-light-date-placeholder" />}
             {sheet && (
                 <div className="flex items-center gap-1 mb-2">
                     {stepButton(-1)}
@@ -247,9 +265,9 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
                             <div key={b.title} className={`p-3.5 ${i > 0 ? "border-t border-line" : ""}`} data-testid="spot-today-light-block">
                                 <p className="m-0 mb-2 uppercase tracking-[0.16em] text-accent" style={{ fontSize: "11px", lineHeight: "14px" }}>{b.title}</p>
                                 {b.rows.length > 0 && (
-                                    <dl className="m-0 flex flex-col gap-1.5">
+                                    <dl className={`m-0 flex flex-col gap-1.5 ${placeholder ? "invisible" : ""}`} aria-hidden={placeholder || undefined}>
                                         {b.rows.map((r) => (
-                                            <div key={r.label} className="flex items-baseline gap-2.5" data-testid="spot-today-light-row">
+                                            <div key={r.label} className="flex items-baseline gap-2.5" data-testid={placeholder ? undefined : "spot-today-light-row"}>
                                                 <dt className="text-white/70" style={{ fontSize: "14px", lineHeight: "20px" }}>{r.label}</dt>
                                                 <dd className="m-0 ml-auto flex items-baseline gap-2.5 text-right">
                                                     {r.detail && <span className="tabular-nums text-white/55" style={{ fontSize: "13px" }}>{r.detail}</span>}
@@ -633,6 +651,10 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     <div className="min-w-0">
                         {photos.length > 0 && photosSection}
 
+                        {/* ── 光の時刻（その日・計算値）──────────
+                            iOS の OfficialSpotView と同じ並び: 写真（あれば）→ 光の時刻 → 魅力 → 撮影ガイド */}
+                        {lightTz && <LightToday spot={spot} zone={lightTz} isJa={isJa} />}
+
                         {/* ── 4. この場所の魅力 ───────────────── */}
                         {(spot.description || (spot.highlights ?? []).length > 0) && (
                             <section className="pt-6" aria-labelledby="spot-charm">
@@ -738,9 +760,6 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 )}
                             </section>
                         )}
-
-                        {/* ── 光の時刻（その日）→ 撮影の光（月別の表）── */}
-                        {lightTz && <LightToday spot={spot} zone={lightTz} isJa={isJa} />}
 
                         {light && <LightTable light={light} isJa={isJa} />}
 
