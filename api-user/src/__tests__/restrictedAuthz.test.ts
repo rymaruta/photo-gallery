@@ -464,6 +464,24 @@ describe("公開の写真でも、持ち主にブロックされた人はいい�
         expect(await writeCodes(STRANGER, "pub")).toEqual([200, 200, 200]);
     });
 
+    it("ブロックの判定が読めないときは、数も印も戻して 500（誰にも減らせない +1 を残さない）", async () => {
+        table.delete(`block#${OWNER}#${STRANGER}`);
+        table.set("pub", photo("pub", { likes: 5 }));
+        mockSend.mockImplementation((cmd: { input: { Key?: { id: string } } }) =>
+            cmd.input.Key?.id?.startsWith("block#")
+                ? Promise.reject(Object.assign(new Error("throttled"), { name: "ThrottlingException" }))
+                : fakeSend(cmd as never));
+        const res = await invoke(likePhoto, ev(STRANGER, "pub"));
+        expect(res.statusCode).toBe(500);
+        expect(table.get("pub")?.likes, "読めなかった回のいいねが数に残った").toBe(5);
+        expect(table.has(`like#pub#${STRANGER}`), "印が残った").toBe(false);
+        expect(mockPush).not.toHaveBeenCalled();
+        // 押し直せば通る（印が残って「いいね済み」扱いで数が戻らない、にならない）
+        mockSend.mockImplementation(fakeSend);
+        expect((await invoke(likePhoto, ev(STRANGER, "pub"))).statusCode).toBe(200);
+        expect(table.get("pub")?.likes).toBe(6);
+    });
+
     it("ブロックされていない人は今までどおり（対照）", async () => {
         expect(await writeCodes(FOLLOWER, "pub")).toEqual([200, 200, 200]);
         expect(table.get("pub")?.likes).toBe(1);
