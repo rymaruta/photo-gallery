@@ -5,6 +5,7 @@ import {
     clampRadius, searchCenters, mergeCandidates, buildSamplesFile, formatCandidatesFile, trimCandidates, KEEP_CANDIDATES,
     geosearchParams, EXTMETA, readJson, writeFileAtomic, safeWikidataCoords, forCandidatesFile,
     CANDIDATES_PATH, SAMPLES_PATH, LEDGER_PATH, MAX_SAMPLES, MIN_INTERVAL_MS, USER_AGENT,
+    isPublicDomainRow, filesMissingPdBasis, pdTemplatesParams, applyPdBasis, carryPdBasis, refreshPdBasis,
 } from "../collect-commons-samples.mjs";
 import { isAllowedLicense, stripHtml } from "../fetch-spot-images.mjs";
 import os from "node:os";
@@ -405,5 +406,72 @@ describe("リポジトリに入っている候補・確定ファイル", () => {
                 expect(Object.keys(c)).not.toEqual(expect.arrayContaining(["coordinates"]));
             }
         }
+    });
+});
+
+describe("パブリックドメインの根拠を取り直す（レビュー #275 の 1）", () => {
+    const pdRow = (file: string, over: Record<string, unknown> = {}) => ({
+        file, pageUrl: `https://commons.wikimedia.org/wiki/${file}`, thumbUrl: "https://upload.wikimedia.org/x.jpg",
+        width: 1280, height: 853, author: "作者不明", license: "Public domain", dateTimeOriginal: "2010", pickedBy: "auto", ...over,
+    });
+    const cc = { ...pdRow("File:CC.jpg"), license: "CC BY 4.0", licenseUrl: "https://creativecommons.org/licenses/by/4.0" };
+    const file = {
+        sp_a: { slug: "a", name: "a", samples: [pdRow("File:Self.jpg"), cc, pdRow("File:Us.jpg")] },
+        sp_b: { slug: "b", name: "b", samples: [pdRow("File:Known.jpg", { licenseCode: "PD-Japan" }), pdRow("File:None.jpg")] },
+    };
+
+    it("extmetadata の UsageTerms も取る（PD-US の名前が出ていれば集めるときに落とす）", () => {
+        expect(EXTMETA).toContain("UsageTerms");
+        const { candidates } = parseCommonsPages([
+            { ...page("File:U.jpg", { license: "Public domain", licenseUrl: "", code: "pd" }) },
+        ].map((p) => ({ ...p, imageinfo: [{ ...p.imageinfo[0], extmetadata: { ...p.imageinfo[0].extmetadata, UsageTerms: { value: "Public domain in the United States" } } }] })));
+        expect(candidates).toHaveLength(0);
+    });
+
+    it("根拠の分からないパブリックドメインの行だけを聞く（CC・根拠のある行は聞かない）", () => {
+        expect(isPublicDomainRow({ license: "Public domain" })).toBe(true);
+        expect(isPublicDomainRow({ license: "PD-self" })).toBe(true);
+        expect(isPublicDomainRow({ license: "CC BY 4.0" })).toBe(false);
+        expect(filesMissingPdBasis(file)).toEqual(["File:Self.jpg", "File:Us.jpg", "File:None.jpg"]);
+        expect(pdTemplatesParams(["File:A.jpg", "File:B.jpg"])).toEqual({
+            action: "query", titles: "File:A.jpg|File:B.jpg", prop: "templates", tlnamespace: "10", tllimit: "max",
+        });
+    });
+
+    it("🔴 licenseCode だけを書く。行の数・並び・ほかの項目は変えず、licenseCode は pickedBy の前に置く", () => {
+        const tpl = new Map([
+            ["File:Self.jpg", ["Template:PD-Layout", "Template:PD-self"]],
+            ["File:Us.jpg", ["Template:PD-Layout", "Template:PD-USGov-POTUS"]],
+            ["File:None.jpg", ["Template:Information"]],
+        ]);
+        const r = applyPdBasis(file, tpl);
+        expect(r.changed).toBe(2);
+        expect(r.missing).toEqual(["File:None.jpg"]);
+        const a = r.file.sp_a.samples as Record<string, unknown>[];
+        expect(a.map((x) => x.file)).toEqual(["File:Self.jpg", "File:CC.jpg", "File:Us.jpg"]);
+        expect(a[0]).toEqual({ ...pdRow("File:Self.jpg"), licenseCode: "PD-self" });
+        expect(Object.keys(a[0]).slice(-2)).toEqual(["licenseCode", "pickedBy"]);
+        expect(a[1]).toBe(cc);
+        expect(a[2].licenseCode).toBe("PD-USGov-POTUS");
+        expect(r.file.sp_b.samples[0]).toBe(file.sp_b.samples[0]);
+        expect(r.file.sp_b.samples[1]).not.toHaveProperty("licenseCode");
+        // 元の確定ファイルは書き換えない
+        expect(file.sp_a.samples[0]).not.toHaveProperty("licenseCode");
+    });
+
+    it("選び直しのときは前の確定ファイルの根拠を引き継ぎ、残りだけ聞く", async () => {
+        const previous = { sp_a: { slug: "a", name: "a", samples: [pdRow("File:Self.jpg", { licenseCode: "PD-self" })] } };
+        const carried = carryPdBasis(file, previous);
+        expect((carried.sp_a.samples[0] as Record<string, unknown>).licenseCode).toBe("PD-self");
+        const asked: string[][] = [];
+        const r = await refreshPdBasis(carried, async (files: string[]) => {
+            asked.push(files);
+            return new Map(files.map((f) => [f, ["Template:PD-old"]]));
+        });
+        expect(asked).toEqual([["File:Us.jpg", "File:None.jpg"]]);
+        expect(r.changed).toBe(2);
+        // 聞くものが無ければ通信しない
+        const again = await refreshPdBasis(r.file, async () => { throw new Error("呼ばない"); });
+        expect(again.changed).toBe(0);
     });
 });
