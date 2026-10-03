@@ -83,7 +83,10 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // ページから「確かな場所」として読ませない）
     // 作例（Wikimedia Commons の自由に使える写真）。代表写真と同じ写真は2度出さない
     const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl, samples }) : null;
+    // 構造化データ（検索に「この場所の写真」として渡す）には、人が選んだ作例だけを入れる
+    // （機械が名前の一致で選んだものは、別の場所が写っている余地がある）
+    const reviewedSamples = spotSamples(spot, { exclude: [cover?.sourceUrl], reviewedOnly: true });
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl, samples: reviewedSamples }) : null;
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);

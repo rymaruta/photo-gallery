@@ -20,6 +20,9 @@ import raw from "@/content/spot-samples.json";
 import { coverLicenseOf, cleanAuthor } from "./spotImages";
 import type { Spot } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
+import {
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+} from "@/lib/utils/commonsAttribution.mjs";
 
 /** 確定ファイルの1枚（手で書く形） */
 export type SpotSampleRecord = {
@@ -35,18 +38,24 @@ export type SpotSampleRecord = {
     /** Commons の `LicenseShortName`（例 "CC BY-SA 4.0"） */
     license: string;
     licenseUrl?: string;
+    /** extmetadata の License（テンプレートの名前・例 "cc-by-sa-4.0" "pd-us"）。古い行には無い */
+    licenseCode?: string;
     dateTimeOriginal?: string;
-    /** 選んだ主体。"auto" は収集スクリプトの規則、それ以外は人の名前 */
+    /** 人物の権利の印（Restrictions・カテゴリ）があった。表示しない */
+    personality?: boolean;
+    /** 選んだ主体。"auto" は収集スクリプトの規則、"visual-review" は目で見て選んだもの、それ以外は人の名前 */
     pickedBy: string;
 };
 
 export type SpotSamplesFile = Record<string, { slug: string; name: string; samples: SpotSampleRecord[] }>;
 
-/** 画面とアプリに渡す1枚（表示に要る項目だけ・必ず作者とライセンスと出典を持つ） */
+/** 画面とアプリに渡す1枚（表示に要る項目だけ・必ず題と作者とライセンスと出典を持つ） */
 export type SpotSample = {
     src: string;
     width: number;
     height: number;
+    /** 題（Commons のファイル名から "File:" と拡張子を除いたもの） */
+    title: string;
     author: string;
     license: string;
     /** ライセンスの文面（https）。パブリックドメインなど URL の無いものは持たない */
@@ -62,9 +71,16 @@ export const SPOT_SAMPLES: Readonly<SpotSamplesFile> = raw as SpotSamplesFile;
 /** 画面に出す最大の枚数 */
 export const MAX_SHOWN_SAMPLES = 6;
 
+/** 作者が分からないときの表記（パブリックドメイン・CC0 だけに許す） */
+export const UNKNOWN_AUTHOR = "作者不明";
+
+/** パブリックドメインの印（Public Domain Mark）。構造化データの `license` に使う */
+export const PUBLIC_DOMAIN_MARK_URL = "https://creativecommons.org/publicdomain/mark/1.0/";
+
 const isHttps = (u: unknown): u is string => typeof u === "string" && /^https:\/\/[^\s]+$/.test(u);
 const isCommonsPage = (u: string) => /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(u);
 const isCommonsUpload = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(u);
+const isCommonsThumb = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\//.test(u);
 
 /**
  * ライセンスの種類。Commons の短い名前は "CC BY-SA 4.0" と "CC-BY-SA-3.0" の両方の書き方が
@@ -78,29 +94,56 @@ export function sampleLicenseKind(label: string | undefined) {
     return coverLicenseOf(s);
 }
 
+/** Commons のファイル名から題を作る（"File:" と拡張子を除き、"_" を空白に） */
+export function titleFromFile(file: string): string {
+    return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
+}
+
 /**
  * 1枚を表示の形へ。**出してはいけない1枚は undefined**:
  *   - ライセンスが CC0・パブリックドメイン・CC BY・CC BY-SA でない（NC・ND・その他）
- *   - 作者が空（CC BY 系は表示が条件。パブリックドメインは「作者不明」と書いてあればよい）
- *   - 画像が Commons のサムネイルでない・出典が Commons のファイルのページでない
+ *   - アメリカだけのパブリックドメイン（PD-US 系）
+ *   - 作者が空・決まり文句（「推定されます」「Own work」「Unknown author」…）・お願い文
+ *     （CC BY 系は表示が条件なので出せない。パブリックドメイン・CC0 は「作者不明」と出す）
+ *   - 人物の権利の印がある
+ *   - 画像が Commons でない・縮小版にできない・出典が Commons のファイルのページでない
  *   - CC BY 系なのにライセンスの文面の URL が無い
+ *
+ * 🔴 確定ファイルに既に入っている行にも効く（収集し直さなくても、表示のところで守る）
  */
 export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
-    const author = cleanAuthor(String(r.author ?? ""));
-    if (!author) return undefined;
-    const src = String(r.thumbUrl ?? "").replace(/^http:\/\//, "https://");
+    if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
+    if (r.personality) return undefined;
+    const byLicense = kind === "cc-by" || kind === "cc-by-sa";
+    let author = cleanCommonsAuthor(cleanAuthor(String(r.author ?? "")));
+    if (isPlaceholderAuthor(author)) {
+        if (byLicense) return undefined;
+        author = UNKNOWN_AUTHOR;
+    }
+    let src = String(r.thumbUrl ?? "").replace(/^http:\/\//, "https://");
+    let width = r.width;
+    let height = r.height;
     const sourceUrl = String(r.pageUrl ?? "").replace(/^http:\/\//, "https://");
     if (!isHttps(src) || !isCommonsUpload(src)) return undefined;
     if (!isHttps(sourceUrl) || !isCommonsPage(sourceUrl)) return undefined;
+    if (!(width > 0) || !(height > 0)) return undefined;
+    // 元画像の URL（元が 1280px 以下のとき API が返す）は、標準の幅の縮小版に替える
+    if (!isCommonsThumb(src)) {
+        const small = standardThumbOf(src, width, height);
+        if (!small) return undefined;
+        ({ url: src, width, height } = small);
+    }
     const licenseUrl = r.licenseUrl ? r.licenseUrl.replace(/^http:\/\//, "https://") : undefined;
-    if ((kind === "cc-by" || kind === "cc-by-sa") && !isHttps(licenseUrl)) return undefined;
-    if (!(r.width > 0) || !(r.height > 0)) return undefined;
+    if (byLicense && !isHttps(licenseUrl)) return undefined;
+    const title = titleFromFile(r.file) || titleFromFile(decodeURIComponent(sourceUrl.replace(/^.*\/wiki\//, "")));
+    if (!title) return undefined;
     return {
         src,
-        width: r.width,
-        height: r.height,
+        width,
+        height,
+        title,
         author,
         license: r.license.trim(),
         ...(isHttps(licenseUrl) ? { licenseUrl } : {}),
@@ -109,21 +152,32 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     };
 }
 
+/** 人（または目で見て選ぶ作業）が選んだ1枚か。"auto" は機械の規則 */
+export function isReviewedPick(r: Pick<SpotSampleRecord, "pickedBy">): boolean {
+    return typeof r.pickedBy === "string" && r.pickedBy.trim() !== "" && r.pickedBy.trim() !== "auto";
+}
+
 /**
  * **そのスポットの作例**（表示してよいものだけ・最大6枚）。
  * 下書きには付けない（本文と同じく、誰も確かめていないページに足さない）。
- * `exclude` は代表写真の出典 URL など、同じ写真を2度出さないためのもの
+ *
+ * - `exclude` は代表写真の出典 URL など、同じ写真を2度出さないためのもの
+ * - `reviewedOnly` は人が選んだ1枚だけ（構造化データに使う）
+ * - **人や催しが主役の写真**（Festival・Rallye・ポートレート…）は落とす。撮影地が催しそのものなら残す
  */
 export function spotSamples(
     spot: Pick<Spot, "spotId"> & Partial<Spot>,
-    opts: { file?: Readonly<SpotSamplesFile>; exclude?: (string | undefined)[] } = {},
+    opts: { file?: Readonly<SpotSamplesFile>; exclude?: (string | undefined)[]; reviewedOnly?: boolean } = {},
 ): SpotSample[] {
     if (!isPublished(spot as Spot)) return [];
     const file = opts.file ?? SPOT_SAMPLES;
     const skip = new Set(opts.exclude?.filter(Boolean));
+    const eventSpot = isEventSpot(spot);
     const seen = new Set<string>();
     const out: SpotSample[] = [];
     for (const r of file[spot.spotId]?.samples ?? []) {
+        if (opts.reviewedOnly && !isReviewedPick(r)) continue;
+        if (!eventSpot && EVENT_OR_PERSON.test(`${r.file ?? ""}`)) continue;
         const s = toSpotSample(r);
         if (!s || skip.has(s.sourceUrl) || seen.has(s.sourceUrl)) continue;
         seen.add(s.sourceUrl);
@@ -133,16 +187,22 @@ export function spotSamples(
     return out;
 }
 
-/** 構造化データ（JSON-LD）の `ImageObject`。作者・ライセンス・出典を必ず書く */
+/**
+ * 構造化データ（JSON-LD）の `ImageObject`。題・ライセンス・出典・表示の文字を必ず書く。
+ * - 作者は**分かるときだけ**。人か団体かは分からないので型（Person）を断定しない
+ * - パブリックドメインは Public Domain Mark の URL を `license` に
+ */
 export function sampleImageObject(s: SpotSample) {
+    const license = s.licenseUrl ?? (sampleLicenseKind(s.license) === "public-domain" ? PUBLIC_DOMAIN_MARK_URL : undefined);
     return {
         "@type": "ImageObject",
+        name: s.title,
         contentUrl: s.src,
         width: s.width,
         height: s.height,
-        creator: { "@type": "Person", name: s.author },
+        ...(s.author !== UNKNOWN_AUTHOR ? { creator: { name: s.author } } : {}),
         creditText: `${s.author} / ${s.license} / Wikimedia Commons`,
-        ...(s.licenseUrl ? { license: s.licenseUrl } : {}),
+        ...(license ? { license } : {}),
         acquireLicensePage: s.sourceUrl,
     };
 }

@@ -3,10 +3,13 @@ import rawLedger from "../../../content/spots.json";
 import rawSamples from "../../../content/spot-samples.json";
 import type { Spot } from "../spots";
 import {
-    toSpotSample, spotSamples, sampleLicenseKind, sampleImageObject,
+    toSpotSample, spotSamples, sampleLicenseKind, sampleImageObject, titleFromFile, PUBLIC_DOMAIN_MARK_URL, MAX_SHOWN_SAMPLES,
     type SpotSampleRecord, type SpotSamplesFile,
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
+import {
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot,
+} from "../../utils/commonsAttribution.mjs";
 import { commonsThumbAt, commonsSrcSet } from "../../utils/commonsThumb";
 
 /**
@@ -34,7 +37,7 @@ const SPOT = (rawLedger as unknown as Spot[]).find((s) => s.slug === "kinkakuji"
 describe("1枚を表示の形へ", () => {
     it("作者・ライセンス・ライセンスの文面・出典・寸法を運ぶ", () => {
         expect(toSpotSample(REC)).toEqual({
-            src: REC.thumbUrl, width: 1280, height: 853, author: "撮った人",
+            src: REC.thumbUrl, width: 1280, height: 853, title: "A", author: "撮った人",
             license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
             sourceUrl: REC.pageUrl, takenAt: "2014-03-17 15:46:26",
         });
@@ -105,12 +108,76 @@ describe("スポットの作例", () => {
     it("構造化データの ImageObject は作者・ライセンス・出典・表示の文字を必ず持つ", () => {
         expect(sampleImageObject(toSpotSample(REC)!)).toEqual({
             "@type": "ImageObject",
+            name: "A",
             contentUrl: REC.thumbUrl, width: 1280, height: 853,
-            creator: { "@type": "Person", name: "撮った人" },
+            creator: { name: "撮った人" },
             creditText: "撮った人 / CC BY-SA 4.0 / Wikimedia Commons",
             license: "https://creativecommons.org/licenses/by-sa/4.0",
             acquireLicensePage: REC.pageUrl,
         });
+    });
+});
+
+describe("レビュー #272 の直し（表示側で守る＝確定ファイルを直さなくても効く）", () => {
+    it.each([
+        "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
+        "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author",
+        "I would appreciate being notified if you use my work outside Wikimedia. More of my work can be found in my personal gallery .",
+        "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
+    ])("🔴 CC BY 系で作者が決まり文句・お願い文（%s）なら出さない", (author) => {
+        expect(toSpotSample({ ...REC, author })).toBeUndefined();
+    });
+
+    it("パブリックドメイン・CC0 は決まり文句なら「作者不明」。飾り（( talk )・Taken with）は落とす", () => {
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, author: "Unknown author" })?.author).toBe("作者不明");
+        expect(toSpotSample({ ...REC, author: "photo: Qurren ( talk ) Taken with Canon IXY 10S (Digital IXUS 210)" })?.author).toBe("Qurren");
+        expect(toSpotSample({ ...REC, author: "そらみみ This photo was taken with iPhone 5" })?.author).toBe("そらみみ");
+        expect(toSpotSample({ ...REC, author: "User:MatthiasKabel" })?.author).toBe("MatthiasKabel");
+    });
+
+    it("🔴 アメリカだけのパブリックドメイン（PD-US）・人物の権利の印は出さない", () => {
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "pd-us-expired" })).toBeUndefined();
+        expect(toSpotSample({ ...REC, license: "PD-US", licenseUrl: undefined })).toBeUndefined();
+        expect(toSpotSample({ ...REC, personality: true })).toBeUndefined();
+    });
+
+    it("🔴 元画像の URL は標準の幅（元より小さい 960）の縮小版に替える", () => {
+        const s = toSpotSample({ ...REC, thumbUrl: "https://upload.wikimedia.org/wikipedia/commons/a/ab/A.jpg", width: 1200, height: 800 })!;
+        expect(s.src).toBe("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/A.jpg/960px-A.jpg");
+        expect([s.width, s.height]).toEqual([960, 640]);
+        // 小さすぎて縮小版を作れない元画像は出さない
+        expect(toSpotSample({ ...REC, thumbUrl: "https://upload.wikimedia.org/wikipedia/commons/a/ab/A.jpg", width: 200, height: 150 })).toBeUndefined();
+    });
+
+    it("題はファイル名から（File: と拡張子を除く）", () => {
+        expect(titleFromFile("File:Kinkaku-ji 金閣寺 (19885297879).jpg")).toBe("Kinkaku-ji 金閣寺 (19885297879)");
+        expect(titleFromFile("File:Hondo_of_Kiyomizudera_Temple.JPG")).toBe("Hondo of Kiyomizudera Temple");
+    });
+
+    it("人や催しが主役の写真（Festival・Rallye）は出さない。撮影地が祭りなら出す", () => {
+        const fest = { ...REC, file: "File:Kyoto Festival 2019.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:F.jpg" };
+        const file: SpotSamplesFile = { [SPOT.spotId]: { slug: "s", name: "s", samples: [fest, REC] } };
+        expect(spotSamples(SPOT, { file }).map((s) => s.sourceUrl)).toEqual([REC.pageUrl]);
+        expect(spotSamples({ ...SPOT, category: "祭り" }, { file })).toHaveLength(2);
+        const rally = { ...REC, file: "File:Rallye Japan 2010.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:R.jpg" };
+        expect(spotSamples(SPOT, { file: { [SPOT.spotId]: { slug: "s", name: "s", samples: [rally] } } })).toEqual([]);
+        // 建物の名前（Festival Hall・concert hall）は催しではない
+        const hall = { ...REC, file: "File:Hida-Furukawa Festival Hall in winter.JPG", pageUrl: "https://commons.wikimedia.org/wiki/File:Hall.jpg" };
+        expect(spotSamples(SPOT, { file: { [SPOT.spotId]: { slug: "s", name: "s", samples: [hall] } } })).toHaveLength(1);
+    });
+
+    it("reviewedOnly は人・目で見て選んだもの（pickedBy が auto 以外）だけ", () => {
+        const human = { ...REC, file: "File:H.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:H.jpg", pickedBy: "visual-review" };
+        const file: SpotSamplesFile = { [SPOT.spotId]: { slug: "s", name: "s", samples: [REC, human] } };
+        expect(spotSamples(SPOT, { file, reviewedOnly: true }).map((s) => s.sourceUrl)).toEqual([human.pageUrl]);
+        expect(spotSamples(SPOT, { file })).toHaveLength(2);
+    });
+
+    it("構造化データ: 作者不明なら creator を書かない・パブリックドメインは Public Domain Mark", () => {
+        const pd = sampleImageObject(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, author: "Unknown author" })!);
+        expect(pd).not.toHaveProperty("creator");
+        expect(pd.license).toBe(PUBLIC_DOMAIN_MARK_URL);
+        expect(sampleImageObject(toSpotSample(REC)!).creator).toEqual({ name: "撮った人" });
     });
 });
 
@@ -130,16 +197,43 @@ describe("リポジトリの確定ファイル", () => {
     const ledger = rawLedger as unknown as Spot[];
     const file = rawSamples as unknown as SpotSamplesFile;
 
-    it("🔴 書いてある1枚はどれも表示の形にできる（黙って落ちる1枚が無い）", () => {
+    /**
+     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・人物の印・人や催しが主役）だけ。
+     * URL の欠け・知らないライセンスなど、それ以外の理由で黙って落ちる1枚は無い
+     * （確定ファイルは人が手で直すので、書き間違いをここで捕まえる）
+     */
+    const explained = (r: SpotSampleRecord, spot: Spot) => {
+        const author = cleanCommonsAuthor(String(r.author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
+        const by = /^cc[-\s]by/i.test(r.license);
+        return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
+            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file));
+    };
+
+    it("🔴 書いてある1枚は、決めた理由で落とすもの以外どれも表示の形にできる", () => {
         for (const [spotId, entry] of Object.entries(file)) {
-            for (const r of entry.samples) expect(toSpotSample(r), `${spotId} ${r.file}`).toBeTruthy();
+            const spot = ledger.find((s) => s.spotId === spotId)!;
+            for (const r of entry.samples) {
+                if (explained(r, spot)) continue;
+                expect(toSpotSample(r), `${spotId} ${r.file}`).toBeTruthy();
+            }
         }
     });
 
-    it("公開済みのスポットで、書いた枚数がそのまま出る", () => {
+    it("公開済みのスポットで、落とす理由の無い1枚はそのまま出る", () => {
         for (const [spotId, entry] of Object.entries(file)) {
             const spot = ledger.find((s) => s.spotId === spotId)!;
-            expect(spotSamples(spot, { file }).length, spot.slug).toBe(entry.samples.length);
+            const expected = Math.min(MAX_SHOWN_SAMPLES, entry.samples.filter((r) => !explained(r, spot)).length);
+            expect(spotSamples(spot, { file }).length, spot.slug).toBe(expected);
         }
+    });
+});
+
+describe("撮影地ページの構造化データへの渡し方（レビュー #272 の 5）", () => {
+    it("🔴 構造化データには人が選んだ作例だけを渡す（reviewedOnly）。画面には機械の選んだものも出す", async () => {
+        const fs = await import("node:fs");
+        const src = fs.readFileSync(`${__dirname}/../../../app/components/SpotGuidePage.tsx`, "utf8");
+        expect(src).toMatch(/const reviewedSamples = spotSamples\(spot, \{[^}]*reviewedOnly: true/);
+        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverUrl, samples: reviewedSamples \}\)/);
+        expect(src).toMatch(/samples=\{samples\}/);
     });
 });

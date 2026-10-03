@@ -51,12 +51,13 @@ describe("spotStructuredData", () => {
         const sample = {
             src: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/A.jpg/1280px-A.jpg", width: 1280, height: 853,
             author: "撮った人", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0",
-            sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+            sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg", title: "A",
         };
         const data = spotStructuredData(ginzan, { image: "https://example.com/a.jpg", samples: [sample] });
         expect(data.image).toEqual(["https://example.com/a.jpg", expect.objectContaining({
             "@type": "ImageObject", contentUrl: sample.src,
-            creator: { "@type": "Person", name: "撮った人" },
+            name: "A",
+            creator: { name: "撮った人" },
             license: sample.licenseUrl, acquireLicensePage: sample.sourceUrl,
             creditText: "撮った人 / CC BY 2.0 / Wikimedia Commons",
         })]);

@@ -188,11 +188,16 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
 /**
  * **作例（Wikimedia Commons より）。** 利用者の投稿とは別の節で、投稿だとは名乗らない。
  *
- * 🔴 **1枚ごとに、写真のすぐ下へ「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」。**
+ * 🔴 **1枚ごとに、写真のすぐ下へ「題 / 写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」。**
  * CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典）。代表写真の出典と同じ書き方。
  * 写真は**切り抜かない**（元の縦横比のまま・改変と受け取られる余地を作らない）
  */
 function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
+    // 読み込めなかった1枚（Commons 側で消えた・差し替わった）は、出典ごと隠す。
+    // 全部読めなければ節ごと隠す（割れた画像の枠と出典だけが並ばないように）
+    const [broken, setBroken] = React.useState<ReadonlySet<string>>(() => new Set());
+    const shown = samples.filter((s) => !broken.has(s.sourceUrl));
+    if (shown.length === 0) return null;
     return (
         <section className="pt-8" aria-labelledby="spot-samples" data-testid="spot-samples">
             <Head id="spot-samples">{isJa ? "作例（Wikimedia Commons より）" : "Example photos (from Wikimedia Commons)"}</Head>
@@ -202,7 +207,7 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                     : "Photos taken near this spot and published under free licenses on Wikimedia Commons. The photographers are not members of this site."}
             </p>
             <ul className="m-0 p-0 grid grid-cols-2 sm:grid-cols-3 gap-3 items-start" style={{ listStyle: "none" }}>
-                {samples.map((s) => {
+                {shown.map((s) => {
                     const small = commonsThumbAt(s.src, 500);
                     const srcSet = commonsSrcSet(s.src, s.width);
                     return (
@@ -213,9 +218,12 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                      sizes="(min-width:1024px) 240px, (min-width:640px) 30vw, 46vw"
                                      width={s.width} height={s.height} loading="lazy" decoding="async"
                                      alt={isJa ? `作例の写真（撮影: ${s.author}）` : `Example photo by ${s.author}`}
+                                     onError={() => setBroken((prev) => new Set(prev).add(s.sourceUrl))}
                                      className="block w-full h-auto rounded-lg bg-surface" />
                                 <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "11px", lineHeight: "15px" }}
                                             data-testid="spot-sample-credit">
+                                    {/* TASL（題・作者・出典・ライセンス）。題は Commons のファイル名から */}
+                                    <cite className="not-italic">{s.title}</cite>{" / "}
                                     {isJa ? "写真: " : "Photo: "}{s.author}{" / "}
                                     {s.licenseUrl ? (
                                         <a href={s.licenseUrl} target="_blank" rel="noopener noreferrer license"
