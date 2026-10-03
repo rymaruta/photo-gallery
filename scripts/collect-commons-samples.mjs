@@ -31,6 +31,12 @@
 //   - ライセンスは CC0・パブリックドメイン・CC BY・CC BY-SA だけ（`isAllowedLicense`）。
 //     NC（商用不可）・ND（改変不可）・GFDL だけ・不明は捨てる。CC BY 系で作者が空なら捨てる
 //   - 人物の権利などの注意書き（`Restrictions`）が付いた写真は候補に残すが、自動では採らない
+//   - **精度（2026-10-03）**——規則は `scripts/lib/commonsSampleRules.mjs`
+//     - 人の目で外した写真（`content/spot-samples-excluded.json`）は二度と選ばない
+//     - 題・カテゴリ・説明で 駅・車両／料理／室内・展示／看板・店／石碑だけ／人物／夜 を外す
+//       （撮影地そのものが駅・市場・祭りなどなら外さない）
+//     - Wikidata 項目があれば P18（代表画像）> P373（カテゴリ）の中 > 半径検索 の順に当て、
+//       P180（写っているもの）が撮影地と一致するものも上げる。前の3つで6枚そろえば半径検索は飛ばす
 //
 // ## 位置情報の扱い
 //
@@ -49,6 +55,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+    exclusionReasons, EXCLUDE_PREFIX, SOURCE_BONUS, SOURCE_REASON, readExcluded, withoutExcluded, isExcluded,
+    parseWikidataEntity, depictsSearch, fileKey,
+} from "./lib/commonsSampleRules.mjs";
 import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
 import {
     stripHtml, authorFromMeta, isUsOnlyPublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
@@ -60,6 +70,8 @@ export const LEDGER_PATH = path.join(ROOT, "content", "spots.json");
 export const SPOT_IMAGES_PATH = path.join(ROOT, "content", "spot-images.json");
 export const CANDIDATES_PATH = path.join(ROOT, "content", "spot-samples.candidates.json");
 export const SAMPLES_PATH = path.join(ROOT, "content", "spot-samples.json");
+/** 人の目で外した写真（`{spotId, file, reason}` の配列）。ここにあるものは二度と選ばない */
+export const EXCLUDED_PATH = path.join(ROOT, "content", "spot-samples-excluded.json");
 
 export const USER_AGENT = "JourneyPhotoSpotSamples/1.0 (https://journey-photo.com; spot sample collector)";
 const COMMONS = "https://commons.wikimedia.org/w/api.php";
@@ -179,6 +191,13 @@ export function scoreCandidate(spot, c) {
     if (OFF_TOPIC.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("向かない語"); }
     // 人や催しが主役の写真（撮影地が催しそのものなら除く）。表示側（spotSamples.ts）も同じ語で落とす
     if (!isEventSpot(spot) && EVENT_OR_PERSON.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("人・催し"); }
+    // 題・カテゴリ・説明で外す（駅・料理・室内・看板・石碑だけ・人物・夜。撮影地の名前で例外）。
+    // 当たれば自動では採らない（`autoEligible`）。詳しくは scripts/lib/commonsSampleRules.mjs
+    for (const rule of new Set(exclusionReasons(spot, c).map((x) => x.rule))) { score -= 4; reasons.push(`${EXCLUDE_PREFIX}${rule}`); }
+    // 撮影地の Wikidata 項目からの当て方: P18（代表画像）> P373（カテゴリ）の中・P180（写っているもの）
+    for (const k of /** @type {const} */ (["p18", "category", "depicts"])) {
+        if ((c.via ?? []).includes(k)) { score += SOURCE_BONUS[k]; named = true; reasons.push(SOURCE_REASON[k]); }
+    }
     return { score, reasons, named };
 }
 
@@ -193,6 +212,7 @@ export function bigEnough(c) {
 export function autoEligible(c) {
     if (!c.named) return false;
     if (c.reasons?.includes("向かない語") || c.reasons?.includes("人・催し")) return false;
+    if (c.reasons?.some((r) => r.startsWith(EXCLUDE_PREFIX))) return false;
     if (c.personality) return false; // 人物の権利の印（Restrictions・カテゴリ） // 地図・食べ物・被害の記録などは名前が当たっても採らない
     // 種類は候補ファイルに残さない（集めるときに写真だけにしてある）。あるときだけ見る
     if (c.mime !== undefined && !PHOTO_MIMES.has(c.mime)) return false;
@@ -293,6 +313,8 @@ export function parseCommonsPages(pages) {
             ...(licenseUrl ? { licenseUrl } : {}),
             ...(plainDate(meta.DateTimeOriginal?.value) ? { dateTimeOriginal: plainDate(meta.DateTimeOriginal?.value) } : {}),
             ...(description ? { description } : {}),
+            // カテゴリは外す規則（scripts/lib/commonsSampleRules.mjs）が見る。候補ファイルには残さない
+            ...(stripHtml(meta.Categories?.value) ? { categories: stripHtml(meta.Categories?.value) } : {}),
             ...(restrictions ? { restrictions } : {}),
             ...(personality ? { personality: true } : {}),
             ...(licenseCode ? { licenseCode } : {}),
@@ -319,14 +341,22 @@ export function searchCenters(spot, wikidataCoords) {
     return centers;
 }
 
-/** 候補を足し合わせる（同じファイルは近い方の距離を残す） */
+/**
+ * 候補を足し合わせる（同じファイルは近い方の距離を残す）。
+ * どこから見つかったか（`via`: p18・category・depicts・geo）は全部の分を合わせる
+ */
 export function mergeCandidates(lists) {
     const byFile = new Map();
+    const via = new Map();
     for (const c of lists.flat()) {
         const prev = byFile.get(c.file);
         if (!prev || (c.distanceM ?? Infinity) < (prev.distanceM ?? Infinity)) byFile.set(c.file, c);
+        for (const v of c.via ?? []) via.set(c.file, new Set([...(via.get(c.file) ?? []), v]));
     }
-    return [...byFile.values()];
+    const order = ["p18", "category", "depicts", "geo"];
+    return [...byFile.values()].map((c) => (via.has(c.file)
+        ? { ...c, via: order.filter((v) => via.get(c.file).has(v)) }
+        : c));
 }
 
 // ---- 通信 --------------------------------------------------------------------
@@ -390,24 +420,13 @@ export function geosearchParams(center, radiusM) {
     };
 }
 
-/** 1つの中心の周りの候補（続きのページも辿る） */
-async function geosearch(center, radiusM) {
-    const params = geosearchParams(center, radiusM);
-    const pages = new Map();
-    let cont = {};
-    for (let i = 0; i < 20; i++) {
-        const r = await api(COMMONS, { ...params, ...cont });
-        for (const p of r.query?.pages ?? []) {
-            const prev = pages.get(p.pageid) ?? {};
-            pages.set(p.pageid, { ...prev, ...p, imageinfo: p.imageinfo ?? prev.imageinfo, coordinates: p.coordinates ?? prev.coordinates });
-        }
-        if (!r.continue) break;
-        // 続きは imageinfo・coordinates の取り残しだけ辿る（geosearch の次の束へは進まない＝近い100件まで）
-        const { ggsoffset: _skip, ...rest } = r.continue;
-        void _skip;
-        if (Object.keys(rest).filter((k) => k !== "continue").length === 0) break;
-        cont = rest;
-    }
+/**
+ * 1つの中心の周りの候補（続きのページも辿る）。続きは imageinfo・coordinates の取り残しだけ辿る
+ * （geosearch の次の束へは進まない＝近い100件まで）。`call` はテストが模擬する
+ * @param {(base: string, params: Record<string,string>) => Promise<any>} [call]
+ */
+export async function geosearch(center, radiusM, call = api) {
+    const pages = await queryAllPages((params) => call(COMMONS, params), geosearchParams(center, radiusM), ["ggsoffset"]);
     return [...pages.values()];
 }
 
@@ -419,6 +438,130 @@ async function wikidataCoords(ids) {
         for (const [id, e] of Object.entries(r.entities ?? {})) {
             const v = e?.claims?.P625?.[0]?.mainsnak?.datavalue?.value;
             if (v) out.set(id, { lat: v.latitude, lng: v.longitude });
+        }
+    }
+    return out;
+}
+
+/**
+ * Wikidata の項目から、座標（P625）・代表画像（P18）・Commons のカテゴリ（P373）を Q-ID ごとに
+ * （50件ずつまとめて聞く。1回の要求で3つとも取れる）
+ * @returns {Promise<Map<string, { coords?: {lat:number,lng:number}; image?: string; category?: string }>>}
+ */
+async function wikidataFacts(ids) {
+    const out = new Map();
+    for (let i = 0; i < ids.length; i += 50) {
+        const r = await api(WIKIDATA, { action: "wbgetentities", ids: ids.slice(i, i + 50).join("|"), props: "claims" });
+        for (const [id, e] of Object.entries(r.entities ?? {})) out.set(id, parseWikidataEntity(e));
+    }
+    return out;
+}
+
+// ---- 撮影地の項目からの当て方（2026-10-03・精度） ------------------------------------
+
+/** 画像の情報だけを取る引数（geosearch と同じ項目・同じ言語。座標は取らない） */
+export function imageinfoParams() {
+    const g = geosearchParams({ lat: 0, lng: 0 }, MIN_RADIUS_M);
+    return {
+        action: "query", prop: "imageinfo", iiprop: g.iiprop, iiurlwidth: g.iiurlwidth,
+        iiextmetadatafilter: g.iiextmetadatafilter, iiextmetadatalanguage: g.iiextmetadatalanguage,
+    };
+}
+
+/** 題（"File:…"）を名指しして画像の情報を聞く引数。P18 の代表画像に使う（50件まで） */
+export function fileTitlesParams(titles) {
+    return { ...imageinfoParams(), titles: titles.join("|") };
+}
+
+/** P373（Commons のカテゴリ）の中のファイルを聞く引数（直下のファイルだけ・100件まで） */
+export function categoryParams(category) {
+    return { ...imageinfoParams(), generator: "categorymembers", gcmtitle: `Category:${category}`, gcmtype: "file", gcmlimit: "100" };
+}
+
+/** P180（写っているもの）が撮影地の項目のファイルを探す引数（Commons の構造化データ・50件まで） */
+export function depictsParams(qid) {
+    return { ...imageinfoParams(), generator: "search", gsrsearch: depictsSearch(qid), gsrnamespace: "6", gsrlimit: "50" };
+}
+
+/**
+ * 問い合わせの全ページを辿る。**続きは imageinfo の取り残しだけ**（`skip` の鍵＝ generator の
+ * 次の束へは進まない。カテゴリや検索の先頭の束だけで足りる）
+ * @param {(params: Record<string,string>) => Promise<any>} call
+ */
+export async function queryAllPages(call, params, skip = []) {
+    const pages = new Map();
+    let cont = {};
+    for (let i = 0; i < 20; i++) {
+        const r = await call({ ...params, ...cont });
+        for (const p of r?.query?.pages ?? []) {
+            const key = p.pageid ?? p.title;
+            const prev = pages.get(key) ?? {};
+            pages.set(key, { ...prev, ...p, imageinfo: p.imageinfo ?? prev.imageinfo, coordinates: p.coordinates ?? prev.coordinates });
+        }
+        if (!r?.continue) break;
+        const rest = Object.fromEntries(Object.entries(r.continue).filter(([k]) => !skip.includes(k)));
+        if (Object.keys(rest).filter((k) => k !== "continue").length === 0) break;
+        cont = rest;
+    }
+    return [...pages.values()];
+}
+
+/** 候補に「どこから見つかったか」を付ける */
+const tagVia = (list, via) => list.map((c) => ({ ...c, via: [via] }));
+
+/**
+ * **1つの撮影地の候補を集める。** 当てる順は
+ *   1. P18（代表画像）——`p18Page` は前もって 50 件ずつまとめて聞いたもの
+ *   2. P373（Commons のカテゴリ）の中のファイル
+ *   3. P180（写っているもの）が撮影地の項目のファイル
+ *   4. 半径検索（台帳の座標・Wikidata の座標の周り）
+ * 1〜3 だけで自動で採れる写真が `MAX_SAMPLES` 枚そろえば、4 は飛ばす（要求を減らす）。
+ * `excluded` にある写真（人の目で外したもの）は、ここで落とす
+ * @param {object} spot
+ * @param {{ qid?: string; facts?: { image?: string; category?: string }; p18Page?: any; centers: Array<{lat:number,lng:number}>;
+ *           radiusM: number; excluded?: Set<string>; call: (base: string, params: Record<string,string>) => Promise<any> }} o
+ */
+export async function collectSpotCandidates(spot, { qid, facts = {}, p18Page, centers, radiusM, excluded = new Set(), call }) {
+    const lists = [];
+    const rejected = { license: 0, noAuthor: 0, notPhoto: 0, noInfo: 0 };
+    const rejectedLicenses = {};
+    let found = 0;
+    const take = (pages, via) => {
+        found += pages.length;
+        const parsed = parseCommonsPages(pages);
+        lists.push(tagVia(parsed.candidates, via));
+        for (const k of Object.keys(rejected)) rejected[k] += parsed.rejected[k];
+        for (const [k, v] of Object.entries(parsed.rejectedLicenses)) rejectedLicenses[k] = (rejectedLicenses[k] ?? 0) + v;
+    };
+    const commons = (params) => call(COMMONS, params);
+    if (p18Page) take([p18Page], "p18");
+    if (facts.category) take(await queryAllPages(commons, categoryParams(facts.category), ["gcmcontinue"]), "category");
+    if (qid) take(await queryAllPages(commons, depictsParams(qid), ["gsroffset"]), "depicts");
+    const score = () => mergeCandidates(lists)
+        .filter((c) => !isExcluded(excluded, spot.spotId, c.file))
+        .map((c) => ({ ...c, ...scoreCandidate(spot, c) }));
+    let geoSkipped = false;
+    if (pickSamples(score()).length >= MAX_SAMPLES) geoSkipped = true;
+    else {
+        for (const center of centers) {
+            take(await geosearch(center, radiusM, call), "geo");
+        }
+    }
+    const scored = score().sort((a, b) => b.score - a.score || (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+    return { scored, found, rejected, rejectedLicenses, geoSkipped };
+}
+
+/**
+ * P18 の代表画像のページを、ファイル名（`fileKey`）ごとに（50件ずつまとめて聞く）
+ * @param {string[]} titles
+ * @param {(base: string, params: Record<string,string>) => Promise<any>} call
+ */
+export async function fetchFilePages(titles, call) {
+    const out = new Map();
+    const uniq = [...new Set(titles)];
+    for (let i = 0; i < uniq.length; i += 50) {
+        for (const p of await queryAllPages((params) => call(COMMONS, params), fileTitlesParams(uniq.slice(i, i + 50)))) {
+            if (!p.missing && p.imageinfo) out.set(fileKey(p.title), p);
         }
     }
     return out;
@@ -441,8 +584,8 @@ export async function safeWikidataCoords(ids, fetcher = wikidataCoords) {
 
 /** 候補ファイルに残す形（説明・種類は点数を付けるのに使うだけで残さない＝大きさを抑える） */
 export function forCandidatesFile(c) {
-    const { description: _d, mime: _m, ...rest } = c;
-    void _d; void _m;
+    const { description: _d, mime: _m, categories: _c, ...rest } = c;
+    void _d; void _m; void _c;
     return rest;
 }
 
@@ -529,8 +672,13 @@ export function buildSamplesFile(candidatesFile, spots, previous = {}, keep = fa
         const rescored = (entry.candidates ?? []).map((c) => {
             const r = scoreCandidate(spot, c);
             if (c.description === undefined && c.named && !r.named) {
-                const extra = r.reasons.filter((x) => (x === "向かない語" || x === "人・催し") && !(c.reasons ?? []).includes(x));
+                const extra = r.reasons.filter((x) => (x === "向かない語" || x === "人・催し" || x.startsWith(EXCLUDE_PREFIX)) && !(c.reasons ?? []).includes(x));
                 return { ...c, reasons: [...new Set([...(c.reasons ?? []), ...extra])], score: c.score - 4 * extra.length };
+            }
+            // カテゴリ・説明は候補ファイルに残さないので、それで外れた理由（除外:…）は前の結果を引き継ぐ
+            if (c.description === undefined && c.categories === undefined) {
+                const kept = (c.reasons ?? []).filter((x) => x.startsWith(EXCLUDE_PREFIX) && !r.reasons.includes(x));
+                return { ...c, ...r, reasons: [...r.reasons, ...kept], score: r.score - 4 * kept.length };
             }
             return { ...c, ...r };
         });
@@ -555,7 +703,9 @@ async function main(argv) {
         console.error("--prefecture=… か --slug=… か --all を付けてください");
         return 1;
     }
-    const candidatesFile = readJson(CANDIDATES_PATH, { spots: {} });
+    // 人の目で外した写真は、候補にあっても二度と選ばない（収集でも --pick-only でも）
+    const excluded = readExcluded(EXCLUDED_PATH);
+    const candidatesFile = withoutExcluded(readJson(CANDIDATES_PATH, { spots: {} }), excluded);
     const refresh = args.includes("--refresh");
     const targets = spots.filter((s) => s.status === "published"
         && (only ? only.includes(s.slug) : true)
@@ -569,40 +719,39 @@ async function main(argv) {
     if (!args.includes("--pick-only")) {
         const images = readJson(SPOT_IMAGES_PATH, {});
         const ids = [...new Set(targets.map((s) => images[s.slug]?.wikidata).filter(Boolean))];
-        // Wikidata は探す中心を足すだけ。落ちても台帳の座標で続ける（全体を止めない）
-        const wd = await safeWikidataCoords(ids);
+        // Wikidata は探す中心・代表画像・カテゴリを足すだけ。落ちても台帳の座標で続ける（全体を止めない）
+        const wd = await safeWikidataCoords(ids, wikidataFacts);
+        // P18（代表画像）は 50 件ずつまとめて先に聞く（1スポット1回にしない）
+        let p18Pages = new Map();
+        try {
+            p18Pages = await fetchFilePages([...wd.values()].map((f) => f.image).filter(Boolean), api);
+        } catch (e) {
+            console.log(`[p18] 代表画像を取れなかった（カテゴリ・半径検索で続ける）: ${e?.message ?? e}`);
+        }
         const today = new Date().toISOString().slice(0, 10);
         let n = 0;
         for (const spot of targets) {
             n++;
-            const centers = searchCenters(spot, wd.get(images[spot.slug]?.wikidata));
-            const lists = [];
-            const rejected = { license: 0, noAuthor: 0, notPhoto: 0, noInfo: 0 };
-            const rejectedLicenses = {};
-            let found = 0;
+            const qid = images[spot.slug]?.wikidata;
+            const facts = wd.get(qid) ?? {};
+            const centers = searchCenters(spot, facts.coords);
+            let collected;
             try {
-                for (const center of centers) {
-                    const pages = await geosearch(center, radiusM);
-                    found += pages.length;
-                    const parsed = parseCommonsPages(pages);
-                    lists.push(parsed.candidates);
-                    for (const k of Object.keys(rejected)) rejected[k] += parsed.rejected[k];
-                    for (const [k, v] of Object.entries(parsed.rejectedLicenses)) rejectedLicenses[k] = (rejectedLicenses[k] ?? 0) + v;
-                }
+                collected = await collectSpotCandidates(spot, {
+                    qid, facts, p18Page: facts.image ? p18Pages.get(fileKey(facts.image)) : undefined,
+                    centers, radiusM, excluded, call: api,
+                });
             } catch (e) {
                 console.log(`[${n}/${targets.length}] ${spot.slug}: error ${e.message}`);
                 continue;
             }
-            const scored = mergeCandidates(lists).map((c) => {
-                const { score, reasons, named } = scoreCandidate(spot, c);
-                return { ...c, score, reasons, named };
-            }).sort((a, b) => b.score - a.score || (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+            const { scored, found, rejected, rejectedLicenses, geoSkipped } = collected;
             // 自動で採るものは必ず残し、残りの枠を点数の高い順に埋める
             const picked = new Set(pickSamples(scored).map((c) => c.file));
             const candidates = trimCandidates(scored).map(forCandidatesFile);
             candidatesFile.spots[spot.spotId] = {
                 slug: spot.slug, name: spot.name, prefecture: spot.region?.prefecture ?? spot.region?.country ?? "",
-                searchedAt: today, radiusM, centers, filesFound: found,
+                searchedAt: today, radiusM, centers, ...(geoSkipped ? { geoSkipped: true } : {}), filesFound: found,
                 usable: scored.length, named: scored.filter((c) => c.named).length,
                 rejected, rejectedLicenses, candidates,
             };
