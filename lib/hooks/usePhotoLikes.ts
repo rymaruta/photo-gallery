@@ -96,8 +96,16 @@ export function usePhotoLikes(
             try {
                 const res = await userFetch(`/user/likes/${encodeURIComponent(photoId)}`, { signal: controller.signal });
                 if (!res.ok) return;
-                const data = await res.json() as { liked?: boolean };
-                if (!aborted && !touchedRef.current && typeof data.liked === "boolean") setServerLiked(data.liked);
+                const data = await res.json() as { liked?: boolean; count?: unknown };
+                if (aborted || touchedRef.current) return;
+                if (typeof data.liked === "boolean") setServerLiked(data.liked);
+                // **いいね数も、見てよい相手のときだけ一緒に来る**（S-1）。公開範囲を
+                // 絞った写真では未認証の `/photos/{id}/like` が 404 になるので、
+                // フォロワーが数を見る道はここだけ。**無いときは 0 と読まず今の値を保つ**
+                // （見せない相手・読めなかった回。iOS と同じ扱い）
+                if (typeof data.count === "number" && Number.isFinite(data.count) && data.count >= 0) {
+                    setCount(data.count);
+                }
             } catch { /* 端末のお気に入りのまま */ }
         })();
         return () => { aborted = true; controller.abort(); };

@@ -91,6 +91,69 @@ describe("useComments: 一覧を読む口（S-1）", () => {
         expect(mockUserPublicFetch).not.toHaveBeenCalled();
     });
 
+    // ログイン状態の確定前に未認証の口で読むと、限定写真は 404 で
+    // 「読み込めませんでした」が一瞬出て、確定後にもう一度読む
+    it("ログインが確定するまで読まない・確定後に1回だけ認証つきで読む・失敗を一瞬も出さない", async () => {
+        mockList([comment("c1")], 1);
+        // 未認証の口は限定写真で断る（呼ばれたら失敗表示になる）
+        mockUserPublicFetch.mockResolvedValue(notFound({ error: "写真が見つかりません" }));
+        const seenError: boolean[] = [];
+        const { result, rerender } = renderHook(({ auth, authLoading }) => {
+            const r = useComments("p1", auth, 0, authLoading);
+            seenError.push(r.loadError);
+            return r;
+        }, { initialProps: { auth: false, authLoading: true } });
+        // 確定前は読み込み中のまま、どちらの口も呼ばない
+        await act(async () => { await Promise.resolve(); });
+        expect(result.current.loading).toBe(true);
+        expect(mockUserPublicFetch).not.toHaveBeenCalled();
+        expect(mockAuthedList).not.toHaveBeenCalled();
+
+        rerender({ auth: true, authLoading: false });
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        expect(mockAuthedList, "二重に読んでいる").toHaveBeenCalledTimes(1);
+        expect(mockUserPublicFetch).not.toHaveBeenCalled();
+        expect(seenError, "「読み込めませんでした」が一瞬出ている").not.toContain(true);
+    });
+
+    it("読み直す回は読み込み中に戻す", async () => {
+        mockList([comment("c1")], 1);
+        const { result, rerender } = renderHook(({ id }) => useComments(id, true, 0), { initialProps: { id: "p1" } });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        let resolve: (v: unknown) => void = () => {};
+        mockAuthedList.mockReturnValue(new Promise((r) => { resolve = r; }));
+        rerender({ id: "p2" });
+        await waitFor(() => expect(result.current.loading).toBe(true));
+        await act(async () => { resolve({ ok: true, json: async () => ({ items: [], count: 0 }) }); });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+    });
+
+    // 公開写真のコメントまで失敗表示にしない
+    it.each([
+        ["トークンが取れない", () => mockAuthedList.mockRejectedValue(new Error(AUTH_REQUIRED_MESSAGE))],
+        ["Cognito に届かない", () => mockAuthedList.mockRejectedValue(new Error(NETWORK_UNREACHABLE_MESSAGE))],
+        ["401", () => mockAuthedList.mockResolvedValue({
+            ok: false, status: 401, json: async () => ({ message: "Unauthorized" }),
+            clone: () => ({ json: async () => ({ message: "Unauthorized" }) }),
+        })],
+    ])("認証つきの口が使えない（%s）なら未認証の口に戻る", async (_label, arrange) => {
+        mockList([comment("c1")], 1);
+        arrange();
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        expect(result.current.loadError).toBe(false);
+        expect(mockUserPublicFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("理由の分からない例外では戻らない（失敗として出す）", async () => {
+        mockList([comment("c1")], 1);
+        mockAuthedList.mockRejectedValue(new TypeError("Failed to fetch"));
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.loadError).toBe(true);
+        expect(mockUserPublicFetch).not.toHaveBeenCalled();
+    });
+
     it("ログインしたら認証つきの口で読み直す", async () => {
         mockList([comment("c1")], 1);
         const { result, rerender } = renderHook(({ auth }) => useComments("p1", auth, 0), {
