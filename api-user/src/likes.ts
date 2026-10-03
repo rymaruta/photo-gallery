@@ -6,6 +6,7 @@ import { pushNotification, lookupDisplayName } from "./notify";
 import { updateUserList, readUserList } from "./userList";
 import { canViewPhoto } from "./restrictedFeed";
 import { isRestrictedRow } from "./sanitize";
+import { isBlocked } from "./blockCheck";
 
 // いいねはアグリゲート数を写真レコードの `likes` 属性に持ち、
 // 二重カウント防止のために「誰がいいねしたか」をマーカー item で記録する。
@@ -293,6 +294,25 @@ async function incrementLikes(photoId: string, viewerId: string) {
     }
 }
 
+/**
+ * 付けたばかりのいいねを戻す（ブロックされた人の回・`likePhoto`）。
+ *
+ * 数は 0 を下回らない条件で −1、印は消す。**戻せなくても投げない**——
+ * 数が1つ多く残るだけで、押した人には 404 が返り、通知も一覧も足さない
+ */
+async function undoLike(photoId: string, userId: string): Promise<void> {
+    await ddb.send(new UpdateCommand({
+        TableName: PHOTOS_TABLE,
+        Key: { id: photoId },
+        UpdateExpression: "SET likes = likes - :one",
+        ConditionExpression: "attribute_exists(likes) AND likes > :z",
+        ExpressionAttributeValues: { ":one": 1, ":z": 0 },
+    })).catch((e) => { console.error("undoLike decrement:", e); });
+    await ddb.send(new DeleteCommand({
+        TableName: PHOTOS_TABLE, Key: { id: markerId(photoId, userId) },
+    })).catch((e) => { console.error("undoLike marker:", e); });
+}
+
 // POST /photos/{id}/like — いいね（認証必要・冪等）
 export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
@@ -345,13 +365,42 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         try {
             const res = await incrementLikes(photoId, userId);
             const likes = (res.Attributes?.likes as number | undefined) ?? 1;
+            const photo = res.Attributes as { userId?: string; uploadedBy?: string; src?: string; thumbSrc?: string; location?: string } | undefined;
+
+            // 🔴 **持ち主にブロックされた人のいいねは戻して 404**（2026-10-03）。
+            // 公開範囲を絞った写真は `canViewPhoto` がブロックを見るが、公開の写真は
+            // 写真を読まずに1回の更新で通すので、**ブロックされた人も数を増やせた**
+            // （通知だけは `notify.ts` で止まっていた）。コメントの投稿（`comments.ts`）と
+            // 同じく「持ち主がこの人をブロックしているか」を見て、同じ 404 を返す。
+            // 判定は更新の**後**——前に置くと持ち主を知るために写真を読む1回が
+            // 全員のいいねに増える。ここで増えるのは印の GetItem 1回だけ
+            const blockOwnerRaw = photo?.userId ?? photo?.uploadedBy;
+            const blockOwner = blockOwnerRaw ? String(blockOwnerRaw) : undefined;
+            //
+            // 🔴 **判定の読みが失敗しても、下の catch に落とさない。** 数はもう +1 済みなので、
+            // catch がスロットリングなどを「確実に未適用」と見て印だけ消すと、
+            // **誰にも減らせない +1** が残る。読めなければ閉じる（通さない）——
+            // いいねを戻して 500 を返し、押し直してもらう
+            if (blockOwner && blockOwner !== userId) {
+                let blocked: boolean;
+                try {
+                    blocked = await isBlocked(blockOwner, userId);
+                } catch (e) {
+                    console.error("likePhoto isBlocked:", e);
+                    await undoLike(photoId, userId);
+                    return jsonError(500, "いいねできませんでした。もう一度お試しください");
+                }
+                if (blocked) {
+                    await undoLike(photoId, userId);
+                    return jsonError(404, "写真が見つかりません");
+                }
+            }
 
             // 「自分がいいねした写真」の一覧に足す（表示用の索引）
             await noteLiked(userId, photoId, true);
 
             // 投稿者へ「いいねされました」通知（自分の写真は除く）。
             // 初回いいね（マーカー新規作成）の時だけここに到達するので連打では鳴らない
-            const photo = res.Attributes as { userId?: string; uploadedBy?: string; src?: string; thumbSrc?: string; location?: string } | undefined;
             // **所有者は `userId ?? uploadedBy`。** `userId` が入る前に保存された
             // 古い行は `uploadedBy` しか持たない（`ddb-photos.ts:75` ほかが
             // 前提にしている形）。ここだけ `userId` 単独だったので、
