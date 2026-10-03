@@ -93,7 +93,7 @@ describe("アプリ向けの本文", () => {
         const file: SpotSamplesFile = { [h.spotId]: { slug: "h", name: "h", samples: [rec, { ...rec, file: "File:B.jpg", license: "CC BY-NC 2.0" }] } };
         const body = toSpotBody(h, file)!;
         expect(body.samples).toEqual([{
-            src: rec.thumbUrl, width: 1280, height: 853, author: "撮った人", license: "CC BY-SA 4.0",
+            src: rec.thumbUrl, width: 1280, height: 853, title: "A", author: "撮った人", license: "CC BY-SA 4.0",
             licenseUrl: rec.licenseUrl, sourceUrl: rec.pageUrl,
         }]);
         // 前からある鍵は変わらない（いまのアプリはこの鍵を知らないので読み飛ばす）

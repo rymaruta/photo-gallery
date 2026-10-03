@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { ToastProvider } from "../../../lib/hooks/useToast";
 import type { Spot } from "@/lib/data/spots";
 import type { SpotSample } from "@/lib/data/spotSamples";
@@ -29,12 +29,12 @@ const SAMPLES: SpotSample[] = [
     {
         src: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/A.jpg/1280px-A.jpg", width: 1280, height: 853,
         author: "Romain Pontida", license: "CC BY-SA 2.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0",
-        sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+        sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg", title: "Kinkaku-ji 金閣寺",
     },
     {
         src: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/B.jpg/1280px-B.jpg", width: 1280, height: 960,
         author: "作者不明", license: "Public domain",
-        sourceUrl: "https://commons.wikimedia.org/wiki/File:B.jpg",
+        sourceUrl: "https://commons.wikimedia.org/wiki/File:B.jpg", title: "B",
     },
 ];
 
@@ -60,14 +60,16 @@ describe("作例（Wikimedia Commons より）", () => {
         const [a, b] = Array.from(figures);
 
         const capA = within(a as HTMLElement).getByTestId("spot-sample-credit");
-        expect(capA.textContent).toBe("写真: Romain Pontida / CC BY-SA 2.0 / Wikimedia Commons");
+        expect(capA.textContent).toBe("Kinkaku-ji 金閣寺 / 写真: Romain Pontida / CC BY-SA 2.0 / Wikimedia Commons");
+        // 題（TASL の T）を出す
+        expect(capA.querySelector("cite")?.textContent).toBe("Kinkaku-ji 金閣寺");
         expect(within(capA).getByRole("link", { name: "CC BY-SA 2.0" }).getAttribute("href")).toBe("https://creativecommons.org/licenses/by-sa/2.0");
         expect(within(capA).getByRole("link", { name: "CC BY-SA 2.0" }).getAttribute("rel")).toContain("license");
         expect(within(capA).getByRole("link", { name: "Wikimedia Commons" }).getAttribute("href")).toBe("https://commons.wikimedia.org/wiki/File:A.jpg");
 
         // パブリックドメイン（文面の URL が無い）は名前を文字で出し、出典のリンクは必ず出す
         const capB = within(b as HTMLElement).getByTestId("spot-sample-credit");
-        expect(capB.textContent).toBe("写真: 作者不明 / Public domain / Wikimedia Commons");
+        expect(capB.textContent).toBe("B / 写真: 作者不明 / Public domain / Wikimedia Commons");
         expect(within(capB).queryByRole("link", { name: "Public domain" })).toBeNull();
         expect(within(capB).getByRole("link", { name: "Wikimedia Commons" }).getAttribute("href")).toBe("https://commons.wikimedia.org/wiki/File:B.jpg");
     });
@@ -82,6 +84,16 @@ describe("作例（Wikimedia Commons より）", () => {
         expect(img.getAttribute("height")).toBe("853");
         expect(img.className).not.toContain("object-cover");
         expect(img.getAttribute("alt")).toContain("Romain Pontida");
+    });
+
+    it("読み込めなかった1枚は出典ごと隠し、全部読めなければ節ごと隠す", () => {
+        view(SAMPLES);
+        const imgs = () => screen.getByTestId("spot-samples").querySelectorAll("img");
+        fireEvent.error(imgs()[0]);
+        expect(imgs()).toHaveLength(1);
+        expect(screen.getByTestId("spot-samples").textContent).not.toContain("Romain Pontida");
+        fireEvent.error(imgs()[0]);
+        expect(screen.queryByTestId("spot-samples")).toBeNull();
     });
 
     it("作例が無ければ節ごと出さない", () => {
