@@ -425,7 +425,7 @@ functions:
   # **未認証で読める口。** 招待を開いた瞬間にログインを求めると、
   # 拡散の輪がそこで切れる。既定の共有ロール（削除権つき）ではなく
   # 読み取り専用へ——この口は招待の行とアルバムの行を GetItem するだけで、
-  # PublicReadRole の権限（写真テーブルは GetItem のみ）に収まるように
+  # PublicReadRole の権限（写真テーブルは GetItem のみ。索引の Query は持たない）に収まるように
   # キーの形を決めてある。
   getInvite:
     handler: src/albums.getInvite
@@ -460,6 +460,20 @@ functions:
     events:
       - httpApi:
           path: /photos/{id}/like
+          method: GET
+
+  # 公開写真の一覧をページで返す（新しい順・カーソル方式）。`photos.json` と
+  # 同じ項目で、続きのページをアプリが引く口。既存の索引
+  # `publicFeed-createdAt-index` の仕切り "1" を Query するだけ（索引は足さない）
+  getFeed:
+    handler: src/feed.getFeed
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく、この口専用の
+    # 読み取りロールへ。索引の Query を共有の PublicReadRole に足すと、
+    # 他の公開口（getInvite など）まで公開一覧の索引を読めてしまうので分けた
+    role: PublicFeedRole
+    events:
+      - httpApi:
+          path: /feed
           method: GET
 
   # 自分がいいね済みかどうか。公開の getLikeCount とは別口にする
@@ -1142,6 +1156,47 @@ resources:
                     - dynamodb:PutItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+
+    # 公開写真のページ（getFeed）専用。未認証で呼べるので、持たせるのは
+    # getFeed が実際に使うものだけ: ログ・公開一覧の索引の Query・
+    # users テーブルの GetItem（表示名をいまの値に差し替える）。
+    # 写真テーブル本体の GetItem / Scan・他の索引・書き込みは持たない
+    PublicFeedRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-publicFeed
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: publicFeed
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                # **索引を名指し**する——`index/*` にすると
+                # 他の索引（userId-createdAt＝下書きも載る）まで読める
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Query
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/publicFeed-createdAt-index
+                # 表示名をいまの値に（feed.ts の withCurrentDisplayNames）
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
 
     PublicReadRole:
       Type: AWS::IAM::Role
