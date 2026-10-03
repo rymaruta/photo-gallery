@@ -12,6 +12,7 @@ import { hiddenUserIds } from "./blockCheck";
 import { followingId } from "./followCheck";
 // **画像の URL に期限を付ける。** 鍵が無い環境では何もしない（`signedUrl.ts`）
 import { signPhotoImages } from "./signedUrl";
+import { stripPrivate } from "./privateFields";
 
 /**
  * GET /feed/restricted — 公開範囲を絞った写真のうち、**自分に見えるぶん**。
@@ -31,9 +32,7 @@ import { signPhotoImages } from "./signedUrl";
 export const MAX_ITEMS = 200;
 
 /**
- * **外に出さない項目。** `lib/server/photos.ts` ／ `api/src/photos.ts` ／
- * `scripts/sync-photos-from-ddb.js` と同じ一覧で、
- * `scripts/__tests__/privateFieldsParity.test.ts` が突き合わせる。
+ * **外に出さない項目は `privateFields.ts` が持つ**（公開の一覧 `GET /feed` と共用）。
  *
  * ここは**見せてよい相手にだけ返す口**だが、それは「行をそのまま渡してよい」
  * という意味ではない。とくに `srcOriginal` は **EXIF を落とす前の原本**（GPS 入り）
@@ -42,14 +41,7 @@ export const MAX_ITEMS = 200;
  * 同じ考えを `api-user/src/albums.ts` が先に書いている（招いた相手にだけ返す口で、
  * 表示に要る項目だけを組み直している）。**ここだけ生の行を返していた。**
  */
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
-
-/** 行から外に出さない項目を落とす（渡すのは写し。元の行は触らない） */
-export function stripPrivate(item: Record<string, unknown>): Record<string, unknown> {
-    const out = { ...item };
-    for (const f of PRIVATE_FIELDS) delete out[f];
-    return out;
-}
+export { stripPrivate };
 
 export const getRestrictedFeed: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
