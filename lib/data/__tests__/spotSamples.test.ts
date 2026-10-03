@@ -8,8 +8,9 @@ import {
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, hasPdBasis, pdBasisOf, photoLicenseOf,
 } from "../../utils/commonsAttribution.mjs";
+import { spotStructuredData } from "../spotSeo";
 import { commonsThumbAt, commonsSrcSet } from "../../utils/commonsThumb";
 
 /**
@@ -54,7 +55,7 @@ describe("1枚を表示の形へ", () => {
         expect(sampleLicenseKind("CC BY 2.0")).toBe("cc-by");
         expect(toSpotSample({ ...REC, license: "CC-BY-SA-3.0" })?.license).toBe("CC-BY-SA-3.0");
         expect(toSpotSample({ ...REC, license: "CC0", licenseUrl: undefined })).toBeTruthy();
-        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined })).toBeTruthy();
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self" })).toBeTruthy();
     });
 
     it("🔴 作者が空・CC BY 系で文面の URL が無い・出典や画像が Commons でないものは落とす", () => {
@@ -110,7 +111,7 @@ describe("スポットの作例", () => {
             "@type": "ImageObject",
             name: "A",
             contentUrl: REC.thumbUrl, width: 1280, height: 853,
-            creator: { name: "撮った人" },
+            creator: { "@type": "Person", name: "撮った人" },
             creditText: "撮った人 / CC BY-SA 4.0 / Wikimedia Commons",
             license: "https://creativecommons.org/licenses/by-sa/4.0",
             acquireLicensePage: REC.pageUrl,
@@ -129,7 +130,7 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
     });
 
     it("パブリックドメイン・CC0 は決まり文句なら「作者不明」。飾り（( talk )・Taken with）は落とす", () => {
-        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, author: "Unknown author" })?.author).toBe("作者不明");
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self", author: "Unknown author" })?.author).toBe("作者不明");
         expect(toSpotSample({ ...REC, author: "photo: Qurren ( talk ) Taken with Canon IXY 10S (Digital IXUS 210)" })?.author).toBe("Qurren");
         expect(toSpotSample({ ...REC, author: "そらみみ This photo was taken with iPhone 5" })?.author).toBe("そらみみ");
         expect(toSpotSample({ ...REC, author: "User:MatthiasKabel" })?.author).toBe("MatthiasKabel");
@@ -174,10 +175,97 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
     });
 
     it("構造化データ: 作者不明なら creator を書かない・パブリックドメインは Public Domain Mark", () => {
-        const pd = sampleImageObject(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, author: "Unknown author" })!);
+        const pd = sampleImageObject(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self", author: "Unknown author" })!);
         expect(pd).not.toHaveProperty("creator");
         expect(pd.license).toBe(PUBLIC_DOMAIN_MARK_URL);
-        expect(sampleImageObject(toSpotSample(REC)!).creator).toEqual({ name: "撮った人" });
+        expect(sampleImageObject(toSpotSample(REC)!).creator).toEqual({ "@type": "Person", name: "撮った人" });
+        // 団体と分かる名前は Organization
+        const army = toSpotSample({ ...REC, author: "France. Section photographique des armées (Army Photography Section of France)" })!;
+        expect(sampleImageObject(army).creator).toEqual({ "@type": "Organization", name: army.author });
+    });
+});
+
+describe("パブリックドメインの根拠（レビュー #275 の 1）", () => {
+    const PD: SpotSampleRecord = { ...REC, license: "Public domain", licenseUrl: undefined };
+
+    it("🔴 根拠のテンプレートが分からない \"Public domain\" は出さない（PD-US と見分けられない）", () => {
+        expect(toSpotSample(PD)).toBeUndefined();
+        expect(toSpotSample({ ...PD, licenseCode: "pd" })).toBeUndefined(); // extmetadata の総称
+        expect(toSpotSample({ ...PD, licenseCode: "PD-self" })).toBeTruthy();
+    });
+
+    it("🔴 アメリカだけの根拠（PD-US-expired・PD-USGov-…）は出さない。PD-user は PD-US ではない", () => {
+        for (const code of ["PD-US-expired", "PD-USGov-POTUS", "PD-US", "pd-us-no-notice"]) {
+            expect(toSpotSample({ ...PD, licenseCode: code }), code).toBeUndefined();
+        }
+        expect(isUsOnlyPublicDomain("Public domain", "PD-user")).toBe(false);
+        expect(toSpotSample({ ...PD, licenseCode: "PD-user" })).toBeTruthy();
+        expect(isUsOnlyPublicDomain("Public domain", "PD-USGov")).toBe(true);
+    });
+
+    it("表示の名前に根拠を添える（Public domain (PD-Japan)）。種類の判定は括弧を見ない", () => {
+        expect(toSpotSample({ ...PD, licenseCode: "PD-Japan" })?.license).toBe("Public domain (PD-Japan)");
+        expect(sampleLicenseKind("Public domain (PD-Japan)")).toBe("public-domain");
+        expect(sampleImageObject(toSpotSample({ ...PD, licenseCode: "PD-Japan" })!).license).toBe(PUBLIC_DOMAIN_MARK_URL);
+        // CC の表示は変えない
+        expect(toSpotSample(REC)?.license).toBe("CC BY-SA 4.0");
+    });
+
+    it("根拠はページのテンプレートから選ぶ: 部品は除き、日本でも通る根拠を先に", () => {
+        expect(pdBasisOf(["Template:PD-Layout", "Template:PD-self", "Template:Self"])).toBe("PD-self");
+        // PD-Japan と PD-US-expired の両方が付く古写真は日本の根拠で使える
+        expect(pdBasisOf(["Template:PD-Japan", "Template:PD-Japan/en", "Template:PD-US-expired-text",
+            "Template:PD-old-X-expired", "Template:PD-old-auto-expired", "Template:PD-two", "Template:PD-Layout"])).toBe("PD-Japan");
+        // アメリカの根拠しか無ければそれを返す（表示で落ちる）
+        expect(pdBasisOf(["Template:PD-Layout", "Template:PD-USGov-POTUS", "Template:PD-USGov-POTUS/en"])).toBe("PD-USGov-POTUS");
+        // 転送の名前（Pd-old）は PD- にそろえる・根拠が無ければ undefined
+        expect(pdBasisOf(["Template:Pd-old", "Template:PD-old-text"])).toBe("PD-old");
+        expect(pdBasisOf(["Template:PD-Layout", "Template:Information"])).toBeUndefined();
+        expect(pdBasisOf([])).toBeUndefined();
+    });
+
+    it("🔴 日本でも通る根拠を先に: PD-Yugoslavia＋PD-US-expired は PD-Yugoslavia（名前の順に関係なく）", () => {
+        expect(pdBasisOf(["Template:PD-US-expired", "Template:PD-Yugoslavia"])).toBe("PD-Yugoslavia");
+        expect(pdBasisOf(["Template:PD-Yugoslavia", "Template:PD-US-expired"])).toBe("PD-Yugoslavia");
+        expect(pdBasisOf(["Template:PD-USGov", "Template:PD-Art"])).toBe("PD-Art");
+    });
+
+    it("🔴 CC・GFDL が一緒に付く PD: 写真そのものが CC BY なら CC BY、決められなければ表示しない", () => {
+        // 若狭の歌碑（File:Wakasa Kouta.jpg・2026-10-03 に取ったテンプレートの並び）。
+        // 歌は PD-Japan、写真は Self＋Cc-by-3.0＋GFDL で、作者の欄は歌の作者（野口雨情）＝決められない
+        const wakasa = ["Cc-by-3.0", "Cc-by-layout", "Cc-pd-mark-footer", "City", "Creator", "GFDL", "GNU-Layout",
+            "Information", "PD-1996-text", "PD-Japan", "PD-Layout", "PD-old-X-1996", "PD-old-auto-1996", "PD-old-text",
+            "PD-old-warning-text", "PD-two", "SDC-PD-old", "Self", "Taken on", "URAA-date"].map((t) => `Template:${t}`);
+        expect(photoLicenseOf(wakasa)).toEqual({ kind: "unknown", code: "mixed:PD-Japan,Cc-by-3.0,GFDL" });
+        expect(toSpotSample({ ...PD, author: "野口雨情", licenseCode: "mixed:PD-Japan,Cc-by-3.0,GFDL" })).toBeUndefined();
+        // 桂浜の龍馬像（Art Photo: 像は PD-Japan、写真は Cc-by-3.0）
+        expect(photoLicenseOf(["Art Photo", "Cc-by-3.0", "Cc-by-layout", "Cc-pd-mark-footer", "PD-Japan", "PD-US-expired-text", "PD-two"]))
+            .toEqual({ kind: "cc", license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", code: "cc-by-3.0" });
+        // プラハ城の展示（Self-photographed＋Cc-by-3.0-de）
+        expect(photoLicenseOf(["Cc-by-3.0-de", "Cc-by-layout", "Cc-country-flags", "Own photograph", "PD-old", "Pd-old", "Self-photographed"]))
+            .toMatchObject({ kind: "cc", license: "CC BY 3.0 de", licenseUrl: "https://creativecommons.org/licenses/by/3.0/de/" });
+        // CC0 が付く・写真の印が無いものも決めない
+        expect(photoLicenseOf(["Art Photo", "Cc-zero", "PD-old"]).kind).toBe("unknown");
+        expect(photoLicenseOf(["Cc-by-sa-4.0", "PD-old"]).kind).toBe("unknown");
+        // 部品（Cc-pd-mark-footer・Cc-by-layout）だけなら PD のまま
+        expect(photoLicenseOf(["Cc-pd-mark-footer", "PD-old", "PD-Layout"])).toEqual({ kind: "pd", code: "PD-old" });
+    });
+
+    it("🔴 リポジトリの確定ファイル: パブリックドメインの行はどれも根拠を持つか、決められない印（mixed:）が付く", () => {
+        const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples)
+            .filter((r) => sampleLicenseKind(r.license) === "public-domain");
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.filter((r) => !hasPdBasis(r.licenseCode) && !String(r.licenseCode ?? "").startsWith("mixed:")).map((r) => r.file)).toEqual([]);
+    });
+
+    it("🔴 リポジトリの確定ファイル: 若狭の歌碑は表示しない・桂浜の龍馬像は CC BY 3.0（撮影者 baggio4ever）", () => {
+        const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples);
+        const wakasa = rows.find((r) => r.file === "File:Wakasa Kouta.jpg");
+        if (wakasa) expect(toSpotSample(wakasa)).toBeUndefined();
+        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file));
+        for (const r of ryoma) {
+            expect(toSpotSample(r)).toMatchObject({ license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", author: "baggio4ever" });
+        }
     });
 });
 
@@ -206,6 +294,7 @@ describe("リポジトリの確定ファイル", () => {
         const author = cleanCommonsAuthor(String(r.author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
         const by = /^cc[-\s]by/i.test(r.license);
         return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
+            || String(r.licenseCode ?? "").startsWith("mixed:")
             || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file));
     };
 
@@ -228,12 +317,37 @@ describe("リポジトリの確定ファイル", () => {
     });
 });
 
-describe("撮影地ページの構造化データへの渡し方（レビュー #272 の 5）", () => {
-    it("🔴 構造化データには人が選んだ作例だけを渡す（reviewedOnly）。画面には機械の選んだものも出す", async () => {
+describe("撮影地ページの構造化データへの渡し方（レビュー #275 の 2）", () => {
+    it("🔴 構造化データには画面に出す作例を全部渡す（自動で選んだものも）", async () => {
         const fs = await import("node:fs");
         const src = fs.readFileSync(`${__dirname}/../../../app/components/SpotGuidePage.tsx`, "utf8");
-        expect(src).toMatch(/const reviewedSamples = spotSamples\(spot, \{[^}]*reviewedOnly: true/);
-        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverUrl, samples: reviewedSamples \}\)/);
+        expect(src).toMatch(/const samples = spotSamples\(spot, \{ exclude: \[cover\?\.sourceUrl\] \}\);/);
+        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverUrl, samples \}\)/);
         expect(src).toMatch(/samples=\{samples\}/);
+        expect(src).not.toMatch(/reviewedOnly/);
+    });
+
+    it("🔴 実データ: 画面に出す作例は全部 ImageObject になり、ライセンス・出典・表示の文字を持つ", () => {
+        const ledger = rawLedger as unknown as Spot[];
+        let autoCount = 0;
+        let checked = 0;
+        for (const spotId of Object.keys(rawSamples)) {
+            const spot = ledger.find((s) => s.spotId === spotId);
+            if (!spot || !isPublished(spot)) continue;
+            const shown = spotSamples(spot);
+            const data = spotStructuredData(spot, { image: "https://example.com/c.jpg", samples: shown });
+            const objects = shown.length > 0 ? (data.image as unknown[]).slice(1) as ReturnType<typeof sampleImageObject>[] : [];
+            expect(objects.map((o) => o.contentUrl), spot.slug).toEqual(shown.map((s) => s.src));
+            for (const o of objects) {
+                expect(o.license, `${spot.slug} ${o.name}`).toMatch(/^https:\/\//);
+                expect(o.acquireLicensePage).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+                expect(o.creditText).toMatch(/ \/ .+ \/ Wikimedia Commons$/);
+                checked++;
+            }
+            const recs = (rawSamples as unknown as SpotSamplesFile)[spotId].samples;
+            autoCount += shown.filter((s) => recs.find((r) => r.pageUrl.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
+        }
+        expect(checked).toBeGreaterThan(1000);
+        expect(autoCount).toBeGreaterThan(0); // 自動で選んだ作例も入っている
     });
 });
