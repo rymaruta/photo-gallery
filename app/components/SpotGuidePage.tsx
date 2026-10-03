@@ -13,6 +13,7 @@
 import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
+import { spotSamples } from "@/lib/data/spotSamples";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
@@ -80,7 +81,12 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
         : undefined;
     // 観光地の構造化データは**人が確かめた行だけ**（下書きを建てる設定のとき、noindex の
     // ページから「確かな場所」として読ませない）
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl }) : null;
+    // 作例（Wikimedia Commons の自由に使える写真）。代表写真と同じ写真は2度出さない
+    const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });
+    // 構造化データ（検索に「この場所の写真」として渡す）には、人が選んだ作例だけを入れる
+    // （機械が名前の一致で選んだものは、別の場所が写っている余地がある）
+    const reviewedSamples = spotSamples(spot, { exclude: [cover?.sourceUrl], reviewedOnly: true });
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl, samples: reviewedSamples }) : null;
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
@@ -100,6 +106,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
                 pageUrl={spotPageUrl(spot)}
                 light={light}
+                samples={samples}
             />
         </>
     );

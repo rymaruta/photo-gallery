@@ -32,6 +32,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripHtml } from "../lib/utils/commonsAttribution.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -95,19 +96,11 @@ export function creditFor(author, license) {
     return isPublicDomain(license) ? "作者不明" : null;
 }
 
-/** 作者の欄（HTML）を平文にする。リンク・タグ・実体参照を剥がし、空白を畳む */
-export function stripHtml(html) {
-    return String(html ?? "")
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, "\"")
-        .replace(/&#0?39;/g, "'")
-        .replace(/\s+/g, " ")
-        .trim();
-}
+/**
+ * 作者の欄（HTML）を平文にする。リンク・タグを剥がし、実体参照を**1回だけ**ほどき（数字の参照も）、
+ * 空白を畳む。中身は `lib/utils/commonsAttribution.mjs`（作例の収集・表示と同じ1本）
+ */
+export { stripHtml };
 
 /** 検索に使う名前。**全角の括弧書きは外す**（「清水渓流広場（濃溝の滝…）」→「清水渓流広場」）＋別名 */
 export function searchNames(spot) {
