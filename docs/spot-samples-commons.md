@@ -64,6 +64,12 @@ Wikimedia Commons で自由なライセンスのもと公開されている写�
     `node scripts/collect-commons-samples.mjs --refresh-licenses`（`licenseCode` 以外は触らない）
   - **根拠の分からないパブリックドメインは表示しない**（`toSpotSample`）
   - 画面の表示は根拠を添える（`Public domain (PD-self)`）
+  - 🔴 **CC BY・CC0・GFDL のテンプレートも一緒に付く PD は、PD として扱わない**（`photoLicenseOf`）。多くは
+    「写っている美術品・文章が PD、写真そのものは CC BY」。写真の欄の印（Art Photo・Self-photographed・
+    Own photograph）があって CC BY が1つだけなら写真は CC BY として出す（文面のリンクつき・作者は撮影者）。
+    決められなければ `licenseCode` に `mixed:…` を書き、表示しない。2026-10-03: 桂浜の龍馬像 2 枚 → CC BY 3.0、
+    若狭の歌碑（GFDL も付き、作者の欄が歌の作者）→ 表示しない
+  - 構造化データの `creator` は `Person`。団体と分かる名前だけ `Organization`（`isOrganizationName`）
   - 2026-10-03 の取り直しの結果: PD-self 43・PD-author-FlickrPDM 8・PD-Japan 3・PD-Japan-oldphoto 2・
     PD-old 2・PD-user 1・**PD-USGov-POTUS 1（表示しない）**。`PD-user` を PD-US と取り違えていた判定も直した
 - **人物の権利の印**（`Restrictions` やカテゴリの personality rights など）があるもの
@@ -98,7 +104,7 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
 - 節の見出しは「作例（Wikimedia Commons より）」。撮影者はこのサイトの利用者ではないと添える
 - パブリックドメイン・CC0 は表示の義務は無いが、同じ形で出す（作者不明なら「作者不明」）
 - 構造化データ（JSON-LD）は `ImageObject` に `name`（題）・`license`・`acquireLicensePage`・`creditText` を書く。
-  `creator` は作者が分かるときだけで、人か団体か分からないので型（Person）は付けない。
+  `creator` は作者が分かるときだけで、型は `Person`（団体と分かる名前だけ `Organization`）。
   パブリックドメインの `license` は Public Domain Mark（`https://creativecommons.org/publicdomain/mark/1.0/`）。
   **入れるのは画面に出している作例の全部**（自動で選んだものも。2026-10-03 のレビューで、人が選んだ1枚
   だけにしていたのをやめた——画面に出す以上、出典の表示は構造化データでも同じにそろえる）

@@ -8,7 +8,7 @@ import {
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, hasPdBasis, pdBasisOf,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, hasPdBasis, pdBasisOf, photoLicenseOf,
 } from "../../utils/commonsAttribution.mjs";
 import { spotStructuredData } from "../spotSeo";
 import { commonsThumbAt, commonsSrcSet } from "../../utils/commonsThumb";
@@ -111,7 +111,7 @@ describe("スポットの作例", () => {
             "@type": "ImageObject",
             name: "A",
             contentUrl: REC.thumbUrl, width: 1280, height: 853,
-            creator: { name: "撮った人" },
+            creator: { "@type": "Person", name: "撮った人" },
             creditText: "撮った人 / CC BY-SA 4.0 / Wikimedia Commons",
             license: "https://creativecommons.org/licenses/by-sa/4.0",
             acquireLicensePage: REC.pageUrl,
@@ -178,7 +178,10 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
         const pd = sampleImageObject(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self", author: "Unknown author" })!);
         expect(pd).not.toHaveProperty("creator");
         expect(pd.license).toBe(PUBLIC_DOMAIN_MARK_URL);
-        expect(sampleImageObject(toSpotSample(REC)!).creator).toEqual({ name: "撮った人" });
+        expect(sampleImageObject(toSpotSample(REC)!).creator).toEqual({ "@type": "Person", name: "撮った人" });
+        // 団体と分かる名前は Organization
+        const army = toSpotSample({ ...REC, author: "France. Section photographique des armées (Army Photography Section of France)" })!;
+        expect(sampleImageObject(army).creator).toEqual({ "@type": "Organization", name: army.author });
     });
 });
 
@@ -221,11 +224,48 @@ describe("パブリックドメインの根拠（レビュー #275 の 1）", ()
         expect(pdBasisOf([])).toBeUndefined();
     });
 
-    it("🔴 リポジトリの確定ファイル: パブリックドメインの行はどれも根拠を持つ（取り直し済み）", () => {
+    it("🔴 日本でも通る根拠を先に: PD-Yugoslavia＋PD-US-expired は PD-Yugoslavia（名前の順に関係なく）", () => {
+        expect(pdBasisOf(["Template:PD-US-expired", "Template:PD-Yugoslavia"])).toBe("PD-Yugoslavia");
+        expect(pdBasisOf(["Template:PD-Yugoslavia", "Template:PD-US-expired"])).toBe("PD-Yugoslavia");
+        expect(pdBasisOf(["Template:PD-USGov", "Template:PD-Art"])).toBe("PD-Art");
+    });
+
+    it("🔴 CC・GFDL が一緒に付く PD: 写真そのものが CC BY なら CC BY、決められなければ表示しない", () => {
+        // 若狭の歌碑（File:Wakasa Kouta.jpg・2026-10-03 に取ったテンプレートの並び）。
+        // 歌は PD-Japan、写真は Self＋Cc-by-3.0＋GFDL で、作者の欄は歌の作者（野口雨情）＝決められない
+        const wakasa = ["Cc-by-3.0", "Cc-by-layout", "Cc-pd-mark-footer", "City", "Creator", "GFDL", "GNU-Layout",
+            "Information", "PD-1996-text", "PD-Japan", "PD-Layout", "PD-old-X-1996", "PD-old-auto-1996", "PD-old-text",
+            "PD-old-warning-text", "PD-two", "SDC-PD-old", "Self", "Taken on", "URAA-date"].map((t) => `Template:${t}`);
+        expect(photoLicenseOf(wakasa)).toEqual({ kind: "unknown", code: "mixed:PD-Japan,Cc-by-3.0,GFDL" });
+        expect(toSpotSample({ ...PD, author: "野口雨情", licenseCode: "mixed:PD-Japan,Cc-by-3.0,GFDL" })).toBeUndefined();
+        // 桂浜の龍馬像（Art Photo: 像は PD-Japan、写真は Cc-by-3.0）
+        expect(photoLicenseOf(["Art Photo", "Cc-by-3.0", "Cc-by-layout", "Cc-pd-mark-footer", "PD-Japan", "PD-US-expired-text", "PD-two"]))
+            .toEqual({ kind: "cc", license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", code: "cc-by-3.0" });
+        // プラハ城の展示（Self-photographed＋Cc-by-3.0-de）
+        expect(photoLicenseOf(["Cc-by-3.0-de", "Cc-by-layout", "Cc-country-flags", "Own photograph", "PD-old", "Pd-old", "Self-photographed"]))
+            .toMatchObject({ kind: "cc", license: "CC BY 3.0 de", licenseUrl: "https://creativecommons.org/licenses/by/3.0/de/" });
+        // CC0 が付く・写真の印が無いものも決めない
+        expect(photoLicenseOf(["Art Photo", "Cc-zero", "PD-old"]).kind).toBe("unknown");
+        expect(photoLicenseOf(["Cc-by-sa-4.0", "PD-old"]).kind).toBe("unknown");
+        // 部品（Cc-pd-mark-footer・Cc-by-layout）だけなら PD のまま
+        expect(photoLicenseOf(["Cc-pd-mark-footer", "PD-old", "PD-Layout"])).toEqual({ kind: "pd", code: "PD-old" });
+    });
+
+    it("🔴 リポジトリの確定ファイル: パブリックドメインの行はどれも根拠を持つか、決められない印（mixed:）が付く", () => {
         const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples)
             .filter((r) => sampleLicenseKind(r.license) === "public-domain");
         expect(rows.length).toBeGreaterThan(0);
-        expect(rows.filter((r) => !hasPdBasis(r.licenseCode)).map((r) => r.file)).toEqual([]);
+        expect(rows.filter((r) => !hasPdBasis(r.licenseCode) && !String(r.licenseCode ?? "").startsWith("mixed:")).map((r) => r.file)).toEqual([]);
+    });
+
+    it("🔴 リポジトリの確定ファイル: 若狭の歌碑は表示しない・桂浜の龍馬像は CC BY 3.0（撮影者 baggio4ever）", () => {
+        const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples);
+        const wakasa = rows.find((r) => r.file === "File:Wakasa Kouta.jpg");
+        if (wakasa) expect(toSpotSample(wakasa)).toBeUndefined();
+        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file));
+        for (const r of ryoma) {
+            expect(toSpotSample(r)).toMatchObject({ license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", author: "baggio4ever" });
+        }
     });
 });
 
@@ -254,6 +294,7 @@ describe("リポジトリの確定ファイル", () => {
         const author = cleanCommonsAuthor(String(r.author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
         const by = /^cc[-\s]by/i.test(r.license);
         return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
+            || String(r.licenseCode ?? "").startsWith("mixed:")
             || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file));
     };
 

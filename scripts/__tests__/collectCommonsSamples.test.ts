@@ -459,6 +459,27 @@ describe("パブリックドメインの根拠を取り直す（レビュー #27
         expect(file.sp_a.samples[0]).not.toHaveProperty("licenseCode");
     });
 
+    it("🔴 写真そのものが CC BY の PD は CC BY に（license・licenseUrl・licenseCode・並びを守る）。決められなければ mixed:", () => {
+        const art = { s: { slug: "s", name: "s", samples: [pdRow("File:Art.jpg", { author: "baggio4ever" }), pdRow("File:Mix.jpg"), pdRow("File:Old.jpg", { licenseCode: "PD-Japan" })] } };
+        const r = applyPdBasis(art, new Map([
+            ["File:Art.jpg", ["Template:Art Photo", "Template:Cc-by-3.0", "Template:PD-Japan"]],
+            ["File:Mix.jpg", ["Template:Self", "Template:Cc-by-3.0", "Template:GFDL", "Template:PD-Japan"]],
+            ["File:Old.jpg", ["Template:Art Photo", "Template:Cc-by-sa-4.0", "Template:PD-Japan"]],
+        ]), { all: true });
+        const [a, m, o] = r.file.s.samples as Record<string, unknown>[];
+        expect(Object.keys(a)).toEqual(["file", "pageUrl", "thumbUrl", "width", "height", "author", "license", "licenseUrl", "dateTimeOriginal", "licenseCode", "pickedBy"]);
+        expect(a).toMatchObject({ license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", licenseCode: "cc-by-3.0", author: "baggio4ever" });
+        expect(m.licenseCode).toBe("mixed:PD-Japan,Cc-by-3.0,GFDL");
+        expect(m.license).toBe("Public domain");
+        // all のときは根拠の付いた行も見直す
+        expect(o).toMatchObject({ license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/" });
+        expect(r.toCc).toEqual(["File:Art.jpg", "File:Old.jpg"]);
+        expect(r.undetermined).toEqual(["File:Mix.jpg"]);
+        // all でなければ根拠の付いた行は触らない
+        expect(applyPdBasis(art, new Map([["File:Old.jpg", ["Template:Art Photo", "Template:Cc-by-sa-4.0"]]])).file.s.samples[2]).toBe(art.s.samples[2]);
+        expect(filesMissingPdBasis(art, { all: true })).toEqual(["File:Art.jpg", "File:Mix.jpg", "File:Old.jpg"]);
+    });
+
     it("選び直しのときは前の確定ファイルの根拠を引き継ぎ、残りだけ聞く", async () => {
         const previous = { sp_a: { slug: "a", name: "a", samples: [pdRow("File:Self.jpg", { licenseCode: "PD-self" })] } };
         const carried = carryPdBasis(file, previous);

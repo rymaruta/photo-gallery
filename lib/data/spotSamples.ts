@@ -21,7 +21,7 @@ import { coverLicenseOf, cleanAuthor } from "./spotImages";
 import type { Spot } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
 /** 確定ファイルの1枚（手で書く形） */
@@ -200,7 +200,7 @@ export function spotSamples(
  * 構造化データ（JSON-LD）の `ImageObject`。題・ライセンス・出典・表示の文字を必ず書く。
  * 画面に出す作例は**全部**ここを通す（自動で選んだものも。`SpotGuidePage`）。
  * - 作者は**分かるときだけ** `creator`（「作者不明」のパブリックドメイン・CC0 は `creditText` にだけ出る）。
- *   人か団体かは分からないので型（Person）を断定しない
+ *   型は `Person`。団体と分かる名前（Section・Museum・協会・大学…）だけ `Organization`（`isOrganizationName`）
  * - パブリックドメインは Public Domain Mark の URL を `license` に
  */
 export function sampleImageObject(s: SpotSample) {
@@ -211,7 +211,9 @@ export function sampleImageObject(s: SpotSample) {
         contentUrl: s.src,
         width: s.width,
         height: s.height,
-        ...(s.author !== UNKNOWN_AUTHOR ? { creator: { name: s.author } } : {}),
+        ...(s.author !== UNKNOWN_AUTHOR
+            ? { creator: { "@type": isOrganizationName(s.author) ? "Organization" : "Person", name: s.author } }
+            : {}),
         creditText: `${s.author} / ${s.license} / Wikimedia Commons`,
         ...(license ? { license } : {}),
         acquireLicensePage: s.sourceUrl,
