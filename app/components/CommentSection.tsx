@@ -44,7 +44,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     // その間にリンクを押すとログインページ経由で別の場所へ飛ばされる。
     const { isAuthenticated, userId, loading: authLoading } = useAuth();
     const { showToast } = useToast();
-    const { items, count, loading, loadError, reload, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount);
+    const { items, count, loading, loadError, reload, pending, add, remove } = useComments(photoId, isAuthenticated, initialCount, authLoading);
     const [text, setText] = useState("");
     useEffect(() => { onCountChange?.(count); }, [count, onCountChange]);
 

@@ -22,7 +22,13 @@ export type CommentItem = {
     deleted?: boolean;
 };
 
-export function useComments(photoId: string, isAuthenticated: boolean, initialCount = 0) {
+/**
+ * @param authLoading ログイン状態がまだ分からない期間（`useAuth().loading`）。
+ *   この間は読みに行かない——未認証の口で先に読むと、ログイン中の人が
+ *   限定写真を開いたとき 404 で「読み込めませんでした」が一瞬出て、
+ *   確定後にもう一度読む（`usePhotoLikes` と同じ番人）
+ */
+export function useComments(photoId: string, isAuthenticated: boolean, initialCount = 0, authLoading = false) {
     const [items, setItems] = useState<CommentItem[]>([]);
     const [count, setCount] = useState(initialCount);
     const [loading, setLoading] = useState(true);
@@ -39,9 +45,14 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
     const listSeqRef = useRef(0);
 
     useEffect(() => {
+        // ログインが確定するまで読まない（読み込み中の表示のまま待つ）
+        if (authLoading) return;
         let aborted = false;
         const controller = new AbortController();
         setLoadError(false);
+        // 写真・ログイン状態が変わって読み直す回も「読み込み中」に戻す
+        // （前の回の失敗表示や一覧を、新しい答えが来るまで見せ続けない）
+        setLoading(true);
         void (async () => {
             try {
                 const id = encodeURIComponent(photoId);
@@ -54,12 +65,25 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
                 // **戻るのは「道が無い」404 のときだけ**（API より Web が先に出た回）。
                 // サーバーが断った 404（見せない相手）で未認証の口に戻っても同じ 404 で、
                 // 往復が1回増えるだけ
-                let res = isAuthenticated
-                    ? await userFetch(`/user/comments/${id}`, { signal: controller.signal })
-                    : await readPublic();
-                if (isAuthenticated && await isMissingRouteResponse(res) && !aborted) {
+                //
+                // **トークンが取れない（セッション切れ・Cognito に届かない）・401 でも戻る。**
+                // 公開の写真のコメントまで「読み込めませんでした」になるより、
+                // 未認証の口で読める分を見せる方がよい（限定写真はそちらで 404 になるだけ）
+                const readAuthed = async (): Promise<Response | null> => {
+                    try {
+                        return await userFetch(`/user/comments/${id}`, { signal: controller.signal });
+                    } catch (e) {
+                        const msg = e instanceof Error ? e.message : "";
+                        if (msg === AUTH_REQUIRED_MESSAGE || msg === NETWORK_UNREACHABLE_MESSAGE) return null;
+                        throw e;
+                    }
+                };
+                let res = isAuthenticated ? await readAuthed() : await readPublic();
+                if (aborted) return;
+                if (isAuthenticated && (res === null || res.status === 401 || await isMissingRouteResponse(res))) {
                     res = await readPublic();
                 }
+                if (!res) return;   // 型のため（上で必ず読み直している）
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
@@ -86,7 +110,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId, reloadKey, isAuthenticated]);
+    }, [photoId, reloadKey, isAuthenticated, authLoading]);
 
     const reload = useCallback(() => {
         setLoading(true);

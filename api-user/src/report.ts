@@ -3,7 +3,6 @@ import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
-import { canViewPhoto } from "./restrictedFeed";
 
 /**
  * **不適切な投稿の通報。**
@@ -66,18 +65,21 @@ export const reportPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     try {
         // **実在する写真か確かめる。** 見ないと、任意の文字列を写真に
         // 見立てて行を作れる（`block.ts` が形を見ているのと同じ理由）。
-        // 非公開・下書きも通す——通報したい相手が直後に隠すことがある
+        // 非公開・下書きも通す——通報したい相手が直後に隠すことがある。
+        //
+        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）も、見る人を問わず通す**
+        // （2026-10-03 判断）。コメント・いいね・保存は `canViewPhoto` で絞ったが、
+        // 通報は絞らない:
+        //   - 持ち主が公開範囲を狭めた・先にブロックした直後でも通報できることを優先する
+        //     （嫌がらせの写真ほど、通報される前に相手から隠される）
+        //   - 「404 か 200 か」で写真の存在を確かめられるのは下書きでも同じで、
+        //     限定写真だけ塞いでも守れる量が小さい
+        //   - 通報は運営が読むだけで、通報した人に写真の中身は何も返さない
         const photo = await ddb.send(new GetCommand({
             TableName: PHOTOS_TABLE, Key: { id: photoId },
-            ProjectionExpression: "id, src, userId, uploadedBy, story, audience",
+            ProjectionExpression: "id, src, userId, uploadedBy, story",
         }));
         if (!photo.Item?.src) return jsonError(404, "写真が見つかりません");
-        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）は、見せてよい相手だけ**（S-1）。
-        // 見ていなかったので、ID を知った人が「無い（404）」と「在る（200）」の
-        // 違いで限定写真の存在を確かめられた。判定はコメント・いいね・保存と同じ
-        // `canViewPhoto`、答えは無い写真と同じ 404。
-        // 非公開・下書きは上の理由で今までどおり通す（絞るのは限定写真だけ）
-        if (!await canViewPhoto(photo.Item, me)) return jsonError(404, "写真が見つかりません");
 
         const ownerId = (photo.Item.userId ?? photo.Item.uploadedBy) as string | undefined;
         // **自分の投稿は通報できない。** 通す意味が無く、運営の手間だけ増える

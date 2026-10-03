@@ -352,31 +352,33 @@ describe("自分がいいね済みか（GET /user/likes/{id}）といいね数",
     });
 });
 
-describe("通報（POST /photos/{id}/report）", () => {
+describe("通報（POST /photos/{id}/report）は限定写真も見る人を問わず通す（2026-10-03 判断）", () => {
     const report = async (sub: string, id: string) =>
         (await invoke(reportPhoto, ev(sub, id, { reason: "spam" }))).statusCode;
     const reported = (sub: string, id: string) => table.has(`report#${id}#${sub}`);
 
-    it("フォロワーのみ: フォロワーは通報できる／他人は無い写真と同じ 404・行を作らない", async () => {
+    // 持ち主が狭めた・先にブロックした直後でも通報できることを優先する
+    // （`report.ts` の「非公開・下書きも通す」と同じ約束）
+    it("フォロワーのみ・親しい友達の写真を、判定を通らない人も通報できる", async () => {
+        expect(await report(STRANGER, "pf")).toBe(200);
+        expect(reported(STRANGER, "pf")).toBe(true);
+        expect(await report(FOLLOWER, "pc")).toBe(200);
+        expect(reported(FOLLOWER, "pc")).toBe(true);
+    });
+
+    it("見えている人（フォロワー・親しい友達）も今までどおり通報できる", async () => {
         expect(await report(FOLLOWER, "pf")).toBe(200);
-        expect(reported(FOLLOWER, "pf")).toBe(true);
-        expect(await report(STRANGER, "pf")).toBe(404);
-        expect(reported(STRANGER, "pf")).toBe(false);
-        expect(await report(STRANGER, "nope")).toBe(404);
-    });
-
-    it("親しい友達: 親しい友達は通報できる／フォロワーは 404", async () => {
         expect(await report(CLOSE, "pc")).toBe(200);
-        expect(await report(FOLLOWER, "pc")).toBe(404);
-        expect(reported(FOLLOWER, "pc")).toBe(false);
     });
 
-    it("ブロックの関係があれば 404（どちらの向きでも）", async () => {
-        table.set(`block#${FOLLOWER}#${OWNER}`, { id: `block#${FOLLOWER}#${OWNER}` });
-        expect(await report(FOLLOWER, "pf")).toBe(404);
+    it("持ち主にブロックされた人も通報できる", async () => {
+        table.set(`block#${OWNER}#${FOLLOWER}`, { id: `block#${OWNER}#${FOLLOWER}` });
+        expect(await report(FOLLOWER, "pf")).toBe(200);
     });
 
-    it("本人は今までどおり 400（自分の投稿は通報できない）", async () => {
+    it("無い写真は 404・本人は 400（今までどおり）", async () => {
+        expect(await report(STRANGER, "nope")).toBe(404);
+        expect(reported(STRANGER, "nope")).toBe(false);
         expect(await report(OWNER, "pf")).toBe(400);
     });
 
