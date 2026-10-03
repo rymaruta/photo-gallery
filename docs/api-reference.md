@@ -230,7 +230,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 
 ### ユーザーAPI（`NEXT_PUBLIC_USER_API_BASE_URL`）— 73口
 
-**認証が要らないのは6口だけ**（`PublicReadRole`＝読み取り専用のロールで動く）:
+**認証が要らないのは7口だけ**（`PublicReadRole`＝読み取り専用のロールで動く）:
 
 | | パス | 中身 |
 |---|---|---|
@@ -240,6 +240,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 | GET | `/photos/{id}/like` | いいね数（`s-maxage=30`） |
 | GET | `/photos/{id}/comments` | コメント一覧（`s-maxage=15`） |
 | GET | `/users/{uid}/follow` | フォロー数（`s-maxage=30`） |
+| GET | `/feed` | 公開写真の一覧をページで（`s-maxage=30`・下の「公開写真のページ」）※2026-10-03 追加・**本番未反映** |
 
 残り67口はすべて `Authorization: Bearer <IDトークン>` が要る:
 
@@ -287,6 +288,25 @@ Nominatim を直に叩かずここを通すこと）
 
 **絞った公開範囲**
 `GET /feed/restricted`
+
+### 公開写真のページ（`GET /feed`）
+
+`api-user/src/feed.ts`。`photos.json` と同じ項目の写真を、**新しい順に決まった枚数ずつ**返す。
+
+    GET /feed?limit=30&cursor=<前の応答の nextCursor>
+
+| クエリ | 意味 |
+|---|---|
+| `limit` | 1〜60。省くと 30、60 を超えたら 60 に丸める。数でない・0 以下は **400** |
+| `cursor` | 前の応答の `nextCursor` をそのまま。**中身を読まない・作らない**（不透明な文字列）。壊れた・書き換えた値は **400** |
+
+    200 { "items": Photo[], "nextCursor": string | null }
+
+- `nextCursor` が `null` なら終わり。**`items` が `limit` より少なくても `nextCursor` があれば続きがある**
+  （ふるいで落ちる行が続いたとき、1回で読む上限で打ち切って続きを回す）。`items` が空で `nextCursor` だけ返ることもある
+- 返すのは公開中の写真だけ（非公開・ストーリー・公開範囲を絞った写真は出ない）。表示名は**いまの名前**
+- 失敗は `{ "error": "<日本語の一文>" }`（400: `limit が不正です` / `cursor が不正です`、500: `取得に失敗しました`）
+- 索引 `publicFeed-createdAt-index` を読む。**本番にこの索引が無いあいだは 500 になる**（2026-09-16 の診断では本番に無かった）
 
 ---
 
