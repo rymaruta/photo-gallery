@@ -80,10 +80,13 @@ async function readComments(photoId: string, consistent = false): Promise<Commen
     return Array.isArray(items) ? (items as Comment[]) : [];
 }
 
-// GET /photos/{id}/comments — コメント一覧（公開）。新しい順で最大200件
-export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
-    const photoId = event.pathParameters?.id;
-    if (!photoId) return jsonError(400, "IDが必要です");
+/**
+ * コメント一覧を組み立てる（新しい順で最大200件）。読む口2つの中身。
+ *
+ * `viewerId` が無い（未認証の口）と、公開範囲を絞った写真は読めない。
+ * 有る（認証つきの口）と、一覧（`/feed/restricted`）と同じ判定で読める。
+ */
+async function commentsResponse(photoId: string, viewerId: string | undefined, label: string) {
     try {
         // 写真の状態を先に見る。ここが素通しだったので、
         //   - 非公開に戻した写真のコメントが誰でも読めたまま
@@ -98,12 +101,12 @@ export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
         if (!photo?.src || photo.published === false || photo.story === true) {
             return jsonError(404, "写真が見つかりません");
         }
-        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）は、この口では読ませない。**
-        // 未認証の口なので閲覧者が分からない＝見せてよい相手か判定できない。
+        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）は、見せてよい相手だけ。**
+        // 未認証の口では閲覧者が分からない＝判定できないので一律で読ませない。
         // 以前は `published` と `story` しか見ていなかったので、写真の ID を
         // 知った人（元フォロワーなど）が限定写真のコメントを誰でも読めた（S-1）。
         // 「無い」と同じ 404 にする（絞った写真が在ること自体を教えない）
-        if (!await canViewPhoto(photo, undefined)) {
+        if (!await canViewPhoto(photo, viewerId)) {
             return jsonError(404, "写真が見つかりません");
         }
 
@@ -130,13 +133,41 @@ export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
                 : c));
         return {
             statusCode: 200,
-            headers: { ...JSON_HEADERS, "Cache-Control": "public, s-maxage=15" },
+            // 未認証の口は誰に対しても同じ答えなので共有キャッシュに載せてよい。
+            // 認証つきの口は**利用者ごとの答え**（絞った写真を読めるかが人で違う）
+            headers: {
+                ...JSON_HEADERS,
+                "Cache-Control": viewerId === undefined ? "public, s-maxage=15" : "private, no-store",
+            },
             body: JSON.stringify({ items: safeItems, count: all.length }),
         };
     } catch (e) {
-        console.error("getComments error:", e);
+        console.error(`${label} error:`, e);
         return jsonError(500, "取得に失敗しました");
     }
+}
+
+// GET /photos/{id}/comments — コメント一覧（公開）。新しい順で最大200件。
+// **公開範囲を絞った写真は 404**（閲覧者が分からないため）。そちらは下の口で読む
+export const getComments: APIGatewayProxyHandlerV2 = async (event) => {
+    const photoId = event.pathParameters?.id;
+    if (!photoId) return jsonError(400, "IDが必要です");
+    return commentsResponse(photoId, undefined, "getComments");
+};
+
+/**
+ * GET /user/comments/{id} — コメント一覧（**認証必要**）。中身は上と同じ。
+ *
+ * 公開範囲を絞った写真のコメントを、**見せてよい相手（本人・フォロワー・
+ * 親しい友達）だけ**が読むための口。HTTP API は同じ道・同じメソッドに
+ * 「認証があってもなくても」を付けられないので、`/user/likes/{id}`・
+ * `/user/saves/{id}` と同じく `/user/` の下に別の道として置く。
+ */
+export const getCommentsAuthed: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = getUserId(event);
+    const photoId = event.pathParameters?.id;
+    if (!uid || !photoId) return jsonError(400, "不正なリクエスト");
+    return commentsResponse(photoId, uid, "getCommentsAuthed");
 };
 
 // POST /photos/{id}/comments — コメント投稿（認証必要）

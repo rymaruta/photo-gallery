@@ -238,7 +238,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 | GET | `/users/search` | ユーザー検索 |
 | GET | `/invites/{token}` | 招待リンクの下見（ログイン前に中身を見せる） |
 | GET | `/photos/{id}/like` | いいね数（`s-maxage=30`） |
-| GET | `/photos/{id}/comments` | コメント一覧（`s-maxage=15`） |
+| GET | `/photos/{id}/comments` | コメント一覧（`s-maxage=15`）。**公開範囲を絞った写真は 404**（閲覧者が分からないため。`/user/comments/{id}` で読む） |
 | GET | `/users/{uid}/follow` | フォロー数（`s-maxage=30`） |
 
 残り67口はすべて `Authorization: Bearer <IDトークン>` が要る:
@@ -250,6 +250,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 **自分のもの**
 `GET,PUT /user/profile` / `GET /user/photos` / `GET /user/likes` /
 `GET /user/likes/{id}` / `GET /user/saves` / `GET /user/saves/{id}` /
+`GET /user/comments/{id}`（コメント一覧。絞った写真も見せてよい相手なら読める・S-1）/
 `GET /user/following` / `GET,PUT /user/notifications` / `GET /user/blocks` /
 `GET /user/close-friends` / `PUT,DELETE /user/close-friends/{id}` /
 `DELETE /user/account`
