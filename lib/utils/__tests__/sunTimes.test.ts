@@ -15,7 +15,7 @@ describe("sunTimes", () => {
         expect(t("Asia/Tokyo", s.sunset)).toBe("17:32");
     });
 
-    it("夕方: マジックアワー（+6°→−4°）→ ブルーアワー（−4°→−6°）の順につながる", () => {
+    it("夕方: ゴールデンアワー（+6°→−4°）→ ブルーアワー（−4°→−6°）の順につながる", () => {
         const s = sunTimes("2026-10-10", { lat: 38.58, lng: 140.53 })!;   // 銀山温泉
         expect(t("Asia/Tokyo", s.eveningGolden.start)).toBe("16:34");
         expect(t("Asia/Tokyo", s.sunset)).toBe("17:09");

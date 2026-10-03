@@ -2,7 +2,7 @@
 //
 // **撮影の光の月別の表**（スポットの画面・`SpotGuideClient` の「撮影の光」）。
 //
-// 各月の代表日（15日）について、日の出・日の入り・夕方のマジックアワーを**その土地の時計**で出す。
+// 各月の代表日（15日）について、日の出・日の入り・夕方のゴールデンアワーを**その土地の時計**で出す。
 // ビルド時にサーバーで計算してページに書き込む＝通信しない・検索にも読まれる。
 //
 // ## なぜ要るか（2026-09-30・「見つけてもらう方法」②）
@@ -17,8 +17,8 @@
 //     ——利用者の端末の時計で言うと、旅先では読み違える
 //   - 太陽がその高さを通らない日は、**理由を言い分ける**（「—」だけだと「無い」「データが無い」と読める・
 //     9d7ba04e のレビュー: 北緯66.5度のサンタクロース村）:
-//       白夜＝一日中沈まない／極夜＝一日中昇らない／終日＝一日中低く、昼のあいだずっとマジックアワー／
-//       沈まない＝白夜でマジックアワーが終わらない／明け方まで＝沈むが −4° まで下がらず明け方までつながる
+//       白夜＝一日中沈まない／極夜＝一日中昇らない／終日＝一日中低く、昼のあいだずっとゴールデンアワー／
+//       沈まない＝白夜でゴールデンアワーが終わらない／明け方まで＝沈むが −4° まで下がらず明け方までつながる
 //     （7月は日の入りの時刻がある。そこに「沈まない」と並べると矛盾する・4276c25e のレビュー）
 //   - **日付をまたぐ時刻には「翌」を付ける**（日の入り 00:10 が日の出 02:36 より前に見えないように）
 //   - **天気・地形（山の影）は含まない**。画面にそう書く
@@ -37,7 +37,7 @@ export type LightRow = {
     month: number;
     sunrise: LightCell;
     sunset: LightCell;
-    /** 夕方のマジックアワー */
+    /** 夕方のゴールデンアワー */
     eveningGolden: LightCell;
 };
 
@@ -61,7 +61,7 @@ const GOLDEN_TOP = 6;
 /** "HH:MM" どうしで、後ろの方が早ければ翌日（日付をまたいだ） */
 const nextDay = (earlier: string, later: string) => (later < earlier ? `翌${later}` : later);
 
-/** 1日ぶんの欄（日の出・日の入り・夕方のマジックアワー） */
+/** 1日ぶんの欄（日の出・日の入り・夕方のゴールデンアワー） */
 export type DayLight = Omit<LightRow, "month">;
 
 /**
@@ -86,7 +86,7 @@ export function dayLightCells(ymd: string, coords: { lat: number; lng: number },
     if (gStart && gEnd) {
         eveningGolden = { text: `${gStart}–${nextDay(gStart, gEnd)}` };
     } else if (!gStart && alt.max < GOLDEN_TOP && alt.max > HORIZON) {
-        // 昇るが一日中 6° まで上がらない＝昼のあいだずっとマジックアワー
+        // 昇るが一日中 6° まで上がらない＝昼のあいだずっとゴールデンアワー
         // （昇らない日＝極夜は「終日」と言わない。凡例の「昼のあいだ」と矛盾する）
         eveningGolden = { gap: "allDay" };
     } else if (gStart && !gEnd) {
@@ -148,9 +148,9 @@ export function lightLegend(rows: LightRow[], isJa: boolean): string[] {
     const out: string[] = [];
     if (gaps.has("midnightSun")) out.push(isJa ? "白夜＝一日中太陽が沈まない" : "Midnight sun: the sun stays up all day");
     if (gaps.has("polarNight")) out.push(isJa ? "極夜＝一日中太陽が昇らない" : "Polar night: the sun stays down all day");
-    if (gaps.has("allDay")) out.push(isJa ? "終日＝太陽が一日中低く、昼のあいだずっとマジックアワー" : "All day: the sun stays low, so golden light lasts all day");
-    if (gaps.has("noDusk")) out.push(isJa ? "沈まない＝白夜で、マジックアワーが終わらない" : "Sun stays up: golden hour does not end");
-    if (gaps.has("untilDawn")) out.push(isJa ? "明け方まで＝沈んでも暗くなりきらず、マジックアワーが明け方までつながる" : "Until dawn: the sun sets but golden light lasts until dawn");
+    if (gaps.has("allDay")) out.push(isJa ? "終日＝太陽が一日中低く、昼のあいだずっとゴールデンアワー" : "All day: the sun stays low, so golden hour lasts all day");
+    if (gaps.has("noDusk")) out.push(isJa ? "沈まない＝白夜で、ゴールデンアワーが終わらない" : "Sun stays up: golden hour does not end");
+    if (gaps.has("untilDawn")) out.push(isJa ? "明け方まで＝沈んでも暗くなりきらず、ゴールデンアワーが明け方までつながる" : "Until dawn: the sun sets but golden hour lasts until dawn");
     if (crosses) out.push(isJa ? "翌＝日付をまたいだ翌日の時刻" : "(+1): the next day");
     return out;
 }
