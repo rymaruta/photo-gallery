@@ -41,7 +41,10 @@ const services = [
         // 求めると拡散の輪がそこで切れる**ので、閲覧だけ未認証で開ける。
         // 守りは「認証」ではなく**推測不能なトークン**（192ビット）で、
         // 読むのは招待の行とアルバムの行の GetItem 2回だけ
-        // ——PublicReadRole の権限（写真テーブルは GetItem のみ）に収まる。
+        // ——PublicReadRole の権限（写真テーブルは GetItem のみ。索引の Query は
+        // 持たない）に収まる。
+        // `getFeed`（公開写真のページ）だけは索引を Query するので、共有の
+        // PublicReadRole に足さず専用の `PublicFeedRole` で動かす（下の `ownRole`）。
         // 🔴 **ハイライト（`getUserHighlights` / `getHighlight`）はここに入れない。**
         // 一度入れて本番まで出してしまった。中身はストーリーそのもので、
         // **ストーリーはフォロワーだけが見る**（2026-09-22・owner の判断。
@@ -49,12 +52,14 @@ const services = [
         // 「全員に公開のアーカイブしか入らないから」だったが、あの「全員」は
         // **ログインした全員**の意味で、インターネット全体ではなかった。
         // 今はログインを要求したうえで、さらにフォローを見ている
-        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
+        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getFeed"],
+        /** PublicReadRole ではなく専用ロールで動かす公開関数（関数名 → ロール名） */
+        ownRole: { getFeed: "PublicFeedRole" } as Record<string, string>,
     },
-    { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },
+    { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"], ownRole: {} as Record<string, string> },
 ];
 
-describe.each(services)("$name: 未認証の口は読み取り専用ロールで動く", ({ file, publicFns }) => {
+describe.each(services)("$name: 未認証の口は読み取り専用ロールで動く", ({ file, publicFns, ownRole }) => {
     const yml = readFileSync(join(ROOT, file), "utf8");
     const blocks = functionBlocks(yml);
 
@@ -66,9 +71,19 @@ describe.each(services)("$name: 未認証の口は読み取り専用ロールで
         expect(found.sort()).toEqual([...publicFns].sort());
     });
 
-    it.each(publicFns)("%s に role: PublicReadRole が付いている", (fn) => {
+    // 公開関数には PublicReadRole。**専用ロールを認めるのは `ownRole` に書いた関数だけ**
+    // （その中身は下の「PublicFeedRole は…」で最小権限かを見る）
+    it.each(publicFns)("%s に読み取り専用ロールが付いている", (fn) => {
         expect(blocks.get(fn), `${fn} が見つからない`).toBeDefined();
-        expect(blocks.get(fn)).toMatch(/^\s{4}role: PublicReadRole\s*$/m);
+        const role = ownRole[fn] ?? "PublicReadRole";
+        expect(blocks.get(fn)).toMatch(new RegExp(`^\\s{4}role: ${role}\\s*$`, "m"));
+    });
+
+    it("専用ロールは、その関数のほかに誰も使っていない", () => {
+        for (const [fn, role] of Object.entries(ownRole)) {
+            const users = [...blocks].filter(([, b]) => new RegExp(`^\\s{4}role: ${role}\\s*$`, "m").test(b)).map(([n]) => n);
+            expect(users, `${role} を ${fn} 以外も使っている`).toEqual([fn]);
+        }
     });
 
     it("認可のある関数には付けない（共有ロールのまま）", () => {
@@ -138,5 +153,50 @@ describe("GeocodeRole は控えの読み書きしか持たない", () => {
         const fn = /^ {2}geocodeSearch:$([\s\S]*?)(?=^ {2}\w+:$)/m.exec(yml);
         expect(fn).not.toBeNull();
         expect(fn![1]).toMatch(/^\s{4}role: GeocodeRole\s*$/m);
+    });
+});
+
+// 公開写真のページ（getFeed）専用ロール。未認証で呼べる口なので、getFeed が
+// 実際に使うものだけ: ログ・公開一覧の索引の Query・users テーブルの GetItem
+// （表示名をいまの値に）。**索引の Query を共有の PublicReadRole に足さない**
+// ——足すと他の公開口まで索引を読める
+describe("PublicFeedRole は公開一覧の索引の Query と最小限しか持たない", () => {
+    const yml = readFileSync(join(ROOT, "api-user/serverless.yml"), "utf8");
+    const res = yml.split(/\nresources:\n/)[1]!;
+    const roleOf = (name: string): string => {
+        const m = new RegExp(`^ {4}${name}:$([\\s\\S]*?)(?=^ {4}\\w+:$|(?![\\s\\S]))`, "m").exec(res);
+        expect(m, `${name} が無い`).not.toBeNull();
+        return m![1].replace(/^\s*#.*$/gm, "");
+    };
+    /** 文（`- Effect:`）ごとに、動詞と資源の組を取り出す */
+    const statements = (block: string) =>
+        block.split(/^\s*- Effect: /m).slice(1).map((st) => ({
+            effect: st.split("\n")[0].trim(),
+            actions: [...st.split(/Resource:/)[0].matchAll(/^\s*-\s+([a-z0-9-]+:[A-Za-z]+)\s*$/gm)].map((x) => x[1]),
+            resources: [...(st.split(/Resource:/)[1] ?? "").matchAll(/^\s*-\s+(arn:\S+)\s*$/gm)].map((x) => x[1]),
+        }));
+    const INDEX_ARN = "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/publicFeed-createdAt-index";
+    const USERS_ARN = "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}";
+    const LOGS_ARN = "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*";
+
+    it("動詞と資源の組がちょうどこれだけ", () => {
+        const block = roleOf("PublicFeedRole");
+        expect(block).toContain("Service: lambda.amazonaws.com");
+        const pairs = statements(block).flatMap((st) => {
+            expect(st.effect, "Allow 以外の文がある").toBe("Allow");
+            return st.actions.flatMap((a) => st.resources.map((r) => `${a} ${r}`));
+        }).sort();
+        expect(pairs).toEqual([
+            `dynamodb:GetItem ${USERS_ARN}`,
+            `dynamodb:Query ${INDEX_ARN}`,
+            `logs:CreateLogStream ${LOGS_ARN}`,
+            `logs:PutLogEvents ${LOGS_ARN}`,
+        ].sort());
+    });
+
+    it("共有の PublicReadRole は索引を Query できない", () => {
+        const block = roleOf("PublicReadRole");
+        expect(block).not.toContain("dynamodb:Query");
+        expect(block).not.toContain("/index/");
     });
 });
