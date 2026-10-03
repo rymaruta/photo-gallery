@@ -21,7 +21,7 @@ import { coverLicenseOf, cleanAuthor } from "./spotImages";
 import type { Spot } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
 /** 確定ファイルの1枚（手で書く形） */
@@ -38,7 +38,11 @@ export type SpotSampleRecord = {
     /** Commons の `LicenseShortName`（例 "CC BY-SA 4.0"） */
     license: string;
     licenseUrl?: string;
-    /** extmetadata の License（テンプレートの名前・例 "cc-by-sa-4.0" "pd-us"）。古い行には無い */
+    /**
+     * ライセンスのテンプレートの名前（例 "cc-by-sa-4.0"）。**パブリックドメインは根拠のテンプレート**
+     * （例 "PD-self" "PD-Japan" "PD-USGov-POTUS"）——extmetadata の License は根拠を問わず "pd" なので、
+     * 収集スクリプトがページのテンプレートから書く（`--refresh-licenses`・`pdBasisOf`）
+     */
     licenseCode?: string;
     dateTimeOriginal?: string;
     /** 人物の権利の印（Restrictions・カテゴリ）があった。表示しない */
@@ -57,6 +61,7 @@ export type SpotSample = {
     /** 題（Commons のファイル名から "File:" と拡張子を除いたもの） */
     title: string;
     author: string;
+    /** 表示する名前。パブリックドメインは根拠を添える（例 "Public domain (PD-self)"） */
     license: string;
     /** ライセンスの文面（https）。パブリックドメインなど URL の無いものは持たない */
     licenseUrl?: string;
@@ -85,10 +90,11 @@ const isCommonsThumb = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipe
 /**
  * ライセンスの種類。Commons の短い名前は "CC BY-SA 4.0" と "CC-BY-SA-3.0" の両方の書き方が
  * あるので、区切りをそろえてから `coverLicenseOf`（代表写真と同じ判定）に掛ける。
+ * 表示の名前に添えた根拠（"Public domain (PD-self)" の括弧）は見ない。
  * NC（商用不可）・ND（改変不可）・その他は undefined
  */
 export function sampleLicenseKind(label: string | undefined) {
-    const s = String(label ?? "").trim()
+    const s = String(label ?? "").trim().replace(/\s*\([^()]*\)$/, "")
         .replace(/^cc[-\s]by[-\s]sa(?=[-\s]|$)/i, "CC BY-SA")
         .replace(/^cc[-\s]by(?=[-\s]|$)/i, "CC BY");
     return coverLicenseOf(s);
@@ -103,6 +109,8 @@ export function titleFromFile(file: string): string {
  * 1枚を表示の形へ。**出してはいけない1枚は undefined**:
  *   - ライセンスが CC0・パブリックドメイン・CC BY・CC BY-SA でない（NC・ND・その他）
  *   - アメリカだけのパブリックドメイン（PD-US 系）
+ *   - パブリックドメインなのに根拠のテンプレート（licenseCode の "PD-…"）が分からない
+ *     （"Public domain" だけでは PD-US と見分けられない）
  *   - 作者が空・決まり文句（「推定されます」「Own work」「Unknown author」…）・お願い文
  *     （CC BY 系は表示が条件なので出せない。パブリックドメイン・CC0 は「作者不明」と出す）
  *   - 人物の権利の印がある
@@ -115,6 +123,7 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
     if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
+    if (kind === "public-domain" && !hasPdBasis(r.licenseCode)) return undefined;
     if (r.personality) return undefined;
     const byLicense = kind === "cc-by" || kind === "cc-by-sa";
     let author = cleanCommonsAuthor(cleanAuthor(String(r.author ?? "")));
@@ -145,7 +154,7 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
         height,
         title,
         author,
-        license: r.license.trim(),
+        license: kind === "public-domain" ? `${r.license.trim()} (${r.licenseCode!.trim()})` : r.license.trim(),
         ...(isHttps(licenseUrl) ? { licenseUrl } : {}),
         sourceUrl,
         ...(r.dateTimeOriginal?.trim() ? { takenAt: r.dateTimeOriginal.trim() } : {}),
@@ -162,7 +171,7 @@ export function isReviewedPick(r: Pick<SpotSampleRecord, "pickedBy">): boolean {
  * 下書きには付けない（本文と同じく、誰も確かめていないページに足さない）。
  *
  * - `exclude` は代表写真の出典 URL など、同じ写真を2度出さないためのもの
- * - `reviewedOnly` は人が選んだ1枚だけ（構造化データに使う）
+ * - `reviewedOnly` は人が選んだ1枚だけ（いまは使っていない。構造化データも画面と同じ全部を入れる）
  * - **人や催しが主役の写真**（Festival・Rallye・ポートレート…）は落とす。撮影地が催しそのものなら残す
  */
 export function spotSamples(
@@ -189,7 +198,9 @@ export function spotSamples(
 
 /**
  * 構造化データ（JSON-LD）の `ImageObject`。題・ライセンス・出典・表示の文字を必ず書く。
- * - 作者は**分かるときだけ**。人か団体かは分からないので型（Person）を断定しない
+ * 画面に出す作例は**全部**ここを通す（自動で選んだものも。`SpotGuidePage`）。
+ * - 作者は**分かるときだけ** `creator`（「作者不明」のパブリックドメイン・CC0 は `creditText` にだけ出る）。
+ *   型は `Person`。団体と分かる名前（Section・Museum・協会・大学…）だけ `Organization`（`isOrganizationName`）
  * - パブリックドメインは Public Domain Mark の URL を `license` に
  */
 export function sampleImageObject(s: SpotSample) {
@@ -200,7 +211,9 @@ export function sampleImageObject(s: SpotSample) {
         contentUrl: s.src,
         width: s.width,
         height: s.height,
-        ...(s.author !== UNKNOWN_AUTHOR ? { creator: { name: s.author } } : {}),
+        ...(s.author !== UNKNOWN_AUTHOR
+            ? { creator: { "@type": isOrganizationName(s.author) ? "Organization" : "Person", name: s.author } }
+            : {}),
         creditText: `${s.author} / ${s.license} / Wikimedia Commons`,
         ...(license ? { license } : {}),
         acquireLicensePage: s.sourceUrl,

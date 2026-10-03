@@ -16,6 +16,11 @@
 //                                     通信せず、候補ファイルから確定ファイルを選び直す
 //   --radius=500   探す半径（m・300〜500 に収める）
 //   --keep-picks   確定ファイルに既にあるスポットは上書きしない（人が直した分を守る）
+//   node scripts/collect-commons-samples.mjs --refresh-licenses
+//                                     確定ファイルのパブリックドメインの行だけ、ページのテンプレートを
+//                                     Commons に聞き直して決め直す（PD の根拠を licenseCode に・写真そのものが
+//                                     CC BY なら CC BY に・決められなければ "mixed:…"＝表示しない）。
+//                                     ほかの行は触らない（収集も選び直しもしない）
 //
 // ## 2つのファイル
 //
@@ -62,6 +67,7 @@ import {
 import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
 import {
     stripHtml, authorFromMeta, isUsOnlyPublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+    photoLicenseOf, hasPdBasis,
 } from "../lib/utils/commonsAttribution.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -280,8 +286,10 @@ export function parseCommonsPages(pages) {
             continue;
         }
         const licenseCode = String(meta.License?.value ?? "").trim();
-        // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない
-        if (isUsOnlyPublicDomain(license, licenseCode)) {
+        // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない。
+        // 🔴 extmetadata はパブリックドメインなら根拠を問わず "pd" になる（PD-US も）。ここで落とせるのは
+        // 名前に出ているものだけ。残りは確定ファイルに書いた後で `refreshPdBasis` がテンプレートを見て見分ける
+        if (isUsOnlyPublicDomain(`${license} ${stripHtml(meta.UsageTerms?.value)}`, licenseCode)) {
             rejected.license++;
             rejectedLicenses["PD-US"] = (rejectedLicenses["PD-US"] ?? 0) + 1;
             continue;
@@ -395,7 +403,7 @@ async function api(base, params) {
  * 取る extmetadata。**Credit は取らない**（作者名に使わない）。Attribution は作者が求める表記、
  * License はテンプレートの名前（PD-US の見分け）、Categories は人物の権利の印を見る
  */
-export const EXTMETA = ["Attribution", "Artist", "LicenseShortName", "License", "LicenseUrl", "DateTimeOriginal",
+export const EXTMETA = ["Attribution", "Artist", "LicenseShortName", "License", "LicenseUrl", "UsageTerms", "DateTimeOriginal",
     "ImageDescription", "ObjectName", "Restrictions", "Categories"];
 
 /** geosearch の問い合わせの引数（テストが縛る） */
@@ -428,6 +436,161 @@ export function geosearchParams(center, radiusM) {
 export async function geosearch(center, radiusM, call = api) {
     const pages = await queryAllPages((params) => call(COMMONS, params), geosearchParams(center, radiusM), ["ggsoffset"]);
     return [...pages.values()];
+}
+
+// ---- パブリックドメインの根拠（2026-10-03・レビュー） ----------------------------
+
+/** パブリックドメインの行か（LicenseShortName が "Public domain"・"PD…"） */
+export function isPublicDomainRow(r) {
+    return /^(public domain|pd)(\b|[-\s])/i.test(String(r?.license ?? "").trim());
+}
+
+/**
+ * **根拠のテンプレートが分かっていない**パブリックドメインの行のファイル名（重ねない）。
+ * `all` のときは根拠の分かっている行も含める（CC・GFDL が一緒に付いていないか見直す）
+ */
+export function filesMissingPdBasis(samplesFile, { all = false } = {}) {
+    const out = new Set();
+    for (const entry of Object.values(samplesFile ?? {})) {
+        for (const r of entry?.samples ?? []) {
+            if (isPublicDomainRow(r) && (all || !hasPdBasis(r.licenseCode))) out.add(r.file);
+        }
+    }
+    return [...out];
+}
+
+/** ファイルのページが使うテンプレートを聞く引数（50件まで・テストが縛る） */
+export function pdTemplatesParams(files) {
+    return {
+        action: "query",
+        titles: files.join("|"),
+        prop: "templates",
+        tlnamespace: "10",
+        tllimit: "max",
+    };
+}
+
+/**
+ * licenseCode を `toSample` と同じ位置（personality・pickedBy の前）に置く。
+ * 末尾に足すと、手前の行の "," まで変わって差分が2行になる
+ */
+function withLicenseCode(r, code) {
+    const out = {};
+    let placed = false;
+    for (const [k, v] of Object.entries(r)) {
+        if (k === "licenseCode") continue;
+        if (!placed && (k === "personality" || k === "pickedBy")) { out.licenseCode = code; placed = true; }
+        out[k] = v;
+    }
+    if (!placed) out.licenseCode = code;
+    return out;
+}
+
+/**
+ * 写真そのものが CC BY だった行へ。license の値を替え、licenseUrl をその後ろに、licenseCode を
+ * pickedBy の前に置く（作者は Attribution → Artist で取った撮影者のまま）
+ */
+function asCcRow(r, cc) {
+    const out = {};
+    for (const [k, v] of Object.entries(r)) {
+        if (k === "licenseUrl" || k === "licenseCode") continue;
+        if (k === "personality" || k === "pickedBy") {
+            if (!("licenseCode" in out)) out.licenseCode = cc.code;
+        }
+        out[k] = k === "license" ? cc.license : v;
+        if (k === "license") out.licenseUrl = cc.licenseUrl;
+    }
+    if (!("licenseCode" in out)) out.licenseCode = cc.code;
+    return out;
+}
+
+/**
+ * 確定ファイルのパブリックドメインの行を、ページのテンプレート（`photoLicenseOf`）で決め直す。
+ *
+ * - PD だけ → 根拠（`pdBasisOf`）を `licenseCode` に書く。**書くのは licenseCode だけ**
+ * - CC BY が一緒に付き、写真そのものが CC BY と決められる → license・licenseUrl・licenseCode を CC BY に
+ * - 決められない（GFDL も付く など）→ `licenseCode` に "mixed:…"。表示しない（`toSpotSample`）
+ *
+ * 行の数・並び・ほかの項目は変えない（ほかの人が同じファイルの写真を足し引きしていても、差分が
+ * ぶつからないように）。`all` でない限り、根拠の分かっている行は見直さない
+ * @template {Record<string, { samples?: Array<Record<string, unknown>> }>} F
+ * @param {F} samplesFile
+ * @param {Map<string, string[]>} templatesByFile ファイル名 → テンプレートの一覧
+ * @param {{ all?: boolean }} [opts]
+ * @returns {{ file: F, changed: number, missing: string[], toCc: string[], undetermined: string[] }}
+ */
+export function applyPdBasis(samplesFile, templatesByFile, { all = false } = {}) {
+    let changed = 0;
+    const missing = [];
+    const toCc = [];
+    const undetermined = [];
+    const file = /** @type {F} */ ({});
+    for (const [spotId, entry] of Object.entries(samplesFile ?? {})) {
+        file[spotId] = {
+            ...entry,
+            samples: (entry.samples ?? []).map((r) => {
+                if (!isPublicDomainRow(r) || (!all && hasPdBasis(r.licenseCode))) return r;
+                const templates = templatesByFile.get(r.file);
+                if (!templates) { missing.push(r.file); return r; }
+                const result = photoLicenseOf(templates);
+                if (result.kind === "cc") { changed++; toCc.push(r.file); return asCcRow(r, result); }
+                if (result.kind === "unknown") undetermined.push(r.file);
+                if (!result.code) { missing.push(r.file); return r; }
+                if (r.licenseCode === result.code) return r;
+                changed++;
+                return withLicenseCode(r, result.code);
+            }),
+        };
+    }
+    return { file, changed, missing, toCc, undetermined };
+}
+
+/**
+ * 前の確定ファイルで分かっていた根拠（決められなかった "mixed:…" も）を、選び直した行へ引き継ぐ
+ * （候補ファイルは根拠を持たないので、選び直すたびに聞き直さなくてよいように）
+ */
+export function carryPdBasis(samplesFile, previous) {
+    const known = new Map();
+    for (const entry of Object.values(previous ?? {})) {
+        for (const r of entry?.samples ?? []) {
+            const code = String(r.licenseCode ?? "");
+            if (hasPdBasis(code)) known.set(r.file, [code]);
+            else if (code.startsWith("mixed:")) known.set(r.file, code.slice(6).split(","));
+        }
+    }
+    return applyPdBasis(samplesFile, known).file;
+}
+
+/** ファイルごとのテンプレートの一覧を Commons に聞く（50件ずつ・続きのページも辿る） */
+async function fetchTemplates(files) {
+    const out = new Map();
+    for (let i = 0; i < files.length; i += 50) {
+        const batch = files.slice(i, i + 50);
+        // 書き方の揺れ（"_"・頭の小文字）は API が直して返すので、元の名前へ戻せるようにしておく
+        const back = new Map(batch.map((f) => [f, f]));
+        let cont = {};
+        for (let page = 0; page < 20; page++) {
+            const r = await api(COMMONS, { ...pdTemplatesParams(batch), ...cont });
+            for (const n of r.query?.normalized ?? []) back.set(n.to, back.get(n.from) ?? n.from);
+            for (const p of r.query?.pages ?? []) {
+                const key = back.get(p.title) ?? p.title;
+                out.set(key, [...(out.get(key) ?? []), ...(p.templates ?? []).map((t) => t.title)]);
+            }
+            if (!r.continue) break;
+            cont = r.continue;
+        }
+    }
+    return out;
+}
+
+/**
+ * 確定ファイルのうち、根拠の分からないパブリックドメインの行だけを聞き直して埋める。
+ * `all` のときはパブリックドメインの行を全部見直す（`--refresh-licenses`）
+ */
+export async function refreshPdBasis(samplesFile, fetcher = fetchTemplates, { all = false } = {}) {
+    const files = filesMissingPdBasis(samplesFile, { all });
+    if (files.length === 0) return { file: samplesFile, changed: 0, missing: [], toCc: [], undetermined: [] };
+    return applyPdBasis(samplesFile, await fetcher(files), { all });
 }
 
 /** Wikidata の座標を Q-ID ごとに（50件ずつまとめて聞く） */
@@ -694,6 +857,13 @@ export function buildSamplesFile(candidatesFile, spots, previous = {}, keep = fa
 async function main(argv) {
     const args = argv.slice(2);
     const arg = (n) => args.find((a) => a.startsWith(`--${n}=`))?.slice(n.length + 3);
+    if (args.includes("--refresh-licenses")) {
+        const r = await refreshPdBasis(readJson(SAMPLES_PATH, {}), fetchTemplates, { all: true });
+        writeJson(SAMPLES_PATH, r.file);
+        console.log(`[spot-samples] 書き直した ${r.changed} 枚（うち写真が CC BY ${r.toCc.length}）・`
+            + `決められない ${r.undetermined.length}・根拠が無い ${r.missing.length}（どちらも表示しない）・要求 ${requestCount} 回`);
+        return 0;
+    }
     const spots = readJson(LEDGER_PATH, []);
     const only = arg("slug")?.split(",").filter(Boolean);
     const prefecture = arg("prefecture");
@@ -763,7 +933,9 @@ async function main(argv) {
     }
 
     const previous = readJson(SAMPLES_PATH, {});
-    const samples = buildSamplesFile(candidatesFile, spots, previous, args.includes("--keep-picks"));
+    let samples = carryPdBasis(buildSamplesFile(candidatesFile, spots, previous, args.includes("--keep-picks")), previous);
+    // 根拠の分からないパブリックドメインは表示しない（`toSpotSample`）ので、通信してよいときは聞いて埋める
+    if (!args.includes("--pick-only")) samples = (await refreshPdBasis(samples)).file;
     writeJson(SAMPLES_PATH, samples);
     const total = Object.values(samples).reduce((a, e) => a + e.samples.length, 0);
     console.log(`[spot-samples] 確定 ${Object.keys(samples).length} スポット・${total} 枚`);

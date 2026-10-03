@@ -57,7 +57,7 @@ describe("spotStructuredData", () => {
         expect(data.image).toEqual(["https://example.com/a.jpg", expect.objectContaining({
             "@type": "ImageObject", contentUrl: sample.src,
             name: "A",
-            creator: { name: "撮った人" },
+            creator: { "@type": "Person", name: "撮った人" },
             license: sample.licenseUrl, acquireLicensePage: sample.sourceUrl,
             creditText: "撮った人 / CC BY 2.0 / Wikimedia Commons",
         })]);
