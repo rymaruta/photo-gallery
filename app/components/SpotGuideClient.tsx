@@ -9,7 +9,7 @@ import { commonsThumbAt, commonsSrcSet } from "@/lib/utils/commonsThumb";
 import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
-import { MapIcon, ArrowUpOnSquareIcon, MapPinIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { MapIcon, ArrowUpOnSquareIcon, MapPinIcon, ChevronRightIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import { distanceLabel } from "@/lib/utils/journey";
 import { useToast } from "@/lib/hooks/useToast";
 import { shareUrl } from "@/lib/utils/share";
@@ -17,6 +17,7 @@ import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
+import { LIGHT_MAX_OFFSET, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -147,14 +148,14 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left" style={{ fontSize: "13px", lineHeight: "18px" }}>
                     <caption className="sr-only">
-                        {isJa ? "各月15日の日の出・日の入り・夕方のマジックアワー" : "Sunrise, sunset and evening golden hour on the 15th of each month"}
+                        {isJa ? "各月15日の日の出・日の入り・夕方のゴールデンアワー" : "Sunrise, sunset and evening golden hour on the 15th of each month"}
                     </caption>
                     <thead>
                         <tr className="text-white/60 border-b border-line align-bottom" style={{ fontSize: "12px" }}>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "月" : "Month"}</th>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "日の出" : "Sunrise"}</th>
                             <th scope="col" className={`${cell} font-normal`}>{isJa ? "日の入り" : "Sunset"}</th>
-                            <th scope="col" className="py-2 font-normal">{isJa ? "夕方のマジックアワー" : "Evening golden hour"}</th>
+                            <th scope="col" className="py-2 font-normal">{isJa ? "夕方のゴールデンアワー" : "Evening golden hour"}</th>
                         </tr>
                     </thead>
                     <tbody className="font-mono tabular-nums text-white/85">
@@ -173,7 +174,7 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
             </div>
             <p className="m-0 mt-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
-                    ? `各月15日の計算値（${zoneLabel(light.timeZone, true)}）。マジックアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
+                    ? `各月15日の計算値（${zoneLabel(light.timeZone, true)}）。ゴールデンアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
                     : `Calculated for the 15th of each month (${zoneLabel(light.timeZone, false)}). Golden hour is when the sun is between 6° and −4°. Weather and shadows from terrain or buildings are not included.`}
             </p>
             {legend.length > 0 && (
@@ -181,6 +182,102 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
                     {legend.map((l) => <li key={l}>{l}</li>)}
                 </ul>
             )}
+        </section>
+    );
+}
+
+/**
+ * **光の時刻**（その日の日の出・日の入りと方角、ゴールデンアワー・ブルーアワー・`lib/utils/spotLight.ts`）。
+ * アプリの撮影スポットの画面（`OfficialSpotView` の光の時刻）と同じ段・同じ文。日付は前後に送れる。
+ *
+ * **今日はブラウザで決まる**（静的なページなので、ビルドの日の時刻を書き込まない）。最初の描画は
+ * サーバーと同じにするため、時刻の行と日付の帯は水和のあとに出す。節を出すかどうか・台帳の時間帯の文・
+ * 注記は日付に依らないので、サーバーの HTML にも入る（検索にも読まれる）
+ */
+function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: boolean }) {
+    const [now, setNow] = React.useState<Date | null>(null);
+    const [offset, setOffset] = React.useState(0);
+    React.useEffect(() => { setNow(new Date()); }, []);
+    const sheet = now && spot.coords ? lightSheet(spot.region?.country, spot.coords, offset, now, isJa) : null;
+    const guides = splitGuides(spot.timeOfDayGuide ?? []);
+    // 水和の前は段の札と台帳の文だけ（文の無い段は出さない）
+    const blocks: LightBlock[] = sheet?.blocks ?? [
+        { title: isJa ? "朝" : "Morning", isMorning: true, rows: [] },
+        { title: isJa ? "夕" : "Evening", isMorning: false, rows: [] },
+    ].filter((b) => (b.isMorning ? guides.morning : guides.evening).length > 0);
+    const step = (d: number) => setOffset((o) => Math.min(Math.max(o + d, -LIGHT_MAX_OFFSET), LIGHT_MAX_OFFSET));
+    const stepButton = (d: -1 | 1) => {
+        const atEdge = d < 0 ? offset <= -LIGHT_MAX_OFFSET : offset >= LIGHT_MAX_OFFSET;
+        const Icon = d < 0 ? ChevronLeftIcon : ChevronRightIcon;
+        return (
+            <button type="button" onClick={() => step(d)} disabled={atEdge}
+                    aria-label={d < 0 ? (isJa ? "前の日" : "Previous day") : (isJa ? "次の日" : "Next day")}
+                    data-testid={d < 0 ? "spot-today-light-prev" : "spot-today-light-next"}
+                    className="flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-full text-white hover:bg-surface-2 disabled:opacity-30 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">
+                <Icon className="w-4 h-4" aria-hidden />
+            </button>
+        );
+    };
+    return (
+        <section className="pt-8" aria-labelledby="spot-today-light" data-testid="spot-today-light">
+            <Head id="spot-today-light">{isJa ? "光の時刻" : "Light"}</Head>
+            {sheet && (
+                <div className="flex items-center gap-1 mb-2">
+                    {stepButton(-1)}
+                    <span className="min-w-0 text-white tabular-nums" style={{ fontSize: "15px", lineHeight: "20px", fontWeight: 500 }}
+                          aria-live="polite" data-testid="spot-today-light-date">
+                        {lightDateLabel(sheet.ymd, offset, sheet.todayYMD, isJa)}
+                    </span>
+                    {stepButton(1)}
+                    <span className="flex-1" />
+                    {offset !== 0 && (
+                        <button type="button" onClick={() => setOffset(0)} aria-label={isJa ? "今日に戻す" : "Back to today"}
+                                className="flex-shrink-0 min-w-11 h-11 px-2 font-semibold text-accent hover:underline focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded"
+                                style={{ fontSize: "14px" }}>
+                            {isJa ? "今日" : "Today"}
+                        </button>
+                    )}
+                </div>
+            )}
+            {blocks.length > 0 && (
+                <div className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden">
+                    {blocks.map((b, i) => {
+                        const texts = b.isMorning ? guides.morning : guides.evening;
+                        return (
+                            <div key={b.title} className={`p-3.5 ${i > 0 ? "border-t border-line" : ""}`} data-testid="spot-today-light-block">
+                                <p className="m-0 mb-2 uppercase tracking-[0.16em] text-accent" style={{ fontSize: "11px", lineHeight: "14px" }}>{b.title}</p>
+                                {b.rows.length > 0 && (
+                                    <dl className="m-0 flex flex-col gap-1.5">
+                                        {b.rows.map((r) => (
+                                            <div key={r.label} className="flex items-baseline gap-2.5" data-testid="spot-today-light-row">
+                                                <dt className="text-white/70" style={{ fontSize: "14px", lineHeight: "20px" }}>{r.label}</dt>
+                                                <dd className="m-0 ml-auto flex items-baseline gap-2.5 text-right">
+                                                    {r.detail && <span className="tabular-nums text-white/55" style={{ fontSize: "13px" }}>{r.detail}</span>}
+                                                    <span className="tabular-nums text-white" style={{ fontSize: "15px", fontWeight: 500 }}>{r.value}</span>
+                                                </dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                )}
+                                {texts.length > 0 && (
+                                    <ul className={`m-0 p-0 flex flex-col gap-2 ${b.rows.length > 0 ? "mt-3" : ""}`} style={{ listStyle: "none" }}>
+                                        {texts.map((t) => (
+                                            <li key={t.time} className="flex gap-2.5">
+                                                <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
+                                                      style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
+                                                    {TIME_LABEL[t.time] ?? t.time}
+                                                </span>
+                                                <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{t.text}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+            <p className="m-0 mt-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>{lightNote(zone, isJa)}</p>
         </section>
     );
 }
@@ -298,6 +395,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const humanChecked = isVerified(spot);
     const aiChecked = !humanChecked && hasAiCheck(spot) ? spot.aiCheck : undefined;
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
+    // 光の時刻の節を出す場所か（座標と国だけで決まる）。出すときは朝・夕の時間帯の文をそちらへ移す
+    const lightTz = lightZone(spot.coords, spot.region?.country);
+    const guideTimeList = guideTimes(spot.timeOfDayGuide ?? [], lightTz !== null);
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
     // 「[都道府県] [市区町村] · N枚の写真」（iOS の `SpotScreen.subtitle`）。N は数えた値
     const photoCountLabel = isJa ? `${photos.length}枚の写真` : (photos.length === 1 ? "1 photo" : `${photos.length} photos`);
@@ -564,7 +664,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             **事実ではなく運営のアドバイス**なので、出典は求めない
                             （代わりに「撮影ガイド」という見出しで事実と分ける） */}
                         {((spot.seasonalGuide ?? []).length > 0
-                            || (spot.timeOfDayGuide ?? []).length > 0
+                            || guideTimeList.length > 0
                             || (spot.compositionTips ?? []).length > 0
                             || showsField(spot, "safetyNotes")) && (
                             <section className="pt-8" aria-labelledby="spot-guide">
@@ -589,13 +689,13 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                     </div>
                                 )}
 
-                                {(spot.timeOfDayGuide ?? []).length > 0 && (
+                                {guideTimeList.length > 0 && (
                                     <div className="mb-5">
                                         <p className="m-0 mb-2 text-white/60" style={{ fontSize: "12px" }}>
                                             {isJa ? "時間帯" : "By time of day"}
                                         </p>
                                         <ul className="m-0 p-0 flex flex-col gap-2" style={{ listStyle: "none" }}>
-                                            {spot.timeOfDayGuide!.map((t) => (
+                                            {guideTimeList.map((t) => (
                                                 <li key={t.time} className="flex gap-2.5">
                                                     <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
                                                           style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
@@ -638,6 +738,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 )}
                             </section>
                         )}
+
+                        {/* ── 光の時刻（その日）→ 撮影の光（月別の表）── */}
+                        {lightTz && <LightToday spot={spot} zone={lightTz} isJa={isJa} />}
 
                         {light && <LightTable light={light} isJa={isJa} />}
 
