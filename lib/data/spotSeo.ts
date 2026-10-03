@@ -13,6 +13,7 @@ import { visibleSpots, isPublished } from "../utils/spotGuide";
 import { siteConfig } from "../utils/seo";
 import { ROUTES } from "../routes";
 import { haversineKm, kmForLabel } from "../utils/journey";
+import { sampleImageObject, type SpotSample } from "./spotSamples";
 
 /** スポットのページの URL（canonical と同じ形） */
 export function spotPageUrl(spot: Pick<Spot, "slug">): string {
@@ -50,8 +51,13 @@ function countryOf(spot: Spot): string | undefined {
  * - **座標（`geo`）は書かない。** 台帳の座標は約1km に丸めてあり、画面も「位置はおおよそ」と
  *   断っている。構造化データに書くと、ずれたピンを正確な地点として渡すことになる（住所で足りる）
  * - 画像は**表に出せる代表写真があるときだけ**（`generateMetadata` の OGP と同じ判断）
+ * - **作例（Wikimedia Commons）があれば `ImageObject` で足す**（2026-10-03）。作者（`creator`）・
+ *   ライセンス（`license`）・出典（`acquireLicensePage`）・表示の文字（`creditText`）を必ず書く。
+ *   作例があるときだけ `image` が配列になる（代表写真の URL が先頭）
  */
-export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
+export function spotStructuredData(spot: Spot, opts: { image?: string; samples?: SpotSample[] } = {}) {
+    const samples = (opts.samples ?? []).map(sampleImageObject);
+    const image = samples.length > 0 ? [...(opts.image ? [opts.image] : []), ...samples] : opts.image;
     const region = spot.region;
     const address = (region?.prefecture || region?.city || region?.country)
         ? {
@@ -68,7 +74,7 @@ export function spotStructuredData(spot: Spot, opts: { image?: string } = {}) {
         ...(spot.nameEn ? { alternateName: spot.nameEn } : {}),
         ...(spot.summary ? { description: spot.summary } : {}),
         url: spotPageUrl(spot),
-        ...(opts.image ? { image: opts.image } : {}),
+        ...(image ? { image } : {}),
         ...(address ? { address } : {}),
     };
 }
