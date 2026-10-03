@@ -3,9 +3,12 @@ import fs from "node:fs";
 import {
     parseCommonsPages, plainDate, nameTerms, scoreCandidate, autoEligible, pickSamples, toSample,
     clampRadius, searchCenters, mergeCandidates, buildSamplesFile, formatCandidatesFile, trimCandidates, KEEP_CANDIDATES,
+    geosearchParams, EXTMETA, readJson, writeFileAtomic, safeWikidataCoords, forCandidatesFile,
     CANDIDATES_PATH, SAMPLES_PATH, LEDGER_PATH, MAX_SAMPLES, MIN_INTERVAL_MS, USER_AGENT,
 } from "../collect-commons-samples.mjs";
-import { isAllowedLicense } from "../fetch-spot-images.mjs";
+import { isAllowedLicense, stripHtml } from "../fetch-spot-images.mjs";
+import os from "node:os";
+import path from "node:path";
 
 /**
  * **撮影地の作例を Commons から集める道具**（`scripts/collect-commons-samples.mjs`）の判定を、
@@ -13,7 +16,7 @@ import { isAllowedLicense } from "../fetch-spot-images.mjs";
  */
 
 /** Commons の API（formatversion=2）の1ページ分 */
-function page(title: string, over: { license?: string; artist?: string; mime?: string; w?: number; h?: number; date?: string; desc?: string; dist?: number; restrictions?: string; licenseUrl?: string } = {}) {
+function page(title: string, over: { license?: string; artist?: string; mime?: string; w?: number; h?: number; date?: string; desc?: string; dist?: number; restrictions?: string; licenseUrl?: string; attribution?: string; credit?: string; code?: string; categories?: string; thumb?: boolean } = {}) {
     const name = title.replace(/^File:/, "").replace(/ /g, "_");
     return {
         pageid: Math.floor(Math.random() * 1e9),
@@ -21,8 +24,9 @@ function page(title: string, over: { license?: string; artist?: string; mime?: s
         coordinates: over.dist === undefined ? undefined : [{ lat: 35, lon: 135, dist: over.dist }],
         imageinfo: [{
             url: `https://upload.wikimedia.org/wikipedia/commons/a/ab/${name}`,
-            thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${name}/1280px-${name}`,
-            thumbwidth: 1280, thumbheight: 853,
+            // 元が 1280px 以下だと API は元画像の URL を返す（thumb: false で再現）
+            thumburl: over.thumb === false ? `https://upload.wikimedia.org/wikipedia/commons/a/ab/${name}` : `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${name}/1280px-${name}`,
+            thumbwidth: over.thumb === false ? over.w : 1280, thumbheight: over.thumb === false ? over.h : 853,
             width: over.w ?? 4000, height: over.h ?? 2667,
             mime: over.mime ?? "image/jpeg",
             descriptionurl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
@@ -31,6 +35,10 @@ function page(title: string, over: { license?: string; artist?: string; mime?: s
                 LicenseUrl: { value: over.licenseUrl ?? "https://creativecommons.org/licenses/by-sa/4.0" },
                 Artist: { value: over.artist ?? '<a href="//commons.wikimedia.org/wiki/User:X" title="User:X">撮った人</a>' },
                 ...(over.date ? { DateTimeOriginal: { value: over.date } } : {}),
+                ...(over.attribution !== undefined ? { Attribution: { value: over.attribution } } : {}),
+                ...(over.credit !== undefined ? { Credit: { value: over.credit } } : {}),
+                ...(over.code !== undefined ? { License: { value: over.code } } : {}),
+                ...(over.categories !== undefined ? { Categories: { value: over.categories } } : {}),
                 ...(over.desc ? { ImageDescription: { value: over.desc } } : {}),
                 ...(over.restrictions ? { Restrictions: { value: over.restrictions } } : {}),
             },
@@ -82,6 +90,115 @@ describe("ライセンスの選別", () => {
         ]);
         expect(rejected.notPhoto).toBe(3);
         expect(candidates.map((c) => c.file)).toEqual(["File:D.jpg"]);
+    });
+});
+
+describe("作者名（レビュー #272 の 1）", () => {
+    it("Attribution（作者が求める表記）→ Artist の順。Credit には頼らない", () => {
+        const [a] = parseCommonsPages([page("File:A.jpg", { attribution: "Taro Yamada / Wikimedia Commons", artist: "tyamada" })]).candidates;
+        expect(a.author).toBe("Taro Yamada / Wikimedia Commons");
+        const [b] = parseCommonsPages([page("File:B.jpg", { attribution: "", artist: "tyamada" })]).candidates;
+        expect(b.author).toBe("tyamada");
+        // Artist が空で Credit だけ（「投稿者自身による著作物」）のものは、CC BY 系なら捨てる
+        const r = parseCommonsPages([page("File:C.jpg", { artist: "", credit: "投稿者自身による著作物" })]);
+        expect(r.candidates).toHaveLength(0);
+        expect(r.rejected.noAuthor).toBe(1);
+        expect(EXTMETA).toContain("Attribution");
+        expect(EXTMETA).not.toContain("Credit");
+    });
+
+    it.each([
+        "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
+        "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author", "作者不明",
+        "I would appreciate being notified if you use my work outside Wikimedia.",
+        "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
+        "This Photo was taken by Someone . Feel free to use my photos, but please mention me as the author.",
+    ])("🔴 決まり文句・お願い文の作者（%s）は CC BY 系なら捨てる", (artist) => {
+        const r = parseCommonsPages([page("File:A.jpg", { artist })]);
+        expect(r.candidates).toHaveLength(0);
+        expect(r.rejected.noAuthor).toBe(1);
+    });
+
+    it("決まり文句の作者でもパブリックドメインなら「作者不明」として残す。飾り（( talk )・Taken with …）は落とす", () => {
+        const [pd] = parseCommonsPages([page("File:A.jpg", { license: "Public domain", licenseUrl: "", artist: "Unknown author" })]).candidates;
+        expect(pd.author).toBe("作者不明");
+        const [q] = parseCommonsPages([page("File:B.jpg", { artist: "photo: Qurren ( talk ) Taken with Canon IXY 10S (Digital IXUS 210)" })]).candidates;
+        expect(q.author).toBe("Qurren");
+    });
+
+    it("英語で取る（日本語にすると作者の欄に決まり文句が付く）", () => {
+        expect(geosearchParams({ lat: 35, lng: 135 }, 500).iiextmetadatalanguage).toBe("en");
+        expect(geosearchParams({ lat: 35, lng: 135 }, 500).iiextmetadatafilter.split("|")).toEqual(EXTMETA);
+    });
+});
+
+describe("人物・PD-US・縮小版（レビュー #272 の 7・人物）", () => {
+    it("🔴 アメリカだけのパブリックドメイン（PD-US）は捨てる", () => {
+        const r = parseCommonsPages([page("File:A.jpg", { license: "Public domain", licenseUrl: "", code: "pd-us-expired" })]);
+        expect(r.candidates).toHaveLength(0);
+        expect(r.rejectedLicenses).toEqual({ "PD-US": 1 });
+    });
+
+    it("人物の権利の印（Restrictions・カテゴリ）があれば候補に印を付け、自動では採らない", () => {
+        const [c] = parseCommonsPages([page("File:金閣寺 1.jpg", { categories: "Kinkaku-ji|Personality rights warning" })]).candidates;
+        expect(c.personality).toBe(true);
+        expect(autoEligible({ ...c, ...scoreCandidate(KINKAKU, c) })).toBe(false);
+        expect(toSample({ ...c, score: 1, reasons: [], named: true }).personality).toBe(true);
+    });
+
+    it("人や催しが主役の写真（Festival・Rallye・ポートレート）は自動で採らない。撮影地が祭りなら採る", () => {
+        const fest = parseCommonsPages([page("File:金閣寺 Festival 2019.jpg")]).candidates[0];
+        expect(autoEligible({ ...fest, ...scoreCandidate(KINKAKU, fest) })).toBe(false);
+        const kunchi = { spotId: "sp_k", slug: "nagasaki-kunchi", name: "長崎くんち", category: "祭り", aliases: [], status: "published" };
+        const k = parseCommonsPages([page("File:長崎くんち Festival.jpg")]).candidates[0];
+        expect(autoEligible({ ...k, ...scoreCandidate(kunchi, k) })).toBe(true);
+    });
+
+    it("🔴 元が 1280px 以下で API が元画像の URL を返しても、元より小さい標準の幅（960）の縮小版にする", () => {
+        const [c] = parseCommonsPages([page("File:Small.jpg", { w: 1200, h: 800, thumb: false })]).candidates;
+        expect(c.thumbUrl).toBe("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Small.jpg/960px-Small.jpg");
+        expect([c.thumbWidth, c.thumbHeight]).toEqual([960, 640]);
+        expect(c.width).toBe(1200);
+    });
+});
+
+describe("ファイルの読み書き・HTML・Wikidata（レビュー #272 の 2・9）", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "samples-"));
+
+    it("無いときだけ既定値。壊れた JSON は止める（黙って空から始めて上書きしない）", () => {
+        expect(readJson(path.join(dir, "none.json"), { a: 1 })).toEqual({ a: 1 });
+        const bad = path.join(dir, "bad.json");
+        fs.writeFileSync(bad, "{ broken");
+        expect(() => readJson(bad, {})).toThrow(/JSON として読めません/);
+        expect(() => readJson(dir, {})).toThrow(/読めません/); // ディレクトリ＝読めない
+    });
+
+    it("書き込みは一時ファイル → rename（一時ファイルが残らない）", () => {
+        const p = path.join(dir, "out.json");
+        writeFileAtomic(p, "{\"x\":1}\n");
+        expect(JSON.parse(fs.readFileSync(p, "utf8"))).toEqual({ x: 1 });
+        expect(fs.readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toEqual([]);
+    });
+
+    it("数字の実体参照を読み、二重にはほどかない", () => {
+        expect(stripHtml("&#26481;&#x4EAC; Tower")).toBe("東京 Tower");
+        expect(stripHtml("a &amp;lt;b&amp;gt;")).toBe("a &lt;b&gt;");
+        expect(stripHtml("Tom &amp; Jerry")).toBe("Tom & Jerry");
+    });
+
+    it("Wikidata の段が落ちても全体を止めない（空の対応で続ける）", async () => {
+        const out = await safeWikidataCoords(["Q1"], async () => { throw new Error("429"); });
+        expect(out.size).toBe(0);
+        expect((await safeWikidataCoords([], async () => { throw new Error("x"); })).size).toBe(0);
+    });
+
+    it("候補ファイルには説明・種類を残さない（レビュー #272 の 8・次の収集から効く）", () => {
+        const [c] = parseCommonsPages([page("File:A.jpg", { desc: "長い説明" })]).candidates;
+        expect(c.description).toBe("長い説明");
+        const kept = forCandidatesFile(c);
+        expect(kept).not.toHaveProperty("description");
+        expect(kept).not.toHaveProperty("mime");
+        expect(kept.file).toBe("File:A.jpg");
     });
 });
 
@@ -217,6 +334,14 @@ describe("確定ファイルを作る", () => {
             [KINKAKU], previous);
         expect(out[KINKAKU.spotId].samples.map((s: { file: string }) => s.file)).toEqual(["File:人が選んだ.jpg", "File:金閣寺1.jpg", "File:金閣寺2.jpg"]);
         expect(out.sp_other).toEqual(previous.sp_other);
+    });
+
+    it("説明を残していない候補でも、説明で当たった名前を失わずに選び直せる", () => {
+        const c0 = parseCommonsPages([page("File:IMG 0002.jpg", { desc: "鹿苑寺の舎利殿" })]).candidates[0];
+        const c = forCandidatesFile({ ...c0, ...scoreCandidate(KINKAKU, c0) });
+        expect(c.named).toBe(true);
+        const out = buildSamplesFile({ spots: { [KINKAKU.spotId]: { candidates: [c] } } }, [KINKAKU], {});
+        expect(out[KINKAKU.spotId].samples.map((x: { file: string }) => x.file)).toEqual(["File:IMG 0002.jpg"]);
     });
 
     it("keep のときは前の確定ファイルのスポットを触らない", () => {

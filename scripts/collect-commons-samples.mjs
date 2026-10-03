@@ -49,7 +49,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isAllowedLicense, stripHtml, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
+import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
+import {
+    stripHtml, authorFromMeta, isUsOnlyPublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+} from "../lib/utils/commonsAttribution.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -174,6 +177,8 @@ export function scoreCandidate(spot, c) {
     if (c.dateTimeOriginal) { score += 1; reasons.push("撮影日時"); }
     if (typeof c.distanceM === "number" && c.distanceM <= 250) { score += 1; reasons.push("近い"); }
     if (OFF_TOPIC.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("向かない語"); }
+    // 人や催しが主役の写真（撮影地が催しそのものなら除く）。表示側（spotSamples.ts）も同じ語で落とす
+    if (!isEventSpot(spot) && EVENT_OR_PERSON.test(`${c.title ?? ""} ${c.file ?? ""}`)) { score -= 4; reasons.push("人・催し"); }
     return { score, reasons, named };
 }
 
@@ -187,8 +192,10 @@ export function bigEnough(c) {
 /** 自動で採ってよい候補か（名前が当たる・写真・解像度・注意書きなし・極端な横長でない） */
 export function autoEligible(c) {
     if (!c.named) return false;
-    if (c.reasons?.includes("向かない語")) return false; // 地図・食べ物・被害の記録などは名前が当たっても採らない
-    if (!PHOTO_MIMES.has(c.mime)) return false;
+    if (c.reasons?.includes("向かない語") || c.reasons?.includes("人・催し")) return false;
+    if (c.personality) return false; // 人物の権利の印（Restrictions・カテゴリ） // 地図・食べ物・被害の記録などは名前が当たっても採らない
+    // 種類は候補ファイルに残さない（集めるときに写真だけにしてある）。あるときだけ見る
+    if (c.mime !== undefined && !PHOTO_MIMES.has(c.mime)) return false;
     if (!bigEnough(c)) return false;
     if (c.restrictions) return false;
     const ratio = c.width / c.height;
@@ -228,6 +235,8 @@ export function toSample(c, pickedBy = "auto") {
         license: c.license,
         ...(c.licenseUrl ? { licenseUrl: c.licenseUrl } : {}),
         ...(c.dateTimeOriginal ? { dateTimeOriginal: c.dateTimeOriginal } : {}),
+        ...(c.licenseCode ? { licenseCode: c.licenseCode } : {}),
+        ...(c.personality ? { personality: true } : {}),
         pickedBy,
     };
 }
@@ -250,19 +259,32 @@ export function parseCommonsPages(pages) {
             rejectedLicenses[license || "(空)"] = (rejectedLicenses[license || "(空)"] ?? 0) + 1;
             continue;
         }
+        const licenseCode = String(meta.License?.value ?? "").trim();
+        // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない
+        if (isUsOnlyPublicDomain(license, licenseCode)) {
+            rejected.license++;
+            rejectedLicenses["PD-US"] = (rejectedLicenses["PD-US"] ?? 0) + 1;
+            continue;
+        }
         if (!PHOTO_MIMES.has(info.mime)) { rejected.notPhoto++; continue; }
-        const author = creditFor(stripHtml(meta.Artist?.value) || stripHtml(meta.Credit?.value), license);
+        // 作者は Attribution → Artist。Credit（「投稿者自身による著作物」など）には頼らない。
+        // 決まり文句・お願い文は名前として使わない（CC BY 系は作者が無い＝捨てる）
+        const author = creditFor(authorFromMeta(meta), license);
         if (!author) { rejected.noAuthor++; continue; }
         const licenseUrl = String(meta.LicenseUrl?.value ?? "").trim().replace(/^http:\/\//, "https://");
         const description = stripHtml(meta.ImageDescription?.value).slice(0, 160);
         const restrictions = stripHtml(meta.Restrictions?.value);
+        const personality = hasPersonalityMark(`${restrictions} ${stripHtml(meta.Categories?.value)}`);
+        // API は元画像が 1280px 以下だと元画像の URL を返す。必ず標準の幅の縮小版にする
+        const rawThumb = info.thumburl ?? info.url;
+        const small = /\/thumb\//.test(rawThumb) ? undefined : standardThumbOf(cleanUrl(info.url), info.width, info.height);
         candidates.push({
             file: page.title,
             title: stripHtml(meta.ObjectName?.value) || page.title.replace(/^File:/, "").replace(/\.[a-z0-9]+$/i, ""),
             pageUrl: info.descriptionurl,
-            thumbUrl: cleanUrl(info.thumburl ?? info.url),
-            thumbWidth: info.thumbwidth ?? info.width,
-            thumbHeight: info.thumbheight ?? info.height,
+            thumbUrl: small?.url ?? cleanUrl(rawThumb),
+            thumbWidth: small?.width ?? info.thumbwidth ?? info.width,
+            thumbHeight: small?.height ?? info.thumbheight ?? info.height,
             width: info.width,
             height: info.height,
             mime: info.mime,
@@ -272,6 +294,8 @@ export function parseCommonsPages(pages) {
             ...(plainDate(meta.DateTimeOriginal?.value) ? { dateTimeOriginal: plainDate(meta.DateTimeOriginal?.value) } : {}),
             ...(description ? { description } : {}),
             ...(restrictions ? { restrictions } : {}),
+            ...(personality ? { personality: true } : {}),
+            ...(licenseCode ? { licenseCode } : {}),
             // 写真の撮影位置そのものは持たない。探した中心からの距離（m）だけ
             ...(typeof page.coordinates?.[0]?.dist === "number" ? { distanceM: Math.round(page.coordinates[0].dist) } : {}),
         });
@@ -337,11 +361,16 @@ async function api(base, params) {
     throw new Error(`API が応答しません: ${url}`);
 }
 
-const EXTMETA = ["Artist", "Credit", "LicenseShortName", "LicenseUrl", "DateTimeOriginal", "ImageDescription", "ObjectName", "Restrictions"];
+/**
+ * 取る extmetadata。**Credit は取らない**（作者名に使わない）。Attribution は作者が求める表記、
+ * License はテンプレートの名前（PD-US の見分け）、Categories は人物の権利の印を見る
+ */
+export const EXTMETA = ["Attribution", "Artist", "LicenseShortName", "License", "LicenseUrl", "DateTimeOriginal",
+    "ImageDescription", "ObjectName", "Restrictions", "Categories"];
 
-/** 1つの中心の周りの候補（続きのページも辿る） */
-async function geosearch(center, radiusM) {
-    const params = {
+/** geosearch の問い合わせの引数（テストが縛る） */
+export function geosearchParams(center, radiusM) {
+    return {
         action: "query",
         generator: "geosearch",
         ggscoord: `${center.lat}|${center.lng}`,
@@ -352,12 +381,18 @@ async function geosearch(center, radiusM) {
         iiprop: "url|extmetadata|size|mime",
         iiurlwidth: String(THUMB_WIDTH),
         iiextmetadatafilter: EXTMETA.join("|"),
-        iiextmetadatalanguage: "ja",
+        // 日本語にすると作者の欄に「…と推定されます」などの決まり文句が付くので英語で取る
+        iiextmetadatalanguage: "en",
         codistancefrompoint: `${center.lat}|${center.lng}`,
         // 🔴 既定は 10 件。これを付けないと 100 件の座標を取るのに続きのページを10回辿る
         // （1スポット11回の要求になっていた・2026-10-03 実測）
         colimit: "max",
     };
+}
+
+/** 1つの中心の周りの候補（続きのページも辿る） */
+async function geosearch(center, radiusM) {
+    const params = geosearchParams(center, radiusM);
     const pages = new Map();
     let cont = {};
     for (let i = 0; i < 20; i++) {
@@ -389,14 +424,58 @@ async function wikidataCoords(ids) {
     return out;
 }
 
+/**
+ * Wikidata の座標を取る。**失敗しても止めない**（探す中心を足すだけなので、台帳の座標で続ける）
+ * @param {string[]} ids
+ * @param {(ids: string[]) => Promise<Map<string, {lat:number,lng:number}>>} [fetcher]
+ */
+export async function safeWikidataCoords(ids, fetcher = wikidataCoords) {
+    if (!ids.length) return new Map();
+    try {
+        return await fetcher(ids);
+    } catch (e) {
+        console.log(`[wikidata] 座標を取れなかった（台帳の座標だけで続ける）: ${e?.message ?? e}`);
+        return new Map();
+    }
+}
+
+/** 候補ファイルに残す形（説明・種類は点数を付けるのに使うだけで残さない＝大きさを抑える） */
+export function forCandidatesFile(c) {
+    const { description: _d, mime: _m, ...rest } = c;
+    void _d; void _m;
+    return rest;
+}
+
 // ---- CLI --------------------------------------------------------------------
 
-function readJson(p, fallback) {
-    try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return fallback; }
+/**
+ * JSON を読む。**ファイルが無いときだけ** `fallback`。壊れている・読めないときは止める
+ * ——黙って空から始めると、次の書き込みで候補や人の選んだ1枚を消してしまう
+ */
+export function readJson(p, fallback) {
+    let text;
+    try {
+        text = fs.readFileSync(p, "utf8");
+    } catch (e) {
+        if (e?.code === "ENOENT") return fallback;
+        throw new Error(`${p} を読めません: ${e?.message ?? e}`);
+    }
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        throw new Error(`${p} が JSON として読めません（直してから流し直す）: ${e?.message ?? e}`);
+    }
+}
+
+/** 書き込みは**一時ファイル → rename**（途中で止まっても元のファイルが半端に残らない） */
+export function writeFileAtomic(p, text) {
+    const tmp = `${p}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, text);
+    fs.renameSync(tmp, p);
 }
 
 function writeJson(p, data) {
-    fs.writeFileSync(p, `${JSON.stringify(data, null, 2)}\n`);
+    writeFileAtomic(p, `${JSON.stringify(data, null, 2)}\n`);
 }
 
 /**
@@ -446,7 +525,15 @@ export function buildSamplesFile(candidatesFile, spots, previous = {}, keep = fa
         const human = (previous[spotId]?.samples ?? []).filter((s) => s.pickedBy && s.pickedBy !== "auto");
         const taken = new Set(human.map((s) => s.file));
         // 点数は**いまの規則で付け直す**（規則を直したら --pick-only で選び直せる）
-        const rescored = (entry.candidates ?? []).map((c) => ({ ...c, ...scoreCandidate(spot, c) }));
+        // 説明（description）を残していない候補は、説明で当たった名前を付け直せないので、前の結果を残す
+        const rescored = (entry.candidates ?? []).map((c) => {
+            const r = scoreCandidate(spot, c);
+            if (c.description === undefined && c.named && !r.named) {
+                const extra = r.reasons.filter((x) => (x === "向かない語" || x === "人・催し") && !(c.reasons ?? []).includes(x));
+                return { ...c, reasons: [...new Set([...(c.reasons ?? []), ...extra])], score: c.score - 4 * extra.length };
+            }
+            return { ...c, ...r };
+        });
         const auto = pickSamples(rescored.filter((c) => !taken.has(c.file)),
             { max: Math.max(0, MAX_SAMPLES - human.length) });
         const samples = [...human, ...auto.map((c) => toSample(c))];
@@ -482,7 +569,8 @@ async function main(argv) {
     if (!args.includes("--pick-only")) {
         const images = readJson(SPOT_IMAGES_PATH, {});
         const ids = [...new Set(targets.map((s) => images[s.slug]?.wikidata).filter(Boolean))];
-        const wd = ids.length ? await wikidataCoords(ids) : new Map();
+        // Wikidata は探す中心を足すだけ。落ちても台帳の座標で続ける（全体を止めない）
+        const wd = await safeWikidataCoords(ids);
         const today = new Date().toISOString().slice(0, 10);
         let n = 0;
         for (const spot of targets) {
@@ -511,7 +599,7 @@ async function main(argv) {
             }).sort((a, b) => b.score - a.score || (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
             // 自動で採るものは必ず残し、残りの枠を点数の高い順に埋める
             const picked = new Set(pickSamples(scored).map((c) => c.file));
-            const candidates = trimCandidates(scored);
+            const candidates = trimCandidates(scored).map(forCandidatesFile);
             candidatesFile.spots[spot.spotId] = {
                 slug: spot.slug, name: spot.name, prefecture: spot.region?.prefecture ?? spot.region?.country ?? "",
                 searchedAt: today, radiusM, centers, filesFound: found,
@@ -520,7 +608,7 @@ async function main(argv) {
             };
             console.log(`[${n}/${targets.length}] ${spot.slug}: 見つかった ${found}・使える ${scored.length}・名前一致 ${scored.filter((c) => c.named).length}・自動で採れる ${picked.size}`);
             candidatesFile.spots = Object.fromEntries(Object.keys(candidatesFile.spots).sort().map((k) => [k, candidatesFile.spots[k]]));
-            fs.writeFileSync(CANDIDATES_PATH, formatCandidatesFile(candidatesFile));
+            writeFileAtomic(CANDIDATES_PATH, formatCandidatesFile(candidatesFile));
         }
         console.log(`[spot-samples] 要求 ${requestCount} 回`);
     }
