@@ -36,7 +36,9 @@ const API = "api/src/photos.ts";
 // それは「行をそのまま渡してよい」という意味ではない——`srcOriginal` は
 // EXIF を落とす前の原本（GPS 入り）のURLで、フォロワーであっても
 // 撮影者の自宅が割れる粒度の情報になる。**ここだけ生の行を返していた。**
-const RESTRICTED = "api-user/src/restrictedFeed.ts";
+// 2026-10-03: 一覧は `restrictedFeed.ts` から `privateFields.ts` へ切り出した
+// （公開の一覧 `GET /feed` と共用。写しは増やしていない）
+const RESTRICTED = "api-user/src/privateFields.ts";
 const SYNC = "scripts/sync-photos-from-ddb.js";
 const READER = "lib/server/photos.ts";
 
@@ -76,6 +78,21 @@ describe("公開データのふるいは4か所で揃っている", () => {
     it("sync だけが余分に落とすものは、理由を書いた一覧と一致する", () => {
         const extra = fieldsOf(SYNC).filter((f) => !fieldsOf(API).includes(f));
         expect(extra.sort()).toEqual([...SYNC_ONLY].sort());
+    });
+
+    // **`GET /feed`（`api-user/src/feed.ts`）は `photos.json` の続きのページ。**
+    // 同じ項目で返すので、api-user の `PRIVATE_FIELDS` ＋ `STATIC_LIST_ONLY_FIELDS` が
+    // sync の `PRIVATE_FIELDS` とちょうど一致すること（片方だけ増やさない）
+    it("公開の一覧（GET /feed）は sync と同じものを落とす", () => {
+        const src = readFileSync(join(ROOT, RESTRICTED), "utf8");
+        const m = /STATIC_LIST_ONLY_FIELDS\s*=\s*\[([^\]]*)\]/.exec(src);
+        expect(m, "STATIC_LIST_ONLY_FIELDS を読めない").not.toBeNull();
+        const staticOnly = [...m![1].matchAll(/["']([^"']+)["']/g)].map((x) => x[1]);
+        expect([...fieldsOf(RESTRICTED), ...staticOnly].sort()).toEqual([...fieldsOf(SYNC)].sort());
+        // 配線: feed.ts がこのふるいを通している
+        const feed = readFileSync(join(ROOT, "api-user/src/feed.ts"), "utf8");
+        expect(feed).toMatch(/import \{ stripForPublicList \} from "\.\/privateFields"/);
+        expect(feed).toContain("items.map(stripForPublicList)");
     });
 
     // **名指しでも固定する。** 上の3本は「3つが揃っているか」しか見ないので、

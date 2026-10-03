@@ -49,7 +49,7 @@ const services = [
         // 「全員に公開のアーカイブしか入らないから」だったが、あの「全員」は
         // **ログインした全員**の意味で、インターネット全体ではなかった。
         // 今はログインを要求したうえで、さらにフォローを見ている
-        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite"],
+        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getFeed"],
     },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"] },
 ];

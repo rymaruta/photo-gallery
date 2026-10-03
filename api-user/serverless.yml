@@ -462,6 +462,18 @@ functions:
           path: /photos/{id}/like
           method: GET
 
+  # 公開写真の一覧をページで返す（新しい順・カーソル方式）。`photos.json` と
+  # 同じ項目で、続きのページをアプリが引く口。既存の索引
+  # `publicFeed-createdAt-index` の仕切り "1" を Query するだけ（索引は足さない）
+  getFeed:
+    handler: src/feed.getFeed
+    # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
+    role: PublicReadRole
+    events:
+      - httpApi:
+          path: /feed
+          method: GET
+
   # 自分がいいね済みかどうか。公開の getLikeCount とは別口にする
   # （あちらは共有キャッシュに載せているので、利用者ごとの値を混ぜられない）。
   getMyLike:
@@ -1159,6 +1171,13 @@ resources:
                     - dynamodb:GetItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+                # 公開一覧（getFeed）。**索引を名指し**する——`index/*` にすると
+                # 他の索引（userId-createdAt＝下書きも載る）まで読める
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Query
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}/index/publicFeed-createdAt-index
                 - Effect: Allow
                   Action:
                     - dynamodb:GetItem
