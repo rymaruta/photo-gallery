@@ -376,9 +376,24 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 全員のいいねに増える。ここで増えるのは印の GetItem 1回だけ
             const blockOwnerRaw = photo?.userId ?? photo?.uploadedBy;
             const blockOwner = blockOwnerRaw ? String(blockOwnerRaw) : undefined;
-            if (blockOwner && blockOwner !== userId && await isBlocked(blockOwner, userId)) {
-                await undoLike(photoId, userId);
-                return jsonError(404, "写真が見つかりません");
+            //
+            // 🔴 **判定の読みが失敗しても、下の catch に落とさない。** 数はもう +1 済みなので、
+            // catch がスロットリングなどを「確実に未適用」と見て印だけ消すと、
+            // **誰にも減らせない +1** が残る。読めなければ閉じる（通さない）——
+            // いいねを戻して 500 を返し、押し直してもらう
+            if (blockOwner && blockOwner !== userId) {
+                let blocked: boolean;
+                try {
+                    blocked = await isBlocked(blockOwner, userId);
+                } catch (e) {
+                    console.error("likePhoto isBlocked:", e);
+                    await undoLike(photoId, userId);
+                    return jsonError(500, "いいねできませんでした。もう一度お試しください");
+                }
+                if (blocked) {
+                    await undoLike(photoId, userId);
+                    return jsonError(404, "写真が見つかりません");
+                }
             }
 
             // 「自分がいいねした写真」の一覧に足す（表示用の索引）
