@@ -708,6 +708,18 @@ functions:
           path: /photos/{id}/comments
           method: GET
 
+  # 公開範囲を絞った写真のコメントを、見せてよい相手（本人・フォロワー・親しい友達）
+  # だけが読む口（S-1）。上の未認証の口は絞った写真に 404 を返す。
+  # 判定にフォロー・親しい友達・ブロックの行を読むので、既定のロールで動かす
+  getCommentsAuthed:
+    handler: src/comments.getCommentsAuthed
+    events:
+      - httpApi:
+          path: /user/comments/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   postComment:
     handler: src/comments.postComment
     # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、

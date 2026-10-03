@@ -17,13 +17,20 @@ const mockShowToast = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/utils/api", async () => {
     const actual = await vi.importActual<typeof import("../../../lib/utils/api")>("../../../lib/utils/api");
     return {
-        userFetch: mockUserFetch,
+        // **一覧を読む口は、ログイン中は認証つき（`GET /user/comments/{id}`）**（S-1）。
+        // この画面はログイン中で、ここで見たいのは表示なので、読む口2つを
+        // 同じ作り物（`mockUserPublicFetch`）に向ける。どちらの口を呼ぶかは
+        // `useComments.test.tsx` が見る。投稿・削除は今までどおり `mockUserFetch`
+        userFetch: (...a: unknown[]) => String(a[0]).startsWith("/user/comments/")
+            ? mockUserPublicFetch(...a)
+            : mockUserFetch(...a),
         userPublicFetch: mockUserPublicFetch,
         publicFetch: vi.fn(),
         authenticatedFetch: vi.fn(),
         readApiError: actual.readApiError,
         // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
         isGoneResponse: actual.isGoneResponse,
+        isMissingRouteResponse: actual.isMissingRouteResponse,
         // `useComments` がセッション切れを見分けるのに読む。**列挙式のモックは
         // 足りない export を「アクセスした瞬間に落ちる」形で教えてくれる**
         // ——ここが抜けていて、2通目のコメントでだけ落ちていた

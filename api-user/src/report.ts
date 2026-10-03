@@ -65,7 +65,16 @@ export const reportPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     try {
         // **実在する写真か確かめる。** 見ないと、任意の文字列を写真に
         // 見立てて行を作れる（`block.ts` が形を見ているのと同じ理由）。
-        // 非公開・下書きも通す——通報したい相手が直後に隠すことがある
+        // 非公開・下書きも通す——通報したい相手が直後に隠すことがある。
+        //
+        // **公開範囲を絞った写真（フォロワーのみ・親しい友達）も、見る人を問わず通す**
+        // （2026-10-03 判断）。コメント・いいね・保存は `canViewPhoto` で絞ったが、
+        // 通報は絞らない:
+        //   - 持ち主が公開範囲を狭めた・先にブロックした直後でも通報できることを優先する
+        //     （嫌がらせの写真ほど、通報される前に相手から隠される）
+        //   - 「404 か 200 か」で写真の存在を確かめられるのは下書きでも同じで、
+        //     限定写真だけ塞いでも守れる量が小さい
+        //   - 通報は運営が読むだけで、通報した人に写真の中身は何も返さない
         const photo = await ddb.send(new GetCommand({
             TableName: PHOTOS_TABLE, Key: { id: photoId },
             ProjectionExpression: "id, src, userId, uploadedBy, story",

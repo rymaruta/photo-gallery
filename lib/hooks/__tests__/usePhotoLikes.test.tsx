@@ -45,6 +45,41 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("usePhotoLikes", () => {
+    describe("/user/likes/{id} の count（S-1）", () => {
+        const myLike = (body: unknown) => mockUserFetch.mockImplementation((path: string) =>
+            Promise.resolve(path.startsWith("/user/likes/")
+                ? { ok: true, json: async () => body }
+                : { ok: false }));
+
+        // 限定写真は未認証の数の口が 404（既定の `{ ok: false }`）。数はこちらから来る
+        it("count があれば数に使う", async () => {
+            myLike({ liked: true, count: 7 });
+            const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+            await waitFor(() => expect(result.current.count).toBe(7));
+            expect(result.current.liked).toBe(true);
+        });
+
+        it("count が無いときは 0 と読まず今の値を保つ", async () => {
+            myLike({ liked: false });
+            const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+            await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+            await act(async () => { await Promise.resolve(); });
+            expect(result.current.count).toBe(3);
+        });
+
+        it("押したあとに着いた count では巻き戻さない", async () => {
+            let resolve: (v: unknown) => void = () => {};
+            mockUserFetch.mockImplementation((path: string) => path.startsWith("/user/likes/")
+                ? new Promise((r) => { resolve = r; })
+                : Promise.resolve({ ok: true, json: async () => ({ liked: true, likes: 4 }) }));
+            const { result } = renderHook(() => usePhotoLikes("p1", 3, true));
+            await act(async () => { await result.current.toggle(); });
+            expect(result.current.count).toBe(4);
+            await act(async () => { resolve({ ok: true, json: async () => ({ liked: false, count: 3 }) }); });
+            expect(result.current.count).toBe(4);
+        });
+    });
+
     it("初期状態は未いいね・初期カウント", () => {
         const { result } = renderHook(() => usePhotoLikes("p1", 10, true));
         expect(result.current.liked).toBe(false);

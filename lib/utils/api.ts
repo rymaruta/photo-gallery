@@ -314,6 +314,25 @@ export async function isGoneResponse(res: Response): Promise<boolean> {
     }
 }
 
+/**
+ * 「**その道がまだ無い**」404 か（API Gateway が返す `{ message: "Not Found" }`）。
+ *
+ * `isGoneResponse` の裏返し。うちの API の 404 は必ず日本語の `{ error }` を
+ * 持つので、`error` が無く `message: "Not Found"` だけの 404 は、ルートが
+ * デプロイされていない（Web が API より先に出た）合図と読める。
+ * 新しい口へ切り替える途中で、**古い口に戻ってよい回だけ**を見分けるのに使う
+ * （サーバーが「写真が見つかりません」と断った 404 では戻らない）。
+ */
+export async function isMissingRouteResponse(res: Response): Promise<boolean> {
+    if (res.status !== 404) return false;
+    try {
+        const data = await res.clone().json() as { error?: unknown; message?: unknown };
+        return data.error === undefined && data.message === "Not Found";
+    } catch {
+        return false;
+    }
+}
+
 export async function readApiError(res: Response, fallback: string): Promise<string> {
     let ours = "";
     try {

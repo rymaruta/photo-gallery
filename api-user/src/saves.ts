@@ -3,6 +3,7 @@ import { PutCommand, DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { updateUserList, readUserList } from "./userList";
+import { canViewPhoto } from "./restrictedFeed";
 
 // 写真の「保存」（ブックマーク）。あとで見返すための、**自分だけの棚**。
 //
@@ -99,7 +100,7 @@ function putMarker(photoId: string, userId: string) {
 }
 
 /**
- * その写真が**今このサイトに出ているか**。
+ * その写真が**今このサイトに出ていて、この人に見せてよいか**。
  *
  * `likes.ts` の `readLikeCount` と同じ判定（`published` が無い古い行は
  * 公開扱い・ストーリーは対象外・`src` を持たない内部の文書は写真ではない）。
@@ -109,14 +110,19 @@ function putMarker(photoId: string, userId: string) {
  * これが無いと、IDさえ分かれば**他人の下書きを保存できる**——本人が
  * 非公開に戻した写真が、保存した人の棚に居座ることになる。
  */
-async function isVisiblePhoto(photoId: string): Promise<boolean> {
+async function isVisiblePhoto(photoId: string, viewerId: string): Promise<boolean> {
     const res = await ddb.send(new GetCommand({
         TableName: PHOTOS_TABLE,
         Key: { id: photoId },
-        ProjectionExpression: "src, published, story",
+        ProjectionExpression: "src, published, story, userId, audience",
     }));
-    const item = res.Item as { src?: unknown; published?: unknown; story?: unknown } | undefined;
-    return !!item?.src && item.published !== false && item.story !== true;
+    const item = res.Item as {
+        src?: unknown; published?: unknown; story?: unknown; userId?: unknown; audience?: unknown;
+    } | undefined;
+    if (!item?.src || item.published === false || item.story === true) return false;
+    // **公開範囲を絞った写真は、見せてよい相手だけが保存できる**（S-1）。
+    // 判定は一覧（`/feed/restricted`）と同じ `canViewPhoto`
+    return canViewPhoto(item, viewerId);
 }
 
 /** マーカーが在るか（＝保存済みか）。判定はここ1つ */
@@ -181,7 +187,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
 
     try {
-        if (!await isVisiblePhoto(photoId)) {
+        if (!await isVisiblePhoto(photoId, userId)) {
             // **「もう見えない」ことと「あなたの保存は残っている」ことを
             // 分けて伝える。** マーカーが在るのに素の 404 を返すと、画面は
             // 「保存できなかった」と読んで未保存に戻す——サーバーには
