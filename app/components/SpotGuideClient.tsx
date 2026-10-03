@@ -4,6 +4,8 @@ import React from "react";
 import Link from "next/link";
 import type { Spot } from "@/lib/data/spots";
 import type { Photo } from "@/lib/data/photos";
+import type { SpotSample } from "@/lib/data/spotSamples";
+import { commonsThumbAt, commonsSrcSet } from "@/lib/utils/commonsThumb";
 import { showsField, sourcesFor, needsVisibleCredit, usesMapHero, isVerified, isPublished, hasAiCheck } from "@/lib/utils/spotGuide";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
@@ -66,6 +68,11 @@ type Props = {
      * 座標が無い・時刻帯が引けない場所は `null`（節ごと出さない）
      */
     light?: LightCalendar | null;
+    /**
+     * 作例（Wikimedia Commons の自由に使える写真・最大6枚・`lib/data/spotSamples.ts`）。
+     * どれも作者・ライセンス・出典を持つ（持たない1枚はサーバー側で落としてある）
+     */
+    samples?: SpotSample[];
 };
 
 /** 一覧の1行（`km` はこのスポットからの距離・両方に座標があるときだけ） */
@@ -178,6 +185,55 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
     );
 }
 
+/**
+ * **作例（Wikimedia Commons より）。** 利用者の投稿とは別の節で、投稿だとは名乗らない。
+ *
+ * 🔴 **1枚ごとに、写真のすぐ下へ「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」。**
+ * CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典）。代表写真の出典と同じ書き方。
+ * 写真は**切り抜かない**（元の縦横比のまま・改変と受け取られる余地を作らない）
+ */
+function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
+    return (
+        <section className="pt-8" aria-labelledby="spot-samples" data-testid="spot-samples">
+            <Head id="spot-samples">{isJa ? "作例（Wikimedia Commons より）" : "Example photos (from Wikimedia Commons)"}</Head>
+            <p className="m-0 mb-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                {isJa
+                    ? "この場所の近くで撮られ、Wikimedia Commons で自由なライセンスのもと公開されている写真です。撮影者はこのサイトの利用者ではありません。"
+                    : "Photos taken near this spot and published under free licenses on Wikimedia Commons. The photographers are not members of this site."}
+            </p>
+            <ul className="m-0 p-0 grid grid-cols-2 sm:grid-cols-3 gap-3 items-start" style={{ listStyle: "none" }}>
+                {samples.map((s) => {
+                    const small = commonsThumbAt(s.src, 500);
+                    const srcSet = commonsSrcSet(s.src, s.width);
+                    return (
+                        <li key={s.sourceUrl} className="min-w-0">
+                            <figure className="m-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={small ?? s.src} srcSet={srcSet}
+                                     sizes="(min-width:1024px) 240px, (min-width:640px) 30vw, 46vw"
+                                     width={s.width} height={s.height} loading="lazy" decoding="async"
+                                     alt={isJa ? `作例の写真（撮影: ${s.author}）` : `Example photo by ${s.author}`}
+                                     className="block w-full h-auto rounded-lg bg-surface" />
+                                <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "11px", lineHeight: "15px" }}
+                                            data-testid="spot-sample-credit">
+                                    {isJa ? "写真: " : "Photo: "}{s.author}{" / "}
+                                    {s.licenseUrl ? (
+                                        <a href={s.licenseUrl} target="_blank" rel="noopener noreferrer license"
+                                           className="text-white/60 underline underline-offset-2 hover:text-white">{s.license}</a>
+                                    ) : s.license}
+                                    {" / "}
+                                    <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                       className="text-white/60 underline underline-offset-2 hover:text-white">Wikimedia Commons</a>
+                                </figcaption>
+                            </figure>
+                        </li>
+                    );
+                })}
+            </ul>
+        </section>
+    );
+}
+
 /** 出典の1行。**変わりやすい情報には必ず付く** */
 function Sources({ spot, field }: { spot: Spot; field: string }) {
     const list = sourcesFor(spot, field);
@@ -199,7 +255,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, samples = [] }: Props) {
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
@@ -491,6 +547,10 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 )}
                             </section>
                         )}
+
+                        {/* ── 作例（Wikimedia Commons）──────────
+                            投稿が0枚の場所でも、どんな写真が撮れるかが分かるように。撮影ガイドの前 */}
+                        {samples.length > 0 && <Samples samples={samples} isJa={isJa} />}
 
                         {/* ── 5. 撮影ガイド ──────────────────
                             **事実ではなく運営のアドバイス**なので、出典は求めない

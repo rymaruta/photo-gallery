@@ -14,6 +14,11 @@
 //     - AI 照合の行      → { kind: "ai", checkedAt, sources }（画面は「出典: …（AI 照合 日付）」）
 //   Web の `SpotGuideClient` と同じ出し分け。**出典の無い本文は配らない。**
 //
+//   **作例**（`samples`・2026-10-03）: Wikimedia Commons の自由に使える写真（最大6枚・
+//   `lib/data/spotSamples.ts`）。1枚ごとに作者・ライセンス・出典（Commons のページ）を
+//   必ず持つ——アプリは写真の下にこの3つを出す。**後から足した項目**なので、知らない
+//   アプリ（いまの iOS）は読み飛ばす。無いスポットは鍵ごと出さない
+//
 // ## 載せないもの
 //
 //   下書き（`isPublished` でない行）はファイルごと作らない——確かめていない文を
@@ -24,6 +29,7 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished, hasAiCheck } from "../utils/spotGuide";
+import { spotSamples, type SpotSample, type SpotSamplesFile } from "./spotSamples";
 
 export type SpotBodyCheck =
     | { kind: "human"; verifiedAt: string }
@@ -51,6 +57,8 @@ export type SpotBody = {
     compositionTips?: string[];
     officialWebsiteUrl?: string;
     check: SpotBodyCheck;
+    /** 作例（Wikimedia Commons・作者とライセンスと出典つき）。無ければ鍵ごと無い */
+    samples?: SpotSample[];
 };
 
 function compact<T extends object>(obj: T): T {
@@ -62,7 +70,7 @@ function nonEmpty<T>(list: T[] | undefined): T[] | undefined {
 }
 
 /** 台帳の1件を本文の形へ。**公開済みでなければ undefined**（下書きは配らない） */
-export function toSpotBody(spot: Spot): SpotBody | undefined {
+export function toSpotBody(spot: Spot, samplesFile?: Readonly<SpotSamplesFile>): SpotBody | undefined {
     if (!isPublished(spot)) return undefined;
     let check: SpotBodyCheck;
     if (isVerified(spot) && spot.verifiedAt) {
@@ -90,13 +98,14 @@ export function toSpotBody(spot: Spot): SpotBody | undefined {
         compositionTips: nonEmpty(spot.compositionTips),
         officialWebsiteUrl: spot.officialWebsiteUrl || undefined,
         check,
+        samples: nonEmpty(spotSamples(spot, { file: samplesFile })),
     });
 }
 
 /** 純関数。テストは固定の台帳を渡す。**母集合は `visibleSpots`**（画面と同じ） */
-export function buildSpotBodies(spots: readonly Spot[]): SpotBody[] {
+export function buildSpotBodies(spots: readonly Spot[], samplesFile?: Readonly<SpotSamplesFile>): SpotBody[] {
     return visibleSpots(spots).flatMap((s) => {
-        const body = toSpotBody(s);
+        const body = toSpotBody(s, samplesFile);
         return body ? [body] : [];
     });
 }

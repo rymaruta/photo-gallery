@@ -133,6 +133,12 @@ const EXEMPT: Array<[string, string, string]> = [
      + "サイトの `/images/spots/<slug>.jpg`）。**利用者が上げた写真ではない**ので"
      + "`publicImageUrl` を通す対象ではない。日ごとのファイル（`quizFeed.ts`）から受け取る"],
     // (a) 自分の配信ではない
+    ["app/components/SpotGuideClient.tsx", "small ?? s.src",
+     "撮影地の作例（Wikimedia Commons のサムネイル・upload.wikimedia.org）。**利用者が上げた写真ではない**。"
+     + "Commons の URL であることはサーバー側（`lib/data/spotSamples.ts` の `toSpotSample`）で確かめてある。"
+     + "こちらで複製しない（元画像の位置情報を配らない）ため、直接読む（`docs/spot-samples-commons.md`）"],
+    ["app/components/SpotGuideClient.tsx", "srcSet",
+     "上と同じ作例の縮小版（`lib/utils/commonsThumb.ts` が Commons の標準の幅の URL を作る）"],
     ["app/components/MiniPlayer.tsx", "artwork", "曲のアートワーク（`safeSongArtworkUrl` を通した別オリジン）"],
     ["app/components/MusicCard.tsx", "artwork", "曲のアートワーク（MiniPlayer と同じ値）"],
     ["app/components/SongArtwork.tsx", "safe", "曲のアートワーク専用の部品（許可リストを通した値）"],

@@ -46,6 +46,25 @@ describe("spotStructuredData", () => {
         }
     });
 
+    it("作例（Wikimedia Commons）があれば ImageObject で足す（作者・ライセンス・出典つき・代表写真が先頭）", () => {
+        const ginzan = bySlug("ginzan-onsen");
+        const sample = {
+            src: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/A.jpg/1280px-A.jpg", width: 1280, height: 853,
+            author: "撮った人", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+            sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
+        };
+        const data = spotStructuredData(ginzan, { image: "https://example.com/a.jpg", samples: [sample] });
+        expect(data.image).toEqual(["https://example.com/a.jpg", expect.objectContaining({
+            "@type": "ImageObject", contentUrl: sample.src,
+            creator: { "@type": "Person", name: "撮った人" },
+            license: sample.licenseUrl, acquireLicensePage: sample.sourceUrl,
+            creditText: "撮った人 / CC BY 2.0 / Wikimedia Commons",
+        })]);
+        // 代表写真が無くても作例だけで書ける。作例が無ければ今までどおり（文字列か、無し）
+        expect(spotStructuredData(ginzan, { samples: [sample] }).image).toHaveLength(1);
+        expect(spotStructuredData(ginzan, { image: "https://example.com/a.jpg", samples: [] }).image).toBe("https://example.com/a.jpg");
+    });
+
     it("海外は国名を書く（国しか無い行でも住所が空にならない）", () => {
         const v = bySlug("chateau-de-versailles");
         expect(spotStructuredData(v).address).toMatchObject({ addressCountry: v.region!.country });
