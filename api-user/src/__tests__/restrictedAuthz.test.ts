@@ -79,7 +79,7 @@ function fakeSend(cmd: { constructor: { name: string }; input: Row }) {
     }
 }
 
-const { getComments, postComment } = await import("../comments");
+const { getComments, getCommentsAuthed, postComment } = await import("../comments");
 const { likePhoto, getLikeCount } = await import("../likes");
 const { savePhoto } = await import("../saves");
 
@@ -141,6 +141,41 @@ describe("未認証でコメントを読む口（GET /photos/{id}/comments）", 
     it("いいね数も、絞った写真は未認証では返さない", async () => {
         expect((await invoke(getLikeCount, ev(undefined, "pf"))).statusCode).toBe(404);
         expect((await invoke(getLikeCount, ev(undefined, "pub"))).statusCode).toBe(200);
+    });
+});
+
+describe("認証つきでコメントを読む口（GET /user/comments/{id}）", () => {
+    const read = async (sub: string, id: string) => (await invoke(getCommentsAuthed, ev(sub, id))).statusCode;
+
+    it("フォロワーのみ: 本人・フォロワーは読める／他人・フォローしていない親しい友達は 404", async () => {
+        expect(await read(OWNER, "pf")).toBe(200);
+        expect(await read(FOLLOWER, "pf")).toBe(200);
+        expect(await read(STRANGER, "pf")).toBe(404);
+        expect(await read(CLOSE, "pf")).toBe(404);
+    });
+
+    it("親しい友達: 本人・親しい友達は読める／フォロワー・他人は 404", async () => {
+        expect(await read(OWNER, "pc")).toBe(200);
+        expect(await read(CLOSE, "pc")).toBe(200);
+        expect(await read(FOLLOWER, "pc")).toBe(404);
+        expect(await read(STRANGER, "pc")).toBe(404);
+    });
+
+    it("404 の本文にコメントは載らない", async () => {
+        const res = await invoke(getCommentsAuthed, ev(STRANGER, "pf"));
+        expect(res.body).not.toContain("秘密");
+    });
+
+    /// 利用者ごとの答えなので、共有キャッシュに載せると他人に配られる
+    it("共有キャッシュに載せない", async () => {
+        const res = await invoke(getCommentsAuthed, ev(FOLLOWER, "pf")) as unknown as { headers: Record<string, string> };
+        expect(res.headers["Cache-Control"]).toContain("no-store");
+        expect(res.headers["Cache-Control"]).not.toContain("public");
+    });
+
+    it("公開の写真は誰でも読める・認証が無ければ 400", async () => {
+        expect(await read(STRANGER, "pub")).toBe(200);
+        expect((await invoke(getCommentsAuthed, ev(undefined, "pub"))).statusCode).toBe(400);
     });
 });
 
