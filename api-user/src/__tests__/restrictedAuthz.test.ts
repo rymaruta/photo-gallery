@@ -54,6 +54,9 @@ function fakeSend(cmd: { constructor: { name: string }; input: Row }) {
             table.set(id, { ...input.Item });
             return Promise.resolve({});
         case "DeleteCommand":
+            if (input.ConditionExpression?.includes("attribute_exists(id)") && !row) {
+                return Promise.reject(condFail());
+            }
             table.delete(id);
             return Promise.resolve({});
         case "UpdateCommand": {
@@ -65,6 +68,12 @@ function fakeSend(cmd: { constructor: { name: string }; input: Row }) {
                 return Promise.resolve({ Attributes: { items } });
             }
             if (!row) return Promise.reject(condFail());
+            if (input.UpdateExpression?.includes("likes - :one")) {
+                if (!(Number(row.likes ?? 0) > 0)) return Promise.reject(condFail());
+                const next = { ...row, likes: Number(row.likes) - 1 };
+                table.set(id, next);
+                return Promise.resolve({ Attributes: next });
+            }
             if (input.UpdateExpression?.includes("likes")) {
                 if (cond.includes("attribute_not_exists(audience)") && row.audience) return Promise.reject(condFail());
                 if (cond.includes("audience = :aud") && row.audience !== vals[":aud"]) return Promise.reject(condFail());
@@ -80,8 +89,9 @@ function fakeSend(cmd: { constructor: { name: string }; input: Row }) {
 }
 
 const { getComments, getCommentsAuthed, postComment } = await import("../comments");
-const { likePhoto, getLikeCount } = await import("../likes");
+const { likePhoto, unlikePhoto, getLikeCount, getMyLike } = await import("../likes");
 const { savePhoto } = await import("../saves");
+const { reportPhoto } = await import("../report");
 
 type Result = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -207,6 +217,173 @@ describe("フォロワーのみの写真に書く", () => {
         table.set(`block#${OWNER}#${FOLLOWER}`, { id: `block#${OWNER}#${FOLLOWER}` });
         expect(await writeCodes(FOLLOWER, "pf")).toEqual([404, 404, 404]);
         expect(mockPush).not.toHaveBeenCalled();
+    });
+});
+
+describe("見る人のほうが持ち主をブロックしている", () => {
+    // `canViewPhoto` は両向きを引く。持ち主→見る人 の向きだけ試していたので、
+    // こちらの向き（`block#VIEWER#OWNER`）を外しても緑のままだった
+    it("フォロワーのみ: 持ち主をブロックしたフォロワーは 404・何も書かれない", async () => {
+        table.set(`block#${FOLLOWER}#${OWNER}`, { id: `block#${FOLLOWER}#${OWNER}` });
+        expect(await writeCodes(FOLLOWER, "pf")).toEqual([404, 404, 404]);
+        expect((await invoke(getCommentsAuthed, ev(FOLLOWER, "pf"))).statusCode).toBe(404);
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(table.get("pf")?.likes).toBeUndefined();
+    });
+
+    it("親しい友達: 持ち主をブロックした親しい友達は 404", async () => {
+        table.set(`block#${CLOSE}#${OWNER}`, { id: `block#${CLOSE}#${OWNER}` });
+        expect(await writeCodes(CLOSE, "pc")).toEqual([404, 404, 404]);
+        expect((await invoke(getCommentsAuthed, ev(CLOSE, "pc"))).statusCode).toBe(404);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("持ち主が親しい友達をブロックした向きも 404", async () => {
+        table.set(`block#${OWNER}#${CLOSE}`, { id: `block#${OWNER}#${CLOSE}` });
+        expect(await writeCodes(CLOSE, "pc")).toEqual([404, 404, 404]);
+    });
+});
+
+describe("いいねのやり直しの更新は、読み直したときの公開範囲のままであることを条件にする", () => {
+    /**
+     * `incrementLikes` は「公開の条件」で外れたら写真を読み直し、判定を通れば
+     * `audience = :aud` を条件にやり直す。**読み直しとやり直しの間に**持ち主が
+     * 公開範囲を狭めたら（フォロワーのみ → 親しい友達）、やり直しは外れなければ
+     * ならない——判定に使った材料が古いので
+     */
+    it("読み直しのあと親しい友達に狭められたら 404・いいねの印を巻き戻す・数は増えない", async () => {
+        mockSend.mockImplementation((cmd: { constructor: { name: string }; input: Row }) => {
+            const out = fakeSend(cmd as never);
+            const input = cmd.input as { Key?: { id: string }; ProjectionExpression?: string };
+            // `incrementLikes` の読み直し（射影に audience を含む写真の Get）を返した直後に狭める
+            if (cmd.constructor.name === "GetCommand" && input.Key?.id === "pf"
+                && input.ProjectionExpression?.includes("audience")) {
+                table.set("pf", { ...table.get("pf"), audience: "closeFriends" });
+            }
+            return out;
+        });
+        const res = await invoke(likePhoto, ev(FOLLOWER, "pf"));
+        expect(res.statusCode).toBe(404);
+        expect(table.get("pf")?.likes, "狭めたあとの写真に +1 している").toBeUndefined();
+        expect(table.has(`like#pf#${FOLLOWER}`), "いいねの印を巻き戻していない").toBe(false);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("変わっていなければ、やり直しで通る（対照）", async () => {
+        expect((await invoke(likePhoto, ev(FOLLOWER, "pf"))).statusCode).toBe(200);
+        expect(table.get("pf")?.likes).toBe(1);
+    });
+});
+
+describe("いいね解除（DELETE /photos/{id}/like）の応答", () => {
+    /** 以前いいねしていた人が、今は見せない相手になっている */
+    function likedBefore(sub: string, id: string, likes = 3) {
+        table.set(id, { ...table.get(id), likes });
+        table.set(`like#${id}#${sub}`, { id: `like#${id}#${sub}`, like: true, photoId: id, uid: sub });
+    }
+
+    it("見せない相手には数を返さない（解除はする）", async () => {
+        likedBefore(STRANGER, "pf");
+        const res = await invoke(unlikePhoto, ev(STRANGER, "pf"));
+        expect(res.statusCode).toBe(404);
+        expect(res.body, "数が漏れている").not.toMatch(/likes/);
+        expect(table.has(`like#pf#${STRANGER}`), "解除そのものは通す").toBe(false);
+        expect(table.get("pf")?.likes).toBe(2);
+    });
+
+    it("ブロックされた元フォロワーにも数を返さない", async () => {
+        likedBefore(FOLLOWER, "pf");
+        table.set(`block#${OWNER}#${FOLLOWER}`, { id: `block#${OWNER}#${FOLLOWER}` });
+        const res = await invoke(unlikePhoto, ev(FOLLOWER, "pf"));
+        expect(res.statusCode).toBe(404);
+        expect(res.body).not.toMatch(/likes/);
+    });
+
+    it("見せてよい相手には数を返す（対照）", async () => {
+        likedBefore(FOLLOWER, "pf");
+        const res = await invoke(unlikePhoto, ev(FOLLOWER, "pf"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ liked: false, likes: 2 });
+    });
+});
+
+describe("自分がいいね済みか（GET /user/likes/{id}）といいね数", () => {
+    const read = async (sub: string, id: string) =>
+        JSON.parse((await invoke(getMyLike, ev(sub, id))).body) as { liked: boolean; count?: number };
+
+    it("見せてよい相手には count を返す（未認証の数の口が 404 になる写真でも）", async () => {
+        table.set("pf", { ...table.get("pf"), likes: 4 });
+        table.set(`like#pf#${FOLLOWER}`, { id: `like#pf#${FOLLOWER}` });
+        expect(await read(FOLLOWER, "pf")).toEqual({ liked: true, count: 4 });
+        expect(await read(OWNER, "pf")).toEqual({ liked: false, count: 4 });
+        table.set("pc", { ...table.get("pc"), likes: 2 });
+        expect(await read(CLOSE, "pc")).toEqual({ liked: false, count: 2 });
+    });
+
+    it("公開の写真は誰にでも count を返す・likes が無ければ 0", async () => {
+        expect(await read(STRANGER, "pub")).toEqual({ liked: false, count: 0 });
+    });
+
+    it("見せない相手には count を含めない（liked は返す）", async () => {
+        table.set("pf", { ...table.get("pf"), likes: 4 });
+        table.set(`like#pf#${STRANGER}`, { id: `like#pf#${STRANGER}` });
+        const got = await read(STRANGER, "pf");
+        expect(got, "見せない相手に数が漏れている").toEqual({ liked: true });
+        expect(await read(FOLLOWER, "pc")).toEqual({ liked: false });
+        table.set(`block#${FOLLOWER}#${OWNER}`, { id: `block#${FOLLOWER}#${OWNER}` });
+        expect(await read(FOLLOWER, "pf")).toEqual({ liked: false });
+    });
+
+    it("下書き・ストーリー・無い写真にも count を含めない", async () => {
+        table.set("draft", photo("draft", { published: false, likes: 9 }));
+        table.set("story", photo("story", { story: true, likes: 9 }));
+        expect(await read(STRANGER, "draft")).toEqual({ liked: false });
+        expect(await read(STRANGER, "story")).toEqual({ liked: false });
+        expect(await read(STRANGER, "nope")).toEqual({ liked: false });
+    });
+
+    it("写真が読めなくても liked は返す（数だけ落とす）", async () => {
+        table.set(`like#pub#${STRANGER}`, { id: `like#pub#${STRANGER}` });
+        mockSend.mockImplementation((cmd: { input: { Key?: { id: string } } }) =>
+            cmd.input.Key?.id === "pub" ? Promise.reject(new Error("throttled")) : fakeSend(cmd as never));
+        const res = await invoke(getMyLike, ev(STRANGER, "pub"));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toEqual({ liked: true });
+    });
+});
+
+describe("通報（POST /photos/{id}/report）", () => {
+    const report = async (sub: string, id: string) =>
+        (await invoke(reportPhoto, ev(sub, id, { reason: "spam" }))).statusCode;
+    const reported = (sub: string, id: string) => table.has(`report#${id}#${sub}`);
+
+    it("フォロワーのみ: フォロワーは通報できる／他人は無い写真と同じ 404・行を作らない", async () => {
+        expect(await report(FOLLOWER, "pf")).toBe(200);
+        expect(reported(FOLLOWER, "pf")).toBe(true);
+        expect(await report(STRANGER, "pf")).toBe(404);
+        expect(reported(STRANGER, "pf")).toBe(false);
+        expect(await report(STRANGER, "nope")).toBe(404);
+    });
+
+    it("親しい友達: 親しい友達は通報できる／フォロワーは 404", async () => {
+        expect(await report(CLOSE, "pc")).toBe(200);
+        expect(await report(FOLLOWER, "pc")).toBe(404);
+        expect(reported(FOLLOWER, "pc")).toBe(false);
+    });
+
+    it("ブロックの関係があれば 404（どちらの向きでも）", async () => {
+        table.set(`block#${FOLLOWER}#${OWNER}`, { id: `block#${FOLLOWER}#${OWNER}` });
+        expect(await report(FOLLOWER, "pf")).toBe(404);
+    });
+
+    it("本人は今までどおり 400（自分の投稿は通報できない）", async () => {
+        expect(await report(OWNER, "pf")).toBe(400);
+    });
+
+    it("公開の写真・非公開の写真は今までどおり誰でも通報できる", async () => {
+        table.set("draft", photo("draft", { published: false }));
+        expect(await report(STRANGER, "pub")).toBe(200);
+        expect(await report(STRANGER, "draft")).toBe(200);
     });
 });
 

@@ -3,6 +3,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 
 const mockUserFetch = vi.hoisted(() => vi.fn());
 const mockUserPublicFetch = vi.hoisted(() => vi.fn());
+/** ログイン中に一覧を読む認証つきの口（`GET /user/comments/{id}`）。投稿・削除と分けて数える */
+const mockAuthedList = vi.hoisted(() => vi.fn());
 
 // readApiError だけは本物を使う。useComments はサーバーの文言を
 // そのまま画面に出すためにこれを通しているので、ここを差し替えると
@@ -11,13 +13,17 @@ const mockUserPublicFetch = vi.hoisted(() => vi.fn());
 vi.mock("../../utils/api", async () => {
     const actual = await vi.importActual<typeof import("../../utils/api")>("../../utils/api");
     return {
-        userFetch: (...a: unknown[]) => mockUserFetch(...a),
+        userFetch: (...a: unknown[]) => String(a[0]).startsWith("/user/comments/")
+            ? mockAuthedList(...a)
+            : mockUserFetch(...a),
         userPublicFetch: (...a: unknown[]) => mockUserPublicFetch(...a),
         publicFetch: vi.fn(),
         authenticatedFetch: vi.fn(),
         readApiError: actual.readApiError,
         // 本物を使う（サーバー由来の 404 だけを「もう無い」と読む判定そのもの）
         isGoneResponse: actual.isGoneResponse,
+        // 本物を使う（API Gateway の「道が無い」404 だけで未認証の口に戻る判定そのもの）
+        isMissingRouteResponse: actual.isMissingRouteResponse,
         // 文言の突き合わせに使う定数。**綴りを書き写さない**
         // （写すと、片方だけ変えたときに気づけない）
         AUTH_REQUIRED_MESSAGE: actual.AUTH_REQUIRED_MESSAGE,
@@ -33,12 +39,68 @@ const comment = (id: string) => ({ id, uid: "u1", name: "旅人", text: "いい�
 beforeEach(() => {
     mockUserFetch.mockReset();
     mockUserPublicFetch.mockReset();
+    mockAuthedList.mockReset();
 });
 
-/** items は表示上の上限（200件）まで、count は本当の総数 */
+/** items は表示上の上限（200件）まで、count は本当の総数。読む口2つとも同じ答え */
 function mockList(items: ReturnType<typeof comment>[], count: number) {
     mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({ items, count }) });
+    mockAuthedList.mockResolvedValue({ ok: true, json: async () => ({ items, count }) });
 }
+
+/** 404 の応答（`isGoneResponse` / `isMissingRouteResponse` は `clone().json()` を読む） */
+const notFound = (body: unknown) => ({
+    ok: false, status: 404, json: async () => body, clone: () => ({ json: async () => body }),
+});
+
+describe("useComments: 一覧を読む口（S-1）", () => {
+    it("ログイン中は認証つきの口で読む（未認証の口は呼ばない）", async () => {
+        mockList([comment("c1")], 1);
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        expect(mockAuthedList).toHaveBeenCalledTimes(1);
+        expect(String(mockAuthedList.mock.calls[0][0])).toBe("/user/comments/p1");
+        expect(mockUserPublicFetch).not.toHaveBeenCalled();
+    });
+
+    it("未ログインは未認証の口で読む", async () => {
+        mockList([comment("c1")], 1);
+        const { result } = renderHook(() => useComments("p1", false, 0));
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        expect(String(mockUserPublicFetch.mock.calls[0][0])).toBe("/photos/p1/comments");
+        expect(mockAuthedList).not.toHaveBeenCalled();
+    });
+
+    // API より Web が先に出た回。API Gateway の定型 404 だけで戻る
+    it("認証つきの口が「道が無い」404 なら、未認証の口に戻る", async () => {
+        mockList([comment("c1")], 1);
+        mockAuthedList.mockResolvedValue(notFound({ message: "Not Found" }));
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        expect(result.current.loadError).toBe(false);
+        expect(mockUserPublicFetch).toHaveBeenCalledTimes(1);
+    });
+
+    // サーバーが断った（見せない相手・無い写真）。戻っても同じ 404 で往復が増えるだけ
+    it("サーバーが断った 404 では戻らない（読み込みの失敗として出す）", async () => {
+        mockList([comment("c1")], 1);
+        mockAuthedList.mockResolvedValue(notFound({ error: "写真が見つかりません" }));
+        const { result } = renderHook(() => useComments("p1", true, 0));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.loadError).toBe(true);
+        expect(mockUserPublicFetch).not.toHaveBeenCalled();
+    });
+
+    it("ログインしたら認証つきの口で読み直す", async () => {
+        mockList([comment("c1")], 1);
+        const { result, rerender } = renderHook(({ auth }) => useComments("p1", auth, 0), {
+            initialProps: { auth: false },
+        });
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+        rerender({ auth: true });
+        await waitFor(() => expect(mockAuthedList).toHaveBeenCalledTimes(1));
+    });
+});
 
 describe("useComments: 削除の巻き戻し", () => {
     // 別の削除が 404（＝別タブが先に消した）だと reload が走り、手元は

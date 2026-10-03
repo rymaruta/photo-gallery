@@ -1,9 +1,12 @@
 import { usableRows } from "../utils/apiRows";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { userPublicFetch, userFetch, isGoneResponse, AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE } from "../utils/api";
+import {
+    userPublicFetch, userFetch, isGoneResponse, isMissingRouteResponse,
+    AUTH_REQUIRED_MESSAGE, NETWORK_UNREACHABLE_MESSAGE,
+} from "../utils/api";
 import { log } from "../utils/log";
 
-// 写真コメント。公開読み取り + 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
+// 写真コメント。読み取り（ログイン中は認証つき）+ 認証投稿/削除。楽観更新は最小限（投稿は成功後に反映）。
 
 export type CommentItem = {
     id: string;
@@ -41,7 +44,22 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
         setLoadError(false);
         void (async () => {
             try {
-                const res = await userPublicFetch(`/photos/${encodeURIComponent(photoId)}/comments`, { signal: controller.signal });
+                const id = encodeURIComponent(photoId);
+                const readPublic = () => userPublicFetch(`/photos/${id}/comments`, { signal: controller.signal });
+                // **ログイン中は認証つきの口で読む**（S-1）。公開範囲を絞った写真
+                // （フォロワーのみ・親しい友達）は、未認証の口では閲覧者が分からず
+                // 404 になる——フォロワーにもコメントが「読み込めません」と出る。
+                // `usePhotoLikes` の `/user/likes/{id}` と同じく `userFetch` で呼ぶ。
+                //
+                // **戻るのは「道が無い」404 のときだけ**（API より Web が先に出た回）。
+                // サーバーが断った 404（見せない相手）で未認証の口に戻っても同じ 404 で、
+                // 往復が1回増えるだけ
+                let res = isAuthenticated
+                    ? await userFetch(`/user/comments/${id}`, { signal: controller.signal })
+                    : await readPublic();
+                if (isAuthenticated && await isMissingRouteResponse(res) && !aborted) {
+                    res = await readPublic();
+                }
                 if (res.ok) {
                     const data = await res.json() as { items?: CommentItem[]; count?: number };
                     if (!aborted) {
@@ -68,7 +86,7 @@ export function useComments(photoId: string, isAuthenticated: boolean, initialCo
             }
         })();
         return () => { aborted = true; controller.abort(); };
-    }, [photoId, reloadKey]);
+    }, [photoId, reloadKey, isAuthenticated]);
 
     const reload = useCallback(() => {
         setLoading(true);

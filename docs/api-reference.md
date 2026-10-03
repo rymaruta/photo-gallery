@@ -237,7 +237,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 | GET | `/profile/{userId}` | 公開プロフィール |
 | GET | `/users/search` | ユーザー検索 |
 | GET | `/invites/{token}` | 招待リンクの下見（ログイン前に中身を見せる） |
-| GET | `/photos/{id}/like` | いいね数（`s-maxage=30`） |
+| GET | `/photos/{id}/like` | いいね数（`s-maxage=30`）。**公開範囲を絞った写真は 404**（閲覧者が分からないため。ログイン中は `/user/likes/{id}` の `count` で読む） |
 | GET | `/photos/{id}/comments` | コメント一覧（`s-maxage=15`）。**公開範囲を絞った写真は 404**（閲覧者が分からないため。`/user/comments/{id}` で読む） |
 | GET | `/users/{uid}/follow` | フォロー数（`s-maxage=30`） |
 | GET | `/feed` | 公開写真の一覧をページで（`s-maxage=30`・下の「公開写真のページ」）※2026-10-03 追加・**本番未反映** |
@@ -289,6 +289,25 @@ Nominatim を直に叩かずここを通すこと）
 
 **絞った公開範囲**
 `GET /feed/restricted`
+
+公開範囲を絞った写真（`audience` が `followers`・`closeFriends`）には、未認証の
+`GET /photos/{id}/like`・`GET /photos/{id}/comments` が **404** を返す（閲覧者が
+分からないため）。ログイン中に見せてよい相手（本人・フォロワー・親しい友達）が読む口:
+
+- コメント … `GET /user/comments/{id}`（応答は未認証の口と同じ `{ items, count }`）
+- いいね数 … `GET /user/likes/{id}` の `count`
+
+`GET /user/likes/{id}` の応答（`Cache-Control: private, no-store`）:
+
+```jsonc
+{ "liked": true, "count": 4 }  // count は写真を見てよい相手のときだけ
+{ "liked": true }              // 見せない相手・下書き・ストーリー・無い写真・数を読めなかった
+```
+
+- `liked` … 自分のいいねの印が在るか。**写真が見えなくても返す**（本人が解除の導線を出すのに要る）
+- `count` … いいね数（0以上の整数）。**無いときは数を表示しない**（0 と読まない）。
+  見せない相手でも 404 にはしない（`liked` を返すため）
+- `DELETE /photos/{id}/like` も、見せない相手には数を返さず 404
 
 ### 公開写真のページ（`GET /feed`）
 
