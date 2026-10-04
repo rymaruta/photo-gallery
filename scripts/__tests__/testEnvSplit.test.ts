@@ -125,5 +125,8 @@ describe("グロブの逃がし", () => {
             const decoy = files[i].replace(/\[([^\]/]+)\]/g, (_m: string, inner: string) => inner[0]);
             if (decoy !== files[i]) expect(match(decoy)).toBe(false);
         }
-    });
+    // 2026-10-04 判断: テストのファイル数（約 600）ぶん picomatch を組み立てるので、
+    // CI の混んだ時に既定の 5 秒を超えて本番のデプロイを止めた（run 37164408595）。
+    // 中身は正しく遅いだけなので、上限だけ延ばす。
+    }, 30_000);
 });
