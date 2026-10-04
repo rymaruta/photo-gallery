@@ -338,12 +338,19 @@ describe("撮影地ページの構造化データへの渡し方（レビュー 
             const data = spotStructuredData(spot, { image: "https://example.com/c.jpg", samples: shown });
             const objects = shown.length > 0 ? (data.image as unknown[]).slice(1) as ReturnType<typeof sampleImageObject>[] : [];
             expect(objects.map((o) => o.contentUrl), spot.slug).toEqual(shown.map((s) => s.src));
-            for (const o of objects) {
+            objects.forEach((o, i) => {
                 expect(o.license, `${spot.slug} ${o.name}`).toMatch(/^https:\/\//);
+                // サイトに置いた写真（環境省・県の観光協会など・2026-10-04）は規約のページと出典の文
+                // （`spotSamplesHosted.test.ts`）。ここでは Commons の行を見る
+                if (shown[i].source) {
+                    expect(o.acquireLicensePage).toMatch(/^https:\/\//);
+                    expect(o.creditText).toBeTruthy();
+                    return;
+                }
                 expect(o.acquireLicensePage).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
                 expect(o.creditText).toMatch(/ \/ .+ \/ Wikimedia Commons$/);
                 checked++;
-            }
+            });
             const recs = (rawSamples as unknown as SpotSamplesFile)[spotId].samples;
             autoCount += shown.filter((s) => recs.find((r) => r.pageUrl?.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
         }
