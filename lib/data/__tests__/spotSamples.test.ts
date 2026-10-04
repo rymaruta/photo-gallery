@@ -262,7 +262,7 @@ describe("パブリックドメインの根拠（レビュー #275 の 1）", ()
         const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples);
         const wakasa = rows.find((r) => r.file === "File:Wakasa Kouta.jpg");
         if (wakasa) expect(toSpotSample(wakasa)).toBeUndefined();
-        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file));
+        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file ?? ""));
         for (const r of ryoma) {
             expect(toSpotSample(r)).toMatchObject({ license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", author: "baggio4ever" });
         }
@@ -295,7 +295,7 @@ describe("リポジトリの確定ファイル", () => {
         const by = /^cc[-\s]by/i.test(r.license);
         return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
             || String(r.licenseCode ?? "").startsWith("mixed:")
-            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file));
+            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""));
     };
 
     it("🔴 書いてある1枚は、決めた理由で落とすもの以外どれも表示の形にできる", () => {
@@ -338,14 +338,21 @@ describe("撮影地ページの構造化データへの渡し方（レビュー 
             const data = spotStructuredData(spot, { image: "https://example.com/c.jpg", samples: shown });
             const objects = shown.length > 0 ? (data.image as unknown[]).slice(1) as ReturnType<typeof sampleImageObject>[] : [];
             expect(objects.map((o) => o.contentUrl), spot.slug).toEqual(shown.map((s) => s.src));
-            for (const o of objects) {
+            objects.forEach((o, i) => {
                 expect(o.license, `${spot.slug} ${o.name}`).toMatch(/^https:\/\//);
+                // サイトに置いた写真（環境省・県の観光協会など・2026-10-04）は規約のページと出典の文
+                // （`spotSamplesHosted.test.ts`）。ここでは Commons の行を見る
+                if (shown[i].source) {
+                    expect(o.acquireLicensePage).toMatch(/^https:\/\//);
+                    expect(o.creditText).toBeTruthy();
+                    return;
+                }
                 expect(o.acquireLicensePage).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
                 expect(o.creditText).toMatch(/ \/ .+ \/ Wikimedia Commons$/);
                 checked++;
-            }
+            });
             const recs = (rawSamples as unknown as SpotSamplesFile)[spotId].samples;
-            autoCount += shown.filter((s) => recs.find((r) => r.pageUrl.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
+            autoCount += shown.filter((s) => recs.find((r) => r.pageUrl?.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
         }
         expect(checked).toBeGreaterThan(1000);
         expect(autoCount).toBeGreaterThan(0); // 自動で選んだ作例も入っている

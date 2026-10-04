@@ -387,6 +387,14 @@ describe("リポジトリに入っている候補・確定ファイル", () => {
             expect(entry.slug, spotId).toBe(spot!.slug);
             expect(entry.samples.length, spotId).toBeLessThanOrEqual(MAX_SAMPLES);
             for (const s of entry.samples) {
+                // Commons 以外の行（Flickr・サイトに置いた環境省や県の観光協会の写真・2026-10-04）は
+                // 収集スクリプトの外で足したもの。決まりは `lib/data/__tests__/spotSamplesFlickr.test.ts`・
+                // `spotSamplesHosted.test.ts` が見る
+                const source = s.source as { name?: string } | undefined;
+                if (source && source.name !== "Wikimedia Commons") {
+                    expect(typeof s.pickedBy, `${spotId} ${s.title}`).toBe("string");
+                    continue;
+                }
                 expect(isAllowedLicense(s.license), `${spotId} ${s.file}`).toBe(true);
                 expect(String(s.author).trim(), `${spotId} ${s.file}`).not.toBe("");
                 expect(s.pageUrl, `${spotId} ${s.file}`).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
