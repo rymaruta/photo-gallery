@@ -21,6 +21,26 @@
   },
   {
     "spotId": "sp_0172f55bf61e",
+    "file": "File:Hagi Mt.Kasayama Walls for Cows.JPG",
+    "reason": "目で見て（visual-review）: 椿の林が写らない"
+  },
+  {
+    "spotId": "sp_0172f55bf61e",
+    "file": "File:Hagi Mt.Kasayama volcano.JPG",
+    "reason": "目で見て（visual-review）: 椿の林が写らない"
+  },
+  {
+    "spotId": "sp_0172f55bf61e",
+    "file": "File:Japan Sea from Mt Kasayama.JPG",
+    "reason": "目で見て（visual-review）: 椿の林が写らない"
+  },
+  {
+    "spotId": "sp_0172f55bf61e",
+    "file": "File:Kasayama - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 笠山からの海の眺めで椿の林が写らない"
+  },
+  {
+    "spotId": "sp_0172f55bf61e",
     "file": "File:Kasayama-jinja 01.jpg",
     "reason": "目で見て（visual-review）: 笠山神社（別の場所）"
   },
@@ -48,26 +68,6 @@
     "spotId": "sp_0172f55bf61e",
     "file": "File:Kasayama-jinja 06.jpg",
     "reason": "目で見て（visual-review）: 笠山神社（別の場所）"
-  },
-  {
-    "spotId": "sp_0172f55bf61e",
-    "file": "File:Hagi Mt.Kasayama Walls for Cows.JPG",
-    "reason": "目で見て（visual-review）: 椿の林が写らない"
-  },
-  {
-    "spotId": "sp_0172f55bf61e",
-    "file": "File:Hagi Mt.Kasayama volcano.JPG",
-    "reason": "目で見て（visual-review）: 椿の林が写らない"
-  },
-  {
-    "spotId": "sp_0172f55bf61e",
-    "file": "File:Japan Sea from Mt Kasayama.JPG",
-    "reason": "目で見て（visual-review）: 椿の林が写らない"
-  },
-  {
-    "spotId": "sp_0172f55bf61e",
-    "file": "File:Kasayama - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 笠山からの海の眺めで椿の林が写らない"
   },
   {
     "spotId": "sp_0285931fb1b9",
@@ -121,26 +121,6 @@
   },
   {
     "spotId": "sp_0423dea318e5",
-    "file": "File:KL-MP35JK-Daitetsu.jpg",
-    "reason": "目で見て（visual-review）: バス"
-  },
-  {
-    "spotId": "sp_0423dea318e5",
-    "file": "File:Oigawa 1 Izumo.jpg",
-    "reason": "目で見て（visual-review）: 室内の展示"
-  },
-  {
-    "spotId": "sp_0423dea318e5",
-    "file": "File:Shin-Kanaya sta.,Shimada-city,Japan.jpg",
-    "reason": "目で見て（visual-review）: 駅・車両"
-  },
-  {
-    "spotId": "sp_0423dea318e5",
-    "file": "File:C11190-Oigawa.JPG",
-    "reason": "目で見て（visual-review）: 駅・車両"
-  },
-  {
-    "spotId": "sp_0423dea318e5",
     "file": "File:C10 8,Senzu sta.,Oigawa-railway,Japan.jpg",
     "reason": "目で見て（visual-review）: 駅・車両"
   },
@@ -151,8 +131,23 @@
   },
   {
     "spotId": "sp_0423dea318e5",
+    "file": "File:C11190-Oigawa.JPG",
+    "reason": "目で見て（visual-review）: 駅・車両"
+  },
+  {
+    "spotId": "sp_0423dea318e5",
+    "file": "File:KL-MP35JK-Daitetsu.jpg",
+    "reason": "目で見て（visual-review）: バス"
+  },
+  {
+    "spotId": "sp_0423dea318e5",
     "file": "File:Kanayastation-JRtokaidoline-platforms-march2014.jpg",
     "reason": "目で見て（visual-review）: 駅・車両"
+  },
+  {
+    "spotId": "sp_0423dea318e5",
+    "file": "File:Oigawa 1 Izumo.jpg",
+    "reason": "目で見て（visual-review）: 室内の展示"
   },
   {
     "spotId": "sp_0423dea318e5",
@@ -165,6 +160,16 @@
     "reason": "目で見て（visual-review）: 駅・車両"
   },
   {
+    "spotId": "sp_0423dea318e5",
+    "file": "File:Shin-Kanaya sta.,Shimada-city,Japan.jpg",
+    "reason": "目で見て（visual-review）: 駅・車両"
+  },
+  {
+    "spotId": "sp_05c07d032006",
+    "file": "File:Chikugo-Yoshii Station 20161231.jpg",
+    "reason": "目で見て（visual-review）: 駅"
+  },
+  {
     "spotId": "sp_05c07d032006",
     "file": "File:Chikugo-Yoshii03s4272.jpg",
     "reason": "目で見て（visual-review）: 壁の飾り"
@@ -175,9 +180,9 @@
     "reason": "目で見て（visual-review）: 看板"
   },
   {
-    "spotId": "sp_05c07d032006",
-    "file": "File:Chikugo-Yoshii Station 20161231.jpg",
-    "reason": "目で見て（visual-review）: 駅"
+    "spotId": "sp_05fbe88f0ddb",
+    "file": "File:Acer japonicum - Daikakuji,Kyoto 大覚寺のハウチワカエデ DSCF0900.JPG",
+    "reason": "人の目: 木の接写"
   },
   {
     "spotId": "sp_05fbe88f0ddb",
@@ -188,11 +193,6 @@
     "spotId": "sp_05fbe88f0ddb",
     "file": "File:心経宝塔と放生池 大覚寺 京都市右京区嵯峨大沢町 Nov 1, 2018.jpg",
     "reason": "人の目: 放生池で大沢池でない"
-  },
-  {
-    "spotId": "sp_05fbe88f0ddb",
-    "file": "File:Acer japonicum - Daikakuji,Kyoto 大覚寺のハウチワカエデ DSCF0900.JPG",
-    "reason": "人の目: 木の接写"
   },
   {
     "spotId": "sp_060b0981e570",
@@ -213,6 +213,11 @@
     "spotId": "sp_07cc6cbc3f97",
     "file": "File:20240906.Ansichten von Luzern.-016.7.jpg",
     "reason": "目で見て（visual-review）: 橋が写らない"
+  },
+  {
+    "spotId": "sp_07fa54be2787",
+    "file": "File:Iwamotoji20210914 1.jpg",
+    "reason": "人の目: 像"
   },
   {
     "spotId": "sp_07fa54be2787",
@@ -250,19 +255,14 @@
     "reason": "人の目: 像"
   },
   {
-    "spotId": "sp_07fa54be2787",
-    "file": "File:Iwamotoji20210914 1.jpg",
-    "reason": "人の目: 像"
-  },
-  {
     "spotId": "sp_080ac728176b",
     "file": "File:忠魂碑（諏訪大社下社秋宮）.jpg",
     "reason": "人の目: 忠魂碑の石碑で撮影地の景観ではない"
   },
   {
     "spotId": "sp_08a98701552f",
-    "file": "File:Sheep pusture in Koiwai Farm.jpg",
-    "reason": "人の目: 一本桜でない"
+    "file": "File:Big metal container in Koiwai Farm 01.jpg",
+    "reason": "人の目: 金属の容器"
   },
   {
     "spotId": "sp_08a98701552f",
@@ -286,8 +286,13 @@
   },
   {
     "spotId": "sp_08a98701552f",
-    "file": "File:Big metal container in Koiwai Farm 01.jpg",
-    "reason": "人の目: 金属の容器"
+    "file": "File:Sheep pusture in Koiwai Farm.jpg",
+    "reason": "人の目: 一本桜でない"
+  },
+  {
+    "spotId": "sp_08b816177f81",
+    "file": "File:Early morning - panoramio (5).jpg",
+    "reason": "人の目: 砂浜で橋でない"
   },
   {
     "spotId": "sp_08b816177f81",
@@ -303,11 +308,6 @@
     "spotId": "sp_08b816177f81",
     "file": "File:Miyako northwest aerial.jpg",
     "reason": "人の目: 空撮で橋が主題でない"
-  },
-  {
-    "spotId": "sp_08b816177f81",
-    "file": "File:Early morning - panoramio (5).jpg",
-    "reason": "人の目: 砂浜で橋でない"
   },
   {
     "spotId": "sp_08f5b937e2da",
@@ -326,17 +326,17 @@
   },
   {
     "spotId": "sp_092ceb9c0f82",
-    "file": "File:大岩山.jpg",
-    "reason": "人の目: 古写真"
-  },
-  {
-    "spotId": "sp_092ceb9c0f82",
     "file": "File:Nissekiji in 1936.jpg",
     "reason": "人の目: 古写真"
   },
   {
+    "spotId": "sp_092ceb9c0f82",
+    "file": "File:大岩山.jpg",
+    "reason": "人の目: 古写真"
+  },
+  {
     "spotId": "sp_0a9fb182f132",
-    "file": "File:Sasagawa-nagare, Michi-no-Eki, Niigata, Japan, October 2019.jpg",
+    "file": "File:JR East Kuwagawa Station building and Michinoeki Sasagawanagare.jpg",
     "reason": "目で見て（visual-review）: 道の駅・駅"
   },
   {
@@ -351,7 +351,7 @@
   },
   {
     "spotId": "sp_0a9fb182f132",
-    "file": "File:JR East Kuwagawa Station building and Michinoeki Sasagawanagare.jpg",
+    "file": "File:Sasagawa-nagare, Michi-no-Eki, Niigata, Japan, October 2019.jpg",
     "reason": "目で見て（visual-review）: 道の駅・駅"
   },
   {
@@ -363,6 +363,16 @@
     "spotId": "sp_0abb2efbf211",
     "file": "File:Awashima-jinja hariduka.jpg",
     "reason": "人の目: 針塚（碑）"
+  },
+  {
+    "spotId": "sp_0adc844559f8",
+    "file": "File:Aya Teruha Suspension Bridge1.jpg",
+    "reason": "目で見て（visual-review）: 吊橋がほぼ写らない"
+  },
+  {
+    "spotId": "sp_0adc844559f8",
+    "file": "File:Aya Teruha Suspension Bridge2.jpg",
+    "reason": "目で見て（visual-review）: 吊橋がほぼ写らない"
   },
   {
     "spotId": "sp_0adc844559f8",
@@ -378,16 +388,6 @@
     "spotId": "sp_0adc844559f8",
     "file": "File:Teruha hanger bridge2.jpg",
     "reason": "目で見て（visual-review）: 碑が主役"
-  },
-  {
-    "spotId": "sp_0adc844559f8",
-    "file": "File:Aya Teruha Suspension Bridge1.jpg",
-    "reason": "目で見て（visual-review）: 吊橋がほぼ写らない"
-  },
-  {
-    "spotId": "sp_0adc844559f8",
-    "file": "File:Aya Teruha Suspension Bridge2.jpg",
-    "reason": "目で見て（visual-review）: 吊橋がほぼ写らない"
   },
   {
     "spotId": "sp_0af0d0ae9ab7",
@@ -431,11 +431,6 @@
   },
   {
     "spotId": "sp_0fef9c5ebd1b",
-    "file": "File:Kitayamagawa02.jpg",
-    "reason": "人の目: 北山川の別の区間"
-  },
-  {
-    "spotId": "sp_0fef9c5ebd1b",
     "file": "File:Kitayama river basin taken from JAL213 flight.A.jpg",
     "reason": "人の目: 空撮で瀞峡と分からない"
   },
@@ -446,8 +441,18 @@
   },
   {
     "spotId": "sp_0fef9c5ebd1b",
+    "file": "File:Kitayama river basin taken from JAL215 flight.C.jpg",
+    "reason": "目で見て（visual-review）: 空撮で峡谷が分からない"
+  },
+  {
+    "spotId": "sp_0fef9c5ebd1b",
     "file": "File:Kitayamagawa01.jpg",
     "reason": "人の目: 北山川の上流"
+  },
+  {
+    "spotId": "sp_0fef9c5ebd1b",
+    "file": "File:Kitayamagawa02.jpg",
+    "reason": "人の目: 北山川の別の区間"
   },
   {
     "spotId": "sp_0fef9c5ebd1b",
@@ -461,18 +466,28 @@
   },
   {
     "spotId": "sp_0fef9c5ebd1b",
-    "file": "File:Kitayama river basin taken from JAL215 flight.C.jpg",
-    "reason": "目で見て（visual-review）: 空撮で峡谷が分からない"
-  },
-  {
-    "spotId": "sp_0fef9c5ebd1b",
     "file": "File:瀞峡めぐりの里 熊野川「志古」 - panoramio.jpg",
     "reason": "目で見て（visual-review）: 熊野川の志古（別の場所）"
   },
   {
     "spotId": "sp_101c082d8068",
+    "file": "File:Oita takasakiyama jupiter skeleton.jpg",
+    "reason": "人の目: 骨格標本"
+  },
+  {
+    "spotId": "sp_101c082d8068",
+    "file": "File:Oita takasakiyama jupiter.jpg",
+    "reason": "人の目: 像"
+  },
+  {
+    "spotId": "sp_101c082d8068",
     "file": "File:Takasakiyama esayari 01.jpg",
     "reason": "人の目: 人物"
+  },
+  {
+    "spotId": "sp_101c082d8068",
+    "file": "File:Takasakiyama sarukkorail 1.jpg",
+    "reason": "人の目: 乗り物"
   },
   {
     "spotId": "sp_101c082d8068",
@@ -483,21 +498,6 @@
     "spotId": "sp_101c082d8068",
     "file": "File:Takasakiyama slopecar2.jpg",
     "reason": "人の目: 乗り物"
-  },
-  {
-    "spotId": "sp_101c082d8068",
-    "file": "File:Oita takasakiyama jupiter skeleton.jpg",
-    "reason": "人の目: 骨格標本"
-  },
-  {
-    "spotId": "sp_101c082d8068",
-    "file": "File:Takasakiyama sarukkorail 1.jpg",
-    "reason": "人の目: 乗り物"
-  },
-  {
-    "spotId": "sp_101c082d8068",
-    "file": "File:Oita takasakiyama jupiter.jpg",
-    "reason": "人の目: 像"
   },
   {
     "spotId": "sp_101c082d8068",
@@ -541,6 +541,11 @@
   },
   {
     "spotId": "sp_1326bdef665f",
+    "file": "File:151031 Hoshino Resort Aomoriya Misawa Aomori pref Japan02s.jpg",
+    "reason": "人の目: 三沢のホテル"
+  },
+  {
+    "spotId": "sp_1326bdef665f",
     "file": "File:Nebuta Star Wars in Light side Jedi.jpg",
     "reason": "夜の暗い写真（20 Night）"
   },
@@ -565,19 +570,9 @@
     "reason": "人の目: 広告"
   },
   {
-    "spotId": "sp_1326bdef665f",
-    "file": "File:151031 Hoshino Resort Aomoriya Misawa Aomori pref Japan02s.jpg",
-    "reason": "人の目: 三沢のホテル"
-  },
-  {
     "spotId": "sp_139a49863a7a",
     "file": "File:Haigamine weather-radar.jpg",
     "reason": "人の目: 気象レーダー"
-  },
-  {
-    "spotId": "sp_13a410d06f84",
-    "file": "File:Shiobara dam 01.jpg",
-    "reason": "人の目: ダムで吊橋でない"
   },
   {
     "spotId": "sp_13a410d06f84",
@@ -591,18 +586,23 @@
   },
   {
     "spotId": "sp_13a410d06f84",
-    "file": "File:Sekiya elementary school, Nasushiobara.jpg",
-    "reason": "目で見て（visual-review）: 学校・施設"
-  },
-  {
-    "spotId": "sp_13a410d06f84",
     "file": "File:Michinoeki yunoka shiobara.jpg",
     "reason": "目で見て（visual-review）: 道の駅"
   },
   {
     "spotId": "sp_13a410d06f84",
-    "file": "File:TEPCO Shiobara Land 2010-10.jpg",
-    "reason": "目で見て（visual-review）: 電力の展示館"
+    "file": "File:Mikaeri Falls (Nasushiobara, Tochigi Prefecture) - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 回顧の滝（別の場所）"
+  },
+  {
+    "spotId": "sp_13a410d06f84",
+    "file": "File:Sekiya elementary school, Nasushiobara.jpg",
+    "reason": "目で見て（visual-review）: 学校・施設"
+  },
+  {
+    "spotId": "sp_13a410d06f84",
+    "file": "File:Shiobara dam 01.jpg",
+    "reason": "人の目: ダムで吊橋でない"
   },
   {
     "spotId": "sp_13a410d06f84",
@@ -611,8 +611,8 @@
   },
   {
     "spotId": "sp_13a410d06f84",
-    "file": "File:Mikaeri Falls (Nasushiobara, Tochigi Prefecture) - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 回顧の滝（別の場所）"
+    "file": "File:TEPCO Shiobara Land 2010-10.jpg",
+    "reason": "目で見て（visual-review）: 電力の展示館"
   },
   {
     "spotId": "sp_13a410d06f84",
@@ -731,21 +731,6 @@
   },
   {
     "spotId": "sp_1937fa6f3dfd",
-    "file": "File:因島大浜町 Innoshima-Ohama cho - panoramio.jpg",
-    "reason": "人の目: 白滝山でない"
-  },
-  {
-    "spotId": "sp_1937fa6f3dfd",
-    "file": "File:Bow of Nisshin Maru whaler, and Navy ship, at Japan Marine United's Innoshima facilities.jpg",
-    "reason": "人の目: 造船所の船"
-  },
-  {
-    "spotId": "sp_1937fa6f3dfd",
-    "file": "File:Ferry departing 上弓削漁港, in the background are Nisshin Maru whaler and a Navy ship at Japan Marine United's Innoshima facilities.jpg",
-    "reason": "人の目: フェリー"
-  },
-  {
-    "spotId": "sp_1937fa6f3dfd",
     "file": "File:10Kan-on Habushosen.jpg",
     "reason": "人の目: フェリー"
   },
@@ -756,23 +741,33 @@
   },
   {
     "spotId": "sp_1937fa6f3dfd",
-    "file": "File:Chofukuji Temple on Innoshima Island.jpg",
-    "reason": "人の目: 別の寺"
-  },
-  {
-    "spotId": "sp_1937fa6f3dfd",
     "file": "File:8Oshima Nagaeferry.jpg",
-    "reason": "目で見て（visual-review）: フェリー"
-  },
-  {
-    "spotId": "sp_1937fa6f3dfd",
-    "file": "File:Ferry departing 上弓削漁港, in the background is Nisshin Maru whaler at Japan Marine United's Innoshima facilities.jpg",
     "reason": "目で見て（visual-review）: フェリー"
   },
   {
     "spotId": "sp_1937fa6f3dfd",
     "file": "File:Anseikan hi.JPG",
     "reason": "目で見て（visual-review）: 碑"
+  },
+  {
+    "spotId": "sp_1937fa6f3dfd",
+    "file": "File:Bow of Nisshin Maru whaler, and Navy ship, at Japan Marine United's Innoshima facilities.jpg",
+    "reason": "人の目: 造船所の船"
+  },
+  {
+    "spotId": "sp_1937fa6f3dfd",
+    "file": "File:Chofukuji Temple on Innoshima Island.jpg",
+    "reason": "人の目: 別の寺"
+  },
+  {
+    "spotId": "sp_1937fa6f3dfd",
+    "file": "File:Ferry departing 上弓削漁港, in the background are Nisshin Maru whaler and a Navy ship at Japan Marine United's Innoshima facilities.jpg",
+    "reason": "人の目: フェリー"
+  },
+  {
+    "spotId": "sp_1937fa6f3dfd",
+    "file": "File:Ferry departing 上弓削漁港, in the background is Nisshin Maru whaler at Japan Marine United's Innoshima facilities.jpg",
+    "reason": "目で見て（visual-review）: フェリー"
   },
   {
     "spotId": "sp_1937fa6f3dfd",
@@ -810,6 +805,11 @@
     "reason": "目で見て（visual-review）: 古い空中写真"
   },
   {
+    "spotId": "sp_1937fa6f3dfd",
+    "file": "File:因島大浜町 Innoshima-Ohama cho - panoramio.jpg",
+    "reason": "人の目: 白滝山でない"
+  },
+  {
     "spotId": "sp_1a7f60d3b94e",
     "file": "File:Fukuoka (49339446121).jpg",
     "reason": "人の目: 題が撮影地と合わない"
@@ -831,8 +831,8 @@
   },
   {
     "spotId": "sp_1b301a914298",
-    "file": "File:Ryujin-kyo valley Ryujin Dam.jpg",
-    "reason": "目で見て（visual-review）: ダム"
+    "file": "File:Ryujin Dam 01.jpg",
+    "reason": "目で見て（visual-review）: 広場と碑"
   },
   {
     "spotId": "sp_1b301a914298",
@@ -846,8 +846,8 @@
   },
   {
     "spotId": "sp_1b301a914298",
-    "file": "File:Ryujin Dam 01.jpg",
-    "reason": "目で見て（visual-review）: 広場と碑"
+    "file": "File:Ryujin-kyo valley Ryujin Dam.jpg",
+    "reason": "目で見て（visual-review）: ダム"
   },
   {
     "spotId": "sp_1b570d92eed0",
@@ -891,8 +891,28 @@
   },
   {
     "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Dake Onsen Shrine 100808.jpg",
+    "reason": "目で見て（visual-review）: 神社（別の場所）"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
     "file": "File:Nikoniko015.jpg",
     "reason": "目で見て（visual-review）: 料理"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko016.jpg",
+    "reason": "目で見て（visual-review）: 文書"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko017.jpg",
+    "reason": "目で見て（visual-review）: 人物"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko02.jpg",
+    "reason": "目で見て（visual-review）: 人物"
   },
   {
     "spotId": "sp_1d4ade3a70f8",
@@ -901,8 +921,23 @@
   },
   {
     "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko016.jpg",
-    "reason": "目で見て（visual-review）: 文書"
+    "file": "File:Nikoniko04.jpg",
+    "reason": "目で見て（visual-review）: 室内"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko05.jpg",
+    "reason": "目で見て（visual-review）: 店・建物"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko06.jpg",
+    "reason": "目で見て（visual-review）: 店・建物"
+  },
+  {
+    "spotId": "sp_1d4ade3a70f8",
+    "file": "File:Nikoniko09.jpg",
+    "reason": "目で見て（visual-review）: 室内"
   },
   {
     "spotId": "sp_1d4ade3a70f8",
@@ -921,23 +956,8 @@
   },
   {
     "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko017.jpg",
-    "reason": "目で見て（visual-review）: 人物"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko02.jpg",
-    "reason": "目で見て（visual-review）: 人物"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko04.jpg",
-    "reason": "目で見て（visual-review）: 室内"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko09.jpg",
-    "reason": "目で見て（visual-review）: 室内"
+    "file": "File:Nikoniko13.jpg",
+    "reason": "目で見て（visual-review）: 店・建物"
   },
   {
     "spotId": "sp_1d4ade3a70f8",
@@ -946,32 +966,12 @@
   },
   {
     "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko05.jpg",
-    "reason": "目で見て（visual-review）: 店・建物"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko06.jpg",
-    "reason": "目で見て（visual-review）: 店・建物"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Nikoniko13.jpg",
-    "reason": "目で見て（visual-review）: 店・建物"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Dake Onsen Shrine 100808.jpg",
-    "reason": "目で見て（visual-review）: 神社（別の場所）"
-  },
-  {
-    "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Tokachi-dake Onsen - panoramio.jpg",
+    "file": "File:Tokachi-dake Onsen - panoramio (1).jpg",
     "reason": "目で見て（visual-review）: 雪の建物で温泉街が分からない"
   },
   {
     "spotId": "sp_1d4ade3a70f8",
-    "file": "File:Tokachi-dake Onsen - panoramio (1).jpg",
+    "file": "File:Tokachi-dake Onsen - panoramio.jpg",
     "reason": "目で見て（visual-review）: 雪の建物で温泉街が分からない"
   },
   {
@@ -1016,13 +1016,13 @@
   },
   {
     "spotId": "sp_20e4c3b7b5be",
-    "file": "File:牧野植物園 - panoramio (1).jpg",
-    "reason": "人の目: map signboard"
+    "file": "File:Balanophora tobiracola.jpg",
+    "reason": "人の目: 植物の接写"
   },
   {
     "spotId": "sp_20e4c3b7b5be",
-    "file": "File:Balanophora tobiracola.jpg",
-    "reason": "人の目: 植物の接写"
+    "file": "File:牧野植物園 - panoramio (1).jpg",
+    "reason": "人の目: map signboard"
   },
   {
     "spotId": "sp_20e94ac7fb13",
@@ -1031,28 +1031,13 @@
   },
   {
     "spotId": "sp_20e94ac7fb13",
-    "file": "File:震動の滝 - panoramio (1).jpg",
-    "reason": "人の目: 震動の滝で吊橋でない"
-  },
-  {
-    "spotId": "sp_20e94ac7fb13",
-    "file": "File:震動の滝 - panoramio.jpg",
+    "file": "File:Shindo Waterfalls 02.JPG",
     "reason": "人の目: 震動の滝で吊橋でない"
   },
   {
     "spotId": "sp_20e94ac7fb13",
     "file": "File:九酔峡 - panoramio.jpg",
     "reason": "人の目: 九酔峡で吊橋でない"
-  },
-  {
-    "spotId": "sp_20e94ac7fb13",
-    "file": "File:震動の滝 Shindo Falls - panoramio.jpg",
-    "reason": "人の目: 震動の滝で吊橋でない"
-  },
-  {
-    "spotId": "sp_20e94ac7fb13",
-    "file": "File:Shindo Waterfalls 02.JPG",
-    "reason": "人の目: 震動の滝で吊橋でない"
   },
   {
     "spotId": "sp_20e94ac7fb13",
@@ -1075,6 +1060,21 @@
     "reason": "目で見て（visual-review）: 人物"
   },
   {
+    "spotId": "sp_20e94ac7fb13",
+    "file": "File:震動の滝 - panoramio (1).jpg",
+    "reason": "人の目: 震動の滝で吊橋でない"
+  },
+  {
+    "spotId": "sp_20e94ac7fb13",
+    "file": "File:震動の滝 - panoramio.jpg",
+    "reason": "人の目: 震動の滝で吊橋でない"
+  },
+  {
+    "spotId": "sp_20e94ac7fb13",
+    "file": "File:震動の滝 Shindo Falls - panoramio.jpg",
+    "reason": "人の目: 震動の滝で吊橋でない"
+  },
+  {
     "spotId": "sp_22d649676bad",
     "file": "File:金刀比羅宮12 - panoramio.jpg",
     "reason": "人の目: propeller monument"
@@ -1091,8 +1091,8 @@
   },
   {
     "spotId": "sp_2340b5018a23",
-    "file": "File:Takanori Takebe cropped Takanori Takebe 20190115.jpg",
-    "reason": "目で見て（visual-review）: 人物"
+    "file": "File:AsahiRiver Takebe.JPG",
+    "reason": "目で見て（visual-review）: 旭川・建部の町（森でない）"
   },
   {
     "spotId": "sp_2340b5018a23",
@@ -1121,8 +1121,8 @@
   },
   {
     "spotId": "sp_2340b5018a23",
-    "file": "File:AsahiRiver Takebe.JPG",
-    "reason": "目で見て（visual-review）: 旭川・建部の町（森でない）"
+    "file": "File:Takanori Takebe cropped Takanori Takebe 20190115.jpg",
+    "reason": "目で見て（visual-review）: 人物"
   },
   {
     "spotId": "sp_2340b5018a23",
@@ -1186,6 +1186,26 @@
   },
   {
     "spotId": "sp_27324950a9d5",
+    "file": "File:Hoshida Myokengu Ema.jpg",
+    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
+  },
+  {
+    "spotId": "sp_27324950a9d5",
+    "file": "File:Hoshida Myokengu Goshuin-cho.jpg",
+    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
+  },
+  {
+    "spotId": "sp_27324950a9d5",
+    "file": "File:Hoshida Myokengu Magic stone.jpg",
+    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
+  },
+  {
+    "spotId": "sp_27324950a9d5",
+    "file": "File:Hoshida Myokengu Sign.jpg",
+    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
+  },
+  {
+    "spotId": "sp_27324950a9d5",
     "file": "File:Hoshida Myokengu-150925243.jpg",
     "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
   },
@@ -1215,33 +1235,13 @@
     "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
   },
   {
-    "spotId": "sp_27324950a9d5",
-    "file": "File:Hoshida Myokengu Ema.jpg",
-    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
-  },
-  {
-    "spotId": "sp_27324950a9d5",
-    "file": "File:Hoshida Myokengu Goshuin-cho.jpg",
-    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
-  },
-  {
-    "spotId": "sp_27324950a9d5",
-    "file": "File:Hoshida Myokengu Magic stone.jpg",
-    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
-  },
-  {
-    "spotId": "sp_27324950a9d5",
-    "file": "File:Hoshida Myokengu Sign.jpg",
-    "reason": "目で見て（visual-review）: 星田妙見宮（別の場所）"
-  },
-  {
     "spotId": "sp_274d3b583ebb",
-    "file": "File:Boleophthalmus pectinirostris AQUAS 3.jpg",
+    "file": "File:Blue Chionoecetes opilio.JPG",
     "reason": "人の目: 生き物の接写"
   },
   {
     "spotId": "sp_274d3b583ebb",
-    "file": "File:Blue Chionoecetes opilio.JPG",
+    "file": "File:Boleophthalmus pectinirostris AQUAS 3.jpg",
     "reason": "人の目: 生き物の接写"
   },
   {
@@ -1251,13 +1251,13 @@
   },
   {
     "spotId": "sp_274d3b583ebb",
-    "file": "File:Rana tagoi okiensis AQUAS 1.jpg",
-    "reason": "人の目: 生き物の接写"
+    "file": "File:May Koinobori Aquas.JPG",
+    "reason": "人の目: 飾り"
   },
   {
     "spotId": "sp_274d3b583ebb",
-    "file": "File:May Koinobori Aquas.JPG",
-    "reason": "人の目: 飾り"
+    "file": "File:Rana tagoi okiensis AQUAS 1.jpg",
+    "reason": "人の目: 生き物の接写"
   },
   {
     "spotId": "sp_275faf52e0ce",
@@ -1291,6 +1291,16 @@
   },
   {
     "spotId": "sp_287f81438374",
+    "file": "File:Kudakajima Island from Ujoguchi of Sefa-Utaki.JPG",
+    "reason": "人の目: 久高島の眺め"
+  },
+  {
+    "spotId": "sp_287f81438374",
+    "file": "File:Kumakajima Island from Ujoguchi of Sefa-Utaki.JPG",
+    "reason": "人の目: ほかの島の眺め"
+  },
+  {
+    "spotId": "sp_287f81438374",
     "file": "File:Road heading for Sefa-Utaki.JPG",
     "reason": "人の目: street with vans"
   },
@@ -1300,49 +1310,9 @@
     "reason": "駅・電車・車両・バス（Station）"
   },
   {
-    "spotId": "sp_287f81438374",
-    "file": "File:Kumakajima Island from Ujoguchi of Sefa-Utaki.JPG",
-    "reason": "人の目: ほかの島の眺め"
-  },
-  {
-    "spotId": "sp_287f81438374",
-    "file": "File:Kudakajima Island from Ujoguchi of Sefa-Utaki.JPG",
-    "reason": "人の目: 久高島の眺め"
-  },
-  {
     "spotId": "sp_2a2ed8eab3b4",
     "file": "File:Tile roof of Korou in Kikuchi Castle.jpg",
     "reason": "人の目: 瓦の接写"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:Kumamoto Prefectural Ancient Burial Mound Museum 02.jpg",
-    "reason": "人の目: 博物館の建物"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:Kumamoto Prefectural Ancient Burial Mound Museum 01.jpg",
-    "reason": "人の目: 博物館の建物"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:山鹿温泉さくら湯.jpg",
-    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:山鹿灯籠民芸館(旧安田銀行山鹿支店).jpg",
-    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:山鹿灯籠民芸館 パネル.jpg",
-    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
-  },
-  {
-    "spotId": "sp_2a45a970e8a1",
-    "file": "File:チブサン古墳 武人形石製表飾 (石人).JPG",
-    "reason": "目で見て（visual-review）: 展示物（室内）"
   },
   {
     "spotId": "sp_2a45a970e8a1",
@@ -1365,29 +1335,39 @@
     "reason": "目で見て（visual-review）: 360度パノラマで歪む"
   },
   {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:Kumamoto Prefectural Ancient Burial Mound Museum 01.jpg",
+    "reason": "人の目: 博物館の建物"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:Kumamoto Prefectural Ancient Burial Mound Museum 02.jpg",
+    "reason": "人の目: 博物館の建物"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:チブサン古墳 武人形石製表飾 (石人).JPG",
+    "reason": "目で見て（visual-review）: 展示物（室内）"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:山鹿温泉さくら湯.jpg",
+    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:山鹿灯籠民芸館 パネル.jpg",
+    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
+  },
+  {
+    "spotId": "sp_2a45a970e8a1",
+    "file": "File:山鹿灯籠民芸館(旧安田銀行山鹿支店).jpg",
+    "reason": "目で見て（visual-review）: 別の場所（山鹿の町）"
+  },
+  {
     "spotId": "sp_2a6f9064cc57",
     "file": "File:Hawai onsen.jpg",
     "reason": "目で見て（visual-review）: 看板"
-  },
-  {
-    "spotId": "sp_2a6f9064cc57",
-    "file": "File:はわい温泉「千年亭」 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 宿の玄関・庭"
-  },
-  {
-    "spotId": "sp_2a6f9064cc57",
-    "file": "File:はわい温泉「千年亭」 - panoramio (1).jpg",
-    "reason": "目で見て（visual-review）: 宿の玄関・庭"
-  },
-  {
-    "spotId": "sp_2a6f9064cc57",
-    "file": "File:はわい温泉「千年亭」 - panoramio (3).jpg",
-    "reason": "目で見て（visual-review）: 宿の玄関・庭"
-  },
-  {
-    "spotId": "sp_2a6f9064cc57",
-    "file": "File:はわい温泉「千年亭」 - panoramio (2).jpg",
-    "reason": "目で見て（visual-review）: 駐車場"
   },
   {
     "spotId": "sp_2a6f9064cc57",
@@ -1405,14 +1385,34 @@
     "reason": "目で見て（visual-review）: 東郷温泉（別の場所）"
   },
   {
-    "spotId": "sp_2b06e79286d5",
-    "file": "File:Omihachiman Okishima Post Office ac.jpg",
-    "reason": "人の目: 郵便局"
+    "spotId": "sp_2a6f9064cc57",
+    "file": "File:はわい温泉「千年亭」 - panoramio (1).jpg",
+    "reason": "目で見て（visual-review）: 宿の玄関・庭"
+  },
+  {
+    "spotId": "sp_2a6f9064cc57",
+    "file": "File:はわい温泉「千年亭」 - panoramio (2).jpg",
+    "reason": "目で見て（visual-review）: 駐車場"
+  },
+  {
+    "spotId": "sp_2a6f9064cc57",
+    "file": "File:はわい温泉「千年亭」 - panoramio (3).jpg",
+    "reason": "目で見て（visual-review）: 宿の玄関・庭"
+  },
+  {
+    "spotId": "sp_2a6f9064cc57",
+    "file": "File:はわい温泉「千年亭」 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 宿の玄関・庭"
   },
   {
     "spotId": "sp_2b06e79286d5",
     "file": "File:JF Okishima ac (1).jpg",
     "reason": "人の目: 漁協の建物"
+  },
+  {
+    "spotId": "sp_2b06e79286d5",
+    "file": "File:Omihachiman Okishima Post Office ac.jpg",
+    "reason": "人の目: 郵便局"
   },
   {
     "spotId": "sp_2b2f0c8ad8cb",
@@ -1431,23 +1431,13 @@
   },
   {
     "spotId": "sp_2b3cecc09b09",
-    "file": "File:Okutadami Dam 001.jpg",
-    "reason": "人の目: ダムと看板"
-  },
-  {
-    "spotId": "sp_2b3cecc09b09",
-    "file": "File:Okutadami pleasure ship Fantasia.jpg",
-    "reason": "人の目: 遊覧船"
-  },
-  {
-    "spotId": "sp_2b3cecc09b09",
-    "file": "File:Yunotaniimogawa, Uonuma, Niigata Prefecture 946-0082, Japan - panoramio (2).jpg",
-    "reason": "人の目: ダムの下流"
-  },
-  {
-    "spotId": "sp_2b3cecc09b09",
     "file": "File:20090905奥只見ダム.jpg",
     "reason": "人の目: ダムの空撮"
+  },
+  {
+    "spotId": "sp_2b3cecc09b09",
+    "file": "File:Okutadami Dam 001.jpg",
+    "reason": "人の目: ダムと看板"
   },
   {
     "spotId": "sp_2b3cecc09b09",
@@ -1456,8 +1446,18 @@
   },
   {
     "spotId": "sp_2b3cecc09b09",
+    "file": "File:Okutadami pleasure ship Fantasia.jpg",
+    "reason": "人の目: 遊覧船"
+  },
+  {
+    "spotId": "sp_2b3cecc09b09",
     "file": "File:Okutadami pleasure ships.jpg",
     "reason": "人の目: 遊覧船"
+  },
+  {
+    "spotId": "sp_2b3cecc09b09",
+    "file": "File:Yunotaniimogawa, Uonuma, Niigata Prefecture 946-0082, Japan - panoramio (2).jpg",
+    "reason": "人の目: ダムの下流"
   },
   {
     "spotId": "sp_2bba2c7dd9b1",
@@ -1476,6 +1476,11 @@
   },
   {
     "spotId": "sp_2c452b3f1eba",
+    "file": "File:Nakanoshima 1930.jpg",
+    "reason": "目で見て（visual-review）: 1930年の古い空撮"
+  },
+  {
+    "spotId": "sp_2c452b3f1eba",
     "file": "File:Nakanoshima-Library-night.jpg",
     "reason": "目で見て（visual-review）: 夜の写真"
   },
@@ -1485,19 +1490,9 @@
     "reason": "目で見て（visual-review）: 夜の写真"
   },
   {
-    "spotId": "sp_2c452b3f1eba",
-    "file": "File:Nakanoshima 1930.jpg",
-    "reason": "目で見て（visual-review）: 1930年の古い空撮"
-  },
-  {
     "spotId": "sp_2ca379f20f03",
-    "file": "File:Nagayu-tenmanyu.JPG",
-    "reason": "目で見て（visual-review）: 室内"
-  },
-  {
-    "spotId": "sp_2ca379f20f03",
-    "file": "File:長湯温泉 長生湯.jpg",
-    "reason": "目で見て（visual-review）: 室内"
+    "file": "File:Gozenyu.jpg",
+    "reason": "目で見て（visual-review）: 施設の建物"
   },
   {
     "spotId": "sp_2ca379f20f03",
@@ -1506,12 +1501,17 @@
   },
   {
     "spotId": "sp_2ca379f20f03",
-    "file": "File:Gozenyu.jpg",
+    "file": "File:Nagayu-Gozenyu.JPG",
     "reason": "目で見て（visual-review）: 施設の建物"
   },
   {
     "spotId": "sp_2ca379f20f03",
-    "file": "File:Nagayu-Gozenyu.JPG",
+    "file": "File:Nagayu-tenmanyu.JPG",
+    "reason": "目で見て（visual-review）: 室内"
+  },
+  {
+    "spotId": "sp_2ca379f20f03",
+    "file": "File:RamuneOnsenExterior.JPG",
     "reason": "目で見て（visual-review）: 施設の建物"
   },
   {
@@ -1531,8 +1531,8 @@
   },
   {
     "spotId": "sp_2ca379f20f03",
-    "file": "File:RamuneOnsenExterior.JPG",
-    "reason": "目で見て（visual-review）: 施設の建物"
+    "file": "File:長湯温泉 長生湯.jpg",
+    "reason": "目で見て（visual-review）: 室内"
   },
   {
     "spotId": "sp_2d0b8b764d2f",
@@ -1596,26 +1596,6 @@
   },
   {
     "spotId": "sp_2fd83069ab14",
-    "file": "File:Osaka Dotonbori yoru 04.jpg",
-    "reason": "夜の暗い写真（20 yoru）"
-  },
-  {
-    "spotId": "sp_2fd83069ab14",
-    "file": "File:Osaka Dotonbori yoru.jpg",
-    "reason": "夜の暗い写真（None yoru）"
-  },
-  {
-    "spotId": "sp_2fd83069ab14",
-    "file": "File:Panshiro Bakery Shop Namba Dotonbori.jpg",
-    "reason": "料理・食べ物（Food）"
-  },
-  {
-    "spotId": "sp_2fd83069ab14",
-    "file": "File:夜の道頓堀(Dotonbori at night) 02 Apr, 2016 - panoramio.jpg",
-    "reason": "夜の暗い写真（None 夜）"
-  },
-  {
-    "spotId": "sp_2fd83069ab14",
     "file": "File:Hanshin Tigers Supporter 2026-10 at Dotonbori1.jpg",
     "reason": "人の目: 人が主題"
   },
@@ -1633,6 +1613,26 @@
     "spotId": "sp_2fd83069ab14",
     "file": "File:Hanshin Tigers Supporter 2026-10 at Dotonbori4.jpg",
     "reason": "人の目: 人が主題"
+  },
+  {
+    "spotId": "sp_2fd83069ab14",
+    "file": "File:Osaka Dotonbori yoru 04.jpg",
+    "reason": "夜の暗い写真（20 yoru）"
+  },
+  {
+    "spotId": "sp_2fd83069ab14",
+    "file": "File:Osaka Dotonbori yoru.jpg",
+    "reason": "夜の暗い写真（None yoru）"
+  },
+  {
+    "spotId": "sp_2fd83069ab14",
+    "file": "File:Panshiro Bakery Shop Namba Dotonbori.jpg",
+    "reason": "料理・食べ物（Food）"
+  },
+  {
+    "spotId": "sp_2fd83069ab14",
+    "file": "File:夜の道頓堀(Dotonbori at night) 02 Apr, 2016 - panoramio.jpg",
+    "reason": "夜の暗い写真（None 夜）"
   },
   {
     "spotId": "sp_30b0a8a8efc4",
@@ -1656,18 +1656,13 @@
   },
   {
     "spotId": "sp_31f9934130d5",
-    "file": "File:Hinatazaka (Hyuga, Miyazaki).jpg",
-    "reason": "人の目: wooden post only"
-  },
-  {
-    "spotId": "sp_31f9934130d5",
-    "file": "File:願いが叶うクルスの鐘.jpg",
-    "reason": "人の目: sculpture"
-  },
-  {
-    "spotId": "sp_31f9934130d5",
     "file": "File:Hebezu.jpg",
     "reason": "人の目: 果物"
+  },
+  {
+    "spotId": "sp_31f9934130d5",
+    "file": "File:Hinatazaka (Hyuga, Miyazaki).jpg",
+    "reason": "人の目: wooden post only"
   },
   {
     "spotId": "sp_31f9934130d5",
@@ -1678,6 +1673,11 @@
     "spotId": "sp_31f9934130d5",
     "file": "File:HyugaFerryTerminal MarineExpress 20041011.jpg",
     "reason": "人の目: フェリーターミナル"
+  },
+  {
+    "spotId": "sp_31f9934130d5",
+    "file": "File:願いが叶うクルスの鐘.jpg",
+    "reason": "人の目: sculpture"
   },
   {
     "spotId": "sp_3236e752df1b",
@@ -1715,6 +1715,11 @@
     "reason": "料理・食べ物（丼）"
   },
   {
+    "spotId": "sp_350f9317cee7",
+    "file": "File:比美乃江大橋 - panoramio.jpg",
+    "reason": "画像で確認: 比美乃江大橋の接写で漁港が写っていない"
+  },
+  {
     "spotId": "sp_3518526ca1a6",
     "file": "File:Lascar Temppeliaukio Church (4548628589).jpg",
     "reason": "室内・展示物・建物の内部（Interior）"
@@ -1741,18 +1746,13 @@
   },
   {
     "spotId": "sp_354641c917ba",
-    "file": "File:Warei Jinja oldphoto 02.jpg",
-    "reason": "人の目: 古写真"
-  },
-  {
-    "spotId": "sp_354641c917ba",
     "file": "File:Warei Jinja oldphoto 01.jpg",
     "reason": "人の目: 古写真"
   },
   {
-    "spotId": "sp_357e9fc0f1a3",
-    "file": "File:四万温泉 中之条 2013 (9993444756).jpg",
-    "reason": "人の目: 積善館と分からない"
+    "spotId": "sp_354641c917ba",
+    "file": "File:Warei Jinja oldphoto 02.jpg",
+    "reason": "人の目: 古写真"
   },
   {
     "spotId": "sp_357e9fc0f1a3",
@@ -1775,6 +1775,11 @@
     "reason": "人の目: 積善館と分からない"
   },
   {
+    "spotId": "sp_357e9fc0f1a3",
+    "file": "File:四万温泉 中之条 2013 (9993444756).jpg",
+    "reason": "人の目: 積善館と分からない"
+  },
+  {
     "spotId": "sp_35858d99621d",
     "file": "File:Teshima Art Museum 03.jpg",
     "reason": "人の目: museum sign, person legs"
@@ -1793,6 +1798,11 @@
     "spotId": "sp_35d8b1740fce",
     "file": "File:麺 (28561470778).jpg",
     "reason": "料理・食べ物（Cuisine）"
+  },
+  {
+    "spotId": "sp_3650234e717c",
+    "file": "File:下呂大橋 - panoramio.jpg",
+    "reason": "画像で確認: 橋の路面が主役で町並みが写っていない"
   },
   {
     "spotId": "sp_36613661d82d",
@@ -1831,11 +1841,6 @@
   },
   {
     "spotId": "sp_376894cf9144",
-    "file": "File:Kumano Kodo pilgrimage route Daimon-zaka World heritage 熊野古道 大門坂15.JPG",
-    "reason": "目で見て（visual-review）: 看板・碑"
-  },
-  {
-    "spotId": "sp_376894cf9144",
     "file": "File:Kumano Kodo pilgrimage route Daimon-zaka World heritage 熊野古道 大門坂12.JPG",
     "reason": "目で見て（visual-review）: 車道（別の場所）"
   },
@@ -1843,6 +1848,11 @@
     "spotId": "sp_376894cf9144",
     "file": "File:Kumano Kodo pilgrimage route Daimon-zaka World heritage 熊野古道 大門坂13.JPG",
     "reason": "目で見て（visual-review）: 梅林で坂が写らない"
+  },
+  {
+    "spotId": "sp_376894cf9144",
+    "file": "File:Kumano Kodo pilgrimage route Daimon-zaka World heritage 熊野古道 大門坂15.JPG",
+    "reason": "目で見て（visual-review）: 看板・碑"
   },
   {
     "spotId": "sp_38b1a9740ce6",
@@ -1870,14 +1880,14 @@
     "reason": "室内・展示物・建物の内部（Interior）"
   },
   {
+    "spotId": "sp_38fb47e902c1",
+    "file": "File:Aso06.JPG",
+    "reason": "画像で確認: 高所からの遠景で草千里ではない"
+  },
+  {
     "spotId": "sp_39bc4f3c3826",
     "file": "File:Takato Ina urban area.JPG",
     "reason": "人の目: 市街地の眺め"
-  },
-  {
-    "spotId": "sp_39de7f243105",
-    "file": "File:Kitakata, Fukushima Prefecture, Japan - panoramio.jpg",
-    "reason": "人の目: 何が写っているか分からない"
   },
   {
     "spotId": "sp_39de7f243105",
@@ -1885,18 +1895,23 @@
     "reason": "人の目: 美術館の建物"
   },
   {
+    "spotId": "sp_39de7f243105",
+    "file": "File:Kitakata, Fukushima Prefecture, Japan - panoramio.jpg",
+    "reason": "人の目: 何が写っているか分からない"
+  },
+  {
     "spotId": "sp_39e0344f25d4",
     "file": "File:Route 156 (Gujo Hokijima).jpg",
     "reason": "人の目: 国道"
   },
   {
-    "spotId": "sp_3a581ef177c8",
-    "file": "File:Fukuoka Prefectural Road No.511 near Ukiha City Kaneko Fumio Museum.jpg",
-    "reason": "目で見て（visual-review）: 道路・美術館"
+    "spotId": "sp_39f127899560",
+    "file": "File:Clouds and Mount Enasan from Magome-juku.JPG",
+    "reason": "画像で確認: 暗い雲と山だけで宿場が写っていない"
   },
   {
     "spotId": "sp_3a581ef177c8",
-    "file": "File:Ukiha City Kaneko Fumio Museum 20161231.jpg",
+    "file": "File:Fukuoka Prefectural Road No.511 near Ukiha City Kaneko Fumio Museum.jpg",
     "reason": "目で見て（visual-review）: 道路・美術館"
   },
   {
@@ -1916,17 +1931,22 @@
   },
   {
     "spotId": "sp_3a581ef177c8",
+    "file": "File:Ukiha City Kaneko Fumio Museum 20161231.jpg",
+    "reason": "目で見て（visual-review）: 道路・美術館"
+  },
+  {
+    "spotId": "sp_3a581ef177c8",
     "file": "File:Wakamiya Hachiman Shrine Ukiha.JPG",
     "reason": "目で見て（visual-review）: 別の神社"
   },
   {
     "spotId": "sp_3a581ef177c8",
-    "file": "File:Yoshii Elementary School in Ukiha, Fukuoka.jpg",
+    "file": "File:Yoshii Elementary School in Ukiha, Fukuoka 2.jpg",
     "reason": "目で見て（visual-review）: 小学校"
   },
   {
     "spotId": "sp_3a581ef177c8",
-    "file": "File:Yoshii Elementary School in Ukiha, Fukuoka 2.jpg",
+    "file": "File:Yoshii Elementary School in Ukiha, Fukuoka.jpg",
     "reason": "目で見て（visual-review）: 小学校"
   },
   {
@@ -1936,13 +1956,23 @@
   },
   {
     "spotId": "sp_3ac9bed848fd",
+    "file": "File:Mikuni pass, Hokkaido.jpg",
+    "reason": "人の目: 峠の標識"
+  },
+  {
+    "spotId": "sp_3ac9bed848fd",
     "file": "File:Mikunitouge.JPG",
     "reason": "人の目: 車と人"
   },
   {
-    "spotId": "sp_3ac9bed848fd",
-    "file": "File:Mikuni pass, Hokkaido.jpg",
-    "reason": "人の目: 峠の標識"
+    "spotId": "sp_3af802089af4",
+    "file": "File:Chiba-prefectural-route36,sawara,katori-city,japan.JPG",
+    "reason": "人の目: 道路"
+  },
+  {
+    "spotId": "sp_3af802089af4",
+    "file": "File:First Suigo Bridge,Sawara-city,Japan.jpg",
+    "reason": "人の目: 利根川の橋の古写真"
   },
   {
     "spotId": "sp_3af802089af4",
@@ -1968,16 +1998,6 @@
     "spotId": "sp_3af802089af4",
     "file": "File:Sawara Inou Tadataka Statue 2013-09.JPG",
     "reason": "人の目: 像"
-  },
-  {
-    "spotId": "sp_3af802089af4",
-    "file": "File:Chiba-prefectural-route36,sawara,katori-city,japan.JPG",
-    "reason": "人の目: 道路"
-  },
-  {
-    "spotId": "sp_3af802089af4",
-    "file": "File:First Suigo Bridge,Sawara-city,Japan.jpg",
-    "reason": "人の目: 利根川の橋の古写真"
   },
   {
     "spotId": "sp_3b466022ca58",
@@ -2036,13 +2056,13 @@
   },
   {
     "spotId": "sp_3e3625a686b7",
-    "file": "File:UonumaPhoto Shiori Pass Hill Climb 201508.jpg",
-    "reason": "目で見て（visual-review）: 自転車レースの人物"
+    "file": "File:Siori Pass, Niigata.jpg",
+    "reason": "目で見て（visual-review）: 駐車場"
   },
   {
     "spotId": "sp_3e3625a686b7",
-    "file": "File:Siori Pass, Niigata.jpg",
-    "reason": "目で見て（visual-review）: 駐車場"
+    "file": "File:UonumaPhoto Shiori Pass Hill Climb 201508.jpg",
+    "reason": "目で見て（visual-review）: 自転車レースの人物"
   },
   {
     "spotId": "sp_3e59c1470d82",
@@ -2051,8 +2071,8 @@
   },
   {
     "spotId": "sp_3ef2870d3466",
-    "file": "File:Kamo 20220702174824 (52268744788).jpg",
-    "reason": "人の目: 何が写っているか分からない"
+    "file": "File:07 Ise.jpg",
+    "reason": "人の目: 浮世絵"
   },
   {
     "spotId": "sp_3ef2870d3466",
@@ -2061,13 +2081,13 @@
   },
   {
     "spotId": "sp_3ef2870d3466",
-    "file": "File:Scent of the bubble economy - panoramio.jpg",
+    "file": "File:Kamo 20220702174824 (52268744788).jpg",
     "reason": "人の目: 何が写っているか分からない"
   },
   {
     "spotId": "sp_3ef2870d3466",
-    "file": "File:07 Ise.jpg",
-    "reason": "人の目: 浮世絵"
+    "file": "File:Scent of the bubble economy - panoramio.jpg",
+    "reason": "人の目: 何が写っているか分からない"
   },
   {
     "spotId": "sp_3ef2870d3466",
@@ -2080,9 +2100,29 @@
     "reason": "人の目: 浮世絵"
   },
   {
+    "spotId": "sp_406a4a314828",
+    "file": "File:Flora of Yaotomi Shrine, a natural monument of Japan. stone monument and signage. A.jpg",
+    "reason": "画像で確認: 碑と祠が主役"
+  },
+  {
+    "spotId": "sp_406a4a314828",
+    "file": "File:Flora of Yaotomi Shrine, a natural monument of Japan. stone monument. B.jpg",
+    "reason": "画像で確認: 碑が主役"
+  },
+  {
+    "spotId": "sp_4088a5a6ce79",
+    "file": "File:Great view of Mt.Fuji from the bay (24649182262).jpg",
+    "reason": "画像で確認: 海岸の場所が稲村ヶ崎と確かめられない"
+  },
+  {
     "spotId": "sp_40999fea476f",
     "file": "File:生石高原キャンプ場 - panoramio.jpg",
     "reason": "人の目: キャンプ場"
+  },
+  {
+    "spotId": "sp_40d5c3268745",
+    "file": "File:Mount Atagoyama from Togetsukyo Bridge at dusk.JPG",
+    "reason": "画像で確認: 夕暮れで暗く渡月橋が写っていない"
   },
   {
     "spotId": "sp_41c59cfd873c",
@@ -2101,13 +2141,13 @@
   },
   {
     "spotId": "sp_4209d78692fe",
-    "file": "File:Bath House, Tamagawa Hot Springs - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 建物と駐車場"
+    "file": "File:A fumarole and sulfur.jpg",
+    "reason": "目で見て（visual-review）: 硫黄の接写"
   },
   {
     "spotId": "sp_4209d78692fe",
-    "file": "File:A fumarole and sulfur.jpg",
-    "reason": "目で見て（visual-review）: 硫黄の接写"
+    "file": "File:Bath House, Tamagawa Hot Springs - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 建物と駐車場"
   },
   {
     "spotId": "sp_4209d78692fe",
@@ -2175,19 +2215,9 @@
     "reason": "室内・展示物・建物の内部（Interior）"
   },
   {
-    "spotId": "sp_4346d0efbac7",
-    "file": "File:高田本山駅 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 駅"
-  },
-  {
-    "spotId": "sp_4346d0efbac7",
-    "file": "File:高田本山駅 ホーム南端より - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 駅"
-  },
-  {
-    "spotId": "sp_4346d0efbac7",
-    "file": "File:高田本山駅 ホーム南端より - panoramio (1).jpg",
-    "reason": "目で見て（visual-review）: 駅"
+    "spotId": "sp_42ccd7028dbb",
+    "file": "File:山鹿灯籠民芸館(旧安田銀行山鹿支店).jpg",
+    "reason": "画像で確認: 山鹿灯籠民芸館の室内（八千代座ではない）"
   },
   {
     "spotId": "sp_4346d0efbac7",
@@ -2225,13 +2255,28 @@
     "reason": "目で見て（visual-review）: 塔頭の慈智院（専修寺の本堂・御影堂でない）"
   },
   {
-    "spotId": "sp_4348def2e18d",
-    "file": "File:Sun rise of Taihu Lake.jpg",
-    "reason": "目で見て（visual-review）: 中国の太湖（別の場所）"
+    "spotId": "sp_4346d0efbac7",
+    "file": "File:高田本山駅 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 駅"
+  },
+  {
+    "spotId": "sp_4346d0efbac7",
+    "file": "File:高田本山駅 ホーム南端より - panoramio (1).jpg",
+    "reason": "目で見て（visual-review）: 駅"
+  },
+  {
+    "spotId": "sp_4346d0efbac7",
+    "file": "File:高田本山駅 ホーム南端より - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 駅"
   },
   {
     "spotId": "sp_4348def2e18d",
-    "file": "File:Taihu.JPG",
+    "file": "File:Mt.Daigentayama.jpg",
+    "reason": "目で見て（visual-review）: 山で湖が写らない"
+  },
+  {
+    "spotId": "sp_4348def2e18d",
+    "file": "File:Sun rise of Taihu Lake.jpg",
     "reason": "目で見て（visual-review）: 中国の太湖（別の場所）"
   },
   {
@@ -2241,13 +2286,8 @@
   },
   {
     "spotId": "sp_4348def2e18d",
-    "file": "File:Mt.Daigentayama.jpg",
-    "reason": "目で見て（visual-review）: 山で湖が写らない"
-  },
-  {
-    "spotId": "sp_4348def2e18d",
-    "file": "File:越後湯沢付近の風景.jpg",
-    "reason": "目で見て（visual-review）: 山で湖が写らない"
+    "file": "File:Taihu.JPG",
+    "reason": "目で見て（visual-review）: 中国の太湖（別の場所）"
   },
   {
     "spotId": "sp_4348def2e18d",
@@ -2265,19 +2305,14 @@
     "reason": "目で見て（visual-review）: 学校"
   },
   {
+    "spotId": "sp_4348def2e18d",
+    "file": "File:越後湯沢付近の風景.jpg",
+    "reason": "目で見て（visual-review）: 山で湖が写らない"
+  },
+  {
     "spotId": "sp_446132fbc43e",
     "file": "File:Kamaishi Kanban.jpg",
     "reason": "人の目: 看板・桜の木"
-  },
-  {
-    "spotId": "sp_4563e59c77d0",
-    "file": "File:福井県立恐竜博物館.jpg",
-    "reason": "人の目: 石の看板"
-  },
-  {
-    "spotId": "sp_4563e59c77d0",
-    "file": "File:郭2櫓台より.jpg",
-    "reason": "人の目: 城跡からの遠景"
   },
   {
     "spotId": "sp_4563e59c77d0",
@@ -2295,6 +2330,16 @@
     "reason": "人の目: 標識"
   },
   {
+    "spotId": "sp_4563e59c77d0",
+    "file": "File:福井県立恐竜博物館.jpg",
+    "reason": "人の目: 石の看板"
+  },
+  {
+    "spotId": "sp_4563e59c77d0",
+    "file": "File:郭2櫓台より.jpg",
+    "reason": "人の目: 城跡からの遠景"
+  },
+  {
     "spotId": "sp_473a54686219",
     "file": "File:Nagano Prefectural Road No.492 in Iida, Nagano.JPG",
     "reason": "人の目: 道路"
@@ -2306,13 +2351,13 @@
   },
   {
     "spotId": "sp_479257588e2c",
-    "file": "File:日本一の富豪村 全国雑誌「生活」（大正5年）.jpg",
-    "reason": "目で見て（visual-review）: 雑誌の資料"
+    "file": "File:Kaga City Kinjo East Elementary School in 2015.jpg",
+    "reason": "目で見て（visual-review）: 小学校"
   },
   {
     "spotId": "sp_479257588e2c",
-    "file": "File:Kaga City Kinjo East Elementary School in 2015.jpg",
-    "reason": "目で見て（visual-review）: 小学校"
+    "file": "File:日本一の富豪村 全国雑誌「生活」（大正5年）.jpg",
+    "reason": "目で見て（visual-review）: 雑誌の資料"
   },
   {
     "spotId": "sp_47bec0a9db65",
@@ -2336,18 +2381,13 @@
   },
   {
     "spotId": "sp_481a170d8021",
-    "file": "File:りんくうパパラ.JPG",
-    "reason": "人の目: 商業施設"
-  },
-  {
-    "spotId": "sp_481a170d8021",
     "file": "File:Rinkū-no-hoshi.JPG",
     "reason": "人の目: 観覧車"
   },
   {
-    "spotId": "sp_48da593d04cb",
-    "file": "File:Ranzan-town - 嵐山町 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 畑（別の場所）"
+    "spotId": "sp_481a170d8021",
+    "file": "File:りんくうパパラ.JPG",
+    "reason": "人の目: 商業施設"
   },
   {
     "spotId": "sp_48da593d04cb",
@@ -2358,6 +2398,11 @@
     "spotId": "sp_48da593d04cb",
     "file": "File:Ranzan Ravine Yosano Akiko monument.jpg",
     "reason": "目で見て（visual-review）: 碑"
+  },
+  {
+    "spotId": "sp_48da593d04cb",
+    "file": "File:Ranzan-town - 嵐山町 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 畑（別の場所）"
   },
   {
     "spotId": "sp_48e8a50dfc32",
@@ -2376,13 +2421,13 @@
   },
   {
     "spotId": "sp_4973431321fa",
-    "file": "File:Hotel Pearl-City Akita Kanto-O-dori.jpg",
-    "reason": "人の目: hotel"
+    "file": "File:Enjoy! Coca-Cola (2459603859).jpg",
+    "reason": "人の目: 広告"
   },
   {
     "spotId": "sp_4973431321fa",
-    "file": "File:Enjoy! Coca-Cola (2459603859).jpg",
-    "reason": "人の目: 広告"
+    "file": "File:Hotel Pearl-City Akita Kanto-O-dori.jpg",
+    "reason": "人の目: hotel"
   },
   {
     "spotId": "sp_4973431321fa",
@@ -2431,8 +2476,13 @@
   },
   {
     "spotId": "sp_4bf0a0b73328",
-    "file": "File:Statue of Samurai at Mt.Shizugatake.jpg",
-    "reason": "人の目: 像"
+    "file": "File:Battle at Shizugatake, Katō Toranosuke and Yamaji Shōgen by Chikanobu.jpg",
+    "reason": "人の目: 浮世絵"
+  },
+  {
+    "spotId": "sp_4bf0a0b73328",
+    "file": "File:Battle of Shizugatake.jpg",
+    "reason": "人の目: 浮世絵"
   },
   {
     "spotId": "sp_4bf0a0b73328",
@@ -2441,8 +2491,8 @@
   },
   {
     "spotId": "sp_4bf0a0b73328",
-    "file": "File:Battle of Shizugatake.jpg",
-    "reason": "人の目: 浮世絵"
+    "file": "File:NAJDA-158-0155 全像本朝古今列女伝2 (柴田勝家孺人).jpg",
+    "reason": "人の目: 版画"
   },
   {
     "spotId": "sp_4bf0a0b73328",
@@ -2456,13 +2506,8 @@
   },
   {
     "spotId": "sp_4bf0a0b73328",
-    "file": "File:Battle at Shizugatake, Katō Toranosuke and Yamaji Shōgen by Chikanobu.jpg",
-    "reason": "人の目: 浮世絵"
-  },
-  {
-    "spotId": "sp_4bf0a0b73328",
-    "file": "File:NAJDA-158-0155 全像本朝古今列女伝2 (柴田勝家孺人).jpg",
-    "reason": "人の目: 版画"
+    "file": "File:Statue of Samurai at Mt.Shizugatake.jpg",
+    "reason": "人の目: 像"
   },
   {
     "spotId": "sp_4d2052981d82",
@@ -2526,13 +2571,13 @@
   },
   {
     "spotId": "sp_4f4c5cbc737e",
-    "file": "File:Cattedrale di Rouen (Normandia).jpg",
-    "reason": "目で見て（visual-review）: 案内板"
+    "file": "File:2025-05-31 Marienstatue Kathedrale Rouen 1160243.jpg",
+    "reason": "目で見て（visual-review）: 像の接写"
   },
   {
     "spotId": "sp_4f4c5cbc737e",
-    "file": "File:2025-05-31 Marienstatue Kathedrale Rouen 1160243.jpg",
-    "reason": "目で見て（visual-review）: 像の接写"
+    "file": "File:Cattedrale di Rouen (Normandia).jpg",
+    "reason": "目で見て（visual-review）: 案内板"
   },
   {
     "spotId": "sp_4f602735143b",
@@ -2548,21 +2593,6 @@
     "spotId": "sp_50514b1ce172",
     "file": "File:Kashiwajima Tourist Information Center.jpg",
     "reason": "人の目: 観光案内所"
-  },
-  {
-    "spotId": "sp_5061588921fe",
-    "file": "File:E131 series sets R09 at Onjuku Station.jpg",
-    "reason": "駅・電車・車両・バス（Station）"
-  },
-  {
-    "spotId": "sp_5061588921fe",
-    "file": "File:JR Onjuku Station (Onjuku Town, Chiba Prefecture) (cropped).jpg",
-    "reason": "駅・電車・車両・バス（Station）"
-  },
-  {
-    "spotId": "sp_5061588921fe",
-    "file": "File:JR Onjuku Station (Onjuku Town, Chiba Prefecture).jpg",
-    "reason": "駅・電車・車両・バス（Station）"
   },
   {
     "spotId": "sp_5061588921fe",
@@ -2586,8 +2616,8 @@
   },
   {
     "spotId": "sp_5061588921fe",
-    "file": "File:Hama, Onjuku, Isumi District, Chiba Prefecture 299-5107, Japan - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 道路"
+    "file": "File:E131 series sets R09 at Onjuku Station.jpg",
+    "reason": "駅・電車・車両・バス（Station）"
   },
   {
     "spotId": "sp_5061588921fe",
@@ -2616,6 +2646,21 @@
   },
   {
     "spotId": "sp_5061588921fe",
+    "file": "File:Hama, Onjuku, Isumi District, Chiba Prefecture 299-5107, Japan - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 道路"
+  },
+  {
+    "spotId": "sp_5061588921fe",
+    "file": "File:JR Onjuku Station (Onjuku Town, Chiba Prefecture) (cropped).jpg",
+    "reason": "駅・電車・車両・バス（Station）"
+  },
+  {
+    "spotId": "sp_5061588921fe",
+    "file": "File:JR Onjuku Station (Onjuku Town, Chiba Prefecture).jpg",
+    "reason": "駅・電車・車両・バス（Station）"
+  },
+  {
+    "spotId": "sp_5061588921fe",
     "file": "File:Onjuku Beach (14630048989).jpg",
     "reason": "目で見て（visual-review）: 人混み（人物）"
   },
@@ -2636,12 +2681,12 @@
   },
   {
     "spotId": "sp_518b642afc21",
-    "file": "File:Kuroshima5.jpg",
+    "file": "File:Kuroshima4.jpg",
     "reason": "人の目: 島の風景で天主堂でない"
   },
   {
     "spotId": "sp_518b642afc21",
-    "file": "File:Kuroshima4.jpg",
+    "file": "File:Kuroshima5.jpg",
     "reason": "人の目: 島の風景で天主堂でない"
   },
   {
@@ -2686,11 +2731,6 @@
   },
   {
     "spotId": "sp_575118d407b3",
-    "file": "File:SagaeDam3.JPG",
-    "reason": "人の目: ダムの堤体"
-  },
-  {
-    "spotId": "sp_575118d407b3",
     "file": "File:Administration office of Sagae Dam.jpg",
     "reason": "人の目: 管理事務所"
   },
@@ -2703,6 +2743,11 @@
     "spotId": "sp_575118d407b3",
     "file": "File:Sagae Dam spillway.jpg",
     "reason": "人の目: ダムの設備"
+  },
+  {
+    "spotId": "sp_575118d407b3",
+    "file": "File:SagaeDam3.JPG",
+    "reason": "人の目: ダムの堤体"
   },
   {
     "spotId": "sp_586a124abd9d",
@@ -2741,13 +2786,8 @@
   },
   {
     "spotId": "sp_5e2affd3b6bb",
-    "file": "File:Miyagi-ken Chiji Kokan Seimon 2009-04.JPG",
-    "reason": "人の目: 知事公館の門（移築）"
-  },
-  {
-    "spotId": "sp_5e2affd3b6bb",
-    "file": "File:Poetic tablet of Moonlit castle ruins.jpg",
-    "reason": "人の目: 歌碑"
+    "file": "File:Aoba-yama.JPG",
+    "reason": "人の目: 青葉山の遠景で城跡と分からない"
   },
   {
     "spotId": "sp_5e2affd3b6bb",
@@ -2761,13 +2801,8 @@
   },
   {
     "spotId": "sp_5e2affd3b6bb",
-    "file": "File:Naganuma (Sendai Castle) 202512.jpg",
-    "reason": "人の目: 城跡の外の沼"
-  },
-  {
-    "spotId": "sp_5e2affd3b6bb",
-    "file": "File:Aoba-yama.JPG",
-    "reason": "人の目: 青葉山の遠景で城跡と分からない"
+    "file": "File:Miyagi-ken Chiji Kokan Seimon 2009-04.JPG",
+    "reason": "人の目: 知事公館の門（移築）"
   },
   {
     "spotId": "sp_5e2affd3b6bb",
@@ -2775,9 +2810,14 @@
     "reason": "人の目: 版画"
   },
   {
-    "spotId": "sp_5e9f648b389a",
-    "file": "File:Paolo Monti - Servizio fotografico (Firenze, 1975) - BEIC 6348996.jpg",
-    "reason": "室内・展示物・建物の内部（Interiors）"
+    "spotId": "sp_5e2affd3b6bb",
+    "file": "File:Naganuma (Sendai Castle) 202512.jpg",
+    "reason": "人の目: 城跡の外の沼"
+  },
+  {
+    "spotId": "sp_5e2affd3b6bb",
+    "file": "File:Poetic tablet of Moonlit castle ruins.jpg",
+    "reason": "人の目: 歌碑"
   },
   {
     "spotId": "sp_5e9f648b389a",
@@ -2788,6 +2828,11 @@
     "spotId": "sp_5e9f648b389a",
     "file": "File:Optical illusion on the floor of the Duomo Firenze (61458).jpg",
     "reason": "人の目: 床の内部"
+  },
+  {
+    "spotId": "sp_5e9f648b389a",
+    "file": "File:Paolo Monti - Servizio fotografico (Firenze, 1975) - BEIC 6348996.jpg",
+    "reason": "室内・展示物・建物の内部（Interiors）"
   },
   {
     "spotId": "sp_5eb72c01ab39",
@@ -2826,8 +2871,8 @@
   },
   {
     "spotId": "sp_607deda3fd81",
-    "file": "File:黄色い浮き輪 (3801479228).jpg",
-    "reason": "室内・展示物・建物の内部（Indoor）"
+    "file": "File:いぎなり東北産4.jpg",
+    "reason": "人の目: 人物"
   },
   {
     "spotId": "sp_607deda3fd81",
@@ -2836,18 +2881,18 @@
   },
   {
     "spotId": "sp_607deda3fd81",
-    "file": "File:いぎなり東北産4.jpg",
-    "reason": "人の目: 人物"
-  },
-  {
-    "spotId": "sp_60c28dcd3413",
-    "file": "File:還御祭.png",
-    "reason": "人の目: 祭りの人物"
+    "file": "File:黄色い浮き輪 (3801479228).jpg",
+    "reason": "室内・展示物・建物の内部（Indoor）"
   },
   {
     "spotId": "sp_60c28dcd3413",
     "file": "File:Haruna-jinja (sanctuaire de Haruna) - panneau de porte sculpté - A56265.jpg",
     "reason": "人の目: 彫刻の部分"
+  },
+  {
+    "spotId": "sp_60c28dcd3413",
+    "file": "File:還御祭.png",
+    "reason": "人の目: 祭りの人物"
   },
   {
     "spotId": "sp_62029ef19cb8",
@@ -2861,8 +2906,13 @@
   },
   {
     "spotId": "sp_634908b3c640",
-    "file": "File:The Tanesashi Coast Information Center.jpg",
-    "reason": "人の目: 案内所と看板"
+    "file": "File:Hachinohe-Line TOHOKU-EMOTION.jpg",
+    "reason": "人の目: 電車"
+  },
+  {
+    "spotId": "sp_634908b3c640",
+    "file": "File:Lysimachia maritima var. obtusifolia 5.JPG",
+    "reason": "人の目: 花の接写"
   },
   {
     "spotId": "sp_634908b3c640",
@@ -2871,13 +2921,18 @@
   },
   {
     "spotId": "sp_634908b3c640",
-    "file": "File:Hachinohe-Line TOHOKU-EMOTION.jpg",
-    "reason": "人の目: 電車"
+    "file": "File:The Tanesashi Coast Information Center.jpg",
+    "reason": "人の目: 案内所と看板"
   },
   {
-    "spotId": "sp_634908b3c640",
-    "file": "File:Lysimachia maritima var. obtusifolia 5.JPG",
-    "reason": "人の目: 花の接写"
+    "spotId": "sp_63526dbf9424",
+    "file": "File:Offering At Zentsu Ji Shikoku Japan (242196635).jpeg",
+    "reason": "人の目: 供え物"
+  },
+  {
+    "spotId": "sp_63526dbf9424",
+    "file": "File:Torii of Kangushi Jinja, Zentsuji, Kagawa.jpg",
+    "reason": "画像で確認: 近くの神社の鳥居（善通寺ではない）"
   },
   {
     "spotId": "sp_63526dbf9424",
@@ -2895,11 +2950,6 @@
     "reason": "駅・電車・車両・バス（Station）"
   },
   {
-    "spotId": "sp_63526dbf9424",
-    "file": "File:Offering At Zentsu Ji Shikoku Japan (242196635).jpeg",
-    "reason": "人の目: 供え物"
-  },
-  {
     "spotId": "sp_6371c908a39a",
     "file": "File:Kurama-deracableTahotosign.jpg",
     "reason": "駅・電車・車両・バス（Station）"
@@ -2911,16 +2961,6 @@
   },
   {
     "spotId": "sp_63e0a1975d4c",
-    "file": "File:Nemichi Shrine 20220701 01.jpg",
-    "reason": "人の目: 神社の鳥居で池でない"
-  },
-  {
-    "spotId": "sp_63e0a1975d4c",
-    "file": "File:根道神社-全景.jpg",
-    "reason": "人の目: 神社で池でない"
-  },
-  {
-    "spotId": "sp_63e0a1975d4c",
     "file": "File:Nemich-Shrine-Autumn-Festival1.jpg",
     "reason": "人の目: 神社の祭り"
   },
@@ -2928,6 +2968,16 @@
     "spotId": "sp_63e0a1975d4c",
     "file": "File:Nemich-Shrine-Autumn-Festival2.jpg",
     "reason": "人の目: 神社の祭り"
+  },
+  {
+    "spotId": "sp_63e0a1975d4c",
+    "file": "File:Nemichi Shrine 20220701 01.jpg",
+    "reason": "人の目: 神社の鳥居で池でない"
+  },
+  {
+    "spotId": "sp_63e0a1975d4c",
+    "file": "File:根道神社-全景.jpg",
+    "reason": "人の目: 神社で池でない"
   },
   {
     "spotId": "sp_64ff5284da9e",
@@ -2956,11 +3006,6 @@
   },
   {
     "spotId": "sp_67e2360db520",
-    "file": "File:Mount Norikura from Mount Anbo.jpg",
-    "reason": "人の目: 乗鞍岳の遠景で畳平でない"
-  },
-  {
-    "spotId": "sp_67e2360db520",
     "file": "File:Japan Alps winter landscape (53618477653).jpg",
     "reason": "人の目: 乗鞍岳の遠景で畳平でない"
   },
@@ -2970,9 +3015,19 @@
     "reason": "人の目: 乗鞍岳の遠景で畳平でない"
   },
   {
+    "spotId": "sp_67e2360db520",
+    "file": "File:Mount Norikura from Mount Anbo.jpg",
+    "reason": "人の目: 乗鞍岳の遠景で畳平でない"
+  },
+  {
     "spotId": "sp_67e79b820628",
     "file": "File:Ise udon by imgdive in Okage Yokocho, Ise, Mie.jpg",
     "reason": "料理・食べ物（udon）"
+  },
+  {
+    "spotId": "sp_67e79b820628",
+    "file": "File:JP-Mie-Ise-Grand-Shrine-Okage-Yokocho.JPG",
+    "reason": "画像で確認: 人混みが主役"
   },
   {
     "spotId": "sp_67e79b820628",
@@ -2981,13 +3036,13 @@
   },
   {
     "spotId": "sp_681ba38a631b",
-    "file": "File:DozakiTenshudoIriguchi GotoBus 20130608.jpg",
-    "reason": "人の目: バス停"
+    "file": "File:Douzaki-church-20150427-04.png",
+    "reason": "人の目: レリーフ"
   },
   {
     "spotId": "sp_681ba38a631b",
-    "file": "File:Douzaki-church-20150427-04.png",
-    "reason": "人の目: レリーフ"
+    "file": "File:DozakiTenshudoIriguchi GotoBus 20130608.jpg",
+    "reason": "人の目: バス停"
   },
   {
     "spotId": "sp_681ba38a631b",
@@ -3046,16 +3101,6 @@
   },
   {
     "spotId": "sp_6b657b61f7b9",
-    "file": "File:251128 Kumagaya Arakawa Ryokuchi 09.jpg",
-    "reason": "目で見て（visual-review）: 河川敷の広場で桜の堤が写らない"
-  },
-  {
-    "spotId": "sp_6b657b61f7b9",
-    "file": "File:251128 Kumagaya Arakawa Ryokuchi 10.jpg",
-    "reason": "目で見て（visual-review）: 河川敷の広場で桜の堤が写らない"
-  },
-  {
-    "spotId": "sp_6b657b61f7b9",
     "file": "File:251128 Kumagaya Arakawa Ryokuchi 07.jpg",
     "reason": "目で見て（visual-review）: 河川敷・堤の道で桜の堤と分からない"
   },
@@ -3063,6 +3108,16 @@
     "spotId": "sp_6b657b61f7b9",
     "file": "File:251128 Kumagaya Arakawa Ryokuchi 08.jpg",
     "reason": "目で見て（visual-review）: 河川敷・堤の道で桜の堤と分からない"
+  },
+  {
+    "spotId": "sp_6b657b61f7b9",
+    "file": "File:251128 Kumagaya Arakawa Ryokuchi 09.jpg",
+    "reason": "目で見て（visual-review）: 河川敷の広場で桜の堤が写らない"
+  },
+  {
+    "spotId": "sp_6b657b61f7b9",
+    "file": "File:251128 Kumagaya Arakawa Ryokuchi 10.jpg",
+    "reason": "目で見て（visual-review）: 河川敷の広場で桜の堤が写らない"
   },
   {
     "spotId": "sp_6b657b61f7b9",
@@ -3125,9 +3180,9 @@
     "reason": "駅・電車・車両・バス（Limited Express）"
   },
   {
-    "spotId": "sp_6cb2e9013f4a",
-    "file": "File:Nariai-ji Temple9 - KimonBerlin.jpg",
-    "reason": "人の目: 成相寺"
+    "spotId": "sp_6b9be15fca0d",
+    "file": "File:Warehouse in Aoi Aso Shrine.jpg",
+    "reason": "画像で確認: 倉庫が主役"
   },
   {
     "spotId": "sp_6cb2e9013f4a",
@@ -3170,14 +3225,14 @@
     "reason": "目で見て（visual-review）: 案内板"
   },
   {
-    "spotId": "sp_6cfe84e90826",
-    "file": "File:越前岬隧道 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 道路のトンネル"
+    "spotId": "sp_6cb2e9013f4a",
+    "file": "File:Nariai-ji Temple9 - KimonBerlin.jpg",
+    "reason": "人の目: 成相寺"
   },
   {
     "spotId": "sp_6cfe84e90826",
-    "file": "File:Izu Peninsula from Mount Echizen.jpg",
-    "reason": "目で見て（visual-review）: 越前岳から見た伊豆半島（別の場所）"
+    "file": "File:Echizen Coast, -16 Nov. 2010 a.jpg",
+    "reason": "目で見て（visual-review）: 海と浜だけで岬が分からない"
   },
   {
     "spotId": "sp_6cfe84e90826",
@@ -3191,8 +3246,13 @@
   },
   {
     "spotId": "sp_6cfe84e90826",
-    "file": "File:Echizen Coast, -16 Nov. 2010 a.jpg",
-    "reason": "目で見て（visual-review）: 海と浜だけで岬が分からない"
+    "file": "File:Izu Peninsula from Mount Echizen.jpg",
+    "reason": "目で見て（visual-review）: 越前岳から見た伊豆半島（別の場所）"
+  },
+  {
+    "spotId": "sp_6cfe84e90826",
+    "file": "File:越前岬隧道 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 道路のトンネル"
   },
   {
     "spotId": "sp_6def624c2c3d",
@@ -3216,16 +3276,6 @@
   },
   {
     "spotId": "sp_6ef1c01fdf08",
-    "file": "File:Susa Bay from train of San'in Main Line.jpg",
-    "reason": "人の目: 須佐湾でホルンフェルスでない"
-  },
-  {
-    "spotId": "sp_6ef1c01fdf08",
-    "file": "File:Tsuwabuki-house.jpg",
-    "reason": "人の目: 建物"
-  },
-  {
-    "spotId": "sp_6ef1c01fdf08",
     "file": "File:Abu volcano group kouyama.JPG",
     "reason": "人の目: 高山"
   },
@@ -3236,13 +3286,23 @@
   },
   {
     "spotId": "sp_6ef1c01fdf08",
-    "file": "File:Susa-wan.jpg",
-    "reason": "目で見て（visual-review）: 碑"
+    "file": "File:Susa Bay from train of San'in Main Line.jpg",
+    "reason": "人の目: 須佐湾でホルンフェルスでない"
   },
   {
     "spotId": "sp_6ef1c01fdf08",
     "file": "File:Susa gulfside.jpg",
     "reason": "目で見て（visual-review）: 須佐湾の港（別の場所）"
+  },
+  {
+    "spotId": "sp_6ef1c01fdf08",
+    "file": "File:Susa-wan.jpg",
+    "reason": "目で見て（visual-review）: 碑"
+  },
+  {
+    "spotId": "sp_6ef1c01fdf08",
+    "file": "File:Tsuwabuki-house.jpg",
+    "reason": "人の目: 建物"
   },
   {
     "spotId": "sp_6f7b2e9440db",
@@ -3276,13 +3336,18 @@
   },
   {
     "spotId": "sp_76b2ae5e2a87",
-    "file": "File:層雲峡観光ホテル 浴衣 (3217913176).jpg",
-    "reason": "ホテル・店・看板・案内板・地図（ホテル）"
+    "file": "File:Forest & Sea (194579240).jpg",
+    "reason": "人の目: 看板"
   },
   {
     "spotId": "sp_76b2ae5e2a87",
-    "file": "File:黒岳ロープウェイ - panoramio.jpg",
-    "reason": "駅・電車・車両・バス（Train station）"
+    "file": "File:Night sky over Sounkyo Canyon (52266121468).jpg",
+    "reason": "人の目: 夜空"
+  },
+  {
+    "spotId": "sp_76b2ae5e2a87",
+    "file": "File:層雲峡観光ホテル 浴衣 (3217913176).jpg",
+    "reason": "ホテル・店・看板・案内板・地図（ホテル）"
   },
   {
     "spotId": "sp_76b2ae5e2a87",
@@ -3291,13 +3356,8 @@
   },
   {
     "spotId": "sp_76b2ae5e2a87",
-    "file": "File:Forest & Sea (194579240).jpg",
-    "reason": "人の目: 看板"
-  },
-  {
-    "spotId": "sp_76b2ae5e2a87",
-    "file": "File:Night sky over Sounkyo Canyon (52266121468).jpg",
-    "reason": "人の目: 夜空"
+    "file": "File:黒岳ロープウェイ - panoramio.jpg",
+    "reason": "駅・電車・車両・バス（Train station）"
   },
   {
     "spotId": "sp_76fca2817e24",
@@ -3326,8 +3386,8 @@
   },
   {
     "spotId": "sp_7875ac5ba291",
-    "file": "File:Hand sanitizer in Nakagusuku Castle.jpg",
-    "reason": "人の目: 消毒液"
+    "file": "File:500px photo (188688245).jpeg",
+    "reason": "人の目: ホテル跡"
   },
   {
     "spotId": "sp_7875ac5ba291",
@@ -3336,13 +3396,13 @@
   },
   {
     "spotId": "sp_7875ac5ba291",
-    "file": "File:Tafaku.jpg",
-    "reason": "人の目: 催し"
+    "file": "File:Hand sanitizer in Nakagusuku Castle.jpg",
+    "reason": "人の目: 消毒液"
   },
   {
     "spotId": "sp_7875ac5ba291",
-    "file": "File:500px photo (188688245).jpeg",
-    "reason": "人の目: ホテル跡"
+    "file": "File:Tafaku.jpg",
+    "reason": "人の目: 催し"
   },
   {
     "spotId": "sp_791939e87098",
@@ -3351,17 +3411,12 @@
   },
   {
     "spotId": "sp_791f175de431",
-    "file": "File:Uchiko town hall.JPG",
-    "reason": "人の目: 役場"
-  },
-  {
-    "spotId": "sp_791f175de431",
-    "file": "File:House at crossroads (6453976231).jpg",
+    "file": "File:Canal (6453973449).jpg",
     "reason": "人の目: 八日市護国と分からない"
   },
   {
     "spotId": "sp_791f175de431",
-    "file": "File:Canal (6453973449).jpg",
+    "file": "File:House at crossroads (6453976231).jpg",
     "reason": "人の目: 八日市護国と分からない"
   },
   {
@@ -3375,14 +3430,19 @@
     "reason": "人の目: 小さな神社"
   },
   {
-    "spotId": "sp_795591d3511d",
-    "file": "File:Seto+NewOtori SanyoKisen ManabeshimaMotoura 20030830.jpg",
-    "reason": "人の目: 船"
+    "spotId": "sp_791f175de431",
+    "file": "File:Uchiko town hall.JPG",
+    "reason": "人の目: 役場"
   },
   {
     "spotId": "sp_795591d3511d",
     "file": "File:Manabeshima municipal junior high school.jpg",
     "reason": "人の目: 中学校"
+  },
+  {
+    "spotId": "sp_795591d3511d",
+    "file": "File:Seto+NewOtori SanyoKisen ManabeshimaMotoura 20030830.jpg",
+    "reason": "人の目: 船"
   },
   {
     "spotId": "sp_79e45de568f9",
@@ -3396,8 +3456,13 @@
   },
   {
     "spotId": "sp_7b64251fdd9a",
-    "file": "File:Aniai Station Front Street.JPG",
-    "reason": "人の目: station front street"
+    "file": "File:Ainai Station, Akita Nairiku Line.jpg",
+    "reason": "目で見て（visual-review）: 駅"
+  },
+  {
+    "spotId": "sp_7b64251fdd9a",
+    "file": "File:Akita Nairiku Jukan Line 1.jpg",
+    "reason": "目で見て（visual-review）: 駅"
   },
   {
     "spotId": "sp_7b64251fdd9a",
@@ -3416,18 +3481,8 @@
   },
   {
     "spotId": "sp_7b64251fdd9a",
-    "file": "File:School Kids - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 車内の人物"
-  },
-  {
-    "spotId": "sp_7b64251fdd9a",
-    "file": "File:Ainai Station, Akita Nairiku Line.jpg",
-    "reason": "目で見て（visual-review）: 駅"
-  },
-  {
-    "spotId": "sp_7b64251fdd9a",
-    "file": "File:Akita Nairiku Jukan Line 1.jpg",
-    "reason": "目で見て（visual-review）: 駅"
+    "file": "File:Akita Nairiku Line Anjoji Fumikiri.jpg",
+    "reason": "目で見て（visual-review）: 踏切の標識"
   },
   {
     "spotId": "sp_7b64251fdd9a",
@@ -3436,8 +3491,8 @@
   },
   {
     "spotId": "sp_7b64251fdd9a",
-    "file": "File:Kitaakita city Ani office.JPG",
-    "reason": "目で見て（visual-review）: 役所の建物"
+    "file": "File:Aniai Station Front Street.JPG",
+    "reason": "人の目: station front street"
   },
   {
     "spotId": "sp_7b64251fdd9a",
@@ -3446,8 +3501,13 @@
   },
   {
     "spotId": "sp_7b64251fdd9a",
-    "file": "File:Akita Nairiku Line Anjoji Fumikiri.jpg",
-    "reason": "目で見て（visual-review）: 踏切の標識"
+    "file": "File:Kitaakita city Ani office.JPG",
+    "reason": "目で見て（visual-review）: 役所の建物"
+  },
+  {
+    "spotId": "sp_7b64251fdd9a",
+    "file": "File:School Kids - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 車内の人物"
   },
   {
     "spotId": "sp_7c12905fb8ae",
@@ -3478,6 +3538,16 @@
     "spotId": "sp_7c3c5dcee42d",
     "file": "File:20090923隠岐諸島.jpg",
     "reason": "目で見て（visual-review）: 空撮で海岸が分からない"
+  },
+  {
+    "spotId": "sp_7c3c5dcee42d",
+    "file": "File:Cattle grid Kuniga Coast ac (1).jpg",
+    "reason": "目で見て（visual-review）: 家畜の柵（キャトルグリッド）"
+  },
+  {
+    "spotId": "sp_7c3c5dcee42d",
+    "file": "File:Cattle grid Kuniga Coast ac (2).jpg",
+    "reason": "目で見て（visual-review）: 家畜の柵（キャトルグリッド）"
   },
   {
     "spotId": "sp_7c3c5dcee42d",
@@ -3521,16 +3591,6 @@
   },
   {
     "spotId": "sp_7c3c5dcee42d",
-    "file": "File:Cattle grid Kuniga Coast ac (1).jpg",
-    "reason": "目で見て（visual-review）: 家畜の柵（キャトルグリッド）"
-  },
-  {
-    "spotId": "sp_7c3c5dcee42d",
-    "file": "File:Cattle grid Kuniga Coast ac (2).jpg",
-    "reason": "目で見て（visual-review）: 家畜の柵（キャトルグリッド）"
-  },
-  {
-    "spotId": "sp_7c3c5dcee42d",
     "file": "File:通天橋(051128) 13.JPG",
     "reason": "目で見て（visual-review）: 京都の通天橋（別の場所）"
   },
@@ -3551,11 +3611,6 @@
   },
   {
     "spotId": "sp_7dcb1575e698",
-    "file": "File:Kasaoka City Hall Shiroishijima Branch Office.jpg",
-    "reason": "人の目: 出張所"
-  },
-  {
-    "spotId": "sp_7dcb1575e698",
     "file": "File:Former Shiraishijima Post Office 2026-06 ac.jpg",
     "reason": "人の目: 郵便局"
   },
@@ -3563,6 +3618,11 @@
     "spotId": "sp_7dcb1575e698",
     "file": "File:Hakueikan 2026-06 ac (1).jpg",
     "reason": "人の目: 映画館"
+  },
+  {
+    "spotId": "sp_7dcb1575e698",
+    "file": "File:Kasaoka City Hall Shiroishijima Branch Office.jpg",
+    "reason": "人の目: 出張所"
   },
   {
     "spotId": "sp_7dcb1575e698",
@@ -3578,6 +3638,11 @@
     "spotId": "sp_7ef77d0f6c66",
     "file": "File:250725 Ryuokyo Station Nikko Tochigi pref Japan02s3.jpg",
     "reason": "駅・電車・車両・バス（Station）"
+  },
+  {
+    "spotId": "sp_7f6a8d5bd2d2",
+    "file": "File:Ehime Prefectural Road No.21 in front of Imabari City Omishima Art Museum.jpg",
+    "reason": "画像で確認: 美術館前の道路"
   },
   {
     "spotId": "sp_7ff35a097647",
@@ -3676,17 +3741,17 @@
   },
   {
     "spotId": "sp_873e09c16f7d",
-    "file": "File:Fish @ Imperial Palace East Gardens (8999132627).jpg",
-    "reason": "目で見て（visual-review）: 鯉（生き物）"
-  },
-  {
-    "spotId": "sp_873e09c16f7d",
     "file": "File:Chiyoda Tokyo August Tokyo Imperial Palace 2014 31.JPG",
     "reason": "目で見て（visual-review）: 公衆電話"
   },
   {
+    "spotId": "sp_873e09c16f7d",
+    "file": "File:Fish @ Imperial Palace East Gardens (8999132627).jpg",
+    "reason": "目で見て（visual-review）: 鯉（生き物）"
+  },
+  {
     "spotId": "sp_88419a50d170",
-    "file": "File:Roadside Station Mine topia Besshi.jpg",
+    "file": "File:Maintopia 20250816 1.jpg",
     "reason": "人の目: マイントピア別子で東平でない"
   },
   {
@@ -3696,7 +3761,7 @@
   },
   {
     "spotId": "sp_88419a50d170",
-    "file": "File:Maintopia 20250816 1.jpg",
+    "file": "File:Roadside Station Mine topia Besshi.jpg",
     "reason": "人の目: マイントピア別子で東平でない"
   },
   {
@@ -3708,6 +3773,21 @@
     "spotId": "sp_88b557ada1de",
     "file": "File:Chidorigafuchi sakura (46082165144).jpg",
     "reason": "夜の暗い写真（19 at night）"
+  },
+  {
+    "spotId": "sp_88b557ada1de",
+    "file": "File:Chiyoda-Ward - 東京都千代田区 - panoramio (1).jpg",
+    "reason": "人の目: 何が写っているか分からない"
+  },
+  {
+    "spotId": "sp_88b557ada1de",
+    "file": "File:Sakura at Nippon Budokan (13577658114).jpg",
+    "reason": "人の目: 武道館"
+  },
+  {
+    "spotId": "sp_88b557ada1de",
+    "file": "File:Shuto Kosokudoro Route C1 -01.jpg",
+    "reason": "人の目: 首都高が主題"
   },
   {
     "spotId": "sp_88b557ada1de",
@@ -3723,21 +3803,6 @@
     "spotId": "sp_88b557ada1de",
     "file": "File:千鳥ヶ淵の夜桜 (Night Cherry Blossoms at Chidorigafuchi) 26 Mar, 2013 - panoramio.jpg",
     "reason": "夜の暗い写真（None 夜）"
-  },
-  {
-    "spotId": "sp_88b557ada1de",
-    "file": "File:Shuto Kosokudoro Route C1 -01.jpg",
-    "reason": "人の目: 首都高が主題"
-  },
-  {
-    "spotId": "sp_88b557ada1de",
-    "file": "File:Chiyoda-Ward - 東京都千代田区 - panoramio (1).jpg",
-    "reason": "人の目: 何が写っているか分からない"
-  },
-  {
-    "spotId": "sp_88b557ada1de",
-    "file": "File:Sakura at Nippon Budokan (13577658114).jpg",
-    "reason": "人の目: 武道館"
   },
   {
     "spotId": "sp_89c4ebd28f1d",
@@ -3761,6 +3826,16 @@
   },
   {
     "spotId": "sp_8ba9df829739",
+    "file": "File:2025-08-15 Arima-Onsen Arimacho, Kita-ku, Kobe City, Hyogo Prefecture 兵庫県神戸市北区有馬町 有馬ます池 DSCF8804.jpg",
+    "reason": "人の目: ますの池"
+  },
+  {
+    "spotId": "sp_8ba9df829739",
+    "file": "File:7035 HankyuBus RoyuLine ArimaOnsen 20201004.jpg",
+    "reason": "人の目: バス"
+  },
+  {
+    "spotId": "sp_8ba9df829739",
     "file": "File:Arima-Onsen Station 20141008.JPG",
     "reason": "駅・電車・車両・バス（Station）"
   },
@@ -3773,16 +3848,6 @@
     "spotId": "sp_8ba9df829739",
     "file": "File:神戸電鉄 有馬温泉駅 Arima-Onsen Sta. - panoramio (1).jpg",
     "reason": "駅・電車・車両・バス（駅）"
-  },
-  {
-    "spotId": "sp_8ba9df829739",
-    "file": "File:2025-08-15 Arima-Onsen Arimacho, Kita-ku, Kobe City, Hyogo Prefecture 兵庫県神戸市北区有馬町 有馬ます池 DSCF8804.jpg",
-    "reason": "人の目: ますの池"
-  },
-  {
-    "spotId": "sp_8ba9df829739",
-    "file": "File:7035 HankyuBus RoyuLine ArimaOnsen 20201004.jpg",
-    "reason": "人の目: バス"
   },
   {
     "spotId": "sp_8c44f802512b",
@@ -3815,6 +3880,16 @@
     "reason": "目で見て（visual-review）: 御誕生寺の大仏（別の寺）"
   },
   {
+    "spotId": "sp_8da4051af91b",
+    "file": "File:Mount Tanigawa (51982858582).jpg",
+    "reason": "画像で確認: 谷川岳の稜線で一ノ倉沢の岩壁ではない"
+  },
+  {
+    "spotId": "sp_8da4051af91b",
+    "file": "File:Tanigawa landscape (52211618123).jpg",
+    "reason": "画像で確認: 谷川岳の稜線で一ノ倉沢の岩壁ではない"
+  },
+  {
     "spotId": "sp_8e5b430ac51d",
     "file": "File:みくりが池温泉 売店 (21654395063).jpg",
     "reason": "ホテル・店・看板・案内板・地図（売店）"
@@ -3841,13 +3916,13 @@
   },
   {
     "spotId": "sp_8f02bf75a245",
-    "file": "File:屋台で売られているチョコバナナ photo by Pcs34560 20170312 1502.jpg",
-    "reason": "人の目: 屋台の食べ物"
+    "file": "File:Ogose bairin 3.JPG",
+    "reason": "人の目: 模型の機関車"
   },
   {
     "spotId": "sp_8f02bf75a245",
-    "file": "File:Ogose bairin 3.JPG",
-    "reason": "人の目: 模型の機関車"
+    "file": "File:屋台で売られているチョコバナナ photo by Pcs34560 20170312 1502.jpg",
+    "reason": "人の目: 屋台の食べ物"
   },
   {
     "spotId": "sp_8f060d25a8db",
@@ -3871,13 +3946,13 @@
   },
   {
     "spotId": "sp_8f060d25a8db",
-    "file": "File:Verona - Arena di Verona.jpeg",
-    "reason": "人の目: 公演"
+    "file": "File:Mezzi di trasmissione RAI, all'esterno dell'arena di Verona in piazza Bra 04.jpg",
+    "reason": "人の目: 中継車"
   },
   {
     "spotId": "sp_8f060d25a8db",
-    "file": "File:Mezzi di trasmissione RAI, all'esterno dell'arena di Verona in piazza Bra 04.jpg",
-    "reason": "人の目: 中継車"
+    "file": "File:Verona - Arena di Verona.jpeg",
+    "reason": "人の目: 公演"
   },
   {
     "spotId": "sp_8f181b0d2d7a",
@@ -3891,6 +3966,11 @@
   },
   {
     "spotId": "sp_8f81b2623043",
+    "file": "File:CGによる三井山之上倶楽部の復元.png",
+    "reason": "人の目: CG"
+  },
+  {
+    "spotId": "sp_8f81b2623043",
     "file": "File:Miike-Kohlebergwerke und Umgebung.jpg",
     "reason": "人の目: 地図"
   },
@@ -3898,11 +3978,6 @@
     "spotId": "sp_8f81b2623043",
     "file": "File:三井山之上倶楽部.jpg",
     "reason": "人の目: 別の施設"
-  },
-  {
-    "spotId": "sp_8f81b2623043",
-    "file": "File:CGによる三井山之上倶楽部の復元.png",
-    "reason": "人の目: CG"
   },
   {
     "spotId": "sp_90231cdaf70e",
@@ -3921,21 +3996,6 @@
   },
   {
     "spotId": "sp_9243d74e700d",
-    "file": "File:塩飽本島 2019.jpg",
-    "reason": "人の目: 島全体で笠島の町並みでない"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
-    "file": "File:Shinzaike coast01s3872.jpg",
-    "reason": "人の目: 笠島でない"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
-    "file": "File:天理教本島大教会 塩飽諸島本島 Apr 7, 2015 (1).jpg",
-    "reason": "人の目: 笠島でない"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
     "file": "File:Honjima post-office.jpg",
     "reason": "人の目: 郵便局"
   },
@@ -3946,23 +4006,13 @@
   },
   {
     "spotId": "sp_9243d74e700d",
-    "file": "File:Marugame city Honjima elem-sch.jpg",
-    "reason": "人の目: 小学校"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
-    "file": "File:Marugame city Honjima jhs.jpg",
-    "reason": "目で見て（visual-review）: 中学校"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
-    "file": "File:Shinzaike coast04s3872.jpg",
-    "reason": "目で見て（visual-review）: 石碑"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
     "file": "File:HonjimakisenｰBlueocean2 01.jpg",
     "reason": "目で見て（visual-review）: 宇多津のタワー（別の場所）"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:HonjimakisenｰBlueocean2 02.jpg",
+    "reason": "目で見て（visual-review）: 海と船で笠島の町並みでない"
   },
   {
     "spotId": "sp_9243d74e700d",
@@ -3991,16 +4041,6 @@
   },
   {
     "spotId": "sp_9243d74e700d",
-    "file": "File:Shinzaike coast03s3200.jpg",
-    "reason": "目で見て（visual-review）: 海と船で笠島の町並みでない"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
-    "file": "File:HonjimakisenｰBlueocean2 02.jpg",
-    "reason": "目で見て（visual-review）: 海と船で笠島の町並みでない"
-  },
-  {
-    "spotId": "sp_9243d74e700d",
     "file": "File:Kali Kasashima-1 FULL.jpg",
     "reason": "目で見て（visual-review）: 人物"
   },
@@ -4010,19 +4050,54 @@
     "reason": "目で見て（visual-review）: 新潟の笠島駅の車両（別の場所）"
   },
   {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:Marugame city Honjima elem-sch.jpg",
+    "reason": "人の目: 小学校"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:Marugame city Honjima jhs.jpg",
+    "reason": "目で見て（visual-review）: 中学校"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:Shinzaike coast01s3872.jpg",
+    "reason": "人の目: 笠島でない"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:Shinzaike coast03s3200.jpg",
+    "reason": "目で見て（visual-review）: 海と船で笠島の町並みでない"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:Shinzaike coast04s3872.jpg",
+    "reason": "目で見て（visual-review）: 石碑"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:塩飽本島 2019.jpg",
+    "reason": "人の目: 島全体で笠島の町並みでない"
+  },
+  {
+    "spotId": "sp_9243d74e700d",
+    "file": "File:天理教本島大教会 塩飽諸島本島 Apr 7, 2015 (1).jpg",
+    "reason": "人の目: 笠島でない"
+  },
+  {
     "spotId": "sp_930fe6a18c47",
     "file": "File:Todai-ji Daibutsu-den Hall National Treasure 国宝東大寺大仏殿29.JPG",
     "reason": "室内・展示物・建物の内部（Interior）"
   },
   {
     "spotId": "sp_93df7950d8ac",
-    "file": "File:Restaurants on Yubu Island.jpg",
-    "reason": "人の目: レストラン"
+    "file": "File:Iriomote yubu idea leuconoe.jpg",
+    "reason": "人の目: 蝶の接写"
   },
   {
     "spotId": "sp_93df7950d8ac",
-    "file": "File:Iriomote yubu idea leuconoe.jpg",
-    "reason": "人の目: 蝶の接写"
+    "file": "File:Restaurants on Yubu Island.jpg",
+    "reason": "人の目: レストラン"
   },
   {
     "spotId": "sp_940b7745a3a1",
@@ -4036,6 +4111,11 @@
   },
   {
     "spotId": "sp_940b7745a3a1",
+    "file": "File:Kinomoto elementary school, Kumano Apr. 2016.jpg",
+    "reason": "目で見て（visual-review）: 小学校"
+  },
+  {
+    "spotId": "sp_940b7745a3a1",
     "file": "File:Kumano City Cultural Exchange Center.jpg",
     "reason": "目で見て（visual-review）: 駅"
   },
@@ -4046,13 +4126,18 @@
   },
   {
     "spotId": "sp_940b7745a3a1",
-    "file": "File:Kinomoto elementary school, Kumano Apr. 2016.jpg",
-    "reason": "目で見て（visual-review）: 小学校"
-  },
-  {
-    "spotId": "sp_940b7745a3a1",
     "file": "File:Skyline of Kumano City2021.jpg",
     "reason": "目で見て（visual-review）: 熊野市の街並み（別の場所）"
+  },
+  {
+    "spotId": "sp_940e73bc1852",
+    "file": "File:Mt. Mitoku pilgrimage (51821915706).jpg",
+    "reason": "画像で確認: 寺の縁からの山の眺めで投入堂が写っていない"
+  },
+  {
+    "spotId": "sp_940e73bc1852",
+    "file": "File:Sanbutsu-ji Temple (51820968472).jpg",
+    "reason": "画像で確認: 建物の一部だけ"
   },
   {
     "spotId": "sp_9428a77d0746",
@@ -4100,6 +4185,11 @@
     "reason": "目で見て（visual-review）: 文字の注記入り"
   },
   {
+    "spotId": "sp_96d22f89aa65",
+    "file": "File:雨引観音 - panoramio (1).jpg",
+    "reason": "画像で確認: 屋根の接写"
+  },
+  {
     "spotId": "sp_97ab210d822c",
     "file": "File:早池峰のハヤチネウスユキソウ.jpg",
     "reason": "人の目: 花の接写"
@@ -4136,11 +4226,6 @@
   },
   {
     "spotId": "sp_98ed8f9cb401",
-    "file": "File:Senjyosan Syonen Sizen no ie.jpg",
-    "reason": "目で見て（visual-review）: 施設の建物"
-  },
-  {
-    "spotId": "sp_98ed8f9cb401",
     "file": "File:Kotoura-Senjosan IC 1.jpg",
     "reason": "目で見て（visual-review）: 高速道路のIC"
   },
@@ -4163,6 +4248,11 @@
     "spotId": "sp_98ed8f9cb401",
     "file": "File:Mt.Senjogatake 08.jpg",
     "reason": "目で見て（visual-review）: 南アルプスの仙丈ヶ岳（別の山）"
+  },
+  {
+    "spotId": "sp_98ed8f9cb401",
+    "file": "File:Senjyosan Syonen Sizen no ie.jpg",
+    "reason": "目で見て（visual-review）: 施設の建物"
   },
   {
     "spotId": "sp_98fddef7e87c",
@@ -4206,6 +4296,11 @@
   },
   {
     "spotId": "sp_9c3b66142664",
+    "file": "File:採水場 (4267641001).jpg",
+    "reason": "人の目: 看板"
+  },
+  {
+    "spotId": "sp_9c3b66142664",
     "file": "File:洞川温泉 増谷久八.jpg",
     "reason": "人の目: 店"
   },
@@ -4213,11 +4308,6 @@
     "spotId": "sp_9c3b66142664",
     "file": "File:洞川温泉 桝源.jpg",
     "reason": "人の目: 旅館の建物"
-  },
-  {
-    "spotId": "sp_9c3b66142664",
-    "file": "File:採水場 (4267641001).jpg",
-    "reason": "人の目: 看板"
   },
   {
     "spotId": "sp_9c3b66142664",
@@ -4261,22 +4351,12 @@
   },
   {
     "spotId": "sp_9e37603c3163",
-    "file": "File:Jukka river taken on Sumiyoshi bridge.jpg",
-    "reason": "人の目: 十ヶ川で半田運河でない"
-  },
-  {
-    "spotId": "sp_9e37603c3163",
     "file": "File:121006 Handa Dashi Matsuri 1.jpg",
     "reason": "目で見て（visual-review）: 祭りの群衆（人物）"
   },
   {
     "spotId": "sp_9e37603c3163",
     "file": "File:121006 Handa Dashi Matsuri 2.jpg",
-    "reason": "目で見て（visual-review）: 祭りの群衆（人物）"
-  },
-  {
-    "spotId": "sp_9e37603c3163",
-    "file": "File:171008 Handa Dashi Matsuri.jpg",
     "reason": "目で見て（visual-review）: 祭りの群衆（人物）"
   },
   {
@@ -4288,6 +4368,11 @@
     "spotId": "sp_9e37603c3163",
     "file": "File:150228 Handa solar power plant.jpg",
     "reason": "目で見て（visual-review）: 太陽光発電所"
+  },
+  {
+    "spotId": "sp_9e37603c3163",
+    "file": "File:171008 Handa Dashi Matsuri.jpg",
+    "reason": "目で見て（visual-review）: 祭りの群衆（人物）"
   },
   {
     "spotId": "sp_9e37603c3163",
@@ -4313,6 +4398,11 @@
     "spotId": "sp_9e37603c3163",
     "file": "File:Hotel-Harborlight-Handa-001.jpg",
     "reason": "目で見て（visual-review）: ホテル"
+  },
+  {
+    "spotId": "sp_9e37603c3163",
+    "file": "File:Jukka river taken on Sumiyoshi bridge.jpg",
+    "reason": "人の目: 十ヶ川で半田運河でない"
   },
   {
     "spotId": "sp_a060221d72a0",
@@ -4346,13 +4436,13 @@
   },
   {
     "spotId": "sp_a13a899d7e20",
-    "file": "File:Model of the American whaleship John Howland.jpg",
+    "file": "File:Kazibou 20240130 1.jpg",
     "reason": "人の目: 展示物"
   },
   {
     "spotId": "sp_a13a899d7e20",
-    "file": "File:View from Sakamoto Ryoma Memorial Museum.jpg",
-    "reason": "人の目: 記念館からの眺め"
+    "file": "File:Model of the American whaleship John Howland.jpg",
+    "reason": "人の目: 展示物"
   },
   {
     "spotId": "sp_a13a899d7e20",
@@ -4361,8 +4451,8 @@
   },
   {
     "spotId": "sp_a13a899d7e20",
-    "file": "File:Kazibou 20240130 1.jpg",
-    "reason": "人の目: 展示物"
+    "file": "File:View from Sakamoto Ryoma Memorial Museum.jpg",
+    "reason": "人の目: 記念館からの眺め"
   },
   {
     "spotId": "sp_a1483b3e5ffd",
@@ -4373,16 +4463,6 @@
     "spotId": "sp_a1483b3e5ffd",
     "file": "File:Sankt Peter 1 BW.JPG",
     "reason": "室内・展示物・建物の内部（Interiors）"
-  },
-  {
-    "spotId": "sp_a1a933a1caac",
-    "file": "File:Meiji Shrine Outer Garden 2.jpg",
-    "reason": "人の目: いちょう並木と分からない"
-  },
-  {
-    "spotId": "sp_a1a933a1caac",
-    "file": "File:Meiji Shrine Outer Garden 4.jpg",
-    "reason": "人の目: いちょう並木と分からない"
   },
   {
     "spotId": "sp_a1a933a1caac",
@@ -4400,14 +4480,24 @@
     "reason": "人の目: 落ち葉の接写"
   },
   {
-    "spotId": "sp_a320cc2ca82e",
-    "file": "File:Anabukicho Anabuki, Mima, Tokushima Prefecture 777-0005, Japan - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 道路標識"
+    "spotId": "sp_a1a933a1caac",
+    "file": "File:Meiji Shrine Outer Garden 2.jpg",
+    "reason": "人の目: いちょう並木と分からない"
+  },
+  {
+    "spotId": "sp_a1a933a1caac",
+    "file": "File:Meiji Shrine Outer Garden 4.jpg",
+    "reason": "人の目: いちょう並木と分からない"
   },
   {
     "spotId": "sp_a320cc2ca82e",
     "file": "File:Anabuki-gawa Ikada Kudari 2009 Champions.JPG",
     "reason": "目で見て（visual-review）: 人物（いかだ下り）"
+  },
+  {
+    "spotId": "sp_a320cc2ca82e",
+    "file": "File:Anabukicho Anabuki, Mima, Tokushima Prefecture 777-0005, Japan - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 道路標識"
   },
   {
     "spotId": "sp_a320cc2ca82e",
@@ -4421,6 +4511,11 @@
   },
   {
     "spotId": "sp_a320cc2ca82e",
+    "file": "File:穴吹川橋梁を渡る1000形.jpg",
+    "reason": "目で見て（visual-review）: 鉄橋の列車が主役で川がほぼ写らない"
+  },
+  {
+    "spotId": "sp_a320cc2ca82e",
     "file": "File:穴吹川橋梁を渡る1500形.jpg",
     "reason": "目で見て（visual-review）: 鉄橋の列車が主役で川がほぼ写らない"
   },
@@ -4430,14 +4525,14 @@
     "reason": "目で見て（visual-review）: 鉄橋の列車が主役で川がほぼ写らない"
   },
   {
-    "spotId": "sp_a320cc2ca82e",
-    "file": "File:穴吹川橋梁を渡る1000形.jpg",
-    "reason": "目で見て（visual-review）: 鉄橋の列車が主役で川がほぼ写らない"
-  },
-  {
     "spotId": "sp_a3767eba3f31",
     "file": "File:Roll kun and Roll chan.jpg",
     "reason": "人の目: 人形"
+  },
+  {
+    "spotId": "sp_a3b3f21e64fc",
+    "file": "File:Gosyogake Onsen Genkan.jpg",
+    "reason": "目で見て（visual-review）: 宿の玄関"
   },
   {
     "spotId": "sp_a3b3f21e64fc",
@@ -4445,9 +4540,9 @@
     "reason": "目で見て（visual-review）: 宿の玄関"
   },
   {
-    "spotId": "sp_a3b3f21e64fc",
-    "file": "File:Gosyogake Onsen Genkan.jpg",
-    "reason": "目で見て（visual-review）: 宿の玄関"
+    "spotId": "sp_a55586a348fa",
+    "file": "File:Furukawa Branch of Japan Agricultural Coorperatives Hida.JPG",
+    "reason": "人の目: 農協の建物"
   },
   {
     "spotId": "sp_a55586a348fa",
@@ -4461,13 +4556,13 @@
   },
   {
     "spotId": "sp_a55586a348fa",
-    "file": "File:Warehouse in Hida-Furukawa Festival Hall in winter.JPG",
-    "reason": "室内・展示物・建物の内部（Exhibition）"
+    "file": "File:Hondo of Seiganji Temple in Furukawa, Hida, Gifu in winter.JPG",
+    "reason": "人の目: 誓願寺"
   },
   {
     "spotId": "sp_a55586a348fa",
-    "file": "File:Hondo of Seiganji Temple in Furukawa, Hida, Gifu in winter.JPG",
-    "reason": "人の目: 誓願寺"
+    "file": "File:Manhole cover of Furukawa, Hida, Gifu.JPG",
+    "reason": "人の目: マンホール"
   },
   {
     "spotId": "sp_a55586a348fa",
@@ -4476,13 +4571,8 @@
   },
   {
     "spotId": "sp_a55586a348fa",
-    "file": "File:Furukawa Branch of Japan Agricultural Coorperatives Hida.JPG",
-    "reason": "人の目: 農協の建物"
-  },
-  {
-    "spotId": "sp_a55586a348fa",
-    "file": "File:Manhole cover of Furukawa, Hida, Gifu.JPG",
-    "reason": "人の目: マンホール"
+    "file": "File:Warehouse in Hida-Furukawa Festival Hall in winter.JPG",
+    "reason": "室内・展示物・建物の内部（Exhibition）"
   },
   {
     "spotId": "sp_a5e2a2050a7a",
@@ -4493,21 +4583,6 @@
     "spotId": "sp_a656ad457d24",
     "file": "File:Fukiya 20180501 153758.jpg",
     "reason": "人の目: 社名の扁額"
-  },
-  {
-    "spotId": "sp_a772be00696a",
-    "file": "File:MountAkagi.jpg",
-    "reason": "人の目: 赤城山の遠景で大沼でない"
-  },
-  {
-    "spotId": "sp_a772be00696a",
-    "file": "File:Konuma lake @ Mount Akagi area (14018513717).jpg",
-    "reason": "人の目: 小沼で大沼でない"
-  },
-  {
-    "spotId": "sp_a772be00696a",
-    "file": "File:Konuma lake @ Mount Akagi area (14202621892).jpg",
-    "reason": "人の目: 小沼で大沼でない"
   },
   {
     "spotId": "sp_a772be00696a",
@@ -4523,6 +4598,21 @@
     "spotId": "sp_a772be00696a",
     "file": "File:Camping at Mount Akagi 2010-04-01.jpg",
     "reason": "人の目: キャンプ場とバイク"
+  },
+  {
+    "spotId": "sp_a772be00696a",
+    "file": "File:Konuma lake @ Mount Akagi area (14018513717).jpg",
+    "reason": "人の目: 小沼で大沼でない"
+  },
+  {
+    "spotId": "sp_a772be00696a",
+    "file": "File:Konuma lake @ Mount Akagi area (14202621892).jpg",
+    "reason": "人の目: 小沼で大沼でない"
+  },
+  {
+    "spotId": "sp_a772be00696a",
+    "file": "File:MountAkagi.jpg",
+    "reason": "人の目: 赤城山の遠景で大沼でない"
   },
   {
     "spotId": "sp_a8e01e52ef34",
@@ -4561,16 +4651,6 @@
   },
   {
     "spotId": "sp_abe15797fce0",
-    "file": "File:Imabari City Okamura Elementary School 2021-08 ac (1).jpg",
-    "reason": "人の目: 学校"
-  },
-  {
-    "spotId": "sp_abe15797fce0",
-    "file": "File:Imabari City Okamura Elementary School 2021-08 ac (2).jpg",
-    "reason": "人の目: 学校"
-  },
-  {
-    "spotId": "sp_abe15797fce0",
     "file": "File:Akinada Orange Line 26-May-2018.jpg",
     "reason": "人の目: ほかの島が主題"
   },
@@ -4588,6 +4668,16 @@
     "spotId": "sp_abe15797fce0",
     "file": "File:Hiroshima prefectural road 355 Ōsakishimojima circulation route.JPG",
     "reason": "人の目: 大崎下島の道路"
+  },
+  {
+    "spotId": "sp_abe15797fce0",
+    "file": "File:Imabari City Okamura Elementary School 2021-08 ac (1).jpg",
+    "reason": "人の目: 学校"
+  },
+  {
+    "spotId": "sp_abe15797fce0",
+    "file": "File:Imabari City Okamura Elementary School 2021-08 ac (2).jpg",
+    "reason": "人の目: 学校"
   },
   {
     "spotId": "sp_abe15797fce0",
@@ -4621,13 +4711,13 @@
   },
   {
     "spotId": "sp_b121cf132f17",
-    "file": "File:アオサギ - panoramio.jpg",
-    "reason": "人の目: 鳥"
+    "file": "File:40 Inaba.jpg",
+    "reason": "人の目: 浮世絵"
   },
   {
     "spotId": "sp_b121cf132f17",
-    "file": "File:40 Inaba.jpg",
-    "reason": "人の目: 浮世絵"
+    "file": "File:アオサギ - panoramio.jpg",
+    "reason": "人の目: 鳥"
   },
   {
     "spotId": "sp_b1319d5a87bc",
@@ -4646,17 +4736,17 @@
   },
   {
     "spotId": "sp_b176a3c12429",
-    "file": "File:Meon at port of Megijima 20221119.jpg",
-    "reason": "人の目: フェリー"
-  },
-  {
-    "spotId": "sp_b176a3c12429",
     "file": "File:20世紀の回想.JPG",
     "reason": "人の目: 美術作品"
   },
   {
     "spotId": "sp_b176a3c12429",
     "file": "File:2Shodoshimamaru 202205.jpg",
+    "reason": "人の目: フェリー"
+  },
+  {
+    "spotId": "sp_b176a3c12429",
+    "file": "File:Meon at port of Megijima 20221119.jpg",
     "reason": "人の目: フェリー"
   },
   {
@@ -4676,13 +4766,13 @@
   },
   {
     "spotId": "sp_b2bd4ee6da32",
-    "file": "File:Cafe Gallery and Shop.jpg",
-    "reason": "ホテル・店・看板・案内板・地図（Cafe）"
+    "file": "File:Ajishima Line MERMAID.JPG",
+    "reason": "人の目: フェリー"
   },
   {
     "spotId": "sp_b2bd4ee6da32",
-    "file": "File:田代島簡易郵便局.jpg",
-    "reason": "人の目: 郵便局"
+    "file": "File:Cafe Gallery and Shop.jpg",
+    "reason": "ホテル・店・看板・案内板・地図（Cafe）"
   },
   {
     "spotId": "sp_b2bd4ee6da32",
@@ -4706,8 +4796,8 @@
   },
   {
     "spotId": "sp_b2bd4ee6da32",
-    "file": "File:Ajishima Line MERMAID.JPG",
-    "reason": "人の目: フェリー"
+    "file": "File:田代島簡易郵便局.jpg",
+    "reason": "人の目: 郵便局"
   },
   {
     "spotId": "sp_b2c1f4a51516",
@@ -4726,13 +4816,13 @@
   },
   {
     "spotId": "sp_b36975954535",
-    "file": "File:140321 Hamanogawa-yusui Shimabara Nagasaki pref Japan02s3.jpg",
+    "file": "File:140321 Hamanogawa-yusui Shimabara Nagasaki pref Japan01s.jpg",
     "reason": "人の目: 浜の川湧水で庭園でない"
   },
   {
     "spotId": "sp_b36975954535",
-    "file": "File:Shimabara Spring Area 5.jpg",
-    "reason": "人の目: 湧水庭園と分からない"
+    "file": "File:140321 Hamanogawa-yusui Shimabara Nagasaki pref Japan02s3.jpg",
+    "reason": "人の目: 浜の川湧水で庭園でない"
   },
   {
     "spotId": "sp_b36975954535",
@@ -4741,8 +4831,8 @@
   },
   {
     "spotId": "sp_b36975954535",
-    "file": "File:140321 Hamanogawa-yusui Shimabara Nagasaki pref Japan01s.jpg",
-    "reason": "人の目: 浜の川湧水で庭園でない"
+    "file": "File:Shimabara Spring Area 5.jpg",
+    "reason": "人の目: 湧水庭園と分からない"
   },
   {
     "spotId": "sp_b3ace21f6a49",
@@ -4753,6 +4843,21 @@
     "spotId": "sp_b3ace21f6a49",
     "file": "File:Mt.Nuki.jpg",
     "reason": "人の目: 貫山"
+  },
+  {
+    "spotId": "sp_b489e3b09780",
+    "file": "File:Kongoji (Yasaka Kōshindō) Temple (51473806620).jpg",
+    "reason": "画像で確認: くくり猿の接写"
+  },
+  {
+    "spotId": "sp_b489e3b09780",
+    "file": "File:Yasaka Koshindo, May 2017.jpg",
+    "reason": "画像で確認: 像と飾りの接写"
+  },
+  {
+    "spotId": "sp_b489e3b09780",
+    "file": "File:八坂庚申堂 - panoramio.jpg",
+    "reason": "画像で確認: 夜で暗い"
   },
   {
     "spotId": "sp_b49cee381f21",
@@ -4805,6 +4910,11 @@
     "reason": "駅・電車・車両・バス（Station）"
   },
   {
+    "spotId": "sp_b73e2c05a941",
+    "file": "File:Mount Fuji, view from Shiraito no Taki.jpg",
+    "reason": "画像で確認: 富士山だけで滝が写っていない"
+  },
+  {
     "spotId": "sp_b74cfc480a5f",
     "file": "File:Lake Inawashiro Pleasure Boat Swan.jpg",
     "reason": "人の目: 遊覧船が主題"
@@ -4828,6 +4938,11 @@
     "spotId": "sp_b9c081a780be",
     "file": "File:臥龍山荘の石碑.jpg",
     "reason": "石碑・扁額・記念碑のみ（石碑）"
+  },
+  {
+    "spotId": "sp_b9c4d206a638",
+    "file": "File:Ninjadera.jpg",
+    "reason": "画像で確認: 雪よけの小屋で何かわからない"
   },
   {
     "spotId": "sp_ba216039ca87",
@@ -4855,6 +4970,26 @@
     "reason": "人の目: 電車"
   },
   {
+    "spotId": "sp_ba635018e7dc",
+    "file": "File:千畳敷カールと宝剣岳 - panoramio.jpg",
+    "reason": "画像で確認: 看板が主役"
+  },
+  {
+    "spotId": "sp_ba844a49035e",
+    "file": "File:Signpost of Firmiana simplex at Ikonahimenomikoto Shrine.jpg",
+    "reason": "画像で確認: 標柱が主役"
+  },
+  {
+    "spotId": "sp_ba844a49035e",
+    "file": "File:Yellow leaves of young trees. Firmiana simplex at Ikonahimenomikoto shrine's.jpg",
+    "reason": "画像で確認: 葉の接写"
+  },
+  {
+    "spotId": "sp_bab2070031f7",
+    "file": "File:Hinomaru-Nikko Kotsu OP-08 Neoplan Spaceliner at Irohazaka 2022 (Crimb).jpg",
+    "reason": "目で見て（visual-review）: 駐車場とバス"
+  },
+  {
     "spotId": "sp_bab2070031f7",
     "file": "File:Irohazaka road, Nikkō (16138829466).jpg",
     "reason": "目で見て（visual-review）: 車窓で場所が分からない"
@@ -4875,9 +5010,9 @@
     "reason": "目で見て（visual-review）: トンネル"
   },
   {
-    "spotId": "sp_bab2070031f7",
-    "file": "File:Hinomaru-Nikko Kotsu OP-08 Neoplan Spaceliner at Irohazaka 2022 (Crimb).jpg",
-    "reason": "目で見て（visual-review）: 駐車場とバス"
+    "spotId": "sp_bb1cc7f79fd6",
+    "file": "File:旧余部橋梁 - panoramio.jpg",
+    "reason": "画像で確認: 暗いシルエットで透かし文字入り"
   },
   {
     "spotId": "sp_bbc4c98a7f1d",
@@ -4896,6 +5031,11 @@
   },
   {
     "spotId": "sp_bd092859a7ad",
+    "file": "File:Bateau Le Renard de Saint-Malo.jpg",
+    "reason": "人の目: 船"
+  },
+  {
+    "spotId": "sp_bd092859a7ad",
     "file": "File:Brittany Ferries.jpg",
     "reason": "人の目: フェリー"
   },
@@ -4908,21 +5048,6 @@
     "spotId": "sp_bd092859a7ad",
     "file": "File:Chateaubriand-en hilobia itsasora begira.jpg",
     "reason": "人の目: 墓"
-  },
-  {
-    "spotId": "sp_bd092859a7ad",
-    "file": "File:Old Gaffers Association - Vieux Gréements de France - Saint-Malo (500px photo 140475591).jpg",
-    "reason": "人の目: 看板"
-  },
-  {
-    "spotId": "sp_bd092859a7ad",
-    "file": "File:Saint-Malo Handabdrücke als Wegweiser.jpg",
-    "reason": "人の目: 路面の印"
-  },
-  {
-    "spotId": "sp_bd092859a7ad",
-    "file": "File:Bateau Le Renard de Saint-Malo.jpg",
-    "reason": "人の目: 船"
   },
   {
     "spotId": "sp_bd092859a7ad",
@@ -4943,6 +5068,16 @@
     "spotId": "sp_bd092859a7ad",
     "file": "File:Memorial-39-45-canon-Saint-Malo-byRundvald.jpg",
     "reason": "人の目: 大砲"
+  },
+  {
+    "spotId": "sp_bd092859a7ad",
+    "file": "File:Old Gaffers Association - Vieux Gréements de France - Saint-Malo (500px photo 140475591).jpg",
+    "reason": "人の目: 看板"
+  },
+  {
+    "spotId": "sp_bd092859a7ad",
+    "file": "File:Saint-Malo Handabdrücke als Wegweiser.jpg",
+    "reason": "人の目: 路面の印"
   },
   {
     "spotId": "sp_bd092859a7ad",
@@ -4981,12 +5116,12 @@
   },
   {
     "spotId": "sp_bfdfa9e77480",
-    "file": "File:Ferry-Ariake took on Beach 20100212.jpg",
+    "file": "File:Ariake grounded near Mie, Japan.jpg",
     "reason": "人の目: 座礁した船"
   },
   {
     "spotId": "sp_bfdfa9e77480",
-    "file": "File:Ariake grounded near Mie, Japan.jpg",
+    "file": "File:Ferry-Ariake took on Beach 20100212.jpg",
     "reason": "人の目: 座礁した船"
   },
   {
@@ -4996,8 +5131,8 @@
   },
   {
     "spotId": "sp_c08917dd0306",
-    "file": "File:大間崎本州最北端の碑 - panoramio.jpg",
-    "reason": "石碑・扁額・記念碑のみ（の碑）"
+    "file": "File:Oma aomori prefecture 2006-10-08.jpg",
+    "reason": "人の目: 碑"
   },
   {
     "spotId": "sp_c08917dd0306",
@@ -5006,13 +5141,13 @@
   },
   {
     "spotId": "sp_c08917dd0306",
-    "file": "File:Oma aomori prefecture 2006-10-08.jpg",
+    "file": "File:Shimokita-oma-2.jpg",
     "reason": "人の目: 碑"
   },
   {
     "spotId": "sp_c08917dd0306",
-    "file": "File:Shimokita-oma-2.jpg",
-    "reason": "人の目: 碑"
+    "file": "File:大間崎本州最北端の碑 - panoramio.jpg",
+    "reason": "石碑・扁額・記念碑のみ（の碑）"
   },
   {
     "spotId": "sp_c13d772c17f4",
@@ -5045,6 +5180,11 @@
     "reason": "室内・展示物・建物の内部（Interior）"
   },
   {
+    "spotId": "sp_c3092e716df8",
+    "file": "File:大鳴門橋 - panoramio.jpg",
+    "reason": "画像で確認: 橋の車道が主役（渦の道ではない）"
+  },
+  {
     "spotId": "sp_c3b62fd8a739",
     "file": "File:Kasahara mosaic tile art 2019-12 ac (4).jpg",
     "reason": "人の目: 美術作品"
@@ -5066,13 +5206,13 @@
   },
   {
     "spotId": "sp_c77c0b83426b",
-    "file": "File:Kirifuri waterval in Nikko Nikko Kirifuri no taki (titel op object) Honderd beroemde gezichten in de provinciën (serietitel) Shokoku meisho hyakkei (serietitel op object), RP-P-2008-165.jpg",
-    "reason": "人の目: 浮世絵で写真でない"
+    "file": "File:Kirifuri Waterfall LACMA M.91.377.74.jpg",
+    "reason": "人の目: 古写真"
   },
   {
     "spotId": "sp_c77c0b83426b",
-    "file": "File:Kirifuri Waterfall LACMA M.91.377.74.jpg",
-    "reason": "人の目: 古写真"
+    "file": "File:Kirifuri waterval in Nikko Nikko Kirifuri no taki (titel op object) Honderd beroemde gezichten in de provinciën (serietitel) Shokoku meisho hyakkei (serietitel op object), RP-P-2008-165.jpg",
+    "reason": "人の目: 浮世絵で写真でない"
   },
   {
     "spotId": "sp_c89eba1c727b",
@@ -5106,8 +5246,8 @@
   },
   {
     "spotId": "sp_c992c0bd0f00",
-    "file": "File:Tounnahajou-Kumejima, Okinawa（登武那覇城からみるイーフビーチ方面）DSCF6520.JPG",
-    "reason": "目で見て（visual-review）: イーフビーチ（別の場所）"
+    "file": "File:Hateno-hama beach はての浜 DSCF7905.JPG",
+    "reason": "目で見て（visual-review）: 仮設トイレ"
   },
   {
     "spotId": "sp_c992c0bd0f00",
@@ -5131,6 +5271,11 @@
   },
   {
     "spotId": "sp_c992c0bd0f00",
+    "file": "File:Tounnahajou-Kumejima, Okinawa（登武那覇城からみるイーフビーチ方面）DSCF6520.JPG",
+    "reason": "目で見て（visual-review）: イーフビーチ（別の場所）"
+  },
+  {
+    "spotId": "sp_c992c0bd0f00",
     "file": "File:Tounnahajou-Kumejima, Okinawa（登武那覇城からみる奥武島、新奥武橋）DSCF6552.JPG",
     "reason": "目で見て（visual-review）: 橋（別の場所）"
   },
@@ -5138,11 +5283,6 @@
     "spotId": "sp_c992c0bd0f00",
     "file": "File:Tounnahajou-Kumejima, Okinawa（登武那覇城）DSCF6554.JPG",
     "reason": "目で見て（visual-review）: 碑"
-  },
-  {
-    "spotId": "sp_c992c0bd0f00",
-    "file": "File:Hateno-hama beach はての浜 DSCF7905.JPG",
-    "reason": "目で見て（visual-review）: 仮設トイレ"
   },
   {
     "spotId": "sp_cb5539330561",
@@ -5201,16 +5341,6 @@
   },
   {
     "spotId": "sp_cd82626ba37e",
-    "file": "File:Beppu Umi-jigoku04n4272.jpg",
-    "reason": "人の目: 海地獄"
-  },
-  {
-    "spotId": "sp_cd82626ba37e",
-    "file": "File:Umi Jigoku (Sea Hell) in Beppu.jpg",
-    "reason": "人の目: 海地獄"
-  },
-  {
-    "spotId": "sp_cd82626ba37e",
     "file": "File:Beppu Jigoku-Meguri Street 20160218.JPG",
     "reason": "人の目: 通り"
   },
@@ -5221,8 +5351,18 @@
   },
   {
     "spotId": "sp_cd82626ba37e",
+    "file": "File:Beppu Umi-jigoku04n4272.jpg",
+    "reason": "人の目: 海地獄"
+  },
+  {
+    "spotId": "sp_cd82626ba37e",
     "file": "File:Japan Kyushu, Beppu hot spring 03.jpg",
     "reason": "人の目: 白池地獄と分からない"
+  },
+  {
+    "spotId": "sp_cd82626ba37e",
+    "file": "File:Umi Jigoku (Sea Hell) in Beppu.jpg",
+    "reason": "人の目: 海地獄"
   },
   {
     "spotId": "sp_cde01fa421ea",
@@ -5255,9 +5395,24 @@
     "reason": "目で見て（visual-review）: 霧で海岸が分からない"
   },
   {
+    "spotId": "sp_d062ff89c8da",
+    "file": "File:Unzen Onsen Shrine 雲仙温泉神社 - panoramio (1).jpg",
+    "reason": "画像で確認: 日付の焼き込み・雲仙温泉神社で地獄ではない"
+  },
+  {
+    "spotId": "sp_d062ff89c8da",
+    "file": "File:Unzen Onsen Shrine 雲仙温泉神社 - panoramio.jpg",
+    "reason": "画像で確認: 日付の焼き込み・雲仙温泉神社で地獄ではない"
+  },
+  {
     "spotId": "sp_d0a0129de29b",
     "file": "File:瀬戸大橋記念公園球技場.JPG",
     "reason": "人の目: 球技場"
+  },
+  {
+    "spotId": "sp_d0ce0f08352e",
+    "file": "File:Fujiwara miyako.jpg",
+    "reason": "人の目: 像"
   },
   {
     "spotId": "sp_d0ce0f08352e",
@@ -5270,11 +5425,6 @@
     "reason": "駅・電車・車両・バス（駅）"
   },
   {
-    "spotId": "sp_d0ce0f08352e",
-    "file": "File:Fujiwara miyako.jpg",
-    "reason": "人の目: 像"
-  },
-  {
     "spotId": "sp_d12dbde30020",
     "file": "File:(千葉県) 富津岬の夜明け - panoramio.jpg",
     "reason": "夜の暗い写真（None 夜）"
@@ -5283,6 +5433,11 @@
     "spotId": "sp_d133daf20bc5",
     "file": "File:三段峡 DSC 0147.jpg",
     "reason": "人の目: 案内板"
+  },
+  {
+    "spotId": "sp_d18c73dbc39b",
+    "file": "File:Mount Wanakura (Noertheast side) - panoramio.jpg",
+    "reason": "画像で確認: 和名倉山の山並みで神社が写っていない"
   },
   {
     "spotId": "sp_d1b11185d58e",
@@ -5306,18 +5461,38 @@
   },
   {
     "spotId": "sp_d46ed58ac866",
+    "file": "File:Hakusan Sansha Shinzo (Shirayama Hime Jinja).jpg",
+    "reason": "人の目: 絵画"
+  },
+  {
+    "spotId": "sp_d46ed58ac866",
     "file": "File:Japan 2024-05-03 (53893214650).jpg",
     "reason": "人の目: 何が写っているか分からない"
   },
   {
-    "spotId": "sp_d46ed58ac866",
-    "file": "File:Hakusan Sansha Shinzo (Shirayama Hime Jinja).jpg",
-    "reason": "人の目: 絵画"
+    "spotId": "sp_d7361ec0942b",
+    "file": "File:Ryusendo Cave Underground Lake Cap 20201115.jpg",
+    "reason": "画像で確認: 魚眼の強い歪み"
+  },
+  {
+    "spotId": "sp_d7361ec0942b",
+    "file": "File:Ryusendo Cave Underground Lake Cap2 20201115.jpg",
+    "reason": "画像で確認: 魚眼の強い歪み"
+  },
+  {
+    "spotId": "sp_d75a48106289",
+    "file": "File:Oi Dam(2008).jpg",
+    "reason": "人の目: ダムで恵那峡の景色でない"
   },
   {
     "spotId": "sp_d75a48106289",
     "file": "File:Oi Dam.jpg",
     "reason": "人の目: ダムで恵那峡の景色でない"
+  },
+  {
+    "spotId": "sp_d75a48106289",
+    "file": "File:Okudo power station.jpg",
+    "reason": "人の目: 発電所"
   },
   {
     "spotId": "sp_d75a48106289",
@@ -5328,16 +5503,6 @@
     "spotId": "sp_d75a48106289",
     "file": "File:新東雲橋から見た大井ダム.jpg",
     "reason": "人の目: ダムで恵那峡の景色でない"
-  },
-  {
-    "spotId": "sp_d75a48106289",
-    "file": "File:Oi Dam(2008).jpg",
-    "reason": "人の目: ダムで恵那峡の景色でない"
-  },
-  {
-    "spotId": "sp_d75a48106289",
-    "file": "File:Okudo power station.jpg",
-    "reason": "人の目: 発電所"
   },
   {
     "spotId": "sp_d9d041b7cb2b",
@@ -5365,19 +5530,34 @@
     "reason": "夜の暗い写真（20 Night）"
   },
   {
+    "spotId": "sp_da67b163ab08",
+    "file": "File:Senshu park - Akita - 2024 March 28 various 15 08 11 808000.jpeg",
+    "reason": "画像で確認: パノラマの歪み"
+  },
+  {
+    "spotId": "sp_da6d8aa2096e",
+    "file": "File:小葉鼠尾草 Salvia microphylla 'Hot Lips' -日本廣島縮景園 Hiroshima Shukkeien Garden, Japan- (34982485903).jpg",
+    "reason": "画像で確認: 花の接写"
+  },
+  {
+    "spotId": "sp_da6d8aa2096e",
+    "file": "File:小葉鼠尾草 Salvia microphylla 'Hot Lips' -日本廣島縮景園 Hiroshima Shukkeien Garden, Japan- (35792779035).jpg",
+    "reason": "画像で確認: 花の接写"
+  },
+  {
     "spotId": "sp_db2bbed289e9",
     "file": "File:Starry sky Tsurunomaihashi 20181102 2328.jpg",
     "reason": "夜の暗い写真（23 Night）"
   },
   {
     "spotId": "sp_db4f3aba96a1",
-    "file": "File:Geiyo oli 2021150.jpg",
-    "reason": "目で見て（visual-review）: 衛星写真"
+    "file": "File:12oshima Kyowakisen.jpg",
+    "reason": "目で見て（visual-review）: 船が主役"
   },
   {
     "spotId": "sp_db4f3aba96a1",
-    "file": "File:Geiyo oli 2021150 lrg.jpg",
-    "reason": "目で見て（visual-review）: 衛星写真"
+    "file": "File:Big Bridge - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 逆光の車上"
   },
   {
     "spotId": "sp_db4f3aba96a1",
@@ -5396,13 +5576,13 @@
   },
   {
     "spotId": "sp_db4f3aba96a1",
-    "file": "File:12oshima Kyowakisen.jpg",
-    "reason": "目で見て（visual-review）: 船が主役"
+    "file": "File:Geiyo oli 2021150 lrg.jpg",
+    "reason": "目で見て（visual-review）: 衛星写真"
   },
   {
     "spotId": "sp_db4f3aba96a1",
-    "file": "File:Big Bridge - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 逆光の車上"
+    "file": "File:Geiyo oli 2021150.jpg",
+    "reason": "目で見て（visual-review）: 衛星写真"
   },
   {
     "spotId": "sp_dba0bf1121b8",
@@ -5411,22 +5591,22 @@
   },
   {
     "spotId": "sp_dba0bf1121b8",
-    "file": "File:Miracle Pine Tree at night.jpg",
-    "reason": "夜の暗い写真（None at night）"
-  },
-  {
-    "spotId": "sp_dba0bf1121b8",
     "file": "File:Miracle Pine Tree 2011-07-23.jpg",
     "reason": "人の目: がれき"
   },
   {
-    "spotId": "sp_dbc3666735a4",
-    "file": "File:Chitose-ame and people 2018 11 23.jpg",
-    "reason": "人の目: 人物"
+    "spotId": "sp_dba0bf1121b8",
+    "file": "File:Miracle Pine Tree at night.jpg",
+    "reason": "夜の暗い写真（None at night）"
   },
   {
     "spotId": "sp_dbc3666735a4",
     "file": "File:Chitose-ame 2018 11 23.jpg",
+    "reason": "人の目: 人物"
+  },
+  {
+    "spotId": "sp_dbc3666735a4",
+    "file": "File:Chitose-ame and people 2018 11 23.jpg",
     "reason": "人の目: 人物"
   },
   {
@@ -5496,6 +5676,11 @@
   },
   {
     "spotId": "sp_dfd72bdb13f0",
+    "file": "File:Izushima bridge2.jpg",
+    "reason": "人の目: 出島大橋"
+  },
+  {
+    "spotId": "sp_dfd72bdb13f0",
     "file": "File:Kameyama slopecar4.jpg",
     "reason": "人の目: 工事中"
   },
@@ -5513,11 +5698,6 @@
     "spotId": "sp_dfd72bdb13f0",
     "file": "File:Sakihama Nursery School 202412.jpg",
     "reason": "人の目: 保育所"
-  },
-  {
-    "spotId": "sp_dfd72bdb13f0",
-    "file": "File:Izushima bridge2.jpg",
-    "reason": "人の目: 出島大橋"
   },
   {
     "spotId": "sp_dfffc42ce4a7",
@@ -5596,13 +5776,23 @@
   },
   {
     "spotId": "sp_e0e68f30eb4a",
+    "file": "File:姨捨SA下り線にある展望台からの夜景 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 夜景"
+  },
+  {
+    "spotId": "sp_e0e68f30eb4a",
     "file": "File:姨捨駅 - panoramio (6).jpg",
     "reason": "目で見て（visual-review）: 駅"
   },
   {
-    "spotId": "sp_e0e68f30eb4a",
-    "file": "File:姨捨SA下り線にある展望台からの夜景 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 夜景"
+    "spotId": "sp_e106ec71701d",
+    "file": "File:Mihara Port and Mount Fudekageyama 2.jpg",
+    "reason": "目で見て（visual-review）: 港"
+  },
+  {
+    "spotId": "sp_e106ec71701d",
+    "file": "File:Mihara Port and Mount Fudekageyama.jpg",
+    "reason": "目で見て（visual-review）: 港"
   },
   {
     "spotId": "sp_e106ec71701d",
@@ -5615,34 +5805,14 @@
     "reason": "目で見て（visual-review）: 海浜公園（別の場所）"
   },
   {
-    "spotId": "sp_e106ec71701d",
-    "file": "File:Mihara Port and Mount Fudekageyama.jpg",
-    "reason": "目で見て（visual-review）: 港"
-  },
-  {
-    "spotId": "sp_e106ec71701d",
-    "file": "File:Mihara Port and Mount Fudekageyama 2.jpg",
-    "reason": "目で見て（visual-review）: 港"
-  },
-  {
     "spotId": "sp_e11f1a2461c6",
-    "file": "File:Shiiba village hall.JPG",
-    "reason": "人の目: 村役場"
-  },
-  {
-    "spotId": "sp_e11f1a2461c6",
-    "file": "File:宮崎交通椎葉車庫.jpg",
-    "reason": "人の目: バスの車庫"
+    "file": "File:Iwayado Power station.jpg",
+    "reason": "人の目: 発電所"
   },
   {
     "spotId": "sp_e11f1a2461c6",
     "file": "File:Katerie Shiiba 2021.jpg",
     "reason": "人の目: 施設"
-  },
-  {
-    "spotId": "sp_e11f1a2461c6",
-    "file": "File:Ozaki Post Office Shiiba 2010.JPG",
-    "reason": "人の目: 郵便局"
   },
   {
     "spotId": "sp_e11f1a2461c6",
@@ -5656,6 +5826,11 @@
   },
   {
     "spotId": "sp_e11f1a2461c6",
+    "file": "File:Ozaki Post Office Shiiba 2010.JPG",
+    "reason": "人の目: 郵便局"
+  },
+  {
+    "spotId": "sp_e11f1a2461c6",
     "file": "File:Route265 388 Crossing WestSide 2008.jpg",
     "reason": "人の目: 道路"
   },
@@ -5666,8 +5841,13 @@
   },
   {
     "spotId": "sp_e11f1a2461c6",
-    "file": "File:Iwayado Power station.jpg",
-    "reason": "人の目: 発電所"
+    "file": "File:Shiiba village hall.JPG",
+    "reason": "人の目: 村役場"
+  },
+  {
+    "spotId": "sp_e11f1a2461c6",
+    "file": "File:宮崎交通椎葉車庫.jpg",
+    "reason": "人の目: バスの車庫"
   },
   {
     "spotId": "sp_e19ab9c1c66b",
@@ -5681,18 +5861,23 @@
   },
   {
     "spotId": "sp_e1ad5b6552c4",
-    "file": "File:朝食 2014 (15003666635).jpg",
-    "reason": "料理・食べ物（breakfast）"
+    "file": "File:ほったらかし温泉.JPG",
+    "reason": "人の目: 店名の看板"
   },
   {
     "spotId": "sp_e1ad5b6552c4",
-    "file": "File:ほったらかし温泉.JPG",
-    "reason": "人の目: 店名の看板"
+    "file": "File:朝食 2014 (15003666635).jpg",
+    "reason": "料理・食べ物（breakfast）"
   },
   {
     "spotId": "sp_e1da1c924762",
     "file": "File:Tsutsujigaoka Park Gate, Tatebayashi.JPG",
     "reason": "人の目: 入口と道路"
+  },
+  {
+    "spotId": "sp_e231ccdb335a",
+    "file": "File:Nasudake2010.04.25.JPG",
+    "reason": "画像で確認: 朝日岳で茶臼岳ではない"
   },
   {
     "spotId": "sp_e26b49908456",
@@ -5706,18 +5891,28 @@
   },
   {
     "spotId": "sp_e514e0f7ce33",
+    "file": "File:Ninigi-no-mikoto statues at Kunimigaoka.jpg",
+    "reason": "人の目: 像"
+  },
+  {
+    "spotId": "sp_e514e0f7ce33",
     "file": "File:Signboards in Kunimigaoka.jpg",
     "reason": "人の目: 看板"
   },
   {
-    "spotId": "sp_e514e0f7ce33",
-    "file": "File:Ninigi-no-mikoto statues at Kunimigaoka.jpg",
-    "reason": "人の目: 像"
+    "spotId": "sp_e5f96434cc0d",
+    "file": "File:Endo-ji Ginza-gai 20141103.JPG",
+    "reason": "画像で確認: 円頓寺商店街（四間道ではない）"
   },
   {
     "spotId": "sp_e5f96434cc0d",
     "file": "File:Endoji Shopping Street 20181219-20.jpg",
     "reason": "夜の暗い写真（22 at night）"
+  },
+  {
+    "spotId": "sp_e5f96434cc0d",
+    "file": "File:円頓寺商店街IMG 20211225.jpg",
+    "reason": "画像で確認: 円頓寺商店街（四間道ではない）"
   },
   {
     "spotId": "sp_e6113d2d3477",
@@ -5781,16 +5976,6 @@
   },
   {
     "spotId": "sp_e80154c21d61",
-    "file": "File:JP 沖繩 Okinawa 恩納村 Onna 琉球村 Ryukyu Mura name sign January 2026 N13P 01.jpg",
-    "reason": "目で見て（visual-review）: 琉球村の看板（別の場所）"
-  },
-  {
-    "spotId": "sp_e80154c21d61",
-    "file": "File:真栄田岬 - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 横に極端に長いパノラマ"
-  },
-  {
-    "spotId": "sp_e80154c21d61",
     "file": "File:Blue Cave SHIBUYA (52651907257).jpg",
     "reason": "目で見て（visual-review）: 渋谷のイルミネーション「青の洞窟」（別の場所）"
   },
@@ -5830,6 +6015,16 @@
     "reason": "目で見て（visual-review）: 渋谷のイルミネーション「青の洞窟」（別の場所）"
   },
   {
+    "spotId": "sp_e80154c21d61",
+    "file": "File:JP 沖繩 Okinawa 恩納村 Onna 琉球村 Ryukyu Mura name sign January 2026 N13P 01.jpg",
+    "reason": "目で見て（visual-review）: 琉球村の看板（別の場所）"
+  },
+  {
+    "spotId": "sp_e80154c21d61",
+    "file": "File:真栄田岬 - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 横に極端に長いパノラマ"
+  },
+  {
     "spotId": "sp_e860980e9c6a",
     "file": "File:Meganebashi Bridge at night 2.JPG",
     "reason": "夜の暗い写真（20 at night）"
@@ -5846,8 +6041,8 @@
   },
   {
     "spotId": "sp_ea81906f7048",
-    "file": "File:金兵衛 茶屋 (52539169847).jpg",
-    "reason": "料理・食べ物（Dango）"
+    "file": "File:2 Chome Hiyorigaoka, Ishinomaki-shi, Miyagi-ken 986-0833, Japan - panoramio (3).jpg",
+    "reason": "人の目: 住所の題で何が写っているか分からない"
   },
   {
     "spotId": "sp_ea81906f7048",
@@ -5856,8 +6051,23 @@
   },
   {
     "spotId": "sp_ea81906f7048",
-    "file": "File:2 Chome Hiyorigaoka, Ishinomaki-shi, Miyagi-ken 986-0833, Japan - panoramio (3).jpg",
-    "reason": "人の目: 住所の題で何が写っているか分からない"
+    "file": "File:金兵衛 茶屋 (52539169847).jpg",
+    "reason": "料理・食べ物（Dango）"
+  },
+  {
+    "spotId": "sp_ecc4d81561c8",
+    "file": "File:Admiralty Chart No 3154 Ominase to Gogo Shima, Published 1905.jpg",
+    "reason": "人の目: 海図"
+  },
+  {
+    "spotId": "sp_ecc4d81561c8",
+    "file": "File:Japan Ymagichi YashiroDam Bird.JPG",
+    "reason": "人の目: ダムの鳥"
+  },
+  {
+    "spotId": "sp_ecc4d81561c8",
+    "file": "File:R188-099.jpg",
+    "reason": "人の目: 道路"
   },
   {
     "spotId": "sp_ecc4d81561c8",
@@ -5873,21 +6083,6 @@
     "spotId": "sp_ecc4d81561c8",
     "file": "File:周防大島西方 - panoramio (1).jpg",
     "reason": "人の目: 何が写っているか分からない"
-  },
-  {
-    "spotId": "sp_ecc4d81561c8",
-    "file": "File:Japan Ymagichi YashiroDam Bird.JPG",
-    "reason": "人の目: ダムの鳥"
-  },
-  {
-    "spotId": "sp_ecc4d81561c8",
-    "file": "File:Admiralty Chart No 3154 Ominase to Gogo Shima, Published 1905.jpg",
-    "reason": "人の目: 海図"
-  },
-  {
-    "spotId": "sp_ecc4d81561c8",
-    "file": "File:R188-099.jpg",
-    "reason": "人の目: 道路"
   },
   {
     "spotId": "sp_ed2ba60dc59c",
@@ -5920,9 +6115,19 @@
     "reason": "駅・電車・車両・バス（駅）"
   },
   {
+    "spotId": "sp_eda62399fcf2",
+    "file": "File:Sankyo-Inari-jinja.jpg",
+    "reason": "画像で確認: 境内の稲荷神社で倉庫が写っていない"
+  },
+  {
     "spotId": "sp_f0d2955d7c25",
     "file": "File:千波湖の桜 08.jpg",
     "reason": "夜の暗い写真（21 Night）"
+  },
+  {
+    "spotId": "sp_f2019d6e84ca",
+    "file": "File:Korankei-1.jpg",
+    "reason": "人の目: 商店"
   },
   {
     "spotId": "sp_f2019d6e84ca",
@@ -5938,11 +6143,6 @@
     "spotId": "sp_f2019d6e84ca",
     "file": "File:香嵐渓ライトアップ (愛知県豊田市足助町) - panoramio - gundam2345 (3).jpg",
     "reason": "夜の暗い写真（None Night）"
-  },
-  {
-    "spotId": "sp_f2019d6e84ca",
-    "file": "File:Korankei-1.jpg",
-    "reason": "人の目: 商店"
   },
   {
     "spotId": "sp_f392d54ac2e3",
@@ -5976,8 +6176,8 @@
   },
   {
     "spotId": "sp_f423040880ce",
-    "file": "File:Imaichiweg in Nikko met aan weerszijden bomen Imaichi Road at Nikko (titel op object), RP-F-F01102-BL.jpg",
-    "reason": "人の目: 古写真で迷う"
+    "file": "File:Imaichi Road by Stillfreid c1877.jpg",
+    "reason": "人の目: 古写真"
   },
   {
     "spotId": "sp_f423040880ce",
@@ -5986,13 +6186,18 @@
   },
   {
     "spotId": "sp_f423040880ce",
+    "file": "File:Imaichiweg in Nikko met aan weerszijden bomen Imaichi Road at Nikko (titel op object), RP-F-F01102-BL.jpg",
+    "reason": "人の目: 古写真で迷う"
+  },
+  {
+    "spotId": "sp_f423040880ce",
     "file": "File:Nikko forest walk.jpg",
     "reason": "人の目: 別の参道"
   },
   {
-    "spotId": "sp_f423040880ce",
-    "file": "File:Imaichi Road by Stillfreid c1877.jpg",
-    "reason": "人の目: 古写真"
+    "spotId": "sp_f4737e76d57f",
+    "file": "File:Dai 10 Chiwari Ōbuke, Hachimantai-shi, Iwate-ken 028-7111, Japan - panoramio.jpg",
+    "reason": "目で見て（visual-review）: 碑"
   },
   {
     "spotId": "sp_f4737e76d57f",
@@ -6003,11 +6208,6 @@
     "spotId": "sp_f4737e76d57f",
     "file": "File:Prefectural border signs Akita and Iwate at Mikaeri pass 220917.jpg",
     "reason": "目で見て（visual-review）: 標識・案内板"
-  },
-  {
-    "spotId": "sp_f4737e76d57f",
-    "file": "File:Dai 10 Chiwari Ōbuke, Hachimantai-shi, Iwate-ken 028-7111, Japan - panoramio.jpg",
-    "reason": "目で見て（visual-review）: 碑"
   },
   {
     "spotId": "sp_f574e85c4ffb",
@@ -6025,14 +6225,14 @@
     "reason": "人の目: 太陽の塔が写っていない"
   },
   {
+    "spotId": "sp_f65228ba0f65",
+    "file": "File:Akiu Falls Temple 2008A.jpg",
+    "reason": "画像で確認: 滝ではなく近くの寺"
+  },
+  {
     "spotId": "sp_f6b2bc7b5c47",
     "file": "File:Osaka Central Public Hall at night 20250830a.jpg",
     "reason": "夜の暗い写真（22 at night）"
-  },
-  {
-    "spotId": "sp_f74ea10eb1f8",
-    "file": "File:英彦山から福智山を眺める２.jpg",
-    "reason": "人の目: 福智山の遠景"
   },
   {
     "spotId": "sp_f74ea10eb1f8",
@@ -6050,6 +6250,11 @@
     "reason": "人の目: 草の接写"
   },
   {
+    "spotId": "sp_f74ea10eb1f8",
+    "file": "File:英彦山から福智山を眺める２.jpg",
+    "reason": "人の目: 福智山の遠景"
+  },
+  {
     "spotId": "sp_f8d86000866c",
     "file": "File:山梨県 西沢渓谷 (38437121531).jpg",
     "reason": "目で見て（visual-review）: 料理（弁当）"
@@ -6065,6 +6270,26 @@
     "reason": "夜の暗い写真（None 夜景）"
   },
   {
+    "spotId": "sp_fa03bcbb81ed",
+    "file": "File:Benzaiten Chikubushima.jpg",
+    "reason": "画像で確認: 像の接写"
+  },
+  {
+    "spotId": "sp_fa03bcbb81ed",
+    "file": "File:Chikubushima Hougon-ji - Kannon (275308027).jpg",
+    "reason": "画像で確認: 像が主役"
+  },
+  {
+    "spotId": "sp_fa03bcbb81ed",
+    "file": "File:Chikubushima Hougon-ji - Kannon (275308251).jpg",
+    "reason": "画像で確認: 像の接写"
+  },
+  {
+    "spotId": "sp_fa03bcbb81ed",
+    "file": "File:Small shrine for the White Snake God-Chikubushima-白巳大神-2.jpg",
+    "reason": "画像で確認: 祠の正面だけ"
+  },
+  {
     "spotId": "sp_faa779748eed",
     "file": "File:Hirasawa Kanga Iseki4.jpg",
     "reason": "目で見て（visual-review）: 案内板"
@@ -6078,6 +6303,11 @@
     "spotId": "sp_fceab1ec5544",
     "file": "File:Mount Omuro information board.jpg",
     "reason": "ホテル・店・看板・案内板・地図（information board）"
+  },
+  {
+    "spotId": "sp_fd1cc3317cfa",
+    "file": "File:高野山真言宗「慈眼院」 - panoramio.jpg",
+    "reason": "画像で確認: 慈眼院の建物で大観音が写っていない"
   },
   {
     "spotId": "sp_fd51be02ad97",
@@ -6106,8 +6336,23 @@
   },
   {
     "spotId": "sp_fdbdf87dc6ca",
+    "file": "File:2 Atsuta Nishimachi, Atsuta-ku, Nagoya-shi, Aichi-ken 456-0036, Japan - panoramio (1).jpg",
+    "reason": "人の目: 住所の題"
+  },
+  {
+    "spotId": "sp_fdbdf87dc6ca",
+    "file": "File:2 Atsuta Nishimachi, Atsuta-ku, Nagoya-shi, Aichi-ken 456-0036, Japan - panoramio.jpg",
+    "reason": "人の目: 住所の題"
+  },
+  {
+    "spotId": "sp_fdbdf87dc6ca",
     "file": "File:2m 0m (55084519074).jpg",
     "reason": "人の目: 標識"
+  },
+  {
+    "spotId": "sp_fdbdf87dc6ca",
+    "file": "File:Lightup at Shiratori garden in Nagoya - panoramio.jpg",
+    "reason": "人の目: 夜のライトアップ"
   },
   {
     "spotId": "sp_fdbdf87dc6ca",
@@ -6118,21 +6363,6 @@
     "spotId": "sp_fdbdf87dc6ca",
     "file": "File:白鳥庭園 冷やし甘酒.jpg",
     "reason": "人の目: 飲み物"
-  },
-  {
-    "spotId": "sp_fdbdf87dc6ca",
-    "file": "File:2 Atsuta Nishimachi, Atsuta-ku, Nagoya-shi, Aichi-ken 456-0036, Japan - panoramio (1).jpg",
-    "reason": "人の目: 住所の題"
-  },
-  {
-    "spotId": "sp_fdbdf87dc6ca",
-    "file": "File:Lightup at Shiratori garden in Nagoya - panoramio.jpg",
-    "reason": "人の目: 夜のライトアップ"
-  },
-  {
-    "spotId": "sp_fdbdf87dc6ca",
-    "file": "File:2 Atsuta Nishimachi, Atsuta-ku, Nagoya-shi, Aichi-ken 456-0036, Japan - panoramio.jpg",
-    "reason": "人の目: 住所の題"
   },
   {
     "spotId": "sp_fdc20c2e19bf",
@@ -6146,18 +6376,13 @@
   },
   {
     "spotId": "sp_fdc20c2e19bf",
-    "file": "File:JA Saga Ureshino Branch.jpg",
-    "reason": "目で見て（visual-review）: 銀行・農協の建物"
-  },
-  {
-    "spotId": "sp_fdc20c2e19bf",
     "file": "File:Intersection at entry of Ureshino Interchange.jpg",
     "reason": "目で見て（visual-review）: 道路・IC"
   },
   {
     "spotId": "sp_fdc20c2e19bf",
-    "file": "File:Ramp of Ureshino Interchange 2023-06-10.jpg",
-    "reason": "目で見て（visual-review）: 道路・IC"
+    "file": "File:JA Saga Ureshino Branch.jpg",
+    "reason": "目で見て（visual-review）: 銀行・農協の建物"
   },
   {
     "spotId": "sp_fdc20c2e19bf",
@@ -6186,6 +6411,11 @@
   },
   {
     "spotId": "sp_fdc20c2e19bf",
+    "file": "File:Ramp of Ureshino Interchange 2023-06-10.jpg",
+    "reason": "目で見て（visual-review）: 道路・IC"
+  },
+  {
+    "spotId": "sp_fdc20c2e19bf",
     "file": "File:Ureshino Onsen Hondori 20230610 01.jpg",
     "reason": "目で見て（visual-review）: 商店街の通りで温泉地の景色でない"
   },
@@ -6201,6 +6431,16 @@
   },
   {
     "spotId": "sp_fe4b07ab5ee4",
+    "file": "File:Flag of Hoshino Fukuoka.png",
+    "reason": "目で見て（visual-review）: 村の旗・村章"
+  },
+  {
+    "spotId": "sp_fe4b07ab5ee4",
+    "file": "File:Hoshino Fukuoka chapter.JPG",
+    "reason": "目で見て（visual-review）: 村の旗・村章"
+  },
+  {
+    "spotId": "sp_fe4b07ab5ee4",
     "file": "File:Hoshino Village Office.jpg",
     "reason": "人の目: 役場"
   },
@@ -6210,14 +6450,9 @@
     "reason": "人の目: 地図"
   },
   {
-    "spotId": "sp_fe4b07ab5ee4",
-    "file": "File:Flag of Hoshino Fukuoka.png",
-    "reason": "目で見て（visual-review）: 村の旗・村章"
-  },
-  {
-    "spotId": "sp_fe4b07ab5ee4",
-    "file": "File:Hoshino Fukuoka chapter.JPG",
-    "reason": "目で見て（visual-review）: 村の旗・村章"
+    "spotId": "sp_fee1697bffe4",
+    "file": "File:Kagoshima Bay and Mount Sakurajima from train near Senganen Garden.jpg",
+    "reason": "画像で確認: 仙巌園の外（車窓付近）からの桜島"
   },
   {
     "spotId": "sp_ff6f3e426135",
@@ -6241,11 +6476,6 @@
   },
   {
     "spotId": "sp_ff80082c4166",
-    "file": "File:境線弓ヶ浜駅.JPG",
-    "reason": "目で見て（visual-review）: 駅"
-  },
-  {
-    "spotId": "sp_ff80082c4166",
     "file": "File:JRW series40 Sakai (2).jpg",
     "reason": "目で見て（visual-review）: 車両"
   },
@@ -6258,5 +6488,10 @@
     "spotId": "sp_ff80082c4166",
     "file": "File:Yumigahama Minamiizu Shizuoka pref Japan01s.jpg",
     "reason": "目で見て（visual-review）: 南伊豆の弓ヶ浜（別の場所）"
+  },
+  {
+    "spotId": "sp_ff80082c4166",
+    "file": "File:境線弓ヶ浜駅.JPG",
+    "reason": "目で見て（visual-review）: 駅"
   }
 ]
