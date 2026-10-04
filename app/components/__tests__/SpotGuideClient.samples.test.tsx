@@ -103,3 +103,32 @@ describe("作例（Wikimedia Commons より）", () => {
         expect(screen.queryByTestId("spot-samples")).toBeNull();
     });
 });
+
+describe("作例の出どころ: Flickr（2026-10-04）", () => {
+    const FLICKR: SpotSample = {
+        src: "https://live.staticflickr.com/65535/53212345678_0a1b2c3d4e_b.jpg", width: 1024, height: 683,
+        author: "Taro Example", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/",
+        sourceUrl: "https://www.flickr.com/photos/example_user/53212345678/", title: "Kinkaku-ji in autumn",
+        source: { name: "Flickr", url: "https://www.flickr.com/photos/example_user/53212345678/" },
+    };
+
+    it("出典の最後は Flickr で、リンク先は写真のページ（Flickr の決まり）", () => {
+        view([SAMPLES[0], FLICKR]);
+        const caps = screen.getAllByTestId("spot-sample-credit");
+        expect(caps[1].textContent).toBe("Kinkaku-ji in autumn / 写真: Taro Example / CC BY 2.0 / Flickr");
+        expect(within(caps[1]).getByRole("link", { name: "Flickr" }).getAttribute("href")).toBe(FLICKR.sourceUrl);
+        expect(within(caps[1]).getByRole("link", { name: "CC BY 2.0" }).getAttribute("href")).toBe(FLICKR.licenseUrl);
+        // Commons の1枚は今まで通り
+        expect(within(caps[0]).getByRole("link", { name: "Wikimedia Commons" })).toBeTruthy();
+        // 見出しは出ている写真の出どころを全部名乗る（Commons が先）
+        expect(screen.getByRole("heading", { name: "作例（Wikimedia Commons・Flickr より）" })).toBeTruthy();
+    });
+
+    it("Flickr の画像はそのまま読む（Commons の縮小版の URL を作らない）", () => {
+        view([FLICKR]);
+        const img = screen.getByTestId("spot-samples").querySelector("img")!;
+        expect(img.getAttribute("src")).toBe(FLICKR.src);
+        expect(img.getAttribute("srcset")).toBeNull();
+        expect(screen.getByRole("heading", { name: "作例（Flickr より）" })).toBeTruthy();
+    });
+});

@@ -158,6 +158,29 @@ CLAUDE.md の「Wikipedia / Wikidata の API は叩きすぎない」に従う: 
 連絡先入りの User-Agent・429 は待って取り直す。**済んだ spotId は飛ばす**ので、止まっても
 同じコマンドで続きから走る。
 
+## Commons 以外の出どころ: Flickr（2026-10-04）
+
+確定ファイルの1枚に `source` を書くと、Commons 以外の写真として読む。**`source` の無い行は今まで通り
+Wikimedia Commons**（既存の行は変えない）。いま読めるのは Flickr だけ。
+
+```json
+{
+  "title": "写真の題（Flickr の題）",
+  "source": { "name": "Flickr", "url": "https://www.flickr.com/photos/<人>/<写真ID>/" },
+  "thumbUrl": "https://live.staticflickr.com/<server>/<写真ID>_<secret>_b.jpg",
+  "width": 1024, "height": 683,
+  "author": "作者名", "license": "CC BY 2.0", "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+  "pickedBy": "人の名前"
+}
+```
+
+- ライセンスは **CC BY・CC BY-SA・CC0 だけ**（Public Domain Mark・「著作権の制限なし」・NC・ND は表示しない）
+- 出典のリンクは **Flickr の写真のページ**（Flickr の決まり）。表示は「題 / 写真: 作者 / ライセンス / Flickr」、
+  JSON-LD は `creditText` の最後が Flickr・`acquireLicensePage` が写真のページ
+- 画像は `live.staticflickr.com` だけ（`SAMPLE_IMAGE_ORIGINS`）。写真のページと画像の写真ID が食い違えば出さない
+- 画面とアプリ向けの本文（`/app/data/spots/<slug>.json`）の1枚には、Commons 以外のときだけ
+  `source: { name, url }` が付く（`sourceUrl` と同じ URL）
+
 ## owner が確かめること（法的な最終確認）
 
 1. **作者表示の形**（「写真: 作者 / ライセンス / Wikimedia Commons」）で、CC BY / BY-SA の表示条件を満たすと判断してよいか
