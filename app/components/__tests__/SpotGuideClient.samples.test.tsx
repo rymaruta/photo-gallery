@@ -132,3 +132,54 @@ describe("作例の出どころ: Flickr（2026-10-04）", () => {
         expect(screen.getByRole("heading", { name: "作例（Flickr より）" })).toBeTruthy();
     });
 });
+
+describe("作例: サイトに置いた写真（環境省・県の観光協会など・2026-10-04）", () => {
+    const ENV: SpotSample = {
+        src: "https://journey-photo.com/samples/tadewara/1.jpg", width: 890, height: 500,
+        author: "環境省", license: "PDL1.0", licenseUrl: "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+        sourceUrl: "https://www.env.go.jp/nature/nationalparks/list/aso-kuju/spot/", title: "タデ原",
+        source: { name: "環境省", url: "https://www.env.go.jp/nature/nationalparks/list/aso-kuju/spot/" },
+        credit: "出典：「タデ原の写真」（環境省）", termsUrl: "https://www.env.go.jp/nature/nationalparks/terms/",
+    };
+    const PREF: SpotSample = {
+        src: "https://journey-photo.com/samples/keya-no-oto/1.jpg", width: 1280, height: 826,
+        author: "福岡県観光連盟", license: "クロスロードふくおか フォトダウンロード利用規約",
+        licenseUrl: "https://www.crossroadfukuoka.jp/business/photo/guide",
+        sourceUrl: "https://www.crossroadfukuoka.jp/business/photo/424", title: "芥屋大門",
+        source: { name: "福岡県観光連盟", url: "https://www.crossroadfukuoka.jp/business/photo/424" },
+        credit: "写真提供：福岡県観光連盟", modified: "journey.photo が縮小して掲載",
+        termsUrl: "https://www.crossroadfukuoka.jp/business/photo/guide",
+    };
+
+    it("🔴 規約が求める出典の文をそのまま出す（「写真: 作者」の代わり）・規約の名前は文面へ・提供元は写真のページへ", () => {
+        view([ENV, PREF]);
+        const caps = screen.getAllByTestId("spot-sample-credit");
+        expect(caps[0].textContent).toBe("タデ原 / 出典：「タデ原の写真」（環境省） / PDL1.0 / 環境省");
+        expect(within(caps[0]).getByRole("link", { name: "PDL1.0" }).getAttribute("href")).toBe(ENV.licenseUrl);
+        expect(within(caps[0]).getByRole("link", { name: "環境省" }).getAttribute("href")).toBe(ENV.sourceUrl);
+        // 縮小した1枚は加工の表記が最後に付く
+        expect(caps[1].textContent).toBe("芥屋大門 / 写真提供：福岡県観光連盟 / クロスロードふくおか フォトダウンロード利用規約 / 福岡県観光連盟 / journey.photo が縮小して掲載");
+    });
+
+    it("見出しは提供元を名乗り、前書きは「自由なライセンス」と言わない（規約に従って掲載と書く）", () => {
+        view([ENV, PREF]);
+        expect(screen.getByRole("heading", { name: "作例（環境省・福岡県観光連盟 より）" })).toBeTruthy();
+        const text = screen.getByTestId("spot-samples").textContent!;
+        expect(text).toContain("環境省・福岡県観光連盟の写真は、提供元の利用規約に従って掲載しています。");
+        expect(text).not.toContain("自由なライセンス");
+    });
+
+    it("Commons と混ざるときは、両方の説明を書く", () => {
+        view([SAMPLES[0], ENV]);
+        const text = screen.getByTestId("spot-samples").textContent!;
+        expect(text).toContain("Wikimedia Commons で自由なライセンスのもと公開されている写真です。");
+        expect(text).toContain("環境省の写真は、提供元の利用規約に従って掲載しています。");
+    });
+
+    it("画像はサイトの URL をそのまま読む（Commons の縮小版の URL を作らない）", () => {
+        view([ENV]);
+        const img = screen.getByTestId("spot-samples").querySelector("img")!;
+        expect(img.getAttribute("src")).toBe(ENV.src);
+        expect(img.getAttribute("srcset")).toBeNull();
+    });
+});

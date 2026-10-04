@@ -16,11 +16,18 @@
 // 画像は Commons のサムネイル（upload.wikimedia.org）をそのまま使う。こちらで複製しないので、
 // 元画像の位置情報（EXIF の GPS）をこちらが配ることはない。画面が出す位置は台帳の座標だけ。
 //
+// 2026-10-04: **サイトに置いた写真**（環境省の国立公園の写真＝公共データ利用規約 PDL1.0、県の観光協会・
+// 観光連盟の写真素材のうち申請不要のもの）も出せる。どちらも画像への直リンクを禁じているので、
+// 縮小して位置情報を消した JPEG を `public/samples/<slug>/<n>.jpg` に置き、行の `thumbUrl` にその
+// パスを書く。出典の書き方・ライセンスの名前・規約のページは提供元ごとに決まっているので、行には
+// 書かせず `HOSTED_SOURCES` から出す（行が書き方を間違える余地を作らない）。
+//
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
 import { coverLicenseOf, cleanAuthor } from "./spotImages";
 import type { Spot } from "./spots";
+import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
     cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
@@ -28,21 +35,119 @@ import {
 
 /**
  * 作例の出どころ（2026-10-04）。**無ければ Wikimedia Commons**（既存の行はこの鍵を持たない）。
- * - `name`: 出どころの名前。いまは "Flickr" だけ（"Wikimedia Commons" と書いてもよい＝無いのと同じ）
+ * - `name`: 出どころの名前。"Flickr"、サイトに置いた写真の提供元（`HOSTED_SOURCES` の鍵: "環境省"・
+ *   "福岡県観光連盟" など）。"Wikimedia Commons" と書いてもよい＝無いのと同じ
  * - `url`: その写真のページ（出典のリンク先）。Flickr は `https://www.flickr.com/photos/<人>/<写真ID>/`
  *
  * 🔴 Flickr は CC BY・CC BY-SA・CC0 だけ（Public Domain Mark・「著作権の制限なし」・NC・ND は出さない）。
  * Flickr の決まりどおり、出典のリンクは**写真のページ**へ張る
  */
 export type SpotSampleSource = { name: SpotSampleSourceName; url: string };
-export type SpotSampleSourceName = "Wikimedia Commons" | "Flickr";
+export type SpotSampleSourceName = "Wikimedia Commons" | "Flickr" | HostedSourceName;
+
+/**
+ * **サイトに置いた作例の出どころと、その規約が求める表示**（2026-10-04）。
+ *
+ * - `pageHost`: 出典のページ（`source.url`）のホスト。ほかのホストの URL は出さない
+ * - `author`: 著作権者として出す団体の名前
+ * - `license`: ライセンス欄に出す規約の名前
+ * - `licenseUrl`: 規約（ライセンス）の文面。無い提供元は規約が写真のページに載っている（＝出典のページ）
+ * - `termsUrl`: 構造化データの `acquireLicensePage`（使ってよい条件が書いてあるページ）。無ければ `licenseUrl`
+ * - `credit`: 規約が求める出典の文。`resized` は縮小して置いた1枚
+ *
+ * 🔴 **どれも画像への直リンクを禁じている**（環境省「他のホームページ中に組み込まれるようなリンク」・
+ * 福岡・熊本は名指しで禁止）。画像は必ずサイトに置いた複製を出す（`HOSTED_IMAGE_PATH`）
+ */
+type HostedSourceRule = {
+    pageHost: string;
+    author: string;
+    license: string;
+    licenseUrl?: string;
+    termsUrl?: string;
+    credit: (title: string, resized: boolean) => string;
+};
+
+export const HOSTED_SOURCES = {
+    /** 環境省「国立公園に、行ってみよう！」。PDL1.0。出典の記載例どおり。加工したら「を加工して作成」を足す */
+    "環境省": {
+        pageHost: "www.env.go.jp",
+        author: "環境省",
+        license: "PDL1.0",
+        licenseUrl: "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+        termsUrl: "https://www.env.go.jp/nature/nationalparks/terms/",
+        credit: (title, resized) => resized
+            ? `出典：「${title}の写真」（環境省）を加工して作成（journey.photo が縮小）`
+            : `出典：「${title}の写真」（環境省）`,
+    },
+    /** 山口県観光連盟。規約は写真のページに載っている。クレジットの決まりは無い（書く） */
+    "山口県観光連盟": {
+        pageHost: "yamaguchi-tourism.jp",
+        author: "山口県観光連盟",
+        license: "山口県観光連盟 画像ダウンロード利用規約",
+        credit: () => "写真提供：山口県観光連盟",
+    },
+    /** 福岡県観光連盟（クロスロードふくおか）。クレジット必須 */
+    "福岡県観光連盟": {
+        pageHost: "www.crossroadfukuoka.jp",
+        author: "福岡県観光連盟",
+        license: "クロスロードふくおか フォトダウンロード利用規約",
+        licenseUrl: "https://www.crossroadfukuoka.jp/business/photo/guide",
+        credit: () => "写真提供：福岡県観光連盟",
+    },
+    /** 熊本県観光連盟の「申請不要」の写真。著作権は熊本県。「©」は「写真提供：」に置き換えてよい */
+    "熊本県観光連盟": {
+        pageHost: "kumamoto.guide",
+        author: "熊本県",
+        license: "熊本県観光連盟 写真ダウンロード利用規約（申請不要）",
+        licenseUrl: "https://kumamoto.guide/photos/guide-free",
+        credit: () => "写真提供：熊本県観光連盟",
+    },
+    /** 香川県観光協会。規約は写真のページに載っている。クレジットは任意（決まった書き方で書く） */
+    "香川県観光協会": {
+        pageHost: "www.my-kagawa.jp",
+        author: "香川県観光協会",
+        license: "香川県観光協会 フォトダウンロード利用規約",
+        credit: () => "提供：（公社）香川県観光協会",
+    },
+    /** 宮崎県観光協会。ホームページでの利用を明記。クレジットは任意（「宮崎県観光協会」） */
+    "宮崎県観光協会": {
+        pageHost: "www.kanko-miyazaki.jp",
+        author: "宮崎県観光協会",
+        license: "宮崎県観光協会 フォトダウンロード利用規約",
+        licenseUrl: "https://www.kanko-miyazaki.jp/business/photo/guide",
+        credit: () => "写真提供：宮崎県観光協会",
+    },
+    /** やまなし観光推進機構。「画像の下などに著作権者の名前」が条件 */
+    "やまなし観光推進機構": {
+        pageHost: "www.yamanashi-kankou.jp",
+        author: "やまなし観光推進機構",
+        license: "やまなし観光推進機構 使用許諾",
+        licenseUrl: "https://www.yamanashi-kankou.jp/gallery/use.html",
+        credit: () => "写真提供：やまなし観光推進機構",
+    },
+} as const satisfies Record<string, HostedSourceRule>;
+
+export type HostedSourceName = keyof typeof HOSTED_SOURCES;
+
+/** サイトに置いた作例の画像のパス（`public/` の下） */
+export const HOSTED_IMAGE_PATH = /^\/samples\/[a-z0-9-]+\/\d+\.jpg$/;
+
+/** サイトに置く作例の幅の上限 */
+export const HOSTED_MAX_WIDTH = 1280;
+
+export function isHostedSourceName(name: unknown): name is HostedSourceName {
+    return typeof name === "string" && Object.prototype.hasOwnProperty.call(HOSTED_SOURCES, name);
+}
 
 /**
  * **作例の画像を読みにいく先（オリジン）の許可リスト。** `toSpotSample` を通った1枚の `src` は
  * 必ずこのどれか（`app/__tests__/imageOriginSites.test.ts` が確定ファイルの全部で見る）。
- * 出どころを足すときは、ここと `toSpotSample` の両方に足す
+ * 出どころを足すときは、ここと `toSpotSample` の両方に足す。
+ * 3つ目はこのサイト（サイトに置いた作例・2026-10-04）
  */
-export const SAMPLE_IMAGE_ORIGINS = ["https://upload.wikimedia.org", "https://live.staticflickr.com"] as const;
+export const SAMPLE_IMAGE_ORIGINS: readonly string[] = [
+    "https://upload.wikimedia.org", "https://live.staticflickr.com", new URL(siteConfig.url).origin,
+];
 
 /** 出どころが書かれていないときの名前（既存の行はみな Commons） */
 export const COMMONS_SOURCE_NAME = "Wikimedia Commons";
@@ -57,7 +162,10 @@ export type SpotSampleRecord = {
     pageUrl?: string;
     /** 出どころ。無ければ Wikimedia Commons */
     source?: SpotSampleSource;
-    /** 表示に使う画像（Commons は upload.wikimedia.org・横 1280px まで。Flickr は live.staticflickr.com） */
+    /**
+     * 表示に使う画像（Commons は upload.wikimedia.org・横 1280px まで。Flickr は live.staticflickr.com。
+     * サイトに置いた写真は `/samples/<slug>/<n>.jpg`）
+     */
     thumbUrl: string;
     width: number;
     height: number;
@@ -74,6 +182,8 @@ export type SpotSampleRecord = {
     dateTimeOriginal?: string;
     /** 人物の権利の印（Restrictions・カテゴリ）があった。表示しない */
     personality?: boolean;
+    /** サイトに置いた写真を縮小した（規約が加工の表記を求める） */
+    resized?: boolean;
     /** 選んだ主体。"auto" は収集スクリプトの規則、"visual-review" は目で見て選んだもの、それ以外は人の名前 */
     pickedBy: string;
 };
@@ -101,6 +211,15 @@ export type SpotSample = {
     source?: SpotSampleSource;
     /** 撮影日時（Commons の書き方のまま） */
     takenAt?: string;
+    /**
+     * **規約が求める出典の文**（サイトに置いた写真だけ・2026-10-04）。例「出典：「タデ原の写真」（環境省）」
+     * 「写真提供：福岡県観光連盟」。画面とアプリは「写真: 作者」の代わりにこれをそのまま出す
+     */
+    credit?: string;
+    /** 加工の表記（サイトに置いた写真を縮小したときだけ）。例「journey.photo が縮小して掲載」 */
+    modified?: string;
+    /** 使ってよい条件が書いてあるページ（サイトに置いた写真だけ。構造化データの acquireLicensePage） */
+    termsUrl?: string;
 };
 
 export const SPOT_SAMPLES: Readonly<SpotSamplesFile> = raw as SpotSamplesFile;
@@ -127,7 +246,7 @@ const flickrPhotoIdOfImage = (u: string) => /^https:\/\/live\.staticflickr\.com\
 export function sampleSourceName(r: Pick<SpotSampleRecord, "source">): SpotSampleSourceName | undefined {
     if (r.source == null) return COMMONS_SOURCE_NAME;
     const name = String(r.source.name ?? "").trim();
-    return name === "Flickr" || name === COMMONS_SOURCE_NAME ? name : undefined;
+    return name === "Flickr" || name === COMMONS_SOURCE_NAME || isHostedSourceName(name) ? name : undefined;
 }
 
 /** 表示の形の1枚の出どころの名前（`source` が無ければ Wikimedia Commons） */
@@ -171,6 +290,7 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     const sourceName = sampleSourceName(r);
     if (!sourceName) return undefined;
     if (sourceName === "Flickr") return toFlickrSample(r);
+    if (isHostedSourceName(sourceName)) return toHostedSample(r, sourceName);
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
     if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
@@ -252,6 +372,50 @@ function toFlickrSample(r: SpotSampleRecord): SpotSample | undefined {
     };
 }
 
+/** 縮小して置いた1枚の加工の表記（環境省以外。環境省は出典の文に「を…縮小して作成」と入る） */
+export const RESIZED_NOTE = "journey.photo が縮小して掲載";
+
+/**
+ * **サイトに置いた1枚**（環境省・県の観光協会など）を表示の形へ（2026-10-04）。出してはいけない1枚は undefined:
+ *   - 画像が `/samples/<slug>/<n>.jpg` でない（外部への直リンクは出さない）・幅が 1280px を超える・大きさが無い
+ *   - 出典のページがその提供元のホストの https でない
+ *   - 題が無い・人物の権利の印がある
+ * 作者・ライセンス・出典の文・規約のページは行ではなく `HOSTED_SOURCES` から出す
+ */
+function toHostedSample(r: SpotSampleRecord, name: HostedSourceName): SpotSample | undefined {
+    const rule: HostedSourceRule = HOSTED_SOURCES[name];
+    if (r.personality) return undefined;
+    const path = String(r.thumbUrl ?? "").trim();
+    if (!HOSTED_IMAGE_PATH.test(path)) return undefined;
+    if (!(r.width > 0) || !(r.height > 0) || r.width > HOSTED_MAX_WIDTH) return undefined;
+    const sourceUrl = String(r.source?.url ?? "").trim();
+    if (!isHttps(sourceUrl)) return undefined;
+    try {
+        if (new URL(sourceUrl).host !== rule.pageHost) return undefined;
+    } catch {
+        return undefined;
+    }
+    const title = String(r.title ?? "").replace(/\s+/g, " ").trim();
+    if (!title) return undefined;
+    const resized = r.resized === true;
+    const licenseUrl = rule.licenseUrl ?? sourceUrl;
+    return {
+        src: publicImageUrl(path),
+        width: r.width,
+        height: r.height,
+        title,
+        author: rule.author,
+        license: rule.license,
+        licenseUrl,
+        sourceUrl,
+        source: { name, url: sourceUrl },
+        credit: rule.credit(title, resized),
+        ...(resized && name !== "環境省" ? { modified: RESIZED_NOTE } : {}),
+        termsUrl: rule.termsUrl ?? licenseUrl,
+        ...(r.dateTimeOriginal?.trim() ? { takenAt: r.dateTimeOriginal.trim() } : {}),
+    };
+}
+
 /** 人（または目で見て選ぶ作業）が選んだ1枚か。"auto" は機械の規則 */
 export function isReviewedPick(r: Pick<SpotSampleRecord, "pickedBy">): boolean {
     return typeof r.pickedBy === "string" && r.pickedBy.trim() !== "" && r.pickedBy.trim() !== "auto";
@@ -294,8 +458,23 @@ export function spotSamples(
  *   型は `Person`。団体と分かる名前（Section・Museum・協会・大学…）だけ `Organization`（`isOrganizationName`）
  * - パブリックドメインは Public Domain Mark の URL を `license` に
  * - 表示の文字の最後と `acquireLicensePage` は出どころに合わせる（Commons のページ・Flickr の写真のページ）
+ * - サイトに置いた写真（環境省・県の観光協会など）は、表示の文字が規約の求める出典の文、`license` が規約の
+ *   文面（PDL1.0 など）、`acquireLicensePage` が規約のページ。作者は団体（`Organization`）
  */
 export function sampleImageObject(s: SpotSample) {
+    if (s.credit && s.source && isHostedSourceName(s.source.name)) {
+        return {
+            "@type": "ImageObject",
+            name: s.title,
+            contentUrl: s.src,
+            width: s.width,
+            height: s.height,
+            creator: { "@type": "Organization", name: s.author },
+            creditText: s.modified ? `${s.credit}（${s.modified}）` : s.credit,
+            ...(s.licenseUrl ? { license: s.licenseUrl } : {}),
+            acquireLicensePage: s.termsUrl ?? s.licenseUrl ?? s.sourceUrl,
+        };
+    }
     const license = s.licenseUrl ?? (sampleLicenseKind(s.license) === "public-domain" ? PUBLIC_DOMAIN_MARK_URL : undefined);
     return {
         "@type": "ImageObject",
