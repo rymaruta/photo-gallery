@@ -1,0 +1,4396 @@
+[
+ {
+  "slug": "abukumado",
+  "spotId": "sp_78960dafe8ff",
+  "name": "あぶくま洞",
+  "nameEn": "Abukumado Cave",
+  "aliases": [
+   "田村市 あぶくま洞",
+   "滝根町",
+   "月の世界",
+   "鍾乳洞"
+  ],
+  "address": "福島県田村市滝根町菅谷字東釜山1",
+  "region": {
+   "prefecture": "福島県",
+   "city": "田村市"
+  },
+  "coords": {
+   "lat": 37.35,
+   "lng": 140.72
+  },
+  "category": "鍾乳洞",
+  "wikidata": "Q4670566",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "adachi-museum-garden",
+  "spotId": "sp_0847e15bc396",
+  "name": "足立美術館 庭園",
+  "nameEn": "Adachi Museum Garden",
+  "aliases": [
+   "足立美術館",
+   "枯山水庭",
+   "白砂青松庭"
+  ],
+  "address": "島根県安来市古川町320",
+  "region": {
+   "prefecture": "島根県",
+   "city": "安来市"
+  },
+  "coords": {
+   "lat": 35.41,
+   "lng": 133.22
+  },
+  "category": "庭園",
+  "wikidata": "Q140407631",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "akame-48-taki",
+  "spotId": "sp_814e922dec18",
+  "name": "赤目四十八滝",
+  "nameEn": "Akame 48 Waterfalls",
+  "aliases": [
+   "赤目渓谷",
+   "不動滝",
+   "荷担滝",
+   "名張 赤目"
+  ],
+  "address": "三重県名張市赤目町長坂861-1",
+  "region": {
+   "prefecture": "三重県",
+   "city": "名張市"
+  },
+  "coords": {
+   "lat": 34.58,
+   "lng": 136.06
+  },
+  "category": "滝",
+  "wikidata": "Q11635843",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "akebonoyama",
+  "spotId": "sp_230166c0b2e9",
+  "name": "あけぼの山農業公園",
+  "nameEn": "Akebonoyama Agricultural Park",
+  "aliases": [
+   "柏 あけぼの山",
+   "風車 あけぼの山",
+   "あけぼの山 チューリップ"
+  ],
+  "address": "千葉県柏市布施2005-2",
+  "region": {
+   "prefecture": "千葉県",
+   "city": "柏市"
+  },
+  "coords": {
+   "lat": 35.9,
+   "lng": 139.95
+  },
+  "category": "公園",
+  "wikidata": "Q11257083",
+  "prev": {
+   "filesFound": 12,
+   "usable": 12,
+   "named": 0
+  }
+ },
+ {
+  "slug": "akita-nairiku",
+  "spotId": "sp_7b64251fdd9a",
+  "name": "秋田内陸縦貫鉄道",
+  "nameEn": "Akita Nairiku Line",
+  "aliases": [
+   "内陸線 大又川橋梁"
+  ],
+  "address": "秋田県北秋田市阿仁",
+  "region": {
+   "prefecture": "秋田県",
+   "city": "北秋田市"
+  },
+  "coords": {
+   "lat": 39.98,
+   "lng": 140.4
+  },
+  "category": "鉄道",
+  "wikidata": "Q11595259",
+  "prev": {
+   "filesFound": 14,
+   "usable": 14,
+   "named": 2
+  }
+ },
+ {
+  "slug": "amanohashidate",
+  "spotId": "sp_6cb2e9013f4a",
+  "name": "天橋立 傘松公園",
+  "nameEn": "Amanohashidate, Kasamatsu Park",
+  "aliases": [
+   "天橋立",
+   "傘松公園",
+   "昇龍観",
+   "股のぞき"
+  ],
+  "address": "京都府宮津市大垣",
+  "region": {
+   "prefecture": "京都府",
+   "city": "宮津市"
+  },
+  "coords": {
+   "lat": 35.58,
+   "lng": 135.19
+  },
+  "category": "展望台",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "amidagataki",
+  "spotId": "sp_39e0344f25d4",
+  "name": "阿弥陀ヶ滝",
+  "nameEn": "Amidagataki Falls",
+  "aliases": [
+   "郡上 阿弥陀ヶ滝",
+   "白鳥 滝",
+   "裏見の滝 郡上"
+  ],
+  "address": "岐阜県郡上市白鳥町前谷",
+  "region": {
+   "prefecture": "岐阜県",
+   "city": "郡上市"
+  },
+  "coords": {
+   "lat": 35.93,
+   "lng": 136.83
+  },
+  "category": "滝",
+  "wikidata": "Q11657413",
+  "prev": {
+   "filesFound": 11,
+   "usable": 11,
+   "named": 0
+  }
+ },
+ {
+  "slug": "anabuki",
+  "spotId": "sp_a320cc2ca82e",
+  "name": "穴吹川",
+  "nameEn": "Anabuki River",
+  "aliases": [
+   "美馬 穴吹川"
+  ],
+  "address": "徳島県美馬市穴吹町",
+  "region": {
+   "prefecture": "徳島県",
+   "city": "美馬市"
+  },
+  "coords": {
+   "lat": 34.02,
+   "lng": 134.15
+  },
+  "category": "渓流",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "anmon-no-taki",
+  "spotId": "sp_1ac9aa7a5a3b",
+  "name": "暗門の滝",
+  "nameEn": "Anmon Falls",
+  "aliases": [
+   "暗門渓谷"
+  ],
+  "address": "青森県中津軽郡西目屋村川原平",
+  "region": {
+   "prefecture": "青森県",
+   "city": "西目屋村"
+  },
+  "coords": {
+   "lat": 40.55,
+   "lng": 140.19
+  },
+  "category": "滝",
+  "wikidata": "Q11514918",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "asamayama",
+  "spotId": "sp_3ef2870d3466",
+  "name": "朝熊山展望台",
+  "nameEn": "Mount Asama Observatory",
+  "aliases": [
+   "朝熊岳",
+   "伊勢志摩スカイライン",
+   "金剛證寺",
+   "天空のポスト"
+  ],
+  "address": "三重県伊勢市朝熊町",
+  "region": {
+   "prefecture": "三重県",
+   "city": "伊勢市"
+  },
+  "coords": {
+   "lat": 34.46,
+   "lng": 136.78
+  },
+  "category": "展望台",
+  "wikidata": "Q29168305",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ashizu",
+  "spotId": "sp_00873bd5b8c7",
+  "name": "芦津渓谷",
+  "nameEn": "Ashizu Valley",
+  "aliases": [
+   "芦津の杉林",
+   "三滝渓"
+  ],
+  "address": "鳥取県八頭郡智頭町芦津",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "智頭町"
+  },
+  "coords": {
+   "lat": 35.24,
+   "lng": 134.29
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "aya-shoyo",
+  "spotId": "sp_943d26eb3997",
+  "name": "綾の照葉樹林",
+  "nameEn": "Aya Evergreen Broadleaf Forest",
+  "aliases": [
+   "綾川 照葉樹林",
+   "綾の森"
+  ],
+  "address": "宮崎県東諸県郡綾町南俣",
+  "region": {
+   "prefecture": "宮崎県",
+   "city": "綾町"
+  },
+  "coords": {
+   "lat": 32.06,
+   "lng": 131.19
+  },
+  "category": "樹木",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "aya-teruha-ohtsuribashi",
+  "spotId": "sp_0adc844559f8",
+  "name": "綾の照葉大吊橋",
+  "nameEn": "Aya Teruha Suspension Bridge",
+  "aliases": [
+   "綾 大吊橋",
+   "照葉樹林",
+   "綾ユネスコエコパーク"
+  ],
+  "address": "宮崎県東諸県郡綾町南俣5691-1",
+  "region": {
+   "prefecture": "宮崎県",
+   "city": "東諸県郡綾町"
+  },
+  "coords": {
+   "lat": 32,
+   "lng": 131.19
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "chibusan",
+  "spotId": "sp_2a45a970e8a1",
+  "name": "チブサン古墳",
+  "nameEn": "Chibusan Kofun",
+  "aliases": [
+   "山鹿 装飾古墳",
+   "熊本県立装飾古墳館"
+  ],
+  "address": "熊本県山鹿市城2163",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "山鹿市"
+  },
+  "coords": {
+   "lat": 33,
+   "lng": 130.7
+  },
+  "category": "遺跡",
+  "wikidata": "Q4557656",
+  "prev": {
+   "filesFound": 3,
+   "usable": 3,
+   "named": 0
+  }
+ },
+ {
+  "slug": "chichibugahama",
+  "spotId": "sp_c706e1b34a92",
+  "name": "父母ヶ浜",
+  "nameEn": "Chichibugahama Beach",
+  "aliases": [
+   "三豊 父母ヶ浜",
+   "日本のウユニ塩湖"
+  ],
+  "address": "香川県三豊市仁尾町仁尾乙",
+  "region": {
+   "prefecture": "香川県",
+   "city": "三豊市"
+  },
+  "coords": {
+   "lat": 34.19,
+   "lng": 133.65
+  },
+  "category": "海岸",
+  "wikidata": "Q60997790",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "daigenta-ko",
+  "spotId": "sp_4348def2e18d",
+  "name": "大源太湖",
+  "nameEn": "Lake Daigenta",
+  "aliases": [
+   "大源太キャニオン",
+   "湯沢 大源太",
+   "上越のマッターホルン"
+  ],
+  "address": "新潟県南魚沼郡湯沢町土樽",
+  "region": {
+   "prefecture": "新潟県",
+   "city": "南魚沼郡湯沢町"
+  },
+  "coords": {
+   "lat": 36.91,
+   "lng": 138.86
+  },
+  "category": "湖沼",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "daimonzaka",
+  "spotId": "sp_376894cf9144",
+  "name": "大門坂",
+  "nameEn": "Daimonzaka Slope",
+  "aliases": [
+   "熊野古道 大門坂",
+   "夫婦杉"
+  ],
+  "address": "和歌山県東牟婁郡那智勝浦町那智山",
+  "region": {
+   "prefecture": "和歌山県",
+   "city": "那智勝浦町"
+  },
+  "coords": {
+   "lat": 33.66,
+   "lng": 135.9
+  },
+  "category": "町並み",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "daisekirinzan",
+  "spotId": "sp_2b2f0c8ad8cb",
+  "name": "ASMUI Spiritual Hikes（旧・大石林山）",
+  "nameEn": "ASMUI Spiritual Hikes",
+  "aliases": [
+   "大石林山",
+   "安須杜",
+   "やんばる 奇岩",
+   "国頭 大石林山"
+  ],
+  "address": "沖縄県国頭郡国頭村宜名真1241",
+  "region": {
+   "prefecture": "沖縄県",
+   "city": "国頭郡国頭村"
+  },
+  "coords": {
+   "lat": 26.86,
+   "lng": 128.27
+  },
+  "category": "山岳",
+  "wikidata": "Q55434454",
+  "prev": {
+   "filesFound": 22,
+   "usable": 22,
+   "named": 0
+  }
+ },
+ {
+  "slug": "dake-onsen",
+  "spotId": "sp_1d4ade3a70f8",
+  "name": "岳温泉",
+  "nameEn": "Dake Onsen",
+  "aliases": [
+   "岳温泉 湯樋"
+  ],
+  "address": "福島県二本松市岳温泉",
+  "region": {
+   "prefecture": "福島県",
+   "city": "二本松市"
+  },
+  "coords": {
+   "lat": 37.6,
+   "lng": 140.35
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "dandan",
+  "spotId": "sp_9aabd3d99834",
+  "name": "壇鏡の滝",
+  "nameEn": "Dangyo Falls",
+  "aliases": [
+   "壇鏡神社",
+   "隠岐 裏見の滝"
+  ],
+  "address": "島根県隠岐郡隠岐の島町那久",
+  "region": {
+   "prefecture": "島根県",
+   "city": "隠岐の島町"
+  },
+  "coords": {
+   "lat": 36.24,
+   "lng": 133.24
+  },
+  "category": "滝",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "dorokyo",
+  "spotId": "sp_0fef9c5ebd1b",
+  "name": "瀞峡",
+  "nameEn": "Dorokyo Gorge",
+  "aliases": [
+   "瀞八丁",
+   "北山川",
+   "ウォータージェット船",
+   "十津川"
+  ],
+  "address": "和歌山県新宮市熊野川町",
+  "region": {
+   "prefecture": "和歌山県",
+   "city": "新宮市"
+  },
+  "coords": {
+   "lat": 33.82,
+   "lng": 135.87
+  },
+  "category": "渓谷",
+  "wikidata": "Q11401454",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "echizen-cape",
+  "spotId": "sp_6cfe84e90826",
+  "name": "越前岬",
+  "nameEn": "Cape Echizen",
+  "aliases": [
+   "越前岬灯台",
+   "越前水仙の里"
+  ],
+  "address": "福井県丹生郡越前町血ヶ平",
+  "region": {
+   "prefecture": "福井県",
+   "city": "越前町"
+  },
+  "coords": {
+   "lat": 35.99,
+   "lng": 135.95
+  },
+  "category": "岬",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "echizen-daibutsu",
+  "spotId": "sp_8d0704012a5c",
+  "name": "越前大仏",
+  "nameEn": "Echizen Great Buddha",
+  "aliases": [
+   "清大寺"
+  ],
+  "address": "福井県勝山市片瀬50-1-1",
+  "region": {
+   "prefecture": "福井県",
+   "city": "勝山市"
+  },
+  "coords": {
+   "lat": 36.06,
+   "lng": 136.51
+  },
+  "category": "寺社",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "eigenji",
+  "spotId": "sp_e6c517925707",
+  "name": "永源寺",
+  "nameEn": "Eigenji Temple",
+  "aliases": [
+   "東近江 永源寺",
+   "永源寺 紅葉",
+   "羅漢坂"
+  ],
+  "address": "滋賀県東近江市永源寺高野町41",
+  "region": {
+   "prefecture": "滋賀県",
+   "city": "東近江市"
+  },
+  "coords": {
+   "lat": 35.09,
+   "lng": 136.31
+  },
+  "category": "寺社",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "enakyo",
+  "spotId": "sp_d75a48106289",
+  "name": "恵那峡",
+  "nameEn": "Enakyo Gorge",
+  "aliases": [
+   "大井ダム",
+   "恵那峡遊覧船",
+   "獅子岩 恵那峡"
+  ],
+  "address": "岐阜県恵那市大井町",
+  "region": {
+   "prefecture": "岐阜県",
+   "city": "恵那市"
+  },
+  "coords": {
+   "lat": 35.47,
+   "lng": 137.4
+  },
+  "category": "渓谷",
+  "wikidata": "Q11432126",
+  "prev": {
+   "filesFound": 3,
+   "usable": 3,
+   "named": 0
+  }
+ },
+ {
+  "slug": "fudekageyama",
+  "spotId": "sp_e106ec71701d",
+  "name": "筆影山",
+  "nameEn": "Mount Fudekage",
+  "aliases": [
+   "三原 筆影山",
+   "竜王山 三原",
+   "瀬戸内 多島美"
+  ],
+  "address": "広島県三原市須波",
+  "region": {
+   "prefecture": "広島県",
+   "city": "三原市"
+  },
+  "coords": {
+   "lat": 34.36,
+   "lng": 133.07
+  },
+  "category": "展望台",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "fukiji",
+  "spotId": "sp_cdb809595769",
+  "name": "富貴寺 大堂",
+  "nameEn": "Fukiji Temple Odo Hall",
+  "aliases": [
+   "富貴寺",
+   "国宝 富貴寺大堂",
+   "国東半島",
+   "九州最古の木造建築"
+  ],
+  "address": "大分県豊後高田市田染蕗2395",
+  "region": {
+   "prefecture": "大分県",
+   "city": "豊後高田市"
+  },
+  "coords": {
+   "lat": 33.52,
+   "lng": 131.49
+  },
+  "category": "寺社",
+  "wikidata": "Q3090693",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "fukiware-falls",
+  "spotId": "sp_6d20be478c15",
+  "name": "吹割の滝",
+  "nameEn": "Fukiware Falls",
+  "aliases": [
+   "東洋のナイアガラ",
+   "片品渓谷"
+  ],
+  "address": "群馬県沼田市利根町追貝",
+  "region": {
+   "prefecture": "群馬県",
+   "city": "沼田市"
+  },
+  "coords": {
+   "lat": 36.73,
+   "lng": 139.22
+  },
+  "category": "滝",
+  "wikidata": "Q11416484",
+  "prev": {
+   "filesFound": 3,
+   "usable": 2,
+   "named": 0
+  }
+ },
+ {
+  "slug": "fukui-dinosaur-museum",
+  "spotId": "sp_4563e59c77d0",
+  "name": "福井県立恐竜博物館",
+  "nameEn": "Fukui Prefectural Dinosaur Museum",
+  "aliases": [
+   "恐竜博物館",
+   "勝山 恐竜",
+   "ダイノドーム"
+  ],
+  "address": "福井県勝山市村岡町寺尾51-11",
+  "region": {
+   "prefecture": "福井県",
+   "city": "勝山市"
+  },
+  "coords": {
+   "lat": 36.09,
+   "lng": 136.56
+  },
+  "category": "博物館",
+  "wikidata": "Q3247157",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "furumine",
+  "spotId": "sp_12074aa8a0b5",
+  "name": "古峯神社と古峯園",
+  "nameEn": "Furumine Shrine and Kohoen",
+  "aliases": [
+   "古峯神社",
+   "天狗の社",
+   "古峯園",
+   "鹿沼 古峯"
+  ],
+  "address": "栃木県鹿沼市草久3027",
+  "region": {
+   "prefecture": "栃木県",
+   "city": "鹿沼市"
+  },
+  "coords": {
+   "lat": 36.62,
+   "lng": 139.51
+  },
+  "category": "寺社",
+  "wikidata": "Q106697652",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "gokanosho",
+  "spotId": "sp_fd51be02ad97",
+  "name": "五家荘",
+  "nameEn": "Gokanosho",
+  "aliases": [
+   "八代 五家荘",
+   "梅の木轟公園吊橋"
+  ],
+  "address": "熊本県八代市泉町葉木",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "八代市"
+  },
+  "coords": {
+   "lat": 32.49,
+   "lng": 130.91
+  },
+  "category": "町並み",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hachimantai-aspite",
+  "spotId": "sp_f4737e76d57f",
+  "name": "八幡平アスピーテライン",
+  "nameEn": "Hachimantai Aspite Line",
+  "aliases": [
+   "八幡平 雪の回廊"
+  ],
+  "address": "岩手県八幡平市緑ヶ丘",
+  "region": {
+   "prefecture": "岩手県",
+   "city": "八幡平市"
+  },
+  "coords": {
+   "lat": 39.92,
+   "lng": 141.11
+  },
+  "category": "鉄道",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hachimantai-goshogake",
+  "spotId": "sp_a3b3f21e64fc",
+  "name": "後生掛温泉",
+  "nameEn": "Goshogake Onsen",
+  "aliases": [
+   "後生掛自然研究路",
+   "泥火山"
+  ],
+  "address": "秋田県鹿角市八幡平熊沢国有林",
+  "region": {
+   "prefecture": "秋田県",
+   "city": "鹿角市"
+  },
+  "coords": {
+   "lat": 39.96,
+   "lng": 140.79
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hanazono-keikoku",
+  "spotId": "sp_c13d772c17f4",
+  "name": "花園渓谷",
+  "nameEn": "Hanazono Valley",
+  "aliases": [
+   "北茨城 花園渓谷",
+   "花園神社 杉並木",
+   "七ツ滝 花園"
+  ],
+  "address": "茨城県北茨城市華川町花園",
+  "region": {
+   "prefecture": "茨城県",
+   "city": "北茨城市"
+  },
+  "coords": {
+   "lat": 36.89,
+   "lng": 140.63
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "handa-unga",
+  "spotId": "sp_9e37603c3163",
+  "name": "半田運河と黒壁の蔵",
+  "nameEn": "Handa Canal and Black Warehouses",
+  "aliases": [
+   "半田運河",
+   "ミツカンミュージアム",
+   "半田 黒壁"
+  ],
+  "address": "愛知県半田市中村町",
+  "region": {
+   "prefecture": "愛知県",
+   "city": "半田市"
+  },
+  "coords": {
+   "lat": 34.88,
+   "lng": 136.94
+  },
+  "category": "町並み",
+  "wikidata": "Q17173651",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "harajo",
+  "spotId": "sp_f3d3dec29d9c",
+  "name": "原城跡",
+  "nameEn": "Hara Castle Ruins",
+  "aliases": [
+   "島原の乱 原城",
+   "南島原 原城"
+  ],
+  "address": "長崎県南島原市南有馬町乙",
+  "region": {
+   "prefecture": "長崎県",
+   "city": "南島原市"
+  },
+  "coords": {
+   "lat": 32.62,
+   "lng": 130.25
+  },
+  "category": "城跡",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "haruna-jinja",
+  "spotId": "sp_60c28dcd3413",
+  "name": "榛名神社",
+  "nameEn": "Haruna Shrine",
+  "aliases": [
+   "榛名神社 御姿岩",
+   "双龍門",
+   "榛名 参道"
+  ],
+  "address": "群馬県高崎市榛名山町849",
+  "region": {
+   "prefecture": "群馬県",
+   "city": "高崎市"
+  },
+  "coords": {
+   "lat": 36.48,
+   "lng": 138.87
+  },
+  "category": "寺社",
+  "wikidata": "Q3128007",
+  "prev": {
+   "filesFound": 2,
+   "usable": 2,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hashidate",
+  "spotId": "sp_479257588e2c",
+  "name": "加賀橋立の船主集落",
+  "nameEn": "Kaga Hashidate Shipowners' Village",
+  "aliases": [
+   "橋立 北前船",
+   "加賀 橋立",
+   "船主屋敷"
+  ],
+  "address": "石川県加賀市橋立町",
+  "region": {
+   "prefecture": "石川県",
+   "city": "加賀市"
+  },
+  "coords": {
+   "lat": 36.33,
+   "lng": 136.29
+  },
+  "category": "町並み",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hate-no-hama",
+  "spotId": "sp_c992c0bd0f00",
+  "name": "久米島 はての浜",
+  "nameEn": "Hate no Hama, Kumejima",
+  "aliases": [
+   "はての浜",
+   "久米島",
+   "メーヌ浜",
+   "ナカノ浜"
+  ],
+  "address": "沖縄県島尻郡久米島町 奥武島沖",
+  "region": {
+   "prefecture": "沖縄県",
+   "city": "島尻郡久米島町"
+  },
+  "coords": {
+   "lat": 26.34,
+   "lng": 126.85
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hattoji",
+  "spotId": "sp_dc44152e7635",
+  "name": "八塔寺ふるさと村",
+  "nameEn": "Hattoji Furusato Village",
+  "aliases": [
+   "八塔寺 茅葺き集落"
+  ],
+  "address": "岡山県備前市吉永町加賀美",
+  "region": {
+   "prefecture": "岡山県",
+   "city": "備前市"
+  },
+  "coords": {
+   "lat": 34.92,
+   "lng": 134.25
+  },
+  "category": "町並み",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hawai-onsen",
+  "spotId": "sp_2a6f9064cc57",
+  "name": "はわい温泉",
+  "nameEn": "Hawai Onsen",
+  "aliases": [
+   "湯梨浜 はわい温泉"
+  ],
+  "address": "鳥取県東伯郡湯梨浜町はわい温泉",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "湯梨浜町"
+  },
+  "coords": {
+   "lat": 35.49,
+   "lng": 133.89
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hikosan",
+  "spotId": "sp_f74ea10eb1f8",
+  "name": "英彦山",
+  "nameEn": "Mount Hiko",
+  "aliases": [
+   "英彦山神宮",
+   "英彦山 奉幣殿",
+   "銅の鳥居",
+   "英彦山花公園"
+  ],
+  "address": "福岡県田川郡添田町英彦山",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "田川郡添田町"
+  },
+  "coords": {
+   "lat": 33.48,
+   "lng": 130.94
+  },
+  "category": "山岳",
+  "wikidata": "Q3077886",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "himakajima",
+  "spotId": "sp_8449719d9319",
+  "name": "日間賀島",
+  "nameEn": "Himakajima Island",
+  "aliases": [
+   "日間賀島 タコ",
+   "東港 西港",
+   "三河湾 日間賀"
+  ],
+  "address": "愛知県知多郡南知多町日間賀島",
+  "region": {
+   "prefecture": "愛知県",
+   "city": "知多郡南知多町"
+  },
+  "coords": {
+   "lat": 34.7,
+   "lng": 137.02
+  },
+  "category": "島",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hinokinaigawa",
+  "spotId": "sp_97e8f67cc1b6",
+  "name": "桧木内川堤",
+  "nameEn": "Hinokinaigawa Riverbank",
+  "aliases": [
+   "角館 桜並木"
+  ],
+  "address": "秋田県仙北市角館町",
+  "region": {
+   "prefecture": "秋田県",
+   "city": "仙北市"
+  },
+  "coords": {
+   "lat": 39.6,
+   "lng": 140.56
+  },
+  "category": "樹木",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 98,
+   "usable": 98,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hirasawa",
+  "spotId": "sp_faa779748eed",
+  "name": "平沢官衙遺跡",
+  "nameEn": "Hirasawa Kanga Ruins",
+  "aliases": [
+   "つくば 平沢官衙",
+   "復元校倉",
+   "筑波郡衙跡"
+  ],
+  "address": "茨城県つくば市平沢353",
+  "region": {
+   "prefecture": "茨城県",
+   "city": "つくば市"
+  },
+  "coords": {
+   "lat": 36.16,
+   "lng": 140.1
+  },
+  "category": "史跡",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "honjima",
+  "spotId": "sp_9243d74e700d",
+  "name": "本島 笠島",
+  "nameEn": "Kasashima, Honjima",
+  "aliases": [
+   "塩飽本島",
+   "笠島まち並保存地区"
+  ],
+  "address": "香川県丸亀市本島町笠島",
+  "region": {
+   "prefecture": "香川県",
+   "city": "丸亀市"
+  },
+  "coords": {
+   "lat": 34.38,
+   "lng": 133.81
+  },
+  "category": "島",
+  "wikidata": "Q11520216",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hoshi-no-buranko",
+  "spotId": "sp_27324950a9d5",
+  "name": "星のブランコ",
+  "nameEn": "Hoshi no Buranko Suspension Bridge",
+  "aliases": [
+   "ほしだ園地",
+   "木床版吊り橋",
+   "交野 吊り橋"
+  ],
+  "address": "大阪府交野市星田5019-1",
+  "region": {
+   "prefecture": "大阪府",
+   "city": "交野市"
+  },
+  "coords": {
+   "lat": 34.77,
+   "lng": 135.69
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 6,
+   "usable": 6,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hoshinomura",
+  "spotId": "sp_fe4b07ab5ee4",
+  "name": "星野村の茶畑",
+  "nameEn": "Hoshinomura Tea Fields",
+  "aliases": [
+   "八女 星野村",
+   "星野村 棚田",
+   "茶の文化館"
+  ],
+  "address": "福岡県八女市星野村",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "八女市"
+  },
+  "coords": {
+   "lat": 33.28,
+   "lng": 130.79
+  },
+  "category": "農村",
+  "wikidata": "Q570776",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "hottarakashi-onsen",
+  "spotId": "sp_e1ad5b6552c4",
+  "name": "ほったらかし温泉",
+  "nameEn": "Hottarakashi Onsen",
+  "aliases": [
+   "山梨市 ほったらかし",
+   "甲府盆地の夜景",
+   "あっちの湯"
+  ],
+  "address": "山梨県山梨市矢坪1669-18",
+  "region": {
+   "prefecture": "山梨県",
+   "city": "山梨市"
+  },
+  "coords": {
+   "lat": 35.71,
+   "lng": 138.65
+  },
+  "category": "温泉",
+  "wikidata": "Q11277778",
+  "prev": {
+   "filesFound": 2,
+   "usable": 1,
+   "named": 1
+  }
+ },
+ {
+  "slug": "ikeda-ko",
+  "spotId": "sp_963bc956b189",
+  "name": "池田湖",
+  "nameEn": "Lake Ikeda",
+  "aliases": [
+   "イッシー 池田湖",
+   "指宿 菜の花"
+  ],
+  "address": "鹿児島県指宿市池田",
+  "region": {
+   "prefecture": "鹿児島県",
+   "city": "指宿市"
+  },
+  "coords": {
+   "lat": 31.24,
+   "lng": 130.57
+  },
+  "category": "湖沼",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "irohazaka",
+  "spotId": "sp_bab2070031f7",
+  "name": "いろは坂",
+  "nameEn": "Irohazaka Winding Road",
+  "aliases": [
+   "第一いろは坂",
+   "第二いろは坂",
+   "黒髪平",
+   "日光 つづら折り"
+  ],
+  "address": "栃木県日光市中宮祠",
+  "region": {
+   "prefecture": "栃木県",
+   "city": "日光市"
+  },
+  "coords": {
+   "lat": 36.74,
+   "lng": 139.51
+  },
+  "category": "道路",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 11,
+   "usable": 11,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ishibutai-kofun",
+  "spotId": "sp_52be53ace97f",
+  "name": "石舞台古墳",
+  "nameEn": "Ishibutai Tumulus",
+  "aliases": [
+   "明日香村 石舞台",
+   "蘇我馬子の墓",
+   "横穴式石室"
+  ],
+  "address": "奈良県高市郡明日香村島庄",
+  "region": {
+   "prefecture": "奈良県",
+   "city": "高市郡明日香村"
+  },
+  "coords": {
+   "lat": 34.47,
+   "lng": 135.82
+  },
+  "category": "遺跡",
+  "wikidata": "Q3816159",
+  "prev": {
+   "filesFound": 35,
+   "usable": 35,
+   "named": 0
+  }
+ },
+ {
+  "slug": "isshingyo",
+  "spotId": "sp_68b3a3e12fdd",
+  "name": "一心行の大桜",
+  "nameEn": "Isshingyo no Osakura",
+  "aliases": [
+   "南阿蘇 大桜",
+   "一心行公園"
+  ],
+  "address": "熊本県阿蘇郡南阿蘇村中松3226-1",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "南阿蘇村"
+  },
+  "coords": {
+   "lat": 32.81,
+   "lng": 131.02
+  },
+  "category": "樹木",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "iwawakisan",
+  "spotId": "sp_496cb2d5bb67",
+  "name": "岩湧山 山頂のススキ",
+  "nameEn": "Mount Iwawaki Grasslands",
+  "aliases": [
+   "岩湧山",
+   "きゅうさかの道",
+   "岩湧寺",
+   "河内長野 ススキ"
+  ],
+  "address": "大阪府河内長野市加賀田",
+  "region": {
+   "prefecture": "大阪府",
+   "city": "河内長野市"
+  },
+  "coords": {
+   "lat": 34.39,
+   "lng": 135.52
+  },
+  "category": "山岳",
+  "wikidata": "Q11475373",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "iyakei-shonben-kozo",
+  "spotId": "sp_00c2de5210c4",
+  "name": "祖谷渓 小便小僧",
+  "nameEn": "Iya Valley Peeing Boy Statue",
+  "aliases": [
+   "祖谷渓",
+   "ひの字渓谷",
+   "三好 祖谷渓"
+  ],
+  "address": "徳島県三好市池田町松尾",
+  "region": {
+   "prefecture": "徳島県",
+   "city": "三好市"
+  },
+  "coords": {
+   "lat": 33.93,
+   "lng": 133.86
+  },
+  "category": "渓谷",
+  "wikidata": "Q107723579",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "jionji",
+  "spotId": "sp_552b59ef3e7c",
+  "name": "慈恩寺",
+  "nameEn": "Jion-ji Temple",
+  "aliases": [
+   "本山慈恩寺"
+  ],
+  "address": "山形県寒河江市大字慈恩寺31",
+  "region": {
+   "prefecture": "山形県",
+   "city": "寒河江市"
+  },
+  "coords": {
+   "lat": 38.42,
+   "lng": 140.29
+  },
+  "category": "寺社",
+  "wikidata": "Q11494999",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kabukuri-numa",
+  "spotId": "sp_5ce54fcc5873",
+  "name": "蕪栗沼",
+  "nameEn": "Kabukuri-numa Marsh",
+  "aliases": [
+   "大崎 蕪栗沼",
+   "マガン",
+   "ねぐら立ち",
+   "ラムサール条約湿地"
+  ],
+  "address": "宮城県大崎市田尻蕪栗",
+  "region": {
+   "prefecture": "宮城県",
+   "city": "大崎市"
+  },
+  "coords": {
+   "lat": 38.65,
+   "lng": 141.09
+  },
+  "category": "湿原",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kaida-kogen",
+  "spotId": "sp_2c37e39597e3",
+  "name": "開田高原",
+  "nameEn": "Kaida Highland",
+  "aliases": [
+   "木曽馬の里",
+   "開田高原 御嶽山",
+   "九蔵峠"
+  ],
+  "address": "長野県木曽郡木曽町開田高原",
+  "region": {
+   "prefecture": "長野県",
+   "city": "木曽郡木曽町"
+  },
+  "coords": {
+   "lat": 35.92,
+   "lng": 137.6
+  },
+  "category": "高原",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kaiyodo",
+  "spotId": "sp_6b80de99729b",
+  "name": "海洋堂ホビー館四万十",
+  "nameEn": "Kaiyodo Hobby Museum Shimanto",
+  "aliases": [
+   "打井川 ホビー館"
+  ],
+  "address": "高知県高岡郡四万十町打井川1458-1",
+  "region": {
+   "prefecture": "高知県",
+   "city": "四万十町"
+  },
+  "coords": {
+   "lat": 33.15,
+   "lng": 133.05
+  },
+  "category": "博物館",
+  "wikidata": "Q118411189",
+  "prev": {
+   "filesFound": 3,
+   "usable": 3,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kamishikimi-kumanoza",
+  "spotId": "sp_16f0ccde3fd6",
+  "name": "上色見熊野座神社",
+  "nameEn": "Kamishikimi Kumanoza Shrine",
+  "aliases": [
+   "穿戸岩",
+   "高森 熊野座",
+   "異世界への入口"
+  ],
+  "address": "熊本県阿蘇郡高森町上色見2619",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "阿蘇郡高森町"
+  },
+  "coords": {
+   "lat": 32.83,
+   "lng": 131.14
+  },
+  "category": "寺社",
+  "wikidata": "Q99887523",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kasayama",
+  "spotId": "sp_0172f55bf61e",
+  "name": "笠山 椿群生林",
+  "nameEn": "Kasayama Camellia Grove",
+  "aliases": [
+   "萩 笠山",
+   "明神池"
+  ],
+  "address": "山口県萩市椿東越ヶ浜",
+  "region": {
+   "prefecture": "山口県",
+   "city": "萩市"
+  },
+  "coords": {
+   "lat": 34.44,
+   "lng": 131.43
+  },
+  "category": "樹木",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kashiragashima",
+  "spotId": "sp_a0e0ac7cafa3",
+  "name": "頭ヶ島天主堂",
+  "nameEn": "Kashiragashima Church",
+  "aliases": [
+   "石造教会 頭ヶ島",
+   "新上五島"
+  ],
+  "address": "長崎県南松浦郡新上五島町友住郷頭ヶ島638",
+  "region": {
+   "prefecture": "長崎県",
+   "city": "新上五島町"
+  },
+  "coords": {
+   "lat": 32.99,
+   "lng": 129.15
+  },
+  "category": "教会",
+  "wikidata": "Q11664924",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "keino-matsubara",
+  "spotId": "sp_4148fc7e22eb",
+  "name": "慶野松原",
+  "nameEn": "Keino Matsubara Pine Grove",
+  "aliases": [
+   "南あわじ 慶野松原",
+   "淡路 夕日",
+   "日本の夕陽百選"
+  ],
+  "address": "兵庫県南あわじ市松帆古津路",
+  "region": {
+   "prefecture": "兵庫県",
+   "city": "南あわじ市"
+  },
+  "coords": {
+   "lat": 34.32,
+   "lng": 134.72
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kesennuma-oshima",
+  "spotId": "sp_dfd72bdb13f0",
+  "name": "気仙沼大島",
+  "nameEn": "Kesennuma Oshima Island",
+  "aliases": [
+   "亀山 展望台",
+   "小田の浜"
+  ],
+  "address": "宮城県気仙沼市字亀山",
+  "region": {
+   "prefecture": "宮城県",
+   "city": "気仙沼市"
+  },
+  "coords": {
+   "lat": 38.87,
+   "lng": 141.63
+  },
+  "category": "島",
+  "wikidata": "Q3594049",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "keya-no-oto",
+  "spotId": "sp_77b3a90c1f68",
+  "name": "芥屋の大門",
+  "nameEn": "Keya no Oto Sea Cave",
+  "aliases": [
+   "芥屋大門",
+   "糸島 芥屋",
+   "玄武洞 芥屋"
+  ],
+  "address": "福岡県糸島市志摩芥屋",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "糸島市"
+  },
+  "coords": {
+   "lat": 33.59,
+   "lng": 130.15
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kikuchi-castle",
+  "spotId": "sp_2a2ed8eab3b4",
+  "name": "鞠智城",
+  "nameEn": "Kikuchi Castle Site",
+  "aliases": [
+   "八角形鼓楼",
+   "歴史公園鞠智城"
+  ],
+  "address": "熊本県山鹿市菊鹿町米原443-1",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "山鹿市"
+  },
+  "coords": {
+   "lat": 33.02,
+   "lng": 130.76
+  },
+  "category": "城",
+  "wikidata": "Q11663924",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kinojo",
+  "spotId": "sp_c05be6dba06a",
+  "name": "鬼ノ城",
+  "nameEn": "Kinojo Castle Site",
+  "aliases": [
+   "鬼城山",
+   "西門 復元"
+  ],
+  "address": "岡山県総社市奥坂",
+  "region": {
+   "prefecture": "岡山県",
+   "city": "総社市"
+  },
+  "coords": {
+   "lat": 34.71,
+   "lng": 133.75
+  },
+  "category": "城",
+  "wikidata": "Q1064626",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "koiwai-ipponzakura",
+  "spotId": "sp_08a98701552f",
+  "name": "小岩井農場 一本桜",
+  "nameEn": "Koiwai Farm Lone Cherry Tree",
+  "aliases": [
+   "小岩井の一本桜",
+   "岩手山と桜",
+   "雫石 一本桜"
+  ],
+  "address": "岩手県岩手郡雫石町丸谷地",
+  "region": {
+   "prefecture": "岩手県",
+   "city": "岩手郡雫石町"
+  },
+  "coords": {
+   "lat": 39.75,
+   "lng": 141
+  },
+  "category": "樹木",
+  "wikidata": "Q11460030",
+  "prev": {
+   "filesFound": 24,
+   "usable": 24,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kokonoe-yume-bridge",
+  "spotId": "sp_20e94ac7fb13",
+  "name": "九重\"夢\"大吊橋",
+  "nameEn": "Kokonoe Yume Suspension Bridge",
+  "aliases": [
+   "九重夢大吊橋",
+   "震動の滝"
+  ],
+  "address": "大分県玖珠郡九重町田野1208",
+  "region": {
+   "prefecture": "大分県",
+   "city": "玖珠郡九重町"
+  },
+  "coords": {
+   "lat": 33.14,
+   "lng": 131.24
+  },
+  "category": "橋",
+  "wikidata": "Q11660657",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kokyo-higashi-gyoen",
+  "spotId": "sp_873e09c16f7d",
+  "name": "皇居東御苑",
+  "nameEn": "East Gardens of the Imperial Palace",
+  "aliases": [
+   "江戸城天守台",
+   "大手門",
+   "二の丸庭園",
+   "本丸跡"
+  ],
+  "address": "東京都千代田区千代田1-1",
+  "region": {
+   "prefecture": "東京都",
+   "city": "千代田区"
+  },
+  "coords": {
+   "lat": 35.69,
+   "lng": 139.76
+  },
+  "category": "庭園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 100,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kongorinji",
+  "spotId": "sp_7c73ed5d7129",
+  "name": "湖東三山 金剛輪寺",
+  "nameEn": "Kongorinji, Koto Sanzan",
+  "aliases": [
+   "金剛輪寺",
+   "愛荘町 金剛輪寺",
+   "血染めのもみじ",
+   "千体地蔵"
+  ],
+  "address": "滋賀県愛知郡愛荘町松尾寺874",
+  "region": {
+   "prefecture": "滋賀県",
+   "city": "愛知郡愛荘町"
+  },
+  "coords": {
+   "lat": 35.18,
+   "lng": 136.25
+  },
+  "category": "寺社",
+  "wikidata": "Q11646547",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kozanji",
+  "spotId": "sp_a84c73f23abd",
+  "name": "功山寺",
+  "nameEn": "Kozan-ji Temple",
+  "aliases": [
+   "功山寺 仏殿",
+   "高杉晋作 挙兵"
+  ],
+  "address": "山口県下関市長府川端1-2-3",
+  "region": {
+   "prefecture": "山口県",
+   "city": "下関市"
+  },
+  "coords": {
+   "lat": 33.99,
+   "lng": 130.99
+  },
+  "category": "寺社",
+  "wikidata": "Q1088510",
+  "prev": {
+   "filesFound": 8,
+   "usable": 8,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kuji-amber",
+  "spotId": "sp_fba7fd518bae",
+  "name": "久慈琥珀博物館",
+  "nameEn": "Kuji Amber Museum",
+  "aliases": [
+   "琥珀坑道 久慈"
+  ],
+  "address": "岩手県久慈市小久慈町19-156-133",
+  "region": {
+   "prefecture": "岩手県",
+   "city": "久慈市"
+  },
+  "coords": {
+   "lat": 40.17,
+   "lng": 141.77
+  },
+  "category": "博物館",
+  "wikidata": "Q74825456",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kumagaya-sakura",
+  "spotId": "sp_6b657b61f7b9",
+  "name": "熊谷桜堤",
+  "nameEn": "Kumagaya Sakura Embankment",
+  "aliases": [
+   "熊谷 桜堤",
+   "荒川 桜堤",
+   "熊谷さくら祭"
+  ],
+  "address": "埼玉県熊谷市河原町地内",
+  "region": {
+   "prefecture": "埼玉県",
+   "city": "熊谷市"
+  },
+  "coords": {
+   "lat": 36.13,
+   "lng": 139.38
+  },
+  "category": "公園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kumano-magaibutsu",
+  "spotId": "sp_d107b4ef6a24",
+  "name": "熊野磨崖仏",
+  "nameEn": "Kumano Magaibutsu",
+  "aliases": [
+   "豊後高田 熊野磨崖仏",
+   "鬼が築いた石段",
+   "国東半島"
+  ],
+  "address": "大分県豊後高田市田染平野2546-3",
+  "region": {
+   "prefecture": "大分県",
+   "city": "豊後高田市"
+  },
+  "coords": {
+   "lat": 33.5,
+   "lng": 131.51
+  },
+  "category": "仏像",
+  "wikidata": "Q3200358",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kuroshima",
+  "spotId": "sp_518b642afc21",
+  "name": "黒島天主堂",
+  "nameEn": "Kuroshima Church",
+  "aliases": [
+   "黒島 潜伏キリシタン"
+  ],
+  "address": "長崎県佐世保市黒島町3333",
+  "region": {
+   "prefecture": "長崎県",
+   "city": "佐世保市"
+  },
+  "coords": {
+   "lat": 33.1,
+   "lng": 129.56
+  },
+  "category": "教会",
+  "wikidata": "Q11678150",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kurushima-kaikyo-ohashi",
+  "spotId": "sp_db4f3aba96a1",
+  "name": "来島海峡大橋",
+  "nameEn": "Kurushima Kaikyo Bridge",
+  "aliases": [
+   "しまなみ海道",
+   "今治 来島海峡",
+   "自転車道"
+  ],
+  "address": "愛媛県今治市砂場町",
+  "region": {
+   "prefecture": "愛媛県",
+   "city": "今治市"
+  },
+  "coords": {
+   "lat": 34.1,
+   "lng": 133.01
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kushimoto-kaichu",
+  "spotId": "sp_5f455a10ff05",
+  "name": "串本海中公園",
+  "nameEn": "Kushimoto Marine Park",
+  "aliases": [
+   "串本 海中展望塔"
+  ],
+  "address": "和歌山県東牟婁郡串本町有田1157",
+  "region": {
+   "prefecture": "和歌山県",
+   "city": "串本町"
+  },
+  "coords": {
+   "lat": 33.48,
+   "lng": 135.74
+  },
+  "category": "公園",
+  "wikidata": "Q11367893",
+  "prev": {
+   "filesFound": 43,
+   "usable": 24,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kyoto-station-building",
+  "spotId": "sp_ba216039ca87",
+  "name": "京都駅ビル 大階段",
+  "nameEn": "Kyoto Station Building Grand Stairway",
+  "aliases": [
+   "京都駅ビル",
+   "大階段",
+   "空中径路",
+   "室町小路広場"
+  ],
+  "address": "京都府京都市下京区東塩小路釜殿町",
+  "region": {
+   "prefecture": "京都府",
+   "city": "京都市下京区"
+  },
+  "coords": {
+   "lat": 34.99,
+   "lng": 135.76
+  },
+  "category": "建築",
+  "wikidata": "Q801046",
+  "prev": {
+   "filesFound": 200,
+   "usable": 200,
+   "named": 1
+  }
+ },
+ {
+  "slug": "kyudai-no-mori",
+  "spotId": "sp_aa6e77c7d05d",
+  "name": "篠栗九大の森",
+  "nameEn": "Sasaguri Kyudai Forest",
+  "aliases": [
+   "九大の森",
+   "蒲田池",
+   "落羽松 篠栗"
+  ],
+  "address": "福岡県糟屋郡篠栗町大字金出3325-1",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "糟屋郡篠栗町"
+  },
+  "coords": {
+   "lat": 33.62,
+   "lng": 130.55
+  },
+  "category": "森林",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 6,
+   "usable": 6,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kyusendo",
+  "spotId": "sp_7227f2cdc14e",
+  "name": "球泉洞",
+  "nameEn": "Kyusendo Cave",
+  "aliases": [
+   "球磨 鍾乳洞"
+  ],
+  "address": "熊本県球磨郡球磨村大字大瀬1121-1",
+  "region": {
+   "prefecture": "熊本県",
+   "city": "球磨村"
+  },
+  "coords": {
+   "lat": 32.29,
+   "lng": 130.66
+  },
+  "category": "鍾乳洞",
+  "wikidata": "Q11573505",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "lake-towada",
+  "spotId": "sp_913c60df4a78",
+  "name": "十和田湖（乙女の像）",
+  "nameEn": "Lake Towada",
+  "aliases": [
+   "乙女の像",
+   "発荷峠展望台"
+  ],
+  "address": "青森県十和田市奥瀬十和田湖畔休屋",
+  "region": {
+   "prefecture": "青森県",
+   "city": "十和田市"
+  },
+  "coords": {
+   "lat": 40.46,
+   "lng": 140.91
+  },
+  "category": "湖",
+  "wikidata": "Q1196132",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "maeda-misaki",
+  "spotId": "sp_e80154c21d61",
+  "name": "真栄田岬 青の洞窟",
+  "nameEn": "Cape Maeda Blue Cave",
+  "aliases": [
+   "青の洞窟",
+   "真栄田岬",
+   "恩納村 シュノーケル"
+  ],
+  "address": "沖縄県国頭郡恩納村真栄田469-1",
+  "region": {
+   "prefecture": "沖縄県",
+   "city": "国頭郡恩納村"
+  },
+  "coords": {
+   "lat": 26.44,
+   "lng": 127.77
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "makiba",
+  "spotId": "sp_b7b42be84f4e",
+  "name": "まきば公園",
+  "nameEn": "Makiba Park",
+  "aliases": [
+   "県立八ヶ岳牧場 まきば公園"
+  ],
+  "address": "山梨県北杜市大泉町西井出8240-1",
+  "region": {
+   "prefecture": "山梨県",
+   "city": "北杜市"
+  },
+  "coords": {
+   "lat": 35.92,
+   "lng": 138.41
+  },
+  "category": "公園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "masuda",
+  "spotId": "sp_78ab7f7ed1d8",
+  "name": "増山城",
+  "nameEn": "Masuyama Castle Site",
+  "aliases": [
+   "増山城跡"
+  ],
+  "address": "富山県砺波市増山",
+  "region": {
+   "prefecture": "富山県",
+   "city": "砺波市"
+  },
+  "coords": {
+   "lat": 36.65,
+   "lng": 137.04
+  },
+  "category": "城",
+  "wikidata": "Q11429184",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "matama-kaigan",
+  "spotId": "sp_b8b0879c65ac",
+  "name": "真玉海岸",
+  "nameEn": "Matama Beach",
+  "aliases": [
+   "豊後高田 真玉海岸",
+   "夕日と干潟",
+   "縞模様の砂浜"
+  ],
+  "address": "大分県豊後高田市臼野",
+  "region": {
+   "prefecture": "大分県",
+   "city": "豊後高田市"
+  },
+  "coords": {
+   "lat": 33.58,
+   "lng": 131.46
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "matsumoto-toge",
+  "spotId": "sp_940b7745a3a1",
+  "name": "熊野古道 松本峠",
+  "nameEn": "Matsumoto Pass, Kumano Kodo",
+  "aliases": [
+   "松本峠",
+   "鬼ヶ城 東口",
+   "熊野古道 伊勢路"
+  ],
+  "address": "三重県熊野市木本町",
+  "region": {
+   "prefecture": "三重県",
+   "city": "熊野市"
+  },
+  "coords": {
+   "lat": 33.9,
+   "lng": 136.1
+  },
+  "category": "古道",
+  "wikidata": "Q11531018",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "mine-omine",
+  "spotId": "sp_35d812366186",
+  "name": "大寧寺",
+  "nameEn": "Taine-ji Temple",
+  "aliases": [
+   "長門 大寧寺",
+   "盤石橋"
+  ],
+  "address": "山口県長門市深川湯本1074",
+  "region": {
+   "prefecture": "山口県",
+   "city": "長門市"
+  },
+  "coords": {
+   "lat": 34.36,
+   "lng": 131.18
+  },
+  "category": "寺社",
+  "wikidata": "Q11434510",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "mitarai-keikoku",
+  "spotId": "sp_a060221d72a0",
+  "name": "みたらい渓谷",
+  "nameEn": "Mitarai Valley",
+  "aliases": [
+   "天川村 みたらい",
+   "みたらいの滝",
+   "哀伝橋"
+  ],
+  "address": "奈良県吉野郡天川村北角",
+  "region": {
+   "prefecture": "奈良県",
+   "city": "吉野郡天川村"
+  },
+  "coords": {
+   "lat": 34.24,
+   "lng": 135.88
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 5,
+   "usable": 5,
+   "named": 0
+  }
+ },
+ {
+  "slug": "miyagase-dam",
+  "spotId": "sp_060b0981e570",
+  "name": "宮ヶ瀬ダム",
+  "nameEn": "Miyagase Dam",
+  "aliases": [
+   "宮ヶ瀬湖",
+   "観光放流",
+   "あいかわ公園",
+   "水とエネルギー館"
+  ],
+  "address": "神奈川県愛甲郡愛川町半原",
+  "region": {
+   "prefecture": "神奈川県",
+   "city": "愛甲郡愛川町"
+  },
+  "coords": {
+   "lat": 35.51,
+   "lng": 139.27
+  },
+  "category": "ダム",
+  "wikidata": "Q1744937",
+  "prev": {
+   "filesFound": 7,
+   "usable": 7,
+   "named": 0
+  }
+ },
+ {
+  "slug": "momijidani-bridge",
+  "spotId": "sp_13a410d06f84",
+  "name": "塩原 もみじ谷大吊橋",
+  "nameEn": "Momijidani Suspension Bridge, Shiobara",
+  "aliases": [
+   "もみじ谷大吊橋",
+   "塩原ダム湖",
+   "那須塩原 吊橋"
+  ],
+  "address": "栃木県那須塩原市関谷1425-60",
+  "region": {
+   "prefecture": "栃木県",
+   "city": "那須塩原市"
+  },
+  "coords": {
+   "lat": 36.93,
+   "lng": 139.84
+  },
+  "category": "橋",
+  "wikidata": "Q11428619",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "monet-no-ike",
+  "spotId": "sp_63e0a1975d4c",
+  "name": "名もなき池（通称 モネの池）",
+  "nameEn": "Monet's Pond",
+  "aliases": [
+   "モネの池",
+   "根道神社"
+  ],
+  "address": "岐阜県関市板取",
+  "region": {
+   "prefecture": "岐阜県",
+   "city": "関市"
+  },
+  "coords": {
+   "lat": 35.65,
+   "lng": 136.82
+  },
+  "category": "池",
+  "wikidata": "Q24867437",
+  "prev": {
+   "filesFound": 4,
+   "usable": 2,
+   "named": 0
+  }
+ },
+ {
+  "slug": "mukabaki",
+  "spotId": "sp_bc7ec1739241",
+  "name": "行縢の滝",
+  "nameEn": "Mukabaki Falls",
+  "aliases": [
+   "行縢山",
+   "延岡 行縢"
+  ],
+  "address": "宮崎県延岡市行縢町",
+  "region": {
+   "prefecture": "宮崎県",
+   "city": "延岡市"
+  },
+  "coords": {
+   "lat": 32.62,
+   "lng": 131.6
+  },
+  "category": "滝",
+  "wikidata": "Q11626188",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "myojoji",
+  "spotId": "sp_5c8d0aebaeda",
+  "name": "妙成寺 五重塔",
+  "nameEn": "Myojoji Five-Story Pagoda",
+  "aliases": [
+   "妙成寺",
+   "羽咋 妙成寺",
+   "北陸 唯一の五重塔"
+  ],
+  "address": "石川県羽咋市滝谷町ヨ1",
+  "region": {
+   "prefecture": "石川県",
+   "city": "羽咋市"
+  },
+  "coords": {
+   "lat": 36.93,
+   "lng": 136.79
+  },
+  "category": "寺社",
+  "wikidata": "Q11446902",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "nagashibina",
+  "spotId": "sp_252eb3c39bc0",
+  "name": "流しびなの館",
+  "nameEn": "Nagashibina Doll Museum",
+  "aliases": [
+   "用瀬 流しびな"
+  ],
+  "address": "鳥取県鳥取市用瀬町別府32-1",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "鳥取市"
+  },
+  "coords": {
+   "lat": 35.32,
+   "lng": 134.21
+  },
+  "category": "博物館",
+  "wikidata": "Q16900173",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "nagayu",
+  "spotId": "sp_2ca379f20f03",
+  "name": "長湯温泉",
+  "nameEn": "Nagayu Onsen",
+  "aliases": [
+   "ラムネ温泉館",
+   "芹川 長湯"
+  ],
+  "address": "大分県竹田市直入町大字長湯",
+  "region": {
+   "prefecture": "大分県",
+   "city": "竹田市"
+  },
+  "coords": {
+   "lat": 33.07,
+   "lng": 131.34
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "nakanoshima-library",
+  "spotId": "sp_2c452b3f1eba",
+  "name": "大阪府立中之島図書館",
+  "nameEn": "Nakanoshima Library",
+  "aliases": [
+   "中之島図書館",
+   "住友吉左衛門",
+   "中之島 重要文化財"
+  ],
+  "address": "大阪府大阪市北区中之島1-2-10",
+  "region": {
+   "prefecture": "大阪府",
+   "city": "大阪市北区"
+  },
+  "coords": {
+   "lat": 34.69,
+   "lng": 135.5
+  },
+  "category": "建築",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 100,
+   "named": 0
+  }
+ },
+ {
+  "slug": "naruko-gorge",
+  "spotId": "sp_a06b53918ecf",
+  "name": "鳴子峡",
+  "nameEn": "Naruko Gorge",
+  "aliases": [
+   "大深沢橋",
+   "鳴子温泉郷"
+  ],
+  "address": "宮城県大崎市鳴子温泉星沼",
+  "region": {
+   "prefecture": "宮城県",
+   "city": "大崎市"
+  },
+  "coords": {
+   "lat": 38.75,
+   "lng": 140.68
+  },
+  "category": "峡谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "nishizawa-keikoku",
+  "spotId": "sp_f8d86000866c",
+  "name": "西沢渓谷",
+  "nameEn": "Nishizawa Valley",
+  "aliases": [
+   "七ツ釜五段の滝"
+  ],
+  "address": "山梨県山梨市三富川浦",
+  "region": {
+   "prefecture": "山梨県",
+   "city": "山梨市"
+  },
+  "coords": {
+   "lat": 35.87,
+   "lng": 138.72
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "nisshinkan",
+  "spotId": "sp_1859aa531342",
+  "name": "日新館",
+  "nameEn": "Aizu Nisshinkan",
+  "aliases": [
+   "会津藩校 日新館"
+  ],
+  "address": "福島県会津若松市河東町南高野高塚山10",
+  "region": {
+   "prefecture": "福島県",
+   "city": "会津若松市"
+  },
+  "coords": {
+   "lat": 37.55,
+   "lng": 139.98
+  },
+  "category": "建築",
+  "wikidata": "Q9050252",
+  "prev": {
+   "filesFound": 1,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "numazawa",
+  "spotId": "sp_9872858629f8",
+  "name": "沼沢湖",
+  "nameEn": "Lake Numazawa",
+  "aliases": [
+   "沼沢湖 カルデラ湖"
+  ],
+  "address": "福島県大沼郡金山町沼沢",
+  "region": {
+   "prefecture": "福島県",
+   "city": "金山町"
+  },
+  "coords": {
+   "lat": 37.46,
+   "lng": 139.57
+  },
+  "category": "湖沼",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "obasute-tanada",
+  "spotId": "sp_e0e68f30eb4a",
+  "name": "姨捨の棚田",
+  "nameEn": "Obasute Rice Terraces",
+  "aliases": [
+   "姨捨 田毎の月",
+   "四十八枚田",
+   "姨捨駅"
+  ],
+  "address": "長野県千曲市八幡",
+  "region": {
+   "prefecture": "長野県",
+   "city": "千曲市"
+  },
+  "coords": {
+   "lat": 36.49,
+   "lng": 138.11
+  },
+  "category": "棚田",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "oboke-gorge",
+  "spotId": "sp_6c58031ea749",
+  "name": "大歩危峡",
+  "nameEn": "Oboke Gorge",
+  "aliases": [
+   "大歩危",
+   "小歩危",
+   "吉野川"
+  ],
+  "address": "徳島県三好市山城町西宇",
+  "region": {
+   "prefecture": "徳島県",
+   "city": "三好市"
+  },
+  "coords": {
+   "lat": 33.9,
+   "lng": 133.8
+  },
+  "category": "峡谷",
+  "wikidata": "Q11436747",
+  "prev": {
+   "filesFound": 5,
+   "usable": 5,
+   "named": 0
+  }
+ },
+ {
+  "slug": "oigawa-sl",
+  "spotId": "sp_0423dea318e5",
+  "name": "大井川鐵道 SLの沿線",
+  "nameEn": "Oigawa Railway Steam Locomotive Line",
+  "aliases": [
+   "大井川鐵道",
+   "SLかわね路号",
+   "抜里",
+   "家山の桜トンネル"
+  ],
+  "address": "静岡県島田市金谷から川根本町千頭",
+  "region": {
+   "prefecture": "静岡県",
+   "city": "島田市"
+  },
+  "coords": {
+   "lat": 34.86,
+   "lng": 138.13
+  },
+  "category": "鉄道",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 2,
+   "usable": 2,
+   "named": 0
+  }
+ },
+ {
+  "slug": "okamura",
+  "spotId": "sp_abe15797fce0",
+  "name": "岡村島",
+  "nameEn": "Okamurajima Island",
+  "aliases": [
+   "とびしま海道",
+   "岡村港"
+  ],
+  "address": "愛媛県今治市関前岡村",
+  "region": {
+   "prefecture": "愛媛県",
+   "city": "今治市"
+  },
+  "coords": {
+   "lat": 34.2,
+   "lng": 132.87
+  },
+  "category": "島",
+  "wikidata": "Q7081764",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "oki-kuniga",
+  "spotId": "sp_7c3c5dcee42d",
+  "name": "隠岐 国賀海岸",
+  "nameEn": "Kuniga Coast, Oki",
+  "aliases": [
+   "摩天崖",
+   "通天橋"
+  ],
+  "address": "島根県隠岐郡西ノ島町浦郷",
+  "region": {
+   "prefecture": "島根県",
+   "city": "西ノ島町"
+  },
+  "coords": {
+   "lat": 36.1,
+   "lng": 132.94
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "okushima-ko",
+  "spotId": "sp_be26addf70be",
+  "name": "奥四万湖",
+  "nameEn": "Lake Okushima",
+  "aliases": [
+   "四万ブルー",
+   "中之条 四万温泉",
+   "四万川ダム"
+  ],
+  "address": "群馬県吾妻郡中之条町四万",
+  "region": {
+   "prefecture": "群馬県",
+   "city": "吾妻郡中之条町"
+  },
+  "coords": {
+   "lat": 36.68,
+   "lng": 138.75
+  },
+  "category": "湖沼",
+  "wikidata": "Q7496817",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "okutsukei",
+  "spotId": "sp_4d7ff43fce11",
+  "name": "奥津渓",
+  "nameEn": "Okutsukei Gorge",
+  "aliases": [
+   "鏡野町 奥津渓",
+   "甌穴群",
+   "奥津温泉"
+  ],
+  "address": "岡山県苫田郡鏡野町奥津",
+  "region": {
+   "prefecture": "岡山県",
+   "city": "苫田郡鏡野町"
+  },
+  "coords": {
+   "lat": 35.24,
+   "lng": 133.92
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "omicho-ichiba",
+  "spotId": "sp_4d4cbb3bd74b",
+  "name": "近江町市場",
+  "nameEn": "Omicho Market",
+  "aliases": [
+   "金沢 近江町",
+   "市場 金沢",
+   "近江町いちば館"
+  ],
+  "address": "石川県金沢市上近江町50",
+  "region": {
+   "prefecture": "石川県",
+   "city": "金沢市"
+  },
+  "coords": {
+   "lat": 36.57,
+   "lng": 136.66
+  },
+  "category": "市場",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 100,
+   "named": 11
+  }
+ },
+ {
+  "slug": "onjuku",
+  "spotId": "sp_5061588921fe",
+  "name": "御宿海岸",
+  "nameEn": "Onjuku Beach",
+  "aliases": [
+   "月の沙漠記念像",
+   "御宿 ラクダ",
+   "月の沙漠 御宿"
+  ],
+  "address": "千葉県夷隅郡御宿町六軒町",
+  "region": {
+   "prefecture": "千葉県",
+   "city": "夷隅郡御宿町"
+  },
+  "coords": {
+   "lat": 35.19,
+   "lng": 140.35
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 11,
+   "usable": 11,
+   "named": 5
+  }
+ },
+ {
+  "slug": "oze-numa",
+  "spotId": "sp_bf046a34d92e",
+  "name": "尾瀬沼",
+  "nameEn": "Ozenuma Pond",
+  "aliases": [
+   "尾瀬 沼山峠"
+  ],
+  "address": "福島県南会津郡檜枝岐村",
+  "region": {
+   "prefecture": "福島県",
+   "city": "檜枝岐村"
+  },
+  "coords": {
+   "lat": 36.92,
+   "lng": 139.32
+  },
+  "category": "湖沼",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "rairaikyo",
+  "spotId": "sp_79a5d2db5d55",
+  "name": "磊々峡",
+  "nameEn": "Rairaikyo Gorge",
+  "aliases": [
+   "秋保 磊々峡",
+   "覗橋",
+   "ハート",
+   "名取川"
+  ],
+  "address": "宮城県仙台市太白区秋保町湯元",
+  "region": {
+   "prefecture": "宮城県",
+   "city": "仙台市太白区"
+  },
+  "coords": {
+   "lat": 38.25,
+   "lng": 140.69
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ranzan-keikoku",
+  "spotId": "sp_48da593d04cb",
+  "name": "嵐山渓谷",
+  "nameEn": "Ranzan Valley",
+  "aliases": [
+   "武蔵嵐山",
+   "槻川 嵐山",
+   "嵐山渓谷 バーベキュー場"
+  ],
+  "address": "埼玉県比企郡嵐山町鎌形",
+  "region": {
+   "prefecture": "埼玉県",
+   "city": "比企郡嵐山町"
+  },
+  "coords": {
+   "lat": 36.02,
+   "lng": 139.31
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 7,
+   "usable": 7,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ryujin-ohtsuribashi",
+  "spotId": "sp_1b301a914298",
+  "name": "竜神大吊橋",
+  "nameEn": "Ryujin Suspension Bridge",
+  "aliases": [
+   "竜神峡",
+   "常陸太田 竜神大吊橋",
+   "こいのぼりまつり"
+  ],
+  "address": "茨城県常陸太田市天下野町2133-6",
+  "region": {
+   "prefecture": "茨城県",
+   "city": "常陸太田市"
+  },
+  "coords": {
+   "lat": 36.71,
+   "lng": 140.43
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "sada-jinja",
+  "spotId": "sp_910e0844a6d8",
+  "name": "佐太神社",
+  "nameEn": "Sada Shrine",
+  "aliases": [
+   "佐陀神能"
+  ],
+  "address": "島根県松江市鹿島町佐陀宮内73",
+  "region": {
+   "prefecture": "島根県",
+   "city": "松江市"
+  },
+  "coords": {
+   "lat": 35.53,
+   "lng": 133
+  },
+  "category": "寺社",
+  "wikidata": "Q3461072",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "saga-balloon",
+  "spotId": "sp_88a8c1cc19c5",
+  "name": "佐賀インターナショナルバルーンフェスタ",
+  "nameEn": "Saga International Balloon Fiesta",
+  "aliases": [
+   "嘉瀬川河川敷 バルーン"
+  ],
+  "address": "佐賀県佐賀市嘉瀬町 嘉瀬川河川敷",
+  "region": {
+   "prefecture": "佐賀県",
+   "city": "佐賀市"
+  },
+  "coords": {
+   "lat": 33.24,
+   "lng": 130.29
+  },
+  "category": "祭り",
+  "wikidata": "Q7398902",
+  "prev": {
+   "filesFound": 5,
+   "usable": 4,
+   "named": 0
+  }
+ },
+ {
+  "slug": "sasagawa-nagare",
+  "spotId": "sp_0a9fb182f132",
+  "name": "笹川流れ",
+  "nameEn": "Sasagawa Nagare Coast",
+  "aliases": [
+   "村上 笹川流れ",
+   "眼鏡岩",
+   "日本海 夕日"
+  ],
+  "address": "新潟県村上市桑川",
+  "region": {
+   "prefecture": "新潟県",
+   "city": "村上市"
+  },
+  "coords": {
+   "lat": 38.42,
+   "lng": 139.46
+  },
+  "category": "海岸",
+  "wikidata": "Q11641442",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "seizanso",
+  "spotId": "sp_e0ddd172e726",
+  "name": "西山荘",
+  "nameEn": "Seizanso",
+  "aliases": [
+   "常陸太田 西山荘",
+   "徳川光圀 隠居所",
+   "西山御殿"
+  ],
+  "address": "茨城県常陸太田市新宿町590",
+  "region": {
+   "prefecture": "茨城県",
+   "city": "常陸太田市"
+  },
+  "coords": {
+   "lat": 36.53,
+   "lng": 140.53
+  },
+  "category": "史跡",
+  "wikidata": "Q11627901",
+  "prev": {
+   "filesFound": 14,
+   "usable": 14,
+   "named": 0
+  }
+ },
+ {
+  "slug": "senjosan",
+  "spotId": "sp_98ed8f9cb401",
+  "name": "船上山",
+  "nameEn": "Mt. Senjo",
+  "aliases": [
+   "船上山 屏風岩",
+   "千丈滝"
+  ],
+  "address": "鳥取県東伯郡琴浦町山川",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "琴浦町"
+  },
+  "coords": {
+   "lat": 35.42,
+   "lng": 133.61
+  },
+  "category": "山岳",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "senjuji",
+  "spotId": "sp_4346d0efbac7",
+  "name": "専修寺",
+  "nameEn": "Senjuji Temple",
+  "aliases": [
+   "高田本山",
+   "津 専修寺",
+   "御影堂 如来堂"
+  ],
+  "address": "三重県津市一身田町2819",
+  "region": {
+   "prefecture": "三重県",
+   "city": "津市"
+  },
+  "coords": {
+   "lat": 34.75,
+   "lng": 136.5
+  },
+  "category": "寺社",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "senpiro-no-taki",
+  "spotId": "sp_af2c6e219c63",
+  "name": "千尋の滝（屋久島）",
+  "nameEn": "Senpiro Falls, Yakushima",
+  "aliases": [
+   "屋久島 千尋の滝",
+   "鯨波の滝",
+   "巨大な一枚岩"
+  ],
+  "address": "鹿児島県熊毛郡屋久町原",
+  "region": {
+   "prefecture": "鹿児島県",
+   "city": "熊毛郡屋久島町"
+  },
+  "coords": {
+   "lat": 30.28,
+   "lng": 130.55
+  },
+  "category": "滝",
+  "wikidata": "Q11405452",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "sessho-seki",
+  "spotId": "sp_4b62ddb81bec",
+  "name": "那須 殺生石",
+  "nameEn": "Sessho-seki, Nasu",
+  "aliases": [
+   "殺生石",
+   "賽の河原 那須",
+   "那須湯本 殺生石"
+  ],
+  "address": "栃木県那須郡那須町湯本",
+  "region": {
+   "prefecture": "栃木県",
+   "city": "那須郡那須町"
+  },
+  "coords": {
+   "lat": 37.13,
+   "lng": 139.96
+  },
+  "category": "火山",
+  "wikidata": "Q2616914",
+  "prev": {
+   "filesFound": 7,
+   "usable": 7,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shiitsu",
+  "spotId": "sp_e11f1a2461c6",
+  "name": "椎葉村",
+  "nameEn": "Shiiba Village",
+  "aliases": [
+   "鶴富屋敷",
+   "椎葉 焼畑"
+  ],
+  "address": "宮崎県東臼杵郡椎葉村下福良",
+  "region": {
+   "prefecture": "宮崎県",
+   "city": "椎葉村"
+  },
+  "coords": {
+   "lat": 32.51,
+   "lng": 131.17
+  },
+  "category": "町並み",
+  "wikidata": "Q1205964",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shimabara-yusui",
+  "spotId": "sp_b36975954535",
+  "name": "島原 湧水庭園",
+  "nameEn": "Shimabara Spring Gardens",
+  "aliases": [
+   "四明荘",
+   "鯉の泳ぐまち"
+  ],
+  "address": "長崎県島原市新町2-125",
+  "region": {
+   "prefecture": "長崎県",
+   "city": "島原市"
+  },
+  "coords": {
+   "lat": 32.79,
+   "lng": 130.37
+  },
+  "category": "公園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 100,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shimamui-kaigan",
+  "spotId": "sp_cde01fa421ea",
+  "name": "積丹 島武意海岸",
+  "nameEn": "Shimamui Coast, Shakotan",
+  "aliases": [
+   "積丹ブルー",
+   "島武意海岸",
+   "日本の渚百選",
+   "トンネル"
+  ],
+  "address": "北海道積丹郡積丹町入舸町",
+  "region": {
+   "prefecture": "北海道",
+   "city": "積丹郡積丹町"
+  },
+  "coords": {
+   "lat": 43.37,
+   "lng": 140.47
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 26,
+   "usable": 26,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shimaonsen-sekizenkan",
+  "spotId": "sp_357e9fc0f1a3",
+  "name": "四万温泉 積善館",
+  "nameEn": "Sekizenkan, Shima Onsen",
+  "aliases": [
+   "積善館",
+   "四万温泉 赤い橋",
+   "元禄の湯"
+  ],
+  "address": "群馬県吾妻郡中之条町四万4236",
+  "region": {
+   "prefecture": "群馬県",
+   "city": "吾妻郡中之条町"
+  },
+  "coords": {
+   "lat": 36.65,
+   "lng": 138.75
+  },
+  "category": "町並み",
+  "wikidata": "Q30595841",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shiorutoge",
+  "spotId": "sp_3e3625a686b7",
+  "name": "枝折峠の滝雲",
+  "nameEn": "Shiori Pass Cloud Falls",
+  "aliases": [
+   "枝折峠",
+   "魚沼 滝雲",
+   "銀山平 滝雲"
+  ],
+  "address": "新潟県魚沼市下折立",
+  "region": {
+   "prefecture": "新潟県",
+   "city": "魚沼市"
+  },
+  "coords": {
+   "lat": 37.14,
+   "lng": 139.18
+  },
+  "category": "展望台",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shirahama-shirasaki",
+  "spotId": "sp_3fa9d260866a",
+  "name": "白崎海洋公園",
+  "nameEn": "Shirasaki Coastal Park",
+  "aliases": [
+   "白崎",
+   "日本のエーゲ海",
+   "由良 白崎"
+  ],
+  "address": "和歌山県日高郡由良町大引960-1",
+  "region": {
+   "prefecture": "和歌山県",
+   "city": "日高郡由良町"
+  },
+  "coords": {
+   "lat": 33.98,
+   "lng": 135.07
+  },
+  "category": "海岸",
+  "wikidata": "Q11579677",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shiramizu-amidado",
+  "spotId": "sp_24d15039c948",
+  "name": "白水阿弥陀堂",
+  "nameEn": "Shiramizu Amidado",
+  "aliases": [
+   "願成寺 白水阿弥陀堂"
+  ],
+  "address": "福島県いわき市内郷白水町広畑221",
+  "region": {
+   "prefecture": "福島県",
+   "city": "いわき市"
+  },
+  "coords": {
+   "lat": 37.03,
+   "lng": 140.87
+  },
+  "category": "寺社",
+  "wikidata": "Q3095180",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shirataki-san",
+  "spotId": "sp_1937fa6f3dfd",
+  "name": "因島 白滝山",
+  "nameEn": "Mount Shirataki, Innoshima",
+  "aliases": [
+   "白滝山 五百羅漢",
+   "因島 白滝",
+   "白滝フラワーライン"
+  ],
+  "address": "広島県尾道市因島重井町",
+  "region": {
+   "prefecture": "広島県",
+   "city": "尾道市"
+  },
+  "coords": {
+   "lat": 34.32,
+   "lng": 133.15
+  },
+  "category": "山岳",
+  "wikidata": "Q11420237",
+  "prev": {
+   "filesFound": 2,
+   "usable": 2,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shizugatake",
+  "spotId": "sp_4bf0a0b73328",
+  "name": "賤ヶ岳",
+  "nameEn": "Mount Shizugatake",
+  "aliases": [
+   "賤ヶ岳リフト",
+   "賤ヶ岳の戦い",
+   "長浜 賤ヶ岳"
+  ],
+  "address": "滋賀県長浜市木之本町大音",
+  "region": {
+   "prefecture": "滋賀県",
+   "city": "長浜市"
+  },
+  "coords": {
+   "lat": 35.5,
+   "lng": 136.16
+  },
+  "category": "展望台",
+  "wikidata": "Q225562",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shizutani-gakko",
+  "spotId": "sp_2720d48cf417",
+  "name": "旧閑谷学校",
+  "nameEn": "Old Shizutani School",
+  "aliases": [
+   "閑谷学校",
+   "備前 閑谷",
+   "櫂の木",
+   "国宝 講堂"
+  ],
+  "address": "岡山県備前市閑谷784",
+  "region": {
+   "prefecture": "岡山県",
+   "city": "備前市"
+  },
+  "coords": {
+   "lat": 34.77,
+   "lng": 134.19
+  },
+  "category": "建築",
+  "wikidata": "Q847290",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shodoshima-olive",
+  "spotId": "sp_280ebba2a8a0",
+  "name": "小豆島オリーブ公園",
+  "nameEn": "Shodoshima Olive Park",
+  "aliases": [
+   "ギリシャ風車 小豆島"
+  ],
+  "address": "香川県小豆郡小豆島町西村甲1941-1",
+  "region": {
+   "prefecture": "香川県",
+   "city": "小豆島町"
+  },
+  "coords": {
+   "lat": 34.47,
+   "lng": 134.29
+  },
+  "category": "公園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "shokaikyo",
+  "spotId": "sp_3c63a9698fda",
+  "name": "筑後川昇開橋",
+  "nameEn": "Chikugogawa Lift Bridge",
+  "aliases": [
+   "昇開橋",
+   "大川 昇開橋",
+   "旧国鉄佐賀線"
+  ],
+  "address": "福岡県大川市向島",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "大川市"
+  },
+  "coords": {
+   "lat": 33.18,
+   "lng": 130.36
+  },
+  "category": "橋",
+  "wikidata": "Q1056242",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "sonihara-kogen",
+  "spotId": "sp_2d0b8b764d2f",
+  "name": "曽爾高原",
+  "nameEn": "Soni Kogen Highland",
+  "aliases": [
+   "曽爾村 すすき",
+   "お亀池",
+   "倶留尊山"
+  ],
+  "address": "奈良県宇陀郡曽爾村太良路",
+  "region": {
+   "prefecture": "奈良県",
+   "city": "宇陀郡曽爾村"
+  },
+  "coords": {
+   "lat": 34.52,
+   "lng": 136.13
+  },
+  "category": "高原",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "sotomo",
+  "spotId": "sp_0b870f0ad9e7",
+  "name": "蘇洞門",
+  "nameEn": "Sotomo Coastal Cliffs",
+  "aliases": [
+   "大門小門"
+  ],
+  "address": "福井県小浜市 内外海半島",
+  "region": {
+   "prefecture": "福井県",
+   "city": "小浜市"
+  },
+  "coords": {
+   "lat": 35.57,
+   "lng": 135.71
+  },
+  "category": "鍾乳洞",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "susa-hornfels",
+  "spotId": "sp_6ef1c01fdf08",
+  "name": "須佐ホルンフェルス",
+  "nameEn": "Susa Hornfels Cliff",
+  "aliases": [
+   "高山 須佐湾"
+  ],
+  "address": "山口県萩市須佐",
+  "region": {
+   "prefecture": "山口県",
+   "city": "萩市"
+  },
+  "coords": {
+   "lat": 34.63,
+   "lng": 131.6
+  },
+  "category": "海岸",
+  "wikidata": "Q11664494",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tadewara",
+  "spotId": "sp_c89eba1c727b",
+  "name": "タデ原湿原",
+  "nameEn": "Tadewara Wetland",
+  "aliases": [
+   "長者原 湿原",
+   "くじゅう 野焼き"
+  ],
+  "address": "大分県玖珠郡九重町田野",
+  "region": {
+   "prefecture": "大分県",
+   "city": "九重町"
+  },
+  "coords": {
+   "lat": 33.1,
+   "lng": 131.24
+  },
+  "category": "湿原",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "takebe",
+  "spotId": "sp_2340b5018a23",
+  "name": "たけべの森",
+  "nameEn": "Takebe no Mori Park",
+  "aliases": [
+   "岡山市建部町 桜"
+  ],
+  "address": "岡山県岡山市北区建部町田地子1636",
+  "region": {
+   "prefecture": "岡山県",
+   "city": "岡山市"
+  },
+  "coords": {
+   "lat": 34.89,
+   "lng": 133.89
+  },
+  "category": "樹木",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tamagawa-onsen",
+  "spotId": "sp_4209d78692fe",
+  "name": "玉川温泉",
+  "nameEn": "Tamagawa Onsen",
+  "aliases": [
+   "大噴",
+   "北投石"
+  ],
+  "address": "秋田県仙北市田沢湖玉川",
+  "region": {
+   "prefecture": "秋田県",
+   "city": "仙北市"
+  },
+  "coords": {
+   "lat": 39.95,
+   "lng": 140.71
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tanigumi",
+  "spotId": "sp_3f6707ef8cf3",
+  "name": "谷汲山 華厳寺",
+  "nameEn": "Tanigumisan Kegonji",
+  "aliases": [
+   "谷汲山",
+   "華厳寺",
+   "西国三十三所 満願",
+   "谷汲 参道"
+  ],
+  "address": "岐阜県揖斐郡揖斐川町谷汲徳積23",
+  "region": {
+   "prefecture": "岐阜県",
+   "city": "揖斐郡揖斐川町"
+  },
+  "coords": {
+   "lat": 35.58,
+   "lng": 136.6
+  },
+  "category": "寺社",
+  "wikidata": "Q11620047",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tatsue",
+  "spotId": "sp_58aedc5d8d51",
+  "name": "立江寺",
+  "nameEn": "Tatsue-ji Temple",
+  "aliases": [
+   "関所寺 立江寺",
+   "黒髪堂"
+  ],
+  "address": "徳島県小松島市立江町若松13",
+  "region": {
+   "prefecture": "徳島県",
+   "city": "小松島市"
+  },
+  "coords": {
+   "lat": 33.96,
+   "lng": 134.58
+  },
+  "category": "寺社",
+  "wikidata": "Q11598034",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tatsukushi-kochi",
+  "spotId": "sp_fe09bacc8d1c",
+  "name": "竜串海岸",
+  "nameEn": "Tatsukushi Coast",
+  "aliases": [
+   "土佐清水 竜串",
+   "見残し海岸"
+  ],
+  "address": "高知県土佐清水市竜串",
+  "region": {
+   "prefecture": "高知県",
+   "city": "土佐清水市"
+  },
+  "coords": {
+   "lat": 32.78,
+   "lng": 132.86
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tendaki",
+  "spotId": "sp_59f9d6b2f968",
+  "name": "天滝",
+  "nameEn": "Tendaki Falls",
+  "aliases": [
+   "天滝渓谷",
+   "養父 天滝",
+   "兵庫県最大の滝"
+  ],
+  "address": "兵庫県養父市大屋町筏",
+  "region": {
+   "prefecture": "兵庫県",
+   "city": "養父市"
+  },
+  "coords": {
+   "lat": 35.32,
+   "lng": 134.64
+  },
+  "category": "滝",
+  "wikidata": "Q11442860",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tenkaiho",
+  "spotId": "sp_7b5ca173a195",
+  "name": "展海峰（九十九島）",
+  "nameEn": "Tenkaiho Observatory, Kujukushima",
+  "aliases": [
+   "九十九島",
+   "佐世保 展海峰",
+   "西海国立公園"
+  ],
+  "address": "長崎県佐世保市下船越町399",
+  "region": {
+   "prefecture": "長崎県",
+   "city": "佐世保市"
+  },
+  "coords": {
+   "lat": 33.12,
+   "lng": 129.66
+  },
+  "category": "展望台",
+  "wikidata": "Q11465727",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tonami-tulip",
+  "spotId": "sp_423bbcd72d9b",
+  "name": "砺波チューリップ公園",
+  "nameEn": "Tonami Tulip Park",
+  "aliases": [
+   "となみチューリップフェア",
+   "チューリップ四季彩館",
+   "砺波平野"
+  ],
+  "address": "富山県砺波市花園町1-32",
+  "region": {
+   "prefecture": "富山県",
+   "city": "砺波市"
+  },
+  "coords": {
+   "lat": 36.65,
+   "lng": 136.96
+  },
+  "category": "公園",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tonaru",
+  "spotId": "sp_88419a50d170",
+  "name": "東平（別子銅山跡）",
+  "nameEn": "Tonaru, Besshi Copper Mine",
+  "aliases": [
+   "東洋のマチュピチュ",
+   "マイントピア別子",
+   "新居浜 東平"
+  ],
+  "address": "愛媛県新居浜市立川町",
+  "region": {
+   "prefecture": "愛媛県",
+   "city": "新居浜市"
+  },
+  "coords": {
+   "lat": 33.86,
+   "lng": 133.29
+  },
+  "category": "産業遺産",
+  "wikidata": "Q11339828",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "tsubaki-jinja",
+  "spotId": "sp_1873d287f287",
+  "name": "椿大神社",
+  "nameEn": "Tsubaki Grand Shrine",
+  "aliases": [
+   "椿大神社 参道",
+   "猿田彦 椿",
+   "鈴鹿 椿大神社"
+  ],
+  "address": "三重県鈴鹿市山本町1871",
+  "region": {
+   "prefecture": "三重県",
+   "city": "鈴鹿市"
+  },
+  "coords": {
+   "lat": 34.94,
+   "lng": 136.45
+  },
+  "category": "寺社",
+  "wikidata": "Q3541617",
+  "prev": {
+   "filesFound": 3,
+   "usable": 3,
+   "named": 1
+  }
+ },
+ {
+  "slug": "tsukechikyo",
+  "spotId": "sp_122f95f067f4",
+  "name": "付知峡",
+  "nameEn": "Tsukechi Gorge",
+  "aliases": [
+   "不動滝 付知",
+   "観音滝",
+   "中津川 付知峡"
+  ],
+  "address": "岐阜県中津川市付知町",
+  "region": {
+   "prefecture": "岐阜県",
+   "city": "中津川市"
+  },
+  "coords": {
+   "lat": 35.66,
+   "lng": 137.44
+  },
+  "category": "渓谷",
+  "wikidata": "Q11377660",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "uchiko-machinami",
+  "spotId": "sp_791f175de431",
+  "name": "内子 八日市護国の町並み",
+  "nameEn": "Yokaichi-Gokoku District, Uchiko",
+  "aliases": [
+   "内子町",
+   "木蝋の町",
+   "上芳我邸",
+   "内子座"
+  ],
+  "address": "愛媛県喜多郡内子町八日市",
+  "region": {
+   "prefecture": "愛媛県",
+   "city": "喜多郡内子町"
+  },
+  "coords": {
+   "lat": 33.54,
+   "lng": 132.65
+  },
+  "category": "町並み",
+  "wikidata": "Q1018717",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ukiha-inari",
+  "spotId": "sp_3a581ef177c8",
+  "name": "浮羽稲荷神社",
+  "nameEn": "Ukiha Inari Shrine",
+  "aliases": [
+   "うきは稲荷",
+   "浮羽 鳥居",
+   "城ヶ谷 稲荷"
+  ],
+  "address": "福岡県うきは市浮羽町流川",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "うきは市"
+  },
+  "coords": {
+   "lat": 33.34,
+   "lng": 130.77
+  },
+  "category": "寺社",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ukiha-yoshii",
+  "spotId": "sp_05c07d032006",
+  "name": "筑後吉井の白壁の町並み",
+  "nameEn": "Chikugo-Yoshii White Wall Townscape",
+  "aliases": [
+   "吉井町 白壁",
+   "うきは 吉井",
+   "豊後街道 吉井"
+  ],
+  "address": "福岡県うきは市吉井町",
+  "region": {
+   "prefecture": "福岡県",
+   "city": "うきは市"
+  },
+  "coords": {
+   "lat": 33.33,
+   "lng": 130.76
+  },
+  "category": "町並み",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "uozu-shinkirou",
+  "spotId": "sp_dfffc42ce4a7",
+  "name": "魚津 蜃気楼",
+  "nameEn": "Uozu Mirage",
+  "aliases": [
+   "魚津 海の駅蜃気楼"
+  ],
+  "address": "富山県魚津市村木定坊割2500-2",
+  "region": {
+   "prefecture": "富山県",
+   "city": "魚津市"
+  },
+  "coords": {
+   "lat": 36.83,
+   "lng": 137.4
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "uradome-kaigan",
+  "spotId": "sp_8aaa6cd3d9ca",
+  "name": "浦富海岸",
+  "nameEn": "Uradome Coast",
+  "aliases": [
+   "岩美町 浦富海岸",
+   "山陰海岸ジオパーク",
+   "島めぐり遊覧船",
+   "千貫松島"
+  ],
+  "address": "鳥取県岩美郡岩美町浦富",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "岩美郡岩美町"
+  },
+  "coords": {
+   "lat": 35.6,
+   "lng": 134.32
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ureshino",
+  "spotId": "sp_fdc20c2e19bf",
+  "name": "嬉野温泉",
+  "nameEn": "Ureshino Onsen",
+  "aliases": [
+   "嬉野 豊玉姫神社",
+   "嬉野茶畑"
+  ],
+  "address": "佐賀県嬉野市嬉野町下宿",
+  "region": {
+   "prefecture": "佐賀県",
+   "city": "嬉野市"
+  },
+  "coords": {
+   "lat": 33.1,
+   "lng": 130
+  },
+  "category": "温泉",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 7,
+   "usable": 7,
+   "named": 0
+  }
+ },
+ {
+  "slug": "urikawari",
+  "spotId": "sp_4225d0f93d34",
+  "name": "瓜割の滝",
+  "nameEn": "Urikawari Falls",
+  "aliases": [
+   "天徳寺 瓜割の滝"
+  ],
+  "address": "福井県三方上中郡若狭町天徳寺",
+  "region": {
+   "prefecture": "福井県",
+   "city": "若狭町"
+  },
+  "coords": {
+   "lat": 35.5,
+   "lng": 135.87
+  },
+  "category": "滝",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "ushiku-daibutsu",
+  "spotId": "sp_e6113d2d3477",
+  "name": "牛久大仏",
+  "nameEn": "Ushiku Daibutsu",
+  "aliases": [
+   "牛久阿弥陀大佛",
+   "茨城 大仏"
+  ],
+  "address": "茨城県牛久市久野町2083",
+  "region": {
+   "prefecture": "茨城県",
+   "city": "牛久市"
+  },
+  "coords": {
+   "lat": 35.98,
+   "lng": 140.18
+  },
+  "category": "仏像",
+  "wikidata": "Q542324",
+  "prev": {
+   "filesFound": 1,
+   "usable": 1,
+   "named": 0
+  }
+ },
+ {
+  "slug": "usuki-sekibutsu",
+  "spotId": "sp_7449ccbc780d",
+  "name": "臼杵石仏",
+  "nameEn": "Usuki Stone Buddhas",
+  "aliases": [
+   "臼杵磨崖仏",
+   "古園石仏 大日如来"
+  ],
+  "address": "大分県臼杵市深田804-1",
+  "region": {
+   "prefecture": "大分県",
+   "city": "臼杵市"
+  },
+  "coords": {
+   "lat": 33.11,
+   "lng": 131.75
+  },
+  "category": "寺社",
+  "wikidata": "Q2921458",
+  "prev": {
+   "filesFound": 4,
+   "usable": 4,
+   "named": 0
+  }
+ },
+ {
+  "slug": "yagigahana",
+  "spotId": "sp_d353e2597b0c",
+  "name": "八木ヶ鼻",
+  "nameEn": "Yagigahana Cliff",
+  "aliases": [
+   "三条 八木ヶ鼻",
+   "下田 八木ヶ鼻",
+   "五十嵐川 八木ヶ鼻"
+  ],
+  "address": "新潟県三条市北五百川",
+  "region": {
+   "prefecture": "新潟県",
+   "city": "三条市"
+  },
+  "coords": {
+   "lat": 37.55,
+   "lng": 139.13
+  },
+  "category": "渓谷",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "yakehashiri",
+  "spotId": "sp_d7b0d30e94a6",
+  "name": "焼走り熔岩流",
+  "nameEn": "Yakehashiri Lava Flow",
+  "aliases": [
+   "焼走り溶岩流"
+  ],
+  "address": "岩手県八幡平市平笠24-728",
+  "region": {
+   "prefecture": "岩手県",
+   "city": "八幡平市"
+  },
+  "coords": {
+   "lat": 39.88,
+   "lng": 141.06
+  },
+  "category": "火山",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "yokoyama-tenbodai",
+  "spotId": "sp_dc6ab42aedc0",
+  "name": "横山展望台（英虞湾）",
+  "nameEn": "Yokoyama Observatory, Ago Bay",
+  "aliases": [
+   "英虞湾",
+   "志摩 横山展望台",
+   "リアス海岸"
+  ],
+  "address": "三重県志摩市阿児町鵜方",
+  "region": {
+   "prefecture": "三重県",
+   "city": "志摩市"
+  },
+  "coords": {
+   "lat": 34.33,
+   "lng": 136.82
+  },
+  "category": "展望台",
+  "wikidata": "Q11542547",
+  "prev": {
+   "filesFound": 5,
+   "usable": 5,
+   "named": 0
+  }
+ },
+ {
+  "slug": "yonago-suitori",
+  "spotId": "sp_f78c4818a56f",
+  "name": "米子水鳥公園",
+  "nameEn": "Yonago Waterbird Sanctuary",
+  "aliases": [
+   "中海 コハクチョウ"
+  ],
+  "address": "鳥取県米子市彦名新田665",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "米子市"
+  },
+  "coords": {
+   "lat": 35.44,
+   "lng": 133.31
+  },
+  "category": "公園",
+  "wikidata": "Q11604109",
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "yumigahama",
+  "spotId": "sp_ff80082c4166",
+  "name": "弓ヶ浜",
+  "nameEn": "Yumigahama Beach",
+  "aliases": [
+   "弓ヶ浜半島",
+   "夜見ヶ浜"
+  ],
+  "address": "鳥取県境港市・米子市",
+  "region": {
+   "prefecture": "鳥取県",
+   "city": "米子市"
+  },
+  "coords": {
+   "lat": 35.47,
+   "lng": 133.32
+  },
+  "category": "海岸",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 0,
+   "usable": 0,
+   "named": 0
+  }
+ },
+ {
+  "slug": "rouen-cathedral",
+  "spotId": "sp_4f4c5cbc737e",
+  "name": "ルーアン大聖堂",
+  "nameEn": "Rouen Cathedral",
+  "aliases": [
+   "Cathédrale Notre-Dame de Rouen"
+  ],
+  "address": null,
+  "region": {
+   "country": "フランス",
+   "city": "ルーアン"
+  },
+  "coords": {
+   "lat": 49.44,
+   "lng": 1.09
+  },
+  "category": "教会",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 95,
+   "named": 0
+  }
+ },
+ {
+  "slug": "charles-bridge",
+  "spotId": "sp_7116a04a71fd",
+  "name": "カレル橋",
+  "nameEn": "Charles Bridge",
+  "aliases": [
+   "Karlův most"
+  ],
+  "address": null,
+  "region": {
+   "country": "チェコ",
+   "city": "プラハ"
+  },
+  "coords": {
+   "lat": 50.09,
+   "lng": 14.41
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 100,
+   "named": 0
+  }
+ },
+ {
+  "slug": "kapellbrucke",
+  "spotId": "sp_07cc6cbc3f97",
+  "name": "カペル橋",
+  "nameEn": "Kapellbrücke",
+  "aliases": [
+   "カペルブリュッケ"
+  ],
+  "address": null,
+  "region": {
+   "country": "スイス",
+   "city": "ルツェルン"
+  },
+  "coords": {
+   "lat": 47.05,
+   "lng": 8.31
+  },
+  "category": "橋",
+  "wikidata": null,
+  "prev": {
+   "filesFound": 100,
+   "usable": 96,
+   "named": 0
+  }
+ }
+]
