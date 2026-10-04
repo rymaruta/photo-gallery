@@ -136,8 +136,8 @@ describe("スポットの作例・アプリ向けの本文に混ぜて出す", (
         expect(body.samples?.[0]).not.toHaveProperty("source");
     });
 
-    it("読み込み元は許可リスト（upload.wikimedia.org・live.staticflickr.com）のどれか", () => {
-        expect([...SAMPLE_IMAGE_ORIGINS]).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com"]);
+    it("読み込み元は許可リスト（upload.wikimedia.org・live.staticflickr.com・このサイト）のどれか", () => {
+        expect([...SAMPLE_IMAGE_ORIGINS].slice(0, 2)).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com"]);
         for (const s of spotSamples(SPOT, { file })) expect(SAMPLE_IMAGE_ORIGINS).toContain(new URL(s.src).origin);
     });
 });

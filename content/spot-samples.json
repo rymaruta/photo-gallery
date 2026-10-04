@@ -7789,6 +7789,19 @@
         "dateTimeOriginal": "Taken on 8 June 2008",
         "licenseCode": "cc-by-sa-3.0",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "岳温泉",
+        "source": {
+          "name": "環境省",
+          "url": "https://www.env.go.jp/nature/nationalparks/list/bandai-asahi/spot/"
+        },
+        "thumbUrl": "/samples/dake-onsen/1.jpg",
+        "width": 890,
+        "height": 500,
+        "author": "環境省",
+        "license": "PDL1.0",
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -16428,6 +16441,48 @@
         "dateTimeOriginal": "2022-11-14",
         "licenseCode": "cc-by-sa-4.0",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "浮羽稲荷神社05",
+        "source": {
+          "name": "福岡県観光連盟",
+          "url": "https://www.crossroadfukuoka.jp/business/photo/747"
+        },
+        "thumbUrl": "/samples/ukiha-inari/1.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "福岡県観光連盟",
+        "license": "クロスロードふくおか フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "浮羽稲荷神社02",
+        "source": {
+          "name": "福岡県観光連盟",
+          "url": "https://www.crossroadfukuoka.jp/business/photo/358"
+        },
+        "thumbUrl": "/samples/ukiha-inari/2.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "福岡県観光連盟",
+        "license": "クロスロードふくおか フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "浮羽稲荷神社06",
+        "source": {
+          "name": "福岡県観光連盟",
+          "url": "https://www.crossroadfukuoka.jp/business/photo/1284"
+        },
+        "thumbUrl": "/samples/ukiha-inari/3.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "福岡県観光連盟",
+        "license": "クロスロードふくおか フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -18534,6 +18589,19 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2011-02-27",
         "licenseCode": "cc-by-sa-3.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "慶野松原",
+        "source": {
+          "name": "環境省",
+          "url": "https://www.env.go.jp/nature/nationalparks/list/setonaikai/spot/"
+        },
+        "thumbUrl": "/samples/keino-matsubara/1.jpg",
+        "width": 890,
+        "height": 500,
+        "author": "環境省",
+        "license": "PDL1.0",
         "pickedBy": "visual-review"
       }
     ]
@@ -29540,6 +29608,48 @@
         "dateTimeOriginal": "2013-03-26 13:21:29",
         "licenseCode": "cc-by-sa-3.0",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "一心行の大桜1（南阿蘇村）",
+        "source": {
+          "name": "熊本県観光連盟",
+          "url": "https://kumamoto.guide/photos/detail/404"
+        },
+        "thumbUrl": "/samples/isshingyo/1.jpg",
+        "width": 1280,
+        "height": 854,
+        "author": "熊本県",
+        "license": "熊本県観光連盟 写真ダウンロード利用規約（申請不要）",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "一心行の大桜2（南阿蘇村）",
+        "source": {
+          "name": "熊本県観光連盟",
+          "url": "https://kumamoto.guide/photos/detail/405"
+        },
+        "thumbUrl": "/samples/isshingyo/2.jpg",
+        "width": 1280,
+        "height": 960,
+        "author": "熊本県",
+        "license": "熊本県観光連盟 写真ダウンロード利用規約（申請不要）",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "一心行の大桜3（南阿蘇村）",
+        "source": {
+          "name": "熊本県観光連盟",
+          "url": "https://kumamoto.guide/photos/detail/406"
+        },
+        "thumbUrl": "/samples/isshingyo/3.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "熊本県",
+        "license": "熊本県観光連盟 写真ダウンロード利用規約（申請不要）",
+        "resized": true,
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -31057,6 +31167,34 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2014-03-18",
         "licenseCode": "cc-by-sa-3.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "須佐ホルンフェルス",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_180054.html"
+        },
+        "thumbUrl": "/samples/susa-hornfels/1.jpg",
+        "width": 1280,
+        "height": 960,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "須佐ホルンフェルス",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_1700687.html"
+        },
+        "thumbUrl": "/samples/susa-hornfels/2.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
         "pickedBy": "visual-review"
       }
     ]
@@ -32951,6 +33089,20 @@
         "dateTimeOriginal": "2019-04-21",
         "licenseCode": "cc-by-sa-4.0",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "芥屋大門",
+        "source": {
+          "name": "福岡県観光連盟",
+          "url": "https://www.crossroadfukuoka.jp/business/photo/424"
+        },
+        "thumbUrl": "/samples/keya-no-oto/1.jpg",
+        "width": 1280,
+        "height": 826,
+        "author": "福岡県観光連盟",
+        "license": "クロスロードふくおか フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -34620,6 +34772,19 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2024-07-26 14:41:01",
         "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "国賀海岸",
+        "source": {
+          "name": "環境省",
+          "url": "https://www.env.go.jp/nature/nationalparks/list/daisen-oki/spot/"
+        },
+        "thumbUrl": "/samples/oki-kuniga/1.jpg",
+        "width": 890,
+        "height": 500,
+        "author": "環境省",
+        "license": "PDL1.0",
         "pickedBy": "visual-review"
       }
     ]
@@ -41290,6 +41455,48 @@
         "dateTimeOriginal": "2008-09-09",
         "licenseCode": "PD-self",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "照葉大吊橋1",
+        "source": {
+          "name": "宮崎県観光協会",
+          "url": "https://www.kanko-miyazaki.jp/business/photo/563"
+        },
+        "thumbUrl": "/samples/aya-shoyo/1.jpg",
+        "width": 1280,
+        "height": 854,
+        "author": "宮崎県観光協会",
+        "license": "宮崎県観光協会 フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "照葉大吊橋3",
+        "source": {
+          "name": "宮崎県観光協会",
+          "url": "https://www.kanko-miyazaki.jp/business/photo/565"
+        },
+        "thumbUrl": "/samples/aya-shoyo/2.jpg",
+        "width": 1280,
+        "height": 851,
+        "author": "宮崎県観光協会",
+        "license": "宮崎県観光協会 フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "照葉大吊橋4",
+        "source": {
+          "name": "宮崎県観光協会",
+          "url": "https://www.kanko-miyazaki.jp/business/photo/566"
+        },
+        "thumbUrl": "/samples/aya-shoyo/3.jpg",
+        "width": 851,
+        "height": 1280,
+        "author": "宮崎県観光協会",
+        "license": "宮崎県観光協会 フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -43105,6 +43312,19 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2012-10-06",
         "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "壇鏡の滝",
+        "source": {
+          "name": "環境省",
+          "url": "https://www.env.go.jp/nature/nationalparks/list/daisen-oki/spot/"
+        },
+        "thumbUrl": "/samples/dandan/1.jpg",
+        "width": 890,
+        "height": 593,
+        "author": "環境省",
+        "license": "PDL1.0",
         "pickedBy": "visual-review"
       }
     ]
@@ -50611,6 +50831,19 @@
         "dateTimeOriginal": "2022-08-16 11:14:41",
         "licenseCode": "cc-by-sa-4.0",
         "pickedBy": "visual-review"
+      },
+      {
+        "title": "富士山（2013年3月）まきば公園",
+        "source": {
+          "name": "やまなし観光推進機構",
+          "url": "https://www.yamanashi-kankou.jp/kankou/photo/pg_50118.html"
+        },
+        "thumbUrl": "/samples/makiba/1.jpg",
+        "width": 1024,
+        "height": 683,
+        "author": "やまなし観光推進機構",
+        "license": "やまなし観光推進機構 使用許諾",
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -51883,6 +52116,34 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2015-03-20 16:04:46",
         "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "行縢山4",
+        "source": {
+          "name": "宮崎県観光協会",
+          "url": "https://www.kanko-miyazaki.jp/business/photo/311"
+        },
+        "thumbUrl": "/samples/mukabaki/1.jpg",
+        "width": 1280,
+        "height": 851,
+        "author": "宮崎県観光協会",
+        "license": "宮崎県観光協会 フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "行縢山1",
+        "source": {
+          "name": "宮崎県観光協会",
+          "url": "https://www.kanko-miyazaki.jp/business/photo/308"
+        },
+        "thumbUrl": "/samples/mukabaki/2.jpg",
+        "width": 1280,
+        "height": 851,
+        "author": "宮崎県観光協会",
+        "license": "宮崎県観光協会 フォトダウンロード利用規約",
+        "resized": true,
         "pickedBy": "visual-review"
       }
     ]
@@ -55069,6 +55330,19 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "Taken on 15 August 2013",
         "licenseCode": "cc-by-3.0",
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "タデ原",
+        "source": {
+          "name": "環境省",
+          "url": "https://www.env.go.jp/nature/nationalparks/list/aso-kuju/spot/"
+        },
+        "thumbUrl": "/samples/tadewara/1.jpg",
+        "width": 890,
+        "height": 500,
+        "author": "環境省",
+        "license": "PDL1.0",
         "pickedBy": "visual-review"
       }
     ]
@@ -69782,6 +70056,108 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2012-10-26 16:02:01",
         "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      }
+    ]
+  },
+  "sp_0172f55bf61e": {
+    "slug": "kasayama",
+    "name": "笠山 椿群生林",
+    "samples": [
+      {
+        "title": "椿群生林",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_180030.html"
+        },
+        "thumbUrl": "/samples/kasayama/1.jpg",
+        "width": 1280,
+        "height": 850,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      }
+    ]
+  },
+  "sp_228c74021ac7": {
+    "slug": "toko-ji",
+    "name": "東光寺",
+    "samples": [
+      {
+        "title": "東光寺（総門）",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_180058.html"
+        },
+        "thumbUrl": "/samples/toko-ji/1.jpg",
+        "width": 1280,
+        "height": 667,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "東光寺（大雄宝殿）",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_180059.html"
+        },
+        "thumbUrl": "/samples/toko-ji/2.jpg",
+        "width": 1280,
+        "height": 709,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "東光寺（墓所）",
+        "source": {
+          "name": "山口県観光連盟",
+          "url": "https://yamaguchi-tourism.jp/photo/detail_180060.html"
+        },
+        "thumbUrl": "/samples/toko-ji/3.jpg",
+        "width": 1280,
+        "height": 764,
+        "author": "山口県観光連盟",
+        "license": "山口県観光連盟 画像ダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      }
+    ]
+  },
+  "sp_9243d74e700d": {
+    "slug": "honjima",
+    "name": "本島 笠島",
+    "samples": [
+      {
+        "title": "笠島集落",
+        "source": {
+          "name": "香川県観光協会",
+          "url": "https://www.my-kagawa.jp/photo/10001853"
+        },
+        "thumbUrl": "/samples/honjima/1.jpg",
+        "width": 1280,
+        "height": 861,
+        "author": "香川県観光協会",
+        "license": "香川県観光協会 フォトダウンロード利用規約",
+        "resized": true,
+        "pickedBy": "visual-review"
+      },
+      {
+        "title": "本島",
+        "source": {
+          "name": "香川県観光協会",
+          "url": "https://www.my-kagawa.jp/photo/10000237"
+        },
+        "thumbUrl": "/samples/honjima/2.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "香川県観光協会",
+        "license": "香川県観光協会 フォトダウンロード利用規約",
+        "resized": true,
         "pickedBy": "visual-review"
       }
     ]

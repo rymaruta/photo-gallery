@@ -134,9 +134,10 @@ const EXEMPT: Array<[string, string, string]> = [
      + "`publicImageUrl` を通す対象ではない。日ごとのファイル（`quizFeed.ts`）から受け取る"],
     // (a) 自分の配信ではない
     ["app/components/SpotGuideClient.tsx", "small ?? s.src",
-     "撮影地の作例（Wikimedia Commons のサムネイル・upload.wikimedia.org、Flickr の画像・live.staticflickr.com）。"
+     "撮影地の作例（Wikimedia Commons のサムネイル・upload.wikimedia.org、Flickr の画像・live.staticflickr.com、"
+     + "サイトに置いた環境省・県の観光協会などの写真＝サーバー側で `publicImageUrl` を通したこのサイトの URL）。"
      + "**利用者が上げた写真ではない**。"
-     + "読み込み元がこの2つ（`SAMPLE_IMAGE_ORIGINS`）であることはサーバー側（`lib/data/spotSamples.ts` の `toSpotSample`）で確かめてある。"
+     + "読み込み元がこの3つ（`SAMPLE_IMAGE_ORIGINS`）であることはサーバー側（`lib/data/spotSamples.ts` の `toSpotSample`）で確かめてある。"
      + "こちらで複製しない（元画像の位置情報を配らない）ため、直接読む（`docs/spot-samples-commons.md`）"],
     ["app/components/SpotGuideClient.tsx", "srcSet",
      "上と同じ作例の縮小版（`lib/utils/commonsThumb.ts` が Commons の標準の幅の URL を作る）"],
@@ -294,10 +295,11 @@ describe("画面に描く画像URLは、サイトのドメインに揃える", (
  * 作例は `publicImageUrl` を通さない別オリジンの画像（上の EXEMPT の (a)）なので、
  * 代わりに「どこから読むか」を確定ファイルの全部で見る。
  */
-describe("作例の画像の読み込み元（upload.wikimedia.org・live.staticflickr.com）", () => {
-    it("許可リストは2つだけ・確定ファイルの表示する1枚は全部そのどれか", async () => {
+describe("作例の画像の読み込み元（upload.wikimedia.org・live.staticflickr.com・このサイト）", () => {
+    it("許可リストは3つだけ・確定ファイルの表示する1枚は全部そのどれか", async () => {
         const { SAMPLE_IMAGE_ORIGINS, SPOT_SAMPLES, toSpotSample } = await import("@/lib/data/spotSamples");
-        expect([...SAMPLE_IMAGE_ORIGINS]).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com"]);
+        const { siteConfig } = await import("@/lib/utils/seo");
+        expect([...SAMPLE_IMAGE_ORIGINS]).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com", new URL(siteConfig.url).origin]);
         let n = 0;
         for (const { samples } of Object.values(SPOT_SAMPLES)) {
             for (const r of samples) {
