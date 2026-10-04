@@ -134,8 +134,9 @@ const EXEMPT: Array<[string, string, string]> = [
      + "`publicImageUrl` を通す対象ではない。日ごとのファイル（`quizFeed.ts`）から受け取る"],
     // (a) 自分の配信ではない
     ["app/components/SpotGuideClient.tsx", "small ?? s.src",
-     "撮影地の作例（Wikimedia Commons のサムネイル・upload.wikimedia.org）。**利用者が上げた写真ではない**。"
-     + "Commons の URL であることはサーバー側（`lib/data/spotSamples.ts` の `toSpotSample`）で確かめてある。"
+     "撮影地の作例（Wikimedia Commons のサムネイル・upload.wikimedia.org、Flickr の画像・live.staticflickr.com）。"
+     + "**利用者が上げた写真ではない**。"
+     + "読み込み元がこの2つ（`SAMPLE_IMAGE_ORIGINS`）であることはサーバー側（`lib/data/spotSamples.ts` の `toSpotSample`）で確かめてある。"
      + "こちらで複製しない（元画像の位置情報を配らない）ため、直接読む（`docs/spot-samples-commons.md`）"],
     ["app/components/SpotGuideClient.tsx", "srcSet",
      "上と同じ作例の縮小版（`lib/utils/commonsThumb.ts` が Commons の標準の幅の URL を作る）"],
@@ -285,5 +286,40 @@ describe("画面に描く画像URLは、サイトのドメインに揃える", (
             const withUrl = `const u = "https://example.com/a.jpg";\n<img src={u} alt="" />`;
             expect(imageSinks(withUrl, "x.tsx").map((s) => s.expr)).toEqual(["u"]);
         });
+    });
+});
+
+/**
+ * **作例の画像の読み込み元は許可リストのどれか**（2026-10-04・Flickr を足した日）。
+ * 作例は `publicImageUrl` を通さない別オリジンの画像（上の EXEMPT の (a)）なので、
+ * 代わりに「どこから読むか」を確定ファイルの全部で見る。
+ */
+describe("作例の画像の読み込み元（upload.wikimedia.org・live.staticflickr.com）", () => {
+    it("許可リストは2つだけ・確定ファイルの表示する1枚は全部そのどれか", async () => {
+        const { SAMPLE_IMAGE_ORIGINS, SPOT_SAMPLES, toSpotSample } = await import("@/lib/data/spotSamples");
+        expect([...SAMPLE_IMAGE_ORIGINS]).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com"]);
+        let n = 0;
+        for (const { samples } of Object.values(SPOT_SAMPLES)) {
+            for (const r of samples) {
+                const s = toSpotSample(r);
+                if (!s) continue;
+                expect(SAMPLE_IMAGE_ORIGINS, s.src).toContain(new URL(s.src).origin);
+                n++;
+            }
+        }
+        expect(n).toBeGreaterThan(0);
+    });
+
+    it("許可リストの外の画像は表示の形にならない（Flickr の旧ドメイン・ほかのサイト）", async () => {
+        const { toSpotSample } = await import("@/lib/data/spotSamples");
+        const flickr = {
+            title: "T", source: { name: "Flickr" as const, url: "https://www.flickr.com/photos/u/123/" },
+            thumbUrl: "https://live.staticflickr.com/65535/123_abcdef_b.jpg", width: 1024, height: 683,
+            author: "A", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/", pickedBy: "x",
+        };
+        expect(toSpotSample(flickr)).toBeTruthy();
+        for (const thumbUrl of ["https://farm1.staticflickr.com/1/123_abcdef_b.jpg", "https://example.com/123_abcdef_b.jpg"]) {
+            expect(toSpotSample({ ...flickr, thumbUrl }), thumbUrl).toBeUndefined();
+        }
     });
 });

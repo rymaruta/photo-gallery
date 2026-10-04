@@ -304,22 +304,30 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
  * **作例（Wikimedia Commons より）。** 利用者の投稿とは別の節で、投稿だとは名乗らない。
  *
  * 🔴 **1枚ごとに、写真のすぐ下へ「題 / 写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」。**
+ * Flickr の1枚（2026-10-04）は最後が「Flickr」で、リンク先は Flickr の写真のページ。
  * CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典）。代表写真の出典と同じ書き方。
  * 写真は**切り抜かない**（元の縦横比のまま・改変と受け取られる余地を作らない）
  */
+/** 作例の出どころの名前（`source` が無ければ Wikimedia Commons・2026-10-04 から Flickr も） */
+const sampleSourceName = (s: SpotSample) => s.source?.name ?? "Wikimedia Commons";
+
 function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
     // 読み込めなかった1枚（Commons 側で消えた・差し替わった）は、出典ごと隠す。
     // 全部読めなければ節ごと隠す（割れた画像の枠と出典だけが並ばないように）
     const [broken, setBroken] = React.useState<ReadonlySet<string>>(() => new Set());
     const shown = samples.filter((s) => !broken.has(s.sourceUrl));
     if (shown.length === 0) return null;
+    // 見出しと前書きで名乗る出どころ（Commons が先・出ている写真の分だけ）
+    const sources = [...new Set(shown.map(sampleSourceName))]
+        .sort((a, b) => Number(b === "Wikimedia Commons") - Number(a === "Wikimedia Commons"));
+    const from = sources.join(isJa ? "・" : " and ");
     return (
         <section className="pt-8" aria-labelledby="spot-samples" data-testid="spot-samples">
-            <Head id="spot-samples">{isJa ? "作例（Wikimedia Commons より）" : "Example photos (from Wikimedia Commons)"}</Head>
+            <Head id="spot-samples">{isJa ? `作例（${from} より）` : `Example photos (from ${from})`}</Head>
             <p className="m-0 mb-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
-                    ? "この場所の近くで撮られ、Wikimedia Commons で自由なライセンスのもと公開されている写真です。撮影者はこのサイトの利用者ではありません。"
-                    : "Photos taken near this spot and published under free licenses on Wikimedia Commons. The photographers are not members of this site."}
+                    ? `この場所の近くで撮られ、${from} で自由なライセンスのもと公開されている写真です。撮影者はこのサイトの利用者ではありません。`
+                    : `Photos taken near this spot and published under free licenses on ${from}. The photographers are not members of this site.`}
             </p>
             <ul className="m-0 p-0 grid grid-cols-2 sm:grid-cols-3 gap-3 items-start" style={{ listStyle: "none" }}>
                 {shown.map((s) => {
@@ -337,7 +345,8 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                      className="block w-full h-auto rounded-lg bg-surface" />
                                 <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "11px", lineHeight: "15px" }}
                                             data-testid="spot-sample-credit">
-                                    {/* TASL（題・作者・出典・ライセンス）。題は Commons のファイル名から */}
+                                    {/* TASL（題・作者・出典・ライセンス）。題は Commons のファイル名から（Flickr は写真の題）。
+                                        出典のリンクは写真のページ（Flickr の決まり: 写真のページへ張る） */}
                                     <cite className="not-italic">{s.title}</cite>{" / "}
                                     {isJa ? "写真: " : "Photo: "}{s.author}{" / "}
                                     {s.licenseUrl ? (
@@ -346,7 +355,7 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                     ) : s.license}
                                     {" / "}
                                     <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer"
-                                       className="text-white/60 underline underline-offset-2 hover:text-white">Wikimedia Commons</a>
+                                       className="text-white/60 underline underline-offset-2 hover:text-white">{sampleSourceName(s)}</a>
                                 </figcaption>
                             </figure>
                         </li>

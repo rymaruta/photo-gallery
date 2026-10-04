@@ -1,6 +1,8 @@
 // lib/data/spotSamples.ts（サーバー専用）
 //
 // **撮影地ページの「作例」（Wikimedia Commons の自由に使える写真）。**（2026-10-03）
+// 2026-10-04: Flickr（CC BY・CC BY-SA・CC0）も出せる。行に `source: { name: "Flickr", url: <写真のページ> }`
+// を書く。`source` の無い行は今まで通り Commons（`toFlickrSample`）。
 //
 // `scripts/collect-commons-samples.mjs` が候補（`content/spot-samples.candidates.json`）を集め、
 // 採用した分だけを `content/spot-samples.json`（spotId → 最大6枚）に書く。**画面とアプリが
@@ -24,13 +26,38 @@ import {
     cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
+/**
+ * 作例の出どころ（2026-10-04）。**無ければ Wikimedia Commons**（既存の行はこの鍵を持たない）。
+ * - `name`: 出どころの名前。いまは "Flickr" だけ（"Wikimedia Commons" と書いてもよい＝無いのと同じ）
+ * - `url`: その写真のページ（出典のリンク先）。Flickr は `https://www.flickr.com/photos/<人>/<写真ID>/`
+ *
+ * 🔴 Flickr は CC BY・CC BY-SA・CC0 だけ（Public Domain Mark・「著作権の制限なし」・NC・ND は出さない）。
+ * Flickr の決まりどおり、出典のリンクは**写真のページ**へ張る
+ */
+export type SpotSampleSource = { name: SpotSampleSourceName; url: string };
+export type SpotSampleSourceName = "Wikimedia Commons" | "Flickr";
+
+/**
+ * **作例の画像を読みにいく先（オリジン）の許可リスト。** `toSpotSample` を通った1枚の `src` は
+ * 必ずこのどれか（`app/__tests__/imageOriginSites.test.ts` が確定ファイルの全部で見る）。
+ * 出どころを足すときは、ここと `toSpotSample` の両方に足す
+ */
+export const SAMPLE_IMAGE_ORIGINS = ["https://upload.wikimedia.org", "https://live.staticflickr.com"] as const;
+
+/** 出どころが書かれていないときの名前（既存の行はみな Commons） */
+export const COMMONS_SOURCE_NAME = "Wikimedia Commons";
+
 /** 確定ファイルの1枚（手で書く形） */
 export type SpotSampleRecord = {
-    /** Commons のファイル名（"File:…"） */
-    file: string;
-    /** Commons のファイルのページ（出典のリンク先） */
-    pageUrl: string;
-    /** 表示に使うサムネイル（upload.wikimedia.org・横 1280px まで） */
+    /** Commons のファイル名（"File:…"）。Commons 以外は無くてよい（題は `title`） */
+    file?: string;
+    /** 題。Commons 以外（Flickr の写真の題）で使う。Commons はファイル名から作る */
+    title?: string;
+    /** Commons のファイルのページ（出典のリンク先）。Commons 以外は `source.url` を使う */
+    pageUrl?: string;
+    /** 出どころ。無ければ Wikimedia Commons */
+    source?: SpotSampleSource;
+    /** 表示に使う画像（Commons は upload.wikimedia.org・横 1280px まで。Flickr は live.staticflickr.com） */
     thumbUrl: string;
     width: number;
     height: number;
@@ -65,8 +92,13 @@ export type SpotSample = {
     license: string;
     /** ライセンスの文面（https）。パブリックドメインなど URL の無いものは持たない */
     licenseUrl?: string;
-    /** Commons のファイルのページ */
+    /** 出典のページ（Commons のファイルのページ・Flickr の写真のページ）。`source` があれば `source.url` と同じ */
     sourceUrl: string;
+    /**
+     * 出どころ。**Commons 以外のときだけ持つ**（無ければ Wikimedia Commons。既存の本文の形は変えない）。
+     * アプリ（`/app/data/spots/<slug>.json`）も同じ形で読む
+     */
+    source?: SpotSampleSource;
     /** 撮影日時（Commons の書き方のまま） */
     takenAt?: string;
 };
@@ -86,6 +118,22 @@ const isHttps = (u: unknown): u is string => typeof u === "string" && /^https:\/
 const isCommonsPage = (u: string) => /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(u);
 const isCommonsUpload = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(u);
 const isCommonsThumb = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\//.test(u);
+/** Flickr の写真のページ（`https://www.flickr.com/photos/<人>/<写真ID>/`）。写真ID を返す */
+const flickrPhotoIdOfPage = (u: string) => /^https:\/\/www\.flickr\.com\/photos\/[A-Za-z0-9@_-]+\/(\d+)\/?$/.exec(u)?.[1];
+/** Flickr の画像（`https://live.staticflickr.com/<server>/<写真ID>_<secret>[_<大きさ>].jpg`）。写真ID を返す */
+const flickrPhotoIdOfImage = (u: string) => /^https:\/\/live\.staticflickr\.com\/\d+\/(\d+)_[0-9a-f]+(?:_[a-z0-9]{1,2})?\.(?:jpe?g|png)$/.exec(u)?.[1];
+
+/** 出どころの名前（書かれていなければ Wikimedia Commons）。知らない名前は undefined */
+export function sampleSourceName(r: Pick<SpotSampleRecord, "source">): SpotSampleSourceName | undefined {
+    if (r.source == null) return COMMONS_SOURCE_NAME;
+    const name = String(r.source.name ?? "").trim();
+    return name === "Flickr" || name === COMMONS_SOURCE_NAME ? name : undefined;
+}
+
+/** 表示の形の1枚の出どころの名前（`source` が無ければ Wikimedia Commons） */
+export function sourceNameOf(s: Pick<SpotSample, "source">): SpotSampleSourceName {
+    return s.source?.name ?? COMMONS_SOURCE_NAME;
+}
 
 /**
  * ライセンスの種類。Commons の短い名前は "CC BY-SA 4.0" と "CC-BY-SA-3.0" の両方の書き方が
@@ -120,6 +168,9 @@ export function titleFromFile(file: string): string {
  * 🔴 確定ファイルに既に入っている行にも効く（収集し直さなくても、表示のところで守る）
  */
 export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
+    const sourceName = sampleSourceName(r);
+    if (!sourceName) return undefined;
+    if (sourceName === "Flickr") return toFlickrSample(r);
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
     if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
@@ -146,7 +197,7 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     }
     const licenseUrl = r.licenseUrl ? r.licenseUrl.replace(/^http:\/\//, "https://") : undefined;
     if (byLicense && !isHttps(licenseUrl)) return undefined;
-    const title = titleFromFile(r.file) || titleFromFile(decodeURIComponent(sourceUrl.replace(/^.*\/wiki\//, "")));
+    const title = titleFromFile(r.file ?? "") || titleFromFile(decodeURIComponent(sourceUrl.replace(/^.*\/wiki\//, "")));
     if (!title) return undefined;
     return {
         src,
@@ -157,6 +208,46 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
         license: kind === "public-domain" ? `${r.license.trim()} (${r.licenseCode!.trim()})` : r.license.trim(),
         ...(isHttps(licenseUrl) ? { licenseUrl } : {}),
         sourceUrl,
+        ...(r.dateTimeOriginal?.trim() ? { takenAt: r.dateTimeOriginal.trim() } : {}),
+    };
+}
+
+/**
+ * **Flickr の1枚**を表示の形へ（2026-10-04）。出してはいけない1枚は undefined:
+ *   - ライセンスが CC BY・CC BY-SA・CC0 でない（Public Domain Mark・「著作権の制限なし」・NC・ND は出さない）
+ *   - CC BY 系なのにライセンスの文面の URL が無い・作者が空か決まり文句（CC0 は「作者不明」と出す）
+ *   - 出典が Flickr の写真のページでない・画像が live.staticflickr.com でない・2つの写真ID が食い違う
+ *   - 題が無い・人物の権利の印がある・大きさが無い
+ */
+function toFlickrSample(r: SpotSampleRecord): SpotSample | undefined {
+    const kind = sampleLicenseKind(r.license);
+    if (kind !== "cc-by" && kind !== "cc-by-sa" && kind !== "cc0") return undefined;
+    if (r.personality) return undefined;
+    const byLicense = kind !== "cc0";
+    let author = cleanCommonsAuthor(cleanAuthor(String(r.author ?? "")));
+    if (isPlaceholderAuthor(author)) {
+        if (byLicense) return undefined;
+        author = UNKNOWN_AUTHOR;
+    }
+    const sourceUrl = String(r.source?.url ?? "").trim().replace(/^http:\/\//, "https://");
+    const src = String(r.thumbUrl ?? "").trim().replace(/^http:\/\//, "https://");
+    const pageId = flickrPhotoIdOfPage(sourceUrl);
+    if (!pageId || flickrPhotoIdOfImage(src) !== pageId) return undefined;
+    if (!(r.width > 0) || !(r.height > 0)) return undefined;
+    const licenseUrl = r.licenseUrl ? r.licenseUrl.trim().replace(/^http:\/\//, "https://") : undefined;
+    if (byLicense && !isHttps(licenseUrl)) return undefined;
+    const title = String(r.title ?? "").replace(/\s+/g, " ").trim();
+    if (!title) return undefined;
+    return {
+        src,
+        width: r.width,
+        height: r.height,
+        title,
+        author,
+        license: r.license.trim(),
+        ...(isHttps(licenseUrl) ? { licenseUrl } : {}),
+        sourceUrl,
+        source: { name: "Flickr", url: sourceUrl },
         ...(r.dateTimeOriginal?.trim() ? { takenAt: r.dateTimeOriginal.trim() } : {}),
     };
 }
@@ -186,7 +277,7 @@ export function spotSamples(
     const out: SpotSample[] = [];
     for (const r of file[spot.spotId]?.samples ?? []) {
         if (opts.reviewedOnly && !isReviewedPick(r)) continue;
-        if (!eventSpot && EVENT_OR_PERSON.test(`${r.file ?? ""}`)) continue;
+        if (!eventSpot && EVENT_OR_PERSON.test(`${r.file ?? r.title ?? ""}`)) continue;
         const s = toSpotSample(r);
         if (!s || skip.has(s.sourceUrl) || seen.has(s.sourceUrl)) continue;
         seen.add(s.sourceUrl);
@@ -202,6 +293,7 @@ export function spotSamples(
  * - 作者は**分かるときだけ** `creator`（「作者不明」のパブリックドメイン・CC0 は `creditText` にだけ出る）。
  *   型は `Person`。団体と分かる名前（Section・Museum・協会・大学…）だけ `Organization`（`isOrganizationName`）
  * - パブリックドメインは Public Domain Mark の URL を `license` に
+ * - 表示の文字の最後と `acquireLicensePage` は出どころに合わせる（Commons のページ・Flickr の写真のページ）
  */
 export function sampleImageObject(s: SpotSample) {
     const license = s.licenseUrl ?? (sampleLicenseKind(s.license) === "public-domain" ? PUBLIC_DOMAIN_MARK_URL : undefined);
@@ -214,7 +306,7 @@ export function sampleImageObject(s: SpotSample) {
         ...(s.author !== UNKNOWN_AUTHOR
             ? { creator: { "@type": isOrganizationName(s.author) ? "Organization" : "Person", name: s.author } }
             : {}),
-        creditText: `${s.author} / ${s.license} / Wikimedia Commons`,
+        creditText: `${s.author} / ${s.license} / ${sourceNameOf(s)}`,
         ...(license ? { license } : {}),
         acquireLicensePage: s.sourceUrl,
     };

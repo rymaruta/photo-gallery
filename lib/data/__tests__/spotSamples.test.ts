@@ -262,7 +262,7 @@ describe("パブリックドメインの根拠（レビュー #275 の 1）", ()
         const rows = Object.values(rawSamples as unknown as SpotSamplesFile).flatMap((e) => e.samples);
         const wakasa = rows.find((r) => r.file === "File:Wakasa Kouta.jpg");
         if (wakasa) expect(toSpotSample(wakasa)).toBeUndefined();
-        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file));
+        const ryoma = rows.filter((r) => /坂本龍馬像[13] Katsura-hama/.test(r.file ?? ""));
         for (const r of ryoma) {
             expect(toSpotSample(r)).toMatchObject({ license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0/", author: "baggio4ever" });
         }
@@ -295,7 +295,7 @@ describe("リポジトリの確定ファイル", () => {
         const by = /^cc[-\s]by/i.test(r.license);
         return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
             || String(r.licenseCode ?? "").startsWith("mixed:")
-            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file));
+            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""));
     };
 
     it("🔴 書いてある1枚は、決めた理由で落とすもの以外どれも表示の形にできる", () => {
@@ -345,7 +345,7 @@ describe("撮影地ページの構造化データへの渡し方（レビュー 
                 checked++;
             }
             const recs = (rawSamples as unknown as SpotSamplesFile)[spotId].samples;
-            autoCount += shown.filter((s) => recs.find((r) => r.pageUrl.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
+            autoCount += shown.filter((s) => recs.find((r) => r.pageUrl?.replace(/^http:/, "https:") === s.sourceUrl)?.pickedBy === "auto").length;
         }
         expect(checked).toBeGreaterThan(1000);
         expect(autoCount).toBeGreaterThan(0); // 自動で選んだ作例も入っている
