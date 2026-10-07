@@ -7,7 +7,8 @@
 //
 // ## 載せるもの（2026-09-27）
 //
-//   name・coords（2026-09-30・Web の投稿画面がスポットを引き継ぐため）・
+//   name・coords（2026-09-30・Web の投稿画面がスポットを引き継ぐため）・country・
+//   timeZone（台帳に書いた行だけ・2026-10-07・光の時刻の時計）・
 //   description・highlights・seasonalGuide・timeOfDayGuide・compositionTips・
 //   officialWebsiteUrl と、**確かめた印**（`check`）:
 //     - 人が確かめた行   → { kind: "human", verifiedAt }（画面は「情報の最終確認（運営）」）
@@ -50,6 +51,11 @@ export type SpotBody = {
      * その土地の時計で言うのに使う（`timeZoneForCountry`）。日本の行は持たない（無ければ日本）
      */
     country?: string;
+    /**
+     * 時刻帯（台帳の行の `timeZone`・IANA 名・2026-10-07）。**台帳に書いた行だけ**。アプリと旅行プランは
+     * これを国より先に使う（`spotTimeZone`）。後から足した項目なので、知らないアプリは読み飛ばす
+     */
+    timeZone?: string;
     description?: string;
     highlights?: string[];
     seasonalGuide?: { season: string; text: string }[];
@@ -91,6 +97,7 @@ export function toSpotBody(spot: Spot, samplesFile?: Readonly<SpotSamplesFile>):
         name: spot.name,
         coords: spot.coords ? { lat: spot.coords.lat, lng: spot.coords.lng } : undefined,
         country: spot.region?.country && spot.region.country.trim() !== "日本" ? spot.region.country.trim() : undefined,
+        timeZone: spot.timeZone?.trim() || undefined,
         description: spot.description?.trim() ? spot.description : undefined,
         highlights: nonEmpty(spot.highlights),
         seasonalGuide: nonEmpty(spot.seasonalGuide)?.map((g) => ({ season: g.season, text: g.text })),

@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { TripPlan } from "../../lib/hooks/useTripPlans";
 import type { SpotRef } from "../../lib/data/spotLink";
 import { spotBodyUrl } from "../../lib/utils/spotUpload";
-import { timeZoneForCountry, todayIn } from "../../lib/utils/sunTimes";
+import { spotTimeZone, todayIn } from "../../lib/utils/sunTimes";
 import { dayLightCells, lightCellText, type DayLight } from "../../lib/utils/lightCalendar";
 import { parseTripSpotBody, seasonOfMonth, tripLightCandidates } from "../../lib/utils/tripLight";
 
@@ -79,7 +79,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
                         if (!res.ok) continue;
                         const body = parseTripSpotBody(await res.json(), slug);
                         if (!alive) return;
-                        const zone = body ? timeZoneForCountry(body.country) : null;
+                        const zone = body ? spotTimeZone(body.timeZone, body.country) : null;
                         const cells = body && zone ? dayLightCells(cand.ymd, body.coords, zone) : null;
                         if (!body || !cells) continue;
                         const season = seasonOfMonth(Number(cand.ymd.slice(5, 7)));

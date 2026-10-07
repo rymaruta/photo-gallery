@@ -134,12 +134,20 @@ export function sunTimes(ymd: string, coords: { lat: number; lng: number }): Sun
 }
 
 /**
- * 国（台帳の `region.country`・日本語表記）→ 時刻帯。**台帳に出る国だけ**。
+ * 国（台帳の `region.country`・日本語表記）→ 時刻帯。**時刻帯が1つの国だけ**。
  * 無い国は `null`——時刻をその土地の時計で言えないので、時刻を出さない
  * （利用者の端末の時計で言うと、旅先では読み違える）。日本の行は国を持たないことがある（無ければ日本）
+ *
+ * 2026-10-07 判断: 海外のスポットを大きく増やすので、アジア・中東・アフリカ・米州・欧州の
+ * **時刻帯が1つの国**を足した。アメリカ・カナダ・オーストラリア・ブラジル・メキシコ・ロシア・
+ * インドネシア・モンゴル・チリ（イースター島）・エクアドル（ガラパゴス）・ニュージーランド（チャタム）
+ * のように**時刻帯が複数ある国は表に入れない**——台帳の行に `timeZone`（IANA 名）を書く
+ * （`spotTimeZone` が先に見る）。書いていない行は節を出さない（推測で時計を決めない）。
+ * **アプリの `SunTimes.countryTimeZones` と同じ表**（verify が突き合わせる）
  */
 export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
     日本: "Asia/Tokyo",
+    // 欧州
     フランス: "Europe/Paris",
     スペイン: "Europe/Madrid",
     フィンランド: "Europe/Helsinki",
@@ -154,10 +162,110 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
     クロアチア: "Europe/Zagreb",
     バチカン市国: "Europe/Vatican",
     オーストリア: "Europe/Vienna",
+    アイルランド: "Europe/Dublin",
+    ベルギー: "Europe/Brussels",
+    ルクセンブルク: "Europe/Luxembourg",
+    モナコ: "Europe/Monaco",
+    デンマーク: "Europe/Copenhagen",
+    ノルウェー: "Europe/Oslo",
+    スウェーデン: "Europe/Stockholm",
+    アイスランド: "Atlantic/Reykjavik",
+    エストニア: "Europe/Tallinn",
+    ラトビア: "Europe/Riga",
+    リトアニア: "Europe/Vilnius",
+    ポーランド: "Europe/Warsaw",
+    スロバキア: "Europe/Bratislava",
+    ハンガリー: "Europe/Budapest",
+    スロベニア: "Europe/Ljubljana",
+    ボスニア・ヘルツェゴビナ: "Europe/Sarajevo",
+    セルビア: "Europe/Belgrade",
+    モンテネグロ: "Europe/Podgorica",
+    アルバニア: "Europe/Tirane",
+    北マケドニア: "Europe/Skopje",
+    ルーマニア: "Europe/Bucharest",
+    ブルガリア: "Europe/Sofia",
+    マルタ: "Europe/Malta",
+    ジョージア: "Asia/Tbilisi",
+    アルメニア: "Asia/Yerevan",
+    // アジア
+    韓国: "Asia/Seoul",
+    台湾: "Asia/Taipei",
+    中国: "Asia/Shanghai",
+    香港: "Asia/Hong_Kong",
+    マカオ: "Asia/Macau",
+    タイ: "Asia/Bangkok",
+    ベトナム: "Asia/Ho_Chi_Minh",
+    カンボジア: "Asia/Phnom_Penh",
+    ラオス: "Asia/Vientiane",
+    ミャンマー: "Asia/Yangon",
+    マレーシア: "Asia/Kuala_Lumpur",
+    シンガポール: "Asia/Singapore",
+    フィリピン: "Asia/Manila",
+    インド: "Asia/Kolkata",
+    ネパール: "Asia/Kathmandu",
+    ブータン: "Asia/Thimphu",
+    スリランカ: "Asia/Colombo",
+    モルディブ: "Indian/Maldives",
+    ウズベキスタン: "Asia/Tashkent",
+    // 中東
+    トルコ: "Europe/Istanbul",
+    イスラエル: "Asia/Jerusalem",
+    ヨルダン: "Asia/Amman",
+    アラブ首長国連邦: "Asia/Dubai",
+    カタール: "Asia/Qatar",
+    オマーン: "Asia/Muscat",
+    サウジアラビア: "Asia/Riyadh",
+    イラン: "Asia/Tehran",
+    // アフリカ
+    エジプト: "Africa/Cairo",
+    モロッコ: "Africa/Casablanca",
+    チュニジア: "Africa/Tunis",
+    ケニア: "Africa/Nairobi",
+    タンザニア: "Africa/Dar_es_Salaam",
+    エチオピア: "Africa/Addis_Ababa",
+    ナミビア: "Africa/Windhoek",
+    南アフリカ: "Africa/Johannesburg",
+    // 米州
+    キューバ: "America/Havana",
+    ジャマイカ: "America/Jamaica",
+    グアテマラ: "America/Guatemala",
+    コスタリカ: "America/Costa_Rica",
+    パナマ: "America/Panama",
+    コロンビア: "America/Bogota",
+    ペルー: "America/Lima",
+    ボリビア: "America/La_Paz",
+    アルゼンチン: "America/Argentina/Buenos_Aires",
+    ウルグアイ: "America/Montevideo",
+    // オセアニア
+    フィジー: "Pacific/Fiji",
+    パラオ: "Pacific/Palau",
 };
 
 export function timeZoneForCountry(country: string | undefined | null): string | null {
     return COUNTRY_TIME_ZONES[(country ?? "").trim() || "日本"] ?? null;
+}
+
+/** IANA の時刻帯の名前として読めるか（"America/New_York" など。"JST"・"+09:00" のような略号・ずれは受けない） */
+export function isTimeZoneName(name: string | undefined | null): name is string {
+    const n = (name ?? "").trim();
+    if (!/^[A-Za-z][A-Za-z0-9_+\-]*(\/[A-Za-z0-9_+\-]+)+$/.test(n)) return false;
+    try {
+        new Intl.DateTimeFormat("en-US", { timeZone: n });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * スポットの時刻帯。**台帳の行の `timeZone`（IANA 名）があればそれ**、無ければ国の表
+ * （2026-10-07 判断: アメリカ・カナダ・オーストラリアのように時刻帯が複数ある国は、国から決められない）。
+ * `timeZone` が読めない名前なら、国の表に落とす（台帳の書き損じで節を消さない。台帳のテストが見張る）。
+ * **アプリの `SunTimes.timeZone(for:country:)` と同じ順**
+ */
+export function spotTimeZone(timeZone: string | undefined | null, country: string | undefined | null): string | null {
+    if (isTimeZoneName(timeZone)) return timeZone.trim();
+    return timeZoneForCountry(country);
 }
 
 /** その時刻帯での "HH:MM"（24時間）。null は「—」ではなく null のまま返す（画面が行ごと出さない） */

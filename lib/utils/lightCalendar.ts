@@ -25,7 +25,7 @@
 //   - 年は決めた年（`LIGHT_REFERENCE_YEAR`）で計算する。年で変わるのは1分ほど（EU の夏時間の切り替えは
 //     3月・10月の最終日曜で15日には重ならない）なので、ビルドの結果を日付で変えない
 
-import { clockIn, sunAltitudeRange, sunTimes, timeZoneForCountry } from "./sunTimes";
+import { clockIn, spotTimeZone, sunAltitudeRange, sunTimes } from "./sunTimes";
 
 /** 時刻が出ない欄の理由（画面が言葉と凡例にする） */
 export type LightGap = "midnightSun" | "polarNight" | "allDay" | "noDusk" | "untilDawn";
@@ -101,13 +101,15 @@ export function dayLightCells(ymd: string, coords: { lat: number; lng: number },
 /**
  * その場所の1年ぶんの表。座標が無い・時刻帯が引けないなら null
  * @param country 台帳の `region.country`（日本の行は持たないことがある＝日本）
+ * @param spotZone 台帳の行の `timeZone`（IANA 名）。あれば国より先（`spotTimeZone`）
  */
 export function lightCalendar(
     coords: { lat: number; lng: number } | undefined | null,
     country: string | undefined | null,
+    spotZone?: string | null,
 ): LightCalendar | null {
     if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng)) return null;
-    const timeZone = timeZoneForCountry(country);
+    const timeZone = spotTimeZone(spotZone, country);
     if (!timeZone) return null;
     const rows: LightRow[] = [];
     for (let month = 1; month <= 12; month++) {
