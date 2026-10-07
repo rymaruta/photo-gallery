@@ -91324,5 +91324,5497 @@
       ],
       "imageChecked": true
     }
+  },
+  {
+    "spotId": "sp_6ce075cc9a8b",
+    "slug": "jiufen",
+    "name": "九份",
+    "nameEn": "Jiufen",
+    "reading": "きゅうふん",
+    "aliases": [
+      "ジョウフェン",
+      "チウフェン",
+      "九份老街",
+      "Jiufen Old Street"
+    ],
+    "region": {
+      "country": "台湾",
+      "prefecture": "新北市",
+      "city": "瑞芳区"
+    },
+    "coords": {
+      "lat": 25.11,
+      "lng": 121.84
+    },
+    "category": "町並み",
+    "summary": "台湾北部、新北市瑞芳区の山あいにある町です。日本統治時代の面影を残す路地や石段に、喫茶店や茶藝館が建ち並びます。",
+    "description": "19世紀末に金の採掘が始まったことで町が形づくられ、日本統治時代には瑞芳鉱山の発展によって最盛期を迎えました。路地や石段は当時に造られたもので、酒家（料理店）などの建物が多く残っています。1971年に金鉱が閉山すると町は衰えましたが、1989年に映画『悲情城市』のロケ地になったことで再び注目を集めました。いまは基山街などにレトロ調の喫茶店や茶藝館、みやげ物屋が並び、台湾を代表する観光地のひとつになっています。台鉄宜蘭線の瑞芳駅から路線バスで約20分です。",
+    "highlights": [
+      "日本統治時代に造られた路地と石段",
+      "基山街などに並ぶ、レトロ調の喫茶店や茶藝館",
+      "映画『悲情城市』のロケ地になった町並み"
+    ],
+    "compositionTips": [
+      "石段の上から見下ろすと、段々に重なる建物と路地の奥行きを一枚に収められます",
+      "路地は幅が狭いので、広角で両側の店先まで入れると町の密度が伝わります"
+    ],
+    "timeZone": "Asia/Taipei",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B9%9D%E4%BB%BD",
+          "title": "Wikipedia「九份」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q31093",
+          "title": "Wikidata「Q31093」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://newtaipei.travel/"
+  },
+  {
+    "spotId": "sp_5948d2030af1",
+    "slug": "taipei-101",
+    "name": "台北101",
+    "nameEn": "Taipei 101",
+    "reading": "タイペイいちまるいち",
+    "aliases": [
+      "臺北101",
+      "台北国際金融センター",
+      "Taipei 101"
+    ],
+    "region": {
+      "country": "台湾",
+      "prefecture": "台北市",
+      "city": "信義区"
+    },
+    "coords": {
+      "lat": 25.03,
+      "lng": 121.56
+    },
+    "category": "建築",
+    "summary": "台湾・台北市信義区にある地上101階建ての超高層ビルです。高さは509.2メートルで、2004年に世界一の超高層建築物として竣工しました。",
+    "description": "設計は台湾の建築家・李祖原です。全面ガラス張りの建物ですが、輪郭は伝統的な宝塔と竹の節をイメージしており、逆台形の8階分を一節として8つの「節」が縦に連なります。509.2メートルという高さは、2007年7月にブルジュ・ハリファに抜かれるまで、完成した建築物として世界一でした。89階に屋内展望台、91階に屋外展望台があり、87階から92階の吹き抜けには風の揺れを抑える巨大なチューンドマスダンパーが吊られています。台北捷運の台北101/世界貿易センター駅を降りてすぐです。",
+    "highlights": [
+      "宝塔と竹の節をイメージした、8つの「節」が連なる輪郭",
+      "89階の屋内展望台と91階の屋外展望台",
+      "87階から92階に吊られた重さ660トンのチューンドマスダンパー"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "2004年以降、毎年大晦日の夜12時に年越しの花火が打ち上げられます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "日没から夜にかけてライトアップされます。"
+      }
+    ],
+    "compositionTips": [
+      "節の重なりが形の見どころなので、縦位置で頂部まで入れると輪郭が伝わります",
+      "大晦日の花火はビル全体が入る距離から、塔と花火を一緒に収めます"
+    ],
+    "officialWebsiteUrl": "https://www.taipei-101.com.tw/",
+    "timeZone": "Asia/Taipei",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%8F%B0%E5%8C%97101",
+          "title": "Wikipedia「台北101」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q83101",
+          "title": "Wikidata「Q83101」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_b690ac81a0ec",
+    "slug": "sun-moon-lake",
+    "name": "日月潭",
+    "nameEn": "Sun Moon Lake",
+    "reading": "にちげつたん",
+    "aliases": [
+      "じつげつたん",
+      "明潭",
+      "Sun Moon Lake"
+    ],
+    "region": {
+      "country": "台湾",
+      "prefecture": "南投県",
+      "city": "魚池郷"
+    },
+    "coords": {
+      "lat": 23.87,
+      "lng": 120.92
+    },
+    "category": "湖沼",
+    "summary": "台湾・南投県魚池郷にある、台湾で最も大きな湖です（ダム湖を除く）。湖の北側が太陽、南側が月の形をしていることから、この名で呼ばれます。",
+    "description": "日本統治時代に水力発電所の建設が計画され、1934年6月にダム湖と発電所が完成して湖面が広がりました。湖に浮かぶラル（拉魯）島は、周辺に住むサオ族の祖霊が宿る聖地とされています。一帯は国家風景区に指定され、湖の周りには8本の遊歩道があって、玄奘寺・文武廟・慈恩塔などの名所を回れます。約39キロメートルの周回道路はサイクリングにも向いています。湖上には遊覧船が運航し、湖岸からは九族文化村へ日月潭ロープウェイが通じています。",
+    "highlights": [
+      "北が太陽、南が月の形をした湖面",
+      "サオ族の聖地とされるラル（拉魯）島",
+      "玄奘寺・文武廟・慈恩塔などを結ぶ湖畔の遊歩道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "桜の咲く2月から3月に、日月潭九族さくら祭りが行われます。"
+      },
+      {
+        "season": "autumn",
+        "text": "日月潭で見る秋の月「双潭秋月」は、台湾八景のひとつに数えられています。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dusk",
+        "text": "日月潭から見る夕日は、特に美しいと言われています。"
+      }
+    ],
+    "compositionTips": [
+      "遊覧船に乗ると、湖の上から湖岸の山並みを見渡す構図がとれます",
+      "夕日の時間は湖面の反射を広く入れ、空と水面を一緒に収めます"
+    ],
+    "officialWebsiteUrl": "https://www.sunmoonlake.gov.tw/",
+    "timeZone": "Asia/Taipei",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%97%A5%E6%9C%88%E6%BD%AD",
+          "title": "Wikipedia「日月潭」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q716206",
+          "title": "Wikidata「Q716206」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3235f047486f",
+    "slug": "chiang-kai-shek-memorial-hall",
+    "name": "中正紀念堂",
+    "nameEn": "Chiang Kai-shek Memorial Hall",
+    "reading": "ちゅうせいきねんどう",
+    "aliases": [
+      "Chiang Kai-shek Memorial Hall",
+      "自由広場"
+    ],
+    "region": {
+      "country": "台湾",
+      "prefecture": "台北市",
+      "city": "中正区"
+    },
+    "coords": {
+      "lat": 25.03,
+      "lng": 121.52
+    },
+    "category": "建築",
+    "summary": "台湾・台北市中正区にある、初代総統・蔣介石の顕彰施設です。中国の伝統的な宮殿陵墓式で建てられ、1980年3月31日に完成しました。",
+    "description": "敷地は25万平方メートルに及び、本堂のほか国家戯劇院と国家音楽庁、公園広場、回廊、庭園、池が併設されています。敷地の東側に建つ本堂は高さ70メートルで、正面には高さ30メートルの門があります。本堂の八角形の屋根は北京の天壇を模したもので、青色の瑠璃瓦と白い大理石の壁で「青天白日」を表しています。本堂の三方の階段は、正面の5段を加えると89段になり、蔣介石の享年を表します。儀仗隊の交代は2024年7月15日から、本堂を出て民主大道まで行進する形式に改められ、毎日午前9時から午後5時の正時に行われます（雨天時は行いません）。",
+    "highlights": [
+      "天壇を模した八角形の屋根と、青い瑠璃瓦・白い大理石の本堂",
+      "国家戯劇院・国家音楽庁と並ぶ、三つの山のような屋根の配置",
+      "正時に行われる儀仗隊の交代の行進"
+    ],
+    "compositionTips": [
+      "国家戯劇院と国家音楽庁は本堂を主峰に三つの山が並ぶよう配置されているので、広場から3棟を並べて収めると設計の意図が伝わります",
+      "本堂は左右対称なので、正面の階段の中心に立って構えます"
+    ],
+    "officialWebsiteUrl": "https://www.cksmh.gov.tw/",
+    "timeZone": "Asia/Taipei",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%B8%AD%E6%AD%A3%E7%B4%80%E5%BF%B5%E5%A0%82",
+          "title": "Wikipedia「中正紀念堂」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q540794",
+          "title": "Wikidata「Q540794」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_fb25110ab1ee",
+    "slug": "gyeongbokgung",
+    "name": "景福宮",
+    "nameEn": "Gyeongbokgung Palace",
+    "reading": "けいふくきゅう",
+    "aliases": [
+      "キョンボックン",
+      "Gyeongbokgung",
+      "光化門"
+    ],
+    "address": "161, Sajik-ro, Jongno-gu, Seoul",
+    "region": {
+      "country": "韓国",
+      "prefecture": "ソウル特別市",
+      "city": "鍾路区"
+    },
+    "coords": {
+      "lat": 37.58,
+      "lng": 126.98
+    },
+    "category": "宮殿",
+    "summary": "韓国・ソウル特別市にある朝鮮王朝の王宮です。1395年に建てられ、1865年に興宣大院君が再建しました。",
+    "description": "李成桂による遷都に伴って建てられ、1395年から朝鮮王朝の正宮として使われました。1592年の文禄の役で焼失し、約270年のあいだ再建されませんでしたが、1865年に再建されました。正門の光化門と正殿の勤政殿を結ぶ線に対して左右対称に建物が並ぶのは、北京の紫禁城などの様式に倣ったものです。勤政殿と慶会楼は韓国の国宝です。1990年から復元事業が続き、2010年には光化門が本来の位置に復元されました。ソウル交通公社3号線の景福宮駅が最寄りです。",
+    "highlights": [
+      "国宝に指定された勤政殿と慶会楼",
+      "2010年に本来の位置へ復元された正門・光化門",
+      "光化門と勤政殿を結ぶ線に左右対称に並ぶ建物"
+    ],
+    "compositionTips": [
+      "建物が中心線に左右対称に並ぶので、門をくぐる位置から中心線に正対すると、門越しに奥の殿舎が重なります",
+      "宮殿の北には北岳山があり、引いた位置から屋根の線と山を重ねると立地が伝わります"
+    ],
+    "officialWebsiteUrl": "https://royal.khs.go.kr/JPN/main/index.do",
+    "timeZone": "Asia/Seoul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%99%AF%E7%A6%8F%E5%AE%AE",
+          "title": "Wikipedia「景福宮」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q482485",
+          "title": "Wikidata「Q482485」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_4d8794a4e749",
+    "slug": "gamcheon-culture-village",
+    "name": "甘川文化村",
+    "nameEn": "Gamcheon Culture Village",
+    "reading": "かむちょんぶんかむら",
+    "aliases": [
+      "甘川洞文化村",
+      "Gamcheon Culture Village"
+    ],
+    "region": {
+      "country": "韓国",
+      "prefecture": "釜山広域市",
+      "city": "沙下区"
+    },
+    "coords": {
+      "lat": 35.1,
+      "lng": 129.01
+    },
+    "category": "町並み",
+    "summary": "韓国・釜山広域市沙下区にある集落で、山の斜面に広がるカラフルな家並みで知られる観光地です。",
+    "description": "もとは1950年代に朝鮮戦争の避難民と太極道の信者がつくった町です。2009年の公共美術プロジェクト「夢を見る釜山のマチュピチュ」、2010年の「ミロミロ（美路迷路）路地プロジェクト」をはじめ公共美術の事業が続き、芸術的な雰囲気の町になりました。「韓国のマチュピチュ」「韓国のサントリーニ」などと呼ばれることもあります。釜山交通公社地下鉄1号線のチャガルチ駅や土城駅からマウルバスに乗り、甘川小学校で降ります。",
+    "highlights": [
+      "斜面に広がるカラフルな家並み",
+      "公共美術の事業でつくられた路地の作品"
+    ],
+    "compositionTips": [
+      "斜面の町なので、上の通りから見下ろすと色とりどりの屋根が重なる構図になります"
+    ],
+    "officialWebsiteUrl": "https://www.gamcheon.or.kr/",
+    "timeZone": "Asia/Seoul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%94%98%E5%B7%9D%E6%96%87%E5%8C%96%E6%9D%91",
+          "title": "Wikipedia「甘川文化村」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q18641306",
+          "title": "Wikidata「Q18641306」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3e0faf12031b",
+    "slug": "n-seoul-tower",
+    "name": "Nソウルタワー",
+    "nameEn": "N Seoul Tower",
+    "reading": "エヌソウルタワー",
+    "aliases": [
+      "南山タワー",
+      "YTNソウルタワー",
+      "N Seoul Tower",
+      "Namsan Tower"
+    ],
+    "address": "ソウル特別市 龍山区 南山公園ギル 105",
+    "region": {
+      "country": "韓国",
+      "prefecture": "ソウル特別市",
+      "city": "龍山区"
+    },
+    "coords": {
+      "lat": 37.55,
+      "lng": 126.99
+    },
+    "category": "展望台",
+    "summary": "韓国・ソウル特別市龍山区の南山公園内、南山の頂上付近に建つ塔です。塔の高さは236.7メートルで、展望台からソウル市内を一望できます。",
+    "description": "1971年に電波塔として完成し、1980年に「南山タワー」として一般公開されました。2005年の全面改修で正式名をYTNソウルタワーに改め、通称「Nソウルタワー」として再開館しています。南山の高さは243メートルあり、塔の先端は海抜479.7メートルに達します。海抜378.7メートルの展望台からは、条件が良ければ西の仁川方面に黄海も見えます。塔はソウル市内の各所から見え、夜にはライトアップされます。南山の麓から登山道を歩くか、南山ケーブルカーで上れます。",
+    "highlights": [
+      "海抜378.7メートルの展望台から見渡すソウル市内",
+      "条件が良い日に西の方角に見える黄海",
+      "市内の各所から見える、夜のライトアップ"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "夜にはライトアップされた塔の姿が浮かび上がります。"
+      }
+    ],
+    "compositionTips": [
+      "塔は市内中心部の多くの場所から見えるので、街並みの奥に小さく入れてソウルの目印として撮る方法もあります",
+      "展望台からは西の仁川方面を向くと、条件次第で海まで入ります"
+    ],
+    "officialWebsiteUrl": "https://www.seoultower.co.kr/jp/",
+    "timeZone": "Asia/Seoul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/N%E3%82%BD%E3%82%A6%E3%83%AB%E3%82%BF%E3%83%AF%E3%83%BC",
+          "title": "Wikipedia「Nソウルタワー」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q69134",
+          "title": "Wikidata「Q69134」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_e2092273fa7d",
+    "slug": "bulguksa",
+    "name": "仏国寺",
+    "nameEn": "Bulguksa Temple",
+    "reading": "ぶっこくじ",
+    "aliases": [
+      "プルグクサ",
+      "Bulguksa"
+    ],
+    "region": {
+      "country": "韓国",
+      "prefecture": "慶尚北道",
+      "city": "慶州市"
+    },
+    "coords": {
+      "lat": 35.79,
+      "lng": 129.33
+    },
+    "category": "寺院",
+    "summary": "韓国・慶尚北道慶州市の吐含山のふもとにある仏教寺院です。1995年に石窟庵とともにユネスコの世界遺産に登録されました。",
+    "description": "新羅の時代、751年に宰相の金大城が建立を始め、774年に完成しました。1593年5月、文禄・慶長の役で木造の建物がすべて焼失し、のちに再建と荒廃を繰り返しました。1924年4月から1925年8月にかけて石壇・石廊を含む主要な構造が修復され、1973年の発掘調査後に無説殿や観音殿などが再建されています。石垣で固めた盛土の上に伽藍が並び、大雄殿の正面の紫霞門には国宝の石橋・青雲橋と白雲橋が掛かります。境内には高さ10.4メートルの多宝塔と、高さ8.2メートルの三層の釈迦塔の2つの石塔があります。",
+    "highlights": [
+      "紫霞門へ上る国宝の石橋、青雲橋・白雲橋",
+      "四面に階段のある多宝塔と、三層の釈迦塔",
+      "石垣で固めた盛土の上に並ぶ伽藍"
+    ],
+    "compositionTips": [
+      "石垣の上に伽藍が載る造りなので、少し引いて石垣と石橋を下に入れると寺の構えが伝わります",
+      "多宝塔と釈迦塔は形がまったく違うので、並べて対比させます"
+    ],
+    "officialWebsiteUrl": "https://www.gyeongju.go.kr/tour/",
+    "timeZone": "Asia/Seoul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E4%BB%8F%E5%9B%BD%E5%AF%BA",
+          "title": "Wikipedia「仏国寺」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q408318",
+          "title": "Wikidata「Q408318」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_f461cd576584",
+    "slug": "wat-phra-kaew",
+    "name": "ワット・プラケーオ",
+    "nameEn": "Wat Phra Kaew",
+    "reading": "ワット・プラケーオ",
+    "aliases": [
+      "エメラルド寺院",
+      "ワット・プラシーラッタナサーサダーラーム",
+      "Temple of the Emerald Buddha",
+      "Wat Phra Kaew"
+    ],
+    "region": {
+      "country": "タイ",
+      "prefecture": "バンコク",
+      "city": "プラナコーン区"
+    },
+    "coords": {
+      "lat": 13.75,
+      "lng": 100.49
+    },
+    "category": "寺院",
+    "summary": "タイ・バンコクのプラナコーン区、王宮の敷地内にある仏教寺院です。本堂にエメラルド仏（プラ・ケーオ）を安置していることから、エメラルド寺院の名で知られます。",
+    "description": "正式名はワット・プラシーラッタナサーサダーラームです。1784年、ラーマ1世が都をトンブリーから移したのと同時に、当時の建築技術を最大限に使って建てられました。王室専用の仏教儀式の場のため僧侶はおらず、普段は観光地として国内外から多くの人が訪れます。境内には、エメラルド仏を安置する本堂、金色の仏舎利塔プラ・シーラッタナチェーディー、三蔵経を納める経堂プラ・モンドップ、ラーマ1世から8世までの像を安置するロイヤルパンテオンなどが並びます。",
+    "highlights": [
+      "エメラルド仏を安置する本堂",
+      "金色の仏舎利塔プラ・シーラッタナチェーディー",
+      "王宮の宮殿群と接する境内"
+    ],
+    "compositionTips": [
+      "金色の仏舎利塔は、経堂やロイヤルパンテオンと並べて入れると境内の華やかさが伝わります"
+    ],
+    "timeZone": "Asia/Bangkok",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%AF%E3%83%83%E3%83%88%E3%83%BB%E3%82%B7%E3%83%BC%E3%83%A9%E3%83%83%E3%82%BF%E3%83%8A%E3%83%BC%E3%82%B5%E3%83%BC%E3%82%B5%E3%83%80%E3%83%BC%E3%83%A9%E3%83%BC%E3%83%A0",
+          "title": "Wikipedia「ワット・シーラッタナーサーサダーラーム」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1045876",
+          "title": "Wikidata「Q1045876」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.royalgrandpalace.th/"
+  },
+  {
+    "spotId": "sp_56690492b3e7",
+    "slug": "statue-of-liberty",
+    "name": "自由の女神像",
+    "nameEn": "Statue of Liberty",
+    "reading": "じゆうのめがみぞう",
+    "aliases": [
+      "自由の女神",
+      "Statue of Liberty",
+      "リバティ島",
+      "世界を照らす自由"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ニューヨーク州",
+      "city": "ニューヨーク市"
+    },
+    "coords": {
+      "lat": 40.69,
+      "lng": -74.04
+    },
+    "category": "史跡",
+    "summary": "アメリカ・ニューヨーク港内のリバティ島に立つ像で、アメリカを象徴するランドマークです。アメリカ独立100周年を記念してフランスから贈られ、1886年に完成しました。",
+    "description": "正式名は「世界を照らす自由」です。外観の設計はバルトルディ、鉄の骨組みはギュスターヴ・エッフェルが手がけました。右手に松明を高く掲げ、左手には独立記念日の日付がローマ数字で刻まれた銘板を持ち、足元には引きちぎられた鎖と足かせがあります。外装は銅板で、緑青のために緑色をしています。もとは灯台になる予定だったため、ニューヨーク港の方を向いています。台座からトーチまでの高さは46.05メートル、台座を含めると93メートルです。王冠の部分には展望台があり、台座の内部はアメリカの移民の歴史を展示する博物館になっています。1984年に世界遺産に登録されました。",
+    "highlights": [
+      "高く掲げた右手の松明と、左手の独立宣言の銘板",
+      "緑青で緑色になった銅板の外装",
+      "七つの突起がある冠と、王冠部分の展望台"
+    ],
+    "compositionTips": [
+      "像はニューヨーク港の方を向いているので、港の側から正面の顔と松明を入れます",
+      "台座を含めると高さ93メートルあるので、引いた位置から台座ごと縦位置で収めます"
+    ],
+    "officialWebsiteUrl": "https://www.nps.gov/stli/index.htm",
+    "timeZone": "America/New_York",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%87%AA%E7%94%B1%E3%81%AE%E5%A5%B3%E7%A5%9E%E5%83%8F_%28%E3%83%8B%E3%83%A5%E3%83%BC%E3%83%A8%E3%83%BC%E3%82%AF%29",
+          "title": "Wikipedia「自由の女神像 (ニューヨーク)」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q9202",
+          "title": "Wikidata「Q9202」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_101bb1b43a6c",
+    "slug": "niagara-falls",
+    "name": "ナイアガラの滝",
+    "nameEn": "Niagara Falls",
+    "reading": "ナイアガラのたき",
+    "aliases": [
+      "Niagara Falls",
+      "カナダ滝",
+      "ホースシュー滝",
+      "アメリカ滝",
+      "テーブルロック"
+    ],
+    "region": {
+      "country": "カナダ",
+      "prefecture": "オンタリオ州",
+      "city": "ナイアガラフォールズ"
+    },
+    "coords": {
+      "lat": 43.08,
+      "lng": -79.07
+    },
+    "category": "滝",
+    "summary": "エリー湖からオンタリオ湖へ流れるナイアガラ川にある滝で、カナダとアメリカの国境になっています。単独で流れる滝の水量では北米で最も大きい滝です。",
+    "description": "ゴート島をはさんで、カナダ側のカナダ滝（落差56メートル、幅675メートル）とアメリカ側のアメリカ滝からなり、アメリカ側にはさらにブライダルベール滝があります。アメリカ側からの眺めはほとんどが滝の背後になり、滝の正面や全体を見渡せるのはカナダ側です。カナダ滝のすぐ脇の展望スペース「テーブルロック」からは、真下に落ちていく滝を見られます。滝の近くには、最も高い地点から全景を望めるスカイロン・タワーがあります。遊覧船「霧の乙女号」は1846年から、両岸と滝つぼの間を行き来しています。カナダ滝の上流には堰があり、夜間の水量は日中の半分に調節されています。",
+    "highlights": [
+      "幅675メートルのカナダ滝",
+      "カナダ側から見渡せる、滝の正面と全体",
+      "滝つぼの近くまで行く遊覧船「霧の乙女号」"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "春から初夏が水量のピークです。"
+      },
+      {
+        "season": "summer",
+        "text": "夏は観光シーズンのピークで、カナダ側から両方の滝へ向けたライトアップが毎夜行われます。"
+      },
+      {
+        "season": "winter",
+        "text": "観光のオフシーズンにあたる冬は、水量が抑えられています。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "夜間は滝の水量が日中の半分に調節されます。夏はカナダ側からのライトアップが行われます。"
+      }
+    ],
+    "compositionTips": [
+      "滝の正面と全体を入れるなら、カナダ側から構えます",
+      "全景を高い位置から撮るならスカイロン・タワー、落ちる水を間近に撮るならテーブルロックを選びます"
+    ],
+    "timeZone": "America/Toronto",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8A%E3%82%A4%E3%82%A2%E3%82%AC%E3%83%A9%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「ナイアガラの滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q34221",
+          "title": "Wikidata「Q34221」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.niagaraparks.com/"
+  },
+  {
+    "spotId": "sp_3c2fa57649b4",
+    "slug": "wat-pho",
+    "name": "ワット・ポー",
+    "nameEn": "Wat Pho",
+    "reading": "ワット・ポー",
+    "aliases": [
+      "ワット・プラチェートゥポンウィモンマンカラーラーム",
+      "涅槃寺",
+      "Wat Pho"
+    ],
+    "region": {
+      "country": "タイ",
+      "prefecture": "バンコク",
+      "city": "プラナコーン区"
+    },
+    "coords": {
+      "lat": 13.75,
+      "lng": 100.49
+    },
+    "category": "寺院",
+    "summary": "タイ・バンコクのプラナコーン区にある王室寺院で、黄金に輝く巨大な涅槃仏があることから涅槃寺とも呼ばれます。バンコクで最大の、最も古くからある寺院です。",
+    "description": "正式名はワット・プラチェートゥポンウィモンマンカラーラームで、「ポー」は菩提の意味です。敷地は約80,000平方メートルあり、本堂や図書室を中心とする北側だけが一般に公開されています。チャクリー王朝の始まり以来、王族の庇護のもとで発展し、敷地内の仏塔は王や王族の墓にあたります。中国とタイの文化が混じった様式の代表的な建築として知られ、仏塔には中国製の陶器の破片がはめ込まれ、中庭には中国風の像が飾られています。1831年から1841年に作られた1,431点の石碑群は、2011年にユネスコの「世界の記憶」に登録されました。",
+    "highlights": [
+      "黄金に輝く巨大な涅槃仏",
+      "中国製の陶器の破片がはめ込まれた仏塔",
+      "ユネスコの「世界の記憶」に登録された石碑群"
+    ],
+    "compositionTips": [
+      "仏塔の陶器の装飾は近づいて望遠で切り取ると、色と模様がよく出ます",
+      "涅槃仏は大きいので、足元から頭の方へ向けて奥行きを使って収めます"
+    ],
+    "officialWebsiteUrl": "https://www.watpho.com/",
+    "timeZone": "Asia/Bangkok",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%AF%E3%83%83%E3%83%88%E3%83%BB%E3%83%97%E3%83%A9%E3%83%81%E3%82%A7%E3%83%BC%E3%83%88%E3%82%A5%E3%83%9D%E3%83%B3%E3%82%A6%E3%82%A3%E3%83%A2%E3%83%B3%E3%83%9E%E3%83%B3%E3%82%AB%E3%83%A9%E3%83%BC%E3%83%A9%E3%83%BC%E3%83%A0",
+          "title": "Wikipedia「ワット・プラチェートゥポンウィモンマンカラーラーム」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1059910",
+          "title": "Wikidata「Q1059910」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_6af0ead016f3",
+    "slug": "wat-rong-khun",
+    "name": "ワット・ロンクン",
+    "nameEn": "Wat Rong Khun",
+    "reading": "ワット・ロンクン",
+    "aliases": [
+      "ホワイト・テンプル",
+      "White Temple",
+      "Wat Rong Khun"
+    ],
+    "region": {
+      "country": "タイ",
+      "prefecture": "チエンラーイ県",
+      "city": "ムアンチエンラーイ郡"
+    },
+    "coords": {
+      "lat": 19.82,
+      "lng": 99.76
+    },
+    "category": "寺院",
+    "summary": "タイ・チエンラーイ県ムアンチエンラーイ郡にある現代的な仏教寺院で、国外では「ホワイト・テンプル」の名で知られます。",
+    "description": "画家出身のアーティスト、チャルムチャイ・コーシッピパットが1997年にデザインしました。タイの伝統芸術と超現実主義を融合させた建物で、本殿が白く塗られているのは仏陀の清浄さを象徴するためです。建物の内部の壁には、ポップカルチャー由来のモチーフが、仏教における善悪を表すように描かれています。2014年5月5日の地震で大きな被害を受けて一時閉鎖されましたが、技術者の調査を経て公開が再開されました。チェンマイとチェンライを結ぶ観光バスの周遊コースでは定番の場所です。",
+    "highlights": [
+      "仏陀の清浄さを象徴する、白く塗られた本殿",
+      "タイの伝統芸術と超現実主義を融合させた装飾",
+      "ポップカルチャーのモチーフが描かれた内部の壁画"
+    ],
+    "compositionTips": [
+      "本殿が白一色なので、露出は白が飛ばないように控えめに合わせます",
+      "装飾が細かいので、全景に加えて望遠で部分を切り取ります"
+    ],
+    "timeZone": "Asia/Bangkok",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%AF%E3%83%83%E3%83%88%E3%83%BB%E3%83%AD%E3%83%B3%E3%82%AF%E3%83%B3",
+          "title": "Wikipedia「ワット・ロンクン」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q496543",
+          "title": "Wikidata「Q496543」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.tourismthailand.org/Attraction/wat-rong-khun"
+  },
+  {
+    "spotId": "sp_3227f7e466e7",
+    "slug": "ha-long-bay",
+    "name": "ハロン湾",
+    "nameEn": "Ha Long Bay",
+    "reading": "ハロンわん",
+    "aliases": [
+      "下竜湾",
+      "下龍湾",
+      "Vịnh Hạ Long",
+      "Ha Long Bay"
+    ],
+    "region": {
+      "country": "ベトナム",
+      "prefecture": "クアンニン省",
+      "city": "ハロン市"
+    },
+    "coords": {
+      "lat": 20.9,
+      "lng": 107.2
+    },
+    "category": "湾",
+    "summary": "ベトナム北部、トンキン湾の北西部にある湾です。石灰岩のカルスト地形からなる大小3,000もの奇岩や島々が浮かび、1994年にユネスコの世界遺産（自然遺産）に登録されました。",
+    "description": "クアンニン省のハロン市の南に位置します。北は中国の桂林から南はホアルーまで続く石灰岩台地の一角で、台地が沈み、侵食が進んで現在の姿になりました。竜の親子が口から吐き出した宝石が湾内の島々になったという伝承があります。彫刻のような島々の景観は太陽の位置によって輝きが変わり、雨や霧のときにはまた違う趣になります。ハノイから日帰りや1泊2日のツアーが出ており、湾内のクルーズや鍾乳洞の見学が組まれています。",
+    "highlights": [
+      "海面から突き出す、大小3,000もの石灰岩の奇岩と島々",
+      "太陽の位置で輝きが変わる島々の景観",
+      "クルーズ船から巡る湾内と鍾乳洞"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "島々の景観は、太陽の位置によって輝きが変わります。"
+      }
+    ],
+    "compositionTips": [
+      "雨や霧の日は島影が重なって奥行きが出るので、望遠で層を重ねて切り取ります",
+      "クルーズ船の上からは、手前の島と奥の島の重なりを意識して構えます"
+    ],
+    "timeZone": "Asia/Ho_Chi_Minh",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8F%E3%83%AD%E3%83%B3%E6%B9%BE",
+          "title": "Wikipedia「ハロン湾」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q190128",
+          "title": "Wikidata「Q190128」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://halongbay.com.vn/"
+  },
+  {
+    "spotId": "sp_be67c6fa5d18",
+    "slug": "marina-bay-sands",
+    "name": "マリーナベイ・サンズ",
+    "nameEn": "Marina Bay Sands",
+    "reading": "マリーナベイ・サンズ",
+    "aliases": [
+      "Marina Bay Sands",
+      "MBS",
+      "サンズ・スカイパーク"
+    ],
+    "address": "10 Bayfront Avenue, Singapore 018956",
+    "region": {
+      "country": "シンガポール",
+      "city": "ダウンタウン・コア"
+    },
+    "coords": {
+      "lat": 1.28,
+      "lng": 103.86
+    },
+    "category": "建築",
+    "summary": "シンガポールのマリーナ・ベイに面した統合型リゾートです。3棟の超高層ビルを屋上でつないだ姿で知られ、2011年2月17日に全面開業しました。",
+    "description": "設計はモシェ・サフディで、船のデッキから着想を得たデザインです。タワー1・2・3の3棟（最も高いところで高さ200メートル、57階建て）が、屋上の空中庭園「スカイパーク」でつながっています。スカイパークにはプールと庭園があり、シンガポールを一望できる展望台として観光名所になっています。3つの塔は下が広く上へ行くほど細くなり、それぞれが非対称な2本の脚で立ち、東の脚はもう一方に対して傾いた形で曲がっています。ホテルのほか、カジノ、コンベンションセンター、ショッピングモール、アート・サイエンス・ミュージアムなどが入ります。",
+    "highlights": [
+      "3棟の超高層ビルを屋上でつなぐスカイパーク",
+      "シンガポールを一望できる屋上の展望台",
+      "上へ行くほど細くなる、非対称な脚の3つの塔"
+    ],
+    "compositionTips": [
+      "3棟と屋上のスカイパークの組み合わせが形の見どころなので、マリーナ・ベイの対岸から正面に全体を入れます",
+      "湾に面して建つので、水面を手前に広く入れると建物の映り込みも狙えます"
+    ],
+    "officialWebsiteUrl": "https://www.marinabaysands.com",
+    "timeZone": "Asia/Singapore",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%AA%E3%83%BC%E3%83%8A%E3%83%99%E3%82%A4%E3%83%BB%E3%82%B5%E3%83%B3%E3%82%BA",
+          "title": "Wikipedia「マリーナベイ・サンズ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q548679",
+          "title": "Wikidata「Q548679」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3c7c4c0d763a",
+    "slug": "gardens-by-the-bay",
+    "name": "ガーデンズ・バイ・ザ・ベイ",
+    "nameEn": "Gardens by the Bay",
+    "reading": "ガーデンズ・バイ・ザ・ベイ",
+    "aliases": [
+      "Gardens by the Bay",
+      "スーパーツリー",
+      "ベイ・サウス・ガーデン"
+    ],
+    "region": {
+      "country": "シンガポール",
+      "city": "ダウンタウン・コア"
+    },
+    "coords": {
+      "lat": 1.28,
+      "lng": 103.87
+    },
+    "category": "公園",
+    "summary": "シンガポール中央の埋立地に造られた、約101ヘクタールの国立公園です。マリーナ溜池に隣接し、水辺に面した3つの庭園からなります。",
+    "description": "ベイ・サウス・ガーデン、ベイ・イースト・ガーデン、ベイ・センター・ガーデンの3つの庭園で構成され、最大のベイ・サウス・ガーデンは約54ヘクタールあります。ベイ・サウス・ガーデンの基本計画は、シンガポールと熱帯の象徴である蘭から着想されており、温室を根、地形を葉、道を芽、スーパーツリーを花に見立てています。ベイ・イースト・ガーデンには、マリーナ溜池の縁に約2キロメートルの海浜遊歩道があります。2012年6月29日に開園しました。MRTトムソン・イーストコースト線のガーデンズ・バイ・ザ・ベイ駅が最寄りです。",
+    "highlights": [
+      "蘭の花に見立てたスーパーツリー",
+      "最大の庭園、約54ヘクタールのベイ・サウス・ガーデン",
+      "マリーナ溜池の縁を歩く海浜遊歩道"
+    ],
+    "compositionTips": [
+      "スーパーツリーは高さがあるので、根元から広角で見上げて林立する姿を収めます",
+      "水辺の公園なので、ベイ・イースト・ガーデンの遊歩道から対岸の都市の景色と組み合わせます"
+    ],
+    "officialWebsiteUrl": "https://www.gardensbythebay.com.sg/",
+    "timeZone": "Asia/Singapore",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%AC%E3%83%BC%E3%83%87%E3%83%B3%E3%82%BA%E3%83%BB%E3%83%90%E3%82%A4%E3%83%BB%E3%82%B6%E3%83%BB%E3%83%99%E3%82%A4",
+          "title": "Wikipedia「ガーデンズ・バイ・ザ・ベイ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q630135",
+          "title": "Wikidata「Q630135」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_7afd3fdad112",
+    "slug": "merlion-park",
+    "name": "マーライオン公園",
+    "nameEn": "Merlion Park",
+    "reading": "マーライオンこうえん",
+    "aliases": [
+      "マーライオン",
+      "Merlion Park",
+      "Merlion"
+    ],
+    "region": {
+      "country": "シンガポール",
+      "city": "ダウンタウン・コア"
+    },
+    "coords": {
+      "lat": 1.29,
+      "lng": 103.86
+    },
+    "category": "公園",
+    "summary": "シンガポールのダウンタウンコア地区にある、マーライオン像の立つ公園です。ライオンの頭と魚の体を持つマーライオンは、シンガポールのマスコットとして広く使われています。",
+    "description": "公園には2体のマーライオン像があります。元の像は高さ8.6メートル、重さ70トンで、口から水を吹き出しています。その近くに高さ2メートルの仔マーライオンが加えられました。像は彫刻家のリム・ナンセンと8人の子どもたちが作り、1972年9月15日に公園が開園しました。エスプラネード橋の完成で湾から見えにくくなったため、2002年4月にフラトン・ホテルに隣接する、橋の反対側の新しい桟橋へ移されました。いまの公園は元の公園の4倍の広さです。",
+    "highlights": [
+      "口から水を吹き出す、高さ8.6メートルのマーライオン像",
+      "元の像の近くに置かれた高さ2メートルの仔マーライオン",
+      "フラトン・ホテルに隣接する、湾に面した桟橋"
+    ],
+    "compositionTips": [
+      "像は口から水を吹き出しているので、真横から水の弧が見える角度で構えます",
+      "親子2体の像を、大きさの違いがわかるように一緒に収めます"
+    ],
+    "timeZone": "Asia/Singapore",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%BC%E3%83%A9%E3%82%A4%E3%82%AA%E3%83%B3%E5%85%AC%E5%9C%92",
+          "title": "Wikipedia「マーライオン公園」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q6819812",
+          "title": "Wikidata「Q6819812」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.visitsingapore.com/neighbourhood/featured-neighbourhood/marina-bay/merlion-park/"
+  },
+  {
+    "spotId": "sp_0076d0d893da",
+    "slug": "victoria-peak",
+    "name": "ヴィクトリア・ピーク",
+    "nameEn": "Victoria Peak",
+    "reading": "ヴィクトリア・ピーク",
+    "aliases": [
+      "ザ・ピーク",
+      "The Peak",
+      "太平山",
+      "ビクトリア・ピーク",
+      "Victoria Peak"
+    ],
+    "region": {
+      "country": "香港",
+      "city": "中西区"
+    },
+    "coords": {
+      "lat": 22.28,
+      "lng": 114.14
+    },
+    "category": "展望台",
+    "summary": "香港島の西部にある標高552メートルの山で、夜景の名所として知られます。山上からは香港島や九龍の超高層ビル群、ヴィクトリア・ハーバーを一望できます。",
+    "description": "ふつう「ザ・ピーク」と呼ばれるのは実際の山頂ではなく、ピークトラムの山頂駅とその一帯です。実際の山頂は通信施設が占めていて入れません。山頂駅とピーク・タワーは、ヴィクトリア・ギャップの海抜396メートルの地点にあります。ここからは邸宅街を抜けるマウント・オースティン・ロードを上るとヴィクトリア・ピーク・ガーデン（山頂公園）があり、一般の人が入れる場所としては最も山頂に近い所です。ピーク・タワーから出るルガード・ロードとハーレック・ロードは同じ高さで山頂を環状に巡り、眺望に優れています。ピークトラムは1888年に敷かれたケーブルカーです。",
+    "highlights": [
+      "香港島と九龍の超高層ビル群、ヴィクトリア・ハーバーの眺め",
+      "山頂を環状に巡るルガード・ロードとハーレック・ロード",
+      "1888年から走るケーブルカー、ピークトラム"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "夜景の名所として知られ、年間700万人以上が眺望や夜景を求めて訪れます。"
+      }
+    ],
+    "compositionTips": [
+      "ルガード・ロードは同じ高さで山頂を巡る道なので、歩きながら港と高層ビル群が重なる位置を探します",
+      "夜景は三脚が使える場所を選び、ビル群とヴィクトリア・ハーバーの水面を一緒に入れます"
+    ],
+    "timeZone": "Asia/Hong_Kong",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%B4%E3%82%A3%E3%82%AF%E3%83%88%E3%83%AA%E3%82%A2%E3%83%BB%E3%83%94%E3%83%BC%E3%82%AF",
+          "title": "Wikipedia「ヴィクトリア・ピーク」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q17541",
+          "title": "Wikidata「Q17541」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.thepeak.com.hk/en"
+  },
+  {
+    "spotId": "sp_14e2c4bfee2a",
+    "slug": "ruins-of-st-pauls-macau",
+    "name": "聖ポール天主堂跡",
+    "nameEn": "Ruins of St. Paul's",
+    "reading": "せいポールてんしゅどうあと",
+    "aliases": [
+      "聖パウロ天主堂跡",
+      "サン・パウロ天主堂跡",
+      "大三巴牌坊",
+      "Ruins of St. Paul's"
+    ],
+    "region": {
+      "country": "マカオ"
+    },
+    "coords": {
+      "lat": 22.2,
+      "lng": 113.54
+    },
+    "category": "遺跡",
+    "summary": "マカオにある、17世紀のポルトガルの大聖堂の遺跡です。石造りのファサードが残り、マカオで最も有名な歴史的建築物のひとつです。",
+    "description": "1602年から1640年にイエズス会が建てた天主堂で、アジア最大級のカトリック教会でした。天主堂の彫刻の製作には、マカオに暮らしていた日本人キリシタンも加わったといわれます。1835年に火事で全焼し、南側の石造りのファサードと地下納骨堂が残りました。ファサードは小さな丘の上にあり、66段の石段が続いています。七つ頭のヒドラを踏みつける女性に「龍の頭を踏みつける聖母」と漢字を添えた彫刻など、東洋の影響を受けた装飾が見られます。2005年に世界遺産「マカオ歴史地区」の一部として登録されました。モンテの砦がこの遺跡を見下ろしています。",
+    "highlights": [
+      "丘の上に残る石造りのファサード",
+      "ファサードへ続く66段の石段",
+      "漢字が添えられた、東洋の影響を受けた彫刻"
+    ],
+    "compositionTips": [
+      "ファサードは丘の上にあるので、石段の下から見上げて石段とファサードを一緒に収めます",
+      "装飾は段ごとに主題が違うので、望遠で一段ずつ切り取ります"
+    ],
+    "timeZone": "Asia/Macau",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E8%81%96%E3%83%9D%E3%83%BC%E3%83%AB%E5%A4%A9%E4%B8%BB%E5%A0%82%E8%B7%A1",
+          "title": "Wikipedia「聖ポール天主堂跡」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1551411",
+          "title": "Wikidata「Q1551411」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.wh.mo/en/site/detail/18"
+  },
+  {
+    "spotId": "sp_e6d0090feb8e",
+    "slug": "forbidden-city",
+    "name": "紫禁城",
+    "nameEn": "Forbidden City",
+    "reading": "しきんじょう",
+    "aliases": [
+      "故宮",
+      "故宮博物院",
+      "Forbidden City",
+      "Palace Museum"
+    ],
+    "region": {
+      "country": "中国",
+      "prefecture": "北京市",
+      "city": "東城区"
+    },
+    "coords": {
+      "lat": 39.92,
+      "lng": 116.39
+    },
+    "category": "宮殿",
+    "summary": "中国・北京市にある、明と清の皇室の宮殿です。1406年から1421年にかけて造られ、いまは故宮博物院として公開されています。",
+    "description": "南北961メートル、東西753メートル、980あまりの建物からなり、世界最大の木造建築群として知られます。周りは幅52メートルの堀が囲み、城壁の高さは12メートル、南に午門、東に東華門、西に西華門、北に神武門があります。南門の午門は、コの字型に両翼がせり出した独特の形をしています。中軸線上に建つ正殿の太和殿は、高さ35メートルの現存する中国最大の木造建築で、3段の大きな台座の上に建つため、城内で最も大きく見えます。1987年にユネスコの世界遺産に登録され、2024年7月27日には「北京中軸線」の一部としても登録されました。",
+    "highlights": [
+      "3段の台座の上に建つ、中国最大の木造建築・太和殿",
+      "コの字型に両翼がせり出した南門・午門",
+      "幅52メートルの堀と高さ12メートルの城壁"
+    ],
+    "compositionTips": [
+      "太和殿は中軸線上にあるので、太和門から中心線に正対して広場ごと収めます",
+      "午門の両翼がせり出す形は、門の正面の広場から広角で全体を入れます"
+    ],
+    "officialWebsiteUrl": "https://intl.dpm.org.cn/?l=jp",
+    "timeZone": "Asia/Shanghai",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E7%B4%AB%E7%A6%81%E5%9F%8E",
+          "title": "Wikipedia「紫禁城」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q80290",
+          "title": "Wikidata「Q80290」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_ada05242f41b",
+    "slug": "tanah-lot",
+    "name": "タナロット寺院",
+    "nameEn": "Tanah Lot Temple",
+    "reading": "タナロットじいん",
+    "aliases": [
+      "Pura Luhur Tanah Lot",
+      "Tanah Lot",
+      "ロックテンプル",
+      "バリ島"
+    ],
+    "address": "Beraban, Kediri, Tabanan Regency, Bali 82121, Indonesia",
+    "region": {
+      "country": "インドネシア",
+      "prefecture": "バリ州",
+      "city": "タバナン県"
+    },
+    "coords": {
+      "lat": -8.62,
+      "lng": 115.09
+    },
+    "category": "寺院",
+    "summary": "インドネシア・バリ島中西部、タバナン県の海岸にあるヒンドゥー寺院で、バリ六大寺院のひとつです。海に浮かぶような大きな岩の上に建っています。",
+    "description": "タナロットは「海の中の土地（Tana）」と「岩（Lot）」を合わせた言葉です。16世紀にジャワの高僧ダン・ヒャン・ニラルタが岩島の美しさに惹かれ、海の守護神を祀る寺院を建てるよう村人に勧めたのが起こりとされます。干潮時には陸続きになり、寺院の建つ岩場まで歩いて行けますが、岩の上の寺院にはヒンドゥー教徒以外は入れません。夕暮れには、インド洋に沈む夕日を背に寺院がシルエットになって浮かび、バリ島を代表する観光地になっています。参道のレストランやカフェのあたりは高台で、夕日にシルエットとなる寺院の全容を見渡せます。雨季が明けて乾季に入る4月から10月は雨が少なく晴れた日が多いため、海と寺院、夕日を一望できる見込みが高まります。",
+    "highlights": [
+      "海に浮かぶ船のような岩の上に建つ寺院",
+      "インド洋に沈む夕日を背にしたシルエット",
+      "干潮時に陸続きになる岩場"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "夕暮れには、インド洋に沈む夕日を背に寺院がシルエットになって浮かびます。"
+      },
+      {
+        "time": "dusk",
+        "text": "日没のころから寺院の近くでケチャックダンスが行われます。"
+      }
+    ],
+    "compositionTips": [
+      "参道のレストランやカフェのあたりの高台から、夕日と寺院のシルエットを一緒に収めます",
+      "干潮と満潮で岩の周りの見え方が変わるので、潮の時刻を確かめてから向かいます"
+    ],
+    "officialWebsiteUrl": "https://www.tanahlot.net",
+    "timeZone": "Asia/Makassar",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%BF%E3%83%8A%E3%83%AD%E3%83%83%E3%83%88%E5%AF%BA%E9%99%A2",
+          "title": "Wikipedia「タナロット寺院」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q515253",
+          "title": "Wikidata「Q515253」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_67060bc15bdb",
+    "slug": "petronas-twin-towers",
+    "name": "ペトロナスツインタワー",
+    "nameEn": "Petronas Twin Towers",
+    "reading": "ペトロナスツインタワー",
+    "aliases": [
+      "ペトロナスタワー",
+      "Petronas Towers",
+      "KLCC"
+    ],
+    "address": "Menara Berkembar Petronas, Pusat Bandaraya Kuala Lumpur, 50088, Kuala Lumpur",
+    "region": {
+      "country": "マレーシア",
+      "city": "クアラルンプール"
+    },
+    "coords": {
+      "lat": 3.16,
+      "lng": 101.71
+    },
+    "category": "建築",
+    "summary": "マレーシアのクアラルンプールに1996年に完成した、高さ451.9メートル・88階建てのツインタワーです。",
+    "description": "設計はシーザー・ペリ＆アソシエーツで、マレーシアのモスクに近いイスラム様式の特徴的な尖塔を持つようにデザインされました。高強度のコンクリートを積み上げる構造です。完成時は超高層ビルとして世界一の高さで、2004年に台北101にその座を譲りましたが、2本が対になったツインタワーとしては世界一の高さです（2019年7月現在）。41階と42階には2本の塔を結ぶスカイブリッジがあり、86階の展望フロアとともに有料で見学できます。周りのKLCCパークには遊歩道やライトアップされる噴水があります。",
+    "highlights": [
+      "イスラム様式のモスクに近い、特徴的な尖塔",
+      "41階と42階で2本の塔を結ぶスカイブリッジ",
+      "足元に広がるKLCCパークと噴水"
+    ],
+    "compositionTips": [
+      "2本の塔とスカイブリッジを左右対称に入れるには、2本の中心線に正対して構えます",
+      "KLCCパークの噴水を手前に入れると、塔の足元に動きが出ます"
+    ],
+    "officialWebsiteUrl": "https://www.petronastwintowers.com.my/",
+    "timeZone": "Asia/Kuala_Lumpur",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9A%E3%83%88%E3%83%AD%E3%83%8A%E3%82%B9%E3%83%84%E3%82%A4%E3%83%B3%E3%82%BF%E3%83%AF%E3%83%BC",
+          "title": "Wikipedia「ペトロナスツインタワー」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q83063",
+          "title": "Wikidata「Q83063」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_33497dcf9eaa",
+    "slug": "taj-mahal",
+    "name": "タージ・マハル",
+    "nameEn": "Taj Mahal",
+    "reading": "タージ・マハル",
+    "aliases": [
+      "Taj Mahal",
+      "タージマハル"
+    ],
+    "region": {
+      "country": "インド",
+      "prefecture": "ウッタル・プラデーシュ州",
+      "city": "アーグラ"
+    },
+    "coords": {
+      "lat": 27.18,
+      "lng": 78.04
+    },
+    "category": "史跡",
+    "summary": "インド北部のアーグラにある、総大理石の墓廟です。ムガル帝国の皇帝シャー・ジャハーンが愛妃ムムターズ・マハルのために建て、1983年にユネスコの世界遺産に登録されました。",
+    "description": "1632年に着工し、1653年にすべての工事が終わりました。南北560メートル、東西303メートルの長方形の敷地の北端に墓廟があり、手前には一辺296メートルの正方形の庭園が広がります。庭園は天上の4本の川を表す水路で区切られ、水路が交わる所には天上の泉を表す池があります。墓廟は高さ5.5メートルの基壇の上に建ち、四隅には高さ42メートルの4本の尖塔が立ちます。尖塔はわずかに外側へ傾けて建てられています。正面の飾り門や窓は奥行きを深くとってあり、太陽や月の光が濃い影をつくって建物の表情を演出します。南の大楼門は赤砂岩造りで高さ約30メートルです。",
+    "highlights": [
+      "庭園の水路の先、北の端に建つ白い大理石の墓廟",
+      "墓廟を囲む高さ42メートルの4本の尖塔",
+      "赤砂岩造りの南の大楼門"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "飾り門や窓は奥行きが深く、太陽の光が濃い影をつくって建物の表情を浮かび上がらせます。"
+      },
+      {
+        "time": "night",
+        "text": "月の光でも、飾り門や窓の奥に濃い影ができるよう造られています。"
+      }
+    ],
+    "compositionTips": [
+      "大楼門をくぐり北を向くと、庭園の水路の延長線上に墓廟が来ます。水路の中心線に合わせて構えます",
+      "墓廟は近くから見上げると威容が出るよう比率が決められているので、基壇の下から見上げる構図も試します"
+    ],
+    "officialWebsiteUrl": "https://www.tajmahal.gov.in/",
+    "timeZone": "Asia/Kolkata",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%BF%E3%83%BC%E3%82%B8%E3%83%BB%E3%83%9E%E3%83%8F%E3%83%AB",
+          "title": "Wikipedia「タージ・マハル」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q9141",
+          "title": "Wikidata「Q9141」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_a73ff28d7c33",
+    "slug": "sigiriya",
+    "name": "シーギリヤ",
+    "nameEn": "Sigiriya",
+    "reading": "シーギリヤ",
+    "aliases": [
+      "シギリヤ",
+      "シーギリヤロック",
+      "Sigiriya",
+      "Lion Rock"
+    ],
+    "region": {
+      "country": "スリランカ",
+      "prefecture": "中部州",
+      "city": "マータレー"
+    },
+    "coords": {
+      "lat": 7.96,
+      "lng": 80.76
+    },
+    "category": "遺跡",
+    "summary": "スリランカ中部州のマータレーにある遺跡です。5世紀にカッサパ1世が築いた岩山の上の王宮跡と、周りの都市の遺構からなり、1982年に世界遺産に登録されました。",
+    "description": "シーギリヤロックはマグマが固まってできた岩頸で、標高約370メートル、岩そのものの高さは約195メートルあり、全方位が切り立った崖になっています。カッサパ1世は477年に王位を奪い、より安全なシーギリヤへ都を移して頂上に王宮を築きました。王宮跡を水路や庭園、貯蔵施設などの都市の遺構が取り囲んでいます。岩山の中腹には「シーギリヤ・レディ」として知られる女性像のフレスコ画が描かれており、当初は500体ともいわれたものが、いまは18体だけ残っています。",
+    "highlights": [
+      "全方位が切り立った崖になった、高さ約195メートルの岩山",
+      "岩山の中腹に残るフレスコ画「シーギリヤ・レディ」",
+      "岩山を取り囲む水路や庭園の遺構"
+    ],
+    "compositionTips": [
+      "切り立った崖の岩山なので、周りの庭園や水路の遺構を手前に入れて引いた位置から全体を収めます"
+    ],
+    "timeZone": "Asia/Colombo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%BC%E3%82%AE%E3%83%AA%E3%83%A4",
+          "title": "Wikipedia「シーギリヤ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q272153",
+          "title": "Wikidata「Q272153」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://tourism.cp.gov.lk/en/sigiriya"
+  },
+  {
+    "spotId": "sp_f01f52e4613c",
+    "slug": "hagia-sophia",
+    "name": "アヤソフィア",
+    "nameEn": "Hagia Sophia",
+    "reading": "アヤソフィア",
+    "aliases": [
+      "ハギア・ソフィア",
+      "Ayasofya",
+      "Hagia Sophia",
+      "アギア・ソフィア大聖堂"
+    ],
+    "region": {
+      "country": "トルコ",
+      "prefecture": "イスタンブール県",
+      "city": "イスタンブール"
+    },
+    "coords": {
+      "lat": 41.01,
+      "lng": 28.98
+    },
+    "category": "寺院",
+    "summary": "トルコのイスタンブールにあるモスクで、東ローマ帝国の大聖堂を起源とします。ビザンティン建築の最高傑作とも評され、2020年7月まで博物館でした。",
+    "description": "現在の建物は、532年から537年にかけて東ローマ皇帝ユスティニアヌス1世の命で建てられました。身廊の中央に巨大なドームがあるのがビザンティン建築の典型とされ、ドームは地震による崩落と再建を経て、いまの高さは55.6メートルです。1453年からはモスクとして改築を重ね、現在の特徴的な姿になりました。1935年に博物館となり、2020年7月に再びモスクになっています。内壁はオスマン帝国時代の漆喰や大理石で仕上げられていますが、一部では東ローマ帝国時代のモザイク壁画が再び表に出ています。1985年に「イスタンブール歴史地域」の一部として世界遺産に登録されました。",
+    "highlights": [
+      "高さ55.6メートルの巨大な中央ドーム",
+      "漆喰の下から再び現れた東ローマ帝国時代のモザイク壁画",
+      "大聖堂からモスクへと改築を重ねてきた建物"
+    ],
+    "compositionTips": [
+      "中央のドームが見どころなので、堂内では床から広角で見上げてドームと周りの窓を収めます",
+      "周囲に施設が建て増しされてきた建物なので、引いた位置から全体の重なりを入れます"
+    ],
+    "timeZone": "Europe/Istanbul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%A4%E3%82%BD%E3%83%95%E3%82%A3%E3%82%A2",
+          "title": "Wikipedia「アヤソフィア」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q12506",
+          "title": "Wikidata「Q12506」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://ayasofyacamii.gov.tr/"
+  },
+  {
+    "spotId": "sp_f36cea1748ed",
+    "slug": "sultan-ahmed-mosque",
+    "name": "スルタンアフメト・モスク",
+    "nameEn": "Sultan Ahmed Mosque",
+    "reading": "スルタンアフメト・モスク",
+    "aliases": [
+      "ブルーモスク",
+      "Blue Mosque",
+      "Sultan Ahmet Camii"
+    ],
+    "region": {
+      "country": "トルコ",
+      "prefecture": "イスタンブール県",
+      "city": "イスタンブール"
+    },
+    "coords": {
+      "lat": 41.01,
+      "lng": 28.98
+    },
+    "category": "寺院",
+    "summary": "トルコのイスタンブールを代表するモスクで、世界遺産「イスタンブール歴史地域」の建造物のひとつです。白地に青の色調から、ブルーモスクとも呼ばれます。",
+    "description": "オスマン帝国の第14代スルタン、アフメト1世が1609年から1616年にかけて建てました。設計はメフメト・アーです。直径27.5メートルの大ドームと、世界で唯一の6本のミナレット（尖塔）を持ちます。内部は数万枚のイズニク製の青い装飾タイルとステンドグラスで彩られ、「世界で最も美しいモスク」と評されます。",
+    "highlights": [
+      "世界で唯一の6本のミナレット",
+      "直径27.5メートルの大ドーム",
+      "数万枚のイズニク製の青いタイルで彩られた内部"
+    ],
+    "compositionTips": [
+      "6本のミナレットを一度に入れるには、引いた位置から広角で全体を収めます",
+      "内部の青いタイルは模様が細かいので、望遠で一部を切り取ると色がよく出ます"
+    ],
+    "timeZone": "Europe/Istanbul",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B9%E3%83%AB%E3%82%BF%E3%83%B3%E3%82%A2%E3%83%95%E3%83%A1%E3%83%88%E3%83%BB%E3%83%A2%E3%82%B9%E3%82%AF",
+          "title": "Wikipedia「スルタンアフメト・モスク」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q80541",
+          "title": "Wikidata「Q80541」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.sultanahmetcami.org/"
+  },
+  {
+    "spotId": "sp_e6c5a6030355",
+    "slug": "petra",
+    "name": "ペトラ",
+    "nameEn": "Petra",
+    "reading": "ペトラ",
+    "aliases": [
+      "ペトラ遺跡",
+      "エル・カズネ",
+      "宝物殿",
+      "Petra",
+      "Al-Khazneh"
+    ],
+    "region": {
+      "country": "ヨルダン",
+      "prefecture": "マアーン県",
+      "city": "ペトラ郡"
+    },
+    "coords": {
+      "lat": 30.33,
+      "lng": 35.44
+    },
+    "category": "遺跡",
+    "summary": "ヨルダンの死海とアカバ湾の間の渓谷にある遺跡です。紀元前1世紀ごろから古代ナバテア人の有力都市として栄え、1985年12月6日に世界遺産に登録されました。",
+    "description": "ペトラはギリシャ語で岩を意味します。現代の訪問者のほとんどは東側から入り、シークと呼ばれる暗く狭い峡谷を抜けて進みます。シークは砂岩の岩盤の深い亀裂でできた自然の地形で、所によって幅はわずか3〜4メートルです。峡谷の終わる先に、砂岩の断崖を刻んで造られたペトラで最も精緻な遺跡、エル・カズネ（宝物殿）が現れます。1世紀初頭にナバテア人の王の墳墓として造られたとされ、正面は幅約30メートル、高さ約40メートルに及びます。2007年7月には新・世界七不思議に選ばれました。",
+    "highlights": [
+      "砂岩の断崖を刻んで造られたエル・カズネ（宝物殿）",
+      "幅わずか3〜4メートルの所もある峡谷シーク",
+      "ローマ風の巨大な円形劇場"
+    ],
+    "compositionTips": [
+      "シークの出口では、狭い岩の切れ目の先にエル・カズネが見えるので、両側の岩壁を額縁にして収めます",
+      "エル・カズネの正面は高さ約40メートルあるので、人を小さく入れると大きさが伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.visitpetra.jo/",
+    "timeZone": "Asia/Amman",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9A%E3%83%88%E3%83%A9",
+          "title": "Wikipedia「ペトラ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q5788",
+          "title": "Wikidata「Q5788」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_4ae8ccebdece",
+    "slug": "burj-khalifa",
+    "name": "ブルジュ・ハリファ",
+    "nameEn": "Burj Khalifa",
+    "reading": "ブルジュ・ハリファ",
+    "aliases": [
+      "ブルジュ・ハリーファ",
+      "Burj Khalifa"
+    ],
+    "address": "1 Sheikh Mohammed bin Rashid Boulevard, Dubai",
+    "region": {
+      "country": "アラブ首長国連邦",
+      "city": "ドバイ"
+    },
+    "coords": {
+      "lat": 25.2,
+      "lng": 55.27
+    },
+    "category": "建築",
+    "summary": "アラブ首長国連邦・ドバイにある超高層ビルで、全高は829.8メートルです。2010年1月4日に開業しました。",
+    "description": "ダウンタウン・ドバイと呼ばれる開発の一環として建てられ、設計はスキッドモア・オーウィングズ・アンド・メリル（SOM）が手がけました。中央のコアを3つの部分が取り囲むY字型の断面で、地上から上へ行くにつれて各部分が後退し、らせんを描きながら細くなっていきます。主要設計者のエイドリアン・スミスは、3つの切り欠きをヒメノカリスの花から連想したといいます。先端では中央のコアが現れ、その上に尖塔が載ります。地上から見上げると、建物はイスラーム建築のオニオンドームを連想させる姿に見えます。",
+    "highlights": [
+      "全高829.8メートルの超高層ビル",
+      "らせんを描いて細くなるY字型の断面",
+      "見上げるとオニオンドームを思わせる姿"
+    ],
+    "compositionTips": [
+      "地上から見上げるとオニオンドームを連想させる形なので、足元から広角で見上げて先端まで入れます",
+      "らせん状に後退する段が見どころなので、斜めの角度から段の重なりを捉えます"
+    ],
+    "officialWebsiteUrl": "https://www.burjkhalifa.ae/",
+    "timeZone": "Asia/Dubai",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%AB%E3%82%B8%E3%83%A5%E3%83%BB%E3%83%8F%E3%83%AA%E3%83%95%E3%82%A1",
+          "title": "Wikipedia「ブルジュ・ハリファ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q12495",
+          "title": "Wikidata「Q12495」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3208140167cb",
+    "slug": "jemaa-el-fnaa",
+    "name": "ジャマ・エル・フナ広場",
+    "nameEn": "Jemaa el-Fnaa",
+    "reading": "ジャマ・エル・フナひろば",
+    "aliases": [
+      "フナ広場",
+      "Jemaa el-Fnaa",
+      "Djemaa el Fna"
+    ],
+    "region": {
+      "country": "モロッコ",
+      "city": "マラケシュ"
+    },
+    "coords": {
+      "lat": 31.63,
+      "lng": -7.99
+    },
+    "category": "広場",
+    "summary": "モロッコ・マラケシュの旧市街にある広場です。11世紀後半から街の中心で、いまも大道芸人や屋台が並ぶにぎわいを見せます。",
+    "description": "マラケシュが首都だった11世紀後半から街の中心となってきた広場です。現在も大道芸人や飲食物、金属細工を扱う屋台などがところ狭しと並び、混然としたにぎわいを見せます。屋台の絞りたてのオレンジジュースは名物のひとつです。広場の文化的空間は、2009年9月にユネスコの無形文化遺産に正式に登録されました。広場に面したレストランから風景を眺める形のツアーも増えています。",
+    "highlights": [
+      "大道芸人や屋台が並ぶ広場のにぎわい",
+      "名物の絞りたてオレンジジュースの屋台",
+      "ユネスコの無形文化遺産に登録された文化的空間"
+    ],
+    "compositionTips": [
+      "広場に面したレストランなどの高い位置から見下ろすと、屋台が並ぶ広場全体を収められます"
+    ],
+    "timeZone": "Africa/Casablanca",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B8%E3%83%A3%E3%83%9E%E3%83%BB%E3%82%A8%E3%83%AB%E3%83%BB%E3%83%95%E3%83%8A%E5%BA%83%E5%A0%B4",
+          "title": "Wikipedia「ジャマ・エル・フナ広場」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q258348",
+          "title": "Wikidata「Q258348」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://visitmarrakech.com/"
+  },
+  {
+    "spotId": "sp_985a312f4048",
+    "slug": "great-pyramid-of-giza",
+    "name": "ギザの大ピラミッド",
+    "nameEn": "Great Pyramid of Giza",
+    "reading": "ギザのだいピラミッド",
+    "aliases": [
+      "クフ王のピラミッド",
+      "三大ピラミッド",
+      "Great Pyramid of Giza",
+      "ギザのピラミッド"
+    ],
+    "region": {
+      "country": "エジプト",
+      "prefecture": "ギーザ県",
+      "city": "ギザ"
+    },
+    "coords": {
+      "lat": 29.98,
+      "lng": 31.13
+    },
+    "category": "遺跡",
+    "summary": "エジプトのギザに建てられた、古代エジプト第4王朝（紀元前2500年頃）の王クフの墓とされるピラミッドです。ギザの三大ピラミッドで最初に、最大の規模で造られました。",
+    "description": "ギザ台地と呼ばれる巨大な岩盤の北端にあり、世界遺産「メンフィスとその墓地遺跡」の構成要素です。完成時は化粧石で覆われたきれいな四角錐でしたが、化粧石はイスラム時代に建材として剥がされ、底部に一部が残るだけです。いまは下地の石が露出しており、表面は203段の階段状になっています。石材は1つ平均2.5トン程度で、230万個が使われたと推定されます。入口はほかの多くのピラミッドと同じく北面にあります。古代世界の七不思議に数えられる、古くからの世界的な観光地です。",
+    "highlights": [
+      "ギザの三大ピラミッドで最大の大ピラミッド",
+      "化粧石が剥がされ、203段の階段状になった表面",
+      "底部にわずかに残る化粧石"
+    ],
+    "compositionTips": [
+      "表面は階段状なので、近くから斜めに見上げると石の段の重なりが際立ちます",
+      "三大ピラミッドを一緒に入れるには、引いた位置から3基の並びを収めます"
+    ],
+    "timeZone": "Africa/Cairo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%AE%E3%82%B6%E3%81%AE%E5%A4%A7%E3%83%94%E3%83%A9%E3%83%9F%E3%83%83%E3%83%89",
+          "title": "Wikipedia「ギザの大ピラミッド」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q37200",
+          "title": "Wikidata「Q37200」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://egymonuments.gov.eg/archaeological-sites/giza-plateau/"
+  },
+  {
+    "spotId": "sp_46dc7c6c3cc0",
+    "slug": "abu-simbel",
+    "name": "アブ・シンベル神殿",
+    "nameEn": "Abu Simbel Temples",
+    "reading": "アブ・シンベルしんでん",
+    "aliases": [
+      "Abu Simbel",
+      "アブシンベル神殿"
+    ],
+    "region": {
+      "country": "エジプト",
+      "prefecture": "アスワン県"
+    },
+    "coords": {
+      "lat": 22.34,
+      "lng": 31.63
+    },
+    "category": "遺跡",
+    "summary": "エジプト南部、スーダンとの国境近くにある岩窟神殿です。紀元前1260年頃に新王国第19王朝の王ラムセス2世が建てました。",
+    "description": "砂岩の岩山を掘り進めて造った岩窟神殿で、太陽神ラーを祭る大神殿と、女神ハトホルを祭る小神殿からなります。大神殿の正面の4体の像はラムセス2世で、向かって左から2体目は完成の数年後の地震で崩れ、頭部の一部が足元に転がっています。アスワン・ハイ・ダムの建設で水没の危機にあったため、ユネスコの国際的な救済活動により、1964年から1968年にかけて約60メートル上方の丘へ移築されました。いまは人造湖のナセル湖のほとりに建ち、この移設工事がきっかけで世界遺産の制度が生まれました。",
+    "highlights": [
+      "大神殿の正面に並ぶ4体のラムセス2世像",
+      "王妃ネフェルタリの像が並ぶ小神殿",
+      "年に2回、太陽の光が神殿の奥の像を照らす現象"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "2月22日の1日後に、太陽の光が神殿の内部を通って奥の像を照らす現象が見られ、観光の目玉になっています。"
+      },
+      {
+        "season": "autumn",
+        "text": "10月22日の1日後に、太陽の光が神殿の内部を通って奥の像を照らす現象が見られます。"
+      }
+    ],
+    "compositionTips": [
+      "大神殿の4体の像は横一列に並ぶので、正面から全体を入れ、崩れた2体目の頭部まで写し込みます",
+      "人を小さく入れると、像の大きさが伝わります"
+    ],
+    "timeZone": "Africa/Cairo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%96%E3%83%BB%E3%82%B7%E3%83%B3%E3%83%99%E3%83%AB%E7%A5%9E%E6%AE%BF",
+          "title": "Wikipedia「アブ・シンベル神殿」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q134140",
+          "title": "Wikidata「Q134140」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://egymonuments.gov.eg/archaeological-sites/abu-simbel/"
+  },
+  {
+    "spotId": "sp_17ebab9eb8ef",
+    "slug": "nasir-ol-molk-mosque",
+    "name": "ナスィーロル・モルク・モスク",
+    "nameEn": "Nasir-ol-Molk Mosque",
+    "reading": "ナスィーロル・モルク・モスク",
+    "aliases": [
+      "ピンクモスク",
+      "ローズモスク",
+      "Pink Mosque",
+      "Nasir al-Mulk Mosque"
+    ],
+    "region": {
+      "country": "イラン",
+      "city": "シーラーズ"
+    },
+    "coords": {
+      "lat": 29.61,
+      "lng": 52.55
+    },
+    "category": "寺院",
+    "summary": "イランのシーラーズにあるモスクです。ピンク色のタイルが多用されていることからピンクモスク、床のタイルにも使われる薔薇の花からローズモスクとも呼ばれます。",
+    "description": "ガージャール朝の統治者ナスィーロル・モルクの命で、1876年から1888年にかけて建てられました。いまも寄付財団の管理のもとで使われています。モスクの中には、12人のイマームにちなむ12本のらせん状の石柱が6本ずつ2列に並びます。ファサードにも色ガラスが使われ、早朝のステンドグラスに朝日が差し込む光景が見どころとされています。",
+    "highlights": [
+      "ピンク色のタイルで彩られた内外の装飾",
+      "6本ずつ2列に並ぶ、らせん状の12本の石柱",
+      "朝日が差し込むステンドグラス"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "morning",
+        "text": "早朝、ステンドグラスに朝日が差し込む光景が見どころとされています。"
+      }
+    ],
+    "compositionTips": [
+      "朝日がステンドグラスを通って床や柱に色を落とすので、光の当たった床と柱を一緒に入れます",
+      "らせん状の石柱が2列に並ぶので、列に沿って奥へ向けて構えると奥行きが出ます"
+    ],
+    "officialWebsiteUrl": "https://nasiralmulk.ir",
+    "timeZone": "Asia/Tehran",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8A%E3%82%B9%E3%82%A3%E3%83%BC%E3%83%AD%E3%83%AB%E3%83%BB%E3%83%A2%E3%83%AB%E3%82%AF%E3%83%BB%E3%83%A2%E3%82%B9%E3%82%AF",
+          "title": "Wikipedia「ナスィーロル・モルク・モスク」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1962312",
+          "title": "Wikidata「Q1962312」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_b28662e4cb75",
+    "slug": "brooklyn-bridge",
+    "name": "ブルックリン橋",
+    "nameEn": "Brooklyn Bridge",
+    "reading": "ブルックリンばし",
+    "aliases": [
+      "Brooklyn Bridge",
+      "ブルックリン・ブリッジ",
+      "ニューヨーク"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ニューヨーク州",
+      "city": "ニューヨーク市"
+    },
+    "coords": {
+      "lat": 40.71,
+      "lng": -74.0
+    },
+    "category": "橋",
+    "summary": "アメリカ・ニューヨーク市のイースト川に架かり、マンハッタンとブルックリンを結ぶ吊橋です。1883年に完成した、アメリカで最も古い吊橋のひとつです。",
+    "description": "長さは1,834メートル、中央径間は486メートルで、鋼鉄のワイヤーを使った世界初の吊橋でもあります。14年の歳月をかけて完成し、1903年にウィリアムズバーグ橋ができるまで世界最長の吊橋でした。橋は2層に分かれ、上層はいまも歩行者や自転車が渡れ、下層は車道です。ゴシック風のデザインとあいまってニューヨークの観光名所になっています。マンハッタン側はブルックリン・ブリッジ-シティ・ホール駅、ブルックリン側はハイ・ストリート-ブルックリン・ブリッジ駅が最寄りです。",
+    "highlights": [
+      "ゴシック風のデザインの主塔",
+      "歩いて渡れる上層の歩道",
+      "マンハッタン橋と並んでイースト川に架かる姿"
+    ],
+    "compositionTips": [
+      "ブルックリン側から渡る方が景色がよいとされるので、ブルックリン側から歩き始め、主塔越しにマンハッタンの方向を収めます",
+      "上層の歩道から、ゴシック風の主塔とケーブルを見上げて収めます"
+    ],
+    "timeZone": "America/New_York",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%AB%E3%83%83%E3%82%AF%E3%83%AA%E3%83%B3%E6%A9%8B",
+          "title": "Wikipedia「ブルックリン橋」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q125006",
+          "title": "Wikidata「Q125006」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nyc.gov/html/dot/html/infrastructure/brooklyn-bridge.shtml"
+  },
+  {
+    "spotId": "sp_a0dd988eaedf",
+    "slug": "times-square",
+    "name": "タイムズスクエア",
+    "nameEn": "Times Square",
+    "reading": "タイムズスクエア",
+    "aliases": [
+      "タイムズ・スクエア",
+      "Times Square",
+      "ダフィー・スクエア"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ニューヨーク州",
+      "city": "ニューヨーク市"
+    },
+    "coords": {
+      "lat": 40.76,
+      "lng": -73.99
+    },
+    "category": "広場",
+    "summary": "アメリカ・ニューヨーク市マンハッタン区のミッドタウンにある繁華街・交差点です。建物の外壁を埋める広告や巨大ディスプレイ、ネオンサインが、世界の繁華街を代表する風景をつくっています。",
+    "description": "42丁目と7番街、ブロードウェイの交差を中心に広がり、ブロードウェイ・ミュージカルの劇場が集まるシアター・ディストリクトの中心とほぼ重なります。ニューヨーク・タイムズ社の本社が移ってきたことから、1904年4月に現在の名に改められました。建物外壁への広告の設置は、観光振興策として法律で義務付けられています。北側の三角地帯はダフィー・スクエアといい、劇場の割引チケット売り場TKTSと赤い階段状の座席があります。",
+    "highlights": [
+      "建物の外壁を埋めるビルボードとネオンサイン",
+      "ダフィー・スクエアの赤い階段状の座席",
+      "大晦日のカウントダウンとボールドロップ"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "1904年から毎年、12月31日から1月1日にかけてカウントダウンが行われ、ワン・タイムズスクエアでボールドロップが行われます。"
+      }
+    ],
+    "compositionTips": [
+      "ダフィー・スクエアの赤い階段状の座席に上がると、交差点とビルボードを少し高い位置から見渡せます",
+      "ビルボードの光が主役なので、明るさの差が大きい場面では露出を看板に合わせます"
+    ],
+    "officialWebsiteUrl": "https://www.timessquarenyc.org/",
+    "timeZone": "America/New_York",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%BF%E3%82%A4%E3%83%A0%E3%82%BA%E3%82%B9%E3%82%AF%E3%82%A8%E3%82%A2",
+          "title": "Wikipedia「タイムズスクエア」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q11259",
+          "title": "Wikidata「Q11259」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_6c97fb03b1ee",
+    "slug": "empire-state-building",
+    "name": "エンパイア・ステート・ビルディング",
+    "nameEn": "Empire State Building",
+    "reading": "エンパイア・ステート・ビルディング",
+    "aliases": [
+      "エンパイアステートビル",
+      "Empire State Building",
+      "ESB"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ニューヨーク州",
+      "city": "ニューヨーク市"
+    },
+    "coords": {
+      "lat": 40.75,
+      "lng": -73.99
+    },
+    "category": "建築",
+    "summary": "アメリカ・ニューヨーク市マンハッタン区にある超高層ビルで、1931年に竣工しました。低層部と最頂部にアール・デコ様式が採り入れられています。",
+    "description": "設計はシュリーブ・ラム&ハーモンで、1972年にワールドトレードセンターのノースタワーができるまでの42年間、世界一の高さを誇りました。102階の床は地上373.2メートル、軒高は381.0メートルで、電波塔を含めると443.2メートルです。86階（320メートル）の屋外展望台からは、窓越しではなく直接ニューヨークの街を360度見渡せます。102階には第二展望台があります。最上階付近と電波塔はイルミネーションで照らされ、日によって色が変わり、記念日やイベントに合わせたライトアップも行われます。",
+    "highlights": [
+      "低層部と最頂部のアール・デコ様式",
+      "街を360度見渡せる86階の屋外展望台",
+      "日によって色の変わる最上階付近のライトアップ"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "最上階付近と電波塔がイルミネーションで照らされ、日によって色が変わります。"
+      }
+    ],
+    "compositionTips": [
+      "86階の屋外展望台はガラス越しではないので、映り込みを気にせず街並みを撮れます",
+      "夜は日ごとに変わる頂部の色が見どころなので、周りのビル越しに頂部を入れて撮ります"
+    ],
+    "officialWebsiteUrl": "https://www.esbnyc.com/",
+    "timeZone": "America/New_York",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A8%E3%83%B3%E3%83%91%E3%82%A4%E3%82%A2%E3%83%BB%E3%82%B9%E3%83%86%E3%83%BC%E3%83%88%E3%83%BB%E3%83%93%E3%83%AB%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0",
+          "title": "Wikipedia「エンパイア・ステート・ビルディング」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q9188",
+          "title": "Wikidata「Q9188」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_b0081523426c",
+    "slug": "golden-gate-bridge",
+    "name": "ゴールデン・ゲート・ブリッジ",
+    "nameEn": "Golden Gate Bridge",
+    "reading": "ゴールデン・ゲート・ブリッジ",
+    "aliases": [
+      "金門橋",
+      "Golden Gate Bridge",
+      "G. G. Bridge"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "カリフォルニア州",
+      "city": "サンフランシスコ"
+    },
+    "coords": {
+      "lat": 37.82,
+      "lng": -122.48
+    },
+    "category": "橋",
+    "summary": "アメリカ西海岸、サンフランシスコ湾と太平洋をつなぐゴールデンゲート海峡に架かる吊橋です。1937年に開通しました。",
+    "description": "中央径間は1280メートル、全長は2737メートルで、主塔の高さは水面から227メートルあります。1964年にヴェラザノ・ナローズ橋ができるまで、支間が世界一の吊橋でした。色は、自然との調和と、霧の多いこの地域での見えやすさを考えて、インターナショナルオレンジという鮮やかな朱色が選ばれました。橋は国道101号線を通し、6車線の道路と歩道があります。歩道は自転車も通れ、通常は東側が歩行者用、西側が自転車用です。",
+    "highlights": [
+      "霧の中でも見えるよう選ばれたインターナショナルオレンジの色",
+      "水面から高さ227メートルの主塔",
+      "歩いて渡れる東側の歩道"
+    ],
+    "compositionTips": [
+      "霧の多い地域で見えやすいよう選ばれた色なので、霧の日も朱色の橋を主役に構えられます",
+      "朱色を生かすため、空や水面を背景に広めに入れます"
+    ],
+    "officialWebsiteUrl": "https://www.goldengate.org/bridge/",
+    "timeZone": "America/Los_Angeles",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B4%E3%83%BC%E3%83%AB%E3%83%87%E3%83%B3%E3%83%BB%E3%82%B2%E3%83%BC%E3%83%88%E3%83%BB%E3%83%96%E3%83%AA%E3%83%83%E3%82%B8",
+          "title": "Wikipedia「ゴールデン・ゲート・ブリッジ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q44440",
+          "title": "Wikidata「Q44440」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_40ebb2c1f5cb",
+    "slug": "grand-canyon",
+    "name": "グランド・キャニオン",
+    "nameEn": "Grand Canyon",
+    "reading": "グランド・キャニオン",
+    "aliases": [
+      "グランドキャニオン",
+      "Grand Canyon",
+      "サウス・リム",
+      "グランド・キャニオン国立公園"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "アリゾナ州"
+    },
+    "coords": {
+      "lat": 36.1,
+      "lng": -112.1
+    },
+    "category": "峡谷",
+    "summary": "アメリカ・アリゾナ州北部にある峡谷で、コロラド高原がコロラド川に長い年月をかけて削られてできた地形です。グランド・キャニオン国立公園は1979年に世界遺産に登録されました。",
+    "description": "断崖は平均の深さ約1,200メートル、長さ446キロメートル、幅は6キロメートルから29キロメートルに及び、最も深い所は1,800メートルあります。先カンブリア時代からペルム紀までの地層の重なりがよく露出しており、肉眼で観察できます。代表的な露頭は、谷底の20億年前のビシュヌ片岩から、縁に見られる2億3千万年前のカイバブ石灰岩にわたります。ノース・リムとサウス・リムがあり、サウス・リムへはラスベガスやフェニックスから車で約5時間です。",
+    "highlights": [
+      "平均の深さ約1,200メートル、長さ446キロメートルの断崖",
+      "肉眼で見える、先カンブリア時代からペルム紀までの地層の重なり",
+      "ノース・リムとサウス・リムからの眺め"
+    ],
+    "compositionTips": [
+      "地層の重なりが見どころなので、望遠で崖の層を横縞として切り取ります",
+      "縁から見下ろすと深さがつかみにくいので、手前の岩や縁を入れて奥行きを出します"
+    ],
+    "timeZone": "America/Phoenix",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89%E3%83%BB%E3%82%AD%E3%83%A3%E3%83%8B%E3%82%AA%E3%83%B3",
+          "title": "Wikipedia「グランド・キャニオン」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q118841",
+          "title": "Wikidata「Q118841」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/grca/index.htm"
+  },
+  {
+    "spotId": "sp_bb34456e491d",
+    "slug": "antelope-canyon",
+    "name": "アンテロープ・キャニオン",
+    "nameEn": "Antelope Canyon",
+    "reading": "アンテロープ・キャニオン",
+    "aliases": [
+      "Antelope Canyon",
+      "アッパー・アンテロープ・キャニオン",
+      "ロウワー・アンテロープ・キャニオン"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "アリゾナ州",
+      "city": "ペイジ"
+    },
+    "coords": {
+      "lat": 36.86,
+      "lng": -111.37
+    },
+    "category": "峡谷",
+    "summary": "アメリカ・アリゾナ州ペイジ近郊、ナバホ族の土地にある渓谷です。アメリカ南西部で最も写真に撮られ、多くの人が訪れるスロット・キャニオン（幅の狭い渓谷）です。",
+    "description": "ナバホ砂岩が主に鉄砲水と風に削られてできた渓谷で、狭い通路を流れる水が砂を運び、岩を滑らかに削って「流れる」ような形をつくりました。アッパー・アンテロープ・キャニオンとロウワー・アンテロープ・キャニオンの2つからなります。アッパーは入口から全体が地表と同じ高さにあり、頂部の開口部から差し込む太陽光の光芒がロウワーよりもよく見られます。ロウワーは鉄製の階段があるものの、狭く足場の悪い場所が多い渓谷です。モンスーンの時期の雨で急に水浸しになるため、案内人付きで訪れる人がほとんどです。",
+    "highlights": [
+      "水と風に削られた、流れるような砂岩の壁",
+      "アッパー・アンテロープ・キャニオンで差し込む太陽光の光芒",
+      "らせんの岩のアーチを意味する名を持つロウワー・アンテロープ・キャニオン"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夏の間は、太陽が空高く昇ったときに、アッパー・アンテロープ・キャニオンで光芒がよく見られます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "太陽が高く昇った時間に、頂部の開口部から光が真っ直ぐ差し込みます。"
+      }
+    ],
+    "compositionTips": [
+      "光芒を撮るなら、太陽が高い時間のアッパー・アンテロープ・キャニオンを選びます",
+      "岩壁の曲線が見どころなので、見上げる角度で壁の重なりと開口部の光を一緒に入れます"
+    ],
+    "officialWebsiteUrl": "https://navajonationparks.org/guided-tour-operators/antelope-canyon-tour-operators/",
+    "timeZone": "America/Phoenix",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%83%86%E3%83%AD%E3%83%BC%E3%83%97%E3%83%BB%E3%82%AD%E3%83%A3%E3%83%8B%E3%82%AA%E3%83%B3",
+          "title": "Wikipedia「アンテロープ・キャニオン」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q308926",
+          "title": "Wikidata「Q308926」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_faa05d2081f7",
+    "slug": "half-dome",
+    "name": "ハーフドーム",
+    "nameEn": "Half Dome",
+    "reading": "ハーフドーム",
+    "aliases": [
+      "Half Dome",
+      "ヨセミテ",
+      "ヨセミテ国立公園"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "カリフォルニア州",
+      "city": "マリポサ郡"
+    },
+    "coords": {
+      "lat": 37.75,
+      "lng": -119.53
+    },
+    "category": "山岳",
+    "summary": "アメリカ・カリフォルニア州のヨセミテ国立公園にある花崗岩のドームで、ヨセミテ渓谷の東端に位置します。渓谷を象徴する景観のひとつです。",
+    "description": "ヨセミテ渓谷に面する北西側が急に切り立ち、南東側は丸みを帯びています。半球を縦に割ったような形から、この名が付きました。渓谷の底からの高さは1524メートル近く、海抜は約2682メートルです。1875年にジョージ・アンダーソンが南東側から初めて登頂し、いまは約13.2キロメートルのケーブル・ルートが最も一般的な登頂路です。往復には10時間から12時間ほどかかります。切り立った北西壁にもロッククライミングのルートが数多くあります。",
+    "highlights": [
+      "半球を縦に割ったような、切り立った北西壁",
+      "渓谷の底から1524メートル近くそびえる花崗岩のドーム",
+      "鉄の杭を伝って上るケーブル・ルート"
+    ],
+    "compositionTips": [
+      "切り立った北西側がヨセミテ渓谷に面しているので、渓谷の側から見ると半球を割ったような形がはっきり出ます"
+    ],
+    "timeZone": "America/Los_Angeles",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8F%E3%83%BC%E3%83%95%E3%83%89%E3%83%BC%E3%83%A0",
+          "title": "Wikipedia「ハーフドーム」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q925252",
+          "title": "Wikidata「Q925252」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/yose/planyourvisit/halfdome.htm"
+  },
+  {
+    "spotId": "sp_2258b5d4603f",
+    "slug": "monument-valley",
+    "name": "モニュメント・バレー",
+    "nameEn": "Monument Valley",
+    "reading": "モニュメント・バレー",
+    "aliases": [
+      "Monument Valley",
+      "ジョン・フォード・ポイント",
+      "モニュメントバレー"
+    ],
+    "region": {
+      "country": "アメリカ"
+    },
+    "coords": {
+      "lat": 36.98,
+      "lng": -110.1
+    },
+    "category": "高原",
+    "summary": "アメリカ西南部、ユタ州南部からアリゾナ州北部に広がる地域です。メサと呼ばれるテーブル形の台地や岩山のビュートが、記念碑が並ぶように点在しています。",
+    "description": "コロラド高原の一部で、2億7千万年ほど前の地層が風化と侵食によって現れたといわれる地形です。鉄分を多く含む土が酸化して茶褐色の地表になりました。古くからのナバホ族の居住地域で、いまはその一部がナバホ族の管理のもとで公開されています。映画監督ジョン・フォードが西部劇の撮影で好んでカメラを置いた、モニュメント・バレーを一望できる場所は「ジョン・フォード・ポイント」と呼ばれる有名なビュースポットです。公共交通は通っておらず、国道163号線から車で訪れます。",
+    "highlights": [
+      "記念碑のように並ぶメサとビュート",
+      "ジョン・フォード・ポイントからの一望",
+      "多くの映画の舞台になった、国道163号線の眺め"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "5月から9月の最高気温は25度から33度ほどです。日没後は気温が大きく下がります。"
+      },
+      {
+        "season": "winter",
+        "text": "真冬には雪が降ることもありますが、積もるほどではありません。12月から2月は最低気温が氷点下になります。"
+      }
+    ],
+    "compositionTips": [
+      "ジョン・フォード・ポイントから、点在するメサとビュートを並べて収めます",
+      "茶褐色の地表を生かすため、空を入れすぎず大地を広く取ります"
+    ],
+    "timeZone": "America/Denver",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A2%E3%83%8B%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88%E3%83%BB%E3%83%90%E3%83%AC%E3%83%BC",
+          "title": "Wikipedia「モニュメント・バレー」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q192017",
+          "title": "Wikidata「Q192017」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://navajonationparks.org/navajo-tribal-parks/monument-valley/"
+  },
+  {
+    "spotId": "sp_f86754740514",
+    "slug": "grand-prismatic-spring",
+    "name": "グランド・プリズマティック・スプリング",
+    "nameEn": "Grand Prismatic Spring",
+    "reading": "グランド・プリズマティック・スプリング",
+    "aliases": [
+      "Grand Prismatic Spring",
+      "イエローストーン",
+      "イエローストーン国立公園"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ワイオミング州",
+      "city": "ティトン郡"
+    },
+    "coords": {
+      "lat": 44.52,
+      "lng": -110.84
+    },
+    "category": "温泉",
+    "summary": "アメリカ・イエローストーン国立公園のミッドウェイ間欠泉地域にある、アメリカ最大の熱水泉です。青、緑、黄、オレンジ、赤などの色が、プリズムで分かれた虹の色を思わせます。",
+    "description": "泉の大きさはおよそ80×90メートル、深さは50メートルで、70℃の熱水が湧き出しています。鮮やかな色は、ミネラルの多い水の周りにできるバクテリアマットのバクテリアによるもので、色は水温によって変わります。泉の中央は高温のため無菌で、高純度で深い水が赤い波長の光を吸収し、濃い青に見えます。1871年のハイデン地質調査で、その印象的な色彩から名付けられました。",
+    "highlights": [
+      "プリズムの虹色を思わせる、青から赤までの色の輪",
+      "中央の濃い青の水",
+      "直径80〜90メートルに及ぶアメリカ最大の熱水泉"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夏は周りのバクテリアマットがオレンジや赤になる傾向があります。"
+      },
+      {
+        "season": "winter",
+        "text": "冬はバクテリアマットが濃い緑になるのが普通です。"
+      }
+    ],
+    "compositionTips": [
+      "色の輪が見どころなので、中央の青から外側のオレンジまで、色の並びが途切れないよう構えます"
+    ],
+    "timeZone": "America/Denver",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%A9%E3%83%B3%E3%83%89%E3%83%BB%E3%83%97%E3%83%AA%E3%82%BA%E3%83%9E%E3%83%86%E3%82%A3%E3%83%83%E3%82%AF%E3%83%BB%E3%82%B9%E3%83%97%E3%83%AA%E3%83%B3%E3%82%B0",
+          "title": "Wikipedia「グランド・プリズマティック・スプリング」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1422831",
+          "title": "Wikidata「Q1422831」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/yell/index.htm"
+  },
+  {
+    "spotId": "sp_8e8f6285757b",
+    "slug": "diamond-head",
+    "name": "ダイヤモンドヘッド",
+    "nameEn": "Diamond Head",
+    "reading": "ダイヤモンドヘッド",
+    "aliases": [
+      "ダイアモンドヘッド",
+      "レーアヒ",
+      "Lēʻahi",
+      "Diamond Head"
+    ],
+    "region": {
+      "country": "アメリカ",
+      "prefecture": "ハワイ州",
+      "city": "ホノルル"
+    },
+    "coords": {
+      "lat": 21.26,
+      "lng": -157.81
+    },
+    "category": "火山",
+    "summary": "アメリカ・ハワイ諸島のオアフ島にある火山です。噴出した火山砕屑物が火口の周りに積もってできた火山砕屑丘で、約40〜50万年前に生まれました。",
+    "description": "ハワイ先住民はハワイ語で「マグロの額」を意味する「レーアヒ」と呼びます。19世紀にイギリスの水夫たちが、火口付近の方解石の結晶をダイヤモンドと間違えて名付けたといわれます。海を一望できる立地から沿岸防衛の要所とされ、1908年から1943年まで砲台が置かれました。頂上へ続く道やトンネルは、そのときの資材運搬路を利用したものです。火口の内側の駐車場から山頂までは約1キロメートルで、往復1時間から2時間ほどです。ワイキキからはザ・バスで約30分です。",
+    "highlights": [
+      "海を一望できる山頂",
+      "砲台の資材運搬路を利用した、トンネルや階段のある登山道",
+      "火口の内側に広がる火口原"
+    ],
+    "compositionTips": [
+      "山頂からは海を一望できるので、火口の縁を手前に入れて海を収めます"
+    ],
+    "timeZone": "Pacific/Honolulu",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%80%E3%82%A4%E3%83%A4%E3%83%A2%E3%83%B3%E3%83%89%E3%83%98%E3%83%83%E3%83%89",
+          "title": "Wikipedia「ダイヤモンドヘッド」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q944686",
+          "title": "Wikidata「Q944686」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://dlnr.hawaii.gov/dsp/parks/oahu/diamond-head-state-monument/"
+  },
+  {
+    "spotId": "sp_8587a82265c7",
+    "slug": "moraine-lake",
+    "name": "モレーン湖",
+    "nameEn": "Moraine Lake",
+    "reading": "モレーンこ",
+    "aliases": [
+      "Moraine Lake",
+      "テンピークス",
+      "バンフ国立公園"
+    ],
+    "region": {
+      "country": "カナダ",
+      "prefecture": "アルバータ州"
+    },
+    "coords": {
+      "lat": 51.32,
+      "lng": -116.19
+    },
+    "category": "湖沼",
+    "summary": "カナダ・アルバータ州のレイク・ルイーズ近郊、バンフ国立公園内の標高1,884メートルにある氷河湖です。湖の後ろには「テンピークス」と呼ばれる10の頂がそびえます。",
+    "description": "面積は0.5平方キロメートルで、背後のテンピークスはかつて20カナダドル紙幣の絵柄にも使われました。氷河の雪解け水でできる湖で、6月下旬まで満水になりませんが、夏にはターコイズブルーの湖水をたたえます。この青さは、雪解け水とともに流れ込む、氷河に削られた細かな土砂が湖水に漂い、光が屈折するためと言われています。総延長300メートル、高低差24メートルのロックパイルトレイルは初心者向けの遊歩道で、その終点はカナダでも有数の撮影地です。湖の正面にはロッジがあり、湖畔にカヌー用の桟橋があります。",
+    "highlights": [
+      "背後にそびえる10の頂、テンピークス",
+      "夏に満ちるターコイズブルーの湖水",
+      "撮影地として知られるロックパイルトレイルの終点"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "6月下旬まで満水にならず、夏にはターコイズブルーの湖水を満々とたたえます。"
+      }
+    ],
+    "compositionTips": [
+      "ロックパイルトレイルの終点から、湖とテンピークスを一枚に収めます",
+      "湖水の色が主役なので、水面を画面の下半分に広く取ります"
+    ],
+    "timeZone": "America/Edmonton",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A2%E3%83%AC%E3%83%BC%E3%83%B3%E6%B9%96",
+          "title": "Wikipedia「モレーン湖」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1072342",
+          "title": "Wikidata「Q1072342」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://parks.canada.ca/pn-np/ab/banff/visit/les10-top10/louise"
+  },
+  {
+    "spotId": "sp_3976c7bdc63f",
+    "slug": "lake-louise",
+    "name": "レイク・ルイーズ",
+    "nameEn": "Lake Louise",
+    "reading": "レイク・ルイーズ",
+    "aliases": [
+      "ルイーズ湖",
+      "Lake Louise",
+      "シャトー・レイク・ルイーズ"
+    ],
+    "region": {
+      "country": "カナダ",
+      "prefecture": "アルバータ州"
+    },
+    "coords": {
+      "lat": 51.41,
+      "lng": -116.23
+    },
+    "category": "湖沼",
+    "summary": "カナダ・アルバータ州のバンフ国立公園内にある湖です。氷河から溶け出した水に含まれる岩粉によって、独特なエメラルド色をしています。",
+    "description": "水面の標高は1536メートルです。名前は、ヴィクトリア女王の四女でカナダ総督夫人だったルイーズ・キャロライン・アルバータに由来し、アルバータ州の名も彼女にちなみます。湖の東岸には、19世紀末から20世紀初頭にカナダ太平洋鉄道が建てたホテル、シャトー・レイク・ルイーズがあり、アグネス湖などへのハイキングコースの出発点になっています。周辺はいくつもの雪をかぶった山々に囲まれています。",
+    "highlights": [
+      "岩粉が生む、独特なエメラルド色の湖水",
+      "湖を囲む雪をかぶった山々",
+      "東岸に建つシャトー・レイク・ルイーズ"
+    ],
+    "compositionTips": [
+      "湖水の色が見どころなので、水面を広く入れ、奥の雪をかぶった山々と重ねます"
+    ],
+    "timeZone": "America/Edmonton",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%AC%E3%82%A4%E3%82%AF%E3%83%BB%E3%83%AB%E3%82%A4%E3%83%BC%E3%82%BA",
+          "title": "Wikipedia「レイク・ルイーズ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1367398",
+          "title": "Wikidata「Q1367398」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://parks.canada.ca/pn-np/ab/banff/visit/les10-top10/louise"
+  },
+  {
+    "spotId": "sp_0c3649eeb641",
+    "slug": "cn-tower",
+    "name": "CNタワー",
+    "nameEn": "CN Tower",
+    "reading": "シーエヌタワー",
+    "aliases": [
+      "CN Tower",
+      "Tour CN"
+    ],
+    "region": {
+      "country": "カナダ",
+      "prefecture": "オンタリオ州",
+      "city": "トロント"
+    },
+    "coords": {
+      "lat": 43.64,
+      "lng": -79.39
+    },
+    "category": "展望台",
+    "summary": "カナダ・オンタリオ州トロントにある通信と観光のための塔で、高さは553.33メートルです。1976年にカナディアン・ナショナル鉄道が電波塔として建てました。",
+    "description": "開業から2007年までの32年間、自立式の建築物として世界で最も高い塔でした。展望台は4つあり、342メートルの所にはガラスの床「グラス・フロア」と屋外展望台、346メートルの所には屋内展望台があります。351メートルの所の回転レストラン「360」は、72分かけて床が一周します。356メートルの所には屋外を歩くエッジウォークがあり、447メートルの展望台「スカイ・ポッド」は、2008年まで世界一高い展望台でした。",
+    "highlights": [
+      "高さ553.33メートルの塔",
+      "342メートルの所のガラスの床「グラス・フロア」",
+      "447メートルの展望台「スカイ・ポッド」"
+    ],
+    "compositionTips": [
+      "グラス・フロアでは足元を真下に向けて、真下の地上を見下ろす構図が撮れます",
+      "塔の全体を入れるには、離れた位置から街並みと一緒に縦位置で構えます"
+    ],
+    "officialWebsiteUrl": "https://www.cntower.ca/",
+    "timeZone": "America/Toronto",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/CN%E3%82%BF%E3%83%AF%E3%83%BC",
+          "title": "Wikipedia「CNタワー」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q134883",
+          "title": "Wikidata「Q134883」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_d041fa049caf",
+    "slug": "chichen-itza",
+    "name": "チチェン・イッツァ",
+    "nameEn": "Chichén Itzá",
+    "reading": "チチェン・イッツァ",
+    "aliases": [
+      "チチェン・イツァー",
+      "Chichen Itza",
+      "カスティーヨ",
+      "ククルカンのピラミッド"
+    ],
+    "region": {
+      "country": "メキシコ",
+      "prefecture": "ユカタン州"
+    },
+    "coords": {
+      "lat": 20.68,
+      "lng": -88.57
+    },
+    "category": "遺跡",
+    "summary": "メキシコ南部のユカタン半島にあるマヤ文明の遺跡で、1988年に世界遺産に登録されました。州都メリダの東、約120キロメートルの密林にあります。",
+    "description": "北部マヤの中心地で、中央メキシコ（トルテカ）の強い影響を受けた建物が残ります。最高神ククルカンを祀るピラミッド「カスティーヨ」は高さ24メートルで、4面の各91段の階段と最上段の1段を合わせると365段になることから「暦のピラミッド」とも呼ばれます。北面の階段の最下段にはククルカンの頭部の彫刻があります。ほかに、両側の高さ6メートルの所に石の輪がある大きな球戯場や、906年に建てられた天文台エル・カラコル、雨の神への儀礼に使われた聖なる泉セノーテがあります。",
+    "highlights": [
+      "365段の階段を持つ「暦のピラミッド」カスティーヨ",
+      "春分・秋分の日没に階段に現れるククルカンの胴体",
+      "天文台エル・カラコルと大きな球戯場"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "春分の日に太陽が沈むとき、ピラミッドが真西から照らされ、北面の階段の西側に蛇が身をくねらせたようなククルカンの胴体が現れます（ククルカンの降臨）。"
+      },
+      {
+        "season": "autumn",
+        "text": "秋分の日の日没にも、北面の階段にククルカンの胴体が現れます。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "goldenHour",
+        "text": "春分・秋分の日は、太陽が沈むときにピラミッドが真西から照らされ、北面の階段に蛇の胴体のような影が現れます。"
+      }
+    ],
+    "compositionTips": [
+      "ククルカンの降臨を撮るなら、北面の階段とその最下段の頭部の彫刻を一緒に入れます",
+      "カスティーヨは4面とも同じ構成なので、角から斜めに構えると2面の階段が並んで立体感が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.chichenitza.com/",
+    "timeZone": "America/Merida",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%81%E3%83%81%E3%82%A7%E3%83%B3%E3%83%BB%E3%82%A4%E3%83%83%E3%83%84%E3%82%A1",
+          "title": "Wikipedia「チチェン・イッツァ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q5859",
+          "title": "Wikidata「Q5859」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_ebf089d89251",
+    "slug": "teotihuacan",
+    "name": "テオティワカン",
+    "nameEn": "Teotihuacan",
+    "reading": "テオティワカン",
+    "aliases": [
+      "Teotihuacan",
+      "太陽のピラミッド",
+      "月のピラミッド",
+      "死者の大通り"
+    ],
+    "region": {
+      "country": "メキシコ",
+      "prefecture": "メヒコ州"
+    },
+    "coords": {
+      "lat": 19.69,
+      "lng": -98.84
+    },
+    "category": "遺跡",
+    "summary": "メキシコの首都メキシコシティの北東約50キロの地点にある、巨大な宗教都市の遺跡です。紀元前2世紀から6世紀に栄えたテオティワカン文明の中心で、1987年に世界遺産に登録されました。",
+    "description": "ナワトル語で「神々の都市」を意味し、12世紀ごろに廃墟を見つけたアステカ人が名付けました。都市は計画的に設計され、太陽のピラミッド（高さ65メートル）と月のピラミッド（高さ47メートル）、都市を南北に貫く「死者の大通り」を基点に施設が配置されています。都市の面積は約20平方キロメートルあり、最盛期には10万から20万人が暮らしていました。",
+    "highlights": [
+      "高さ65メートルの太陽のピラミッド",
+      "高さ47メートルの月のピラミッド",
+      "都市を南北に貫く死者の大通り"
+    ],
+    "compositionTips": [
+      "死者の大通りは南北にまっすぐ延びるので、通りに沿って構えるとピラミッドへ続く都市の軸線が出ます",
+      "ピラミッドの上からは、大通りと周りの遺構を見下ろす構図が撮れます"
+    ],
+    "officialWebsiteUrl": "https://www.inah.gob.mx/zonas/23-zona-arqueologica-de-teotihuacan",
+    "timeZone": "America/Mexico_City",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%86%E3%82%AA%E3%83%86%E3%82%A3%E3%83%AF%E3%82%AB%E3%83%B3",
+          "title": "Wikipedia「テオティワカン」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q172613",
+          "title": "Wikidata「Q172613」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_813dce3421b4",
+    "slug": "machu-picchu",
+    "name": "マチュ・ピチュ",
+    "nameEn": "Machu Picchu",
+    "reading": "マチュ・ピチュ",
+    "aliases": [
+      "マチュピチュ",
+      "Machu Picchu",
+      "ワイナ・ピチュ",
+      "空中都市"
+    ],
+    "region": {
+      "country": "ペルー",
+      "prefecture": "クスコ県",
+      "city": "ウルバンバ郡"
+    },
+    "coords": {
+      "lat": -13.16,
+      "lng": -72.55
+    },
+    "category": "遺跡",
+    "summary": "ペルーのクスコ県にある、15世紀のインカ帝国の遺跡です。アンデス山脈のウルバンバ谷に沿った、標高2430メートルの山の尾根にあります。",
+    "description": "山裾からは遺跡が見えないことから、「空中都市」とも呼ばれます。遺跡の背後にそびえる尖った山はワイナ・ピチュ（若い峰）で、標高は2720メートルです。遺跡には3メートルずつ上がる段々畑が40段あり、3000段の階段でつながっています。石の建物は約200戸あり、頂上には太陽の神殿とインティワタナ（太陽をつなぎ止める石）があります。1440年ごろに建設が始まり、1983年にクスコとともに世界遺産に登録されました。10月から翌年4月までの長い雨季と、5月から9月までの短い乾季に分かれます。",
+    "highlights": [
+      "遺跡の背後にそびえるワイナ・ピチュ",
+      "3メートルずつ上がる40段の段々畑",
+      "頂上の太陽の神殿とインティワタナ"
+    ],
+    "compositionTips": [
+      "遺跡の背後にワイナ・ピチュがそびえるので、段々畑を手前に入れて、遺跡とワイナ・ピチュを重ねます"
+    ],
+    "officialWebsiteUrl": "https://www.machupicchu.gob.pe/",
+    "timeZone": "America/Lima",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%81%E3%83%A5%E3%83%BB%E3%83%94%E3%83%81%E3%83%A5",
+          "title": "Wikipedia「マチュ・ピチュ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q676203",
+          "title": "Wikidata「Q676203」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_7d5a4d9e37ef",
+    "slug": "perito-moreno-glacier",
+    "name": "ペリト・モレノ氷河",
+    "nameEn": "Perito Moreno Glacier",
+    "reading": "ペリト・モレノひょうが",
+    "aliases": [
+      "Glaciar Perito Moreno",
+      "Perito Moreno Glacier",
+      "ロス・グラシアレス国立公園"
+    ],
+    "region": {
+      "country": "アルゼンチン",
+      "prefecture": "サンタクルス州"
+    },
+    "coords": {
+      "lat": -50.49,
+      "lng": -73.13
+    },
+    "category": "自然現象",
+    "summary": "アルゼンチン・サンタクルス州のロス・グラシアレス国立公園にある氷河です。南パタゴニア氷原から流れ出す48本の氷河のひとつで、アルヘンティーノ湖に流れ込んでいます。",
+    "description": "約250平方キロメートルを覆い、最も厚い所で約700メートルの氷があります。湖へ流れ込む終端は幅約5キロメートルに広がり、湖面からの高さは約60メートルあります。氷は1日に約2メートルの速さで湖へ押し出され、先端部が崩れて失われるため、全体としては前進も後退もしていません。氷河が対岸に達して湖を2つに分けると、片側の水位が上がり、その水圧で先端の氷塊が壊れることを繰り返しています。後退する氷河が多いパタゴニアで、後退していない3つの氷河のひとつです。",
+    "highlights": [
+      "湖面から高さ約60メートル、幅約5キロメートルの氷河の先端",
+      "1日に約2メートルずつ湖へ押し出される氷",
+      "後退していない珍しい氷河"
+    ],
+    "compositionTips": [
+      "先端の氷の壁は高さ約60メートルあるので、湖面を手前に入れて壁の高さを伝えます",
+      "先端部は崩れ落ちることがあるので、連写の準備をして待ちます"
+    ],
+    "timeZone": "America/Argentina/Rio_Gallegos",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9A%E3%83%AA%E3%83%88%E3%83%BB%E3%83%A2%E3%83%AC%E3%83%8E%E6%B0%B7%E6%B2%B3",
+          "title": "Wikipedia「ペリト・モレノ氷河」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q367943",
+          "title": "Wikidata「Q367943」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.argentina.gob.ar/parquesnacionales/patagonia-austral/parque-nacional-los-glaciares"
+  },
+  {
+    "spotId": "sp_b445f3534fed",
+    "slug": "iguazu-falls",
+    "name": "イグアスの滝",
+    "nameEn": "Iguazu Falls",
+    "reading": "イグアスのたき",
+    "aliases": [
+      "Iguazu Falls",
+      "Cataratas del Iguazú",
+      "悪魔の喉笛",
+      "Garganta del Diablo"
+    ],
+    "region": {
+      "country": "アルゼンチン",
+      "prefecture": "ミシオネス州"
+    },
+    "coords": {
+      "lat": -25.7,
+      "lng": -54.44
+    },
+    "category": "滝",
+    "summary": "南米大陸のアルゼンチンとブラジルにまたがる世界最大の滝です。イグアスは先住民グアラニ族の言葉で「大いなる水」を意味します。",
+    "description": "イグアス川の、パラナ川との合流点から23キロメートル上流にあり、季節で変わる水量によって150から300の瀑布が現れます。最大の瀑布「悪魔の喉笛」は高さ82メートル、幅150メートルのU字型です。アルゼンチン側は大小無数の滝がかかるのが特徴で、滝を上から見る遊歩道と下から見る遊歩道があり、悪魔の喉笛を上から見下ろせます。ブラジル側は滝の数は少ないものの一つひとつが大きく、展望台から悪魔の喉笛を対岸から見られます。両国のイグアス国立公園は、ともに世界遺産に登録されています。",
+    "highlights": [
+      "高さ82メートル、U字型の「悪魔の喉笛」",
+      "アルゼンチン側の遊歩道から見る大小無数の滝",
+      "ブラジル側の展望台から対岸に見る悪魔の喉笛"
+    ],
+    "compositionTips": [
+      "悪魔の喉笛はアルゼンチン側では上から見下ろし、ブラジル側では対岸から正面に見られるので、両側から撮り比べます",
+      "滝の中へボートで近づくツアーもあるので、乗るときはカメラを濡らさない備えをします"
+    ],
+    "officialWebsiteUrl": "https://iguazuargentina.com/",
+    "timeZone": "America/Argentina/Cordoba",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A4%E3%82%B0%E3%82%A2%E3%82%B9%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「イグアスの滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q36332",
+          "title": "Wikidata「Q36332」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_f06486b89c41",
+    "slug": "sydney-opera-house",
+    "name": "シドニー・オペラハウス",
+    "nameEn": "Sydney Opera House",
+    "reading": "シドニー・オペラハウス",
+    "aliases": [
+      "シドニーオペラハウス",
+      "Sydney Opera House",
+      "ベネロング・ポイント"
+    ],
+    "address": "2 Circular Quay East, Sydney NSW",
+    "region": {
+      "country": "オーストラリア",
+      "prefecture": "ニューサウスウェールズ州",
+      "city": "シドニー"
+    },
+    "coords": {
+      "lat": -33.86,
+      "lng": 151.21
+    },
+    "category": "劇場",
+    "summary": "オーストラリア・シドニーにある、20世紀を代表する近代建築の歌劇場・コンサートホールです。1959年に着工し、1973年に竣工しました。",
+    "description": "設計は、計画決定当時は無名だったデンマークの建築家ヨーン・ウツソンです。シドニー港に突き出した岬、ベネロング・ポイントの突端に建ち、貝殻やヨットの帆を思わせる外観は、シドニー・ハーバーブリッジとともにシドニーを訪れる人の定番の撮影スポットです。建物の長さは183メートル、最も広い所で幅120メートルあります。屋根と外壁を兼ねた白いシェルには、白色と淡い桃色の釉薬をかけたスウェーデン製のタイルが105万6000枚張られています。シェルは、すべて同じ半径の球面から切り出した三角形のリブを組み合わせて造られました。世界で最も建造年代が新しい世界遺産です。",
+    "highlights": [
+      "貝殻やヨットの帆を思わせる白いシェルの屋根",
+      "白と淡い桃色の釉薬をかけた105万6000枚のタイル",
+      "シドニー港に突き出したベネロング・ポイントの立地"
+    ],
+    "compositionTips": [
+      "シドニー・ハーバーブリッジと並ぶ定番の撮影スポットなので、湾越しに2つを一緒に入れる位置を探します",
+      "シェルのタイルは白と淡い桃色なので、近づいて望遠で表面の質感を切り取ります"
+    ],
+    "officialWebsiteUrl": "https://sydneyoperahouse.com",
+    "timeZone": "Australia/Sydney",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%89%E3%83%8B%E3%83%BC%E3%83%BB%E3%82%AA%E3%83%9A%E3%83%A9%E3%83%8F%E3%82%A6%E3%82%B9",
+          "title": "Wikipedia「シドニー・オペラハウス」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q45178",
+          "title": "Wikidata「Q45178」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_0845cbf3f91d",
+    "slug": "sydney-harbour-bridge",
+    "name": "シドニー・ハーバー・ブリッジ",
+    "nameEn": "Sydney Harbour Bridge",
+    "reading": "シドニー・ハーバー・ブリッジ",
+    "aliases": [
+      "シドニー・ハーバーブリッジ",
+      "ハーバーブリッジ",
+      "Sydney Harbour Bridge"
+    ],
+    "region": {
+      "country": "オーストラリア",
+      "prefecture": "ニューサウスウェールズ州",
+      "city": "シドニー"
+    },
+    "coords": {
+      "lat": -33.85,
+      "lng": 151.21
+    },
+    "category": "橋",
+    "summary": "オーストラリア・ニューサウスウェールズ州のシドニーにある鋼鉄のアーチ橋です。1932年に完成し、シドニー・オペラハウスと並ぶシドニーのシンボルです。",
+    "description": "ポート・ジャクソン湾（シドニー湾）の南岸のシドニーと北岸の町を結ぶため、1923年に着工しました。橋の両端には高さ89メートルの石張りの支柱（パイロン）がそびえ、これを支えに巨大な鋼鉄のアーチが架かります。全長は約1,500メートル、アーチの最上部の高さは134メートルです。南東のパイロンの中は橋の資料館で、最上部は展望台になっています。アーチの鉄骨の上を歩いて頂上まで登る「ブリッジクライム」もあります。車道のほか、鉄道、自転車専用道、歩道が通っています。",
+    "highlights": [
+      "高さ134メートルに達する鋼鉄のアーチ",
+      "両端にそびえる高さ89メートルの石張りのパイロン",
+      "展望台になった南東のパイロンの最上部"
+    ],
+    "compositionTips": [
+      "南東のパイロンの展望台からは、橋のアーチと湾を近くから見渡せます",
+      "アーチの曲線が見どころなので、湾越しにシドニー・オペラハウスと重ねて構えます"
+    ],
+    "timeZone": "Australia/Sydney",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%89%E3%83%8B%E3%83%BC%E3%83%BB%E3%83%8F%E3%83%BC%E3%83%90%E3%83%BC%E3%83%BB%E3%83%96%E3%83%AA%E3%83%83%E3%82%B8",
+          "title": "Wikipedia「シドニー・ハーバー・ブリッジ」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q54495",
+          "title": "Wikidata「Q54495」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.sydney.com/destinations/sydney/sydney-city/sydney-harbour/sydney-harbour-bridge"
+  },
+  {
+    "spotId": "sp_a27e92a45cf4",
+    "slug": "uluru",
+    "name": "ウルル",
+    "nameEn": "Uluru",
+    "reading": "ウルル",
+    "aliases": [
+      "エアーズロック",
+      "Ayers Rock",
+      "Uluru",
+      "ウルル＝カタ・ジュタ国立公園"
+    ],
+    "region": {
+      "country": "オーストラリア",
+      "prefecture": "ノーザンテリトリー"
+    },
+    "coords": {
+      "lat": -25.34,
+      "lng": 131.04
+    },
+    "category": "山岳",
+    "summary": "オーストラリアのほぼ中央、ノーザンテリトリーのウルル＝カタ・ジュタ国立公園にある、世界で2番目に大きい一枚岩です。エアーズロックとも呼ばれ、1987年に世界遺産（複合遺産）に登録されました。",
+    "description": "比高は335メートル（標高868メートル）、周囲は9.4キロメートルです。岩をつくる砂岩は鉄分を多く含み、鉄分が酸化した赤い色をしています。表面には地層が現れ、地表からほぼ垂直に無数の縦じまが走ります。太陽の当たり方で色が変わって見え、朝日と夕日で赤がより鮮やかになります。先住民アナングの聖地で、1985年10月26日に所有権が返還されました。観光客の登山は2019年10月25日の夜をもって恒久的に禁止されています。周辺にも先住民の聖地があり、許可なく立ち入ると罰金が科せられます。",
+    "highlights": [
+      "鉄分が酸化した赤い砂岩の一枚岩",
+      "朝日と夕日で刻々と変わる岩の色",
+      "表面にほぼ垂直に走る無数の縦じま"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dawn",
+        "text": "朝日を浴びて、岩の赤色がより鮮やかになります。"
+      },
+      {
+        "time": "goldenHour",
+        "text": "夕日を浴びて刻々と岩の色が変わっていく様子が見られます。"
+      }
+    ],
+    "compositionTips": [
+      "朝夕で色が刻々と変わるので、同じ位置から時間をおいて何枚か撮り、色の移り変わりを残します",
+      "縦じまの質感は、望遠で岩肌を切り取ると際立ちます"
+    ],
+    "officialWebsiteUrl": "https://parksaustralia.gov.au/uluru/",
+    "timeZone": "Australia/Darwin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A6%E3%83%AB%E3%83%AB",
+          "title": "Wikipedia「ウルル」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q33910",
+          "title": "Wikidata「Q33910」（座標・所在地）"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_70bee92275c5",
+    "slug": "lake-tekapo",
+    "name": "テカポ湖",
+    "nameEn": "Lake Tekapo",
+    "reading": "テカポこ",
+    "aliases": [
+      "Lake Tekapo",
+      "善き羊飼いの教会",
+      "Church of the Good Shepherd",
+      "マウントジョン天文台"
+    ],
+    "region": {
+      "country": "ニュージーランド"
+    },
+    "coords": {
+      "lat": -43.9,
+      "lng": 170.53
+    },
+    "category": "湖沼",
+    "summary": "ニュージーランド南島、マッケンジー盆地の北端にある海抜700メートルの湖です。氷河が削った岩石の粉が溶け込んで、湖水は青緑色をしています。",
+    "description": "面積は83平方キロメートルで、マッケンジー盆地の3つの湖で最大です。周辺は澄んだ空気と高い晴天率、暗い夜空に恵まれた世界有数の星空観測地で、2012年にマッケンジー盆地一帯が「アオラキ・マッケンジー国際星空保護区」に認定されました。南半球で初めての認定です。町では光害を抑えるための照明条例が1980年代から施行されています。湖畔には1935年に建てられた善き羊飼いの教会があり、入植者が付近から集めた自然石で外壁が造られ、祭壇の窓からは湖と山々を望めます。",
+    "highlights": [
+      "岩石の粉が溶け込んだ青緑色の湖水",
+      "国際星空保護区に認定された星空",
+      "自然石で造られた湖畔の善き羊飼いの教会"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "澄んだ空気と暗い夜空に恵まれ、世界有数の星空観測地として知られています。"
+      }
+    ],
+    "compositionTips": [
+      "夜は善き羊飼いの教会を前景に入れて、星空と一緒に収めます",
+      "日中は湖水の青緑色が主役なので、湖面を広く取ります"
+    ],
+    "timeZone": "Pacific/Auckland",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%86%E3%82%AB%E3%83%9D%E6%B9%96",
+          "title": "Wikipedia「テカポ湖」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q1194022",
+          "title": "Wikidata「Q1194022」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.mackenzienz.com/visit-lake-tekapo/"
+  },
+  {
+    "spotId": "sp_ba5f25bf0096",
+    "slug": "milford-sound",
+    "name": "ミルフォード・サウンド",
+    "nameEn": "Milford Sound",
+    "reading": "ミルフォード・サウンド",
+    "aliases": [
+      "ピオピオタヒ",
+      "Piopiotahi",
+      "Milford Sound",
+      "マイターピーク"
+    ],
+    "region": {
+      "country": "ニュージーランド"
+    },
+    "coords": {
+      "lat": -44.62,
+      "lng": 167.87
+    },
+    "category": "海岸",
+    "summary": "ニュージーランド南島の南西部、フィヨルドランド国立公園にあるフィヨルドです。テ・ワヒポウナムの一部としてユネスコの世界遺産（自然遺産）に登録されています。",
+    "description": "タスマン海から15キロメートル内陸まで続き、1200メートル以上の断崖絶壁に囲まれています。最も有名な山はマイターピークで、ニュージーランドを象徴する景色としてガイドブックやポストカードに使われています。年間7000〜8000ミリメートルもの雨が降り、雨のたびにいくつもの一時的な滝が現れ、雨天時には数千もの滝が見られます。晴れると多くは涸れ、いつも見られるのは高さ160メートルのボーウェン滝と155メートルのスターリング滝の2本です。どちらもペンブローク山の氷河の雪解け水がつくる滝です。",
+    "highlights": [
+      "海から直接そびえるマイターピーク",
+      "1200メートル以上の断崖に囲まれたフィヨルド",
+      "雨の日に断崖を流れ落ちる無数の滝"
+    ],
+    "compositionTips": [
+      "雨の日は断崖に一時的な滝が数多く現れるので、晴れの日とは違う景色として狙えます",
+      "マイターピークは海から直接そびえるので、水面を手前に入れて高さを伝えます"
+    ],
+    "timeZone": "Pacific/Auckland",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9F%E3%83%AB%E3%83%95%E3%82%A9%E3%83%BC%E3%83%89%E3%83%BB%E3%82%B5%E3%82%A6%E3%83%B3%E3%83%89",
+          "title": "Wikipedia「ミルフォード・サウンド」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q187197",
+          "title": "Wikidata「Q187197」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.fiordland.org.nz/visit/milford-sound/"
+  },
+  {
+    "spotId": "sp_b1db93590054",
+    "slug": "victoria-falls",
+    "name": "ヴィクトリアの滝",
+    "nameEn": "Victoria Falls",
+    "reading": "ヴィクトリアのたき",
+    "aliases": [
+      "ビクトリアの滝",
+      "モーシ・オワ・トゥーニャ",
+      "Mosi-oa-Tunya",
+      "Victoria Falls"
+    ],
+    "region": {
+      "country": "ジンバブエ",
+      "prefecture": "北マタベレランド州"
+    },
+    "coords": {
+      "lat": -17.92,
+      "lng": 25.86
+    },
+    "category": "滝",
+    "summary": "アフリカ大陸南東部、ザンベジ川の中流にある大瀑布です。ジンバブエとザンビアの国境にあり、ユネスコの世界遺産に登録されています。",
+    "description": "滝の幅は1708メートル、落差は最も高い中央付近で108メートルあります。周りに山地や断崖はなく、平原の中で、川幅いっぱいの水が玄武岩層の峡谷へ垂直に落ちていきます。滝の淵の2つの島で流れが分かれ、西から順にデビルズ・カタラクト、メイン・フォールズ、レインボー・フォールズと呼ばれます。水量は4月をピークに2月から5月に多くなり、水煙は高さ400メートル、時には800メートルまで立ち昇りますが、水煙が多すぎて滝本体が見えにくい時期でもあります。11月をピークとする9月から1月は水量が少なく、滝全体と滝壺まで見渡せます。滝のすぐ下流のセカンド・ゴージには、1905年に完成したヴィクトリアフォールズ橋が架かっています。",
+    "highlights": [
+      "幅1708メートル、落差108メートルの大瀑布",
+      "立ち昇る水煙と、そこにかかる虹",
+      "セカンド・ゴージに架かるヴィクトリアフォールズ橋"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "night",
+        "text": "水量の多い時期の満月の夜には、月明かりで虹が見えることがあります。"
+      }
+    ],
+    "compositionTips": [
+      "滝全体と滝壺を写すなら、水煙の少ない9月から1月が向いています",
+      "水量の多い2月から5月は水煙が主役になるので、虹がかかる向きを探し、レンズの濡れに備えて構えます"
+    ],
+    "timeZone": "Africa/Harare",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%B4%E3%82%A3%E3%82%AF%E3%83%88%E3%83%AA%E3%82%A2%E3%81%AE%E6%BB%9D",
+          "title": "Wikipedia「ヴィクトリアの滝」"
+        },
+        {
+          "url": "https://www.wikidata.org/wiki/Q43278",
+          "title": "Wikidata「Q43278」（座標・所在地）"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://zimparks.org.zw/victoria-falls-national-park/"
+  },
+  {
+    "spotId": "sp_c96f743a77a9",
+    "slug": "hallgrimskirkja",
+    "name": "ハットルグリムス教会",
+    "nameEn": "Hallgrímskirkja",
+    "reading": "ハットルグリムスきょうかい",
+    "aliases": [
+      "ハトルグリムスキルキャ",
+      "Hallgrimskirkja"
+    ],
+    "region": {
+      "country": "アイスランド",
+      "city": "レイキャヴィーク"
+    },
+    "coords": {
+      "lat": 64.14,
+      "lng": -21.93
+    },
+    "category": "教会",
+    "summary": "アイスランドの首都レイキャヴィークにあるルター派の教会です。高さ73メートルの塔を持つコンクリート造りの建物で、アイスランドで最も大きな教会です。",
+    "description": "レイキャヴィークの中心部に建ち、町のどこからでも見えるランドマークになっています。1937年にグズヨウン・サムエルソンが設計を任され、教会のデザインはアイスランドの溶岩玄武岩の風景になぞらえたものだといいます。1945年に建設が始まり、1986年に完成するまで41年かかりました。教会は展望塔としても使われていて、展望台からはレイキャヴィークの街と周りの山々を見渡せます。最上階まではエレベーターで上がれます（有料）。教会前の広場には、探検家レイフ・エリクソンの像が立っています。名前はアイスランドの聖職者で詩人のハットルグリームル・ピェートゥルソンにちなみます。",
+    "highlights": [
+      "溶岩玄武岩の風景になぞらえたという、高さ73メートルの塔",
+      "レイキャヴィークの街と周りの山々を見渡す展望台",
+      "教会前の広場に立つレイフ・エリクソンの像"
+    ],
+    "compositionTips": [
+      "広場のレイフ・エリクソン像を手前に置くと、塔との対比で奥行きが出ます",
+      "塔の正面に立ち、左右に下がっていく壁の段を対称に収めると、玄武岩になぞらえた形が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.hallgrimskirkja.is/",
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8F%E3%83%83%E3%83%88%E3%83%AB%E3%82%B0%E3%83%AA%E3%83%A0%E3%82%B9%E6%95%99%E4%BC%9A",
+          "title": "Wikipedia「ハットルグリムス教会」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Hallgr%C3%ADmskirkja",
+          "title": "Wikipedia (英語版)「Hallgrímskirkja」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_4e069a7a84c7",
+    "slug": "gullfoss",
+    "name": "グトルフォス",
+    "nameEn": "Gullfoss",
+    "reading": "グトルフォス",
+    "aliases": [
+      "黄金の滝",
+      "グトルフォスの滝",
+      "Golden Falls"
+    ],
+    "region": {
+      "country": "アイスランド"
+    },
+    "coords": {
+      "lat": 64.33,
+      "lng": -20.12
+    },
+    "category": "滝",
+    "summary": "アイスランド南部、フヴィータウ川にある滝です。名前はアイスランド語で「黄金の滝」を意味し、同国を代表する観光地の一つです。",
+    "description": "ラング氷河から流れ出るフヴィータウ川の中上流部にあります。滝は2段に分かれ、最大幅は約70メートル、落差は1段目が約15メートル、2段目が約30メートルです。20世紀の初めに一帯で水力発電所の建設が計画されましたが、シグリーズルという女性が反対して工事は止まり、滝のそばには彼女を記念する碑があります。滝はのちに国のものとなり、1979年に恒久的な保護地区になりました。シンクヴェトリル、ゲイシールとともに「ゴールデンサークル」と呼ばれる日帰り観光の道筋に入っています。岸には柱状節理の発達した溶岩なども見られます。",
+    "highlights": [
+      "2段に分かれて落ちる幅の広い滝",
+      "滝の上にあるシグリーズルの記念碑",
+      "岸に見られる柱状節理の溶岩"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "水量は夏に多く、平均で毎秒141立方メートルです（冬は毎秒80立方メートル）。"
+      }
+    ],
+    "compositionTips": [
+      "2段の落ち口と、その先の裂け目へ流れ込む向きが一度に入る位置から撮ると、滝の段が伝わります"
+    ],
+    "officialWebsiteUrl": "https://gullfoss.is/",
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%88%E3%83%AB%E3%83%95%E3%82%A9%E3%82%B9",
+          "title": "Wikipedia「グトルフォス」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Gullfoss",
+          "title": "Wikipedia (英語版)「Gullfoss」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_67898e46c754",
+    "slug": "skogafoss",
+    "name": "スコゥガフォス",
+    "nameEn": "Skógafoss",
+    "reading": "スコゥガフォス",
+    "aliases": [
+      "スコガフォス",
+      "スコゥガフォスの滝",
+      "Skogafoss"
+    ],
+    "region": {
+      "country": "アイスランド"
+    },
+    "coords": {
+      "lat": 63.53,
+      "lng": -19.51
+    },
+    "category": "滝",
+    "summary": "アイスランド南部、スコゥグアゥ川に懸かる幅25メートル、落差60メートルの滝です。アイスランドで最大級の滝の一つです。",
+    "description": "名前は「スコゥガル（雑木林）の滝」を意味します。滝のある崖はかつての海岸線で、海が遠のいた今も海岸の崖の地形が残り、低地と中央高地との境目になっています。晴れた日には水しぶきで一重や二重の虹が見られます。滝の東側には登山道があり、エイヤフィヤトラヨークトルとミールダルスヨークトルの間の峠フィムヴェルズハゥルスへ通じています。滝の上へは527段の階段で上がれます。最初に入植したヴァイキングが滝の裏に財宝を埋めたという言い伝えがあり、スコゥガルの博物館にはその箱の把手とされる輪が展示されています。",
+    "highlights": [
+      "幅25メートル、落差60メートルの一筋の滝",
+      "晴れた日に水しぶきにかかる虹",
+      "滝の上へ続く527段の階段"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "晴れた日には水しぶきで一重や二重の虹が見られます。"
+      }
+    ],
+    "compositionTips": [
+      "人を小さく入れると、落差60メートルの大きさが伝わります",
+      "滝の近くは水しぶきでずぶ濡れになるので、レンズを拭く布と雨よけを用意してください"
+    ],
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B9%E3%82%B3%E3%82%A5%E3%82%AC%E3%83%95%E3%82%A9%E3%82%B9",
+          "title": "Wikipedia「スコゥガフォス」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Sk%C3%B3gafoss",
+          "title": "Wikipedia (英語版)「Skógafoss」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.south.is/en/destinations/nature/nature/skogafoss-waterfall"
+  },
+  {
+    "spotId": "sp_ad7b7416cf49",
+    "slug": "jokulsarlon",
+    "name": "ヨークルスアゥルロゥン",
+    "nameEn": "Jökulsárlón",
+    "reading": "ヨークルスアゥルロゥン",
+    "aliases": [
+      "ヨークルサルロン湖",
+      "ヨークルサルロン",
+      "Jokulsarlon"
+    ],
+    "region": {
+      "country": "アイスランド"
+    },
+    "coords": {
+      "lat": 64.07,
+      "lng": -16.21
+    },
+    "category": "湖沼",
+    "summary": "ヴァトナヨークトル氷河から分かれたブレイザメルクルヨークトル氷河の先にある氷河湖です。名前は「氷河の川の湖」を意味し、湖面には氷河から崩れた氷山が浮かびます。",
+    "description": "氷河の後退にともなって1930年代に湖ができはじめ、1970年代と比べて面積は4倍になりました。水深は200メートルを超えます。湖はヘプンとスカフタフェットルの間を通る国道1号線から見え、その景色は「青く光る氷山が幽霊の行列のように並ぶ」と評されます。氷河から崩れ落ちた氷山は高さ約30メートルで、過去の噴火の火山灰が残って独特の形になったものもあります。氷山は光に透かしたときの色で乳白色と青の二種類に分けられます。小さくなった氷山は海へ流れ出し、海岸の砂浜には打ち上げられた氷塊が見られます。",
+    "highlights": [
+      "湖面に浮かぶ青い氷山と乳白色の氷山",
+      "火山灰の筋が残る氷山",
+      "海岸の砂浜に打ち上げられた氷塊"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夏は氷山が溶けて湖面を漂います。カモメが渡ってきて湖岸に巣を作ります。"
+      },
+      {
+        "season": "winter",
+        "text": "冬は湖面が凍り、氷山はそれぞれの位置で止まります。河口ではアザラシが見られます。"
+      }
+    ],
+    "compositionTips": [
+      "海岸に打ち上げられた氷塊を手前に大きく入れると、透き通った氷の質感が出ます",
+      "湖では氷山の色の違い（乳白色と青）を並べて撮り比べられます"
+    ],
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A8%E3%83%BC%E3%82%AF%E3%83%AB%E3%82%B9%E3%82%A2%E3%82%A5%E3%83%AB%E3%83%AD%E3%82%A5%E3%83%B3",
+          "title": "Wikipedia「ヨークルスアゥルロゥン」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/J%C3%B6kuls%C3%A1rl%C3%B3n",
+          "title": "Wikipedia (英語版)「Jökulsárlón」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsarlon"
+  },
+  {
+    "spotId": "sp_933b875d6b0a",
+    "slug": "kirkjufell",
+    "name": "キルキュフェットル山",
+    "nameEn": "Kirkjufell",
+    "reading": "キルキュフェットルさん",
+    "aliases": [
+      "キルキュフェトル",
+      "Church Mountain"
+    ],
+    "region": {
+      "country": "アイスランド",
+      "city": "クルンタルフィヨルズル"
+    },
+    "coords": {
+      "lat": 64.95,
+      "lng": -23.31
+    },
+    "category": "山岳",
+    "summary": "アイスランド西部のスナイフェルス半島にある標高463メートルの山です。アイスランドで最も撮影された山だと言われています。",
+    "description": "クルンタルフィヨルズル村の近く、半島の北岸にあります。名前は「教会の山」を意味します。火山岩を含みますが火山ではなく、氷河時代に周りの氷河の上に突き出ていたヌナタクと呼ばれる山です。溶岩と砂岩が交互に重なった地層で、頂上には凝灰岩があります。テレビドラマ『ゲーム・オブ・スローンズ』の撮影地の一つでもあります。登山では死亡事故がたびたび起きていて、急な区間は濡れているときや天候の悪いときに危険になります。",
+    "highlights": [
+      "スナイフェルス半島の北岸にそびえる、とがった山の形",
+      "溶岩と砂岩が交互に重なった地層"
+    ],
+    "compositionTips": [
+      "山の形がはっきりした独立峰なので、海岸線や町並みと組み合わせて画面に置くと、大きさが伝わります"
+    ],
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%AD%E3%83%AB%E3%82%AD%E3%83%A5%E3%83%95%E3%82%A7%E3%83%83%E3%83%88%E3%83%AB%E5%B1%B1",
+          "title": "Wikipedia「キルキュフェットル山」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Kirkjufell",
+          "title": "Wikipedia (英語版)「Kirkjufell」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.grundarfjordur.is/"
+  },
+  {
+    "spotId": "sp_63e1709340f6",
+    "slug": "thingvellir",
+    "name": "シンクヴェトリル",
+    "nameEn": "Þingvellir",
+    "reading": "シンクヴェトリル",
+    "aliases": [
+      "シンクヴェトリル国立公園",
+      "Thingvellir",
+      "Þingvellir National Park"
+    ],
+    "region": {
+      "country": "アイスランド",
+      "city": "ブラウスコウガビグズ"
+    },
+    "coords": {
+      "lat": 64.26,
+      "lng": -21.12
+    },
+    "category": "公園",
+    "summary": "アイスランド南西部の国立公園です。大西洋中央海嶺が地上に現れた場所で、北米プレートとユーラシアプレートの境目にあたる大地の裂け目が見られます。",
+    "description": "レイキャヴィークの北東約40キロメートルにあります。一帯ではギャウと呼ばれる大地の裂け目が各地に見られ、独特の岩肌を眺められます。南にはアイスランドで最も大きな自然湖、シンクヴァトラヴァトン湖が広がります。930年にここで全島集会「アルシング」が開かれ、1798年まで毎年の議会の場所でした。かつてアルシングが開かれた場所には今、国旗が掲げられています。1930年に国立公園に指定され、2004年に世界遺産に登録されました。",
+    "highlights": [
+      "北米プレートとユーラシアプレートの境目にある大地の裂け目",
+      "アルシングが開かれた場所に掲げられた国旗",
+      "南に広がるシンクヴァトラヴァトン湖"
+    ],
+    "compositionTips": [
+      "裂け目の岩壁を道に沿って奥へ向けて撮ると、大地が割れた地形の続き方が伝わります"
+    ],
+    "officialWebsiteUrl": "https://www.thingvellir.is/en",
+    "timeZone": "Atlantic/Reykjavik",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%B3%E3%82%AF%E3%83%B4%E3%82%A7%E3%83%88%E3%83%AA%E3%83%AB",
+          "title": "Wikipedia「シンクヴェトリル」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/%C3%9Eingvellir",
+          "title": "Wikipedia (英語版)「Þingvellir」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_82cf6eec88f8",
+    "slug": "preikestolen",
+    "name": "プレーケストーレン",
+    "nameEn": "Preikestolen",
+    "reading": "プレーケストーレン",
+    "aliases": [
+      "プレーケストーレン（説教壇）",
+      "Prekestolen",
+      "Pulpit Rock"
+    ],
+    "region": {
+      "country": "ノルウェー",
+      "prefecture": "ローガラン県",
+      "city": "ストラン"
+    },
+    "coords": {
+      "lat": 58.99,
+      "lng": 6.19
+    },
+    "category": "展望台",
+    "summary": "ノルウェー西部、リーセフィヨルドに面して水面から604メートルの高さに切り立つ崖です。頂上はおよそ25メートル四方の平らな岩で、「演説台」を意味する名前はこの形から来ています。",
+    "description": "スタヴァンゲルから訪れるリーセフィヨルドの観光地の中でも人気の場所の一つで、2024年には30万人が訪れました。崖の上は平らですが柵はありません。いちばんよく使われる登山道は片道3.8キロメートルで、2013年にネパールのシェルパによって整えられました。最寄りの駐車場から往復で3〜4時間ほどかかり、ところどころ急な道です。冬は雪が降って地面が凍り滑りやすいため、トレッキングは禁止されています。訪れるのに適した季節は4月から10月ごろとされます。",
+    "highlights": [
+      "リーセフィヨルドから604メートルの高さに切り立つ崖",
+      "頂上の約25メートル四方の平らな岩",
+      "崖の上から見下ろすリーセフィヨルド"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "冬は雪で地面が凍って滑りやすく、トレッキングは禁止されています。訪れるのに適した季節は4月から10月ごろです。"
+      }
+    ],
+    "compositionTips": [
+      "崖の横の高い位置から撮ると、平らな岩の上面とフィヨルドまでの落差が一枚に収まります",
+      "柵の無い崖です。撮影のために縁へ近づかないでください"
+    ],
+    "timeZone": "Europe/Oslo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%97%E3%83%AC%E3%83%BC%E3%82%B1%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AC%E3%83%B3",
+          "title": "Wikipedia「プレーケストーレン」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Preikestolen",
+          "title": "Wikipedia (英語版)「Preikestolen」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.fjordnorway.com/en/attractions/preikestolen"
+  },
+  {
+    "spotId": "sp_bda878657a95",
+    "slug": "bryggen",
+    "name": "ブリッゲン",
+    "nameEn": "Bryggen",
+    "reading": "ブリッゲン",
+    "aliases": [
+      "ブリュッゲン",
+      "Tyskebryggen",
+      "ドイツ人の埠頭"
+    ],
+    "region": {
+      "country": "ノルウェー",
+      "prefecture": "ヴェストラン県",
+      "city": "ベルゲン"
+    },
+    "coords": {
+      "lat": 60.4,
+      "lng": 5.32
+    },
+    "category": "町並み",
+    "summary": "ノルウェーのベルゲン旧市街、ヴォーゲン港の東側に並ぶ木造の倉庫群です。ハンザ同盟の時代にドイツ人の商人街だった地区で、1979年に世界遺産に登録されました。",
+    "description": "ブリッゲンはノルウェー語で埠頭を意味します。色とりどりで奥行きの深い木造の倉庫が港に沿って並び、伝統的な技法で修復された建物は、今も店やレストラン、博物館として使われています。1350年ごろにハンザ同盟の商館が置かれ、倉庫には北ノルウェーからの干し魚やヨーロッパからの穀物が蓄えられました。木造の町だったため何度も火災にあい、1702年の大火のあとに建てられた建物が今の約4分の1を占めます。15世紀にさかのぼる石の地下室もあります。1955年の火災のあとの発掘で、ルーン文字の刻まれた木片が見つかりました。",
+    "highlights": [
+      "港に沿って並ぶ色とりどりの木造倉庫",
+      "奥行きの深い倉庫の間を抜ける路地",
+      "1702年の大火のあとに建てられた建物"
+    ],
+    "compositionTips": [
+      "港の対岸から撮ると、色の違う倉庫の切妻が横一列に並びます",
+      "倉庫の間の細い路地に入ると、木造の壁や通路の質感を近くから撮れます"
+    ],
+    "officialWebsiteUrl": "https://stiftelsenbryggen.no/",
+    "timeZone": "Europe/Oslo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%AA%E3%83%83%E3%82%B2%E3%83%B3",
+          "title": "Wikipedia「ブリッゲン」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Bryggen",
+          "title": "Wikipedia (英語版)「Bryggen」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_261690bdbe65",
+    "slug": "trolltunga",
+    "name": "トロルトゥンガ",
+    "nameEn": "Trolltunga",
+    "reading": "トロルトゥンガ",
+    "aliases": [
+      "トロールの舌",
+      "Troll's Tongue"
+    ],
+    "region": {
+      "country": "ノルウェー",
+      "prefecture": "ヴェストラン県",
+      "city": "ウッレンスヴァング"
+    },
+    "coords": {
+      "lat": 60.12,
+      "lng": 6.74
+    },
+    "category": "展望台",
+    "summary": "ノルウェー西部、リンゲダール湖の北側で、湖面から約700メートルの高さの崖から水平に突き出た岩です。名前は「トロールの舌」を意味します。",
+    "description": "オッダの町から17キロメートルの所にあり、標高は1,126メートルです。岩は先カンブリア時代の基盤岩の一部で、約1万年前の氷期に、氷河の水が岩の割れ目で凍って大きな塊を割り取ったことでできました。登山口はシェッゲダールの駐車場で、往復27キロメートル、標高差は約1,100メートルあり、休憩を含めて10〜12時間ほどかかる厳しい道のりです。途中に避難小屋はありますが、物を買える場所はありません。崖の先端には、自然の美しさを損なわないよう手すりが設けられていません。崖の周りの山は高さ1,500メートルほどに達し、ハルダンゲル地方の谷を見渡せます。",
+    "highlights": [
+      "崖から水平に突き出た岩の先端",
+      "湖面から約700メートルの高さで見下ろすリンゲダール湖",
+      "ハルダンゲル地方の谷と周りの山々"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "登山ができるのは6月中旬から9月中旬ごろまでです。"
+      }
+    ],
+    "compositionTips": [
+      "突き出た岩を横から撮ると、湖面までの高さと岩の薄さが一枚に収まります",
+      "先端に手すりはありません。撮影のために縁へ近づきすぎないでください"
+    ],
+    "officialWebsiteUrl": "https://trolltunga.com/",
+    "timeZone": "Europe/Oslo",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%88%E3%83%AD%E3%83%AB%E3%83%88%E3%82%A5%E3%83%B3%E3%82%AC",
+          "title": "Wikipedia「トロルトゥンガ」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Trolltunga",
+          "title": "Wikipedia (英語版)「Trolltunga」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_5ea23fef450a",
+    "slug": "frederiksborg-castle",
+    "name": "フレデリクスボー城",
+    "nameEn": "Frederiksborg Castle",
+    "reading": "フレデリクスボーじょう",
+    "aliases": [
+      "フレゼリクスボー城",
+      "Frederiksborg Slot",
+      "国立歴史博物館（デンマーク）"
+    ],
+    "region": {
+      "country": "デンマーク",
+      "city": "ヒレレズ"
+    },
+    "coords": {
+      "lat": 55.94,
+      "lng": 12.3
+    },
+    "category": "宮殿",
+    "summary": "デンマークのヒレレズで、城の湖に浮かぶ3つの小島の上に建つ城です。クリスチャン4世の居城として建てられ、スカンディナヴィアで最も大きなルネサンス様式の宮殿で、今は国立歴史博物館になっています。",
+    "description": "城の最も古い部分は1560年にフレゼリク2世が建てたもので、城の名はここに由来します。今の宮殿の大部分は、1602年から1620年にかけてクリスチャン4世がオランダ人の建築家に建てさせたものです。絶対王政の時代には、宮殿の教会で王の聖別式や戴冠式が行われました。1859年の火事で中心部の内装のほとんどが焼けましたが、古い図面や絵をもとに再建され、醸造家J.C.ヤコブセンの援助もあって、1882年に国立歴史博物館として公開されました。博物館にはデンマークで最大の肖像画のコレクションがあります。城の隣にはバロック様式の大きな庭園が広がります。",
+    "highlights": [
+      "湖の小島の上に建つルネサンス様式の宮殿",
+      "王の戴冠式が行われた宮殿の教会",
+      "城に隣接するバロック様式の庭園"
+    ],
+    "compositionTips": [
+      "湖の対岸から撮ると、水面に映る宮殿と塔が一枚に収まります",
+      "バロック庭園の軸線の先に宮殿を置くと、庭と城の向きがそろった構図になります"
+    ],
+    "officialWebsiteUrl": "https://dnm.dk/",
+    "timeZone": "Europe/Copenhagen",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%95%E3%83%AC%E3%83%87%E3%83%AA%E3%82%AF%E3%82%B9%E3%83%9C%E3%83%BC%E5%9F%8E",
+          "title": "Wikipedia「フレデリクスボー城」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Frederiksborg_Castle",
+          "title": "Wikipedia (英語版)「Frederiksborg Castle」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_0addb3db47fe",
+    "slug": "stockholm-city-hall",
+    "name": "ストックホルム市庁舎",
+    "nameEn": "Stockholm City Hall",
+    "reading": "ストックホルムしちょうしゃ",
+    "aliases": [
+      "Stockholms stadshus",
+      "Stadshuset"
+    ],
+    "region": {
+      "country": "スウェーデン",
+      "city": "ストックホルム"
+    },
+    "coords": {
+      "lat": 59.33,
+      "lng": 18.05
+    },
+    "category": "建築",
+    "summary": "スウェーデンの首都ストックホルムの市庁舎で、メーラレン湖に面して建ちます。ノーベル賞の晩餐会の会場で、ナショナル・ロマンティシズム建築の傑作として知られます。",
+    "description": "建築家ラグナル・エストベリの設計で、1911年から1923年にかけて建てられました。クングスホルメン島の東の端に建ち、リッダーフィヤーデンの水面を挟んでリッダーホルメン島とセーデルマルム島に向き合います。ヴェネツィアのドゥカーレ宮殿を意識し、ヨーロッパ各地の名建築から着想を得た折衷的なデザインです。使われた赤煉瓦は800万個近くにのぼります。ノーベル賞の晩餐会が開かれる「青の間」は床に青灰色の石畳が敷かれ、幅が広く段の低い大階段があります。「黄金の間」は金箔を貼ったモザイクで壁が覆われ、正面にはメーラレン湖の女王とされる女神像の壁画があります。",
+    "highlights": [
+      "水辺に建つ赤煉瓦の塔",
+      "ノーベル賞の晩餐会が開かれる「青の間」の大階段",
+      "金箔のモザイクで覆われた「黄金の間」"
+    ],
+    "compositionTips": [
+      "リッダーフィヤーデンの対岸から撮ると、水面と赤煉瓦の塔が一緒に収まります",
+      "黄金の間ではモザイクの壁画を正面から撮ると、金の面の広さが伝わります"
+    ],
+    "officialWebsiteUrl": "https://international.stockholm.se/the-city-hall/",
+    "timeZone": "Europe/Stockholm",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B9%E3%83%88%E3%83%83%E3%82%AF%E3%83%9B%E3%83%AB%E3%83%A0%E5%B8%82%E5%BA%81%E8%88%8E",
+          "title": "Wikipedia「ストックホルム市庁舎」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Stockholm_City_Hall",
+          "title": "Wikipedia (英語版)「Stockholm City Hall」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_c6f40677168b",
+    "slug": "nyhavn",
+    "name": "ニューハウン",
+    "nameEn": "Nyhavn",
+    "reading": "ニューハウン",
+    "aliases": [
+      "新港",
+      "Nyhavn Canal"
+    ],
+    "region": {
+      "country": "デンマーク",
+      "city": "コペンハーゲン"
+    },
+    "coords": {
+      "lat": 55.68,
+      "lng": 12.59
+    },
+    "category": "運河",
+    "summary": "デンマークの首都コペンハーゲンにある、運河に沿った17世紀の港町です。運河の岸に色とりどりの家々が並び、飲食店が軒を連ねます。",
+    "description": "名前は「新港」を意味します。国王クリスチャン5世のもとで1670年代に掘られ、海から旧市街のコンゲンス・ニュートー広場へ船が入る玄関口になりました。北側の岸には、木と煉瓦と漆喰で建てられた明るい色の町家が並び、いちばん古い9番地の家は1681年のものです。運河には古い木造船が多く係留されています。1977年に古い船の博物館港となり、1980年には岸辺が歩行者専用になりました。作家ハンス・クリスチャン・アンデルセンはここに18年間住み、67番地の家には記念の銘板があります。",
+    "highlights": [
+      "運河の北岸に並ぶ色とりどりの町家",
+      "運河に係留された古い木造船",
+      "アンデルセンが住んだ家の記念の銘板"
+    ],
+    "compositionTips": [
+      "運河に架かる橋の上から運河の奥へ向けて撮ると、両岸の家並みと船が一枚に入ります",
+      "木造船の帆柱を手前に入れると、港町らしさが出ます"
+    ],
+    "timeZone": "Europe/Copenhagen",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8B%E3%83%A5%E3%83%BC%E3%83%8F%E3%82%A6%E3%83%B3",
+          "title": "Wikipedia「ニューハウン」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Nyhavn",
+          "title": "Wikipedia (英語版)「Nyhavn」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.visitcopenhagen.com/copenhagen/planning/nyhavn-gdk474735"
+  },
+  {
+    "spotId": "sp_2e9491b58824",
+    "slug": "rhine-falls",
+    "name": "ライン滝",
+    "nameEn": "Rhine Falls",
+    "reading": "ラインだき",
+    "aliases": [
+      "ラインの滝",
+      "Rheinfall"
+    ],
+    "region": {
+      "country": "スイス",
+      "prefecture": "シャフハウゼン州",
+      "city": "ノイハウゼン・アム・ラインファル"
+    },
+    "coords": {
+      "lat": 47.68,
+      "lng": 8.62
+    },
+    "category": "滝",
+    "summary": "スイス北部、シャフハウゼン近くの高ラインにある滝です。高さは約23メートルですが横幅が約150メートルあり、ヨーロッパで最も力強い滝とされます。",
+    "description": "シャフハウゼン州とチューリッヒ州の境にあり、シャフハウゼンの町から南へ約3キロメートルです。滝は最後の氷期、約1万4千〜1万7千年前にできました。滝の中ほどに立つ大きな岩は、もとの石灰岩の崖の名残です。水量は夏が平均毎秒600立方メートル、冬が毎秒250立方メートルで、雪解けの季節に最も多くなります。下流のラウフェン城（左岸）とヴェルト小城（右岸）からは観光船が出ていて、滝の近くまで寄れます。",
+    "highlights": [
+      "横幅約150メートルにわたって落ちる滝",
+      "滝の中ほどに立つ石灰岩の岩",
+      "左岸の丘に建つラウフェン城"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "雪解けの春に水量が最も多くなります。"
+      },
+      {
+        "season": "summer",
+        "text": "夏の平均の水量は毎秒600立方メートルで、冬（毎秒250立方メートル）の2倍以上です。"
+      }
+    ],
+    "compositionTips": [
+      "観光船で近づくと、滝の中ほどの岩と落ちる水を低い位置から見上げられます",
+      "下流の岸から撮ると、横に広い滝の全体とラウフェン城が一緒に入ります"
+    ],
+    "officialWebsiteUrl": "https://www.rheinfall.ch",
+    "timeZone": "Europe/Zurich",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A9%E3%82%A4%E3%83%B3%E6%BB%9D",
+          "title": "Wikipedia「ライン滝」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Rhine_Falls",
+          "title": "Wikipedia (英語版)「Rhine Falls」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_7003dbdde2aa",
+    "slug": "landwasser-viaduct",
+    "name": "ラントヴァッサー橋",
+    "nameEn": "Landwasser Viaduct",
+    "reading": "ラントヴァッサーきょう",
+    "aliases": [
+      "ランドヴァッサー橋",
+      "Landwasserviadukt"
+    ],
+    "region": {
+      "country": "スイス",
+      "prefecture": "グラウビュンデン州"
+    },
+    "coords": {
+      "lat": 46.68,
+      "lng": 9.68
+    },
+    "category": "鉄道",
+    "summary": "スイスのグラウビュンデン州、シュミッテンとフィリズールの間でラントヴァッサー峡谷を渡る鉄道の高架橋です。長さ136メートル、高さ65メートルの石灰岩の橋で、氷河急行も通ります。",
+    "description": "1901年から1903年にかけて建てられ、レーティッシュ鉄道のアルブラ線が通ります。アルブラ線を代表する建造物で、線路は世界遺産に登録されています。橋は半径100メートルのカーブを描き、平たいアーチが連なります。崖に掘られたトンネルの出口が、そのまま橋の端につながっています。暗い色の石灰岩で造られ、2009年に建設以来初めての改修工事が行われました。1949年に発行されたスイスの60サンチーム切手の図柄にもなっています。",
+    "highlights": [
+      "半径100メートルのカーブを描く石灰岩のアーチ橋",
+      "崖のトンネルの出口へそのまま続く橋の端",
+      "橋を渡る氷河急行"
+    ],
+    "compositionTips": [
+      "列車が橋を渡ってトンネルへ入る瞬間を待つと、橋の高さと崖が一枚に収まります",
+      "列車に乗っていれば、カーブを渡る間に先頭がトンネルへ入っていく様子が見られます"
+    ],
+    "timeZone": "Europe/Zurich",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A9%E3%83%B3%E3%83%88%E3%83%B4%E3%82%A1%E3%83%83%E3%82%B5%E3%83%BC%E6%A9%8B",
+          "title": "Wikipedia「ラントヴァッサー橋」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Landwasser_Viaduct",
+          "title": "Wikipedia (英語版)「Landwasser Viaduct」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.rhb.ch/de/unesco-welterbe-rhb/"
+  },
+  {
+    "spotId": "sp_4a56afb646fa",
+    "slug": "hallstatt",
+    "name": "ハルシュタット",
+    "nameEn": "Hallstatt",
+    "reading": "ハルシュタット",
+    "aliases": [
+      "ハルシュタット湖",
+      "Hallstätter See"
+    ],
+    "region": {
+      "country": "オーストリア",
+      "prefecture": "オーバーエースターライヒ州",
+      "city": "ハルシュタット"
+    },
+    "coords": {
+      "lat": 47.56,
+      "lng": 13.65
+    },
+    "category": "町並み",
+    "summary": "オーストリア中部、ザルツカンマーグート地方の奥にある湖畔の小さな町です。ダッハシュタイン山塊のふもと、ハルシュタット湖の岸に家々が並ぶ景色は、オーストリアを代表する風景として知られます。",
+    "description": "町はハルシュタット湖の南西岸と、ダッハシュタイン山塊の急な斜面の間の細い土地にあります。一帯は「ハルシュタット＝ダッハシュタイン・ザルツカンマーグートの文化的景観」として、1997年に世界遺産に登録されました。町の外れには先史時代にさかのぼる岩塩坑があり、近くで見つかった古代の墓地が「ハルシュタット文化」の名の由来になりました。Hallはケルト語で「塩」、Stattはドイツ語で「場所」を意味します。訪れる人が多く、オーバーツーリズムが問題になっている町でもあります。",
+    "highlights": [
+      "湖の岸と山の斜面の間に家々が並ぶ景色",
+      "背後にそびえるダッハシュタイン山塊",
+      "町の外れにある先史時代からの岩塩坑"
+    ],
+    "compositionTips": [
+      "湖越しに町を撮ると、家並みと背後の山の斜面が重なり、細い土地に町が並ぶ様子が伝わります",
+      "住む人の暮らしがある町です。私有地や家の前で立ち止まって撮らないでください"
+    ],
+    "officialWebsiteUrl": "https://www.hallstatt.ooe.gv.at/",
+    "timeZone": "Europe/Vienna",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%8F%E3%83%AB%E3%82%B7%E3%83%A5%E3%82%BF%E3%83%83%E3%83%88_%28%E3%82%AA%E3%83%BC%E3%83%90%E3%83%BC%E3%82%A8%E3%82%B9%E3%82%BF%E3%83%BC%E3%83%A9%E3%82%A4%E3%83%92%E5%B7%9E%29",
+          "title": "Wikipedia「ハルシュタット (オーバーエスターライヒ州)」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Hallstatt",
+          "title": "Wikipedia (英語版)「Hallstatt」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_6eea54b26f44",
+    "slug": "hohensalzburg-fortress",
+    "name": "ホーエンザルツブルク城",
+    "nameEn": "Hohensalzburg Fortress",
+    "reading": "ホーエンザルツブルクじょう",
+    "aliases": [
+      "ホーエンザルツブルク要塞",
+      "Festung Hohensalzburg"
+    ],
+    "region": {
+      "country": "オーストリア",
+      "city": "ザルツブルク"
+    },
+    "coords": {
+      "lat": 47.8,
+      "lng": 13.05
+    },
+    "category": "城",
+    "summary": "オーストリアのザルツブルクで、標高506メートルのフェストゥングスベルクの頂に建つ中世の城塞です。長さ250メートル、幅150メートルあり、ヨーロッパで最も大きな中世の城の一つです。",
+    "description": "1077年、大司教ゲプハルトのもとで建設が始まり、その後の数世紀にわたって少しずつ広げられました。15世紀後半には周りの諸侯の攻撃や市民の反乱に備えて強化され、鐘楼や武器庫、穀物の貯蔵庫などが建てられました。城が実際に包囲されたのは1525年のドイツ農民戦争の一度だけです。1515年に記録された荷物用の小さなケーブル鉄道「ライスツーク」は、形を変えて今も残り、現役の鉄道として世界最古のものとみられています。1996年、「ザルツブルク市街の歴史地区」の一部として世界遺産に登録されました。",
+    "highlights": [
+      "ザルツブルクの街の上にそびえる城塞の全景",
+      "15世紀後半に強化された塔や防壁",
+      "1515年の記録が残る荷物用のケーブル鉄道「ライスツーク」"
+    ],
+    "compositionTips": [
+      "旧市街から見上げると、山の上に横長に広がる城塞の大きさが伝わります",
+      "城の上からは、旧市街の屋根の連なりを見下ろす構図が作れます"
+    ],
+    "officialWebsiteUrl": "https://www.salzburg-burgen.at/de/hohensalzburg-castle/",
+    "timeZone": "Europe/Vienna",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9B%E3%83%BC%E3%82%A8%E3%83%B3%E3%82%B6%E3%83%AB%E3%83%84%E3%83%96%E3%83%AB%E3%82%AF%E5%9F%8E",
+          "title": "Wikipedia「ホーエンザルツブルク城」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Hohensalzburg_Fortress",
+          "title": "Wikipedia (英語版)「Hohensalzburg Fortress」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3b728d3464ad",
+    "slug": "sanssouci-palace",
+    "name": "サンスーシ宮殿",
+    "nameEn": "Sanssouci Palace",
+    "reading": "サンスーシきゅうでん",
+    "aliases": [
+      "無憂宮",
+      "Schloss Sanssouci",
+      "サン・スーシ宮殿"
+    ],
+    "region": {
+      "country": "ドイツ",
+      "prefecture": "ブランデンブルク州",
+      "city": "ポツダム"
+    },
+    "coords": {
+      "lat": 52.4,
+      "lng": 13.04
+    },
+    "category": "宮殿",
+    "summary": "ベルリンの南西約30キロメートル、ポツダムのサンスーシ公園に建つロココ様式の宮殿です。プロイセン王フリードリヒ2世の夏の離宮として、1745年から1747年にかけて建てられました。",
+    "description": "名前はフランス語で「憂いなし」を意味し、日本や中国では「無憂宮」とも呼ばれます。設計はクノーベルスドルフで、フリードリヒ2世自身も設計の一部を手がけました。王の好みを映して、東西の長さ100メートルの平屋建ての小さく瀟洒な建物になりました。段々になった丘の上に建ち、屋根は青、壁は明るい黄色に塗られています。外観は簡素ですが、室内は「フリードリヒ式ロココ」と呼ばれる様式で、壁から天井まで豪華に飾られています。1990年に「ポツダムとベルリンの宮殿群と公園群」の一つとして世界遺産に登録されました。",
+    "highlights": [
+      "段々の丘の上に建つ平屋建ての宮殿",
+      "明るい黄色の壁と青い屋根",
+      "「フリードリヒ式ロココ」で飾られた室内"
+    ],
+    "compositionTips": [
+      "丘の下から段々の斜面を正面に見上げると、頂に建つ宮殿まで階段状に続く構図になります"
+    ],
+    "officialWebsiteUrl": "https://www.spsg.de/en/palaces-gardens/object/sanssouci-palace",
+    "timeZone": "Europe/Berlin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B5%E3%83%B3%E3%82%B9%E3%83%BC%E3%82%B7%E5%AE%AE%E6%AE%BF",
+          "title": "Wikipedia「サンスーシ宮殿」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Sanssouci",
+          "title": "Wikipedia (英語版)「Sanssouci」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_3941cb361277",
+    "slug": "bastei",
+    "name": "バスタイ",
+    "nameEn": "Bastei",
+    "reading": "バスタイ",
+    "aliases": [
+      "バスタイ橋",
+      "Basteibrücke",
+      "Bastei Bridge"
+    ],
+    "region": {
+      "country": "ドイツ",
+      "city": "ラーテン"
+    },
+    "coords": {
+      "lat": 50.97,
+      "lng": 14.07
+    },
+    "category": "展望台",
+    "summary": "ドイツのエルベ砂岩山地で、エルベ川から194メートルの高さにそびえる岩の群れです。ザクセン・スイス国立公園を代表する景色で、岩と岩を砂岩の橋がつないでいます。",
+    "description": "ぎざぎざの岩は100万年以上前に水の浸食でできたもので、標高は305メートルです。ドレスデンの南東、ラーテンの近くにあります。200年以上前から観光地として知られ、1824年に岩どうしを結ぶ木の橋が架けられ、1851年に今の砂岩のバスタイ橋に架け替えられました。名前の「バスタイ」は「稜堡」の意味で、ノイラーテン城の守りの輪に切り立った岩を組み込んでいたことに由来します。岩と眺めは多くの画家に描かれ、カスパー・ダーヴィト・フリードリヒもこの地を題材にしました。",
+    "highlights": [
+      "岩と岩を結ぶ砂岩のバスタイ橋",
+      "エルベ川から194メートルの高さにそびえる岩の群れ",
+      "眼下を流れるエルベ川の眺め"
+    ],
+    "compositionTips": [
+      "橋を横から見る位置に立つと、アーチの橋と切り立った岩が一枚に収まります",
+      "岩の上の展望地からエルベ川の湾曲を見下ろす構図が作れます"
+    ],
+    "timeZone": "Europe/Berlin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Bastei",
+          "title": "Wikipedia (英語版)「Bastei」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://nationalpark-saechsische-schweiz.de/"
+  },
+  {
+    "spotId": "sp_403fd045f47d",
+    "slug": "konigssee",
+    "name": "ケーニヒス湖",
+    "nameEn": "Königssee",
+    "reading": "ケーニヒスこ",
+    "aliases": [
+      "ケーニヒスゼー",
+      "ケーニッヒス湖",
+      "Koenigssee"
+    ],
+    "region": {
+      "country": "ドイツ",
+      "prefecture": "バイエルン州",
+      "city": "シェーナウ・アム・ケーニヒスゼー"
+    },
+    "coords": {
+      "lat": 47.55,
+      "lng": 12.97
+    },
+    "category": "湖沼",
+    "summary": "ドイツ南東部、バイエルン州のオーストリア国境近くにある湖です。湖のほとんどはベルヒテスガーデン国立公園の中にあり、澄んだ水で知られます。",
+    "description": "最後の氷期に氷河が削ってできた湖で、南北に約7.7キロメートル延び、最も広い所で幅約1.7キロメートルです。ドイツで3番目に深い湖でもあります。出口のあたりを除いて周りを高さ2,700メートルに達する山の急斜面に囲まれ、フィヨルドのような姿をしています。西にはヴァッツマン山塊がそびえます。名前はドイツ語で「王の湖」と読めますが、実際には地元の貴族の名「クーノ」に由来するとされます。ドイツで最もきれいな湖とうたわれ、1909年から湖の上で使えるのは電動の船と手漕ぎボート、足漕ぎボートだけです。",
+    "highlights": [
+      "急な山の斜面に囲まれた、フィヨルドのような湖",
+      "西にそびえるヴァッツマン山塊",
+      "湖の上を行く電動の遊覧船"
+    ],
+    "compositionTips": [
+      "湖の岸から細長い湖面を奥へ向けて撮ると、両側から迫る山の斜面が奥行きを作ります"
+    ],
+    "timeZone": "Europe/Berlin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B1%E3%83%BC%E3%83%8B%E3%83%92%E3%82%B9%E6%B9%96",
+          "title": "Wikipedia「ケーニヒス湖」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/K%C3%B6nigssee",
+          "title": "Wikipedia (英語版)「Königssee」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nationalpark-berchtesgaden.bayern.de/"
+  },
+  {
+    "spotId": "sp_8ef2476f3e23",
+    "slug": "giants-causeway",
+    "name": "ジャイアンツ・コーズウェー",
+    "nameEn": "Giant's Causeway",
+    "reading": "ジャイアンツ・コーズウェー",
+    "aliases": [
+      "巨人の石道",
+      "Clochán an Aifir",
+      "ジャイアンツコーズウェイ"
+    ],
+    "region": {
+      "country": "イギリス",
+      "prefecture": "北アイルランド",
+      "city": "ブッシュミルズ"
+    },
+    "coords": {
+      "lat": 55.24,
+      "lng": -6.51
+    },
+    "category": "海岸",
+    "summary": "イギリス・北アイルランドのアントリム県の海岸にある、火山活動で生まれた約4万本の石柱が連なる場所です。1986年に世界遺産に登録されました。",
+    "description": "約5千万〜6千万年前の激しい火山活動で流れ出た玄武岩が、急に冷えて縮む間に割れ、柱状節理と呼ばれる石柱になりました。柱の頭は踏み石のように平らで、崖のふもとから延びて海の下へ消えていきます。ほとんどが六角柱ですが、四角から八角のものもあり、最も高い柱は約12メートルです。名前は、アイルランドの伝説の巨人フィン・マックールがスコットランドの巨人と戦うためにこの道を造ったという言い伝えに由来します。風雨にさらされた岩には「オルガン」「巨人のブーツ」などの名が付けられています。ナショナル・トラストが管理し、石柱の場所へはビジターセンターを通らずに無料で入れます。",
+    "highlights": [
+      "踏み石のように平らな頭を並べる約4万本の石柱",
+      "崖のふもとから海の下へ消えていく六角柱の列",
+      "「オルガン」と呼ばれる石柱の崖"
+    ],
+    "compositionTips": [
+      "石柱の頭に低く構えると、六角形の連なりが手前から海へ続く構図になります",
+      "海に沈んでいく石柱の端に波を入れると、柱が海へ続いている様子が伝わります"
+    ],
+    "timeZone": "Europe/London",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B8%E3%83%A3%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%84%E3%83%BB%E3%82%B3%E3%83%BC%E3%82%BA%E3%82%A6%E3%82%A7%E3%83%BC",
+          "title": "Wikipedia「ジャイアンツ・コーズウェー」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Giant%27s_Causeway",
+          "title": "Wikipedia (英語版)「Giant's Causeway」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.nationaltrust.org.uk/visit/northern-ireland/giants-causeway"
+  },
+  {
+    "spotId": "sp_49d06943ddee",
+    "slug": "durdle-door",
+    "name": "ダードル・ドア",
+    "nameEn": "Durdle Door",
+    "reading": "ダードル・ドア",
+    "aliases": [
+      "ダードルドア",
+      "Durdle Dor"
+    ],
+    "region": {
+      "country": "イギリス",
+      "prefecture": "ドーセット",
+      "city": "ラルワース"
+    },
+    "coords": {
+      "lat": 50.62,
+      "lng": -2.28
+    },
+    "category": "海岸",
+    "summary": "イングランド南部、ドーセットのジュラシック・コーストにある石灰岩の天然のアーチです。ラルワースの近くにあり、私有地ですが一般に開かれています。",
+    "description": "このあたりの海岸では、硬さの違う岩の帯が海岸線と平行に、ほぼ垂直に立って並んでいます。海沿いには浸食に強いポートランド石灰岩の帯があり、その後ろに削られやすい岩の帯、さらに後ろに厚い白亜の帯が続きます。海の浸食で石灰岩の帯はほとんど削り取られ、残った部分がアーチのある小さな岬になりました。アーチは石灰岩の帯の西の端が浸食されてできたものです。すぐ東の小さな湾マン・オ・ウォー・コーブでは、削り残った石灰岩が波の上に岩として顔を出しています。西の沖には、東から順にザ・ブル、ザ・ブラインド・カウ、ザ・カウ、ザ・カーフと呼ばれる小さな岩の島が並びます。",
+    "highlights": [
+      "海に足を下ろした石灰岩のアーチ",
+      "西の沖に並ぶ小さな岩の島々",
+      "東隣の湾に顔を出すマン・オ・ウォーの岩"
+    ],
+    "compositionTips": [
+      "アーチの穴を通して海を見る向きに立つと、門のような形がはっきり出ます",
+      "崖の上から見下ろすと、アーチと両側の浜が一緒に収まります"
+    ],
+    "timeZone": "Europe/London",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Durdle_Door",
+          "title": "Wikipedia (英語版)「Durdle Door」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://lulworth.com/"
+  },
+  {
+    "spotId": "sp_bef877d49228",
+    "slug": "cliffs-of-moher",
+    "name": "モハーの断崖",
+    "nameEn": "Cliffs of Moher",
+    "reading": "モハーのだんがい",
+    "aliases": [
+      "モハー断崖",
+      "Aillte an Mhothair"
+    ],
+    "region": {
+      "country": "アイルランド",
+      "prefecture": "クレア県"
+    },
+    "coords": {
+      "lat": 52.94,
+      "lng": -9.47
+    },
+    "category": "海岸",
+    "summary": "アイルランド西部、クレア県のバレン地方の南西の端にある海食崖です。約14キロメートルにわたって続き、高さは南端のハグ岬で120メートル、最も高い所で214メートルに達します。",
+    "description": "崖のほぼ中ほどには、1835年にコーネリアス・オブライエンが建てた円い石の塔「オブライエン塔」があります。崖や塔の上からは、晴れた日にゴールウェイ湾に浮かぶアラン諸島や、北のモームターク山地、トゥエルヴ・ベンズの山々、南のループ岬が見えます。南端のハグ岬には、ナポレオン戦争の時代の見張り塔の跡とされる四角い石の塔「モハー塔」が残ります。崖は主に頁岩と砂岩でできています。崖には多くの海鳥がすみ、ニシツノメドリも見られます。2011年からバレンとともにユネスコ世界ジオパークの一部になっています。アイルランドで最も訪れる人の多い観光地の一つです。",
+    "highlights": [
+      "大西洋から最も高い所で214メートルそびえる崖",
+      "崖の中ほどに建つオブライエン塔",
+      "晴れた日に見えるアラン諸島"
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "day",
+        "text": "晴れた日には、ゴールウェイ湾に浮かぶアラン諸島や遠くの山々まで見渡せます。"
+      }
+    ],
+    "compositionTips": [
+      "崖の線に沿って斜めに撮ると、岬ごとに重なって続く崖の連なりが一枚に入ります",
+      "オブライエン塔を手前に置くと、崖の高さと海までの距離の物差しになります"
+    ],
+    "officialWebsiteUrl": "https://www.cliffsofmoher.ie",
+    "timeZone": "Europe/Dublin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%A2%E3%83%8F%E3%83%BC%E3%81%AE%E6%96%AD%E5%B4%96",
+          "title": "Wikipedia「モハーの断崖」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Cliffs_of_Moher",
+          "title": "Wikipedia (英語版)「Cliffs of Moher」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_a5d24f85480d",
+    "slug": "skellig-michael",
+    "name": "シュケリッグ・ヴィヒル",
+    "nameEn": "Skellig Michael",
+    "reading": "シュケリッグ・ヴィヒル",
+    "aliases": [
+      "スケリッグ・マイケル",
+      "Sceilig Mhichíl",
+      "Great Skellig"
+    ],
+    "region": {
+      "country": "アイルランド",
+      "prefecture": "ケリー県"
+    },
+    "coords": {
+      "lat": 51.77,
+      "lng": -10.54
+    },
+    "category": "島",
+    "summary": "アイルランド西部、ケリー県の沖に浮かぶ岩山の島です。標高218メートルの頂の近くに初期キリスト教の修道院の跡が残り、1996年に世界遺産に登録されました。",
+    "description": "二つの峰とその間の谷からなる、険しく切り立った島です。初期のキリスト教の修道士たちは、石を積み上げてつくった小屋で暮らしていました。島の位置と険しさのため、修道院は今も元の姿をよくとどめています。北の峰の修道院へは、船着き場から続く細く急な石段を登ります。1826年には灯台が建てられました。シロカツオドリやニシツノメドリなど多くの海鳥がすみ、自然保護区に指定されています。映画『スター・ウォーズ』シリーズの撮影にも使われました。本土から渡るのは難しく、島に渡れるのは夏の間だけで、遺跡の傷みから渡航は制限されています。",
+    "highlights": [
+      "海から突き出た二つの峰を持つ岩山の島",
+      "石を積み上げてつくった修道士の小屋",
+      "修道院へ続く急な石段"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "本土からの渡航が難しく、島に渡れるのは夏の間だけです。"
+      }
+    ],
+    "compositionTips": [
+      "島へ向かう船の上からは、海から突き出た二つの峰の形を収められます",
+      "石積みの小屋を手前に入れて海を見下ろすと、修道院が島の高い所にあることが伝わります"
+    ],
+    "timeZone": "Europe/Dublin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B7%E3%83%A5%E3%82%B1%E3%83%AA%E3%83%83%E3%82%B0%E3%83%BB%E3%83%B4%E3%82%A3%E3%83%92%E3%83%AB",
+          "title": "Wikipedia「シュケリッグ・ヴィヒル」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Skellig_Michael",
+          "title": "Wikipedia (英語版)「Skellig Michael」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://heritageireland.ie/places-to-visit/sceilg-mhichil/"
+  },
+  {
+    "spotId": "sp_0d34f4fb5e6e",
+    "slug": "rock-of-cashel",
+    "name": "ロック・オブ・キャシェル",
+    "nameEn": "Rock of Cashel",
+    "reading": "ロック・オブ・キャシェル",
+    "aliases": [
+      "キャシェルの岩",
+      "Carraig Phádraig",
+      "St. Patrick's Rock",
+      "Cashel of the Kings"
+    ],
+    "region": {
+      "country": "アイルランド",
+      "prefecture": "ティペラリー県",
+      "city": "キャシェル"
+    },
+    "coords": {
+      "lat": 52.52,
+      "lng": -7.89
+    },
+    "category": "史跡",
+    "summary": "アイルランドのティペラリー県キャシェルで、平原の上にそびえる岩山に建つ史跡です。4世紀からマンスターの王の拠点で、のちに教会に寄進されました。",
+    "description": "5世紀にはエオガナクタの一族がここに砦を築き、977年にはブライアン・ボルーがここで王として即位しました。1101年、マンスター王ムルヘルタハ・ウア・ブリアンが岩の上の砦を教会に寄進しました。今ある建物の多くは12世紀から13世紀のもので、ケルトの美術と中世の建築を伝える貴重な建物群とされます。1730年代半ば以降に大聖堂の屋根が取り払われ、今は屋根の無い姿で残っています。",
+    "highlights": [
+      "平原の上の岩山に建つ中世の建物群",
+      "屋根が取り払われた大聖堂",
+      "12〜13世紀の建物に残るケルトの美術"
+    ],
+    "compositionTips": [
+      "少し離れた平原から撮ると、岩山の上に建物群が浮かぶように立つ姿が収まります"
+    ],
+    "officialWebsiteUrl": "https://heritageireland.ie/places-to-visit/the-rock-of-cashel/",
+    "timeZone": "Europe/Dublin",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Rock_of_Cashel",
+          "title": "Wikipedia (英語版)「Rock of Cashel」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_83d10d51026f",
+    "slug": "cabo-da-roca",
+    "name": "ロカ岬",
+    "nameEn": "Cabo da Roca",
+    "reading": "ロカみさき",
+    "aliases": [
+      "Cape Roca",
+      "ユーラシア大陸最西端"
+    ],
+    "region": {
+      "country": "ポルトガル",
+      "city": "シントラ"
+    },
+    "coords": {
+      "lat": 38.78,
+      "lng": -9.5
+    },
+    "category": "岬",
+    "summary": "ポルトガルのリスボンの西42キロメートルにある、ユーラシア大陸の最西端の岬です。西には大西洋が広がります。",
+    "description": "シントラ山地の西の端にあたり、シントラ・カスカイス自然公園の中にあります。岬の周りの崖は高さ100メートルを超えます。岬には1772年から使われている灯台が建っています。詩人ルイス・デ・カモンイスの叙事詩『ウズ・ルジアダス』の一節「ここに地終わり海始まる」を刻んだ石碑が立ち、記念碑の石板には岬の位置（北緯38度47分、西経9度30分）が刻まれています。シントラやカスカイスからバスが出ていて、リスボンから日帰りで訪れられます。",
+    "highlights": [
+      "大西洋に面した高さ100メートルを超える崖",
+      "「ここに地終わり海始まる」を刻んだ石碑",
+      "1772年から使われている灯台"
+    ],
+    "compositionTips": [
+      "石碑を手前に置いて大西洋を背景にすると、大陸の西の端に立っていることが伝わります",
+      "崖の線に沿って灯台を入れると、海に突き出た岬の形が出ます"
+    ],
+    "timeZone": "Europe/Lisbon",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%AD%E3%82%AB%E5%B2%AC",
+          "title": "Wikipedia「ロカ岬」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Cabo_da_Roca",
+          "title": "Wikipedia (英語版)「Cabo da Roca」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://cm-sintra.pt/"
+  },
+  {
+    "spotId": "sp_b22e0c24a9da",
+    "slug": "praca-do-comercio",
+    "name": "コメルシオ広場",
+    "nameEn": "Praça do Comércio",
+    "reading": "コメルシオひろば",
+    "aliases": [
+      "テレイロ・ド・パソ",
+      "Terreiro do Paço",
+      "Commerce Square",
+      "アウグスタ通りの凱旋門"
+    ],
+    "region": {
+      "country": "ポルトガル",
+      "city": "リスボン"
+    },
+    "coords": {
+      "lat": 38.71,
+      "lng": -9.14
+    },
+    "category": "広場",
+    "summary": "ポルトガルの首都リスボンで、テージョ川に面して開く広場です。1755年のリスボン地震で失われたリベイラ宮殿の跡に、町の再建の一部として整えられました。",
+    "description": "名前は「貿易広場」を意味し、今も元の名「テレイロ・ド・パソ（宮殿広場）」の呼び名がよく知られています。地震のあと宰相ポンバル侯のもとで下町が建て直され、広場は建築家エウジェニオ・ドス・サントスの設計で、テージョ川へ向かって開くU字形に整えられました。広さは約175メートル四方で、ポルトガルで最も大きな広場の一つです。周りの建物の1階はアーケードになっていて、U字の両端には2つの塔が建ちます。中央にはジョゼ1世のブロンズ像が立ちます。北側はアウグスタ通りへ開き、1875年に完成したアーチには時計と、ヴァスコ・ダ・ガマやポンバル侯などの像が並びます。1910年にポルトガルの国定記念物に指定されました。",
+    "highlights": [
+      "テージョ川に向かって開くU字形の広場",
+      "中央に立つジョゼ1世のブロンズ像",
+      "アウグスタ通りへ通じる1875年のアーチ"
+    ],
+    "compositionTips": [
+      "アーチの下から広場とジョゼ1世の像を通してテージョ川を見ると、川へ開いた広場の向きが一枚に入ります",
+      "アーケードの柱の列を斜めに撮ると、繰り返しの奥行きが出ます"
+    ],
+    "timeZone": "Europe/Lisbon",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B3%E3%83%A1%E3%83%AB%E3%82%B7%E3%82%AA%E5%BA%83%E5%A0%B4",
+          "title": "Wikipedia「コメルシオ広場」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Pra%C3%A7a_do_Com%C3%A9rcio",
+          "title": "Wikipedia (英語版)「Praça do Comércio」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.visitlisboa.com/"
+  },
+  {
+    "spotId": "sp_6d913b4cf14a",
+    "slug": "oia-santorini",
+    "name": "イア（サントリーニ島）",
+    "nameEn": "Oia",
+    "reading": "イア",
+    "aliases": [
+      "Oia",
+      "Ia",
+      "Οία",
+      "サントリーニ島 イア"
+    ],
+    "region": {
+      "country": "ギリシャ",
+      "prefecture": "南エーゲ",
+      "city": "サントリーニ"
+    },
+    "coords": {
+      "lat": 36.46,
+      "lng": 25.38
+    },
+    "category": "町並み",
+    "summary": "ギリシャ、キクラデス諸島のサントリーニ島の北西の端にある村です。カルデラの北の縁に沿って、海抜70〜100メートルの高さに約2キロメートルにわたって延びています。",
+    "description": "白く塗られた家々と青いドームの教会、キクラデス地方の伝統的な家や、崖の上の岩を掘ってつくった洞窟の家が並びます。カルデラに沈む夕日を眺めるのによい場所にあります。町でもよく知られた建物の一つが古い風車で、絵はがきにもよく登場します。19世紀の終わりから20世紀の初めにかけて商船隊の交易で栄え、村のいちばん高い所には当時の船長たちの2階建ての家が残ります。1956年の地震で町の一部が壊れましたが、その後は観光の町として生まれ変わりました。道はとても狭く、夏の観光シーズンには人で混み合います。",
+    "highlights": [
+      "白い家々と青いドームの教会",
+      "カルデラに沈む夕日",
+      "絵はがきにも登場する古い風車"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "夏の観光シーズンは、狭い道が人で混み合います。"
+      }
+    ],
+    "timeOfDayGuide": [
+      {
+        "time": "dusk",
+        "text": "カルデラに沈む夕日を眺めるのによい場所です。"
+      }
+    ],
+    "compositionTips": [
+      "青いドームを手前に入れてカルデラの海を背景にすると、白と青の町並みが一枚に収まります",
+      "夕日の時間は、崖の斜面に重なる家並みを逆光の影として撮る手もあります"
+    ],
+    "timeZone": "Europe/Athens",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Oia%2C_Greece",
+          "title": "Wikipedia (英語版)「Oia, Greece」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.thira.gr/"
+  },
+  {
+    "spotId": "sp_9be3029e6356",
+    "slug": "diocletians-palace",
+    "name": "ディオクレティアヌス宮殿",
+    "nameEn": "Diocletian's Palace",
+    "reading": "ディオクレティアヌスきゅうでん",
+    "aliases": [
+      "Dioklecijanova palača",
+      "スプリトの宮殿",
+      "ペリスティル"
+    ],
+    "region": {
+      "country": "クロアチア",
+      "city": "スプリト"
+    },
+    "coords": {
+      "lat": 43.51,
+      "lng": 16.44
+    },
+    "category": "遺跡",
+    "summary": "クロアチアのスプリトに残る、古代ローマのディオクレティアヌス帝の宮殿です。3世紀の終わりに皇帝の引退後の住まいとして建てられ、今はスプリトの旧市街の約半分を占めます。",
+    "description": "宮殿は城壁に囲まれ、豪奢な別邸と、巨大な門や見張り塔を備えた軍の施設の両方の性格を持ちます。四方の壁の中央には門があり、北は「黄金の門」、東は「銀の門」、西は「鉄の門」、海に面した南は「銅の門」と呼ばれます。周柱式の中庭（ペリスティル）は皇帝の住まいへの通り道で、東には皇帝の霊廟だった今の聖ドミヌス大聖堂、西には旧ユピテル神殿（今は洗礼堂）があります。地元の白い石灰岩やブラチ島の大理石で建てられ、エジプトの花崗岩の円柱やスフィンクスも飾りに使われました。旧市街には今も人が住み、宮殿の中に店やカフェが並びます。1979年に世界遺産に登録されました。",
+    "highlights": [
+      "列柱に囲まれた中庭ペリスティル",
+      "皇帝の霊廟だった聖ドミヌス大聖堂",
+      "白い石灰岩の城壁と四方の門"
+    ],
+    "compositionTips": [
+      "ペリスティルでは列柱を斜めから撮ると、柱の連なりと奥の大聖堂が重なります",
+      "宮殿の中の細い路地では、古い石の壁と今の暮らしが一枚に入ります"
+    ],
+    "officialWebsiteUrl": "https://www.diocletianspalace.org/",
+    "timeZone": "Europe/Zagreb",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%87%E3%82%A3%E3%82%AA%E3%82%AF%E3%83%AC%E3%83%86%E3%82%A3%E3%82%A2%E3%83%8C%E3%82%B9%E5%AE%AE%E6%AE%BF",
+          "title": "Wikipedia「ディオクレティアヌス宮殿」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Diocletian%27s_Palace",
+          "title": "Wikipedia (英語版)「Diocletian's Palace」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_0cacd3efc4eb",
+    "slug": "krka-national-park",
+    "name": "クルカ国立公園",
+    "nameEn": "Krka National Park",
+    "reading": "クルカこくりつこうえん",
+    "aliases": [
+      "Nacionalni park Krka",
+      "スクラディンスキ・ブク",
+      "Skradinski buk"
+    ],
+    "region": {
+      "country": "クロアチア",
+      "prefecture": "シベニク・クニン郡"
+    },
+    "coords": {
+      "lat": 43.8,
+      "lng": 15.97
+    },
+    "category": "滝",
+    "summary": "クロアチア中部のダルマチア地方、クルカ川の中下流を守る国立公園です。1985年に国立公園になり、川に沿った109平方キロメートルを含みます。",
+    "description": "シベニクの町の北東数キロメートルに広がります。公園でも特に人を集めるのが滝の「スクラディンスキ・ブク」で、クルカ川にできた三つの滝の群れのうちいちばん下流にあります。長さ400メートル、幅100メートルの範囲に17の滝が連なり、最初と最後の滝の高低差は47.7メートルです。地形や植物の豊かさ、渦に映る光の効果から、ヨーロッパで最も美しい石灰華の滝の一つとされます。上流のロシュキ・スラップは、訪れる人の数で2番目に多い場所です。公園の中のヴィソヴァツ島には、1445年にフランシスコ会が建てた修道院があり、スクラディンスキ・ブクから船で訪れられます。木道や遊覧船も整えられています。",
+    "highlights": [
+      "17の滝が連なる石灰華の滝スクラディンスキ・ブク",
+      "川の中の小島に建つヴィソヴァツ修道院",
+      "滝の間を巡る木道"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "winter",
+        "text": "スクラディンスキ・ブクを流れる水は冬が毎秒43立方メートルで、夏（毎秒18立方メートル）より多くなります。"
+      }
+    ],
+    "compositionTips": [
+      "木道から滝の段を斜めに見ると、いくつもの小さな滝が重なって続く様子が収まります",
+      "渦に光が当たる所を探すと、石灰華の滝らしい水の色と質感が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.npkrka.hr/",
+    "timeZone": "Europe/Zagreb",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Krka_National_Park",
+          "title": "Wikipedia (英語版)「Krka National Park」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_2a71aecedd1f",
+    "slug": "karlstejn-castle",
+    "name": "カールシュテイン城",
+    "nameEn": "Karlštejn Castle",
+    "reading": "カールシュテインじょう",
+    "aliases": [
+      "カルルシュテイン城",
+      "Hrad Karlštejn",
+      "Burg Karlstein"
+    ],
+    "region": {
+      "country": "チェコ",
+      "prefecture": "中央ボヘミア州",
+      "city": "カルルシュテイン"
+    },
+    "coords": {
+      "lat": 49.94,
+      "lng": 14.19
+    },
+    "category": "城",
+    "summary": "チェコの中央ボヘミア州、プラハの南西約30キロメートルにあるゴシック様式の大きな城です。1348年に神聖ローマ皇帝カール4世が建て、帝国の宝物やボヘミアの王冠、聖遺物を守る場所でした。",
+    "description": "ベロウンカ川と町を見下ろす丘の上に建ちます。カール4世は建設と内装を自ら見守り、1365年に宝物庫の心臓部である大塔の聖十字架礼拝堂が聖別されて完成しました。1422年のフス戦争では包囲を受けています。1480年以降に後期ゴシック様式で、16世紀の終わりにはルネサンス様式で改築されました。城には井戸塔、皇帝宮、聖母マリア塔、大塔などがあります。チェコで最も人気のある城の一つで、2019年には20万人以上が訪れました。",
+    "highlights": [
+      "ベロウンカ川と町を見下ろす丘の上の城",
+      "宝物庫の心臓部だった大塔",
+      "井戸塔・皇帝宮・聖母マリア塔と段々に重なる建物"
+    ],
+    "compositionTips": [
+      "丘のふもとから見上げると、段々に重なる塔と城壁が一枚に収まります"
+    ],
+    "officialWebsiteUrl": "https://www.hrad-karlstejn.cz/",
+    "timeZone": "Europe/Prague",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%AB%E3%83%BC%E3%83%AB%E3%82%B7%E3%83%A5%E3%83%86%E3%82%A4%E3%83%B3%E5%9F%8E",
+          "title": "Wikipedia「カールシュテイン城」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Karl%C5%A1tejn",
+          "title": "Wikipedia (英語版)「Karlštejn」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_0024f095e8a0",
+    "slug": "hungarian-parliament-building",
+    "name": "ハンガリー国会議事堂",
+    "nameEn": "Hungarian Parliament Building",
+    "reading": "ハンガリーこっかいぎじどう",
+    "aliases": [
+      "国会議事堂（ハンガリー）",
+      "オルサーグハーズ",
+      "Országház",
+      "ブダペスト国会議事堂"
+    ],
+    "region": {
+      "country": "ハンガリー",
+      "city": "ブダペスト"
+    },
+    "coords": {
+      "lat": 47.51,
+      "lng": 19.05
+    },
+    "category": "建築",
+    "summary": "ハンガリーの首都ブダペストで、ドナウ川の岸のコシュート・ラヨシュ広場に建つ国会議事堂です。ハンガリーで最も大きな建物で、1904年に完成しました。",
+    "description": "1880年に国会が新しい議事堂の建設を決め、設計競技でシュテインドル・イムレの案が選ばれました。1885年に建設が始まり、1904年に完成しましたが、シュテインドルは完成を見ずに1902年に亡くなっています。ロンドンのウェストミンスター宮殿と同じゴシック・リヴァイヴァル建築で、左右対称のファサードの中央にドームがあります。長さ268メートル、幅123メートル、高さ96メートルで、聖イシュトヴァーン大聖堂と並んでブダペストで最も高い建物です。「96」の数字は、建国（征服定住）の896年とその千年祭の1896年にちなみます。内外の壁には242体の彫刻があります。聖イシュトヴァーンの王冠などがここで保管・展示されていて、議会の開かれていない日にはガイドの案内で中を見学できます。",
+    "highlights": [
+      "ドナウ川の岸に横長に広がる左右対称のファサード",
+      "中央にそびえる高さ96メートルのドーム",
+      "内外の壁を飾る242体の彫刻"
+    ],
+    "compositionTips": [
+      "ドナウ川の対岸から撮ると、川面と横長の建物全体が一枚に収まります",
+      "中央のドームを軸にして左右対称に構えると、ゴシック・リヴァイヴァルの形が引き立ちます"
+    ],
+    "officialWebsiteUrl": "https://www.parlament.hu/web/orszaghaz/latogatas",
+    "timeZone": "Europe/Budapest",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E5%9B%BD%E4%BC%9A%E8%AD%B0%E4%BA%8B%E5%A0%82_%28%E3%83%8F%E3%83%B3%E3%82%AC%E3%83%AA%E3%83%BC%29",
+          "title": "Wikipedia「国会議事堂 (ハンガリー)」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Hungarian_Parliament_Building",
+          "title": "Wikipedia (英語版)「Hungarian Parliament Building」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_73499977d603",
+    "slug": "fishermans-bastion",
+    "name": "漁夫の砦",
+    "nameEn": "Fisherman's Bastion",
+    "reading": "ぎょふのとりで",
+    "aliases": [
+      "ハラスバスチャ",
+      "Halászbástya"
+    ],
+    "region": {
+      "country": "ハンガリー",
+      "city": "ブダペスト"
+    },
+    "coords": {
+      "lat": 47.5,
+      "lng": 19.03
+    },
+    "category": "展望台",
+    "summary": "ハンガリーの首都ブダペストのブダ城地区にある、ネオ・ロマネスク様式の展望テラスです。1895年から1902年にかけて、建国千年祭の街の美化計画の一つとして建てられました。",
+    "description": "設計は建築家シュレク・フリジェシュで、ブダ城の城壁の一部を土台にして建てられました。ドナウ川と平行に延びる正面は長さ約140メートルあり、とがった屋根を持つ七つの石の塔は、895年にハンガリーを建てた七人の族長を表しています。名前は、中世にこのあたりの城壁を漁師の組合が守っていたことや、城壁の下にあった漁師町に由来するとされます。テラスからはブダペストの町を見渡せます。1987年にブダ城地区の一部として世界遺産に登録されました。",
+    "highlights": [
+      "ブダペストの町を見渡すネオ・ロマネスク様式のテラス",
+      "七人の族長を表す七つのとがった塔",
+      "ドナウ川と平行に延びる約140メートルの正面"
+    ],
+    "compositionTips": [
+      "テラスのアーチを額縁にして町を見ると、手前の石の柱と奥の町並みが重なります",
+      "塔の連なりを斜めから撮ると、とがった屋根が並ぶリズムが出ます"
+    ],
+    "officialWebsiteUrl": "https://fishermansbastion.com/",
+    "timeZone": "Europe/Budapest",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E6%BC%81%E5%A4%AB%E3%81%AE%E7%A0%A6",
+          "title": "Wikipedia「漁夫の砦」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Fisherman%27s_Bastion",
+          "title": "Wikipedia (英語版)「Fisherman's Bastion」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_7dadb274ffef",
+    "slug": "wieliczka-salt-mine",
+    "name": "ヴィエリチカ岩塩坑",
+    "nameEn": "Wieliczka Salt Mine",
+    "reading": "ヴィエリチカがんえんこう",
+    "aliases": [
+      "Kopalnia soli Wieliczka",
+      "ヴィエリチカ塩鉱"
+    ],
+    "region": {
+      "country": "ポーランド",
+      "prefecture": "マウォポルスカ県",
+      "city": "ヴィエリチカ"
+    },
+    "coords": {
+      "lat": 49.98,
+      "lng": 20.06
+    },
+    "category": "産業遺産",
+    "summary": "ポーランド南部、クラクフ近くのヴィエリチカにある岩塩の採掘坑です。13世紀から掘られ、1996年に商業採掘を終えて、今は観光地になっています。",
+    "description": "深さは地下327メートルに達します。見学できるのは3.5キロメートルの坑道で、坑夫たちが信仰のために岩塩を彫り上げた、歴史や神話のさまざまな像が並びます。岩塩でできた部屋や礼拝堂、地下の湖、岩塩採掘の歴史の展示もあり、地下の大聖堂のような景色をつくっています。岩塩は自然のままでは白い結晶ではなく、さまざまな灰色をしています。1978年に、最初に登録された12件の世界遺産の一つになりました。湿気で岩塩の像が傷み、1989年に危機遺産となりましたが、換気装置が整えられて1998年に外れました。",
+    "highlights": [
+      "坑夫たちが岩塩を彫ってつくった像と礼拝堂",
+      "地下に広がる岩塩の部屋",
+      "地下の湖"
+    ],
+    "compositionTips": [
+      "礼拝堂では、彫刻の灰色の岩塩に当たる照明の向きを見て、影が出る位置から撮ると質感が出ます"
+    ],
+    "officialWebsiteUrl": "https://www.kopalnia.pl/",
+    "timeZone": "Europe/Warsaw",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%B4%E3%82%A3%E3%82%A8%E3%83%AA%E3%83%81%E3%82%AB%E5%B2%A9%E5%A1%A9%E5%9D%91",
+          "title": "Wikipedia「ヴィエリチカ岩塩坑」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Wieliczka_Salt_Mine",
+          "title": "Wikipedia (英語版)「Wieliczka Salt Mine」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_aa00509c321e",
+    "slug": "malbork-castle",
+    "name": "マルボルク城",
+    "nameEn": "Malbork Castle",
+    "reading": "マルボルクじょう",
+    "aliases": [
+      "マリーエンブルク城",
+      "マリエンブルク城",
+      "Zamek w Malborku",
+      "Ordensburg Marienburg"
+    ],
+    "region": {
+      "country": "ポーランド",
+      "city": "マルボルク"
+    },
+    "coords": {
+      "lat": 54.04,
+      "lng": 19.03
+    },
+    "category": "城",
+    "summary": "ポーランド北部のマルボルクで、ノガット川の下流の岸に建つ、中世にドイツ騎士団が築いた煉瓦造りの城です。敷地の面積で世界最大の城とされ、1997年に世界遺産に登録されました。",
+    "description": "13世紀に建てられ、14世紀に大きく広げられた煉瓦造りのゴシック様式の城の群れです。聖母マリアにちなんでマリーエンブルクと名付けられました。1309年に騎士団国家の本部がここに移されています。建設の期間は1274年から1406年までの132年間とする見方が一般的で、1406年に完成したときには世界最大の煉瓦の城でした。1457年にポーランド王に売り渡されたあとは、ポーランドの王の住まいの一つになりました。",
+    "highlights": [
+      "ノガット川の岸に建つ煉瓦造りの城",
+      "敷地の面積で世界最大とされる城の規模",
+      "ゴシック様式の煉瓦の城壁と塔"
+    ],
+    "compositionTips": [
+      "ノガット川の対岸から撮ると、川面と煉瓦の城の長い連なりが一枚に入ります"
+    ],
+    "officialWebsiteUrl": "https://zamek.malbork.pl/en",
+    "timeZone": "Europe/Warsaw",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%AB%E3%83%9C%E3%83%AB%E3%82%AF%E5%9F%8E",
+          "title": "Wikipedia「マルボルク城」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Malbork_Castle",
+          "title": "Wikipedia (英語版)「Malbork Castle」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_e129e4be9dd0",
+    "slug": "wawel-castle",
+    "name": "ヴァヴェル城",
+    "nameEn": "Wawel Royal Castle",
+    "reading": "ヴァヴェルじょう",
+    "aliases": [
+      "ヴァヴェル王宮",
+      "Zamek Królewski na Wawelu",
+      "Wawel Castle"
+    ],
+    "region": {
+      "country": "ポーランド",
+      "prefecture": "マウォポルスカ県",
+      "city": "クラクフ"
+    },
+    "coords": {
+      "lat": 50.05,
+      "lng": 19.94
+    },
+    "category": "城",
+    "summary": "ポーランドのクラクフで、ヴィスワ川の左岸、標高228メートルの石灰岩の丘に建つ王城です。何世紀にもわたってポーランド王の住まいで、国の象徴とされてきました。",
+    "description": "国王カジミェシュ3世の命で建てられた要塞化された住まいが、何世紀にもわたって広げられ、ルネサンス様式の中庭を囲む建物の群れになりました。今の城は14世紀に建てられ、その後数百年にわたって拡張されたもので、中世・ルネサンス・バロックのヨーロッパのほぼすべての建築様式が見られます。丘の上には、ポーランドの王たちが戴冠し葬られたヴァヴェル大聖堂も建ちます。1930年に設立された美術館として公開されていて、ジグムント2世アウグストのタペストリーのコレクションなどで知られます。1978年に「クラクフ歴史地区」の一部として世界遺産に登録されました。",
+    "highlights": [
+      "ヴィスワ川の岸の丘の上に建つ城と大聖堂",
+      "ルネサンス様式の中庭を囲む建物",
+      "王たちが戴冠し葬られたヴァヴェル大聖堂"
+    ],
+    "compositionTips": [
+      "ヴィスワ川の岸から見上げると、丘の上に城と大聖堂が並ぶ姿が収まります",
+      "中庭の中に立ち、四方を囲む建物を広角で収めると、ルネサンス様式の中庭の形が伝わります"
+    ],
+    "officialWebsiteUrl": "https://wawel.krakow.pl/",
+    "timeZone": "Europe/Warsaw",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%B4%E3%82%A1%E3%83%B4%E3%82%A7%E3%83%AB%E5%9F%8E",
+          "title": "Wikipedia「ヴァヴェル城」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Wawel_Castle",
+          "title": "Wikipedia (英語版)「Wawel Castle」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_e2b2847ab939",
+    "slug": "zaanse-schans",
+    "name": "ザーンセ・スカンス",
+    "nameEn": "Zaanse Schans",
+    "reading": "ザーンセ・スカンス",
+    "aliases": [
+      "ザーンセスカンス",
+      "ザーンス・スカンス"
+    ],
+    "region": {
+      "country": "オランダ",
+      "city": "ザーンダム"
+    },
+    "coords": {
+      "lat": 52.47,
+      "lng": 4.82
+    },
+    "category": "町並み",
+    "summary": "オランダ、ザーンダムの一地区で、歴史のある風車と木造の家々が集められた場所です。アムステルダムの北の地方から、保存のために建物が移されてきました。",
+    "description": "1961年から1974年にかけて、ザーン地方の各地から古い建物がトレーラーで運ばれてきました。風車のうち2基は、もともと建てられた場所に残るものです。ザーン地方の木造建築を守る地区として、建築史と景観の価値から保護された村の景色になっています。名前はザーン川と、八十年戦争でスペイン軍に備えた堡塁（スカンス）に由来します。人が住む家や店、博物館、風車が混じり合い、外の区域は無料で歩けます。風車と博物館は入場料がかかります。アムステルダム中央駅から18分のザーンダイク・ザーンセ・スカンス駅が最寄りです。2024年には260万人が訪れました。",
+    "highlights": [
+      "保存のために集められた歴史のある風車",
+      "ザーン地方の各地から移された木造の家々",
+      "風車と博物館の見学"
+    ],
+    "compositionTips": [
+      "少し離れた位置から望遠で撮ると、並んだ風車が重なり合って一枚に収まります",
+      "人の住む家もあります。私有の庭や家の前には入らないでください"
+    ],
+    "officialWebsiteUrl": "https://www.dezaanseschans.nl/",
+    "timeZone": "Europe/Amsterdam",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Zaanse_Schans",
+          "title": "Wikipedia (英語版)「Zaanse Schans」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_20fc0e05c681",
+    "slug": "keukenhof",
+    "name": "キューケンホフ公園",
+    "nameEn": "Keukenhof",
+    "reading": "キューケンホフこうえん",
+    "aliases": [
+      "キューケンホフ",
+      "ヨーロッパの公園",
+      "Garden of Europe"
+    ],
+    "region": {
+      "country": "オランダ",
+      "prefecture": "南ホラント州",
+      "city": "リッセ"
+    },
+    "coords": {
+      "lat": 52.27,
+      "lng": 4.55
+    },
+    "category": "庭園",
+    "summary": "オランダのリッセにある、世界最大級の花の公園です。広さ32ヘクタールの園地に、毎年約700万球の花の球根が植えられます。",
+    "description": "名前はオランダ語で「台所の庭」を意味します。15世紀の猟場だった土地で、19世紀にはフォンデル公園も手がけた造園家ゾッハー親子が庭を整えました。1949年に、屋外で球根の花を見せる展示会の場として開園しました。チューリップのほか、ヒヤシンス、スイセン、ユリ、バラなども植えられています。カーブした小道をたどると景色が変わるイングリッシュ・ガーデンや、日本庭園などの区画があります。一般に公開されるのは毎年3月半ばから5月半ばの8週間ほどです。園の周りにはチューリップ農家の広い畑が広がりますが、ほぼすべて私有地で、無断で立ち入ることは厳しく禁じられています。",
+    "highlights": [
+      "園内を埋めるチューリップなどの球根の花",
+      "カーブした小道で景色が変わるイングリッシュ・ガーデン",
+      "1641年に建てられたキューケンホフ城"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "spring",
+        "text": "公開は3月半ばから5月半ばで、天候に左右されますが、4月半ばごろにチューリップが見ごろを迎えます。"
+      }
+    ],
+    "compositionTips": [
+      "花壇の色の帯を斜めに見下ろすと、色の重なりが奥へ続く構図になります",
+      "周りのチューリップ畑は私有地です。畑の中に入って撮らないでください"
+    ],
+    "officialWebsiteUrl": "https://www.keukenhof.nl/",
+    "timeZone": "Europe/Amsterdam",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%AD%E3%83%A5%E3%83%BC%E3%82%B1%E3%83%B3%E3%83%9B%E3%83%95%E5%85%AC%E5%9C%92",
+          "title": "Wikipedia「キューケンホフ公園」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Keukenhof",
+          "title": "Wikipedia (英語版)「Keukenhof」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_e74c123f0820",
+    "slug": "grand-place-brussels",
+    "name": "グラン＝プラス",
+    "nameEn": "Grand-Place",
+    "reading": "グラン＝プラス",
+    "aliases": [
+      "グラン・プラス",
+      "グローテ・マルクト",
+      "Grote Markt",
+      "Grand Place"
+    ],
+    "region": {
+      "country": "ベルギー",
+      "city": "ブリュッセル"
+    },
+    "coords": {
+      "lat": 50.85,
+      "lng": 4.35
+    },
+    "category": "広場",
+    "summary": "ベルギーの首都ブリュッセルの中心にある大広場です。豪華なギルドハウスと市庁舎、王の家に囲まれ、世界で最も美しい広場の一つといわれます。1998年に世界遺産に登録されました。",
+    "description": "広場は68メートル×110メートルで、全面が石畳です。1695年、フランス軍の砲撃で広場の家々の大半が壊れましたが、まもなくギルドによって石造りで建て直されました。市庁舎は1402年から1455年にかけて建てられ、中世のグラン＝プラスの姿を伝える唯一の建物です。ゴシック様式の高さ96メートルの塔の頂には、竜を打ち倒す天使ミシェルの像が飾られています。向かいの「王の家」は1875年にネオ・ゴシック様式で再建され、今は市立博物館です。ギルドハウスの壁には、それぞれの職業を表す紋章が飾られています。偶数年の8月には広場の中央に大きな花の絨毯が敷かれ、クリスマスの時期には大きなツリーが立ちます。",
+    "highlights": [
+      "広場を囲む豪華なギルドハウスの切妻",
+      "天使ミシェルの像を頂く市庁舎の96メートルの塔",
+      "ネオ・ゴシック様式の王の家"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "偶数年の8月には、広場の中央に大きな花の絨毯が敷かれます。"
+      },
+      {
+        "season": "winter",
+        "text": "クリスマスと年越しの時期には祝いの催しの中心になり、毎年大きなクリスマスツリーが立てられます。"
+      }
+    ],
+    "compositionTips": [
+      "広場の角に立って広角で収めると、市庁舎の塔とギルドハウスの並びが一枚に入ります",
+      "ギルドハウスの壁の紋章や彫刻に望遠で寄ると、建物ごとの違いが見えてきます"
+    ],
+    "timeZone": "Europe/Brussels",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%A9%E3%83%B3%EF%BC%9D%E3%83%97%E3%83%A9%E3%82%B9_%28%E3%83%96%E3%83%AA%E3%83%A5%E3%83%83%E3%82%BB%E3%83%AB%29",
+          "title": "Wikipedia「グラン＝プラス (ブリュッセル)」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Grand-Place",
+          "title": "Wikipedia (英語版)「Grand-Place」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.brussels.be/grand-place-brussels"
+  },
+  {
+    "spotId": "sp_6758bd44d525",
+    "slug": "atomium",
+    "name": "アトミウム",
+    "nameEn": "Atomium",
+    "reading": "アトミウム",
+    "aliases": [
+      "l'Atomium",
+      "het Atomium"
+    ],
+    "region": {
+      "country": "ベルギー",
+      "city": "ブリュッセル"
+    },
+    "coords": {
+      "lat": 50.9,
+      "lng": 4.34
+    },
+    "category": "建築",
+    "summary": "1958年のブリュッセル万国博覧会のために建てられた記念建造物で、今も会場跡地のエゼル（ヘイゼル）に建ちます。鉄の結晶の構造を1,650億倍に拡大した形をしています。",
+    "description": "技師アンドレ・ワーテルケインらが設計しました。高さは102メートルで、直径18メートルの九つの球が原子を表し、鋼鉄のチューブでつながっています。チューブの中には階段やエスカレーター、エレベーターが通り、公開されている六つの球には展示室などがあります。最上部の球にはブリュッセルを見渡すレストランがあります。球の表面はもとはアルミニウムでしたが、2004年から2006年の改修でステンレスの板に張り替えられました。アトミウムの画像には著作権の主張がありましたが、2016年にベルギーで「パノラマの自由」の条項が加えられ、公共の場の建築を撮った写真を公開することが認められました。",
+    "highlights": [
+      "鉄の結晶の構造をかたどった九つの銀色の球",
+      "球を結ぶ鋼鉄のチューブ",
+      "最上部の球から見渡すブリュッセルの街"
+    ],
+    "compositionTips": [
+      "真下や斜め下から見上げると、球とチューブが空に向かって伸びる形が強調されます",
+      "少し離れて全体を入れると、一つの頂点で立つ傾いた立方体の形が伝わります"
+    ],
+    "timeZone": "Europe/Brussels",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%88%E3%83%9F%E3%82%A6%E3%83%A0",
+          "title": "Wikipedia「アトミウム」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Atomium",
+          "title": "Wikipedia (英語版)「Atomium」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://atomium.be/"
+  },
+  {
+    "spotId": "sp_bb6eb96dbc45",
+    "slug": "belfry-of-bruges",
+    "name": "ブルッヘの鐘楼",
+    "nameEn": "Belfry of Bruges",
+    "reading": "ブルッヘのしょうろう",
+    "aliases": [
+      "ブルージュの鐘楼",
+      "Belfort van Brugge",
+      "ハレの塔",
+      "Halletoren"
+    ],
+    "region": {
+      "country": "ベルギー",
+      "city": "ブルッヘ"
+    },
+    "coords": {
+      "lat": 51.21,
+      "lng": 3.22
+    },
+    "category": "建築",
+    "summary": "ベルギーのブルッヘの中心、マルクト広場に建つ中世の鐘楼です。高さ83メートルのゴシック様式の塔で、町を代表するシンボルの一つです。",
+    "description": "鐘楼は1240年ごろ、ブルッヘがフランドルの毛織物業の中心だった時代に広場に加えられました。1280年の大火のあと上半分が建て直され、八角形の上部は1483年から1487年にかけて増築されました。頂の木の尖塔は二度焼け落ち、1741年に失われてからは再建されず、高さは102メートルから今の83メートルになりました。屋上には1822年にゴシック・リヴァイヴァル様式の石の欄干が加えられています。塔は東に87センチメートル傾いています。366段の細く急な階段で頂上まで上れます（有料）。最上部にはカリヨンがあり、今も専属の奏者の演奏が町に響きます。塔の両脇と後ろには、中庭を持つかつての市場の建物が続きます。「ベルギーとフランスの鐘楼群」「ブルッヘ歴史地区」として世界遺産に登録されています。",
+    "highlights": [
+      "マルクト広場にそびえる高さ83メートルの塔",
+      "八角形の上部と石の欄干",
+      "町に響くカリヨンの音"
+    ],
+    "compositionTips": [
+      "広場の端から広角で見上げると、塔の高さと足元の市場の建物が一枚に収まります",
+      "366段を上った塔の上からは、町の屋根の連なりを見下ろせます"
+    ],
+    "officialWebsiteUrl": "https://www.visitbruges.be/nl/belfort",
+    "timeZone": "Europe/Brussels",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%AB%E3%83%83%E3%83%98%E3%81%AE%E9%90%98%E6%A5%BC",
+          "title": "Wikipedia「ブルッヘの鐘楼」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Belfry_of_Bruges",
+          "title": "Wikipedia (英語版)「Belfry of Bruges」"
+        }
+      ]
+    }
+  },
+  {
+    "spotId": "sp_5489c5323174",
+    "slug": "lake-bled",
+    "name": "ブレッド湖",
+    "nameEn": "Lake Bled",
+    "reading": "ブレッドこ",
+    "aliases": [
+      "Blejsko jezero",
+      "ブレッド島",
+      "Bled"
+    ],
+    "region": {
+      "country": "スロベニア",
+      "city": "ブレッド"
+    },
+    "coords": {
+      "lat": 46.36,
+      "lng": 14.09
+    },
+    "category": "湖沼",
+    "summary": "スロベニア北西部のユリアン・アルプスにある湖で、ブレッドの町に接しています。北岸の上に中世のブレッド城が建ち、湖にはブレッド島が浮かびます。",
+    "description": "湖は長さ2,120メートル、幅1,380メートルで、山と森に囲まれています。ブレッド島はスロベニアで唯一の自然の島で、島の中心の建物は15世紀に建てられた聖母被昇天教会です。教会には52メートルの塔と99段の階段があり、定期的に結婚式が行われています。北岸の上に建つブレッド城は、神聖ローマ皇帝ハインリヒ2世が1004年に領地として与えるために建てたとされる城で、博物館があります。湖はボート競技に向いていて、世界ボート選手権が4度開かれました。一部が温泉で温められるため、真夏には湖面の水温が22〜26度になり、泳ぐ人でにぎわいます。",
+    "highlights": [
+      "湖に浮かぶブレッド島と聖母被昇天教会",
+      "北岸の上に建つブレッド城",
+      "周りを囲むユリアン・アルプスの山と森"
+    ],
+    "seasonalGuide": [
+      {
+        "season": "summer",
+        "text": "真夏には湖面の水温が22〜26度になり、泳ぐ人やパドルボードでにぎわいます。"
+      }
+    ],
+    "compositionTips": [
+      "ブレッド城の側から見下ろすと、島の教会と湖、背後の山並みが一枚に収まります",
+      "湖岸から島の教会を撮るときは、教会の塔を画面の縦の中心から少しずらすと、湖面の広がりが出ます"
+    ],
+    "timeZone": "Europe/Ljubljana",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://ja.wikipedia.org/wiki/%E3%83%96%E3%83%AC%E3%83%83%E3%83%89%E6%B9%96",
+          "title": "Wikipedia「ブレッド湖」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Lake_Bled",
+          "title": "Wikipedia (英語版)「Lake Bled」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.bled.si/en/"
+  },
+  {
+    "spotId": "sp_8c5ba8927626",
+    "slug": "predjama-castle",
+    "name": "プレッドヤマ城",
+    "nameEn": "Predjama Castle",
+    "reading": "プレッドヤマじょう",
+    "aliases": [
+      "プレジャマ城",
+      "Predjamski grad",
+      "Höhlenburg Lueg"
+    ],
+    "region": {
+      "country": "スロベニア",
+      "city": "プレッドヤマ"
+    },
+    "coords": {
+      "lat": 45.82,
+      "lng": 14.13
+    },
+    "category": "城",
+    "summary": "スロベニア中南部のプレッドヤマ村で、岩壁の洞窟の入り口の中に建てられたルネサンス様式の城です。ポストイナの町から約11キロメートルの所にあります。",
+    "description": "1274年にルエッグというドイツ語の名で初めて記録に現れ、アクイレイア総大司教がゴシック様式で建てました。近づきにくくするため、岩壁の高い所の自然の岩のアーチの下に造られています。15世紀には盗賊騎士として名高いエラスムス・ルエッグの居城となりました。エラスムスは城から崖の上へ抜ける縦穴を広げさせ、包囲の間もこの抜け道で食料を運び込んだと伝えられます。ポストイナ鍾乳洞からは約9キロメートルです。",
+    "highlights": [
+      "切り立った岩壁の洞窟の入り口にはめ込まれた城",
+      "城の上に覆いかぶさる自然の岩のアーチ"
+    ],
+    "compositionTips": [
+      "城の正面から少し離れて岩壁ごと収めると、洞窟に城がはめ込まれた姿が伝わります",
+      "岩壁の高さが伝わるよう、縦構図で上の崖まで入れてください"
+    ],
+    "timeZone": "Europe/Ljubljana",
+    "status": "review",
+    "draftedAt": "2026-10-07",
+    "draftedBy": "claude",
+    "createdAt": "2026-10-07T00:00:00.000Z",
+    "updatedAt": "2026-10-07T00:00:00.000Z",
+    "aiCheck": {
+      "checkedAt": "2026-10-07",
+      "delegatedBy": "rymaruta",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Predjama_Castle",
+          "title": "Wikipedia (英語版)「Predjama Castle」"
+        }
+      ]
+    },
+    "officialWebsiteUrl": "https://www.postojnska-jama.eu/en/predjama-castle/"
   }
 ]
