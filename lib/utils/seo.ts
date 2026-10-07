@@ -87,6 +87,10 @@ export const siteConfig = {
     // ——同じパスを3か所に散らさないため。
     ogImage: "/icon-512.png",
     twitterHandle: "@JourneyPhoto",
+    // iOS アプリ（App Store「Journey Photo — 旅の写真」）の App ID。
+    // Safari のページ上部に「アプリで開く／入手」の帯（Smart App Banner）を出すのに使う
+    // （`app/layout.tsx` の `itunes`）。2026-09-28 から公開中（2026-10-07 に iTunes の検索の口で確かめた）
+    iosAppId: "6814335283",
     author: "Journey Photo",
     // `en` は落とした。参照していたのは `og:locale:alternate` だけで、
     // 英語版の URL は存在しない（言語切替は `6d72bfb` で削除済み）
