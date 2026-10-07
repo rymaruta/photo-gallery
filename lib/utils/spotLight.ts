@@ -8,8 +8,9 @@
 //
 // ## 決まりごと
 //
-//   - 時刻は**その土地の時計**。時刻帯は台帳の国から引く（`timeZoneForCountry`・日本は Asia/Tokyo）。
-//     **表に無い国は節を出さない**（月別の表・旅行プランの札と同じ。端末の時計で言うと旅先で読み違える）
+//   - 時刻は**その土地の時計**。時刻帯は台帳の行の `timeZone`（IANA 名・2026-10-07）があればそれ、
+//     無ければ国から引く（`spotTimeZone`・日本は Asia/Tokyo）。
+//     **どちらでも決まらない行は節を出さない**（月別の表・旅行プランの札と同じ。端末の時計で言うと旅先で読み違える）
 //   - 日の出・日の入りの方角は「東北東 67°」（16方位＋北から時計回りの度）
 //   - ゴールデンアワーは太陽の高さ +6°〜−4°、ブルーアワーは −4°〜−6°
 //   - 段の中は時刻の順: 朝はブルーアワー → 日の出 → ゴールデンアワー、夕はゴールデンアワー → 日の入り → ブルーアワー
@@ -17,7 +18,7 @@
 //   - 台帳の `timeOfDayGuide` のうち、夜明け・朝は「朝」の段、夕方の斜光・日没後は「夕」の段に並べる
 //     （日中・夜は撮影ガイドの時間帯に残す）。節を出さないときは全部を撮影ガイドに残す
 
-import { clockIn, sunAltitudeRange, sunTimes, timeZoneForCountry, todayIn, type SunEvent, type SunTimes } from "./sunTimes";
+import { clockIn, spotTimeZone, sunAltitudeRange, sunTimes, todayIn, type SunEvent, type SunTimes } from "./sunTimes";
 
 type Span = { start: SunEvent; end: SunEvent };
 
@@ -44,13 +45,17 @@ export const LIGHT_MAX_OFFSET = 366;
 const HORIZON = -0.833;
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** 座標と国から、節を出す場所か（日付に依らない＝サーバーと水和の最初の描画で同じ答え） */
+/**
+ * 座標と国（と台帳の `timeZone`）から、節を出す場所か（日付に依らない＝サーバーと水和の最初の描画で同じ答え）。
+ * 時刻帯は `timeZone` が先、無ければ国の表（`spotTimeZone`）
+ */
 export function lightZone(
     coords: { lat: number; lng: number } | undefined | null,
     country: string | undefined | null,
+    timeZone?: string | null,
 ): string | null {
     if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lng) || Math.abs(coords.lat) > 90) return null;
-    return timeZoneForCountry(country);
+    return spotTimeZone(timeZone, country);
 }
 
 /** "YYYY-MM-DD" に日数を足す（暦の上で。時刻帯に依らない） */
@@ -67,15 +72,16 @@ export function ymdAt(offset: number, now: Date, timeZone: string): string | nul
     return today ? addDays(today, offset) : null;
 }
 
-/** 節の中身。**時刻帯が引けない国・座標が読めない・段が1つも作れない日は null**（節ごと出さない） */
+/** 節の中身（`spotZone` は台帳の行の `timeZone`）。**時刻帯が引けない国・座標が読めない・段が1つも作れない日は null**（節ごと出さない） */
 export function lightSheet(
     country: string | undefined | null,
     coords: { lat: number; lng: number },
     offset: number,
     now: Date,
     isJa: boolean,
+    spotZone?: string | null,
 ): LightSheet | null {
-    const timeZone = lightZone(coords, country);
+    const timeZone = lightZone(coords, country, spotZone);
     if (!timeZone) return null;
     const today = ymdAt(0, now, timeZone);
     const day = ymdAt(Math.min(Math.max(offset, -LIGHT_MAX_OFFSET), LIGHT_MAX_OFFSET), now, timeZone);

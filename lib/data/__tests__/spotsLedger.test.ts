@@ -4,6 +4,7 @@ import { hasAiCheck,
     publishBlockers, reviewBlockers, visibleSpots, sourcesFor, SOURCED_FIELDS,
 } from "../../utils/spotGuide";
 import { PREFECTURES as PREFECTURE_TABLE } from "../prefectures";
+import { isTimeZoneName, spotTimeZone } from "../../utils/sunTimes";
 import { reviewStage, TEXT_FIELDS, TEXT_ARRAY_FIELDS, TEXT_OBJECT_ARRAY_FIELDS } from "../../../scripts/spots-review-stage.mjs";
 
 /**
@@ -300,7 +301,7 @@ describe("撮影スポット台帳（content/spots.json）", () => {
         spotId: "string", slug: "string", name: "string", nameEn: "string",
         reading: "string", address: "string", category: "string",
         summary: "string", description: "string", status: "string",
-        officialWebsiteUrl: "string", verifiedAt: "string",
+        officialWebsiteUrl: "string", verifiedAt: "string", timeZone: "string",
         createdAt: "string", updatedAt: "string",
         verifiedBy: "string", draftedAt: "string", draftedBy: "string",
         aliases: "array", highlights: "array", compositionTips: "array",
@@ -324,6 +325,22 @@ describe("撮影スポット台帳（content/spots.json）", () => {
             }
         }
         expect(bad, "台帳の項目の形が宣言と違う").toEqual([]);
+    });
+
+    /**
+     * 時刻帯（2026-10-07）。`timeZone` は IANA 名として読めること、**国の表で時刻帯が決まらない国**
+     * （アメリカ・カナダ・オーストラリアなど複数の時刻帯の国、表に無い国）の公開行は `timeZone` を書くこと。
+     * 書かないと光の時刻の節が黙って消える
+     */
+    it("時刻帯: timeZone は IANA 名で、国から決まらない公開行は timeZone を持つ", () => {
+        const bad: string[] = [];
+        for (const s of SPOTS) {
+            if (s.timeZone !== undefined && !isTimeZoneName(s.timeZone)) bad.push(`${s.slug}: timeZone "${s.timeZone}" が読めない`);
+            if (s.status === "published" && s.coords && !spotTimeZone(s.timeZone, s.region?.country)) {
+                bad.push(`${s.slug}: 国「${s.region?.country}」から時刻帯が決まらない——timeZone を書く`);
+            }
+        }
+        expect(bad).toEqual([]);
     });
 
     it("spotId は名前から作られていない（sp_ ＋ 12桁の16進）", () => {
