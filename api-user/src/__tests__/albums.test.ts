@@ -393,6 +393,21 @@ describe("getInvite: アルバムの写真", () => {
         });
     }
 
+    // **持ち主を返す**（既知 H-1・2026-10-07）。アプリはこれで、ブロックした相手の写真を落とす。
+    // 古い行は `uploadedBy` にしか持たない
+    it("写真ごとに持ち主の uid を返す（古い行は uploadedBy）", async () => {
+        serve({ title: "旅", photoIds: ["old", "new", "none"] }, {
+            old: { id: "old", src: "https://cdn/o.jpg", uploadedBy: "u-old" },
+            new: { id: "new", src: "https://cdn/n.jpg", userId: "u-new", uploadedBy: "u-ignored" },
+            none: { id: "none", src: "https://cdn/x.jpg" },
+        });
+        const photos = bodyOf(await call(getInvite, tok)).photos as { id: string; userId?: string }[];
+        const owner = Object.fromEntries(photos.map((p) => [p.id, p.userId]));
+        expect(owner.new, "userId を返していない").toBe("u-new");
+        expect(owner.old, "古い行の uploadedBy を見ていない").toBe("u-old");
+        expect(owner.none).toBeUndefined();
+    });
+
     it("新しい方から返す", async () => {
         serve({ title: "旅", photoIds: ["p1", "p2"] }, {
             p1: { id: "p1", src: "https://cdn/1.jpg" },

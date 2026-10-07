@@ -318,6 +318,13 @@ export const revokeInvite: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) };
 };
 
+/** 写真の行の持ち主（`userId`、古い行は `uploadedBy`）。どちらも無ければ undefined */
+function ownerOf(p: Record<string, unknown>): string | undefined {
+    if (typeof p.userId === "string" && p.userId) return p.userId;
+    if (typeof p.uploadedBy === "string" && p.uploadedBy) return p.uploadedBy;
+    return undefined;
+}
+
 /**
  * GET /invites/{token} — 招待の中身（**未認証で読める**）。
  *
@@ -408,6 +415,11 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
             width: typeof p.width === "number" ? p.width : undefined,
             height: typeof p.height === "number" ? p.height : undefined,
             blurDataURL: typeof p.blurDataURL === "string" ? p.blurDataURL : undefined,
+            // **持ち主の uid**（2026-10-07 判断）。アプリが、見ている人のブロックした相手の
+            // 写真を落とすのに要る（iOS `InviteView` の `dropped.visible`・既知 H-1）。
+            // uid は公開の photos.json にも載っていて秘密ではない（`comments.ts` の注記と同じ）。
+            // 古い行は `uploadedBy` にしか持たないので、そちらも見る
+            userId: ownerOf(p),
         });
     }
 
