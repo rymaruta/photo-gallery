@@ -91377,7 +91377,8 @@
           "title": "Wikidata「Q31093」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://newtaipei.travel/"
   },
   {
     "spotId": "sp_5948d2030af1",
@@ -91423,7 +91424,7 @@
       "節の重なりが形の見どころなので、縦位置で頂部まで入れると輪郭が伝わります",
       "大晦日の花火はビル全体が入る距離から、塔と花火を一緒に収めます"
     ],
-    "officialWebsiteUrl": "http://www.taipei-101.com.tw/",
+    "officialWebsiteUrl": "https://www.taipei-101.com.tw/",
     "timeZone": "Asia/Taipei",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -91576,7 +91577,6 @@
     "reading": "けいふくきゅう",
     "aliases": [
       "キョンボックン",
-      "경복궁",
       "Gyeongbokgung",
       "光化門"
     ],
@@ -91632,7 +91632,6 @@
     "reading": "かむちょんぶんかむら",
     "aliases": [
       "甘川洞文化村",
-      "감천문화마을",
       "Gamcheon Culture Village"
     ],
     "region": {
@@ -91645,7 +91644,7 @@
       "lng": 129.01
     },
     "category": "町並み",
-    "summary": "韓国・釜山広域市沙下区にある集落で、カラフルな町並みで知られる観光地です。",
+    "summary": "韓国・釜山広域市沙下区にある集落で、山の斜面に広がるカラフルな家並みで知られる観光地です。",
     "description": "もとは1950年代に朝鮮戦争の避難民と太極道の信者がつくった町です。2009年の公共美術プロジェクト「夢を見る釜山のマチュピチュ」、2010年の「ミロミロ（美路迷路）路地プロジェクト」をはじめ公共美術の事業が続き、芸術的な雰囲気の町になりました。「韓国のマチュピチュ」「韓国のサントリーニ」などと呼ばれることもあります。釜山交通公社地下鉄1号線のチャガルチ駅や土城駅からマウルバスに乗り、甘川小学校で降ります。",
     "highlights": [
       "斜面に広がるカラフルな家並み",
@@ -91746,7 +91745,6 @@
     "reading": "ぶっこくじ",
     "aliases": [
       "プルグクサ",
-      "불국사",
       "Bulguksa"
     ],
     "region": {
@@ -91770,7 +91768,7 @@
       "石垣の上に伽藍が載る造りなので、少し引いて石垣と石橋を下に入れると寺の構えが伝わります",
       "多宝塔と釈迦塔は形がまったく違うので、並べて対比させます"
     ],
-    "officialWebsiteUrl": "http://www.bulguksa.or.kr",
+    "officialWebsiteUrl": "https://www.gyeongju.go.kr/tour/",
     "timeZone": "Asia/Seoul",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -91843,7 +91841,8 @@
           "title": "Wikidata「Q1045876」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.royalgrandpalace.th/"
   },
   {
     "spotId": "sp_56690492b3e7",
@@ -91878,7 +91877,7 @@
       "像はニューヨーク港の方を向いているので、港の側から正面の顔と松明を入れます",
       "台座を含めると高さ93メートルあるので、引いた位置から台座ごと縦位置で収めます"
     ],
-    "officialWebsiteUrl": "http://www.nps.gov/stli/index.htm",
+    "officialWebsiteUrl": "https://www.nps.gov/stli/index.htm",
     "timeZone": "America/New_York",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -91973,61 +91972,8 @@
           "title": "Wikidata「Q34221」（座標・所在地）"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_e13331e1c75b",
-    "slug": "wat-arun",
-    "name": "ワット・アルン",
-    "nameEn": "Wat Arun",
-    "reading": "ワット・アルン",
-    "aliases": [
-      "ワット・アルンラーチャワラーラーム",
-      "暁の寺",
-      "Temple of Dawn",
-      "Wat Arun Ratchawararam"
-    ],
-    "region": {
-      "country": "タイ",
-      "prefecture": "バンコク"
     },
-    "coords": {
-      "lat": 13.74,
-      "lng": 100.49
-    },
-    "category": "寺院",
-    "summary": "タイ・バンコクのチャオプラヤー川沿いに建つ寺院で、正式名はワット・アルンラーチャワラーラームです。「アルン」は暁の意味で、英語ではTemple of Dawnと呼ばれます。",
-    "description": "1767年のアユタヤ朝の滅亡後、タークシンが修復してトンブリー王朝の王宮寺院としました。1820年にラーマ2世がヒンドゥー教の暁の神アルーナにちなむ現在の名に改めています。最も特徴的なのはトウモロコシのような形をしたバンコク様式の大仏塔で、高さは75メートルあり、中心の大塔を4つの小塔が囲んで須弥山を表しています。塔の表面は陶器の破片で飾られ、基壇にはラーマキエン物語に登場する鬼やガルーダ、ハヌマーンが並びます。三島由紀夫の小説『暁の寺』の舞台となり、川沿いにたたずむ姿はバンコクを代表する風景に数えられます。",
-    "highlights": [
-      "高さ75メートル、トウモロコシのような形の大仏塔",
-      "陶器の破片で飾られた塔の表面",
-      "チャオプラヤー川沿いにたたずむ、バンコクを代表する風景"
-    ],
-    "compositionTips": [
-      "川沿いの姿が代表的な風景なので、引いた位置から川面と一緒に収めます",
-      "塔の表面は陶器の破片の装飾なので、望遠で模様を切り取ると細部が伝わります"
-    ],
-    "officialWebsiteUrl": "http://www.watarun.net/",
-    "timeZone": "Asia/Bangkok",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%83%AF%E3%83%83%E3%83%88%E3%83%BB%E3%82%A2%E3%83%AB%E3%83%B3%E3%83%A9%E3%83%BC%E3%83%81%E3%83%A3%E3%83%AF%E3%83%A9%E3%83%BC%E3%83%A9%E3%83%BC%E3%83%A0",
-          "title": "Wikipedia「ワット・アルンラーチャワラーラーム」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q724970",
-          "title": "Wikidata「Q724970」（座標・所在地）"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://www.niagaraparks.com/"
   },
   {
     "spotId": "sp_3c2fa57649b4",
@@ -92061,7 +92007,7 @@
       "仏塔の陶器の装飾は近づいて望遠で切り取ると、色と模様がよく出ます",
       "涅槃仏は大きいので、足元から頭の方へ向けて奥行きを使って収めます"
     ],
-    "officialWebsiteUrl": "http://www.watpho.com/",
+    "officialWebsiteUrl": "https://www.watpho.com/",
     "timeZone": "Asia/Bangkok",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -92134,7 +92080,8 @@
           "title": "Wikidata「Q496543」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.tourismthailand.org/Attraction/wat-rong-khun"
   },
   {
     "spotId": "sp_3227f7e466e7",
@@ -92194,114 +92141,8 @@
           "title": "Wikidata「Q190128」（座標・所在地）"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_6d97189da25b",
-    "slug": "japanese-covered-bridge-hoi-an",
-    "name": "来遠橋",
-    "nameEn": "Japanese Covered Bridge",
-    "reading": "らいおんばし",
-    "aliases": [
-      "日本橋（ホイアン）",
-      "Chùa Cầu",
-      "Cầu Nhật Bản",
-      "Japanese Bridge",
-      "ホイアン"
-    ],
-    "region": {
-      "country": "ベトナム",
-      "prefecture": "クアンナム省",
-      "city": "ホイアン"
     },
-    "coords": {
-      "lat": 15.88,
-      "lng": 108.33
-    },
-    "category": "橋",
-    "summary": "ベトナムのホイアン旧市街にある、瓦屋根付きの石の太鼓橋です。日本橋とも呼ばれ、1593年に日本人が架けたとされています。",
-    "description": "世界文化遺産のホイアン旧市街で、チャンフー通りとグエン・チ・ミンカイ通りを結ぶ場所にあります。幅3メートル、長さ18メートルの橋で、当時の日本人町と中華街を結んでいたとされます。橋の中に祠があり、ベトナム語ではChùa Cầu（橋寺）とも呼ばれます。1719年に広南国の阮福淍が論語の一節から「来遠橋」と名付けたとされ、申年に建築が始まり戌年に終わったことから、橋の両端には申と戌の木像があります。現在の橋は1986年に修復されたものです。",
-    "highlights": [
-      "瓦屋根の付いた幅3メートル、長さ18メートルの太鼓橋",
-      "橋の中に設けられた祠",
-      "橋の両端に置かれた申と戌の木像"
-    ],
-    "compositionTips": [
-      "屋根付きの太鼓橋の形が見どころなので、正面より少し斜めから全体の弧を入れます",
-      "両端の申と戌の木像は、橋の由来を伝える細部として寄って撮ります"
-    ],
-    "timeZone": "Asia/Ho_Chi_Minh",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E6%9D%A5%E9%81%A0%E6%A9%8B",
-          "title": "Wikipedia「来遠橋」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q1091054",
-          "title": "Wikidata「Q1091054」（座標・所在地）"
-        }
-      ]
-    }
-  },
-  {
-    "spotId": "sp_4cff897cd8c8",
-    "slug": "saigon-notre-dame-cathedral",
-    "name": "サイゴン大教会",
-    "nameEn": "Notre-Dame Cathedral Basilica of Saigon",
-    "reading": "サイゴンだいきょうかい",
-    "aliases": [
-      "聖マリア大聖堂",
-      "サイゴン聖母大聖堂",
-      "Saigon Notre-Dame Cathedral"
-    ],
-    "region": {
-      "country": "ベトナム",
-      "prefecture": "ホーチミン市"
-    },
-    "coords": {
-      "lat": 10.78,
-      "lng": 106.7
-    },
-    "category": "教会",
-    "summary": "ベトナム・ホーチミン市にある、カトリックの大司教座大聖堂です。フランスの植民地だった1863年から1880年にかけて建てられたネオ・ゴシック様式の教会です。",
-    "description": "聖マリア（ノートル・ダム）大聖堂とも呼ばれ、1962年にバシリカとなりました。教会とその前の庭園を挟むように、200メートルほどのパリ公社通りが通り、すぐ近くのサイゴン中央郵便局もこの通りに面しています。東南のロータリーからはドンコイ通りが始まり、付近一帯は植民地時代の面影を残す観光地になっています。休日のミサには多くの市民が集まり、入りきれない信徒が建物正面の広場にあふれるほどです。",
-    "highlights": [
-      "フランス植民地時代のネオ・ゴシック様式の大聖堂",
-      "教会前の庭園と、近くのサイゴン中央郵便局",
-      "植民地時代の面影を残す周辺の街並み"
-    ],
-    "compositionTips": [
-      "正面の広場と庭園の側から構えると、建物の正面を広く入れられます",
-      "近くのサイゴン中央郵便局と合わせて、植民地時代の街並みとして撮ります"
-    ],
-    "timeZone": "Asia/Ho_Chi_Minh",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%82%B5%E3%82%A4%E3%82%B4%E3%83%B3%E5%A4%A7%E6%95%99%E4%BC%9A",
-          "title": "Wikipedia「サイゴン大教会」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q428129",
-          "title": "Wikidata「Q428129」（座標・所在地）"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://halongbay.com.vn/"
   },
   {
     "spotId": "sp_be67c6fa5d18",
@@ -92460,7 +92301,8 @@
           "title": "Wikidata「Q6819812」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.visitsingapore.com/neighbourhood/featured-neighbourhood/marina-bay/merlion-park/"
   },
   {
     "spotId": "sp_0076d0d893da",
@@ -92476,8 +92318,7 @@
       "Victoria Peak"
     ],
     "region": {
-      "country": "中国",
-      "prefecture": "香港",
+      "country": "香港",
       "city": "中西区"
     },
     "coords": {
@@ -92521,59 +92362,8 @@
           "title": "Wikidata「Q17541」（座標・所在地）"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_867c9c76b654",
-    "slug": "tian-tan-buddha",
-    "name": "天壇大仏",
-    "nameEn": "Tian Tan Buddha",
-    "reading": "てんだんだいぶつ",
-    "aliases": [
-      "天壇大佛",
-      "Big Buddha",
-      "Tian Tan Buddha",
-      "宝蓮寺"
-    ],
-    "region": {
-      "country": "中国",
-      "prefecture": "香港",
-      "city": "ランタオ島"
     },
-    "coords": {
-      "lat": 22.25,
-      "lng": 113.91
-    },
-    "category": "仏像",
-    "summary": "香港・新界のランタオ島昂坪にある、宝蓮寺の大仏です。1993年12月29日に完成し、高さは34メートルあります。",
-    "description": "重さは250トンを超え、202の銅片で組み立てられています。香港の仏教の中心地であり、観光名所にもなっています。大仏のある高台へは、268段の階段を上るか、曲がりくねった車道を通ります。",
-    "highlights": [
-      "202の銅片で組み立てられた高さ34メートルの大仏",
-      "高台へ続く268段の階段"
-    ],
-    "compositionTips": [
-      "高台の上に座る大仏なので、階段の下から見上げて階段と大仏を一緒に入れます"
-    ],
-    "timeZone": "Asia/Hong_Kong",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E5%A4%A9%E5%A3%87%E5%A4%A7%E4%BB%8F",
-          "title": "Wikipedia「天壇大仏」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q528079",
-          "title": "Wikidata「Q528079」（座標・所在地）"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://www.thepeak.com.hk/en"
   },
   {
     "spotId": "sp_14e2c4bfee2a",
@@ -92588,8 +92378,7 @@
       "Ruins of St. Paul's"
     ],
     "region": {
-      "country": "中国",
-      "prefecture": "マカオ"
+      "country": "マカオ"
     },
     "coords": {
       "lat": 22.2,
@@ -92626,61 +92415,8 @@
           "title": "Wikidata「Q1551411」（座標・所在地）"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_7624b7cfb037",
-    "slug": "the-bund-shanghai",
-    "name": "外灘",
-    "nameEn": "The Bund",
-    "reading": "がいたん",
-    "aliases": [
-      "ワイタン",
-      "ザ・バンド",
-      "The Bund",
-      "外滩"
-    ],
-    "region": {
-      "country": "中国",
-      "prefecture": "上海市",
-      "city": "黄浦区"
     },
-    "coords": {
-      "lat": 31.24,
-      "lng": 121.49
-    },
-    "category": "町並み",
-    "summary": "中国・上海市の黄浦区、黄浦江の西岸を走る中山東一路沿いの約1.1キロメートルの地域です。租界時代に建てられた西洋式の高層建築が建ち並びます。",
-    "description": "19世紀後半から20世紀前半にかけての租界地区で、東アジアの金融の中心となった時代に建築ラッシュを迎えました。中山路の西側には外灘の景観を特徴づける52棟の西洋建築が並び、建物群は1996年に全国重点文物保護単位に指定されています。中山路の東側は堤防で、1990年代にかさ上げされた道路より10メートル高い堤防が、いまの景観をつくっています。伝統的な範囲は、南の延安路から、北は蘇州河に架かる外白渡橋（旧ガーデンブリッジ）までです。",
-    "highlights": [
-      "中山路の西側に並ぶ52棟の西洋建築",
-      "黄浦江沿いに築かれた、道路より10メートル高い堤防",
-      "北端で蘇州河に架かる外白渡橋"
-    ],
-    "compositionTips": [
-      "建物は川沿いに一列に並ぶので、堤防の上から斜めに見通すと連なりが出ます",
-      "外白渡橋を手前に入れると、外灘の北の端としての位置関係が伝わります"
-    ],
-    "timeZone": "Asia/Shanghai",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E5%A4%96%E7%81%98",
-          "title": "Wikipedia「外灘」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q125474",
-          "title": "Wikidata「Q125474」（座標・所在地）"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://www.wh.mo/en/site/detail/18"
   },
   {
     "spotId": "sp_e6d0090feb8e",
@@ -92799,113 +92535,6 @@
         {
           "url": "https://www.wikidata.org/wiki/Q515253",
           "title": "Wikidata「Q515253」（座標・所在地）"
-        }
-      ]
-    }
-  },
-  {
-    "spotId": "sp_ee135e54dd7c",
-    "slug": "borobudur",
-    "name": "ボロブドゥール遺跡",
-    "nameEn": "Borobudur",
-    "reading": "ボロブドゥールいせき",
-    "aliases": [
-      "ボロブドゥール",
-      "チャンディ・ボロブドゥール",
-      "Candi Borobudur",
-      "Borobudur"
-    ],
-    "region": {
-      "country": "インドネシア",
-      "prefecture": "中部ジャワ州",
-      "city": "マゲラン県"
-    },
-    "coords": {
-      "lat": -7.61,
-      "lng": 110.2
-    },
-    "category": "遺跡",
-    "summary": "インドネシアのジャワ島中部、ケドゥ盆地にある大規模な仏教遺跡です。9世紀に建てられた石造りの仏教寺院で、ユネスコの世界遺産に登録されています。",
-    "description": "大乗仏教の遺跡で、シャイレーンドラ朝の時代に建てられました。ジョグジャカルタの北西約40キロメートル、海抜約265メートルの丘の上にあり、周りをスンドロ山・スンビン山、メルバブ山・ムラピ山という二組の双子火山に囲まれています。高さはもともと42メートルありましたが、破損によっていまは33.5メートルです。方形の壇の回廊には仏教説話や歴史の場面を描いたレリーフが絵巻物のように続き、3段の円形壇の上には釣鐘のような形のストゥーパが72基並び、その内部に仏像が1体ずつ納められています。",
-    "highlights": [
-      "円形壇の上に並ぶ、釣鐘のような形の72基のストゥーパ",
-      "方形の壇の回廊に絵巻物のように続くレリーフ",
-      "二組の双子火山に囲まれたケドゥ平原の眺め"
-    ],
-    "compositionTips": [
-      "円形壇のストゥーパは連なりが見どころなので、並びに沿って斜めに構えて奥行きを出します",
-      "周りを火山に囲まれた立地なので、ストゥーパ越しに遠くの山を入れると場所が伝わります"
-    ],
-    "officialWebsiteUrl": "http://www.borobudurpark.com",
-    "timeZone": "Asia/Jakarta",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%83%9C%E3%83%AD%E3%83%96%E3%83%89%E3%82%A5%E3%83%BC%E3%83%AB%E9%81%BA%E8%B7%A1",
-          "title": "Wikipedia「ボロブドゥール遺跡」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q42798",
-          "title": "Wikidata「Q42798」（座標・所在地）"
-        }
-      ]
-    }
-  },
-  {
-    "spotId": "sp_c0647d540f70",
-    "slug": "angkor-wat",
-    "name": "アンコール・ワット",
-    "nameEn": "Angkor Wat",
-    "reading": "アンコール・ワット",
-    "aliases": [
-      "Angkor Wat",
-      "アンコールワット",
-      "アンコール遺跡"
-    ],
-    "region": {
-      "country": "カンボジア",
-      "prefecture": "シェムリアップ州"
-    },
-    "coords": {
-      "lat": 13.41,
-      "lng": 103.87
-    },
-    "category": "遺跡",
-    "summary": "カンボジア北西部にある、アンコール遺跡を代表する巨大な寺院です。12世紀前半にヒンドゥー教寺院として建てられ、16世紀後半に仏教寺院に改められました。",
-    "description": "クメール語でアンコールは王都、ワットは寺院を意味します。スーリヤヴァルマン2世が、30年を超える歳月をかけてヴィシュヌ派の寺院として建てました。13世紀後半には西からの参道が造られています。大伽藍と美しい彫刻を特徴とするクメール建築の傑作とされ、カンボジアの国旗の中央にも描かれています。周りを堀と城壁に囲まれ、中央の楼閣から周りを見下ろせる、城郭のような造りです。1632年に日本人の森本右近太夫一房が残した墨書も知られています。1992年にアンコール遺跡として世界遺産に登録されました。",
-    "highlights": [
-      "堀と城壁に囲まれた大伽藍と、中央の楼閣",
-      "回廊に施された彫刻",
-      "1632年に日本人が残した墨書"
-    ],
-    "compositionTips": [
-      "西からの参道を手前に入れ、その先の大伽藍へ視線を導きます",
-      "回廊の彫刻は場面ごとに切り取ると、細部が伝わります"
-    ],
-    "timeZone": "Asia/Phnom_Penh",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%82%A2%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%AB%E3%83%BB%E3%83%AF%E3%83%83%E3%83%88",
-          "title": "Wikipedia「アンコール・ワット」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q43473",
-          "title": "Wikidata「Q43473」（座標・所在地）"
         }
       ]
     }
@@ -93078,7 +92707,8 @@
           "title": "Wikidata「Q272153」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://tourism.cp.gov.lk/en/sigiriya"
   },
   {
     "spotId": "sp_f01f52e4613c",
@@ -93132,7 +92762,8 @@
           "title": "Wikidata「Q12506」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://ayasofyacamii.gov.tr/"
   },
   {
     "spotId": "sp_f36cea1748ed",
@@ -93185,60 +92816,8 @@
           "title": "Wikidata「Q80541」（座標・所在地）"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_0e70e348f32c",
-    "slug": "pamukkale",
-    "name": "パムッカレ",
-    "nameEn": "Pamukkale",
-    "reading": "パムッカレ",
-    "aliases": [
-      "ヒエラポリス-パムッカレ",
-      "ヒエラポリス",
-      "Pamukkale",
-      "Hierapolis"
-    ],
-    "region": {
-      "country": "トルコ",
-      "prefecture": "デニズリ県"
     },
-    "coords": {
-      "lat": 37.92,
-      "lng": 29.13
-    },
-    "category": "自然現象",
-    "summary": "トルコにある、純白の棚田のような石灰華の段丘です。トルコ語で「綿の宮殿」を意味し、段丘の上のヒエラポリス遺跡とあわせて世界遺産に登録されています。",
-    "description": "地熱で温められた地下水が温泉として湧き出し、その温水から炭酸カルシウム（石灰）が沈殿して、純白の棚田のような景観をつくっています。棚田の畦の部分は、流れてきた植物片などに石灰分が付き、次第に堤のように育ったものです。この景観は約200メートルの高さにわたって続いています。段丘の一番上にあるヒエラポリスは、ローマ帝国の温泉保養地として栄えた都市の遺跡で、1354年の大地震で廃墟となりました。ローマ劇場とローマ浴場が残っています。",
-    "highlights": [
-      "約200メートルの高さにわたって続く純白の石灰華段丘",
-      "温泉が流れる、棚田のような段々の池",
-      "段丘の上に残るヒエラポリスのローマ劇場"
-    ],
-    "compositionTips": [
-      "段々の池が重なる形が見どころなので、斜面に沿って見下ろし、畦の曲線を並べて収めます",
-      "純白の石灰華は露出が飛びやすいので、白が残るよう控えめに合わせます"
-    ],
-    "timeZone": "Europe/Istanbul",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%83%92%E3%82%A8%E3%83%A9%E3%83%9D%E3%83%AA%E3%82%B9-%E3%83%91%E3%83%A0%E3%83%83%E3%82%AB%E3%83%AC",
-          "title": "Wikipedia「ヒエラポリス-パムッカレ」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q7428276",
-          "title": "Wikidata「Q7428276」（座標・所在地）"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://www.sultanahmetcami.org/"
   },
   {
     "spotId": "sp_e6c5a6030355",
@@ -93274,7 +92853,7 @@
       "シークの出口では、狭い岩の切れ目の先にエル・カズネが見えるので、両側の岩壁を額縁にして収めます",
       "エル・カズネの正面は高さ約40メートルあるので、人を小さく入れると大きさが伝わります"
     ],
-    "officialWebsiteUrl": "http://www.visitpetra.jo/",
+    "officialWebsiteUrl": "https://www.visitpetra.jo/",
     "timeZone": "Asia/Amman",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -93327,7 +92906,7 @@
       "地上から見上げるとオニオンドームを連想させる形なので、足元から広角で見上げて先端まで入れます",
       "らせん状に後退する段が見どころなので、斜めの角度から段の重なりを捉えます"
     ],
-    "officialWebsiteUrl": "http://www.burjkhalifa.ae",
+    "officialWebsiteUrl": "https://www.burjkhalifa.ae/",
     "timeZone": "Asia/Dubai",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -93398,7 +92977,8 @@
           "title": "Wikidata「Q258348」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://visitmarrakech.com/"
   },
   {
     "spotId": "sp_985a312f4048",
@@ -93452,7 +93032,8 @@
           "title": "Wikidata「Q37200」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://egymonuments.gov.eg/archaeological-sites/giza-plateau/"
   },
   {
     "spotId": "sp_46dc7c6c3cc0",
@@ -93513,7 +93094,8 @@
           "title": "Wikidata「Q134140」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://egymonuments.gov.eg/archaeological-sites/abu-simbel/"
   },
   {
     "spotId": "sp_17ebab9eb8ef",
@@ -93626,7 +93208,8 @@
           "title": "Wikidata「Q125006」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nyc.gov/html/dot/html/infrastructure/brooklyn-bridge.shtml"
   },
   {
     "spotId": "sp_a0dd988eaedf",
@@ -93853,7 +93436,8 @@
           "title": "Wikidata「Q118841」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/grca/index.htm"
   },
   {
     "spotId": "sp_bb34456e491d",
@@ -93899,7 +93483,7 @@
       "光芒を撮るなら、太陽が高い時間のアッパー・アンテロープ・キャニオンを選びます",
       "岩壁の曲線が見どころなので、見上げる角度で壁の重なりと開口部の光を一緒に入れます"
     ],
-    "officialWebsiteUrl": "http://www.antelopecanyon.com/",
+    "officialWebsiteUrl": "https://www.antelopecanyon.com/",
     "timeZone": "America/Phoenix",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -93971,7 +93555,8 @@
           "title": "Wikidata「Q925252」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/yose/planyourvisit/halfdome.htm"
   },
   {
     "spotId": "sp_2258b5d4603f",
@@ -94032,7 +93617,8 @@
           "title": "Wikidata「Q192017」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://navajonationparks.org/navajo-tribal-parks/monument-valley/"
   },
   {
     "spotId": "sp_f86754740514",
@@ -94094,7 +93680,8 @@
           "title": "Wikidata「Q1422831」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nps.gov/yell/index.htm"
   },
   {
     "spotId": "sp_8e8f6285757b",
@@ -94147,7 +93734,8 @@
           "title": "Wikidata「Q944686」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://dlnr.hawaii.gov/dsp/parks/oahu/diamond-head-state-monument/"
   },
   {
     "spotId": "sp_8587a82265c7",
@@ -94205,7 +93793,8 @@
           "title": "Wikidata「Q1072342」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://parks.canada.ca/pn-np/ab/banff/visit/les10-top10/louise"
   },
   {
     "spotId": "sp_3976c7bdc63f",
@@ -94256,7 +93845,8 @@
           "title": "Wikidata「Q1367398」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://parks.canada.ca/pn-np/ab/banff/visit/les10-top10/louise"
   },
   {
     "spotId": "sp_0c3649eeb641",
@@ -94289,7 +93879,7 @@
       "グラス・フロアでは足元を真下に向けて、真下の地上を見下ろす構図が撮れます",
       "塔の全体を入れるには、離れた位置から街並みと一緒に縦位置で構えます"
     ],
-    "officialWebsiteUrl": "http://www.cntower.ca/",
+    "officialWebsiteUrl": "https://www.cntower.ca/",
     "timeZone": "America/Toronto",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -94467,7 +94057,7 @@
     "compositionTips": [
       "遺跡の背後にワイナ・ピチュがそびえるので、段々畑を手前に入れて、遺跡とワイナ・ピチュを重ねます"
     ],
-    "officialWebsiteUrl": "http://www.machupicchu.gob.pe/",
+    "officialWebsiteUrl": "https://www.machupicchu.gob.pe/",
     "timeZone": "America/Lima",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -94485,58 +94075,6 @@
         {
           "url": "https://www.wikidata.org/wiki/Q676203",
           "title": "Wikidata「Q676203」（座標・所在地）"
-        }
-      ]
-    }
-  },
-  {
-    "spotId": "sp_9c098e5b1bff",
-    "slug": "salar-de-uyuni",
-    "name": "ウユニ塩原",
-    "nameEn": "Salar de Uyuni",
-    "reading": "ウユニえんげん",
-    "aliases": [
-      "ウユニ塩湖",
-      "Salar de Uyuni",
-      "天空の鏡",
-      "トゥヌパ塩原"
-    ],
-    "region": {
-      "country": "ボリビア"
-    },
-    "coords": {
-      "lat": -20.33,
-      "lng": -67.7
-    },
-    "category": "自然現象",
-    "summary": "ボリビア中央西部のアルティプラーノ、標高約3,700メートルにある塩の大地です。面積は約10,582平方キロメートルで、世界一の面積を持つ塩類平原です。一般にはウユニ塩湖と呼ばれます。",
-    "description": "アンデス山脈が隆起したとき山の上に残った海水が干上がってできたとされます。100キロメートル四方で高低差が50センチメートルしかない「世界で最も平らな場所」で、雨季に冠水すると、水が波も立たないほど薄く広がり、蒸発するまでのわずかな期間に「天空の鏡」と形容される巨大な鏡が現れます。乾季（7月ごろから10月ごろ）にはほぼ乾き、表面には径1〜2メートルの六角形のひび割れ模様ができます。塩原の中央付近には、サボテンが多く生える高さおよそ40メートルの「魚島」があります。見渡す限り白い風景で目印が乏しいため、塩原内の移動は地元の観光業者の車に任せるのが安全です。",
-    "highlights": [
-      "雨季の冠水で現れる「天空の鏡」",
-      "乾季に広がる六角形の塩のひび割れ模様",
-      "サボテンが生える魚島"
-    ],
-    "compositionTips": [
-      "「天空の鏡」の時期は、地平線を画面の中央に置くと空と映り込みが上下対称になります",
-      "乾季は六角形のひび割れを手前に大きく入れ、模様の連なりで広さを伝えます"
-    ],
-    "timeZone": "America/La_Paz",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%82%A6%E3%83%A6%E3%83%8B%E5%A1%A9%E5%8E%9F",
-          "title": "Wikipedia「ウユニ塩原」"
-        },
-        {
-          "url": "https://www.wikidata.org/wiki/Q76122",
-          "title": "Wikidata「Q76122」（座標・所在地）"
         }
       ]
     }
@@ -94591,7 +94129,8 @@
           "title": "Wikidata「Q367943」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.argentina.gob.ar/parquesnacionales/patagonia-austral/parque-nacional-los-glaciares"
   },
   {
     "spotId": "sp_b445f3534fed",
@@ -94753,7 +94292,8 @@
           "title": "Wikidata「Q54495」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.sydney.com/destinations/sydney/sydney-city/sydney-harbour/sydney-harbour-bridge"
   },
   {
     "spotId": "sp_a27e92a45cf4",
@@ -94797,7 +94337,7 @@
       "朝夕で色が刻々と変わるので、同じ位置から時間をおいて何枚か撮り、色の移り変わりを残します",
       "縦じまの質感は、望遠で岩肌を切り取ると際立ちます"
     ],
-    "officialWebsiteUrl": "http://www.environment.gov.au/parks/uluru/index.html",
+    "officialWebsiteUrl": "https://parksaustralia.gov.au/uluru/",
     "timeZone": "Australia/Darwin",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -94875,7 +94415,8 @@
           "title": "Wikidata「Q1194022」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.mackenzienz.com/visit-lake-tekapo/"
   },
   {
     "spotId": "sp_ba5f25bf0096",
@@ -94927,7 +94468,8 @@
           "title": "Wikidata「Q187197」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.fiordland.org.nz/visit/milford-sound/"
   },
   {
     "spotId": "sp_b1db93590054",
@@ -94986,7 +94528,8 @@
           "title": "Wikidata「Q43278」（座標・所在地）"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://zimparks.org.zw/victoria-falls-national-park/"
   },
   {
     "spotId": "sp_c96f743a77a9",
@@ -95152,7 +94695,8 @@
           "title": "Wikipedia (英語版)「Skógafoss」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.south.is/en/destinations/nature/nature/skogafoss-waterfall"
   },
   {
     "spotId": "sp_ad7b7416cf49",
@@ -95213,7 +94757,8 @@
           "title": "Wikipedia (英語版)「Jökulsárlón」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.vatnajokulsthjodgardur.is/en/areas/jokulsarlon"
   },
   {
     "spotId": "sp_933b875d6b0a",
@@ -95262,7 +94807,8 @@
           "title": "Wikipedia (英語版)「Kirkjufell」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.grundarfjordur.is/"
   },
   {
     "spotId": "sp_63e1709340f6",
@@ -95373,67 +94919,8 @@
           "title": "Wikipedia (英語版)「Preikestolen」"
         }
       ]
-    }
-  },
-  {
-    "spotId": "sp_618af67597ea",
-    "slug": "geirangerfjord",
-    "name": "ガイランゲルフィヨルド",
-    "nameEn": "Geirangerfjord",
-    "reading": "ガイランゲルフィヨルド",
-    "aliases": [
-      "ガイランゲル・フィヨルド",
-      "Geirangerfjorden",
-      "Geiranger Fjord",
-      "西ノルウェーフィヨルド群"
-    ],
-    "region": {
-      "country": "ノルウェー",
-      "prefecture": "ムーレ・オ・ロムスダール県",
-      "city": "ストランダ"
     },
-    "coords": {
-      "lat": 62.09,
-      "lng": 7.08
-    },
-    "category": "湾",
-    "summary": "ノルウェー西部、ムーレ・オ・ロムスダール県の南ムーレ地方にある長さ15キロメートルのフィヨルドです。2005年にネーロイフィヨルドとともに世界遺産に登録されました。",
-    "description": "ストールフィヨルドの支流で、いちばん奥にガイランゲル村があります。ノルウェーで最も訪れる人の多い観光地の一つです。両岸には今は使われていない農場がいくつもあり、スカーゲフローやクニーヴスフローなどがよく訪れられます。スカーゲフローへはガイランゲルから歩いても行けます。ガイランゲルとヘルシルトの間には、遊覧も兼ねたカーフェリーが通っています。フィヨルドには滝も多く、「七姉妹」と「求婚者」はフィヨルドを挟んで向かい合っていて、「求婚者」が向かいの「七姉妹」に言い寄っているのだと言い伝えられています。岩の縁を繊細に流れる「花嫁のベール」という滝もあります。",
-    "highlights": [
-      "フィヨルドを挟んで向かい合う「七姉妹」と「求婚者」の滝",
-      "日の光に透けて薄いベールのように見える「花嫁のベール」の滝",
-      "両岸の斜面に残る農場"
-    ],
-    "timeOfDayGuide": [
-      {
-        "time": "day",
-        "text": "「花嫁のベール」の滝は、太陽の光で後ろから照らされると、岩肌に薄いベールがかかったように見えます。"
-      }
-    ],
-    "compositionTips": [
-      "ガイランゲルとヘルシルトを結ぶフェリーの上からは、両岸の滝を水面の高さから見上げられます",
-      "崖の斜面の農場を入れると、切り立った岸の高さが伝わります"
-    ],
-    "timeZone": "Europe/Oslo",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E8%A5%BF%E3%83%8E%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%BC%E3%83%95%E3%82%A3%E3%83%A8%E3%83%AB%E3%83%89%E7%BE%A4_-_%E3%82%AC%E3%82%A4%E3%83%A9%E3%83%B3%E3%82%B2%E3%83%AB%E3%83%95%E3%82%A3%E3%83%A8%E3%83%AB%E3%83%89%E3%81%A8%E3%83%8D%E3%83%BC%E3%83%AD%E3%82%A4%E3%83%95%E3%82%A3%E3%83%A8%E3%83%AB%E3%83%89",
-          "title": "Wikipedia「西ノルウェーフィヨルド群 - ガイランゲルフィヨルドとネーロイフィヨルド」"
-        },
-        {
-          "url": "https://en.wikipedia.org/wiki/Geirangerfjord",
-          "title": "Wikipedia (英語版)「Geirangerfjord」"
-        }
-      ]
-    }
+    "officialWebsiteUrl": "https://www.fjordnorway.com/en/attractions/preikestolen"
   },
   {
     "spotId": "sp_bda878657a95",
@@ -95467,7 +94954,7 @@
       "港の対岸から撮ると、色の違う倉庫の切妻が横一列に並びます",
       "倉庫の間の細い路地に入ると、木造の壁や通路の質感を近くから撮れます"
     ],
-    "officialWebsiteUrl": "http://www.stiftelsenbryggen.no",
+    "officialWebsiteUrl": "https://stiftelsenbryggen.no/",
     "timeZone": "Europe/Oslo",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -95602,61 +95089,6 @@
     }
   },
   {
-    "spotId": "sp_2e149d09fa24",
-    "slug": "navagio-beach",
-    "name": "ナヴァイオ海岸",
-    "nameEn": "Navagio Beach",
-    "reading": "ナヴァイオかいがん",
-    "aliases": [
-      "難破船海岸",
-      "Shipwreck Beach",
-      "Smugglers Cove",
-      "ナヴァイオビーチ",
-      "Ναυάγιο"
-    ],
-    "region": {
-      "country": "ギリシャ",
-      "prefecture": "イオニア諸島",
-      "city": "ザキントス島"
-    },
-    "coords": {
-      "lat": 37.86,
-      "lng": 20.62
-    },
-    "category": "海岸",
-    "summary": "ギリシャ、イオニア諸島のザキントス島の北西にある入り江です。切り立った石灰岩の崖に囲まれた白い浜に、1980年に座礁した船が残っています。",
-    "description": "もとの名はアギオス・ゲオルギオスです。1980年に嵐の中で沿岸航行船パナヨティス号がこの浜に座礁してから、ギリシャ語で「難破」を意味するナヴァイオの名で呼ばれるようになり、観光地になりました。船は今も浜の石灰岩の砂利に埋もれて残っています。浜は切り立った石灰岩の崖と白い砂浜、青い水からなり、世界でも特に写真に撮られることの多い浜の一つです。浜へは船でしか行けず、島の各地から定期のツアーが出ています。2018年と2022年に浜の上の崖が崩れ、浜への立ち入りや船の停泊が制限されました。",
-    "highlights": [
-      "浜に残る座礁船パナヨティス号",
-      "白い浜を囲む切り立った石灰岩の崖",
-      "入り江の青い水"
-    ],
-    "compositionTips": [
-      "船で入り江に近づくと、崖に囲まれた白い浜と座礁船を海の側から収められます",
-      "浜の上の崖は崩れたことがあります。崖の下に長くとどまらないでください"
-    ],
-    "timeZone": "Europe/Athens",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%83%8A%E3%83%B4%E3%82%A1%E3%82%A4%E3%82%AA%E6%B5%B7%E5%B2%B8",
-          "title": "Wikipedia「ナヴァイオ海岸」"
-        },
-        {
-          "url": "https://en.wikipedia.org/wiki/Navagio_Beach",
-          "title": "Wikipedia (英語版)「Navagio Beach」"
-        }
-      ]
-    }
-  },
-  {
     "spotId": "sp_0addb3db47fe",
     "slug": "stockholm-city-hall",
     "name": "ストックホルム市庁舎",
@@ -95757,7 +95189,8 @@
           "title": "Wikipedia (英語版)「Nyhavn」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.visitcopenhagen.com/copenhagen/planning/nyhavn-gdk474735"
   },
   {
     "spotId": "sp_2e9491b58824",
@@ -95871,7 +95304,8 @@
           "title": "Wikipedia (英語版)「Landwasser Viaduct」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.rhb.ch/de/unesco-welterbe-rhb/"
   },
   {
     "spotId": "sp_4a56afb646fa",
@@ -96077,7 +95511,8 @@
           "title": "Wikipedia (英語版)「Bastei」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://nationalpark-saechsische-schweiz.de/"
   },
   {
     "spotId": "sp_403fd045f47d",
@@ -96129,7 +95564,8 @@
           "title": "Wikipedia (英語版)「Königssee」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nationalpark-berchtesgaden.bayern.de/"
   },
   {
     "spotId": "sp_8ef2476f3e23",
@@ -96182,7 +95618,8 @@
           "title": "Wikipedia (英語版)「Giant's Causeway」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.nationaltrust.org.uk/visit/northern-ireland/giants-causeway"
   },
   {
     "spotId": "sp_49d06943ddee",
@@ -96230,7 +95667,8 @@
           "title": "Wikipedia (英語版)「Durdle Door」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://lulworth.com/"
   },
   {
     "spotId": "sp_bef877d49228",
@@ -96346,7 +95784,8 @@
           "title": "Wikipedia (英語版)「Skellig Michael」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://heritageireland.ie/places-to-visit/sceilg-mhichil/"
   },
   {
     "spotId": "sp_0d34f4fb5e6e",
@@ -96380,7 +95819,7 @@
     "compositionTips": [
       "少し離れた平原から撮ると、岩山の上に建物群が浮かぶように立つ姿が収まります"
     ],
-    "officialWebsiteUrl": "http://www.heritageireland.ie/en/south-east/rockofcashel/",
+    "officialWebsiteUrl": "https://heritageireland.ie/places-to-visit/the-rock-of-cashel/",
     "timeZone": "Europe/Dublin",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -96447,7 +95886,8 @@
           "title": "Wikipedia (英語版)「Cabo da Roca」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://cm-sintra.pt/"
   },
   {
     "spotId": "sp_b22e0c24a9da",
@@ -96500,7 +95940,8 @@
           "title": "Wikipedia (英語版)「Praça do Comércio」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.visitlisboa.com/"
   },
   {
     "spotId": "sp_6d913b4cf14a",
@@ -96562,7 +96003,8 @@
           "title": "Wikipedia (英語版)「Oia, Greece」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.thira.gr/"
   },
   {
     "spotId": "sp_9be3029e6356",
@@ -96595,7 +96037,7 @@
       "ペリスティルでは列柱を斜めから撮ると、柱の連なりと奥の大聖堂が重なります",
       "宮殿の中の細い路地では、古い石の壁と今の暮らしが一枚に入ります"
     ],
-    "officialWebsiteUrl": "http://www.diocletianspalace.org/",
+    "officialWebsiteUrl": "https://www.diocletianspalace.org/",
     "timeZone": "Europe/Zagreb",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -96809,7 +96251,7 @@
       "テラスのアーチを額縁にして町を見ると、手前の石の柱と奥の町並みが重なります",
       "塔の連なりを斜めから撮ると、とがった屋根が並ぶリズムが出ます"
     ],
-    "officialWebsiteUrl": "http://www.fishermansbastion.com/history",
+    "officialWebsiteUrl": "https://fishermansbastion.com/",
     "timeZone": "Europe/Budapest",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -96827,58 +96269,6 @@
         {
           "url": "https://en.wikipedia.org/wiki/Fisherman%27s_Bastion",
           "title": "Wikipedia (英語版)「Fisherman's Bastion」"
-        }
-      ]
-    }
-  },
-  {
-    "spotId": "sp_2acf58712d01",
-    "slug": "szechenyi-chain-bridge",
-    "name": "セーチェーニ鎖橋",
-    "nameEn": "Széchenyi Chain Bridge",
-    "reading": "セーチェーニくさりばし",
-    "aliases": [
-      "鎖橋",
-      "Széchenyi Lánchíd",
-      "Chain Bridge"
-    ],
-    "region": {
-      "country": "ハンガリー",
-      "city": "ブダペスト"
-    },
-    "coords": {
-      "lat": 47.5,
-      "lng": 19.04
-    },
-    "category": "橋",
-    "summary": "ハンガリーの首都ブダペストで、ドナウ川を渡って西岸のブダと東岸のペシュトを結ぶ全長380メートルの吊り橋です。ブダペストのドナウ川に初めて架かった恒常的な橋で、1849年に開通しました。",
-    "description": "イングランドの技師ウィリアム・ティアニー・クラークが設計し、スコットランドの技師アダム・クラークが現地で工事を監督しました。建設を強く後押ししたセーチェーニ・イシュトヴァーン伯爵の名を冠しています。メインケーブルには、両端に穴の開いた細長い鉄板をつないだアイバーチェーンが使われています。橋の両端はセーチェーニ・イシュトヴァーン広場とクラーク・アーダーム広場で、クラーク・アーダーム広場にはハンガリーの道路の起点を示す0キロメートルの標石があります。ブダ側の橋のたもと近くからは、ブダ城へ上るケーブルカーが出ています。",
-    "highlights": [
-      "ドナウ川を渡るアイバーチェーンの吊り橋",
-      "ブダとペシュトを結ぶ全長380メートルの橋",
-      "クラーク・アーダーム広場の0キロメートルの標石"
-    ],
-    "compositionTips": [
-      "ブダ城の側から見下ろすと、橋の全長と対岸のペシュトの町並みが一緒に入ります",
-      "主塔の門を正面から撮ると、左右に垂れる鎖の曲線が対称に並びます"
-    ],
-    "timeZone": "Europe/Budapest",
-    "status": "review",
-    "draftedAt": "2026-10-07",
-    "draftedBy": "claude",
-    "createdAt": "2026-10-07T00:00:00.000Z",
-    "updatedAt": "2026-10-07T00:00:00.000Z",
-    "aiCheck": {
-      "checkedAt": "2026-10-07",
-      "delegatedBy": "rymaruta",
-      "sources": [
-        {
-          "url": "https://ja.wikipedia.org/wiki/%E3%82%BB%E3%83%BC%E3%83%81%E3%82%A7%E3%83%BC%E3%83%8B%E9%8E%96%E6%A9%8B",
-          "title": "Wikipedia「セーチェーニ鎖橋」"
-        },
-        {
-          "url": "https://en.wikipedia.org/wiki/Sz%C3%A9chenyi_Chain_Bridge",
-          "title": "Wikipedia (英語版)「Széchenyi Chain Bridge」"
         }
       ]
     }
@@ -96913,7 +96303,7 @@
     "compositionTips": [
       "礼拝堂では、彫刻の灰色の岩塩に当たる照明の向きを見て、影が出る位置から撮ると質感が出ます"
     ],
-    "officialWebsiteUrl": "http://www.kopalnia.pl",
+    "officialWebsiteUrl": "https://www.kopalnia.pl/",
     "timeZone": "Europe/Warsaw",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -97128,7 +96518,7 @@
       "花壇の色の帯を斜めに見下ろすと、色の重なりが奥へ続く構図になります",
       "周りのチューリップ畑は私有地です。畑の中に入って撮らないでください"
     ],
-    "officialWebsiteUrl": "http://www.keukenhof.nl/",
+    "officialWebsiteUrl": "https://www.keukenhof.nl/",
     "timeZone": "Europe/Amsterdam",
     "status": "review",
     "draftedAt": "2026-10-07",
@@ -97211,7 +96601,8 @@
           "title": "Wikipedia (英語版)「Grand-Place」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.brussels.be/grand-place-brussels"
   },
   {
     "spotId": "sp_6758bd44d525",
@@ -97262,7 +96653,8 @@
           "title": "Wikipedia (英語版)「Atomium」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://atomium.be/"
   },
   {
     "spotId": "sp_bb6eb96dbc45",
@@ -97374,7 +96766,8 @@
           "title": "Wikipedia (英語版)「Lake Bled」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.bled.si/en/"
   },
   {
     "spotId": "sp_8c5ba8927626",
@@ -97421,6 +96814,7 @@
           "title": "Wikipedia (英語版)「Predjama Castle」"
         }
       ]
-    }
+    },
+    "officialWebsiteUrl": "https://www.postojnska-jama.eu/en/predjama-castle/"
   }
 ]
