@@ -124,6 +124,15 @@ describe("索引と詳細（固定の台帳）", () => {
         }
     });
 
+    /// 時刻帯（`timeZone`・2026-10-07 に台帳へ足した）は**詳細にだけ**載る（光の時刻はスポットの画面で使う）
+    it("timeZone は詳細の行に載り、索引には載らない", () => {
+        const taipei = spot("taipei-e", { region: { country: "台湾", prefecture: "台北市" }, timeZone: "Asia/Taipei" } as Partial<Spot>);
+        const tz = buildSpotShardFeed([taipei], {});
+        const key = tz.index.shards[0].key;
+        expect(JSON.parse(tz.shardJson.get(key)!)[0].timeZone).toBe("Asia/Taipei");
+        expect(JSON.stringify(tz.index)).not.toContain("timeZone");
+    });
+
     it("索引に文を入れない。季節・時間帯は種類、写真は有無、別名は空を落とす", () => {
         const tokyo = feed.index.shards.find((s) => s.key === "jp-kanto")!.spots.find((s) => s.slug === "tokyo-a")!;
         expect(tokyo).toEqual({
@@ -164,6 +173,14 @@ describe("実際の台帳", () => {
         expect(rows.map((s) => s.spotId).sort()).toEqual(published.map((s) => s.spotId).sort());
         const lost = (rows as unknown as { shard: string; slug: string; region: { country?: string; prefecture?: string } }[]).filter((s) => s.shard === OTHER_KEY || s.shard === "jp-other").map((s) => `${s.slug}(${s.region.country ?? s.region.prefecture})`);
         expect(lost, "COUNTRY_SHARD_KEYS に国を足す・県の綴りを直す").toEqual([]);
+    });
+
+    /** 確認中の行も含め、台帳に出る国は全部区分の鍵を持つ（公開した日に `other` に落ちない） */
+    it("台帳に出る国は全部 COUNTRY_SHARD_KEYS にある", () => {
+        const missing = [...new Set(ledger.map((s) => s.region?.country?.trim()).filter((c): c is string => !!c && c !== "日本"))]
+            .filter((c) => !COUNTRY_SHARD_KEYS[c]);
+        expect(missing, "COUNTRY_SHARD_KEYS に国を足す").toEqual([]);
+        expect(new Set(Object.values(COUNTRY_SHARD_KEYS)).size, "鍵が重なっている").toBe(Object.keys(COUNTRY_SHARD_KEYS).length);
     });
 
     /**
