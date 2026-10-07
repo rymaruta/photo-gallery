@@ -155,6 +155,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       apple: "/icon-192.png",
     },
+    // **iPhone の Safari で「アプリで開く／入手」の帯を出す**（Smart App Banner・2026-10-07）。
+    // 検索から撮影地のページに来た人をアプリへつなぐ（全国の戦略「Web とアプリをつなぐ」）。
+    // ホーム画面から開いた全画面（appleWebApp）では Safari が帯を出さないので、そちらの体験は変わらない。
+    // 子のページは `itunes` を書かないので、全ページに効く
+    itunes: { appId: siteConfig.iosAppId },
     // 旧 iOS 互換のため従来名も明示（Next は標準名 mobile-web-app-capable を出力するため）
     other: {
       "apple-mobile-web-app-capable": "yes",
