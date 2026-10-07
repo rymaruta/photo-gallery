@@ -51,7 +51,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "timeOfDayGuide"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "timeZone", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "timeOfDayGuide"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -129,6 +129,15 @@ describe("アプリ向けの索引", () => {
         expect("image" in toSpotFeedItem(spot("b", ai), images), "写真を照らしていないのに出している").toBe(false);
         expect("image" in toSpotFeedItem(spot("c", { ...ai, aiCheck: { ...ai.aiCheck, imageChecked: true } }), images),
             "座標のずれた写真を出している").toBe(false);
+    });
+
+    /// 時刻帯（2026-10-07）。台帳に書いた行だけ——全行に付けると索引が重くなる
+    it("時刻帯は台帳に書いた行だけ載り、本文と同じ値", () => {
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        const ny = spot("ny", { ...pub, region: { country: "アメリカ", prefecture: "ニューヨーク州" }, timeZone: "America/New_York" });
+        expect(toSpotFeedItem(ny).timeZone).toBe("America/New_York");
+        expect(toSpotFeedItem(ny).timeZone).toBe(toSpotBody(ny, {})?.timeZone);
+        expect("timeZone" in toSpotFeedItem(spot("p", pub)), "書いていない行に時刻帯を足している").toBe(false);
     });
 
     /// 季節の案内（2026-09-27）。アプリの「いつ行く？」「いまが見頃」用。**下書きには載せない**

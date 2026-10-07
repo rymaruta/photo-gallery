@@ -9,6 +9,7 @@
 //   載せる    spotId / slug / name / nameEn / reading / region（都道府県・市。**日本の外の行
 //             だけ国も**・2026-09-29。アプリの地図の「リスト」が海外を国ごとに分けるため。
 //             日本の行には付けない＝無ければ日本——1,000行に「日本」を足して重くしない）/
+//             timeZone（台帳に書いた行だけ・2026-10-07・光の時刻の時計）/
 //             coords（約1km精度）/ category / summary / stage / draftedAt /
 //             verifiedAt（人が確かめた行だけ）/
 //             image（写真・作者・ライセンス。**owner が写真を確かめた公開済みの行だけ**
@@ -59,6 +60,11 @@ export type SpotFeedItem = {
     reading?: string;
     /** `country` は日本の外の行だけ（無ければ日本） */
     region: { country?: string; prefecture?: string; city?: string };
+    /**
+     * 時刻帯（台帳の行の `timeZone`・IANA 名・2026-10-07）。**台帳に書いた行だけ**——全行に付けると
+     * 索引が約 30KB 重くなる（目安 950KB に近い）。アプリは光の時刻でこれを国より先に使う
+     */
+    timeZone?: string;
     coords?: { lat: number; lng: number };
     category?: string;
     summary?: string;
@@ -98,6 +104,7 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
             prefecture: spot.region?.prefecture,
             city: spot.region?.city,
         }),
+        timeZone: spot.timeZone?.trim() || undefined,
         coords: spot.coords,
         category: spot.category,
         summary: spot.summary,
