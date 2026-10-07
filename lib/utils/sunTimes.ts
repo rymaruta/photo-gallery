@@ -177,7 +177,7 @@ export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = {
     スロバキア: "Europe/Bratislava",
     ハンガリー: "Europe/Budapest",
     スロベニア: "Europe/Ljubljana",
-    ボスニア・ヘルツェゴビナ: "Europe/Sarajevo",
+    "ボスニア・ヘルツェゴビナ": "Europe/Sarajevo",
     セルビア: "Europe/Belgrade",
     モンテネグロ: "Europe/Podgorica",
     アルバニア: "Europe/Tirane",
