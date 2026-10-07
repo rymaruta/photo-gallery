@@ -39,7 +39,7 @@ const AI = {
     status: "published" as const,
     aiCheck: { checkedAt: "2026-09-26", delegatedBy: "rymaruta", sources: [{ url: "https://ja.wikipedia.org/wiki/x", title: "Wikipedia「x」" }] },
 };
-const ALLOWED = ["spotId", "slug", "name", "coords", "country", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
+const ALLOWED = ["spotId", "slug", "name", "coords", "country", "timeZone", "description", "highlights", "seasonalGuide", "timeOfDayGuide",
     "compositionTips", "officialWebsiteUrl", "check", "samples"];
 
 describe("アプリ向けの本文", () => {
@@ -74,6 +74,13 @@ describe("アプリ向けの本文", () => {
         expect(fr.country).toBe("フランス");
         const jp2 = toSpotBody(spot("jp2", { ...HUMAN, region: { country: "日本", prefecture: "山形県" } }))!;
         expect("country" in jp2).toBe(false);
+    });
+
+    /// 時刻帯（2026-10-07）。台帳に書いた行だけ運ぶ。アプリ・旅行プランは国より先に使う
+    it("時刻帯は台帳に書いた行だけ・前後の空白を落として運ぶ", () => {
+        const syd = toSpotBody(spot("syd", { ...HUMAN, region: { country: "オーストラリア" }, timeZone: " Australia/Sydney " }))!;
+        expect(syd.timeZone).toBe("Australia/Sydney");
+        expect("timeZone" in toSpotBody(spot("jp3", HUMAN))!).toBe(false);
     });
 
     it("空の項目は鍵ごと出さない", () => {
