@@ -136,7 +136,8 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
 ## これまでの方針との違い（要確認）
 
 代表写真（`SpotCoverImage.src`）は「**サイト内に置いたものだけ・外部へのホットリンクはしない**」
-と決めてある（`scripts/localize-spot-images.mjs` で縮小版を `public/` に置く）。作例は依頼どおり
+と決めてある（`scripts/localize-spot-images.mjs` で縮小版を `public/` に置く。アプリ用の小さい版（`thumb/`）は
+そのとき・本番のビルドのときに自動で作られる。揃っているかは `node scripts/spot-thumbs.mjs --check`）。作例は依頼どおり
 **Commons のサムネイルを直接読む**形にした。理由は (1) 複製しないので元画像の位置情報を
 こちらが配らない (2) 全国で約数千枚を `public/` に置くとリポジトリとデプロイが重くなる。
 代わりに、Commons 側が消す・差し替える・止まると、その1枚は割れる。サイト内に置く方へ

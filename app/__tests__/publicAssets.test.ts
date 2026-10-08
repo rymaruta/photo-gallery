@@ -84,6 +84,15 @@ function sourceTexts(): { full: string; text: string }[] {
     return (cachedTexts = out);
 }
 
+/**
+ * 撮影スポットの写真の小さい版（`images/spots/thumb/<名前>.jpg`・2026-10-08）は**元の写真から作るもの**で、
+ * 元を消すと本番のビルドが一緒に消す（`scripts/spot-thumbs.mjs`）。写真を消した PR がサムネを
+ * 消し忘れても、ここで本番の反映（Run tests）を止めない。元の写真はこれまでどおり見る
+ */
+function isDerivedThumb(file: string): boolean {
+    return /^images\/spots\/thumb\/[^/]+\.jpg$/.test(file);
+}
+
 describe("public/ に置いたものは全部配信される", () => {
     const files = listPublic();
     const allowed = new Map(ALLOWED);
@@ -106,7 +115,7 @@ describe("public/ に置いたものは全部配信される", () => {
     });
 
     it("参照が無いファイルは、理由つきで一覧にある", () => {
-        const orphans = files.filter((f) => !allowed.has(f) && !referenced(f));
+        const orphans = files.filter((f) => !allowed.has(f) && !isDerivedThumb(f) && !referenced(f));
         expect(orphans, `参照0のまま配信されている: ${orphans.join(", ")}`).toEqual([]);
     });
 

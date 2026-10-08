@@ -168,6 +168,7 @@
     書けない（`spotsLedger.test.ts`）。出典の要る項目（access・parking・safetyNotes）は
     AI 照合では出せない（確認者つきの出典が要るまま）
   - 写真（`spot-images.json`）は `aiCheck.imageChecked` かつ座標のずれ無しのときだけアプリに出す
+  - 写真の小さい版（`public/images/spots/thumb/`・アプリの `thumbUrl`）は**自動で作られる**（`localize-spot-images.mjs` と本番のビルドが `scripts/spot-thumbs.mjs` を呼ぶ）。揃っているかは `node scripts/spot-thumbs.mjs --check` で見られる
 - **Wikipedia / Wikidata の API は叩きすぎない**（2026-09-28・owner の指示）。
   国内と海外の収集を同時に流して 429（要求過多）を返され、待っては再試行する
   ループで1件十数秒かかった。守ること:
