@@ -28,6 +28,8 @@ export type QuizRegion = { country?: string; prefecture?: string; city?: string 
 
 export type QuizImage = {
     url: string;
+    /** 小さい版（アプリの索引の `image.thumbUrl` のまま・サムネが在るときだけ） */
+    thumbUrl?: string;
     author: string;
     license: string;
     licenseUrl?: string;

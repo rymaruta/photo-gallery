@@ -25,10 +25,25 @@ describe("本番の反映が S3 への書き込みで時間切れにならない
     });
 
     it("素材を上げ終えてから HTML を書く（順番は崩さない）", () => {
-        const assets = script.indexOf("await runPool(assets, uploadFile");
+        const images = script.indexOf("await runPool(imageAssets, uploadFile");
+        const assets = script.indexOf("await runPool(otherAssets, uploadFile");
         const html = script.indexOf("await runPool(htmlFiles, uploadFile");
-        expect(assets).toBeGreaterThan(-1);
+        expect(images).toBeGreaterThan(-1);
+        expect(assets).toBeGreaterThan(images);
         expect(html).toBeGreaterThan(assets);
+    });
+
+    /** 2026-10-08: アプリ向けの JSON の `thumbUrl` が、まだ上がっていない JPEG を指す隙間を作らない */
+    it("素材のうち画像（images/）を先に上げ終えてから、残り（JSON など）を上げる", () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { splitImagesFirst } = require("../deploy-static-site.js");
+        expect(script).toMatch(/splitImagesFirst\(assets\)/);
+        expect(splitImagesFirst([
+            "app/data/spots.json", "images/spots/thumb/a.jpg", "images/spots/a.jpg", "_next/static/x.js", "imagesx/y.png",
+        ])).toEqual({
+            images: ["images/spots/thumb/a.jpg", "images/spots/a.jpg"],
+            rest: ["app/data/spots.json", "_next/static/x.js", "imagesx/y.png"],
+        });
     });
 
     it("フロントのジョブの上限は45分以上", () => {
