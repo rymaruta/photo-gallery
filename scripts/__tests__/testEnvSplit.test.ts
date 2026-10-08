@@ -72,6 +72,9 @@ describe("振り分け", () => {
         expect(classify(path.join(ROOT, target)).env).toBe("jsdom");
     });
 
+    // 🕒 リポジトリの全テストファイルを読み直して振り分ける（ファイル数に比例する）。
+    // CI のランナーが混んでいると 5 秒の既定を超えて落ちた（#285 で同じ理由の1本に 30_000、
+    // 2026-10-08 に下の2本も同じく落ちた）。判定の中身は緩めず、待ち時間だけを明示する
     it("import を辿る（テスト本体が綺麗でも、読む先が DOM なら jsdom）", () => {
         // `lib/utils/scrollLock.ts` は `window` を触る。それを読むテストは
         // 自分が綺麗でも jsdom でなければならない。
@@ -82,7 +85,7 @@ describe("振り分け", () => {
                 expect(classify(path.join(ROOT, f)).why).toBe("");
             }
         }
-    });
+    }, 30_000);
 
     it("node に倒せたのが少なすぎたら、判定が壊れている", () => {
         // 2026-09-22 の実測は 215 本。
@@ -103,6 +106,9 @@ describe("グロブの逃がし", () => {
         expect(picomatch(escapeGlob(p))(p)).toBe(true);  // 本人には当たる
     });
 
+    // 🕒 リポジトリの全テストファイルを読み直して振り分ける（ファイル数に比例する）。
+    // CI のランナーが混んでいると 5 秒の既定を超えて落ちた（#285 で同じ理由の1本に 30_000、
+    // 2026-10-08 に下の2本も同じく落ちた）。判定の中身は緩めず、待ち時間だけを明示する
     it("config が渡すグロブに、逃がし忘れた特殊文字が無い", () => {
         // **`vitest.config.ts` が実際に渡すもの**を見る（ここで自前に
         // `escapeGlob` を掛け直すと、逃がし忘れを見逃す）。
@@ -112,7 +118,7 @@ describe("グロブの逃がし", () => {
         // 実際に落ちることを確かめてある）。
         const unescaped = /(^|[^\\])[[\]{}()!*?+@]/;
         expect(nodeEnvTestGlobs(ROOT).filter((g) => unescaped.test(g))).toEqual([]);
-    });
+    }, 30_000);
 
     it("config が渡すグロブは、文字クラスに化けた姿に当たらない", () => {
         const files = nodeEnvTestFiles(ROOT);

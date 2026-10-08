@@ -300,17 +300,22 @@ describe("作例の画像の読み込み元（upload.wikimedia.org・live.static
         const { SAMPLE_IMAGE_ORIGINS, SPOT_SAMPLES, toSpotSample } = await import("@/lib/data/spotSamples");
         const { siteConfig } = await import("@/lib/utils/seo");
         expect([...SAMPLE_IMAGE_ORIGINS]).toEqual(["https://upload.wikimedia.org", "https://live.staticflickr.com", new URL(siteConfig.url).origin]);
+        // 1枚ずつ expect を呼ぶと作例の枚数（2026-10-08 に約 1 万枚）に比例して遅くなるので、
+        // 外れたものを集めてから1回で比べる（見る範囲は同じ・全部）
+        const allowed = new Set<string>(SAMPLE_IMAGE_ORIGINS);
+        const outside: string[] = [];
         let n = 0;
         for (const { samples } of Object.values(SPOT_SAMPLES)) {
             for (const r of samples) {
                 const s = toSpotSample(r);
                 if (!s) continue;
-                expect(SAMPLE_IMAGE_ORIGINS, s.src).toContain(new URL(s.src).origin);
+                if (!allowed.has(new URL(s.src).origin)) outside.push(s.src);
                 n++;
             }
         }
+        expect(outside).toEqual([]);
         expect(n).toBeGreaterThan(0);
-    });
+    }, 30_000);
 
     it("許可リストの外の画像は表示の形にならない（Flickr の旧ドメイン・ほかのサイト）", async () => {
         const { toSpotSample } = await import("@/lib/data/spotSamples");
