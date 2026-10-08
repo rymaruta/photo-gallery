@@ -257,10 +257,15 @@ describe("実際の台帳で作った索引", () => {
      * モデルが読むので削らない。
      * 2026-10-03 に時間帯の案内を載せて 865KB → 924KB（+58KB・gzip 231KB → 247KB）。
      * 時間帯を持つのは公開1,079行のうち315行だけ——残りに入るとこの目安を超える
+     *
+     * 2026-10-08: **この目安は「1ファイルで配る `spots.json`」のもの。** 2026-10-07 から
+     * `spots.json` は固定した 1,079 行だけを配り（#298）、公開の全行は区分（`spot-feed/`）で
+     * 配るので、全行を1本にした大きさはもうどこにも配られない。950KB の見張りは配っている
+     * 固定の `spots.json` に掛けている（`lib/data/__tests__/spotFeedShards.test.ts` の
+     * 「古いアプリの spots.json」。このファイルは固定の一覧を差し替えているので、ここでは測れない）。
+     * 区分は1つ 500KB・索引は1行 400B の上限を同じファイルが見る
      */
-    it("大きさが目安に収まり、`**` が無い", () => {
-        const bytes = Buffer.byteLength(json, "utf8");
-        expect(bytes, `索引が ${bytes} バイト`).toBeLessThan(950_000);
+    it("`**` と書き手の名前が無い", () => {
         expect(json).not.toContain("**");
         expect(json).not.toContain("claude");
     });
