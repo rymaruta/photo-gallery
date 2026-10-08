@@ -122,6 +122,20 @@ function main() {
         fs.rmSync(outDir, { recursive: true, force: true });
     }
 
+    // 撮影スポットの写真の小さい版（`public/images/spots/thumb/`）を、無いものだけ作る。
+    // アプリ向けの JSON は**ファイルが在るときだけ** `thumbUrl` を出す（`lib/data/spotThumbs.ts`）
+    // ので、`next build` より前に置く。作れなくてもビルドは止めない——`thumbUrl` が
+    // 出ないだけで、アプリは元の写真（`url`）に戻る。コミット済みなら1秒ほどで終わる
+    const thumbsScript = path.join(__dirname, "spot-thumbs.mjs");
+    if (fs.existsSync(thumbsScript)) {
+        console.log("\n[build] 撮影スポットの写真の小さい版を作る...");
+        try {
+            execSync(`node ${thumbsScript}`, { stdio: "inherit", cwd: root });
+        } catch {
+            console.warn("[build] ⚠️ 小さい版を作れなかった写真があります（その写真は thumbUrl が出ません）。続けます。");
+        }
+    }
+
     console.log("\n[build] app/api を一時退避...");
     move(apiDir, backupDir);
 

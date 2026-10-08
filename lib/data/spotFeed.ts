@@ -39,6 +39,7 @@ import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
 import { SPOT_IMAGES, cleanAuthor, shownSpotImage, type SpotImage } from "./spotImages";
 import { siteConfig } from "../utils/seo";
+import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import legacyFreeze from "../../content/spots-feed-legacy.json";
 
 /**
@@ -47,6 +48,12 @@ import legacyFreeze from "../../content/spots-feed-legacy.json";
  */
 export type SpotFeedImage = {
     url: string;
+    /**
+     * 小さい版（短い辺 240px の JPEG・2026-10-08）。`url` と同じ絶対 URL の形。
+     * アプリの 40pt の丸など小さく出すところ用。**サイトにサムネのファイルが在るときだけ**
+     * （`scripts/spot-thumbs.mjs` が作る・`spotThumbs.ts`）。古いアプリは知らない鍵として読み飛ばす
+     */
+    thumbUrl?: string;
     author: string;
     license: string;
     licenseUrl?: string;
@@ -89,11 +96,17 @@ function compact<T extends object>(obj: T): T {
 }
 
 /** 台帳の1件を索引の形へ */
-export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES): SpotFeedItem {
+export function toSpotFeedItem(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+    thumbExists: (src: string) => boolean = spotThumbExists,
+): SpotFeedItem {
     const published = isPublished(spot);
     const verified = isVerified(spot);
     // 出してよい写真の判定は画面と同じ1か所（`shownSpotImage`）
     const image = shownSpotImage(spot, images);
+    // サムネは**サイトに置いた写真から作ったものだけ**、ファイルが在るときだけ載せる
+    const thumbSrc = image?.local ? spotThumbSrc(image.local.src) : undefined;
     return compact({
         spotId: spot.spotId,
         slug: spot.slug,
@@ -117,6 +130,7 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
                 // **サイトに置いた縮小版（横 960px）を優先。** 元画像は数MBあり、
                 // スポットの画面の大きい写真に使うと重い
                 url: image.local ? `${siteConfig.url}${image.local.src}` : image.thumbUrl,
+                thumbUrl: thumbSrc && thumbExists(thumbSrc) ? `${siteConfig.url}${thumbSrc}` : undefined,
                 author: cleanAuthor(image.author),
                 license: image.license,
                 licenseUrl: image.licenseUrl || undefined,
@@ -136,8 +150,9 @@ export function toSpotFeedItem(spot: Spot, images: Readonly<Record<string, SpotI
 export function buildSpotFeed(
     spots: readonly Spot[],
     images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+    thumbExists: (src: string) => boolean = spotThumbExists,
 ): SpotFeedItem[] {
-    return visibleSpots(spots).map((s) => toSpotFeedItem(s, images));
+    return visibleSpots(spots).map((s) => toSpotFeedItem(s, images, thumbExists));
 }
 
 // ## 古いアプリのための固定（2026-10-07）
