@@ -311,9 +311,15 @@ describe("リポジトリの確定ファイル", () => {
     it("公開済みのスポットで、落とす理由の無い1枚はそのまま出る", () => {
         for (const [spotId, entry] of Object.entries(file)) {
             const spot = ledger.find((s) => s.spotId === spotId)!;
+            if (!isPublished(spot)) continue;
             const expected = Math.min(MAX_SHOWN_SAMPLES, entry.samples.filter((r) => !explained(r, spot)).length);
             expect(spotSamples(spot, { file }).length, spot.slug).toBe(expected);
         }
+    });
+
+    it("🔴 確認中（公開前）の撮影地に先に付けた作例は、公開されるまで画面・アプリに出ない", () => {
+        const pending = Object.keys(file).map((id) => ledger.find((s) => s.spotId === id)!).filter((s) => !isPublished(s));
+        for (const spot of pending) expect(spotSamples(spot, { file }), spot.slug).toEqual([]);
     });
 });
 

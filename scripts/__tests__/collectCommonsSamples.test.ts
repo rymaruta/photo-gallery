@@ -383,7 +383,14 @@ describe("リポジトリに入っている候補・確定ファイル", () => {
         for (const [spotId, entry] of Object.entries(samples)) {
             const spot = byId.get(spotId);
             expect(spot, spotId).toBeTruthy();
-            expect(spot!.status, spotId).toBe("published");
+            // 確認中（review）の撮影地には、人の目で選んだ作例だけ先に付けてよい（2026-10-08・海外の撮影地）。
+            // 画面・アプリには公開されるまで出ない（spotSamples・toSpotBody が公開済みだけ通す）。
+            // 収集スクリプトの自動選定（"auto"）は公開済みだけが対象なので、確認中の行には付かない
+            if (spot!.status === "review") {
+                for (const s of entry.samples) expect(s.pickedBy, `${spotId} ${s.file}`).not.toBe("auto");
+            } else {
+                expect(spot!.status, spotId).toBe("published");
+            }
             expect(entry.slug, spotId).toBe(spot!.slug);
             expect(entry.samples.length, spotId).toBeLessThanOrEqual(MAX_SAMPLES);
             for (const s of entry.samples) {
