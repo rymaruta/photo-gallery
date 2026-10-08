@@ -21,6 +21,12 @@ import { siteConfig } from "../../lib/utils/seo";
  */
 const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
 vi.mock("../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
+// 古いアプリ向けに固定した行（2026-10-07・`legacySpotFeed`）。試験の台帳の slug から作った spotId を入れる
+// （"c" は入れない＝固定の後に公開した行の役）
+const legacy = vi.hoisted(() => ({
+    spotIds: ["verified", "a", "b", "draft"].map((slug) => `sp_${slug.padEnd(12, "0").slice(0, 12)}`),
+}));
+vi.mock("../../content/spots-feed-legacy.json", () => ({ default: legacy }));
 
 function spot(slug: string, over: Partial<Spot> = {}): Spot {
     return {
@@ -51,7 +57,7 @@ function spot(slug: string, over: Partial<Spot> = {}): Spot {
     };
 }
 
-const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "timeOfDayGuide"];
+const ALLOWED = ["spotId", "slug", "name", "nameEn", "reading", "region", "timeZone", "coords", "category", "summary", "stage", "draftedAt", "verifiedAt", "image", "seasonalGuide", "timeOfDayGuide"];
 
 /** 写真の記録（`content/spot-images.json` の1行）。既定は人が確かめていない */
 function image(over: Partial<SpotImage> = {}): SpotImage {
@@ -131,6 +137,15 @@ describe("アプリ向けの索引", () => {
             "座標のずれた写真を出している").toBe(false);
     });
 
+    /// 時刻帯（2026-10-07）。台帳に書いた行だけ——全行に付けると索引が重くなる
+    it("時刻帯は台帳に書いた行だけ載り、本文と同じ値", () => {
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        const ny = spot("ny", { ...pub, region: { country: "アメリカ", prefecture: "ニューヨーク州" }, timeZone: "America/New_York" });
+        expect(toSpotFeedItem(ny).timeZone).toBe("America/New_York");
+        expect(toSpotFeedItem(ny).timeZone).toBe(toSpotBody(ny, {})?.timeZone);
+        expect("timeZone" in toSpotFeedItem(spot("p", pub)), "書いていない行に時刻帯を足している").toBe(false);
+    });
+
     /// 季節の案内（2026-09-27）。アプリの「いつ行く？」「いまが見頃」用。**下書きには載せない**
     it("季節の案内は公開済みの行だけに載り、台帳の文のまま", () => {
         const pub = toSpotFeedItem(spot("p", { status: "published", verifiedBy: "運営", verifiedAt: "2026-09-25" }));
@@ -179,6 +194,15 @@ describe("アプリ向けの索引", () => {
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
         const item = toSpotFeedItem(spot("bare", { nameEn: undefined, reading: undefined, category: undefined, coords: undefined }));
         expect(Object.keys(item).sort()).toEqual(["draftedAt", "name", "region", "slug", "spotId", "stage", "summary"]);
+    });
+
+    /// 古いアプリのための固定（2026-10-07・`docs/spot-feed-sharding.md`）。後から公開した行は
+    /// 新しい置き場（`/app/data/spot-feed/`）にだけ載り、`spots.json` は増えない
+    it("spots.json は固定した行だけ（固定の後に公開した行は載らない）", () => {
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        ledger.spots = [spot("a", pub), spot("late", pub), spot("b", pub)];
+        expect(spotIndexFeed().map((s) => s.slug)).toEqual(["a", "b"]);
+        expect(spotIndexFeedJson()).not.toContain("late");
     });
 
     it("route は force-static で、GET は同じ文字列を JSON として返す", async () => {
@@ -233,10 +257,15 @@ describe("実際の台帳で作った索引", () => {
      * モデルが読むので削らない。
      * 2026-10-03 に時間帯の案内を載せて 865KB → 924KB（+58KB・gzip 231KB → 247KB）。
      * 時間帯を持つのは公開1,079行のうち315行だけ——残りに入るとこの目安を超える
+     *
+     * 2026-10-08: **この目安は「1ファイルで配る `spots.json`」のもの。** 2026-10-07 から
+     * `spots.json` は固定した 1,079 行だけを配り（#298）、公開の全行は区分（`spot-feed/`）で
+     * 配るので、全行を1本にした大きさはもうどこにも配られない。950KB の見張りは配っている
+     * 固定の `spots.json` に掛けている（`lib/data/__tests__/spotFeedShards.test.ts` の
+     * 「古いアプリの spots.json」。このファイルは固定の一覧を差し替えているので、ここでは測れない）。
+     * 区分は1つ 500KB・索引は1行 400B の上限を同じファイルが見る
      */
-    it("大きさが目安に収まり、`**` が無い", () => {
-        const bytes = Buffer.byteLength(json, "utf8");
-        expect(bytes, `索引が ${bytes} バイト`).toBeLessThan(950_000);
+    it("`**` と書き手の名前が無い", () => {
         expect(json).not.toContain("**");
         expect(json).not.toContain("claude");
     });

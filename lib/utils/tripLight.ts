@@ -71,6 +71,8 @@ export type TripSpotBody = {
     name: string;
     coords: { lat: number; lng: number };
     country?: string;
+    /** 台帳の行の時刻帯（IANA 名・2026-10-07）。あれば国より先（`spotTimeZone`） */
+    timeZone?: string;
     seasonalGuide: { season: string; text: string }[];
 };
 
@@ -92,6 +94,7 @@ export function parseTripSpotBody(json: unknown, slug: string): TripSpotBody | n
         name: o.name.trim(),
         coords: { lat: c.lat, lng: c.lng },
         ...(typeof o.country === "string" && o.country.trim() ? { country: o.country.trim() } : {}),
+        ...(typeof o.timeZone === "string" && o.timeZone.trim() ? { timeZone: o.timeZone.trim() } : {}),
         seasonalGuide: guide,
     };
 }

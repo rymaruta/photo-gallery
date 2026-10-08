@@ -33,7 +33,8 @@ describe("撮影の光の月別の表", () => {
     it("座標が無い・時刻帯が引けない国は表を出さない", () => {
         expect(lightCalendar(undefined, "日本")).toBeNull();
         expect(lightCalendar({ lat: Number.NaN, lng: 140 }, "日本")).toBeNull();
-        expect(lightCalendar({ lat: 69.65, lng: 18.96 }, "ノルウェー")).toBeNull();
+        // 2026-10-07: ノルウェーは国の表に入った。時刻帯が複数ある国（台帳に timeZone が無い行）で見る
+        expect(lightCalendar({ lat: 40.71, lng: -74.01 }, "アメリカ")).toBeNull();
     });
 
     /** 🔴 「—」だけだと「無い」「データが無い」と読める（9d7ba04e のレビュー） */

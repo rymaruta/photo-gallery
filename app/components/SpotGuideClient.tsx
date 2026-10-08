@@ -215,7 +215,7 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
     const [now, setNow] = React.useState<Date | null>(null);
     const [offset, setOffset] = React.useState(0);
     React.useEffect(() => { setNow(new Date()); }, []);
-    const sheet = now && spot.coords ? lightSheet(spot.region?.country, spot.coords, offset, now, isJa) : null;
+    const sheet = now && spot.coords ? lightSheet(spot.region?.country, spot.coords, offset, now, isJa, spot.timeZone) : null;
     const guides = splitGuides(spot.timeOfDayGuide ?? []);
     // 水和の前は、ふつうの日と同じ段・同じ行数の**見えない仮の行**で高さを先に取っておく
     // （読み込み後に時刻の行が出て、下の節が押し下げられないように）。時刻は作らない＝仮の値は見せない
@@ -438,8 +438,8 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     const humanChecked = isVerified(spot);
     const aiChecked = !humanChecked && hasAiCheck(spot) ? spot.aiCheck : undefined;
     const region = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
-    // 光の時刻の節を出す場所か（座標と国だけで決まる）。出すときは朝・夕の時間帯の文をそちらへ移す
-    const lightTz = lightZone(spot.coords, spot.region?.country);
+    // 光の時刻の節を出す場所か（座標と国・台帳の時刻帯だけで決まる）。出すときは朝・夕の時間帯の文をそちらへ移す
+    const lightTz = lightZone(spot.coords, spot.region?.country, spot.timeZone);
     const guideTimeList = guideTimes(spot.timeOfDayGuide ?? [], lightTz !== null);
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
     // 「[都道府県] [市区町村] · N枚の写真」（iOS の `SpotScreen.subtitle`）。N は数えた値

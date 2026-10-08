@@ -91,7 +91,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
     // 撮影の光の月別の表。決めた年で計算してページに書き込む（ビルドの結果を日付で変えない）
-    const light = lightCalendar(spot.coords, spot.region?.country);
+    const light = lightCalendar(spot.coords, spot.region?.country, spot.timeZone);
 
     return (
         <>

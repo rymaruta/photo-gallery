@@ -281,9 +281,13 @@ const ASSET_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30日（コスト僅少・�
  *   参照する古い HTML は無いので、猶予を置く理由が無い
  * - **今日の一問**（`app/data/quiz/<日付>.json`・2026-09-30）。同じ理由——下書きに戻した
  *   場所の名前と写真を、過ぎた日のファイルが30日配り続けない。読むのは「今日」だけ
+ * - **数を増やした撮影スポットの置き場**（`app/data/spot-feed/`・2026-10-07）。割り直して
+ *   無くなった区分に、下書きに戻した行の文と写真を残さない。アプリは索引の `shards` に
+ *   載った区分しか読まない
  */
 function deletesImmediately(key) {
-    return isHtmlOrTxt(key) || key.startsWith("app/data/spots/") || key.startsWith("app/data/quiz/");
+    return isHtmlOrTxt(key) || key.startsWith("app/data/spots/") || key.startsWith("app/data/quiz/")
+        || key.startsWith("app/data/spot-feed/");
 }
 
 // 削除対象の判定（純関数・テスト対象）。
