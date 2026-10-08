@@ -13,9 +13,12 @@
 // アプリ向けの JSON は**サムネのファイルが在るときだけ** `image.thumbUrl` を出す
 // （`lib/data/spotThumbs.ts`・`lib/data/spotFeed.ts`）。
 //
-//     node scripts/spot-thumbs.mjs           無い・形の合わないサムネだけ作る（既定）
+//     node scripts/spot-thumbs.mjs           無い・元が変わったサムネだけ作り、元の無いサムネを消す（既定）
 //     node scripts/spot-thumbs.mjs --force   全部作り直す
-//     node scripts/spot-thumbs.mjs --check   書かずに調べる（無い・形違い・元の無いサムネがあれば終了コード 1）
+//     node scripts/spot-thumbs.mjs --check   書かずに調べる（無い・元が変わった・元の無いサムネがあれば終了コード 1）
+//
+// 「元が変わった」は元の SHA-1 で見る（控えは `scripts/spot-thumbs.manifest.json`・`public/` の外）。
+// `localize-spot-images.mjs` も写真を置いたあとにこれを呼ぶ
 //
 // **本番のビルド（`scripts/prepare-static-build.js`）が `next build` の前に既定の形で流す。**
 // だから写真を足した PR がサムネを忘れても、デプロイで作られて配られる（作れなかった回は
@@ -24,6 +27,7 @@
 //
 // 外部への通信はしない（手元の `public/images/spots/*.jpg` から縮めるだけ）。
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -82,45 +86,102 @@ function listJpg(dir) {
 }
 
 /**
- * 置き場を揃える。返り値: 作った・作れなかった・（`check` のとき）無い/形違い・元の無いサムネ。
- * 形違い＝サムネの寸法が今の元から計算した寸法と違う（元を差し替えた）
+ * **どの元から作ったか**の控え（サムネの名前 → 元の SHA-1）。`public/` の外に置く（配らない）。
+ * 寸法だけでは「同じ 3:2 の別の写真に差し替えた」を見分けられない——`localize-spot-images.mjs` は
+ * いつも横 960px で書くので、差し替えても寸法が同じことが多い。古いサムネのまま出すと、
+ * 丸の写真と、フィードの作者・ライセンス（新しい写真のもの）が食い違う
  */
-export async function syncSpotThumbs({ srcDir = SRC_DIR, thumbDir = path.join(srcDir, THUMB_DIR_NAME), force = false, check = false } = {}) {
-    const result = { total: 0, created: [], failed: [], missing: [], stale: [], orphans: [] };
+export const MANIFEST_PATH = path.join(ROOT, "scripts", "spot-thumbs.manifest.json");
+
+export function sha1Of(file) {
+    return crypto.createHash("sha1").update(fs.readFileSync(file)).digest("hex");
+}
+
+function readManifest(file) {
+    try {
+        const json = JSON.parse(fs.readFileSync(file, "utf8"));
+        return json && typeof json === "object" && !Array.isArray(json) ? json : {};
+    } catch {
+        return {};
+    }
+}
+
+/** 名前順・1行1件（差分と取り込みのぶつかりを小さくする） */
+function writeManifest(file, manifest) {
+    const sorted = Object.fromEntries(Object.keys(manifest).sort().map((k) => [k, manifest[k]]));
+    const text = JSON.stringify(sorted, null, 1) + "\n";
+    let before = null;
+    try { before = fs.readFileSync(file, "utf8"); } catch { /* 無い */ }
+    if (before !== text) fs.writeFileSync(file, text);
+}
+
+/** 書いて名前を付け替える。途中で落ちても `.tmp-` を残さない（在る＝使える、を守る） */
+function writeAtomic(file, data) {
+    const tmp = `${file}.tmp-${process.pid}`;
+    try {
+        fs.writeFileSync(tmp, data);
+        fs.renameSync(tmp, file);
+    } finally {
+        fs.rmSync(tmp, { force: true });
+    }
+}
+
+/**
+ * 置き場を揃える。
+ *
+ *   既定      無い・元が変わった（SHA-1 が控えと違う）サムネを作り、**元の無いサムネは消す**。控えを書き直す
+ *   force     全部作り直す
+ *   check     何も書かずに数える（無い `missing`・元が変わった `stale`・元の無い `orphans`）
+ *
+ * 控え（`manifestPath`）は既定の置き場のときだけ `MANIFEST_PATH`。別の置き場（テスト）では
+ * そのサムネの置き場の中の `manifest.json`
+ */
+export async function syncSpotThumbs({
+    srcDir = SRC_DIR,
+    thumbDir = path.join(srcDir, THUMB_DIR_NAME),
+    manifestPath = srcDir === SRC_DIR ? MANIFEST_PATH : path.join(thumbDir, "manifest.json"),
+    force = false,
+    check = false,
+} = {}) {
+    const result = { total: 0, created: [], removed: [], failed: [], missing: [], stale: [], orphans: [] };
     const sources = listJpg(srcDir);
     result.total = sources.length;
     const sourceSet = new Set(sources);
     result.orphans = listJpg(thumbDir).filter((n) => !sourceSet.has(n));
+    const manifest = readManifest(manifestPath);
+    const next = {};
     if (!check) fs.mkdirSync(thumbDir, { recursive: true });
     for (const name of sources) {
         const srcPath = path.join(srcDir, name);
         const thumbPath = path.join(thumbDir, name);
         try {
+            const sha = sha1Of(srcPath);
             let reason = force ? "force" : null;
-            if (!reason) {
-                if (!fs.existsSync(thumbPath)) reason = "missing";
-                else {
-                    const src = await orientedSize(srcPath);
-                    const want = thumbSizeFor(src.width, src.height);
-                    const have = await orientedSize(thumbPath);
-                    if (want.width !== have.width || want.height !== have.height) reason = "stale";
-                }
-            }
-            if (!reason) continue;
+            if (!reason && !fs.existsSync(thumbPath)) reason = "missing";
+            if (!reason && manifest[name] !== sha) reason = "stale";
             if (check) {
                 if (reason === "missing") result.missing.push(name);
                 if (reason === "stale") result.stale.push(name);
                 continue;
             }
-            const out = await makeSpotThumb(srcPath);
-            // 途中で落ちても半端なファイルを残さない（在る＝使える、を守る。フィードは在るかだけを見る）
-            const tmp = `${thumbPath}.tmp-${process.pid}`;
-            fs.writeFileSync(tmp, out.data);
-            fs.renameSync(tmp, thumbPath);
-            result.created.push(name);
+            if (reason) {
+                writeAtomic(thumbPath, (await makeSpotThumb(srcPath)).data);
+                result.created.push(name);
+            }
+            next[name] = sha;
         } catch (e) {
             result.failed.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
+            // 作れなかったら古いサムネも残さない（フィードは在るかだけを見る＝古い写真の丸を出さない）
+            if (!check) fs.rmSync(thumbPath, { force: true });
         }
+    }
+    if (!check) {
+        // 元の無いサムネは消す（元を消した・名前を変えた）。配っても誰も指さないが、残すと溜まる
+        for (const name of result.orphans) {
+            fs.rmSync(path.join(thumbDir, name), { force: true });
+            result.removed.push(name);
+        }
+        writeManifest(manifestPath, next);
     }
     return result;
 }
@@ -131,16 +192,15 @@ async function main() {
     const r = await syncSpotThumbs({ force, check });
     if (check) {
         const bad = r.missing.length + r.stale.length + r.orphans.length;
-        console.log(`[spot-thumbs] 元 ${r.total} 枚・無い ${r.missing.length}・形違い ${r.stale.length}・元の無いサムネ ${r.orphans.length}`);
+        console.log(`[spot-thumbs] 元 ${r.total} 枚・無い ${r.missing.length}・元が変わった ${r.stale.length}・元の無いサムネ ${r.orphans.length}`);
         for (const n of r.missing) console.log(`  無い: ${n}`);
-        for (const n of r.stale) console.log(`  形違い: ${n}`);
+        for (const n of r.stale) console.log(`  元が変わった: ${n}`);
         for (const n of r.orphans) console.log(`  元が無い: thumb/${n}`);
-        if (bad > 0) console.log("  → node scripts/spot-thumbs.mjs で作る（元の無いサムネは消す）");
+        if (bad > 0) console.log("  → node scripts/spot-thumbs.mjs で揃う（本番のビルドも同じことをする）");
         process.exit(bad > 0 || r.failed.length > 0 ? 1 : 0);
     }
-    console.log(`[spot-thumbs] 元 ${r.total} 枚・作った ${r.created.length}・作れなかった ${r.failed.length}`);
+    console.log(`[spot-thumbs] 元 ${r.total} 枚・作った ${r.created.length}・消した ${r.removed.length}・作れなかった ${r.failed.length}`);
     for (const f of r.failed) console.log(`  作れなかった: ${f}`);
-    if (r.orphans.length) console.log(`  元の無いサムネ ${r.orphans.length} 枚（消してよい）: ${r.orphans.join(", ")}`);
     process.exit(r.failed.length > 0 ? 1 : 0);
 }
 

@@ -91,11 +91,16 @@
   **`thumbUrl`（`url` と同じ絶対 URL の形）を、ファイルが在るときだけ**出す（`lib/data/spotThumbs.ts`）。
   サイトに置いていない写真（`url` が Commons を指す行）には付かない。古いアプリは知らない鍵として読み飛ばす
 - 作るのは `scripts/spot-thumbs.mjs`（`sharp`・外部への通信なし）。787枚で約24秒、作り済みなら約1秒
-  - `node scripts/spot-thumbs.mjs` 無い・形の合わないものだけ作る／`--force` 全部／`--check` 書かずに調べる
-  - **本番のビルド（`npm run build` = `scripts/prepare-static-build.js`）が `next build` の前に流す**。
-    写真を足した PR がサムネを忘れても、デプロイで作られて配られる。作れなかった回は `thumbUrl` が出ないだけ
-  - 作ったものはコミットしておく（デプロイで作り直さずに済む）。テスト（`scripts/__tests__/spotThumbs.test.ts`）が
-    コミット済みのサムネの寸法と、元の無いサムネが無いことを見張る
+  - `node scripts/spot-thumbs.mjs` 無い・元が変わったものを作り、元の無いものを消す／`--force` 全部／`--check` 書かずに調べる
+  - 「元が変わった」は元の SHA-1 で見る（控えは `scripts/spot-thumbs.manifest.json`・`public/` の外）。
+    同じ寸法の別の写真に差し替えても作り直す
+  - **自動で流れる:** 本番のビルド（`npm run build` = `scripts/prepare-static-build.js`）が `next build` の前に、
+    `scripts/localize-spot-images.mjs` が写真を置いたあとに呼ぶ。写真を足した・消した・差し替えた PR が
+    サムネを忘れても、デプロイで揃って配られる。作れなかった写真は古いサムネも消す（`thumbUrl` が出ないだけ）
+  - 作ったものはコミットしておく（デプロイで作り直さずに済む）。テスト（`scripts/__tests__/spotThumbs.test.ts`）は
+    揃っていないものを**数えて出すだけで落とさない**（本番の反映を止めない）。落とすのは、控えの上で最新なのに
+    寸法・形式が違う（道具が壊れた）ときだけ
+  - デプロイは `images/` を上げ終えてから JSON を上げる（`thumbUrl` が、まだ無い JPEG を指さない）
 - 大きさ（2026-10-08 の実測・787枚）: 合計 10,876,016 バイト（平均 13.8KB・中央 13.5KB・最大 32KB）。
   元（787枚・109.5MB）の約 10%
 - **固定の `spots.json` には載せない**（2026-10-08 判断）。読むのは `thumbUrl` を知らない古いアプリだけで、
