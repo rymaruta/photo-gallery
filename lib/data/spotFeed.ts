@@ -167,12 +167,29 @@ export function buildSpotFeed(
 /** 固定した行（`spotId`）。**この一覧は増やさない** */
 export const LEGACY_SPOT_IDS: ReadonlySet<string> = new Set((legacyFreeze as { spotIds: string[] }).spotIds);
 
+/** 固定した一覧に在る行（中身は今の台帳のまま・`thumbUrl` も残す）。今日の一問の材料もこれ */
+export function legacySpotRows(items: readonly SpotFeedItem[]): SpotFeedItem[] {
+    return items.filter((item) => LEGACY_SPOT_IDS.has(item.spotId));
+}
+
+/**
+ * 写真の小さい版（`image.thumbUrl`）を落とす。**古い `spots.json` には載せない**（2026-10-08 判断）:
+ * この1本を読むのは `thumbUrl` を知らない古いアプリだけで、載せても約 59.5KB 重くなるだけ。
+ * `thumbUrl` を知るアプリは区分（`spot-feed/`）を読む
+ */
+function withoutThumb(item: SpotFeedItem): SpotFeedItem {
+    if (!item.image?.thumbUrl) return item;
+    const image: SpotFeedImage = { ...item.image };
+    delete image.thumbUrl;
+    return { ...item, image };
+}
+
 /**
  * 古いアプリの `spots.json` に載せる行。**固定した一覧に在り、いまも配っている行だけ**。
- * 新しく公開した行は載らない。下書きに戻した行は落ちる
+ * 新しく公開した行は載らない。下書きに戻した行は落ちる。`thumbUrl` は載せない
  */
 export function legacySpotFeed(items: readonly SpotFeedItem[]): SpotFeedItem[] {
-    return items.filter((item) => LEGACY_SPOT_IDS.has(item.spotId));
+    return legacySpotRows(items).map(withoutThumb);
 }
 
 /** 実際に配る索引（古いアプリ向け・固定した行だけ） */

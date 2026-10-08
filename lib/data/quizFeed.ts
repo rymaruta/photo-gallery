@@ -18,7 +18,8 @@
 //
 // 🔴 台帳を値で読む。**`"use client"` から import しない**。
 
-import { spotIndexFeed, type SpotFeedItem } from "./spotFeed";
+import { buildSpotFeed, legacySpotRows, type SpotFeedItem } from "./spotFeed";
+import { SPOTS } from "./spots";
 import { buildDailyQuiz, datesFrom, QUIZ_TIME_ZONE, type QuizSpot, type DailyQuiz } from "../utils/dailyQuiz";
 import { todayIn } from "../utils/sunTimes";
 
@@ -56,6 +57,8 @@ export function quizDates(now: Date = new Date()): string[] {
 let cachedPool: QuizSpot[] | null = null;
 
 export function dailyQuizFor(ymd: string, items?: readonly SpotFeedItem[]): DailyQuiz | null {
-    const pool = items ? quizPool(items) : (cachedPool ??= quizPool(spotIndexFeed()));
+    // 材料は古い `spots.json` と同じ固定の行。ただし写真の小さい版（`thumbUrl`）は残す
+    // （古い `spots.json` だけが落とす・`legacySpotFeed`）
+    const pool = items ? quizPool(items) : (cachedPool ??= quizPool(legacySpotRows(buildSpotFeed(SPOTS))));
     return buildDailyQuiz(pool, ymd);
 }
