@@ -93,6 +93,9 @@ export const COUNTRY_SHARD_KEYS: Readonly<Record<string, string>> = {
     ポーランド: "pl",
     ベルギー: "be",
     スロベニア: "si",
+    // 2026-10-08 に台帳へ足したアジアの行（確認中）。公開したときに `other` へ落ちないよう先に持つ
+    カンボジア: "kh",
+    フィリピン: "ph",
 };
 
 /** 表に無い国・県の分からない日本の行 */
