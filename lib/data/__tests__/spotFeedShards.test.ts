@@ -219,16 +219,22 @@ describe("実際の台帳", () => {
 describe("古いアプリの spots.json（2026-10-07 に固定）", () => {
     const items = buildSpotFeed(ledger);
 
-    /** 🔴 **一覧を増やさない。** 増やすと古いアプリの索引が上限（950KB）を超える */
+    /** 🔴 **一覧を増やさない。** 増やすと古いアプリの索引が上限（1,000,000 バイト）を超える */
     it("固定した行は 1,079 件のまま", () => {
         expect((legacyFreeze as { frozenAt: string }).frozenAt).toBe("2026-10-07");
         expect(LEGACY_SPOT_IDS.size).toBe(1079);
     });
 
+    /**
+     * 上限は 1,000,000 バイト（minify・gzip 前）。2026-10-08 に 950KB から上げた: 写真の小さい版
+     * （`image.thumbUrl`・`spotThumbs.ts`）を写真のある 787 行に足して 924,164 → 983,719
+     * （+59.5KB・gzip 245.7KB → 252.3KB・brotli 174.1KB → 177.7KB）。行は固定なので
+     * 件数では増えない——増えるのは文の書き直しと、写真の付け外しだけ
+     */
     it("固定した行のうち配っているものは全部載り、それ以外は載らない。今の上限に収まる", () => {
         const legacy = legacySpotFeed(items);
         expect(legacy.every((s) => LEGACY_SPOT_IDS.has(s.spotId))).toBe(true);
         expect(legacy.map((s) => s.spotId).sort()).toEqual(items.filter((s) => LEGACY_SPOT_IDS.has(s.spotId)).map((s) => s.spotId).sort());
-        expect(Buffer.byteLength(JSON.stringify(legacy), "utf8")).toBeLessThan(950_000);
+        expect(Buffer.byteLength(JSON.stringify(legacy), "utf8")).toBeLessThan(1_000_000);
     });
 });
