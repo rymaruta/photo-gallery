@@ -21,6 +21,12 @@ import { siteConfig } from "../../lib/utils/seo";
  */
 const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
 vi.mock("../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
+// 古いアプリ向けに固定した行（2026-10-07・`legacySpotFeed`）。試験の台帳の slug から作った spotId を入れる
+// （"c" は入れない＝固定の後に公開した行の役）
+const legacy = vi.hoisted(() => ({
+    spotIds: ["verified", "a", "b", "draft"].map((slug) => `sp_${slug.padEnd(12, "0").slice(0, 12)}`),
+}));
+vi.mock("../../content/spots-feed-legacy.json", () => ({ default: legacy }));
 
 function spot(slug: string, over: Partial<Spot> = {}): Spot {
     return {
@@ -188,6 +194,15 @@ describe("アプリ向けの索引", () => {
     it("undefined の鍵は出さない（`\"x\": null` を作らない）", () => {
         const item = toSpotFeedItem(spot("bare", { nameEn: undefined, reading: undefined, category: undefined, coords: undefined }));
         expect(Object.keys(item).sort()).toEqual(["draftedAt", "name", "region", "slug", "spotId", "stage", "summary"]);
+    });
+
+    /// 古いアプリのための固定（2026-10-07・`docs/spot-feed-sharding.md`）。後から公開した行は
+    /// 新しい置き場（`/app/data/spot-feed/`）にだけ載り、`spots.json` は増えない
+    it("spots.json は固定した行だけ（固定の後に公開した行は載らない）", () => {
+        const pub = { status: "published" as const, verifiedBy: "運営", verifiedAt: "2026-09-25" };
+        ledger.spots = [spot("a", pub), spot("late", pub), spot("b", pub)];
+        expect(spotIndexFeed().map((s) => s.slug)).toEqual(["a", "b"]);
+        expect(spotIndexFeedJson()).not.toContain("late");
     });
 
     it("route は force-static で、GET は同じ文字列を JSON として返す", async () => {

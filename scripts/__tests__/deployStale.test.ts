@@ -54,6 +54,21 @@ describe("classifyStaleObjects（デプロイ時の削除判定）", () => {
         expect(kept).toBe(1);
     });
 
+    /// 🔴 割り直して無くなったスポットの区分（app/data/spot-feed/*.json）を30日配り続けない（2026-10-07）
+    it("ビルドに無いスポットの区分（app/data/spot-feed/*.json）は猶予なしで削除される", () => {
+        const { toDelete } = classifyStaleObjects(
+            ["app/data/spot-feed/index.json", "app/data/spot-feed/jp-kanto.json"],
+            [
+                { key: "app/data/spot-feed/index.json", lastModified: new Date(NOW - 1000) },
+                { key: "app/data/spot-feed/jp-kanto.json", lastModified: new Date(NOW - 1000) },
+                { key: "app/data/spot-feed/jp-old.json", lastModified: new Date(NOW - 1000) },
+            ],
+            NOW,
+            ASSET_GRACE_MS,
+        );
+        expect(toDelete).toEqual(["app/data/spot-feed/jp-old.json"]);
+    });
+
     /// 🔴 過ぎた日の一問が、下書きに戻した場所の名前と写真を30日配り続けない
     it("ビルドに無い今日の一問（app/data/quiz/*.json）は猶予なしで削除される", () => {
         const { toDelete } = classifyStaleObjects(
