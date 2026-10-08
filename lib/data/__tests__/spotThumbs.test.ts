@@ -8,7 +8,7 @@ import type { SpotImage } from "../spotImages";
 import { buildSpotFeed, spotIndexFeedJson, toSpotFeedItem } from "../spotFeed";
 import { spotFeedFileJson, spotFeedFiles } from "../spotFeedShards";
 import { spotThumbExists, spotThumbSrc } from "../spotThumbs";
-import { quizPool } from "../quizFeed";
+import { dailyQuizFor, quizDates, quizPool } from "../quizFeed";
 import { siteConfig } from "../../utils/seo";
 
 /**
@@ -114,6 +114,17 @@ describe("実際に配る JSON（コミット済みの public/images/spots/thumb
         }
     });
 
+    /** 2026-10-08 判断: 古い spots.json を読むのは `thumbUrl` を知らない古いアプリだけ（約 59.5KB 重くなるだけ） */
+    it("🔴 古い spots.json（固定した行）には thumbUrl を載せない。写真の url はそのまま", () => {
+        const json = spotIndexFeedJson();
+        expect(json).not.toContain("thumbUrl");
+        const legacy = JSON.parse(json) as { spotId: string; image?: { url: string } }[];
+        const full = new Map(withImage.map((i) => [i.spotId, i.image!.url]));
+        const legacyWithImage = legacy.filter((i) => i.image);
+        expect(legacyWithImage.length).toBeGreaterThan(0);
+        for (const i of legacyWithImage) expect(i.image!.url).toBe(full.get(i.spotId));
+    });
+
     it("出している thumbUrl の指すファイルは全部在る（404 を配らない）", () => {
         for (const item of withImage.filter((i) => i.image!.thumbUrl)) {
             const p = item.image!.thumbUrl!.slice(siteConfig.url.length);
@@ -121,7 +132,7 @@ describe("実際に配る JSON（コミット済みの public/images/spots/thumb
         }
     });
 
-    it("古い spots.json・区分のファイル・今日の一問の材料に、同じ thumbUrl が載る", () => {
+    it("区分のファイル・今日の一問の材料に、同じ thumbUrl が載る", () => {
         const sample = withImage.find((i) => i.image!.thumbUrl);
         expect(sample, "サムネの付いた行が1つも無い（コミットし忘れ？）").toBeDefined();
         const thumbUrl = JSON.stringify(sample!.image!.thumbUrl);
@@ -130,10 +141,11 @@ describe("実際に配る JSON（コミット済みの public/images/spots/thumb
         expect(shards.some((j) => j.includes(thumbUrl))).toBe(true);
         // 索引（`spot-feed/index.json`）には写真の URL を載せない（有無だけ）
         expect(spotFeedFileJson("index.json")).not.toContain("thumbUrl");
-        // 古い spots.json（固定した行）でサムネの付いた行が1つはある
-        expect(spotIndexFeedJson()).toContain('"thumbUrl":"');
-        // 今日の一問は索引の image をそのまま運ぶ
+        // 今日の一問は索引の image をそのまま運ぶ（実際に配る日のファイルにも載る）
         const pool = quizPool(withImage);
+        const days = quizDates().map((d) => dailyQuizFor(d)).filter((q) => q !== null);
+        expect(days.length).toBeGreaterThan(0);
+        expect(days.some((q) => q!.photo.thumbUrl?.startsWith(`${siteConfig.url}/images/spots/thumb/`))).toBe(true);
         const bySpot = new Map(withImage.map((i) => [i.spotId, i.image!.thumbUrl]));
         expect(pool.some((q) => q.image.thumbUrl)).toBe(true);
         for (const q of pool) expect(q.image.thumbUrl, q.slug).toBe(bySpot.get(q.spotId));
