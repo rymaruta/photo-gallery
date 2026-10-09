@@ -43,6 +43,8 @@ on:
           - verify-origin-failover # **staging** でオリジングループが 404ページより先に効くか確かめる（動的化の関門）
           - restore-account   # 間違えて退会したアカウントを戻す（owner_user_id 空=直近の墓石一覧・指定=状況を読む・apply=墓石を消す）
           - set-verified      # 認証済みの印を付ける（target_user を指定・既定は読むだけ・apply で付ける・unverify で外す）
+          - grant-early-user  # 初期ユーザー章を 2026-10-31（日本時間）までに登録した人へ付ける（既定は読むだけ・apply で書く）
+          - backfill-badges   # 今いる全員のメダルを数え直して書く（既定は読むだけ・apply で書く・通知は送らない）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -173,6 +175,20 @@ jobs:
         run: node scripts/set-verified.js ${{ inputs.apply && '--apply' || '' }} ${{ inputs.unverify && '--unverify' || '' }}
         env:
           TARGET_USER: ${{ inputs.target_user }}
+
+      # 初期ユーザー章（scripts/grant-early-user.js）。Cognito の登録日で選ぶ。
+      # 既定は読むだけ（人数と先頭の数人の userId）。apply は badges.earlyUser だけを足す
+      - name: 初期ユーザー章を付ける
+        if: inputs.task == 'grant-early-user'
+        run: node scripts/grant-early-user.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
+
+      # メダルの数え直し（scripts/backfill-badges.js）。数え方は Lambda と同じ api-user/src/badges.ts。
+      # 既定は読むだけ。apply は増えた人の badges だけを書く（通知は送らない）
+      - name: メダルを数え直して書く
+        if: inputs.task == 'backfill-badges'
+        run: node scripts/backfill-badges.js ${{ inputs.apply && '--apply' || '' }}
 
       - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'
