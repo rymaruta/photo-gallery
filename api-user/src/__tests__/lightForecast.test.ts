@@ -29,7 +29,7 @@ vi.mock("../apns", () => ({ apnsConfigured: push.configured, sendPush: push.send
 const dev = vi.hoisted(() => ({ tokens: vi.fn(), forget: vi.fn() }));
 vi.mock("../devices", () => ({ deviceTokens: dev.tokens, forgetTokens: dev.forget }));
 
-import { getLightForecast, sendLightAlerts, wantsLightAlert, lightAlertMarkId } from "../lightForecast";
+import { ALERT_PARALLEL, getLightForecast, sendLightAlerts, wantsLightAlert, lightAlertMarkId } from "../lightForecast";
 import { parseWeather } from "../weatherKit";
 
 const NOW = new Date("2026-10-09T11:00:00Z");   // 20:00 JST
@@ -219,5 +219,27 @@ describe("前の晩の知らせ（sendLightAlerts）", () => {
         rows.lists["spots#pro2"] = ["SPOT-hamarikyu"];
         dev.tokens.mockImplementation(async (uid: string) => { if (uid === "pro") throw new Error("boom"); return ["b".repeat(64)]; });
         expect(await sendLightAlerts()).toEqual({ recipients: 2, sent: 1 });
+    });
+
+    // 1人ずつだと人数に比例して伸び、Lambda の時間を使い切る。並べて回るが、並べすぎない
+    it("何人かを並べて回る（同時に回るのは ALERT_PARALLEL 人まで）・全員に1通ずつ", async () => {
+        const n = 30;
+        for (let i = 0; i < n; i++) {
+            rows.users[`p${i}`] = { userId: `p${i}`, supporter: PRO };
+            rows.lists[`spots#p${i}`] = ["SPOT-hamarikyu"];
+        }
+        let active = 0;
+        let peak = 0;
+        dev.tokens.mockImplementation(async () => {
+            active++;
+            peak = Math.max(peak, active);
+            await new Promise((r) => setTimeout(r, 1));
+            active--;
+            return ["c".repeat(64)];
+        });
+        expect(await sendLightAlerts()).toEqual({ recipients: n + 1, sent: n + 1 });
+        expect(ALERT_PARALLEL).toBe(8);
+        expect(peak).toBe(ALERT_PARALLEL);
+        expect(push.send).toHaveBeenCalledTimes(n + 1);
     });
 });

@@ -788,8 +788,11 @@ functions:
       APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
       APNS_TOPIC: ${param:apnsTopic, ''}
       APNS_HOST: ${param:apnsHost, ''}
-    # Pro の人を順に回る（1人ずつ・予報は場所ごとに控える）
-    timeout: 300
+    # Pro の人を 8 人ずつ並べて回る（`ALERT_PARALLEL`・予報は場所ごとに控える）。
+    # Lambda の上限いっぱい（15分）。1人の最悪は場所20件 ÷ 4本 × WeatherKit の待ち5秒 ≒ 25秒なので、
+    # 全員が控えに当たらない最悪でも 8 × 900 ÷ 25 ≒ 290 人は回りきる（控えに当たればずっと多い）。
+    # 時間切れでも EventBridge のやり直しは送り済みの人を日の印で飛ばす
+    timeout: 900
     events:
       - schedule: cron(0 11 * * ? *)
 
