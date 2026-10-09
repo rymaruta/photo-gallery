@@ -170,3 +170,25 @@ describe("プッシュのバッジ", () => {
         await expect(pushNotification(ME, notif)).resolves.toBeUndefined();
     });
 });
+
+describe("メダルの通知（type: badge）", () => {
+    it("アプリの鍵 NOTIF_BADGE・引数はメダルの名前・data に鍵と段（文字列）", async () => {
+        serve(1, [{ byId: "" }]);
+        await pushNotification(ME, {
+            type: "badge", key: "morning", tier: 2, byName: "朝の光（銀）", photoId: "", photoSrc: "", t: "2026-10-09T00:00:00.000Z",
+        });
+        const msg = mockSend.mock.calls.at(-1)?.[1] as unknown as { locKey: string; locArgs: string[]; data: Record<string, string> };
+        expect(msg.locKey).toBe("NOTIF_BADGE");
+        expect(msg.locArgs).toEqual(["朝の光（銀）"]);
+        expect(msg.data).toEqual({ type: "badge", key: "morning", tier: "2" });
+    });
+
+    it("通知の行にも鍵と段が残る（アプリ内の一覧で絵を出すため）", async () => {
+        serve(1, []);
+        await pushNotification(ME, {
+            type: "badge", key: "first", tier: 1, byName: "はじめての一枚", photoId: "", photoSrc: "", t: "2026-10-09T00:00:00.000Z",
+        });
+        const update = mockDdbSend.mock.calls.map((c) => c[0]).find((c) => c.constructor.name === "UpdateCommand");
+        expect(update.input.ExpressionAttributeValues[":new"][0]).toMatchObject({ type: "badge", key: "first", tier: 1 });
+    });
+});

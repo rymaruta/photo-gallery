@@ -16,6 +16,7 @@ import { dropUnusedKeys } from "./dropUnused";
 import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
+import { refreshBadgesQuietly } from "./badgeStore";
 
 /**
  * 保存する URL の土台。**呼ぶたびに読む。**
@@ -770,6 +771,10 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
                 console.error(`updatePhotoVisibility: staticStale の解除に失敗 (${id}):`, e);
             }
         }
+
+        // **メダルを数え直す**（撮影地・撮影日・公開の切り替えで数が動く）。
+        // 投げない・上限つきで待つ（`badgeStore.ts`）。落ちても更新は成功で返す
+        await refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`);
 
         return {
             statusCode: 200,

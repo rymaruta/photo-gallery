@@ -41,6 +41,8 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
+import { ProMark, NameBadge } from "../components/ProfileNameMarks";
+import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
 
 type SongEntry = {
@@ -75,6 +77,13 @@ type UserProfile = {
     pinnedPhotoIds?: string[];
     /** 認証済みの印。立てられるのは運営だけ（`scripts/set-verified.js`） */
     verified?: boolean;
+    /** 手に入れたメダル（サーバーが数える・`api-user/src/badges.ts`） */
+    badges?: BadgeMap;
+    /** 名前の横に出すメダル。持っている鍵だけ（`sanitizeProfile` が落とす） */
+    displayBadge?: BadgeKey;
+    /** Pro（サポーター）か。Web では何も売らない——立っている人に印を出すだけ */
+    pro?: boolean;
+    proMarkStyle?: ProMarkStyle;
 };
 
 
@@ -1331,6 +1340,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                     {/* 名前だけを切り詰め、印は縮ませない（長い名前でも印が消えない） */}
                                     <span className="truncate">{displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}</span>
                                     <VerifiedBadge verified={userProfile?.verified} size={20} locale={locale} />
+                                    {/* 並びは owner の決定: 名前 → 封印 → Pro の印 → 選んだメダル */}
+                                    <ProMark pro={userProfile?.pro} style={userProfile?.proMarkStyle} size={20} locale={locale === "en" ? "en" : "ja"} />
+                                    <NameBadge
+                                        badges={userProfile?.badges}
+                                        displayBadge={userProfile?.displayBadge}
+                                        ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
+                                        locale={locale === "en" ? "en" : "ja"}
+                                    />
                                 </h1>
                                 {userProfile?.username && (
                                     <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>

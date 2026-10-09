@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { BADGE_KEYS, BADGE_MAX_TIER, badgeImage, proMarkImage } from "../../lib/data/badges";
 
 /**
  * **`public/` に置いたものは、そのまま世界に配られる。**
@@ -93,6 +94,17 @@ function isDerivedThumb(file: string): boolean {
     return /^images\/spots\/thumb\/[^/]+\.jpg$/.test(file);
 }
 
+/**
+ * メダルと Pro の印の絵（`public/badges/`）。名前は `lib/data/badges.ts` が鍵と段から
+ * **組み立てる**ので、ソースに綴りとして現れない。組み立てる関数で全部の名前を作り、
+ * その中に在るものだけを「参照あり」とする（作らない名前の絵は孤児として残る）
+ */
+const BADGE_ASSETS = new Set([
+    ...BADGE_KEYS.flatMap((k) => Array.from({ length: BADGE_MAX_TIER[k] }, (_, i) =>
+        [badgeImage(k, i + 1, true), badgeImage(k, i + 1, false)]).flat()),
+    ...(["iris", "plate"] as const).flatMap((st) => [proMarkImage(st, 20), proMarkImage(st, 12)]),
+].map((p) => p.replace(/^\//, "")));
+
 describe("public/ に置いたものは全部配信される", () => {
     const files = listPublic();
     const allowed = new Map(ALLOWED);
@@ -115,7 +127,7 @@ describe("public/ に置いたものは全部配信される", () => {
     });
 
     it("参照が無いファイルは、理由つきで一覧にある", () => {
-        const orphans = files.filter((f) => !allowed.has(f) && !isDerivedThumb(f) && !referenced(f));
+        const orphans = files.filter((f) => !allowed.has(f) && !isDerivedThumb(f) && !BADGE_ASSETS.has(f) && !referenced(f));
         expect(orphans, `参照0のまま配信されている: ${orphans.join(", ")}`).toEqual([]);
     });
 

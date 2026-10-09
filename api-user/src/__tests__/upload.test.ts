@@ -27,6 +27,10 @@ vi.mock("../s3Move", () => ({ copyAll: mockCopyAll, dropOld: mockDropOld }));
 const mockRequestSiteRebuild = vi.hoisted(() => vi.fn());
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
 
+// メダルの数え直し（`badgeStore.ts`）。中身は `badgeStore.test.ts` が見るので、ここは呼ばれ方だけ
+const mockRefreshBadges = vi.hoisted(() => vi.fn());
+vi.mock("../badgeStore", () => ({ refreshBadgesQuietly: mockRefreshBadges }));
+
 // 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
 // ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
 // import が増えたときに足す必要がある**（台帳が何度も踏んでいる型）
@@ -101,6 +105,7 @@ beforeEach(() => {
     mockDropOld.mockReset().mockResolvedValue(0);
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
+    mockRefreshBadges.mockReset().mockResolvedValue(undefined);
 });
 
 // **投稿しても世に出ない、を直した分。**
@@ -1653,5 +1658,28 @@ describe("savePhoto: 2枚目以降（extraImages）", () => {
         }));
         await invoke(event("u1", { ...BASE, extraImages: [extra("b.webp")] }));
         expect(savedRewrite().extraImages).toEqual([{ src: "https://cdn.example.com/uploads/u1/b.webp" }]);
+    });
+});
+
+describe("savePhoto: メダルを数え直す", () => {
+    it("公開で保存したら、その人のメダルを数え直す（写真を書いたあと）", async () => {
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRefreshBadges).toHaveBeenCalledTimes(1);
+        expect(mockRefreshBadges.mock.calls[0][0]).toBe("u1");
+        expect(mockPutPhoto.mock.invocationCallOrder[0]).toBeLessThan(mockRefreshBadges.mock.invocationCallOrder[0]);
+    });
+
+    it("下書きは数に入らないので、数え直さない", async () => {
+        await invoke(event("u1", { ...BASE, published: false }));
+        expect(mockRefreshBadges).not.toHaveBeenCalled();
+    });
+
+    it("保存に失敗したら数え直さない", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("ddb down"));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await invoke(event("u1", { ...BASE, published: true }));
+        err.mockRestore();
+        expect(mockRefreshBadges).not.toHaveBeenCalled();
     });
 });
