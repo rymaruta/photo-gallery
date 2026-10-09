@@ -247,7 +247,7 @@ describe("光（日の出・日の入り）", () => {
     });
 });
 
-describe("旅の本（iOS の TripBook.groupTrips と同じ規則）", () => {
+describe("旅の一冊（iOS の TripBook.groupTrips と同じ規則）", () => {
     const book = (g: string, ...dates: (string | undefined)[]) => dates.map((d) => photo({ groupId: g, date: d }));
 
     it("trip- の束・撮影日のある2枚以上・30日以内だけ1冊", () => {
@@ -273,7 +273,7 @@ describe("旅の本（iOS の TripBook.groupTrips と同じ規則）", () => {
     });
 });
 
-describe("行きたいをかなえた", () => {
+describe("行けた場所", () => {
     it("SPOT-<スラッグ> を台帳で spotId に結び、その spotId の写真があれば1", () => {
         const photos = [photo({ spotId: ABASHIRI.spotId })];
         expect(countWish(photos, [`SPOT-${ABASHIRI.slug}`])).toBe(1);

@@ -104,16 +104,16 @@ export function badgeFields(p: { badges?: unknown; displayBadge?: unknown; suppo
 
 const TIER_JA = ["", "銅", "銀", "白金"];
 
-/** メダルの名前（日本語）。通知の文面（「<名前>のメダルを手に入れました」）に使う */
+/** メダルの名前（日本語）。**デザインの板で決まっている表記**。通知の文面（「<名前>のメダルを手に入れました」）に使う */
 export const BADGE_NAME_JA: Record<BadgeKey, string> = {
-    first: "はじめての一枚",
+    first: "最初の一枚",
     prefectures: "都道府県",
-    countries: "国と地域",
+    countries: "国・地域",
     seasons: "四季",
     morning: "朝の光",
-    night: "ブルーアワー",
-    books: "旅の本",
-    wish: "行きたいをかなえた",
+    night: "夜の光",
+    books: "旅の一冊",
+    wish: "行けた場所",
     earlyUser: "初期ユーザー",
 };
 
