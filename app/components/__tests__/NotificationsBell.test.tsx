@@ -1598,3 +1598,30 @@ describe("フォローバックの安全と読み上げ", () => {
             "返し終わった行に解除ボタンが残っている").toBeNull();
     });
 });
+
+describe("NotificationsBell: メダルの通知（type: badge）", () => {
+    const BADGE = { type: "badge", key: "morning", tier: 2, byName: "朝の光（銀）", photoId: "", photoSrc: "", t: "2026-07-10T00:00:00Z" };
+
+    it("「<名前>のメダルを手に入れました」とメダルの絵を出し、自分のプロフィールへ飛ぶ", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [BADGE], unread: 1 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        // **片側だけ足すと何も出ない**（notify.ts と対）——文面が出ることが本題
+        expect(screen.getByText(/のメダルを手に入れました/).textContent).toBe("朝の光（銀）のメダルを手に入れました");
+        const img = document.querySelector("[data-testid=notif-medal]") as HTMLImageElement;
+        expect(img.getAttribute("src")).toBe("/badges/medal-morning-2.webp");
+        // 相手の顔の代わりにメダル（人型のアイコンを出さない）
+        expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([expect.stringContaining("me")]);
+    });
+
+    it("知らない鍵でも、サーバーが入れた名前で文面を出す", async () => {
+        mockUserFetch.mockResolvedValue(fetchOk({ items: [{ ...BADGE, key: "future", byName: "新しいメダル" }], unread: 0 }));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+        expect(screen.getByText(/のメダルを手に入れました/).textContent).toBe("新しいメダルのメダルを手に入れました");
+        expect(document.querySelector("[data-testid=notif-medal]")).toBeNull();
+    });
+});
