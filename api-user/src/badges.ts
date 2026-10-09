@@ -465,7 +465,7 @@ export type BadgeProgress = Record<FixedBadgeKey, { count: number; tier: number;
 
 /**
  * 進み具合。`tier` は**持っている段**（保存済みと今の数の高い方——段は下げない）、
- * `next` は今の数から見た次の線（最上段なら null）。`earlyUser` は数えないので
+ * `next` は持っている段の次の線（最上段なら null）。`earlyUser` は数えないので
  * 持っていれば count 1・無ければ 0、`next` は常に null。
  *
  * Pro: `supporter` は持っていれば count 1。`supporterYear` の count は続けた月数
@@ -475,11 +475,10 @@ export function badgeProgress(counts: BadgeCounts, badges: BadgeMap | undefined,
     const out = {} as BadgeProgress;
     for (const key of COUNTED_BADGE_KEYS) {
         const count = counts[key];
-        out[key] = {
-            count,
-            tier: Math.max(tierFor(key, count), badges?.[key]?.tier ?? 0),
-            next: nextThreshold(key, count),
-        };
+        const tier = Math.max(tierFor(key, count), badges?.[key]?.tier ?? 0);
+        // 次の線は**持っている段の次**。今の数で決めると、写真を消して数が減った人に、
+        // もう持っている段までの数（「あと5で次」）が出ていた
+        out[key] = { count, tier, next: BADGE_THRESHOLDS[key][tier] ?? null };
     }
     const early = badges?.earlyUser?.tier ?? 0;
     out.earlyUser = { count: early > 0 ? 1 : 0, tier: early, next: null };
