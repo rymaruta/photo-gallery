@@ -684,6 +684,9 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // **本人しか読めない一覧なので、ここで消せば完全に消える**
         // （いいねのように他人側へ散る要素を持たない）
         await ddbDelete(PHOTOS_TABLE, { id: `spots#${uid}` });
+        // 光と天気の知らせを送った日の印（`lightForecast.ts`）。中身は日付だけだが、
+        // 「Pro でこの機能を使っていた」ことは残さない
+        await ddbDelete(PHOTOS_TABLE, { id: `lightalert#${uid}` });
         // 写真の「保存」の一覧（`saves.ts` の `saves#<uid>`）も同じ扱い。
         // `save#<photoId>#<uid>` のマーカーは前方一致で列挙できないので
         // `like#` と同じく残る（一覧が無ければ画面には出ない）

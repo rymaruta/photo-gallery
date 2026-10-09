@@ -310,3 +310,38 @@ describe("Pro・サポーター（第2段階）: 出してよいのは番号・�
         expect(savedProfile().displayBadge).toBe("supporterYear");
     });
 });
+
+describe("光と天気の知らせを受け取るか（lightAlert）", () => {
+    it("既定は「受け取る」。本人の応答には常に真偽で載る・公開には出さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({}));
+        expect(JSON.parse((await getMine()).body).lightAlert).toBe(true);
+        mockSend.mockResolvedValueOnce(stored({ lightAlert: false }));
+        expect(JSON.parse((await getMine()).body).lightAlert).toBe(false);
+        expect(toPublicProfile({ userId: "u1", lightAlert: false } as never)).not.toHaveProperty("lightAlert");
+    });
+
+    it("false は置く・true は消す（既定に戻す）・真偽でなければ 400", async () => {
+        mockSend.mockResolvedValueOnce(stored({})).mockResolvedValueOnce({});
+        expect((await update({ lightAlert: false })).statusCode).toBe(200);
+        expect(savedProfile().lightAlert).toBe(false);
+
+        mockSend.mockReset();
+        commands.length = 0;
+        mockSend.mockResolvedValueOnce(stored({ lightAlert: false })).mockResolvedValueOnce({});
+        const res = await update({ lightAlert: true });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("lightAlert");
+        expect(JSON.parse(res.body).lightAlert).toBe(true);
+
+        commands.length = 0;
+        // 文字の "false" を「受け取る」に倒すと、止めたつもりの人に届き続ける
+        expect((await update({ lightAlert: "false" })).statusCode).toBe(400);
+        expect(commands).toEqual([]);
+    });
+
+    it("触らない更新では保存済みの設定を消さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ lightAlert: false })).mockResolvedValueOnce({});
+        expect((await update({ bio: "x" })).statusCode).toBe(200);
+        expect(savedProfile().lightAlert).toBe(false);
+    });
+});

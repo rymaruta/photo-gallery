@@ -228,7 +228,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 
 ⚠️ 管理者の判定は `cognito:groups` に `admin` があるか（`api/src/auth.ts` の `isAdmin`）。
 
-### ユーザーAPI（`NEXT_PUBLIC_USER_API_BASE_URL`）— 73口
+### ユーザーAPI（`NEXT_PUBLIC_USER_API_BASE_URL`）— 74口
 
 **認証が要らないのは7口だけ**（`PublicReadRole`＝読み取り専用のロールで動く。`/feed` だけは索引を読むので専用の `PublicFeedRole`）:
 
@@ -242,7 +242,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 | GET | `/users/{uid}/follow` | フォロー数（`s-maxage=30`） |
 | GET | `/feed` | 公開写真の一覧をページで（`s-maxage=30`・下の「公開写真のページ」）※2026-10-03 追加・**本番未反映** |
 
-残り67口はすべて `Authorization: Bearer <IDトークン>` が要る:
+残り68口はすべて `Authorization: Bearer <IDトークン>` が要る:
 
 **アップロード**
 `POST /upload/presigned-url` / `POST /upload/save` / `DELETE /upload/discard` /
@@ -281,6 +281,15 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 **行きたい場所・旅行プラン**
 `GET,POST /user/spots` / `DELETE /user/spots/{slug}` /
 `GET,POST /user/trips` / `PUT,DELETE /user/trips/{planId}`
+
+**光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
+`GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
+光の時刻（現地の時計）と見込み（朝焼け・夕焼け・夜景 × `high`/`mid`/`low`、天気
+`clear`/`partlyCloudy`/`cloudy`/`rain`）。**Pro でなければ 403**、WeatherKit の鍵
+（SSM パラメータ `/journey-photo/<stage>/weatherkit/key-id`・`private-key`）が無ければ **503**。
+応答の形は `api-user/src/lightForecast.ts` の注記。応答の `attribution`（Apple Weather）は
+画面に出すこと（Apple の求め）。前の晩の知らせ（毎日 20:00 日本時間）を受け取るかは
+`PUT /user/profile` の `lightAlert`（真偽・既定 `true`）
 
 **外部サービスの代理**
 `GET /music/search`（Apple Music）/ `GET /geocode/search`・`GET /geocode/reverse`

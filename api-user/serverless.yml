@@ -741,6 +741,54 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 光と天気の知らせ（Pro・`src/lightForecast.ts`・デザインの板 LightAlert）。
+  # 本人の「行きたい場所」の、今日から7日の光の時刻と見込み。**Pro でなければ 403**、
+  # WeatherKit の鍵が無ければ 503。
+  # **WeatherKit の鍵を読めるのはこの2つの関数だけ**（専用のロール `LightForecastRole`。
+  # 共有のロールに SSM の許可を足すと全関数が鍵を読める。
+  # `scripts/__tests__/weatherKitKeyScope.test.ts` が見張る）
+  getLightForecast:
+    handler: src/lightForecast.getLightForecast
+    role: LightForecastRole
+    environment:
+      # 鍵は SSM パラメータストア（owner が画面で作る・`src/weatherKit.ts` の注記）。
+      # ここに渡すのは道の頭と公開識別子だけ
+      WEATHERKIT_PARAM_PREFIX: /journey-photo/${sls:stage}/weatherkit
+      WEATHERKIT_TEAM_ID: 5428GX5UM8
+      WEATHERKIT_SERVICE_ID: com.journeyphoto.JourneyPhoto
+    # 行きたい場所 最大20か所 × WeatherKit（打ち切り5秒・4本ずつ）。控えに当たれば速い。
+    # API Gateway（HTTP API）の上限が29秒
+    timeout: 29
+    events:
+      - httpApi:
+          path: /user/light-forecast
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 前の晩の知らせ。**毎日 20:00（日本時間）= 11:00 UTC。**
+  # 明日の朝・夕に「見込み 高」の行きたい場所がある Pro の人へ1通だけ。
+  # WeatherKit か APNs のどちらかの設定が無ければ何も送らない
+  sendLightAlerts:
+    handler: src/lightForecast.sendLightAlerts
+    role: LightForecastRole
+    environment:
+      # 鍵は SSM パラメータストア（owner が画面で作る・`src/weatherKit.ts` の注記）。
+      # ここに渡すのは道の頭と公開識別子だけ
+      WEATHERKIT_PARAM_PREFIX: /journey-photo/${sls:stage}/weatherkit
+      WEATHERKIT_TEAM_ID: 5428GX5UM8
+      WEATHERKIT_SERVICE_ID: com.journeyphoto.JourneyPhoto
+      # プッシュの鍵は「送る関数」にだけ配る（provider に置かない・IAM-2）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
+    # Pro の人を順に回る（1人ずつ・予報は場所ごとに控える）
+    timeout: 300
+    events:
+      - schedule: cron(0 11 * * ? *)
+
   # 旅行プラン（行きたい場所を「いつ・どの順で回るか」に並べる）。
   # **すべて本人のみ。** 行 ID は JWT の sub からしか作らないので、
   # 「誰のプランか」を受け取る口はパスにもクエリにも本文にも無い
@@ -1285,6 +1333,59 @@ resources:
     #   users テーブル  GetItem / PutItem（プロフィールの supporter・メダル、取引の結び付け、番号の列）
     #   写真テーブル    GetItem / UpdateItem（通知の積み上げ `notifs#`・端末の宛先・ブロックの判定）
     # Scan・Delete・S3・索引は持たない
+    # 光と天気の知らせ（`getLightForecast` と `sendLightAlerts`）だけのロール。
+    # **WeatherKit の鍵（SSM パラメータ）を読めるのはここだけ**——共有のロールに足すと、
+    # 未認証の口を含む全関数が鍵を読める（IAM-1・IAM-2 と同じ考え）。
+    # 書いてあるのは2つの関数が実際に叩いている API だけ:
+    #   photos: GetItem（行きたい場所・端末・予報の控え）/ PutItem（予報の控え）/
+    #           UpdateItem（送った日の印・無効になった端末を外す）
+    #   users:  GetItem（Pro の判定）/ Scan（知らせの宛先）
+    #   ssm:    GetParameter(s)（/journey-photo/<stage>/weatherkit/*）
+    # SecureString の復号は AWS 管理の既定の鍵（aws/ssm）で、その鍵ポリシーが同じアカウントの
+    # SSM 経由の復号を許しているので kms:Decrypt は足していない（客の管理する鍵に替えたら要る）
+    LightForecastRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-lightForecast
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: lightForecast
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:Scan
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
+                - Effect: Allow
+                  Action:
+                    - ssm:GetParameter
+                    - ssm:GetParameters
+                  Resource:
+                    - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/journey-photo/${sls:stage}/weatherkit/*
+
     AppStoreNotifyRole:
       Type: AWS::IAM::Role
       Properties:
