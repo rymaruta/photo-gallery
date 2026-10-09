@@ -1356,7 +1356,12 @@ describe("期限切れストーリーの掃除は1時間ごと", () => {
         const { join } = await import("node:path");
         const yml = readFileSync(join(process.cwd(), "api-user/serverless.yml"), "utf8");
         const code = yml.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
-        const m = code.match(/schedule:\s*(cron\([^)]*\)|rate\([^)]*\))/);
+        // **cleanupStories の節だけを見る。** 定期実行は他にもある（光と天気の知らせ・毎日 20:00）ので、
+        // ファイルの最初の schedule を拾うと別の関数を見てしまう
+        const start = code.indexOf("\n  cleanupStories:\n");
+        expect(start, "cleanupStories が見つからない").toBeGreaterThanOrEqual(0);
+        const block = code.slice(start + 1).split(/\n(?=  \w+:\n|\S)/)[0];
+        const m = block.match(/schedule:\s*(cron\([^)]*\)|rate\([^)]*\))/);
         expect(m, "cleanupStories のスケジュールが見つからない").not.toBeNull();
         expect(m![1], "日次のままだと、消えたはずのストーリーが最大48時間取れる")
             .not.toMatch(/cron\(\d+\s+\d+\s/);   // 「分 時」が固定＝1日1回

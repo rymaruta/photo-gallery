@@ -1089,11 +1089,11 @@ async function users() {
     } while (lastKey && pages < 20);
     if (lastKey) line("  ⚠️ 20ページで打ち切りました（実際はもっと居ます）");
 
-    // `username#<handle>` は @名の予約行で、人ではない
-    const profiles = rows.filter((r) => !r.userId.startsWith("username#"));
+    // `username#<handle>` は @名の予約行で、人ではない（`counter#…`・`appstore#…` は Pro の行）
+    const profiles = rows.filter((r) => !r.userId.includes("#"));
     const live = profiles.filter((r) => !r.deleted);
     line(`  プロフィールの行: ${profiles.length}（うち退会の墓石 ${profiles.length - live.length}）`);
-    line(`  @名の予約行: ${rows.length - profiles.length}`);
+    line(`  @名の予約・Pro の行: ${rows.length - profiles.length}`);
     line(`  表示名を設定済み: ${live.filter((r) => r.hasName).length} / ${live.length}`);
     line(`  @名を設定済み: ${live.filter((r) => r.hasHandle).length} / ${live.length}`);
 

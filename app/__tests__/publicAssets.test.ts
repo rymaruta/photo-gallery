@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { BADGE_KEYS, BADGE_MAX_TIER, badgeImage, proMarkImage } from "../../lib/data/badges";
+import { BADGE_KEYS, BADGE_MAX_TIER, PRO_SEASONS, PRO_SEASON_ART, badgeImage, proMarkImage } from "../../lib/data/badges";
 
 /**
  * **`public/` に置いたものは、そのまま世界に配られる。**
@@ -102,8 +102,11 @@ function isDerivedThumb(file: string): boolean {
 const BADGE_ASSETS = new Set([
     ...BADGE_KEYS.flatMap((k) => Array.from({ length: BADGE_MAX_TIER[k] }, (_, i) =>
         [badgeImage(k, i + 1, true), badgeImage(k, i + 1, false)]).flat()),
+    // 季節の章（Pro 限定）は年ごとの鍵。絵がある年（`PRO_SEASON_ART`）だけ組み立てる
+    ...PRO_SEASONS.flatMap((s) => PRO_SEASON_ART[s].flatMap((y) =>
+        [badgeImage(`pro${s}${y}`, 1, true), badgeImage(`pro${s}${y}`, 1, false)])),
     ...(["iris", "plate"] as const).flatMap((st) => [proMarkImage(st, 20), proMarkImage(st, 12)]),
-].map((p) => p.replace(/^\//, "")));
+].filter((p): p is string => p !== null).map((p) => p.replace(/^\//, "")));
 
 describe("public/ に置いたものは全部配信される", () => {
     const files = listPublic();

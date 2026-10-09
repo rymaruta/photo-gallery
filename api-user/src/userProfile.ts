@@ -204,10 +204,20 @@ export type UserProfile = {
     displayBadge?: BadgeKey | null;
     /** Pro の印の形（本人が選ぶ・既定 iris）。Pro でなければ使われない */
     proMarkStyle?: ProMarkStyle;
-    /** サポーター（第2段階の購入）。`active === true` の人だけ Pro。**本人からは書けない** */
-    supporter?: { active?: boolean };
-    /** 応答だけに載る（行には保存しない）。`supporter.active === true` か */
+    /**
+     * サポーター（Pro の購入・`supporter.ts` の形）。**本人からは書けない**。書くのは
+     * `supporterStore.ts`（購入と App Store の知らせ）だけ。
+     * 応答には `{ number, since, months }` だけ出す（取引の番号・商品・期限は出さない）
+     */
+    supporter?: unknown;
+    /** 応答だけに載る（行には保存しない）。Pro が今有効か（`badgeKeys.ts` の `isPro`） */
     pro?: boolean;
+    /**
+     * 光と天気の知らせ（Pro・`lightForecast.ts`）を受け取るか。**既定は受け取る。**
+     * 行には「受け取らない」（`false`）のときだけ置く（無い＝受け取る）。
+     * 本人の応答には常に真偽で載せる（`withBadgeFields`）。公開プロフィールには出さない
+     */
+    lightAlert?: boolean;
     updatedAt?: string;
 };
 
@@ -513,6 +523,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         pinPhotoId?: unknown; pin?: unknown;
         songs?: unknown;
         displayBadge?: unknown; proMarkStyle?: unknown;
+        lightAlert?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -703,6 +714,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "Pro の印の形が不正です" }) };
     }
     const proMarkStyle = isProMarkStyle(body.proMarkStyle) ? body.proMarkStyle : undefined;
+    /**
+     * 光と天気の知らせ（`lightAlert`）。**真偽だけ受ける**（文字の "false" は 400——
+     * 黙って「受け取る」に倒すと、止めたつもりの人に届き続ける）。
+     * `true` は行から消す（既定に戻す）、`false` だけ置く
+     */
+    const hasLightAlertKey = "lightAlert" in body;
+    if (hasLightAlertKey && typeof body.lightAlert !== "boolean") {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "知らせの設定が不正です" }) };
+    }
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
     const applyPinOp = (stored: unknown): string[] | null => {
@@ -833,6 +853,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);
     apply("displayBadge", hasDisplayBadgeKey, displayBadge);
     apply("proMarkStyle", hasProMarkStyleKey, proMarkStyle);
+    apply("lightAlert", hasLightAlertKey, body.lightAlert === false ? false : undefined);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -1070,16 +1091,21 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
 }
 
 /**
- * 自分のプロフィールの応答に、メダルと Pro の4項目を整えて載せる
- * （`badges`・`displayBadge`・`pro`・`proMarkStyle`）。公開プロフィールと同じ `badgeFields` を通す。
- * 行の中の `supporter` はそのまま残る（本人の行なので隠す理由は無い）。
+ * 自分のプロフィールの応答に、メダルと Pro の項目を整えて載せる
+ * （`badges`・`displayBadge`・`pro`・`proMarkStyle`・`supporter`）。公開プロフィールと同じ
+ * `badgeFields` を通す。
+ * **行の `supporter` は生のまま出さない**（取引の番号・期間が入っている。本人の応答でも
+ * 公開と同じ `{ number, since, months }` だけ）。
  */
 function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
-    // 行の生の3項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
+    // 行の生の項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
     const rest = { ...p } as Record<string, unknown>;
     delete rest.badges;
     delete rest.displayBadge;
     delete rest.proMarkStyle;
+    delete rest.supporter;
+    // 光と天気の知らせ: 行に無ければ「受け取る」。本人の応答には常に真偽で載せる
+    rest.lightAlert = (p as { lightAlert?: unknown }).lightAlert !== false;
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
 }
 
@@ -1097,7 +1123,7 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         // **印は公開してよい**（バッジとして出すためのもの）。
         // 立てられるのは運営だけ（型の注記）
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
-        // メダルと Pro（`badgeKeys.ts` の形）。`supporter` そのものは出さない
+        // メダルと Pro（`badgeKeys.ts` の形）。`supporter` は公開してよい3項目だけ
         ...badgeFields(p),
     });
 }

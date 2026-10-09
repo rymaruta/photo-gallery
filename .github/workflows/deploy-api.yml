@@ -85,6 +85,11 @@ jobs:
       apnsHost: ${{ steps.pick.outputs.apnsHost }}
       apnsKeyId: ${{ steps.pick.outputs.apnsKeyId }}
       apnsTeamId: ${{ steps.pick.outputs.apnsTeamId }}
+      # Pro の購入（App Store）。Bundle ID は APNs の topic と同じ値を使う
+      # （`api-user/src/appStore.ts`）。どれも公開識別子で秘密ではない
+      appStoreBundleId: ${{ steps.pick.outputs.appStoreBundleId }}
+      appStoreEnvironments: ${{ steps.pick.outputs.appStoreEnvironments }}
+      appStoreAppAppleId: ${{ steps.pick.outputs.appStoreAppAppleId }}
       # **どちらのスタックを配るか。** 疑わしい回は両方 "true" に倒れる
       deployAdmin: ${{ steps.targets.outputs.admin }}
       deployUser: ${{ steps.targets.outputs.user }}
@@ -113,6 +118,13 @@ jobs:
               # 鍵そのもの（.p8）は secrets.APNS_PRIVATE_KEY から渡す
               apnsKeyId=DDYJB5893J
               apnsTeamId=5428GX5UM8
+              # Pro の購入。**本番は Sandbox も受ける**——TestFlight と App Review の
+              # 購入は Sandbox で、本番の API に届く（受けないと審査で買えない）。
+              # Sandbox の購入はサポーター番号の列を分ける（`api-user/src/supporter.ts`）。
+              # Apple ID は App Store のアプリの数字（`lib/utils/seo.ts` の iosAppId と同じ）。
+              # Production の署名を確かめるのに要る
+              appStoreEnvironments=Production,Sandbox
+              appStoreAppAppleId=6814335283
               # 削除・非公開のあとに再ビルドを頼む先
               rebuildRepo=${{ github.repository }}
               # **予約しない。** 以前ここは 10 だったが、本番へ初めて流した
@@ -150,6 +162,9 @@ jobs:
               # 鍵は Team Scoped（全アプリ共通）なので本番と同じものを使う
               apnsKeyId=DDYJB5893J
               apnsTeamId=5428GX5UM8
+              # Pro の購入は Sandbox だけ（staging のアプリは App Store に出さない）
+              appStoreEnvironments=Sandbox
+              appStoreAppAppleId=""
               # staging は検索避け（robots で全拒否）なので再ビルドは頼まない
               rebuildRepo=""
               # 予約は本番に譲る。両方で取ると未予約の枠が最低値を下回り、
@@ -176,6 +191,10 @@ jobs:
           echo "apnsHost=$apnsHost" >> "$GITHUB_OUTPUT"
           echo "apnsKeyId=$apnsKeyId" >> "$GITHUB_OUTPUT"
           echo "apnsTeamId=$apnsTeamId" >> "$GITHUB_OUTPUT"
+          # Pro の購入: Bundle ID は APNs の topic と同じ
+          echo "appStoreBundleId=$apnsTopic" >> "$GITHUB_OUTPUT"
+          echo "appStoreEnvironments=$appStoreEnvironments" >> "$GITHUB_OUTPUT"
+          echo "appStoreAppAppleId=$appStoreAppAppleId" >> "$GITHUB_OUTPUT"
           echo "musicSearchReserved=$musicSearchReserved" >> "$GITHUB_OUTPUT"
           echo "envName=$envName" >> "$GITHUB_OUTPUT"
           echo "デプロイ先: $envName"
@@ -350,6 +369,10 @@ jobs:
           APNS_TEAM_ID: ${{ needs.config.outputs.apnsTeamId }}
           APNS_TOPIC: ${{ needs.config.outputs.apnsTopic }}
           APNS_HOST: ${{ needs.config.outputs.apnsHost }}
+          # Pro の購入（App Store）。公開識別子だけ。空なら旗ごと渡さない
+          APPSTORE_BUNDLE_ID: ${{ needs.config.outputs.appStoreBundleId }}
+          APPSTORE_ENVIRONMENTS: ${{ needs.config.outputs.appStoreEnvironments }}
+          APPSTORE_APP_APPLE_ID: ${{ needs.config.outputs.appStoreAppAppleId }}
           # 絞った写真の画像 URL に期限を付ける鍵（案A・`docs/restricted-image-delivery.md`）。
           # **未登録でも何も壊れない**——空なら `isConfigured()` が false で
           # 署名しないだけ（`api-user/src/signedUrl.ts`）。先に配線だけ
@@ -377,6 +400,11 @@ jobs:
           # 「不正な形式」として弾き、全変数の解決に失敗してデプロイが落ちる
           # ——上の注記と同じ罠）
           if [ -n "${CLOUDFRONT_KEY_PAIR_ID:-}" ]; then extra+=(--param "cloudfrontKeyPairId=$CLOUDFRONT_KEY_PAIR_ID"); fi
+          # Pro の購入。**APNs の鍵の有無と関係なく渡す**（購入の確かめに鍵は要らない）
+          if [ -n "${APPSTORE_BUNDLE_ID:-}" ]; then extra+=(--param "appStoreBundleId=$APPSTORE_BUNDLE_ID"); fi
+          if [ -n "${APPSTORE_ENVIRONMENTS:-}" ]; then extra+=(--param "appStoreEnvironments=$APPSTORE_ENVIRONMENTS"); fi
+          if [ -n "${APPSTORE_APP_APPLE_ID:-}" ]; then extra+=(--param "appStoreAppAppleId=$APPSTORE_APP_APPLE_ID"); fi
+          echo "Pro の購入: ${APPSTORE_BUNDLE_ID:-(なし)} / ${APPSTORE_ENVIRONMENTS:-(なし)}"
           if [ -n "${CLOUDFRONT_PRIVATE_KEY:-}" ]; then extra+=(--param "cloudfrontPrivateKey=$CLOUDFRONT_PRIVATE_KEY"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
                "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')" \

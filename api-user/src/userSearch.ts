@@ -52,9 +52,13 @@ export function resetUserCache(): void {
     userCache = null;
 }
 
-/** ユーザー名の予約アイテム（userId="username#xxx"）は検索結果に出さない */
+/**
+ * 人ではない行は検索結果に出さない。ユーザー名の予約（userId="username#xxx"）と、
+ * Pro の番号の列・取引の結び付け（`counter#…`・`appstore#…`。`supporterStore.ts`）。
+ * Cognito の sub は `#` を含まない
+ */
 function isReservationItem(userId: unknown): boolean {
-    return typeof userId === "string" && userId.startsWith("username#");
+    return typeof userId === "string" && userId.includes("#");
 }
 
 function toHit(item: Record<string, unknown>): UserSearchHit | null {

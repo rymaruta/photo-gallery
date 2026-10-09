@@ -38,8 +38,8 @@ const ddb = new DynamoDBClient({ region: REGION });
         return;
     }
 
-    const reservations = items.filter((i) => String(i.userId ?? "").startsWith("username#"));
-    const profiles = items.filter((i) => !String(i.userId ?? "").startsWith("username#"));
+    const reservations = items.filter((i) => String(i.userId ?? "").includes("#"));   // @名の予約・Pro の行（`counter#…`・`appstore#…`）
+    const profiles = items.filter((i) => !String(i.userId ?? "").includes("#"));
     console.log(`全アイテム: ${items.length}（プロフィール ${profiles.length} / ユーザー名予約 ${reservations.length}）`);
     console.log(`表示名あり: ${profiles.filter((p) => typeof p.displayName === "string" && p.displayName.trim()).length}`);
     console.log(`@ユーザー名あり: ${profiles.filter((p) => typeof p.username === "string" && p.username.trim()).length}`);

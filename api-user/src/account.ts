@@ -17,6 +17,7 @@ import { removePhotosFromAlbum } from "./albumCleanup";
 import { sweepStoryVotes } from "./storyVotes";
 import { highlightKey, highlightsOfUserKey } from "./highlights";
 import { readUserList } from "./userList";
+import { forgetAppStoreLinks } from "./supporterStore";
 
 // 退会（アカウント削除）。DELETE /user/account、認証必須、呼び出し元の sub のみ対象。
 // 不可逆な破壊操作のため「確実に引ける範囲を確実に消す」方針:
@@ -490,10 +491,13 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //    同じ考え方。
         let handle = "";
         let profileWasLive = false;
+        // Pro の取引と人の結び付け（`appstore#…`）を消すのに使う（`supporterStore.ts`）
+        let supporterRow: unknown;
         try {
             const prof = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: uid } }));
             handle = typeof prof.Item?.username === "string" ? prof.Item.username : "";
             profileWasLive = !!prof.Item && !isDeletedProfile(prof.Item);
+            supporterRow = prof.Item?.supporter;
         } catch (e) {
             console.error("deleteAccount: read profile failed:", e);
             return jsonError(500, "プロフィールを読めませんでした。アカウントはまだ削除されていません。時間をおいてもう一度お試しください");
@@ -554,6 +558,10 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 ...(handle ? { username: handle } : {}),
             },
         }));
+
+        // Pro の取引と人の結び付けを消す（投げない・退会は止めない）。
+        // サブスクリプションそのものは Apple 側に残るので、解約は本人が App Store で行う
+        await forgetAppStoreLinks(uid, supporterRow);
 
         // 静的ページの掃除を頼む。DynamoDB と S3 を消しても、既に配ってある
         // 写真ページ・プロフィールページのHTMLは残っている（本文も撮影地も
@@ -676,6 +684,9 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // **本人しか読めない一覧なので、ここで消せば完全に消える**
         // （いいねのように他人側へ散る要素を持たない）
         await ddbDelete(PHOTOS_TABLE, { id: `spots#${uid}` });
+        // 光と天気の知らせを送った日の印（`lightForecast.ts`）。中身は日付だけだが、
+        // 「Pro でこの機能を使っていた」ことは残さない
+        await ddbDelete(PHOTOS_TABLE, { id: `lightalert#${uid}` });
         // 写真の「保存」の一覧（`saves.ts` の `saves#<uid>`）も同じ扱い。
         // `save#<photoId>#<uid>` のマーカーは前方一致で列挙できないので
         // `like#` と同じく残る（一覧が無ければ画面には出ない）
