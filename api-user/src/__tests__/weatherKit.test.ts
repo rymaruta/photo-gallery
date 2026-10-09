@@ -158,7 +158,7 @@ describe("要求と応答", () => {
         json.forecastHourly.hours.push({ forecastStart: "bad", cloudCover: 0.1 }, { forecastStart: "2026-10-12T00:00:00Z" });
         const wx = wk.parseWeather(json, NOW);
         expect(wx.hours).toHaveLength(60);
-        expect(wx.hours[0]).toEqual({ t: NOW, cloud: 0.9, low: 0.8, mid: 0.5, high: 0.3, rain: 0.1, code: "Cloudy" });
+        expect(wx.hours[0]).toEqual({ t: NOW, cloud: 0.9, low: 0.8, mid: 0.5, high: 0.3, rain: 0.1, vis: 24_000, hum: 0.7, code: "Cloudy" });
         expect(wk.parseWeather(null, NOW).hours).toEqual([]);
     });
 
