@@ -9,6 +9,10 @@ provider:
   name: aws
   runtime: nodejs22.x
   region: ap-northeast-1
+  # **関数の版（AWS::Lambda::Version）を作らない**（2026-10-09）。関数が 82 あり、版の部品だけで
+  # 82 個になって、CloudFormation の上限 500 を超えて本番・staging の反映が止まった（502 個）。
+  # 別名（alias）・前もって温める設定（provisioned concurrency）は使っておらず、版を参照している所も無い
+  versionFunctions: false
 
   environment:
     # 環境ごとの値。既定値は置かない——未指定ならデプロイを失敗させる。
