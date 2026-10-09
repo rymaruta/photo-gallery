@@ -90,14 +90,14 @@ export const PRO_SEASON_ART: Record<ProSeason, readonly number[]> = {
 
 /** メダルの名前。日本語はサーバーの通知の文面（`badgeKeys.ts` の BADGE_NAME_JA）と同じ */
 export const BADGE_NAMES: Record<FixedBadgeKey, { ja: string; en: string }> = {
-    first: { ja: "はじめての一枚", en: "First photo" },
+    first: { ja: "最初の一枚", en: "First photo" },
     prefectures: { ja: "都道府県", en: "Prefectures" },
-    countries: { ja: "国と地域", en: "Countries" },
+    countries: { ja: "国・地域", en: "Countries" },
     seasons: { ja: "四季", en: "Four seasons" },
     morning: { ja: "朝の光", en: "Morning light" },
-    night: { ja: "ブルーアワー", en: "Blue hour" },
-    books: { ja: "旅の本", en: "Travel books" },
-    wish: { ja: "行きたいをかなえた", en: "Wish fulfilled" },
+    night: { ja: "夜の光", en: "Night light" },
+    books: { ja: "旅の一冊", en: "Travel books" },
+    wish: { ja: "行けた場所", en: "Wish fulfilled" },
     earlyUser: { ja: "初期ユーザー", en: "Early member" },
     supporter: { ja: "サポーター章", en: "Supporter" },
     supporterYear: { ja: "続けた年", en: "Years of support" },
@@ -124,7 +124,7 @@ const BADGE_RULES: Record<Exclude<FixedBadgeKey, "earlyUser" | "first" | "suppor
     seasons: { lines: [1, 2, 3], ja: "春夏秋冬を撮った年が{n}年", en: "All four seasons in {n} year(s)" },
     morning: { lines: [10, 50, 200], ja: "日の出の前後に{n}枚", en: "{n} photos around sunrise" },
     night: { lines: [10, 50, 200], ja: "日の入りのあとに{n}枚", en: "{n} photos after sunset" },
-    books: { lines: [3, 10, 30], ja: "旅の本が{n}冊", en: "{n} travel books" },
+    books: { lines: [3, 10, 30], ja: "旅を{n}冊にまとめた", en: "{n} travel books" },
     wish: { lines: [3, 10, 30], ja: "行きたい場所{n}か所で撮った", en: "Photographed {n} wishlist spots" },
     // サーバーの SUPPORTER_YEAR_THRESHOLDS と同じ線（月数）
     supporterYear: { lines: [12, 24, 36], ja: "Pro を通算{n}か月続けた", en: "Pro for {n} months in total" },

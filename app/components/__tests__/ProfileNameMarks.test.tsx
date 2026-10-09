@@ -51,9 +51,9 @@ describe("NameBadge（名前の横の、選んだメダル）", () => {
         render(<NameBadge badges={badges} displayBadge="morning" ownerName="旅人" locale="ja" />);
         fireEvent.click(screen.getByTestId("name-badge"));
         const dialog = screen.getByRole("dialog", { name: "旅人のメダル" });
-        // 表の順（はじめての一枚 → 朝の光 → 初期ユーザー）
+        // 表の順（最初の一枚 → 朝の光 → 初期ユーザー）
         const names = [...dialog.querySelectorAll("li p:first-child")].map((p) => p.textContent);
-        expect(names).toEqual(["はじめての一枚", "朝の光（銀）", "初期ユーザー"]);
+        expect(names).toEqual(["最初の一枚", "朝の光（銀）", "初期ユーザー"]);
         expect(dialog.textContent).toContain("日の出の前後に50枚");
         fireEvent.keyDown(document, { key: "Escape" });
         expect(screen.queryByRole("dialog")).toBeNull();
