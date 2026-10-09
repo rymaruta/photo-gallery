@@ -19,8 +19,10 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({ pushNotification }));
 
 import { appStoreNotification, recordPurchase } from "../purchases";
-import { allocateSupporterNumber, applyToProfile, claimAppStoreLink, forgetAppStoreLinks } from "../supporterStore";
+import { allocateSupporterNumber, applyToProfile, claimAppStoreLink, endPreviousOwnerAccess, forgetAppStoreLinks } from "../supporterStore";
 import { appAccountTokenFor, resetAppStoreVerifiers } from "../appStore";
+import { isPro } from "../badgeKeys";
+import { monthsOf } from "../proBadges";
 import { FakeUsersTable } from "./fixtures/fakeUsersTable";
 import {
     BUNDLE, MONTHLY, TEST_ROOT_DER, YEARLY, notificationJws, signJws, txPayload,
@@ -122,8 +124,47 @@ describe("POST /user/purchases", () => {
         db.set({ userId: "u1" });
         const res = await purchase("u1", { signedTransaction: signJws(tokenTx("u2")) });
         expect(res.statusCode).toBe(403);
+        // アプリはこの印で見分ける（`error` の日本語は変わりうる）
+        expect(JSON.parse(res.body).code).toBe("linked_to_other_account");
         expect(db.get("u1")).toEqual({ userId: "u1" });
         expect(db.get("appstore#2000000000000001")).toBeUndefined();
+    });
+
+    // 2026-10-09 owner: 退会して作り直したアカウントは、古いアカウントで買った購読では Pro にならない
+    it("退会して作り直したアカウントに古いアカウントの購読が届いても Pro にしない（403・linked_to_other_account）", async () => {
+        db.set({ userId: "old" });
+        expect((await purchase("old", { signedTransaction: signJws(tokenTx("old")) })).statusCode).toBe(200);
+        // 退会（墓石＋結び付けを消す。account.ts と同じ順）
+        const supporterRow = db.get("old")!.supporter;
+        db.set({ userId: "old", deletedAt: "2026-10-11T00:00:00Z" });
+        await forgetAppStoreLinks("old", supporterRow);
+        expect(db.get("appstore#2000000000000001")).toBeUndefined();
+
+        db.set({ userId: "new" });
+        pushNotification.mockClear();
+        // StoreKit の currentEntitlement は古いアカウントの token のまま
+        const res = await purchase("new", { signedTransaction: signJws(tokenTx("old")) });
+        expect(res.statusCode).toBe(403);
+        expect(JSON.parse(res.body).code).toBe("linked_to_other_account");
+        expect(db.get("new")).toEqual({ userId: "new" });
+        expect(db.get("appstore#2000000000000001")).toBeUndefined();
+        expect(pushNotification).not.toHaveBeenCalled();
+    });
+
+    // 2026-10-09 owner: ファミリー共有は認めない。Pro・番号・メダル・結び付けのどれも作らない
+    it("ファミリー共有の取引は 403（family_shared_not_supported）・何も書かない", async () => {
+        db.set({ userId: "u1", rev: 1 });
+        for (const tx of [
+            txPayload({ inAppOwnershipType: "FAMILY_SHARED" }),                                   // token なし
+            tokenTx("u1", { inAppOwnershipType: "FAMILY_SHARED", originalTransactionId: "777" }),  // 本人の token でも
+        ]) {
+            const res = await purchase("u1", { signedTransaction: signJws(tx) });
+            expect(res.statusCode).toBe(403);
+            expect(JSON.parse(res.body).code).toBe("family_shared_not_supported");
+        }
+        expect([...db.rows.keys()]).toEqual(["u1"]);
+        expect(db.get("u1")).toEqual({ userId: "u1", rev: 1 });
+        expect(pushNotification).not.toHaveBeenCalled();
     });
 
     it("別の人に結び付いた取引は 409（appAccountToken の無い取引でも横取りさせない）", async () => {
@@ -132,6 +173,7 @@ describe("POST /user/purchases", () => {
         expect((await purchase("u1", { signedTransaction: signJws(txPayload()) })).statusCode).toBe(200);
         const res = await purchase("u2", { signedTransaction: signJws(txPayload()) });
         expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).code).toBe("claimed_by_other_account");
         expect(db.get("u2")).toEqual({ userId: "u2" });
     });
 
@@ -163,6 +205,67 @@ describe("POST /user/purchases", () => {
         expect(db.get("u2")).toMatchObject({ supporter: { expiresAt: new Date(T0 + 102 * DAY).toISOString() } });
     });
 
+    // 2026-10-09: 付け替えたら、前の持ち主の Pro をその場で終える。前の持ち主の token の付いた知らせは
+    // 捨てられる（結び付けが新しい人に移った）ので、終わらせないと元の期限まで Pro が残っていた
+    it("付け替えたら前の持ち主の Pro はその場で終わる（番号・月数・メダルは残す）", async () => {
+        db.set({ userId: "u1", rev: 1 });
+        db.set({ userId: "u2" });
+        expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+        // 10日後、同じ Apple ID のまま u2 で年ごとに申し込み直す（u1 の月ごとはまだ期限前）
+        const now = T0 + 10 * DAY;
+        vi.setSystemTime(now);
+        const before = db.get("u1")!;
+        const yearly = tokenTx("u2", {
+            transactionId: "2000000000000020", productId: YEARLY, purchaseDate: now - 60_000,
+            expiresDate: now + 365 * DAY, signedDate: now - 30_000,
+        });
+        expect((await purchase("u2", { signedTransaction: signJws(yearly) })).statusCode).toBe(200);
+        expect(db.get("appstore#2000000000000001")).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+        expect(db.get("u2")).toMatchObject({ supporter: { active: true } });
+
+        const after = db.get("u1")!;
+        const s = after.supporter as Record<string, unknown>;
+        expect(s.active).toBe(false);
+        expect(s.expiresAt).toBe(new Date(now).toISOString());
+        expect(isPro(after as { supporter?: unknown }, now + 1)).toBe(false);
+        // 番号・申し込んだ日・月数・メダルはそのまま
+        const bs = before.supporter as Record<string, unknown>;
+        expect(s.number).toBe(bs.number);
+        expect(s.since).toBe(bs.since);
+        expect(s.months).toBe(bs.months);
+        expect(after.badges).toEqual(before.badges);
+        // rev を上げて置き直した（アプリの更新に消されない）
+        expect(after.rev).toBe((before.rev as number) + 1);
+        // 元の期限が来ても、u1 の月数・季節の章は u2 の分まで伸びない
+        expect(monthsOf(s, T0 + 400 * DAY)).toBe(bs.months);
+    });
+
+    it("前の持ち主が今は別の購読（別の originalTransactionId）なら触らない", async () => {
+        db.set({ userId: "u1" });
+        db.set({ userId: "u2" });
+        expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+        // u1 は別の Apple ID で買い直していて、今の購読は別の取引
+        const other = db.get("u1")!;
+        db.set({ ...other, supporter: { ...(other.supporter as object), originalTransactionId: "2000000000000777" } });
+        const snapshot = db.get("u1");
+        vi.setSystemTime(T0 + 10 * DAY);
+        const again = tokenTx("u2", { transactionId: "2000000000000021", purchaseDate: T0 + 10 * DAY - 60_000, expiresDate: T0 + 41 * DAY, signedDate: T0 + 10 * DAY - 30_000 });
+        expect((await purchase("u2", { signedTransaction: signJws(again) })).statusCode).toBe(200);
+        expect(db.get("u1")).toEqual(snapshot);
+    });
+
+    it("前の持ち主が退会済み・行が無いなら何も書かない（付け替えは通る）", async () => {
+        db.set({ userId: "u1" });
+        db.set({ userId: "u2" });
+        expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+        db.set({ userId: "u1", deletedAt: "2026-10-12T00:00:00Z" });
+        vi.setSystemTime(T0 + 10 * DAY);
+        const again = tokenTx("u2", { transactionId: "2000000000000022", purchaseDate: T0 + 10 * DAY - 60_000, expiresDate: T0 + 41 * DAY, signedDate: T0 + 10 * DAY - 30_000 });
+        expect((await purchase("u2", { signedTransaction: signJws(again) })).statusCode).toBe(200);
+        expect(db.get("u1")).toEqual({ userId: "u1", deletedAt: "2026-10-12T00:00:00Z" });
+        expect(db.get("appstore#2000000000000001")).toMatchObject({ ownerId: "u2" });
+    });
+
     it("署名を確かめられない・形が違う・売っていない商品は 400", async () => {
         db.set({ userId: "u1" });
         expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1"), "rogue") })).statusCode).toBe(400);
@@ -179,6 +282,45 @@ describe("POST /user/purchases", () => {
         vi.stubEnv("APPSTORE_BUNDLE_ID", "");
         vi.spyOn(console, "error").mockImplementation(() => {});
         expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(503);
+    });
+});
+
+// 2026-10-09: 本番（Production と Sandbox を受ける）に来た TestFlight・審査の購入
+describe("本番のサーバーに来た Sandbox の購入", () => {
+    beforeEach(() => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Production,Sandbox");
+        vi.stubEnv("APPSTORE_APP_APPLE_ID", "6814335283");
+    });
+
+    it("Pro にはなるが、サポーター番号は公開せず、メダルも付けない（数分の更新を重ねても）", async () => {
+        db.set({ userId: "u1", rev: 1 });
+        const first = tokenTx("u1", { productId: YEARLY, expiresDate: T0 + 3 * 60_000 });
+        const res = await purchase("u1", { signedTransaction: signJws(first) });
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body);
+        expect(body.pro).toBe(true);
+        expect(body.supporter).toBeUndefined();
+        expect(body.badges).toBeUndefined();
+        // Sandbox の年ごとは3分。2回更新すると数え方では 24 か月
+        for (let i = 1; i <= 2; i++) {
+            const start = T0 + i * 3 * 60_000;
+            vi.setSystemTime(start + 1000);
+            const renew = notificationJws({
+                type: "DID_RENEW",
+                tx: tokenTx("u1", { transactionId: `200000000000010${i}`, productId: YEARLY, purchaseDate: start, expiresDate: start + 3 * 60_000, signedDate: start + 500 }),
+            });
+            expect((await notify({ signedPayload: renew })).statusCode).toBe(200);
+        }
+        vi.setSystemTime(T0 + 10 * 60_000);
+        const expired = notificationJws({
+            type: "EXPIRED",
+            tx: tokenTx("u1", { transactionId: "2000000000000102", productId: YEARLY, purchaseDate: T0 + 6 * 60_000, expiresDate: T0 + 9 * 60_000, signedDate: T0 + 10 * 60_000 }),
+        });
+        expect((await notify({ signedPayload: expired })).statusCode).toBe(200);
+        const row = db.get("u1")!;
+        expect((row.supporter as { months: number }).months).toBeGreaterThanOrEqual(24);
+        expect(row.badges).toBeUndefined();
+        expect(pushNotification).not.toHaveBeenCalled();
     });
 });
 
@@ -249,6 +391,29 @@ describe("POST /appstore/notifications", () => {
         const res = await notify({ signedPayload: notificationJws({ type: "SUBSCRIBED", tx: txPayload({ originalTransactionId: "999" }) }) });
         expect(res.statusCode).toBe(200);
         expect([...db.rows.keys()]).toEqual([]);
+    });
+
+    it("ファミリー共有の取引の知らせは 200 で何もしない（結び付けも作らない）", async () => {
+        // 誰にも結び付いていない家族の取引
+        const fam = txPayload({ inAppOwnershipType: "FAMILY_SHARED", originalTransactionId: "888", transactionId: "888" });
+        for (const type of ["SUBSCRIBED", "DID_RENEW"]) {
+            expect((await notify({ signedPayload: notificationJws({ type, tx: fam }) })).statusCode).toBe(200);
+        }
+        expect([...db.rows.keys()]).toEqual([]);
+
+        // 結び付いた取引と同じ番号で家族の取引が来ても、持ち主の行に書かない
+        await subscribed();
+        const before = structuredClone(db.get("u1"));
+        const link = structuredClone(db.get("appstore#2000000000000001"));
+        vi.setSystemTime(T0 + 32 * DAY);
+        const famSame = tokenTx("u1", {
+            inAppOwnershipType: "FAMILY_SHARED", transactionId: "2000000000000009",
+            purchaseDate: T0 + 31 * DAY, expiresDate: T0 + 400 * DAY, signedDate: T0 + 31 * DAY + 1000,
+        });
+        expect((await notify({ signedPayload: notificationJws({ type: "DID_RENEW", uuid: "fam-1", tx: famSame }) })).statusCode).toBe(200);
+        expect(db.get("u1")).toEqual(before);
+        expect(db.get("appstore#2000000000000001")).toEqual(link);
+        expect(pushNotification).not.toHaveBeenCalled();
     });
 
     it("扱っていない商品・取引の無い知らせ（TEST）は 200 で何もしない", async () => {
@@ -365,6 +530,24 @@ describe("取引と人の結び付け", () => {
         ]);
         expect(both.filter((r) => r === "ok")).toHaveLength(1);
         expect(["u3", "u4"]).toContain(db.get("appstore#o1")!.ownerId);
+    });
+
+    it("前の持ち主の Pro を終える書き込みは rev を見る（間に入った書き込みを消さず、読み直して重ねる）", async () => {
+        const exp = new Date(T0 + 31 * DAY).toISOString();
+        db.set({ userId: "u1", rev: 4, supporter: { active: true, months: 0, originalTransactionId: "o1", expiresAt: exp, periods: [], linked: ["o1"] } });
+        const real = db.send;
+        let injected = false;
+        db.send = async (cmd) => {
+            if (!injected && cmd.constructor.name === "PutCommand") {
+                injected = true;
+                // 読んだあと・書く前に、本人がプロフィールを直した
+                const cur = db.get("u1")!;
+                db.set({ ...cur, displayName: "新しい名前", rev: 5 });
+            }
+            return real(cmd);
+        };
+        expect(await endPreviousOwnerAccess("u1", "o1", () => T0)).toBe("ended");
+        expect(db.get("u1")).toMatchObject({ displayName: "新しい名前", rev: 6, supporter: { active: false, expiresAt: new Date(T0).toISOString() } });
     });
 
     it("退会で自分の結び付けだけ消す", async () => {

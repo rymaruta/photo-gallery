@@ -8,8 +8,12 @@
  *     200   公開プロフィール（`toPublicProfile`。`pro`・`supporter: { number, since, months }`・`badges` を含む）
  *     400   形が違う・署名を確かめられない・売っていない商品・自動更新でない
  *     401   認証なし
- *     403   appAccountToken がこの人のものではない（別のアカウントで買われた）
- *     409   この購入は別のアカウントに結び付いている／書き込みが競合し続けた
+ *     403   appAccountToken がこの人のものではない（別のアカウントで買われた・退会して作り直した
+ *           アカウントに古いアカウントの購入が届いた）→ `code: "linked_to_other_account"`
+ *     403   ファミリー共有で受け取った権利（`inAppOwnershipType: FAMILY_SHARED`）
+ *           → `code: "family_shared_not_supported"`。**Pro は買った本人だけ**（2026-10-09 owner）
+ *     409   この購入は別のアカウントに結び付いている（`code: "claimed_by_other_account"`）／
+ *           書き込みが競合し続けた（code なし・やり直せば通る）
  *     410   退会済み
  *     503   サーバーに App Store の設定が無い
  *
@@ -24,7 +28,7 @@
  *
  *     要求  { "signedPayload": "<JWS>" }
  *     200   確かめられた（反映した・処理済み・扱わない知らせ＝結び付いていない取引・他の商品・
- *           取引の無い知らせ・退会済みの人）
+ *           取引の無い知らせ・退会済みの人・**ファミリー共有の取引**）
  *     400   署名を確かめられない・形が違う
  *     500   サーバーに App Store の設定が無い／**確かめたが書き込みに失敗した**（DynamoDB の
  *           例外・競合が続いた）。どちらも Apple が時間をおいて送り直す。送り直されても
@@ -48,6 +52,14 @@ import type { UserProfile } from "./userProfile";
 /** JWS の長さの上限（実物は数KB。証明書3枚ぶん） */
 const MAX_JWS_LENGTH = 32_000;
 const AUTO_RENEWABLE = "Auto-Renewable Subscription";
+
+/**
+ * ファミリー共有で受け取った取引か。**Pro・サポーター番号・メダルは買った本人だけ**
+ * （2026-10-09 owner の決め）。家族の取引は誰にも結び付けず、何も書かない。
+ * App Store Connect でファミリー共有を切っていても、ここで止める（設定の戻し忘れ・審査の
+ * 都合で入れたときにも、家族に配られない）
+ */
+const isFamilyShared = (t: { inAppOwnershipType?: unknown }) => t.inAppOwnershipType === "FAMILY_SHARED";
 
 function readBody(event: { body?: string; isBase64Encoded?: boolean }): Record<string, unknown> | null {
     try {
@@ -88,9 +100,13 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         return jsonError(400, "この商品は扱っていません");
     }
     if (transaction.type !== AUTO_RENEWABLE) return jsonError(400, "この商品は扱っていません");
+    if (isFamilyShared(transaction)) {
+        console.warn(`recordPurchase: ファミリー共有の取引は受け付けません（${userId}）`);
+        return jsonError(403, "ファミリー共有のサブスクリプションでは Pro になりません。ご自身で購入してください", "family_shared_not_supported");
+    }
     const token = typeof transaction.appAccountToken === "string" ? transaction.appAccountToken.toLowerCase() : "";
     if (token && token !== appAccountTokenFor(userId)) {
-        return jsonError(403, "別のアカウントで購入されたサブスクリプションです");
+        return jsonError(403, "別のアカウントで購入されたサブスクリプションです", "linked_to_other_account");
     }
     const facts = transactionFacts(transaction, environment);
     if (typeof facts === "string") return jsonError(400, "購入の情報が足りません");
@@ -98,7 +114,7 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     try {
         const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, { tokenIsMine: token !== "" });
         if (claimed === "other") {
-            return jsonError(409, "このサブスクリプションは別のアカウントで使われています");
+            return jsonError(409, "このサブスクリプションは別のアカウントで使われています", "claimed_by_other_account");
         }
         const out = await applyToProfile(userId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: true });
         if (out.status === "deleted") {
@@ -158,6 +174,11 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         }
         if (!proProductIds(cfg.bundleId).includes(transaction.productId ?? "")) {
             console.log(`appStoreNotification: 扱っていない商品 ${transaction.productId} ${label}`);
+            return ok();
+        }
+        if (isFamilyShared(transaction)) {
+            // 家族の取引は誰にも結び付けない。結び付いた行があっても書かない（送り直されても同じ）
+            console.log(`appStoreNotification: ファミリー共有の取引は扱いません ${label}`);
             return ok();
         }
         const facts = transactionFacts(transaction, environment);

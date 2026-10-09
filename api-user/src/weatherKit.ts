@@ -264,8 +264,15 @@ export const wxCacheKey = (lat: number, lng: number, timeZone: string) => `wxcac
 /** 呼び出しの間で使い回す控え（温まったコンテナの中だけ）。DynamoDB の手前 */
 const memo = new Map<string, WxForecast>();
 
+/**
+ * いま読みに行っている最中の場所。**同じ場所を同時に読みに行かない**——知らせの定期実行は
+ * 何人かを並べて回るので、同じスポットを入れた人どうしが同じ瞬間に WeatherKit を叩きうる
+ */
+const inflight = new Map<string, Promise<WxForecast | null>>();
+
 export function resetWeatherMemo(): void {
     memo.clear();
+    inflight.clear();
 }
 
 async function readCache(key: string, now: number): Promise<WxForecast | null> {
@@ -302,6 +309,20 @@ export async function getForecast(
     const key = wxCacheKey(spot.lat, spot.lng, spot.timeZone);
     const hit = memo.get(key);
     if (hit && now - hit.fetchedAt < CACHE_TTL_MS) return hit;
+    const pending = inflight.get(key);
+    if (pending) return pending;
+    const p = loadForecast(key, spot, wkKey, now).finally(() => inflight.delete(key));
+    inflight.set(key, p);
+    return p;
+}
+
+/** 控え（DynamoDB）→ WeatherKit。`getForecast` が同じ場所につき同時に1本だけ走らせる */
+async function loadForecast(
+    key: string,
+    spot: { lat: number; lng: number; timeZone: string },
+    wkKey: WeatherKitKey,
+    now: number,
+): Promise<WxForecast | null> {
     const cached = await readCache(key, now);
     if (cached) { memo.set(key, cached); return cached; }
 

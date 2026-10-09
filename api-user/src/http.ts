@@ -36,7 +36,10 @@ export function isAdmin(event: AuthedEvent): boolean {
     return parseGroupsClaim(event.requestContext.authorizer.jwt.claims["cognito:groups"]).includes("admin");
 }
 
-/** JSON エラーレスポンスの短縮形 */
-export function jsonError(statusCode: number, message: string) {
-    return { statusCode, headers: JSON_HEADERS, body: JSON.stringify({ error: message }) };
+/**
+ * JSON エラーレスポンスの短縮形。
+ * `code` はアプリが見分けるための**変わらない英字の印**（`error` は画面に出す日本語で、変わりうる）
+ */
+export function jsonError(statusCode: number, message: string, code?: string) {
+    return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(code ? { error: message, code } : { error: message }) };
 }
