@@ -245,3 +245,68 @@ describe("更新（PUT /user/profile）", () => {
         expect(JSON.parse(res.body).pro).toBe(false);
     });
 });
+
+describe("Pro・サポーター（第2段階）: 出してよいのは番号・申し込んだ日・月数だけ", () => {
+    const FUTURE = new Date(Date.now() + 30 * 86_400_000).toISOString();
+    const SUPPORTER = {
+        number: 42, since: "2026-10-10T03:00:00.000Z", months: 13, active: true,
+        productId: "com.journeyphoto.JourneyPhoto.pro.yearly", originalTransactionId: "2000000099999999",
+        expiresAt: FUTURE, environment: "Production", autoRenew: true, lastEventAt: "2026-10-10T03:00:00.000Z",
+        periods: [{ id: "2000000099999999", start: "2026-10-10T03:00:00.000Z", end: FUTURE, product: "com.journeyphoto.JourneyPhoto.pro.yearly" }],
+        linked: ["2000000099999999"],
+    };
+    const PRIVATE = ["2000000099999999", "productId", "originalTransactionId", "expiresAt", "periods", "linked", "environment", "autoRenew", "lastEventAt", "pro.yearly"];
+
+    it("公開プロフィール", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER }));
+        const res = await getPublic("u1");
+        const body = JSON.parse(res.body);
+        expect(body.pro).toBe(true);
+        expect(body.supporter).toEqual({ number: 42, since: "2026-10-10T03:00:00.000Z", months: 13 });
+        for (const word of PRIVATE) expect(res.body, word).not.toContain(word);
+    });
+
+    it("自分のプロフィールでも同じ3項目だけ（取引の番号は本人にも返さない）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER }));
+        const res = await getMine();
+        const body = JSON.parse(res.body);
+        expect(body.pro).toBe(true);
+        expect(body.supporter).toEqual({ number: 42, since: "2026-10-10T03:00:00.000Z", months: 13 });
+        for (const word of PRIVATE) expect(res.body, word).not.toContain(word);
+    });
+
+    it("期限を過ぎていれば active のままでも Pro の印は出さない（番号は出す）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: { ...SUPPORTER, expiresAt: "2026-01-01T00:00:00.000Z" } }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.pro).toBe(false);
+        expect(body.supporter.number).toBe(42);
+    });
+
+    it("更新: 季節の章を名前の横に選べる（持っているときだけ）。保存済みの supporter は残る", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ badges: { proAutumn2026: { tier: 1, at: AT, year: 2026 } }, supporter: SUPPORTER }))
+            .mockResolvedValueOnce({});
+        const res = await update({ displayBadge: "proAutumn2026", supporter: { number: 1 } });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().displayBadge).toBe("proAutumn2026");
+        expect(savedProfile().supporter).toEqual(SUPPORTER);
+        const body = JSON.parse(res.body);
+        expect(body.displayBadge).toBe("proAutumn2026");
+        expect(body.supporter).toEqual({ number: 42, since: "2026-10-10T03:00:00.000Z", months: 13 });
+        expect(res.body).not.toContain("2000000099999999");
+
+        commands.length = 0;
+        mockSend.mockReset();
+        mockSend.mockResolvedValueOnce(stored({ badges: { proAutumn2026: { tier: 1, at: AT } } }));
+        expect((await update({ displayBadge: "proWinter2026" })).statusCode).toBe(400);
+        expect(commands.some((c) => c.type === "Put")).toBe(false);
+    });
+
+    it("更新: サポーター章・続けた年も選べる", async () => {
+        mockSend
+            .mockResolvedValueOnce(stored({ badges: { supporter: { tier: 1, at: AT }, supporterYear: { tier: 2, at: AT } } }))
+            .mockResolvedValueOnce({});
+        expect((await update({ displayBadge: "supporterYear" })).statusCode).toBe(200);
+        expect(savedProfile().displayBadge).toBe("supporterYear");
+    });
+});

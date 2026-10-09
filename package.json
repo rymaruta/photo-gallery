@@ -20,6 +20,7 @@
     "verify": "bash scripts/verify-local.sh"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "3.1.0",
     "@aws-sdk/client-cloudfront": "^3.1050.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1133.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.970.0",

@@ -150,9 +150,10 @@ const EXEMPT: Array<[string, string, string]> = [
     // (a2) 自分のサイトに置いた固定の資産（写真ではない）
     ["app/layout.tsx", '"/logo-aperture.png"', "ヘッダーのロゴ（`public/` に置いた固定の絵。相対パスなので既にサイトのドメイン）"],
     ["app/components/ProfileNameMarks.tsx", "proMarkImage(style, size)", "Pro の印（`public/badges/` に置いた固定の SVG。相対パス）"],
-    ["app/components/ProfileNameMarks.tsx", "badgeImage(key, tier, false)", "メダルの絵（`public/badges/` に置いた固定の WebP。相対パス）"],
-    ["app/components/ProfileNameMarks.tsx", "badgeImage(displayBadge, chosen.tier, true)", "名前の横のメダル（同上）"],
-    ["app/components/NotificationsBell.tsx", "badgeImage(badgeKey, badgeTier, false)", "メダルの通知の絵（同上）"],
+    // `badgeImage` は季節の章で絵の無い年に null を返すので、一度変数に受けてから描く
+    ["app/components/ProfileNameMarks.tsx", "medalSrc", "メダルの絵（`badgeImage`。`public/badges/` に置いた固定の WebP。相対パス）"],
+    ["app/components/ProfileNameMarks.tsx", "src", "名前の横のメダル（`badgeImage`・同上）"],
+    ["app/components/NotificationsBell.tsx", "medalSrc", "メダルの通知の絵（`badgeImage`・同上）"],
 
     // (b) 端末の中にしか無い
     ["app/components/Thumb.tsx", "photo.blurDataURL", "ぼかしは data: URI"],

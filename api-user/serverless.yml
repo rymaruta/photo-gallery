@@ -240,6 +240,54 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # Pro の購入（iOS の StoreKit 2・`src/purchases.ts`）。Apple の署名をこの場で確かめ
+  # （`src/appStore.ts`）、プロフィールの `supporter` とメダルを置き直す。**Web では売らない**
+  recordPurchase:
+    handler: src/purchases.recordPurchase
+    environment:
+      # どのアプリ・どの環境の購入を受けるか（`deploy-api.yml` が環境ごとに渡す）。
+      # 無ければ 503（受け付けない）
+      APPSTORE_BUNDLE_ID: ${param:appStoreBundleId, ''}
+      APPSTORE_ENVIRONMENTS: ${param:appStoreEnvironments, ''}
+      APPSTORE_APP_APPLE_ID: ${param:appStoreAppAppleId, ''}
+      # 付いたメダルの通知を端末へ送る（provider に置かない・IAM-2）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
+    # 署名の確かめ（証明書3枚）と、通知（APNs へ最大2秒）まで待つ
+    timeout: 15
+    events:
+      - httpApi:
+          path: /user/purchases
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
+  # App Store Server Notifications V2 の受け口（Apple から・認証なし）。
+  # 署名を確かめられなければ 400、確かめられたら 200（書き込みに失敗したときだけ 500＝Apple が送り直す）。
+  # App Store Connect の「App Store Server Notifications」にこの URL を書く
+  # （本番・Sandbox とも本番の API。staging は staging の API）
+  appStoreNotification:
+    handler: src/purchases.appStoreNotification
+    # 未認証で呼べる口。共有ロール（S3 の削除権など）ではなく、使うものだけのロールで動かす
+    role: AppStoreNotifyRole
+    environment:
+      APPSTORE_BUNDLE_ID: ${param:appStoreBundleId, ''}
+      APPSTORE_ENVIRONMENTS: ${param:appStoreEnvironments, ''}
+      APPSTORE_APP_APPLE_ID: ${param:appStoreAppAppleId, ''}
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
+    timeout: 15
+    events:
+      - httpApi:
+          path: /appstore/notifications
+          method: POST
+
   getPublicProfile:
     handler: src/userProfile.getPublicProfile
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ
@@ -1231,6 +1279,47 @@ resources:
                     - dynamodb:GetItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
+
+    # App Store Server Notifications の受け口（appStoreNotification）専用。未認証で呼べるので、
+    # 持たせるのはこの口が実際に使うものだけ:
+    #   users テーブル  GetItem / PutItem（プロフィールの supporter・メダル、取引の結び付け、番号の列）
+    #   写真テーブル    GetItem / UpdateItem（通知の積み上げ `notifs#`・端末の宛先・ブロックの判定）
+    # Scan・Delete・S3・索引は持たない
+    AppStoreNotifyRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-appStoreNotify
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: appStoreNotify
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}
 
     PublicReadRole:
       Type: AWS::IAM::Role
