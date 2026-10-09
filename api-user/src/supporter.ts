@@ -31,6 +31,13 @@
  *   本物（Production）の記録を持つ人に Sandbox が来ても**無視**する。
  *   Sandbox の記録しか無い人に Production が来たら、Sandbox の番号・期間・月数を捨てて
  *   本物の番号を振り直す（取ったメダルは残る）
+ * - **Production も受けるサーバー（本番）では、Sandbox の記録を公開せず・メダルにしない**
+ *   （`isPrivateSandbox`）。Sandbox の番号は別の列で 1 から振るので、公開すると本物の No.1 と
+ *   重なる。Sandbox は1か月が数分なので、1時間で「続けた年」と季節の章が永久に付いてしまう。
+ *   Pro そのもの（`isPro`）は Sandbox でも効く（TestFlight・審査で確かめるため）。
+ *   Sandbox だけのサーバー（staging）は今までどおり公開し、メダルも付ける
+ * - **付け替え**（同じ Apple ID で別のアカウントが申し込み直した）のときは、前の持ち主の Pro を
+ *   その場で終える（`endTransferredSupporter`）。番号・月数・メダルは残す
  * - **月数**: 有効だった期間を日本時間の暦で数える（1月15日→2月15日で1か月）。続いた期間は
  *   つないでから数え、途切れた期間は別々に数えて足す（再開すると続きから数える）。
  *   Sandbox は1か月が数分に縮むので、**終わった取引の数**で数える（月ごと 1・年ごと 12）
@@ -200,6 +207,27 @@ export function computeMonths(periods: readonly SupporterPeriod[], environment: 
     return activeIntervals(periods, now).reduce((sum, [s, e]) => sum + calendarMonthsBetween(s, e), 0);
 }
 
+/**
+ * このサーバーが Production の購入を受けるか（`APPSTORE_ENVIRONMENTS` に Production が並ぶ）。
+ *
+ * `appStore.ts` の `readAppStoreConfig` と違い、Apple ID が無くても Production が並んでいれば true
+ * （本番の設定漏れのときも、Sandbox の記録を公開しない側に倒す）。
+ * **この変数は全関数に配る**（`serverless.yml` の provider。プロフィールを返す関数も読む）
+ */
+export function acceptsProduction(env: NodeJS.ProcessEnv = process.env): boolean {
+    return (env.APPSTORE_ENVIRONMENTS ?? "").split(",").some((part) => part.trim() === "Production");
+}
+
+/**
+ * 公開もメダルもしない Sandbox の記録か: **Production も受けるサーバー（本番）に来た Sandbox**。
+ * 番号・月数・期間は持っていてよい（本人の Pro には要る）が、`publicSupporter`・`mergeProBadges`・
+ * `monthsOf` は無いものとして扱う
+ */
+export function isPrivateSandbox(raw: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+    return !!raw && typeof raw === "object" && (raw as { environment?: unknown }).environment === "Sandbox"
+        && acceptsProduction(env);
+}
+
 /** 公開する月数。保存した値と、今数え直した値の大きい方（`badgeKeys.ts` の `publicSupporter`） */
 export function supporterMonths(raw: unknown, now: number = Date.now()): number {
     const s = readSupporter(raw);
@@ -366,6 +394,41 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
         needsNumber,
         ...(stale ? { ignored: "古い知らせ（期間だけ記録）" } : olderPurchase ? { ignored: "記録済みより前の取引（期間だけ記録）" }
             : inGrace ? { ignored: "猶予期間の中に届いた同じ取引（状態は猶予のまま）" } : {}),
+    };
+}
+
+/**
+ * 付け替え（`supporterStore.ts` の `claimAppStoreLink`）で、**前の持ち主の Pro をその場で終える**。
+ *
+ * 結び付けが新しい人に移ると、前の持ち主の token の付いた知らせは捨てられる（`purchases.ts`）ので、
+ * 放っておくと元の期限まで Pro が残る。
+ *
+ * - 前の持ち主の今の購読がその取引（`originalTransactionId` が同じ）のときだけ終える。
+ *   別の取引なら undefined（触らない）
+ * - `active=false`・`expiresAt=今`（既に過ぎていればそのまま）
+ * - 番号・申し込んだ日・月数・メダルは残す。期間は**今で切る**（元の期限まで伸ばすと、
+ *   新しい持ち主の分まで前の持ち主の月数・季節の章に数えてしまう）。月数は切る前に今で数えて残す。
+ *   Sandbox は終わっていない期間を落とす（終わった取引の数で数えるので、切ると1か月に数えてしまう）
+ */
+export function endTransferredSupporter(prevRaw: unknown, originalTransactionId: string, now: number): SupporterRecord | undefined {
+    const prev = readSupporter(prevRaw);
+    if (!prev || prev.originalTransactionId !== originalTransactionId) return undefined;
+    const months = Math.max(prev.months, computeMonths(prev.periods, prev.environment, now));
+    const nowIso = iso(now);
+    // Sandbox は「終わった取引の数」で数えるので、切った取引を1か月に数えないよう、終わっていない期間は落とす
+    const periods = prev.environment === "Sandbox"
+        ? prev.periods.filter((p) => !(ms(p.end) > now))
+        : prev.periods
+            .map((p) => (ms(p.end) > now ? { ...p, end: nowIso } : p))
+            .filter((p) => ms(p.end) > ms(p.start));
+    const exp = ms(prev.expiresAt);
+    return {
+        ...prev,
+        months,
+        active: false,
+        expiresAt: Number.isFinite(exp) && exp < now ? prev.expiresAt : nowIso,
+        periods,
+        lastEventAt: nowIso,
     };
 }
 
