@@ -100,12 +100,26 @@ export function canResign(now = Date.now()): boolean {
     return !cachedToken || now - cachedToken.at >= RESIGN_FLOOR_MS;
 }
 
-export type PushMessage = {
-    /** 端末の `Localizable.strings` の鍵（例: `NOTIF_LIKE`） */
-    locKey: string;
-    /** 鍵に埋める値（相手の名前など） */
-    locArgs: string[];
-    /** アプリのバッジに出す未読数 */
+/**
+ * 文面の渡し方は2つ。
+ *
+ *  - **鍵（`locKey`）**: 端末の `Localizable.strings` で日英を出し分ける。いいね・コメントなど
+ *    いつもの通知はこちら
+ *  - **文面そのもの（`title` / `body`）**: 光と天気の知らせ（`lightForecast.ts`）だけ。
+ *    **新しい鍵は、鍵を持たない古いアプリでは鍵の文字列のまま出る**ので、出したあとの
+ *    アプリに鍵が入るまでは文面で送る（理由は `lightForecast.ts` の注記）
+ */
+export type PushAlert =
+    | {
+        /** 端末の `Localizable.strings` の鍵（例: `NOTIF_LIKE`） */
+        locKey: string;
+        /** 鍵に埋める値（相手の名前など） */
+        locArgs: string[];
+    }
+    | { title: string; body: string };
+
+export type PushMessage = PushAlert & {
+    /** アプリのバッジに出す未読数。**無ければバッジを変えない** */
     badge?: number;
     /** 押したときの行き先を決めるための付帯情報 */
     data?: Record<string, string>;
@@ -122,7 +136,9 @@ export type PushResult = { sent: number; invalid: string[] };
 export function pushPayload(message: PushMessage): string {
     return JSON.stringify({
         aps: {
-            alert: { "loc-key": message.locKey, "loc-args": message.locArgs },
+            alert: "locKey" in message
+                ? { "loc-key": message.locKey, "loc-args": message.locArgs }
+                : { title: message.title, body: message.body },
             sound: "default",
             ...(typeof message.badge === "number" ? { badge: message.badge } : {}),
         },

@@ -85,7 +85,9 @@ function handlerBody(serviceDir: string, handler: string): string {
  * `applyToProfile` が付いたメダルの通知を積むので、それも数える
  */
 const sendsPush = (handler: string) =>
-    /\b(?:pushNotification|refreshBadges|refreshBadgesQuietly|applyToProfile)\s*\(/.test(handlerBody("api-user", handler));
+    /\b(?:pushNotification|refreshBadges|refreshBadgesQuietly|applyToProfile|alertOne)\s*\(/.test(handlerBody("api-user", handler));
+// `alertOne` は光と天気の知らせ（`lightForecast.ts` の `sendLightAlerts`）。お知らせの一覧には
+// 積まず、`sendPush` で直に送る（文面そのもの・理由は `lightForecast.ts` の注記）
 
 describe("api-user: APNs の鍵は送る関数にだけ配る", () => {
     const yml = readFileSync(join(ROOT, "api-user", "serverless.yml"), "utf8");
@@ -142,7 +144,7 @@ describe("api-user: APNs の鍵は送る関数にだけ配る", () => {
         const sending = [...fns].filter(([, v]) => sendsPush(v.handler)).map(([n]) => n).sort();
         expect(sending).toEqual([
             "appStoreNotification", "followUser", "getMyBadges", "likePhoto", "postComment", "postStoryReply",
-            "recordPurchase", "savePhoto", "updatePhotoVisibility",
+            "recordPurchase", "savePhoto", "sendLightAlerts", "updatePhotoVisibility",
         ]);
     });
 
