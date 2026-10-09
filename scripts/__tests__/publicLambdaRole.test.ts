@@ -52,9 +52,13 @@ const services = [
         // 「全員に公開のアーカイブしか入らないから」だったが、あの「全員」は
         // **ログインした全員**の意味で、インターネット全体ではなかった。
         // 今はログインを要求したうえで、さらにフォローを見ている
-        publicFns: ["getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getFeed"],
+        publicFns: [
+            "getPublicProfile", "searchUsers", "getLikeCount", "getComments", "getFollowStats", "getInvite", "getFeed",
+            // App Store Server Notifications（Apple から・署名で確かめる。`purchases.ts`）
+            "appStoreNotification",
+        ],
         /** PublicReadRole ではなく専用ロールで動かす公開関数（関数名 → ロール名） */
-        ownRole: { getFeed: "PublicFeedRole" } as Record<string, string>,
+        ownRole: { getFeed: "PublicFeedRole", appStoreNotification: "AppStoreNotifyRole" } as Record<string, string>,
     },
     { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"], ownRole: {} as Record<string, string> },
 ];
@@ -198,5 +202,34 @@ describe("PublicFeedRole は公開一覧の索引の Query と最小限しか持
         const block = roleOf("PublicReadRole");
         expect(block).not.toContain("dynamodb:Query");
         expect(block).not.toContain("/index/");
+    });
+});
+
+describe("AppStoreNotifyRole は知らせの処理に要るものだけ持つ", () => {
+    const yml = readFileSync(join(ROOT, "api-user/serverless.yml"), "utf8");
+    const res = yml.split(/\nresources:\n/)[1]!;
+    const m = /^ {4}AppStoreNotifyRole:$([\s\S]*?)(?=^ {4}\w+:$)/m.exec(res);
+    const USERS_ARN = "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}";
+    const PHOTOS_ARN = "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:photosTable}";
+    const LOGS_ARN = "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*";
+
+    it("動詞と資源の組がちょうどこれだけ（Scan・Delete・S3・索引を持たない）", () => {
+        expect(m, "AppStoreNotifyRole が無い").not.toBeNull();
+        const block = m![1].replace(/^\s*#.*$/gm, "");
+        expect(block).toContain("Service: lambda.amazonaws.com");
+        const pairs = block.split(/^\s*- Effect: /m).slice(1).flatMap((st) => {
+            expect(st.split("\n")[0].trim()).toBe("Allow");
+            const actions = [...st.split(/Resource:/)[0].matchAll(/^\s*-\s+([a-z0-9-]+:[A-Za-z]+)\s*$/gm)].map((x) => x[1]);
+            const resources = [...(st.split(/Resource:/)[1] ?? "").matchAll(/^\s*-\s+(arn:\S+)\s*$/gm)].map((x) => x[1]);
+            return actions.flatMap((a) => resources.map((r) => `${a} ${r}`));
+        }).sort();
+        expect(pairs).toEqual([
+            `dynamodb:GetItem ${PHOTOS_ARN}`,
+            `dynamodb:GetItem ${USERS_ARN}`,
+            `dynamodb:PutItem ${USERS_ARN}`,
+            `dynamodb:UpdateItem ${PHOTOS_ARN}`,
+            `logs:CreateLogStream ${LOGS_ARN}`,
+            `logs:PutLogEvents ${LOGS_ARN}`,
+        ].sort());
     });
 });

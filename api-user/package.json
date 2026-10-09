@@ -6,6 +6,7 @@
     "deploy:prod": "npx serverless@3 deploy --stage prod"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "3.1.0",
     "@aws-sdk/client-cloudfront": "^3.1123.0",
     "@aws-sdk/client-dynamodb": "^3.1040.0",
     "@aws-sdk/client-s3": "^3.0.0",

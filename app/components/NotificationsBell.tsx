@@ -848,6 +848,8 @@ export default function NotificationsBell() {
                             // 自分が分からないとき（ログインの切り替わりの途中）は行き先なし
                             const badgeKey = n.type === "badge" && isBadgeKey(n.key) ? n.key : null;
                             const badgeTier = typeof n.tier === "number" ? n.tier : 1;
+                            // 季節の章で絵の無い年（`PRO_SEASON_ART`）は null → 無地のアイコンに落とす
+                            const medalSrc = badgeKey ? badgeImage(badgeKey, badgeTier, false) : null;
                             const goesNowhere = (isDeleted && n.type === "follow") || n.type === "storyreply"
                                 || (n.type === "badge" && !myId);
                             // **フォローバック**（モック 05 の注釈③）。
@@ -929,9 +931,9 @@ export default function NotificationsBell() {
                                         誰なのか辿れず、フォローしに行けないため */}
                                     {n.type === "badge" ? (
                                         // メダルの通知は、相手の顔の代わりにメダルの絵
-                                        badgeKey ? (
+                                        medalSrc ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={badgeImage(badgeKey, badgeTier, false)} alt="" loading="lazy" className={`${M.avatar} flex-shrink-0 object-contain`} data-testid="notif-medal" />
+                                            <img src={medalSrc} alt="" loading="lazy" className={`${M.avatar} flex-shrink-0 object-contain`} data-testid="notif-medal" />
                                         ) : (
                                             <span className="flex-shrink-0">
                                                 <UserAvatar userId="" className={M.avatar} iconClassName={M.avatarIcon} />
