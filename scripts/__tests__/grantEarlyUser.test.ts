@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { selectEarlyUsers, planGrant, CUTOFF_MS } = require("../grant-early-user.js") as {
+const { selectEarlyUsers, keepPosters, planGrant, CUTOFF_MS } = require("../grant-early-user.js") as {
     selectEarlyUsers: (users: unknown[], cutoffMs?: number) => string[];
+    keepPosters: (userIds: string[] | undefined, counts: Record<string, number> | undefined) => string[];
     planGrant: (row: unknown, nowIso: string) =>
         { write: true; rev: number; item: Record<string, unknown> } | { write: false; reason: string };
     CUTOFF_MS: number;
@@ -46,6 +47,12 @@ describe("grant-early-user: 誰に付けるか", () => {
             { sub: "a", createdAt: "2026-01-01T00:00:00Z", status: "FORCE_CHANGE_PASSWORD" },
         ];
         expect(selectEarlyUsers(users)).toEqual(["a", "b"]);
+    });
+
+    it("写真を1枚でも投稿したことがある人だけ残す（0枚・数が分からない人は付けない）", () => {
+        expect(keepPosters(["a", "b", "c", "d"], { a: 1, b: 0, d: 12 })).toEqual(["a", "d"]);
+        expect(keepPosters(undefined, { a: 1 })).toEqual([]);
+        expect(keepPosters(["a"], undefined)).toEqual([]);
     });
 });
 
