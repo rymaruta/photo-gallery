@@ -402,6 +402,31 @@ export function generateBreadcrumbStructuredData(items: Array<{ name: string; ur
 }
 
 /**
+ * ItemList 構造化データを生成（一覧ページ用）。
+ *
+ * 項目は**そのページに実際に並んでいるリンクだけ**を渡す（画面に無いものを
+ * 構造化データにだけ載せない）。形は `generateBreadcrumbStructuredData` と同じ
+ * `ListItem`（`position` は1から）。
+ */
+export function generateItemListStructuredData(
+    name: string,
+    items: Array<{ name: string; url: string }>,
+) {
+    return {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name,
+        numberOfItems: items.length,
+        itemListElement: items.map((item, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.name,
+            url: item.url,
+        })),
+    };
+}
+
+/**
  * WebSite構造化データを生成（検索ボックス用）
  */
 export function generateWebSiteStructuredData() {
