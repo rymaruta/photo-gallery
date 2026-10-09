@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { syncSpotThumbs } from "./spot-thumbs.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -88,6 +89,15 @@ async function main() {
         await sleep(3000);
     }
     console.log(`置いた ${done} / ${targets.length}`);
+    // 小さい版（`public/images/spots/thumb/`・アプリの `thumbUrl`）も揃える。差し替えた写真は元の
+    // SHA-1 で見分けて作り直す（`scripts/spot-thumbs.mjs`）。本番のビルドも同じことをするので、
+    // ここで落ちても止めない
+    try {
+        const t = await syncSpotThumbs();
+        console.log(`小さい版: 作った ${t.created.length}・消した ${t.removed.length}・作れなかった ${t.failed.length}`);
+    } catch (e) {
+        console.log(`小さい版を作れなかった（本番のビルドが作る）: ${e instanceof Error ? e.message : e}`);
+    }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

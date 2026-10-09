@@ -182,6 +182,17 @@ function collectFiles(dir, base = dir) {
     return files;
 }
 
+/**
+ * 素材を「画像（`images/` の下）」と「残り」に分ける。画像を先に上げ終えてから残りを上げるため
+ * （アプリ向けの JSON の `thumbUrl` が、まだ無い JPEG を指さない）
+ */
+function splitImagesFirst(files) {
+    const images = [];
+    const rest = [];
+    for (const f of files) (f.split(/[\\/]/)[0] === "images" ? images : rest).push(f);
+    return { images, rest };
+}
+
 function isHtmlOrTxt(filePath) {
     return filePath.endsWith(".html") || filePath.endsWith(".txt");
 }
@@ -882,8 +893,12 @@ async function main() {
     //         Old assets stay so in-flight requests to current HTML still work.
     //         同時実行を絞って S3 503(SlowDown) を避ける（→ CloudFront に 5xx がキャッシュされ
     //         「一部チャンクだけ 503 で Safari が水和できない」事故を防ぐ）。
+    //         **画像（`images/`）を先に上げ終えてから、残り（それを指す `*.json` など）を上げる。**
+    //         アプリ向けの JSON の `thumbUrl` が、まだ上がっていない JPEG を指す隙間を作らない（2026-10-08）
     console.log(`[deploy] Step 1/3: uploading ${assets.length} asset(s)...`);
-    await runPool(assets, uploadFile, 12);
+    const { images: imageAssets, rest: otherAssets } = splitImagesFirst(assets);
+    await runPool(imageAssets, uploadFile, 12);
+    await runPool(otherAssets, uploadFile, 12);
 
     // Step 2: Swap HTML — users now receive HTML pointing at the new assets.
     //         素材（Step 1）を全部上げ終えてから始めるので、どの HTML を先に
@@ -944,7 +959,7 @@ async function main() {
 
 // テストから判定ロジックを検証できるようにエクスポート
 module.exports = {
-    verifyOgImage,
+    verifyOgImage, splitImagesFirst,
     assertNoForbiddenContent, assertRobotsMatchesTarget, invalidationTargets,
     FORBIDDEN_IN_OUTPUT, forbiddenPattern, shouldScan, classifyStaleObjects, deletesImmediately, isHtmlOrTxt, ASSET_GRACE_MS, invalidationPathsFor, changedKeys, isInvalidatable,
     bulkDeleteGuard, BULK_DELETE_RATIO, BULK_DELETE_MIN, deleteStaleKeys,

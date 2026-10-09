@@ -6,7 +6,7 @@
  * 完了後に元の場所に戻す。
  */
 
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -120,6 +120,22 @@ function main() {
     if (fs.existsSync(outDir)) {
         console.log("[build] 前回の out/ を削除...");
         fs.rmSync(outDir, { recursive: true, force: true });
+    }
+
+    // 撮影スポットの写真の小さい版（`public/images/spots/thumb/`）を揃える（無い・元が変わったものを
+    // 作り、元の無いものを消す）。
+    // アプリ向けの JSON は**ファイルが在るときだけ** `thumbUrl` を出す（`lib/data/spotThumbs.ts`）
+    // ので、`next build` より前に置く。作れなくてもビルドは止めない——`thumbUrl` が
+    // 出ないだけで、アプリは元の写真（`url`）に戻る。コミット済みなら1秒ほどで終わる
+    const thumbsScript = path.join(__dirname, "spot-thumbs.mjs");
+    if (fs.existsSync(thumbsScript)) {
+        console.log("\n[build] 撮影スポットの写真の小さい版を作る...");
+        try {
+            // シェルを通さない（置き場のパスに空白や記号があっても割れない）
+            execFileSync(process.execPath, [thumbsScript], { stdio: "inherit", cwd: root });
+        } catch {
+            console.warn("[build] ⚠️ 小さい版を作れなかった写真があります（その写真は thumbUrl が出ません）。続けます。");
+        }
     }
 
     console.log("\n[build] app/api を一時退避...");

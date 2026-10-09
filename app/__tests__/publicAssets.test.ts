@@ -49,6 +49,22 @@ function listPublic(dir = PUBLIC_DIR): string[] {
  */
 function referenced(file: string): boolean {
     const base = file.split("/").pop()!;
+    for (const { full, text } of sourceTexts()) {
+        if (full.endsWith(join("public", base))) continue;   // 自分自身は数えない
+        if (text.includes(base)) return true;
+    }
+    return false;
+}
+
+/**
+ * 走査する中身は**1回だけ読む**（2026-10-08）。ファイルごとに木を辿り直していた頃は、
+ * スポットの写真のサムネ（`public/images/spots/thumb/*.jpg`・787枚）を足した回に
+ * 3.6秒 → 6.2秒になり、5秒の上限で落ちた。見るものと順番は前と同じ
+ */
+let cachedTexts: { full: string; text: string }[] | null = null;
+function sourceTexts(): { full: string; text: string }[] {
+    if (cachedTexts) return cachedTexts;
+    const out: { full: string; text: string }[] = [];
     // `content/` も数える: スポットの写真（`public/images/spots/*.jpg`）は
     // `content/spot-images.json` の `local.src` が名前を持つ（2026-09-26）
     const roots = ["app", "lib", "scripts", "public", ".github", "content"];
@@ -62,11 +78,19 @@ function referenced(file: string): boolean {
             if (statSync(full).isDirectory()) { if (name !== "__tests__") stack.push(full); continue; }
             if (!/\.(ts|tsx|js|mjs|json|webmanifest|yml|css)$/.test(name)) continue;
             if (/[\\/]__tests__[\\/]/.test(full) || /\.test\.[tj]sx?$/.test(name)) continue;
-            if (full.endsWith(join("public", base))) continue;   // 自分自身は数えない
-            if (readFileSync(full, "utf8").includes(base)) return true;
+            out.push({ full, text: readFileSync(full, "utf8") });
         }
     }
-    return false;
+    return (cachedTexts = out);
+}
+
+/**
+ * 撮影スポットの写真の小さい版（`images/spots/thumb/<名前>.jpg`・2026-10-08）は**元の写真から作るもの**で、
+ * 元を消すと本番のビルドが一緒に消す（`scripts/spot-thumbs.mjs`）。写真を消した PR がサムネを
+ * 消し忘れても、ここで本番の反映（Run tests）を止めない。元の写真はこれまでどおり見る
+ */
+function isDerivedThumb(file: string): boolean {
+    return /^images\/spots\/thumb\/[^/]+\.jpg$/.test(file);
 }
 
 describe("public/ に置いたものは全部配信される", () => {
@@ -91,7 +115,7 @@ describe("public/ に置いたものは全部配信される", () => {
     });
 
     it("参照が無いファイルは、理由つきで一覧にある", () => {
-        const orphans = files.filter((f) => !allowed.has(f) && !referenced(f));
+        const orphans = files.filter((f) => !allowed.has(f) && !isDerivedThumb(f) && !referenced(f));
         expect(orphans, `参照0のまま配信されている: ${orphans.join(", ")}`).toEqual([]);
     });
 
