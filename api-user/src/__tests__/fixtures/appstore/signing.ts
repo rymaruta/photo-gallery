@@ -4,32 +4,41 @@
  * このフォルダの証明書は**テスト専用に自分で作った鎖**（2026-10-09・openssl）:
  *
  *     root.der            Test Root CA（自己署名・2020〜2120）
- *     intermediate.pem    Test Intermediate（Apple の中間の印 OID 1.2.840.113635.100.6.2.1 を付けた）
- *     leaf.pem            Test Signing（Apple の末端の印 OID 1.2.840.113635.100.6.11.1 を付けた）
- *     leaf-key.pem        末端の秘密鍵（P-256）。**テストの署名専用で、どこにも登録していない**
+ *     intermediate.der    Test Intermediate（Apple の中間の印 OID 1.2.840.113635.100.6.2.1 を付けた）
+ *     leaf.der            Test Signing（Apple の末端の印 OID 1.2.840.113635.100.6.11.1 を付けた）
+ *     leaf-key.pk8.der    末端の秘密鍵（P-256・PKCS#8）。**テストの署名専用で、どこにも登録していない**
  *     rogue-*             別の根から作った同じ形の鎖（信用していない根で署名されたもの）
+ *
+ * **全部 DER で置く。** リポジトリの `.gitignore` が `*.pem` を弾くので、PEM で置くと
+ * 手元では通るのに**コミットされず CI で落ちる**（第2段階の途中の版がそうなっていた）。
  *
  * 本物の Apple の鎖と同じ検査（`SignedDataVerifier`）を通る形にしてある。本番の確かめ役は
  * `appleRootCerts.ts` の Apple のルートだけを信じるので、この鎖は本番では通らない。
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { X509Certificate } from "node:crypto";
+import { createPrivateKey } from "node:crypto";
+import type { KeyObject } from "node:crypto";
 import jsonwebtoken from "jsonwebtoken";
 
 const DIR = __dirname;
 const read = (f: string) => readFileSync(join(DIR, f));
-const derB64 = (pemFile: string) => new X509Certificate(read(pemFile)).raw.toString("base64");
+
+/** 末端の秘密鍵（DER の PKCS#8 を読む） */
+export function signingKey(kind: Chain = "good"): KeyObject {
+    const p = kind === "good" ? "" : "rogue-";
+    return createPrivateKey({ key: read(`${p}leaf-key.pk8.der`), format: "der", type: "pkcs8" });
+}
 
 export const TEST_ROOT_DER = read("root.der");
 
 type Chain = "good" | "rogue";
 
-function chain(kind: Chain): { key: Buffer; x5c: string[] } {
+function chain(kind: Chain): { key: KeyObject; x5c: string[] } {
     const p = kind === "good" ? "" : "rogue-";
     return {
-        key: read(`${p}leaf-key.pem`),
-        x5c: [derB64(`${p}leaf.pem`), derB64(`${p}intermediate.pem`), read(`${p}root.der`).toString("base64")],
+        key: signingKey(kind),
+        x5c: [`${p}leaf.der`, `${p}intermediate.der`, `${p}root.der`].map((f) => read(f).toString("base64")),
     };
 }
 

@@ -23,9 +23,13 @@
  * ## POST /appstore/notifications（認証なし・Apple から）
  *
  *     要求  { "signedPayload": "<JWS>" }
- *     200   確かめられた（処理の失敗は記録だけして 200。Apple に送り直させない）
+ *     200   確かめられた（反映した・処理済み・扱わない知らせ＝結び付いていない取引・他の商品・
+ *           取引の無い知らせ・退会済みの人）
  *     400   署名を確かめられない・形が違う
- *     500   サーバーに App Store の設定が無い（Apple が送り直す）
+ *     500   サーバーに App Store の設定が無い／**確かめたが書き込みに失敗した**（DynamoDB の
+ *           例外・競合が続いた）。どちらも Apple が時間をおいて送り直す。送り直されても
+ *           結果は同じ（期間は取引の番号で置き換え・状態は署名の時刻で順番を守る・
+ *           notificationUUID を覚える）ので、取りこぼすより送り直させる方に倒す
  *
  * 取引 → 人 は `appstore#<originalTransactionId>` の行で引く（`POST /user/purchases` が作る）。
  * まだ結び付いていない取引の知らせは記録だけして捨てる（アプリが送ってきたときに拾う）。
@@ -92,7 +96,8 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     if (typeof facts === "string") return jsonError(400, "購入の情報が足りません");
 
     try {
-        if (await claimAppStoreLink(facts.originalTransactionId, userId, environment) === "other") {
+        const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, { tokenIsMine: token !== "" });
+        if (claimed === "other") {
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています");
         }
         const out = await applyToProfile(userId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: true });
@@ -134,7 +139,7 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         return jsonError(400, "bad signature");
     }
 
-    // ここから先は**必ず 200**（失敗は記録だけ）
+    // ここから先は、書き込みの失敗（500・Apple が送り直す）以外は 200
     const { notification, environment, transaction, renewal } = verified;
     const type = notification.notificationType ?? "";
     const uuid = notification.notificationUUID ?? "";
@@ -174,8 +179,13 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
             ...(renewalFacts(renewal) ? { renewal: renewalFacts(renewal) } : {}),
             signedAt: typeof notification.signedDate === "number" ? notification.signedDate : facts.signedDate,
         }, { createIfMissing: false });
+        if (out.status === "conflict") {
+            console.error(`appStoreNotification: 競合が続いて書けませんでした ${label}`);
+            return jsonError(500, "retry");
+        }
         if (out.status !== "saved") {
-            console.warn(`appStoreNotification: 書けませんでした（${out.status}）${label}`);
+            // 退会済み・行が無い → 書く先が無い。送り直されても同じなので 200
+            console.warn(`appStoreNotification: 書きませんでした（${out.status}）${label}`);
             return ok();
         }
         if (out.ignored) console.log(`appStoreNotification: ${out.ignored} ${label}`);
@@ -183,6 +193,7 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         console.log(`appStoreNotification: 反映しました ${label}`);
     } catch (e) {
         console.error(`appStoreNotification: 処理に失敗しました ${label}:`, e);
+        return jsonError(500, "retry");
     }
     return ok();
 };

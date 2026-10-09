@@ -8,7 +8,8 @@
  *     userId = counter#supporter           本物（Production）の番号の列 { issued: 最後に振った番号 }
  *     userId = counter#supporter#sandbox   Sandbox の番号の列（TestFlight・審査・staging）
  *     userId = appstore#<originalTransactionId>
- *                                          { ownerId, environment, createdAt, seen: [notificationUUID…], rev }
+ *                                          { ownerId, environment, createdAt, seen: [notificationUUID…], rev,
+ *                                            previousOwnerId?（付け替えたときだけ） }
  *
  * `#` を含む行は人ではない（検索・台本・公開プロフィールは `#` を弾く）。
  *
@@ -91,13 +92,46 @@ export async function readAppStoreLink(originalTransactionId: string): Promise<A
 
 /**
  * 取引をこの人に結び付ける。既に別の人に結び付いていたら "other"。
- * 同じ人なら何もしない（"ok"）
+ * 同じ人なら何もしない（"ok"）。
+ *
+ * **付け替え（`tokenIsMine`）**: 同じ Apple ID で別のアカウントが申し込み直すと、
+ * 自動更新のサブスクリプションは**同じ originalTransactionId のまま**続く（Apple の仕様）。
+ * その新しい取引に**この人の appAccountToken** が付いていれば、本人が今このアカウントで
+ * 買った証拠なので結び付けを移す（前の人の番号・メダルはそのまま。前の人の Pro は期限で消える）。
+ * token の無い取引では移さない（誰が買ったか分からないものを横取りさせない）
  */
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
+    opts: { tokenIsMine?: boolean } = {},
 ): Promise<"ok" | "other"> {
     const existing = await readAppStoreLink(originalTransactionId);
-    if (existing) return existing.ownerId === userId ? "ok" : "other";
+    if (existing) {
+        if (existing.ownerId === userId) return "ok";
+        if (!opts.tokenIsMine) return "other";
+        try {
+            await ddb.send(new PutCommand({
+                TableName: USERS_TABLE,
+                Item: {
+                    userId: appStoreLinkKey(originalTransactionId),
+                    ownerId: userId,
+                    environment,
+                    createdAt: new Date().toISOString(),
+                    previousOwnerId: existing.ownerId,
+                    seen: existing.seen,
+                    rev: existing.rev + 1,
+                },
+                // 読んだときの持ち主のままなら移す（同時に別の付け替えが来たら負ける側は読み直す）
+                ConditionExpression: "ownerId = :old",
+                ExpressionAttributeValues: { ":old": existing.ownerId },
+            }));
+            console.log(`claimAppStoreLink: ${originalTransactionId} を ${existing.ownerId} から ${userId} へ付け替えました`);
+            return "ok";
+        } catch (e) {
+            if (!isCondFail(e)) throw e;
+            const again = await readAppStoreLink(originalTransactionId);
+            return again?.ownerId === userId ? "ok" : "other";
+        }
+    }
     try {
         await ddb.send(new PutCommand({
             TableName: USERS_TABLE,

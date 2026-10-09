@@ -266,7 +266,7 @@ functions:
             name: cognitoAuthorizer
 
   # App Store Server Notifications V2 の受け口（Apple から・認証なし）。
-  # 署名を確かめられなければ 400、確かめられたら必ず 200。
+  # 署名を確かめられなければ 400、確かめられたら 200（書き込みに失敗したときだけ 500＝Apple が送り直す）。
   # App Store Connect の「App Store Server Notifications」にこの URL を書く
   # （本番・Sandbox とも本番の API。staging は staging の API）
   appStoreNotification:

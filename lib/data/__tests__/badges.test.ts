@@ -26,6 +26,8 @@ describe("メダルの表（画面）", () => {
         expect(Object.fromEntries(BADGE_KEYS.map((k) => [k, BADGE_NAMES[k].ja]))).toEqual({
             first: "最初の一枚", prefectures: "都道府県", countries: "国・地域", seasons: "四季",
             morning: "朝の光", night: "夜の光", books: "旅の一冊", wish: "行けた場所", earlyUser: "初期ユーザー",
+            // 板 71「Pro 限定の章」の「すでにあるもの」の表記
+            supporter: "サポーター章", supporterYear: "続けた年",
         });
     });
 

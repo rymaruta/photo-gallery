@@ -15,7 +15,7 @@ import {
     renewalFacts, resetAppStoreVerifiers, transactionFacts, verifyNotificationPayload, verifySignedTransaction,
 } from "../appStore";
 import type { AppStoreConfig } from "../appStore";
-import { APP_APPLE_ID, BUNDLE, MONTHLY, TEST_ROOT_DER, notificationJws, signJws, txPayload } from "./fixtures/appstore/signing";
+import { APP_APPLE_ID, BUNDLE, MONTHLY, TEST_ROOT_DER, notificationJws, signJws, signingKey, txPayload } from "./fixtures/appstore/signing";
 
 const SANDBOX: AppStoreConfig = { bundleId: BUNDLE, environments: ["Sandbox"] };
 const PROD: AppStoreConfig = { bundleId: BUNDLE, environments: ["Production", "Sandbox"], appAppleId: APP_APPLE_ID };
@@ -107,10 +107,7 @@ describe("取引の署名", () => {
 
     it("x5c が無い・3枚でない JWS は断る", async () => {
         const jsonwebtoken = (await import("jsonwebtoken")).default;
-        const { readFileSync } = await import("node:fs");
-        const { join } = await import("node:path");
-        const key = readFileSync(join(__dirname, "fixtures/appstore/leaf-key.pem"));
-        const bare = jsonwebtoken.sign(txPayload(), key, { algorithm: "ES256", noTimestamp: true });
+        const bare = jsonwebtoken.sign(txPayload(), signingKey(), { algorithm: "ES256", noTimestamp: true });
         await expect(verifySignedTransaction(bare, SANDBOX)).rejects.toBeInstanceOf(AppStoreSignatureError);
     });
 

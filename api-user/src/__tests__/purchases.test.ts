@@ -133,6 +133,34 @@ describe("POST /user/purchases", () => {
         expect(db.get("u2")).toEqual({ userId: "u2" });
     });
 
+    it("同じ Apple ID で別のアカウントが申し込み直した（新しい取引に自分の token）→ 結び付けを移す", async () => {
+        db.set({ userId: "u1" });
+        db.set({ userId: "u2" });
+        // u1 が買って、やめた（期限切れ）
+        expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+        // 同じ Apple ID のまま u2 で申し込み直す: originalTransactionId は同じ、token は u2
+        const again = tokenTx("u2", {
+            transactionId: "2000000000000009", purchaseDate: T0 + 40 * DAY, expiresDate: T0 + 71 * DAY, signedDate: T0 + 40 * DAY,
+        });
+        vi.setSystemTime(T0 + 40 * DAY + 60_000);
+        const res = await purchase("u2", { signedTransaction: signJws(again) });
+        expect(res.statusCode).toBe(200);
+        expect(db.get("appstore#2000000000000001")).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+        expect(db.get("u2")).toMatchObject({ supporter: { number: 2, active: true } });
+        // 前の人の番号は残る
+        expect(db.get("u1")).toMatchObject({ supporter: { number: 1 } });
+        // 前の人の token の付いた古い取引では取り返せない（403）
+        expect((await purchase("u1", { signedTransaction: signJws(again) })).statusCode).toBe(403);
+        // 知らせは新しい持ち主に届く
+        const renew = notificationJws({
+            type: "DID_RENEW",
+            tx: tokenTx("u2", { transactionId: "2000000000000010", purchaseDate: T0 + 71 * DAY, expiresDate: T0 + 102 * DAY, signedDate: T0 + 71 * DAY }),
+        });
+        vi.setSystemTime(T0 + 71 * DAY + 60_000);
+        expect((await notify({ signedPayload: renew })).statusCode).toBe(200);
+        expect(db.get("u2")).toMatchObject({ supporter: { expiresAt: new Date(T0 + 102 * DAY).toISOString() } });
+    });
+
     it("署名を確かめられない・形が違う・売っていない商品は 400", async () => {
         db.set({ userId: "u1" });
         expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1"), "rogue") })).statusCode).toBe(400);
@@ -230,12 +258,41 @@ describe("POST /appstore/notifications", () => {
         expect(db.calls.length).toBe(before);
     });
 
-    it("処理の途中で落ちても 200（確かめられた知らせは送り直させない）", async () => {
+    it("書き込みで落ちたら 500（Apple に送り直させる）。送り直しは同じ結果で、二重に処理しない", async () => {
         await subscribed();
         vi.spyOn(console, "error").mockImplementation(() => {});
+        const renew = notificationJws({
+            type: "DID_RENEW", uuid: "retry-1",
+            tx: tokenTx("u1", { transactionId: "2000000000000002", purchaseDate: T0 + 31 * DAY, expiresDate: T0 + 62 * DAY, signedDate: T0 + 31 * DAY }),
+        });
         table.current = { send: async () => { throw new Error("throttled"); } } as never;
-        const res = await notify({ signedPayload: notificationJws({ type: "DID_RENEW", tx: tokenTx("u1") }) });
-        expect(res.statusCode).toBe(200);
+        expect((await notify({ signedPayload: renew })).statusCode).toBe(500);
+        // 直ったあとの送り直し → 反映して 200。もう一度来ても書かない
+        table.current = db as never;
+        expect((await notify({ signedPayload: renew })).statusCode).toBe(200);
+        const after = db.get("u1");
+        expect(after).toMatchObject({ supporter: { number: 1, active: true, expiresAt: new Date(T0 + 62 * DAY).toISOString() } });
+        const before = db.calls.length;
+        expect((await notify({ signedPayload: renew })).statusCode).toBe(200);
+        expect(db.calls.slice(before).some((c) => c.name !== "GetCommand")).toBe(false);
+        expect(db.get("u1")).toEqual(after);
+    });
+
+    it("競合が続いて書けなかったら 500", async () => {
+        await subscribed();
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        // プロフィールの行の Put だけ毎回断る（他の人が書き続けている形）
+        table.current = {
+            send: async (c: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                if (c.constructor.name === "PutCommand" && (c.input.Item as { userId?: string }).userId === "u1") {
+                    const { condFail } = await import("./fixtures/fakeUsersTable");
+                    throw condFail();
+                }
+                return db.send(c);
+            },
+        } as never;
+        const res = await notify({ signedPayload: notificationJws({ type: "EXPIRED", tx: tokenTx("u1") }) });
+        expect(res.statusCode).toBe(500);
     });
 
     it("設定が無ければ 500（Apple に送り直させる）", async () => {
@@ -297,6 +354,15 @@ describe("取引と人の結び付け", () => {
         expect(await claimAppStoreLink("o1", "u1", "Sandbox")).toBe("ok");
         expect(await claimAppStoreLink("o1", "u1", "Sandbox")).toBe("ok");
         expect(await claimAppStoreLink("o1", "u2", "Sandbox")).toBe("other");
+        // token が本人のものなら移す（同時に2人が移そうとしても、持ち主は1人）
+        expect(await claimAppStoreLink("o1", "u2", "Sandbox", { tokenIsMine: true })).toBe("ok");
+        expect(db.get("appstore#o1")).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+        const both = await Promise.all([
+            claimAppStoreLink("o1", "u3", "Sandbox", { tokenIsMine: true }),
+            claimAppStoreLink("o1", "u4", "Sandbox", { tokenIsMine: true }),
+        ]);
+        expect(both.filter((r) => r === "ok")).toHaveLength(1);
+        expect(["u3", "u4"]).toContain(db.get("appstore#o1")!.ownerId);
     });
 
     it("退会で自分の結び付けだけ消す", async () => {
