@@ -12,10 +12,13 @@
  * （数え直しは `GET /user/badges`・写真の投稿・取引の知らせのたび。`badgeStore.ts`）。
  *
  * Pro をやめても、取ったメダルは残る（ここでは足すだけ）。
+ *
+ * **本番（Production も受けるサーバー）に来た Sandbox の記録からは何も付けない**
+ * （`supporter.ts` の `isPrivateSandbox`。TestFlight・審査の数分の更新で永久のメダルを付けない）。
  */
 import { proSeasonKey, sanitizeBadges } from "./badgeKeys";
 import type { BadgeKey, BadgeMap } from "./badgeKeys";
-import { computeMonths, readSupporter, seasonsCovered } from "./supporter";
+import { computeMonths, isPrivateSandbox, readSupporter, seasonsCovered } from "./supporter";
 
 /** 続けた年のメダルの線（月数） */
 export const SUPPORTER_YEAR_THRESHOLDS = [12, 24, 36] as const;
@@ -34,7 +37,7 @@ export function supporterYearNext(months: number): number | null {
 /** 行の `supporter` から、今の月数（保存した値と数え直した値の大きい方） */
 export function monthsOf(rawSupporter: unknown, now: number): number {
     const s = readSupporter(rawSupporter);
-    if (!s) return 0;
+    if (!s || isPrivateSandbox(s)) return 0;
     return Math.max(s.months, computeMonths(s.periods, s.environment, now));
 }
 
@@ -50,7 +53,7 @@ export function mergeProBadges(stored: unknown, rawSupporter: unknown, now: numb
     const badges: BadgeMap = { ...(sanitizeBadges(stored) ?? {}) };
     const upgraded: { key: BadgeKey; tier: number }[] = [];
     const s = readSupporter(rawSupporter);
-    if (!s) return { badges, upgraded };
+    if (!s || isPrivateSandbox(s)) return { badges, upgraded };
     const at = new Date(now).toISOString();
     const raise = (key: BadgeKey, tier: number, year?: number) => {
         if (tier < 1) return;
