@@ -19,6 +19,18 @@ import { sunTimes } from "../sunTimes";
 const FIXTURE = JSON.parse(readFileSync(path.join(__dirname, "fixtures", "weatherkit-tokyo.json"), "utf8"));
 const NOW = new Date("2026-10-09T11:00:00Z");   // 20:00 JST
 const WX = parseWeather(FIXTURE, NOW.getTime());
+/**
+ * **いまの本物の WeatherKit の形**: 層ごとの雲量（`cloudCover*AltPct`）が入っていない
+ * （2026-10-09 に東京駅・本番の鍵で確かめた）。同じ固定の応答から層の項目だけを抜く
+ */
+const NO_LAYER = (() => {
+    const j = structuredClone(FIXTURE);
+    for (const h of j.forecastHourly.hours) {
+        delete h.cloudCoverLowAltPct; delete h.cloudCoverMidAltPct; delete h.cloudCoverHighAltPct;
+    }
+    return j;
+})();
+const WX_NO_LAYER = parseWeather(NO_LAYER, NOW.getTime());
 const SPOT = lightSpotOf("SPOT-hamarikyu")!;
 
 const H = 3_600_000;
@@ -47,7 +59,7 @@ describe("窓の平均（windowStats）", () => {
 });
 
 describe("天気の言葉と見込み（目安の式）", () => {
-    const s = (o: Partial<{ cloud: number; low: number; midHigh: number; rain: number; wet: boolean }>) =>
+    const s = (o: Partial<{ cloud: number; low: number; midHigh: number; rain: number; wet: boolean; hazy: boolean }>) =>
         ({ cloud: 0.4, rain: 0, wet: false, ...o });
 
     it("天気: 降る → 雨／雲 30% 未満 晴れ／70% 未満 くもり時々晴れ／それ以上 くもり", () => {
@@ -70,10 +82,33 @@ describe("天気の言葉と見込み（目安の式）", () => {
         expect(glowChance(s({ low: 0.1, midHigh: 0.4, rain: 0.6 }))).toBe("low");
     });
 
-    // 🔴 **控えめに倒す**: 層の分からない予報で「高」と言い切らない
-    it("層ごとの雲量が無ければ「中」が上限", () => {
-        expect(glowChance(s({ cloud: 0.4, rain: 0 }))).toBe("mid");
-        expect(glowChance(s({ cloud: 0.9, rain: 0 }))).toBe("low");
+    // 🔴 いまの WeatherKit は層ごとの雲量を返さない。「中」止まりだと知らせが1通も届かない
+    it("層ごとの雲量が無いとき: 全体の雲量 20〜60%・降水 <20%・霞んでいない なら「高」", () => {
+        expect(glowChance(s({ cloud: 0.4, rain: 0.1 }))).toBe("high");
+        expect(glowChance(s({ cloud: 0.2, rain: 0 }))).toBe("high");
+        expect(glowChance(s({ cloud: 0.6, rain: 0.19 }))).toBe("high");
+        // 晴れすぎ（照らされる雲が無い）→ 中
+        expect(glowChance(s({ cloud: 0.19, rain: 0 }))).toBe("mid");
+        // 雲がやや多い・降りそう → 中
+        expect(glowChance(s({ cloud: 0.7, rain: 0 }))).toBe("mid");
+        expect(glowChance(s({ cloud: 0.4, rain: 0.2 }))).toBe("mid");
+        // 霞んでいる → 中
+        expect(glowChance(s({ cloud: 0.4, rain: 0, hazy: true }))).toBe("mid");
+        // 多すぎ・降る → 低
+        expect(glowChance(s({ cloud: 0.8, rain: 0 }))).toBe("low");
+        expect(glowChance(s({ cloud: 0.4, rain: 0.4 }))).toBe("low");
+        expect(glowChance(s({ cloud: 0.4, rain: 0, wet: true }))).toBe("low");
+    });
+
+    it("霞み: 見通し 10km 未満・湿度 90% 以上・霧やもやの conditionCode（応答に無い項目は見ない）", () => {
+        const at = (o: Partial<WxHour>) => windowStats([hour(0, { cloud: 0.4, ...o }), hour(H, { cloud: 0.4, ...o })], 0, 2 * H)!;
+        expect(at({}).hazy).toBeUndefined();
+        expect(at({ vis: 24_000, hum: 0.7 }).hazy).toBeUndefined();
+        expect(at({ vis: 8_000 }).hazy).toBe(true);
+        expect(at({ hum: 0.92 }).hazy).toBe(true);
+        expect(at({ code: "Haze" }).hazy).toBe(true);
+        expect(at({ code: "Foggy" }).hazy).toBe(true);
+        expect(glowChance(at({ hum: 0.95 }))).toBe("mid");
     });
 
     it("夜景: 雲 <30%・降水 <20% で高、雲 <70%・降水 <40% で中", () => {
@@ -103,6 +138,17 @@ describe("固定の応答から1日の光を作る", () => {
         // ブルーアワーは日の出の前・日の入りの後
         expect(d.morningBlue.start!.at < d.sunrise!.at).toBe(true);
         expect(d.eveningBlue.start!.at > d.sunset!.at).toBe(true);
+    });
+
+    // 🔴 本物の応答の形（層ごとの雲量なし）でも「高」が出ること
+    it("層ごとの雲量が無い応答でも、10/10 の朝焼けは「高」・夕焼けは「低」", () => {
+        expect(WX_NO_LAYER.hours.every((h) => h.low === undefined && h.mid === undefined)).toBe(true);
+        expect(WX_NO_LAYER.hours[0]).toMatchObject({ vis: 24_000, hum: 0.7 });
+        const d = dayLight(SPOT, "2026-10-10", WX_NO_LAYER)!;
+        expect(d.morning).toEqual({ weather: "partlyCloudy", chance: "high" });
+        expect(d.evening).toEqual({ weather: "rain", chance: "low" });
+        const pick = pickAlert([{ spot: SPOT, wx: WX_NO_LAYER }], NOW);
+        expect(pick).toMatchObject({ kind: "sunrise", date: "2026-10-10" });
     });
 
     it("一覧は今日（現地の暦）から7日。予報の届かない日は時刻だけ（見込みは null）", () => {

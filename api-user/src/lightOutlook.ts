@@ -28,8 +28,24 @@
  *   - 中: 降水確率の最大 < 40%・下層の雲 < 60%
  *   - 低: それ以外
  *
- * **層ごとの雲量が応答に無いときは「中」を上限にする。** 全体の雲量だけでは下層か上層か
- * 分からず、「高」と言い切る根拠が無いため（外れたときに損をするのは、朝4時に出た人）。
+ * ### 層ごとの雲量が無いとき（いまの WeatherKit はこちら）
+ *
+ * 🔴 **最初は「層が無ければ『中』を上限にする」にしていた。** 2026-10-09 に本物の応答
+ * （東京駅・本番の鍵）を読んだら、`forecastHourly` に `cloudCoverLowAltPct` / `MidAltPct` /
+ * `HighAltPct` は**1つも入っていなかった**——つまり見込みが「中」止まりで、**知らせが1通も届かない**
+ * 作りになっていた。全体の雲量（`cloudCover`）・降水確率・見通し・湿度・`conditionCode` で決める:
+ *
+ *   - 低: 降る（雨・雪…）・降水確率の最大 ≥ 40%・全体の雲量 ≥ 80%
+ *         （8割を超えると、どの高さの雲でも地平線側が塞がっていることが多い）
+ *   - 高: 降水確率の最大 < 20%・全体の雲量 20〜60%・霞んでいない
+ *         （「ほどよく雲がある」。上の経験則の 3〜7 割を、層が分からないぶん上を 6 割に縮めた
+ *          ——全体の雲量が多いほど、そのうち下層の雲が地平線を塞いでいる見込みが上がるため）
+ *   - 中: それ以外。**晴れすぎ（雲量 20% 未満）も中**（照らされる雲が無く、色は空だけで淡い）
+ *
+ * 「霞んでいない」は: 見通し ≥ 10km（気象で「もや」と呼ぶのは 10km 未満から）・
+ * 湿度 < 90%（湿度が高いと地平線近くが白く霞んで色が抜けやすい）・`conditionCode` が
+ * 霧・もや・煙・砂塵（`Foggy`・`Haze`・`Smoky`・`BlowingDust`）でない。**応答に無い項目は見ない**
+ * （無いことを理由に下げない）。霞んでいれば「高」を「中」に下げる。
  *
  * 夜景は空の色（ブルーアワー）と見通しなので、雲が少なく降らないほど良い:
  *
@@ -73,6 +89,13 @@ export type DayLight = {
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 
+/** 霞む `conditionCode`（霧・もや・煙・砂塵） */
+const HAZY = /fog|haze|smok|dust/i;
+/** 見通しがこれ未満なら霞んでいる（メートル。気象の「もや」は 10km 未満） */
+export const HAZY_VISIBILITY_M = 10_000;
+/** 湿度がこれ以上なら霞みやすい */
+export const HAZY_HUMIDITY = 0.9;
+
 /** 降るものの `conditionCode`（WeatherKit の一覧から。雪も「降る」に入れる） */
 const WET = /rain|drizzle|shower|thunder|snow|sleet|flurr|hail|blizzard|hurricane|tropicalstorm|wintrymix/i;
 
@@ -85,6 +108,8 @@ type WindowStats = {
     /** 降水確率の最大 */
     rain: number;
     wet: boolean;
+    /** 霞んでいるか（見通し・湿度・`conditionCode`。応答に無い項目は見ない） */
+    hazy?: boolean;
 };
 
 /**
@@ -99,6 +124,11 @@ export function windowStats(hours: readonly WxHour[], from: number, to: number):
     if (first > from || last < to) return null;
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     const layered = hit.every((h) => h.low !== undefined && (h.mid !== undefined || h.high !== undefined));
+    const vis = hit.map((h) => h.vis).filter((v): v is number => v !== undefined);
+    const hum = hit.map((h) => h.hum).filter((v): v is number => v !== undefined);
+    const hazy = hit.some((h) => HAZY.test(h.code))
+        || (vis.length > 0 && Math.min(...vis) < HAZY_VISIBILITY_M)
+        || (hum.length > 0 && avg(hum) >= HAZY_HUMIDITY);
     return {
         cloud: avg(hit.map((h) => h.cloud)),
         ...(layered ? {
@@ -107,6 +137,7 @@ export function windowStats(hours: readonly WxHour[], from: number, to: number):
         } : {}),
         rain: Math.max(...hit.map((h) => h.rain)),
         wet: hit.some((h) => WET.test(h.code)),
+        ...(hazy ? { hazy } : {}),
     };
 }
 
@@ -125,9 +156,10 @@ export function glowChance(s: WindowStats): Chance {
         if (s.rain < 0.4 && s.low < 0.6) return "mid";
         return "low";
     }
-    // 層が分からない: **中を上限にする**
-    if (s.rain < 0.4 && s.cloud < 0.8) return "mid";
-    return "low";
+    // 層が分からない: 全体の雲量で見る（上の「層ごとの雲量が無いとき」）
+    if (s.rain >= 0.4 || s.cloud >= 0.8) return "low";
+    if (s.rain < 0.2 && s.cloud >= 0.2 && s.cloud <= 0.6 && !s.hazy) return "high";
+    return "mid";
 }
 
 /** 夜景の見込み（上の「目安の式」） */
