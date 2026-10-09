@@ -41,7 +41,7 @@ import { updateUserList, readUserList, UserListError } from "./userList";
  */
 
 /** 「行きたい場所」の一覧（`spots#<uid>`）。新しい順 */
-const spotsId = (uid: string) => `spots#${uid}`;
+export const spotsId = (uid: string) => `spots#${uid}`;
 
 /**
  * 一覧に残す上限。**溢れるのは古い方。**
@@ -82,7 +82,7 @@ const slugBytes = (x: string) => Buffer.byteLength(x, "utf8");
  * ——いいねと違って**マーカーによる復旧経路が無い**ので、直す手が無くなる。
  * 長さで断るのは**新しく入れるとき**だけにする（下）。
  */
-const isStoredSpotSlug = (x: string) => x.length > 0 && !x.includes("#");
+export const isStoredSpotSlug = (x: string) => x.length > 0 && !x.includes("#");
 
 /** **新しく受け取ってよい形。** 上に加えて `slugify` と同じ長さの上限を見る */
 const isNewSpotSlug = (x: string) => isStoredSpotSlug(x) && slugBytes(x) <= MAX_SLUG_BYTES;

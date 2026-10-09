@@ -39,7 +39,7 @@ const ALL_VARS = ["APNS_PRIVATE_KEY", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_TOPIC
  * 見る。5本目が現れたら必ずここが落ちるので、そのとき env を配ったかを
  * 下のテストが続けて見る。
  */
-const PUSHING_FILES = ["comments.ts", "follow.ts", "likes.ts", "storyReplies.ts"];
+const PUSHING_FILES = ["badgeStore.ts", "comments.ts", "follow.ts", "likes.ts", "storyReplies.ts"];
 
 /** `api-user/src/*.ts` のうち、`pushNotification(...)` を呼んでいるもの */
 function filesThatPush(): string[] {
@@ -75,8 +75,15 @@ function handlerBody(serviceDir: string, handler: string): string {
         .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
 }
 
-/** その関数自身が通知を積むか */
-const sendsPush = (handler: string) => /\bpushNotification\s*\(/.test(handlerBody("api-user", handler));
+/**
+ * その関数が通知を積むか。
+ *
+ * メダルの数え直し（`badgeStore.ts` の `refreshBadges` / `refreshBadgesQuietly`）は
+ * 上がった段の通知を積むので、**それを呼ぶ関数も「積む」に数える**（写真の保存・更新・
+ * `GET /user/badges`）。数えないと、そこへの配り忘れを見逃す
+ */
+const sendsPush = (handler: string) =>
+    /\b(?:pushNotification|refreshBadges|refreshBadgesQuietly)\s*\(/.test(handlerBody("api-user", handler));
 
 describe("api-user: APNs の鍵は送る関数にだけ配る", () => {
     const yml = readFileSync(join(ROOT, "api-user", "serverless.yml"), "utf8");
@@ -131,7 +138,9 @@ describe("api-user: APNs の鍵は送る関数にだけ配る", () => {
     // 走査が空振りしていないことの自己確認（0件どうしの一致で緑にならない）
     it("通知を積む関数を1つ以上見つけている", () => {
         const sending = [...fns].filter(([, v]) => sendsPush(v.handler)).map(([n]) => n).sort();
-        expect(sending).toEqual(["followUser", "likePhoto", "postComment", "postStoryReply"]);
+        expect(sending).toEqual([
+            "followUser", "getMyBadges", "likePhoto", "postComment", "postStoryReply", "savePhoto", "updatePhotoVisibility",
+        ]);
     });
 
     // **5つで1組。** 中途半端に Key ID だけ入ると「設定済みのつもりで

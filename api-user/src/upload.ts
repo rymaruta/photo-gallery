@@ -17,6 +17,7 @@ import { requestSiteRebuild } from "./rebuild";
 import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAlbumMember, addPhotoToAlbum } from "./albums";
+import { refreshBadgesQuietly } from "./badgeStore";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -477,6 +478,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **次のビルド（定期は週1）まで付かない**。画面は派生が無くても
         // `src` で出る（下書きから公開した写真と同じ扱い）ので、それを許容する
         await requestRebuildForNewPhoto(photo.id, onStaticSite(photo));
+        // **メダルを数え直す**（公開した写真だけが数に入る）。投げない・上限つきで待つ
+        // （`badgeStore.ts`）。落ちても投稿は成功で返す
+        if (isPublished) await refreshBadgesQuietly(userId, `savePhoto(${photo.id})`);
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {

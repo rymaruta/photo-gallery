@@ -9,6 +9,11 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// メダルの数え直し（`badgeStore.ts`）。中身は `badgeStore.test.ts` が見るので、ここは呼ばれ方だけ
+const mockRefreshBadges = vi.hoisted(() => vi.fn(async (userId: string, label: string) => { void userId; void label; }));
+vi.mock("../badgeStore", () => ({
+    refreshBadgesQuietly: (userId: string, label: string) => mockRefreshBadges(userId, label),
+}));
 // S3 の削除とエッジの無効化は境界としてモックする（実体は `s3Delete` 側）
 // 引数の型を書く。`vi.fn(async () => …)` だと引数ゼロのタプルに推論され、
 // `mock.calls[0][0]` が型エラーになる（基準より型エラーを増やさない）
@@ -70,6 +75,7 @@ beforeEach(() => {
     mockRemoveFromAlbum.mockReset().mockResolvedValue(undefined);
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockS3DeleteMany.mockReset().mockResolvedValue(undefined);
+    mockRefreshBadges.mockReset().mockResolvedValue(undefined);
     vi.stubEnv("CLOUDFRONT_URL", CDN);
 });
 
@@ -1723,3 +1729,22 @@ describe("公開範囲を絞ったら、実体も動かす", () => {
 });
 
 
+
+describe("updatePhotoVisibility: メダルを数え直す", () => {
+    it("更新できたら、写真の持ち主のメダルを数え直す", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "p1", userId: "u1" } })
+            .mockResolvedValueOnce({});
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockRefreshBadges).toHaveBeenCalledTimes(1);
+        expect(mockRefreshBadges.mock.calls[0][0]).toBe("u1");
+    });
+
+    it("断った更新（他人の写真）では数え直さない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "owner" } });
+        const res = await invoke(event("attacker", "p1", { published: false }));
+        expect(res.statusCode).toBe(403);
+        expect(mockRefreshBadges).not.toHaveBeenCalled();
+    });
+});

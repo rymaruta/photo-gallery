@@ -6,6 +6,8 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX 
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
 import { truncate, isRestrictedRow } from "./sanitize";
+import { badgeFields, isBadgeKey, isProMarkStyle, ownsBadge } from "./badgeKeys";
+import type { BadgeKey, BadgeMap, ProMarkStyle } from "./badgeKeys";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -193,6 +195,19 @@ export type UserProfile = {
      * 「機能が無い」のではない。
      */
     verified?: boolean;
+    /**
+     * 手に入れたメダル（`badgeKeys.ts`）。**本人からは書けない**（`verified` と同じ）。
+     * 書くのはサーバーの数え直し（`badgeStore.ts`）と運営の台本だけ。
+     */
+    badges?: BadgeMap;
+    /** 名前の横に出すメダル。持っている鍵だけ（本人が選ぶ） */
+    displayBadge?: BadgeKey | null;
+    /** Pro の印の形（本人が選ぶ・既定 iris）。Pro でなければ使われない */
+    proMarkStyle?: ProMarkStyle;
+    /** サポーター（第2段階の購入）。`active === true` の人だけ Pro。**本人からは書けない** */
+    supporter?: { active?: boolean };
+    /** 応答だけに載る（行には保存しない）。`supporter.active === true` か */
+    pro?: boolean;
     updatedAt?: string;
 };
 
@@ -443,7 +458,7 @@ export const getMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
             // ベストエフォート——失敗しても取得自体は返す。
             await createProfileIfMissing(userId);
         }
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile ?? { userId }) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(withBadgeFields(profile ?? { userId })) };
     } catch (e) {
         console.error("getMyProfile error:", e);
         return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "取得に失敗しました" }) };
@@ -497,6 +512,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         themeColor?: string; statusText?: string; homeLocation?: string; pinnedPhotoIds?: string[];
         pinPhotoId?: unknown; pin?: unknown;
         songs?: unknown;
+        displayBadge?: unknown; proMarkStyle?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -665,6 +681,28 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
     const pinOp = pinPhotoId ? { id: pinPhotoId, pin: body.pin === true } : undefined;
+
+    /**
+     * 名前の横に出すメダル（`displayBadge`）と Pro の印の形（`proMarkStyle`）。
+     *
+     * - `displayBadge`: `null` / `""` で外す。鍵は**本人が持っているものだけ**
+     *   （持っているかは下の書き込みループで、**そのとき読んだ行**の `badges` で見る）。
+     *   知らない鍵・持っていない鍵は 400——黙って落とすと「選んだのに出ない」になる
+     * - `proMarkStyle`: `"iris"` / `"plate"` だけ。`null` / `""` で既定（iris）に戻す
+     * - **`badges` そのものは受け取らない**（`verified` と同じ。受け取ると誰でも自分に付けられる）
+     */
+    const hasDisplayBadgeKey = "displayBadge" in body;
+    const clearDisplayBadge = body.displayBadge === null || body.displayBadge === "";
+    if (hasDisplayBadgeKey && !clearDisplayBadge && !isBadgeKey(body.displayBadge)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "そのメダルは選べません" }) };
+    }
+    const displayBadge: BadgeKey | undefined = hasDisplayBadgeKey && !clearDisplayBadge && isBadgeKey(body.displayBadge)
+        ? body.displayBadge : undefined;
+    const hasProMarkStyleKey = "proMarkStyle" in body;
+    if (hasProMarkStyleKey && body.proMarkStyle !== null && body.proMarkStyle !== "" && !isProMarkStyle(body.proMarkStyle)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "Pro の印の形が不正です" }) };
+    }
+    const proMarkStyle = isProMarkStyle(body.proMarkStyle) ? body.proMarkStyle : undefined;
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
     const applyPinOp = (stored: unknown): string[] | null => {
@@ -793,6 +831,8 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     //  レビューで両方消しても全テストが通ることを実測された）。
     // 同じリクエストで配列と増減が両方来たら増減が勝つのは、その帰結。
     apply("pinnedPhotoIds", "pinnedPhotoIds" in body, pinnedPhotoIds);
+    apply("displayBadge", hasDisplayBadgeKey, displayBadge);
+    apply("proMarkStyle", hasProMarkStyleKey, proMarkStyle);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -865,7 +905,13 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // 上限で断るときに返す「今の一覧」。これを返さないと、手元が
         // サーバーとずれているタブは断られ続けるだけで直せない。
         let pinLimitCurrent: string[] = [];
+        // 選んだメダルを持っていなかった（そのとき読んだ行で見る）
+        let badgeNotOwned = false;
         for (let attempt = 0; attempt <= PROFILE_WRITE_RETRIES; attempt++) {
+            if (displayBadge && !ownsBadge((base as { badges?: unknown } | null)?.badges, displayBadge)) {
+                badgeNotOwned = true;
+                break;
+            }
             // ピン留めの増減は、**いま読んだ配列**の上で決める。
             // 再試行のたびに base が新しくなるので、ここで組み直す。
             if (pinOp) {
@@ -911,6 +957,10 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
                 base = await getProfile(userId);   // 競合。読み直して重ね直す
             }
         }
+        if (badgeNotOwned) {
+            if (usernameReserved) { await releaseUsername(usernameReserved, userId); }
+            return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "まだ手に入れていないメダルは選べません" }) };
+        }
         if (pinLimitHit) {
             // 黙って落とさない。落とすと「ピン留めしました」と出て元どおりになる。
             // 予約だけ残さないのは下の !saved と同じ理由。
@@ -954,7 +1004,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // 残るのは実行時 API（`GET /photos`）が返す写しで、モーダルと写真
         // ページの投稿者リンクに出る。プロフィール画面の見出しは API の
         // プロフィールを優先するので既に新しい名前。
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(profile) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(withBadgeFields(profile)) };
     } catch (e) {
         // **予約だけ残さない。**
         //
@@ -1019,6 +1069,20 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
     };
 }
 
+/**
+ * 自分のプロフィールの応答に、メダルと Pro の4項目を整えて載せる
+ * （`badges`・`displayBadge`・`pro`・`proMarkStyle`）。公開プロフィールと同じ `badgeFields` を通す。
+ * 行の中の `supporter` はそのまま残る（本人の行なので隠す理由は無い）。
+ */
+function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
+    // 行の生の3項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
+    const rest = { ...p } as Record<string, unknown>;
+    delete rest.badges;
+    delete rest.displayBadge;
+    delete rest.proMarkStyle;
+    return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
+}
+
 export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
     const {
         userId, username, displayName, bio, instagram, website, themeColor,
@@ -1033,6 +1097,8 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         // **印は公開してよい**（バッジとして出すためのもの）。
         // 立てられるのは運営だけ（型の注記）
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
+        // メダルと Pro（`badgeKeys.ts` の形）。`supporter` そのものは出さない
+        ...badgeFields(p),
     });
 }
 
