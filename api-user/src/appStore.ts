@@ -130,13 +130,21 @@ export function resetAppStoreVerifiers(): void {
 
 /**
  * 受け付ける環境を順に試す。「環境が違う」だけなら次へ、それ以外の失敗はそこで止める
- * （署名が合わないものを別の環境で試しても通らないので、理由を濁さない）
+ * （署名が合わないものを別の環境で試しても通らないので、理由を濁さない）。
+ *
+ * **Production の「アプリ違い」（INVALID_APP_IDENTIFIER）も次へ回す。** 知らせの
+ * `data.appAppleId` は **Sandbox では入らない**（Apple の仕様）ので、Production の確かめ役は
+ * Sandbox の知らせを環境より先に「アプリの Apple ID が違う」で断る。ここで止めると、本番が
+ * 受けると決めた Sandbox（TestFlight・審査）の知らせが全部 400 になっていた。
+ * 回しても緩まない——Sandbox の確かめ役も Bundle ID と環境を見るので、本当に別のアプリ・
+ * 別の Apple ID の Production の知らせはそこで断られる（理由は Production で出た方を返す）
  */
 async function tryEnvironments<T>(
     cfg: AppStoreConfig,
     run: (v: SignedDataVerifier, env: AppStoreEnvironment) => Promise<T>,
 ): Promise<{ value: T; environment: AppStoreEnvironment }> {
     let lastStatus: VerificationStatus | undefined;
+    let appIdStatus: VerificationStatus | undefined;
     for (const environment of cfg.environments) {
         try {
             return { value: await run(verifierFor(cfg, environment), environment), environment };
@@ -144,10 +152,17 @@ async function tryEnvironments<T>(
             if (e instanceof VerificationException) {
                 lastStatus = e.status;
                 if (e.status === VerificationStatus.INVALID_ENVIRONMENT) continue;
+                if (e.status === VerificationStatus.INVALID_APP_IDENTIFIER && environment === "Production") {
+                    appIdStatus = e.status;
+                    continue;
+                }
                 throw new AppStoreSignatureError(`署名を確かめられませんでした（${VerificationStatus[e.status]}）`, e.status);
             }
             throw new AppStoreSignatureError(`署名を確かめられませんでした（${(e as Error)?.message ?? e}）`);
         }
+    }
+    if (appIdStatus !== undefined) {
+        throw new AppStoreSignatureError(`署名を確かめられませんでした（${VerificationStatus[appIdStatus]}）`, appIdStatus);
     }
     throw new AppStoreSignatureError(
         `受け付けていない環境の署名です（${lastStatus !== undefined ? VerificationStatus[lastStatus] : "なし"}）`, lastStatus);

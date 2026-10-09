@@ -111,6 +111,22 @@ describe("鍵が無いあいだは機能を止める", () => {
         expect(await wk.weatherKitReady(NOW + 61_000)).toBe(true);
     });
 
+    it("読み込みの失敗と「パラメータが無い」を分ける。失敗のあとは retryFailed で控えを使わず読み直す", async () => {
+        const wk = await load();
+        mockSsmSend.mockResolvedValue(params(null, null));
+        expect(await wk.weatherKitReady(NOW)).toBe(false);
+        expect(wk.weatherKitKeyReadFailed()).toBe(false);
+        mockSsmSend.mockRejectedValue(new Error("ThrottlingException"));
+        expect(await wk.weatherKitReady(NOW + 61_000)).toBe(false);
+        expect(wk.weatherKitKeyReadFailed()).toBe(true);
+        // 控え（1分）の中: ふつうは読みにいかない・やり直しは読み直す
+        mockSsmSend.mockReset().mockResolvedValue(params("KEY1", PEM));
+        expect(await wk.weatherKitReady(NOW + 62_000)).toBe(false);
+        expect(mockSsmSend).not.toHaveBeenCalled();
+        expect(await wk.weatherKitReady(NOW + 63_000, { retryFailed: true })).toBe(true);
+        expect(wk.weatherKitKeyReadFailed()).toBe(false);
+    });
+
     it("鍵の改行が `\\n` の文字のまま貼られていても読む", async () => {
         const wk = await load();
         expect(wk.toWeatherKitKey(" KEY1 ", PEM.replace(/\n/g, "\\n"))?.keyId).toBe("KEY1");

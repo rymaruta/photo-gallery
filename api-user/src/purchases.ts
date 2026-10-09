@@ -41,7 +41,7 @@ import {
     AppStoreSignatureError, appAccountTokenFor, proProductIds, readAppStoreConfig, renewalFacts,
     transactionFacts, verifyNotificationPayload, verifySignedTransaction,
 } from "./appStore";
-import { applyToProfile, claimAppStoreLink, readAppStoreLink, rememberNotification } from "./supporterStore";
+import { applyToProfile, claimAppStoreLink, forgetAppStoreLinks, readAppStoreLink, rememberNotification } from "./supporterStore";
 import { toPublicProfile } from "./userProfile";
 import type { UserProfile } from "./userProfile";
 
@@ -101,7 +101,14 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています");
         }
         const out = await applyToProfile(userId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: true });
-        if (out.status === "deleted") return jsonError(410, "このアカウントは削除されています");
+        if (out.status === "deleted") {
+            // 退会済みの人（消す前に配ったトークンがまだ通る・退会と同時に来た購入）に結び付けを
+            // 残さない。残すと持ち主が墓石の `appstore#…` が誰にも消されないまま残り、
+            // token の無い取引はほかのアカウントから 409 で受け付けられなくなる（退会の掃除は
+            // 墓石を置く前に読んだ `linked` しか消さない）
+            await forgetAppStoreLinks(userId, { linked: [facts.originalTransactionId] });
+            return jsonError(410, "このアカウントは削除されています");
+        }
         if (out.status !== "saved") return jsonError(409, "他の変更と重なりました。もう一度お試しください");
         if (out.ignored) console.log(`recordPurchase: ${out.ignored}（${userId}）`);
         return {

@@ -112,6 +112,25 @@ describe("知らせの状態の移り方", () => {
         expect(none.supporter.active).toBe(false);
     });
 
+    it("猶予期間の中にアプリが同じ取引を送ってきても Pro を外さない（アプリの取引には猶予の終わりが無い）", () => {
+        const after = t.expiresDate + HOUR;
+        const graceEnd = t.expiresDate + 6 * DAY;
+        const grace = applySupporterEvent(active, ev("DID_FAIL_TO_RENEW", t, {
+            subtype: "GRACE_PERIOD", signedAt: after, renewal: { gracePeriodExpiresDate: graceEnd },
+        }), after).supporter;
+        // 端末が猶予の中で取り直した取引（署名は知らせより新しい・期限は過ぎている）
+        const r = applySupporterEvent(grace, ev("PURCHASE", t, { signedAt: after + DAY }), after + DAY);
+        expect(r.supporter.active).toBe(true);
+        expect(r.supporter.expiresAt).toBe(new Date(graceEnd).toISOString());
+        expect(isPro({ supporter: r.supporter }, after + DAY)).toBe(true);
+        expect(r.ignored).toMatch(/猶予/);
+        // 猶予が切れたら期限で外れる
+        expect(isPro({ supporter: r.supporter }, graceEnd + 1)).toBe(false);
+        // 取り消された取引は通す
+        const revoked = applySupporterEvent(grace, ev("PURCHASE", { ...t, revocationDate: after + DAY }, { signedAt: after + DAY }), after + DAY + 1);
+        expect(revoked.supporter.active).toBe(false);
+    });
+
     it("DID_CHANGE_RENEWAL_STATUS（自動更新を切った）: 期限までは Pro のまま", () => {
         const r = applySupporterEvent(active, ev("DID_CHANGE_RENEWAL_STATUS", t, {
             subtype: "AUTO_RENEW_DISABLED", signedAt: now + 1, renewal: { autoRenewStatus: 0 },
@@ -148,6 +167,39 @@ describe("知らせの状態の移り方", () => {
         const late = applySupporterEvent(expired, ev("DID_RENEW", t, { signedAt: t.signedDate }), t.expiresDate + 30);
         expect(late.supporter.active).toBe(false);
         expect(late.ignored).toMatch(/古い知らせ/);
+    });
+
+    it("返金のあとに、それより前に署名された同じ取引の知らせが来ても、返金で切った期間を延ばさない", () => {
+        // Apple の送り直し・届く順の入れ替わり: REFUND（新しい）→ DID_RENEW（古い・revocationDate なし）
+        const refundAt = t.purchaseDate + 3 * DAY;
+        const refunded = applySupporterEvent(active, ev("REFUND", { ...t, revocationDate: refundAt }, { signedAt: refundAt }), refundAt + 1).supporter;
+        const late = applySupporterEvent(refunded, ev("DID_RENEW", t, { signedAt: t.signedDate }), t.expiresDate + 10 * DAY);
+        expect(late.ignored).toMatch(/古い知らせ/);
+        expect(late.supporter.active).toBe(false);
+        expect(late.supporter.periods.find((p) => p.id === t.transactionId)?.end).toBe(new Date(refundAt).toISOString());
+        // 端末に残っていた返金前の取引（PURCHASE）でも同じ
+        const app = applySupporterEvent(refunded, ev("PURCHASE", t, { signedAt: t.signedDate }), t.expiresDate + 10 * DAY);
+        expect(app.supporter.periods.find((p) => p.id === t.transactionId)?.end).toBe(new Date(refundAt).toISOString());
+    });
+
+    it("返金の取り消し（REFUND_REVERSED・新しい署名）は期間を元の期限に戻す", () => {
+        const refundAt = t.purchaseDate + 3 * DAY;
+        const refunded = applySupporterEvent(active, ev("REFUND", { ...t, revocationDate: refundAt }, { signedAt: refundAt }), refundAt + 1).supporter;
+        const r = applySupporterEvent(refunded, ev("REFUND_REVERSED", t, { signedAt: refundAt + DAY }), refundAt + DAY + 1);
+        expect(r.supporter.active).toBe(true);
+        expect(r.supporter.periods.find((p) => p.id === t.transactionId)?.end).toBe(new Date(t.expiresDate).toISOString());
+    });
+
+    it("先月の取引を載せた新しい知らせ（返金を断った REFUND_DECLINED など）で、今月分の Pro を消さない", () => {
+        const s = renewMonthly(jst(2026, 10, 10), 3, jst(2026, 12, 20));
+        expect(s.active).toBe(true);
+        const old = tx({ transactionId: "t1", purchaseDate: jst(2026, 11, 10), expiresDate: jst(2026, 12, 10), signedDate: jst(2026, 12, 20, 13) });
+        for (const kind of ["REFUND_DECLINED", "CONSUMPTION_REQUEST", "EXPIRED", "DID_CHANGE_RENEWAL_STATUS"]) {
+            const r = applySupporterEvent(s, ev(kind, old), jst(2026, 12, 20, 14));
+            expect(r.supporter.active, kind).toBe(true);
+            expect(r.supporter.expiresAt, kind).toBe(s.expiresAt);
+            expect(r.ignored, kind).toMatch(/記録済みより前/);
+        }
     });
 
     it("アプリから古い取引を送り直されても Pro は消えない", () => {
