@@ -22,6 +22,7 @@ import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
 import QuizEntry from "./components/QuizEntry";
+import SpotsEntry from "./components/SpotsEntry";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 
@@ -573,21 +574,20 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
    */
   return (
     <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl">
-      {/* **スマホでは見出しが1つも無かった。** 下のタイトルは `hidden sm:flex`
-          の中なので、狭い画面では `display:none` ＝読み上げの木からも消える。
-          ホームはこのサイトの入口なのに、h1 が無く「何のページか」を見出しから
-          辿れない（実測: 390px 幅で h1 が0件）。**見た目は変えない**——
-          画面に出さない見出しを1つ置く。広い画面では下の h1 が出るので、
-          `sm:hidden` で重複させない */}
-      <h1 className="sr-only sm:hidden">{heading}</h1>
-
-      {/* タイトル: モバイルでは非表示（ヘッダーナビにサイト名がある） */}
-      <div className="hidden sm:flex sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
-        <div className="flex-1">
-          <h1 id="site-title" className="text-2xl sm:text-3xl font-bold mb-0">
+      {/* **見出しは1つだけ。** 狭い画面では画面に出さず（`sr-only`）、広い画面で
+          ふつうに見せる（`sm:not-sr-only`）。
+          以前は狭い画面用の `sr-only sm:hidden` の h1 と、`hidden sm:flex` の中の h1 の
+          **2つが HTML に在った**（どちらの幅でも描かれるのは1つだが、HTML を読む
+          検索には h1 が2つ見える）。**見た目は変えない**——狭い画面では包みが高さ0
+          （中身は読み上げ専用の見出しと、隠した一言だけ）、広い画面は今までどおり。
+          スマホで見出しが1つも無かった件（390px 幅で h1 が0件）もこの形で満たす */}
+      {/* タイトル: モバイルでは見せない（ヘッダーナビにサイト名がある） */}
+      <div className="sm:flex sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:mb-4">
+        <div className="sm:flex-1">
+          <h1 id="site-title" className="sr-only sm:not-sr-only text-2xl sm:text-3xl font-bold mb-0">
             {heading}
           </h1>
-          {!isSearch && renderSubtitle(labels.site?.subtitle)}
+          {!isSearch && <div className="hidden sm:block">{renderSubtitle(labels.site?.subtitle)}</div>}
         </div>
       </div>
 
@@ -641,6 +641,8 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
 
       {/* 今日の一問への入口（1行・タブの直下＝どのタブでも同じ位置）。`QuizEntry` の注記 */}
       {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
+      {/* 撮影スポットのガイドへの入口（同じ1行の形・一問の直下）。`SpotsEntry` の注記 */}
+      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
