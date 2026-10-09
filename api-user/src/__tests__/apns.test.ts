@@ -100,6 +100,18 @@ describe("送る中身と、宛先を捨てる判断", () => {
             .toBeUndefined();
     });
 
+    // 光と天気の知らせ（`lightForecast.ts`）。**新しい鍵は古いアプリで鍵の文字列のまま出る**ので
+    // 文面そのものを送る。鍵と混ぜない（loc-key があると iOS は title/body より鍵を優先する）
+    it("文面そのもの（title / body）でも送れる。そのときは鍵を入れない・バッジは触らない", async () => {
+        const { pushPayload } = await load({
+            APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM, APNS_TOPIC: "t",
+        });
+        const payload = JSON.parse(pushPayload({ title: "明日の朝", body: "日の出 5:42", data: { type: "light" } }));
+        expect(payload.aps.alert).toEqual({ title: "明日の朝", body: "日の出 5:42" });
+        expect(payload.aps).not.toHaveProperty("badge");
+        expect(payload.type).toBe("light");
+    });
+
     it("宛先と話題（Bundle ID）をヘッダに載せる", async () => {
         const { pushHeaders } = await load({
             APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_PRIVATE_KEY: PEM,
