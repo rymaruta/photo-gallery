@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 // **今日の一問の入口**（`QuizEntry`）。ホームの3つのタブのどれでも同じ位置（タブの直下）に
 // 1行だけ出し、「さがす」の面には出さない。
@@ -64,5 +64,32 @@ describe("ホームの今日の一問の入口", () => {
         render(<ToastProvider><GalleryPageClient surface="search" /></ToastProvider>);
         await waitFor(() => expect(screen.queryByRole("tablist")).toBeNull());
         expect(screen.queryByTestId("home-quiz-entry")).toBeNull();
+    });
+});
+
+describe("ホームの撮影スポットの入口", () => {
+    it("今日の一問の直下に1行・行き先は /spots・先読みしない", async () => {
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        const entry = await screen.findByTestId("home-spots-entry");
+        expect(entry.getAttribute("href")).toBe("/spots");
+        expect(entry.textContent).toContain("撮影スポット");
+        // 一問の行のすぐ下（どのタブでも同じ位置）
+        expect(screen.getByTestId("home-quiz-entry").nextElementSibling).toBe(entry);
+    });
+
+    it("どのタブでも出る（タブを切り替えても位置が動かない）", async () => {
+        authState.current = { isAuthenticated: true, userId: "me", loading: false };
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        for (const tab of screen.getAllByRole("tab")) {
+            fireEvent.click(tab);
+            await waitFor(() => expect(tab.getAttribute("aria-selected")).toBe("true"));
+            expect(screen.getByTestId("home-spots-entry")).toBeTruthy();
+        }
+    });
+
+    it("「さがす」の面には出さない", async () => {
+        render(<ToastProvider><GalleryPageClient surface="search" /></ToastProvider>);
+        await waitFor(() => expect(screen.queryByRole("tablist")).toBeNull());
+        expect(screen.queryByTestId("home-spots-entry")).toBeNull();
     });
 });

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 
 // **読み上げでページを辿れるか。** Chromium で主要9画面の見出しと
 // ランドマークを実測して出た2件を固定する（測定は `scripts/audit-landmarks.mjs`）:
@@ -18,7 +18,7 @@ import { render, screen } from "@testing-library/react";
 const authState = vi.hoisted(() => ({ current: { isAuthenticated: false, userId: null as string | null, loading: false } }));
 vi.mock("../auth/context", () => ({ useAuth: () => authState.current }));
 vi.mock("../i18n/context", () => ({
-    useLocale: () => ({ locale: "ja", labels: { navigation: {}, category: { all: "すべて", names: {} }, site: { title: "作品紹介" } } }),
+    useLocale: () => ({ locale: "ja", labels: { navigation: {}, category: { all: "すべて", names: {} }, site: { title: "作品紹介", subtitle: "旅の一言" } } }),
 }));
 vi.mock("../../lib/utils/api", async (importOriginal) => ({
     ...(await importOriginal<Record<string, unknown>>()),
@@ -71,29 +71,35 @@ describe("ランドマークに名前が付いている", () => {
 });
 
 describe("ホームに見出しがある", () => {
-    it("狭い画面用の見出しが実際に描かれ、広い画面では隠れる指定を持つ", async () => {
+    it("h1 は HTML に1つだけ・狭い画面では読み上げ専用、広い画面で見える指定", async () => {
         const GalleryPageClient = (await import("../GalleryPageClient")).default;
-        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
-        // jsdom は CSS を見ないので両方 DOM に居る。**描かれていること**を見る
-        const h1s = screen.getAllByRole("heading", { level: 1 });
-        expect(h1s.length, "見出しが1つしか無い（どちらかの幅で0件になる）").toBe(2);
+        const { container } = render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        // jsdom は CSS を見ない。**HTML に在る数**を数える（検索は HTML を読むので、
+        // 幅ごとに片方を隠していても2つ在れば2つに見える・2026-10-09）
+        const h1s = container.querySelectorAll("h1");
+        expect(h1s.length, "h1 が1つではない（HTML に見出しが2つ在る）").toBe(1);
+        const h1 = h1s[0];
+        expect(h1.textContent?.trim(), "名前の無い見出し（読み上げても何も分からない）").toBeTruthy();
 
-        const srOnly = h1s.find((h) => hasClass(h, "sr-only"));
-        expect(srOnly, "画面に出さない見出しが無い（狭い画面で h1 が0件になる）").toBeTruthy();
-        // **`not-sr-only` を「sr-only を含む」で通していた**——それはスマホで
-        // 見出しが目に見えて増える変異なのに素通りしていた
-        expect(hasClass(srOnly!, "not-sr-only"), "見えてしまう指定になっている").toBe(false);
-        expect(hasClass(srOnly!, "sm:hidden"), "広い画面で見出しが2つになる").toBe(true);
-        expect(srOnly!.textContent?.trim(), "名前の無い見出し（読み上げても何も分からない）").toBeTruthy();
+        // 狭い画面: 画面には出さないが読み上げの木には居る（`display:none` の中に置かない）
+        expect(hasClass(h1, "sr-only"), "狭い画面で見出しが目に見えて増える").toBe(true);
+        expect(hasClass(h1, "hidden"), "見出し自体が隠されている（狭い画面で h1 が0件になる）").toBe(false);
+        for (let el = h1.parentElement; el && el !== container; el = el.parentElement) {
+            expect(hasClass(el, "hidden"), `見出しの包みが狭い画面で消える: ${el.className}`).toBe(false);
+        }
+        // 広い画面: ふつうに見える（前の形と同じ見た目）
+        expect(hasClass(h1, "sm:not-sr-only"), "広い画面で見出しが見えない").toBe(true);
+        expect(hasClass(h1, "not-sr-only"), "狭い画面でも見えてしまう指定になっている").toBe(false);
+        const wrapper = h1.parentElement!.parentElement!;
+        expect(wrapper.className, "広い画面で横並びの指定が無い").toMatch(/\bsm:flex\b/);
+        expect(hasClass(wrapper, "flex"), "狭い画面で包みが箱になる（見た目が変わる）").toBe(false);
+    });
 
-        // 見える方は今までどおり広い画面だけ（クラスの並び順には縛られない）
-        const visible = h1s.find((h) => h !== srOnly)!;
-        // **見出し自身が隠されていないか**も見る（包みだけ見ていたら、
-        // `<h1 className="hidden">` にする変異が素通りした）
-        expect(hasClass(visible, "hidden"), "見える方の見出し自体が隠されている").toBe(false);
-        expect(hasClass(visible, "sr-only"), "見える方の見出しが読み上げ専用になっている").toBe(false);
-        const wrapper = visible.closest("div")!.parentElement!;
-        expect(hasClass(wrapper, "hidden"), "狭い画面でも見える方が出ている").toBe(true);
-        expect(wrapper.className, "広い画面で出る指定が無い").toMatch(/\bsm:flex\b/);
+    it("一言（サイトの看板）は狭い画面では今までどおり出さない", async () => {
+        const GalleryPageClient = (await import("../GalleryPageClient")).default;
+        const { container } = render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        const sub = container.querySelector("#site-subtitle");
+        expect(sub, "一言が描かれていない").toBeTruthy();
+        expect(hasClass(sub!.parentElement, "hidden"), "狭い画面で一言が出る").toBe(true);
     });
 });

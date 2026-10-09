@@ -122,11 +122,11 @@ describe("開けない ?photo= を踏んだとき", () => {
 
         await new Promise((r) => setTimeout(r, 20));
         expect(mockShowToast).not.toHaveBeenCalled();
-        // 見出しは2つある（狭い画面用の `sr-only` と広い画面用）。jsdom は
-        // CSS を評価しないので両方 DOM に居る。
+        // 見出しは1つ（狭い画面では `sr-only`、広い画面で `sm:not-sr-only`・2026-10-09 に
+        // 2つから1つへまとめた）。
         // **`.length > 0` は死んだ判定**——`getAllByText` は0件で投げるので、
-        // その比較が単独で赤くなることはない。件数を固定して、片方を消したら落とす
-        expect(screen.getAllByText("Gallery")).toHaveLength(2);
+        // その比較が単独で赤くなることはない。件数を固定して、消えた・増えたら落とす
+        expect(screen.getAllByText("Gallery")).toHaveLength(1);
     });
 });
 
