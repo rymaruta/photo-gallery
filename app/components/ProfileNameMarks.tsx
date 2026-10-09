@@ -109,8 +109,13 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
                     <ul className="overflow-y-auto overscroll-contain px-5 pb-5 divide-y divide-white/5">
                         {list.map(({ key, tier, at }) => (
                             <li key={key} className="flex items-center gap-3.5 py-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={badgeImage(key, tier, false)} alt="" width={56} height={56} loading="lazy" className="shrink-0" style={{ width: 56, height: 56 }} />
+                                {/* 季節の章で絵の無い年は、同じ大きさの空きにする（文字の並びをそろえる） */}
+                                {badgeImage(key, tier, false) ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={badgeImage(key, tier, false)!} alt="" width={56} height={56} loading="lazy" className="shrink-0" style={{ width: 56, height: 56 }} />
+                                ) : (
+                                    <span aria-hidden="true" className="shrink-0" style={{ width: 56, height: 56 }} />
+                                )}
                                 <div className="min-w-0">
                                     <p className="text-[15px] font-semibold text-white leading-snug">{badgeLabel(key, tier, locale)}</p>
                                     <p className="text-[13px] text-white/60 leading-snug">{badgeDescription(key, tier, locale)}</p>
@@ -137,7 +142,9 @@ export function NameBadge({ badges, displayBadge, ownerName, locale }: {
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement | null>(null);
     const chosen = displayBadge ? badges?.[displayBadge] : undefined;
-    if (!displayBadge || !chosen) return null;
+    // 絵の無いメダル（季節の章で絵がまだ無い年）は名前の横に出さない
+    const src = displayBadge && chosen ? badgeImage(displayBadge, chosen.tier, true) : null;
+    if (!displayBadge || !chosen || !src) return null;
     const { size, margin } = nameBadgeBox(displayBadge);
     const label = badgeLabel(displayBadge, chosen.tier, locale);
     return (
@@ -155,7 +162,7 @@ export function NameBadge({ badges, displayBadge, ownerName, locale }: {
                 data-testid="name-badge"
             >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={badgeImage(displayBadge, chosen.tier, true)} alt="" width={size} height={size} style={{ width: size, height: size }} />
+                <img src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
             </button>
             {/* **body へ出す。** ボタンは見出し（`<h1>`）の中に居るので、そのまま描くと
                 見出しの中に見出し（`<h2>`）と `<div>` が入る */}

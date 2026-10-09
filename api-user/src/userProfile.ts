@@ -204,9 +204,13 @@ export type UserProfile = {
     displayBadge?: BadgeKey | null;
     /** Pro の印の形（本人が選ぶ・既定 iris）。Pro でなければ使われない */
     proMarkStyle?: ProMarkStyle;
-    /** サポーター（第2段階の購入）。`active === true` の人だけ Pro。**本人からは書けない** */
-    supporter?: { active?: boolean };
-    /** 応答だけに載る（行には保存しない）。`supporter.active === true` か */
+    /**
+     * サポーター（Pro の購入・`supporter.ts` の形）。**本人からは書けない**。書くのは
+     * `supporterStore.ts`（購入と App Store の知らせ）だけ。
+     * 応答には `{ number, since, months }` だけ出す（取引の番号・商品・期限は出さない）
+     */
+    supporter?: unknown;
+    /** 応答だけに載る（行には保存しない）。Pro が今有効か（`badgeKeys.ts` の `isPro`） */
     pro?: boolean;
     updatedAt?: string;
 };
@@ -1070,16 +1074,19 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
 }
 
 /**
- * 自分のプロフィールの応答に、メダルと Pro の4項目を整えて載せる
- * （`badges`・`displayBadge`・`pro`・`proMarkStyle`）。公開プロフィールと同じ `badgeFields` を通す。
- * 行の中の `supporter` はそのまま残る（本人の行なので隠す理由は無い）。
+ * 自分のプロフィールの応答に、メダルと Pro の項目を整えて載せる
+ * （`badges`・`displayBadge`・`pro`・`proMarkStyle`・`supporter`）。公開プロフィールと同じ
+ * `badgeFields` を通す。
+ * **行の `supporter` は生のまま出さない**（取引の番号・期間が入っている。本人の応答でも
+ * 公開と同じ `{ number, since, months }` だけ）。
  */
 function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
-    // 行の生の3項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
+    // 行の生の項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
     const rest = { ...p } as Record<string, unknown>;
     delete rest.badges;
     delete rest.displayBadge;
     delete rest.proMarkStyle;
+    delete rest.supporter;
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
 }
 
@@ -1097,7 +1104,7 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         // **印は公開してよい**（バッジとして出すためのもの）。
         // 立てられるのは運営だけ（型の注記）
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
-        // メダルと Pro（`badgeKeys.ts` の形）。`supporter` そのものは出さない
+        // メダルと Pro（`badgeKeys.ts` の形）。`supporter` は公開してよい3項目だけ
         ...badgeFields(p),
     });
 }

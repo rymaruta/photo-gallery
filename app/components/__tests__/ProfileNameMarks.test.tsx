@@ -66,3 +66,36 @@ describe("NameBadge（名前の横の、選んだメダル）", () => {
         expect(dialog.closest("h1")).toBeNull();
     });
 });
+
+describe("NameBadge: Pro のメダル（第2段階）", () => {
+    const badges = {
+        supporter: { tier: 1, at: AT },
+        supporterYear: { tier: 1, at: AT },
+        proAutumn2026: { tier: 1, at: AT, year: 2026 },
+        proAutumn2031: { tier: 1, at: AT, year: 2031 },
+    };
+
+    it("季節の章は 24.2px で −0.9px はみ出させる（円が絵の 91%）", () => {
+        render(<NameBadge badges={badges} displayBadge="proAutumn2026" ownerName="旅人" locale="ja" />);
+        const btn = screen.getByRole("button", { name: /メダル: 秋の章（2026）/ });
+        expect(btn.style.width).toBe("24.2px");
+        expect(btn.style.margin).toBe("-0.9px");
+        expect(btn.querySelector("img")?.getAttribute("src")).toBe("/badges/medal-pro-autumn-2026-s.webp");
+    });
+
+    it("絵がまだ無い年の季節の章は名前の横に出さない（違う年の絵で代えない）", () => {
+        const { container } = render(<NameBadge badges={badges} displayBadge="proAutumn2031" ownerName="旅人" locale="ja" />);
+        expect(container.querySelector("[data-testid=name-badge]")).toBeNull();
+    });
+
+    it("一覧: サポーター章 → 続けた年 → 季節の章（古い順）。絵の無い年も名前は出す", () => {
+        render(<NameBadge badges={badges} displayBadge="supporter" ownerName="旅人" locale="ja" />);
+        fireEvent.click(screen.getByTestId("name-badge"));
+        const dialog = screen.getByRole("dialog", { name: "旅人のメダル" });
+        const names = [...dialog.querySelectorAll("li p:first-child")].map((p) => p.textContent);
+        expect(names).toEqual(["サポーター章", "続けた年（1年目）", "秋の章（2026）", "秋の章（2031）"]);
+        const imgs = [...dialog.querySelectorAll("li img")].map((i) => i.getAttribute("src"));
+        expect(imgs).toEqual(["/badges/medal-supporter.webp", "/badges/medal-year-1.webp", "/badges/medal-pro-autumn-2026.webp"]);
+        expect(dialog.textContent).toContain("Pro を通算12か月続けた");
+    });
+});

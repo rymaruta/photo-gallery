@@ -7,6 +7,10 @@
  *   （`photoUpdate.ts` の `updatePhotoVisibility`）——**本流を落とさない・待たせすぎない**
  *   （`refreshBadgesQuietly`：失敗は記録だけ・時間の上限つき）
  * - `GET /user/badges` を開いたとき（ここで数えた結果を保存もする）
+ * - Pro の取引・知らせのあと（`supporterStore.ts` が同じ `mergeProBadges` を通す）
+ *
+ * Pro のメダル（サポーター章・続けた年・季節の章）もここで重ねる（`proBadges.ts`）。
+ * 年ごとの人の季節の章は、季節が変わったあとの最初の数え直しで付く。
  *
  * Lambda は応答を返すと止まるので「応答のあとで」は書けない。だから本流の中で、
  * 上限（`QUIET_LIMIT_MS`）を切って待つ。上限を越えたぶんは次に開いたときに拾われる
@@ -33,7 +37,8 @@ import { pushNotification } from "./notify";
 import { badgeProgress, countBadges, mergeBadges } from "./badges";
 import type { BadgeProgress } from "./badges";
 import { badgeDisplayNameJa } from "./badgeKeys";
-import type { BadgeMap } from "./badgeKeys";
+import type { BadgeKey, BadgeMap } from "./badgeKeys";
+import { mergeProBadges, monthsOf } from "./proBadges";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
@@ -62,11 +67,15 @@ export async function refreshBadges(userId: string, now: () => Date = () => new 
             Key: { userId },
             // 置き直すので行をまるごと読む（射影を付けない）
         }));
-        const row = res.Item as ({ badges?: unknown; rev?: unknown; deletedAt?: unknown } & Record<string, unknown>) | undefined;
+        const row = res.Item as ({ badges?: unknown; rev?: unknown; deletedAt?: unknown; supporter?: unknown } & Record<string, unknown>) | undefined;
         // 墓石（退会済み）→ 何も渡さない・書かない
         if (isDeletedProfile(row)) return { badges: {}, progress: badgeProgress(counts, undefined) };
-        const { badges, upgraded } = mergeBadges(row?.badges, counts, now().toISOString());
-        last = { badges, progress: badgeProgress(counts, badges) };
+        const t = now();
+        const counted = mergeBadges(row?.badges, counts, t.toISOString());
+        const pro = mergeProBadges(counted.badges, row?.supporter, t.getTime());
+        const badges = pro.badges;
+        const upgraded: { key: BadgeKey; tier: number }[] = [...counted.upgraded, ...pro.upgraded];
+        last = { badges, progress: badgeProgress(counts, badges, monthsOf(row?.supporter, t.getTime())) };
         // 行が無い → 書かない（ここで行を作らない。作るのは getMyProfile の役目）。
         // 上がった段が無い → 書くものが無い
         if (!row || upgraded.length === 0) return last;

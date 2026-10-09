@@ -188,8 +188,11 @@ describe("GET /user/badges", () => {
         const body = JSON.parse(res.body);
         expect(body.badges).toEqual({ earlyUser: { tier: 1, at: AT0 } });
         expect(Object.keys(body.progress).sort()).toEqual(
-            ["books", "countries", "earlyUser", "first", "morning", "night", "prefectures", "seasons", "wish"]);
+            ["books", "countries", "earlyUser", "first", "morning", "night", "prefectures", "seasons", "supporter", "supporterYear", "wish"]);
         expect(body.progress.earlyUser).toEqual({ count: 1, tier: 1, next: null });
+        // Pro（第2段階）: 番号が無い人は 0。続けた年の線は 12 か月
+        expect(body.progress.supporter).toEqual({ count: 0, tier: 0, next: null });
+        expect(body.progress.supporterYear).toEqual({ count: 0, tier: 0, next: 12 });
         expect(body.progress.wish).toEqual({ count: 0, tier: 0, next: 3 });
     });
 
@@ -202,5 +205,55 @@ describe("GET /user/badges", () => {
         const err = vi.spyOn(console, "error").mockImplementation(() => {});
         expect((await call("u1")).statusCode).toBe(500);
         err.mockRestore();
+    });
+});
+
+describe("refreshBadges: Pro のメダル（季節が変わったあとの数え直しで付く）", () => {
+    const YEARLY = "com.journeyphoto.JourneyPhoto.pro.yearly";
+    const supporter = {
+        number: 3, since: "2026-10-10T03:00:00.000Z", months: 0, active: true, environment: "Production",
+        expiresAt: "2027-10-10T03:00:00.000Z",
+        periods: [{ id: "t1", start: "2026-10-10T03:00:00.000Z", end: "2027-10-10T03:00:00.000Z", product: YEARLY }],
+        linked: ["o1"],
+    };
+    const autumnAt = "2026-10-10T03:00:00.000Z";
+
+    it("年ごとの人に、12月に入って最初の数え直しで冬の章を付けて知らせる（秋の章はそのまま）", async () => {
+        const dec = new Date("2026-12-01T00:00:00.000Z");   // 日本時間 12/1 9:00
+        send
+            .mockResolvedValueOnce({ Item: { userId: "u1", rev: 5, supporter, badges: { supporter: { tier: 1, at: autumnAt }, proAutumn2026: { tier: 1, at: autumnAt, year: 2026 } } } })
+            .mockResolvedValueOnce({});
+        const r = await refreshBadges("u1", () => dec);
+        expect(r.badges.proWinter2026).toEqual({ tier: 1, at: dec.toISOString(), year: 2026 });
+        expect(r.badges.proAutumn2026).toEqual({ tier: 1, at: autumnAt, year: 2026 });
+        expect(r.progress.supporter).toEqual({ count: 1, tier: 1, next: null });
+        expect(r.progress.supporterYear).toEqual({ count: 1, tier: 0, next: 12 });
+        const [put] = puts();
+        expect(put.input.Item.badges.proWinter2026).toEqual({ tier: 1, at: dec.toISOString(), year: 2026 });
+        expect(put.input.Item.supporter).toEqual(supporter);
+        expect(pushNotification.mock.calls.map((c) => c[1])).toEqual([
+            expect.objectContaining({ type: "badge", key: "proWinter2026", tier: 1, byName: "冬の章（2026）" }),
+        ]);
+    });
+
+    it("1年続いたら続けた年（1年目）が付く", async () => {
+        const later = new Date("2027-10-10T04:00:00.000Z");
+        send.mockResolvedValueOnce({ Item: { userId: "u1", supporter } }).mockResolvedValueOnce({});
+        const r = await refreshBadges("u1", () => later);
+        expect(r.badges.supporterYear).toEqual({ tier: 1, at: later.toISOString() });
+        expect(r.progress.supporterYear).toEqual({ count: 12, tier: 1, next: 24 });
+    });
+
+    it("写真のメダルの数え直しで、Pro のメダルを消さない", async () => {
+        listMyPhotos.mockResolvedValue([photo()]);
+        send
+            .mockResolvedValueOnce({ Item: { userId: "u1", badges: { proSummer2027: { tier: 1, at: AT0 }, supporterYear: { tier: 2, at: AT0 } } } })
+            .mockResolvedValueOnce({});
+        const r = await refreshBadges("u1", () => NOW);
+        expect(r.badges).toEqual({
+            first: { tier: 1, at: NOW.toISOString() },
+            supporterYear: { tier: 2, at: AT0 },
+            proSummer2027: { tier: 1, at: AT0, year: 2027 },
+        });
     });
 });

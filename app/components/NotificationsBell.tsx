@@ -929,9 +929,10 @@ export default function NotificationsBell() {
                                         誰なのか辿れず、フォローしに行けないため */}
                                     {n.type === "badge" ? (
                                         // メダルの通知は、相手の顔の代わりにメダルの絵
-                                        badgeKey ? (
+                                        // 季節の章で絵の無い年（`PRO_SEASON_ART`）は、無地のアイコンに落とす
+                                        badgeKey && badgeImage(badgeKey, badgeTier, false) ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={badgeImage(badgeKey, badgeTier, false)} alt="" loading="lazy" className={`${M.avatar} flex-shrink-0 object-contain`} data-testid="notif-medal" />
+                                            <img src={badgeImage(badgeKey, badgeTier, false)!} alt="" loading="lazy" className={`${M.avatar} flex-shrink-0 object-contain`} data-testid="notif-medal" />
                                         ) : (
                                             <span className="flex-shrink-0">
                                                 <UserAvatar userId="" className={M.avatar} iconClassName={M.avatarIcon} />

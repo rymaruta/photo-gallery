@@ -17,6 +17,8 @@
  * | wish        | 「行きたい」に入れたスポットで撮った数              | 3 / 10 / 30    |
  * | earlyUser   | 数えない（`scripts/grant-early-user.js` だけが付ける）| 1             |
  *
+ * Pro のメダル（`supporter`・`supporterYear`・季節の章）は `proBadges.ts`。
+ *
  * ## 精度の限り（画面・報告で言い過ぎないこと）
  *
  * - **都道府県**: ① 写真に付けたスポット（台帳の県）→ ② 撮影地の文字に県名が書いてあるか
@@ -34,7 +36,8 @@
  */
 import LEDGER from "./data/badgeLedger.json";
 import { COUNTED_BADGE_KEYS, MAX_TIER, sanitizeBadges } from "./badgeKeys";
-import type { BadgeKey, BadgeMap, CountedBadgeKey } from "./badgeKeys";
+import type { BadgeMap, CountedBadgeKey, FixedBadgeKey } from "./badgeKeys";
+import { supporterYearNext, supporterYearTier } from "./proBadges";
 import type { Photo } from "./types";
 
 /** 段の線（銅・銀・白金）。`first` は1段だけ */
@@ -458,14 +461,17 @@ export function countBadges(allPhotos: Photo[], wishKeys: readonly string[]): Ba
     };
 }
 
-export type BadgeProgress = Record<BadgeKey, { count: number; tier: number; next: number | null }>;
+export type BadgeProgress = Record<FixedBadgeKey, { count: number; tier: number; next: number | null }>;
 
 /**
  * 進み具合。`tier` は**持っている段**（保存済みと今の数の高い方——段は下げない）、
  * `next` は今の数から見た次の線（最上段なら null）。`earlyUser` は数えないので
  * 持っていれば count 1・無ければ 0、`next` は常に null。
+ *
+ * Pro: `supporter` は持っていれば count 1。`supporterYear` の count は続けた月数
+ * （`supporterMonths`・線は 12 / 24 / 36）。季節の章は年ごとの鍵なので進み具合に載せない。
  */
-export function badgeProgress(counts: BadgeCounts, badges: BadgeMap | undefined): BadgeProgress {
+export function badgeProgress(counts: BadgeCounts, badges: BadgeMap | undefined, supporterMonths = 0): BadgeProgress {
     const out = {} as BadgeProgress;
     for (const key of COUNTED_BADGE_KEYS) {
         const count = counts[key];
@@ -477,6 +483,13 @@ export function badgeProgress(counts: BadgeCounts, badges: BadgeMap | undefined)
     }
     const early = badges?.earlyUser?.tier ?? 0;
     out.earlyUser = { count: early > 0 ? 1 : 0, tier: early, next: null };
+    const sup = badges?.supporter?.tier ?? 0;
+    out.supporter = { count: sup > 0 ? 1 : 0, tier: sup, next: null };
+    out.supporterYear = {
+        count: supporterMonths,
+        tier: Math.max(supporterYearTier(supporterMonths), badges?.supporterYear?.tier ?? 0),
+        next: supporterYearNext(supporterMonths),
+    };
     return out;
 }
 
