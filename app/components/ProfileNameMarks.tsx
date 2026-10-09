@@ -107,12 +107,14 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
                     </p>
                 ) : (
                     <ul className="overflow-y-auto overscroll-contain px-5 pb-5 divide-y divide-white/5">
-                        {list.map(({ key, tier, at }) => (
+                        {list.map(({ key, tier, at }) => {
+                            // 季節の章で絵の無い年は null → 同じ大きさの空きにする（文字の並びをそろえる）
+                            const medalSrc = badgeImage(key, tier, false);
+                            return (
                             <li key={key} className="flex items-center gap-3.5 py-3">
-                                {/* 季節の章で絵の無い年は、同じ大きさの空きにする（文字の並びをそろえる） */}
-                                {badgeImage(key, tier, false) ? (
+                                {medalSrc ? (
                                     // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={badgeImage(key, tier, false)!} alt="" width={56} height={56} loading="lazy" className="shrink-0" style={{ width: 56, height: 56 }} />
+                                    <img src={medalSrc} alt="" width={56} height={56} loading="lazy" className="shrink-0" style={{ width: 56, height: 56 }} />
                                 ) : (
                                     <span aria-hidden="true" className="shrink-0" style={{ width: 56, height: 56 }} />
                                 )}
@@ -124,7 +126,8 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
                                     )}
                                 </div>
                             </li>
-                        ))}
+                            );
+                        })}
                     </ul>
                 )}
             </div>
