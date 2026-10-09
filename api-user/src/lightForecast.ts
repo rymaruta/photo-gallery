@@ -8,7 +8,7 @@ import { isDeletedProfile } from "./types";
 import { readUserList } from "./userList";
 import { isStoredSpotSlug, spotsId } from "./savedSpots";
 import { lightSpotOf, type LightSpot } from "./lightLedger";
-import { WEATHER_ATTRIBUTION, getForecast, weatherKitReady, type WxForecast } from "./weatherKit";
+import { WEATHER_ATTRIBUTION, getForecast, weatherKitKeyReadFailed, weatherKitReady, type WxForecast } from "./weatherKit";
 import { alertText, pickAlert, weekLight } from "./lightOutlook";
 import { apnsConfigured, sendPush } from "./apns";
 import { deviceTokens, forgetTokens } from "./devices";
@@ -246,7 +246,14 @@ async function alertOne(uid: string, now: Date): Promise<"sent" | "none" | "skip
  * **設定が無ければ何もしない**（WeatherKit・APNs のどちらか）。1人の失敗で全体を止めない。
  */
 export const sendLightAlerts = async (): Promise<{ recipients: number; sent: number }> => {
-    const wkReady = await weatherKitReady();
+    // **鍵を読めなかった（SSM の一時的な失敗）なら投げる。** 黙って「設定が無い」と同じに
+    // 終えると、定期実行は成功扱いでやり直されず、**その日の知らせが全員ぶん消える**。
+    // 投げれば Lambda が非同期の呼び出しを最大2回やり直す（送った人は日の印で二重にならない）。
+    // やり直しが同じ温まったコンテナに来ても、失敗の控え（1分）を使わず読み直す
+    const wkReady = await weatherKitReady(Date.now(), { retryFailed: true });
+    if (!wkReady && weatherKitKeyReadFailed()) {
+        throw new Error("sendLightAlerts: WeatherKit の鍵（SSM）を読めませんでした。やり直します");
+    }
     if (!wkReady || !apnsConfigured()) {
         console.log(`sendLightAlerts: 設定が無いので送りません（WeatherKit=${wkReady} APNs=${apnsConfigured()}）`);
         return { recipients: 0, sent: 0 };

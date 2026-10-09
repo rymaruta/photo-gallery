@@ -114,6 +114,8 @@ describe("POST /user/purchases", () => {
         const res = await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) });
         expect(res.statusCode).toBe(410);
         expect(db.get("u1")).toEqual({ userId: "u1", deletedAt: "2026-10-01T00:00:00Z" });
+        // 結び付けも残さない（持ち主が墓石の行は誰にも消されない）
+        expect(db.get("appstore#2000000000000001")).toBeUndefined();
     });
 
     it("appAccountToken が別の人のものなら 403", async () => {
