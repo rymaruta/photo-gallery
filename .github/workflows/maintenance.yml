@@ -46,6 +46,7 @@ on:
           - list-users        # 登録している人の一覧（登録日・状態・写真の枚数・最後の投稿。メールは出さない・読み取りのみ）
           - grant-early-user  # 初期ユーザー章を 2026-10-31（日本時間）までに登録した人へ付ける（既定は読むだけ・apply で書く）
           - backfill-badges   # 今いる全員のメダルを数え直して書く（既定は読むだけ・apply で書く・通知は送らない）
+          - weatherkit-key-to-ssm # GitHub の secret に入れた WeatherKit の鍵（.p8）とキー ID を、SSM パラメータストアへ写す（既定は有無だけ見る・apply で書く）
         required: true
       apply:
         description: "true で実際に適用（false は内容の確認のみ）"
@@ -65,6 +66,10 @@ on:
         default: false
       geocode_skip:
         description: "geocode-locations で飛ばす地名（セミコロン ; 区切り。地名にカンマが入るため。ドライランで当て違いと分かったもの）"
+        type: string
+        default: ""
+      weatherkit_key_id:
+        description: "weatherkit-key-to-ssm のキー ID（10文字・秘密ではない）。空なら secret の WEATHERKIT_KEY_ID を使う"
         type: string
         default: ""
       purge_older_than_days:
@@ -190,6 +195,39 @@ jobs:
       - name: メダルを数え直して書く
         if: inputs.task == 'backfill-badges'
         run: node scripts/backfill-badges.js ${{ inputs.apply && '--apply' || '' }}
+
+      # WeatherKit の鍵を GitHub の secret から SSM パラメータストアへ写す（2026-10-09 owner の決定）。
+      # **値はログに出さない**（長さと有無だけ）。.p8 は SecureString（既定の鍵 alias/aws/ssm）で、
+      # キー ID は String。サーバーは /journey-photo/<stage>/weatherkit/* を読む
+      - name: WeatherKit の鍵をパラメータストアへ写す
+        if: inputs.task == 'weatherkit-key-to-ssm'
+        env:
+          WK_PRIVATE_KEY: ${{ secrets.WEATHERKIT_PRIVATE_KEY || secrets.WEATHERKIT_KEY_P8 }}
+          WK_KEY_ID: ${{ inputs.weatherkit_key_id || secrets.WEATHERKIT_KEY_ID }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WK_PRIVATE_KEY:-}" ]; then
+            echo "::error::GitHub の secret（WEATHERKIT_PRIVATE_KEY か WEATHERKIT_KEY_P8）が見つかりません"; exit 1
+          fi
+          if [ -z "${WK_KEY_ID:-}" ]; then
+            echo "::error::キー ID がありません（入力 weatherkit_key_id か secret の WEATHERKIT_KEY_ID）"; exit 1
+          fi
+          case "$WK_PRIVATE_KEY" in
+            *"BEGIN PRIVATE KEY"*"END PRIVATE KEY"*) echo "鍵の形: .p8（BEGIN/END PRIVATE KEY あり）・${#WK_PRIVATE_KEY} 文字" ;;
+            *) echo "::error::鍵の中身が .p8 の形ではありません（BEGIN/END PRIVATE KEY が無い）"; exit 1 ;;
+          esac
+          echo "キー ID: ${#WK_KEY_ID} 文字"
+          for stage in prod staging; do
+            base="/journey-photo/$stage/weatherkit"
+            if [ "$APPLY" = "true" ]; then
+              aws ssm put-parameter --name "$base/key-id" --type String --value "$WK_KEY_ID" --overwrite > /dev/null
+              aws ssm put-parameter --name "$base/private-key" --type SecureString --value "$WK_PRIVATE_KEY" --overwrite > /dev/null
+              echo "書いた: $base/key-id（String）・$base/private-key（SecureString）"
+            else
+              echo "（読むだけ）apply を付けると $base/key-id と $base/private-key を書きます"
+            fi
+          done
 
       # 登録している人の一覧（scripts/list-users.js）。読み取りのみ・メールは出さない
       - name: 登録している人の一覧
