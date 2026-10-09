@@ -46,6 +46,7 @@ on:
           - list-users        # 登録している人の一覧（登録日・状態・写真の枚数・最後の投稿。メールは出さない・読み取りのみ）
           - grant-early-user  # 初期ユーザー章を 2026-10-31（日本時間）までに登録した人へ付ける（既定は読むだけ・apply で書く）
           - backfill-badges   # 今いる全員のメダルを数え直して書く（既定は読むだけ・apply で書く・通知は送らない）
+          - weatherkit-ping   # WeatherKit が本当に答えるかを1回読む（読み取りのみ・鍵や中身はログに出さない）
           - weatherkit-key-to-ssm # GitHub の secret に入れた WeatherKit の鍵（.p8）とキー ID を、SSM パラメータストアへ写す（既定は有無だけ見る・apply で書く）
         required: true
       apply:
@@ -199,6 +200,10 @@ jobs:
       # WeatherKit の鍵を GitHub の secret から SSM パラメータストアへ写す（2026-10-09 owner の決定）。
       # **値はログに出さない**（長さと有無だけ）。.p8 は SecureString（既定の鍵 alias/aws/ssm）で、
       # キー ID は String。サーバーは /journey-photo/<stage>/weatherkit/* を読む
+      - name: WeatherKit が答えるかを確かめる（読み取りのみ）
+        if: inputs.task == 'weatherkit-ping'
+        run: node scripts/weatherkit-ping.js
+
       - name: WeatherKit の鍵をパラメータストアへ写す
         if: inputs.task == 'weatherkit-key-to-ssm'
         env:
