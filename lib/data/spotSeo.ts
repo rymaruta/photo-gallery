@@ -105,6 +105,22 @@ export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): Sa
 }
 
 /**
+ * 母集合ごとの「ページを建てられて公開済み」の行（`visibleSpots` ＋ `isPublished`）。
+ * **配列ごとに1回だけ数える。** `sameAreaSpots` はページごと（＝全スポットぶん）呼ばれ、
+ * 毎回 `publishBlockers` を全行に掛け直すと件数の2乗で遅くなる（2026-10-08: 約 2,700 行の
+ * 公開でテストが 5 秒を超えた）。台帳の配列は作り直さないので、同じ配列なら結果も同じ
+ */
+const publishedVisibleCache = new WeakMap<readonly Spot[], Spot[]>();
+function publishedVisibleOf(spots: readonly Spot[]): Spot[] {
+    let rows = publishedVisibleCache.get(spots);
+    if (!rows) {
+        rows = visibleSpots(spots).filter(isPublished);
+        publishedVisibleCache.set(spots, rows);
+    }
+    return rows;
+}
+
+/**
  * **同じ県（海外は同じ国）のほかのスポット。** 近い順に `limit` 件。
  *
  * 「近くの撮影スポット」（手で選んだ `nearbySpotIds`）とは**別の節**で、関係があるとは
@@ -118,8 +134,8 @@ export function handPickedNearby(spot: Spot, spots: readonly Spot[] = SPOTS): Sa
 export function sameAreaSpots(spot: Spot, spots: readonly Spot[] = SPOTS, limit = 6): SameAreaSpot[] {
     const handPicked = new Set(spot.nearbySpotIds ?? []);
     const here = spot.coords;
-    return visibleSpots(spots)
-        .filter((s) => isPublished(s) && s.spotId !== spot.spotId && !handPicked.has(s.spotId)
+    return publishedVisibleOf(spots)
+        .filter((s) => s.spotId !== spot.spotId && !handPicked.has(s.spotId)
             && sameAreaAs(spot, s))
         .map((s) => ({ s, d: here && s.coords ? haversineKm(here, s.coords) : Number.POSITIVE_INFINITY }))
         .sort((x, y) => x.d - y.d || x.s.name.localeCompare(y.s.name, "ja"))
