@@ -13,7 +13,7 @@
  * | seasons     | 春夏秋冬を全部撮った年の数                          | 1 / 2 / 3      |
  * | morning     | 日の出の前後1時間に撮った枚数                       | 10 / 50 / 200  |
  * | night       | 日の入りから、翌日の日の出の1時間前までに撮った枚数 | 10 / 50 / 200  |
- * | books       | 旅の本（`trip-` の束）の冊数（iOS の棚と同じ規則）   | 3 / 10 / 30    |
+ * | books       | 旅の一冊（`trip-` の束）の冊数（iOS の棚と同じ規則）   | 3 / 10 / 30    |
  * | wish        | 「行きたい」に入れたスポットで撮った数              | 3 / 10 / 30    |
  * | earlyUser   | 数えない（`scripts/grant-early-user.js` だけが付ける）| 1             |
  *
@@ -355,7 +355,7 @@ export function lightOf(p: Photo): "morning" | "night" | null {
     return null;
 }
 
-// ─── 旅の本（iOS の TripBook.groupTrips と同じ規則） ─────────
+// ─── 旅の一冊（iOS の TripBook.groupTrips と同じ規則） ─────────
 
 /** 1冊になる最少の枚数（iOS `TripBook.minPhotos`） */
 export const BOOK_MIN_PHOTOS = 2;
@@ -374,7 +374,7 @@ function takenDayMs(p: Photo): number | null {
 }
 
 /**
- * 旅の本の冊数。**iOS の `TripBook.groupTrips` の規則**:
+ * 旅の一冊の冊数。**iOS の `TripBook.groupTrips` の規則**:
  * `groupId` が `trip-` で始まる束（旅の写真の流れで上げたもの）・撮影日のある写真が2枚以上・
  * 撮影日の幅が30日以内。日付だけで分けた一冊（束でない写真）は数えない
  * ——それは画面の並べ方で、本人が「旅として上げた」ものではないため。
