@@ -174,6 +174,9 @@ async function alertRecipients(now: number): Promise<string[]> {
     return ids;
 }
 
+/** 知らせで同時に回る人数（1人ずつだと人数に比例して伸びる） */
+export const ALERT_PARALLEL = 8;
+
 /** 二度送らないための印（`lightalert#<uid>`）。その日の分を書けたときだけ送る */
 export const lightAlertMarkId = (uid: string) => `lightalert#${uid}`;
 
@@ -261,13 +264,21 @@ export const sendLightAlerts = async (): Promise<{ recipients: number; sent: num
     const now = new Date();
     const ids = await alertRecipients(now.getTime());
     let sent = 0;
-    for (const uid of ids) {
-        try {
-            if (await alertOne(uid, now) === "sent") sent++;
-        } catch (e) {
-            console.error(`sendLightAlerts: ${uid} で失敗しました:`, e);
+    // 1人ずつだと人数に比例して伸び、Lambda の時間（`serverless.yml`）を使い切りうる。
+    // 何人かを並べて回る（1人の中でも場所を `PARALLEL` 本並べるので、WeatherKit へは最大
+    // ALERT_PARALLEL × PARALLEL 本。同じ場所は `getForecast` が1本にまとめる）
+    let next = 0;
+    const worker = async () => {
+        while (next < ids.length) {
+            const uid = ids[next++];
+            try {
+                if (await alertOne(uid, now) === "sent") sent++;
+            } catch (e) {
+                console.error(`sendLightAlerts: ${uid} で失敗しました:`, e);
+            }
         }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(ALERT_PARALLEL, ids.length) }, worker));
     console.log(`sendLightAlerts: 対象 ${ids.length} 人・送信 ${sent} 通`);
     return { recipients: ids.length, sent };
 };
