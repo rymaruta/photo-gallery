@@ -156,6 +156,17 @@ describe("前の晩の知らせ（sendLightAlerts）", () => {
         expect(rows.marks[lightAlertMarkId("pro")]).toBe("2026-10-09");
     });
 
+    // 🔴 本物の WeatherKit は層ごとの雲量を返さない（2026-10-09）。その形でも知らせが届くこと
+    it("層ごとの雲量が無い予報（いまの本物の形）でも送る", async () => {
+        const j = JSON.parse(readFileSync(path.join(__dirname, "fixtures", "weatherkit-tokyo.json"), "utf8"));
+        for (const h of j.forecastHourly.hours) {
+            delete h.cloudCoverLowAltPct; delete h.cloudCoverMidAltPct; delete h.cloudCoverHighAltPct;
+        }
+        wk.forecast.mockResolvedValue(parseWeather(j, NOW.getTime()));
+        expect(await sendLightAlerts()).toEqual({ recipients: 1, sent: 1 });
+        expect(push.send.mock.calls[0][1].title).toBe("明日の朝、浜離宮恩賜庭園 が朝焼けになりそうです");
+    });
+
     it("同じ日に二度送らない（定期実行のやり直し）", async () => {
         await sendLightAlerts();
         await sendLightAlerts();

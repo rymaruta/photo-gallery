@@ -154,6 +154,9 @@ export function resetWeatherKitToken(): void {
 /**
  * 1時間ぶんの予報。割合は 0〜1。
  * 層ごとの雲量（`low`・`mid`・`high`）は応答に無いことがあるので任意。
+ * **2026-10-09 に本物の応答（東京駅・本番の鍵）で確かめたら、層ごとの雲量は入っていなかった**
+ * （`cloudCover` と `precipitationChance` はある）。見込みは全体の雲量でも決められるようにしてある
+ * （`lightOutlook.ts` の `glowChance`）。見通し（`visibility`・メートル）と湿度（`humidity`）も任意。
  */
 export type WxHour = {
     /** その1時間の始まり（epoch ミリ秒） */
@@ -165,6 +168,10 @@ export type WxHour = {
     high?: number;
     /** 降水確率 */
     rain: number;
+    /** 見通し（メートル）。応答に無ければ undefined */
+    vis?: number;
+    /** 湿度（0〜1）。応答に無ければ undefined */
+    hum?: number;
     /** WeatherKit の `conditionCode`（"Clear"・"Rain" …） */
     code: string;
 };
@@ -190,6 +197,8 @@ export function parseWeather(json: unknown, fetchedAt: number): WxForecast {
             const cloud = frac(h.cloudCover);
             if (!Number.isFinite(t) || cloud === undefined) continue;
             const low = frac(h.cloudCoverLowAltPct), mid = frac(h.cloudCoverMidAltPct), high = frac(h.cloudCoverHighAltPct);
+            const vis = typeof h.visibility === "number" && Number.isFinite(h.visibility) && h.visibility >= 0 ? h.visibility : undefined;
+            const hum = frac(h.humidity);
             hours.push({
                 t,
                 cloud,
@@ -197,6 +206,8 @@ export function parseWeather(json: unknown, fetchedAt: number): WxForecast {
                 ...(mid !== undefined ? { mid } : {}),
                 ...(high !== undefined ? { high } : {}),
                 rain: frac(h.precipitationChance) ?? 0,
+                ...(vis !== undefined ? { vis } : {}),
+                ...(hum !== undefined ? { hum } : {}),
                 code: typeof h.conditionCode === "string" ? h.conditionCode : "",
             });
         }
