@@ -17,10 +17,11 @@ import path from "node:path";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test", USER_INDEX: "idx" }));
 
-const wk = vi.hoisted(() => ({ ready: vi.fn(), forecast: vi.fn() }));
+const wk = vi.hoisted(() => ({ ready: vi.fn(), forecast: vi.fn(), failed: vi.fn(() => false) }));
 vi.mock("../weatherKit", async (orig) => ({
     ...(await orig<typeof import("../weatherKit")>()),
     weatherKitReady: wk.ready,
+    weatherKitKeyReadFailed: wk.failed,
     getForecast: wk.forecast,
 }));
 const push = vi.hoisted(() => ({ configured: vi.fn(), send: vi.fn() }));
@@ -89,6 +90,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     fakeDdb();
     wk.ready.mockReset().mockResolvedValue(true);
+    wk.failed.mockReset().mockReturnValue(false);
     // 東京の場所だけ予報が読める（パリは読めなかった扱い）
     wk.forecast.mockReset().mockImplementation(async (s: { timeZone: string }) => (s.timeZone === "Asia/Tokyo" ? WX : null));
     push.configured.mockReset().mockReturnValue(true);
@@ -194,6 +196,15 @@ describe("前の晩の知らせ（sendLightAlerts）", () => {
         push.configured.mockReturnValue(false);
         expect(await sendLightAlerts()).toEqual({ recipients: 0, sent: 0 });
         expect(mockDdbSend).not.toHaveBeenCalled();
+        expect(push.send).not.toHaveBeenCalled();
+    });
+
+    it("鍵を読めなかった（SSM の一時的な失敗）なら投げて、定期実行にやり直させる（その日の知らせを落とさない）", async () => {
+        wk.ready.mockResolvedValue(false);
+        wk.failed.mockReturnValue(true);
+        await expect(sendLightAlerts()).rejects.toThrow(/SSM/);
+        // やり直しは失敗の控えを使わず読み直す
+        expect(wk.ready).toHaveBeenCalledWith(expect.any(Number), { retryFailed: true });
         expect(push.send).not.toHaveBeenCalled();
     });
 

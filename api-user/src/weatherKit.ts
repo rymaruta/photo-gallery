@@ -70,7 +70,8 @@ export function toWeatherKitKey(keyIdRaw: unknown, privateKeyRaw: unknown): Weat
 
 const KEY_TTL_MS = 5 * 60 * 1000;
 const MISS_TTL_MS = 60 * 1000;
-let cachedKey: { value: WeatherKitKey | null; at: number } | null = null;
+/** `failed`: SSM を**読めなかった**（パラメータが無いのではなく、通信・権限・混雑で落ちた） */
+let cachedKey: { value: WeatherKitKey | null; at: number; failed: boolean } | null = null;
 let ssm: SSMClient | null = null;
 
 /** 控えを捨てる（テストから・401 を受けたとき） */
@@ -78,11 +79,18 @@ export function resetWeatherKitKey(): void {
     cachedKey = null;
 }
 
-/** 鍵（控え → SSM パラメータストア）。**読めなければ null（投げない）** */
-export async function weatherKitKey(now = Date.now()): Promise<WeatherKitKey | null> {
+/**
+ * 鍵（控え → SSM パラメータストア）。**読めなければ null（投げない）**
+ *
+ * @param opts.retryFailed 前の回が**読み込みの失敗**なら控えを使わず読み直す（定期実行の
+ *   やり直し用。`sendLightAlerts` の注記）
+ */
+export async function weatherKitKey(now = Date.now(), opts: { retryFailed?: boolean } = {}): Promise<WeatherKitKey | null> {
     if (!PARAM_PREFIX || !TEAM_ID || !SERVICE_ID) return null;
-    if (cachedKey && now - cachedKey.at < (cachedKey.value ? KEY_TTL_MS : MISS_TTL_MS)) return cachedKey.value;
+    if (cachedKey && !(opts.retryFailed && cachedKey.failed)
+        && now - cachedKey.at < (cachedKey.value ? KEY_TTL_MS : MISS_TTL_MS)) return cachedKey.value;
     let value: WeatherKitKey | null = null;
+    let failed = false;
     try {
         ssm ??= new SSMClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
         const idName = `${PARAM_PREFIX}/key-id`, keyName = `${PARAM_PREFIX}/private-key`;
@@ -93,15 +101,24 @@ export async function weatherKitKey(now = Date.now()): Promise<WeatherKitKey | n
         }
         value = toWeatherKitKey(byName.get(idName), byName.get(keyName));
     } catch (e) {
+        failed = true;
         console.warn("WeatherKit: パラメータを読めませんでした:", e);
     }
-    cachedKey = { value, at: now };
+    cachedKey = { value, at: now, failed };
     return value;
 }
 
 /** 使えるか。使えなければ機能を止める（一覧は 503・知らせは送らない） */
-export async function weatherKitReady(now = Date.now()): Promise<boolean> {
-    return (await weatherKitKey(now)) !== null;
+export async function weatherKitReady(now = Date.now(), opts: { retryFailed?: boolean } = {}): Promise<boolean> {
+    return (await weatherKitKey(now, opts)) !== null;
+}
+
+/**
+ * いちばん最近の鍵の読み込みが**失敗**だったか（パラメータが無い・空・鍵として読めないは
+ * 失敗ではない＝設定の問題で、やり直しても変わらない）
+ */
+export function weatherKitKeyReadFailed(): boolean {
+    return cachedKey?.failed === true;
 }
 
 /** 画面に出す出典（Apple の求め）。文言は Apple の案内どおり */
