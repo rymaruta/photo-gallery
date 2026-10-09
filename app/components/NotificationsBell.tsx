@@ -18,15 +18,17 @@ import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./hea
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
+import { badgeImage, badgeLabel, isBadgeKey } from "../../lib/data/badges";
 
 type Notif = {
-    // 実際に作られるのは like / comment / follow / storyreply の4種類。
+    // 実際に作られるのは like / comment / follow / storyreply / badge の5種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
     // **`api-user/src/notify.ts` の `Notif` と対。** 足したのに
     // ここへ足さないと、下の分岐が「知らない種類」として何も出さない
     // ＝**届いているのに画面には何も出ない**通知になる。
-    type: "like" | "comment" | "follow" | "storyreply";
+    // `badge` はメダル（誰かが起こしたものではない。`byId` も写真も無い）
+    type: "like" | "comment" | "follow" | "storyreply" | "badge";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -41,6 +43,9 @@ type Notif = {
     deleted?: boolean;
     atLocation?: string;
     targetUserId?: string;
+    /** `badge` だけ: メダルの鍵と段 */
+    key?: string;
+    tier?: number;
     t: string;
 };
 
@@ -225,7 +230,7 @@ export default function NotificationsBell() {
     // `isAuthenticated && <NotificationsBell />` で出しているので実際は
     // 常に true だが、**そこに寄りかかって true を直書きしない**
     // ——置き場所が変わった日に黙って嘘になる。
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, userId: myId } = useAuth();
     const wide = useWidePanel();
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<Notif[]>([]);
@@ -839,7 +844,12 @@ export default function NotificationsBell() {
                             //   - ストーリーへの返信（ストーリーに個別ページは無い。
                             //     `ROUTES.PHOTO(story-…)` は静的書き出しに
                             //     存在しないので 404 になる）
-                            const goesNowhere = (isDeleted && n.type === "follow") || n.type === "storyreply";
+                            // メダルの通知は**自分のプロフィール**（名前の横・一覧）へ。
+                            // 自分が分からないとき（ログインの切り替わりの途中）は行き先なし
+                            const badgeKey = n.type === "badge" && isBadgeKey(n.key) ? n.key : null;
+                            const badgeTier = typeof n.tier === "number" ? n.tier : 1;
+                            const goesNowhere = (isDeleted && n.type === "follow") || n.type === "storyreply"
+                                || (n.type === "badge" && !myId);
                             // **フォローバック**（モック 05 の注釈③）。
                             //
                             // ボタンは `FollowAction` を**そのまま**使う
@@ -879,6 +889,11 @@ export default function NotificationsBell() {
                                                         ? <><span className="font-semibold">{n.byName}</span> replied to your story</>
                                                         : <><span className="font-semibold">{n.byName}</span> さんがあなたのストーリーに返信しました</>}
                                                 </>
+                                            ) : n.type === "badge" ? (
+                                                // 名前は画面の表から（言語に合わせる）。知らない鍵はサーバーが入れた名前
+                                                locale === "en"
+                                                    ? <>You earned the <span className="font-semibold">{badgeKey ? badgeLabel(badgeKey, badgeTier, "en") : n.byName}</span> medal</>
+                                                    : <><span className="font-semibold">{badgeKey ? badgeLabel(badgeKey, badgeTier, "ja") : n.byName}</span>のメダルを手に入れました</>
                                             ) : n.type === "comment" ? (
                                                 <>
                                                     <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
@@ -912,7 +927,17 @@ export default function NotificationsBell() {
                                     {/* 左のアイコンは相手のプロフィールへ。
                                         名前だけだと、名前未設定の人は既定名で表示されて
                                         誰なのか辿れず、フォローしに行けないため */}
-                                    {isDeleted ? (
+                                    {n.type === "badge" ? (
+                                        // メダルの通知は、相手の顔の代わりにメダルの絵
+                                        badgeKey ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={badgeImage(badgeKey, badgeTier, false)} alt="" loading="lazy" className={`${M.avatar} flex-shrink-0 object-contain`} data-testid="notif-medal" />
+                                        ) : (
+                                            <span className="flex-shrink-0">
+                                                <UserAvatar userId="" className={M.avatar} iconClassName={M.avatarIcon} />
+                                            </span>
+                                        )
+                                    ) : isDeleted ? (
                                         // 退会した人。名前は既にサーバーが伏せてある
                                         <span className="flex-shrink-0">
                                             <UserAvatar userId="" className={M.avatar} iconClassName={M.avatarIcon} />
@@ -944,7 +969,8 @@ export default function NotificationsBell() {
                                         <div className="flex items-start gap-3 min-w-0 flex-1">{body}</div>
                                     ) : (
                                         <Link
-                                            href={n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
+                                            href={n.type === "badge" && myId ? ROUTES.USER_PROFILE(myId)
+                                                : n.type === "follow" && n.targetUserId ? ROUTES.USER_PROFILE(n.targetUserId) : ROUTES.PHOTO(n.photoId)}
                                             onClick={closePanel}
                                             className="flex items-start gap-3 min-w-0 flex-1 active:opacity-80 transition"
                                             style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}

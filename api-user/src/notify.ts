@@ -11,14 +11,18 @@ import { deviceTokens, forgetTokens } from "./devices";
 // （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
 
 export type Notif = {
-    // 実際に作られるのは like / comment / follow / storyreply の4種類。
+    // 実際に作られるのは like / comment / follow / storyreply / badge の5種類。
     // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
     // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
     //
     // **種類を足したら `NotificationsBell` にも足すこと。** あちらは
     // 知らない種類を**何も出さない**（既定の文言に落とさない）ので、
     // 片方だけだと**届いているのに画面には何も出ない**通知になる。
-    type: "like" | "comment" | "follow" | "storyreply";
+    //
+    // `badge` はメダル（`badgeStore.ts`）。誰かが起こしたものではないので `byId` を持たず、
+    // `byName` にメダルの名前（「朝の光（銀）」）、`key` / `tier` に鍵と段が入る。
+    // 写真も持たない（`photoId` / `photoSrc` は空）。
+    type: "like" | "comment" | "follow" | "storyreply" | "badge";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -29,6 +33,10 @@ export type Notif = {
     atLocation?: string;
     // follow 通知は写真を伴わないため、リンク先のユーザーIDを持つ
     targetUserId?: string;
+    /** `badge` だけ: メダルの鍵（`badgeKeys.ts` の BADGE_KEYS） */
+    key?: string;
+    /** `badge` だけ: 手に入れた段（1 銅・2 銀・3 白金） */
+    tier?: number;
     t: string;
 };
 
@@ -287,6 +295,8 @@ const LOC_KEYS: Record<Notif["type"], string> = {
     comment: "NOTIF_COMMENT",
     follow: "NOTIF_FOLLOW",
     storyreply: "NOTIF_STORY_REPLY",
+    // 引数はメダルの名前（`byName`）。アプリの文面は「%@のメダルを手に入れました」
+    badge: "NOTIF_BADGE",
 };
 
 /**
@@ -348,6 +358,9 @@ async function deliverPush(ownerId: string, notif: Notif, storedUnread?: unknown
                 ...(notif.photoId ? { photoId: notif.photoId } : {}),
                 ...(notif.byId ? { byId: notif.byId } : {}),
                 ...(notif.targetUserId ? { targetUserId: notif.targetUserId } : {}),
+                // メダル: 押したら棚のそのメダルへ。APNs の data は文字列だけ
+                ...(notif.key ? { key: notif.key } : {}),
+                ...(typeof notif.tier === "number" ? { tier: String(notif.tier) } : {}),
             },
         });
         // **無効だった宛先だけ外す**（送信の失敗では外さない）
