@@ -1,4 +1,5 @@
 import { usableObject, displayString, stringList } from "./apiRows";
+import { sanitizeBadgeMap, isBadgeKey } from "../data/badges";
 
 /** プロフィールに載る曲。2画面が同じ形を持っている（型は各画面に置いたまま） */
 type SongEntry = {
@@ -68,5 +69,17 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
         // そのまま）。中の文字列だけ整える
         songs: Array.isArray(obj.songs) ? obj.songs.map(song) : undefined,
         pinnedPhotoIds: stringList(obj.pinnedPhotoIds),
+        // メダルと Pro（`lib/data/badges.ts`）。**持っていないメダルは名前の横に出さない**
+        // ——`displayBadge` は `badges` に在る鍵のときだけ残す（サーバーも同じ判定）
+        ...(() => {
+            const badges = sanitizeBadgeMap(obj.badges);
+            const display = isBadgeKey(obj.displayBadge) && badges?.[obj.displayBadge] ? obj.displayBadge : undefined;
+            return {
+                badges,
+                displayBadge: display,
+                pro: obj.pro === true,
+                proMarkStyle: obj.proMarkStyle === "plate" ? "plate" : "iris",
+            };
+        })(),
     } as T;
 }

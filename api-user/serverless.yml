@@ -153,6 +153,13 @@ functions:
       REBUILD_REPO: ${param:rebuildRepo, ''}
       REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
       REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
+      # メダルの数え直し（`badgeStore.ts`）が、上がった段の通知を積んで端末へ送る。
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     events:
       - httpApi:
           path: /upload/save
@@ -210,6 +217,26 @@ functions:
       - httpApi:
           path: /user/profile
           method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+
+  # 自分のメダルと進み具合（`src/badgeStore.ts`）。開くたびに数え直し、上がった段は
+  # 保存して通知する。本人だけの答え（行は JWT の sub からしか引かない）
+  getMyBadges:
+    handler: src/badgeStore.getMyBadges
+    environment:
+      # 上がった段の通知を端末へ送る（`savePhoto` と同じ。provider に置かない・IAM-2）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
+    # 写真を全部読んで数え、通知（APNs へ最大2秒）まで待つ。既定の6秒では足りない
+    timeout: 15
+    events:
+      - httpApi:
+          path: /user/badges
+          method: GET
           authorizer:
             name: cognitoAuthorizer
 
@@ -313,6 +340,13 @@ functions:
       REBUILD_REPO: ${param:rebuildRepo, ''}
       REBUILD_DISPATCH_TOKEN: ${param:rebuildToken, ''}
       REBUILD_MONTHLY_MAX: ${param:rebuildMonthlyMax, ''}
+      # メダルの数え直し（`badgeStore.ts`）が、上がった段の通知を積んで端末へ送る。
+      # **プッシュの鍵は「送る関数」にだけ配る**（provider に置かない・IAM-2）
+      APNS_KEY_ID: ${param:apnsKeyId, ''}
+      APNS_TEAM_ID: ${param:apnsTeamId, ''}
+      APNS_PRIVATE_KEY: ${param:apnsPrivateKey, ''}
+      APNS_TOPIC: ${param:apnsTopic, ''}
+      APNS_HOST: ${param:apnsHost, ''}
     events:
       - httpApi:
           path: /photos/{id}
