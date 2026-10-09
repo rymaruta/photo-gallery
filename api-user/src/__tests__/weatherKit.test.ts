@@ -195,6 +195,24 @@ describe("要求と応答", () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    // 知らせの定期実行は何人かを並べて回る。同じ場所を入れた人どうしで WeatherKit を二度叩かない
+    it("同じ場所を同時に読んでも WeatherKit は1回（読み終わったら次はまた読める）", async () => {
+        mockSsmSend.mockResolvedValue(params("KEY1", PEM));
+        mockDdbSend.mockResolvedValue({});
+        fetchMock.mockImplementation(async () => new Response(FIXTURE, { status: 200 }));
+        const wk = await load();
+        const all = await Promise.all(Array.from({ length: 5 }, () => wk.getForecast(SPOT, NOW)));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(all.every((w) => w !== null && w === all[0])).toBe(true);
+        // 失敗した回は残さない（次の呼び出しで読み直す）
+        wk.resetWeatherMemo();
+        fetchMock.mockImplementation(async () => new Response("{}", { status: 500 }));
+        expect(await wk.getForecast(SPOT, NOW)).toBeNull();
+        fetchMock.mockImplementation(async () => new Response(FIXTURE, { status: 200 }));
+        expect(await wk.getForecast(SPOT, NOW)).not.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
     it("DynamoDB の控えが新しければ使う・古ければ読み直す", async () => {
         mockSsmSend.mockResolvedValue(params("KEY1", PEM));
         const wk = await load();

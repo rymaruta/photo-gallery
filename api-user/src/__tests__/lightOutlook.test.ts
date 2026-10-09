@@ -184,6 +184,32 @@ describe("前の晩の知らせ（pickAlert・alertText）", () => {
         expect(pick.readyClock! < pick.eventClock).toBe(true);
     });
 
+    // 20:00 JST = 11:00 UTC は、南北アメリカでは同じ日の未明〜朝（ニューヨーク 7:00・ホノルル 1:00）。
+    // 時刻はそのまま（利用者は日本・2026-10-09 owner）。「明日」は現地の暦で、壊れないことだけ見る
+    it("南北アメリカのスポット（現地は未明〜朝）でも、現地の明日を選び、予報の範囲内・これから先の時刻になる", () => {
+        const good = { hours: flat(NOW.getTime() - (NOW.getTime() % H), 8 * 24, { cloud: 0.4, low: 0.1, mid: 0.4, rain: 0, code: "PartlyCloudy" }), fetchedAt: 0 };
+        const last = good.hours[good.hours.length - 1].t;
+        for (const [slug, tz] of [
+            ["statue-of-liberty", "America/New_York"], ["golden-gate-bridge", "America/Los_Angeles"],
+            ["diamond-head", "Pacific/Honolulu"],
+        ] as const) {
+            const spot = lightSpotOf(`SPOT-${slug}`)!;
+            expect(spot.timeZone).toBe(tz);
+            const pick = pickAlert([{ spot, wx: good }], NOW)!;
+            expect(pick).not.toBeNull();
+            // 現地の今日は 10/09（日本の暦の 10/09 と同じ）→ 明日は 10/10
+            expect(pick.date).toBe("2026-10-10");
+            const st = sunTimes(pick.date, { lat: spot.lat, lng: spot.lng })!;
+            const t = (pick.kind === "sunrise" ? st.sunrise : st.sunset)!.getTime();
+            expect(t).toBeGreaterThan(NOW.getTime());
+            expect(t).toBeLessThan(last);
+            const text = alertText(pick, "ja");
+            expect(text.title.length).toBeGreaterThan(0);
+            expect(text.body).toMatch(/\d:\d\d/);
+            expect(weekLight(spot, good, NOW)[0].date).toBe("2026-10-09");
+        }
+    });
+
     it("「高」が無ければ送らない（null）", () => {
         const gray = { hours: flat(NOW.getTime(), 60, { cloud: 0.9, low: 0.8, mid: 0.5, rain: 0.1, code: "Cloudy" }), fetchedAt: 0 };
         expect(pickAlert([{ spot: SPOT, wx: gray }], NOW)).toBeNull();
