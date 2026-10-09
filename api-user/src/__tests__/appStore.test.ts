@@ -139,6 +139,18 @@ describe("App Store Server Notifications V2", () => {
         await expect(verifyNotificationPayload(okJws, PROD)).resolves.toMatchObject({ environment: "Production" });
     });
 
+    it("本番の設定でも Sandbox の知らせ（TestFlight・審査）を受ける。Sandbox の知らせにはアプリの Apple ID が無い", async () => {
+        // Apple の知らせの `data.appAppleId` は Sandbox では入らない。Production の確かめ役は
+        // それを「アプリ違い」（INVALID_APP_IDENTIFIER）と言うので、そこで止めると Sandbox まで届かない
+        const jws = notificationJws({ type: "DID_RENEW", uuid: "n-sb", tx: txPayload() });
+        await expect(verifyNotificationPayload(jws, PROD)).resolves.toMatchObject({ environment: "Sandbox" });
+    });
+
+    it("本番の設定: Bundle ID 違いの Sandbox の知らせは、Sandbox を試しても断る", async () => {
+        const jws = notificationJws({ type: "DID_RENEW", tx: { ...txPayload(), bundleId: "com.example.other" }, bundleId: "com.example.other" });
+        await expect(verifyNotificationPayload(jws, PROD)).rejects.toBeInstanceOf(AppStoreSignatureError);
+    });
+
     it("外側が正しくても、中の取引が信じていない鎖なら断る", async () => {
         const inner = signJws({ ...txPayload(), environment: "Sandbox" }, "rogue");
         const jws = signJws({

@@ -261,9 +261,21 @@ const ENDING_KINDS = new Set(["EXPIRED", "GRACE_PERIOD_EXPIRED"]);
 /** 返金・取り消し（その取引が今の期間なら終わり。過去の期間なら状態は触らない） */
 const REVOKING_KINDS = new Set(["REFUND", "REVOKE"]);
 
-function upsertPeriod(periods: SupporterPeriod[], tx: TransactionFacts): SupporterPeriod[] {
+/**
+ * 取引の期間を置き換える。
+ *
+ * @param noExtend **古い知らせ（`lastEventAt` より前の署名）のとき true。** 同じ取引の期間を
+ *   **縮めることはあっても延ばさない**。返金（REFUND）で切ったあとに、それより前に署名された
+ *   同じ取引の知らせ（Apple の送り直し・届く順の入れ替わり・端末に残っていた古い取引）が来ると、
+ *   返金の印（revocationDate）を持たないので期間が元の期限まで戻り、**返金した期間が続けた月数と
+ *   季節の章に数えられていた**。取引の期限そのものは後から変わらず、後から縮めるのは取り消しだけ
+ *   なので、古い方は短い側に合わせれば足りる（返金の取り消し REFUND_REVERSED は新しい署名で来る）
+ */
+function upsertPeriod(periods: SupporterPeriod[], tx: TransactionFacts, noExtend = false): SupporterPeriod[] {
     const rest = periods.filter((p) => p.id !== tx.transactionId);
-    const end = tx.revocationDate !== undefined ? Math.min(tx.expiresDate, tx.revocationDate) : tx.expiresDate;
+    let end = tx.revocationDate !== undefined ? Math.min(tx.expiresDate, tx.revocationDate) : tx.expiresDate;
+    const known = noExtend ? periods.find((p) => p.id === tx.transactionId) : undefined;
+    if (known && Number.isFinite(ms(known.end))) end = Math.min(end, ms(known.end));
     if (!(end > tx.purchaseDate)) return rest;   // 始まる前に取り消された＝期間なし
     const next = [...rest, { id: tx.transactionId, start: iso(tx.purchaseDate), end: iso(end), product: tx.productId }];
     next.sort((a, b) => ms(a.start) - ms(b.start));
@@ -275,8 +287,8 @@ function upsertPeriod(periods: SupporterPeriod[], tx: TransactionFacts): Support
  *
  * - 期間はいつでも記録する（取引の番号で置き換えるので何度来ても同じ）
  * - **状態**（active・期限・商品）は、それより新しい知らせで決めたあとなら触らない
- *   （`lastEventAt` より古い `signedAt`）。アプリから送られた取引は、記録済みより
- *   **期限が前の取引**なら状態を触らない（古い取引を送り直されて Pro が消えないように）
+ *   （`lastEventAt` より古い `signedAt`）。記録済みより**期限が前の取引**の出来事も状態を
+ *   触らない（アプリの送り直し・先月の取引を載せた REFUND_DECLINED などで Pro が消えないように）
  */
 export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: number): ApplyResult {
     let prev = readSupporter(prevRaw);
@@ -294,18 +306,31 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
         ? { ...prev, periods: [...prev.periods], linked: [...prev.linked] }
         : { months: 0, active: false, periods: [], linked: [] };
     const latestEndBefore = s.periods.reduce((m, p) => Math.max(m, ms(p.end)), -Infinity);
+    const lastAt = ms(s.lastEventAt);
+    const stale = Number.isFinite(lastAt) && ev.signedAt < lastAt;
     s.environment = tx.environment;
-    s.periods = upsertPeriod(s.periods, tx);
+    s.periods = upsertPeriod(s.periods, tx, stale);
     if (!s.linked.includes(tx.originalTransactionId)) {
         s.linked = [...s.linked, tx.originalTransactionId].slice(-MAX_LINKED);
     }
 
-    const lastAt = ms(s.lastEventAt);
-    const stale = Number.isFinite(lastAt) && ev.signedAt < lastAt;
-    const olderPurchase = ev.kind === "PURCHASE" && tx.expiresDate < latestEndBefore;
+    // 記録済みより**期限が前の取引**の出来事は、状態（active・期限・商品）を触らない。
+    // アプリが古い取引を送り直したとき（PURCHASE）だけでなく、**知らせでも起きる**:
+    // 先月分の返金を頼んで断られると、REFUND_DECLINED（・CONSUMPTION_REQUEST）が**先月の取引**を
+    // 載せて新しい署名で届く。これを重ねると「期限 < 今」で、今月分を払っている人の Pro が消えていた。
+    // 期限で終わる知らせ（EXPIRED など）も、新しい取引を記録したあとなら過去の話なので同じ扱い
+    const olderPurchase = tx.expiresDate < latestEndBefore;
     const pastRevocation = REVOKING_KINDS.has(ev.kind) && !(tx.expiresDate > now);
+    // 猶予期間（DID_FAIL_TO_RENEW/GRACE_PERIOD で `expiresAt` を猶予の終わりまで延ばした）の中に、
+    // アプリが**同じ取引**を送ってきた。アプリの取引には更新の情報（猶予の終わり）が無いので、
+    // 重ねると「期限 < 今」で Pro が消える（猶予期間は Apple が使ってよいと言っている期間）。
+    // 取引の中身は同じなので状態は触らない。猶予が切れたら `isPro` が `expiresAt` で外し、
+    // GRACE_PERIOD_EXPIRED・DID_RENEW（請求が通った）は知らせで来る。取り消し（revocationDate）は通す
+    const inGrace = ev.kind === "PURCHASE" && prev?.active === true
+        && prev.originalTransactionId === tx.originalTransactionId && tx.revocationDate === undefined
+        && tx.expiresDate <= now && ms(prev.expiresAt) > Math.max(tx.expiresDate, now);
 
-    if (!stale && !olderPurchase && !pastRevocation) {
+    if (!stale && !olderPurchase && !pastRevocation && !inGrace) {
         const grace = ev.renewal?.gracePeriodExpiresDate ?? 0;
         let active: boolean;
         let expires = Math.max(tx.expiresDate, grace);
@@ -339,7 +364,8 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
     return {
         supporter: s,
         needsNumber,
-        ...(stale ? { ignored: "古い知らせ（期間だけ記録）" } : olderPurchase ? { ignored: "記録済みより前の取引（期間だけ記録）" } : {}),
+        ...(stale ? { ignored: "古い知らせ（期間だけ記録）" } : olderPurchase ? { ignored: "記録済みより前の取引（期間だけ記録）" }
+            : inGrace ? { ignored: "猶予期間の中に届いた同じ取引（状態は猶予のまま）" } : {}),
     };
 }
 
