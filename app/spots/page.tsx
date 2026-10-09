@@ -4,6 +4,7 @@ import { SPOTS } from "@/lib/data/spots";
 import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
+import { spotAreaItemList } from "@/lib/data/spotSeo";
 
 /**
  * **撮影地ガイドの入口。**
@@ -43,5 +44,20 @@ export default function SpotIndexPage() {
     // **県の名前と件数だけ**で、47県でも3KBに満たない
     // （実測は `lib/data/spotLink.ts` の `SpotArea` の注記）
     const total = visibleSpots(SPOTS).length;
-    return <SpotAreaIndexClient areas={spotAreas()} total={total} draftCount={total - publishableSpots(SPOTS).length} />;
+    const areas = spotAreas();
+    return (
+        <>
+            {/* **一覧の構造化データ（ItemList）。** 画面に並べている地域のリンク
+                （`/spots/area/<slug>`）と同じものを同じ順で渡す——画面に無いもの
+                （個々のスポット）は載せない。0件なら出さない */}
+            {areas.length > 0 && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(spotAreaItemList(areas)) }} />
+            )}
+            <SpotAreaIndexClient areas={areas} total={total} draftCount={total - publishableSpots(SPOTS).length} />
+        </>
+    );
 }
+
+/** JSON-LD を `<script>` に埋める形（`SpotGuidePage.tsx` と同じ。`</script>` で閉じられないように） */
+const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+

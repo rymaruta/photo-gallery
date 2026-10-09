@@ -8,12 +8,26 @@
 // 台帳（`SPOTS`）を読むので**サーバー側だけで呼ぶ**（`spotLink.ts` の冒頭と同じ理由）。
 
 import { SPOTS, type Spot } from "./spots";
-import { sameAreaAs, type SpotAreaRef } from "./spotLink";
+import { sameAreaAs, type SpotAreaRef, type SpotArea } from "./spotLink";
 import { visibleSpots, isPublished } from "../utils/spotGuide";
-import { siteConfig } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData } from "../utils/seo";
 import { ROUTES } from "../routes";
 import { haversineKm, kmForLabel } from "../utils/journey";
 import { sampleImageObject, type SpotSample } from "./spotSamples";
+
+/**
+ * `/spots`（地域の索引）の一覧の構造化データ（ItemList）。
+ *
+ * 画面に並べている**地域のリンク**（`/spots/area/<slug>`）と同じものを渡す——
+ * 個々のスポットは画面に無いので載せない。並びは `spotAreas()` のまま
+ * （県の順・海外が最後。画面の地方ごとのまとめと同じ順になる）。
+ */
+export function spotAreaItemList(areas: readonly Pick<SpotArea, "slug" | "name">[]) {
+    return generateItemListStructuredData(
+        "撮影スポットの地域",
+        areas.map((a) => ({ name: `${a.name}の撮影スポット`, url: `${siteConfig.url}${ROUTES.SPOT_AREA(a.slug)}` })),
+    );
+}
 
 /** スポットのページの URL（canonical と同じ形） */
 export function spotPageUrl(spot: Pick<Spot, "slug">): string {

@@ -39,11 +39,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const description = (verified ? "" : "【下書き・運営未確認】")
         + (spot.summary ?? `${spot.name}で写真を撮るための情報。`);
     const url = `${siteConfig.url}/spots/${spot.slug}`;
-    // **代表写真があるときだけ OGP に出す。** 無ければ画像を申告しない
+    // 代表写真があればそれを OGP に出す。
+    // **無ければサイトの既定の画像（`siteConfig.ogImage`）に落とす**——画像を申告しないと、
+    // 共有したときに画像の無いプレビューになる。
+    // 新着の写真（`resolveOgImage`）には落とさない: 別の場所の写真を、この場所の写真として
+    // 見せることになる。既定の画像は正方形のアイコンなので、カードは小さい形（`summary`）
     const cover = spotCoverImage(spot);
-    const image = cover?.src
+    const photo = cover?.src
         ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
         : undefined;
+    const image = photo ?? `${siteConfig.url}${siteConfig.ogImage}`;
 
     return {
         title,
@@ -58,13 +63,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
             siteName: siteConfig.name,
             title,
             description,
-            images: image ? [{ url: image }] : undefined,
+            images: [{ url: image, alt: photo ? spot.name : siteConfig.name }],
         },
         twitter: {
-            card: image ? "summary_large_image" : "summary",
+            card: photo ? "summary_large_image" : "summary",
             title,
             description,
-            images: image ? [image] : undefined,
+            images: [image],
             creator: siteConfig.twitterHandle,
         },
     };
