@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // Pro の状態の移り方（`supporter.ts`・純関数）と、Pro のメダル（`proBadges.ts`）。
 
 import {
-    applySupporterEvent, calendarMonthsBetween, computeMonths, readSupporter, seasonAt, seasonsCovered,
+    applySupporterEvent, calendarMonthsBetween, computeMonths, endTransferredSupporter, readSupporter, seasonAt, seasonsCovered,
     supporterCounterKey, supporterMonths,
 } from "../supporter";
 import type { SupporterEvent, SupporterRecord, TransactionFacts } from "../supporter";
-import { mergeProBadges, supporterYearTier } from "../proBadges";
+import { mergeProBadges, monthsOf, supporterYearTier } from "../proBadges";
 import { badgeDisplayNameJa, isBadgeKey, isPro, parseProSeasonKey, publicSupporter, sanitizeBadges } from "../badgeKeys";
 
 const BUNDLE = "com.journeyphoto.JourneyPhoto";
@@ -235,6 +235,95 @@ describe("環境（本番の行に来る Sandbox）", () => {
         expect(r.supporter.number).toBeUndefined();
         expect(r.supporter.environment).toBe("Production");
         expect(r.supporter.periods.map((p) => p.id)).toEqual(["p1"]);
+    });
+});
+
+// 2026-10-09: 本番は Production と Sandbox の両方を受ける（TestFlight・審査の購入は Sandbox で来る）。
+// Sandbox の番号は別の列で 1 から振るので、公開すると本物の No.1 と重なる。Sandbox は1か月が数分なので、
+// 1時間で「続けた年」と季節の章が永久に付いていた。本番のサーバーでは Sandbox の記録を公開せず・メダルにしない
+describe("本番のサーバーに来た Sandbox の記録（公開しない・メダルにしない）", () => {
+    afterEach(() => { vi.unstubAllEnvs(); });
+
+    /** Sandbox で年ごとを2回終えた人（数え方では 24 か月・秋の章の期間） */
+    function sandboxVeteran(): SupporterRecord {
+        const start = jst(2026, 10, 10);
+        const t1 = tx({ environment: "Sandbox", transactionId: "s1", originalTransactionId: "so1", productId: YEARLY,
+            purchaseDate: start, expiresDate: start + 3 * 60_000, signedDate: start + 1000 });
+        const t2 = tx({ environment: "Sandbox", transactionId: "s2", originalTransactionId: "so1", productId: YEARLY,
+            purchaseDate: start + 3 * 60_000, expiresDate: start + 6 * 60_000, signedDate: start + 3 * 60_000 + 1000 });
+        let s = applySupporterEvent(undefined, ev("PURCHASE", t1), start + 2000).supporter;
+        s = { ...s, number: 1 };
+        s = applySupporterEvent(s, ev("DID_RENEW", t2), start + 7 * 60_000).supporter;
+        return s;
+    }
+    const NOW = jst(2026, 10, 10, 13);
+
+    it("Production を受けるサーバーでは、Sandbox のサポーターを公開しない", () => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Production,Sandbox");
+        const s = sandboxVeteran();
+        expect(s.months).toBe(24);
+        expect(publicSupporter({ supporter: s }, NOW)).toBeUndefined();
+    });
+
+    it("Production を受けるサーバーでは、Sandbox からサポーター章・続けた年・季節の章を付けない（持っているメダルは触らない）", () => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Production,Sandbox");
+        const kept = { first: { tier: 1, at: "2026-01-01T00:00:00.000Z" } };
+        const r = mergeProBadges(kept, sandboxVeteran(), NOW);
+        expect(r.upgraded).toEqual([]);
+        expect(r.badges).toEqual(kept);
+        // 進み具合（GET /user/badges）にも Sandbox の月数を出さない
+        expect(monthsOf(sandboxVeteran(), NOW)).toBe(0);
+    });
+
+    it("Pro そのものは Sandbox でも効く（審査・TestFlight で確かめられるように）", () => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Production,Sandbox");
+        const start = jst(2026, 10, 10);
+        const t = tx({ environment: "Sandbox", transactionId: "s1", originalTransactionId: "so1", purchaseDate: start,
+            expiresDate: start + 5 * 60_000, signedDate: start + 1000 });
+        const s = applySupporterEvent(undefined, ev("PURCHASE", t), start + 2000).supporter;
+        expect(isPro({ supporter: s }, start + 60_000)).toBe(true);
+    });
+
+    it("同じサーバーでも Production の記録は今までどおり公開し、メダルを付ける", () => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Production,Sandbox");
+        const t = tx();
+        const now = t.purchaseDate + HOUR;
+        const s = { ...applySupporterEvent(undefined, ev("PURCHASE", t), now).supporter, number: 1 };
+        expect(publicSupporter({ supporter: s }, now)).toMatchObject({ number: 1 });
+        expect(mergeProBadges(undefined, s, now).upgraded.map((u) => u.key)).toEqual(["supporter", "proAutumn2026"]);
+    });
+
+    it("Sandbox だけのサーバー（staging）は今までどおり（公開し、メダルも付ける）", () => {
+        vi.stubEnv("APPSTORE_ENVIRONMENTS", "Sandbox");
+        const s = sandboxVeteran();
+        expect(publicSupporter({ supporter: s }, NOW)).toMatchObject({ number: 1, months: 24 });
+        expect(mergeProBadges(undefined, s, NOW).upgraded.map((u) => `${u.key}:${u.tier}`))
+            .toEqual(["supporter:1", "supporterYear:2", "proAutumn2026:1"]);
+        expect(monthsOf(s, NOW)).toBe(24);
+    });
+});
+
+describe("付け替えで前の持ち主の Pro を終える（endTransferredSupporter）", () => {
+    it("同じ取引なら active=false・期限を今に。期間は今で切り、月数・番号は残す", () => {
+        const start = jst(2026, 10, 10);
+        const s = { ...renewMonthly(start, 3, start), number: 7 };   // 3か月目の途中
+        const now = plusMonths(start, 2) + 10 * DAY;
+        const before = Math.max(s.months, computeMonths(s.periods, s.environment, now));
+        const out = endTransferredSupporter(s, "o1", now)!;
+        expect(out).toMatchObject({ active: false, expiresAt: new Date(now).toISOString(), number: 7, since: s.since });
+        expect(out.months).toBe(before);
+        expect(out.periods.every((p) => Date.parse(p.end) <= now)).toBe(true);
+        // 元の期限を過ぎても伸びない
+        expect(computeMonths(out.periods, out.environment, plusMonths(start, 12))).toBe(computeMonths(out.periods, out.environment, now));
+    });
+
+    it("前の持ち主の今の購読が別の取引なら触らない・既に過ぎた期限は延ばさない", () => {
+        const start = jst(2026, 10, 10);
+        const s = renewMonthly(start, 1, start);
+        expect(endTransferredSupporter(s, "other", start + DAY)).toBeUndefined();
+        const late = plusMonths(start, 3);
+        expect(endTransferredSupporter(s, "o1", late)!.expiresAt).toBe(s.expiresAt);
+        expect(endTransferredSupporter(undefined, "o1", late)).toBeUndefined();
     });
 });
 

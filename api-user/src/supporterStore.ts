@@ -9,7 +9,7 @@
  *     userId = counter#supporter#sandbox   Sandbox の番号の列（TestFlight・審査・staging）
  *     userId = appstore#<originalTransactionId>
  *                                          { ownerId, environment, createdAt, seen: [notificationUUID…], rev,
- *                                            previousOwnerId?（付け替えたときだけ） }
+ *                                            previousOwnerId?（付け替えたときだけ。前の持ち主の Pro はその場で終える） }
  *
  * `#` を含む行は人ではない（検索・台本・公開プロフィールは `#` を弾く）。
  *
@@ -31,7 +31,7 @@ import { isDeletedProfile } from "./types";
 import { pushNotification } from "./notify";
 import { badgeDisplayNameJa } from "./badgeKeys";
 import { mergeProBadges } from "./proBadges";
-import { applySupporterEvent, readSupporter, supporterCounterKey } from "./supporter";
+import { applySupporterEvent, endTransferredSupporter, readSupporter, supporterCounterKey } from "./supporter";
 import type { AppStoreEnvironment, SupporterEvent } from "./supporter";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -97,8 +97,11 @@ export async function readAppStoreLink(originalTransactionId: string): Promise<A
  * **付け替え（`tokenIsMine`）**: 同じ Apple ID で別のアカウントが申し込み直すと、
  * 自動更新のサブスクリプションは**同じ originalTransactionId のまま**続く（Apple の仕様）。
  * その新しい取引に**この人の appAccountToken** が付いていれば、本人が今このアカウントで
- * 買った証拠なので結び付けを移す（前の人の番号・メダルはそのまま。前の人の Pro は期限で消える）。
- * token の無い取引では移さない（誰が買ったか分からないものを横取りさせない）
+ * 買った証拠なので結び付けを移す（前の人の番号・月数・メダルはそのまま）。
+ * token の無い取引では移さない（誰が買ったか分からないものを横取りさせない）。
+ *
+ * **移したら前の人の Pro をその場で終える**（`endPreviousOwnerAccess`）。前の人の token の付いた
+ * 知らせは以後捨てられる（`purchases.ts`）ので、放っておくと元の期限まで Pro が残っていた
  */
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
@@ -125,6 +128,12 @@ export async function claimAppStoreLink(
                 ExpressionAttributeValues: { ":old": existing.ownerId },
             }));
             console.log(`claimAppStoreLink: ${originalTransactionId} を ${existing.ownerId} から ${userId} へ付け替えました`);
+            try {
+                await endPreviousOwnerAccess(existing.ownerId, originalTransactionId);
+            } catch (e) {
+                // 付け替えそのものは済んでいる（新しい持ち主の購入は落とさない）。記録だけ残す
+                console.error(`claimAppStoreLink: 前の持ち主 ${existing.ownerId} の Pro を終えられませんでした:`, e);
+            }
             return "ok";
         } catch (e) {
             if (!isCondFail(e)) throw e;
@@ -152,6 +161,41 @@ export async function claimAppStoreLink(
         const again = await readAppStoreLink(originalTransactionId);
         return again?.ownerId === userId ? "ok" : "other";
     }
+}
+
+/**
+ * 付け替えた取引の**前の持ち主の Pro を終える**（`supporter.ts` の `endTransferredSupporter`）。
+ * 前の持ち主の今の購読がその取引のときだけ。行が無い・墓石・別の取引なら何もしない。
+ * rev を条件に置き直す（競合したら読み直す）。メダル（`badges`）は触らない
+ */
+export async function endPreviousOwnerAccess(
+    previousOwnerId: string, originalTransactionId: string, now: () => number = () => Date.now(),
+): Promise<"ended" | "skipped" | "conflict"> {
+    for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
+        const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: previousOwnerId }, ConsistentRead: true }));
+        const row = res.Item as Record<string, unknown> | undefined;
+        if (!row || isDeletedProfile(row)) return "skipped";
+        const supporter = endTransferredSupporter(row.supporter, originalTransactionId, now());
+        if (!supporter) return "skipped";
+        const rev = typeof row.rev === "number" ? row.rev : 0;
+        try {
+            await ddb.send(new PutCommand({
+                TableName: USERS_TABLE,
+                Item: { ...row, supporter, rev: rev + 1 },
+                ConditionExpression: rev === 0
+                    ? "attribute_exists(userId) AND attribute_not_exists(deletedAt) AND (attribute_not_exists(rev) OR rev = :rev)"
+                    : "attribute_exists(userId) AND attribute_not_exists(deletedAt) AND rev = :rev",
+                ExpressionAttributeValues: { ":rev": rev },
+            }));
+            console.log(`endPreviousOwnerAccess: ${previousOwnerId} の Pro を終えました（${originalTransactionId} を付け替えた）`);
+            return "ended";
+        } catch (e) {
+            if (isCondFail(e)) continue;   // 読み直して重ね直す
+            throw e;
+        }
+    }
+    console.error(`endPreviousOwnerAccess: 競合が続いて ${previousOwnerId} の Pro を終えられませんでした（${originalTransactionId}）`);
+    return "conflict";
 }
 
 /** 処理した知らせを覚える（落ちても本流は止めない・次に同じ知らせが来ても結果は同じ） */

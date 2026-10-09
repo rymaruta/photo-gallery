@@ -25,7 +25,7 @@
  * （`badgeStore.ts`）と運営の台本（`scripts/grant-early-user.js`）だけ。
  */
 
-import { supporterMonths } from "./supporter";
+import { isPrivateSandbox, supporterMonths } from "./supporter";
 
 /** 数えて渡すメダル（この順で画面に並べる） */
 export const COUNTED_BADGE_KEYS = [
@@ -149,13 +149,15 @@ export function isPro(p: { supporter?: unknown } | null | undefined, now: number
  * 公開してよいサポーターの3項目。**番号を持つ人だけ**（無ければ undefined）。
  * 取引の番号・商品・期限は出さない（`supporter.ts` の注記）。
  * `months` は保存した値と、記録した期間から今数え直した値の大きい方（`supporter.ts` の `supporterMonths`）。
+ * **本番（Production も受けるサーバー）に来た Sandbox の記録は出さない**（`supporter.ts` の
+ * `isPrivateSandbox`。Sandbox の番号は別の列で 1 から振るので、本物の No.1 と重なる）。
  */
 export function publicSupporter(
     p: { supporter?: unknown } | null | undefined,
     now: number = Date.now(),
 ): { number: number; since: string; months: number } | undefined {
     const s = p?.supporter as Record<string, unknown> | undefined;
-    if (!s || typeof s !== "object") return undefined;
+    if (!s || typeof s !== "object" || isPrivateSandbox(s)) return undefined;
     const n = s.number;
     if (typeof n !== "number" || !Number.isInteger(n) || n < 1) return undefined;
     const since = typeof s.since === "string" && !Number.isNaN(Date.parse(s.since)) ? s.since : "";
