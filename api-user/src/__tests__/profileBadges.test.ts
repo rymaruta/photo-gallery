@@ -102,7 +102,7 @@ describe("badgeFields / sanitizeBadges（形）", () => {
     it("通知の名前は段つき（1段だけのメダルは段を書かない）", () => {
         expect(badgeDisplayNameJa("morning", 2)).toBe("朝の光（銀）");
         expect(badgeDisplayNameJa("prefectures", 3)).toBe("都道府県（白金）");
-        expect(badgeDisplayNameJa("first", 1)).toBe("はじめての一枚");
+        expect(badgeDisplayNameJa("first", 1)).toBe("最初の一枚");
         expect(badgeDisplayNameJa("earlyUser", 1)).toBe("初期ユーザー");
     });
 });

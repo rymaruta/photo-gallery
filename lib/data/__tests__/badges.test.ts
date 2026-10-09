@@ -19,6 +19,13 @@ describe("メダルの表（画面）", () => {
         for (const k of BADGE_KEYS) expect(BADGE_NAMES[k].ja, k).toBe(BADGE_NAME_JA[k]);
     });
 
+    it("日本語の名前はデザインの板の表記どおり", () => {
+        expect(Object.fromEntries(BADGE_KEYS.map((k) => [k, BADGE_NAMES[k].ja]))).toEqual({
+            first: "最初の一枚", prefectures: "都道府県", countries: "国・地域", seasons: "四季",
+            morning: "朝の光", night: "夜の光", books: "旅の一冊", wish: "行けた場所", earlyUser: "初期ユーザー",
+        });
+    });
+
     it("説明の数がサーバーの段の線と同じ", () => {
         for (const [key, lines] of Object.entries(BADGE_THRESHOLDS)) {
             if (key === "first") continue;
@@ -50,7 +57,7 @@ describe("メダルの表（画面）", () => {
     it("段つきの名前（1段だけのメダルは段を書かない）", () => {
         expect(badgeLabel("prefectures", 3, "ja")).toBe("都道府県（白金）");
         expect(badgeLabel("prefectures", 1, "en")).toBe("Prefectures · Bronze");
-        expect(badgeLabel("first", 1, "ja")).toBe("はじめての一枚");
+        expect(badgeLabel("first", 1, "ja")).toBe("最初の一枚");
         expect(badgeLabel("earlyUser", 1, "en")).toBe("Early member");
     });
 

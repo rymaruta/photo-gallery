@@ -56,7 +56,7 @@ describe("refreshBadges", () => {
         expect(pushNotification).toHaveBeenCalledTimes(1);
         expect(pushNotification.mock.calls[0][0]).toBe("u1");
         expect(pushNotification.mock.calls[0][1]).toMatchObject({
-            type: "badge", key: "first", tier: 1, byName: "はじめての一枚", photoId: "", photoSrc: "",
+            type: "badge", key: "first", tier: 1, byName: "最初の一枚", photoId: "", photoSrc: "",
         });
         expect(pushNotification.mock.calls[0][1]).not.toHaveProperty("byId");
     });

@@ -186,7 +186,7 @@ describe("メダルの通知（type: badge）", () => {
     it("通知の行にも鍵と段が残る（アプリ内の一覧で絵を出すため）", async () => {
         serve(1, []);
         await pushNotification(ME, {
-            type: "badge", key: "first", tier: 1, byName: "はじめての一枚", photoId: "", photoSrc: "", t: "2026-10-09T00:00:00.000Z",
+            type: "badge", key: "first", tier: 1, byName: "最初の一枚", photoId: "", photoSrc: "", t: "2026-10-09T00:00:00.000Z",
         });
         const update = mockDdbSend.mock.calls.map((c) => c[0]).find((c) => c.constructor.name === "UpdateCommand");
         expect(update.input.ExpressionAttributeValues[":new"][0]).toMatchObject({ type: "badge", key: "first", tier: 1 });
