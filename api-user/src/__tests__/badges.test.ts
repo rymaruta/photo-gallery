@@ -312,9 +312,14 @@ describe("保存済みに重ねる", () => {
         const p = badgeProgress(counts({ prefectures: 12, first: 1 }), { earlyUser: { tier: 1, at: AT0 }, morning: { tier: 1, at: AT0 } });
         expect(p.prefectures).toEqual({ count: 12, tier: 1, next: 30 });
         expect(p.first).toEqual({ count: 1, tier: 1, next: null });
-        // 写真が減って数が線を割っても、持っている段は下げない
-        expect(p.morning).toEqual({ count: 0, tier: 1, next: 10 });
+        // 写真が減って数が線を割っても、持っている段は下げない。次の線は持っている段の次（10 ではなく 50）
+        expect(p.morning).toEqual({ count: 0, tier: 1, next: 50 });
         expect(p.earlyUser).toEqual({ count: 1, tier: 1, next: null });
         expect(badgeProgress(counts({}), undefined).earlyUser).toEqual({ count: 0, tier: 0, next: null });
+    });
+
+    it("進み具合: 最上段を持っていれば、数が減っても次の線は無い", () => {
+        const p = badgeProgress(counts({ wish: 2 }), { wish: { tier: 3, at: AT0 } });
+        expect(p.wish).toEqual({ count: 2, tier: 3, next: null });
     });
 });
