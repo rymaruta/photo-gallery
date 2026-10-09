@@ -122,8 +122,47 @@ describe("POST /user/purchases", () => {
         db.set({ userId: "u1" });
         const res = await purchase("u1", { signedTransaction: signJws(tokenTx("u2")) });
         expect(res.statusCode).toBe(403);
+        // アプリはこの印で見分ける（`error` の日本語は変わりうる）
+        expect(JSON.parse(res.body).code).toBe("linked_to_other_account");
         expect(db.get("u1")).toEqual({ userId: "u1" });
         expect(db.get("appstore#2000000000000001")).toBeUndefined();
+    });
+
+    // 2026-10-09 owner: 退会して作り直したアカウントは、古いアカウントで買った購読では Pro にならない
+    it("退会して作り直したアカウントに古いアカウントの購読が届いても Pro にしない（403・linked_to_other_account）", async () => {
+        db.set({ userId: "old" });
+        expect((await purchase("old", { signedTransaction: signJws(tokenTx("old")) })).statusCode).toBe(200);
+        // 退会（墓石＋結び付けを消す。account.ts と同じ順）
+        const supporterRow = db.get("old")!.supporter;
+        db.set({ userId: "old", deletedAt: "2026-10-11T00:00:00Z" });
+        await forgetAppStoreLinks("old", supporterRow);
+        expect(db.get("appstore#2000000000000001")).toBeUndefined();
+
+        db.set({ userId: "new" });
+        pushNotification.mockClear();
+        // StoreKit の currentEntitlement は古いアカウントの token のまま
+        const res = await purchase("new", { signedTransaction: signJws(tokenTx("old")) });
+        expect(res.statusCode).toBe(403);
+        expect(JSON.parse(res.body).code).toBe("linked_to_other_account");
+        expect(db.get("new")).toEqual({ userId: "new" });
+        expect(db.get("appstore#2000000000000001")).toBeUndefined();
+        expect(pushNotification).not.toHaveBeenCalled();
+    });
+
+    // 2026-10-09 owner: ファミリー共有は認めない。Pro・番号・メダル・結び付けのどれも作らない
+    it("ファミリー共有の取引は 403（family_shared_not_supported）・何も書かない", async () => {
+        db.set({ userId: "u1", rev: 1 });
+        for (const tx of [
+            txPayload({ inAppOwnershipType: "FAMILY_SHARED" }),                                   // token なし
+            tokenTx("u1", { inAppOwnershipType: "FAMILY_SHARED", originalTransactionId: "777" }),  // 本人の token でも
+        ]) {
+            const res = await purchase("u1", { signedTransaction: signJws(tx) });
+            expect(res.statusCode).toBe(403);
+            expect(JSON.parse(res.body).code).toBe("family_shared_not_supported");
+        }
+        expect([...db.rows.keys()]).toEqual(["u1"]);
+        expect(db.get("u1")).toEqual({ userId: "u1", rev: 1 });
+        expect(pushNotification).not.toHaveBeenCalled();
     });
 
     it("別の人に結び付いた取引は 409（appAccountToken の無い取引でも横取りさせない）", async () => {
@@ -132,6 +171,7 @@ describe("POST /user/purchases", () => {
         expect((await purchase("u1", { signedTransaction: signJws(txPayload()) })).statusCode).toBe(200);
         const res = await purchase("u2", { signedTransaction: signJws(txPayload()) });
         expect(res.statusCode).toBe(409);
+        expect(JSON.parse(res.body).code).toBe("claimed_by_other_account");
         expect(db.get("u2")).toEqual({ userId: "u2" });
     });
 
@@ -249,6 +289,29 @@ describe("POST /appstore/notifications", () => {
         const res = await notify({ signedPayload: notificationJws({ type: "SUBSCRIBED", tx: txPayload({ originalTransactionId: "999" }) }) });
         expect(res.statusCode).toBe(200);
         expect([...db.rows.keys()]).toEqual([]);
+    });
+
+    it("ファミリー共有の取引の知らせは 200 で何もしない（結び付けも作らない）", async () => {
+        // 誰にも結び付いていない家族の取引
+        const fam = txPayload({ inAppOwnershipType: "FAMILY_SHARED", originalTransactionId: "888", transactionId: "888" });
+        for (const type of ["SUBSCRIBED", "DID_RENEW"]) {
+            expect((await notify({ signedPayload: notificationJws({ type, tx: fam }) })).statusCode).toBe(200);
+        }
+        expect([...db.rows.keys()]).toEqual([]);
+
+        // 結び付いた取引と同じ番号で家族の取引が来ても、持ち主の行に書かない
+        await subscribed();
+        const before = structuredClone(db.get("u1"));
+        const link = structuredClone(db.get("appstore#2000000000000001"));
+        vi.setSystemTime(T0 + 32 * DAY);
+        const famSame = tokenTx("u1", {
+            inAppOwnershipType: "FAMILY_SHARED", transactionId: "2000000000000009",
+            purchaseDate: T0 + 31 * DAY, expiresDate: T0 + 400 * DAY, signedDate: T0 + 31 * DAY + 1000,
+        });
+        expect((await notify({ signedPayload: notificationJws({ type: "DID_RENEW", uuid: "fam-1", tx: famSame }) })).statusCode).toBe(200);
+        expect(db.get("u1")).toEqual(before);
+        expect(db.get("appstore#2000000000000001")).toEqual(link);
+        expect(pushNotification).not.toHaveBeenCalled();
     });
 
     it("扱っていない商品・取引の無い知らせ（TEST）は 200 で何もしない", async () => {
