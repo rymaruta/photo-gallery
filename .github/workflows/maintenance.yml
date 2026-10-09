@@ -202,7 +202,10 @@ jobs:
       # キー ID は String。サーバーは /journey-photo/<stage>/weatherkit/* を読む
       - name: WeatherKit が答えるかを確かめる（読み取りのみ）
         if: inputs.task == 'weatherkit-ping'
-        run: node scripts/weatherkit-ping.js
+        # この枝の package.json には SSM の口が無いので、その場でだけ入れる（保存しない）
+        run: |
+          npm install --no-save @aws-sdk/client-ssm@3.1123.0
+          node scripts/weatherkit-ping.js
 
       - name: WeatherKit の鍵をパラメータストアへ写す
         if: inputs.task == 'weatherkit-key-to-ssm'
