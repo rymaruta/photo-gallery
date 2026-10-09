@@ -115,7 +115,7 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
                                     <p className="text-[15px] font-semibold text-white leading-snug">{badgeLabel(key, tier, locale)}</p>
                                     <p className="text-[13px] text-white/60 leading-snug">{badgeDescription(key, tier, locale)}</p>
                                     {formatAt(at, locale) && (
-                                        <p className="text-[12px] text-white/40 leading-snug tabular-nums">{formatAt(at, locale)}</p>
+                                        <p className="text-[12px] text-white/50 leading-snug tabular-nums">{formatAt(at, locale)}</p>
                                     )}
                                 </div>
                             </li>
