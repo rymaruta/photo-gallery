@@ -747,12 +747,21 @@ describe("取引と人の結び付け", () => {
         // token が本人のものなら移す（同時に2人が移そうとしても、持ち主は1人）
         expect(await claimAppStoreLink("o1", "u2", "Sandbox", { tokenIsMine: true })).toBe("ok");
         expect(db.get("appstore#o1")).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+        // 負けた側は読み直して鍵で決め直す（2026-10-10: 前は鍵を見ずに "other" で引いていた）。
+        // 同じ鍵なら先に移した方が持ち主
         const both = await Promise.all([
-            claimAppStoreLink("o1", "u3", "Sandbox", { tokenIsMine: true }),
-            claimAppStoreLink("o1", "u4", "Sandbox", { tokenIsMine: true }),
+            claimAppStoreLink("o1", "u3", "Sandbox", { tokenIsMine: true, purchaseDate: T0 }),
+            claimAppStoreLink("o1", "u4", "Sandbox", { tokenIsMine: true, purchaseDate: T0 }),
         ]);
         expect(both.filter((r) => r === "ok")).toHaveLength(1);
         expect(["u3", "u4"]).toContain(db.get("appstore#o1")!.ownerId);
+        // 鍵が違えば、届いた順に関係なく新しい方が持ち主
+        const race = await Promise.all([
+            claimAppStoreLink("o1", "u5", "Sandbox", { tokenIsMine: true, purchaseDate: T0 + 2000 }),
+            claimAppStoreLink("o1", "u6", "Sandbox", { tokenIsMine: true, purchaseDate: T0 + 1000 }),
+        ]);
+        expect(race[0]).toBe("ok");
+        expect(db.get("appstore#o1")).toMatchObject({ ownerId: "u5", lastPurchaseDate: T0 + 2000 });
     });
 
     it("取り消し・置き換え済みの取引では、結び付けを作っても比べる時刻を覚えない", async () => {
