@@ -440,6 +440,30 @@ export function endTransferredSupporter(prevRaw: unknown, originalTransactionId:
     };
 }
 
+/**
+ * **取引の新しさを比べる鍵（ms）**。「どちらの取引が新しいか」を決めるところは全部これを使う
+ * （結び付けの付け替え・比べる時刻を進める・知らせで前の持ち主の Pro を終える）。
+ *
+ *     鍵 = min(purchaseDate, signedDate, サーバーの今)
+ *
+ * - purchaseDate だけだと、前倒しの更新（期限の最大 24 時間前に請求・purchaseDate は新しい期間の
+ *   始まり＝未来）が、その間に別のアカウントが申し込み直した取引より「新しい」ことになる
+ * - signedDate だけだと、端末が古い取引の JWS を取り直す（署名し直される）たびに新しくなる
+ * - 両方の小さい方なら、取引が**起きた時刻より後にはならない**。今で抑えるのは時計のずれの守り
+ *
+ * どちらも無ければ undefined（比べられない）
+ */
+export function transactionOrderKey(
+    tx: { purchaseDate?: number; signedDate?: number }, now: number = Date.now(),
+): number | undefined {
+    const known = [tx.purchaseDate, tx.signedDate].filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    return known.length > 0 ? Math.min(...known, now) : undefined;
+}
+
+/** もう効いていない取引（取り消された・アップグレードで置き換わった）。結び付けも鍵も動かさない */
+export const isSupersededTransaction = (tx: { revocationDate?: number; isUpgraded?: boolean }) =>
+    tx.revocationDate !== undefined || tx.isUpgraded === true;
+
 /** 番号の列（Production と Sandbox で分ける） */
 export function supporterCounterKey(environment: AppStoreEnvironment): string {
     return environment === "Production" ? "counter#supporter" : "counter#supporter#sandbox";

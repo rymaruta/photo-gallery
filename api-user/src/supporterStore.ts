@@ -9,7 +9,9 @@
  *     userId = counter#supporter#sandbox   Sandbox の番号の列（TestFlight・審査・staging）
  *     userId = appstore#<originalTransactionId>
  *                                          { ownerId, environment, createdAt, seen: [notificationUUID…], rev,
- *                                            lastPurchaseDate?（結び付けを決めた・進めた取引の purchaseDate・ms）,
+ *                                            lastPurchaseDate?（結び付けを最後に決めた取引の鍵・ms。
+ *                                              `supporter.ts` の `transactionOrderKey`＝min(purchaseDate, signedDate, 今)。
+ *                                              名前は前のまま＝古い行もそのまま読める）,
  *                                            previousOwnerId?（付け替えたときだけ。前の持ち主の Pro はその場で終える） }
  *
  * `#` を含む行は人ではない（検索・台本・公開プロフィールは `#` を弾く）。
@@ -32,7 +34,7 @@ import { isDeletedProfile } from "./types";
 import { pushNotification } from "./notify";
 import { badgeDisplayNameJa } from "./badgeKeys";
 import { mergeProBadges } from "./proBadges";
-import { applySupporterEvent, endTransferredSupporter, readSupporter, supporterCounterKey } from "./supporter";
+import { applySupporterEvent, endTransferredSupporter, readSupporter, supporterCounterKey, transactionOrderKey } from "./supporter";
 import type { AppStoreEnvironment, SupporterEvent } from "./supporter";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -75,13 +77,18 @@ export async function allocateSupporterNumber(environment: AppStoreEnvironment):
     throw new Error("サポーター番号の列が混み合って取れませんでした");
 }
 
-export type AppStoreLink = { ownerId: string; environment?: string; seen: string[]; rev: number; lastPurchaseDate?: number };
+export type AppStoreLink = {
+    ownerId: string;
+    environment?: string;
+    seen: string[];
+    rev: number;
+    /** 結び付けを最後に決めた（作った・移した・進めた）取引の鍵（`transactionOrderKey`・ms）。無いのは古い行 */
+    lastPurchaseDate?: number;
+    /** 付け替えたときの前の持ち主 */
+    previousOwnerId?: string;
+};
 
-export async function readAppStoreLink(originalTransactionId: string): Promise<AppStoreLink | null> {
-    const res = await ddb.send(new GetCommand({
-        TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
-    }));
-    const it = res.Item;
+function parseLink(it: Record<string, unknown> | undefined): AppStoreLink | null {
     if (!it || typeof it.ownerId !== "string" || !it.ownerId) return null;
     return {
         ownerId: it.ownerId,
@@ -89,13 +96,34 @@ export async function readAppStoreLink(originalTransactionId: string): Promise<A
         seen: Array.isArray(it.seen) ? it.seen.filter((x: unknown): x is string => typeof x === "string") : [],
         rev: typeof it.rev === "number" ? it.rev : 0,
         ...(typeof it.lastPurchaseDate === "number" && Number.isFinite(it.lastPurchaseDate) ? { lastPurchaseDate: it.lastPurchaseDate } : {}),
+        ...(typeof it.previousOwnerId === "string" && it.previousOwnerId ? { previousOwnerId: it.previousOwnerId } : {}),
     };
 }
 
+/** 結び付けの行を、置き直すための生の行といっしょに読む */
+async function readLinkRow(originalTransactionId: string): Promise<{ link: AppStoreLink; row: Record<string, unknown> } | null> {
+    const res = await ddb.send(new GetCommand({
+        TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
+    }));
+    const row = res.Item as Record<string, unknown> | undefined;
+    const link = parseLink(row);
+    return link && row ? { link, row } : null;
+}
+
+export async function readAppStoreLink(originalTransactionId: string): Promise<AppStoreLink | null> {
+    return (await readLinkRow(originalTransactionId))?.link ?? null;
+}
+
 /**
- * `lastPurchaseDate` を持たない古い結び付けの行のときの代わり: 今の持ち主の今の購読が
- * この取引なら、記録した期間のいちばん新しい始まり（ms）。分からなければ undefined。
- * 期間（`periods`）は originalTransactionId を持たないので、今の購読がこの取引のときだけ使う
+ * 鍵（`lastPurchaseDate`）を持たない古い結び付けの行のときの代わり:
+ * 今の持ち主の今の購読がこの取引なら、**記録した期間のいちばん新しい始まり**と
+ * **状態を決めた時刻（`lastEventAt`）**の小さい方（ms）。分からなければ undefined。
+ *
+ * - まだ始まっていない期間（前倒しの更新で記録した未来の期間）は使わない
+ * - 始まったあとでも、前倒しの更新の期間の始まり（purchaseDate）はその取引の鍵より後になる。
+ *   `lastEventAt`（その更新の署名時刻）と小さい方を取ると、鍵の決め方（min(purchaseDate, signedDate)）に
+ *   そろう（期限のあとに届いた別のアカウントの申し込み直しを 409 にしない）
+ * - 期間（`periods`）は originalTransactionId を持たないので、今の購読がこの取引のときだけ使う
  */
 async function legacyLatestPurchase(ownerId: string, originalTransactionId: string): Promise<number | undefined> {
     const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: ownerId }, ConsistentRead: true }));
@@ -103,13 +131,19 @@ async function legacyLatestPurchase(ownerId: string, originalTransactionId: stri
     if (!row || isDeletedProfile(row)) return undefined;
     const s = readSupporter(row.supporter);
     if (!s || s.originalTransactionId !== originalTransactionId) return undefined;
-    // 前倒しの更新で記録した、まだ始まっていない期間は比べる相手にしない（`claimAppStoreLink` の注記）
     const now = Date.now();
-    const latest = s.periods.reduce((m, p) => {
+    const latestStart = s.periods.reduce((m, p) => {
         const start = Date.parse(p.start);
         return start <= now ? Math.max(m, start) : m;
     }, -Infinity);
-    return Number.isFinite(latest) ? latest : undefined;
+    const lastEventAt = s.lastEventAt !== undefined ? Date.parse(s.lastEventAt) : NaN;
+    const known = [latestStart, Number.isFinite(lastEventAt) ? Math.min(lastEventAt, now) : NaN].filter(Number.isFinite);
+    return known.length > 0 ? Math.min(...known) : undefined;
+}
+
+/** 比べる相手の鍵: 行の鍵。無い古い行は `legacyLatestPurchase`。どちらも分からなければ undefined */
+async function referenceKey(link: AppStoreLink, originalTransactionId: string): Promise<number | undefined> {
+    return link.lastPurchaseDate ?? await legacyLatestPurchase(link.ownerId, originalTransactionId);
 }
 
 /** 結び付けの行の rev を条件にする（rev の無い古い行は「rev が無いまま」を条件に） */
@@ -118,48 +152,65 @@ const linkRevCondition = (rev: number) => (rev === 0
     : { ConditionExpression: "rev = :rev", ExpressionAttributeValues: { ":rev": rev } });
 
 /**
- * 取引をこの人に結び付ける。既に別の人に結び付いていたら "other"。
- * 同じ人なら "ok"（より新しい取引なら `lastPurchaseDate` を進める。取り消し・置き換え済みの取引では進めない）。
- * 競合が続いて決めきれなければ "conflict"（やり直せば通る）。
+ * 今の持ち主の、効いている（取り消し・置き換え済みでない）**より新しい取引**で、行の鍵を進める。
+ * 持ち主は変えない。持ち主が変わっていた・鍵が新しくない・競合が続いたら何もしない（投げるのは DynamoDB の例外だけ）
+ */
+export async function advanceAppStoreLinkKey(originalTransactionId: string, ownerId: string, key: number): Promise<void> {
+    for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
+        const cur = await readLinkRow(originalTransactionId);
+        if (!cur || cur.link.ownerId !== ownerId) return;
+        const ref = await referenceKey(cur.link, originalTransactionId);
+        if (ref !== undefined && !(key > ref)) return;
+        try {
+            await ddb.send(new PutCommand({
+                TableName: USERS_TABLE,
+                Item: { ...cur.row, lastPurchaseDate: key, rev: cur.link.rev + 1 },
+                ...linkRevCondition(cur.link.rev),
+            }));
+            return;
+        } catch (e) {
+            if (isCondFail(e)) continue;   // 読み直して決め直す
+            throw e;
+        }
+    }
+    console.warn(`advanceAppStoreLinkKey: 競合が続いたので ${originalTransactionId} の鍵を進められませんでした`);
+}
+
+/**
+ * 取引をこの人に結び付ける（`POST /user/purchases` から）。
  *
- * **付け替え（`tokenIsMine`）**: 同じ Apple ID で別のアカウントが申し込み直すと、
- * 自動更新のサブスクリプションは**同じ originalTransactionId のまま**続く（Apple の仕様）。
- * その新しい取引に**この人の appAccountToken** が付いていれば、本人が今このアカウントで
- * 買った証拠なので結び付けを移す（前の人の番号・月数・メダルはそのまま）。
- * token の無い取引では移さない（誰が買ったか分からないものを横取りさせない）。
+ * ## 決まり（2026-10-10。時刻の比べ方を1つにそろえた）
  *
- * **移すのは、今の結び付けを決めた取引より新しい取引（`purchaseDate` が後）のときだけ**。
- * 端末に残っていた前のアカウントの古い取引（token は前のアカウントのもの）が後から届いても、
- * 結び付けを取り返して今の持ち主の Pro を終えないように "other" を返す（2026-10-10）。
- * 比べる相手は行の `lastPurchaseDate`。無い古い行は今の持ち主の期間の始まり
- * （`legacyLatestPurchase`）。どちらも分からなければ今までどおり移す。
+ * 1. **新しさは取引の鍵だけで比べる**（`supporter.ts` の `transactionOrderKey`。
+ *    min(purchaseDate, signedDate, 今)）。ほかの時刻で比べない
+ * 2. 行の `lastPurchaseDate` は**結び付けを最後に決めた取引の鍵**。効いている取引で、より大きい鍵の
+ *    ときだけ進む（戻らない）。取り消し・置き換え済みの取引（`superseded`）では進めない
+ * 3. **持ち主が移るのは、次の全部を満たす申し込み（POST）だけ**:
+ *    取り消し・置き換え済みでない／送ってきた人の appAccountToken が付いている（`tokenIsMine`）／
+ *    鍵が行の鍵より大きい。移したら前の持ち主の Pro をその場で終える（`endPreviousOwnerAccess`）
+ * 4. 同じ持ち主の送り直しは鍵を戻さない。置き換え済みの取引は鍵を進めない
+ * 5. 鍵の無い古い行は `legacyLatestPurchase` と比べる。それも分からなければ今までどおり移す
+ * 6. **付け替えの書き込みで負けたら読み直して決め直す**（相手の鍵の方が新しければ "other"、
+ *    この人の方が新しければ移す）。競合が続いて決めきれなければ "conflict"（code の無い 409・やり直せば通る）
  *
- * **未来の purchaseDate は今の時刻に抑えて覚える**。Apple は自動更新を期限の最大 24 時間前に
- * 請求し、更新の取引の purchaseDate は新しい期間の始まり（未来）になる。そのまま覚えると、
- * 期限の前に同じ Apple ID で別のアカウントが申し込み直した（アップグレードした）取引が「古い」
- * と見なされ、払ったのに Pro にならなかった。古い行の代わり（`legacyLatestPurchase`）も、
- * まだ始まっていない期間は使わない。
- * 抑えたぶん、前の持ち主の未来の更新の取引が後から届くと「新しい」と見なされうるので、
- * **取り消された（`revocationDate`）・置き換わった（`isUpgraded`）取引（`superseded`）では移さない**。
+ * 知らせ（App Store Server Notifications）では持ち主を移さない（`endOwnerForNewerTransaction`）。
  *
- * **移したら前の人の Pro をその場で終える**（`endPreviousOwnerAccess`）。前の人の token の付いた
- * 知らせは以後捨てられる（`purchases.ts`）ので、放っておくと元の期限まで Pro が残っていた
+ * 同じ Apple ID で別のアカウントが申し込み直すと、自動更新のサブスクリプションは
+ * **同じ originalTransactionId のまま**続く（Apple の仕様）。token の無い取引では移さない
+ * （誰が買ったか分からないものを横取りさせない）。
  *
  * 書き込みは行の rev を条件にする（間に入った `rememberNotification`・別の付け替えを消さない）。
- * 競合したら読み直して決め直す
  */
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
-    opts: { tokenIsMine?: boolean; purchaseDate?: number; superseded?: boolean } = {},
+    opts: { tokenIsMine?: boolean; purchaseDate?: number; signedDate?: number; superseded?: boolean } = {},
 ): Promise<"ok" | "other" | "conflict"> {
-    const incoming = typeof opts.purchaseDate === "number" && Number.isFinite(opts.purchaseDate) ? opts.purchaseDate : undefined;
-    /** 行に覚える時刻（未来の purchaseDate は今に抑える） */
-    const stamp = incoming !== undefined ? Math.min(incoming, Date.now()) : undefined;
-    /** 結び付けを作る・進めるときに覚える時刻。取り消し・置き換え済みの取引では覚えない（下の同じ持ち主の道の注記） */
-    const claimStamp = opts.superseded ? undefined : stamp;
+    const key = transactionOrderKey(opts);
+    /** 行に覚える鍵。取り消し・置き換え済みの取引では覚えない */
+    const claimKey = opts.superseded ? undefined : key;
     for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
-        const existing = await readAppStoreLink(originalTransactionId);
-        if (!existing) {
+        const cur = await readLinkRow(originalTransactionId);
+        if (!cur) {
             try {
                 await ddb.send(new PutCommand({
                     TableName: USERS_TABLE,
@@ -170,53 +221,38 @@ export async function claimAppStoreLink(
                         createdAt: new Date().toISOString(),
                         seen: [],
                         rev: 1,
-                        ...(claimStamp !== undefined ? { lastPurchaseDate: claimStamp } : {}),
+                        ...(claimKey !== undefined ? { lastPurchaseDate: claimKey } : {}),
                     },
                     ConditionExpression: "attribute_not_exists(userId)",
                 }));
                 return "ok";
             } catch (e) {
                 if (!isCondFail(e)) throw e;
-                continue;   // 同時に誰かが結び付けた。読み直して持ち主を見る
+                continue;   // 同時に誰かが結び付けた。読み直して決め直す
             }
         }
+        const existing = cur.link;
 
         if (existing.ownerId === userId) {
-            // 同じ人がより新しい取引を送ってきた → 比べる時刻を進める（落ちても結び付けはこの人のまま）。
-            // 取り消し・置き換え済みの取引では進めない（未来の更新の取引を今に抑えて覚えると、その間に
-            // 同じ Apple ID で申し込み直した別のアカウントの取引が「古い」と見なされ 409 で通らなくなる）
-            if (claimStamp === undefined || (existing.lastPurchaseDate !== undefined && !(claimStamp > existing.lastPurchaseDate))) return "ok";
-            try {
-                const res = await ddb.send(new GetCommand({
-                    TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
-                }));
-                const row = res.Item as Record<string, unknown> | undefined;
-                if (!row || row.ownerId !== userId) continue;
-                if (typeof row.lastPurchaseDate === "number" && !(claimStamp > row.lastPurchaseDate)) return "ok";
-                const rev = typeof row.rev === "number" ? row.rev : 0;
-                await ddb.send(new PutCommand({
-                    TableName: USERS_TABLE,
-                    Item: { ...row, lastPurchaseDate: claimStamp, rev: rev + 1 },
-                    ...linkRevCondition(rev),
-                }));
-                return "ok";
-            } catch (e) {
-                if (isCondFail(e)) continue;
-                console.error(`claimAppStoreLink: ${originalTransactionId} の lastPurchaseDate を進められませんでした:`, e);
-                return "ok";
+            // 同じ人: より新しい効いている取引なら鍵を進める（落ちても結び付けはこの人のまま）
+            if (claimKey !== undefined) {
+                try {
+                    await advanceAppStoreLinkKey(originalTransactionId, userId, claimKey);
+                } catch (e) {
+                    console.error(`claimAppStoreLink: ${originalTransactionId} の鍵を進められませんでした:`, e);
+                }
             }
+            return "ok";
         }
 
         if (!opts.tokenIsMine) return "other";
-        // 取り消された・アップグレードで置き換わった取引では移さない（もう効いていない取引）
         if (opts.superseded) {
             console.warn(`claimAppStoreLink: ${originalTransactionId} の ${userId} の取引は取り消し・置き換え済みなので移しません`);
             return "other";
         }
-        // 今の結び付けを決めた取引より新しいときだけ移す
-        const reference = existing.lastPurchaseDate ?? await legacyLatestPurchase(existing.ownerId, originalTransactionId);
-        if (incoming !== undefined && reference !== undefined && !(incoming > reference)) {
-            console.warn(`claimAppStoreLink: ${originalTransactionId} は ${existing.ownerId} が新しい取引で持っているので ${userId} の古い取引では移しません`);
+        const reference = await referenceKey(existing, originalTransactionId);
+        if (reference !== undefined && !(key !== undefined && key > reference)) {
+            console.warn(`claimAppStoreLink: ${originalTransactionId} は ${existing.ownerId} がより新しい取引で持っているので ${userId} には移しません`);
             return "other";
         }
         try {
@@ -230,18 +266,14 @@ export async function claimAppStoreLink(
                     previousOwnerId: existing.ownerId,
                     seen: existing.seen,
                     rev: existing.rev + 1,
-                    ...(stamp !== undefined ? { lastPurchaseDate: stamp } : {}),
+                    ...(key !== undefined ? { lastPurchaseDate: key } : {}),
                 },
                 // 読んだときの行のままなら移す（同時に別の付け替え・知らせの記録が来たら読み直す）
                 ...linkRevCondition(existing.rev),
             }));
         } catch (e) {
             if (!isCondFail(e)) throw e;
-            // 持ち主が変わった（同時に別の付け替えが通った）なら、負けた側は今までどおり引く。
-            // 持ち主が同じまま（知らせの記録などで rev だけ進んだ）なら読み直して決め直す
-            const again = await readAppStoreLink(originalTransactionId);
-            if (again && again.ownerId !== existing.ownerId) return again.ownerId === userId ? "ok" : "other";
-            continue;
+            continue;   // 読み直して、新しい持ち主・鍵と比べて決め直す
         }
         console.log(`claimAppStoreLink: ${originalTransactionId} を ${existing.ownerId} から ${userId} へ付け替えました`);
         try {
@@ -256,6 +288,47 @@ export async function claimAppStoreLink(
     // （"other" にすると 409 claimed_by_other_account になり、アプリが最終の答えとして取引を終えてしまう）
     const again = await readAppStoreLink(originalTransactionId);
     return again?.ownerId === userId ? "ok" : "conflict";
+}
+
+/**
+ * 知らせ（App Store Server Notifications）で、**別のアカウントの token の付いた、効いている、
+ * より新しい取引**が来たとき: 今の持ち主の Pro を終える（持ち主は移さない・鍵も進めない）。
+ *
+ * 同じ Apple ID で別のアカウントがアップグレードした知らせが先に届き、そのアカウントのアプリからの
+ * 申し込み（POST）が遅れる・来ないと、前の持ち主の Pro が元の期限まで残っていた。
+ * 新しい側を Pro にするのは、その人が申し込んだとき（`claimAppStoreLink`）。鍵を進めないのは、
+ * 進めるとその申し込みが「新しくない」で 409 になるから。
+ *
+ * 比べる相手が分からない古い行（`legacyLatestPurchase` も undefined）では今までどおり何もしない。
+ *
+ * **鍵の無い古い行は、終える前に比べた相手を行に書いておく**。終えると持ち主の `lastEventAt` が今になり
+ * （Sandbox は終わっていない期間も落ちる）、あとから `legacyLatestPurchase` で比べ直すと
+ * 新しい側の申し込みが「古い」と見なされて 409 になる
+ */
+export async function endOwnerForNewerTransaction(
+    originalTransactionId: string, key: number | undefined,
+): Promise<"ended" | "skipped" | "older" | "conflict"> {
+    for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
+        const cur = await readLinkRow(originalTransactionId);
+        if (!cur || key === undefined) return "skipped";
+        const reference = await referenceKey(cur.link, originalTransactionId);
+        if (reference === undefined) return "skipped";
+        if (!(key > reference)) return "older";
+        if (cur.link.lastPurchaseDate === undefined) {
+            try {
+                await ddb.send(new PutCommand({
+                    TableName: USERS_TABLE,
+                    Item: { ...cur.row, lastPurchaseDate: reference, rev: cur.link.rev + 1 },
+                    ...linkRevCondition(cur.link.rev),
+                }));
+            } catch (e) {
+                if (isCondFail(e)) continue;
+                throw e;
+            }
+        }
+        return endPreviousOwnerAccess(cur.link.ownerId, originalTransactionId);
+    }
+    return "conflict";
 }
 
 /**
