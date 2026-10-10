@@ -223,6 +223,7 @@ export function transactionFacts(
         ...(typeof t.originalPurchaseDate === "number" ? { originalPurchaseDate: t.originalPurchaseDate } : {}),
         expiresDate: t.expiresDate,
         ...(typeof t.revocationDate === "number" ? { revocationDate: t.revocationDate } : {}),
+        ...(t.isUpgraded === true ? { isUpgraded: true as const } : {}),
         environment,
         signedDate: typeof t.signedDate === "number" ? t.signedDate : Date.now(),
     };

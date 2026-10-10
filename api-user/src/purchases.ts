@@ -116,6 +116,7 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, {
             tokenIsMine: token !== "",
             purchaseDate: facts.purchaseDate,
+            superseded: facts.revocationDate !== undefined || facts.isUpgraded === true,
         });
         if (claimed === "other") {
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています", "claimed_by_other_account");
