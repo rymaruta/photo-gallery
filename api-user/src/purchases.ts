@@ -47,11 +47,11 @@
  * - 知らせは持ち主を移さず、別のアカウントを Pro にもしない。持ち主ではない人の token の付いた知らせは:
  *   - 効いている、より新しい取引 → 今の持ち主の Pro を終える（`endOwnerForNewerTransaction`）。
  *     新しい側が Pro になるのは、そのアプリが POST したとき
- *   - 前の持ち主（`previousOwnerId`）の取引の返金・取り消し → 前の持ち主の期間を切る
+ *   - 前に持っていた人（`previousOwnerId`・`owners` の誰か）の取引の返金・取り消し → その人の期間を切る
  *   - それ以外 → 捨てる（持ち主の行に書かない）
- * - **付け替えより前の token の無い取引**（行の `transferKey` より古い・`staleTokenlessOwner`）は
- *   前の持ち主のもの。今の持ち主に重ねない（知らせも POST も）:
- *   - 返金・取り消し → 前の持ち主の期間を切る
+ * - **付け替えより前の token の無い取引**は、行の持ち主の移り変わり（`owners`・`staleTokenlessOwner`）で
+ *   そのころの持ち主を決める。今の持ち主でなければ今の持ち主に重ねない（知らせも POST も）:
+ *   - 返金・取り消し → そのころの持ち主の期間を切る
  *   - それ以外 → 捨てる（POST は書かずに 200＝今のプロフィールを返す。アプリは取引を終える）
  * - 持ち主（か token の無い）の、効いている、より新しい取引の知らせは、行の鍵を進める
  */
@@ -63,7 +63,7 @@ import {
 } from "./appStore";
 import {
     advanceAppStoreLinkKey, applyToProfile, claimAppStoreLink, endOwnerForNewerTransaction, forgetAppStoreLinks,
-    readAppStoreLink, readProfileRow, rememberNotification, staleTokenlessOwner,
+    linkOwnerHistory, readAppStoreLink, readProfileRow, rememberNotification, staleTokenlessOwner,
 } from "./supporterStore";
 import { isSupersededTransaction, transactionOrderKey } from "./supporter";
 import type { SupporterEvent } from "./supporter";
@@ -267,9 +267,14 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         }
         if (token && token !== appAccountTokenFor(link.ownerId)) {
             // 持ち主ではない人の取引。持ち主を移さない。持ち主の行に書くのは Pro を終えるときだけ
-            if (facts.revocationDate !== undefined && link.previousOwnerId && token === appAccountTokenFor(link.previousOwnerId)) {
-                // 前の持ち主の古い取引の返金・取り消し → 前の持ち主の期間を切る（付け替えのあとに届いた返金）
-                const prev = await applyToProfile(link.previousOwnerId, ev, { createIfMissing: false });
+            // 前に持っていた人（1つ前に限らない・`owners`）のうち、token が合う人
+            const pastOwner = facts.revocationDate !== undefined
+                ? [link.previousOwnerId, ...linkOwnerHistory(link).map((o) => o.ownerId)]
+                    .find((u): u is string => !!u && token === appAccountTokenFor(u))
+                : undefined;
+            if (pastOwner) {
+                // 前の持ち主の古い取引の返金・取り消し → その人の期間を切る（付け替えのあとに届いた返金）
+                const prev = await applyToProfile(pastOwner, ev, { createIfMissing: false });
                 if (prev.status === "conflict") {
                     console.error(`appStoreNotification: 競合が続いて前の持ち主に書けませんでした ${label}`);
                     return jsonError(500, "retry");
