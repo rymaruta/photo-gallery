@@ -12,6 +12,8 @@
  *     pro:          boolean                                      Pro が今有効なときだけ true（`isPro`）
  *     proMarkStyle: "iris" | "plate" | "none"                    既定 "iris"。"none" は印を外している
  *     supporter:    { number, since, months }                    サポーター番号を持つ人だけ（`supporter.ts`）
+ *                   本人の応答だけ、本番に来た Sandbox の記録も `sandbox: true`・`months: 0` を付けて載せる
+ *                   （`{ number, since, months, sandbox?: true }`。`publicSupporter` の `owner`）
  *
  * ## 鍵の種類（第2段階で Pro の鍵を足した）
  *
@@ -160,16 +162,28 @@ export function isPro(p: { supporter?: unknown } | null | undefined, now: number
  * `months` は保存した値と、記録した期間から今数え直した値の大きい方（`supporter.ts` の `supporterMonths`）。
  * **本番（Production も受けるサーバー）に来た Sandbox の記録は出さない**（`supporter.ts` の
  * `isPrivateSandbox`。Sandbox の番号は別の列で 1 から振るので、本物の No.1 と重なる）。
+ *
+ * **`owner: true`（本人に返すとき）だけは Sandbox の記録も出し、`sandbox: true` を足す**
+ * （2026-10-10 判断: TestFlight で買った本人の設定に「サポーター証」の行が出ないと、
+ * 買えたかを確かめられない。本人にしか見えないので、本物の No.1 と並んで見えることはない。
+ * `sandbox` は「本物の番号ではない」の印で、知らないクライアントは読み飛ばす）。
+ * 公開プロフィール・購入の応答・メダル（`mergeProBadges`）は今までどおり Sandbox を出さない。
+ * **このとき `months` は 0**（2026-10-10 判断: Sandbox は数分ごとに更新されるので、1時間で
+ * 「12か月目」になり、Sandbox からは付けない続けた年のメダル・進み具合（`monthsOf` も 0）と食い違う）。
  */
 export function publicSupporter(
     p: { supporter?: unknown } | null | undefined,
     now: number = Date.now(),
-): { number: number; since: string; months: number } | undefined {
+    opts: { owner?: boolean } = {},
+): { number: number; since: string; months: number; sandbox?: true } | undefined {
     const s = p?.supporter as Record<string, unknown> | undefined;
-    if (!s || typeof s !== "object" || isPrivateSandbox(s)) return undefined;
+    if (!s || typeof s !== "object") return undefined;
+    const sandbox = isPrivateSandbox(s);
+    if (sandbox && !opts.owner) return undefined;
     const n = s.number;
     if (typeof n !== "number" || !Number.isInteger(n) || n < 1) return undefined;
     const since = typeof s.since === "string" && !Number.isNaN(Date.parse(s.since)) ? s.since : "";
+    if (sandbox) return { number: n, since, months: 0, sandbox: true };
     const stored = typeof s.months === "number" && Number.isFinite(s.months) && s.months > 0 ? Math.floor(s.months) : 0;
     const live = supporterMonths(s, now);
     return { number: n, since, months: Math.max(stored, live) };
@@ -181,20 +195,26 @@ export function publicSupporter(
  *
  * `displayBadge` は**持っている鍵のときだけ**返す。持っていない鍵（台本で外した・
  * 書き損じ）は `null`——画面が「無いメダル」を描かないように。
+ *
+ * `owner: true` は**本人に返すとき**（`userProfile.ts` の `withBadgeFields`）。違うのは
+ * `supporter` だけで、本番に来た Sandbox の記録も `sandbox: true` 付きで載せる（`publicSupporter`）。
+ * **`toPublicProfile` の `owner`（本人が外した印でも資格どおりに返す・購入の応答）とは別の意味**。
+ * こちらは Sandbox のサポーター番号を本人に見せるかだけで、購入の応答は今までどおり出さない。
  */
 export function badgeFields(
     p: { badges?: unknown; displayBadge?: unknown; supporter?: unknown; proMarkStyle?: unknown },
     now: number = Date.now(),
+    opts: { owner?: boolean } = {},
 ): {
     badges?: BadgeMap;
     displayBadge: BadgeKey | null;
     pro: boolean;
     proMarkStyle: ProMarkStyle;
-    supporter?: { number: number; since: string; months: number };
+    supporter?: { number: number; since: string; months: number; sandbox?: true };
 } {
     const badges = sanitizeBadges(p.badges);
     const display = isBadgeKey(p.displayBadge) && badges?.[p.displayBadge] ? p.displayBadge : null;
-    const supporter = publicSupporter(p, now);
+    const supporter = publicSupporter(p, now, opts);
     return {
         ...(badges ? { badges } : {}),
         displayBadge: display,
