@@ -62,8 +62,18 @@ describe("本番に来た Sandbox のサポーター: 本人の応答だけに�
         expect(res.statusCode).toBe(200);
         const body = JSON.parse(res.body);
         expect(body.pro).toBe(true);
-        expect(body.supporter).toEqual({ number: 1, since: SINCE, months: 2, sandbox: true });
+        expect(body.supporter).toEqual({ number: 1, since: SINCE, months: 0, sandbox: true });
         for (const word of PRIVATE) expect(res.body, word).not.toContain(word);
+    });
+
+    it("Sandbox の months は 0（数分ごとの更新で 24 か月と数えていても、メダル一覧と食い違わせない）", async () => {
+        const veteran = {
+            ...supporterOf("Sandbox"), months: 24, active: false,
+            periods: [{ id: "2000000088888888", start: SINCE, end: "2026-10-10T03:03:00.000Z", product: "com.journeyphoto.JourneyPhoto.pro.yearly" },
+                { id: "2000000088888889", start: "2026-10-10T03:03:00.000Z", end: "2026-10-10T03:06:00.000Z", product: "com.journeyphoto.JourneyPhoto.pro.yearly" }],
+        };
+        mockSend.mockResolvedValueOnce(stored({ supporter: veteran }));
+        expect(JSON.parse((await getMine()).body).supporter).toEqual({ number: 1, since: SINCE, months: 0, sandbox: true });
     });
 
     it("更新（PUT）の応答にも同じ形で載る", async () => {
@@ -72,7 +82,7 @@ describe("本番に来た Sandbox のサポーター: 本人の応答だけに�
             .mockResolvedValueOnce({});
         const res = await update({ bio: "よろしく" });
         expect(res.statusCode).toBe(200);
-        expect(JSON.parse(res.body).supporter).toEqual({ number: 1, since: SINCE, months: 2, sandbox: true });
+        expect(JSON.parse(res.body).supporter).toEqual({ number: 1, since: SINCE, months: 0, sandbox: true });
     });
 
     it("公開プロフィールには載らない（本物の No.1 と重なる）。Pro の印は出る", async () => {
@@ -100,8 +110,8 @@ describe("本番に来た Sandbox のサポーター: 本人の応答だけに�
         const p = { supporter: supporterOf("Sandbox") };
         expect(publicSupporter(p)).toBeUndefined();
         expect(badgeFields(p)).not.toHaveProperty("supporter");
-        expect(publicSupporter(p, Date.now(), { owner: true })).toEqual({ number: 1, since: SINCE, months: 2, sandbox: true });
-        expect(badgeFields(p, Date.now(), { owner: true }).supporter).toEqual({ number: 1, since: SINCE, months: 2, sandbox: true });
+        expect(publicSupporter(p, Date.now(), { owner: true })).toEqual({ number: 1, since: SINCE, months: 0, sandbox: true });
+        expect(badgeFields(p, Date.now(), { owner: true }).supporter).toEqual({ number: 1, since: SINCE, months: 0, sandbox: true });
         // 番号が無い Sandbox の記録は本人にも出さない（今までどおり番号を持つ人だけ）
         expect(publicSupporter({ supporter: { ...supporterOf("Sandbox"), number: undefined } }, Date.now(), { owner: true })).toBeUndefined();
     });
