@@ -9,6 +9,7 @@
  *     userId = counter#supporter#sandbox   Sandbox の番号の列（TestFlight・審査・staging）
  *     userId = appstore#<originalTransactionId>
  *                                          { ownerId, environment, createdAt, seen: [notificationUUID…], rev,
+ *                                            lastPurchaseDate?（結び付けを決めた・進めた取引の purchaseDate・ms）,
  *                                            previousOwnerId?（付け替えたときだけ。前の持ち主の Pro はその場で終える） }
  *
  * `#` を含む行は人ではない（検索・台本・公開プロフィールは `#` を弾く）。
@@ -74,7 +75,7 @@ export async function allocateSupporterNumber(environment: AppStoreEnvironment):
     throw new Error("サポーター番号の列が混み合って取れませんでした");
 }
 
-export type AppStoreLink = { ownerId: string; environment?: string; seen: string[]; rev: number };
+export type AppStoreLink = { ownerId: string; environment?: string; seen: string[]; rev: number; lastPurchaseDate?: number };
 
 export async function readAppStoreLink(originalTransactionId: string): Promise<AppStoreLink | null> {
     const res = await ddb.send(new GetCommand({
@@ -87,12 +88,33 @@ export async function readAppStoreLink(originalTransactionId: string): Promise<A
         ...(typeof it.environment === "string" ? { environment: it.environment } : {}),
         seen: Array.isArray(it.seen) ? it.seen.filter((x: unknown): x is string => typeof x === "string") : [],
         rev: typeof it.rev === "number" ? it.rev : 0,
+        ...(typeof it.lastPurchaseDate === "number" && Number.isFinite(it.lastPurchaseDate) ? { lastPurchaseDate: it.lastPurchaseDate } : {}),
     };
 }
 
 /**
+ * `lastPurchaseDate` を持たない古い結び付けの行のときの代わり: 今の持ち主の今の購読が
+ * この取引なら、記録した期間のいちばん新しい始まり（ms）。分からなければ undefined。
+ * 期間（`periods`）は originalTransactionId を持たないので、今の購読がこの取引のときだけ使う
+ */
+async function legacyLatestPurchase(ownerId: string, originalTransactionId: string): Promise<number | undefined> {
+    const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId: ownerId }, ConsistentRead: true }));
+    const row = res.Item as Record<string, unknown> | undefined;
+    if (!row || isDeletedProfile(row)) return undefined;
+    const s = readSupporter(row.supporter);
+    if (!s || s.originalTransactionId !== originalTransactionId) return undefined;
+    const latest = s.periods.reduce((m, p) => Math.max(m, Date.parse(p.start)), -Infinity);
+    return Number.isFinite(latest) ? latest : undefined;
+}
+
+/** 結び付けの行の rev を条件にする（rev の無い古い行は「rev が無いまま」を条件に） */
+const linkRevCondition = (rev: number) => (rev === 0
+    ? { ConditionExpression: "attribute_exists(userId) AND attribute_not_exists(rev)" }
+    : { ConditionExpression: "rev = :rev", ExpressionAttributeValues: { ":rev": rev } });
+
+/**
  * 取引をこの人に結び付ける。既に別の人に結び付いていたら "other"。
- * 同じ人なら何もしない（"ok"）。
+ * 同じ人なら "ok"（より新しい取引なら `lastPurchaseDate` を進める）。
  *
  * **付け替え（`tokenIsMine`）**: 同じ Apple ID で別のアカウントが申し込み直すと、
  * 自動更新のサブスクリプションは**同じ originalTransactionId のまま**続く（Apple の仕様）。
@@ -100,17 +122,78 @@ export async function readAppStoreLink(originalTransactionId: string): Promise<A
  * 買った証拠なので結び付けを移す（前の人の番号・月数・メダルはそのまま）。
  * token の無い取引では移さない（誰が買ったか分からないものを横取りさせない）。
  *
+ * **移すのは、今の結び付けを決めた取引より新しい取引（`purchaseDate` が後）のときだけ**。
+ * 端末に残っていた前のアカウントの古い取引（token は前のアカウントのもの）が後から届いても、
+ * 結び付けを取り返して今の持ち主の Pro を終えないように "other" を返す（2026-10-10）。
+ * 比べる相手は行の `lastPurchaseDate`。無い古い行は今の持ち主の期間の始まり
+ * （`legacyLatestPurchase`）。どちらも分からなければ今までどおり移す。
+ *
  * **移したら前の人の Pro をその場で終える**（`endPreviousOwnerAccess`）。前の人の token の付いた
  * 知らせは以後捨てられる（`purchases.ts`）ので、放っておくと元の期限まで Pro が残っていた
+ *
+ * 書き込みは行の rev を条件にする（間に入った `rememberNotification`・別の付け替えを消さない）。
+ * 競合したら読み直して決め直す
  */
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
-    opts: { tokenIsMine?: boolean } = {},
+    opts: { tokenIsMine?: boolean; purchaseDate?: number } = {},
 ): Promise<"ok" | "other"> {
-    const existing = await readAppStoreLink(originalTransactionId);
-    if (existing) {
-        if (existing.ownerId === userId) return "ok";
+    const incoming = typeof opts.purchaseDate === "number" && Number.isFinite(opts.purchaseDate) ? opts.purchaseDate : undefined;
+    for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
+        const existing = await readAppStoreLink(originalTransactionId);
+        if (!existing) {
+            try {
+                await ddb.send(new PutCommand({
+                    TableName: USERS_TABLE,
+                    Item: {
+                        userId: appStoreLinkKey(originalTransactionId),
+                        ownerId: userId,
+                        environment,
+                        createdAt: new Date().toISOString(),
+                        seen: [],
+                        rev: 1,
+                        ...(incoming !== undefined ? { lastPurchaseDate: incoming } : {}),
+                    },
+                    ConditionExpression: "attribute_not_exists(userId)",
+                }));
+                return "ok";
+            } catch (e) {
+                if (!isCondFail(e)) throw e;
+                continue;   // 同時に誰かが結び付けた。読み直して持ち主を見る
+            }
+        }
+
+        if (existing.ownerId === userId) {
+            // 同じ人がより新しい取引を送ってきた → 比べる時刻を進める（落ちても結び付けはこの人のまま）
+            if (incoming === undefined || (existing.lastPurchaseDate !== undefined && !(incoming > existing.lastPurchaseDate))) return "ok";
+            try {
+                const res = await ddb.send(new GetCommand({
+                    TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
+                }));
+                const row = res.Item as Record<string, unknown> | undefined;
+                if (!row || row.ownerId !== userId) continue;
+                if (typeof row.lastPurchaseDate === "number" && !(incoming > row.lastPurchaseDate)) return "ok";
+                const rev = typeof row.rev === "number" ? row.rev : 0;
+                await ddb.send(new PutCommand({
+                    TableName: USERS_TABLE,
+                    Item: { ...row, lastPurchaseDate: incoming, rev: rev + 1 },
+                    ...linkRevCondition(rev),
+                }));
+                return "ok";
+            } catch (e) {
+                if (isCondFail(e)) continue;
+                console.error(`claimAppStoreLink: ${originalTransactionId} の lastPurchaseDate を進められませんでした:`, e);
+                return "ok";
+            }
+        }
+
         if (!opts.tokenIsMine) return "other";
+        // 今の結び付けを決めた取引より新しいときだけ移す
+        const reference = existing.lastPurchaseDate ?? await legacyLatestPurchase(existing.ownerId, originalTransactionId);
+        if (incoming !== undefined && reference !== undefined && !(incoming > reference)) {
+            console.warn(`claimAppStoreLink: ${originalTransactionId} は ${existing.ownerId} が新しい取引で持っているので ${userId} の古い取引では移しません`);
+            return "other";
+        }
         try {
             await ddb.send(new PutCommand({
                 TableName: USERS_TABLE,
@@ -122,45 +205,31 @@ export async function claimAppStoreLink(
                     previousOwnerId: existing.ownerId,
                     seen: existing.seen,
                     rev: existing.rev + 1,
+                    ...(incoming !== undefined ? { lastPurchaseDate: incoming } : {}),
                 },
-                // 読んだときの持ち主のままなら移す（同時に別の付け替えが来たら負ける側は読み直す）
-                ConditionExpression: "ownerId = :old",
-                ExpressionAttributeValues: { ":old": existing.ownerId },
+                // 読んだときの行のままなら移す（同時に別の付け替え・知らせの記録が来たら読み直す）
+                ...linkRevCondition(existing.rev),
             }));
-            console.log(`claimAppStoreLink: ${originalTransactionId} を ${existing.ownerId} から ${userId} へ付け替えました`);
-            try {
-                await endPreviousOwnerAccess(existing.ownerId, originalTransactionId);
-            } catch (e) {
-                // 付け替えそのものは済んでいる（新しい持ち主の購入は落とさない）。記録だけ残す
-                console.error(`claimAppStoreLink: 前の持ち主 ${existing.ownerId} の Pro を終えられませんでした:`, e);
-            }
-            return "ok";
         } catch (e) {
             if (!isCondFail(e)) throw e;
+            // 持ち主が変わった（同時に別の付け替えが通った）なら、負けた側は今までどおり引く。
+            // 持ち主が同じまま（知らせの記録などで rev だけ進んだ）なら読み直して決め直す
             const again = await readAppStoreLink(originalTransactionId);
-            return again?.ownerId === userId ? "ok" : "other";
+            if (again && again.ownerId !== existing.ownerId) return again.ownerId === userId ? "ok" : "other";
+            continue;
         }
-    }
-    try {
-        await ddb.send(new PutCommand({
-            TableName: USERS_TABLE,
-            Item: {
-                userId: appStoreLinkKey(originalTransactionId),
-                ownerId: userId,
-                environment,
-                createdAt: new Date().toISOString(),
-                seen: [],
-                rev: 1,
-            },
-            ConditionExpression: "attribute_not_exists(userId)",
-        }));
+        console.log(`claimAppStoreLink: ${originalTransactionId} を ${existing.ownerId} から ${userId} へ付け替えました`);
+        try {
+            await endPreviousOwnerAccess(existing.ownerId, originalTransactionId);
+        } catch (e) {
+            // 付け替えそのものは済んでいる（新しい持ち主の購入は落とさない）。記録だけ残す
+            console.error(`claimAppStoreLink: 前の持ち主 ${existing.ownerId} の Pro を終えられませんでした:`, e);
+        }
         return "ok";
-    } catch (e) {
-        if (!isCondFail(e)) throw e;
-        // 同時に誰かが結び付けた。読み直して持ち主を見る
-        const again = await readAppStoreLink(originalTransactionId);
-        return again?.ownerId === userId ? "ok" : "other";
     }
+    // 競合が続いた。最後に読んだ持ち主で答える
+    const again = await readAppStoreLink(originalTransactionId);
+    return again?.ownerId === userId ? "ok" : "other";
 }
 
 /**
