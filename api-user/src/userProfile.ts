@@ -1096,6 +1096,8 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
  * `badgeFields` を通す。
  * **行の `supporter` は生のまま出さない**（取引の番号・期間が入っている。本人の応答でも
  * 公開と同じ `{ number, since, months }` だけ）。
+ * 本人の応答だけは、本番に来た Sandbox（TestFlight）の記録も `sandbox: true` 付きで載せる
+ * （`badgeFields` の `owner: true`。2026-10-10）。
  */
 function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
     // 行の生の項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
@@ -1103,7 +1105,12 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
     delete rest.badges;
     delete rest.displayBadge;
     delete rest.proMarkStyle;
-    delete rest.supporter;
+    // 生の `supporter` は本人向けの形（`owner: true`）に置き換える。下の公開の形の `badgeFields` は、
+    // 載せるときは同じ値・Sandbox のときは項目ごと出さないので、ここの値がそのまま残る。
+    // 2026-10-10 判断: 下の return の行を変えないのは、別の枝（`claude/removable-name-marks`）が
+    // そのすぐ上に行を足していて、同じ所を触ると合わせるときにぶつかるから
+    rest.supporter = badgeFields(p as { supporter?: unknown }, Date.now(), { owner: true }).supporter;
+
     // 光と天気の知らせ: 行に無ければ「受け取る」。本人の応答には常に真偽で載せる
     rest.lightAlert = (p as { lightAlert?: unknown }).lightAlert !== false;
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };

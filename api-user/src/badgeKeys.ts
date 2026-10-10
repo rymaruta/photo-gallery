@@ -151,19 +151,28 @@ export function isPro(p: { supporter?: unknown } | null | undefined, now: number
  * `months` は保存した値と、記録した期間から今数え直した値の大きい方（`supporter.ts` の `supporterMonths`）。
  * **本番（Production も受けるサーバー）に来た Sandbox の記録は出さない**（`supporter.ts` の
  * `isPrivateSandbox`。Sandbox の番号は別の列で 1 から振るので、本物の No.1 と重なる）。
+ *
+ * **`owner: true`（本人に返すとき）だけは Sandbox の記録も出し、`sandbox: true` を足す**
+ * （2026-10-10 判断: TestFlight で買った本人の設定に「サポーター証」の行が出ないと、
+ * 買えたかを確かめられない。本人にしか見えないので、本物の No.1 と並んで見えることはない。
+ * `sandbox` は「本物の番号ではない」の印で、知らないクライアントは読み飛ばす）。
+ * 公開プロフィール・購入の応答・メダル（`mergeProBadges`）は今までどおり Sandbox を出さない。
  */
 export function publicSupporter(
     p: { supporter?: unknown } | null | undefined,
     now: number = Date.now(),
-): { number: number; since: string; months: number } | undefined {
+    opts: { owner?: boolean } = {},
+): { number: number; since: string; months: number; sandbox?: true } | undefined {
     const s = p?.supporter as Record<string, unknown> | undefined;
-    if (!s || typeof s !== "object" || isPrivateSandbox(s)) return undefined;
+    if (!s || typeof s !== "object") return undefined;
+    const sandbox = isPrivateSandbox(s);
+    if (sandbox && !opts.owner) return undefined;
     const n = s.number;
     if (typeof n !== "number" || !Number.isInteger(n) || n < 1) return undefined;
     const since = typeof s.since === "string" && !Number.isNaN(Date.parse(s.since)) ? s.since : "";
     const stored = typeof s.months === "number" && Number.isFinite(s.months) && s.months > 0 ? Math.floor(s.months) : 0;
     const live = supporterMonths(s, now);
-    return { number: n, since, months: Math.max(stored, live) };
+    return { number: n, since, months: Math.max(stored, live), ...(sandbox ? { sandbox: true as const } : {}) };
 }
 
 /**
@@ -172,20 +181,24 @@ export function publicSupporter(
  *
  * `displayBadge` は**持っている鍵のときだけ**返す。持っていない鍵（台本で外した・
  * 書き損じ）は `null`——画面が「無いメダル」を描かないように。
+ *
+ * `owner: true` は**本人に返すとき**（`userProfile.ts` の `withBadgeFields`）。違うのは
+ * `supporter` だけで、本番に来た Sandbox の記録も `sandbox: true` 付きで載せる（`publicSupporter`）。
  */
 export function badgeFields(
     p: { badges?: unknown; displayBadge?: unknown; supporter?: unknown; proMarkStyle?: unknown },
     now: number = Date.now(),
+    opts: { owner?: boolean } = {},
 ): {
     badges?: BadgeMap;
     displayBadge: BadgeKey | null;
     pro: boolean;
     proMarkStyle: ProMarkStyle;
-    supporter?: { number: number; since: string; months: number };
+    supporter?: { number: number; since: string; months: number; sandbox?: true };
 } {
     const badges = sanitizeBadges(p.badges);
     const display = isBadgeKey(p.displayBadge) && badges?.[p.displayBadge] ? p.displayBadge : null;
-    const supporter = publicSupporter(p, now);
+    const supporter = publicSupporter(p, now, opts);
     return {
         ...(badges ? { badges } : {}),
         displayBadge: display,
