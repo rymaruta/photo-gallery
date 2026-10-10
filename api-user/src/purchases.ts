@@ -39,6 +39,17 @@
  * 取引 → 人 は `appstore#<originalTransactionId>` の行で引く（`POST /user/purchases` が作る）。
  * まだ結び付いていない取引の知らせは記録だけして捨てる（アプリが送ってきたときに拾う）。
  * 同じ知らせ（notificationUUID）は二度処理しない。
+ *
+ * ## 結び付けの決まり（2026-10-10・`supporterStore.ts` の `claimAppStoreLink`）
+ *
+ * - 取引の新しさは**鍵**だけで比べる（`supporter.ts` の `transactionOrderKey`＝min(purchaseDate, signedDate, 今)）
+ * - **持ち主が移るのは POST だけ**（効いている取引・本人の token・鍵が行の鍵より大きい）
+ * - 知らせは持ち主を移さず、別のアカウントを Pro にもしない。持ち主ではない人の token の付いた知らせは:
+ *   - 効いている、より新しい取引 → 今の持ち主の Pro を終える（`endOwnerForNewerTransaction`）。
+ *     新しい側が Pro になるのは、そのアプリが POST したとき
+ *   - 前の持ち主（`previousOwnerId`）の取引の返金・取り消し → 前の持ち主の期間を切る
+ *   - それ以外 → 捨てる（持ち主の行に書かない）
+ * - 持ち主（か token の無い）の、効いている、より新しい取引の知らせは、行の鍵を進める
  */
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
@@ -46,7 +57,12 @@ import {
     AppStoreSignatureError, appAccountTokenFor, proProductIds, readAppStoreConfig, renewalFacts,
     transactionFacts, verifyNotificationPayload, verifySignedTransaction,
 } from "./appStore";
-import { applyToProfile, claimAppStoreLink, forgetAppStoreLinks, readAppStoreLink, rememberNotification } from "./supporterStore";
+import {
+    advanceAppStoreLinkKey, applyToProfile, claimAppStoreLink, endOwnerForNewerTransaction, forgetAppStoreLinks,
+    readAppStoreLink, rememberNotification,
+} from "./supporterStore";
+import { isSupersededTransaction, transactionOrderKey } from "./supporter";
+import type { SupporterEvent } from "./supporter";
 import { toPublicProfile } from "./userProfile";
 import type { UserProfile } from "./userProfile";
 
@@ -116,7 +132,8 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, {
             tokenIsMine: token !== "",
             purchaseDate: facts.purchaseDate,
-            superseded: facts.revocationDate !== undefined || facts.isUpgraded === true,
+            signedDate: facts.signedDate,
+            superseded: isSupersededTransaction(facts),
         });
         if (claimed === "other") {
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています", "claimed_by_other_account");
@@ -203,17 +220,41 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
             return ok();
         }
         const token = typeof transaction.appAccountToken === "string" ? transaction.appAccountToken.toLowerCase() : "";
-        if (token && token !== appAccountTokenFor(link.ownerId)) {
-            console.warn(`appStoreNotification: appAccountToken が結び付けた人と違うので捨てます ${label}`);
-            return ok();
-        }
-        const out = await applyToProfile(link.ownerId, {
+        const key = transactionOrderKey(facts);
+        const superseded = isSupersededTransaction(facts);
+        const ev: SupporterEvent = {
             kind: type,
             ...(notification.subtype ? { subtype: notification.subtype } : {}),
             tx: facts,
             ...(renewalFacts(renewal) ? { renewal: renewalFacts(renewal) } : {}),
             signedAt: typeof notification.signedDate === "number" ? notification.signedDate : facts.signedDate,
-        }, { createIfMissing: false });
+        };
+        if (token && token !== appAccountTokenFor(link.ownerId)) {
+            // 持ち主ではない人の取引。持ち主を移さない。持ち主の行に書くのは Pro を終えるときだけ
+            if (facts.revocationDate !== undefined && link.previousOwnerId && token === appAccountTokenFor(link.previousOwnerId)) {
+                // 前の持ち主の古い取引の返金・取り消し → 前の持ち主の期間を切る（付け替えのあとに届いた返金）
+                const prev = await applyToProfile(link.previousOwnerId, ev, { createIfMissing: false });
+                if (prev.status === "conflict") {
+                    console.error(`appStoreNotification: 競合が続いて前の持ち主に書けませんでした ${label}`);
+                    return jsonError(500, "retry");
+                }
+                console.log(`appStoreNotification: 前の持ち主の取引の取り消しを反映しました（${prev.status}）${label}`);
+            } else if (!superseded) {
+                // 別のアカウントの、効いている、より新しい取引 → 今の持ち主の Pro を終える。
+                // 新しい側を Pro にするのは、その人のアプリが申し込んだとき（POST /user/purchases）
+                const ended = await endOwnerForNewerTransaction(facts.originalTransactionId, key);
+                if (ended === "conflict") {
+                    console.error(`appStoreNotification: 競合が続いて今の持ち主の Pro を終えられませんでした ${label}`);
+                    return jsonError(500, "retry");
+                }
+                console.warn(`appStoreNotification: appAccountToken が結び付けた人と違う（${ended}）${label}`);
+            } else {
+                console.warn(`appStoreNotification: appAccountToken が結び付けた人と違う取り消し・置き換え済みの取引なので捨てます ${label}`);
+            }
+            if (uuid) await rememberNotification(facts.originalTransactionId, uuid);
+            return ok();
+        }
+        const out = await applyToProfile(link.ownerId, ev, { createIfMissing: false });
         if (out.status === "conflict") {
             console.error(`appStoreNotification: 競合が続いて書けませんでした ${label}`);
             return jsonError(500, "retry");
@@ -224,6 +265,8 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
             return ok();
         }
         if (out.ignored) console.log(`appStoreNotification: ${out.ignored} ${label}`);
+        // 持ち主の、効いている、より新しい取引なら結び付けの鍵を進める（持ち主は変えない）
+        if (!superseded && key !== undefined) await advanceAppStoreLinkKey(facts.originalTransactionId, link.ownerId, key);
         if (uuid) await rememberNotification(facts.originalTransactionId, uuid);
         console.log(`appStoreNotification: 反映しました ${label}`);
     } catch (e) {
