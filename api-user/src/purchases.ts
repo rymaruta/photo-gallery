@@ -121,6 +121,8 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         if (claimed === "other") {
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています", "claimed_by_other_account");
         }
+        // 結び付けの書き込みが競合し続けた。code を付けない（アプリは取引を終えず、やり直す）
+        if (claimed === "conflict") return jsonError(409, "他の変更と重なりました。もう一度お試しください");
         const out = await applyToProfile(userId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: true });
         if (out.status === "deleted") {
             // 退会済みの人（消す前に配ったトークンがまだ通る・退会と同時に来た購入）に結び付けを

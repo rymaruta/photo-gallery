@@ -119,7 +119,8 @@ const linkRevCondition = (rev: number) => (rev === 0
 
 /**
  * 取引をこの人に結び付ける。既に別の人に結び付いていたら "other"。
- * 同じ人なら "ok"（より新しい取引なら `lastPurchaseDate` を進める）。
+ * 同じ人なら "ok"（より新しい取引なら `lastPurchaseDate` を進める。取り消し・置き換え済みの取引では進めない）。
+ * 競合が続いて決めきれなければ "conflict"（やり直せば通る）。
  *
  * **付け替え（`tokenIsMine`）**: 同じ Apple ID で別のアカウントが申し込み直すと、
  * 自動更新のサブスクリプションは**同じ originalTransactionId のまま**続く（Apple の仕様）。
@@ -150,10 +151,12 @@ const linkRevCondition = (rev: number) => (rev === 0
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
     opts: { tokenIsMine?: boolean; purchaseDate?: number; superseded?: boolean } = {},
-): Promise<"ok" | "other"> {
+): Promise<"ok" | "other" | "conflict"> {
     const incoming = typeof opts.purchaseDate === "number" && Number.isFinite(opts.purchaseDate) ? opts.purchaseDate : undefined;
     /** 行に覚える時刻（未来の purchaseDate は今に抑える） */
     const stamp = incoming !== undefined ? Math.min(incoming, Date.now()) : undefined;
+    /** 結び付けを作る・進めるときに覚える時刻。取り消し・置き換え済みの取引では覚えない（下の同じ持ち主の道の注記） */
+    const claimStamp = opts.superseded ? undefined : stamp;
     for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
         const existing = await readAppStoreLink(originalTransactionId);
         if (!existing) {
@@ -167,7 +170,7 @@ export async function claimAppStoreLink(
                         createdAt: new Date().toISOString(),
                         seen: [],
                         rev: 1,
-                        ...(stamp !== undefined ? { lastPurchaseDate: stamp } : {}),
+                        ...(claimStamp !== undefined ? { lastPurchaseDate: claimStamp } : {}),
                     },
                     ConditionExpression: "attribute_not_exists(userId)",
                 }));
@@ -179,19 +182,21 @@ export async function claimAppStoreLink(
         }
 
         if (existing.ownerId === userId) {
-            // 同じ人がより新しい取引を送ってきた → 比べる時刻を進める（落ちても結び付けはこの人のまま）
-            if (stamp === undefined || (existing.lastPurchaseDate !== undefined && !(stamp > existing.lastPurchaseDate))) return "ok";
+            // 同じ人がより新しい取引を送ってきた → 比べる時刻を進める（落ちても結び付けはこの人のまま）。
+            // 取り消し・置き換え済みの取引では進めない（未来の更新の取引を今に抑えて覚えると、その間に
+            // 同じ Apple ID で申し込み直した別のアカウントの取引が「古い」と見なされ 409 で通らなくなる）
+            if (claimStamp === undefined || (existing.lastPurchaseDate !== undefined && !(claimStamp > existing.lastPurchaseDate))) return "ok";
             try {
                 const res = await ddb.send(new GetCommand({
                     TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
                 }));
                 const row = res.Item as Record<string, unknown> | undefined;
                 if (!row || row.ownerId !== userId) continue;
-                if (typeof row.lastPurchaseDate === "number" && !(stamp > row.lastPurchaseDate)) return "ok";
+                if (typeof row.lastPurchaseDate === "number" && !(claimStamp > row.lastPurchaseDate)) return "ok";
                 const rev = typeof row.rev === "number" ? row.rev : 0;
                 await ddb.send(new PutCommand({
                     TableName: USERS_TABLE,
-                    Item: { ...row, lastPurchaseDate: stamp, rev: rev + 1 },
+                    Item: { ...row, lastPurchaseDate: claimStamp, rev: rev + 1 },
                     ...linkRevCondition(rev),
                 }));
                 return "ok";
@@ -247,9 +252,10 @@ export async function claimAppStoreLink(
         }
         return "ok";
     }
-    // 競合が続いた。最後に読んだ持ち主で答える
+    // 競合が続いた。この人のものになっていれば "ok"、決めきれなければ "conflict"
+    // （"other" にすると 409 claimed_by_other_account になり、アプリが最終の答えとして取引を終えてしまう）
     const again = await readAppStoreLink(originalTransactionId);
-    return again?.ownerId === userId ? "ok" : "other";
+    return again?.ownerId === userId ? "ok" : "conflict";
 }
 
 /**

@@ -76,6 +76,25 @@ describe("購入で有効になる", () => {
         expect(b.supporter.number).toBe(7);
     });
 
+    // 2026-10-10: 置き換わった取引（isUpgraded）はもう効いていない。前倒しで請求された未来の更新が
+    // 置き換わったまま端末から届くと、期限が先まで延びて Pro が続いていた
+    it("置き換わった取引（isUpgraded）では Pro にしない・期限も期間も延ばさない", () => {
+        const first = applySupporterEvent(undefined, ev("PURCHASE", tx({ isUpgraded: true })), jst(2026, 10, 10, 13));
+        expect(first.supporter.active).toBe(false);
+        expect(first.needsNumber).toBe(false);
+        expect(first.supporter.periods).toEqual([]);
+        expect(first.ignored).toMatch(/置き換わった/);
+
+        const t = tx();
+        const s = { ...applySupporterEvent(undefined, ev("PURCHASE", t), t.purchaseDate + HOUR).supporter, number: 1 };
+        // 期限の 12 時間前に請求された次の期間の取引が、置き換わった印つきで届く
+        const next = tx({ transactionId: "t2", purchaseDate: t.expiresDate, expiresDate: plusMonths(t.expiresDate, 1), signedDate: t.expiresDate - 6 * HOUR, isUpgraded: true });
+        const r = applySupporterEvent(s, ev("PURCHASE", next), t.expiresDate - 5 * HOUR);
+        expect(r.supporter).toMatchObject({ active: true, expiresAt: s.expiresAt, lastEventAt: s.lastEventAt });
+        expect(r.supporter.periods).toEqual(s.periods);
+        expect(isPro({ supporter: r.supporter }, t.expiresDate + HOUR)).toBe(false);
+    });
+
     it("期限の切れた取引だけ送られても有効にしない・番号も振らない", () => {
         const t = tx();
         const r = applySupporterEvent(undefined, ev("PURCHASE", t), t.expiresDate + DAY);

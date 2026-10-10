@@ -450,6 +450,42 @@ describe("POST /user/purchases", () => {
                 expect(db.get(OTX)).toEqual(linkBefore);
                 expect(db.get("u2")).toEqual(u2Before);
             });
+
+            // 2026-10-10: 付け替えの前（u2 の申し込みが届く前）に、u1 の端末から取り消し・置き換え済みの
+            // 前倒しの更新が届くと、同じ持ち主の道で lastPurchaseDate が今（u2 の申し込みより後）まで進み、
+            // u2 の申し込み直しが 409（claimed_by_other_account）で通らなくなっていた。u2 は払ったのに Pro にならない
+            it.each([
+                ["取り消された（revocationDate）", { revocationDate: upgradeAt, revocationReason: 0 }],
+                ["アップグレードで置き換わった（isUpgraded）", { isUpgraded: true }],
+            ])("u2 の申し込みより先に u1 から%s前倒しの更新が届いても、u2 は付け替えられる", async (_label, over) => {
+                db.set({ userId: "u1" });
+                db.set({ userId: "u2" });
+                expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u1", lastPurchaseDate: T0 });
+                const u1Before = db.get("u1")!;
+                // u2 は upgradeAt に申し込んだが、アプリからの送信は遅れている。その間に u1 の端末から
+                vi.setSystemTime(upgradeAt + 30 * 60_000);
+                const r = earlyRenewal({ ...over, signedDate: upgradeAt + 1000 });
+                expect((await purchase("u1", { signedTransaction: signJws(r) })).statusCode).toBe(200);
+                // 比べる時刻は進めない
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u1", lastPurchaseDate: T0 });
+                // もう効いていない取引で u1 の Pro を延ばさない（元の月ごとの期限 E のあとは Pro ではない）
+                expect(isPro(db.get("u1") as { supporter?: unknown }, E + DAY)).toBe(false);
+                if ("isUpgraded" in over) {
+                    // 置き換わった取引は Pro の状態にも期間にも重ねない（u1 の元の購読はそのまま）
+                    const s1 = db.get("u1")!.supporter as Record<string, unknown>;
+                    const s0 = u1Before.supporter as Record<string, unknown>;
+                    expect(s1).toMatchObject({ active: true, expiresAt: s0.expiresAt });
+                    expect(s1.periods).toEqual(s0.periods);
+                }
+
+                vi.setSystemTime(upgradeAt + 3_600_000);
+                const res = await purchase("u2", { signedTransaction: signJws(u2Upgrade()) });
+                expect(res.statusCode).toBe(200);
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1", lastPurchaseDate: upgradeAt });
+                expect(isPro(db.get("u2") as { supporter?: unknown }, Date.now())).toBe(true);
+                expect(isPro(db.get("u1") as { supporter?: unknown }, Date.now())).toBe(false);
+            });
         });
     });
 
@@ -717,6 +753,50 @@ describe("取引と人の結び付け", () => {
         ]);
         expect(both.filter((r) => r === "ok")).toHaveLength(1);
         expect(["u3", "u4"]).toContain(db.get("appstore#o1")!.ownerId);
+    });
+
+    it("取り消し・置き換え済みの取引では、結び付けを作っても比べる時刻を覚えない", async () => {
+        expect(await claimAppStoreLink("o1", "u1", "Sandbox", { purchaseDate: T0, superseded: true })).toBe("ok");
+        expect(db.get("appstore#o1")).toMatchObject({ ownerId: "u1" });
+        expect(db.get("appstore#o1")).not.toHaveProperty("lastPurchaseDate");
+    });
+
+    // 2026-10-10: 競合が続いて決めきれなかったときに "other"（→ 409 claimed_by_other_account）を返すと、
+    // アプリはそれを最終の答えとして取引を終えてしまう。やり直せば通るので code の無い 409 にする
+    describe("付け替えの書き込みが競合し続けたとき", () => {
+        /** 結び付けの行の Put を毎回断る（知らせの記録などが書き続けている形） */
+        function failLinkPuts() {
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            table.current = {
+                send: async (c: { constructor: { name: string }; input: Record<string, unknown> }) => {
+                    if (c.constructor.name === "PutCommand" && String((c.input.Item as { userId?: string }).userId).startsWith("appstore#")) {
+                        const { condFail } = await import("./fixtures/fakeUsersTable");
+                        throw condFail();
+                    }
+                    return db.send(c);
+                },
+            } as never;
+        }
+
+        it("claimAppStoreLink は conflict を返す（other ではない）", async () => {
+            expect(await claimAppStoreLink("o1", "u1", "Sandbox", { purchaseDate: T0 })).toBe("ok");
+            failLinkPuts();
+            expect(await claimAppStoreLink("o1", "u2", "Sandbox", { tokenIsMine: true, purchaseDate: T0 + DAY })).toBe("conflict");
+            expect(db.get("appstore#o1")).toMatchObject({ ownerId: "u1" });
+        });
+
+        it("POST /user/purchases は code の無い 409（やり直せる）", async () => {
+            db.set({ userId: "u1" });
+            db.set({ userId: "u2" });
+            expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+            failLinkPuts();
+            vi.setSystemTime(T0 + 10 * DAY);
+            const again = tokenTx("u2", { transactionId: "2000000000000023", purchaseDate: T0 + 10 * DAY - 60_000, expiresDate: T0 + 41 * DAY, signedDate: T0 + 10 * DAY - 30_000 });
+            const res = await purchase("u2", { signedTransaction: signJws(again) });
+            expect(res.statusCode).toBe(409);
+            expect(JSON.parse(res.body).code).toBeUndefined();
+            expect(db.get("u2")).toEqual({ userId: "u2" });
+        });
     });
 
     it("前の持ち主の Pro を終える書き込みは rev を見る（間に入った書き込みを消さず、読み直して重ねる）", async () => {
