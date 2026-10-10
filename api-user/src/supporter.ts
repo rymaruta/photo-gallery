@@ -42,6 +42,7 @@
  *   つないでから数え、途切れた期間は別々に数えて足す（再開すると続きから数える）。
  *   Sandbox は1か月が数分に縮むので、**終わった取引の数**で数える（月ごと 1・年ごと 12）
  * - 同じ取引は何度来ても同じ答え（期間は取引の番号で置き換える）
+ * - **置き換わった取引**（`isUpgraded`）は Pro にも期間にも重ねない（もう効いていない取引）
  */
 
 export type AppStoreEnvironment = "Production" | "Sandbox";
@@ -338,8 +339,12 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
     const latestEndBefore = s.periods.reduce((m, p) => Math.max(m, ms(p.end)), -Infinity);
     const lastAt = ms(s.lastEventAt);
     const stale = Number.isFinite(lastAt) && ev.signedAt < lastAt;
+    // より上の商品へ切り替えて**置き換わった取引**（isUpgraded）はもう効いていない。Pro にも期間にも
+    // 重ねない（前倒しで請求された未来の更新が置き換わったまま端末から届くと、期限が先まで延びて
+    // Pro が続いていた・2026-10-10）。切り替えた先の取引が別に来て状態を決める
+    const upgraded = tx.isUpgraded === true;
     s.environment = tx.environment;
-    s.periods = upsertPeriod(s.periods, tx, stale);
+    if (!upgraded) s.periods = upsertPeriod(s.periods, tx, stale);
     if (!s.linked.includes(tx.originalTransactionId)) {
         s.linked = [...s.linked, tx.originalTransactionId].slice(-MAX_LINKED);
     }
@@ -360,7 +365,7 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
         && prev.originalTransactionId === tx.originalTransactionId && tx.revocationDate === undefined
         && tx.expiresDate <= now && ms(prev.expiresAt) > Math.max(tx.expiresDate, now);
 
-    if (!stale && !olderPurchase && !pastRevocation && !inGrace) {
+    if (!upgraded && !stale && !olderPurchase && !pastRevocation && !inGrace) {
         const grace = ev.renewal?.gracePeriodExpiresDate ?? 0;
         let active: boolean;
         let expires = Math.max(tx.expiresDate, grace);
@@ -394,7 +399,8 @@ export function applySupporterEvent(prevRaw: unknown, ev: SupporterEvent, now: n
     return {
         supporter: s,
         needsNumber,
-        ...(stale ? { ignored: "古い知らせ（期間だけ記録）" } : olderPurchase ? { ignored: "記録済みより前の取引（期間だけ記録）" }
+        ...(upgraded ? { ignored: "置き換わった取引（isUpgraded・Pro にも期間にも重ねない）" }
+            : stale ? { ignored: "古い知らせ（期間だけ記録）" } : olderPurchase ? { ignored: "記録済みより前の取引（期間だけ記録）" }
             : inGrace ? { ignored: "猶予期間の中に届いた同じ取引（状態は猶予のまま）" } : {}),
     };
 }
