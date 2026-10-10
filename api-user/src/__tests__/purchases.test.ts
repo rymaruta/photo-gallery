@@ -266,6 +266,120 @@ describe("POST /user/purchases", () => {
         expect(db.get("appstore#2000000000000001")).toMatchObject({ ownerId: "u2" });
     });
 
+    // 2026-10-10: 付け替えは「今の結び付けを決めた取引より新しい取引」のときだけ。端末に残っていた
+    // 前のアカウントの古い取引（token は前のアカウント）が後から届いて結び付けを取り返し、
+    // 今の持ち主の Pro を終えていた（取り返した側も古い取引なので Pro にならず、以後の更新の知らせも捨てられる）
+    describe("付け替えは新しい取引のときだけ", () => {
+        const OTX = "appstore#2000000000000001";
+        /** u1 が T0 に買い、u2 が同じ Apple ID のまま T0+40日 に年ごとへ申し込み直す */
+        async function crossgradeToU2() {
+            db.set({ userId: "u1" });
+            db.set({ userId: "u2" });
+            expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+            const at = T0 + 40 * DAY;
+            vi.setSystemTime(at + 60_000);
+            const yearly = tokenTx("u2", {
+                transactionId: "2000000000000030", productId: YEARLY, purchaseDate: at, expiresDate: at + 365 * DAY, signedDate: at + 1000,
+            });
+            expect((await purchase("u2", { signedTransaction: signJws(yearly) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u2" });
+            return at;
+        }
+        /** u1 の端末に残っていた、申し込み直しより前の更新（token は u1） */
+        const staleU1Renewal = () => tokenTx("u1", {
+            transactionId: "2000000000000002", purchaseDate: T0 + 31 * DAY, expiresDate: T0 + 62 * DAY, signedDate: T0 + 31 * DAY + 1000,
+        });
+
+        it("結び付けを作ったときに取引の purchaseDate を覚える", async () => {
+            db.set({ userId: "u1" });
+            expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u1", lastPurchaseDate: T0 });
+        });
+
+        it("申し込み直しより古い前のアカウントの取引が後から届いても 409・今の持ち主の Pro はそのまま", async () => {
+            await crossgradeToU2();
+            const u2Before = db.get("u2");
+            const u1Before = db.get("u1");
+            const linkBefore = db.get(OTX);
+            const res = await purchase("u1", { signedTransaction: signJws(staleU1Renewal()) });
+            expect(res.statusCode).toBe(409);
+            expect(JSON.parse(res.body).code).toBe("claimed_by_other_account");
+            expect(db.get(OTX)).toEqual(linkBefore);
+            expect(db.get("u2")).toEqual(u2Before);
+            expect(isPro(db.get("u2") as { supporter?: unknown }, Date.now())).toBe(true);
+            expect(db.get("u1")).toEqual(u1Before);
+            // u2 の更新の知らせは u2 に届き続ける
+            const renew = notificationJws({
+                type: "DID_RENEW",
+                tx: tokenTx("u2", { transactionId: "2000000000000031", productId: YEARLY, purchaseDate: T0 + 405 * DAY, expiresDate: T0 + 770 * DAY, signedDate: T0 + 405 * DAY }),
+            });
+            vi.setSystemTime(T0 + 405 * DAY + 60_000);
+            expect((await notify({ signedPayload: renew })).statusCode).toBe(200);
+            expect(db.get("u2")).toMatchObject({ supporter: { active: true, expiresAt: new Date(T0 + 770 * DAY).toISOString() } });
+        });
+
+        it("前のアカウントで本当に新しく申し込み直したなら移す（今の持ち主の Pro は終わる）", async () => {
+            const at = await crossgradeToU2();
+            const later = at + 10 * DAY;
+            vi.setSystemTime(later + 60_000);
+            const back = tokenTx("u1", {
+                transactionId: "2000000000000040", purchaseDate: later, expiresDate: later + 31 * DAY, signedDate: later + 1000,
+            });
+            expect((await purchase("u1", { signedTransaction: signJws(back) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u1", previousOwnerId: "u2", lastPurchaseDate: later });
+            expect(db.get("u1")).toMatchObject({ supporter: { active: true } });
+            expect(db.get("u2")).toMatchObject({ supporter: { active: false } });
+        });
+
+        it("同じ持ち主がより新しい取引を送ると lastPurchaseDate を進める（古い取引では戻さない）", async () => {
+            const at = await crossgradeToU2();
+            expect(db.get(OTX)).toMatchObject({ lastPurchaseDate: at });
+            const next = at + 365 * DAY;
+            vi.setSystemTime(next + 60_000);
+            const renewal = tokenTx("u2", {
+                transactionId: "2000000000000032", productId: YEARLY, purchaseDate: next, expiresDate: next + 365 * DAY, signedDate: next + 1000,
+            });
+            expect((await purchase("u2", { signedTransaction: signJws(renewal) })).statusCode).toBe(200);
+            const link = db.get(OTX)!;
+            expect(link).toMatchObject({ ownerId: "u2", previousOwnerId: "u1", lastPurchaseDate: next });
+            // 古い取引の送り直しでは戻らない・書かない
+            const yearly = tokenTx("u2", {
+                transactionId: "2000000000000030", productId: YEARLY, purchaseDate: at, expiresDate: at + 365 * DAY, signedDate: at + 1000,
+            });
+            expect((await purchase("u2", { signedTransaction: signJws(yearly) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toEqual(link);
+        });
+
+        it("lastPurchaseDate の無い古い行: 今の持ち主の期間の始まりと比べる", async () => {
+            await crossgradeToU2();
+            const legacy = { ...db.get(OTX)! };
+            delete legacy.lastPurchaseDate;
+            db.set(legacy);
+            const u2Before = db.get("u2");
+            // 古い取引は 409・何も変えない
+            expect((await purchase("u1", { signedTransaction: signJws(staleU1Renewal()) })).statusCode).toBe(409);
+            expect(db.get(OTX)).toEqual(legacy);
+            expect(db.get("u2")).toEqual(u2Before);
+            // 新しい取引なら移す
+            const later = T0 + 50 * DAY;
+            vi.setSystemTime(later + 60_000);
+            const back = tokenTx("u1", { transactionId: "2000000000000041", purchaseDate: later, expiresDate: later + 31 * DAY, signedDate: later + 1000 });
+            expect((await purchase("u1", { signedTransaction: signJws(back) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u1", lastPurchaseDate: later });
+        });
+
+        it("lastPurchaseDate の無い古い行で、今の持ち主の記録からも分からなければ今までどおり移す", async () => {
+            await crossgradeToU2();
+            const legacy = { ...db.get(OTX)! };
+            delete legacy.lastPurchaseDate;
+            db.set(legacy);
+            const u2 = db.get("u2")!;
+            db.set({ ...u2, supporter: { ...(u2.supporter as object), originalTransactionId: "2000000000000777" } });
+            expect((await purchase("u1", { signedTransaction: signJws(staleU1Renewal()) })).statusCode).toBe(200);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u1", previousOwnerId: "u2" });
+        });
+    });
+
     it("署名を確かめられない・形が違う・売っていない商品は 400", async () => {
         db.set({ userId: "u1" });
         expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1"), "rogue") })).statusCode).toBe(400);
