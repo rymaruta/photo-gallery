@@ -72,6 +72,8 @@ export type TransactionFacts = {
     originalPurchaseDate?: number;
     expiresDate: number;
     revocationDate?: number;
+    /** より上の商品へ切り替えて置き換わった取引（Apple の `isUpgraded`）。true のときだけ置く */
+    isUpgraded?: true;
     environment: AppStoreEnvironment;
     signedDate: number;
 };

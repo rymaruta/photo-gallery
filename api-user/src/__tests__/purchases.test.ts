@@ -378,6 +378,79 @@ describe("POST /user/purchases", () => {
             expect((await purchase("u1", { signedTransaction: signJws(staleU1Renewal()) })).statusCode).toBe(200);
             expect(db.get(OTX)).toMatchObject({ ownerId: "u1", previousOwnerId: "u2" });
         });
+
+        // Apple は自動更新を期限の最大 24 時間前に請求する。更新の取引の purchaseDate は
+        // 新しい期間の始まり（未来）なので、そのまま覚えると、期限の前に同じ Apple ID で
+        // 申し込み直した（アップグレード）取引が「古い」と見なされて 409 になっていた
+        describe("前倒しの更新（purchaseDate が未来）のあとの申し込み直し", () => {
+            /** u1 の月ごとの期間の終わり */
+            const E = T0 + 31 * DAY;
+            /** E の 12 時間前に請求された u1 の更新（purchaseDate = E・未来） */
+            const earlyRenewal = (over: Record<string, unknown> = {}) => tokenTx("u1", {
+                transactionId: "2000000000000002", purchaseDate: E, expiresDate: E + 30 * DAY, signedDate: E - 12 * 3_600_000, ...over,
+            });
+            /** E の 6 時間前に u2 が同じ Apple ID のまま年ごとへ */
+            const upgradeAt = E - 6 * 3_600_000;
+            const u2Upgrade = () => tokenTx("u2", {
+                transactionId: "2000000000000030", productId: YEARLY, purchaseDate: upgradeAt, expiresDate: upgradeAt + 365 * DAY, signedDate: upgradeAt + 1000,
+            });
+            async function u1BuysAndRenewsEarly(via: "purchase" | "notification") {
+                db.set({ userId: "u1" });
+                db.set({ userId: "u2" });
+                expect((await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) })).statusCode).toBe(200);
+                vi.setSystemTime(E - 12 * 3_600_000);
+                if (via === "purchase") {
+                    expect((await purchase("u1", { signedTransaction: signJws(earlyRenewal()) })).statusCode).toBe(200);
+                } else {
+                    expect((await notify({ signedPayload: notificationJws({ type: "DID_RENEW", tx: earlyRenewal() }) })).statusCode).toBe(200);
+                }
+            }
+
+            it("未来の purchaseDate は今の時刻までに抑えて覚える", async () => {
+                await u1BuysAndRenewsEarly("purchase");
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u1", lastPurchaseDate: E - 12 * 3_600_000 });
+            });
+
+            it("lastPurchaseDate のある行: 期限の前に u2 が申し込み直すと移す", async () => {
+                await u1BuysAndRenewsEarly("purchase");
+                vi.setSystemTime(upgradeAt + 60_000);
+                const res = await purchase("u2", { signedTransaction: signJws(u2Upgrade()) });
+                expect(res.statusCode).toBe(200);
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1", lastPurchaseDate: upgradeAt });
+                expect(db.get("u2")).toMatchObject({ supporter: { active: true } });
+            });
+
+            it("lastPurchaseDate の無い古い行（DID_RENEW で未来の期間を記録）: 期限の前に u2 が申し込み直すと移す", async () => {
+                await u1BuysAndRenewsEarly("notification");
+                const legacy = { ...db.get(OTX)! };
+                delete legacy.lastPurchaseDate;
+                db.set(legacy);
+                // 未来の期間が記録されている（この行の比べる相手になりうる）
+                const starts = ((db.get("u1")!.supporter as { periods: { start: string }[] }).periods).map((p) => Date.parse(p.start));
+                expect(starts).toContain(E);
+                vi.setSystemTime(upgradeAt + 60_000);
+                const res = await purchase("u2", { signedTransaction: signJws(u2Upgrade()) });
+                expect(res.statusCode).toBe(200);
+                expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+            });
+
+            it.each([
+                ["取り消された（revocationDate）", { revocationDate: upgradeAt, revocationReason: 0 }],
+                ["アップグレードで置き換わった（isUpgraded）", { isUpgraded: true }],
+            ])("u1 の端末に残った前倒しの更新が%s取引なら、付け替えのあとに届いても取り返さない", async (_label, over) => {
+                await u1BuysAndRenewsEarly("purchase");
+                vi.setSystemTime(upgradeAt + 60_000);
+                expect((await purchase("u2", { signedTransaction: signJws(u2Upgrade()) })).statusCode).toBe(200);
+                const linkBefore = db.get(OTX);
+                const u2Before = db.get("u2");
+                vi.setSystemTime(upgradeAt + 3_600_000);
+                // purchaseDate（E）は u2 の取引より後だが、もう効いていない取引
+                const res = await purchase("u1", { signedTransaction: signJws(earlyRenewal({ ...over, signedDate: upgradeAt + 1000 })) });
+                expect(res.statusCode).toBe(409);
+                expect(db.get(OTX)).toEqual(linkBefore);
+                expect(db.get("u2")).toEqual(u2Before);
+            });
+        });
     });
 
     it("署名を確かめられない・形が違う・売っていない商品は 400", async () => {

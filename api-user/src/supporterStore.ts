@@ -103,7 +103,12 @@ async function legacyLatestPurchase(ownerId: string, originalTransactionId: stri
     if (!row || isDeletedProfile(row)) return undefined;
     const s = readSupporter(row.supporter);
     if (!s || s.originalTransactionId !== originalTransactionId) return undefined;
-    const latest = s.periods.reduce((m, p) => Math.max(m, Date.parse(p.start)), -Infinity);
+    // 前倒しの更新で記録した、まだ始まっていない期間は比べる相手にしない（`claimAppStoreLink` の注記）
+    const now = Date.now();
+    const latest = s.periods.reduce((m, p) => {
+        const start = Date.parse(p.start);
+        return start <= now ? Math.max(m, start) : m;
+    }, -Infinity);
     return Number.isFinite(latest) ? latest : undefined;
 }
 
@@ -128,6 +133,14 @@ const linkRevCondition = (rev: number) => (rev === 0
  * 比べる相手は行の `lastPurchaseDate`。無い古い行は今の持ち主の期間の始まり
  * （`legacyLatestPurchase`）。どちらも分からなければ今までどおり移す。
  *
+ * **未来の purchaseDate は今の時刻に抑えて覚える**。Apple は自動更新を期限の最大 24 時間前に
+ * 請求し、更新の取引の purchaseDate は新しい期間の始まり（未来）になる。そのまま覚えると、
+ * 期限の前に同じ Apple ID で別のアカウントが申し込み直した（アップグレードした）取引が「古い」
+ * と見なされ、払ったのに Pro にならなかった。古い行の代わり（`legacyLatestPurchase`）も、
+ * まだ始まっていない期間は使わない。
+ * 抑えたぶん、前の持ち主の未来の更新の取引が後から届くと「新しい」と見なされうるので、
+ * **取り消された（`revocationDate`）・置き換わった（`isUpgraded`）取引（`superseded`）では移さない**。
+ *
  * **移したら前の人の Pro をその場で終える**（`endPreviousOwnerAccess`）。前の人の token の付いた
  * 知らせは以後捨てられる（`purchases.ts`）ので、放っておくと元の期限まで Pro が残っていた
  *
@@ -136,9 +149,11 @@ const linkRevCondition = (rev: number) => (rev === 0
  */
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
-    opts: { tokenIsMine?: boolean; purchaseDate?: number } = {},
+    opts: { tokenIsMine?: boolean; purchaseDate?: number; superseded?: boolean } = {},
 ): Promise<"ok" | "other"> {
     const incoming = typeof opts.purchaseDate === "number" && Number.isFinite(opts.purchaseDate) ? opts.purchaseDate : undefined;
+    /** 行に覚える時刻（未来の purchaseDate は今に抑える） */
+    const stamp = incoming !== undefined ? Math.min(incoming, Date.now()) : undefined;
     for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
         const existing = await readAppStoreLink(originalTransactionId);
         if (!existing) {
@@ -152,7 +167,7 @@ export async function claimAppStoreLink(
                         createdAt: new Date().toISOString(),
                         seen: [],
                         rev: 1,
-                        ...(incoming !== undefined ? { lastPurchaseDate: incoming } : {}),
+                        ...(stamp !== undefined ? { lastPurchaseDate: stamp } : {}),
                     },
                     ConditionExpression: "attribute_not_exists(userId)",
                 }));
@@ -165,18 +180,18 @@ export async function claimAppStoreLink(
 
         if (existing.ownerId === userId) {
             // 同じ人がより新しい取引を送ってきた → 比べる時刻を進める（落ちても結び付けはこの人のまま）
-            if (incoming === undefined || (existing.lastPurchaseDate !== undefined && !(incoming > existing.lastPurchaseDate))) return "ok";
+            if (stamp === undefined || (existing.lastPurchaseDate !== undefined && !(stamp > existing.lastPurchaseDate))) return "ok";
             try {
                 const res = await ddb.send(new GetCommand({
                     TableName: USERS_TABLE, Key: { userId: appStoreLinkKey(originalTransactionId) }, ConsistentRead: true,
                 }));
                 const row = res.Item as Record<string, unknown> | undefined;
                 if (!row || row.ownerId !== userId) continue;
-                if (typeof row.lastPurchaseDate === "number" && !(incoming > row.lastPurchaseDate)) return "ok";
+                if (typeof row.lastPurchaseDate === "number" && !(stamp > row.lastPurchaseDate)) return "ok";
                 const rev = typeof row.rev === "number" ? row.rev : 0;
                 await ddb.send(new PutCommand({
                     TableName: USERS_TABLE,
-                    Item: { ...row, lastPurchaseDate: incoming, rev: rev + 1 },
+                    Item: { ...row, lastPurchaseDate: stamp, rev: rev + 1 },
                     ...linkRevCondition(rev),
                 }));
                 return "ok";
@@ -188,6 +203,11 @@ export async function claimAppStoreLink(
         }
 
         if (!opts.tokenIsMine) return "other";
+        // 取り消された・アップグレードで置き換わった取引では移さない（もう効いていない取引）
+        if (opts.superseded) {
+            console.warn(`claimAppStoreLink: ${originalTransactionId} の ${userId} の取引は取り消し・置き換え済みなので移しません`);
+            return "other";
+        }
         // 今の結び付けを決めた取引より新しいときだけ移す
         const reference = existing.lastPurchaseDate ?? await legacyLatestPurchase(existing.ownerId, originalTransactionId);
         if (incoming !== undefined && reference !== undefined && !(incoming > reference)) {
@@ -205,7 +225,7 @@ export async function claimAppStoreLink(
                     previousOwnerId: existing.ownerId,
                     seen: existing.seen,
                     rev: existing.rev + 1,
-                    ...(incoming !== undefined ? { lastPurchaseDate: incoming } : {}),
+                    ...(stamp !== undefined ? { lastPurchaseDate: stamp } : {}),
                 },
                 // 読んだときの行のままなら移す（同時に別の付け替え・知らせの記録が来たら読み直す）
                 ...linkRevCondition(existing.rev),
