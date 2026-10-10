@@ -594,6 +594,23 @@ describe("付け替えが2回以上でも、token の無い古い取引はその
             expect(db.get("u3")).toEqual(before.u3);
         });
 
+        if (via === "notify") {
+            it("notify: u1 → u2 → u3 で u1 の最初の取引の返金が取り消されたら（REFUND_REVERSED）u1 の期間を戻す（u2・u3 は変わらない）", async () => {
+                const before = await twoTransfers("u3");
+                expect((await send("u3", refundedOffer(), "r-4")).statusCode).toBe(200);
+                expect(periodEnd("u1", "2000000000000001")).toBe(new Date(T0 + 2 * DAY).toISOString());
+                // 返金の取り消し。取引に revocationDate は付かない
+                const reversed = offer({ signedDate: RS3 + 2 * DAY });
+                vi.setSystemTime(RS3 + 2 * DAY + MIN);
+                const res = await notify(notificationJws({ type: "REFUND_REVERSED", tx: reversed, uuid: "rr-1" }));
+                expect(res.statusCode, res.body).toBe(200);
+                expect(periodEnd("u1", "2000000000000001")).toBe(new Date(reversed.expiresDate as number).toISOString());
+                expect(db.get("u2")).toEqual(before.u2);
+                expect(db.get("u3")).toEqual(before.u3);
+                expect(pro("u3")).toBe(true);
+            });
+        }
+
         it(`${via}: 返金でない古い token の無い取引は誰にも書かない（200）`, async () => {
             const before = await twoTransfers("u3");
             const linkBefore = db.get(OTX)!;
