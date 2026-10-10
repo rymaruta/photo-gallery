@@ -196,6 +196,20 @@ export type UserProfile = {
      */
     verified?: boolean;
     /**
+     * 本人が認証済みの印を**外している**（2026-10-10 owner「メダルと同様に取り外しできるように」）。
+     *
+     * **資格（`verified`）とは別の項目。** 本人が書けるのはこちらだけで、外しても `verified` は
+     * 残る——付け直せば（`false` を送れば）また出る。資格を付ける・剥がすのは運営だけのまま
+     * （`scripts/set-verified.js`）。
+     *
+     * 2026-10-10 判断: 名前は `hideVerified` でなく `verifiedMarkOff`。owner の言い方が「隠す」でなく
+     * 「取り外す」で、資格ではなく**印**の付け外しであることを名前に出す。
+     * 行には `true` のときだけ置く（`false` は項目ごと消す＝既定の「付けている」）。
+     * 公開プロフィールは `verified && !verifiedMarkOff` を `verified` として返す（`toPublicProfile`）。
+     * 古いアプリ・Web はこの項目を知らなくても、`verified` が立っていないので印を出さない
+     */
+    verifiedMarkOff?: boolean;
+    /**
      * 手に入れたメダル（`badgeKeys.ts`）。**本人からは書けない**（`verified` と同じ）。
      * 書くのはサーバーの数え直し（`badgeStore.ts`）と運営の台本だけ。
      */
@@ -524,6 +538,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         songs?: unknown;
         displayBadge?: unknown; proMarkStyle?: unknown;
         lightAlert?: unknown;
+        verifiedMarkOff?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -699,7 +714,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
      * - `displayBadge`: `null` / `""` で外す。鍵は**本人が持っているものだけ**
      *   （持っているかは下の書き込みループで、**そのとき読んだ行**の `badges` で見る）。
      *   知らない鍵・持っていない鍵は 400——黙って落とすと「選んだのに出ない」になる
-     * - `proMarkStyle`: `"iris"` / `"plate"` だけ。`null` / `""` で既定（iris）に戻す
+     * - `proMarkStyle`: `"iris"` / `"plate"` / `"none"`（印を外す）だけ。`null` / `""` で既定（iris）に戻す
      * - **`badges` そのものは受け取らない**（`verified` と同じ。受け取ると誰でも自分に付けられる）
      */
     const hasDisplayBadgeKey = "displayBadge" in body;
@@ -722,6 +737,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     const hasLightAlertKey = "lightAlert" in body;
     if (hasLightAlertKey && typeof body.lightAlert !== "boolean") {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "知らせの設定が不正です" }) };
+    }
+    /**
+     * 認証済みの印を外す（`verifiedMarkOff`）。**真偽だけ受ける**（`lightAlert` と同じく、文字の
+     * "true" を黙って読み替えない）。`true` だけ行に置き、`false` は消す（付け直す）。
+     * `verified` そのものは受け取らない——印を外せても、資格を自分に付けることはできない
+     */
+    const hasVerifiedMarkOffKey = "verifiedMarkOff" in body;
+    if (hasVerifiedMarkOffKey && typeof body.verifiedMarkOff !== "boolean") {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証済みの印の設定が不正です" }) };
     }
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
@@ -854,6 +878,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("displayBadge", hasDisplayBadgeKey, displayBadge);
     apply("proMarkStyle", hasProMarkStyleKey, proMarkStyle);
     apply("lightAlert", hasLightAlertKey, body.lightAlert === false ? false : undefined);
+    apply("verifiedMarkOff", hasVerifiedMarkOffKey, body.verifiedMarkOff === true ? true : undefined);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -1095,7 +1120,8 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
  * （`badges`・`displayBadge`・`pro`・`proMarkStyle`・`supporter`）。公開プロフィールと同じ
  * `badgeFields` を通す。
  * **行の `supporter` は生のまま出さない**（取引の番号・期間が入っている。本人の応答でも
- * 公開と同じ `{ number, since, months }` だけ）。
+ * `{ number, since, months, sandbox? }` だけ）。公開と違うのは、本番に来た Sandbox（TestFlight）の
+ * 記録も `sandbox: true`・`months: 0` で載せること（`badgeFields` の `owner: true`。2026-10-10）。
  */
 function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
     // 行の生の項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
@@ -1103,13 +1129,36 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
     delete rest.badges;
     delete rest.displayBadge;
     delete rest.proMarkStyle;
-    delete rest.supporter;
+    // 生の `supporter` は本人向けの形（`owner: true`）に置き換える。下の公開の形の `badgeFields` は、
+    // 載せるときは同じ値・Sandbox のときは項目ごと出さないので、ここの値がそのまま残る。
+    // 2026-10-10 判断: 下の return の行を変えないのは、別の枝（`claude/removable-name-marks`）が
+    // そのすぐ上に行を足していて、同じ所を触ると合わせるときにぶつかるから
+    rest.supporter = badgeFields(p as { supporter?: unknown }, Date.now(), { owner: true }).supporter;
+
     // 光と天気の知らせ: 行に無ければ「受け取る」。本人の応答には常に真偽で載せる
     rest.lightAlert = (p as { lightAlert?: unknown }).lightAlert !== false;
+    // 認証済みの印を外しているか: 本人の応答には常に真偽で載せる（名前の横の画面の初期値）。
+    // 本人の応答の `verified` は資格のまま（外していても true）——画面は両方を見て決める
+    rest.verifiedMarkOff = (p as { verifiedMarkOff?: unknown }).verifiedMarkOff === true;
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
 }
 
-export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
+/**
+ * 公開プロフィール。**名前の横の印は、本人が外していれば出さない形で返す**（2026-10-10）:
+ *
+ * - 認証済みの印を外している（`verifiedMarkOff`）→ `verified` を出さない
+ * - Pro の印を外している（`proMarkStyle: "none"`）→ `pro: false`・`proMarkStyle: "iris"`
+ *
+ * 2026-10-10 判断: 外した値（"none"・`verifiedMarkOff`）をそのまま渡して画面に任せる形にしない。
+ * **古いアプリ・Web は "none" を絞り羽根として読み**、`verifiedMarkOff` を知らないので、
+ * 他の人の画面に外したはずの印が出る。資格の項目そのものを落とせば、どの版でも出ない。
+ * 他人の `pro` を印のほか（機能の判定）に使っているクライアントは無い（iOS・Web とも、
+ * 機能の判定は自分のプロフィールの応答で見る）。`verifiedMarkOff` 自体も公開しない。
+ *
+ * `owner: true` は**本人に返すとき**（`purchases.ts` の購入の応答）。資格をそのまま返す
+ * （外していても Pro は Pro。買った直後に「Pro でない」と返さない）
+ */
+export function toPublicProfile(p: UserProfile, opts: { owner?: boolean } = {}): Partial<UserProfile> {
     const {
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
@@ -1125,7 +1174,20 @@ export function toPublicProfile(p: UserProfile): Partial<UserProfile> {
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
         // メダルと Pro（`badgeKeys.ts` の形）。`supporter` は公開してよい3項目だけ
         ...badgeFields(p),
+        // 本人が外した印（上の注記）
+        ...(opts.owner ? {} : withoutRemovedMarks(p)),
     });
+}
+
+/** 本人が外した印を、公開の形から落とす分（`toPublicProfile` の注記） */
+function withoutRemovedMarks(p: UserProfile): Partial<UserProfile> {
+    const out: Partial<UserProfile> = {};
+    if (p.verifiedMarkOff === true) out.verified = undefined;
+    if (p.proMarkStyle === "none") {
+        out.pro = false;
+        out.proMarkStyle = "iris";
+    }
+    return out;
 }
 
 export const getPublicProfile: APIGatewayProxyHandlerV2 = async (event) => {
