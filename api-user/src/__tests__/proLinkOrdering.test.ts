@@ -436,3 +436,78 @@ describe("監査の並び", () => {
         expect(db.get(OTX)).toMatchObject({ ownerId: "u1" });
     });
 });
+
+// ─── 付け替えより前の、token の無い取引（オファーコード・設定からの申し込み直し） ─────────────
+
+describe("付け替えより前の token の無い取引は、今の持ち主に重ねない", () => {
+    /** u1 がオファーコードで使い始めた取引（token なし・10月） */
+    const offer = (over: Tx = {}): Tx => txPayload(over);
+    /** u1 の返金（取り消しは T0+2日・知らせは u2 の付け替えのあと） */
+    const refunded = (): Tx => offer({ revocationDate: T0 + 2 * DAY, revocationReason: 0, signedDate: RS + DAY });
+
+    /** u1 がコードで使い始め → 期限切れ → u2 が同じ Apple ID で自分の token で申し込み直す（付け替え） */
+    async function transferAfterOffer() {
+        db.set({ userId: "u1", rev: 1 });
+        db.set({ userId: "u2", rev: 1 });
+        expect((await purchase("u1", signJws(offer()))).statusCode).toBe(200);
+        expect(db.get(OTX)).toMatchObject({ ownerId: "u1" });
+        vi.setSystemTime(RS + MIN);
+        expect((await purchase("u2", signJws(RS2()))).statusCode).toBe(200);
+        expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+        vi.setSystemTime(RS + DAY + MIN);
+        return { u2Before: db.get("u2")!, u1Before: db.get("u1")! };
+    }
+    const u1PeriodEnd = () => ((supporterOf("u1").periods ?? []) as unknown as { id: string; end: string }[])
+        .find((x) => x.id === "2000000000000001")?.end;
+
+    it("付け替えた取引の鍵を transferKey に覚える", async () => {
+        await transferAfterOffer();
+        expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1", transferKey: RS, lastPurchaseDate: RS });
+    });
+
+    for (const type of ["REFUND", "REFUND_DECLINED", "CONSUMPTION_REQUEST"]) {
+        it(`知らせ ${type}: u2 の期間・月数・メダルは変わらない`, async () => {
+            const { u2Before, u1Before } = await transferAfterOffer();
+            const tx = type === "REFUND" ? refunded() : offer({ signedDate: RS + DAY });
+            expect((await notify(notificationJws({ type, tx, uuid: `n-${type}` }))).statusCode).toBe(200);
+            expect(db.get("u2")).toEqual(u2Before);
+            expect(pro("u2")).toBe(true);
+            expect(db.get(OTX)).toMatchObject({ ownerId: "u2", seen: [`n-${type}`] });
+            if (type === "REFUND") {
+                // 返金は前の持ち主の期間を切る
+                expect(u1PeriodEnd()).toBe(new Date(T0 + 2 * DAY).toISOString());
+            } else {
+                expect(db.get("u1")).toEqual(u1Before);
+            }
+        });
+    }
+
+    it("POST: u2 の端末が古い token の無い取引を送っても、書かずに 200（u2 は変わらない）", async () => {
+        const { u2Before, u1Before } = await transferAfterOffer();
+        const linkBefore = db.get(OTX);
+        const res = await purchase("u2", signJws(offer({ signedDate: RS + DAY })));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(JSON.parse(res.body)).toMatchObject({ userId: "u2" });
+        expect(db.get("u2")).toEqual(u2Before);
+        expect(db.get("u1")).toEqual(u1Before);
+        expect(db.get(OTX)).toEqual(linkBefore);
+    });
+
+    it("POST: 古い token の無い取引が取り消し済みなら、前の持ち主の期間を切る（u2 は変わらない）", async () => {
+        const { u2Before } = await transferAfterOffer();
+        const res = await purchase("u2", signJws(refunded()));
+        expect(res.statusCode, res.body).toBe(200);
+        expect(db.get("u2")).toEqual(u2Before);
+        expect(u1PeriodEnd()).toBe(new Date(T0 + 2 * DAY).toISOString());
+        expect(db.get(OTX)).toMatchObject({ ownerId: "u2", previousOwnerId: "u1" });
+    });
+
+    it("付け替えより後の token の無い取引（u2 が設定から申し込み直した等）は u2 に重ねる", async () => {
+        await transferAfterOffer();
+        const later = offer({ transactionId: "2000000000000050", purchaseDate: RS + 31 * DAY, expiresDate: RS + 62 * DAY, signedDate: RS + 31 * DAY + 1000 });
+        vi.setSystemTime(RS + 31 * DAY + MIN);
+        expect((await purchase("u2", signJws(later))).statusCode).toBe(200);
+        expect((supporterOf("u2").periods ?? []).map((p) => p.id)).toContain("2000000000000050");
+        expect(pro("u2")).toBe(true);
+    });
+});
