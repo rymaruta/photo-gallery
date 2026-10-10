@@ -10,7 +10,7 @@
  *     badges:       { [鍵]: { tier: number, at: string(ISO), year?: number } }   無ければ項目ごと出さない
  *     displayBadge: 鍵 | null                                     持っている鍵だけ
  *     pro:          boolean                                      Pro が今有効なときだけ true（`isPro`）
- *     proMarkStyle: "iris" | "plate"                             既定 "iris"
+ *     proMarkStyle: "iris" | "plate" | "none"                    既定 "iris"。"none" は印を外している
  *     supporter:    { number, since, months }                    サポーター番号を持つ人だけ（`supporter.ts`）
  *
  * ## 鍵の種類（第2段階で Pro の鍵を足した）
@@ -81,7 +81,16 @@ export function maxTierOf(key: BadgeKey): number {
     return parseProSeasonKey(key) ? 1 : MAX_TIER[key as FixedBadgeKey];
 }
 
-export const PRO_MARK_STYLES = ["iris", "plate"] as const;
+/**
+ * Pro の印の形。**`"none"` は本人が印を外している**（2026-10-10 owner「メダルと同様に取り外しできるように」）。
+ * 外しても Pro の資格（`pro`）はそのまま。いつでも形を選び直せば付け直せる。
+ *
+ * 2026-10-10 判断: 「外す」は形の値の1つとして持つ（別の真偽を足さない）。名前の横の画面で
+ * 「絞り羽根／PRO／外す」を1つの並びから選ぶので、値も1つにまとめた方が食い違わない。
+ * **古いアプリ・Web は "none" を知らない**（絞り羽根として読む）ので、公開プロフィールでは
+ * "none" の人を `pro: false`・`proMarkStyle: "iris"` にして返す（`userProfile.ts` の `toPublicProfile`）
+ */
+export const PRO_MARK_STYLES = ["iris", "plate", "none"] as const;
 export type ProMarkStyle = (typeof PRO_MARK_STYLES)[number];
 export const DEFAULT_PRO_MARK_STYLE: ProMarkStyle = "iris";
 
