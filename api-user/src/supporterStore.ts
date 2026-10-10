@@ -12,7 +12,9 @@
  *                                            lastPurchaseDate?（結び付けを最後に決めた取引の鍵・ms。
  *                                              `supporter.ts` の `transactionOrderKey`＝min(purchaseDate, signedDate, 今)。
  *                                              名前は前のまま＝古い行もそのまま読める）,
- *                                            previousOwnerId?（付け替えたときだけ。前の持ち主の Pro はその場で終える） }
+ *                                            previousOwnerId?（付け替えたときだけ。前の持ち主の Pro はその場で終える）,
+ *                                            transferKey?（付け替えた取引の鍵・ms。付け替えたときだけ置き、鍵が進んでも動かさない。
+ *                                              これより古い token の無い取引は前の持ち主のもの＝`staleTokenlessOwner`） }
  *
  * `#` を含む行は人ではない（検索・台本・公開プロフィールは `#` を弾く）。
  *
@@ -86,7 +88,23 @@ export type AppStoreLink = {
     lastPurchaseDate?: number;
     /** 付け替えたときの前の持ち主 */
     previousOwnerId?: string;
+    /** 付け替えた取引の鍵（`transactionOrderKey`・ms）。無いのは付け替えていない行か、この欄より前に付け替えた行 */
+    transferKey?: number;
 };
+
+/**
+ * **付け替えより前の、token の無い取引**なら前の持ち主を返す（無ければ undefined）。
+ *
+ * token の無い取引（オファーコード・設定からの申し込み直し）は誰が買ったか分からない。付け替えのあとに
+ * 前の持ち主の古い取引（返金・返金の却下・CONSUMPTION_REQUEST の知らせ、端末からの送り直し）が来ても、
+ * 今の持ち主に重ねると、前の持ち主の期間で季節の章・月数・続けた年が付いてしまう。
+ * 鍵が付け替えた取引の鍵より古ければ前の持ち主のものとみなす。
+ * `transferKey` の無い行・鍵の分からない取引では今までどおり（undefined）
+ */
+export function staleTokenlessOwner(link: AppStoreLink, tokenIsEmpty: boolean, key: number | undefined): string | undefined {
+    if (!tokenIsEmpty || !link.previousOwnerId || link.transferKey === undefined || key === undefined) return undefined;
+    return key < link.transferKey ? link.previousOwnerId : undefined;
+}
 
 function parseLink(it: Record<string, unknown> | undefined): AppStoreLink | null {
     if (!it || typeof it.ownerId !== "string" || !it.ownerId) return null;
@@ -97,6 +115,7 @@ function parseLink(it: Record<string, unknown> | undefined): AppStoreLink | null
         rev: typeof it.rev === "number" ? it.rev : 0,
         ...(typeof it.lastPurchaseDate === "number" && Number.isFinite(it.lastPurchaseDate) ? { lastPurchaseDate: it.lastPurchaseDate } : {}),
         ...(typeof it.previousOwnerId === "string" && it.previousOwnerId ? { previousOwnerId: it.previousOwnerId } : {}),
+        ...(typeof it.transferKey === "number" && Number.isFinite(it.transferKey) ? { transferKey: it.transferKey } : {}),
     };
 }
 
@@ -190,7 +209,9 @@ export async function advanceAppStoreLinkKey(originalTransactionId: string, owne
  *    鍵が行の鍵より大きい。移したら前の持ち主の Pro をその場で終える（`endPreviousOwnerAccess`）
  * 4. 同じ持ち主の送り直しは鍵を戻さない。置き換え済みの取引は鍵を進めない
  * 5. 鍵の無い古い行は `legacyLatestPurchase` と比べる。それも分からなければ今までどおり移す
- * 6. **付け替えの書き込みで負けたら読み直して決め直す**（相手の鍵の方が新しければ "other"、
+ * 6. 同じ持ち主でも、**付け替えより前の token の無い取引**（`staleTokenlessOwner`）なら
+ *    `{ previousOwnerId }` を返す（今の持ち主に重ねない・鍵も進めない）
+ * 7. **付け替えの書き込みで負けたら読み直して決め直す**（相手の鍵の方が新しければ "other"、
  *    この人の方が新しければ移す）。競合が続いて決めきれなければ "conflict"（code の無い 409・やり直せば通る）
  *
  * 知らせ（App Store Server Notifications）では持ち主を移さない（`endOwnerForNewerTransaction`）。
@@ -201,10 +222,12 @@ export async function advanceAppStoreLinkKey(originalTransactionId: string, owne
  *
  * 書き込みは行の rev を条件にする（間に入った `rememberNotification`・別の付け替えを消さない）。
  */
+export type ClaimResult = "ok" | "other" | "conflict" | { previousOwnerId: string };
+
 export async function claimAppStoreLink(
     originalTransactionId: string, userId: string, environment: AppStoreEnvironment,
     opts: { tokenIsMine?: boolean; purchaseDate?: number; signedDate?: number; superseded?: boolean } = {},
-): Promise<"ok" | "other" | "conflict"> {
+): Promise<ClaimResult> {
     const key = transactionOrderKey(opts);
     /** 行に覚える鍵。取り消し・置き換え済みの取引では覚えない */
     const claimKey = opts.superseded ? undefined : key;
@@ -234,6 +257,9 @@ export async function claimAppStoreLink(
         const existing = cur.link;
 
         if (existing.ownerId === userId) {
+            // 付け替えより前の token の無い取引（前の持ち主のもの）。今の持ち主には重ねない
+            const previousOwnerId = staleTokenlessOwner(existing, !opts.tokenIsMine, key);
+            if (previousOwnerId) return { previousOwnerId };
             // 同じ人: より新しい効いている取引なら鍵を進める（落ちても結び付けはこの人のまま）
             if (claimKey !== undefined) {
                 try {
@@ -266,7 +292,7 @@ export async function claimAppStoreLink(
                     previousOwnerId: existing.ownerId,
                     seen: existing.seen,
                     rev: existing.rev + 1,
-                    ...(key !== undefined ? { lastPurchaseDate: key } : {}),
+                    ...(key !== undefined ? { lastPurchaseDate: key, transferKey: key } : {}),
                 },
                 // 読んだときの行のままなら移す（同時に別の付け替え・知らせの記録が来たら読み直す）
                 ...linkRevCondition(existing.rev),
@@ -391,6 +417,13 @@ export async function rememberNotification(originalTransactionId: string, notifi
         }
     }
     console.warn(`rememberNotification: 競合が続いたので覚えられませんでした（${originalTransactionId}）`);
+}
+
+/** プロフィールの行を読むだけ（書かない）。墓石なら "deleted" */
+export async function readProfileRow(userId: string): Promise<Record<string, unknown> | "deleted" | undefined> {
+    const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId }, ConsistentRead: true }));
+    const row = res.Item as Record<string, unknown> | undefined;
+    return isDeletedProfile(row) ? "deleted" : row;
 }
 
 export type ApplyOutcome =

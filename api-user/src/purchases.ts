@@ -49,6 +49,10 @@
  *     新しい側が Pro になるのは、そのアプリが POST したとき
  *   - 前の持ち主（`previousOwnerId`）の取引の返金・取り消し → 前の持ち主の期間を切る
  *   - それ以外 → 捨てる（持ち主の行に書かない）
+ * - **付け替えより前の token の無い取引**（行の `transferKey` より古い・`staleTokenlessOwner`）は
+ *   前の持ち主のもの。今の持ち主に重ねない（知らせも POST も）:
+ *   - 返金・取り消し → 前の持ち主の期間を切る
+ *   - それ以外 → 捨てる（POST は書かずに 200＝今のプロフィールを返す。アプリは取引を終える）
  * - 持ち主（か token の無い）の、効いている、より新しい取引の知らせは、行の鍵を進める
  */
 import type { APIGatewayProxyHandlerV2, APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
@@ -59,7 +63,7 @@ import {
 } from "./appStore";
 import {
     advanceAppStoreLinkKey, applyToProfile, claimAppStoreLink, endOwnerForNewerTransaction, forgetAppStoreLinks,
-    readAppStoreLink, rememberNotification,
+    readAppStoreLink, readProfileRow, rememberNotification, staleTokenlessOwner,
 } from "./supporterStore";
 import { isSupersededTransaction, transactionOrderKey } from "./supporter";
 import type { SupporterEvent } from "./supporter";
@@ -69,6 +73,12 @@ import type { UserProfile } from "./userProfile";
 /** JWS の長さの上限（実物は数KB。証明書3枚ぶん） */
 const MAX_JWS_LENGTH = 32_000;
 const AUTO_RENEWABLE = "Auto-Renewable Subscription";
+
+const profileResponse = (row: Record<string, unknown>) => ({
+    statusCode: 200,
+    headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
+    body: JSON.stringify(toPublicProfile(row as unknown as UserProfile)),
+});
 
 /**
  * ファミリー共有で受け取った取引か。**Pro・サポーター番号・メダルは買った本人だけ**
@@ -140,6 +150,20 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         }
         // 結び付けの書き込みが競合し続けた。code を付けない（アプリは取引を終えず、やり直す）
         if (claimed === "conflict") return jsonError(409, "他の変更と重なりました。もう一度お試しください");
+        if (typeof claimed === "object") {
+            // 付け替えより前の token の無い取引（前の持ち主のもの）。この人には書かない。
+            // 返金・取り消しなら前の持ち主の期間を切る（知らせの前の持ち主の返金と同じ）
+            if (facts.revocationDate !== undefined) {
+                const prev = await applyToProfile(claimed.previousOwnerId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: false });
+                if (prev.status === "conflict") return jsonError(409, "他の変更と重なりました。もう一度お試しください");
+                console.log(`recordPurchase: 付け替えより前の取引の取り消しを前の持ち主に反映しました（${prev.status}）（${userId}）`);
+            } else {
+                console.log(`recordPurchase: 付け替えより前の token の無い取引なので書きません（${userId}）`);
+            }
+            const row = await readProfileRow(userId);
+            if (row === "deleted") return jsonError(410, "このアカウントは削除されています");
+            return profileResponse(row ?? { userId });
+        }
         const out = await applyToProfile(userId, { kind: "PURCHASE", tx: facts, signedAt: facts.signedDate }, { createIfMissing: true });
         if (out.status === "deleted") {
             // 退会済みの人（消す前に配ったトークンがまだ通る・退会と同時に来た購入）に結び付けを
@@ -151,11 +175,7 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
         }
         if (out.status !== "saved") return jsonError(409, "他の変更と重なりました。もう一度お試しください");
         if (out.ignored) console.log(`recordPurchase: ${out.ignored}（${userId}）`);
-        return {
-            statusCode: 200,
-            headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-            body: JSON.stringify(toPublicProfile(out.row as unknown as UserProfile)),
-        };
+        return profileResponse(out.row);
     } catch (e) {
         console.error("recordPurchase error:", e);
         return jsonError(500, "購入の記録に失敗しました");
@@ -229,6 +249,22 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
             ...(renewalFacts(renewal) ? { renewal: renewalFacts(renewal) } : {}),
             signedAt: typeof notification.signedDate === "number" ? notification.signedDate : facts.signedDate,
         };
+        const staleOwner = staleTokenlessOwner(link, token === "", key);
+        if (staleOwner) {
+            // 付け替えより前の token の無い取引（前の持ち主のもの）。今の持ち主には書かない
+            if (facts.revocationDate !== undefined) {
+                const prev = await applyToProfile(staleOwner, ev, { createIfMissing: false });
+                if (prev.status === "conflict") {
+                    console.error(`appStoreNotification: 競合が続いて前の持ち主に書けませんでした ${label}`);
+                    return jsonError(500, "retry");
+                }
+                console.log(`appStoreNotification: 付け替えより前の token の無い取引の取り消しを前の持ち主に反映しました（${prev.status}）${label}`);
+            } else {
+                console.log(`appStoreNotification: 付け替えより前の token の無い取引なので捨てます ${label}`);
+            }
+            if (uuid) await rememberNotification(facts.originalTransactionId, uuid);
+            return ok();
+        }
         if (token && token !== appAccountTokenFor(link.ownerId)) {
             // 持ち主ではない人の取引。持ち主を移さない。持ち主の行に書くのは Pro を終えるときだけ
             if (facts.revocationDate !== undefined && link.previousOwnerId && token === appAccountTokenFor(link.previousOwnerId)) {
