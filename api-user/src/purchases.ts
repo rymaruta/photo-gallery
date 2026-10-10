@@ -5,7 +5,7 @@
  * ## POST /user/purchases（認証必要）
  *
  *     要求  { "signedTransaction": "<Transaction.jwsRepresentation>" }
- *     200   公開プロフィール（`toPublicProfile`。`pro`・`supporter: { number, since, months }`・`badges` を含む）
+ *     200   公開プロフィールの形（`toPublicProfile(…, { owner: true })`・外した印も資格どおり。`pro`・`supporter: { number, since, months }`・`badges` を含む）
  *     400   形が違う・署名を確かめられない・売っていない商品・自動更新でない
  *     401   認証なし
  *     403   appAccountToken がこの人のものではない（別のアカウントで買われた・退会して作り直した
@@ -77,7 +77,8 @@ const AUTO_RENEWABLE = "Auto-Renewable Subscription";
 const profileResponse = (row: Record<string, unknown>) => ({
     statusCode: 200,
     headers: { ...JSON_HEADERS, "Cache-Control": "private, no-store" },
-    body: JSON.stringify(toPublicProfile(row as unknown as UserProfile)),
+    // 買った本人への応答: 本人が外した印があっても資格はそのまま返す（`toPublicProfile` の注記）
+    body: JSON.stringify(toPublicProfile(row as unknown as UserProfile, { owner: true })),
 });
 
 /**
