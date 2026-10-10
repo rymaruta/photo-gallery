@@ -251,8 +251,9 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         };
         const staleOwner = staleTokenlessOwner(link, token === "", key);
         if (staleOwner) {
-            // 付け替えより前の token の無い取引（前の持ち主のもの）。今の持ち主には書かない
-            if (facts.revocationDate !== undefined) {
+            // 付け替えより前の token の無い取引（前の持ち主のもの）。今の持ち主には書かない。
+            // 返金・取り消しと、その取り消し（REFUND_REVERSED・revocationDate が付かない）は前の持ち主へ
+            if (facts.revocationDate !== undefined || type === "REFUND_REVERSED") {
                 const prev = await applyToProfile(staleOwner, ev, { createIfMissing: false });
                 if (prev.status === "conflict") {
                     console.error(`appStoreNotification: 競合が続いて前の持ち主に書けませんでした ${label}`);
@@ -268,7 +269,7 @@ export const appStoreNotification: APIGatewayProxyHandlerV2 = async (event) => {
         if (token && token !== appAccountTokenFor(link.ownerId)) {
             // 持ち主ではない人の取引。持ち主を移さない。持ち主の行に書くのは Pro を終えるときだけ
             // 前に持っていた人（1つ前に限らない・`owners`）のうち、token が合う人
-            const pastOwner = facts.revocationDate !== undefined
+            const pastOwner = facts.revocationDate !== undefined || type === "REFUND_REVERSED"
                 ? [link.previousOwnerId, ...linkOwnerHistory(link).map((o) => o.ownerId)]
                     .find((u): u is string => !!u && token === appAccountTokenFor(u))
                 : undefined;
