@@ -19,9 +19,14 @@
  *   rev を見て全置換するので、上げないと古い姿で上書きされてメダルが消える
  *   （`api-user/src/badgeStore.ts` と同じ書き方）
  * - 対象は確認済み（`CONFIRMED` など `UNCONFIRMED` 以外）で、無効にされていない人
+ * - **写真を1枚でも投稿したことがある人だけ**（2026-10-09 owner:「1枚でも写真投稿したことある人という
+ *   条件増やす」）。登録しただけで使っていない人には付けない。締め切り後に流し直したときも、
+ *   その時点で1枚あれば付く
  */
 
 const REGION = "ap-northeast-1";
+/** 写真の表の「人ごと」の索引（`api-user/src/dynamodb.ts` の USER_INDEX と同じ） */
+const USER_INDEX = "userId-createdAt-index";
 
 /** 締め切り（この時刻ちょうどまでに登録した人が対象） */
 const CUTOFF_ISO = "2026-10-31T23:59:59+09:00";
@@ -47,6 +52,23 @@ function selectEarlyUsers(users, cutoffMs = CUTOFF_MS) {
         out.push({ sub: u.sub, t });
     }
     return out.sort((a, b) => a.t - b.t).map((x) => x.sub);
+}
+
+/**
+ * 写真を1枚でも持っている人だけに絞る（純関数）。`counts` は userId → 枚数
+ */
+function keepPosters(userIds, counts) {
+    return (userIds ?? []).filter((id) => (counts?.[id] ?? 0) >= 1);
+}
+
+/** その人の写真が1枚でもあるか（1件だけ読む） */
+async function photoCount(ddb, QueryCommand, table, userId) {
+    const q = await ddb.send(new QueryCommand({
+        TableName: table, IndexName: USER_INDEX,
+        KeyConditionExpression: "userId = :u", ExpressionAttributeValues: { ":u": userId },
+        Limit: 1, ProjectionExpression: "userId",
+    }));
+    return (q.Items ?? []).length;
 }
 
 /**
@@ -86,10 +108,11 @@ async function main() {
     const { requireEnv } = require("./lib/env");
     const { CognitoIdentityProviderClient } = require("@aws-sdk/client-cognito-identity-provider");
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
+    const { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 
     const poolId = requireEnv("COGNITO_USER_POOL_ID");
     const USERS_TABLE = requireEnv("USERS_TABLE");
+    const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
     const APPLY = process.argv.includes("--apply");
 
     const cognito = new CognitoIdentityProviderClient({ region: REGION });
@@ -98,8 +121,12 @@ async function main() {
     });
 
     const users = await listAllUsers(cognito, poolId);
-    const targets = selectEarlyUsers(users);
-    console.log(`Cognito の利用者 ${users.length} 人のうち、${CUTOFF_ISO} までに登録した人: ${targets.length} 人`);
+    const registered = selectEarlyUsers(users);
+    const counts = {};
+    for (const id of registered) counts[id] = await photoCount(ddb, QueryCommand, PHOTOS_TABLE, id);
+    const targets = keepPosters(registered, counts);
+    console.log(`Cognito の利用者 ${users.length} 人のうち、${CUTOFF_ISO} までに登録した人: ${registered.length} 人`);
+    console.log(`  そのうち写真を1枚でも投稿したことがある人（付ける相手）: ${targets.length} 人`);
     console.log(`  先頭の ${Math.min(SHOW, targets.length)} 人: ${targets.slice(0, SHOW).join(", ") || "（なし）"}`);
     if (!APPLY) {
         console.log("  （読むだけ）apply を付けて流すと、この人たちの行に初期ユーザー章を書きます。");
@@ -135,7 +162,7 @@ async function main() {
     if (tally.failed > 0) console.log("  失敗した人は、もう一度流すと拾えます（付いている人は飛ばします）。");
 }
 
-module.exports = { selectEarlyUsers, planGrant, CUTOFF_ISO, CUTOFF_MS };
+module.exports = { selectEarlyUsers, keepPosters, planGrant, CUTOFF_ISO, CUTOFF_MS };
 
 if (require.main === module) {
     main().catch((e) => {
