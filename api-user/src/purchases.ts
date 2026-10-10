@@ -12,7 +12,8 @@
  *           アカウントに古いアカウントの購入が届いた）→ `code: "linked_to_other_account"`
  *     403   ファミリー共有で受け取った権利（`inAppOwnershipType: FAMILY_SHARED`）
  *           → `code: "family_shared_not_supported"`。**Pro は買った本人だけ**（2026-10-09 owner）
- *     409   この購入は別のアカウントに結び付いている（`code: "claimed_by_other_account"`）／
+ *     409   この購入は別のアカウントに結び付いている（`code: "claimed_by_other_account"`。
+ *           自分の token の付いた取引でも、今の結び付けを決めた取引より古ければ移さない）／
  *           書き込みが競合し続けた（code なし・やり直せば通る）
  *     410   退会済み
  *     503   サーバーに App Store の設定が無い
@@ -112,7 +113,10 @@ export const recordPurchase: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     if (typeof facts === "string") return jsonError(400, "購入の情報が足りません");
 
     try {
-        const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, { tokenIsMine: token !== "" });
+        const claimed = await claimAppStoreLink(facts.originalTransactionId, userId, environment, {
+            tokenIsMine: token !== "",
+            purchaseDate: facts.purchaseDate,
+        });
         if (claimed === "other") {
             return jsonError(409, "このサブスクリプションは別のアカウントで使われています", "claimed_by_other_account");
         }
