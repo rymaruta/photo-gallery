@@ -1095,9 +1095,8 @@ function withCheckedSongUrls(p: Partial<UserProfile>): Partial<UserProfile> {
  * （`badges`・`displayBadge`・`pro`・`proMarkStyle`・`supporter`）。公開プロフィールと同じ
  * `badgeFields` を通す。
  * **行の `supporter` は生のまま出さない**（取引の番号・期間が入っている。本人の応答でも
- * 公開と同じ `{ number, since, months }` だけ）。
- * 本人の応答だけは、本番に来た Sandbox（TestFlight）の記録も `sandbox: true` 付きで載せる
- * （`badgeFields` の `owner: true`。2026-10-10）。
+ * `{ number, since, months, sandbox? }` だけ）。公開と違うのは、本番に来た Sandbox（TestFlight）の
+ * 記録も `sandbox: true`・`months: 0` で載せること（`badgeFields` の `owner: true`。2026-10-10）。
  */
 function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFields> {
     // 行の生の項目は落としてから、整えた値を載せる（`badges` が無い人に生の値を残さない）
