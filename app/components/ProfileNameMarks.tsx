@@ -19,10 +19,13 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
+import Link from "next/link";
 import {
-    badgeImage, badgeLabel, badgeDescription, nameBadgeBox, ownedBadges, proMarkImage,
+    badgeImage, badgeLabel, nameBadgeBox, ownedBadges, proMarkImage,
     type BadgeKey, type BadgeMap, type ProMarkStyle,
 } from "../../lib/data/badges";
+import { othersShelf } from "../../lib/data/badgeShelf";
+import MedalShelf from "./MedalShelf";
 
 type Locale = "ja" | "en";
 
@@ -46,26 +49,21 @@ export function ProMark({ pro, style = "iris", size = 20, locale }: {
     );
 }
 
-/** 撮った日付（その段を初めて取った日）。表示は日付まで */
-function formatAt(at: string, locale: Locale): string {
-    const t = Date.parse(at);
-    if (Number.isNaN(t)) return "";
-    try {
-        return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ja-JP", {
-            year: "numeric", month: locale === "en" ? "short" : "long", day: "numeric", timeZone: "Asia/Tokyo",
-        }).format(t);
-    } catch {
-        return "";
-    }
-}
-
-/** その人のメダルの一覧（押したメダルから開く） */
-function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
+/**
+ * その人のメダルの一覧（押したメダルから開く）。**持っているものだけ**（公開プロフィールの `badges`）。
+ *
+ * 2026-10-11 判断: 中身は棚（板 `Shelf.dc.html` の「獲得したメダル」・`MedalShelf`）に**置き換えた**。
+ * 縦の一覧と棚を並べると同じものが2つの形で出るだけになる。下の1行は中身の説明
+ * （人の進み具合は公開されていない）。取った日付は棚の板に無いので落とした。
+ * 自分のページで開いたときだけ、自分の棚（`/user/badges`・進み具合と名前の横の設定）への道を置く
+ */
+function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef, manageHref }: {
     badges: BadgeMap | undefined;
     ownerName: string;
     locale: Locale;
     onClose: () => void;
     restoreRef: React.RefObject<HTMLButtonElement | null>;
+    manageHref?: string;
 }) {
     const dialogRef = useRef<HTMLDivElement | null>(null);
     const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -106,29 +104,19 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
                         {locale === "en" ? "No medals yet." : "まだメダルはありません。"}
                     </p>
                 ) : (
-                    <ul className="overflow-y-auto overscroll-contain px-5 pb-5 divide-y divide-white/5">
-                        {list.map(({ key, tier, at }) => {
-                            // 季節の章で絵の無い年は null → 同じ大きさの空きにする（文字の並びをそろえる）
-                            const medalSrc = badgeImage(key, tier, false);
-                            return (
-                            <li key={key} className="flex items-center gap-3.5 py-3">
-                                {medalSrc ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={medalSrc} alt="" width={56} height={56} loading="lazy" className="shrink-0" style={{ width: 56, height: 56 }} />
-                                ) : (
-                                    <span aria-hidden="true" className="shrink-0" style={{ width: 56, height: 56 }} />
-                                )}
-                                <div className="min-w-0">
-                                    <p className="text-[15px] font-semibold text-white leading-snug">{badgeLabel(key, tier, locale)}</p>
-                                    <p className="text-[13px] text-white/60 leading-snug">{badgeDescription(key, tier, locale)}</p>
-                                    {formatAt(at, locale) && (
-                                        <p className="text-[12px] text-white/50 leading-snug tabular-nums">{formatAt(at, locale)}</p>
-                                    )}
-                                </div>
-                            </li>
-                            );
-                        })}
-                    </ul>
+                    <div className="overflow-y-auto overscroll-contain px-4 pb-4">
+                        <MedalShelf items={othersShelf(badges, locale)} locale={locale} />
+                    </div>
+                )}
+                {manageHref && (
+                    <Link
+                        href={manageHref}
+                        prefetch={false}
+                        className="mx-5 mb-5 inline-flex items-center justify-center text-[13px] text-accent hover:text-accent-strong transition"
+                        style={{ minHeight: 44, touchAction: "manipulation" }}
+                    >
+                        {locale === "en" ? "Medals and name marks →" : "メダルと名前の横の設定 →"}
+                    </Link>
                 )}
             </div>
         </div>
@@ -136,11 +124,13 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef }: {
 }
 
 /** 名前の横の、選んだメダル（押すと一覧） */
-export function NameBadge({ badges, displayBadge, ownerName, locale }: {
+export function NameBadge({ badges, displayBadge, ownerName, locale, manageHref }: {
     badges?: BadgeMap;
     displayBadge?: BadgeKey | null;
     ownerName: string;
     locale: Locale;
+    /** 自分のページのときだけ: 自分の棚への道（一覧の下に出す） */
+    manageHref?: string;
 }) {
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement | null>(null);
@@ -169,6 +159,48 @@ export function NameBadge({ badges, displayBadge, ownerName, locale }: {
             </button>
             {/* **body へ出す。** ボタンは見出し（`<h1>`）の中に居るので、そのまま描くと
                 見出しの中に見出し（`<h2>`）と `<div>` が入る */}
+            {open && typeof document !== "undefined" && createPortal(
+                <MedalListDialog
+                    badges={badges}
+                    ownerName={ownerName}
+                    locale={locale}
+                    onClose={() => setOpen(false)}
+                    restoreRef={btnRef}
+                    manageHref={manageHref}
+                />,
+                document.body,
+            )}
+        </>
+    );
+}
+
+/**
+ * 人のページの「メダル」の入口（名前の横にメダルを選んでいない人にも、持っていれば一覧へ行ける）。
+ * 持っていなければ何も描かない。開く一覧は名前の横のメダルと同じ（`MedalListDialog`）
+ */
+export function MedalsButton({ badges, ownerName, locale }: {
+    badges?: BadgeMap;
+    ownerName: string;
+    locale: Locale;
+}) {
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+    const n = ownedBadges(badges).length;
+    if (n === 0) return null;
+    return (
+        <>
+            <button
+                ref={btnRef}
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors tabular-nums"
+                style={{ minHeight: 44, touchAction: "manipulation" }}
+                data-testid="medals-button"
+            >
+                {locale === "en" ? `Medals ${n} →` : `メダル ${n} →`}
+            </button>
             {open && typeof document !== "undefined" && createPortal(
                 <MedalListDialog
                     badges={badges}

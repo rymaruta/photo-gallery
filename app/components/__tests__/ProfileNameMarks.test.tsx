@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { ProMark, NameBadge } from "../ProfileNameMarks";
+import { ProMark, NameBadge, MedalsButton } from "../ProfileNameMarks";
 
 const AT = "2026-10-01T00:00:00.000Z";
 
@@ -97,5 +97,31 @@ describe("NameBadge: Pro のメダル（第2段階）", () => {
         const imgs = [...dialog.querySelectorAll("li img")].map((i) => i.getAttribute("src"));
         expect(imgs).toEqual(["/badges/medal-supporter.webp", "/badges/medal-year-1.webp", "/badges/medal-pro-autumn-2026.webp"]);
         expect(dialog.textContent).toContain("Pro を通算12か月続けた");
+    });
+});
+
+describe("人のメダルの棚（2026-10-11）", () => {
+    const badges = { first: { tier: 1, at: AT }, morning: { tier: 2, at: AT } };
+
+    it("持っているものだけを棚に並べる（まだのものは出さない）", () => {
+        render(<MedalsButton badges={badges} ownerName="旅人" locale="ja" />);
+        fireEvent.click(screen.getByRole("button", { name: "メダル 2 →" }));
+        const dialog = screen.getByRole("dialog", { name: "旅人のメダル" });
+        const items = [...dialog.querySelectorAll("[data-testid=medal-shelf-item]")];
+        expect(items.map((li) => li.querySelector("p")?.textContent)).toEqual(["最初の一枚", "朝の光（銀）"]);
+        expect(items.every((li) => li.getAttribute("data-owned") === "true")).toBe(true);
+        // 人の棚に自分の設定への道は置かない
+        expect(dialog.querySelector("a[href='/user/badges']")).toBeNull();
+    });
+
+    it("1つも持っていなければ入口を出さない", () => {
+        const { container } = render(<MedalsButton badges={undefined} ownerName="旅人" locale="ja" />);
+        expect(container.innerHTML).toBe("");
+    });
+
+    it("自分のページの名前の横のメダルから開くと、自分の棚への道を置く", () => {
+        render(<NameBadge badges={badges} displayBadge="first" ownerName="旅人" locale="ja" manageHref="/user/badges" />);
+        fireEvent.click(screen.getByTestId("name-badge"));
+        expect(screen.getByRole("link", { name: /メダルと名前の横の設定/ })).toHaveAttribute("href", "/user/badges");
     });
 });
