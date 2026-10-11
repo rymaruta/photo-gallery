@@ -53,7 +53,7 @@ export function spotPageTitle(spot: Pick<Spot, "name" | "region">): string {
 export type SpotPageFacts = {
     /** 月ごとの撮影の光の表がある（`lightCalendar` が値を返した） */
     light?: boolean;
-    /** 作例の枚数（画面に出すもの・代表写真を除く） */
+    /** 作例の枚数（画面に出すもの・代表写真を除く）。代表写真と合わせて「写真N枚」と書く */
     samples?: number;
     /** 代表写真がある */
     cover?: boolean;
@@ -79,7 +79,7 @@ export function spotPageDescription(
     if (spot.seasonalGuide?.length) parts.push("季節の撮りどき");
     if (spot.timeOfDayGuide?.length) parts.push("時間帯ごとの撮り方");
     const photos = (facts.samples ?? 0) + (facts.cover ? 1 : 0);
-    if (photos > 0) parts.push(`作例写真${photos}枚`);
+    if (photos > 0) parts.push(`写真${photos}枚`);
     const computed = facts.computed?.trim();
     return [
         head,

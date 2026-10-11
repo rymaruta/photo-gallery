@@ -22,6 +22,9 @@ describe("/map のメタデータ", () => {
         const top = entries.find((e) => !e.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, ""));
         expect(top, "トップの行が無い").toBeTruthy();
         expect(map!.lastModified).toEqual(top!.lastModified);
-        // サイトマップは写真と台帳を全部読むので、既定の5秒をまたぐ（develop でも単独で約5.8秒・2026-10-11 実測）
+        // 2026-10-11 判断: サイトマップ全体（スポット 1,782件・写真）を組むので、単独でも約 4.7 秒かかる
+        // （origin/develop でも同じ）。全体のテストと並ぶと既定の 5 秒を超えて落ちるので、時間だけ延ばす。
+        // 代表写真を足した spot-images.json（+約 0.6MB）で読み込みがさらに重くなった（spot-cover-seo）。
+        // develop でも単独で約5.8秒（2026-10-11 実測・spot-index-pages）
     }, 30_000);
 });

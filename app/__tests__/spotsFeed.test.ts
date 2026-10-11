@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import rawLedger from "../../content/spots.json";
 import type { Spot } from "../../lib/data/spots";
 import { buildSpotFeed, spotIndexFeed, spotIndexFeedJson, toSpotFeedItem } from "../../lib/data/spotFeed";
-import type { SpotImage } from "../../lib/data/spotImages";
+import { SPOT_IMAGES, SAMPLE_COVER_METHOD, type SpotImage } from "../../lib/data/spotImages";
 import { toSpotBody } from "../../lib/data/spotBody";
 import * as route from "../app/data/spots.json/route";
 import fs from "node:fs";
@@ -231,13 +231,15 @@ describe("実際の台帳で作った索引", () => {
     });
 
     /// 写真が付くのは「owner が写真を確かめた行」と「AI 照合で写真も照らした行」だけ
-    it("写真は、owner が確かめたか AI 照合で照らした行だけに付く（2026-09-26）", () => {
+    it("写真は、owner が確かめたか AI 照合で照らした行・写真を見て確かめた作例から上げた行だけに付く（2026-09-26・10-11）", () => {
         const withImage = items.filter((s) => s.image);
         const ledger = rawLedger as unknown as Spot[];
         const expected = ledger
             .filter((s) => s.status === "published")
             .filter((s) => ["kiyosumi-keiryu-hiroba", "kobe-kitano-ijinkan", "nabegataki", "takaya-jinja"].includes(s.slug)
-                || s.aiCheck?.imageChecked === true)
+                // 作例から上げた行（2026-10-11）は、写真を見て確かめた作例（visual-review）だけ
+                || (SPOT_IMAGES[s.slug]?.method === SAMPLE_COVER_METHOD && SPOT_IMAGES[s.slug]?.pickedBy === "visual-review")
+                || (SPOT_IMAGES[s.slug]?.method !== SAMPLE_COVER_METHOD && s.aiCheck?.imageChecked === true))
             .map((s) => s.slug).sort();
         expect(withImage.map((s) => s.slug).sort()).toEqual(expected);
         expect(withImage.length, "owner の4件が消えている").toBeGreaterThanOrEqual(4);
