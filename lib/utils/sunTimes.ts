@@ -110,6 +110,27 @@ export function sunAltitudeRange(ymd: string, coords: { lat: number; lng: number
     return { max: 90 - Math.abs(coords.lat - decl), min: Math.abs(coords.lat + decl) - 90 };
 }
 
+/**
+ * その時刻の太陽の高さ（度）。**その暦日の南中と赤緯**から時角で出す（`sunTimes` と同じ式・2026-10-11）。
+ * 赤緯は暦日の値で固定するので、南中の前後半日（その日の昼から翌日の昼まで）に使う
+ * （1日で動く赤緯は 0.4° 以下）。星空の暦（`spotSky.ts`）が天文薄明（−18°）の外かどうかを見るのに使う
+ */
+export function sunAltitudeAt(ymd: string, coords: { lat: number; lng: number }, t: Date): number | null {
+    if (!Number.isFinite(coords.lat) || Math.abs(coords.lat) > 90) return null;
+    const day = solarDay(ymd, coords.lng);
+    if (!day) return null;
+    const H = 2 * Math.PI * (toJulian(t.getTime()) - day.transit);
+    const phi = coords.lat * RAD;
+    const s = Math.sin(phi) * Math.sin(day.decl) + Math.cos(phi) * Math.cos(day.decl) * Math.cos(H);
+    return Math.asin(Math.max(-1, Math.min(1, s))) / RAD;
+}
+
+/** その暦日の南中の時刻（太陽がいちばん高い）。星空の暦が「その日の昼から翌日の昼まで」を刻む起点 */
+export function solarNoon(ymd: string, lng: number): Date | null {
+    const day = solarDay(ymd, lng);
+    return day ? fromJulian(day.transit) : null;
+}
+
 export function sunTimes(ymd: string, coords: { lat: number; lng: number }): SunTimes | null {
     if (!Number.isFinite(coords.lat) || Math.abs(coords.lat) > 90) return null;
     const day = solarDay(ymd, coords.lng);

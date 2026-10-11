@@ -17,7 +17,9 @@ import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
-import { LIGHT_MAX_OFFSET, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
+import { LIGHT_MAX_OFFSET, direction, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
+import { MILKY_WAY_MIN_ALTITUDE, directionSummary, milkyWaySummary, newMoonLabels, skyLead, type SpotSky } from "../../lib/utils/spotSky";
+import { takenMonthLine } from "../../lib/utils/takenMonth";
 
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
@@ -69,6 +71,11 @@ type Props = {
      * 座標が無い・時刻帯が引けない場所は `null`（節ごと出さない）
      */
     light?: LightCalendar | null;
+    /**
+     * 座標から計算した方角の振れ幅・天の川・新月（サーバーが計算した値だけ・`lib/utils/spotSky.ts`・2026-10-11）。
+     * 座標が無い・時刻帯が引けない場所は `null`（節ごと出さない）
+     */
+    sky?: SpotSky | null;
     /**
      * 作例（Wikimedia Commons の自由に使える写真・最大6枚・`lib/data/spotSamples.ts`）。
      * どれも作者・ライセンス・出典を持つ（持たない1枚はサーバー側で落としてある）
@@ -138,17 +145,27 @@ function zoneLabel(timeZone: string, isJa: boolean): string {
  * 時刻が出ない欄は理由の言葉（白夜・極夜・終日・沈まない・明け方まで）、日付をまたぐ時刻は「翌」。出てくる言葉だけ凡例に出す。
  * 狭い画面では表だけ横に流す（ページは横に溢れさせない）。数字は等幅でそろえる
  */
-function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
+function LightTable({ light, sky, isJa }: { light: LightCalendar; sky: SpotSky | null; isJa: boolean }) {
     // 320px の画面でも右端の列が隠れない幅（余白 12・見出しは折り返す・9d7ba04e のレビュー）
     const cell = "py-2 pr-3 whitespace-nowrap";
     const legend = lightLegend(light.rows, isJa);
+    // 方角の振れ幅の要約（6月21日ごろ・12月21日ごろ。計算から作る・2026-10-11）
+    const swing = sky ? directionSummary(sky, isJa) : "";
+    /** 時刻の下に方角（「東北東 60°」）。時刻の無い日（白夜・極夜）は出さない */
+    const withDirection = (text: string, deg: number | null | undefined) => {
+        const d = direction(deg, isJa);
+        return d ? <>{text}<span className="block font-sans text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>{d}</span></> : text;
+    };
     return (
         <section className="pt-8" aria-labelledby="spot-light" data-testid="spot-light">
             <Head id="spot-light">{isJa ? "撮影の光" : "Light through the year"}</Head>
+            {swing && (
+                <p className="m-0 mb-3 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-light-swing">{swing}</p>
+            )}
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left" style={{ fontSize: "13px", lineHeight: "18px" }}>
                     <caption className="sr-only">
-                        {isJa ? "各月15日の日の出・日の入り・夕方のゴールデンアワー" : "Sunrise, sunset and evening golden hour on the 15th of each month"}
+                        {isJa ? "各月15日の日の出・日の入り（時刻と方角）・夕方のゴールデンアワー" : "Sunrise, sunset (time and direction) and evening golden hour on the 15th of each month"}
                     </caption>
                     <thead>
                         <tr className="text-white/60 border-b border-line align-bottom" style={{ fontSize: "12px" }}>
@@ -164,8 +181,8 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
                                 <th scope="row" className={`${cell} font-normal font-sans text-white/60`}>
                                     {isJa ? `${r.month}月` : new Date(Date.UTC(2000, r.month - 1, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" })}
                                 </th>
-                                <td className={cell}>{lightCellText(r.sunrise, isJa)}</td>
-                                <td className={cell}>{lightCellText(r.sunset, isJa)}</td>
+                                <td className={cell}>{withDirection(lightCellText(r.sunrise, isJa), r.sunriseAzimuth)}</td>
+                                <td className={cell}>{withDirection(lightCellText(r.sunset, isJa), r.sunsetAzimuth)}</td>
                                 <td className="py-2 whitespace-nowrap">{lightCellText(r.eveningGolden, isJa)}</td>
                             </tr>
                         ))}
@@ -174,14 +191,85 @@ function LightTable({ light, isJa }: { light: LightCalendar; isJa: boolean }) {
             </div>
             <p className="m-0 mt-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
                 {isJa
-                    ? `各月15日の計算値（${zoneLabel(light.timeZone, true)}）。ゴールデンアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
-                    : `Calculated for the 15th of each month (${zoneLabel(light.timeZone, false)}). Golden hour is when the sun is between 6° and −4°. Weather and shadows from terrain or buildings are not included.`}
+                    ? `各月15日の計算値（${zoneLabel(light.timeZone, true)}）。方角は北から時計回り。ゴールデンアワーは太陽の高さが6°から−4°の間。天気や山・建物の影は含みません。`
+                    : `Calculated for the 15th of each month (${zoneLabel(light.timeZone, false)}). Directions are measured clockwise from north. Golden hour is when the sun is between 6° and −4°. Weather and shadows from terrain or buildings are not included.`}
             </p>
             {legend.length > 0 && (
                 <ul className="m-0 mt-1 p-0 text-white/60" style={{ fontSize: "12px", lineHeight: "18px", listStyle: "none" }} data-testid="spot-light-legend">
                     {legend.map((l) => <li key={l}>{l}</li>)}
                 </ul>
             )}
+        </section>
+    );
+}
+
+const MONTH_SHORT_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * **星空の暦**（2026-10-11・`lib/utils/spotSky.ts`）。天の川（銀河中心）が見える月と時刻帯、今後12か月の新月。
+ * どれもサーバーが計算した文字をそのまま出す（検索に読まれる・水和でずれない）。
+ * 天の川は決めた年の各月15日、新月はページを作った日から1年分（作り直すたびに更新）
+ */
+function NightSky({ sky, isJa }: { sky: SpotSky; isJa: boolean }) {
+    const mw = sky.milkyWay;
+    const moons = newMoonLabels(sky.newMoons, isJa);
+    const [y, m, d] = sky.asOf.split("-").map(Number);
+    const asOf = isJa ? `${y}年${m}月${d}日` : `${d} ${MONTH_SHORT_EN[m - 1]} ${y}`;
+    const cell = "py-2 pr-3 whitespace-nowrap";
+    return (
+        <section className="pt-8" aria-labelledby="spot-night-sky" data-testid="spot-night-sky">
+            <Head id="spot-night-sky">{isJa ? "星空の暦" : "Night sky"}</Head>
+            <p className="m-0 mb-3 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-milky-way-summary">
+                {milkyWaySummary(sky, isJa)}
+            </p>
+            {mw.months.length > 0 && (
+                <div className="overflow-x-auto mb-2">
+                    <table className="w-full border-collapse text-left" style={{ fontSize: "13px", lineHeight: "18px" }} data-testid="spot-milky-way">
+                        <caption className="sr-only">
+                            {isJa ? "天の川の中心が見える時刻帯（各月15日）" : "When the Milky Way core is visible (15th of each month)"}
+                        </caption>
+                        <thead>
+                            <tr className="text-white/60 border-b border-line align-bottom" style={{ fontSize: "12px" }}>
+                                <th scope="col" className={`${cell} font-normal`}>{isJa ? "月" : "Month"}</th>
+                                <th scope="col" className={`${cell} font-normal`}>{isJa ? "天の川の中心が見える時刻" : "Milky Way core visible"}</th>
+                                <th scope="col" className="py-2 font-normal">{isJa ? "長さ" : "Length"}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="font-mono tabular-nums text-white/85">
+                            {mw.months.map((r) => {
+                                const h = Math.floor(r.minutes / 60), min = r.minutes % 60;
+                                const len = isJa
+                                    ? `${h > 0 ? `${h}時間` : ""}${min > 0 || h === 0 ? `${min}分` : ""}`
+                                    : `${h > 0 ? `${h} h ` : ""}${min > 0 || h === 0 ? `${min} min` : ""}`.trim();
+                                return (
+                                    <tr key={r.month} className="border-b border-line/60">
+                                        <th scope="row" className={`${cell} font-normal font-sans text-white/60`}>
+                                            {isJa ? `${r.month}月` : MONTH_SHORT_EN[r.month - 1]}
+                                        </th>
+                                        <td className={cell}>{lightCellText(r.window, isJa)}</td>
+                                        <td className="py-2 whitespace-nowrap">{len}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {moons.length > 0 && (
+                <div className="mt-3" data-testid="spot-new-moons">
+                    <p className="m-0 mb-1 text-white/60" style={{ fontSize: "12px" }}>
+                        {isJa ? `今後12か月の新月（${asOf}時点）` : `New moons in the next 12 months (as of ${asOf})`}
+                    </p>
+                    <ul className="m-0 p-0 flex flex-wrap gap-x-3 gap-y-1 text-white/85 tabular-nums" style={{ fontSize: "13px", lineHeight: "20px", listStyle: "none" }}>
+                        {moons.map((label, i) => <li key={sky.newMoons[i]}><time dateTime={sky.newMoons[i]}>{label}</time></li>)}
+                    </ul>
+                </div>
+            )}
+            <p className="m-0 mt-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                {isJa
+                    ? `天の川は、太陽が −18° より下（天文薄明の外）で、銀河中心（J2000 赤経 17h45m40s・赤緯 −29°00′28″）が地平線から ${MILKY_WAY_MIN_ALTITUDE}° 以上にある時間（各月15日・${zoneLabel(sky.timeZone, true)}・30分以上の月だけ）。新月は月明かりの無い夜の目安で、日付は${zoneLabel(sky.timeZone, true)}。ページを作った日から1年分で、ページを作り直すたびに更新します。月明かり・天気・光害・山の影は含みません。`
+                    : `Milky Way: when the sun is below −18° (astronomical night) and the galactic centre (J2000 RA 17h45m40s, Dec −29°00′28″) is at least ${MILKY_WAY_MIN_ALTITUDE}° above the horizon (15th of each month, ${zoneLabel(sky.timeZone, false)}, months with 30 minutes or more). New-moon dates are in ${zoneLabel(sky.timeZone, false)}, for one year from when this page was built, and refresh each time it is rebuilt. Moonlight, weather, light pollution and terrain are not included.`}
+            </p>
         </section>
     );
 }
@@ -378,6 +466,13 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                     );
                 })}
             </ul>
+            {/* 作例が撮られた月（撮影日の分かる分だけ・2026-10-11）。事実の数だけで、見ごろとは名乗らない */}
+            {(() => {
+                const line = takenMonthLine(shown, isJa);
+                return line ? (
+                    <p className="m-0 mt-3 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }} data-testid="spot-sample-months">{line}</p>
+                ) : null;
+            })()}
         </section>
     );
 }
@@ -403,7 +498,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, samples = [] }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, sky = null, samples = [] }: Props) {
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
@@ -441,6 +536,9 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
     // 光の時刻の節を出す場所か（座標と国・台帳の時刻帯だけで決まる）。出すときは朝・夕の時間帯の文をそちらへ移す
     const lightTz = lightZone(spot.coords, spot.region?.country, spot.timeZone);
     const guideTimeList = guideTimes(spot.timeOfDayGuide ?? [], lightTz !== null);
+    // 撮影ガイドの頭の1〜2文（計算の要約・2026-10-11）。**季節・時間帯の案内が台帳にある行はそちらが主役**なので出さない
+    const guideLead = sky && (spot.seasonalGuide ?? []).length === 0 && (spot.timeOfDayGuide ?? []).length === 0
+        ? skyLead(sky, isJa) : "";
     const mapHref = spot.coords ? `${ROUTES.MAP}#14/${spot.coords.lat}/${spot.coords.lng}` : ROUTES.MAP;
     // 「[都道府県] [市区町村] · N枚の写真」（iOS の `SpotScreen.subtitle`）。N は数えた値
     const photoCountLabel = isJa ? `${photos.length}枚の写真` : (photos.length === 1 ? "1 photo" : `${photos.length} photos`);
@@ -710,12 +808,19 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         {/* ── 5. 撮影ガイド ──────────────────
                             **事実ではなく運営のアドバイス**なので、出典は求めない
                             （代わりに「撮影ガイド」という見出しで事実と分ける） */}
-                        {((spot.seasonalGuide ?? []).length > 0
+                        {(guideLead
+                            || (spot.seasonalGuide ?? []).length > 0
                             || guideTimeList.length > 0
                             || (spot.compositionTips ?? []).length > 0
                             || showsField(spot, "safetyNotes")) && (
                             <section className="pt-8" aria-labelledby="spot-guide">
                                 <Head id="spot-guide">{isJa ? "撮影ガイド" : "Shooting guide"}</Head>
+
+                                {guideLead && (
+                                    <p className="m-0 mb-5 text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }} data-testid="spot-guide-lead">
+                                        {guideLead}
+                                    </p>
+                                )}
 
                                 {(spot.seasonalGuide ?? []).length > 0 && (
                                     <div className="mb-5">
@@ -786,7 +891,8 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                             </section>
                         )}
 
-                        {light && <LightTable light={light} isJa={isJa} />}
+                        {light && <LightTable light={light} sky={sky} isJa={isJa} />}
+                        {sky && <NightSky sky={sky} isJa={isJa} />}
 
                         {officialSite}
 

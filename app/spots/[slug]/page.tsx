@@ -5,6 +5,7 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotCoverImage } from "@/lib/data/spotImages";
+import { appendSkySummary, spotSkyDescription } from "@/lib/utils/spotSky";
 
 // 静的エクスポート: 列挙した slug のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -36,8 +37,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const where = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
     const title = where ? `${spot.name}（${where}）の撮影ガイド` : `${spot.name} の撮影ガイド`;
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）
-    const description = (verified ? "" : "【下書き・運営未確認】")
-        + (spot.summary ?? `${spot.name}で写真を撮るための情報。`);
+    // 後半に座標から計算した要約（日の入りの方角・天の川の月）を足す（2026-10-11・`spotSkyDescription`）
+    const description = appendSkySummary((verified ? "" : "【下書き・運営未確認】")
+        + (spot.summary ?? `${spot.name}で写真を撮るための情報。`), spotSkyDescription(spot));
     const url = `${siteConfig.url}/spots/${spot.slug}`;
     // 代表写真があればそれを OGP に出す。
     // **無ければサイトの既定の画像（`siteConfig.ogImage`）に落とす**——画像を申告しないと、

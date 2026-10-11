@@ -39,6 +39,12 @@ export type LightRow = {
     sunset: LightCell;
     /** 夕方のゴールデンアワー */
     eveningGolden: LightCell;
+    /**
+     * 日の出・日の入りの方位角（度・北から時計回り・2026-10-11）。白夜・極夜の日は null。
+     * 表だけが持つ（旅行プランの当日の欄 `DayLight` は持たない）
+     */
+    sunriseAzimuth?: number | null;
+    sunsetAzimuth?: number | null;
 };
 
 export type LightCalendar = {
@@ -62,7 +68,7 @@ const GOLDEN_TOP = 6;
 const nextDay = (earlier: string, later: string) => (later < earlier ? `翌${later}` : later);
 
 /** 1日ぶんの欄（日の出・日の入り・夕方のゴールデンアワー） */
-export type DayLight = Omit<LightRow, "month">;
+export type DayLight = Omit<LightRow, "month" | "sunriseAzimuth" | "sunsetAzimuth">;
 
 /**
  * その場所・その暦日の欄。**表と旅行プランの当日モードが同じ言い分けを使う**（`tripLight.ts`）。
@@ -113,9 +119,12 @@ export function lightCalendar(
     if (!timeZone) return null;
     const rows: LightRow[] = [];
     for (let month = 1; month <= 12; month++) {
-        const cells = dayLightCells(`${LIGHT_REFERENCE_YEAR}-${pad(month)}-${pad(LIGHT_DAY_OF_MONTH)}`, coords, timeZone);
+        const ymd = `${LIGHT_REFERENCE_YEAR}-${pad(month)}-${pad(LIGHT_DAY_OF_MONTH)}`;
+        const cells = dayLightCells(ymd, coords, timeZone);
         if (!cells) return null;
-        rows.push({ month, ...cells });
+        // 方角（2026-10-11）: 光の時刻の節と同じ `sunTimes` の値。時刻の無い日は null
+        const t = sunTimes(ymd, coords);
+        rows.push({ month, ...cells, sunriseAzimuth: t?.sunriseAzimuth ?? null, sunsetAzimuth: t?.sunsetAzimuth ?? null });
     }
     return { timeZone, rows };
 }
