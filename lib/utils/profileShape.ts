@@ -58,6 +58,7 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
         website: displayString(obj.website),
         instagram: displayString(obj.instagram),
         statusText: displayString(obj.statusText),
+        homeLocation: displayString(obj.homeLocation),
         themeColor: displayString(obj.themeColor),
         songUrl: displayString(obj.songUrl),
         songTitle: displayString(obj.songTitle),
