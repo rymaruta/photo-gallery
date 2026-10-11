@@ -8,6 +8,7 @@ import { spotCoverImage } from "@/lib/data/spotImages";
 import { spotSamples } from "@/lib/data/spotSamples";
 import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
+import { spotSkyDescription } from "@/lib/utils/spotSky";
 
 // 静的エクスポート: 列挙した slug のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -56,6 +57,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         light: lightCalendar(spot.coords, spot.region?.country, spot.timeZone) !== null,
         samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,
         cover: Boolean(photo),
+        // 座標から計算した要約（日の入りの方角・天の川の月）を紹介文のすぐ後に入れる（`spotSkyDescription`）
+        computed: spotSkyDescription(spot),
     });
 
     return {

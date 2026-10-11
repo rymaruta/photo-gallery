@@ -90,6 +90,16 @@ describe("/spots の一覧の構造化データ（ItemList）", () => {
 describe("スポットのページの OGP 画像", () => {
     const meta = (slug: string) => spotMetadata({ params: Promise.resolve({ slug }) });
 
+    /** 2026-10-11: 説明の後半に座標から計算した要約（日の入りの方角・天の川の月）。OGP も同じ文 */
+    it("説明の後半に、座標から計算した日の入りの方角と天の川の月を足す", async () => {
+        const summary = `${"い".repeat(40)}。`;
+        ledger.spots = [spot("sky", { summary })];
+        const m = await meta("sky");
+        // 台帳の座標（北緯34°・東経134°・香川県）
+        expect(m.description).toBe(`${summary}日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。`);
+        expect((m.openGraph as { description?: string }).description).toBe(m.description);
+    });
+
     it("代表写真が無いスポットは、サイトの既定の画像に落とす（小さいカード）", async () => {
         ledger.spots = [spot("nophoto")];
         const m = await meta("nophoto");
