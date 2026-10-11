@@ -22,5 +22,6 @@ describe("/map のメタデータ", () => {
         const top = entries.find((e) => !e.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, ""));
         expect(top, "トップの行が無い").toBeTruthy();
         expect(map!.lastModified).toEqual(top!.lastModified);
-    });
+        // サイトマップは写真と台帳を全部読むので、既定の5秒をまたぐ（develop でも単独で約5.8秒・2026-10-11 実測）
+    }, 30_000);
 });
