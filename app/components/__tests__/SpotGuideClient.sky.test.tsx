@@ -75,8 +75,9 @@ describe("座標から計算した撮影の事実", () => {
         expect([...rows].map((r) => r.querySelector("th")!.textContent)).toContain("6月");
         const moons = screen.getByTestId("spot-new-moons");
         expect(moons.textContent).toContain("今後12か月の新月（2026年10月11日時点）");
-        expect(moons.querySelectorAll("li")).toHaveLength(12);
-        expect(moons.querySelector("time")!.getAttribute("dateTime")).toBe("2026-11-09");
+        expect(moons.querySelectorAll("li")).toHaveLength(13);
+        expect(moons.querySelector("time")!.getAttribute("dateTime")).toBe("2026-10-11");
+        expect(sec.querySelector("thead")!.textContent).toContain("天の川の中心が見える高さにある時刻");
         expect(sec.textContent).toContain("月明かり・天気・光害・山の影は含みません");
     });
 
@@ -90,7 +91,7 @@ describe("座標から計算した撮影の事実", () => {
     it("撮影ガイドの頭: 季節・時間帯の案内が無い行は計算の要約が主役（節ごと出る）", () => {
         view(SPOT);
         const lead = screen.getByTestId("spot-guide-lead");
-        expect(lead.textContent).toMatch(/^日の入りは6月が西北西（300°）、12月が西南西（241°）。天の川の中心は2〜10月の夜/);
+        expect(lead.textContent).toBe("日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。");
         expect(screen.getByRole("heading", { name: "撮影ガイド" })).toBeTruthy();
     });
 
@@ -98,6 +99,19 @@ describe("座標から計算した撮影の事実", () => {
         view({ ...SPOT, seasonalGuide: [{ season: "winter", text: "雪の夜のガス灯" }] } as Spot);
         expect(screen.queryByTestId("spot-guide-lead")).toBeNull();
         expect(screen.getByText("雪の夜のガス灯")).toBeTruthy();
+    });
+
+    it("時間帯の案内だけがある行も、そちらを優先して要約を出さない", () => {
+        view({ ...SPOT, timeOfDayGuide: [{ time: "night", text: "ガス灯の夜景" }] } as Spot);
+        expect(screen.queryByTestId("spot-guide-lead")).toBeNull();
+        expect(screen.getByText("ガス灯の夜景")).toBeTruthy();
+    });
+
+    it("天の川の見える月が無い緯度は、ガイドの頭に天の川の文を入れない（星空の暦には残す）", () => {
+        const north = { ...SPOT, coords: { lat: 60.17, lng: 24.94 } };
+        view(north, { sky: spotSky(north.coords, "日本", null, NOW) });
+        expect(screen.getByTestId("spot-guide-lead").textContent).toBe("日の入りは6月が北西寄り、12月が南西寄り。");
+        expect(screen.getByTestId("spot-milky-way-summary").textContent).toContain("最大 1° までしか上がらず");
     });
 
     it("計算の値が無い（sky=null）なら節も要約も出さない", () => {

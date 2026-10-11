@@ -232,12 +232,12 @@ function NightSky({ sky, isJa }: { sky: SpotSky; isJa: boolean }) {
                 <div className="overflow-x-auto mb-2">
                     <table className="w-full border-collapse text-left" style={{ fontSize: "13px", lineHeight: "18px" }} data-testid="spot-milky-way">
                         <caption className="sr-only">
-                            {isJa ? "天の川の中心が見える時刻帯（各月15日）" : "When the Milky Way core is visible (15th of each month)"}
+                            {isJa ? "天の川の中心が見える高さにある時刻帯（各月15日）" : "When the Milky Way core is above 10° in darkness (15th of each month)"}
                         </caption>
                         <thead>
                             <tr className="text-white/60 border-b border-line align-bottom" style={{ fontSize: "12px" }}>
                                 <th scope="col" className={`${cell} font-normal`}>{isJa ? "月" : "Month"}</th>
-                                <th scope="col" className={`${cell} font-normal`}>{isJa ? "天の川の中心が見える時刻" : "Milky Way core visible"}</th>
+                                <th scope="col" className={`${cell} font-normal`}>{isJa ? "天の川の中心が見える高さにある時刻" : "Core above 10° in darkness"}</th>
                                 <th scope="col" className="py-2 font-normal">{isJa ? "長さ" : "Length"}</th>
                             </tr>
                         </thead>
