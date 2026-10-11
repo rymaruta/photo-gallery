@@ -38,11 +38,15 @@ export function spotPageUrl(spot: Pick<Spot, "slug">): string {
  * パンくず: ホーム ＞ 撮影スポット ＞ 県 ＞ スポット。
  * **区画が引けないときは県を飛ばす**（在らないページを指さない）
  */
-export function spotBreadcrumb(spot: Spot, area: SpotAreaRef | null): Array<{ name: string; url: string }> {
+export function spotBreadcrumb(
+    spot: Spot, area: SpotAreaRef | null, country: { name: string; href: string } | null = null,
+): Array<{ name: string; url: string }> {
     return [
         { name: "ホーム", url: siteConfig.url },
         { name: "撮影スポット", url: `${siteConfig.url}${ROUTES.SPOTS}` },
         ...(area ? [{ name: area.name, url: `${siteConfig.url}${ROUTES.SPOT_AREA(area.slug)}` }] : []),
+        // 海外は国の頁を間に入れる（`/spots/area/overseas` は国の一覧で、スポットは国の頁にある・2026-10-11）
+        ...(country ? [{ name: country.name, url: `${siteConfig.url}${country.href}` }] : []),
         { name: spot.name, url: spotPageUrl(spot) },
     ];
 }

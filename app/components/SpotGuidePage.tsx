@@ -23,7 +23,7 @@ import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
-import { topicLinksForSpot } from "@/lib/data/spotTopics";
+import { topicLinksForSpot, spotCountryRef } from "@/lib/data/spotTopics";
 import { spotSky } from "@/lib/utils/spotSky";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -91,7 +91,9 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // 代表写真は作者・ライセンスつきの ImageObject で渡す（2026-10-11）
     const coverImage = cover && coverUrl ? coverImageObject(cover, coverUrl) : coverUrl;
     const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples }) : null;
-    const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
+    // 海外のスポットは 海外 → 国 → スポット（区画の一覧は国の一覧になった・2026-10-11）
+    const country = spotCountryRef(spot);
+    const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area, country));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
     // 撮影の光の月別の表。決めた年で計算してページに書き込む（ビルドの結果を日付で変えない）
@@ -115,6 +117,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 sky={sky}
                 samples={samples}
                 topics={topicLinksForSpot(spot)}
+                country={country}
             />
         </>
     );

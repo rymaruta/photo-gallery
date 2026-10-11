@@ -17,7 +17,7 @@ import Link from "next/link";
 import type { TopicView } from "@/lib/data/spotTopics";
 import { topicStructuredData } from "@/lib/data/spotTopics";
 import { ROUTES } from "@/lib/routes";
-import { TopicChips, TopicCards } from "./SpotTopicLists";
+import { TopicChips, TopicCards, Lang } from "./SpotTopicLists";
 
 
 /** JSON-LD を `<script>` に埋める形（`SpotGuidePage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -32,19 +32,19 @@ export default function SpotTopicPage({ view, eyebrow }: { view: TopicView; eyeb
             <main className="p-4 sm:p-6 md:p-8 min-h-screen text-white bg-bg mx-auto w-full max-w-5xl lg:max-w-6xl" data-testid="spot-topic">
                 {/* パンくず（構造化データの `BreadcrumbList` と同じ段） */}
                 <nav aria-label="パンくずリスト" className="mb-2 text-white/60" style={{ fontSize: "12px", lineHeight: "18px" }}>
-                    <Link href="/" prefetch={false} className="hover:text-white/90">ホーム</Link>
+                    <Link href="/" prefetch={false} className="hover:text-white/90"><Lang ja="ホーム" en="Home" /></Link>
                     <span className="mx-1.5" aria-hidden>/</span>
-                    <Link href={ROUTES.SPOTS} prefetch={false} className="hover:text-white/90">撮影スポット</Link>
+                    <Link href={ROUTES.SPOTS} prefetch={false} className="hover:text-white/90"><Lang ja="撮影スポット" en="Photo spots" /></Link>
                     {view.crumbs.map((c) => (
                         <React.Fragment key={c.href}>
                             <span className="mx-1.5" aria-hidden>/</span>
-                            <Link href={c.href} prefetch={false} className="hover:text-white/90">{c.name}</Link>
+                            <Link href={c.href} prefetch={false} className="hover:text-white/90"><Lang ja={c.name} en={c.nameEn} /></Link>
                         </React.Fragment>
                     ))}
                 </nav>
                 <p aria-hidden className="m-0 mb-1.5 font-mono font-medium uppercase text-accent"
                    style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>{eyebrow}</p>
-                <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight">{view.heading}</h1>
+                <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight"><Lang ja={view.heading} en={view.headingEn} /></h1>
                 {view.intro && (
                     <p className="m-0 mt-2 mb-6 text-white/70 max-w-3xl" style={{ fontSize: "14px", lineHeight: "22px" }}>{view.intro}</p>
                 )}
@@ -53,7 +53,7 @@ export default function SpotTopicPage({ view, eyebrow }: { view: TopicView; eyeb
 
                 {view.related.map((g) => (
                     <section key={g.heading} className="mb-7">
-                        <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}>{g.heading}</h2>
+                        <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja={g.heading} en={g.headingEn} /></h2>
                         <TopicChips links={g.links} />
                     </section>
                 ))}
