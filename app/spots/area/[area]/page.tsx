@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import SpotIndexClient from "@/app/components/SpotIndexClient";
-import { spotAreas, spotIndexItemsForArea } from "@/lib/data/spotLink";
+import { spotAreas, spotIndexItemsForArea, spotAreaOf } from "@/lib/data/spotLink";
+import { SPOTS } from "@/lib/data/spots";
+import { visibleSpots } from "@/lib/utils/spotGuide";
+import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
 
@@ -56,7 +59,10 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
             : `${found.name}の撮影スポット（下書き・${found.count}件）`;
     const description = indexable || drafts === 0
         ? `${found.name}で写真を撮りに行ける場所のガイド（${found.publishedCount}件${drafts > 0 ? `・ほかに下書き${drafts}件` : ""}）。`
-            + "見どころ・季節・時間帯・アクセスまで、運営が調べてまとめています。"
+            // 2026-10-11: 「アクセスまで、運営が調べて」は実態と違った（アクセスは出典つきで数件・
+            // 人が確かめたのは数件で多くは AI 照合）。在るもの（見どころ・撮影の光）と確かめ方を書く
+            + "見どころと、月ごとの日の出・日の入りなど撮影の光をまとめています。"
+            + spotCheckedClaim(visibleSpots(SPOTS).filter((s) => spotAreaOf(s)?.slug === found.slug))
         : `${found.name}で写真を撮りに行ける場所のガイドの下書き（${found.count}件）。`
             + "運営がまだ確認していない情報を含みます。";
     const url = `${siteConfig.url}/spots/area/${found.slug}`;
