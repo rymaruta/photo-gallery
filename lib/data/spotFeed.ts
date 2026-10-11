@@ -37,7 +37,7 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
-import { SPOT_IMAGES, cleanAuthor, shownSpotImage, titleFromFile, type SpotImage } from "./spotImages";
+import { SPOT_IMAGES, shownSpotImage, spotImageCredit, titleFromFile, type SpotImage } from "./spotImages";
 import { siteConfig } from "../utils/seo";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import legacyFreeze from "../../content/spots-feed-legacy.json";
@@ -137,7 +137,7 @@ export function toSpotFeedItem(
                 url: image.local ? `${siteConfig.url}${image.local.src}` : image.thumbUrl,
                 thumbUrl: thumbSrc && thumbExists(thumbSrc) ? `${siteConfig.url}${thumbSrc}` : undefined,
                 title: titleFromFile(image.file) || undefined,
-                author: cleanAuthor(image.author),
+                author: spotImageCredit(image),
                 license: image.license,
                 licenseUrl: image.licenseUrl || undefined,
                 pageUrl: image.pageUrl,

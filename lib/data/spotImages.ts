@@ -12,9 +12,10 @@
 // `author` と `license` を写真の近くに出す。
 
 import raw from "@/content/spot-images.json";
+import coverExclusions from "@/content/spot-cover-exclusions.json";
 import type { Spot, SpotCoverImage, SpotImageLicense } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
-import { isUnusablePublicDomain } from "@/lib/utils/commonsAttribution.mjs";
+import { UNKNOWN_AUTHOR_LABEL, cleanCommonsAuthor, hasPlaceholderPhrase, isUnusablePublicDomain } from "@/lib/utils/commonsAttribution.mjs";
 
 export type SpotImage = {
     wikidata: string;
@@ -67,6 +68,25 @@ export function isReviewedPick(r: { pickedBy?: string | null }): boolean {
     return typeof r.pickedBy === "string" && r.pickedBy.trim() !== "" && r.pickedBy.trim() !== "auto";
 }
 
+/**
+ * 🔴 **パノラマの自由が無い国の、著作権の残る現代建築・作品が主役の代表写真**（2026-10-11）。
+ * 写真のライセンスが自由でも、写っている建物・作品（建築家・作者の死後 50〜70 年）の権利は別にある。
+ * パノラマの自由（公共の場に恒久的に置かれた建物・作品を撮った写真を自由に使える決まり）が無い国では、
+ * 建物・作品が主役の写真は権利者の許しが要る（Commons の COM:FOP・国ごとの表は
+ * Commons:Freedom of panorama/table。UAE・韓国・ベトナム・フランス…）。
+ *
+ * ここに載せたスポットは**代表写真を出さない**（`shownSpotImage`）し、**作例からも上げない**
+ * （`coverCandidateSample`）。建物そのものが撮影地なので、建物が主役でない別の1枚には替えられない。
+ * 一覧と理由は `content/spot-cover-exclusions.json`（`scripts/localize-spot-images.mjs` も読む）。
+ * 決め方と一覧の作り方は `docs/spot-samples-commons.md`「パノラマの自由が無い国の現代建築」
+ */
+export const NO_FOP_COVER_EXCLUSIONS: Readonly<Record<string, string>> = coverExclusions.covers;
+
+/** パノラマの自由が無い国の現代建築・作品が主役で、代表写真を出さないスポットか */
+export function isNoFopCoverExcluded(slug: string | undefined): boolean {
+    return typeof slug === "string" && Object.prototype.hasOwnProperty.call(NO_FOP_COVER_EXCLUSIONS, slug);
+}
+
 export const SPOT_IMAGES: Readonly<Record<string, SpotImage>> = raw as Record<string, SpotImage>;
 
 /** 人が確かめた写真だけを返す（無ければ undefined） */
@@ -88,7 +108,35 @@ export function shownSpotImage(
     spot: Spot,
     images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
 ): SpotImage | undefined {
+    const image = shownSpotImageUnchecked(spot, images);
+    // 作者の欄が名前でない（「Own work」・お願い文の前置き…）CC BY・CC BY-SA は、作者の表示が条件なので
+    // 出さない（2026-10-11）。パブリックドメイン・CC0 は「作者不明」と出す（`spotImageCredit`）
+    if (image && missingRequiredCredit(image)) return undefined;
+    return image;
+}
+
+/** CC BY 系なのに作者の欄が名前でないか */
+function missingRequiredCredit(image: SpotImage): boolean {
+    const kind = licenseKindOf(image.license);
+    return (kind === "cc-by" || kind === "cc-by-sa") && hasPlaceholderPhrase(cleanAuthor(image.author));
+}
+
+/**
+ * **代表写真の作者の表記**（Web のページとアプリの索引で同じ1本）。飾りを落とし（`cleanAuthor`）、
+ * 名前でない欄（パブリックドメイン・CC0 のときだけここまで来る）は「作者不明」
+ */
+export function spotImageCredit(image: Pick<SpotImage, "author">): string {
+    const credit = cleanAuthor(image.author);
+    return hasPlaceholderPhrase(credit) ? UNKNOWN_AUTHOR_LABEL : credit;
+}
+
+function shownSpotImageUnchecked(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>>,
+): SpotImage | undefined {
     if (!isPublished(spot)) return undefined;
+    // パノラマの自由が無い国の現代建築（人が確かめた写真でも出さない・2026-10-11）
+    if (isNoFopCoverExcluded(spot.slug)) return undefined;
     const reviewed = reviewedSpotImage(spot.slug, images);
     if (reviewed) return reviewed;
     const image = images[spot.slug];
@@ -131,9 +179,12 @@ export function titleFromFile(file: string): string {
     return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
 }
 
-/** 作者の欄に残る Wiki の書き方（「( talk )」）を落とす。それ以外は作者の求める表記のまま */
+/**
+ * 作者の欄に残る Wiki の書き方（「( talk )」「en:User:」…）・後ろのライセンスの文を落とす。
+ * それ以外は作者の求める表記のまま。規則は作例と同じ1本（`cleanCommonsAuthor`・2026-10-11）
+ */
 export function cleanAuthor(author: string): string {
-    return author.replace(/\s*\(\s*talk\s*\)\s*$/i, "").trim();
+    return cleanCommonsAuthor(String(author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
 }
 
 /**
@@ -149,6 +200,7 @@ export function spotCoverImage(
     const image = shownSpotImage(spot, images);
     const license = image && licenseKindOf(image.license);
     if (!image?.local || !license) return undefined;
+    const credit = spotImageCredit(image);
     return {
         src: image.local.src,
         alt: spot.name,
@@ -156,7 +208,7 @@ export function spotCoverImage(
         // Commons のファイル名から作る
         ...(titleFromFile(image.file) ? { title: titleFromFile(image.file) } : {}),
         aspectRatio: image.local.width / image.local.height,
-        credit: cleanAuthor(image.author),
+        credit,
         license,
         sourceUrl: image.pageUrl,
         // CC BY・CC BY-SA は作者・ライセンス（文面へのリンク）・出典の表示が条件
