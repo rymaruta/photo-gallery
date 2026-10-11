@@ -9,11 +9,16 @@ import {
     shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, type SpotImage,
 } from "../spotImages";
 import {
-    coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL,
+    coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL, isPromotionTarget, spotSamples,
     type SpotSampleRecord, type SpotSamplesFile,
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import { putImageRecord } from "../../../scripts/fetch-spot-images.mjs";
+import { isUnusablePublicDomain, isFlickrPdMark, isUsOnlyPublicDomain, pdBasisOf } from "../../utils/commonsAttribution.mjs";
+import { toSpotBody } from "../spotBody";
+import { buildSpotFeed, legacySpotFeed } from "../spotFeed";
+import { spotImageEntries } from "../../../app/sitemap-images.xml/route";
+import { generateMetadata } from "../../../app/spots/[slug]/page";
 
 /**
  * **作例から代表写真を埋める**（2026-10-11・`scripts/promote-sample-covers.ts`）。
@@ -130,7 +135,7 @@ describe("構造化データの代表写真（coverImageObject）", () => {
         expect(coverImageObject(cover, "https://journey-photo.com/c.jpg")).toEqual({
             "@type": "ImageObject",
             contentUrl: "https://journey-photo.com/c.jpg",
-            name: base.name,
+            name: "Wide",
             creator: { "@type": "Person", name: "撮った人" },
             creditText: "撮った人 / CC BY-SA 4.0 / Wikimedia Commons",
             license: "https://creativecommons.org/licenses/by-sa/4.0",
@@ -182,5 +187,89 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
             return isPublished(spot) && spotCoverImage(spot);
         });
         expect(shown.length).toBe(promoted.filter(([slug]) => isPublished(bySlug.get(slug)!)).length);
+    });
+});
+
+describe("レビューの直し（2026-10-11）", () => {
+    const images = rawImages as unknown as Record<string, SpotImage>;
+    const bySlug = new Map(ledger.map((s) => [s.slug, s]));
+    const promoted = Object.entries(images)
+        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!))
+        .map(([slug, v]) => ({ spot: bySlug.get(slug)!, image: v }));
+
+    it("代表写真は題（ファイル名から）を持ち、構造化データの name も題", () => {
+        const cover = spotCoverImage(promoted[0].spot)!;
+        expect(cover.title).toBe(promoted[0].image.file.replace(/^File:/, "").replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " "));
+        expect(coverImageObject(cover, "u").name).toBe(cover.title);
+        // Wikidata の代表写真も同じ形
+        const p18 = ledger.find((s) => isPublished(s) && images[s.slug]?.method === "wikidata-P18" && spotCoverImage(s))!;
+        expect(spotCoverImage(p18)!.title).toBeTruthy();
+    });
+
+    it("アプリ向けの索引の写真は題を持つ。古い spots.json には載せない", () => {
+        const items = buildSpotFeed(ledger);
+        const withImage = items.filter((i) => i.image);
+        expect(withImage.every((i) => i.image!.title)).toBe(true);
+        expect(legacySpotFeed(items).some((i) => i.image?.title)).toBe(false);
+    });
+
+    it("🔴 アプリ向けの本文の作例に、代表写真と同じ1枚を二重に入れない", () => {
+        for (const { spot, image } of promoted.slice(0, 200)) {
+            const body = toSpotBody(spot);
+            expect(body?.samples?.some((x) => x.sourceUrl === image.pageUrl), spot.slug).toBeFalsy();
+        }
+    });
+
+    it("🔴 画像サイトマップの撮影地ページに、代表写真の元の作例（Commons の URL）を二重に載せない", () => {
+        const entries = new Map(spotImageEntries().map((e) => [e.loc, e]));
+        let checked = 0;
+        for (const { spot, image } of promoted) {
+            const e = entries.get(`https://journey-photo.com/spots/${spot.slug}`);
+            if (!e) continue;
+            expect(e.images.some((i) => i.src === image.thumbUrl), spot.slug).toBe(false);
+            checked++;
+        }
+        expect(checked).toBeGreaterThan(100);
+    });
+
+    it("🔴 description の枚数は、代表写真と同じ作例を除いて数える", async () => {
+        // 作例が6枚未満のスポット（除かないと1枚多く数える）
+        const hit = promoted.find(({ spot }) => spotSamples(spot).length < 6 && spotSamples(spot).length > 0)!;
+        expect(hit).toBeDefined();
+        const n = spotSamples(hit.spot, { exclude: [hit.image.pageUrl] }).length + 1;
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: hit.spot.slug }) });
+        expect(String(meta.description)).toContain(`作例・代表写真${n}枚`);
+    });
+
+    it("使えないパブリックドメイン: PD-Detroit・Flickr の Public Domain Mark を落とす", () => {
+        expect(isUsOnlyPublicDomain("Public domain", "PD-Detroit")).toBe(true);
+        expect(isFlickrPdMark("Public domain", "PD-author-FlickrPDM")).toBe(true);
+        expect(isUnusablePublicDomain("Public domain (PD-author-FlickrPDM)", undefined)).toBe(true);
+        expect(isUnusablePublicDomain("Public domain", "PD-self")).toBe(false);
+        expect(isUnusablePublicDomain("Public domain", "PD-author")).toBe(false);
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-author-FlickrPDM" })).toBeUndefined();
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-Detroit" })).toBeUndefined();
+        // 根拠を選ぶとき、ほかの根拠があればそちらを先に
+        expect(pdBasisOf(["Template:PD-author-FlickrPDM", "Template:PD-old"])).toBe("PD-old");
+        // 作例から上げた代表写真でも出さない
+        const e = { ...sampleCoverEntry(coverCandidateSample(base, file(REC))!, "2026-10-11"), license: "Public domain (PD-author-FlickrPDM)", local: { src: "/x.jpg", width: 960, height: 640 } };
+        expect(shownSpotImage(base, { [base.slug]: e })).toBeUndefined();
+        // 確定ファイルの代表写真にも残っていない
+        expect(Object.values(images).some((v) => v.method === SAMPLE_COVER_METHOD && isUnusablePublicDomain(v.license, v.licenseCode))).toBe(false);
+    });
+
+    it("🔴 人が確かめた Wikidata の代表画像（reviewedBy）を持つ行は、作例から上げない", () => {
+        const img = (over: Partial<SpotImage>) => ({ [base.slug]: { wikidata: "Q1", file: "File:P.jpg", pageUrl: "p", thumbUrl: "t", author: "a", license: "CC0", method: "wikidata-P18", fetchedAt: "2026-09-26", reviewedBy: null, ...over } as SpotImage });
+        const noCover = () => false;
+        expect(isPromotionTarget(base, img({}), noCover)).toBe(true);
+        expect(isPromotionTarget(base, img({ reviewedBy: "rymaruta" }), noCover)).toBe(false);
+        expect(isPromotionTarget(base, {}, noCover)).toBe(true);
+        expect(isPromotionTarget(base, {}, () => true)).toBe(false);
+        expect(isPromotionTarget({ ...base, status: "review" }, {}, noCover)).toBe(false);
+    });
+
+    it("上げる道具は isPromotionTarget を通す", async () => {
+        const src = fs.readFileSync(path.join(__dirname, "../../../scripts/promote-sample-covers.ts"), "utf8");
+        expect(src).toMatch(/isPromotionTarget\(s, images,/);
     });
 });

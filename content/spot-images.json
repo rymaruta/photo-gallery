@@ -26581,12 +26581,13 @@
   },
   "las-medulas": {
     "wikidata": "",
-    "file": "File:Las Medulas (17504738221).jpg",
-    "pageUrl": "https://commons.wikimedia.org/wiki/File:Las_Medulas_(17504738221).jpg",
-    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Las_Medulas_%2817504738221%29.jpg/1280px-Las_Medulas_%2817504738221%29.jpg",
-    "author": "Frayle from Salamanca, España",
-    "license": "Public domain (PD-author-FlickrPDM)",
-    "licenseCode": "PD-author-FlickrPDM",
+    "file": "File:Las Medulas - 006.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:Las_Medulas_-_006.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Las_Medulas_-_006.jpg/1280px-Las_Medulas_-_006.jpg",
+    "author": "Luis Rogelio HM",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "licenseCode": "cc-by-sa-2.0",
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
@@ -26594,7 +26595,7 @@
     "local": {
       "src": "/images/spots/las-medulas.jpg",
       "width": 960,
-      "height": 638
+      "height": 720
     }
   },
   "el-escorial": {
@@ -26958,12 +26959,13 @@
   },
   "st-michaels-mount": {
     "wikidata": "",
-    "file": "File:England-Saint-Michaels-Mount-1900-1.jpg",
-    "pageUrl": "https://commons.wikimedia.org/wiki/File:England-Saint-Michaels-Mount-1900-1.jpg",
-    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/England-Saint-Michaels-Mount-1900-1.jpg/1280px-England-Saint-Michaels-Mount-1900-1.jpg",
-    "author": "作者不明",
-    "license": "Public domain (PD-Detroit)",
-    "licenseCode": "PD-Detroit",
+    "file": "File:The Castle, St. Michael's Mount - geograph.org.uk - 6438806.jpg",
+    "pageUrl": "https://commons.wikimedia.org/wiki/File:The_Castle,_St._Michael%27s_Mount_-_geograph.org.uk_-_6438806.jpg",
+    "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/The_Castle%2C_St._Michael%27s_Mount_-_geograph.org.uk_-_6438806.jpg/1280px-The_Castle%2C_St._Michael%27s_Mount_-_geograph.org.uk_-_6438806.jpg",
+    "author": "The Castle, St. Michael's Mount by habiloid",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "licenseCode": "cc-by-sa-2.0",
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
@@ -26971,7 +26973,7 @@
     "local": {
       "src": "/images/spots/st-michaels-mount.jpg",
       "width": 960,
-      "height": 683
+      "height": 437
     }
   },
   "tintagel-castle": {

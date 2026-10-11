@@ -66,7 +66,7 @@ import {
 } from "./lib/commonsSampleRules.mjs";
 import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
 import {
-    stripHtml, authorFromMeta, isUsOnlyPublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
+    stripHtml, authorFromMeta, isUnusablePublicDomain, hasPersonalityMark, EVENT_OR_PERSON, isEventSpot, standardThumbOf,
     photoLicenseOf, hasPdBasis,
 } from "../lib/utils/commonsAttribution.mjs";
 
@@ -289,7 +289,7 @@ export function parseCommonsPages(pages) {
         // アメリカだけのパブリックドメイン（PD-US 系）は日本で保護期間内のことがあるので使わない。
         // 🔴 extmetadata はパブリックドメインなら根拠を問わず "pd" になる（PD-US も）。ここで落とせるのは
         // 名前に出ているものだけ。残りは確定ファイルに書いた後で `refreshPdBasis` がテンプレートを見て見分ける
-        if (isUsOnlyPublicDomain(`${license} ${stripHtml(meta.UsageTerms?.value)}`, licenseCode)) {
+        if (isUnusablePublicDomain(`${license} ${stripHtml(meta.UsageTerms?.value)}`, licenseCode)) {
             rejected.license++;
             rejectedLicenses["PD-US"] = (rejectedLicenses["PD-US"] ?? 0) + 1;
             continue;

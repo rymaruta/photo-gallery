@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!spot) return { robots: { index: false, follow: true } };
 
     const verified = isPublished(spot);
-    // 2026-10-11: title は検索の語（撮影スポット・時間帯・季節）を入れ、description は紹介文に
+    // 2026-10-11: title は検索の語（撮影スポット・撮影ガイド）を入れて短く、description は紹介文に
     // ページに在るもの（撮影の光・作例の枚数）の要約を足す（`lib/data/spotPageMeta.ts`）。
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）
     const title = spotPageTitle(spot);
@@ -62,7 +62,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     });
 
     return {
-        title,
+        // サイト全体の template（「 | Journey Photo 旅フォトギャラリー」）を外し、短い名前を自分で付ける
+        title: { absolute: title },
         description,
         alternates: { canonical: url },
         // **下書きは検索に出さない**（リンクは辿らせる。確かめたら外れる）

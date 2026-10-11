@@ -25,12 +25,12 @@
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
-import { cleanAuthor, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
+import { cleanAuthor, licenseKindOf, isReviewedPick, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
 import type { Spot, SpotCoverImage } from "./spots";
 import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUnusablePublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
 /**
@@ -264,10 +264,8 @@ export function sampleLicenseKind(label: string | undefined) {
     return licenseKindOf(label);
 }
 
-/** Commons のファイル名から題を作る（"File:" と拡張子を除き、"_" を空白に） */
-export function titleFromFile(file: string): string {
-    return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
-}
+/** Commons のファイル名から題を作る（判定は `spotImages.ts` の1本） */
+export { titleFromFile };
 
 /**
  * 1枚を表示の形へ。**出してはいけない1枚は undefined**:
@@ -290,7 +288,8 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     if (isHostedSourceName(sourceName)) return toHostedSample(r, sourceName);
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
-    if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
+    // PD-US 系・PD-Detroit・Flickr の Public Domain Mark（2026-10-11 レビュー）
+    if (isUnusablePublicDomain(r.license, r.licenseCode)) return undefined;
     if (kind === "public-domain" && !hasPdBasis(r.licenseCode)) return undefined;
     if (r.personality) return undefined;
     const byLicense = kind === "cc-by" || kind === "cc-by-sa";
@@ -459,6 +458,20 @@ export function spotSamples(
  *     人や催しが主役でない（`spotSamples` と同じ）
  *   - 横長を先に（ページの頭と共有のカードは横長）。横長が無ければ最初の1枚
  */
+/**
+ * **作例から代表写真を上げる対象か**（2026-10-11）。公開済みで代表写真がまだ出ていない行のうち、
+ * **人が確かめた Wikidata の代表画像（`reviewedBy`）を持つ行は上げない**——縮小版を置き忘れただけの
+ * 人の確認を、機械の昇格で上書きしない（`localize-spot-images.mjs --slug` で置けばよい）
+ */
+export function isPromotionTarget(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>>,
+    hasCover: (spot: Spot) => boolean,
+): boolean {
+    if (!isPublished(spot) || hasCover(spot)) return false;
+    return !images[spot.slug]?.reviewedBy?.trim();
+}
+
 export function coverCandidateSample(
     spot: Pick<Spot, "spotId"> & Partial<Spot>,
     file: Readonly<SpotSamplesFile> = SPOT_SAMPLES,
@@ -558,7 +571,7 @@ export function coverImageObject(cover: SpotCoverImage, url: string) {
     return {
         "@type": "ImageObject",
         contentUrl: url,
-        name: cover.alt,
+        name: cover.title ?? cover.alt,
         ...(credit && credit !== UNKNOWN_AUTHOR
             ? { creator: { "@type": isOrganizationName(credit) ? "Organization" : "Person", name: credit } }
             : {}),

@@ -24,36 +24,41 @@ export function spotWhere(spot: Pick<Spot, "region">): string {
     return (overseas ? [r.country, r.city] : [r.prefecture, r.city]).filter(Boolean).join(" ");
 }
 
-/**
- * title の本体の上限（字数）。サイト全体の template（`app/layout.tsx`）が
- * 「 | Journey Photo 旅フォトギャラリー」（28字）を後ろに足すので、合わせて 60 字前後に収まる長さ
- */
-export const SPOT_TITLE_MAX = 34;
+/** title の後ろに付けるサイトの名前（サイト全体の template より短い形・`title.absolute` で使う） */
+export const SPOT_TITLE_BRAND = " | Journey Photo";
+
+/** title の長さの上限（全角で数える。半角は 0.5）。検索結果の題に収まる 35 字前後 */
+export const SPOT_TITLE_MAX = 35;
+
+/** 全角換算の長さ（半角の英数・記号は 0.5） */
+export function titleWidth(s: string): number {
+    return [...s].reduce((n, ch) => n + (/[\u0020-\u007e]/.test(ch) ? 0.5 : 1), 0);
+}
 
 /**
- * 撮影地ページの title（template の前の部分）。検索の語を入れ、長ければ後ろから削る:
- *   1. 〇〇の撮影ガイド｜撮影スポット・時間帯・季節（県 市）
- *   2. 〇〇の撮影ガイド｜時間帯・季節（県 市）
- *   3. 〇〇の撮影ガイド（県 市）
+ * 撮影地ページの title（**サイトの template を外した完全な形**・`title: { absolute }` に渡す）。
+ * 2026-10-11 レビュー: 長すぎた（template 込みで 60 字超）ので短くした。長ければ後ろから削る:
+ *   1. 〇〇の撮影スポット・撮影ガイド（県 市） | Journey Photo
+ *   2. 〇〇の撮影スポット・撮影ガイド | Journey Photo
+ *   3. 〇〇の撮影ガイド | Journey Photo
  *   4. 〇〇の撮影ガイド
- * 「時間帯・季節」はどのページにも在る月ごとの撮影の光（日の出・日の入り・ゴールデンアワー）が根拠
+ * 「時間帯・季節」は入れない（光の表が無いページもあり、全部のページで言えることではない）
  */
 export function spotPageTitle(spot: Pick<Spot, "name" | "region">): string {
     const where = spotWhere(spot);
-    const at = where ? `（${where}）` : "";
     const candidates = [
-        `${spot.name}の撮影ガイド｜撮影スポット・時間帯・季節${at}`,
-        `${spot.name}の撮影ガイド｜時間帯・季節${at}`,
-        `${spot.name}の撮影ガイド${at}`,
+        ...(where ? [`${spot.name}の撮影スポット・撮影ガイド（${where}）${SPOT_TITLE_BRAND}`] : []),
+        `${spot.name}の撮影スポット・撮影ガイド${SPOT_TITLE_BRAND}`,
+        `${spot.name}の撮影ガイド${SPOT_TITLE_BRAND}`,
     ];
-    return candidates.find((t) => [...t].length <= SPOT_TITLE_MAX) ?? `${spot.name}の撮影ガイド`;
+    return candidates.find((t) => titleWidth(t) <= SPOT_TITLE_MAX) ?? `${spot.name}の撮影ガイド`;
 }
 
 /** ページに在るもの（description の要約の材料）。**数えたものだけ**を渡す */
 export type SpotPageFacts = {
     /** 月ごとの撮影の光の表がある（`lightCalendar` が値を返した） */
     light?: boolean;
-    /** 作例の枚数（画面に出すもの・代表写真を除く）。代表写真と合わせて「写真N枚」と書く */
+    /** 作例の枚数（画面に出すもの・代表写真を除く）。代表写真と合わせて「作例・代表写真N枚」と書く */
     samples?: number;
     /** 代表写真がある */
     cover?: boolean;
@@ -79,7 +84,7 @@ export function spotPageDescription(
     if (spot.seasonalGuide?.length) parts.push("季節の撮りどき");
     if (spot.timeOfDayGuide?.length) parts.push("時間帯ごとの撮り方");
     const photos = (facts.samples ?? 0) + (facts.cover ? 1 : 0);
-    if (photos > 0) parts.push(`写真${photos}枚`);
+    if (photos > 0) parts.push(`作例・代表写真${photos}枚`);
     const computed = facts.computed?.trim();
     return [
         head,
