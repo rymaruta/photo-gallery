@@ -7,7 +7,7 @@ import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { spotIndexTopics } from "@/lib/data/spotTopics";
-import { TopicChips } from "@/app/components/SpotTopicPage";
+import { TopicChips } from "@/app/components/SpotTopicLists";
 
 /**
  * **撮影地ガイドの入口。**

@@ -5,7 +5,7 @@ import {
     topicSpots, countryTopics, themeTopics, seasonTopics,
     countryView, themeView, seasonView, overseasView,
     topicStructuredData, topicTitle, topicMetadata, topicLinksForSpot, spotIndexTopics,
-    homeSeasonalSpots, seasonOfMonth, spotTopicSitemapEntries, themePath, seasonPath,
+    homeSeasonalSpots, seasonOfMonth, SEASON_TOP_CARDS, spotTopicSitemapEntries, themePath, seasonPath,
 } from "../spotTopics";
 import { prefectureByName, OVERSEAS_SLUG } from "../prefectures";
 import { siteConfig } from "../../utils/seo";
@@ -139,7 +139,7 @@ describe("国", () => {
         const big = countryView("fr")!;
         expect(big.indexable).toBe(true);
         expect(topicMetadata(big).robots).toBeUndefined();
-        expect(topicMetadata(big).alternates.canonical).toBe(`${siteConfig.url}/spots/area/overseas/fr`);
+        expect(topicMetadata(big).alternates?.canonical).toBe(`${siteConfig.url}/spots/area/overseas/fr`);
     });
 
     it("国の頁のパンくずは 海外 → 国", () => {
@@ -165,6 +165,20 @@ describe("季節", () => {
         const one = clone(kyotoBase, { seasonalGuide: [{ season: "winter", text: "雪" }] });
         const got = seasonTopics([none, one]);
         expect(got.map((t) => [t.season, t.spots.map((s) => s.slug)])).toEqual([["winter", [one.slug]]]);
+    });
+
+    it("🔴 全体の頁は並べる数を絞る（600KB に戻さない）が、どの行もどこかの季節の頁に載る", () => {
+        for (const season of SEASONS) {
+            const top = seasonView(season, null)!;
+            const all = seasons.find((t) => t.season === season && t.area === null)!;
+            const subs = seasons.filter((t) => t.season === season && t.area !== null);
+            const onSub = new Set(subs.flatMap((t) => t.spots.map((s) => s.slug)));
+            const orphans = all.spots.filter((s) => !onSub.has(s.slug)).length;
+            expect(top.cards.length, season).toBeLessThanOrEqual(Math.max(SEASON_TOP_CARDS, orphans));
+            const reachable = new Set([...onSub, ...top.cards.map((c) => c.slug)]);
+            expect(all.spots.filter((s) => !reachable.has(s.slug)).map((s) => s.slug), season).toEqual([]);
+            if (all.spots.length > top.cards.length) expect(top.intro).toContain(`${all.spots.length}件あります`);
+        }
     });
 
     it("秋の導入文は「紅葉」の記述の件数を数える（題には使わない）", () => {
