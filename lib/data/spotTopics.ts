@@ -369,7 +369,9 @@ export function themeIntro(t: ThemeTopic, cards: readonly TopicCard[]): string {
 export function seasonIntro(t: SeasonTopic, cards: readonly TopicCard[]): string {
     const n = t.spots.length;
     const label = SEASON_JA[t.season];
-    let text = `${t.areaName ? `${t.areaName}で、` : ""}${label}の撮影の案内があるスポットを${n}件まとめました。${names(cards)}など。`;
+    let text = t.area || cards.length >= n
+        ? `${t.areaName ? `${t.areaName}で、` : ""}${label}の撮影の案内があるスポットを${n}件まとめました。${names(cards)}など。`
+        : `${label}の撮影の案内があるスポットは${n}件あります。この頁には${names(cards)}など${cards.length}件を載せ、ほかは地方別の頁にあります。`;
     const kw = SEASON_KEYWORD[t.season];
     if (kw) {
         const k = t.spots.filter((s) => (s.seasonalGuide ?? []).some((g) => g?.season === t.season && g.text?.includes(kw))).length;
@@ -471,13 +473,29 @@ export function themeView(categorySlug: string, place: string, spots: readonly S
     };
 }
 
+/**
+ * 季節の全体の頁に並べる数。**全部は並べない**（2026-10-11・実ビルド: 秋194件・冬202件を全部並べると
+ * 1頁 600KB を超えた）。地方別の頁（全件を並べる）がある行は写真のある先頭からこの数まで、
+ * **地方別の頁が無い行（件数の少ない地方・海外）は全部**載せる——どの行も、どこかの季節の頁から辿れる
+ */
+export const SEASON_TOP_CARDS = 36;
+
+function seasonTopCards(t: SeasonTopic, subs: readonly SeasonTopic[]): TopicCard[] {
+    const covered = new Set(subs.flatMap((x) => x.spots.map((s) => s.spotId)));
+    const orphan = new Set(t.spots.filter((s) => !covered.has(s.spotId)).map((s) => s.slug));
+    const all = topicCards(t.spots);
+    const rest = all.filter((c) => !orphan.has(c.slug)).slice(0, Math.max(0, SEASON_TOP_CARDS - orphan.size));
+    const keep = new Set([...orphan, ...rest.map((c) => c.slug)]);
+    return all.filter((c) => keep.has(c.slug));
+}
+
 export function seasonView(season: string, area: string | null, spots: readonly Spot[] = SPOTS): TopicView | null {
     const all = seasonTopics(spots);
     const t = all.find((x) => x.season === season && x.area === area);
     if (!t) return null;
     const top = all.find((x) => x.season === t.season && x.area === null)!;
-    const cards = topicCards(t.spots);
     const subs = all.filter((x) => x.season === t.season && x.area !== null);
+    const cards = t.area ? topicCards(t.spots) : seasonTopCards(t, subs);
     const otherSeasons = all.filter((x) => x.season !== t.season && x.area === t.area);
     return {
         path: seasonPath(t),

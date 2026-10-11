@@ -123,7 +123,7 @@ const EXEMPT: Array<[string, string, string]> = [
      + "運営が台帳に書いたサイト内のパス（利用者が上げた写真ではない）。"
      + "`SpotLinkCard` と同じく、台帳をクライアントに載せないため"
      + "サーバー側（`lib/data/spotLink.ts`）で解いた形から受け取る"],
-    ["app/components/SpotTopicPage.tsx", "c.cover.src",
+    ["app/components/SpotTopicLists.tsx", "c.cover.src",
      "切り口の頁（国・テーマ・季節・2026-10-11）のカードの代表写真。`SpotGuideClient` と同じ値"
      + "（`spotCoverImage`）のサイト内のパスかそのサムネ（`/images/spots/thumb/…`）。"
      + "利用者が上げた写真ではない。サーバー側（`lib/data/spotTopics.ts`）で解いた形から受け取る"],
