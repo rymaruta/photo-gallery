@@ -13,7 +13,7 @@
 import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { spotSamples } from "@/lib/data/spotSamples";
+import { spotSamples, coverImageObject } from "@/lib/data/spotSamples";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
@@ -87,7 +87,9 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // 構造化データ（検索に「この場所の写真」として渡す）には、**画面に出している作例を全部**入れる
     // （作者・ライセンス・出典つき。2026-10-03 のレビュー: 自動で選んだ作例が抜けていた。
     // 画面に出す以上、出典の表示は構造化データでも同じにそろえる）
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl, samples }) : null;
+    // 代表写真は作者・ライセンスつきの ImageObject で渡す（2026-10-11）
+    const coverImage = cover && coverUrl ? coverImageObject(cover, coverUrl) : coverUrl;
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples }) : null;
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);

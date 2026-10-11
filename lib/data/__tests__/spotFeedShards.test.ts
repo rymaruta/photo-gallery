@@ -229,6 +229,8 @@ describe("古いアプリの spots.json（2026-10-07 に固定）", () => {
         const legacy = legacySpotFeed(items);
         expect(legacy.every((s) => LEGACY_SPOT_IDS.has(s.spotId))).toBe(true);
         expect(legacy.map((s) => s.spotId).sort()).toEqual(items.filter((s) => LEGACY_SPOT_IDS.has(s.spotId)).map((s) => s.spotId).sort());
-        expect(Buffer.byteLength(JSON.stringify(legacy), "utf8")).toBeLessThan(950_000);
+        // 2026-10-11: 950KB → 1,000KB。作例から代表写真を埋め、固定の行で写真の出る行が 787 → 936 に
+        // なった（924KB → 966KB・gzip 247KB → 255KB）。増えたのは意図した中身（今のアプリが読む写真）
+        expect(Buffer.byteLength(JSON.stringify(legacy), "utf8")).toBeLessThan(1_000_000);
     });
 });

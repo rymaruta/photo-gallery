@@ -25,12 +25,12 @@
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
-import { coverLicenseOf, cleanAuthor } from "./spotImages";
-import type { Spot } from "./spots";
+import { cleanAuthor, licenseKindOf, isReviewedPick, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
+import type { Spot, SpotCoverImage } from "./spots";
 import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUnusablePublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
 /**
@@ -261,16 +261,11 @@ export function sourceNameOf(s: Pick<SpotSample, "source">): SpotSampleSourceNam
  * NC（商用不可）・ND（改変不可）・その他は undefined
  */
 export function sampleLicenseKind(label: string | undefined) {
-    const s = String(label ?? "").trim().replace(/\s*\([^()]*\)$/, "")
-        .replace(/^cc[-\s]by[-\s]sa(?=[-\s]|$)/i, "CC BY-SA")
-        .replace(/^cc[-\s]by(?=[-\s]|$)/i, "CC BY");
-    return coverLicenseOf(s);
+    return licenseKindOf(label);
 }
 
-/** Commons のファイル名から題を作る（"File:" と拡張子を除き、"_" を空白に） */
-export function titleFromFile(file: string): string {
-    return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
-}
+/** Commons のファイル名から題を作る（判定は `spotImages.ts` の1本） */
+export { titleFromFile };
 
 /**
  * 1枚を表示の形へ。**出してはいけない1枚は undefined**:
@@ -293,7 +288,8 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     if (isHostedSourceName(sourceName)) return toHostedSample(r, sourceName);
     const kind = sampleLicenseKind(r.license);
     if (!kind) return undefined;
-    if (isUsOnlyPublicDomain(r.license, r.licenseCode)) return undefined;
+    // PD-US 系・PD-Detroit・Flickr の Public Domain Mark（2026-10-11 レビュー）
+    if (isUnusablePublicDomain(r.license, r.licenseCode)) return undefined;
     if (kind === "public-domain" && !hasPdBasis(r.licenseCode)) return undefined;
     if (r.personality) return undefined;
     const byLicense = kind === "cc-by" || kind === "cc-by-sa";
@@ -416,10 +412,8 @@ function toHostedSample(r: SpotSampleRecord, name: HostedSourceName): SpotSample
     };
 }
 
-/** 人（または目で見て選ぶ作業）が選んだ1枚か。"auto" は機械の規則 */
-export function isReviewedPick(r: Pick<SpotSampleRecord, "pickedBy">): boolean {
-    return typeof r.pickedBy === "string" && r.pickedBy.trim() !== "" && r.pickedBy.trim() !== "auto";
-}
+/** 人（または目で見て選ぶ作業）が選んだ1枚か。"auto" は機械の規則（判定は `spotImages.ts` の1本） */
+export { isReviewedPick };
 
 /**
  * **そのスポットの作例**（表示してよいものだけ・最大6枚）。
@@ -449,6 +443,78 @@ export function spotSamples(
         if (out.length >= MAX_SHOWN_SAMPLES) break;
     }
     return out;
+}
+
+/**
+ * **代表写真に昇格してよい作例**（2026-10-11・owner「検索で見つけてもらう」）。無ければ undefined。
+ *
+ * 代表写真は「その場所の写真だと確かめた」（`SpotCoverImage.verifiedPlace`）が条件。作例のうちそれを
+ * 満たすのは、**写真を1枚ずつ見てその撮影地の景色と確かめた1枚**（`pickedBy` が "visual-review" か人の
+ * 名前＝`isReviewedPick`）だけ。"auto"（名前の一致と距離だけ）は上げない。ほかに:
+ *   - 公開済みのスポットだけ（下書きはページが建たない）
+ *   - Wikimedia Commons の写真だけ（縮小版をサイトに置く道具 `localize-spot-images.mjs` が Commons 用。
+ *     Flickr・サイトに置いた提供元の写真は規約の表示が別なので上げない）
+ *   - 画面に出せる1枚（`toSpotSample` を通る＝ライセンス・作者・PD の根拠・人物の権利）で、
+ *     人や催しが主役でない（`spotSamples` と同じ）
+ *   - 横長を先に（ページの頭と共有のカードは横長）。横長が無ければ最初の1枚
+ */
+/**
+ * **作例から代表写真を上げる対象か**（2026-10-11）。公開済みで代表写真がまだ出ていない行のうち、
+ * **人が確かめた Wikidata の代表画像（`reviewedBy`）を持つ行は上げない**——縮小版を置き忘れただけの
+ * 人の確認を、機械の昇格で上書きしない（`localize-spot-images.mjs --slug` で置けばよい）
+ */
+export function isPromotionTarget(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>>,
+    hasCover: (spot: Spot) => boolean,
+): boolean {
+    if (!isPublished(spot) || hasCover(spot)) return false;
+    return !images[spot.slug]?.reviewedBy?.trim();
+}
+
+export function coverCandidateSample(
+    spot: Pick<Spot, "spotId"> & Partial<Spot>,
+    file: Readonly<SpotSamplesFile> = SPOT_SAMPLES,
+): { record: SpotSampleRecord; sample: SpotSample } | undefined {
+    if (!isPublished(spot as Spot)) return undefined;
+    const eventSpot = isEventSpot(spot);
+    const ok: { record: SpotSampleRecord; sample: SpotSample }[] = [];
+    for (const record of file[spot.spotId]?.samples ?? []) {
+        if (!isReviewedPick(record) || sampleSourceName(record) !== COMMONS_SOURCE_NAME) continue;
+        if (!eventSpot && EVENT_OR_PERSON.test(`${record.file ?? record.title ?? ""}`)) continue;
+        const sample = toSpotSample(record);
+        if (sample) ok.push({ record, sample });
+    }
+    return ok.find((c) => c.sample.width >= c.sample.height) ?? ok[0];
+}
+
+/**
+ * 昇格させる作例から `content/spot-images.json` の1行を作る（`local` は縮小版を置いたあとに足す）。
+ * 作者・ライセンスは**画面の作例と同じ表示の形**（`toSpotSample` を通したもの）を写す——作者の飾りを
+ * 落とし、パブリックドメインは根拠を添えた名前（"Public domain (PD-self)"）
+ */
+export function sampleCoverEntry(
+    c: { record: SpotSampleRecord; sample: SpotSample },
+    fetchedAt: string,
+    previous?: SpotImage,
+): SpotImage {
+    const { local: _local, replaced: _replaced, ...prev } = previous ?? ({} as SpotImage);
+    void _local; void _replaced;
+    return {
+        wikidata: previous?.wikidata ?? "",
+        file: c.record.file ?? "",
+        pageUrl: c.sample.sourceUrl,
+        thumbUrl: c.sample.src,
+        author: c.sample.author,
+        license: c.sample.license,
+        ...(c.sample.licenseUrl ? { licenseUrl: c.sample.licenseUrl } : {}),
+        ...(c.record.licenseCode ? { licenseCode: c.record.licenseCode } : {}),
+        method: SAMPLE_COVER_METHOD,
+        pickedBy: c.record.pickedBy.trim(),
+        fetchedAt,
+        reviewedBy: null,
+        ...(previous ? { replaced: prev } : {}),
+    };
 }
 
 /**
@@ -488,5 +554,30 @@ export function sampleImageObject(s: SpotSample) {
         creditText: `${s.author} / ${s.license} / ${sourceNameOf(s)}`,
         ...(license ? { license } : {}),
         acquireLicensePage: s.sourceUrl,
+    };
+}
+
+/**
+ * **代表写真の `ImageObject`**（観光地の構造化データの `image` の先頭・2026-10-11）。
+ * 以前は URL の文字列だけで、作者・ライセンスが構造化データに無かった（作例は `sampleImageObject` で持つ）。
+ * 書き方は作例と同じ: 作者は分かるときだけ `creator`、ライセンスの文面（パブリックドメインは
+ * Public Domain Mark）、出典のページを `acquireLicensePage`、表示の文字を `creditText`。
+ * Commons の写真でない（owner・許諾）代表写真は、ライセンスの文面を持たないので書かない
+ */
+export function coverImageObject(cover: SpotCoverImage, url: string) {
+    const license = cover.licenseUrl ?? (cover.license === "public-domain" ? PUBLIC_DOMAIN_MARK_URL : undefined);
+    const fromCommons = Boolean(cover.sourceUrl && /^https:\/\/commons\.wikimedia\.org\//.test(cover.sourceUrl));
+    const credit = cover.credit.trim();
+    return {
+        "@type": "ImageObject",
+        contentUrl: url,
+        name: cover.title ?? cover.alt,
+        ...(credit && credit !== UNKNOWN_AUTHOR
+            ? { creator: { "@type": isOrganizationName(credit) ? "Organization" : "Person", name: credit } }
+            : {}),
+        creditText: cover.requiredCreditText?.trim()
+            || [credit, cover.licenseLabel, fromCommons ? COMMONS_SOURCE_NAME : undefined].filter(Boolean).join(" / "),
+        ...(license ? { license } : {}),
+        ...(cover.sourceUrl ? { acquireLicensePage: cover.sourceUrl } : {}),
     };
 }

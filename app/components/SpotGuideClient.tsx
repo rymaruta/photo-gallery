@@ -21,6 +21,12 @@ import { LIGHT_MAX_OFFSET, direction, guideTimes, lightDateLabel, lightNote, lig
 import { MILKY_WAY_MIN_ALTITUDE, directionSummary, milkyWaySummary, newMoonLabels, skyLead, type SpotSky } from "../../lib/utils/spotSky";
 import { takenMonthLine } from "../../lib/utils/takenMonth";
 
+
+/**
+ * 代表写真を枠に合わせて切り抜いて出している（`object-cover`）ことの表示（2026-10-11 レビュー）。
+ * CC BY / BY-SA 4.0 は「変更したかどうかの表示」を求める。Commons の代表写真の出典の行に添える
+ */
+export const COVER_CROP_NOTE = { ja: "一部を切り抜いて表示", en: "cropped for display" } as const;
 /**
  * **公式撮影地ガイドの画面**（`/spots/<slug>`）。
  *
@@ -658,8 +664,11 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                    style={{ fontSize: "11px", lineHeight: "15px" }}>
                     {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
                         ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}
+                    {/* 2026-10-11 レビュー: 題（CC BY / BY-SA 1.0〜3.0 の表示条件）を頭に、
+                        切り抜いて出していること（CC 4.0 の「変更の表示」）を最後に添える */}
                     {cover!.licenseLabel ? (
                         <>
+                            {cover!.title ? `${cover!.title} / ` : ""}
                             {isJa ? "写真: " : "Photo: "}{cover!.credit}{" / "}
                             {cover!.licenseUrl ? (
                                 <a href={cover!.licenseUrl} target="_blank" rel="noopener noreferrer license"
@@ -672,6 +681,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                        className="text-white/60 underline underline-offset-2 hover:text-white">Wikimedia Commons</a>
                                 </>
                             )}
+                            {isJa ? `（${COVER_CROP_NOTE.ja}）` : ` (${COVER_CROP_NOTE.en})`}
                         </>
                     ) : (cover!.requiredCreditText || `Photo: ${cover!.credit}`)}
                 </p>

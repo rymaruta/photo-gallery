@@ -5,6 +5,7 @@ import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
+import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 
 /**
  * **撮影地ガイドの入口。**
@@ -26,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     // 件数に「運営が調べた」と読める形で数えるのは、人が確かめた行だけ
     const description = n > 0
         ? (verified >= MIN_INDEXABLE_SPOTS
-            ? `写真を撮りに行ける場所のガイド（${areas}地域・${verified}件${n > verified ? `・ほかに下書き${n - verified}件` : ""}）。見どころ・季節・時間帯・アクセスまで。`
+            ? `写真を撮りに行ける場所のガイド（${areas}地域・${verified}件${n > verified ? `・ほかに下書き${n - verified}件` : ""}）。見どころと、月ごとの日の出・日の入りなど撮影の光まで。${spotCheckedClaim(visibleSpots(SPOTS))}`
             : `写真を撮りに行ける場所のガイドの下書き（${areas}地域・${n}件）。運営がまだ確認していない情報を含みます。`)
         : "写真を撮りに行ける場所のガイド。";
     return {

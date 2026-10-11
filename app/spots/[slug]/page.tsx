@@ -5,7 +5,10 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { appendSkySummary, spotSkyDescription } from "@/lib/utils/spotSky";
+import { spotSamples } from "@/lib/data/spotSamples";
+import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
+import { lightCalendar } from "@/lib/utils/lightCalendar";
+import { spotSkyDescription } from "@/lib/utils/spotSky";
 
 // 静的エクスポート: 列挙した slug のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -34,12 +37,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!spot) return { robots: { index: false, follow: true } };
 
     const verified = isPublished(spot);
-    const where = [spot.region?.prefecture, spot.region?.city].filter(Boolean).join(" ");
-    const title = where ? `${spot.name}（${where}）の撮影ガイド` : `${spot.name} の撮影ガイド`;
+    // 2026-10-11: title は検索の語（撮影スポット・撮影ガイド）を入れて短く、description は紹介文に
+    // ページに在るもの（撮影の光・作例の枚数）の要約を足す（`lib/data/spotPageMeta.ts`）。
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）
-    // 後半に座標から計算した要約（日の入りの方角・天の川の月）を足す（2026-10-11・`spotSkyDescription`）
-    const description = appendSkySummary((verified ? "" : "【下書き・運営未確認】")
-        + (spot.summary ?? `${spot.name}で写真を撮るための情報。`), spotSkyDescription(spot));
+    const title = spotPageTitle(spot);
     const url = `${siteConfig.url}/spots/${spot.slug}`;
     // 代表写真があればそれを OGP に出す。
     // **無ければサイトの既定の画像（`siteConfig.ogImage`）に落とす**——画像を申告しないと、
@@ -51,9 +52,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
         : undefined;
     const image = photo ?? `${siteConfig.url}${siteConfig.ogImage}`;
+    // 数えるのは画面と同じもの（作例は代表写真と同じ1枚を除く・`SpotGuidePage`）
+    const description = spotPageDescription(spot, {
+        light: lightCalendar(spot.coords, spot.region?.country, spot.timeZone) !== null,
+        samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,
+        cover: Boolean(photo),
+        // 座標から計算した要約（日の入りの方角・天の川の月）を紹介文のすぐ後に入れる（`spotSkyDescription`）
+        computed: spotSkyDescription(spot),
+    });
 
     return {
-        title,
+        // サイト全体の template（「 | Journey Photo 旅フォトギャラリー」）を外し、短い名前を自分で付ける
+        title: { absolute: title },
         description,
         alternates: { canonical: url },
         // **下書きは検索に出さない**（リンクは辿らせる。確かめたら外れる）

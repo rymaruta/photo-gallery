@@ -50,14 +50,16 @@ export default function SpotAreaIndexClient({ areas, total, draftCount }: Props)
             {total > 0 && (
             <p className="m-0 mt-2 mb-6 text-white/70" style={{ fontSize: "14px", lineHeight: "22px" }}>
                 {/* **「運営が調べた」と言えるのは、人が確かめた行だけ。** 全部が下書きなら
-                    そう言う（2026-09-24 の台帳は 1,417件が未確認のまま「調べた」と名乗っていた） */}
+                    そう言う（2026-09-24 の台帳は 1,417件が未確認のまま「調べた」と名乗っていた）
+                    2026-10-11: 公開の行も人が確かめたのは数件で、多くは AI 照合。「運営が調べた」は
+                    言い過ぎなので外した（確かめ方は各ページの出典の行と、索引の description が書く） */}
                 {draftCount >= total
                     ? (isJa
                         ? `撮影地ガイドの下書きです（${total}件・運営未確認）。地域を選ぶと、その中のスポットが出ます。`
                         : `Draft guides, not checked by us yet (${total}). Pick an area to see the spots in it.`)
                     : (isJa
-                        ? `運営が調べた撮影地のガイドです（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
-                        : `Guides we researched (${total}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Pick an area to see the spots in it.`)}
+                        ? `撮影地のガイドです（${total}件${draftCount > 0 ? `・うち下書き${draftCount}件` : ""}）。地域を選ぶと、その中のスポットが出ます。`
+                        : `Photo spot guides (${total}${draftCount > 0 ? `, ${draftCount} drafts` : ""}). Pick an area to see the spots in it.`)}
             </p>
             )}
 
