@@ -54,10 +54,15 @@ const open = async (contactEmail = CONTACT) => {
 };
 
 describe("設定の骨格", () => {
-    it("アカウント・プライバシー・サポート・危険な操作の4節を出す", async () => {
+    it("アカウント・プロフィール・プライバシー・サポート・危険な操作の5節を出す", async () => {
         await open();
         expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent))
-            .toEqual(["アカウント", "プライバシー", "サポート", "危険な操作"]);
+            .toEqual(["アカウント", "プロフィール", "プライバシー", "サポート", "危険な操作"]);
+    });
+
+    it("プロフィールの節から、メダルと名前の横の画面（/user/badges）へ行ける", async () => {
+        await open();
+        expect(screen.getByRole("link", { name: /メダルと名前の横/ })).toHaveAttribute("href", "/user/badges");
     });
 
     // 🔴 **実装の無い節を置かない**（owner の指示）。

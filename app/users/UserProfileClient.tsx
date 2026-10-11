@@ -41,7 +41,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
-import { ProMark, NameBadge } from "../components/ProfileNameMarks";
+import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
 
@@ -1347,6 +1347,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                         displayBadge={userProfile?.displayBadge}
                                         ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                                         locale={locale === "en" ? "en" : "ja"}
+                                        manageHref={isOwner ? ROUTES.BADGES : undefined}
                                     />
                                 </h1>
                                 {userProfile?.username && (
@@ -1588,6 +1589,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             >
                                 {locale === "en" ? "Trips →" : "旅行プラン →"}
                             </Link>
+                            {/* メダルの棚と名前の横の設定（本人だけ・2026-10-11） */}
+                            <Link href={ROUTES.BADGES} prefetch={false} className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors" style={{ touchAction: "manipulation" }}>
+                                {locale === "en" ? "Medals →" : "メダル →"}
+                            </Link>
+                        </div>
+                    )}
+                    {/* 人のページ: 持っているメダルの一覧（名前の横に選んでいない人にも入口を置く・2026-10-11） */}
+                    {!isOwner && (
+                        <div className="mt-2 text-center">
+                            <MedalsButton badges={userProfile?.badges} ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")} locale={locale === "en" ? "en" : "ja"} />
                         </div>
                     )}
 

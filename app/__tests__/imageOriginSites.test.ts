@@ -151,8 +151,12 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/layout.tsx", '"/logo-aperture.png"', "ヘッダーのロゴ（`public/` に置いた固定の絵。相対パスなので既にサイトのドメイン）"],
     ["app/components/ProfileNameMarks.tsx", "proMarkImage(style, size)", "Pro の印（`public/badges/` に置いた固定の SVG。相対パス）"],
     // `badgeImage` は季節の章で絵の無い年に null を返すので、一度変数に受けてから描く
-    ["app/components/ProfileNameMarks.tsx", "medalSrc", "メダルの絵（`badgeImage`。`public/badges/` に置いた固定の WebP。相対パス）"],
-    ["app/components/ProfileNameMarks.tsx", "src", "名前の横のメダル（`badgeImage`・同上）"],
+    ["app/components/ProfileNameMarks.tsx", "src", "名前の横のメダル（`badgeImage`。`public/badges/` に置いた固定の WebP。相対パス）"],
+    // メダルの棚と名前の横の設定（2026-10-11）。どれも `badgeImage`（同上）
+    ["app/components/MedalShelf.tsx", "src", "メダルの棚の絵（`badgeImage`・同上）"],
+    ["app/user/badges/NameSideSheet.tsx", "chosenSrc", "名前の横の下見のメダル（`badgeImage`・同上）"],
+    ["app/user/badges/NameSideSheet.tsx", "src", "持っているメダルの絵（`badgeImage`・同上）"],
+    ["app/user/badges/page.tsx", "currentSrc", "いま名前の横に飾っているメダル（`badgeImage`・同上）"],
     ["app/components/NotificationsBell.tsx", "medalSrc", "メダルの通知の絵（`badgeImage`・同上）"],
 
     // (b) 端末の中にしか無い
