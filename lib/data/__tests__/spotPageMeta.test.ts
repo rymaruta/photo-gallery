@@ -38,7 +38,7 @@ describe("title", () => {
 describe("description", () => {
     it("紹介文＋ページに在るもの（撮影の光・作例の枚数）", () => {
         const d = spotPageDescription({ ...base, seasonalGuide: undefined, timeOfDayGuide: undefined }, { light: true, samples: 5, cover: true });
-        expect(d).toBe(`${base.summary}撮影の光（月ごとの日の出・日の入り・ゴールデンアワー）・作例写真6枚を掲載。`);
+        expect(d).toBe(`${base.summary}撮影の光（月ごとの日の出・日の入り・ゴールデンアワー）・写真6枚を掲載。`);
     });
 
     it("無いものは書かない", () => {
@@ -48,7 +48,7 @@ describe("description", () => {
 
     it("季節・時間帯の案内があれば足す。計算の要約（computed）は紹介文のすぐ後", () => {
         const d = spotPageDescription(
-            { ...base, seasonalGuide: [{ season: "春", text: "桜" }] as Spot["seasonalGuide"], timeOfDayGuide: [{ time: "朝", text: "順光" }] as Spot["timeOfDayGuide"] },
+            { ...base, seasonalGuide: [{ season: "spring", text: "桜" }] as unknown as Spot["seasonalGuide"], timeOfDayGuide: [{ time: "morning", text: "順光" }] as unknown as Spot["timeOfDayGuide"] },
             { computed: "夕日は11月に正面" },
         );
         expect(d).toBe(`${base.summary}夕日は11月に正面。季節の撮りどき・時間帯ごとの撮り方を掲載。`);

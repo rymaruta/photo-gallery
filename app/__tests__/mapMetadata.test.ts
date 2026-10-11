@@ -22,5 +22,7 @@ describe("/map のメタデータ", () => {
         const top = entries.find((e) => !e.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, ""));
         expect(top, "トップの行が無い").toBeTruthy();
         expect(map!.lastModified).toEqual(top!.lastModified);
-    });
+        // 2026-10-11: sitemap を読み込むと台帳と写真の JSON（数MB）を変換する。develop で 4.4 秒と既定の
+        // 5 秒に迫っていて、代表写真を足した spot-images.json（+約 0.6MB）で超えた。中身ではなく読み込みの時間
+    }, 20_000);
 });
