@@ -13,7 +13,7 @@ import { visibleSpots, isPublished } from "../utils/spotGuide";
 import { siteConfig, generateItemListStructuredData } from "../utils/seo";
 import { ROUTES } from "../routes";
 import { haversineKm, kmForLabel } from "../utils/journey";
-import { sampleImageObject, type SpotSample } from "./spotSamples";
+import { sampleImageObject, type SpotSample, type coverImageObject } from "./spotSamples";
 
 /**
  * `/spots`（地域の索引）の一覧の構造化データ（ItemList）。
@@ -69,7 +69,11 @@ function countryOf(spot: Spot): string | undefined {
  *   ライセンス（`license`）・出典（`acquireLicensePage`）・表示の文字（`creditText`）を必ず書く。
  *   作例があるときだけ `image` が配列になる（代表写真の URL が先頭）
  */
-export function spotStructuredData(spot: Spot, opts: { image?: string; samples?: SpotSample[] } = {}) {
+export function spotStructuredData(
+    spot: Spot,
+    // 2026-10-11: 代表写真は作者・ライセンスつきの `ImageObject` でも渡せる（`coverImageObject`）
+    opts: { image?: string | ReturnType<typeof coverImageObject>; samples?: SpotSample[] } = {},
+) {
     const samples = (opts.samples ?? []).map(sampleImageObject);
     const image = samples.length > 0 ? [...(opts.image ? [opts.image] : []), ...samples] : opts.image;
     const region = spot.region;
