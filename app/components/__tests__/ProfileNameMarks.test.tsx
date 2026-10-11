@@ -124,7 +124,7 @@ describe("人のメダルの棚（2026-10-11）", () => {
         expect(items.every((li) => li.getAttribute("data-owned") === "true")).toBe(true);
         // 取った日付も小さく添える（以前の縦の一覧と同じ情報を落とさない）
         expect(dialog.querySelectorAll("[data-testid=medal-shelf-date]")).toHaveLength(2);
-        expect(dialog.textContent).toContain("2026年10月1日");
+        expect(dialog.textContent).toContain("2026.10.01");
         // 人の棚に自分の設定への道は置かない
         expect(dialog.querySelector("a[href='/user/badges']")).toBeNull();
     });

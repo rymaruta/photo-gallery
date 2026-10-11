@@ -103,14 +103,28 @@ export function readBadgeProgress(raw: unknown): BadgeProgressMap {
     return out;
 }
 
-/** 「あと◯」の単位（板の「あと[25]枚で次」「あと[3]冊で次」） */
-const UNITS: Partial<Record<FixedBadgeKey, { ja: string; en: string }>> = {
-    first: { ja: "枚", en: " photo" },
-    morning: { ja: "枚", en: " photos" },
-    night: { ja: "枚", en: " photos" },
-    books: { ja: "冊", en: " books" },
-    seasons: { ja: "年", en: " years" },
-    supporterYear: { ja: "か月", en: " months" },
+/**
+ * 「あと◯」の単位（板の「あと[25]枚で次」「あと[17]で次」「あと[3]冊で次」）。英語は単数形（2以上で s）。
+ *
+ * 2026-10-11 判断: **数えるメダルを全部ここに並べる**（無いものは「単位なし」と明示）。
+ * iOS の `BadgeCatalog.kinds`（`unitJa` / `unitEn`）と同じ: 都道府県・国・地域・行けた場所は
+ * 板どおり数だけ（「あと17で次」）。英語の言い方も iOS にそろえた
+ * （「25 more photos to next」「5 more photos to earn」）。
+ * 続けた年だけは Web の「か月」を残す（iOS は単位なしで「あと7で次」——何の数か読めないので、
+ * iOS 側に「か月」を足すほうへそろえる。owner に確認する）。
+ */
+export const UNITS: Record<FixedBadgeKey, { ja: string; en: string }> = {
+    earlyUser: { ja: "", en: "" },
+    first: { ja: "枚", en: "photo" },
+    prefectures: { ja: "", en: "" },
+    countries: { ja: "", en: "" },
+    seasons: { ja: "年", en: "year" },
+    morning: { ja: "枚", en: "photo" },
+    night: { ja: "枚", en: "photo" },
+    books: { ja: "冊", en: "book" },
+    wish: { ja: "", en: "" },
+    supporter: { ja: "", en: "" },
+    supporterYear: { ja: "か月", en: "month" },
 };
 
 /**
@@ -125,9 +139,10 @@ export function progressText(key: FixedBadgeKey, p: BadgeProgressEntry | undefin
     const left = p.next - p.count;
     // 数え直しの前後で線に届いている（次に開いたとき段が上がる）
     if (left <= 0) return en ? "Next tier soon" : "まもなく次の段";
-    const unit = UNITS[key]?.[locale] ?? "";
-    if (owned) return en ? `${left}${unit} to next` : `あと${left}${unit}で次`;
-    return en ? `${left}${unit} to go` : `あと${left}${unit}`;
+    const unit = UNITS[key] ?? { ja: "", en: "" };
+    const unitEn = unit.en ? ` ${unit.en}${left === 1 ? "" : "s"}` : "";
+    if (owned) return en ? `${left} more${unitEn} to next` : `あと${left}${unit.ja}で次`;
+    return en ? `${left} more${unitEn} to earn` : `あと${left}${unit.ja}`;
 }
 
 export type ShelfItem = {

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 
 // **名前の横の並び**（owner の決定）: 名前 → 認証済みの封印 → Pro の印 → 選んだメダル。
 // メダルは持っているものだけ、Pro の印は `pro: true` の人だけ。
@@ -73,3 +73,31 @@ describe("名前の横の印", () => {
         expect(heading.querySelector("[data-testid=name-badge]")).toBeNull();
     });
 });
+
+// 2026-10-11: 1280px で「メダル N →」がカバーの帯の右上に浮いていた（PC の横並びで右列の外＝3つ目の列）。
+// 390px と同じく件数の下（右列の中）に置く
+describe("メダルの入口は右列の中（件数の下）", () => {
+    const badges = { first: { tier: 1, at: AT }, morning: { tier: 2, at: AT } };
+
+    it("人のページ: 「メダル N →」は右列の中、件数の行より後ろ", async () => {
+        profileResponse({ userId: ME, displayName: "旅人", badges });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        const btn = await screen.findByTestId("medals-button");
+        const main = container.querySelector("[data-testid=profile-header-main]")!;
+        expect(main).not.toBeNull();
+        expect(main.contains(btn)).toBe(true);
+        const stats = within(main as HTMLElement).getByText("投稿");
+        expect(stats.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("本人のページ: 「下書き →」〜「メダル →」も右列の中", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: ME } }) });
+        profileResponse({ userId: ME, displayName: "旅人", badges });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        const medals = await screen.findByRole("link", { name: "メダル →" });
+        const main = container.querySelector("[data-testid=profile-header-main]")!;
+        expect(main.contains(medals)).toBe(true);
+        expect(main.contains(screen.getByRole("link", { name: "下書き →" }))).toBe(true);
+    });
+});
+
