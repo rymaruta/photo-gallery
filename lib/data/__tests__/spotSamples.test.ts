@@ -8,7 +8,7 @@ import {
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, EVENT_OR_PERSON, isEventSpot, hasPdBasis, pdBasisOf, photoLicenseOf,
+    cleanCommonsAuthor, isPlaceholderAuthor, isUsOnlyPublicDomain, isUnusablePublicDomain, EVENT_OR_PERSON, isEventSpot, hasPdBasis, pdBasisOf, photoLicenseOf,
 } from "../../utils/commonsAttribution.mjs";
 import { spotStructuredData } from "../spotSeo";
 import { commonsThumbAt, commonsSrcSet } from "../../utils/commonsThumb";
@@ -286,14 +286,15 @@ describe("リポジトリの確定ファイル", () => {
     const file = rawSamples as unknown as SpotSamplesFile;
 
     /**
-     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・人物の印・人や催しが主役）だけ。
+     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・PD-Detroit・Flickr の PDM・人物の印・人や催しが主役）だけ。
      * URL の欠け・知らないライセンスなど、それ以外の理由で黙って落ちる1枚は無い
      * （確定ファイルは人が手で直すので、書き間違いをここで捕まえる）
      */
     const explained = (r: SpotSampleRecord, spot: Spot) => {
         const author = cleanCommonsAuthor(String(r.author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
         const by = /^cc[-\s]by/i.test(r.license);
-        return (by && isPlaceholderAuthor(author)) || isUsOnlyPublicDomain(r.license, r.licenseCode) || r.personality === true
+        // PD-Detroit・Flickr の Public Domain Mark も（2026-10-11 レビュー）
+        return (by && isPlaceholderAuthor(author)) || isUnusablePublicDomain(r.license, r.licenseCode) || r.personality === true
             || String(r.licenseCode ?? "").startsWith("mixed:")
             || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""));
     };
