@@ -23,6 +23,7 @@ import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
+import { topicLinksForSpot } from "@/lib/data/spotTopics";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
@@ -107,6 +108,7 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 pageUrl={spotPageUrl(spot)}
                 light={light}
                 samples={samples}
+                topics={topicLinksForSpot(spot)}
             />
         </>
     );

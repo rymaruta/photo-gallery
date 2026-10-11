@@ -7,6 +7,7 @@ import { collectEntries, collectionPath, collectionIndexPath, isIndexableCollect
 import { SPOTS } from "../lib/data/spots";
 import { spotAreas } from "../lib/data/spotLink";
 import { publishableSpots } from "../lib/utils/spotGuide";
+import { spotTopicSitemapEntries } from "../lib/data/spotTopics";
 import RAW_PHOTOS from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 
@@ -188,6 +189,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         ...spotIndexUrls,
         ...spotAreaUrls,
+        // 国・テーマ・季節の切り口の頁（2026-10-11・`lib/data/spotTopics.ts`）
+        ...spotTopicSitemapEntries(baseUrl),
         ...indexUrls,
         ...spotUrls,
         ...photoUrls,

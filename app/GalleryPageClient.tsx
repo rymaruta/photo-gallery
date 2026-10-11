@@ -23,6 +23,7 @@ import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
 import QuizEntry from "./components/QuizEntry";
 import SpotsEntry from "./components/SpotsEntry";
+import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
 
@@ -122,9 +123,14 @@ type Props = {
    *   `search` … 絞り込み＋件数＋サムネのグリッド
    */
   surface?: "home" | "search";
+  /**
+   * ホームの「いまの季節の撮影スポット」（ビルド時にサーバーが選んだ数件・`homeSeasonalSpots`）。
+   * 台帳はクライアントに持ち込まない（`SpotsEntry` の注記）
+   */
+  seasonalSpots?: HomeSeasonal | null;
 };
 
-export default function GalleryPageClient({ surface = "home" }: Props) {
+export default function GalleryPageClient({ surface = "home", seasonalSpots = null }: Props) {
   const { locale, labels } = useLocale();
   const { showToast } = useToast();
   const { photos, loaded: photosLoaded, failed: photosFailed } = usePhotos();
@@ -642,7 +648,7 @@ export default function GalleryPageClient({ surface = "home" }: Props) {
       {/* 今日の一問への入口（1行・タブの直下＝どのタブでも同じ位置）。`QuizEntry` の注記 */}
       {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
       {/* 撮影スポットのガイドへの入口（同じ1行の形・一問の直下）。`SpotsEntry` の注記 */}
-      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} />}
+      {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
