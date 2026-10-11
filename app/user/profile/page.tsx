@@ -268,7 +268,7 @@ export default function ProfileEditPage() {
         const setUploading = isCover ? setCoverUploading : setAvatarUploading;
         const failMessage = isCover
             ? (locale === "en" ? "Couldn't upload the cover photo" : "カバー写真のアップロードに失敗しました")
-            : "アバターのアップロードに失敗しました";
+            : (locale === "en" ? "Couldn't upload the profile photo" : "アバターのアップロードに失敗しました");
         const file = e.target.files?.[0];
         // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
         e.target.value = "";
@@ -330,7 +330,7 @@ export default function ProfileEditPage() {
             saved = true;
             showToast(isCover
                 ? (locale === "en" ? "Cover photo updated" : "カバー写真を更新しました")
-                : "プロフィール写真を更新しました", "success");
+                : (locale === "en" ? "Profile photo updated" : "プロフィール写真を更新しました"), "success");
         } catch (e) {
             showToast(sessionErrorMessage(e) ?? failMessage, "error");
         } finally {

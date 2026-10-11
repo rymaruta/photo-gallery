@@ -31,6 +31,10 @@ export function profileCoverUrl(userId: string, cacheBust?: string | number): st
  *
  * 出せたかどうかは `onLoaded` で返す（見出しを帯の下端に重ねるため）。
  *
+ * ⚠️ **カバーが無い人のページは、開くたびに `profiles/<uid>/cover` へ1本要求して 4xx を受ける。**
+ * 有無はプロフィールの応答に載っていないので、聞いてみるしかない（iOS も同じ）。直すには
+ * サーバーが「カバーあり」の印を返す必要がある＝今回はやらない（2026-10-11 判断）。
+ *
  * **React より先に失敗が終わっていた画像は `onError` が拾えない**（`UserAvatar` の注記と同じ）。
  * 静的HTMLに焼かれるページでは、付いた時点の `complete` も見る。
  */

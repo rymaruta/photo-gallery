@@ -166,6 +166,8 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/stories/StoriesBar.tsx", "url", "長さを測るための blob: URL"],
     ["app/user/profile/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
     ["app/user/profile/page.tsx", "coverPreview", "選んだ直後の data: URL"],
+    ["app/user/light/page.tsx", "logo.x1", "Apple Weather の商標。Apple の配る画像をそのまま使う決まり（自分の配信ではない）"],
+    ["app/user/light/page.tsx", "`${logo.x1} 1x, ${logo.x2} 2x, ${logo.x3} 3x`", "同上（1x・2x・3x）"],
     ["app/user/upload/page.tsx", "it.preview", "サムネ帯の blob: URL（まだ上げていない・端末の中だけ）"],
     // 切り抜きプレビューは `app/components/CropFramePicker.tsx` へ切り出した
     // （アップロードと編集で共用）。**呼ぶ側で使い分ける**——
