@@ -31,6 +31,7 @@
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished, hasAiCheck } from "../utils/spotGuide";
 import { spotSamples, type SpotSample, type SpotSamplesFile } from "./spotSamples";
+import { spotCoverImage } from "./spotImages";
 
 export type SpotBodyCheck =
     | { kind: "human"; verifiedAt: string }
@@ -105,7 +106,9 @@ export function toSpotBody(spot: Spot, samplesFile?: Readonly<SpotSamplesFile>):
         compositionTips: nonEmpty(spot.compositionTips),
         officialWebsiteUrl: spot.officialWebsiteUrl || undefined,
         check,
-        samples: nonEmpty(spotSamples(spot, { file: samplesFile })),
+        // 代表写真と同じ1枚は除く（2026-10-11 レビュー: 作例から上げた代表写真が作例の先頭にも出ていた。
+        // 画面の `SpotGuidePage` と同じ）
+        samples: nonEmpty(spotSamples(spot, { file: samplesFile, exclude: [spotCoverImage(spot)?.sourceUrl] })),
     });
 }
 

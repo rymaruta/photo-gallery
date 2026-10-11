@@ -22,7 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { SPOTS } from "../lib/data/spots";
 import { spotCoverImage, SAMPLE_COVER_METHOD, type SpotImage } from "../lib/data/spotImages";
-import { coverCandidateSample, sampleCoverEntry } from "../lib/data/spotSamples";
+import { coverCandidateSample, sampleCoverEntry, isPromotionTarget } from "../lib/data/spotSamples";
 import { isPublished } from "../lib/utils/spotGuide";
 import { localizeImage, syncThumbsQuietly } from "./localize-spot-images.mjs";
 
@@ -44,7 +44,7 @@ async function main() {
     const published = SPOTS.filter((s) => isPublished(s) && (only ? only.includes(s.slug) : true));
     const before = published.filter((s) => spotCoverImage(s, images)).length;
     const todo = published
-        .filter((s) => !spotCoverImage(s, images))
+        .filter((s) => isPromotionTarget(s, images, (x) => Boolean(spotCoverImage(x, images))))
         .map((spot) => ({ spot, pick: coverCandidateSample(spot) }));
     const targets = todo.filter((t) => t.pick).slice(0, limit);
     console.log(`公開 ${published.length}・代表写真あり ${before}・無し ${todo.length}`

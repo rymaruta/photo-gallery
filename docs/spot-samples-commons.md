@@ -237,6 +237,23 @@ owner の方針「検索で見つけてもらう」「写真が無くても役�
 - 縮小版は `localize-spot-images.mjs` の `localizeImage` で置く（横 960px・EXIF を残さない）。
   取りにいくのは作例が画面で既に読んでいる Commons の 1280px の縮小版だけ・3秒に1回
 - `fetch-spot-images.mjs --refresh` は上げた行を上書きしない（取り直した P18 は `replaced` へ）
+- **作例と代表写真で扱いが違う**（2026-10-11 レビュー）:
+
+  | | 作例 | 代表写真（作例から上げたもの・Wikidata の P18 とも） |
+  |---|---|---|
+  | 画像 | Commons の縮小版を**直接読む**（こちらは複製しない） | **サイトに縮小版の写しを置く**（`public/images/spots/<slug>.jpg`・横 960px・EXIF なし） |
+  | 画面 | 元の縦横比のまま（切り抜かない） | ページの頭の枠に合わせて**切り抜いて表示**（`object-cover`） |
+  | 出典の行 | 「題 / 写真: 作者 / ライセンス / Wikimedia Commons」 | 同じ形の最後に「（一部を切り抜いて表示）」（英語 "cropped for display"）。CC 4.0 の「変更の表示」 |
+
+  写しを置くのは「代表写真は外部へホットリンクしない」という前からの決まり（`SpotCoverImage.src`）。
+  縮小は改変にあたらない、切り抜いて見せるのは表示の上の変更として明記する、という整理（**owner に確かめてほしい**）
+- 代表写真も**題**を出す（`SpotCoverImage.title`・ファイル名から）。CC BY / BY-SA 1.0〜3.0 は題が表示の条件。
+  アプリ向けの索引の `image.title` にも入る（古い `spots.json` には載せない）
+- アプリ向けの本文（`/app/data/spots/<slug>.json`）の作例は、代表写真と同じ1枚を除く（画面と同じ）
+- パブリックドメインのうち **PD-Detroit**（アメリカでの出版年による）と **PD-author-FlickrPDM**（Flickr の
+  Public Domain Mark＝権利者の放棄ではない）は、作例でも代表写真でも出さない（`isUnusablePublicDomain`）。
+  2026-10-11: 作例 14 枚（9 か所）が外れ、代表写真 2 件（las-medulas・st-michaels-mount）を別の作例に替えた
+- 人が確かめた Wikidata の代表画像（`reviewedBy`）を持つ行は、作例から上げない（`isPromotionTarget`）
 - 見張り: `lib/data/__tests__/spotCoverFromSamples.test.ts`（上げた行が作例の確定ファイルの
   確かめた1枚と一致・縮小版が在る）
 - 構造化データの代表写真は作者・ライセンスつきの `ImageObject`（`coverImageObject`）。

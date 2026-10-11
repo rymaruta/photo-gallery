@@ -14,6 +14,7 @@
 import raw from "@/content/spot-images.json";
 import type { Spot, SpotCoverImage, SpotImageLicense } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
+import { isUnusablePublicDomain } from "@/lib/utils/commonsAttribution.mjs";
 
 export type SpotImage = {
     wikidata: string;
@@ -92,7 +93,11 @@ export function shownSpotImage(
     if (reviewed) return reviewed;
     const image = images[spot.slug];
     // 作例から昇格させた行は、その作例を見て場所を確かめたものだけ（2026-10-11）
-    if (image?.method === SAMPLE_COVER_METHOD) return isReviewedPick(image) ? image : undefined;
+    // 2026-10-11 レビュー: 作例の表示と同じく、使えないパブリックドメイン（PD-US 系・PD-Detroit・
+    // Flickr の Public Domain Mark）は出さない
+    if (image?.method === SAMPLE_COVER_METHOD) {
+        return isReviewedPick(image) && !isUnusablePublicDomain(image.license, image.licenseCode) ? image : undefined;
+    }
     return spot.aiCheck?.imageChecked === true && image && !image.coordsMismatch ? image : undefined;
 }
 
@@ -121,6 +126,11 @@ export function licenseKindOf(label: string | undefined): SpotImageLicense | und
     return coverLicenseOf(s);
 }
 
+/** Commons のファイル名から題を作る（"File:" と拡張子を除き、"_" を空白に）。作例と代表写真で同じ1本 */
+export function titleFromFile(file: string): string {
+    return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
+}
+
 /** 作者の欄に残る Wiki の書き方（「( talk )」）を落とす。それ以外は作者の求める表記のまま */
 export function cleanAuthor(author: string): string {
     return author.replace(/\s*\(\s*talk\s*\)\s*$/i, "").trim();
@@ -142,6 +152,9 @@ export function spotCoverImage(
     return {
         src: image.local.src,
         alt: spot.name,
+        // 題（2026-10-11 レビュー）: CC BY / BY-SA の 1.0〜3.0 は題（作品名）の表示が条件。作例と同じく
+        // Commons のファイル名から作る
+        ...(titleFromFile(image.file) ? { title: titleFromFile(image.file) } : {}),
         aspectRatio: image.local.width / image.local.height,
         credit: cleanAuthor(image.author),
         license,
