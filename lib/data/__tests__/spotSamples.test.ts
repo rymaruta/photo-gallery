@@ -121,9 +121,7 @@ describe("スポットの作例", () => {
 
 describe("レビュー #272 の直し（表示側で守る＝確定ファイルを直さなくても効く）", () => {
     it.each([
-        // 2026-10-11: 「…だと推定されます」（英語版の「No machine-readable author provided. X assumed」も）は
-        // 推定された名前を取って出す（Commons 自身がその名前を作者として出している）。名前の取れない決まり文句だけ落とす
-        "コンピュータが読み取れる情報は提供されていません",
+        "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
         "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author",
         "I would appreciate being notified if you use my work outside Wikimedia. More of my work can be found in my personal gallery .",
         "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
@@ -131,8 +129,7 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
         expect(toSpotSample({ ...REC, author })).toBeUndefined();
     });
 
-    it("「…だと推定されます」「… assumed (based on copyright claims)」は推定された名前（2026-10-11）", () => {
-        expect(toSpotSample({ ...REC, author: "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）" })?.author).toBe("Yearofthedragon");
+    it("英語の「… X assumed (based on copyright claims)」は推定された名前（2026-10-11）。日本語版は #272 どおり出さない", () => {
         expect(toSpotSample({ ...REC, author: "No machine-readable author provided. Zivax assumed (based on copyright claims)." })?.author).toBe("Zivax");
     });
 
@@ -296,7 +293,6 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
         ["さかおり ( talk", "さかおり"],
         ["No machine-readable author provided. Zivax assumed (based on copyright claims).", "Zivax"],
         ["No machine-readable author provided. Marubatsu assumed (based on copyright claims). This photo was taken with Fujifilm FinePix F460", "Marubatsu"],
-        ["コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）", "Yearofthedragon"],
         ["Original uploader was Ptrbnsn at en.wikipedia", "Ptrbnsn"],
         ["The original uploader was Florian S. at German Wikipedia .", "Florian S."],
         ["en:User:Adamsan", "Adamsan"],
@@ -314,7 +310,6 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
         ["Ansgar Koreng / CC BY 3.0 (DE)", "Ansgar Koreng"],
         ["Isiwal/Wikimedia Commons/CC-BY-SA-3.0-at", "Isiwal/Wikimedia Commons"],
         ["Kenny McFly, CC-BY-SA 3.0", "Kenny McFly"],
-        ["This Photo was taken by Supanut Arunoprayote . Feel free to use any of my images, but please mention me as the author.", "Supanut Arunoprayote"],
         ["Oga from ja , the copyright holder of this work, hereby publishes it under the following license:", "Oga"],
     ])("%s → %s", (raw, name) => {
         expect(cleanCommonsAuthor(raw)).toBe(name);
@@ -336,9 +331,12 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
         }
         // 名前が取れない決まり文句・お願い文は今までどおり名前ではない
         expect(isPlaceholderAuthor(cleanCommonsAuthor("No machine-readable author provided."))).toBe(true);
-        expect(isPlaceholderAuthor(cleanCommonsAuthor(
-            "This Photo was taken by Timothy A. Gonsalves . Feel free to use my photos, but please mention me as the author. Please contact me before commercial use.",
-        ))).toBe(true);
+        // 日本語版の「…だと推定されます」と作者のお願い文は名前にしない（#272 の判断どおり）
+        for (const a of [
+            "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
+            "This Photo was taken by Supanut Arunoprayote . Feel free to use any of my images, but please mention me as the author.",
+            "Ad Meskens You are free to use this picture for any purpose as long as you credit its author, Ad Meskens .",
+        ]) expect(isPlaceholderAuthor(cleanCommonsAuthor(a)), a).toBe(true);
     });
 });
 
