@@ -328,7 +328,9 @@ describe("撮影地ページの構造化データへの渡し方（レビュー 
         const fs = await import("node:fs");
         const src = fs.readFileSync(`${__dirname}/../../../app/components/SpotGuidePage.tsx`, "utf8");
         expect(src).toMatch(/const samples = spotSamples\(spot, \{ exclude: \[cover\?\.sourceUrl\] \}\);/);
-        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverUrl, samples \}\)/);
+        expect(src).toMatch(/spotStructuredData\(spot, \{ image: coverImage, samples \}\)/);
+        // 代表写真は作者・ライセンスつきの ImageObject（2026-10-11）
+        expect(src).toMatch(/const coverImage = cover && coverUrl \? coverImageObject\(cover, coverUrl\) : coverUrl;/);
         expect(src).toMatch(/samples=\{samples\}/);
         expect(src).not.toMatch(/reviewedOnly/);
     });

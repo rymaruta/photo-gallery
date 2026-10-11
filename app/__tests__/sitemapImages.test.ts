@@ -197,3 +197,27 @@ describe("2枚目以降（extraImages）も画像サイトマップに載せる"
         expect(doc.querySelector("parsererror"), "XML が壊れている").toBeNull();
     });
 });
+
+describe("撮影地ページの画像（2026-10-11）", () => {
+    it("代表写真と作例を、撮影地ページの <url> に載せる（ライセンスの欄は書かない）", async () => {
+        const { spotImageEntries } = await import("../sitemap-images.xml/route");
+        const entries = spotImageEntries();
+        expect(entries.length).toBeGreaterThan(0);
+        const xml = buildImageSitemap([], entries);
+        const doc = parse(xml);
+        expect(failed(doc)).toBe(false);
+        expect(xml).toContain("<loc>https://journey-photo.com/spots/");
+        expect(xml).not.toContain("image:license");
+        // 代表写真はサイトに置いた縮小版、作例は Commons の URL
+        expect(xml).toMatch(/<image:loc>https:\/\/journey-photo\.com\/images\/spots\/[a-z0-9-]+\.jpg<\/image:loc>/);
+        expect(xml).toContain("<image:loc>https://upload.wikimedia.org/");
+    });
+
+    it("1つの <url> に 1,000 枚まで（Google の画像サイトマップの決まり）", async () => {
+        const { MAX_IMAGES_PER_URL } = await import("../sitemap-images.xml/route");
+        expect(MAX_IMAGES_PER_URL).toBe(1000);
+        const many = Array.from({ length: 1005 }, (_, i) => ({ src: `https://journey-photo.com/i/${i}.jpg`, title: "t" }));
+        const xml = buildImageSitemap([], [{ loc: "https://journey-photo.com/spots/x", images: many }]);
+        expect(xml.match(/<image:image>/g)?.length).toBe(1000);
+    });
+});
