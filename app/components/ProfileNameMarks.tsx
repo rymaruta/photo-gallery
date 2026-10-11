@@ -21,7 +21,7 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import Link from "next/link";
 import {
-    badgeImage, badgeLabel, nameBadgeBox, ownedBadges, proMarkImage,
+    badgeImage, badgeLabel, nameBadgeBox, ownedBadges, proMarkBox, proMarkImage,
     type BadgeKey, type BadgeMap, type ProMarkStyle,
 } from "../../lib/data/badges";
 import { othersShelf } from "../../lib/data/badgeShelf";
@@ -34,17 +34,19 @@ export function ProMark({ pro, style = "iris", size = 20, locale }: {
 }) {
     if (pro !== true) return null;
     const label = locale === "en" ? "Pro member" : "Pro メンバー";
+    // 札（plate）は横長の枠で描く（`proMarkBox`）
+    const { width, height } = proMarkBox(style, size);
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
             src={proMarkImage(style, size)}
             alt={label}
             title={label}
-            width={size}
-            height={size}
+            width={width}
+            height={height}
             className="shrink-0"
             data-testid="pro-mark"
-            style={{ width: size, height: size }}
+            style={{ width, height }}
         />
     );
 }

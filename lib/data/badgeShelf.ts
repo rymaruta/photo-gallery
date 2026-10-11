@@ -119,7 +119,9 @@ const UNITS: Partial<Record<FixedBadgeKey, { ja: string; en: string }>> = {
  */
 export function progressText(key: FixedBadgeKey, p: BadgeProgressEntry | undefined, owned: boolean, locale: Locale): string {
     const en = locale === "en";
-    if (!p || p.next === null) return owned ? (en ? "Complete" : "達成") : "";
+    // 進み具合が読めなかった（応答に無い）ときは何も出さない——「達成」と言い切らない
+    if (!p) return "";
+    if (p.next === null) return owned ? (en ? "Complete" : "達成") : "";
     const left = p.next - p.count;
     // 数え直しの前後で線に届いている（次に開いたとき段が上がる）
     if (left <= 0) return en ? "Next tier soon" : "まもなく次の段";
@@ -135,6 +137,8 @@ export type ShelfItem = {
     owned: boolean;
     label: string;
     sub: string;
+    /** その段を取った日（ISO）。人の棚だけ添える（自分の棚は「あと◯で次」を出す） */
+    at?: string;
 };
 
 /**
@@ -166,10 +170,11 @@ export function ownShelf(badges: BadgeMap | undefined, progress: BadgeProgressMa
 
 /** 人の棚。**持っているものだけ**（公開プロフィールの `badges`）。下には中身の説明 */
 export function othersShelf(badges: BadgeMap | undefined, locale: Locale): ShelfItem[] {
-    return ownedBadges(badges).map(({ key, tier }) => ({
+    return ownedBadges(badges).map(({ key, tier, at }) => ({
         key, tier, owned: true,
         label: badgeLabel(key, tier, locale),
         sub: badgeDescription(key, tier, locale),
+        at,
     }));
 }
 

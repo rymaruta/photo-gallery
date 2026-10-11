@@ -30,9 +30,9 @@ const PROGRESS = {
 const ok = (body: unknown) => Promise.resolve({ ok: true, json: async () => body });
 const fail = () => Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
 
-function serve(profile: unknown, opts: { badges?: "ok" | "fail"; profile?: "ok" | "fail"; put?: unknown } = {}) {
+function serve(profile: unknown, opts: { badges?: "ok" | "fail"; profile?: "ok" | "fail"; put?: unknown; putRes?: () => Promise<unknown> } = {}) {
     mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
-        if (url === "/user/profile" && init?.method === "PUT") return ok(opts.put ?? profile);
+        if (url === "/user/profile" && init?.method === "PUT") return opts.putRes ? opts.putRes() : ok(opts.put ?? profile);
         if (url === "/user/profile") return opts.profile === "fail" ? fail() : ok(profile);
         if (url === "/user/badges") return opts.badges === "fail" ? fail() : ok({ badges: BADGES, progress: PROGRESS });
         return ok({});
@@ -106,6 +106,63 @@ describe("名前の横の設定", () => {
         render(<BadgesPage />);
         const dialog = await openSheet();
         expect(within(dialog).queryByRole("group", { name: "公式の印" })).toBeNull();
+    });
+});
+
+describe("保存のあと・失敗", () => {
+    const base = { userId: "me", pro: true, proMarkStyle: "iris", verified: false, badges: BADGES, displayBadge: "first" };
+
+    it("保存できたら、札がサーバーの返した姿になる（替えたメダルの名前）", async () => {
+        serve(base, { put: { ...base, displayBadge: "prefectures" } });
+        render(<BadgesPage />);
+        expect((await screen.findByTestId("name-side-open")).textContent).toContain("最初の一枚");
+        const dialog = await openSheet();
+        await userEvent.click(within(dialog).getByRole("button", { name: "都道府県（銅）" }));
+        await userEvent.click(within(dialog).getByRole("button", { name: "決める" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        expect(screen.getByTestId("name-side-open").textContent).toContain("都道府県（銅）");
+        expect(mockShowToast).toHaveBeenCalledWith("保存しました", "success");
+    });
+
+    it("外して保存すると「メダルを選んでいません」", async () => {
+        serve(base, { put: { ...base, displayBadge: null } });
+        render(<BadgesPage />);
+        const dialog = await openSheet();
+        await userEvent.click(within(dialog).getByRole("button", { name: "最初の一枚" }));
+        await userEvent.click(within(dialog).getByRole("button", { name: "決める" }));
+        await waitFor(() => expect(screen.getByTestId("name-side-open").textContent).toContain("メダルを選んでいません"));
+    });
+
+    it("応答の本文が読めないときは、送った分を手元で重ねる", async () => {
+        serve(base, { putRes: () => Promise.resolve({ ok: true, json: async () => { throw new SyntaxError("bad json"); } }) });
+        render(<BadgesPage />);
+        const dialog = await openSheet();
+        await userEvent.click(within(dialog).getByRole("button", { name: "朝の光（銀）" }));
+        await userEvent.click(within(dialog).getByRole("button", { name: "決める" }));
+        await waitFor(() => expect(screen.getByTestId("name-side-open").textContent).toContain("朝の光（銀）"));
+    });
+
+    it("断られたら（400）サーバーの文言をエラーで出し、シートは閉じない", async () => {
+        serve(base, { putRes: () => Promise.resolve({ ok: false, status: 400, json: async () => ({ error: "まだ手に入れていないメダルは選べません" }) }) });
+        render(<BadgesPage />);
+        const dialog = await openSheet();
+        await userEvent.click(within(dialog).getByRole("button", { name: "都道府県（銅）" }));
+        await userEvent.click(within(dialog).getByRole("button", { name: "決める" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("まだ手に入れていないメダルは選べません", "error"));
+        expect(screen.getByRole("dialog", { name: "名前の横" })).toBeInTheDocument();
+        // 札は元のまま
+        expect(screen.getByTestId("name-side-open").textContent).toContain("最初の一枚");
+    });
+
+    it("PRO の札は横長の枠で描く（選択肢・下見とも）", async () => {
+        serve({ ...base, proMarkStyle: "plate" });
+        render(<BadgesPage />);
+        const dialog = await openSheet();
+        const preview = within(dialog).getByTestId("name-side-preview").querySelector("[data-testid=pro-mark]") as HTMLElement;
+        expect([preview.style.width, preview.style.height]).toEqual(["35px", "20px"]);
+        const group = within(dialog).getByRole("group", { name: "Pro マークの形" });
+        const option = within(group).getByRole("radio", { name: /PRO の札/ }).closest("label")!.querySelector("img") as HTMLElement;
+        expect([option.style.width, option.style.height]).toEqual(["28px", "16px"]);
     });
 });
 

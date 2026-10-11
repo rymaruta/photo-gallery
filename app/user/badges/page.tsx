@@ -101,6 +101,9 @@ export default function BadgesPage() {
 
     const items = shelf.state === "ready" ? ownShelf(shelf.value.badges, shelf.value.progress, locale) : [];
     const ownedCount = items.filter((i) => i.owned).length;
+    // 分母は「棚に並べた数」＝持っているもの＋まだの数えるメダル（`ownShelf`）。
+    // 数えるメダルは8種で固定だが、初期ユーザー・Pro のメダルは持っている人にだけ並ぶので、
+    // 分母もその分だけ増える（持っていないものを分母に入れると、Web では取れないものを数えることになる）
 
     const retryButton = (onRetry: () => void) => (
         <button
@@ -158,7 +161,7 @@ export default function BadgesPage() {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={currentSrc} alt="" width={40} height={40} className="shrink-0" style={{ width: 40, height: 40 }} />
                             ) : (
-                                <span aria-hidden="true" className="shrink-0 rounded-full ring-1 ring-dashed ring-white/20" style={{ width: 40, height: 40 }} />
+                                <span aria-hidden="true" className="shrink-0 rounded-full border border-dashed border-white/30" style={{ width: 40, height: 40 }} />
                             )}
                             <span className="flex flex-col gap-0.5 min-w-0 flex-1">
                                 <span className="text-[13px] font-semibold text-white truncate">

@@ -169,7 +169,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                         <fieldset className="mt-3 flex items-center justify-between gap-3">
                             <legend className="sr-only">{en ? "Pro mark" : "Pro マークの形"}</legend>
                             <span aria-hidden="true" className="text-[12px] text-white/75 shrink-0">{en ? "Pro mark" : "Pro マークの形"}</span>
-                            <div className="flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] flex-1 max-w-[260px]">
+                            <div className="flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] flex-1 max-w-[290px]">
                                 {markOptions.map((o) => (
                                     <label key={o.value} className={segmentClass(draft.proMarkStyle === o.value)} style={{ minHeight: 44 }}>
                                         <input
