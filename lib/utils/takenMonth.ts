@@ -5,7 +5,13 @@
 // 作例（Wikimedia Commons・Flickr など）の撮影日時 `takenAt` は出どころの書き方のまま
 // （"2016-10-14 13:41:43"・"2011年9月20日"・"Taken on 18 August 2010"・"17 August 2007 (according to Exif data)" …）。
 // ここから**月が確かに読めるものだけ**を数える。年だけ（"2003"）・"Unknown date"・幅のある書き方
-// （"circa"・"between"・"〜"・"頃"）は数えない——推測の月を事実として出さない。
+// （"circa"・"between"・"〜"・"頃"・"…より前"）は数えない——推測の月を事実として出さない。
+//
+// Flickr の「撮影日不明（takenunknown）＝アップロード日」について（2026-10-11 に確かめた）:
+//   - Flickr から直接載せた作例（`source.name === "Flickr"`・21枚）は撮影日を持たない＝数えない
+//   - Commons に転載された Flickr の写真の日付は Commons の `DateTimeOriginal` で、`collect-commons-samples.mjs` は
+//     「アップロード」と書かれたものだけ外す（`plainDate`）。takenunknown かどうかは Commons の値からも
+//     台帳からも見分けられない（Flickr の API を引いていない）。混ざりうることを承知で数えている
 
 const MONTHS_EN = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 const MONTH_NAME = MONTHS_EN.join("|");
@@ -15,7 +21,7 @@ export function takenMonth(takenAt: string | undefined | null): number | null {
     const s = (takenAt ?? "").trim();
     if (!s) return null;
     // 幅・推定の書き方は数えない
-    if (/circa|\bca\.|\bc\.\s*\d|between|before|after|around|unknown|\bor\b|[?〜~]|頃|ごろ|以前|以降/i.test(s)) return null;
+    if (/circa|\bca\.|\bc\.\s*\d|between|before|after|around|unknown|\bor\b|[?〜~]|頃|ごろ|以前|以降|より前|より後|まで/i.test(s)) return null;
     let m: number | null = null;
     let hit: RegExpExecArray | null;
     if ((hit = /^(?:taken on\s+)?(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?(?=[ T,(]|$)/i.exec(s))) {

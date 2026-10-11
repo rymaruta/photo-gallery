@@ -31,7 +31,7 @@
 
 import { LIGHT_DAY_OF_MONTH, LIGHT_REFERENCE_YEAR, type LightCell } from "./lightCalendar";
 import { clockIn, solarNoon, spotTimeZone, sunAltitudeAt, sunAltitudeRange, sunTimes } from "./sunTimes";
-import { compass } from "./spotLight";
+import { addDays, compass } from "./spotLight";
 
 const RAD = Math.PI / 180;
 const DAY_MS = 86_400_000;
@@ -99,7 +99,12 @@ export type MilkyWay = {
  * 各月15日の夜に、天文薄明の外で銀河中心が 10° 以上にある時刻帯。
  * 南中（その日の昼）から翌日の南中まで 10 分刻みで見て、いちばん長く続く帯を取る
  */
-export function milkyWay(coords: { lat: number; lng: number }, timeZone: string, year = LIGHT_REFERENCE_YEAR): MilkyWay | null {
+export function milkyWay(
+    coords: { lat: number; lng: number },
+    timeZone: string,
+    year = LIGHT_REFERENCE_YEAR,
+    minMinutes = MILKY_WAY_MIN_MINUTES,
+): MilkyWay | null {
     if (!Number.isFinite(coords.lat) || !Number.isFinite(coords.lng) || Math.abs(coords.lat) > 90) return null;
     const maxAltitude = Math.round(culminationAltitude(GALACTIC_CENTER.dec, coords.lat));
     const months: MilkyWayMonth[] = [];
@@ -124,8 +129,9 @@ export function milkyWay(coords: { lat: number; lng: number }, timeZone: string,
                 }
             }
             if (!best) continue;
-            const minutes = (best.to - best.from) * STEP_MINUTES;
-            if (minutes < MILKY_WAY_MIN_MINUTES) continue;
+            // 長さは見えた刻みの数 × 10 分（端の刻みも1つと数える）
+            const minutes = (best.to - best.from + 1) * STEP_MINUTES;
+            if (minutes < minMinutes) continue;
             const a = clockIn(timeZone, new Date(noon.getTime() + best.from * STEP_MINUTES * 60_000));
             const b = clockIn(timeZone, new Date(noon.getTime() + best.to * STEP_MINUTES * 60_000));
             if (!a || !b) return null;
@@ -257,7 +263,13 @@ export function spotSky(
     const mw = milkyWay(coords, timeZone);
     const asOf = ymdIn(timeZone, now);
     if (!mw || !asOf) return null;
-    const newMoons = newMoonsBetween(now, 365).map((t) => ymdIn(timeZone, t)).filter((d): d is string => d !== null && d >= asOf);
+    // その土地の今日（0時）から1年分。`now` から数えると、ビルドの日の未明にあった新月が落ちるので、
+    // 前後に1日広く取ってから現地の暦日で切る
+    const until = addDays(asOf, 365);
+    if (!until) return null;
+    const newMoons = newMoonsBetween(new Date(now.getTime() - DAY_MS), 367)
+        .map((t) => ymdIn(timeZone, t))
+        .filter((d): d is string => d !== null && d >= asOf && d < until);
     return {
         timeZone,
         solstices: {
@@ -373,10 +385,15 @@ function sunsetShort(sky: SpotSky, isJa: boolean, withDegrees: boolean): string 
 
 /**
  * 撮影ガイドの節の頭に置く1〜2文（季節・時間帯の案内が無いページの主役）。
- * 例「日の入りは6月が西北西（300°）、12月が西南西（242°）。天の川の中心は4〜9月の夜に見える高さに来る（いちばん長い6月は 22:40–翌02:50）。」
+ * 例「日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は4〜9月の夜。」
+ *
+ * 2026-10-11 判断（確かめ役の指摘）: 度と時刻は「撮影の光」「星空の暦」の節に任せ、ここは方角の名前と月だけ
+ * （同じ文を同じページで2度言わない）。**天の川が見える月の無い緯度では天の川の文を外す**
+ * （節の頭を否定文で始めない。「星空の暦」には残す）
  */
 export function skyLead(sky: SpotSky, isJa = true): string {
-    return [sunsetShort(sky, isJa, true), milkyWaySummary(sky, isJa, true)].filter(Boolean).join(isJa ? "" : " ");
+    const mw = sky.milkyWay.months.length > 0 ? milkyWaySummary(sky, isJa, false) : "";
+    return [sunsetShort(sky, isJa, false), mw].filter(Boolean).join(isJa ? "" : " ");
 }
 
 /**

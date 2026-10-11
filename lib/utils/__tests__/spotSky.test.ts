@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
     GALACTIC_CENTER, appendSkySummary, culminationAltitude, directionSummary, greenwichSiderealDegrees, milkyWay, milkyWaySummary,
-    monthRanges, newMoonJDE, newMoonLabels, newMoonsBetween, skyDescription, skyLead, spotSky, spotSkyDescription, starAltitude,
+    MILKY_WAY_MIN_MINUTES, monthRanges, newMoonJDE, newMoonLabels, newMoonsBetween, skyDescription, skyLead, spotSky, spotSkyDescription, starAltitude,
 } from "../spotSky";
 import { sunTimes } from "../sunTimes";
 import { lightCalendar } from "../lightCalendar";
@@ -84,6 +84,44 @@ describe("天の川（銀河中心）", () => {
         expect("text" in june.window && june.window.text).toMatch(/^2\d:\d{2}–翌0[0-3]:\d{2}$/);
     });
 
+    it("東京: 各月の時刻帯と長さ（10分刻みを端も含めて数える）", () => {
+        const mw = milkyWay(TOKYO, "Asia/Tokyo")!;
+        expect(mw.months.map((m) => [m.month, "text" in m.window ? m.window.text : "", m.minutes])).toEqual([
+            [2, "04:26–04:56", 40], [3, "02:41–04:21", 110], [4, "00:32–03:32", 190], [5, "22:38–翌02:48", 260],
+            [6, "20:52–翌02:32", 350], [7, "20:48–翌01:08", 270], [8, "20:17–23:07", 180], [9, "19:17–21:07", 120],
+            [10, "18:38–19:08", 40],
+        ]);
+    });
+
+    /** 時刻帯は**その土地の時計**（Asia/Tokyo 固定にすると落ちる）。南半球は6月がいちばん長い */
+    it("海外・南半球: シドニーとラパスの時刻帯は現地の時計で、6月がいちばん長い", () => {
+        const rows = (mw: ReturnType<typeof milkyWay>) => mw!.months.map((m) => [m.month, "text" in m.window ? m.window.text : "", m.minutes]);
+        const syd = milkyWay({ lat: -33.8568, lng: 151.2153 }, "Australia/Sydney");
+        expect(rows(syd)).toEqual([
+            [2, "02:30–05:00", 160], [3, "00:45–05:25", 290], [4, "21:36–翌04:46", 440], [5, "19:42–翌05:12", 580],
+            [6, "18:26–翌05:26", 670], [7, "18:41–翌04:31", 600], [8, "18:51–翌02:31", 470], [9, "19:11–翌00:31", 330],
+            [10, "20:42–23:32", 180],
+        ]);
+        const lapaz = spotSky({ lat: -16.5, lng: -68.15 }, "ボリビア", null, NOW)!;
+        expect(lapaz.timeZone).toBe("America/La_Paz");
+        expect(rows(lapaz.milkyWay)[4]).toEqual([6, "19:34–翌05:34", 610]);
+        for (const mw of [syd!, lapaz.milkyWay, milkyWay({ lat: -24.7, lng: 15.3 }, "Africa/Windhoek")!]) {
+            const longest = mw.months.reduce((a, b) => (b.minutes > a.minutes ? b : a));
+            expect(longest.month).toBe(6);
+        }
+    });
+
+    it("30分に満たない月は「見える月」に入れない（北緯39°の2月・10月は10〜20分だけ）", () => {
+        const at = { lat: 39, lng: 0 };
+        const all = milkyWay(at, "UTC", 2026, 0)!;
+        const short = all.months.filter((m) => m.minutes < MILKY_WAY_MIN_MINUTES).map((m) => m.month);
+        expect(short).toEqual([2, 10]);
+        const shown = milkyWay(at, "UTC")!.months.map((m) => m.month);
+        expect(shown).not.toContain(2);
+        expect(shown).not.toContain(10);
+        expect(shown.length).toBe(all.months.length - 2);
+    });
+
     it("南半球（ナミビア・南緯24.7°）は東京より長く見える（銀河中心が天頂近くまで上がる）", () => {
         const nam = milkyWay({ lat: -24.7, lng: 15.3 }, "Africa/Windhoek")!;
         const tok = milkyWay(TOKYO, "Asia/Tokyo")!;
@@ -121,9 +159,13 @@ describe("新月（ビルドの日から1年分・その土地の暦）", () => 
     it("ビルドの日より後の新月だけ・1年分・時刻帯で日付が変わる", () => {
         const tok = spotSky(TOKYO, "日本", null, NOW)!;
         expect(tok.asOf).toBe("2026-10-11");
-        expect(tok.newMoons[0]).toBe("2026-11-09");
-        expect(tok.newMoons).toHaveLength(12);
-        expect(tok.newMoons.every((d) => d > "2026-10-11" && d < "2027-10-11")).toBe(true);
+        // 2026-10-10 15:50 UT の新月は東京では10月11日 00:50。ビルドがその日の昼でも落とさない（その日の0時から数える）
+        expect(tok.newMoons[0]).toBe("2026-10-11");
+        expect(tok.newMoons[1]).toBe("2026-11-09");
+        expect(tok.newMoons).toHaveLength(13);
+        expect(tok.newMoons.every((d) => d >= "2026-10-11" && d < "2027-10-11")).toBe(true);
+        // パリではその新月は10月10日（ビルドの日より前）なので入らない
+        expect(spotSky({ lat: 48.8584, lng: 2.2945 }, "フランス", null, NOW)!.newMoons[0]).toBe("2026-11-09");
         // 2027-01-07 20:24 UT の新月は、東京では1月8日・パリでは1月7日
         expect(tok.newMoons).toContain("2027-01-08");
         expect(spotSky({ lat: 48.8584, lng: 2.2945 }, "フランス", null, NOW)!.newMoons).toContain("2027-01-07");
@@ -151,7 +193,12 @@ describe("要約の文（作り話を入れない＝計算の値だけ）", () =
     });
 
     it("撮影ガイドの頭と検索の説明", () => {
-        expect(skyLead(tok)).toMatch(/^日の入りは6月が西北西（300°）、12月が西南西（241°）。天の川の中心は2〜10月の夜に見える高さに来る（いちばん長い6月は 2\d:\d{2}–翌0\d:\d{2}）。$/);
+        // ガイドの頭は度と時刻を言わない（「撮影の光」「星空の暦」と同じ文を重ねない）
+        expect(skyLead(tok)).toBe("日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。");
+        expect(skyLead(tok, false)).toBe("Sunset is toward WNW in June and WSW in December. Milky Way core: Feb–Oct, at night.");
+        // 見える月の無い緯度では天の川の文を外す（頭を否定文で始めない）
+        const hel = spotSky({ lat: 60.17, lng: 24.94 }, "フィンランド", null, NOW)!;
+        expect(skyLead(hel)).toBe("日の入りは6月が北西寄り、12月が南西寄り。");
         expect(skyDescription(tok)).toBe("日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。");
         expect(skyDescription(null)).toBe("");
     });
