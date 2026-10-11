@@ -1590,7 +1590,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 {locale === "en" ? "Trips →" : "旅行プラン →"}
                             </Link>
                             {/* メダルの棚と名前の横の設定（本人だけ・2026-10-11） */}
-                            <Link href={ROUTES.BADGES} prefetch={false} className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors" style={{ touchAction: "manipulation" }}>
+                            <Link href={ROUTES.BADGES} prefetch={false} className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors" style={{ touchAction: "manipulation", minHeight: 44 }}>
                                 {locale === "en" ? "Medals →" : "メダル →"}
                             </Link>
                         </div>

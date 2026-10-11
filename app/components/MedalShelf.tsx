@@ -10,6 +10,23 @@ import React from "react";
 import { badgeImage } from "../../lib/data/badges";
 import type { ShelfItem } from "../../lib/data/badgeShelf";
 
+/**
+ * 取った日（その段を初めて取った日）。日付まで・日本時間。
+ * 以前の縦の一覧（`MedalListDialog`）が出していたものを、棚の形でも小さく添える
+ * （2026-10-11: 棚に置き換えたときに一度落としたが、owner の判断なしに情報を減らさないので戻した）
+ */
+export function formatMedalDate(at: string, locale: "ja" | "en"): string {
+    const t = Date.parse(at);
+    if (Number.isNaN(t)) return "";
+    try {
+        return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ja-JP", {
+            year: "numeric", month: locale === "en" ? "short" : "long", day: "numeric", timeZone: "Asia/Tokyo",
+        }).format(t);
+    } catch {
+        return "";
+    }
+}
+
 export default function MedalShelf({ items, locale }: { items: ShelfItem[]; locale: "ja" | "en" }) {
     return (
         <ul className="grid grid-cols-3 gap-2.5" data-testid="medal-shelf">
@@ -44,6 +61,11 @@ export default function MedalShelf({ items, locale }: { items: ShelfItem[]; loca
                             </p>
                             {b.sub && (
                                 <p className="text-[12px] text-white/60 leading-snug tabular-nums">{b.sub}</p>
+                            )}
+                            {b.at && formatMedalDate(b.at, locale) && (
+                                <p className="text-[12px] text-white/50 leading-snug tabular-nums" data-testid="medal-shelf-date">
+                                    {formatMedalDate(b.at, locale)}
+                                </p>
                             )}
                         </div>
                     </li>

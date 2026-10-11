@@ -88,6 +88,8 @@ describe("棚の進み具合", () => {
         expect(progressText("first", progress.first, true, "ja")).toBe("達成");
         expect(progressText("night", progress.night, false, "ja")).toBe("あと5枚");
         expect(progressText("morning", progress.morning, true, "en")).toBe("25 photos to next");
+        // 進み具合が無い（応答に載っていない）ときは「達成」と言い切らない
+        expect(progressText("countries", undefined, true, "ja")).toBe("");
     });
 
     it("自分の棚: 持っているもの → まだの数えるメダル。Pro のメダル・初期ユーザーはまだなら並べない", () => {

@@ -100,6 +100,18 @@ describe("NameBadge: Pro のメダル（第2段階）", () => {
     });
 });
 
+describe("ProMark: PRO の札は横長（2026-10-11）", () => {
+    it("札は幅 size×42/24・高さ size、小さい版は幅 size×1.5。絞り羽根は正方形", () => {
+        const { container, rerender } = render(<ProMark pro style="plate" size={20} locale="ja" />);
+        const img = () => container.querySelector("img") as HTMLImageElement;
+        expect([img().style.width, img().style.height]).toEqual(["35px", "20px"]);
+        rerender(<ProMark pro style="plate" size={12} locale="ja" />);
+        expect([img().style.width, img().style.height]).toEqual(["18px", "12px"]);
+        rerender(<ProMark pro style="iris" size={20} locale="ja" />);
+        expect([img().style.width, img().style.height]).toEqual(["20px", "20px"]);
+    });
+});
+
 describe("人のメダルの棚（2026-10-11）", () => {
     const badges = { first: { tier: 1, at: AT }, morning: { tier: 2, at: AT } };
 
@@ -110,6 +122,9 @@ describe("人のメダルの棚（2026-10-11）", () => {
         const items = [...dialog.querySelectorAll("[data-testid=medal-shelf-item]")];
         expect(items.map((li) => li.querySelector("p")?.textContent)).toEqual(["最初の一枚", "朝の光（銀）"]);
         expect(items.every((li) => li.getAttribute("data-owned") === "true")).toBe(true);
+        // 取った日付も小さく添える（以前の縦の一覧と同じ情報を落とさない）
+        expect(dialog.querySelectorAll("[data-testid=medal-shelf-date]")).toHaveLength(2);
+        expect(dialog.textContent).toContain("2026年10月1日");
         // 人の棚に自分の設定への道は置かない
         expect(dialog.querySelector("a[href='/user/badges']")).toBeNull();
     });
