@@ -6,6 +6,9 @@ import { visibleSpots } from "@/lib/utils/spotGuide";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
+import SpotTopicPage from "@/app/components/SpotTopicPage";
+import { overseasView, topicMetadata } from "@/lib/data/spotTopics";
+import { OVERSEAS_SLUG } from "@/lib/data/prefectures";
 
 // 静的エクスポート: 列挙した区画のみ生成し、それ以外は 404
 export const dynamicParams = false;
@@ -41,6 +44,9 @@ const MIN_INDEXABLE_AREA = 2;
 
 export async function generateMetadata({ params }: { params: Promise<{ area: string }> }): Promise<Metadata> {
     const { area } = await params;
+    // 海外は国の一覧の頁になった（2026-10-11）ので、題・説明・OGP も国の一覧の中身から作る
+    // （「海外の撮影スポット814選」と名乗ると、スポットの並ばない頁と食い違う）
+    if (area === OVERSEAS_SLUG) return topicMetadata(overseasView());
     const found = spotAreas().find((a) => a.slug === area);
     if (!found) return { robots: { index: false, follow: true } };
 
@@ -80,6 +86,9 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
 
 export default async function SpotAreaPage({ params }: { params: Promise<{ area: string }> }) {
     const { area } = await params;
+    // 🔴 **海外は国の一覧にする**（2026-10-11）。814件を1頁に並べると約1.3MB で、HTML は
+    // 訪問のたびに落ちる。スポットは国の頁（`/spots/area/overseas/<国>`）に分けた。URL はそのまま
+    if (area === OVERSEAS_SLUG) return <SpotTopicPage view={overseasView()} eyebrow="Photo spots · Outside Japan" />;
     const found = spotAreas().find((a) => a.slug === area);
     return (
         <SpotIndexClient

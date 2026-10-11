@@ -23,9 +23,14 @@ type Props = {
     total: number;
     /** うち運営未確認の下書き。`total` と同じなら全部が下書き */
     draftCount: number;
+    /**
+     * 県の一覧の下に足す節（季節・テーマの切り口・2026-10-11）。サーバー側で描いたものを受け取る
+     * （切り口の一覧を props のデータで渡さない——`app/spots/page.tsx`）
+     */
+    children?: React.ReactNode;
 };
 
-export default function SpotAreaIndexClient({ areas, total, draftCount }: Props) {
+export default function SpotAreaIndexClient({ areas, total, draftCount, children }: Props) {
     const { locale } = useLocale();
     const isJa = locale !== "en";
 
@@ -92,6 +97,7 @@ export default function SpotAreaIndexClient({ areas, total, draftCount }: Props)
                     </section>
                 ))
             )}
+            {children}
         </main>
     );
 }

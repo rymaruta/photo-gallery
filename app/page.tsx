@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { siteConfig, generateStructuredData, generateOrganizationStructuredData, FEED_ALTERNATE } from "../lib/utils/seo";
 import { loadAllPhotos, resolveOgImage } from "../lib/server/photos";
 import GalleryPageClient from "./GalleryPageClient";
+import { homeSeasonalSpots } from "../lib/data/spotTopics";
 
 // OGP 画像はビルド時に決める（ルートと同じ理由——既定の
 // `/images/og-image.jpg` は存在しないファイルだった）。
@@ -53,7 +54,9 @@ export default async function Page() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
             />
-            <GalleryPageClient />
+            {/* いまの季節の撮影スポット（数件）は**ビルド時に選んで焼く**（`homeSeasonalSpots`）。
+                台帳はクライアントへ渡さない——渡すのは名前・場所・写真の場所だけ */}
+            <GalleryPageClient seasonalSpots={homeSeasonalSpots(new Date())} />
         </>
     );
 }

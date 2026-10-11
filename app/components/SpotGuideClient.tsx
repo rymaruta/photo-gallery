@@ -16,6 +16,8 @@ import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
+import { CHIP_OFF } from "./chipStyles";
+import { CHIP_HIT, CHIP_ROW } from "./SpotTopicLists";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
 import { LIGHT_MAX_OFFSET, direction, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
 import { MILKY_WAY_MIN_ALTITUDE, directionSummary, milkyWaySummary, newMoonLabels, skyLead, type SpotSky } from "../../lib/utils/spotSky";
@@ -87,6 +89,16 @@ type Props = {
      * どれも作者・ライセンス・出典を持つ（持たない1枚はサーバー側で落としてある）
      */
     samples?: SpotSample[];
+    /**
+     * このスポットが載っている切り口の頁（国・テーマ・季節・2026-10-11）。
+     * サーバーが `topicLinksForSpot` で解いた**リンクだけ**（頁が在るものだけ）
+     */
+    topics?: Array<{ href: string; label: string; labelEn?: string; count: number }>;
+    /**
+     * 海外のスポットの国の頁（`spotCountryRef`・2026-10-11）。パンくずの「海外」の後ろと、
+     * 「すべて見る」の行き先（海外の区画は国の一覧になり、スポットは国の頁に並ぶ）
+     */
+    country?: { href: string; name: string; nameEn: string } | null;
 };
 
 /** 一覧の1行（`km` はこのスポットからの距離・両方に座標があるときだけ） */
@@ -504,7 +516,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, sky = null, samples = [] }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, sky = null, samples = [], topics = [], country = null }: Props) {
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
@@ -703,6 +715,14 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 <span className="mx-1.5" aria-hidden>/</span>
                                 <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false} className="hover:text-white/90">
                                     {isJa ? area.name : area.nameEn}
+                                </Link>
+                            </>
+                        )}
+                        {country && (
+                            <>
+                                <span className="mx-1.5" aria-hidden>/</span>
+                                <Link href={country.href} prefetch={false} className="hover:text-white/90">
+                                    {isJa ? country.name : country.nameEn}
                                 </Link>
                             </>
                         )}
@@ -989,13 +1009,39 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                     // 英語の国名は台帳に無い（海外の区画名 Outside Japan では中身と合わない）
                                     : spot.region?.country === "日本" && area ? `More spots in ${area.nameEn}` : "More photo spots"}</Head>
                                 <SpotRows rows={sameArea.spots} isJa={isJa} />
-                                {area && (
+                                {/* 海外は国の頁へ（区画の頁は国の一覧で、スポットは並ばない） */}
+                                {country ? (
+                                    <Link href={country.href} prefetch={false}
+                                          className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"
+                                          style={{ fontSize: "12px" }}>
+                                        {isJa ? `${country.name}の撮影スポットをすべて見る` : `See all spots in ${country.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
+                                    </Link>
+                                ) : area && (
                                     <Link href={ROUTES.SPOT_AREA(area.slug)} prefetch={false}
                                           className="mt-2 inline-flex items-center text-white/60 hover:text-white transition-colors"
                                           style={{ fontSize: "12px" }}>
                                         {isJa ? `${area.name}の撮影スポットをすべて見る` : `See all spots in ${area.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
                                     </Link>
                                 )}
+                            </section>
+                        )}
+
+                        {/* ── 11. このスポットが載っている一覧（国・テーマ・季節）── */}
+                        {topics.length > 0 && (
+                            <section className="mb-7" aria-labelledby="spot-topics" data-testid="spot-topics">
+                                <Head id="spot-topics">{isJa ? "このスポットが載っている一覧" : "Lists with this spot"}</Head>
+                                <ul className={CHIP_ROW} style={{ listStyle: "none" }}>
+                                    {topics.map((t) => (
+                                        <li key={t.href}>
+                                            <Link href={t.href} prefetch={false}
+                                                  className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                                  style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                                {!isJa && t.labelEn ? t.labelEn : t.label}
+                                                <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
                             </section>
                         )}
 
