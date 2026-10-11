@@ -15,7 +15,8 @@ const mockSafe = vi.hoisted(() => vi.fn<(f: File, maxPx?: number) => Promise<Fil
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
-vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
+let mockLocale = "ja";
+vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: mockLocale }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
 vi.mock("../../../../lib/utils/api", async (importActual) => ({
     ...(await importActual<typeof import("../../../../lib/utils/api")>()),
@@ -34,6 +35,7 @@ const jpg = () => new File(["x"], "sea.jpg", { type: "image/jpeg" });
 const mockFetch = vi.fn();
 
 beforeEach(() => {
+    mockLocale = "ja";
     mockShowToast.mockReset();
     mockSafe.mockReset().mockImplementation(async (f: File) => f);
     mockUserFetch.mockReset().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -81,6 +83,20 @@ describe("カバー写真を変える", () => {
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("プロフィール写真を更新しました", "success"));
         expect(presignBodies()).toEqual([{ fileType: "image/jpeg" }]);
         expect(mockSafe.mock.calls[0][1]).toBe(512);
+    });
+
+    it("英語の画面では、アイコン・カバーの成功と失敗の文言も英語", async () => {
+        mockLocale = "en";
+        await upload(1);
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("Profile photo updated", "success"));
+        mockShowToast.mockReset();
+        mockFetch.mockResolvedValue({ ok: false });
+        const inputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
+        await userEvent.upload(inputs[1], jpg());
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("Couldn't upload the profile photo", "error"));
+        mockShowToast.mockReset();
+        await userEvent.upload(inputs[0], jpg());
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("Couldn't upload the cover photo", "error"));
     });
 
     it("「カバーを変える」は 44px で押せる", async () => {

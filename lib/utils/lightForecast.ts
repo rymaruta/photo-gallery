@@ -57,6 +57,45 @@ export const DEFAULT_ATTRIBUTION: LightAttribution = {
     legalUrl: "https://weatherkit.apple.com/legal-attribution.html",
 };
 
+// ─── Apple Weather の商標（ロゴ） ────────────────────────
+//
+// WeatherKit の表示の決まり（developer.apple.com/weatherkit/get-started/ の
+// 「Apple Weather and third-party attribution」・2026-10-11 に読んだ要点）:
+//  - Apple の天気データを出す**アプリ・Web アプリ・Web サイト**は、Apple Weather の商標
+//    （ Weather）と、**ほかのデータの出典への法的なリンク**をはっきり出す
+//  - 天気の警報を出すなら Apple の警報の頁へのリンクと発表した気象機関の名前（ここは出さない）
+//  - 手を加えて元のデータが分からない形にしたもの（value-added）は「 Weather」を出典とし、
+//    Apple のデータに手を加えた旨を添える
+// ロゴの最小の高さは、その頁には書かれていない。Apple が配る @1x の画像の高さ（14px）で出す。
+//
+// ロゴは `https://weatherkit.apple.com/attribution/{lang}`（認証不要の JSON・CORS は `*`）が
+// 配る画像を**そのまま**使う。返るのは `logoDark@1x` などの**相対の道**だけで、`legalPageURL` は
+// 無かった（2026-10-11 実測）——リンク先はサーバーの `attribution.legalUrl` のまま。
+
+export const WEATHERKIT_ORIGIN = "https://weatherkit.apple.com";
+
+/** 黒地の上なので dark（白い文字のロゴ）。1x / 2x / 3x の絶対 URL */
+export type WeatherLogo = { x1: string; x2: string; x3: string };
+
+/** ロゴの JSON の取り先。言語は画面に合わせる（日本語のロゴは「天気」） */
+export const attributionJsonUrl = (locale: LightLocale) => `${WEATHERKIT_ORIGIN}/attribution/${locale === "en" ? "en" : "ja"}`;
+
+/**
+ * ロゴの JSON を読む。**`/assets/` で始まる道だけ**を Apple の配信元に繋ぐ（応答の値を
+ * そのまま `<img>` に入れるため）。3つ揃わなければ null（呼び出し側は文字の表記に倒す）
+ */
+export function parseWeatherLogo(raw: unknown): WeatherLogo | null {
+    if (!isObj(raw)) return null;
+    const pick = (k: string) => {
+        const v = str(raw[k]);
+        return v && /^\/assets\/[\w./-]+\.png$/.test(v) && !v.includes("..") ? `${WEATHERKIT_ORIGIN}${v}` : null;
+    };
+    const x1 = pick("logoDark@1x");
+    const x2 = pick("logoDark@2x");
+    const x3 = pick("logoDark@3x");
+    return x1 && x2 && x3 ? { x1, x2, x3 } : null;
+}
+
 // ─── 応答を読む ─────────────────────────────────────────
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);

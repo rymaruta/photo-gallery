@@ -29,8 +29,8 @@ import { userFetch } from "../../../lib/utils/api";
 import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { ROUTES } from "../../../lib/routes";
 import {
-    parseLightForecast, failureOf, failureText, lightCards, weekLines, noteFor, TONE_COLOR,
-    type LightFailure, type LightForecast, type LightLocale,
+    parseLightForecast, parseWeatherLogo, attributionJsonUrl, failureOf, failureText, lightCards, weekLines, noteFor, TONE_COLOR,
+    type LightFailure, type LightForecast, type LightLocale, type WeatherLogo,
 } from "../../../lib/utils/lightForecast";
 
 type Phase =
@@ -50,6 +50,17 @@ async function fetchPhase(): Promise<Phase> {
     }
 }
 
+/** Apple Weather のロゴ（`lib/utils/lightForecast.ts` の注記）。読めなければ null（文字の表記に倒す） */
+async function fetchWeatherLogo(locale: LightLocale): Promise<WeatherLogo | null> {
+    try {
+        const res = await fetch(attributionJsonUrl(locale), { credentials: "omit" });
+        if (!res.ok) return null;
+        return parseWeatherLogo(await res.json().catch(() => null));
+    } catch {
+        return null;
+    }
+}
+
 export default function LightForecastPage() {
     const { isAuthenticated, loading } = useAuth();
     const { locale: rawLocale } = useLocale();
@@ -59,6 +70,14 @@ export default function LightForecastPage() {
 
     const [phase, setPhase] = useState<Phase>({ kind: "loading" });
     const [open, setOpen] = useState<Set<string>>(() => new Set());
+    const [logo, setLogo] = useState<WeatherLogo | null>(null);
+
+    // 商標のロゴは Apple の配る画像をそのまま使う（認証なし・30日控えてよい応答）
+    useEffect(() => {
+        let live = true;
+        void fetchWeatherLogo(locale).then((l) => { if (live) setLogo(l); });
+        return () => { live = false; };
+    }, [locale]);
 
     useEffect(() => {
         if (!isAuthenticated) return;
@@ -207,7 +226,21 @@ export default function LightForecastPage() {
                                     className="inline-flex items-center text-xs text-accent underline hover:text-accent-strong"
                                     style={{ minHeight: "44px" }}
                                 >
-                                    {en
+                                    {logo ? (
+                                        <>
+                                            {/* 商標（ Weather）。黒地なので dark。高さは配られる @1x の 14px */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={logo.x1}
+                                                srcSet={`${logo.x1} 1x, ${logo.x2} 2x, ${logo.x3} 3x`}
+                                                alt={forecast.attribution.serviceName}
+                                                data-testid="light-attribution-logo"
+                                                className="inline-block mr-1.5"
+                                                style={{ height: "14px", width: "auto" }}
+                                            />
+                                            {en ? "· Other data sources" : "· ほかのデータの出典"}
+                                        </>
+                                    ) : en
                                         ? `Weather: ${forecast.attribution.serviceName} · Data sources`
                                         : `天気: ${forecast.attribution.serviceName} · データの出典`}
                                 </a>

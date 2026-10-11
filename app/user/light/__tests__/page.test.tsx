@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -31,10 +31,23 @@ const day = (date: string, extra: Record<string, unknown> = {}) => ({
 const respond = (status: number, body: unknown) =>
     mockUserFetch.mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body });
 
+// Apple Weather のロゴの JSON（`weatherkit.apple.com/attribution/{lang}`）。既定は「読めない」＝文字の表記
+const mockFetch = vi.fn();
 beforeEach(() => {
     mockUserFetch.mockReset();
     mockLocale = "ja";
+    mockFetch.mockReset().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", mockFetch);
 });
+afterEach(() => { vi.unstubAllGlobals(); });
+
+const LOGO_JSON = {
+    "logoDark@1x": "/assets/branding/ja/Apple_Weather_wht_ja_1X_090122.png",
+    "logoDark@2x": "/assets/branding/ja/Apple_Weather_wht_ja_2X_090122.png",
+    "logoDark@3x": "/assets/branding/ja/Apple_Weather_wht_ja_3X_090122.png",
+    "logoLight@1x": "/assets/branding/ja/Apple_Weather_blk_ja_1X_090122.png",
+    serviceName: "Apple Weather",
+};
 
 describe("光と天気の知らせ: 読めなかったとき", () => {
     it("403 は「Pro の方の機能」とだけ言い、購入の案内・一覧・もう一度を出さない", async () => {
@@ -89,6 +102,8 @@ describe("光と天気の知らせ: 一覧", () => {
         expect(a.textContent).toContain("Apple Weather");
         expect(a.getAttribute("target")).toBe("_blank");
         expect(a.getAttribute("rel")).toContain("noopener");
+        // 外の頁に自分の URL を渡さない
+        expect(a.getAttribute("rel")).toContain("noreferrer");
         expect(a.className).toContain("text-accent");
         expect(screen.getByText(/見込みは目安で/)).toBeTruthy();
     });
@@ -107,5 +122,42 @@ describe("光と天気の知らせ: 一覧", () => {
         const a = await screen.findByTestId("light-attribution");
         expect(a.textContent).toBe("Weather: Apple Weather · Data sources");
         expect(document.body.textContent).not.toContain("天気は外部の予報から。");
+    });
+});
+
+describe("光と天気の知らせ: Apple Weather の商標（ロゴ）", () => {
+    it("ロゴの JSON が読めたら、黒地用（dark）のロゴを出典のリンクの中に出す", async () => {
+        mockFetch.mockResolvedValue({ ok: true, json: async () => LOGO_JSON });
+        respond(200, { places: [], attribution: ATTR });
+        render(<Page />);
+        const img = await screen.findByTestId("light-attribution-logo");
+        expect(mockFetch).toHaveBeenCalledWith("https://weatherkit.apple.com/attribution/ja", expect.anything());
+        expect(img.getAttribute("src")).toBe("https://weatherkit.apple.com/assets/branding/ja/Apple_Weather_wht_ja_1X_090122.png");
+        expect(img.getAttribute("srcset")).toContain("Apple_Weather_wht_ja_3X_090122.png 3x");
+        expect(img.getAttribute("alt")).toBe("Apple Weather");
+        expect(img.style.height).toBe("14px");
+        // リンク先はサーバーの legalUrl のまま（JSON に legal の URL は無い）
+        const a = screen.getByTestId("light-attribution");
+        expect(a.contains(img)).toBe(true);
+        expect(a.getAttribute("href")).toBe(ATTR.legalUrl);
+        expect(a.textContent).toContain("ほかのデータの出典");
+    });
+
+    it("英語の画面は英語のロゴを取りに行く", async () => {
+        mockLocale = "en";
+        respond(200, { places: [], attribution: ATTR });
+        render(<Page />);
+        await screen.findByTestId("light-attribution");
+        expect(mockFetch).toHaveBeenCalledWith("https://weatherkit.apple.com/attribution/en", expect.anything());
+    });
+
+    it("ロゴが読めない・形が違うときは文字の表記に倒す（出典は必ず出す）", async () => {
+        mockFetch.mockResolvedValue({ ok: true, json: async () => ({ "logoDark@1x": "https://evil.example/x.png" }) });
+        respond(200, { places: [], attribution: ATTR });
+        render(<Page />);
+        const a = await screen.findByTestId("light-attribution");
+        await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+        expect(screen.queryByTestId("light-attribution-logo")).toBeNull();
+        expect(a.textContent).toBe("天気: Apple Weather · データの出典");
     });
 });

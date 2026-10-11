@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-    parseLightForecast, lightCards, weekLines, failureOf, failureText, shortClock, dayWord, noteFor, DEFAULT_ATTRIBUTION,
+    parseLightForecast, parseWeatherLogo, lightCards, weekLines, failureOf, failureText, shortClock, dayWord, noteFor, DEFAULT_ATTRIBUTION,
     type LightDay, type LightForecast, type LightPlace,
 } from "../lightForecast";
 
@@ -100,5 +100,24 @@ describe("言葉", () => {
         const f = { ...fc([]), note: "日本語の注記" };
         expect(noteFor(f, "ja")).toBe("日本語の注記");
         expect(noteFor(f, "en")).not.toContain("日本語");
+    });
+});
+
+describe("Apple Weather のロゴ", () => {
+    it("dark の 1x・2x・3x を Apple の配信元の絶対 URL にする", () => {
+        expect(parseWeatherLogo({
+            "logoDark@1x": "/assets/branding/en/a_1X.png", "logoDark@2x": "/assets/branding/en/a_2X.png", "logoDark@3x": "/assets/branding/en/a_3X.png",
+        })).toEqual({
+            x1: "https://weatherkit.apple.com/assets/branding/en/a_1X.png",
+            x2: "https://weatherkit.apple.com/assets/branding/en/a_2X.png",
+            x3: "https://weatherkit.apple.com/assets/branding/en/a_3X.png",
+        });
+    });
+    it("/assets/ の外・別のホスト・欠けは null（文字の表記に倒す）", () => {
+        const ok = { "logoDark@1x": "/assets/a.png", "logoDark@2x": "/assets/b.png", "logoDark@3x": "/assets/c.png" };
+        expect(parseWeatherLogo({ ...ok, "logoDark@1x": "//evil.example/a.png" })).toBeNull();
+        expect(parseWeatherLogo({ ...ok, "logoDark@2x": "/assets/../x.png" })).toBeNull();
+        expect(parseWeatherLogo({ ...ok, "logoDark@3x": undefined })).toBeNull();
+        expect(parseWeatherLogo(null)).toBeNull();
     });
 });
