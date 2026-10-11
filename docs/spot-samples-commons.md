@@ -51,11 +51,10 @@ Wikimedia Commons で自由なライセンスのもと公開されている写�
 - NC（非営利のみ）・ND（改変禁止）が付くもの（`CC BY-NC`・`CC BY-ND`・`CC BY-NC-SA` …どの書き方でも）
 - GFDL だけのもの、`Attribution` などその他のテンプレート、ライセンスの欄が空のもの
 - CC BY 系で**作者が名前でない**もの（作者表示が使う条件なので、出せない）。空のほか、
-  決まり文句（「Own work」「投稿者自身による著作物」「Unknown author」「Unknown Unknown」「不明」）、
-  お願い文（「please credit…」「I would appreciate…」）、署名の日時（`(UTC)`）、80字を超えるもの。
-  ただし**名前の取れる決まった形は名前にする**（2026-10-11・下の「作者の表記の整え方」）——
-  「…だと推定されます」「No machine-readable author provided. X assumed …」は推定された名前 X を出す
-  （Commons 自身がその名前を作者として出している）。
+  決まり文句（「…と推定されます」「Own work」「投稿者自身による著作物」「Unknown author」「Unknown Unknown」「不明」）、
+  お願い文（「please credit…」「I would appreciate…」「This Photo was taken by X . Feel free…」）、署名の日時（`(UTC)`）、80字を超えるもの。
+  ただし英語の決まり文句「No machine-readable author provided. X assumed …」は推定された名前 X を出す
+  （2026-10-11・下の「作者の表記の整え方」）。日本語版の「…だと推定されます」とお願い文は #272 の判断どおり名前にしない。
   パブリックドメイン・CC0 なら「作者不明」と出す。規則は `lib/utils/commonsAttribution.mjs` の
   `isPlaceholderAuthor`（収集と表示で同じ1本）
 - **アメリカだけのパブリックドメイン**（PD-US 系。日本では保護期間内のことがある）。
@@ -113,17 +112,19 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
   | `en:User:Adamsan`・`nl:User:GerardM`・`ja:User:NEON / User:NEON_ja` | `Adamsan`・`GerardM`・`NEON / NEON_ja` |
   | `[[User:\|Patricia Santos]]`・`[//commons.wikimedia.org/wiki/User:Trantuonglam Trantuonglam]` | 見える字（`Patricia Santos`・`Trantuonglam`） |
   | `(The) original uploader was X at en.wikipedia`・`… at English Wikipedia .` | `X` |
-  | `No machine-readable author provided. Zivax assumed (based on copyright claims).`・日本語版 | `Zivax` |
+  | `No machine-readable author provided. Zivax assumed (based on copyright claims).` | `Zivax`（日本語版の「…だと推定されます」は名前にしない＝#272） |
   | 署名 `-- [[利用者:あおもりくま\|あおもりくま]] （ 会話 ） 2020年11月21日 (土) 01:16 (UTC)`・`さかおり ( talk ) 07:54, 23 February 2010 (UTC)` | `あおもりくま`・`さかおり` |
   | `Foto: Reinhard Kraasch , Lizenz: CC-BY-SA 4.0 DE`・`© El Grafo / CC-BY-SA-4.0`・`© Giles Laurent , gileslaurent.com , License CC BY-SA` | ライセンスの文だけ落とす（`Reinhard Kraasch`・`© El Grafo`・`© Giles Laurent , gileslaurent.com`）。ライセンスは同じ行に別に出る。`©` は作者の求める表記なので残す |
-  | 作者のお願い文 `This Photo was taken by X . Feel free to use my photos, but please mention me as the author…`・`X You are free to use this picture … credit its author, X …`・`X from ja , the copyright holder of this work, hereby publishes it…` | `X`（作者が「この名前で」と求める名前）。ただし「商用の前に連絡を」と求める欄は名前にしない（今までどおり出さない） |
+  | 権利者の宣言 `X from ja , the copyright holder of this work, hereby publishes it…` | `X` |
+  | 作者のお願い文 `This Photo was taken by X . Feel free to use my photos…`・`X You are free to use this picture …` | **名前にしない**（#272 の判断どおり。CC BY 系は出さない） |
   | `Unknown Unknown`・`Unknown author Unknown author`・`Unknown photographer` | 名前ではない（CC BY 系は出さない・PD/CC0 は「作者不明」） |
   | **URL だけ**（`https://www.flickr.com/photos/jiuguangw/`） | **そのまま残す**。Flickr から移した写真で作者を指す唯一の表記（CC BY 4.0 は作者の情報への URI での表示を認める）。Flickr のユーザー名に書き換えると、表示名ではない URL の一部を名前と取り違えるおそれがある |
   | 変えないもの | `X at Japanese Wikipedia`（作者の求める表記）・`FOTO:FORTEPAN / …`（Fortepan の求める表記）・`--sinava-- from Berlin`・`Marie-Lan Nguyen ( User:Jastrow )` |
 
-  確定ファイルの全部（作例 16,000 余り・代表写真 2,670 行）に当てて、表示が変わったのは作例 91 枚・代表写真 68 件
-  （アプリの索引も同じ 68 件）。名前ではない欄の代表写真（`Own work` の CC BY-SA 1 件＝omazaki）は出さなくなった
-  （それまで代表写真には名前でない欄の見張りが無かった。PD・CC0 は「作者不明」）
+  確定ファイルの全部（作例 16,000 余り・代表写真 2,670 行）に当てて、表示が変わったのは作例 87 枚・代表写真 67 件
+  （アプリの索引も同じ 67 件。パノラマの自由で外した imjingak は数えない）。新しく出るようになった作例は無い。
+  名前ではない欄の CC BY-SA の代表写真 2 件（omazaki の `Own work`・roman-forum の Wolfgang Moroder のお願い文）は
+  出さなくなった（それまで代表写真には名前でない欄の見張りが無かった。PD・CC0 は「作者不明」）
 - 節の見出しは「作例（Wikimedia Commons より）」。撮影者はこのサイトの利用者ではないと添える
 - パブリックドメイン・CC0 は表示の義務は無いが、同じ形で出す（作者不明なら「作者不明」）
 - 構造化データ（JSON-LD）は `ImageObject` に `name`（題）・`license`・`acquireLicensePage`・`creditText` を書く。
@@ -343,7 +344,7 @@ owner の方針「検索で見つけてもらう」「写真が無くても役�
   - フランス: トゥール・モンパルナス・ミヨー橋・ルーヴル（主役がピラミッドの夜景）・シャイヨ宮（1937）
 
   外したスポットは建物そのものが撮影地で、建物が主役でない別の1枚には替えられないので、**替えずに外した**
-  （代表写真 2,488 → 2,462 / 2,535。作者の欄の 1 件を含む）。行は `spot-images.json` に残し（`local` だけ消す）、
+  （代表写真 2,488 → 2,461 / 2,535。作者の欄の 2 件を含む）。行は `spot-images.json` に残し（`local` だけ消す）、
   縮小版とサムネは消した。`shownSpotImage` が出さず、`coverCandidateSample` が作例から上げ直さず、`localize-spot-images.mjs` も置き直さない。
   残したもの（迷ったもの）: 広安大橋（2002・普通の吊り橋で夜景の照明つき。韓国の橋の扱い）・ハン川橋（景色の中）・
   ガルーダ・ウィシュヌ・ケンカナ（石灰岩の切り通しの広場で像は写っていない）・エッフェル塔（昼の写真。夜の照明は別の権利）・
