@@ -22,6 +22,9 @@ import { userFetch, sessionErrorMessage } from "../../../lib/utils/api";
 import { usableObject } from "../../../lib/utils/apiRows";
 import { ROUTES } from "../../../lib/routes";
 
+/** 行の頭の絵の幅。2行目は同じ幅を空けて書き出しをそろえる */
+const ICON_PX = 20;
+
 export default function LightAlertSettings({ locale }: { locale: "ja" | "en" }) {
     const en = locale === "en";
     /** false = まだ・Pro でない・読めなかった → 何も描かない */
@@ -83,7 +86,7 @@ export default function LightAlertSettings({ locale }: { locale: "ja" | "en" }) 
                     style={{ minHeight: "54px", touchAction: "manipulation" }}
                 >
                     {/* 光の線の絵（板の Pro の節・真鍮） */}
-                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className="text-accent flex-shrink-0">
+                    <svg aria-hidden="true" width={ICON_PX} height={ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className="text-accent flex-shrink-0">
                         <path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 7V4M5.6 10.6 3.5 8.5M18.4 10.6l2.1-2.1" />
                     </svg>
                     <span className="flex-1 min-w-0 flex flex-col gap-1">
@@ -95,6 +98,9 @@ export default function LightAlertSettings({ locale }: { locale: "ja" | "en" }) 
                     <span aria-hidden="true" className="text-white/50">›</span>
                 </Link>
                 <div className="border-t border-white/[0.08] flex items-center gap-3 px-4 py-3" style={{ minHeight: "54px" }}>
+                    {/* 2026-10-11 判断: 上の行の絵（20px）と同じ幅を空け、2行の書き出しをそろえる
+                        （空けないと上の行より 32px 左から始まり、ずれて見えた） */}
+                    <span aria-hidden="true" className="flex-shrink-0" style={{ width: ICON_PX }} data-testid="light-alert-indent" />
                     <span className="flex-1 min-w-0 flex flex-col gap-1">
                         <span className="text-[15px] text-white/95">{label}</span>
                         <span className="text-xs leading-relaxed text-white/60">

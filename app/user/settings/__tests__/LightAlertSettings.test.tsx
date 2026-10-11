@@ -70,4 +70,18 @@ describe("設定: 光と天気の知らせ（Pro だけ）", () => {
         expect(await screen.findByRole("alert")).toBeTruthy();
         expect(sw.getAttribute("aria-checked")).toBe("true");
     });
+
+    it("2行の書き出しがそろう: 入切の行は、上の行の絵と同じ幅を頭に空ける（2026-10-11）", async () => {
+        profile({ userId: "u1", pro: true, lightAlert: true });
+        render(<LightAlertSettings locale="ja" />);
+        const link = await screen.findByRole("link", { name: /光と天気の知らせ/ });
+        const icon = link.querySelector("svg")!;
+        const sw = screen.getByRole("switch", { name: "前の晩に知らせる" });
+        const row = sw.parentElement!;
+        const indent = row.firstElementChild as HTMLElement;
+        expect(indent.getAttribute("data-testid")).toBe("light-alert-indent");
+        expect(indent.style.width).toBe(`${icon.getAttribute("width")}px`);
+        // 文の列はどちらも絵（空き）のすぐ後ろ
+        expect(link.firstElementChild).toBe(icon);
+    });
 });
