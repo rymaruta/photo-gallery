@@ -634,7 +634,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2010-11-09",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:恵林寺 - panoramio (1).jpg",
@@ -1540,7 +1540,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2011-08-13",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Saruhashi -02.jpg",
@@ -2576,7 +2576,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2010年9月24日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:通潤橋 20130814 - panoramio.jpg",
@@ -2786,7 +2786,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2015-01-20 16:52:22",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:View of Oyama Shrine from east gate.JPG",
@@ -3230,7 +3230,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2006-10-08",
         "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Miyagase Dam.jpg",
@@ -4253,7 +4253,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2008-04-13",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Adachi museum gardens IMG 20161019 110242.jpg",
@@ -4516,7 +4516,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2022-06-19 11:54",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Miyako irabu ohashi 2014 1.jpg",
@@ -4829,7 +4829,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2023-08-01 09:26:05",
         "licenseCode": "cc-by-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:大岩山日石寺20230801-P1029144.jpg",
@@ -4923,7 +4923,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2019-08-26 12:28:41",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kitaguchi Hongu Fuji Sengen jinja 20190826a1a.jpg",
@@ -5025,7 +5025,7 @@
         "license": "CC BY-SA 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
         "dateTimeOriginal": "2011-04-22 13:28",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Miharu Takizakura 2010-4-18.jpg",
@@ -8065,6 +8065,19 @@
     "name": "秩父夜祭",
     "samples": [
       {
+        "file": "File:秩父祭の屋台行事と神楽.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%A7%A9%E7%88%B6%E7%A5%AD%E3%81%AE%E5%B1%8B%E5%8F%B0%E8%A1%8C%E4%BA%8B%E3%81%A8%E7%A5%9E%E6%A5%BD.jpg",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/%E7%A7%A9%E7%88%B6%E7%A5%AD%E3%81%AE%E5%B1%8B%E5%8F%B0%E8%A1%8C%E4%BA%8B%E3%81%A8%E7%A5%9E%E6%A5%BD.jpg/1280px-%E7%A7%A9%E7%88%B6%E7%A5%AD%E3%81%AE%E5%B1%8B%E5%8F%B0%E8%A1%8C%E4%BA%8B%E3%81%A8%E7%A5%9E%E6%A5%BD.jpg",
+        "width": 1280,
+        "height": 960,
+        "author": "ちちびあん",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2016-12-03 22:07:36",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:Chichibu Shrine - 秩父神社 - panoramio (1).jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:Chichibu_Shrine_-_%E7%A7%A9%E7%88%B6%E7%A5%9E%E7%A4%BE_-_panoramio_(1).jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Chichibu_Shrine_-_%E7%A7%A9%E7%88%B6%E7%A5%9E%E7%A4%BE_-_panoramio_%281%29.jpg/1280px-Chichibu_Shrine_-_%E7%A7%A9%E7%88%B6%E7%A5%9E%E7%A4%BE_-_panoramio_%281%29.jpg",
@@ -8122,17 +8135,6 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2008-11-23 16:31",
-        "pickedBy": "auto"
-      },
-      {
-        "file": "File:秩父神社 Chichibu shrine - panoramio.jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%A7%A9%E7%88%B6%E7%A5%9E%E7%A4%BE_Chichibu_shrine_-_panoramio.jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1f/%E7%A7%A9%E7%88%B6%E7%A5%9E%E7%A4%BE_Chichibu_shrine_-_panoramio.jpg",
-        "width": 1280,
-        "height": 960,
-        "author": "yamai36",
-        "license": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "pickedBy": "auto"
       }
     ]
@@ -9765,7 +9767,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "Taken on 14 September 2012",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:古峯園 20151105.jpg",
@@ -10272,7 +10274,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2010-04-13",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Biwako123844.jpg",
@@ -10481,7 +10483,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2014年7月19日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Haigamine.jpg",
@@ -13170,7 +13172,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2009-05-09",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Todoroki Watefalls 01.JPG",
@@ -16756,7 +16758,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2013年7月1日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Papilio protenor demetrius mating back.jpg",
@@ -18017,7 +18019,7 @@
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "18 April 2025",
         "licenseCode": "cc0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:展望台横から農業公園を見下ろす.jpg",
@@ -18825,7 +18827,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2018-04-01 14:19",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:浜離宮恩賜庭園 - panoramio (4).jpg",
@@ -19102,7 +19104,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2014-02-11 20:02:13",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Nagashibinanoyakata.jpg",
@@ -19363,7 +19365,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2024-07",
         "licenseCode": "cc-by-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hida Great Limestone Cave.jpg",
@@ -19606,7 +19608,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2017-02-05",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Corniglia dal Sentiero Azzurro2.jpg",
@@ -19685,7 +19687,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2006-01-12",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Shizutani school 27d.jpg",
@@ -20816,7 +20818,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "Taken on 5 July 2009",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:鞠智城兵舎.JPG",
@@ -20931,7 +20933,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2011-08-11",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kumano Kodo (Magose pass route s2).JPG",
@@ -22746,7 +22748,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2007年2月撮影（February,2007）",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tabira Cathoric Church(Side View).jpg",
@@ -24592,7 +24594,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2016-05-20 13:37:33",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Naniwabashi Nakanoshima-Rose-Garden Osaka Japan.jpg",
@@ -28132,7 +28134,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2026年3月29日より前 date QS:P,+2026-03-29T00:00:00Z/7,P1326,+2026-03-29T00:00:00Z/11",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:230729 Geibikei Ichinoseki Iwate pref Japan21s3.jpg",
@@ -29825,7 +29827,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2011年7月3日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:三国峠2011夏 - panoramio.jpg",
@@ -30876,7 +30878,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2011-09-14",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Chikugo River Lift Bridge 001.JPG",
@@ -31672,7 +31674,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2012年8月16日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Shoreline of the Oumijima island 青海島の海岸線 - panoramio.jpg",
@@ -32960,7 +32962,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.1/jp/deed.en",
         "dateTimeOriginal": "2006",
         "licenseCode": "cc-by-2.1-jp",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tanigumisan Kegon-ji Temple 20210813 01.jpg",
@@ -33219,7 +33221,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.1/jp/deed.en",
         "dateTimeOriginal": "2007",
         "licenseCode": "cc-by-2.1-jp",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Shirasaki00093.jpg",
@@ -36392,7 +36394,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2023-12-17 13:35:46",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Fukui Prefectural Dinosaur Museum 20210504 27.jpg",
@@ -37655,7 +37657,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2007-03-17",
         "licenseCode": "cc-by-2.5",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -38320,7 +38322,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2019-09-19 10:43:17",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -38706,7 +38708,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2011年3月10日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Joren Falls 2009-11-15 - panoramio.jpg",
@@ -39719,7 +39721,7 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2007-10-07",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tokushima castle museum01s3872.jpg",
@@ -40041,7 +40043,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2017-11-10",
         "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:180726 Sessho-seki Nasu Japan02.JPG",
@@ -40515,7 +40517,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2021-09-21 15:10",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:みくりが池04.jpg",
@@ -41837,7 +41839,7 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2014-04-26",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:140426 Yuushien Matsue Shimane pref Japan01b5s3.jpg",
@@ -43337,7 +43339,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2024-10-30 13:53:45",
         "licenseCode": "cc-by-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kuroshima Church back view 20260429.jpg",
@@ -43937,7 +43939,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2010-05-29",
         "licenseCode": "cc-by-2.5",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Ishibutai Kofun, sekishitsu-2.jpg",
@@ -46131,7 +46133,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2025-07-13 15:40:53",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:SagaeDam1.JPG",
@@ -46751,7 +46753,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2019-07-15 10:16:22",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tatsue-ji, Auxiliary Shirasugi Shrine 01.jpg",
@@ -48279,7 +48281,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2008-11-01",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:081101 Tojinbo Sakai Fukui pref Japan02bs10.jpg",
@@ -49664,6 +49666,19 @@
     "name": "串本海中公園",
     "samples": [
       {
+        "file": "File:Undersea tower at KUSHIMOTO MARINE PARK.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Undersea_tower_at_KUSHIMOTO_MARINE_PARK.jpg",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Undersea_tower_at_KUSHIMOTO_MARINE_PARK.jpg/1280px-Undersea_tower_at_KUSHIMOTO_MARINE_PARK.jpg",
+        "width": 1280,
+        "height": 854,
+        "author": "Motokoka",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2010-05-04 13:50:28",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:Aquarium at KUSHIMOTO MARINE PARK 1.jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:Aquarium_at_KUSHIMOTO_MARINE_PARK_1.jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Aquarium_at_KUSHIMOTO_MARINE_PARK_1.jpg/1280px-Aquarium_at_KUSHIMOTO_MARINE_PARK_1.jpg",
@@ -49911,7 +49926,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2014年8月6日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Yunodaira Observatory.jpg",
@@ -52063,6 +52078,19 @@
     "name": "名もなき池（通称 モネの池）",
     "samples": [
       {
+        "file": "File:Mone pond (2017-11-28).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Mone_pond_(2017-11-28).jpg",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Mone_pond_%282017-11-28%29.jpg/1280px-Mone_pond_%282017-11-28%29.jpg",
+        "width": 1280,
+        "height": 853,
+        "author": "Alpsdake",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2017-11-28 14:26:47",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:JPN nemichi shrine and Monet pond.jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:JPN_nemichi_shrine_and_Monet_pond.jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/JPN_nemichi_shrine_and_Monet_pond.jpg/1280px-JPN_nemichi_shrine_and_Monet_pond.jpg",
@@ -52409,7 +52437,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2020-11-21 11:20:33",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Komyoji Rurikoin, Reflection of Fresh Green Maple Leaves 02.jpg",
@@ -57239,7 +57267,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2009-09-16",
         "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Fukiwari foll ukishima midou.jpg",
@@ -59364,7 +59392,7 @@
         "license": "Public domain",
         "dateTimeOriginal": "2008-01-04",
         "licenseCode": "PD-self",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kyusen do 20160829150141 (31352381084).jpg",
@@ -60099,7 +60127,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2009-05-15",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Buddhism statue of USUKI (1-2) Oita,JAPAN.jpg",
@@ -61554,7 +61582,7 @@
         "author": "shikabane taro",
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Lagerstroemia indica and Ranunculus nipponicus 01.jpg",
@@ -62517,7 +62545,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2018-07-01",
         "licenseCode": "cc-by-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Abukuma Cave 03.jpg",
@@ -63009,7 +63037,7 @@
         "license": "Public domain",
         "dateTimeOriginal": "2009年",
         "licenseCode": "PD-self",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Manabejima 01.jpg",
@@ -64027,7 +64055,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2016-10-30 13:04",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Ouchijuku (24003565058).jpg",
@@ -64118,7 +64146,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2007-03-02",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tenkaihou2.jpg",
@@ -66091,7 +66119,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2016-11-23 13:39:20",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Omishima (80675).jpg",
@@ -66522,7 +66550,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2007-03-31 13:10",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Iwami Tatami-ga-ura.jpg",
@@ -66970,7 +66998,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2014-10-18 14:00",
         "licenseCode": "cc-by-2.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Akame 48 Waterfalls-Gaikotsudaki.JPG",
@@ -67079,7 +67107,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2019-03-11 11:52:15",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -69756,7 +69784,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2016-01",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:皿倉山展望台より小倉方面 - panoramio.jpg",
@@ -70740,7 +70768,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2015-11-01 06:46:41",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Saga balloon fiesta take off at the same time 2015 02.JPG",
@@ -73265,6 +73293,19 @@
     "name": "谷川岳 一ノ倉沢",
     "samples": [
       {
+        "file": "File:一ノ倉沢.JPG",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B8%80%E3%83%8E%E5%80%89%E6%B2%A2.JPG",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/%E4%B8%80%E3%83%8E%E5%80%89%E6%B2%A2.JPG/1280px-%E4%B8%80%E3%83%8E%E5%80%89%E6%B2%A2.JPG",
+        "width": 1280,
+        "height": 960,
+        "author": "Maulits",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2012-10-08 06:44:35",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:Tanigawa summit panorama (51984422800).jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:Tanigawa_summit_panorama_(51984422800).jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Tanigawa_summit_panorama_%2851984422800%29.jpg/1280px-Tanigawa_summit_panorama_%2851984422800%29.jpg",
@@ -75736,7 +75777,7 @@
         "license": "Public domain",
         "dateTimeOriginal": "2008-09-06",
         "licenseCode": "PD-self",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Lake Towada 十和田湖 - panoramio.jpg",
@@ -76250,7 +76291,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2012年8月17日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:犬吠埼灯台からの風景 - panoramio (1).jpg",
@@ -76784,7 +76825,7 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2011-03-20",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Yubu Island Okinawa Pref Japan02s3s4410.jpg",
@@ -77717,7 +77758,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2014-06-29 15:48",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:江島大橋.JPG",
@@ -79938,7 +79979,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2013年4月28日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kaiomaru Park 海王丸パーク13 - panoramio.jpg",
@@ -80714,7 +80755,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2014年11月18日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hyakusaijicho, Higashiomi, Shiga Prefecture 527-0144, Japan - panoramio (4).jpg",
@@ -81848,7 +81889,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2025-02-11 11:38:59",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tsukimachi falls.jpg",
@@ -83791,7 +83832,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2008-05-26",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kashiragashima church parsonage 01.jpg",
@@ -84890,7 +84931,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2012-09-02",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Naena waterfall.JPG",
@@ -85066,7 +85107,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2014年5月22日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:天岩戸神社の神楽殿 - panoramio.jpg",
@@ -85096,7 +85137,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2017-04-18",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hakone Setsubun procession.jpg",
@@ -86990,7 +87031,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2019-12-30 14:43:58",
         "licenseCode": "cc-by-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Lakeside path near Lake Onuma @ Mount Akagi area (14018455990).jpg",
@@ -87123,7 +87164,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2015年11月15日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Sukayu hot springs (50613397776).jpg",
@@ -87344,7 +87385,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2007-09-28",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hydrangea macrophylla in Kozanji Temple.JPG",
@@ -90782,7 +90823,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "Taken on 6 March 2013",
         "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:千尋滝 2.jpg",
@@ -91916,7 +91957,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2024年5月24日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Chuurei-tou Fujiyoshida 33415029934 8bdb607294 o.jpg",
@@ -93386,7 +93427,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2017-09-10 10:31:51",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:糟谷磯丸像 - 伊良湖岬.jpg",
@@ -97653,7 +97694,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2008-11-23",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Shimagawa Dam-Lake.jpg",
@@ -98352,6 +98393,25 @@
       }
     ]
   },
+  "sp_bfc89a534aa3": {
+    "slug": "bangucheon-petroglyphs",
+    "name": "盤亀川流域の岩絵群",
+    "samples": [
+      {
+        "file": "File:울주 대곡리 반구대 암각화.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:%EC%9A%B8%EC%A3%BC_%EB%8C%80%EA%B3%A1%EB%A6%AC_%EB%B0%98%EA%B5%AC%EB%8C%80_%EC%95%94%EA%B0%81%ED%99%94.jpg",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/%EC%9A%B8%EC%A3%BC_%EB%8C%80%EA%B3%A1%EB%A6%AC_%EB%B0%98%EA%B5%AC%EB%8C%80_%EC%95%94%EA%B0%81%ED%99%94.jpg/1280px-%EC%9A%B8%EC%A3%BC_%EB%8C%80%EA%B3%A1%EB%A6%AC_%EB%B0%98%EA%B5%AC%EB%8C%80_%EC%95%94%EA%B0%81%ED%99%94.jpg",
+        "width": 1280,
+        "height": 854,
+        "author": "Korea Heritage Service",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2015-11-11 12:17:06",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      }
+    ]
+  },
   "sp_bfcde3b6a364": {
     "slug": "dohany-street-synagogue",
     "name": "ドハーニ街シナゴーグ",
@@ -98528,7 +98588,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
         "dateTimeOriginal": "2004-07-24",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kinojo-Kogoishi20140823.jpg",
@@ -100977,7 +101037,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2016年8月21日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:三千院のお地蔵様 (258188537).jpeg",
@@ -102990,7 +103050,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2015年6月21日, 18:55",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Musée d”Orsay 09 12 24 947000.jpeg",
@@ -104286,6 +104346,19 @@
     "name": "慈照寺（銀閣寺）",
     "samples": [
       {
+        "file": "File:Ginkaku, Jishō-ji.JPG",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Ginkaku,_Jish%C5%8D-ji.JPG",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Ginkaku%2C_Jish%C5%8D-ji.JPG/1280px-Ginkaku%2C_Jish%C5%8D-ji.JPG",
+        "width": 1280,
+        "height": 854,
+        "author": "Kakidai",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "2015-08-06",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:Ginkakuji temple (51473116943).jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:Ginkakuji_temple_(51473116943).jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Ginkakuji_temple_%2851473116943%29.jpg/1280px-Ginkakuji_temple_%2851473116943%29.jpg",
@@ -104343,18 +104416,6 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2017-03-08 16:11:19",
-        "pickedBy": "auto"
-      },
-      {
-        "file": "File:銀閣寺 Ginkaku-ji Temple - panoramio (1).jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%8A%80%E9%96%A3%E5%AF%BA_Ginkaku-ji_Temple_-_panoramio_(1).jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/%E9%8A%80%E9%96%A3%E5%AF%BA_Ginkaku-ji_Temple_-_panoramio_%281%29.jpg/1280px-%E9%8A%80%E9%96%A3%E5%AF%BA_Ginkaku-ji_Temple_-_panoramio_%281%29.jpg",
-        "width": 1280,
-        "height": 960,
-        "author": "lienyuan lee",
-        "license": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
-        "dateTimeOriginal": "2007年3月27日",
         "pickedBy": "auto"
       }
     ]
@@ -106181,7 +106242,7 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2014-03-22",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:140322 Unzen Onsen Jigoku Unzen Nagasaki pref Japan08s3.jpg",
@@ -106472,7 +106533,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2019-08-04 10:15",
         "licenseCode": "cc-by-2.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Dainichi-nyorai of Kumano Magaibutsu.jpg",
@@ -106838,7 +106899,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2020-08-19 16:57:00",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:2010 SENDAI Pageant of Starlight in Kōtōdai-kōen Park 01.jpg",
@@ -109591,7 +109652,7 @@
         "license": "Public domain",
         "dateTimeOriginal": "2008-03-24",
         "licenseCode": "PD-self",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Enakyo.jpg",
@@ -111661,7 +111722,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2016年5月22日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:タウシュベツ川橋梁 - panoramio.jpg",
@@ -112474,7 +112535,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2015-09-26 15:11:52",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -112863,7 +112924,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2009-11-05 11:42",
         "licenseCode": "cc-by-sa-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kesennumaooshima.jpg",
@@ -113186,7 +113247,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2003-01-03 12:13:36",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Seizanso, Ibaraki 01.jpg",
@@ -113560,7 +113621,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2008-06-14",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Lake Chuzenji and Mt. Nantai view from Mt. Hangetsu Observatory.jpg",
@@ -113642,7 +113703,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2023-08-26 12:36:24",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Ichifusayama from Yatate Siiba Miyazaki Japan.jpg",
@@ -113769,7 +113830,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2026-05-05 11:56:26",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Osaka Skyline from Abeno Harukas 20260505 121829 UTC+9 23 mm.jpg",
@@ -113881,7 +113942,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2014-02-22 10:27:02",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Night cityscape from Shiroyama Observatory (Kagoshima City) 2020.jpg",
@@ -113991,7 +114052,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2010-09-06",
         "licenseCode": "cc-by-3.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kofu-Basin from Hottarakashi Onsen 01-2.jpg",
@@ -114913,7 +114974,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2022-02-13 11:45",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Zao foxes (51901324658).jpg",
@@ -114979,7 +115040,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2012年8月26日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:近江八幡・八幡堀にて 2012.8.26 - panoramio (1).jpg",
@@ -115452,7 +115513,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2018-08-24 14:51:08",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Genbudo Seiryudo Cave 2018 2.jpg",
@@ -115530,7 +115591,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2021-05-22 13:53:07",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Ikuno Ginzan Silver Mine Asago Hyogo26n4272.jpg",
@@ -116422,7 +116483,7 @@
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2 April 2018, 13:49:51",
         "licenseCode": "cc0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hakken-mon Gate, Ushiku jouen.jpg",
@@ -116671,7 +116732,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2016年4月29日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
@@ -118484,7 +118545,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2026-09-12 15:48:51",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Pedestal of Hirosaki Castle Keep Tower 20260823a.jpg",
@@ -118678,6 +118739,19 @@
     "name": "造幣局 桜の通り抜け",
     "samples": [
       {
+        "file": "File:Cherry-Blossom-Viewing through the \"Tunnel\" at Japan Mint in 201504 003.JPG",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Cherry-Blossom-Viewing_through_the_%22Tunnel%22_at_Japan_Mint_in_201504_003.JPG",
+        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Cherry-Blossom-Viewing_through_the_%22Tunnel%22_at_Japan_Mint_in_201504_003.JPG/1280px-Cherry-Blossom-Viewing_through_the_%22Tunnel%22_at_Japan_Mint_in_201504_003.JPG",
+        "width": 1280,
+        "height": 960,
+        "author": "Mc681",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "dateTimeOriginal": "Taken on 9 April 2015, 14:25:37",
+        "licenseCode": "cc-by-sa-4.0",
+        "pickedBy": "visual-review"
+      },
+      {
         "file": "File:Japan Mint April Osaka 2023.jpg",
         "pageUrl": "https://commons.wikimedia.org/wiki/File:Japan_Mint_April_Osaka_2023.jpg",
         "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Japan_Mint_April_Osaka_2023.jpg/1280px-Japan_Mint_April_Osaka_2023.jpg",
@@ -118735,18 +118809,6 @@
         "license": "CC BY 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
         "dateTimeOriginal": "2025-01-22",
-        "pickedBy": "auto"
-      },
-      {
-        "file": "File:\"TŌRINUKE\" in 202004 001.jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:%22T%C5%8CRINUKE%22_in_202004_001.jpg",
-        "thumbUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/%22T%C5%8CRINUKE%22_in_202004_001.jpg/1280px-%22T%C5%8CRINUKE%22_in_202004_001.jpg",
-        "width": 1280,
-        "height": 2276,
-        "author": "Mc681",
-        "license": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-        "dateTimeOriginal": "2020-04-04 12:27:15",
         "pickedBy": "auto"
       }
     ]
@@ -118929,7 +118991,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2020-11-24 10:17",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Tanize Suspension Bridge (51930398510).jpg",
@@ -120395,7 +120457,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2023-05-02 14:27",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:霧の縄文杉 (Jomon Sugi) 26 May, 2013 - panoramio.jpg",
@@ -121859,7 +121921,7 @@
         "license": "CC0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
         "dateTimeOriginal": "2017年9月18日 15:41:13",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Lake senba mito ibaraki 201908.jpg",
@@ -122009,7 +122071,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2016-05-05 13:53:04",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Kamo Aquarium exterior.jpg",
@@ -122253,7 +122315,7 @@
         "license": "CC BY 2.5",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
         "dateTimeOriginal": "2007-08-24",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:遠野カッパ淵 - panoramio.jpg",
@@ -123317,7 +123379,7 @@
         "license": "CC BY-SA 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2025-12-13",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:大寧軒 三柱鳥居 Daineiken Mihashira Torii.jpg",
@@ -123371,7 +123433,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2015年9月18日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Running glass filed in daikanbou - 大観望で走る - panoramio.jpg",
@@ -123735,7 +123797,7 @@
         "license": "CC BY 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
         "dateTimeOriginal": "2003年5月22日",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Staromestsky orloj detail 1.jpg",
@@ -125162,7 +125224,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2008-11-01 13:04:31",
         "licenseCode": "cc-by-2.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Hikosan autumn DSC 3798.jpg",
@@ -126590,7 +126652,7 @@
         "license": "CC BY 2.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
         "dateTimeOriginal": "2012-04-07 11:50",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:Seville Cathedral (20036735029).jpg",
@@ -127238,7 +127300,7 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
         "dateTimeOriginal": "2019-03-23 09:17",
         "licenseCode": "cc-by-sa-4.0",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       },
       {
         "file": "File:宮古・久慈 GW 2017 (33693914903).jpg",
@@ -128393,7 +128455,7 @@
         "license": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
         "dateTimeOriginal": "2013-07-11 11:37:00",
-        "pickedBy": "auto"
+        "pickedBy": "visual-review"
       }
     ]
   },
