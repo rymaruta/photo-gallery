@@ -44,22 +44,21 @@ beforeEach(() => {
 });
 
 /**
- * ファイル入力を引く。**ラベルが無い**——`className="hidden"` で、見えている
- * ボタンが ref 経由で開く作り。**カバー写真の欄は 2026-09-22 に外した**
- * （マイページがカバーを出さなくなったので）ので、残るのはアバターだけ。
+ * ファイル入力を引く。`className="hidden"` で、見えているボタンが ref 経由で開く作り。
+ * **カバー写真の欄は 2026-10-11 に戻した**ので、カバー（0）とアバター（1）の2本。
  * **本数が変わったら気づけるように**数も見る
  */
-async function pickInto(file: File) {
+async function pickInto(file: File, idx = 1) {
     const { container } = render(<ProfilePage />);
     await screen.findByDisplayValue("こんにちは");
     const inputs = container.querySelectorAll<HTMLInputElement>('input[type="file"]');
-    expect(inputs.length, "ファイル入力の本数が変わった（前提が崩れている）").toBe(1);
-    await userEvent.upload(inputs[0], file);
+    expect(inputs.length, "ファイル入力の本数が変わった（前提が崩れている）").toBe(2);
+    await userEvent.upload(inputs[idx], file);
 }
 
-describe("プロフィールのアバター: GIF は選んだ時点で断る", () => {
-    it("アバターに GIF を選ぶと、その場で断る", async () => {
-        await pickInto(gif());
+describe("プロフィールのアバター・カバー: GIF は選んだ時点で断る", () => {
+    it.each([[1, "アバター"], [0, "カバー"]])("%i（%s）に GIF を選ぶと、その場で断る", async (idx) => {
+        await pickInto(gif(), idx);
         await waitFor(() => expect(toasts().length, "無言で進んでいる").toBeGreaterThan(0));
         expect(toasts()[0]).toMatch(/GIF/);
         // **上げに行かない**（presign も呼ばない）

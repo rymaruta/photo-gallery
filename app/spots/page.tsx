@@ -5,6 +5,9 @@ import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
+import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
+import { spotIndexTopics } from "@/lib/data/spotTopics";
+import { TopicChips, Lang } from "@/app/components/SpotTopicLists";
 
 /**
  * **撮影地ガイドの入口。**
@@ -26,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
     // 件数に「運営が調べた」と読める形で数えるのは、人が確かめた行だけ
     const description = n > 0
         ? (verified >= MIN_INDEXABLE_SPOTS
-            ? `写真を撮りに行ける場所のガイド（${areas}地域・${verified}件${n > verified ? `・ほかに下書き${n - verified}件` : ""}）。見どころ・季節・時間帯・アクセスまで。`
+            ? `写真を撮りに行ける場所のガイド（${areas}地域・${verified}件${n > verified ? `・ほかに下書き${n - verified}件` : ""}）。見どころと、月ごとの日の出・日の入りなど撮影の光まで。${spotCheckedClaim(visibleSpots(SPOTS))}`
             : `写真を撮りに行ける場所のガイドの下書き（${areas}地域・${n}件）。運営がまだ確認していない情報を含みます。`)
         : "写真を撮りに行ける場所のガイド。";
     return {
@@ -53,7 +56,9 @@ export default function SpotIndexPage() {
             {areas.length > 0 && (
                 <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(spotAreaItemList(areas)) }} />
             )}
-            <SpotAreaIndexClient areas={areas} total={total} draftCount={total - publishableSpots(SPOTS).length} />
+            <SpotAreaIndexClient areas={areas} total={total} draftCount={total - publishableSpots(SPOTS).length}>
+                <SpotIndexTopicSections />
+            </SpotAreaIndexClient>
         </>
     );
 }
@@ -61,3 +66,34 @@ export default function SpotIndexPage() {
 /** JSON-LD を `<script>` に埋める形（`SpotGuidePage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
+
+/**
+ * **季節・テーマの切り口への入口**（2026-10-11）。県の一覧の下に置く。
+ * 海外の国は「海外」の区画（`/spots/area/overseas`＝国の一覧）から辿る。
+ * サーバーで描くので、切り口の一覧はクライアントの props に乗らない（HTML の本文だけ）
+ */
+function SpotIndexTopicSections() {
+    const { seasons, themes } = spotIndexTopics();
+    if (seasons.length === 0 && themes.length === 0) return null;
+    return (
+        <div data-testid="spots-topic-index">
+            {seasons.length > 0 && (
+                <section className="mb-7">
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="季節でさがす" en="By season" /></h2>
+                    <TopicChips links={seasons} />
+                </section>
+            )}
+            {themes.length > 0 && (
+                <section className="mb-7">
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="テーマでさがす" en="By theme" /></h2>
+                    {themes.map((g) => (
+                        <div key={g.category} className="mb-3">
+                            <h3 className="m-0 mb-1.5 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}><Lang ja={g.category} en={g.categoryEn} /></h3>
+                            <TopicChips links={g.links} />
+                        </div>
+                    ))}
+                </section>
+            )}
+        </div>
+    );
+}

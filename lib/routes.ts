@@ -83,6 +83,19 @@ export const ROUTES = {
      * 台帳に入れるとここと衝突する**——見張りは `spotsLedger.test.ts`。
      */
     SPOT_AREA: (area: string) => `/spots/area/${encodeURIComponent(area)}`,
+    /**
+     * 海外の国ごとの撮影スポット一覧（`app/spots/area/[area]/[country]/page.tsx`）。
+     * `code` は ISO 3166-1 の2文字（小文字・`COUNTRY_SHARD_KEYS`）。`/spots/area/overseas` は国の一覧
+     */
+    SPOT_COUNTRY: (code: string) => `/spots/area/overseas/${encodeURIComponent(code)}`,
+    /**
+     * テーマ（カテゴリ × 地域）の一覧（`app/spots/theme/[category]/[place]/page.tsx`）。
+     * `place` は県のスラッグ・地方のスラッグ・国の2文字のどれか（`lib/data/spotTopics.ts`）
+     */
+    SPOT_THEME: (category: string, place: string) => `/spots/theme/${encodeURIComponent(category)}/${encodeURIComponent(place)}`,
+    /** 季節の撮影スポット（`/spots/season/<season>`）と、その地方別（`/spots/season/<season>/<region>`） */
+    SPOT_SEASON: (season: string, region?: string) =>
+        `/spots/season/${encodeURIComponent(season)}${region ? `/${encodeURIComponent(region)}` : ""}`,
     /** 写真をさがす（絞り込みと一覧）。**検索結果に出さない**——トップと中身が重なる */
     SEARCH: "/search",
     /**
@@ -117,6 +130,13 @@ export const ROUTES = {
      * 自分」を作る画面で、こちらは**アカウントそのもの**の設定。
      */
     SETTINGS: "/user/settings",
+    /** 自分のメダルの棚と名前の横の設定（本人だけ。`app/user/badges`） */
+    BADGES: "/user/badges",
+    /**
+     * 光と天気の知らせ（Pro だけ・`GET /user/light-forecast`）。入口は設定の Pro の節だけ
+     * （`LightAlertSettings`）。Pro でない人には入口を出さない（2026-10-11 owner）
+     */
+    LIGHT_FORECAST: "/user/light",
     USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)

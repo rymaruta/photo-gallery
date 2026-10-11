@@ -59,7 +59,8 @@ describe("撮影の光", () => {
     it("北極圏は理由の言葉と凡例（「—」だけにしない）", () => {
         view(lightCalendar({ lat: 66.5436, lng: 25.8473 }, "フィンランド"));
         const rows = screen.getByTestId("spot-light").querySelectorAll("tbody tr");
-        expect(rows[0].textContent).toBe("1月10:2114:32終日");
+        // 2026-10-11: 日の出・日の入りの時刻の下に方角（冬の北極圏は南寄り）
+        expect(rows[0].textContent).toBe("1月10:21南南東 151°14:32南南西 209°終日");
         expect(rows[5].textContent).toContain("白夜");
         expect(rows[6].textContent).toContain("翌00:10");
         expect(screen.getByTestId("spot-light-legend").textContent).toContain("終日＝太陽が一日中低く");

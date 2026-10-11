@@ -13,7 +13,7 @@
 import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { spotSamples } from "@/lib/data/spotSamples";
+import { spotSamples, coverImageObject } from "@/lib/data/spotSamples";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
@@ -23,6 +23,8 @@ import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
 import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
+import { spotSky } from "@/lib/utils/spotSky";
+import { topicLinksForSpot, spotCountryRef } from "@/lib/data/spotTopics";
 
 /** JSON-LD を `<script>` に埋める形（`SpotPage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
@@ -86,12 +88,18 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // 構造化データ（検索に「この場所の写真」として渡す）には、**画面に出している作例を全部**入れる
     // （作者・ライセンス・出典つき。2026-10-03 のレビュー: 自動で選んだ作例が抜けていた。
     // 画面に出す以上、出典の表示は構造化データでも同じにそろえる）
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverUrl, samples }) : null;
-    const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area));
+    // 代表写真は作者・ライセンスつきの ImageObject で渡す（2026-10-11）
+    const coverImage = cover && coverUrl ? coverImageObject(cover, coverUrl) : coverUrl;
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples }) : null;
+    // 海外のスポットは 海外 → 国 → スポット（区画の一覧は国の一覧になった・2026-10-11）
+    const country = spotCountryRef(spot);
+    const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area, country));
     const sameArea = sameAreaSpots(spot);
     const sameAreaName = sameAreaLabel(spot, area);
     // 撮影の光の月別の表。決めた年で計算してページに書き込む（ビルドの結果を日付で変えない）
     const light = lightCalendar(spot.coords, spot.region?.country, spot.timeZone);
+    // 方角の振れ幅・天の川・新月（2026-10-11）。新月だけはビルドの日から1年分（作り直すたびに更新）
+    const sky = spotSky(spot.coords, spot.region?.country, spot.timeZone);
 
     return (
         <>
@@ -106,7 +114,10 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
                 sameArea={sameArea.length > 0 && sameAreaName ? { label: sameAreaName, spots: sameArea } : null}
                 pageUrl={spotPageUrl(spot)}
                 light={light}
+                sky={sky}
                 samples={samples}
+                topics={topicLinksForSpot(spot)}
+                country={country}
             />
         </>
     );
