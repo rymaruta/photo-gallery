@@ -1341,7 +1341,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
 
-                        <div className="lg:flex-1 lg:min-w-0">
+                        <div className="lg:flex-1 lg:min-w-0" data-testid="profile-header-main">
                         {/* 名前 + @ユーザー名 + フォローボタン（同じ行の右端）。
                             縦の場所を使わずに主要アクションを見せるため。名前は truncate し、
                             ボタン側は縮ませないので、長い名前でも崩れない。 */}
@@ -1569,7 +1569,9 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {/* **編集は名前の右の枠線ボタン、投稿はアバターの「＋」へ移した**
                         （最終版モック）。ここに在った2つ並びのボタン行は無くなった。
                         `postBtnRef` は `PostSheet` の戻り先として＋ボタンが持つ */}
-                    </div>{/* /PC の右列 */}
+                    {/* 2026-10-11 判断: 本人の「下書き →」〜「メダル →」と人の「メダル N →」は**右列の中**
+                        （件数の下）に置く。右列の外に置いていたので、PC（lg の横並び）では3つ目の列として
+                        カバーの帯の右上に浮いていた。スマホは縦に積むので並びは変わらない */}
 
                     {isOwner && (
                         <div className="mt-2 text-center">
@@ -1615,6 +1617,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             <MedalsButton badges={userProfile?.badges} ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")} locale={locale === "en" ? "en" : "ja"} />
                         </div>
                     )}
+                    </div>{/* /PC の右列 */}
 
                     </div>
                 </div>

@@ -27,10 +27,13 @@ import {
 } from "../../../lib/data/badgeShelf";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import { ProMark } from "../../components/ProfileNameMarks";
+import { MedalName } from "../../components/MedalShelf";
 
 type Locale = "ja" | "en";
 
 const EYEBROW = "text-[11px] tracking-[0.12em] text-accent";
+/** 選択肢の並び（Pro マークの形・公式の印で同じ。札の下の行に横いっぱい） */
+const SEGMENTS = "flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] w-full";
 
 export default function NameSideSheet({ profile, locale, onClose, onSaved, restoreRef, showToast }: {
     profile: NameSideProfile;
@@ -130,10 +133,13 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                     </button>
                 </div>
                 <div className="overflow-y-auto overscroll-contain px-5 pb-2">
-                    <p className="text-[12px] leading-relaxed text-white/60">
-                        {en
-                            ? "Choose one medal to show next to your name. Tap it again to remove it."
-                            : "名前の横に出すメダルを1つ選びます。もう一度押すと外れます。"}
+                    {/* 2026-10-11 判断: 文の切れ目で折る（390px で「す。」だけ次の行に落ちていた）。
+                        1文ずつ inline-block にすると、収まらないときは文と文の間で折れる */}
+                    <p className="text-[12px] leading-relaxed text-white/60" data-testid="name-side-lead">
+                        {(en
+                            ? ["Choose one medal to show next to your name.", " Tap it again to remove it."]
+                            : ["名前の横に出すメダルを1つ選びます。", "もう一度押すと外れます。"]
+                        ).map((t) => <span key={t} className="inline-block">{t}</span>)}
                     </p>
 
                     {/* 下見: プロフィールと同じ並び（名前 → 公式 → Pro の印 → メダル） */}
@@ -166,10 +172,12 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                     </div>
 
                     {profile.pro && (
-                        <fieldset className="mt-3 flex items-center justify-between gap-3">
+                        // 2026-10-11 判断: 札を上の行、選択肢を下の行に横いっぱい（iOS と同じ）。
+                        // 札と同じ行に置くと 390px で選択肢が約 85px しかなく「絞り羽／根」「PRO／の札」と折れていた
+                        <fieldset className="mt-3" data-testid="name-side-pro-mark">
                             <legend className="sr-only">{en ? "Pro mark" : "Pro マークの形"}</legend>
-                            <span aria-hidden="true" className="text-[12px] text-white/75 shrink-0">{en ? "Pro mark" : "Pro マークの形"}</span>
-                            <div className="flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] flex-1 max-w-[290px]">
+                            <span aria-hidden="true" className="block mb-1.5 text-[12px] text-white/75">{en ? "Pro mark" : "Pro マークの形"}</span>
+                            <div className={SEGMENTS}>
                                 {markOptions.map((o) => (
                                     <label key={o.value} className={segmentClass(draft.proMarkStyle === o.value)} style={{ minHeight: 44 }}>
                                         <input
@@ -189,13 +197,13 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                     )}
 
                     {profile.verified && (
-                        <fieldset className="mt-3 flex items-center justify-between gap-3">
+                        <fieldset className="mt-3" data-testid="name-side-verified">
                             <legend className="sr-only">{en ? "Official mark" : "公式の印"}</legend>
-                            <span aria-hidden="true" className="text-[12px] text-white/75 shrink-0 inline-flex items-center gap-1.5">
+                            <span aria-hidden="true" className="mb-1.5 text-[12px] text-white/75 flex items-center gap-1.5">
                                 <VerifiedBadge verified size={14} locale={locale} />
                                 {en ? "Official mark" : "公式の印"}
                             </span>
-                            <div className="flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] flex-1 max-w-[200px]">
+                            <div className={SEGMENTS}>
                                 {verifiedOptions.map((o) => (
                                     <label key={String(o.off)} className={segmentClass(draft.verifiedMarkOff === o.off)} style={{ minHeight: 44 }}>
                                         <input
@@ -229,6 +237,8 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                         key={key}
                                         type="button"
                                         aria-pressed={on}
+                                        // 名前は段の部分を別の span に分けて組む（`MedalName`）。読み上げの名前は1続きで渡す
+                                        aria-label={label}
                                         // 絵の無い年の季節の章は名前の横に出せない（`NameBadge` も出さない）
                                         disabled={!src}
                                         onClick={() => setDraft((d) => ({ ...d, displayBadge: d.displayBadge === key ? null : key }))}
@@ -245,7 +255,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                             )}
                                         </span>
                                         <span className={`text-[12px] text-center leading-tight ${on ? "font-semibold text-white" : "text-white/75"}`}>
-                                            {label}
+                                            <MedalName label={label} />
                                         </span>
                                     </button>
                                 );

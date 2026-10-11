@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-    readNameSide, nameSideChanges, readBadgeProgress, progressText, ownShelf, othersShelf,
+    UNITS, readNameSide, nameSideChanges, readBadgeProgress, progressText, ownShelf, othersShelf,
     type NameSide,
 } from "../badgeShelf";
 import { sanitizeProfile } from "../../utils/profileShape";
@@ -87,7 +87,7 @@ describe("棚の進み具合", () => {
         expect(progressText("books", progress.books, true, "ja")).toBe("あと3冊で次");
         expect(progressText("first", progress.first, true, "ja")).toBe("達成");
         expect(progressText("night", progress.night, false, "ja")).toBe("あと5枚");
-        expect(progressText("morning", progress.morning, true, "en")).toBe("25 photos to next");
+        expect(progressText("morning", progress.morning, true, "en")).toBe("25 more photos to next");
         // 進み具合が無い（応答に載っていない）ときは「達成」と言い切らない
         expect(progressText("countries", undefined, true, "ja")).toBe("");
     });
@@ -112,5 +112,38 @@ describe("棚の進み具合", () => {
         expect(items.map((i) => [i.key, i.owned])).toEqual([["morning", true], ["proAutumn2026", true]]);
         expect(items[0].sub).toBe("日の出の前後に50枚");
         expect(othersShelf(undefined, "ja")).toEqual([]);
+    });
+});
+
+describe("「あと◯」の単位は iOS（BadgeCatalog.kinds の unitJa / unitEn）とそろえる（2026-10-11）", () => {
+    // iOS の表（origin/main の `BadgeCatalog.swift`）。続けた年だけ Web は「か月」を残す（iOS は単位なし）
+    const IOS: Record<string, [string, string]> = {
+        earlyUser: ["", ""], first: ["枚", "photo"], prefectures: ["", ""], countries: ["", ""],
+        seasons: ["年", "year"], morning: ["枚", "photo"], night: ["枚", "photo"], books: ["冊", "book"],
+        wish: ["", ""], supporter: ["", ""],
+    };
+
+    it("数えるメダルは全部、単位の有無を明示し、iOS と同じ", () => {
+        for (const [key, [ja, en]] of Object.entries(IOS)) {
+            expect([key, UNITS[key as keyof typeof UNITS]]).toEqual([key, { ja, en }]);
+        }
+        expect(UNITS.supporterYear).toEqual({ ja: "か月", en: "month" });
+    });
+
+    it("都道府県・国・地域・行けた場所は数だけ、枚・冊・年は付ける", () => {
+        const p = (count: number, next: number) => ({ count, tier: 1, next });
+        expect(progressText("prefectures", p(22, 30), true, "ja")).toBe("あと8で次");
+        expect(progressText("countries", p(0, 3), false, "ja")).toBe("あと3");
+        expect(progressText("wish", p(0, 1), false, "ja")).toBe("あと1");
+        expect(progressText("seasons", p(0, 1), false, "ja")).toBe("あと1年");
+        expect(progressText("books", p(0, 1), false, "ja")).toBe("あと1冊");
+        expect(progressText("night", p(34, 50), true, "ja")).toBe("あと16枚で次");
+    });
+
+    it("英語は iOS の言い方（N more X to next / to earn・1 のときは単数）", () => {
+        const p = (count: number, next: number) => ({ count, tier: 1, next });
+        expect(progressText("night", p(9, 10), false, "en")).toBe("1 more photo to earn");
+        expect(progressText("books", p(7, 10), true, "en")).toBe("3 more books to next");
+        expect(progressText("prefectures", p(13, 30), true, "en")).toBe("17 more to next");
     });
 });
