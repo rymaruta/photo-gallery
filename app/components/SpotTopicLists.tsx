@@ -77,10 +77,16 @@ export function TopicCreditLine({ credit, compact = false }: { credit: TopicCred
         ? <>{" / "}<a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className={a}>Wikimedia Commons</a></>
         : null;
     if (compact) {
+        // 狭い札の下（ホーム）: 1行目はライセンス（文面へ・切らない）、2行目は作者で**出典（Commons のページ）へのリンク**
+        // を兼ねる（「/ Wikimedia Commons」まで1行に入れると札の幅を越えて隣に重なった・画面写真で確かめた）
         return (
-            <div className="text-white/60" style={style} data-testid="topic-credit">
-                <p className="m-0 whitespace-nowrap">{license}{source}</p>
-                <p className="m-0 truncate" title={credit.author}>{photo}{credit.author}</p>
+            <div className="text-white/60 min-w-0" style={style} data-testid="topic-credit">
+                <p className="m-0 whitespace-nowrap">{license}</p>
+                <p className="m-0 truncate" title={credit.author}>
+                    {credit.sourceUrl
+                        ? <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white">{photo}{credit.author}</a>
+                        : <>{photo}{credit.author}</>}
+                </p>
             </div>
         );
     }

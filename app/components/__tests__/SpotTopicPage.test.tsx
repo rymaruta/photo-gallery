@@ -115,7 +115,7 @@ describe("SpotsEntry（ホーム）", () => {
         expect(screen.getByTestId("home-spots-entry").getAttribute("href")).toBe("/spots");
         const sec = within(screen.getByTestId("home-season-spots"));
         expect(sec.getByRole("heading").textContent).toBe("いまの季節（秋）の撮影スポット");
-        expect(sec.getByRole("link", { name: /すべて見る 194件/ }).getAttribute("href")).toBe("/spots/season/autumn");
+        expect(sec.getByRole("link", { name: /すべて 194件/ }).getAttribute("href")).toBe("/spots/season/autumn");
         const card = sec.getByRole("link", { name: /A寺/ });
         expect(card.getAttribute("href")).toBe("/spots/a");
         expect(card.querySelector("img")?.getAttribute("src")).toBe("/images/spots/thumb/a.jpg");
@@ -124,7 +124,8 @@ describe("SpotsEntry（ホーム）", () => {
         const [licLine, authorLine] = Array.from(credit.querySelectorAll("p"));
         expect(licLine.className).not.toContain("truncate");
         expect(within(licLine).getByRole("link", { name: "CC BY-SA 4.0" }).getAttribute("href")).toBe("https://creativecommons.org/licenses/by-sa/4.0");
-        expect(within(licLine).getByRole("link", { name: "Wikimedia Commons" })).toBeTruthy();
+        // 出典（Commons のページ）へは作者の行がリンクする
+        expect(within(authorLine).getByRole("link").getAttribute("href")).toBe("https://commons.wikimedia.org/wiki/File:A.jpg");
         expect(authorLine.textContent).toBe("写真: Someone with a very long name indeed");
         expect(authorLine.getAttribute("title")).toBe("Someone with a very long name indeed");
         expect(credit.closest("a")).toBeNull();
