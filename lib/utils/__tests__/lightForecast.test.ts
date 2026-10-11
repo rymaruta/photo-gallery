@@ -101,6 +101,15 @@ describe("言葉", () => {
         expect(noteFor(f, "ja")).toBe("日本語の注記");
         expect(noteFor(f, "en")).not.toContain("日本語");
     });
+    it("注記に Apple Weather のデータに手を加えた旨を「見込みは目安で…」の前に続けて出す（2026-10-11・WeatherKit の決まり）", () => {
+        const f = fc([]);
+        expect(noteFor(f, "ja")).toBe(
+            "天気は外部の予報から。光の時刻はアプリで計算。Apple Weather のデータをもとに Journey Photo が計算した見込みです。見込みは目安で、外れることがあります。",
+        );
+        expect(noteFor(f, "en")).toBe(
+            "Weather comes from an outside forecast; sun times are calculated by the app. Estimates calculated by Journey Photo from Apple Weather data. Chances are a guide and can be wrong.",
+        );
+    });
 });
 
 describe("Apple Weather のロゴ", () => {

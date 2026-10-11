@@ -435,9 +435,14 @@ export function weekLines(place: LightPlace, now: Date, locale: LightLocale): Li
 
 // ─── 注記 ───────────────────────────────────────────────
 
+/**
+ * 2026-10-11 判断: 見込みは Apple Weather のデータに手を加えた（value-added）もの。WeatherKit の
+ * 表示の決まり（「Apple Weather and third-party attribution」）に合わせ、出典と手を加えた旨を
+ * 「見込みは目安で…」の前に続けて出す（サーバーの `LIGHT_NOTE`・iOS の `LightForecastText` と同じ文）
+ */
 const DEFAULT_NOTE = {
-    ja: "天気は外部の予報から。光の時刻はアプリで計算。見込みは目安で、外れることがあります。",
-    en: "Weather comes from an outside forecast; sun times are calculated by the app. Chances are a guide and can be wrong.",
+    ja: "天気は外部の予報から。光の時刻はアプリで計算。Apple Weather のデータをもとに Journey Photo が計算した見込みです。見込みは目安で、外れることがあります。",
+    en: "Weather comes from an outside forecast; sun times are calculated by the app. Estimates calculated by Journey Photo from Apple Weather data. Chances are a guide and can be wrong.",
 };
 
 /** 画面の注記。**英語の画面にはサーバーの日本語を出さない**（サーバーは日本語だけ返す） */
