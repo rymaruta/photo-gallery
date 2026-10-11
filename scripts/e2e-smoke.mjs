@@ -850,6 +850,15 @@ function signedInApiBody(url, method, photos) {
     if (/^\/photos\/[^/]+\/comments$/.test(p)) return { items: [], count: 0 };
     if (/^\/photos\/[^/]+\/like$/.test(p)) return { likes: 0 };
     if (p === "/music/search") return { results: [] };
+    // 光と天気の知らせ（Pro）。**1か所返す**——0件だと札（名前・押せる高さ）を一度も測らない
+    if (p === "/user/light-forecast") return {
+        places: [{ key: "SPOT-smoke", slug: "smoke", name: "スモークの撮影スポット", timeZone: "Asia/Tokyo", forecast: true,
+            days: [{ date: "2099-12-31", sunrise: { at: "2099-12-30T20:42:00.000Z", clock: "05:42" }, sunset: null,
+                morningBlue: { start: null, end: null }, eveningBlue: { start: null, end: null },
+                morning: { weather: "clear", chance: "high" }, evening: null, night: null }] }],
+        note: "天気は外部の予報から。光の時刻はアプリで計算。見込みは目安で、外れることがあります。",
+        attribution: { serviceName: "Apple Weather", legalUrl: "https://weatherkit.apple.com/legal-attribution.html" },
+    };
     if (method !== "GET") return { ok: true };
     return {};
 }
@@ -951,6 +960,7 @@ async function runSignedInChecks(browser, eng) {
         ["/user/upload", "投稿作成"],
         ["/user/settings", "設定"],
         ["/user/archive", "アーカイブ"],
+        ["/user/light", "光と天気の知らせ"],
         ["/user/highlights", "ハイライト編集"],
         ["/user/drafts", "下書き"],
         ["/user/albums", "アルバム"],

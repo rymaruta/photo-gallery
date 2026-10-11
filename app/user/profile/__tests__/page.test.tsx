@@ -107,10 +107,9 @@ describe("プロフィール編集: 読み込み失敗時に保存させない",
 // 出ているのに S3 にもプロフィールにも入っておらず、**保存された気になる**。
 // 次に開くと元に戻っていて、何が起きたのか分からない。
 describe("プロフィール写真: 失敗したらプレビューを残さない", () => {
-    // **カバー写真の欄は 2026-09-22 に外した**（マイページが出さなくなったので）。
-    // 残るのはアバターだけ——入力の本数もここで縛る（増えたら前提が変わる）。
-    it("アップロードに失敗したら、選んだ画像のプレビューを消す", async () => {
-        const idx = 0;
+    // **カバー写真の欄は 2026-10-11 に戻した**（マイページが `ProfileCover` で出すようになった）。
+    // 入力はカバー（0）とアバター（1）の2本——本数もここで縛る（増えたら前提が変わる）。
+    it.each([[0, "カバー"], [1, "アバター"]])("アップロードに失敗したら、選んだ画像のプレビューを消す（%i: %s）", async (idx) => {
         mockUserFetch.mockImplementation((url: string) => {
             if (url === "/user/profile") return Promise.resolve(ok({ displayName: "自分" }));
             return Promise.resolve({ ok: false, status: 503, json: async () => ({ error: "だめでした" }) });
@@ -119,7 +118,7 @@ describe("プロフィール写真: 失敗したらプレビューを残さな�
         await screen.findByDisplayValue("自分");
 
         const fileInputs = container.querySelectorAll('input[type="file"]');
-        expect(fileInputs.length, "ファイル入力の本数が変わった").toBe(1);
+        expect(fileInputs.length, "ファイル入力の本数が変わった").toBe(2);
         await userEvent.upload(fileInputs[idx] as HTMLInputElement,
             new File(["x"], "pic.jpg", { type: "image/jpeg" }));
 
