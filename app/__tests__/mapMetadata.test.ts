@@ -22,5 +22,7 @@ describe("/map のメタデータ", () => {
         const top = entries.find((e) => !e.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, ""));
         expect(top, "トップの行が無い").toBeTruthy();
         expect(map!.lastModified).toEqual(top!.lastModified);
-    });
+        // 2026-10-11 判断: サイトマップ全体（スポット 1,782件・写真）を組むので、単独でも約 4.7 秒かかる
+        // （origin/develop でも同じ）。全体のテストと並ぶと既定の 5 秒を超えて落ちるので、時間だけ延ばす
+    }, 30_000);
 });
