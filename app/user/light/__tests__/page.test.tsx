@@ -122,6 +122,8 @@ describe("光と天気の知らせ: 一覧", () => {
         const a = await screen.findByTestId("light-attribution");
         expect(a.textContent).toBe("Weather: Apple Weather · Data sources");
         expect(document.body.textContent).not.toContain("天気は外部の予報から。");
+        // 2026-10-11: 手を加えた旨（WeatherKit の決まり）を英語の注記にも出す
+        expect(document.body.textContent).toContain("Estimates calculated by Journey Photo from Apple Weather data. Chances are a guide and can be wrong.");
     });
 });
 

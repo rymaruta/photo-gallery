@@ -14,6 +14,7 @@
 import raw from "@/content/spot-images.json";
 import type { Spot, SpotCoverImage, SpotImageLicense } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
+import { isUnusablePublicDomain } from "@/lib/utils/commonsAttribution.mjs";
 
 export type SpotImage = {
     wikidata: string;
@@ -37,7 +38,34 @@ export type SpotImage = {
      * Web のページはこれだけを代表写真に使う（外部へのホットリンクはしない）
      */
     local?: { src: string; width: number; height: number };
+    /**
+     * 作例から昇格させた行（`method: "commons-sample"`・2026-10-11）だけが持つ。作例の `pickedBy`
+     * をそのまま写す（"visual-review"＝写真を1枚ずつ見てその撮影地の景色と確かめた・人の名前）。
+     * **"auto"（名前の一致だけ）は昇格させない**（`shownSpotImage` が落とす）
+     */
+    pickedBy?: string;
+    /** 作例のライセンスのテンプレート名（パブリックドメインの根拠など。作例の `licenseCode` の写し） */
+    licenseCode?: string;
+    /** 昇格で置き換えた Wikidata の代表画像の記録（場所の確認が無く出していなかったもの）。消さずに残す */
+    replaced?: Omit<SpotImage, "local" | "replaced">;
 };
+
+/**
+ * **作例から昇格させた代表写真**の `method`（2026-10-11・owner「検索で見つけてもらう」）。
+ * Wikidata の代表画像が無い・場所の確認が無くて出せないスポットに、`content/spot-samples.json` の
+ * 作例のうち**写真を見て場所を確かめたもの**（`isReviewedPick`）を1枚、代表写真に上げた行。
+ * 選ぶのは `coverCandidateSample`（`lib/data/spotSamples.ts`）、置くのは
+ * `scripts/promote-sample-covers.ts`（縮小版は `localize-spot-images.mjs` と同じ処理で置く）
+ */
+export const SAMPLE_COVER_METHOD = "commons-sample";
+
+/**
+ * 人（または写真を1枚ずつ見て選ぶ作業）が選んだ1枚か。"auto" は機械の規則（名前の一致だけ）。
+ * 作例（`SpotSampleRecord.pickedBy`）と、作例から昇格させた代表写真（`SpotImage.pickedBy`）で同じ1本
+ */
+export function isReviewedPick(r: { pickedBy?: string | null }): boolean {
+    return typeof r.pickedBy === "string" && r.pickedBy.trim() !== "" && r.pickedBy.trim() !== "auto";
+}
 
 export const SPOT_IMAGES: Readonly<Record<string, SpotImage>> = raw as Record<string, SpotImage>;
 
@@ -64,6 +92,12 @@ export function shownSpotImage(
     const reviewed = reviewedSpotImage(spot.slug, images);
     if (reviewed) return reviewed;
     const image = images[spot.slug];
+    // 作例から昇格させた行は、その作例を見て場所を確かめたものだけ（2026-10-11）
+    // 2026-10-11 レビュー: 作例の表示と同じく、使えないパブリックドメイン（PD-US 系・PD-Detroit・
+    // Flickr の Public Domain Mark）は出さない
+    if (image?.method === SAMPLE_COVER_METHOD) {
+        return isReviewedPick(image) && !isUnusablePublicDomain(image.license, image.licenseCode) ? image : undefined;
+    }
     return spot.aiCheck?.imageChecked === true && image && !image.coordsMismatch ? image : undefined;
 }
 
@@ -78,6 +112,23 @@ export function coverLicenseOf(shortName: string): SpotImageLicense | undefined 
     if (/^cc by-sa\b/.test(s)) return "cc-by-sa";
     if (/^cc by\b/.test(s)) return "cc-by";
     return undefined;
+}
+
+/**
+ * ライセンスの表示名から利用根拠（`coverLicenseOf` の前に書き方をそろえる）。
+ * Commons の短い名前は "CC BY-SA 4.0" と "CC-BY-SA-3.0" の両方があり、作例の表示名は
+ * パブリックドメインの根拠を括弧で添える（"Public domain (PD-self)"）。括弧は見ない
+ */
+export function licenseKindOf(label: string | undefined): SpotImageLicense | undefined {
+    const s = String(label ?? "").trim().replace(/\s*\([^()]*\)$/, "")
+        .replace(/^cc[-\s]by[-\s]sa(?=[-\s]|$)/i, "CC BY-SA")
+        .replace(/^cc[-\s]by(?=[-\s]|$)/i, "CC BY");
+    return coverLicenseOf(s);
+}
+
+/** Commons のファイル名から題を作る（"File:" と拡張子を除き、"_" を空白に）。作例と代表写真で同じ1本 */
+export function titleFromFile(file: string): string {
+    return String(file ?? "").replace(/^File:/i, "").replace(/\.[a-z0-9]{2,5}$/i, "").replace(/_/g, " ").trim();
 }
 
 /** 作者の欄に残る Wiki の書き方（「( talk )」）を落とす。それ以外は作者の求める表記のまま */
@@ -96,11 +147,14 @@ export function spotCoverImage(
 ): SpotCoverImage | undefined {
     if (spot.coverImage) return spot.coverImage;
     const image = shownSpotImage(spot, images);
-    const license = image && coverLicenseOf(image.license);
+    const license = image && licenseKindOf(image.license);
     if (!image?.local || !license) return undefined;
     return {
         src: image.local.src,
         alt: spot.name,
+        // 題（2026-10-11 レビュー）: CC BY / BY-SA の 1.0〜3.0 は題（作品名）の表示が条件。作例と同じく
+        // Commons のファイル名から作る
+        ...(titleFromFile(image.file) ? { title: titleFromFile(image.file) } : {}),
         aspectRatio: image.local.width / image.local.height,
         credit: cleanAuthor(image.author),
         license,

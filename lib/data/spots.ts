@@ -230,6 +230,11 @@ export type SpotCoverImage = {
     src: string;
     /** 代替テキスト（読み上げ・画像が出ないとき） */
     alt: string;
+    /**
+     * 写真の題（Commons のファイル名から。2026-10-11）。CC BY / BY-SA の 1.0〜3.0 は題の表示が条件なので、
+     * あれば出典の行の頭に出す（「<題> / 写真: 作者 / ライセンス / Wikimedia Commons」）
+     */
+    title?: string;
     /** 縦横比（幅÷高さ）。レイアウトのガタつきを防ぐ */
     aspectRatio?: number;
     /** 撮影者・権利者。**必須** */

@@ -9,7 +9,7 @@ import { readUserList } from "./userList";
 import { isStoredSpotSlug, spotsId } from "./savedSpots";
 import { lightSpotOf, type LightSpot } from "./lightLedger";
 import { WEATHER_ATTRIBUTION, getForecast, weatherKitKeyReadFailed, weatherKitReady, type WxForecast } from "./weatherKit";
-import { alertText, pickAlert, weekLight } from "./lightOutlook";
+import { VALUE_ADDED_NOTE, alertText, pickAlert, weekLight } from "./lightOutlook";
 import { apnsConfigured, sendPush } from "./apns";
 import { deviceTokens, forgetTokens } from "./devices";
 
@@ -43,8 +43,11 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
 /** 1人あたり見るスポットの上限（新しく入れた方から） */
 export const MAX_SPOTS = 20;
 
-/** 画面に出す注記（板の文言そのまま） */
-export const LIGHT_NOTE = "天気は外部の予報から。光の時刻はアプリで計算。見込みは目安で、外れることがあります。";
+/**
+ * 画面に出す注記（板の文言に、手を加えた旨を足したもの）。
+ * 2026-10-11 判断: 「見込みは目安で…」の前に `VALUE_ADDED_NOTE`（Apple Weather の決まり）を続けて出す。
+ */
+export const LIGHT_NOTE = `天気は外部の予報から。光の時刻はアプリで計算。${VALUE_ADDED_NOTE.ja}見込みは目安で、外れることがあります。`;
 
 /** 本人の行（Pro の判定と知らせの設定だけ） */
 async function readProfileBits(uid: string): Promise<Record<string, unknown> | undefined> {

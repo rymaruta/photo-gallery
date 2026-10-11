@@ -10,6 +10,10 @@ import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
 import type { Photo } from "@/lib/data/photos";
 import { truncate } from "@/lib/utils/text";
 import { metaText } from "@/lib/utils/metaText";
+import { SPOTS, type Spot } from "@/lib/data/spots";
+import { publishableSpots } from "@/lib/utils/spotGuide";
+import { spotCoverImage } from "@/lib/data/spotImages";
+import { spotSamples } from "@/lib/data/spotSamples";
 
 export const dynamic = "force-static";
 
@@ -106,13 +110,46 @@ export function captionOf(p: Photo): string {
 }
 
 /**
+ * **1つの `<url>` に載せる画像の上限。** Google の画像サイトマップの決まり
+ * 「Each `<url>` tag can contain up to 1,000 `<image:image>` tags.」（2026-10-11 に文書で確認）
+ */
+export const MAX_IMAGES_PER_URL = 1000;
+
+/** 撮影地ページ1つぶんの画像（ページの URL と、載せる画像の URL・題） */
+export type SpotImageEntry = { loc: string; images: { src: string; title: string }[] };
+
+/**
+ * **撮影地ページ（`/spots/<slug>`）の画像**（2026-10-11・owner「検索で見つけてもらう」）。
+ * 以前は投稿写真だけで、撮影地ページの代表写真・作例は1枚も載っていなかった。
+ *
+ * - 載せるページはサイトマップ（`app/sitemap.ts`）と同じ `publishableSpots`（下書きは載せない）
+ * - 載せる画像は**画面に出しているものだけ**: 代表写真（`spotCoverImage`・サイト内に置いた縮小版）と
+ *   作例（`spotSamples`・代表写真と同じ1枚は除く）。数え方は `SpotGuidePage` と同じ
+ * - ライセンスは書かない。`<image:license>` は Google が文書から外した（`image:title`・`image:caption`・
+ *   `image:geo_location` も同じ）。作者・ライセンスはページの JSON-LD の `ImageObject` が持つ
+ * - 作例の画像は Commons・Flickr の URL のまま（画面が読んでいる URL と同じ）
+ */
+export function spotImageEntries(spots: readonly Spot[] = publishableSpots(SPOTS)): SpotImageEntry[] {
+    const out: SpotImageEntry[] = [];
+    for (const spot of spots) {
+        const cover = spotCoverImage(spot);
+        const images = [
+            ...(cover?.src ? [{ src: toAbsolute(cover.src), title: spot.name }] : []),
+            ...spotSamples(spot, { exclude: [cover?.sourceUrl] }).map((s) => ({ src: toAbsolute(s.src), title: s.title })),
+        ].slice(0, MAX_IMAGES_PER_URL);
+        if (images.length > 0) out.push({ loc: `${siteConfig.url}/spots/${spot.slug}`, images });
+    }
+    return out;
+}
+
+/**
  * 画像サイトマップの XML を組み立てる。
  *
  * **`GET` から切り出してある**のは、中身をテストから直に見るため
  * （`feed.xml/route.ts` の `buildFeed` と同じ形。あちらは「制御文字1つで
  * フィード全体が壊れない」をここで固定している）。
  */
-export function buildImageSitemap(photos: readonly Photo[]): string {
+export function buildImageSitemap(photos: readonly Photo[], spots: readonly SpotImageEntry[] = []): string {
     const entries = photos.map((p) => {
         const title = titleOf(p);
         const caption = captionOf(p);
@@ -127,7 +164,8 @@ export function buildImageSitemap(photos: readonly Photo[]): string {
         // **`i?.src` で読む。** 要素が null でも落とさない——ここが投げると
         // **画像サイトマップが丸ごと出なくなる**（1枚の壊れた値で全部を失う）
         const images = [p.src, ...(p.extraImages ?? []).map((i) => i?.src)]
-            .filter((src): src is string => typeof src === "string" && !!src);
+            .filter((src): src is string => typeof src === "string" && !!src)
+            .slice(0, MAX_IMAGES_PER_URL);
         return [
             "  <url>",
             `    <loc>${esc(`${siteConfig.url}/photo/${p.id}`)}</loc>`,
@@ -142,17 +180,30 @@ export function buildImageSitemap(photos: readonly Photo[]): string {
         ].filter(Boolean).join("\n");
     });
 
+    const spotEntries = spots.map((e) => [
+        "  <url>",
+        `    <loc>${esc(e.loc)}</loc>`,
+        ...e.images.slice(0, MAX_IMAGES_PER_URL).map((img) => [
+            "    <image:image>",
+            `      <image:loc>${esc(img.src)}</image:loc>`,
+            img.title ? `      <image:title>${esc(img.title)}</image:title>` : "",
+            "    </image:image>",
+        ].filter(Boolean).join("\n")),
+        "  </url>",
+    ].join("\n"));
+
     return [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
         ...entries,
+        ...spotEntries,
         "</urlset>",
     ].join("\n");
 }
 
 export async function GET() {
     const photos = (await loadAllPhotos()).filter((p) => p.published !== false && p.src);
-    return new Response(buildImageSitemap(photos), {
+    return new Response(buildImageSitemap(photos, spotImageEntries()), {
         headers: { "Content-Type": "application/xml; charset=utf-8" },
     });
 }

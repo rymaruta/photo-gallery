@@ -131,7 +131,8 @@ describe("GET /user/light-forecast", () => {
         expect(amiens).toMatchObject({ timeZone: "Europe/Paris", forecast: false });
         expect(amiens.days[1].sunrise.clock).toMatch(/^0[78]:\d\d$/);   // パリの10月の日の出（現地の時計）
         expect(amiens.days[1].morning).toBeNull();
-        expect(body.note).toBe("天気は外部の予報から。光の時刻はアプリで計算。見込みは目安で、外れることがあります。");
+        // 2026-10-11: Apple Weather の決まり（手を加えた旨）を「見込みは目安で…」の前に続けて出す
+        expect(body.note).toBe("天気は外部の予報から。光の時刻はアプリで計算。Apple Weather のデータをもとに Journey Photo が計算した見込みです。見込みは目安で、外れることがあります。");
         expect(body.attribution.serviceName).toBe("Apple Weather");
     });
 });
@@ -150,7 +151,7 @@ describe("前の晩の知らせ（sendLightAlerts）", () => {
         const [tokens, msg] = push.send.mock.calls[0];
         expect(tokens).toEqual(["a".repeat(64)]);
         expect(msg.title).toBe("明日の朝、浜離宮恩賜庭園 が朝焼けになりそうです");
-        expect(msg.body).toMatch(/^日の出 5:\d\d・朝焼けの見込み 高い。\d:\d\d に着いていれば間に合います。$/);
+        expect(msg.body).toMatch(/^日の出 5:\d\d・朝焼けの見込み 高い。\d:\d\d に着いていれば間に合います。Apple Weather のデータをもとに Journey Photo が計算。$/);
         // 🔴 新しい loc-key を送ると古いアプリでは鍵の文字列のまま出る
         expect(msg.locKey).toBeUndefined();
         expect(msg.badge).toBeUndefined();

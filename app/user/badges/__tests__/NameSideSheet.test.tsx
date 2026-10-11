@@ -1,0 +1,56 @@
+import React from "react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+
+// 2026-10-11: 390px で Pro マークの形の3択が「絞り羽／根」「PRO／の札」と2行に折れていた
+// （札と同じ行に置き、選択肢の幅が max-w-[290px] の中で約 85px）。札を上の行、選択肢を下の行に
+// 横いっぱい（iOS と同じ）。公式の印の段もそろえる。冒頭の説明は文の切れ目で折る。
+
+vi.mock("../../../../lib/utils/api", async (importActual) => ({
+    ...(await importActual<typeof import("../../../../lib/utils/api")>()),
+    userFetch: vi.fn(),
+}));
+
+import NameSideSheet from "../NameSideSheet";
+
+const AT = "2026-10-01T00:00:00.000Z";
+const profile = {
+    displayBadge: "prefectures" as const, proMarkStyle: "iris" as const, verifiedMarkOff: false,
+    pro: true, verified: true, displayName: "旅する写真家",
+    badges: { prefectures: { tier: 2, at: AT }, supporterYear: { tier: 1, at: AT } },
+};
+
+function renderSheet() {
+    return render(
+        <NameSideSheet profile={profile} locale="ja" onClose={() => {}} onSaved={() => {}}
+            restoreRef={{ current: null }} showToast={() => {}} />,
+    );
+}
+
+describe("名前の横の設定: 390px で選択肢の文字が折れない並び", () => {
+    it("Pro マークの形: 札が上の行、選択肢は下の行に横いっぱい（幅の上限なし）", () => {
+        renderSheet();
+        for (const id of ["name-side-pro-mark", "name-side-verified"]) {
+            const fs = screen.getByTestId(id);
+            // 札と選択肢を横に並べない
+            expect(fs.className).not.toContain("flex");
+            const [label, group] = [...fs.children].filter((el) => el.tagName !== "LEGEND");
+            expect(label.className).toMatch(/(^|\s)(block|flex)(\s|$)/);
+            expect(group.className).toContain("w-full");
+            expect(group.className).not.toMatch(/max-w-/);
+        }
+        expect(screen.getByRole("radio", { name: /絞り羽根/ })).toBeTruthy();
+    });
+
+    it("冒頭の説明は文の切れ目で折る（「す。」だけ落とさない）", () => {
+        renderSheet();
+        const spans = [...screen.getByTestId("name-side-lead").querySelectorAll("span.inline-block")];
+        expect(spans.map((s) => s.textContent)).toEqual(["名前の横に出すメダルを1つ選びます。", "もう一度押すと外れます。"]);
+    });
+
+    it("メダルの名前の段はひとかたまりで折る（「続けた年（1年／目）」にしない）", () => {
+        renderSheet();
+        const tiers = screen.getAllByTestId("medal-name-tier").map((el) => el.textContent);
+        expect(tiers).toContain("（1年目）");
+    });
+});

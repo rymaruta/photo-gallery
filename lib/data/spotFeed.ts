@@ -37,7 +37,7 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isVerified, isPublished } from "../utils/spotGuide";
-import { SPOT_IMAGES, cleanAuthor, shownSpotImage, type SpotImage } from "./spotImages";
+import { SPOT_IMAGES, cleanAuthor, shownSpotImage, titleFromFile, type SpotImage } from "./spotImages";
 import { siteConfig } from "../utils/seo";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import legacyFreeze from "../../content/spots-feed-legacy.json";
@@ -54,6 +54,11 @@ export type SpotFeedImage = {
      * （`scripts/spot-thumbs.mjs` が作る・`spotThumbs.ts`）。古いアプリは知らない鍵として読み飛ばす
      */
     thumbUrl?: string;
+    /**
+     * 写真の題（Commons のファイル名から・2026-10-11）。CC BY / BY-SA の 1.0〜3.0 は題の表示が条件。
+     * アプリは出典の行の頭に出すこと（いまの iOS は読まない）。古い `spots.json` には載せない
+     */
+    title?: string;
     author: string;
     license: string;
     licenseUrl?: string;
@@ -131,6 +136,7 @@ export function toSpotFeedItem(
                 // スポットの画面の大きい写真に使うと重い
                 url: image.local ? `${siteConfig.url}${image.local.src}` : image.thumbUrl,
                 thumbUrl: thumbSrc && thumbExists(thumbSrc) ? `${siteConfig.url}${thumbSrc}` : undefined,
+                title: titleFromFile(image.file) || undefined,
                 author: cleanAuthor(image.author),
                 license: image.license,
                 licenseUrl: image.licenseUrl || undefined,
@@ -178,9 +184,11 @@ export function legacySpotRows(items: readonly SpotFeedItem[]): SpotFeedItem[] {
  * `thumbUrl` を知るアプリは区分（`spot-feed/`）を読む
  */
 function withoutThumb(item: SpotFeedItem): SpotFeedItem {
-    if (!item.image?.thumbUrl) return item;
-    const image: SpotFeedImage = { ...item.image };
+    if (!item.image?.thumbUrl && !item.image?.title) return item;
+    const image: SpotFeedImage = { ...item.image! };
     delete image.thumbUrl;
+    // 題（2026-10-11）も載せない: 古いアプリは読まず、載せると約 3 万字重くなって上限（1,000KB）に迫る
+    delete image.title;
     return { ...item, image };
 }
 
