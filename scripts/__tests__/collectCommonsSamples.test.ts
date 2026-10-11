@@ -109,15 +109,25 @@ describe("作者名（レビュー #272 の 1）", () => {
     });
 
     it.each([
-        "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
-        "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author", "作者不明",
+        "コンピュータが読み取れる情報は提供されていません",
+        "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author", "作者不明", "Unknown Unknown",
         "I would appreciate being notified if you use my work outside Wikimedia.",
         "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
-        "This Photo was taken by Someone . Feel free to use my photos, but please mention me as the author.",
+        "This Photo was taken by Someone . Feel free to use my photos, but please mention me as the author. Please contact me before commercial use.",
     ])("🔴 決まり文句・お願い文の作者（%s）は CC BY 系なら捨てる", (artist) => {
         const r = parseCommonsPages([page("File:A.jpg", { artist })]);
         expect(r.candidates).toHaveLength(0);
         expect(r.rejected.noAuthor).toBe(1);
+    });
+
+    it.each([
+        // 2026-10-11: 名前の取れる決まった形は、その名前（推定された名前・作者が「この名前で」と求める名前）
+        ["コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）", "Yearofthedragon"],
+        ["No machine-readable author provided. Zivax assumed (based on copyright claims).", "Zivax"],
+        ["This Photo was taken by Someone . Feel free to use my photos, but please mention me as the author.", "Someone"],
+    ])("名前の取れる決まった形（%s）は名前にする", (artist, name) => {
+        const [c] = parseCommonsPages([page("File:A.jpg", { artist })]).candidates;
+        expect(c.author).toBe(name);
     });
 
     it("決まり文句の作者でもパブリックドメインなら「作者不明」として残す。飾り（( talk )・Taken with …）は落とす", () => {

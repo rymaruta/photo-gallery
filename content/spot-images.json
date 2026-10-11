@@ -19994,12 +19994,7 @@
     "distanceKm": 0.3,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/palais-de-chaillot.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "park-guell": {
     "wikidata": "Q212867",
@@ -21208,12 +21203,7 @@
     "distanceKm": 0.33,
     "method": "wikidata-P18",
     "fetchedAt": "2026-09-29",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/louvre.jpg",
-      "width": 960,
-      "height": 381
-    }
+    "reviewedBy": null
   },
   "piazza-di-spagna": {
     "wikidata": "Q15124814",
@@ -23727,12 +23717,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/n-seoul-tower.jpg",
-      "width": 960,
-      "height": 540
-    }
+    "reviewedBy": null
   },
   "bulguksa": {
     "wikidata": "",
@@ -24126,12 +24111,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/burj-khalifa.jpg",
-      "width": 960,
-      "height": 727
-    }
+    "reviewedBy": null
   },
   "jemaa-el-fnaa": {
     "wikidata": "",
@@ -25889,12 +25869,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/lotte-world-tower.jpg",
-      "width": 960,
-      "height": 656
-    }
+    "reviewedBy": null
   },
   "namhansanseong": {
     "wikidata": "",
@@ -26589,12 +26564,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/landmark-81.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "aon-hanoi-landmark-tower": {
     "wikidata": "",
@@ -26608,12 +26578,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/aon-hanoi-landmark-tower.jpg",
-      "width": 960,
-      "height": 640
-    }
+    "reviewedBy": null
   },
   "my-son-sanctuary": {
     "wikidata": "",
@@ -27083,12 +27048,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/istiqlal-mosque.jpg",
-      "width": 960,
-      "height": 731
-    }
+    "reviewedBy": null
   },
   "ubud-monkey-forest": {
     "wikidata": "",
@@ -27614,12 +27574,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/equator-monument-pontianak.jpg",
-      "width": 960,
-      "height": 640
-    }
+    "reviewedBy": null
   },
   "kraton-surakarta": {
     "wikidata": "",
@@ -27861,12 +27816,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/tour-montparnasse.jpg",
-      "width": 960,
-      "height": 510
-    }
+    "reviewedBy": null
   },
   "millau-viaduct": {
     "wikidata": "",
@@ -27880,12 +27830,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/millau-viaduct.jpg",
-      "width": 960,
-      "height": 640
-    }
+    "reviewedBy": null
   },
   "dune-of-pilat": {
     "wikidata": "",
@@ -31671,12 +31616,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/perlan.jpg",
-      "width": 960,
-      "height": 641
-    }
+    "reviewedBy": null
   },
   "latrabjarg": {
     "wikidata": "",
@@ -33794,12 +33734,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/dongdaemun-design-plaza.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "beopjusa": {
     "wikidata": "",
@@ -33889,12 +33824,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/haedong-yonggungsa.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "anmyeondo": {
     "wikidata": "",
@@ -34040,12 +33970,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/imjingak.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "songgwangsa": {
     "wikidata": "",
@@ -34154,12 +34079,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/yeouido-park.jpg",
-      "width": 960,
-      "height": 554
-    }
+    "reviewedBy": null
   },
   "wolseong-gyeongju": {
     "wikidata": "",
@@ -35234,12 +35154,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/holy-trinity-cathedral-tbilisi.jpg",
-      "width": 960,
-      "height": 1457
-    }
+    "reviewedBy": null
   },
   "svetitskhoveli-cathedral": {
     "wikidata": "",
@@ -35384,12 +35299,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/dragon-bridge-da-nang.jpg",
-      "width": 960,
-      "height": 705
-    }
+    "reviewedBy": null
   },
   "han-river-bridge": {
     "wikidata": "",
@@ -35459,12 +35369,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/war-remnants-museum.jpg",
-      "width": 960,
-      "height": 712
-    }
+    "reviewedBy": null
   },
   "independence-palace-ho-chi-minh-city": {
     "wikidata": "",
@@ -35478,12 +35383,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/independence-palace-ho-chi-minh-city.jpg",
-      "width": 960,
-      "height": 640
-    }
+    "reviewedBy": null
   },
   "saigon-zoo-and-botanical-gardens": {
     "wikidata": "",
@@ -35516,12 +35416,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/suoi-tien-park.jpg",
-      "width": 960,
-      "height": 723
-    }
+    "reviewedBy": null
   },
   "saigon-central-post-office": {
     "wikidata": "",
@@ -35839,12 +35734,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/manila-cathedral.jpg",
-      "width": 960,
-      "height": 880
-    }
+    "reviewedBy": null
   },
   "rizal-park": {
     "wikidata": "",
@@ -36086,12 +35976,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/state-museum-of-history-of-uzbekistan.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "museum-of-applied-arts-tashkent": {
     "wikidata": "",
@@ -42716,12 +42601,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/narayanhiti-palace-museum.jpg",
-      "width": 960,
-      "height": 603
-    }
+    "reviewedBy": null
   },
   "hanuman-dhoka": {
     "wikidata": "",
@@ -45015,12 +44895,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/apartheid-museum.jpg",
-      "width": 960,
-      "height": 458
-    }
+    "reviewedBy": null
   },
   "pilanesberg-national-park": {
     "wikidata": "",

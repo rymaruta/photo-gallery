@@ -6,7 +6,7 @@ import rawImages from "../../../content/spot-images.json";
 import rawSamples from "../../../content/spot-samples.json";
 import type { Spot } from "../spots";
 import {
-    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, type SpotImage,
+    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, type SpotImage,
 } from "../spotImages";
 import {
     coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL, isPromotionTarget, spotSamples,
@@ -154,7 +154,29 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
     const images = rawImages as unknown as Record<string, SpotImage>;
     const samples = rawSamples as unknown as SpotSamplesFile;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
-    const promoted = Object.entries(images).filter(([, v]) => v.method === SAMPLE_COVER_METHOD);
+    // パノラマの自由が無い国の現代建築（`NO_FOP_COVER_EXCLUSIONS`）は縮小版を消して出さない（2026-10-11）
+    const promoted = Object.entries(images).filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug));
+
+    it("🔴 パノラマの自由が無い国の現代建築: 代表写真に出さず、作例からも上げ直さず、縮小版も置かない", () => {
+        const slugs = Object.keys(NO_FOP_COVER_EXCLUSIONS);
+        expect(slugs).toContain("burj-khalifa");
+        expect(slugs).toContain("n-seoul-tower");
+        expect(slugs).toContain("lotte-world-tower");
+        for (const slug of slugs) {
+            const spot = bySlug.get(slug);
+            expect(spot, `${slug}: 台帳に無い`).toBeDefined();
+            expect(images[slug], `${slug}: 代表写真の行が無い（外す必要が無い）`).toBeDefined();
+            expect(spotCoverImage(spot!), slug).toBeUndefined();
+            expect(shownSpotImage(spot!), slug).toBeUndefined();
+            expect(coverCandidateSample(spot!), slug).toBeUndefined();
+            expect(images[slug].local, slug).toBeUndefined();
+            expect(fs.existsSync(path.join(__dirname, "../../../public/images/spots", `${slug}.jpg`)), slug).toBe(false);
+            expect(fs.existsSync(path.join(__dirname, "../../../public/images/spots/thumb", `${slug}.jpg`)), slug).toBe(false);
+        }
+        // 人が確かめた印があっても出さない
+        const spot = bySlug.get("burj-khalifa")!;
+        expect(shownSpotImage(spot, { "burj-khalifa": { ...images["burj-khalifa"], reviewedBy: "someone", local: { src: "/x.jpg", width: 2, height: 1 } } })).toBeUndefined();
+    });
 
     it("作例から上げた行がある（2026-10-11 に流した）", () => {
         expect(promoted.length).toBeGreaterThan(0);
@@ -169,7 +191,9 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
             expect(isReviewedPick(rec!), slug).toBe(true);
             const s = toSpotSample(rec!);
             expect(s, slug).toBeDefined();
-            expect({ author: img.author, license: img.license, pickedBy: img.pickedBy }, slug)
+            // 作者は**表示の形**で比べる（行には上げた時点の整え方の結果が残る。整え方の規則を足しても
+            // 表示は作例と同じ1本の規則を通る・2026-10-11）
+            expect({ author: spotImageCredit(img), license: img.license, pickedBy: img.pickedBy }, slug)
                 .toEqual({ author: s!.author, license: s!.license, pickedBy: rec!.pickedBy.trim() });
         }
     });
@@ -194,7 +218,7 @@ describe("レビューの直し（2026-10-11）", () => {
     const images = rawImages as unknown as Record<string, SpotImage>;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
     const promoted = Object.entries(images)
-        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!))
+        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!) && !isNoFopCoverExcluded(slug))
         .map(([slug, v]) => ({ spot: bySlug.get(slug)!, image: v }));
 
     it("代表写真は題（ファイル名から）を持ち、構造化データの name も題", () => {

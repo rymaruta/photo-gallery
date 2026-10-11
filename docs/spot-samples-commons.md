@@ -51,8 +51,11 @@ Wikimedia Commons で自由なライセンスのもと公開されている写�
 - NC（非営利のみ）・ND（改変禁止）が付くもの（`CC BY-NC`・`CC BY-ND`・`CC BY-NC-SA` …どの書き方でも）
 - GFDL だけのもの、`Attribution` などその他のテンプレート、ライセンスの欄が空のもの
 - CC BY 系で**作者が名前でない**もの（作者表示が使う条件なので、出せない）。空のほか、
-  決まり文句（「…と推定されます」「Own work」「投稿者自身による著作物」「Unknown author」「不明」）、
+  決まり文句（「Own work」「投稿者自身による著作物」「Unknown author」「Unknown Unknown」「不明」）、
   お願い文（「please credit…」「I would appreciate…」）、署名の日時（`(UTC)`）、80字を超えるもの。
+  ただし**名前の取れる決まった形は名前にする**（2026-10-11・下の「作者の表記の整え方」）——
+  「…だと推定されます」「No machine-readable author provided. X assumed …」は推定された名前 X を出す
+  （Commons 自身がその名前を作者として出している）。
   パブリックドメイン・CC0 なら「作者不明」と出す。規則は `lib/utils/commonsAttribution.mjs` の
   `isPlaceholderAuthor`（収集と表示で同じ1本）
 - **アメリカだけのパブリックドメイン**（PD-US 系。日本では保護期間内のことがある）。
@@ -101,6 +104,26 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
   **`Credit` は使わない**（「投稿者自身による著作物」など出所の説明で、名前ではない）。
   extmetadata は英語で取る（日本語だと作者の欄に「…と推定されます」が付く）。
   飾り（「( talk )」「User:」「photo:」「This photo was taken with <カメラ>」）は落とし、名前は崩さない
+- **作者の表記の整え方**（`cleanCommonsAuthor`・2026-10-11 に規則を足した。作例と代表写真・アプリの索引で同じ1本。
+  確定ファイルの値は書き換えず、表示の手前で整える）:
+
+  | 欄の書き方 | 出す表記 |
+  |---|---|
+  | `w:en:Colin Keigher ( talk \| contribs )`・`Pradana Aumars ( talk · contribs )`・`さかおり ( talk` | 名前だけ |
+  | `en:User:Adamsan`・`nl:User:GerardM`・`ja:User:NEON / User:NEON_ja` | `Adamsan`・`GerardM`・`NEON / NEON_ja` |
+  | `[[User:\|Patricia Santos]]`・`[//commons.wikimedia.org/wiki/User:Trantuonglam Trantuonglam]` | 見える字（`Patricia Santos`・`Trantuonglam`） |
+  | `(The) original uploader was X at en.wikipedia`・`… at English Wikipedia .` | `X` |
+  | `No machine-readable author provided. Zivax assumed (based on copyright claims).`・日本語版 | `Zivax` |
+  | 署名 `-- [[利用者:あおもりくま\|あおもりくま]] （ 会話 ） 2020年11月21日 (土) 01:16 (UTC)`・`さかおり ( talk ) 07:54, 23 February 2010 (UTC)` | `あおもりくま`・`さかおり` |
+  | `Foto: Reinhard Kraasch , Lizenz: CC-BY-SA 4.0 DE`・`© El Grafo / CC-BY-SA-4.0`・`© Giles Laurent , gileslaurent.com , License CC BY-SA` | ライセンスの文だけ落とす（`Reinhard Kraasch`・`© El Grafo`・`© Giles Laurent , gileslaurent.com`）。ライセンスは同じ行に別に出る。`©` は作者の求める表記なので残す |
+  | 作者のお願い文 `This Photo was taken by X . Feel free to use my photos, but please mention me as the author…`・`X You are free to use this picture … credit its author, X …`・`X from ja , the copyright holder of this work, hereby publishes it…` | `X`（作者が「この名前で」と求める名前）。ただし「商用の前に連絡を」と求める欄は名前にしない（今までどおり出さない） |
+  | `Unknown Unknown`・`Unknown author Unknown author`・`Unknown photographer` | 名前ではない（CC BY 系は出さない・PD/CC0 は「作者不明」） |
+  | **URL だけ**（`https://www.flickr.com/photos/jiuguangw/`） | **そのまま残す**。Flickr から移した写真で作者を指す唯一の表記（CC BY 4.0 は作者の情報への URI での表示を認める）。Flickr のユーザー名に書き換えると、表示名ではない URL の一部を名前と取り違えるおそれがある |
+  | 変えないもの | `X at Japanese Wikipedia`（作者の求める表記）・`FOTO:FORTEPAN / …`（Fortepan の求める表記）・`--sinava-- from Berlin`・`Marie-Lan Nguyen ( User:Jastrow )` |
+
+  確定ファイルの全部（作例 16,000 余り・代表写真 2,670 行）に当てて、表示が変わったのは作例 91 枚・代表写真 68 件
+  （アプリの索引も同じ 68 件）。名前ではない欄の代表写真（`Own work` の CC BY-SA 1 件＝omazaki）は出さなくなった
+  （それまで代表写真には名前でない欄の見張りが無かった。PD・CC0 は「作者不明」）
 - 節の見出しは「作例（Wikimedia Commons より）」。撮影者はこのサイトの利用者ではないと添える
 - パブリックドメイン・CC0 は表示の義務は無いが、同じ形で出す（作者不明なら「作者不明」）
 - 構造化データ（JSON-LD）は `ImageObject` に `name`（題）・`license`・`acquireLicensePage`・`creditText` を書く。
@@ -292,6 +315,41 @@ owner の方針「検索で見つけてもらう」「写真が無くても役�
     - その場所と分かる良い写真が無い 5: フォート・バンクーバー、エーア湖国立公園、マダバ、アジュルン（城の写真が無い）、ブダペスト東駅（駅舎の正面が無い）
     - 景色の写真がアメリカ政府の PD だけ（日本では使わない）2: ボエジャーズ国立公園、モンロー砦
   - 代表写真 1,757 → 2,488 / 2,535。画像は代表 731 枚 約 89MB・小さい版 731 枚 約 9.7MB
+- **パノラマの自由が無い国の現代建築**（2026-10-11・#362 の UAE の判断を既存の代表写真にも当てた）:
+  写真のライセンスが自由でも、写っている建物・作品の著作権（建築家・作者の死後 50〜70 年）は別にある。
+  パノラマの自由（公共の場に恒久的に置かれた建物・作品を撮った写真を自由に使える決まり）が無い国では、
+  **建物・作品が主役の写真**は権利者の許しが要る。Commons の決まり（2026-10-11 に読んだもの）:
+  - `Commons:Copyright rules by territory/United Arab Emirates` の FOP: **使える定めなし**（放送だけ）。
+    1993 年3月より前に建った建物だけ使える
+  - `Commons:Copyright rules by territory/South Korea` の FOP: **非営利に限る**＝Commons では使えない扱い
+    （著作権法 35 条2項4号「複製物の販売のため」は除かれる）。橋は独特な造形でなければ使える
+  - 国ごとの表 `Commons:Freedom of panorama/table`: 建物に赤（使えない）の国は 107。代表写真のある国では
+    フランス・イタリア・ギリシャ・バチカン・韓国・ベトナム・インドネシア・スリランカ・ヨルダン・UAE・モロッコ・
+    エジプト・アイスランド・スロベニア・カンボジア・フィリピン・ジョージア・ラオス・ウズベキスタン・ネパール・
+    南アフリカ・タンザニア（代表写真 480 件）
+
+  探し方: 上の国の代表写真 480 件から、自然・遺跡の分類を除き、要約に 20 世紀以降の年や「タワー」「現代」
+  などのあるもの、建物・橋・展望台・博物館などの分類のものを機械で抜き（約 150 件）、縮小版を目で見て
+  「著作権の残る建物・作品が写真の主役か」を決めた。古い建物（作者の死後 70 年を過ぎたもの）・建物が
+  遠景の景色・山は残した。**25 件の代表写真を外した**（`content/spot-cover-exclusions.json`＝`NO_FOP_COVER_EXCLUSIONS`・`lib/data/spotImages.ts`。
+  理由を1件ずつ書いてある）:
+  - UAE: ブルジュ・ハリファ
+  - 韓国: Nソウルタワー・ロッテワールドタワー・東大門デザインプラザ・臨津閣・汝矣島公園（主役が高層ビル群）・
+    海東龍宮寺（主役が現代の石塔）
+  - ベトナム: ランドマーク81・京南ランドマーク・ドラゴン橋・統一会堂・戦争証跡博物館・スイティエン公園（門の造形）
+  - インドネシア: イスティクラル・モスク・赤道記念碑（1990 年の覆いの建物）
+  - アイスランド: ペルトラン　南アフリカ: アパルトヘイト博物館　ウズベキスタン: 国立歴史博物館（1970）
+  - ジョージア: 至聖三者大聖堂（2004）　フィリピン: マニラ大聖堂（1958 の再建）　ネパール: ナラヤンヒティ宮殿
+  - フランス: トゥール・モンパルナス・ミヨー橋・ルーヴル（主役がピラミッドの夜景）・シャイヨ宮（1937）
+
+  外したスポットは建物そのものが撮影地で、建物が主役でない別の1枚には替えられないので、**替えずに外した**
+  （代表写真 2,488 → 2,462 / 2,535。作者の欄の 1 件を含む）。行は `spot-images.json` に残し（`local` だけ消す）、
+  縮小版とサムネは消した。`shownSpotImage` が出さず、`coverCandidateSample` が作例から上げ直さず、`localize-spot-images.mjs` も置き直さない。
+  残したもの（迷ったもの）: 広安大橋（2002・普通の吊り橋で夜景の照明つき。韓国の橋の扱い）・ハン川橋（景色の中）・
+  ガルーダ・ウィシュヌ・ケンカナ（石灰岩の切り通しの広場で像は写っていない）・エッフェル塔（昼の写真。夜の照明は別の権利）・
+  エギーユ・デュ・ミディ（山）。
+  🔴 **作例はまだ同じ建物の写真を出している**（例: ブルジュ・ハリファの作例 6 枚・#362 で外した UAE の 6 か所の作例も）。
+  作例の扱いは owner に確かめる（下の「owner が確かめること」）
 - 見張り: `lib/data/__tests__/spotCoverFromSamples.test.ts`（上げた行が作例の確定ファイルの
   確かめた1枚と一致・縮小版が在る）
 - 構造化データの代表写真は作者・ライセンスつきの `ImageObject`（`coverImageObject`）。
@@ -307,3 +365,5 @@ owner の方針「検索で見つけてもらう」「写真が無くても役�
 4. **人物が写る写真**（肖像権・パブリシティ権）と、**建物・美術品の写真**（日本の著作権法 46 条の範囲・寺社の撮影規約）を商用サイトに出してよいか。Commons のライセンスは撮影者の著作権だけを扱い、写っている側の権利は扱わない
 5. **自動で選んだ作例**が本当にその撮影地の写真か（名前の一致で選んでいるので、隣の寺や別の季節の催しが混ざりうる）。マージ前に一覧で見てほしい
 6. **ホットリンク**（Commons のサムネイルを直接読む）でよいか（上の「これまでの方針との違い」）
+7. **パノラマの自由が無い国の現代建築の作例**（2026-10-11）。代表写真は 25 件外した（上の「パノラマの自由が無い国の現代建築」）が、
+   同じ建物の作例（ブルジュ・ハリファ・#362 で代表写真を付けなかった UAE の 6 か所など）は出したまま。作例も外すか
