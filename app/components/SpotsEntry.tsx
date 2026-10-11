@@ -52,24 +52,25 @@ export default function SpotsEntry({ locale, seasonal = null }: { locale: "ja" |
                         {en ? `Photo spots for ${SEASON_LABEL[seasonal.season].en}` : `いまの季節（${SEASON_LABEL[seasonal.season].ja}）の撮影スポット`}
                     </h2>
                     <ul className="flex gap-2 overflow-x-auto m-0 p-0 pb-1 -mx-1 px-1" style={{ listStyle: "none", scrollSnapType: "x proximity" }}>
-                        <li className="shrink-0 w-[104px]" style={{ scrollSnapAlign: "start" }}>
+                        <li className="shrink-0 w-[112px]" style={{ scrollSnapAlign: "start" }}>
                             {/* 先頭の札＝季節の頁への入口（「すべて見る」）。黒地なので眉ラベルは真鍮 */}
                             <Link href={seasonal.href} prefetch={false} data-testid="home-season-all"
-                                  className="flex flex-col justify-between w-full rounded-xl bg-surface hover:bg-surface-2 transition-colors p-2.5 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
+                                  className="flex flex-col justify-between w-full rounded-xl bg-surface hover:bg-surface-2 transition-colors p-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                                   style={{ height: `${CARD_H}px` }}>
                                 <span className="font-mono font-medium uppercase text-accent" style={{ fontSize: "11px", lineHeight: "14px", letterSpacing: "1px" }}>
                                     {en ? "This season" : "いまの季節"}
                                 </span>
-                                <span className="font-serif font-bold text-white" style={{ fontSize: "14px", lineHeight: "18px" }}>
-                                    {en ? `${cap(SEASON_LABEL[seasonal.season].en)} spots` : `${SEASON_LABEL[seasonal.season].ja}の撮影スポット`}
+                                {/* 「秋の／撮影スポット」で折る（語の途中で折らない） */}
+                                <span className="font-serif font-bold text-white" style={{ fontSize: "13px", lineHeight: "16px", wordBreak: "keep-all" }}>
+                                    {en ? `${cap(SEASON_LABEL[seasonal.season].en)} spots` : <>{SEASON_LABEL[seasonal.season].ja}の<wbr />撮影スポット</>}
                                 </span>
-                                <span className="text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                                    {en ? `All ${seasonal.total}` : `すべて見る ${seasonal.total}件`}<span aria-hidden="true" className="ml-0.5">›</span>
+                                <span className="text-white/60 whitespace-nowrap" style={{ fontSize: "12px", lineHeight: "16px" }}>
+                                    {en ? `All ${seasonal.total}` : `すべて ${seasonal.total}件`}<span aria-hidden="true" className="ml-0.5">›</span>
                                 </span>
                             </Link>
                         </li>
                         {seasonal.spots.map((s) => (
-                            <li key={s.slug} className="shrink-0 w-[120px]" style={{ scrollSnapAlign: "start" }}>
+                            <li key={s.slug} className="shrink-0 w-[120px] overflow-hidden" style={{ scrollSnapAlign: "start" }}>
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
                                       className="relative block w-full rounded-xl overflow-hidden bg-surface-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                                       style={{ height: `${CARD_H}px` }}>
