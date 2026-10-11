@@ -61,6 +61,7 @@ import {
 } from "../../../lib/auth/cognito";
 import BlockedUsers from "./BlockedUsers";
 import CloseFriends from "./CloseFriends";
+import LightAlertSettings from "./LightAlertSettings";
 
 export default function SettingsPage() {
     const { isAuthenticated, loading, deleteAccount, userId } = useAuth();
@@ -508,6 +509,8 @@ export default function SettingsPage() {
                         </Link>
                     </div>
                 </section>
+                {/* ── Pro（Pro の人だけ・光と天気の知らせ） ──── */}
+                <LightAlertSettings locale={locale === "en" ? "en" : "ja"} />
 
                 {/* ── プライバシー ─────────────────────────────── */}
                 <section className="mt-10 pt-6 border-t border-white/10">
