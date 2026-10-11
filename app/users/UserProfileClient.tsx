@@ -34,6 +34,8 @@ import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/phot
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
+import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX } from "../components/ProfileCover";
+import ProfileHandleLine from "../components/ProfileHandleLine";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX, ACHIEVEMENT_VALUE_PX, ACHIEVEMENT_LABEL_PX, ACHIEVEMENT_ICON_PX } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
@@ -41,7 +43,7 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import HighlightsRow from "../components/stories/HighlightsRow";
 import PHOTOS_JSON from "../data/photos.json";
 import VerifiedBadge from "../components/VerifiedBadge";
-import { ProMark, NameBadge } from "../components/ProfileNameMarks";
+import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
 
@@ -74,6 +76,8 @@ type UserProfile = {
     tripSongs?: Record<string, SongEntry>;
     themeColor?: string;
     statusText?: string;
+    /** 居住地（公開プロフィールに載る・`ProfileHandleLine`） */
+    homeLocation?: string;
     pinnedPhotoIds?: string[];
     /** 認証済みの印。立てられるのは運営だけ（`scripts/set-verified.js`） */
     verified?: boolean;
@@ -700,6 +704,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const hiddenCount = isOwner ? postCount - publishedPhotos.length : 0;
     const [tab, setTab] = useState<TabKey>("posts");
     const [shareOpen, setShareOpen] = useState(false);
+    // カバー写真が出せたか（出せたときだけ見出しを帯の下端へ重ねる・`ProfileCover`）
+    const [hasCover, setHasCover] = useState(false);
     /** 「投稿する」の2択（`PostSheet`）。「＋」と同じシートを開く */
     const [postOpen, setPostOpen] = useState(false);
     const postBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -1180,11 +1186,11 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 </div>
             )}
             {/* ヒーロー: カバー写真を背景に、戻る/アバター/名前/統計/アクションを重ねる */}
-            {/* **カバー写真はやめた**（最終版モックに無い・2026-09-22）。
-                以前は横長のバンドを背景に敷き、アバターがその下端に重なる形だった
-                （`CoverBackground` と `pt-24 sm:pt-32` が対）。編集画面のカバー欄も
-                同じ回で外した——設定できるのに出ない状態を残さない */}
+            {/* **カバー写真を戻した**（2026-10-11 owner・板 05c・31・iOS と同じ）。
+                2026-09-22 に一度やめた（当時の最終版モックに無かった）。設定していない人には
+                帯を出さない（板 05d）——`ProfileCover` が出せたときだけ広げる */}
             <div className="relative">
+                <ProfileCover userId={userId} onLoaded={setHasCover} />
                 <div className="relative max-w-2xl lg:max-w-5xl mx-auto px-4">
                     {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
                         背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
@@ -1299,7 +1305,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {/* **PC は横に使う**（owner の指示書 2026-09-22:「PCでは
                         プロフィールヘッダーを横方向に活用し、写真一覧を複数カラムで」）。
                         スマホ（1024px 未満）は最終版モックのまま縦に積む */}
-                    <div className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8">
+                    <div
+                        className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8"
+                        // カバーがあればアイコンを帯の下端に重ねる（板: 180px の帯に 50px）。
+                        // 上の戻る・共有の列（約 60px）の下から数える
+                        style={hasCover ? { paddingTop: `${COVER_HEIGHT_PX - COVER_AVATAR_OVERLAP_PX - 62}px` } : undefined}
+                    >
                         {/* アバター（オリジナルのオーロラリング: 既定は真鍮で回転）。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
                         <div className="relative w-fit rounded-full shadow-lg shadow-accent/20 lg:flex-shrink-0">
@@ -1347,11 +1358,15 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                         displayBadge={userProfile?.displayBadge}
                                         ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")}
                                         locale={locale === "en" ? "en" : "ja"}
+                                        manageHref={isOwner ? ROUTES.BADGES : undefined}
                                     />
                                 </h1>
-                                {userProfile?.username && (
-                                    <p className="mt-0.5 text-sm text-white/50 truncate">@{userProfile.username}</p>
-                                )}
+                                <ProfileHandleLine
+                                    username={userProfile?.username}
+                                    homeLocation={userProfile?.homeLocation}
+                                    locale={locale === "en" ? "en" : "ja"}
+                                    className="mt-0.5"
+                                />
                             </div>
                             {/* **ブロック中は出さない。** サーバーは 400
                                 「ブロック中の相手です。解除は設定の
@@ -1588,6 +1603,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             >
                                 {locale === "en" ? "Trips →" : "旅行プラン →"}
                             </Link>
+                            {/* メダルの棚と名前の横の設定（本人だけ・2026-10-11） */}
+                            <Link href={ROUTES.BADGES} prefetch={false} className="inline-flex items-center justify-center px-3 py-1.5 text-sm text-white/60 hover:text-white transition-colors" style={{ touchAction: "manipulation", minHeight: 44 }}>
+                                {locale === "en" ? "Medals →" : "メダル →"}
+                            </Link>
+                        </div>
+                    )}
+                    {/* 人のページ: 持っているメダルの一覧（名前の横に選んでいない人にも入口を置く・2026-10-11） */}
+                    {!isOwner && (
+                        <div className="mt-2 text-center">
+                            <MedalsButton badges={userProfile?.badges} ownerName={displayName ?? (locale === "en" ? "Anonymous" : "ユーザー")} locale={locale === "en" ? "en" : "ja"} />
                         </div>
                     )}
 

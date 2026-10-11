@@ -12,7 +12,7 @@ import { userFetch, readApiError, sessionErrorMessage } from "../../../lib/utils
 import { changedFields } from "../../../lib/utils/changedFields";
 import { sanitizeProfile } from "../../../lib/utils/profileShape";
 import { parseMusicEmbed, musicServiceLabel, type SongResult } from "../../../lib/utils/music";
-import { toUploadSafeFile, AVATAR_MAX_PX } from "../../../lib/utils/image";
+import { toUploadSafeFile, AVATAR_MAX_PX, COVER_MAX_PX } from "../../../lib/utils/image";
 import { unstrippableMessage, gifRejectedMessage } from "../../../lib/utils/uploadRejection";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { isImeKey } from "../../../lib/utils/ime";
@@ -23,6 +23,7 @@ import { ROUTES } from "../../../lib/routes";
 import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
+import { profileCoverUrl } from "../../components/ProfileCover";
 
 type SongEntry = {
     title: string;
@@ -53,8 +54,13 @@ type UserProfile = {
     tripSongs?: Record<string, SongEntry>;
     themeColor?: string;
     statusText?: string;
+    /** 居住地（サーバーが 60 文字で切る・`userProfile.ts`） */
+    homeLocation?: string;
     pinnedPhotoIds?: string[];
 };
+
+/** 居住地の上限（サーバーの `truncate(homeLocation, 60)`・iOS の `PostLimits.Profile.homeLocation`） */
+const HOME_LOCATION_MAX = 60;
 
 // "1:23" / "83" → 秒。空や不正は undefined。
 // **欄に `inputMode="numeric"` を付けないこと。** iPhone の数字キーパッドには
@@ -95,17 +101,20 @@ export default function ProfileEditPage() {
     const { showToast } = useToast();
     const { stop: stopGlobalMusic } = useMusic();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverInputRef = useRef<HTMLInputElement>(null);
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [fetching, setFetching] = useState(true);
     const [saving, setSaving] = useState(false);
     const [avatarUploading, setAvatarUploading] = useState(false);
+    const [coverUploading, setCoverUploading] = useState(false);
 
     const [username, setUsername] = useState("");
     // 変換中かどうか（IME-8。下の入力欄のコメントを見よ）
     const usernameComposing = useRef(false);
     const [displayName, setDisplayName] = useState("");
     const [bio, setBio] = useState("");
+    const [homeLocation, setHomeLocation] = useState("");
     const [themeColor, setThemeColor] = useState("");
     // 見本に無い色＝パレットで選んだ色（右端の丸を選択中として見せる）
     const isCustomTheme = !!themeColor && !THEME_COLOR_PRESETS.includes(themeColor);
@@ -129,6 +138,9 @@ export default function ProfileEditPage() {
     const [songEndText, setSongEndText] = useState("");
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [avatarError, setAvatarError] = useState(false);
+    // カバー（2026-10-11 に戻した）。`coverError` は「まだ設定していない」も含む（無ければ読み込みに失敗する）
+    const [coverPreview, setCoverPreview] = useState<string | null>(null);
+    const [coverError, setCoverError] = useState(false);
     // プロフィールの読み込みに失敗したか。
     // PUT は全置換なので、読み込めていない（=フォームが空欄の）状態で保存すると
     // 自己紹介・リンク・テーマ色・BGM・ピン留め・旅アルバムがまとめて消える。
@@ -160,6 +172,7 @@ export default function ProfileEditPage() {
         username.trim().toLowerCase().replace(/^@/, "") !== (profile.username ?? "")
         || displayName.trim() !== (profile.displayName ?? "").trim()
         || bio.trim() !== (profile.bio ?? "").trim()
+        || homeLocation.trim() !== (profile.homeLocation ?? "").trim()
         || instagram.trim() !== (profile.instagram ?? "").trim()
         || website.trim() !== (profile.website ?? "").trim()
     );
@@ -203,6 +216,7 @@ export default function ProfileEditPage() {
                     setProfile(data);
                     setDisplayName(data.displayName ?? "");
                     setBio(data.bio ?? "");
+                    setHomeLocation(data.homeLocation ?? "");
                     setThemeColor(data.themeColor ?? "");
                     setInstagram(data.instagram ?? "");
                     setWebsite(data.website ?? "");
@@ -244,7 +258,17 @@ export default function ProfileEditPage() {
         })();
     }, [isAuthenticated]);
 
-    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    /**
+     * アイコンとカバーの変更（同じ流れ。2026-10-11 にカバーを戻すときに1つにまとめた）。
+     * 違うのは置き場（`type: "cover"` → `profiles/<uid>/cover`・`api-user/src/profile.ts`）と縮める大きさだけ
+     */
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, kind: "avatar" | "cover") => {
+        const isCover = kind === "cover";
+        const setPreview = isCover ? setCoverPreview : setAvatarPreview;
+        const setUploading = isCover ? setCoverUploading : setAvatarUploading;
+        const failMessage = isCover
+            ? (locale === "en" ? "Couldn't upload the cover photo" : "カバー写真のアップロードに失敗しました")
+            : (locale === "en" ? "Couldn't upload the profile photo" : "アバターのアップロードに失敗しました");
         const file = e.target.files?.[0];
         // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
         e.target.value = "";
@@ -265,18 +289,18 @@ export default function ProfileEditPage() {
         // FileReader が後から発火して描き直さないよう、両方の順序を見る。
         let saved = false;
         let failed = false;
-        reader.onload = (ev) => { if (!failed) setAvatarPreview(ev.target?.result as string); };
+        reader.onload = (ev) => { if (!failed) setPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
 
-        setAvatarUploading(true);
+        setUploading(true);
         try {
             // 表示サイズに合わせて縮小。
             // 縮小に失敗しても原寸で続行してはいけない（EXIF の GPS が公開URLに乗る）。
             let upload: File;
             try {
-                upload = await toUploadSafeFile(file, AVATAR_MAX_PX, 0.85);
+                upload = await toUploadSafeFile(file, isCover ? COVER_MAX_PX : AVATAR_MAX_PX, 0.85);
             } catch (e) {
-                log.error("avatar: could not strip metadata:", e);
+                log.error(`${kind}: could not strip metadata:`, e);
                 showToast(unstrippableMessage(e, locale), "error");
                 return;
             }
@@ -284,10 +308,11 @@ export default function ProfileEditPage() {
             // Presigned URL 取得
             const res = await userFetch("/profile/avatar/presigned-url", {
                 method: "POST",
-                body: JSON.stringify({ fileType: upload.type }),
+                // カバーは `type: "cover"`（無ければアイコンの置き場に上がる）
+                body: JSON.stringify(isCover ? { fileType: upload.type, type: "cover" } : { fileType: upload.type }),
             });
             // カバー写真と同じ理由（サーバーは形式の誤りと一時障害を返し分けている）
-            if (!res.ok) { showToast(await readApiError(res, "アバターのアップロードに失敗しました"), "error"); return; }
+            if (!res.ok) { showToast(await readApiError(res, failMessage), "error"); return; }
             const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
 
             // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
@@ -299,16 +324,18 @@ export default function ProfileEditPage() {
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
                 headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
-            if (!uploadRes.ok) { showToast("アバターのアップロードに失敗しました", "error"); return; }
+            if (!uploadRes.ok) { showToast(failMessage, "error"); return; }
 
-            setAvatarError(false);
+            if (isCover) setCoverError(false); else setAvatarError(false);
             saved = true;
-            showToast("プロフィール写真を更新しました", "success");
+            showToast(isCover
+                ? (locale === "en" ? "Cover photo updated" : "カバー写真を更新しました")
+                : (locale === "en" ? "Profile photo updated" : "プロフィール写真を更新しました"), "success");
         } catch (e) {
-            showToast(sessionErrorMessage(e) ?? "アバターのアップロードに失敗しました", "error");
+            showToast(sessionErrorMessage(e) ?? failMessage, "error");
         } finally {
-            setAvatarUploading(false);
-            if (!saved) { failed = true; setAvatarPreview(null); }
+            setUploading(false);
+            if (!saved) { failed = true; setPreview(null); }
         }
     };
 
@@ -440,6 +467,7 @@ export default function ProfileEditPage() {
             const nextFields: Record<string, unknown> = {
                 username: username.trim().toLowerCase().replace(/^@/, ""),
                 displayName, bio, instagram, website,
+                homeLocation,
                 themeColor,
                 ...songPayload,
             };
@@ -449,6 +477,7 @@ export default function ProfileEditPage() {
                 bio: profile?.bio ?? "",
                 instagram: profile?.instagram ?? "",
                 website: profile?.website ?? "",
+                homeLocation: profile?.homeLocation ?? "",
                 themeColor: profile?.themeColor ?? "",
                 songUrl: profile?.songUrl ?? "",
                 songStart: profile?.songStart ?? null,
@@ -521,7 +550,7 @@ export default function ProfileEditPage() {
             // **セッション切れを塗り潰さない。** 裸の catch だった頃は
             // 「保存に失敗しました。」だけが出るので、**再ログインすれば
             // 直ると分からず**同じ操作を繰り返すことになった。
-            // 同じファイルのアバター（`handleAvatarChange`）は
+            // 同じファイルのアバター（`handleImageChange`）は
             // 前からこう書いてある——対の乖離だった
             showToast(sessionErrorMessage(e)
                 ?? (locale === "en" ? "Failed to save." : "保存に失敗しました。"), "error");
@@ -544,6 +573,7 @@ export default function ProfileEditPage() {
     const currentAvatarUrl = profile?.userId && CLOUDFRONT_URL
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
+    const currentCoverUrl = profile?.userId ? profileCoverUrl(profile.userId) : "";
     const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
@@ -576,10 +606,48 @@ export default function ProfileEditPage() {
                     {locale === "en" ? "Edit Profile" : "プロフィール編集"}
                 </h1>
 
-                {/* **カバー写真の欄は外した**（2026-09-22）。マイページが
-                    カバーを表示しなくなったので（最終版モックに無い）、設定だけ
-                    残すと「変えても何も起きない」欄になる。**サーバーの口と
-                    既に上げた画像はそのまま**——戻すときはここを足し直すだけ */}
+                {/* カバー写真（板 ProfileEdit の上の帯・2026-10-11 に戻した）。2026-09-22 に一度外した
+                    （マイページが出さなくなったため）。マイページが `ProfileCover` で出すようになったので戻す。
+                    **まだ無い人は空の地に「カバーを変える」だけ**（壊れた写真の記号は出さない） */}
+                <div className="relative mb-6 rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10" style={{ height: "132px" }} data-testid="profile-cover-edit">
+                    {coverPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={coverPreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    ) : currentCoverUrl && !coverError ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={currentCoverUrl}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onError={() => setCoverError(true)}
+                        />
+                    ) : (
+                        <p className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
+                            {locale === "en" ? "No cover photo yet" : "カバー写真はまだありません"}
+                        </p>
+                    )}
+                    {/* 写真の上に置くので白（ガラスの丸）。押せる高さは 44px */}
+                    <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={coverUploading}
+                        className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-md ring-1 ring-white/10 text-white text-xs hover:bg-black/70 transition disabled:opacity-60"
+                        style={{ minHeight: "44px", touchAction: "manipulation" }}
+                    >
+                        {coverUploading
+                            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
+                            : <CameraIcon className="w-4 h-4" aria-hidden="true" />}
+                        {locale === "en" ? "Change cover" : "カバーを変える"}
+                    </button>
+                    <input
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        aria-label={locale === "en" ? "Cover photo file" : "カバー写真のファイル"}
+                        onChange={(e) => void handleImageChange(e, "cover")}
+                    />
+                </div>
 
                 {/* アバター */}
                 <div className="flex flex-col items-center mb-8">
@@ -626,7 +694,7 @@ export default function ProfileEditPage() {
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => void handleAvatarChange(e)}
+                        onChange={(e) => void handleImageChange(e, "avatar")}
                     />
                 </div>
 
@@ -702,6 +770,23 @@ export default function ProfileEditPage() {
                             className={`${inputClass} resize-none`}
                         />
                         <div className="text-right text-xs text-white/50 mt-1">{bio.length}/300</div>
+                    </div>
+
+                    {/* 居住地（板 ProfileEdit・名前の下の「@名 · 居住地」に出る） */}
+                    <div>
+                        <label className={labelClass} htmlFor="profile-home-location">
+                            {locale === "en" ? "Where you're based" : "居住地"}
+                        </label>
+                        <input
+                            id="profile-home-location"
+                            type="text"
+                            value={homeLocation}
+                            onChange={e => setHomeLocation(e.target.value)}
+                            maxLength={HOME_LOCATION_MAX}
+                            placeholder={locale === "en" ? "e.g. Tokyo" : "例: 東京"}
+                            className={inputClass}
+                            autoComplete="address-level2"
+                        />
                     </div>
 
 

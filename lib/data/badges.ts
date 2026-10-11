@@ -198,6 +198,16 @@ export function proMarkImage(style: ProMarkStyle, sizePx: number): string {
 }
 
 /**
+ * Pro の印を描く枠（px）。高さは `size`、**PRO の札は横長**（素材の viewBox が 42×24、
+ * 15px 未満の小さい版は 36×24）。正方形の枠に入れると札が縦に潰れて小さく見えた（2026-10-11）
+ */
+export function proMarkBox(style: ProMarkStyle, size: number): { width: number; height: number } {
+    if (style !== "plate") return { width: size, height: size };
+    const ratio = size < 15 ? 36 / 24 : 42 / 24;
+    return { width: Math.round(size * ratio * 10) / 10, height: size };
+}
+
+/**
  * 名前の横に置くときの大きさ（px）と、はみ出させる量。
  * 公式の封印（円 22px）にそろえる。初期ユーザー章は後光ぶん大きく描いて、行の高さを変えない
  */

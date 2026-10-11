@@ -61,6 +61,7 @@ import {
 } from "../../../lib/auth/cognito";
 import BlockedUsers from "./BlockedUsers";
 import CloseFriends from "./CloseFriends";
+import LightAlertSettings from "./LightAlertSettings";
 
 export default function SettingsPage() {
     const { isAuthenticated, loading, deleteAccount, userId } = useAuth();
@@ -497,6 +498,19 @@ export default function SettingsPage() {
                         </button>
                     </div>
                 </section>
+
+                {/* ── プロフィール（名前の横・メダル。2026-10-11） ── */}
+                <section className="mt-10 pt-6 border-t border-white/10">
+                    <h2 className={sectionLabelClass}>{locale === "en" ? "Profile" : "プロフィール"}</h2>
+                    <div className={cardClass}>
+                        <Link href={ROUTES.BADGES} prefetch={false} className={rowLinkClass} style={{ minHeight: "44px", touchAction: "manipulation" }}>
+                            <span>{locale === "en" ? "Medals and name marks" : "メダルと名前の横"}</span>
+                            <span aria-hidden="true" className="text-white/50">›</span>
+                        </Link>
+                    </div>
+                </section>
+                {/* ── Pro（Pro の人だけ・光と天気の知らせ） ──── */}
+                <LightAlertSettings locale={locale === "en" ? "en" : "ja"} />
 
                 {/* ── プライバシー ─────────────────────────────── */}
                 <section className="mt-10 pt-6 border-t border-white/10">

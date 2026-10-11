@@ -151,8 +151,12 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/layout.tsx", '"/logo-aperture.png"', "ヘッダーのロゴ（`public/` に置いた固定の絵。相対パスなので既にサイトのドメイン）"],
     ["app/components/ProfileNameMarks.tsx", "proMarkImage(style, size)", "Pro の印（`public/badges/` に置いた固定の SVG。相対パス）"],
     // `badgeImage` は季節の章で絵の無い年に null を返すので、一度変数に受けてから描く
-    ["app/components/ProfileNameMarks.tsx", "medalSrc", "メダルの絵（`badgeImage`。`public/badges/` に置いた固定の WebP。相対パス）"],
-    ["app/components/ProfileNameMarks.tsx", "src", "名前の横のメダル（`badgeImage`・同上）"],
+    ["app/components/ProfileNameMarks.tsx", "src", "名前の横のメダル（`badgeImage`。`public/badges/` に置いた固定の WebP。相対パス）"],
+    // メダルの棚と名前の横の設定（2026-10-11）。どれも `badgeImage`（同上）
+    ["app/components/MedalShelf.tsx", "src", "メダルの棚の絵（`badgeImage`・同上）"],
+    ["app/user/badges/NameSideSheet.tsx", "chosenSrc", "名前の横の下見のメダル（`badgeImage`・同上）"],
+    ["app/user/badges/NameSideSheet.tsx", "src", "持っているメダルの絵（`badgeImage`・同上）"],
+    ["app/user/badges/page.tsx", "currentSrc", "いま名前の横に飾っているメダル（`badgeImage`・同上）"],
     ["app/components/NotificationsBell.tsx", "medalSrc", "メダルの通知の絵（`badgeImage`・同上）"],
 
     // (b) 端末の中にしか無い
@@ -161,6 +165,9 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/stories/StoriesBar.tsx", "draft.previewUrl", "下書きの blob: URL（まだ上げていない）"],
     ["app/components/stories/StoriesBar.tsx", "url", "長さを測るための blob: URL"],
     ["app/user/profile/page.tsx", "avatarPreview", "選んだ直後の data: URL"],
+    ["app/user/profile/page.tsx", "coverPreview", "選んだ直後の data: URL"],
+    ["app/user/light/page.tsx", "logo.x1", "Apple Weather の商標。Apple の配る画像をそのまま使う決まり（自分の配信ではない）"],
+    ["app/user/light/page.tsx", "`${logo.x1} 1x, ${logo.x2} 2x, ${logo.x3} 3x`", "同上（1x・2x・3x）"],
     ["app/user/upload/page.tsx", "it.preview", "サムネ帯の blob: URL（まだ上げていない・端末の中だけ）"],
     // 切り抜きプレビューは `app/components/CropFramePicker.tsx` へ切り出した
     // （アップロードと編集で共用）。**呼ぶ側で使い分ける**——
@@ -176,6 +183,8 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/components/Thumb.tsx", "webpSet", "`buildSrcSet` が1本ずつ通している"],
     ["app/components/UserAvatar.tsx", "url", "組み立てるところで通している"],
     ["app/user/profile/page.tsx", "currentAvatarUrl", "組み立てるところで通している"],
+    ["app/components/ProfileCover.tsx", "url", "組み立てるところ（`profileCoverUrl`）で通している"],
+    ["app/user/profile/page.tsx", "currentCoverUrl", "組み立てるところ（`profileCoverUrl`）で通している"],
     ["lib/hooks/useImagePreloader.ts", "url", "`preloadImage` の入口で通している（`useImagePreloader.origin.test.ts` が `Image` に入った値で見る）"],
 ];
 
