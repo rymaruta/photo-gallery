@@ -109,7 +109,8 @@ describe("アプリ向けの索引", () => {
         };
         const ok = toSpotFeedItem(spot("ok", pub), images);
         expect(ok.image).toEqual({
-            url: "https://upload.wikimedia.org/a/640px-A.jpg", author: "撮った人", license: "CC BY-SA 4.0",
+            // 題（ファイル名から・2026-10-11）
+            url: "https://upload.wikimedia.org/a/640px-A.jpg", title: "A", author: "撮った人", license: "CC BY-SA 4.0",
             licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", pageUrl: "https://commons.wikimedia.org/wiki/File:A.jpg",
         });
         // 🔴 機械が選んだだけ（reviewedBy が空）の写真は出さない
