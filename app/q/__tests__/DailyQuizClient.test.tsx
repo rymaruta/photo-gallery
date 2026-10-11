@@ -172,9 +172,10 @@ describe("今日の一問", () => {
         fetchMock.mockImplementation(async () => ({ ok: true, status: 200, json: async () => QUIZ("2026-10-02") }));
         vi.setSystemTime(new Date("2026-10-01T15:30:00Z"));
         document.dispatchEvent(new Event("visibilitychange"));
-        await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/app/data/quiz/2026-10-02.json"));
-        expect(await screen.findByText(/2026\.10\.02/)).toBeTruthy();
-    });
+        // 待ちは 5 秒。既定の 1 秒だと、全部のテストを並べて流す重い時に読み直しが間に合わず落ちた（2026-10-11）
+        await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith("/app/data/quiz/2026-10-02.json"), { timeout: 5000 });
+        expect(await screen.findByText(/2026\.10\.02/, undefined, { timeout: 5000 })).toBeTruthy();
+    }, 15_000);
 
     it("前日に答えたまま日付をまたぐと、今日の問題は答えていない状態で出る", async () => {
         render(<DailyQuizClient />);
