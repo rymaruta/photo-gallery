@@ -117,6 +117,11 @@ export const ROUTES = {
      * 自分」を作る画面で、こちらは**アカウントそのもの**の設定。
      */
     SETTINGS: "/user/settings",
+    /**
+     * 光と天気の知らせ（Pro だけ・`GET /user/light-forecast`）。入口は設定の Pro の節だけ
+     * （`LightAlertSettings`）。Pro でない人には入口を出さない（2026-10-11 owner）
+     */
+    LIGHT_FORECAST: "/user/light",
     USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)
