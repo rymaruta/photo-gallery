@@ -221,6 +221,27 @@ Commons・Flickr と違い**サイトに複製を置く**。
 知らせるよう求めている＝努力義務）。環境省の写真の右下の「Photo by Ministry of the Environment」は
 提供元自身の表記なので残した（第三者のクレジットではない）。
 
+## 作例から代表写真を埋める（2026-10-11）
+
+owner の方針「検索で見つけてもらう」「写真が無くても役立つ撮影ガイド」。公開済みのうち代表写真
+（`content/spot-images.json`・Wikidata の P18）が無い・場所の確認が無くて出せないスポットに、作例から1枚を
+代表写真に上げた（`npx tsx scripts/promote-sample-covers.ts`。`--dry-run` で数えるだけ）。
+
+- **上げてよいのは、写真を1枚ずつ見てその撮影地の景色と確かめた作例だけ**（`pickedBy` が "visual-review"
+  か人の名前・`isReviewedPick`）。"auto"（名前の一致と距離だけ）は上げない。判定は `coverCandidateSample`
+  （`lib/data/spotSamples.ts`）で、画面に出せる1枚（`toSpotSample`）・人や催しが主役でない・Commons の写真・
+  横長を先に
+- 行は `spot-images.json` に `method: "commons-sample"`・`pickedBy`（作例の写し）で書く。作者・ライセンスは
+  画面の作例と同じ表示の形（PD は "Public domain (PD-self)"）。置き換えた P18 の記録は `replaced` に残す。
+  出すかの判定は `shownSpotImage`（`pickedBy` が "auto" なら出さない）
+- 縮小版は `localize-spot-images.mjs` の `localizeImage` で置く（横 960px・EXIF を残さない）。
+  取りにいくのは作例が画面で既に読んでいる Commons の 1280px の縮小版だけ・3秒に1回
+- `fetch-spot-images.mjs --refresh` は上げた行を上書きしない（取り直した P18 は `replaced` へ）
+- 見張り: `lib/data/__tests__/spotCoverFromSamples.test.ts`（上げた行が作例の確定ファイルの
+  確かめた1枚と一致・縮小版が在る）
+- 構造化データの代表写真は作者・ライセンスつきの `ImageObject`（`coverImageObject`）。
+  画像サイトマップ（`/sitemap-images.xml`）にも撮影地ページの代表写真と作例を載せる
+
 ## owner が確かめること（法的な最終確認）
 
 1. **作者表示の形**（「写真: 作者 / ライセンス / Wikimedia Commons」）で、CC BY / BY-SA の表示条件を満たすと判断してよいか
