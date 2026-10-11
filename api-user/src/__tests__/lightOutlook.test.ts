@@ -231,18 +231,18 @@ describe("前の晩の知らせ（pickAlert・alertText）", () => {
         // くもり時々晴れ → 「朝焼けになりそうです」
         expect(t.title).toBe("明日の朝、浜離宮恩賜庭園 が朝焼けになりそうです");
         // 時刻は先頭の0を落とす（板の「5:42」）
-        expect(t.body).toMatch(/^日の出 5:\d\d・朝焼けの見込み 高い。\d:\d\d に着いていれば間に合います。$/);
+        expect(t.body).toMatch(/^日の出 5:\d\d・朝焼けの見込み 高い。\d:\d\d に着いていれば間に合います。Apple Weather のデータをもとに Journey Photo が計算。$/);
         expect(alertText({ ...pick, weather: "clear" }).title).toBe("明日の朝、浜離宮恩賜庭園 が晴れそうです");
         expect(alertText({ ...pick, kind: "sunset", eventClock: "17:21", readyClock: "16:40", weather: "clear" }))
-            .toEqual({ title: "明日の夕方、浜離宮恩賜庭園 が晴れそうです", body: "日の入り 17:21・夕焼けの見込み 高い。16:40 に着いていれば間に合います。" });
+            .toEqual({ title: "明日の夕方、浜離宮恩賜庭園 が晴れそうです", body: "日の入り 17:21・夕焼けの見込み 高い。16:40 に着いていれば間に合います。Apple Weather のデータをもとに Journey Photo が計算。" });
         // 着いていたい時刻が出せない日は、その一文を言わない
-        expect(alertText({ ...pick, readyClock: null }).body).toMatch(/高い。$/);
+        expect(alertText({ ...pick, readyClock: null }).body).toMatch(/高い。Apple Weather のデータをもとに Journey Photo が計算。$/);
     });
 
     it("文面（英語）: 英語の名前を使う", () => {
         const pick = pickAlert([{ spot: SPOT, wx: WX }], NOW)!;
         const t = alertText({ ...pick, weather: "clear" }, "en");
         expect(t.title).toBe("Tomorrow morning: clear skies likely at Hamarikyu Gardens");
-        expect(t.body).toMatch(/^Sunrise 5:\d\d · Chance of morning glow: high\. Be there by \d:\d\d\.$/);
+        expect(t.body).toMatch(/^Sunrise 5:\d\d · Chance of morning glow: high\. Be there by \d:\d\d\. Calculated by Journey Photo from Apple Weather data\.$/);
     });
 });

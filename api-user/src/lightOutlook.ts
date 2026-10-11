@@ -279,6 +279,31 @@ export function pickAlert(
 const short = (clock: string) => clock.replace(/^0(\d):/, "$1:");
 
 /**
+ * **手を加えた（value-added）旨の注記**（2026-10-11 判断・owner「任せる」）。
+ *
+ * 見込み（高・中・低）と「晴れそう・焼けそう」は Apple Weather の予報から**こちらが計算した**もの。
+ * WeatherKit の表示の決まり（developer.apple.com/weatherkit/get-started/ の
+ * 「Apple Weather and third-party attribution」）は、手を加えたデータを出すときは
+ * 出典を Weather（Apple Weather）とし、**Apple のデータに手を加えた旨を添える**よう求める。
+ * 画面の注記（`lightForecast.ts` の `LIGHT_NOTE`・Web・iOS）と、知らせの本文の両方に出す。
+ */
+export const VALUE_ADDED_NOTE = {
+    ja: "Apple Weather のデータをもとに Journey Photo が計算した見込みです。",
+    en: "Estimates calculated by Journey Photo from Apple Weather data.",
+} as const;
+
+/**
+ * 知らせの本文の末尾に付ける短い形（2026-10-11 判断）。決まりは知らせを名指ししていないが、
+ * 知らせも手を加えた見込み（「見込み 高い」）を**画面の外で**見せるので、出典と手を加えた旨を添える。
+ * 本文が長くなりすぎないよう、画面の注記より短くし、大事な時刻・見込みの**後ろ**に置く
+ * （ロック画面で切れても先に要る所が読める）。
+ */
+export const VALUE_ADDED_PUSH = {
+    ja: "Apple Weather のデータをもとに Journey Photo が計算。",
+    en: "Calculated by Journey Photo from Apple Weather data.",
+} as const;
+
+/**
  * 知らせの文面。**日本語と英語の両方を作れる**（いま送るのは日本語だけ。`lightForecast.ts` の注記）。
  *
  * 板（LightAlert）の文面:
@@ -298,10 +323,12 @@ export function alertText(p: AlertPick, lang: "ja" | "en" = "ja"): { title: stri
         const when = morning ? "Tomorrow morning" : "Tomorrow evening";
         const title = clear ? `${when}: clear skies likely at ${name}` : `${when}: a colorful sky likely at ${name}`;
         const head = `${morning ? "Sunrise" : "Sunset"} ${short(p.eventClock)} · Chance of ${morning ? "morning" : "evening"} glow: high.`;
-        return { title, body: p.readyClock ? `${head} Be there by ${short(p.readyClock)}.` : head };
+        const main = p.readyClock ? `${head} Be there by ${short(p.readyClock)}.` : head;
+        return { title, body: `${main} ${VALUE_ADDED_PUSH.en}` };
     }
     const when = morning ? "明日の朝" : "明日の夕方";
     const title = clear ? `${when}、${p.spot.name} が晴れそうです` : `${when}、${p.spot.name} が${morning ? "朝焼け" : "夕焼け"}になりそうです`;
     const head = `${morning ? "日の出" : "日の入り"} ${short(p.eventClock)}・${morning ? "朝焼け" : "夕焼け"}の見込み 高い。`;
-    return { title, body: p.readyClock ? `${head}${short(p.readyClock)} に着いていれば間に合います。` : head };
+    const main = p.readyClock ? `${head}${short(p.readyClock)} に着いていれば間に合います。` : head;
+    return { title, body: `${main}${VALUE_ADDED_PUSH.ja}` };
 }
