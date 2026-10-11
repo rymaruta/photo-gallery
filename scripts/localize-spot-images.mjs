@@ -62,7 +62,37 @@ async function download(url) {
 function isShown(spot, image) {
     if (spot.status !== "published" || !image) return false;
     if (image.reviewedBy?.trim()) return true;
+    // 作例から昇格させた行は `scripts/promote-sample-covers.ts` が置く（ここでは選ばない）
+    if (image.method === "commons-sample") return false;
     return spot.aiCheck?.imageChecked === true && !image.coordsMismatch;
+}
+
+/**
+ * **1枚をサイトに置く**（横 960px の JPEG・`public/images/spots/<slug>.jpg`）。置いた場所と寸法を返す。
+ * 取れなければ null。`thumbUrl` が元画像なら Commons の 960px の縮小版を先に頼む。
+ * 作例からの昇格（`scripts/promote-sample-covers.ts`・2026-10-11）も同じこれで置く。
+ * 書き出しは sharp で作り直すので、元の EXIF（GPS を含みうる）は残らない
+ */
+export async function localizeImage(slug, thumbUrl, outDir = OUT_DIR) {
+    const thumb = commonsThumbUrl(thumbUrl);
+    let buf = thumb ? await download(thumb) : null;
+    if (!buf) buf = await download(String(thumbUrl).split("?")[0]);
+    if (!buf) return null;
+    const out = await sharp(buf).rotate().resize({ width: WIDTH, withoutEnlargement: true })
+        .jpeg({ quality: 78, mozjpeg: true }).toBuffer({ resolveWithObject: true });
+    fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(path.join(outDir, `${slug}.jpg`), out.data);
+    return { src: `/images/spots/${slug}.jpg`, width: out.info.width, height: out.info.height, bytes: out.data.length };
+}
+
+/** 小さい版（`thumb/`）を揃える。落ちても止めない（本番のビルドも作る） */
+export async function syncThumbsQuietly() {
+    try {
+        const t = await syncSpotThumbs();
+        console.log(`小さい版: 作った ${t.created.length}・消した ${t.removed.length}・作れなかった ${t.failed.length}`);
+    } catch (e) {
+        console.log(`小さい版を作れなかった（本番のビルドが作る）: ${e instanceof Error ? e.message : e}`);
+    }
 }
 
 async function main() {
@@ -75,29 +105,20 @@ async function main() {
     for (const spot of targets) {
         const image = images[spot.slug];
         if (!image) { console.log(`${spot.slug}: 写真の記録が無い`); continue; }
-        const thumb = commonsThumbUrl(image.thumbUrl);
-        let buf = thumb ? await download(thumb) : null;
-        if (!buf) buf = await download(image.thumbUrl.split("?")[0]);
-        if (!buf) { console.log(`${spot.slug}: 取れなかった`); continue; }
-        const out = await sharp(buf).rotate().resize({ width: WIDTH, withoutEnlargement: true })
-            .jpeg({ quality: 78, mozjpeg: true }).toBuffer({ resolveWithObject: true });
-        fs.writeFileSync(path.join(OUT_DIR, `${spot.slug}.jpg`), out.data);
-        image.local = { src: `/images/spots/${spot.slug}.jpg`, width: out.info.width, height: out.info.height };
+        const local = await localizeImage(spot.slug, image.thumbUrl);
+        if (!local) { console.log(`${spot.slug}: 取れなかった`); continue; }
+        const { bytes, ...placed } = local;
+        image.local = placed;
         fs.writeFileSync(IMAGES_PATH, JSON.stringify(images, null, 2) + "\n");
         done++;
-        console.log(`${spot.slug}: ${out.info.width}x${out.info.height} ${Math.round(out.data.length / 1024)}KB`);
+        console.log(`${spot.slug}: ${placed.width}x${placed.height} ${Math.round(bytes / 1024)}KB`);
         await sleep(3000);
     }
     console.log(`置いた ${done} / ${targets.length}`);
     // 小さい版（`public/images/spots/thumb/`・アプリの `thumbUrl`）も揃える。差し替えた写真は元の
     // SHA-1 で見分けて作り直す（`scripts/spot-thumbs.mjs`）。本番のビルドも同じことをするので、
     // ここで落ちても止めない
-    try {
-        const t = await syncSpotThumbs();
-        console.log(`小さい版: 作った ${t.created.length}・消した ${t.removed.length}・作れなかった ${t.failed.length}`);
-    } catch (e) {
-        console.log(`小さい版を作れなかった（本番のビルドが作る）: ${e instanceof Error ? e.message : e}`);
-    }
+    await syncThumbsQuietly();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

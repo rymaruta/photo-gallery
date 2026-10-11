@@ -383,6 +383,22 @@ export async function lookupBatch(spots, today) {
 
 // ---- CLI --------------------------------------------------------------------
 
+/**
+ * 1行を書く。**作例から昇格させた代表写真（`method: "commons-sample"`・2026-10-11）は上書きしない**
+ * ——`--refresh` で Wikidata の代表画像を取り直しても、場所を確かめた作例の代表写真を、確かめていない
+ * 画像で消さない。取り直した記録は `replaced` に入れる（`scripts/promote-sample-covers.ts`）
+ */
+export function putImageRecord(images, slug, record) {
+    const current = images[slug];
+    if (current?.method === "commons-sample") {
+        const { local: _l, replaced: _r, ...rest } = record;
+        void _l; void _r;
+        images[slug] = { ...current, wikidata: record.wikidata || current.wikidata, replaced: rest };
+        return;
+    }
+    images[slug] = record;
+}
+
 function readJson(p, fallback) {
     try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return fallback; }
 }
@@ -414,7 +430,7 @@ async function main(argv) {
             try {
                 const res = await lookupBatch(chunk, today);
                 for (const [slug, r] of res) {
-                    if (r.record) images[slug] = r.record;
+                    if (r.record) putImageRecord(images, slug, r.record);
                     const rest = { ...r };
                     delete rest.record;
                     log[slug] = rest;
@@ -433,7 +449,7 @@ async function main(argv) {
         n++;
         try {
             const r = await lookup(spot, today);
-            if (r.record) images[spot.slug] = r.record;
+            if (r.record) putImageRecord(images, spot.slug, r.record);
             const rest = { ...r };
             delete rest.record;
             log[spot.slug] = rest;

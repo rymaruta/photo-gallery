@@ -128,10 +128,15 @@ describe("content/spot-images.json（記録の形）", () => {
     it("全行が台帳のスポットで、必須の鍵を持ち、ライセンスが許可の内", () => {
         for (const [slug, r] of rows) {
             expect(slugs.has(slug), slug).toBe(true);
+            // 作例から上げた行（2026-10-11）は Wikidata の項目が無いことがあり、パブリックドメインは
+            // 根拠を添えた名前（"Public domain (PD-self)"）。見張りは spotCoverFromSamples.test.ts
+            const fromSample = r.method === "commons-sample";
             for (const k of ["wikidata", "file", "pageUrl", "thumbUrl", "author", "license", "method", "fetchedAt"]) {
+                if (fromSample && k === "wikidata") continue;
                 expect(r[k], `${slug}.${k}`).toBeTruthy();
             }
-            expect(isAllowedLicense(r.license), `${slug} ${r.license}`).toBe(true);
+            const label = fromSample ? String(r.license).replace(/\s*\([^()]*\)$/, "") : r.license;
+            expect(isAllowedLicense(label), `${slug} ${r.license}`).toBe(true);
             expect(String(r.thumbUrl)).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
         }
     });
