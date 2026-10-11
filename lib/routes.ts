@@ -117,6 +117,8 @@ export const ROUTES = {
      * 自分」を作る画面で、こちらは**アカウントそのもの**の設定。
      */
     SETTINGS: "/user/settings",
+    /** 自分のメダルの棚と名前の横の設定（本人だけ。`app/user/badges`） */
+    BADGES: "/user/badges",
     USER_SEARCH: "/users/search",
     PHOTO: (id: string) =>
         BUILT_PHOTO_IDS.has(id)

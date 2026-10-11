@@ -43,6 +43,7 @@ on:
           - verify-origin-failover # **staging** でオリジングループが 404ページより先に効くか確かめる（動的化の関門）
           - restore-account   # 間違えて退会したアカウントを戻す（owner_user_id 空=直近の墓石一覧・指定=状況を読む・apply=墓石を消す）
           - set-verified      # 認証済みの印を付ける（target_user を指定・既定は読むだけ・apply で付ける・unverify で外す）
+          - list-users        # 登録している人の一覧（登録日・状態・写真の枚数・最後の投稿。メールは出さない・読み取りのみ）
           - grant-early-user  # 初期ユーザー章を 2026-10-31（日本時間）までに登録した人へ付ける（既定は読むだけ・apply で書く）
           - backfill-badges   # 今いる全員のメダルを数え直して書く（既定は読むだけ・apply で書く・通知は送らない）
         required: true
@@ -189,6 +190,13 @@ jobs:
       - name: メダルを数え直して書く
         if: inputs.task == 'backfill-badges'
         run: node scripts/backfill-badges.js ${{ inputs.apply && '--apply' || '' }}
+
+      # 登録している人の一覧（scripts/list-users.js）。読み取りのみ・メールは出さない
+      - name: 登録している人の一覧
+        if: inputs.task == 'list-users'
+        run: node scripts/list-users.js
+        env:
+          COGNITO_USER_POOL_ID: ap-northeast-1_ZbuhDQsWz
 
       - name: 指定ユーザーの写真にいいねした人を特定
         if: inputs.task == 'who-liked'

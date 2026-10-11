@@ -94,6 +94,20 @@ describe("POST /user/purchases", () => {
         expect(pushNotification.mock.calls[1][1]).toMatchObject({ type: "badge", byName: "秋の章（2026）", tier: 1 });
     });
 
+    /// 買った本人への応答は、名前の横の印を外していても資格どおり（`toPublicProfile(…, { owner: true })`・
+    /// 2026-10-10）。公開の形のままだと、買った直後に「Pro でない」と返す
+    it("Pro の印を外している人が買っても、応答は pro: true・proMarkStyle: none（認証済みも資格どおり）", async () => {
+        db.set({ userId: "u1", displayName: "旅人", rev: 2, proMarkStyle: "none", verified: true, verifiedMarkOff: true });
+        const res = await purchase("u1", { signedTransaction: signJws(tokenTx("u1")) });
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body);
+        expect(body.pro).toBe(true);
+        expect(body.proMarkStyle).toBe("none");
+        expect(body.verified).toBe(true);
+        // 行の印の設定は触らない
+        expect(db.get("u1")).toMatchObject({ proMarkStyle: "none", verifiedMarkOff: true });
+    });
+
     it("同じ取引を送り直しても番号は変わらず、通知も重ねない", async () => {
         db.set({ userId: "u1" });
         const jws = signJws(tokenTx("u1"));

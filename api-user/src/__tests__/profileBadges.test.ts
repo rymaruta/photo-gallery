@@ -345,3 +345,97 @@ describe("光と天気の知らせを受け取るか（lightAlert）", () => {
         expect(savedProfile().lightAlert).toBe(false);
     });
 });
+
+// 名前の横の印の取り外し（2026-10-10 owner「メダルと同様に取り外しできるように」）。
+// 外しても資格（Pro・認証済み）は残り、付け直せる。**他の人には出さない**——古いアプリ・Web は
+// "none" / `verifiedMarkOff` を知らないので、公開の形では資格の項目ごと落とす
+describe("名前の横の印を外す", () => {
+    const PRO = { supporter: { active: true, until: "2099-01-01" } };
+
+    it("Pro の印: proMarkStyle に none を受けて保存する（本人の応答は pro のまま・none）", async () => {
+        mockSend.mockResolvedValueOnce(stored(PRO)).mockResolvedValueOnce({});
+        const res = await update({ proMarkStyle: "none" });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().proMarkStyle).toBe("none");
+        const body = JSON.parse(res.body);
+        expect(body.pro).toBe(true);
+        expect(body.proMarkStyle).toBe("none");
+        expect(badgeFields({ proMarkStyle: "none" }).proMarkStyle).toBe("none");
+    });
+
+    it("Pro の印: 公開プロフィールでは pro: false・proMarkStyle: iris（古い版にも出ない）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ ...PRO, proMarkStyle: "none" }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.pro).toBe(false);
+        expect(body.proMarkStyle).toBe("iris");
+        // 付けている人はそのまま
+        mockSend.mockResolvedValueOnce(stored({ ...PRO, proMarkStyle: "plate" }));
+        const on = JSON.parse((await getPublic("u1")).body);
+        expect(on.pro).toBe(true);
+        expect(on.proMarkStyle).toBe("plate");
+    });
+
+    it("Pro の印: 形を選び直せば付け直せる（資格は触っていない）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ ...PRO, proMarkStyle: "none" })).mockResolvedValueOnce({});
+        const res = await update({ proMarkStyle: "iris" });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().proMarkStyle).toBe("iris");
+        expect(savedProfile().supporter).toEqual(PRO.supporter);
+    });
+
+    it("本人に返す形（owner: true・購入の応答）は外していても資格どおり", () => {
+        const row = { userId: "u1", ...PRO, proMarkStyle: "none", verified: true, verifiedMarkOff: true } as never;
+        const own = toPublicProfile(row, { owner: true });
+        expect(own.pro).toBe(true);
+        expect(own.verified).toBe(true);
+        const pub = toPublicProfile(row);
+        expect(pub.pro).toBe(false);
+        expect(pub.verified).toBeUndefined();
+    });
+
+    it("公式の印: verifiedMarkOff は真偽だけ受ける。true を置き、false で消す（付け直す）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ verified: true })).mockResolvedValueOnce({});
+        const res = await update({ verifiedMarkOff: true });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().verifiedMarkOff).toBe(true);
+        // 資格は残る
+        expect(savedProfile().verified).toBe(true);
+        const body = JSON.parse(res.body);
+        expect(body.verified).toBe(true);
+        expect(body.verifiedMarkOff).toBe(true);
+
+        mockSend.mockReset();
+        commands.length = 0;
+        mockSend.mockResolvedValueOnce(stored({ verified: true, verifiedMarkOff: true })).mockResolvedValueOnce({});
+        const back = await update({ verifiedMarkOff: false });
+        expect(back.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("verifiedMarkOff");
+        expect(savedProfile().verified).toBe(true);
+        expect(JSON.parse(back.body).verifiedMarkOff).toBe(false);
+
+        commands.length = 0;
+        expect((await update({ verifiedMarkOff: "true" })).statusCode).toBe(400);
+        expect(commands).toEqual([]);
+    });
+
+    it("公式の印: 公開プロフィールでは verified を出さない。verifiedMarkOff 自体も出さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ verified: true, verifiedMarkOff: true }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body).not.toHaveProperty("verified");
+        expect(body).not.toHaveProperty("verifiedMarkOff");
+    });
+
+    it("公式の印: 外す項目を送っても資格は自分に付かない（verified の無い人）", async () => {
+        mockSend.mockResolvedValueOnce(stored({})).mockResolvedValueOnce({});
+        const res = await update({ verifiedMarkOff: false, verified: true });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("verified");
+    });
+
+    it("自分のプロフィールには verifiedMarkOff が常に真偽で載る（既定は false）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ verified: true }));
+        const body = JSON.parse((await getMine()).body);
+        expect(body.verifiedMarkOff).toBe(false);
+        expect(body.verified).toBe(true);
+    });
+});
