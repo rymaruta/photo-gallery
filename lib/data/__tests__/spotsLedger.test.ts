@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { SPOTS, type Spot } from "../spots";
 import { hasAiCheck,
     publishBlockers, reviewBlockers, visibleSpots, sourcesFor, SOURCED_FIELDS,
@@ -511,7 +513,11 @@ describe("撮影スポット台帳（content/spots.json）", () => {
      * 丸ごと壊れる（か、ビルドが落ちる）。**台帳の側で止める**。
      */
     it("ルートとぶつかる綴りを使っていない", () => {
-        const RESERVED = ["area"];
+        // **固定ルートは `app/spots/` のフォルダから数える**（2026-10-11: `theme`・`season` が増えた。
+        // 手で書いた一覧だと、ルートを足した日に見張りが漏れる）
+        const RESERVED = fs.readdirSync(path.join(process.cwd(), "app", "spots"), { withFileTypes: true })
+            .filter((d) => d.isDirectory() && !d.name.startsWith("[")).map((d) => d.name);
+        expect(RESERVED).toEqual(expect.arrayContaining(["area", "season", "theme"]));
         const hit = SPOTS.filter((s) => RESERVED.includes(s.slug)).map((s) => s.slug);
         expect(hit, "`/spots/` の下の固定ルートと同じ綴りのスポットがある").toEqual([]);
     });

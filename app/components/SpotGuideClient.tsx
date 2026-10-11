@@ -16,6 +16,7 @@ import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
+import { CHIP_OFF } from "./chipStyles";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
 import { LIGHT_MAX_OFFSET, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
 
@@ -74,6 +75,11 @@ type Props = {
      * どれも作者・ライセンス・出典を持つ（持たない1枚はサーバー側で落としてある）
      */
     samples?: SpotSample[];
+    /**
+     * このスポットが載っている切り口の頁（国・テーマ・季節・2026-10-11）。
+     * サーバーが `topicLinksForSpot` で解いた**リンクだけ**（頁が在るものだけ）
+     */
+    topics?: Array<{ href: string; label: string; count: number }>;
 };
 
 /** 一覧の1行（`km` はこのスポットからの距離・両方に座標があるときだけ） */
@@ -403,7 +409,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     );
 }
 
-export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, samples = [] }: Props) {
+export default function SpotGuideClient({ spot, photos, nearby, locationPath, area = null, sameArea = null, pageUrl, light = null, samples = [], topics = [] }: Props) {
     const { locale } = useLocale();
     const { showToast } = useToast();
     const isJa = locale !== "en";
@@ -880,6 +886,25 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                         {isJa ? `${area.name}の撮影スポットをすべて見る` : `See all spots in ${area.nameEn}`} <span aria-hidden="true" className="ml-1">›</span>
                                     </Link>
                                 )}
+                            </section>
+                        )}
+
+                        {/* ── 11. このスポットが載っている一覧（国・テーマ・季節）── */}
+                        {topics.length > 0 && (
+                            <section className="mb-7" aria-labelledby="spot-topics" data-testid="spot-topics">
+                                <Head id="spot-topics">{isJa ? "このスポットが載っている一覧" : "Lists with this spot"}</Head>
+                                <ul className="flex flex-wrap gap-1.5 m-0 p-0" style={{ listStyle: "none" }}>
+                                    {topics.map((t) => (
+                                        <li key={t.href}>
+                                            <Link href={t.href} prefetch={false}
+                                                  className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
+                                                  style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                                {t.label}
+                                                <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
                             </section>
                         )}
 

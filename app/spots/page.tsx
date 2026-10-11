@@ -5,6 +5,8 @@ import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
+import { spotIndexTopics } from "@/lib/data/spotTopics";
+import { TopicChips } from "@/app/components/SpotTopicPage";
 
 /**
  * **撮影地ガイドの入口。**
@@ -53,7 +55,9 @@ export default function SpotIndexPage() {
             {areas.length > 0 && (
                 <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(spotAreaItemList(areas)) }} />
             )}
-            <SpotAreaIndexClient areas={areas} total={total} draftCount={total - publishableSpots(SPOTS).length} />
+            <SpotAreaIndexClient areas={areas} total={total} draftCount={total - publishableSpots(SPOTS).length}>
+                <SpotIndexTopicSections />
+            </SpotAreaIndexClient>
         </>
     );
 }
@@ -61,3 +65,34 @@ export default function SpotIndexPage() {
 /** JSON-LD を `<script>` に埋める形（`SpotGuidePage.tsx` と同じ。`</script>` で閉じられないように） */
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
 
+
+/**
+ * **季節・テーマの切り口への入口**（2026-10-11）。県の一覧の下に置く。
+ * 海外の国は「海外」の区画（`/spots/area/overseas`＝国の一覧）から辿る。
+ * サーバーで描くので、切り口の一覧はクライアントの props に乗らない（HTML の本文だけ）
+ */
+function SpotIndexTopicSections() {
+    const { seasons, themes } = spotIndexTopics();
+    if (seasons.length === 0 && themes.length === 0) return null;
+    return (
+        <div data-testid="spots-topic-index">
+            {seasons.length > 0 && (
+                <section className="mb-7">
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}>季節でさがす</h2>
+                    <TopicChips links={seasons} />
+                </section>
+            )}
+            {themes.length > 0 && (
+                <section className="mb-7">
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}>テーマでさがす</h2>
+                    {themes.map((g) => (
+                        <div key={g.category} className="mb-3">
+                            <h3 className="m-0 mb-1.5 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}>{g.category}</h3>
+                            <TopicChips links={g.links} />
+                        </div>
+                    ))}
+                </section>
+            )}
+        </div>
+    );
+}
