@@ -132170,7 +132170,7 @@
       "lng": 86.09
     },
     "category": "寺院",
-    "summary": "インド・オリッサ州のコナーラクにある、太陽神スーリヤを祀る寺院です。1984年にユネスコの世界遺産に登録されました。",
+    "summary": "インド・オディシャ州のコナーラクにある、太陽神スーリヤを祀る寺院です。1984年にユネスコの世界遺産に登録されました。",
     "description": "13世紀の東ガンガ朝の時代に、ナラシンハデーヴァ1世のもとで20年近くをかけて建てられました。境内は約180m×260mの広さです。7頭の馬が引く馬車に乗る太陽神スーリヤの話をもとに、寺院そのものが馬車をかたどっていて、基壇には高さ3mの車輪が12対彫られています。この車輪はインドのルピー紙幣の図柄にも採用されています。壁面はヒンドゥー彫刻で彩られています。",
     "highlights": [
       "基壇に彫られた12対の石の車輪",
@@ -132202,6 +132202,10 @@
         {
           "url": "https://www.incredibleindia.gov.in/en/odisha/puri/konark-temple",
           "title": "公式サイト「Discover the Konark Temple in Puri | Incredible India」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Konark_Sun_Temple",
+          "title": "Wikipedia（英語版）「Konark Sun Temple」"
         }
       ]
     },
@@ -135386,7 +135390,7 @@
     },
     "category": "山岳",
     "summary": "アメリカ・アラスカ州にあるアラスカ山脈の最高峰で、北アメリカ大陸で最も高い山です。一帯はデナリ国立公園になっています。",
-    "description": "名前は先住民の言葉で「高きもの」「偉大なるもの」を意味する呼び名に由来します。1897年に連邦政府が当時の大統領にちなむマッキンリー山の名を与えましたが、アラスカでは長くデナリの名が好まれ、1980年に周囲にデナリ国立公園が設けられました。2015年には、山の名称が正式にデナリへ変更されると発表されました。雪と氷に覆われた巨大な山塊は、晴れれば遠くからも大きく見えます。",
+    "description": "名前は先住民の言葉で「高きもの」「偉大なるもの」を意味する呼び名に由来します。1897年に連邦政府が当時の大統領にちなむマッキンリー山の名を与えましたが、アラスカでは長くデナリの名が好まれ、1980年に周囲にデナリ国立公園が設けられました。アラスカ州は1975年に州としての山の名をデナリとし、連邦政府も2015年に正式名称をデナリに改めました。2025年1月、連邦政府は正式名称をマッキンリー山に戻しましたが、国立公園の名前はデナリのままです。雪と氷に覆われた巨大な山塊は、晴れれば遠くからも大きく見えます。",
     "highlights": [
       "北アメリカ大陸の最高峰の雪の山塊",
       "国立公園のツンドラ越しに見る山容",
@@ -135417,6 +135421,10 @@
         {
           "url": "https://www.nps.gov/dena/index.htm",
           "title": "公式サイト「Denali National Park & Preserve (U.S. National Park Service)」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Denali",
+          "title": "Wikipedia（英語版）「Denali」"
         }
       ]
     },
@@ -140628,7 +140636,7 @@
   {
     "spotId": "sp_54ff8f901f3a",
     "slug": "drumheller",
-    "name": "ドラムヘラー (アルバータ州)",
+    "name": "ドラムヘラー",
     "nameEn": "Drumheller",
     "reading": "ドラムヘラー",
     "aliases": [
@@ -140644,7 +140652,7 @@
     },
     "category": "渓谷",
     "summary": "カナダ・アルバータ州中東部、レッドディア川流域のバッドランドにある町です。恐竜の化石で知られ、カルガリーの北東110kmにあります。",
-    "description": "1930年代には炭鉱で栄え、人口は30,000人を超えました。むき出しの地層が続くバッドランドの景色は映画のロケ地としても使われています。観光案内所の隣には、高さ26.2mのティラノサウルスを模した展望台「世界最大の恐竜」があり、中に入ってバッドランド一帯を見渡せます。近くには吊り橋のスターマイン橋や、恐竜化石の博物館ロイヤル・ティレル古生物学博物館もあります。",
+    "description": "炭鉱で栄え、1916年に312人だった人口は1931年には2,987人になりました。むき出しの地層が続くバッドランドの景色は映画のロケ地としても使われています。観光案内所の隣には、高さ26.2mのティラノサウルスを模した展望台「世界最大の恐竜」があり、中に入ってバッドランド一帯を見渡せます。近くには吊り橋のスターマイン橋や、恐竜化石の博物館ロイヤル・ティレル古生物学博物館もあります。",
     "highlights": [
       "縞模様の地層がむき出しのバッドランド",
       "ティラノサウルスの形の展望台",
@@ -140671,6 +140679,10 @@
         {
           "url": "https://www.wikidata.org/wiki/Q1012991",
           "title": "Wikidata「Q1012991」（座標・所在地・公式サイト）"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Drumheller",
+          "title": "Wikipedia（英語版）「Drumheller」"
         }
       ]
     },
@@ -141793,7 +141805,7 @@
       "lng": 143.06
     },
     "category": "海岸",
-    "summary": "オーストラリア・ビクトリア州の州都メルボルンの南西190kmにある国立公園です。グレートオーシャンロード沿いに、海から突き出した砂岩の岩柱群が並びます。",
+    "summary": "オーストラリア・ビクトリア州の州都メルボルンの南西190kmにある国立公園です。グレートオーシャンロード沿いに、海から突き出した石灰岩の岩柱群が並びます。",
     "description": "見どころは、海に立つ岩柱群ザ・トゥエルブ・アポストルズや、橋の一部が崩れて改名されたロンドン・アーチ、ロック・アード渓谷、ギブソン・ステップスなどです。メルボルンからはフィリップ島と並んで多くの日帰りツアーが出ています。南極海の荒波が削った崖と岩柱が、夕日に金色に染まります。",
     "highlights": [
       "海に立つ岩柱群トゥエルブ・アポストルズ",
@@ -141825,6 +141837,10 @@
         {
           "url": "https://www.greatoceanroadauthority.vic.gov.au/Land-We-Manage/National-Parks/Port-Campbell-National-Park",
           "title": "公式サイト「www.greatoceanroadauthority.vic.gov.au」"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Twelve_Apostles_(Victoria)",
+          "title": "Wikipedia（英語版）「Twelve Apostles (Victoria)」"
         }
       ]
     },
@@ -142152,12 +142168,12 @@
   {
     "spotId": "sp_fc9154e8f5d2",
     "slug": "mungo-national-park",
-    "name": "ムンゴ国立公園",
+    "name": "マンゴ国立公園",
     "nameEn": "Mungo National Park",
-    "reading": "ムンゴこくりつこうえん",
+    "reading": "マンゴこくりつこうえん",
     "aliases": [
       "Mungo National Park",
-      "マンゴ国立公園"
+      "ムンゴ国立公園"
     ],
     "region": {
       "country": "オーストラリア",
@@ -158099,11 +158115,11 @@
   {
     "spotId": "sp_6756416da70c",
     "slug": "abbey-of-fontenay",
-    "name": "フォントネー修道院（フォントネーのシトー会修道院）",
+    "name": "フォントネー修道院",
     "nameEn": "Abbey of Fontenay",
     "reading": "フォントネーシュウドウイン",
     "aliases": [
-      "フォントネー修道院",
+      "フォントネーのシトー会修道院",
       "Abbaye de Fontenay"
     ],
     "region": {
@@ -158407,11 +158423,11 @@
   {
     "spotId": "sp_c130f100a588",
     "slug": "roman-theatre-of-orange",
-    "name": "オランジュのローマ劇場（オランジュのローマ劇場とその周辺及び「凱旋門」）",
+    "name": "オランジュのローマ劇場",
     "nameEn": "Roman Theatre of Orange",
     "reading": "オランジュノローマゲキジョウ",
     "aliases": [
-      "オランジュのローマ劇場",
+      "オランジュのローマ劇場とその周辺及び「凱旋門」",
       "Théâtre antique d'Orange"
     ],
     "region": {
@@ -159846,7 +159862,7 @@
       "川岸から、川面と城を一緒に横長に収めます",
       "夕方の光で、城の壁を温かい色に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -160201,7 +160217,7 @@
       "湖のほとりから、水面に映る山並みを横長に収めます",
       "雲の影が山肌を流れる時間に、明暗の差を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -160761,13 +160777,14 @@
   {
     "spotId": "sp_22150c8160bb",
     "slug": "basilica-of-san-francesco-assisi",
-    "name": "サン・フランチェスコ聖堂（アッシジ、フランチェスコ聖堂と関連修道施設群）",
+    "name": "サン・フランチェスコ聖堂",
     "nameEn": "Basilica of Saint Francis of Assisi",
     "reading": "サンフランチェスコセイドウ",
     "aliases": [
       "サン・フランチェスコ大聖堂",
       "アッシジのサン・フランチェスコ聖堂",
-      "Basilica di San Francesco d'Assisi"
+      "Basilica di San Francesco d'Assisi",
+      "アッシジ、フランチェスコ聖堂と関連修道施設群"
     ],
     "region": {
       "country": "イタリア",
@@ -162950,7 +162967,7 @@
       "正面の前から、新古典主義の正面を左右対称に収めます",
       "回廊では、ゴシックのアーチを額縁にして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -163626,7 +163643,7 @@
       "宮殿の前の広場から、正面を左右対称に収めます",
       "庭園では、宮殿を背景に花壇や噴水を手前に入れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -163839,7 +163856,7 @@
       "海岸の高い位置から、入り江と海の色を一緒に収めます",
       "夕日の時間に、海に沈む太陽を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164048,7 +164065,7 @@
       "ピラミッドの角から、階段状の段を斜めに収めます",
       "朝夕の斜めの光で、溶岩の石の凹凸を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164101,7 +164118,7 @@
       "正面の階段の前から、新古典主義の正面を左右対称に収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164314,7 +164331,7 @@
       "正面から少し離れ、4つの塔を一緒に収めます",
       "青い空を背にして、灰色の石の質感を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164366,7 +164383,7 @@
       "入口の前から、ゴシックの彫刻を見上げて収めます",
       "通りから、大聖堂の塔を縦長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164418,7 +164435,7 @@
       "広場の端から、正面の塔を見上げて縦長に収めます",
       "夕暮れに、塔の灯りと空の色を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164580,7 +164597,7 @@
       "湖のほとりから、水面と木々を一緒に収めます",
       "夕方の光で、湖の水面に映る空を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -164898,7 +164915,7 @@
       "バラの季節に、花を手前に入れて庭園の奥行きを出します",
       "運河沿いでは、水面と木々を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -165744,7 +165761,7 @@
       "城の外から、城壁の連なりを斜めに収めます",
       "城壁の上から、城の内側の広がりを見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -166014,7 +166031,7 @@
       "ケム川の岸から、川と大学の建物を一緒に収めます",
       "川を行く小舟を入れて、町の雰囲気を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -166390,7 +166407,7 @@
       "海峡の岸から、メナイ吊橋の全体を横長に収めます",
       "夕暮れに、橋と海峡の水面を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -166552,7 +166569,7 @@
       "少し離れて、パラボラの全体を空と一緒に収めます",
       "人を小さく入れて、望遠鏡の大きさを伝えます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -166707,7 +166724,7 @@
       "フェリーの上から、ロスシーの町並みと港を収めます",
       "丘の上から、クライド湾を見渡して撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167385,7 +167402,7 @@
       "教会の前から、建物の全体を収めます",
       "堂内では、柱とアーチの並びを奥へ向けて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167436,7 +167453,7 @@
       "カスケードの下から、段になって流れる水を正面に収めます",
       "少し遅いシャッターで、水の流れを柔らかく写します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167487,7 +167504,7 @@
       "庭園から、城の建物を植物越しに収めます",
       "花の季節に、花を手前に入れて城を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167640,7 +167657,7 @@
       "教会と周りの現代的な建物を一緒に入れて、新旧の対比を撮ります",
       "教会の塔を、見上げて縦長に収めます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167801,7 +167818,7 @@
       "湖のほとりから、湖面と山並みを横長に収めます",
       "森の中では、木漏れ日の差す時間に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -167958,7 +167975,7 @@
       "温室の中では、ガラス越しの光で葉の色を出します",
       "庭園の小道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168375,7 +168392,7 @@
       "町の高い所から、旧市街の屋根の連なりを見下ろして収めます",
       "スエバイトの建物の壁に寄り、石の質感を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168427,7 +168444,7 @@
       "マイン川の対岸から、丘の上の要塞と川を一緒に収めます",
       "要塞から、ヴュルツブルクの町を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168741,7 +168758,7 @@
       "マーケット広場から、大聖堂の塔を見上げて収めます",
       "ライン川の対岸から、町並みと大聖堂を望遠で切り取ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168795,7 +168812,7 @@
       "港の岸壁から、海と歴史地区の建物を一緒に収めます",
       "旧市街で、歴史ある建物の正面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168846,7 +168863,7 @@
       "港から、煉瓦の建物と船を一緒に収めます",
       "教会の塔を、通りから見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168896,7 +168913,7 @@
       "ナイセ川の岸から、川と町並みを一緒に収めます",
       "旧市街で、建物の正面の並びを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -168948,7 +168965,7 @@
       "丘の下から、大聖堂と隣の教会を一緒に見上げて収めます",
       "夕暮れに、灯りのともる大聖堂を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169104,7 +169121,7 @@
       "エルベ川の対岸から、川と大聖堂を一緒に収めます",
       "大聖堂の塔を、見上げて縦長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169160,7 +169177,7 @@
       "第12採掘坑の建物を正面から見上げ、左右対称に収めます",
       "夕暮れに、鉄骨のシルエットを空に浮かべて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169266,7 +169283,7 @@
       "運河の岸から、古いクレーンと家並みを一緒に収めます",
       "夕暮れに、運河の水面に映る灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169527,7 +169544,7 @@
       "港の岸壁から、湖と島の町並みを一緒に収めます",
       "夕暮れに、湖面に映る町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169577,7 +169594,7 @@
       "湖の船の上から、湖畔の町と城を一緒に収めます",
       "湖畔の道から、城と家並みを見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169809,12 +169826,13 @@
   {
     "spotId": "sp_9366857d3800",
     "slug": "augustusburg-palace",
-    "name": "アウグストゥスブルク城（ブリュールのアウグストゥスブルク城と別邸ファルケンルスト）",
+    "name": "アウグストゥスブルク城",
     "nameEn": "Augustusburg and Falkenlust Palaces",
     "reading": "アウグストゥスブルクジョウ",
     "aliases": [
       "アウグストゥスブルク宮殿",
-      "Schloss Augustusburg"
+      "Schloss Augustusburg",
+      "ブリュールのアウグストゥスブルク城と別邸ファルケンルスト"
     ],
     "region": {
       "country": "ドイツ",
@@ -169837,7 +169855,7 @@
       "庭園の中央から、宮殿の正面を左右対称に収めます",
       "花壇の模様を、手前から奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -169893,7 +169911,7 @@
       "敷地から、残る建物を正面に収めます",
       "建物の壁に寄り、古い石の質感を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170053,7 +170071,7 @@
       "入り江の岸から、水辺と草地を一緒に収めます",
       "博物館の建物と入り江を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170266,7 +170284,7 @@
       "正面の前から、宮殿を左右対称に収めます",
       "シュプレー川沿いの道から、木々越しに宮殿を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170317,7 +170335,7 @@
       "土塁の上から、続く防壁の線を奥へ向けて収めます",
       "朝夕の低い光で、土塁の起伏を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170369,7 +170387,7 @@
       "高い所から、くぼ地の広がりを見下ろして収めます",
       "斜めの光で、地面の起伏を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170424,7 +170442,7 @@
       "外から、大聖堂の塔を見上げて縦長に収めます",
       "堂内は撮影の決まりを確かめ、彫刻に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170528,7 +170546,7 @@
       "建物の角から、壁の線を斜めに収めます",
       "曇りの日に、ガラスと壁の質感を落ち着いた色で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170737,7 +170755,7 @@
       "設備の足元から、鉄骨の重なりを見上げて収めます",
       "夕暮れに、照らされた設備のシルエットを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170894,7 +170912,7 @@
       "町の通りから、温泉地らしい建物の並びを収めます",
       "公園の緑と建物を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -170948,7 +170966,7 @@
       "シャクナゲの花の季節に、花越しに小道を収めます",
       "撮影は静かに、墓所に配慮して行います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -171105,7 +171123,7 @@
       "草に覆われた線路を、奥へ続く線で収めます",
       "旧給水塔を、木々越しに見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -171156,7 +171174,7 @@
       "花壇の植物に寄り、背景をぼかして撮ります",
       "園内の小道を、奥へ続く線で収めます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -171361,7 +171379,7 @@
       "身廊の端から、両側の壁のモザイクの帯を奥へ向けて収めます",
       "堂内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -171618,7 +171636,7 @@
       "湖岸から、湖に浮かぶ島を横長に収めます",
       "風のない朝に、島の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -171769,7 +171787,7 @@
       "町の端から、麓の海を見下ろして収めます",
       "女神の遺跡を、空を背景に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172191,7 +172209,7 @@
       "博物館の建物と周りの緑を一緒に収めます",
       "展示は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172300,7 +172318,7 @@
       "高い所から、森と山の重なりを横長に収めます",
       "朝夕の低い光で、木々の影を長く撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172355,7 +172373,7 @@
       "花壇の花に寄り、背景をぼかして撮ります",
       "園内の小道を、奥へ続く線で収めます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172509,7 +172527,7 @@
       "孤立丘を、広い空と一緒に横長に収めます",
       "朝夕の斜めの光で、地層の凹凸を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172564,7 +172582,7 @@
       "河口の岸から、川と対岸の町を一緒に収めます",
       "町の通りから、家並みを奥へ向けて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172668,7 +172686,7 @@
       "中庭の端から、周りの建物を横長に収めます",
       "大聖堂の建物を、見上げて縦長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172719,7 +172737,7 @@
       "ウェア川の岸から、丘の上の城と大聖堂を一緒に収めます",
       "夕方の光で、石の城壁を温かい色に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172769,7 +172787,7 @@
       "町の通りから、奥にそびえる大聖堂を入れて収めます",
       "古い家並みを、通りに沿って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172821,7 +172839,7 @@
       "公園の高い所から、周りの街並みを見渡して収めます",
       "並木の道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -172873,7 +172891,7 @@
       "建物の正面を、通りから見上げて収めます",
       "展示は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173023,7 +173041,7 @@
       "アーレ川の岸から、川と町並みを一緒に収めます",
       "町の芝生広場から、遠くの雪山を望遠で切り取ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173073,7 +173091,7 @@
       "湖畔から、湖の色と対岸の山を横長に収めます",
       "登山鉄道の車窓から、湖を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173123,7 +173141,7 @@
       "湖畔の道から、湖と対岸の山を横長に収めます",
       "夕暮れに、湖面に映る空の色を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173174,7 +173192,7 @@
       "湖畔から、湖と町並みを一緒に収めます",
       "風のない朝に、湖面に映る山を狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173275,7 +173293,7 @@
       "村の高い所から、家並みと周りの峰を一緒に収めます",
       "雪の季節は、白い山を青空と対比させて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173325,7 +173343,7 @@
       "山の上から、湖と町並みを見下ろして収めます",
       "湖畔の道から、湖面と山を横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173375,7 +173393,7 @@
       "暗い岩の間を落ちる水を、少し遅いシャッターで流れとして写します",
       "水しぶきに注意して、レンズを拭きながら撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173425,7 +173443,7 @@
       "高台から、盆地の牧草地と山並みを横長に収めます",
       "朝の霧が盆地に残る時間を狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173476,7 +173494,7 @@
       "城の上から、城壁と旧市街を見下ろして収めます",
       "谷を背景に、城の塔を縦長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173526,7 +173544,7 @@
       "旧市街の通りを、奥へ続く線で収めます",
       "ライン川の岸から、川と町並みを一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173576,7 +173594,7 @@
       "湖畔から、湖と町並みを一緒に収めます",
       "夕日の時間に、湖面に映る光を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173735,7 +173753,7 @@
       "町外れの斜面から、町と谷を見下ろして収めます",
       "朝の澄んだ空気の中で、山並みを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -173946,7 +173964,7 @@
       "町の下から、高台の城を見上げて収めます",
       "城から、町並みと周りの景色を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174049,7 +174067,7 @@
       "頂上から、広がるアテネの街並みを横長に収めます",
       "夕暮れに、街の灯りがともる時間を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174203,7 +174221,7 @@
       "湖岸から、湖面と対岸の山を横長に収めます",
       "夕暮れに、湖に映る町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174253,7 +174271,7 @@
       "湖岸から、岬の町並みと湖面を一緒に収めます",
       "風のない朝に、湖の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174308,7 +174326,7 @@
       "港の岸壁から、船と町並みを一緒に収めます",
       "夕日の時間に、湾の海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174359,7 +174377,7 @@
       "崖の上の道から、白い家並みとカルデラ湾を一緒に収めます",
       "夕日の時間に、白壁が色づく様子を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174461,7 +174479,7 @@
       "旧市街の高い所から、屋根と海を一緒に収めます",
       "海沿いの道から、旧市街の建物を横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174512,7 +174530,7 @@
       "高い所から、中世の街並みを見下ろして収めます",
       "港から、町と海を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174563,7 +174581,7 @@
       "海岸の高台から、入り江と海の色を収めます",
       "遺跡では、石の柱を空を背景に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174617,7 +174635,7 @@
       "砂浜から、海と空を横長に収めます",
       "ホラの港から、町並みと海を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174667,7 +174685,7 @@
       "港町の路地を、奥へ続く線で収めます",
       "夕日の時間に、海と港を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174718,7 +174736,7 @@
       "海岸の岩場から、海の色と岩を一緒に収めます",
       "夕方の光で、岩の色を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174772,7 +174790,7 @@
       "村の高台から、家並みと海を一緒に収めます",
       "陶芸の工房の作品に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174826,7 +174844,7 @@
       "崖の上から、海と村を一緒に収めます",
       "夕日の時間に、崖の上のホラを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174876,7 +174894,7 @@
       "港から、丘の上の修道院とホーラを見上げて収めます",
       "修道院から、島と海を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -174930,7 +174948,7 @@
       "港から、湾と町並みを一緒に収めます",
       "夕暮れに、港の灯りと海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175036,7 +175054,7 @@
       "修道院の建物を、空を背景に収めます",
       "海峡沿いの道から、海と対岸を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175087,7 +175105,7 @@
       "港から、要塞と海を一緒に収めます",
       "砂浜から、海と空を横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175138,7 +175156,7 @@
       "港の岸から、入り江と家並みを一緒に収めます",
       "丘の上から、島の海岸線を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175193,7 +175211,7 @@
       "フェリーの上から、島と湾を一緒に収めます",
       "海岸から、夕日の海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175243,7 +175261,7 @@
       "山道の高い所から、海岸線を見下ろして収めます",
       "港の町並みを、海と一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175294,7 +175312,7 @@
       "海岸の高い所から、海の色を見下ろして収めます",
       "港町の通りで、家並みを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175350,7 +175368,7 @@
       "港の岸から、入り江と家並みを一緒に収めます",
       "海岸の高い所から、海の色を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175405,7 +175423,7 @@
       "海岸から、水平線と空を横長に収めます",
       "夕日の時間に、海に沈む太陽を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175565,7 +175583,7 @@
       "通りの向かいから、建物の正面を静かに収めます",
       "館内は撮影の決まりを確かめ、静かに見学します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175719,7 +175737,7 @@
       "町の通りから、古い家並みを奥へ向けて収めます",
       "シーボルトハウスの建物を、正面から撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175820,7 +175838,7 @@
       "広場から、市庁舎の正面を左右対称に収めます",
       "市庁舎の細部に寄り、装飾を切り取ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -175872,7 +175890,7 @@
       "砂浜から、海と空を横長に収めます",
       "夕日の時間に、海岸を逆光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176029,7 +176047,7 @@
       "町の通りから、家並みを奥へ向けて収めます",
       "市場の広場で、建物の並びを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176083,7 +176101,7 @@
       "おとぎの森では、木々の中の物語の場面を切り取ります",
       "建物の細部に寄って、物語の世界を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176133,7 +176151,7 @@
       "旧市街から、ドム教会の塔を見上げて収めます",
       "塔と周りの家並みを、通りから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176183,7 +176201,7 @@
       "堤防の上から、海と干拓地を一緒に横長に収めます",
       "夕日の時間に、海岸を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176234,7 +176252,7 @@
       "エイセル川の対岸から、町並みを横長に収めます",
       "旧市街の通りを、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176336,7 +176354,7 @@
       "ワール川の岸から、川と橋を横長に収めます",
       "丘の上から、川の流域を見渡して撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176387,7 +176405,7 @@
       "旧市街の広場から、建物の並びを収めます",
       "城壁の跡や水辺を、町と一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176590,7 +176608,7 @@
       "砂丘の上から、草と砂の起伏を横長に収めます",
       "干潟では、水たまりに映る空を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176641,7 +176659,7 @@
       "フェリーの上から、島の姿と海を一緒に収めます",
       "浜辺で、海と空を横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176691,7 +176709,7 @@
       "ダムの上から、海と干拓地を一緒に横長に収めます",
       "夕日の時間に、海岸を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176715,11 +176733,12 @@
   {
     "spotId": "sp_e2bb3c143729",
     "slug": "schokland",
-    "name": "スホクラント（スホクラントとその周辺）",
+    "name": "スホクラント",
     "nameEn": "Schokland",
     "reading": "スホクラント",
     "aliases": [
-      "Schokland"
+      "Schokland",
+      "スホクラントとその周辺"
     ],
     "region": {
       "country": "オランダ",
@@ -176793,7 +176812,7 @@
       "正面から、面と線の構成を正対して収めます",
       "斜めから、立体の重なりを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176899,7 +176918,7 @@
       "城の前庭から、宮殿の正面を左右対称に収めます",
       "城の建物の細部に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -176950,7 +176969,7 @@
       "ヴァーツラフ広場から、博物館の正面を見上げて収めます",
       "夕暮れに、照らされた建物を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177000,7 +177019,7 @@
       "動物は柵越しに、望遠で目元にピントを合わせます",
       "園内の緑の中で、動物の自然な姿を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177153,7 +177172,7 @@
       "高い所から、旧市街の屋根の連なりを見下ろして収めます",
       "旧市街の広場で、建物の並びを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177204,7 +177223,7 @@
       "丘の下の通りから、尖塔を見上げて縦長に収めます",
       "町の高い所から、丘の上の大聖堂を望遠で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177255,7 +177274,7 @@
       "町の高い所から、屋根の連なりを収めます",
       "旧市街の通りを、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177515,7 +177534,7 @@
       "町の高い所から、山を背景に町並みを収めます",
       "旧市街の広場で、建物の正面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177569,7 +177588,7 @@
       "広場の端から、周りの建物を横長に収めます",
       "町の門や塔を、見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177674,7 +177693,7 @@
       "川沿いから、町と周りの山を一緒に収めます",
       "晴れた日に、山の緑と青空を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177725,7 +177744,7 @@
       "産業の遺構を、空を背景に見上げて収めます",
       "夕暮れに、町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177779,7 +177798,7 @@
       "川を見下ろす展望地から、蛇行する川と森を収めます",
       "秋は森の色づきを入れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177830,7 +177849,7 @@
       "城の外から、円塔のある建物を見上げて収めます",
       "秋は周りの木々の色づきを入れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177881,7 +177900,7 @@
       "山の麓の景色を、遺跡のある丘と一緒に収めます",
       "朝夕の低い光で、丘の起伏を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -177986,7 +178005,7 @@
       "城の中庭から、周りの建物を横長に収めます",
       "城の壁の装飾に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178037,7 +178056,7 @@
       "正面から少し離れ、教会の全体を収めます",
       "堂内は撮影の決まりを確かめ、天井を見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178199,7 +178218,7 @@
       "霊廟の正面を、左右対称に収めます",
       "撮影の決まりを確かめ、静かに撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178300,7 +178319,7 @@
       "海岸の遊歩道から、海峡と対岸を横長に収めます",
       "夕暮れに、海峡を行く船を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178351,7 +178370,7 @@
       "フェリーの上から、島の家並みと海を一緒に収めます",
       "島の高い所から、マルマラ海を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178401,7 +178420,7 @@
       "坂の上から、町並みと海を見下ろして収めます",
       "夕日の時間に、港と海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178451,7 +178470,7 @@
       "町の高い所から、町並みと周りの高原を収めます",
       "古い建物の正面を、通りから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178501,7 +178520,7 @@
       "町の高い所から、山に囲まれた町並みを収めます",
       "雪の季節に、白い山と町を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178552,7 +178571,7 @@
       "町の中心から、歴史ある建物を見上げて収めます",
       "夕暮れに、町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178603,7 +178622,7 @@
       "高台から、周りの平原を横長に収めます",
       "遺跡の丘の起伏を、朝夕の低い光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178654,7 +178673,7 @@
       "海岸の高台から、海と町並みを一緒に収めます",
       "夕日の時間に、地中海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178705,7 +178724,7 @@
       "港の岸壁から、海と町並みを一緒に収めます",
       "劇場跡を、斜めの光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178756,7 +178775,7 @@
       "港の対岸から、町並みと船を一緒に収めます",
       "夕暮れに、港の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178807,7 +178826,7 @@
       "町の中心から、歴史ある建物を見上げて収めます",
       "町の通りから、家並みを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178857,7 +178876,7 @@
       "町の高い所から、山を背景に町並みを収めます",
       "廟の建物を、緑と一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178908,7 +178927,7 @@
       "城壁の門から、城壁の続く線を収めます",
       "湖岸から、夕日の湖を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -178963,7 +178982,7 @@
       "高台から、黒海と町並みを一緒に収めます",
       "港で、船と海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179014,7 +179033,7 @@
       "海岸から、海と空を横長に収めます",
       "村の高い所から、島の景色を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179121,7 +179140,7 @@
       "遺跡の高い所から、遺構の広がりを収めます",
       "夕方の光で、石の柱に陰影をつけます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179171,7 +179190,7 @@
       "遺跡の高い所から、海の方を見渡して収めます",
       "夕日の時間に、遺跡のシルエットを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179221,7 +179240,7 @@
       "海岸から、黒海と町を一緒に収めます",
       "港で、船と海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179271,7 +179290,7 @@
       "ムーズ川の対岸から、川と町並みを横長に収めます",
       "夕暮れに、川面に映る町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179321,7 +179340,7 @@
       "町の中心で、保養地らしい建物を収めます",
       "緑の多い公園で、建物と木々を一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179372,7 +179391,7 @@
       "浜辺から、海と町並みを一緒に横長に収めます",
       "夕日の時間に、海を逆光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179423,7 +179442,7 @@
       "旧市街の広場から、周りの建物を横長に収めます",
       "夕暮れに、灯りのともる広場を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179525,7 +179544,7 @@
       "町の広場から、銅像と周りの建物を一緒に収めます",
       "古い通りを、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179631,7 +179650,7 @@
       "急流のそばから、川と町の建物を一緒に収めます",
       "夕暮れに、水面に映る町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179683,7 +179702,7 @@
       "森の中の道を、奥へ続く線で静かに収めます",
       "撮影は墓所に配慮し、静かに行います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179789,7 +179808,7 @@
       "城壁の外から、続く城壁を斜めに収めます",
       "海岸で、岩と海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179896,7 +179915,7 @@
       "湖岸から、細長い湖を奥へ向けて収めます",
       "夕日の時間に、湖面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179946,7 +179965,7 @@
       "湖岸から、修道院と湖面を一緒に収めます",
       "修道院の建物を、正面から撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -179998,7 +180017,7 @@
       "大聖堂の前から、塔を見上げて縦長に収めます",
       "城と大聖堂を一緒に入れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180052,7 +180071,7 @@
       "運河の岸から、水面と岸の景色を収めます",
       "運河沿いの道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180103,7 +180122,7 @@
       "川沿いから、流れと工場の建物を一緒に収めます",
       "川の流れを、少し遅いシャッターで撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180153,7 +180172,7 @@
       "滝の近くの橋から、流れ落ちる水を収めます",
       "閘門を通る船を、上から撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180204,7 +180223,7 @@
       "冬は、凍った海と町を一緒に横長に収めます",
       "夏は、島々の浮かぶ海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180306,7 +180325,7 @@
       "石畳の古い通りを、奥へ続く線で収めます",
       "古い家の正面を、通りから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180357,7 +180376,7 @@
       "港の岸壁から、海と町並みを一緒に収めます",
       "夕暮れに、町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180408,7 +180427,7 @@
       "丘の上から、風車と町並みを一緒に収めます",
       "フィヨルドの岸から、水面と丘を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180515,7 +180534,7 @@
       "田園の道から、畑と空を横長に収めます",
       "海辺の村で、港と家並みを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180569,7 +180588,7 @@
       "湿地では、望遠で水鳥を切り取ります",
       "海岸から、海と空を横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180620,7 +180639,7 @@
       "海岸から、海と島の景色を一緒に収めます",
       "田園の道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180670,7 +180689,7 @@
       "海岸から、海と空を横長に収めます",
       "フェリーの上から、島の姿を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180721,7 +180740,7 @@
       "石室墳の丸い形を、空と一緒に横長に収めます",
       "朝夕の低い光で、草の丘に陰影をつけます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180777,7 +180796,7 @@
       "シカには近づかず、望遠で群れを切り取ります",
       "並木道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180832,7 +180851,7 @@
       "建物の外観を、正面から収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180941,7 +180960,7 @@
       "川沿いから、流れと町並みを一緒に収めます",
       "湾の岸から、夕日の海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -180992,7 +181011,7 @@
       "湖のほとりから、山並みと水面を横長に収めます",
       "雲の影が山肌を流れる時間に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181046,7 +181065,7 @@
       "麓から、山を見上げて収めます",
       "高い所から、クルー・ベイを見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181100,7 +181119,7 @@
       "湖岸から、湖面と山を横長に収めます",
       "朝の霧の中で、湖を柔らかく撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181150,7 +181169,7 @@
       "川沿いから、港と町並みを横長に収めます",
       "古い建物を、通りから見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181204,7 +181223,7 @@
       "ノア川の岸から、川と町並みを一緒に収めます",
       "夕暮れに、通りの灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181259,7 +181278,7 @@
       "湿原の広がりを、山並みと一緒に横長に収めます",
       "夕方の低い光で、草の色を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181313,7 +181332,7 @@
       "岩の割れ目を手前に入れて、広がる大地を収めます",
       "夕方の低い光で、岩の質感を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181420,7 +181439,7 @@
       "ヴィスワ川沿いの道から、建物の外観を収めます",
       "展示は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181475,7 +181494,7 @@
       "旧市街の通りから、教会の巨大な塔を見上げて収めます",
       "夕方の光で、レンガの赤みを出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181576,7 +181595,7 @@
       "川岸から、川と町並みを一緒に収めます",
       "旧市街の広場で、建物の並びを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181627,7 +181646,7 @@
       "工場の建物を、通りから見上げて収めます",
       "夕暮れに、町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181678,7 +181697,7 @@
       "修道院へ続く道から、塔を見上げて収めます",
       "巡礼の人々を、遠くから静かに撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181728,7 +181747,7 @@
       "坑道の中では、照明に浮かぶ岩塩の壁を撮ります",
       "暗い場所では、感度を上げて手ぶれを抑えます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181779,7 +181798,7 @@
       "サン川の岸から、川と町並みを一緒に収めます",
       "夕暮れに、町の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181834,7 +181853,7 @@
       "町の高い所から、町並みと山を一緒に収めます",
       "町の通りを、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -181993,7 +182012,7 @@
       "対岸から、ドナウ川と大聖堂を一緒に収めます",
       "橋の上から、川と町を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182043,7 +182062,7 @@
       "大聖堂の正面を、広場から収めます",
       "ドナウ川の岸から、川の景色を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182093,7 +182112,7 @@
       "湖のほとりから、湖面と山並みを横長に収めます",
       "朝の光で、岩山の稜線を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182143,7 +182162,7 @@
       "ドラヴァ川の岸から、川と町並みを一緒に収めます",
       "夕暮れに、川面に映る灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182244,7 +182263,7 @@
       "港の岸壁から、船と町並みを一緒に収めます",
       "夕日の時間に、アドリア海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182295,7 +182314,7 @@
       "旧市街の広場から、建物の並びを収めます",
       "海辺の道から、海と町を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182345,7 +182364,7 @@
       "地底湖の水面に映る照明を入れて撮ります",
       "暗い洞窟では、感度を上げて手ぶれを抑えます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182400,7 +182419,7 @@
       "花壇の花に寄り、背景をぼかして撮ります",
       "園内の小道を、奥へ続く線で収めます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182451,7 +182470,7 @@
       "正面から、建物を左右対称に収めます",
       "展示は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182501,7 +182520,7 @@
       "町の周りの田園を、広い空と一緒に収めます",
       "温泉施設は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182552,7 +182571,7 @@
       "区域の中から、美術館の建物を一緒に収めます",
       "夕暮れに、灯りのともる建物を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182603,7 +182622,7 @@
       "町の通りから、家並みと背後の山を一緒に収めます",
       "雪の季節は、白い斜面と町を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182655,7 +182674,7 @@
       "正面から、修道院の長い建物を横長に収めます",
       "堂内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182706,7 +182725,7 @@
       "トラウン川の岸から、川と町並みを一緒に収めます",
       "町の通りで、保養地らしい建物を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182756,7 +182775,7 @@
       "湖畔から、湖と町並みを横長に収めます",
       "陶器市では、器の色に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182811,7 +182830,7 @@
       "町外れから、市街と背後の山を一緒に収めます",
       "朝の光で、山の稜線を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182865,7 +182884,7 @@
       "湖畔から、湖面と空を横長に収めます",
       "夕日の時間に、湖を逆光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182919,7 +182938,7 @@
       "湖のほとりから、湖面と山並みを横長に収めます",
       "風のない朝に、湖の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -182969,7 +182988,7 @@
       "遺跡の広がりを、空と一緒に横長に収めます",
       "夕方の光で、石の遺構に陰影をつけます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183074,7 +183093,7 @@
       "中庭から、修道院の建物を収めます",
       "建物の細部に寄り、石の質感を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183130,7 +183149,7 @@
       "大聖堂の前から、塔を見上げて縦長に収めます",
       "夕暮れに、照らされた大聖堂を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183180,7 +183199,7 @@
       "劇場の前から、建物の正面を収めます",
       "夕暮れに、灯りのともる劇場を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183230,7 +183249,7 @@
       "森の道で、木々の並びを奥へ向けて収めます",
       "秋は木々の色づきを入れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183284,7 +183303,7 @@
       "湾を見下ろす高台から、町並みと海を一緒に収めます",
       "夕暮れに、湾に沿って灯る町の光を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183336,7 +183355,7 @@
       "巡礼地の聖堂を、少し離れて全体で収めます",
       "巡礼の人々は、遠くから静かに撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183387,7 +183406,7 @@
       "城壁の上から、稜堡の角と町並みを収めます",
       "夕方の光で、城壁に陰影をつけます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183442,7 +183461,7 @@
       "港から、海と町並みを一緒に収めます",
       "夕日の時間に、大西洋を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183492,7 +183511,7 @@
       "川の対岸から、町並みと川を一緒に収めます",
       "祭りの時期は、色鮮やかな衣装を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183542,7 +183561,7 @@
       "砂浜から、海と空を横長に収めます",
       "夕日の時間に、砂浜を逆光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183598,7 +183617,7 @@
       "高い所から、火山の地形と海を一緒に収めます",
       "海岸で、海鳥を望遠で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183653,7 +183672,7 @@
       "カルデラの縁から、くぼ地を見下ろして収めます",
       "海岸から、島の景色と海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183678,12 +183697,13 @@
   {
     "spotId": "sp_d6fa86b4f78e",
     "slug": "coa-valley",
-    "name": "コア渓谷（コア渓谷とシエガ・ベルデの先史時代の岩絵遺跡群）",
+    "name": "コア渓谷",
     "nameEn": "Côa Valley",
     "reading": "コアケイコク",
     "aliases": [
       "コア渓谷の先史時代の岩絵遺跡群",
-      "Côa Valley"
+      "Côa Valley",
+      "コア渓谷とシエガ・ベルデの先史時代の岩絵遺跡群"
     ],
     "region": {
       "country": "ポルトガル",
@@ -183705,7 +183725,7 @@
       "渓谷の高い所から、川と谷を収めます",
       "岩絵は、斜めの光で刻まれた線を浮かび上がらせます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183761,7 +183781,7 @@
       "下の通りから、ドームを見上げて収めます",
       "アルファマの路地から、教会を見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -183812,7 +183832,7 @@
       "スタジアムの外から、建物の大きさが伝わるよう広角で収めます",
       "夕暮れに、照明のともる外観を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184023,7 +184043,7 @@
       "高い所から、塩田と町並みを一緒に見下ろして収めます",
       "要塞の城壁を、斜めの光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184073,7 +184093,7 @@
       "入り江の端から、町と背後の山を一緒に横長に収めます",
       "夕日の時間に、海辺のヤシを逆光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184177,7 +184197,7 @@
       "町の港から、海と家並みを一緒に収めます",
       "夕日の時間に、アドリア海を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184232,7 +184252,7 @@
       "海沿いの遊歩道から、湾と町並みを横長に収めます",
       "夕暮れに、湾の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184333,7 +184353,7 @@
       "山道の高い所から、アドリア海を見下ろして収めます",
       "朝夕の光で、岩肌の起伏を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184387,7 +184407,7 @@
       "町の高い所から、町並みと周りの山を収めます",
       "アルカの日は、騎手の姿を流し撮りします"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184487,7 +184507,7 @@
       "氷河の前から、氷と山を横長に収めます",
       "人を小さく入れて、氷河の大きさを伝えます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184538,7 +184558,7 @@
       "黒い砂浜から、海に立つ奇岩を横長に収めます",
       "打ち寄せる波を、少し遅いシャッターで撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184588,7 +184608,7 @@
       "港の岸壁から、船と湾を一緒に収めます",
       "船の上からは、速いシャッターでクジラの背を狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184643,7 +184663,7 @@
       "フィヨルドの岸から、町と水面を一緒に収めます",
       "風のない朝に、水面の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184698,7 +184718,7 @@
       "村の港から、海と山並みを一緒に収めます",
       "夕暮れの空と村の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184748,7 +184768,7 @@
       "橋のたもとから、湾と町を一緒に収めます",
       "夕日の時間に、湾の水面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184850,7 +184870,7 @@
       "船や対岸の島から、海に浮かぶ島の姿を望遠で収めます",
       "夕日の時間に、島のシルエットを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184905,7 +184925,7 @@
       "港の岸壁から、漁船と港を一緒に収めます",
       "夕暮れに、港の水面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -184956,7 +184976,7 @@
       "フィヨルドの対岸から、町並みを横長に収めます",
       "坂の上から、港とフィヨルドを見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185007,7 +185027,7 @@
       "島の海岸から、北極海の水平線を横長に収めます",
       "真夏の夜の低い太陽を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185166,7 +185186,7 @@
       "内部では、照明に浮かぶ岩壁の色を撮ります",
       "暗い場所では、感度を上げて手ぶれを抑えます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185194,12 +185214,13 @@
   {
     "spotId": "sp_f9d8f2fb2abd",
     "slug": "geirangerfjord",
-    "name": "ガイランゲルフィヨルド（西ノルウェーフィヨルド群 - ガイランゲルフィヨルドとネーロイフィヨルド）",
+    "name": "ガイランゲルフィヨルド",
     "nameEn": "Geirangerfjord",
     "reading": "ガイランゲルフィヨルド",
     "aliases": [
       "ガイランゲル・フィヨルド",
-      "Geirangerfjord"
+      "Geirangerfjord",
+      "西ノルウェーフィヨルド群 - ガイランゲルフィヨルドとネーロイフィヨルド"
     ],
     "region": {
       "country": "ノルウェー",
@@ -185277,7 +185298,7 @@
       "線路沿いの展望地から、谷を走る列車を収めます",
       "車窓から、谷と滝を流し撮りします"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185332,7 +185353,7 @@
       "港から、海と町並みを一緒に収めます",
       "冬はオーロラの出る夜に、三脚で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185386,7 +185407,7 @@
       "湾の岸から、建物を水面と一緒に収めます",
       "館内のホールは、壁画を見上げて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185436,7 +185457,7 @@
       "船首の曲線を、斜め下から見上げて収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185490,7 +185511,7 @@
       "船の全体を、館内の上の階から見下ろして収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185545,7 +185566,7 @@
       "港の岸壁から、船と町並みを一緒に収めます",
       "夕暮れに、港の水面を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185651,7 +185672,7 @@
       "庭から、家の全体を収めます",
       "作曲家の小屋を、周りの木々と一緒に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185702,7 +185723,7 @@
       "港から、海と町並みを一緒に収めます",
       "夕暮れに、港の灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185753,7 +185774,7 @@
       "オーロラの夜は、町の灯りを入れて三脚で長秒露光をします",
       "白夜の時期は、真夜中の低い光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185808,7 +185829,7 @@
       "建物の外観を、斜めから収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185863,7 +185884,7 @@
       "町の外から、雪の山と町並みを一緒に収めます",
       "極夜や白夜の光を生かして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185914,7 +185935,7 @@
       "港から、海と町並みを一緒に収めます",
       "白夜の時期は、真夜中の太陽を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -185965,7 +185986,7 @@
       "川沿いから、町並みを水面と一緒に収めます",
       "大聖堂の正面を、少し離れて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186015,7 +186036,7 @@
       "町の高い所から、町並みと周りの景色を収めます",
       "雪の季節に、白い町を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186069,7 +186090,7 @@
       "城塞の上から、旧市街を見下ろして収めます",
       "川沿いから、町並みを横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186120,7 +186141,7 @@
       "道沿いの展望地から、弧を描く橋と海を一緒に収めます",
       "荒れた日は、橋に打ち寄せる波を速いシャッターで撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186175,7 +186196,7 @@
       "教会の横から、フィヨルドを背景に収めます",
       "木の壁の彫刻に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186230,7 +186251,7 @@
       "斜め前から、重なる屋根を見上げて縦長に収めます",
       "夕方の光で、木の壁の色を出します"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186340,7 +186361,7 @@
       "川沿いから、町並みと水面を一緒に収めます",
       "高い所から、町と川を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186446,7 +186467,7 @@
       "旧市街の路地を、奥へ続く線で収めます",
       "高い所から、旧市街の屋根を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186498,7 +186519,7 @@
       "スタジアムの外から、建物の大きさが伝わるよう広角で収めます",
       "夕暮れに、照明のともる外観を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186599,7 +186620,7 @@
       "川の橋から、両岸の町並みを収めます",
       "夕暮れに、川面に映る灯りを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186708,7 +186729,7 @@
       "遊園地の乗り物を、夕暮れの灯りと一緒に収めます",
       "森の道を、奥へ続く線で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186812,7 +186833,7 @@
       "劇場の前から、建物の正面を収めます",
       "夕暮れに、灯りのともる入口を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186866,7 +186887,7 @@
       "庭園から、宮殿の正面を左右対称に収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186917,7 +186938,7 @@
       "建物の正面を、通りの向かいから収めます",
       "ホールは撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -186967,7 +186988,7 @@
       "神殿の柱を、空を背景に見上げて収めます",
       "夕方の光で、大理石の白さを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187022,7 +187043,7 @@
       "遺跡の高い所から、平野の広がりを収めます",
       "夕方の光で、石の遺構に陰影をつけます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187076,7 +187097,7 @@
       "遺跡の高い所から、海と遺構を一緒に収めます",
       "夕日の時間に、海を背景に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187131,7 +187152,7 @@
       "高い所から、入り江と森を見下ろして収めます",
       "海岸で、澄んだ海の色を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187185,7 +187206,7 @@
       "展示は撮影の決まりを確かめてから撮ります",
       "建物の入口を、通りから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187291,7 +187312,7 @@
       "湖岸の高い所から、湖と周りの台地を横長に収めます",
       "風のない朝に、湖面の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187399,7 +187420,7 @@
       "広場から、聖堂の正面を左右対称に収めます",
       "堂内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187502,7 +187523,7 @@
       "正面の前から、教会を見上げて収めます",
       "堂内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187557,7 +187578,7 @@
       "前から、聖堂の正面を左右対称に収めます",
       "正面の細部に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187608,7 +187629,7 @@
       "前の広場から、聖堂を見上げて収めます",
       "堂内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187660,7 +187681,7 @@
       "回廊では、柱の並びを中庭越しに収めます",
       "広い建物を、斜めから横長に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187716,7 +187737,7 @@
       "建物の正面を、通りから収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187767,7 +187788,7 @@
       "クーポラの下から、見上げて収めます",
       "クーポラの骨組みの線を、真下から撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187818,7 +187839,7 @@
       "建物の外観を、広場から収めます",
       "館内は撮影の決まりを確かめてから撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187921,7 +187942,7 @@
       "車の低い位置から、ボディの線を斜めに収めます",
       "照明の映り込みに気をつけて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -187972,7 +187993,7 @@
       "車の並ぶ展示室を、斜めから奥行きを出して収めます",
       "車のボディの曲線に寄って撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188023,7 +188044,7 @@
       "赤い車体を、低い位置から斜めに収めます",
       "照明の映り込みに気をつけて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188074,7 +188095,7 @@
       "港から、海と家並みを一緒に収めます",
       "高い所から、澄んだ海の色を見下ろして撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188124,7 +188145,7 @@
       "湖岸から、湖に浮かぶ島を横長に収めます",
       "風のない朝に、湖面の映り込みを狙います"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188539,7 +188560,7 @@
       "円形競技場は、海を背景に高い位置から見下ろして収めます",
       "水道橋は下から見上げて、アーチの連なりを撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188594,7 +188615,7 @@
       "市壁に沿って、壁の曲線を奥へ続くように撮ります",
       "市壁の外から、壁と塔を横長に収めます"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188706,7 +188727,7 @@
       "城壁の外の高台から、壁の連なりを横長に収めます",
       "夜に照らされた城壁を、長めの露光で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -188864,7 +188885,7 @@
       "アルバイシンの展望台から、アルハンブラと山並みを重ねて撮ります",
       "夕方の光で、宮殿の壁が赤く染まる時間に撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -189712,7 +189733,7 @@
       "広場から、塔の先まで入れて縦長に収めます",
       "夕暮れの青い空を背景に、塔の輪郭を撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -189924,7 +189945,7 @@
       "ロングハウスの長い屋根を、丘の緑と一緒に横長に収めます",
       "曇りの日は、木の質感を落ち着いた色で撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",
@@ -190033,7 +190054,7 @@
       "通りに沿って、木造の家並みを奥へ続くように撮ります",
       "雪の季節は、白い地面と家の色を対比させて撮ります"
     ],
-    "status": "published",
+    "status": "review",
     "draftedAt": "2026-10-08",
     "draftedBy": "claude",
     "createdAt": "2026-10-08T00:00:00.000Z",

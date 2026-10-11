@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
-import { placeParts, placeLine, areaKind, COUNTRIES, OVERSEAS_AREAS, PREFECTURES } from "../placeName";
+import { placeParts, placeLine, areaKind, COUNTRIES, OVERSEAS_AREAS, OVERSEAS_AREAS_IN_CONTEXT, PREFECTURES } from "../placeName";
 
 /**
  * 撮影地の文字列を「見出し／どこの／地域か」に分ける（表示専用・データは変えない）。
@@ -64,9 +64,31 @@ describe("placeParts", () => {
             if (g.country === "日本") {
                 if (g.prefecture && !PREFECTURES.includes(g.prefecture)) missing.add(g.prefecture);
             } else {
-                for (const v of [g.prefecture, g.city]) if (v && !OVERSEAS_AREAS.includes(v)) missing.add(v);
+                for (const v of [g.prefecture, g.city]) if (v && !OVERSEAS_AREAS.includes(v) && !OVERSEAS_AREAS_IN_CONTEXT.includes(v)) missing.add(v);
             }
         }
         expect([...missing], "placeName.ts の表に足すこと").toEqual([]);
+    });
+    /// 短い名前・一般的な名前は「並んでいるときだけ」地域（1語の撮影地を地域と誤読しない・2026-10-11）
+    it("OVERSEAS_AREAS_IN_CONTEXT の名前は、1語なら場所のまま・国と並べば地域", () => {
+        expect(OVERSEAS_AREAS_IN_CONTEXT.length).toBeGreaterThan(0);
+        for (const name of OVERSEAS_AREAS_IN_CONTEXT) {
+            // 1語: 表に足す前と同じ（場所・2行目は空）＝ユーザーの撮影地の見え方が変わらない
+            expect(areaKind(name), name).toBe("place");
+            expect(placeParts(name), name).toEqual({ title: name, context: "", kind: "place" });
+            expect(placeLine(name), name).toBe("");
+        }
+        expect(placeParts("スリランカ 南部州")).toEqual({ title: "南部州", context: "スリランカ", kind: "municipality" });
+        expect(placeParts("ゴール, スリランカ")).toEqual({ title: "ゴール", context: "スリランカ", kind: "municipality" });
+        expect(placeParts("ゴール")).toEqual({ title: "ゴール", context: "", kind: "place" });
+    });
+
+    it("短い名前・方角だけの名前は OVERSEAS_AREAS に入れない（OVERSEAS_AREAS_IN_CONTEXT へ）", () => {
+        const generic = /^(北|南|東|西|中|中央|北西|北東|南西|南東|中部|北部|南部|東部|西部)(部)?(州|県|地方|区|地域|郡)$/;
+        // 2026-10-11 より前に入っていた名前（北区・南区・中区など）は対象外——今回の範囲で増やさない見張り
+        const added = OVERSEAS_AREAS.slice(OVERSEAS_AREAS.indexOf("ラージャスターン州"));
+        expect(added.length).toBeGreaterThan(0);
+        expect(added.filter((n) => [...n].length <= 3 || generic.test(n))).toEqual([]);
+        expect(OVERSEAS_AREAS_IN_CONTEXT.filter((n) => OVERSEAS_AREAS.includes(n))).toEqual([]);
     });
 });
