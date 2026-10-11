@@ -95,8 +95,10 @@ describe("スポットのページの OGP 画像", () => {
         const summary = `${"い".repeat(40)}。`;
         ledger.spots = [spot("sky", { summary })];
         const m = await meta("sky");
-        // 台帳の座標（北緯34°・東経134°・香川県）
-        expect(m.description).toBe(`${summary}日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。`);
+        // 台帳の座標（北緯34°・東経134°・香川県）。要約は紹介文のすぐ後（`spotPageDescription` の computed）、
+        // その後ろにページに在るものの要約（撮影の光の表）が続く（spot-cover-seo と併合・2026-10-11）
+        expect(m.description).toBe(`${summary}日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。`
+            + "撮影の光（月ごとの日の出・日の入り・ゴールデンアワー）を掲載。");
         expect((m.openGraph as { description?: string }).description).toBe(m.description);
     });
 
