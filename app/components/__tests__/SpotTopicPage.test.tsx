@@ -31,7 +31,7 @@ describe("SpotTopicPage", () => {
         const crumbs = within(screen.getByRole("navigation", { name: "パンくずリスト" })).getAllByRole("link").map((a) => a.getAttribute("href"));
         expect(crumbs).toEqual(["/", "/spots", "/spots/area/kyoto"]);
         expect(screen.getByText(view.intro)).toBeTruthy();
-        const cards = container.querySelectorAll("ul.grid > li a");
+        const cards = container.querySelectorAll("ul.grid > li > div > a");
         expect(cards).toHaveLength(view.cards.length);
         expect(cards[0].getAttribute("href")).toBe(`/spots/${view.cards[0].slug}`);
         const ld = ldOf(container);
@@ -42,8 +42,16 @@ describe("SpotTopicPage", () => {
     it("写真のクレジットはカードの下に文字で出る（CC BY 系）", () => {
         const view = themeView("temples-shrines", "kinki")!;
         render(<SpotTopicPage view={view} eyebrow="x" />);
-        const credited = view.cards.find((c) => c.cover?.credit)!;
-        expect(screen.getAllByText(`写真: ${credited.cover!.credit}`).length).toBeGreaterThan(0);
+        const credited = view.cards.find((c) => c.cover?.credit?.license && c.cover.credit.licenseUrl)!;
+        const cr = credited.cover!.credit!;
+        // スポットの頁と同じ形: 「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」。カードのリンクの外
+        const line = screen.getAllByTestId("topic-credit").find((el) => el.textContent?.startsWith(`写真: ${cr.author} / ${cr.license}`))!;
+        expect(line).toBeTruthy();
+        const lic = within(line).getByRole("link", { name: cr.license });
+        expect(lic.getAttribute("href")).toBe(cr.licenseUrl);
+        expect(lic.getAttribute("rel")).toContain("license");
+        expect(line.closest("a")).toBeNull();
+        expect(line.className).not.toContain("truncate");
     });
 
     it("🔴 `/spots/area/overseas` は国の一覧（スポットのカードを積まない）", async () => {
@@ -66,10 +74,40 @@ describe("SpotTopicPage", () => {
     });
 });
 
+describe("英語表示・チップの当たり", () => {
+    it("枠（パンくず・見出し・関連の見出し・チップ）は英語に切り替わる。導入文は日本語のまま", async () => {
+        const ctx = await import("../../i18n/context");
+        const spy = vi.spyOn(ctx, "useLocale").mockReturnValue({ locale: "en", labels: {} } as never);
+        try {
+            const view = themeView("temples-shrines", "kyoto")!;
+            render(<SpotTopicPage view={view} eyebrow="x" />);
+            expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Temples & shrines photo spots in Kyoto");
+            const crumbs = within(screen.getByRole("navigation")).getAllByRole("link").map((a) => a.textContent);
+            expect(crumbs).toEqual(["Home", "Photo spots", "Kyoto"]);
+            expect(screen.getByRole("heading", { name: "Temples & shrines in other areas" })).toBeTruthy();
+            expect(screen.getByText(view.intro)).toBeTruthy();
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("チップは見た目 34px のまま、当たりを上下 5px 広げて 44px（行の隙間は 10px）", () => {
+        render(<SpotTopicPage view={themeView("temples-shrines", "kyoto")!} eyebrow="x" />);
+        const chip = screen.getByRole("link", { name: /^近畿地方（関西）の寺社/ });
+        expect(chip.style.minHeight).toBe("34px");
+        expect(chip.className).toContain("before:-inset-y-[5px]");
+        expect(chip.className).toContain("relative");
+        expect(chip.closest("ul")!.className).toContain("gap-y-2.5");
+    });
+});
+
 describe("SpotsEntry（ホーム）", () => {
     const seasonal = {
         season: "autumn" as const, href: "/spots/season/autumn", total: 194,
-        spots: [{ slug: "a", name: "A寺", region: "京都府 京都市", src: "/images/spots/thumb/a.jpg", alt: "A寺", credit: "Someone · CC BY-SA 4.0" }],
+        spots: [{
+            slug: "a", name: "A寺", region: "京都府 京都市", src: "/images/spots/thumb/a.jpg", alt: "A寺",
+            credit: { author: "Someone with a very long name indeed", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", sourceUrl: "https://commons.wikimedia.org/wiki/File:A.jpg" },
+        }],
     };
 
     it("1行の入口のあとに、いまの季節のスポットを写真つきで並べる", () => {
@@ -77,11 +115,28 @@ describe("SpotsEntry（ホーム）", () => {
         expect(screen.getByTestId("home-spots-entry").getAttribute("href")).toBe("/spots");
         const sec = within(screen.getByTestId("home-season-spots"));
         expect(sec.getByRole("heading").textContent).toBe("いまの季節（秋）の撮影スポット");
-        expect(sec.getByRole("link", { name: /すべて見る（194件）/ }).getAttribute("href")).toBe("/spots/season/autumn");
+        expect(sec.getByRole("link", { name: /すべて見る 194件/ }).getAttribute("href")).toBe("/spots/season/autumn");
         const card = sec.getByRole("link", { name: /A寺/ });
         expect(card.getAttribute("href")).toBe("/spots/a");
         expect(card.querySelector("img")?.getAttribute("src")).toBe("/images/spots/thumb/a.jpg");
-        expect(sec.getByText("写真: Someone · CC BY-SA 4.0")).toBeTruthy();
+        // ライセンスの行が先で切らない・文面へのリンク。作者の行だけ切る（全文は title）
+        const credit = sec.getByTestId("topic-credit");
+        const [licLine, authorLine] = Array.from(credit.querySelectorAll("p"));
+        expect(licLine.className).not.toContain("truncate");
+        expect(within(licLine).getByRole("link", { name: "CC BY-SA 4.0" }).getAttribute("href")).toBe("https://creativecommons.org/licenses/by-sa/4.0");
+        expect(within(licLine).getByRole("link", { name: "Wikimedia Commons" })).toBeTruthy();
+        expect(authorLine.textContent).toBe("写真: Someone with a very long name indeed");
+        expect(authorLine.getAttribute("title")).toBe("Someone with a very long name indeed");
+        expect(credit.closest("a")).toBeNull();
+    });
+
+    it("🔴 ホームを押し下げすぎない: 見出しの行を置かず、写真の札は 80px", () => {
+        const { container } = render(<SpotsEntry locale="ja" seasonal={seasonal} />);
+        const sec = screen.getByTestId("home-season-spots");
+        expect(sec.querySelector("h2")?.className).toContain("sr-only");
+        const cards = Array.from(sec.querySelectorAll("li > a")) as HTMLElement[];
+        for (const a of cards) expect(a.style.height).toBe("80px");
+        void container;
     });
 
     it("選べるスポットが無ければ1行だけ", () => {
@@ -108,5 +163,24 @@ describe("スポットの頁 → 切り口の頁", () => {
         unmount();
         render(<ToastProvider><SpotGuideClient spot={SPOT} photos={[]} nearby={[]} locationPath={null} /></ToastProvider>);
         expect(screen.queryByTestId("spot-topics")).toBeNull();
+    });
+
+    it("🔴 海外のスポットは パンくずに国を入れ、「すべて見る」は国の頁へ（国の一覧の頁へ飛ばさない）", async () => {
+        const { SPOTS } = await import("@/lib/data/spots");
+        const { spotCountryRef } = await import("@/lib/data/spotTopics");
+        const { spotBreadcrumb } = await import("@/lib/data/spotSeo");
+        const fr = SPOTS.find((x) => x.region?.country === "フランス" && x.status === "published")!;
+        const country = spotCountryRef(fr)!;
+        expect(country).toEqual({ href: "/spots/area/overseas/fr", name: "フランス", nameEn: "France" });
+        expect(spotBreadcrumb(fr, { slug: "overseas", name: "海外", nameEn: "Outside Japan" } as never, country).map((c) => c.name))
+            .toEqual(["ホーム", "撮影スポット", "海外", "フランス", fr.name]);
+        const OVERSEAS: Spot = { ...SPOT, region: { country: "フランス", prefecture: "イル・ド・フランス" } };
+        render(<ToastProvider><SpotGuideClient spot={OVERSEAS} photos={[]} nearby={[]} locationPath={null}
+            area={{ slug: "overseas", name: "海外", nameEn: "Outside Japan" }} country={country}
+            sameArea={{ label: "フランス", spots: [{ slug: "x", name: "X", region: "パリ" } as never] }} /></ToastProvider>);
+        const crumbs = within(screen.getByRole("navigation", { name: "パンくずリスト" })).getAllByRole("link").map((a) => a.getAttribute("href"));
+        expect(crumbs).toEqual(["/", "/spots", "/spots/area/overseas", "/spots/area/overseas/fr"]);
+        expect(screen.getByRole("link", { name: /フランスの撮影スポットをすべて見る/ }).getAttribute("href")).toBe("/spots/area/overseas/fr");
+        expect(screen.queryByRole("link", { name: /海外の撮影スポットをすべて見る/ })).toBeNull();
     });
 });

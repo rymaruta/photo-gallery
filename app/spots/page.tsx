@@ -6,7 +6,7 @@ import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotIndexTopics } from "@/lib/data/spotTopics";
-import { TopicChips } from "@/app/components/SpotTopicLists";
+import { TopicChips, Lang } from "@/app/components/SpotTopicLists";
 
 /**
  * **撮影地ガイドの入口。**
@@ -78,16 +78,16 @@ function SpotIndexTopicSections() {
         <div data-testid="spots-topic-index">
             {seasons.length > 0 && (
                 <section className="mb-7">
-                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}>季節でさがす</h2>
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="季節でさがす" en="By season" /></h2>
                     <TopicChips links={seasons} />
                 </section>
             )}
             {themes.length > 0 && (
                 <section className="mb-7">
-                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}>テーマでさがす</h2>
+                    <h2 className="font-serif font-bold m-0 mb-2.5 text-white/90" style={{ fontSize: "17px", lineHeight: "24px" }}><Lang ja="テーマでさがす" en="By theme" /></h2>
                     {themes.map((g) => (
                         <div key={g.category} className="mb-3">
-                            <h3 className="m-0 mb-1.5 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}>{g.category}</h3>
+                            <h3 className="m-0 mb-1.5 text-white/70" style={{ fontSize: "13px", lineHeight: "18px" }}><Lang ja={g.category} en={g.categoryEn} /></h3>
                             <TopicChips links={g.links} />
                         </div>
                     ))}

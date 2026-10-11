@@ -85,6 +85,31 @@ describe("テーマ（カテゴリ × 地域）", () => {
         expect(got).toEqual(["/spots/theme/lighthouses/hokkaido"]);
     });
 
+    it("🔴 どの頁も同じスポットを2回数えない（北海道は県と地方の綴りが同じ）", () => {
+        for (const t of themes) {
+            const ids = t.spots.map((s) => s.spotId);
+            expect(new Set(ids).size, themePath(t)).toBe(ids.length);
+        }
+        // 北海道の灯台が3件なら、県の頁も地方の頁も作らない（2回数えると6件になって頁ができていた）
+        const base = shown.find((s) => s.region?.prefecture === "北海道")!;
+        const three = Array.from({ length: 3 }, () => clone(base, { category: "灯台" }));
+        expect(themeTopics(three).map(themePath)).toEqual([]);
+        const five = [...three, clone(base, { category: "灯台" }), clone(base, { category: "灯台" })];
+        const got = themeTopics(five);
+        expect(got.map(themePath)).toEqual(["/spots/theme/lighthouses/hokkaido"]);
+        expect(got[0].spots).toHaveLength(5);
+        expect(got[0].place.kind).toBe("prefecture");
+    });
+
+    it("1県だけで埋まる地方の頁は作らない（京都府だけの近畿の灯台＝県の頁と同じ顔ぶれ）", () => {
+        const five = Array.from({ length: 5 }, () => clone(kyotoBase, { category: "灯台" }));
+        expect(themeTopics(five).map(themePath)).toEqual(["/spots/theme/lighthouses/kyoto"]);
+        // 2県にまたがれば地方の頁もできる
+        const nara = shown.find((s) => s.region?.prefecture === "奈良県")!;
+        const mixed = [...five, clone(nara, { category: "灯台" })];
+        expect(themeTopics(mixed).map(themePath)).toEqual(["/spots/theme/lighthouses/kyoto", "/spots/theme/lighthouses/kinki"]);
+    });
+
     it("県・地方・国の3段がそろう（京都府の寺社・近畿の寺社・フランスの教会）", () => {
         const paths = themes.map(themePath);
         expect(paths).toContain("/spots/theme/temples-shrines/kyoto");
@@ -100,7 +125,8 @@ describe("テーマ（カテゴリ × 地域）", () => {
         expect(v.intro).toContain(`${n}件`);
         expect(v.intro).toContain(v.cards[0].name);
         // パンくずは県の一覧を通る
-        expect(v.crumbs).toEqual([{ name: "京都府", href: "/spots/area/kyoto" }]);
+        expect(v.crumbs).toEqual([{ name: "京都府", nameEn: "Kyoto", href: "/spots/area/kyoto" }]);
+        expect(v.headingEn).toBe("Temples & shrines photo spots in Kyoto");
     });
 
     it("在らない組は null（頁を作らない）", () => {
@@ -181,11 +207,55 @@ describe("季節", () => {
         }
     });
 
+    it("🔴 季節の語は、その季節の案内の中だけを数える（春の案内の「紅葉」を秋に数えない）", () => {
+        const kinki = Array.from({ length: 5 }, () => clone(kyotoBase, { seasonalGuide: [{ season: "autumn", text: "落ち着いた色" }] }));
+        const wrongSeason = clone(kyotoBase, { seasonalGuide: [{ season: "autumn", text: "静か" }, { season: "spring", text: "紅葉の若葉" }] });
+        const right = clone(kyotoBase, { seasonalGuide: [{ season: "autumn", text: "紅葉が見事" }] });
+        const v = seasonView("autumn", "kinki", [...kinki, wrongSeason, right])!;
+        expect(v.intro).toContain("うち1件は秋の案内に「紅葉」の記述があります");
+    });
+
+    it("🔴 全体の頁の並びは、季節の語のある行が先で、地方を均す（読み順の先頭にしない）", () => {
+        const v = seasonView("autumn", null)!;
+        const all = seasons.find((t) => t.season === "autumn" && t.area === null)!;
+        const bySlug = new Map(all.spots.map((s) => [s.slug, s]));
+        const firstSix = v.cards.slice(0, 6).map((c) => bySlug.get(c.slug)!);
+        // 先頭の6件は、写真があり「紅葉」の案内のある行（地方ごとに1件ずつ回すので、地方が重ならない）
+        for (const s of firstSix) expect(s.seasonalGuide!.some((g) => g.season === "autumn" && g.text.includes("紅葉")), s.slug).toBe(true);
+        const regionOf = (s: Spot) => (s.region?.country === "日本" ? prefectureByName(s.region?.prefecture)?.region : "海外");
+        expect(new Set(firstSix.map(regionOf)).size).toBe(6);
+        // OGP は先頭のカードの元の写真（サムネではない）
+        expect(v.ogImage?.src).toBeTruthy();
+        expect(v.ogImage!.src).not.toContain("/thumb/");
+        expect(topicMetadata(v).openGraph?.images?.[0].url).toBe(`${siteConfig.url}${v.ogImage!.src}`);
+    });
+
     it("秋の導入文は「紅葉」の記述の件数を数える（題には使わない）", () => {
         const v = seasonView("autumn", "kinki")!;
         expect(v.heading).toBe("近畿地方（関西）の秋の撮影スポット");
         expect(v.intro).toMatch(/うち\d+件は秋の案内に「紅葉」の記述があります/);
-        expect(v.crumbs).toEqual([{ name: "秋の撮影スポット", href: "/spots/season/autumn" }]);
+        expect(v.crumbs).toEqual([{ name: "秋の撮影スポット", nameEn: "Autumn photo spots", href: "/spots/season/autumn" }]);
+    });
+});
+
+describe("説明（description）", () => {
+    it("🔴 決まり文句（見どころ・季節・時間帯の撮影ガイドつき）を足さない・時間帯の件数は数えた分だけ", () => {
+        for (const v of [themeView("temples-shrines", "kyoto")!, countryView("fr")!, seasonView("autumn", "kinki")!, overseasView()]) {
+            const d = topicMetadata(v).description!;
+            expect(d).not.toContain("撮影ガイドつき");
+            expect(d.startsWith(v.intro.slice(0, 40))).toBe(true);
+        }
+        const v = themeView("temples-shrines", "kyoto")!;
+        const n = shown.filter((s) => s.category === "寺社" && s.region?.prefecture === "京都府" && (s.timeOfDayGuide ?? []).length > 0).length;
+        if (n > 0) expect(v.descriptionExtra).toBe(`時間帯ごとの撮影の案内があるのは${n}件です。`);
+        else expect(v.descriptionExtra).toBeUndefined();
+    });
+
+    it("海外の区画の頁の題・説明は国の一覧のもの（814選と名乗らない）", async () => {
+        const { generateMetadata } = await import("../../../app/spots/area/[area]/page");
+        const m = await generateMetadata({ params: Promise.resolve({ area: "overseas" }) });
+        expect(m.title).toBe("海外の撮影スポット");
+        expect(String(m.description)).toContain("の国・地域に分けています");
     });
 });
 
@@ -202,7 +272,13 @@ describe("並べ方・構造化データ", () => {
     it("CC BY 系の写真は作者とライセンスの文字を持つ", () => {
         const withCredit = themeView("temples-shrines", "kinki")!.cards.filter((c) => c.cover?.credit);
         expect(withCredit.length).toBeGreaterThan(0);
-        for (const c of withCredit) expect(c.cover!.credit).toMatch(/CC|Public|PD/i);
+        for (const c of withCredit) {
+            const cr = c.cover!.credit!;
+            expect(cr.author || cr.text, c.slug).toBeTruthy();
+            if (cr.license) expect(cr.license, c.slug).toMatch(/CC|Public|PD/i);
+        }
+        // ライセンス名のある写真は、文面への URL を持つ（スポットの頁と同じ中身）
+        expect(withCredit.some((c) => c.cover!.credit!.license && c.cover!.credit!.licenseUrl?.startsWith("https://creativecommons.org/"))).toBe(true);
     });
 });
 
@@ -307,7 +383,7 @@ describe("区画（`/spots/area/<x>`）との関係", () => {
 
     it("全体の頁の数（報告に使う）が台帳の伸びに比べて大きくなりすぎない", () => {
         const pages = countryTopics().length + themeTopics().length + seasonTopics().length;
-        // 2026-10-11: 国54・テーマ117・季節36＝207枚（スポットの頁は約1,800枚）
+        // 2026-10-11: 国54・テーマ115（北海道の二重数えを直した後）・季節36＝205枚（スポットの頁は約1,800枚）
         expect(pages).toBeLessThan(shown.length / 4);
     });
 });

@@ -4,7 +4,7 @@ import { spotAreas, spotIndexItemsForArea } from "@/lib/data/spotLink";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig } from "@/lib/utils/seo";
 import SpotTopicPage from "@/app/components/SpotTopicPage";
-import { overseasView } from "@/lib/data/spotTopics";
+import { overseasView, topicMetadata } from "@/lib/data/spotTopics";
 import { OVERSEAS_SLUG } from "@/lib/data/prefectures";
 
 // 静的エクスポート: 列挙した区画のみ生成し、それ以外は 404
@@ -41,6 +41,9 @@ const MIN_INDEXABLE_AREA = 2;
 
 export async function generateMetadata({ params }: { params: Promise<{ area: string }> }): Promise<Metadata> {
     const { area } = await params;
+    // 海外は国の一覧の頁になった（2026-10-11）ので、題・説明・OGP も国の一覧の中身から作る
+    // （「海外の撮影スポット814選」と名乗ると、スポットの並ばない頁と食い違う）
+    if (area === OVERSEAS_SLUG) return topicMetadata(overseasView());
     const found = spotAreas().find((a) => a.slug === area);
     if (!found) return { robots: { index: false, follow: true } };
 
