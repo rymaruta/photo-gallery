@@ -64,7 +64,7 @@ export type SpotPageFacts = {
     cover?: boolean;
     /**
      * 計算の撮影情報の要約（`claude/spot-computed-guide` の関数が返す1文）。あれば紹介文のすぐ後に入れる。
-     * 今は誰も渡さない
+     * 撮影地ページが `spotSkyDescription(spot)` を渡す（2026-10-11 併合で接続）
      */
     computed?: string;
 };
