@@ -13,6 +13,7 @@
 
 import raw from "@/content/spot-images.json";
 import coverExclusions from "@/content/spot-cover-exclusions.json";
+import rawSampleExclusions from "@/content/spot-sample-exclusions.json";
 import type { Spot, SpotCoverImage, SpotImageLicense } from "./spots";
 import { isPublished } from "@/lib/utils/spotGuide";
 import { UNKNOWN_AUTHOR_LABEL, cleanCommonsAuthor, hasPlaceholderPhrase, isUnusablePublicDomain } from "@/lib/utils/commonsAttribution.mjs";
@@ -82,6 +83,28 @@ export function isReviewedPick(r: { pickedBy?: string | null }): boolean {
  */
 export const NO_FOP_COVER_EXCLUSIONS: Readonly<Record<string, string>> = coverExclusions.covers;
 
+/**
+ * 🔴 **表示から落とす作例**（2026-10-11・パノラマの自由が無い国の、著作権の残る建物・作品が主役の写真）。
+ * 確定ファイルの行は消さず、表示（`spotSamples`・代表写真 `shownSpotImage`・代表写真の候補 `coverCandidateSample`）で落とす。
+ * 収集（`scripts/collect-commons-samples.mjs`）も「人の目で外した写真」と同じく二度と選ばない。
+ * 一覧と理由は `content/spot-sample-exclusions.json`、決め方は `docs/spot-samples-commons.md`
+ * 「パノラマの自由が無い国の現代建築」
+ */
+export type SpotSampleExclusion = { spotId: string; file: string; reason: string };
+export const SPOT_SAMPLE_EXCLUSIONS: readonly SpotSampleExclusion[] = rawSampleExclusions.samples;
+
+/** ファイル名を比べる形（"File:" の有無・"_" と空白の揺れを吸収。収集の `fileKey` と同じ考え方） */
+function sampleFileKey(file: string | null | undefined): string {
+    return String(file ?? "").normalize("NFC").replace(/_/g, " ").replace(/\s+/g, " ").trim().replace(/^(file|ファイル)\s*:\s*/i, "");
+}
+
+const EXCLUDED_SAMPLE_KEYS = new Set(SPOT_SAMPLE_EXCLUSIONS.map((e) => `${e.spotId}\n${sampleFileKey(e.file)}`));
+
+/** このスポットの、この作例は表示から落とすものか */
+export function isExcludedSample(spotId: string, r: { file?: string | null }): boolean {
+    return Boolean(r.file) && EXCLUDED_SAMPLE_KEYS.has(`${spotId}\n${sampleFileKey(r.file)}`);
+}
+
 /** パノラマの自由が無い国の現代建築・作品が主役で、代表写真を出さないスポットか */
 export function isNoFopCoverExcluded(slug: string | undefined): boolean {
     return typeof slug === "string" && Object.prototype.hasOwnProperty.call(NO_FOP_COVER_EXCLUSIONS, slug);
@@ -137,6 +160,8 @@ function shownSpotImageUnchecked(
     if (!isPublished(spot)) return undefined;
     // パノラマの自由が無い国の現代建築（人が確かめた写真でも出さない・2026-10-11）
     if (isNoFopCoverExcluded(spot.slug)) return undefined;
+    // 作例として表示から落とした1枚は、代表写真にも出さない（作例から上げた行・Wikidata の行とも）
+    if (images[spot.slug] && isExcludedSample(spot.spotId, images[spot.slug])) return undefined;
     const reviewed = reviewedSpotImage(spot.slug, images);
     if (reviewed) return reviewed;
     const image = images[spot.slug];

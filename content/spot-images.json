@@ -42563,12 +42563,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/lumbini.jpg",
-      "width": 960,
-      "height": 720
-    }
+    "reviewedBy": null
   },
   "kirtipur": {
     "wikidata": "",

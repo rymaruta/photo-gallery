@@ -61,7 +61,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-    exclusionReasons, EXCLUDE_PREFIX, SOURCE_BONUS, SOURCE_REASON, readExcluded, withoutExcluded, isExcluded,
+    exclusionReasons, EXCLUDE_PREFIX, SOURCE_BONUS, SOURCE_REASON, readExcluded, withoutExcluded, isExcluded, excludedKeySet,
     parseWikidataEntity, depictsSearch, fileKey,
 } from "./lib/commonsSampleRules.mjs";
 import { isAllowedLicense, creditFor, cleanUrl, distanceKm } from "./fetch-spot-images.mjs";
@@ -78,6 +78,8 @@ export const CANDIDATES_PATH = path.join(ROOT, "content", "spot-samples.candidat
 export const SAMPLES_PATH = path.join(ROOT, "content", "spot-samples.json");
 /** 人の目で外した写真（`{spotId, file, reason}` の配列）。ここにあるものは二度と選ばない */
 export const EXCLUDED_PATH = path.join(ROOT, "content", "spot-samples-excluded.json");
+/** 表示から落とす作例（パノラマの自由が無い国の現代建築・2026-10-11）。収集でも二度と選ばない */
+export const SAMPLE_EXCLUSIONS_PATH = path.join(ROOT, "content", "spot-sample-exclusions.json");
 
 export const USER_AGENT = "JourneyPhotoSpotSamples/1.0 (https://journey-photo.com; spot sample collector)";
 const COMMONS = "https://commons.wikimedia.org/w/api.php";
@@ -875,6 +877,8 @@ async function main(argv) {
     }
     // 人の目で外した写真は、候補にあっても二度と選ばない（収集でも --pick-only でも）
     const excluded = readExcluded(EXCLUDED_PATH);
+    // 表示から落とす作例（`content/spot-sample-exclusions.json`）も同じく選ばない
+    for (const k of excludedKeySet(readJson(SAMPLE_EXCLUSIONS_PATH, { samples: [] }).samples)) excluded.add(k);
     const candidatesFile = withoutExcluded(readJson(CANDIDATES_PATH, { spots: {} }), excluded);
     const refresh = args.includes("--refresh");
     const targets = spots.filter((s) => s.status === "published"

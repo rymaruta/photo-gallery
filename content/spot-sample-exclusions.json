@@ -1,0 +1,790 @@
+{
+  "_about": "表示から落とす作例（2026-10-11）。パノラマの自由が無い国（と、美術にパノラマの自由が無いアメリカ）で、著作権の残る建物・作品が写真の主役のもの。確定ファイル（spot-samples.json）の行は消さず、表示と代表写真の候補から落とし、収集でも二度と選ばない。決め方は docs/spot-samples-commons.md「パノラマの自由が無い国の現代建築」",
+  "samples": [
+    {
+      "spotId": "sp_3c4d3ea7945b",
+      "file": "File:Statue on Palais de Chaillot in 2012 (27).jpg",
+      "reason": "palais-de-chaillot: フランス・金色の像（1937 年のシャイヨ宮の彫刻）"
+    },
+    {
+      "spotId": "sp_9d0a29903349",
+      "file": "File:Jardin des Tuileries, Musée du Louvre et Arc de Triomphe du Carrousel 58.jpg",
+      "reason": "louvre: フランス・1989 年のガラスのピラミッドが主役"
+    },
+    {
+      "spotId": "sp_3e0faf12031b",
+      "file": "File:N Seoul Tower - 20260929.jpg",
+      "reason": "n-seoul-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_3e0faf12031b",
+      "file": "File:Seoul Yonasangu Fall 04 (15078793184).jpg",
+      "reason": "n-seoul-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_3e0faf12031b",
+      "file": "File:Namsan Seoul Tower (49174492933).jpg",
+      "reason": "n-seoul-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_3e0faf12031b",
+      "file": "File:Seoul tower - panoramio - yamarhythm.jpg",
+      "reason": "n-seoul-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:Dubai skyline 2015 (crop).jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:Burj Khalifa (16260269606).jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:Dubai Skyline mit Burj Khalifa (18241030269).jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:Burj Khalifa from a ferry, Dubai.jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:Dubai Skyline 2016.jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_4ae8ccebdece",
+      "file": "File:The Dubai Fountain & Burj Khalifa Pixabay.jpg",
+      "reason": "burj-khalifa: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_e91f818ed227",
+      "file": "File:Lotte World morning view 8.jpg",
+      "reason": "lotte-world-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_e91f818ed227",
+      "file": "File:Lotte World Tower near Cheongdam Bridge.jpg",
+      "reason": "lotte-world-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_e91f818ed227",
+      "file": "File:롯대월드타워 - panoramio (3).jpg",
+      "reason": "lotte-world-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_e91f818ed227",
+      "file": "File:Seoul Skyline Night 2018.jpg",
+      "reason": "lotte-world-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_e91f818ed227",
+      "file": "File:제2롯데월드타워 01.jpg",
+      "reason": "lotte-world-tower: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_12f3b56c3609",
+      "file": "File:Landmark 81 in 2021.jpg",
+      "reason": "landmark-81: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_12f3b56c3609",
+      "file": "File:Landmark 81 (32099609868).jpg",
+      "reason": "landmark-81: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_12f3b56c3609",
+      "file": "File:Landmark 81 viewed from Thu Thiem.png",
+      "reason": "landmark-81: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_12f3b56c3609",
+      "file": "File:DJI 0130-HDRabc.jpg",
+      "reason": "landmark-81: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_12f3b56c3609",
+      "file": "File:Ho Chi Minh City - DJI 0124-HDR.jpg",
+      "reason": "landmark-81: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_845b0bb4d278",
+      "file": "File:Tòa nhà Keangnam, Cầu Giấy, Hà Nội 001.jpg",
+      "reason": "aon-hanoi-landmark-tower: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_845b0bb4d278",
+      "file": "File:Keangnam Tower 01.JPG",
+      "reason": "aon-hanoi-landmark-tower: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_845b0bb4d278",
+      "file": "File:Keangnam-Hanoi-Landmark-Tower.jpg",
+      "reason": "aon-hanoi-landmark-tower: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_845b0bb4d278",
+      "file": "File:Keangnam Hanoi Landmark Tower misty 01.jpg",
+      "reason": "aon-hanoi-landmark-tower: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_8385437fbbb9",
+      "file": "File:Masjid Istiqlal.jpg",
+      "reason": "istiqlal-mosque: インドネシア・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_8385437fbbb9",
+      "file": "File:Collectie NMvWereldculturen, TM-20023591, Dia, 'De Istiqlal moskee', fotograaf Paul Romijn, 02-1993 - 03-1993.jpg",
+      "reason": "istiqlal-mosque: インドネシア・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_8385437fbbb9",
+      "file": "File:View to the northeast from Monas.jpg",
+      "reason": "istiqlal-mosque: インドネシア・モスクが写真の中心"
+    },
+    {
+      "spotId": "sp_f7e7ebdee3bc",
+      "file": "File:Tugu Khatulistiwa Pontianak 2024 03.jpg",
+      "reason": "equator-monument-pontianak: インドネシア・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_f7e7ebdee3bc",
+      "file": "File:Equator Pontianak Monument.jpg",
+      "reason": "equator-monument-pontianak: インドネシア・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_f7e7ebdee3bc",
+      "file": "File:Old Pontianak Equator Monument.JPG",
+      "reason": "equator-monument-pontianak: インドネシア・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_caef98e80f4c",
+      "file": "File:Remote view of the Tour Montparnasse & Eiffel Tower in 2005.jpg",
+      "reason": "tour-montparnasse: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_caef98e80f4c",
+      "file": "File:Paris 75006 Jardin du Luxembourg - Tour Montparnasse.jpg",
+      "reason": "tour-montparnasse: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_caef98e80f4c",
+      "file": "File:Para Archery at the 2024 Summer Paralympics - Site olympique des Invalides - 02.jpg",
+      "reason": "tour-montparnasse: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_caef98e80f4c",
+      "file": "File:Montparnasse.jpg",
+      "reason": "tour-montparnasse: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_8fac480f99c9",
+      "file": "File:00 0237 Millau - Département Aveyron.jpg",
+      "reason": "millau-viaduct: フランス・橋が景色を横切る主役"
+    },
+    {
+      "spotId": "sp_8fac480f99c9",
+      "file": "File:Millau Viaduct (2724128971).jpg",
+      "reason": "millau-viaduct: フランス・橋が景色を横切る主役"
+    },
+    {
+      "spotId": "sp_8fac480f99c9",
+      "file": "File:Creissels et Viaduct de Millau.jpg",
+      "reason": "millau-viaduct: フランス・橋が景色を横切る主役"
+    },
+    {
+      "spotId": "sp_8fac480f99c9",
+      "file": "File:MillauViaductServices8358-censored.jpg",
+      "reason": "millau-viaduct: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ff87a06d1aba",
+      "file": "File:20190623 Perlan 8841 (48469867211).jpg",
+      "reason": "perlan: アイスランド・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ff87a06d1aba",
+      "file": "File:冰岛重要历史人物和重大历史事件博物馆 Saga Museum - panoramio.jpg",
+      "reason": "perlan: アイスランド・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ff87a06d1aba",
+      "file": "File:Winter Light (6842178797).jpg",
+      "reason": "perlan: アイスランド・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:20240601 144028 Dongdaemun Design Plaza, Seoul 08.jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:Dongdaemun Design Plaza - DDP2376.jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:Dongdaemun Design Plaza - DDP2369.jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:Dongdaemun Design Plaza grass.jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・屋上の芝も建物の一部"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:Dongdaemun Design Plaza (58619444).jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_773cc1f34714",
+      "file": "File:Dongdaemun Design Plaza & Park.jpg",
+      "reason": "dongdaemun-design-plaza: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_c5a3a15e0d8a",
+      "file": "File:Haedong Yonggungsa Temple view on sea.JPG",
+      "reason": "haedong-yonggungsa: 韓国・現代の石塔（立体作品）"
+    },
+    {
+      "spotId": "sp_c5a3a15e0d8a",
+      "file": "File:Haedong Yonggungsa Temple 20200522 007.jpg",
+      "reason": "haedong-yonggungsa: 韓国・現代の石塔（立体作品）"
+    },
+    {
+      "spotId": "sp_c5a3a15e0d8a",
+      "file": "File:Haedong Yonggungsa Temple 20200522 013.jpg",
+      "reason": "haedong-yonggungsa: 韓国・現代の石塔（立体作品）"
+    },
+    {
+      "spotId": "sp_d01b99235957",
+      "file": "File:Imjingak 001.jpg",
+      "reason": "imjingak: 韓国・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_2cd795b318d4",
+      "file": "File:Yeouido 14.jpg",
+      "reason": "yeouido-park: 韓国・現代の高層ビル群が主役"
+    },
+    {
+      "spotId": "sp_2cd795b318d4",
+      "file": "File:Yeouido Park Lawn 201604.jpg",
+      "reason": "yeouido-park: 韓国・現代の高層ビル群が主役"
+    },
+    {
+      "spotId": "sp_46a5abdb3531",
+      "file": "File:Tbilisi Holy Trinity Cathedral (Sameba) IMG 8956 1920.jpg",
+      "reason": "holy-trinity-cathedral-tbilisi: ジョージア・2004 年の大聖堂が写真の中心"
+    },
+    {
+      "spotId": "sp_ba52d530a50a",
+      "file": "File:Cầu Rồng.jpg",
+      "reason": "dragon-bridge-da-nang: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ba52d530a50a",
+      "file": "File:Dragon Bridge 01.jpg",
+      "reason": "dragon-bridge-da-nang: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ba52d530a50a",
+      "file": "File:Dragon Bridge Da Nang 1.jpg",
+      "reason": "dragon-bridge-da-nang: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ba52d530a50a",
+      "file": "File:Dragon Bridge at sunrise 5.jpg",
+      "reason": "dragon-bridge-da-nang: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ba52d530a50a",
+      "file": "File:Dragon Bridge at sunrise 3.jpg",
+      "reason": "dragon-bridge-da-nang: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_7f61bf128e24",
+      "file": "File:War Remnants Museum, HCMC, front.JPG",
+      "reason": "war-remnants-museum: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_7f61bf128e24",
+      "file": "File:War Remnants Museum 01 (5539737320).jpg",
+      "reason": "war-remnants-museum: ベトナム・博物館の建物が背景の大半"
+    },
+    {
+      "spotId": "sp_453e5ac72050",
+      "file": "File:20190923 Independence Palace-10.jpg",
+      "reason": "independence-palace-ho-chi-minh-city: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_453e5ac72050",
+      "file": "File:2023-12-10 Independence Palace, Saigon 01.jpg",
+      "reason": "independence-palace-ho-chi-minh-city: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_980f54f6019e",
+      "file": "File:July 2023 Suoi Tien Park.jpg",
+      "reason": "suoi-tien-park: ベトナム・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_980f54f6019e",
+      "file": "File:July 2023 Suoi Tien Park 13.jpg",
+      "reason": "suoi-tien-park: ベトナム・地球儀の像（立体作品）"
+    },
+    {
+      "spotId": "sp_980f54f6019e",
+      "file": "File:July 2023 Suoi Tien Park 8.jpg",
+      "reason": "suoi-tien-park: ベトナム・現代の像（立体作品）"
+    },
+    {
+      "spotId": "sp_b686eb618cd1",
+      "file": "File:Catedral de la Inmaculada Concepción, Manila, Filipinas, 2023-08-26, DD 21.jpg",
+      "reason": "manila-cathedral: フィリピン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_b686eb618cd1",
+      "file": "File:Manila Cathedral facade widescreen photo 2023-05-28.jpg",
+      "reason": "manila-cathedral: フィリピン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_b686eb618cd1",
+      "file": "File:Manila Cathedral, Intramuros Manila.jpg",
+      "reason": "manila-cathedral: フィリピン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_b686eb618cd1",
+      "file": "File:ManilaCathedraljf0203 01.JPG",
+      "reason": "manila-cathedral: フィリピン・像と大聖堂"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:History Museum (8145371419).jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:20141003 Uzbekistan 0877 Tashkent (16072380317).jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:State Museum of History of Uzbekistan 4.jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:State Museum of History of Uzbekistan 5.jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:State Museum of History of Uzbekistan 3.jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_66b3ed1e5bf0",
+      "file": "File:Entrance of State Museum of History of Uzbekistan - ultrawide shot, crop 2023.jpg",
+      "reason": "state-museum-of-history-of-uzbekistan: ウズベキスタン・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain 001.jpg",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain - Flickr - GregTheBusker.jpg",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain - Follow the Yellow Brick Road.JPG",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain - In the Driver's Seat.JPG",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain (4271531161).jpg",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_81d5435eea5a",
+      "file": "File:Salvation Mountain (4343341645).jpg",
+      "reason": "salvation-mountain: アメリカ・作品そのもの（アメリカは美術にパノラマの自由なし）"
+    },
+    {
+      "spotId": "sp_042cfd3e4a76",
+      "file": "File:Narayanhiti Palace Museum, crop.jpg",
+      "reason": "narayanhiti-palace-museum: ネパール・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_042cfd3e4a76",
+      "file": "File:The palace Narayanhiti.jpg",
+      "reason": "narayanhiti-palace-museum: ネパール・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_042cfd3e4a76",
+      "file": "File:Narayanhiti Palace Museum.jpg",
+      "reason": "narayanhiti-palace-museum: ネパール・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_042cfd3e4a76",
+      "file": "File:Photo of Narayanhiti Palace Museum.jpg",
+      "reason": "narayanhiti-palace-museum: ネパール・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_042cfd3e4a76",
+      "file": "File:Narayanhiti Durbar Museum.jpg",
+      "reason": "narayanhiti-palace-museum: ネパール・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_843227c6508d",
+      "file": "File:Emirates Palace - 55480974392.jpg",
+      "reason": "emirates-palace: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_843227c6508d",
+      "file": "File:Emirates Palace - 55482080378.jpg",
+      "reason": "emirates-palace: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_843227c6508d",
+      "file": "File:Emirates Palace.jpg",
+      "reason": "emirates-palace: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_843227c6508d",
+      "file": "File:- Emirates Palace- 2013 - panoramio.jpg",
+      "reason": "emirates-palace: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_843227c6508d",
+      "file": "File:Abu Dhabi - Emirates Palace - panoramio.jpg",
+      "reason": "emirates-palace: アラブ首長国連邦・現代のホテルと高層ビル群"
+    },
+    {
+      "spotId": "sp_ad00b6b5d4a3",
+      "file": "File:The Dubai Frame Observation Deck in Dubai, United Arab Emirates.jpg",
+      "reason": "dubai-frame: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ad00b6b5d4a3",
+      "file": "File:Dubai Frame View-Dubai UAE-Andres Larin.jpg",
+      "reason": "dubai-frame: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_ad00b6b5d4a3",
+      "file": "File:190410 Dubai Frame.jpg",
+      "reason": "dubai-frame: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ad00b6b5d4a3",
+      "file": "File:Dubaiframe2.jpg",
+      "reason": "dubai-frame: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_ad00b6b5d4a3",
+      "file": "File:برواز-دبي-خلال البناء--.jpg",
+      "reason": "dubai-frame: アラブ首長国連邦・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_f70ca7ec9ff9",
+      "file": "File:Sharjah city skyline in 2015.jpg",
+      "reason": "sharjah-city: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_f70ca7ec9ff9",
+      "file": "File:AL MAJAZ WATER FRONT SHARJAH.jpg",
+      "reason": "sharjah-city: アラブ首長国連邦・現代の超高層ばかりの摩天楼が主役"
+    },
+    {
+      "spotId": "sp_c0fa6ce433dc",
+      "file": "File:Grand Egyptian Museum.jpg",
+      "reason": "grand-egyptian-museum: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_c0fa6ce433dc",
+      "file": "File:75 Tonnen wiegt die Kolossalstatue des Ramses II im Großen Ägyptischen Museum. 07.jpg",
+      "reason": "grand-egyptian-museum: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_c0fa6ce433dc",
+      "file": "File:75 Tonnen wiegt die Kolossalstatue des Ramses II im Großen Ägyptischen Museum. 08.jpg",
+      "reason": "grand-egyptian-museum: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_c0fa6ce433dc",
+      "file": "File:GEM Conservation Center 2.jpg",
+      "reason": "grand-egyptian-museum: エジプト・現代の建物の中"
+    },
+    {
+      "spotId": "sp_4123c1989911",
+      "file": "File:Bibliotheca Alexandrina (Alexandrie bibliothèque).jpg",
+      "reason": "bibliotheca-alexandrina: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4123c1989911",
+      "file": "File:Bibliotheca Alexandrina - 20080720c.jpg",
+      "reason": "bibliotheca-alexandrina: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4123c1989911",
+      "file": "File:Bibliotheca Alexandrina -- Library entrance.jpg",
+      "reason": "bibliotheca-alexandrina: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4123c1989911",
+      "file": "File:Bibliotheca Alexandrina -- Wall detail 2.jpg",
+      "reason": "bibliotheca-alexandrina: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4123c1989911",
+      "file": "File:Bibliotheca Alexandrina in atmospheric light.jpg",
+      "reason": "bibliotheca-alexandrina: エジプト・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_65a1e3ce74c2",
+      "file": "File:Sunshine on mosque Hassan II in Casablanca, Morocco - Flickr - Milamber's portfolio.jpg",
+      "reason": "hassan-ii-mosque: モロッコ・ミナレットが主役"
+    },
+    {
+      "spotId": "sp_65a1e3ce74c2",
+      "file": "File:Hassan II Mosque - general framing, Casablanca, Morocco.jpg",
+      "reason": "hassan-ii-mosque: モロッコ・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_65a1e3ce74c2",
+      "file": "File:The Open Area of Hassan II Mosque - Casablanca Morocco.jpg",
+      "reason": "hassan-ii-mosque: モロッコ・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_65a1e3ce74c2",
+      "file": "File:Mosque Hassan Ii 2 (133662553).jpeg",
+      "reason": "hassan-ii-mosque: モロッコ・ミナレットが主役"
+    },
+    {
+      "spotId": "sp_4087d0ab7335",
+      "file": "File:South Africa-Johannesburg-Apartheid Museum001.jpg",
+      "reason": "apartheid-museum: 南アフリカ・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4087d0ab7335",
+      "file": "File:Apartheid Museum - 15755983922.jpg",
+      "reason": "apartheid-museum: 南アフリカ・博物館の建物の中"
+    },
+    {
+      "spotId": "sp_4087d0ab7335",
+      "file": "File:Apartheid Museum Segregated Entrance.jpg",
+      "reason": "apartheid-museum: 南アフリカ・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_4087d0ab7335",
+      "file": "File:Apartheidmuseumpool.JPG",
+      "reason": "apartheid-museum: 南アフリカ・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ad73543108cd",
+      "file": "File:Cannes Palais des Festivals et des Congrès.jpg",
+      "reason": "palais-des-festivals-cannes: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ad73543108cd",
+      "file": "File:Cannes - Promenade de la Pantiero - View ESE on Palais des Festivals et des Congrès.jpg",
+      "reason": "palais-des-festivals-cannes: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_ad73543108cd",
+      "file": "File:Environs du Palais des festivals et des congrès de Cannes (avril 2023).jpg",
+      "reason": "palais-des-festivals-cannes: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_102d4f15eaea",
+      "file": "File:Side View of the Opéra Bastille.jpg",
+      "reason": "opera-bastille: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_102d4f15eaea",
+      "file": "File:Je Suis Charlie 20150111 Opéra Bastille 2.JPG",
+      "reason": "opera-bastille: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_102d4f15eaea",
+      "file": "File:GJ marches Bastille.jpg",
+      "reason": "opera-bastille: フランス・著作権の残る建物・作品が主役"
+    },
+    {
+      "spotId": "sp_2251c9946a7d",
+      "file": "File:Cité de l'espace Toulouse 5.jpg",
+      "reason": "cite-de-l-espace: フランス・1997 年の展示の庭（作品）"
+    },
+    {
+      "spotId": "sp_2251c9946a7d",
+      "file": "File:Cité de l'espace Toulouse 6.jpg",
+      "reason": "cite-de-l-espace: フランス・1997 年の展示の庭（作品）"
+    },
+    {
+      "spotId": "sp_25bffa90320a",
+      "file": "File:Madurodam pays bas.JPG",
+      "reason": "madurodam: オランダ・模型が作品"
+    },
+    {
+      "spotId": "sp_25bffa90320a",
+      "file": "File:MadurodamDordrecht1572.jpg",
+      "reason": "madurodam: オランダ・模型が作品"
+    },
+    {
+      "spotId": "sp_25bffa90320a",
+      "file": "File:Koningin Beatrix at Madurodam.jpg",
+      "reason": "madurodam: オランダ・模型が作品"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:Iceland - Peace Tower 28 (6571385177).jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:Imagine Peace 1.jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:Imagine Peace 10.jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:Imagine Peace Inuktitut.jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:The Imagine Peace Tower on Viðey Iceland near Reykjavik (4067485347).jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_5f8499fd6715",
+      "file": "File:Iceland - Peace Tower 21 (6571373193).jpg",
+      "reason": "imagine-peace-tower: アイスランド・2007 年の作品（オノ・ヨーコ）"
+    },
+    {
+      "spotId": "sp_07b160155909",
+      "file": "File:エッフェル塔120周年記念の特別ライトアップ - panoramio - mayatomo (1).jpg",
+      "reason": "eiffel-tower: フランス・夜の照明（照明の演出は別の著作物）"
+    },
+    {
+      "spotId": "sp_38aef90a1fff",
+      "file": "File:The grave of Arman, Pere Lachaise Cemetery, Paris.jpg",
+      "reason": "pere-lachaise-cemetery: フランス・現代の墓の彫刻（立体作品）"
+    },
+    {
+      "spotId": "sp_06dcef6005ad",
+      "file": "File:Garuda Wisnu Kencana from below.jpg",
+      "reason": "garuda-wisnu-kencana: インドネシア・2018 年の像（ニョマン・ヌアルタ）"
+    },
+    {
+      "spotId": "sp_06dcef6005ad",
+      "file": "File:Abandoned shopping complex in Garuda Wisnu Kencana.jpg",
+      "reason": "garuda-wisnu-kencana: インドネシア・現代の建物（ガルーダ・ウィシュヌ・ケンカナ）"
+    },
+    {
+      "spotId": "sp_167951cf18f3",
+      "file": "File:Gangaramaya Temple (Burning Incense).jpg",
+      "reason": "gangaramaya-temple: スリランカ・現代の仏像（立体作品）"
+    },
+    {
+      "spotId": "sp_167951cf18f3",
+      "file": "File:Gangaramaya Temple (Rows of Buddhas).jpg",
+      "reason": "gangaramaya-temple: スリランカ・現代の仏像（立体作品）"
+    },
+    {
+      "spotId": "sp_19102b57a22e",
+      "file": "File:Mount Nebo Church.jpg",
+      "reason": "mount-nebo: ヨルダン・2016 年に改めた教会の中"
+    },
+    {
+      "spotId": "sp_19102b57a22e",
+      "file": "File:Mount Nebo Madabah.jpg",
+      "reason": "mount-nebo: ヨルダン・1980 年代の蛇の十字架（ジョヴァンニ・ファントーニ）"
+    },
+    {
+      "spotId": "sp_be8900be5859",
+      "file": "File:20190809 CASABLANCA 143-1.jpg",
+      "reason": "casablanca: モロッコ・20 世紀の建物が主役（建築家の没年を確かめていない）"
+    },
+    {
+      "spotId": "sp_c01fc6a24e2a",
+      "file": "File:Abu rokak a bottle between Rabat and Salé.jpg",
+      "reason": "rabat: モロッコ・2011 年の橋が主役"
+    },
+    {
+      "spotId": "sp_7e899a98a85f",
+      "file": "File:Ouarzazate - Wallpainting.jpg",
+      "reason": "ouarzazate: モロッコ・平面の絵（作者・年を確かめていない）"
+    },
+    {
+      "spotId": "sp_5c0f2dd14447",
+      "file": "File:Triple Bridge (Ljubljana) in 2023.02.jpg",
+      "reason": "triple-bridge-ljubljana: スロベニア・プレチニク（1957 年没・2027 年まで保護）の橋が主役"
+    },
+    {
+      "spotId": "sp_5c0f2dd14447",
+      "file": "File:Ljubljana - Tromostovje (48874545056).jpg",
+      "reason": "triple-bridge-ljubljana: スロベニア・プレチニク（1957 年没・2027 年まで保護）の橋が主役"
+    },
+    {
+      "spotId": "sp_5c0f2dd14447",
+      "file": "File:Ljubljana - Tromostovje (48749472426).jpg",
+      "reason": "triple-bridge-ljubljana: スロベニア・プレチニク（1957 年没・2027 年まで保護）の橋が主役"
+    },
+    {
+      "spotId": "sp_5c0f2dd14447",
+      "file": "File:Prešeren Square, Ljubljana, 2007.JPG",
+      "reason": "triple-bridge-ljubljana: スロベニア・プレチニク（1957 年没・2027 年まで保護）の橋が主役"
+    },
+    {
+      "spotId": "sp_5c0f2dd14447",
+      "file": "File:Ljubljana - Tromostovje (48764029462).jpg",
+      "reason": "triple-bridge-ljubljana: スロベニア・プレチニク（1957 年没・2027 年まで保護）の橋が主役"
+    },
+    {
+      "spotId": "sp_5469298ed04c",
+      "file": "File:Manila, Rizal Park skyline, Philippines.jpg",
+      "reason": "rizal-park: フィリピン・現代の高層ビル群が主役"
+    },
+    {
+      "spotId": "sp_5469298ed04c",
+      "file": "File:Manila, Rizal Park, Philippines.jpg",
+      "reason": "rizal-park: フィリピン・現代の高層ビル群が主役"
+    },
+    {
+      "spotId": "sp_d0e3e3016ec4",
+      "file": "File:Aakash.jpg",
+      "reason": "lumbini: ネパール・現代の仏塔"
+    },
+    {
+      "spotId": "sp_d0e3e3016ec4",
+      "file": "File:Ancient Mayadevi Temple Lumbini Nepal.jpg",
+      "reason": "lumbini: ネパール・2003 年のマーヤー・デーヴィー寺院"
+    },
+    {
+      "spotId": "sp_d0e3e3016ec4",
+      "file": "File:Angled photo of a yellow building in Lumbini 20141017.jpg",
+      "reason": "lumbini: ネパール・現代の僧院の建物"
+    },
+    {
+      "spotId": "sp_fc1caa8dfc39",
+      "file": "File:Gordes - Victor Vasarely sculpture (5837502408).jpg",
+      "reason": "gordes: フランス・現代の彫刻（立体作品）"
+    }
+  ]
+}

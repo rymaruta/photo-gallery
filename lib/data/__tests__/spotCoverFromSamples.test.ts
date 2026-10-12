@@ -6,7 +6,7 @@ import rawImages from "../../../content/spot-images.json";
 import rawSamples from "../../../content/spot-samples.json";
 import type { Spot } from "../spots";
 import {
-    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, type SpotImage,
+    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, SPOT_SAMPLE_EXCLUSIONS, isExcludedSample, type SpotImage,
 } from "../spotImages";
 import {
     coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL, isPromotionTarget, spotSamples,
@@ -155,7 +155,9 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
     const samples = rawSamples as unknown as SpotSamplesFile;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
     // パノラマの自由が無い国の現代建築（`NO_FOP_COVER_EXCLUSIONS`）は縮小版を消して出さない（2026-10-11）
-    const promoted = Object.entries(images).filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug));
+    // 作例として表示から落とした1枚を上げた行（ルンビニ）も同じく出さない
+    const promoted = Object.entries(images).filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug)
+        && !isExcludedSample(bySlug.get(slug)!.spotId, v));
 
     it("🔴 パノラマの自由が無い国の現代建築: 代表写真に出さず、作例からも上げ直さず、縮小版も置かない", () => {
         const slugs = Object.keys(NO_FOP_COVER_EXCLUSIONS);
@@ -218,7 +220,8 @@ describe("レビューの直し（2026-10-11）", () => {
     const images = rawImages as unknown as Record<string, SpotImage>;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
     const promoted = Object.entries(images)
-        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!) && !isNoFopCoverExcluded(slug))
+        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!) && !isNoFopCoverExcluded(slug)
+            && !isExcludedSample(bySlug.get(slug)!.spotId, v))
         .map(([slug, v]) => ({ spot: bySlug.get(slug)!, image: v }));
 
     it("代表写真は題（ファイル名から）を持ち、構造化データの name も題", () => {
@@ -295,5 +298,44 @@ describe("レビューの直し（2026-10-11）", () => {
     it("上げる道具は isPromotionTarget を通す", async () => {
         const src = fs.readFileSync(path.join(__dirname, "../../../scripts/promote-sample-covers.ts"), "utf8");
         expect(src).toMatch(/isPromotionTarget\(s, images,/);
+    });
+});
+
+describe("🔴 パノラマの自由が無い国の現代建築の作例を表示から落とす（2026-10-11）", () => {
+    const samplesFile = rawSamples as unknown as SpotSamplesFile;
+    const images = rawImages as unknown as Record<string, SpotImage>;
+    const byId = new Map(ledger.map((s) => [s.spotId, s]));
+    const key = (f: string | undefined) => String(f ?? "").replace(/_/g, " ").replace(/^File:/i, "").trim();
+
+    it("一覧の1枚はどれも確定ファイルに在る（書き間違いで黙って効かない行を作らない）・理由が書いてある", () => {
+        expect(SPOT_SAMPLE_EXCLUSIONS.length).toBeGreaterThan(100);
+        for (const e of SPOT_SAMPLE_EXCLUSIONS) {
+            expect(byId.get(e.spotId), e.spotId).toBeDefined();
+            expect(samplesFile[e.spotId]?.samples.some((r) => key(r.file) === key(e.file)), `${e.spotId} ${e.file}`).toBe(true);
+            expect(e.reason.trim(), e.file).not.toBe("");
+        }
+    });
+
+    it("落とした1枚は、作例にも代表写真にも代表写真の候補にも出ない", () => {
+        for (const e of SPOT_SAMPLE_EXCLUSIONS) {
+            const spot = byId.get(e.spotId)!;
+            expect(spotSamples(spot).some((x) => key(decodeURIComponent(x.sourceUrl.replace(/^.*\/wiki\//, ""))) === key(e.file)), `${spot.slug} ${e.file}`).toBe(false);
+            expect(key(coverCandidateSample(spot)?.record.file) === key(e.file), spot.slug).toBe(false);
+            const cover = shownSpotImage(spot);
+            expect(cover && key(cover.file) === key(e.file), spot.slug).toBeFalsy();
+        }
+        // 作例から上げた代表写真の元の1枚を落としたら、代表写真も出さない（ルンビニ）
+        const lumbini = ledger.find((s) => s.slug === "lumbini")!;
+        expect(isExcludedSample(lumbini.spotId, images.lumbini)).toBe(true);
+        expect(spotCoverImage(lumbini)).toBeUndefined();
+    });
+
+    it("作例が1枚も残らない撮影地（ブルジュ・ハリファ）も、ページの説明が壊れない（枚数を言わない）", async () => {
+        const spot = ledger.find((s) => s.slug === "burj-khalifa")!;
+        expect(spotSamples(spot)).toEqual([]);
+        expect(spotCoverImage(spot)).toBeUndefined();
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: spot.slug }) });
+        expect(String(meta.description)).not.toMatch(/作例|代表写真\d|0枚/);
+        expect(String(meta.description).length).toBeGreaterThan(10);
     });
 });
