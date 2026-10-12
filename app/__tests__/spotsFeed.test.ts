@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import rawLedger from "../../content/spots.json";
 import type { Spot } from "../../lib/data/spots";
 import { buildSpotFeed, spotIndexFeed, spotIndexFeedJson, toSpotFeedItem } from "../../lib/data/spotFeed";
-import { SPOT_IMAGES, SAMPLE_COVER_METHOD, cleanAuthor, isNoFopCoverExcluded, licenseKindOf, type SpotImage } from "../../lib/data/spotImages";
+import { SPOT_IMAGES, SAMPLE_COVER_METHOD, cleanAuthor, isNoFopCoverExcluded, isExcludedSample, licenseKindOf, type SpotImage } from "../../lib/data/spotImages";
 import { hasPlaceholderPhrase } from "../../lib/utils/commonsAttribution.mjs";
 import { toSpotBody } from "../../lib/data/spotBody";
 import * as route from "../app/data/spots.json/route";
@@ -243,7 +243,7 @@ describe("実際の台帳で作った索引", () => {
                 || (SPOT_IMAGES[s.slug]?.method === SAMPLE_COVER_METHOD && SPOT_IMAGES[s.slug]?.pickedBy === "visual-review")
                 || (SPOT_IMAGES[s.slug]?.method !== SAMPLE_COVER_METHOD && s.aiCheck?.imageChecked === true))
             // パノラマの自由が無い国の現代建築は出さない（2026-10-11）
-            .filter((s) => !isNoFopCoverExcluded(s.slug))
+            .filter((s) => !isNoFopCoverExcluded(s.slug) && !isExcludedSample(s.spotId, SPOT_IMAGES[s.slug] ?? {}))
             // CC BY 系で作者の欄が名前でない（「Own work」…）写真は出さない（2026-10-11）
             .filter((s) => {
                 const kind = licenseKindOf(SPOT_IMAGES[s.slug]?.license);

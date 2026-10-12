@@ -25,7 +25,7 @@
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
-import { cleanAuthor, licenseKindOf, isReviewedPick, isNoFopCoverExcluded, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
+import { cleanAuthor, licenseKindOf, isReviewedPick, isNoFopCoverExcluded, isExcludedSample, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
 import type { Spot, SpotCoverImage } from "./spots";
 import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
@@ -434,6 +434,7 @@ export function spotSamples(
     const seen = new Set<string>();
     const out: SpotSample[] = [];
     for (const r of file[spot.spotId]?.samples ?? []) {
+        if (isExcludedSample(spot.spotId, r)) continue;
         if (opts.reviewedOnly && !isReviewedPick(r)) continue;
         if (!eventSpot && EVENT_OR_PERSON.test(`${r.file ?? r.title ?? ""}`)) continue;
         const s = toSpotSample(r);
@@ -482,6 +483,7 @@ export function coverCandidateSample(
     const eventSpot = isEventSpot(spot);
     const ok: { record: SpotSampleRecord; sample: SpotSample }[] = [];
     for (const record of file[spot.spotId]?.samples ?? []) {
+        if (isExcludedSample(spot.spotId, record)) continue;
         if (!isReviewedPick(record) || sampleSourceName(record) !== COMMONS_SOURCE_NAME) continue;
         if (!eventSpot && EVENT_OR_PERSON.test(`${record.file ?? record.title ?? ""}`)) continue;
         const sample = toSpotSample(record);

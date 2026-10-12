@@ -1,3 +1,4 @@
+import { isExcludedSample } from "../spotImages";
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
 import rawSamples from "../../../content/spot-samples.json";
@@ -345,7 +346,8 @@ describe("リポジトリの確定ファイル", () => {
     const file = rawSamples as unknown as SpotSamplesFile;
 
     /**
-     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・PD-Detroit・Flickr の PDM・人物の印・人や催しが主役）だけ。
+     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・PD-Detroit・Flickr の PDM・人物の印・人や催しが主役・
+     * パノラマの自由が無い国の現代建築）だけ。
      * URL の欠け・知らないライセンスなど、それ以外の理由で黙って落ちる1枚は無い
      * （確定ファイルは人が手で直すので、書き間違いをここで捕まえる）
      */
@@ -355,7 +357,9 @@ describe("リポジトリの確定ファイル", () => {
         // PD-Detroit・Flickr の Public Domain Mark も（2026-10-11 レビュー）
         return (by && isPlaceholderAuthor(author)) || isUnusablePublicDomain(r.license, r.licenseCode) || r.personality === true
             || String(r.licenseCode ?? "").startsWith("mixed:")
-            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""));
+            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""))
+            // パノラマの自由が無い国の現代建築（`content/spot-sample-exclusions.json`・2026-10-11）
+            || isExcludedSample(spot.spotId, r);
     };
 
     it("🔴 書いてある1枚は、決めた理由で落とすもの以外どれも表示の形にできる", () => {
