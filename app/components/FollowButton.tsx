@@ -204,6 +204,7 @@ export function FollowAction({ targetUserId, isOwner, isAuthenticated, locale, v
         if (result === "auth-required") {
             showToast(message ?? (locale === "en" ? "Log in to follow" : "フォローするにはログインしてください"), "info");
         } else if (result === "followed") {
+            // `already`（取り直したら既にフォロー中）はここを通らない。送っていないので言わない
             showToast(locale === "en" ? "Following" : "フォローしました", "success");
         } else if (result === "error") {
             // サーバーの理由をそのまま出す（「自分はフォローできません」など）。
