@@ -62,6 +62,67 @@ describe("useFollow: 判定が終わるまで押させない", () => {
         await waitFor(() => expect(result.current.resolved).toBe(true));
     });
 
+    // 失敗を「未フォロー」と決めて押せるようにしていた頃は、既にフォロー中の
+    // 相手へ POST が飛び、冪等の 200 で「フォローしました」と出ていた。
+    // ボタンは押せるまま、押したときに取り直す（iOS の followUnknown と同じ）。
+    function postFollowCalls() {
+        return mockUserFetch.mock.calls.filter((args) => {
+            const init = args[1] as { method?: string } | undefined;
+            return init?.method === "POST";
+        });
+    }
+
+    it("一覧が取れないまま押しても、取り直してフォロー中なら送らない", async () => {
+        mockUserFetch.mockRejectedValueOnce(new Error("down"));
+        const useFollow = await load();
+        const { result } = renderHook(() => useFollow(TARGET, true, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+        expect(result.current.isFollowing).toBe(false);
+
+        mockUserFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ userIds: [TARGET] }) });
+        let answer: Awaited<ReturnType<typeof result.current.toggle>> | undefined;
+        await act(async () => { answer = await result.current.toggle(); });
+
+        expect(answer?.result).toBe("already");
+        expect(result.current.isFollowing).toBe(true);
+        expect(postFollowCalls(), "既にフォロー中なのに POST している").toHaveLength(0);
+    });
+
+    it("取り直しも失敗したら、フォローを送らずに確かめる失敗を返す", async () => {
+        mockUserFetch.mockRejectedValue(new Error("down"));
+        const useFollow = await load();
+        const { result } = renderHook(() => useFollow(TARGET, true, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+
+        let answer: Awaited<ReturnType<typeof result.current.toggle>> | undefined;
+        await act(async () => { answer = await result.current.toggle(); });
+
+        expect(answer?.result).toBe("error");
+        expect(answer?.message).toBe("フォローの状態を確かめられませんでした");
+        expect(result.current.isFollowing).toBe(false);
+        expect(postFollowCalls(), "確かめられないのに POST している").toHaveLength(0);
+    });
+
+    it("取り直して未フォローなら、そのときフォローを送る", async () => {
+        mockUserFetch
+            .mockRejectedValueOnce(new Error("down"))
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ userIds: [] }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ followers: 1 }) });
+        const useFollow = await load();
+        const { result } = renderHook(() => useFollow(TARGET, true, false));
+        await waitFor(() => expect(result.current.resolved).toBe(true));
+
+        let answer: Awaited<ReturnType<typeof result.current.toggle>> | undefined;
+        await act(async () => { answer = await result.current.toggle(); });
+
+        expect(answer?.result).toBe("followed");
+        expect(result.current.isFollowing).toBe(true);
+        // 失敗した初回のあと、押したときに一覧を取り直してから送る
+        expect(mockUserFetch.mock.calls.filter((args) => args[0] === "/user/following")).toHaveLength(2);
+        expect(postFollowCalls()).toHaveLength(1);
+        expect(String(postFollowCalls()[0]?.[0])).toBe(`/users/${encodeURIComponent(TARGET)}/follow`);
+    });
+
     it("未ログインなら待たずに確定する（フォローしていないと分かっている）", async () => {
         const useFollow = await load();
         const { result } = renderHook(() => useFollow(TARGET, false));
