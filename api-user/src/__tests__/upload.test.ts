@@ -8,10 +8,12 @@ const mockPutObjectInput = vi.hoisted(() => vi.fn());
 const mockListMyMedia = vi.hoisted(() => vi.fn());
 const mockGetPhotoById = vi.hoisted(() => vi.fn());
 const mockOverwriteOwnPhoto = vi.hoisted(() => vi.fn());
+const mockMarkStaticStale = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     getPhotoById: mockGetPhotoById,
     overwriteOwnPhoto: mockOverwriteOwnPhoto,
+    markStaticStale: mockMarkStaticStale,
     countUserPhotos: mockCountUserPhotos,
     listMyMediaItems: mockListMyMedia,
 }));
@@ -100,6 +102,7 @@ beforeEach(() => {
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
+    mockMarkStaticStale.mockReset().mockResolvedValue(undefined);
     mockRequestSiteRebuild.mockReset().mockResolvedValue(true);
     mockCopyAll.mockReset().mockResolvedValue(true);
     mockDropOld.mockReset().mockResolvedValue(0);
@@ -353,13 +356,10 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
     });
 
-    // **既存の穴の目撃者**（この差分で作った回帰ではない）。
     // 「公開を押す → 応答だけ失われる → 下書き保存を押す」で、公開済みの行が
-    // 下書きに書き換わるのに再ビルドを頼まず `staticStale` も立てない
-    // （`photoUpdate.ts` の隠す3経路はどちらもやっている）。実際に静的ページが
-    // 残るのは「その間に別のビルドの scan が挟まった」場合だけなので窓は狭い。
-    // **いまの振る舞いを写し取っておく**——直すのは別の差分で。
-    it("【既知の穴】再送で公開→下書きに落としても、いまは何も頼まない", async () => {
+    // 下書きに書き換わる。静的ページが残るので、隠す経路と同じく作り直しを頼む。
+    // 頼めない回は `staticStale` を残し、あとで消したときに掃除を頼む。
+    it("再送で公開→下書きに落としたら、静的ページの掃除を頼む", async () => {
         mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: BASE.publicUrl, published: true,
@@ -368,10 +368,23 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         const res = await invoke(event("u1", { ...BASE, published: false }));
         expect(res.statusCode).toBe(200);
         expect(savedRewrite().published, "下書きに書き換わっている").toBe(false);
-        // **印も一緒に落ちる。** いまは丸ごと Put なので構造上そうなるが、
-        // `overwriteOwnPhoto` が部分更新に変われば静かに壊れる場所
         expect("publicFeed" in savedRewrite(), "下書きなのに一覧に出る").toBe(false);
-        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+        expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
+        expect(mockMarkStaticStale, "頼めた回は印を残さない").not.toHaveBeenCalled();
+        expect(JSON.parse(res.body).photo.staticStale).toBeUndefined();
+    });
+
+    it("再送で隠したとき再ビルドを頼めなければ、staticStale を残す", async () => {
+        mockRequestSiteRebuild.mockResolvedValue(false);
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, published: false }));
+        expect(res.statusCode).toBe(200);
+        expect(mockMarkStaticStale).toHaveBeenCalledWith(savedRewrite().id);
+        expect(JSON.parse(res.body).photo.staticStale, "画面が伝えようがない").toBe(true);
     });
 
     // **ただの二重送信では頼まない。** 再送は「モバイル回線で応答だけが
