@@ -181,6 +181,28 @@ function onStaticSite(p: { published?: unknown; audience?: unknown }): boolean {
 }
 
 /**
+ * 再送で行を書き直してよいか。
+ *
+ * 作成時は `createdAt` と `updatedAt` を同じ時刻で書く。それより前の行は
+ * `new Date()` を2回呼んでいたので、ミリ秒だけずれていることがある。
+ * 編集（`photoUpdate`）は秒よりあとなので、2秒を超えた差は「あとから直した」
+ * と見て、開きっぱなしの投稿タブでは書き直さない。
+ */
+const RESEND_CREATE_SLACK_MS = 2000;
+
+function resendStillOriginal(existing: { createdAt?: string; updatedAt?: string }): boolean {
+    const createdRaw = typeof existing.createdAt === "string" ? existing.createdAt : "";
+    const updatedRaw = typeof existing.updatedAt === "string" ? existing.updatedAt : createdRaw;
+    if (!updatedRaw) return false;
+    const created = Date.parse(createdRaw);
+    const updated = Date.parse(updatedRaw);
+    if (!Number.isFinite(created) || !Number.isFinite(updated)) {
+        return createdRaw !== "" && createdRaw === updatedRaw;
+    }
+    return Math.abs(updated - created) <= RESEND_CREATE_SLACK_MS;
+}
+
+/**
  * 写真を1枚 公開したら、静的サイトを作り直してもらう。
  *
  * **これが無いと、投稿しても世に出ない。** このサイトは静的エクスポートで、
@@ -343,6 +365,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // 生のまま保存すると、削除や派生生成で見る側と表記が食い違い、
     // 対象から漏れる余地が残る。**2枚目以降の重複判定にも使う。**
     const safeSrc = canonicalUploadUrl(publicUrl, CLOUDFRONT_URL);
+    // 作成と更新は同じ時刻にする。別々の `new Date()` だとミリ秒でずれ、
+    // 「まだ誰も直していない」を時刻の差で見られなくなる。
+    const savedAt = new Date().toISOString();
 
     let photo: Photo = {
         // **IDは鍵から導出する（uuid v5）。** ここで毎回採番し直していたので、
@@ -421,8 +446,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         ...(isPublished
             ? { publicFeed: sanitizeAudience(body.audience) ? RESTRICTED_FEED_KEY : PUBLIC_FEED_KEY }
             : {}),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: savedAt,
+        updatedAt: savedAt,
     };
 
     /**
@@ -505,18 +530,17 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // 落ちたあと公開を押す」ことがあり、その回の published とメタデータが
             // 今回の意図になるので、今回の内容で書き直す。
             //
-            // **`updatedAt = :ua` は「誰も触っていない」を見ていない。**
-            // `stored` はこの要求の中で読んだ `existing` の値なので、条件が
-            // 止められるのは **Get と Put の間に入った書き込みだけ**。
-            // 「/user/edit で後から直した内容を巻き戻さない」と以前ここに
-            // 書いていたが、そういう守りにはなっていない（半年前に直した行
-            // でも条件は成立する。実際に走らせて確認した）。開きっぱなしの
-            // アップロードタブで押し直すと、後から直したタイトル・説明は
-            // 今回の本文で上書きされる——**塞ぐには「作られてから一度も
-            // 更新されていない」を見る形が要る**が、`putPhoto` は
-            // `createdAt` と `updatedAt` を別々の `new Date()` で書くので
-            // ミリ秒でずれうる。倒し方を決める話なので、ここでは直さない。
+            // **`updatedAt = :ua` は Get と Put のあいだだけを見る。**
+            // 値はこの要求で読んだ `existing` なので、編集画面で後から
+            // 直した行でも条件は成立する。開きっぱなしの投稿タブが題や説明を
+            // 巻き戻さないよう、作成から後の更新がある行は書き直さない。
+            // 作成時の時刻ずれ（古い行は `new Date()` が2回）は
+            // `resendStillOriginal` の幅で吸収する。
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
+            if (stored && !resendStillOriginal(existing)) {
+                console.log(`savePhoto: 再送を受け取りましたが、あとから直されているので書き直しません（${photo.id}）`);
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
+            }
             // **サーバー側で書かれた項目は引き継ぐ。**
             //
             // 書き直しは `PutCommand`（全置換）で、`photo` は今回の本文から

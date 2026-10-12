@@ -1272,19 +1272,39 @@ describe("savePhoto: 保存の再送で写真が増えない", () => {
     });
 
     // /user/edit で後から直した内容を、開きっぱなしのアップロードタブが
-    // 巻き戻さない。書き直せなければ保存済みの方を返す（成功は成功）
-    it("誰かが触っていたら書き直さず、保存済みの方を返す", async () => {
+    // 巻き戻さない。`updatedAt = :ua` に渡す値は今読んだ行なので、
+    // 条件だけでは半年前の編集も通る。書き直し自体を呼ばない。
+    it("あとから直した行は書き直さず、保存済みの方を返す", async () => {
         mockPutPhoto.mockRejectedValueOnce(condFail());
         mockGetPhotoById.mockResolvedValue({
             id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
             published: true, title: { ja: "あとで直した", en: "edited" },
             createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z",
         });
-        mockOverwriteOwnPhoto.mockResolvedValue(false);
-        const res = await invoke(event("u1", { ...body, published: false }));
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        const res = await invoke(event("u1", { ...body, published: false, title: "タブに残った題" }));
 
         expect(res.statusCode).toBe(200);
+        expect(mockOverwriteOwnPhoto, "あとから直した行を書き直している").not.toHaveBeenCalled();
         expect(JSON.parse(res.body).photo.title.ja).toBe("あとで直した");
+        expect(JSON.parse(res.body).photo.published).toBe(true);
+    });
+
+    // 作成時の2つの new Date() はミリ秒でずれうる。その幅では、
+    // 下書きのあと公開を押す再送を止めてはいけない。
+    it("作成時刻がミリ秒だけずれていても、再送で書き直す", async () => {
+        mockPutPhoto.mockRejectedValueOnce(condFail());
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: `https://cdn.example.com/${KEY}`,
+            published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.001Z",
+        });
+        mockOverwriteOwnPhoto.mockResolvedValue(true);
+        const res = await invoke(event("u1", { ...body, published: true }));
+
+        expect(res.statusCode).toBe(200);
+        expect(mockOverwriteOwnPhoto).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(res.body).photo.published).toBe(true);
     });
 
     // **書き直しは `PutCommand`（全置換）。** `photo` にはサーバーが持つ項目
