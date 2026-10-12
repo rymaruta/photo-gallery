@@ -74,8 +74,9 @@ export async function hasAnyUserItem(userId: string): Promise<boolean> {
  * 条件で守るのは3つ:
  *   - 自分の行であること（`userId` は古い行に無いことがあるので両方見る）
  *   - 同じ画像を指していること（`src`）
- *   - **まだ誰も触っていないこと**（`updatedAt`）。/user/edit で後から
- *     直した内容を、開きっぱなしのアップロードタブが巻き戻さないため
+ *   - **読んだあと誰も書いていないこと**（`updatedAt`）。Get と Put の
+ *     あいだに入った書き込みだけを止める。編集画面で後から直した行を
+ *     巻き戻さない判断は、呼び出す側が作成時刻と比べてからにする。
  */
 export async function overwriteOwnPhoto(photo: Photo, expectUpdatedAt: string): Promise<boolean> {
     try {
