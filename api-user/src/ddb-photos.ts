@@ -1,4 +1,4 @@
-import { PutCommand, QueryCommand, GetCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, QueryCommand, GetCommand, BatchGetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import type { Photo } from "./types";
 
@@ -103,6 +103,26 @@ export async function overwriteOwnPhoto(photo: Photo, expectUpdatedAt: string): 
  * photoUpdate.ts が同じことをしている。今の呼び出し元は UUID しか渡さないが、
  * export した汎用関数がその規約から外れていると、次の利用者が穴を開ける。
  */
+/**
+ * 再送で静的サイトから落としたのに、作り直しを頼めなかった印。
+ * 削除のときにこの印を見て掃除を頼む（`photoUpdate.ts` の `staticStale` と同じ）。
+ * 書けなくても保存そのものは成立しているので、ここでは投げない。
+ */
+export async function markStaticStale(id: string): Promise<void> {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id },
+            UpdateExpression: "SET staticStale = :t",
+            ExpressionAttributeValues: { ":t": true },
+            ConditionExpression: "attribute_exists(id)",
+        }));
+    } catch (e) {
+        if ((e as { name?: string }).name === "ConditionalCheckFailedException") return;
+        console.error(`markStaticStale: 記録に失敗 (${id}):`, e);
+    }
+}
+
 export async function getPhotoById(id: string): Promise<Photo | undefined> {
     if (!id || id.includes("#")) return undefined;
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
