@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getPhotoById, updatePhotoFields, deletePhotoById } from "./ddb-photos";
 import { removePhotoFromAlbum } from "./albumCleanup";
-import { PUBLIC_FEED_KEY } from "./publicFeed";
+import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
 import { invalidateUploads } from "./cdnInvalidate";
@@ -125,7 +125,14 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // `updatePhotoFields` は undefined を REMOVE に倒すので、
         // 非公開にしたら索引から落ちる。
         if ("published" in fields) {
-            updates.publicFeed = fields.published === false ? undefined : PUBLIC_FEED_KEY;
+            // 管理画面は `audience` を送らない。保存のたびに `published: true` を
+            // 同梱するので、無条件に全体公開の印へ戻すと、フォロワーのみの写真が
+            // 限定一覧から消える（`photoUpdate.ts` は保存済みの範囲を見て決めている）
+            const audience = photo.audience;
+            const restricted = audience === "followers" || audience === "closeFriends";
+            updates.publicFeed = fields.published === false
+                ? undefined
+                : (restricted ? RESTRICTED_FEED_KEY : PUBLIC_FEED_KEY);
         }
         // 地名から補った座標（geoApprox）は地名に付随する。地名を直したら
         // 座標ごと捨てる（ユーザーAPI側 api-user/src/photoUpdate.ts と同じ扱い。

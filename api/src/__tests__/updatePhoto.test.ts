@@ -60,6 +60,18 @@ describe("updatePhoto: 公開一覧の索引に載せる印", () => {
         expect(updates.publicFeed, "印が無いと二度と一覧に出ない").toBe("1");
     });
 
+    it("絞った写真を公開のまま保存しても、一覧の仕切りを全体公開にしない", async () => {
+        for (const audience of ["followers", "closeFriends"]) {
+            mockUpdatePhotoFields.mockClear();
+            mockGetPhotoById.mockResolvedValue({
+                id: "p1", userId: "owner", published: true, audience, publicFeed: "restricted",
+            });
+            await invoke(ev("p1", { published: true, title: { ja: "題", en: "" } }));
+            const updates = mockUpdatePhotoFields.mock.calls[0][1] as Record<string, unknown>;
+            expect(updates.publicFeed, audience).toBe("restricted");
+        }
+    });
+
     it("published を送っていなければ、印には触らない", async () => {
         mockGetPhotoById.mockResolvedValue({ id: "p1", userId: "owner", published: true });
         await invoke(ev("p1", { title: { ja: "あたらしい題", en: "" } }));

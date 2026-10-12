@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems } from "./ddb-photos";
+import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems, markStaticStale } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
@@ -642,14 +642,27 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 公開でも載らないので、絞った → 全体に公開 の再送は頼む側、
                 // 絞ったままの公開は頼まない側に入る
                 const wasOnStaticSite = onStaticSite(existing);
-                // **`staticStale` を下ろす対がここには作れない。**
-                // `photoUpdate.ts:353` は「依頼が届いたら REMOVE」を持って
-                // いるが、`requestRebuildForNewPhoto` は `Promise<void>` で
-                // 成否を返さないので、**そもそも判断する材料がここに無い**
-                // （下ろすなら戻り値を通すところから）。倒す先としては
-                // 「余分に頼む」側が安全ではある——印を落として実際には
-                // 届いていなければ、古い静的ページを誰も覚えていない。
-                await requestRebuildForNewPhoto(photo.id, onStaticSite(photo) && !wasOnStaticSite);
+                const nowOnStaticSite = onStaticSite(photo);
+                if (nowOnStaticSite && !wasOnStaticSite) {
+                    // 下書き・絞り → 静的サイトに載る再送。最初の保存では頼んでいない
+                    await requestRebuildForNewPhoto(photo.id, true);
+                } else if (wasOnStaticSite && !nowOnStaticSite) {
+                    // 静的サイトに載っていた行を、再送で下書き・絞りに落とした。
+                    // ページが残る。`photoUpdate` の隠す経路と同じく、頼めなければ
+                    // `staticStale` を残して、あとで消したときに掃除を頼む
+                    const dispatched = await requestSiteRebuild(
+                        `photo hidden on resend: ${photo.id}`, { coalesce: true },
+                    ).catch((e) => {
+                        console.error(`savePhoto: 再送で隠したあとの再ビルドが失敗（${photo.id}）:`, e);
+                        return false;
+                    });
+                    if (!dispatched) {
+                        await markStaticStale(photo.id);
+                        // 応答の形は Photo（索引署名つき）。書き直したオブジェクトの
+                        // 推論型にはこの印が無いので、返すときだけ足す
+                        Object.assign(rewritten, { staticStale: true });
+                    }
+                }
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
             }
