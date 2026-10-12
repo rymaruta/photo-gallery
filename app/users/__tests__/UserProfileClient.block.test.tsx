@@ -237,6 +237,36 @@ describe("プロフィールからブロックする", () => {
         expect(await screen.findByTestId("follow-action"), "解除してもフォローできない").toBeInTheDocument();
     });
 
+    // 開き直すと `blocked` が false に戻り、押すと必ず 400 になるボタンが出ていた
+    it("以前ブロックした相手を開き直しても、フォローを出さない", async () => {
+        mockUserFetch.mockImplementation((url: string, init?: { method?: string }) => {
+            if (String(url) === "/user/blocks" && !init?.method) {
+                return Promise.resolve({ ok: true, json: async () => ({ blockedIds: [OTHER] }) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view();
+        await waitFor(() => {
+            expect(mockUserFetch.mock.calls.some((c) => String(c[0]) === "/user/blocks")).toBe(true);
+            expect(screen.queryByTestId("follow-action"), "ブロック中なのにフォローが出ている").toBeNull();
+        });
+        await openMenu();
+        expect(await screen.findByRole("menuitem", { name: "ブロックを解除" })).toBeInTheDocument();
+        expect(screen.queryByText(/解除しても戻りません/)).toBeNull();
+    });
+
+    it("ブロック一覧が取れないときは、フォローを出したままにする", async () => {
+        mockUserFetch.mockImplementation((url: string) => {
+            if (String(url) === "/user/blocks") {
+                return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+            }
+            return Promise.resolve({ ok: true, json: async () => ({}) });
+        });
+        view();
+        await waitFor(() => expect(mockUserFetch.mock.calls.some((c) => String(c[0]) === "/user/blocks")).toBe(true));
+        expect(await screen.findByTestId("follow-action"), "一覧が取れないだけでフォローを隠している").toBeInTheDocument();
+    });
+
     it("未ログインには出さない（口が断るので押させない）", async () => {
         authState.current = { isAuthenticated: false, userId: null, loading: false };
         view();

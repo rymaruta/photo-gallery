@@ -252,9 +252,8 @@ function bumpCountsGen(userId: string): boolean {
  * ——どれも変わらない。`UserProfileClient` は**その画面でブロックを押した回**
  * だけボタンを出さない（`key` で張り直す形は `busyRef` / `pending` ごと
  * 作り直して二重送信の番人を外すのでやめた）。開き直すと `blocked` は
- * false に戻るので、以前ブロックした相手にはボタンが出て、押すと 400 が
- * 返る——**まだ直っていない**（`GET /user/blocks` を引けば分かるが、
- * プロフィールを開くたびに1往復増えるので別に判断する）。
+ * false に戻る。プロフィールは開いたときに `GET /user/blocks` を見て、
+ * 以前ブロックした相手にはボタンを出さない。
  */
 export function noteFollowSevered(targetUserId: string): void {
     if (!targetUserId) return;
