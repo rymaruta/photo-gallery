@@ -710,9 +710,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [postOpen, setPostOpen] = useState(false);
     const postBtnRef = useRef<HTMLButtonElement | null>(null);
     const closePost = useCallback(() => setPostOpen(false), []);
-    /** ブロック中かどうか（この画面から押した結果だけを持つ。開いた時点では引かない） */
+    /** ブロック中か。開いたときに `GET /user/blocks` で合わせ、この画面で押した分も足す */
     const [blocked, setBlocked] = useState(false);
     const [blocking, setBlocking] = useState(false);
+    // 開いたときの一覧が、この画面で押した解除よりあとから着地して
+    // 「ブロック中」に戻さないための番号
+    const blockLookup = useRef(0);
     // プロフィールQRコード（対面共有用）
     const [qrOpen, setQrOpen] = useState(false);
 
@@ -732,8 +735,30 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
      * **効いたときだけ画面を変える**（`StoryViewer` と同じ）。失敗を成功に
      * 見せると「押したのにまた届く」で二度目の落胆になる。
      */
+    // **以前ブロックした相手を開き直しても、フォローを出さない。**
+    // `blocked` をこの画面で押した分だけにしていたので、開き直すと
+    // ボタンが戻り、押すとサーバーが必ず 400 を返していた。
+    // 取れない回は今までどおり出す（押せば 400 で分かる）。失敗で
+    // 全員のボタンを隠すと、ブロックしていない相手までフォローできなくなる。
+    useEffect(() => {
+        if (!viewerAuthed || isOwner || !userId) return;
+        const seq = ++blockLookup.current;
+        let cancelled = false;
+        void userFetch("/user/blocks")
+            .then((res) => (res.ok ? res.json().catch(() => null) : null))
+            .then((body: { blockedIds?: unknown } | null) => {
+                if (cancelled || seq !== blockLookup.current) return;
+                const ids = body?.blockedIds;
+                if (Array.isArray(ids) && ids.some((id) => id === userId)) setBlocked(true);
+            })
+            .catch(() => { /* 取れなければボタンは出したまま */ });
+        return () => { cancelled = true; };
+    }, [viewerAuthed, isOwner, userId]);
+
     const toggleBlock = useCallback(async () => {
         if (!userId || blocking) return;
+        // 飛んでいる一覧が、今から押す結果を上書きしない
+        blockLookup.current += 1;
         setBlocking(true);
         const next = !blocked;
         try {
@@ -1372,12 +1397,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 「ブロック中の相手です。解除は設定の
                                 『ブロックした人』からできます」を必ず返すので、
                                 押せる形で置くと**必ず失敗する操作へ誘う**。
-                                **`blocked` はこの画面で押した結果しか
-                                持たない**ので、開き直すとボタンは戻る
-                                ——以前ブロックした相手には今も出る。
-                                塞ぐには開いたときに `GET /user/blocks` を
-                                引くことになり、プロフィールを開くたびに
-                                1往復増えるので別に判断する。
+                                開いたときに `GET /user/blocks` で合わせる
+                                （この画面で押した分だけだと、開き直すと戻る）。
                                 これで `key` による張り直しも要らなくなった
                                 ——張り直すと `busyRef` / `pending` ごと
                                 作り直され、**二重送信の番人が外れる**
