@@ -19,20 +19,28 @@ vi.mock("../../utils/api", async () => {
 });
 vi.mock("../../utils/log", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
-const { useFollow } = await import("../useFollow");
+const { useFollow, resetFollowingCache } = await import("../useFollow");
 const { AUTH_REQUIRED_MESSAGE } = await import("../../utils/api");
 
 const TARGET = "u2";
 
 beforeEach(() => {
+    resetFollowingCache();
     mockUserFetch.mockReset();
     mockUserPublicFetch.mockReset().mockResolvedValue({ ok: true, json: async () => ({ following: [] }) });
 });
 
 describe("useFollow: 断られた理由を捨てない", () => {
+    // 一覧が取れていること。失敗のままにすると、押したときに取り直しが
+    // 先に走り、このファイルが測りたい POST の断りに届かない
     const ready = async () => {
+        mockUserFetch.mockImplementation((url: string) =>
+            Promise.resolve(url === "/user/following"
+                ? { ok: true, json: async () => ({ userIds: [] }) }
+                : { ok: true, json: async () => ({}) }));
         const { result } = renderHook(() => useFollow(TARGET, true));
         await waitFor(() => expect(result.current.resolved).toBe(true));
+        expect(result.current.isFollowing).toBe(false);
         return result;
     };
 
