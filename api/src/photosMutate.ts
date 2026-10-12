@@ -125,9 +125,10 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         // `updatePhotoFields` は undefined を REMOVE に倒すので、
         // 非公開にしたら索引から落ちる。
         if ("published" in fields) {
-            // 管理画面は `audience` を送らない。保存のたびに `published: true` を
-            // 同梱するので、無条件に全体公開の印へ戻すと、フォロワーのみの写真が
-            // 限定一覧から消える（`photoUpdate.ts` は保存済みの範囲を見て決めている）
+            // 管理画面は `audience` を送らない。`pickEditableFields` も受け取らないので、
+            // 範囲は保存済みの行を見る。保存のたびに `published: true` を同梱するので、
+            // 無条件に全体公開の印へ戻すと、フォロワーのみの写真が限定一覧から消える
+            // （`photoUpdate.ts` は保存済みの範囲を見て決めている）
             const audience = photo.audience;
             const restricted = audience === "followers" || audience === "closeFriends";
             updates.publicFeed = fields.published === false
