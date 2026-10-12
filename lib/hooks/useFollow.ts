@@ -19,8 +19,9 @@ let cacheGen = 0;
  * 空 Set を返していた頃は、取得失敗が「誰もフォローしていない」と
  * 区別できず、フォロー中フィードが「0件」の空表示に化けていた（SW-b1）。
  * 呼び出し側が catch して見せ方を選ぶ:
- *   - useFollow のボタン: 失敗しても resolved を立てる（永久に押せない
- *     ボタンにしない——既存テストで固定済みの判断）
+ *   - useFollow のボタン: 失敗しても resolved を立てて押せるようにする。
+ *     未フォローとは決めない。押したときは取り直して、既にフォロー中なら
+ *     送らない（「フォローしました」と出さない）
  *   - フォロー中フィード: 読み込み失敗＋再試行を出す
  */
 export async function fetchFollowingSet(): Promise<Set<string>> {
@@ -145,12 +146,18 @@ const inflight = new Map<string, Promise<void>>();
  * 直らないのに直りそうな文言が出ていた。
  */
 export type FollowToggle = {
-    result: "followed" | "unfollowed" | "auth-required" | "error";
-    /** 出す文言（サーバー由来を優先）。auth-required では未設定のこともある */
+    /**
+     * `already` は、一覧が取れないまま押して取り直したら既にフォロー中だった回。
+     * 送っていないので「フォローしました」は出さない（ボタンの姿だけ直す）。
+     */
+    result: "followed" | "unfollowed" | "already" | "auth-required" | "error";
+    /** 出す文言（サーバー由来を優先）。auth-required と already では未設定のこともある */
     message?: string;
 };
 
 const FOLLOW_FAILED = "フォローの操作に失敗しました。時間をおいてもう一度お試しください";
+/** 一覧が取れないまま送らない、と伝えたときの文言（iOS の人のページと同じ） */
+const FOLLOW_STATUS_UNKNOWN = "フォローの状態を確かめられませんでした";
 
 const EMPTY: Counts = { followers: 0, following: 0 };
 
@@ -353,6 +360,10 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
     // 分かるまでは押させない。
     const [resolved, setResolved] = useState(false);
     const busyRef = useRef(false);
+    // 一覧の取得に失敗した回。初期値の false（未フォロー）のまま押させると、
+    // 既にフォロー中の相手へ POST が飛び、冪等の成功で「フォローしました」と出る。
+    // ボタンは押せるまま（resolved は立てる）。送る前に取り直す。
+    const followUnknownRef = useRef(false);
 
     // 数は共有ストアから読む（同じ相手を見ている他のコンポーネントと同期する）。
     //
@@ -397,14 +408,18 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         if (!targetUserId) return;
         let aborted = false;
         setResolved(false);
+        followUnknownRef.current = false;
         if (withCounts) void loadCounts(targetUserId);
         if (isAuthenticated) {
             void fetchFollowingSet()
-                .then((set) => { if (!aborted) setIsFollowing(set.has(targetUserId)); })
-                // 失敗しても resolved は立てる（永久に押せないボタンに
-                // しない）。fetchFollowingSet は失敗を投げるようになったが、
-                // ボタン側のこの判断は変えない
-                .catch(() => { /* 既定の「未フォロー」のまま */ })
+                .then((set) => {
+                    if (aborted) return;
+                    followUnknownRef.current = false;
+                    setIsFollowing(set.has(targetUserId));
+                })
+                // 失敗しても resolved は立てる（永久に押せないボタンにしない）。
+                // 未フォローとは書かない。押したときに取り直す（followUnknownRef）
+                .catch(() => { if (!aborted) followUnknownRef.current = true; })
                 .finally(() => { if (!aborted) setResolved(true); });
         } else {
             // 未ログインなら「フォローしていない」が確定している
@@ -420,6 +435,30 @@ export function useFollow(targetUserId: string | undefined, isAuthenticated: boo
         if (busyRef.current) return { result: "error", message: FOLLOW_FAILED };
         busyRef.current = true;
         setPending(true);
+
+        // **分からないままフォローを送らない。** 取り直して、既にフォロー中なら
+        // 送らずに姿だけ直す（「フォローしました」と出さない）。
+        // 外す方は取り直さない（外すのは何度送っても同じ。画面は未フォローの
+        // 姿なので、分からない回に外すボタンは出ていない）
+        if (followUnknownRef.current && !isFollowing) {
+            try {
+                const set = await fetchFollowingSet();
+                followUnknownRef.current = false;
+                if (set.has(targetUserId)) {
+                    setIsFollowing(true);
+                    busyRef.current = false;
+                    setPending(false);
+                    return { result: "already" };
+                }
+            } catch (e) {
+                log.error("follow status recheck error:", e);
+                busyRef.current = false;
+                setPending(false);
+                const msg = e instanceof Error ? e.message : "";
+                if (msg === AUTH_REQUIRED_MESSAGE) return { result: "auth-required", message: msg };
+                return { result: "error", message: FOLLOW_STATUS_UNKNOWN };
+            }
+        }
 
         const was = isFollowing;
         // **知らない数を書かない。** `?? EMPTY` で 0/0 を土台にすると、
