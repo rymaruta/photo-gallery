@@ -153,7 +153,9 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "Journey Photo",
     },
     icons: {
-      apple: "/icon-192.png",
+      // Safari が以前の三角形アイコンを端末側に保持していても、新しい参照として読み直す。
+      icon: "/icon-192.png?v=aperture",
+      apple: "/icon-192.png?v=aperture",
     },
     // **iPhone の Safari で「アプリで開く／入手」の帯を出す**（Smart App Banner・2026-10-07）。
     // 検索から撮影地のページに来た人をアプリへつなぐ（全国の戦略「Web とアプリをつなぐ」）。
