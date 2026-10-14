@@ -17,6 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
+import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
  * 保存する URL の土台。**呼ぶたびに読む。**
@@ -35,7 +36,8 @@ type PhotoSong = { title: string; artist?: string; artwork?: string; previewUrl:
 // 切り抜き位置だけを直す保存は、この配列に `focalPoint` が無いと
 // 本文に入っていても「何も送られていない」と見なされる
 // `spotId` は撮影スポットの画面から本人が選んだ紐付け（null・空で外す）
-const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint", "spotId"] as const;
+// `inspiredBy` は「この写真を見て撮影」の元の写真（null・空で外す。`inspired.ts`）
+const META_KEYS = ["title", "description", "location", "category", "tags", "date", "coords", "focalPoint", "spotId", "inspiredBy"] as const;
 
 // YouTube URL の検証（フル再生MV用）。youtube.com/watch?v= と youtu.be/ を許可。
 // lib/utils/music.ts の parseYouTube と同等の安全策（ホワイトリスト + ID書式）。
@@ -75,7 +77,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         published?: boolean; song?: unknown; songYoutubeUrl?: unknown;
         title?: unknown; description?: unknown; location?: unknown;
         category?: unknown; tags?: unknown; date?: unknown; coords?: unknown; focalPoint?: unknown;
-        audience?: unknown; spotId?: unknown;
+        audience?: unknown; spotId?: unknown; inspiredBy?: unknown;
         replace?: ReplaceBody;
     };
     try {
@@ -184,6 +186,14 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "撮影スポットの指定が正しくありません" }) };
     }
 
+    // **「この写真を見て撮影」も同じ。** 外すのは null・空文字だけ。形の違う値は断る
+    const hasInspired = "inspiredBy" in body;
+    const inspiredClear = hasInspired && isInspiredByClear(body.inspiredBy);
+    const inspiredValue = hasInspired && !inspiredClear ? sanitizeInspiredBy(body.inspiredBy) : undefined;
+    if (hasInspired && !inspiredClear && !inspiredValue) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "元の写真の指定が正しくありません" }) };
+    }
+
     try {
         // 所有権チェック
         const existing = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id } }));
@@ -200,6 +210,25 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 壊れたページが残る。いいね・コメントと同じ扱いにする。
         if (existing.Item.story === true) {
             return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: "写真が見つかりません" }) };
+        }
+
+        /**
+         * **新しく付ける元の写真は、いま見られるものだけ**（`inspired.ts`）。
+         * 非公開・下書き・削除・絞った写真・どちら向きでもブロックの関係・この写真自身は断る
+         * （どれも同じ文言——どの理由かで、見られない写真の在りかを教えない）。
+         * **保存済みと同じ値なら確かめ直さない**——元の写真があとで非公開になっても、
+         * 関係の無い項目の保存まで断らない（読む側で毎回確かめている）
+         */
+        /** 確かめで読んだ元の写真（通知の判定に渡して、もう一度読まない） */
+        let inspiredSource: Record<string, unknown> | null | undefined;
+        if (inspiredValue && inspiredValue !== existing.Item.inspiredBy) {
+            const source = inspiredValue === id ? null : await readVisibleSource(inspiredValue, [callerId]);
+            inspiredSource = source;
+            if (!source) {
+                return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({
+                    error: "元の写真が見つからないか、付けられません",
+                }) };
+            }
         }
 
         const sets: string[] = ["updatedAt = :t"];
@@ -429,6 +458,7 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // 倒れるので、「中央に戻す」は `focalPoint: null` を送れば足りる
         applyMeta("focalPoint", "focalPoint" in body, sanitizeFocalPoint(body.focalPoint) ?? undefined);
         applyMeta("spotId", "spotId" in body, sanitizeSpotId(body.spotId));
+        applyMeta("inspiredBy", hasInspired, inspiredValue);
         const newCoords = sanitizeCoords(body.coords) ?? undefined;
         applyMeta("coords", "coords" in body, newCoords);
         // **地名から補った座標（geoApprox）は地名に付随する。**
@@ -775,6 +805,19 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         // **メダルを数え直す**（撮影地・撮影日・公開の切り替えで数が動く）。
         // 投げない・上限つきで待つ（`badgeStore.ts`）。落ちても更新は成功で返す
         await refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`);
+
+        // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
+        // 「元の写真が付いていて、公開で見られる」なら送る（送らないと決めることもある）。
+        // 下書きで付けてあとで公開した回もここで届く。**1枚につき1回**
+        // ——行に控え（`inspiredNotified`）があれば何も読まない。
+        // 今回付けた値なら、確かめで読んだ行を渡して読み直さない。投げない
+        const finalInspired = hasInspired ? inspiredValue : sanitizeInspiredBy(existing.Item.inspiredBy);
+        if (finalInspired && willBePublished && !effectiveAudience
+            && existing.Item.inspiredNotified === undefined) {
+            await notifyInspiredOnce(
+                { id, src: finalRow.src, thumbSrc: finalRow.thumbSrc }, finalInspired, ownerId,
+                finalInspired === inspiredValue ? inspiredSource : undefined);
+        }
 
         return {
             statusCode: 200,

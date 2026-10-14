@@ -259,3 +259,34 @@ describe("公開範囲を絞った写真は、認証の無い口から出さな�
         expect(body.map((p) => p.id)).toEqual(["p2"]);
     });
 });
+
+// 「この写真を見て撮影」（`inspiredBy`）。**元の写真が返す一覧に居るときだけ** ID を残す
+// （非公開・削除・絞った写真の ID を公開の口に出さない）。読み取りは増やさない
+describe("getPhotos: inspiredBy は元の写真が一覧に居るときだけ", () => {
+    it("居れば残し、居なければ（非公開・削除）落とす", async () => {
+        mockListPhotos.mockResolvedValue([
+            { id: "a", src: "s", inspiredBy: "src-1" },
+            { id: "b", src: "s", inspiredBy: "gone" },
+            { id: "src-1", src: "s" },
+        ]);
+        const rows = JSON.parse((await invoke({})).body) as Record<string, unknown>[];
+        expect(rows.find((r) => r.id === "a")!.inspiredBy).toBe("src-1");
+        expect("inspiredBy" in rows.find((r) => r.id === "b")!).toBe(false);
+        expect(mockListPhotos).toHaveBeenCalledTimes(1);
+    });
+
+    it("元の写真が公開範囲を絞った写真なら落とす（一覧から外れるので）", async () => {
+        mockListPhotos.mockResolvedValue([
+            { id: "a", src: "s", inspiredBy: "src-1" },
+            { id: "src-1", src: "s", audience: "followers" },
+        ]);
+        const rows = JSON.parse((await invoke({})).body) as Record<string, unknown>[];
+        expect("inspiredBy" in rows.find((r) => r.id === "a")!).toBe(false);
+    });
+
+    it("1人ぶんの一覧（?userId=）では載せない（元の写真が公開か分からない）", async () => {
+        mockListPhotosByUser.mockResolvedValue([{ id: "a", src: "s", inspiredBy: "src-1" }]);
+        const rows = JSON.parse((await invoke({ queryStringParameters: { userId: "u1" } })).body) as Record<string, unknown>[];
+        expect("inspiredBy" in rows[0]).toBe(false);
+    });
+});

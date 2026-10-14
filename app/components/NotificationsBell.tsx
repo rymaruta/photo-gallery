@@ -4,7 +4,7 @@ import { usableRows } from "../../lib/utils/apiRows";
 import React, { useEffect, useState, useCallback, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { BellIcon, ChatBubbleOvalLeftIcon, UserPlusIcon, XMarkIcon, CheckIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { userFetch } from "../../lib/utils/api";
 import { useLocale } from "../i18n/context";
@@ -21,14 +21,15 @@ import { nextTabIndex } from "../../lib/utils/tabKeys";
 import { badgeImage, badgeLabel, isBadgeKey } from "../../lib/data/badges";
 
 type Notif = {
-    // 実際に作られるのは like / comment / follow / storyreply / badge の5種類。
-    // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
-    // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
+    // 作られるのは like / comment / follow / storyreply / badge / inspired の6種類。
+    // `inspired` は「あなたの写真を見て撮影しました」（`api-user/src/inspired.ts`）。
+    // `photoId` / `photoSrc` は**付けた人の新しい写真**（押すとそこへ）、
+    // `sourcePhotoId` は元になった自分の写真。タブは「すべて」にだけ出る。
     // **`api-user/src/notify.ts` の `Notif` と対。** 足したのに
     // ここへ足さないと、下の分岐が「知らない種類」として何も出さない
     // ＝**届いているのに画面には何も出ない**通知になる。
     // `badge` はメダル（誰かが起こしたものではない。`byId` も写真も無い）
-    type: "like" | "comment" | "follow" | "storyreply" | "badge";
+    type: "like" | "comment" | "follow" | "storyreply" | "badge" | "inspired";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -46,6 +47,8 @@ type Notif = {
     /** `badge` だけ: メダルの鍵と段 */
     key?: string;
     tier?: number;
+    /** `inspired` だけ: 元になった（自分の）写真 */
+    sourcePhotoId?: string;
     t: string;
 };
 
@@ -896,6 +899,13 @@ export default function NotificationsBell() {
                                                 locale === "en"
                                                     ? <>You earned the <span className="font-semibold">{badgeKey ? badgeLabel(badgeKey, badgeTier, "en") : n.byName}</span> medal</>
                                                     : <><span className="font-semibold">{badgeKey ? badgeLabel(badgeKey, badgeTier, "ja") : n.byName}</span>のメダルを手に入れました</>
+                                            ) : n.type === "inspired" ? (
+                                                <>
+                                                    <CameraIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />
+                                                    {locale === "en"
+                                                        ? <><span className="font-semibold">{n.byName}</span> took a photo inspired by yours</>
+                                                        : <><span className="font-semibold">{n.byName}</span> さんがあなたの写真を見て撮影しました</>}
+                                                </>
                                             ) : n.type === "comment" ? (
                                                 <>
                                                     <ChatBubbleOvalLeftIcon className="w-3.5 h-3.5 text-accent inline -mt-0.5 mr-1" />

@@ -39,7 +39,7 @@ const ALL_VARS = ["APNS_PRIVATE_KEY", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_TOPIC
  * 見る。5本目が現れたら必ずここが落ちるので、そのとき env を配ったかを
  * 下のテストが続けて見る。
  */
-const PUSHING_FILES = ["badgeStore.ts", "comments.ts", "follow.ts", "likes.ts", "storyReplies.ts", "supporterStore.ts"];
+const PUSHING_FILES = ["badgeStore.ts", "comments.ts", "follow.ts", "inspired.ts", "likes.ts", "storyReplies.ts", "supporterStore.ts"];
 
 /** `api-user/src/*.ts` のうち、`pushNotification(...)` を呼んでいるもの */
 function filesThatPush(): string[] {
@@ -85,7 +85,8 @@ function handlerBody(serviceDir: string, handler: string): string {
  * `applyToProfile` が付いたメダルの通知を積むので、それも数える
  */
 const sendsPush = (handler: string) =>
-    /\b(?:pushNotification|refreshBadges|refreshBadgesQuietly|applyToProfile|alertOne)\s*\(/.test(handlerBody("api-user", handler));
+    /\b(?:pushNotification|refreshBadges|refreshBadgesQuietly|applyToProfile|alertOne|notifyInspiredOnce)\s*\(/.test(handlerBody("api-user", handler));
+// `notifyInspiredOnce` は「この写真を見て撮影」の知らせ（`inspired.ts`）。写真の保存・更新が呼ぶ
 // `alertOne` は光と天気の知らせ（`lightForecast.ts` の `sendLightAlerts`）。お知らせの一覧には
 // 積まず、`sendPush` で直に送る（文面そのもの・理由は `lightForecast.ts` の注記）
 
