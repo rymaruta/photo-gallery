@@ -1054,7 +1054,7 @@ function EditContent() {
                                  className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 flex flex-wrap items-center gap-2">
                                 <p className="text-xs text-white/70 flex-1 min-w-0" data-testid="inspired-state">
                                     {inspiredBy
-                                        ? (isJa ? "元の写真が付いています（写真ページに出ます）" : "The original photo is attached (shown on the photo page)")
+                                        ? (isJa ? "元の写真が公開のあいだ、写真ページに出ます" : "Shown on the photo page while the original photo is public")
                                         : (isJa ? "外します（保存すると反映されます）" : "Will be removed when you save")}
                                 </p>
                                 <button

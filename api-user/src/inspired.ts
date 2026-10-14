@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isBlocked } from "./blockCheck";
@@ -16,8 +16,8 @@ import { pushNotification, lookupDisplayName, lookupListIdentity } from "./notif
  *
  * ## 守ること（承認制の線）
  *
- *   - **新しい表・新しい GSI を作らない。** 写真の行に `inspiredBy`（元の写真の ID）と、
- *     通知を送った印 `inspiredNotified` が足されるだけ
+ *   - **新しい表・新しい GSI を作らない。** 写真の行に `inspiredBy`（元の写真の ID）と
+ *     通知の控え `inspiredNotified` が足され、同じ表に印の文書 `inspiredNotif#<写真の id>` が増えるだけ
  *   - **「元の写真から、ここで生まれた写真を並べる」は作らない**（逆引きには
  *     GSI か全表 Scan が要る）
  *   - **既存の写真の行には触らない**（新しく投稿する・編集する写真にだけ書く）
@@ -117,6 +117,12 @@ export function summarizeSource(row: Record<string, unknown>, identity: { name?:
     };
 }
 
+/** 通知を決めた印の文書の ID（写真の行とは別の文書。同じ表の別のキー） */
+export const inspiredNotifId = (photoId: string) => `inspiredNotif#${photoId}`;
+
+/** 印の値。`sent` は送った、`skipped` は送らないと決めた（自分の写真・ブロック・元の写真が見られない） */
+export type InspiredNotifStatus = "sent" | "skipped";
+
 /**
  * 元の作者へ「あなたの写真を見て撮影しました」を**1枚の写真につき1回だけ**送る。
  *
@@ -124,40 +130,56 @@ export function summarizeSource(row: Record<string, unknown>, identity: { name?:
  * 下書きから公開）。下書きや公開範囲を絞った写真では呼ばない（相手が開けない写真への
  * 通知になる）——判定は呼び手が持つ。
  *
- *   - 自分の写真を付けた → 送らない（印も書かない）
- *   - 元の写真がもう見られない・どちらかがブロック → 送らない（印も書かない）
- *   - **印 `inspiredNotified` が既にある → 送らない**。印は条件つきの書き込み
- *     （`attribute_not_exists`）で立てるので、同時に2本来ても送るのは1本。
- *     元の写真を付け替えても、外して付け直しても、**もう送らない**
+ * ## 印は2つ（正は文書、行は控え）
+ *
+ *   - **正: 別の文書 `inspiredNotif#<写真の id>`**（同じ表・別のキー。表も索引も足さない）。
+ *     **無いときだけ書く**（`attribute_not_exists(id)`）ので、同時に2本来ても、
+ *     再送の書き直し（`overwriteOwnPhoto` の全置換）と重なっても、送るのは1本。
+ *     写真の行に印を置いていた版は、全置換が印を消して**2回届く**窓があった
+ *   - **控え: 写真の行の `inspiredNotified`**（値は `sent` / `skipped`、古い版は元の写真の ID）。
+ *     編集のたびに文書を引かないための目印。全置換で消えても文書が止めるので、
+ *     失われても二重には送らない（文書への条件つき書き込みが1回増えるだけ）
+ *
+ * ## 送らないと決めた写真にも印を立てる（以後読まない）
+ *
+ *   - 自分の写真を付けた・どちら向きでもブロック・元の写真がもう見られない → `skipped`
+ *   - ⚠️ そのため、**あとでブロックを外しても・元の写真を公開に戻しても、もう送らない**
  *     （「最初に付いたときだけ」。何度も鳴らせる口を作らない）
- *   - 通知を積むのは `pushNotification`（ブロック・端末へのプッシュ・件数の上限は
- *     既存の種類と同じ扱い）
+ *   - 元の写真を付け替えても、外して付け直しても送らない
+ *   - **読めなかった（DynamoDB の失敗）ときは印を立てない**（次の機会にもう一度決める）
+ *
+ * `source` を渡せば元の写真を読み直さない（投稿・編集は確かめのときに読んだ行を渡す。
+ * `readVisibleSource(sourceId, [actorId])` の結果＝見られなければ null）。
+ * 通知を積むのは `pushNotification`（ブロック・端末へのプッシュ・件数の上限は既存の種類と同じ）。
  *
  * **投げない**（本体の保存は成功で返す。通知は best-effort）。
  */
 export async function notifyInspiredOnce(
-    photo: { id: string; src?: unknown; thumbSrc?: unknown },
+    photo: { id: string; src?: unknown; thumbSrc?: unknown; inspiredNotified?: unknown },
     sourceId: string,
     actorId: string,
+    source?: Record<string, unknown> | null,
 ): Promise<void> {
     try {
-        const source = await readVisibleSource(sourceId, [actorId]);
-        if (!source) return;
-        const owner = ownerOf(source);
-        if (!owner || owner === actorId) return;
+        // 古い版の印（写真の行）・控えがあれば、もう決まっている
+        if (photo.inspiredNotified !== undefined) return;
+        const row = source !== undefined ? source : await readVisibleSource(sourceId, [actorId]);
+        const owner = row ? ownerOf(row) : "";
+        const status: InspiredNotifStatus = row && owner && owner !== actorId ? "sent" : "skipped";
+        const t = new Date().toISOString();
         try {
-            await ddb.send(new UpdateCommand({
+            await ddb.send(new PutCommand({
                 TableName: PHOTOS_TABLE,
-                Key: { id: photo.id },
-                UpdateExpression: "SET inspiredNotified = :s",
-                // 行が消えていたら作らない（UpdateItem はキーが無ければ行を作る）
-                ConditionExpression: "attribute_exists(id) AND attribute_not_exists(inspiredNotified)",
-                ExpressionAttributeValues: { ":s": sourceId },
+                Item: { id: inspiredNotifId(photo.id), photoId: photo.id, sourceId, status, t },
+                ConditionExpression: "attribute_not_exists(id)",
             }));
         } catch (e) {
-            if ((e as { name?: string })?.name === "ConditionalCheckFailedException") return;   // 送り済み
+            // 決め済み（控えが全置換で消えていた・同時にもう1本が決めた）。何もしない
+            if ((e as { name?: string })?.name === "ConditionalCheckFailedException") return;
             throw e;
         }
+        await rememberOnRow(photo.id, status);
+        if (status !== "sent") return;
         const photoSrc = typeof photo.thumbSrc === "string" && photo.thumbSrc ? photo.thumbSrc
             : typeof photo.src === "string" ? photo.src : "";
         await pushNotification(owner, {
@@ -167,10 +189,27 @@ export async function notifyInspiredOnce(
             byName: await lookupDisplayName(actorId),
             byId: actorId,
             sourcePhotoId: sourceId,
-            t: new Date().toISOString(),
+            t,
         });
     } catch (e) {
         console.error(`notifyInspiredOnce: 送れませんでした（${photo.id} ← ${sourceId}）:`, e);
+    }
+}
+
+/** 写真の行に控えを書く。**行が消えていたら作らない**。落ちても構わない（正は文書） */
+async function rememberOnRow(photoId: string, status: InspiredNotifStatus): Promise<void> {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id: photoId },
+            UpdateExpression: "SET inspiredNotified = :s",
+            ConditionExpression: "attribute_exists(id)",
+            ExpressionAttributeValues: { ":s": status },
+        }));
+    } catch (e) {
+        if ((e as { name?: string })?.name !== "ConditionalCheckFailedException") {
+            console.warn(`notifyInspiredOnce: 控えを書けませんでした（${photoId}）:`, (e as Error)?.name);
+        }
     }
 }
 

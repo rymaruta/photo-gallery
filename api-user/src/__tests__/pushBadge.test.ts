@@ -201,7 +201,7 @@ describe("この写真を見て撮影の通知（type: inspired）", () => {
             type: "inspired", photoId: "new-1", photoSrc: "https://cdn/x.webp", byName: "ボブ", byId: "u-bob",
             sourcePhotoId: "src-1", t: "2026-10-14T00:00:00.000Z",
         });
-        const msg = mockSend.mock.calls.at(-1)?.[1] as unknown as { locKey: string; locArgs: string[]; data: Record<string, string> };
+        const msg = (mockSend.mock.calls as unknown[][]).at(-1)?.[1] as { locKey: string; locArgs: string[]; data: Record<string, string> };
         expect(msg.locKey).toBe("NOTIF_INSPIRED");
         expect(msg.locArgs).toEqual(["ボブ"]);
         expect(msg.data).toEqual({ type: "inspired", photoId: "new-1", byId: "u-bob", sourcePhotoId: "src-1" });

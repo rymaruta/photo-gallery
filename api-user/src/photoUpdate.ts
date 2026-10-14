@@ -219,8 +219,11 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
          * **保存済みと同じ値なら確かめ直さない**——元の写真があとで非公開になっても、
          * 関係の無い項目の保存まで断らない（読む側で毎回確かめている）
          */
+        /** 確かめで読んだ元の写真（通知の判定に渡して、もう一度読まない） */
+        let inspiredSource: Record<string, unknown> | null | undefined;
         if (inspiredValue && inspiredValue !== existing.Item.inspiredBy) {
             const source = inspiredValue === id ? null : await readVisibleSource(inspiredValue, [callerId]);
+            inspiredSource = source;
             if (!source) {
                 return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({
                     error: "元の写真が見つからないか、付けられません",
@@ -804,14 +807,16 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         await refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`);
 
         // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
-        // 「元の写真が付いていて、公開で見られる」なら送る。下書きで付けて
-        // あとで公開した回もここで届く。**1枚につき1回**（印があれば読みもしない）。
-        // 投げない
+        // 「元の写真が付いていて、公開で見られる」なら送る（送らないと決めることもある）。
+        // 下書きで付けてあとで公開した回もここで届く。**1枚につき1回**
+        // ——行に控え（`inspiredNotified`）があれば何も読まない。
+        // 今回付けた値なら、確かめで読んだ行を渡して読み直さない。投げない
         const finalInspired = hasInspired ? inspiredValue : sanitizeInspiredBy(existing.Item.inspiredBy);
         if (finalInspired && willBePublished && !effectiveAudience
             && existing.Item.inspiredNotified === undefined) {
             await notifyInspiredOnce(
-                { id, src: finalRow.src, thumbSrc: finalRow.thumbSrc }, finalInspired, ownerId);
+                { id, src: finalRow.src, thumbSrc: finalRow.thumbSrc }, finalInspired, ownerId,
+                finalInspired === inspiredValue ? inspiredSource : undefined);
         }
 
         return {

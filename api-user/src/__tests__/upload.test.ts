@@ -238,10 +238,13 @@ describe("savePhoto: この写真を見て撮影（inspiredBy）", () => {
         // 確かめるのは「投稿する人」から見えるか（ブロックの関係を含む）
         expect(mockReadVisibleSource).toHaveBeenCalledWith(SRC, ["u1"]);
         expect(mockNotifyInspired).toHaveBeenCalledTimes(1);
-        const [photo, sourceId, actor] = mockNotifyInspired.mock.calls[0];
+        const [photo, sourceId, actor, source] = mockNotifyInspired.mock.calls[0];
         expect((photo as Photo).id).toBe(savedPhoto().id);
         expect(sourceId).toBe(SRC);
         expect(actor).toBe("u1");
+        // 確かめで読んだ行を渡す（元の写真を2回読まない）
+        expect(source).toEqual({ id: SRC, userId: "alice", src: "s" });
+        expect(mockReadVisibleSource).toHaveBeenCalledTimes(1);
         // 応答の写真にも載る（アプリが「付いたか」を知る手がかり）
         expect(JSON.parse(res.body).photo.inspiredBy).toBe(SRC);
     });

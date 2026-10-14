@@ -164,7 +164,9 @@ describe("updatePhotoVisibility", () => {
             expect(mockReadVisibleSource).toHaveBeenCalledWith(SRC, ["u1"]);
             expect(upd().UpdateExpression).toMatch(/SET .*#inspiredBy = :inspiredBy/);
             expect(upd().ExpressionAttributeValues?.[":inspiredBy"]).toBe(SRC);
-            expect(mockNotifyInspired).toHaveBeenCalledWith({ id: "p1", src: "s", thumbSrc: "t" }, SRC, "u1");
+            // 確かめで読んだ行を渡す（通知の側で元の写真を読み直さない）
+            expect(mockNotifyInspired).toHaveBeenCalledWith(
+                { id: "p1", src: "s", thumbSrc: "t" }, SRC, "u1", { id: SRC, userId: "alice", src: "s" });
         });
 
         it("見られない元の写真は 400（書かない・知らせない）", async () => {
@@ -244,7 +246,16 @@ describe("updatePhotoVisibility", () => {
         it("下書きで付けてあった写真を公開したら、そこで知らせる", async () => {
             mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", published: false, inspiredBy: SRC } }).mockResolvedValueOnce({});
             await invoke(event("u1", "p1", { published: true }));
-            expect(mockNotifyInspired).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), SRC, "u1");
+            // 今回は確かめていない（保存済みの値）ので、行は渡さない＝通知の側で読む
+            expect(mockNotifyInspired).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), SRC, "u1", undefined);
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+        });
+
+        it("送らないと決めた控え（skipped）があれば、何も読まない（自分の写真を編集するたびに読み直さない）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC, inspiredNotified: "skipped" } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { published: true, title: "x" }));
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
         });
 
         it("送った印があれば、もう知らせない（編集のたびに鳴らさない）", async () => {
