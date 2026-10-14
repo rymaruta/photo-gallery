@@ -11,9 +11,12 @@ import { deviceTokens, forgetTokens } from "./devices";
 // （同時書き込みでも失われない）。件数上限の切り詰めは取得時に行う。
 
 export type Notif = {
-    // 実際に作られるのは like / comment / follow / storyreply / badge の5種類。
-    // inspired / go は「行きたいリスト」機能のもので、通知を作る側が
-    // どこにも無い（マーカーを書く経路も、UIのボタンも存在しない）。
+    // 作られるのは like / comment / follow / storyreply / badge / inspired の6種類。
+    //
+    // `inspired` は「あなたの写真を見て撮影しました」（`inspired.ts` の
+    // `notifyInspiredOnce`）。`photoId` / `photoSrc` は**付けた側の新しい写真**
+    // （押すとその写真へ）、`sourcePhotoId` は元になった**自分の写真**。
+    // 1枚の写真につき1回だけ（写真の行の印 `inspiredNotified`）。
     //
     // **種類を足したら `NotificationsBell` にも足すこと。** あちらは
     // 知らない種類を**何も出さない**（既定の文言に落とさない）ので、
@@ -22,7 +25,7 @@ export type Notif = {
     // `badge` はメダル（`badgeStore.ts`）。誰かが起こしたものではないので `byId` を持たず、
     // `byName` にメダルの名前（「朝の光（銀）」）、`key` / `tier` に鍵と段が入る。
     // 写真も持たない（`photoId` / `photoSrc` は空）。
-    type: "like" | "comment" | "follow" | "storyreply" | "badge";
+    type: "like" | "comment" | "follow" | "storyreply" | "badge" | "inspired";
     photoId: string;
     photoSrc: string;
     byName: string;
@@ -37,6 +40,8 @@ export type Notif = {
     key?: string;
     /** `badge` だけ: 手に入れた段（1 銅・2 銀・3 白金） */
     tier?: number;
+    /** `inspired` だけ: 元になった（受け取った人の）写真の ID */
+    sourcePhotoId?: string;
     t: string;
 };
 
@@ -297,6 +302,8 @@ const LOC_KEYS: Record<Notif["type"], string> = {
     storyreply: "NOTIF_STORY_REPLY",
     // 引数はメダルの名前（`byName`）。アプリの文面は「%@のメダルを手に入れました」
     badge: "NOTIF_BADGE",
+    // 引数は付けた人の名前。アプリの文面は「%@ があなたの写真を見て撮影しました」
+    inspired: "NOTIF_INSPIRED",
 };
 
 /**
@@ -361,6 +368,8 @@ async function deliverPush(ownerId: string, notif: Notif, storedUnread?: unknown
                 // メダル: 押したら棚のそのメダルへ。APNs の data は文字列だけ
                 ...(notif.key ? { key: notif.key } : {}),
                 ...(typeof notif.tier === "number" ? { tier: String(notif.tier) } : {}),
+                // 「この写真を見て撮影」: 押した先は新しい写真（`photoId`）。元の写真も添える
+                ...(notif.sourcePhotoId ? { sourcePhotoId: notif.sourcePhotoId } : {}),
             },
         });
         // **無効だった宛先だけ外す**（送信の失敗では外さない）

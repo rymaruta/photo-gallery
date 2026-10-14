@@ -58,6 +58,12 @@ export type Photo = {
      * 今までどおり `/location/*` に載る。**足し算の関係**にする。
      */
     spotId?: string;
+    /**
+     * 「この写真を見て撮影」の元の写真の ID（`api-user/src/inspired.ts`）。
+     * **ID だけ**で、元の写真が今も見られるかは読む側が確かめる
+     * （写真ページは公開の一覧に在るときだけ出す）
+     */
+    inspiredBy?: string;
     // 写真BGM（オーナーが1曲添えられる。30秒プレビュー）
     song?: { title: string; artist?: string; artwork?: string; previewUrl: string; trackUrl?: string };
     // 写真のフル再生MV（YouTube リンク）。30秒プレビューとは別枠で共存

@@ -169,7 +169,9 @@ function checkWriteSafety(nextCount, prevCount, { allowEmpty = ALLOW_EMPTY } = {
 // 無い（`staticStale` を同じ理由で落としているのと対）。
 // `keptFrom`（残した出どころ）も落とす。載せると、まだ生きている
 // ストーリーのIDが静的サイトに焼かれる（`api/src/photos.ts` と対）
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount", "publicFeed", "keptFrom"];
+// `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
+// 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "commentCount", "publicFeed", "keptFrom", "inspiredNotified"];
 
 function stripPrivateFields(item) {
     const out = { ...item };

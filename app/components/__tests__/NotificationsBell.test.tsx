@@ -1625,3 +1625,25 @@ describe("NotificationsBell: メダルの通知（type: badge）", () => {
         expect(document.querySelector("[data-testid=notif-medal]")).toBeNull();
     });
 });
+
+// 「この写真を見て撮影」（`api-user/src/inspired.ts`）。**片側だけ足すと何も出ない**（notify.ts と対）
+describe("NotificationsBell: この写真を見て撮影の通知（type: inspired）", () => {
+    const INSPIRED = {
+        type: "inspired", photoId: "new-1", photoSrc: "https://c/new-1.webp", byName: "旅子", byId: "u9",
+        sourcePhotoId: "mine-1", t: "2026-07-10T00:00:00Z",
+    };
+
+    it("日本語の文面を出し、付けた人の新しい写真へ飛ぶ（右に新しい写真）", async () => {
+        mockUserFetch.mockImplementation((url: string) => Promise.resolve(
+            url === "/user/following" ? fetchOk({ userIds: [] }) : fetchOk({ items: [INSPIRED], unread: 1 }),
+        ));
+        render(<NotificationsBell />);
+        await waitFor(() => expect(mockUserFetch).toHaveBeenCalled());
+        fireEvent.click(screen.getByRole("button", { name: "通知" }));
+
+        expect(screen.getByText(/さんがあなたの写真を見て撮影しました/).textContent).toBe("旅子 さんがあなたの写真を見て撮影しました");
+        const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+        expect(hrefs).toContain("/?photo=new-1");
+        expect(document.querySelector('img[src="https://c/new-1.webp"]')).not.toBeNull();
+    });
+});

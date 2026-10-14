@@ -860,6 +860,19 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 「この写真を見て撮影」の元の写真の要約（`src/inspired.ts`）。**読むときにも
+  # 公開範囲とブロックを確かめる**ので、閲覧者が分かる認証つきの口にする。
+  # 判定にブロックの印・users テーブルの名前を読むので、既定のロールで動かす
+  # （表も索引も足さない。読むのは GetItem だけ）
+  getInspiredSource:
+    handler: src/inspired.getInspiredSource
+    events:
+      - httpApi:
+          path: /user/inspired/{id}
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+
   postComment:
     handler: src/comments.postComment
     # **既定の6秒では足りない。** 応答の経路で `pushNotification` を待ち、

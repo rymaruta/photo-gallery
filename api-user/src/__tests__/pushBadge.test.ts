@@ -192,3 +192,18 @@ describe("メダルの通知（type: badge）", () => {
         expect(update.input.ExpressionAttributeValues[":new"][0]).toMatchObject({ type: "badge", key: "first", tier: 1 });
     });
 });
+
+// 「この写真を見て撮影」（`inspired.ts`）。押した先は付けた側の新しい写真
+describe("この写真を見て撮影の通知（type: inspired）", () => {
+    it("アプリの鍵 NOTIF_INSPIRED・引数は付けた人の名前・data に新しい写真と元の写真", async () => {
+        serve(1, [{ byId: "u-bob" }]);
+        await pushNotification(ME, {
+            type: "inspired", photoId: "new-1", photoSrc: "https://cdn/x.webp", byName: "ボブ", byId: "u-bob",
+            sourcePhotoId: "src-1", t: "2026-10-14T00:00:00.000Z",
+        });
+        const msg = mockSend.mock.calls.at(-1)?.[1] as unknown as { locKey: string; locArgs: string[]; data: Record<string, string> };
+        expect(msg.locKey).toBe("NOTIF_INSPIRED");
+        expect(msg.locArgs).toEqual(["ボブ"]);
+        expect(msg.data).toEqual({ type: "inspired", photoId: "new-1", byId: "u-bob", sourcePhotoId: "src-1" });
+    });
+});

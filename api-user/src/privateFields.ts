@@ -15,7 +15,9 @@
  * - 公開の一覧（`GET /feed`）は**静的な `photos.json` と同じ形**で返すので、
  *   sync が余分に落とす `commentCount` も落とす（`STATIC_LIST_ONLY_FIELDS`）。
  */
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+// `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
+// 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified"] as const;
 
 /**
  * **静的な一覧（`photos.json`）と、それと同じ形で返す `GET /feed` だけが余分に落とすもの。**

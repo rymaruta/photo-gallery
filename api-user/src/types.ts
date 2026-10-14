@@ -52,6 +52,10 @@ export type Photo = {
     coords?: { lat: number; lng: number }; // 撮影地（約1km精度に丸め済み）
     /** 撮影スポット（`content/spots.json`）。撮った本人がスポットの画面から選んだときだけ */
     spotId?: string;
+    /** 「この写真を見て撮影」の元の写真の ID（`inspired.ts`）。見られる写真のときだけ書く */
+    inspiredBy?: string;
+    /** その通知を元の作者へ送った印（中身は送ったときの元の写真の ID）。外に出さない */
+    inspiredNotified?: string;
     /**
      * 一覧（正方形に切り抜く場所）で写真のどこを中心に置くか。0〜1 の割合で、
      * `object-position: x% y%` になる。**未設定なら中央**（今までの挙動）。
