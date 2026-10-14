@@ -110,6 +110,8 @@ describe("作者名（レビュー #272 の 1）", () => {
 
     it.each([
         "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
+        // 英語版も同じ決まり文句の翻訳。推定の名前を作者と言い切らない（#272・2026-10-14）
+        "No machine-readable author provided. Zivax assumed (based on copyright claims).",
         "Own work", "投稿者自身による著作物", "Unknown author", "不明 Unknown author", "作者不明", "Unknown Unknown",
         "I would appreciate being notified if you use my work outside Wikimedia.",
         "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
@@ -121,8 +123,8 @@ describe("作者名（レビュー #272 の 1）", () => {
     });
 
     it.each([
-        // 2026-10-11: 英語の決まり文句「… X assumed」は推定された名前（日本語版・お願い文は上のとおり捨てる＝#272）
-        ["No machine-readable author provided. Zivax assumed (based on copyright claims).", "Zivax"],
+        // 権利者の宣言（2026-10-11）。英語の決まり文句「… X assumed」は上のとおり捨てる（#272・2026-10-14）
+        ["Oga from ja , the copyright holder of this work, hereby publishes it under the following license:", "Oga"],
     ])("名前の取れる決まった形（%s）は名前にする", (artist, name) => {
         const [c] = parseCommonsPages([page("File:A.jpg", { artist })]).candidates;
         expect(c.author).toBe(name);
