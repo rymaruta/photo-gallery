@@ -58,7 +58,9 @@ const JSON_HEADERS = {
 // 残した」という出どころで、載せると**まだ生きているストーリーのID**まで
 // 公開JSONと公開APIに出る。`staticStale` / `publicFeed` を落としているのと
 // 同じ線（振る舞いは変わらないが、内部の印を外に出さない）
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+// `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
+// 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified"] as const;
 
 export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     const out = { ...photo };

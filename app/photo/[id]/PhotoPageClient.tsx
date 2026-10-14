@@ -64,6 +64,8 @@ import { sessionErrorMessage } from "../../../lib/utils/api";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import SpotLinkCard from "../../components/SpotLinkCard";
+import InspiredByLine from "../../components/InspiredByLine";
+import { inspiredSourceFor, toInspiredLink, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
 
@@ -353,9 +355,15 @@ type PhotoPageClientProps = {
      * チャンクに載る（実測）。解くのは `lib/data/spotLink.ts`。
      */
     spotLink?: SpotLink | null;
+    /**
+     * 「この写真を見て撮影」の元の写真（**ビルド時に公開の一覧から解いたもの**）。
+     * クライアントの取得が済むまではこれを出し、済んだら取得した一覧で解き直す
+     * （そのあいだに非公開・削除になった元の写真は消える）。
+     */
+    initialInspired?: InspiredLink | null;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
@@ -366,6 +374,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // 見つからない × 失敗、のときだけ再試行を出す（下の 404 分岐）。
     const [fetchFailed, setFetchFailed] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
+    // 公開の一覧を API から受け取ったか（「この写真を見て撮影」をどちらで解くか）
+    const [listFetched, setListFetched] = useState(false);
 
     // APIから写真を読み込む（編集済みのデータで静的ビルド時データを上書き）
     useEffect(() => {
@@ -386,6 +396,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     // 同じガードがある）。
                     if (data.length > 0) {
                         setAllPhotos(data);
+                        setListFetched(true);
                         setFetchFailed(false);
                     } else {
                         log.warn("写真APIが空を返したため静的データを維持します");
@@ -416,6 +427,19 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     const photo = useMemo(() => {
         return allPhotos.find(p => p.id === photoId);
     }, [photoId, allPhotos]);
+
+    /**
+     * 「この写真を見て撮影」の元の写真。**追加の読み取りはしない**——公開の一覧
+     * （API の `GET /photos`）に居るときだけ出す。取得前はビルド時に解いたもの
+     * （水和で食い違わない）。取得に失敗したら、ビルド時のものを出し続ける
+     * （写真そのものも静的データのまま出している）
+     */
+    const inspired = useMemo<InspiredLink | null>(() => {
+        if (!photo?.inspiredBy) return null;
+        if (!listFetched) return initialInspired && initialInspired.id === photo.inspiredBy ? initialInspired : null;
+        const source = inspiredSourceFor(photo, allPhotos);
+        return source ? toInspiredLink(source) : null;
+    }, [photo, allPhotos, listFetched, initialInspired]);
 
     /**
      * 1投稿に複数枚（owner のモックの「1/10」）。**表紙は `src`**、
@@ -1083,6 +1107,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     持っているときだけ**出る（文字列では照合しない）。
                     未登録なら何も描かない——撮影地ページへの導線は写真の
                     左下のチップが持っているので、ここが空でも行き先は消えない */}
+                {/* 「この写真を見て撮影」。元の写真が公開の一覧に居るときだけ出る */}
+                <InspiredByLine source={inspired} locale={locale} />
+
                 <SpotLinkCard spot={spotLink ?? null} locale={locale} />
 
                 {/* アクション行: ♡（押せる・数）・💬（数・コメントのタブへ）・🔖 保存・⬆ シェア。

@@ -31,7 +31,9 @@ import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
 // テストが無かったので、ずれても誰も落ちない。いまは書き手（sync）が
 // 落とすので実際には漏れていないが、**二重の守りの片方が欠けていた**。
 // 3つの一致は `scripts/__tests__/privateFieldsParity.test.ts` が縛る。
-const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+// `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
+// 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
+const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified"] as const;
 
 export function stripPrivateFields(photos: Photo[]): Photo[] {
     return photos.map((p) => {

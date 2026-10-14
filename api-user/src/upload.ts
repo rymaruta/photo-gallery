@@ -18,6 +18,7 @@ import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAlbumMember, addPhotoToAlbum } from "./albums";
 import { refreshBadgesQuietly } from "./badgeStore";
+import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -294,6 +295,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         extraImages?: unknown;
         /** 撮影スポット（本人がスポットの画面から選んだ）。形が違えば書かない */
         spotId?: unknown;
+        /** 「この写真を見て撮影」の元の写真の ID（`inspired.ts`）。見られない写真なら付けない */
+        inspiredBy?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -329,6 +332,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // 「自分の領域の鍵」という前提が崩れる。
     if (!String(key).startsWith(uploadPrefix(userId)) || String(key).includes("..")) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なキーです" }) };
+    }
+
+    // **「この写真を見て撮影」の形が違えば断る**（外すのは null・空文字だけ。
+    // 読めない値を黙って捨てると、付けたつもりの人が気づけない）。
+    // 形が合っていても**見られない元の写真は黙って付けない**（下）
+    if (body.inspiredBy !== undefined && !isInspiredByClear(body.inspiredBy) && !sanitizeInspiredBy(body.inspiredBy)) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "元の写真の指定が正しくありません" }) };
     }
 
     // 100枚制限の二重チェック（adminは除外）
@@ -451,6 +461,24 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     };
 
     /**
+     * **「この写真を見て撮影」**（`inspired.ts`）。
+     *
+     * 元の写真が**いま公開で見られて、どちら向きにもブロックの関係に無い**ときだけ書く。
+     * 見られない（非公開・下書き・削除・絞った写真・ブロック）・この写真自身を指す・
+     * 読めなかった、のどれでも**黙って付けない**——投稿そのものは止めない
+     * （画像はもう S3 に上がっている）。付いたかは応答の `photo.inspiredBy` で分かる。
+     * **自分の写真も付けられる**（再訪の記録。通知は送らない）
+     */
+    const inspiredBy = sanitizeInspiredBy(body.inspiredBy);
+    if (inspiredBy && inspiredBy !== photo.id) {
+        const source = await readVisibleSource(inspiredBy, [userId]).catch((e) => {
+            console.warn(`savePhoto: 元の写真を確かめられませんでした（付けずに保存・${photo.id}）:`, (e as Error)?.name);
+            return null;
+        });
+        if (source) photo = { ...photo, inspiredBy };
+    }
+
+    /**
      * 🔴 **最初から公開範囲を絞った写真も `private/` へ移す**（案A）。
      *
      * これまで移すのは `photoUpdate.ts`（あとから絞る）だけで、**最初から絞って
@@ -506,6 +534,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // **メダルを数え直す**（公開した写真だけが数に入る）。投げない・上限つきで待つ
         // （`badgeStore.ts`）。落ちても投稿は成功で返す
         if (isPublished) await refreshBadgesQuietly(userId, `savePhoto(${photo.id})`);
+        // **元の作者へ知らせる**（公開で見られる写真のときだけ・1枚につき1回・投げない）
+        if (typeof photo.inspiredBy === "string" && onStaticSite(photo)) {
+            await notifyInspiredOnce(photo, photo.inspiredBy, userId);
+        }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
@@ -581,6 +613,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせ、
                 // `deleteMyPhoto` もストーリーを一緒に消さなくなる（レビューで指摘）
                 "keptFrom",
+                // **「この写真を見て撮影」の通知を送った印。** 落とすと、再送のたびに
+                // 元の作者へもう一度届く（`inspired.ts` の `notifyInspiredOnce`）
+                "inspiredNotified",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
             for (const k of SERVER_OWNED_FIELDS) {
@@ -686,6 +721,10 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                         // 推論型にはこの印が無いので、返すときだけ足す
                         Object.assign(rewritten, { staticStale: true });
                     }
+                }
+                // 再送で「下書き → 公開」になった回の知らせ。送り済みなら印で止まる
+                if (typeof rewritten.inspiredBy === "string" && onStaticSite(rewritten)) {
+                    await notifyInspiredOnce(rewritten, rewritten.inspiredBy, userId);
                 }
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
