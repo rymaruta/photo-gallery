@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import type { HomeSeasonal } from "../../../lib/data/spotTopics";
 
 vi.mock("next/link", () => ({
-    default: ({ href, children, ...props }: React.PropsWithChildren<{ href: string; [key: string]: unknown }>) =>
+    default: ({ href, children, ...props }: React.PropsWithChildren<React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }>) =>
         <a href={href} {...props}>{children}</a>,
 }));
 
