@@ -163,6 +163,15 @@ export async function notifyInspiredOnce(
     try {
         // 古い版の印（写真の行）・控えがあれば、もう決まっている
         if (photo.inspiredNotified !== undefined) return;
+        // **控えが無くても、正の文書があれば決め済み。** 控えは再送の全置換で消えうる。
+        // そのときは元の写真を読まずに控えだけ書き戻して抜ける——書き戻さないと、
+        // 編集のたびに「元の写真とブロックの印を読む → 失敗する条件つき書き込み」が続く。
+        // 読むのは GetItem 1回で、初めて決める写真でも1回増えるだけ
+        const decided = await readDecided(photo.id);
+        if (decided) {
+            await rememberOnRow(photo.id, decided);
+            return;
+        }
         const row = source !== undefined ? source : await readVisibleSource(sourceId, [actorId]);
         const owner = row ? ownerOf(row) : "";
         const status: InspiredNotifStatus = row && owner && owner !== actorId ? "sent" : "skipped";
@@ -174,8 +183,13 @@ export async function notifyInspiredOnce(
                 ConditionExpression: "attribute_not_exists(id)",
             }));
         } catch (e) {
-            // 決め済み（控えが全置換で消えていた・同時にもう1本が決めた）。何もしない
-            if ((e as { name?: string })?.name === "ConditionalCheckFailedException") return;
+            // 決め済み（同時にもう1本が先に決めた）。送らない。控えはその1本が書くが、
+            // 念のため文書の値で書き戻す（読めなければ "sent"——控えは「決め済み」の目印で、
+            // 値で分岐する読み手は無い）
+            if ((e as { name?: string })?.name === "ConditionalCheckFailedException") {
+                await rememberOnRow(photo.id, (await readDecided(photo.id).catch(() => undefined)) ?? "sent");
+                return;
+            }
             throw e;
         }
         await rememberOnRow(photo.id, status);
@@ -194,6 +208,14 @@ export async function notifyInspiredOnce(
     } catch (e) {
         console.error(`notifyInspiredOnce: 送れませんでした（${photo.id} ← ${sourceId}）:`, e);
     }
+}
+
+/** 正の文書（`inspiredNotif#<写真の id>`）の値。無ければ undefined。読めなければ投げる */
+async function readDecided(photoId: string): Promise<InspiredNotifStatus | undefined> {
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: inspiredNotifId(photoId) } }));
+    const status = (res.Item as { status?: unknown } | undefined)?.status;
+    if (!res.Item) return undefined;
+    return status === "skipped" ? "skipped" : "sent";
 }
 
 /** 写真の行に控えを書く。**行が消えていたら作らない**。落ちても構わない（正は文書） */

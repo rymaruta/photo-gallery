@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+// **ブロックの印のキーは書く側（`block.ts` が使う `blockMarkerId`）から作る。**
+// 手書きにすると、書く側の形が変わっても sync のふるいと試験がそろって古いまま緑になる
+import * as blockCheck from "../../api-user/src/blockCheck";
+const { blockMarkerId } = blockCheck;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { checkWriteSafety } = require("../sync-photos-from-ddb.js");
 
@@ -223,8 +227,8 @@ describe("pruneInspiredBy: 公開JSONの inspiredBy", () => {
     });
 
     it.each([
-        ["元の作者が付けた人をブロック", "block#alice#bob"],
-        ["付けた人が元の作者をブロック", "block#bob#alice"],
+        ["元の作者が付けた人をブロック", blockMarkerId("alice", "bob")],
+        ["付けた人が元の作者をブロック", blockMarkerId("bob", "alice")],
     ])("%s していたら落とす（ブロックしたのに相手の写真からのリンクが残らない）", (_label, marker) => {
         const out = pruneInspiredBy([MINE, SRC], new Set([marker]));
         expect("inspiredBy" in pick(out, "p1")).toBe(false);
@@ -232,7 +236,7 @@ describe("pruneInspiredBy: 公開JSONの inspiredBy", () => {
     });
 
     it("関係の無い人のブロックでは落とさない", () => {
-        const out = pruneInspiredBy([MINE, SRC], new Set(["block#alice#carol", "block#carol#bob"]));
+        const out = pruneInspiredBy([MINE, SRC], new Set([blockMarkerId("alice", "carol"), blockMarkerId("carol", "bob")]));
         expect(pick(out, "p1").inspiredBy).toBe("src-1");
     });
 
@@ -245,7 +249,7 @@ describe("pruneInspiredBy: 公開JSONの inspiredBy", () => {
 
     it("持ち主は userId が無ければ uploadedBy で見る（古い行）", () => {
         const old = { id: "p1", src: "s", uploadedBy: "bob", inspiredBy: "src-1" };
-        expect("inspiredBy" in pick(pruneInspiredBy([old, SRC], new Set(["block#alice#bob"])), "p1")).toBe(false);
+        expect("inspiredBy" in pick(pruneInspiredBy([old, SRC], new Set([blockMarkerId("alice", "bob")])), "p1")).toBe(false);
     });
 
     // 関数だけ正しくても、scan() が通していなければ何も落ちない
@@ -256,7 +260,9 @@ describe("pruneInspiredBy: 公開JSONの inspiredBy", () => {
     });
 
     it("Scan の行からブロックの印だけを集める", () => {
-        const ids = blockMarkerIds([{ id: "block#a#b" }, { id: "blocks#a" }, { id: "blockedby#b" }, { id: "p1", src: "s" }, null]);
-        expect([...ids]).toEqual(["block#a#b"]);
+        // 一覧の行（`blocks#`・`blockedby#`）は印ではない。形は書く側の関数から作る
+        const { blocksId, blockedById } = blockCheck;
+        const ids = blockMarkerIds([{ id: blockMarkerId("a", "b") }, { id: blocksId("a") }, { id: blockedById("b") }, { id: "p1", src: "s" }, null]);
+        expect([...ids]).toEqual([blockMarkerId("a", "b")]);
     });
 });
