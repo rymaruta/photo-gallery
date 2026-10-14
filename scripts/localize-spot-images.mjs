@@ -25,6 +25,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const LEDGER_PATH = path.join(ROOT, "content", "spots.json");
 const IMAGES_PATH = path.join(ROOT, "content", "spot-images.json");
+/** 代表写真を置かないスポット（パノラマの自由が無い国の現代建築・`lib/data/spotImages.ts` の `NO_FOP_COVER_EXCLUSIONS`） */
+const COVER_EXCLUSIONS = JSON.parse(fs.readFileSync(path.join(ROOT, "content", "spot-cover-exclusions.json"), "utf8")).covers;
 const OUT_DIR = path.join(ROOT, "public", "images", "spots");
 const USER_AGENT = "JourneyPhotoSpotImages/1.0 (https://journey-photo.com)";
 export const WIDTH = 960;
@@ -61,6 +63,8 @@ async function download(url) {
 
 function isShown(spot, image) {
     if (spot.status !== "published" || !image) return false;
+    // パノラマの自由が無い国の現代建築は置かない（`content/spot-cover-exclusions.json`・2026-10-11）
+    if (Object.prototype.hasOwnProperty.call(COVER_EXCLUSIONS, spot.slug)) return false;
     if (image.reviewedBy?.trim()) return true;
     // 作例から昇格させた行は `scripts/promote-sample-covers.ts` が置く（ここでは選ばない）
     if (image.method === "commons-sample") return false;

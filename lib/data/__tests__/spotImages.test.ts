@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
 import type { Spot } from "../spots";
-import { cleanAuthor, coverLicenseOf, shownSpotImage, spotCoverImage, type SpotImage } from "../spotImages";
+import { cleanAuthor, coverLicenseOf, shownSpotImage, spotCoverImage, spotImageCredit, type SpotImage } from "../spotImages";
+import { toSpotFeedItem } from "../spotFeed";
 
 // 実際の台帳から、AI 照合で写真も照らした公開済みの行を土台にする
 const ledger = rawLedger as unknown as Spot[];
@@ -77,6 +78,26 @@ describe("作者の表記", () => {
     it("Wiki の「( talk )」だけ落とし、作者の求める表記は残す", () => {
         expect(cleanAuthor("Sakaori ( talk )")).toBe("Sakaori");
         expect(cleanAuthor("Ans~jawiki at Japanese Wikipedia")).toBe("Ans~jawiki at Japanese Wikipedia");
+    });
+
+    it("代表写真も作例と同じ規則で飾りを落とす（2026-10-11）", () => {
+        expect(cleanAuthor("photo: Qurren ( talk ) Taken with Canon IXY 10S (Digital IXUS 210)")).toBe("Qurren");
+        expect(cleanAuthor("ja:User:京浜にけ")).toBe("京浜にけ");
+        expect(cleanAuthor("Original uploader was BehBeh at ja.wikipedia")).toBe("BehBeh");
+        expect(spotCoverImage(base, images({ author: "w:en:Colin Keigher ( talk | contribs )" }))!.credit).toBe("Colin Keigher");
+    });
+
+    it("🔴 作者の欄が名前でない代表写真: CC BY 系は出さない、パブリックドメインは「作者不明」（Web とアプリで同じ）", () => {
+        expect(shownSpotImage(base, images({ author: "Own work" }))).toBeUndefined();
+        expect(spotCoverImage(base, images({ author: "Own work" }))).toBeUndefined();
+        expect(toSpotFeedItem(base, images({ author: "Own work" }), () => false).image).toBeUndefined();
+        const pd = images({ author: "Unknown author Unknown author", license: "Public domain" });
+        expect(spotCoverImage(base, pd)!.credit).toBe("作者不明");
+        expect(toSpotFeedItem(base, pd, () => false).image?.author).toBe("作者不明");
+        expect(spotImageCredit({ author: "Unknown Unknown" })).toBe("作者不明");
+        // 長いだけの正しい表記は、代表写真では長さで落とさない
+        const long = "Jean-Marc Rosier (de/from http://www.cjrosier.com + http://www.gordes-immobilier.com )";
+        expect(spotCoverImage(base, images({ author: long }))!.credit).toBe(long);
     });
 
     it("ライセンスの文面の URL は https にそろえる", () => {

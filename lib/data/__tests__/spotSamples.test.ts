@@ -1,3 +1,4 @@
+import { isExcludedSample } from "../spotImages";
 import { describe, it, expect } from "vitest";
 import rawLedger from "../../../content/spots.json";
 import rawSamples from "../../../content/spot-samples.json";
@@ -127,6 +128,12 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
         "takami torao ( Koiroha ( talk ) 15:33, 9 December 2009 (UTC))",
     ])("🔴 CC BY 系で作者が決まり文句・お願い文（%s）なら出さない", (author) => {
         expect(toSpotSample({ ...REC, author })).toBeUndefined();
+    });
+
+    it("🔴 英語の「… X assumed (based on copyright claims)」も日本語版と同じく名前にしない（#272・2026-10-14）。CC BY 系は出さず、PD/CC0 は「作者不明」", () => {
+        const author = "No machine-readable author provided. Zivax assumed (based on copyright claims).";
+        expect(toSpotSample({ ...REC, author })).toBeUndefined();
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self", author })?.author).toBe("作者不明");
     });
 
     it("パブリックドメイン・CC0 は決まり文句なら「作者不明」。飾り（( talk )・Taken with）は落とす", () => {
@@ -281,22 +288,88 @@ describe("Commons の縮小版の URL", () => {
     });
 });
 
+describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
+    it.each([
+        ["w:en:Colin Keigher ( talk | contribs )", "Colin Keigher"],
+        ["Pradana Aumars ( talk · contribs )", "Pradana Aumars"],
+        ["Rbtjd0201 ( talk / Contributions ) at the Korean Wikipedia", "Rbtjd0201 at the Korean Wikipedia"],
+        ["さかおり ( talk", "さかおり"],
+        ["Photographed by Qurren", "Qurren"],
+        ["Photographed by Qurren , with IXY Digital 10 compact digital camera.", "Qurren"],
+        ["Original uploader was Ptrbnsn at en.wikipedia", "Ptrbnsn"],
+        ["The original uploader was Florian S. at German Wikipedia .", "Florian S."],
+        ["en:User:Adamsan", "Adamsan"],
+        ["nl:User:GerardM", "GerardM"],
+        ["ja:User:NEON / User:NEON_ja", "NEON / NEON_ja"],
+        ["user:Carolus", "Carolus"],
+        ["[[User:|Patricia Santos]]", "Patricia Santos"],
+        ["[//commons.wikimedia.org/wiki/User:Trantuonglam Trantuonglam]", "Trantuonglam"],
+        ["-- [[利用者:あおもりくま|あおもりくま]] （ 会話 ） 2020年11月21日 (土) 01:16 (UTC)", "あおもりくま"],
+        ["さかおり ( talk ) 07:54, 23 February 2010 (UTC)", "さかおり"],
+        ["Foto: Reinhard Kraasch , Lizenz: CC-BY-SA 4.0 DE", "Reinhard Kraasch"],
+        ["© El Grafo / CC-BY-SA-4.0", "© El Grafo"],
+        ["© El Grafo / CC-BY-SA-3.0 (via Wikimedia Commons )", "© El Grafo"],
+        ["© Giles Laurent , gileslaurent.com , License CC BY-SA", "© Giles Laurent , gileslaurent.com"],
+        ["Ansgar Koreng / CC BY 3.0 (DE)", "Ansgar Koreng"],
+        ["Isiwal/Wikimedia Commons/CC-BY-SA-3.0-at", "Isiwal/Wikimedia Commons"],
+        ["Kenny McFly, CC-BY-SA 3.0", "Kenny McFly"],
+        ["Oga from ja , the copyright holder of this work, hereby publishes it under the following license:", "Oga"],
+    ])("%s → %s", (raw, name) => {
+        expect(cleanCommonsAuthor(raw)).toBe(name);
+        expect(isPlaceholderAuthor(cleanCommonsAuthor(raw))).toBe(false);
+    });
+
+    it("作者の求める表記・正しい名前は変えない", () => {
+        for (const name of [
+            "Ans~jawiki at Japanese Wikipedia", "FOTO:FORTEPAN / Berkó Pál", "--sinava-- from Berlin", "© Moheen Reeyad",
+            "Marie-Lan Nguyen ( User:Jastrow )", "CC BY Fan Club", "Tomasz Sienicki [user: tsca , mail: tomasz.sienicki at gmail.com]",
+            // URL だけの欄は作者を指す唯一の表記なので、そのまま（名前を推し量って書き換えない）
+            "https://www.flickr.com/photos/jiuguangw/",
+            // 🔴 URL の中の「/User:」を「/ User:」の区切りと取り違えて壊さない（2026-10-14）
+            "https://commons.wikimedia.org/wiki/User:Foo",
+            "Foo (https://commons.wikimedia.org/wiki/User:Foo)",
+            // 「X at the Korean Wikipedia」「(WT-shared) X at wts wikivoyage」は「X at Japanese Wikipedia」と同じく作者の求める表記
+            "Rbtjd0201 at the Korean Wikipedia", "(WT-shared) Suhobei at wts wikivoyage",
+        ]) expect(cleanCommonsAuthor(name)).toBe(name);
+    });
+
+    it("「Unknown Unknown」「Unknown author Unknown author」は作者不明の扱い", () => {
+        for (const a of ["Unknown Unknown", "Unknown author Unknown author", "Unknown photographer", "不明 Unknown author"]) {
+            expect(isPlaceholderAuthor(cleanCommonsAuthor(a)), a).toBe(true);
+        }
+        // 名前が取れない決まり文句・お願い文は今までどおり名前ではない
+        expect(isPlaceholderAuthor(cleanCommonsAuthor("No machine-readable author provided."))).toBe(true);
+        // 「No machine-readable author provided. X assumed …」とその日本語版「…だと推定されます」、
+        // 作者のお願い文は名前にしない（#272 の判断どおり。推定の名前を作者と言い切らない・2026-10-14）
+        for (const a of [
+            "No machine-readable author provided. Zivax assumed (based on copyright claims).",
+            "No machine-readable author provided. Marubatsu assumed (based on copyright claims). This photo was taken with Fujifilm FinePix F460",
+            "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
+            "This Photo was taken by Supanut Arunoprayote . Feel free to use any of my images, but please mention me as the author.",
+            "Ad Meskens You are free to use this picture for any purpose as long as you credit its author, Ad Meskens .",
+        ]) expect(isPlaceholderAuthor(cleanCommonsAuthor(a)), a).toBe(true);
+    });
+});
+
 describe("リポジトリの確定ファイル", () => {
     const ledger = rawLedger as unknown as Spot[];
     const file = rawSamples as unknown as SpotSamplesFile;
 
     /**
-     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・PD-Detroit・Flickr の PDM・人物の印・人や催しが主役）だけ。
+     * 表示で落ちてよいのは**決めた理由**（作者が名前でない・PD-US・PD-Detroit・Flickr の PDM・人物の印・人や催しが主役・
+     * パノラマの自由が無い国の現代建築）だけ。
      * URL の欠け・知らないライセンスなど、それ以外の理由で黙って落ちる1枚は無い
      * （確定ファイルは人が手で直すので、書き間違いをここで捕まえる）
      */
     const explained = (r: SpotSampleRecord, spot: Spot) => {
-        const author = cleanCommonsAuthor(String(r.author ?? "").replace(/\s*\(\s*talk\s*\)\s*$/i, ""));
+        const author = cleanCommonsAuthor(String(r.author ?? ""));
         const by = /^cc[-\s]by/i.test(r.license);
         // PD-Detroit・Flickr の Public Domain Mark も（2026-10-11 レビュー）
         return (by && isPlaceholderAuthor(author)) || isUnusablePublicDomain(r.license, r.licenseCode) || r.personality === true
             || String(r.licenseCode ?? "").startsWith("mixed:")
-            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""));
+            || (!isEventSpot(spot) && EVENT_OR_PERSON.test(r.file ?? ""))
+            // パノラマの自由が無い国の現代建築（`content/spot-sample-exclusions.json`・2026-10-11）
+            || isExcludedSample(spot.spotId, r);
     };
 
     it("🔴 書いてある1枚は、決めた理由で落とすもの以外どれも表示の形にできる", () => {
