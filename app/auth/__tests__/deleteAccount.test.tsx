@@ -70,6 +70,13 @@ vi.mock("../../../lib/hooks/useFavorites", () => ({
     removeFavoritesUserData: vi.fn(),
 }));
 
+// **待ちは 5 秒・1本の制限は 15 秒**（2026-10-11）。全部のテストを並べて流す重い時に1回落ち、単体では
+// 3 回とも通った。退会の結果は「セッションを引く → 消す → 掃除」と非同期を何段も通ってから画面に出るので、
+// testing-library の既定の待ち（1 秒）に間に合わないことがある（セッションの答えを 1.2 秒遅らせると
+// 既定の待ちでは 3 本落ち、5 秒の待ちでは全部通ることを確かめた）。今日の一問（`DailyQuizClient.test.tsx`）と同じ直し方
+const WAIT = { timeout: 5000 };
+vi.setConfig({ testTimeout: 15_000 });
+
 const { AuthProvider, useAuth } = await import("../context");
 const { resetFollowingCache } = await import("../../../lib/hooks/useFollow");
 const { clearSharedPayload } = await import("../../../lib/utils/shareStore");
@@ -106,10 +113,10 @@ const expiredSession = {
 
 const clickDelete = async () => {
     render(<AuthProvider><Harness /></AuthProvider>);
-    await userEvent.click(await screen.findByRole("button", { name: "退会する" }));
+    await userEvent.click(await screen.findByRole("button", { name: "退会する" }, WAIT));
 };
 const result = async () => {
-    await waitFor(() => expect(screen.getByRole("status").textContent).not.toBe(""));
+    await waitFor(() => expect(screen.getByRole("status").textContent).not.toBe(""), WAIT);
     return JSON.parse(screen.getByRole("status").textContent!) as { success: boolean; error?: string };
 };
 
@@ -228,8 +235,8 @@ describe("ログイン成功時にフォロー一覧のキャッシュを捨て�
             session: { getIdToken: () => ({ payload: { sub: "new-user" } }) },
         });
         render(<AuthProvider><LoginHarness /></AuthProvider>);
-        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
-        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }, WAIT));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"), WAIT);
         expect(resetFollowingCache).toHaveBeenCalled();
         // お気に入りとストーリーの既読を、このアカウントの鍵に向ける。
         // **向けないと、ログインし直したときに一度見たストーリーが
@@ -241,8 +248,8 @@ describe("ログイン成功時にフォロー一覧のキャッシュを捨て�
     it("失敗したら呼ばれない（触っていないキャッシュを消さない）", async () => {
         mockSignIn.mockResolvedValue({ success: false, error: "bad" });
         render(<AuthProvider><LoginHarness /></AuthProvider>);
-        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
-        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("false"));
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }, WAIT));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("false"), WAIT);
         expect(resetFollowingCache).not.toHaveBeenCalled();
     });
 });
@@ -257,12 +264,15 @@ describe("端末に残る前の人のデータの掃除", () => {
 
     it("ログアウトで共有ペイロードとストーリー既読を捨てる", async () => {
         render(<AuthProvider><LogoutHarness /></AuthProvider>);
-        await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }));
-        expect(clearSharedPayload).toHaveBeenCalled();
-        // 書きかけの写真（原本）が、次にログインした別の人の投稿画面に戻らない
-        expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
-        expect(clearSeenStories).toHaveBeenCalled();
-        expect(setFavoritesUser).toHaveBeenCalledWith(null);
+        await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }, WAIT));
+        // `logout()` は後読み（`import()`）を2回待ってから掃除するので、クリック直後ではなく待って確かめる
+        await waitFor(() => {
+            expect(clearSharedPayload).toHaveBeenCalled();
+            // 書きかけの写真（原本）が、次にログインした別の人の投稿画面に戻らない
+            expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
+            expect(clearSeenStories).toHaveBeenCalled();
+            expect(setFavoritesUser).toHaveBeenCalledWith(null);
+        }, WAIT);
     });
 
     it("ログイン成功では捨てない（共有→ログイン→取り込みを壊さない）", async () => {
@@ -282,8 +292,8 @@ describe("端末に残る前の人のデータの掃除", () => {
             );
         }
         render(<AuthProvider><LoginHarness2 /></AuthProvider>);
-        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }));
-        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"));
+        await userEvent.click(await screen.findByRole("button", { name: "ログイン" }, WAIT));
+        await waitFor(() => expect(screen.getByRole("status").textContent).toContain("true"), WAIT);
         expect(clearSharedPayload).not.toHaveBeenCalled();
         expect(clearSeenStories).not.toHaveBeenCalled();
     });
@@ -295,19 +305,19 @@ describe("端末に残る前の人のデータの掃除", () => {
 describe("checkAuth がお気に入りのキーを向け直す", () => {
     it("マウント時、セッションの sub でキーを向ける", async () => {
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith("user-a"));
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith("user-a"), WAIT);
     });
 
     it("セッションが無ければ共有キーに向ける", async () => {
         mockGetCurrentSession.mockResolvedValue(null);
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null));
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null), WAIT);
     });
 
     it("判定に失敗したときも前のユーザーのキーを向いたままにしない", async () => {
         mockGetCurrentSession.mockRejectedValue(new Error("cognito down"));
         render(<AuthProvider><Harness /></AuthProvider>);
-        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null));
+        await waitFor(() => expect(setFavoritesUser).toHaveBeenCalledWith(null), WAIT);
     });
 });
 

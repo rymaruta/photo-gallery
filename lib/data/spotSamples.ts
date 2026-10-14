@@ -25,12 +25,12 @@
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
-import { cleanAuthor, licenseKindOf, isReviewedPick, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
+import { cleanAuthor, licenseKindOf, isReviewedPick, isNoFopCoverExcluded, isExcludedSample, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
 import type { Spot, SpotCoverImage } from "./spots";
 import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
 import {
-    cleanCommonsAuthor, isPlaceholderAuthor, isUnusablePublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
+    UNKNOWN_AUTHOR_LABEL, isPlaceholderAuthor, isUnusablePublicDomain, EVENT_OR_PERSON, isEventSpot, standardThumbOf, hasPdBasis, isOrganizationName,
 } from "@/lib/utils/commonsAttribution.mjs";
 
 /**
@@ -228,7 +228,7 @@ export const SPOT_SAMPLES: Readonly<SpotSamplesFile> = raw as SpotSamplesFile;
 export const MAX_SHOWN_SAMPLES = 6;
 
 /** 作者が分からないときの表記（パブリックドメイン・CC0 だけに許す） */
-export const UNKNOWN_AUTHOR = "作者不明";
+export const UNKNOWN_AUTHOR = UNKNOWN_AUTHOR_LABEL;
 
 /** パブリックドメインの印（Public Domain Mark）。構造化データの `license` に使う */
 export const PUBLIC_DOMAIN_MARK_URL = "https://creativecommons.org/publicdomain/mark/1.0/";
@@ -293,7 +293,7 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
     if (kind === "public-domain" && !hasPdBasis(r.licenseCode)) return undefined;
     if (r.personality) return undefined;
     const byLicense = kind === "cc-by" || kind === "cc-by-sa";
-    let author = cleanCommonsAuthor(cleanAuthor(String(r.author ?? "")));
+    let author = cleanAuthor(String(r.author ?? ""));
     if (isPlaceholderAuthor(author)) {
         if (byLicense) return undefined;
         author = UNKNOWN_AUTHOR;
@@ -340,7 +340,7 @@ function toFlickrSample(r: SpotSampleRecord): SpotSample | undefined {
     if (kind !== "cc-by" && kind !== "cc-by-sa" && kind !== "cc0") return undefined;
     if (r.personality) return undefined;
     const byLicense = kind !== "cc0";
-    let author = cleanCommonsAuthor(cleanAuthor(String(r.author ?? "")));
+    let author = cleanAuthor(String(r.author ?? ""));
     if (isPlaceholderAuthor(author)) {
         if (byLicense) return undefined;
         author = UNKNOWN_AUTHOR;
@@ -434,6 +434,7 @@ export function spotSamples(
     const seen = new Set<string>();
     const out: SpotSample[] = [];
     for (const r of file[spot.spotId]?.samples ?? []) {
+        if (isExcludedSample(spot.spotId, r)) continue;
         if (opts.reviewedOnly && !isReviewedPick(r)) continue;
         if (!eventSpot && EVENT_OR_PERSON.test(`${r.file ?? r.title ?? ""}`)) continue;
         const s = toSpotSample(r);
@@ -477,9 +478,12 @@ export function coverCandidateSample(
     file: Readonly<SpotSamplesFile> = SPOT_SAMPLES,
 ): { record: SpotSampleRecord; sample: SpotSample } | undefined {
     if (!isPublished(spot as Spot)) return undefined;
+    // パノラマの自由が無い国の現代建築は代表写真に上げない（`NO_FOP_COVER_EXCLUSIONS`・2026-10-11）
+    if (isNoFopCoverExcluded(spot.slug)) return undefined;
     const eventSpot = isEventSpot(spot);
     const ok: { record: SpotSampleRecord; sample: SpotSample }[] = [];
     for (const record of file[spot.spotId]?.samples ?? []) {
+        if (isExcludedSample(spot.spotId, record)) continue;
         if (!isReviewedPick(record) || sampleSourceName(record) !== COMMONS_SOURCE_NAME) continue;
         if (!eventSpot && EVENT_OR_PERSON.test(`${record.file ?? record.title ?? ""}`)) continue;
         const sample = toSpotSample(record);

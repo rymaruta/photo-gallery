@@ -6,7 +6,7 @@ import rawImages from "../../../content/spot-images.json";
 import rawSamples from "../../../content/spot-samples.json";
 import type { Spot } from "../spots";
 import {
-    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, type SpotImage,
+    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, cleanAuthor, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, SPOT_SAMPLE_EXCLUSIONS, isExcludedSample, type SpotImage,
 } from "../spotImages";
 import {
     coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL, isPromotionTarget, spotSamples,
@@ -14,7 +14,7 @@ import {
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import { putImageRecord } from "../../../scripts/fetch-spot-images.mjs";
-import { isUnusablePublicDomain, isFlickrPdMark, isUsOnlyPublicDomain, pdBasisOf } from "../../utils/commonsAttribution.mjs";
+import { isUnusablePublicDomain, isFlickrPdMark, isUsOnlyPublicDomain, pdBasisOf, hasPlaceholderPhrase } from "../../utils/commonsAttribution.mjs";
 import { toSpotBody } from "../spotBody";
 import { buildSpotFeed, legacySpotFeed } from "../spotFeed";
 import { spotImageEntries } from "../../../app/sitemap-images.xml/route";
@@ -154,7 +154,49 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
     const images = rawImages as unknown as Record<string, SpotImage>;
     const samples = rawSamples as unknown as SpotSamplesFile;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
-    const promoted = Object.entries(images).filter(([, v]) => v.method === SAMPLE_COVER_METHOD);
+    // パノラマの自由が無い国の現代建築（`NO_FOP_COVER_EXCLUSIONS`）は縮小版を消して出さない（2026-10-11）
+    // 作例として表示から落とした1枚を上げた行（ルンビニ）も同じく出さない
+    // CC BY 系で作者の欄が名前でない行（英語の「No machine-readable author provided. X assumed …」を #272 どおり
+    // 名前にしないと決めた・2026-10-14）も、作例と同じく出さない（下の「作者の欄が名前でない上げた行」で見張る）
+    const missingCredit = (v: SpotImage) => {
+        const kind = licenseKindOf(v.license);
+        return (kind === "cc-by" || kind === "cc-by-sa") && hasPlaceholderPhrase(cleanAuthor(v.author));
+    };
+    const promoted = Object.entries(images).filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug)
+        && !isExcludedSample(bySlug.get(slug)!.spotId, v) && !missingCredit(v));
+
+    it("🔴 作者の欄が名前でない上げた行（CC BY 系）は、代表写真にも作例にも出さない（2026-10-14）", () => {
+        const hidden = Object.entries(images)
+            .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug) && missingCredit(v))
+            .map(([slug]) => slug).sort();
+        expect(hidden).toEqual(["mijas", "mount-papandayan", "wolchulsan"]);
+        for (const slug of hidden) {
+            const spot = bySlug.get(slug)!;
+            expect(spotCoverImage(spot), slug).toBeUndefined();
+            expect(spotSamples(spot).some((s) => s.sourceUrl === images[slug].pageUrl), slug).toBe(false);
+        }
+    });
+
+    it("🔴 パノラマの自由が無い国の現代建築: 代表写真に出さず、作例からも上げ直さず、縮小版も置かない", () => {
+        const slugs = Object.keys(NO_FOP_COVER_EXCLUSIONS);
+        expect(slugs).toContain("burj-khalifa");
+        expect(slugs).toContain("n-seoul-tower");
+        expect(slugs).toContain("lotte-world-tower");
+        for (const slug of slugs) {
+            const spot = bySlug.get(slug);
+            expect(spot, `${slug}: 台帳に無い`).toBeDefined();
+            expect(images[slug], `${slug}: 代表写真の行が無い（外す必要が無い）`).toBeDefined();
+            expect(spotCoverImage(spot!), slug).toBeUndefined();
+            expect(shownSpotImage(spot!), slug).toBeUndefined();
+            expect(coverCandidateSample(spot!), slug).toBeUndefined();
+            expect(images[slug].local, slug).toBeUndefined();
+            expect(fs.existsSync(path.join(__dirname, "../../../public/images/spots", `${slug}.jpg`)), slug).toBe(false);
+            expect(fs.existsSync(path.join(__dirname, "../../../public/images/spots/thumb", `${slug}.jpg`)), slug).toBe(false);
+        }
+        // 人が確かめた印があっても出さない
+        const spot = bySlug.get("burj-khalifa")!;
+        expect(shownSpotImage(spot, { "burj-khalifa": { ...images["burj-khalifa"], reviewedBy: "someone", local: { src: "/x.jpg", width: 2, height: 1 } } })).toBeUndefined();
+    });
 
     it("作例から上げた行がある（2026-10-11 に流した）", () => {
         expect(promoted.length).toBeGreaterThan(0);
@@ -169,7 +211,9 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
             expect(isReviewedPick(rec!), slug).toBe(true);
             const s = toSpotSample(rec!);
             expect(s, slug).toBeDefined();
-            expect({ author: img.author, license: img.license, pickedBy: img.pickedBy }, slug)
+            // 作者は**表示の形**で比べる（行には上げた時点の整え方の結果が残る。整え方の規則を足しても
+            // 表示は作例と同じ1本の規則を通る・2026-10-11）
+            expect({ author: spotImageCredit(img), license: img.license, pickedBy: img.pickedBy }, slug)
                 .toEqual({ author: s!.author, license: s!.license, pickedBy: rec!.pickedBy.trim() });
         }
     });
@@ -194,7 +238,8 @@ describe("レビューの直し（2026-10-11）", () => {
     const images = rawImages as unknown as Record<string, SpotImage>;
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
     const promoted = Object.entries(images)
-        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!))
+        .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && isPublished(bySlug.get(slug)!) && !isNoFopCoverExcluded(slug)
+            && !isExcludedSample(bySlug.get(slug)!.spotId, v))
         .map(([slug, v]) => ({ spot: bySlug.get(slug)!, image: v }));
 
     it("代表写真は題（ファイル名から）を持ち、構造化データの name も題", () => {
@@ -271,5 +316,44 @@ describe("レビューの直し（2026-10-11）", () => {
     it("上げる道具は isPromotionTarget を通す", async () => {
         const src = fs.readFileSync(path.join(__dirname, "../../../scripts/promote-sample-covers.ts"), "utf8");
         expect(src).toMatch(/isPromotionTarget\(s, images,/);
+    });
+});
+
+describe("🔴 パノラマの自由が無い国の現代建築の作例を表示から落とす（2026-10-11）", () => {
+    const samplesFile = rawSamples as unknown as SpotSamplesFile;
+    const images = rawImages as unknown as Record<string, SpotImage>;
+    const byId = new Map(ledger.map((s) => [s.spotId, s]));
+    const key = (f: string | undefined) => String(f ?? "").replace(/_/g, " ").replace(/^File:/i, "").trim();
+
+    it("一覧の1枚はどれも確定ファイルに在る（書き間違いで黙って効かない行を作らない）・理由が書いてある", () => {
+        expect(SPOT_SAMPLE_EXCLUSIONS.length).toBeGreaterThan(100);
+        for (const e of SPOT_SAMPLE_EXCLUSIONS) {
+            expect(byId.get(e.spotId), e.spotId).toBeDefined();
+            expect(samplesFile[e.spotId]?.samples.some((r) => key(r.file) === key(e.file)), `${e.spotId} ${e.file}`).toBe(true);
+            expect(e.reason.trim(), e.file).not.toBe("");
+        }
+    });
+
+    it("落とした1枚は、作例にも代表写真にも代表写真の候補にも出ない", () => {
+        for (const e of SPOT_SAMPLE_EXCLUSIONS) {
+            const spot = byId.get(e.spotId)!;
+            expect(spotSamples(spot).some((x) => key(decodeURIComponent(x.sourceUrl.replace(/^.*\/wiki\//, ""))) === key(e.file)), `${spot.slug} ${e.file}`).toBe(false);
+            expect(key(coverCandidateSample(spot)?.record.file) === key(e.file), spot.slug).toBe(false);
+            const cover = shownSpotImage(spot);
+            expect(cover && key(cover.file) === key(e.file), spot.slug).toBeFalsy();
+        }
+        // 作例から上げた代表写真の元の1枚を落としたら、代表写真も出さない（ルンビニ）
+        const lumbini = ledger.find((s) => s.slug === "lumbini")!;
+        expect(isExcludedSample(lumbini.spotId, images.lumbini)).toBe(true);
+        expect(spotCoverImage(lumbini)).toBeUndefined();
+    });
+
+    it("作例が1枚も残らない撮影地（ブルジュ・ハリファ）も、ページの説明が壊れない（枚数を言わない）", async () => {
+        const spot = ledger.find((s) => s.slug === "burj-khalifa")!;
+        expect(spotSamples(spot)).toEqual([]);
+        expect(spotCoverImage(spot)).toBeUndefined();
+        const meta = await generateMetadata({ params: Promise.resolve({ slug: spot.slug }) });
+        expect(String(meta.description)).not.toMatch(/作例|代表写真\d|0枚/);
+        expect(String(meta.description).length).toBeGreaterThan(10);
     });
 });
