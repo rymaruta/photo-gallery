@@ -259,7 +259,8 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 **写真**
 `PUT,DELETE /photos/{id}` / `POST,DELETE /photos/{id}/like` /
 `POST,DELETE /photos/{id}/save` / `POST,DELETE /photos/{id}/comments`（と
-`DELETE /photos/{id}/comments/{commentId}`）/ `POST /photos/{id}/report`
+`DELETE /photos/{id}/comments/{commentId}`）/ `POST /photos/{id}/report` /
+`GET /user/inspired/{id}`（「この写真を見て撮影」の元の写真の要約。決まりと形は `docs/inspired-by.md`）※2026-10-14 追加・**本番未反映**
 
 **フォロー・ブロック**
 `POST,DELETE /users/{uid}/follow` / `GET /users/{uid}/following` /
@@ -371,6 +372,8 @@ type Photo = {
     coords?: { lat: number; lng: number };
     geoApprox?: boolean;          // 地名から引いた「おおよその位置」
     spotId?: string;              // 撮影スポット台帳への参照（人が確認した紐付けだけ）
+    inspiredBy?: string;          // 「この写真を見て撮影」の元の写真の ID（ID だけ。今も見られるかは
+                                  //  読む側が確かめる・`docs/inspired-by.md`）
     date?: string;                // "YYYY-MM-DD" か壁時計の "YYYY-MM-DDTHH:mm:ss"
     exif?: { camera?: string; lens?: string; aperture?: string; ... };
 

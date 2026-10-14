@@ -14,6 +14,7 @@ import { metaText } from "@/lib/utils/metaText";
 import { titleWithPlace } from "@/lib/utils/titlePlace";
 import { categoryLabel } from "../../../lib/utils/collections";
 import { spotLinkForPhoto } from "@/lib/data/spotLink";
+import { inspiredSourceFor, toInspiredLink } from "@/lib/utils/inspired";
 
 // 写真データを読み込む関数
 async function loadPhoto(id: string): Promise<Photo | null> {
@@ -218,6 +219,9 @@ export default async function PhotoPage({ params }: PageProps) {
     // （RSC ペイロード）。組み立ては `initialRelatedFor` に置いてある
     // ——ここに `map(slimForLinks)` と書くと、**1つ消しても誰も気づかない**
     const initialRelated = photo ? initialRelatedFor(photo, photos, 8) : undefined;
+    // 「この写真を見て撮影」の元の写真。**公開の一覧に居るときだけ**（非公開・削除・
+    // 絞った写真は居ない）。静的HTMLにも焼く（写真から写真への内部リンクになる）
+    const inspired = inspiredSourceFor(photo, photos);
     return (
         <PhotoPageClient
             photoId={id}
@@ -226,6 +230,7 @@ export default async function PhotoPage({ params }: PageProps) {
             // **台帳はここで解く。** 画面へ渡すのは表示に要る項目だけ
             // （`"use client"` から台帳を読むと全文がチャンクに載る）
             spotLink={spotLinkForPhoto(photo?.spotId)}
+            initialInspired={inspired ? toInspiredLink(inspired) : null}
         />
     );
 }

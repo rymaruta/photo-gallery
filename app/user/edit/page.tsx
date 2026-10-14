@@ -292,6 +292,11 @@ function EditContent() {
      * 丸ごと無効になっていた（レビューが実測）。
      */
     const [coordsTouched, setCoordsTouched] = useState(false);
+    /**
+     * 「この写真を見て撮影」の元の写真の ID（`api-user/src/inspired.ts`）。
+     * **Web では付けられない（アプリが先）。外すだけ**できる。null が「付いていない」
+     */
+    const [inspiredBy, setInspiredBy] = useState<string | null>(null);
     const [placeResults, setPlaceResults] = useState<{ label: string; lat: number; lng: number }[] | null>(null);
     const [placeSearching, setPlaceSearching] = useState(false);
     const [category, setCategory] = useState("");
@@ -367,6 +372,7 @@ function EditContent() {
                             setLocation(found.location ?? "");
                             setCoords(found.coords ?? null);
                             setFocalPoint(found.focalPoint ?? null);
+                            setInspiredBy(found.inspiredBy ?? null);
                             setCategory(found.category ?? "");
                             // <input type="date"> は YYYY-MM-DD しか受け付けない。
                             // 保存値は ISO 文字列なので、そのまま入れると空欄になる。
@@ -464,6 +470,8 @@ function EditContent() {
             tags,
             coords,
             focalPoint,
+            // 外したときだけ null が差分として送られる（サーバーは REMOVE する）
+            inspiredBy,
         };
         // **比較先も同じ道を通す。** `changedFields` の相手は「保存されている姿」
         // ではなく「触らなかったらこの画面が送る姿」でなければならない。
@@ -483,9 +491,10 @@ function EditContent() {
             tags: Array.isArray(original?.tags) ? original.tags : [],
             coords: original?.coords ?? null,
             focalPoint: original?.focalPoint ?? null,
+            inspiredBy: original?.inspiredBy ?? null,
         };
         return { tags, nextDescription, nextFields, originalFields };
-    }, [original, title, description, location, category, date, tagsInput, coords, focalPoint]);
+    }, [original, title, description, location, category, date, tagsInput, coords, focalPoint, inspiredBy]);
 
     /**
      * 保存していない変更があるか。
@@ -1035,6 +1044,30 @@ function EditContent() {
                             )}
                         </div>
                     </div>
+
+                    {/* 「この写真を見て撮影」。**付けるのはアプリ（Web は外すだけ）**。
+                        付いている写真にだけ出す */}
+                    {original?.inspiredBy && (
+                        <div>
+                            <p className={labelCls} id="edit-inspired">{isJa ? "この写真を見て撮影" : "Inspired by"}</p>
+                            <div role="group" aria-labelledby="edit-inspired"
+                                 className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 flex flex-wrap items-center gap-2">
+                                <p className="text-xs text-white/70 flex-1 min-w-0" data-testid="inspired-state">
+                                    {inspiredBy
+                                        ? (isJa ? "元の写真が公開のあいだ、写真ページに出ます" : "Shown on the photo page while the original photo is public")
+                                        : (isJa ? "外します（保存すると反映されます）" : "Will be removed when you save")}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setInspiredBy(inspiredBy ? null : (original.inspiredBy ?? null))}
+                                    className="px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-sm"
+                                    style={{ touchAction: "manipulation", minHeight: 44 }}
+                                >
+                                    {inspiredBy ? (isJa ? "外す" : "Remove") : (isJa ? "元に戻す" : "Undo")}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* 撮影地の位置（地図に出す場所）。**本人が選ぶ。**
                         地名は自由入力なので、機械では「福岡」が福岡市か富山県の

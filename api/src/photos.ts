@@ -58,7 +58,9 @@ const JSON_HEADERS = {
 // 残した」という出どころで、載せると**まだ生きているストーリーのID**まで
 // 公開JSONと公開APIに出る。`staticStale` / `publicFeed` を落としているのと
 // 同じ線（振る舞いは変わらないが、内部の印を外に出さない）
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom"] as const;
+// `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
+// 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified"] as const;
 
 export function stripPrivate<T extends Record<string, unknown>>(photo: T): T {
     const out = { ...photo };
@@ -82,6 +84,25 @@ function isRestricted(photo: Pick<Photo, "audience">): boolean {
     return typeof a === "string" ? a.trim() !== "" : a != null;
 }
 
+/**
+ * 「この写真を見て撮影」（`inspiredBy`・`api-user/src/inspired.ts`）の ID を、
+ * **返す一覧に元の写真が居るときだけ**残す（非公開・削除・絞った写真の ID を公開の口に出さない）。
+ * 読み取りは増やさない（手元の一覧だけで決める）。
+ *
+ * ブロックの関係はここでは見ない（印は Scan の絞り込みで落ちている）。Web の写真ページは
+ * 静的な `photos.json`（sync がブロックの印で落とす）に残っているものだけを出すので、
+ * この口だけで行が復活することはない（`lib/utils/inspired.ts`）。
+ */
+export function pruneInspiredBy<T extends Record<string, unknown>>(photos: T[], known: ReadonlySet<string>): T[] {
+    return photos.map((p) => {
+        if (p.inspiredBy === undefined) return p;
+        if (typeof p.inspiredBy === "string" && p.inspiredBy !== p.id && known.has(p.inspiredBy)) return p;
+        const out = { ...p };
+        delete out.inspiredBy;
+        return out;
+    });
+}
+
 const LIST_CACHE_TTL_MS = 10 * 1000;
 let listCache: { at: number; json: string } | null = null;
 
@@ -96,13 +117,16 @@ export const getPhotos: APIGatewayProxyHandlerV2 = async (event) => {
         if (userId) {
             // 特定の人の分は GSI の Query なので、その人の枚数で収まる
             const photos = await listPhotosByUser(userId);
+            // 1人ぶんの一覧では元の写真が公開か分からないので、`inspiredBy` は載せない
+            // （空の集合で絞る＝全部落ちる）
             return { statusCode: 200, headers: JSON_HEADERS,
-                body: JSON.stringify(photos.filter((p) => !isRestricted(p)).map(stripPrivate)) };
+                body: JSON.stringify(pruneInspiredBy(photos.filter((p) => !isRestricted(p)).map(stripPrivate), new Set())) };
         }
         const now = Date.now();
         if (!listCache || now - listCache.at >= LIST_CACHE_TTL_MS) {
+            const visible = (await listPhotos()).filter((p) => !isRestricted(p)).map(stripPrivate);
             listCache = { at: now, json: JSON.stringify(
-                (await listPhotos()).filter((p) => !isRestricted(p)).map(stripPrivate)) };
+                pruneInspiredBy(visible, new Set(visible.map((p) => p.id)))) };
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: listCache.json };
     } catch (e) {

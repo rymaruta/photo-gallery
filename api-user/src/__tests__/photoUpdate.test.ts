@@ -50,6 +50,16 @@ vi.mock("../albums", () => ({
     isAlbumMember: (...a: unknown[]) => mockIsAlbumMember(...(a as [])),
 }));
 
+// 「この写真を見て撮影」（`inspired.ts`）。形の判定は本物、元の写真の確かめと通知は
+// 境界として模す（中身は `inspired.test.ts`）。既定は「元の写真は見られない」
+const mockReadVisibleSource = vi.hoisted(() => vi.fn(async (...a: unknown[]): Promise<Record<string, unknown> | null> => { void a; return null; }));
+const mockNotifyInspired = vi.hoisted(() => vi.fn(async (...a: unknown[]) => { void a; }));
+vi.mock("../inspired", async (importActual) => ({
+    ...(await importActual<typeof import("../inspired")>()),
+    readVisibleSource: (...a: unknown[]) => mockReadVisibleSource(...a),
+    notifyInspiredOnce: (...a: unknown[]) => mockNotifyInspired(...a),
+}));
+
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
 const CDN = "https://d15fn3rcaiymu9.cloudfront.net";
@@ -76,6 +86,8 @@ beforeEach(() => {
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockS3DeleteMany.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
+    mockReadVisibleSource.mockReset().mockResolvedValue(null);
+    mockNotifyInspired.mockReset().mockResolvedValue(undefined);
     vi.stubEnv("CLOUDFRONT_URL", CDN);
 });
 
@@ -136,6 +148,128 @@ describe("updatePhotoVisibility", () => {
         const update = (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues: Record<string, unknown> } }).input;
         expect(update.UpdateExpression).toContain("published");
         expect(update.ExpressionAttributeValues[":p"]).toBe(false);
+    });
+
+    // **「この写真を見て撮影」**（`inspired.ts`）。付けるのは見られる写真だけ・外すのは自由
+    describe("inspiredBy", () => {
+        const SRC = "aaaaaaaa-1111-4111-8111-111111111111";
+        const upd = () => (mockDdbSend.mock.calls[1][0] as { input: { UpdateExpression: string; ExpressionAttributeValues?: Record<string, unknown> } }).input;
+        const visible = () => mockReadVisibleSource.mockResolvedValue({ id: SRC, userId: "alice", src: "s" });
+
+        it("見られる元の写真なら付けられ、元の作者へ知らせる", async () => {
+            visible();
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", thumbSrc: "t" } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { inspiredBy: SRC }));
+            expect(res.statusCode).toBe(200);
+            expect(mockReadVisibleSource).toHaveBeenCalledWith(SRC, ["u1"]);
+            expect(upd().UpdateExpression).toMatch(/SET .*#inspiredBy = :inspiredBy/);
+            expect(upd().ExpressionAttributeValues?.[":inspiredBy"]).toBe(SRC);
+            // 確かめで読んだ行を渡す（通知の側で元の写真を読み直さない）
+            expect(mockNotifyInspired).toHaveBeenCalledWith(
+                { id: "p1", src: "s", thumbSrc: "t" }, SRC, "u1", { id: SRC, userId: "alice", src: "s" });
+        });
+
+        it("見られない元の写真は 400（書かない・知らせない）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s" } });
+            const res = await invoke(event("u1", "p1", { inspiredBy: SRC }));
+            expect(res.statusCode).toBe(400);
+            expect(JSON.parse(res.body).error).toBe("元の写真が見つからないか、付けられません");
+            expect(mockDdbSend).toHaveBeenCalledTimes(1);
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("この写真自身は付けられない（表も引かない）", async () => {
+            visible();
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: SRC, userId: "u1", src: "s" } });
+            const res = await invoke(event("u1", SRC, { inspiredBy: SRC }));
+            expect(res.statusCode).toBe(400);
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+        });
+
+        it("null・空文字で外せる（確かめない・知らせない）", async () => {
+            for (const inspiredBy of [null, ""]) {
+                mockDdbSend.mockReset();
+                mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC } }).mockResolvedValueOnce({});
+                const res = await invoke(event("u1", "p1", { inspiredBy }));
+                expect(res.statusCode).toBe(200);
+                expect(upd().UpdateExpression).toMatch(/REMOVE .*#inspiredBy/);
+            }
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("外したら静的サイトを作り直す（写真ページの行を消す）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { inspiredBy: null }));
+            expect(mockRebuild).toHaveBeenCalled();
+        });
+
+        it("形の違う値は 400（付けてあったものを黙って消さない）", async () => {
+            for (const inspiredBy of ["notifs#u1", "a b", 123, false, {}, [SRC]]) {
+                mockDdbSend.mockReset();
+                const res = await invoke(event("u1", "p1", { inspiredBy }));
+                expect(res.statusCode, JSON.stringify(inspiredBy)).toBe(400);
+                expect(mockDdbSend).not.toHaveBeenCalled();
+            }
+        });
+
+        // 元の写真があとで非公開になっても、関係の無い保存まで断らない
+        it("保存済みと同じ値なら確かめ直さない", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC, inspiredNotified: SRC } }).mockResolvedValueOnce({});
+            const res = await invoke(event("u1", "p1", { inspiredBy: SRC, title: "新しい題" }));
+            expect(res.statusCode).toBe(200);
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+        });
+
+        it("他人の写真には付けられない", async () => {
+            visible();
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "someone", src: "s" } });
+            const res = await invoke(event("u1", "p1", { inspiredBy: SRC }));
+            expect(res.statusCode).toBe(403);
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("下書きのまま付けたら知らせない", async () => {
+            visible();
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", published: false } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { inspiredBy: SRC }));
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("公開範囲を絞った写真は知らせない", async () => {
+            visible();
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", audience: "followers" } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { inspiredBy: SRC }));
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("下書きで付けてあった写真を公開したら、そこで知らせる", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", published: false, inspiredBy: SRC } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { published: true }));
+            // 今回は確かめていない（保存済みの値）ので、行は渡さない＝通知の側で読む
+            expect(mockNotifyInspired).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), SRC, "u1", undefined);
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+        });
+
+        it("送らないと決めた控え（skipped）があれば、何も読まない（自分の写真を編集するたびに読み直さない）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC, inspiredNotified: "skipped" } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { published: true, title: "x" }));
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+        });
+
+        it("送った印があれば、もう知らせない（編集のたびに鳴らさない）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s", inspiredBy: SRC, inspiredNotified: SRC } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { published: true, title: "x" }));
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
+
+        it("元の写真が付いていない写真の保存では何も読まない", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", src: "s" } }).mockResolvedValueOnce({});
+            await invoke(event("u1", "p1", { published: true }));
+            expect(mockReadVisibleSource).not.toHaveBeenCalled();
+            expect(mockNotifyInspired).not.toHaveBeenCalled();
+        });
     });
 
     // **撮影スポットの紐付け**（本人がスポットの画面から選ぶ・2026-09-29）

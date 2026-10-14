@@ -43,6 +43,16 @@ vi.mock("../albums", () => ({
     addPhotoToAlbum: mockAddPhotoToAlbum,
 }));
 
+// 「この写真を見て撮影」（`inspired.ts`）。形の判定は本物、元の写真の確かめと通知は
+// 境界として模す（中身は `inspired.test.ts`）。既定は「元の写真は見られない」
+const mockReadVisibleSource = vi.hoisted(() => vi.fn());
+const mockNotifyInspired = vi.hoisted(() => vi.fn());
+vi.mock("../inspired", async (importActual) => ({
+    ...(await importActual<typeof import("../inspired")>()),
+    readVisibleSource: (...a: unknown[]) => mockReadVisibleSource(...a),
+    notifyInspiredOnce: (...a: unknown[]) => mockNotifyInspired(...a),
+}));
+
 // 署名は必ずモックする。本物を呼ぶと AWS の認証情報を要求するので、
 // 手元では通って CI では落ちる——**テストが実装ではなく環境を測る**。
 // 実際にそれで本番デプロイを止めた（386eeef）。
@@ -109,6 +119,8 @@ beforeEach(() => {
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
+    mockReadVisibleSource.mockReset().mockResolvedValue(null);
+    mockNotifyInspired.mockReset().mockResolvedValue(undefined);
 });
 
 // **投稿しても世に出ない、を直した分。**
@@ -209,6 +221,120 @@ describe("savePhoto: 撮影スポット", () => {
     it("無ければ書かない", async () => {
         await invoke(event("u1", { ...BASE }));
         expect("spotId" in savedPhoto()).toBe(false);
+    });
+});
+
+// **「この写真を見て撮影」**（`inspired.ts`）。見られる元の写真だけ付け、
+// 見られない写真は**黙って付けない**（投稿は止めない）。形の違う値は 400
+describe("savePhoto: この写真を見て撮影（inspiredBy）", () => {
+    const SRC = "aaaaaaaa-1111-4111-8111-111111111111";
+    const visible = () => mockReadVisibleSource.mockResolvedValue({ id: SRC, userId: "alice", src: "s" });
+
+    it("見られる元の写真なら保存し、元の作者へ知らせる", async () => {
+        visible();
+        const res = await invoke(event("u1", { ...BASE, inspiredBy: SRC }));
+        expect(res.statusCode).toBe(200);
+        expect(savedPhoto().inspiredBy).toBe(SRC);
+        // 確かめるのは「投稿する人」から見えるか（ブロックの関係を含む）
+        expect(mockReadVisibleSource).toHaveBeenCalledWith(SRC, ["u1"]);
+        expect(mockNotifyInspired).toHaveBeenCalledTimes(1);
+        const [photo, sourceId, actor, source] = mockNotifyInspired.mock.calls[0];
+        expect((photo as Photo).id).toBe(savedPhoto().id);
+        expect(sourceId).toBe(SRC);
+        expect(actor).toBe("u1");
+        // 確かめで読んだ行を渡す（元の写真を2回読まない）
+        expect(source).toEqual({ id: SRC, userId: "alice", src: "s" });
+        expect(mockReadVisibleSource).toHaveBeenCalledTimes(1);
+        // 応答の写真にも載る（アプリが「付いたか」を知る手がかり）
+        expect(JSON.parse(res.body).photo.inspiredBy).toBe(SRC);
+    });
+
+    it("見られない元の写真（非公開・削除・ブロック）は黙って付けない（投稿は成功）", async () => {
+        const res = await invoke(event("u1", { ...BASE, inspiredBy: SRC }));
+        expect(res.statusCode).toBe(200);
+        expect("inspiredBy" in savedPhoto()).toBe(false);
+        expect(mockNotifyInspired).not.toHaveBeenCalled();
+        expect("inspiredBy" in JSON.parse(res.body).photo).toBe(false);
+    });
+
+    it("確かめられなかったときも付けない（投稿は止めない）", async () => {
+        mockReadVisibleSource.mockRejectedValue(Object.assign(new Error("x"), { name: "ThrottlingException" }));
+        const res = await invoke(event("u1", { ...BASE, inspiredBy: SRC }));
+        expect(res.statusCode).toBe(200);
+        expect("inspiredBy" in savedPhoto()).toBe(false);
+    });
+
+    it("この写真自身は指せない（表も引かない）", async () => {
+        visible();
+        const self = idFromUploadKey(BASE.key);
+        await invoke(event("u1", { ...BASE, inspiredBy: self }));
+        expect("inspiredBy" in savedPhoto()).toBe(false);
+        expect(mockReadVisibleSource).not.toHaveBeenCalled();
+    });
+
+    it("形の違う値は 400（保存しない）", async () => {
+        for (const inspiredBy of ["notifs#alice", "a b", "x".repeat(65), 123, {}, [SRC]]) {
+            mockPutPhoto.mockClear();
+            const res = await invoke(event("u1", { ...BASE, inspiredBy }));
+            expect(res.statusCode, JSON.stringify(inspiredBy)).toBe(400);
+            expect(mockPutPhoto).not.toHaveBeenCalled();
+        }
+    });
+
+    it("null・空文字・省略は「付けない」（400 にしない）", async () => {
+        for (const body of [{ inspiredBy: null }, { inspiredBy: "" }, {}]) {
+            mockPutPhoto.mockClear();
+            const res = await invoke(event("u1", { ...BASE, ...body }));
+            expect(res.statusCode).toBe(200);
+            expect("inspiredBy" in savedPhoto()).toBe(false);
+        }
+        expect(mockReadVisibleSource).not.toHaveBeenCalled();
+    });
+
+    it("下書きで投稿したら付けるが、知らせない（相手が開けない）", async () => {
+        visible();
+        await invoke(event("u1", { ...BASE, inspiredBy: SRC, published: false }));
+        expect(savedPhoto().inspiredBy).toBe(SRC);
+        expect(mockNotifyInspired).not.toHaveBeenCalled();
+    });
+
+    it("公開範囲を絞った写真は付けるが、知らせない（相手が開けない）", async () => {
+        visible();
+        await invoke(event("u1", { ...BASE, inspiredBy: SRC, audience: "followers" }));
+        expect(savedPhoto().inspiredBy).toBe(SRC);
+        expect(mockNotifyInspired).not.toHaveBeenCalled();
+    });
+
+    it("保存に失敗したら知らせない", async () => {
+        visible();
+        mockPutPhoto.mockRejectedValue(new Error("boom"));
+        await invoke(event("u1", { ...BASE, inspiredBy: SRC }));
+        expect(mockNotifyInspired).not.toHaveBeenCalled();
+    });
+
+    // 再送で書き直すとき、**送った印を落とさない**（落とすと条件が外れてもう一度届く）
+    it("再送の書き直しは送った印（inspiredNotified）を引き継ぐ", async () => {
+        visible();
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: true, inspiredBy: SRC, inspiredNotified: SRC,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        const res = await invoke(event("u1", { ...BASE, inspiredBy: SRC }));
+        expect(res.statusCode).toBe(200);
+        expect(savedRewrite().inspiredNotified).toBe(SRC);
+        expect(savedRewrite().inspiredBy).toBe(SRC);
+    });
+
+    it("再送で「下書き → 公開」になったら知らせる（送り済みかは印が止める）", async () => {
+        visible();
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGetPhotoById.mockResolvedValue({
+            id: "x", userId: "u1", src: BASE.publicUrl, published: false, inspiredBy: SRC,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        await invoke(event("u1", { ...BASE, inspiredBy: SRC, published: true }));
+        expect(mockNotifyInspired).toHaveBeenCalledTimes(1);
     });
 });
 
