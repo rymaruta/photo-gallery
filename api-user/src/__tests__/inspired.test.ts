@@ -11,6 +11,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const table = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const sent = vi.hoisted(() => [] as { name: string; input: Record<string, unknown> }[]);
 const failGet = vi.hoisted(() => ({ ids: new Set<string>() }));
+/** 印の文書を書く直前に割り込む（同時にもう1本が先に決めた、を作る） */
+const hooks = vi.hoisted(() => ({ beforePut: undefined as undefined | (() => void) }));
 
 vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
@@ -19,6 +21,7 @@ vi.mock("../dynamodb", () => ({
             const name = cmd.constructor.name;
             sent.push({ name, input: cmd.input });
             if (name === "PutCommand") {
+                hooks.beforePut?.();
                 const item = cmd.input.Item as Record<string, unknown>;
                 // 条件: attribute_not_exists(id)（**式に書いてあるときだけ**効かせる）
                 if (String(cmd.input.ConditionExpression ?? "").includes("attribute_not_exists(id)") && table.has(String(item.id))) {
@@ -67,6 +70,7 @@ function seed() {
     table.clear();
     sent.length = 0;
     failGet.ids.clear();
+    hooks.beforePut = undefined;
     table.set(SRC, {
         id: SRC, userId: "alice", src: "https://cdn/uploads/alice/a.webp", thumbSrc: "https://cdn/uploads/alice/a-512.webp",
         title: { ja: "朝の湖" }, location: "山中湖", published: true, publicFeed: "1", srcOriginal: "https://cdn/orig.jpg",
@@ -211,6 +215,53 @@ describe("notifyInspiredOnce: 元の作者への知らせ", () => {
         table.set(MINE, row);
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+
+    // 🔴 控えが消えたままだと、編集のたびに「元の写真・ブロックの印を読む → 失敗する書き込み」が続いた
+    it("控えが消えていたら、正の文書を1回読んで控えを書き戻す（元の写真は読まない・書き込みを試さない）", async () => {
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        const row = { ...table.get(MINE)! };
+        delete row.inspiredNotified;
+        table.set(MINE, row);
+        sent.length = 0;
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(sent.filter((c) => c.name === "GetCommand").map((c) => (c.input.Key as { id: string }).id))
+            .toEqual([`inspiredNotif#${MINE}`]);
+        expect(sent.some((c) => c.name === "PutCommand"), "決め済みなのに書き込みを試している").toBe(false);
+        expect(table.get(MINE)!.inspiredNotified, "控えが書き戻されていない").toBe("sent");
+        // 以後は何も読まない
+        sent.length = 0;
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(sent).toEqual([]);
+        expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+
+    it("書き戻す控えは文書の値（skipped は skipped のまま）", async () => {
+        table.set(SRC, { ...table.get(SRC)!, userId: "bob" });   // 自分の写真 → skipped
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        const row = { ...table.get(MINE)! };
+        delete row.inspiredNotified;
+        table.set(MINE, row);
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(table.get(MINE)!.inspiredNotified).toBe("skipped");
+    });
+
+    it("書く直前に別の1本が決めていたら送らず、控えを書き戻す", async () => {
+        hooks.beforePut = () => {
+            hooks.beforePut = undefined;
+            table.set(inspiredNotifId(MINE), { id: inspiredNotifId(MINE), photoId: MINE, sourceId: SRC, status: "sent" });
+        };
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(table.get(MINE)!.inspiredNotified).toBe("sent");
+    });
+
+    it("正の文書が読めなければ送らず、印も控えも立てない", async () => {
+        failGet.ids.add(inspiredNotifId(MINE));
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(table.has(inspiredNotifId(MINE))).toBe(false);
+        expect(table.get(MINE)!.inspiredNotified).toBeUndefined();
     });
 
     it("古い版の印（行に元の写真の ID）がある行には送らない", async () => {
