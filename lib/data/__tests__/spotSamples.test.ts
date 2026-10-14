@@ -130,8 +130,10 @@ describe("レビュー #272 の直し（表示側で守る＝確定ファイル�
         expect(toSpotSample({ ...REC, author })).toBeUndefined();
     });
 
-    it("英語の「… X assumed (based on copyright claims)」は推定された名前（2026-10-11）。日本語版は #272 どおり出さない", () => {
-        expect(toSpotSample({ ...REC, author: "No machine-readable author provided. Zivax assumed (based on copyright claims)." })?.author).toBe("Zivax");
+    it("🔴 英語の「… X assumed (based on copyright claims)」も日本語版と同じく名前にしない（#272・2026-10-14）。CC BY 系は出さず、PD/CC0 は「作者不明」", () => {
+        const author = "No machine-readable author provided. Zivax assumed (based on copyright claims).";
+        expect(toSpotSample({ ...REC, author })).toBeUndefined();
+        expect(toSpotSample({ ...REC, license: "Public domain", licenseUrl: undefined, licenseCode: "PD-self", author })?.author).toBe("作者不明");
     });
 
     it("パブリックドメイン・CC0 は決まり文句なら「作者不明」。飾り（( talk )・Taken with）は落とす", () => {
@@ -292,8 +294,8 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
         ["Pradana Aumars ( talk · contribs )", "Pradana Aumars"],
         ["Rbtjd0201 ( talk / Contributions ) at the Korean Wikipedia", "Rbtjd0201 at the Korean Wikipedia"],
         ["さかおり ( talk", "さかおり"],
-        ["No machine-readable author provided. Zivax assumed (based on copyright claims).", "Zivax"],
-        ["No machine-readable author provided. Marubatsu assumed (based on copyright claims). This photo was taken with Fujifilm FinePix F460", "Marubatsu"],
+        ["Photographed by Qurren", "Qurren"],
+        ["Photographed by Qurren , with IXY Digital 10 compact digital camera.", "Qurren"],
         ["Original uploader was Ptrbnsn at en.wikipedia", "Ptrbnsn"],
         ["The original uploader was Florian S. at German Wikipedia .", "Florian S."],
         ["en:User:Adamsan", "Adamsan"],
@@ -323,6 +325,11 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
             "Marie-Lan Nguyen ( User:Jastrow )", "CC BY Fan Club", "Tomasz Sienicki [user: tsca , mail: tomasz.sienicki at gmail.com]",
             // URL だけの欄は作者を指す唯一の表記なので、そのまま（名前を推し量って書き換えない）
             "https://www.flickr.com/photos/jiuguangw/",
+            // 🔴 URL の中の「/User:」を「/ User:」の区切りと取り違えて壊さない（2026-10-14）
+            "https://commons.wikimedia.org/wiki/User:Foo",
+            "Foo (https://commons.wikimedia.org/wiki/User:Foo)",
+            // 「X at the Korean Wikipedia」「(WT-shared) X at wts wikivoyage」は「X at Japanese Wikipedia」と同じく作者の求める表記
+            "Rbtjd0201 at the Korean Wikipedia", "(WT-shared) Suhobei at wts wikivoyage",
         ]) expect(cleanCommonsAuthor(name)).toBe(name);
     });
 
@@ -332,8 +339,11 @@ describe("作者の表記の崩れを直す規則（2026-10-11）", () => {
         }
         // 名前が取れない決まり文句・お願い文は今までどおり名前ではない
         expect(isPlaceholderAuthor(cleanCommonsAuthor("No machine-readable author provided."))).toBe(true);
-        // 日本語版の「…だと推定されます」と作者のお願い文は名前にしない（#272 の判断どおり）
+        // 「No machine-readable author provided. X assumed …」とその日本語版「…だと推定されます」、
+        // 作者のお願い文は名前にしない（#272 の判断どおり。推定の名前を作者と言い切らない・2026-10-14）
         for (const a of [
+            "No machine-readable author provided. Zivax assumed (based on copyright claims).",
+            "No machine-readable author provided. Marubatsu assumed (based on copyright claims). This photo was taken with Fujifilm FinePix F460",
             "コンピュータが読み取れる情報は提供されていませんが、 Yearofthedragon だと推定されます（著作権の主張に基づく）",
             "This Photo was taken by Supanut Arunoprayote . Feel free to use any of my images, but please mention me as the author.",
             "Ad Meskens You are free to use this picture for any purpose as long as you credit its author, Ad Meskens .",

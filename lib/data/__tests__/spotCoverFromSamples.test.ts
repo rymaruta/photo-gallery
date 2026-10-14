@@ -6,7 +6,7 @@ import rawImages from "../../../content/spot-images.json";
 import rawSamples from "../../../content/spot-samples.json";
 import type { Spot } from "../spots";
 import {
-    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, SPOT_SAMPLE_EXCLUSIONS, isExcludedSample, type SpotImage,
+    shownSpotImage, spotCoverImage, licenseKindOf, isReviewedPick, SAMPLE_COVER_METHOD, spotImageCredit, cleanAuthor, isNoFopCoverExcluded, NO_FOP_COVER_EXCLUSIONS, SPOT_SAMPLE_EXCLUSIONS, isExcludedSample, type SpotImage,
 } from "../spotImages";
 import {
     coverCandidateSample, sampleCoverEntry, toSpotSample, coverImageObject, PUBLIC_DOMAIN_MARK_URL, isPromotionTarget, spotSamples,
@@ -14,7 +14,7 @@ import {
 } from "../spotSamples";
 import { isPublished } from "../../utils/spotGuide";
 import { putImageRecord } from "../../../scripts/fetch-spot-images.mjs";
-import { isUnusablePublicDomain, isFlickrPdMark, isUsOnlyPublicDomain, pdBasisOf } from "../../utils/commonsAttribution.mjs";
+import { isUnusablePublicDomain, isFlickrPdMark, isUsOnlyPublicDomain, pdBasisOf, hasPlaceholderPhrase } from "../../utils/commonsAttribution.mjs";
 import { toSpotBody } from "../spotBody";
 import { buildSpotFeed, legacySpotFeed } from "../spotFeed";
 import { spotImageEntries } from "../../../app/sitemap-images.xml/route";
@@ -156,8 +156,26 @@ describe("確定ファイルの見張り（content/spot-images.json）", () => {
     const bySlug = new Map(ledger.map((s) => [s.slug, s]));
     // パノラマの自由が無い国の現代建築（`NO_FOP_COVER_EXCLUSIONS`）は縮小版を消して出さない（2026-10-11）
     // 作例として表示から落とした1枚を上げた行（ルンビニ）も同じく出さない
+    // CC BY 系で作者の欄が名前でない行（英語の「No machine-readable author provided. X assumed …」を #272 どおり
+    // 名前にしないと決めた・2026-10-14）も、作例と同じく出さない（下の「作者の欄が名前でない上げた行」で見張る）
+    const missingCredit = (v: SpotImage) => {
+        const kind = licenseKindOf(v.license);
+        return (kind === "cc-by" || kind === "cc-by-sa") && hasPlaceholderPhrase(cleanAuthor(v.author));
+    };
     const promoted = Object.entries(images).filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug)
-        && !isExcludedSample(bySlug.get(slug)!.spotId, v));
+        && !isExcludedSample(bySlug.get(slug)!.spotId, v) && !missingCredit(v));
+
+    it("🔴 作者の欄が名前でない上げた行（CC BY 系）は、代表写真にも作例にも出さない（2026-10-14）", () => {
+        const hidden = Object.entries(images)
+            .filter(([slug, v]) => v.method === SAMPLE_COVER_METHOD && !isNoFopCoverExcluded(slug) && missingCredit(v))
+            .map(([slug]) => slug).sort();
+        expect(hidden).toEqual(["mijas", "mount-papandayan", "wolchulsan"]);
+        for (const slug of hidden) {
+            const spot = bySlug.get(slug)!;
+            expect(spotCoverImage(spot), slug).toBeUndefined();
+            expect(spotSamples(spot).some((s) => s.sourceUrl === images[slug].pageUrl), slug).toBe(false);
+        }
+    });
 
     it("🔴 パノラマの自由が無い国の現代建築: 代表写真に出さず、作例からも上げ直さず、縮小版も置かない", () => {
         const slugs = Object.keys(NO_FOP_COVER_EXCLUSIONS);

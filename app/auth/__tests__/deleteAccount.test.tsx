@@ -265,11 +265,14 @@ describe("端末に残る前の人のデータの掃除", () => {
     it("ログアウトで共有ペイロードとストーリー既読を捨てる", async () => {
         render(<AuthProvider><LogoutHarness /></AuthProvider>);
         await userEvent.click(await screen.findByRole("button", { name: "ログアウト" }, WAIT));
-        expect(clearSharedPayload).toHaveBeenCalled();
-        // 書きかけの写真（原本）が、次にログインした別の人の投稿画面に戻らない
-        expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
-        expect(clearSeenStories).toHaveBeenCalled();
-        expect(setFavoritesUser).toHaveBeenCalledWith(null);
+        // `logout()` は後読み（`import()`）を2回待ってから掃除するので、クリック直後ではなく待って確かめる
+        await waitFor(() => {
+            expect(clearSharedPayload).toHaveBeenCalled();
+            // 書きかけの写真（原本）が、次にログインした別の人の投稿画面に戻らない
+            expect(forgetUploadDraftOnSignOut).toHaveBeenCalled();
+            expect(clearSeenStories).toHaveBeenCalled();
+            expect(setFavoritesUser).toHaveBeenCalledWith(null);
+        }, WAIT);
     });
 
     it("ログイン成功では捨てない（共有→ログイン→取り込みを壊さない）", async () => {

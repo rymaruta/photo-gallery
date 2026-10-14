@@ -33805,12 +33805,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/gwangan-bridge.jpg",
-      "width": 960,
-      "height": 573
-    }
+    "reviewedBy": null
   },
   "haedong-yonggungsa": {
     "wikidata": "",
@@ -35313,12 +35308,7 @@
     "method": "commons-sample",
     "pickedBy": "visual-review",
     "fetchedAt": "2026-10-11",
-    "reviewedBy": null,
-    "local": {
-      "src": "/images/spots/han-river-bridge.jpg",
-      "width": 960,
-      "height": 640
-    }
+    "reviewedBy": null
   },
   "son-tra-peninsula": {
     "wikidata": "",
