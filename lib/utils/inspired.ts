@@ -23,9 +23,12 @@ export type InspiredLink = {
  * 一覧が古い行を含んでいても困らないよう、ここでも同じ線をもう一度見る
  * （`api-user/src/feed.ts` の `isPublicListPhoto` と同じ考え方。隠す側に倒す）。
  *
- * ⚠️ **ブロックは見ない。** 公開の一覧には閲覧者が居ない（静的なページ）。
- * Web の他の公開ページ（一覧・撮影地・タグ）と同じ扱い。ブロックまで見る口は
- * アプリ向けの `GET /user/inspired/{id}`（`api-user/src/inspired.ts`）。
+ * **付けた人と元の作者のブロックは、静的な `photos.json` を作るときに落としてある**
+ * （`scripts/sync-photos-from-ddb.js` の `pruneInspiredBy`。読み取りは増やさない）。
+ * ここでは見ない（印は画面に来ない）——だから写真ページは**ビルド時に解いたものだけ**を
+ * 出し、API の一覧（ブロックを見られない）は減らす側にだけ使う（`PhotoPageClient`）。
+ * 閲覧者本人とのブロックは見ない（静的なページには閲覧者が居ない。Web の他の公開ページと同じ）。
+ * 閲覧者まで見る口はアプリ向けの `GET /user/inspired/{id}`（`api-user/src/inspired.ts`）。
  */
 export function inspiredSourceFor(photo: Photo | null | undefined, all: readonly Photo[]): Photo | null {
     const id = photo?.inspiredBy;

@@ -179,6 +179,46 @@ function stripPrivateFields(item) {
     return out;
 }
 
+/**
+ * **「この写真を見て撮影」（`inspiredBy`）を公開JSONに残してよいか**（`api-user/src/inspired.ts`）。
+ *
+ * 落とすのは次のとき（**読み取りは増やさない**——全表の Scan で既に手にしている
+ * 写真の一覧と、同じ表のブロックの印 `block#<した人>#<された人>` だけで決める）:
+ *
+ *   - 元の写真が**公開の一覧に居ない**（非公開・下書き・削除・絞った写真・ストーリー）
+ *     ——見られなくなった写真の ID を、全員に配る JSON に残さない
+ *   - 付けた人と元の作者のあいだに、**どちら向きでもブロックの印がある**
+ *     ——ブロックしたのに、相手の写真ページから自分の写真へのリンクが残り続ける
+ *     （付きまといの道）のを塞ぐ
+ *   - この写真自身を指している
+ *
+ * Web の写真ページは、ここで残った `inspiredBy` だけを出す（`lib/utils/inspired.ts`）。
+ * 渡した行は書き換えない（写しを返す）。
+ */
+function pruneInspiredBy(photos, blockIds) {
+    const byId = new Map(photos.map((p) => [p.id, p]));
+    const ownerOf = (p) => (typeof p.userId === "string" && p.userId) || (typeof p.uploadedBy === "string" && p.uploadedBy) || "";
+    return photos.map((p) => {
+        if (p.inspiredBy === undefined) return p;
+        const source = typeof p.inspiredBy === "string" && p.inspiredBy !== p.id ? byId.get(p.inspiredBy) : undefined;
+        const a = ownerOf(p);
+        const b = source ? ownerOf(source) : "";
+        const blocked = !!a && !!b && a !== b
+            && (blockIds.has(`block#${a}#${b}`) || blockIds.has(`block#${b}#${a}`));
+        if (source && !blocked) return p;
+        const out = { ...p };
+        delete out.inspiredBy;
+        return out;
+    });
+}
+
+/** Scan の行からブロックの印（`block#<した人>#<された人>`）の ID を集める */
+function blockMarkerIds(items) {
+    return new Set(items
+        .map((it) => it && it.id)
+        .filter((id) => typeof id === "string" && id.startsWith("block#")));
+}
+
 async function scan() {
     const client = new DynamoDBClient({ region: REGION });
     const ddb = DynamoDBDocumentClient.from(client, {
@@ -202,14 +242,16 @@ async function scan() {
     // 公開済みの「写真」のみ絞り込んで createdAt 降順でソート。
     // テーブルには like#/go# マーカーや golist#/notifs# 文書が同居しているため、
     // src を持つ item（=写真）だけを photos.json に出す（プライバシー保護）。
-    return items
+    const photos = items
         .filter(item => item.src && item.published !== false && item.story !== true
             // **公開範囲を絞った写真は静的サイトに出さない。**
             // ここは全員に配る JSON なので、載せた時点で「フォロワーだけ」は
             // 守れない（個別ページもサイトマップもここから作られる）。
             // 出すのは実行時の口（`GET /feed/restricted`）だけ
             && !item.audience)
-        .map(stripPrivateFields)
+        .map(stripPrivateFields);
+    // 「この写真を見て撮影」: 元の写真が公開の一覧に居ない・ブロックの関係なら落とす
+    return pruneInspiredBy(photos, blockMarkerIds(items))
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
@@ -504,4 +546,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };
+module.exports = { pruneInspiredBy, blockMarkerIds, checkWriteSafety, existingCount, readLastSyncedCount, writeLastSyncedCount, SYNC_STATS_ID, stripPrivateFields, PRIVATE_FIELDS, freshDisplayNames, buildIndex, publicProfileFields, lastPublicProfiles, profileWriteNotes };

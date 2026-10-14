@@ -470,12 +470,14 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
      * **自分の写真も付けられる**（再訪の記録。通知は送らない）
      */
     const inspiredBy = sanitizeInspiredBy(body.inspiredBy);
+    /** 確かめで読んだ元の写真（通知の判定に渡して、もう一度読まない） */
+    let inspiredSource: Record<string, unknown> | null = null;
     if (inspiredBy && inspiredBy !== photo.id) {
-        const source = await readVisibleSource(inspiredBy, [userId]).catch((e) => {
+        inspiredSource = await readVisibleSource(inspiredBy, [userId]).catch((e) => {
             console.warn(`savePhoto: 元の写真を確かめられませんでした（付けずに保存・${photo.id}）:`, (e as Error)?.name);
             return null;
         });
-        if (source) photo = { ...photo, inspiredBy };
+        if (inspiredSource) photo = { ...photo, inspiredBy };
     }
 
     /**
@@ -536,7 +538,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         if (isPublished) await refreshBadgesQuietly(userId, `savePhoto(${photo.id})`);
         // **元の作者へ知らせる**（公開で見られる写真のときだけ・1枚につき1回・投げない）
         if (typeof photo.inspiredBy === "string" && onStaticSite(photo)) {
-            await notifyInspiredOnce(photo, photo.inspiredBy, userId);
+            await notifyInspiredOnce(photo, photo.inspiredBy, userId, inspiredSource);
         }
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
     } catch (e) {
@@ -613,8 +615,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // 門（`photoUpdate.ts`）をすり抜けて共有中の実体を動かせ、
                 // `deleteMyPhoto` もストーリーを一緒に消さなくなる（レビューで指摘）
                 "keptFrom",
-                // **「この写真を見て撮影」の通知を送った印。** 落とすと、再送のたびに
-                // 元の作者へもう一度届く（`inspired.ts` の `notifyInspiredOnce`）
+                // **「この写真を見て撮影」の通知の控え。** 落としても二重には送らない
+                // （正は別の文書 `inspiredNotif#…`）が、落とすと文書を引き直す分が増える
                 "inspiredNotified",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
@@ -724,7 +726,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 }
                 // 再送で「下書き → 公開」になった回の知らせ。送り済みなら印で止まる
                 if (typeof rewritten.inspiredBy === "string" && onStaticSite(rewritten)) {
-                    await notifyInspiredOnce(rewritten, rewritten.inspiredBy, userId);
+                    // 書き直しが引き継いだ控え（`inspiredNotified`）があれば何もしない
+                    await notifyInspiredOnce(rewritten, rewritten.inspiredBy, userId, inspiredSource);
                 }
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };

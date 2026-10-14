@@ -18,6 +18,15 @@ vi.mock("../dynamodb", () => ({
         send: vi.fn(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
             const name = cmd.constructor.name;
             sent.push({ name, input: cmd.input });
+            if (name === "PutCommand") {
+                const item = cmd.input.Item as Record<string, unknown>;
+                // 条件: attribute_not_exists(id)（**式に書いてあるときだけ**効かせる）
+                if (String(cmd.input.ConditionExpression ?? "").includes("attribute_not_exists(id)") && table.has(String(item.id))) {
+                    throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+                }
+                table.set(String(item.id), { ...item });
+                return {};
+            }
             const id = String((cmd.input.Key as { id: string }).id);
             if (name === "GetCommand") {
                 if (failGet.ids.has(id)) throw Object.assign(new Error("boom"), { name: "ProvisionedThroughputExceededException" });
@@ -26,8 +35,8 @@ vi.mock("../dynamodb", () => ({
             }
             if (name === "UpdateCommand") {
                 const row = table.get(id);
-                // 条件: attribute_exists(id) AND attribute_not_exists(inspiredNotified)
-                if (!row || row.inspiredNotified !== undefined) {
+                // 条件: attribute_exists(id)（写真の行の控え）
+                if (!row) {
                     throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
                 }
                 row.inspiredNotified = (cmd.input.ExpressionAttributeValues as Record<string, unknown>)[":s"];
@@ -46,8 +55,7 @@ vi.mock("../notify", () => ({
     lookupListIdentity: (uid: string) => mockIdentity(uid),
 }));
 
-const { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce, getInspiredSource, summarizeSource } =
-    await import("../inspired");
+import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce, getInspiredSource, summarizeSource, inspiredNotifId } from "../inspired";
 
 const SRC = "aaaaaaaa-1111-4111-8111-111111111111";     // 元の写真（持ち主 alice）
 const MINE = "bbbbbbbb-2222-4222-8222-222222222222";    // 付けた写真（持ち主 bob）
@@ -168,9 +176,11 @@ describe("readVisibleSource: 元の写真が公開で見られるか", () => {
 });
 
 describe("notifyInspiredOnce: 元の作者への知らせ", () => {
-    const photo = () => table.get(MINE) as { id: string; src: string; thumbSrc: string };
+    const photo = () => table.get(MINE) as { id: string; src: string; thumbSrc: string; inspiredNotified?: string };
+    const doc = () => table.get(inspiredNotifId(MINE));
+    const sourceReads = () => sent.filter((c) => c.name === "GetCommand" && (c.input.Key as { id: string }).id === SRC).length;
 
-    it("元の作者へ inspired を1件積み、印を立てる", async () => {
+    it("元の作者へ inspired を1件積み、印の文書（正）と行の控えを立てる", async () => {
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).toHaveBeenCalledTimes(1);
         const [owner, notif] = mockPush.mock.calls[0];
@@ -179,65 +189,116 @@ describe("notifyInspiredOnce: 元の作者への知らせ", () => {
             type: "inspired", photoId: MINE, photoSrc: "https://cdn/uploads/bob/b-512.webp",
             byName: "表示名-bob", byId: "bob", sourcePhotoId: SRC,
         });
-        expect(table.get(MINE)!.inspiredNotified).toBe(SRC);
+        expect(doc()).toMatchObject({ id: `inspiredNotif#${MINE}`, photoId: MINE, sourceId: SRC, status: "sent" });
+        expect(table.get(MINE)!.inspiredNotified).toBe("sent");
+        // 印は src を持たない＝写真の一覧には出ない
+        expect(doc()!.src).toBeUndefined();
     });
 
-    it("2回目は送らない（編集・再送のたびに鳴らさない）", async () => {
+    it("2回目は送らない（行の控えを見て、何も読まない）", async () => {
         await notifyInspiredOnce(photo(), SRC, "bob");
+        sent.length = 0;
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).toHaveBeenCalledTimes(1);
+        expect(sent, "控えがあるのに読み書きしている").toEqual([]);
+    });
+
+    // 🔴 再送の書き直し（`overwriteOwnPhoto` の全置換）が行の控えを消しても、正の文書が止める
+    it("行の控えが全置換で消えても、二度目は送らない", async () => {
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        const row = { ...table.get(MINE)! };
+        delete row.inspiredNotified;
+        table.set(MINE, row);
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+
+    it("古い版の印（行に元の写真の ID）がある行には送らない", async () => {
+        table.set(MINE, { ...table.get(MINE)!, inspiredNotified: SRC });
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(doc()).toBeUndefined();
     });
 
     it("元の写真を付け替えても、もう送らない（最初に付いたときだけ）", async () => {
         const other = "cccccccc-3333-4333-8333-333333333333";
         table.set(other, { id: other, userId: "carol", src: "https://cdn/uploads/carol/c.webp", published: true });
         await notifyInspiredOnce(photo(), SRC, "bob");
+        const row = { ...table.get(MINE)! };
+        delete row.inspiredNotified;   // 控えが無くても文書で止まる
+        table.set(MINE, row);
         await notifyInspiredOnce(photo(), other, "bob");
         expect(mockPush).toHaveBeenCalledTimes(1);
         expect(mockPush.mock.calls[0][0]).toBe("alice");
     });
 
-    it("同時に2本来ても送るのは1本（印は条件つきで立てる）", async () => {
+    it("同時に2本来ても送るのは1本（文書は無いときだけ書く）", async () => {
         await Promise.all([notifyInspiredOnce(photo(), SRC, "bob"), notifyInspiredOnce(photo(), SRC, "bob")]);
         expect(mockPush).toHaveBeenCalledTimes(1);
     });
 
-    it("自分の写真なら送らない（印も立てない）", async () => {
+    it("確かめで読んだ行を渡せば、元の写真を読み直さない", async () => {
+        const source = await readVisibleSource(SRC, ["bob"]);
+        sent.length = 0;
+        await notifyInspiredOnce(photo(), SRC, "bob", source);
+        expect(sourceReads()).toBe(0);
+        expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+
+    it("渡された null（見られない）は送らないと決める（読み直さない）", async () => {
+        await notifyInspiredOnce(photo(), SRC, "bob", null);
+        expect(sourceReads()).toBe(0);
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(doc()?.status).toBe("skipped");
+    });
+
+    it("自分の写真なら送らず、skipped の印を立てる（以後は読まない）", async () => {
         table.set(SRC, { ...table.get(SRC)!, userId: "bob" });
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).not.toHaveBeenCalled();
-        expect(table.get(MINE)!.inspiredNotified).toBeUndefined();
+        expect(doc()?.status).toBe("skipped");
+        expect(table.get(MINE)!.inspiredNotified).toBe("skipped");
+        sent.length = 0;
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(sent, "送らないと決めた写真を読み直している").toEqual([]);
     });
 
-    it("ブロックの関係なら送らない（どちら向きも）", async () => {
+    it("ブロックの関係なら送らない（どちら向きも）。skipped にするので、外れても送らない", async () => {
         block("alice", "bob");
         await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(doc()?.status).toBe("skipped");
         table.delete("block#alice#bob");
+        await notifyInspiredOnce(photo(), SRC, "bob");
+        expect(mockPush, "ブロックが外れたあとに送っている（決めた仕様は「送らない」）").not.toHaveBeenCalled();
+
+        seed();
         block("bob", "alice");
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).not.toHaveBeenCalled();
-        expect(table.get(MINE)!.inspiredNotified, "送っていないのに印が立つと、あとで二度と送れない").toBeUndefined();
+        expect(doc()?.status).toBe("skipped");
     });
 
     it("元の写真が非公開・削除なら送らない", async () => {
         table.set(SRC, { ...table.get(SRC)!, published: false });
         await notifyInspiredOnce(photo(), SRC, "bob");
+        seed();
         table.delete(SRC);
         await notifyInspiredOnce(photo(), SRC, "bob");
         expect(mockPush).not.toHaveBeenCalled();
     });
 
-    it("付けた写真が消えていたら送らない（行を作らない）", async () => {
+    it("付けた写真が消えていたら、行を作らない", async () => {
         table.delete(MINE);
         await notifyInspiredOnce({ id: MINE, src: "x" }, SRC, "bob");
-        expect(mockPush).not.toHaveBeenCalled();
         expect(table.has(MINE)).toBe(false);
     });
 
-    it("読めなくても投げない（保存は成功のまま）", async () => {
+    it("読めなければ投げず、印も立てない（次の機会にもう一度決める）", async () => {
         failGet.ids.add(SRC);
         await expect(notifyInspiredOnce(photo(), SRC, "bob")).resolves.toBeUndefined();
         expect(mockPush).not.toHaveBeenCalled();
+        expect(doc()).toBeUndefined();
+        expect(table.get(MINE)!.inspiredNotified).toBeUndefined();
     });
 });
 

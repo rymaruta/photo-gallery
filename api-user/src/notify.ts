@@ -16,7 +16,7 @@ export type Notif = {
     // `inspired` は「あなたの写真を見て撮影しました」（`inspired.ts` の
     // `notifyInspiredOnce`）。`photoId` / `photoSrc` は**付けた側の新しい写真**
     // （押すとその写真へ）、`sourcePhotoId` は元になった**自分の写真**。
-    // 1枚の写真につき1回だけ（写真の行の印 `inspiredNotified`）。
+    // 1枚の写真につき1回だけ（印の文書 `inspiredNotif#<写真の id>`。写真の行には控え）。
     //
     // **種類を足したら `NotificationsBell` にも足すこと。** あちらは
     // 知らない種類を**何も出さない**（既定の文言に落とさない）ので、

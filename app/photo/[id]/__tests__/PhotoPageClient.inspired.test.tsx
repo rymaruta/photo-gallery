@@ -80,6 +80,17 @@ describe("写真ページ: この写真を見て撮影", () => {
         expect(screen.queryByTestId("inspired-by")).toBeNull();
     });
 
+    // 🔴 静的な photos.json は sync がブロックの関係を落としてある。API の一覧はブロックを
+    // 見られないので、**API だけで行を出さない**（ブロックしたのにリンクが復活する道を作らない）
+    it("ビルド時に無かった行は、API の一覧に元の写真が居ても出さない", async () => {
+        mockPublicFetch.mockResolvedValue(okList([MINE, SOURCE]));
+        render(<PhotoPageClient photoId="p1" initialPhoto={MINE} initialInspired={null} />);
+        await screen.findByText("ぼくの湖");
+        await waitFor(() => expect(mockPublicFetch).toHaveBeenCalled());
+        await new Promise((r) => setTimeout(r, 0));
+        expect(screen.queryByTestId("inspired-by")).toBeNull();
+    });
+
     it("編集で外したあとの一覧なら（inspiredBy が無い）、ビルド時のものを出さない", async () => {
         mockPublicFetch.mockResolvedValue(okList([{ ...MINE, inspiredBy: undefined } as Photo, SOURCE]));
         render(<PhotoPageClient photoId="p1" initialPhoto={MINE} initialInspired={toInspiredLink(SOURCE)} />);

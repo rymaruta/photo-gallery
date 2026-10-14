@@ -203,3 +203,60 @@ describe("公開JSONから落とす項目", () => {
         expect(item.srcOriginal, "呼び出し元の項目を壊している").toBe("https://cdn/x_orig.jpg");
     });
 });
+
+// 「この写真を見て撮影」（`inspiredBy`）を photos.json に残してよいか。
+// **読み取りを増やさない**——Scan で手にしている写真とブロックの印だけで決める
+describe("pruneInspiredBy: 公開JSONの inspiredBy", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { pruneInspiredBy, blockMarkerIds } = require("../sync-photos-from-ddb.js");
+    const SRC = { id: "src-1", src: "s", userId: "alice" };
+    const MINE = { id: "p1", src: "s", userId: "bob", inspiredBy: "src-1" };
+    const pick = (rows: Record<string, unknown>[], id: string) => rows.find((r) => r.id === id)!;
+
+    it("元の写真が公開の一覧に居て、ブロックの関係が無ければ残す", () => {
+        const out = pruneInspiredBy([MINE, SRC], new Set());
+        expect(pick(out, "p1").inspiredBy).toBe("src-1");
+    });
+
+    it("元の写真が一覧に居なければ（非公開・削除・絞った）落とす", () => {
+        expect("inspiredBy" in pick(pruneInspiredBy([MINE], new Set()), "p1")).toBe(false);
+    });
+
+    it.each([
+        ["元の作者が付けた人をブロック", "block#alice#bob"],
+        ["付けた人が元の作者をブロック", "block#bob#alice"],
+    ])("%s していたら落とす（ブロックしたのに相手の写真からのリンクが残らない）", (_label, marker) => {
+        const out = pruneInspiredBy([MINE, SRC], new Set([marker]));
+        expect("inspiredBy" in pick(out, "p1")).toBe(false);
+        expect(MINE.inspiredBy, "渡した行を書き換えている").toBe("src-1");
+    });
+
+    it("関係の無い人のブロックでは落とさない", () => {
+        const out = pruneInspiredBy([MINE, SRC], new Set(["block#alice#carol", "block#carol#bob"]));
+        expect(pick(out, "p1").inspiredBy).toBe("src-1");
+    });
+
+    it("自分の写真を付けたもの（ブロックはありえない）は残す・自分自身を指すものは落とす", () => {
+        const own = { ...MINE, userId: "alice" };
+        expect(pick(pruneInspiredBy([own, SRC], new Set()), "p1").inspiredBy).toBe("src-1");
+        const self = { ...MINE, inspiredBy: "p1" };
+        expect("inspiredBy" in pick(pruneInspiredBy([self], new Set()), "p1")).toBe(false);
+    });
+
+    it("持ち主は userId が無ければ uploadedBy で見る（古い行）", () => {
+        const old = { id: "p1", src: "s", uploadedBy: "bob", inspiredBy: "src-1" };
+        expect("inspiredBy" in pick(pruneInspiredBy([old, SRC], new Set(["block#alice#bob"])), "p1")).toBe(false);
+    });
+
+    // 関数だけ正しくても、scan() が通していなければ何も落ちない
+    it("scan() が公開の一覧とブロックの印で通している（配線）", () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "sync-photos-from-ddb.js"), "utf8");
+        expect(src).toContain("return pruneInspiredBy(photos, blockMarkerIds(items))");
+    });
+
+    it("Scan の行からブロックの印だけを集める", () => {
+        const ids = blockMarkerIds([{ id: "block#a#b" }, { id: "blocks#a" }, { id: "blockedby#b" }, { id: "p1", src: "s" }, null]);
+        expect([...ids]).toEqual(["block#a#b"]);
+    });
+});

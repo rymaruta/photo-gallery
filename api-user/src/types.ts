@@ -54,7 +54,7 @@ export type Photo = {
     spotId?: string;
     /** 「この写真を見て撮影」の元の写真の ID（`inspired.ts`）。見られる写真のときだけ書く */
     inspiredBy?: string;
-    /** その通知を元の作者へ送った印（中身は送ったときの元の写真の ID）。外に出さない */
+    /** 通知を決めた控え（`sent` / `skipped`。古い版は元の写真の ID）。正は文書 `inspiredNotif#<id>`。外に出さない */
     inspiredNotified?: string;
     /**
      * 一覧（正方形に切り抜く場所）で写真のどこを中心に置くか。0〜1 の割合で、

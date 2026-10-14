@@ -51,7 +51,7 @@ describe("/user/edit: この写真を見て撮影", () => {
     it("触らなければ送らない", async () => {
         mount({ inspiredBy: "src-1" });
         await screen.findByDisplayValue("夕焼け");
-        expect(screen.getByTestId("inspired-state").textContent).toContain("元の写真が付いています");
+        expect(screen.getByTestId("inspired-state").textContent).toBe("元の写真が公開のあいだ、写真ページに出ます");
         expect(await savedBody()).not.toHaveProperty("inspiredBy");
     });
 

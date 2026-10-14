@@ -65,7 +65,7 @@ import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import SpotLinkCard from "../../components/SpotLinkCard";
 import InspiredByLine from "../../components/InspiredByLine";
-import { inspiredSourceFor, toInspiredLink, type InspiredLink } from "@/lib/utils/inspired";
+import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
 
@@ -429,16 +429,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     }, [photoId, allPhotos]);
 
     /**
-     * 「この写真を見て撮影」の元の写真。**追加の読み取りはしない**——公開の一覧
-     * （API の `GET /photos`）に居るときだけ出す。取得前はビルド時に解いたもの
-     * （水和で食い違わない）。取得に失敗したら、ビルド時のものを出し続ける
-     * （写真そのものも静的データのまま出している）
+     * 「この写真を見て撮影」の元の写真。**追加の読み取りはしない。**
+     *
+     * **出してよいかを決めるのはビルド時のもの（`initialInspired`）だけ。** 静的な
+     * `photos.json` は sync が「元の写真が公開の一覧に居ない」「付けた人と元の作者が
+     * どちら向きでもブロックの関係」を落としてある（`scripts/sync-photos-from-ddb.js` の
+     * `pruneInspiredBy`）。API の `GET /photos` はブロックを見られないので、
+     * **API の一覧だけで行を出す（復活させる）ことはしない**——減らす側にだけ使う:
+     * 取得した一覧で写真の `inspiredBy` が外れた・元の写真が居なくなったら消す。
+     * 取得に失敗したら、ビルド時のものを出し続ける（写真そのものも静的データのまま）
      */
     const inspired = useMemo<InspiredLink | null>(() => {
-        if (!photo?.inspiredBy) return null;
-        if (!listFetched) return initialInspired && initialInspired.id === photo.inspiredBy ? initialInspired : null;
-        const source = inspiredSourceFor(photo, allPhotos);
-        return source ? toInspiredLink(source) : null;
+        if (!photo?.inspiredBy || !initialInspired || initialInspired.id !== photo.inspiredBy) return null;
+        if (!listFetched) return initialInspired;
+        return inspiredSourceFor(photo, allPhotos) ? initialInspired : null;
     }, [photo, allPhotos, listFetched, initialInspired]);
 
     /**
