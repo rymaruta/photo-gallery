@@ -48,7 +48,8 @@ import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredDa
 import { slugify, collectionPath, categoryLabel } from "../../../lib/utils/collections";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
-import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
+import { relatedSections, adjacentPhotos, nearbyPhotos } from "../../../lib/utils/related";
+import Thumb from "../../components/Thumb";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
 import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
@@ -57,6 +58,7 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import ExifSpecs, { buildExifSpecs } from "../../components/ExifSpecs";
+import { exifSettingsLine, exifGearLine } from "../../../lib/utils/exifDisplay";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
@@ -342,7 +344,7 @@ function PhotoImage({
     );
 }
 
-type RelatedSets = { author: Photo[]; location: Photo[]; prev: Photo | null; next: Photo | null };
+type RelatedSets = { author: Photo[]; location: Photo[]; prev: Photo | null; next: Photo | null; nearby: Photo[] };
 
 type PhotoPageClientProps = {
     photoId: string;
@@ -689,11 +691,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // クライアント取得前（allPhotos が initialPhoto だけの間）はサーバ計算済みの
     // initialRelated を使う＝静的HTMLに内部リンクが焼き込まれる（SEO）。
     const related = useMemo(() => {
-        if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
-        if (allPhotos.length <= 1 && initialRelated) return initialRelated;
+        if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null, nearby: [] as Photo[] };
+        // 古い形（`nearby` を持たない）の props でも落ちない
+        if (allPhotos.length <= 1 && initialRelated) return { ...initialRelated, nearby: initialRelated.nearby ?? [] };
         return {
             ...relatedSections(photo, allPhotos, 8),
             ...adjacentPhotos(photo, allPhotos),
+            nearby: nearbyPhotos(photo, allPhotos, 8),
         };
     }, [photo, allPhotos, initialRelated]);
 
@@ -967,15 +971,26 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {/* 撮影地のチップ（写真の左下）→ 同じ場所の集約ページ（内部リンク＝SEO・回遊）。
                     右下は撮影地マップのその位置へ（座標が無ければ出さない。おおよその
                     座標（geoApprox）でも出す——地図側が「おおよそ」と断ってピンを立てる） */}
+                {/* **道しるべ**「📍 撮影地 · この撮影地の写真 ›」（v2 の板 `PhotoDetail.dc.html`）。
+                    写真の上なので白（真鍮は写真の上では読めない）。押す的は 44px——見た目の札は
+                    28px のまま、外側の透明な余白（8px）で広げる。地名は長ければ切り、
+                    「この撮影地の写真 ›」は切らない（行き先が何かを言う部分） */}
                 {locationText && (
                     <Link
                         href={collectionPath("location", slugify(locationText, "location"))}
                         prefetch={false}
-                        className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 max-w-[70%] rounded-full bg-black/55 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
-                        style={{ fontSize: "12px", lineHeight: "16px", padding: "6px 10px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        aria-label={locale === "en" ? `Photos taken in ${locationText}` : `${locationText} · この撮影地の写真`}
+                        className="group absolute left-1 bottom-1 flex items-center max-w-[78%] p-2"
+                        style={{ minHeight: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                     >
-                        <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "14px", height: "14px" }} />
-                        <span className="truncate">{locationText}</span>
+                        <span className="inline-flex items-center gap-1.5 min-w-0 rounded-full bg-black/55 backdrop-blur-sm text-white group-hover:bg-black/70 transition-colors"
+                              style={{ fontSize: "12px", lineHeight: "16px", padding: "6px 10px" }}>
+                            <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "14px", height: "14px" }} />
+                            <span className="truncate">{locationText}</span>
+                            <span className="flex-shrink-0 whitespace-nowrap" aria-hidden="true">
+                                {locale === "en" ? " · Photos here ›" : " · この撮影地の写真 ›"}
+                            </span>
+                        </span>
                     </Link>
                 )}
                 {mapHash && (
@@ -1400,9 +1415,46 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         specs={buildExifSpecs(mergedExif, locale, cameraHref)}
                         locale={locale}
                         collapsible
+                        // v2 の Meta の形（「24mm · f/8 · 1/125 s · ISO 100」と 機種 · レンズ）。
+                        // 機種は `mergedExif.camera`（二重のメーカー名は畳んである）
+                        summary={{ settings: exifSettingsLine(mergedExif), gear: exifGearLine(mergedExif) }}
                     />
                 );
             })()}
+
+                {/* **この近くで撮られた写真 ／ 地図で見る ›**（v2 の板の末尾・アプリの `nearbySection`）。
+                    正確な座標どうしで 5km 以内（`nearbyPhotos`）。**1枚も無ければ節ごと出さない**。
+                    ビルド時に組んだもの（`initialRelated.nearby`）で静的HTMLにも焼く（写真から写真への内部リンク）。
+                    見出しは明朝（板）、「地図で見る」は撮影地マップのこの写真の位置へ */}
+                {related.nearby.length > 0 && (
+                    <section aria-labelledby="photo-nearby-heading" className="pt-3" data-testid="photo-nearby">
+                        <div className="flex items-baseline justify-between gap-3">
+                            <h2 id="photo-nearby-heading" className="m-0 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                                {locale === "en" ? "Taken nearby" : "この近くで撮られた写真"}
+                            </h2>
+                            {mapHash && (
+                                <Link href={`${ROUTES.MAP}${mapHash}`} prefetch={false}
+                                      className="flex-shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors"
+                                      style={{ fontSize: "13px", minHeight: "44px", touchAction: "manipulation" }}>
+                                    {locale === "en" ? "View on map ›" : "地図で見る ›"}
+                                </Link>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
+                            {related.nearby.map((p) => {
+                                const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                                return (
+                                    <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
+                                          data-photo-id={p.id}
+                                          className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                          style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "#121212", touchAction: "manipulation" }}>
+                                        <Thumb photo={p} alt={t || (locale === "en" ? "Photo" : "写真")} sizes="(max-width:640px) 25vw, 120px" />
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 {reportOpen && (
                     <ReportDialog
