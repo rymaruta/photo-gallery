@@ -5,11 +5,12 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
-import { haversineKm } from "../../lib/utils/journey";
+import { routeCoordinates, connectKm, countriesInOrder, firstYear } from "../../lib/utils/travelRoute";
+import TravelRecord from "./TravelRecord";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
@@ -30,13 +31,13 @@ import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMess
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
-import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
+import { compareNewest } from "../../lib/utils/photoOrder";
 import { ROUTES } from "../../lib/routes";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
-import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX, ACHIEVEMENT_VALUE_PX, ACHIEVEMENT_LABEL_PX, ACHIEVEMENT_ICON_PX } from "../components/statCellStyle";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
@@ -1051,31 +1052,22 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         return [...pinned, ...rest];
     }, [visiblePhotos, pinnedPhotoIds]);
 
-    // 足あとサマリー: 旅した総移動距離（位置情報つきの写真を撮影日順につなぐ）
+    // 旅の記録（案 H1「星図」）: 写真をつないだ距離・その線・訪れた国・地域。
     //
-    // **並べ方は年表と同じ規則にする。** `Date.parse` で並べていた頃は、
-    // ゾーン無しの `T` 形式（EXIF 由来の撮影日）がローカル時刻として読まれ、
-    // **同じ画面の年表と逆の順**になりえた（年表は書かれている成分で切る）。
-    // 積算する順が変われば距離も変わるので、見えている数字が閲覧者の
-    // タイムゾーンで変わることになる。
-    //
-    // 以前ここで数えていた「訪れた場所数」と「期間（最古〜最新）」は、
-    // **どこにも出していなかった**ので落とした（画面に出るのは
-    // `distanceKm` と `geoCount` だけ）。`Date.parse` の呼び出しも一緒に消える。
-    const footprint = useMemo(() => {
-        const geo = visiblePhotos
-            // **日時を読めない写真は入れない。** 旧実装の `!isNaN(Date.parse(...))`
-            // に当たる歯止め。無いとキーが空の写真が先頭に入り、そこから
-            // 最初の地点までの1脚ぶん距離が増える（つなぐ順が決まらない
-            // 写真を、いちばん古い場所として数えることになる）
-            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number"
-                && photoTimeKey(p) !== "")
-            .sort(compareOldest)
-            .map(p => p.coords as { lat: number; lng: number });
-        let distanceKm = 0;
-        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1], geo[i]);
-
-        return { distanceKm, geoCount: geo.length };
+    // **距離と線は同じ写真・同じ順**（`routeCoordinates`）。並べ方は年表と同じ規則
+    // （`compareOldest`）——`Date.parse` で並べていた頃は、ゾーン無しの `T` 形式
+    // （EXIF 由来の撮影日）がローカル時刻として読まれ、見えている距離が閲覧者の
+    // タイムゾーンで変わりえた。**日時を読めない写真は入れない**（つなぐ順が決まらない
+    // 写真を、いちばん古い場所として数えると1脚ぶん距離が増える）。
+    const travel = useMemo(() => {
+        const coordinates = routeCoordinates(visiblePhotos);
+        return {
+            coordinates,
+            distanceKm: connectKm(coordinates),
+            geoCount: coordinates.length,
+            countries: countriesInOrder(visiblePhotos),
+            firstYear: firstYear(visiblePhotos),
+        };
     }, [visiblePhotos]);
 
 
@@ -1464,47 +1456,25 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         />
                     </div>
 
-                    {/* 旅の実績（最終版モック `docs/mockups/04-mypage.jpg` の3番）。
-                        モックは「訪れた国・地域 ｜ 総移動距離 ›」の2枠だが、
-                        **訪れた国は持っていない**（撮影地は自由文字列で、国を当てるには
-                        逆ジオコードの country を写真に書く必要がある＝データと API の話）。
-                        持っていない欄は出さないので、総移動距離の1枠だけになる
-                        （座標を持つ写真が2枚以上・1km 以上のときだけ）。
-
-                        **形と大きさはモックのとおりに揃えた**——角丸のカードではなく
-                        数字の行と同じ「下に細い線を1本」で、青いアイコンの右に
-                        ラベルが上・数字が下。大きさは `statCellStyle.ts`（画素から実測）。
-
-                        **`›` は本人のページだけ。** モックはマイページなので押した先が
-                        あるが、このサイトで実在するのは撮影地マップ（`/map`）で、
-                        そこに出るのは**全員の写真**。他人のページに置くと
-                        「この人の旅の続き」に見えて別のものへ連れて行くので出さない
-                        （押せるのに約束と違うものを出さない——CLAUDE.md の型）。 */}
-                    {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (() => {
-                        const label = locale === "en" ? "Distance traveled" : "総移動距離";
-                        const rowClass = "flex items-center gap-3 py-3 mb-4 border-b border-white/10";
-                        const body = (
-                            <>
-                                <PaperAirplaneIcon aria-hidden="true" className="-rotate-45 text-accent flex-shrink-0" style={{ width: `${ACHIEVEMENT_ICON_PX}px`, height: `${ACHIEVEMENT_ICON_PX}px` }} />
-                                <span className="min-w-0">
-                                    <span className="block text-white/60 leading-none" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>{label}</span>
-                                    <span className="block mt-1 leading-none">
-                                        <span className="font-bold tabular-nums" style={{ fontSize: `${ACHIEVEMENT_VALUE_PX}px` }}>{Math.round(footprint.distanceKm).toLocaleString()}</span>
-                                        <span className="text-white/60 ml-1" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>km</span>
-                                    </span>
-                                </span>
-                                {isOwner && <ChevronRightIcon aria-hidden="true" className="ml-auto text-white/40 flex-shrink-0" style={{ width: "18px", height: "18px" }} />}
-                            </>
-                        );
-                        const title = locale === "en" ? "Total distance traveled" : "旅した総移動距離";
-                        return isOwner ? (
-                            <Link href={ROUTES.MAP} prefetch={false} title={title}
-                                  aria-label={locale === "en" ? "Open the photo map" : "撮影地マップを開く"}
-                                  className={`${rowClass} hover:bg-white/[0.04] transition-colors`}>
-                                {body}
-                            </Link>
-                        ) : (
-                            <div className={rowClass} title={title}>{body}</div>
+                    {/* 旅の記録（v2 の板 MyPage・案 H1「星図」。iOS の `TravelRecordView` と同じ形）。
+                        以前は「総移動距離」の1行（紙飛行機のアイコン＋数字）だった。
+                        **本人のページだけ。** 他人のページは板 UserProfile のとおり「訪れた場所」。
+                        押した先は撮影地マップ（`/map`）＝**全員の写真**なので、他人のページに
+                        置くと「この人の旅の続き」に見えて別のものへ連れて行く。
+                        距離は2枚以上・1km 以上のときだけ（同じ町の中だけの数字は出さない）。
+                        国・地域は撮影地に国名が書かれた写真だけを数える（`visitedCountries.ts`）。 */}
+                    {isOwner && (() => {
+                        const showDistance = travel.geoCount >= 2 && travel.distanceKm >= 1;
+                        if (!showDistance && travel.countries.length === 0) return null;
+                        return (
+                            <TravelRecord
+                                distanceKm={showDistance ? travel.distanceKm : null}
+                                countries={travel.countries}
+                                coordinates={travel.coordinates}
+                                firstYear={travel.firstYear}
+                                href={ROUTES.MAP}
+                                locale={locale}
+                            />
                         );
                     })()}
 

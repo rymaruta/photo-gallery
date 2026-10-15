@@ -114,11 +114,18 @@ describe("旅した距離（つなぐ順）", () => {
             date: "2024-11-02", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 43.06, lng: 141.35 } },
     ];
 
+    // 距離は本人のページの「旅の記録」に出る（他人のページは「訪れた場所」）。
+    // 本人の写真は自分の一覧（`userFetch`）から来る
+    const asOwner = (photos: unknown[]) => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: OWNER } }) });
+        mockUserFetch.mockResolvedValue({ ok: true, json: async () => photos });
+    };
+
     async function distanceFor(tz: string): Promise<string> {
         process.env.TZ = tz;
-        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => geoPhotos });
+        asOwner(geoPhotos);
         const { unmount } = render(<UserProfileClient userId={OWNER} />);
-        const km = await screen.findByTitle("旅した総移動距離");
+        const km = await screen.findByTestId("travel-distance");
         const value = km.textContent ?? "";
         unmount();
         return value;
@@ -133,9 +140,9 @@ describe("旅した距離（つなぐ順）", () => {
             { id: "undated", userId: OWNER, src: "https://cdn/u.jpg", title: "日時なし", category: "travel", tags: [],
                 date: "", createdAt: "", published: true, coords: { lat: -33.87, lng: 151.21 } },   // シドニー
         ];
-        mockPublicFetch.mockResolvedValue({ ok: true, json: async () => withUndated });
+        asOwner(withUndated);
         render(<UserProfileClient userId={OWNER} />);
-        const km = (await screen.findByTitle("旅した総移動距離")).textContent ?? "";
+        const km = (await screen.findByTestId("travel-distance")).textContent ?? "";
 
         // シドニーを含めると1万km 単位で増える。含まれていないこと
         expect(Number(km.replace(/[^0-9]/g, "")), "つなぐ順が決まらない写真を数えている")

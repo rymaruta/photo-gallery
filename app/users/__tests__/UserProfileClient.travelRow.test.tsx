@@ -3,13 +3,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 /**
- * **旅の実績の行**（最終版モック `docs/mockups/04-mypage.jpg` の3番）。
+ * **旅の記録**（v2 の板 MyPage・案 H1「星図」。iOS の `TravelRecordView` と同じ形）。
  *
- * モックは「訪れた国・地域 ｜ 総移動距離 ›」の2枠だが、訪れた国は持っていない
- * ので総移動距離の1枠だけ出す。`›` はモックがマイページなので付いているが、
- * このサイトで押した先に在るのは撮影地マップ（`/map`）＝**全員の写真**。
- * 他人のページに置くと「この人の旅の続き」に見えて別のものへ連れて行くので、
- * **本人のページだけ**リンクにする。
+ * 以前は「総移動距離」の1行だった。いまは真鍮の眉ラベル「旅の記録」・写真をつないだ距離・
+ * 訪れた国・地域・写真をつないだ線。押した先は撮影地マップ（`/map`）＝**全員の写真**なので、
+ * 他人のページに置くと「この人の旅の続き」に見えて別のものへ連れて行く——
+ * **本人のページだけ**に出す（他人のページは板 UserProfile の「訪れた場所」）。
  *
  * あわせて「数字の行」の字の大きさが2つのファイルでずれないことも見る
  * ——投稿は `UserProfileClient`、フォロワー／フォロー中は `FollowButton` が
@@ -47,9 +46,11 @@ const session = (sub: string) => ({ getIdToken: () => ({ payload: { sub } }) });
 /** 東京 → 大阪。約 400km なので「2枚以上・1km 以上」の条件を満たす */
 const GEO = [
     { id: "tokyo", userId: OWNER, src: "https://cdn/t.jpg", title: "東京", category: "travel", tags: [],
-        date: "2024-11-01", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 35.68, lng: 139.77 } },
+        date: "2024-11-01", createdAt: "2026-01-01T00:00:00.000Z", published: true, coords: { lat: 35.68, lng: 139.77 },
+        location: "東京, 日本" },
     { id: "osaka", userId: OWNER, src: "https://cdn/o.jpg", title: "大阪", category: "travel", tags: [],
-        date: "2024-11-02", createdAt: "2026-01-02T00:00:00.000Z", published: true, coords: { lat: 34.69, lng: 135.50 } },
+        date: "2024-11-02", createdAt: "2026-01-02T00:00:00.000Z", published: true, coords: { lat: 34.69, lng: 135.50 },
+        location: "大阪" },
 ];
 
 beforeEach(() => {
@@ -66,39 +67,54 @@ beforeEach(() => {
 async function show(viewer: string | null) {
     if (viewer) mockGetCurrentSession.mockResolvedValue(session(viewer));
     render(<UserProfileClient userId={OWNER} />);
-    return await screen.findByTitle("旅した総移動距離");
+    // 写真が届いたことを数字の行で待つ（「…」のあいだは数えていない）
+    await screen.findByText("2");
 }
 
-describe("旅の実績の行", () => {
-    it("本人のページでは、撮影地マップへのリンクになる", async () => {
-        const row = await show(OWNER);
+describe("旅の記録", () => {
+    it("本人のページでは、眉ラベル・距離・国・線を出し、撮影地マップへのリンクになる", async () => {
+        await show(OWNER);
+        const block = await screen.findByTestId("travel-record");
 
-        expect(row.tagName, "リンクになっていない（矢印だけ出すと押せない飾りになる）").toBe("A");
-        expect(row.getAttribute("href")).toBe("/map");
-        expect(row.getAttribute("aria-label"), "行き先を名乗っていない").toBe("撮影地マップを開く");
-        // 距離そのものは今までどおり出る
-        expect(row.textContent).toMatch(/総移動距離/);
-        expect(row.textContent).toMatch(/km/);
+        expect(block.tagName, "リンクになっていない").toBe("A");
+        expect(block.getAttribute("href")).toBe("/map");
+        // 名前に数え方と行き先を入れる（中の字は読ませない）
+        expect(block.getAttribute("aria-label")).toMatch(/^旅の記録。写真をつないだ距離 \d[\d,]* キロメートル。訪れた国・地域 1、日本。撮影地マップを開く$/);
+        expect(block.textContent).toContain("旅の記録");
+        expect(block.textContent, "一番古い写真の年が無い").toContain("2024 年から");
+        expect(screen.getByTestId("travel-distance").textContent).toMatch(/^\d[\d,]*km写真をつないだ距離$/);
+        // 国は撮影地に国名が書かれた写真だけ（「大阪」からは日本を当てない＝1のまま）
+        expect(screen.getByTestId("travel-countries").textContent).toBe("1か国・地域日本");
+        // 線は区間の数だけ（東京 → 大阪の1本）
+        const route = screen.getByTestId("travel-route");
+        expect(route.getAttribute("aria-hidden")).toBe("true");
+        expect(route.querySelectorAll("[data-seg]")).toHaveLength(1);
     });
 
-    it("他人のページでは、押せる形にしない", async () => {
-        const row = await show("55555555-5555-4555-8555-555555555555");
-
-        expect(row.tagName, "他人のページから全員の地図へ連れて行っている").not.toBe("A");
-        expect(screen.queryByRole("link", { name: "撮影地マップを開く" })).toBeNull();
-        // 数字は本人と同じように出る（隠すのは押せる形だけ）
-        expect(row.textContent).toMatch(/総移動距離/);
+    it("距離の数字は等幅・数の段と同じ太さ（semibold）、km は小さく灰", async () => {
+        await show(OWNER);
+        const value = (await screen.findByTestId("travel-distance")).querySelector(".tabular-nums") as HTMLElement;
+        expect(value, "等幅数字になっていない").toBeTruthy();
+        expect(value.style.fontWeight).toBe("600");
+        const km = value.nextElementSibling as HTMLElement;
+        expect(km.textContent).toBe("km");
+        expect(km.className).toContain("text-white/60");
     });
 
-    it("未ログインでも、押せる形にしない", async () => {
-        const row = await show(null);
-        expect(row.tagName).not.toBe("A");
+    it("他人のページには出さない（全員の地図へ連れて行かない）", async () => {
+        await show("55555555-5555-4555-8555-555555555555");
+        expect(screen.queryByTestId("travel-record")).toBeNull();
+        expect(screen.queryByRole("link", { name: /撮影地マップを開く/ })).toBeNull();
+    });
+
+    it("未ログインでも出さない", async () => {
+        await show(null);
+        expect(screen.queryByTestId("travel-record")).toBeNull();
     });
 });
 
-// **線の引き方もモックに合わせた。** 数字の行は「下に1本」だけで上には無く、
-// 旅の実績は角丸のカード（`rounded-2xl bg-surface ring-1`）ではなく同じ1本の線。
-// どちらも元に戻す変異が、字の大きさのテストでは素通りする
+// **線の引き方もモックに合わせた。** 数字の行は「下に1本」だけで上には無い。
+// 元に戻す変異が、字の大きさのテストでは素通りする
 describe("線の引き方", () => {
     it("数字の行の上に線を引かない", async () => {
         await show(OWNER);
@@ -106,12 +122,6 @@ describe("線の引き方", () => {
         const row = lab.parentElement!.parentElement!;
         expect(row.className, "下に1本ではない").toContain("border-b");
         expect(row.className, "上にも線が戻っている").not.toMatch(/border-y|border-t/);
-    });
-
-    it("旅の実績は角丸のカードにしない", async () => {
-        const row = await show(OWNER);
-        expect(row.className, "カードに戻っている").not.toMatch(/rounded|bg-surface|ring-1/);
-        expect(row.className).toContain("border-b");
     });
 });
 
