@@ -274,12 +274,32 @@ export type SpotAreaRef = { slug: string; name: string; nameEn: string };
  * ——自分自身が数に入るので、見える1件なら必ず在る）。見えない行・県が引けない行は `null`
  */
 export function spotAreaOf(spot: Spot, spots: readonly Spot[] = SPOTS): SpotAreaRef | null {
-    if (!visibleSpots(spots).some((s) => s.spotId === spot.spotId)) return null;
+    if (!visibleIdsOf(spots).has(spot.spotId)) return null;
     const slug = areaSlugOf(spot);
     if (!slug) return null;
     if (slug === OVERSEAS_SLUG) return { slug, name: OVERSEAS_NAME, nameEn: OVERSEAS_NAME_EN };
     const pref = PREFECTURES.find((p) => p.slug === slug);
     return pref ? { slug, name: pref.name, nameEn: pref.nameEn } : null;
+}
+
+/**
+ * 見える行の spotId の集まり。**台帳ごとに1回だけ数える。**
+ *
+ * 🔴 以前は `spotAreaOf` が呼ばれるたびに `visibleSpots(spots)`（全件に `publishBlockers`）を
+ * 回していた。県のページの description が「その県の見える行」を
+ * `visibleSpots(SPOTS).filter((s) => spotAreaOf(s)?.slug === …)` で集めていたので、
+ * **1ページで 2,535 × 3,354 回** `publishBlockers` が走り（手元の実測で1ページ約9秒）、
+ * 8並列の build では1ページが 60 秒を超えて `/spots/area/[area]` が落ちた（2026-10-15）。
+ * 台帳は build 中に変わらない（配列の同一性で引く）ので、ここで覚えておく。
+ */
+const visibleIdCache = new WeakMap<readonly Spot[], Set<string>>();
+function visibleIdsOf(spots: readonly Spot[]): Set<string> {
+    let ids = visibleIdCache.get(spots);
+    if (!ids) {
+        ids = new Set(visibleSpots(spots).map((s) => s.spotId));
+        visibleIdCache.set(spots, ids);
+    }
+    return ids;
 }
 
 /** 同じ区画のスポットか。**海外は一括の区画なので、国まで同じもの** */
@@ -324,9 +344,16 @@ export function spotAreas(): SpotArea[] {
     return out;
 }
 
+/**
+ * その区画の見える行（`spotAreaOf(s)?.slug === slug` と同じ集まり）。
+ * **見えるかの判定は1回だけ**——行ごとに `spotAreaOf` を呼ぶと台帳全体を行の数だけ数え直す
+ */
+export function visibleSpotsInArea(slug: string): Spot[] {
+    return visibleSpots(SPOTS).filter((s) => areaSlugOf(s) === slug);
+}
+
 /** その区画のスポット。索引と同じ軽い形（`/spots/area/<slug>` が読む） */
 export function spotIndexItemsForArea(slug: string): SpotIndexItem[] {
-    return visibleSpots(SPOTS)
-        .filter((s) => areaSlugOf(s) === slug)
+    return visibleSpotsInArea(slug)
         .map((s) => ({ ...toSpotLink(s), ...(s.category ? { category: s.category } : {}) }));
 }

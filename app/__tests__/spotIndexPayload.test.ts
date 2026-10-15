@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SPOTS } from "../../lib/data/spots";
-import { spotAreas, spotIndexItemsForArea, spotLinksById, spotRefsById } from "../../lib/data/spotLink";
+import { spotAreas, spotAreaOf, spotIndexItemsForArea, spotLinksById, spotRefsById, visibleSpotsInArea } from "../../lib/data/spotLink";
 import { visibleSpots } from "../../lib/utils/spotGuide";
 
 /**
@@ -59,6 +59,25 @@ describe("撮影スポット索引のペイロード", () => {
         expect(/spots=\{\s*((publishableSpots|visibleSpots)\(\s*SPOTS\s*\)|SPOTS)\s*\}/.test(areaSrc),
             "区画のページが台帳をそのまま渡している").toBe(false);
     });
+
+    /**
+     * **県のページの生成を、行の数の2乗にしない**（2026-10-15）。
+     * description の「確かめた件数」を `visibleSpots(SPOTS).filter((s) => spotAreaOf(s)…)` で
+     * 集めていた頃は、`spotAreaOf` が行ごとに台帳全体の見える判定をやり直し、1ページ約9秒・
+     * 8並列の build で 60 秒を超えて落ちた。綴りと、同じ集まりになることと、速さを見る
+     */
+    it("`/spots/area/[area]` は行ごとに spotAreaOf で絞らない（生成が 60 秒を超えた）", () => {
+        expect(/\.filter\([^)]*spotAreaOf\(/.test(areaSrc), "行ごとに spotAreaOf で絞っている").toBe(false);
+        const areas = spotAreas();
+        expect(areas.length).toBeGreaterThan(0);
+        const t0 = performance.now();
+        for (const a of areas) {
+            const viaArea = visibleSpots(SPOTS).filter((s) => spotAreaOf(s)?.slug === a.slug).map((s) => s.spotId);
+            expect(visibleSpotsInArea(a.slug).map((s) => s.spotId), a.slug).toEqual(viaArea);
+        }
+        // 覚えておく形なら全区画で数百 ms。2乗に戻ると1区画で数秒かかる
+        expect(performance.now() - t0, "見える判定を行ごとにやり直していないか").toBeLessThan(10_000);
+    }, 30_000);
 
     /**
      * **大きさで縛る。** 綴りだけだと、中身が太った日に気づけない
