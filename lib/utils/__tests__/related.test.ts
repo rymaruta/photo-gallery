@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Photo } from "../../data/photos";
-import { sameLocation, sameAuthorPhotos, sameLocationPhotos, adjacentPhotos, relatedSections } from "../related";
+import { sameLocation, sameAuthorPhotos, sameLocationPhotos, adjacentPhotos, relatedSections, nearbyPhotos, initialRelatedFor } from "../related";
 
 function p(over: Partial<Photo> & { id: string }): Photo {
     return { src: `https://cdn/${over.id}.jpg`, ...over } as Photo;
@@ -169,5 +169,38 @@ describe("relatedSections（回遊セクションの組）", () => {
 
     it("前後の写真（adjacentPhotos）は今までどおり別建て", () => {
         expect(adjacentPhotos(cur, all).next?.id).toBe("a");
+    });
+});
+
+describe("nearbyPhotos（この近くで撮られた写真）", () => {
+    const KENROKU = { lat: 36.56, lng: 136.66 };
+    const here = p({ id: "here", coords: KENROKU });
+    it("5km 以内を近い順に（自分は入れない）", () => {
+        const all = [
+            here,
+            p({ id: "far", coords: { lat: 36.7, lng: 136.66 } }),      // 約15km
+            p({ id: "near2", coords: { lat: 36.58, lng: 136.66 } }),   // 約2.2km
+            p({ id: "near1", coords: { lat: 36.57, lng: 136.66 } }),   // 約1.1km
+        ];
+        expect(nearbyPhotos(here, all).map((x) => x.id)).toEqual(["near1", "near2"]);
+    });
+    it("おおよその座標（geoApprox）は中心にも候補にもしない", () => {
+        const all = [here, p({ id: "approx", coords: KENROKU, geoApprox: true })];
+        expect(nearbyPhotos(here, all)).toEqual([]);
+        expect(nearbyPhotos({ ...here, geoApprox: true }, [p({ id: "x", coords: KENROKU })])).toEqual([]);
+    });
+    it("非公開・座標の無い写真は入れない", () => {
+        const all = [here, p({ id: "priv", coords: KENROKU, published: false }), p({ id: "none" })];
+        expect(nearbyPhotos(here, all)).toEqual([]);
+    });
+    it("件数で切る", () => {
+        const all = [here, ...Array.from({ length: 12 }, (_, i) => p({ id: `n${i}`, coords: KENROKU }))];
+        expect(nearbyPhotos(here, all, 4)).toHaveLength(4);
+    });
+    it("ページに渡す組にも入る（絞った形で）", () => {
+        const all = [here, p({ id: "n", coords: KENROKU, description: { ja: ["長い説明"] } } as Partial<Photo> & { id: string })];
+        const out = initialRelatedFor(here, all);
+        expect(out.nearby.map((x) => x.id)).toEqual(["n"]);
+        expect("description" in (out.nearby[0] as object), "説明が残っている").toBe(false);
     });
 });

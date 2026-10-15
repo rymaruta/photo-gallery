@@ -87,7 +87,16 @@ export function buildExifSpecs(exif: ExifLike, locale: string, cameraHref?: stri
  *   リンクは静的HTMLに焼かれている必要がある（内部リンク＝SEO・回遊）。
  *   `open && …` の条件付き描画にしない。既定は今までどおり常時展開（モーダル）
  */
-export default function ExifSpecs({ specs, locale, className = "", collapsible = false }: { specs: ExifSpec[]; locale: string; className?: string; collapsible?: boolean }) {
+/**
+ * @param summary v2 の板（`PhotoDetail.dc.html`）の要約。畳んだ見出しの右に撮影設定の1行
+ *   （「24mm · f/8 · 1/125 s · ISO 100」・`exifSettingsLine`）、見出しの下に機材の1行
+ *   （「機種 · レンズ」・`exifGearLine`）。**機材の行は畳んでいる間だけ**——開くと下の升目が
+ *   同じ機種・レンズを出すので、二度言わない。渡さなければ今までどおり（モーダル）
+ */
+export default function ExifSpecs({ specs, locale, className = "", collapsible = false, summary }: {
+    specs: ExifSpec[]; locale: string; className?: string; collapsible?: boolean;
+    summary?: { settings?: string; gear?: string };
+}) {
     const [open, setOpen] = useState(false);
     if (specs.length === 0) return null;
     const expanded = !collapsible || open;
@@ -95,22 +104,38 @@ export default function ExifSpecs({ specs, locale, className = "", collapsible =
         <div className={`rounded-2xl bg-surface ring-1 ring-line p-4 ${className}`}>
             <div className={`flex items-center gap-1.5 ${expanded ? "mb-3" : ""}`}>
                 <CameraIcon className="w-4 h-4 text-accent" />
-                <span className="text-[13px] font-semibold text-white">
+                <span className="text-[13px] font-semibold text-white flex-shrink-0">
                     {locale === "en" ? "Camera Settings" : "撮影情報"}
                 </span>
+                {/* 撮影設定の1行（板の見出しの右）。**等幅の数字**・狭い幅では切る */}
+                {summary?.settings && (
+                    <span className="ml-auto min-w-0 truncate text-right text-white/60 tabular-nums"
+                          data-testid="exif-settings-line"
+                          style={{ fontSize: "13px", lineHeight: "18px" }}>
+                        {summary.settings}
+                    </span>
+                )}
                 {collapsible && (
                     <button
                         type="button"
                         onClick={() => setOpen((v) => !v)}
                         aria-expanded={open}
-                        className="ml-auto inline-flex items-center gap-0.5 text-[12px] text-link hover:text-white active:scale-95 transition"
-                        style={{ touchAction: "manipulation", minHeight: "32px" }}
+                        // 押せるものは 44px（以前は 32px）
+                        className={`${summary?.settings ? "" : "ml-auto "}flex-shrink-0 inline-flex items-center gap-0.5 text-[12px] text-link hover:text-white active:scale-95 transition`}
+                        style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {open ? (locale === "en" ? "Hide" : "閉じる") : (locale === "en" ? "Details" : "詳しく見る")}
                         <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
                     </button>
                 )}
             </div>
+            {/* 機材の1行（畳んでいる間だけ・上の注記） */}
+            {!expanded && summary?.gear && (
+                <p className="m-0 mt-1 text-white/60 break-words" data-testid="exif-gear-line"
+                   style={{ fontSize: "12px", lineHeight: "16px" }}>
+                    {summary.gear}
+                </p>
+            )}
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3" hidden={!expanded}>
                 {specs.map((s) => (
                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>

@@ -13,7 +13,7 @@ import { photoAltText } from "../../../lib/utils/photoAlt";
 import { metaText } from "@/lib/utils/metaText";
 import { titleWithPlace } from "@/lib/utils/titlePlace";
 import { categoryLabel } from "../../../lib/utils/collections";
-import { spotLinkForPhoto } from "@/lib/data/spotLink";
+import { spotLinkForPhoto, spotTimeZoneForPhoto } from "@/lib/data/spotLink";
 import { inspiredSourceFor, toInspiredLink } from "@/lib/utils/inspired";
 
 // 写真データを読み込む関数
@@ -230,6 +230,8 @@ export default async function PhotoPage({ params }: PageProps) {
             // **台帳はここで解く。** 画面へ渡すのは表示に要る項目だけ
             // （`"use client"` から台帳を読むと全文がチャンクに載る）
             spotLink={spotLinkForPhoto(photo?.spotId)}
+            // 「次のゴールデンアワー」をスポットの土地の時計で言う（台帳はここで解く）
+            spotTimeZone={spotTimeZoneForPhoto(photo?.spotId)}
             initialInspired={inspired ? toInspiredLink(inspired) : null}
         />
     );
