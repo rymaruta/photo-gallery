@@ -7,7 +7,7 @@ import { join, relative } from "node:path";
  * 11px は眉ラベル（大文字・字間を空けた短い見出し）だけ。10px はどこにも使わない。
  *
  * 眉ラベルは**同じ行（style だけの行なら上2行）に字間の指定がある**ことで見分ける
- * （`uppercase`・`tracking-*`・`letterSpacing`）。眉ラベルの部品化は別の束（B）。
+ * （`uppercase`・`tracking-*`・`letterSpacing`・`eyebrow`）。眉ラベルは `globals.css` の `eyebrow` に部品化した（束B）。
  *
  * 免除:
  *   - 下のタブの名前（`BottomNav`・10px）: 5つを 320px の幅に並べるので 12px では
@@ -33,7 +33,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const SMALL = /text-\[1[01]px\]|fontSize: "1[01]px"/;
-const EYEBROW = /uppercase|tracking-|letterSpacing/;
+const EYEBROW = /uppercase|tracking-|letterSpacing|\beyebrow\b/;
 
 describe("本文系の字は 12px 以上（11px は眉ラベルだけ）", () => {
     it("10px・眉ラベル以外の 11px が無い", () => {
