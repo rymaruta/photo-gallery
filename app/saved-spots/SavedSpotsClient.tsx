@@ -142,7 +142,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
             )}
 
             {pending ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex items-center justify-center" aria-busy>
                     <p className="text-white/60 text-sm">{en ? "Loading…" : "読み込み中…"}</p>
                 </div>
             ) : failed ? (
@@ -166,7 +166,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                     {entries.map(({ key, kind, label, href, note, stage }) => (
                         <li
                             key={key}
-                            className="flex items-center gap-3 rounded-xl bg-surface ring-1 ring-white/10 px-4 py-3"
+                            className="flex items-center gap-3 rounded-xl bg-surface ring-1 ring-line px-4 py-3"
                         >
                             {/* **見出しが引けないときはスラッグを出す。**
                                 「不明な場所」のような、こちらで作った言葉を
@@ -275,7 +275,7 @@ function Shell({ locale, count, children }: { locale: "ja" | "en"; count?: numbe
 
 function Empty({ text, action }: { text: string; action: React.ReactNode }) {
     return (
-        <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
             <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                 <BookmarkIcon className="w-8 h-8 text-white/60" />
             </div>

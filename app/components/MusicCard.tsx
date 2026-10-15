@@ -51,7 +51,7 @@ export default function MusicCard({ queueKey, songs, label, locale, autoPlay = f
                 </span>
             </div>
             <div className={`flex items-center gap-3 px-3 pb-3 ${compact ? "pt-3" : ""}`}>
-                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-white/10">
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-white/10 flex-shrink-0 ring-1 ring-line">
                     {artwork ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={artwork} alt="" className="w-full h-full object-cover" />

@@ -83,11 +83,11 @@ export default function FavoritesPage() {
             )}
 
             {serverLikes.pending && favoritePhotos.length === 0 ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex items-center justify-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex items-center justify-center">
                     <p className="text-white/60 text-sm">{locale === "en" ? "Loading…" : "読み込み中…"}</p>
                 </div>
             ) : favoritePhotos.length === 0 ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
                     <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                         <HeartIcon className="w-8 h-8 text-white/30" />
                     </div>

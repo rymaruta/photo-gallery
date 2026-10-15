@@ -99,7 +99,7 @@ export default function SpotLinkCard({ spot, locale, heading, headingId = "photo
                 </Link>
                 {spot.coords && (
                     <Link href={mapHref} prefetch={false}
-                          className="block px-3 py-2.5 border-t border-white/10 text-white/70 hover:text-white hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                          className="block px-3 py-2.5 border-t border-line text-white/70 hover:text-white hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           style={{ fontSize: "12px" }}>
                         {isJa ? "地図で見る" : "View on map"} <span aria-hidden="true">›</span>
                     </Link>

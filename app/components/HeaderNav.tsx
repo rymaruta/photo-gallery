@@ -113,7 +113,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => unlockBodyScroll();
     }, [open]);
 
-    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
+    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line";
     const inactiveClasses = "text-white/90 bg-transparent hover:bg-white/10 hover:text-white";
     const btnStyle: React.CSSProperties = {
         touchAction: "manipulation",
@@ -193,7 +193,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
                     {/* Menu panel */}
                     <div
-                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-x-hidden overflow-y-auto overscroll-contain story-media-in"
+                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-line shadow-2xl overflow-x-hidden overflow-y-auto overscroll-contain story-media-in"
                         // **画面が低いときは中でスクロールさせる。** 横向きの iPhone
                         // （高さ 390px）ではログイン中の項目が入り切らず、「設定」
                         // 「ログアウト」が画面の外に出ていた（実測: パネルの下端 489px）。

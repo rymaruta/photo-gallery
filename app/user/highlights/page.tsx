@@ -207,7 +207,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 </p>
 
                 {existingError && (
-                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-surface ring-1 ring-white/10 px-3 py-2">
+                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-surface ring-1 ring-line px-3 py-2">
                         {isJa ? "いまの中身を読み込めませんでした。" : "Couldn't load this highlight. "}
                         <button type="button" onClick={() => setExistingRetry((n) => n + 1)} className="underline text-white/90 hover:text-white ml-1">
                             {isJa ? "再試行" : "Retry"}
@@ -360,7 +360,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 出しているので、それを読む。**この画面からは書かない**。
                 落とし先の `env(safe-area-inset-bottom)` はタブバーが無い状況の受け皿。
                 safe-area は変数に含まれるので、`paddingBottom` で二重に空けない。 */}
-            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3"
+            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-line px-4 py-3"
                 style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-3xl mx-auto flex items-center gap-3">
                     {editingId && (

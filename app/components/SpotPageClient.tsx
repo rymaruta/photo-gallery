@@ -533,7 +533,7 @@ export default function SpotPageClient({
                 「すべて見る」を置くことになる。格子は既に
                 `<a href="/photo/<id>">` で全部に内部リンクを張っており、
                 押せばその場で拡大する（③）。 */}
-            <section aria-labelledby="spot-photos-heading" className="mt-10 pt-5 border-t border-white/10">
+            <section aria-labelledby="spot-photos-heading" className="mt-10 pt-5 border-t border-line">
                 <h2 id="spot-photos-heading" className="text-sm font-semibold text-white/70 mb-3">
                     {en ? "Photos here" : "この場所の写真"}
                     <span className="ml-1 whitespace-nowrap text-white/50">
@@ -558,7 +558,7 @@ export default function SpotPageClient({
 
                 {/* **写真が少ないページにだけ。** 既存の `CollectionPage` と同じ扱い */}
                 {nearbyPhotos.length > 0 && (
-                    <section className="mt-10 pt-5 border-t border-white/10">
+                    <section className="mt-10 pt-5 border-t border-line">
                         <h2 className="text-sm font-semibold text-white/70 mb-3">
                             {en ? "You might also like" : "ほかにこんな写真も"}
                         </h2>
@@ -573,7 +573,7 @@ export default function SpotPageClient({
                 **タブの外に出す。** どのタブから来ても次へ行ける導線にする。
                 座標を持つスポットどうしでしか出せないので、出ない断面がある */}
             {nearby.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-white/10">
+                <section className="mt-10 pt-5 border-t border-line">
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {en ? "Nearby spots" : "周辺のスポット"}
                     </h2>
@@ -586,7 +586,7 @@ export default function SpotPageClient({
                                 <Link
                                     href={n.path}
                                     prefetch={false}
-                                    className="block rounded-xl overflow-hidden bg-surface ring-1 ring-white/10 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                    className="block rounded-xl overflow-hidden bg-surface ring-1 ring-line hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     {/* **絵が無ければ枠ごと出さない。** 代わりの絵を
@@ -630,7 +630,7 @@ export default function SpotPageClient({
 
             {/* 同タイプの他ページへの相互リンク（**既存のまま**・孤立防止・SEO） */}
             {related.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-white/10">
+                <section className="mt-10 pt-5 border-t border-line">
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {en ? "More locations" : "他の撮影地"}
                     </h2>
@@ -642,7 +642,7 @@ export default function SpotPageClient({
                                 key={r.path}
                                 href={r.path}
                                 prefetch={false}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {r.label}
@@ -671,7 +671,7 @@ export default function SpotPageClient({
 /** 概要の1項目。**値が無ければ「—」と書く**（0 や推測で埋めない） */
 function Fact({ label, value }: { label: string; value: string | null }) {
     return (
-        <div className="rounded-xl bg-surface ring-1 ring-white/10 px-3 py-2">
+        <div className="rounded-xl bg-surface ring-1 ring-line px-3 py-2">
             <dt className="text-[12px] text-white/50">{label}</dt>
             <dd className="text-sm text-white/90 mt-0.5">{value ?? <span className="text-white/60">—</span>}</dd>
         </div>
@@ -688,7 +688,7 @@ function Chips({ heading, items }: { heading: string; items: Array<{ key: string
                         key={i.key}
                         href={i.path}
                         prefetch={false}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                         style={{ touchAction: "manipulation" }}
                     >
                         {i.label}

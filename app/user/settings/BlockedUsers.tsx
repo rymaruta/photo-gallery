@@ -85,7 +85,7 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     // 守っていたのは長さの判定だけだった＝この分岐は無検証だった。
     if (state === "failed") {
         return (
-            <div className="mt-10 pt-6 border-t border-white/10">
+            <div className="mt-10 pt-6 border-t border-line">
                 <p className="text-xs text-white/60">
                     {locale === "en"
                         ? "Couldn't load your blocked list. Reload the page to try again."
@@ -98,7 +98,7 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
     if (state !== "ready" || users.length === 0) return null;
 
     return (
-        <div className="mt-10 pt-6 border-t border-white/10">
+        <div className="mt-10 pt-6 border-t border-line">
             <p className="text-[11px] tracking-widest uppercase text-white/60 mb-2">
                 {locale === "en" ? "Blocked" : "ブロックした人"}
             </p>
@@ -112,7 +112,7 @@ export default function BlockedUsers({ locale }: { locale: "ja" | "en" }) {
             {actionError && (
                 <p role="alert" className="text-sm text-white/85 mb-3">{actionError}</p>
             )}
-            <ul className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 divide-y divide-white/5">
+            <ul className="rounded-2xl bg-white/[0.03] ring-1 ring-line divide-y divide-white/5">
                 {users.map((u) => (
                     <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
                         {/* **退会した人はここで出し分ける。** サーバーが返す

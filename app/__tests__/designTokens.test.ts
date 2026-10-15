@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 
 /**
  * **土台の値を iOS のデザイン v2 にそろえてある**ことを見張る（2026-10-15）。
@@ -81,5 +81,50 @@ describe("土台の値は iOS のデザイン v2 と同じ", () => {
         for (const old of ["#121212", "#1a1a1a", "#201b11", "#ebebeb", "/ 0.12)"]) {
             expect(theme.toLowerCase(), old).not.toContain(old);
         }
+    });
+});
+
+/**
+ * **直書きの面と線を土台の値に寄せた**（2026-10-15）。戻ると v1 の色が画面ごとに残り、
+ * 次に土台の値を変えたときに一緒に動かなくなる。
+ *   白5% の面 → `bg-surface`（札）／`bg-surface-2`（入力欄）
+ *   白10% の線 → `border-line`・`ring-line`（白8%）
+ *   #121212 → `var(--color-surface)`
+ * 写真ページ・人のページは別の束（C・D）が中身を作り替えているので、ここでは見ない。
+ * ロゴの hover の覆い（`layout.tsx`・`group-hover` で出る白5%）は面ではないので見ない。
+ */
+describe("直書きの面と線が戻っていない", () => {
+    const ROOT = process.cwd();
+    const walk = (dir: string, out: string[] = []): string[] => {
+        for (const name of readdirSync(dir)) {
+            if (name === "node_modules" || name === "__tests__" || name.startsWith(".")) continue;
+            const p = join(dir, name);
+            if (statSync(p).isDirectory()) walk(p, out);
+            else if (/\.(tsx|ts)$/.test(name) && !/\.test\./.test(name)) out.push(p);
+        }
+        return out;
+    };
+    const exempt = (rel: string) => rel.startsWith("app/photo/[id]/") || rel === "app/users/UserProfileClient.tsx";
+    const scan = (re: RegExp, skipLine: (l: string) => boolean = () => false) => {
+        const bad: string[] = [];
+        for (const abs of [...walk(join(ROOT, "app")), ...walk(join(ROOT, "lib"))]) {
+            const rel = relative(ROOT, abs).split("\\").join("/");
+            if (exempt(rel)) continue;
+            readFileSync(abs, "utf8").split("\n").forEach((l, i) => {
+                if (/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l) || skipLine(l)) return;
+                if (re.test(l)) bad.push(`${rel}:${i + 1} ${l.trim().slice(0, 90)}`);
+            });
+        }
+        return bad;
+    };
+
+    it("白5% の面（bg-white/5）は bg-surface / bg-surface-2 に寄せてある", () => {
+        expect(scan(/(^|[\s"'`])bg-white\/5\b/, (l) => l.includes("group-hover:opacity-100"))).toEqual([]);
+    });
+    it("白10% の線（border-white/10・ring-white/10）は line に寄せてある", () => {
+        expect(scan(/(^|[\s"'`:])(border|ring)-white\/10\b/)).toEqual([]);
+    });
+    it("#121212（v1 の札）を直に書いていない", () => {
+        expect(scan(/#121212\b/i)).toEqual([]);
     });
 });

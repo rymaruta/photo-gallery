@@ -76,9 +76,9 @@ export default function LightAlertSettings({ locale }: { locale: "ja" | "en" }) 
 
     const label = en ? "Alert me the evening before" : "前の晩に知らせる";
     return (
-        <section className="mt-10 pt-6 border-t border-white/10" data-testid="settings-pro">
+        <section className="mt-10 pt-6 border-t border-line" data-testid="settings-pro">
             <h2 className="text-[11px] tracking-widest uppercase text-white/50 mb-2">Pro</h2>
-            <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 overflow-hidden">
+            <div className="rounded-2xl bg-white/[0.03] ring-1 ring-line overflow-hidden">
                 <Link
                     href={ROUTES.LIGHT_FORECAST}
                     prefetch={false}

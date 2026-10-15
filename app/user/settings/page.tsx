@@ -275,7 +275,7 @@ export default function SettingsPage() {
     // **`/50` より薄くしない。** 黒地で `/40` は 3.66:1 で基準（4.5:1）に
     // 届かない——`/50` が届く最小の段階（`textContrast.test.ts` が見張る）
     const sectionLabelClass = "text-[11px] tracking-widest uppercase text-white/50 mb-2";
-    const cardClass = "rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3";
+    const cardClass = "rounded-2xl bg-white/[0.03] ring-1 ring-line p-4 space-y-3";
     const subtleButtonClass = "w-full py-2.5 rounded-xl bg-surface text-white text-sm font-medium ring-1 ring-inset ring-white/15 hover:bg-white/10 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2";
     // 外の画面へ渡す行。押せる高さ（44px）を保つ
     const rowLinkClass = "flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition";
@@ -394,7 +394,7 @@ export default function SettingsPage() {
                             </>
                         )}
 
-                        <div className="pt-1 border-t border-white/10" />
+                        <div className="pt-1 border-t border-line" />
 
                         {/* **パスワードの変更は <form> で送り、ユーザー名の欄も置く。**
                             iOS のパスワード管理（キーチェーン）は、フォームの送信と
@@ -469,7 +469,7 @@ export default function SettingsPage() {
                         </button>
                         </form>
 
-                        <div className="pt-1 border-t border-white/10" />
+                        <div className="pt-1 border-t border-line" />
 
                         {/* すべての端末からログアウト。
                             **パスワードを変えても他の端末は生きたまま**——Cognito は
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                 </section>
 
                 {/* ── プロフィール（名前の横・メダル。2026-10-11） ── */}
-                <section className="mt-10 pt-6 border-t border-white/10">
+                <section className="mt-10 pt-6 border-t border-line">
                     <h2 className={sectionLabelClass}>{locale === "en" ? "Profile" : "プロフィール"}</h2>
                     <div className={cardClass}>
                         <Link href={ROUTES.BADGES} prefetch={false} className={rowLinkClass} style={{ minHeight: "44px", touchAction: "manipulation" }}>
@@ -513,7 +513,7 @@ export default function SettingsPage() {
                 <LightAlertSettings locale={locale === "en" ? "en" : "ja"} />
 
                 {/* ── プライバシー ─────────────────────────────── */}
-                <section className="mt-10 pt-6 border-t border-white/10">
+                <section className="mt-10 pt-6 border-t border-line">
                     <h2 className={sectionLabelClass}>
                         {locale === "en" ? "Privacy" : "プライバシー"}
                     </h2>
@@ -555,7 +555,7 @@ export default function SettingsPage() {
                     前提にして空の枠を残さない——`privacy` / `terms` /
                     `MemberOnlyNotice` も同じ形で守っている */}
                 {siteConfig.contactEmail && (
-                    <section className="mt-10 pt-6 border-t border-white/10">
+                    <section className="mt-10 pt-6 border-t border-line">
                         <h2 className={sectionLabelClass}>
                             {locale === "en" ? "Support" : "サポート"}
                         </h2>
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                 )}
 
                 {/* ── 危険な操作 ───────────────────────────────── */}
-                <section className="mt-10 pt-6 border-t border-white/10">
+                <section className="mt-10 pt-6 border-t border-line">
                     <h2 className="text-[11px] tracking-widest uppercase text-danger mb-2">
                         {locale === "en" ? "Danger zone" : "危険な操作"}
                     </h2>

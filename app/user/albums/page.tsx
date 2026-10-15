@@ -319,7 +319,7 @@ export default function AlbumsPage() {
                 ) : (
                     <ul className="space-y-4">
                         {albums.map((a) => (
-                            <li key={a.id} className="rounded-xl bg-surface ring-1 ring-white/10 p-4">
+                            <li key={a.id} className="rounded-xl bg-surface ring-1 ring-line p-4">
                                 {editing?.id === a.id ? (
                                     <div className="flex gap-2">
                                         <label htmlFor={`rename-${a.id}`} className="sr-only">アルバムの新しい名前</label>
@@ -402,7 +402,7 @@ export default function AlbumsPage() {
                         className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50"
                         // 下端に寄せて出すので、ホームへ戻る帯のぶんを下に足す
                         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
-                        <div className="bg-surface-2 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
+                        <div className="bg-surface-2 rounded-2xl ring-1 ring-line p-5 max-w-sm w-full">
                             <p className="text-sm">「{confirming.title}」を消しますか？</p>
                             <p className="text-xs text-white/60 mt-2">
                                 招待リンクは使えなくなり、参加者はこのアルバムを開けなくなります。

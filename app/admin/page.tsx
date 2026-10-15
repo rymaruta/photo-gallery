@@ -281,7 +281,7 @@ export default function AdminPage() {
                                     key={key}
                                     onClick={() => setStatus(key)}
                                     aria-pressed={status === key}
-                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-surface ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
+                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-surface ring-1 ring-line text-white/60 hover:text-white/90"}`}
                                 >
                                     {label}
                                 </button>
@@ -289,7 +289,7 @@ export default function AdminPage() {
                         </div>
                         <button
                             onClick={() => setSort((s) => (s === "new" ? "old" : "new"))}
-                            className="px-3.5 py-2 rounded-full text-xs bg-surface ring-1 ring-white/10 text-white/60 hover:text-white/90 transition active:scale-95"
+                            className="px-3.5 py-2 rounded-full text-xs bg-surface ring-1 ring-line text-white/60 hover:text-white/90 transition active:scale-95"
                         >
                             {sort === "new"
                                 ? (locale === "en" ? "Newest" : "新しい順")
@@ -304,7 +304,7 @@ export default function AdminPage() {
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             ) : loadError ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
                     <p className="text-white/70 text-sm">
                         {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
                     </p>
@@ -322,7 +322,7 @@ export default function AdminPage() {
                     </button>
                 </div>
             ) : photos.length === 0 ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
                     <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                         <PlusIcon className="w-8 h-8 text-white/30" />
                     </div>
@@ -350,7 +350,7 @@ export default function AdminPage() {
                         // タイル1枚＝写真1枚。文字は写真の上に重ねてカードの縦幅を詰める
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {visiblePhotos.map((photo) => (
-                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-surface-2 ring-1 ring-white/10 hover:ring-white/25 transition">
+                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-surface-2 ring-1 ring-line hover:ring-white/25 transition">
                                     <Image
                                         src={publicImageUrl(photo.thumbSrc ?? photo.src)}
                                         alt={getTitle(photo)}

@@ -781,7 +781,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     撮影地マップなので英語は Map（端末の地図アプリとは名乗らない）。
                     **格子で3等分**（`flex-1` だと包んだ側だけ狭くなる）。PC は本文の列の幅
                     （36rem）で止める——スマホの形を横に引き伸ばさない（owner の指示） */}
-                <div className="pb-6 border-b border-white/10">
+                <div className="pb-6 border-b border-line">
                 <div className="grid grid-cols-3 gap-2.5 max-w-xl">
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}

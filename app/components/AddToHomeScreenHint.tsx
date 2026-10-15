@@ -45,7 +45,7 @@ export default function AddToHomeScreenHint() {
     };
 
     return (
-        <div className="mb-4 flex items-start gap-2 rounded-2xl bg-white/[0.04] ring-1 ring-white/10 p-3 text-xs text-white/70">
+        <div className="mb-4 flex items-start gap-2 rounded-2xl bg-white/[0.04] ring-1 ring-line p-3 text-xs text-white/70">
             <ArrowUpOnSquareIcon className="w-4 h-4 mt-0.5 text-link flex-shrink-0" />
             <p className="flex-1 leading-relaxed">
                 {/* **ログインは引き継がれないことも言う。** ホーム画面のアプリは

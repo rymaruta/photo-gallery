@@ -214,7 +214,7 @@ export default function CloseFriends({ locale, userId }: Props) {
     };
 
     return (
-        <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3">
+        <div className="rounded-2xl bg-white/[0.03] ring-1 ring-line p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-white">{isJa ? "親しい友達" : "Close friends"}</h3>
                 {state === "ready" && (

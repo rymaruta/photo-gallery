@@ -610,7 +610,7 @@ export default function ProfileEditPage() {
                 {/* カバー写真（板 ProfileEdit の上の帯・2026-10-11 に戻した）。2026-09-22 に一度外した
                     （マイページが出さなくなったため）。マイページが `ProfileCover` で出すようになったので戻す。
                     **まだ無い人は空の地に「カバーを変える」だけ**（壊れた写真の記号は出さない） */}
-                <div className="relative mb-6 rounded-xl overflow-hidden bg-surface ring-1 ring-white/10" style={{ height: "132px" }} data-testid="profile-cover-edit">
+                <div className="relative mb-6 rounded-xl overflow-hidden bg-surface ring-1 ring-line" style={{ height: "132px" }} data-testid="profile-cover-edit">
                     {coverPreview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={coverPreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -632,7 +632,7 @@ export default function ProfileEditPage() {
                         type="button"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={coverUploading}
-                        className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-md ring-1 ring-white/10 text-white text-xs hover:bg-black/70 transition disabled:opacity-60"
+                        className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-md ring-1 ring-line text-white text-xs hover:bg-black/70 transition disabled:opacity-60"
                         style={{ minHeight: "44px", touchAction: "manipulation" }}
                     >
                         {coverUploading
@@ -833,7 +833,7 @@ export default function ProfileEditPage() {
                                 <button
                                     type="button"
                                     onClick={() => setThemeColor("")}
-                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-surface ring-1 ring-white/10 active:scale-95 transition"
+                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-surface ring-1 ring-line active:scale-95 transition"
                                 >
                                     {locale === "en" ? "Reset" : "解除"}
                                 </button>
@@ -884,7 +884,7 @@ export default function ProfileEditPage() {
                     </div>
 
                     {/* テーマソング */}
-                    <div className="rounded-2xl bg-surface ring-1 ring-white/10 p-4 space-y-3">
+                    <div className="rounded-2xl bg-surface ring-1 ring-line p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
                             <MusicalNoteIcon className="w-4 h-4 text-accent" />
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
@@ -894,7 +894,7 @@ export default function ProfileEditPage() {
                         {selectedSongs.length > 0 && (
                             <ul className="space-y-1.5">
                                 {selectedSongs.map((song, idx) => (
-                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-surface ring-1 ring-white/10 p-2">
+                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-surface ring-1 ring-line p-2">
                                         <span className="w-4 text-center text-xs text-white/50 tabular-nums flex-shrink-0">{idx + 1}</span>
                                         {/* **保存された値をそのまま読み込まない。** ここは
                                             `GET /user/profile` が返した行そのもので、許可リスト
@@ -956,7 +956,7 @@ export default function ProfileEditPage() {
                                 )}
 
                                 {songResults.length > 0 && (
-                                    <ul className="rounded-xl ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
+                                    <ul className="rounded-xl ring-1 ring-line divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
                                         {songResults.map(song => {
                                             const isPreviewing = previewId === song.id;
                                             return (
@@ -1068,7 +1068,7 @@ export default function ProfileEditPage() {
                                                             ? (locale === "en" ? "Set a start/end to play your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
                                                             : (locale === "en" ? `Section trim works with YouTube only (${musicServiceLabel(songPreview.service)} plays from the start).` : `区間指定は YouTube のみ対応（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
                                                     </p>
-                                                    <div className="rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
+                                                    <div className="rounded-xl overflow-hidden ring-1 ring-line bg-black">
                                                         {isYouTubePreview ? (
                                                             <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                                                 <iframe
@@ -1122,7 +1122,7 @@ export default function ProfileEditPage() {
                         別の画面として描いている）。
                         **導線は残す。** パスワードを変えたい人がまず来るのは
                         ここなので、黙って消すと行き先を失う */}
-                    <div className="mt-10 pt-6 border-t border-white/10">
+                    <div className="mt-10 pt-6 border-t border-line">
                         <Link
                             href={ROUTES.SETTINGS}
                             className="flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition"

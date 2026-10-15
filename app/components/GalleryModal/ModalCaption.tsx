@@ -185,7 +185,7 @@ export default function ModalCaption({
                 （共有の URL は落とし先のままでよい——あちらは開く先が
                  別のタブ・別の人で、モーダルが実際に開く） */}
             {hasPhotoPage(photo.id) && (
-            <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-2">
+            <div className="mt-4 pt-4 border-t border-line flex flex-wrap gap-2">
                 <Link
                     href={ROUTES.PHOTO(photo.id)}
                     prefetch={false}
@@ -203,7 +203,7 @@ export default function ModalCaption({
             )}
 
             {/* 共有 */}
-            <div className="mt-4 pt-3 border-t border-white/10 pb-4">
+            <div className="mt-4 pt-3 border-t border-line pb-4">
                 <div className="flex items-center gap-2.5">
                     <span className="text-xs text-white/50 mr-1">{locale === "en" ? "Share:" : "共有:"}</span>
                     <button

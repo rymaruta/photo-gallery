@@ -66,7 +66,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     };
 
     return (
-        <section className={hideHeading ? "" : "pt-5 border-t border-white/10"}>
+        <section className={hideHeading ? "" : "pt-5 border-t border-line"}>
             <div className="flex items-center gap-1.5 mb-3" hidden={hideHeading}>
                 <ChatBubbleOvalLeftIcon className="w-4 h-4 text-white/50" />
                 <h2 className="text-sm font-semibold text-white/70">

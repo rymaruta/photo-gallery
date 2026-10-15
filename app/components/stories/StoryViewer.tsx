@@ -1224,7 +1224,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 幅いっぱいに引き伸ばすと、名前が左端・閉じるが右端で 1,200px
                 離れる（実測 1280px 幅）。まわりはぼかした写真のまま
                 （上の背景はこの外側に置いてある）。 */}
-            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-2xl lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-white/10">
+            <div className="relative w-full h-full flex flex-col lg:w-[430px] lg:h-[min(90vh,820px)] lg:rounded-2xl lg:overflow-hidden lg:shadow-2xl lg:shadow-black/60 lg:ring-1 lg:ring-line">
 
             {/* メディア。写真そのものには何も重ねない（構図を隠さないため） */}
             <div ref={mediaAreaRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
@@ -1816,7 +1816,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
             {insights !== null && isOwnStory && (
                 <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setInsights(null)}>
                     <div
-                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-white/10 rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
+                        className="absolute inset-x-0 bottom-0 bg-surface-2 ring-1 ring-line rounded-t-3xl max-h-[60%] flex flex-col shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
                     >
@@ -1824,7 +1824,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         <div className="flex justify-center pt-2.5 pb-1">
                             <span className="w-9 h-1 rounded-full bg-white/20" />
                         </div>
-                        <div className="px-2 py-1 border-b border-white/10 flex items-center justify-between gap-2">
+                        <div className="px-2 py-1 border-b border-line flex items-center justify-between gap-2">
                             <div className="flex items-center" role="tablist" aria-label={locale === "en" ? "Story insights" : "ストーリーの閲覧者とリアクション・返信"}>
                                 {([
                                     ["viewers", locale === "en" ? "Viewers" : "閲覧者",

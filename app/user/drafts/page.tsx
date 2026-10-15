@@ -156,7 +156,7 @@ export default function DraftsPage() {
                                 <Link
                                     key={p.id}
                                     href={ROUTES.EDIT(p.id)}
-                                    className="group block rounded-xl overflow-hidden bg-surface ring-1 ring-white/10 hover:ring-white/25 transition"
+                                    className="group block rounded-xl overflow-hidden bg-surface ring-1 ring-line hover:ring-white/25 transition"
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     <div className="relative aspect-square bg-surface" style={{ backgroundColor: p.dominantColor ?? undefined }}>

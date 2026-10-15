@@ -115,7 +115,7 @@ export default function SavesPage() {
             )}
 
             {pending && savedPhotos.length === 0 ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex items-center justify-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex items-center justify-center">
                     <p className="text-white/60 text-sm">{en ? "Loading…" : "読み込み中…"}</p>
                 </div>
             ) : failed && savedPhotos.length === 0 ? (
@@ -126,7 +126,7 @@ export default function SavesPage() {
                 // ここは控えを持たない設計なので**こちらが普通の経路**
                 null
             ) : savedPhotos.length === 0 ? (
-                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center px-6">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center px-6">
                     <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                         <BookmarkIcon className="w-8 h-8 text-white/30" />
                     </div>

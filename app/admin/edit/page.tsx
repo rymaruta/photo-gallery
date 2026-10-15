@@ -24,7 +24,7 @@ import { splitTags } from "../../../lib/utils/ownValues";
 // 16px を当てて回避しているが、ここは共通クラスなのでクラス側で揃える。
 const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-white/50";
 const labelCls = "block text-sm text-white/60 mb-1";
-const sectionCls = "border-t border-white/10 pt-5";
+const sectionCls = "border-t border-line pt-5";
 
 function parseParagraphs(desc: Photo["description"], lang: "ja" | "en"): string {
     if (!desc) return "";

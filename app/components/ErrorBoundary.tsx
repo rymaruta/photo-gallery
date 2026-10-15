@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         if (this.state.hasError) {
             return this.props.fallback ?? (
                 <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-                    <div className="w-full max-w-sm rounded-3xl bg-surface-2 ring-1 ring-white/10 shadow-2xl p-8 text-center">
+                    <div className="w-full max-w-sm rounded-3xl bg-surface-2 ring-1 ring-line shadow-2xl p-8 text-center">
                         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
                             <ExclamationTriangleIcon className="w-6 h-6 text-white" />
                         </div>

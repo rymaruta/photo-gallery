@@ -225,7 +225,7 @@ export default function DailyQuizClient() {
                     // 正解は「✓ 正解」の字で示す（真鍮＝合図）。外したときに白地が
                     // 押していない正解の側へ付くと、見た目と `aria-pressed` の意味が逆になる
                     const look = !answered
-                        ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-white/10"
+                        ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-line"
                         : isChosen
                             ? `bg-primary text-ink font-bold${isAnswer ? "" : " ring-2 ring-danger"}`
                             // 縁は付けない——真鍮の輪はサイト共通のフォーカスの印（`focus-visible:ring-accent`）と

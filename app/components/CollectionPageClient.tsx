@@ -53,7 +53,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                 このサイトにしか無い写真でも「見るものが1つ」で終わる。
                 近い写真を出すと読む価値が出て、押せば個別ページへ回遊する */}
             {nearby.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-white/10">
+                <section className="mt-10 pt-5 border-t border-line">
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {locale === "en" ? "You might also like" : "ほかにこんな写真も"}
                     </h2>
@@ -63,7 +63,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
 
             {/* 同タイプの他ページへの相互リンク（回遊・SEO） */}
             {related.length > 0 && (
-                <section className="mt-10 pt-5 border-t border-white/10">
+                <section className="mt-10 pt-5 border-t border-line">
                     <h2 className="text-sm font-semibold text-white/70 mb-3">
                         {RELATED_HEADING[type]?.[locale === "en" ? "en" : "ja"] ?? "関連ページ"}
                     </h2>
@@ -76,7 +76,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                                 key={r.path}
                                 href={r.path}
                                 prefetch={false}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {type === "tag" ? `#${r.label}` : r.label}

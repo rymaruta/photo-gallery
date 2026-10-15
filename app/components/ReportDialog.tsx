@@ -133,7 +133,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="report-title"
-                className="relative w-full sm:max-w-md bg-surface-2 ring-1 ring-white/10 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto overscroll-contain"
+                className="relative w-full sm:max-w-md bg-surface-2 ring-1 ring-line rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto overscroll-contain"
                 // 画面の下端から出るシートなので、ホームへ戻る帯のぶんを下に足す
                 // （帯の上で押すと、ホームへ戻る操作と取り合う）
                 style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}

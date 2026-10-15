@@ -1486,7 +1486,7 @@ export default function StoriesBar() {
                     ) : (
                     <>
                     <div
-                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[400px] lg:max-h-none lg:pt-[72px] lg:pb-6 lg:bg-bar/80 lg:backdrop-blur-md lg:border-l lg:border-white/10 ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                        className={`relative px-4 pt-3 pb-1 space-y-2 max-h-[60%] overflow-y-auto no-scrollbar transition-opacity lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[400px] lg:max-h-none lg:pt-[72px] lg:pb-6 lg:bg-bar/80 lg:backdrop-blur-md lg:border-l lg:border-line ${dragging ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
                         {/* 🔴 **編集ツールの行**（最終版モック 08 の⑥）。
                             押したものの欄だけ下に出る。モックは6つ（カメラ・
@@ -1545,7 +1545,7 @@ export default function StoriesBar() {
                                     : (locale === "en" ? "Edit this text..." : "この文字を直す...")}
                                 disabled={posting}
                                 aria-label={locale === "en" ? "Text" : "文字"}
-                                className="flex-1 min-w-0 px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                                className="flex-1 min-w-0 px-4 py-3 bg-black/55 backdrop-blur-sm ring-1 ring-line rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                                 style={{ fontSize: "16px" }}
                             />
                         </div>
@@ -1707,7 +1707,7 @@ export default function StoriesBar() {
                                         maxLength={STORY_VOTE_QUESTION_MAX}
                                         disabled={posting}
                                         aria-label={locale === "en" ? "Poll question" : "投票の問い"}
-                                        className="w-full rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 outline-none focus:bg-black/70"
+                                        className="w-full rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-line text-white px-4 outline-none focus:bg-black/70"
                                         // ⚠️ **16px**。これより小さいと iOS Safari が焦点を当てた瞬間に
                                         // 画面ごと拡大する（この画面の他の入力欄も全部 16px で揃えてある）
                                         style={{ height: "40px", fontSize: "16px" }}
@@ -1726,7 +1726,7 @@ export default function StoriesBar() {
                                                 maxLength={STORY_VOTE_OPTION_MAX}
                                                 disabled={posting}
                                                 aria-label={locale === "en" ? `Option ${k + 1}` : `選択肢${k + 1}`}
-                                                className="flex-1 min-w-0 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white px-4 text-center outline-none focus:bg-black/70"
+                                                className="flex-1 min-w-0 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-line text-white px-4 text-center outline-none focus:bg-black/70"
                                                 // ⚠️ 16px（上の問いと同じ理由——iOS Safari の拡大）
                                                 style={{ height: "40px", fontSize: "16px" }}
                                             />
@@ -1903,7 +1903,7 @@ export default function StoriesBar() {
                             disabled={posting}
                             placeholder={locale === "en" ? "Where? (optional)" : "撮影地（任意）"}
                             aria-label={locale === "en" ? "Shooting location" : "撮影地"}
-                            className="w-full px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-white/10 rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
+                            className="w-full px-4 py-2.5 bg-black/55 backdrop-blur-sm ring-1 ring-line rounded-full text-white text-sm placeholder:text-white/40 focus:outline-none focus:bg-black/70"
                             style={{ fontSize: "16px" }}
                         />
                         </>
@@ -1913,7 +1913,7 @@ export default function StoriesBar() {
                         {composerTool === "song" && (
                         <>
                         {draftSong ? (
-                            <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2.5">
+                            <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-line p-2.5 space-y-2.5">
                                 <div className="flex items-center gap-2.5">
                                     <SongArtwork src={draftSong.artwork} className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
@@ -2022,7 +2022,7 @@ export default function StoriesBar() {
                                 )}
                             </div>
                         ) : songPickerOpen ? (
-                            <div className="rounded-2xl bg-black/60 backdrop-blur-sm ring-1 ring-white/10 p-2.5 space-y-2">
+                            <div className="rounded-2xl bg-black/60 backdrop-blur-sm ring-1 ring-line p-2.5 space-y-2">
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -2086,7 +2086,7 @@ export default function StoriesBar() {
                             <button
                                 onClick={() => setSongPickerOpen(true)}
                                 disabled={posting}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/10 hover:bg-black/70 text-white/85 text-xs active:scale-95 transition"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-line hover:bg-black/70 text-white/85 text-xs active:scale-95 transition"
                             >
                                 <MusicalNoteIcon className="w-4 h-4 text-white" />
                                 {locale === "en" ? "Add music" : "曲を付ける"}
@@ -2121,7 +2121,7 @@ export default function StoriesBar() {
                                             aria-pressed={durationSec === s}
                                             className={`px-3 py-1.5 rounded-full text-xs transition active:scale-95 ${durationSec === s
                                                 ? "bg-primary text-ink font-semibold"
-                                                : "bg-black/55 backdrop-blur-sm ring-1 ring-white/10 text-white/70"}`}
+                                                : "bg-black/55 backdrop-blur-sm ring-1 ring-line text-white/70"}`}
                                         >
                                             {s}
                                             {locale === "en" ? "s" : "秒"}
@@ -2136,7 +2136,7 @@ export default function StoriesBar() {
                             フォロワーだけが見る（2026-09-22・owner の判断。
                             経緯は `api-user/src/storyVisibility.ts`）。
                             「親しい友達」を足すときは人を選ぶ一覧から作る */}
-                        <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
+                        <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-line p-3 space-y-3">
                             <p className="text-white/50" style={{ fontSize: "12px" }}>
                                 {locale === "en" ? "Sharing" : "公開設定"}
                             </p>

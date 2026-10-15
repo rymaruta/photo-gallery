@@ -33,7 +33,7 @@ export default function Footer() {
 
     return (
         <footer
-            className="border-t border-white/10 bg-bg"
+            className="border-t border-line bg-bg"
             /**
              * 🔴 **その画面自身の下の帯のぶんを、ここで空ける。**
              *
