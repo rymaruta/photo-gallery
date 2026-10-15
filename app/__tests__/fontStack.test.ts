@@ -93,6 +93,17 @@ describe("見出しの明朝（webfont の配線）", () => {
         expect(src).toContain("mincho.variable");
     });
 
+    // 検証サイトで明朝が1か所も当たっていなかった（2026-10-15）。`--font-mincho` は <body> の
+    // クラスが立てるので、`:root` で計算されるふつうの `@theme` からは見えず、値ごと無効になる
+    it("`--font-serif` は `@theme inline` に置く（:root では --font-mincho が見えない）", () => {
+        const css = read("app/globals.css");
+        const inline = /@theme inline\s*\{([^}]*)\}/.exec(css);
+        expect(inline, "@theme inline が無い").not.toBeNull();
+        expect(inline![1]).toMatch(/--font-serif:\s*var\(--font-mincho\)/);
+        const plain = /@theme\s*\{([\s\S]*?)\n\}/.exec(css);
+        expect(plain![1], "ふつうの @theme に --font-serif がある").not.toMatch(/--font-serif:/);
+    });
+
     it("`--font-serif` が変数を先頭で読み、端末の明朝と総称 serif が続く", () => {
         const st = themeStack("serif");
         expect(st[0]).toBe("var(--font-mincho)");
