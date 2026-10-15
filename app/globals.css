@@ -56,9 +56,18 @@
                （owner の好み 2026-10-02: 板の IBM Plex Mono をやめて SF に。iOS の `JPFont.mono`）
        wordmark … ヘッダーの「Journey Photo」だけ。iOS は `design: .serif`（New York） */
   --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --font-serif: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
   --font-mono: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
   --font-wordmark: ui-serif, "New York", Georgia, serif;
+}
+
+/* **見出しの明朝は `@theme inline` に置く**（2026-10-15・検証サイトで明朝が1か所も当たっていなかった）。
+   `--font-mincho` は next/font が `<body>` のクラスで立てる。ふつうの `@theme` だと
+   `--font-serif: var(--font-mincho), …` が `:root`（＝html）で計算され、そこには
+   `--font-mincho` が無い＝**値ごと無効**になり、`font-serif` は本文の字を継いでいた。
+   `inline` にすると `.font-serif{font-family:var(--font-mincho),…}` と使う側で読むので、
+   body の中ならどこでも届く（`fontStack.test.ts` が縛る） */
+@theme inline {
+  --font-serif: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 }
 
 /* **眉ラベル**（iOS v2 の `jpEyebrow()`・板 02 Eyebrow: SF 600・11・字間 0.14em・大文字）。
