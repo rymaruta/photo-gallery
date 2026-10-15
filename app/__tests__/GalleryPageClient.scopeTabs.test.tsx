@@ -106,6 +106,19 @@ describe("トップの おすすめ / フォロー中 / 新着", () => {
         expect(new URLSearchParams(window.location.search).get("scope")).toBeNull();
     });
 
+    it("選んでいるタブだけが真鍮＋太字＋2px の下線（iOS v2・色だけに頼らない）", async () => {
+        render(<GalleryPageClient />);
+        await waitFor(() => expect(pressed("新着")).toBe(true));
+        const cls = (name: string) => tab(name).className.split(/\s+/);
+        expect(cls("新着")).toEqual(expect.arrayContaining(["text-accent", "font-semibold", "shadow-[inset_0_-2px_0_var(--color-accent)]"]));
+        for (const off of screen.getAllByRole("tab").filter((t) => t.getAttribute("aria-selected") !== "true")) {
+            const c = off.className.split(/\s+/);
+            expect(c).not.toContain("text-accent");
+            expect(c).not.toContain("font-semibold");
+            expect(c.some((x) => x.startsWith("shadow-"))).toBe(false);
+        }
+    });
+
     it("おすすめが在れば、ログイン中の既定は「おすすめ」", async () => {
         photosState.photos = [{ ...PHOTOS[1], featured: true }, PHOTOS[0]];
         render(<GalleryPageClient />);

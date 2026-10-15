@@ -6,7 +6,7 @@ import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
-import { CHIP_OFF } from "@/app/components/chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "@/app/components/chipStyles";
 import { placeLine, placeParts } from "@/lib/utils/placeName";
 
 /**
@@ -264,9 +264,9 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                             <li key={c.slug}>
                                 <ItemLink href={linkTo("camera", c.slug)}
                                       className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                      style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 11px", touchAction: "manipulation" }}>
+                                      style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {dedupeCameraName(c.label)}
-                                    <span className="text-white/60" style={{ fontSize: "11px" }}>{c.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>
                                 </ItemLink>
                             </li>
                         ))}

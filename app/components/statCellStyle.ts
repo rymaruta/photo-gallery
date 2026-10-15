@@ -1,5 +1,7 @@
 /**
- * マイページの「数字の行」と「旅の実績」の文字の大きさ。
+ * マイページの「数字の行」の文字の大きさ。
+ * （「旅の実績」の行の値もここに在ったが、v2 の「旅の記録」（`app/users/TravelRecord.tsx`）に
+ * 置き換えたので消した。下の表の「24」「総移動距離」はそのときの実測の記録）
  *
  * 最終版モック（`docs/mockups/04-mypage.jpg`）の**画素から測った**値。
  * 端末の画面は x=314..677（364px）で、これを 393px と見て 1画素 ≈ 1.08 CSS px。
@@ -20,7 +22,3 @@ export const STAT_NUMBER_PX = 20;
 export const STAT_LABEL_PX = 13;
 /** 数字の行の縦の区切り線の高さ。モックは行の高さいっぱいではなく、文字の塊ぶんだけ */
 export const STAT_DIVIDER_PX = 28;
-export const ACHIEVEMENT_VALUE_PX = 21;
-export const ACHIEVEMENT_LABEL_PX = 14;
-/** 旅の実績のアイコン（青）。モックでは2行ぶんの高さがある */
-export const ACHIEVEMENT_ICON_PX = 28;

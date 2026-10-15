@@ -143,7 +143,7 @@ describe("撮影スポットのページ（iOS の板 13 に揃えた形）", ()
         const alert = await screen.findByRole("alert");
         // 格子は前の空きへ戻らない。後ろへ回さないと地図とシェアが3段目へ落ちる（Chromium 実測）。
         // **語で完全一致を見る**（部分一致だと `sm:order-last` や綴り違いを通す）
-        expect(alert.className.split(/\s+/)).toEqual(expect.arrayContaining(["col-span-3", "order-last"]));
+        expect(alert.className.split(/\s+/)).toEqual(expect.arrayContaining(["col-span-full", "order-last"]));
         expect(alert.parentElement).toBe(screen.getByRole("link", { name: "地図で見る" }).parentElement);
         expect(screen.getByRole("button", { name: "再試行" }).className).toContain("min-h-[44px]");
     });

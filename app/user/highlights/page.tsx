@@ -36,7 +36,7 @@ import { RING_SEEN } from "../../components/stories/ring";
  *   選択を読む）。消すのもここ（マイページの輪から鉛筆で来る）
  */
 
-const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
+const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 
 function HighlightEditor({ editingId }: { editingId: string | null }) {
     const { isAuthenticated, loading, userId } = useAuth();
@@ -207,7 +207,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 </p>
 
                 {existingError && (
-                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2">
+                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-surface ring-1 ring-line px-3 py-2">
                         {isJa ? "いまの中身を読み込めませんでした。" : "Couldn't load this highlight. "}
                         <button type="button" onClick={() => setExistingRetry((n) => n + 1)} className="underline text-white/90 hover:text-white ml-1">
                             {isJa ? "再試行" : "Retry"}
@@ -327,7 +327,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                                         </span>
                                     )}
                                     {isSelected && cover === s.id && (
-                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-primary text-ink font-semibold" style={{ fontSize: "10px" }}>
+                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-primary text-ink font-semibold" style={{ fontSize: "12px" }}>
                                             {isJa ? "表紙" : "Cover"}
                                         </span>
                                     )}
@@ -360,7 +360,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 出しているので、それを読む。**この画面からは書かない**。
                 落とし先の `env(safe-area-inset-bottom)` はタブバーが無い状況の受け皿。
                 safe-area は変数に含まれるので、`paddingBottom` で二重に空けない。 */}
-            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-white/10 px-4 py-3"
+            <div ref={pageBarRef} className="fixed inset-x-0 z-50 bg-black/90 backdrop-blur-md border-t border-line px-4 py-3"
                 style={{ bottom: "var(--bottom-bar-h, env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-3xl mx-auto flex items-center gap-3">
                     {editingId && (

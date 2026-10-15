@@ -270,7 +270,7 @@ export default function GalleryModal({
                 `app/globals.css` が body に `100dvh` を入れているのは同じ理由。 */}
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full h-full max-sm:pad-safe sm:h-auto sm:max-h-[min(95dvh,100%)] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-white/10"
+                className="relative w-full h-full max-sm:pad-safe sm:h-auto sm:max-h-[min(95dvh,100%)] flex flex-col sm:mx-4 sm:rounded-2xl overflow-hidden bg-black sm:ring-1 sm:ring-line"
                 style={{ maxWidth: "980px" }}
             >
                 {/* **前後に送ったら、どの写真になったかを読み上げる。** フォーカスは

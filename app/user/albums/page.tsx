@@ -272,7 +272,7 @@ export default function AlbumsPage() {
                         onChange={(e) => setTitle(e.target.value)}
                         maxLength={60}
                         placeholder="例: 北欧の冬"
-                        className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                        className="flex-1 min-w-0 bg-surface-2 rounded-lg px-3 py-2 text-sm ring-1 ring-line-strong"
                     />
                     {/* 🔴 **`aria-disabled` だけにしない。** 以前はこれで、
                         名前が空でも**見た目はそのまま押せて、押しても何も
@@ -319,7 +319,7 @@ export default function AlbumsPage() {
                 ) : (
                     <ul className="space-y-4">
                         {albums.map((a) => (
-                            <li key={a.id} className="rounded-xl bg-white/5 ring-1 ring-white/10 p-4">
+                            <li key={a.id} className="rounded-xl bg-surface ring-1 ring-line p-4">
                                 {editing?.id === a.id ? (
                                     <div className="flex gap-2">
                                         <label htmlFor={`rename-${a.id}`} className="sr-only">アルバムの新しい名前</label>
@@ -328,7 +328,7 @@ export default function AlbumsPage() {
                                             value={editing.title}
                                             onChange={(e) => setEditing({ id: a.id, title: e.target.value })}
                                             maxLength={60}
-                                            className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                                            className="flex-1 min-w-0 bg-surface-2 rounded-lg px-3 py-2 text-sm ring-1 ring-line-strong"
                                         />
                                         {/* **空の名前でも押せて無反応**だった
                                             （`rename` は `!name` で黙って return するのに、
@@ -363,10 +363,10 @@ export default function AlbumsPage() {
 
                                 {a.inviteToken ? (
                                     <div className="mt-3">
-                                        <p className="text-[11px] text-white/50">招待リンク</p>
+                                        <p className="text-[12px] text-white/50">招待リンク</p>
                                         <p className="text-xs break-all text-white/85 mt-0.5">{inviteUrl(a.inviteToken)}</p>
                                         {a.inviteExpiresAt && (
-                                            <p className="text-[11px] text-white/50 mt-1">
+                                            <p className="text-[12px] text-white/50 mt-1">
                                                 {new Date(a.inviteExpiresAt).toLocaleDateString("ja-JP")}まで
                                             </p>
                                         )}
@@ -381,7 +381,7 @@ export default function AlbumsPage() {
                                             </button>
                                         </div>
                                         {/* **前のリンクが死ぬことを書く。** 書かないと、配ったリンクが黙って切れる */}
-                                        <p className="text-[11px] text-white/50 mt-1">作り直すと、前のリンクは使えなくなります。</p>
+                                        <p className="text-[12px] text-white/50 mt-1">作り直すと、前のリンクは使えなくなります。</p>
                                     </div>
                                 ) : (
                                     <button type="button" onClick={() => issue(a.id)} disabled={busy}
@@ -402,7 +402,7 @@ export default function AlbumsPage() {
                         className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-4 z-50"
                         // 下端に寄せて出すので、ホームへ戻る帯のぶんを下に足す
                         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
-                        <div className="bg-surface-2 rounded-2xl ring-1 ring-white/10 p-5 max-w-sm w-full">
+                        <div className="bg-surface-2 rounded-2xl ring-1 ring-line p-5 max-w-sm w-full">
                             <p className="text-sm">「{confirming.title}」を消しますか？</p>
                             <p className="text-xs text-white/60 mt-2">
                                 招待リンクは使えなくなり、参加者はこのアルバムを開けなくなります。

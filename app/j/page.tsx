@@ -136,7 +136,7 @@ function InviteView() {
                 {photos.length > 0 && (
                     <ul className="grid grid-cols-3 gap-1 mt-6">
                         {photos.map((p) => (
-                            <li key={p.id} className="aspect-square overflow-hidden rounded-sm bg-white/5">
+                            <li key={p.id} className="aspect-square overflow-hidden rounded-sm bg-surface">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={publicImageUrl(p.thumbSrc || p.src)}

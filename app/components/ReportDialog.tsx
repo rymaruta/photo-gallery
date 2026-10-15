@@ -133,7 +133,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="report-title"
-                className="relative w-full sm:max-w-md bg-surface-2 ring-1 ring-white/10 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto overscroll-contain"
+                className="relative w-full sm:max-w-md bg-surface-2 ring-1 ring-line rounded-t-2xl sm:rounded-2xl p-5 max-h-[90dvh] overflow-y-auto overscroll-contain"
                 // 画面の下端から出るシートなので、ホームへ戻る帯のぶんを下に足す
                 // （帯の上で押すと、ホームへ戻る操作と取り合う）
                 style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}
@@ -177,7 +177,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                         maxLength={NOTE_MAX}
                         rows={3}
                         style={{ fontSize: "16px" }}
-                        className="w-full rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-white/30"
+                        className="w-full rounded-lg bg-surface-2 ring-1 ring-line-strong px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-white/30"
                         placeholder={isJa ? "分かる範囲でお書きください" : "Anything that helps us review"}
                     />
                 </div>

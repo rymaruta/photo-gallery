@@ -129,19 +129,19 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
                     ref={followingBtnRef}
                     onClick={() => setSheet("following")}
                     aria-haspopup="dialog"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-line px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
                     style={{ touchAction: "manipulation" }}
                 >
                     <span className="text-sm font-bold tabular-nums leading-none">{shown(following)}</span>
-                    <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+                    <span className="text-[12px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
                     {/* **押せると分かるようにする。** 押せない側のピルと
                         `hover:` しか違わないと、スマホでは見分けが付かない */}
                     <ChevronRightIcon className="w-3 h-3 text-white/60" aria-hidden="true" />
                 </button>
             ) : (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-line px-3 py-1.5">
                     <span className="text-sm font-bold tabular-nums leading-none">{shown(following)}</span>
-                    <span className="text-[11px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
+                    <span className="text-[12px] text-white/60">{locale === "en" ? "following" : "フォロー中"}</span>
                 </div>
             )}
             {isAuthenticated && countsKnown && followers > 0 ? (
@@ -150,17 +150,17 @@ export default function FollowButton({ targetUserId, isAuthenticated, locale, va
                     ref={followersBtnRef}
                     onClick={() => setSheet("followers")}
                     aria-haspopup="dialog"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-line px-3 py-1.5 hover:bg-black/50 active:scale-95 transition"
                     style={{ touchAction: "manipulation" }}
                 >
                     <span className="text-sm font-bold tabular-nums leading-none">{shown(followers)}</span>
-                    <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
+                    <span className="text-[12px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
                     <ChevronRightIcon className="w-3 h-3 text-white/60" aria-hidden="true" />
                 </button>
             ) : (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/10 px-3 py-1.5">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-line px-3 py-1.5">
                     <span className="text-sm font-bold tabular-nums leading-none">{shown(followers)}</span>
-                    <span className="text-[11px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
+                    <span className="text-[12px] text-white/60">{locale === "en" ? "followers" : "フォロワー"}</span>
                 </div>
             )}
             {sheet && (

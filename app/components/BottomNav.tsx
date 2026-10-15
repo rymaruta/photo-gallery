@@ -133,7 +133,7 @@ export default function BottomNav() {
         { key: "me", href: me, label: locale === "en" ? "My Page" : "マイページ", Outline: UserIcon, Solid: UserSolid },
     ];
 
-    // カプセルの中の1マス。選んでいるマスは白16%の丸い面（`Tab`）
+    // カプセルの中の1マス。選んでいるマスは真鍮＋黒55%の丸い面（`Tab`）
     const cell = "flex flex-col items-center justify-center gap-[2px] rounded-full min-h-[44px]";
     const labelStyle: React.CSSProperties = { fontSize: "10px", lineHeight: "12px", letterSpacing: "0.02em" };
     const iconStyle: React.CSSProperties = { width: "22px", height: "22px" };
@@ -191,6 +191,9 @@ export default function BottomNav() {
     );
 }
 
+/** 選んでいるタブの1マス（真鍮の字と絵・黒55%の丸い面）。試験が比を計算するので名前で出す */
+export const TAB_CELL_ON = "bg-black/55 text-accent";
+
 function Tab({ item, active, cell, labelStyle, iconStyle }: {
     item: { key: TabKey; href: string; label: string; Outline: typeof HomeIcon; Solid: typeof HomeSolid };
     active: boolean;
@@ -210,9 +213,12 @@ function Tab({ item, active, cell, labelStyle, iconStyle }: {
             // **選んでいないタブは白72%**（デザインシステムの非選択 `#B8B8B8`）。
             // カプセルは写真が透けるので、白60%だと明るい写真の上で 2.6:1 まで
             // 落ちる（`.tabbar-capsule` の brightness と合わせて 4.5:1 を保つ）。
-            // **選択中は白＋白16%の丸い面**（デザインシステム「黒塗りの真鍮」: 下部ナビの
-            // アイコンは白。真鍮は合図の色で、選択は担わない）。塗りつぶしのアイコンで形も変わる
-            className={`${cell} transition-colors ${active ? "bg-white/16 text-white" : "text-white/72 hover:text-white"}`}
+            // **選択中は真鍮＋黒55%の丸い面**（2026-10-15・iOS v2 の `TabBarStyle.swift` にそろえる。
+            // owner の好み「デザインの箇所は白より真鍮」。以前は白＋白16%の面）。
+            // 🔴 **面は白7%（板の値）ではなく黒55%。** 真鍮は黒地の上だけの色で、カプセルは
+            // 写真が透ける——真っ白な写真の上では白7%の面で 2.78:1 しか無い。黒55%で 6.7:1
+            // （`BottomNav.test.tsx` が計算する）。色だけに頼らず、塗りつぶしの絵・太字・面でも分かる
+            className={`${cell} transition-colors ${active ? TAB_CELL_ON : "text-white/72 hover:text-white"}`}
             style={{ touchAction: "manipulation" }}
         >
             <Icon aria-hidden="true" style={iconStyle} />

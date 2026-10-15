@@ -148,7 +148,7 @@ export default function CropFramePicker({ src, hint, focalPoint, onChange, fallb
                     </div>
                 )}
             </div>
-            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/70 text-[11px] text-white/90 pointer-events-none whitespace-nowrap">
+            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/70 text-[12px] text-white/90 pointer-events-none whitespace-nowrap">
                 {hint}
             </span>
         </div>

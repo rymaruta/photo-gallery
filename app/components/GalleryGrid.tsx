@@ -154,7 +154,7 @@ export default function GalleryGrid({
                 // 写真ページ本体・モーダル・OGP に無かった**ので、効かせたい1枚
                 // （画像検索が見る本体画像）にだけ効いていなかった
                 const localizedAlt = photoAltText(p, locale);
-                const placeholderColor = p.dominantColor ?? "#121212";
+                const placeholderColor = p.dominantColor ?? "var(--color-surface)";
                 const objectPosition =
                     p.focalPoint ? `${Math.round(p.focalPoint.x * 100)}% ${Math.round(p.focalPoint.y * 100)}%` : undefined;
 
@@ -324,7 +324,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                 {extraCount > 0 && (
                                     <p
                                         className="absolute top-2 left-2 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                                        style={{ fontSize: "11px", lineHeight: "13px", padding: "3px 7px" }}
+                                        style={{ fontSize: "12px", lineHeight: "13px", padding: "3px 7px" }}
                                         aria-hidden="true"
                                     >
                                         1/{extraCount + 1}

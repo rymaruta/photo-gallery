@@ -170,13 +170,44 @@ describe("浮いたカプセル（iOS の案B・owner の決定 2026-09-27）", 
         expect(capsule.querySelectorAll("a,button")).toHaveLength(5);
     });
 
-    it("選んでいるタブだけが白16%の丸い面を持つ", () => {
+    it("選んでいるタブだけが真鍮＋黒55%の丸い面＋太字（iOS v2・色だけに頼らない）", () => {
         nav.pathname = ROUTES.SEARCH;
         render(<BottomNav />);
-        const withSurface = Array.from(
+        const cells = Array.from(
             screen.getByRole("navigation", { name: "メインメニュー" }).querySelectorAll("a,button"),
-        ).filter((el) => el.className.split(/\s+/).includes("bg-white/16"));
-        expect(withSurface.map((el) => el.textContent)).toEqual(["探す"]);
+        ) as HTMLElement[];
+        const on = cells.filter((el) => el.className.split(/\s+/).includes("text-accent"));
+        expect(on.map((el) => el.textContent)).toEqual(["探す"]);
+        expect(on[0].className.split(/\s+/)).toContain("bg-black/55");
+        expect(on[0].getAttribute("aria-current")).toBe("page");
+        // 太字（色の差だけでは見分けにくい）
+        expect((on[0].querySelector("span") as HTMLElement).style.fontWeight).toBe("600");
+        // 選んでいないタブは真鍮にも面にもならない
+        for (const el of cells.filter((c) => c !== on[0])) {
+            expect(el.className.split(/\s+/)).not.toContain("text-accent");
+            expect(el.className.split(/\s+/)).not.toContain("bg-black/55");
+        }
+    });
+
+    it("真鍮の字は、真っ白な写真が透けても 4.5:1 に届く（カプセルの地＋brightness 0.6＋黒55%）", async () => {
+        const { TAB_CELL_ON } = await import("../BottomNav");
+        const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8");
+        const rule = css.slice(css.indexOf(".tabbar-capsule {"), css.indexOf("}", css.indexOf(".tabbar-capsule {")));
+        const bg = /background:\s*rgb\((\d+) (\d+) (\d+) \/ (0?\.\d+)\)/.exec(rule);
+        const bright = /[^-]backdrop-filter:[^;]*brightness\((0?\.\d+)\)/.exec(rule);
+        const pill = /bg-black\/(\d+)/.exec(TAB_CELL_ON);
+        const brass = /--color-accent:\s*#([0-9a-f]{6})/i.exec(css);
+        expect(bg && bright && pill && brass).toBeTruthy();
+        const a = Number(bg![4]), b = Number(bright![1]), p = Number(pill![1]) / 100;
+        // 真っ白な写真（255）を暗くして、カプセルの地を重ね、黒の面を重ねる
+        const under = (255 * b) * (1 - a);
+        const base = [1, 2, 3].map((i) => (Number(bg![i]) * a + under) * (1 - p));
+        const lin = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+        const lum = (rgb: number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+        const hex = brass![1];
+        const fg = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+        const ratio = (lum(fg) + 0.05) / (lum(base) + 0.05);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
 
     it("写真が透けても字が読める: 非選択は白72%・透けた写真は brightness 0.6 で暗くする", () => {

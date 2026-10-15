@@ -24,6 +24,7 @@ import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import { profileCoverUrl } from "../../components/ProfileCover";
+import { BTN_FILL } from "../../components/buttonStyles";
 
 type SongEntry = {
     title: string;
@@ -574,7 +575,7 @@ export default function ProfileEditPage() {
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
     const currentCoverUrl = profile?.userId ? profileCoverUrl(profile.userId) : "";
-    const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
+    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
     const songPreview = parseMusicEmbed(songUrl, mmssToSec(songStartText), mmssToSec(songEndText));
@@ -609,7 +610,7 @@ export default function ProfileEditPage() {
                 {/* カバー写真（板 ProfileEdit の上の帯・2026-10-11 に戻した）。2026-09-22 に一度外した
                     （マイページが出さなくなったため）。マイページが `ProfileCover` で出すようになったので戻す。
                     **まだ無い人は空の地に「カバーを変える」だけ**（壊れた写真の記号は出さない） */}
-                <div className="relative mb-6 rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10" style={{ height: "132px" }} data-testid="profile-cover-edit">
+                <div className="relative mb-6 rounded-xl overflow-hidden bg-surface ring-1 ring-line" style={{ height: "132px" }} data-testid="profile-cover-edit">
                     {coverPreview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={coverPreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -631,7 +632,7 @@ export default function ProfileEditPage() {
                         type="button"
                         onClick={() => coverInputRef.current?.click()}
                         disabled={coverUploading}
-                        className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-md ring-1 ring-white/10 text-white text-xs hover:bg-black/70 transition disabled:opacity-60"
+                        className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-md ring-1 ring-line text-white text-xs hover:bg-black/70 transition disabled:opacity-60"
                         style={{ minHeight: "44px", touchAction: "manipulation" }}
                     >
                         {coverUploading
@@ -734,7 +735,7 @@ export default function ProfileEditPage() {
                                 aria-describedby="profile-username-rule"
                             />
                         </div>
-                        <p id="profile-username-rule" className="text-[11px] text-white/50 mt-1">
+                        <p id="profile-username-rule" className="text-[12px] text-white/50 mt-1">
                             {locale === "en"
                                 ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
                                 : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}
@@ -832,7 +833,7 @@ export default function ProfileEditPage() {
                                 <button
                                     type="button"
                                     onClick={() => setThemeColor("")}
-                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-white/5 ring-1 ring-white/10 active:scale-95 transition"
+                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-surface ring-1 ring-line active:scale-95 transition"
                                 >
                                     {locale === "en" ? "Reset" : "解除"}
                                 </button>
@@ -848,7 +849,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/50 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
+                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-lg">@</span>
                             <input
                                 id="profile-instagram"
                                 type="text"
@@ -883,7 +884,7 @@ export default function ProfileEditPage() {
                     </div>
 
                     {/* テーマソング */}
-                    <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
+                    <div className="rounded-2xl bg-surface ring-1 ring-line p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
                             <MusicalNoteIcon className="w-4 h-4 text-accent" />
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
@@ -893,7 +894,7 @@ export default function ProfileEditPage() {
                         {selectedSongs.length > 0 && (
                             <ul className="space-y-1.5">
                                 {selectedSongs.map((song, idx) => (
-                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 p-2">
+                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-surface ring-1 ring-line p-2">
                                         <span className="w-4 text-center text-xs text-white/50 tabular-nums flex-shrink-0">{idx + 1}</span>
                                         {/* **保存された値をそのまま読み込まない。** ここは
                                             `GET /user/profile` が返した行そのもので、許可リスト
@@ -901,7 +902,7 @@ export default function ProfileEditPage() {
                                         <SongArtwork src={song.artwork} className="w-9 h-9 rounded-md object-cover bg-white/10 flex-shrink-0" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-xs text-white truncate">{song.title}</p>
-                                            <p className="text-[11px] text-white/50 truncate">{song.artist}</p>
+                                            <p className="text-[12px] text-white/50 truncate">{song.artist}</p>
                                         </div>
                                         <button type="button" onClick={() => moveSong(idx, -1)} disabled={idx === 0}
                                             aria-label={locale === "en" ? "Move up" : "上へ"}
@@ -955,7 +956,7 @@ export default function ProfileEditPage() {
                                 )}
 
                                 {songResults.length > 0 && (
-                                    <ul className="rounded-xl ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
+                                    <ul className="rounded-xl ring-1 ring-line divide-y divide-white/5 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
                                         {songResults.map(song => {
                                             const isPreviewing = previewId === song.id;
                                             return (
@@ -984,7 +985,7 @@ export default function ProfileEditPage() {
                                                         <p className={`text-sm truncate ${isPreviewing ? "text-accent" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
+                                                    <span className="text-[12px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
                                                 </button>
                                             </li>
                                             );
@@ -1007,7 +1008,7 @@ export default function ProfileEditPage() {
                             </button>
 
                             {selectedSongs.length > 0 && (songUrl.trim() || showUrlMethod) && (
-                                <p className="text-[11px] text-white/50 pt-2">
+                                <p className="text-[12px] text-white/50 pt-2">
                                     {locale === "en"
                                         ? "A picked song plays first — this link is kept and used when no song is set."
                                         : "曲を選ぶとそちらが優先。リンクは保存され、曲を消すと使われます。"}
@@ -1038,7 +1039,7 @@ export default function ProfileEditPage() {
                                                 <>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <label className="block text-[12px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
                                                             <input
                                                                 id="profile-song-start"
                                                                 type="text"
@@ -1050,7 +1051,7 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <label className="block text-[12px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
                                                             <input
                                                                 id="profile-song-end"
                                                                 type="text"
@@ -1062,12 +1063,12 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-white/50">
+                                                    <p className="text-[12px] text-white/50">
                                                         {isYouTubePreview
                                                             ? (locale === "en" ? "Set a start/end to play your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
                                                             : (locale === "en" ? `Section trim works with YouTube only (${musicServiceLabel(songPreview.service)} plays from the start).` : `区間指定は YouTube のみ対応（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}
                                                     </p>
-                                                    <div className="rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
+                                                    <div className="rounded-xl overflow-hidden ring-1 ring-line bg-black">
                                                         {isYouTubePreview ? (
                                                             <div className="relative w-full" style={{ aspectRatio: "16 / 9" }}>
                                                                 <iframe
@@ -1103,7 +1104,7 @@ export default function ProfileEditPage() {
                         <button
                             onClick={() => void handleSave()}
                             disabled={saving || avatarUploading}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                         >
                             {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving
@@ -1121,7 +1122,7 @@ export default function ProfileEditPage() {
                         別の画面として描いている）。
                         **導線は残す。** パスワードを変えたい人がまず来るのは
                         ここなので、黙って消すと行き先を失う */}
-                    <div className="mt-10 pt-6 border-t border-white/10">
+                    <div className="mt-10 pt-6 border-t border-line">
                         <Link
                             href={ROUTES.SETTINGS}
                             className="flex items-center justify-between rounded-xl px-3 -mx-1 text-sm text-white/90 hover:bg-white/5 transition"

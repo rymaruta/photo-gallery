@@ -26,6 +26,7 @@ import SpotsEntry from "./components/SpotsEntry";
 import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
 import { nextTabIndex } from "../lib/utils/tabKeys";
+import { TAB_ON, TAB_OFF } from "./components/tabStyles";
 
 // フィルタバーに出すタグ数の上限（枚数の多い順）。残りは検索で辿る
 const POPULAR_TAG_LIMIT = 10;
@@ -610,7 +611,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
           もう1つ書かない**（あちらのコメントが名指ししている形） */}
       {/* 板（`Main.dc.html`）のタブ。**丸薬から下線へ。**
          採った数値: 間隔 24px ／ 1つの高さ 44px ／ 字 15px ／
-         選択中だけ太字＋下線（`inset 0 -2px 0 #fff`）／
+         選択中だけ太字＋下線（v2 で白 → 真鍮・`tabStyles.ts`）／
          列の下に 1px の細い線。
          🔴 **高さ 28px はタップ領域の基準（44px）に届いていなかった。**
          見た目の話の前に、指で押す的が小さすぎた。
@@ -618,7 +619,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
          `text-sm` も縮む（`gap-6` は 21px にしかならない）。 */}
       {surface === "home" && (
         <div role="tablist" aria-label={locale === "en" ? "Which photos" : "どの写真を見るか"}
-             className="flex items-stretch gap-[24px] mb-3 border-b border-white/[0.12]">
+             className="flex items-stretch gap-[24px] mb-3 border-b border-line">
           {HOME_TABS.map((t) => {
             const active = filters.scope === t.key;
             return (
@@ -633,9 +634,8 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
                 tabIndex={active ? 0 : -1}
                 onClick={() => setFilters({ scope: t.key })}
                 onKeyDown={onHomeTabKeyDown}
-                className={`min-h-[44px] px-0 text-[15px] transition-colors ${
-                  active ? "text-white font-semibold shadow-[inset_0_-2px_0_#fff]" : "text-white/60 hover:text-white"
-                }`}
+                // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`。以前は白の下線）
+                className={`min-h-[44px] px-0 text-[15px] transition-colors ${active ? TAB_ON : TAB_OFF}`}
                 style={{ touchAction: "manipulation" }}
               >
                 {locale === "en" ? t.en : t.ja}

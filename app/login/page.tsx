@@ -10,6 +10,7 @@ import { userFetch } from "../../lib/utils/api";
 import { ROUTES, safeNextPath } from "../../lib/routes";
 import { pendingNameKey } from "../../lib/utils/pendingName";
 import { LockClosedIcon, EnvelopeIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { BTN_FILL } from "../components/buttonStyles";
 
 type Step = "login" | "forgot-send" | "forgot-confirm" | "forgot-done";
 
@@ -237,7 +238,7 @@ function LoginForm() {
                                 autoComplete="email"
                                 placeholder="example@email.com"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
                             />
                         </div>
                         <div>
@@ -251,14 +252,14 @@ function LoginForm() {
                                 autoComplete="current-password"
                                 placeholder="••••••••"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={submitting || !username || !password}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2`}
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -303,13 +304,13 @@ function LoginForm() {
                                 autoComplete="email"
                                 placeholder="example@email.com"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
                         </div>
                         <button
                             type="submit"
                             disabled={submitting || !username}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -342,7 +343,7 @@ function LoginForm() {
                                 required
                                 placeholder="メールに届いたコードを入力"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors tracking-widest"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors tracking-widest"
                             />
                         </div>
                         <div>
@@ -356,13 +357,13 @@ function LoginForm() {
                                 required
                                 placeholder="8文字以上、英大・小文字・数字・記号を含む"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
                         </div>
                         <button
                             type="submit"
                             disabled={submitting || resetCode.trim().length < 6 || !newPassword}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -381,7 +382,7 @@ function LoginForm() {
                         <p className="text-white/60 text-sm">パスワードが更新されました。</p>
                         <button
                             onClick={() => { setStep("login"); setError(""); setPassword(""); }}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition`}
                         >
                             ログインする
                         </button>

@@ -656,7 +656,7 @@ export default function PhotoMap({
             // ——`2922526f` で直したのと同じ形（あのときは Leaflet のペインだった）。
             // 外枠でスタッキングコンテキストを作れば、地図の中の重なり順は
             // どれだけ大きい値でもこの枠から出ない。
-            className={`photo-map-frame relative isolate w-full rounded-2xl overflow-hidden ring-1 ring-white/10 ${className || "h-[70vh] min-h-[320px]"}`}
+            className={`photo-map-frame relative isolate w-full rounded-2xl overflow-hidden ring-1 ring-line ${className || "h-[70vh] min-h-[320px]"}`}
         >
             <div
                 ref={containerRef}

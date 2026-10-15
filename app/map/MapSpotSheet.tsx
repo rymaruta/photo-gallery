@@ -62,7 +62,7 @@ export default function MapSpotSheet({
                         （`lib/data/spotLink.ts` の `toSpotLink`）ので、
                         ここは在れば出す・無ければ枠ごと出さないだけ */}
                     {spot.cover && (
-                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5 relative"
+                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface relative"
                               style={{ width: "72px", height: "72px" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={spot.cover.src} alt={spot.cover.alt} width={72} height={72}
@@ -77,7 +77,7 @@ export default function MapSpotSheet({
                         </span>
                     )}
                     <div className="min-w-0 flex-1">
-                        <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "11px", lineHeight: "16px" }}>
+                        <p className="m-0 flex items-center gap-1.5 text-white/60" style={{ fontSize: "12px", lineHeight: "16px" }}>
                             <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                             {/* **「公式」と名乗るのは、人が確かめたものだけ**（`stage`）。
                                 運営未確認の下書きは「下書き」と名乗る。利用者の投稿から

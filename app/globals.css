@@ -1,32 +1,48 @@
 @import "tailwindcss";
 
-/* **デザインシステム「黒塗りの真鍮」（2026-09-25・iOS 版と同じ値）。**
-   出どころは iOS の `BrandPalette.swift` と、アーティファクトの
-   `DesignSystem.dc.html`（両者は全色一致。`docs/ios-alignment-2026-09-27.md` §2）。
-   それまでの紺＋青（2026-09-21 のモック）は、シート自身が「紺はやめる」と書いて置き換えた。
+/* **デザインシステム「黒塗りの真鍮」v2（2026-10-15・iOS 版と同じ値）。**
+   出どころは iOS の `BrandPalette.swift`・`WebTheme.swift`・`JPMetrics.swift`（origin/main）と、
+   アーティファクト「デザインシステム v2」の `DesignSystem.dc.html`・`Components.dc.html`。
+   v1（2026-09-25）との違いは**面を一段沈めたこと**と、文字の3段・金属の光・面の段を足したこと:
+     札 #121212 → #0E0E0F ／ 入力欄 #1A1A1A → #161617 ／ 案内の帯 #201B11 → #1C170E ／
+     白の主ボタン 92% → 94% ／ 区切り線 白12% → 白8%（線のボタン・入力欄の縁は白14%）。
+   真鍮・危険・成功・現在地は v1 のまま。値を変えたら `designTokens.test.ts` が iOS の値と突き合わせる。
 
-   **規則は1行: 白＝位置と選択、真鍮＝合図と手がかり。写真の上には白しか置かない。**
-     - 選択中のチップ・タブ・写真の上の押せるもの → `primary`（白92%）＋ `ink`
+   **規則は1行: 白＝位置、真鍮＝合図と手がかりと選択。写真の上には白しか置かない。**
+     - 選択中のチップ・写真の上の押せるもの・写真のある画面の主ボタン → `primary`（白94%）＋ `ink`
      - 写真の無い画面の主ボタン → `accent-fill`（真鍮）＋ `ink`。
        **真鍮の塗りに白文字は 2.81:1 で読めない**（`textContrast.test.ts` が縛る）
-     - 文字・点・輪・リンク・フォーカスの枠 → `accent`（黒の上で 9.15:1）
+     - 文字・点・輪・リンク・フォーカスの枠・選んでいるタブ → `accent`（黒の上で 9.15:1）
+       （選んでいるタブは owner の好み 2026-09-29「デザインの箇所は白より真鍮」・`tabStyles.ts`）
    **ライトは無い。** iOS も端末の明暗に従わない（`RootView.swift` の `.preferredColorScheme(.dark)`）。 */
 @theme {
   --color-bg: #000000;           /* 画面の下地（純黒） */
   --color-bar: #000000;          /* ヘッダー（アーティファクトは下地と同じ黒） */
-  --color-surface: #121212;      /* カード・チップ（白 7%） */
-  --color-surface-2: #1a1a1a;    /* 入力欄・副ボタン（白 10%） */
-  --color-line: rgb(255 255 255 / 0.12);  /* 装飾の髪線。部品の縁は outline を使う（黒の上で 1.27）。例外はチップ・押せるカードの縁（iOS の指定。文字や写真で押せると分かる・chipStyles.ts ほか） */
-  --color-outline: #666666;      /* 入力欄・枠線ボタンの縁（部品の縁は 3:1 が要る。黒の上で 3.66） */
-  --color-primary: #ebebeb;      /* 白の塗り（白 92%）。上の字は ink（16.74:1） */
+  --color-surface: #0e0e0f;      /* 札の面（v2 surface-1。v1 は #121212） */
+  --color-surface-2: #161617;    /* 入力欄・シートの地（v2 surface-2。v1 は #1a1a1a） */
+  /* 面の段（surface-2 より上。iOS の `BrandPalette.surface3`〜`surface8`・数が大きいほど明るい） */
+  --color-surface-3: #1a1a1c;    /* 一段浮かせた小さな面 */
+  --color-surface-4: #1c1c1e;    /* 読み込み中の骨格の灰 */
+  --color-surface-5: #1e1e20;    /* メニューのシートの地 */
+  --color-surface-6: #28282a;    /* 削除の確認の地 */
+  --color-surface-7: #2a2a2c;    /* 「外す」の丸 */
+  --color-surface-8: #2c2c2e;    /* つながったセグメントの選んだ側 */
+  --color-line: rgb(255 255 255 / 0.08);  /* 区切り線（v2 hairline・白8%）。札の縁・行の間・チップの縁。部品の縁が要る所は line-strong か outline */
+  --color-line-strong: rgb(255 255 255 / 0.14); /* 線のボタン・入力欄の縁（v2 line・白14%） */
+  --color-outline: #666666;      /* 3:1 が要る部品の縁（黒の上で 3.66） */
+  --color-primary: #f0f0f0;      /* 白の塗り（白 94%・v1 は 92% の #ebebeb）。上の字は ink */
   --color-ink: #07090a;          /* 白・真鍮の塗りに載せる文字（墨） */
-  --color-accent: #c9a66b;       /* 真鍮。文字・アイコン・点・輪・フォーカス（黒の上で 9.15:1） */
+  --color-text-2: #b8b8b8;       /* 副文の字（v2 text-2・黒の上 10.6:1）。黒地・札の上だけ——写真の上は白の透過 */
+  --color-text-3: #9a9a9a;       /* 注記・@名・日時の字（v2 text-3・黒の上 7.46:1）。同上 */
+  --color-accent: #c9a66b;       /* 真鍮。文字・アイコン・点・輪・フォーカス・選んでいるタブ（黒の上で 9.15:1） */
   --color-accent-strong: #e3c98f;/* リンクを押している間 */
   --color-accent-fill: #b8955a;  /* 写真の無い画面の主ボタン（墨で 7.11:1・白は 2.81:1 で不可） */
   --color-accent-deep: #796440;  /* 白を載せる真鍮（白で 5.66:1）。トグル・地図の印 */
-  --color-accent-soft: #201b11;  /* 案内の帯（真鍮 16%）。選択状態は担わない */
+  --color-accent-soft: #1c170e;  /* 案内の帯（真鍮 8%・v1 は 16% の #201b11）。選択状態は担わない */
+  --color-accent-hi: #f3dca6;    /* 金属の光の明るい端（v2 brass-hi）。輪・メダル・Pro の印の光だけ。字には使わない */
+  --color-accent-lo: #9a7a45;    /* 金属の光の暗い端（v2 brass-lo） */
   --color-link: #c9a66b;         /* 「もっと見る」「すべて見る」（＝真鍮） */
-  --color-chip: #1a1a1a;         /* チップの面 */
+  --color-chip: rgb(255 255 255 / 0.07); /* チップの面（v2: 白7%＋白8%の縁 `ring-line`。黒の上で #121212 相当） */
   --color-chip-text: #d4d4d4;    /* 同・文字（白 82% 相当） */
   --color-danger: #f0565a;       /* 削除・通報・エラーの文字（黒の上で 6.18:1） */
   --color-danger-fill: #c8323a;  /* アカウント削除の確定だけ（白で 5.29:1） */
@@ -200,6 +216,16 @@ body {
   }
 }
 
+/* ヘッダーの右の「お知らせ・メニュー」を入れるガラスの丸い札（`headerIcon.ts` の HEADER_GLASS）。
+   値は v2 の板の `.glass`（白みの灰 62%・上辺に白24%の髪線・白9%の縁）。
+   🔴 **`backdrop-filter` は付けない。** ヘッダーは透けない黒なのでぼかしても見た目は変わらず、
+   付けると中の要素の `position: fixed` の基準がこの札になり（CSS の仕様）、お知らせの
+   吊る板（`NotificationsBell` の PC 版・札の中に `absolute` で置く）のぼかしも札の中しか見なくなる */
+.header-glass {
+  background: rgb(34 34 36 / 0.62);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.24), inset 0 0 0 0.5px rgb(255 255 255 / 0.09);
+}
+
 /* HeaderNav で使用 */
 .site-header__nav {
   font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;
@@ -240,15 +266,6 @@ body {
   will-change: transform;
 }
 
-/* プロフィールのアバター: 旅パレット(sky→emerald)のオーロラリングをゆっくり回転 */
-@keyframes avatar-orbit {
-  to { transform: rotate(360deg); }
-}
-.avatar-orbit {
-  animation: avatar-orbit 10s linear infinite;
-  will-change: transform;
-}
-
 /* ダブルタップいいね: 画面中央でハートが弾けて消える（Instagram風） */
 @keyframes heart-burst {
   0% { transform: scale(0); opacity: 0; }
@@ -265,7 +282,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
   .heart-burst { animation-duration: 300ms; }
-  .avatar-orbit { animation: none; }
 }
 
 /* モバイル: ベースフォントサイズを少し下げる */

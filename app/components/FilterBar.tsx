@@ -15,7 +15,7 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { getLabels } from "../i18n/labels";
 import type { FilterValues } from "../../lib/types/gallery";
 import { tagKey } from "../../lib/utils/collections";
-import { CHIP_ON, CHIP_OFF } from "./chipStyles";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 
 type TagInfo = { label: string; desc?: string };
 
@@ -251,8 +251,8 @@ function FilterBarInner({
     // Styles memoized to avoid re-creating objects on each render
     const STYLE = useMemo(
         () => ({
-            chipBase: { padding: "6px 14px", minHeight: 32, borderRadius: 9999, width: "auto", flexShrink: 0 } as React.CSSProperties,
-            controlBtn: { padding: "6px 14px", minHeight: 32, borderRadius: 9999, whiteSpace: "nowrap", flexShrink: 0 } as React.CSSProperties,
+            chipBase: { ...CHIP_SIZE, borderRadius: 9999, width: "auto", flexShrink: 0 } as React.CSSProperties,
+            controlBtn: { ...CHIP_SIZE, borderRadius: 9999, whiteSpace: "nowrap", flexShrink: 0 } as React.CSSProperties,
         }),
         []
     );
@@ -332,7 +332,7 @@ function FilterBarInner({
                         <span className="truncate" style={{ maxWidth: 160 }}>
                             {display}
                         </span>
-                        {showCount ? <span className={`text-[11px] ${active ? "text-ink/70" : "text-white/60"}`}>{count}</span> : null}
+                        {showCount ? <span className={`text-[12px] ${active ? "text-ink/70" : "text-white/60"}`}>{count}</span> : null}
                     </button>
                 );
             }),

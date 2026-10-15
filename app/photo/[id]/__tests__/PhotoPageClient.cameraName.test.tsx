@@ -35,6 +35,8 @@ vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
 /** 撮影情報は初期は畳まれている（中身は DOM に残るが、`getByRole` は hidden を拾わない）。開いてから見る */
 const expandExif = () => { const b = screen.queryByRole("button", { name: "詳しく見る" }); if (b) fireEvent.click(b); };
+// **同じ値が2か所に出る**（v2: 畳んだ見出しの要約「f/4」と機材の行「機種 · レンズ」が、下の升目と同じ値を
+// 言う）。「出ているか」は `findAllByText` で見る——二重のメーカー名が無いことは `queryByText(/…/)` が全体で見る
 
 // exif を持たない写真（＝画面で抽出する経路に入る）
 const base = { id: "p1", src: "https://cdn.example.com/uploads/u1/a.jpg", userId: "u1", title: "写真" };
@@ -50,7 +52,7 @@ describe("写真ページ: 画面で抽出したカメラ名", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
         // 抽出は本体の画像が読み込まれてから
         fireEvent.load(screen.getByAltText(/写真/));
-        await screen.findByText("Hasselblad X2D 100C");
+        await screen.findAllByText("Hasselblad X2D 100C");
         expect(screen.queryByText(/Hasselblad Hasselblad/)).toBeNull();
     });
 
@@ -58,7 +60,7 @@ describe("写真ページ: 画面で抽出したカメラ名", () => {
         mockParse.mockResolvedValue({ Make: "Canon", Model: "EOS R5" });
         render(<PhotoPageClient photoId="p1" initialPhoto={base} />);
         fireEvent.load(screen.getByAltText(/写真/));
-        await screen.findByText("Canon EOS R5");
+        await screen.findAllByText("Canon EOS R5");
     });
 });
 
@@ -88,7 +90,7 @@ describe("写真ページ: 端末で抽出できなかったときの控え", ()
         mockParse.mockResolvedValue(null);
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...stored, exif: { camera: "SONY ILCE-7M3" } }} />);
         fireEvent.load(screen.getByAltText(/写真/));
-        await screen.findByText("SONY ILCE-7M3");
+        await screen.findAllByText("SONY ILCE-7M3");
     });
 });
 
@@ -117,7 +119,7 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
         mockParse.mockResolvedValue({ Make: "SONY", Model: "ILCE-7M3" });
         render(<PhotoPageClient photoId="p1" initialPhoto={base} />);   // 保存済み exif なし
         fireEvent.load(screen.getByAltText(/写真/));
-        await screen.findByText("SONY ILCE-7M3");
+        await screen.findAllByText("SONY ILCE-7M3");
         expandExif();   // 畳んだままだと hidden で null になり、何も確かめない
         expect(screen.queryByRole("link", { name: "SONY ILCE-7M3" }),
             "集約に載っていない写真からリンクしている").toBeNull();
@@ -141,7 +143,7 @@ describe("写真ページ: カメラ名から機材ページへ", () => {
         mockParse.mockResolvedValue(null);
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...base, exif: { camera: "SONY ILCE-7M3", aperture: "f/4" } }} />);
         fireEvent.load(screen.getByAltText(/写真/));
-        await screen.findByText("f/4");
+        await screen.findAllByText("f/4");
         expect(screen.queryByRole("link", { name: "f/4" })).toBeNull();
     });
 });

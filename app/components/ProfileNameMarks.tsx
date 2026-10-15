@@ -87,7 +87,7 @@ function MedalListDialog({ badges, ownerName, locale, onClose, restoreRef, manag
             data-testid="medal-list"
         >
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-            <div className="relative z-10 w-full max-w-sm max-h-[80vh] flex flex-col rounded-3xl bg-surface ring-1 ring-white/10 shadow-2xl shadow-black/60 story-media-in">
+            <div className="relative z-10 w-full max-w-sm max-h-[80vh] flex flex-col rounded-3xl bg-surface ring-1 ring-line shadow-2xl shadow-black/60 story-media-in">
                 <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
                     <h2 className="text-base font-bold tracking-tight text-white truncate">{title}</h2>
                     <button

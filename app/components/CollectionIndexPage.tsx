@@ -94,7 +94,7 @@ export default async function CollectionIndexPage({ type }: { type: CollectionTy
                             <Link
                                 href={collectionPath(type, e.slug)}
                                 prefetch={false}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface ring-1 ring-line text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {type === "tag" ? `#${labelOf(e.slug, e.label)}` : labelOf(e.slug, e.label)}
@@ -140,7 +140,7 @@ function LocationGroups({ entries }: { entries: { slug: string; label: string; c
                             href={collectionPath("location", e.slug)}
                             prefetch={false}
                             title={e.label}
-                            className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-sm text-white/85 hover:bg-white/10 hover:text-white transition-colors"
+                            className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-full bg-surface ring-1 ring-line text-sm text-white/85 hover:bg-white/10 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
                             {e.parts.title}

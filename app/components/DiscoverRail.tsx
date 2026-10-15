@@ -9,7 +9,7 @@ import {
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import Thumb from "./Thumb";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { placeParts, placeLine } from "../../lib/utils/placeName";
 
 /**
@@ -126,7 +126,7 @@ function RailHead({ id, title, href, more }: { id: string; title: string; href?:
             {href && (
                 <Link href={href} prefetch={false}
                    className="flex-shrink-0 text-white/55 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
-                   style={{ fontSize: "11px", lineHeight: "16px" }}>
+                   style={{ fontSize: "12px", lineHeight: "16px" }}>
                     {more} <span aria-hidden="true">›</span>
                 </Link>
             )}
@@ -179,7 +179,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                                   style={{ fontSize: "12px", lineHeight: "16px" }} title={s.label}>{placeParts(s.label).title}</span>
                                             {/* 地域が長くても**枚数は切らない** */}
                                             <span className="flex text-white/80"
-                                                  style={{ fontSize: "11px", lineHeight: "15px" }}>
+                                                  style={{ fontSize: "12px", lineHeight: "15px" }}>
                                                 <span className="truncate min-w-0">{placeLine(s.label, isJa)}</span>
                                                 <span className="shrink-0">{isJa ? `${s.count}枚` : `${s.count} photos`}</span>
                                             </span>
@@ -210,7 +210,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                             {cv && <Thumb photo={cv} alt="" sizes="64px" />}
                                         </span>
                                         <span className="block mt-1.5 text-white truncate"
-                                              style={{ fontSize: "11px", lineHeight: "15px" }}>
+                                              style={{ fontSize: "12px", lineHeight: "15px" }}>
                                             {categoryDisplayMap[c.slug] ?? c.label}
                                         </span>
                                     </Link>
@@ -234,9 +234,9 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             <li key={c.slug}>
                                 <Link href={linkTo("camera", c.slug)} prefetch={false}
                                    className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                   style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
+                                   style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {c.label}
-                                    <span className="text-white/60" style={{ fontSize: "10px" }}>{c.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>
                                 </Link>
                             </li>
                         ))}
@@ -253,9 +253,9 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             <li key={t.slug}>
                                 <Link href={collectionPath("tag", t.slug)} prefetch={false}
                                    className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                   style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
+                                   style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     #{t.label.replace(/^#/, "")}
-                                    <span className="text-white/60" style={{ fontSize: "10px" }}>{t.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
                                 </Link>
                             </li>
                         ))}

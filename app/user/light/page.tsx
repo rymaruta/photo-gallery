@@ -10,7 +10,7 @@
  *
  * 板のとおり:
  * - 眉ラベル「行きたい場所の光（今週）」（真鍮・黒地の上の合図）
- * - 場所ごとの札（地 #121212・角 14）: 左に色の四角 56px、名前（14 太字）といつ（12・白65%）、
+ * - 場所ごとの札（地 `bg-surface`＝#0E0E0F・角 14）: 左に色の四角 56px、名前（14 太字）といつ（12・白65%）、
  *   右に天気（13 太字）と見込み（12・白60%）。見込み「高」のいちばん早い1枚だけ真鍮 1.5px の縁
  * - 注記（12・板の文言）
  *
@@ -32,6 +32,7 @@ import {
     parseLightForecast, parseWeatherLogo, attributionJsonUrl, failureOf, failureText, lightCards, weekLines, noteFor, TONE_COLOR,
     type LightFailure, type LightForecast, type LightLocale, type WeatherLogo,
 } from "../../../lib/utils/lightForecast";
+import { BTN_LINE } from "../../components/buttonStyles";
 
 type Phase =
     | { kind: "loading" }
@@ -134,7 +135,7 @@ export default function LightForecastPage() {
                                 <button
                                     type="button"
                                     onClick={retry}
-                                    className="mt-5 inline-flex items-center justify-center px-5 rounded-full ring-1 ring-outline text-sm text-white hover:bg-white/5 transition"
+                                    className={`${BTN_LINE} mt-5 inline-flex items-center justify-center hover:bg-white/5 transition`}
                                     style={{ minHeight: "44px", touchAction: "manipulation" }}
                                 >
                                     {en ? "Try again" : "もう一度読み込む"}

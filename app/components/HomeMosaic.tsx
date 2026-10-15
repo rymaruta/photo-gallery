@@ -109,7 +109,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             className="relative block overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             style={{
                 aspectRatio: large ? "16 / 9" : "1 / 1",
-                backgroundColor: photo.dominantColor ?? "#121212",
+                backgroundColor: photo.dominantColor ?? "var(--color-surface)",
                 touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",
             } as React.CSSProperties}
@@ -133,7 +133,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
                        style={{ fontSize: large ? "22px" : "18px", lineHeight: 1.25, textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
                         {place}
                     </p>
-                    <p className="m-0 text-white/80 truncate" style={{ fontSize: "11px", lineHeight: "14px", marginTop: 2 }}>
+                    <p className="m-0 text-white/80 truncate" style={{ fontSize: "12px", lineHeight: "14px", marginTop: 2 }}>
                         {byline}
                     </p>
                 </div>
@@ -162,7 +162,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             <span className="absolute inline-flex items-center gap-1 rounded-full text-white bg-black/55 backdrop-blur-md pointer-events-none"
                   style={{ right: 6, bottom: 6, minWidth: 44, height: 32, padding: "0 10px", justifyContent: "center" }}>
                 <HeartIcon aria-hidden="true" style={{ width: 14, height: 14, strokeWidth: 2 }} />
-                <span aria-hidden="true" className="font-mono tabular-nums" style={{ fontSize: "11px" }}>{likes.toLocaleString()}</span>
+                <span aria-hidden="true" className="font-mono tabular-nums" style={{ fontSize: "12px" }}>{likes.toLocaleString()}</span>
                 <span className="sr-only">
                     {isJa ? `、いいね ${likes.toLocaleString()}件` : `, ${likes.toLocaleString()} ${likes === 1 ? "like" : "likes"}`}
                 </span>

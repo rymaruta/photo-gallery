@@ -66,7 +66,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     };
 
     return (
-        <section className={hideHeading ? "" : "pt-5 border-t border-white/10"}>
+        <section className={hideHeading ? "" : "pt-5 border-t border-line"}>
             <div className="flex items-center gap-1.5 mb-3" hidden={hideHeading}>
                 <ChatBubbleOvalLeftIcon className="w-4 h-4 text-white/50" />
                 <h2 className="text-sm font-semibold text-white/70">
@@ -94,7 +94,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                         placeholder={locale === "en" ? "Add a comment…" : "コメントを追加…"}
                         rows={2}
                         maxLength={500}
-                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
+                        className="flex-1 min-w-0 bg-surface-2 border border-line-strong rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
                         style={{ fontSize: "16px" }}
                     />
                     <button
@@ -168,7 +168,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                 {c.name}
                                             </Link>
                                         )}
-                                        <span className="text-[11px] text-white/50 flex-shrink-0">{timeAgo(c.t, locale)}</span>
+                                        <span className="text-[12px] text-white/50 flex-shrink-0">{timeAgo(c.t, locale)}</span>
                                         {canDelete && (
                                             <button
                                                 onClick={() => void remove(c.id).then((ok) => {
