@@ -216,6 +216,16 @@ body {
   }
 }
 
+/* ヘッダーの右の「お知らせ・メニュー」を入れるガラスの丸い札（`headerIcon.ts` の HEADER_GLASS）。
+   値は v2 の板の `.glass`（白みの灰 62%・上辺に白24%の髪線・白9%の縁）。
+   🔴 **`backdrop-filter` は付けない。** ヘッダーは透けない黒なのでぼかしても見た目は変わらず、
+   付けると中の要素の `position: fixed` の基準がこの札になり（CSS の仕様）、お知らせの
+   吊る板（`NotificationsBell` の PC 版・札の中に `absolute` で置く）のぼかしも札の中しか見なくなる */
+.header-glass {
+  background: rgb(34 34 36 / 0.62);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.24), inset 0 0 0 0.5px rgb(255 255 255 / 0.09);
+}
+
 /* HeaderNav で使用 */
 .site-header__nav {
   font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;

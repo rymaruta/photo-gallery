@@ -10,7 +10,7 @@ import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import NotificationsBell from "./NotificationsBell";
-import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
+import { HEADER_GLASS, HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
@@ -138,6 +138,9 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             >
                 <MagnifyingGlassIcon aria-hidden="true" style={HEADER_ICON_STYLE} />
             </button>
+            {/* **お知らせとメニューは1つのガラスの丸い札に入れる**（2026-10-15・iOS v2 の
+                バーの右の項目と同じ）。探すは札の外（iOS もホームだけの別の入口） */}
+            <div className={HEADER_GLASS} data-header-glass>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* **自分のアバターは出さない**（iOS のヘッダーは 探す・お知らせ・メニュー の3つ）。
@@ -166,6 +169,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             >
                 {open ? <XMarkIcon aria-hidden="true" style={HEADER_ICON_STYLE} /> : <Bars3Icon aria-hidden="true" style={HEADER_ICON_STYLE} />}
             </button>
+            </div>
 
             {/* メニューは body へポータルする。以前ヘッダーが backdrop-blur を持っていた頃、
                 backdrop-filter は CSS 仕様で position:fixed の包含ブロックになるため、

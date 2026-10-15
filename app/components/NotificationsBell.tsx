@@ -1031,7 +1031,7 @@ export default function NotificationsBell() {
                 aria-label={locale === "en" ? "Notifications" : "通知"}
                 aria-describedby={unread > 0 ? unreadDescId : undefined}
                 aria-expanded={open}
-                // **探す・メニューと同じ丸い押し面**（iOS: 箱なし・44px・アイコン22px・線1.7）。
+                // **探す・メニューと同じ丸い押し面**（iOS v2: 箱なし・44px・アイコン17px・線1.6）。
                 // 以前はここだけ `rounded-md` で、スマホでは rem の `w-11` が 38.5px に縮んでいた
                 className={HEADER_ICON_BTN}
                 style={HEADER_ICON_BTN_STYLE}
