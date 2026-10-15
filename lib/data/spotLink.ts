@@ -30,6 +30,7 @@
 
 import { SPOTS, type Spot } from "./spots";
 import { visibleSpots, isPublished, usesMapHero, needsVisibleCredit } from "../utils/spotGuide";
+import { spotTimeZone } from "../utils/sunTimes";
 import {
     PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
     prefectureByName, type RegionName,
@@ -125,6 +126,19 @@ export function spotLinkForPhoto(spotId: string | undefined | null): SpotLink | 
     if (!spotId) return null;
     const spot = visibleSpots(SPOTS).find((s) => s.spotId === spotId);
     return spot ? toSpotLink(spot) : null;
+}
+
+/**
+ * 写真が指しているスポットの**時刻帯**（光の時刻をその土地の時計で言うため）。
+ * 引き方は `spotLinkForPhoto` と同じ（`spotId` だけ）。分からなければ `null`。
+ *
+ * **`SpotLink` に足さない。** あの型は写真ページ以外（索引・地図・旅行プラン）にも
+ * 乗るので、写真ページだけが読む値は別に渡す（冒頭の実測の理由）。
+ */
+export function spotTimeZoneForPhoto(spotId: string | undefined | null): string | null {
+    if (!spotId) return null;
+    const spot = visibleSpots(SPOTS).find((s) => s.spotId === spotId);
+    return spot ? spotTimeZone(spot.timeZone, spot.region?.country) : null;
 }
 
 /**
