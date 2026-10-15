@@ -31,6 +31,9 @@ import { presignAndPut } from "../../../lib/utils/uploadToS3";
 import { readSpotParam, spotBodyUrl, parseSpotBody, coversSpot, spotIdToSend, type SpotUploadTarget } from "../../../lib/utils/spotUpload";
 import { CATEGORY_CHOICES, isChosenCategory, toggleCategory } from "../../../lib/utils/categoryChoices";
 import { TAG_CHOICES } from "../../../lib/utils/tagChoices";
+import { normalizeInspiredId, inspiredPickFrom, inspiredWasDropped, InspiredCarrier, type InspiredPick } from "../../../lib/utils/inspired";
+import { getLocalized } from "../../../lib/data/photos";
+import { publicImageUrl } from "../../../lib/utils/seo";
 // 上限は lib/utils/uploadLimits.ts に置く（api-user 側と対。理由はあちらに書いた）
 import { PHOTO_LIMIT_PER_USER, PHOTO_IMAGES_MAX } from "../../../lib/utils/uploadLimits";
 
@@ -219,6 +222,50 @@ function UploadPageInner() {
             window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
         } catch { /* ignore */ }
     }, []);
+
+    /**
+     * **「この写真を見て撮りに行く」から来た**（`?inspiredBy=<写真ID>`・写真の詳細の NEXT TRIP）。
+     *
+     * 元の写真は未認証の公開の口 `GET /photos/{id}` で読む（非公開・絞った写真・ストーリーは 404）。
+     * **読めない・公開で全員に見せていない・自分の写真なら欄を出さず、付けない**
+     * （`inspiredPickFrom`・アプリの `InspiredBy.canAttach`）。サーバーも見られない元の写真は黙って
+     * 付けないが、付かないものを「付けます」と見せない。
+     * 載せるのは投稿のうち1枚だけ（`InspiredCarrier`——付いた1枚ごとに元の作者へ通知が届く）。
+     * 「外す」で `null` に戻し、URL からも消す（再読込で戻ってこないように）
+     */
+    const inspiredParam = normalizeInspiredId(searchParams?.get("inspiredBy"));
+    const [inspired, setInspired] = useState<InspiredPick | null>(null);
+    const inspiredCarrierRef = useRef(new InspiredCarrier());
+    /** 外した ID（URL を消す前に読み直しが走っても戻さない） */
+    const inspiredRemovedRef = useRef<string | null>(null);
+    useEffect(() => {
+        // 自分の写真かどうかは人で決まるので、ログインの判定を待つ
+        if (!inspiredParam || loading || inspiredRemovedRef.current === inspiredParam) return;
+        let alive = true;
+        void (async () => {
+            try {
+                const { publicFetch } = await import("../../../lib/utils/api");
+                const res = await publicFetch(`/photos/${encodeURIComponent(inspiredParam)}`);
+                const pick = res.ok ? inspiredPickFrom(await res.json(), inspiredParam, userId) : null;
+                if (!alive || inspiredRemovedRef.current === inspiredParam) return;
+                setInspired(pick);
+            } catch {
+                // 読めなければ付けない（投稿自体はできる）
+                if (alive) setInspired(null);
+            }
+        })();
+        return () => { alive = false; };
+    }, [inspiredParam, loading, userId]);
+    const removeInspired = useCallback(() => {
+        inspiredRemovedRef.current = inspiredParam;
+        setInspired(null);
+        inspiredCarrierRef.current = new InspiredCarrier();
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("inspiredBy");
+            window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        } catch { /* ignore */ }
+    }, [inspiredParam]);
 
     /** 下の帯の高さを `--page-bar-h` に出す（`body` がそのぶん下を空ける）。
      *  **`--bottom-bar-h` には書かない**——このファイルの下の帯のコメントが
@@ -991,7 +1038,25 @@ function UploadPageInner() {
             }
             return prev.filter((x) => x.id !== id);
         });
+        // 元の写真を載せる1枚を外したなら、次の写真に引き継ぐ（届いていても `saved` 済みなら何もしない）
+        inspiredCarrierRef.current.notDelivered(id);
     }, [discardUploaded]);
+
+    /**
+     * 元の写真を送ったのに付かなかった（元の写真が非公開・削除・ブロックになった）ことを言う。
+     * 投稿自体は成功している。応答に写真が無い・読めない回は分からないので黙る（`inspiredWasDropped`）
+     */
+    const noteInspiredDropped = useCallback((sent: string, res: Response) => {
+        void (async () => {
+            try {
+                const json = await res.json() as { photo?: unknown } | null;
+                if (!inspiredWasDropped(sent, json?.photo)) return;
+                showToast(locale === "en"
+                    ? "Posted, but the original photo couldn't be attached (it may have been made private or deleted)."
+                    : "投稿しました。元の写真は付けられませんでした（非公開になったか、削除された可能性があります）", "info");
+            } catch { /* 読めなければ黙る */ }
+        })();
+    }, [locale, showToast]);
 
     const handleUploadAll = useCallback(async (published: boolean) => {
         const pending = items.filter((it) => it.status === "pending" || it.status === "error");
@@ -1213,6 +1278,8 @@ function UploadPageInner() {
                         continue;
                     }
 
+                    // 元の写真。**投稿のうち1枚だけ**に載せる（`InspiredCarrier`）
+                    const inspiredId = inspiredCarrierRef.current.idToSend(item.id, inspired?.id);
                     const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
@@ -1240,12 +1307,20 @@ function UploadPageInner() {
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。**この写真がその近くで、撮影地に名前を含むときだけ**
                             ...(() => { const id = spotIdToSend(spot, item); return id ? { spotId: id } : {}; })(),
+                            // この写真を見て撮影（形の合う ID だけ・付くかはサーバーが確かめる）
+                            ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
                         }),
                     });
                     if (!saveResponse.ok) {
+                        // 4xx は確実に保存されていない（次の写真に引き継ぐ）。5xx は届いたか分からないので持ち越す
+                        if (inspiredId && saveResponse.status < 500) inspiredCarrierRef.current.notDelivered(item.id);
                         throw new Error(await readApiError(saveResponse,
                             locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
+                    }
+                    if (inspiredId) {
+                        inspiredCarrierRef.current.saved(item.id);
+                        noteInspiredDropped(inspiredId, saveResponse);
                     }
                     updateItem(item.id, { status: "done", progress: 100 });
                     successCount++;
@@ -1311,6 +1386,8 @@ function UploadPageInner() {
                         ? { lat: Math.round(c.latitude * 100) / 100, lng: Math.round(c.longitude * 100) / 100 }
                         : undefined;
                     const cameraExif = await extractCameraExif(c.file);
+                    // 元の写真。1件にまとめる回は表紙の1回の保存に載せる
+                    const inspiredId = inspiredCarrierRef.current.idToSend(c.id, inspired?.id);
                     const saveResponse = await apiFetch("/upload/save", {
                         method: "POST",
                         signal,
@@ -1332,6 +1409,7 @@ function UploadPageInner() {
                             ...(albumId ? { albumId } : {}),
                             // 撮影スポット。1件にまとめる回は表紙の写真で決める（題・撮影地と同じ）
                             ...(() => { const id = spotIdToSend(spot, c); return id ? { spotId: id } : {}; })(),
+                            ...(inspiredId ? { inspiredBy: inspiredId } : {}),
                             ...audienceForSave(audience),
                             // **2枚目以降。** サーバーは表紙とまったく同じ厳しさで
                             // 確かめる（`api-user/src/photoImages.ts`）ので、
@@ -1346,8 +1424,13 @@ function UploadPageInner() {
                         }),
                     });
                     if (!saveResponse.ok) {
+                        if (inspiredId && saveResponse.status < 500) inspiredCarrierRef.current.notDelivered(c.id);
                         throw new Error(await readApiError(saveResponse,
                             locale === "en" ? "Could not save the photo." : "写真を保存できませんでした。"));
+                    }
+                    if (inspiredId) {
+                        inspiredCarrierRef.current.saved(c.id);
+                        noteInspiredDropped(inspiredId, saveResponse);
                     }
                     for (const g of group) updateItem(g.item.id, { status: "done", progress: 100 });
                     successCount = group.length;
@@ -1448,7 +1531,7 @@ function UploadPageInner() {
             setStopping(false);
             uploadAbortRef.current = null;
         }
-    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot]);
+    }, [items, category, tags, gpsAutofill, locale, router, showToast, updateItem, discardKeys, albumId, asOnePost, clearOwnDraft, audience, userId, spot, inspired, noteInspiredDropped]);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;
@@ -1629,6 +1712,47 @@ function UploadPageInner() {
                             aria-label={spot ? (isJa ? `撮影スポット「${spot.name}」を外す` : `Unlink ${spot.name}`) : (isJa ? "閉じる" : "Dismiss")}
                         >
                             {spot ? (isJa ? "外す" : "Unlink") : (isJa ? "閉じる" : "Dismiss")}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* **「この写真を見て撮影」の欄**（写真の詳細の「この写真を見て撮りに行く」から来たときだけ）。
+                元の写真の小さな札（題・撮影地・作者）を見せ、「外す」で付けずに投稿できる。
+                見た目は撮影スポットの帯・写真ページの `InspiredByLine` に揃える（新しい見た目を増やさない） */}
+            {inspired && (
+                <div className={`${COLUMN} pt-3`}>
+                    <div className="flex items-center gap-3 rounded-2xl bg-surface ring-1 ring-line px-3.5 py-2.5" data-testid="upload-inspired">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={publicImageUrl(inspired.thumb)} alt="" loading="lazy" decoding="async"
+                             className="shrink-0 rounded-xl object-cover bg-surface-2"
+                             style={{ width: "44px", height: "44px" }} />
+                        <div className="min-w-0 flex-1">
+                            <p className="m-0 text-white/60" style={{ fontSize: "12px" }}>
+                                {isJa ? "この写真を見て撮影" : "Inspired by this photo"}
+                            </p>
+                            <p className="m-0 font-medium truncate" style={{ fontSize: "15px" }}>
+                                {getLocalized(inspired.title, isJa ? "ja" : "en")
+                                    || getLocalized(inspired.title, isJa ? "en" : "ja")
+                                    || inspired.location
+                                    || (isJa ? "無題" : "Untitled")}
+                            </p>
+                            {(inspired.location || inspired.displayName) && (
+                                <p className="m-0 text-white/70 truncate" style={{ fontSize: "12px", lineHeight: "18px" }}>
+                                    {[inspired.location, inspired.displayName && (isJa ? `${inspired.displayName} さんの写真` : `by ${inspired.displayName}`)]
+                                        .filter(Boolean).join(" · ")}
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={removeInspired}
+                            disabled={uploading}
+                            className="shrink-0 rounded-full px-3 text-white/80 ring-1 ring-line hover:bg-white/10 disabled:opacity-40"
+                            style={{ minHeight: "44px", fontSize: "13px" }}
+                            aria-label={isJa ? "元の写真を外す" : "Remove the original photo"}
+                        >
+                            {isJa ? "外す" : "Remove"}
                         </button>
                     </div>
                 </div>

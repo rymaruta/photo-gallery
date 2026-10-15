@@ -295,7 +295,8 @@ function EditContent() {
     const [coordsTouched, setCoordsTouched] = useState(false);
     /**
      * 「この写真を見て撮影」の元の写真の ID（`api-user/src/inspired.ts`）。
-     * **Web では付けられない（アプリが先）。外すだけ**できる。null が「付いていない」
+     * 付けるのは投稿のとき（写真の詳細の「この写真を見て撮りに行く」→ 投稿画面・アプリの投稿画面）。
+     * **編集では外すだけ**できる（付け替えはしない）。null が「付いていない」
      */
     const [inspiredBy, setInspiredBy] = useState<string | null>(null);
     const [placeResults, setPlaceResults] = useState<{ label: string; lat: number; lng: number }[] | null>(null);
@@ -1046,7 +1047,7 @@ function EditContent() {
                         </div>
                     </div>
 
-                    {/* 「この写真を見て撮影」。**付けるのはアプリ（Web は外すだけ）**。
+                    {/* 「この写真を見て撮影」。**付けるのは投稿のとき（編集では外すだけ）**。
                         付いている写真にだけ出す */}
                     {original?.inspiredBy && (
                         <div>
