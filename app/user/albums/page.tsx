@@ -272,7 +272,7 @@ export default function AlbumsPage() {
                         onChange={(e) => setTitle(e.target.value)}
                         maxLength={60}
                         placeholder="例: 北欧の冬"
-                        className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                        className="flex-1 min-w-0 bg-surface-2 rounded-lg px-3 py-2 text-sm ring-1 ring-line-strong"
                     />
                     {/* 🔴 **`aria-disabled` だけにしない。** 以前はこれで、
                         名前が空でも**見た目はそのまま押せて、押しても何も
@@ -319,7 +319,7 @@ export default function AlbumsPage() {
                 ) : (
                     <ul className="space-y-4">
                         {albums.map((a) => (
-                            <li key={a.id} className="rounded-xl bg-white/5 ring-1 ring-white/10 p-4">
+                            <li key={a.id} className="rounded-xl bg-surface ring-1 ring-white/10 p-4">
                                 {editing?.id === a.id ? (
                                     <div className="flex gap-2">
                                         <label htmlFor={`rename-${a.id}`} className="sr-only">アルバムの新しい名前</label>
@@ -328,7 +328,7 @@ export default function AlbumsPage() {
                                             value={editing.title}
                                             onChange={(e) => setEditing({ id: a.id, title: e.target.value })}
                                             maxLength={60}
-                                            className="flex-1 min-w-0 bg-white/5 rounded-lg px-3 py-2 text-sm ring-1 ring-white/10"
+                                            className="flex-1 min-w-0 bg-surface-2 rounded-lg px-3 py-2 text-sm ring-1 ring-line-strong"
                                         />
                                         {/* **空の名前でも押せて無反応**だった
                                             （`rename` は `!name` で黙って return するのに、

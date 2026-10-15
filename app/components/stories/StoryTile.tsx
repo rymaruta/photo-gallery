@@ -28,7 +28,7 @@ export default function StoryTile({ story, label, ariaLabel, onClick, disabled, 
     children?: React.ReactNode;
 }) {
     return (
-        <li className="relative aspect-[9/16] overflow-hidden bg-white/5">
+        <li className="relative aspect-[9/16] overflow-hidden bg-surface">
             <button
                 type="button"
                 onClick={onClick}

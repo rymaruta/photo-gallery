@@ -36,7 +36,7 @@ import { RING_SEEN } from "../../components/stories/ring";
  *   選択を読む）。消すのもここ（マイページの輪から鉛筆で来る）
  */
 
-const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
+const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 
 function HighlightEditor({ editingId }: { editingId: string | null }) {
     const { isAuthenticated, loading, userId } = useAuth();
@@ -207,7 +207,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                 </p>
 
                 {existingError && (
-                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2">
+                    <p className="text-sm text-white/70 mb-6 rounded-lg bg-surface ring-1 ring-white/10 px-3 py-2">
                         {isJa ? "いまの中身を読み込めませんでした。" : "Couldn't load this highlight. "}
                         <button type="button" onClick={() => setExistingRetry((n) => n + 1)} className="underline text-white/90 hover:text-white ml-1">
                             {isJa ? "再試行" : "Retry"}

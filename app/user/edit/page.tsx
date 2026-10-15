@@ -34,7 +34,7 @@ import { extractExifFromFile, extractCameraExif } from "../../../lib/utils/exif"
 import { publicImageUrl } from "@/lib/utils/seo";
 import { BTN_FILL } from "../../components/buttonStyles";
 
-const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
+const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
 
 // title/description は string か {ja,en}/{ja:[],en:[]} の両対応。
@@ -842,7 +842,7 @@ function EditContent() {
                             onChange={setFocalPoint}
                             onLoadError={(el) => { setImageError(true); void dropCachedPhoto(el.currentSrc || el.src); }}
                             fallback={
-                                <div className="w-full h-40 flex flex-col items-center justify-center gap-2 bg-white/5 text-white/50">
+                                <div className="w-full h-40 flex flex-col items-center justify-center gap-2 bg-surface text-white/50">
                                     <PhotoIcon className="w-8 h-8" />
                                     <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
                                 </div>
@@ -894,8 +894,8 @@ function EditContent() {
                         <label
                             htmlFor="replace-photo"
                             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg ring-1 text-xs transition-colors ${replacing
-                                ? "bg-white/5 ring-white/10 text-white/40 cursor-default"
-                                : "bg-white/5 ring-white/20 text-white/80 hover:bg-white/10 hover:text-white cursor-pointer"}`}
+                                ? "bg-surface ring-white/10 text-white/40 cursor-default"
+                                : "bg-surface ring-white/20 text-white/80 hover:bg-white/10 hover:text-white cursor-pointer"}`}
                             style={{ touchAction: "manipulation" }}
                         >
                             <PhotoIcon className="w-4 h-4" aria-hidden="true" />
@@ -993,7 +993,7 @@ function EditContent() {
                                             // 並ぶことになる（`749bfce2` で潰した型）。
                                             // 見えている語はそのまま含める（WCAG 2.5.3）
                                             aria-label={isJa ? `カテゴリ: ${c}` : `Category: ${c}`}
-                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                            className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-surface ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             {c}
@@ -1034,7 +1034,7 @@ function EditContent() {
                                                 onClick={() => setTagsInput((cur) => toggleTag(dropFragment(TAG_CHOICES, cur), t))}
                                                 role="switch"
                                                 aria-checked={on}
-                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-white/5 ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
+                                                className={`px-2 py-0.5 rounded-full ring-1 text-xs transition-colors ${on ? "bg-primary text-ink font-medium ring-primary" : "bg-surface ring-white/10 text-white/50 hover:bg-white/10 hover:text-white/80"}`}
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {t}
@@ -1052,7 +1052,7 @@ function EditContent() {
                         <div>
                             <p className={labelCls} id="edit-inspired">{isJa ? "この写真を見て撮影" : "Inspired by"}</p>
                             <div role="group" aria-labelledby="edit-inspired"
-                                 className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 flex flex-wrap items-center gap-2">
+                                 className="rounded-xl ring-1 ring-white/10 bg-surface p-3 flex flex-wrap items-center gap-2">
                                 <p className="text-xs text-white/70 flex-1 min-w-0" data-testid="inspired-state">
                                     {inspiredBy
                                         ? (isJa ? "元の写真が公開のあいだ、写真ページに出ます" : "Shown on the photo page while the original photo is public")
@@ -1080,7 +1080,7 @@ function EditContent() {
                             結べない（結べない `<label>` は読み上げに何も渡さない）。
                             見出しとして `aria-labelledby` で箱に結ぶ */}
                         <p className={labelCls} id="edit-map-position">{isJa ? "地図に出す位置" : "Location on the map"}</p>
-                        <div role="group" aria-labelledby="edit-map-position" className="rounded-xl ring-1 ring-white/10 bg-white/5 p-3 space-y-2">
+                        <div role="group" aria-labelledby="edit-map-position" className="rounded-xl ring-1 ring-white/10 bg-surface p-3 space-y-2">
                             <p className="text-xs text-white/70" data-testid="coords-state">
                                 {coords
                                     ? (isJa
@@ -1105,7 +1105,7 @@ function EditContent() {
                                     <button
                                         type="button"
                                         onClick={() => { setCoords(null); setCoordsTouched(true); setPlaceResults(null); }}
-                                        className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-sm text-white/70"
+                                        className="px-3 py-2 rounded-full bg-surface hover:bg-white/10 text-sm text-white/70"
                                         style={{ touchAction: "manipulation" }}
                                     >
                                         {isJa ? "地図に出さない" : "Remove from the map"}
@@ -1124,7 +1124,7 @@ function EditContent() {
                                                     setPlaceResults(null);
                                                     showToast(isJa ? "位置を選びました（保存すると反映されます）" : "Location chosen (save to apply)", "success");
                                                 }}
-                                                className="w-full text-left px-3 py-2 rounded-lg bg-white/5 hover:bg-white/15 text-sm break-words"
+                                                className="w-full text-left px-3 py-2 rounded-lg bg-surface hover:bg-white/15 text-sm break-words"
                                                 style={{ touchAction: "manipulation" }}
                                             >
                                                 {r.label}

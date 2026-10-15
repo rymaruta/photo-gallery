@@ -117,7 +117,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
             data-testid="name-side-sheet"
         >
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={saving ? undefined : onClose} aria-hidden="true" />
-            <div className="relative z-10 w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-[22px] sm:rounded-[22px] bg-[#0E0E0F] ring-1 ring-white/10 story-media-in">
+            <div className="relative z-10 w-full sm:max-w-md max-h-[92vh] flex flex-col rounded-t-[22px] sm:rounded-[22px] bg-surface ring-1 ring-line story-media-in">
                 <div className="flex items-center justify-between pl-5 pr-2 pt-3">
                     <h2 id="name-side-title" className="text-xl font-bold text-white">{en ? "Next to your name" : "名前の横"}</h2>
                     <button
@@ -247,7 +247,7 @@ export default function NameSideSheet({ profile, locale, onClose, onSaved, resto
                                     >
                                         <span
                                             className="block rounded-full"
-                                            style={{ width: 56, height: 56, boxShadow: on ? "0 0 0 2px #0E0E0F, 0 0 0 4px var(--color-accent)" : "none" }}
+                                            style={{ width: 56, height: 56, boxShadow: on ? "0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent)" : "none" }}
                                         >
                                             {src && (
                                                 // eslint-disable-next-line @next/next/no-img-element

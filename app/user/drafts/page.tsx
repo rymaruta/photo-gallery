@@ -156,10 +156,10 @@ export default function DraftsPage() {
                                 <Link
                                     key={p.id}
                                     href={ROUTES.EDIT(p.id)}
-                                    className="group block rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10 hover:ring-white/25 transition"
+                                    className="group block rounded-xl overflow-hidden bg-surface ring-1 ring-white/10 hover:ring-white/25 transition"
                                     style={{ touchAction: "manipulation" }}
                                 >
-                                    <div className="relative aspect-square bg-white/5" style={{ backgroundColor: p.dominantColor ?? undefined }}>
+                                    <div className="relative aspect-square bg-surface" style={{ backgroundColor: p.dominantColor ?? undefined }}>
                                         {(p.thumbSrc || p.src) && (
                                             // eslint-disable-next-line @next/next/no-img-element
                                             <img

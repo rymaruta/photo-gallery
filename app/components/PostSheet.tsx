@@ -108,7 +108,7 @@ export default function PostSheet({ onClose, locale, restoreRef }: Props) {
                 </div>
                 <div className="px-4 pb-5 pt-4 flex flex-col gap-[12px]">
                     <button ref={primaryRef} type="button" onClick={goUpload}
-                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
+                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-surface hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
                             style={{ touchAction: "manipulation", minHeight: "88px", WebkitTapHighlightColor: "transparent" }}>
                         <span className="w-[56px] h-[56px] rounded-2xl bg-white text-black flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/40">
                             <PhotoIcon className="w-[28px] h-[28px]" />
@@ -119,7 +119,7 @@ export default function PostSheet({ onClose, locale, restoreRef }: Props) {
                         </span>
                     </button>
                     <button type="button" onClick={() => fileRef.current?.click()}
-                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
+                            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-surface hover:bg-white/10 ring-1 ring-white/10 text-left transition-colors active:scale-[0.98]"
                             style={{ touchAction: "manipulation", minHeight: "88px", WebkitTapHighlightColor: "transparent" }}>
                         {/* 白の線の丸＝「消える」側。写真の白い四角と対にする */}
                         <span className="w-[56px] h-[56px] rounded-full ring-2 ring-white/80 ring-inset flex items-center justify-center flex-shrink-0">

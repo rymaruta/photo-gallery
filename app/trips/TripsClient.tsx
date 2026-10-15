@@ -102,7 +102,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
                     onChange={(e) => setNewTitle(e.target.value)}
                     maxLength={100}
                     placeholder={en ? "e.g. Finland in winter" : "例: 冬のフィンランド"}
-                    className="flex-1 min-w-0 rounded-full bg-white/5 ring-1 ring-white/15 px-4 text-sm text-white placeholder:text-white/40"
+                    className="flex-1 min-w-0 rounded-full bg-surface-2 ring-1 ring-line-strong px-4 text-sm text-white placeholder:text-white/40"
                     style={{ minHeight: 44 }}
                 />
                 <button
@@ -118,7 +118,7 @@ export default function TripsClient({ spots }: { spots: Record<string, SpotRef> 
             </div>
 
             {pending ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
+                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
                     <p className="text-white/60 text-sm">{en ? "Loading…" : "読み込み中…"}</p>
                 </div>
             ) : failed ? (
@@ -179,7 +179,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
     const count = countItems(plan);
 
     return (
-        <li className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden">
+        <li className="rounded-2xl bg-surface ring-1 ring-white/10 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
                 <button
                     type="button"
@@ -200,7 +200,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
                     onClick={() => setConfirming(true)}
                     disabled={busy}
                     aria-label={en ? `Delete ${plan.title}` : `「${plan.title}」を削除`}
-                    className="shrink-0 rounded-full px-3 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition inline-flex items-center"
+                    className="shrink-0 rounded-full px-3 text-xs bg-surface ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition inline-flex items-center"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     <TrashIcon className="w-4 h-4" aria-hidden />
@@ -225,7 +225,7 @@ function PlanCard({ en, plan, spots, open, busy, onToggle, onUpdate, onRemove }:
                     <button
                         type="button"
                         onClick={() => setConfirming(false)}
-                        className="rounded-full px-3 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition"
+                        className="rounded-full px-3 text-xs bg-surface ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition"
                         style={{ touchAction: "manipulation", minHeight: 44 }}
                     >
                         {en ? "Cancel" : "やめる"}
@@ -333,7 +333,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
             ) : (
                 <ol className="flex flex-col gap-3">
                     {days.map((day, di) => (
-                        <li key={di} className="rounded-xl bg-white/5 ring-1 ring-white/10 p-3">
+                        <li key={di} className="rounded-xl bg-surface ring-1 ring-white/10 p-3">
                             <div className="flex items-center justify-between gap-2 mb-2">
                                 <span className="text-xs font-semibold text-white/80">
                                     {en ? `Day ${di + 1}` : `${di + 1} 日目`}
@@ -346,7 +346,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                                     type="button"
                                     onClick={() => setDays((prev) => prev.filter((_, i) => i !== di))}
                                     aria-label={en ? `Remove day ${di + 1}` : `${di + 1} 日目を削除`}
-                                    className="rounded-full px-2 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition inline-flex items-center"
+                                    className="rounded-full px-2 text-xs bg-surface ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition inline-flex items-center"
                                     style={{ touchAction: "manipulation", minHeight: 44 }}
                                 >
                                     <TrashIcon className="w-4 h-4" aria-hidden />
@@ -365,7 +365,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                                                 type="button"
                                                 onClick={() => setDays((prev) => prev.map((d, i) => (i !== di ? d : { ...d, items: d.items.filter((_, k) => k !== ii) })))}
                                                 aria-label={en ? `Remove ${itemLabel(item, spots)}` : `「${itemLabel(item, spots)}」を外す`}
-                                                className="shrink-0 rounded-full px-2 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition inline-flex items-center"
+                                                className="shrink-0 rounded-full px-2 text-xs bg-surface ring-1 ring-white/15 text-white/70 hover:bg-white/15 transition inline-flex items-center"
                                                 style={{ touchAction: "manipulation", minHeight: 44 }}
                                             >
                                                 <TrashIcon className="w-4 h-4" aria-hidden />
@@ -384,7 +384,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                                 value=""
                                 onChange={(e) => { addItem(di, e.target.value); e.currentTarget.value = ""; }}
                                 disabled={choices.length === 0}
-                                className="w-full rounded-full bg-white/5 ring-1 ring-white/15 px-3 text-sm text-white disabled:opacity-60"
+                                className="w-full rounded-full bg-surface-2 ring-1 ring-line-strong px-3 text-sm text-white disabled:opacity-60"
                                 style={{ minHeight: 44 }}
                             >
                                 <option value="">
@@ -405,7 +405,7 @@ function PlanEditor({ en, plan, spots, busy, onUpdate }: {
                 <button
                     type="button"
                     onClick={() => setDays((prev) => [...prev, { items: [] }])}
-                    className="rounded-full px-3 text-xs bg-white/5 ring-1 ring-white/15 text-white/80 hover:bg-white/15 transition inline-flex items-center gap-1"
+                    className="rounded-full px-3 text-xs bg-surface ring-1 ring-white/15 text-white/80 hover:bg-white/15 transition inline-flex items-center gap-1"
                     style={{ touchAction: "manipulation", minHeight: 44 }}
                 >
                     <PlusIcon className="w-4 h-4" aria-hidden />
@@ -464,7 +464,7 @@ function DateField({ en, planId, which, value, onChange }: {
                 type="date"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="rounded-full bg-white/5 ring-1 ring-white/15 px-3 text-sm text-white"
+                className="rounded-full bg-surface-2 ring-1 ring-line-strong px-3 text-sm text-white"
                 style={{ minHeight: 44 }}
             />
         </span>
@@ -491,8 +491,8 @@ function Shell({ en, count, children }: { en: boolean; count?: number | null; ch
 
 function Empty({ text, action }: { text: string; action: React.ReactNode }) {
     return (
-        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+        <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                 <MapIcon className="w-8 h-8 text-white/60" />
             </div>
             <p className="text-white/70 text-sm">{text}</p>

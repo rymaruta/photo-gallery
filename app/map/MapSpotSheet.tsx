@@ -62,7 +62,7 @@ export default function MapSpotSheet({
                         （`lib/data/spotLink.ts` の `toSpotLink`）ので、
                         ここは在れば出す・無ければ枠ごと出さないだけ */}
                     {spot.cover && (
-                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5 relative"
+                        <span className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface relative"
                               style={{ width: "72px", height: "72px" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={spot.cover.src} alt={spot.cover.alt} width={72} height={72}

@@ -142,7 +142,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
             )}
 
             {pending ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
+                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex items-center justify-center" aria-busy>
                     <p className="text-white/60 text-sm">{en ? "Loading…" : "読み込み中…"}</p>
                 </div>
             ) : failed ? (
@@ -166,7 +166,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                     {entries.map(({ key, kind, label, href, note, stage }) => (
                         <li
                             key={key}
-                            className="flex items-center gap-3 rounded-xl bg-white/5 ring-1 ring-white/10 px-4 py-3"
+                            className="flex items-center gap-3 rounded-xl bg-surface ring-1 ring-white/10 px-4 py-3"
                         >
                             {/* **見出しが引けないときはスラッグを出す。**
                                 「不明な場所」のような、こちらで作った言葉を
@@ -186,7 +186,7 @@ export default function SavedSpotsClient({ spots }: { spots: Record<string, Spot
                                 // 返して**何も起きない**（押せるのに無反応）
                                 disabled={busy !== null}
                                 aria-label={en ? `Remove ${label}` : `「${label}」を外す`}
-                                className="shrink-0 rounded-full px-3 py-1.5 text-xs bg-white/5 ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition"
+                                className="shrink-0 rounded-full px-3 py-1.5 text-xs bg-surface ring-1 ring-white/15 text-white/70 hover:bg-white/15 hover:text-white disabled:opacity-60 transition"
                                 style={{ touchAction: "manipulation", minHeight: 44 }}
                             >
                                 {en ? "Remove" : "外す"}
@@ -275,8 +275,8 @@ function Shell({ locale, count, children }: { locale: "ja" | "en"; count?: numbe
 
 function Empty({ text, action }: { text: string; action: React.ReactNode }) {
     return (
-        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+        <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                 <BookmarkIcon className="w-8 h-8 text-white/60" />
             </div>
             <p className="text-white/70 text-sm">{text}</p>

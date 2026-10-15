@@ -109,7 +109,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             className="relative block overflow-hidden focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             style={{
                 aspectRatio: large ? "16 / 9" : "1 / 1",
-                backgroundColor: photo.dominantColor ?? "#121212",
+                backgroundColor: photo.dominantColor ?? "var(--color-surface)",
                 touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",
             } as React.CSSProperties}

@@ -94,7 +94,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                         placeholder={locale === "en" ? "Add a comment…" : "コメントを追加…"}
                         rows={2}
                         maxLength={500}
-                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
+                        className="flex-1 min-w-0 bg-surface-2 border border-line-strong rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 resize-none"
                         style={{ fontSize: "16px" }}
                     />
                     <button

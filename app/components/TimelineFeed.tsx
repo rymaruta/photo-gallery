@@ -129,7 +129,7 @@ function Status({ text }: { text: string }) {
 
 function Empty({ children }: { children: React.ReactNode }) {
     return (
-        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 px-4 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 px-4 flex flex-col items-center justify-center gap-3 text-center">
             {children}
         </div>
     );

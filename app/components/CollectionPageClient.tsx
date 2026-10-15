@@ -76,7 +76,7 @@ export default function CollectionPageClient({ photos, heading, description, bre
                                 key={r.path}
                                 href={r.path}
                                 prefetch={false}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {type === "tag" ? `#${r.label}` : r.label}

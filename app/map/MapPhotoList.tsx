@@ -34,7 +34,7 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
     if (photos.length === 0) {
         return (
             <p
-                className="rounded-2xl ring-1 ring-white/10 bg-white/5 text-center text-white/60"
+                className="rounded-2xl ring-1 ring-white/10 bg-surface text-center text-white/60"
                 style={{ padding: "32px 16px", fontSize: "13px" }}
                 data-testid="map-list-empty"
             >
@@ -70,7 +70,7 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                             style={{ gap: "12px", padding: "8px" }}
                         >
                             <span
-                                className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5"
+                                className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface"
                                 style={{ width: "56px", height: "56px" }}
                             >
                                 {thumb && (

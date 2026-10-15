@@ -181,7 +181,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                 // 「0枚・まだありません」が出たあと 18枚に変わった）
                 // `aria-busy` は「更新中だから待て」の合図。失敗の告知には付けない
                 // （付いたままだと支援技術が読み上げを抑える）
-                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm" aria-busy={!failed}>
+                <div className="rounded-2xl ring-1 ring-white/10 bg-surface px-6 py-16 text-center text-white/60 text-sm" aria-busy={!failed}>
                     {failed
                         ? (en ? "Couldn't load photos. Check your connection and try again." : "写真を読み込めませんでした。通信を確かめて、もう一度お試しください。")
                         : (en ? "Loading…" : "読み込み中…")}
@@ -190,7 +190,7 @@ export default function MapPageClient({ spots }: { spots: readonly SpotPin[] }) 
                 // **0枚は「まだ」と言う。** 位置情報は GPS 付きの写真を上げたとき、
                 // または撮影地名から補ったとき・編集画面で選んだときに付く。
                 // 無い状態を「地図が壊れた」と読ませない
-                <div className="rounded-2xl ring-1 ring-white/10 bg-white/5 px-6 py-16 text-center text-white/60 text-sm">
+                <div className="rounded-2xl ring-1 ring-white/10 bg-surface px-6 py-16 text-center text-white/60 text-sm">
                     <p>{en ? "No photos with location yet." : "位置情報のある写真はまだありません。"}</p>
                     <p className="mt-2 text-white/60">
                         {en

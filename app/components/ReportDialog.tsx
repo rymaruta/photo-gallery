@@ -177,7 +177,7 @@ export default function ReportDialog({ photoId, blockTargetId, onBlocked, locale
                         maxLength={NOTE_MAX}
                         rows={3}
                         style={{ fontSize: "16px" }}
-                        className="w-full rounded-lg bg-white/5 ring-1 ring-white/10 px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-white/30"
+                        className="w-full rounded-lg bg-surface-2 ring-1 ring-line-strong px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-white/30"
                         placeholder={isJa ? "分かる範囲でお書きください" : "Anything that helps us review"}
                     />
                 </div>

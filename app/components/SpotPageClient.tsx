@@ -296,7 +296,7 @@ export default function SpotPageClient({
                             className="relative w-full overflow-hidden"
                             style={{
                                 paddingTop: "66.6667%",
-                                backgroundColor: hero.dominantColor ?? "#121212",
+                                backgroundColor: hero.dominantColor ?? "var(--color-surface)",
                                 fontSize: 0,
                                 lineHeight: 0,
                             }}
@@ -586,7 +586,7 @@ export default function SpotPageClient({
                                 <Link
                                     href={n.path}
                                     prefetch={false}
-                                    className="block rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                    className="block rounded-xl overflow-hidden bg-surface ring-1 ring-white/10 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     style={{ touchAction: "manipulation" }}
                                 >
                                     {/* **絵が無ければ枠ごと出さない。** 代わりの絵を
@@ -597,7 +597,7 @@ export default function SpotPageClient({
                                             className="relative w-full overflow-hidden"
                                             style={{
                                                 paddingTop: "66.6667%",
-                                                backgroundColor: n.cover.dominantColor ?? "#121212",
+                                                backgroundColor: n.cover.dominantColor ?? "var(--color-surface)",
                                                 fontSize: 0,
                                                 lineHeight: 0,
                                             }}
@@ -642,7 +642,7 @@ export default function SpotPageClient({
                                 key={r.path}
                                 href={r.path}
                                 prefetch={false}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                                 style={{ touchAction: "manipulation" }}
                             >
                                 {r.label}
@@ -671,7 +671,7 @@ export default function SpotPageClient({
 /** 概要の1項目。**値が無ければ「—」と書く**（0 や推測で埋めない） */
 function Fact({ label, value }: { label: string; value: string | null }) {
     return (
-        <div className="rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2">
+        <div className="rounded-xl bg-surface ring-1 ring-white/10 px-3 py-2">
             <dt className="text-[12px] text-white/50">{label}</dt>
             <dd className="text-sm text-white/90 mt-0.5">{value ?? <span className="text-white/60">—</span>}</dd>
         </div>
@@ -688,7 +688,7 @@ function Chips({ heading, items }: { heading: string; items: Array<{ key: string
                         key={i.key}
                         href={i.path}
                         prefetch={false}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                         style={{ touchAction: "manipulation" }}
                     >
                         {i.label}

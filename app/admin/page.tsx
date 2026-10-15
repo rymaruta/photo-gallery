@@ -267,7 +267,7 @@ export default function AdminPage() {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={locale === "en" ? "Search title, place, tag" : "タイトル・場所・タグで検索"}
-                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-white/5 ring-1 ring-white/10 rounded-full text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-white/25"
+                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-surface-2 ring-1 ring-line-strong rounded-full text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-white/25"
                             style={{ fontSize: "16px" }}
                             aria-label={locale === "en" ? "Search photos" : "写真を検索"}
                         />
@@ -281,7 +281,7 @@ export default function AdminPage() {
                                     key={key}
                                     onClick={() => setStatus(key)}
                                     aria-pressed={status === key}
-                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
+                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-surface ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
                                 >
                                     {label}
                                 </button>
@@ -289,7 +289,7 @@ export default function AdminPage() {
                         </div>
                         <button
                             onClick={() => setSort((s) => (s === "new" ? "old" : "new"))}
-                            className="px-3.5 py-2 rounded-full text-xs bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90 transition active:scale-95"
+                            className="px-3.5 py-2 rounded-full text-xs bg-surface ring-1 ring-white/10 text-white/60 hover:text-white/90 transition active:scale-95"
                         >
                             {sort === "new"
                                 ? (locale === "en" ? "Newest" : "新しい順")
@@ -304,7 +304,7 @@ export default function AdminPage() {
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             ) : loadError ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
                     <p className="text-white/70 text-sm">
                         {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
                     </p>
@@ -322,8 +322,8 @@ export default function AdminPage() {
                     </button>
                 </div>
             ) : photos.length === 0 ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                         <PlusIcon className="w-8 h-8 text-white/30" />
                     </div>
                     <p className="text-white/70 text-sm">{locale === "en" ? "No photos found." : "写真がありません。"}</p>

@@ -238,7 +238,7 @@ function LoginForm() {
                                 autoComplete="email"
                                 placeholder="example@email.com"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
                             />
                         </div>
                         <div>
@@ -252,7 +252,7 @@ function LoginForm() {
                                 autoComplete="current-password"
                                 placeholder="••••••••"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors"
                             />
                         </div>
 
@@ -304,7 +304,7 @@ function LoginForm() {
                                 autoComplete="email"
                                 placeholder="example@email.com"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
                         </div>
                         <button
@@ -343,7 +343,7 @@ function LoginForm() {
                                 required
                                 placeholder="メールに届いたコードを入力"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors tracking-widest"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors tracking-widest"
                             />
                         </div>
                         <div>
@@ -357,7 +357,7 @@ function LoginForm() {
                                 required
                                 placeholder="8文字以上、英大・小文字・数字・記号を含む"
                                 disabled={submitting}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                             />
                         </div>
                         <button

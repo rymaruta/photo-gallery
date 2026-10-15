@@ -113,7 +113,7 @@ function DeleteAccountModalInner({ onClose, onConfirm, locale, deleting, openerR
                     disabled={deleting}
                     autoFocus
                     autoComplete="off"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-danger/50 transition-colors mb-6"
+                    className="w-full bg-surface-2 border border-line-strong rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-danger/50 transition-colors mb-6"
                     placeholder={CONFIRM_WORD}
                 />
 

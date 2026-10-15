@@ -575,7 +575,7 @@ export default function ProfileEditPage() {
         ? publicImageUrl(`${CLOUDFRONT_URL}/profiles/${encodeURIComponent(profile.userId)}`)
         : null;
     const currentCoverUrl = profile?.userId ? profileCoverUrl(profile.userId) : "";
-    const inputClass = "w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
+    const inputClass = "w-full bg-surface-2 border border-line-strong rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors";
     const labelClass = "block text-xs text-white/50 mb-1.5 tracking-wide";
 
     const songPreview = parseMusicEmbed(songUrl, mmssToSec(songStartText), mmssToSec(songEndText));
@@ -610,7 +610,7 @@ export default function ProfileEditPage() {
                 {/* カバー写真（板 ProfileEdit の上の帯・2026-10-11 に戻した）。2026-09-22 に一度外した
                     （マイページが出さなくなったため）。マイページが `ProfileCover` で出すようになったので戻す。
                     **まだ無い人は空の地に「カバーを変える」だけ**（壊れた写真の記号は出さない） */}
-                <div className="relative mb-6 rounded-xl overflow-hidden bg-white/5 ring-1 ring-white/10" style={{ height: "132px" }} data-testid="profile-cover-edit">
+                <div className="relative mb-6 rounded-xl overflow-hidden bg-surface ring-1 ring-white/10" style={{ height: "132px" }} data-testid="profile-cover-edit">
                     {coverPreview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={coverPreview} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -833,7 +833,7 @@ export default function ProfileEditPage() {
                                 <button
                                     type="button"
                                     onClick={() => setThemeColor("")}
-                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-white/5 ring-1 ring-white/10 active:scale-95 transition"
+                                    className="px-3 py-2 rounded-full text-xs text-white/60 hover:text-white bg-surface ring-1 ring-white/10 active:scale-95 transition"
                                 >
                                     {locale === "en" ? "Reset" : "解除"}
                                 </button>
@@ -849,7 +849,7 @@ export default function ProfileEditPage() {
                     <div>
                         <label className={labelClass} htmlFor="profile-instagram">Instagram</label>
                         <div className="flex items-center">
-                            <span className="text-white/50 text-sm px-3 py-3 bg-white/5 border border-r-0 border-white/10 rounded-l-lg">@</span>
+                            <span className="text-white/50 text-sm px-3 py-3 bg-surface-2 border border-r-0 border-line-strong rounded-l-lg">@</span>
                             <input
                                 id="profile-instagram"
                                 type="text"
@@ -884,7 +884,7 @@ export default function ProfileEditPage() {
                     </div>
 
                     {/* テーマソング */}
-                    <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 space-y-3">
+                    <div className="rounded-2xl bg-surface ring-1 ring-white/10 p-4 space-y-3">
                         <div className="flex items-center gap-1.5">
                             <MusicalNoteIcon className="w-4 h-4 text-accent" />
                             <span className="text-sm font-semibold">{locale === "en" ? "My BGM" : "マイBGM"}</span>
@@ -894,7 +894,7 @@ export default function ProfileEditPage() {
                         {selectedSongs.length > 0 && (
                             <ul className="space-y-1.5">
                                 {selectedSongs.map((song, idx) => (
-                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-white/5 ring-1 ring-white/10 p-2">
+                                    <li key={song.previewUrl} className="flex items-center gap-2 rounded-xl bg-surface ring-1 ring-white/10 p-2">
                                         <span className="w-4 text-center text-xs text-white/50 tabular-nums flex-shrink-0">{idx + 1}</span>
                                         {/* **保存された値をそのまま読み込まない。** ここは
                                             `GET /user/profile` が返した行そのもので、許可リスト

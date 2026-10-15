@@ -13,7 +13,7 @@ import { BTN_FILL } from "../components/buttonStyles";
 
 type Step = "register" | "verify" | "done";
 
-const inputCls = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors disabled:opacity-50";
+const inputCls = "w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:bg-white/8 transition-colors disabled:opacity-50";
 
 const PENDING_TTL = 24 * 60 * 60 * 1000;
 

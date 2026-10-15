@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
             <div className="w-full max-w-sm">
 
                 <div className="mb-10 text-center">
-                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <div className="w-10 h-10 rounded-full bg-surface border border-white/10 flex items-center justify-center mx-auto mb-4">
                         <ShieldCheckIcon className="w-5 h-5 text-white/60" />
                     </div>
                     <p className="text-white/50 text-xs tracking-widest uppercase mb-2">Journey Photo</p>
@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
                                     autoComplete="email"
                                     placeholder="admin@example.com"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
                             <div>
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
                                     autoComplete="current-password"
                                     placeholder="••••••••"
                                     disabled={submitting}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                    className="w-full px-4 py-3 bg-surface-2 border border-line-strong rounded-lg text-white text-base placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
                                 />
                             </div>
 
@@ -136,7 +136,7 @@ export default function AdminLoginPage() {
 
                 {step === "forgot" && (
                     <div className="text-center space-y-6">
-                        <div className="px-4 py-5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/70 leading-relaxed">
+                        <div className="px-4 py-5 rounded-lg bg-surface border border-white/10 text-sm text-white/70 leading-relaxed">
                             <p className="mb-2 font-medium text-white/90">パスワードのリセットについて</p>
                             <p>管理者アカウントのパスワードリセットは、セキュリティ上の理由からセルフサービスでは行えません。</p>
                             <p className="mt-2">システム管理者にお問い合わせください。</p>

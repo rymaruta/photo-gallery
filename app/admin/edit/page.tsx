@@ -362,7 +362,7 @@ function AdminEditContent() {
                     // 編集画面から「どの写真を触っているか」の手がかりが消える。
                     // 文言は写真ページ・モーダル・ストーリーと同じ
                     imageError ? (
-                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-white/5 text-white/50">
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-surface text-white/50">
                             <PhotoIcon className="w-8 h-8" />
                             <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
                         </div>
@@ -371,7 +371,7 @@ function AdminEditContent() {
                         <img
                             src={publicImageUrl(photo.src)}
                             alt=""
-                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
+                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-surface"
                             onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                         />
                     )
