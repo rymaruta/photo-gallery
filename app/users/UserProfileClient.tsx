@@ -253,7 +253,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
                     （「1/3」と出して開くと2枚、を作らない） */}
                 {extraCount > 0 && (
                     <span className="absolute top-1 right-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                          style={{ fontSize: "10px", lineHeight: "12px", padding: "2px 6px" }}
+                          style={{ fontSize: "12px", lineHeight: "14px", padding: "2px 6px" }}
                           aria-hidden="true">
                         1/{extraCount + 1}
                     </span>
@@ -1258,7 +1258,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             {shareOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setShareOpen(false)} aria-hidden="true" />
-                                    <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/10 shadow-2xl overflow-hidden story-media-in">
+                                    <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-line shadow-2xl overflow-hidden story-media-in">
                                         <button
                                             role="menuitem"
                                             onClick={() => { setShareOpen(false); void handleShareProfile(); }}
@@ -1325,7 +1325,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                             出しているのに、こちらは押したあとの
                                             トーストで初めて言っていた */}
                                         {!isOwner && viewerAuthed && !blocked && (
-                                            <p className="px-4 pb-3 text-[11px] text-white/60 leading-relaxed border-t border-white/5 pt-2">
+                                            <p className="px-4 pb-3 text-[12px] text-white/60 leading-relaxed border-t border-white/5 pt-2">
                                                 {locale === "en"
                                                     ? "Blocking also removes follows in both directions. Unblocking does not restore them."
                                                     : "ブロックすると、お互いのフォローも外れます。解除しても戻りません。"}
@@ -1451,12 +1451,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         **届く前に「0投稿」と言い切らない**——実測で応答を保持すると
                         5秒・20秒・45秒のいずれでも「0投稿」だった。ビルド後に登録した
                         人（定期ビルドは週1なので最大7日）のプロフィールが該当する */}
-                    <div className="flex items-center py-4 border-b border-white/10">
+                    <div className="flex items-center py-4 border-b border-line">
                         <div className="flex-1 text-center">
                             <span className="block font-bold tabular-nums leading-none" style={{ fontSize: `${STAT_NUMBER_PX}px` }}>{photosResolved ? postCount : "…"}</span>
                             <span className="block text-white/60 mt-1 leading-none" style={{ fontSize: `${STAT_LABEL_PX}px` }}>{locale === "en" ? "posts" : "投稿"}</span>
                             {photosResolved && hiddenCount > 0 && (
-                                <span className="block text-white/50 mt-1" style={{ fontSize: "11px" }}>
+                                <span className="block text-white/50 mt-1" style={{ fontSize: "12px" }}>
                                     {locale === "en" ? `(${hiddenCount} private)` : `（うち非公開 ${hiddenCount}）`}
                                 </span>
                             )}
@@ -1569,17 +1569,17 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             />
                         </div>
                     ) : songEmbed && (
-                        <div className="mt-4 rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
+                        <div className="mt-4 rounded-2xl bg-surface ring-1 ring-line overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "My BGM" : "マイBGM"}</span>
-                                <span className="ml-auto text-[10px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
+                                <span className="ml-auto text-[12px] text-white/50">{musicServiceLabel(songEmbed.service)}</span>
                                 {/* MV(YouTube)は大きいので折りたたみ式 */}
                                 {songEmbed.service === "youtube" && (
                                     <button
                                         onClick={() => setMvOpen((v) => !v)}
                                         aria-expanded={mvOpen}
-                                        className="inline-flex items-center gap-0.5 text-[11px] text-white/60 hover:text-white active:scale-95 transition"
+                                        className="inline-flex items-center gap-0.5 text-[12px] text-white/60 hover:text-white active:scale-95 transition"
                                     >
                                         {mvOpen ? (locale === "en" ? "Hide" : "畳む") : (locale === "en" ? "Play MV" : "MVを開く")}
                                         <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${mvOpen ? "rotate-180" : ""}`} />
@@ -1830,7 +1830,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                         <div className="flex items-center gap-2 mb-2 -ml-6">
                                             <span className="w-3.5 h-3.5 rounded-full bg-white ring-4 ring-bg flex-shrink-0" />
                                             <span className="text-sm font-bold">{g.label}</span>
-                                            <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
+                                            <span className="text-[12px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-[2px]">
                                             {g.photos.map((photo) => (
@@ -1876,7 +1876,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         <p className="mt-3 text-sm font-bold text-black truncate">
                             {displayName ?? (locale === "en" ? "Profile" : "プロフィール")}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-black/55">
+                        <p className="mt-0.5 text-[12px] text-black/55">
                             {locale === "en" ? "Scan to open this profile" : "スキャンしてプロフィールを開く"}
                         </p>
                         <button

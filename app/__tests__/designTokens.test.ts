@@ -90,7 +90,8 @@ describe("土台の値は iOS のデザイン v2 と同じ", () => {
  *   白5% の面 → `bg-surface`（札）／`bg-surface-2`（入力欄）
  *   白10% の線 → `border-line`・`ring-line`（白8%）
  *   #121212 → `var(--color-surface)`
- * 写真ページ・人のページは別の束（C・D）が中身を作り替えているので、ここでは見ない。
+ * 写真ページ・人のページも見る（2026-10-15 に束 C・D を合わせたので免除を外した）。
+ * 写真の上に置く部品の白の透過（`bg-white/10` などの面）は写真が透けるのが正しいので、ここの対象（白5% の面・白10% の線）に入らない書き方にしてある。
  * ロゴの hover の覆い（`layout.tsx`・`group-hover` で出る白5%）は面ではないので見ない。
  */
 describe("直書きの面と線が戻っていない", () => {
@@ -104,7 +105,7 @@ describe("直書きの面と線が戻っていない", () => {
         }
         return out;
     };
-    const exempt = (rel: string) => rel.startsWith("app/photo/[id]/") || rel === "app/users/UserProfileClient.tsx";
+    const exempt = (_rel: string) => false;
     const scan = (re: RegExp, skipLine: (l: string) => boolean = () => false) => {
         const bad: string[] = [];
         for (const abs of [...walk(join(ROOT, "app")), ...walk(join(ROOT, "lib"))]) {

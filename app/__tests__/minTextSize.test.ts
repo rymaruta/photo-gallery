@@ -12,11 +12,12 @@ import { join, relative } from "node:path";
  * 免除:
  *   - 下のタブの名前（`BottomNav`・10px）: 5つを 320px の幅に並べるので 12px では
  *     「マイページ」が収まらない。iOS も系統のタブバーの 10pt
- *   - 写真ページ・人のページ: 中身の作り替えを別の束（C・D）が並行で持っている
+ *
+ * 写真ページ・人のページも見る（2026-10-15 に束 C・D を合わせたので免除を外した）
  */
 const ROOT = process.cwd();
-const EXEMPT_FILES = new Set(["app/users/UserProfileClient.tsx"]);
-const EXEMPT_DIRS = ["app/photo/[id]/"];
+const EXEMPT_FILES = new Set<string>([]);
+const EXEMPT_DIRS: string[] = [];
 const EXEMPT_LINES: Array<[string, string]> = [
     ["app/components/BottomNav.tsx", 'fontSize: "10px"'],
 ];

@@ -1228,14 +1228,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
 
                     {/* フル再生MV（YouTube）。大きいので折りたたみ式 */}
                     {mvEmbed && (
-                        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
+                        <div className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                 <button
                                     onClick={() => setMvOpen((v) => !v)}
                                     aria-expanded={mvOpen}
-                                    className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-white/60 hover:text-white active:scale-95 transition"
+                                    className="ml-auto inline-flex items-center gap-0.5 text-[12px] text-white/60 hover:text-white active:scale-95 transition"
                                 >
                                     {mvOpen ? (locale === "en" ? "Hide" : "畳む") : (locale === "en" ? "Play MV" : "MVを開く")}
                                     <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${mvOpen ? "rotate-180" : ""}`} />
@@ -1257,7 +1257,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     )}
                     {isOwnPhoto && (
                         songPickerOpen ? (
-                            <div className="rounded-xl bg-white/5 ring-1 ring-white/10 p-2.5 space-y-2 max-w-md">
+                            <div className="rounded-xl bg-surface ring-1 ring-line p-2.5 space-y-2 max-w-md">
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -1266,7 +1266,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchPhotoSongs(); } }}
                                         placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                         autoFocus
-                                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                        className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                     />
                                     <button
                                         onClick={() => void searchPhotoSongs()}
@@ -1288,7 +1288,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     <SongSearchError />
                                 )}
                                 {songResults.length > 0 && (
-                                    <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
+                                    <ul className="rounded-lg ring-1 ring-line divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
                                         {songResults.map((r) => (
                                             <li key={r.id}>
                                                 <button
@@ -1298,9 +1298,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                                     <SongArtwork src={r.artwork} className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs text-white truncate">{r.title}</p>
-                                                        <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                        <p className="text-[12px] text-white/50 truncate">{r.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    <span className="text-[12px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                 </button>
                                             </li>
                                         ))}
@@ -1339,7 +1339,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         <Link
                             href={ROUTES.EDIT(photoId)}
                             prefetch={false}
-                            className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                            className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-surface-2 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Edit or delete this photo" : "この写真を編集・削除"}
@@ -1362,7 +1362,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 // またぐ長さで画面とサーバーの答えが割れる。
                                 // プロフィールの曲のリンク欄は既に 500 なので揃える
                                 maxLength={500}
-                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                 style={{ fontSize: "16px" }}
                             />
                             <button
@@ -1447,7 +1447,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
                                           data-photo-id={p.id}
                                           className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                          style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "#121212", touchAction: "manipulation" }}>
+                                          style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}>
                                         <Thumb photo={p} alt={t || (locale === "en" ? "Photo" : "写真")} sizes="(max-width:640px) 25vw, 120px" />
                                     </Link>
                                 );
@@ -1475,7 +1475,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 ヘッダーの裏に入る） */}
             <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
-                     className="flex border-b border-white/10">
+                     className="flex border-b border-line">
                     {([
                         { key: "comments" as const, label: locale === "en" ? `Comments (${commentCount})` : `コメント (${commentCount})` },
                         { key: "related" as const, label: locale === "en" ? "Related" : "関連写真" },
@@ -1523,7 +1523,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         >
                                             <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                             <span className="min-w-0">
-                                                <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
                                                 <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                         </Link>
@@ -1537,7 +1537,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             <span className="min-w-0">
-                                                <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
+                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
                                                 <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                             <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
