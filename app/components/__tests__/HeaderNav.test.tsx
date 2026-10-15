@@ -117,7 +117,7 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
         expect(controls.map((b) => b.getAttribute("aria-label"))).toEqual(["ユーザーを探す", "通知", "メニューを開く"]);
     });
 
-    it("ヘッダーの押せるものは3つとも箱を持たない丸い面（iOS: 44px 固定・アイコン22px・線1.7）", () => {
+    it("ヘッダーの押せるものは3つとも箱を持たない丸い面（iOS v2: 44px 固定・アイコン17px・線1.6）", () => {
         setRole("general");
         render(<HeaderNav />);
         const nav = screen.getByRole("navigation", { name: "ヘッダー" });
@@ -132,11 +132,35 @@ describe("HeaderNav - ロール別のメニュー表示", () => {
             expect(b.style.minWidth).toBe("44px");
             expect(b.style.minHeight).toBe("44px");
             const svg = b.querySelector("svg") as SVGElement;
-            expect(svg.style.width).toBe("22px");
-            expect(svg.style.strokeWidth).toBe("1.7");
+            expect(svg.style.width).toBe("17px");
+            expect(svg.style.height).toBe("17px");
+            expect(svg.style.strokeWidth).toBe("1.6");
             // キーボードの枠は黒の地で 3:1 以上（白30%は 2.47:1）
             expect(cls).toContain("focus-visible:ring-white/60");
         }
+    });
+
+    it("お知らせとメニューは1つのガラスの丸い札に入り、探すは札の外（iOS v2）", () => {
+        setRole("general");
+        render(<HeaderNav />);
+        const nav = screen.getByRole("navigation", { name: "ヘッダー" });
+        const glass = nav.querySelectorAll("[data-header-glass]");
+        expect(glass).toHaveLength(1);
+        expect((glass[0] as HTMLElement).className.split(/\s+/)).toEqual(expect.arrayContaining(["header-glass", "rounded-full"]));
+        const inside = Array.from(glass[0].querySelectorAll("a, button")).map((b) => b.getAttribute("aria-label"));
+        expect(inside).toEqual(["通知", "メニューを開く"]);
+        expect(glass[0].contains(screen.getByLabelText("ユーザーを探す"))).toBe(false);
+    });
+
+    it("ガラスの札は globals.css で色を持ち、backdrop-filter を持たない（中の fixed・ぼかしを壊さない）", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { resolve } = await import("node:path");
+        const css = readFileSync(resolve(__dirname, "../../globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+        const at = css.indexOf(".header-glass {");
+        expect(at).toBeGreaterThan(-1);
+        const rule = css.slice(at, css.indexOf("}", at));
+        expect(rule).toMatch(/background:\s*rgb\(34 34 36 \/ 0\.62\)/);
+        expect(rule).not.toMatch(/backdrop-filter/);
     });
 
     it("未ログインではヘッダーは 探す・メニュー の2つだけ（アバター・ベルを出さない）", () => {
@@ -423,5 +447,17 @@ describe("HeaderNav - 共同アルバム", () => {
         render(<HeaderNav />);
         await openMenu();
         expect(menuItems()).toContain("Shared Albums");
+    });
+});
+
+describe("HeaderNav - キーボードの輪", () => {
+    it("メニューの項目の輪は見える色（真鍮・内側）。白8% の線（ring-line）では見えない", async () => {
+        setRole("general");
+        render(<HeaderNav />);
+        await openMenu();
+        const item = within(screen.getByRole("navigation", { name: "メインメニュー" })).getAllByRole("button")[0];
+        expect(item.className).toContain("focus-visible:ring-accent");
+        expect(item.className).toContain("focus-visible:ring-inset");
+        expect(item.className).not.toContain("focus-visible:ring-line");
     });
 });

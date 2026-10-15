@@ -95,14 +95,14 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                 aria-label={locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                 // 下端に密着させない（iPhone のホームインジケータに最後の行が
                 // かぶる）。既存のボトムシート2つと同じ形
-                className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-surface-2 ring-1 ring-white/10 pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
+                className="w-full sm:max-w-sm max-h-[70dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-surface-2 ring-1 ring-line pb-[calc(env(safe-area-inset-bottom,0px))] sm:pb-0"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-line">
                     <p className="text-sm text-white/90">
                         {locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                         {state === "ready" && total > 0 && (
-                            <span className="ml-2 text-[11px] text-white/60 tabular-nums">{total}</span>
+                            <span className="ml-2 text-[12px] text-white/60 tabular-nums">{total}</span>
                         )}
                     </p>
                     <button
@@ -174,7 +174,7 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                         `total`（正しい数）と比べる——一覧が追いついていない
                         ぶんもここに出る */}
                     {state === "ready" && rows.length > 0 && total > rows.length && (
-                        <p className="px-3 py-3 text-[11px] text-white/60">
+                        <p className="px-3 py-3 text-[12px] text-white/60">
                             {locale === "en"
                                 ? `Showing the first ${rows.length} of ${total}.`
                                 : `${total} 人のうち、はじめの ${rows.length} 人を表示しています。`}

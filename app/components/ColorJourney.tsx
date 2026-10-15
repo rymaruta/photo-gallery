@@ -155,7 +155,7 @@ export default function ColorJourney({ photos, locale, categoryDisplayMap, onOpe
                                 }}
                             />
                             <span>{bucket.label}</span>
-                            <span className={active ? "text-ink/70 text-[11px]" : "text-white/50 text-[11px]"}>
+                            <span className={active ? "text-ink/70 text-[12px]" : "text-white/50 text-[12px]"}>
                                 {inBucket.length}
                             </span>
                         </button>

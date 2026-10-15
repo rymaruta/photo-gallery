@@ -20,7 +20,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
     if (!photos || photos.length === 0) return null;
 
     return (
-        <section className="pt-5 border-t border-white/10">
+        <section className="pt-5 border-t border-line">
             <h2 className="text-sm font-semibold text-white/70 mb-3">{title}</h2>
             {/* 横スクロール。スクロールバーは隠し、指/トラックパッドで流す */}
             <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 snap-x snap-mandatory">
@@ -40,8 +40,8 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                             title={t}
                         >
                             <div
-                                className="relative w-full overflow-hidden rounded-lg ring-1 ring-white/10"
-                                style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "#121212" }}
+                                className="relative w-full overflow-hidden rounded-lg ring-1 ring-line"
+                                style={{ paddingTop: "100%", backgroundColor: p.dominantColor ?? "var(--color-surface)" }}
                             >
                                 <Thumb
                                     photo={p}
@@ -51,7 +51,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                                 />
                             </div>
                             {t && (
-                                <p className="mt-1.5 text-[11px] leading-snug text-white/70 line-clamp-2">{t}</p>
+                                <p className="mt-1.5 text-[12px] leading-snug text-white/70 line-clamp-2">{t}</p>
                             )}
                         </Link>
                     );

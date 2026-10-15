@@ -11,6 +11,7 @@ import { todayIn } from "../../lib/utils/sunTimes";
 import {
     parseDailyQuiz, quizStorageKey, regionLine, QUIZ_TIME_ZONE, type DailyQuiz,
 } from "../../lib/utils/dailyQuiz";
+import { BTN_LINE } from "../components/buttonStyles";
 
 /**
  * 今日の一問「この写真はどこ？」。
@@ -199,7 +200,7 @@ export default function DailyQuizClient() {
                     />
                 </div>
                 {/* 作者・ライセンス（文面へ）・出典（CC BY / BY-SA の表示条件） */}
-                <figcaption className="mt-1.5 text-white/60 text-right" style={{ fontSize: "11px", lineHeight: "15px" }}>
+                <figcaption className="mt-1.5 text-white/60 text-right" style={{ fontSize: "12px", lineHeight: "15px" }}>
                     {en ? "Photo: " : "写真: "}{quiz.photo.author}{" / "}
                     {quiz.photo.licenseUrl ? (
                         <a href={quiz.photo.licenseUrl} target="_blank" rel="noopener noreferrer license"
@@ -224,7 +225,7 @@ export default function DailyQuizClient() {
                     // 正解は「✓ 正解」の字で示す（真鍮＝合図）。外したときに白地が
                     // 押していない正解の側へ付くと、見た目と `aria-pressed` の意味が逆になる
                     const look = !answered
-                        ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-white/10"
+                        ? "bg-surface text-white hover:bg-surface-2 ring-1 ring-line"
                         : isChosen
                             ? `bg-primary text-ink font-bold${isAnswer ? "" : " ring-2 ring-danger"}`
                             // 縁は付けない——真鍮の輪はサイト共通のフォーカスの印（`focus-visible:ring-accent`）と
@@ -289,7 +290,7 @@ export default function DailyQuizClient() {
                         <button
                             type="button"
                             onClick={share}
-                            className="inline-flex items-center min-h-[44px] px-5 rounded-full ring-1 ring-white/30 text-white hover:bg-white/10"
+                            className={`${BTN_LINE} inline-flex items-center hover:bg-white/10`}
                             style={{ fontSize: "15px", touchAction: "manipulation" }}
                         >
                             {en ? "Share" : "結果を共有"}

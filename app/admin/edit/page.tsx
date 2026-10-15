@@ -24,7 +24,7 @@ import { splitTags } from "../../../lib/utils/ownValues";
 // 16px を当てて回避しているが、ここは共通クラスなのでクラス側で揃える。
 const inputCls = "w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-base focus:outline-none focus:border-white/50";
 const labelCls = "block text-sm text-white/60 mb-1";
-const sectionCls = "border-t border-white/10 pt-5";
+const sectionCls = "border-t border-line pt-5";
 
 function parseParagraphs(desc: Photo["description"], lang: "ja" | "en"): string {
     if (!desc) return "";
@@ -362,7 +362,7 @@ function AdminEditContent() {
                     // 編集画面から「どの写真を触っているか」の手がかりが消える。
                     // 文言は写真ページ・モーダル・ストーリーと同じ
                     imageError ? (
-                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-white/5 text-white/50">
+                        <div className="w-full h-40 flex flex-col items-center justify-center gap-2 rounded-lg mb-6 bg-surface text-white/50">
                             <PhotoIcon className="w-8 h-8" />
                             <p className="text-xs">{isJa ? "画像を読み込めません" : "Couldn't load image"}</p>
                         </div>
@@ -371,7 +371,7 @@ function AdminEditContent() {
                         <img
                             src={publicImageUrl(photo.src)}
                             alt=""
-                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-white/5"
+                            className="w-full max-h-64 object-contain rounded-lg mb-6 bg-surface"
                             onError={(e) => { setImageError(true); void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src); }}
                         />
                     )
@@ -506,7 +506,7 @@ function AdminEditContent() {
                         </button>
                         <div>
                             <span className="text-sm">{isJa ? "おすすめに出す" : "Feature on home"}</span>
-                            <p className="text-[11px] text-white/50">
+                            <p className="text-[12px] text-white/50">
                                 {isJa ? "トップの「おすすめ」にカテゴリごとに並びます" : "Shown on the home page, grouped by category"}
                             </p>
                         </div>

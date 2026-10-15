@@ -123,7 +123,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 pb-3" data-testid="highlights-row">
             {loadError && rows.length === 0 && (
-                <p className="text-[11px] text-white/50 px-1 pb-1">
+                <p className="text-[12px] text-white/50 px-1 pb-1">
                     {isJa ? "ハイライトを読み込めませんでした。" : "Couldn't load highlights. "}
                     <button onClick={() => void load()} className="underline text-white/70 hover:text-white">
                         {isJa ? "再試行" : "Retry"}
@@ -147,7 +147,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
                                 <PlusIcon className="w-7 h-7 text-white/90" strokeWidth={2} />
                             </span>
                         </Link>
-                        <span className="text-[11px] text-white/70 leading-none">{isJa ? "新規" : "New"}</span>
+                        <span className="text-[12px] text-white/70 leading-none">{isJa ? "新規" : "New"}</span>
                     </li>
                 )}
                 {rows.map((h) => (
@@ -195,7 +195,7 @@ export default function HighlightsRow({ userId, displayName, isOwner, isAuthenti
                                 <PencilIcon className="w-3 h-3" strokeWidth={2.5} />
                             </Link>
                         )}
-                        <span className="text-[11px] max-w-[68px] truncate leading-none text-white/90">{h.title}</span>
+                        <span className="text-[12px] max-w-[68px] truncate leading-none text-white/90">{h.title}</span>
                     </li>
                 ))}
             </ul>

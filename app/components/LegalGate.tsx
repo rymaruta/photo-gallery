@@ -10,6 +10,7 @@ import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import { needsLegalConsent, acceptLegalConsent, LEGAL_CONSENT_KEY } from "../../lib/utils/legalConsent";
 import { ROUTES } from "../../lib/routes";
+import { BTN_FILL } from "./buttonStyles";
 
 /**
  * **「はじめる前に」**（iOS の `LegalGateView` と同じ文言・同じ3項目）。
@@ -120,7 +121,7 @@ export default function LegalGate() {
                     <button
                         type="button"
                         onClick={agree}
-                        className="mt-5 w-full rounded-full bg-accent-fill py-3.5 text-[15px] font-semibold text-ink hover:brightness-110 active:scale-[0.98] transition"
+                        className={`${BTN_FILL} mt-5 w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition`}
                         style={{ touchAction: "manipulation" }}
                     >
                         {isJa ? "同意してはじめる" : "Agree and continue"}

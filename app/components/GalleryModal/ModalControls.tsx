@@ -10,7 +10,7 @@ import { HeartIcon as HeartIconOutline, BookmarkIcon as BookmarkIconOutline } fr
 // 削除済みで、このアプリは日本語だけを出す。
 
 const BTN_BASE =
-    "absolute rounded-full bg-black/30 ring-1 ring-white/10 hover:bg-black/50 active:scale-95 " +
+    "absolute rounded-full bg-black/30 ring-1 ring-line hover:bg-black/50 active:scale-95 " +
     "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 shadow-lg transition z-20";
 
 const BTN_STYLE: React.CSSProperties = {

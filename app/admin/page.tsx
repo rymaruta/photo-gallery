@@ -267,7 +267,7 @@ export default function AdminPage() {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder={locale === "en" ? "Search title, place, tag" : "タイトル・場所・タグで検索"}
-                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-white/5 ring-1 ring-white/10 rounded-full text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-white/25"
+                            className="flex-1 min-w-[200px] px-4 py-2.5 bg-surface-2 ring-1 ring-line-strong rounded-full text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-white/25"
                             style={{ fontSize: "16px" }}
                             aria-label={locale === "en" ? "Search photos" : "写真を検索"}
                         />
@@ -281,7 +281,7 @@ export default function AdminPage() {
                                     key={key}
                                     onClick={() => setStatus(key)}
                                     aria-pressed={status === key}
-                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90"}`}
+                                    className={`px-3.5 py-2 rounded-full text-xs transition active:scale-95 ${status === key ? "bg-primary text-ink font-semibold" : "bg-surface ring-1 ring-line text-white/60 hover:text-white/90"}`}
                                 >
                                     {label}
                                 </button>
@@ -289,7 +289,7 @@ export default function AdminPage() {
                         </div>
                         <button
                             onClick={() => setSort((s) => (s === "new" ? "old" : "new"))}
-                            className="px-3.5 py-2 rounded-full text-xs bg-white/5 ring-1 ring-white/10 text-white/60 hover:text-white/90 transition active:scale-95"
+                            className="px-3.5 py-2 rounded-full text-xs bg-surface ring-1 ring-line text-white/60 hover:text-white/90 transition active:scale-95"
                         >
                             {sort === "new"
                                 ? (locale === "en" ? "Newest" : "新しい順")
@@ -304,7 +304,7 @@ export default function AdminPage() {
                     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 </div>
             ) : loadError ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
                     <p className="text-white/70 text-sm">
                         {locale === "en" ? "Could not load photos." : "写真の一覧を読み込めませんでした"}
                     </p>
@@ -322,8 +322,8 @@ export default function AdminPage() {
                     </button>
                 </div>
             ) : photos.length === 0 ? (
-                <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 py-16 flex flex-col items-center justify-center gap-3 text-center">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                <div className="rounded-2xl bg-surface ring-1 ring-line py-16 flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-16 h-16 rounded-full bg-surface flex items-center justify-center">
                         <PlusIcon className="w-8 h-8 text-white/30" />
                     </div>
                     <p className="text-white/70 text-sm">{locale === "en" ? "No photos found." : "写真がありません。"}</p>
@@ -350,7 +350,7 @@ export default function AdminPage() {
                         // タイル1枚＝写真1枚。文字は写真の上に重ねてカードの縦幅を詰める
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {visiblePhotos.map((photo) => (
-                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-surface-2 ring-1 ring-white/10 hover:ring-white/25 transition">
+                                <div key={photo.id} className="group relative aspect-square rounded-xl overflow-hidden bg-surface-2 ring-1 ring-line hover:ring-white/25 transition">
                                     <Image
                                         src={publicImageUrl(photo.thumbSrc ?? photo.src)}
                                         alt={getTitle(photo)}
@@ -360,7 +360,7 @@ export default function AdminPage() {
                                         loading="lazy"
                                     />
                                     {photo.published === false && (
-                                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[10px] text-white/80">
+                                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[12px] text-white/80">
                                             {locale === "en" ? "Draft" : "下書き"}
                                         </span>
                                     )}
@@ -385,7 +385,7 @@ export default function AdminPage() {
                                     <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/85 to-transparent">
                                         <p className="text-xs text-white font-medium truncate">{getTitle(photo)}</p>
                                         {(photo.location || photo.category) && (
-                                            <p className="text-[10px] text-white/55 truncate">
+                                            <p className="text-[12px] text-white/55 truncate">
                                                 {[photo.location, photo.category].filter(Boolean).join(" · ")}
                                             </p>
                                         )}

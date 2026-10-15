@@ -16,7 +16,7 @@ import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { CHIP_HIT, CHIP_ROW } from "./SpotTopicLists";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
 import { LIGHT_MAX_OFFSET, direction, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
@@ -122,7 +122,7 @@ function SpotRows({ rows, isJa }: { rows: SpotRow[]; isJa: boolean }) {
                             <MapPinIcon className="w-5 h-5 flex-shrink-0 text-white/55" aria-hidden />
                             <span className="min-w-0 flex-1 py-2">
                                 <span className="block text-white truncate" style={{ fontSize: "15px", lineHeight: "20px" }}>{n.name}</span>
-                                {n.region && <span className="block text-white/55 truncate" style={{ fontSize: "11px", lineHeight: "15px" }}>{n.region}</span>}
+                                {n.region && <span className="block text-white/55 truncate" style={{ fontSize: "12px", lineHeight: "15px" }}>{n.region}</span>}
                             </span>
                             {dist && <span className="flex-shrink-0 text-white/55" style={{ fontSize: "13px" }}>{dist}</span>}
                             <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/55" aria-hidden />
@@ -388,7 +388,7 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
                                         {texts.map((t) => (
                                             <li key={t.time} className="flex gap-2.5">
                                                 <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
-                                                      style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
+                                                      style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                     {TIME_LABEL[t.time] ?? t.time}
                                                 </span>
                                                 <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{t.text}</span>
@@ -463,7 +463,7 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                      alt={isJa ? `作例の写真（${s.credit ?? `撮影: ${s.author}`}）` : `Example photo by ${s.author}`}
                                      onError={() => setBroken((prev) => new Set(prev).add(s.sourceUrl))}
                                      className="block w-full h-auto rounded-lg bg-surface" />
-                                <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "11px", lineHeight: "15px" }}
+                                <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "12px", lineHeight: "15px" }}
                                             data-testid="spot-sample-credit">
                                     {/* TASL（題・作者・出典・ライセンス）。題は Commons のファイル名から（Flickr は写真の題）。
                                         出典のリンクは写真のページ（Flickr の決まり: 写真のページへ張る） */}
@@ -500,7 +500,7 @@ function Sources({ spot, field }: { spot: Spot; field: string }) {
     const list = sourcesFor(spot, field);
     if (!list.length) return null;
     return (
-        <p className="m-0 mt-2 text-white/50" style={{ fontSize: "11px", lineHeight: "16px" }}>
+        <p className="m-0 mt-2 text-white/50" style={{ fontSize: "12px", lineHeight: "16px" }}>
             出典:{" "}
             {list.map((s, i) => (
                 <React.Fragment key={s.url}>
@@ -659,7 +659,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         <p className="m-0 font-serif font-bold text-white text-center px-6"
                            style={{ fontSize: "clamp(22px, 5vw, 36px)", lineHeight: "1.2" }}>{spot.name}</p>
                         {region && <p className="m-0 text-white/60" style={{ fontSize: "13px" }}>{region}</p>}
-                        <p className="m-0 mt-1 text-white/60" style={{ fontSize: "11px" }}>
+                        <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px" }}>
                             {isJa ? "代表写真はまだありません" : "No guide photo yet"}
                         </p>
                     </div>
@@ -673,7 +673,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                 /* 左右は本文の列にそろえる（最大幅まで同じ箱。余白だけ合わせると
                    1152px を超える画面で右端が本文から外れた・実測 1440px で 144px） */
                 <p className="m-0 mt-1.5 mx-auto w-full max-w-5xl lg:max-w-6xl px-4 sm:px-6 md:px-8 text-white/60 text-right"
-                   style={{ fontSize: "11px", lineHeight: "15px" }}>
+                   style={{ fontSize: "12px", lineHeight: "15px" }}>
                     {/* Commons の写真は「写真: 作者 / ライセンス（文面へ）/ Wikimedia Commons（出典へ）」
                         ——CC BY・CC BY-SA の表示条件（作者・ライセンスの URI・出典） */}
                     {/* 2026-10-11 レビュー: 題（CC BY / BY-SA 1.0〜3.0 の表示条件）を頭に、
@@ -750,7 +750,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         <span>{region ? `${region} · ${photoCountLabel}` : photoCountLabel}</span>
                         {spot.category && (
                             <span className="inline-flex items-center rounded-full bg-chip text-chip-text"
-                                  style={{ fontSize: "11px", padding: "2px 8px" }}>{spot.category}</span>
+                                  style={{ fontSize: "12px", padding: "2px 8px" }}>{spot.category}</span>
                         )}
                     </p>
                     {/* 🔴 **下書き（運営未確認）の帯。** 2026-09-24 の台帳は AI が1日で書き、
@@ -781,7 +781,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     撮影地マップなので英語は Map（端末の地図アプリとは名乗らない）。
                     **格子で3等分**（`flex-1` だと包んだ側だけ狭くなる）。PC は本文の列の幅
                     （36rem）で止める——スマホの形を横に引き伸ばさない（owner の指示） */}
-                <div className="pb-6 border-b border-white/10">
+                <div className="pb-6 border-b border-line">
                 <div className="grid grid-cols-3 gap-2.5 max-w-xl">
                     <SaveSpotButton slug={spot.slug} name={spot.name} locale={isJa ? "ja" : "en"} kind="spot" variant="tile" />
                     <Link href={mapHref} prefetch={false}
@@ -861,7 +861,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                             {spot.seasonalGuide!.map((s) => (
                                                 <li key={s.season} className="flex gap-2.5">
                                                     <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
-                                                          style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
+                                                          style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                         {SEASON_LABEL[s.season] ?? s.season}
                                                     </span>
                                                     <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{s.text}</span>
@@ -880,7 +880,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                             {guideTimeList.map((t) => (
                                                 <li key={t.time} className="flex gap-2.5">
                                                     <span className="flex-shrink-0 inline-flex items-center justify-center rounded-full bg-chip text-chip-text"
-                                                          style={{ fontSize: "11px", padding: "2px 10px", height: "22px" }}>
+                                                          style={{ fontSize: "12px", padding: "2px 10px", height: "22px" }}>
                                                         {TIME_LABEL[t.time] ?? t.time}
                                                     </span>
                                                     <span className="text-white/85" style={{ fontSize: "14px", lineHeight: "22px" }}>{t.text}</span>
@@ -947,19 +947,19 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                     <dl className="m-0">
                                         {spot.access.transit && (
                                             <>
-                                                <dt className="text-white/55" style={{ fontSize: "11px" }}>{isJa ? "公共交通機関" : "Transit"}</dt>
+                                                <dt className="text-white/55" style={{ fontSize: "12px" }}>{isJa ? "公共交通機関" : "Transit"}</dt>
                                                 <dd className="m-0 mb-2 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>{spot.access.transit}</dd>
                                             </>
                                         )}
                                         {spot.access.car && (
                                             <>
-                                                <dt className="text-white/55" style={{ fontSize: "11px" }}>{isJa ? "車" : "By car"}</dt>
+                                                <dt className="text-white/55" style={{ fontSize: "12px" }}>{isJa ? "車" : "By car"}</dt>
                                                 <dd className="m-0 mb-2 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>{spot.access.car}</dd>
                                             </>
                                         )}
                                         {spot.access.walk && (
                                             <>
-                                                <dt className="text-white/55" style={{ fontSize: "11px" }}>{isJa ? "徒歩" : "On foot"}</dt>
+                                                <dt className="text-white/55" style={{ fontSize: "12px" }}>{isJa ? "徒歩" : "On foot"}</dt>
                                                 <dd className="m-0 mb-2 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>{spot.access.walk}</dd>
                                             </>
                                         )}
@@ -968,7 +968,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                 {showsField(spot, "access") && <Sources spot={spot} field="access" />}
                                 {showsField(spot, "parking") && spot.parking?.note && (
                                     <div className="mt-3">
-                                        <p className="m-0 text-white/55" style={{ fontSize: "11px" }}>{isJa ? "駐車場" : "Parking"}</p>
+                                        <p className="m-0 text-white/55" style={{ fontSize: "12px" }}>{isJa ? "駐車場" : "Parking"}</p>
                                         <p className="m-0 text-white/85" style={{ fontSize: "13px", lineHeight: "20px" }}>{spot.parking.note}</p>
                                         <Sources spot={spot} field="parking" />
                                     </div>
@@ -986,7 +986,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                         {isJa ? "撮影地マップでこの場所を開く" : "Open on the map"} <span aria-hidden="true">›</span>
                                     </p>
                                     {/* **正確な GPS は出さない。** 台帳の座標は約1km に丸めてある */}
-                                    <p className="m-0 mt-1 text-white/60" style={{ fontSize: "11px" }}>
+                                    <p className="m-0 mt-1 text-white/60" style={{ fontSize: "12px" }}>
                                         {isJa ? "位置はおおよそです（約1km）" : "Approximate location (~1km)"}
                                     </p>
                                 </Link>
@@ -1035,7 +1035,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                         <li key={t.href}>
                                             <Link href={t.href} prefetch={false}
                                                   className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                                  style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                                  style={CHIP_SIZE}>
                                                 {!isJa && t.labelEn ? t.labelEn : t.label}
                                                 <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
                                             </Link>
@@ -1057,14 +1057,14 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                         {/* **人が確かめたときだけ。** 以前は台帳の日付をそのまま描き、
                             AI が書いた日が「情報の最終確認」として全ページに出ていた */}
                         {humanChecked && spot.verifiedAt && (
-                            <p className="m-0 mt-5 text-white/60" style={{ fontSize: "11px" }}>
+                            <p className="m-0 mt-5 text-white/60" style={{ fontSize: "12px" }}>
                                 {isJa ? `情報の最終確認: ${spot.verifiedAt}（運営）` : `Last checked: ${spot.verifiedAt} (by our team)`}
                             </p>
                         )}
                         {/* **AI 照合の行は出典を書く**（owner の委任・2026-09-26）。
                             「運営が確かめた」とは名乗らない */}
                         {aiChecked && (
-                            <p className="m-0 mt-5 text-white/60" style={{ fontSize: "11px", lineHeight: "17px" }}>
+                            <p className="m-0 mt-5 text-white/60" style={{ fontSize: "12px", lineHeight: "17px" }}>
                                 {isJa ? "出典: " : "Source: "}
                                 {aiChecked.sources.map((s, i) => (
                                     <React.Fragment key={s.url}>

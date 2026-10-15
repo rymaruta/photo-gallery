@@ -30,3 +30,73 @@ export function displayWhiteBalance(v: string | undefined, locale: "ja" | "en" =
     return WHITE_BALANCE_JA[raw.toLowerCase()] ?? raw;
 }
 
+
+// ── v2 の撮影情報の1行（板 `PhotoDetail.dc.html`・アプリの `PhotoMetaLine`）──────────
+
+/** 板の区切り（` · `） */
+const SEP = " · ";
+
+type ExifLineSource = {
+    camera?: string;
+    lens?: string;
+    aperture?: string;
+    exposure?: string;
+    iso?: number | string;
+    focalLength?: string;
+} | null | undefined;
+
+const trimmed = (v: unknown): string | undefined => {
+    const s = typeof v === "number" ? (Number.isFinite(v) ? String(v) : "") : typeof v === "string" ? v.trim() : "";
+    return s ? s : undefined;
+};
+
+/** 絞り。`f/` の付かない値（"8"）にも付ける（アプリの `PhotoMetaLine.aperture` と同じ） */
+function apertureText(v: unknown): string | undefined {
+    const s = trimmed(v);
+    if (!s) return undefined;
+    return s.toLowerCase().startsWith("f") ? s : `f/${s}`;
+}
+
+/**
+ * シャッター。**板の書き方「1/125 s」にそろえる**（数字と単位の間に空き）。
+ * 保存されている値は Web が "1/125s"、アプリが "1/125"（秒の s が無い）で割れているので、
+ * 末尾の s を一度外してから付け直す
+ */
+function exposureText(v: unknown): string | undefined {
+    const s = trimmed(v);
+    if (!s) return undefined;
+    const bare = s.replace(/\s*(s|sec|秒)$/i, "").trim();
+    return bare ? `${bare} s` : undefined;
+}
+
+/** ISO。0 以下・数でないものは出さない（「ISO 0」を作らない） */
+function isoText(v: unknown): string | undefined {
+    const s = trimmed(v);
+    if (!s) return undefined;
+    const n = Number(s.replace(/^iso\s*/i, ""));
+    return Number.isFinite(n) && n > 0 ? `ISO ${n}` : undefined;
+}
+
+/**
+ * 撮影設定の1行「24mm · f/8 · 1/125 s · ISO 100」（焦点距離 → 絞り → シャッター → ISO）。
+ * **持っているものだけを繋ぐ**——空の欠片に区切りだけが残る行を作らない。何も無ければ `undefined`
+ */
+export function exifSettingsLine(exif: ExifLineSource): string | undefined {
+    if (!exif) return undefined;
+    const items = [trimmed(exif.focalLength), apertureText(exif.aperture), exposureText(exif.exposure), isoText(exif.iso)]
+        .filter((s): s is string => !!s);
+    return items.length > 0 ? items.join(SEP) : undefined;
+}
+
+/**
+ * 機材の1行「SONY ILCE-7M3 · E 28-200mm」（機種 · レンズ）。何も無ければ `undefined`。
+ *
+ * **機種の二重のメーカー名は呼ぶ側で畳んで渡す**（`dedupeCameraName`）。このファイルは
+ * 何も import しない決まり（`exifr` を写真ページの初期バンドルに戻さないための見張りが
+ * `__tests__/exifDisplay.test.ts` にある）
+ */
+export function exifGearLine(exif: ExifLineSource): string | undefined {
+    if (!exif) return undefined;
+    const items = [trimmed(exif.camera), trimmed(exif.lens)].filter((s): s is string => !!s);
+    return items.length > 0 ? items.join(SEP) : undefined;
+}

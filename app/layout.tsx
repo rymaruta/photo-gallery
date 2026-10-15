@@ -344,7 +344,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* Header: 黒一色の地に白字（iOS の `Main.dc.html`・「黒塗りの真鍮」の地は `#000`）。
                   以前は 70% の地＋ぼかし＋上からの白いにじみだったが、iOS は透けない黒 */}
               <header
-                className="sticky top-0 z-50 bg-bar border-b border-white/10"
+                className="sticky top-0 z-50 bg-bar border-b border-line"
                 // **ホーム画面から起動したとき、時計・電池の帯のぶんを上に空ける。**
                 // `statusBarStyle: "black-translucent"` でページが帯の下まで広がるので、
                 // 空けないとロゴとメニューが時計・Dynamic Island と重なる。

@@ -180,7 +180,7 @@ export default function MapPhotoSheet({
                     <Link
                         href={ROUTES.PHOTO(photo.id)}
                         prefetch={false}
-                        className="map-sheet__thumb flex-shrink-0 block rounded-xl overflow-hidden bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        className="map-sheet__thumb flex-shrink-0 block rounded-xl overflow-hidden bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                         style={{ width: "128px", height: "152px" }}
                         aria-label={title}
                     >
@@ -250,7 +250,7 @@ export default function MapPhotoSheet({
                                         <Link
                                             href={ROUTES.PHOTO(r.id)}
                                             prefetch={false}
-                                            className="block overflow-hidden rounded-lg bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                                            className="block overflow-hidden rounded-lg bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                                             style={{ width: "48px", height: "48px" }}
                                             aria-label={getLocalized(r.title, locale) || (en ? "Photo" : "写真")}
                                         >

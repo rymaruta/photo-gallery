@@ -175,7 +175,7 @@ export default function MiniPlayer() {
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold text-white truncate">{current.title}</p>
-                            <p className="text-[11px] text-white/50 truncate">
+                            <p className="text-[12px] text-white/50 truncate">
                                 {current.artist ?? ""}{label ? `　·　${label}` : ""}
                             </p>
                         </div>

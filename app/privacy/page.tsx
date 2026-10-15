@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <section className="pt-6 mt-6 border-t border-white/10 first:mt-0 first:pt-0 first:border-t-0">
+        <section className="pt-6 mt-6 border-t border-line first:mt-0 first:pt-0 first:border-t-0">
             <h2 className="text-base font-semibold mb-2.5">{title}</h2>
             <div className="text-sm text-white/75 leading-relaxed space-y-2.5">{children}</div>
         </section>
@@ -158,7 +158,7 @@ export default function PrivacyPage() {
                 </Section>
             </div>
 
-            <div className="mt-10 pt-6 border-t border-white/10">
+            <div className="mt-10 pt-6 border-t border-line">
                 <Link href="/" prefetch={false} className="text-sm text-white/60 hover:text-white transition-colors">← ホームに戻る</Link>
             </div>
         </main>
