@@ -62,10 +62,8 @@ export default function PhotoTripSection({
         <section aria-label={isJa ? "写真から、次の旅へ" : "From this photo to your next trip"}
                  className="flex flex-col gap-2.5 pt-2" data-testid="photo-trip">
             {/* 眉ラベル＋消える線（板の `.eb.ebl`） */}
-            <p className="m-0 flex items-center gap-2.5 text-accent font-semibold" aria-hidden="true"
-               style={{ fontSize: "11px", lineHeight: "14px", letterSpacing: "0.14em" }}>
+            <p className="m-0 eyebrow eyebrow-line text-accent" aria-hidden="true">
                 <span className="flex-shrink-0">{isJa ? "NEXT TRIP · 次の旅へ" : "NEXT TRIP"}</span>
-                <span className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(201,166,107,.55), rgba(201,166,107,0))" }} />
             </p>
 
             {tiles > 0 && (

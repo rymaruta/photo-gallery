@@ -24,7 +24,7 @@ export default function HomeEntryRow({ href, eyebrow, text, testId }: {
             className="mb-3 flex items-center gap-3 min-h-[44px] px-4 rounded-xl bg-surface hover:bg-surface-2 text-white transition-colors"
             style={{ touchAction: "manipulation" }}
         >
-            <span className="shrink-0 font-mono font-medium uppercase text-accent" style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
+            <span className="shrink-0 eyebrow text-accent">
                 {eyebrow}
             </span>
             <span className="min-w-0 flex-1 truncate" style={{ fontSize: "14px" }}>

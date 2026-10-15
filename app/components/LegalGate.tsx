@@ -92,7 +92,7 @@ export default function LegalGate() {
                 aria-labelledby="legal-gate-title"
                 className="mx-auto flex min-h-full max-w-md flex-col px-6 pt-12 pb-8"
             >
-                <p className="text-[11px] uppercase tracking-[0.16em] text-accent">
+                <p className="eyebrow text-accent">
                     {/* iOS も日本語の画面でこの英字の眉を出す（LegalGateView） */}
                     Before you start
                 </p>

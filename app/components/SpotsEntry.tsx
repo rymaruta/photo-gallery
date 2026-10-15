@@ -57,7 +57,7 @@ export default function SpotsEntry({ locale, seasonal = null }: { locale: "ja" |
                             <Link href={seasonal.href} prefetch={false} data-testid="home-season-all"
                                   className="flex flex-col justify-between w-full rounded-xl bg-surface hover:bg-surface-2 transition-colors p-2 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                                   style={{ height: `${CARD_H}px` }}>
-                                <span className="font-mono font-medium uppercase text-accent" style={{ fontSize: "11px", lineHeight: "14px", letterSpacing: "1px" }}>
+                                <span className="eyebrow text-accent">
                                     {en ? "This season" : "いまの季節"}
                                 </span>
                                 {/* 「秋の／撮影スポット」で折る（語の途中で折らない） */}

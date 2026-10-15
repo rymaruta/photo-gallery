@@ -33,7 +33,7 @@ import NameSideSheet from "./NameSideSheet";
 
 type Load<T> = { state: "loading" } | { state: "failed" } | { state: "ready"; value: T };
 
-const EYEBROW = "text-[11px] tracking-[0.12em] text-accent";
+const EYEBROW = "eyebrow eyebrow-line text-accent";
 
 export default function BadgesPage() {
     const { isAuthenticated, loading } = useAuth();
