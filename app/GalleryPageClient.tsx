@@ -23,6 +23,7 @@ import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
 import { EmptyState } from "./components/StateViews";
 import QuizEntry from "./components/QuizEntry";
+import ThemeEntry from "./components/ThemeEntry";
 import SpotsEntry from "./components/SpotsEntry";
 import type { HomeSeasonal } from "../lib/data/spotTopics";
 import { useMySaves } from "../lib/hooks/useMySaves";
@@ -596,7 +597,11 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
       {/* タイトル: モバイルでは見せない（ヘッダーナビにサイト名がある） */}
       <div className="sm:flex sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:mb-4">
         <div className="sm:flex-1">
-          <h1 id="site-title" className="sr-only sm:not-sr-only text-2xl sm:text-3xl font-bold mb-0">
+          {/* 探すは**狭い画面でも見せる**明朝 30（アプリ v2 の探すの題・板 Search の h1）。
+              トップはこれまでどおり（ヘッダーにサイト名がある） */}
+          <h1 id="site-title" className={isSearch
+              ? "font-serif font-bold m-0 mb-3 sm:mb-0 text-[30px] leading-[1.25]"
+              : "sr-only sm:not-sr-only text-2xl sm:text-3xl font-bold mb-0"}>
             {heading}
           </h1>
           {!isSearch && <div className="hidden sm:block">{renderSubtitle(labels.site?.subtitle)}</div>}
@@ -654,6 +659,8 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
       {surface === "home" && <QuizEntry locale={locale === "en" ? "en" : "ja"} />}
       {/* 撮影スポットのガイドへの入口（同じ1行の形・一問の直下）。`SpotsEntry` の注記 */}
       {surface === "home" && <SpotsEntry locale={locale === "en" ? "en" : "ja"} seasonal={seasonalSpots} />}
+      {/* 今日のテーマ（同じ1行の形・撮影スポットの直下）。`ThemeEntry` の注記 */}
+      {surface === "home" && <ThemeEntry locale={locale === "en" ? "en" : "ja"} />}
 
       {/* ストーリーはマイページへ移した（owner:「ストーリー見れる場所もマイページに
           移設したいな」）。投稿する入口も同じ場所に集めた流れに揃える */}
