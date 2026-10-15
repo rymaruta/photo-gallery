@@ -22,7 +22,7 @@ function setup(over: Partial<React.ComponentProps<typeof FilterBar>> = {}) {
 }
 
 describe("FilterBar", () => {
-    it("チップは iOS の色: 未選択は #1A1A1A＋白12%の縁＋#D4D4D4、選択中は白＋墨の600", () => {
+    it("チップは iOS の色: 未選択は白7%＋白8%の縁＋#D4D4D4、選択中は白＋墨の600", () => {
         setup({ values: { ...baseValues, category: "nature", selectedTags: ["swan"] } });
         const cls = (el: HTMLElement) => el.className.split(/\s+/);
         for (const off of [screen.getByRole("button", { name: "すべて" }), screen.getByRole("switch", { name: /lake/ })]) {

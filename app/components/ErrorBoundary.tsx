@@ -2,6 +2,7 @@
 
 import React, { Component, ReactNode } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import { BTN_FILL } from "./buttonStyles";
 
 type Props = {
     children: ReactNode;
@@ -32,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         if (this.state.hasError) {
             return this.props.fallback ?? (
                 <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-                    <div className="w-full max-w-sm rounded-3xl bg-surface-2 ring-1 ring-white/10 shadow-2xl p-8 text-center">
+                    <div className="w-full max-w-sm rounded-3xl bg-surface-2 ring-1 ring-line shadow-2xl p-8 text-center">
                         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
                             <ExclamationTriangleIcon className="w-6 h-6 text-white" />
                         </div>
@@ -45,7 +46,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                         </p>
                         <button
                             onClick={() => this.setState({ hasError: false })}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition`}
                         >
                             再試行
                         </button>

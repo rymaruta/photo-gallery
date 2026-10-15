@@ -28,7 +28,7 @@ export default function StoryTile({ story, label, ariaLabel, onClick, disabled, 
     children?: React.ReactNode;
 }) {
     return (
-        <li className="relative aspect-[9/16] overflow-hidden bg-white/5">
+        <li className="relative aspect-[9/16] overflow-hidden bg-surface">
             <button
                 type="button"
                 onClick={onClick}
@@ -44,7 +44,7 @@ export default function StoryTile({ story, label, ariaLabel, onClick, disabled, 
                 )}
                 <span
                     className="absolute left-1 bottom-1 px-1.5 py-0.5 rounded bg-black/60 text-white/90"
-                    style={{ fontSize: "10px" }}
+                    style={{ fontSize: "12px" }}
                 >
                     {label}
                 </span>

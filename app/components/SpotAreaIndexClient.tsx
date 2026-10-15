@@ -6,7 +6,7 @@ import type { SpotArea } from "@/lib/data/spotLink";
 import { REGIONS, REGION_EN, type RegionName } from "@/lib/data/prefectures";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 
 /**
  * **公式撮影地ガイドの入口**（`/spots`）。**都道府県の一覧**を出す。
@@ -87,9 +87,9 @@ export default function SpotAreaIndexClient({ areas, total, draftCount, children
                                 <li key={a.slug}>
                                     <Link href={ROUTES.SPOT_AREA(a.slug)} prefetch={false}
                                           className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                          style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                          style={CHIP_SIZE}>
                                         {isJa ? a.name : a.nameEn}
-                                        <span className="text-white/60" style={{ fontSize: "11px" }}>{a.count}</span>
+                                        <span className="text-white/60" style={{ fontSize: "12px" }}>{a.count}</span>
                                     </Link>
                                 </li>
                             ))}

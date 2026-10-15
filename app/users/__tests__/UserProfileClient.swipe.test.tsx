@@ -57,6 +57,26 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
+    it("選んでいるタブだけが真鍮＋太字＋2px の下線（iOS v2・その人のテーマ色ではない）", () => {
+        render(<UserProfileClient userId="nobody" />);
+        const tabs = screen.getAllByRole("tab");
+        const on = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
+        expect(on).toHaveLength(1);
+        expect(on[0].className.split(/\s+/)).toEqual(expect.arrayContaining(["text-accent", "font-semibold", "shadow-[inset_0_-2px_0_var(--color-accent)]"]));
+        for (const off of tabs.filter((t) => t !== on[0])) expect(off.className.split(/\s+/)).not.toContain("text-accent");
+    });
+
+    it("アバターは黒 4px の縁だけ（回るオーロラの輪をやめた・iOS v2）", () => {
+        const { container } = render(<UserProfileClient userId="nobody" />);
+        const frame = container.querySelector("[data-avatar-frame]") as HTMLElement;
+        expect(frame).not.toBeNull();
+        expect(frame.className.split(/\s+/)).toEqual(expect.arrayContaining(["rounded-full", "border-4", "border-bg"]));
+        expect(container.querySelector(".avatar-orbit")).toBeNull();
+        const gradients = Array.from(container.querySelectorAll<HTMLElement>("[style]"))
+            .filter((el) => /conic-gradient/.test(el.getAttribute("style") ?? ""));
+        expect(gradients).toEqual([]);
+    });
+
     it("廃止したタブ（足あと・旅）は存在しない", () => {
         render(<UserProfileClient userId="nobody" />);
         expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();

@@ -214,7 +214,7 @@ export default function CloseFriends({ locale, userId }: Props) {
     };
 
     return (
-        <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-4 space-y-3">
+        <div className="rounded-2xl bg-white/[0.03] ring-1 ring-line p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-white">{isJa ? "親しい友達" : "Close friends"}</h3>
                 {state === "ready" && (
@@ -258,7 +258,7 @@ export default function CloseFriends({ locale, userId }: Props) {
                         ? <p className="text-xs text-white/60">{isJa ? "見つかりませんでした" : "No matches"}</p>
                         : <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto">{shown.map((r) => row(r.id, r.name, r.username))}</ul>}
                     {listCut && followingTotal > following.length && (
-                        <p className="text-[11px] text-white/60">
+                        <p className="text-[12px] text-white/60">
                             {isJa
                                 ? `フォロー中 ${followingTotal}人のうち、新しい ${following.length}人を表示しています。`
                                 : `Showing the ${following.length} most recent of ${followingTotal} people you follow.`}
@@ -272,7 +272,7 @@ export default function CloseFriends({ locale, userId }: Props) {
                     <p className="text-xs font-semibold text-white/80">{isJa ? "上の一覧に出ない人" : "Not in the list above"}</p>
                     {/* **「フォローを外した人」と決めつけない。** 一覧は新しい50人までなので、
                         まだフォロー中の古い人もここに来る（外すよう促すことになっていた） */}
-                    <p className="text-[11px] text-white/60 mt-0.5">
+                    <p className="text-[12px] text-white/60 mt-0.5">
                         {isJa
                             ? "フォローを外した人、上の一覧に入りきらない人、退会した人などです。星を外して保存すると、その人には「親しい友達」の写真が見えなくなります。"
                             : "People you've unfollowed, people beyond the list above, or deleted accounts. Unstar and save to stop sharing Close friends photos with them."}

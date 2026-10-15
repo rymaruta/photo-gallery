@@ -10,7 +10,7 @@ import { useLocale } from "../i18n/context";
 import { log } from "../../lib/utils/log";
 import { ROUTES } from "../../lib/routes";
 import NotificationsBell from "./NotificationsBell";
-import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
+import { HEADER_GLASS, HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./headerIcon";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 
@@ -113,7 +113,10 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => unlockBodyScroll();
     }, [open]);
 
-    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/10";
+    // キーボードの輪は**真鍮・内側**（2026-10-15）。前の `ring-line`（白8%）は暗い面の上でほぼ見えず、
+    // どの項目にいるか分からなかった。パネルは黒い面（`--color-surface`）なので真鍮が読める。
+    // パネルが `overflow` で切るので、外側に出すと輪の外半分が欠ける——内側（`ring-inset`）に描く
+    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent";
     const inactiveClasses = "text-white/90 bg-transparent hover:bg-white/10 hover:text-white";
     const btnStyle: React.CSSProperties = {
         touchAction: "manipulation",
@@ -138,6 +141,9 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             >
                 <MagnifyingGlassIcon aria-hidden="true" style={HEADER_ICON_STYLE} />
             </button>
+            {/* **お知らせとメニューは1つのガラスの丸い札に入れる**（2026-10-15・iOS v2 の
+                バーの右の項目と同じ）。探すは札の外（iOS もホームだけの別の入口） */}
+            <div className={HEADER_GLASS} data-header-glass>
             {/* 通知ベル: 「あなたの写真が誰かを旅立たせました」が届く */}
             {isAuthenticated && <NotificationsBell />}
             {/* **自分のアバターは出さない**（iOS のヘッダーは 探す・お知らせ・メニュー の3つ）。
@@ -166,6 +172,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
             >
                 {open ? <XMarkIcon aria-hidden="true" style={HEADER_ICON_STYLE} /> : <Bars3Icon aria-hidden="true" style={HEADER_ICON_STYLE} />}
             </button>
+            </div>
 
             {/* メニューは body へポータルする。以前ヘッダーが backdrop-blur を持っていた頃、
                 backdrop-filter は CSS 仕様で position:fixed の包含ブロックになるため、
@@ -189,7 +196,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
 
                     {/* Menu panel */}
                     <div
-                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-white/10 shadow-2xl overflow-x-hidden overflow-y-auto overscroll-contain story-media-in"
+                        className="absolute top-2 right-4 md:right-8 w-[52%] max-w-[220px] rounded-2xl ring-1 ring-line shadow-2xl overflow-x-hidden overflow-y-auto overscroll-contain story-media-in"
                         // **画面が低いときは中でスクロールさせる。** 横向きの iPhone
                         // （高さ 390px）ではログイン中の項目が入り切らず、「設定」
                         // 「ログアウト」が画面の外に出ていた（実測: パネルの下端 489px）。
@@ -233,7 +240,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
                                 )}
                                 {isAuthenticated && (
                                     <li style={{ margin: 0, padding: "10px 12px 4px" }}>
-                                        <span className="text-[10px] tracking-widest uppercase text-white/50">
+                                        <span className="text-[12px] tracking-widest uppercase text-white/50">
                                             {navLabels.account || "Account"}
                                         </span>
                                     </li>

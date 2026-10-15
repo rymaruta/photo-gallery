@@ -48,7 +48,8 @@ import { siteConfig, generatePhotoStructuredData, generateBreadcrumbStructuredDa
 import { slugify, collectionPath, categoryLabel } from "../../../lib/utils/collections";
 import RelatedPhotos from "../../components/RelatedPhotos";
 import CommentSection from "../../components/CommentSection";
-import { relatedSections, adjacentPhotos } from "../../../lib/utils/related";
+import { relatedSections, adjacentPhotos, nearbyPhotos } from "../../../lib/utils/related";
+import Thumb from "../../components/Thumb";
 import { ROUTES } from "../../../lib/routes";
 import { formatMapHash, PHOTO_LINK_ZOOM } from "../../../lib/utils/mapView";
 import { formatCameraName, dedupeCameraName } from "../../../lib/utils/cameraName";
@@ -57,6 +58,7 @@ import { useLocale } from "../../i18n/context";
 import { log } from "../../../lib/utils/log";
 import { isImageReady } from "../../../lib/utils/imageReady";
 import ExifSpecs, { buildExifSpecs } from "../../components/ExifSpecs";
+import { exifSettingsLine, exifGearLine } from "../../../lib/utils/exifDisplay";
 import { isImeKey } from "../../../lib/utils/ime";
 import { useSongSearch } from "../../../lib/hooks/useSongSearch";
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
@@ -68,6 +70,8 @@ import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
+import PhotoTripSection from "./PhotoTripSection";
+import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -340,7 +344,7 @@ function PhotoImage({
     );
 }
 
-type RelatedSets = { author: Photo[]; location: Photo[]; prev: Photo | null; next: Photo | null };
+type RelatedSets = { author: Photo[]; location: Photo[]; prev: Photo | null; next: Photo | null; nearby: Photo[] };
 
 type PhotoPageClientProps = {
     photoId: string;
@@ -361,9 +365,14 @@ type PhotoPageClientProps = {
      * （そのあいだに非公開・削除になった元の写真は消える）。
      */
     initialInspired?: InspiredLink | null;
+    /**
+     * 写真が指すスポットの時刻帯（**サーバー側で解いたもの**・`spotTimeZoneForPhoto`）。
+     * 「次のゴールデンアワー」をその土地の時計で言う。無ければ出さない（写真の座標から推測しない・`photoLightZone`）
+     */
+    spotTimeZone?: string | null;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired, spotTimeZone }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
@@ -682,11 +691,13 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // クライアント取得前（allPhotos が initialPhoto だけの間）はサーバ計算済みの
     // initialRelated を使う＝静的HTMLに内部リンクが焼き込まれる（SEO）。
     const related = useMemo(() => {
-        if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null };
-        if (allPhotos.length <= 1 && initialRelated) return initialRelated;
+        if (!photo) return { author: [] as Photo[], location: [] as Photo[], prev: null as Photo | null, next: null as Photo | null, nearby: [] as Photo[] };
+        // 古い形（`nearby` を持たない）の props でも落ちない
+        if (allPhotos.length <= 1 && initialRelated) return { ...initialRelated, nearby: initialRelated.nearby ?? [] };
         return {
             ...relatedSections(photo, allPhotos, 8),
             ...adjacentPhotos(photo, allPhotos),
+            nearby: nearbyPhotos(photo, allPhotos, 8),
         };
     }, [photo, allPhotos, initialRelated]);
 
@@ -960,15 +971,26 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {/* 撮影地のチップ（写真の左下）→ 同じ場所の集約ページ（内部リンク＝SEO・回遊）。
                     右下は撮影地マップのその位置へ（座標が無ければ出さない。おおよその
                     座標（geoApprox）でも出す——地図側が「おおよそ」と断ってピンを立てる） */}
+                {/* **道しるべ**「📍 撮影地 · この撮影地の写真 ›」（v2 の板 `PhotoDetail.dc.html`）。
+                    写真の上なので白（真鍮は写真の上では読めない）。押す的は 44px——見た目の札は
+                    28px のまま、外側の透明な余白（8px）で広げる。地名は長ければ切り、
+                    「この撮影地の写真 ›」は切らない（行き先が何かを言う部分） */}
                 {locationText && (
                     <Link
                         href={collectionPath("location", slugify(locationText, "location"))}
                         prefetch={false}
-                        className="absolute left-3 bottom-3 inline-flex items-center gap-1.5 max-w-[70%] rounded-full bg-black/55 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
-                        style={{ fontSize: "12px", lineHeight: "16px", padding: "6px 10px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        aria-label={locale === "en" ? `Photos taken in ${locationText}` : `${locationText} · この撮影地の写真`}
+                        className="group absolute left-1 bottom-1 flex items-center max-w-[78%] p-2"
+                        style={{ minHeight: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                     >
-                        <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "14px", height: "14px" }} />
-                        <span className="truncate">{locationText}</span>
+                        <span className="inline-flex items-center gap-1.5 min-w-0 rounded-full bg-black/55 backdrop-blur-sm text-white group-hover:bg-black/70 transition-colors"
+                              style={{ fontSize: "12px", lineHeight: "16px", padding: "6px 10px" }}>
+                            <MapPinIcon aria-hidden="true" className="flex-shrink-0" style={{ width: "14px", height: "14px" }} />
+                            <span className="truncate">{locationText}</span>
+                            <span className="flex-shrink-0 whitespace-nowrap" aria-hidden="true">
+                                {locale === "en" ? " · Photos here ›" : " · この撮影地の写真 ›"}
+                            </span>
+                        </span>
                     </Link>
                 )}
                 {mapHash && (
@@ -976,10 +998,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         href={`${ROUTES.MAP}${mapHash}`}
                         prefetch={false}
                         aria-label={locale === "en" ? "See on the map" : "撮影地マップで見る"}
-                        className="absolute right-3 bottom-3 inline-flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
-                        style={{ width: "36px", height: "36px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        // **当たりは 44px、見た目の丸は 36px**（写真の上に大きな丸を置かない）。
+                        // 丸の中心は前と同じ位置（端から 30px）
+                        className="group absolute inline-flex items-center justify-center rounded-full text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                        style={{ right: "8px", bottom: "8px", width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        data-testid="photo-map-button"
                     >
-                        <MapIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
+                        <span className="inline-flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm group-hover:bg-black/70 transition-colors"
+                              style={{ width: "36px", height: "36px" }}>
+                            <MapIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
+                        </span>
                     </Link>
                 )}
             </div>
@@ -1180,6 +1208,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     </button>
                 </div>
 
+            {/* NEXT TRIP · 次の旅へ（行きたい・経路・次のゴールデンアワー・撮りに行く）。
+                アプリと同じ位置: いいね・コメント・保存・共有の段のすぐ下 */}
+            <PhotoTripSection
+                spot={spotLink ?? null}
+                directionsTo={directionsTarget(photo, spotLink?.coords)}
+                zone={photoLightZone(spotLink?.coords, spotTimeZone)}
+                inspiredPhotoId={offersInspiredShoot(photo, authUserId) ? photo.id : null}
+                locale={locale}
+            />
+
             {/* この写真のBGM */}
             {(photoSong || photoYtUrl || isOwnPhoto) && (
                 <div className="space-y-2">
@@ -1196,14 +1234,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
 
                     {/* フル再生MV（YouTube）。大きいので折りたたみ式 */}
                     {mvEmbed && (
-                        <div className="rounded-2xl bg-white/5 ring-1 ring-white/10 overflow-hidden max-w-md">
+                        <div className="rounded-2xl bg-surface ring-1 ring-line overflow-hidden max-w-md">
                             <div className="flex items-center gap-1.5 px-3.5 py-2.5">
                                 <MusicalNoteIcon className="w-3.5 h-3.5 text-accent" />
                                 <span className="text-[11px] tracking-widest uppercase text-white/50">{locale === "en" ? "Full MV" : "フル再生MV"}</span>
                                 <button
                                     onClick={() => setMvOpen((v) => !v)}
                                     aria-expanded={mvOpen}
-                                    className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-white/60 hover:text-white active:scale-95 transition"
+                                    className="ml-auto inline-flex items-center gap-0.5 text-[12px] text-white/60 hover:text-white active:scale-95 transition"
                                 >
                                     {mvOpen ? (locale === "en" ? "Hide" : "畳む") : (locale === "en" ? "Play MV" : "MVを開く")}
                                     <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${mvOpen ? "rotate-180" : ""}`} />
@@ -1225,7 +1263,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     )}
                     {isOwnPhoto && (
                         songPickerOpen ? (
-                            <div className="rounded-xl bg-white/5 ring-1 ring-white/10 p-2.5 space-y-2 max-w-md">
+                            <div className="rounded-xl bg-surface ring-1 ring-line p-2.5 space-y-2 max-w-md">
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -1234,7 +1272,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         onKeyDown={(e) => { if (e.key === "Enter" && !isImeKey(e.nativeEvent)) { e.preventDefault(); void searchPhotoSongs(); } }}
                                         placeholder={locale === "en" ? "Song or artist" : "曲名・アーティスト名"}
                                         autoFocus
-                                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                        className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                     />
                                     <button
                                         onClick={() => void searchPhotoSongs()}
@@ -1256,7 +1294,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     <SongSearchError />
                                 )}
                                 {songResults.length > 0 && (
-                                    <ul className="rounded-lg ring-1 ring-white/10 divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
+                                    <ul className="rounded-lg ring-1 ring-line divide-y divide-white/5 overflow-hidden max-h-56 overflow-y-auto no-scrollbar">
                                         {songResults.map((r) => (
                                             <li key={r.id}>
                                                 <button
@@ -1266,9 +1304,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                                     <SongArtwork src={r.artwork} className="w-8 h-8 rounded object-cover bg-white/10 flex-shrink-0" />
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs text-white truncate">{r.title}</p>
-                                                        <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                        <p className="text-[12px] text-white/50 truncate">{r.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    <span className="text-[12px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                 </button>
                                             </li>
                                         ))}
@@ -1307,7 +1345,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         <Link
                             href={ROUTES.EDIT(photoId)}
                             prefetch={false}
-                            className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                            className="inline-flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full bg-surface ring-1 ring-line text-xs text-white/60 hover:bg-surface-2 hover:text-white transition-colors"
                             style={{ touchAction: "manipulation" }}
                         >
                             {locale === "en" ? "Edit or delete this photo" : "この写真を編集・削除"}
@@ -1330,7 +1368,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                 // またぐ長さで画面とサーバーの答えが割れる。
                                 // プロフィールの曲のリンク欄は既に 500 なので揃える
                                 maxLength={500}
-                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                                className="flex-1 min-w-0 bg-surface-2 border border-line rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-colors"
                                 style={{ fontSize: "16px" }}
                             />
                             <button
@@ -1383,9 +1421,46 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         specs={buildExifSpecs(mergedExif, locale, cameraHref)}
                         locale={locale}
                         collapsible
+                        // v2 の Meta の形（「24mm · f/8 · 1/125 s · ISO 100」と 機種 · レンズ）。
+                        // 機種は `mergedExif.camera`（二重のメーカー名は畳んである）
+                        summary={{ settings: exifSettingsLine(mergedExif), gear: exifGearLine(mergedExif) }}
                     />
                 );
             })()}
+
+                {/* **この近くで撮られた写真 ／ 地図で見る ›**（v2 の板の末尾・アプリの `nearbySection`）。
+                    正確な座標どうしで 5km 以内（`nearbyPhotos`）。**1枚も無ければ節ごと出さない**。
+                    ビルド時に組んだもの（`initialRelated.nearby`）で静的HTMLにも焼く（写真から写真への内部リンク）。
+                    見出しは明朝（板）、「地図で見る」は撮影地マップのこの写真の位置へ */}
+                {related.nearby.length > 0 && (
+                    <section aria-labelledby="photo-nearby-heading" className="pt-3" data-testid="photo-nearby">
+                        <div className="flex items-baseline justify-between gap-3">
+                            <h2 id="photo-nearby-heading" className="m-0 font-semibold" style={{ fontSize: "19px", lineHeight: 1.3, fontFamily: MINCHO }}>
+                                {locale === "en" ? "Taken nearby" : "この近くで撮られた写真"}
+                            </h2>
+                            {mapHash && (
+                                <Link href={`${ROUTES.MAP}${mapHash}`} prefetch={false}
+                                      className="flex-shrink-0 inline-flex items-center text-white/70 hover:text-white transition-colors"
+                                      style={{ fontSize: "13px", minHeight: "44px", touchAction: "manipulation" }}>
+                                    {locale === "en" ? "View on map ›" : "地図で見る ›"}
+                                </Link>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
+                            {related.nearby.map((p) => {
+                                const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                                return (
+                                    <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
+                                          data-photo-id={p.id}
+                                          className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                          style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}>
+                                        <Thumb photo={p} alt={t || (locale === "en" ? "Photo" : "写真")} sizes="(max-width:640px) 25vw, 120px" />
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
 
                 {reportOpen && (
                     <ReportDialog
@@ -1406,7 +1481,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 ヘッダーの裏に入る） */}
             <div ref={tabsRef} className="mt-5 px-4 lg:px-0" style={{ scrollMarginTop: "var(--header-h)" }}>
                 <div role="tablist" aria-label={locale === "en" ? "Comments and related photos" : "コメントと関連写真"}
-                     className="flex border-b border-white/10">
+                     className="flex border-b border-line">
                     {([
                         { key: "comments" as const, label: locale === "en" ? `Comments (${commentCount})` : `コメント (${commentCount})` },
                         { key: "related" as const, label: locale === "en" ? "Related" : "関連写真" },
@@ -1454,7 +1529,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         >
                                             <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                             <span className="min-w-0">
-                                                <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
+                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
                                                 <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                         </Link>
@@ -1468,7 +1543,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                             style={{ touchAction: "manipulation" }}
                                         >
                                             <span className="min-w-0">
-                                                <span className="block text-[10px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
+                                                <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
                                                 <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                             <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />

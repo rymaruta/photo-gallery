@@ -51,7 +51,7 @@ export default function FeaturedSections({ photos, categoryNames, locale, onOpen
                             <Link
                                 href={collectionPath("category", g.slug)}
                                 prefetch={false}
-                                className="text-[11px] text-white/50 hover:text-white/80 underline decoration-white/20 underline-offset-2 shrink-0"
+                                className="text-[12px] text-white/50 hover:text-white/80 underline decoration-white/20 underline-offset-2 shrink-0"
                             >
                                 {isJa ? "すべて見る" : "See all"}
                             </Link>

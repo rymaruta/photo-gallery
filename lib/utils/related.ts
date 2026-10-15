@@ -1,6 +1,7 @@
 import type { Photo } from "../data/photos";
 import { compareNewest, sortByNewest } from "./photoOrder";
 import { tagKey, slugify } from "./collections";
+import { haversineKm } from "./journey";
 
 // 写真ページの回遊導線に使う「関連写真」の選定ロジック。
 // ビルド時の photos.json（+ APIの最新一覧）だけで計算でき、API追加は不要。
@@ -156,6 +157,43 @@ export function sameLocationPhotos(
         )
         .sort(compareNewest)
         .slice(0, limit);
+}
+
+/** 「この近くで撮られた写真」の半径（km）。アプリの `NearbyPhotos.defaultRadius` と同じ */
+export const NEARBY_RADIUS_KM = 5;
+
+/** 正確な座標（地名から引いたおおよその座標ではない）を持っているか */
+function exactCoords(p: Photo): { lat: number; lng: number } | null {
+    const c = p.coords;
+    if (!c || p.geoApprox || !Number.isFinite(c.lat) || !Number.isFinite(c.lng)) return null;
+    return c;
+}
+
+/**
+ * **この近くで撮られた写真**（板 `PhotoDetail.dc.html` の末尾・アプリの `NearbyPhotos.around`）。
+ *
+ * **その写真の座標から測る。** 座標の無い写真・**おおよその座標（`geoApprox`）の写真は
+ * 中心にも候補にもしない**——地名から引いた街の中心どうしは「近い」と言えない
+ * （同じ地名の写真が全部 0km に並ぶ。それは「同じ場所の写真」が既に出している）。
+ *
+ * 座標は保存時に約1km へ丸めてある（`sanitizeCoords`）ので、半径は 5km（1km 未満の線は引かない）。
+ * 近い順、同じ距離なら新しい順（ビルドのたびに順が変わらない）。
+ */
+export function nearbyPhotos(current: Photo, all: Photo[], limit = 8, radiusKm = NEARBY_RADIUS_KM): Photo[] {
+    const center = exactCoords(current);
+    if (!center) return [];
+    const scored: { p: Photo; km: number }[] = [];
+    for (const p of all) {
+        if (p.id === current.id || !isPublic(p)) continue;
+        const c = exactCoords(p);
+        if (!c) continue;
+        const km = haversineKm(center, c);
+        if (km <= radiusKm) scored.push({ p, km });
+    }
+    return scored
+        .sort((a, b) => a.km - b.km || compareNewest(a.p, b.p))
+        .slice(0, limit)
+        .map((s) => s.p);
 }
 
 /**
@@ -381,6 +419,8 @@ export type InitialRelated = {
     location: Photo[];
     prev: Photo | null;
     next: Photo | null;
+    /** この近くで撮られた写真（`nearbyPhotos`） */
+    nearby: Photo[];
 };
 
 /**
@@ -401,5 +441,6 @@ export function initialRelatedFor(current: Photo, all: Photo[], limit = 8): Init
         location: sections.location.map(slimForLinks),
         prev: adjacent.prev ? slimForLinks(adjacent.prev) : null,
         next: adjacent.next ? slimForLinks(adjacent.next) : null,
+        nearby: nearbyPhotos(current, all, limit).map(slimForLinks),
     };
 }

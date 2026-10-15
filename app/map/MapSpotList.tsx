@@ -88,13 +88,13 @@ export default function MapSpotList({ spots, total = spots.length, categoryActiv
                         <Link
                             href={`${ROUTES.SPOTS}/${s.slug}`}
                             prefetch={false}
-                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-white/10 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-line hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                             style={{ gap: "12px", padding: "8px" }}
                         >
                             {/* 代表写真。**権利の判断はサーバー側で済んでいる**ので、
                                 在れば出す・無ければ地図の印を置くだけ */}
                             <span
-                                className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-white/5"
+                                className="flex-shrink-0 flex items-center justify-center overflow-hidden rounded-xl bg-surface"
                                 style={{ width: "56px", height: "56px" }}
                             >
                                 {s.cover ? (

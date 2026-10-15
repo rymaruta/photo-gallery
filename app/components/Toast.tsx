@@ -49,7 +49,7 @@ function ToastItem({ toast }: { toast: ToastType }) {
     return (
         <div
             className={`
-                bg-surface-2/90 ring-1 ring-white/10 rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
+                bg-surface-2/90 ring-1 ring-line rounded-2xl pl-2.5 pr-3 py-2.5 min-w-[280px] max-w-[400px]
                 flex items-center gap-2.5 shadow-2xl backdrop-blur-md
                 transition-all duration-300 ease-out
                 ${isVisible && !isRemoving ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-3 scale-95"}

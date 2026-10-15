@@ -177,7 +177,9 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/DeleteConfirmModal.tsx", "text-[13px] mb-6", "削除確認の本文"],
     ["app/components/DeleteAccountModal.tsx", "text-[13px] mb-5", "退会確認の本文"],
     // プロフィール（実ブラウザで「年表」タブが 3.66:1 だったのを実測）
-    ["app/users/UserProfileClient.tsx", 'active ? "text-white" :', "非選択のタブ（投稿／年表）"],
+    // 選んでいないタブの色は定数（2026-10-15・選んでいる側は真鍮になった）。ホームと投稿／年表、
+    // 本人の札の並びのリンク（行きたい場所／保存）が使う
+    ["app/components/tabStyles.ts", "export const TAB_OFF", "非選択のタブ（ホーム・投稿／年表・行きたい場所／保存）"],
     ["app/users/UserProfileClient.tsx", "うち非公開", "本人にだけ出る非公開の枚数"],
     // 投稿タブと年表タブの2か所に同じものがある（両方見る）
     ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内（外枠の色）"],
@@ -190,7 +192,7 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/users/search/page.tsx", "@{u.username}", "利用者検索の @名"],
     ["app/users/search/page.tsx", "{u.bio}", "利用者検索の自己紹介"],
     ["app/favorites/page.tsx", "text-white/50 text-xs", "お気に入りが空のときの案内"],
-    ["app/components/stories/StoriesBar.tsx", "text-[11px] text-white/50 px-1 pb-1", "ストーリーの読み込み失敗"],
+    ["app/components/stories/StoriesBar.tsx", "text-[12px] text-white/50 px-1 pb-1", "ストーリーの読み込み失敗"],
 ];
 
 /**
@@ -305,7 +307,24 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         expect(on(tok("accent"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("surface"))).toBeGreaterThanOrEqual(4.5);
-        expect(on(tok("chip-text"), tok("chip"))).toBeGreaterThanOrEqual(4.5);
+        // v2 の副文・注記の灰は、黒地と札（surface）の上で 4.5:1 に届く
+        for (const t of ["text-2", "text-3"]) {
+            expect(on(tok(t), tok("bg")), t).toBeGreaterThanOrEqual(4.5);
+            expect(on(tok(t), tok("surface")), t).toBeGreaterThanOrEqual(4.5);
+            expect(on(tok(t), tok("surface-2")), t).toBeGreaterThanOrEqual(4.5);
+        }
+        // 選んでいるタブ（真鍮）は札・入力欄の地の上でも読める
+        expect(on(tok("accent"), tok("surface-2"))).toBeGreaterThanOrEqual(4.5);
+        // **チップの面は v2 で白7%（透過）になった。** 黒地と札の上に合成してから測る
+        const chip = /--color-chip:\s*rgb\(255 255 255 \/ (0?\.\d+)\)/i.exec(css);
+        expect(chip, "--color-chip が白の透過で無い").not.toBeNull();
+        const alpha = Number(chip![1]);
+        const over = (bg: string) => {
+            const b = hexToRgb(bg);
+            return "#" + b.map((v) => Math.round(255 * alpha + v * (1 - alpha)).toString(16).padStart(2, "0")).join("");
+        };
+        expect(on(tok("chip-text"), over(tok("bg")))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("chip-text"), over(tok("surface")))).toBeGreaterThanOrEqual(4.5);
     });
 });
 
@@ -431,9 +450,6 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-danger', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
-        // 旅の実績の `›`。**押せるのは行そのもの**で、行は `aria-label` を持つ。
-        // この矢印は `aria-hidden` の装飾で、意味は文字とリンクが伝えている
-        ["app/users/UserProfileClient.tsx", 'ChevronRightIcon aria-hidden="true" className="ml-auto te', "旅の実績の行の矢印（装飾・3.66:1）"],
         // 地図のポップアップ（白地の `text-gray-600`）はもう無い。
         // 写真の中身は黒地のボトムシート（`app/map/MapPhotoSheet.tsx`）が
         // 描くので、この走査の前提（黒地）にそのまま乗る

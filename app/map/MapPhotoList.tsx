@@ -34,7 +34,7 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
     if (photos.length === 0) {
         return (
             <p
-                className="rounded-2xl ring-1 ring-white/10 bg-white/5 text-center text-white/60"
+                className="rounded-2xl ring-1 ring-line bg-surface text-center text-white/60"
                 style={{ padding: "32px 16px", fontSize: "13px" }}
                 data-testid="map-list-empty"
             >
@@ -66,11 +66,11 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
                         <Link
                             href={ROUTES.PHOTO(p.id)}
                             prefetch={false}
-                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-white/10 hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                            className="flex items-center rounded-2xl bg-surface-2/70 ring-1 ring-line hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                             style={{ gap: "12px", padding: "8px" }}
                         >
                             <span
-                                className="flex-shrink-0 block overflow-hidden rounded-xl bg-white/5"
+                                className="flex-shrink-0 block overflow-hidden rounded-xl bg-surface"
                                 style={{ width: "56px", height: "56px" }}
                             >
                                 {thumb && (

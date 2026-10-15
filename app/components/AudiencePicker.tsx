@@ -37,7 +37,7 @@ export default function AudiencePicker({ value, onChange, locale, disabled, name
                     return (
                         <label
                             key={a.value}
-                            className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ring-1 cursor-pointer transition has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${on ? "bg-primary text-ink ring-primary" : "bg-surface-2 ring-white/10 text-white hover:bg-white/10"}`}
+                            className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ring-1 cursor-pointer transition has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${on ? "bg-primary text-ink ring-primary" : "bg-surface-2 ring-line text-white hover:bg-white/10"}`}
                         >
                             <input
                                 type="radio"

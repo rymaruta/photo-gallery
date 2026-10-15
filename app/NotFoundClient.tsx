@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { resolveNotFoundRedirect } from "../lib/utils/notFoundRedirect";
+import { BTN_FILL } from "./components/buttonStyles";
 
 // 404 の中身（クライアント）。**殻は `app/not-found.tsx`**——あちらは
 // サーバー側で `metadata` を出すために分けてある（下記）。
@@ -28,7 +29,7 @@ export default function NotFoundClient() {
                 <Link
                     href="/"
                     prefetch={false}
-                    className="inline-block px-6 py-3 bg-accent-fill text-ink text-sm font-semibold rounded-lg hover:brightness-110 transition-colors"
+                    className={`${BTN_FILL} inline-flex items-center justify-center bg-accent-fill text-ink hover:brightness-110 transition-colors`}
                 >
                     ギャラリーに戻る
                 </Link>
