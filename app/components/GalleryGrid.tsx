@@ -324,7 +324,7 @@ const GalleryItem = React.memo(function GalleryItem({
                                 {extraCount > 0 && (
                                     <p
                                         className="absolute top-2 left-2 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
-                                        style={{ fontSize: "11px", lineHeight: "13px", padding: "3px 7px" }}
+                                        style={{ fontSize: "12px", lineHeight: "13px", padding: "3px 7px" }}
                                         aria-hidden="true"
                                     >
                                         1/{extraCount + 1}

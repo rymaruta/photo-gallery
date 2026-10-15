@@ -169,7 +169,7 @@ export default function DraftsPage() {
                                                 className="absolute inset-0 w-full h-full object-cover"
                                             />
                                         )}
-                                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white/90 ring-1 ring-white/15">
+                                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[12px] text-white/90 ring-1 ring-white/15">
                                             {isJa ? "下書き" : "Draft"}
                                         </span>
                                     </div>
@@ -178,7 +178,7 @@ export default function DraftsPage() {
                                             {title || (isJa ? "無題" : "Untitled")}
                                         </p>
                                         {(p.location || dateText) && (
-                                            <p className="text-[11px] text-white/50 truncate">
+                                            <p className="text-[12px] text-white/50 truncate">
                                                 {[p.location, dateText].filter(Boolean).join(" · ")}
                                             </p>
                                         )}

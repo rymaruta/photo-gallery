@@ -168,7 +168,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                                                 {c.name}
                                             </Link>
                                         )}
-                                        <span className="text-[11px] text-white/50 flex-shrink-0">{timeAgo(c.t, locale)}</span>
+                                        <span className="text-[12px] text-white/50 flex-shrink-0">{timeAgo(c.t, locale)}</span>
                                         {canDelete && (
                                             <button
                                                 onClick={() => void remove(c.id).then((ok) => {

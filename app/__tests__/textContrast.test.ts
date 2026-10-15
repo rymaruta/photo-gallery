@@ -191,7 +191,7 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/users/search/page.tsx", "@{u.username}", "利用者検索の @名"],
     ["app/users/search/page.tsx", "{u.bio}", "利用者検索の自己紹介"],
     ["app/favorites/page.tsx", "text-white/50 text-xs", "お気に入りが空のときの案内"],
-    ["app/components/stories/StoriesBar.tsx", "text-[11px] text-white/50 px-1 pb-1", "ストーリーの読み込み失敗"],
+    ["app/components/stories/StoriesBar.tsx", "text-[12px] text-white/50 px-1 pb-1", "ストーリーの読み込み失敗"],
 ];
 
 /**

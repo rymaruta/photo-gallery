@@ -327,7 +327,7 @@ function HighlightEditor({ editingId }: { editingId: string | null }) {
                                         </span>
                                     )}
                                     {isSelected && cover === s.id && (
-                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-primary text-ink font-semibold" style={{ fontSize: "10px" }}>
+                                        <span className="absolute left-1 top-1 px-1.5 py-0.5 rounded bg-primary text-ink font-semibold" style={{ fontSize: "12px" }}>
                                             {isJa ? "表紙" : "Cover"}
                                         </span>
                                     )}

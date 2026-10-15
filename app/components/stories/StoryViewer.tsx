@@ -1543,7 +1543,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                         ビルド時に在る場所しか作られない（静的書き出し）。
                         行き止まりのリンクを置くくらいなら、出すのは文字だけにする */}
                     {item.location && (
-                        <span className="max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px]">
+                        <span className="max-w-full inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[12px]">
                             <MapPinIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/70" aria-hidden="true" />
                             <span className="truncate">{item.location}</span>
                         </span>
@@ -1553,7 +1553,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                     {item.song && (
                         <button
                             onClick={(e) => { e.stopPropagation(); toggleMuted(); }}
-                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[11px] active:scale-95 transition"
+                            className="pointer-events-auto max-w-full inline-flex items-center gap-1.5 px-3 rounded-full bg-black/55 backdrop-blur-sm ring-1 ring-white/15 text-white/90 text-[12px] active:scale-95 transition"
                             style={{ touchAction: "manipulation", minHeight: "36px" }}
                             aria-label={muted ? (locale === "en" ? "Turn sound on" : "音を出す") : (locale === "en" ? "Mute" : "ミュート")}
                         >
@@ -1568,7 +1568,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 </span>
                             )}
                             {muted && (
-                                <span className="text-[10px] text-white/50 flex-shrink-0">
+                                <span className="text-[12px] text-white/50 flex-shrink-0">
                                     {locale === "en" ? "Tap for sound" : "タップで再生"}
                                 </span>
                             )}
@@ -1681,7 +1681,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                 <p
                     // **z は投票カード（25）と閉じる段（26）より上、返信の帯（30）より下。**
                     // z-20 だと、下寄りに置かれた白い投票カード自体が文言を覆う
-                    className="absolute inset-x-4 z-[27] text-center text-[11px] text-white"
+                    className="absolute inset-x-4 z-[27] text-center text-[12px] text-white"
                     // **返信の帯（bottom-0・z-30・高さ約 7.5rem）の上に出す。**
                     // `keepError` と同じ位置（bottom-16）に置くと帯の裏に隠れる
                     // ——あちらは自分のストーリー（帯が出ない）限定の文言。
@@ -1698,7 +1698,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
 
             {keepError && isOwnStory && (
                 <p
-                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[11px] text-white"
+                    className="absolute inset-x-4 bottom-16 z-20 text-center text-[12px] text-white"
                     style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
                     role="alert"
                 ><span className="inline-flex items-start gap-1 rounded-xl bg-black/55 px-3 py-1"><ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />{keepError}</span></p>
@@ -1799,7 +1799,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 </button>
                             </div>
                             {replyError && (
-                                <p className="pt-1.5 text-center text-[11px] text-white" role="alert">{replyError}</p>
+                                <p className="pt-1.5 text-center text-[12px] text-white" role="alert">{replyError}</p>
                             )}
                         </>
                     )}
@@ -1880,7 +1880,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                         <span className={`text-sm flex-1 truncate ${v.deleted ? "text-white/60" : "text-white/90"}`}>
                                             {v.displayName || (locale === "en" ? "User" : "ユーザー")}
                                         </span>
-                                        {v.at && <span className="text-[11px] text-white/50">{timeAgo(v.at, locale)}</span>}
+                                        {v.at && <span className="text-[12px] text-white/50">{timeAgo(v.at, locale)}</span>}
                                     </div>
                                 ))
                             )}
@@ -1907,12 +1907,12 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                             </p>
                                         </div>
                                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                            <span className="text-[11px] text-white/50">{timeAgo(r.t, locale)}</span>
+                                            <span className="text-[12px] text-white/50">{timeAgo(r.t, locale)}</span>
                                             {/* 退会した人には出さない（もう届かない）。
                                                 濃さは `/50`——黒地で 4.5:1 に届く最小
                                                 （`/40` は 3.66:1。既存の走査が捕まえた） */}
                                             {!r.deleted && (blockedIds.has(r.uid) ? (
-                                                <span className="text-[11px] text-white/50">
+                                                <span className="text-[12px] text-white/50">
                                                     {locale === "en" ? "Blocked" : "ブロック済み"}
                                                 </span>
                                             ) : (
@@ -1920,7 +1920,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                                     onClick={() => void blockSender(r.uid)}
                                                     disabled={blocking === r.uid}
                                                     aria-label={locale === "en" ? `Block ${r.name}` : `${r.name} さんをブロック`}
-                                                    className="text-[11px] text-white/50 hover:text-danger disabled:opacity-40 active:scale-95 transition"
+                                                    className="text-[12px] text-white/50 hover:text-danger disabled:opacity-40 active:scale-95 transition"
                                                     style={{ touchAction: "manipulation" }}
                                                 >
                                                     {blocking === r.uid
@@ -1939,7 +1939,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                                 かわりに、ボタンと同じ画面に1行置く）。
                                 出すのはボタンが1つでも出ているときだけ */}
                             {(replies ?? []).some((r) => !r.deleted && !blockedIds.has(r.uid)) && (
-                                <p className="pt-1 text-[11px] text-white/60 leading-relaxed">
+                                <p className="pt-1 text-[12px] text-white/60 leading-relaxed">
                                     {locale === "en"
                                         ? "Blocking also removes follows in both directions. You can unblock from Settings."
                                         // 行き先は**設定**（2026-09-21 にプロフィール編集から移設）。
@@ -1949,7 +1949,7 @@ export default function StoryViewer({ groups, initialGroupIndex, initialItemInde
                             )}
                             {/* ブロックが効かなかった理由（`replyError` と同じ形） */}
                             {blockError && (
-                                <p className="pt-1.5 text-center text-[11px] text-danger" role="alert">{blockError}</p>
+                                <p className="pt-1.5 text-center text-[12px] text-danger" role="alert">{blockError}</p>
                             )}
                         </div>
                         )}

@@ -735,7 +735,7 @@ export default function ProfileEditPage() {
                                 aria-describedby="profile-username-rule"
                             />
                         </div>
-                        <p id="profile-username-rule" className="text-[11px] text-white/50 mt-1">
+                        <p id="profile-username-rule" className="text-[12px] text-white/50 mt-1">
                             {locale === "en"
                                 ? "Lowercase letters, numbers and _ (3-20). Shown under your name."
                                 : "英小文字・数字・_ の3〜20文字。プロフィールの名前の下に表示されます。"}
@@ -902,7 +902,7 @@ export default function ProfileEditPage() {
                                         <SongArtwork src={song.artwork} className="w-9 h-9 rounded-md object-cover bg-white/10 flex-shrink-0" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-xs text-white truncate">{song.title}</p>
-                                            <p className="text-[11px] text-white/50 truncate">{song.artist}</p>
+                                            <p className="text-[12px] text-white/50 truncate">{song.artist}</p>
                                         </div>
                                         <button type="button" onClick={() => moveSong(idx, -1)} disabled={idx === 0}
                                             aria-label={locale === "en" ? "Move up" : "上へ"}
@@ -985,7 +985,7 @@ export default function ProfileEditPage() {
                                                         <p className={`text-sm truncate ${isPreviewing ? "text-accent" : "text-white"}`}>{song.title}</p>
                                                         <p className="text-xs text-white/50 truncate">{song.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
+                                                    <span className="text-[12px] text-white/50 flex-shrink-0 pl-2">{locale === "en" ? "Add" : "追加"}</span>
                                                 </button>
                                             </li>
                                             );
@@ -1008,7 +1008,7 @@ export default function ProfileEditPage() {
                             </button>
 
                             {selectedSongs.length > 0 && (songUrl.trim() || showUrlMethod) && (
-                                <p className="text-[11px] text-white/50 pt-2">
+                                <p className="text-[12px] text-white/50 pt-2">
                                     {locale === "en"
                                         ? "A picked song plays first — this link is kept and used when no song is set."
                                         : "曲を選ぶとそちらが優先。リンクは保存され、曲を消すと使われます。"}
@@ -1039,7 +1039,7 @@ export default function ProfileEditPage() {
                                                 <>
                                                     <div className="flex items-center gap-2">
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
+                                                            <label className="block text-[12px] text-white/50 mb-1" htmlFor="profile-song-start">{locale === "en" ? "Start (m:ss)" : "開始 (m:ss)"}</label>
                                                             <input
                                                                 id="profile-song-start"
                                                                 type="text"
@@ -1051,7 +1051,7 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                         <div className="flex-1">
-                                                            <label className="block text-[11px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
+                                                            <label className="block text-[12px] text-white/50 mb-1" htmlFor="profile-song-end">{locale === "en" ? "End (m:ss)" : "終了 (m:ss)"}</label>
                                                             <input
                                                                 id="profile-song-end"
                                                                 type="text"
@@ -1063,7 +1063,7 @@ export default function ProfileEditPage() {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-white/50">
+                                                    <p className="text-[12px] text-white/50">
                                                         {isYouTubePreview
                                                             ? (locale === "en" ? "Set a start/end to play your favorite part." : "開始・終了を指定すると好きな部分だけ再生できます。")
                                                             : (locale === "en" ? `Section trim works with YouTube only (${musicServiceLabel(songPreview.service)} plays from the start).` : `区間指定は YouTube のみ対応（${musicServiceLabel(songPreview.service)} は先頭から再生）。`)}

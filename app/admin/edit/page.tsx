@@ -506,7 +506,7 @@ function AdminEditContent() {
                         </button>
                         <div>
                             <span className="text-sm">{isJa ? "おすすめに出す" : "Feature on home"}</span>
-                            <p className="text-[11px] text-white/50">
+                            <p className="text-[12px] text-white/50">
                                 {isJa ? "トップの「おすすめ」にカテゴリごとに並びます" : "Shown on the home page, grouped by category"}
                             </p>
                         </div>

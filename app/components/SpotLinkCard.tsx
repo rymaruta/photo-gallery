@@ -63,7 +63,7 @@ export default function SpotLinkCard({ spot, locale, heading, headingId = "photo
                           style={{ width: "88px", height: "88px" }}>
                         {noImage ? (
                             <span className="absolute inset-0 flex items-center justify-center text-white/50"
-                                  style={{ fontSize: "11px" }}>{isJa ? "写真なし" : "No photo"}</span>
+                                  style={{ fontSize: "12px" }}>{isJa ? "写真なし" : "No photo"}</span>
                         ) : (
                             <>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}

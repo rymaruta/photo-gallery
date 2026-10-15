@@ -89,7 +89,7 @@ export default function Footer() {
                         ))}
                     </nav>
 
-                    <p className="text-[11px] text-white/50">
+                    <p className="text-[12px] text-white/50">
                         {/* 年は出さない。ここは "use client" だが静的書き出しなので、
                             ビルド時の年が HTML に焼かれ、年が明けるとブラウザ側の
                             再描画とで食い違う（ハイドレーション不一致）。

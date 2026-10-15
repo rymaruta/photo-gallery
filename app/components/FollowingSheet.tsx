@@ -102,7 +102,7 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                     <p className="text-sm text-white/90">
                         {locale === "en" ? TITLE[kind].en : TITLE[kind].ja}
                         {state === "ready" && total > 0 && (
-                            <span className="ml-2 text-[11px] text-white/60 tabular-nums">{total}</span>
+                            <span className="ml-2 text-[12px] text-white/60 tabular-nums">{total}</span>
                         )}
                     </p>
                     <button
@@ -174,7 +174,7 @@ export default function FollowingSheet({ userId, kind, locale, onClose, openerRe
                         `total`（正しい数）と比べる——一覧が追いついていない
                         ぶんもここに出る */}
                     {state === "ready" && rows.length > 0 && total > rows.length && (
-                        <p className="px-3 py-3 text-[11px] text-white/60">
+                        <p className="px-3 py-3 text-[12px] text-white/60">
                             {locale === "en"
                                 ? `Showing the first ${rows.length} of ${total}.`
                                 : `${total} 人のうち、はじめの ${rows.length} 人を表示しています。`}

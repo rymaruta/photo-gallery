@@ -672,7 +672,7 @@ export default function SpotPageClient({
 function Fact({ label, value }: { label: string; value: string | null }) {
     return (
         <div className="rounded-xl bg-white/5 ring-1 ring-white/10 px-3 py-2">
-            <dt className="text-[11px] text-white/50">{label}</dt>
+            <dt className="text-[12px] text-white/50">{label}</dt>
             <dd className="text-sm text-white/90 mt-0.5">{value ?? <span className="text-white/60">—</span>}</dd>
         </div>
     );

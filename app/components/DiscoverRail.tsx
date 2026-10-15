@@ -126,7 +126,7 @@ function RailHead({ id, title, href, more }: { id: string; title: string; href?:
             {href && (
                 <Link href={href} prefetch={false}
                    className="flex-shrink-0 text-white/55 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
-                   style={{ fontSize: "11px", lineHeight: "16px" }}>
+                   style={{ fontSize: "12px", lineHeight: "16px" }}>
                     {more} <span aria-hidden="true">›</span>
                 </Link>
             )}
@@ -179,7 +179,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                                   style={{ fontSize: "12px", lineHeight: "16px" }} title={s.label}>{placeParts(s.label).title}</span>
                                             {/* 地域が長くても**枚数は切らない** */}
                                             <span className="flex text-white/80"
-                                                  style={{ fontSize: "11px", lineHeight: "15px" }}>
+                                                  style={{ fontSize: "12px", lineHeight: "15px" }}>
                                                 <span className="truncate min-w-0">{placeLine(s.label, isJa)}</span>
                                                 <span className="shrink-0">{isJa ? `${s.count}枚` : `${s.count} photos`}</span>
                                             </span>
@@ -210,7 +210,7 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                                             {cv && <Thumb photo={cv} alt="" sizes="64px" />}
                                         </span>
                                         <span className="block mt-1.5 text-white truncate"
-                                              style={{ fontSize: "11px", lineHeight: "15px" }}>
+                                              style={{ fontSize: "12px", lineHeight: "15px" }}>
                                             {categoryDisplayMap[c.slug] ?? c.label}
                                         </span>
                                     </Link>

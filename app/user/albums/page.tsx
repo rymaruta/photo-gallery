@@ -363,10 +363,10 @@ export default function AlbumsPage() {
 
                                 {a.inviteToken ? (
                                     <div className="mt-3">
-                                        <p className="text-[11px] text-white/50">招待リンク</p>
+                                        <p className="text-[12px] text-white/50">招待リンク</p>
                                         <p className="text-xs break-all text-white/85 mt-0.5">{inviteUrl(a.inviteToken)}</p>
                                         {a.inviteExpiresAt && (
-                                            <p className="text-[11px] text-white/50 mt-1">
+                                            <p className="text-[12px] text-white/50 mt-1">
                                                 {new Date(a.inviteExpiresAt).toLocaleDateString("ja-JP")}まで
                                             </p>
                                         )}
@@ -381,7 +381,7 @@ export default function AlbumsPage() {
                                             </button>
                                         </div>
                                         {/* **前のリンクが死ぬことを書く。** 書かないと、配ったリンクが黙って切れる */}
-                                        <p className="text-[11px] text-white/50 mt-1">作り直すと、前のリンクは使えなくなります。</p>
+                                        <p className="text-[12px] text-white/50 mt-1">作り直すと、前のリンクは使えなくなります。</p>
                                     </div>
                                 ) : (
                                     <button type="button" onClick={() => issue(a.id)} disabled={busy}

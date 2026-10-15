@@ -360,7 +360,7 @@ export default function AdminPage() {
                                         loading="lazy"
                                     />
                                     {photo.published === false && (
-                                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[10px] text-white/80">
+                                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 text-[12px] text-white/80">
                                             {locale === "en" ? "Draft" : "下書き"}
                                         </span>
                                     )}
@@ -385,7 +385,7 @@ export default function AdminPage() {
                                     <div className="absolute inset-x-0 bottom-0 p-2 pt-6 bg-gradient-to-t from-black/85 to-transparent">
                                         <p className="text-xs text-white font-medium truncate">{getTitle(photo)}</p>
                                         {(photo.location || photo.category) && (
-                                            <p className="text-[10px] text-white/55 truncate">
+                                            <p className="text-[12px] text-white/55 truncate">
                                                 {[photo.location, photo.category].filter(Boolean).join(" · ")}
                                             </p>
                                         )}

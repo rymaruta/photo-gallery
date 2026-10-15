@@ -1160,7 +1160,7 @@ export default function StoriesBar() {
                 // 「誰も投稿していない」ように見えたまま気づけない。
                 // ※古い一覧が見えている間（groups あり）の失敗は**意図して**
                 //   無言にする——バーは装飾的で、古い表示が出ていれば実害が薄い
-                <p className="text-[11px] text-white/50 px-1 pb-1">
+                <p className="text-[12px] text-white/50 px-1 pb-1">
                     {locale === "en" ? "Couldn't load stories. " : "ストーリーを読み込めませんでした。"}
                     <button onClick={() => void loadStories()} className="underline text-white/70 hover:text-white">
                         {locale === "en" ? "Retry" : "再試行"}
@@ -1201,7 +1201,7 @@ export default function StoriesBar() {
                                 ? <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                 : <PlusIcon className="w-3.5 h-3.5" strokeWidth={3} />}
                         </button>
-                        <span className="text-[11px] text-white/70 leading-none">
+                        <span className="text-[12px] text-white/70 leading-none">
                             {locale === "en" ? "Your story" : "あなた"}
                         </span>
                     </div>
@@ -1226,7 +1226,7 @@ export default function StoriesBar() {
                                     <UserAvatar userId={group.userId} className="w-[64px] h-[64px]" iconClassName="w-8 h-8" />
                                 </div>
                             </div>
-                            <span className={`text-[11px] max-w-[68px] truncate leading-none ${unseen ? "text-white/90" : "text-white/50"}`}>
+                            <span className={`text-[12px] max-w-[68px] truncate leading-none ${unseen ? "text-white/90" : "text-white/50"}`}>
                                 {group.displayName}
                             </span>
                         </button>
@@ -1522,7 +1522,7 @@ export default function StoriesBar() {
                                     >
                                         <Icon className="w-6 h-6" />
                                     </span>
-                                    <span className="text-white/75 truncate max-w-full" style={{ fontSize: "11px" }}>
+                                    <span className="text-white/75 truncate max-w-full" style={{ fontSize: "12px" }}>
                                         {locale === "en" ? en : ja}
                                     </span>
                                 </button>
@@ -1570,7 +1570,7 @@ export default function StoriesBar() {
                             ——多いほど読めなくなるのは絵柄も同じ。
                             ⚠️ 大きさは px（640px 未満で root が 14px になる） */}
                         <div className="space-y-1">
-                            <p id="story-stamp-label" className="text-[11px] text-white/70 px-1">
+                            <p id="story-stamp-label" className="text-[12px] text-white/70 px-1">
                                 {texts.length >= STORY_TEXTS_MAX
                                     ? (locale === "en" ? `Stickers (max ${STORY_TEXTS_MAX} items)` : `スタンプ（合わせて${STORY_TEXTS_MAX}個まで）`)
                                     : (locale === "en" ? "Stickers" : "スタンプ")}
@@ -1615,7 +1615,7 @@ export default function StoriesBar() {
                             <div className="space-y-2" role="group" aria-labelledby="story-text-style-label">
                                 <div className="flex items-center justify-between gap-2 px-1">
                                     {/* **1行に収める。** 折り返すと右のボタンとぶつかる（実測） */}
-                                    <p id="story-text-style-label" className="text-[11px] text-white/70 truncate">
+                                    <p id="story-text-style-label" className="text-[12px] text-white/70 truncate">
                                         {locale === "en" ? "Drag to move · tap to select" : "なぞって移動・触って選択"}
                                     </p>
                                     <div className="flex gap-2 flex-shrink-0">
@@ -1676,7 +1676,7 @@ export default function StoriesBar() {
                                     傾きは角のハンドルと `[` `]`（欄を増やさない） */}
                                 {current && isStoryStamp(current) && (
                                 <div className="flex items-center gap-3">
-                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                    <span className="text-white/70 flex-shrink-0" style={{ fontSize: "12px" }} aria-hidden="true">小</span>
                                     <input
                                         type="range"
                                         min={STORY_SIZE_MIN}
@@ -1740,7 +1740,7 @@ export default function StoriesBar() {
                                         </p>
                                     )}
                                     <div className="flex items-center gap-3">
-                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "11px" }} aria-hidden="true">小</span>
+                                        <span className="text-white/70 flex-shrink-0" style={{ fontSize: "12px" }} aria-hidden="true">小</span>
                                         <input
                                             type="range"
                                             min={STORY_SIZE_MIN}
@@ -1832,7 +1832,7 @@ export default function StoriesBar() {
                                     （owner:「文字の大きさも変えたいよね」）。
                                     つまみなら何ができるか一目で分かり、矢印キーでも動く */}
                                 <div className="flex items-center gap-3">
-                                    <span className="text-[11px] text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "11px" }} aria-hidden="true">A</span>
+                                    <span className="text-[12px] text-white/70 flex-shrink-0" style={{ fontWeight: 700, fontSize: "12px" }} aria-hidden="true">A</span>
                                     <input
                                         type="range"
                                         min={STORY_SIZE_MIN}
@@ -1918,7 +1918,7 @@ export default function StoriesBar() {
                                     <SongArtwork src={draftSong.artwork} className="w-9 h-9 rounded-lg object-cover bg-white/10 flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs text-white truncate">{draftSong.title}</p>
-                                        <p className="text-[11px] text-white/50 truncate">{draftSong.artist}</p>
+                                        <p className="text-[12px] text-white/50 truncate">{draftSong.artist}</p>
                                     </div>
                                     <button
                                         onClick={() => previewingId === draftSong.id ? stopPreview() : playPreview(draftSong, songStart, songWindowSec)}
@@ -1940,7 +1940,7 @@ export default function StoriesBar() {
                                     動画は長さが可変で、曲は動画の長さぶん流れるため区間を選ぶ意味がない
                                     （可動域ゼロのバーを出すと「ドラッグしても動かない」ように見える）。 */}
                                 {draft.mediaType === "video" ? (
-                                    <p className="text-[11px] text-white/50">
+                                    <p className="text-[12px] text-white/50">
                                         {locale === "en"
                                             ? "Plays from the start, for the length of the video."
                                             : "動画の長さぶん、曲の頭から流れます"}
@@ -1948,10 +1948,10 @@ export default function StoriesBar() {
                                 ) : (
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-[11px] text-white/60">
+                                        <span className="text-[12px] text-white/60">
                                             {locale === "en" ? "Drag to pick the part" : "ドラッグで好きな部分を選ぶ"}
                                         </span>
-                                        <span className="text-[11px] text-white/80 tabular-nums">
+                                        <span className="text-[12px] text-white/80 tabular-nums">
                                             {fmtSec(songStart)} – {fmtSec(Math.min(SONG_PREVIEW_SEC, songStart + songWindowSec))}
                                         </span>
                                     </div>
@@ -2013,7 +2013,7 @@ export default function StoriesBar() {
                                             />
                                         )}
                                     </div>
-                                    <p className="mt-1.5 text-[10px] text-white/50">
+                                    <p className="mt-1.5 text-[12px] text-white/50">
                                         {locale === "en"
                                             ? `Plays ${songWindowSec}s from here, matching the story length.`
                                             : `ここから${songWindowSec}秒（ストーリーの表示時間ぶん）が流れます`}
@@ -2073,9 +2073,9 @@ export default function StoriesBar() {
                                                 >
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs text-white truncate">{r.title}</p>
-                                                        <p className="text-[11px] text-white/50 truncate">{r.artist}</p>
+                                                        <p className="text-[12px] text-white/50 truncate">{r.artist}</p>
                                                     </div>
-                                                    <span className="text-[11px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
+                                                    <span className="text-[12px] text-white/50 flex-shrink-0">{locale === "en" ? "Set" : "設定"}</span>
                                                 </button>
                                             </li>
                                         ))}
@@ -2105,7 +2105,7 @@ export default function StoriesBar() {
                         {/* 表示時間（画像のみ。動画は動画の長さで決まる）*/}
                         {draft.mediaType === "image" && (
                             <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-white/60 flex-shrink-0">
+                                <span className="text-[12px] text-white/60 flex-shrink-0">
                                     {locale === "en" ? "Duration" : "表示時間"}
                                 </span>
                                 <div className="flex gap-1.5">
@@ -2137,7 +2137,7 @@ export default function StoriesBar() {
                             経緯は `api-user/src/storyVisibility.ts`）。
                             「親しい友達」を足すときは人を選ぶ一覧から作る */}
                         <div className="rounded-2xl bg-black/50 backdrop-blur-sm ring-1 ring-white/10 p-3 space-y-3">
-                            <p className="text-white/50" style={{ fontSize: "11px" }}>
+                            <p className="text-white/50" style={{ fontSize: "12px" }}>
                                 {locale === "en" ? "Sharing" : "公開設定"}
                             </p>
 

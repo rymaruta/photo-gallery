@@ -200,7 +200,7 @@ export default function DailyQuizClient() {
                     />
                 </div>
                 {/* 作者・ライセンス（文面へ）・出典（CC BY / BY-SA の表示条件） */}
-                <figcaption className="mt-1.5 text-white/60 text-right" style={{ fontSize: "11px", lineHeight: "15px" }}>
+                <figcaption className="mt-1.5 text-white/60 text-right" style={{ fontSize: "12px", lineHeight: "15px" }}>
                     {en ? "Photo: " : "写真: "}{quiz.photo.author}{" / "}
                     {quiz.photo.licenseUrl ? (
                         <a href={quiz.photo.licenseUrl} target="_blank" rel="noopener noreferrer license"

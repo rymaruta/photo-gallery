@@ -51,7 +51,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                                 />
                             </div>
                             {t && (
-                                <p className="mt-1.5 text-[11px] leading-snug text-white/70 line-clamp-2">{t}</p>
+                                <p className="mt-1.5 text-[12px] leading-snug text-white/70 line-clamp-2">{t}</p>
                             )}
                         </Link>
                     );

@@ -1748,7 +1748,7 @@ function UploadPageInner() {
                                         `PHOTO_IMAGES_MAX` は**1件の投稿に入る枚数**の上限で、
                                         選べる枚数ではない（既定は N枚 → N件の投稿）。
                                         10枚の話は「1件の投稿にまとめる」の説明が持つ */}
-                                    <span className="text-center leading-tight" style={{ fontSize: "11px" }}>
+                                    <span className="text-center leading-tight" style={{ fontSize: "12px" }}>
                                         {isJa ? "追加する" : "Add"}
                                     </span>
                                     <input

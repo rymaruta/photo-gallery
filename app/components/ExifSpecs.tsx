@@ -114,7 +114,7 @@ export default function ExifSpecs({ specs, locale, className = "", collapsible =
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3" hidden={!expanded}>
                 {specs.map((s) => (
                     <div key={s.label} className={s.wide ? "col-span-2" : ""}>
-                        <dt className="text-[10px] uppercase tracking-wider text-white/50">{s.label}</dt>
+                        <dt className="text-[12px] uppercase tracking-wider text-white/50">{s.label}</dt>
                         <dd className="text-[13px] text-white/85 mt-0.5 break-words">
                             {/* リンクにするのは行き先がある項目だけ。
                                 見た目（大きさ・色）は変えず、下線だけで示す */}

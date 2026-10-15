@@ -103,7 +103,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                             {c}
                             {/* 件数は**選択状態に合わせて色を変える**。白の塗りの上で
                                 `text-white/60` のままだと、選んだテーマの件数が消えていた */}
-                            <span className={theme === c ? "text-ink/70" : "text-white/60"} style={{ fontSize: "11px" }}>{n}</span>
+                            <span className={theme === c ? "text-ink/70" : "text-white/60"} style={{ fontSize: "12px" }}>{n}</span>
                         </button>
                     ))}
                 </div>

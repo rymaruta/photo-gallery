@@ -903,7 +903,7 @@ function EditContent() {
                                 ? (isJa ? "差し替えています…" : "Replacing…")
                                 : (isJa ? "写真を差し替える" : "Replace photo")}
                         </label>
-                        <p className="mt-1.5 text-[11px] text-white/50">
+                        <p className="mt-1.5 text-[12px] text-white/50">
                             {isJa
                                 ? "タイトル・説明・いいね・コメントはそのまま。撮影情報と撮影日は新しい写真から読み直します。位置情報は上げる前に端末で取り除きます。"
                                 : "Title, description, likes and comments are kept. EXIF and the date are re-read from the new photo. Location data is stripped on your device before upload."}
@@ -915,7 +915,7 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
                         {isEnglishOnly(photo?.title) && (
-                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                            <p className="text-[12px] text-white/80 mb-1 flex items-start gap-1">
                                 <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語のタイトルしか持っていません。この欄の文字はそのまま日本語タイトルとして保存されます。"
@@ -931,7 +931,7 @@ function EditContent() {
                     <div>
                         <label className={labelCls} htmlFor="edit-description">{isJa ? "説明" : "Description"}</label>
                         {isEnglishOnly(photo?.description) && (
-                            <p className="text-[11px] text-white/80 mb-1 flex items-start gap-1">
+                            <p className="text-[12px] text-white/80 mb-1 flex items-start gap-1">
                                 <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa
                                     ? "この写真は英語の説明しか持っていません。この欄の文字はそのまま日本語の説明として保存されます。"
@@ -1133,7 +1133,7 @@ function EditContent() {
                                     ))}
                                 </ul>
                             )}
-                            <p className="text-[11px] text-white/50">
+                            <p className="text-[12px] text-white/50">
                                 {isJa
                                     ? "位置は約1km の粒度に丸めて保存します。撮った場所そのものではなく、街のあたりが分かる程度です。"
                                     : "Saved rounded to about 1 km — the neighbourhood, not the exact spot."}
