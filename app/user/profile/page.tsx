@@ -24,6 +24,7 @@ import { useLoginRedirect } from "../../../lib/hooks/useLoginRedirect";
 import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import { profileCoverUrl } from "../../components/ProfileCover";
+import { BTN_FILL } from "../../components/buttonStyles";
 
 type SongEntry = {
     title: string;
@@ -1103,7 +1104,7 @@ export default function ProfileEditPage() {
                         <button
                             onClick={() => void handleSave()}
                             disabled={saving || avatarUploading}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                         >
                             {saving && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                             {saving

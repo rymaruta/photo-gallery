@@ -32,6 +32,7 @@ import { toUploadSafeFile } from "../../../lib/utils/image";
 import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
 import { extractExifFromFile, extractCameraExif } from "../../../lib/utils/exif";
 import { publicImageUrl } from "@/lib/utils/seo";
+import { BTN_FILL } from "../../components/buttonStyles";
 
 const inputCls = "w-full bg-white/5 border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -1285,7 +1286,7 @@ function EditContent() {
                         type="button"
                         onClick={() => void save(true)}
                         disabled={saving}
-                        className="px-6 py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors disabled:opacity-40"
+                        className={`${BTN_FILL} bg-accent-fill text-ink hover:brightness-110 transition-colors disabled:opacity-40`}
                         style={{ touchAction: "manipulation", minHeight: "44px" }}
                     >
                         {saving

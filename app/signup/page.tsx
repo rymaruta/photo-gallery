@@ -9,6 +9,7 @@ import { signUp, confirmSignUp, resendConfirmationCode } from "../../lib/auth/co
 import { pendingNameKey, pendingVerifyKey } from "../../lib/utils/pendingName";
 import { safeNextPath } from "../../lib/routes";
 import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { BTN_FILL } from "../components/buttonStyles";
 
 type Step = "register" | "verify" | "done";
 
@@ -318,7 +319,7 @@ function SignupForm() {
                         <button
                             type="submit"
                             disabled={submitting || !email || !password || !confirmPassword}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2`}
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -360,7 +361,7 @@ function SignupForm() {
                         <button
                             type="submit"
                             disabled={submitting || code.trim().length < 6}
-                            className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                         >
                             {submitting ? (
                                 <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -405,7 +406,7 @@ function SignupForm() {
                         <Link
                             href={loginHref}
                             prefetch={false}
-                            className="block w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 active:scale-[0.98] transition text-center"
+                            className={`${BTN_FILL} flex items-center justify-center w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition text-center`}
                         >
                             ログインする
                         </Link>

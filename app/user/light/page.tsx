@@ -32,6 +32,7 @@ import {
     parseLightForecast, parseWeatherLogo, attributionJsonUrl, failureOf, failureText, lightCards, weekLines, noteFor, TONE_COLOR,
     type LightFailure, type LightForecast, type LightLocale, type WeatherLogo,
 } from "../../../lib/utils/lightForecast";
+import { BTN_LINE } from "../../components/buttonStyles";
 
 type Phase =
     | { kind: "loading" }
@@ -134,7 +135,7 @@ export default function LightForecastPage() {
                                 <button
                                     type="button"
                                     onClick={retry}
-                                    className="mt-5 inline-flex items-center justify-center px-5 rounded-full ring-1 ring-outline text-sm text-white hover:bg-white/5 transition"
+                                    className={`${BTN_LINE} mt-5 inline-flex items-center justify-center hover:bg-white/5 transition`}
                                     style={{ minHeight: "44px", touchAction: "manipulation" }}
                                 >
                                     {en ? "Try again" : "もう一度読み込む"}

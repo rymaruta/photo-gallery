@@ -11,6 +11,7 @@ import { todayIn } from "../../lib/utils/sunTimes";
 import {
     parseDailyQuiz, quizStorageKey, regionLine, QUIZ_TIME_ZONE, type DailyQuiz,
 } from "../../lib/utils/dailyQuiz";
+import { BTN_LINE } from "../components/buttonStyles";
 
 /**
  * 今日の一問「この写真はどこ？」。
@@ -289,7 +290,7 @@ export default function DailyQuizClient() {
                         <button
                             type="button"
                             onClick={share}
-                            className="inline-flex items-center min-h-[44px] px-5 rounded-full ring-1 ring-white/30 text-white hover:bg-white/10"
+                            className={`${BTN_LINE} inline-flex items-center hover:bg-white/10`}
                             style={{ fontSize: "15px", touchAction: "manipulation" }}
                         >
                             {en ? "Share" : "結果を共有"}

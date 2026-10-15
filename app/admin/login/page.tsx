@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../auth/context";
 import { useToast } from "../../../lib/hooks/useToast";
 import { LockClosedIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
+import { BTN_FILL } from "../../components/buttonStyles";
 
 type Step = "login" | "forgot";
 
@@ -112,7 +113,7 @@ export default function AdminLoginPage() {
                             <button
                                 type="submit"
                                 disabled={submitting || !username || !password}
-                                className="w-full py-3 bg-accent-fill text-ink text-sm font-semibold rounded-lg hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                                className={`${BTN_FILL} w-full bg-accent-fill text-ink hover:brightness-110 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2`}
                             >
                                 {submitting ? (
                                     <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
