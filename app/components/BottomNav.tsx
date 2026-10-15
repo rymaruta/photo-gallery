@@ -61,15 +61,29 @@ type TabKey = "home" | "search" | "map" | "me";
  * `/users/<id>`（静的）と `/users?id=`（クエリ版）の2形があり、
  * プロフィール設定や下書きも「自分のところ」に見える。
  *
+ * **人のページは、自分のときだけ「マイページ」**（2026-10-15・本番で他人の
+ * ページを開くと「マイページ」が真鍮に光っていた）。iOS も他人のページは
+ * 開いたタブの中に積むだけで、マイページのタブは光らない。
+ * `myId`（ログイン中の自分）と見ている人（`/users/<id>` の `<id>`、
+ * クエリ版は `profileId`）が同じときだけ "me"。ログインしていなければどれでもない。
+ * `/users/search`（人をさがす）は「探す」。
+ *
  * 綴りではなく `ROUTES` の値と前置きで見る（直書きの `href` を増やさない）。
  */
-export function activeTab(pathname: string): TabKey | null {
+export function activeTab(pathname: string, who: { myId?: string | null; profileId?: string | null } = {}): TabKey | null {
     if (pathname === ROUTES.HOME) return "home";
-    if (pathname === ROUTES.SEARCH) return "search";
+    if (pathname === ROUTES.SEARCH || pathname === ROUTES.USER_SEARCH) return "search";
     if (pathname === ROUTES.MAP) return "map";
-    if (pathname === "/users" || pathname.startsWith("/users/")) return "me";
+    if (pathname === "/users" || pathname.startsWith("/users/")) {
+        const viewed = pathname === "/users" ? who.profileId : safeDecode(pathname.slice("/users/".length).replace(/\/$/, ""));
+        return who.myId && viewed && viewed === who.myId ? "me" : null;
+    }
     if (pathname.startsWith("/user/")) return "me";
     return null;
+}
+
+function safeDecode(s: string): string | null {
+    try { return decodeURIComponent(s); } catch { return null; }
 }
 
 export default function BottomNav() {
@@ -120,7 +134,19 @@ export default function BottomNav() {
 
     const closePost = React.useCallback(() => setSheetOpen(false), []);
 
-    const current = activeTab(pathname);
+    // クエリ版（`/users?id=`）の見ている人。`useSearchParams` はルートレイアウトでは使わない
+    // （`HeaderNav` と同じ理由・静的書き出し全体に響く）。描画中に `location` を読むと
+    // 書き出しの HTML と食い違うので、載ったあとと履歴の移動で読む
+    const [profileId, setProfileId] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        if (pathname !== "/users") { setProfileId(null); return; }
+        const read = () => setProfileId(new URLSearchParams(window.location.search).get("id"));
+        read();
+        window.addEventListener("popstate", read);
+        return () => window.removeEventListener("popstate", read);
+    }, [pathname]);
+
+    const current = activeTab(pathname, { myId: isAuthenticated ? userId : null, profileId });
     const me = isAuthenticated && userId ? ROUTES.USER_PROFILE(userId) : ROUTES.LOGIN;
 
     const items: Array<{
