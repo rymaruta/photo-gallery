@@ -14,7 +14,7 @@ import React from "react";
 import Link from "next/link";
 import type { TopicCard, TopicCredit, TopicLink } from "@/lib/data/spotTopics";
 import { useLocale } from "@/app/i18n/context";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 
 /**
  * 枠の文言（パンくず・見出し・関連の見出し）を表示の言語で出す（2026-10-11）。
@@ -43,7 +43,7 @@ export function TopicChips({ links }: { links: TopicLink[] }) {
                 <li key={l.href}>
                     <Link href={l.href} prefetch={false}
                           className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                          style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                          style={CHIP_SIZE}>
                         {en && l.labelEn ? l.labelEn : l.label}
                         <span className="text-white/60" style={{ fontSize: "12px" }}>{l.count}</span>
                     </Link>

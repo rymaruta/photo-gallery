@@ -9,7 +9,7 @@ import {
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import { resolveNotFoundRedirect } from "@/lib/utils/notFoundRedirect";
 import Thumb from "./Thumb";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { placeParts, placeLine } from "../../lib/utils/placeName";
 
 /**
@@ -234,9 +234,9 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             <li key={c.slug}>
                                 <Link href={linkTo("camera", c.slug)} prefetch={false}
                                    className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                   style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
+                                   style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     {c.label}
-                                    <span className="text-white/60" style={{ fontSize: "10px" }}>{c.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{c.count}</span>
                                 </Link>
                             </li>
                         ))}
@@ -253,9 +253,9 @@ export default function DiscoverRail({ photos, locale, categoryDisplayMap }: Pro
                             <li key={t.slug}>
                                 <Link href={collectionPath("tag", t.slug)} prefetch={false}
                                    className={`inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                   style={{ fontSize: "12px", lineHeight: "16px", padding: "5px 10px", touchAction: "manipulation" }}>
+                                   style={{ ...CHIP_SIZE, touchAction: "manipulation" }}>
                                     #{t.label.replace(/^#/, "")}
-                                    <span className="text-white/60" style={{ fontSize: "10px" }}>{t.count}</span>
+                                    <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
                                 </Link>
                             </li>
                         ))}

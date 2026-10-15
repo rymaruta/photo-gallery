@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
-import { CHIP_ON, CHIP_OFF } from "./chipStyles";
+import { CHIP_ON, CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -90,7 +90,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                             className={`inline-flex items-center rounded-full transition-colors ${
                                 theme === null ? CHIP_ON : CHIP_OFF
                             }`}
-                            style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                            style={CHIP_SIZE}>
                         {isJa ? "すべて" : "All"}
                     </button>
                     {themes.map(([c, n]) => (
@@ -99,7 +99,7 @@ export default function SpotIndexClient({ spots, area }: Props) {
                                 className={`inline-flex items-center gap-1.5 rounded-full transition-colors ${
                                     theme === c ? CHIP_ON : CHIP_OFF
                                 }`}
-                                style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                style={CHIP_SIZE}>
                             {c}
                             {/* 件数は**選択状態に合わせて色を変える**。白の塗りの上で
                                 `text-white/60` のままだと、選んだテーマの件数が消えていた */}

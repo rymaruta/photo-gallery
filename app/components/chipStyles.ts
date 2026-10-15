@@ -9,7 +9,8 @@
  * 以前は画面ごとに書いていて、絞り込み（`FilterBar`）だけ旧い「白7%・縁なし・白70%」、
  * スポットの一覧などは色だけ合って縁が無い、とばらばらだった。
  *
- * **寸法は持たない。** 大きさは画面ごとに意図して違う（タイムラインのタグは小さい）。
+ * **寸法は `CHIP_SIZE`**（v2: 高さ 34・字 13・左右 14。2026-10-15）。一覧の中の小さなタグ
+ * （写真ページ・タイムライン）は画面ごとの寸法のまま——`CHIP_OFF`/`CHIP_ON` は色だけを持つ。
  * 縁は `ring-inset` で内側に描く（外に描くと並びの隙間が 1px ずつ詰まる）。
  * **キーボードの輪も定数が持つ**（画面ごとに書くと、選択中と非選択で色を分けられない）。
  * どちらも**内側の 2px**——外側に描くと、横スクロールの行（縦の余白なし）で上下が切れる
@@ -35,3 +36,10 @@
  */
 export const CHIP_OFF = "bg-chip text-chip-text ring-1 ring-inset ring-line hover:bg-white/15 hover:text-white focus:outline-hidden focus:-outline-offset-2 focus-visible:ring-2 focus-visible:ring-accent";
 export const CHIP_ON = "bg-primary text-ink font-semibold ring-inset focus:outline-hidden focus:-outline-offset-2 focus-visible:ring-2 focus-visible:ring-ink";
+
+/**
+ * **押せるチップの寸法（v2 の板 `.chip`: 高さ 34・字 13・左右 14）。** iOS も同じ値。
+ * **style で渡す**——640px 未満は root が 14px なので、rem の `h-*`・`text-sm` は縮む。
+ * 件数の小さな字も 12px 以上（本文系の最小）。
+ */
+export const CHIP_SIZE = { fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" } as const;

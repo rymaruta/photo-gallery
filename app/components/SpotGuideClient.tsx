@@ -16,7 +16,7 @@ import { shareUrl } from "@/lib/utils/share";
 import GalleryGrid from "./GalleryGrid";
 import SaveSpotButton, { TILE, TILE_OFF, TILE_TEXT, TILE_ICON } from "./SaveSpotButton";
 import { spotUploadHref } from "@/lib/utils/spotUpload";
-import { CHIP_OFF } from "./chipStyles";
+import { CHIP_OFF, CHIP_SIZE } from "./chipStyles";
 import { CHIP_HIT, CHIP_ROW } from "./SpotTopicLists";
 import { lightCellText, lightLegend, type LightCalendar } from "../../lib/utils/lightCalendar";
 import { LIGHT_MAX_OFFSET, direction, guideTimes, lightDateLabel, lightNote, lightSheet, lightZone, splitGuides, type LightBlock } from "../../lib/utils/spotLight";
@@ -1035,7 +1035,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                                         <li key={t.href}>
                                             <Link href={t.href} prefetch={false}
                                                   className={`${CHIP_HIT} inline-flex items-center gap-1.5 rounded-full ${CHIP_OFF} transition-colors`}
-                                                  style={{ fontSize: "13px", lineHeight: "18px", padding: "7px 14px", minHeight: "34px" }}>
+                                                  style={CHIP_SIZE}>
                                                 {!isJa && t.labelEn ? t.labelEn : t.label}
                                                 <span className="text-white/60" style={{ fontSize: "12px" }}>{t.count}</span>
                                             </Link>
