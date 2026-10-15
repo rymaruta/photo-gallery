@@ -5,11 +5,12 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
-import { haversineKm } from "../../lib/utils/journey";
+import { routeCoordinates, connectKm, countriesInOrder, firstYear } from "../../lib/utils/travelRoute";
+import TravelRecord from "./TravelRecord";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
@@ -29,13 +30,14 @@ import { publicFetch, userFetch, userPublicFetch, readApiError, sessionErrorMess
 import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
-import { compareNewest, compareOldest, photoTimeKey } from "../../lib/utils/photoOrder";
-import { ROUTES } from "../../lib/routes";
+import { compareNewest } from "../../lib/utils/photoOrder";
+import { ROUTES, hasPhotoPage } from "../../lib/routes";
+import { collectEntries, collectionPath, slugify } from "../../lib/utils/collections";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
-import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX, ACHIEVEMENT_VALUE_PX, ACHIEVEMENT_LABEL_PX, ACHIEVEMENT_ICON_PX } from "../components/statCellStyle";
+import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
 import dynamic from "next/dynamic";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
@@ -214,7 +216,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
         : 0;
 
     return (
-        <div className="relative overflow-hidden group" style={{ paddingTop: "100%" }}>
+        <div className="relative overflow-hidden group" style={{ paddingTop: "125%" }}>
             {/* **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
                 `app/components/GalleryGrid.tsx` のカードのコメントに書いた */}
@@ -1051,33 +1053,44 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         return [...pinned, ...rest];
     }, [visiblePhotos, pinnedPhotoIds]);
 
-    // 足あとサマリー: 旅した総移動距離（位置情報つきの写真を撮影日順につなぐ）
+    // 旅の記録（案 H1「星図」）: 写真をつないだ距離・その線・訪れた国・地域。
     //
-    // **並べ方は年表と同じ規則にする。** `Date.parse` で並べていた頃は、
-    // ゾーン無しの `T` 形式（EXIF 由来の撮影日）がローカル時刻として読まれ、
-    // **同じ画面の年表と逆の順**になりえた（年表は書かれている成分で切る）。
-    // 積算する順が変われば距離も変わるので、見えている数字が閲覧者の
-    // タイムゾーンで変わることになる。
-    //
-    // 以前ここで数えていた「訪れた場所数」と「期間（最古〜最新）」は、
-    // **どこにも出していなかった**ので落とした（画面に出るのは
-    // `distanceKm` と `geoCount` だけ）。`Date.parse` の呼び出しも一緒に消える。
-    const footprint = useMemo(() => {
-        const geo = visiblePhotos
-            // **日時を読めない写真は入れない。** 旧実装の `!isNaN(Date.parse(...))`
-            // に当たる歯止め。無いとキーが空の写真が先頭に入り、そこから
-            // 最初の地点までの1脚ぶん距離が増える（つなぐ順が決まらない
-            // 写真を、いちばん古い場所として数えることになる）
-            .filter(p => p.coords && typeof p.coords.lat === "number" && typeof p.coords.lng === "number"
-                && photoTimeKey(p) !== "")
-            .sort(compareOldest)
-            .map(p => p.coords as { lat: number; lng: number });
-        let distanceKm = 0;
-        for (let i = 1; i < geo.length; i++) distanceKm += haversineKm(geo[i - 1], geo[i]);
-
-        return { distanceKm, geoCount: geo.length };
+    // **距離と線は同じ写真・同じ順**（`routeCoordinates`）。並べ方は年表と同じ規則
+    // （`compareOldest`）——`Date.parse` で並べていた頃は、ゾーン無しの `T` 形式
+    // （EXIF 由来の撮影日）がローカル時刻として読まれ、見えている距離が閲覧者の
+    // タイムゾーンで変わりえた。**日時を読めない写真は入れない**（つなぐ順が決まらない
+    // 写真を、いちばん古い場所として数えると1脚ぶん距離が増える）。
+    const travel = useMemo(() => {
+        const coordinates = routeCoordinates(visiblePhotos);
+        return {
+            coordinates,
+            distanceKm: connectKm(coordinates),
+            geoCount: coordinates.length,
+            countries: countriesInOrder(visiblePhotos),
+            firstYear: firstYear(visiblePhotos),
+        };
     }, [visiblePhotos]);
 
+
+    // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を、撮影地ページと
+    // **同じ数え方**（`collectEntries`＝`/location/*` の見出しの枚数と同じ）で多い順に。
+    // 本人のページには出さない（本人は「旅の記録」）。
+    //
+    // **行き先のページが無いチップはリンクにしない。** `/location/*` はビルドの時点の写真から
+    // 作るので、ビルドのあとに初めて書いた撮影地は 404 になる。ビルドに入っている写真
+    // （`hasPhotoPage`）がその撮影地を持っているときだけリンクにする
+    const visitedPlaces = useMemo(() => {
+        if (isOwner) return [];
+        return collectEntries(visiblePhotos, "location")
+            .filter((e) => e.count > 0)
+            .map((e) => ({
+                ...e,
+                href: visiblePhotos.some((p) => typeof p.location === "string"
+                    && slugify(p.location, "location") === e.slug && hasPhotoPage(p.id))
+                    ? collectionPath("location", e.slug)
+                    : null,
+            }));
+    }, [visiblePhotos, isOwner]);
 
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
@@ -1458,49 +1471,68 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         />
                     </div>
 
-                    {/* 旅の実績（最終版モック `docs/mockups/04-mypage.jpg` の3番）。
-                        モックは「訪れた国・地域 ｜ 総移動距離 ›」の2枠だが、
-                        **訪れた国は持っていない**（撮影地は自由文字列で、国を当てるには
-                        逆ジオコードの country を写真に書く必要がある＝データと API の話）。
-                        持っていない欄は出さないので、総移動距離の1枠だけになる
-                        （座標を持つ写真が2枚以上・1km 以上のときだけ）。
-
-                        **形と大きさはモックのとおりに揃えた**——角丸のカードではなく
-                        数字の行と同じ「下に細い線を1本」で、青いアイコンの右に
-                        ラベルが上・数字が下。大きさは `statCellStyle.ts`（画素から実測）。
-
-                        **`›` は本人のページだけ。** モックはマイページなので押した先が
-                        あるが、このサイトで実在するのは撮影地マップ（`/map`）で、
-                        そこに出るのは**全員の写真**。他人のページに置くと
-                        「この人の旅の続き」に見えて別のものへ連れて行くので出さない
-                        （押せるのに約束と違うものを出さない——CLAUDE.md の型）。 */}
-                    {footprint.geoCount >= 2 && footprint.distanceKm >= 1 && (() => {
-                        const label = locale === "en" ? "Distance traveled" : "総移動距離";
-                        const rowClass = "flex items-center gap-3 py-3 mb-4 border-b border-white/10";
-                        const body = (
-                            <>
-                                <PaperAirplaneIcon aria-hidden="true" className="-rotate-45 text-accent flex-shrink-0" style={{ width: `${ACHIEVEMENT_ICON_PX}px`, height: `${ACHIEVEMENT_ICON_PX}px` }} />
-                                <span className="min-w-0">
-                                    <span className="block text-white/60 leading-none" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>{label}</span>
-                                    <span className="block mt-1 leading-none">
-                                        <span className="font-bold tabular-nums" style={{ fontSize: `${ACHIEVEMENT_VALUE_PX}px` }}>{Math.round(footprint.distanceKm).toLocaleString()}</span>
-                                        <span className="text-white/60 ml-1" style={{ fontSize: `${ACHIEVEMENT_LABEL_PX}px` }}>km</span>
-                                    </span>
-                                </span>
-                                {isOwner && <ChevronRightIcon aria-hidden="true" className="ml-auto text-white/40 flex-shrink-0" style={{ width: "18px", height: "18px" }} />}
-                            </>
-                        );
-                        const title = locale === "en" ? "Total distance traveled" : "旅した総移動距離";
-                        return isOwner ? (
-                            <Link href={ROUTES.MAP} prefetch={false} title={title}
-                                  aria-label={locale === "en" ? "Open the photo map" : "撮影地マップを開く"}
-                                  className={`${rowClass} hover:bg-white/[0.04] transition-colors`}>
-                                {body}
-                            </Link>
-                        ) : (
-                            <div className={rowClass} title={title}>{body}</div>
+                    {/* 旅の記録（v2 の板 MyPage・案 H1「星図」。iOS の `TravelRecordView` と同じ形）。
+                        以前は「総移動距離」の1行（紙飛行機のアイコン＋数字）だった。
+                        **本人のページだけ。** 他人のページは板 UserProfile のとおり「訪れた場所」。
+                        押した先は撮影地マップ（`/map`）＝**全員の写真**なので、他人のページに
+                        置くと「この人の旅の続き」に見えて別のものへ連れて行く。
+                        距離は2枚以上・1km 以上のときだけ（同じ町の中だけの数字は出さない）。
+                        国・地域は撮影地に国名が書かれた写真だけを数える（`visitedCountries.ts`）。 */}
+                    {isOwner && (() => {
+                        const showDistance = travel.geoCount >= 2 && travel.distanceKm >= 1;
+                        if (!showDistance && travel.countries.length === 0) return null;
+                        return (
+                            <TravelRecord
+                                distanceKm={showDistance ? travel.distanceKm : null}
+                                countries={travel.countries}
+                                coordinates={travel.coordinates}
+                                firstYear={travel.firstYear}
+                                href={ROUTES.MAP}
+                                locale={locale}
+                            />
                         );
                     })()}
+
+                    {/* 訪れた場所（板 v2 UserProfile）: 真鍮の眉ラベル（黒地の上）と、撮影地のチップ
+                        （多い順に3つ・残りは「ほか N か所」）。チップの見た目は 34、**押せる高さは 44**。
+                        数はその撮影地ページの見出しの枚数と同じ */}
+                    {visitedPlaces.length > 0 && (
+                        <section aria-labelledby="visited-places-heading" className="mb-4" data-testid="visited-places">
+                            <h2 id="visited-places-heading" className="text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
+                                {locale === "en" ? "PLACES VISITED" : "訪れた場所"}
+                            </h2>
+                            <ul className="flex flex-wrap items-center gap-x-1.5">
+                                {visitedPlaces.slice(0, 3).map((e) => {
+                                    const pill = (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-chip border border-line text-chip-text whitespace-nowrap"
+                                              style={{ height: "34px", padding: "0 12px", fontSize: "13px" }}>
+                                            <span className="truncate" style={{ maxWidth: "12rem" }}>{e.label}</span>
+                                            <span className="text-white/60 tabular-nums">{e.count}</span>
+                                        </span>
+                                    );
+                                    return (
+                                        <li key={e.slug}>
+                                            {e.href ? (
+                                                <Link href={e.href} prefetch={false}
+                                                      aria-label={locale === "en" ? `${e.label}, ${e.count} photos` : `${e.label}（${e.count}枚）`}
+                                                      className="inline-flex items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                                      style={{ minHeight: "44px", touchAction: "manipulation" }}>
+                                                    {pill}
+                                                </Link>
+                                            ) : (
+                                                <span className="inline-flex items-center" style={{ minHeight: "44px" }}>{pill}</span>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                                {visitedPlaces.length > 3 && (
+                                    <li className="inline-flex items-center text-white/60" style={{ minHeight: "44px", fontSize: "13px", paddingLeft: "4px" }}>
+                                        {locale === "en" ? `+${visitedPlaces.length - 3} more` : `ほか ${visitedPlaces.length - 3}か所`}
+                                    </li>
+                                )}
+                            </ul>
+                        </section>
+                    )}
 
                     {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
@@ -1669,15 +1701,22 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     `role="tab"` ＋ `aria-selected` ＋ 矢印キーで、
                     計算は `lib/utils/tabKeys.ts` に1つ。**3つ目を別の形にしない。**
                     見た目は変えていない（属性とキー操作だけ）。 */}
+                {/* v2 の板（MyPage・UserProfile）の下線の札: 左寄せの字だけ・間 22・選んでいる札は
+                    真鍮の字と真鍮の下線 2px（黒地の上なので真鍮・owner の好み）・下に髪線。
+                    **本人には「行きたい場所」「保存」も並べる**（板 MyPage の4つに寄せる）。
+                    中身は別のページ（`/saved-spots`・`/saves`）なので**タブではなくリンク**で、
+                    tablist の外に置く（`role="tab"` で別ページへ飛ぶと、矢印キーの作法と食い違う）。
+                    板の「旅の記録」（旅の一冊の棚）は Web に無いので作らない——年表はそのまま */}
+                <div className="flex items-end gap-[22px] border-b border-line mb-[2px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 <div
                     role="tablist"
                     aria-label={locale === "en" ? "Profile sections" : "プロフィールの表示"}
-                    className={"grid grid-cols-2 border-t border-white/10 mb-1"}
+                    className="flex gap-[22px]"
                 >
                     {([
-                        { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
-                        { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
-                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
+                        { key: "posts", label: locale === "en" ? "Posts" : "投稿" },
+                        { key: "timeline", label: locale === "en" ? "Timeline" : "年表" },
+                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, label }) => {
                         const active = tab === key;
                         return (
                             <button
@@ -1692,17 +1731,33 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setTab(key)}
                                 onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
-                                // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`・iOS v2）。
-                                // 以前はその人のテーマ色の線を上辺に引いていた（白字のまま）。字は `text-xs`
-                                // （640px 未満で 10.5px）だったので 12px に上げた（本文系の最小）
-                                className={`relative flex items-center justify-center gap-1.5 py-3 text-[12px] tracking-wide transition-colors ${active ? TAB_ON : `font-medium ${TAB_OFF}`}`}
-                                style={{ touchAction: "manipulation" }}
+                                // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`・iOS v2・ホームのタブと同じ定数）。
+                                // 並びと寸法は v2 の板の下線の札（字だけ・高さ 44・15px）。以前はアイコン付きで
+                                // その人のテーマ色の線を上辺に引いていた（白字のまま・`text-xs`）
+                                className={`flex items-center whitespace-nowrap transition-colors ${active ? TAB_ON : TAB_OFF}`}
+                                style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
                             >
-                                <Icon className="w-4 h-4" aria-hidden="true" />
-                                <span>{label}</span>
+                                {label}
                             </button>
                         );
                     })}
+                </div>
+                {isOwner && ([
+                    { href: ROUTES.SAVED_SPOTS, label: locale === "en" ? "Want to go" : "行きたい場所" },
+                    { href: ROUTES.SAVES, label: locale === "en" ? "Saved" : "保存" },
+                ]).map(({ href, label }) => (
+                    <Link
+                        key={href}
+                        href={href}
+                        prefetch={false}
+                        data-profile-link={href}
+                        // 選んでいないタブと同じ見た目（`TAB_OFF`）——札の並びの中で色が割れないように
+                        className={`flex items-center whitespace-nowrap transition-colors ${TAB_OFF}`}
+                        style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                    >
+                        {label}
+                    </Link>
+                ))}
                 </div>
 
                 {/* タブ内容: 横スワイプでタブ切替。Leaflet 地図内で始まる操作だけ除外
@@ -1736,7 +1791,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
                     ) : null) : (
-                        <div className="grid grid-cols-3 lg:grid-cols-4 gap-[2px] pb-8">
+                        <div className="grid grid-cols-3 gap-[2px] pb-8">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
@@ -1777,7 +1832,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                             <span className="text-sm font-bold">{g.label}</span>
                                             <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-1">
+                                        <div className="grid grid-cols-3 gap-[2px]">
                                             {g.photos.map((photo) => (
                                                 <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} onDelete={isOwner ? setPhotoToDelete : undefined} />
                                             ))}

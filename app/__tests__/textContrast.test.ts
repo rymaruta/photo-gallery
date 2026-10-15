@@ -177,8 +177,9 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/DeleteConfirmModal.tsx", "text-[13px] mb-6", "削除確認の本文"],
     ["app/components/DeleteAccountModal.tsx", "text-[13px] mb-5", "退会確認の本文"],
     // プロフィール（実ブラウザで「年表」タブが 3.66:1 だったのを実測）
-    // 選んでいないタブの色は定数（2026-10-15・選んでいる側は真鍮になった）。ホームと投稿／年表が使う
-    ["app/components/tabStyles.ts", "export const TAB_OFF", "非選択のタブ（ホーム・投稿／年表）"],
+    // 選んでいないタブの色は定数（2026-10-15・選んでいる側は真鍮になった）。ホームと投稿／年表、
+    // 本人の札の並びのリンク（行きたい場所／保存）が使う
+    ["app/components/tabStyles.ts", "export const TAB_OFF", "非選択のタブ（ホーム・投稿／年表・行きたい場所／保存）"],
     ["app/users/UserProfileClient.tsx", "うち非公開", "本人にだけ出る非公開の枚数"],
     // 投稿タブと年表タブの2か所に同じものがある（両方見る）
     ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内（外枠の色）"],
@@ -449,9 +450,6 @@ describe("app 全体: 読めない濃さの文字を新しく増やさない", (
         ["app/photo/[id]/PhotoPageClient.tsx", '"p-1.5 text-white/40 hover:text-white/70 active:scale-95', "MV を外す（3.66:1）"],
         ["app/user/profile/page.tsx", '"px-1.5 py-1 text-white/40 hover:text-danger', "曲を削除（3.66:1）"],
         ["app/users/UserProfileClient.tsx", "bg-black/0 text-white/0", "hover で初めて出る覆い（既定は完全に透明）"],
-        // 旅の実績の `›`。**押せるのは行そのもの**で、行は `aria-label` を持つ。
-        // この矢印は `aria-hidden` の装飾で、意味は文字とリンクが伝えている
-        ["app/users/UserProfileClient.tsx", 'ChevronRightIcon aria-hidden="true" className="ml-auto te', "旅の実績の行の矢印（装飾・3.66:1）"],
         // 地図のポップアップ（白地の `text-gray-600`）はもう無い。
         // 写真の中身は黒地のボトムシート（`app/map/MapPhotoSheet.tsx`）が
         // 描くので、この走査の前提（黒地）にそのまま乗る
