@@ -42,8 +42,7 @@ export default function SpotTopicPage({ view, eyebrow }: { view: TopicView; eyeb
                         </React.Fragment>
                     ))}
                 </nav>
-                <p aria-hidden className="m-0 mb-1.5 font-mono font-medium uppercase text-accent"
-                   style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>{eyebrow}</p>
+                <p aria-hidden className="m-0 mb-1.5 eyebrow text-accent">{eyebrow}</p>
                 <h1 className="font-serif text-2xl sm:text-[34px] sm:leading-[1.15] font-bold m-0 tracking-tight"><Lang ja={view.heading} en={view.headingEn} /></h1>
                 {view.intro && (
                     <p className="m-0 mt-2 mb-6 text-white/70 max-w-3xl" style={{ fontSize: "14px", lineHeight: "22px" }}>{view.intro}</p>

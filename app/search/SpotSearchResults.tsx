@@ -42,8 +42,8 @@ export default function SpotSearchResults({ query, locale }: { query: string; lo
 
     return (
         <section aria-labelledby="search-spot-heading" className="mb-6" data-testid="search-spot-results">
-            <h2 id="search-spot-heading" className="m-0 font-serif font-bold text-white"
-                style={{ fontSize: "15px", lineHeight: "22px", marginBottom: "8px" }}>
+            {/* アプリの探すの「撮影スポット（N か所）」と同じ眉＋消える線（iOS の `JPEyebrowLine`） */}
+            <h2 id="search-spot-heading" className="m-0 mb-2.5 eyebrow eyebrow-line text-accent">
                 {en ? `Shooting spots (${hits.length})` : `撮影スポット（${hits.length}か所）`}
             </h2>
             <ul className="list-none m-0 p-0 rounded-2xl bg-surface overflow-hidden">

@@ -31,7 +31,7 @@ import { MedalName } from "../../components/MedalShelf";
 
 type Locale = "ja" | "en";
 
-const EYEBROW = "text-[11px] tracking-[0.12em] text-accent";
+const EYEBROW = "eyebrow text-accent";
 /** 選択肢の並び（Pro マークの形・公式の印で同じ。札の下の行に横いっぱい） */
 const SEGMENTS = "flex gap-1.5 p-[3px] rounded-xl bg-white/[0.06] w-full";
 

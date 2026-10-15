@@ -141,21 +141,30 @@ function ItemLink({ href, className, style, children }: {
  * `collectionIndexPath` が返す**実在する索引ページ**（`app/category/page.tsx`
  * ほか）で、そこは `collectEntries` の全件を並べる＝「すべて見る」が本当。
  * 見張りは `DiscoverSections.test.tsx` の「見出しから索引ページへ行ける」。
+ *
+ * **形はアプリ v2 の節の見出し**（iOS の `JPSectionHeading`・板 Search の `.sh`・2026-10-15）:
+ * 眉（真鍮の英字＋右へ消える線）→ 6 → 明朝 22 の題、右下に「すべて見る ›」（13・灰・当たり 44）。
+ * 以前は 16px のゴシックの太字で、アプリと別の画面に見えた。
+ * 眉は英字の飾りなので読み上げに出さない（題が同じことを日本語で言う）。
+ * 「すべて見る」を真鍮にしない——節の行き先は合図ではなく道（iOS の `MoreLink` と同じ）。
  */
-function SectionHead({ id, title, href, moreLabel }: {
-    id: string; title: string; href: string; moreLabel: string;
+function SectionHead({ id, eyebrow, title, href, moreLabel }: {
+    id: string; eyebrow: string; title: string; href: string; moreLabel: string;
 }) {
     return (
-        <div className="flex items-baseline justify-between mb-2.5">
-            <h2 id={id} className="font-bold m-0" style={{ fontSize: "16px", lineHeight: "22px" }}>{title}</h2>
+        <div className="flex items-end justify-between gap-3 mb-3" data-testid="discover-section-head">
+            <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                <p aria-hidden="true" className="m-0 eyebrow eyebrow-line text-accent">{eyebrow}</p>
+                <h2 id={id} className="m-0 font-serif font-bold text-white" style={{ fontSize: "22px", lineHeight: "1.3" }}>{title}</h2>
+            </div>
             {/* **先読みしない**（公開ページの `<Link>` は全部そう）。
                 行き先は普通のページなので、項目と違って `<Link>` のままでよい
                 ——クエリを持たないので `useGallery` の読み落としに当たらない */}
             <Link
                 href={href}
                 prefetch={false}
-                className="flex-shrink-0 text-white/60 hover:text-white transition-colors"
-                style={{ fontSize: "12px", touchAction: "manipulation" }}
+                className="flex-shrink-0 inline-flex items-center min-h-[44px] text-white/70 hover:text-white transition-colors"
+                style={{ fontSize: "13px", touchAction: "manipulation" }}
             >
                 {moreLabel}
             </Link>
@@ -192,7 +201,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
         <div className="space-y-6 mb-6">
             {categories.length > 0 && (
                 <section aria-labelledby="discover-categories">
-                    <SectionHead id="discover-categories" title={isJa ? "カテゴリからさがす" : "Browse by category"}
+                    <SectionHead id="discover-categories" eyebrow="CATEGORIES" title={isJa ? "カテゴリからさがす" : "Browse by category"}
                                  href={collectionIndexPath("category")} moreLabel={more} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {categories.map((c) => {
@@ -221,7 +230,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                 <section aria-labelledby="discover-spots">
                     {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、
                         閲覧数も保存数も持っていない（指示書 7） */}
-                    <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
+                    <SectionHead id="discover-spots" eyebrow="PLACES" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
                                  href={collectionIndexPath("location")} moreLabel={more} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {spots.map((s) => {
@@ -257,7 +266,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                         センサーの大きさを持っていない＝35mm換算に直せない。
                         APS-C の 28mm を「広角」と出すと嘘になる（指示書: 実際のデータが
                         存在しない限り表示しない） */}
-                    <SectionHead id="discover-cameras" title={isJa ? "機材からさがす" : "Browse by camera"}
+                    <SectionHead id="discover-cameras" eyebrow="GEAR" title={isJa ? "機材からさがす" : "Browse by camera"}
                                  href={collectionIndexPath("camera")} moreLabel={more} />
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (

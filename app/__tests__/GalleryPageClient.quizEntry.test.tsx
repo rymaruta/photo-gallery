@@ -93,3 +93,25 @@ describe("ホームの撮影スポットの入口", () => {
         expect(screen.queryByTestId("home-spots-entry")).toBeNull();
     });
 });
+
+// アプリ v2 の「今日のテーマ」の Web 版（1行・撮影スポットの直下・押すとタグ入りの投稿画面）
+describe("ホームの今日のテーマの入口", () => {
+    it("撮影スポットの下に1行・テーマのタグを入れた投稿画面へ", async () => {
+        render(<ToastProvider><GalleryPageClient /></ToastProvider>);
+        const entry = await screen.findByTestId("home-theme-entry");
+        const { dailyThemeFor } = await import("@/lib/utils/dailyTheme");
+        const tag = dailyThemeFor().tag;
+        await waitFor(() => expect(entry.getAttribute("href")).toBe(`/user/upload?tag=${encodeURIComponent(tag)}`));
+        expect(entry.textContent).toContain(`#${tag}`);
+        expect(entry.textContent).toContain("今日のテーマ");
+        expect(entry.getAttribute("data-prefetch") ?? "").not.toBe("true");
+        const spots = screen.queryByTestId("home-spots-entry");
+        expect(spots?.nextElementSibling).toBe(entry);
+    });
+
+    it("「さがす」の面には出さない", async () => {
+        render(<ToastProvider><GalleryPageClient surface="search" /></ToastProvider>);
+        await waitFor(() => expect(screen.queryByRole("tablist")).toBeNull());
+        expect(screen.queryByTestId("home-theme-entry")).toBeNull();
+    });
+});

@@ -92,9 +92,8 @@ export default function PostSheet({ onClose, locale, restoreRef }: Props) {
                 aria-modal="true"
                 aria-labelledby={titleId}
                 className="relative w-full max-w-sm rounded-3xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/60 overflow-hidden story-media-in"
-                // 字: サイトの本文と同じ Inter → Noto Sans JP → system の並び（`layout.tsx`）。
-                // 日本語はプロポーショナル詰め（`palt`）で、見出しはわずかに字間を開ける。
-                // 太さはこのサイトが配っている 700 だけを使う（600 は Inter に無い）
+                // 字: サイトの本文と同じ並び（`globals.css` の `--font-sans`）。
+                // 日本語はプロポーショナル詰め（`palt`）で、見出しはわずかに字間を開ける
                 style={{ fontFeatureSettings: '"palt"' }}
             >
                 <div className="flex items-center justify-between pl-5 pr-3 pt-3 pb-2 border-b border-line">

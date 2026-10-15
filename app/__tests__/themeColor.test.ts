@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 
-// `next/font` は vitest では動かない（`Inter is not a function`）。
+// `next/font` は vitest では動かない（`Shippori_Mincho_B1 is not a function`）。
 // 見たいのは `viewport` の値だけなので、font だけ差し替えて本物を読む
 vi.mock("next/font/google", () => ({
-    Inter: () => ({ className: "inter" }),
+    Shippori_Mincho_B1: () => ({ variable: "--font-mincho" }),
     // 手書き2種（ストーリーの文字だけで使う webfont）
     Yusei_Magic: () => ({ variable: "--font-marker" }),
     Yomogi: () => ({ variable: "--font-scribble" }),

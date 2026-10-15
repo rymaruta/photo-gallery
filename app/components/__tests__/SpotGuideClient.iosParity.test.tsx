@@ -65,25 +65,25 @@ beforeEach(() => {
 });
 
 /** 小見出し（見出しの上の等幅の1行）。パンくずの「撮影スポット」と取り違えない */
-const eyebrow = () => document.querySelector("header p.font-mono")?.textContent;
+const eyebrow = () => document.querySelector("header p.eyebrow")?.textContent;
 
 describe("撮影スポットのページ（iOS の板 13 に揃えた形）", () => {
     it("小見出しは公開なら「撮影スポット」、下書きなら「下書き・未確認」（下書きを撮影スポットと名乗らない）", () => {
         const { unmount } = view();
         expect(eyebrow()).toBe("撮影スポット");
-        expect(document.querySelector("header p.font-mono")!.className).toContain("text-accent");
+        expect(document.querySelector("header p.eyebrow")!.className).toContain("text-accent");
         unmount();
         view({ ...SPOT, status: "review", verifiedBy: undefined, verifiedAt: undefined } as Spot);
         expect(eyebrow()).toBe("下書き・未確認");
-        expect(document.querySelector("header p.font-mono")!.className).not.toContain("text-accent");
+        expect(document.querySelector("header p.eyebrow")!.className).not.toContain("text-accent");
     });
 
     it("公開の小見出しは読み上げから外し（パンくずと同じ語）、下書きの「下書き・未確認」は読ませる", () => {
         const { unmount } = view();
-        expect(document.querySelector("header p.font-mono")!.getAttribute("aria-hidden")).toBe("true");
+        expect(document.querySelector("header p.eyebrow")!.getAttribute("aria-hidden")).toBe("true");
         unmount();
         view({ ...SPOT, status: "review", verifiedBy: undefined, verifiedAt: undefined } as Spot);
-        expect(document.querySelector("header p.font-mono")!.hasAttribute("aria-hidden")).toBe(false);
+        expect(document.querySelector("header p.eyebrow")!.hasAttribute("aria-hidden")).toBe(false);
     });
 
     it("見出しの下は「地域 · N枚の写真」（数えた枚数）", () => {

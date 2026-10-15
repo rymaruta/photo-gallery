@@ -142,3 +142,24 @@ describe("さがす: 発見の節", () => {
     // **コードを移したら、守りも一緒に移す。** 4本の性質は
     // `app/components/__tests__/DiscoverRail.test.tsx` が引き継いでいる。
 });
+
+// アプリ v2 の節の見出し（iOS の `JPSectionHeading`）: 眉＋消える線 → 明朝 22 の題 → 灰の「すべて見る」
+describe("さがす: 節の見出しはアプリ v2 の形", () => {
+    it("眉（読み上げに出さない）・明朝の題・灰の「すべて見る」", () => {
+        const { container } = render1([photo("a", { location: "香川県 観音寺市 高屋神社" })]);
+        const heads = [...container.querySelectorAll('[data-testid="discover-section-head"]')];
+        expect(heads.length).toBeGreaterThan(0);
+        for (const h of heads) {
+            const eb = h.querySelector("p.eyebrow")!;
+            expect(eb, "眉が無い").toBeTruthy();
+            expect(eb.className).toContain("eyebrow-line");
+            expect(eb.getAttribute("aria-hidden")).toBe("true");
+            const h2 = h.querySelector("h2")!;
+            expect(h2.className).toContain("font-serif");
+            expect((h2 as HTMLElement).style.fontSize).toBe("22px");
+            const more = h.querySelector("a")!;
+            expect(more.className, "行き先は合図ではない（真鍮にしない）").not.toContain("text-accent");
+            expect(more.className).toContain("min-h-[44px]");
+        }
+    });
+});
