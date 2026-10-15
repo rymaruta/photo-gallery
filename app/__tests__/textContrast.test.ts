@@ -305,7 +305,24 @@ describe("見張りの下地が、実際の下地と同じ色", () => {
         expect(on(tok("accent"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("bg"))).toBeGreaterThanOrEqual(4.5);
         expect(on(tok("link"), tok("surface"))).toBeGreaterThanOrEqual(4.5);
-        expect(on(tok("chip-text"), tok("chip"))).toBeGreaterThanOrEqual(4.5);
+        // v2 の副文・注記の灰は、黒地と札（surface）の上で 4.5:1 に届く
+        for (const t of ["text-2", "text-3"]) {
+            expect(on(tok(t), tok("bg")), t).toBeGreaterThanOrEqual(4.5);
+            expect(on(tok(t), tok("surface")), t).toBeGreaterThanOrEqual(4.5);
+            expect(on(tok(t), tok("surface-2")), t).toBeGreaterThanOrEqual(4.5);
+        }
+        // 選んでいるタブ（真鍮）は札・入力欄の地の上でも読める
+        expect(on(tok("accent"), tok("surface-2"))).toBeGreaterThanOrEqual(4.5);
+        // **チップの面は v2 で白7%（透過）になった。** 黒地と札の上に合成してから測る
+        const chip = /--color-chip:\s*rgb\(255 255 255 \/ (0?\.\d+)\)/i.exec(css);
+        expect(chip, "--color-chip が白の透過で無い").not.toBeNull();
+        const alpha = Number(chip![1]);
+        const over = (bg: string) => {
+            const b = hexToRgb(bg);
+            return "#" + b.map((v) => Math.round(255 * alpha + v * (1 - alpha)).toString(16).padStart(2, "0")).join("");
+        };
+        expect(on(tok("chip-text"), over(tok("bg")))).toBeGreaterThanOrEqual(4.5);
+        expect(on(tok("chip-text"), over(tok("surface")))).toBeGreaterThanOrEqual(4.5);
     });
 });
 
