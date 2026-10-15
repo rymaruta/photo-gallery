@@ -25,6 +25,7 @@ import { unstrippableMessage, gifRejectedLabel } from "../../../lib/utils/upload
 import { usablePhotoRows } from "../../../lib/utils/apiRows";
 import type { Photo } from "../../../lib/data/photos";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
+import { readThemeTag } from "../../../lib/utils/dailyTheme";
 import { collectOwnValues, toggleTag, hasTag, suggestTags, dropFragment, splitTags, TAG_SEPARATOR, type OwnValues } from "../../../lib/utils/ownValues";
 import { tagKey } from "../../../lib/utils/collections";
 import { presignAndPut } from "../../../lib/utils/uploadToS3";
@@ -292,6 +293,16 @@ function UploadPageInner() {
     /** 公開範囲。**既定は全体に公開**（絞るとウェブサイトに載らず、検索から見つからない） */
     const [audience, setAudience] = useState<Audience>("everyone");
     const [tags, setTags] = useState("");
+    /**
+     * **ホームの「今日のテーマ」から来た**（`?tag=夜`）。そのタグを入れておく（iOS の
+     * `MissionRouter.join` と同じ）。テーマのタグ以外は `readThemeTag` が捨てる。
+     * 入っていれば何もしない（押し直しで外さない）。外すのは人がチップで
+     */
+    const themeTag = readThemeTag(searchParams?.get("tag"));
+    useEffect(() => {
+        if (!themeTag) return;
+        setTags((cur) => (hasTag(cur, themeTag) ? cur : toggleTag(cur, themeTag)));
+    }, [themeTag]);
     const [uploading, setUploading] = useState(false);
     /** スポットが届いたとき・EXIF を読み終えたときに、未判定の写真へスポット名を入れる（`spotPendingRef` の注記） */
     useEffect(() => {
