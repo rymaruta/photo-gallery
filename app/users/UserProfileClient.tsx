@@ -32,7 +32,8 @@ import { useEscapeKey } from "../../lib/hooks/useEscapeKey";
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { EN_MONTHS, splitStoredDate } from "../../lib/utils/photoDate";
 import { compareNewest } from "../../lib/utils/photoOrder";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES, hasPhotoPage } from "../../lib/routes";
+import { collectEntries, collectionPath, slugify } from "../../lib/utils/collections";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
 import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX } from "../components/ProfileCover";
@@ -1071,6 +1072,26 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     }, [visiblePhotos]);
 
 
+    // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を、撮影地ページと
+    // **同じ数え方**（`collectEntries`＝`/location/*` の見出しの枚数と同じ）で多い順に。
+    // 本人のページには出さない（本人は「旅の記録」）。
+    //
+    // **行き先のページが無いチップはリンクにしない。** `/location/*` はビルドの時点の写真から
+    // 作るので、ビルドのあとに初めて書いた撮影地は 404 になる。ビルドに入っている写真
+    // （`hasPhotoPage`）がその撮影地を持っているときだけリンクにする
+    const visitedPlaces = useMemo(() => {
+        if (isOwner) return [];
+        return collectEntries(visiblePhotos, "location")
+            .filter((e) => e.count > 0)
+            .map((e) => ({
+                ...e,
+                href: visiblePhotos.some((p) => typeof p.location === "string"
+                    && slugify(p.location, "location") === e.slug && hasPhotoPage(p.id))
+                    ? collectionPath("location", e.slug)
+                    : null,
+            }));
+    }, [visiblePhotos, isOwner]);
+
     // テーマソング: 保存された URL を埋め込みプレイヤーに変換（好きな部分の開始・終了つき）
     const songEmbed = useMemo(
         () => (userProfile?.songUrl ? parseMusicEmbed(userProfile.songUrl, userProfile.songStart, userProfile.songEnd) : null),
@@ -1477,6 +1498,47 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             />
                         );
                     })()}
+
+                    {/* 訪れた場所（板 v2 UserProfile）: 真鍮の眉ラベル（黒地の上）と、撮影地のチップ
+                        （多い順に3つ・残りは「ほか N か所」）。チップの見た目は 34、**押せる高さは 44**。
+                        数はその撮影地ページの見出しの枚数と同じ */}
+                    {visitedPlaces.length > 0 && (
+                        <section aria-labelledby="visited-places-heading" className="mb-4" data-testid="visited-places">
+                            <h2 id="visited-places-heading" className="text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
+                                {locale === "en" ? "PLACES VISITED" : "訪れた場所"}
+                            </h2>
+                            <ul className="flex flex-wrap items-center gap-x-1.5">
+                                {visitedPlaces.slice(0, 3).map((e) => {
+                                    const pill = (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-chip border border-line text-chip-text whitespace-nowrap"
+                                              style={{ height: "34px", padding: "0 12px", fontSize: "13px" }}>
+                                            <span className="truncate" style={{ maxWidth: "12rem" }}>{e.label}</span>
+                                            <span className="text-white/60 tabular-nums">{e.count}</span>
+                                        </span>
+                                    );
+                                    return (
+                                        <li key={e.slug}>
+                                            {e.href ? (
+                                                <Link href={e.href} prefetch={false}
+                                                      aria-label={locale === "en" ? `${e.label}, ${e.count} photos` : `${e.label}（${e.count}枚）`}
+                                                      className="inline-flex items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                                      style={{ minHeight: "44px", touchAction: "manipulation" }}>
+                                                    {pill}
+                                                </Link>
+                                            ) : (
+                                                <span className="inline-flex items-center" style={{ minHeight: "44px" }}>{pill}</span>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                                {visitedPlaces.length > 3 && (
+                                    <li className="inline-flex items-center text-white/60" style={{ minHeight: "44px", fontSize: "13px", paddingLeft: "4px" }}>
+                                        {locale === "en" ? `+${visitedPlaces.length - 3} more` : `ほか ${visitedPlaces.length - 3}か所`}
+                                    </li>
+                                )}
+                            </ul>
+                        </section>
+                    )}
 
                     {userProfile?.website && (
                         <div className="flex flex-wrap gap-3">
