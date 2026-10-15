@@ -1520,7 +1520,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         数は**この人が**その撮影地で撮った写真の枚数（撮影地ページの見出しの枚数とは違う） */}
                     {visitedPlaces.length > 0 && (
                         <section aria-labelledby="visited-places-heading" className="mb-4" data-testid="visited-places">
-                            <h2 id="visited-places-heading" className="text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
+                            <h2 id="visited-places-heading" className="eyebrow eyebrow-line text-accent">
                                 {locale === "en" ? "PLACES VISITED" : "訪れた場所"}
                             </h2>
                             <ul className="flex flex-wrap items-center gap-x-1.5">

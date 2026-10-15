@@ -197,13 +197,13 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
             className="block mb-5 pt-1 pb-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             style={{ touchAction: "manipulation", minHeight: "44px" }}
         >
-            {/* 眉ラベル: 真鍮・SF 600・字間 0.14em。右へ消える真鍮の線（55% → 0） */}
-            <span className="flex items-center gap-2.5 text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
+            {/* 眉ラベル（`eyebrow`）。右へ消える真鍮の線（55% → 0）の後ろに「◯年から」を置くので、線は `eyebrow-line` ではなく手で置く */}
+            <span className="flex items-center gap-2.5 eyebrow text-accent">
                 <span className="flex-shrink-0">{isJa ? "旅の記録" : "TRAVEL LOG"}</span>
                 <span aria-hidden="true" className="flex-1 h-px"
                       style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), transparent)" }} />
                 {firstYear !== null && (
-                    <span className="flex-shrink-0 text-white/60 tabular-nums" style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "0.04em" }}>
+                    <span className="flex-shrink-0 normal-case text-white/60 tabular-nums" style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "0.04em" }}>
                         {isJa ? `${firstYear} 年から` : `Since ${firstYear}`}
                     </span>
                 )}
