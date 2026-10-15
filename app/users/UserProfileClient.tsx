@@ -46,6 +46,7 @@ import VerifiedBadge from "../components/VerifiedBadge";
 import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
+import { TAB_ON, TAB_OFF } from "../components/tabStyles";
 
 type SongEntry = {
     title: string;
@@ -1698,12 +1699,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setTab(key)}
                                 onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
-                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
+                                // 選んでいるタブは真鍮＋太字＋2px の下線（`tabStyles.ts`・iOS v2）。
+                                // 以前はその人のテーマ色の線を上辺に引いていた（白字のまま）。字は `text-xs`
+                                // （640px 未満で 10.5px）だったので 12px に上げた（本文系の最小）
+                                className={`relative flex items-center justify-center gap-1.5 py-3 text-[12px] tracking-wide transition-colors ${active ? TAB_ON : `font-medium ${TAB_OFF}`}`}
                                 style={{ touchAction: "manipulation" }}
                             >
                                 <Icon className="w-4 h-4" aria-hidden="true" />
                                 <span>{label}</span>
-                                {active && <span className="absolute -top-px inset-x-0 h-0.5 rounded-full" style={{ backgroundColor: userProfile?.themeColor ?? "#ffffff" }} />}
                             </button>
                         );
                     })}
