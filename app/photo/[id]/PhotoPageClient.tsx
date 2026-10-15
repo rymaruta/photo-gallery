@@ -998,10 +998,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         href={`${ROUTES.MAP}${mapHash}`}
                         prefetch={false}
                         aria-label={locale === "en" ? "See on the map" : "撮影地マップで見る"}
-                        className="absolute right-3 bottom-3 inline-flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
-                        style={{ width: "36px", height: "36px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        // **当たりは 44px、見た目の丸は 36px**（写真の上に大きな丸を置かない）。
+                        // 丸の中心は前と同じ位置（端から 30px）
+                        className="group absolute inline-flex items-center justify-center rounded-full text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                        style={{ right: "8px", bottom: "8px", width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        data-testid="photo-map-button"
                     >
-                        <MapIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
+                        <span className="inline-flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm group-hover:bg-black/70 transition-colors"
+                              style={{ width: "36px", height: "36px" }}>
+                            <MapIcon aria-hidden="true" style={{ width: "18px", height: "18px" }} />
+                        </span>
                     </Link>
                 )}
             </div>

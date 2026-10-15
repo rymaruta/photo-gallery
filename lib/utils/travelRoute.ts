@@ -1,6 +1,6 @@
 import type { Photo } from "../data/photos";
 import { haversineKm } from "./journey";
-import { compareOldest, photoTimeKey } from "./photoOrder";
+import { compareOldest } from "./photoOrder";
 import { countryIn } from "./visitedCountries";
 
 // マイページの「旅の記録」（案 H1「星図」）に描く、**写真をつないだ線**の形と数。
@@ -35,16 +35,54 @@ function hasCoords(p: Photo): p is Photo & { coords: LatLng } {
         && Number.isFinite(p.coords.lat) && Number.isFinite(p.coords.lng);
 }
 
+const YMD = /^(\d{4})-(\d{2})-(\d{2})/;
+/** 時刻と時刻帯（`Z`・`+09:00`）まで書いてある瞬間か。時刻帯の無い値は閲覧者の時計で読まれるので瞬間として扱わない */
+const INSTANT = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+function readYmd(value: string): { y: number; m: number; d: number } | null {
+    const m = YMD.exec(value);
+    if (!m) return null;
+    const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    // 13月・2月30日のような日付は読めないものとする（暦の上に無い）
+    if (t.getUTCFullYear() !== y || t.getUTCMonth() !== mo - 1 || t.getUTCDate() !== d) return null;
+    return { y, m: mo, d };
+}
+
+/**
+ * 写真の日（UTC の暦で）。アプリの `TripBook.day(of:in: utc)` と同じ読み方:
+ *
+ *  1. **撮影日が先**。先頭の `YYYY-MM-DD` が暦の上の日付ならその日
+ *  2. 無ければ（読めなければ）投稿日時。時刻帯まで書いた瞬間なら **UTC の暦日**、日付だけならその日
+ *  3. どちらも読めなければ `null`
+ *
+ * 閲覧者のタイムゾーンでは読まない（見る人によって年・入る写真が変わらない）
+ */
+export function photoDayUtc(p: Pick<Photo, "date" | "createdAt">): { y: number; m: number; d: number } | null {
+    const date = typeof p.date === "string" ? readYmd(p.date.trim()) : null;
+    if (date) return date;
+    const created = typeof p.createdAt === "string" ? p.createdAt.trim() : "";
+    if (!created) return null;
+    if (INSTANT.test(created)) {
+        const t = Date.parse(created.replace(" ", "T"));
+        if (!Number.isFinite(t)) return null;
+        const u = new Date(t);
+        return { y: u.getUTCFullYear(), m: u.getUTCMonth() + 1, d: u.getUTCDate() };
+    }
+    return readYmd(created);
+}
+
 /**
  * 距離と線に使う撮影地を、古い順に。
  *
- * **日時を読めない写真は入れない**（つなぐ順が決まらない写真を「いちばん古い場所」として
- * 数えると、そこから1脚ぶん距離が増える）。並びはサイト全体の `compareOldest`
+ * **日付として読めない写真は入れない**（つなぐ順が決まらない写真を「いちばん古い場所」として
+ * 数えると、そこから1脚ぶん距離が増える）。選び方はアプリの `TravelRoute.coordinates`
+ * （`TripBook.day(of:in: utc)` が読める写真）と同じ `photoDayUtc`。並びはサイト全体の `compareOldest`
  * ——`Date.parse` を通さないので、閲覧者のタイムゾーンで順（＝距離）が変わらない。
  */
 export function routeCoordinates(photos: ReadonlyArray<Photo>): LatLng[] {
     return photos
-        .filter((p) => hasCoords(p) && photoTimeKey(p) !== "")
+        .filter((p) => hasCoords(p) && photoDayUtc(p) !== null)
         .sort(compareOldest)
         .map((p) => ({ lat: (p.coords as LatLng).lat, lng: (p.coords as LatLng).lng }));
 }
@@ -188,11 +226,13 @@ export function arcControls(points: ReadonlyArray<Pt>, size: { width: number; he
     return out;
 }
 
-/** 一番古い写真の年（「2024 年から」）。距離と同じ写真（日時の読める写真）から。読めなければ null */
+/**
+ * 一番古い写真の年（「2024 年から」）。距離と同じ写真（日付として読める写真）の、古い順の先頭の
+ * **UTC の暦の年**（アプリの `TravelRoute.firstYear`）。読めなければ null
+ */
 export function firstYear(photos: ReadonlyArray<Photo>): number | null {
-    const dated = photos.filter((p) => photoTimeKey(p) !== "").sort(compareOldest);
-    const match = dated.length > 0 ? /^(\d{4})-/.exec(photoTimeKey(dated[0])) : null;
-    return match ? Number(match[1]) : null;
+    const dated = photos.filter((p) => photoDayUtc(p) !== null).sort(compareOldest);
+    return dated.length > 0 ? photoDayUtc(dated[0])?.y ?? null : null;
 }
 
 /** 訪れた国・地域の名前を**初めて訪れた順**に（数は `visitedCountryCount` と同じ） */

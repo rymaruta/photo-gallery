@@ -113,7 +113,10 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
         return () => unlockBodyScroll();
     }, [open]);
 
-    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line";
+    // キーボードの輪は**真鍮・内側**（2026-10-15）。前の `ring-line`（白8%）は暗い面の上でほぼ見えず、
+    // どの項目にいるか分からなかった。パネルは黒い面（`--color-surface`）なので真鍮が読める。
+    // パネルが `overflow` で切るので、外側に出すと輪の外半分が欠ける——内側（`ring-inset`）に描く
+    const linkBase = "block px-4 py-3.5 whitespace-nowrap text-base transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent";
     const inactiveClasses = "text-white/90 bg-transparent hover:bg-white/10 hover:text-white";
     const btnStyle: React.CSSProperties = {
         touchAction: "manipulation",

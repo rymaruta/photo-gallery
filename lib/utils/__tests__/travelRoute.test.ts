@@ -3,7 +3,7 @@ import type { Photo } from "../../data/photos";
 import { haversineKm } from "../journey";
 import {
     routeCoordinates, connectKm, unwrapped, thinned, routeShape, deduplicated,
-    arcControl, arcControls, firstYear, countriesInOrder, countriesLine,
+    arcControl, arcControls, firstYear, countriesInOrder, countriesLine, photoDayUtc,
 } from "../travelRoute";
 import { visitedCountryCount, countryIn } from "../visitedCountries";
 
@@ -149,5 +149,40 @@ describe("国・地域と年", () => {
     it("一番古い写真の年", () => {
         expect(firstYear([photo("b", "2025-06-01", 1, 1), photo("a", "2024-11-03", 2, 2)])).toBe(2024);
         expect(firstYear([photo("x", null, 1, 1)])).toBeNull();
+    });
+
+    it("🔴 年は UTC の暦日から（アプリの TripBook.day(of:in: utc)）。閲覧者の時計で年が変わらない", () => {
+        // 撮影日の無い写真の投稿日時。ニューヨークの大晦日の夜は UTC では翌年の元日
+        const ny = { ...photo("ny", null, 40.71, -74.0), createdAt: "2024-12-31T20:00:00-05:00" } as Photo;
+        expect(photoDayUtc(ny)).toEqual({ y: 2025, m: 1, d: 1 });
+        expect(firstYear([ny])).toBe(2025);
+        const before = process.env.TZ;
+        try {
+            process.env.TZ = "America/New_York";
+            expect(firstYear([ny])).toBe(2025);
+        } finally {
+            if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
+        }
+    });
+});
+
+describe("日付として読める写真だけ（アプリの TravelRoute.coordinates と同じ選び方）", () => {
+    it("撮影日が暦の上に無い・読めない写真は、投稿日時で読む。どちらも読めなければ入れない", () => {
+        const bad = photo("bad", "unknown", 25.03, 121.56);
+        const badButCreated = { ...photo("bc", "2024-13-40", 43.06, 141.35), createdAt: "2024-11-05T01:00:00Z" } as Photo;
+        expect(photoDayUtc(bad)).toBeNull();
+        expect(photoDayUtc(badButCreated)).toEqual({ y: 2024, m: 11, d: 5 });
+        const coords = routeCoordinates([photo("a", "2024-11-01", 35.68, 139.76), bad, badButCreated]);
+        expect(coords.map((c) => c.lat)).toEqual([35.68, 43.06]);
+    });
+
+    it("読めない写真は「いちばん古い年」に数えない", () => {
+        expect(firstYear([photo("bad", "unknown", 1, 1), photo("a", "2024-11-03", 2, 2)])).toBe(2024);
+        expect(firstYear([photo("bad", "0000-00-00", 1, 1)])).toBeNull();
+    });
+
+    it("時刻帯の無い投稿日時は、日付だけ読む（閲覧者の時計で日が変わらない）", () => {
+        const p = { ...photo("x", null, 1, 1), createdAt: "2024-12-31T23:30:00" } as Photo;
+        expect(photoDayUtc(p)).toEqual({ y: 2024, m: 12, d: 31 });
     });
 });

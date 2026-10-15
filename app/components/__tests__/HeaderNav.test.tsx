@@ -449,3 +449,15 @@ describe("HeaderNav - 共同アルバム", () => {
         expect(menuItems()).toContain("Shared Albums");
     });
 });
+
+describe("HeaderNav - キーボードの輪", () => {
+    it("メニューの項目の輪は見える色（真鍮・内側）。白8% の線（ring-line）では見えない", async () => {
+        setRole("general");
+        render(<HeaderNav />);
+        await openMenu();
+        const item = within(screen.getByRole("navigation", { name: "メインメニュー" })).getAllByRole("button")[0];
+        expect(item.className).toContain("focus-visible:ring-accent");
+        expect(item.className).toContain("focus-visible:ring-inset");
+        expect(item.className).not.toContain("focus-visible:ring-line");
+    });
+});

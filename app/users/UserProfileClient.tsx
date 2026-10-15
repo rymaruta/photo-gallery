@@ -1072,8 +1072,10 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     }, [visiblePhotos]);
 
 
-    // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を、撮影地ページと
-    // **同じ数え方**（`collectEntries`＝`/location/*` の見出しの枚数と同じ）で多い順に。
+    // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を多い順に。
+    // **チップの数は、この人がその撮影地で撮った写真の枚数**（撮影地ページの見出しの枚数＝
+    // 全員の写真の数ではない）。撮影地の束ね方（綴りの揺れ・スラッグ）は `collectEntries` で
+    // `/location/*` と同じなので、チップから飛んだ先は同じ撮影地になる。
     // 本人のページには出さない（本人は「旅の記録」）。
     //
     // **行き先のページが無いチップはリンクにしない。** `/location/*` はビルドの時点の写真から
@@ -1495,7 +1497,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
                     {/* 訪れた場所（板 v2 UserProfile）: 真鍮の眉ラベル（黒地の上）と、撮影地のチップ
                         （多い順に3つ・残りは「ほか N か所」）。チップの見た目は 34、**押せる高さは 44**。
-                        数はその撮影地ページの見出しの枚数と同じ */}
+                        数は**この人が**その撮影地で撮った写真の枚数（撮影地ページの見出しの枚数とは違う） */}
                     {visitedPlaces.length > 0 && (
                         <section aria-labelledby="visited-places-heading" className="mb-4" data-testid="visited-places">
                             <h2 id="visited-places-heading" className="text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
