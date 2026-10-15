@@ -68,6 +68,8 @@ import InspiredByLine from "../../components/InspiredByLine";
 import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
+import PhotoTripSection from "./PhotoTripSection";
+import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -361,9 +363,14 @@ type PhotoPageClientProps = {
      * （そのあいだに非公開・削除になった元の写真は消える）。
      */
     initialInspired?: InspiredLink | null;
+    /**
+     * 写真が指すスポットの時刻帯（**サーバー側で解いたもの**・`spotTimeZoneForPhoto`）。
+     * 「次のゴールデンアワー」をその土地の時計で言う。無ければ座標から決める（`photoLightZone`）
+     */
+    spotTimeZone?: string | null;
 };
 
-export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired }: PhotoPageClientProps) {
+export default function PhotoPageClient({ photoId, initialPhoto, initialRelated, spotLink, initialInspired, spotTimeZone }: PhotoPageClientProps) {
     const { locale, labels } = useLocale();
     const [extractedExif, setExtractedExif] = useState<ExtractedExif | null>(null);
 
@@ -1179,6 +1186,16 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         <span style={{ fontSize: "14px", lineHeight: "18px" }}>{locale === "en" ? "Share" : "シェア"}</span>
                     </button>
                 </div>
+
+            {/* NEXT TRIP · 次の旅へ（行きたい・経路・次のゴールデンアワー・撮りに行く）。
+                アプリと同じ位置: いいね・コメント・保存・共有の段のすぐ下 */}
+            <PhotoTripSection
+                spot={spotLink ?? null}
+                directionsTo={directionsTarget(photo, spotLink?.coords)}
+                zone={photoLightZone(photo, spotTimeZone)}
+                inspiredPhotoId={offersInspiredShoot(photo, authUserId) ? photo.id : null}
+                locale={locale}
+            />
 
             {/* この写真のBGM */}
             {(photoSong || photoYtUrl || isOwnPhoto) && (
