@@ -367,7 +367,7 @@ type PhotoPageClientProps = {
     initialInspired?: InspiredLink | null;
     /**
      * 写真が指すスポットの時刻帯（**サーバー側で解いたもの**・`spotTimeZoneForPhoto`）。
-     * 「次のゴールデンアワー」をその土地の時計で言う。無ければ座標から決める（`photoLightZone`）
+     * 「次のゴールデンアワー」をその土地の時計で言う。無ければ出さない（写真の座標から推測しない・`photoLightZone`）
      */
     spotTimeZone?: string | null;
 };
@@ -1207,7 +1207,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             <PhotoTripSection
                 spot={spotLink ?? null}
                 directionsTo={directionsTarget(photo, spotLink?.coords)}
-                zone={photoLightZone(photo, spotTimeZone)}
+                zone={photoLightZone(spotLink?.coords, spotTimeZone)}
                 inspiredPhotoId={offersInspiredShoot(photo, authUserId) ? photo.id : null}
                 locale={locale}
             />

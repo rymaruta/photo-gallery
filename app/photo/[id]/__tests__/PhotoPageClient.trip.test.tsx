@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
+import type { SpotLink } from "@/lib/data/spotLink";
 
 /**
  * 写真ページへの「NEXT TRIP · 次の旅へ」の配線。経路の行き先・撮りに行くを出す条件を、
@@ -53,6 +54,24 @@ describe("写真ページ: NEXT TRIP · 次の旅へ", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
         const link = await screen.findByTestId("photo-trip-inspired");
         expect(link.getAttribute("href")).toBe("/user/upload?inspiredBy=p1");
+    });
+
+    it("公開範囲を絞った写真（フォロワーのみ）には「この写真を見て撮りに行く」を出さない", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...BASE, audience: "followers" } as unknown as Photo} />);
+        await screen.findByText("朝の湖");
+        expect(screen.queryByTestId("photo-trip-inspired")).toBeNull();
+    });
+
+    it("台帳のスポットが無い写真には、日本の中の正確な座標でも次のゴールデンアワーを出さない（時計を推測しない）", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={{ ...BASE, coords: { lat: 38.58, lng: 140.53 } } as Photo} />);
+        await screen.findByTestId("photo-trip-directions");
+        expect(screen.queryByTestId("photo-trip-golden")).toBeNull();
+    });
+
+    it("台帳のスポットの座標と時刻帯が引ければ、次のゴールデンアワーを出す", async () => {
+        const spot: SpotLink = { slug: "ginzan-onsen", name: "銀山温泉", region: "山形県 尾花沢市", coords: { lat: 38.58, lng: 140.53 }, cover: null, stage: "published" };
+        render(<PhotoPageClient photoId="p1" initialPhoto={BASE} spotLink={spot} spotTimeZone="Asia/Tokyo" />);
+        expect((await screen.findByTestId("photo-trip-golden")).textContent).toContain("次のゴールデンアワー");
     });
 
     it("自分の写真には出さない", async () => {

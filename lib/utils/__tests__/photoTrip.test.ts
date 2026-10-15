@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-    isLikelyJapan, photoLightZone, addDays, nextGoldenHour, goldenLineParts,
+    photoLightZone, addDays, nextGoldenHour, goldenLineParts,
     directionsUrl, directionsTarget, inspiredUploadHref, offersInspiredShoot,
 } from "../photoTrip";
 
@@ -11,43 +11,19 @@ import {
 const GINZAN = { lat: 38.58, lng: 140.53 };
 const TROMSO = { lat: 69.65, lng: 18.96 };
 
-describe("isLikelyJapan（日本の時計で言ってよいか）", () => {
-    it.each([
-        ["東京", 35.68, 139.69], ["那覇", 26.21, 127.68], ["札幌", 43.06, 141.35],
-        ["根室", 43.33, 145.58], ["与那国島", 24.47, 123.0], ["対馬", 34.2, 129.29],
-    ])("%s は日本", (_n, lat, lng) => {
-        expect(isLikelyJapan({ lat, lng })).toBe(true);
+describe("photoLightZone（光の時刻を言う時計・台帳のスポットだけ）", () => {
+    it("台帳のスポットの座標と時刻帯が引ければ、その時刻帯", () => {
+        expect(photoLightZone(GINZAN, "Asia/Tokyo")).toBe("Asia/Tokyo");
+        expect(photoLightZone({ lat: -18.14, lng: 178.44 }, "Pacific/Fiji")).toBe("Pacific/Fiji");
     });
-
-    it.each([
-        ["ウラジオストク（UTC+10）", 43.12, 131.89], ["丹東（中国・UTC+8）", 40.12, 124.38],
-        ["台北", 25.03, 121.56], ["上海", 31.23, 121.47], ["パリ", 48.86, 2.35], ["サハリン南端", 46.05, 142.0],
-    ])("%s は日本ではない（時計が違う）", (_n, lat, lng) => {
-        expect(isLikelyJapan({ lat, lng })).toBe(false);
+    it("スポットの時刻帯が無ければ出さない（写真の座標が日本の中でも推測しない）", () => {
+        expect(photoLightZone({ lat: 35.68, lng: 139.69 }, null)).toBeNull();
+        expect(photoLightZone({ lat: 35.68, lng: 139.69 }, "")).toBeNull();
     });
-
-    it("数でない座標は false", () => {
-        expect(isLikelyJapan({ lat: NaN, lng: 139 })).toBe(false);
-        expect(isLikelyJapan(null)).toBe(false);
-    });
-});
-
-describe("photoLightZone（光の時刻を言う時計）", () => {
-    it("台帳のスポットの時刻帯が先", () => {
-        expect(photoLightZone({ coords: { lat: 35.68, lng: 139.69 } }, "Pacific/Fiji")).toBe("Pacific/Fiji");
-    });
-    it("正確な座標が日本の中なら Asia/Tokyo", () => {
-        expect(photoLightZone({ coords: { lat: 35.68, lng: 139.69 } }, null)).toBe("Asia/Tokyo");
-    });
-    it("おおよその座標（geoApprox）では出さない", () => {
-        expect(photoLightZone({ coords: { lat: 35.68, lng: 139.69 }, geoApprox: true }, null)).toBeNull();
-    });
-    it("日本の外で時刻帯が分からなければ出さない（推測で時計を決めない）", () => {
-        expect(photoLightZone({ coords: { lat: 48.86, lng: 2.35 } }, null)).toBeNull();
-    });
-    it("座標の無い写真は出さない", () => {
-        expect(photoLightZone({}, null)).toBeNull();
-        expect(photoLightZone(null, null)).toBeNull();
+    it("スポットに座標が無ければ出さない（写真の座標で計算するとスポットの時計と場所が食い違う）", () => {
+        expect(photoLightZone(null, "Asia/Tokyo")).toBeNull();
+        expect(photoLightZone(undefined, "Asia/Tokyo")).toBeNull();
+        expect(photoLightZone({ lat: NaN, lng: 139 }, "Asia/Tokyo")).toBeNull();
     });
 });
 
@@ -139,5 +115,12 @@ describe("この写真を見て撮りに行く", () => {
         expect(offersInspiredShoot({ id: "p", userId: "alice" }, "alice")).toBe(false);
         expect(offersInspiredShoot({ id: "p", userId: "alice", published: false }, "bob")).toBe(false);
         expect(offersInspiredShoot(null, "bob")).toBe(false);
+    });
+
+    it("公開範囲を絞った写真には出さない（空か everyone だけ・サーバーが元の写真として付けない）", () => {
+        expect(offersInspiredShoot({ id: "p", userId: "alice", audience: "everyone" }, "bob")).toBe(true);
+        expect(offersInspiredShoot({ id: "p", userId: "alice", audience: "" }, "bob")).toBe(true);
+        expect(offersInspiredShoot({ id: "p", userId: "alice", audience: "followers" }, "bob")).toBe(false);
+        expect(offersInspiredShoot({ id: "p", userId: "alice", audience: "closeFriends" }, null)).toBe(false);
     });
 });

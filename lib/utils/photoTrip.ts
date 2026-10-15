@@ -17,45 +17,22 @@ const finite = (c: Coords | null | undefined): c is Coords =>
     !!c && Number.isFinite(c.lat) && Number.isFinite(c.lng) && Math.abs(c.lat) <= 90 && Math.abs(c.lng) <= 180;
 
 /**
- * 写真の撮影地が**日本の中**とおおよそ言えるか（光の時刻を「日本の時計」で言ってよいか）。
- *
- * 写真は台帳のスポットと違って時刻帯を持たない。**時刻帯が分からない土地では時刻を出さない**
- * （`sunTimes.ts` の `timeZoneForCountry` と同じ立場——推測で時計を決めない）。日本だけは
- * 時刻帯が1つなので、座標が日本の範囲にあれば `Asia/Tokyo` で言える。
- *
- * 範囲は粗い箱（北緯24〜45.6°・東経122.9〜146°＝与那国島から根室まで）から、
- * **時計の違う隣の土地を外す**:
- *   - 北緯41.3°より北で東経139.3°より西（沿海州・中国東北部。北海道の西の端は 139.4° あたり）
- *   - 北緯38°より北で東経126°より西（遼寧の海沿い。中国は UTC+8）
- * 朝鮮半島の南は箱に入るが、時計は日本と同じ（UTC+9・夏時間なし）なので時刻は合う。
- * 台湾（東経122°より西）・上海は箱の外。
- */
-export function isLikelyJapan(c: Coords | null | undefined): boolean {
-    if (!finite(c)) return false;
-    const { lat, lng } = c;
-    if (lat < 24 || lat > 45.6 || lng < 122.9 || lng > 146) return false;
-    if (lat > 41.3 && lng < 139.3) return false;
-    if (lat > 38 && lng < 126) return false;
-    return true;
-}
-
-/**
  * 光の時刻を言う時計（IANA の時刻帯）。分からなければ `null`（段に時刻を出さない）。
  *
- *  1. 写真が台帳のスポットに紐づいていて、そのスポットの時刻帯が分かれば、それ（サーバーで解いて渡す）
- *  2. 写真の座標が**正確**（`geoApprox` でない）で、日本の中なら `Asia/Tokyo`
- *  3. それ以外は `null`
+ * **台帳のスポットだけ**（アプリの `PhotoTrip.nextGolden(spot:)` と同じ）。写真が台帳のスポットに
+ * 紐づいていて、そのスポットの座標と時刻帯（サーバーで解いた `spotTimeZoneForPhoto`）が引けるときだけ。
+ * 写真の座標から時刻帯を推測しない——座標の箱で「日本」と決めると、国境の近くや隣の土地で
+ * 時計を取り違える（推測で時計を決めない・`sunTimes.ts` の `timeZoneForCountry` と同じ立場）。
  *
- * **おおよその座標（地名から引いた街の中心）では出さない**——地図のピンと同じ理由
- * （`PhotoPageClient` の `fallbackHref`）。
+ * 座標も見るのは、時刻を計算する場所がスポットになるため（`directionsTarget` はスポットの座標が先）。
+ * スポットに座標が無いと写真の座標で計算することになり、スポットの時計と場所が食い違う。
  */
 export function photoLightZone(
-    photo: { coords?: Coords | null; geoApprox?: boolean } | null | undefined,
+    spotCoords: Coords | null | undefined,
     spotZone: string | null | undefined,
 ): string | null {
-    if (spotZone) return spotZone;
-    if (!photo || photo.geoApprox || !finite(photo.coords)) return null;
-    return isLikelyJapan(photo.coords) ? "Asia/Tokyo" : null;
+    if (!spotZone || !finite(spotCoords)) return null;
+    return spotZone;
 }
 
 /** "YYYY-MM-DD" に日数を足す（暦の計算だけ。時刻帯は関わらない） */
@@ -173,20 +150,26 @@ export function directionsTarget(
 
 /**
  * 「この写真を見て撮りに行く」の行き先（投稿画面に元の写真を渡す）。
- * **受け側（投稿画面が `inspiredBy` を読む）は別の担当。** ここはリンクを作るだけ
+ * 受け側は投稿画面（`app/user/upload/page.tsx`。読むのは `lib/utils/inspired.ts` の `inspiredPickFrom`）
  */
 export function inspiredUploadHref(photoId: string): string {
     return `${ROUTES.UPLOAD}?inspiredBy=${encodeURIComponent(photoId)}`;
 }
 
 /**
- * 「この写真を見て撮りに行く」を出すか。**公開の写真で、自分の写真ではないとき**だけ
- * （自分の写真を見て撮りに行く、は言い方として成り立たない）
+ * 「この写真を見て撮りに行く」を出すか。**公開で全員に見せている写真で、自分の写真ではないとき**だけ
+ * （自分の写真を見て撮りに行く、は言い方として成り立たない）。
+ *
+ * 公開範囲は空か `everyone` だけ（アプリの `PhotoTrip.isPublic`・`inspiredSourceFor` と同じ）。
+ * フォロワーのみ・親しい友達の写真はサーバーが元の写真として付けない（`readVisibleSource`）——
+ * 押して投稿画面へ行っても付かないボタンを出さない
  */
 export function offersInspiredShoot(
-    photo: { id?: string; published?: boolean; userId?: string } | null | undefined,
+    photo: { id?: string; published?: boolean; userId?: string; audience?: unknown } | null | undefined,
     viewerId: string | null | undefined,
 ): boolean {
     if (!photo?.id || photo.published === false) return false;
+    const audience = typeof photo.audience === "string" ? photo.audience.trim() : photo.audience;
+    if (audience != null && audience !== "" && audience !== "everyone") return false;
     return !(viewerId && photo.userId && viewerId === photo.userId);
 }
