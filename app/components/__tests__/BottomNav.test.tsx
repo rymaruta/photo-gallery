@@ -239,8 +239,6 @@ describe("どのタブを光らせるか（activeTab）", () => {
         [ROUTES.HOME, "home"],
         [ROUTES.SEARCH, "search"],
         [ROUTES.MAP, "map"],
-        ["/users/abc", "me"],
-        ["/users", "me"],           // クエリ版（/users?id=）
         ["/user/profile", "me"],
         ["/user/drafts", "me"],
     ])("%s → %s", (path, key) => {
@@ -256,10 +254,24 @@ describe("どのタブを光らせるか（activeTab）", () => {
         expect(activeTab(path)).toBeNull();
     });
 
-    it("/users で始まるだけの別ページを巻き込まない", () => {
-        // `/users/search`（人をさがす）は「マイページ」ではない…が、
-        // いまは前置きで拾う。**そうと分かって拾っている**ことを固定する
-        // （分けるなら `ROUTES.USER_SEARCH` を先に見る1行を足す）
-        expect(activeTab(ROUTES.USER_SEARCH)).toBe("me");
+    // 本番で他人のページを開くと「マイページ」が光っていた（2026-10-15）
+    it("人のページは、自分のときだけ「マイページ」", () => {
+        expect(activeTab("/users/me-1", { myId: "me-1" })).toBe("me");
+        expect(activeTab("/users/me-1/", { myId: "me-1" })).toBe("me");
+        expect(activeTab("/users/other", { myId: "me-1" })).toBeNull();
+        expect(activeTab("/users/me-1")).toBeNull();          // ログインしていない
+        expect(activeTab("/users/a%20b", { myId: "a b" })).toBe("me");
+        expect(activeTab("/users/%E0%A4%A", { myId: "x" })).toBeNull(); // 壊れた綴りで落ちない
+    });
+
+    it("クエリ版（/users?id=）も見ている人で決める", () => {
+        expect(activeTab("/users", { myId: "me-1", profileId: "me-1" })).toBe("me");
+        expect(activeTab("/users", { myId: "me-1", profileId: "other" })).toBeNull();
+        expect(activeTab("/users", { myId: "me-1", profileId: null })).toBeNull();
+    });
+
+    // 人をさがすは iOS と同じく「探す」の中
+    it("/users/search は「探す」", () => {
+        expect(activeTab(ROUTES.USER_SEARCH, { myId: "search" })).toBe("search");
     });
 });
