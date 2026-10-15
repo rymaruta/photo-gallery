@@ -15,7 +15,6 @@ import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
 import { HeartIcon, StarIcon, UserGroupIcon, LockClosedIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
-import { themeRingGradient } from "../../lib/utils/color";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
@@ -1337,19 +1336,13 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         // 上の戻る・共有の列（約 60px）の下から数える
                         style={hasCover ? { paddingTop: `${COVER_HEIGHT_PX - COVER_AVATAR_OVERLAP_PX - 62}px` } : undefined}
                     >
-                        {/* アバター（オリジナルのオーロラリング: 既定は真鍮で回転）。
+                        {/* アバター（黒 4px の縁だけ・2026-10-15 iOS v2）。以前は回るオーロラの輪
+                            （その人のテーマ色のグラデーション）だったが、輪は「未見のストーリー」の
+                            合図の形なので、ここで回すと合図と紛れる。縁はカバーの写真の上で顔を切り出す。
                             本人には右下に「＋」（投稿する）——モックと同じ */}
-                        <div className="relative w-fit rounded-full shadow-lg shadow-accent/20 lg:flex-shrink-0">
-                            {/* 回転するグラデーション層（アバターは静止したまま背面だけ回る） */}
-                            <div
-                                className="absolute inset-0 rounded-full avatar-orbit"
-                                style={{ background: themeRingGradient(userProfile?.themeColor) }}
-                                aria-hidden="true"
-                            />
-                            <div className="relative rounded-full p-[3px]">
-                                <div className="rounded-full p-[2px] bg-bg">
-                                    <UserAvatar userId={userId} className="w-[84px] h-[84px] lg:w-[120px] lg:h-[120px]" iconClassName="w-11 h-11 lg:w-16 lg:h-16" />
-                                </div>
+                        <div className="relative w-fit rounded-full lg:flex-shrink-0">
+                            <div className="rounded-full border-4 border-bg bg-bg" data-avatar-frame>
+                                <UserAvatar userId={userId} className="w-[84px] h-[84px] lg:w-[120px] lg:h-[120px]" iconClassName="w-11 h-11 lg:w-16 lg:h-16" />
                             </div>
                             {isOwner && (
                                 <button

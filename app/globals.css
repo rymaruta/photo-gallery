@@ -266,15 +266,6 @@ body {
   will-change: transform;
 }
 
-/* プロフィールのアバター: 旅パレット(sky→emerald)のオーロラリングをゆっくり回転 */
-@keyframes avatar-orbit {
-  to { transform: rotate(360deg); }
-}
-.avatar-orbit {
-  animation: avatar-orbit 10s linear infinite;
-  will-change: transform;
-}
-
 /* ダブルタップいいね: 画面中央でハートが弾けて消える（Instagram風） */
 @keyframes heart-burst {
   0% { transform: scale(0); opacity: 0; }
@@ -291,7 +282,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .story-media-in { animation: none; }
   .heart-burst { animation-duration: 300ms; }
-  .avatar-orbit { animation: none; }
 }
 
 /* モバイル: ベースフォントサイズを少し下げる */

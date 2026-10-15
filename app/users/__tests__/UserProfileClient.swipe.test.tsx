@@ -66,6 +66,17 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         for (const off of tabs.filter((t) => t !== on[0])) expect(off.className.split(/\s+/)).not.toContain("text-accent");
     });
 
+    it("アバターは黒 4px の縁だけ（回るオーロラの輪をやめた・iOS v2）", () => {
+        const { container } = render(<UserProfileClient userId="nobody" />);
+        const frame = container.querySelector("[data-avatar-frame]") as HTMLElement;
+        expect(frame).not.toBeNull();
+        expect(frame.className.split(/\s+/)).toEqual(expect.arrayContaining(["rounded-full", "border-4", "border-bg"]));
+        expect(container.querySelector(".avatar-orbit")).toBeNull();
+        const gradients = Array.from(container.querySelectorAll<HTMLElement>("[style]"))
+            .filter((el) => /conic-gradient/.test(el.getAttribute("style") ?? ""));
+        expect(gradients).toEqual([]);
+    });
+
     it("廃止したタブ（足あと・旅）は存在しない", () => {
         render(<UserProfileClient userId="nobody" />);
         expect(screen.queryByRole("button", { name: /Map/ })).toBeNull();
