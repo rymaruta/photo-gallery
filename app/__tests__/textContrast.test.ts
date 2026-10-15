@@ -177,7 +177,8 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/DeleteConfirmModal.tsx", "text-[13px] mb-6", "削除確認の本文"],
     ["app/components/DeleteAccountModal.tsx", "text-[13px] mb-5", "退会確認の本文"],
     // プロフィール（実ブラウザで「年表」タブが 3.66:1 だったのを実測）
-    ["app/users/UserProfileClient.tsx", 'active ? "text-white" :', "非選択のタブ（投稿／年表）"],
+    ["app/users/UserProfileClient.tsx", 'active ? "text-accent font-semibold" :', "非選択のタブ（投稿／年表）"],
+    ["app/users/UserProfileClient.tsx", "whitespace-nowrap text-white/60 hover:text-white/80", "本人の札の並びのリンク（行きたい場所／保存）"],
     ["app/users/UserProfileClient.tsx", "うち非公開", "本人にだけ出る非公開の枚数"],
     // 投稿タブと年表タブの2か所に同じものがある（両方見る）
     ["app/users/UserProfileClient.tsx", "justify-center py-24", "写真が0枚のときの案内（外枠の色）"],

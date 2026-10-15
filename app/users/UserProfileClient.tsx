@@ -5,7 +5,7 @@ import { sanitizeProfile } from "../../lib/utils/profileShape";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import Thumb from "../components/Thumb";
 import Link from "next/link";
-import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, Squares2X2Icon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, GlobeAltIcon, EyeSlashIcon, ShareIcon, LinkIcon, PencilSquareIcon, PlusIcon, PhotoIcon as PhotoStackIcon, CalendarDaysIcon, ChatBubbleOvalLeftIcon, MusicalNoteIcon, ChevronDownIcon, QrCodeIcon, NoSymbolIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { parseMusicEmbed, musicServiceLabel } from "../../lib/utils/music";
 import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
@@ -215,7 +215,7 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
         : 0;
 
     return (
-        <div className="relative overflow-hidden group" style={{ paddingTop: "100%" }}>
+        <div className="relative overflow-hidden group" style={{ paddingTop: "125%" }}>
             {/* **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
                 `app/components/GalleryGrid.tsx` のカードのコメントに書いた */}
@@ -1645,15 +1645,22 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     `role="tab"` ＋ `aria-selected` ＋ 矢印キーで、
                     計算は `lib/utils/tabKeys.ts` に1つ。**3つ目を別の形にしない。**
                     見た目は変えていない（属性とキー操作だけ）。 */}
+                {/* v2 の板（MyPage・UserProfile）の下線の札: 左寄せの字だけ・間 22・選んでいる札は
+                    真鍮の字と真鍮の下線 2px（黒地の上なので真鍮・owner の好み）・下に髪線。
+                    **本人には「行きたい場所」「保存」も並べる**（板 MyPage の4つに寄せる）。
+                    中身は別のページ（`/saved-spots`・`/saves`）なので**タブではなくリンク**で、
+                    tablist の外に置く（`role="tab"` で別ページへ飛ぶと、矢印キーの作法と食い違う）。
+                    板の「旅の記録」（旅の一冊の棚）は Web に無いので作らない——年表はそのまま */}
+                <div className="flex items-end gap-[22px] border-b border-line mb-[2px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 <div
                     role="tablist"
                     aria-label={locale === "en" ? "Profile sections" : "プロフィールの表示"}
-                    className={"grid grid-cols-2 border-t border-white/10 mb-1"}
+                    className="flex gap-[22px]"
                 >
                     {([
-                        { key: "posts", icon: Squares2X2Icon, label: locale === "en" ? "Posts" : "投稿" },
-                        { key: "timeline", icon: CalendarDaysIcon, label: locale === "en" ? "Timeline" : "年表" },
-                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, icon: Icon, label }) => {
+                        { key: "posts", label: locale === "en" ? "Posts" : "投稿" },
+                        { key: "timeline", label: locale === "en" ? "Timeline" : "年表" },
+                    ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, label }) => {
                         const active = tab === key;
                         return (
                             <button
@@ -1668,15 +1675,29 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 onClick={() => setTab(key)}
                                 onKeyDown={onTabKeyDown}
                                 data-profile-tab={key}
-                                className={`relative flex items-center justify-center gap-1.5 py-3 text-xs font-medium tracking-wide transition-colors ${active ? "text-white" : "text-white/50 hover:text-white/70"}`}
-                                style={{ touchAction: "manipulation" }}
+                                className={`flex items-center whitespace-nowrap transition-colors ${active ? "text-accent font-semibold" : "text-white/60 hover:text-white/80"}`}
+                                style={{ height: "44px", fontSize: "15px", touchAction: "manipulation", boxShadow: active ? "inset 0 -2px 0 var(--color-accent)" : undefined }}
                             >
-                                <Icon className="w-4 h-4" aria-hidden="true" />
-                                <span>{label}</span>
-                                {active && <span className="absolute -top-px inset-x-0 h-0.5 rounded-full" style={{ backgroundColor: userProfile?.themeColor ?? "#ffffff" }} />}
+                                {label}
                             </button>
                         );
                     })}
+                </div>
+                {isOwner && ([
+                    { href: ROUTES.SAVED_SPOTS, label: locale === "en" ? "Want to go" : "行きたい場所" },
+                    { href: ROUTES.SAVES, label: locale === "en" ? "Saved" : "保存" },
+                ]).map(({ href, label }) => (
+                    <Link
+                        key={href}
+                        href={href}
+                        prefetch={false}
+                        data-profile-link={href}
+                        className="flex items-center whitespace-nowrap text-white/60 hover:text-white/80 transition-colors"
+                        style={{ height: "44px", fontSize: "15px", touchAction: "manipulation" }}
+                    >
+                        {label}
+                    </Link>
+                ))}
                 </div>
 
                 {/* タブ内容: 横スワイプでタブ切替。Leaflet 地図内で始まる操作だけ除外
@@ -1710,7 +1731,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             )}
                         </div>
                     ) : null) : (
-                        <div className="grid grid-cols-3 lg:grid-cols-4 gap-[2px] pb-8">
+                        <div className="grid grid-cols-3 gap-[2px] pb-8">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
@@ -1751,7 +1772,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                             <span className="text-sm font-bold">{g.label}</span>
                                             <span className="text-[11px] text-white/50">{g.photos.length}{locale === "en" ? "" : "枚"}</span>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-1">
+                                        <div className="grid grid-cols-3 gap-[2px]">
                                             {g.photos.map((photo) => (
                                                 <PhotoCard key={photo.id} photo={photo} locale={locale} isOwner={isOwner} onTogglePublish={handleTogglePublish} onDelete={isOwner ? setPhotoToDelete : undefined} />
                                             ))}
