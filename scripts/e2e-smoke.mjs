@@ -101,7 +101,9 @@ function watchStaticAssets(ctx) {
     ctx.on("request", (req) => {
         try {
             const u = new URL(req.url());
-            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")) {
+            // 字のファイル（woff2・woff）は SW が控えない（`public/sw.js` の `isWebFont`）ので数えない
+            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")
+                && !/\.woff2?$/.test(u.pathname)) {
                 staticAssets.add(u.pathname);
             }
         } catch { /* 相対でない URL は無視 */ }

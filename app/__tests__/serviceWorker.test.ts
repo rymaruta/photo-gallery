@@ -300,6 +300,9 @@ describe("触らないもの", () => {
         // 外しても**どの分岐にも入らないので素通りした**（変異が空振り）。
         ["別オリジンのハッシュ名資産", new Request("https://other.example/_next/static/chunks/x.js")],
         ["ハッシュ名でない同一オリジンの GET", new Request("https://journey-photo.com/data/photos.json")],
+        // 明朝は 122 本に割れていて、控えると JS・CSS を押し出す（2026-10-16・`isWebFont`）
+        ["字のファイル（woff2）", new Request("https://journey-photo.com/_next/static/media/a4a2b44c2c53fac0-s.25990012.woff2")],
+        ["字のファイル（woff）", new Request("https://journey-photo.com/_next/static/media/x.woff")],
     ])("%s は素通しする", (_name, req) => {
         const e = makeEvent(req);
         handlers.fetch(e);
