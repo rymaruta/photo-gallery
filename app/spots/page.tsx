@@ -6,7 +6,7 @@ import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
-import { spotIndexTopics } from "@/lib/data/spotTopics";
+import { spotIndexTopics, firstSpotOgImage } from "@/lib/data/spotTopics";
 import { TopicChips, Lang } from "@/app/components/SpotTopicLists";
 
 /**
@@ -26,6 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const verified = publishableSpots(SPOTS).length;
     const areas = spotAreas().length;
     const title = "撮影スポットをさがす";
+    const og = firstSpotOgImage(publishableSpots(SPOTS), title);
     // 件数に「運営が調べた」と読める形で数えるのは、人が確かめた行だけ
     const description = n > 0
         ? (verified >= MIN_INDEXABLE_SPOTS
@@ -37,7 +38,11 @@ export async function generateMetadata(): Promise<Metadata> {
         description,
         alternates: { canonical: `${siteConfig.url}/spots` },
         robots: verified >= MIN_INDEXABLE_SPOTS ? undefined : { index: false, follow: true },
-        openGraph: { type: "website", url: `${siteConfig.url}/spots`, siteName: siteConfig.name, title, description },
+        openGraph: {
+            type: "website", url: `${siteConfig.url}/spots`, siteName: siteConfig.name, title, description,
+            // 子の `openGraph` は親（レイアウト）の画像ごと置き換えるので、ここで渡す（2026-10-16・絵が無かった）
+            ...(og ? { images: [og] } : {}),
+        },
     };
 }
 

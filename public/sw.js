@@ -161,7 +161,20 @@ function isStorable(res) {
 
 /** 中身がハッシュ名の資産。内容が変われば必ず別のURLになる */
 function isImmutableAsset(url) {
-    return url.pathname.startsWith("/_next/static/");
+    return url.pathname.startsWith("/_next/static/") && !isWebFont(url);
+}
+
+/**
+ * **字のファイル（woff2・woff）は控えない**（2026-10-16）。
+ *
+ * 見出しの明朝（Shippori Mincho B1）は `unicode-range` で 122 本に割れていて、ページで使った字の
+ * 範囲だけが落ちる（実測: 撮影スポットの頁で 19 本・一覧で 12 本）。これを資産の控えに入れると
+ * `MAX_ASSET_ENTRIES` の数え方では字の数だけ JS・CSS を押し出し、2デプロイぶんが収まらなくなった
+ * （スモークの実測: 異なり 86 × 2 = 172 ／ 上限 150）。
+ * 字は無くても読める（端末の明朝に落ちる・`display: swap`）ので、ブラウザのふつうのキャッシュに任せる
+ */
+function isWebFont(url) {
+    return /\.woff2?$/.test(url.pathname);
 }
 
 /**
