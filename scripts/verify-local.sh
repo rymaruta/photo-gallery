@@ -257,8 +257,23 @@ for (const ph of photos) {
     ph.srcAvif     = `${b}_lg.avif`;
     n++;
 }
+// **題の無い写真も混ぜる。** 題は空にできる（`api-user/src/upload.ts` は空なら
+// `title` の欄ごと持たない）のに、コミット済みの `photos.json` には0枚で、
+// 写真ページが空の `<h1>` を描く形をこの関門が一度も通らなかった
+// ——2026-10-17 に本番でその写真が一覧の先頭に来て、デプロイ前のスモーク
+// （「個別ページが表示される」）が止まった。スモークがタップするのは
+// ホームの一覧の先頭なので、**新しい順の先頭**（`lib/utils/photoOrder.ts` の
+// `compareNewest` と同じ鍵: 撮影日→投稿日、同じなら投稿日、最後に id）を題なしにする
+const ISO_WITH_ZONE = /^(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)?)(?:Z|[+-]\d{2}:?\d{2})?$/i;
+const stripZone = (v) => { const s = String(v ?? ""); return ISO_WITH_ZONE.exec(s)?.[1] ?? s; };
+const timeKey = (ph) => stripZone(ph.date || ph.createdAt || "");
+const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+const newest = photos.filter((ph) => ph.published !== false && ph.id).sort((a, b) =>
+    cmp(timeKey(b), timeKey(a)) || cmp(stripZone(b.createdAt), stripZone(a.createdAt)) || cmp(String(a.id), String(b.id)))[0];
+if (!newest) { console.error("::error:: 題を外す写真が無い"); process.exit(1); }
+delete newest.title;
 fs.writeFileSync(p, JSON.stringify(photos, null, 2));
-console.log(`派生を足した写真: ${n}枚`);
+console.log(`派生を足した写真: ${n}枚 ・ 題を外した写真: ${newest.id}`);
 // **0枚なら失敗にする。** 黙って進むと「派生あり」と称して派生の無いビルドを
 // 見ることになり、この関門を足した理由（`<picture>` が出る形を通す）が消える。
 if (n === 0) { console.error("::error:: 派生を1枚も足せなかった"); process.exit(1); }
