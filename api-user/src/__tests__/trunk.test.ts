@@ -527,23 +527,28 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         setProfile(FREE);
         const g = "trip-abc";
         await grantLabel(UID, photo("p1", { groupId: g }));
-        // 表紙（p1）を消した。p2 はまだ公開で残っている
+        // 表紙（p1）を消した。p2 はまだ公開で残っている（行を強い読みで確かめる）
+        store.set("photos-test|p2", photo("p2", { groupId: g }) as Item);
         mockListMyPhotos.mockResolvedValue([photo("p1", { groupId: g }), photo("p2", { groupId: g })]);
         await T.revokeLabelQuietly(UID, { id: "p1", groupId: g, createdAt: new Date().toISOString() }, "test");
         expect(pocketIds()).toEqual(["p1"]);
+        const reads = fakeSend.mock.calls.map((c) => c[0].input).filter((i) => i.Key?.id === "p2");
+        expect(reads.at(-1)?.ConsistentRead).toBe(true);
         // 残りの p2 も消した（索引にはまだ p2 が見えていても、id で除く）
-        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: g })]);
+        store.delete("photos-test|p2");
         await T.revokeLabelQuietly(UID, { id: "p2", groupId: g, createdAt: new Date().toISOString() }, "test");
         expect(pocketIds()).toEqual([]);
         // 束の台帳は残る＝上げ直しても配らない
         expect((await grantLabel(UID, photo("p3", { groupId: g }))).labelSkipped).toBe("samePost");
     });
 
-    it("束: 非公開にしただけの写真は「残っている」に数えない", async () => {
+    it("束: 非公開にした兄弟は「残っている」に数えない（索引が古い姿でも、行を強い読みで見る）", async () => {
         setProfile(FREE);
         const g = "trip-x";
         await grantLabel(UID, photo("p1", { groupId: g }));
-        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: g, published: false })]);
+        // 索引ではまだ公開に見えるが、行はもう非公開
+        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: g })]);
+        store.set("photos-test|p2", photo("p2", { groupId: g, published: false }) as Item);
         await T.revokeLabelQuietly(UID, { id: "p1", groupId: g, createdAt: new Date().toISOString() }, "test");
         expect(pocketIds()).toEqual([]);
     });
@@ -681,6 +686,18 @@ describe("確かめの指摘（2026-10-17）", () => {
         const p = T.grantLabelQuietly(UID, photo("p1"), "test");
         await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 10);
         await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout" });
+    });
+
+    it("編集の経路（grantLabelForPhotoQuietly）も時間切れで戻る・読み直しは強い読み", async () => {
+        vi.useFakeTimers();
+        setProfile(FREE);
+        fakeSend.mockImplementation((cmd: { constructor: { name: string }; input: Item }) =>
+            cmd.input.TableName === "photos-test" && (cmd.input.Key as Item)?.id === "p1" ? new Promise(() => undefined) : send(cmd as never));
+        const p = T.grantLabelForPhotoQuietly(UID, "p1", "test");
+        await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 10);
+        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout" });
+        const read = fakeSend.mock.calls.map((c) => c[0].input).find((i) => i.Key?.id === "p1");
+        expect(read?.ConsistentRead).toBe(true);
     });
 
     it("配る処理が投げても投げない（error）", async () => {

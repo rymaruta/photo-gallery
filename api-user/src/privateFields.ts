@@ -17,7 +17,9 @@
  */
 // `inspiredNotified`（「この写真を見て撮影」の通知を送った印・`api-user/src/inspired.ts`）も落とす。
 // 内部の印で、外に出す理由が無い。**元の写真の ID `inspiredBy` は落とさない**（画面が使う）
-export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified"] as const;
+// `firstPublishedAt`（初めて公開した時刻・旅のトランクの印・`api-user/src/trunk.ts`）も落とす。
+// 2026-10-17 判断を変更: 中の印なので隠す（ラベルを配るかどうかの判定にだけ使う）
+export const PRIVATE_FIELDS = ["srcOriginal", "key", "staticStale", "publicFeed", "keptFrom", "inspiredNotified", "firstPublishedAt"] as const;
 
 /**
  * **静的な一覧（`photos.json`）と、それと同じ形で返す `GET /feed` だけが余分に落とすもの。**
