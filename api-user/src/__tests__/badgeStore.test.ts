@@ -37,6 +37,13 @@ beforeEach(() => {
 });
 
 describe("refreshBadges", () => {
+    it("写真の一覧を渡されたらそれを数える（もう一度読まない・savePhoto が旅のトランクと分け合う）", async () => {
+        send.mockResolvedValueOnce({ Item: { userId: "u1", rev: 1 } }).mockResolvedValueOnce({});
+        const r = await refreshBadges("u1", () => NOW, Promise.resolve([photo({ location: "東京" })] as never));
+        expect(listMyPhotos).not.toHaveBeenCalled();
+        expect(r.progress.first.count).toBe(1);
+    });
+
     it("上がった段を rev つきで保存し、書けてから通知する", async () => {
         listMyPhotos.mockResolvedValue([photo({ location: "東京" })]);
         send

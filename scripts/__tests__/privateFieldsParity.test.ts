@@ -106,6 +106,7 @@ describe("公開データのふるいは4か所で揃っている", () => {
         ["publicFeed", "公開一覧の GSI に載せるための内部の印"],
         ["keptFrom", "ストーリーから残した写真に付く、元のストーリーのID"],
         ["inspiredNotified", "「この写真を見て撮影」の通知を送ったという内部の印"],
+        ["firstPublishedAt", "旅のトランクのラベルを配るかの判定に使う、初めて公開した時刻（内部の印）"],
     ];
     it.each(MUST_DROP)("%s はどこでも落とす（%s）", (field) => {
         for (const p of [API, RESTRICTED, SYNC, READER]) {

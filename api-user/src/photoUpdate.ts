@@ -17,6 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
+import { revokeLabelQuietly, grantLabelForPhotoQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
@@ -56,6 +57,51 @@ export function isValidYouTubeUrl(raw: unknown): string | undefined {
 }
 
 // PUT /photos/{id} — 自分の写真の更新（公開/非公開・写真BGM）
+/**
+ * 初めての公開の時刻（`firstPublishedAt`）を**まだ無ければ**書く。書けたらその時刻（＝初めての公開）。
+ * 既にある・行が消えた・書けなかったときは null（ラベルを配らない側に倒す）。投げない
+ */
+async function claimFirstPublish(id: string): Promise<string | null> {
+    const t = new Date().toISOString();
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id },
+            UpdateExpression: "SET firstPublishedAt = :t",
+            ConditionExpression: "attribute_exists(id) AND attribute_not_exists(firstPublishedAt)",
+            ExpressionAttributeValues: { ":t": t },
+        }));
+        return t;
+    } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+            console.error(`updatePhotoVisibility: firstPublishedAt を書けませんでした（${id}）:`, e);
+        }
+        return null;
+    }
+}
+
+/**
+ * 配る処理が**時間切れ・失敗**で終わったら、書いた `firstPublishedAt` を外す（次に公開し直したときに
+ * もう一度試せるように）。**自分が書いた値のときだけ**外す。2026-10-17 判断: `daily`・`full` などの
+ * 「配らない」と決まった結果は外さない（二度と配らない＝仕様）。ラベルの id は写真の id なので、
+ * 時間切れのあとに書き込みが届いていても、次の回は配り済みの1枚を返すだけ（二重にならない）。投げない
+ */
+async function releaseFirstPublish(id: string, t: string): Promise<void> {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id },
+            UpdateExpression: "REMOVE firstPublishedAt",
+            ConditionExpression: "firstPublishedAt = :t",
+            ExpressionAttributeValues: { ":t": t },
+        }));
+    } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+            console.error(`updatePhotoVisibility: firstPublishedAt を戻せませんでした（${id}）:`, e);
+        }
+    }
+}
+
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
     if (!id) {
@@ -802,9 +848,31 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             }
         }
 
-        // **メダルを数え直す**（撮影地・撮影日・公開の切り替えで数が動く）。
-        // 投げない・上限つきで待つ（`badgeStore.ts`）。落ちても更新は成功で返す
-        await refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`);
+        // **下書き → 公開になった瞬間に、旅のトランクのラベルを配る**（`trunk.ts`・savePhoto と同じ判定）。
+        // ラベルの id は写真の id なので、公開 → 非公開 → 公開を繰り返しても二度は配らない
+        // 2026-10-17 判断: 配るのは**一度も公開されたことが無い写真**だけ。`firstPublishedAt` を
+        // 「まだ無ければ書く」の条件つきで書き、**書けた回だけ**配る（同時の2本でも1本だけが通る）。
+        // savePhoto で公開した写真・この仕組みの前に公開した写真（作成が機能を出した日より前）は配らない
+        const firstPublish = visibilityChanged && body.published === true
+            ? await claimFirstPublish(id)
+            : null;
+        // **配る処理とメダルの数え直しは並べて待つ**（どちらも上限つき。待ちが足し算にならない）
+        const [dealt] = await Promise.all([
+            firstPublish
+                ? grantLabelForPhotoQuietly(ownerId, id, `updatePhotoVisibility(${id})`)
+                : Promise.resolve(undefined),
+            // **メダルを数え直す**（撮影地・撮影日・公開の切り替えで数が動く）。
+            // 投げない・上限つきで待つ（`badgeStore.ts`）。落ちても更新は成功で返す
+            refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`),
+        ]);
+        // 時間切れ・失敗で配れなかったら、次に公開し直したときにもう一度試せるよう印を戻す
+        if (firstPublish && (dealt?.labelSkipped === "timeout" || dealt?.labelSkipped === "error")) {
+            await releaseFirstPublish(id, firstPublish);
+        }
+        // **公開 → 非公開で、投稿から24時間以内ならラベルを取り消す**（削除と同じ扱い・`trunk.ts`）
+        if (visibilityChanged && body.published === false) {
+            await revokeLabelQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`);
+        }
 
         // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
         // 「元の写真が付いていて、公開で見られる」なら送る（送らないと決めることもある）。
@@ -828,10 +896,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // 一度「2つは排他だから順番に意味は無い」と書いたが、それは
             // `staticOutdated` に「公開のままか」を要求していたときの話で、
             // その条件は上のとおり外した
-            body: JSON.stringify(
-                staticStale ? { success: true, staticStale: true }
+            // 公開にした回だけ `label`・`labelSkipped` を足す（既存の形はそのまま）
+            body: JSON.stringify({
+                ...(staticStale ? { success: true, staticStale: true }
                     : staticOutdated ? { success: true, staticOutdated: true }
                         : { success: true }),
+                ...(dealt ?? {}),
+            }),
         };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
@@ -987,6 +1058,10 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 console.error(`deleteMyPhoto: アルバムから取り除けませんでした（${id}）:`, e);
             });
         }
+
+        // **旅のトランクのラベルを取り消す**（投稿から24時間以内・手持ちに残っているときだけ。
+        // `trunk.ts`）。投げない・上限つきで待つ。指紋は台帳に残るので、上げ直しても届かない
+        await revokeLabelQuietly(callerId, item, `deleteMyPhoto(${id})`);
 
         // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
         // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false

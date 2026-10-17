@@ -52,12 +52,35 @@ export async function updateUserList<T = string>(
     max: number,
     mutate: (list: T[]) => T[] | null,
 ): Promise<void> {
+    await updateUserRow(rowId, uid, (item) => {
+        const current = Array.isArray(item?.list) ? (item.list as T[]) : [];
+        const next = mutate([...current]);
+        return next === null ? null : { list: next.slice(0, max) };
+    });
+}
+
+/**
+ * `rowId` の1行を「読む → rev 条件で Put」で置き直す（上の `updateUserList` の土台）。
+ *
+ * **一覧ではない形の行**（旅のトランク `trunk#<uid>` のように、項目を幾つも持つ行）も
+ * 同じ規則で書けるように切り出した（2026-10-17 判断: 規則を2つ書かない）。
+ *
+ * @param mutate 今の行（無ければ `undefined`）を受け取り、**書く項目**を返す
+ *   （`id`・`uid`・`rev`・`updatedAt` はここが付ける）。変更が無ければ `null`。
+ *   ⚠️ **返した項目だけが残る**（Put なので、返さなかった項目は消える）。
+ *   競合したら読み直してもう一度呼ぶので、**副作用を持たせない**こと。
+ */
+export async function updateUserRow(
+    rowId: string,
+    uid: string,
+    mutate: (item: Record<string, unknown> | undefined) => Record<string, unknown> | null,
+): Promise<void> {
     for (let attempt = 0; attempt <= WRITE_RETRIES; attempt++) {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: rowId } }));
-        const current = Array.isArray(res.Item?.list) ? (res.Item.list as T[]) : [];
-        const rev = typeof res.Item?.rev === "number" ? res.Item.rev : 0;
+        const item = res.Item as Record<string, unknown> | undefined;
+        const rev = typeof item?.rev === "number" ? item.rev : 0;
 
-        const next = mutate([...current]);
+        const next = mutate(item);
         if (next === null) return; // 変更なし
 
         // 読んでから今までに他の書き込みが入っていないこと。
@@ -72,9 +95,9 @@ export async function updateUserList<T = string>(
             await ddb.send(new PutCommand({
                 TableName: PHOTOS_TABLE,
                 Item: {
+                    ...next,
                     id: rowId,
                     uid,
-                    list: next.slice(0, max),
                     rev: rev + 1,
                     updatedAt: new Date().toISOString(),
                 },

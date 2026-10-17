@@ -9,6 +9,10 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
+// 旅のトランク（`trunk.ts`）。中身は `trunk.test.ts`。ここは「下書き → 公開で配る」の呼ばれ方だけ
+const mockGrantForPhoto = vi.hoisted(() => vi.fn());
+const mockRevokeLabel = vi.hoisted(() => vi.fn());
+vi.mock("../trunk", () => ({ grantLabelForPhotoQuietly: mockGrantForPhoto, revokeLabelQuietly: mockRevokeLabel }));
 // メダルの数え直し（`badgeStore.ts`）。中身は `badgeStore.test.ts` が見るので、ここは呼ばれ方だけ
 const mockRefreshBadges = vi.hoisted(() => vi.fn(async (userId: string, label: string) => { void userId; void label; }));
 vi.mock("../badgeStore", () => ({
@@ -86,6 +90,8 @@ beforeEach(() => {
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockS3DeleteMany.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
+    mockGrantForPhoto.mockReset().mockResolvedValue(undefined);
+    mockRevokeLabel.mockReset().mockResolvedValue(undefined);
     mockReadVisibleSource.mockReset().mockResolvedValue(null);
     mockNotifyInspired.mockReset().mockResolvedValue(undefined);
     vi.stubEnv("CLOUDFRONT_URL", CDN);
@@ -1880,5 +1886,97 @@ describe("updatePhotoVisibility: メダルを数え直す", () => {
         const res = await invoke(event("attacker", "p1", { published: false }));
         expect(res.statusCode).toBe(403);
         expect(mockRefreshBadges).not.toHaveBeenCalled();
+    });
+});
+
+describe("updatePhotoVisibility: 下書き → 公開で旅のトランクのラベルを配る", () => {
+    const LABEL = { id: "p1", photoId: "p1", kind: "place", place: { name: "" }, seed: 1, at: "2026-10-17T00:00:00.000Z" };
+
+    it("false → true になった回だけ配り、応答に label を足す（既存の項目は残す）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+        mockGrantForPhoto.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockGrantForPhoto).toHaveBeenCalledTimes(1);
+        expect(mockGrantForPhoto.mock.calls[0].slice(0, 2)).toEqual(["u1", "p1"]);
+        const body = JSON.parse(res.body);
+        expect(body.success).toBe(true);
+        expect(body.label).toEqual(LABEL);
+    });
+
+    it("一度公開したことのある写真（firstPublishedAt あり）は、公開し直しても配らない", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { ConditionExpression?: string } }) => {
+            if (cmd.constructor.name === "GetCommand") {
+                return Promise.resolve({ Item: { id: "p1", userId: "u1", published: false, firstPublishedAt: "2026-10-17T00:00:00.000Z" } });
+            }
+            if (cmd.input.ConditionExpression?.includes("attribute_not_exists(firstPublishedAt)")) {
+                return Promise.reject(Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" }));
+            }
+            return Promise.resolve({});
+        });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockGrantForPhoto).not.toHaveBeenCalled();
+        expect(JSON.parse(res.body).label).toBeUndefined();
+    });
+
+    it("初めての公開の時刻を「まだ無ければ」の条件で書く", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+        await invoke(event("u1", "p1", { published: true }));
+        const claim = mockDdbSend.mock.calls.map((c) => c[0].input).find((i) => String(i.UpdateExpression ?? "").includes("firstPublishedAt"));
+        expect(claim?.ConditionExpression).toBe("attribute_exists(id) AND attribute_not_exists(firstPublishedAt)");
+    });
+
+    it("時間切れ・失敗で配れなかったら、書いた firstPublishedAt を戻す（次の公開でもう一度試せる）", async () => {
+        for (const skipped of ["timeout", "error"]) {
+            mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+            mockGrantForPhoto.mockReset().mockResolvedValue({ label: null, labelSkipped: skipped });
+            await invoke(event("u1", "p1", { published: true }));
+            const inputs = mockDdbSend.mock.calls.map((c) => c[0].input);
+            const claim = inputs.find((i) => String(i.UpdateExpression ?? "").startsWith("SET firstPublishedAt"));
+            const release = inputs.find((i) => i.UpdateExpression === "REMOVE firstPublishedAt");
+            expect(release, skipped).toBeDefined();
+            expect(release.ConditionExpression).toBe("firstPublishedAt = :t");
+            expect(release.ExpressionAttributeValues[":t"]).toBe(claim.ExpressionAttributeValues[":t"]);
+        }
+    });
+
+    it("daily・full など「配らない」と決まった結果では戻さない", async () => {
+        for (const skipped of ["daily", "full", "duplicate"]) {
+            mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+            mockGrantForPhoto.mockReset().mockResolvedValue({ label: null, labelSkipped: skipped });
+            await invoke(event("u1", "p1", { published: true }));
+            const release = mockDdbSend.mock.calls.map((c) => c[0].input).find((i) => i.UpdateExpression === "REMOVE firstPublishedAt");
+            expect(release, skipped).toBeUndefined();
+        }
+    });
+
+    it("配る処理とメダルの数え直しを並べて待つ（片方が終わるのを待ってからもう片方を始めない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+        let release!: () => void;
+        mockGrantForPhoto.mockReturnValue(new Promise((r) => { release = () => r({ label: null, labelSkipped: "full" }); }));
+        const pending = invoke(event("u1", "p1", { published: true }));
+        await vi.waitFor(() => expect(mockGrantForPhoto).toHaveBeenCalled());
+        // 配る処理がまだ終わっていないのに、数え直しはもう始まっている
+        await vi.waitFor(() => expect(mockRefreshBadges).toHaveBeenCalled());
+        release();
+        expect((await pending).statusCode).toBe(200);
+    });
+
+    it("公開 → 非公開で、隠す前の行を渡して取り消しを頼む", async () => {
+        const row = { id: "p1", userId: "u1", published: true, createdAt: "2026-10-17T00:00:00.000Z" };
+        mockDdbSend.mockResolvedValueOnce({ Item: row }).mockResolvedValue({});
+        await invoke(event("u1", "p1", { published: false }));
+        expect(mockRevokeLabel).toHaveBeenCalledTimes(1);
+        expect(mockRevokeLabel.mock.calls[0][0]).toBe("u1");
+        expect(mockRevokeLabel.mock.calls[0][1]).toMatchObject(row);
+    });
+
+    it("公開のままの保存・非公開にする回は配らない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValue({});
+        await invoke(event("u1", "p1", { published: true, title: "x" }));
+        mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValue({});
+        await invoke(event("u1", "p1", { published: false }));
+        expect(mockGrantForPhoto).not.toHaveBeenCalled();
     });
 });

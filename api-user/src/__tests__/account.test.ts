@@ -124,6 +124,8 @@ describe("deleteAccount", () => {
         // 「誰を親しいと決めたか」＝`spots#` と同じ性質の行動履歴。
         // **この仕組みを入れた日から一度も消されていなかった**
         expect(ids).toContain("closefriends#me");
+        // 旅のトランク（`trunk.ts` の `trunk#<uid>`）。どこへいつ行ったかのラベル
+        expect(ids).toContain("trunk#me");
 
         // プロフィール行は**消すのではなく墓石に置き換える**。
         // ただ消すと、期限まで有効な古いトークンを持った別端末が
