@@ -1343,6 +1343,16 @@ describe("2行に分ける（trunk# と trunkledger#・2026-10-17）", () => {
         expect(ids).toEqual(expect.arrayContaining([trunkId(UID), T.trunkLedgerId(UID)]));
         expect(fakeSend.mock.calls.some((c) => c[0].constructor.name === "BatchGetCommand")).toBe(false);
     });
+
+    it("書く前の2行の読みは強い読み（ConsistentRead）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        const reads = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand")
+            .map((c) => c.input as { Key: Item; ConsistentRead?: boolean })
+            .filter((i) => i.Key.id === trunkId(UID) || i.Key.id === T.trunkLedgerId(UID));
+        expect(reads.length).toBeGreaterThanOrEqual(2);
+        expect(reads.every((i) => i.ConsistentRead === true)).toBe(true);
+    });
 });
 
 describe("配り始める線（TRUNK_LAUNCHED_AT）", () => {
