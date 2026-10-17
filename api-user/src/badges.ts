@@ -155,7 +155,7 @@ export function nearestPrefecture(lat: number, lng: number): number | null {
     return bestPref >= 0 && bestKm <= NEAREST_PREF_MAX_KM ? bestPref : null;
 }
 
-function coordsOf(p: Photo): { lat: number; lng: number } | null {
+export function coordsOf(p: Photo): { lat: number; lng: number } | null {
     const c = p.coords as { lat?: unknown; lng?: unknown } | undefined;
     const lat = Number(c?.lat), lng = Number(c?.lng);
     if (!c || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;

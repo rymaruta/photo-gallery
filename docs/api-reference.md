@@ -228,7 +228,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 
 ⚠️ 管理者の判定は `cognito:groups` に `admin` があるか（`api/src/auth.ts` の `isAdmin`）。
 
-### ユーザーAPI（`NEXT_PUBLIC_USER_API_BASE_URL`）— 74口
+### ユーザーAPI（`NEXT_PUBLIC_USER_API_BASE_URL`）— 81口
 
 **認証が要らないのは7口だけ**（`PublicReadRole`＝読み取り専用のロールで動く。`/feed` だけは索引を読むので専用の `PublicFeedRole`）:
 
@@ -242,7 +242,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 | GET | `/users/{uid}/follow` | フォロー数（`s-maxage=30`） |
 | GET | `/feed` | 公開写真の一覧をページで（`s-maxage=30`・下の「公開写真のページ」）※2026-10-03 追加・**本番未反映** |
 
-残り68口はすべて `Authorization: Bearer <IDトークン>` が要る:
+残り75口はすべて `Authorization: Bearer <IDトークン>` が要る:
 
 **アップロード**
 `POST /upload/presigned-url` / `POST /upload/save` / `DELETE /upload/discard` /
@@ -282,6 +282,28 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 **行きたい場所・旅行プラン**
 `GET,POST /user/spots` / `DELETE /user/spots/{slug}` /
 `GET,POST /user/trips` / `PUT,DELETE /user/trips/{planId}`
+
+**旅のトランク** ※2026-10-17 追加・**本番未反映**（`api-user/src/trunk.ts`・1行 `trunk#<uid>`）
+`GET /user/trunk` / `PUT /user/trunk/model` / `PUT /user/trunk/settings` /
+`POST /user/trunk/labels/{id}/stick` / `DELETE /user/trunk/labels/{id}` /
+`POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose`
+
+- 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
+  応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
+  `labelSkipped` を足す: `draft`（下書き・ストーリー）/ `off`（受け取らない設定）/ `samePost`（同じ束に配り済み）/
+  `duplicate`（同じ写真の指紋に配り済み）/ `daily`（その日3枚配った）/ `full`（手持ちが上限）/
+  `timeout`・`error`（配りが間に合わなかった。届いていれば `GET` に出る）
+- ラベル: `{ id(=写真id), photoId, kind: milestone|timeslot|season|place, place{name, latin?, country?},
+  season?: spring|summer|autumn|winter, timeslot?: dawn|dusk|night,
+  milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil? }`。絵はアプリが `seed` と `kind` から描く
+- `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels, posts }`。
+  更新の口は同じ形から `posts` を除いたものを返す。失敗は `{ error, code }`
+  （`notFound` / `full` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy`）
+- 型: 無料 `leather`・`canvas`・`aluminum`・`steamer`、Pro `urushi`・`kori`・`sleeper`・`clipper`・`captain`・`starchart`。
+  Pro をやめたら `effectiveModel` は最後に選んだ無料の型（既定 `leather`）。`model` は残る
+- 作り直し（Pro・日本時間の月に3回・繰り越しなし）: `reroll` で候補3つ（`pendingReroll.seeds`）、
+  `reroll/choose { seed }` で確定（今の `seed` を選んでもよい・回数は戻らない）。foil は保つ
+- 投稿から24時間以内に写真を消すと、手持ちに残っているそのラベルは取り消す（貼ったものは残す）
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
@@ -503,6 +525,7 @@ const { success, photo } = await r3.json();
 | 旅行プラン | 50件・60日・1日20項目 | `tripPlans.ts` |
 | 共同アルバム | 1人50個・1つ50人・500枚 | `invite.ts` |
 | ハイライト | 20個・1つ100本 | `highlights.ts` |
+| 旅のトランク | 手持ち 無料30・Pro150／貼る1200／1日3枚／作り直し 月3回／指紋の台帳3000 | `trunk.ts` |
 | プロフィールの曲 | 5曲 | `userProfile.ts` |
 | 招待リンクの期限 | 30日 | `invite.ts` |
 

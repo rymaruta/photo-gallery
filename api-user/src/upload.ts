@@ -18,6 +18,7 @@ import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAlbumMember, addPhotoToAlbum } from "./albums";
 import { refreshBadgesQuietly } from "./badgeStore";
+import { grantLabelQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -534,13 +535,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // `src` で出る（下書きから公開した写真と同じ扱い）ので、それを許容する
         await requestRebuildForNewPhoto(photo.id, onStaticSite(photo));
         // **メダルを数え直す**（公開した写真だけが数に入る）。投げない・上限つきで待つ
-        // （`badgeStore.ts`）。落ちても投稿は成功で返す
-        if (isPublished) await refreshBadgesQuietly(userId, `savePhoto(${photo.id})`);
+        // （`badgeStore.ts`）。落ちても投稿は成功で返す。
+        // **旅のトランクのラベルを1枚配る**（`trunk.ts`・同じ形で並べて待つ＝待ちは足し算にならない）。
+        // 応答に `label`（配った1枚 or null）と、配らなかった理由 `labelSkipped` を足す
+        const [, dealt] = await Promise.all([
+            isPublished ? refreshBadgesQuietly(userId, `savePhoto(${photo.id})`) : Promise.resolve(),
+            grantLabelQuietly(userId, photo, `savePhoto(${photo.id})`),
+        ]);
         // **元の作者へ知らせる**（公開で見られる写真のときだけ・1枚につき1回・投げない）
         if (typeof photo.inspiredBy === "string" && onStaticSite(photo)) {
             await notifyInspiredOnce(photo, photo.inspiredBy, userId, inspiredSource);
         }
-        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo }) };
+        return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo, ...dealt }) };
     } catch (e) {
         if ((e as { name?: string }).name === "ConditionalCheckFailedException") {
             // 既にその ID がある。**前回の保存が通っていた再送なら成功を返す。**
@@ -573,7 +579,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             const stored = existing.updatedAt ?? existing.createdAt ?? "";
             if (stored && !resendStillOriginal(existing)) {
                 console.log(`savePhoto: 再送を受け取りましたが、あとから直されているので書き直しません（${photo.id}）`);
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
+                // ラベルは写真の id で1枚だけ（`trunk.ts`）。配り済みならその1枚を返す
+                const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`);
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing, ...dealt }) };
             }
             // **サーバー側で書かれた項目は引き継ぐ。**
             //
@@ -729,14 +737,18 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                     // 書き直しが引き継いだ控え（`inspiredNotified`）があれば何もしない
                     await notifyInspiredOnce(rewritten, rewritten.inspiredBy, userId, inspiredSource);
                 }
+                // **再送でも配る**（1回目が下書きだった・1回目の配りが上限の時間を越えた）。
+                // 写真の id で1枚だけなので、二重には配らない（配り済みならその1枚を返す）
+                const dealt = await grantLabelQuietly(userId, rewritten as Photo, `savePhoto(${photo.id})`);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
-                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten }) };
+                return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten, ...dealt }) };
             }
             // **書き直せなかった**（あいだで誰かが書いた）。元もコピーも触らない
             // ——今の行がどちらを指しているか分からず、使用中かの一覧（結果整合）は
             // その直前の書き込みを見落としうる。消すと割れうるので、孤児が残る側に倒す
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
-            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing }) };
+            const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`);
+            return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing, ...dealt }) };
         }
         console.error("savePhoto error:", e);
         // **上で作ったコピーは片づけない。** 同じ写真の本送信が同時に走っていれば、
