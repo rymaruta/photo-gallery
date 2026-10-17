@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems, markStaticStale } from "./ddb-photos";
+import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems, markStaticStale, listMyPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
 import { lookupDisplayNameIfSet } from "./notify";
@@ -459,6 +459,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             : {}),
         createdAt: savedAt,
         updatedAt: savedAt,
+        // **初めて公開した時刻**（旅のトランク・`trunk.ts`）。これがある写真は、非公開 → 公開し直しても
+        // ラベルを配らない（2026-10-17 判断）。下書きは持たない（編集で初めて公開したときに書く）
+        ...(isPublished ? { firstPublishedAt: savedAt } : {}),
     };
 
     /**
@@ -538,9 +541,13 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // （`badgeStore.ts`）。落ちても投稿は成功で返す。
         // **旅のトランクのラベルを1枚配る**（`trunk.ts`・同じ形で並べて待つ＝待ちは足し算にならない）。
         // 応答に `label`（配った1枚 or null）と、配らなかった理由 `labelSkipped` を足す
+        // 本人の写真の一覧は**1回だけ読み、両方に渡す**（どちらも同じ一覧を数える）。
+        // 読めなかったときはそれぞれが握る（ここで投げない・未処理の reject にしない）
+        const mine = isPublished ? listMyPhotos(userId) : undefined;
+        mine?.catch(() => undefined);
         const [, dealt] = await Promise.all([
-            isPublished ? refreshBadgesQuietly(userId, `savePhoto(${photo.id})`) : Promise.resolve(),
-            grantLabelQuietly(userId, photo, `savePhoto(${photo.id})`),
+            isPublished ? refreshBadgesQuietly(userId, `savePhoto(${photo.id})`, mine) : Promise.resolve(),
+            grantLabelQuietly(userId, photo, `savePhoto(${photo.id})`, { photos: mine }),
         ]);
         // **元の作者へ知らせる**（公開で見られる写真のときだけ・1枚につき1回・投げない）
         if (typeof photo.inspiredBy === "string" && onStaticSite(photo)) {
@@ -580,7 +587,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             if (stored && !resendStillOriginal(existing)) {
                 console.log(`savePhoto: 再送を受け取りましたが、あとから直されているので書き直しません（${photo.id}）`);
                 // ラベルは写真の id で1枚だけ（`trunk.ts`）。配り済みならその1枚を返す
-                const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`);
+                const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`, { requireNew: true });
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing, ...dealt }) };
             }
             // **サーバー側で書かれた項目は引き継ぐ。**
@@ -626,6 +633,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **「この写真を見て撮影」の通知の控え。** 落としても二重には送らない
                 // （正は別の文書 `inspiredNotif#…`）が、落とすと文書を引き直す分が増える
                 "inspiredNotified",
+                // **初めて公開した時刻。** 一度書いたら変えない（下で前回の値を勝たせる）
+                "firstPublishedAt",
             ] as const;
             const serverOwned: Record<string, unknown> = {};
             for (const k of SERVER_OWNED_FIELDS) {
@@ -660,6 +669,8 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 ...photo, ...serverOwned,
                 ...(mergedExtra ? { extraImages: mergedExtra } : {}),
                 createdAt: existing.createdAt ?? photo.createdAt,
+                // 前回の保存で公開していたら、その時刻のまま（今回の時刻で上書きしない）
+                ...(existing.firstPublishedAt !== undefined ? { firstPublishedAt: existing.firstPublishedAt } : {}),
             };
             /**
              * **絞った写真の再送。** 行は既に `private/` を指している（前回の保存が
@@ -739,7 +750,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 }
                 // **再送でも配る**（1回目が下書きだった・1回目の配りが上限の時間を越えた）。
                 // 写真の id で1枚だけなので、二重には配らない（配り済みならその1枚を返す）
-                const dealt = await grantLabelQuietly(userId, rewritten as Photo, `savePhoto(${photo.id})`);
+                const dealt = await grantLabelQuietly(userId, rewritten as Photo, `savePhoto(${photo.id})`, { requireNew: true });
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten, ...dealt }) };
             }
@@ -747,7 +758,7 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
             // ——今の行がどちらを指しているか分からず、使用中かの一覧（結果整合）は
             // その直前の書き込みを見落としうる。消すと割れうるので、孤児が残る側に倒す
             console.log(`savePhoto: 同じ写真の再送を受け取りました（${photo.id}）`);
-            const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`);
+            const dealt = await grantLabelQuietly(userId, existing, `savePhoto(${photo.id})`, { requireNew: true });
             return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: existing, ...dealt }) };
         }
         console.error("savePhoto error:", e);

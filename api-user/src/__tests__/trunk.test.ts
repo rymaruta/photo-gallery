@@ -61,7 +61,7 @@ const label = (id: string, over: Record<string, unknown> = {}) => ({
 function setProfile(p: Item) { store.set(`users-test|${UID}`, p); }
 function setTrunk(t: Item) { store.set(`photos-test|${trunkId(UID)}`, { id: trunkId(UID), uid: UID, rev: 1, ...t }); }
 const trunkRow = () => store.get(`photos-test|${trunkId(UID)}`) as Item | undefined;
-const pocketIds = () => ((trunkRow()?.pocket ?? []) as { id: string }[]).map((l) => l.id);
+const pocketIds = () => ((trunkRow()?.pocket ?? []) as { i?: string; id?: string }[]).map((l) => l.i ?? l.id);
 
 type Res = { statusCode: number; body: string; headers?: Record<string, string> };
 async function call(routeKey: string, opts: { id?: string; body?: unknown; sub?: string } = {}): Promise<{ status: number; json: Record<string, unknown> }> {
@@ -459,7 +459,7 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         setProfile(FREE);
         const first = photo("p1", { ...exif("2026:10:01 10:00:00"), createdAt: new Date().toISOString() });
         await grantLabel(UID, first);
-        await T.revokeLabelQuietly(UID, "p1", first.createdAt, "test");
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: first.createdAt }, "test");
         expect(pocketIds()).toEqual([]);
         // 上げ直すと別の id になる。中身（EXIF）は同じ
         const again = await grantLabel(UID, photo("p9", exif("2026:10:01 10:00:00")));
@@ -494,27 +494,65 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         setProfile(FREE);
         const now = new Date().toISOString();
         for (const id of ["a", "b", "c"]) await grantLabel(UID, photo(id));
-        await T.revokeLabelQuietly(UID, "c", now, "test");
+        await T.revokeLabelQuietly(UID, { id: "c", createdAt: now }, "test");
         expect((await grantLabel(UID, photo("d"))).labelSkipped).toBe("daily");
     });
 
-    it("投稿から24時間以内の削除で手持ちから消える。貼ったもの・24時間を過ぎたものは残る", async () => {
+    it("投稿から24時間以内の削除で、手持ちからも貼った方からも消える。24時間を過ぎたものは残る", async () => {
         setProfile(FREE);
         const now = Date.now();
-        setTrunk({ pocket: [label("new"), label("old")], stuck: [label("st")] });
-        await T.revokeLabelQuietly(UID, "new", new Date(now - 23 * 3_600_000).toISOString(), "test");
-        await T.revokeLabelQuietly(UID, "old", new Date(now - 25 * 3_600_000).toISOString(), "test");
-        await T.revokeLabelQuietly(UID, "st", new Date(now).toISOString(), "test");
+        const ago = (h: number) => new Date(now - h * 3_600_000).toISOString();
+        setTrunk({ pocket: [label("new"), label("old")], stuck: [label("st"), label("st-old")], pendingReroll: { labelId: "new", seeds: [1, 2, 3], at: "" } });
+        await T.revokeLabelQuietly(UID, { id: "new", createdAt: ago(23) }, "test");
+        await T.revokeLabelQuietly(UID, { id: "old", createdAt: ago(25) }, "test");
+        await T.revokeLabelQuietly(UID, { id: "st", createdAt: ago(1) }, "test");
+        await T.revokeLabelQuietly(UID, { id: "st-old", createdAt: ago(30) }, "test");
         expect(pocketIds()).toEqual(["old"]);
-        expect((trunkRow()?.stuck as Item[]).map((l) => l.id)).toEqual(["st"]);
+        expect((trunkRow()?.stuck as Item[]).map((l) => l.i ?? l.id)).toEqual(["st-old"]);
+        expect(trunkRow()?.pendingReroll).toBeUndefined();
         expect(T.REVOKE_WINDOW_MS).toBe(24 * 3_600_000);
     });
 
+    it("時刻は初めての公開（firstPublishedAt）を先に見る（下書きを何日もあとで公開した写真）", async () => {
+        setProfile(FREE);
+        const now = Date.now();
+        setTrunk({ pocket: [label("d1")], stuck: [] });
+        await T.revokeLabelQuietly(UID, {
+            id: "d1", createdAt: new Date(now - 72 * 3_600_000).toISOString(), firstPublishedAt: new Date(now - 3_600_000).toISOString(),
+        }, "test");
+        expect(pocketIds()).toEqual([]);
+    });
+
+    it("束は、束の写真がまだ公開で残っていれば取り消さない。全部消えたら取り消す", async () => {
+        setProfile(FREE);
+        const g = "trip-abc";
+        await grantLabel(UID, photo("p1", { groupId: g }));
+        // 表紙（p1）を消した。p2 はまだ公開で残っている
+        mockListMyPhotos.mockResolvedValue([photo("p1", { groupId: g }), photo("p2", { groupId: g })]);
+        await T.revokeLabelQuietly(UID, { id: "p1", groupId: g, createdAt: new Date().toISOString() }, "test");
+        expect(pocketIds()).toEqual(["p1"]);
+        // 残りの p2 も消した（索引にはまだ p2 が見えていても、id で除く）
+        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: g })]);
+        await T.revokeLabelQuietly(UID, { id: "p2", groupId: g, createdAt: new Date().toISOString() }, "test");
+        expect(pocketIds()).toEqual([]);
+        // 束の台帳は残る＝上げ直しても配らない
+        expect((await grantLabel(UID, photo("p3", { groupId: g }))).labelSkipped).toBe("samePost");
+    });
+
+    it("束: 非公開にしただけの写真は「残っている」に数えない", async () => {
+        setProfile(FREE);
+        const g = "trip-x";
+        await grantLabel(UID, photo("p1", { groupId: g }));
+        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: g, published: false })]);
+        await T.revokeLabelQuietly(UID, { id: "p1", groupId: g, createdAt: new Date().toISOString() }, "test");
+        expect(pocketIds()).toEqual([]);
+    });
+
     it("取り消しは投げない（行が無い・読めない）", async () => {
-        await expect(T.revokeLabelQuietly(UID, "x", undefined, "test")).resolves.toBeUndefined();
+        await expect(T.revokeLabelQuietly(UID, { id: "x" }, "test")).resolves.toBeUndefined();
         fakeSend.mockRejectedValue(new Error("down"));
         const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
-        await expect(T.revokeLabelQuietly(UID, "x", undefined, "test")).resolves.toBeUndefined();
+        await expect(T.revokeLabelQuietly(UID, { id: "x" }, "test")).resolves.toBeUndefined();
         err.mockRestore();
     });
 
@@ -561,5 +599,178 @@ describe("受け取らない設定（PUT /user/trunk/settings）", () => {
         expect(trunkRow()?.model).toBe("canvas");
         expect(pocketIds()).toEqual(["a"]);
         expect((await call("PUT /user/trunk/settings", { body: { receiveLabels: "no" } })).status).toBe(400);
+    });
+});
+
+describe("節目は一度きり・束の台帳・下書きをあとで公開（2026-10-17 追加）", () => {
+    it("写真を全部消して投稿し直しても「はじめて」は二度と配らない（kind は次の順で決め直す）", async () => {
+        setProfile(FREE);
+        const first = await grantLabel(UID, photo("p1", { date: "2026-04-10" }));
+        expect(first.label?.milestone).toBe("first");
+        await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
+        // 写真も全部消えた（others が空）＝計算上はまた「はじめて」
+        const again = await grantLabel(UID, photo("p2", { date: "2026-04-11" }));
+        expect(again.label?.milestone).toBeUndefined();
+        expect(again.label?.kind).toBe("season");
+        expect(trunkRow()?.milestones).toEqual(["first"]);
+    });
+
+    it("「はじめての国」は国ごとに一度", async () => {
+        setProfile(PRO);
+        mockListMyPhotos.mockResolvedValue([photo("o1", { location: "京都" })]);
+        expect((await grantLabel(UID, photo("p1", { location: "パリ, フランス" }))).label?.milestone).toBe("firstCountry");
+        await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
+        expect((await grantLabel(UID, photo("p2", { location: "リヨン, フランス" }))).label?.milestone).toBeUndefined();
+        expect((await grantLabel(UID, photo("p3", { location: "ローマ, イタリア" }))).label?.milestone).toBe("firstCountry");
+        expect(trunkRow()?.milestones).toEqual(["firstCountry:イタリア", "firstCountry:フランス"]);
+    });
+
+    it("束: 手持ちから消しても、同じ groupId の別の写真には配らない", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1", { groupId: "g-1" }));
+        await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
+        expect(await grantLabel(UID, photo("p2", { groupId: "g-1" }))).toEqual({ label: null, labelSkipped: "samePost" });
+        expect(trunkRow()?.groups).toEqual([T.groupKey("g-1")]);
+    });
+
+    it("束の台帳は3000件（古い順に落とす）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], groups: Array.from({ length: 3000 }, (_, i) => `old-${i}`) });
+        await grantLabel(UID, photo("p1", { groupId: "new-1" }));
+        const groups = trunkRow()?.groups as string[];
+        expect(groups).toHaveLength(3000);
+        expect(groups[0]).toBe(T.groupKey("new-1"));
+        expect(groups).not.toContain("old-2999");
+    });
+
+    it("下書きをあとで公開: 行を読み直して同じ判定で配る・二重にしない・他人の行は配らない", async () => {
+        setProfile(FREE);
+        const fresh = new Date().toISOString();
+        store.set("photos-test|p1", photo("p1", { location: "京都", createdAt: fresh }) as Item);
+        const a = await T.grantLabelForPhotoQuietly(UID, "p1", "test");
+        expect(a.label?.id).toBe("p1");
+        expect(a.label?.place.name).toBe("京都");
+        // 非公開 → 公開をもう一度
+        expect((await T.grantLabelForPhotoQuietly(UID, "p1", "test")).label?.id).toBe("p1");
+        expect(pocketIds()).toEqual(["p1"]);
+        store.set("photos-test|q1", photo("q1", { userId: "someone-else", createdAt: fresh }) as Item);
+        // 機能を出した日より前に作られた写真は配らない（昔の写真を非公開 → 公開で集めさせない）
+        store.set("photos-test|old", photo("old", { createdAt: "2026-10-01T00:00:00.000Z" }) as Item);
+        expect((await T.grantLabelForPhotoQuietly(UID, "old", "test")).labelSkipped).toBe("notNew");
+        store.set("photos-test|nodate", photo("nodate") as Item);
+        expect((await T.grantLabelForPhotoQuietly(UID, "nodate", "test")).labelSkipped).toBe("notNew");
+        expect((await T.grantLabelForPhotoQuietly(UID, "q1", "test")).labelSkipped).toBe("draft");
+        // 受け取らない設定も同じく効く
+        await call("PUT /user/trunk/settings", { body: { receiveLabels: false } });
+        store.set("photos-test|p2", photo("p2", { createdAt: fresh }) as Item);
+        expect((await T.grantLabelForPhotoQuietly(UID, "p2", "test")).labelSkipped).toBe("off");
+    });
+});
+
+describe("確かめの指摘（2026-10-17）", () => {
+    it("指紋: 撮影日時が無ければ写真 id（機種と大きさだけで同じ指紋にしない）", () => {
+        const noTime = (id: string) => photo(id, { exif: { camera: "Canon EOS R5", imageSize: "8192x5464" } });
+        expect(T.fingerprintOf(noTime("a"))).not.toBe(T.fingerprintOf(noTime("b")));
+        expect(T.fingerprintOf(noTime("a"))).toBe(T.fingerprintOf(photo("a")));
+    });
+
+    it("配る処理が止まっても時間切れで戻る（投稿を待たせない）", async () => {
+        vi.useFakeTimers();
+        setProfile(FREE);
+        mockListMyPhotos.mockReturnValue(new Promise(() => undefined));
+        const p = T.grantLabelQuietly(UID, photo("p1"), "test");
+        await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 10);
+        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout" });
+    });
+
+    it("配る処理が投げても投げない（error）", async () => {
+        setProfile(FREE);
+        mockListMyPhotos.mockRejectedValue(new Error("down"));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await expect(T.grantLabelQuietly(UID, photo("p1"), "test")).resolves.toEqual({ label: null, labelSkipped: "error" });
+        err.mockRestore();
+    });
+
+    it("再送の経路（requireNew）は、機能を出す前に作られた写真に配らない", async () => {
+        setProfile(FREE);
+        expect((await T.grantLabelQuietly(UID, photo("p1", { createdAt: "2026-09-01T00:00:00.000Z" }), "t", { requireNew: true })).labelSkipped).toBe("notNew");
+        expect((await T.grantLabelQuietly(UID, photo("p2", { createdAt: new Date().toISOString() }), "t", { requireNew: true })).label?.id).toBe("p2");
+    });
+
+    it("渡された写真の一覧を使う（もう一度読まない）", async () => {
+        setProfile(FREE);
+        const out = await T.grantLabelQuietly(UID, photo("p1"), "t", { photos: Promise.resolve([photo("o1"), photo("o2")]) });
+        expect(mockListMyPhotos).not.toHaveBeenCalled();
+        expect(out.label?.milestone).toBeUndefined();   // 3件目＝節目でない
+    });
+
+    it("1行の大きさ: 越えるなら配らない（storage・full と分ける）・貼らない（409 storage）", async () => {
+        setProfile(PRO);
+        const big = Array.from({ length: 160 }, (_, i) => label(`s${i}`, { place: { name: "あ".repeat(900) } }));
+        setTrunk({ pocket: [label("a")], stuck: big });
+        expect((await grantLabel(UID, photo("p1"))).labelSkipped).toBe("storage");
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        expect(r.status).toBe(409);
+        expect(r.json.code).toBe("storage");
+    });
+
+    it("いちばん大きい行（手持ち149＋貼った1200＋台帳3000×2）でも、もう1枚配れる", () => {
+        const real = (id: string) => ({
+            ...label(id, { place: { name: "高屋神社・天空の鳥居", latin: "Takaya Shrine", country: "日本" } }),
+            season: "autumn", timeslot: "dawn", foil: true, groupId: T.groupKey(`trip-${id}-0000-0000-0000-000000000000`),
+            id: `${id}`.padEnd(36, "0"), seed: 2_147_000_000,
+        });
+        const doc = parseTrunk({
+            pocket: Array.from({ length: 149 }, (_, i) => real(`p${i}`)),
+            stuck: Array.from({ length: 1200 }, (_, i) => real(`s${i}`)),
+            dealt: Array.from({ length: 3000 }, (_, i) => `x:${String(i).padStart(12, "0")}`),
+            groups: Array.from({ length: 3000 }, (_, i) => `g:${String(i).padStart(12, "0")}`),
+            milestones: ["first", "posts10", "posts50", "posts100", ...Array.from({ length: 50 }, (_, i) => `firstCountry:国${i}`)],
+        });
+        const r = dealInto(doc, { ...real("new"), groupId: undefined } as never, 150, "x:new000000000", new Date());
+        expect(r.outcome.labelSkipped).toBeUndefined();
+        expect(r.doc).not.toBeNull();
+    });
+
+    it("photoId は保存しない（応答では id から埋める）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        expect((trunkRow()?.pocket as Item[])[0].photoId).toBeUndefined();
+        const got = await call("GET /user/trunk");
+        expect((got.json.pocket as Item[])[0].photoId).toBe("p1");
+    });
+
+    it("配った1枚（応答の label）に束の鍵を出さない", async () => {
+        setProfile(FREE);
+        const out = await grantLabel(UID, photo("p1", { groupId: "g-9" }));
+        expect(out.label?.id).toBe("p1");
+        expect((out.label as Item).groupId).toBeUndefined();
+        // 配り済みを返す経路も同じ
+        expect(((await grantLabel(UID, photo("p1", { groupId: "g-9" }))).label as Item).groupId).toBeUndefined();
+    });
+
+    it("貼ったら、そのラベルの選びかけの作り直しを外す", async () => {
+        setProfile(PRO);
+        setTrunk({ pocket: [label("a"), label("b")], stuck: [], pendingReroll: { labelId: "a", seeds: [1, 2, 3], at: "" } });
+        await call("POST /user/trunk/labels/{id}/stick", { id: "b" });
+        expect(trunkRow()?.pendingReroll).toEqual({ labelId: "a", seeds: [1, 2, 3], at: "" });
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        expect(r.json.pendingReroll).toBeUndefined();
+        expect(trunkRow()?.pendingReroll).toBeUndefined();
+    });
+});
+
+describe("保存の形（短い鍵）", () => {
+    it("書いて読むと元の形に戻る", async () => {
+        setProfile(FREE);
+        const out = await grantLabel(UID, photo("p1", {
+            location: "Helsinki, フィンランド", date: "2026-01-10", exif: { dateTimeOriginal: "2026:01:10 05:00:00" }, groupId: "g-1",
+        }), new Date("2026-10-17T00:00:00.123Z"), (a, b) => (b === 10_000 ? 0 : 77));
+        const raw = (trunkRow()?.pocket as Item[])[0];
+        expect(raw.i).toBe("p1");
+        expect(raw.id).toBeUndefined();
+        const back = ((await call("GET /user/trunk")).json.pocket as Item[])[0];
+        expect(back).toEqual(out.label);
+        expect(back).toMatchObject({ id: "p1", photoId: "p1", seed: 77, foil: true, at: "2026-10-17T00:00:00.000Z" });
     });
 });

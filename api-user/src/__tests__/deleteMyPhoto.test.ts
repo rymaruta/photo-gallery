@@ -81,11 +81,12 @@ beforeEach(() => {
 });
 
 describe("deleteMyPhoto: 旅のトランク", () => {
-    it("行を消したあとに、投稿の時刻つきでラベルの取り消しを頼む", async () => {
+    it("行を消したあとに、消す前の行を渡してラベルの取り消しを頼む", async () => {
         world({ ...PHOTO, createdAt: "2026-10-17T00:00:00.000Z" });
         const res = await invoke(ME, "p1");
         expect(res.statusCode).toBe(200);
-        expect(mockRevoke).toHaveBeenCalledWith(ME, "p1", "2026-10-17T00:00:00.000Z", "deleteMyPhoto(p1)");
+        // 消す前の行を渡す（束・初めての公開・作成の時刻を trunk が読む）
+        expect(mockRevoke).toHaveBeenCalledWith(ME, expect.objectContaining({ id: "p1", createdAt: "2026-10-17T00:00:00.000Z" }), "deleteMyPhoto(p1)");
         const rowDeleted = mockDdbSend.mock.invocationCallOrder[
             mockDdbSend.mock.calls.findIndex((c) => c[0].constructor.name === "DeleteCommand" && c[0].input.Key.id === "p1")];
         expect(rowDeleted).toBeLessThan(mockRevoke.mock.invocationCallOrder[0]);
