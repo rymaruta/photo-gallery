@@ -1225,11 +1225,15 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     }
 };
 
-/** 2行をそのまま読む（並べて Get。BatchGetItem の権限は持たない） */
+/**
+ * 2行をそのまま読む（並べて Get。BatchGetItem の権限は持たない）。
+ * **強い読み**（ConsistentRead）——書き込みの土台にするので、直前の書き込みを見落とすと
+ * 同じ rev で書きに行って競合の往復が増える（結果整合の読みでも rev 条件で守られるが、やり直しが無駄に増える）
+ */
 async function readTrunkRows(uid: string): Promise<{ main?: Record<string, unknown>; ledger?: Record<string, unknown> }> {
     const [a, b] = await Promise.all([
-        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(uid) } })),
-        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkLedgerId(uid) } })),
+        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(uid) }, ConsistentRead: true })),
+        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkLedgerId(uid) }, ConsistentRead: true })),
     ]);
     return { main: a.Item as Record<string, unknown> | undefined, ledger: b.Item as Record<string, unknown> | undefined };
 }
