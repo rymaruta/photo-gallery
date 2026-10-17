@@ -17,6 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
+import { revokeLabelQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
@@ -987,6 +988,10 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
                 console.error(`deleteMyPhoto: アルバムから取り除けませんでした（${id}）:`, e);
             });
         }
+
+        // **旅のトランクのラベルを取り消す**（投稿から24時間以内・手持ちに残っているときだけ。
+        // `trunk.ts`）。投げない・上限つきで待つ。指紋は台帳に残るので、上げ直しても届かない
+        await revokeLabelQuietly(callerId, id, item.createdAt, `deleteMyPhoto(${id})`);
 
         // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
         // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false

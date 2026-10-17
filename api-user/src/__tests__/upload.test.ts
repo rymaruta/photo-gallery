@@ -33,6 +33,10 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
 const mockRefreshBadges = vi.hoisted(() => vi.fn());
 vi.mock("../badgeStore", () => ({ refreshBadgesQuietly: mockRefreshBadges }));
 
+// 旅のトランク（`trunk.ts`）。中身は `trunk.test.ts` が見るので、ここは呼ばれ方と応答の形だけ
+const mockGrantLabel = vi.hoisted(() => vi.fn());
+vi.mock("../trunk", () => ({ grantLabelQuietly: mockGrantLabel }));
+
 // 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
 // ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
 // import が増えたときに足す必要がある**（台帳が何度も踏んでいる型）
@@ -119,6 +123,7 @@ beforeEach(() => {
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
+    mockGrantLabel.mockReset().mockResolvedValue({ label: null, labelSkipped: "draft" });
     mockReadVisibleSource.mockReset().mockResolvedValue(null);
     mockNotifyInspired.mockReset().mockResolvedValue(undefined);
 });
@@ -1817,6 +1822,52 @@ describe("savePhoto: 2枚目以降（extraImages）", () => {
         }));
         await invoke(event("u1", { ...BASE, extraImages: [extra("b.webp")] }));
         expect(savedRewrite().extraImages).toEqual([{ src: "https://cdn.example.com/uploads/u1/b.webp" }]);
+    });
+});
+
+describe("savePhoto: 旅のトランクのラベル", () => {
+    const LABEL = { id: "x", photoId: "x", kind: "place", place: { name: "京都" }, seed: 1, at: "2026-10-17T00:00:00.000Z" };
+
+    it("保存のあとに配り、応答に label を足す（既存の形は残す）", async () => {
+        mockGrantLabel.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        const body = JSON.parse(res.body);
+        expect(body.success).toBe(true);
+        expect(body.photo.id).toBe(savedPhoto().id);
+        expect(body.label).toEqual(LABEL);
+        expect(body.labelSkipped).toBeUndefined();
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect(mockGrantLabel.mock.calls[0][0]).toBe("u1");
+        expect(mockPutPhoto.mock.invocationCallOrder[0]).toBeLessThan(mockGrantLabel.mock.invocationCallOrder[0]);
+    });
+
+    it("いっぱいなら label: null と理由（投稿は 200）", async () => {
+        mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full" });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "full" });
+    });
+
+    it("再送（行が在る）でも配る口を通す——二重かどうかは trunk が写真の id で決める", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: idFromUploadKey(BASE.key), userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGrantLabel.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect((mockGrantLabel.mock.calls[0][1] as Photo).published).toBe(true);
+        expect(JSON.parse(res.body).label).toEqual(LABEL);
+    });
+
+    it("保存に失敗したら配らない", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("ddb down"));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await invoke(event("u1", { ...BASE, published: true }));
+        err.mockRestore();
+        expect(mockGrantLabel).not.toHaveBeenCalled();
     });
 });
 
