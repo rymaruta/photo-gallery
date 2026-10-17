@@ -1844,6 +1844,12 @@ describe("savePhoto: 旅のトランクのラベル", () => {
         expect(mockPutPhoto.mock.invocationCallOrder[0]).toBeLessThan(mockGrantLabel.mock.invocationCallOrder[0]);
     });
 
+    it("配った硬貨の枚数（coin）を応答に載せる（手持ちがいっぱいでも硬貨は配られる）", async () => {
+        mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full", coin: 1 });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "full", coin: 1 });
+    });
+
     it("いっぱいなら label: null と理由（投稿は 200）", async () => {
         mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full" });
         const res = await invoke(event("u1", { ...BASE, published: true }));

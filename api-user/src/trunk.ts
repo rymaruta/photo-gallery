@@ -12,6 +12,7 @@ import {
     prefectureOfPhoto, seasonOf, yearMonthOf,
 } from "./badges";
 import type { Photo } from "./types";
+import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
 
 /**
  * 旅のトランク（iOS の新機能・2026-10-17 owner 承認）。
@@ -33,7 +34,12 @@ import type { Photo } from "./types";
  *     pendingReroll  { labelId, seeds[3], at }（作り直しの候補・選ぶまで）
  *     receiveLabels  ラベルを受け取るか（既定 true。false の間は配らない・戻してもさかのぼらない）
  *     dealt[]        配った写真の指紋の台帳（新しい順・最新 3000 件）。**写真やラベルを消しても消さない**
- *     daily          { day: 日本時間の YYYY-MM-DD, count }（その日に配った枚数）
+ *     daily          { day: 日本時間の YYYY-MM-DD, count }（その日に配った投稿の数＝ラベルか硬貨を配った数）
+ *     coins          硬貨の枚数（0〜99）。公開の投稿1件につき1枚（2026-10-17 次の版）
+ *     coinLog[]      24時間以内に硬貨を配った投稿 { k: 写真の id か束の鍵, a: 秒 }（取り消し用・古いものは書くたびに落とす）
+ *     parts[]        持っている部品の id（`trunkParts.ts`・新しい順）
+ *     fragments      かけらの数（ガチャで持っている部品が出たら +1・5つで交換）
+ *     equipped       付けている部品 { handle, corner, lock, lining, tag, charm, key, pins[≤3], patches[≤2] }
  *     rev            書き込みの版
  *
  * ## 決まり
@@ -46,6 +52,12 @@ import type { Photo } from "./types";
  * - 作り直しは Pro だけ・日本時間の月に3回・繰り越しなし。候補3つを出し、選んで確定
  * - Pro の型は Pro の間だけ選べる。やめたら `effectiveModel` を `lastFreeModel` にし、
  *   保存（`model`）は残す（再開すれば戻る）。手持ちが30を超えていても消さない
+ * - 貼ったラベルは置き場 `pos` { x, y, rot } を持てる（x・y はトランク正面の 0〜1・rot は -30〜30 度）。
+ *   無ければアプリがおまかせで置く。はがすと手持ちに戻り、置き場は消える
+ * - **硬貨**（2026-10-17 次の版）: ラベルと同じ歯止め（指紋・束・1日3件・notNew）を通った投稿に1枚。
+ *   **手持ちがいっぱいでも・受け取らない設定でも配る**（受け取らない設定はラベルのこと）。上限 99 枚。
+ *   お金では買えない。24時間以内の削除・非公開で取り消し（まだ持っていれば1枚減らす。0 枚なら何もしない）
+ * - ガチャは硬貨1枚。段（70/25/5%）→ その段の部品から等確率。持っていれば「かけら」+1。かけら5つで交換
  */
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
@@ -74,6 +86,9 @@ export const FOIL_PER_10000 = 200;
  *   ラベル 1350 枚（手持ち150＋貼った1200）× 約190B（短い鍵で保存・`stored`）≈ 250KB
  *   ＋ 指紋の台帳 3000 × 約17B ≈ 50KB ＋ 束の台帳 3000 × 約17B ≈ 50KB ＋ 節目の記録 ≈ 数KB
  *   ＝ およそ 350KB（JSON で数えた値。DynamoDB の数え方はこれより小さい）。
+ *   ＋ 次の版（2026-10-17）: 貼った 1200 枚の置き場（`p` の整数3つ・1枚 約20B）≈ 24KB ＋ 部品 108 個 ≈ 1.4KB ＋
+ *   付けた部品・かけら・硬貨・硬貨の控え ≈ 1KB。いちばん大きい行の実測は 387,356B（予算 389,120B の内・
+ *   置き場・部品なしなら 362,519B）。**残りは 1.7KB しかない**——ここに何か足すなら、先に削る所を決める
  *   ふつうの鍵のまま（1枚 約280B）だと 470KB で入らなかった
  *   ⚠️ 地名を長く書く人では越えうる。そのときは配らない・貼らない（黙って切り詰めない）
  * （2026-10-17 判断: 越えるなら配らない（`storage`）・貼らない（409 `storage`）。黙って切り詰めない）
@@ -103,6 +118,24 @@ export const DEALT_LEDGER_MAX = 3000;
  * 束（`groups`）の台帳は指紋の台帳と同じ 3000 件・古い順に落とす（2026-10-17 判断）
  */
 export const MILESTONE_LEDGER_MAX = 300;
+
+/** 硬貨の上限（超えたら配らない・2026-10-17 owner） */
+export const COINS_MAX = 99;
+/** 交換に要るかけらの数 */
+export const FRAGMENTS_PER_EXCHANGE = 5;
+/** 付けられる数（ピンバッジ・ワッペン） */
+export const PINS_MAX = 3;
+export const PATCHES_MAX = 2;
+/** 1つずつ付ける部品の場所（ピンバッジとワッペンは並びで持つ） */
+export const SINGLE_SLOTS = ["handle", "corner", "lock", "lining", "tag", "charm", "key"] as const;
+export type SingleSlot = (typeof SINGLE_SLOTS)[number];
+/**
+ * 硬貨の取り消しの控え（`coinLog`）の上限。24時間より古いものは書くたびに落とすので、1日3件の
+ * 歯止めのもとでは多くても6件ほど。念のための上限
+ */
+const COIN_LOG_MAX = 20;
+/** 置き場の傾きの範囲（度） */
+export const ROT_MAX = 30;
 
 /** 本流（savePhoto）の中で待ってよい上限。メダルの数え直し（`badgeStore.ts` の QUIET_LIMIT_MS）と同じ */
 export const TRUNK_QUIET_LIMIT_MS = 2500;
@@ -136,7 +169,16 @@ export type TrunkLabel = {
      * 保存するのは `groupId` そのものではなく短いハッシュ（`g:` ＋12桁）——束の台帳（`groups`）も同じ値
      */
     groupId?: string;
+    /**
+     * 貼った置き場（貼ったラベルだけ・無ければおまかせ）。2026-10-17 判断: x・y は小数3桁、rot は小数1桁に
+     * 丸めて保存する（1200 枚に持たせても1行が 400KB を越えないように・`stored` の `p`）
+     */
+    pos?: TrunkPos;
 };
+
+export type TrunkPos = { x: number; y: number; rot: number };
+
+export type Equipped = { [K in SingleSlot]?: string } & { pins: string[]; patches: string[] };
 
 export type PendingReroll = { labelId: string; seeds: number[]; at: string };
 
@@ -154,6 +196,12 @@ export type TrunkDoc = {
     milestones: string[];
     /** 配った束（写真の `groupId`）。手持ちから消しても残す（同じ束の別の写真に配らない） */
     groups: string[];
+    coins: number;
+    /** 24時間以内に硬貨を配った投稿（取り消し用）。`a` は秒 */
+    coinLog: { k: string; a: number }[];
+    parts: string[];
+    fragments: number;
+    equipped: Equipped;
 };
 
 const isIn = <T extends string>(list: readonly T[], v: unknown): v is T =>
@@ -219,6 +267,7 @@ export function parseTrunk(item: Record<string, unknown> | undefined): TrunkDoc 
         ? (v as unknown[]).map(decodeLabel).filter(isTrunkLabel).map((l) => ({ ...l, photoId: l.id }))
         : [];
     const r = item?.rerolls as { month?: unknown; used?: unknown } | undefined;
+    const parts = [...new Set(strings(item?.parts).filter((id) => !!partOf(id)))];
     const p = item?.pendingReroll as { labelId?: unknown; seeds?: unknown; at?: unknown } | undefined;
     const pending: PendingReroll | undefined = p && typeof p.labelId === "string" && Array.isArray(p.seeds)
         && p.seeds.every(isSeed) && p.seeds.length > 0
@@ -242,7 +291,31 @@ export function parseTrunk(item: Record<string, unknown> | undefined): TrunkDoc 
             day: typeof (item?.daily as { day?: unknown })?.day === "string" ? (item!.daily as { day: string }).day : "",
             count: typeof (item?.daily as { count?: unknown })?.count === "number" ? (item!.daily as { count: number }).count : 0,
         },
+        coins: Math.min(COINS_MAX, count(item?.coins)),
+        coinLog: Array.isArray(item?.coinLog)
+            ? (item!.coinLog as unknown[]).filter((e): e is { k: string; a: number } =>
+                !!e && typeof e === "object" && typeof (e as { k?: unknown }).k === "string"
+                && typeof (e as { a?: unknown }).a === "number")
+                .map((e) => ({ k: e.k, a: e.a }))
+            : [],
+        parts,
+        fragments: count(item?.fragments),
+        equipped: parseEquipped(item?.equipped, new Set(parts)),
     };
+}
+
+/** 0 以上の整数（違えば 0） */
+const count = (v: unknown): number => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
+
+/** 付けている部品を読み直す。持っていない・kind の合わない・知らない id は落とす */
+function parseEquipped(v: unknown, owned: Set<string>): Equipped {
+    const e = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+    const fits = (id: unknown, kind: PartKind): id is string => partOf(id)?.kind === kind && owned.has(id as string);
+    const out: Equipped = { pins: [], patches: [] };
+    for (const slot of SINGLE_SLOTS) if (fits(e[slot], slot)) out[slot] = e[slot] as string;
+    out.pins = [...new Set(strings(e.pins).filter((id) => fits(id, "pin")))].slice(0, PINS_MAX);
+    out.patches = [...new Set(strings(e.patches).filter((id) => fits(id, "patch")))].slice(0, PATCHES_MAX);
+    return out;
 }
 
 /** 書く項目（`updateUserRow` が id・uid・rev・updatedAt を足す） */
@@ -259,7 +332,21 @@ function serialize(doc: TrunkDoc): Record<string, unknown> {
         daily: doc.daily,
         milestones: doc.milestones.slice(0, MILESTONE_LEDGER_MAX),
         groups: doc.groups.slice(0, DEALT_LEDGER_MAX),
+        coins: doc.coins,
+        coinLog: doc.coinLog.slice(0, COIN_LOG_MAX),
+        parts: doc.parts,
+        fragments: doc.fragments,
+        equipped: compactEquipped(doc.equipped),
     };
+}
+
+/** 空の場所は書かない（1行を小さく保つ） */
+function compactEquipped(e: Equipped): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const slot of SINGLE_SLOTS) if (e[slot]) out[slot] = e[slot];
+    if (e.pins.length) out.pins = e.pins;
+    if (e.patches.length) out.patches = e.patches;
+    return out;
 }
 
 /**
@@ -269,7 +356,8 @@ function serialize(doc: TrunkDoc): Record<string, unknown> {
  * `photoId` は `id` と同じなので持たない。読むとき（`decodeLabel`）に元の形へ戻す
  *
  *     i id ・ k kind(m/t/s/p) ・ n 地名 ・ l latin ・ c 国 ・ s 季節(0-3) ・ t 時刻(0-2) ・
- *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵
+ *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵 ・
+ *     p 置き場 [x×1000, y×1000, rot×10]（整数）
  */
 const KIND_CODE: Record<LabelKind, string> = { milestone: "m", timeslot: "t", season: "s", place: "p" };
 const KIND_BY_CODE: Record<string, LabelKind> = { m: "milestone", t: "timeslot", s: "season", p: "place" };
@@ -289,6 +377,7 @@ function stored(l: TrunkLabel): Record<string, unknown> {
         a: Number.isFinite(at) ? Math.floor(at / 1000) : 0,
         ...(l.foil ? { f: 1 } : {}),
         ...(l.groupId ? { g: l.groupId } : {}),
+        ...(l.pos ? { p: [Math.round(l.pos.x * 1000), Math.round(l.pos.y * 1000), Math.round(l.pos.rot * 10)] } : {}),
     };
 }
 
@@ -313,7 +402,30 @@ function decodeLabel(v: unknown): unknown {
         at: typeof r.a === "number" ? new Date(r.a * 1000).toISOString() : "",
         ...(r.f === 1 ? { foil: true } : {}),
         ...(typeof r.g === "string" ? { groupId: r.g } : {}),
+        ...(posOfStored(r.p) ? { pos: posOfStored(r.p) } : {}),
     };
+}
+
+function posOfStored(v: unknown): TrunkPos | undefined {
+    if (!Array.isArray(v) || v.length !== 3 || !v.every((n) => typeof n === "number" && Number.isFinite(n))) return undefined;
+    const pos = { x: v[0] / 1000, y: v[1] / 1000, rot: v[2] / 10 };
+    return isPos(pos) ? pos : undefined;
+}
+
+const isPos = (p: TrunkPos) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1 && p.rot >= -ROT_MAX && p.rot <= ROT_MAX;
+
+/**
+ * 本文の置き場を読む。x・y・rot のどれも無ければ undefined（おまかせ）。
+ * 1つでもあれば3つとも要る（数で・範囲の内）。違えば 400 `badPlace`。保存の細かさに丸めて返す
+ */
+export function parsePos(b: Record<string, unknown>): TrunkPos | undefined {
+    if (b.x === undefined && b.y === undefined && b.rot === undefined) return undefined;
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : NaN);
+    const pos = { x: num(b.x), y: num(b.y), rot: num(b.rot) };
+    if (![pos.x, pos.y, pos.rot].every(Number.isFinite) || !isPos(pos)) {
+        throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+    }
+    return { x: Math.round(pos.x * 1000) / 1000, y: Math.round(pos.y * 1000) / 1000, rot: Math.round(pos.rot * 10) / 10 };
 }
 
 const fitsBudget = (doc: TrunkDoc) => Buffer.byteLength(JSON.stringify(serialize(doc)), "utf8") <= TRUNK_BUDGET_BYTES;
@@ -451,51 +563,83 @@ export type DealOutcome = {
     /** 応答に出す形（`stripInternal` を通したもの。束の鍵は出さない） */
     label: PublicLabel | null;
     labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error";
+    /** この投稿で配った硬貨の枚数（0 か 1）。savePhoto・写真の編集の応答にそのまま載る */
+    coin: 0 | 1;
 };
 
+/** 配らなかったときの形 */
+export const noDeal = (labelSkipped: DealOutcome["labelSkipped"]): DealOutcome => ({ label: null, labelSkipped, coin: 0 });
+
+/** 硬貨の取り消しの控えの鍵（束なら束の鍵＝`g:`、そうでなければ写真の id。id は `:` を持たないので混ざらない） */
+const coinKeyOf = (l: TrunkLabel) => l.groupId ?? l.id;
+
+/** 24時間を過ぎた控えを落とす */
+const freshCoinLog = (log: TrunkDoc["coinLog"], now: Date) =>
+    log.filter((e) => now.getTime() - e.a * 1000 <= REVOKE_WINDOW_MS);
+
 /**
- * 手持ちに足す（純関数）。**変えないときは doc: null**。
+ * 手持ちに足す・硬貨を配る（純関数）。**変えないときは doc: null**。
  * この順に見る:
- * - 同じ id が手持ちか貼った方に在る → そのラベルを返す（再送・非公開→公開で二度配らない）
- * - 受け取らない設定 → 配らない（`off`）。台帳にも載せない
+ * - 同じ id が手持ちか貼った方に在る → そのラベルを返す（再送・非公開→公開で二度配らない・硬貨も 0）
  * - 同じ束の投稿に配り済み → 配らない（`samePost`）
  * - 指紋が台帳に在る（消して上げ直した・前に配って手持ちから削除した）→ 配らない（`duplicate`）
- * - その日に3枚配った → 配らない（`daily`）
- * - 手持ちが上限 → 配らない（`full`）。貼ったものは数えない
+ * - その日に3件配った → 配らない（`daily`）
+ * ここまでがラベルと硬貨に共通の歯止め。通った投稿には:
+ * - 硬貨を1枚（99 枚なら配らない）。**受け取らない設定・手持ちがいっぱいでも配る**
+ * - ラベルを1枚。受け取らない設定 → `off`・手持ちが上限 → `full`（貼ったものは数えない）
+ * どちらか1つでも配れたら、指紋・束・日の数を台帳に載せる（2026-10-17 判断: 硬貨だけ配った投稿も
+ * 「報いを受け取った投稿」として台帳に載せる。載せないと、受け取らない設定のまま消して上げ直すと
+ * 硬貨を何度でも集められる）。どちらも配れなければ何も書かない（今までの `full` と同じ）。
+ * 受け取らない設定のときは、ラベルの理由はいつも `off`（歯止めで止まったときも・今までの返し方のまま）
  */
 export function dealInto(
     doc: TrunkDoc, label: TrunkLabel, limit: number, fingerprint: string, now: Date,
 ): { doc: TrunkDoc | null; outcome: DealOutcome } {
     const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
-    if (existing) return { doc: null, outcome: { label: stripInternal(existing) } };
-    if (!doc.receiveLabels) return { doc: null, outcome: { label: null, labelSkipped: "off" } };
+    if (existing) return { doc: null, outcome: { label: stripInternal(existing), coin: 0 } };
+    const skip = (why: DealOutcome["labelSkipped"]) => ({ doc: null, outcome: noDeal(doc.receiveLabels ? why : "off") });
     // 束は台帳で見る（手持ちから消しても、同じ束の別の写真には配らない）。台帳を入れる前に配った分は手持ち・貼った方で見る
     if (label.groupId && (doc.groups.includes(label.groupId)
         || [...doc.pocket, ...doc.stuck].some((l) => l.groupId === label.groupId))) {
-        return { doc: null, outcome: { label: null, labelSkipped: "samePost" } };
+        return skip("samePost");
     }
     // 台帳は配ったときに必ず載る＝手持ちから削除したあとの再送でも、消して上げ直しても戻らない
-    if (doc.dealt.includes(fingerprint)) {
-        return { doc: null, outcome: { label: null, labelSkipped: "duplicate" } };
-    }
+    if (doc.dealt.includes(fingerprint)) return skip("duplicate");
     const day = jstDay(now);
     const todayCount = doc.daily.day === day ? doc.daily.count : 0;
-    if (todayCount >= DAILY_DEAL_MAX) return { doc: null, outcome: { label: null, labelSkipped: "daily" } };
-    if (doc.pocket.length >= limit) return { doc: null, outcome: { label: null, labelSkipped: "full" } };
-    // **節目は一度きり**（写真を全部消して投稿し直しても、同じ節目は二度と配らない）。
-    // 配り済みなら節目を外し、残りの順（時刻 ＞ 季節 ＞ 土地）で kind を決め直す
-    const msKey = milestoneKey(label);
-    const given = msKey !== null && doc.milestones.includes(msKey) ? withoutMilestone(label) : label;
-    const next: TrunkDoc = {
+    if (todayCount >= DAILY_DEAL_MAX) return skip("daily");
+
+    const coin: 0 | 1 = doc.coins < COINS_MAX ? 1 : 0;
+    let labelSkipped: DealOutcome["labelSkipped"] = !doc.receiveLabels ? "off"
+        : doc.pocket.length >= limit ? "full" : undefined;
+    if (labelSkipped && !coin) return { doc: null, outcome: noDeal(labelSkipped) };
+
+    const base: TrunkDoc = {
         ...doc,
-        pocket: [given, ...doc.pocket],
         dealt: [fingerprint, ...doc.dealt],   // 上限（古い順に落とす）は serialize で切る
         daily: { day, count: todayCount + 1 },
-        ...(given.milestone && msKey ? { milestones: [msKey, ...doc.milestones] } : {}),
         ...(label.groupId ? { groups: [label.groupId, ...doc.groups] } : {}),
+        ...(coin ? {
+            coins: doc.coins + 1,
+            coinLog: [{ k: coinKeyOf(label), a: Math.floor(now.getTime() / 1000) }, ...freshCoinLog(doc.coinLog, now)],
+        } : {}),
     };
-    if (!fitsBudget(next)) return { doc: null, outcome: { label: null, labelSkipped: "storage" } };
-    return { doc: next, outcome: { label: stripInternal(given) } };
+    if (!labelSkipped) {
+        // **節目は一度きり**（写真を全部消して投稿し直しても、同じ節目は二度と配らない）。
+        // 配り済みなら節目を外し、残りの順（時刻 ＞ 季節 ＞ 土地）で kind を決め直す
+        const msKey = milestoneKey(label);
+        const given = msKey !== null && doc.milestones.includes(msKey) ? withoutMilestone(label) : label;
+        const next: TrunkDoc = {
+            ...base,
+            pocket: [given, ...doc.pocket],
+            ...(given.milestone && msKey ? { milestones: [msKey, ...doc.milestones] } : {}),
+        };
+        if (fitsBudget(next)) return { doc: next, outcome: { label: stripInternal(given), coin } };
+        labelSkipped = "storage";
+    }
+    // ラベルは配れない。硬貨だけ配る（1行に入らなければ何も配らない）
+    if (!coin || !fitsBudget(base)) return { doc: null, outcome: noDeal(labelSkipped) };
+    return { doc: base, outcome: { label: null, labelSkipped, coin } };
 }
 
 /** 節目の記録の鍵。「はじめての国」は国ごと（`firstCountry:フランス`） */
@@ -526,7 +670,7 @@ async function readProfileBits(uid: string): Promise<Record<string, unknown> | u
 export async function grantLabel(
     uid: string, photo: Photo, now: Date = new Date(), rand: Rand = cryptoRand, photos?: Promise<Photo[]>,
 ): Promise<DealOutcome> {
-    if (!uid || !isCountablePhoto(photo)) return { label: null, labelSkipped: "draft" };
+    if (!uid || !isCountablePhoto(photo)) return noDeal("draft");
     // 本人の写真の一覧は、渡されたら使う（savePhoto がメダルの数え直しと1回の読みを分け合う）
     const [profile, mine] = await Promise.all([readProfileBits(uid), photos ?? listMyPhotos(uid)]);
     const limit = pocketLimit(isPro(profile, now.getTime()));
@@ -536,7 +680,7 @@ export async function grantLabel(
     // 乱数は**書く前に1回だけ**引く（競合で読み直しても同じ1枚を足す）
     const label = buildLabel(photo, others, now, rand);
     const fp = fingerprintOf(photo);
-    let outcome: DealOutcome = { label: null, labelSkipped: "error" };
+    let outcome: DealOutcome = noDeal("error");
     await updateUserRow(trunkId(uid), uid, (item) => {
         const r = dealInto(parseTrunk(item), label, limit, fp, now);
         outcome = r.outcome;
@@ -561,15 +705,15 @@ export async function grantLabelForPhotoQuietly(uid: string, photoId: string, la
                 const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
                 const row = res.Item as Photo | undefined;
                 // 持ち主の行だけ（読み直すあいだに消えた・別の人の行は配らない）
-                if (!row || (row.userId ?? row.uploadedBy) !== uid) return { label: null, labelSkipped: "draft" };
-                if (!createdAfterLaunch(row)) return { label: null, labelSkipped: "notNew" };
+                if (!row || (row.userId ?? row.uploadedBy) !== uid) return noDeal("draft");
+                if (!createdAfterLaunch(row)) return noDeal("notNew");
                 return grantLabel(uid, row);
             })().catch((e): DealOutcome => {
                 console.error(`${label}: ラベルを配れませんでした（${uid}）:`, e);
-                return { label: null, labelSkipped: "error" };
+                return noDeal("error");
             }),
             new Promise<DealOutcome>((resolve) => {
-                timer = setTimeout(() => resolve({ label: null, labelSkipped: "timeout" }), TRUNK_QUIET_LIMIT_MS);
+                timer = setTimeout(() => resolve(noDeal("timeout")), TRUNK_QUIET_LIMIT_MS);
             }),
         ]);
     } finally {
@@ -596,17 +740,17 @@ export function createdAfterLaunch(p: { createdAt?: unknown }): boolean {
 export async function grantLabelQuietly(
     uid: string, photo: Photo, label: string, opts: { photos?: Promise<Photo[]>; requireNew?: boolean } = {},
 ): Promise<DealOutcome> {
-    if (!uid || !isCountablePhoto(photo)) return { label: null, labelSkipped: "draft" };
-    if (opts.requireNew && !createdAfterLaunch(photo)) return { label: null, labelSkipped: "notNew" };
+    if (!uid || !isCountablePhoto(photo)) return noDeal("draft");
+    if (opts.requireNew && !createdAfterLaunch(photo)) return noDeal("notNew");
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([
             grantLabel(uid, photo, new Date(), cryptoRand, opts.photos).catch((e): DealOutcome => {
                 console.error(`${label}: ラベルを配れませんでした（${uid}）:`, e);
-                return { label: null, labelSkipped: "error" };
+                return noDeal("error");
             }),
             new Promise<DealOutcome>((resolve) => {
-                timer = setTimeout(() => resolve({ label: null, labelSkipped: "timeout" }), TRUNK_QUIET_LIMIT_MS);
+                timer = setTimeout(() => resolve(noDeal("timeout")), TRUNK_QUIET_LIMIT_MS);
             }),
         ]);
     } finally {
@@ -629,7 +773,20 @@ function view(doc: TrunkDoc, pro: boolean, now: Date) {
         rerolls: { left: pro ? Math.max(0, REROLLS_PER_MONTH - rerollsUsed(doc, now)) : 0, month: jstMonth(now) },
         ...(doc.pendingReroll ? { pendingReroll: doc.pendingReroll } : {}),
         receiveLabels: doc.receiveLabels,
+        coins: doc.coins,
+        parts: doc.parts,
+        fragments: doc.fragments,
+        equipped: viewEquipped(doc.equipped),
     };
+}
+
+/** 応答の形は場所を全部並べる（付けていない場所は null・ピンとワッペンは空の並び） */
+function viewEquipped(e: Equipped) {
+    const out: Record<string, string | null | string[]> = {};
+    for (const slot of SINGLE_SLOTS) out[slot] = e[slot] ?? null;
+    out.pins = e.pins;
+    out.patches = e.patches;
+    return out;
 }
 
 export type PublicLabel = Omit<TrunkLabel, "groupId">;
@@ -671,8 +828,11 @@ function body(event: { body?: string | null; isBase64Encoded?: boolean }): Recor
     }
 }
 
-/** 手持ちから貼る。貼った方に在れば何もしない（再送で 404 にしない） */
-export const stickMutation = (id: string): Mutation => (doc) => {
+/**
+ * 手持ちから貼る。貼った方に在れば何もしない（再送で 404 にしない）。
+ * `pos` があればその置き場に、無ければ置き場なし（アプリがおまかせで置く）
+ */
+export const stickMutation = (id: string, pos?: TrunkPos): Mutation => (doc) => {
     if (doc.stuck.some((l) => l.id === id)) return null;
     const label = doc.pocket.find((l) => l.id === id);
     if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
@@ -680,10 +840,110 @@ export const stickMutation = (id: string): Mutation => (doc) => {
     return {
         ...doc,
         pocket: doc.pocket.filter((l) => l.id !== id),
-        stuck: [label, ...doc.stuck],
+        stuck: [pos ? { ...label, pos } : label, ...doc.stuck],
         // 選びかけの作り直しは手持ちのラベルだけのもの。貼ったら捨てる（使った回数は戻らない）
         ...(doc.pendingReroll?.labelId === id ? { pendingReroll: undefined } : {}),
     };
+};
+
+/**
+ * 貼ったラベルを置き直す（一括のおまかせ並べは、アプリがこれを順に呼ぶ）。
+ * 手持ちのラベルは 409 `notStuck`（先に貼る）・どこにも無ければ 404
+ */
+export const placeMutation = (id: string, pos: TrunkPos | undefined): Mutation => (doc) => {
+    if (!pos) throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+    const label = doc.stuck.find((l) => l.id === id);
+    if (!label) {
+        if (doc.pocket.some((l) => l.id === id)) throw new TrunkError(409, "まだ貼っていないラベルです", "notStuck");
+        throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    }
+    const cur = label.pos;
+    if (cur && cur.x === pos.x && cur.y === pos.y && cur.rot === pos.rot) return null;
+    return { ...doc, stuck: doc.stuck.map((l) => (l.id === id ? { ...l, pos } : l)) };
+};
+
+/**
+ * はがして手持ちに戻す（手持ちのいちばん上・置き場は消す）。手持ちが上限なら 409 `full`。
+ * 手持ちに在れば何もしない（再送で 404 にしない）。24時間の取り消し・指紋の台帳は変えない
+ */
+export const unstickMutation = (id: string): Mutation => (doc, { pro }) => {
+    if (doc.pocket.some((l) => l.id === id)) return null;
+    const label = doc.stuck.find((l) => l.id === id);
+    if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    if (doc.pocket.length >= pocketLimit(pro)) throw new TrunkError(409, "手持ちがいっぱいです", "full");
+    const { pos: _p, ...rest } = label;
+    void _p;
+    return { ...doc, stuck: doc.stuck.filter((l) => l.id !== id), pocket: [rest, ...doc.pocket] };
+};
+
+/** ガチャの乱数（書く前に引く。競合で読み直しても同じ1回にする） */
+export type GachaRoll = { tier: number; pick: number };
+
+export function rollGacha(rand: Rand = cryptoRand): GachaRoll {
+    const tier = rarityOfRoll(rand(0, 100));
+    return { tier, pick: rand(0, PARTS_BY_RARITY[tier].length) };
+}
+
+export type GachaResult = { part: TrunkPart; duplicate: boolean; fragments: number; coins: number };
+
+/**
+ * 硬貨を1枚使って部品を1つ引く。持っていない部品なら部品箱へ、持っていれば「かけら」+1。
+ * 硬貨が 0 なら 409 `noCoins`。結果は `out` に書く（最後に通った1回のもの）
+ */
+export const gachaMutation = (roll: GachaRoll, out: { result?: GachaResult }): Mutation => (doc) => {
+    if (doc.coins < 1) throw new TrunkError(409, "硬貨がありません", "noCoins");
+    const part = PARTS_BY_RARITY[roll.tier][roll.pick];
+    const duplicate = doc.parts.includes(part.id);
+    const next: TrunkDoc = {
+        ...doc,
+        coins: doc.coins - 1,
+        ...(duplicate ? { fragments: doc.fragments + 1 } : { parts: [part.id, ...doc.parts] }),
+    };
+    out.result = { part, duplicate, fragments: next.fragments, coins: next.coins };
+    return next;
+};
+
+/** かけら5つで、持っていない部品1つと交換。持っていれば 409 `owned`・足りなければ 409 `notEnoughFragments` */
+export const exchangeMutation = (partId: unknown): Mutation => (doc) => {
+    const part = partOf(partId);
+    if (!part) throw new TrunkError(400, "部品が正しくありません", "badPart");
+    if (doc.parts.includes(part.id)) throw new TrunkError(409, "もう持っている部品です", "owned");
+    if (doc.fragments < FRAGMENTS_PER_EXCHANGE) throw new TrunkError(409, "かけらが足りません", "notEnoughFragments");
+    return { ...doc, parts: [part.id, ...doc.parts], fragments: doc.fragments - FRAGMENTS_PER_EXCHANGE };
+};
+
+/**
+ * 部品を付ける。本文に在る場所だけ変える（無い場所はそのまま）。null で外す。
+ * - 知らない id は 400 `badPart`・場所と kind が合わなければ 400 `badKind`・持っていなければ 409 `notOwned`
+ * - pins は3つまで・patches は2つまで（並びで渡す・同じ id を二度は 400）
+ * 型（model）とは別に持つ。Pro 限定の部品は無い
+ */
+export const equipMutation = (b: Record<string, unknown>): Mutation => (doc) => {
+    const owned = new Set(doc.parts);
+    const check = (id: unknown, kind: PartKind): string => {
+        const part = partOf(id);
+        if (!part) throw new TrunkError(400, "部品が正しくありません", "badPart");
+        if (part.kind !== kind) throw new TrunkError(400, "付ける場所が違います", "badKind");
+        if (!owned.has(part.id)) throw new TrunkError(409, "持っていない部品です", "notOwned");
+        return part.id;
+    };
+    const list = (v: unknown, kind: PartKind, max: number): string[] => {
+        if (v === null) return [];
+        if (!Array.isArray(v) || v.length > max) throw new TrunkError(400, "付けられる数を越えています", "badRequest");
+        const ids = v.map((id) => check(id, kind));
+        if (new Set(ids).size !== ids.length) throw new TrunkError(400, "同じ部品は二度付けられません", "badRequest");
+        return ids;
+    };
+    const next: Equipped = { ...doc.equipped, pins: [...doc.equipped.pins], patches: [...doc.equipped.patches] };
+    for (const slot of SINGLE_SLOTS) {
+        if (!(slot in b)) continue;
+        if (b[slot] === null) delete next[slot];
+        else next[slot] = check(b[slot], slot);
+    }
+    if ("pins" in b) next.pins = list(b.pins, "pin", PINS_MAX);
+    if ("patches" in b) next.patches = list(b.patches, "patch", PATCHES_MAX);
+    if (JSON.stringify(compactEquipped(next)) === JSON.stringify(compactEquipped(doc.equipped))) return null;
+    return { ...doc, equipped: next };
 };
 
 /** 手持ちから削除（貼ったものは消せない） */
@@ -762,6 +1022,9 @@ export const settingsMutation = (receiveLabels: unknown): Mutation => (doc) => {
  * - 束の写真は、**束の写真がもう1枚も公開で残っていない**とき（`groupRemains: false`）だけ取り消す。
  *   ラベルは束の最初の1枚の id を持つので、束の鍵で探す。時刻はラベルの `at`
  * - 束でない写真は写真の id で探す。時刻は写真の初めての公開（`firstPublishedAt`）→ 作成（`createdAt`）→ ラベルの `at`
+ * - **硬貨**も同じ時刻の線で取り消す（`coinLog` に控えのある投稿だけ）。まだ持っていれば1枚減らし、
+ *   0 枚（もう使った）なら何もしない。控えはどちらでも消す。2026-10-17 判断: 硬貨は見分けが付かないので
+ *   「その投稿の硬貨を使ったか」は数で見る（1枚でも持っていれば、それを戻す）
  */
 export function revokeFrom(
     doc: TrunkDoc,
@@ -771,15 +1034,28 @@ export function revokeFrom(
     if (target.group && target.groupRemains) return null;
     const match = (l: TrunkLabel) => (target.group ? l.groupId === target.group : l.id === target.photoId);
     const label = doc.pocket.find(match) ?? doc.stuck.find(match);
-    if (!label) return null;
+    const coinKey = target.group ?? target.photoId;
+    const coinEntry = doc.coinLog.find((e) => e.k === coinKey);
     const p = target.postedAt;
-    const posted = !target.group && typeof p === "string" && Number.isFinite(Date.parse(p)) ? Date.parse(p) : Date.parse(label.at);
-    if (!Number.isFinite(posted) || now.getTime() - posted > REVOKE_WINDOW_MS) return null;
+    const postedAt = !target.group && typeof p === "string" && Number.isFinite(Date.parse(p)) ? Date.parse(p) : NaN;
+    const within = (fallback: number) => {
+        const posted = Number.isFinite(postedAt) ? postedAt : fallback;
+        return Number.isFinite(posted) && now.getTime() - posted <= REVOKE_WINDOW_MS;
+    };
+    const dropLabel = !!label && within(Date.parse(label.at));
+    const dropCoin = !!coinEntry && within(coinEntry.a * 1000);
+    if (!dropLabel && !dropCoin) return null;
     return {
         ...doc,
-        pocket: doc.pocket.filter((l) => l.id !== label.id),
-        stuck: doc.stuck.filter((l) => l.id !== label.id),
-        ...(doc.pendingReroll?.labelId === label.id ? { pendingReroll: undefined } : {}),
+        ...(dropLabel && label ? {
+            pocket: doc.pocket.filter((l) => l.id !== label.id),
+            stuck: doc.stuck.filter((l) => l.id !== label.id),
+            ...(doc.pendingReroll?.labelId === label.id ? { pendingReroll: undefined } : {}),
+        } : {}),
+        ...(dropCoin ? {
+            coins: Math.max(0, doc.coins - 1),
+            coinLog: doc.coinLog.filter((e) => e !== coinEntry),
+        } : {}),
     };
 }
 
@@ -846,9 +1122,15 @@ export async function revokeLabelQuietly(uid: string, photo: Record<string, unkn
  *     POST   /user/trunk/labels/{id}/reroll/choose { seed } → view
  *     PUT    /user/trunk/model { model }         → view
  *     PUT    /user/trunk/settings { receiveLabels } → view
+ *     PUT    /user/trunk/labels/{id}/place { x, y, rot } → view
+ *     POST   /user/trunk/labels/{id}/unstick     → view
+ *     POST   /user/trunk/gacha                   → { part, duplicate, fragments, coins }
+ *     POST   /user/trunk/parts/exchange { partId } → view ＋ part
+ *     PUT    /user/trunk/equip { handle?, …, pins?, patches? } → view
  *
  * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
- * noRerollsLeft / noPending / badSeed / badModel / badRequest）。
+ * noRerollsLeft / noPending / badSeed / badModel / badRequest / badPlace / notStuck / noCoins /
+ * badPart / owned / notEnoughFragments / badKind / notOwned）。
  */
 export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = getUserId(event);
@@ -873,10 +1155,26 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
             const doc = await mutateTrunk(uid, pro, now, settingsMutation(body(event).receiveLabels));
             return ok(view(doc, pro, now));
         }
+        if (route === "POST /user/trunk/gacha") {
+            const out: { result?: GachaResult } = {};
+            await mutateTrunk(uid, pro, now, gachaMutation(rollGacha(), out));
+            return ok(out.result);
+        }
+        if (route === "POST /user/trunk/parts/exchange") {
+            const partId = body(event).partId;
+            const doc = await mutateTrunk(uid, pro, now, exchangeMutation(partId));
+            return ok({ ...view(doc, pro, now), part: partOf(partId) });
+        }
+        if (route === "PUT /user/trunk/equip") {
+            const doc = await mutateTrunk(uid, pro, now, equipMutation(body(event)));
+            return ok(view(doc, pro, now));
+        }
         if (typeof id !== "string" || !LABEL_ID_RE.test(id)) return jsonError(400, "不正なリクエスト", "badRequest");
         let fn: Mutation;
         switch (route) {
-            case "POST /user/trunk/labels/{id}/stick": fn = stickMutation(id); break;
+            case "POST /user/trunk/labels/{id}/stick": fn = stickMutation(id, parsePos(body(event))); break;
+            case "PUT /user/trunk/labels/{id}/place": fn = placeMutation(id, parsePos(body(event))); break;
+            case "POST /user/trunk/labels/{id}/unstick": fn = unstickMutation(id); break;
             case "DELETE /user/trunk/labels/{id}": fn = removeMutation(id); break;
             case "POST /user/trunk/labels/{id}/reroll": {
                 const seeds = Array.from({ length: REROLL_CANDIDATES }, () => newSeed());
