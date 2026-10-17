@@ -1,11 +1,11 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { createHash, randomInt } from "crypto";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { listMyPhotos } from "./ddb-photos";
-import { updateUserRow, UserListError } from "./userList";
+import { UserListError } from "./userList";
 import { isPro } from "./badgeKeys";
 import {
     PREFECTURE_NAMES, coordsOf, countryOfText, isCountablePhoto,
@@ -22,7 +22,14 @@ import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } 
  *
  * ## 持ち方
  *
- * photos テーブルの1行 `trunk#<uid>`（`userList.ts` の `updateUserRow`＝読む → rev 条件で Put）。
+ * photos テーブルの2行（`updateTrunk`＝2行を読む → それぞれ rev 条件の TransactWriteItems で一度に書く）:
+ *
+ *     trunk#<uid>        持ち物（型・ラベル・設定・硬貨・部品・かけら・付けた部品）
+ *     trunkledger#<uid>  悪用の歯止めの台帳（dealt・groups・milestones・coinLog・daily）
+ *
+ * 2026-10-17 判断（coordinator の指示）: 1行のままだと最大の行が 400KB の手前 1.7KB まで来たので、台帳を分けた。
+ * **古い形**（台帳が trunk# の中にある行・台帳の行が無い）も読み、次に書くときに2行へ分ける。
+ * 権限は今の共有ロールの PutItem・ConditionCheckItem・GetItem で足りる（BatchGetItem は持たないので、読みは Get を並べる）。
  * 新しい GSI・テーブル・IAM は足さない。行は `uid` を持ち `userId` を持たないので、
  * 写真の索引（`userId-createdAt-index`）には現れない（`follow#` などと同じ）。
  *
@@ -63,6 +70,9 @@ import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
 export const trunkId = (uid: string) => `trunk#${uid}`;
+export const trunkLedgerId = (uid: string) => `trunkledger#${uid}`;
+/** 台帳の行に置く項目（古い形では trunk# の中にある） */
+const LEDGER_KEYS = ["dealt", "groups", "milestones", "coinLog", "daily"] as const;
 
 export const FREE_MODELS = ["leather", "canvas", "aluminum", "steamer"] as const;
 export const PRO_MODELS = ["urushi", "kori", "sleeper", "clipper", "captain", "starchart"] as const;
@@ -87,8 +97,10 @@ export const FOIL_PER_10000 = 200;
  *   ＋ 指紋の台帳 3000 × 約17B ≈ 50KB ＋ 束の台帳 3000 × 約17B ≈ 50KB ＋ 節目の記録 ≈ 数KB
  *   ＝ およそ 350KB（JSON で数えた値。DynamoDB の数え方はこれより小さい）。
  *   ＋ 次の版（2026-10-17）: 貼った 1200 枚の置き場（`p` の整数3つ・1枚 約20B）≈ 24KB ＋ 部品 108 個 ≈ 1.4KB ＋
- *   付けた部品・かけら・硬貨・硬貨の控え ≈ 1KB。いちばん大きい行の実測は 387,356B（予算 389,120B の内・
- *   置き場・部品なしなら 362,519B）。**残りは 1.7KB しかない**——ここに何か足すなら、先に削る所を決める
+ *   付けた部品・かけら・硬貨・硬貨の控え ≈ 1KB。1行のままでは実測 387,356B で、予算の残りが 1.7KB しかなかった。
+ *   → **台帳を `trunkledger#<uid>` に分けた**（`updateTrunk`）。予算は行ごとに見る。分けたあとの実測（`trunk.test.ts`）:
+ *       trunk#        いちばん大きい行 283,408B（残り 105,712B）
+ *       trunkledger#  いちばん大きい行 120,268B（指紋3000・束3000・節目300・控え20／残り 268,852B）
  *   ふつうの鍵のまま（1枚 約280B）だと 470KB で入らなかった
  *   ⚠️ 地名を長く書く人では越えうる。そのときは配らない・貼らない（黙って切り詰めない）
  * （2026-10-17 判断: 越えるなら配らない（`storage`）・貼らない（409 `storage`）。黙って切り詰めない）
@@ -262,7 +274,12 @@ const strings = (v: unknown): string[] =>
     Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : [];
 
 /** 行（無ければ undefined）を、使ってよい形に読み直す */
-export function parseTrunk(item: Record<string, unknown> | undefined): TrunkDoc {
+/**
+ * 行（無ければ undefined）を、使ってよい形に読み直す。
+ * 台帳は `ledger`（`trunkledger#` の行）が在ればそこから、無ければ古い形として `item` の中から読む
+ */
+export function parseTrunk(item: Record<string, unknown> | undefined, ledger?: Record<string, unknown>): TrunkDoc {
+    const lg = ledger ?? item;
     const labels = (v: unknown) => Array.isArray(v)
         ? (v as unknown[]).map(decodeLabel).filter(isTrunkLabel).map((l) => ({ ...l, photoId: l.id }))
         : [];
@@ -284,16 +301,16 @@ export function parseTrunk(item: Record<string, unknown> | undefined): TrunkDoc 
         },
         ...(pending ? { pendingReroll: pending } : {}),
         receiveLabels: item?.receiveLabels !== false,
-        dealt: strings(item?.dealt),
-        milestones: strings(item?.milestones),
-        groups: strings(item?.groups),
+        dealt: strings(lg?.dealt),
+        milestones: strings(lg?.milestones),
+        groups: strings(lg?.groups),
         daily: {
-            day: typeof (item?.daily as { day?: unknown })?.day === "string" ? (item!.daily as { day: string }).day : "",
-            count: typeof (item?.daily as { count?: unknown })?.count === "number" ? (item!.daily as { count: number }).count : 0,
+            day: typeof (lg?.daily as { day?: unknown })?.day === "string" ? (lg!.daily as { day: string }).day : "",
+            count: typeof (lg?.daily as { count?: unknown })?.count === "number" ? (lg!.daily as { count: number }).count : 0,
         },
         coins: Math.min(COINS_MAX, count(item?.coins)),
-        coinLog: Array.isArray(item?.coinLog)
-            ? (item!.coinLog as unknown[]).filter((e): e is { k: string; a: number } =>
+        coinLog: Array.isArray(lg?.coinLog)
+            ? (lg!.coinLog as unknown[]).filter((e): e is { k: string; a: number } =>
                 !!e && typeof e === "object" && typeof (e as { k?: unknown }).k === "string"
                 && typeof (e as { a?: unknown }).a === "number")
                 .map((e) => ({ k: e.k, a: e.a }))
@@ -318,25 +335,29 @@ function parseEquipped(v: unknown, owned: Set<string>): Equipped {
     return out;
 }
 
-/** 書く項目（`updateUserRow` が id・uid・rev・updatedAt を足す） */
-function serialize(doc: TrunkDoc): Record<string, unknown> {
+/** 書く項目を2行に分ける（`updateTrunk` が id・uid・rev・updatedAt を足す） */
+function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: Record<string, unknown> } {
     return {
-        model: doc.model,
-        lastFreeModel: doc.lastFreeModel,
-        pocket: doc.pocket.map(stored),
-        stuck: doc.stuck.map(stored),
-        rerolls: doc.rerolls,
-        ...(doc.pendingReroll ? { pendingReroll: doc.pendingReroll } : {}),
-        receiveLabels: doc.receiveLabels,
-        dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
-        daily: doc.daily,
-        milestones: doc.milestones.slice(0, MILESTONE_LEDGER_MAX),
-        groups: doc.groups.slice(0, DEALT_LEDGER_MAX),
-        coins: doc.coins,
-        coinLog: doc.coinLog.slice(0, COIN_LOG_MAX),
-        parts: doc.parts,
-        fragments: doc.fragments,
-        equipped: compactEquipped(doc.equipped),
+        main: {
+            model: doc.model,
+            lastFreeModel: doc.lastFreeModel,
+            pocket: doc.pocket.map(stored),
+            stuck: doc.stuck.map(stored),
+            rerolls: doc.rerolls,
+            ...(doc.pendingReroll ? { pendingReroll: doc.pendingReroll } : {}),
+            receiveLabels: doc.receiveLabels,
+            coins: doc.coins,
+            parts: doc.parts,
+            fragments: doc.fragments,
+            equipped: compactEquipped(doc.equipped),
+        },
+        ledger: {
+            dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
+            daily: doc.daily,
+            milestones: doc.milestones.slice(0, MILESTONE_LEDGER_MAX),
+            groups: doc.groups.slice(0, DEALT_LEDGER_MAX),
+            coinLog: doc.coinLog.slice(0, COIN_LOG_MAX),
+        },
     };
 }
 
@@ -428,7 +449,19 @@ export function parsePos(b: Record<string, unknown>): TrunkPos | undefined {
     return { x: Math.round(pos.x * 1000) / 1000, y: Math.round(pos.y * 1000) / 1000, rot: Math.round(pos.rot * 10) / 10 };
 }
 
-const fitsBudget = (doc: TrunkDoc) => Buffer.byteLength(JSON.stringify(serialize(doc)), "utf8") <= TRUNK_BUDGET_BYTES;
+/** 2行の大きさ（JSON で数えたバイト数）。テストが最大の行を実測するのにも使う */
+export function rowSizes(doc: TrunkDoc): { main: number; ledger: number } {
+    const rows = serializeRows(doc);
+    return {
+        main: Buffer.byteLength(JSON.stringify(rows.main), "utf8"),
+        ledger: Buffer.byteLength(JSON.stringify(rows.ledger), "utf8"),
+    };
+}
+
+const fitsBudget = (doc: TrunkDoc) => {
+    const z = rowSizes(doc);
+    return z.main <= TRUNK_BUDGET_BYTES && z.ledger <= TRUNK_BUDGET_BYTES;
+};
 
 export const pocketLimit = (pro: boolean) => (pro ? POCKET_LIMIT_PRO : POCKET_LIMIT_FREE);
 
@@ -681,10 +714,10 @@ export async function grantLabel(
     const label = buildLabel(photo, others, now, rand);
     const fp = fingerprintOf(photo);
     let outcome: DealOutcome = noDeal("error");
-    await updateUserRow(trunkId(uid), uid, (item) => {
-        const r = dealInto(parseTrunk(item), label, limit, fp, now);
+    await updateTrunk(uid, (doc) => {
+        const r = dealInto(doc, label, limit, fp, now);
         outcome = r.outcome;
-        return r.doc ? serialize(r.doc) : null;
+        return r.doc;
     });
     return outcome;
 }
@@ -807,12 +840,11 @@ type Mutation = (doc: TrunkDoc, ctx: { pro: boolean; now: Date }) => TrunkDoc | 
 
 async function mutateTrunk(uid: string, pro: boolean, now: Date, fn: Mutation): Promise<TrunkDoc> {
     let last: TrunkDoc | null = null;
-    await updateUserRow(trunkId(uid), uid, (item) => {
-        const doc = parseTrunk(item);
+    await updateTrunk(uid, (doc) => {
         const next = fn(doc, { pro, now });
         last = next ?? doc;
         if (next && !fitsBudget(next)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
-        return next ? serialize(next) : null;
+        return next;
     });
     return last ?? parseTrunk(undefined);
 }
@@ -1093,14 +1125,13 @@ export async function revokeLabelQuietly(uid: string, photo: Record<string, unkn
         await Promise.race([
             (async () => {
                 const groupRemains = g ? await groupStillPublic(uid, g, photoId) : false;
-                await updateUserRow(trunkId(uid), uid, (item) => {
-                    if (!item) return null;
-                    const next = revokeFrom(parseTrunk(item), {
+                await updateTrunk(uid, (doc, exists) => {
+                    if (!exists) return null;
+                    return revokeFrom(doc, {
                         photoId,
                         ...(g ? { group: groupKey(g), groupRemains } : {}),
                         postedAt: photo.firstPublishedAt ?? photo.createdAt,
                     }, new Date());
-                    return next ? serialize(next) : null;
                 });
             })().catch((e) => {
                 console.error(`${label}: ラベルを取り消せませんでした（${uid}）:`, e);
@@ -1142,10 +1173,10 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
         const pro = isPro(await readProfileBits(uid), now.getTime());
         if (route === "GET /user/trunk") {
             const [rows, photos] = await Promise.all([
-                readTrunkItem(uid),
+                readTrunkRows(uid),
                 listMyPhotos(uid),
             ]);
-            return ok({ ...view(parseTrunk(rows), pro, now), posts: countPosts(photos) });
+            return ok({ ...view(parseTrunk(rows.main, rows.ledger), pro, now), posts: countPosts(photos) });
         }
         if (route === "PUT /user/trunk/model") {
             const doc = await mutateTrunk(uid, pro, now, modelMutation(body(event).model));
@@ -1194,10 +1225,70 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     }
 };
 
-/** 行をそのまま読む（`readUserRows` は `list` だけを見るので、ここは Get を直に打つ） */
-async function readTrunkItem(uid: string): Promise<Record<string, unknown> | undefined> {
-    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(uid) } }));
-    return res.Item as Record<string, unknown> | undefined;
+/** 2行をそのまま読む（並べて Get。BatchGetItem の権限は持たない） */
+async function readTrunkRows(uid: string): Promise<{ main?: Record<string, unknown>; ledger?: Record<string, unknown> }> {
+    const [a, b] = await Promise.all([
+        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(uid) } })),
+        ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkLedgerId(uid) } })),
+    ]);
+    return { main: a.Item as Record<string, unknown> | undefined, ledger: b.Item as Record<string, unknown> | undefined };
+}
+
+const TRUNK_WRITE_ATTEMPTS = 4;
+const TRUNK_RETRY_BASE_MS = 25;
+
+/** rev 条件（`userList.ts` の `updateUserRow` と同じ決まり。rev を持たない古い行も通す） */
+const revGuard = (rev: number) => (rev === 0
+    ? "attribute_not_exists(id) OR attribute_not_exists(rev) OR rev = :rev"
+    : "rev = :rev");
+const revOf = (item: Record<string, unknown> | undefined) => (typeof item?.rev === "number" ? item.rev : 0);
+
+/**
+ * 2行を読む → 直す → **変わった行は Put・変わらない行は ConditionCheck**（どちらも rev 条件）を
+ * 1つの TransactWriteItems で書く。片方だけ書き換わって食い違う隙を作らない。
+ * 古い形（台帳が trunk# の中にある）は、書くときに必ず両方 Put して分ける。
+ * 競合（TransactionCanceledException）は読み直してやり直し、尽きたら `UserListError`。
+ *
+ * @param fn 今の形（`exists` はどちらかの行が在るか）。変えないなら null。副作用を持たせない（やり直しで再び呼ぶ）
+ */
+async function updateTrunk(uid: string, fn: (doc: TrunkDoc, exists: boolean) => TrunkDoc | null): Promise<void> {
+    for (let attempt = 0; attempt < TRUNK_WRITE_ATTEMPTS; attempt++) {
+        const rows = await readTrunkRows(uid);
+        const doc = parseTrunk(rows.main, rows.ledger);
+        const next = fn(doc, !!rows.main || !!rows.ledger);
+        if (!next) return;
+        const before = serializeRows(doc);
+        const after = serializeRows(next);
+        const legacy = !rows.ledger && !!rows.main && LEDGER_KEYS.some((k) => k in rows.main!);
+        const changed = {
+            main: legacy || JSON.stringify(before.main) !== JSON.stringify(after.main),
+            ledger: legacy || JSON.stringify(before.ledger) !== JSON.stringify(after.ledger),
+        };
+        if (!changed.main && !changed.ledger) return;
+        const at = new Date().toISOString();
+        const item = (id: string, raw: Record<string, unknown> | undefined, body: Record<string, unknown>, isChanged: boolean) => {
+            const rev = revOf(raw);
+            const cond = { ConditionExpression: revGuard(rev), ExpressionAttributeValues: { ":rev": rev } };
+            return isChanged
+                ? { Put: { TableName: PHOTOS_TABLE, Item: { ...body, id, uid, rev: rev + 1, updatedAt: at }, ...cond } }
+                : { ConditionCheck: { TableName: PHOTOS_TABLE, Key: { id }, ...cond } };
+        };
+        try {
+            await ddb.send(new TransactWriteCommand({
+                TransactItems: [
+                    item(trunkId(uid), rows.main, after.main, changed.main),
+                    item(trunkLedgerId(uid), rows.ledger, after.ledger, changed.ledger),
+                ],
+            }));
+            return;
+        } catch (e) {
+            if ((e as { name?: string }).name !== "TransactionCanceledException") throw e;
+            if (attempt < TRUNK_WRITE_ATTEMPTS - 1) {
+                await new Promise((r) => setTimeout(r, TRUNK_RETRY_BASE_MS * 2 ** attempt * (0.5 + Math.random())));
+            }
+        }
+    }
+    throw new UserListError(`${trunkId(uid)} の書き込みが競合し続けました`);
 }
 
 function ok(payload: unknown) {

@@ -19,6 +19,16 @@ const mockListMyPhotos = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({ listMyPhotos: mockListMyPhotos }));
 vi.stubEnv("USERS_TABLE", "users-test");
 
+function condHolds(k: string, input: { ConditionExpression?: string; ExpressionAttributeValues?: Item }): boolean {
+    const cur = store.get(k);
+    const want = input.ExpressionAttributeValues?.[":rev"];
+    const cond = input.ConditionExpression ?? "";
+    if (!cond) return true;
+    return cond.includes("attribute_not_exists(rev)")
+        ? !cur || cur.rev === undefined || cur.rev === want
+        : cur?.rev === want;
+}
+
 async function send(cmd: { constructor: { name: string }; input: Record<string, unknown> }) {
     // 1拍おく（同時の2本が本当に交互に走るように）
     await new Promise((r) => setTimeout(r, 0));
@@ -29,14 +39,21 @@ async function send(cmd: { constructor: { name: string }; input: Record<string, 
     }
     if (cmd.constructor.name === "PutCommand") {
         const k = keyOf(input.TableName, input.Item!);
-        const cur = store.get(k);
-        const want = input.ExpressionAttributeValues?.[":rev"];
-        const cond = input.ConditionExpression ?? "";
-        const okCond = cond.includes("attribute_not_exists(rev)")
-            ? !cur || cur.rev === undefined || cur.rev === want
-            : cur?.rev === want;
-        if (cond && !okCond) throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+        if (!condHolds(k, input)) throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
         store.set(k, structuredClone(input.Item!));
+        return {};
+    }
+    // 2行を一度に（`updateTrunk`）。条件を全部確かめてから全部書く＝1つでも外れたら何も書かない
+    if (cmd.constructor.name === "TransactWriteCommand") {
+        const items = (cmd.input as { TransactItems: { Put?: typeof input; ConditionCheck?: typeof input }[] }).TransactItems;
+        const keyed = items.map((t) => {
+            const op = (t.Put ?? t.ConditionCheck)!;
+            return { op, put: !!t.Put, k: keyOf(op.TableName, (t.Put ? op.Item : op.Key)!) };
+        });
+        if (keyed.some(({ k, op }) => !condHolds(k, op))) {
+            throw Object.assign(new Error("tx"), { name: "TransactionCanceledException", CancellationReasons: [{ Code: "ConditionalCheckFailed" }] });
+        }
+        for (const { k, op, put } of keyed) if (put) store.set(k, structuredClone(op.Item!));
         return {};
     }
     throw new Error(`想定外の命令 ${cmd.constructor.name}`);
@@ -62,6 +79,7 @@ const label = (id: string, over: Record<string, unknown> = {}) => ({
 function setProfile(p: Item) { store.set(`users-test|${UID}`, p); }
 function setTrunk(t: Item) { store.set(`photos-test|${trunkId(UID)}`, { id: trunkId(UID), uid: UID, rev: 1, ...t }); }
 const trunkRow = () => store.get(`photos-test|${trunkId(UID)}`) as Item | undefined;
+const ledgerRow = () => store.get(`photos-test|${T.trunkLedgerId(UID)}`) as Item | undefined;
 const pocketIds = () => ((trunkRow()?.pocket ?? []) as { i?: string; id?: string }[]).map((l) => l.i ?? l.id);
 
 type Res = { statusCode: number; body: string; headers?: Record<string, string> };
@@ -488,7 +506,7 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         expect(T.DAILY_DEAL_MAX).toBe(3);
         vi.setSystemTime(new Date("2026-10-17T15:30:00Z"));   // 日本時間 翌 0:30
         expect((await grantLabel(UID, photo("d"))).label?.id).toBe("d");
-        expect(trunkRow()?.daily).toEqual({ day: "2026-10-18", count: 1 });
+        expect(ledgerRow()?.daily).toEqual({ day: "2026-10-18", count: 1 });
     });
 
     it("取り消しても日の枠は戻らない", async () => {
@@ -566,7 +584,7 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         setProfile(FREE);
         setTrunk({ pocket: [], stuck: [], dealt: Array.from({ length: 3000 }, (_, i) => `x:old${i}`) });
         await grantLabel(UID, photo("p1"));
-        const dealt = trunkRow()?.dealt as string[];
+        const dealt = ledgerRow()?.dealt as string[];
         expect(dealt).toHaveLength(3000);
         expect(dealt[0]).toBe(T.fingerprintOf(photo("p1")));
         expect(dealt).not.toContain("x:old2999");
@@ -618,7 +636,7 @@ describe("節目は一度きり・束の台帳・下書きをあとで公開（2
         const again = await grantLabel(UID, photo("p2", { date: "2026-04-11" }));
         expect(again.label?.milestone).toBeUndefined();
         expect(again.label?.kind).toBe("season");
-        expect(trunkRow()?.milestones).toEqual(["first"]);
+        expect(ledgerRow()?.milestones).toEqual(["first"]);
     });
 
     it("「はじめての国」は国ごとに一度", async () => {
@@ -628,7 +646,7 @@ describe("節目は一度きり・束の台帳・下書きをあとで公開（2
         await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
         expect((await grantLabel(UID, photo("p2", { location: "リヨン, フランス" }))).label?.milestone).toBeUndefined();
         expect((await grantLabel(UID, photo("p3", { location: "ローマ, イタリア" }))).label?.milestone).toBe("firstCountry");
-        expect(trunkRow()?.milestones).toEqual(["firstCountry:イタリア", "firstCountry:フランス"]);
+        expect(ledgerRow()?.milestones).toEqual(["firstCountry:イタリア", "firstCountry:フランス"]);
     });
 
     it("束: 手持ちから消しても、同じ groupId の別の写真には配らない", async () => {
@@ -636,14 +654,14 @@ describe("節目は一度きり・束の台帳・下書きをあとで公開（2
         await grantLabel(UID, photo("p1", { groupId: "g-1" }));
         await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
         expect(await grantLabel(UID, photo("p2", { groupId: "g-1" }))).toEqual({ label: null, labelSkipped: "samePost", coin: 0 });
-        expect(trunkRow()?.groups).toEqual([T.groupKey("g-1")]);
+        expect(ledgerRow()?.groups).toEqual([T.groupKey("g-1")]);
     });
 
     it("束の台帳は3000件（古い順に落とす）", async () => {
         setProfile(FREE);
         setTrunk({ pocket: [], stuck: [], groups: Array.from({ length: 3000 }, (_, i) => `old-${i}`) });
         await grantLabel(UID, photo("p1", { groupId: "new-1" }));
-        const groups = trunkRow()?.groups as string[];
+        const groups = ledgerRow()?.groups as string[];
         expect(groups).toHaveLength(3000);
         expect(groups[0]).toBe(T.groupKey("new-1"));
         expect(groups).not.toContain("old-2999");
@@ -761,6 +779,22 @@ describe("確かめの指摘（2026-10-17）", () => {
         expect(r.outcome.labelSkipped).toBeUndefined();
         expect(r.outcome.coin).toBe(1);
         expect(r.doc).not.toBeNull();
+        // 2行に分けたあとの大きさ（2026-10-17 実測: 持ち物 283,408B・台帳 103,949B。予算はどちらも 389,120B）
+        const z = T.rowSizes(r.doc!);
+        expect(z.main).toBeLessThan(T.TRUNK_BUDGET_BYTES - 100 * 1024);
+        expect(z.ledger).toBeLessThan(T.TRUNK_BUDGET_BYTES - 250 * 1024);
+    });
+
+    it("台帳の行のいちばん大きい形（指紋3000・束3000・節目300・控え20）でも予算の内", () => {
+        const doc = parseTrunk(undefined, {
+            dealt: Array.from({ length: 3000 }, (_, i) => `x:${String(i).padStart(12, "0")}`),
+            groups: Array.from({ length: 3000 }, (_, i) => `g:${String(i).padStart(12, "0")}`),
+            milestones: Array.from({ length: 300 }, (_, i) => `firstCountry:${"ボスニア・ヘルツェゴビナ"}${i}`),
+            coinLog: Array.from({ length: 20 }, (_, i) => ({ k: `${"p".repeat(64)}${i}`, a: 1_800_000_000 })),
+            daily: { day: "2026-10-17", count: 3 },
+        });
+        expect(doc.dealt).toHaveLength(3000);
+        expect(T.rowSizes(doc).ledger).toBeLessThan(T.TRUNK_BUDGET_BYTES - 250 * 1024);
     });
 
     it("photoId は保存しない（応答では id から埋める）", async () => {
@@ -960,9 +994,12 @@ describe("硬貨（公開の投稿1件につき1枚）", () => {
         expect(out.label?.id).toBe("p2");
         expect(coins()).toBe(99);
         expect(T.COINS_MAX).toBe(99);
+        store.delete(`photos-test|${T.trunkLedgerId(UID)}`);
         setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [], coins: 99, dealt: [] });
         expect(await grantLabel(UID, photo("p3"))).toEqual({ label: null, labelSkipped: "full", coin: 0 });
-        expect(trunkRow()?.dealt).toEqual([]);
+        // 何も書かない（古い形の1行のまま・台帳の行も作らない）
+        expect(trunkRow()?.rev).toBe(1);
+        expect(ledgerRow()).toBeUndefined();
         // 保存された値が上限より大きくても 99 に読む
         expect(parseTrunk({ coins: 500 }).coins).toBe(99);
     });
@@ -987,7 +1024,7 @@ describe("硬貨（公開の投稿1件につき1枚）", () => {
         await T.revokeLabelQuietly(UID, { id: "p2", createdAt: at }, "test");
         expect(coins()).toBe(0);
         expect(pocketIds()).toEqual([]);
-        expect(trunkRow()?.coinLog).toEqual([]);
+        expect(ledgerRow()?.coinLog).toEqual([]);
         // 24時間を過ぎた投稿は戻さない
         vi.setSystemTime(new Date("2026-10-21T00:00:00Z"));
         const at2 = new Date().toISOString();
@@ -1031,7 +1068,7 @@ describe("ガチャ（POST /user/trunk/gacha）", () => {
 
     it("段を引いてから、その段の部品を等確率で（乱数を差し替えて）", async () => {
         const { PARTS_BY_RARITY } = await import("../trunkParts");
-        const seq = (tierRoll: number, pick: number): T.Rand => (a, b) => (b === 100 ? tierRoll : Math.min(pick, b - 1));
+        const seq = (tierRoll: number, pick: number): import("../trunk").Rand => (a, b) => (b === 100 ? tierRoll : Math.min(pick, b - 1));
         expect(T.rollGacha(seq(69, 0))).toEqual({ tier: 0, pick: 0 });
         expect(T.rollGacha(seq(70, 3))).toEqual({ tier: 1, pick: 3 });
         expect(T.rollGacha(seq(95, 99))).toEqual({ tier: 2, pick: PARTS_BY_RARITY[2].length - 1 });
@@ -1194,5 +1231,116 @@ describe("口（serverless.yml の trunk 関数）", () => {
         ]) expect(routes).toContain(r);
         expect(routes).toHaveLength(12);
         expect(block).toContain("handler: src/trunk.handler");
+    });
+});
+
+describe("2行に分ける（trunk# と trunkledger#・2026-10-17）", () => {
+    const txs = () => fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "TransactWriteCommand")
+        .map((c) => (c.input as { TransactItems: Record<string, { Item?: Item; Key?: Item }>[] }).TransactItems);
+
+    it("配ると、持ち物は trunk#・台帳は trunkledger# に、1つの TransactWriteItems で書く", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        expect(trunkRow()?.dealt).toBeUndefined();
+        expect(trunkRow()?.coins).toBe(1);
+        expect(pocketIds()).toEqual(["p1"]);
+        expect(ledgerRow()?.dealt).toEqual([T.fingerprintOf(photo("p1"))]);
+        expect(ledgerRow()?.pocket).toBeUndefined();
+        expect(ledgerRow()?.uid).toBe(UID);
+        const tx = txs();
+        expect(tx).toHaveLength(1);
+        expect(tx[0].map((t) => Object.keys(t)[0])).toEqual(["Put", "Put"]);
+        // 単独の Put は使わない（片方だけ書ける隙を作らない）
+        expect(fakeSend.mock.calls.some((c) => c[0].constructor.name === "PutCommand")).toBe(false);
+    });
+
+    it("持ち物だけ変わる口（貼る）は、台帳の行を ConditionCheck（rev 条件）にして Put しない", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        const ledgerRev = ledgerRow()?.rev;
+        fakeSend.mockClear();
+        await call("POST /user/trunk/labels/{id}/stick", { id: "p1" });
+        const tx = txs();
+        expect(tx[0].map((t) => Object.keys(t)[0])).toEqual(["Put", "ConditionCheck"]);
+        expect(tx[0][1].ConditionCheck.Key).toEqual({ id: T.trunkLedgerId(UID) });
+        expect(ledgerRow()?.rev).toBe(ledgerRev);
+    });
+
+    it("ConditionCheck も rev を見る（読んでから台帳の行が書き換わったら、やり直す）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        let raced = false;
+        fakeSend.mockClear();
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "TransactWriteCommand" && !raced) {
+                raced = true;
+                const k = `photos-test|${T.trunkLedgerId(UID)}`;
+                store.set(k, { ...store.get(k)!, rev: (store.get(k)!.rev as number) + 1 });
+            }
+            return send(cmd as never);
+        });
+        await call("POST /user/trunk/labels/{id}/stick", { id: "p1" });
+        expect(txs()).toHaveLength(2);
+        expect(stuckRaw().map((l) => l.i)).toEqual(["p1"]);
+    });
+
+    it("古い形（台帳が trunk# の中）も読める。次に書くときに2行へ分ける", async () => {
+        setProfile(FREE);
+        const fp = T.fingerprintOf(photo("old"));
+        setTrunk({ pocket: [label("a")], stuck: [], dealt: [fp], groups: ["g:abc"], milestones: ["first"], daily: { day: "2000-01-01", count: 3 } });
+        // 読む: 古い台帳の指紋で止まる
+        expect((await grantLabel(UID, photo("old"))).labelSkipped).toBe("duplicate");
+        expect(ledgerRow()).toBeUndefined();
+        // 書く（貼る）→ 分かれる。台帳の中身はそのまま移る
+        await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        expect(trunkRow()?.dealt).toBeUndefined();
+        expect(trunkRow()?.milestones).toBeUndefined();
+        expect(ledgerRow()).toMatchObject({ dealt: [fp], groups: ["g:abc"], milestones: ["first"], daily: { day: "2000-01-01", count: 3 } });
+        expect(txs().at(-1)!.map((t) => Object.keys(t)[0])).toEqual(["Put", "Put"]);
+        // 分けたあとも同じ判定
+        expect((await grantLabel(UID, photo("old"))).labelSkipped).toBe("duplicate");
+    });
+
+    it("台帳の行だけが先に書き換わっていたら、読み直してやり直す（日の数を取りこぼさない）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        let raced = false;
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "TransactWriteCommand" && !raced) {
+                raced = true;
+                // 別の要求が先に台帳を書いた（rev が進む・日の数が増える）
+                const k = `photos-test|${T.trunkLedgerId(UID)}`;
+                const cur = store.get(k)!;
+                store.set(k, { ...cur, rev: (cur.rev as number) + 1, daily: { ...(cur.daily as Item), count: 2 } });
+            }
+            return send(cmd as never);
+        });
+        await grantLabel(UID, photo("p2"));
+        expect(raced).toBe(true);
+        expect(pocketIds()).toEqual(["p2", "p1"]);
+        expect((ledgerRow()?.daily as Item).count).toBe(3);
+        expect(txs().length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("競合が続いたら投げる（口は 503 busy）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [] });
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") throw Object.assign(new Error("tx"), { name: "TransactionCanceledException" });
+            return send(cmd as never);
+        });
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        expect([r.status, r.json.code]).toEqual([503, "busy"]);
+    });
+
+    it("GET は2行を並べて読む（BatchGet は使わない）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        fakeSend.mockClear();
+        const got = await call("GET /user/trunk");
+        expect(got.json.coins).toBe(1);
+        const ids = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand").map((c) => (c.input as { Key: Item }).Key.id);
+        expect(ids).toEqual(expect.arrayContaining([trunkId(UID), T.trunkLedgerId(UID)]));
+        expect(fakeSend.mock.calls.some((c) => c[0].constructor.name === "BatchGetCommand")).toBe(false);
     });
 });

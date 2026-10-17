@@ -283,7 +283,9 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 `GET,POST /user/spots` / `DELETE /user/spots/{slug}` /
 `GET,POST /user/trips` / `PUT,DELETE /user/trips/{planId}`
 
-**旅のトランク** ※2026-10-17 追加・**本番未反映**（`api-user/src/trunk.ts`・1行 `trunk#<uid>`）
+**旅のトランク** ※2026-10-17 追加・**本番未反映**（`api-user/src/trunk.ts`・2行 `trunk#<uid>`（持ち物）と
+`trunkledger#<uid>`（悪用の歯止めの台帳: 指紋・束・節目・硬貨の控え・日ごとの数）。2行は TransactWriteItems で一度に書く。
+台帳が `trunk#` の中にある古い形も読み、次に書くときに分ける。退会では2行とも消す）
 `GET /user/trunk` / `PUT /user/trunk/model` / `PUT /user/trunk/settings` /
 `POST /user/trunk/labels/{id}/stick` / `DELETE /user/trunk/labels/{id}` /
 `POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose` /
@@ -367,7 +369,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   `corners`→`corner`・`locks`→`lock`・`linings`→`lining`・`tags`→`tag`・`pins`→`pin`・`patches`→`patch`・
   `charms`→`charm`・`keys`→`key`）。絵の指定（色・形）は台帳に持たない（アプリが板から描く）。
   **id の番号は変えない**（持ち物として保存される）。部品を足すときは各 kind の後ろに番号を足す
-- 退会では `trunk#<uid>` の行ごと消えるので、硬貨・部品・かけら・付けた部品も一緒に消える
+- 退会では `trunk#<uid>` と `trunkledger#<uid>` の2行を消すので、硬貨・部品・かけら・付けた部品・台帳も一緒に消える
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
