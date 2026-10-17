@@ -88,6 +88,10 @@ export const TRUNK_BUDGET_BYTES = 380 * 1024;
  */
 export const DAILY_DEAL_MAX = 3;
 /**
+ * 🔴 **本番に出すときに、出す日（日本時間 0:00）へ書き換える。** いまの値は仮（作った日）。
+ * 出す日より前に作った写真を、出したあとに非公開 → 公開で集められないようにするための線なので、
+ * 出す日とずれると、そのあいだに作った写真が「新しい写真」として扱われる。
+ *
  * この機能を出した日（日本時間 2026-10-17 0:00）。2026-10-17 判断: **これより前に作られた写真には配らない**
  * （昔の写真を非公開 → 公開にしてラベルを集められないように）。savePhoto のその場の投稿は新しいので当たらない
  */
@@ -553,7 +557,8 @@ export async function grantLabelForPhotoQuietly(uid: string, photoId: string, la
     try {
         return await Promise.race([
             (async (): Promise<DealOutcome> => {
-                const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId } }));
+                // **強い読み**（いま書いた公開の状態・撮影地を必ず見る）
+                const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
                 const row = res.Item as Photo | undefined;
                 // 持ち主の行だけ（読み直すあいだに消えた・別の人の行は配らない）
                 if (!row || (row.userId ?? row.uploadedBy) !== uid) return { label: null, labelSkipped: "draft" };
@@ -779,6 +784,26 @@ export function revokeFrom(
 }
 
 /**
+ * 束の写真が、この1枚のほかに**まだ公開で残っているか**。
+ *
+ * 兄弟の id は索引（`listMyPhotos`・結果整合）から引き、**1枚ずつ強い読みで確かめる**
+ * （索引には、消した・非公開にしたばかりの写真が古い姿で残りうる）。
+ * ⚠️ 索引にまだ載っていない兄弟（いま上げたばかりの写真）は見落としうる——そのときは
+ * 「残っていない」と読んで取り消す側に倒れる。束の id を全部持つ場所は無い（行は1枚ずつ）
+ */
+async function groupStillPublic(uid: string, group: string, exceptId: string): Promise<boolean> {
+    const siblings = (await listMyPhotos(uid))
+        .filter((o) => o.id !== exceptId && typeof o.groupId === "string" && o.groupId.trim() === group)
+        .map((o) => o.id);
+    for (const id of siblings) {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
+        const row = res.Item as Photo | undefined;
+        if (row && (row.userId ?? row.uploadedBy) === uid && isCountablePhoto(row)) return true;
+    }
+    return false;
+}
+
+/**
  * 写真の削除（`deleteMyPhoto`）と、公開 → 非公開（`updatePhotoVisibility`）のあとに呼ぶ。
  * **投げない・上限つきで待つ**。落ちても削除・非公開は成功のまま（ラベルが残るだけ）。
  * `photo` は**消す・隠す前の行**。退会は行ごと消す（`account.ts`）ので、ここは通らない
@@ -791,11 +816,7 @@ export async function revokeLabelQuietly(uid: string, photo: Record<string, unkn
     try {
         await Promise.race([
             (async () => {
-                // 束なら、この1枚を除いて公開で残っている写真があるか（索引は結果整合なので、この写真は id で除く）
-                const groupRemains = g
-                    ? (await listMyPhotos(uid)).some((o) => o.id !== photoId && isCountablePhoto(o)
-                        && typeof o.groupId === "string" && o.groupId.trim() === g)
-                    : false;
+                const groupRemains = g ? await groupStillPublic(uid, g, photoId) : false;
                 await updateUserRow(trunkId(uid), uid, (item) => {
                     if (!item) return null;
                     const next = revokeFrom(parseTrunk(item), {
