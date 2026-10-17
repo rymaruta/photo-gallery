@@ -1344,3 +1344,11 @@ describe("2行に分ける（trunk# と trunkledger#・2026-10-17）", () => {
         expect(fakeSend.mock.calls.some((c) => c[0].constructor.name === "BatchGetCommand")).toBe(false);
     });
 });
+
+describe("配り始める線（TRUNK_LAUNCHED_AT）", () => {
+    it("本番と同じ日本時間 2026-10-17 0:00。10/17 に作った写真は配る側", () => {
+        expect(T.TRUNK_LAUNCHED_AT).toBe("2026-10-16T15:00:00.000Z");
+        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T16:00:00.000Z" })).toBe(true);   // 10/17 1:00 JST
+        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T14:59:59.000Z" })).toBe(false);
+    });
+});
