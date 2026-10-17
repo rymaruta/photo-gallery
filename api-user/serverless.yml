@@ -839,6 +839,50 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 旅のトランク（`src/trunk.ts`・iOS の新機能・2026-10-17 owner 承認）。
+  # 1行 `trunk#<uid>`（photos テーブル）。**口は7つでも関数は1つ**——CloudFormation の
+  # 部品の数が上限 500 に近いので、関数ごとの部品（関数・版・ロググループ・統合・許可）を増やさない。
+  # 道筋は `event.routeKey` で分ける。reservedConcurrency は付けない（アカウントの同時実行が 10）
+  trunk:
+    handler: src/trunk.handler
+    events:
+      - httpApi:
+          path: /user/trunk
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/trunk/model
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/trunk/settings
+          method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/trunk/labels/{id}/stick
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+      # **id はパスで受ける**（本文のある DELETE は経路で落とされることがある）
+      - httpApi:
+          path: /user/trunk/labels/{id}
+          method: DELETE
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/trunk/labels/{id}/reroll
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /user/trunk/labels/{id}/reroll/choose
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   getComments:
     handler: src/comments.getComments
     # 未認証で呼べる口。既定の共有ロール（削除権つき）ではなく読み取り専用へ

@@ -9,6 +9,7 @@ const mockListMyMedia = vi.hoisted(() => vi.fn());
 const mockGetPhotoById = vi.hoisted(() => vi.fn());
 const mockOverwriteOwnPhoto = vi.hoisted(() => vi.fn());
 const mockMarkStaticStale = vi.hoisted(() => vi.fn());
+const mockListMyPhotos = vi.hoisted(() => vi.fn());
 vi.mock("../ddb-photos", () => ({
     putPhoto: mockPutPhoto,
     getPhotoById: mockGetPhotoById,
@@ -16,6 +17,7 @@ vi.mock("../ddb-photos", () => ({
     markStaticStale: mockMarkStaticStale,
     countUserPhotos: mockCountUserPhotos,
     listMyMediaItems: mockListMyMedia,
+    listMyPhotos: mockListMyPhotos,
 }));
 
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
@@ -32,6 +34,10 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRequestSiteRebuild }));
 // メダルの数え直し（`badgeStore.ts`）。中身は `badgeStore.test.ts` が見るので、ここは呼ばれ方だけ
 const mockRefreshBadges = vi.hoisted(() => vi.fn());
 vi.mock("../badgeStore", () => ({ refreshBadgesQuietly: mockRefreshBadges }));
+
+// 旅のトランク（`trunk.ts`）。中身は `trunk.test.ts` が見るので、ここは呼ばれ方と応答の形だけ
+const mockGrantLabel = vi.hoisted(() => vi.fn());
+vi.mock("../trunk", () => ({ grantLabelQuietly: mockGrantLabel }));
 
 // 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
 // ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
@@ -119,6 +125,8 @@ beforeEach(() => {
     mockIsAlbumMember.mockReset().mockResolvedValue(true);
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
+    mockGrantLabel.mockReset().mockResolvedValue({ label: null, labelSkipped: "draft" });
+    mockListMyPhotos.mockReset().mockResolvedValue([]);
     mockReadVisibleSource.mockReset().mockResolvedValue(null);
     mockNotifyInspired.mockReset().mockResolvedValue(undefined);
 });
@@ -1817,6 +1825,109 @@ describe("savePhoto: 2枚目以降（extraImages）", () => {
         }));
         await invoke(event("u1", { ...BASE, extraImages: [extra("b.webp")] }));
         expect(savedRewrite().extraImages).toEqual([{ src: "https://cdn.example.com/uploads/u1/b.webp" }]);
+    });
+});
+
+describe("savePhoto: 旅のトランクのラベル", () => {
+    const LABEL = { id: "x", photoId: "x", kind: "place", place: { name: "京都" }, seed: 1, at: "2026-10-17T00:00:00.000Z" };
+
+    it("保存のあとに配り、応答に label を足す（既存の形は残す）", async () => {
+        mockGrantLabel.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        const body = JSON.parse(res.body);
+        expect(body.success).toBe(true);
+        expect(body.photo.id).toBe(savedPhoto().id);
+        expect(body.label).toEqual(LABEL);
+        expect(body.labelSkipped).toBeUndefined();
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect(mockGrantLabel.mock.calls[0][0]).toBe("u1");
+        expect(mockPutPhoto.mock.invocationCallOrder[0]).toBeLessThan(mockGrantLabel.mock.invocationCallOrder[0]);
+    });
+
+    it("いっぱいなら label: null と理由（投稿は 200）", async () => {
+        mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full" });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "full" });
+    });
+
+    it("再送（行が在る）でも配る口を通す——二重かどうかは trunk が写真の id で決める", async () => {
+        mockGetPhotoById.mockResolvedValue({
+            id: idFromUploadKey(BASE.key), userId: "u1", src: BASE.publicUrl, published: false,
+            createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+        });
+        mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+        mockGrantLabel.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect((mockGrantLabel.mock.calls[0][1] as Photo).published).toBe(true);
+        expect(JSON.parse(res.body).label).toEqual(LABEL);
+    });
+
+    const dup = () => mockPutPhoto.mockRejectedValue(Object.assign(new Error("dup"), { name: "ConditionalCheckFailedException" }));
+    const stored = (over: Record<string, unknown> = {}) => ({
+        id: idFromUploadKey(BASE.key), userId: "u1", src: BASE.publicUrl, published: true,
+        createdAt: "2026-10-17T01:00:00.000Z", updatedAt: "2026-10-17T01:00:00.000Z", ...over,
+    });
+
+    it("再送（あとから直されている行）でも配る口を通す（古い写真は配らない印つき）", async () => {
+        mockGetPhotoById.mockResolvedValue(stored({ updatedAt: "2026-10-18T00:00:00.000Z" }));
+        dup();
+        mockGrantLabel.mockResolvedValue({ label: LABEL });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect(mockGrantLabel.mock.calls[0][3]).toEqual({ requireNew: true });
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: LABEL });
+    });
+
+    it("再送（書き直せなかった）でも配る口を通す", async () => {
+        mockGetPhotoById.mockResolvedValue(stored());
+        dup();
+        mockOverwriteOwnPhoto.mockResolvedValue(false);
+        mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full" });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(mockGrantLabel).toHaveBeenCalledTimes(1);
+        expect(mockGrantLabel.mock.calls[0][3]).toEqual({ requireNew: true });
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "full" });
+    });
+
+    it("配る処理が時間切れでも投稿は 200", async () => {
+        mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "timeout" });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "timeout" });
+    });
+
+    it("写真の一覧は1回だけ読み、メダルとトランクに同じものを渡す", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(mockListMyPhotos).toHaveBeenCalledTimes(1);
+        const forBadges = mockRefreshBadges.mock.calls[0][2];
+        const forTrunk = (mockGrantLabel.mock.calls[0][3] as { photos: unknown }).photos;
+        expect(forBadges).toBeInstanceOf(Promise);
+        expect(forTrunk).toBe(forBadges);
+    });
+
+    it("初めて公開した時刻（firstPublishedAt）を残す。下書きは持たない・再送は前回の値のまま", async () => {
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedPhoto().firstPublishedAt).toBe(savedPhoto().createdAt);
+        mockPutPhoto.mockClear();
+        await invoke(event("u1", { ...BASE, published: false }));
+        expect(savedPhoto().firstPublishedAt).toBeUndefined();
+        mockPutPhoto.mockReset();
+        mockGetPhotoById.mockResolvedValue(stored({ firstPublishedAt: "2026-10-17T01:00:00.000Z" }));
+        dup();
+        await invoke(event("u1", { ...BASE, published: true }));
+        expect(savedRewrite().firstPublishedAt).toBe("2026-10-17T01:00:00.000Z");
+    });
+
+    it("保存に失敗したら配らない", async () => {
+        mockPutPhoto.mockRejectedValue(new Error("ddb down"));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        await invoke(event("u1", { ...BASE, published: true }));
+        err.mockRestore();
+        expect(mockGrantLabel).not.toHaveBeenCalled();
     });
 });
 

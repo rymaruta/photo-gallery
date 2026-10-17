@@ -1,0 +1,907 @@
+import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { GetCommand } from "@aws-sdk/lib-dynamodb";
+import { createHash, randomInt } from "crypto";
+import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { requireEnv } from "./env";
+import { JSON_HEADERS, getUserId, jsonError } from "./http";
+import { listMyPhotos } from "./ddb-photos";
+import { updateUserRow, UserListError } from "./userList";
+import { isPro } from "./badgeKeys";
+import {
+    PREFECTURE_NAMES, coordsOf, countryOfText, isCountablePhoto,
+    prefectureOfPhoto, seasonOf, yearMonthOf,
+} from "./badges";
+import type { Photo } from "./types";
+
+/**
+ * 旅のトランク（iOS の新機能・2026-10-17 owner 承認）。
+ *
+ * 公開した投稿1件ごとにラベルを1枚「手持ち（pocket）」に配り、本人がトランクに
+ * 「貼る（stuck）」。**絵は保存しない**——アプリが `seed` と `kind` から描く。
+ *
+ * ## 持ち方
+ *
+ * photos テーブルの1行 `trunk#<uid>`（`userList.ts` の `updateUserRow`＝読む → rev 条件で Put）。
+ * 新しい GSI・テーブル・IAM は足さない。行は `uid` を持ち `userId` を持たないので、
+ * 写真の索引（`userId-createdAt-index`）には現れない（`follow#` などと同じ）。
+ *
+ *     model          選んでいる型（Pro の型のままでも保存は残す）
+ *     lastFreeModel  最後に選んだ無料の型（Pro をやめたときに見せる型・既定 leather）
+ *     pocket[]       手持ち（新しい順）
+ *     stuck[]        貼ったもの（新しい順）
+ *     rerolls        { month: 日本時間の YYYY-MM, used }
+ *     pendingReroll  { labelId, seeds[3], at }（作り直しの候補・選ぶまで）
+ *     receiveLabels  ラベルを受け取るか（既定 true。false の間は配らない・戻してもさかのぼらない）
+ *     dealt[]        配った写真の指紋の台帳（新しい順・最新 3000 件）。**写真やラベルを消しても消さない**
+ *     daily          { day: 日本時間の YYYY-MM-DD, count }（その日に配った枚数）
+ *     rev            書き込みの版
+ *
+ * ## 決まり
+ *
+ * - ラベルの id は写真の id。**同じ写真に二度配らない**（再送・同時の保存でも）
+ * - 手持ちの上限は無料 30・Pro 150。いっぱいなら配らない（投稿は通常どおり成功）。
+ *   貼ったものは数えない。貼った一覧は最大 1200 件
+ * - **集める悪用を防ぐ**（2026-10-17 owner）: 同じ写真（指紋）には一度だけ・1日3枚まで・
+ *   投稿から24時間以内に写真を消したら手持ちのラベルを取り消す（`revokeLabel`）
+ * - 作り直しは Pro だけ・日本時間の月に3回・繰り越しなし。候補3つを出し、選んで確定
+ * - Pro の型は Pro の間だけ選べる。やめたら `effectiveModel` を `lastFreeModel` にし、
+ *   保存（`model`）は残す（再開すれば戻る）。手持ちが30を超えていても消さない
+ */
+
+const USERS_TABLE = requireEnv("USERS_TABLE");
+
+export const trunkId = (uid: string) => `trunk#${uid}`;
+
+export const FREE_MODELS = ["leather", "canvas", "aluminum", "steamer"] as const;
+export const PRO_MODELS = ["urushi", "kori", "sleeper", "clipper", "captain", "starchart"] as const;
+export type TrunkModel = (typeof FREE_MODELS)[number] | (typeof PRO_MODELS)[number];
+export const DEFAULT_MODEL: TrunkModel = "leather";
+
+export const POCKET_LIMIT_FREE = 30;
+export const POCKET_LIMIT_PRO = 150;
+/** 貼った一覧の上限。写真の上限（`photoLimit.ts` の 1000）に余裕を見て */
+export const STUCK_MAX = 1200;
+export const REROLLS_PER_MONTH = 3;
+export const REROLL_CANDIDATES = 3;
+/**
+ * きらきら（foil）の出る確率（1万分の）。
+ * 2026-10-17 判断: 2%（50枚に1枚）。公開の投稿が月に数枚の人でも、年に1枚は出会える程度
+ */
+export const FOIL_PER_10000 = 200;
+/**
+ * 1行の大きさの上限（DynamoDB の1項目は 400KB）。
+ * 見積もり（`trunk.test.ts` の「いちばん大きい行」で実測して確かめる）:
+ *   ラベル 1350 枚（手持ち150＋貼った1200）× 約190B（短い鍵で保存・`stored`）≈ 250KB
+ *   ＋ 指紋の台帳 3000 × 約17B ≈ 50KB ＋ 束の台帳 3000 × 約17B ≈ 50KB ＋ 節目の記録 ≈ 数KB
+ *   ＝ およそ 350KB（JSON で数えた値。DynamoDB の数え方はこれより小さい）。
+ *   ふつうの鍵のまま（1枚 約280B）だと 470KB で入らなかった
+ *   ⚠️ 地名を長く書く人では越えうる。そのときは配らない・貼らない（黙って切り詰めない）
+ * （2026-10-17 判断: 越えるなら配らない（`storage`）・貼らない（409 `storage`）。黙って切り詰めない）
+ */
+export const TRUNK_BUDGET_BYTES = 380 * 1024;
+/**
+ * 悪用を防ぐ上限（2026-10-17 判断・owner の指示の数をここにまとめる）。
+ * - 1日（日本時間）に配るのは3枚まで（owner 2026-10-17。最初の指示の5枚から改めた）。数えるのは配れた枚数だけ。取り消しても戻さない
+ *   （消して上げ直す往復で日の枠を回復させない）
+ * - 投稿から24時間以内に写真を消したら、手持ちに残っているラベルを取り消す（貼ったものは消さない）
+ * - 指紋の台帳は最新3000件（古い順に落とす）。1件 14 文字（およそ17バイト）で、全部でおよそ 50KB
+ */
+export const DAILY_DEAL_MAX = 3;
+/**
+ * 🔴 **本番に出すときに、出す日（日本時間 0:00）へ書き換える。** いまの値は仮（作った日）。
+ * 出す日より前に作った写真を、出したあとに非公開 → 公開で集められないようにするための線なので、
+ * 出す日とずれると、そのあいだに作った写真が「新しい写真」として扱われる。
+ *
+ * この機能を出した日（日本時間 2026-10-17 0:00）。2026-10-17 判断: **これより前に作られた写真には配らない**
+ * （昔の写真を非公開 → 公開にしてラベルを集められないように）。savePhoto のその場の投稿は新しいので当たらない
+ */
+export const TRUNK_LAUNCHED_AT = "2026-10-16T15:00:00.000Z";
+export const REVOKE_WINDOW_MS = 24 * 3_600_000;
+export const DEALT_LEDGER_MAX = 3000;
+/**
+ * 配った節目の記録の上限（節目4つ＋国ごとの「はじめての国」）。国の数より十分大きく取る。
+ * 束（`groups`）の台帳は指紋の台帳と同じ 3000 件・古い順に落とす（2026-10-17 判断）
+ */
+export const MILESTONE_LEDGER_MAX = 300;
+
+/** 本流（savePhoto）の中で待ってよい上限。メダルの数え直し（`badgeStore.ts` の QUIET_LIMIT_MS）と同じ */
+export const TRUNK_QUIET_LIMIT_MS = 2500;
+
+const PLACE_NAME_MAX = 30;
+
+export const LABEL_KINDS = ["milestone", "timeslot", "season", "place"] as const;
+export type LabelKind = (typeof LABEL_KINDS)[number];
+export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
+export const TIMESLOTS = ["dawn", "dusk", "night"] as const;
+export const MILESTONES = ["first", "posts10", "posts50", "posts100", "firstCountry"] as const;
+
+/**
+ * ラベル1枚。**保存するときは `photoId` を持たない**（いつも `id` と同じなので、1行を小さく保つ・
+ * 2026-10-17 判断）。読むときに `id` から埋める
+ */
+export type TrunkLabel = {
+    id: string;
+    photoId: string;
+    kind: LabelKind;
+    place: { name: string; latin?: string; country?: string };
+    season?: (typeof SEASONS)[number];
+    timeslot?: (typeof TIMESLOTS)[number];
+    milestone?: (typeof MILESTONES)[number];
+    seed: number;
+    at: string;
+    foil?: true;
+    /**
+     * 同じ投稿の束（写真の `groupId`）。2026-10-17 判断: 束で上げた投稿（写真の行が幾つもある）は
+     * **1投稿＝1枚**にするため、配るときの見分けに持つ（応答には出さない）。
+     * 保存するのは `groupId` そのものではなく短いハッシュ（`g:` ＋12桁）——束の台帳（`groups`）も同じ値
+     */
+    groupId?: string;
+};
+
+export type PendingReroll = { labelId: string; seeds: number[]; at: string };
+
+export type TrunkDoc = {
+    model: TrunkModel;
+    lastFreeModel: TrunkModel;
+    pocket: TrunkLabel[];
+    stuck: TrunkLabel[];
+    rerolls: { month: string; used: number };
+    pendingReroll?: PendingReroll;
+    receiveLabels: boolean;
+    dealt: string[];
+    daily: { day: string; count: number };
+    /** 配った節目（`first`・`posts10`…・`firstCountry:<国>`）。一度きり。写真を消しても消さない */
+    milestones: string[];
+    /** 配った束（写真の `groupId`）。手持ちから消しても残す（同じ束の別の写真に配らない） */
+    groups: string[];
+};
+
+const isIn = <T extends string>(list: readonly T[], v: unknown): v is T =>
+    typeof v === "string" && (list as readonly string[]).includes(v);
+
+export const isTrunkModel = (v: unknown): v is TrunkModel => isIn(FREE_MODELS, v) || isIn(PRO_MODELS, v);
+const isFreeModel = (v: unknown): v is TrunkModel => isIn(FREE_MODELS, v);
+
+const LABEL_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+const isSeed = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 2 ** 31;
+
+/** 保存されているラベルの形か（形の違うものは読むときに落とす） */
+export function isTrunkLabel(v: unknown): v is TrunkLabel {
+    if (!v || typeof v !== "object") return false;
+    const l = v as Record<string, unknown>;
+    const place = l.place as Record<string, unknown> | undefined;
+    return typeof l.id === "string" && LABEL_ID_RE.test(l.id)
+        && isIn(LABEL_KINDS, l.kind)
+        && !!place && typeof place === "object" && typeof place.name === "string"
+        && isSeed(l.seed)
+        && typeof l.at === "string";
+}
+
+/** 日本時間の YYYY-MM */
+export function jstMonth(now: Date): string {
+    return new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 7);
+}
+
+/** 日本時間の YYYY-MM-DD */
+export function jstDay(now: Date): string {
+    return new Date(now.getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+}
+
+/**
+ * 写真の指紋（同じ写真を消して上げ直してもラベルが届かないように）。
+ *
+ * 2026-10-17 判断: **EXIF の撮影日時＋機種＋画像の大きさ**の組を sha256 に通した先頭12桁。
+ * **撮影日時が無ければ写真 id の指紋**（機種と大きさだけだと、同じカメラの別の写真がみな同じ指紋になる）。
+ * アップロードの処理は中身のハッシュを持っていない（presign で長さを縛るだけで、S3 の ETag を
+ * 読むには HeadObject の権限が要る＝IAM の変更になる）ので使わない。
+ * 撮影日時の無い写真（スクリーンショット・EXIF を落とした書き出し）は**写真 id だけ**で見る
+ * ——上げ直せば別の id になるので、その写真は消して上げ直すと届く（日の上限3枚が歯止め）。
+ * ⚠️ 同じ秒・同じ機種・同じ大きさの連写は同じ指紋になる（2枚目は `duplicate`）。それは許す
+ */
+export function fingerprintOf(p: Photo): string {
+    const e = p.exif ?? {};
+    const parts = [e.dateTimeOriginal, e.camera, e.imageSize].map((v) => (typeof v === "string" ? v.trim() : ""));
+    // 台帳を小さく保つため、id だけの指紋も同じ長さに縮める（`i:` と `x:` で混ざらない）
+    if (parts[0] === "") return `i:${shortHash(p.id)}`;
+    return `x:${shortHash(parts.join("\u0000"))}`;
+}
+
+function shortHash(v: string): string {
+    return createHash("sha256").update(v).digest("hex").slice(0, 12);
+}
+
+const strings = (v: unknown): string[] =>
+    Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : [];
+
+/** 行（無ければ undefined）を、使ってよい形に読み直す */
+export function parseTrunk(item: Record<string, unknown> | undefined): TrunkDoc {
+    const labels = (v: unknown) => Array.isArray(v)
+        ? (v as unknown[]).map(decodeLabel).filter(isTrunkLabel).map((l) => ({ ...l, photoId: l.id }))
+        : [];
+    const r = item?.rerolls as { month?: unknown; used?: unknown } | undefined;
+    const p = item?.pendingReroll as { labelId?: unknown; seeds?: unknown; at?: unknown } | undefined;
+    const pending: PendingReroll | undefined = p && typeof p.labelId === "string" && Array.isArray(p.seeds)
+        && p.seeds.every(isSeed) && p.seeds.length > 0
+        ? { labelId: p.labelId, seeds: p.seeds as number[], at: typeof p.at === "string" ? p.at : "" }
+        : undefined;
+    return {
+        model: isTrunkModel(item?.model) ? item.model : DEFAULT_MODEL,
+        lastFreeModel: isFreeModel(item?.lastFreeModel) ? item.lastFreeModel : DEFAULT_MODEL,
+        pocket: labels(item?.pocket),
+        stuck: labels(item?.stuck),
+        rerolls: {
+            month: typeof r?.month === "string" ? r.month : "",
+            used: typeof r?.used === "number" && Number.isInteger(r.used) && r.used >= 0 ? r.used : 0,
+        },
+        ...(pending ? { pendingReroll: pending } : {}),
+        receiveLabels: item?.receiveLabels !== false,
+        dealt: strings(item?.dealt),
+        milestones: strings(item?.milestones),
+        groups: strings(item?.groups),
+        daily: {
+            day: typeof (item?.daily as { day?: unknown })?.day === "string" ? (item!.daily as { day: string }).day : "",
+            count: typeof (item?.daily as { count?: unknown })?.count === "number" ? (item!.daily as { count: number }).count : 0,
+        },
+    };
+}
+
+/** 書く項目（`updateUserRow` が id・uid・rev・updatedAt を足す） */
+function serialize(doc: TrunkDoc): Record<string, unknown> {
+    return {
+        model: doc.model,
+        lastFreeModel: doc.lastFreeModel,
+        pocket: doc.pocket.map(stored),
+        stuck: doc.stuck.map(stored),
+        rerolls: doc.rerolls,
+        ...(doc.pendingReroll ? { pendingReroll: doc.pendingReroll } : {}),
+        receiveLabels: doc.receiveLabels,
+        dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
+        daily: doc.daily,
+        milestones: doc.milestones.slice(0, MILESTONE_LEDGER_MAX),
+        groups: doc.groups.slice(0, DEALT_LEDGER_MAX),
+    };
+}
+
+/**
+ * **保存する形（短い鍵）**。2026-10-17 判断: 1行に 1350 枚＋台帳を入れると、ふつうの形
+ * （1枚およそ 280B）では 400KB を越える（`trunk.test.ts` の「いちばん大きい行」で実測）。
+ * 鍵を1文字にし、時刻を秒の数、季節・時刻・kind を短い印にして、1枚およそ 190B にする。
+ * `photoId` は `id` と同じなので持たない。読むとき（`decodeLabel`）に元の形へ戻す
+ *
+ *     i id ・ k kind(m/t/s/p) ・ n 地名 ・ l latin ・ c 国 ・ s 季節(0-3) ・ t 時刻(0-2) ・
+ *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵
+ */
+const KIND_CODE: Record<LabelKind, string> = { milestone: "m", timeslot: "t", season: "s", place: "p" };
+const KIND_BY_CODE: Record<string, LabelKind> = { m: "milestone", t: "timeslot", s: "season", p: "place" };
+
+function stored(l: TrunkLabel): Record<string, unknown> {
+    const at = Date.parse(l.at);
+    return {
+        i: l.id,
+        k: KIND_CODE[l.kind],
+        n: l.place.name,
+        ...(l.place.latin ? { l: l.place.latin } : {}),
+        ...(l.place.country ? { c: l.place.country } : {}),
+        ...(l.season ? { s: SEASONS.indexOf(l.season) } : {}),
+        ...(l.timeslot ? { t: TIMESLOTS.indexOf(l.timeslot) } : {}),
+        ...(l.milestone ? { m: l.milestone } : {}),
+        d: l.seed,
+        a: Number.isFinite(at) ? Math.floor(at / 1000) : 0,
+        ...(l.foil ? { f: 1 } : {}),
+        ...(l.groupId ? { g: l.groupId } : {}),
+    };
+}
+
+/** 保存の形から元の形へ（短い鍵でない値＝元の形のまま書かれた行は、そのまま渡す） */
+function decodeLabel(v: unknown): unknown {
+    if (!v || typeof v !== "object" || typeof (v as { i?: unknown }).i !== "string") return v;
+    const r = v as Record<string, unknown>;
+    const season = typeof r.s === "number" ? SEASONS[r.s] : undefined;
+    const timeslot = typeof r.t === "number" ? TIMESLOTS[r.t] : undefined;
+    return {
+        id: r.i,
+        kind: typeof r.k === "string" ? KIND_BY_CODE[r.k] : undefined,
+        place: {
+            name: typeof r.n === "string" ? r.n : "",
+            ...(typeof r.l === "string" ? { latin: r.l } : {}),
+            ...(typeof r.c === "string" ? { country: r.c } : {}),
+        },
+        ...(season ? { season } : {}),
+        ...(timeslot ? { timeslot } : {}),
+        ...(isIn(MILESTONES, r.m) ? { milestone: r.m } : {}),
+        seed: r.d,
+        at: typeof r.a === "number" ? new Date(r.a * 1000).toISOString() : "",
+        ...(r.f === 1 ? { foil: true } : {}),
+        ...(typeof r.g === "string" ? { groupId: r.g } : {}),
+    };
+}
+
+const fitsBudget = (doc: TrunkDoc) => Buffer.byteLength(JSON.stringify(serialize(doc)), "utf8") <= TRUNK_BUDGET_BYTES;
+
+export const pocketLimit = (pro: boolean) => (pro ? POCKET_LIMIT_PRO : POCKET_LIMIT_FREE);
+
+/** 今月使った作り直しの回数（月が替わっていれば 0＝繰り越しなし） */
+export function rerollsUsed(doc: TrunkDoc, now: Date): number {
+    return doc.rerolls.month === jstMonth(now) ? doc.rerolls.used : 0;
+}
+
+/** Pro の型は Pro の間だけ。やめたら最後の無料の型（保存は残す） */
+export function effectiveModel(doc: TrunkDoc, pro: boolean): TrunkModel {
+    return isFreeModel(doc.model) || pro ? doc.model : doc.lastFreeModel;
+}
+
+// ─── ラベルの中身 ───────────────────────────────────────────
+
+/** 公開している投稿の数。束（`groupId`）は1投稿に数える */
+export function countPosts(photos: Photo[]): number {
+    const keys = new Set<string>();
+    for (const p of photos) {
+        if (!isCountablePhoto(p)) continue;
+        keys.add(postKey(p));
+    }
+    return keys.size;
+}
+
+function postKey(p: Photo): string {
+    const g = typeof p.groupId === "string" ? p.groupId.trim() : "";
+    return g ? `g:${g}` : `p:${p.id}`;
+}
+
+/** EXIF の撮影時刻の「時」（その土地の時計）。読めなければ null */
+export function shotHour(p: Photo): number | null {
+    const raw = p.exif?.dateTimeOriginal;
+    if (typeof raw !== "string") return null;
+    const m = /^\d{4}[-:/]\d{2}[-:/]\d{2}[ T](\d{2}):\d{2}/.exec(raw.trim());
+    if (!m) return null;
+    const h = Number(m[1]);
+    return h >= 0 && h <= 23 ? h : null;
+}
+
+/** 夜明け 4–6・夕方 16–18・夜 20–3（時の値で見る。両端を含む） */
+export function timeslotOf(hour: number | null): TrunkLabel["timeslot"] | undefined {
+    if (hour === null) return undefined;
+    if (hour >= 4 && hour <= 6) return "dawn";
+    if (hour >= 16 && hour <= 18) return "dusk";
+    if (hour >= 20 || hour <= 3) return "night";
+    return undefined;
+}
+
+const LATIN_RE = /^[\x20-\x7EÀ-ɏ]+$/;
+
+/**
+ * 土地。撮影地の文字 → スポット・座標から分かる県 → 空。
+ * 2026-10-17 判断: `latin` は撮影地の文字にラテン文字の区切りがあるときだけ（訳さない・作らない）。
+ * 国名は**メダルの表**（`countryOfText`）で当たったときと、県が分かったとき（日本）だけ
+ */
+export function placeOf(p: Photo): TrunkLabel["place"] {
+    const text = typeof p.location === "string" ? p.location.trim() : "";
+    const parts = text.split(/[,、，/()（）]/).map((s) => s.trim()).filter(Boolean);
+    const pref = prefectureOfPhoto(p);
+    const country = countryOfText(text) ?? (pref !== null ? "日本" : undefined);
+    let name = parts[0] ?? "";
+    if (!name && pref !== null) name = PREFECTURE_NAMES[pref] ?? "";
+    if (!name && country) name = country;
+    const latin = parts.find((s) => LATIN_RE.test(s) && /[A-Za-z]/.test(s));
+    return {
+        name: name.slice(0, PLACE_NAME_MAX),
+        ...(latin ? { latin: latin.slice(0, PLACE_NAME_MAX) } : {}),
+        ...(country ? { country } : {}),
+    };
+}
+
+/**
+ * 節目。はじめての投稿 ＞ 100・50・10 投稿目 ＞ はじめての国。
+ * `others` は**この投稿を除いた**、本人の公開している写真。
+ */
+export function milestoneOf(p: Photo, others: Photo[]): TrunkLabel["milestone"] | undefined {
+    const n = countPosts(others) + 1;
+    if (n === 1) return "first";
+    if (n === 100) return "posts100";
+    if (n === 50) return "posts50";
+    if (n === 10) return "posts10";
+    const country = countryOfText(p.location);
+    if (country) {
+        const seen = new Set(others.filter(isCountablePhoto).map((o) => countryOfText(o.location)));
+        if (!seen.has(country)) return "firstCountry";
+    }
+    return undefined;
+}
+
+export type Rand = (minInclusive: number, maxExclusive: number) => number;
+const cryptoRand: Rand = (a, b) => randomInt(a, b);
+
+export const newSeed = (rand: Rand = cryptoRand) => rand(1, 2 ** 31 - 1);
+
+/**
+ * 1枚を組み立てる。kind は 節目 ＞ 時刻 ＞ 季節 ＞ 土地 の順で、当たったもので決める。
+ * 季節と時刻は、kind が別でも分かれば載せる（アプリの飾りに使える）。
+ * 2026-10-17 判断: どれにも当たらない（撮影地も日付も無い）投稿は `place`（名前は空）にする——配らないと
+ * 「投稿1件ごとに1枚」が崩れる
+ */
+export function buildLabel(p: Photo, others: Photo[], now: Date, rand: Rand = cryptoRand): TrunkLabel {
+    const milestone = milestoneOf(p, others);
+    const timeslot = timeslotOf(shotHour(p));
+    const ym = yearMonthOf(p);
+    const c = coordsOf(p);
+    const season = ym ? SEASONS[seasonOf(ym.m, !!c && c.lat < 0)] : undefined;
+    const kind: LabelKind = milestone ? "milestone" : timeslot ? "timeslot" : season ? "season" : "place";
+    const g = typeof p.groupId === "string" ? p.groupId.trim() : "";
+    return {
+        id: p.id,
+        photoId: p.id,
+        kind,
+        place: placeOf(p),
+        ...(season ? { season } : {}),
+        ...(timeslot ? { timeslot } : {}),
+        ...(milestone ? { milestone } : {}),
+        seed: newSeed(rand),
+        // 秒にそろえる（保存の形が秒で持つので、再送で返す配り済みの1枚と同じ値になる）
+        at: new Date(Math.floor(now.getTime() / 1000) * 1000).toISOString(),
+        ...(rand(0, 10_000) < FOIL_PER_10000 ? { foil: true as const } : {}),
+        ...(g ? { groupId: groupKey(g) } : {}),
+    };
+}
+
+/** 束の見分けに使う短い鍵（`groupId` は最大64文字。台帳を小さく保つ） */
+export const groupKey = (groupId: string) => `g:${shortHash(groupId.trim())}`;
+
+// ─── 配る ───────────────────────────────────────────────────
+
+export type DealOutcome = {
+    /** 応答に出す形（`stripInternal` を通したもの。束の鍵は出さない） */
+    label: PublicLabel | null;
+    labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error";
+};
+
+/**
+ * 手持ちに足す（純関数）。**変えないときは doc: null**。
+ * この順に見る:
+ * - 同じ id が手持ちか貼った方に在る → そのラベルを返す（再送・非公開→公開で二度配らない）
+ * - 受け取らない設定 → 配らない（`off`）。台帳にも載せない
+ * - 同じ束の投稿に配り済み → 配らない（`samePost`）
+ * - 指紋が台帳に在る（消して上げ直した・前に配って手持ちから削除した）→ 配らない（`duplicate`）
+ * - その日に3枚配った → 配らない（`daily`）
+ * - 手持ちが上限 → 配らない（`full`）。貼ったものは数えない
+ */
+export function dealInto(
+    doc: TrunkDoc, label: TrunkLabel, limit: number, fingerprint: string, now: Date,
+): { doc: TrunkDoc | null; outcome: DealOutcome } {
+    const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
+    if (existing) return { doc: null, outcome: { label: stripInternal(existing) } };
+    if (!doc.receiveLabels) return { doc: null, outcome: { label: null, labelSkipped: "off" } };
+    // 束は台帳で見る（手持ちから消しても、同じ束の別の写真には配らない）。台帳を入れる前に配った分は手持ち・貼った方で見る
+    if (label.groupId && (doc.groups.includes(label.groupId)
+        || [...doc.pocket, ...doc.stuck].some((l) => l.groupId === label.groupId))) {
+        return { doc: null, outcome: { label: null, labelSkipped: "samePost" } };
+    }
+    // 台帳は配ったときに必ず載る＝手持ちから削除したあとの再送でも、消して上げ直しても戻らない
+    if (doc.dealt.includes(fingerprint)) {
+        return { doc: null, outcome: { label: null, labelSkipped: "duplicate" } };
+    }
+    const day = jstDay(now);
+    const todayCount = doc.daily.day === day ? doc.daily.count : 0;
+    if (todayCount >= DAILY_DEAL_MAX) return { doc: null, outcome: { label: null, labelSkipped: "daily" } };
+    if (doc.pocket.length >= limit) return { doc: null, outcome: { label: null, labelSkipped: "full" } };
+    // **節目は一度きり**（写真を全部消して投稿し直しても、同じ節目は二度と配らない）。
+    // 配り済みなら節目を外し、残りの順（時刻 ＞ 季節 ＞ 土地）で kind を決め直す
+    const msKey = milestoneKey(label);
+    const given = msKey !== null && doc.milestones.includes(msKey) ? withoutMilestone(label) : label;
+    const next: TrunkDoc = {
+        ...doc,
+        pocket: [given, ...doc.pocket],
+        dealt: [fingerprint, ...doc.dealt],   // 上限（古い順に落とす）は serialize で切る
+        daily: { day, count: todayCount + 1 },
+        ...(given.milestone && msKey ? { milestones: [msKey, ...doc.milestones] } : {}),
+        ...(label.groupId ? { groups: [label.groupId, ...doc.groups] } : {}),
+    };
+    if (!fitsBudget(next)) return { doc: null, outcome: { label: null, labelSkipped: "storage" } };
+    return { doc: next, outcome: { label: stripInternal(given) } };
+}
+
+/** 節目の記録の鍵。「はじめての国」は国ごと（`firstCountry:フランス`） */
+export function milestoneKey(l: TrunkLabel): string | null {
+    if (!l.milestone) return null;
+    return l.milestone === "firstCountry" ? `firstCountry:${l.place.country ?? ""}` : l.milestone;
+}
+
+function withoutMilestone(l: TrunkLabel): TrunkLabel {
+    const { milestone: _m, ...rest } = l;
+    void _m;
+    return { ...rest, kind: rest.timeslot ? "timeslot" : rest.season ? "season" : "place" };
+}
+
+async function readProfileBits(uid: string): Promise<Record<string, unknown> | undefined> {
+    const res = await ddb.send(new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { userId: uid },
+        ProjectionExpression: "userId, supporter",
+    }));
+    return res.Item as Record<string, unknown> | undefined;
+}
+
+/**
+ * 公開した投稿にラベルを1枚配る。読む・書くで落ちたら投げる（`grantLabelQuietly` が握る）。
+ * 下書き・ストーリーは配らない（メダルと同じ `isCountablePhoto` の線）。
+ */
+export async function grantLabel(
+    uid: string, photo: Photo, now: Date = new Date(), rand: Rand = cryptoRand, photos?: Promise<Photo[]>,
+): Promise<DealOutcome> {
+    if (!uid || !isCountablePhoto(photo)) return { label: null, labelSkipped: "draft" };
+    // 本人の写真の一覧は、渡されたら使う（savePhoto がメダルの数え直しと1回の読みを分け合う）
+    const [profile, mine] = await Promise.all([readProfileBits(uid), photos ?? listMyPhotos(uid)]);
+    const limit = pocketLimit(isPro(profile, now.getTime()));
+    const key = postKey(photo);
+    // この投稿（束なら束ごと）を除く。索引は結果整合なので、いま書いた行が見えていてもいなくても同じ数になる
+    const others = mine.filter((o) => isCountablePhoto(o) && o.id !== photo.id && postKey(o) !== key);
+    // 乱数は**書く前に1回だけ**引く（競合で読み直しても同じ1枚を足す）
+    const label = buildLabel(photo, others, now, rand);
+    const fp = fingerprintOf(photo);
+    let outcome: DealOutcome = { label: null, labelSkipped: "error" };
+    await updateUserRow(trunkId(uid), uid, (item) => {
+        const r = dealInto(parseTrunk(item), label, limit, fp, now);
+        outcome = r.outcome;
+        return r.doc ? serialize(r.doc) : null;
+    });
+    return outcome;
+}
+
+/**
+ * 写真の編集（`photoUpdate.ts`）で**下書き → 公開**になったときに呼ぶ。行を読み直して、
+ * savePhoto と同じ判定（受け取り設定・指紋・束・1日の上限・手持ちの上限）で配る。
+ * 編集で直した撮影地などが載るよう、更新を書いたあとの行を読む。投げない・上限つきで待つ
+ */
+export async function grantLabelForPhotoQuietly(uid: string, photoId: string, label: string): Promise<DealOutcome> {
+    // 2026-10-17 判断: 呼ぶ側（`photoUpdate.ts`）が「初めての公開」（`firstPublishedAt` を条件つきで書けた）
+    // ときだけ呼ぶ。ここでは機能を出した日より前に作られた写真を落とす
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            (async (): Promise<DealOutcome> => {
+                // **強い読み**（いま書いた公開の状態・撮影地を必ず見る）
+                const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
+                const row = res.Item as Photo | undefined;
+                // 持ち主の行だけ（読み直すあいだに消えた・別の人の行は配らない）
+                if (!row || (row.userId ?? row.uploadedBy) !== uid) return { label: null, labelSkipped: "draft" };
+                if (!createdAfterLaunch(row)) return { label: null, labelSkipped: "notNew" };
+                return grantLabel(uid, row);
+            })().catch((e): DealOutcome => {
+                console.error(`${label}: ラベルを配れませんでした（${uid}）:`, e);
+                return { label: null, labelSkipped: "error" };
+            }),
+            new Promise<DealOutcome>((resolve) => {
+                timer = setTimeout(() => resolve({ label: null, labelSkipped: "timeout" }), TRUNK_QUIET_LIMIT_MS);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+/** 機能を出した日より後に作られた写真か（作成の時刻が読めなければ、配らない側に倒す） */
+export function createdAfterLaunch(p: { createdAt?: unknown }): boolean {
+    const t = typeof p.createdAt === "string" ? Date.parse(p.createdAt) : NaN;
+    return Number.isFinite(t) && t >= Date.parse(TRUNK_LAUNCHED_AT);
+}
+
+/**
+ * savePhoto の成功のあとに呼ぶ。**投げない・上限つきで待つ**（`refreshBadgesQuietly` と同じ形）。
+ * 上限を越えたら `timeout`。
+ * ⚠️（推測・直していない）時間切れのあとも書き込みは走りうるので、応答は `timeout` なのにラベルは
+ * 届いていることがある（`GET /user/trunk` に出る）。Lambda は応答を返すと止まるので、届かないこともある
+ *
+ * @param opts.photos 本人の写真の一覧（メダルの数え直しと1回の読みを分け合う）
+ * @param opts.requireNew 再送の経路では、機能を出した日より前に作られた写真に配らない（古い下書きを
+ *   再送の形で公開して集めさせない）
+ */
+export async function grantLabelQuietly(
+    uid: string, photo: Photo, label: string, opts: { photos?: Promise<Photo[]>; requireNew?: boolean } = {},
+): Promise<DealOutcome> {
+    if (!uid || !isCountablePhoto(photo)) return { label: null, labelSkipped: "draft" };
+    if (opts.requireNew && !createdAfterLaunch(photo)) return { label: null, labelSkipped: "notNew" };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            grantLabel(uid, photo, new Date(), cryptoRand, opts.photos).catch((e): DealOutcome => {
+                console.error(`${label}: ラベルを配れませんでした（${uid}）:`, e);
+                return { label: null, labelSkipped: "error" };
+            }),
+            new Promise<DealOutcome>((resolve) => {
+                timer = setTimeout(() => resolve({ label: null, labelSkipped: "timeout" }), TRUNK_QUIET_LIMIT_MS);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+// ─── 口 ─────────────────────────────────────────────────────
+
+const NO_STORE = { ...JSON_HEADERS, "Cache-Control": "private, no-store" };
+
+function view(doc: TrunkDoc, pro: boolean, now: Date) {
+    return {
+        model: doc.model,
+        effectiveModel: effectiveModel(doc, pro),
+        pocket: doc.pocket.map(stripInternal),
+        stuck: doc.stuck.map(stripInternal),
+        limit: pocketLimit(pro),
+        isPro: pro,
+        rerolls: { left: pro ? Math.max(0, REROLLS_PER_MONTH - rerollsUsed(doc, now)) : 0, month: jstMonth(now) },
+        ...(doc.pendingReroll ? { pendingReroll: doc.pendingReroll } : {}),
+        receiveLabels: doc.receiveLabels,
+    };
+}
+
+export type PublicLabel = Omit<TrunkLabel, "groupId">;
+
+/** 束の印は配るときの見分けだけに使う（応答には出さない） */
+export function stripInternal(l: TrunkLabel): PublicLabel {
+    const { groupId: _g, ...rest } = l;
+    void _g;
+    return rest;
+}
+
+/** 手で返す失敗（`updateUserRow` の mutate から投げて、口で応答に直す） */
+class TrunkError extends Error {
+    constructor(readonly status: number, message: string, readonly code: string) { super(message); }
+}
+
+type Mutation = (doc: TrunkDoc, ctx: { pro: boolean; now: Date }) => TrunkDoc | null;
+
+async function mutateTrunk(uid: string, pro: boolean, now: Date, fn: Mutation): Promise<TrunkDoc> {
+    let last: TrunkDoc | null = null;
+    await updateUserRow(trunkId(uid), uid, (item) => {
+        const doc = parseTrunk(item);
+        const next = fn(doc, { pro, now });
+        last = next ?? doc;
+        if (next && !fitsBudget(next)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+        return next ? serialize(next) : null;
+    });
+    return last ?? parseTrunk(undefined);
+}
+
+function body(event: { body?: string | null; isBase64Encoded?: boolean }): Record<string, unknown> {
+    if (!event.body) return {};
+    try {
+        const raw = event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body;
+        const v = JSON.parse(raw);
+        return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+    } catch {
+        throw new TrunkError(400, "不正なリクエスト", "badRequest");
+    }
+}
+
+/** 手持ちから貼る。貼った方に在れば何もしない（再送で 404 にしない） */
+export const stickMutation = (id: string): Mutation => (doc) => {
+    if (doc.stuck.some((l) => l.id === id)) return null;
+    const label = doc.pocket.find((l) => l.id === id);
+    if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    if (doc.stuck.length >= STUCK_MAX) throw new TrunkError(409, "トランクがいっぱいです", "full");
+    return {
+        ...doc,
+        pocket: doc.pocket.filter((l) => l.id !== id),
+        stuck: [label, ...doc.stuck],
+        // 選びかけの作り直しは手持ちのラベルだけのもの。貼ったら捨てる（使った回数は戻らない）
+        ...(doc.pendingReroll?.labelId === id ? { pendingReroll: undefined } : {}),
+    };
+};
+
+/** 手持ちから削除（貼ったものは消せない） */
+export const removeMutation = (id: string): Mutation => (doc) => {
+    if (!doc.pocket.some((l) => l.id === id)) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    return {
+        ...doc,
+        pocket: doc.pocket.filter((l) => l.id !== id),
+        ...(doc.pendingReroll?.labelId === id ? { pendingReroll: undefined } : {}),
+    };
+};
+
+/**
+ * 作り直し（Pro・月3回）。候補 seed を3つ出して `pendingReroll` に置く。
+ * - 同じラベルに選びかけがあれば**そのまま返す**（回数を使わない・再送で二重に減らさない）
+ * - 別のラベルに選びかけがあれば 409（先に選ぶ）。2026-10-17 判断: 黙って捨てると払った1回が消える
+ * - foil は作り直しても保つ（2026-10-17 判断: 図柄だけ替える。きらきらは運で引いた「その投稿の」もの）
+ */
+export const rerollMutation = (id: string, seeds: number[]): Mutation => (doc, { pro, now }) => {
+    if (!pro) throw new TrunkError(403, "Pro の機能です", "proOnly");
+    if (!doc.pocket.some((l) => l.id === id)) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    if (doc.pendingReroll) {
+        if (doc.pendingReroll.labelId === id) return null;
+        throw new TrunkError(409, "選びかけの作り直しがあります", "pendingReroll");
+    }
+    const used = rerollsUsed(doc, now);
+    if (used >= REROLLS_PER_MONTH) throw new TrunkError(409, "今月の作り直しは使い切りました", "noRerollsLeft");
+    return {
+        ...doc,
+        rerolls: { month: jstMonth(now), used: used + 1 },
+        pendingReroll: { labelId: id, seeds, at: now.toISOString() },
+    };
+};
+
+/**
+ * 候補から選ぶ（今の図柄を選んでもよい＝回数は戻らない）。
+ * 2026-10-17 判断: 作り直しのあとに Pro が切れても選べる（回数はもう払ってある）
+ */
+export const chooseMutation = (id: string, seed: unknown): Mutation => (doc) => {
+    const pending = doc.pendingReroll;
+    if (!pending || pending.labelId !== id) throw new TrunkError(404, "作り直しの候補がありません", "noPending");
+    const label = doc.pocket.find((l) => l.id === id);
+    if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
+    if (!isSeed(seed) || (seed !== label.seed && !pending.seeds.includes(seed))) {
+        throw new TrunkError(400, "候補にない図柄です", "badSeed");
+    }
+    return {
+        ...doc,
+        pocket: doc.pocket.map((l) => (l.id === id ? { ...l, seed } : l)),
+        pendingReroll: undefined,
+    };
+};
+
+/** 型を選ぶ。Pro の型は Pro の間だけ。無料の型を選んだら `lastFreeModel` も替える */
+export const modelMutation = (model: unknown): Mutation => (doc, { pro }) => {
+    if (!isTrunkModel(model)) throw new TrunkError(400, "型が正しくありません", "badModel");
+    if (!isFreeModel(model) && !pro) throw new TrunkError(403, "Pro の型です", "proOnly");
+    if (doc.model === model && (!isFreeModel(model) || doc.lastFreeModel === model)) return null;
+    return { ...doc, model, ...(isFreeModel(model) ? { lastFreeModel: model } : {}) };
+};
+
+/**
+ * 受け取る／受け取らない。2026-10-17 owner: 止めていた間のぶんは、戻してもさかのぼって配らない
+ * （配るのは savePhoto のその場だけなので、止めていた間の投稿はそもそも数えていない）
+ */
+export const settingsMutation = (receiveLabels: unknown): Mutation => (doc) => {
+    if (typeof receiveLabels !== "boolean") throw new TrunkError(400, "設定が正しくありません", "badRequest");
+    return doc.receiveLabels === receiveLabels ? null : { ...doc, receiveLabels };
+};
+
+/**
+ * 写真を消した・非公開にしたときの取り消し（純関数）。**投稿から24時間以内**なら、手持ちでも
+ * **貼ったものでも**外す（2026-10-17 owner: 貼ってから消す、で取り消しを逃れさせない）。
+ * 指紋の台帳・束の台帳・日の枚数・節目の記録はそのまま（上げ直しても届かない・日の枠も戻らない）。
+ *
+ * - 束の写真は、**束の写真がもう1枚も公開で残っていない**とき（`groupRemains: false`）だけ取り消す。
+ *   ラベルは束の最初の1枚の id を持つので、束の鍵で探す。時刻はラベルの `at`
+ * - 束でない写真は写真の id で探す。時刻は写真の初めての公開（`firstPublishedAt`）→ 作成（`createdAt`）→ ラベルの `at`
+ */
+export function revokeFrom(
+    doc: TrunkDoc,
+    target: { photoId: string; group?: string; groupRemains?: boolean; postedAt?: unknown },
+    now: Date,
+): TrunkDoc | null {
+    if (target.group && target.groupRemains) return null;
+    const match = (l: TrunkLabel) => (target.group ? l.groupId === target.group : l.id === target.photoId);
+    const label = doc.pocket.find(match) ?? doc.stuck.find(match);
+    if (!label) return null;
+    const p = target.postedAt;
+    const posted = !target.group && typeof p === "string" && Number.isFinite(Date.parse(p)) ? Date.parse(p) : Date.parse(label.at);
+    if (!Number.isFinite(posted) || now.getTime() - posted > REVOKE_WINDOW_MS) return null;
+    return {
+        ...doc,
+        pocket: doc.pocket.filter((l) => l.id !== label.id),
+        stuck: doc.stuck.filter((l) => l.id !== label.id),
+        ...(doc.pendingReroll?.labelId === label.id ? { pendingReroll: undefined } : {}),
+    };
+}
+
+/**
+ * 束の写真が、この1枚のほかに**まだ公開で残っているか**。
+ *
+ * 兄弟の id は索引（`listMyPhotos`・結果整合）から引き、**1枚ずつ強い読みで確かめる**
+ * （索引には、消した・非公開にしたばかりの写真が古い姿で残りうる）。
+ * ⚠️ 索引にまだ載っていない兄弟（いま上げたばかりの写真）は見落としうる——そのときは
+ * 「残っていない」と読んで取り消す側に倒れる。束の id を全部持つ場所は無い（行は1枚ずつ）
+ */
+async function groupStillPublic(uid: string, group: string, exceptId: string): Promise<boolean> {
+    const siblings = (await listMyPhotos(uid))
+        .filter((o) => o.id !== exceptId && typeof o.groupId === "string" && o.groupId.trim() === group)
+        .map((o) => o.id);
+    for (const id of siblings) {
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
+        const row = res.Item as Photo | undefined;
+        if (row && (row.userId ?? row.uploadedBy) === uid && isCountablePhoto(row)) return true;
+    }
+    return false;
+}
+
+/**
+ * 写真の削除（`deleteMyPhoto`）と、公開 → 非公開（`updatePhotoVisibility`）のあとに呼ぶ。
+ * **投げない・上限つきで待つ**。落ちても削除・非公開は成功のまま（ラベルが残るだけ）。
+ * `photo` は**消す・隠す前の行**。退会は行ごと消す（`account.ts`）ので、ここは通らない
+ */
+export async function revokeLabelQuietly(uid: string, photo: Record<string, unknown>, label: string): Promise<void> {
+    const photoId = typeof photo.id === "string" ? photo.id : "";
+    if (!uid || !photoId) return;
+    const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            (async () => {
+                const groupRemains = g ? await groupStillPublic(uid, g, photoId) : false;
+                await updateUserRow(trunkId(uid), uid, (item) => {
+                    if (!item) return null;
+                    const next = revokeFrom(parseTrunk(item), {
+                        photoId,
+                        ...(g ? { group: groupKey(g), groupRemains } : {}),
+                        postedAt: photo.firstPublishedAt ?? photo.createdAt,
+                    }, new Date());
+                    return next ? serialize(next) : null;
+                });
+            })().catch((e) => {
+                console.error(`${label}: ラベルを取り消せませんでした（${uid}）:`, e);
+            }),
+            new Promise<void>((resolve) => { timer = setTimeout(resolve, TRUNK_QUIET_LIMIT_MS); }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+/**
+ * 旅のトランクの口（1つの関数に寄せる。CloudFormation の部品が上限 500 に近いため）。
+ *
+ *     GET    /user/trunk                         → view ＋ posts（公開している投稿の数・古び方用）
+ *     POST   /user/trunk/labels/{id}/stick       → view
+ *     DELETE /user/trunk/labels/{id}             → view
+ *     POST   /user/trunk/labels/{id}/reroll      → view（pendingReroll に候補3つ）
+ *     POST   /user/trunk/labels/{id}/reroll/choose { seed } → view
+ *     PUT    /user/trunk/model { model }         → view
+ *     PUT    /user/trunk/settings { receiveLabels } → view
+ *
+ * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
+ * noRerollsLeft / noPending / badSeed / badModel / badRequest）。
+ */
+export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
+    const uid = getUserId(event);
+    if (!uid) return jsonError(401, "認証が必要です");
+    const route = event.routeKey;
+    const id = event.pathParameters?.id;
+    const now = new Date();
+    try {
+        const pro = isPro(await readProfileBits(uid), now.getTime());
+        if (route === "GET /user/trunk") {
+            const [rows, photos] = await Promise.all([
+                readTrunkItem(uid),
+                listMyPhotos(uid),
+            ]);
+            return ok({ ...view(parseTrunk(rows), pro, now), posts: countPosts(photos) });
+        }
+        if (route === "PUT /user/trunk/model") {
+            const doc = await mutateTrunk(uid, pro, now, modelMutation(body(event).model));
+            return ok(view(doc, pro, now));
+        }
+        if (route === "PUT /user/trunk/settings") {
+            const doc = await mutateTrunk(uid, pro, now, settingsMutation(body(event).receiveLabels));
+            return ok(view(doc, pro, now));
+        }
+        if (typeof id !== "string" || !LABEL_ID_RE.test(id)) return jsonError(400, "不正なリクエスト", "badRequest");
+        let fn: Mutation;
+        switch (route) {
+            case "POST /user/trunk/labels/{id}/stick": fn = stickMutation(id); break;
+            case "DELETE /user/trunk/labels/{id}": fn = removeMutation(id); break;
+            case "POST /user/trunk/labels/{id}/reroll": {
+                const seeds = Array.from({ length: REROLL_CANDIDATES }, () => newSeed());
+                fn = rerollMutation(id, seeds);
+                break;
+            }
+            case "POST /user/trunk/labels/{id}/reroll/choose": fn = chooseMutation(id, body(event).seed); break;
+            default: return jsonError(404, "見つかりません", "notFound");
+        }
+        const doc = await mutateTrunk(uid, pro, now, fn);
+        return ok(view(doc, pro, now));
+    } catch (e) {
+        if (e instanceof TrunkError) return jsonError(e.status, e.message, e.code);
+        if (e instanceof UserListError) return jsonError(503, "混み合っています。もう一度お試しください", "busy");
+        console.error(`trunk(${route}) error:`, e);
+        return jsonError(500, "処理に失敗しました");
+    }
+};
+
+/** 行をそのまま読む（`readUserRows` は `list` だけを見るので、ここは Get を直に打つ） */
+async function readTrunkItem(uid: string): Promise<Record<string, unknown> | undefined> {
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(uid) } }));
+    return res.Item as Record<string, unknown> | undefined;
+}
+
+function ok(payload: unknown) {
+    return { statusCode: 200, headers: NO_STORE, body: JSON.stringify(payload) };
+}

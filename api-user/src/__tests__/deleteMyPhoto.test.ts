@@ -24,6 +24,9 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 vi.mock("../userProfile", () => ({ removePinnedPhoto: mockRemovePin }));
 // エッジの掃除（`s3Delete` が呼ぶ）。実物は CloudFront を叩く
 vi.mock("../cdnInvalidate", () => ({ invalidateUploads: mockInvalidate }));
+// 旅のトランクの取り消し（`trunk.ts`）。中身は `trunk.test.ts`。ここは呼ばれ方だけ
+const mockRevoke = vi.hoisted(() => vi.fn());
+vi.mock("../trunk", () => ({ revokeLabelQuietly: mockRevoke }));
 vi.mock("@aws-sdk/client-s3", () => ({
     S3Client: class { send = mockS3Send; },
     DeleteObjectsCommand: class { input: unknown; readonly kind = "s3delete"; constructor(i: unknown) { this.input = i; } },
@@ -74,6 +77,27 @@ beforeEach(() => {
     mockRebuild.mockReset().mockResolvedValue(true);
     mockRemovePin.mockReset().mockResolvedValue(true);
     mockInvalidate.mockReset().mockResolvedValue(true);
+    mockRevoke.mockReset().mockResolvedValue(undefined);
+});
+
+describe("deleteMyPhoto: 旅のトランク", () => {
+    it("行を消したあとに、消す前の行を渡してラベルの取り消しを頼む", async () => {
+        world({ ...PHOTO, createdAt: "2026-10-17T00:00:00.000Z" });
+        const res = await invoke(ME, "p1");
+        expect(res.statusCode).toBe(200);
+        // 消す前の行を渡す（束・初めての公開・作成の時刻を trunk が読む）
+        expect(mockRevoke).toHaveBeenCalledWith(ME, expect.objectContaining({ id: "p1", createdAt: "2026-10-17T00:00:00.000Z" }), "deleteMyPhoto(p1)");
+        const rowDeleted = mockDdbSend.mock.invocationCallOrder[
+            mockDdbSend.mock.calls.findIndex((c) => c[0].constructor.name === "DeleteCommand" && c[0].input.Key.id === "p1")];
+        expect(rowDeleted).toBeLessThan(mockRevoke.mock.invocationCallOrder[0]);
+    });
+
+    it("消せなかったら取り消さない", async () => {
+        world();
+        mockRemovePin.mockResolvedValue(false);
+        await invoke(ME, "p1");
+        expect(mockRevoke).not.toHaveBeenCalled();
+    });
 });
 
 describe("deleteMyPhoto", () => {
