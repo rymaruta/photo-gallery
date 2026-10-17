@@ -90,6 +90,11 @@ type UserProfile = {
     /** Pro（サポーター）か。Web では何も売らない——立っている人に印を出すだけ */
     pro?: boolean;
     proMarkStyle?: ProMarkStyle;
+    /**
+     * 特別な乗車券の券面を見せてよいか（いま Pro か。印を外しても変わらない・サーバーの
+     * `toPublicProfile` の注記）。Web は使わない——iOS のすれちがいの券面の判定用
+     */
+    passFace?: boolean;
 };
 
 
