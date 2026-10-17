@@ -33,6 +33,7 @@ import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSe
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
+import { displayTitle } from "../../../lib/utils/photoTitle";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -768,7 +769,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         );
     }
 
-    const titleText = getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : "");
+    // **一覧（`GalleryGrid`）と同じく `displayTitle` を通す。** サーバーが入れていた
+    // 「無題」（`{ ja: "無題" }`）は題として扱わない（`photoTitle.ts`）
+    const titleText = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
     // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
     const altText = photoAltText(photo, locale);
     // **もう一方の言語の本文は出さない。**
@@ -791,6 +794,20 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     //
     // **題の英語は捨てていない**——`ImageObject.alternateName` が持つ。
     const locationText = typeof photo.location === "string" ? photo.location : "";
+    // **題が無い写真の見出し。** 題は空にできる（`api-user/src/upload.ts` は
+    // 空なら `title` の欄ごと持たない）ので、題をそのまま見出しに入れるだけだと
+    // **中身の無い見出し**になる——読み上げは「見出し」とだけ言い、検索の
+    // 着地点のページに見出しが無い。2026-10-17 に本番で初めて題の無い写真が
+    // 公開され、デプロイ前のスモーク（`e2e-smoke.mjs` の「個別ページが
+    // 表示される」）がこれで止まった。
+    //
+    // **見た目は変えない**（owner:「タイトルなくてもいいよ」——画面に
+    // 「無題」も代わりの文字も出さない）。見出しは読み上げ用（`sr-only`）に置く。
+    // 上の 3. の「隠しテキスト」とは別物: 中身は画面に出ている撮影地と同じ
+    // 短い説明で、検索のために語を足すものではない。
+    const fallbackHeading = locationText
+        ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
+        : (locale === "en" ? "Photo" : "写真");
     // 撮影日（保存された通りに出す。`createdAt` には落とさない: 投稿日と撮影日は別）
     const shotDate = formatStoredDateTime(photo.date, locale === "en" ? "en" : "ja") ?? "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
@@ -1022,7 +1039,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     同じ端末の字体だけ（ダウンロードは0バイト）。板は先頭に
                     Shippori Mincho B1 を置いているが、あれは Google Fonts から
                     落とす字体なので採らない（1書体ぶん重くなる）。 */}
-                <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
+                {titleText
+                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
+                    : <h1 className="sr-only">{fallbackHeading}</h1>}
 
                 {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
                 {photo.userId && photo.displayName && (
