@@ -1904,6 +1904,13 @@ describe("updatePhotoVisibility: 下書き → 公開で旅のトランクのラ
         expect(body.label).toEqual(LABEL);
     });
 
+    it("配った硬貨の枚数（coin）を応答に載せる", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+        mockGrantForPhoto.mockResolvedValue({ label: LABEL, coin: 1 });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: LABEL, coin: 1 });
+    });
+
     it("一度公開したことのある写真（firstPublishedAt あり）は、公開し直しても配らない", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { ConditionExpression?: string } }) => {
             if (cmd.constructor.name === "GetCommand") {

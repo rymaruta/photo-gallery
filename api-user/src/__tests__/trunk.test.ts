@@ -45,6 +45,7 @@ async function send(cmd: { constructor: { name: string }; input: Record<string, 
 const T = await import("../trunk");
 const { handler, grantLabel, buildLabel, dealInto, parseTrunk, trunkId } = T;
 import type { Photo } from "../types";
+import { TRUNK_PARTS } from "../trunkParts";
 
 const UID = "user-1234";
 const PRO = { userId: UID, supporter: { active: true } };
@@ -128,7 +129,7 @@ describe("配る（grantLabel）", () => {
         setProfile(FREE);
         setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [] });
         const out = await grantLabel(UID, photo("p1"));
-        expect(out).toEqual({ label: null, labelSkipped: "full" });
+        expect(out).toEqual({ label: null, labelSkipped: "full", coin: 1 });
         expect(pocketIds()).toHaveLength(30);
     });
 
@@ -162,7 +163,7 @@ describe("配る（grantLabel）", () => {
         setProfile(FREE);
         await grantLabel(UID, photo("p1", { groupId: "g-1" }));
         const second = await grantLabel(UID, photo("p2", { groupId: "g-1" }));
-        expect(second).toEqual({ label: null, labelSkipped: "samePost" });
+        expect(second).toEqual({ label: null, labelSkipped: "samePost", coin: 0 });
         expect(pocketIds()).toEqual(["p1"]);
         // 応答には束の印を出さない
         const got = await call("GET /user/trunk");
@@ -463,7 +464,7 @@ describe("集める悪用を防ぐ（2026-10-17 owner）", () => {
         expect(pocketIds()).toEqual([]);
         // 上げ直すと別の id になる。中身（EXIF）は同じ
         const again = await grantLabel(UID, photo("p9", exif("2026:10:01 10:00:00")));
-        expect(again).toEqual({ label: null, labelSkipped: "duplicate" });
+        expect(again).toEqual({ label: null, labelSkipped: "duplicate", coin: 0 });
         expect(pocketIds()).toEqual([]);
         // 別の写真は配る
         expect((await grantLabel(UID, photo("p2", exif("2026:10:01 10:00:01")))).label?.id).toBe("p2");
@@ -588,7 +589,7 @@ describe("受け取らない設定（PUT /user/trunk/settings）", () => {
         const off = await call("PUT /user/trunk/settings", { body: { receiveLabels: false } });
         expect(off.status).toBe(200);
         expect(off.json.receiveLabels).toBe(false);
-        expect(await grantLabel(UID, photo("p1"))).toEqual({ label: null, labelSkipped: "off" });
+        expect(await grantLabel(UID, photo("p1"))).toEqual({ label: null, labelSkipped: "off", coin: 1 });
         await call("PUT /user/trunk/settings", { body: { receiveLabels: true } });
         const on = await call("GET /user/trunk");
         expect(on.json.receiveLabels).toBe(true);
@@ -634,7 +635,7 @@ describe("節目は一度きり・束の台帳・下書きをあとで公開（2
         setProfile(FREE);
         await grantLabel(UID, photo("p1", { groupId: "g-1" }));
         await call("DELETE /user/trunk/labels/{id}", { id: "p1" });
-        expect(await grantLabel(UID, photo("p2", { groupId: "g-1" }))).toEqual({ label: null, labelSkipped: "samePost" });
+        expect(await grantLabel(UID, photo("p2", { groupId: "g-1" }))).toEqual({ label: null, labelSkipped: "samePost", coin: 0 });
         expect(trunkRow()?.groups).toEqual([T.groupKey("g-1")]);
     });
 
@@ -685,7 +686,7 @@ describe("確かめの指摘（2026-10-17）", () => {
         mockListMyPhotos.mockReturnValue(new Promise(() => undefined));
         const p = T.grantLabelQuietly(UID, photo("p1"), "test");
         await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 10);
-        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout" });
+        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout", coin: 0 });
     });
 
     it("編集の経路（grantLabelForPhotoQuietly）も時間切れで戻る・読み直しは強い読み", async () => {
@@ -695,7 +696,7 @@ describe("確かめの指摘（2026-10-17）", () => {
             cmd.input.TableName === "photos-test" && (cmd.input.Key as Item)?.id === "p1" ? new Promise(() => undefined) : send(cmd as never));
         const p = T.grantLabelForPhotoQuietly(UID, "p1", "test");
         await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 10);
-        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout" });
+        await expect(p).resolves.toEqual({ label: null, labelSkipped: "timeout", coin: 0 });
         const read = fakeSend.mock.calls.map((c) => c[0].input).find((i) => i.Key?.id === "p1");
         expect(read?.ConsistentRead).toBe(true);
     });
@@ -704,7 +705,7 @@ describe("確かめの指摘（2026-10-17）", () => {
         setProfile(FREE);
         mockListMyPhotos.mockRejectedValue(new Error("down"));
         const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
-        await expect(T.grantLabelQuietly(UID, photo("p1"), "test")).resolves.toEqual({ label: null, labelSkipped: "error" });
+        await expect(T.grantLabelQuietly(UID, photo("p1"), "test")).resolves.toEqual({ label: null, labelSkipped: "error", coin: 0 });
         err.mockRestore();
     });
 
@@ -731,7 +732,7 @@ describe("確かめの指摘（2026-10-17）", () => {
         expect(r.json.code).toBe("storage");
     });
 
-    it("いちばん大きい行（手持ち149＋貼った1200＋台帳3000×2）でも、もう1枚配れる", () => {
+    it("いちばん大きい行（手持ち149＋貼った1200（置き場つき）＋台帳3000×2＋部品108・かけら・硬貨）でも、もう1枚配れる", () => {
         const real = (id: string) => ({
             ...label(id, { place: { name: "高屋神社・天空の鳥居", latin: "Takaya Shrine", country: "日本" } }),
             season: "autumn", timeslot: "dawn", foil: true, groupId: T.groupKey(`trip-${id}-0000-0000-0000-000000000000`),
@@ -739,13 +740,26 @@ describe("確かめの指摘（2026-10-17）", () => {
         });
         const doc = parseTrunk({
             pocket: Array.from({ length: 149 }, (_, i) => real(`p${i}`)),
-            stuck: Array.from({ length: 1200 }, (_, i) => real(`s${i}`)),
+            // 置き場はいちばん長い桁（0.999・-30 度＝保存の形で [999, 999, -300]）にする
+            stuck: Array.from({ length: 1200 }, (_, i) => ({ ...real(`s${i}`), pos: { x: 0.999, y: 0.999, rot: -30 } })),
             dealt: Array.from({ length: 3000 }, (_, i) => `x:${String(i).padStart(12, "0")}`),
+            coins: 98,
+            coinLog: Array.from({ length: 20 }, (_, i) => ({ k: `g:${String(i).padStart(12, "0")}`, a: 1_800_000_000 })),
+            parts: TRUNK_PARTS.map((p) => p.id),
+            fragments: 99_999,
+            equipped: {
+                handle: "handle.12", corner: "corner.12", lock: "lock.12", lining: "lining.12", tag: "tag.12", charm: "charm.12",
+                key: "key.12", pins: ["pin.10", "pin.11", "pin.12"], patches: ["patch.11", "patch.12"],
+            },
             groups: Array.from({ length: 3000 }, (_, i) => `g:${String(i).padStart(12, "0")}`),
             milestones: ["first", "posts10", "posts50", "posts100", ...Array.from({ length: 50 }, (_, i) => `firstCountry:国${i}`)],
         });
+        expect(doc.stuck[0].pos).toEqual({ x: 0.999, y: 0.999, rot: -30 });
+        expect(doc.parts).toHaveLength(108);
+        expect(doc.equipped.pins).toHaveLength(3);
         const r = dealInto(doc, { ...real("new"), groupId: undefined } as never, 150, "x:new000000000", new Date());
         expect(r.outcome.labelSkipped).toBeUndefined();
+        expect(r.outcome.coin).toBe(1);
         expect(r.doc).not.toBeNull();
     });
 
@@ -789,5 +803,396 @@ describe("保存の形（短い鍵）", () => {
         const back = ((await call("GET /user/trunk")).json.pocket as Item[])[0];
         expect(back).toEqual(out.label);
         expect(back).toMatchObject({ id: "p1", photoId: "p1", seed: 77, foil: true, at: "2026-10-17T00:00:00.000Z" });
+    });
+});
+
+// ─── 次の版（2026-10-17 owner「いいよ」）: 自分の手で貼る・硬貨とカプセル・部品を付ける ───
+
+const stuckRaw = () => (trunkRow()?.stuck ?? []) as Item[];
+
+describe("置き場（貼る・置き直す）", () => {
+    it("貼るときに { x, y, rot } を渡すと置き場を持つ。無ければ置き場なし（おまかせ）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a"), label("b")], stuck: [] });
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "a", body: { x: 0.25, y: 0.5, rot: -12.5 } });
+        expect(r.status).toBe(200);
+        expect((r.json.stuck as Item[])[0]).toMatchObject({ id: "a", pos: { x: 0.25, y: 0.5, rot: -12.5 } });
+        // 保存は整数3つ（x×1000・y×1000・rot×10）
+        expect(stuckRaw()[0].p).toEqual([250, 500, -125]);
+        const r2 = await call("POST /user/trunk/labels/{id}/stick", { id: "b" });
+        expect((r2.json.stuck as Item[])[0].pos).toBeUndefined();
+        expect(stuckRaw()[0].p).toBeUndefined();
+        // 読み直しても同じ
+        expect(((await call("GET /user/trunk")).json.stuck as Item[])[1].pos).toEqual({ x: 0.25, y: 0.5, rot: -12.5 });
+    });
+
+    it("範囲の両端（0・1・±30）は通る。外れ・数でない・3つそろわないは 400 badPlace", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [label("s")] });
+        for (const ok of [{ x: 0, y: 0, rot: -30 }, { x: 1, y: 1, rot: 30 }]) {
+            expect((await call("PUT /user/trunk/labels/{id}/place", { id: "s", body: ok })).status).toBe(200);
+        }
+        const bad = [
+            { x: 1.001, y: 0.5, rot: 0 }, { x: -0.001, y: 0.5, rot: 0 }, { x: 0.5, y: 1.5, rot: 0 }, { x: 0.5, y: -1, rot: 0 },
+            { x: 0.5, y: 0.5, rot: 30.1 }, { x: 0.5, y: 0.5, rot: -31 }, { x: 0.5, y: 0.5 }, { x: "0.5", y: 0.5, rot: 0 },
+            { x: 0.5, y: 0.5, rot: null },
+        ];
+        for (const b of bad) {
+            const r = await call("PUT /user/trunk/labels/{id}/place", { id: "s", body: b });
+            expect([r.status, r.json.code, b]).toEqual([400, "badPlace", b]);
+            const st = await call("POST /user/trunk/labels/{id}/stick", { id: "a", body: b });
+            expect([st.status, st.json.code]).toEqual([400, "badPlace"]);
+        }
+        // 外れた回は何も変わっていない（手持ちのまま）
+        expect(pocketIds()).toEqual(["a"]);
+        expect((await call("PUT /user/trunk/labels/{id}/place", { id: "s" })).json.code).toBe("badPlace");
+    });
+
+    it("置き直し: 貼ったものだけ。手持ちは 409 notStuck・無いものは 404", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [label("s"), label("t")] });
+        const r = await call("PUT /user/trunk/labels/{id}/place", { id: "t", body: { x: 0.1234, y: 0.9, rot: 5.55 } });
+        expect(r.status).toBe(200);
+        // 保存の細かさに丸める（x・y は3桁・rot は1桁）
+        expect((r.json.stuck as Item[]).find((l) => l.id === "t")?.pos).toEqual({ x: 0.123, y: 0.9, rot: 5.6 });
+        expect((r.json.stuck as Item[]).find((l) => l.id === "s")?.pos).toBeUndefined();
+        const p = await call("PUT /user/trunk/labels/{id}/place", { id: "a", body: { x: 0.5, y: 0.5, rot: 0 } });
+        expect([p.status, p.json.code]).toEqual([409, "notStuck"]);
+        expect((await call("PUT /user/trunk/labels/{id}/place", { id: "zz", body: { x: 0.5, y: 0.5, rot: 0 } })).status).toBe(404);
+    });
+});
+
+describe("はがす（POST /user/trunk/labels/{id}/unstick）", () => {
+    it("貼った方から手持ちのいちばん上へ戻す。置き場は消える。手持ちに在れば何もしない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [label("s", { pos: { x: 0.5, y: 0.5, rot: 3 } })] });
+        const r = await call("POST /user/trunk/labels/{id}/unstick", { id: "s" });
+        expect(r.status).toBe(200);
+        expect((r.json.pocket as Item[]).map((l) => l.id)).toEqual(["s", "a"]);
+        expect((r.json.pocket as Item[])[0].pos).toBeUndefined();
+        expect(r.json.stuck).toEqual([]);
+        const again = await call("POST /user/trunk/labels/{id}/unstick", { id: "s" });
+        expect(again.status).toBe(200);
+        expect(pocketIds()).toEqual(["s", "a"]);
+        expect((await call("POST /user/trunk/labels/{id}/unstick", { id: "zz" })).status).toBe(404);
+    });
+
+    it("手持ちが上限なら 409 full（無料 30・Pro は 150）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [label("s")] });
+        const r = await call("POST /user/trunk/labels/{id}/unstick", { id: "s" });
+        expect([r.status, r.json.code]).toEqual([409, "full"]);
+        expect(stuckRaw()).toHaveLength(1);
+        setTrunk({ pocket: Array.from({ length: 29 }, (_, i) => label(`a${i}`)), stuck: [label("s")] });
+        expect((await call("POST /user/trunk/labels/{id}/unstick", { id: "s" })).status).toBe(200);
+        setProfile(PRO);
+        setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [label("s")] });
+        expect((await call("POST /user/trunk/labels/{id}/unstick", { id: "s" })).status).toBe(200);
+    });
+
+    it("はがしたあとも24時間の取り消しは今までどおり", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        await call("POST /user/trunk/labels/{id}/stick", { id: "p1", body: { x: 0.5, y: 0.5, rot: 0 } });
+        await call("POST /user/trunk/labels/{id}/unstick", { id: "p1" });
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: new Date().toISOString() }, "test");
+        expect(pocketIds()).toEqual([]);
+    });
+});
+
+describe("硬貨（公開の投稿1件につき1枚）", () => {
+    const exif = (t: string) => ({ exif: { dateTimeOriginal: t, camera: "X", imageSize: "1x1" } });
+    const coins = () => trunkRow()?.coins;
+
+    it("公開の投稿で1枚。GET に coins が出る。下書きには配らない", async () => {
+        setProfile(FREE);
+        expect((await grantLabel(UID, photo("p1"))).coin).toBe(1);
+        expect((await grantLabel(UID, photo("d1", { published: false }))).coin).toBe(0);
+        const got = await call("GET /user/trunk");
+        expect(got.json.coins).toBe(1);
+    });
+
+    it("歯止めはラベルと同じ: 再送・指紋・束・1日3件では配らない", async () => {
+        setProfile(FREE);
+        expect((await grantLabel(UID, photo("p1", exif("2026:01:01 00:00:00")))).coin).toBe(1);
+        expect((await grantLabel(UID, photo("p1", exif("2026:01:01 00:00:00")))).coin).toBe(0);   // 再送
+        expect((await grantLabel(UID, photo("p9", exif("2026:01:01 00:00:00")))).coin).toBe(0);   // 同じ写真の上げ直し
+        expect((await grantLabel(UID, photo("g1", { groupId: "trip" }))).coin).toBe(1);
+        expect((await grantLabel(UID, photo("g2", { groupId: "trip" }))).coin).toBe(0);           // 同じ束
+        expect((await grantLabel(UID, photo("p2"))).coin).toBe(1);
+        expect((await grantLabel(UID, photo("p3"))).coin).toBe(0);                                // 4件目
+        expect(coins()).toBe(3);
+    });
+
+    it("機能を出す前に作った写真（notNew）には配らない", async () => {
+        setProfile(FREE);
+        const out = await T.grantLabelQuietly(UID, photo("p1", { createdAt: "2026-09-01T00:00:00.000Z" }), "t", { requireNew: true });
+        expect(out).toEqual({ label: null, labelSkipped: "notNew", coin: 0 });
+        expect(trunkRow()).toBeUndefined();
+    });
+
+    it("手持ちがいっぱいでも配る（ラベルは full）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [] });
+        expect(await grantLabel(UID, photo("p1"))).toEqual({ label: null, labelSkipped: "full", coin: 1 });
+        expect(coins()).toBe(1);
+        expect(pocketIds()).toHaveLength(30);
+        // 硬貨を配った投稿は台帳に載る（同じ写真の再送でもう1枚にならない）
+        expect((await grantLabel(UID, photo("p1"))).coin).toBe(0);
+    });
+
+    it("受け取らない設定でも配る（受け取らない設定はラベルのこと）。上げ直しでは配らない", async () => {
+        setProfile(FREE);
+        await call("PUT /user/trunk/settings", { body: { receiveLabels: false } });
+        expect(await grantLabel(UID, photo("p1", exif("2026:02:02 00:00:00")))).toEqual({ label: null, labelSkipped: "off", coin: 1 });
+        expect(await grantLabel(UID, photo("p2", exif("2026:02:02 00:00:00")))).toEqual({ label: null, labelSkipped: "off", coin: 0 });
+        expect(pocketIds()).toEqual([]);
+        expect(coins()).toBe(1);
+    });
+
+    it("99 枚が上限（超えたら配らない・ラベルは配る）。99 枚で手持ちもいっぱいなら何も書かない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], coins: 98 });
+        expect((await grantLabel(UID, photo("p1"))).coin).toBe(1);
+        expect(coins()).toBe(99);
+        const out = await grantLabel(UID, photo("p2"));
+        expect(out.coin).toBe(0);
+        expect(out.label?.id).toBe("p2");
+        expect(coins()).toBe(99);
+        expect(T.COINS_MAX).toBe(99);
+        setTrunk({ pocket: Array.from({ length: 30 }, (_, i) => label(`a${i}`)), stuck: [], coins: 99, dealt: [] });
+        expect(await grantLabel(UID, photo("p3"))).toEqual({ label: null, labelSkipped: "full", coin: 0 });
+        expect(trunkRow()?.dealt).toEqual([]);
+        // 保存された値が上限より大きくても 99 に読む
+        expect(parseTrunk({ coins: 500 }).coins).toBe(99);
+    });
+
+    it("24時間以内の削除で1枚戻す（ラベルも取り消す）。使っていたら（0 枚）何もしない。24時間を過ぎたら戻さない", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-10-20T00:00:00Z"));
+        setProfile(FREE);
+        const at = new Date().toISOString();
+        await grantLabel(UID, photo("p1", { createdAt: at }));
+        await grantLabel(UID, photo("p2", { createdAt: at }));
+        expect(coins()).toBe(2);
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: at }, "test");
+        expect(coins()).toBe(1);
+        expect(pocketIds()).toEqual(["p2"]);
+        // 同じ写真の取り消しが二度来ても、二度は減らさない
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: at }, "test");
+        expect(coins()).toBe(1);
+        // 使った（0 枚）→ 取り消しても 0 のまま
+        await call("POST /user/trunk/gacha");
+        expect(coins()).toBe(0);
+        await T.revokeLabelQuietly(UID, { id: "p2", createdAt: at }, "test");
+        expect(coins()).toBe(0);
+        expect(pocketIds()).toEqual([]);
+        expect(trunkRow()?.coinLog).toEqual([]);
+        // 24時間を過ぎた投稿は戻さない
+        vi.setSystemTime(new Date("2026-10-21T00:00:00Z"));
+        const at2 = new Date().toISOString();
+        await grantLabel(UID, photo("p3", { createdAt: at2 }));
+        vi.setSystemTime(new Date("2026-10-22T00:00:01Z"));
+        await T.revokeLabelQuietly(UID, { id: "p3", createdAt: at2 }, "test");
+        expect(coins()).toBe(1);
+        expect(pocketIds()).toEqual(["p3"]);
+    });
+
+    it("ラベルの無い投稿（受け取らない設定・手持ちいっぱい）でも、24時間以内の削除で硬貨を戻す。束は束の鍵で見る", async () => {
+        setProfile(FREE);
+        await call("PUT /user/trunk/settings", { body: { receiveLabels: false } });
+        await grantLabel(UID, photo("p1", { groupId: "trip" }));
+        expect(coins()).toBe(1);
+        // 束の写真がまだ公開で残っている → 戻さない
+        store.set("photos-test|p2", photo("p2", { groupId: "trip" }) as Item);
+        mockListMyPhotos.mockResolvedValue([photo("p2", { groupId: "trip" })]);
+        await T.revokeLabelQuietly(UID, { id: "p1", groupId: "trip", createdAt: new Date().toISOString() }, "test");
+        expect(coins()).toBe(1);
+        store.delete("photos-test|p2");
+        await T.revokeLabelQuietly(UID, { id: "p2", groupId: "trip", createdAt: new Date().toISOString() }, "test");
+        expect(coins()).toBe(0);
+    });
+
+    it("お金で買う口は無い（ガチャ・交換・付けるだけ）", () => {
+        // handler は知らない口を 404 にする（硬貨を足す口は投稿の配りだけ）
+        return call("POST /user/trunk/coins/buy", { id: "x" }).then((r) => expect(r.status).toBe(404));
+    });
+});
+
+describe("ガチャ（POST /user/trunk/gacha）", () => {
+    it("段の境目: 0〜69 ふつう・70〜94 めずらしい・95〜99 とてもめずらしい（70/25/5）", async () => {
+        const { rarityOfRoll, RARITY_WEIGHTS } = await import("../trunkParts");
+        expect([0, 69, 70, 94, 95, 99].map(rarityOfRoll)).toEqual([0, 0, 1, 1, 2, 2]);
+        const n = [0, 0, 0];
+        for (let i = 0; i < 100; i++) n[rarityOfRoll(i)]++;
+        expect(n).toEqual([70, 25, 5]);
+        expect(RARITY_WEIGHTS).toEqual([70, 25, 5]);
+    });
+
+    it("段を引いてから、その段の部品を等確率で（乱数を差し替えて）", async () => {
+        const { PARTS_BY_RARITY } = await import("../trunkParts");
+        const seq = (tierRoll: number, pick: number): T.Rand => (a, b) => (b === 100 ? tierRoll : Math.min(pick, b - 1));
+        expect(T.rollGacha(seq(69, 0))).toEqual({ tier: 0, pick: 0 });
+        expect(T.rollGacha(seq(70, 3))).toEqual({ tier: 1, pick: 3 });
+        expect(T.rollGacha(seq(95, 99))).toEqual({ tier: 2, pick: PARTS_BY_RARITY[2].length - 1 });
+        // 部品を引く乱数の幅は、その段の部品の数（等確率）
+        const widths: number[] = [];
+        T.rollGacha((a, b) => { widths.push(b); return b === 100 ? 96 : 0; });
+        expect(widths).toEqual([100, PARTS_BY_RARITY[2].length]);
+        expect(PARTS_BY_RARITY.map((l) => l.length)).toEqual([54, 42, 12]);
+    });
+
+    it("持っていない部品は部品箱へ・硬貨を1枚使う", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], coins: 2 });
+        const r = await call("POST /user/trunk/gacha");
+        expect(r.status).toBe(200);
+        expect(r.json).toMatchObject({ duplicate: false, fragments: 0, coins: 1 });
+        const part = r.json.part as { id: string; kind: string; rarity: number; name: string };
+        expect(typeof part.name).toBe("string");
+        expect(trunkRow()?.parts).toEqual([part.id]);
+        expect((await call("GET /user/trunk")).json).toMatchObject({ coins: 1, parts: [part.id], fragments: 0 });
+    });
+
+    it("持っている部品が出たら「かけら」+1（部品箱は増えない）", async () => {
+        setProfile(FREE);
+        const all = TRUNK_PARTS.map((p) => p.id);
+        setTrunk({ pocket: [], stuck: [], coins: 1, parts: all, fragments: 2 });
+        const r = await call("POST /user/trunk/gacha");
+        expect(r.json).toMatchObject({ duplicate: true, fragments: 3, coins: 0 });
+        expect(trunkRow()?.parts).toHaveLength(108);
+    });
+
+    it("硬貨が 0 なら 409 noCoins（何も変えない）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], coins: 0, fragments: 1 });
+        const r = await call("POST /user/trunk/gacha");
+        expect([r.status, r.json.code]).toEqual([409, "noCoins"]);
+        expect(trunkRow()?.fragments).toBe(1);
+        expect((await call("POST /user/trunk/gacha", { sub: "nobody" })).status).toBe(409);
+    });
+});
+
+describe("部品の台帳（data/trunkParts.json）", () => {
+    it("9種類×12点・id は <kind>.<1〜12>・板の並びどおり", () => {
+        expect(TRUNK_PARTS).toHaveLength(108);
+        const kinds = ["handle", "corner", "lock", "lining", "tag", "pin", "patch", "charm", "key"];
+        for (const k of kinds) {
+            expect(TRUNK_PARTS.filter((p) => p.kind === k).map((p) => p.id)).toEqual(Array.from({ length: 12 }, (_, i) => `${k}.${i + 1}`));
+        }
+        expect(new Set(TRUNK_PARTS.map((p) => p.id)).size).toBe(108);
+        // 板（Parts.dc.html）の行を幾つか写して見る
+        const at = (id: string) => TRUNK_PARTS.find((p) => p.id === id);
+        expect(at("handle.1")).toEqual({ id: "handle.1", kind: "handle", rarity: 0, name: "茶の革" });
+        expect(at("handle.11")).toMatchObject({ rarity: 2, name: "黒檀の握り" });
+        expect(at("lock.2")).toMatchObject({ rarity: 1, name: "菊" });
+        expect(at("lining.12")).toMatchObject({ rarity: 2, name: "金襴" });
+        expect(at("key.12")).toMatchObject({ rarity: 2, name: "金の鍵" });
+        expect(TRUNK_PARTS.every((p) => [0, 1, 2].includes(p.rarity) && p.name.length > 0)).toBe(true);
+    });
+});
+
+describe("交換（POST /user/trunk/parts/exchange）", () => {
+    it("かけら5つで持っていない部品1つ", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], fragments: 6 });
+        const r = await call("POST /user/trunk/parts/exchange", { body: { partId: "charm.12" } });
+        expect(r.status).toBe(200);
+        expect(r.json).toMatchObject({ fragments: 1, parts: ["charm.12"], part: { id: "charm.12", kind: "charm", rarity: 2 } });
+        expect(T.FRAGMENTS_PER_EXCHANGE).toBe(5);
+    });
+
+    it("4つでは 409 notEnoughFragments・持っていれば 409 owned・知らない id は 400 badPart", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], fragments: 4, parts: ["pin.1"] });
+        const few = await call("POST /user/trunk/parts/exchange", { body: { partId: "pin.2" } });
+        expect([few.status, few.json.code]).toEqual([409, "notEnoughFragments"]);
+        setTrunk({ pocket: [], stuck: [], fragments: 10, parts: ["pin.1"] });
+        const owned = await call("POST /user/trunk/parts/exchange", { body: { partId: "pin.1" } });
+        expect([owned.status, owned.json.code]).toEqual([409, "owned"]);
+        for (const partId of ["pin.13", "pin.0", "", 3, undefined]) {
+            const bad = await call("POST /user/trunk/parts/exchange", { body: { partId } });
+            expect([bad.status, bad.json.code]).toEqual([400, "badPart"]);
+        }
+        expect(trunkRow()?.fragments).toBe(10);
+    });
+});
+
+describe("部品を付ける（PUT /user/trunk/equip）", () => {
+    const own = ["handle.1", "handle.2", "corner.3", "pin.1", "pin.2", "pin.3", "pin.4", "patch.1", "patch.2", "patch.3", "key.5"];
+
+    it("持っている部品を付ける。本文に無い場所はそのまま・null で外す。GET は全部の場所を並べる", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], parts: own });
+        expect((await call("GET /user/trunk")).json.equipped).toEqual({
+            handle: null, corner: null, lock: null, lining: null, tag: null, charm: null, key: null, pins: [], patches: [],
+        });
+        const r = await call("PUT /user/trunk/equip", { body: { handle: "handle.1", pins: ["pin.1", "pin.2", "pin.3"], patches: ["patch.1", "patch.2"] } });
+        expect(r.status).toBe(200);
+        expect(r.json.equipped).toMatchObject({ handle: "handle.1", corner: null, pins: ["pin.1", "pin.2", "pin.3"], patches: ["patch.1", "patch.2"] });
+        const r2 = await call("PUT /user/trunk/equip", { body: { corner: "corner.3", handle: null, pins: null } });
+        expect(r2.json.equipped).toMatchObject({ handle: null, corner: "corner.3", pins: [], patches: ["patch.1", "patch.2"] });
+        // 型（model）とは別
+        expect(r2.json.model).toBe("leather");
+    });
+
+    it("持っていない 409 notOwned・知らない id 400 badPart・場所と kind が違う 400 badKind", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [], parts: own });
+        const no = await call("PUT /user/trunk/equip", { body: { lock: "lock.1" } });
+        expect([no.status, no.json.code]).toEqual([409, "notOwned"]);
+        const unknown = await call("PUT /user/trunk/equip", { body: { handle: "handle.99" } });
+        expect([unknown.status, unknown.json.code]).toEqual([400, "badPart"]);
+        const kind = await call("PUT /user/trunk/equip", { body: { handle: "corner.3" } });
+        expect([kind.status, kind.json.code]).toEqual([400, "badKind"]);
+        const pinKind = await call("PUT /user/trunk/equip", { body: { pins: ["patch.1"] } });
+        expect([pinKind.status, pinKind.json.code]).toEqual([400, "badKind"]);
+        const notOwnedPin = await call("PUT /user/trunk/equip", { body: { pins: ["pin.9"] } });
+        expect([notOwnedPin.status, notOwnedPin.json.code]).toEqual([409, "notOwned"]);
+        expect(trunkRow()?.equipped).toBeUndefined();
+    });
+
+    it("pins は3つまで・patches は2つまで・同じ id を二度は 400", async () => {
+        setProfile(PRO);   // Pro でも同じ（Pro 限定の部品は無い）
+        setTrunk({ pocket: [], stuck: [], parts: own });
+        expect((await call("PUT /user/trunk/equip", { body: { pins: ["pin.1", "pin.2", "pin.3", "pin.4"] } })).status).toBe(400);
+        expect((await call("PUT /user/trunk/equip", { body: { patches: ["patch.1", "patch.2", "patch.3"] } })).status).toBe(400);
+        expect((await call("PUT /user/trunk/equip", { body: { pins: ["pin.1", "pin.1"] } })).status).toBe(400);
+        expect((await call("PUT /user/trunk/equip", { body: { pins: "pin.1" } })).status).toBe(400);
+        expect((await call("PUT /user/trunk/equip", { body: { pins: ["pin.1", "pin.2", "pin.3"] } })).status).toBe(200);
+        expect(T.PINS_MAX).toBe(3);
+        expect(T.PATCHES_MAX).toBe(2);
+    });
+
+    it("保存の値が壊れていても、持っていない・kind 違いは読むときに落とす", () => {
+        const doc = parseTrunk({ parts: ["handle.1", "pin.1", "nope.1"], equipped: { handle: "handle.2", corner: "handle.1", pins: ["pin.1", "pin.1", "handle.1"] } });
+        expect(doc.parts).toEqual(["handle.1", "pin.1"]);
+        expect(doc.equipped).toEqual({ pins: ["pin.1"], patches: [] });
+    });
+
+    it("退会の掃除は trunk# の行ごと消す（部品・硬貨・かけらも同じ1行にある）", () => {
+        // 新しい行・新しい鍵を作っていない＝`account.ts` の `trunk#<uid>` の削除で足りる（`account.test.ts` が trunk#me を見る）
+        const doc = parseTrunk({ coins: 3, parts: ["pin.1"], fragments: 2, equipped: { pins: ["pin.1"] } });
+        expect(trunkId(UID)).toBe(`trunk#${UID}`);
+        expect([doc.coins, doc.parts, doc.fragments]).toEqual([3, ["pin.1"], 2]);
+    });
+});
+
+describe("口（serverless.yml の trunk 関数）", () => {
+    it("handler が分ける口が全部 trunk 関数の道筋にある（新しい関数は作らない）", async () => {
+        const fs = await import("fs");
+        const path = await import("path");
+        const yml = fs.readFileSync(path.join(__dirname, "..", "..", "serverless.yml"), "utf8");
+        const block = yml.slice(yml.indexOf("\n  trunk:\n"), yml.indexOf("\n  getComments:\n"));
+        const routes = [...block.matchAll(/path: (\S+)\n\s+method: (\w+)/g)].map((m) => `${m[2]} ${m[1]}`);
+        for (const r of [
+            "GET /user/trunk", "PUT /user/trunk/model", "PUT /user/trunk/settings",
+            "POST /user/trunk/labels/{id}/stick", "DELETE /user/trunk/labels/{id}",
+            "POST /user/trunk/labels/{id}/reroll", "POST /user/trunk/labels/{id}/reroll/choose",
+            "PUT /user/trunk/labels/{id}/place", "POST /user/trunk/labels/{id}/unstick",
+            "POST /user/trunk/gacha", "POST /user/trunk/parts/exchange", "PUT /user/trunk/equip",
+        ]) expect(routes).toContain(r);
+        expect(routes).toHaveLength(12);
+        expect(block).toContain("handler: src/trunk.handler");
     });
 });
