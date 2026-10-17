@@ -276,7 +276,18 @@ async function runChecks(browser, eng) {
         check(`[${eng}] 一覧タップで個別ページに遷移する`, navigated, page.url());
         if (navigated) {
             const h1 = await page.waitForSelector("h1", { timeout: 8000 }).then(() => true).catch(() => false);
-            check(`[${eng}] 個別ページが表示される`, h1);
+            // 落ちたら**どの写真で・見出しがどうなっているか**を出す。2026-10-17 の
+            // 本番の停止ではログに写真の id も URL も残らず、公開 API と突き合わせて
+            // 「題の無い写真の空の <h1>（高さ0で「見えない」）」と突き止めるまで要った
+            let h1Detail = "";
+            if (!h1) {
+                const found = await page.evaluate(() => [...document.querySelectorAll("h1")].map((el) => {
+                    const r = el.getBoundingClientRect();
+                    return `${JSON.stringify((el.textContent ?? "").slice(0, 60))} ${Math.round(r.width)}x${Math.round(r.height)}`;
+                })).catch(() => []);
+                h1Detail = `url=${page.url()} 写真=${pid} h1=${found.length}件${found.length ? ` [${found.join(", ")}]` : ""}`;
+            }
+            check(`[${eng}] 個別ページが表示される`, h1, h1Detail);
             await expectMenuWorks(page, `[${eng}] 個別ページ`);
         }
 
