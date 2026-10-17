@@ -126,6 +126,8 @@ describe("deleteAccount", () => {
         expect(ids).toContain("closefriends#me");
         // 旅のトランク（`trunk.ts` の `trunk#<uid>`）。どこへいつ行ったかのラベル
         expect(ids).toContain("trunk#me");
+        // 同じ機能の台帳（`trunkledger#<uid>`・指紋・束・節目・日ごとの数）
+        expect(ids).toContain("trunkledger#me");
 
         // プロフィール行は**消すのではなく墓石に置き換える**。
         // ただ消すと、期限まで有効な古いトークンを持った別端末が
