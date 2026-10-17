@@ -1844,6 +1844,18 @@ describe("savePhoto: 旅のトランクのラベル", () => {
         expect(mockPutPhoto.mock.invocationCallOrder[0]).toBeLessThan(mockGrantLabel.mock.invocationCallOrder[0]);
     });
 
+    it("配った硬貨の枚数（coin）を応答に載せる（手持ちがいっぱいでも硬貨は配られる）", async () => {
+        // 配る結果は**本物の `dealInto`** で作る（trunk 側で手持ちいっぱいの硬貨をやめたら、ここも落ちる）
+        const real = await vi.importActual<typeof import("../trunk")>("../trunk");
+        mockGrantLabel.mockImplementation(async (_uid: string, p: Photo) => {
+            const now = new Date();
+            const full = real.parseTrunk({ pocket: Array.from({ length: 30 }, (_, i) => ({ i: `a${i}`, k: "p", n: "", d: 1, a: 0 })) });
+            return real.dealInto(full, real.buildLabel(p, [], now), 30, real.fingerprintOf(p), now).outcome;
+        });
+        const res = await invoke(event("u1", { ...BASE, published: true }));
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "full", coin: 1 });
+    });
+
     it("いっぱいなら label: null と理由（投稿は 200）", async () => {
         mockGrantLabel.mockResolvedValue({ label: null, labelSkipped: "full" });
         const res = await invoke(event("u1", { ...BASE, published: true }));

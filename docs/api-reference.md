@@ -283,10 +283,14 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 `GET,POST /user/spots` / `DELETE /user/spots/{slug}` /
 `GET,POST /user/trips` / `PUT,DELETE /user/trips/{planId}`
 
-**旅のトランク** ※2026-10-17 追加・**本番未反映**（`api-user/src/trunk.ts`・1行 `trunk#<uid>`）
+**旅のトランク** ※2026-10-17 追加・**本番未反映**（`api-user/src/trunk.ts`・2行 `trunk#<uid>`（持ち物）と
+`trunkledger#<uid>`（悪用の歯止めの台帳: 指紋・束・節目・硬貨の控え・日ごとの数）。2行は TransactWriteItems で一度に書く。
+台帳が `trunk#` の中にある古い形も読み、次に書くときに分ける。退会では2行とも消す）
 `GET /user/trunk` / `PUT /user/trunk/model` / `PUT /user/trunk/settings` /
 `POST /user/trunk/labels/{id}/stick` / `DELETE /user/trunk/labels/{id}` /
-`POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose`
+`POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose` /
+（次の版・2026-10-17）`PUT /user/trunk/labels/{id}/place` / `POST /user/trunk/labels/{id}/unstick` /
+`POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip`
 
 - 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
   応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
@@ -297,10 +301,12 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   `timeout`・`error`（配りが間に合わなかった。届いていれば `GET` に出る）
 - ラベル: `{ id(=写真id), photoId, kind: milestone|timeslot|season|place, place{name, latin?, country?},
   season?: spring|summer|autumn|winter, timeslot?: dawn|dusk|night,
-  milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil? }`。絵はアプリが `seed` と `kind` から描く
-- `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels, posts }`。
+  milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil?, pos? }`。絵はアプリが `seed` と `kind` から描く
+- `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels,
+  coins, parts, fragments, equipped, posts }`。
   更新の口は同じ形から `posts` を除いたものを返す。失敗は `{ error, code }`
-  （`notFound` / `full` / `storage` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy`）
+  （`notFound` / `full` / `storage` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy` /
+  `badPlace` / `notStuck` / `noCoins` / `badPart` / `owned` / `notEnoughFragments` / `badKind` / `notOwned`）
 - 型: 無料 `leather`・`canvas`・`aluminum`・`steamer`、Pro `urushi`・`kori`・`sleeper`・`clipper`・`captain`・`starchart`。
   Pro をやめたら `effectiveModel` は最後に選んだ無料の型（既定 `leather`）。`model` は残る
 - 作り直し（Pro・日本時間の月に3回・繰り越しなし）: `reroll` で候補3つ（`pendingReroll.seeds`）、
@@ -313,6 +319,59 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 - ⚠️ **指紋（EXIF の撮影日時・機種・大きさ）と束（`groupId`）はアプリが送る値。** 改造したアプリなら
   どちらも好きに変えられるので、そのときに効く歯止めは**1日3枚だけ**
 - 節目（`first`・`posts10/50/100`・国ごとの `firstCountry`）は一度きり。束（`groupId`）も一度きり（手持ちから消しても戻らない）
+
+*次の版（2026-10-17 owner 承認）*
+
+- **自分の手で貼る**: 貼ったラベルは置き場 `pos { x, y, rot }` を持てる（x・y はトランク正面の 0〜1 の割合、
+  rot は -30〜30 度。両端を含む。外れ・数でない・3つそろわないは 400 `badPlace`）。保存は x・y が小数3桁、
+  rot が小数1桁に丸める（応答も丸めた値）。`pos` が無いラベルはアプリがおまかせで置く
+  - `POST /user/trunk/labels/{id}/stick` の本文に任意で `{ x, y, rot }`。本文が無ければ今までどおり（置き場なし）。
+    貼り済みへの再送は何もしない（置き場も変えない）
+  - `PUT /user/trunk/labels/{id}/place { x, y, rot }` → 貼ったラベルの置き直し。手持ちのラベルは 409 `notStuck`、
+    どこにも無ければ 404。一括のおまかせ並べは、アプリがこれを順に呼ぶ（専用の口は無い）
+  - `POST /user/trunk/labels/{id}/unstick` → はがして手持ちのいちばん上へ（置き場は消える）。手持ちが上限
+    （無料30・Pro150）なら 409 `full`。手持ちに在れば何もしない。24時間の取り消し・指紋の台帳は今までどおり
+- **硬貨**（`coins`・0〜99）: 公開の投稿1件（束は1件）につき1枚。ラベルと同じ歯止め（指紋・束・1日3件・
+  `notNew`・下書き）を通った投稿にだけ配る。**手持ちがいっぱい（`full`）でも、受け取らない設定（`off`）でも配る**
+  （受け取らない設定はラベルのこと）。99 枚なら配らない。**お金では買えない**（買う口は無い）
+  - `POST /upload/save` と写真の編集（下書き → 公開）の応答に `coin`（この投稿で配った枚数 0/1）を足す。
+    写真の編集で配る判定を通らなかった回（公開にしていない等）は `label` と同じく項目ごと出ない（無ければ 0）
+  - **硬貨の数は `GET /user/trunk` の `coins` を正とする。** 応答の `coin` は「この要求で配った枚数」なので、
+    配り済みの再送では 0 になる（時間切れ `timeout` のあとに届いていることもある）
+  - 「1日3件」は**ラベルか硬貨のどちらかを配った投稿**の数。硬貨だけ配った投稿も指紋・束の台帳に載る
+    （同じ写真を上げ直しても、硬貨もラベルも来ない）
+  - 投稿から24時間以内の削除・非公開で、ラベルと同じ線で硬貨も取り消す: まだ硬貨を持っていれば1枚減らす。
+    0 枚（もう使った）なら何もしない。硬貨は見分けが付かないので、「使ったか」は枚数で見る
+- **カプセル**: `POST /user/trunk/gacha` → 硬貨を1枚使い、段を引いてから、その段の部品を等確率で1つ。
+  段の出やすさは ふつう 70%・めずらしい 25%・とてもめずらしい 5%（0〜99 の乱数で 0〜69 / 70〜94 / 95〜99）。
+  乱数は `crypto.randomInt`。持っていない部品なら `parts` へ、持っていれば `fragments` +1。
+  応答 `{ part: { id, kind, rarity, name }, duplicate, fragments, coins }`。硬貨が 0 なら 409 `noCoins`
+  - 段ごとの部品の数（台帳から）: ふつう 54・めずらしい 42・とてもめずらしい 12。1点あたりの確率は段の確率 ÷ 段の数
+    （例: とてもめずらしいの1点は 5% ÷ 12 ≈ 0.42%）
+- **交換**: `POST /user/trunk/parts/exchange { partId }` → かけら5つで、持っていない部品1つ。
+  応答は `GET` と同じ形（`posts` なし）＋ `part`。持っていれば 409 `owned`、足りなければ 409 `notEnoughFragments`、
+  知らない id は 400 `badPart`
+- **付ける**: `PUT /user/trunk/equip { handle?, corner?, lock?, lining?, tag?, charm?, key?, pins?: [最大3], patches?: [最大2] }`。
+  本文に在る場所だけ変える。`null` で外す（`pins: null` は全部外す）。持っている部品だけ（無ければ 409 `notOwned`）、
+  知らない id は 400 `badPart`、場所と kind が合わなければ 400 `badKind`、数の越え・同じ id の二度付けは 400 `badRequest`。
+  型（`model`）とは別に持つ。Pro 限定の部品は無い
+  - 応答の `equipped` は場所を全部並べる: `{ handle, corner, lock, lining, tag, charm, key: id|null, pins: id[], patches: id[] }`
+- **部品の台帳** `api-user/src/data/trunkParts.json`（iOS も同じファイルを読む）:
+
+      {
+        "version": 1,
+        "source": "Parts.dc.html（…）",
+        "kinds": ["handle", "corner", "lock", "lining", "tag", "pin", "patch", "charm", "key"],
+        "rarityNames": ["ふつう", "めずらしい", "とてもめずらしい"],
+        "rarityWeights": [70, 25, 5],
+        "parts": [ { "id": "handle.1", "kind": "handle", "rarity": 0, "name": "茶の革" }, … 108 件 ]
+      }
+
+  id は `<kind>.<1〜12>`。番号と段は板 `Parts.dc.html` の各行の並び順どおり（板の `handles`→`handle`・
+  `corners`→`corner`・`locks`→`lock`・`linings`→`lining`・`tags`→`tag`・`pins`→`pin`・`patches`→`patch`・
+  `charms`→`charm`・`keys`→`key`）。絵の指定（色・形）は台帳に持たない（アプリが板から描く）。
+  **id の番号は変えない**（持ち物として保存される）。部品を足すときは各 kind の後ろに番号を足す
+- 退会では `trunk#<uid>` と `trunkledger#<uid>` の2行を消すので、硬貨・部品・かけら・付けた部品・台帳も一緒に消える
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
@@ -534,7 +593,7 @@ const { success, photo } = await r3.json();
 | 旅行プラン | 50件・60日・1日20項目 | `tripPlans.ts` |
 | 共同アルバム | 1人50個・1つ50人・500枚 | `invite.ts` |
 | ハイライト | 20個・1つ100本 | `highlights.ts` |
-| 旅のトランク | 手持ち 無料30・Pro150／貼る1200／1日3枚／作り直し 月3回／指紋の台帳3000 | `trunk.ts` |
+| 旅のトランク | 手持ち 無料30・Pro150／貼る1200／1日3件／作り直し 月3回／指紋の台帳3000／硬貨99枚／交換はかけら5つ／ピン3・ワッペン2 | `trunk.ts` |
 | プロフィールの曲 | 5曲 | `userProfile.ts` |
 | 招待リンクの期限 | 30日 | `invite.ts` |
 

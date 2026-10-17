@@ -1904,6 +1904,19 @@ describe("updatePhotoVisibility: 下書き → 公開で旅のトランクのラ
         expect(body.label).toEqual(LABEL);
     });
 
+    it("配った硬貨の枚数（coin）を応答に載せる", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: false } }).mockResolvedValue({});
+        // 配る結果は**本物の `dealInto`** で作る（受け取らない設定でも硬貨は配る・trunk 側でやめたらここも落ちる）
+        const real = await vi.importActual<typeof import("../trunk")>("../trunk");
+        mockGrantForPhoto.mockImplementation(async (_uid: string, id: string) => {
+            const now = new Date();
+            const p = { id, src: "x", userId: "u1", published: true } as unknown as Parameters<typeof real.buildLabel>[0];
+            return real.dealInto(real.parseTrunk({ receiveLabels: false }), real.buildLabel(p, [], now), 30, real.fingerprintOf(p), now).outcome;
+        });
+        const res = await invoke(event("u1", "p1", { published: true }));
+        expect(JSON.parse(res.body)).toMatchObject({ success: true, label: null, labelSkipped: "off", coin: 1 });
+    });
+
     it("一度公開したことのある写真（firstPublishedAt あり）は、公開し直しても配らない", async () => {
         mockDdbSend.mockImplementation((cmd: { constructor: { name: string }; input: { ConditionExpression?: string } }) => {
             if (cmd.constructor.name === "GetCommand") {
