@@ -1362,3 +1362,32 @@ describe("配り始める線（TRUNK_LAUNCHED_AT）", () => {
         expect(T.createdAfterLaunch({ createdAt: "2026-10-16T14:59:59.000Z" })).toBe(false);
     });
 });
+
+describe("見直しで守りの無かった2か所（2026-10-17）", () => {
+    it("古い形の行は、持ち物が変わらない書き込み（台帳だけの変化）でも trunk# を Put して台帳の項目を抜く", async () => {
+        setProfile(FREE);
+        const now = Math.floor(Date.now() / 1000);
+        // 古い形: 台帳が trunk# の中。硬貨は使い切り（0 枚）＝取り消しで変わるのは台帳（coinLog）だけ
+        setTrunk({ pocket: [], stuck: [], coins: 0, dealt: ["i:x"], coinLog: [{ k: "p1", a: now }], daily: { day: "2000-01-01", count: 1 } });
+        fakeSend.mockClear();
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: new Date().toISOString() }, "test");
+        const tx = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "TransactWriteCommand")
+            .map((c) => (c.input as { TransactItems: Record<string, unknown>[] }).TransactItems);
+        expect(tx).toHaveLength(1);
+        expect(tx[0].map((t) => Object.keys(t)[0])).toEqual(["Put", "Put"]);
+        for (const k of ["dealt", "coinLog", "daily", "groups", "milestones"]) expect(trunkRow()?.[k]).toBeUndefined();
+        expect(ledgerRow()).toMatchObject({ dealt: ["i:x"], coinLog: [], daily: { day: "2000-01-01", count: 1 } });
+    });
+
+    it("1行の大きさは台帳の行でも見る（台帳が予算を越えるなら配らない・書かない）", () => {
+        const doc = parseTrunk({ pocket: [], stuck: [] }, {
+            milestones: Array.from({ length: 300 }, (_, i) => `firstCountry:${"あ".repeat(500)}${i}`),
+        });
+        const z = T.rowSizes(doc);
+        expect(z.main).toBeLessThan(10_000);
+        expect(z.ledger).toBeGreaterThan(T.TRUNK_BUDGET_BYTES);
+        const r = dealInto(doc, label("new") as never, 30, "i:new", new Date());
+        expect(r.doc).toBeNull();
+        expect(r.outcome).toEqual({ label: null, labelSkipped: "storage", coin: 0 });
+    });
+});
