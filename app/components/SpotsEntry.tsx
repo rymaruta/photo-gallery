@@ -4,6 +4,7 @@ import HomeEntryRow from "./HomeEntryRow";
 import { ROUTES } from "../../lib/routes";
 import type { HomeSeasonal } from "../../lib/data/spotTopics";
 import { TopicCreditLine } from "./SpotTopicLists";
+import SaveSpotButton from "./SaveSpotButton";
 
 /**
  * 写真の札の高さ（2026-10-11 見直し）。最初の形（見出しの行 44px＋縦長のカード 166px）は
@@ -85,6 +86,10 @@ export default function SpotsEntry({ locale, seasonal = null }: { locale: "ja" |
                                 </Link>
                                 {/* CC BY・CC BY-SA は作者とライセンスの表示が条件。ライセンスの行を先に・切らない */}
                                 {s.credit && <div className="mt-1"><TopicCreditLine credit={s.credit} compact /></div>}
+                                {/* 発見した場所をホームから直接「行きたい」に保存できる。鍵は公式スポット用の SPOT-<slug>。 */}
+                                <div className="mt-1 flex justify-center">
+                                    <SaveSpotButton slug={s.slug} name={s.name} locale={locale} kind="spot" variant="tile" />
+                                </div>
                             </li>
                         ))}
                     </ul>
