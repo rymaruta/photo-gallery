@@ -17,7 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
-import { revokeLabelQuietly } from "./trunk";
+import { revokeLabelQuietly, grantLabelForPhotoQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
@@ -57,6 +57,28 @@ export function isValidYouTubeUrl(raw: unknown): string | undefined {
 }
 
 // PUT /photos/{id} — 自分の写真の更新（公開/非公開・写真BGM）
+/**
+ * 初めての公開の時刻（`firstPublishedAt`）を**まだ無ければ**書く。書けたら true（＝初めての公開）。
+ * 既にある・行が消えた・書けなかったときは false（ラベルを配らない側に倒す）。投げない
+ */
+async function claimFirstPublish(id: string): Promise<boolean> {
+    try {
+        await ddb.send(new UpdateCommand({
+            TableName: PHOTOS_TABLE,
+            Key: { id },
+            UpdateExpression: "SET firstPublishedAt = :t",
+            ConditionExpression: "attribute_exists(id) AND attribute_not_exists(firstPublishedAt)",
+            ExpressionAttributeValues: { ":t": new Date().toISOString() },
+        }));
+        return true;
+    } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") {
+            console.error(`updatePhotoVisibility: firstPublishedAt を書けませんでした（${id}）:`, e);
+        }
+        return false;
+    }
+}
+
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
     if (!id) {
@@ -805,6 +827,21 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
 
         // **メダルを数え直す**（撮影地・撮影日・公開の切り替えで数が動く）。
         // 投げない・上限つきで待つ（`badgeStore.ts`）。落ちても更新は成功で返す
+        // **下書き → 公開になった瞬間に、旅のトランクのラベルを配る**（`trunk.ts`・savePhoto と同じ判定）。
+        // ラベルの id は写真の id なので、公開 → 非公開 → 公開を繰り返しても二度は配らない
+        // 2026-10-17 判断: 配るのは**一度も公開されたことが無い写真**だけ。`firstPublishedAt` を
+        // 「まだ無ければ書く」の条件つきで書き、**書けた回だけ**配る（同時の2本でも1本だけが通る）。
+        // savePhoto で公開した写真・この仕組みの前に公開した写真（作成が機能を出した日より前）は配らない
+        const firstPublish = visibilityChanged && body.published === true
+            ? await claimFirstPublish(id)
+            : false;
+        const dealt = firstPublish
+            ? await grantLabelForPhotoQuietly(ownerId, id, `updatePhotoVisibility(${id})`)
+            : undefined;
+        // **公開 → 非公開で、投稿から24時間以内ならラベルを取り消す**（削除と同じ扱い・`trunk.ts`）
+        if (visibilityChanged && body.published === false) {
+            await revokeLabelQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`);
+        }
         await refreshBadgesQuietly(ownerId, `updatePhotoVisibility(${id})`);
 
         // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
@@ -829,10 +866,13 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             // 一度「2つは排他だから順番に意味は無い」と書いたが、それは
             // `staticOutdated` に「公開のままか」を要求していたときの話で、
             // その条件は上のとおり外した
-            body: JSON.stringify(
-                staticStale ? { success: true, staticStale: true }
+            // 公開にした回だけ `label`・`labelSkipped` を足す（既存の形はそのまま）
+            body: JSON.stringify({
+                ...(staticStale ? { success: true, staticStale: true }
                     : staticOutdated ? { success: true, staticOutdated: true }
                         : { success: true }),
+                ...(dealt ?? {}),
+            }),
         };
     } catch (e) {
         // 条件が外れた＝Get と Update の間に写真が消えた。作り直さずに
@@ -991,7 +1031,7 @@ export const deleteMyPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
 
         // **旅のトランクのラベルを取り消す**（投稿から24時間以内・手持ちに残っているときだけ。
         // `trunk.ts`）。投げない・上限つきで待つ。指紋は台帳に残るので、上げ直しても届かない
-        await revokeLabelQuietly(callerId, id, item.createdAt, `deleteMyPhoto(${id})`);
+        await revokeLabelQuietly(callerId, item, `deleteMyPhoto(${id})`);
 
         // 頼めたかどうかを画面に返す（`updatePhotoVisibility` と同じ `staticStale`）。
         // 頼まなかった場合（非公開のまま印も無い）は静的ページが無いので false

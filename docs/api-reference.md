@@ -290,20 +290,29 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 
 - 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
   応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
-  `labelSkipped` を足す: `draft`（下書き・ストーリー）/ `off`（受け取らない設定）/ `samePost`（同じ束に配り済み）/
+  `labelSkipped` を足す: `draft`（下書き・ストーリー）/ `notNew`（機能を出す前に作った写真・一度公開した写真）/
+  `off`（受け取らない設定）/ `samePost`（同じ束に配り済み）/
   `duplicate`（同じ写真の指紋に配り済み）/ `daily`（その日3枚配った）/ `full`（手持ちが上限）/
+  `storage`（1行の容量がいっぱい）/
   `timeout`・`error`（配りが間に合わなかった。届いていれば `GET` に出る）
 - ラベル: `{ id(=写真id), photoId, kind: milestone|timeslot|season|place, place{name, latin?, country?},
   season?: spring|summer|autumn|winter, timeslot?: dawn|dusk|night,
   milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil? }`。絵はアプリが `seed` と `kind` から描く
 - `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels, posts }`。
   更新の口は同じ形から `posts` を除いたものを返す。失敗は `{ error, code }`
-  （`notFound` / `full` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy`）
+  （`notFound` / `full` / `storage` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy`）
 - 型: 無料 `leather`・`canvas`・`aluminum`・`steamer`、Pro `urushi`・`kori`・`sleeper`・`clipper`・`captain`・`starchart`。
   Pro をやめたら `effectiveModel` は最後に選んだ無料の型（既定 `leather`）。`model` は残る
 - 作り直し（Pro・日本時間の月に3回・繰り越しなし）: `reroll` で候補3つ（`pendingReroll.seeds`）、
   `reroll/choose { seed }` で確定（今の `seed` を選んでもよい・回数は戻らない）。foil は保つ
-- 投稿から24時間以内に写真を消すと、手持ちに残っているそのラベルは取り消す（貼ったものは残す）
+- 投稿から24時間以内に写真を消す・非公開にすると、そのラベルは取り消す（手持ちでも貼ったものでも）。
+  束は、束の写真が1枚も公開で残らなくなったときだけ取り消す
+- 写真の編集（`PUT /photos/{id}`）で下書き → 公開にした回も同じ判定で配り、応答に `label`・`labelSkipped` を足す。
+  配るのは**一度も公開されたことが無く**（写真の `firstPublishedAt` が無い）、機能を出した日
+  （2026-10-17）より後に作られた写真だけ
+- ⚠️ **指紋（EXIF の撮影日時・機種・大きさ）と束（`groupId`）はアプリが送る値。** 改造したアプリなら
+  どちらも好きに変えられるので、そのときに効く歯止めは**1日3枚だけ**
+- 節目（`first`・`posts10/50/100`・国ごとの `firstCountry`）は一度きり。束（`groupId`）も一度きり（手持ちから消しても戻らない）
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の

@@ -31,6 +31,7 @@ import { requireEnv } from "./env";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isDeletedProfile } from "./types";
 import { listMyPhotos } from "./ddb-photos";
+import type { Photo } from "./types";
 import { readUserList } from "./userList";
 import { spotsId, isStoredSpotSlug } from "./savedSpots";
 import { pushNotification } from "./notify";
@@ -53,9 +54,12 @@ export type BadgeResult = { badges: BadgeMap; progress: BadgeProgress };
  * 読む・数える・書くの途中で落ちたら投げる（呼ぶ側が決める）。
  * 書けなかった（競合し続けた・行が無い）ときも、**数えた結果は返す**。
  */
-export async function refreshBadges(userId: string, now: () => Date = () => new Date()): Promise<BadgeResult> {
+export async function refreshBadges(
+    userId: string, now: () => Date = () => new Date(), photosRead?: Promise<Photo[]>,
+): Promise<BadgeResult> {
     const [photos, wishKeys] = await Promise.all([
-        listMyPhotos(userId),
+        // 渡されたら使う（savePhoto が旅のトランクと1回の読みを分け合う・`trunk.ts`）
+        photosRead ?? listMyPhotos(userId),
         readUserList(spotsId(userId), isStoredSpotSlug, `spots#${userId}`),
     ]);
     const counts = countBadges(photos, wishKeys);
@@ -121,12 +125,12 @@ export const QUIET_LIMIT_MS = 2500;
  * 写真の保存・更新のあとに呼ぶ。**投げない・待たせすぎない。**
  * 失敗は記録だけ（写真はもう保存されている）。
  */
-export async function refreshBadgesQuietly(userId: string, label: string): Promise<void> {
+export async function refreshBadgesQuietly(userId: string, label: string, photosRead?: Promise<Photo[]>): Promise<void> {
     if (!userId) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
-            refreshBadges(userId).catch((e) => {
+            refreshBadges(userId, undefined, photosRead).catch((e) => {
                 console.error(`${label}: メダルを数え直せませんでした（${userId}）:`, e);
             }),
             new Promise<void>((resolve) => { timer = setTimeout(resolve, QUIET_LIMIT_MS); }),
