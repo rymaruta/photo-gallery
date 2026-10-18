@@ -2,7 +2,7 @@
 // 写真の代替テキスト（alt）を1か所で組む。
 
 import { getLocalized, type Photo, type Locale } from "../data/photos";
-import { displayTitle } from "./photoTitle";
+import { photoOwnTitle, photoTitleFor } from "./photoTitle";
 import { titleWithPlace } from "./titlePlace";
 
 /**
@@ -21,6 +21,9 @@ import { titleWithPlace } from "./titlePlace";
  * 1. 利用者が書いた `alt` があれば**それをそのまま使う**（人が書いたものが最優先）
  * 2. 無ければ題。題に撮影地が入っていなければ `（撮影地）` を添える
  * 3. 題も無ければ撮影地だけ
+ * 4. 撮影地も無ければ写真ページと同じ代わりの題（「写真」/ Photo・`photoTitleFor`）
+ *    ——空の alt だと、写真ページ本体の2枚目以降が「（2/3）」だけになり、
+ *    画像検索が見る本体画像が名前を持たない（2026-10-18）
  *
  * **水増しはしない。** タグやカテゴリを並べて長くすると、alt は
  * 「画像の説明」ではなく検索語の羅列になり、支援技術の読み上げも壊れる。
@@ -33,11 +36,13 @@ export function photoAltText(photo: Photo, locale: Locale): string {
 
     // サーバーが入れていた「無題」は題として扱わない（`photoTitle.ts`）。
     // 読み上げと画像検索に「無題」と言わせない
-    const title = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
+    // 言語ごとに「無題」を落とす（`{ ja: "無題", en: "Sunset" }` で h1・一覧と割れない）
+    const title = photoOwnTitle(photo, locale);
     const place = typeof photo.location === "string" ? photo.location.trim() : "";
     // **並べ方の決め方は `titleWithPlace` 1つに置く**（写真ページの `<title>` と
     // 同じ判断。片方だけ直して `alt="オペラ・ガルニエ（オペラ・ガルニエ（パリ））"`
     // を19ページに出した）。ここが決めるのは「（）でつなぐ」ことだけ
     const r = titleWithPlace(title, place);
-    return r.kind === "single" ? r.text : `${r.title}（${r.place}）`;
+    if (r.kind === "both") return `${r.title}（${r.place}）`;
+    return r.text || photoTitleFor(photo, locale).text;
 }

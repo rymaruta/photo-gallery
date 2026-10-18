@@ -29,11 +29,11 @@ import { FollowAction } from "../../components/FollowButton";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
 import type { Photo } from "@/lib/data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
+import { getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
-import { displayTitle } from "../../../lib/utils/photoTitle";
+import { photoOwnTitle, fallbackPhotoTitle, photoTitleFor } from "../../../lib/utils/photoTitle";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -677,11 +677,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // BreadcrumbList構造化データを生成
     const breadcrumbData = useMemo(() => {
         if (!photo) return null;
-        // パンくずの名前。**同じページの `ImageObject` は `name: ""` を出す**
-        // ので、ここだけ "Untitled" にすると**同じ写真について2つの
-        // 構造化データが違うことを言う**。日本語のサイトなので文言も揃える
-        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en")
-            || (locale === "en" ? "Untitled" : "無題");
+        // パンくずの名前。**同じページの `ImageObject.name`・`<title>` と同じ決め方**
+        // （`photoTitleFor`）にする——別々に組むと、同じ写真について2つの構造化データが
+        // 違うことを言う。題が無い（旧い「無題」を含む）写真は「<撮影地>の写真」/「写真」
+        const title = photoTitleFor(photo, locale === "en" ? "en" : "ja").text;
         return generateBreadcrumbStructuredData([
             { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },
             { name: title, url: `${siteConfig.url}/photo/${photo.id}` },
@@ -769,9 +768,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         );
     }
 
-    // **一覧（`GalleryGrid`）と同じく `displayTitle` を通す。** サーバーが入れていた
+    // **一覧（`GalleryGrid`）と同じく `displayTitle` を通す**（`photoOwnTitle` の中）。サーバーが入れていた
     // 「無題」（`{ ja: "無題" }`）は題として扱わない（`photoTitle.ts`）
-    const titleText = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
+    const titleText = photoOwnTitle(photo, locale === "en" ? "en" : "ja");
     // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
     const altText = photoAltText(photo, locale);
     // **もう一方の言語の本文は出さない。**
@@ -805,9 +804,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // 「無題」も代わりの文字も出さない）。見出しは読み上げ用（`sr-only`）に置く。
     // 上の 3. の「隠しテキスト」とは別物: 中身は画面に出ている撮影地と同じ
     // 短い説明で、検索のために語を足すものではない。
-    const fallbackHeading = locationText
-        ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
-        : (locale === "en" ? "Photo" : "写真");
+    // 言い方は `fallbackPhotoTitle` 1つに置く（`<title>`・パンくず・RSS・共有も同じ）
+    const fallbackHeading = fallbackPhotoTitle(locationText, locale === "en" ? "en" : "ja");
     // 撮影日（保存された通りに出す。`createdAt` には落とさない: 投稿日と撮影日は別）
     const shotDate = formatStoredDateTime(photo.date, locale === "en" ? "en" : "ja") ?? "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
@@ -828,7 +826,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     const currentUrl = typeof window !== "undefined" 
         ? `${window.location.origin}/photo/${photo.id}` 
         : `${siteConfig.url}/photo/${photo.id}`;
-    const shareText = titleText || "写真";
+    // 題が無ければ見出しと同じ「<撮影地>の写真」（以前は一律「写真」）
+    const shareText = titleText || fallbackHeading;
 
     const handleShare = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
@@ -1467,13 +1466,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         </div>
                         <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
                             {related.nearby.map((p) => {
-                                const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                                // alt は名前が要るので代わりの題（旧い「無題」も落とす）
+                                const t = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
                                 return (
                                     <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
                                           data-photo-id={p.id}
                                           className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}>
-                                        <Thumb photo={p} alt={t || (locale === "en" ? "Photo" : "写真")} sizes="(max-width:640px) 25vw, 120px" />
+                                        <Thumb photo={p} alt={t} sizes="(max-width:640px) 25vw, 120px" />
                                     </Link>
                                 );
                             })}
@@ -1549,7 +1549,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                             <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                             <span className="min-w-0">
                                                 <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.prev, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                         </Link>
                                     ) : <span className="flex-1" />}
@@ -1563,7 +1563,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         >
                                             <span className="min-w-0">
                                                 <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.next, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                             <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                         </Link>

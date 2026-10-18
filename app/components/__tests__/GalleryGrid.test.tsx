@@ -348,6 +348,14 @@ describe("GalleryGrid: 題の無い写真", () => {
         expect(screen.getByRole("link")).toHaveAccessibleName("写真を開く");
     });
 
+    // 言語ごとに「無題」を落とす（`photoOwnTitle`）。`ja || en` で選んでから落とすと、
+    // 写真ページの h1 は Sunset なのに一覧は題なし、と割れる
+    it("{ ja: 無題, en: Sunset } は英語の題を出す（写真ページの h1 と同じ）", () => {
+        render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", { ja: "無題", en: "Sunset" })]} locale="ja" />);
+        expect(screen.getByRole("link")).toHaveAccessibleName("Sunset を開く");
+        expect(screen.queryByText("無題")).toBeNull();
+    });
+
     it("素の文字列で保存された「Untitled」も同じ", () => {
         render(<GalleryGrid sizes={GRID_SIZES_5XL} photos={[titled("a", "Untitled")]} locale="ja" />);
         expect(screen.queryByText("Untitled")).toBeNull();
