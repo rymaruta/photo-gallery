@@ -840,7 +840,7 @@ functions:
             name: cognitoAuthorizer
 
   # 旅のトランク（`src/trunk.ts`・iOS の新機能・2026-10-17 owner 承認）。
-  # 1行 `trunk#<uid>`（photos テーブル）。**口は12でも関数は1つ**——CloudFormation の
+  # 1行 `trunk#<uid>`（photos テーブル）。**口は13でも関数は1つ**——CloudFormation の
   # 部品の数が上限 500 に近いので、関数ごとの部品（関数・版・ロググループ・統合・許可）を増やさない。
   # 道筋は `event.routeKey` で分ける。reservedConcurrency は付けない（アカウントの同時実行が 10）
   trunk:
@@ -907,6 +907,14 @@ functions:
       - httpApi:
           path: /user/trunk/equip
           method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      # 人のトランク（2026-10-18 owner「他の人のトランクの中身とか見れたら楽しい」）。**ログインした人だけ**
+      # （ブロックの関係を見るのに見る人が要る）。道筋は人の口の流儀（`/users/{uid}/follow` と同じ）。
+      # 足すのは Route 1つだけ（関数・統合・許可・ロールは trunk のものを使う）
+      - httpApi:
+          path: /users/{uid}/trunk
+          method: GET
           authorizer:
             name: cognitoAuthorizer
 
