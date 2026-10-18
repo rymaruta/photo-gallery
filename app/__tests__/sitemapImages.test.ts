@@ -221,3 +221,17 @@ describe("撮影地ページの画像（2026-10-11）", () => {
         expect(xml.match(/<image:image>/g)?.length).toBe(1000);
     });
 });
+
+// 旧い既定値の「無題」を画像の題として配らない（2026-10-18・`photoTitle.ts`）。
+// 題が無ければ今までどおり `<image:title>` を出さない
+describe("画像サイトマップ: 旧い既定値の「無題」", () => {
+    it("{ ja: 無題, en: Untitled } は題として扱わない", () => {
+        expect(titleOf(photo({ title: { ja: "無題", en: "Untitled" } } as Partial<Photo>))).toBe("");
+        const xml = buildImageSitemap([photo({ title: { ja: "無題", en: "Untitled" }, location: "板橋区" } as Partial<Photo>)]);
+        expect(xml).not.toMatch(/無題|Untitled/);
+        expect(xml).not.toContain("<image:title>");
+    });
+    it("片方の言語が「無題」なら、もう一方の本物の題を使う", () => {
+        expect(titleOf(photo({ title: { ja: "無題", en: "Swans" } } as Partial<Photo>))).toBe("Swans");
+    });
+});
