@@ -52,7 +52,7 @@ describe("写真ページ: 題が無い写真の見出し", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={NO_TITLE} />);
         await screen.findAllByRole("heading", { level: 1 });
         const h1 = heading();
-        expect(h1.textContent).toBe("板橋区, 日本の写真");
+        expect(h1.textContent).toBe("板橋区の写真");
         expect(h1.className).toContain("sr-only");
     });
 
@@ -70,7 +70,7 @@ describe("写真ページ: 題が無い写真の見出し", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={{ ...NO_TITLE, title: { ja: "無題", en: "Untitled" } } as unknown as Photo} />);
         await screen.findAllByRole("heading", { level: 1 });
         const h1 = heading();
-        expect(h1.textContent).toBe("板橋区, 日本の写真");
+        expect(h1.textContent).toBe("板橋区の写真");
         expect(h1.className).toContain("sr-only");
         expect(screen.queryByText("無題")).toBeNull();
     });
@@ -117,9 +117,9 @@ describe("写真ページ: 題が無い写真のパンくず・構造化デー�
     const { location: _omit, ...NO_PLACE } = NO_TITLE as unknown as Record<string, unknown>;
     void _omit;
     const cases: [string, Record<string, unknown>, string][] = [
-        ["欄が無い・撮影地あり", { ...NO_TITLE }, "板橋区, 日本の写真"],
-        ["空白だけ・撮影地あり", { ...NO_TITLE, title: { ja: "  " } }, "板橋区, 日本の写真"],
-        ["{ ja: 無題, en: Untitled }・撮影地あり", { ...NO_TITLE, title: { ja: "無題", en: "Untitled" } }, "板橋区, 日本の写真"],
+        ["欄が無い・撮影地あり", { ...NO_TITLE }, "板橋区の写真"],
+        ["空白だけ・撮影地あり", { ...NO_TITLE, title: { ja: "  " } }, "板橋区の写真"],
+        ["{ ja: 無題, en: Untitled }・撮影地あり", { ...NO_TITLE, title: { ja: "無題", en: "Untitled" } }, "板橋区の写真"],
         ["欄が無い・撮影地なし", { ...NO_PLACE }, "写真"],
         ["{ ja: 無題 }・撮影地なし", { ...NO_PLACE, title: { ja: "無題" } }, "写真"],
         ["題あり", { ...NO_TITLE, title: { ja: "朝の湖" } }, "朝の湖"],
