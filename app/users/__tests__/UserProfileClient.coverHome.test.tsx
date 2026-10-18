@@ -97,6 +97,61 @@ describe("プロフィールのカバー写真", () => {
     });
 });
 
+describe("カバーが無いときの額縁（#304・板 52）", () => {
+    const head = vi.fn();
+    beforeEach(() => {
+        head.mockReset().mockResolvedValue({ status: 404 });
+        vi.stubGlobal("fetch", head);
+    });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it("絵を読めなかっただけ（HEAD も届かない・圏外）なら本人でも出さない", async () => {
+        head.mockRejectedValue(new Error("offline"));
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: ME } }) });
+        profileResponse({ userId: ME, displayName: "旅人" });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        await screen.findByRole("heading", { level: 1 });
+        fireEvent.error(coverImg(container)!);
+        await waitFor(() => expect(head).toHaveBeenCalled());
+        await new Promise((r) => setTimeout(r, 0));
+        expect(screen.queryByTestId("cover-frame")).toBeNull();
+    });
+
+    it("本人のページだけ、真鍮の額縁を出して見出しを重ねる。押すとカバーの候補へ", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: ME } }) });
+        profileResponse({ userId: ME, displayName: "旅人" });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        await screen.findByRole("heading", { level: 1 });
+        // 読み込み中は出さない（ある人で一瞬出ない）
+        expect(screen.queryByTestId("cover-frame")).toBeNull();
+        fireEvent.error(coverImg(container)!);
+        const frame = await screen.findByTestId("cover-frame");
+        expect(frame.getAttribute("href")).toBe("/user/profile#cover-pick");
+        expect(screen.getByRole("heading", { level: 1 }).closest("div[style*='padding-top']")).not.toBeNull();
+    });
+
+    it("カバーがあれば本人でも出さない", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: ME } }) });
+        profileResponse({ userId: ME, displayName: "旅人" });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        await screen.findByRole("heading", { level: 1 });
+        fireEvent.load(coverImg(container)!);
+        await waitFor(() => expect(container.querySelector<HTMLElement>("[data-testid=profile-cover]")?.style.height).toBe("180px"));
+        expect(screen.queryByTestId("cover-frame")).toBeNull();
+    });
+
+    it("ほかの人のページには出さない（黒のまま・板 31）", async () => {
+        profileResponse({ userId: ME, displayName: "旅人" });
+        const { container } = render(<UserProfileClient userId={ME} />);
+        await screen.findByRole("heading", { level: 1 });
+        fireEvent.error(coverImg(container)!);
+        await waitFor(() => expect(container.querySelector("[data-testid=profile-cover]")).toBeNull());
+        expect(screen.queryByTestId("cover-frame")).toBeNull();
+        // ほかの人のページでは HEAD も聞かない
+        expect(head).not.toHaveBeenCalled();
+    });
+});
+
 describe("カバー写真: 付く前に読み終えていた画像（静的HTMLに焼かれるページ）", () => {
     it("失敗し終えていたら帯を出さない・出せていたら広げる", async () => {
         profileResponse({ userId: ME, displayName: "旅人" });

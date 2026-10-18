@@ -31,7 +31,8 @@ vi.mock("../../../../lib/utils/api", async () => {
     const actual = await vi.importActual<typeof import("../../../../lib/utils/api")>("../../../../lib/utils/api");
     return {
         ...actual,
-        userFetch: (...args: unknown[]) => mockUserFetch(...args),
+        // カバーの候補の一覧（#304・`GET /user/photos`）はこの試験の数え方の外に置く（順番どおりの応答を奪わない）
+    userFetch: (...args: unknown[]) => (args[0] === "/user/photos" ? Promise.resolve({ ok: false, json: async () => null }) : mockUserFetch(...args)),
     };
 });
 
