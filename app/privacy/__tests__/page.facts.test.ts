@@ -59,8 +59,36 @@ describe("プライバシーポリシーの数が実装と合っている", () =
 describe("すれちがいの説明が仕組みの事実と合っている", () => {
     it("暗号化していないと言い、暗号化していると言わない", () => {
         expect(page).toContain("この内容は暗号化していません");
-        expect(page, "暗号化していないのに、しているかのように書いている").not.toMatch(/暗号化して(い|お)ります|暗号化しています|暗号化して送/);
+        // 「暗号化していません」以外の「暗号化」の言い方（暗号化済み・暗号化して送る・暗号化された…）を全部断る
+        const others = [...page.matchAll(/暗号化[^\s、。」）]{0,8}/g)]
+            .map((m) => m[0])
+            .filter((s) => !s.startsWith("暗号化していません"));
+        expect(others, "暗号化していないのに、しているかのように読める言い方がある").toEqual([]);
         expect(page).toContain("日ごとに変わる仕組みはありません");
+    });
+});
+
+/** 本文の節を1つ切り出す（`<Section title="N. …">` から次の `<Section` まで） */
+function sectionOf(n: number): string {
+    const start = page.indexOf(`<Section title="${n}. `);
+    expect(start, `${n}節が見つからない`).toBeGreaterThanOrEqual(0);
+    const next = page.indexOf("<Section title=", start + 1);
+    return page.slice(start, next < 0 ? undefined : next);
+}
+
+describe("本文の約束が消えていない", () => {
+    it("3節: iPhone アプリは撮影地の欄が空のままでも座標を送ると書いてある（PlaceCoordsRule の (a)）", () => {
+        expect(sectionOf(3)).toContain("撮影地の欄が空のまま投稿したとき");
+        expect(sectionOf(3)).toContain("ストーリーの投稿にも同じ条件が当てはまります");
+    });
+
+    it("5節: アーカイブに移るとき、閲覧の記録と他の方の返信を消すと書いてある", () => {
+        expect(sectionOf(5)).toContain("アーカイブに移るとき、閲覧の記録と他の方からの返信は消します");
+    });
+
+    it("10節: 範囲を絞った写真も、画像のアドレスを知っている人は開けると書いてある", () => {
+        expect(sectionOf(10)).toContain("ログインしている対象の方にだけ表示されます（ウェブサイトには表示されません）");
+        expect(sectionOf(10)).toContain("画像のアドレスを知っている人は、そのアドレスから画像を開けることがあります");
     });
 });
 
@@ -101,16 +129,20 @@ function returnedPublicFields(): Set<string> {
     return out;
 }
 
-/** 公開の形の項目 → 本文で説明している言い方 */
+/**
+ * 公開の形の項目 → 本文（4節）で説明している言い方。
+ * **項目の並びごと見る**——「居住地」1語だけだと、同じ節の注記（「居住地は自由入力の…」）に当たって、
+ * 一覧から消しても通ってしまう
+ */
 const FIELD_PHRASE: Record<string, string> = {
     userId: "利用者ID、プロフィールの更新日時",
     updatedAt: "利用者ID、プロフィールの更新日時",
-    username: "ユーザー名",
-    displayName: "表示名",
-    bio: "自己紹介",
-    instagram: "Instagram",
-    website: "ウェブサイト",
-    themeColor: "テーマの色",
+    username: "ご自身で設定した項目: 表示名、ユーザー名、",
+    displayName: "ご自身で設定した項目: 表示名、",
+    bio: "自己紹介、居住地、ひとこと",
+    instagram: "外部リンク（Instagram・ウェブサイト）",
+    website: "外部リンク（Instagram・ウェブサイト）",
+    themeColor: "テーマの色、プロフィールの曲",
     songUrl: "プロフィールの曲",
     songStart: "プロフィールの曲",
     songEnd: "プロフィールの曲",
@@ -124,8 +156,8 @@ const FIELD_PHRASE: Record<string, string> = {
     tripTitles: "旅アルバムの名前・カバー・曲",
     tripCovers: "旅アルバムの名前・カバー・曲",
     tripSongs: "旅アルバムの名前・カバー・曲",
-    statusText: "ひとこと",
-    homeLocation: "居住地",
+    statusText: "自己紹介、居住地、ひとこと",
+    homeLocation: "自己紹介、居住地、ひとこと",
     verified: "認証済みの印",
     passFace: "特別な乗車券の券面を表示してよいか",
     "...badgeFields": "サポーターの番号・申し込んだ日・続けた月数",
@@ -148,14 +180,17 @@ describe("公開プロフィールの節が公開の形と合っている", () =
             .toEqual(Object.keys(FIELD_PHRASE).sort());
     });
 
-    it("どの項目も本文が説明している", () => {
+    it("どの項目も、4節（公開プロフィール）の中で説明している", () => {
+        // 本文のどこかに1回出るだけでは足りない（別の節の同じ言葉に当たって通ってしまう）
+        const s4 = sectionOf(4);
         for (const [k, phrase] of Object.entries(FIELD_PHRASE)) {
-            expect(page, `${k} の説明（${phrase}）が本文に無い`).toContain(phrase);
+            expect(s4, `${k} の説明（${phrase}）が4節に無い`).toContain(phrase);
         }
     });
 
-    it("印を外しても Pro か分かること・番号とメダルが公開のままであることを言っている", () => {
-        expect(page).toContain("いま Pro であるかどうかは他の方に分かります");
-        expect(page).toContain("サポーターの番号・続けた月数とメダルも、印を外しても公開のままです");
+    it("印を外しても Pro か分かること・番号とメダルが公開のままであることを、4節で言っている", () => {
+        const s4 = sectionOf(4);
+        expect(s4).toContain("いま Pro であるかどうかは他の方に分かります");
+        expect(s4).toContain("サポーターの番号・続けた月数とメダルも、印を外しても公開のままです");
     });
 });
