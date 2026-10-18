@@ -83,10 +83,10 @@ const trunkRow = () => store.get(`photos-test|${trunkId(UID)}`) as Item | undefi
 const ledgerRow = () => store.get(`photos-test|${trunkLedgerId(UID)}`) as Item | undefined;
 
 type Res = { statusCode: number; body: string };
-async function welcome(sub: string | null = UID): Promise<{ status: number; json: Record<string, unknown> }> {
+async function welcome(sub: string | null = UID, extra: Record<string, unknown> = {}): Promise<{ status: number; json: Record<string, unknown> }> {
     const ev = {
         routeKey: "POST /user/trunk/welcome",
-        requestContext: { authorizer: { jwt: { claims: sub ? { sub } : {} } }, http: { method: "POST" } },
+        requestContext: { authorizer: { jwt: { claims: sub ? { sub, ...extra } : {} } }, http: { method: "POST" } },
     };
     const res = await (handler as unknown as (e: unknown) => Promise<Res>)(ev);
     return { status: res.statusCode, json: JSON.parse(res.body) };
@@ -215,11 +215,10 @@ describe("はじめての硬貨（POST /user/trunk/welcome）", () => {
         expect((await welcome()).json).toEqual({ granted: true, added: 10, coins: 10 });
     });
 
-    it("登録時刻が取れない（行に createdAt が無い）・前の写真も無い: 配らない・何も書かない（あとで決め直せる）", async () => {
+    it("行はあるが createdAt が無い（2026-08-19 より前の古い利用者）: 前の写真が無くても対象・索引は引かない", async () => {
         setProfile({ displayName: "古い人" });
-        expect((await welcome()).json).toEqual({ granted: false, added: 0, coins: 0 });
-        expect(trunkRow()).toBeUndefined();
-        expect(ledgerRow()).toBeUndefined();
+        expect((await welcome()).json).toEqual({ granted: true, added: 10, coins: 10 });
+        expect(calls.filter((c) => c.startsWith("QueryCommand"))).toHaveLength(0);
     });
 
     it("プロフィールの行が無い・前の写真も無い: 配らない・何も書かない", async () => {
@@ -232,10 +231,60 @@ describe("はじめての硬貨（POST /user/trunk/welcome）", () => {
         expect((await welcome()).json.granted).toBe(true);
     });
 
-    it("登録の時刻が壊れている（読めない文字）・前の写真なし: 配らない・何も書かない", async () => {
+    it("登録の時刻が壊れている（読めない文字）: createdAt が無い行と同じく対象", async () => {
         setProfile({ createdAt: "きのう" });
-        expect((await welcome()).json.granted).toBe(false);
-        expect(trunkRow()).toBeUndefined();
+        expect((await welcome()).json.granted).toBe(true);
+    });
+
+    describe("JWT の auth_time（最初のサインインの時刻）", () => {
+        const sec = (iso: string) => Math.floor(Date.parse(iso) / 1000);
+
+        it("前から居るのに、開いた瞬間に行が今の時刻で作られた人: auth_time が線より前なら対象・索引は引かない", async () => {
+            setProfile({ createdAt: AFTER });
+            // API Gateway（HTTP API）は数の claim を文字にして渡す
+            expect((await welcome(UID, { auth_time: String(sec(BEFORE)) })).json).toEqual({ granted: true, added: 10, coins: 10 });
+            expect(calls.filter((c) => c.startsWith("QueryCommand"))).toHaveLength(0);
+        });
+
+        it("数のままでも読む", async () => {
+            setProfile({ createdAt: AFTER });
+            expect((await welcome(UID, { auth_time: sec(BEFORE) })).json.granted).toBe(true);
+        });
+
+        it("行が無くても auth_time が線より前なら対象", async () => {
+            expect((await welcome(UID, { auth_time: String(sec(BEFORE)) })).json.granted).toBe(true);
+        });
+
+        it("auth_time が線より後・行も後・前の写真なし: 対象外（印を残す）", async () => {
+            setProfile({ createdAt: AFTER });
+            expect((await welcome(UID, { auth_time: String(sec(AFTER)) })).json.granted).toBe(false);
+            expect(typeof trunkRow()?.welcomeCheckedAt).toBe("string");
+        });
+
+        it("行が無く auth_time が線より後・前の写真なし: 対象外（印を残す）", async () => {
+            expect((await welcome(UID, { auth_time: String(sec(AFTER)) })).json.granted).toBe(false);
+            expect(typeof trunkRow()?.welcomeCheckedAt).toBe("string");
+        });
+
+        it("行が無く auth_time が読めない: 決められない（印を残さない）", async () => {
+            expect((await welcome(UID, { auth_time: "abc" })).json.granted).toBe(false);
+            expect(trunkRow()).toBeUndefined();
+        });
+
+        it("auth_time が後でも、前の写真があれば対象", async () => {
+            setProfile({ createdAt: AFTER });
+            setPhoto("old1", BEFORE);
+            expect((await welcome(UID, { auth_time: String(sec(AFTER)) })).json.granted).toBe(true);
+        });
+
+        it("authTimeMsOf: 秒をミリ秒に・文字も読む・負や小数・空は読まない", () => {
+            expect(T.authTimeMsOf(1700000000)).toBe(1700000000000);
+            expect(T.authTimeMsOf("1700000000")).toBe(1700000000000);
+            expect(T.authTimeMsOf("")).toBeUndefined();
+            expect(T.authTimeMsOf("-5")).toBeUndefined();
+            expect(T.authTimeMsOf(undefined)).toBeUndefined();
+            expect(T.authTimeMsOf(0)).toBeUndefined();
+        });
     });
 
     it("退会の墓石の行: 配らない・何も書かない・索引も引かない", async () => {
