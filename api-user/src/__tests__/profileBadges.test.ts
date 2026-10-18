@@ -476,3 +476,105 @@ describe("名前の横の印を外す", () => {
         expect(body.verified).toBe(true);
     });
 });
+
+// 2026-10-18 owner（journey.photo-ios #296）: 本人が Pro の章を公開プロフィールから隠せる
+describe("Pro の章を公開プロフィールに出さない（proBadgesHidden）", () => {
+    const FUTURE = "2099-01-01T00:00:00.000Z";
+    const SUPPORTER = { number: 7, since: "2026-10-10T03:00:00.000Z", months: 13, active: true, expiresAt: FUTURE, environment: "Production" };
+    const BADGES = {
+        first: { tier: 1, at: AT },
+        prefectures: { tier: 2, at: AT },
+        earlyUser: { tier: 1, at: AT },
+        supporter: { tier: 1, at: AT },
+        supporterYear: { tier: 1, at: AT },
+        proAutumn2026: { tier: 1, at: AT },
+    };
+
+    it("Pro の鍵だけを拾う（初期ユーザー・数えるメダルは入らない）", async () => {
+        const { isProBadgeKey } = await import("../badgeKeys");
+        expect(["supporter", "supporterYear", "proAutumn2026", "proWinter2031"].every(isProBadgeKey)).toBe(true);
+        expect(["first", "earlyUser", "prefectures", "proAutumn", "proAutumn1999", null, 1].some(isProBadgeKey)).toBe(false);
+    });
+
+    it("隠すと、公開の GET から Pro のメダル・番号が消え、ほかのメダルと passFace は残る。項目自体も出さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER, badges: BADGES, displayBadge: "first", proBadgesHidden: true }));
+        const res = await getPublic("u1");
+        const body = JSON.parse(res.body);
+        expect(Object.keys(body.badges).sort()).toEqual(["earlyUser", "first", "prefectures"]);
+        expect(body.displayBadge).toBe("first");
+        expect(body).not.toHaveProperty("supporter");
+        expect(res.body).not.toContain("proAutumn2026");
+        expect(res.body).not.toContain("supporterYear");
+        expect(body).not.toHaveProperty("proBadgesHidden");
+        // いま Pro か（券面）は 10-17 の判断どおり残る。印は印で別
+        expect(body.passFace).toBe(true);
+        expect(body.pro).toBe(true);
+    });
+
+    it("名前の横に Pro の章を出していたら displayBadge は null。Pro の章しか無ければ badges ごと出さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({
+            supporter: SUPPORTER, displayBadge: "proAutumn2026", proBadgesHidden: true,
+            badges: { supporter: { tier: 1, at: AT }, proAutumn2026: { tier: 1, at: AT } },
+        }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.displayBadge).toBeNull();
+        expect(body).not.toHaveProperty("badges");
+        expect(body).not.toHaveProperty("supporter");
+    });
+
+    it("隠していない人は今までどおり（Pro の章と番号を出す）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER, badges: BADGES, displayBadge: "supporter" }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.badges.supporter).toBeDefined();
+        expect(body.badges.proAutumn2026).toBeDefined();
+        expect(body.displayBadge).toBe("supporter");
+        expect(body.supporter).toEqual({ number: 7, since: "2026-10-10T03:00:00.000Z", months: 13 });
+    });
+
+    it("本人に返す形（owner: true・購入の応答）と自分のプロフィールは隠していても全部返す", async () => {
+        const row = { userId: "u1", supporter: SUPPORTER, badges: BADGES, displayBadge: "supporter", proBadgesHidden: true } as never;
+        const own = toPublicProfile(row, { owner: true });
+        expect(own.badges?.supporter).toBeDefined();
+        expect(own.supporter).toBeDefined();
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER, badges: BADGES, displayBadge: "supporter", proBadgesHidden: true }));
+        const mine = JSON.parse((await getMine()).body);
+        expect(mine.badges.proAutumn2026).toBeDefined();
+        expect(mine.displayBadge).toBe("supporter");
+        expect(mine.supporter.number).toBe(7);
+        expect(mine.proBadgesHidden).toBe(true);
+    });
+
+    it("自分のプロフィールには proBadgesHidden が常に真偽で載る（既定は false）", async () => {
+        mockSend.mockResolvedValueOnce(stored({}));
+        expect(JSON.parse((await getMine()).body).proBadgesHidden).toBe(false);
+    });
+
+    it("更新: 真偽だけ受ける。true を置き、false で消す。メダル・番号には触らない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER, badges: BADGES })).mockResolvedValueOnce({});
+        const res = await update({ proBadgesHidden: true });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().proBadgesHidden).toBe(true);
+        expect(savedProfile().badges).toEqual(BADGES);
+        expect(JSON.parse(res.body).proBadgesHidden).toBe(true);
+
+        mockSend.mockReset();
+        commands.length = 0;
+        mockSend.mockResolvedValueOnce(stored({ supporter: SUPPORTER, proBadgesHidden: true })).mockResolvedValueOnce({});
+        const back = await update({ proBadgesHidden: false });
+        expect(back.statusCode).toBe(200);
+        expect(savedProfile()).not.toHaveProperty("proBadgesHidden");
+        expect(JSON.parse(back.body).proBadgesHidden).toBe(false);
+
+        commands.length = 0;
+        expect((await update({ proBadgesHidden: "true" })).statusCode).toBe(400);
+        expect((await update({ proBadgesHidden: 1 })).statusCode).toBe(400);
+        expect(commands).toEqual([]);
+    });
+
+    it("触らない更新では保存済みの設定を消さない", async () => {
+        mockSend.mockResolvedValueOnce(stored({ proBadgesHidden: true })).mockResolvedValueOnce({});
+        const res = await update({ displayName: "旅人2" });
+        expect(res.statusCode).toBe(200);
+        expect(savedProfile().proBadgesHidden).toBe(true);
+    });
+});

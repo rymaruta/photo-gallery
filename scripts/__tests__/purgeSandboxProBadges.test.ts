@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 import { mergeProBadges } from "../../api-user/src/proBadges";
+import { isProBadgeKey } from "../../api-user/src/badgeKeys";
 
 // 本番に残った Sandbox（TestFlight・審査）の Pro のメダルを外す台本の、1人ぶんの計画（純関数）
 
 const require = createRequire(import.meta.url);
-const { isProBadgeKey, planUser } = require("../purge-sandbox-pro-badges.js") as {
-    isProBadgeKey: (k: string) => boolean;
-    planUser: (lib: { mergeProBadges: typeof mergeProBadges }, row: Record<string, unknown>, nowMs: number) =>
+const { planUser } = require("../purge-sandbox-pro-badges.js") as {
+    planUser: (lib: { mergeProBadges: typeof mergeProBadges; isProBadgeKey: typeof isProBadgeKey }, row: Record<string, unknown>, nowMs: number) =>
         | { action: "remove"; removed: string[]; item: Record<string, unknown>; rev: number }
         | { action: "review"; excess: string[] }
         | { action: "none" };
 };
-const lib = { mergeProBadges };
+const lib = { mergeProBadges, isProBadgeKey };
 
 const AT = "2026-10-10T04:00:00.000Z";
 const NOW = Date.parse("2026-10-11T00:00:00Z");
@@ -22,6 +22,10 @@ describe("purge-sandbox-pro-badges", () => {
     it("Pro のメダルの鍵だけを拾う", () => {
         expect(["supporter", "supporterYear", "proAutumn2026", "proWinter2031"].every(isProBadgeKey)).toBe(true);
         expect(["first", "proAutumn", "supporterX", "prefecture"].some(isProBadgeKey)).toBe(false);
+        // 2026-10-18: 台本の写しをやめ、公開プロフィールと同じ判定を使う（年の範囲 2026〜2999 も同じ）
+        expect(isProBadgeKey("proSpring1999")).toBe(false);
+        const row = { userId: "u9", badges: { proSpring1999: { tier: 1, at: AT } }, supporter: { environment: "Sandbox", number: 1 } };
+        expect(planUser(lib, row, NOW)).toEqual({ action: "none" });
     });
 
     it("Sandbox の人: Pro のメダルだけ外し、ほかのメダル・番号はそのまま。名前の横に出していたら外す・rev を上げる", () => {

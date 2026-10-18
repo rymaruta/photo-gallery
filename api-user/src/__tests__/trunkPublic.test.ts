@@ -246,6 +246,40 @@ describe("人のトランク（GET /users/{uid}/trunk）", () => {
         expect((free.json.inside as Item).badges).toEqual({});
     });
 
+    // 2026-10-18（journey.photo-ios #296・プロフィール担当）: Pro の章を公開プロフィールから隠している人は、
+    // 中身（inside）でも Pro のメダルと会員証を出さない。自分を読んだときも人からの見え方なので落とす
+    it("Pro の章を隠している人: Pro のメダルを落とし、会員証は null。ほかのメダル・券面はそのまま（自分を読んでも同じ）", async () => {
+        fullOwner();
+        const AT = "2026-01-01T00:00:00.000Z";
+        setProfile(OWNER, {
+            supporter: { active: true, number: 7, since: "2026-01-02T00:00:00.000Z", months: 9 },
+            badges: { first: { tier: 1, at: AT }, supporter: { tier: 1, at: AT }, supporterYear: { tier: 1, at: AT }, proAutumn2026: { tier: 1, at: AT } },
+            proBadgesHidden: true,
+        });
+        for (const sub of [VIEWER, OWNER]) {
+            fakeSend.mockClear();
+            const r = await their(OWNER, sub);
+            expect(r.status).toBe(200);
+            const inside = r.json.inside as Item;
+            expect(inside.badges).toEqual({ first: { tier: 1, at: AT } });
+            expect(inside.card).toBeNull();
+            // 乗車券の券面（いま Pro か）は公開プロフィールの passFace と同じく残す
+            expect((inside.ticket as Item).face).toBe(3);
+            // 射影に proBadgesHidden が入っている（無いと本物の DynamoDB では常に「出す」に倒れる）
+            const get = fakeSend.mock.calls.map((c) => (c[0] as { input: Item }).input)
+                .find((i) => i.TableName === "users-test" && (i.Key as Item)?.userId === OWNER);
+            expect(String(get?.ProjectionExpression)).toContain("proBadgesHidden");
+        }
+        // 隠していなければ今までどおり
+        setProfile(OWNER, {
+            supporter: { active: true, number: 7, since: "2026-01-02T00:00:00.000Z", months: 9 },
+            badges: { first: { tier: 1, at: AT }, proAutumn2026: { tier: 1, at: AT } },
+        });
+        const shown = await their();
+        expect(Object.keys((shown.json.inside as Item).badges as Item).sort()).toEqual(["first", "proAutumn2026"]);
+        expect((shown.json.inside as Item).card).toEqual({ pro: true });
+    });
+
     it("古び方の数の控えが無い行は posts を出さない", async () => {
         setProfile(OWNER, {});
         setTrunk(OWNER, { stuck: [label("x")] });

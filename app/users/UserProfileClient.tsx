@@ -500,7 +500,16 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         void userFetch("/user/profile", signal ? { signal } : undefined)
             .then((res) => (res.ok ? res.json().catch(() => null) : null))
             .then((mineProfile: { userId?: unknown; pinnedPhotoIds?: unknown } | null) => {
-                if (signal?.aborted || pinSeq !== pinSeqRef.current) return;
+                if (signal?.aborted) return;
+                // **本人のメダルは本人の行から採る**（2026-10-18・journey.photo-ios #296）。公開プロフィールは、
+                // 本人が Pro の章を隠している（`proBadgesHidden`）と Pro のメダルを落として返すので、
+                // そのままだと自分のページから自分の Pro のメダルが消えて見える。保存（ピン）とは関係ないので、
+                // 下の番号の確かめより先に重ねる
+                if (mineProfile && typeof mineProfile.userId === "string") {
+                    const own = sanitizeProfile<UserProfile>(mineProfile, "GET /user/profile");
+                    if (own) setUserProfile((p) => (p ? { ...p, badges: own.badges, displayBadge: own.displayBadge } : p));
+                }
+                if (pinSeq !== pinSeqRef.current) return;
                 const raw = mineProfile?.pinnedPhotoIds;
                 if (!Array.isArray(raw)) {
                     // **キーが無い＝サーバーは0枚**（保存側は空になると

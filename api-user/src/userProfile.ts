@@ -6,7 +6,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX 
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
 import { truncate, isRestrictedRow } from "./sanitize";
-import { badgeFields, isBadgeKey, isPro, isProMarkStyle, ownsBadge } from "./badgeKeys";
+import { badgeFields, isBadgeKey, isPro, isProBadgeKey, isProMarkStyle, ownsBadge } from "./badgeKeys";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "./badgeKeys";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -209,6 +209,17 @@ export type UserProfile = {
      * 古いアプリ・Web はこの項目を知らなくても、`verified` が立っていないので印を出さない
      */
     verifiedMarkOff?: boolean;
+    /**
+     * 本人が **Pro の章を公開プロフィールに出さない**（2026-10-18 owner・journey.photo-ios #296）。
+     *
+     * 隠すのは Pro のメダル（サポーター章・続けた年・季節の章。`badgeKeys.ts` の `isProBadgeKey`）と、
+     * サポーターの番号・申し込んだ日・続けた月数（`supporter`）。番号と月数が出ていると、章を隠しても
+     * 同じことが分かるので一緒に隠す（owner 判断）。本人の画面（自分のプロフィール・棚）はそのまま。
+     * **変えないもの**: `passFace`（乗車券の券面・いま Pro か）は 10-17 の owner 判断どおり出す。
+     * 名前の横の Pro の印は `proMarkStyle: "none"` で別に外す。
+     * 行には `true` のときだけ置く（`false` は項目ごと消す＝既定の「出す」）。`verifiedMarkOff` と同じ書き方
+     */
+    proBadgesHidden?: boolean;
     /**
      * 手に入れたメダル（`badgeKeys.ts`）。**本人からは書けない**（`verified` と同じ）。
      * 書くのはサーバーの数え直し（`badgeStore.ts`）と運営の台本だけ。
@@ -545,6 +556,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         displayBadge?: unknown; proMarkStyle?: unknown;
         lightAlert?: unknown;
         verifiedMarkOff?: unknown;
+        proBadgesHidden?: unknown;
     };
     try {
         body = JSON.parse(event.body ?? "{}") as typeof body;
@@ -753,6 +765,14 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     if (hasVerifiedMarkOffKey && typeof body.verifiedMarkOff !== "boolean") {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証済みの印の設定が不正です" }) };
     }
+    /**
+     * Pro の章を公開プロフィールに出さない（`proBadgesHidden`・型の注記）。**真偽だけ受ける**。
+     * `true` だけ行に置き、`false` は消す（出す）
+     */
+    const hasProBadgesHiddenKey = "proBadgesHidden" in body;
+    if (hasProBadgesHiddenKey && typeof body.proBadgesHidden !== "boolean") {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "Pro の章の設定が不正です" }) };
+    }
     const PIN_MAX = 3;
     /** 保存済みの配列に増減を重ねる。上限超過は null（呼び出し側が 409） */
     const applyPinOp = (stored: unknown): string[] | null => {
@@ -885,6 +905,7 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
     apply("proMarkStyle", hasProMarkStyleKey, proMarkStyle);
     apply("lightAlert", hasLightAlertKey, body.lightAlert === false ? false : undefined);
     apply("verifiedMarkOff", hasVerifiedMarkOffKey, body.verifiedMarkOff === true ? true : undefined);
+    apply("proBadgesHidden", hasProBadgesHiddenKey, body.proBadgesHidden === true ? true : undefined);
 
     // この呼び出しで新しく押さえたユーザー名（失敗したら戻す）
     let usernameReserved: string | null = null;
@@ -1154,6 +1175,9 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
     // 認証済みの印を外しているか: 本人の応答には常に真偽で載せる（名前の横の画面の初期値）。
     // 本人の応答の `verified` は資格のまま（外していても true）——画面は両方を見て決める
     rest.verifiedMarkOff = (p as { verifiedMarkOff?: unknown }).verifiedMarkOff === true;
+    // Pro の章を公開プロフィールに出さないか: 本人の応答には常に真偽で載せる（設定の入切の初期値。
+    // 項目が無ければ古いサーバー——アプリはそれで入切を出すかを決める）。本人の `badges`・`supporter` は落とさない
+    rest.proBadgesHidden = (p as { proBadgesHidden?: unknown }).proBadgesHidden === true;
     return { ...(rest as unknown as T), ...badgeFields(p as { badges?: unknown }) };
 }
 
@@ -1180,6 +1204,11 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
  * 限り、値は真偽だけにする（番号・期限・商品・`supporter` の中身は増やさない）。
  * なお `supporter`（番号・申し込んだ日・月数）は前から印と関係なく公開している。
  *
+ * **Pro の章を隠している（`proBadgesHidden`・2026-10-18）→ `badges` から Pro のメダルを落とし、
+ * 名前の横がそれなら `displayBadge: null`、`supporter` を出さない。** 印と同じく、項目そのものを落とすので
+ * 古いアプリ・Web でも出ない（どちらも欠けた鍵を読み飛ばす）。`passFace` は残る（上の注記）。
+ * `proBadgesHidden` 自体も公開しない。
+ *
  * `owner: true` は**本人に返すとき**（`purchases.ts` の購入の応答）。資格をそのまま返す
  * （外していても Pro は Pro。買った直後に「Pro でない」と返さない）
  */
@@ -1190,6 +1219,9 @@ export function toPublicProfile(p: UserProfile, opts: { owner?: boolean } = {}):
         songPreviewUrl, songTrackUrl, songs, pinnedPhotoIds, updatedAt,
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
     } = p;
+    // 隠した Pro の章を落とすときに見る、整えたあとのメダル（返す形の `...badgeFields(p)` と同じ値。
+    // 返す形は `page.facts.test.ts` が関数の名前で読むので、広げは `badgeFields(p)` のまま書く）
+    const shaped = badgeFields(p);
     return withCheckedSongUrls({
         userId, username, displayName, bio, instagram, website, themeColor,
         songUrl, songStart, songEnd, songTitle, songArtist, songArtwork,
@@ -1201,18 +1233,29 @@ export function toPublicProfile(p: UserProfile, opts: { owner?: boolean } = {}):
         ...badgeFields(p),
         // 特別な乗車券の券面を見せてよいか（上の注記）。印を外しても変わらない
         passFace: isPro(p),
-        // 本人が外した印（上の注記）。`passFace` には触らない
-        ...(opts.owner ? {} : withoutRemovedMarks(p)),
+        // 本人が外した印・隠した Pro の章（上の注記）。`passFace` には触らない
+        ...(opts.owner ? {} : withoutRemovedMarks(p, shaped)),
     });
 }
 
-/** 本人が外した印を、公開の形から落とす分（`toPublicProfile` の注記） */
-function withoutRemovedMarks(p: UserProfile): Partial<UserProfile> {
+/**
+ * 本人が外した印・隠した Pro の章を、公開の形から落とす分（`toPublicProfile` の注記）。
+ * `shaped` は `badgeFields` で整えたあとの値（生の行の `badges` は形が崩れていることがある）
+ */
+function withoutRemovedMarks(p: UserProfile, shaped: ReturnType<typeof badgeFields>): Partial<UserProfile> {
     const out: Partial<UserProfile> = {};
     if (p.verifiedMarkOff === true) out.verified = undefined;
     if (p.proMarkStyle === "none") {
         out.pro = false;
         out.proMarkStyle = "iris";
+    }
+    if (p.proBadgesHidden === true) {
+        const kept = Object.fromEntries(
+            Object.entries(shaped.badges ?? {}).filter(([k]) => !isProBadgeKey(k)),
+        ) as BadgeMap;
+        out.badges = Object.keys(kept).length > 0 ? kept : undefined;
+        if (isProBadgeKey(shaped.displayBadge)) out.displayBadge = null;
+        out.supporter = undefined;
     }
     return out;
 }

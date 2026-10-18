@@ -37,11 +37,6 @@ const REGION = "ap-northeast-1";
 /** 何人まで userId を出すか */
 const SHOW = 10;
 
-/** Pro のメダルの鍵か（`api-user/src/badgeKeys.ts` の supporter・supporterYear・季節の章） */
-function isProBadgeKey(key) {
-    return key === "supporter" || key === "supporterYear" || /^pro(Spring|Summer|Autumn|Winter)\d{4}$/.test(key);
-}
-
 /** プロフィールの行か（予約の行 `username#…` などを除く・墓石を除く） */
 function isLiveProfileRow(row) {
     return !!row && typeof row.userId === "string" && row.userId !== "" && !row.userId.includes("#")
@@ -51,13 +46,16 @@ function isLiveProfileRow(row) {
 /**
  * 1人ぶんの計画（純関数）。
  *
- * @param lib `api-user/src/proBadges` の `mergeProBadges`（本物の記録から付く分を数える。テストで差し替えられる）
+ * @param lib `api-user/src/proBadges` の `mergeProBadges`（本物の記録から付く分を数える。テストで差し替えられる）と、
+ *   `api-user/src/badgeKeys` の `isProBadgeKey`（Pro のメダルの鍵か。2026-10-18: ここにあった写しは年の範囲
+ *   〔2026〜2999〕を見ていなかったので、公開プロフィールが隠す鍵と同じ判定に寄せた・journey.photo-ios #296）
  * @returns
  *   { action: "remove", removed: 鍵[], item: 置き直す行, rev }  … Sandbox の人
  *   { action: "review", excess: 鍵[] }                          … 本物の人で、本物の記録から付く分を超えるもの
  *   { action: "none" }
  */
 function planUser(lib, row, nowMs) {
+    const isProBadgeKey = lib.isProBadgeKey;
     const badges = row && row.badges && typeof row.badges === "object" && !Array.isArray(row.badges) ? row.badges : {};
     const proKeys = Object.keys(badges).filter(isProBadgeKey);
     if (proKeys.length === 0) return { action: "none" };
@@ -93,7 +91,7 @@ async function main() {
 
     // 数え方は Lambda と同じ TypeScript をそのまま使う
     require("tsx/cjs/api").register();
-    const lib = require("../api-user/src/proBadges");
+    const lib = { ...require("../api-user/src/proBadges"), ...require("../api-user/src/badgeKeys") };
 
     const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
     const { DynamoDBDocumentClient, ScanCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
@@ -153,7 +151,7 @@ async function main() {
     console.log(`外した: ${tally.removed} 人・失敗: ${tally.failed} 人（失敗した人は流し直すと拾えます）`);
 }
 
-module.exports = { isProBadgeKey, isLiveProfileRow, planUser };
+module.exports = { isLiveProfileRow, planUser };
 
 if (require.main === module) {
     main().catch((e) => {

@@ -62,6 +62,7 @@ import {
 import BlockedUsers from "./BlockedUsers";
 import CloseFriends from "./CloseFriends";
 import LightAlertSettings from "./LightAlertSettings";
+import ProBadgesPublicRow from "./ProBadgesPublicRow";
 
 export default function SettingsPage() {
     const { isAuthenticated, loading, deleteAccount, userId } = useAuth();
@@ -507,6 +508,7 @@ export default function SettingsPage() {
                             <span>{locale === "en" ? "Medals and name marks" : "メダルと名前の横"}</span>
                             <span aria-hidden="true" className="text-white/50">›</span>
                         </Link>
+                        <ProBadgesPublicRow locale={locale === "en" ? "en" : "ja"} />
                     </div>
                 </section>
                 {/* ── Pro（Pro の人だけ・光と天気の知らせ） ──── */}
