@@ -933,6 +933,13 @@ functions:
           method: POST
           authorizer:
             name: cognitoAuthorizer
+      # アイコン・カバーを初めて設定したお礼（#304・2026-10-18 owner「3枚ずつ」）。{ kind: avatar | cover }。
+      # 足すのは道筋（Route）1つだけ——関数・ロール・テーブル・GSI は増やさない（実体の有無は公開の CDN に聞く・`profileImage.ts`）
+      - httpApi:
+          path: /user/trunk/reward
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
       # 人のトランク（2026-10-18 owner「他の人のトランクの中身とか見れたら楽しい」）。**ログインした人だけ**
       # （ブロックの関係を見るのに見る人が要る）。道筋は人の口の流儀（`/users/{uid}/follow` と同じ）。
       # 足すのは Route 1つだけ（関数・統合・許可・ロールは trunk のものを使う）

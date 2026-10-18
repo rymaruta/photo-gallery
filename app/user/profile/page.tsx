@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, UserCircleIcon, CameraIcon, MusicalNoteIcon, MagnifyingGlassIcon, XMarkIcon, ChevronDownIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { PlayIcon, PauseIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useAuth } from "../../auth/context";
@@ -25,6 +25,11 @@ import { publicImageUrl } from "@/lib/utils/seo";
 import SongSearchError from "../../components/SongSearchError";
 import { profileCoverUrl } from "../../components/ProfileCover";
 import { BTN_FILL } from "../../components/buttonStyles";
+import { CHIP_OFF, CHIP_ON, CHIP_SIZE } from "../../components/chipStyles";
+import { coverCandidates, type CoverCandidateRow, type CoverSort } from "../../../lib/utils/coverCandidates";
+import { fetchImageBytes } from "../../../lib/utils/imageBytes";
+import { claimProfileReward, rewardToast } from "../../../lib/utils/profileReward";
+import { usablePhotoRows } from "../../../lib/utils/apiRows";
 
 type SongEntry = {
     title: string;
@@ -142,6 +147,11 @@ export default function ProfileEditPage() {
     // カバー（2026-10-11 に戻した）。`coverError` は「まだ設定していない」も含む（無ければ読み込みに失敗する）
     const [coverPreview, setCoverPreview] = useState<string | null>(null);
     const [coverError, setCoverError] = useState(false);
+    // カバーの候補（#304・板 50）。自分の投稿（`GET /user/photos`）から4枚。読めなければ節ごと出さない
+    const [myPhotos, setMyPhotos] = useState<(CoverCandidateRow & { thumbSrc?: string })[] | null>(null);
+    const [coverSort, setCoverSort] = useState<CoverSort>("likes");
+    // 候補から選んだ写真（選んだ印を付ける）。端末から選び直したら外す
+    const [coverPickedId, setCoverPickedId] = useState<string | null>(null);
     // プロフィールの読み込みに失敗したか。
     // PUT は全置換なので、読み込めていない（=フォームが空欄の）状態で保存すると
     // 自己紹介・リンク・テーマ色・BGM・ピン留め・旅アルバムがまとめて消える。
@@ -259,21 +269,64 @@ export default function ProfileEditPage() {
         })();
     }, [isAuthenticated]);
 
+    // 自分の投稿（カバーの候補・#304）。プロフィールとは別に読み、失敗しても画面は出す（候補の節が出ないだけ）
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        let alive = true;
+        void (async () => {
+            try {
+                const res = await userFetch("/user/photos");
+                if (!res.ok) return;
+                const rows = usablePhotoRows<CoverCandidateRow & { thumbSrc?: string }>(await res.json(), "GET /user/photos");
+                if (alive && rows) setMyPhotos(rows);
+            } catch { /* 候補はおまけ。出さないだけ */ }
+        })();
+        return () => { alive = false; };
+    }, [isAuthenticated]);
+
     /**
      * アイコンとカバーの変更（同じ流れ。2026-10-11 にカバーを戻すときに1つにまとめた）。
      * 違うのは置き場（`type: "cover"` → `profiles/<uid>/cover`・`api-user/src/profile.ts`）と縮める大きさだけ
      */
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, kind: "avatar" | "cover") => {
+        const file = e.target.files?.[0];
+        // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
+        e.target.value = "";
+        if (!file) return;
+        if (kind === "cover") setCoverPickedId(null);
+        await uploadImageFile(file, kind);
+    };
+
+    /**
+     * カバーを自分の投稿から選ぶ（#304・板 50）。押すとそのまま上がる——この画面のカバーは
+     * もともと選んだ時点で上がる（`handleImageChange`）ので、それに合わせる（板は「保存で確定」だが、
+     * Web は画像だけ先に上がる作りのまま。2026-10-18 判断）。
+     * 写真の中身は同一オリジンで取り直す（`fetchImageBytes`）。縮める・位置情報を落とすのは端末から選ぶときと同じ
+     */
+    const pickCoverFromPost = async (photo: CoverCandidateRow) => {
+        if (coverUploading || !photo.src) return;
+        setCoverPickedId(photo.id);
+        let file: File;
+        try {
+            const blob = await fetchImageBytes(photo.src);
+            file = new File([blob], `${photo.id}.jpg`, { type: blob.type || "image/jpeg" });
+        } catch (e) {
+            log.error("cover from post: could not fetch:", e);
+            setCoverPickedId(null);
+            showToast(locale === "en" ? "Couldn't load that photo" : "写真を読み込めませんでした", "error");
+            return;
+        }
+        if (!await uploadImageFile(file, "cover")) setCoverPickedId(null);
+    };
+
+    /** 上げる本体（端末から・投稿から の両方）。上がれば true */
+    const uploadImageFile = async (file: File, kind: "avatar" | "cover"): Promise<boolean> => {
         const isCover = kind === "cover";
         const setPreview = isCover ? setCoverPreview : setAvatarPreview;
         const setUploading = isCover ? setCoverUploading : setAvatarUploading;
         const failMessage = isCover
             ? (locale === "en" ? "Couldn't upload the cover photo" : "カバー写真のアップロードに失敗しました")
             : (locale === "en" ? "Couldn't upload the profile photo" : "アバターのアップロードに失敗しました");
-        const file = e.target.files?.[0];
-        // 同じファイルを選び直せるように値を空にする（失敗後のやり直し用）
-        e.target.value = "";
-        if (!file) return;
         // **GIF は選んだ時点で断る。** `toUploadSafeFile` は GIF を必ず
         // `UnstrippableFileError` にするので、進めても必ず失敗する
         // ——プレビューが一瞬出てから断られる形だった。
@@ -281,7 +334,7 @@ export default function ProfileEditPage() {
         // ＝この2か所（カバー・アバター）だけ残っていた
         if (file.type === "image/gif") {
             showToast(gifRejectedMessage(locale), "error");
-            return;
+            return false;
         }
 
         // プレビュー表示
@@ -303,7 +356,7 @@ export default function ProfileEditPage() {
             } catch (e) {
                 log.error(`${kind}: could not strip metadata:`, e);
                 showToast(unstrippableMessage(e, locale), "error");
-                return;
+                return false;
             }
 
             // Presigned URL 取得
@@ -313,7 +366,7 @@ export default function ProfileEditPage() {
                 body: JSON.stringify(isCover ? { fileType: upload.type, type: "cover" } : { fileType: upload.type }),
             });
             // カバー写真と同じ理由（サーバーは形式の誤りと一時障害を返し分けている）
-            if (!res.ok) { showToast(await readApiError(res, failMessage), "error"); return; }
+            if (!res.ok) { showToast(await readApiError(res, failMessage), "error"); return false; }
             const { presignedUrl, contentType } = await res.json() as { presignedUrl: string; contentType?: string };
 
             // S3 に直接アップロード（表示サイズに合わせて縮小してから送る）
@@ -325,15 +378,22 @@ export default function ProfileEditPage() {
                 // アイコンを変えても他人には古いものが出続ける（固定キーのため）。
                 headers: { "Content-Type": contentType ?? upload.type, "Cache-Control": "no-store" },
             });
-            if (!uploadRes.ok) { showToast(failMessage, "error"); return; }
+            if (!uploadRes.ok) { showToast(failMessage, "error"); return false; }
 
             if (isCover) setCoverError(false); else setAvatarError(false);
             saved = true;
             showToast(isCover
                 ? (locale === "en" ? "Cover photo updated" : "カバー写真を更新しました")
                 : (locale === "en" ? "Profile photo updated" : "プロフィール写真を更新しました"), "success");
+            // 初めて設定したお礼（#304）。サーバーが実体を確かめて一度だけ足す。足せたときだけ知らせる
+            void claimProfileReward(kind).then((r) => {
+                const msg = rewardToast(r, kind, locale);
+                if (msg) showToast(msg, "success");
+            });
+            return true;
         } catch (e) {
             showToast(sessionErrorMessage(e) ?? failMessage, "error");
+            return false;
         } finally {
             setUploading(false);
             if (!saved) { failed = true; setPreview(null); }
@@ -649,6 +709,88 @@ export default function ProfileEditPage() {
                         onChange={(e) => void handleImageChange(e, "cover")}
                     />
                 </div>
+
+                {/* カバーにする写真（#304・板 50 CoverPick）。自分の投稿のうち全体に公開しているものから4枚。
+                    眉ラベルは黒地の上なので真鍮。並べ方はほかの画面のチップ（`chipStyles`）と同じ。
+                    いいねの数は出さない（競う数にしない）。投稿が無ければ投稿へ誘う（主ボタンは写真の無い地なので真鍮の塗り） */}
+                {myPhotos && (() => {
+                    const thumbs = coverCandidates(myPhotos, coverSort);
+                    const sortName = (k: CoverSort) => k === "likes"
+                        ? (locale === "en" ? "Most liked" : "いいねの多い順")
+                        : (locale === "en" ? "Recent" : "最近");
+                    return (
+                        <section id="cover-pick" aria-label={locale === "en" ? "Pick a cover from your posts" : "カバーにする写真"} className="mb-8 -mt-2" data-testid="cover-pick">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px] font-semibold tracking-[0.12em] text-accent">
+                                    {locale === "en" ? "COVER FROM YOUR POSTS" : "カバーにする写真"}
+                                </span>
+                                {thumbs.length > 0 && (
+                                    <div role="radiogroup" aria-label={locale === "en" ? "Order" : "並べ方"} className="flex gap-1.5">
+                                        {(["likes", "recent"] as const).map((k) => (
+                                            <button
+                                                key={k}
+                                                type="button"
+                                                role="radio"
+                                                aria-checked={coverSort === k}
+                                                onClick={() => setCoverSort(k)}
+                                                className="flex items-center"
+                                                style={{ minHeight: "44px", touchAction: "manipulation" }}
+                                            >
+                                                <span className={`inline-flex items-center rounded-full ${coverSort === k ? CHIP_ON : CHIP_OFF}`} style={CHIP_SIZE}>
+                                                    {sortName(k)}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {thumbs.length > 0 ? (
+                                <>
+                                    <div className="grid grid-cols-4 gap-2.5 p-1">
+                                        {thumbs.map((p, i) => {
+                                            const on = coverPickedId === p.id;
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    aria-pressed={on}
+                                                    aria-label={locale === "en"
+                                                        ? `Use photo ${i + 1} (${sortName(coverSort)}) as cover`
+                                                        : `${sortName(coverSort)}の ${i + 1} 枚目をカバーにする`}
+                                                    disabled={coverUploading}
+                                                    onClick={() => void pickCoverFromPost(p)}
+                                                    className={`relative aspect-square w-full overflow-hidden rounded-[10px] bg-surface disabled:opacity-60 ${on ? "ring-2 ring-accent ring-offset-2 ring-offset-black" : ""}`}
+                                                    style={{ minHeight: "44px", touchAction: "manipulation" }}
+                                                >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={publicImageUrl(p.thumbSrc || p.src)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                                    {on && (
+                                                        // 写真の上なので白
+                                                        <span aria-hidden="true" className="absolute right-1 top-1 w-5 h-5 rounded-full bg-white text-ink flex items-center justify-center"><CheckIcon className="w-3 h-3" strokeWidth={3} /></span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="mt-2 text-xs leading-relaxed text-white/60">
+                                        {locale === "en" ? "Tap a photo to use it as your cover." : "押すと、その写真がカバーになります。"}
+                                    </p>
+                                </>
+                            ) : (
+                                <div className="rounded-[14px] bg-surface p-3.5 flex flex-col gap-2.5">
+                                    <p className="text-[13px] leading-relaxed text-white/70">
+                                        {locale === "en"
+                                            ? "Once you post photos, your most liked and most recent ones will show up here."
+                                            : "写真を投稿すると、いいねの多いものと最近のものがここに並びます。"}
+                                    </p>
+                                    <Link href={ROUTES.UPLOAD} className="self-start inline-flex items-center min-h-[44px] px-4 rounded-full bg-accent-fill text-ink text-sm font-semibold">
+                                        {locale === "en" ? "Post a photo" : "写真を投稿する"}
+                                    </Link>
+                                </div>
+                            )}
+                        </section>
+                    );
+                })()}
 
                 {/* アバター */}
                 <div className="flex flex-col items-center mb-8">

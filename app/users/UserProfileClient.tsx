@@ -35,7 +35,7 @@ import { ROUTES, hasPhotoPage } from "../../lib/routes";
 import { collectEntries, collectionPath, slugify } from "../../lib/utils/collections";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
-import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX } from "../components/ProfileCover";
+import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX, CoverFrame, coverIsMissing, profileCoverUrl } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "../components/statCellStyle";
 import PostSheet from "../components/PostSheet";
@@ -722,6 +722,18 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     const [shareOpen, setShareOpen] = useState(false);
     // カバー写真が出せたか（出せたときだけ見出しを帯の下端へ重ねる・`ProfileCover`）
     const [hasCover, setHasCover] = useState(false);
+    // カバーが**無いと確かめられたか**（読み込み中・分からないときは false）。本人にだけ額縁を出す（#304・板 52）。
+    // 2026-10-18 見直し: 絵を読めなかっただけ（圏外など）では出さない——HEAD が 404 を返したときだけ（`coverIsMissing`）
+    const [coverMissing, setCoverMissing] = useState(false);
+    // 絵を読めなかった（無い・圏外のどちらか）。本人と分かってから HEAD で確かめる（人のページでは聞かない）
+    const [coverFailed, setCoverFailed] = useState(false);
+    useEffect(() => {
+        if (!isOwner || !coverFailed) { setCoverMissing(false); return; }
+        let alive = true;
+        void coverIsMissing(profileCoverUrl(userId)).then((missing) => { if (alive) setCoverMissing(missing); });
+        return () => { alive = false; };
+    }, [isOwner, coverFailed, userId]);
+    const showCoverFrame = isOwner && coverMissing;
     /** 「投稿する」の2択（`PostSheet`）。「＋」と同じシートを開く */
     const [postOpen, setPostOpen] = useState(false);
     const postBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -1244,7 +1256,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 2026-09-22 に一度やめた（当時の最終版モックに無かった）。設定していない人には
                 帯を出さない（板 05d）——`ProfileCover` が出せたときだけ広げる */}
             <div className="relative">
-                <ProfileCover userId={userId} onLoaded={setHasCover} />
+                <ProfileCover userId={userId} onLoaded={(ok) => { setHasCover(ok); setCoverFailed(!ok); }} />
+                {showCoverFrame && <CoverFrame href="/user/profile#cover-pick" locale={locale} />}
                 <div className="relative max-w-2xl lg:max-w-5xl mx-auto px-4">
                     {/* 上部バー: 戻る（左）+ 共有（右）。どちらもカバー上のガラスボタンで
                         背景に関わらず視認性を確保し、左右対称でバランスを取る。 */}
@@ -1363,7 +1376,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                         className="pb-5 pt-2 lg:flex lg:items-start lg:gap-8"
                         // カバーがあればアイコンを帯の下端に重ねる（板: 180px の帯に 50px）。
                         // 上の戻る・共有の列（約 60px）の下から数える
-                        style={hasCover ? { paddingTop: `${COVER_HEIGHT_PX - COVER_AVATAR_OVERLAP_PX - 62}px` } : undefined}
+                        style={hasCover || showCoverFrame ? { paddingTop: `${COVER_HEIGHT_PX - COVER_AVATAR_OVERLAP_PX - 62}px` } : undefined}
                     >
                         {/* アバター（黒 4px の縁だけ・2026-10-15 iOS v2）。以前は回るオーロラの輪
                             （その人のテーマ色のグラデーション）だったが、輪は「未見のストーリー」の
