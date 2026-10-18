@@ -782,6 +782,86 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await expectHidden();
     });
 
+    /** 写真の id ごとの GetItem（強い読みかどうか） */
+    const photoGets = (ids: string[]) => fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand"
+        && ids.includes(String((c.input as { Key: Item }).Key.id))).map((c) => c.input as { Key: Item; ConsistentRead?: boolean });
+
+    it("【仕上げ】dealSibAdds: 兄弟は印を「付ける」根拠にならない（印の無い配り済み＋絞った写真の再送＋兄弟は公開でも付かない）", () => {
+        const at = new Date(NEW);
+        const doc = T.parseTrunk({ stuck: [label("ph1", { l: "Kyoto", g: T.groupKey("grp") })], pocket: [] });
+        const again = { ...T.buildLabel(row("ph1", { groupId: "grp", audience: "followers" }) as never, [], at), id: "ph1", photoId: "ph1" };
+        const places = new Set([JSON.stringify(["京都", "Kyoto", "日本"])]);
+        const r = T.dealInto(doc, again, 30, "fp", at, { siblingPlaces: places });
+        const after = r.doc ?? doc;
+        expect(after.stuck[0].placeOk).toBeUndefined();
+    });
+
+    it("【仕上げ】sibWeak・sibNoCap: 再送の兄弟は強い読みで、上限（25枚）まで", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        const sibs = Array.from({ length: T.STALE_READ_MAX + 5 }, (_, i) => `s${i}`);
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), ...sibs.map((id) => row(id, { groupId: "grp" }))]);
+        for (const id of sibs) setPhoto(id, row(id, { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }));
+        fakeSend.mockClear();
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test", { requireNew: true });
+        const reads = photoGets(sibs);
+        expect(reads).toHaveLength(T.STALE_READ_MAX);
+        expect(reads.every((r) => r.ConsistentRead === true)).toBe(true);
+        await expectShown();
+    });
+
+    it("【仕上げ】resendAll: 再送でない配り（savePhoto の1回目）では兄弟を読まない（見せない側に倒す）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }));
+        fakeSend.mockClear();
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test");
+        expect(photoGets(["ph9"])).toHaveLength(0);
+        await expectHidden();
+    });
+
+    it("【仕上げ3】再送でも、配り済みのラベルが無い・今の写真で印を残せる回は兄弟を読まない", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        // 配り済みのラベルが無い（絞った写真の初めての配り）
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }));
+        fakeSend.mockClear();
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test", { requireNew: true });
+        expect(photoGets(["ph9"])).toHaveLength(0);
+        // 配り済みで、今の写真が公開（印を残せる）
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        setPhoto("ph1", row("ph1", { groupId: "grp", createdAt: NEW }));
+        fakeSend.mockClear();
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", createdAt: NEW }) as never, "test", { requireNew: true });
+        expect(photoGets(["ph9"])).toHaveLength(0);
+        await expectShown();
+    });
+
+    it("【仕上げ2】25枚を超える束は、枠が満タンの回だけ読む（満タンでなければ次の GET に回す）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("big");
+        const ids = Array.from({ length: T.STALE_READ_MAX + 5 }, (_, i) => `b${i}`);
+        // 新しい順: 先に1枚のラベル（候補）・あとに大きい束のラベル
+        setTrunk(OWNER, { stuck: [okLabel("single"), okLabel("b0", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("single", { audience: "followers" }),
+            ...ids.map((id) => row(id, { groupId: "big", audience: "followers" }))]);
+        setPhoto("single", row("single", { audience: "followers" }));
+        for (const id of ids) setPhoto(id, row(id, { groupId: "big", audience: "followers" }));
+        const oks = () => (trunkRow(OWNER)!.stuck as Item[]).map((l) => l.o ?? null);
+        await ownStuck();
+        // 1回目: 1枚のラベルで枠を使ったので、大きい束は次に回る
+        expect(oks()).toEqual([null, 1]);
+        await ownStuck();
+        expect(oks()).toEqual([null, null]);
+    });
+
     it("【見直し9】再送で撮影地が変わっていたら印を外す（同じ撮影地なら残す）", async () => {
         setProfile(OWNER, {});
         setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });
