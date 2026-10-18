@@ -2,15 +2,15 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-// **プライバシーポリシーに書いた数と、実装の数が食い違わないか。**
+// **プライバシーポリシーに書いた数・項目と、実装が食い違わないか。**
 //
-// 2026-10-18 に、公開プロフィール・旅のトランク・光と天気の知らせ・プッシュ通知の
-// 節を足した。本文には実装の上限（何件まで残す・何台まで・何件まで見る）を
-// そのまま書いている。実装の数を変えたのに本文を直さないと、**法的な文が
-// 実際の扱いと違うことを言い続ける**ので、数を実装のソースから読んで突き合わせる。
+// 2026-10-18 に、公開プロフィール・ストーリー・すれちがい・旅のトランク・光と天気の知らせ・
+// プッシュ通知の節を足した。本文には実装の上限（何件まで残す・何台まで・何時間以内）と、
+// 公開プロフィールに載る項目をそのまま書いている。実装を変えたのに本文を直さないと、
+// **法的な文が実際の扱いと違うことを言い続ける**ので、実装のソースから読んで突き合わせる。
 //
 // api-user のモジュールは読み込み時に環境変数（`USERS_TABLE` など）を要求するので
-// import せず、ソースの定数を文字で読む。
+// import せず、ソースを文字で読む。
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf-8");
 const page = read("app/privacy/page.tsx");
@@ -22,53 +22,140 @@ function constOf(file: string, name: string): number {
     return Number(m![1].replace(/_/g, ""));
 }
 
-/** 本文の数（3,000 のような桁区切りも読む） */
-const inPage = (n: number) => page.includes(n.toLocaleString("en-US")) || page.includes(String(n));
-
 describe("プライバシーポリシーの数が実装と合っている", () => {
-    it("旅のトランク: 配った投稿の符号は 3,000 件まで", () => {
+    it("旅のトランク: 配った投稿の記録は 3,000 件まで", () => {
         const n = constOf("api-user/src/trunk.ts", "DEALT_LEDGER_MAX");
-        expect(n).toBe(3000);
-        expect(inPage(n), "本文の件数が実装と違う").toBe(true);
+        expect(page, "本文の件数が実装と違う").toContain(`新しい方から${n.toLocaleString("en-US")}件まで`);
     });
 
-    it("旅のトランク: 取り消しは投稿から24時間以内", () => {
-        const src = read("api-user/src/trunk.ts");
-        expect(src, "取り消しの窓が 24 時間でなくなった").toMatch(/export const REVOKE_WINDOW_MS = 24 \* 3_600_000;/);
-        expect(page).toContain("投稿から24時間以内");
+    it("旅のトランク: 取り消しと硬貨の記録は、実装の時間（REVOKE_WINDOW_MS）と同じ時間で書いてある", () => {
+        const m = read("api-user/src/trunk.ts").match(/export const REVOKE_WINDOW_MS = (\d+) \* 3_600_000;/);
+        expect(m, "REVOKE_WINDOW_MS が「時間 × 3_600_000」の形で読めない").not.toBeNull();
+        const h = Number(m![1]);
+        for (const phrase of [`投稿から${h}時間以内に写真を削除・非公開`, `${h}時間を過ぎたものを落とします`, `${h}時間以内に硬貨を配った投稿`]) {
+            expect(page, `本文に「${phrase}」が無い（時間が実装とずれた）`).toContain(phrase);
+        }
+        // 時間を書き換えた本文が混ざっていない（実装と違う時間を1つも言わない）
+        const hours = [...page.matchAll(/(\d+)時間/g)].map((x) => Number(x[1]));
+        expect(hours.filter((x) => x !== h), "実装と違う時間が本文にある").toEqual([]);
     });
 
-    it("プッシュ通知: 端末は1人10台まで", () => {
+    it("プッシュ通知: 宛先は1人10台まで", () => {
         const n = constOf("api-user/src/devices.ts", "DEVICES_MAX");
         expect(page, "本文の台数が実装と違う").toContain(`${n}台分まで`);
+    });
+
+    it("お知らせ: 他の人のお知らせは50件で押し出される", () => {
+        const n = constOf("api-user/src/notify.ts", "NOTIFS_MAX");
+        expect(page, "本文の件数が実装と違う").toContain(`新しいもの${n}件に押し出される`);
     });
 
     it("光と天気の知らせ: 行きたい場所は新しい方から20件まで", () => {
         const n = constOf("api-user/src/lightForecast.ts", "MAX_SPOTS");
         expect(page, "本文の件数が実装と違う").toContain(`新しい方から${n}件まで`);
     });
+});
 
-    it("最終更新日は書いてある", () => {
-        expect(page).toMatch(/const LAST_UPDATED = "\d{4}年\d{1,2}月\d{1,2}日";/);
+describe("すれちがいの説明が仕組みの事実と合っている", () => {
+    it("暗号化していないと言い、暗号化していると言わない", () => {
+        expect(page).toContain("この内容は暗号化していません");
+        expect(page, "暗号化していないのに、しているかのように書いている").not.toMatch(/暗号化して(い|お)ります|暗号化しています|暗号化して送/);
+        expect(page).toContain("日ごとに変わる仕組みはありません");
+    });
+});
+
+describe("最終更新日", () => {
+    it("本文の最終更新日と、サイトマップの更新日が同じ日", () => {
+        const m = page.match(/const LAST_UPDATED = "(\d{4})年(\d{1,2})月(\d{1,2})日";/);
+        expect(m, "LAST_UPDATED が読めない").not.toBeNull();
+        const iso = `${m![1]}-${m![2].padStart(2, "0")}-${m![3].padStart(2, "0")}`;
+        const s = read("app/sitemap.ts").match(/const PRIVACY_LAST_MODIFIED = "(\d{4}-\d{2}-\d{2})";/);
+        expect(s, "PRIVACY_LAST_MODIFIED が読めない").not.toBeNull();
+        expect(s![1], "サイトマップの更新日がポリシーの最終更新日と違う").toBe(iso);
     });
 });
 
 /**
- * 公開プロフィールの節が、**公開の形（`toPublicProfile`）に載る項目**を言っているか。
- * 項目を公開の形に足したのに本文に書かないと、「公開されるのは次の項目です」が嘘になる。
+ * 公開プロフィールの節が、**公開の形（`toPublicProfile`）が返す項目**を全部言っているか。
+ *
+ * ⚠️ **返す側だけを読む。** 関数の頭の分解（`const { … } = p;`）にも同じ名前が並ぶので、
+ * ソース全体で探すと、返す側から項目を消しても通ってしまう。
  */
+function returnedPublicFields(): Set<string> {
+    const src = read("api-user/src/userProfile.ts");
+    const start = src.indexOf("export function toPublicProfile(");
+    expect(start, "toPublicProfile が見つからない").toBeGreaterThanOrEqual(0);
+    const body = src.slice(start);
+    const open = body.indexOf("return withCheckedSongUrls({");
+    expect(open, "toPublicProfile の返す形が読めない").toBeGreaterThanOrEqual(0);
+    const close = body.indexOf("\n    });", open);
+    expect(close, "返す形の終わりが読めない").toBeGreaterThan(open);
+    const block = body
+        .slice(open + "return withCheckedSongUrls({".length, close)
+        .replace(/\/\/[^\n]*/g, "");
+    const out = new Set<string>();
+    // `...badgeFields(p)` などの広げは、関数の名前で1項目として数える
+    for (const m of block.matchAll(/\.\.\.\s*(?:\(\s*opts\.owner[^:]*:\s*)?([A-Za-z]+)\(/g)) out.add(`...${m[1]}`);
+    const plain = block.replace(/\.\.\.[^\n]*/g, "");
+    for (const m of plain.matchAll(/([A-Za-z]+)\s*(?=[,:\n])/g)) out.add(m[1]);
+    return out;
+}
+
+/** 公開の形の項目 → 本文で説明している言い方 */
+const FIELD_PHRASE: Record<string, string> = {
+    userId: "利用者ID、プロフィールの更新日時",
+    updatedAt: "利用者ID、プロフィールの更新日時",
+    username: "ユーザー名",
+    displayName: "表示名",
+    bio: "自己紹介",
+    instagram: "Instagram",
+    website: "ウェブサイト",
+    themeColor: "テーマの色",
+    songUrl: "プロフィールの曲",
+    songStart: "プロフィールの曲",
+    songEnd: "プロフィールの曲",
+    songTitle: "プロフィールの曲",
+    songArtist: "プロフィールの曲",
+    songArtwork: "プロフィールの曲",
+    songPreviewUrl: "プロフィールの曲",
+    songTrackUrl: "プロフィールの曲",
+    songs: "プロフィールの曲",
+    pinnedPhotoIds: "ピン留めした写真",
+    tripTitles: "旅アルバムの名前・カバー・曲",
+    tripCovers: "旅アルバムの名前・カバー・曲",
+    tripSongs: "旅アルバムの名前・カバー・曲",
+    statusText: "ひとこと",
+    homeLocation: "居住地",
+    verified: "認証済みの印",
+    passFace: "特別な乗車券の券面を表示してよいか",
+    "...badgeFields": "サポーターの番号・申し込んだ日・続けた月数",
+    "...withoutRemovedMarks": "名前の横の Pro の印を外した場合に隠れるのは",
+};
+
 describe("公開プロフィールの節が公開の形と合っている", () => {
-    it("券面（passFace）と Pro とサポーターを本文が説明している", () => {
-        const src = read("api-user/src/userProfile.ts");
-        expect(src, "公開の形に passFace が無くなった。本文の説明も見直すこと").toContain("passFace: isPro(p)");
-        expect(page).toContain("特別な乗車券の券面を表示してよいか");
-        expect(page).toContain("いま Pro であるかどうかは他の方に分かります");
-        expect(page).toContain("サポーターの番号・申し込んだ日・続けた月数");
+    const fields = returnedPublicFields();
+
+    it("返す形が読めている（空振りで緑にならない）", () => {
+        for (const k of ["userId", "homeLocation", "passFace", "...badgeFields"]) {
+            expect(fields.has(k), `返す形から ${k} を読めていない`).toBe(true);
+        }
     });
 
-    it("居住地を公開すると書いてある（公開の形が homeLocation を出す）", () => {
-        const src = read("api-user/src/userProfile.ts");
-        expect(src).toMatch(/tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,/);
-        expect(page).toContain("居住地");
+    it("返す項目の一覧が、本文で説明している一覧と同じ", () => {
+        // 足しても消しても落ちる。足したなら本文に書き、FIELD_PHRASE に足す。
+        // 消したなら本文から外し、FIELD_PHRASE からも外す
+        expect([...fields].sort(), "公開の形の項目が変わった。本文の4節を見直すこと")
+            .toEqual(Object.keys(FIELD_PHRASE).sort());
+    });
+
+    it("どの項目も本文が説明している", () => {
+        for (const [k, phrase] of Object.entries(FIELD_PHRASE)) {
+            expect(page, `${k} の説明（${phrase}）が本文に無い`).toContain(phrase);
+        }
+    });
+
+    it("印を外しても Pro か分かること・番号とメダルが公開のままであることを言っている", () => {
+        expect(page).toContain("いま Pro であるかどうかは他の方に分かります");
+        expect(page).toContain("サポーターの番号・続けた月数とメダルも、印を外しても公開のままです");
     });
 });
