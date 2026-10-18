@@ -127,6 +127,11 @@ provider:
             - dynamodb:DeleteItem
             # ユーザー検索（表示名の部分一致）。ユーザー数が増えたら GSI に置き換える
             - dynamodb:Scan
+            # 退会者の伏せ字（`notify.ts` の `deletedAmong`）。一覧に出る ID だけを
+            # 100 件ずつ引く。無いと**全員が読めない**扱いになり、名前を写して持つ4つ
+            # （コメント・通知・ストーリーの返信・閲覧者）は全員を伏せ、フォロー・
+            # フォロワー・ブロックの一覧は全員を生きている扱いにする（名前は引き直すので漏れない）
+            - dynamodb:BatchGetItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
 
@@ -1358,7 +1363,7 @@ functions:
 #   getPublicProfile  photos: GetItem / users: GetItem
 #   searchUsers                 users: GetItem, Scan
 #   getLikeCount      photos: GetItem
-#   getComments       photos: GetItem / users: Scan（deletedUserIds）
+#   getComments       photos: GetItem / users: BatchGetItem（deletedAmong）
 #   getFollowStats    photos: GetItem
 #
 # Query は1つも使っていない（全部 主キーの GetItem）。索引も引かないので
@@ -1566,8 +1571,10 @@ resources:
                 - Effect: Allow
                   Action:
                     - dynamodb:GetItem
-                    # 表示名の部分一致（searchUsers）と退会者の伏せ字（getComments）。
-                    # どちらも GSI が無いので全表 Scan になっている
+                    # 表示名の部分一致（searchUsers）。GSI が無いので全表 Scan
                     - dynamodb:Scan
+                    # 退会者の伏せ字（getComments → `notify.ts` の `deletedAmong`）。
+                    # 一覧に出る ID だけを引く（以前は全表 Scan で、行 5000 で打ち切っていた）
+                    - dynamodb:BatchGetItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}

@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { UpdateCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { notifsId, NOTIFS_MAX, deletedUserIds, DELETED_USER_NAME, visibleUnread } from "./notify";
+import { notifsId, NOTIFS_MAX, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME, visibleUnread } from "./notify";
 import { hiddenUserIds } from "./blockCheck";
 
 // 通知の取得と既読化。
@@ -45,7 +45,7 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
                     console.error("getNotifications: ブロック一覧を読めませんでした:", e);
                     return new Set<string>();
                 }),
-                deletedUserIds(),
+                deletedAmong(all.map((n) => (n as { byId?: unknown }).byId)).then(withUnreadAsDeleted),
             ]);
         const visible = (n: unknown): boolean => {
             const by = (n as { byId?: unknown }).byId;

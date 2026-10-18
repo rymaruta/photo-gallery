@@ -9,11 +9,14 @@ vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
 }));
-const mockDeletedIds = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+/** 読めなかった人（`deletedAmong` の `unread`） */
+const mockUnreadIds = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    deletedUserIds: mockDeletedIds,
+    deletedAmong: async (ids: unknown) => ({ deleted: await mockDeletedIds(ids), unread: mockUnreadIds() }),
+    withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
@@ -44,6 +47,7 @@ function ev(sub: string | undefined, params: Record<string, string> | undefined,
 }
 
 beforeEach(() => {
+    mockUnreadIds.mockReset().mockReturnValue(new Set<string>());
     mockDdbSend.mockReset();
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockPush.mockReset().mockResolvedValue(undefined);
@@ -812,7 +816,7 @@ describe("コメント上限の免除: 古い写真の所有者", () => {
 // **退会してもコメントが公開のまま残っていた。**
 // このAPIは未認証で読めるのに投稿者の生死を見ていなかったので、退会したあとも
 // 本文と表示名が誰でも読めた。退会でプロフィールは墓石になるのに、コメント
-// だけ取り残される形。掃除役（全 Scan）は別枠なので、読むときに伏せる。
+// だけ取り残される形。掃除役は別枠なので、読むときに伏せる。
 describe("getComments: 退会した人の名前は出さない", () => {
     const publicPhoto = { Item: { src: "https://cdn/p1.jpg", published: true } };
     const items = [
@@ -836,6 +840,9 @@ describe("getComments: 退会した人の名前は出さない", () => {
         expect(c1.text).toBe("こんにちは");
         // uid は伏せない（/users/<sub> は公開ルートで、sub は秘密ではない）
         expect(c1.uid).toBe("gone");
+        // **コメントした人の ID を渡して引く**（表を走査しない。行が 5000 を超えると
+        // 前の全表 Scan は打ち切った先の退会者を伏せられなかった）
+        expect((mockDeletedIds.mock.calls[0][0] as string[]).slice().sort()).toEqual(["alive", "gone"]);
     });
 
     it("生きている人はそのまま", async () => {
@@ -849,15 +856,31 @@ describe("getComments: 退会した人の名前は出さない", () => {
     });
 
     // ここが押さえているのは「集合が空なら誰も伏せない」まで。
-    // deletedUserIds は丸ごとモックなので、**引けなかったときの挙動は
-    // ここでは通らない**（本体の fail-open は notify.test.ts
-    // 「引けなかったら空集合（投げない・控えもしない）」が押さえている）。
+    // deletedAmong は丸ごとモックなので、**引けなかったときの挙動は
+    // ここでは通らない**（本体は読めなかった ID を `unread` で別に返し、コメントは
+    // `withUnreadAsDeleted` で伏せる側に倒す。notify.test.ts の「読めなかった ID は
+    // unread で別に返す」「withUnreadAsDeleted: …」と、このファイルの「退会の判定が
+    // 読めなかった人も伏せる」が押さえている）。
     it("墓石が1件も無ければ、誰も伏せない", async () => {
         mockDeletedIds.mockResolvedValue(new Set<string>());
         world();
         const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
 
         expect(data.items.every((c: { deleted?: boolean }) => c.deleted === undefined)).toBe(true);
+    });
+
+    // 🔴 **読めなかった人は伏せる側。** コメントは書いた時点の名前を写して持つので、
+    // 生きている扱いにすると退会した人の実名が未認証の口に出る
+    it("退会の判定が読めなかった人も伏せる（実名を漏らさない側）", async () => {
+        mockDeletedIds.mockResolvedValue(new Set<string>());
+        mockUnreadIds.mockReturnValue(new Set(["gone"]));
+        world();
+        const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
+        const c1 = data.items.find((c: { id: string }) => c.id === "c1");
+        expect(c1.name).toBe("退会したユーザー");
+        expect(c1.deleted).toBe(true);
+        // 読めた人はそのまま
+        expect(data.items.find((c: { id: string }) => c.id === "c2").name).toBe("居る人");
     });
 
     // 公開APIなので、無駄な読み取りを増やさない
