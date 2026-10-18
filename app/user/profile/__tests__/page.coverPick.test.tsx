@@ -34,12 +34,12 @@ const PHOTOS = [
     { id: "p3", src: "https://cdn.test/uploads/p3.webp", likes: 50, createdAt: "2026-10-12T00:00:00Z", audience: "followers" },
 ];
 let photos: unknown = PHOTOS;
-let reward = { granted: true, added: 3, coins: 3 };
+let reward = { granted: true, added: 3, coins: 3, rewarded: true };
 const mockFetch = vi.fn();
 
 beforeEach(() => {
     photos = PHOTOS;
-    reward = { granted: true, added: 3, coins: 3 };
+    reward = { granted: true, added: 3, coins: 3, rewarded: true };
     mockShowToast.mockReset();
     mockSafe.mockReset().mockImplementation(async (f: File) => f);
     mockBytes.mockReset().mockResolvedValue(new Blob(["x"], { type: "image/webp" }));
@@ -88,7 +88,7 @@ describe("カバーを自分の投稿から選ぶ", () => {
     });
 
     it("お礼が 0 枚（もらい済み）なら知らせない", async () => {
-        reward = { granted: false, added: 0, coins: 10 };
+        reward = { granted: false, added: 0, coins: 10, rewarded: true };
         render(<ProfilePage />);
         const sec = await screen.findByTestId("cover-pick");
         await userEvent.click(within(sec).getAllByRole("button", { name: /カバーにする$/ })[0]);

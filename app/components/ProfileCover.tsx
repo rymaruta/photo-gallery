@@ -85,6 +85,20 @@ export default function ProfileCover({ userId, onLoaded, className = "" }: {
 }
 
 /**
+ * カバーが**無いと確かめられた**か（#304・2026-10-18 見直し）。絵を読めなかっただけでは決めない——HEAD が
+ * 404（無い。S3 の OAC が返す 403 も CDN が 404 に振り替える）を返したときだけ true。圏外・ほかの失敗は false（額縁を出さない）
+ */
+export async function coverIsMissing(url: string): Promise<boolean> {
+    if (!url) return false;
+    try {
+        const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+        return res.status === 404 || res.status === 403;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * カバーが無いときの**自分のページだけ**の額縁（#304・板 52 MyPageCoverFrame・2026-10-18）。
  *
  * 帯の場所に真鍮の細い縁（黒地の上なので真鍮）と「ここにあなたの1枚」。灰色の塗りは置かない・責める言い方をしない。
