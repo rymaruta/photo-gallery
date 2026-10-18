@@ -10,6 +10,7 @@ import { isPro, publicSupporter, sanitizeBadges } from "./badgeKeys";
 import { isBlocked } from "./blockCheck";
 import { isUserId } from "./userId";
 import { isDeletedProfile } from "./types";
+import { profileImageExists, type ProfileImageKind } from "./profileImage";
 import { coordsOf, countryOfText, isCountablePhoto, seasonOf, yearMonthOf } from "./badges";
 import { isPublicListPhoto } from "./feed";
 import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
@@ -54,6 +55,8 @@ import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } 
  *     posts          公開している投稿の数の控え（人のトランクの古び方に使う。本人が開いた・投稿したときに書く）
  *     welcomeCoinsAt はじめての硬貨を配った時刻（一度きり・`POST /user/trunk/welcome`）。welcomeCoinsAdded は足せた枚数
  *     welcomeCheckedAt 対象外と確かめた時刻（2回目からは読むだけにする）
+ *     rewardAvatarAt / rewardCoverAt  アイコン／カバーを初めて設定したお礼を配った時刻（一度きり・`POST /user/trunk/reward`・#304）。
+ *                    rewardAvatarAdded / rewardCoverAdded は足せた枚数
  *     rev            書き込みの版
  *
  * ## 決まり
@@ -144,6 +147,10 @@ export const COINS_MAX = 99;
  * はじめての硬貨（2026-10-18 owner 承認）: 硬貨が始まる前から居る利用者に一度だけ配る枚数
  */
 export const WELCOME_COINS = 10;
+/**
+ * アイコン・カバーを初めて設定したお礼（#304・2026-10-18 owner「3枚ずつ」）。それぞれ一度きり
+ */
+export const REWARD_COINS = 3;
 /**
  * 硬貨の機能が本番に出た時刻。**これより前に登録した人**が「はじめての硬貨」の対象。
  * 出典: photo-gallery #393 のマージ（62bc9a54）を本番に出した Deploy API Lambdas
@@ -252,6 +259,16 @@ export type TrunkDoc = {
     welcomeCoinsAdded?: number;
     /** はじめての硬貨の対象外と確かめた時刻 */
     welcomeCheckedAt?: string;
+    // #304（2026-10-18）: アイコン・カバーのお礼の印。**トランク担当の項目と同じ型・parseTrunk・serializeRows に
+    // 足すので、足すのはこの4つと読み書きの各2行だけ**（ほかの項目の形は変えない）
+    /** アイコンのお礼を配った時刻（一度きり。0 枚でも立てる） */
+    rewardAvatarAt?: string;
+    /** アイコンのお礼で足せた枚数 */
+    rewardAvatarAdded?: number;
+    /** カバーのお礼を配った時刻（一度きり。0 枚でも立てる） */
+    rewardCoverAt?: string;
+    /** カバーのお礼で足せた枚数 */
+    rewardCoverAdded?: number;
 };
 
 /**
@@ -387,6 +404,9 @@ export function parseTrunk(item: Record<string, unknown> | undefined, ledger?: R
         ...(typeof item?.welcomeCoinsAt === "string" ? { welcomeCoinsAt: item.welcomeCoinsAt } : {}),
         ...(typeof item?.welcomeCoinsAdded === "number" ? { welcomeCoinsAdded: count(item.welcomeCoinsAdded) } : {}),
         ...(typeof item?.welcomeCheckedAt === "string" ? { welcomeCheckedAt: item.welcomeCheckedAt } : {}),
+        // #304 のお礼の印（最小限の足し・`TrunkDoc` の注記）
+        ...(typeof item?.rewardAvatarAt === "string" ? { rewardAvatarAt: item.rewardAvatarAt, rewardAvatarAdded: count(item.rewardAvatarAdded) } : {}),
+        ...(typeof item?.rewardCoverAt === "string" ? { rewardCoverAt: item.rewardCoverAt, rewardCoverAdded: count(item.rewardCoverAdded) } : {}),
     };
 }
 
@@ -481,6 +501,9 @@ function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: 
             ...(doc.welcomeCoinsAt ? { welcomeCoinsAt: doc.welcomeCoinsAt } : {}),
             ...(doc.welcomeCoinsAdded !== undefined ? { welcomeCoinsAdded: doc.welcomeCoinsAdded } : {}),
             ...(doc.welcomeCheckedAt ? { welcomeCheckedAt: doc.welcomeCheckedAt } : {}),
+            // #304 のお礼の印（最小限の足し・`TrunkDoc` の注記）
+            ...(doc.rewardAvatarAt ? { rewardAvatarAt: doc.rewardAvatarAt, rewardAvatarAdded: doc.rewardAvatarAdded ?? 0 } : {}),
+            ...(doc.rewardCoverAt ? { rewardCoverAt: doc.rewardCoverAt, rewardCoverAdded: doc.rewardCoverAdded ?? 0 } : {}),
         },
         ledger: {
             dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
@@ -1144,6 +1167,70 @@ export async function welcomeCoins(uid: string, now: Date = new Date(), authTime
     let result: WelcomeResult = { granted: false, added: 0, coins: first.coins };
     await updateTrunk(uid, (doc) => {
         const r = welcomeInto(doc, verdict, now);
+        result = r.result;
+        if (r.doc && !fitsBudget(r.doc)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+        return r.doc;
+    });
+    return result;
+}
+
+// ─── アイコン・カバーのお礼（#304） ───────────────────────────
+
+export type RewardKind = ProfileImageKind;
+export const isRewardKind = (v: unknown): v is RewardKind => v === "avatar" || v === "cover";
+
+const rewardAtKey = (kind: RewardKind): "rewardAvatarAt" | "rewardCoverAt" =>
+    (kind === "avatar" ? "rewardAvatarAt" : "rewardCoverAt");
+const rewardAddedKey = (kind: RewardKind): "rewardAvatarAdded" | "rewardCoverAdded" =>
+    (kind === "avatar" ? "rewardAvatarAdded" : "rewardCoverAdded");
+
+/**
+ * お礼を配る（純関数）。**変えないときは doc: null**。
+ * - 印があれば何もしない（消して付け直しても二度目は無い）
+ * - 設定されていない（`isSet` が false）→ 何も書かない（印も立てない。設定したあとの呼び出しで渡せる）
+ * - 設定されている → 3 枚。上限 99 を超える分は配らない。**0 枚しか足せなくても印は立てる**
+ *   （はじめての硬貨と同じ決まり・`welcomeInto`）
+ * `granted` はこの呼び出しで1枚以上配ったときだけ true
+ */
+export function rewardInto(doc: TrunkDoc, kind: RewardKind, isSet: boolean, now: Date): { doc: TrunkDoc | null; result: WelcomeResult } {
+    const none = { granted: false, added: 0, coins: doc.coins };
+    if (doc[rewardAtKey(kind)]) return { doc: null, result: none };
+    if (!isSet) return { doc: null, result: none };
+    const added = Math.max(0, Math.min(REWARD_COINS, COINS_MAX - doc.coins));
+    const coins = doc.coins + added;
+    return {
+        doc: { ...doc, coins, [rewardAtKey(kind)]: now.toISOString(), [rewardAddedKey(kind)]: added },
+        result: { granted: added > 0, added, coins },
+    };
+}
+
+/**
+ * `POST /user/trunk/reward { kind }`（#304・2026-10-18 トランク担当と決めた形）。
+ * アプリはアイコン・カバーを保存したあとと、起動のとき（すでに設定済みの人に1回・はじめての硬貨と同じ呼び方）に呼ぶ。
+ *
+ * 1. トランクの2行を読む。印があればそれだけで返す（2回目からは users も S3 も読まない）
+ * 2. users の行を**強い読み**で読む。退会の墓石なら配らない
+ * 3. 実際に設定されているかを確かめる。**アイコン・カバーは users に項目が無い**（置き場は S3 の決まったキーだけ・
+ *    `profile.ts`）ので、その実体を公開の CDN に HEAD で聞く（`profileImage.ts`。共有のロールに profiles/* の読みを足さない）
+ * 4. 印は `updateTrunk`（rev 条件）の中で立てる。並んだ2本・再送でも1回だけ。trunk# の行が無ければ作る
+ */
+export async function rewardCoins(uid: string, kind: RewardKind, now: Date = new Date()): Promise<WelcomeResult> {
+    const rows = await readTrunkRows(uid);
+    const first = parseTrunk(rows.main, rows.ledger);
+    const none = { granted: false, added: 0, coins: first.coins };
+    if (first[rewardAtKey(kind)]) return none;
+    const profile = (await ddb.send(new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { userId: uid },
+        ProjectionExpression: "userId, deletedAt",
+        ConsistentRead: true,
+    }))).Item as Record<string, unknown> | undefined;
+    if (isDeletedProfile(profile)) return none;
+    const isSet = await profileImageExists(uid, kind);
+    if (!isSet) return none;
+    let result: WelcomeResult = none;
+    await updateTrunk(uid, (doc) => {
+        const r = rewardInto(doc, kind, isSet, now);
         result = r.result;
         if (r.doc && !fitsBudget(r.doc)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
         return r.doc;
@@ -1866,6 +1953,7 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  *     PUT    /user/trunk/equip { handle?, …, pins?, patches? } → view
  *     GET    /users/{uid}/trunk                  → 人のトランク（`readTheirTrunk`・見せないときは 404）
  *     POST   /user/trunk/welcome                 → { granted, added, coins }（はじめての硬貨・一度きり）
+ *     POST   /user/trunk/reward { kind }         → { granted, added, coins }（アイコン・カバーのお礼・それぞれ一度きり・#304）
  *
  * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
  * noRerollsLeft / noPending / badSeed / badModel / badRequest / badPlace / notStuck / noCoins /
@@ -1892,6 +1980,11 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
         if (route === "POST /user/trunk/welcome") {
             // アプリは id token を送る（`APIClient.swift`）。Cognito の id token は `auth_time`（いまのログインを始めた時刻）を持つ
             return ok(await welcomeCoins(uid, now, event.requestContext.authorizer.jwt.claims.auth_time));
+        }
+        if (route === "POST /user/trunk/reward") {
+            const kind = body(event).kind;
+            if (!isRewardKind(kind)) return jsonError(400, "不正なリクエスト", "badKind");
+            return ok(await rewardCoins(uid, kind, now));
         }
         const pro = isPro(await readProfileBits(uid), now.getTime());
         if (route === "GET /user/trunk") {
