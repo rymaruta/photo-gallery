@@ -15,6 +15,7 @@ import {
 } from "../../lib/utils/mapView";
 import { normalizeBounds, type MapBounds } from "../../lib/utils/mapFilter";
 import { publicImageUrl } from "../../lib/utils/seo";
+import { photoTitleFor } from "../../lib/utils/photoTitle";
 
 /** 位置情報を持つ写真だけ（`coords` が有限の数であること） */
 export type MapPhoto = Photo & { coords: { lat: number; lng: number } };
@@ -281,9 +282,10 @@ export default function PhotoMap({
                         const el = pinElement(photo);
                         if (photo.id === selectedIdRef.current) el.classList.add("is-selected");
                         pinElsRef.current.set(photo.id, el);
+                        // 地図なので撮影地を主にする（`MapPhotoList` と同じ）。撮影地が無ければ
+                        // 写真ページと同じ題（`photoTitleFor`。旧い「無題」は落として「写真」）
                         const name = (photo.location ?? "").trim()
-                            || (typeof photo.title === "string" ? photo.title : photo.title?.[locale] || photo.title?.ja || "")
-                            || (en ? "Photo" : "写真");
+                            || photoTitleFor(photo, en ? "en" : "ja").text;
                         const marker = L.marker([c.lat, c.lng], {
                             icon: L.divIcon({
                                 html: el,

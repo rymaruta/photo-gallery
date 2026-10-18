@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { createHash, randomInt } from "crypto";
-import { ddb, PHOTOS_TABLE } from "./dynamodb";
+import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { requireEnv } from "./env";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { listMyPhotos } from "./ddb-photos";
@@ -52,6 +52,8 @@ import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } 
  *     showTrunk      ほかの人にトランクを見せるか（既定 true・2026-10-18 owner「他の人のトランクの中身とか見れたら楽しい」）
  *     ticket         わたしの乗車券 { photoId, note, origin, destination, face, showsFrom }（人のトランクの中に出す1枚・無ければ項目ごと無い）
  *     posts          公開している投稿の数の控え（人のトランクの古び方に使う。本人が開いた・投稿したときに書く）
+ *     welcomeCoinsAt はじめての硬貨を配った時刻（一度きり・`POST /user/trunk/welcome`）。welcomeCoinsAdded は足せた枚数
+ *     welcomeCheckedAt 対象外と確かめた時刻（2回目からは読むだけにする）
  *     rev            書き込みの版
  *
  * ## 決まり
@@ -138,6 +140,16 @@ export const MILESTONE_LEDGER_MAX = 300;
 
 /** 硬貨の上限（超えたら配らない・2026-10-17 owner） */
 export const COINS_MAX = 99;
+/**
+ * はじめての硬貨（2026-10-18 owner 承認）: 硬貨が始まる前から居る利用者に一度だけ配る枚数
+ */
+export const WELCOME_COINS = 10;
+/**
+ * 硬貨の機能が本番に出た時刻。**これより前に登録した人**が「はじめての硬貨」の対象。
+ * 出典: photo-gallery #393 のマージ（62bc9a54）を本番に出した Deploy API Lambdas
+ * （run 39079109521・main）の完了時刻 `updated_at`（開始は 2026-10-17T23:27:39Z）
+ */
+export const TRUNK_COINS_LAUNCHED_AT = "2026-10-17T23:32:10.000Z";
 /** 交換に要るかけらの数 */
 export const FRAGMENTS_PER_EXCHANGE = 5;
 /** 付けられる数（ピンバッジ・ワッペン） */
@@ -234,6 +246,12 @@ export type TrunkDoc = {
      * 書いたことが無ければ undefined（人の口は項目ごと出さない）
      */
     posts?: number;
+    /** はじめての硬貨を配った時刻（一度きり） */
+    welcomeCoinsAt?: string;
+    /** はじめての硬貨で足せた枚数（上限 99 で 10 より少ないことがある） */
+    welcomeCoinsAdded?: number;
+    /** はじめての硬貨の対象外と確かめた時刻 */
+    welcomeCheckedAt?: string;
 };
 
 /**
@@ -366,6 +384,9 @@ export function parseTrunk(item: Record<string, unknown> | undefined, ledger?: R
         showTrunk: item?.showTrunk !== false,
         ...(storedTicket(item?.ticket) ? { ticket: storedTicket(item?.ticket) } : {}),
         ...(isCount(item?.posts) ? { posts: item!.posts as number } : {}),
+        ...(typeof item?.welcomeCoinsAt === "string" ? { welcomeCoinsAt: item.welcomeCoinsAt } : {}),
+        ...(typeof item?.welcomeCoinsAdded === "number" ? { welcomeCoinsAdded: count(item.welcomeCoinsAdded) } : {}),
+        ...(typeof item?.welcomeCheckedAt === "string" ? { welcomeCheckedAt: item.welcomeCheckedAt } : {}),
     };
 }
 
@@ -457,6 +478,9 @@ function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: 
             showTrunk: doc.showTrunk,
             ...(doc.ticket ? { ticket: doc.ticket } : {}),
             ...(doc.posts !== undefined ? { posts: doc.posts } : {}),
+            ...(doc.welcomeCoinsAt ? { welcomeCoinsAt: doc.welcomeCoinsAt } : {}),
+            ...(doc.welcomeCoinsAdded !== undefined ? { welcomeCoinsAdded: doc.welcomeCoinsAdded } : {}),
+            ...(doc.welcomeCheckedAt ? { welcomeCheckedAt: doc.welcomeCheckedAt } : {}),
         },
         ledger: {
             dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
@@ -990,6 +1014,141 @@ export async function grantLabelQuietly(
     } finally {
         if (timer) clearTimeout(timer);
     }
+}
+
+// ─── はじめての硬貨（2026-10-18 owner 承認） ─────────────────────
+
+/**
+ * はじめての硬貨の対象か。
+ * - `yes`     対象
+ * - `no`      対象外と確かめた → 対象外の印を残す
+ * - `unknown` 決められない（退会の墓石・プロフィールの行が無く `auth_time` も読めない）→ 配らない・印も残さない
+ *            （印を残さないので、あとで決め直せば次に開いたときに配れる）
+ */
+export type WelcomeVerdict = "yes" | "no" | "unknown";
+
+export type WelcomeResult = { granted: boolean; added: number; coins: number };
+
+/** 対象かを決める手がかり（`welcomeCoins` が集める） */
+export type WelcomeEvidence = {
+    /** users テーブルの本人の行（無ければ undefined） */
+    profile: Record<string, unknown> | undefined;
+    /**
+     * JWT の `auth_time`（**いまのログインを始めた時刻**・ミリ秒）。更新トークンでの取り直しでは同じ値のまま、
+     * ログインし直すと新しくなる。無い・読めなければ undefined
+     */
+    authTimeMs?: number;
+    /** 機能より前に作った本人の写真・ストーリーがあるか（引かなかったら undefined） */
+    hasOldItems?: boolean;
+};
+
+/**
+ * 対象かを決める（純関数）。2026-10-18 判断（coordinator）の順:
+ *
+ *     1. users の行の `createdAt` が線より前                → 対象
+ *     2. 行はあるが `createdAt` が無い（読めない値も同じ）     → 対象
+ *        （`createdAt` を書くトリガーは 2026-08-19 から。それより前の古い利用者の行）
+ *     3. JWT の `auth_time` が線より前                       → 対象
+ *        （`auth_time` は**いまのログインを始めた時刻**。更新トークンでの取り直しでは変わらず、ログインし直すと
+ *         新しくなる。前から居るのに users の行がまだ無く、アプリを開いた瞬間に `createProfileIfMissing` が
+ *         今の時刻で行を作った人を拾う。**拾えるのは「行の無い古い人で、線のあとにログインし直していない人」だけ**）
+ *     4. 機能より前の写真・ストーリー（`userId-createdAt-index`）がある → 対象
+ *     5. どれも無い → 対象外（印を残す）。ただし**行が無く `auth_time` も無い・読めない**人は
+ *        決められない（印を残さない）
+ *
+ * 登録の時刻は users の行の `createdAt`（作るのは登録完了のトリガー `api/src/cognitoTrigger.ts`・
+ * 行が無い人がプロフィールを開いたとき `userProfile.ts` の `createProfileIfMissing`・行の無い人の Pro の購入
+ * `supporterStore.ts`。どれも作ったその時刻）。Cognito の `UserCreateDate` は `AdminGetUser` の権限
+ * （IAM の変更）が要り、JWT にも載らないので使わない。退会の墓石は配らない
+ */
+export function welcomeVerdictOf(ev: WelcomeEvidence): WelcomeVerdict {
+    const { profile } = ev;
+    if (isDeletedProfile(profile)) return "unknown";
+    const line = Date.parse(TRUNK_COINS_LAUNCHED_AT);
+    const t = typeof profile?.createdAt === "string" ? Date.parse(profile.createdAt) : NaN;
+    if (Number.isFinite(t) && t < line) return "yes";
+    if (profile && !Number.isFinite(t)) return "yes";
+    if (ev.authTimeMs !== undefined && ev.authTimeMs < line) return "yes";
+    if (ev.hasOldItems) return "yes";
+    if (!profile && ev.authTimeMs === undefined) return "unknown";
+    return "no";
+}
+
+/** 1〜4 の手前で決まるか（決まれば索引を引かない） */
+const decidedWithoutItems = (ev: WelcomeEvidence) => {
+    const v = welcomeVerdictOf({ ...ev, hasOldItems: false });
+    return v === "yes" || isDeletedProfile(ev.profile);
+};
+
+/**
+ * JWT の `auth_time`（秒）をミリ秒に。API Gateway（HTTP API）の JWT の確かめ役は、数の項目も
+ * **文字に直して** claims に入れるので、数でも文字でも読む。読めなければ undefined
+ */
+export function authTimeMsOf(v: unknown): number | undefined {
+    const n = typeof v === "number" ? v : typeof v === "string" && /^\d{1,12}$/.test(v.trim()) ? Number(v.trim()) : NaN;
+    return Number.isFinite(n) && n > 0 ? n * 1000 : undefined;
+}
+
+/**
+ * はじめての硬貨を配る（純関数）。**変えないときは doc: null**。
+ * - 配った・対象外の印があれば何もしない（二度配らない）
+ * - 対象外（`no`）→ 対象外の印だけ残す。決められない（`unknown`）→ 何も書かない
+ * - 対象（`yes`）→ 10 枚。上限 99 を超える分は配らない（足せた枚数を返す）。足せたのが 0 枚でも印は残す
+ *   （2026-10-18 判断: 一度きりの配りは「その時に足せた分」。あとで空きができても配り直さない）
+ * `granted` はこの呼び出しで1枚以上配ったときだけ true
+ */
+export function welcomeInto(doc: TrunkDoc, verdict: WelcomeVerdict, now: Date): { doc: TrunkDoc | null; result: WelcomeResult } {
+    const none = { granted: false, added: 0, coins: doc.coins };
+    if (doc.welcomeCoinsAt || doc.welcomeCheckedAt) return { doc: null, result: none };
+    if (verdict === "unknown") return { doc: null, result: none };
+    const at = now.toISOString();
+    if (verdict === "no") return { doc: { ...doc, welcomeCheckedAt: at }, result: none };
+    const added = Math.max(0, Math.min(WELCOME_COINS, COINS_MAX - doc.coins));
+    const coins = doc.coins + added;
+    return {
+        doc: { ...doc, coins, welcomeCoinsAt: at, welcomeCoinsAdded: added },
+        result: { granted: added > 0, added, coins },
+    };
+}
+
+/** 本人の、機能より前に作られた行（写真・ストーリー）が1つでもあるか（索引を1件だけ引く） */
+async function hasItemsBeforeCoins(uid: string): Promise<boolean> {
+    const res = await ddb.send(new QueryCommand({
+        TableName: PHOTOS_TABLE,
+        IndexName: USER_INDEX,
+        KeyConditionExpression: "userId = :u AND createdAt < :t",
+        ExpressionAttributeValues: { ":u": uid, ":t": TRUNK_COINS_LAUNCHED_AT },
+        ProjectionExpression: "id",
+        Limit: 1,
+    }));
+    return (res.Items?.length ?? 0) > 0;
+}
+
+/**
+ * `POST /user/trunk/welcome`（アプリを開いたときに呼ぶ）。
+ * 2回目からは**トランクの2行を読むだけ**（印があれば users テーブルも索引も読まない）。
+ * 並んだ2本・再送でも、rev 条件の書き込み（`updateTrunk`）が印を見て1回だけにする
+ */
+export async function welcomeCoins(uid: string, now: Date = new Date(), authTime?: unknown): Promise<WelcomeResult> {
+    const rows = await readTrunkRows(uid);
+    const first = parseTrunk(rows.main, rows.ledger);
+    if (first.welcomeCoinsAt || first.welcomeCheckedAt) return { granted: false, added: 0, coins: first.coins };
+    const profile = (await ddb.send(new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { userId: uid },
+        ProjectionExpression: "userId, createdAt, deletedAt",
+    }))).Item as Record<string, unknown> | undefined;
+    if (isDeletedProfile(profile)) return { granted: false, added: 0, coins: first.coins };
+    const ev: WelcomeEvidence = { profile, authTimeMs: authTimeMsOf(authTime) };
+    const verdict = welcomeVerdictOf(decidedWithoutItems(ev) ? ev : { ...ev, hasOldItems: await hasItemsBeforeCoins(uid) });
+    let result: WelcomeResult = { granted: false, added: 0, coins: first.coins };
+    await updateTrunk(uid, (doc) => {
+        const r = welcomeInto(doc, verdict, now);
+        result = r.result;
+        if (r.doc && !fitsBudget(r.doc)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+        return r.doc;
+    });
+    return result;
 }
 
 // ─── 口 ─────────────────────────────────────────────────────
@@ -1706,6 +1865,7 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  *     POST   /user/trunk/parts/exchange { partId } → view ＋ part
  *     PUT    /user/trunk/equip { handle?, …, pins?, patches? } → view
  *     GET    /users/{uid}/trunk                  → 人のトランク（`readTheirTrunk`・見せないときは 404）
+ *     POST   /user/trunk/welcome                 → { granted, added, coins }（はじめての硬貨・一度きり）
  *
  * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
  * noRerollsLeft / noPending / badSeed / badModel / badRequest / badPlace / notStuck / noCoins /
@@ -1727,6 +1887,11 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 if (e instanceof HiddenTrunk) return jsonError(404, "見つかりません", "notFound");
                 throw e;
             }
+        }
+        // Pro かどうかは要らない（users テーブルを読む回数を増やさない）
+        if (route === "POST /user/trunk/welcome") {
+            // アプリは id token を送る（`APIClient.swift`）。Cognito の id token は `auth_time`（いまのログインを始めた時刻）を持つ
+            return ok(await welcomeCoins(uid, now, event.requestContext.authorizer.jwt.claims.auth_time));
         }
         const pro = isPro(await readProfileBits(uid), now.getTime());
         if (route === "GET /user/trunk") {

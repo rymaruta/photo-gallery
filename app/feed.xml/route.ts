@@ -2,8 +2,9 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 import { siteConfig } from "../../lib/utils/seo";
-import RAW_PHOTOS, { getLocalized, getLocalizedParagraphs, type Photo } from "@/lib/data/photos";
+import RAW_PHOTOS, { getLocalizedParagraphs, type Photo } from "@/lib/data/photos";
 import { metaText } from "@/lib/utils/metaText";
+import { photoTitleFor } from "@/lib/utils/photoTitle";
 
 export const dynamic = "force-static";
 
@@ -92,7 +93,9 @@ export function buildFeed(photos: Photo[]): string {
 
     const updated = picked[0]?.updatedAt ?? picked[0]?.createdAt ?? new Date().toISOString();
     const items = picked.map((p) => {
-        const title = getLocalized(p.title, "ja") || getLocalized(p.title, "en") || "無題";
+        // 題が無い（「無題」を含む）写真は撮影地から「板橋区の写真」と組む。
+        // 写真ページの `<title>` と同じ決め方（`photoTitleFor`）
+        const title = photoTitleFor(p, "ja").text;
         const url = `${siteConfig.url}/photo/${p.id}`;
         const date = new Date(p.createdAt ?? updated).toUTCString();
         return [

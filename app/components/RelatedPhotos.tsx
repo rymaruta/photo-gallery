@@ -7,7 +7,7 @@ import React from "react";
 import Thumb from "./Thumb";
 import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
-import { getLocalized } from "@/lib/data/photos";
+import { photoOwnTitle, photoTitleFor } from "@/lib/utils/photoTitle";
 import { ROUTES } from "../../lib/routes";
 
 type Props = {
@@ -25,7 +25,9 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
             {/* 横スクロール。スクロールバーは隠し、指/トラックパッドで流す */}
             <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1 snap-x snap-mandatory">
                 {photos.map((p) => {
-                    const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                    // 題は空なら出さない（旧い「無題」も落とす）。画像の alt は名前が要るので代わりの題
+                    const t = photoOwnTitle(p, (locale === "en" ? "en" : "ja"));
+                    const named = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
                     return (
                         // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                         // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は
@@ -45,7 +47,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                             >
                                 <Thumb
                                     photo={p}
-                                    alt={t}
+                                    alt={named}
                                     sizes="(max-width:640px) 112px, 128px"
                                     className="transition-transform duration-300 group-hover:scale-[1.05]"
                                 />
