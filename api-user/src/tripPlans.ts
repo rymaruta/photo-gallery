@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { updateUserList, readUserRows, UserListError } from "./userList";
 import { sanitizeText, sanitizeSpotId } from "./sanitize";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * 旅行プラン——**行きたい場所を「いつ・どの順で回るか」に並べる**口。
@@ -277,6 +278,9 @@ function parseBody(event: { body?: string | null }): Record<string, unknown> | n
 export const createTrip: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const body = parseBody(event);
     if (!body) return jsonError(400, "不正なリクエスト");
 
@@ -316,6 +320,9 @@ export const createTrip: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 export const updateTrip: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const planId = event.pathParameters?.planId ?? "";
     if (!planId) return jsonError(400, "プランの指定が不正です");
     const body = parseBody(event);

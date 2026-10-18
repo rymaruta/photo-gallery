@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { putPhoto, getPhotoById, overwriteOwnPhoto, listMyMediaItems, markStaticStale, listMyPhotos } from "./ddb-photos";
 import type { Photo } from "./types";
 import { JSON_HEADERS, getUserId, isAdmin } from "./http";
-import { lookupDisplayNameIfSet } from "./notify";
+import { displayNameOf } from "./notify";
 import { sanitizeExif, sanitizeCoords, sanitizeBlurDataURL, sanitizeDate, sanitizeTitle, sanitizeDescription, sanitizeText, sanitizeTags, sanitizeFocalPoint, sanitizeGroupId, sanitizeAudience, sanitizeSpotId } from "./sanitize";
 import { extForType, uploadPrefix, canonicalUploadUrl, idFromUploadKey, isOwnUploadUrlFromEnv as isOwnUploadUrl } from "./uploadPolicy";
 import { sanitizeExtraImages, mergeExtraImages } from "./photoImages";
@@ -20,6 +20,7 @@ import { isAlbumMember, addPhotoToAlbum } from "./albums";
 import { refreshBadgesQuietly } from "./badgeStore";
 import { grantLabelQuietly, refreshLabelPlaceQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
+import { assertLiveCaller, readLiveCaller } from "./liveCaller";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 /**
@@ -63,6 +64,9 @@ export const presignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (ev
     if (!userId) {
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     // 100枚制限チェック（adminは除外）
     const limitError = await photoLimitError(userId, isAdmin(event));
@@ -354,7 +358,16 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // 同じことをストーリーでは既に禁じている——stories.ts:155 に
     // 「displayName は受け取らない（なりすまし防止のためサーバーで引く）」
     // と書かれていて、写真だけが例外だった。
-    const resolvedDisplayName = await lookupDisplayNameIfSet(userId);
+    //
+    // **同じ読みで墓石も見る**（2026-10-18）。退会しても配ったトークンは期限まで通るので、
+    // ここを通すと退会した人の写真が公開の一覧に出て、静的サイトの作り直し・トランクの
+    // ラベル配り（`trunk#` を作り直す）・「この写真を見て撮影」の通知まで走る。
+    // 名前の読みに `deletedAt` を相乗りさせ、users の読みは1回のまま（`liveCaller.ts`）。
+    // ここより上は読みだけ——写真の行も実体もまだ何も書いていない。
+    // 読めなかったら 500（前は名前なしで保存を続けていた。墓石を確かめずに書かない）
+    const caller = await readLiveCaller(userId, ["displayName"]);
+    if ("gone" in caller) return caller.gone;
+    const resolvedDisplayName = displayNameOf(caller.row);
     const safeCoords = sanitizeCoords(coords);
     // 代表色: グリッドのプレースホルダー用。#rrggbb 形式のみ受け付ける
     const safeDominantColor = typeof dominantColor === "string" && /^#[0-9a-fA-F]{6}$/.test(dominantColor)

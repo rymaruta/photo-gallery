@@ -7,6 +7,7 @@ import { pushNotification, lookupDisplayName, deletedAmong, withUnreadAsDeleted,
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
 import { canViewPhoto } from "./restrictedFeed";
+import { assertLiveCaller } from "./liveCaller";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -175,6 +176,9 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     const uid = getUserId(event);
     const photoId = event.pathParameters?.id;
     if (!uid || !photoId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(uid);
+    if (gone) return gone;
 
     let body: { text?: unknown };
     try {

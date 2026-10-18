@@ -212,11 +212,16 @@ export async function lookupDisplayNameIfSet(uid: string): Promise<string | unde
             Key: { userId: uid },
             ProjectionExpression: "displayName",
         }));
-        const name = typeof res.Item?.displayName === "string" ? res.Item.displayName.trim() : "";
-        return name || undefined;
+        return displayNameOf(res.Item);
     } catch {
         return undefined;
     }
+}
+
+/** users の行から「設定されている表示名」だけを取る（空・型違いは undefined）。読みは別に済ませた口が使う */
+export function displayNameOf(row: Record<string, unknown> | undefined): string | undefined {
+    const name = typeof row?.displayName === "string" ? row.displayName.trim() : "";
+    return name || undefined;
 }
 
 /**

@@ -20,8 +20,19 @@ vi.mock("../ddb-photos", () => ({
     listMyPhotos: mockListMyPhotos,
 }));
 
+// 本人の users の行（`liveCaller.ts` の `readLiveCaller` が読む）。表示名と墓石の印を
+// **1回の読み**で返す。`mockLookupIfSet` は「設定されている表示名」、`mockUserRowExtra` は
+// 行に足す属性（墓石なら `deletedAt`）。読みそのものは `mockDdbSend` に記録が残る
 const mockLookupIfSet = vi.hoisted(() => vi.fn());
-vi.mock("../notify", () => ({ lookupDisplayNameIfSet: mockLookupIfSet }));
+const mockUserRowExtra = vi.hoisted(() => vi.fn());
+const mockDdbSend = vi.hoisted(() => vi.fn());
+vi.mock("../dynamodb", async (orig) => ({
+    ...(await orig<typeof import("../dynamodb")>()),
+    ddb: { send: mockDdbSend },
+}));
+vi.mock("../notify", async (orig) => ({
+    displayNameOf: (await orig<typeof import("../notify")>()).displayNameOf,
+}));
 
 // 絞った写真の実体の移動（`s3Move.ts`）。**本物は S3 を掴む**ので作り物にする
 const mockCopyAll = vi.hoisted(() => vi.fn());
@@ -117,6 +128,13 @@ beforeEach(() => {
     mockGetSignedUrl.mockReset().mockResolvedValue("https://s3.example/presigned");
     mockPutObjectInput.mockReset();
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
+    mockUserRowExtra.mockReset().mockReturnValue({});
+    mockDdbSend.mockReset().mockImplementation(async (cmd: { input: { TableName?: string; Key?: { userId?: string } } }) => {
+        if (cmd.input.TableName !== process.env.USERS_TABLE) throw new Error(`想定外の読み: ${cmd.input.TableName}`);
+        const uid = String(cmd.input.Key?.userId);
+        const name = await mockLookupIfSet(uid);
+        return { Item: { userId: uid, ...(name ? { displayName: name } : {}), ...mockUserRowExtra(uid) } };
+    });
     mockGetPhotoById.mockReset().mockResolvedValue(undefined);
     mockOverwriteOwnPhoto.mockReset().mockResolvedValue(true);
     mockMarkStaticStale.mockReset().mockResolvedValue(undefined);
@@ -1971,5 +1989,88 @@ describe("savePhoto: メダルを数え直す", () => {
         await invoke(event("u1", { ...BASE, published: true }));
         err.mockRestore();
         expect(mockRefreshBadges).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * **退会した人（墓石）の保存・署名を止める**（2026-10-18）。
+ *
+ * 退会しても配ったトークンは期限まで通る（API Gateway の JWT オーソライザは署名と exp しか
+ * 見ない）。前は保存が通り、退会した人の写真が公開の一覧に出て、静的サイトの作り直し・
+ * トランクのラベル配り（`trunk#` を作り直す）・「この写真を見て撮影」の通知まで走った。
+ */
+describe("退会した人（墓石）", () => {
+    const SRC = "aaaaaaaa-1111-4111-8111-111111111111";
+    const tombstone = () => mockUserRowExtra.mockReturnValue({ deletedAt: "2026-10-18T00:00:00.000Z" });
+    const userReads = () => mockDdbSend.mock.calls
+        .map(([c]) => (c as { input: { TableName?: string; ProjectionExpression?: string; ExpressionAttributeNames?: Record<string, string> } }).input)
+        .filter((i) => i.TableName === process.env.USERS_TABLE);
+    /** 射影に入っている属性名（`#a0` などの置き換えを戻す） */
+    const projected = (i: { ProjectionExpression?: string; ExpressionAttributeNames?: Record<string, string> }) =>
+        (i.ProjectionExpression ?? "").split(",").map((s) => s.trim()).map((s) => i.ExpressionAttributeNames?.[s] ?? s);
+
+    it("savePhoto: 410。写真の行・作り直し・ラベル配り・メダル・通知のどれも走らない", async () => {
+        tombstone();
+        mockReadVisibleSource.mockResolvedValue({ id: SRC, userId: "alice", src: "s" });
+        const res = await invoke(event("u1", { ...BASE, inspiredBy: SRC, albumId: "al1" }));
+        expect(res.statusCode).toBe(410);
+        expect(JSON.parse(res.body).error).toBe("このアカウントは削除されています");
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+        expect(mockGrantLabel).not.toHaveBeenCalled();
+        expect(mockRefreshBadges).not.toHaveBeenCalled();
+        expect(mockNotifyInspired).not.toHaveBeenCalled();
+        expect(mockAddPhotoToAlbum).not.toHaveBeenCalled();
+        expect(mockCopyAll).not.toHaveBeenCalled();
+    });
+
+    it("savePhoto: 再送（同じ鍵の行が在る）でも書き直さない", async () => {
+        tombstone();
+        mockGetPhotoById.mockResolvedValue({ id: idFromUploadKey(BASE.key), userId: "u1", src: BASE.publicUrl, published: true });
+        const res = await invoke(event("u1", BASE));
+        expect(res.statusCode).toBe(410);
+        expect(mockOverwriteOwnPhoto).not.toHaveBeenCalled();
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+    });
+
+    it("savePhoto: users は1回だけ読み、その1回で表示名と deletedAt を一緒に引く", async () => {
+        mockLookupIfSet.mockResolvedValue("本当の名前");
+        const res = await invoke(event("u1", BASE));
+        expect(res.statusCode).toBe(200);
+        expect(userReads()).toHaveLength(1);
+        expect(projected(userReads()[0])).toEqual(expect.arrayContaining(["deletedAt", "displayName"]));
+        expect(savedPhoto().displayName).toBe("本当の名前");
+    });
+
+    it("savePhoto: 本人の行を読めなければ 500（墓石を確かめずに書かない）", async () => {
+        mockDdbSend.mockRejectedValue(new Error("throttled"));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const res = await invoke(event("u1", BASE));
+        err.mockRestore();
+        expect(res.statusCode).toBe(500);
+        expect(mockPutPhoto).not.toHaveBeenCalled();
+        expect(mockRequestSiteRebuild).not.toHaveBeenCalled();
+    });
+
+    it("presignedUrl: 410。署名つき URL を作らない", async () => {
+        tombstone();
+        const res = await invokePresign({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 1000 }),
+        });
+        expect(res.statusCode).toBe(410);
+        expect(mockGetSignedUrl).not.toHaveBeenCalled();
+        expect(mockPutObjectInput).not.toHaveBeenCalled();
+        expect(projected(userReads()[0])).toContain("deletedAt");
+    });
+
+    it("presignedUrl: 生きている人はこれまでどおり署名を渡す", async () => {
+        const res = await invokePresign({
+            requestContext: { authorizer: { jwt: { claims: { sub: "u1" } } } },
+            body: JSON.stringify({ fileName: "a.jpg", fileType: "image/jpeg", fileSize: 1000 }),
+        });
+        expect(res.statusCode).toBe(200);
+        expect(mockGetSignedUrl).toHaveBeenCalledTimes(1);
     });
 });

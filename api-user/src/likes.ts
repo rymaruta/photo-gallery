@@ -7,6 +7,7 @@ import { updateUserList, readUserList } from "./userList";
 import { canViewPhoto } from "./restrictedFeed";
 import { isRestrictedRow } from "./sanitize";
 import { isBlocked } from "./blockCheck";
+import { assertLiveCaller } from "./liveCaller";
 
 // いいねはアグリゲート数を写真レコードの `likes` 属性に持ち、
 // 二重カウント防止のために「誰がいいねしたか」をマーカー item で記録する。
@@ -318,6 +319,9 @@ export const likePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const userId = getUserId(event);
     const photoId = event.pathParameters?.id;
     if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     try {
         // マーカー作成（既にあれば ConditionalCheckFailed）
