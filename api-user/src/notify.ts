@@ -51,7 +51,7 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
 // プロフィール未設定の人に使う表示。人名に見える語（以前は「旅人」）だと
 // 「そういう名前の人がいる」と誤解され、検索しても見つからず混乱するため、
 // 明らかに未設定と分かる表記にする。
-const DEFAULT_NAME = "名前未設定さん";
+export const DEFAULT_NAME = "名前未設定さん";
 
 /** 退会した人のコメントに出す表示。誰のものだったかは残さない */
 export const DELETED_USER_NAME = "退会したユーザー";

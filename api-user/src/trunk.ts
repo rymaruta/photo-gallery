@@ -1984,6 +1984,7 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     const id = event.pathParameters?.id;
     const now = new Date();
     try {
+        // ⚠️ 下の `readProfileBits` より前で返す道（人のトランク・welcome・reward）は退会の確かめ（`goneIfDeleted`）を通らない。ここに書く道を足すなら自分で墓石を見る——`liveCallerGuard.test.ts` は handler 単位なので見逃す
         if (route === "GET /users/{uid}/trunk") {
             const target = event.pathParameters?.uid;
             if (typeof target !== "string" || !isUserId(target)) return jsonError(404, "見つかりません", "notFound");
