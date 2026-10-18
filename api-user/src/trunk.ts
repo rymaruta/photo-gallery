@@ -820,33 +820,69 @@ export async function grantLabelQuietly(
 
 /**
  * はじめての硬貨の対象か。
- * - `yes`     対象（硬貨の機能より前に登録した・または前から写真を持っている）
- * - `no`      対象外と確かめた（登録の時刻が機能より後・前からの写真も無い）→ 印を残す
- * - `unknown` 決められない（プロフィールの行が無い・登録の時刻が無い、のに前からの写真も無い）→ 配らない・印も残さない
- *            （2026-10-18 判断: 対象外に倒す。印を残さないので、あとで決め直せば次に開いたときに配れる）
+ * - `yes`     対象
+ * - `no`      対象外と確かめた → 対象外の印を残す
+ * - `unknown` 決められない（退会の墓石・プロフィールの行が無く `auth_time` も読めない）→ 配らない・印も残さない
+ *            （印を残さないので、あとで決め直せば次に開いたときに配れる）
  */
 export type WelcomeVerdict = "yes" | "no" | "unknown";
 
 export type WelcomeResult = { granted: boolean; added: number; coins: number };
 
+/** 対象かを決める手がかり（`welcomeCoins` が集める） */
+export type WelcomeEvidence = {
+    /** users テーブルの本人の行（無ければ undefined） */
+    profile: Record<string, unknown> | undefined;
+    /** JWT の `auth_time`（最初にサインインした時刻・ミリ秒）。無い・読めなければ undefined */
+    authTimeMs?: number;
+    /** 機能より前に作った本人の写真・ストーリーがあるか（引かなかったら undefined） */
+    hasOldItems?: boolean;
+};
+
 /**
- * 登録の時刻と前からの写真から、対象かを決める（純関数）。
+ * 対象かを決める（純関数）。2026-10-18 判断（coordinator）の順:
  *
- * 登録の時刻は users テーブルの行の `createdAt`。作るのは Cognito の登録完了のトリガー
- * （`api/src/cognitoTrigger.ts`）と、行が無い人がプロフィールを開いたとき（`userProfile.ts` の
- * `createProfileIfMissing`）と、行の無い人の Pro の購入（`supporterStore.ts`）で、どれも作ったその時刻を書く。
- * Cognito の `UserCreateDate` は `AdminGetUser` の権限（IAM の変更）が要り、JWT にも載らないので使わない。
+ *     1. users の行の `createdAt` が線より前                → 対象
+ *     2. 行はあるが `createdAt` が無い（読めない値も同じ）     → 対象
+ *        （`createdAt` を書くトリガーは 2026-08-19 から。それより前の古い利用者の行）
+ *     3. JWT の `auth_time` が線より前                       → 対象
+ *        （Cognito はリフレッシュしても最初のサインインの時刻を持つ。前から居るのに users の行がまだ無く、
+ *         アプリを開いた瞬間に `createProfileIfMissing` が今の時刻で行を作った人を拾う）
+ *     4. 機能より前の写真・ストーリー（`userId-createdAt-index`）がある → 対象
+ *     5. どれも無い → 対象外（印を残す）。ただし**行が無く `auth_time` も無い・読めない**人は
+ *        決められない（印を残さない）
  *
- * ⚠️ 行の `createdAt` は「行を作った時刻」で、登録の時刻より遅いことがある（トリガーが落ちて、あとで
- * プロフィールを開いたときに作られた人・トリガーを入れた 2026-08-19 より前の人）。だから
- * **機能より前に作った写真（ストーリーも含む・`userId-createdAt-index`）があれば、登録は機能より前**と見る
+ * 登録の時刻は users の行の `createdAt`（作るのは登録完了のトリガー `api/src/cognitoTrigger.ts`・
+ * 行が無い人がプロフィールを開いたとき `userProfile.ts` の `createProfileIfMissing`・行の無い人の Pro の購入
+ * `supporterStore.ts`。どれも作ったその時刻）。Cognito の `UserCreateDate` は `AdminGetUser` の権限
+ * （IAM の変更）が要り、JWT にも載らないので使わない。退会の墓石は配らない
  */
-export function welcomeVerdictOf(profile: Record<string, unknown> | undefined, hasOldItems: boolean): WelcomeVerdict {
+export function welcomeVerdictOf(ev: WelcomeEvidence): WelcomeVerdict {
+    const { profile } = ev;
     if (isDeletedProfile(profile)) return "unknown";
+    const line = Date.parse(TRUNK_COINS_LAUNCHED_AT);
     const t = typeof profile?.createdAt === "string" ? Date.parse(profile.createdAt) : NaN;
-    if (Number.isFinite(t) && t < Date.parse(TRUNK_COINS_LAUNCHED_AT)) return "yes";
-    if (hasOldItems) return "yes";
-    return Number.isFinite(t) ? "no" : "unknown";
+    if (Number.isFinite(t) && t < line) return "yes";
+    if (profile && !Number.isFinite(t)) return "yes";
+    if (ev.authTimeMs !== undefined && ev.authTimeMs < line) return "yes";
+    if (ev.hasOldItems) return "yes";
+    if (!profile && ev.authTimeMs === undefined) return "unknown";
+    return "no";
+}
+
+/** 1〜4 の手前で決まるか（決まれば索引を引かない） */
+const decidedWithoutItems = (ev: WelcomeEvidence) => {
+    const v = welcomeVerdictOf({ ...ev, hasOldItems: false });
+    return v === "yes" || isDeletedProfile(ev.profile);
+};
+
+/**
+ * JWT の `auth_time`（秒）をミリ秒に。API Gateway（HTTP API）の JWT の確かめ役は、数の項目も
+ * **文字に直して** claims に入れるので、数でも文字でも読む。読めなければ undefined
+ */
+export function authTimeMsOf(v: unknown): number | undefined {
+    const n = typeof v === "number" ? v : typeof v === "string" && /^\d{1,12}$/.test(v.trim()) ? Number(v.trim()) : NaN;
+    return Number.isFinite(n) && n > 0 ? n * 1000 : undefined;
 }
 
 /**
@@ -889,7 +925,7 @@ async function hasItemsBeforeCoins(uid: string): Promise<boolean> {
  * 2回目からは**トランクの2行を読むだけ**（印があれば users テーブルも索引も読まない）。
  * 並んだ2本・再送でも、rev 条件の書き込み（`updateTrunk`）が印を見て1回だけにする
  */
-export async function welcomeCoins(uid: string, now: Date = new Date()): Promise<WelcomeResult> {
+export async function welcomeCoins(uid: string, now: Date = new Date(), authTime?: unknown): Promise<WelcomeResult> {
     const rows = await readTrunkRows(uid);
     const first = parseTrunk(rows.main, rows.ledger);
     if (first.welcomeCoinsAt || first.welcomeCheckedAt) return { granted: false, added: 0, coins: first.coins };
@@ -899,9 +935,8 @@ export async function welcomeCoins(uid: string, now: Date = new Date()): Promise
         ProjectionExpression: "userId, createdAt, deletedAt",
     }))).Item as Record<string, unknown> | undefined;
     if (isDeletedProfile(profile)) return { granted: false, added: 0, coins: first.coins };
-    const t = typeof profile?.createdAt === "string" ? Date.parse(profile.createdAt) : NaN;
-    const early = Number.isFinite(t) && t < Date.parse(TRUNK_COINS_LAUNCHED_AT);
-    const verdict = welcomeVerdictOf(profile, early ? false : await hasItemsBeforeCoins(uid));
+    const ev: WelcomeEvidence = { profile, authTimeMs: authTimeMsOf(authTime) };
+    const verdict = welcomeVerdictOf(decidedWithoutItems(ev) ? ev : { ...ev, hasOldItems: await hasItemsBeforeCoins(uid) });
     let result: WelcomeResult = { granted: false, added: 0, coins: first.coins };
     await updateTrunk(uid, (doc) => {
         const r = welcomeInto(doc, verdict, now);
@@ -1293,7 +1328,10 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     const now = new Date();
     try {
         // Pro かどうかは要らない（users テーブルを読む回数を増やさない）
-        if (route === "POST /user/trunk/welcome") return ok(await welcomeCoins(uid, now));
+        if (route === "POST /user/trunk/welcome") {
+            // アプリは id token を送る（`APIClient.swift`）。Cognito の id token は `auth_time` を持つ
+            return ok(await welcomeCoins(uid, now, event.requestContext.authorizer.jwt.claims.auth_time));
+        }
         const pro = isPro(await readProfileBits(uid), now.getTime());
         if (route === "GET /user/trunk") {
             const [rows, photos] = await Promise.all([

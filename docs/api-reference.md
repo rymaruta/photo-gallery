@@ -379,10 +379,13 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   応答 `{ granted: boolean, added: number, coins: number }`
   - `granted` はこの呼び出しで1枚以上配ったときだけ `true`。配り済み・対象外・決められないときは `false`（エラーにしない・200）
   - `added` は足せた枚数（上限 99 を超える分は配らない）。`coins` は今の枚数（`GET /user/trunk` の `coins` と同じ値）
-  - 対象かの決め方: users テーブルの行の `createdAt` が線より前 → 対象。そうでなければ、本人の写真・ストーリー
-    （`userId-createdAt-index`）に線より前のものが1つでもあれば対象（行が後から作られた人を拾う）。
-    どちらも無く `createdAt` が線より後 → 対象外。`createdAt` が無い・読めない・行が無い（かつ前の写真も無い）
-    → 配らない（印も残さない＝あとで決め直せる）。退会の墓石の行は配らない
+  - 対象かの決め方（2026-10-18 判断・この順）: ① users の行の `createdAt` が線より前 → 対象
+    ② 行はあるが `createdAt` が無い・読めない（2026-08-19 より前の古い利用者）→ 対象
+    ③ JWT の `auth_time`（最初のサインインの時刻。Cognito はリフレッシュしても持ち越す・アプリは id token を送る）が
+    線より前 → 対象（前から居るのに行がまだ無く、開いた瞬間に今の時刻で行が作られた人を拾う）
+    ④ 本人の写真・ストーリー（`userId-createdAt-index`）に線より前のものがある → 対象
+    ⑤ どれも無い → 対象外（印を残す）。ただし行が無く `auth_time` も無い・読めない人は配らず印も残さない
+    （あとで決め直せる）。退会の墓石の行は配らない
   - 一度きり: `trunk#<uid>` に `welcomeCoinsAt`（と `welcomeCoinsAdded`）を書く。対象外と確かめた人には
     `welcomeCheckedAt`。印のある人は2回目からトランクの2行を読むだけ（users・索引は読まない）。
     書き込みはほかのトランクの口と同じ rev 条件（並んだ呼び出し・再送でも1回だけ）。99 枚で足せなかった（0 枚）ときも印は残す
