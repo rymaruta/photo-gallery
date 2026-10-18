@@ -79,7 +79,35 @@ function sectionOf(n: number): string {
 describe("本文の約束が消えていない", () => {
     it("3節: iPhone アプリは撮影地の欄が空のままでも座標を送ると書いてある（PlaceCoordsRule の (a)）", () => {
         expect(sectionOf(3)).toContain("撮影地の欄が空のまま投稿したとき");
-        expect(sectionOf(3)).toContain("ストーリーの投稿にも同じ条件が当てはまります");
+        expect(sectionOf(3)).toContain("ストーリーの投稿と写真の差し替えにも同じ条件が当てはまります");
+    });
+
+    /**
+     * iOS の「撮影地の位置を付ける」切り替え（journey.photo-ios #290・e2a0464・1.1.14 から）。
+     * 名前は iOS の `UploadDetails.locationToggleTitle` の文言そのまま（別のリポジトリなので文字で持つ）。
+     * 切り替えの無い前の版も出回っているので、「切り替えは無い」とも「全部の版で切り替えられる」とも言わない
+     */
+    it("3節: iPhone アプリの新しい版の切り替えと、前の版の動きを両方書いてある", () => {
+        const s3 = sectionOf(3);
+        expect(s3).toContain("「撮影地の位置を付ける（約1kmに丸めて保存）」で切り替えられます（初期状態はオンです）");
+        expect(s3).toContain("投稿・ストーリー・写真の差し替えの画面");
+        expect(s3).toContain("オフにすると写真の位置情報は送らず");
+        expect(s3, "前の版の動きが抜けている（まだ切り替えの無い版が出回っている）").toContain("この切り替えの無い前の版では、上の条件のとおり送ります");
+        expect(s3, "切り替えが入ったのに、無いと言っている").not.toContain("切り替えはありません");
+    });
+
+    it("11節: API のログの保存期間は serverless の logRetentionInDays と同じ日数で、全部とは言い切らない", () => {
+        const days = ["api/serverless.yml", "api-user/serverless.yml"].map((f) => {
+            const m = read(f).match(/^\s*logRetentionInDays:\s*(\d+)\s*$/m);
+            expect(m, `${f} に logRetentionInDays が無い（ログが無期限に戻った）`).not.toBeNull();
+            return Number(m![1]);
+        });
+        expect(new Set(days).size, "api と api-user で保存期間が違う。本文の書き方を見直すこと").toBe(1);
+        const s11 = sectionOf(11);
+        expect(s11, "本文の日数が設定と違う").toContain(`API サーバーのログは${days[0]}日で自動的に消えます`);
+        // Lambda@Edge（OGP）のログは期限が付いていない。全部が消えるとは言わない
+        expect(s11).toContain("まだ保存期間を設けていないものがあります");
+        expect(s11, "ログ全部に期限があるかのように書いている").not.toMatch(/(すべて|全て|全部)の(動作記録|ログ)/);
     });
 
     it("5節: アーカイブに移るとき、閲覧の記録と他の方の返信を消すと書いてある", () => {
