@@ -407,7 +407,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
       再送（配りの書き込みに相乗り）。**撮影地を書き換えたら、新しい撮影地で公開のままでも伏せたまま**（ラベルの地名は配ったときのもので、
       書き換えと食い違うため）。元の撮影地に戻せばまた付く
     - 外す: 写真の削除・公開 → 非公開（`revokeLabelQuietly`・24時間以内ならラベルごと取り消す・同じ書き込み）、公開範囲を絞った、
-      撮影地を変えた・消した、**管理 API（`api`）の削除と非公開と撮影地の変更**（`api/src/trunkPlace.ts`・trunk# を rev 条件で置き直す。
+      撮影地を変えた・消した、**管理 API（`api`）の削除と非公開と撮影地の変更**（`api/src/trunkLabelPlaceDrop.ts`・trunk# を rev 条件で置き直す。
       外すだけ）。束のラベルは、誰にでも見える公開の兄弟が同じ撮影地で残っていれば印を残す（絞った兄弟は数えない）
     - 本番にもう在るラベルに印を足す台本: `scripts/backfill-trunk-place-ok.js`（`--estimate` で表の大きさから見積もり、
       引数なしは読むだけ＝何枚に付く／外れるかを出す、`--apply` で書く。判定は同じ `trunkPlace.ts`。流すのは owner の承認のあと）

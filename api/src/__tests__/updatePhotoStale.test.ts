@@ -15,8 +15,8 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockRebuild = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend } }));
-// 旅のトランクの印を外す処理（`trunkPlace.ts`）は自分のテストで見る。ここでは本物の DynamoDB に行かせない
-vi.mock("../trunkPlace", () => ({ dropTrunkPlaceOkQuietly: vi.fn(async () => undefined) }));
+// 旅のトランクの印を外す処理（`trunkLabelPlaceDrop.ts`）は自分のテストで見る。ここでは本物の DynamoDB に行かせない
+vi.mock("../trunkLabelPlaceDrop", () => ({ dropTrunkPlaceOkQuietly: vi.fn(async () => undefined) }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 vi.mock("../auth", () => ({
     isAdmin: () => true,
