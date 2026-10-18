@@ -819,18 +819,32 @@ export async function grantLabel(
     // （歯止め・上限）は今までどおり何も書かない。控えは本人が `GET /user/trunk` を開いたときにも直る
     const posts = countPublicPosts([...others, photo] as unknown as Record<string, unknown>[]);
     // 再送の束だけ: 配り済みのラベルの印を、強い読みの兄弟を根拠に残せるよう読む（`placeOkNext`）。
-    // 再送でない回は配り済みに当たらない（束の2枚目以降は `samePost`）ので読まない。読むのは兄弟を並べて上限まで
+    // **読むのは要るときだけ**: 再送で、配り済みのラベル（印つき）に当たり、今の写真では印を残せないとき。
+    // そのときは一度書かずに戻り、兄弟を並べて上限まで読んでから、もう一度配りを通す（trunk の読みが1回増える）。
+    // 再送でない回は兄弟を読まない（束の2枚目以降は `samePost` で配り済みには当たらない＝見せない側に倒す）
     const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
-    const siblingPlaces = opts.resend && g ? await strongSiblingPlaces(uid, g, photo.id, mine) : undefined;
+    let siblingPlaces: Set<string> | undefined;
     let outcome: DealOutcome = noDeal("error");
     let wroteOk = false;
-    await updateTrunk(uid, (doc) => {
-        const r = dealInto(doc, label, limit, fp, now, { siblingPlaces });
-        outcome = r.outcome;
-        // この書き込みで「地名を見せてよい」印を新しく付けたか（やり直しのたびに決め直す＝最後の1回が書いたもの）
-        wroteOk = !!r.doc && hasPlaceOk(r.doc, label.id) && !hasPlaceOk(doc, label.id);
-        return r.doc ? { ...r.doc, posts } : null;
-    });
+    for (let pass = 0; pass < 2; pass++) {
+        let needSiblings = false;
+        await updateTrunk(uid, (doc) => {
+            const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
+            const selfOk = !!label.placeOk && !!existing && placeKey(existing.place) === placeKey(label.place);
+            if (opts.resend && g && siblingPlaces === undefined && existing?.placeOk && !selfOk) {
+                needSiblings = true;
+                return null;
+            }
+            needSiblings = false;
+            const r = dealInto(doc, label, limit, fp, now, { siblingPlaces });
+            outcome = r.outcome;
+            // この書き込みで「地名を見せてよい」印を新しく付けたか（やり直しのたびに決め直す＝最後の1回が書いたもの）
+            wroteOk = !!r.doc && hasPlaceOk(r.doc, label.id) && !hasPlaceOk(doc, label.id);
+            return r.doc ? { ...r.doc, posts } : null;
+        });
+        if (!needSiblings) break;
+        siblingPlaces = await strongSiblingPlaces(uid, g, photo.id, mine);
+    }
     // **書いたあとに確かめる**: 書くまでのあいだ（競合のやり直し・Lambda の凍結）に写真が絞られた・非公開に
     // された・撮影地が変わったなら、付けた印を外し直す（外す側は確かめなくても漏れない）。
     // 2026-10-18 判断: 確かめは配りと**同じ待ちの内側**で、配りを書いたらすぐに走らせる。待ちの切れ目（`deadline`）が
@@ -1645,9 +1659,9 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
     for (const [labelId, photoIds] of candidates) {
         const l = all.find((x) => x.id === labelId);
         if (!l || budget === 0) continue;
-        // 上限より大きい束は、ラベルの写真＋兄弟を上限まで読む（残す根拠が見つからなければ外す側に倒す）。
-        // 上限に収まる束が今回の残りに入らないときは、次の GET に回す（次は丸ごと読める）
-        if (photoIds.length > budget && photoIds.length <= STALE_READ_MAX) continue;
+        // 上限より大きい束は、**枠が満タンの回だけ**、ラベルの写真＋兄弟を上限まで読む（いつも同じ 25 枚で判断する。
+        // 残す根拠が見つからなければ外す側に倒す）。満タンでない回・上限に収まる束が今回の残りに入らないときは、次の GET に回す
+        if (photoIds.length > budget && (photoIds.length <= STALE_READ_MAX || budget < STALE_READ_MAX)) continue;
         const take = photoIds.slice(0, budget);
         budget -= take.length;
         picked.push([l, take]);
