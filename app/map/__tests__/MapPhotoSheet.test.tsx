@@ -254,3 +254,35 @@ describe("撮影地マップのボトムシート", () => {
         expect(img?.getAttribute("src")).toBe("https://example.org/x.webp");
     });
 });
+
+// 題が無い写真の札（2026-10-18）。「無題」と出していたのを、写真ページの `<title>` と
+// 同じ「<撮影地>の写真」/「写真」に（札の形は変えない・文字だけ）
+describe("撮影地マップの札: 題が無い写真", () => {
+    const cases: [string, Partial<MapPhoto>][] = [
+        ["欄が無い", { title: undefined }],
+        ["空白だけ", { title: { ja: "  " } }],
+        ["{ ja: 無題, en: Untitled }", { title: { ja: "無題", en: "Untitled" } }],
+    ];
+    for (const [name, over] of cases) {
+        it(`${name} ＋ 撮影地あり → 「<撮影地>の写真」`, () => {
+            setup([photo("a", { ...over, location: "板橋区" } as Partial<MapPhoto>)]);
+            expect(screen.getByText("板橋区の写真")).toBeTruthy();
+            expect(screen.getByTestId("map-photo-sheet").innerHTML).not.toMatch(/無題|Untitled/);
+        });
+        it(`${name} ＋ 撮影地なし → 「写真」`, () => {
+            setup([photo("a", over)]);
+            expect(screen.getByText("写真")).toBeTruthy();
+            expect(screen.getByTestId("map-photo-sheet").innerHTML).not.toMatch(/無題|Untitled/);
+        });
+    }
+});
+
+// 下の並び（同じ撮影地の別の写真）の読み上げ名。旧い既定値の「無題」を読ませない
+describe("撮影地マップの札: 同じ撮影地の写真の読み上げ名", () => {
+    it("{ ja: 無題, en: Untitled } → 「写真」・題があればその題", () => {
+        render(<MapPhotoSheet photos={[photo("a")]} index={0} onIndexChange={vi.fn()} onClose={vi.fn()} locale="ja"
+            related={[photo("r1", { title: { ja: "無題", en: "Untitled" } } as Partial<MapPhoto>), photo("r2")]} relatedTotal={3} relatedHref="/location/x" />);
+        const links = Array.from(screen.getByTestId("map-sheet-related").querySelectorAll("a"));
+        expect(links.map((a) => a.getAttribute("aria-label"))).toEqual(["写真", "題r2"]);
+    });
+});

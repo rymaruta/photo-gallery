@@ -653,3 +653,29 @@ describe("公式撮影地ガイドのピン", () => {
         expect(state.markers.some((m) => String(m.opts.title ?? "").includes("公式"))).toBe(false);
     });
 });
+
+// 地図のピンの名前（marker の title・alt）。撮影地を主にし、無ければ写真ページと同じ題
+// （旧い既定値の「無題」を名乗らない・2026-10-18）
+describe("地図のピンの名前: 題が無い写真", () => {
+    beforeEach(() => { state.markers.length = 0; });
+    const pinName = () => {
+        const m = state.markers.find((x) => x.kind === "marker");
+        return [m?.opts.title, m?.opts.alt];
+    };
+    it("{ ja: 無題, en: Untitled }・撮影地なし → 「写真」", async () => {
+        await draw([photo("a", { title: { ja: "無題", en: "Untitled" }, location: "" })]);
+        expect(pinName()).toEqual(["写真", "写真"]);
+    });
+    it("空白だけの題・撮影地なし → 「写真」", async () => {
+        await draw([photo("a", { title: { ja: "  " }, location: undefined })]);
+        expect(pinName()).toEqual(["写真", "写真"]);
+    });
+    it("撮影地があれば撮影地（今までどおり）", async () => {
+        await draw([photo("a", { title: { ja: "無題" } })]);
+        expect(pinName()).toEqual(["山中湖", "山中湖"]);
+    });
+    it("撮影地が無く題があれば題", async () => {
+        await draw([photo("a", { location: "" })]);
+        expect(pinName()).toEqual(["写真a", "写真a"]);
+    });
+});
