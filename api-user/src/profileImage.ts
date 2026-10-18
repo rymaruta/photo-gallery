@@ -11,8 +11,9 @@
  * 同じ URL に聞けば権限を増やさずに済む。実体は `no-store` で置かれる（エッジに控えない）。
  *
  * ⚠️ 無いキーの 404 はエッジに約10秒控えられる（`scripts/fix-cdn-error-pages.js` の `ErrorCachingMinTTL`）。
- * 毎回ちがう問い（`?r=`）を付けて控えを避けにいくが、問いを鍵に含めない配り方だと、置いた直後の
- * 10秒の間は「無い」と答えることがある——そのときは印を立てずに返すので、次の呼び出し（起動・保存し直し）で渡せる。
+ * 毎回ちがう問い（`?r=`）を付けるが、既定のキャッシュポリシー（Managed-CachingOptimized）は問いを鍵に入れない
+ * 見込みなので（`scripts/verify-origin-failover.js`）、置いた直後の10秒の間は「無い」と答えることがある——
+ * そのときは印を立てずに返す。アプリと Web は約12秒おいて1回だけ頼み直し、それでもだめなら次の起動で確かめ直す。
  *
  * **分からないときは「無い」に倒す**（404・ほかの失敗・時間切れも）。配りすぎない向き
  */
@@ -35,7 +36,11 @@ export async function profileImageExists(uid: string, kind: ProfileImageKind): P
     const url = `${base}/${path}?r=${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     try {
         const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(HEAD_TIMEOUT_MS) });
-        if (res.status !== 200) return false;
+        if (res.status !== 200) {
+            // 無い（404）はふつうの答え。403 などは配り方の変化・権限の誤りかもしれないので残す
+            if (res.status !== 404) console.warn(`profileImageExists(${kind}): HEAD ${res.status}`);
+            return false;
+        }
         // 空の実体は置かれていないのと同じに扱う（長さが分からなければ在ることにする）
         const len = res.headers.get("content-length");
         // 404 を差し替えるエラーページ（HTML）は 404 のまま返るが、念のため画像でない 200 も「無い」にする

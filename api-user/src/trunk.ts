@@ -1190,17 +1190,20 @@ const rewardAddedKey = (kind: RewardKind): "rewardAvatarAdded" | "rewardCoverAdd
  * - 設定されていない（`isSet` が false）→ 何も書かない（印も立てない。設定したあとの呼び出しで渡せる）
  * - 設定されている → 3 枚。上限 99 を超える分は配らない。**0 枚しか足せなくても印は立てる**
  *   （はじめての硬貨と同じ決まり・`welcomeInto`）
- * `granted` はこの呼び出しで1枚以上配ったときだけ true
+ * `granted` はこの呼び出しで1枚以上配ったときだけ true。
+ * `rewarded` は**この種類のお礼の印が立っているか**（前から・この呼び出しで、のどちらでも true）。
+ * アプリは false の間は起動のときに確かめ直し、差し出しの「硬貨 3 枚」の行もこれで出し分ける（2026-10-18 見直し）
  */
-export function rewardInto(doc: TrunkDoc, kind: RewardKind, isSet: boolean, now: Date): { doc: TrunkDoc | null; result: WelcomeResult } {
-    const none = { granted: false, added: 0, coins: doc.coins };
-    if (doc[rewardAtKey(kind)]) return { doc: null, result: none };
-    if (!isSet) return { doc: null, result: none };
+export type RewardResult = WelcomeResult & { rewarded: boolean };
+
+export function rewardInto(doc: TrunkDoc, kind: RewardKind, isSet: boolean, now: Date): { doc: TrunkDoc | null; result: RewardResult } {
+    if (doc[rewardAtKey(kind)]) return { doc: null, result: { granted: false, added: 0, coins: doc.coins, rewarded: true } };
+    if (!isSet) return { doc: null, result: { granted: false, added: 0, coins: doc.coins, rewarded: false } };
     const added = Math.max(0, Math.min(REWARD_COINS, COINS_MAX - doc.coins));
     const coins = doc.coins + added;
     return {
         doc: { ...doc, coins, [rewardAtKey(kind)]: now.toISOString(), [rewardAddedKey(kind)]: added },
-        result: { granted: added > 0, added, coins },
+        result: { granted: added > 0, added, coins, rewarded: true },
     };
 }
 
@@ -1213,12 +1216,16 @@ export function rewardInto(doc: TrunkDoc, kind: RewardKind, isSet: boolean, now:
  * 3. 実際に設定されているかを確かめる。**アイコン・カバーは users に項目が無い**（置き場は S3 の決まったキーだけ・
  *    `profile.ts`）ので、その実体を公開の CDN に HEAD で聞く（`profileImage.ts`。共有のロールに profiles/* の読みを足さない）
  * 4. 印は `updateTrunk`（rev 条件）の中で立てる。並んだ2本・再送でも1回だけ。trunk# の行が無ければ作る
+ *
+ * ⚠️ CDN は無いキーの 404 を約10秒覚え、問い（`?r=`）は既定のキャッシュポリシーでは鍵に入らない見込み
+ * （`scripts/verify-origin-failover.js`）。置いた直後は「無い」と答えることがあるので、アプリと Web は
+ * `added == 0` かつ `rewarded == false` なら約12秒おいて1回だけ頼み直す
  */
-export async function rewardCoins(uid: string, kind: RewardKind, now: Date = new Date()): Promise<WelcomeResult> {
+export async function rewardCoins(uid: string, kind: RewardKind, now: Date = new Date()): Promise<RewardResult> {
     const rows = await readTrunkRows(uid);
     const first = parseTrunk(rows.main, rows.ledger);
-    const none = { granted: false, added: 0, coins: first.coins };
-    if (first[rewardAtKey(kind)]) return none;
+    const none: RewardResult = { granted: false, added: 0, coins: first.coins, rewarded: false };
+    if (first[rewardAtKey(kind)]) return { ...none, rewarded: true };
     const profile = (await ddb.send(new GetCommand({
         TableName: USERS_TABLE,
         Key: { userId: uid },
@@ -1228,7 +1235,7 @@ export async function rewardCoins(uid: string, kind: RewardKind, now: Date = new
     if (isDeletedProfile(profile)) return none;
     const isSet = await profileImageExists(uid, kind);
     if (!isSet) return none;
-    let result: WelcomeResult = none;
+    let result: RewardResult = none;
     await updateTrunk(uid, (doc) => {
         const r = rewardInto(doc, kind, isSet, now);
         result = r.result;
@@ -1953,7 +1960,7 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  *     PUT    /user/trunk/equip { handle?, …, pins?, patches? } → view
  *     GET    /users/{uid}/trunk                  → 人のトランク（`readTheirTrunk`・見せないときは 404）
  *     POST   /user/trunk/welcome                 → { granted, added, coins }（はじめての硬貨・一度きり）
- *     POST   /user/trunk/reward { kind }         → { granted, added, coins }（アイコン・カバーのお礼・それぞれ一度きり・#304）
+ *     POST   /user/trunk/reward { kind }         → { granted, added, coins, rewarded }（アイコン・カバーのお礼・それぞれ一度きり・#304）
  *
  * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
  * noRerollsLeft / noPending / badSeed / badModel / badRequest / badPlace / notStuck / noCoins /
