@@ -135,3 +135,19 @@ describe("写真ページ: 題が無い写真のパンくず・構造化デー�
         });
     }
 });
+
+// 前後の写真の札（見える文字）。旧い既定値の「無題」を出さない（題が無ければ今までどおり「写真」）
+describe("写真ページ: 前後の写真の題", () => {
+    it("{ ja: 無題 } の前後の写真は「写真」と出す", async () => {
+        const prev = { id: "p0", src: "https://cdn.example.com/uploads/alice/0.webp", title: { ja: "無題", en: "Untitled" } };
+        const next = { id: "p2", src: "https://cdn.example.com/uploads/alice/2.webp", title: { ja: "夕焼け" } };
+        const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={{ ...NO_TITLE, title: { ja: "朝の湖" } } as unknown as Photo}
+            initialRelated={{ author: [], location: [], prev, next, nearby: [] } as never} />);
+        await screen.findAllByRole("heading", { level: 1 });
+        const prevLink = container.querySelector('a[data-photo-id="p0"]');
+        const nextLink = container.querySelector('a[data-photo-id="p2"]');
+        expect(prevLink?.textContent).toContain("写真");
+        expect(nextLink?.textContent).toContain("夕焼け");
+        expect(container.innerHTML).not.toMatch(/無題|Untitled/);
+    });
+});

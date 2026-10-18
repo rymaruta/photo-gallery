@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import type { MapPhoto } from "../components/PhotoMap";
-import { getLocalized, getLocalizedParagraphs } from "../../lib/data/photos";
+import { getLocalizedParagraphs } from "../../lib/data/photos";
+import { photoOwnTitle, photoTitleFor } from "../../lib/utils/photoTitle";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { publicImageUrl } from "../../lib/utils/seo";
 import { ROUTES } from "../../lib/routes";
@@ -130,7 +131,9 @@ export default function MapPhotoSheet({
 
     if (!photo) return null;
 
-    const title = getLocalized(photo.title, locale) || (en ? "Untitled" : "無題");
+    // 題が無い（「無題」を含む）写真は「<撮影地>の写真」/「写真」（`photoTitleFor`。
+    // 写真ページの `<title>` と同じ言い方）。札の形は変えない——文字だけ
+    const title = photoTitleFor(photo, en ? "en" : "ja").text;
     const location = typeof photo.location === "string" ? photo.location.trim() : "";
     // 説明は1段落だけ出す（シートは一覧の入口で、全文は個別ページ）
     const description = getLocalizedParagraphs(photo.description, locale)[0] ?? "";
@@ -252,7 +255,7 @@ export default function MapPhotoSheet({
                                             prefetch={false}
                                             className="block overflow-hidden rounded-lg bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                                             style={{ width: "48px", height: "48px" }}
-                                            aria-label={getLocalized(r.title, locale) || (en ? "Photo" : "写真")}
+                                            aria-label={photoOwnTitle(r, locale) || (en ? "Photo" : "写真")}
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
