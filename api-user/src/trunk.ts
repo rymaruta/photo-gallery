@@ -861,6 +861,21 @@ async function confirmWithin(uid: string, photoId: string, deadline?: number): P
 /** 外側の待ち（`TRUNK_QUIET_LIMIT_MS`）より少し前に、確かめを待つのをやめる（配りの答えを時間切れにしない） */
 const CONFIRM_MARGIN_MS = 200;
 
+/**
+ * **「地名を見せてよい」印の決まり（1か所）**（2026-10-18 判断）:
+ *
+ * - **付ける**のは、その写真そのもので確かめたときだけ（`placeOkFor`）。束の兄弟を根拠に付けない
+ * - **残す**のは、その写真か、**強い読みで読んだ**束の兄弟のどれかが、誰にでも見える公開で撮影地が同じとき
+ *   （取り消し・付け直し・本人の GET の外しが同じ決まり。`siblingPlaces` は強い読みの兄弟の撮影地）
+ * - 付けたあとの確かめ（`confirmPlaceOk`）は、付けた根拠（その写真）だけをもう一度見る
+ */
+export function placeOkNext(
+    l: TrunkLabel, self: Record<string, unknown> | undefined, uid: string, siblingPlaces: Set<string>,
+): boolean {
+    if (placeOkFor(l.place, self, uid)) return true;
+    return !!l.placeOk && siblingPlaces.has(placeKey(l.place));
+}
+
 /** そのラベル（手持ち・貼った方）に「地名を見せてよい」印があるか */
 function hasPlaceOk(doc: TrunkDoc, id: string): boolean {
     return !!(doc.pocket.find((l) => l.id === id) ?? doc.stuck.find((l) => l.id === id))?.placeOk;
@@ -869,9 +884,8 @@ function hasPlaceOk(doc: TrunkDoc, id: string): boolean {
 /**
  * 印を**付けた**あとに呼ぶ: 写真を強い読みで読み直し、もう見せてよくない（公開でない・無い・撮影地が違う）なら
  * 印を外す。**外すだけ**（付けはしない）。
- * 2026-10-18 判断: **束の兄弟は根拠にしない**（書く前に集めた兄弟の情報は古いかもしれない。読み直すと兄弟の数だけ
- * 読みが増える）。この写真で確かめられなければ外す＝見せない側に倒す。兄弟が公開なら、その兄弟を編集・再送したときに
- * その兄弟で付け直る
+ * 印は「その写真そのもの」でしか付かない（`placeOkNext`）ので、確かめも付けた根拠のその写真だけを見る
+ * （束の兄弟は見ない＝読みを増やさない）
  */
 export async function confirmPlaceOk(uid: string, photoId: string, match: (l: TrunkLabel) => boolean): Promise<boolean> {
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
@@ -1361,7 +1375,8 @@ export async function revokeLabelQuietly(uid: string, photo: Record<string, unkn
                     // 取り消されずに残ったラベルは、地名を見せてよい印を外す（同じ書き込みに相乗り）。
                     // 束は、誰にでも見える公開の兄弟が同じ撮影地で残っているときだけ印を残す
                     const base = revoked ?? doc;
-                    const fixed = setPlaceOk(base, labelMatcher(photoId, g), (l) => sib.publicPlaces.has(placeKey(l.place)));
+                    // 写真そのものは消えた・隠れた（self なし）。残すのは強い読みの兄弟が根拠になるときだけ（`placeOkNext`）
+                    const fixed = setPlaceOk(base, labelMatcher(photoId, g), (l) => placeOkNext(l, undefined, uid, sib.publicPlaces));
                     return fixed ?? revoked;
                 });
             })().catch((e) => {
@@ -1401,7 +1416,8 @@ export async function refreshLabelPlaceQuietly(
                 let added = false;
                 await updateTrunk(uid, (doc, exists) => {
                     if (!exists) return null;
-                    const next = setPlaceOk(doc, match, (l) => placeOkFor(l.place, after, uid) || sib.publicPlaces.has(placeKey(l.place)));
+                    // 付けるのはこの写真で確かめたときだけ・兄弟は残す根拠にだけなる（`placeOkNext`）
+                    const next = setPlaceOk(doc, match, (l) => placeOkNext(l, after, uid, sib.publicPlaces));
                     added = !!next && [...next.pocket, ...next.stuck].some((l) => match(l) && l.placeOk
                         && !([...doc.pocket, ...doc.stuck].find((d) => d.id === l.id)?.placeOk));
                     return next;
@@ -1584,22 +1600,45 @@ export function stalePlaceOkCandidates(doc: TrunkDoc, photos: Record<string, unk
     return out;
 }
 
+/** 1回の `GET /user/trunk` で、外しの確かめに読む写真の上限（超えた分は次の GET に回す） */
+export const STALE_READ_MAX = 25;
+
 /**
- * 挙がったラベルの写真を**強い読み**で読み直し、本当に見せてよくないものだけ返す（どれか1枚でも、本人の・
- * 誰にでも見える公開で撮影地が同じなら残す）
+ * 挙がったラベルの写真を**強い読み**で（並べて）読み直し、本当に見せてよくないものだけ返す。残す決まりは
+ * `placeOkNext`（その写真か、束の兄弟のどれかが誰にでも見える公開で撮影地が同じ）。
+ * **外しは最善の努力**: 読みが落ちたラベルは外さない（記録だけ・画面は 500 にしない）。読む写真は1回の GET で
+ * `STALE_READ_MAX` 枚まで（超えたラベルは今回は外さず、次の GET で見る）
  */
 async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, uid: string): Promise<Set<string>> {
-    const out = new Set<string>();
     const all = [...doc.pocket, ...doc.stuck];
+    const picked: [TrunkLabel, string[]][] = [];
+    let budget = STALE_READ_MAX;
     for (const [labelId, photoIds] of candidates) {
         const l = all.find((x) => x.id === labelId);
-        if (!l) continue;
-        let ok = false;
-        for (const id of photoIds) {
+        if (!l || photoIds.length > budget) continue;
+        budget -= photoIds.length;
+        picked.push([l, photoIds]);
+    }
+    const ids = [...new Set(picked.flatMap(([, p]) => p))];
+    const rows = new Map<string, { ok: true; item?: Record<string, unknown> } | { ok: false }>();
+    await Promise.all(ids.map(async (id) => {
+        try {
             const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
-            if (placeOkFor(l.place, res.Item as Record<string, unknown> | undefined, uid)) { ok = true; break; }
+            rows.set(id, { ok: true, item: res.Item as Record<string, unknown> | undefined });
+        } catch (e) {
+            console.error(`trunk: 外しの確かめの読みに失敗しました（${uid}・${id}）:`, e);
+            rows.set(id, { ok: false });
         }
-        if (!ok) out.add(labelId);
+    }));
+    const out = new Set<string>();
+    for (const [l, photoIds] of picked) {
+        const read = photoIds.map((id) => rows.get(id));
+        // 1枚でも読めなかったら外さない（見せない側に倒すのは「確かめられた」ときだけ）
+        if (read.some((r) => !r || !r.ok)) continue;
+        const [self, ...siblings] = read.map((r) => (r && r.ok ? r.item : undefined));
+        const siblingPlaces = new Set(siblings.filter((r): r is Record<string, unknown> => !!r && placeOkFor(l.place, r, uid))
+            .map(() => placeKey(l.place)));
+        if (!placeOkNext(l, self, uid, siblingPlaces)) out.add(l.id);
     }
     return out;
 }
@@ -1656,7 +1695,13 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
             // 外し損ねた印をここで外す（本人の写真はもう全部読んでいる。付ける側はやらない）
             // 一覧で挙がった候補だけ強い読みで読み直してから外す（索引の古い姿で正しい印を外さない）
             const candidates = stalePlaceOkCandidates(doc, photos as unknown as Record<string, unknown>[], uid);
-            const stale = candidates.size > 0 ? await confirmStale(doc, candidates, uid) : new Set<string>();
+            const stale = candidates.size > 0
+                ? await confirmStale(doc, candidates, uid).catch((e) => {
+                    // 外しは最善の努力。落ちたら外さない（記録だけ・トランクの画面は出す）
+                    console.error(`trunk: 外しの確かめに失敗しました（${uid}）:`, e);
+                    return new Set<string>();
+                })
+                : new Set<string>();
             if (rows.main && (doc.posts !== publicPosts || stale.size > 0)) {
                 await noteTrunkQuietly(uid, publicPosts, stale);
                 if (stale.size > 0) doc = setPlaceOk(doc, (l) => stale.has(l.id), () => false) ?? doc;
