@@ -295,6 +295,46 @@ describe("Thumb: 読み込めなかった写真の控えを捨てる", () => {
 });
 
 /**
+ * 2026-10-18（札 journey.photo-ios#294）: 絞った写真の画像は期限つきの URL。期限が切れて割れたあと、
+ * 一覧を取り直すと**同じ写真（同じ key）に新しい URL** が来る。失敗の印が残ったままだと、
+ * 新しい URL を一度も読まずに割れた絵のまま残る。
+ */
+describe("Thumb: URL が替わったら失敗の絵から戻る", () => {
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it("割れたあと、再描画で URL が替わると <img> に戻る", () => {
+        vi.stubGlobal("caches", { open: async () => ({ delete: async () => true }) });
+        const old = "https://cdn/private/u/x.jpg?Expires=1&Signature=a&Key-Pair-Id=K";
+        const fresh = "https://cdn/private/u/x.jpg?Expires=2&Signature=b&Key-Pair-Id=K";
+        const { container, rerender } = render(
+            <div style={{ position: "relative" }}>
+                <Thumb photo={{ id: "p", src: old } as never} alt="湖" />
+            </div>,
+        );
+        fireEvent.error(container.querySelector("picture > img") as HTMLImageElement);
+        expect(container.querySelector("picture > img"), "失敗の絵に替わっていない").toBeNull();
+
+        rerender(
+            <div style={{ position: "relative" }}>
+                <Thumb photo={{ id: "p", src: fresh } as never} alt="湖" />
+            </div>,
+        );
+        const img = container.querySelector("picture > img") as HTMLImageElement | null;
+        expect(img, "新しい URL が来ても割れた絵のまま").not.toBeNull();
+        expect(img?.getAttribute("src")).toBe(fresh);
+    });
+
+    it("同じ URL のまま描き直しても、失敗の絵のまま（読み直しを繰り返さない）", () => {
+        vi.stubGlobal("caches", { open: async () => ({ delete: async () => true }) });
+        const url = "https://cdn/uploads/u/x.jpg";
+        const { container, rerender } = render(<Thumb photo={{ id: "p", src: url } as never} alt="湖" />);
+        fireEvent.error(container.querySelector("picture > img") as HTMLImageElement);
+        rerender(<Thumb photo={{ id: "p", src: url, title: "x" } as never} alt="湖" />);
+        expect(container.querySelector("picture > img")).toBeNull();
+    });
+});
+
+/**
  * 🔴 **写真を歪ませない**（owner の指示・2026-09-22「さがす」は写真の
  * 縦横比を維持すること）。
  *

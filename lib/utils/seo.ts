@@ -3,6 +3,7 @@
 import { spacelessName } from "./nameVariants";
 import { personNodeId } from "./personId";
 import { metaText } from "./metaText";
+import { signedUrlExpiry } from "./signedImage";
 import { displayTitle, photoOwnTitle, photoTitleFor } from "./photoTitle";
 
 /**
@@ -55,6 +56,13 @@ export function publicImageUrl(src: string | undefined): string {
     if (!v) return "";
     const base = process.env.NEXT_PUBLIC_SITE_URL || "https://journey-photo.com";
     if (!/^https?:\/\//i.test(v)) return `${base}${v.startsWith("/") ? "" : "/"}${v}`;
+    // 🔴 **署名つき URL のホストは書き換えない**（2026-10-18 判断・札 #294）。
+    // 署名（canned policy）は**ホストを含む URL 全体**に掛かっている。CloudFront は
+    // 届いた URL と照らすので、`d1s3….cloudfront.net` で署名した URL を
+    // `journey-photo.com` に揃えると、同じ配信の別名でも**必ず 403**になる
+    // ——絞った写真が本人の画面で全部割れる。署名つきは本人向けの画面にしか出ず、
+    // 検索・OGP に載せるものではないので、揃える理由も無い
+    if (signedUrlExpiry(v) !== null) return v;
     try {
         const u = new URL(v);
         if (CDN_HOST && u.host === CDN_HOST) {
