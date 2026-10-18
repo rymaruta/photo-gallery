@@ -5,6 +5,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isBlocked } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { isStoryVote, type StoryText, type StoryVoteChoice, type StoryVoteState } from "./storyText";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * ストーリーの投票スタンプ（2択）に票を入れる。
@@ -150,6 +151,9 @@ export const voteStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const uid = getUserId(event);
     const storyId = event.pathParameters?.id;
     if (!uid || !storyId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(uid);
+    if (gone) return gone;
 
     let body: { choice?: unknown };
     try {

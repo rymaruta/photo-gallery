@@ -3,6 +3,7 @@ import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { sanitizeText } from "./sanitize";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * **不適切な投稿の通報。**
@@ -53,6 +54,9 @@ export const reportPhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!me || !photoId) return jsonError(400, "不正なリクエスト");
     // 写真以外は触らせない（読み側・削除側・管理API と同じ）
     if (photoId.includes("#")) return jsonError(404, "写真が見つかりません");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(me);
+    if (gone) return gone;
 
     let body: { reason?: unknown; note?: unknown };
     try {

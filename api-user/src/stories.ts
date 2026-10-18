@@ -17,6 +17,7 @@ import { isFollowing } from "./followCheck";
 import { hasStoryTextItem, sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
+import { assertLiveCaller } from "./liveCaller";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -295,6 +296,9 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!userId) {
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     // displayName は受け取らない（なりすまし防止のためサーバーで引く）。
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
@@ -500,6 +504,9 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!viewerId || !storyId) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(viewerId);
+    if (gone) return gone;
 
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));

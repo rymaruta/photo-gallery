@@ -16,6 +16,7 @@ import { isPublicListPhoto } from "./feed";
 import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
 import type { Photo } from "./types";
 import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
+import { goneIfDeleted } from "./liveCaller";
 
 /**
  * 旅のトランク（iOS の新機能・2026-10-17 owner 承認）。
@@ -731,7 +732,9 @@ export const groupKey = (groupId: string) => `g:${shortHash(groupId.trim())}`;
 export type DealOutcome = {
     /** 応答に出す形（`stripInternal` を通したもの。束の鍵は出さない） */
     label: PublicLabel | null;
-    labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error";
+    labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error"
+        // 退会した人（墓石）。保存の口が先に 410 で止めるので、ふつうは応答に出ない
+        | "deleted";
     /** この投稿で配った硬貨の枚数（0 か 1）。savePhoto・写真の編集の応答にそのまま載る */
     coin: 0 | 1;
 };
@@ -833,11 +836,16 @@ function withoutMilestone(l: TrunkLabel): TrunkLabel {
     return { ...rest, kind: rest.timeslot ? "timeslot" : rest.season ? "season" : "place" };
 }
 
+/**
+ * 本人の users の行（Pro の判定と墓石の印）。
+ * 🔴 **`deletedAt` を射影から外さない。** 外すと墓石の印が返らず、`grantLabel` と口の
+ * 退会の確かめ（`goneIfDeleted`）が常に「生きている」と読んで黙って死ぬ（`types.ts` の注記）
+ */
 async function readProfileBits(uid: string): Promise<Record<string, unknown> | undefined> {
     const res = await ddb.send(new GetCommand({
         TableName: USERS_TABLE,
         Key: { userId: uid },
-        ProjectionExpression: "userId, supporter",
+        ProjectionExpression: "userId, supporter, deletedAt",
     }));
     return res.Item as Record<string, unknown> | undefined;
 }
@@ -853,6 +861,9 @@ export async function grantLabel(
     if (!uid || !isCountablePhoto(photo)) return noDeal("draft");
     // 本人の写真の一覧は、渡されたら使う（savePhoto がメダルの数え直しと1回の読みを分け合う）
     const [profile, mine] = await Promise.all([readProfileBits(uid), photos ?? listMyPhotos(uid)]);
+    // **退会した人には配らない**（二重の守り）。保存の口（`savePhoto`）が先に 410 で止めるが、
+    // 配りは `trunk#`・`trunkledger#` を作り直す——退会の掃除はもう走らないので、誰も消さない
+    if (isDeletedProfile(profile)) return noDeal("deleted");
     const limit = pocketLimit(isPro(profile, now.getTime()));
     const key = postKey(photo);
     // この投稿（束なら束ごと）を除く。索引は結果整合なので、いま書いた行が見えていてもいなくても同じ数になる
@@ -1993,7 +2004,16 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
             if (!isRewardKind(kind)) return jsonError(400, "不正なリクエスト", "badKind");
             return ok(await rewardCoins(uid, kind, now));
         }
-        const pro = isPro(await readProfileBits(uid), now.getTime());
+        const me = await readProfileBits(uid);
+        // 退会した本人（期限内のトークン）にトランクを書かせない（`liveCaller.ts`）。
+        // **Pro の判定の読みに相乗りする**（users の読みを増やさない）。GET /user/trunk も
+        // 控え（posts）を書き直すので止める。ラベルを外す（DELETE）だけは削除の系統として通す。
+        // welcome・reward は上で自分の読みで墓石を見ている（硬貨を配らない・200）
+        if (!route.startsWith("DELETE ")) {
+            const gone = goneIfDeleted(me);
+            if (gone) return gone;
+        }
+        const pro = isPro(me, now.getTime());
         if (route === "GET /user/trunk") {
             const [rows, photos] = await Promise.all([
                 readTrunkRows(uid),

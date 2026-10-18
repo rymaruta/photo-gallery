@@ -9,6 +9,7 @@ import { sanitizeTitle, sanitizeBlurDataURL } from "./sanitize";
 import { lookupDisplayNameIfSet } from "./notify";
 import type { Photo } from "./types";
 import { isStoryExpired } from "./storyExpiry";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * ストーリーの1枚を、ギャラリーの写真として残す。
@@ -42,6 +43,9 @@ export const keepStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const userId = getUserId(event);
     const storyId = event.pathParameters?.id;
     if (!userId || !storyId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     // **一覧用のサムネを受け取る。** 無くても残せるが、無いまま公開すると
     // ホームの一覧が**1440px の原寸**を読む（普通のアップロードは端末側で

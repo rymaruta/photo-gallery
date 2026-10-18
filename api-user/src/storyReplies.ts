@@ -9,6 +9,7 @@ import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { isFollowing } from "./followCheck";
 import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * ストーリーへの返信とリアクション。
@@ -154,6 +155,9 @@ export const postStoryReply: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     const uid = getUserId(event);
     const storyId = event.pathParameters?.id;
     if (!uid || !storyId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(uid);
+    if (gone) return gone;
 
     let body: { text?: unknown; emoji?: unknown };
     try {
