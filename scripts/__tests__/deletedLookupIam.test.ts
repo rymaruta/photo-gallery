@@ -4,8 +4,10 @@ import { join } from "node:path";
 
 // 退会者の伏せ字（`api-user/src/notify.ts` の `deletedAmong`）は users テーブルを
 // **BatchGetItem** で引く。テストのモックは IAM を見ないので、権限が無くても単体テストは
-// 緑のまま、本番では AccessDenied → **読めない＝全員を「退会したユーザー」に伏せる**
-// 側に倒れる。呼ぶ関数が乗る2つのロールに権限があることをここで固定する:
+// 緑のまま、本番では AccessDenied → **全員が読めない**扱いになる。名前を写して持つ4つ
+// （コメント・通知・ストーリーの返信・閲覧者）は全員を「退会したユーザー」に伏せ、
+// フォロー・フォロワー・ブロックの一覧は全員を生きている扱いにする（名前は引き直すので
+// 漏れないが、退会者の印も付かない）。呼ぶ関数が乗る2つのロールに権限があることをここで固定する:
 //   - provider の共有ロール（getNotifications・getUserFollowing/Followers・listBlocks・
 //     getStoryViewers・getStoryReplies）
 //   - PublicReadRole（未認証の getComments）

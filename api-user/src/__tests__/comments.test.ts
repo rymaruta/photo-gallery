@@ -857,8 +857,10 @@ describe("getComments: 退会した人の名前は出さない", () => {
 
     // ここが押さえているのは「集合が空なら誰も伏せない」まで。
     // deletedAmong は丸ごとモックなので、**引けなかったときの挙動は
-    // ここでは通らない**（本体は読めなかった ID を伏せる側に倒す。notify.test.ts
-    // 「読めなかった ID は退会扱いで伏せる」が押さえている）。
+    // ここでは通らない**（本体は読めなかった ID を `unread` で別に返し、コメントは
+    // `withUnreadAsDeleted` で伏せる側に倒す。notify.test.ts の「読めなかった ID は
+    // unread で別に返す」「withUnreadAsDeleted: …」と、このファイルの「退会の判定が
+    // 読めなかった人も伏せる」が押さえている）。
     it("墓石が1件も無ければ、誰も伏せない", async () => {
         mockDeletedIds.mockResolvedValue(new Set<string>());
         world();
