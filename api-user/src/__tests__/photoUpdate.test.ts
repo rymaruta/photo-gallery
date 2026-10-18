@@ -1454,6 +1454,8 @@ describe("写真の差し替え", () => {
         await invoke(event(UID, "p1", { replace: { ...replace, coords: { lat: 35.6, lng: 139.7 } } }));
         const expr = lastUpdate().UpdateExpression;
         expect(expr, "印が残る（地図リンクも geo も出ない）").toMatch(/REMOVE[^]*#geoApprox/);
+        // 差し替えで座標が変わる＝旅のトランクのラベルの地名の印も付け直す
+        expect(mockRefreshPlace).toHaveBeenCalledTimes(1);
     });
 
     it("読めない撮影日の差し替えは断る（無言で不発にしない）", async () => {
