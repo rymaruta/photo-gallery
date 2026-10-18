@@ -128,7 +128,9 @@ provider:
             # ユーザー検索（表示名の部分一致）。ユーザー数が増えたら GSI に置き換える
             - dynamodb:Scan
             # 退会者の伏せ字（`notify.ts` の `deletedAmong`）。一覧に出る ID だけを
-            # 100 件ずつ引く。無いと**読めない＝全員を伏せる**側に倒れる
+            # 100 件ずつ引く。無いと**全員が読めない**扱いになり、名前を写して持つ4つ
+            # （コメント・通知・ストーリーの返信・閲覧者）は全員を伏せ、フォロー・
+            # フォロワー・ブロックの一覧は全員を生きている扱いにする（名前は引き直すので漏れない）
             - dynamodb:BatchGetItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
