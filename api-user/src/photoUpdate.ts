@@ -106,7 +106,8 @@ async function releaseFirstPublish(id: string, t: string): Promise<void> {
  * 旅のトランクのラベルの地名を人に見せてよいかに効く項目（`trunkPlace.ts` の `placeOf` と公開の判定が読むもの）。
  * これに触れた編集だけ `refreshLabelPlaceQuietly` を呼ぶ（触れなければ trunk も写真も読み直さない）
  */
-const PLACE_INPUTS = ["published", "audience", "location", "coords", "spotId"] as const;
+// `replace`（写真の差し替え）は EXIF から座標が変わりうる
+const PLACE_INPUTS = ["published", "audience", "location", "coords", "spotId", "replace"] as const;
 
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;

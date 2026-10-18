@@ -815,12 +815,47 @@ export async function grantLabel(
     // （歯止め・上限）は今までどおり何も書かない。控えは本人が `GET /user/trunk` を開いたときにも直る
     const posts = countPublicPosts([...others, photo] as unknown as Record<string, unknown>[]);
     let outcome: DealOutcome = noDeal("error");
+    let wroteOk = false;
     await updateTrunk(uid, (doc) => {
         const r = dealInto(doc, label, limit, fp, now);
         outcome = r.outcome;
+        // この書き込みで「地名を見せてよい」印を新しく付けたか（やり直しのたびに決め直す＝最後の1回が書いたもの）
+        wroteOk = !!r.doc && hasPlaceOk(r.doc, label.id) && !hasPlaceOk(doc, label.id);
         return r.doc ? { ...r.doc, posts } : null;
     });
+    // **書いたあとに確かめる**: 書くまでのあいだ（競合のやり直し・Lambda の凍結）に写真が絞られた・非公開に
+    // された・撮影地が変わったなら、付けた印を外し直す（外す側は確かめなくても漏れない）
+    if (wroteOk && !(await confirmPlaceOk(uid, photo.id, labelMatcher(photo.id, ""), new Set())) && outcome.label) {
+        // 外し直したら、応答の1枚も印なしにする（`GET /user/trunk` と食い違わせない）
+        const { placeOk: _o, ...rest } = outcome.label;
+        void _o;
+        outcome = { ...outcome, label: rest };
+    }
     return outcome;
+}
+
+/** そのラベル（手持ち・貼った方）に「地名を見せてよい」印があるか */
+function hasPlaceOk(doc: TrunkDoc, id: string): boolean {
+    return !!(doc.pocket.find((l) => l.id === id) ?? doc.stuck.find((l) => l.id === id))?.placeOk;
+}
+
+/**
+ * 印を**付けた**あとに呼ぶ: 写真を強い読みで読み直し、もう見せてよくない（公開でない・無い・撮影地が違う）なら
+ * 印を外す。**外すだけ**（付けはしない）。束は `publicPlaces`（誰にでも見える公開の兄弟の撮影地）にあれば残す
+ */
+async function confirmPlaceOk(
+    uid: string, photoId: string, match: (l: TrunkLabel) => boolean, publicPlaces: Set<string>,
+): Promise<boolean> {
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
+    const row = res.Item as Record<string, unknown> | undefined;
+    let removed = false;
+    await updateTrunk(uid, (doc, exists) => {
+        if (!exists) return null;
+        const next = setPlaceOk(doc, match, (l) => !!l.placeOk && (placeOkFor(l.place, row, uid) || publicPlaces.has(placeKey(l.place))));
+        removed = !!next;
+        return next;
+    });
+    return !removed;
 }
 
 /**
@@ -1333,10 +1368,17 @@ export async function refreshLabelPlaceQuietly(
                 const row = after ?? before;
                 const g = typeof row.groupId === "string" ? row.groupId.trim() : "";
                 const sib = g ? await groupSiblings(uid, g, photoId) : { remains: false, publicPlaces: new Set<string>() };
-                await updateTrunk(uid, (doc, exists) => (exists
-                    ? setPlaceOk(doc, labelMatcher(photoId, g),
-                        (l) => placeOkFor(l.place, after, uid) || sib.publicPlaces.has(placeKey(l.place)))
-                    : null));
+                const match = labelMatcher(photoId, g);
+                let added = false;
+                await updateTrunk(uid, (doc, exists) => {
+                    if (!exists) return null;
+                    const next = setPlaceOk(doc, match, (l) => placeOkFor(l.place, after, uid) || sib.publicPlaces.has(placeKey(l.place)));
+                    added = !!next && [...next.pocket, ...next.stuck].some((l) => match(l) && l.placeOk
+                        && !([...doc.pocket, ...doc.stuck].find((d) => d.id === l.id)?.placeOk));
+                    return next;
+                });
+                // 付けた回だけ、書いたあとに写真を読み直して確かめる（この読みと書きのあいだに絞る編集が終わっていた・凍結で遅れた）
+                if (added) await confirmPlaceOk(uid, photoId, match, sib.publicPlaces);
             })().catch((e) => {
                 console.error(`${label}: ラベルの地名の印を付け直せませんでした（${uid}）:`, e);
             }),
@@ -1466,12 +1508,49 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
 }
 
 /** 本人が開いたときに、古び方の控え（`posts`）を書き直す。行が無ければ作らない。落ちても GET は成功のまま */
-async function notePostsQuietly(uid: string, posts: number): Promise<void> {
+async function noteTrunkQuietly(uid: string, posts: number, stale: Set<string>): Promise<void> {
     try {
-        await updateTrunk(uid, (doc, exists) => (!exists || doc.posts === posts ? null : { ...doc, posts }));
+        await updateTrunk(uid, (doc, exists) => {
+            if (!exists) return null;
+            const base = setPlaceOk(doc, (l) => stale.has(l.id), () => false) ?? doc;
+            return base === doc && doc.posts === posts ? null : { ...base, posts };
+        });
     } catch (e) {
-        console.error(`trunk: 投稿の数の控えを書けませんでした（${uid}）:`, e);
+        console.error(`trunk: 投稿の数の控え・地名の印を書けませんでした（${uid}）:`, e);
     }
+}
+
+/**
+ * 写真が一覧に無いラベルを「消えた」とみなすまでの猶予。**写真の索引は結果整合**なので、いま上げたばかりの写真は
+ * まだ一覧に出ないことがある（投稿してすぐトランクを開くと、配ったばかりの印を外してしまう）
+ */
+const STALE_ABSENT_GRACE_MS = 3_600_000;
+
+/**
+ * 本人の写真の一覧（`listMyPhotos`）と突き合わせて、**外し損ねた**「地名を見せてよい」印のラベル id を返す（純関数）。
+ * 印つきなのに、写真が公開でない・撮影地が違う・一覧に無い（配ってから1時間を過ぎたもの）。
+ * 束のラベルは、束の写真のどれかが誰にでも見える公開で同じ撮影地なら残す。**付ける側はやらない**
+ */
+export function stalePlaceOkIds(doc: TrunkDoc, photos: Record<string, unknown>[], uid: string, now: Date): Set<string> {
+    const byId = new Map(photos.map((p) => [String(p.id), p]));
+    const byGroup = new Map<string, Record<string, unknown>[]>();
+    for (const p of photos) {
+        const g = typeof p.groupId === "string" ? p.groupId.trim() : "";
+        if (!g) continue;
+        const k = groupKey(g);
+        byGroup.set(k, [...(byGroup.get(k) ?? []), p]);
+    }
+    const out = new Set<string>();
+    for (const l of [...doc.pocket, ...doc.stuck]) {
+        if (!l.placeOk) continue;
+        const candidates = [byId.get(l.id), ...(l.groupId ? byGroup.get(l.groupId) ?? [] : [])]
+            .filter((p): p is Record<string, unknown> => !!p);
+        if (candidates.some((p) => placeOkFor(l.place, p, uid))) continue;
+        const absent = candidates.length === 0;
+        if (absent && now.getTime() - Date.parse(l.at) < STALE_ABSENT_GRACE_MS) continue;
+        out.add(l.id);
+    }
+    return out;
 }
 
 /**
@@ -1518,9 +1597,14 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 readTrunkRows(uid),
                 listMyPhotos(uid),
             ]);
-            const doc = parseTrunk(rows.main, rows.ledger);
+            let doc = parseTrunk(rows.main, rows.ledger);
             const posts = countPublicPosts(photos as unknown as Record<string, unknown>[]);
-            if (rows.main && doc.posts !== posts) await notePostsQuietly(uid, posts);
+            // 外し損ねた印をここで外す（本人の写真はもう全部読んでいる＝読みは増やさない。付ける側はやらない）
+            const stale = stalePlaceOkIds(doc, photos as unknown as Record<string, unknown>[], uid, now);
+            if (rows.main && (doc.posts !== posts || stale.size > 0)) {
+                await noteTrunkQuietly(uid, posts, stale);
+                if (stale.size > 0) doc = setPlaceOk(doc, (l) => stale.has(l.id), () => false) ?? doc;
+            }
             return ok({ ...view(doc, pro, now), posts });
         }
         if (route === "PUT /user/trunk/model") {

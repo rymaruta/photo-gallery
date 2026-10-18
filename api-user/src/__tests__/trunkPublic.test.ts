@@ -391,6 +391,8 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
 
     it("誰にでも見える公開の写真から配ったラベルにだけ印が付き、人に地名が出る", async () => {
         setProfile(OWNER, {});
+        // 印を付けたあとに写真を読み直して確かめるので、写真の行も置く
+        setPhoto("ph1", row("ph1", { createdAt: NEW }));
         await grantLabel(OWNER, row("ph1", { createdAt: NEW }) as never);
         await stickAll();
         await expectShown();
@@ -417,6 +419,7 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await grantLabel(OWNER, row("ph1", { createdAt: NEW, audience: "followers" }) as never);
         await expectHidden();
         // 全員に向けた再送で付く・また絞った再送で外れる
+        setPhoto("ph1", row("ph1", { createdAt: NEW }));
         await grantLabel(OWNER, row("ph1", { createdAt: NEW }) as never);
         await expectShown();
         await grantLabel(OWNER, row("ph1", { createdAt: NEW, audience: "closeFriends" }) as never);
@@ -497,6 +500,77 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1"), "test");
         const keys = fakeSend.mock.calls.map((c) => String((c[0].input as { Key?: Item }).Key?.id ?? ""));
         expect(keys).toEqual(["ph1"]);
+    });
+
+    it("【見直し1】配る前に写真が絞られていた（編集が先に終わった）: 書いたあとに読み直して印を外す", async () => {
+        setProfile(OWNER, {});
+        setPhoto("ph1", row("ph1", { createdAt: NEW, audience: "followers" }));
+        // savePhoto が持っている写真はまだ公開の姿（絞る編集はそのあとに終わった）
+        const out = await grantLabel(OWNER, row("ph1", { createdAt: NEW }) as never);
+        expect(out.label).not.toHaveProperty("placeOk");
+        await stickAll();
+        await expectHidden();
+    });
+
+    it("【見直し1】付け直しの読みと書きのあいだに絞られた: 書いたあとに読み直して印を外す", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto" })], pocket: [] });
+        setPhoto("ph1", row("ph1"));
+        let raced = false;
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            const out = await send(cmd as never);
+            if (cmd.constructor.name === "TransactWriteCommand" && !raced) {
+                raced = true;
+                setPhoto("ph1", row("ph1", { audience: "closeFriends" }));
+            }
+            return out;
+        });
+        await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1", { published: false }), "test");
+        expect(raced).toBe(true);
+        await expectHidden();
+    });
+
+    it("【見直し2】本人の GET /user/trunk で外し損ねた印を外す（付けはしない）", async () => {
+        setProfile(OWNER, {});
+        const fresh = Math.floor(Date.now() / 1000);
+        setTrunk(OWNER, {
+            stuck: [okLabel("restricted"), okLabel("gone"), okLabel("justposted", { a: fresh }), okLabel("moved"), label("noOk", { l: "Kyoto" })],
+            pocket: [],
+        });
+        mockListMyPhotos.mockResolvedValue([
+            row("restricted", { audience: "followers" }), row("moved", { location: "大阪" }), row("noOk"),
+        ]);
+        const own = await ownStuck();
+        const ok = (id: string) => (own.find((l) => l.id === id) ?? {}).placeOk === true;
+        expect(["restricted", "gone", "justposted", "moved", "noOk"].map(ok)).toEqual([false, false, true, false, false]);
+        const stored = (trunkRow(OWNER)!.stuck as Item[]).map((l) => [l.i, l.o ?? null]);
+        expect(stored).toEqual([["restricted", null], ["gone", null], ["justposted", 1], ["moved", null], ["noOk", null]]);
+        // 正しい印は外さない・同じなら書かない
+        const rev = trunkRow(OWNER)!.rev;
+        await ownStuck();
+        expect(trunkRow(OWNER)!.rev).toBe(rev);
+    });
+
+    it("【見直し9】再送で撮影地が変わっていたら印を外す（同じ撮影地なら残す）", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });
+        setPhoto("ph1", row("ph1"));
+        await grantLabel(OWNER, row("ph1") as never);
+        await expectShown();
+        setPhoto("ph1", row("ph1", { location: "大阪" }));
+        await grantLabel(OWNER, row("ph1", { location: "大阪" }) as never);
+        await expectHidden();
+    });
+
+    it("【見直し9】付け直しで、束の兄弟が誰にでも見える公開で同じ撮影地に残れば印を残す", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers" }));
+        await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1", { groupId: "grp" }), "test");
+        await expectShown();
     });
 
     it("人の口の印は本人ごとに違う（同じ写真の id でも、別の人のトランクと照らし合わせられない）", () => {
