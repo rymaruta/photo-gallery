@@ -29,7 +29,7 @@ import { FollowAction } from "../../components/FollowButton";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
 import type { Photo } from "@/lib/data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
+import { getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
@@ -1468,13 +1468,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         </div>
                         <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
                             {related.nearby.map((p) => {
-                                const t = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+                                // alt は名前が要るので代わりの題（旧い「無題」も落とす）
+                                const t = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
                                 return (
                                     <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
                                           data-photo-id={p.id}
                                           className="relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                           style={{ aspectRatio: "1 / 1", backgroundColor: p.dominantColor ?? "var(--color-surface)", touchAction: "manipulation" }}>
-                                        <Thumb photo={p} alt={t || (locale === "en" ? "Photo" : "写真")} sizes="(max-width:640px) 25vw, 120px" />
+                                        <Thumb photo={p} alt={t} sizes="(max-width:640px) 25vw, 120px" />
                                     </Link>
                                 );
                             })}

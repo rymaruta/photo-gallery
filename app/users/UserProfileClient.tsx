@@ -19,7 +19,7 @@ import { StarIcon as StarIconOutline } from "@heroicons/react/24/outline";
 import { useLocale } from "../i18n/context";
 import { useToast } from "../../lib/hooks/useToast";
 import type { Photo } from "@/lib/data/photos";
-import { getLocalized } from "@/lib/data/photos";
+import { photoOwnTitle } from "@/lib/utils/photoTitle";
 import { log } from "../../lib/utils/log";
 // **公開ページ**（サイトマップに載る）なので、未ログインの訪問者にも描かれる。
 // 薄い入口から引いて、端末に痕跡が無ければ認証 SDK を読み込まない
@@ -179,7 +179,8 @@ export function photoCardLabel(title: string, likeCount: number, locale: string)
     return en ? `${base} (${likeCount} likes)` : `${base}（いいね ${likeCount}）`;
 }
 
-function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
+/** テストから直に描く（`__tests__/photoCardTitle.test.tsx`） */
+export function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, onTogglePin, coverSelected = false, onSetCover, priority = false, onDelete }: {
     photo: Photo;
     locale: string;
     isOwner: boolean;
@@ -198,7 +199,8 @@ function PhotoCard({ photo, locale, isOwner, onTogglePublish, pinned = false, on
      */
     onDelete?: (photo: Photo) => void;
 }) {
-    const title = getLocalized(photo.title, locale as "ja" | "en") || (typeof photo.title === "string" ? photo.title : "");
+    // 旧い「無題」は題として扱わない（空なら `photoCardLabel` が「写真を開く」に落とす）
+    const title = photoOwnTitle(photo, (locale === "en" ? "en" : "ja"));
     const isHidden = photo.published === false;
     // **公開範囲を絞った写真の印**（持ち主の一覧にだけ来る）。絞った写真はウェブサイトに
     // 載らないので、印が無いと「なぜトップに無いのか」が分からない
