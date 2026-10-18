@@ -412,10 +412,23 @@ export function countBooks(photos: Photo[]): number {
 
 // ─── まとめ ─────────────────────────────────────────────────
 
-/** 数えてよい写真（公開・公開範囲を絞っていない・ストーリーでない・実体がある。冒頭の 2026-10-18 判断） */
+/**
+ * 下書き・ストーリー・実体の無い行でない写真（公開・ストーリーでない・実体がある）。
+ * **旅のトランク（`trunk.ts`）もこの線でラベルを配る・取り消す**ので、公開範囲（`audience`）はここでは見ない。
+ * メダルの数は `isMedalCountablePhoto`（冒頭の 2026-10-18 判断）
+ */
 export function isCountablePhoto(p: Photo): boolean {
-    return !!p && typeof p.src === "string" && p.src !== "" && p.published !== false
-        && (p as { story?: unknown }).story !== true && !isRestrictedRow(p as { audience?: unknown });
+    return !!p && typeof p.src === "string" && p.src !== "" && p.published !== false && (p as { story?: unknown }).story !== true;
+}
+
+/**
+ * **メダルを数えてよい写真**: `isCountablePhoto` で、しかも公開範囲を絞っていないもの（冒頭の 2026-10-18 判断）。
+ * 2026-10-18 判断: `isCountablePhoto` そのものに足さないのは、旅のトランクのラベルを配る・取り消す判定が
+ * 同じ関数を使っていて、絞った写真の扱いを変えてしまうから。数え方（`countBadges`）と、1回限りの数え直し
+ * （`scripts/backfill-badges.js --public-only`）だけがこちらを使う
+ */
+export function isMedalCountablePhoto(p: Photo): boolean {
+    return isCountablePhoto(p) && !isRestrictedRow(p as { audience?: unknown });
 }
 
 /** 「行きたい」に入れたスポットのうち、写真を撮ったものの数 */
@@ -435,7 +448,7 @@ export function countWish(photos: Photo[], wishKeys: readonly string[]): number 
 export type BadgeCounts = Record<CountedBadgeKey, number>;
 
 export function countBadges(allPhotos: Photo[], wishKeys: readonly string[]): BadgeCounts {
-    const photos = allPhotos.filter(isCountablePhoto);
+    const photos = allPhotos.filter(isMedalCountablePhoto);
     const prefs = new Set<number>();
     const countries = new Set<string>();
     const seasonsByYear = new Map<number, Set<number>>();

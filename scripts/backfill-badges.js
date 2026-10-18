@@ -34,12 +34,18 @@
  *   低く数え直されても、それが絞った写真のせいか、公開の写真を消したせいかは見分けられない。
  *   絞った写真の無い人は後者しかありえないので、触らない（段は下げない決まりのまま）
  * - 下げるのは**数える8つの鍵だけ**（`COUNTED_BADGE_KEYS`）。初期ユーザー・Pro のメダルは触らない
- * - 下げた段の `at` は流した時刻にする（元の日は、絞った写真で上がった日のことがあるので残さない）。
+ * - 下げた段の `at` は、**公開の写真だけを投稿の順に数え直して、その段に届いた写真の投稿日時**
+ *   （`createdAt`）にする。分からなければ（投稿日時の無い写真で届いた・今の写真では届かない）
+ *   保存されていた元の `at` を残す。
+ *   2026-10-18 判断（見直し）: 流した時刻にすると、**その日に段が下がった人＝絞った写真を持つ人**と
+ *   他の人に推し量れる（全員が同じ日になる）。数え直しで分かる日なら、ふだんの数え方で付いた日と見分けがつかない。
  *   0 段になった鍵は消す。上げることはしない（上がる分はふだんの数え直しが拾う）
  * - 名前の横に出していた鍵が消えても、行の `displayBadge` は触らない（公開の形は「持っていない鍵は
  *   null」で返す・`badgeKeys.ts` の `badgeFields`。また取れば元どおり出る）
  * - **通知は送らない**・rev を見て置き直す（上と同じ）
- * - 限界: 対象の人が公開の写真を消して取った段も、一緒に下がることがある
+ * - 限界: 対象の人が公開の写真を消して取った段も、一緒に下がることがある。逆に、**絞った写真を
+ *   消した・下書きに戻した人は対象にならない**（今は絞った写真を持っていないので、前に絞った写真で
+ *   付いた段がそのまま残る）
  */
 
 const REGION = "ap-northeast-1";
@@ -73,15 +79,31 @@ function isRestrictedPublished(lib, p) {
 }
 
 /**
+ * 公開の写真（メダルを数えてよい写真）だけを投稿の順に数えて、`key` が `tier` 段に届いた写真の投稿日時。
+ * 届かない・投稿日時が読めなければ null。旅の一冊は写真が増えると減ることもある（日の幅が30日を越える）ので、
+ * 二分探索でなく頭から順に数える（1回限りの台本なので、1人ぶんの写真の数の2乗で構わない）
+ */
+function reachedAt(lib, key, tier, photos, wishKeys) {
+    const dated = photos
+        .filter((p) => lib.isMedalCountablePhoto(p) && typeof p.createdAt === "string" && !Number.isNaN(Date.parse(p.createdAt)))
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    for (let i = 1; i <= dated.length; i++) {
+        const c = lib.countBadges(dated.slice(0, i), wishKeys);
+        if (lib.tierFor(key, c[key]) >= tier) return new Date(Date.parse(dated[i - 1].createdAt)).toISOString();
+    }
+    return null;
+}
+
+/**
  * `--public-only` の1人ぶんの計画（純関数）。`lib` は `badges` と `badgeKeys` の関数と `isRestrictedRow`。
  *
  * @returns { write: boolean, badges, lowered: [{ key, from, to }], rev }
  */
-function planPublicOnly(lib, row, photos, wishKeys, nowIso) {
+function planPublicOnly(lib, row, photos, wishKeys) {
     const rev = typeof row.rev === "number" ? row.rev : 0;
     const stored = lib.sanitizeBadges(row.badges) ?? {};
     if (!photos.some((p) => isRestrictedPublished(lib, p))) return { write: false, badges: stored, lowered: [], rev };
-    // `countBadges` は絞った写真を数えない（`isCountablePhoto`）
+    // `countBadges` は絞った写真を数えない（`isMedalCountablePhoto`）
     const counts = lib.countBadges(photos, wishKeys);
     const badges = { ...stored };
     const lowered = [];
@@ -90,7 +112,8 @@ function planPublicOnly(lib, row, photos, wishKeys, nowIso) {
         const to = Math.min(lib.tierFor(key, counts[key]), lib.MAX_TIER[key]);
         if (to >= from) continue;
         if (to === 0) delete badges[key];
-        else badges[key] = { tier: to, at: nowIso };
+        // その段に届いた投稿の日時。分からなければ元の日（上の注記。流した日にしない）
+        else badges[key] = { tier: to, at: reachedAt(lib, key, to, photos, wishKeys) ?? stored[key].at };
         lowered.push({ key, from, to });
     }
     return { write: lowered.length > 0, badges, lowered, rev };
@@ -150,7 +173,7 @@ async function main() {
         const wishKeys = Array.isArray(spots?.list) ? spots.list.filter((x) => typeof x === "string") : [];
 
         const plan = PUBLIC_ONLY
-            ? planPublicOnly(lib, row, photos, wishKeys, now)
+            ? planPublicOnly(lib, row, photos, wishKeys)
             : planUser(lib, row, photos, wishKeys, now);
         if (!plan.write) continue;
         tally.toWrite++;

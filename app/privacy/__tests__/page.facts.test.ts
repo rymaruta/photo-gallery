@@ -219,10 +219,11 @@ describe("公開プロフィールの節が公開の形と合っている", () =
     // 2026-10-18（journey.photo-ios #296）: メダルは公開範囲を絞っていない公開の写真だけで数える
     it("メダルを数える写真（絞った写真と下書きは数えない）が、実装と4節で合っている", () => {
         const src = read("api-user/src/badges.ts");
-        const fn = src.slice(src.indexOf("export function isCountablePhoto"));
+        const fn = src.slice(src.indexOf("export function isMedalCountablePhoto"));
         const body = fn.slice(0, fn.indexOf("\n}"));
-        expect(body, "isCountablePhoto が絞った写真を落としていない").toContain("!isRestrictedRow(p");
-        expect(body, "isCountablePhoto が下書きを落としていない").toContain("p.published !== false");
+        expect(body, "isMedalCountablePhoto が絞った写真を落としていない").toContain("!isRestrictedRow(p");
+        expect(body, "isMedalCountablePhoto が下書きを落としていない（isCountablePhoto を通していない）").toContain("isCountablePhoto(p)");
+        expect(src, "countBadges がメダル専用の判定を使っていない").toContain("allPhotos.filter(isMedalCountablePhoto)");
         expect(sectionOf(4)).toContain("公開範囲を絞っていない公開の写真の撮影地・季節・時刻などから自動で付くもの（「フォロワーだけ」「親しい友達だけ」の写真と下書きは数えません）");
     });
 
