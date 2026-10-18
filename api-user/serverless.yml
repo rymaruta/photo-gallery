@@ -921,6 +921,13 @@ functions:
           method: PUT
           authorizer:
             name: cognitoAuthorizer
+      # はじめての硬貨（2026-10-18 owner 承認）: 硬貨より前から居る人に一度だけ10枚。アプリを開いたときに呼ぶ。
+      # 足すのは道筋（Route）1つだけ——関数・ロール・テーブル・GSI は増やさない
+      - httpApi:
+          path: /user/trunk/welcome
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
 
   getComments:
     handler: src/comments.getComments
