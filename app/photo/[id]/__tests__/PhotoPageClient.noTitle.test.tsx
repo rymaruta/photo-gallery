@@ -151,3 +151,18 @@ describe("写真ページ: 前後の写真の題", () => {
         expect(container.innerHTML).not.toMatch(/無題|Untitled/);
     });
 });
+
+// 近くの写真のサムネの alt（名前が要る所）。旧い既定値の「無題」を出さない
+describe("写真ページ: 近くの写真の alt", () => {
+    it("{ ja: 無題 } の近くの写真の alt は代わりの題", async () => {
+        const nearby = [{ id: "n1", src: "https://cdn.example.com/uploads/bob/n1.webp", title: { ja: "無題", en: "Untitled" } }];
+        const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={{ ...NO_TITLE, title: { ja: "朝の湖" }, coords: { lat: 35, lng: 139 } } as unknown as Photo}
+            initialRelated={{ author: [], location: [], prev: null, next: null, nearby } as never} />);
+        await screen.findAllByRole("heading", { level: 1 });
+        const link = container.querySelector('a[data-photo-id="n1"]');
+        expect(link, "近くの写真が描かれていない").toBeTruthy();
+        const el = link!.querySelector('img[alt]:not([alt=""]), [role="img"]');
+        expect(el?.getAttribute("alt") ?? el?.getAttribute("aria-label")).toBe("写真");
+        expect(container.innerHTML).not.toMatch(/無題|Untitled/);
+    });
+});
