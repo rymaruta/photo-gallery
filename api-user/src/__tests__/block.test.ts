@@ -12,7 +12,8 @@ vi.mock("../dynamodb", () => ({
 
 // 表示名の引きは境界としてモックする（`notify` は USERS_TABLE を要求する）
 const mockName = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
-const mockGone = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+const mockGone = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+const mockUnreadBlocks = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 vi.mock("../notify", () => ({
     // 名前と @ユーザー名を1回で引く（`lookupListIdentity`）。名前は `mockName` が答える
@@ -21,7 +22,13 @@ vi.mock("../notify", () => ({
         const username = await mockUsername(uid);
         return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
     },
-    deletedUserIds: () => mockGone(),
+    // **渡された ID にだけ答える**（本物と同じ）。集合を丸ごと返すと、`named`（先頭100人）
+    // だけを渡す「整理」をしても上限の外の退会者が伏せられて見え、テストが穴を見逃す
+    deletedAmong: async (ids: unknown) => {
+        const passed = new Set(ids as string[]);
+        const only = (s: Set<string>) => new Set([...s].filter((id) => passed.has(id)));
+        return { deleted: only(await mockGone(ids)), unread: only(mockUnreadBlocks()) };
+    },
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
@@ -72,7 +79,7 @@ function world(rows: Record<string, Record<string, unknown>> = {}) {
 // `cmd.constructor` を読むと、その呼び出しだけ `undefined` で落ちる
 // ——「1つ前のテストが原因」に見えるので、たどり着くのに時間がかかった。
 // 中括弧で包んで何も返さない。
-beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); mockGone.mockReset().mockResolvedValue(new Set()); mockUsername.mockReset().mockResolvedValue(undefined); });
+beforeEach(() => { mockDdbSend.mockReset(); mockUnfollow.mockReset().mockResolvedValue(undefined); mockName.mockReset().mockResolvedValue(undefined); mockGone.mockReset().mockResolvedValue(new Set()); mockUnreadBlocks.mockReset().mockReturnValue(new Set()); mockUsername.mockReset().mockResolvedValue(undefined); });
 
 // **やり取りの口を持つ以上の最低限。** ストーリーへの返信を足した時点で、
 // ログインしていれば誰でも誰の通知にも文字を送れるようになった
@@ -263,15 +270,17 @@ describe("listBlocks", () => {
             { id: OTHER, name: "生きている人" },
         ]);
         expect(mockName, "退会した人の名前を引きに行っている").not.toHaveBeenCalledWith(THEM);
+        // **一覧に出る ID を渡して引く**（表を走査しない。`notify.ts` の `deletedAmong`）
+        expect(mockGone).toHaveBeenCalledWith([THEM, OTHER]);
     });
 
     // 引くのは一覧が空でないときだけ（`getComments` と同じ）。
-    // このテーブルの走査は Scan なので、0件のときに撃たない
+    // 読み取りを増やさないよう、0件のときに撃たない
     it("一覧が空なら墓石を引きに行かない", async () => {
         world({ [blocksId(ME)]: { blockedIds: [] } });
         const r = await invoke(listBlocks, ev(ME));
         expect(bodyOf(r).users).toEqual([]);
-        expect(mockGone, "0件なのに Scan している").not.toHaveBeenCalled();
+        expect(mockGone, "0件なのに退会者を引いている").not.toHaveBeenCalled();
     });
 
     // **伏せられなくても一覧は返す。**
@@ -284,8 +293,9 @@ describe("listBlocks", () => {
     // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）なので、
     // 墓石が引けないだけで外せなくなるのは倒れ方として悪い。
     //
-    // **ただし本番では発火しない。** `deletedUserIds` は `notify.ts` の
-    // 中で握って空集合を返すので reject しない——ここが reject するのは
+    // **ただし本番では発火しない。** `deletedAmong` は `notify.ts` の
+    // 中で握って（読めなかった ID は伏せずに `unread` で分けて）返すので reject しない
+    // ——block はその `unread` を生きている扱いにする。ここが reject するのは
     // このファイルが `../notify` をモジュールごと差し替えているから。
     // コミットに「実際に投げさせると 500 を返していた」と書いたが、
     // 真なのは**モックの世界でだけ**。保険を保険として縛るテスト
@@ -314,6 +324,19 @@ describe("listBlocks", () => {
             .toEqual({ id: late, name: "退会したユーザー", deleted: true });
         // 名前を引くのは上限までのまま（往復を増やさない）
         expect(mockName.mock.calls.length).toBe(BLOCK_NAMES_MAX);
+        // 判定は全員ぶん渡して引く（`named` だけ渡すと上の1行が落ちる）
+        expect(mockGone).toHaveBeenCalledWith(many);
+    });
+
+    // **読めなかった人は生きている扱い。** 名前は `lookupListIdentity` が引き直し、
+    // 墓石からは返らないので実名は漏れない。伏せる側に倒すと、生きている人が
+    // 「退会したユーザー」と並び、外す相手を取り違える
+    it("退会の判定が読めなかった人は、生きている扱いで名前を出す", async () => {
+        world({ [blocksId(ME)]: { blockedIds: [THEM, OTHER] } });
+        mockUnreadBlocks.mockReturnValue(new Set([THEM]));
+        mockName.mockImplementation(async (id: string) => (id === THEM ? "生きている人" : "ほかの人"));
+        const r = await invoke(listBlocks, ev(ME));
+        expect(bodyOf(r).users).toEqual([{ id: THEM, name: "生きている人" }, { id: OTHER, name: "ほかの人" }]);
     });
 });
 
