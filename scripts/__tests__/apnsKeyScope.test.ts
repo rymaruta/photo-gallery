@@ -31,7 +31,7 @@ const ALL_VARS = ["APNS_PRIVATE_KEY", "APNS_KEY_ID", "APNS_TEAM_ID", "APNS_TOPIC
  *
  * ⚠️ **依存を辿る形では精度が出ない。** 最初「`notify.ts` に届くか」で
  * 書いたら26関数、「グラフ内に呼び出しがあるか」でも22関数が引っかかった
- * ——`notify.ts` は `lookupDisplayName` / `deletedUserIds` も export していて
+ * ——`notify.ts` は `lookupDisplayName` / `deletedAmong`（当時は `deletedUserIds`）も export していて
  * 通知を積まない関数がそれ目的で import するし、`stories.ts` は
  * `storyReplies.ts` を import するので `getStories` まで釣れる。
  *
