@@ -236,7 +236,7 @@ describe("はじめての硬貨（POST /user/trunk/welcome）", () => {
         expect((await welcome()).json.granted).toBe(true);
     });
 
-    describe("JWT の auth_time（最初のサインインの時刻）", () => {
+    describe("JWT の auth_time（いまのログインを始めた時刻・ログインし直すと新しくなる）", () => {
         const sec = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
         it("前から居るのに、開いた瞬間に行が今の時刻で作られた人: auth_time が線より前なら対象・索引は引かない", async () => {

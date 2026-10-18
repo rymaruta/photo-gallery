@@ -833,7 +833,10 @@ export type WelcomeResult = { granted: boolean; added: number; coins: number };
 export type WelcomeEvidence = {
     /** users テーブルの本人の行（無ければ undefined） */
     profile: Record<string, unknown> | undefined;
-    /** JWT の `auth_time`（最初にサインインした時刻・ミリ秒）。無い・読めなければ undefined */
+    /**
+     * JWT の `auth_time`（**いまのログインを始めた時刻**・ミリ秒）。更新トークンでの取り直しでは同じ値のまま、
+     * ログインし直すと新しくなる。無い・読めなければ undefined
+     */
     authTimeMs?: number;
     /** 機能より前に作った本人の写真・ストーリーがあるか（引かなかったら undefined） */
     hasOldItems?: boolean;
@@ -846,8 +849,9 @@ export type WelcomeEvidence = {
  *     2. 行はあるが `createdAt` が無い（読めない値も同じ）     → 対象
  *        （`createdAt` を書くトリガーは 2026-08-19 から。それより前の古い利用者の行）
  *     3. JWT の `auth_time` が線より前                       → 対象
- *        （Cognito はリフレッシュしても最初のサインインの時刻を持つ。前から居るのに users の行がまだ無く、
- *         アプリを開いた瞬間に `createProfileIfMissing` が今の時刻で行を作った人を拾う）
+ *        （`auth_time` は**いまのログインを始めた時刻**。更新トークンでの取り直しでは変わらず、ログインし直すと
+ *         新しくなる。前から居るのに users の行がまだ無く、アプリを開いた瞬間に `createProfileIfMissing` が
+ *         今の時刻で行を作った人を拾う。**拾えるのは「行の無い古い人で、線のあとにログインし直していない人」だけ**）
  *     4. 機能より前の写真・ストーリー（`userId-createdAt-index`）がある → 対象
  *     5. どれも無い → 対象外（印を残す）。ただし**行が無く `auth_time` も無い・読めない**人は
  *        決められない（印を残さない）
@@ -1329,7 +1333,7 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     try {
         // Pro かどうかは要らない（users テーブルを読む回数を増やさない）
         if (route === "POST /user/trunk/welcome") {
-            // アプリは id token を送る（`APIClient.swift`）。Cognito の id token は `auth_time` を持つ
+            // アプリは id token を送る（`APIClient.swift`）。Cognito の id token は `auth_time`（いまのログインを始めた時刻）を持つ
             return ok(await welcomeCoins(uid, now, event.requestContext.authorizer.jwt.claims.auth_time));
         }
         const pro = isPro(await readProfileBits(uid), now.getTime());

@@ -264,3 +264,27 @@ describe("getMyProfile: 行が無ければ作る（トリガー失敗からの�
         expect(res.statusCode).toBe(200);
     });
 });
+
+describe("行が無い人の保存は createdAt を書く（2026-10-18・はじめての硬貨の判定②を新しい人に通さない）", () => {
+    it("Get で行が無い → Put する行に createdAt（今の時刻）", async () => {
+        mockSend.mockResolvedValueOnce({}).mockResolvedValueOnce({});
+        const before = Date.now();
+        const res = await invoke({ displayName: "はじめまして" });
+        expect(res.statusCode).toBe(200);
+        const item = profilePuts().at(-1)!.Item as Record<string, { S?: string }>;
+        expect(item.displayName.S).toBe("はじめまして");
+        const t = Date.parse(item.createdAt?.S ?? "");
+        expect(t).toBeGreaterThanOrEqual(before - 1000);
+        expect(t).toBeLessThanOrEqual(Date.now() + 1000);
+    });
+
+    it("既にある行の createdAt は変えない・無い古い行に足さない", async () => {
+        mockSend.mockResolvedValueOnce(profileItem({ createdAt: "2026-08-20T00:00:00.000Z", rev: 1 })).mockResolvedValueOnce({});
+        await invoke({ displayName: "a" });
+        expect((profilePuts().at(-1)!.Item as Record<string, { S?: string }>).createdAt?.S).toBe("2026-08-20T00:00:00.000Z");
+        commands.length = 0;
+        mockSend.mockReset().mockResolvedValueOnce(profileItem({ rev: 1 })).mockResolvedValueOnce({});
+        await invoke({ displayName: "b" });
+        expect((profilePuts().at(-1)!.Item as Record<string, unknown>).createdAt).toBeUndefined();
+    });
+});
