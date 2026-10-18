@@ -11,10 +11,15 @@ import { join } from "node:path";
  *   - 生きている人しか居ない行には書き込みを1本も出さない
  *   - 読んでから書くまでに番地がずれた・墓石が戻された回は書かない
  *
- * 偽の DynamoDB は**条件と SET を実際に評価する**（台本が出す形
- * `#i[3].#n = :m`・`#v.#k0.#n = :m`・`#i[3].#u = :u0`・`attribute_exists(#v.#k0)`・
- * `attribute_type(deletedAt, :s)` だけを解く）。式の文字列を眺めるだけのテストだと、
- * 番地を取り違えても緑になる。
+ * 偽の DynamoDB は**本物に近づけてある**（式の文字列を眺めるだけのテストだと、
+ * 番地を取り違えても緑になる。#402 の見直しで、閲覧者の行に使っていない `:u0` を
+ * 渡していて本物なら断られる形を、前の偽物は通していた）:
+ *   - 条件・絞り込み・SET を実際に解く（台本が出す形だけ: OR / AND / begins_with /
+ *     attribute_exists / attribute_type / `=`、道は `#i[3].#n`・`#v.#k0.#n`）
+ *   - Scan は `PAGE` 行ずつ返し、`LastEvaluatedKey` を付ける。絞り込みは本物と同じく
+ *     読んだ行に対して掛ける
+ *   - 式で使っていない名前・値、渡していない名前・値は ValidationException
+ *   - 1回のトランザクションで同じ項目を2回触ると ValidationException（100 件・式 4KB の上限も）
  */
 
 type Item = Record<string, unknown>;
@@ -32,23 +37,11 @@ let photos: Map<string, Item>;
 let users: Map<string, Item>;
 let sent: { name: string; input: Record<string, unknown> }[];
 /** 書き込みの直前に表をいじる（読んでから書くまでの間の、別の書き込み） */
-let beforeWrite: (() => void) | null;
+let beforeWrite: ((targets: string[]) => void) | null;
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 type Seg = string | number;
-/** `#i[3].#n` / `#v.#k0.#n` を属性の道に直す */
-function parsePath(expr: string, names: Record<string, string>): Seg[] {
-    const out: Seg[] = [];
-    for (const part of expr.trim().split(".")) {
-        const m = /^(#\w+)((?:\[\d+\])*)$/.exec(part);
-        if (!m) throw new Error(`解けない道: ${expr}`);
-        if (!(m[1] in names)) throw new Error(`名前が無い: ${m[1]}`);
-        out.push(names[m[1]]);
-        for (const idx of m[2].matchAll(/\[(\d+)\]/g)) out.push(Number(idx[1]));
-    }
-    return out;
-}
 function getPath(item: Item, path: Seg[]): unknown {
     let cur: unknown = item;
     for (const s of path) {
@@ -57,7 +50,7 @@ function getPath(item: Item, path: Seg[]): unknown {
     }
     return cur;
 }
-function setPath(item: Item, path: Seg[], value: unknown): void {
+function setPath(item: Item, path: Seg[], v: unknown): void {
     let cur: unknown = item;
     for (const s of path.slice(0, -1)) {
         const next = (cur as Record<string | number, unknown>)[s];
@@ -65,36 +58,116 @@ function setPath(item: Item, path: Seg[], value: unknown): void {
         if (next === null || typeof next !== "object") throw Object.assign(new Error("道の途中が無い"), { name: "ValidationException" });
         cur = next;
     }
-    (cur as Record<string | number, unknown>)[path[path.length - 1]] = value;
+    (cur as Record<string | number, unknown>)[path[path.length - 1]] = v;
 }
+const validation = (msg: string) => Object.assign(new Error(msg), { name: "ValidationException" });
+
+/** 道を解く。`#名前` は置き換え、素の名前はそのまま（`id`・`deletedAt`） */
+function resolvePath(expr: string, names: Record<string, string>): Seg[] {
+    const out: Seg[] = [];
+    for (const part of expr.trim().split(".")) {
+        const m = /^(#?\w+)((?:\[\d+\])*)$/.exec(part);
+        if (!m) throw validation(`解けない道: ${expr}`);
+        if (m[1].startsWith("#")) {
+            if (!(m[1] in names)) throw validation(`名前が無い: ${m[1]}`);
+            out.push(names[m[1]]);
+        } else {
+            out.push(m[1]);
+        }
+        for (const idx of m[2].matchAll(/\[(\d+)\]/g)) out.push(Number(idx[1]));
+    }
+    return out;
+}
+function value(values: Record<string, unknown>, ref: string): unknown {
+    if (!(ref in values)) throw validation(`値が無い: ${ref}`);
+    return values[ref];
+}
+const typeOf = (v: unknown) => (typeof v === "string" ? "S" : typeof v === "number" ? "N" : typeof v === "boolean" ? "BOOL"
+    : Array.isArray(v) ? "L" : v === null ? "NULL" : "M");
+/** 条件・絞り込みを解く（台本が使う形だけ: OR / AND / begins_with / attribute_exists / attribute_type / =） */
 function evalCond(item: Item | undefined, expr: string, names: Record<string, string>, values: Record<string, unknown>): boolean {
-    return expr.split(" AND ").every((c) => {
+    return expr.split(" OR ").some((alt) => alt.split(" AND ").every((c) => {
         c = c.trim();
         let m = /^attribute_exists\((.+)\)$/.exec(c);
-        if (m) return item !== undefined && getPath(item, parsePath(m[1], names)) !== undefined;
-        m = /^attribute_type\((\w+), (:\w+)\)$/.exec(c);
-        if (m) return item !== undefined && values[m[2]] === "S" && typeof item[m[1]] === "string";
+        if (m) return item !== undefined && getPath(item, resolvePath(m[1], names)) !== undefined;
+        m = /^attribute_type\((.+), (:\w+)\)$/.exec(c);
+        if (m) {
+            const want = value(values, m[2]);
+            const v = item === undefined ? undefined : getPath(item, resolvePath(m[1], names));
+            return v !== undefined && typeOf(v) === want;
+        }
+        m = /^begins_with\((.+), (:\w+)\)$/.exec(c);
+        if (m) {
+            const prefix = value(values, m[2]);
+            const v = item === undefined ? undefined : getPath(item, resolvePath(m[1], names));
+            return typeof v === "string" && typeof prefix === "string" && v.startsWith(prefix);
+        }
         m = /^(.+) = (:\w+)$/.exec(c);
-        if (m) return item !== undefined && getPath(item, parsePath(m[1], names)) === values[m[2]];
-        throw new Error(`解けない条件: ${c}`);
-    });
+        if (m) return item !== undefined && getPath(item, resolvePath(m[1], names)) === value(values, m[2]);
+        throw validation(`解けない条件: ${c}`);
+    }));
 }
+/**
+ * 本物と同じく、**式で使っていない名前・値があれば断る**（"unused in expressions"）。
+ * 使っているのに渡していないものも断る
+ */
+function checkPlaceholders(op: Record<string, unknown>, exprKeys: string[]): void {
+    const text = exprKeys.map((k) => String(op[k] ?? "")).join(" ");
+    const usedN = new Set(text.match(/#\w+/g) ?? []);
+    const usedV = new Set(text.match(/:\w+/g) ?? []);
+    const names = (op.ExpressionAttributeNames ?? {}) as Record<string, string>;
+    const values = (op.ExpressionAttributeValues ?? {}) as Record<string, unknown>;
+    for (const k of Object.keys(names)) if (!usedN.has(k)) throw validation(`Value provided in ExpressionAttributeNames unused in expressions: keys: {${k}}`);
+    for (const k of Object.keys(values)) if (!usedV.has(k)) throw validation(`Value provided in ExpressionAttributeValues unused in expressions: keys: {${k}}`);
+    for (const k of usedN) if (!(k in names)) throw validation(`名前が無い: ${k}`);
+    for (const k of usedV) if (!(k in values)) throw validation(`値が無い: ${k}`);
+}
+
+/** 1ページで読む（絞り込む前の）行の数。台本がページをまたいで読むことを確かめる */
+const PAGE = 2;
 
 const ddb = {
     send: async (cmd: Cmd) => {
         const name = cmd.constructor.name;
         sent.push({ name, input: clone(cmd.input) });
         if (name === "ScanCommand") {
-            const table = cmd.input.TableName === USERS ? users : photos;
-            const all = [...table.values()].map(clone);
-            const rows = cmd.input.TableName === USERS
-                ? all.filter((u) => typeof u.deletedAt === "string")
-                : all.filter((r) => /^(comments|storyreplies|notifs)#/.test(String(r.id)) || r.viewers !== undefined);
-            return { Items: rows, ScannedCount: all.length, ConsumedCapacity: { CapacityUnits: 1 } };
+            const inp = cmd.input as Record<string, unknown> & { TableName: string; ExclusiveStartKey?: Record<string, string> };
+            checkPlaceholders(inp, ["FilterExpression", "ProjectionExpression"]);
+            const isUsers = inp.TableName === USERS;
+            const keyName = isUsers ? "userId" : "id";
+            const table = isUsers ? users : photos;
+            const keys = [...table.keys()];
+            const from = inp.ExclusiveStartKey ? keys.indexOf(inp.ExclusiveStartKey[keyName]) + 1 : 0;
+            const pageKeys = keys.slice(from, from + PAGE);
+            const names = (inp.ExpressionAttributeNames ?? {}) as Record<string, string>;
+            const values = (inp.ExpressionAttributeValues ?? {}) as Record<string, unknown>;
+            const filter = inp.FilterExpression as string | undefined;
+            const proj = typeof inp.ProjectionExpression === "string"
+                ? inp.ProjectionExpression.split(",").map((p) => String(resolvePath(p, names)[0]))
+                : null;
+            const rows = pageKeys.map((k) => clone(table.get(k)!))
+                .filter((r) => !filter || evalCond(r, filter, names, values))
+                .map((r) => (proj ? Object.fromEntries(Object.entries(r).filter(([a]) => proj.includes(a))) : r));
+            const more = from + PAGE < keys.length;
+            return {
+                Items: rows, ScannedCount: pageKeys.length, ConsumedCapacity: { CapacityUnits: 1 },
+                ...(more ? { LastEvaluatedKey: { [keyName]: pageKeys[pageKeys.length - 1] } } : {}),
+            };
         }
         if (name === "TransactWriteCommand") {
-            beforeWrite?.();
             const tx = cmd.input.TransactItems as Record<string, Record<string, unknown>>[];
+            if (tx.length > 100) throw validation("トランザクションは 100 件まで");
+            // 本物は同じ項目を1回のトランザクションで2回触ると断る
+            const touched = new Set<string>();
+            for (const t of tx) {
+                const op = (t.ConditionCheck ?? t.Update) as { TableName: string; Key: unknown };
+                const id = `${op.TableName}|${JSON.stringify(op.Key)}`;
+                if (touched.has(id)) throw validation("Transaction request cannot include multiple operations on one item");
+                touched.add(id);
+                checkPlaceholders(t.ConditionCheck ?? t.Update, ["ConditionExpression", "UpdateExpression"]);
+                if (t.Update && Buffer.byteLength(String(t.Update.UpdateExpression), "utf8") > 4096) throw validation("式は 4KB まで");
+            }
+            beforeWrite?.(tx.filter((t) => t.Update).map((t) => String((t.Update.Key as { id: string }).id)));
             // まず全部の条件を見る（1つでも外れたら何も書かない＝トランザクション）
             for (const t of tx) {
                 const op = (t.ConditionCheck ?? t.Update) as {
@@ -117,7 +190,7 @@ const ddb = {
                 const body = op.UpdateExpression.replace(/^SET /, "");
                 for (const a of body.split(", ")) {
                     const [lhs, rhs] = a.split(" = ");
-                    setPath(row, parsePath(lhs, op.ExpressionAttributeNames), op.ExpressionAttributeValues[rhs.trim()]);
+                    setPath(row, resolvePath(lhs, op.ExpressionAttributeNames), value(op.ExpressionAttributeValues, rhs.trim()));
                 }
             }
             return {};
@@ -215,6 +288,20 @@ describe("読むだけ（既定）", () => {
         expect(out).toMatch(/書き込み: トランザクション 4 回/);
         expect(out).toMatch(/1行も書いていません/);
     });
+
+    it("ページをまたいで全部読む（打ち切ると、その先の退会者・写しが残る）", async () => {
+        await main({ ddb, lib });
+        const scans = sent.filter((c) => c.name === "ScanCommand");
+        const users = scans.filter((c) => c.input.TableName === USERS);
+        const rows = scans.filter((c) => c.input.TableName === PHOTOS);
+        // users 5 行・photos 6 行を PAGE(2) 行ずつ
+        expect(users).toHaveLength(3);
+        expect(rows).toHaveLength(3);
+        expect(rows[1].input.ExclusiveStartKey).toBeDefined();
+        const out = logs();
+        expect(out).toMatch(/users を 5 行走査/);
+        expect(out).toMatch(/photos を 6 行走査/);
+    });
 });
 
 describe("--apply", () => {
@@ -243,6 +330,15 @@ describe("--apply", () => {
         expect(v[ALIVE2]).toEqual({ displayName: "もう一人", at: "2" });
 
         expect(process.exitCode).toBeUndefined();
+        // 書いた回数は保証ではない（アプリ側の切り詰めが配列を丸ごと書き戻す）
+        expect(logs()).toMatch(/読むだけでもう一度流し、伏せる写しが 0 件/);
+    });
+
+    it("閲覧者だけの行も本物の形で書ける（式で使わない値を渡さない）", async () => {
+        photos = new Map([["s1", { id: "s1", story: true, userId: ALIVE, viewers: { [GONE]: { displayName: "退会前の実名", at: "1" } } }]]);
+        await main({ ddb, lib });
+        expect(process.exitCode).toBeUndefined();
+        expect((photos.get("s1")!.viewers as Record<string, Item>)[GONE]).toEqual({ displayName: DELETED_USER_NAME, deleted: true, at: "1" });
     });
 
     it("生きている人しか居ない行・写しを持たない行には書き込みを出さない", async () => {
@@ -268,7 +364,9 @@ describe("--apply", () => {
     });
 
     it("読んでから書くまでに通知が先頭へ積まれて番地がずれたら、生きている人の要素は書かずに飛ばす", async () => {
-        beforeWrite = () => {
+        // 台本は**ページごとに書く**ので、ずらすのはその行を書く直前（読んだあと）
+        beforeWrite = (targets) => {
+            if (!targets.includes("notifs#" + ALIVE)) return;
             const row = photos.get("notifs#" + ALIVE)!;
             const items = row.items as Item[];
             // 先頭に生きている人の通知が1件積まれた（番地 0 が別人になる）

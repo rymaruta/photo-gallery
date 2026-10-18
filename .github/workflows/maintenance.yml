@@ -28,6 +28,7 @@ on:
           - backfill-likes # 既にあるいいねから likes#<uid> を作る
           - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
           - scrub-deleted-names # 退会した人の名前の写し（コメント・通知・返信・閲覧者）を伏せる（既定は読むだけ・apply で書く。札 #295）
+          - scrub-deleted-names-staging # 同じことを **staging** に（既定は読むだけ・apply で書く）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
@@ -266,6 +267,15 @@ jobs:
         if: inputs.task == 'scrub-deleted-names'
         run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 20
+
+      - name: 退会した人の名前の写しを伏せる（staging）
+        if: inputs.task == 'scrub-deleted-names-staging'
+        run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20
+        env:
+          # **staging を明示する。** 上の env は本番向けなので、上書きしないと本番の表を読み書きする
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          USERS_TABLE: staging-photo-gallery-users
 
       # 読み取り専用。apply の指定は不要
       - name: 写真表示の速さを測る

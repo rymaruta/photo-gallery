@@ -36,6 +36,8 @@
  * **既定は読むだけ。** 件数と、読み取り・書き込みの量（読みは実際に使った量、
  * 書きは `--apply` で使う見込み）を出す。`--apply` のときだけ書く。
  * 何度流しても同じ結果になる（伏せ済みの写しは数えない・書かない）。
+ * **書いた回数は保証ではない**（アプリ側の切り詰めが配列を丸ごと書き戻すので、古い名前に
+ * 戻りうる）。apply のあとは読むだけでもう一度流し、0 件を確かめる（`docs/tombstone-ttl.md`）。
  *
  * 使い方:
  *   PHOTOS_TABLE=… USERS_TABLE=… node scripts/scrub-deleted-names.js           # 読むだけ
@@ -123,9 +125,11 @@ function buildWrites(item, scrubs, tables) {
         const sets = [];
         const conds = [];
         const uids = [...new Set(chunk.map((c) => c.uid))];
-        uids.forEach((uid, i) => { values[`:u${i}`] = uid; });
         const uidRef = (uid) => `:u${uids.indexOf(uid)}`;
         if (k.kind === "viewers") {
+            // **`:u*` は入れない。** 閲覧者の行の式は ID を値として使わない（鍵の名前 `#k*` で
+            // 指す）。式で使わない値を渡すと、本物の DynamoDB は ValidationException
+            // （"unused in expressions"）で断り、apply が最初の閲覧者の行で止まる
             names["#v"] = "viewers";
             names["#n"] = "displayName";
             chunk.forEach((c, i) => {
@@ -136,6 +140,7 @@ function buildWrites(item, scrubs, tables) {
                 conds.push(`attribute_exists(#v.#k${i})`);
             });
         } else {
+            uids.forEach((uid, i) => { values[`:u${i}`] = uid; });
             names["#i"] = "items";
             names["#n"] = k.nameField;
             names["#u"] = k.uidField;
@@ -186,8 +191,11 @@ function estimateWriteUnits(item, tx) {
     return 2 * Math.max(1, Math.ceil(approxBytes(item) / 1024)) + 2 * checks;
 }
 
-async function scanAll(ddb, ScanCommand, input) {
-    const items = [];
+/**
+ * ページごとに `onPage(items)` を呼ぶ。**行を全部メモリに貯めない**（コメントの文書は
+ * 1つで最大 350KB あり、表全体を持つと台本のメモリが表の大きさで決まる）
+ */
+async function scanPages(ddb, ScanCommand, input, onPage) {
     let lastKey;
     let scanned = 0;
     let units = 0;
@@ -195,41 +203,43 @@ async function scanAll(ddb, ScanCommand, input) {
         const res = await ddb.send(new ScanCommand({ ...input, ExclusiveStartKey: lastKey, ReturnConsumedCapacity: "TOTAL" }));
         scanned += res.ScannedCount ?? 0;
         units += res.ConsumedCapacity?.CapacityUnits ?? 0;
-        for (const it of res.Items ?? []) items.push(it);
+        await onPage(res.Items ?? []);
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
-    return { items, scanned, units };
+    return { scanned, units };
 }
 
 /** 墓石（退会者）を全部読む。打ち切らない（打ち切ると、その先の退会者の写しが残る） */
+// 持つのは退会者の ID の集合だけ（行そのものは持たない）
 async function readTombstones(ddb, ScanCommand, USERS_TABLE) {
-    const r = await scanAll(ddb, ScanCommand, {
+    const deleted = new Set();
+    let withoutTtl = 0;
+    let earliestTtl;
+    const r = await scanPages(ddb, ScanCommand, {
         TableName: USERS_TABLE,
         FilterExpression: "attribute_type(deletedAt, :s)",
         ProjectionExpression: "userId, deletedAt, #ttl",
         ExpressionAttributeNames: { "#ttl": "ttl" },
         ExpressionAttributeValues: { ":s": "S" },
+    }, (items) => {
+        for (const it of items) {
+            if (typeof it.userId !== "string" || typeof it.deletedAt !== "string") continue;
+            deleted.add(it.userId);
+            if (typeof it.ttl !== "number") withoutTtl++;
+            else if (earliestTtl === undefined || it.ttl < earliestTtl) earliestTtl = it.ttl;
+        }
     });
-    const deleted = new Set();
-    let withoutTtl = 0;
-    let earliestTtl;
-    for (const it of r.items) {
-        if (typeof it.userId !== "string" || typeof it.deletedAt !== "string") continue;
-        deleted.add(it.userId);
-        if (typeof it.ttl !== "number") withoutTtl++;
-        else if (earliestTtl === undefined || it.ttl < earliestTtl) earliestTtl = it.ttl;
-    }
     return { deleted, withoutTtl, earliestTtl, scanned: r.scanned, units: r.units };
 }
 
 /** 写しを持ちうる行だけ読む（photos テーブルは単一キーなので Scan。絞り込みは返す行を減らすだけ） */
-async function readCopyRows(ddb, ScanCommand, PHOTOS_TABLE) {
-    return scanAll(ddb, ScanCommand, {
+async function scanCopyRows(ddb, ScanCommand, PHOTOS_TABLE, onPage) {
+    return scanPages(ddb, ScanCommand, {
         TableName: PHOTOS_TABLE,
         FilterExpression:
             "begins_with(id, :c) OR begins_with(id, :r) OR begins_with(id, :n) OR attribute_exists(viewers)",
         ExpressionAttributeValues: { ":c": "comments#", ":r": "storyreplies#", ":n": "notifs#" },
-    });
+    }, onPage);
 }
 
 /**
@@ -271,32 +281,33 @@ async function main(deps) {
     let conflicted = 0;
 
     if (tomb.deleted.size > 0) {
-        const rows = await readCopyRows(ddb, ScanCommand, PHOTOS_TABLE);
-        photosScanned = rows.scanned;
-        readUnits += rows.units;
-        for (const item of rows.items) {
-            const scrubs = findScrubs(item, tomb.deleted);
-            if (scrubs.length === 0) continue;
-            const kind = rowKind(item).kind;
-            counts[kind] += scrubs.length;
-            rowCounts[kind]++;
-            for (const tx of buildWrites(item, scrubs, tables)) {
-                txCount++;
-                writeUnits += estimateWriteUnits(item, tx);
-                if (!apply) continue;
-                try {
-                    await ddb.send(new TransactWriteCommand({ TransactItems: tx }));
-                    written++;
-                } catch (e) {
-                    // 条件が外れた（番地がずれた・墓石が戻された・行が消えた）か、
-                    // 同じ行への書き込みと競合した。どちらも**書かずに飛ばす**のが正しい。
-                    // 番地のずれはもう一度流せば読み直して入る
-                    if (e?.name !== "TransactionCanceledException") throw e;
-                    console.log(`[scrub-names] ${kind}: 条件が外れたので飛ばしました（もう一度流すと読み直して入ります）`);
-                    conflicted++;
+        const rows = await scanCopyRows(ddb, ScanCommand, PHOTOS_TABLE, async (items) => {
+            for (const item of items) {
+                const scrubs = findScrubs(item, tomb.deleted);
+                if (scrubs.length === 0) continue;
+                const kind = rowKind(item).kind;
+                counts[kind] += scrubs.length;
+                rowCounts[kind]++;
+                for (const tx of buildWrites(item, scrubs, tables)) {
+                    txCount++;
+                    writeUnits += estimateWriteUnits(item, tx);
+                    if (!apply) continue;
+                    try {
+                        await ddb.send(new TransactWriteCommand({ TransactItems: tx }));
+                        written++;
+                    } catch (e) {
+                        // 条件が外れた（番地がずれた・墓石が戻された・行が消えた）か、
+                        // 同じ行への書き込みと競合した。どちらも**書かずに飛ばす**のが正しい。
+                        // 番地のずれはもう一度流せば読み直して入る
+                        if (e?.name !== "TransactionCanceledException") throw e;
+                        console.log(`[scrub-names] ${kind}: 条件が外れたので飛ばしました（もう一度流すと読み直して入ります）`);
+                        conflicted++;
+                    }
                 }
             }
-        }
+        });
+        photosScanned = rows.scanned;
+        readUnits += rows.units;
     }
 
     console.log(`\n[scrub-names] photos を ${photosScanned} 行走査`);
@@ -312,6 +323,10 @@ async function main(deps) {
         return;
     }
     console.log(`[scrub-names] 書いた ${written} 回 / 条件が外れて飛ばした ${conflicted} 回`);
+    // **書いた回数は保証ではない。** アプリ側の切り詰め（`notify.ts` の通知・`comments.ts` の
+    // コメント・`storyReplies.ts` の返信）は配列を**丸ごと書き戻す**ので、この台本が書いた
+    // 直後に、伏せる前に読んだ配列で上書きされると古い名前に戻る（窓は短いが在る）
+    console.log("[scrub-names] 書いた回数は保証ではありません。読むだけでもう一度流し、伏せる写しが 0 件になったことを確かめてください。");
     if (conflicted > 0) {
         console.error(`[scrub-names] ${conflicted} 回が入っていません。もう一度流してください。`);
         process.exitCode = 1;
