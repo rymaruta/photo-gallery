@@ -276,3 +276,13 @@ describe("撮影地マップの札: 題が無い写真", () => {
         });
     }
 });
+
+// 下の並び（同じ撮影地の別の写真）の読み上げ名。旧い既定値の「無題」を読ませない
+describe("撮影地マップの札: 同じ撮影地の写真の読み上げ名", () => {
+    it("{ ja: 無題, en: Untitled } → 「写真」・題があればその題", () => {
+        render(<MapPhotoSheet photos={[photo("a")]} index={0} onIndexChange={vi.fn()} onClose={vi.fn()} locale="ja"
+            related={[photo("r1", { title: { ja: "無題", en: "Untitled" } } as Partial<MapPhoto>), photo("r2")]} relatedTotal={3} relatedHref="/location/x" />);
+        const links = Array.from(screen.getByTestId("map-sheet-related").querySelectorAll("a"));
+        expect(links.map((a) => a.getAttribute("aria-label"))).toEqual(["写真", "題r2"]);
+    });
+});

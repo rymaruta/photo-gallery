@@ -61,6 +61,9 @@ describe("拡大表示（GalleryModal）", () => {
                 await waitFor(() => expect(share.shareUrl).toHaveBeenCalled());
                 expect((share.shareUrl.mock.calls[0] as unknown[])[1]).toBe(want);
                 expect(container.innerHTML).not.toMatch(/無題|Untitled/);
+                // **見える題は空のまま**（代わりの題を画面に出さない）。題の箱は
+                // `ModalCaption` の `font-medium` の div
+                expect(container.querySelector("div.font-medium.break-words")?.textContent, "見える題に代わりの題が出ている").toBe("");
             });
         }
     }
