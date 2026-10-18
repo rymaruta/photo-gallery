@@ -193,6 +193,11 @@ export type TrunkLabel = {
      * 丸めて保存する（1200 枚に持たせても1行が 400KB を越えないように・`stored` の `p`）
      */
     pos?: TrunkPos;
+    /**
+     * 写真を非公開にした・消した・公開範囲を絞った（24時間を過ぎて取り消されなかった）印（2026-10-18 coordinator 判断）。
+     * 人の口（`theirLabel`）では地名と手がかりを伏せる。本人の口ではそのまま見える。公開に戻すと外す
+     */
+    placeHidden?: true;
 };
 
 export type TrunkPos = { x: number; y: number; rot: number };
@@ -478,7 +483,7 @@ function compactEquipped(e: Equipped): Record<string, unknown> {
  * `photoId` は `id` と同じなので持たない。読むとき（`decodeLabel`）に元の形へ戻す
  *
  *     i id ・ k kind(m/t/s/p) ・ n 地名 ・ l latin ・ c 国 ・ s 季節(0-3) ・ t 時刻(0-2) ・
- *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵 ・
+ *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵 ・ h 地名を人に伏せる(1) ・
  *     p 置き場 [x×1000, y×1000, rot×10]（整数）
  */
 const KIND_CODE: Record<LabelKind, string> = { milestone: "m", timeslot: "t", season: "s", place: "p" };
@@ -499,6 +504,7 @@ function stored(l: TrunkLabel): Record<string, unknown> {
         a: Number.isFinite(at) ? Math.floor(at / 1000) : 0,
         ...(l.foil ? { f: 1 } : {}),
         ...(l.groupId ? { g: l.groupId } : {}),
+        ...(l.placeHidden ? { h: 1 } : {}),
         ...(l.pos ? { p: [Math.round(l.pos.x * 1000), Math.round(l.pos.y * 1000), Math.round(l.pos.rot * 10)] } : {}),
     };
 }
@@ -524,6 +530,7 @@ function decodeLabel(v: unknown): unknown {
         at: typeof r.a === "number" ? new Date(r.a * 1000).toISOString() : "",
         ...(r.f === 1 ? { foil: true } : {}),
         ...(typeof r.g === "string" ? { groupId: r.g } : {}),
+        ...(r.h === 1 ? { placeHidden: true } : {}),
         ...(posOfStored(r.p) ? { pos: posOfStored(r.p) } : {}),
     };
 }
@@ -728,9 +735,14 @@ const freshCoinLog = (log: TrunkDoc["coinLog"], now: Date) =>
  */
 export function dealInto(
     doc: TrunkDoc, label: TrunkLabel, limit: number, fingerprint: string, now: Date,
+    opts: { restricted?: boolean } = {},
 ): { doc: TrunkDoc | null; outcome: DealOutcome } {
     const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
-    if (existing) return { doc: null, outcome: { label: stripInternal(existing), coin: 0 } };
+    if (existing) {
+        // 配り済みの写真がまた公開で来た（再送で公開に戻した）→ 地名の伏せを外す（同じ書き込み・読みは増やさない）
+        const shown = existing.placeHidden && !opts.restricted ? setPlaceHidden(doc, (l) => l.id === label.id, false) : null;
+        return { doc: shown, outcome: { label: stripInternal(shown ? { ...existing, placeHidden: undefined } : existing), coin: 0 } };
+    }
     const skip = (why: DealOutcome["labelSkipped"]) => ({ doc: null, outcome: noDeal(doc.receiveLabels ? why : "off") });
     // 束は台帳で見る（手持ちから消しても、同じ束の別の写真には配らない）。台帳を入れる前に配った分は手持ち・貼った方で見る
     if (label.groupId && (doc.groups.includes(label.groupId)
@@ -819,7 +831,7 @@ export async function grantLabel(
     const posts = countPosts(others) + 1;
     let outcome: DealOutcome = noDeal("error");
     await updateTrunk(uid, (doc) => {
-        const r = dealInto(doc, label, limit, fp, now);
+        const r = dealInto(doc, label, limit, fp, now, { restricted: isRestrictedRow(photo as unknown as Record<string, unknown>) });
         outcome = r.outcome;
         return r.doc ? { ...r.doc, posts } : null;
     });
@@ -1221,6 +1233,29 @@ export function revokeFrom(
 }
 
 /**
+ * 当たるラベル（手持ち・貼った方）の地名の伏せを付ける／外す（純関数）。変わらなければ null
+ */
+export function setPlaceHidden(doc: TrunkDoc, match: (l: TrunkLabel) => boolean, hidden: boolean): TrunkDoc | null {
+    let changed = false;
+    const fix = (l: TrunkLabel): TrunkLabel => {
+        if (!match(l) || !!l.placeHidden === hidden) return l;
+        changed = true;
+        if (hidden) return { ...l, placeHidden: true };
+        const { placeHidden: _h, ...rest } = l;
+        void _h;
+        return rest;
+    };
+    const next = { ...doc, pocket: doc.pocket.map(fix), stuck: doc.stuck.map(fix) };
+    return changed ? next : null;
+}
+
+/** 写真から、当たるラベルの見分け方（束なら束の鍵・そうでなければ写真の id） */
+function labelMatcher(photoId: string, group: string): (l: TrunkLabel) => boolean {
+    const g = group ? groupKey(group) : "";
+    return (l) => (g ? l.groupId === g : l.id === photoId);
+}
+
+/**
  * 束の写真が、この1枚のほかに**まだ公開で残っているか**。
  *
  * 兄弟の id は索引（`listMyPhotos`・結果整合）から引き、**1枚ずつ強い読みで確かめる**
@@ -1245,10 +1280,14 @@ async function groupStillPublic(uid: string, group: string, exceptId: string): P
  * **投げない・上限つきで待つ**。落ちても削除・非公開は成功のまま（ラベルが残るだけ）。
  * `photo` は**消す・隠す前の行**。退会は行ごと消す（`account.ts`）ので、ここは通らない
  */
-export async function revokeLabelQuietly(uid: string, photo: Record<string, unknown>, label: string): Promise<void> {
+export async function revokeLabelQuietly(
+    uid: string, photo: Record<string, unknown>, label: string, opts: { revoke?: boolean } = {},
+): Promise<void> {
     const photoId = typeof photo.id === "string" ? photo.id : "";
     if (!uid || !photoId) return;
     const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
+    // 公開範囲を絞っただけ（`revoke: false`）は取り消さず、地名を伏せるだけ（2026-10-18 判断: 取り消しの線は今までどおり）
+    const revoke = opts.revoke !== false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
@@ -1256,15 +1295,40 @@ export async function revokeLabelQuietly(uid: string, photo: Record<string, unkn
                 const groupRemains = g ? await groupStillPublic(uid, g, photoId) : false;
                 await updateTrunk(uid, (doc, exists) => {
                     if (!exists) return null;
-                    return revokeFrom(doc, {
+                    const revoked = revoke ? revokeFrom(doc, {
                         photoId,
                         ...(g ? { group: groupKey(g), groupRemains } : {}),
                         postedAt: photo.firstPublishedAt ?? photo.createdAt,
-                    }, new Date());
+                    }, new Date()) : null;
+                    // 取り消されずに残ったラベルは、人の口で地名を伏せる（同じ書き込みに相乗り）。
+                    // 束の写真がまだ公開で残っていれば、その土地は公開のままなので伏せない
+                    const base = revoked ?? doc;
+                    const hidden = g && groupRemains ? null : setPlaceHidden(base, labelMatcher(photoId, g), true);
+                    return hidden ?? revoked;
                 });
             })().catch((e) => {
                 console.error(`${label}: ラベルを取り消せませんでした（${uid}）:`, e);
             }),
+            new Promise<void>((resolve) => { timer = setTimeout(resolve, TRUNK_QUIET_LIMIT_MS); }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+/**
+ * 非公開・公開範囲を絞った写真を**公開に戻した**ときに呼ぶ（`photoUpdate.ts`）。地名の伏せを外す。
+ * 投げない・上限つきで待つ。行が無い・当たるラベルが無い・伏せていなければ何も書かない
+ */
+export async function showLabelPlaceQuietly(uid: string, photo: Record<string, unknown>, label: string): Promise<void> {
+    const photoId = typeof photo.id === "string" ? photo.id : "";
+    if (!uid || !photoId) return;
+    const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            updateTrunk(uid, (doc, exists) => (exists ? setPlaceHidden(doc, labelMatcher(photoId, g), false) : null))
+                .catch((e) => { console.error(`${label}: ラベルの地名を戻せませんでした（${uid}）:`, e); }),
             new Promise<void>((resolve) => { timer = setTimeout(resolve, TRUNK_QUIET_LIMIT_MS); }),
         ]);
     } finally {
@@ -1298,13 +1362,17 @@ export type TheirLabel = {
     foil?: true;
     pos?: TrunkPos;
     where: { location: string } | null;
+    /** 地名を伏せたラベル（`place` は `{ name: "" }`・`where` は null）。iOS は地名なしで描く */
+    placeHidden?: true;
 };
 
 export function theirLabel(l: TrunkLabel): TheirLabel {
+    const hidden = !!l.placeHidden;
     return {
         id: `t${shortHash(`label\u0000${l.id}`)}`,
         kind: l.kind,
-        place: l.place,
+        // 伏せたラベルは地名・ラテン文字・国を出さない（「はじめての国」でも国名を出さない）
+        place: hidden ? { name: "" } : l.place,
         ...(l.season ? { season: l.season } : {}),
         ...(l.timeslot ? { timeslot: l.timeslot } : {}),
         ...(l.milestone ? { milestone: l.milestone } : {}),
@@ -1312,7 +1380,8 @@ export function theirLabel(l: TrunkLabel): TheirLabel {
         at: l.at.slice(0, 10),
         ...(l.foil ? { foil: true as const } : {}),
         ...(l.pos ? { pos: l.pos } : {}),
-        where: l.place.name ? { location: l.place.name } : null,
+        where: !hidden && l.place.name ? { location: l.place.name } : null,
+        ...(hidden ? { placeHidden: true as const } : {}),
     };
 }
 

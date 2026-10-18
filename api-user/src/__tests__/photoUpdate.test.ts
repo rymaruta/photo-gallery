@@ -12,7 +12,10 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 // 旅のトランク（`trunk.ts`）。中身は `trunk.test.ts`。ここは「下書き → 公開で配る」の呼ばれ方だけ
 const mockGrantForPhoto = vi.hoisted(() => vi.fn());
 const mockRevokeLabel = vi.hoisted(() => vi.fn());
-vi.mock("../trunk", () => ({ grantLabelForPhotoQuietly: mockGrantForPhoto, revokeLabelQuietly: mockRevokeLabel }));
+const mockShowLabelPlace = vi.hoisted(() => vi.fn());
+vi.mock("../trunk", () => ({
+    grantLabelForPhotoQuietly: mockGrantForPhoto, revokeLabelQuietly: mockRevokeLabel, showLabelPlaceQuietly: mockShowLabelPlace,
+}));
 // メダルの数え直し（`badgeStore.ts`）。中身は `badgeStore.test.ts` が見るので、ここは呼ばれ方だけ
 const mockRefreshBadges = vi.hoisted(() => vi.fn(async (userId: string, label: string) => { void userId; void label; }));
 vi.mock("../badgeStore", () => ({
@@ -92,6 +95,7 @@ beforeEach(() => {
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
     mockGrantForPhoto.mockReset().mockResolvedValue(undefined);
     mockRevokeLabel.mockReset().mockResolvedValue(undefined);
+    mockShowLabelPlace.mockReset().mockResolvedValue(undefined);
     mockReadVisibleSource.mockReset().mockResolvedValue(null);
     mockNotifyInspired.mockReset().mockResolvedValue(undefined);
     vi.stubEnv("CLOUDFRONT_URL", CDN);
@@ -1983,6 +1987,65 @@ describe("updatePhotoVisibility: 下書き → 公開で旅のトランクのラ
         expect(mockRevokeLabel).toHaveBeenCalledTimes(1);
         expect(mockRevokeLabel.mock.calls[0][0]).toBe("u1");
         expect(mockRevokeLabel.mock.calls[0][1]).toMatchObject(row);
+    });
+
+    // 2026-10-18（人のトランク）: 誰にでも見えなくなった写真のラベルは、人の口で地名を伏せる。戻したら戻す
+    describe("人のトランクの地名の伏せ（2026-10-18）", () => {
+        /** 初めての公開の印が「もう有る」（＝前に公開したことがある）ときの DynamoDB */
+        const republishDdb = (row: Record<string, unknown>) => mockDdbSend.mockImplementation(async (cmd: { input: Record<string, unknown> }) => {
+            if (cmd.input.UpdateExpression === "SET firstPublishedAt = :t") {
+                throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+            }
+            return "UpdateExpression" in cmd.input || "Item" in cmd.input ? {} : { Item: row };
+        });
+
+        it("公開範囲を絞った（公開のまま）: 取り消しはせず、地名だけ伏せる（revoke: false）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true } }).mockResolvedValue({});
+            await invoke(event("u1", "p1", { published: true, audience: "followers" }));
+            expect(mockRevokeLabel).toHaveBeenCalledTimes(1);
+            expect(mockRevokeLabel.mock.calls[0][3]).toEqual({ revoke: false });
+            expect(mockShowLabelPlace).not.toHaveBeenCalled();
+        });
+
+        it("絞った範囲を外して全員に戻した: 伏せを外す", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, audience: "followers" } }).mockResolvedValue({});
+            await invoke(event("u1", "p1", { published: true, audience: null }));
+            expect(mockShowLabelPlace).toHaveBeenCalledTimes(1);
+            expect(mockShowLabelPlace.mock.calls[0][0]).toBe("u1");
+            expect(mockRevokeLabel).not.toHaveBeenCalled();
+        });
+
+        it("非公開 → 公開（前に公開したことがある写真）: 伏せを外す。初めての公開（いま配る回）は呼ばない", async () => {
+            const row = { id: "p1", userId: "u1", published: false, firstPublishedAt: "2026-10-17T00:00:00.000Z" };
+            republishDdb(row);
+            await invoke(event("u1", "p1", { published: true }));
+            expect(mockShowLabelPlace).toHaveBeenCalledTimes(1);
+            expect(mockShowLabelPlace.mock.calls[0][1]).toMatchObject({ id: "p1" });
+            mockShowLabelPlace.mockClear();
+            mockDdbSend.mockReset().mockResolvedValueOnce({ Item: { id: "p2", userId: "u1", published: false } }).mockResolvedValue({});
+            await invoke(event("u1", "p2", { published: true }));
+            expect(mockShowLabelPlace).not.toHaveBeenCalled();
+        });
+
+        it("絞ったままの公開・非公開のまま・公開のままの保存では、どちらも呼ばない", async () => {
+            for (const [row, body] of [
+                [{ id: "p1", userId: "u1", published: true, audience: "followers" }, { published: true, title: "x" }],
+                [{ id: "p1", userId: "u1", published: false }, { published: false, title: "x" }],
+                [{ id: "p1", userId: "u1", published: true }, { published: true, title: "x" }],
+            ] as const) {
+                mockDdbSend.mockReset().mockResolvedValueOnce({ Item: row }).mockResolvedValue({});
+                await invoke(event("u1", "p1", body));
+            }
+            expect(mockShowLabelPlace).not.toHaveBeenCalled();
+            expect(mockRevokeLabel).not.toHaveBeenCalled();
+        });
+
+        it("公開 → 非公開は今までどおり取り消し（伏せも同じ呼び出しの中・revoke の指定なし）", async () => {
+            mockDdbSend.mockResolvedValueOnce({ Item: { id: "p1", userId: "u1", published: true, audience: "followers" } }).mockResolvedValue({});
+            await invoke(event("u1", "p1", { published: false }));
+            expect(mockRevokeLabel).toHaveBeenCalledTimes(1);
+            expect(mockRevokeLabel.mock.calls[0][3]).toBeUndefined();
+        });
     });
 
     it("公開のままの保存・非公開にする回は配らない", async () => {
