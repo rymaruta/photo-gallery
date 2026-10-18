@@ -506,7 +506,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                 // 下の番号の確かめより先に重ねる
                 if (mineProfile && typeof mineProfile.userId === "string") {
                     const own = sanitizeProfile<UserProfile>(mineProfile, "GET /user/profile");
-                    setUserProfile((p) => (p ? { ...p, badges: own.badges, displayBadge: own.displayBadge } : p));
+                    if (own) setUserProfile((p) => (p ? { ...p, badges: own.badges, displayBadge: own.displayBadge } : p));
                 }
                 if (pinSeq !== pinSeqRef.current) return;
                 const raw = mineProfile?.pinnedPhotoIds;
