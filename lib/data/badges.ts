@@ -67,6 +67,15 @@ export function isBadgeKey(v: unknown): v is BadgeKey {
     return typeof v === "string" && ((BADGE_KEYS as readonly string[]).includes(v) || parseProSeasonKey(v) !== null);
 }
 
+/**
+ * Pro のメダルの鍵か（サポーター章・続けた年・季節の章）。本人が公開プロフィールから隠せるもの
+ * （2026-10-18・journey.photo-ios #296）。**サーバーの `api-user/src/badgeKeys.ts` の `isProBadgeKey` と同じ規則**
+ * （別のパッケージなので import できない。`app/user/settings/__tests__/ProBadgesPublicRow.test.tsx` が突き合わせる）
+ */
+export function isProBadgeKey(v: unknown): boolean {
+    return v === "supporter" || v === "supporterYear" || parseProSeasonKey(v) !== null;
+}
+
 /** 段の上限（`first`・`earlyUser`・`supporter` は1段だけ。季節の章も1段） */
 export const BADGE_MAX_TIER: Record<FixedBadgeKey, number> = {
     first: 1, prefectures: 3, countries: 3, seasons: 3, morning: 3, night: 3, books: 3, wish: 3, earlyUser: 1,

@@ -219,6 +219,19 @@ describe("公開プロフィールの節が公開の形と合っている", () =
     it("印を外しても Pro か分かること・番号とメダルが公開のままであることを、4節で言っている", () => {
         const s4 = sectionOf(4);
         expect(s4).toContain("いま Pro であるかどうかは他の方に分かります");
-        expect(s4).toContain("サポーターの番号・続けた月数とメダルも、印を外しても公開のままです");
+        expect(s4).toContain("印を外しても、サポーターの番号・続けた月数とメダルは公開のままです");
+    });
+
+    // 2026-10-18（journey.photo-ios #296）: 本人が Pro の章を公開プロフィールから隠せる
+    it("Pro の章を隠す設定で消えるもの・消えないものを、実装と4節で合わせている", () => {
+        const src = read("api-user/src/userProfile.ts");
+        const fn = src.slice(src.indexOf("function withoutRemovedMarks("));
+        const body = fn.slice(0, fn.indexOf("\n}"));
+        expect(body, "隠したとき Pro のメダルを落としていない").toContain("isProBadgeKey");
+        expect(body, "隠したときサポーターの番号を落としていない").toContain("out.supporter = undefined");
+        expect(body, "隠したとき券面の可否まで落としている（4節は「分かる」と言っている）").not.toContain("passFace");
+        const s4 = sectionOf(4);
+        expect(s4).toContain("設定の「公開プロフィールに Pro の章を出す」をオフにすると、Pro のメダル（サポーター章・続けた年・季節の章）と、サポーターの番号・申し込んだ日・続けた月数を公開しません");
+        expect(s4).toContain("その場合も、乗車券の券面の項目から、いま Pro であるかどうかは他の方に分かります");
     });
 });

@@ -135,6 +135,16 @@ export function sanitizeBadges(raw: unknown): BadgeMap | undefined {
     return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/**
+ * Pro のメダルの鍵か（サポーター章・続けた年・季節の章）。**本人が公開プロフィールから隠せるもの**
+ * （`userProfile.ts` の `proBadgesHidden`・2026-10-18 owner・journey.photo-ios #296）。
+ * Pro の機能の章（暁・圏外など）を足すときは、ここも直す（隠す範囲から漏れる）。
+ * `earlyUser` と数えるメダルは Pro と関係ないので入らない
+ */
+export function isProBadgeKey(v: unknown): boolean {
+    return typeof v === "string" && ((PRO_BADGE_KEYS as readonly string[]).includes(v) || parseProSeasonKey(v) !== null);
+}
+
 /** その鍵を持っているか（段が1以上） */
 export function ownsBadge(badges: unknown, key: unknown): key is BadgeKey {
     if (!isBadgeKey(key)) return false;
