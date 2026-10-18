@@ -393,6 +393,43 @@ describe("名前の横の印を外す", () => {
         expect(pub.verified).toBeUndefined();
     });
 
+    // 特別な乗車券の券面（2026-10-17 owner）。受け取った側は送り主の公開プロフィールで見る。
+    // 印を外した Pro の人の券面も届くように、`pro`（印）とは別の項目で「いま Pro か」を返す
+    it("passFace: 印を外した Pro は pro: false のまま passFace: true（公開の GET）", async () => {
+        mockSend.mockResolvedValueOnce(stored({ ...PRO, proMarkStyle: "none" }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.pro).toBe(false);
+        expect(body.proMarkStyle).toBe("iris");
+        expect(body.passFace).toBe(true);
+        // 印を付けている Pro も true
+        mockSend.mockResolvedValueOnce(stored({ ...PRO, proMarkStyle: "plate" }));
+        const on = JSON.parse((await getPublic("u1")).body);
+        expect(on.pro).toBe(true);
+        expect(on.passFace).toBe(true);
+    });
+
+    it("passFace: Pro でない人は pro も passFace も false（印を外す操作をしていても）", async () => {
+        mockSend.mockResolvedValueOnce(stored({}));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.pro).toBe(false);
+        expect(body.passFace).toBe(false);
+        expect(toPublicProfile({ userId: "u1", proMarkStyle: "none" } as never).passFace).toBe(false);
+        // やめた（active が false）
+        expect(toPublicProfile({ userId: "u1", supporter: { active: false, number: 3 } } as never).passFace).toBe(false);
+    });
+
+    it("passFace: 期限切れの Pro は false（印を外していても・付けていても）", async () => {
+        const expired = { supporter: { active: true, expiresAt: "2026-01-01T00:00:00.000Z" } };
+        mockSend.mockResolvedValueOnce(stored({ ...expired, proMarkStyle: "none" }));
+        const body = JSON.parse((await getPublic("u1")).body);
+        expect(body.pro).toBe(false);
+        expect(body.passFace).toBe(false);
+        expect(toPublicProfile({ userId: "u1", ...expired, proMarkStyle: "plate" } as never).passFace).toBe(false);
+        // 期限がまだ来ていなければ true
+        const live = { supporter: { active: true, expiresAt: "2099-01-01T00:00:00.000Z" } };
+        expect(toPublicProfile({ userId: "u1", ...live, proMarkStyle: "none" } as never).passFace).toBe(true);
+    });
+
     it("公式の印: verifiedMarkOff は真偽だけ受ける。true を置き、false で消す（付け直す）", async () => {
         mockSend.mockResolvedValueOnce(stored({ verified: true })).mockResolvedValueOnce({});
         const res = await update({ verifiedMarkOff: true });
