@@ -716,12 +716,15 @@ const freshCoinLog = (log: TrunkDoc["coinLog"], now: Date) =>
  */
 export function dealInto(
     doc: TrunkDoc, label: TrunkLabel, limit: number, fingerprint: string, now: Date,
+    opts: { siblingPlaces?: Set<string> } = {},
 ): { doc: TrunkDoc | null; outcome: DealOutcome } {
     const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
     if (existing) {
-        // 配り済みの写真がまた来た（再送）: 地名を見せてよいかを、今の写真で付け直す（同じ書き込み・読みは増やさない）。
-        // 見せてよいのは、今の写真が誰にでも見える公開で（`label.placeOk`）撮影地がラベルと同じときだけ
-        const ok = !!label.placeOk && placeKey(existing.place) === placeKey(label.place);
+        // 配り済みの写真がまた来た（再送）: 地名を見せてよいかを、今の写真で付け直す（同じ書き込み）。決まりは `placeOkNext`:
+        // 付けるのは今の写真が誰にでも見える公開で（`label.placeOk`）撮影地がラベルと同じとき。束の兄弟（強い読み・
+        // `siblingPlaces`。再送の束だけ `grantLabel` が読む）は残す根拠にだけなる
+        const self = !!label.placeOk && placeKey(existing.place) === placeKey(label.place);
+        const ok = self || (!!existing.placeOk && !!opts.siblingPlaces?.has(placeKey(existing.place)));
         const next = setPlaceOk(doc, (l) => l.id === label.id, () => ok);
         const shown = next ? (next.pocket.find((l) => l.id === label.id) ?? next.stuck.find((l) => l.id === label.id)!) : existing;
         return { doc: next, outcome: { label: stripInternal(shown), coin: 0 } };
@@ -798,7 +801,7 @@ async function readProfileBits(uid: string): Promise<Record<string, unknown> | u
  */
 export async function grantLabel(
     uid: string, photo: Photo, now: Date = new Date(), rand: Rand = cryptoRand, photos?: Promise<Photo[]>,
-    deadline?: number,
+    deadline?: number, opts: { resend?: boolean } = {},
 ): Promise<DealOutcome> {
     if (!uid || !isCountablePhoto(photo)) return noDeal("draft");
     // 本人の写真の一覧は、渡されたら使う（savePhoto がメダルの数え直しと1回の読みを分け合う）
@@ -815,10 +818,14 @@ export async function grantLabel(
     // 人のトランクの古び方に使う控え（この投稿を足した数）。**配って書くときに相乗りするだけ**——配らない回
     // （歯止め・上限）は今までどおり何も書かない。控えは本人が `GET /user/trunk` を開いたときにも直る
     const posts = countPublicPosts([...others, photo] as unknown as Record<string, unknown>[]);
+    // 再送の束だけ: 配り済みのラベルの印を、強い読みの兄弟を根拠に残せるよう読む（`placeOkNext`）。
+    // 再送でない回は配り済みに当たらない（束の2枚目以降は `samePost`）ので読まない。読むのは兄弟を並べて上限まで
+    const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
+    const siblingPlaces = opts.resend && g ? await strongSiblingPlaces(uid, g, photo.id, mine) : undefined;
     let outcome: DealOutcome = noDeal("error");
     let wroteOk = false;
     await updateTrunk(uid, (doc) => {
-        const r = dealInto(doc, label, limit, fp, now);
+        const r = dealInto(doc, label, limit, fp, now, { siblingPlaces });
         outcome = r.outcome;
         // この書き込みで「地名を見せてよい」印を新しく付けたか（やり直しのたびに決め直す＝最後の1回が書いたもの）
         wroteOk = !!r.doc && hasPlaceOk(r.doc, label.id) && !hasPlaceOk(doc, label.id);
@@ -957,7 +964,8 @@ export async function grantLabelQuietly(
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([
-            grantLabel(uid, photo, new Date(), cryptoRand, opts.photos, Date.now() + TRUNK_QUIET_LIMIT_MS - CONFIRM_MARGIN_MS).catch((e): DealOutcome => {
+            grantLabel(uid, photo, new Date(), cryptoRand, opts.photos, Date.now() + TRUNK_QUIET_LIMIT_MS - CONFIRM_MARGIN_MS,
+                { resend: !!opts.requireNew }).catch((e): DealOutcome => {
                 console.error(`${label}: ラベルを配れませんでした（${uid}）:`, e);
                 return noDeal("error");
             }),
@@ -1352,6 +1360,27 @@ async function groupSiblings(uid: string, group: string, exceptId: string): Prom
 }
 
 /**
+ * 束の兄弟を**強い読みで並べて**読み、誰にでも見える公開の兄弟の撮影地を返す（`listed` は本人の写真の一覧・索引）。
+ * 読むのは `STALE_READ_MAX` 枚まで（それより大きい束は、読めた兄弟に根拠が無ければ外す側に倒れる）。
+ * 読みが落ちた兄弟は根拠にしない
+ */
+async function strongSiblingPlaces(uid: string, group: string, exceptId: string, listed: Photo[]): Promise<Set<string>> {
+    const ids = listed.filter((o) => o.id !== exceptId && typeof o.groupId === "string" && o.groupId.trim() === group)
+        .map((o) => o.id).slice(0, STALE_READ_MAX);
+    const out = new Set<string>();
+    await Promise.all(ids.map(async (id) => {
+        try {
+            const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
+            const row = res.Item as Record<string, unknown> | undefined;
+            if (row && (row.userId ?? row.uploadedBy) === uid && isPublicListPhoto(row)) out.add(placeKey(placeOf(row as unknown as Photo)));
+        } catch (e) {
+            console.error(`trunk: 束の兄弟の読みに失敗しました（${uid}・${id}）:`, e);
+        }
+    }));
+    return out;
+}
+
+/**
  * 写真の削除（`deleteMyPhoto`）と、公開 → 非公開（`updatePhotoVisibility`）のあとに呼ぶ。
  * **投げない・上限つきで待つ**。落ちても削除・非公開は成功のまま（ラベルが残るだけ）。
  * `photo` は**消す・隠す前の行**。退会は行ごと消す（`account.ts`）ので、ここは通らない
@@ -1615,9 +1644,13 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
     let budget = STALE_READ_MAX;
     for (const [labelId, photoIds] of candidates) {
         const l = all.find((x) => x.id === labelId);
-        if (!l || photoIds.length > budget) continue;
-        budget -= photoIds.length;
-        picked.push([l, photoIds]);
+        if (!l || budget === 0) continue;
+        // 上限より大きい束は、ラベルの写真＋兄弟を上限まで読む（残す根拠が見つからなければ外す側に倒す）。
+        // 上限に収まる束が今回の残りに入らないときは、次の GET に回す（次は丸ごと読める）
+        if (photoIds.length > budget && photoIds.length <= STALE_READ_MAX) continue;
+        const take = photoIds.slice(0, budget);
+        budget -= take.length;
+        picked.push([l, take]);
     }
     const ids = [...new Set(picked.flatMap(([, p]) => p))];
     const rows = new Map<string, { ok: true; item?: Record<string, unknown> } | { ok: false }>();

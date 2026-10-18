@@ -748,6 +748,40 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         expect(left()).toBe(0);
     });
 
+    it("【見直し4-1】上限（25枚）より大きい束も、GET の外しで外れる（読めた分に残す根拠が無ければ外す）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("big");
+        const ids = Array.from({ length: T.STALE_READ_MAX + 5 }, (_, i) => `b${i}`);
+        setTrunk(OWNER, { stuck: [okLabel("b0", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue(ids.map((id) => row(id, { groupId: "big", audience: "followers" })));
+        for (const id of ids) setPhoto(id, row(id, { groupId: "big", audience: "followers" }));
+        fakeSend.mockClear();
+        expect((await ownStuck())[0].placeOk).toBeUndefined();
+        const reads = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand"
+            && ids.includes(String((c.input as { Key: Item }).Key.id)));
+        expect(reads.length).toBe(T.STALE_READ_MAX);
+        // 読めた分の兄弟が公開で同じ撮影地なら残す
+        setTrunk(OWNER, { ...trunkRow(OWNER), stuck: [okLabel("b0", { g })] });
+        setPhoto("b3", row("b3", { groupId: "big" }));
+        expect((await ownStuck())[0].placeOk).toBe(true);
+    });
+
+    it("【見直し4-2】再送（配りに相乗り）でも束の兄弟を残す根拠にする: 絞った写真の再送でも、兄弟が公開で同じ撮影地なら印を残す", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }));
+        // 再送の経路（requireNew）
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test", { requireNew: true });
+        await expectShown();
+        // 兄弟も絞られていれば外す
+        setPhoto("ph9", row("ph9", { groupId: "grp", audience: "followers" }));
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test", { requireNew: true });
+        await expectHidden();
+    });
+
     it("【見直し9】再送で撮影地が変わっていたら印を外す（同じ撮影地なら残す）", async () => {
         setProfile(OWNER, {});
         setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });

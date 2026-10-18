@@ -132,13 +132,16 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         if (plan.addedIds.length === 0) return;
         try {
             const fresh = new Map();
-            for (const id of plan.addedIds) {
-                tally.gets++;
-                const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true, ReturnConsumedCapacity: "TOTAL" }));
-                consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
-                fresh.set(id, res.Item);
-                cache.set(id, res.Item);
-            }
+            const readFresh = async () => {
+                for (const id of plan.addedIds) {
+                    tally.gets++;
+                    const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true, ReturnConsumedCapacity: "TOTAL" }));
+                    consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
+                    fresh.set(id, res.Item);
+                    cache.set(id, res.Item);
+                }
+            };
+            await readFresh();
             let row = written;
             for (let attempt = 0; attempt < 2 && row; attempt++) {
                 let dropped = 0;
@@ -163,6 +166,8 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
                 } catch (e) {
                     if (e.name !== "ConditionalCheckFailedException" || attempt === 1) throw e;
                     row = (await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: written.id }, ConsistentRead: true }))).Item;
+                    // 写真もいまの姿で読み直す（競合のあいだに公開へ戻された写真の印を外さない）
+                    await readFresh();
                 }
             }
         } catch (e) {

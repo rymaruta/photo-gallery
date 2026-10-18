@@ -158,6 +158,21 @@ describe("台本の本体（run）", () => {
         expect([tally.rechecked, tally.recheckFailed]).toEqual([1, 0]);
     });
 
+    it("確かめの Put が競合してやり直すときは、写真も強い読みで読み直す（あいだに公開へ戻った写真の印を外さない）", async () => {
+        const w = world();
+        w.setOnPut(() => {
+            // 印を書く直前に絞られる → 確かめで外しにいく直前に、アプリが先に書き・写真も公開へ戻る
+            w.store.set("a", pub("a", { audience: "followers" }));
+            w.setOnPut(() => {
+                w.store.set(`trunk#${U}`, { ...w.store.get(`trunk#${U}`)!, rev: 7 });
+                w.store.set("a", pub("a"));
+            });
+        });
+        const tally = await w.go(["node", "x", "--apply"]);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBe(1);
+        expect([tally.rechecked, tally.recheckFailed]).toEqual([0, 0]);
+    });
+
     it("書いたあとの確かめで、公開のままなら書き足さない", async () => {
         const w = world();
         await w.go(["node", "x", "--apply"]);
