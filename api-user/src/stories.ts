@@ -3,7 +3,7 @@ import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, Delet
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
-import { lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { lookupDisplayName, deletedAmong, DELETED_USER_NAME } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
@@ -628,7 +628,7 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         //
         // 閲覧のときに引いた表示名を焼き込んでいるので（`viewStory`）、
         // そのあと退会しても残る。「誰が何をしたか」を返す一覧6本のうち、
-        // **ここだけ `deletedUserIds()` を通していなかった**
+        // **ここだけ退会者の判定（今は `deletedAmong()`）を通していなかった**
         // （comments / notifications / storyReplies / getUserFollowing /
         //  getUserFollowers は全部通している）。
         // ストーリーは24時間で消えるので窓は短いが、その間は出続ける。
@@ -648,7 +648,7 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         const [gone, hidden] = entries.length === 0
             ? [new Set<string>(), new Set<string>()]
             : await Promise.all([
-                deletedUserIds(),
+                deletedAmong(entries.map(([userId]) => userId)),
                 // 読めなければ一覧は返す（`getStories` と同じ判断）
                 hiddenUserIds(callerId).catch((e) => {
                     console.error("getStoryViewers: ブロック一覧を読めませんでした:", e);

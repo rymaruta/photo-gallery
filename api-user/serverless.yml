@@ -115,6 +115,9 @@ provider:
             - dynamodb:DeleteItem
             # ユーザー検索（表示名の部分一致）。ユーザー数が増えたら GSI に置き換える
             - dynamodb:Scan
+            # 退会者の伏せ字（`notify.ts` の `deletedAmong`）。一覧に出る ID だけを
+            # 100 件ずつ引く。無いと**読めない＝全員を伏せる**側に倒れる
+            - dynamodb:BatchGetItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
 
@@ -1547,8 +1550,10 @@ resources:
                 - Effect: Allow
                   Action:
                     - dynamodb:GetItem
-                    # 表示名の部分一致（searchUsers）と退会者の伏せ字（getComments）。
-                    # どちらも GSI が無いので全表 Scan になっている
+                    # 表示名の部分一致（searchUsers）。GSI が無いので全表 Scan
                     - dynamodb:Scan
+                    # 退会者の伏せ字（getComments → `notify.ts` の `deletedAmong`）。
+                    # 一覧に出る ID だけを引く（以前は全表 Scan で、行 5000 で打ち切っていた）
+                    - dynamodb:BatchGetItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}

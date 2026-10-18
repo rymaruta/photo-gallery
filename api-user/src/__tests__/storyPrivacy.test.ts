@@ -47,7 +47,7 @@ const mockLookup = vi.hoisted(() => vi.fn(async () => "名前"));
 vi.mock("../notify", async (importActual) => ({
     ...(await importActual<typeof import("../notify")>()),
     lookupDisplayName: () => mockLookup(),
-    deletedUserIds: async () => new Set<string>(),
+    deletedAmong: async () => new Set<string>(),
     pushNotification: async () => undefined,
 }));
 

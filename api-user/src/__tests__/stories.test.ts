@@ -45,10 +45,10 @@ vi.mock("../blockCheck", async (importActual) => ({
 }));
 // 退会の判定も境界にする。本物は 60秒の控えを持つので、テストの順番で
 // 結果が変わる（`notify.ts` に控えを消す口が無い）
-const mockDeleted = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+const mockDeleted = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
 vi.mock("../notify", async (importActual) => ({
     ...(await importActual<typeof import("../notify")>()),
-    deletedUserIds: () => mockDeleted(),
+    deletedAmong: (ids: unknown) => mockDeleted(ids),
 }));
 
 const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
@@ -1057,7 +1057,7 @@ describe("getStoryViewers", () => {
 
     // **表示名は閲覧のときに焼き込む**（`viewStory`）ので、そのあと
     // 退会しても残る。「誰が何をしたか」を返す一覧6本のうち、
-    // ここだけ `deletedUserIds()` を通していなかった
+    // ここだけ退会者の判定（今は `deletedAmong()`）を通していなかった
     it("退会した人の名前は出さない", async () => {
         mockDeleted.mockResolvedValue(new Set(["u-b"]));
         mockDdbSend.mockResolvedValueOnce({
@@ -1073,6 +1073,8 @@ describe("getStoryViewers", () => {
         const body = JSON.parse(res.body) as { viewers: Array<{ userId: string; displayName?: string; deleted?: boolean }> };
         const gone = body.viewers.find((v) => v.userId === "u-b")!;
         expect(gone.displayName, "退会した人の名前が残っている").toBe("退会したユーザー");
+        // 閲覧者の ID を渡して引く（表を走査しない）
+        expect((mockDeleted.mock.calls[0][0] as string[]).slice().sort()).toEqual(["u-a", "u-b"]);
         expect(gone.deleted).toBe(true);
         // 退会していない人はそのまま
         expect(body.viewers.find((v) => v.userId === "u-a")?.displayName).toBe("A");

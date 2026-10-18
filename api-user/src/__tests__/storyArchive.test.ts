@@ -50,7 +50,7 @@ vi.mock("../notify", async (importActual) => ({
     ...(await importActual<typeof import("../notify")>()),
     lookupDisplayName: async () => "名前",
     lookupDisplayNameIfSet: async () => "名前",
-    deletedUserIds: async () => new Set<string>(),
+    deletedAmong: async () => new Set<string>(),
     pushNotification: async () => undefined,
 }));
 vi.stubEnv("CLOUDFRONT_URL", "https://cdn.test");

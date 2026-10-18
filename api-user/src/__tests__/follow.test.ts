@@ -6,7 +6,7 @@ const mockLookup = vi.hoisted(() => vi.fn());
 const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 // @ユーザー名（一覧の2行目）。名前と同じ読みで返る（`lookupListIdentity`）
 const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
-const mockDeleted = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+const mockDeleted = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
 const mockHidden = vi.hoisted(() => vi.fn<(uid: string) => Promise<Set<string>>>(async () => new Set<string>()));
 
@@ -24,7 +24,7 @@ vi.mock("../notify", () => ({
         const username = await mockUsername(uid);
         return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
     },
-    deletedUserIds: () => mockDeleted(),
+    deletedAmong: (ids: unknown) => mockDeleted(ids),
 }));
 // **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
 // 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
@@ -1082,6 +1082,8 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         mockLookupIfSet.mockResolvedValue("旅人B");
         const res = await invoke(getUserFollowing, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }, { id: THIRD, deleted: true }]);
+        // 一覧に出る ID を渡して引く（表を走査しない）
+        expect(mockDeleted).toHaveBeenCalledWith([OTHER, THIRD]);
     });
 
     it("一覧が空なら、退会者の照会には行かない", async () => {
@@ -1323,6 +1325,7 @@ describe("フォロワーの一覧（followers#）", () => {
         mockDeleted.mockResolvedValue(new Set([THIRD]));
         const res = await invoke(getUserFollowers, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
+        expect(mockDeleted).toHaveBeenCalledWith([THIRD]);
     });
 
     // **数の Get が落ちただけで一覧を丸ごと失わせない**（`Promise.all` に
