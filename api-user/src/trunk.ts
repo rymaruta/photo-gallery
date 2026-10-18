@@ -6,7 +6,7 @@ import { requireEnv } from "./env";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { listMyPhotos } from "./ddb-photos";
 import { UserListError } from "./userList";
-import { isPro, publicSupporter, sanitizeBadges } from "./badgeKeys";
+import { isPro, isProBadgeKey, publicSupporter, sanitizeBadges } from "./badgeKeys";
 import { isBlocked } from "./blockCheck";
 import { isUserId } from "./userId";
 import { isDeletedProfile } from "./types";
@@ -1722,7 +1722,7 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
         ddb.send(new GetCommand({
             TableName: USERS_TABLE,
             Key: { userId: target },
-            ProjectionExpression: "userId, supporter, badges, deletedAt",
+            ProjectionExpression: "userId, supporter, badges, deletedAt, proBadgesHidden",
         })),
         ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(target) } })),
         self ? Promise.resolve(false)
@@ -1755,8 +1755,14 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
         equipped: viewEquipped(doc.equipped),
         ...(doc.posts !== undefined ? { posts: doc.posts } : {}),
         inside: {
-            badges: sanitizeBadges(profile.badges) ?? {},
-            card: publicSupporter(profile, now.getTime()) ? { pro } : null,
+            // 2026-10-18（journey.photo-ios #296・プロフィール担当が足した分）: 本人が Pro の章を公開プロフィールから
+            // 隠している（`proBadgesHidden`）なら、ここでも Pro のメダルを落とし、会員証（サポーターの有無）を出さない。
+            // 公開プロフィールの `toPublicProfile` と同じ線。**自分を読んだときも落とす**（人からの見え方を確かめる口なので）。
+            // 射影にも `proBadgesHidden` を足した（無いと常に「出す」に倒れる）
+            badges: profile.proBadgesHidden === true
+                ? Object.fromEntries(Object.entries(sanitizeBadges(profile.badges) ?? {}).filter(([k]) => !isProBadgeKey(k)))
+                : sanitizeBadges(profile.badges) ?? {},
+            card: profile.proBadgesHidden !== true && publicSupporter(profile, now.getTime()) ? { pro } : null,
             ticket,
         },
     };

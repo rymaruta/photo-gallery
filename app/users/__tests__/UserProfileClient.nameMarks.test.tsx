@@ -101,3 +101,33 @@ describe("メダルの入口は右列の中（件数の下）", () => {
     });
 });
 
+
+// 2026-10-18（journey.photo-ios #296）: Pro の章を隠している人の公開プロフィールは Pro のメダルが落ちて返る。
+// 自分のページでは本人の行（`GET /user/profile`）のメダルを使う（自分の Pro のメダルが消えて見えない）
+describe("Pro の章を隠している人の、自分のページ", () => {
+    const own = {
+        userId: ME, displayName: "旅人", proBadgesHidden: true,
+        badges: { first: { tier: 1, at: AT }, supporter: { tier: 1, at: AT } }, displayBadge: "supporter",
+    };
+    const publicShape = { userId: ME, displayName: "旅人", badges: { first: { tier: 1, at: AT } }, displayBadge: null };
+
+    it("本人: 名前の横に、本人の行で選んだ Pro のメダルが出る", async () => {
+        mockGetCurrentSession.mockResolvedValue({ getIdToken: () => ({ payload: { sub: ME } }) });
+        profileResponse(publicShape);
+        mockUserFetch.mockImplementation(async (url: string) => ({
+            ok: true, json: async () => (url === "/user/profile" ? own : []),
+        }));
+        render(<UserProfileClient userId={ME} />);
+        const heading = await screen.findByRole("heading", { level: 1 });
+        await waitFor(() => expect(heading.querySelector("[data-testid=name-badge]")).not.toBeNull());
+    });
+
+    it("人: 公開の形のまま（名前の横に Pro のメダルは出ない）", async () => {
+        profileResponse(publicShape);
+        render(<UserProfileClient userId={ME} />);
+        const heading = await screen.findByRole("heading", { level: 1 });
+        await waitFor(() => expect(heading.textContent).toContain("旅人"));
+        expect(heading.querySelector("[data-testid=name-badge]")).toBeNull();
+        expect(mockUserFetch).not.toHaveBeenCalledWith("/user/profile", expect.anything());
+    });
+});
