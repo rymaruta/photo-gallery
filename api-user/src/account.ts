@@ -59,9 +59,9 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
  *     消していない（下の「v1 スコープ外」）。
  *     （ストーリーの返信・閲覧者も同じ形で写しているが、ストーリーの期限で消えるので
  *     1年の TTL より先に無くなる——ここには数えない）
- *     表示のたびに `deletedUserIds()`（墓石の集合）で「退会したユーザー」に伏せているので、
+ *     表示のたびに `deletedAmong()`（一覧に出る ID ごとに墓石を引く）で「退会したユーザー」に伏せているので、
  *     墓石が消えると**退会した人の実名が公開の口に戻る**
- *   - 他人のフォロー・ブロック一覧（`follow.ts`・`block.ts`）も同じ集合で「退会した」印を
+ *   - 他人のフォロー・ブロック一覧（`follow.ts`・`block.ts`）も同じ判定で「退会した」印を
  *     付けている。消えると名前の無い普通の行（空のプロフィールへのリンク）に戻る
  *   - ハイライトの未認証の口（`highlights.ts` の `isDeletedUser`）は墓石を見て 404 にしている。
  *     墓石が消えると「行が無い＝退会していない」と読み、掃除が転んで残った一覧の題
@@ -567,9 +567,9 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // **TTL を有効にする前に、写した名前の掃除役を入れること**
         // （理由と壊れる所は `TOMBSTONE_RETENTION_DAYS` の説明）。
         // comments.ts の getComments などは、表示のたびにこの墓石を引いて
-        // 退会した人の名前を伏せている（notify.ts の deletedUserIds）。
-        // 墓石が消えると集合から外れ、**期限の日に退会した人の実名が
-        // 古いコメント上で公開に戻る**。fail-open なので警告も出ない。
+        // 退会した人の名前を伏せている（notify.ts の deletedAmong）。
+        // 墓石が消えると「行が無い＝生きている人」と読まれ、**期限の日に退会した人の
+        // 実名が古いコメント上で公開に戻る**。伏せも警告も出ない。
         // 掃除役を作ったあとで、TTL を1回だけ有効にする（owner が決める）:
         //   aws dynamodb update-time-to-live \
         //     --table-name prod-photo-gallery-users \

@@ -5,7 +5,7 @@ import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
 import { blockMarkerId, blocksId, blockedById, ids } from "./blockCheck";
-import { lookupListIdentity, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { lookupListIdentity, deletedAmong, DELETED_USER_NAME } from "./notify";
 
 // **読み取りは全部 `blockCheck.ts` にある**（`isBlocked` / `hiddenUserIds` /
 // キーの綴り）。ここに残すのは書き込みと口だけ。
@@ -240,21 +240,27 @@ export const listBlocks: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
         // （`getComments` / `getNotifications` / `getStoryReplies` /
         //  `getUserFollowing` / `getUserFollowers` / `getStoryViewers`）。
         // 引くのは一覧が空でないときだけ（あちらと同じ）。
-        // このテーブルの走査は Scan なので、0件のときに撃たない
         const named = blockedIds.slice(0, BLOCK_NAMES_MAX);
-        // **`.catch` は現状発火しない。** `deletedUserIds` は
-        // `notify.ts` の中で握って空集合を返すので reject しない
-        // ——下の `lookupListIdentity` と同じ「保険」として置く。
+        // **渡すのは `named` ではなく `blockedIds`（全員）。`deletedAmong(named)` に
+        // 「整理」しないこと。** 判定は渡した ID についてしか返らない（表を走査していた
+        // 頃は集合が全員ぶんあったので、どちらを渡しても同じだった）。`named` だけを
+        // 渡すと、101人目以降の退会者が下のループで伏せられず、**生きている人に見える**
+        // （`block.test.ts` の「名前を引く上限を超えたぶんも、退会は伏せる」が見張る）。
+        //
+        // **読めなかった人（`unread`）は生きている扱い。** 名前は `lookupListIdentity` が
+        // 引き直し、墓石からは何も返さない（`{}`）ので実名は漏れない。伏せる側に倒すと、
+        // 生きている人が「退会した」と並び、外す相手を取り違える（`notify.ts` の説明）。
+        //
+        // **`.catch` は現状発火しない。** `deletedAmong` は `notify.ts` の中で握って
+        // 返すので reject しない——下の `lookupListIdentity` と同じ「保険」として置く。
         // あちらが投げるようになった日に、この口だけは 500 に倒したくない
         // （**ブロックを解除できる唯一の入口**なので、伏せられないどころか
-        //   外せなくなる）。他の6本は裸の `await` のままでよい
-        //   ——落ちても「読めない」で済む。
-        //
-        // 一度ここに「`named` ではなく `blockedIds` で見る」と書いたが、
-        // `named` は `blockedIds.slice(0, 100)` なので**両者は等価**。
-        // 101人目を救っているのは下のループだけ。
+        //   外せなくなる）。
         const gone = blockedIds.length > 0
-            ? await deletedUserIds().catch((e) => { console.error("listBlocks deletedUserIds:", e); return new Set<string>(); })
+            ? (await deletedAmong(blockedIds).catch((e) => {
+                console.error("listBlocks deletedAmong:", e);
+                return { deleted: new Set<string>() };
+            })).deleted
             : new Set<string>();
         // 名前が引けなくても一覧は返す（解除できることの方が大事）。
         // **それを保証しているのは `lookupListIdentity` の側**——あちらが

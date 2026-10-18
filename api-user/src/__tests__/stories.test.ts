@@ -45,10 +45,11 @@ vi.mock("../blockCheck", async (importActual) => ({
 }));
 // 退会の判定も境界にする。本物は 60秒の控えを持つので、テストの順番で
 // 結果が変わる（`notify.ts` に控えを消す口が無い）
-const mockDeleted = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+const mockDeleted = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+const mockUnread = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 vi.mock("../notify", async (importActual) => ({
     ...(await importActual<typeof import("../notify")>()),
-    deletedUserIds: () => mockDeleted(),
+    deletedAmong: async (ids: unknown) => ({ deleted: await mockDeleted(ids), unread: mockUnread() }),
 }));
 
 const { getStories, createStory, deleteStory, viewStory, getStoryViewers, cleanupExpiredStories } = await import("../stories");
@@ -74,6 +75,7 @@ function adminEvent(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+    mockUnread.mockReset().mockReturnValue(new Set<string>());
     mockDdbSend.mockReset();
     mockS3Send.mockReset();
     // **必ず戻す。** 1つのテストで「隠す相手」を差し替えたまま次へ持ち越すと、
@@ -1057,7 +1059,7 @@ describe("getStoryViewers", () => {
 
     // **表示名は閲覧のときに焼き込む**（`viewStory`）ので、そのあと
     // 退会しても残る。「誰が何をしたか」を返す一覧6本のうち、
-    // ここだけ `deletedUserIds()` を通していなかった
+    // ここだけ退会者の判定（今は `deletedAmong()`）を通していなかった
     it("退会した人の名前は出さない", async () => {
         mockDeleted.mockResolvedValue(new Set(["u-b"]));
         mockDdbSend.mockResolvedValueOnce({
@@ -1073,9 +1075,21 @@ describe("getStoryViewers", () => {
         const body = JSON.parse(res.body) as { viewers: Array<{ userId: string; displayName?: string; deleted?: boolean }> };
         const gone = body.viewers.find((v) => v.userId === "u-b")!;
         expect(gone.displayName, "退会した人の名前が残っている").toBe("退会したユーザー");
+        // 閲覧者の ID を渡して引く（表を走査しない）
+        expect((mockDeleted.mock.calls[0][0] as string[]).slice().sort()).toEqual(["u-a", "u-b"]);
         expect(gone.deleted).toBe(true);
         // 退会していない人はそのまま
         expect(body.viewers.find((v) => v.userId === "u-a")?.displayName).toBe("A");
+    });
+
+    it("退会の判定が読めなかった閲覧者も伏せる（閲覧の記録は名前を写して持つ）", async () => {
+        mockUnread.mockReturnValue(new Set(["u-b"]));
+        mockDdbSend.mockResolvedValueOnce({
+            Item: { id: "story-1", story: true, userId: "owner", viewers: { "u-b": { displayName: "退会前の名前", at: "2026-07-04T11:00:00Z" } } },
+        });
+        const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        const body = JSON.parse(res.body) as { viewers: Array<{ displayName?: string }> };
+        expect(body.viewers[0].displayName).toBe("退会したユーザー");
     });
 
     // **ブロックした相手は一覧に出さない（両向き）。**
