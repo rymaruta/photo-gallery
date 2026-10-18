@@ -79,3 +79,26 @@ describe("絞った写真の配信を設定する道具", () => {
         expect(out).toContain("サイト全体の画像が割れます");
     });
 
+
+/**
+ * 🔴 **2026-10-18: 手順3を自前の jq で組まない。** 本番も staging も経路は
+ * `/private/*`・`/uploads/*`（先頭に `/`）で、`"uploads/*"` と完全一致で探す jq は
+ * 土台を見つけられず、**既定の振る舞い（静的サイトの入れ物）を写した private** を足していた。
+ * 足すのは表記揺れを吸収する `add-private-behavior.js`、署名を付けるのは
+ * `sign-private-behavior.js`（どちらも送る直前に差分を確かめる）。
+ */
+describe("手順3は node の道具に任せる", () => {
+    it("自前で振る舞いを組まない（先頭の / の無い完全一致・既定の振る舞いへの落ち）", () => {
+        expect(src).not.toMatch(/select\(\.PathPattern==/);
+        expect(src).not.toContain("DefaultCacheBehavior");
+        expect(src).not.toContain("update-distribution");
+    });
+
+    it("足すのは add-private-behavior.js、署名は Secrets のあとで sign-private-behavior.js", () => {
+        expect(src).toMatch(/node "\$\(dirname "\$0"\)\/add-private-behavior\.js" --apply/);
+        expect(src).toContain("sign-private-behavior.js");
+        const out = execFileSync("bash", [path], { encoding: "utf8" });
+        expect(out.indexOf("CLOUDFRONT_PRIVATE_KEY"), "署名必須の案内が Secrets の前に出ている")
+            .toBeLessThan(out.indexOf("sign-private-behavior.js"));
+    });
+});

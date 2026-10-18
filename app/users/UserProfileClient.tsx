@@ -48,6 +48,7 @@ import { ProMark, NameBadge, MedalsButton } from "../components/ProfileNameMarks
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "../../lib/data/badges";
 import { readAudience } from "../../lib/utils/audience";
 import { TAB_ON, TAB_OFF } from "../components/tabStyles";
+import { useSignedImageRefetch } from "../../lib/hooks/useSignedImageRefetch";
 
 type SongEntry = {
     title: string;
@@ -690,6 +691,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
         void load();
         return () => controller.abort();
     }, [userId, reloadKey, loadOwnPins]);
+
+    // **自分の一覧の絞った写真は期限つきの URL**（`/user/photos` が署名する・10〜15分）。
+    // 開いたまま期限が過ぎて画像が割れたら、一覧を取り直して新しい URL をもらう
+    // （2026-10-18 判断・札 #294）。他人のプロフィールは公開の写真だけで署名しないので聞かない
+    const reloadSigned = useCallback(() => setReloadKey((k) => k + 1), []);
+    useSignedImageRefetch(reloadSigned, isOwner);
 
     const displayName = useMemo(() => {
         if (userProfile?.displayName) return userProfile.displayName;

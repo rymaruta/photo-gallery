@@ -166,7 +166,7 @@ describe("運用タスクの配線", () => {
      */
     it("staging 専用のタスクは staging の値を受け取る", () => {
         const bad: string[] = [];
-        for (const t of ["verify-upload", "verify-invalidate"]) {
+        for (const t of ["verify-upload", "verify-invalidate", "move-restricted-to-private-staging"]) {
             const env = stepEnvValues(t);
             for (const key of ["UPLOAD_BUCKET", "PHOTOS_TABLE"]) {
                 const v = env.get(key);

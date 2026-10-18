@@ -11,11 +11,11 @@
  *
  * ここでやること:
  *   1. バケットポリシーに Deny を1つ足す（冪等）
- *      - 対象は uploads/originals/* だけ
+ *      - 対象は uploads/originals/* と private/originals/*（絞った写真の原本の移し先）だけ
  *      - プリンシパルは CloudFront のサービスプリンシパルだけに絞る。
  *        IAM ユーザー経由の運用（撮影日のバックフィル・退会時の削除）は
  *        今後も動かす必要があるため、そちらは塞がない。
- *   2. エッジに載っている分を無効化する（/uploads/originals/*）
+ *   2. エッジに載っている分を無効化する（/uploads/originals/*・/private/originals/*）
  *
  * 消さない。止めるだけ。消すかどうかは後で判断できるようにしておく
  * （原本は撮影日の復元に使える唯一の情報源でもある）。
@@ -44,6 +44,19 @@ if (fs.existsSync(envLocalPath)) {
 }
 
 const PREFIX = "uploads/originals/";
+/**
+ * 🔴 **絞った写真の原本の置き場も塞ぐ**（2026-10-18 判断）。
+ *
+ * 公開範囲を絞ると、`privateMove.ts` の `planMove` が `srcOriginal` も含めて
+ * `uploads/` → `private/` へ移す（`MEDIA_FIELDS`）。つまり原本は
+ * `private/originals/…` に着く。Deny が `uploads/originals/*` だけだと、
+ * **移した原本（GPS 入り）は CloudFront の `/private/*` から取れる**
+ * ——署名必須を付けた後も、署名さえあれば取れる（API は原本に署名しないが、
+ * 置き場として配れる状態を残さない）。
+ */
+const PRIVATE_ORIGINALS_PREFIX = "private/originals/";
+/** Deny を掛ける置き場の全部。数える・無効化するのもこの表 */
+const PREFIXES = [PREFIX, PRIVATE_ORIGINALS_PREFIX];
 const STATEMENT_SID = "DenyCloudFrontReadOfOriginals";
 
 const DEFAULT_PRINCIPAL = { Service: "cloudfront.amazonaws.com" };
@@ -124,9 +137,9 @@ function coversOriginals(statement, bucket) {
             // どちらかがもう片方の頭なら、交わりうるので true に倒す
             // （`*\/originals/*` は確定部分が空 ＝ 常に true）
             const head = literalHead(path);
-            return PREFIX.startsWith(head) || head.startsWith(PREFIX);
+            return PREFIXES.some((p) => p.startsWith(head) || head.startsWith(p));
         }
-        return path.startsWith(PREFIX);
+        return PREFIXES.some((p) => path.startsWith(p));
     });
 }
 
@@ -198,7 +211,8 @@ function withDenyStatement(policy, bucket) {
         // （撮影日のバックフィル・退会時の削除）は動き続ける必要がある。
         Principal: readerPrincipals(policy, bucket),
         Action: READ_ACTIONS,
-        Resource: `arn:aws:s3:::${bucket}/${PREFIX}*`,
+        // 置き場ごとに1つ（`uploads/originals/*` と `private/originals/*`）
+        Resource: PREFIXES.map((p) => `arn:aws:s3:::${bucket}/${p}*`),
     });
     return next;
 }
@@ -253,7 +267,7 @@ function planPolicyChange(policy, bucket) {
         return {
             abort: true,
             reason:
-                `このバケットは匿名（Principal: "*"）に ${PREFIX} の読み取りを許しています。\n` +
+                `このバケットは匿名（Principal: "*"）に ${PREFIXES.join("・")} の読み取りを許しています。\n` +
                 "その状態では、ここで入れる Deny は原本を塞げません" +
                 "（塞ごうとすると自分のアカウントごと締め出します）。\n" +
                 "先に匿名公開そのものを消してください" +
@@ -284,24 +298,28 @@ async function main() {
     const cf = new CloudFrontClient({ region: REGION });
 
     console.log(`[originals] バケット: ${BUCKET}`);
-    console.log(`[originals] 対象プレフィックス: ${PREFIX}`);
+    console.log(`[originals] 対象プレフィックス: ${PREFIXES.join(" / ")}`);
     console.log(`[originals] モード: ${apply ? "実行" : "ドライラン（--apply で実行）"}\n`);
 
     // 対象の実体を数える
     let count = 0;
-    let bytes = 0;
-    let token;
-    do {
-        const res = await s3.send(new ListObjectsV2Command({
-            Bucket: BUCKET, Prefix: PREFIX, ContinuationToken: token,
-        }));
-        for (const o of res.Contents ?? []) {
-            count++;
-            bytes += o.Size ?? 0;
-        }
-        token = res.IsTruncated ? res.NextContinuationToken : undefined;
-    } while (token);
-    console.log(`[originals] 対象オブジェクト: ${count} 件 / ${(bytes / 1024 / 1024).toFixed(1)} MB`);
+    for (const prefix of PREFIXES) {
+        let n = 0;
+        let bytes = 0;
+        let token;
+        do {
+            const res = await s3.send(new ListObjectsV2Command({
+                Bucket: BUCKET, Prefix: prefix, ContinuationToken: token,
+            }));
+            for (const o of res.Contents ?? []) {
+                n++;
+                bytes += o.Size ?? 0;
+            }
+            token = res.IsTruncated ? res.NextContinuationToken : undefined;
+        } while (token);
+        console.log(`[originals] ${prefix}: ${n} 件 / ${(bytes / 1024 / 1024).toFixed(1)} MB`);
+        count += n;
+    }
 
     if (count === 0) {
         console.log("[originals] 対象がありません。ポリシーだけ入れておきます（今後の再発防止）。");
@@ -346,14 +364,14 @@ async function main() {
         DistributionId: DIST_ID,
         InvalidationBatch: {
             CallerReference: `restrict-originals-${Date.now()}`,
-            Paths: { Quantity: 1, Items: [`/${PREFIX}*`] },
+            Paths: { Quantity: PREFIXES.length, Items: PREFIXES.map((p) => `/${p}*`) },
         },
     }));
-    console.log(`[originals] CloudFront を無効化しました: /${PREFIX}*`);
+    console.log(`[originals] CloudFront を無効化しました: ${PREFIXES.map((p) => `/${p}*`).join(" ")}`);
     console.log("\n[originals] 完了。配信が 403 になったことをブラウザで確かめてください。");
 }
 
-module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, iamMatch, describeChange, PREFIX, STATEMENT_SID, READ_ACTIONS };
+module.exports = { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, iamMatch, describeChange, PREFIX, PRIVATE_ORIGINALS_PREFIX, PREFIXES, STATEMENT_SID, READ_ACTIONS };
 
 if (require.main === module) {
     main().catch((e) => {

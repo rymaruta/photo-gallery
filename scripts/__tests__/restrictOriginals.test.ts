@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, STATEMENT_SID, PREFIX } = require("../restrict-originals.js");
+const { withDenyStatement, readerPrincipals, hasAnonymousRead, planPolicyChange, grantsGetObject, coversOriginals, STATEMENT_SID, PREFIX, PRIVATE_ORIGINALS_PREFIX } = require("../restrict-originals.js");
 
 type Statement = {
     Sid?: string;
     Effect?: string;
     Principal?: unknown;
     Action?: string;
-    Resource?: string;
+    Resource?: string | string[];
 };
 type Policy = { Version?: string; Statement: Statement[] };
 
@@ -27,10 +27,14 @@ describe("withDenyStatement", () => {
         expect(find(p).Effect).toBe("Deny");
     });
 
-    it("対象は uploads/originals 配下だけ（通常の写真は巻き込まない）", () => {
+    it("対象は原本の置き場（uploads/originals と private/originals）だけ（通常の写真は巻き込まない）", () => {
         const s = find(withDenyStatement(null, BUCKET));
-        expect(s.Resource).toBe(`arn:aws:s3:::${BUCKET}/${PREFIX}*`);
-        expect(s.Resource).not.toBe(`arn:aws:s3:::${BUCKET}/uploads/*`);
+        expect(s.Resource).toEqual([
+            `arn:aws:s3:::${BUCKET}/${PREFIX}*`,
+            `arn:aws:s3:::${BUCKET}/${PRIVATE_ORIGINALS_PREFIX}*`,
+        ]);
+        expect(s.Resource).not.toContain(`arn:aws:s3:::${BUCKET}/uploads/*`);
+        expect(s.Resource).not.toContain(`arn:aws:s3:::${BUCKET}/private/*`);
         // **バージョン付きの読み取りも塞ぐ。** バケットのバージョニングが
         // 有効なら `s3:GetObjectVersion` でも原本の中身が取れるので、
         // `s3:GetObject` だけの Deny では素通りする
@@ -379,5 +383,31 @@ describe("Deny に載せる相手も originals で絞る", () => {
             }],
         };
         expect(readerPrincipals(p, BUCKET)).toEqual({ AWS: ["arn:aws:iam::1:role/Reader"] });
+    });
+});
+
+/**
+ * 🔴 **2026-10-18: 絞った写真の原本の移し先も塞ぐ。** `planMove` は `srcOriginal` も
+ * `uploads/originals/…` → `private/originals/…` へ移す。Deny が `uploads/originals/*` だけだと、
+ * 移した原本（GPS 入り）が CloudFront の `/private/*` から取れたまま残る。
+ */
+describe("private/originals（絞った写真の原本の移し先）", () => {
+    it("planMove が原本を移す先と、Deny の対象が一致する", async () => {
+        const { planMove } = await import("../../api-user/src/privateMove");
+        const plan = planMove({ srcOriginal: `https://cdn.example.com/${PREFIX}u/a.jpg` }, true);
+        expect(plan.moves[0].to.startsWith(PRIVATE_ORIGINALS_PREFIX)).toBe(true);
+        const resources = find(withDenyStatement(null, BUCKET)).Resource as string[];
+        expect(resources).toContain(`arn:aws:s3:::${BUCKET}/${PRIVATE_ORIGINALS_PREFIX}*`);
+    });
+
+    it("private/originals だけに掛かる公開も見落とさない（匿名なら止める）", () => {
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/${PRIVATE_ORIGINALS_PREFIX}*` }, BUCKET)).toBe(true);
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/private/*` }, BUCKET)).toBe(true);
+        const p = { Statement: [{ Effect: "Allow", Principal: "*", Action: "s3:GetObject", Resource: `arn:aws:s3:::${BUCKET}/private/*` }] };
+        expect(planPolicyChange(p, BUCKET).abort).toBe(true);
+    });
+
+    it("private/ の写真本体（originals 以外）は対象にしない", () => {
+        expect(coversOriginals({ Resource: `arn:aws:s3:::${BUCKET}/private/u/*` }, BUCKET)).toBe(false);
     });
 });

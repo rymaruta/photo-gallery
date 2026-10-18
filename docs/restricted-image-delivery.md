@@ -95,6 +95,32 @@ CloudFront には振る舞いを **2つ**置きます。`/private/*` にだけ�
   派生を含めて 7〜8 オブジェクト動く
 - 署名の計算: Lambda の中で RSA-SHA1 1回/画像。実測で 1ms 未満
 
+## 🔴 2026-10-18 の更新（札 rymaruta/journey.photo-ios#294）
+
+**下の手順 0・3 は古い。** `/private/*` の振る舞いは本番・staging とも 2026-09-28 に
+`add-private-behavior` で足し済み（署名なし）。`setup-private-delivery.sh` の手順3は
+経路を先頭の `/` なしで探していたため、今の設定（`/private/*`・`/uploads/*`）では
+**既定の振る舞い（静的サイト）を写した2つ目の private を足す**形だった。手順3は
+node の道具に任せる形に直した。順番は:
+
+1. 鍵を作り、公開鍵と鍵グループを作る（`setup-private-delivery.sh` の手順1・2。下見が既定）
+2. GitHub Secrets（`CLOUDFRONT_KEY_PAIR_ID`・`CLOUDFRONT_PRIVATE_KEY`）と、
+   Variables の `CLOUDFRONT_KEY_GROUP_ID` を登録 → API を出し直し、デプロイのログが
+   `画像の署名=鍵あり` になったことを確かめる（この時点では何も割れない）
+3. Maintenance の `move-restricted-to-private-staging`（下見 → apply）で、`uploads/` に
+   残った絞った写真を `private/` へ移す
+4. Maintenance の `sign-private-behavior-staging`（下見 → apply）で、staging の `/private/*` を署名必須にする
+5. 確かめる（`verify:visibility:live`・アプリと Web で絞った写真が出る・10分置いて戻っても出る）
+6. 本番で 3・4（`move-restricted-to-private` → `sign-private-behavior`）
+7. Restrict Originals を流し、原本の拒否を `private/originals/*` にも広げる
+   （絞った写真の原本の移し先。今は CloudFront の `/private/*` から取れうる）
+
+コード側で入れたもの: 署名の期限を5分刻みに切り上げ（同じ5分は同じ URL＝端末の控えが効く）・
+期限切れで画像が割れたら一覧を取り直す（Web・iOS）・署名つき URL のホストを書き換えない
+（`publicImageUrl`。書き換えると署名が合わず必ず 403）。
+
+**ストーリー・アーカイブはまだ対象外**（`uploads/` のまま・署名なし。第2段）。
+
 ## 本番に入れる手順（owner の作業）
 
 **私はここを実行できない。** 推測ではなく実測:
