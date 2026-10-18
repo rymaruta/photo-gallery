@@ -222,3 +222,122 @@ describe("公開プロフィールの節が公開の形と合っている", () =
         expect(s4).toContain("サポーターの番号・続けた月数とメダルも、印を外しても公開のままです");
     });
 });
+
+/**
+ * 5節「旅のトランク」が、**人のトランクの口（`GET /users/{uid}/trunk`・`readTheirTrunk`）**と合っているか。
+ *
+ * 2026-10-18 判断: 本番に人のトランクの口が出た（photo-gallery #409）のに、本文が「中身はご本人だけが見られます」の
+ * ままだった。返す項目・ラベルの地名の出し方・見せない設定の既定値を実装から読んで突き合わせ、
+ * 片方だけ変えたら落ちるようにする（refs rymaruta/journey.photo-ios#299）。
+ */
+function trunkSection(): string {
+    const s5 = sectionOf(5);
+    const start = s5.indexOf('title="旅のトランク（iPhone アプリ）"');
+    expect(start, "5節に旅のトランクの項が無い").toBeGreaterThanOrEqual(0);
+    const next = s5.indexOf("<Feature", start + 1);
+    return s5.slice(start, next < 0 ? undefined : next);
+}
+
+/** `readTheirTrunk` の返す形の項目（入れ子の `inside` の中身も含む） */
+function returnedTheirTrunkFields(): Set<string> {
+    const src = read("api-user/src/trunk.ts");
+    const start = src.indexOf("export async function readTheirTrunk(");
+    expect(start, "readTheirTrunk が見つからない").toBeGreaterThanOrEqual(0);
+    const body = src.slice(start);
+    const open = body.indexOf("    return {");
+    expect(open, "readTheirTrunk の返す形が読めない").toBeGreaterThanOrEqual(0);
+    const close = body.indexOf("\n    };", open);
+    expect(close, "返す形の終わりが読めない").toBeGreaterThan(open);
+    const block = body.slice(open + "    return {".length, close).replace(/\/\/[^\n]*/g, "");
+    const out = new Set<string>();
+    for (const m of block.matchAll(/([A-Za-z]+)\s*:/g)) out.add(m[1]);
+    for (const m of block.matchAll(/^\s*([A-Za-z]+),\s*$/gm)) out.add(m[1]);
+    return out;
+}
+
+/** 人のトランクの項目 → 5節（旅のトランク）で説明している言い方 */
+const THEIR_TRUNK_PHRASE: Record<string, string> = {
+    userId: "あなたのプロフィールからトランクを見られます",
+    model: "見えるのは、トランクの型",
+    stuck: "貼ったラベル（図案と貼った位置）",
+    equipped: "付けている部品、公開している投稿の数",
+    posts: "公開している投稿の数",
+    inside: "トランクの中の",
+    badges: "トランクの中のメダル（公開プロフィールと同じもの）",
+    card: "会員証（いま Pro かどうかだけ。サポーターの番号・始めた時期・月数は出しません）",
+    ticket: "わたしの乗車券（入れる設定にしている場合だけ。",
+};
+
+describe("旅のトランクの節が、人のトランクの口と合っている", () => {
+    const trunk = trunkSection();
+    const src = read("api-user/src/trunk.ts");
+
+    it("返す形が読めている（空振りで緑にならない）", () => {
+        const fields = returnedTheirTrunkFields();
+        for (const k of ["model", "stuck", "inside", "ticket"]) {
+            expect(fields.has(k), `返す形から ${k} を読めていない`).toBe(true);
+        }
+    });
+
+    it("返す項目の一覧が、本文で説明している一覧と同じ", () => {
+        // 足しても消しても落ちる。足したなら本文に書き、THEIR_TRUNK_PHRASE に足す
+        expect([...returnedTheirTrunkFields()].sort(), "人のトランクの項目が変わった。5節の旅のトランクを見直すこと")
+            .toEqual(Object.keys(THEIR_TRUNK_PHRASE).sort());
+    });
+
+    it("どの項目も、旅のトランクの項の中で説明している", () => {
+        for (const [k, phrase] of Object.entries(THEIR_TRUNK_PHRASE)) {
+            expect(trunk, `${k} の説明（${phrase}）が旅のトランクの項に無い`).toContain(phrase);
+        }
+    });
+
+    it("「ご本人だけが見られる」「公開しない」と言っていない", () => {
+        expect(trunk).not.toContain("中身はご本人だけが見られます");
+        expect(trunk).not.toContain("ご本人だけが見られ、公開しません");
+        expect(trunk).toContain("ログインしている他の方もあなたのプロフィールから見られます");
+        // 4節（公開する情報）からもトランクを指している
+        expect(sectionOf(4)).toContain("旅のトランク（「5. 機能ごとの情報の扱い」）を見ることができます");
+    });
+
+    it("ラベルの地名は、確かめた物だけ見せ、それ以外は地名・日付なしの同じ形（theirLabel・placeOkFor）", () => {
+        // 実装: 印（placeOk）の無いラベル・地名が空のラベルは、地名も日付も落とした同じ形
+        expect(src).toContain('if (!l.placeOk || !l.place.name) return { ...base, place: { name: "" }, where: null };');
+        // 実装: 日付は日付だけ
+        expect(src).toContain("at: l.at.slice(0, 10),");
+        // 実装: 印の根拠は、本人の・誰にでも見える公開の写真で、撮影地が今もラベルと同じ
+        const place = read("api-user/src/trunkPlace.ts");
+        expect(place).toContain("if (!row || ownerOf(row) !== uid || !isPublicListPhoto(row)) return false;");
+        expect(place).toContain("return placeKey(placeOf(row as unknown as Photo)) === placeKey(place);");
+        expect(trunk).toContain("配られた日（日付だけ）");
+        expect(trunk).toContain("元の写真が誰にでも見える公開のままで、撮影地も配られたときと同じだと確かめられたものだけ見せます");
+        expect(trunk).toContain("地名も日付も無い封の図案として見せます");
+        // 乗車券も本人の公開写真のときだけ
+        expect(src).toContain("if (isOwnPublicPhoto(res.Item as Record<string, unknown> | undefined, target)) {");
+        expect(trunk).toContain("わたしの乗車券も、その写真があなたの公開中の写真であるときだけ見せます");
+    });
+
+    it("見せない設定の既定値が実装と同じ（「トランクを見せる」は既定オン・乗車券は置くまで無い）", () => {
+        const parse = src.slice(src.indexOf("export function parseTrunk("));
+        // 既定オン＝ false と明示したときだけ見せない
+        const on = /showTrunk: item\?\.showTrunk !== false,/.test(parse);
+        const off = /showTrunk: item\?\.showTrunk === true,/.test(parse);
+        expect(on || off, "parseTrunk の showTrunk の既定が読めない").toBe(true);
+        expect(trunk).toContain(`「トランクを見せる」（初期状態は${on ? "オン" : "オフ"}）`);
+        // 乗車券は、本人が置いたとき（保存した行に ticket があるとき）だけ持つ
+        expect(parse).toContain("...(storedTicket(item?.ticket) ? { ticket: storedTicket(item?.ticket) } : {}),");
+        expect(trunk).toContain("「わたしの乗車券もトランクに入れる」は初期状態はオフです");
+    });
+
+    it("見せないときの 404 は理由を区別しない（見せない設定・ブロック・退会）", () => {
+        expect(src).toContain("if (!profile || isDeletedProfile(profile) || !row || blocked) throw new HiddenTrunk();");
+        expect(src).toContain("if (!doc.showTrunk && !self) throw new HiddenTrunk();");
+        expect(src).toContain('if (e instanceof HiddenTrunk) return jsonError(404, "見つかりません", "notFound");');
+        expect(trunk).toContain("どの理由かを区別せずに「見つからない」と返します");
+    });
+
+    it("他の方に見えないものを言っている（硬貨・手持ち・部品箱・写真のID）", () => {
+        for (const phrase of ["手持ちのラベル", "硬貨の枚数", "部品箱とかけら", "ラベルの元の写真のID"]) {
+            expect(trunk, `見えないものに「${phrase}」が無い`).toContain(phrase);
+        }
+    });
+});
