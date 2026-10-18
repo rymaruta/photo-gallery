@@ -10,6 +10,8 @@ vi.mock("../ddb-photos", () => ({
     updatePhotoFields: mockUpdatePhotoFields,
     deletePhotoById: mockDeletePhotoById,
 }));
+// 旅のトランクの印を外す処理（`trunkPlace.ts`）は自分のテストで見る。ここでは本物の DynamoDB に行かせない
+vi.mock("../trunkPlace", () => ({ dropTrunkPlaceOkQuietly: vi.fn(async () => undefined) }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 const mockS3Send = vi.hoisted(() => vi.fn());
 vi.mock("@aws-sdk/client-s3", () => ({

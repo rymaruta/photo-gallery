@@ -1,0 +1,186 @@
+/**
+ * backfill-trunk-place-ok.js — 本番にもう在る旅のトランクのラベルに「地名を人に見せてよい」印（`o: 1`）を足す。（2026-10-18）
+ *
+ * 人のトランク（`GET /users/{uid}/trunk`）は**確かめた物だけ見せる**: 印の無いラベルは地名を伏せる
+ * （`api-user/src/trunkPlace.ts`）。印を入れる前に配ったラベルには印が無いので、このままでは人に地名が出ない
+ * （漏れない側）。それを、写真を1枚ずつ確かめて埋める台本。**流すのは owner の承認のあと。**
+ *
+ *   node scripts/backfill-trunk-place-ok.js --estimate   # 表の大きさから費用と時間の見積もりだけ（Scan しない）
+ *   node scripts/backfill-trunk-place-ok.js              # 読むだけ（何枚に付く・外れるかを数えて出す）
+ *   node scripts/backfill-trunk-place-ok.js --apply      # **trunk# の行に書く**
+ *
+ * 必要な環境変数: PHOTOS_TABLE・USERS_TABLE（判定の関数を読み込むのに要る。USERS_TABLE は読まない）。
+ *
+ * ## 判定は Lambda と**同じ関数**
+ *
+ * `api-user/src/trunkPlace.ts` の `storedLabelWithPlaceOk`（＝`placeOkFor`）を tsx で読み込む（写さない）:
+ * ラベルの id の写真が**本人の・誰にでも見える公開の写真**（`isPublicListPhoto`）で、撮影地（`placeOf`）が
+ * 今もラベルの地名と同じときだけ印を付ける。違えば印を外す。束のラベルは束の最初の1枚（ラベルの id）だけ見る
+ * （ほかの兄弟は見ない＝見せない側）。長い鍵の古い形のラベル（`i` が無い）は触らない（印が無いまま＝伏せたまま）。
+ *
+ * ## 読み方・書き方
+ *
+ * - photos テーブルを Scan して `trunk#` の行を集める（**全表を読む**。費用は `--estimate` で先に見る）
+ * - ラベルの写真を1枚ずつ GetItem（同じ写真は1回）
+ * - 書くのは変わる行だけ。**rev 条件で置き直す**（api-user の `updateTrunk` と同じ rev。競合したら読み直して3回まで）
+ */
+
+const REGION = "ap-northeast-1";
+const PREFIX = "trunk#";
+const SHOW = 5;
+const WRITE_ATTEMPTS = 3;
+
+/**
+ * 1行ぶんの計画（純関数）。`lib` は `trunkPlace` モジュール（テストで差し替えられるように）。
+ * `photos` は写真の id → 行（無ければ undefined）。
+ * @returns { write, pocket, stuck, added, removed, labels }
+ */
+function planRow(lib, row, photos) {
+    const uid = typeof row.uid === "string" && row.uid ? row.uid : String(row.id).slice(PREFIX.length);
+    let added = 0, removed = 0, labels = 0;
+    const fix = (list) => (Array.isArray(list) ? list.map((l) => {
+        if (!l || typeof l !== "object" || typeof l.i !== "string") return l;
+        labels++;
+        const next = lib.storedLabelWithPlaceOk(l, photos.get(l.i), uid);
+        if (next.o === 1 && l.o !== 1) added++;
+        if (next.o !== 1 && l.o === 1) removed++;
+        return next;
+    }) : list);
+    const pocket = fix(row.pocket);
+    const stuck = fix(row.stuck);
+    return { write: added + removed > 0, pocket, stuck, added, removed, labels };
+}
+
+/** ラベルの写真の id（同じものは1回） */
+function photoIdsOf(row) {
+    const ids = new Set();
+    for (const list of [row.pocket, row.stuck]) {
+        if (!Array.isArray(list)) continue;
+        for (const l of list) if (l && typeof l.i === "string") ids.add(l.i);
+    }
+    return [...ids];
+}
+
+/**
+ * 見積もり（純関数）。Scan は結果整合の読みで 4KB ごとに 0.5 読み取り単位、GetItem は1件 0.5 単位（4KB 以下）
+ * として数える。値段は書かない（地域と課金の形で変わる・owner の課金画面が正）
+ */
+function estimate({ tableBytes, itemCount }, guess = { trunkRows: 0, labelsPerRow: 0 }) {
+    const scanUnits = Math.ceil(tableBytes / 4096) * 0.5;
+    const getUnits = guess.trunkRows * guess.labelsPerRow * 0.5;
+    // Scan は1ページ 1MB・1ページおよそ 0.2 秒、GetItem はおよそ 10ms（並べずに1本ずつ）として
+    const seconds = Math.ceil(tableBytes / (1024 * 1024)) * 0.2 + guess.trunkRows * guess.labelsPerRow * 0.01;
+    return { itemCount, tableBytes, scanUnits, getUnits, seconds: Math.ceil(seconds) };
+}
+
+async function main() {
+    const { requireEnv } = require("./lib/env");
+    const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
+    requireEnv("USERS_TABLE", "判定の関数（api-user/src/trunkPlace.ts）を読み込むのに要ります（読みも書きもしません）");
+    const APPLY = process.argv.includes("--apply");
+    const ESTIMATE = process.argv.includes("--estimate");
+
+    const { DynamoDBClient, DescribeTableCommand } = require("@aws-sdk/client-dynamodb");
+    const { DynamoDBDocumentClient, ScanCommand, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
+    const raw = new DynamoDBClient({ region: REGION });
+    const ddb = DynamoDBDocumentClient.from(raw, { marshallOptions: { removeUndefinedValues: true } });
+
+    // 0) 見積もり（表の大きさは DynamoDB がおよそ6時間ごとに更新する値）
+    const table = (await raw.send(new DescribeTableCommand({ TableName: PHOTOS_TABLE }))).Table ?? {};
+    const est = estimate({ tableBytes: Number(table.TableSizeBytes ?? 0), itemCount: Number(table.ItemCount ?? 0) });
+    console.log(`表 ${PHOTOS_TABLE}: 約 ${est.itemCount} 件・約 ${(est.tableBytes / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`  Scan の読み取り単位の見積もり: 約 ${est.scanUnits}（全表を1回）＋ ラベル1枚につき GetItem 0.5`);
+    console.log(`  Scan だけの時間の見積もり: 約 ${est.seconds} 秒`);
+    if (ESTIMATE) return;
+
+    require("tsx/cjs/api").register();
+    const lib = require("../api-user/src/trunkPlace");
+    const started = Date.now();
+
+    // 1) trunk# の行を全部（Scan の絞り込みは読んだあとに効く＝全表ぶんを読む）
+    const rows = [];
+    let lastKey, scanned = 0, consumed = 0;
+    do {
+        const res = await ddb.send(new ScanCommand({
+            TableName: PHOTOS_TABLE,
+            FilterExpression: "begins_with(id, :p)",
+            ExpressionAttributeValues: { ":p": PREFIX },
+            ExclusiveStartKey: lastKey,
+            ReturnConsumedCapacity: "TOTAL",
+        }));
+        rows.push(...(res.Items ?? []));
+        scanned += res.ScannedCount ?? 0;
+        consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
+        lastKey = res.LastEvaluatedKey;
+    } while (lastKey);
+
+    const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0 };
+    const sample = [];
+    const cache = new Map();
+    const getPhoto = async (id) => {
+        if (cache.has(id)) return cache.get(id);
+        tally.gets++;
+        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ReturnConsumedCapacity: "TOTAL" }));
+        consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
+        cache.set(id, res.Item);
+        return res.Item;
+    };
+
+    for (let row of rows) {
+        for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
+            const photos = new Map();
+            for (const id of photoIdsOf(row)) photos.set(id, await getPhoto(id));
+            const plan = planRow(lib, row, photos);
+            if (attempt === 0) {
+                tally.labels += plan.labels;
+                tally.added += plan.added;
+                tally.removed += plan.removed;
+                if (plan.write) {
+                    tally.toWrite++;
+                    if (sample.length < SHOW) sample.push(`${row.id}（+${plan.added} −${plan.removed}）`);
+                }
+            }
+            if (!plan.write || !APPLY) break;
+            const rev = typeof row.rev === "number" ? row.rev : 0;
+            try {
+                await ddb.send(new PutCommand({
+                    TableName: PHOTOS_TABLE,
+                    Item: { ...row, pocket: plan.pocket, stuck: plan.stuck, rev: rev + 1, updatedAt: new Date().toISOString() },
+                    ConditionExpression: rev === 0 ? "attribute_not_exists(rev) OR rev = :rev" : "rev = :rev",
+                    ExpressionAttributeValues: { ":rev": rev },
+                }));
+                tally.written++;
+                break;
+            } catch (e) {
+                if (e.name !== "ConditionalCheckFailedException" || attempt === WRITE_ATTEMPTS - 1) {
+                    tally.failed++;
+                    console.error(`  ${row.id}: 書けませんでした（${e.name}: ${e.message}）`);
+                    break;
+                }
+                // アプリが先に書いた。読み直してやり直す（写真の判定はそのまま使う）
+                row = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: row.id }, ConsistentRead: true }))).Item;
+                if (!row) break;
+            }
+        }
+    }
+
+    const secs = Math.round((Date.now() - started) / 1000);
+    console.log(`trunk# の行 ${tally.rows} 件（Scan で読んだ ${scanned} 件）・ラベル ${tally.labels} 枚`);
+    console.log(`  印が付く: ${tally.added} 枚・外れる: ${tally.removed} 枚・書き直す行: ${tally.toWrite} 件`);
+    console.log(`  写真の GetItem: ${tally.gets} 回・使った読み取り単位: 約 ${consumed.toFixed(1)}・かかった時間: ${secs} 秒`);
+    console.log(`  先頭の ${sample.length} 件: ${sample.join(", ") || "（なし）"}`);
+    if (!APPLY) {
+        console.log("  （読むだけ）--apply を付けて流すと書きます。");
+        return;
+    }
+    console.log(`書いた: ${tally.written} 件・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
+}
+
+module.exports = { planRow, photoIdsOf, estimate, main };
+
+if (require.main === module) {
+    main().catch((e) => {
+        console.error(`失敗: ${e.name}: ${e.message}`);
+        process.exit(1);
+    });
+}
