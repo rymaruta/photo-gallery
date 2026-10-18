@@ -677,11 +677,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // BreadcrumbList構造化データを生成
     const breadcrumbData = useMemo(() => {
         if (!photo) return null;
-        // パンくずの名前。**同じページの `ImageObject` は `name: ""` を出す**
-        // ので、ここだけ "Untitled" にすると**同じ写真について2つの
-        // 構造化データが違うことを言う**。日本語のサイトなので文言も揃える
-        // **「無題」も出さない**——題が無ければ撮影地から組む（`photoTitleFor`。
-        // `<title>`・`ImageObject.name` と同じ決め方）
+        // パンくずの名前。**同じページの `ImageObject.name`・`<title>` と同じ決め方**
+        // （`photoTitleFor`）にする——別々に組むと、同じ写真について2つの構造化データが
+        // 違うことを言う。題が無い（旧い「無題」を含む）写真は「<撮影地>の写真」/「写真」
         const title = photoTitleFor(photo, locale === "en" ? "en" : "ja").text;
         return generateBreadcrumbStructuredData([
             { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },

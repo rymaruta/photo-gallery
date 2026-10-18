@@ -127,7 +127,7 @@ export const siteConfig = {
  * 構造化データ（JSON-LD）を生成 - ギャラリーページ用
  */
 export function generateStructuredData(
-    photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string }>,
+    photos: Array<{ id: string; title?: string | { ja?: string; en?: string }; src: string; location?: string }>,
     // タグ・撮影地・カテゴリのページも同じ関数を使う。渡さないと
     // **約35個のURLが「自分はトップページだ」と申告する**（name も
     // description も url も siteConfig 直書きだった）。
@@ -148,9 +148,11 @@ export function generateStructuredData(
                     "@type": "ImageObject",
                     "@id": `${siteConfig.url}/photo/${photo.id}`,
                     contentUrl: imageUrl,
-                    name: typeof photo.title === "string" 
-                        ? photo.title 
-                        : photo.title?.ja || photo.title?.en || "",
+                    // **`@id` が写真ページと同じなので、名前も写真ページと揃える**
+                    // （`photoTitleFor`）。生の題のままだと、題の無い写真が `""`、
+                    // 旧い既定値の写真が「無題」を名乗り、同じ `@id` について
+                    // 写真ページの `ImageObject.name`（「<撮影地>の写真」）と食い違う
+                    name: photoTitleFor(photo, "ja").text,
                 };
             }),
     };

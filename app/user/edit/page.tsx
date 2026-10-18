@@ -33,6 +33,7 @@ import { unstrippableMessage } from "../../../lib/utils/uploadRejection";
 import { extractExifFromFile, extractCameraExif } from "../../../lib/utils/exif";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { BTN_FILL } from "../../components/buttonStyles";
+import { isPlaceholderTitle } from "../../../lib/utils/photoTitle";
 
 const inputCls = "w-full bg-surface-2 border border-line-strong rounded-lg px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-colors";
 const labelCls = "block text-sm text-white/60 mb-1";
@@ -40,11 +41,16 @@ const labelCls = "block text-sm text-white/60 mb-1";
 // title/description は string か {ja,en}/{ja:[],en:[]} の両対応。
 // 編集欄は日本語だけを扱うが、保存時に英語側を残す（消すと JSON-LD と
 // sr-only の英語併記まで失われるため）。
-function titleToText(t: Photo["title"]): string {
+//
+// **旧い既定値の「無題」/ Untitled は入力欄に入れない**（題なし＝空の欄）。入れると、
+// 本人は自分で付けた題だと思ってそのまま保存し、「無題」が題として残り続ける
+// （サーバーは題の無い投稿に `{ ja: "無題" }` を入れていた・`photoTitle.ts`）
+export function titleToText(t: Photo["title"]): string {
     if (!t) return "";
-    if (typeof t === "string") return t;
-    const o = t as Record<string, string>;
-    return o.ja || o.en || "";
+    const keep = (v: unknown) => (typeof v === "string" && !isPlaceholderTitle(v) ? v : "");
+    if (typeof t === "string") return keep(t);
+    const o = t as Record<string, unknown>;
+    return keep(o.ja) || keep(o.en);
 }
 /**
  * その項目が「英語しか無い」状態か。
@@ -55,7 +61,7 @@ function titleToText(t: Photo["title"]): string {
  * 中身が画面から見えなくなり、英語を消す手段はどこにも無いので、
  * **見せたうえで注記する**。
  */
-function isEnglishOnly(v: Photo["title"] | Photo["description"]): boolean {
+function isEnglishOnly(v: Photo["title"] | Photo["description"], isTitle = false): boolean {
     if (!v || typeof v === "string") return false;
     const o = v as Record<string, unknown>;
     // **`titleToText` / `descToText` と同じ数え方にする。** あちらは
@@ -63,7 +69,9 @@ function isEnglishOnly(v: Photo["title"] | Photo["description"]): boolean {
     // 採用される**。ここだけ `trim()` して見ていたので、欄には空白が
     // 入っているのに「英語しか持っていません」という**事実と違う注記**が
     // 出ていた。
-    const has = (x: unknown) => (Array.isArray(x) ? x.length > 0 : typeof x === "string" && x.length > 0);
+    // 題の「無題」は無いものとして数える（`titleToText` が欄に入れないのと同じ）
+    const has = (x: unknown) => (Array.isArray(x) ? x.length > 0
+        : typeof x === "string" && x.length > 0 && !(isTitle && isPlaceholderTitle(x)));
     return !has(o.ja) && has(o.en);
 }
 
@@ -93,7 +101,9 @@ function descToText(d: Photo["description"]): string {
  */
 export function mergeLocalizedTitle(original: Photo["title"], ja: string): Photo["title"] {
     if (!ja) return "";   // 空にした＝消したい（サーバーは空を REMOVE に倒す）
-    const en = original && typeof original === "object" ? (original as Record<string, string>).en : undefined;
+    const rawEn = original && typeof original === "object" ? (original as Record<string, string>).en : undefined;
+    // 旧い既定値の "Untitled" は英語の題として持ち越さない
+    const en = rawEn && !isPlaceholderTitle(rawEn) ? rawEn : undefined;
     if (!en) return ja;
     return { ja, en };
 }
@@ -915,7 +925,7 @@ function EditContent() {
                 <form onSubmit={(e) => { e.preventDefault(); void save(true); }} className="space-y-5">
                     <div>
                         <label className={labelCls} htmlFor="edit-title">{isJa ? "タイトル" : "Title"}</label>
-                        {isEnglishOnly(photo?.title) && (
+                        {isEnglishOnly(photo?.title, true) && (
                             <p className="text-[12px] text-white/80 mb-1 flex items-start gap-1">
                                 <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                                 {isJa

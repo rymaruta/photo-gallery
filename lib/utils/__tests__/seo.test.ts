@@ -353,3 +353,22 @@ describe("generatePhotoStructuredData: 2枚目以降（extraImages）", () => {
         expect(d.associatedMedia).toHaveLength(1);
     });
 });
+
+// 一覧（トップ・集約ページ・撮影スポット）の ImageGallery の名前（2026-10-18）。
+// `@id` が写真ページと同じなので、名前も写真ページの `ImageObject.name` と揃える
+describe("generateStructuredData: 題が無い写真の名前", () => {
+    const names = (photos: Parameters<typeof generateStructuredData>[0]) =>
+        (generateStructuredData(photos).image as Array<{ name: string }>).map((i) => i.name);
+    it("題が無い・空白だけ・{ ja: 無題, en: Untitled } → 「<撮影地>の写真」/「写真」（空にも「無題」にもしない）", () => {
+        expect(names([
+            { id: "1", src: "https://cdn.example.com/1.jpg", location: "板橋区" },
+            { id: "2", src: "https://cdn.example.com/2.jpg", title: { ja: "  " }, location: "板橋区" },
+            { id: "3", src: "https://cdn.example.com/3.jpg", title: { ja: "無題", en: "Untitled" }, location: "板橋区" },
+            { id: "4", src: "https://cdn.example.com/4.jpg", title: { ja: "無題", en: "Untitled" } },
+            { id: "5", src: "https://cdn.example.com/5.jpg", title: "" },
+        ])).toEqual(["板橋区の写真", "板橋区の写真", "板橋区の写真", "写真", "写真"]);
+    });
+    it("題があればその題", () => {
+        expect(names([{ id: "1", src: "https://cdn.example.com/1.jpg", title: { ja: "朝の湖" }, location: "板橋区" }])).toEqual(["朝の湖"]);
+    });
+});

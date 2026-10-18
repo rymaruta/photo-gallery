@@ -1,14 +1,13 @@
 import React from "react";
 import Link from "next/link";
 import type { Photo, Locale } from "@/lib/data/photos";
-import { getLocalized } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
 import { HeartIcon } from "@heroicons/react/24/solid";
 import { ROUTES } from "../../lib/routes";
 import Thumb from "./Thumb";
 import { photoAltText } from "../../lib/utils/photoAlt";
-import { displayTitle } from "../../lib/utils/photoTitle";
+import { photoOwnTitle } from "../../lib/utils/photoTitle";
 
 type Props = {
     photos: Photo[];
@@ -149,7 +148,8 @@ export default function GalleryGrid({
         <div className={`grid ${columnsClassName} gap-1 sm:gap-1.5`}>
             {shown.map((p, idx) => {
                 // 題が無ければ空。サーバーが入れていた「無題」も題として扱わない（`photoTitle.ts`）
-                const localizedTitle = displayTitle(getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : ""));
+                // 言語ごとに「無題」を落とす（`photoOwnTitle`。写真ページの h1 と同じ判定）
+                const localizedTitle = photoOwnTitle(p, locale);
                 // alt の組み方は `photoAlt.ts` に1本化した。**ここだけに入っていて
                 // 写真ページ本体・モーダル・OGP に無かった**ので、効かせたい1枚
                 // （画像検索が見る本体画像）にだけ効いていなかった

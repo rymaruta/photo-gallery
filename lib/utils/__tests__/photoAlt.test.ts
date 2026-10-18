@@ -39,8 +39,16 @@ describe("photoAltText", () => {
         expect(photoAltText(photo({ location: "高屋神社" }), "ja")).toBe("高屋神社");
     });
 
-    it("どちらも無ければ空（意味の無い文字を置かない）", () => {
-        expect(photoAltText(photo({}), "ja")).toBe("");
+    // 2026-10-18: 空の alt をやめた。写真ページ本体の2枚目以降が「（2/3）」だけになり、
+    // 画像検索が見る本体画像が名前を持たなかった。写真ページと同じ代わりの題に揃える
+    it("どちらも無ければ写真ページと同じ代わりの題（「写真」/ Photo）", () => {
+        expect(photoAltText(photo({}), "ja")).toBe("写真");
+        expect(photoAltText(photo({}), "en")).toBe("Photo");
+    });
+
+    // 言語ごとに「無題」を落とす——h1・一覧（`photoOwnTitle`）と割れない
+    it("{ ja: 無題, en: Sunset } は本物の英語の題を使う", () => {
+        expect(photoAltText(photo({ title: { ja: "無題", en: "Sunset" }, location: "パリ" }), "ja")).toBe("Sunset（パリ）");
     });
 
     it("言語ごとの値を見る", () => {
@@ -57,8 +65,8 @@ describe("photoAltText", () => {
     // 読み上げにも画像検索にも「無題」と言わせない
     it("保存されている「無題」は題として使わない", () => {
         expect(photoAltText(photo({ title: "無題", location: "高屋神社" }), "ja")).toBe("高屋神社");
-        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "ja")).toBe("");
-        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "en")).toBe("");
+        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "ja")).toBe("写真");
+        expect(photoAltText(photo({ title: { ja: "無題", en: "Untitled" } }), "en")).toBe("Photo");
     });
 
     // 落としすぎない——人が書いた題は残す

@@ -14,6 +14,11 @@
  */
 const SERVER_PLACEHOLDERS: ReadonlySet<string> = new Set(["無題", "Untitled"]);
 
+/** サーバーが入れていた既定値（「無題」/ Untitled）か。前後の空白は見ない */
+export function isPlaceholderTitle(title: string | undefined): boolean {
+    return SERVER_PLACEHOLDERS.has((title ?? "").trim());
+}
+
 /** 題として出してよい文字列。無ければ空（呼ぶ側が「出さない」を決める） */
 export function displayTitle(title: string | undefined): string {
     const t = (title ?? "").trim();
