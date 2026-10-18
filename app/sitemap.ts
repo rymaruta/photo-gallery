@@ -30,8 +30,8 @@ async function loadPhotos(): Promise<Photo[]> {
 // 出すURLはサイトのドメインに揃える（`publicImageUrl`）
 const toAbsolute = (src: string): string => publicImageUrl(src);
 
-/** プライバシーポリシーの本文を最後に変えた日。本文を直したらここも直す */
-const PRIVACY_LAST_MODIFIED = "2026-04-01";
+/** プライバシーポリシーの本文を最後に変えた日。**`app/privacy/page.tsx` の `LAST_UPDATED` と揃える**（`page.facts.test.ts` が見る） */
+const PRIVACY_LAST_MODIFIED = "2026-10-18";
 
 /** 利用規約の本文を最後に変えた日。**`app/terms/page.tsx` の `LAST_UPDATED` と揃える** */
 const TERMS_LAST_MODIFIED = "2026-09-17";

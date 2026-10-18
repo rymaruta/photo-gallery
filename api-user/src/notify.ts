@@ -1,4 +1,4 @@
-import { GetCommand, UpdateCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, UpdateCommand, BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
@@ -57,69 +57,144 @@ const DEFAULT_NAME = "名前未設定さん";
 export const DELETED_USER_NAME = "退会したユーザー";
 
 /**
- * 退会した人（墓石が立っている行）の userId の集合。
+ * 渡した userId のうち、退会した人（墓石が立っている行）の集合。
  *
- * **投稿者ごとに引かない。** コメント一覧は未認証で叩ける公開APIなので、
- * 1リクエストが投稿者の人数ぶんの読み取りに増幅する（200件のコメントに
- * 100人いれば100回）。墓石は `{userId, deletedAt, ttl, username}` の小さな行
- * しかないので、**まとめて1回**引いてコンテナ内で使い回す。
- * userSearch.ts が同じ形（Scan + 60秒のキャッシュ）で動いている。
+ * **表示に出てくる ID だけを引く**（2026-10-18）。以前は users テーブルを丸ごと
+ * Scan して墓石の集合を作っていたが（`deletedUserIds`）、1ページ 500 件 × 10 ページで
+ * 打ち切っていた。`Limit` は絞り込み（`attribute_exists(deletedAt)`）の**前**に数える
+ * ので、打ち切りは「墓石 5000 件」ではなく「行 5000 件」で効く——**行が 5000 を
+ * 超えると、打ち切った先の退会者が伏せられず、未認証のコメント一覧に実名が出た**。
+ * 新しい GSI は作らない（承認制）ので、件数に左右されない形に変えた:
  *
- * 引けなかったときは**空集合**を返す（伏せない側に倒す）。DynamoDB の
- * 一時的な失敗で、生きている人の名前まで一斉に「退会したユーザー」に
- * 化ける方が悪い。
+ *   - 呼ぶ側が**一覧に出る ID だけ**を渡す（重複は落とす）。`BatchGetItem` で
+ *     100 件ずつ引き、`isDeletedProfile`（`deletedAt` が文字列）で判定する。
+ *     行が無い人は退会扱いにしない（PostConfirmation の取りこぼしで行の無い
+ *     生きた人がいる。前の Scan も同じ判定）
+ *   - 引いた結果はコンテナ内で `DELETED_LOOKUP_CACHE_MS`（60 秒・前と同じ）控える。
+ *     退会が伏せに効くまでの遅れは前と同じ最大 60 秒
  *
- * ページ数の上限は要る。ここは**未認証で叩ける**経路から呼ばれるので、
- * 青天井にするとコールドなコンテナのたびにユーザーテーブル全体を直列で
- * 読み切る（`FilterExpression` は読んだ**あと**に効き、`ProjectionExpression`
- * は消費する読み取りを減らさない）。しかも失敗の形が悪い——fail-open が
- * 拾えるのは send の失敗だけで、**遅いだけ**の場合は Lambda のタイムアウトに
- * 当たり、「誰も伏せない」ではなく「コメントが読めない」になる。
- * userSearch.ts が同じ理由で同じ上限を持っている。
+ * 🔴 **読めなかった ID は `deleted` に混ぜず `unread` で別に返す。** どちらに倒すかは
+ * 呼ぶ側が決める——漏れ方が口によって違うため:
+ *   - **名前を写して持っている口**（コメント・通知の `byName`・ストーリーの返信・
+ *     閲覧者）は `withUnreadAsDeleted` で**伏せる側**に倒す。前は空集合＝伏せない側
+ *     だったが、「生きている人が一瞬『退会したユーザー』に見える」は次の読み込みで
+ *     戻る見た目の傷、「退会した人の実名が未認証の口に出る」は取り消せない漏れ
+ *     （コメント一覧は `s-maxage=15` で共有キャッシュにも載る）
+ *   - **名前を `lookupListIdentity` で引き直す口**（フォロー・フォロワー・ブロックの
+ *     一覧）は `deleted` だけを見る（**生きている扱い**）。墓石からは名前が返らない
+ *     （`{}`）ので、そもそも実名は漏れない。伏せる側に倒すと害だけが出る——生きている
+ *     人が「退会した」と並び、親しい友達の画面などで本人が誤って外してしまう
+ * どちらでも、読めた ID の判定はそのまま使う。読めなかった ID は控えない（次の呼び出しで
+ * 引き直す）。見張りとして `console.error` に件数を出す（CloudWatch で
+ * `deletedAmong: 読めなかった` を数えれば分かる）。
+ *
+ * 費用（eventually consistent の読み取り）: `BatchGetItem` は1件ごとに 4KB 単位で
+ * 切り上げて 0.5 読み取り単位。1回の呼び出しは**出てくる ID の数**で頭打ち
+ * （コメント 200・通知 50・フォロー 50・返信 200・ブロック 500）で、控えに
+ * 当たった ID は0。前の Scan は控えが切れるたびに**表の行を最大 5000 件**
+ * 読んでいた（`ProjectionExpression` は消費を減らさない）。
  */
-let deletedCache: { at: number; ids: Set<string> } | null = null;
-const DELETED_CACHE_TTL_MS = 60 * 1000;
-/** 1ページあたりの読み取り件数（userSearch.ts と揃える） */
-const DELETED_SCAN_PAGE_SIZE = 500;
-/** 走査するページ数の上限。打ち切ったぶんは伏せられないので warn を出す */
-const DELETED_SCAN_MAX_PAGES = 10;
+const DELETED_LOOKUP_CACHE_MS = 60 * 1000;
+/** 控えの上限。超えたら古い順に捨てる（Map は入れた順を保つ） */
+const DELETED_LOOKUP_CACHE_MAX = 5000;
+/** BatchGetItem の1回の上限 */
+const BATCH_GET_MAX = 100;
+/** 未処理（UnprocessedKeys）を拾い直す回数。尽きたら読めなかった扱い */
+const BATCH_GET_RETRIES = 3;
+const deletedLookupCache = new Map<string, { at: number; deleted: boolean }>();
 
 export function resetDeletedUsersCache(): void {
-    deletedCache = null;
+    deletedLookupCache.clear();
 }
 
-export async function deletedUserIds(): Promise<Set<string>> {
-    const now = Date.now();
-    if (deletedCache && now - deletedCache.at < DELETED_CACHE_TTL_MS) return deletedCache.ids;
-    const ids = new Set<string>();
-    try {
-        let lastKey: Record<string, unknown> | undefined;
-        let pages = 0;
-        do {
-            const res = await ddb.send(new ScanCommand({
-                TableName: USERS_TABLE,
-                Limit: DELETED_SCAN_PAGE_SIZE,
-                ProjectionExpression: "userId",
-                FilterExpression: "attribute_exists(deletedAt)",
-                ExclusiveStartKey: lastKey,
-            }));
-            for (const it of res.Items ?? []) {
-                const id = (it as { userId?: unknown }).userId;
-                if (typeof id === "string" && id) ids.add(id);
-            }
-            lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
-            pages++;
-        } while (lastKey && pages < DELETED_SCAN_MAX_PAGES);
-        if (lastKey) {
-            // 打ち切った先にいる退会者は伏せられない。GSI に移す時期
-            console.warn(`deletedUserIds: ${DELETED_SCAN_MAX_PAGES}ページで打ち切りました（GSI への移行時期）`);
-        }
-    } catch (e) {
-        console.error("deletedUserIds error:", e);
-        return new Set();   // 伏せない側に倒す（キャッシュもしない）
+function remember(uid: string, deleted: boolean, at: number): void {
+    deletedLookupCache.delete(uid);
+    deletedLookupCache.set(uid, { at, deleted });
+    while (deletedLookupCache.size > DELETED_LOOKUP_CACHE_MAX) {
+        const oldest = deletedLookupCache.keys().next().value;
+        if (oldest === undefined) break;
+        deletedLookupCache.delete(oldest);
     }
-    deletedCache = { at: now, ids };
-    return ids;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export type DeletedLookup = {
+    /** 墓石が立っていた（退会した）人 */
+    deleted: Set<string>;
+    /** 読めなかった人（判定できなかった）。扱いは呼ぶ側が決める */
+    unread: Set<string>;
+};
+
+/** 名前を写して持っている口の扱い: 読めなかった人も伏せる（実名を漏らさない側） */
+export function withUnreadAsDeleted(r: DeletedLookup): Set<string> {
+    return r.unread.size === 0 ? r.deleted : new Set([...r.deleted, ...r.unread]);
+}
+
+export async function deletedAmong(ids: Iterable<unknown>): Promise<DeletedLookup> {
+    const now = Date.now();
+    const gone = new Set<string>();
+    const unreadIds = new Set<string>();
+    const want: string[] = [];
+    const seen = new Set<string>();
+    for (const id of ids) {
+        // DynamoDB のキーにできない値（空・型違い・長すぎ）は引かない＝誰の ID でもない
+        if (typeof id !== "string" || id.length === 0 || id.length > 256 || seen.has(id)) continue;
+        seen.add(id);
+        const hit = deletedLookupCache.get(id);
+        if (hit && now - hit.at < DELETED_LOOKUP_CACHE_MS) {
+            if (hit.deleted) gone.add(id);
+        } else {
+            want.push(id);
+        }
+    }
+    if (want.length === 0) return { deleted: gone, unread: unreadIds };
+
+    await Promise.all(Array.from({ length: Math.ceil(want.length / BATCH_GET_MAX) }, async (_, i) => {
+        const chunk = want.slice(i * BATCH_GET_MAX, (i + 1) * BATCH_GET_MAX);
+        const pending = new Set(chunk);
+        try {
+            let keys = chunk.map((userId) => ({ userId }));
+            for (let attempt = 0; keys.length > 0 && attempt <= BATCH_GET_RETRIES; attempt++) {
+                if (attempt > 0) await sleep(50 * 2 ** (attempt - 1));
+                const res = await ddb.send(new BatchGetCommand({
+                    RequestItems: {
+                        [USERS_TABLE]: {
+                            Keys: keys,
+                            // 予約語かどうかに左右されないよう名前は置き換えて書く
+                            ProjectionExpression: "#u, #d",
+                            ExpressionAttributeNames: { "#u": "userId", "#d": "deletedAt" },
+                        },
+                    },
+                }));
+                for (const it of res.Responses?.[USERS_TABLE] ?? []) {
+                    const uid = (it as { userId?: unknown }).userId;
+                    if (typeof uid !== "string" || !pending.has(uid)) continue;
+                    pending.delete(uid);
+                    const deleted = isDeletedProfile(it);
+                    if (deleted) gone.add(uid);
+                    remember(uid, deleted, now);
+                }
+                const un = (res.UnprocessedKeys?.[USERS_TABLE]?.Keys ?? []) as { userId?: unknown }[];
+                const unprocessed = new Set(un.map((k) => k.userId).filter((v): v is string => typeof v === "string"));
+                // 返ってこず、未処理にも無い＝行が無い（生きている扱い・控える）
+                for (const uid of [...pending]) {
+                    if (unprocessed.has(uid)) continue;
+                    pending.delete(uid);
+                    remember(uid, false, now);
+                }
+                keys = [...pending].map((userId) => ({ userId }));
+            }
+        } catch (e) {
+            console.error("deletedAmong error:", e);
+        }
+        // ここまで残った ID は読めなかった（控えない。扱いは呼ぶ側が決める）
+        for (const uid of pending) unreadIds.add(uid);
+    }));
+    if (unreadIds.size > 0) {
+        console.error(`deletedAmong: 読めなかった ${unreadIds.size} 件（名前を写して持つ口では伏せる）`);
+    }
+    return { deleted: gone, unread: unreadIds };
 }
 
 /**
@@ -155,8 +230,8 @@ export async function lookupDisplayNameIfSet(uid: string): Promise<string | unde
  * 読めなければ空のオブジェクト——`lookupDisplayNameIfSet` と同じく投げない。
  *
  * 🔴 **墓石（退会した人の行）からは何も返さない。** 墓石には予約をやり直せる
- * ように旧ハンドルが残る（`account.ts`）。一覧は `deletedUserIds()` で先に伏せるが、
- * その集合は読めないと空・走査の打ち切り・60秒の控えで**漏れることがある**。
+ * ように旧ハンドルが残る（`account.ts`）。一覧は `deletedAmong()` で先に伏せるが、
+ * 60秒の控えのあいだに退会した人は**漏れることがある**。
  * 漏れた退会者に解放済みのハンドル（別人が取り直せる）を付けて出さない。
  * 公開プロフィール（`userProfile.ts`）と検索（`userSearch.ts`）と同じ防御
  */

@@ -78,7 +78,7 @@ describe("メダルの表（画面）", () => {
 });
 
 describe("sanitizeProfile: メダルと Pro", () => {
-    type P = { badges?: unknown; displayBadge?: unknown; pro?: unknown; proMarkStyle?: unknown };
+    type P = { badges?: unknown; displayBadge?: unknown; pro?: unknown; proMarkStyle?: unknown; passFace?: unknown };
 
     it("持っているメダルの displayBadge だけ残す", () => {
         const p = sanitizeProfile<P>({ userId: "u1", badges: { first: { tier: 1, at: AT } }, displayBadge: "first" }, "t")!;
@@ -96,6 +96,12 @@ describe("sanitizeProfile: メダルと Pro", () => {
         const q = sanitizeProfile<P>({ userId: "u1", pro: true, proMarkStyle: "plate" }, "t")!;
         expect(q.pro).toBe(true);
         expect(q.proMarkStyle).toBe("plate");
+    });
+
+    it("passFace は true のときだけ（pro とは別の項目）", () => {
+        expect(sanitizeProfile<P>({ userId: "u1", pro: false, passFace: true }, "t")!.passFace).toBe(true);
+        expect(sanitizeProfile<P>({ userId: "u1", passFace: "true" }, "t")!.passFace).toBe(false);
+        expect(sanitizeProfile<P>({ userId: "u1" }, "t")!.passFace).toBe(false);
     });
 });
 

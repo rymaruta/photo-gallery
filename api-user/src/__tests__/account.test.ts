@@ -21,7 +21,7 @@ vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 
 vi.stubEnv("UPLOAD_BUCKET", "bucket-test");
 vi.stubEnv("USERS_TABLE", "users-test");
-const { deleteAccount } = await import("../account");
+const { deleteAccount, tombstoneTtl, TOMBSTONE_RETENTION_DAYS } = await import("../account");
 
 type LambdaResult = { statusCode: number; body: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1467,5 +1467,45 @@ describe("deleteAccount: いいねの一覧", () => {
             .map((cmd) => String((cmd.input.Key as { id?: string })?.id ?? ""));
         expect(touched, "写真のいいね数を触っている").not.toContain("p1");
         expect(touched, "いいねのマーカーを消そうとしている").not.toContain("like#p1#me");
+    });
+});
+
+// 退会の墓石に付ける期限（2026-10-18）。`ttl` は DynamoDB の TTL が読む epoch 秒。
+// **users テーブルの TTL はまだ有効にしていない**（`account.ts` の
+// `TOMBSTONE_RETENTION_DAYS` の説明）ので、今はこの値で何も消えない。
+// ここで固定するのは「有効にした日に、退会から1年で消える値が入っている」こと
+describe("墓石の期限（ttl）", () => {
+    it("期間は 365 日", () => {
+        expect(TOMBSTONE_RETENTION_DAYS).toBe(365);
+    });
+
+    it("退会の時刻＋365日を epoch 秒で返す（ミリ秒は切り捨て）", () => {
+        const at = new Date("2026-10-18T09:30:15.999Z");
+        const ttl = tombstoneTtl(at);
+        expect(Number.isInteger(ttl)).toBe(true);
+        // ミリ秒ではなく秒（DynamoDB の TTL は秒で読む。ミリ秒だと5万年先になり永久に消えない）
+        expect(ttl).toBeLessThan(10_000_000_000);
+        expect(new Date(ttl * 1000).toISOString()).toBe("2027-10-18T09:30:15.000Z");
+    });
+
+    it("閏日をまたいでも暦の1年ではなく 365 日ちょうど", () => {
+        const at = new Date("2027-10-18T00:00:00.000Z");
+        // 2028-02-29 をまたぐので、暦の1年後（2028-10-18）より1日早い
+        expect(new Date(tombstoneTtl(at) * 1000).toISOString()).toBe("2028-10-17T00:00:00.000Z");
+    });
+
+    it("退会で書く墓石の ttl が deletedAt＋365日", async () => {
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) =>
+            Promise.resolve(cmd.constructor.name === "QueryCommand" ? { Items: [] } : {}));
+        const res = await invoke(deleteAccount, ev("me"));
+        expect(res.statusCode).toBe(200);
+        const tomb = mockDdbSend.mock.calls
+            .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
+            .filter((c) => c.constructor.name === "PutCommand")
+            .map((c) => c.input.Item as Record<string, unknown>)
+            .find((it) => it?.userId === "me");
+        expect(tomb).toBeDefined();
+        const deletedAtMs = Date.parse(String(tomb!.deletedAt));
+        expect(tomb!.ttl).toBe(Math.floor(deletedAtMs / 1000) + 365 * 24 * 60 * 60);
     });
 });
