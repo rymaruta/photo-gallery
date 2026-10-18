@@ -290,7 +290,8 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 `POST /user/trunk/labels/{id}/stick` / `DELETE /user/trunk/labels/{id}` /
 `POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose` /
 （次の版・2026-10-17）`PUT /user/trunk/labels/{id}/place` / `POST /user/trunk/labels/{id}/unstick` /
-`POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip`
+`POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip` /
+（人のトランク・2026-10-18）`GET /users/{uid}/trunk`
 
 - 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
   応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
@@ -303,7 +304,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   season?: spring|summer|autumn|winter, timeslot?: dawn|dusk|night,
   milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil?, pos? }`。絵はアプリが `seed` と `kind` から描く
 - `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels,
-  coins, parts, fragments, equipped, posts }`。
+  coins, parts, fragments, equipped, showTrunk, ticket, posts }`（`showTrunk`・`ticket` は 2026-10-18 に足した。下の「人のトランク」）。
   更新の口は同じ形から `posts` を除いたものを返す。失敗は `{ error, code }`
   （`notFound` / `full` / `storage` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy` /
   `badPlace` / `notStuck` / `noCoins` / `badPart` / `owned` / `notEnoughFragments` / `badKind` / `notOwned`）
@@ -372,6 +373,39 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   `charms`→`charm`・`keys`→`key`）。絵の指定（色・形）は台帳に持たない（アプリが板から描く）。
   **id の番号は変えない**（持ち物として保存される）。部品を足すときは各 kind の後ろに番号を足す
 - 退会では `trunk#<uid>` と `trunkledger#<uid>` の2行を消すので、硬貨・部品・かけら・付けた部品・台帳も一緒に消える
+
+*人のトランク（2026-10-18 owner「トランクはマイページに載せたい。他の人のトランクの中身とか見れたら楽しい」・板 TheirTrunk・TheirInside・TrunkPrivacy）*
+
+- **見せる設定**: `PUT /user/trunk/settings { receiveLabels?, showTrunk?, ticket? }`。本文に在る項目だけ変える
+  （1つも無い・真偽でない・形が違うは 400 `badRequest`／乗車券の形は 400 `badTicket`）。応答は `GET` と同じ形（`posts` なし）。
+  - `showTrunk`（既定 `true`）: `false` の間は人の口が 404。行に書くのは `trunk#<uid>`（rev 条件・今までの設定と同じ書き方）
+  - `ticket`: **わたしの乗車券**（すれちがいで交換する本人の1枚。今までは端末の中だけにあった）
+    `{ photoId, note?: 20字・80バイト, origin?: 6字・24バイト, destination?: 6字・24バイト, face?: 0〜255（0 はマルス券）, showsFrom?: 真偽（既定 true） }`。
+    `null` で外す。改行・制御文字は落とし、前後の空白を取る（**上限を越えたら切り詰めず 400**）。
+    写真は**本人の公開写真だけ**（下書き・ストーリー・公開範囲を絞った写真・ほかの人の写真・無い写真は 409 `ticketNotPublic`）
+- **読む**: `GET /users/{uid}/trunk`（**ログインした人だけ**）→
+
+      { userId, model, stuck: [ラベル], equipped, posts?,
+        inside: { badges, card: { pro } | null, ticket: { photoId, note, origin, destination, face, showsFrom } | null } }
+
+  - `model` は見せている型（`effectiveModel`。Pro をやめた人の Pro の型は出さない）。`equipped` は `GET` と同じ形
+  - `stuck` は**貼ったラベルだけ**（置き場 `pos` つき）。1枚は `{ id, kind, place, season?, timeslot?, milestone?, seed, at, foil?, pos?, where }`:
+    `id` は写真の id から作った印（`t` ＋ 12桁・**写真の id は出さない**）、`at` は日付だけ（`YYYY-MM-DD`）、
+    `where` は「その土地で撮ったその人の写真」を引く手がかり `{ location }`（土地の名前が空なら `null`）。
+    アプリは `GET /photos?userId=<uid>`（公開写真の口・管理 API）の結果から、`location` を `,、，/()（）` で割った先頭が
+    `where.location` と同じ写真（無ければ `location` に `where.location` を含む写真）を出す。公開していない写真はそもそも来ない
+  - `posts` は古び方の段に使う公開の投稿の数。**人の写真を全部読まないための控え**で、本人が `GET /user/trunk` を開いたときと、
+    投稿してラベルか硬貨を配ったときに書く（消したあとは本人が開くまで古い数のまま）。控えが無い行は項目ごと出さない
+  - `inside.badges` は公開プロフィールの `badges` と同じ整え方（`sanitizeBadges`。無ければ `{}`）
+  - `inside.card` はサポーター番号を持つ人だけ `{ pro }`（`pro` は今 Pro か）。**番号・始めた年月・月数は出さない**
+    （名前と @ は公開プロフィールから描く）
+  - `inside.ticket` は置いた写真が今も本人の公開写真のときだけ。Pro でなければ `face` は 0（マルス券）。「発」の居住地は公開プロフィールの `homeLocation`
+  - **出さない物**: 硬貨・手持ち・上限・作り直し・受け取りの設定・見せる設定・部品箱・かけら・新しいラベルの印・ラベルの数（数えれば分かるのは貼った枚数だけ）・
+    受け取った乗車券（サーバーに無い。端末の中だけ）
+  - **404 `notFound`（理由は区別しない）**: 見せない設定・見る人と相手のどちらかがブロックしている・退会した（プロフィールが無い・墓石）・
+    トランクの行がまだ無い・`uid` が人の id の形でない。**自分を読んだとき**は見せない設定・ブロックを見ずに同じ形を返す（人からの見え方の確かめ）
+  - 読みは GetItem だけ（相手のプロフィール・`trunk#`・ブロックの印2つ・乗車券の写真1枚）。台帳の行・人の写真の一覧は読まない。書かない
+  - 道筋は trunk 関数に1つ足しただけ（関数・統合・許可・ロール・テーブル・GSI は増やさない）
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
