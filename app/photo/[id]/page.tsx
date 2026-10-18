@@ -111,11 +111,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // いないので `startsWith` に掛からない（実データで確認）。
     // **並べ方の決め方は `titleWithPlace` 1つに置く**（画像の `alt` と同じ判断。
     // ここが決めるのは「｜でつなぐ」ことだけ）
-    // **題を撮影地から作ったときも「｜撮影地」は足されない**——「板橋区の写真」は撮影地を
-    // 含むので `titleWithPlace` が題だけを返す（「板橋区の写真｜板橋区」を作らない）。
-    // `fromTitle` で枝を分ける1行は置かない: 変異で落としても結果が同じだった（等価）。
-    // 縛るのは `metadataNoTitle.test.ts`
-    const tp = titleWithPlace(pageTitle.text, place);
+    // **題を撮影地から作ったときは「｜撮影地」を足さない**（「板橋区の写真｜板橋区, 日本」を
+    // 作らない）。代わりの題は撮影地の先頭だけ（`fallbackPhotoTitle`）なので、撮影地の
+    // 全文は題に含まれず、`titleWithPlace` に任せると足されてしまう。縛るのは
+    // `metadataNoTitle.test.ts`
+    const tp = pageTitle.fromTitle
+        ? titleWithPlace(pageTitle.text, place)
+        : { kind: "single" as const, text: pageTitle.text };
     const title = tp.kind === "single" ? tp.text : `${tp.title}｜${tp.place}`;
 
     // **説明に機材を添える。**

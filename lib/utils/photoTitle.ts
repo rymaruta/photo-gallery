@@ -12,6 +12,8 @@
  * **利用者が自分で「無題」と名付けた回も落ちる。** それは承知のうえ
  * ——その人が言いたいことは「題は無い」なので、結果は同じになる。
  */
+import { shortPlace } from "./editorialLayout";
+
 const SERVER_PLACEHOLDERS: ReadonlySet<string> = new Set(["無題", "Untitled"]);
 
 /** サーバーが入れていた既定値（「無題」/ Untitled）か。前後の空白は見ない */
@@ -56,9 +58,15 @@ export function photoOwnTitle(photo: TitleSource | null | undefined, locale: "ja
  * （英語は `Photo taken in <place>` / `Photo`）。
  *
  * 写真ページの読み上げ用の見出し（2026-10-17）と同じ言い方。
+ *
+ * **撮影地は最初の区切りまで**（「板橋区, 日本」→「板橋区の写真」）。そのまま入れると
+ * 本番で「板橋区, 日本の写真」になっていた（2026-10-18）。切り方はホームのタイルの
+ * 撮影地（`shortPlace`・iOS の `HomeTileText.place`）と同じ1本を使う。区切りの前が
+ * 空（「, 日本」）のときだけ、撮影地を丸ごと使う
  */
 export function fallbackPhotoTitle(location: unknown, locale: "ja" | "en"): string {
-    const place = asText(location).trim();
+    const full = asText(location).trim();
+    const place = shortPlace(full) || full;
     if (locale === "en") return place ? `Photo taken in ${place}` : "Photo";
     return place ? `${place}の写真` : "写真";
 }
