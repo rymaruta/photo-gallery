@@ -181,6 +181,14 @@ describe("自分の棚", () => {
         expect(screen.getByTestId("badges-count").textContent).toBe("3 / 8");
     });
 
+    // 2026-10-18（journey.photo-ios #296）: 絞った写真はメダルに数えないことを棚の下で言う
+    it("棚の下に「フォロワーだけ・親しい友達だけの写真と下書きは数えません」", async () => {
+        serve({ userId: "me", badges: BADGES });
+        render(<BadgesPage />);
+        await screen.findByTestId("medal-shelf");
+        expect(screen.getByTestId("badges-count-rule").textContent).toBe("フォロワーだけ・親しい友達だけの写真と下書きは数えません。");
+    });
+
     it("読み込みに失敗したら棚だけ失敗と出す（名前の横は使える）", async () => {
         serve({ userId: "me", badges: BADGES }, { badges: "fail" });
         render(<BadgesPage />);

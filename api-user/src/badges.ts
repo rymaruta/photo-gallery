@@ -1,9 +1,16 @@
 /**
  * メダルの**数え方**（純関数だけ。読み書きは `badgeStore.ts`）。
  *
- * 数えるのは本人の**公開している写真**（`published !== false`・ストーリーでない・実体がある）。
- * 公開範囲を絞った写真（フォロワーのみ等）も本人の公開写真として数える——メダルに出るのは
- * 数の段だけで、どの写真かは出ない。
+ * 数えるのは本人の**公開している写真**（`published !== false`・ストーリーでない・実体がある）で、
+ * **公開範囲を絞っていないもの**だけ（`isRestrictedRow` が偽）。下書きも数えない。
+ *
+ * 2026-10-18 判断（owner・journey.photo-ios #296）: 以前は「フォロワーだけ」「親しい友達だけ」の
+ * 写真も数えていた。メダルは公開プロフィールに段と**取った日（`at`）**が出るので、
+ * 「公開の投稿が無い日に都道府県の段が上がった」から、絞った写真を上げた日・公開に無い県で
+ * 撮ったこと・本人だけが見られる「行きたい場所」と絞った写真の重なり（行けた場所）が他の人に
+ * 推し量れた。だから公開の写真だけで数える。判定は読むときのふるいと同じ `isRestrictedRow`
+ * （知らない値も「絞った」に倒す）を使い、写しを作らない。
+ * 既に絞った写真で付いた段は、`scripts/backfill-badges.js --public-only` で1回だけ数え直す。
  *
  * | 鍵          | 数えるもの                                         | 銅 / 銀 / 白金 |
  * |-------------|----------------------------------------------------|----------------|
@@ -38,6 +45,7 @@ import LEDGER from "./data/badgeLedger.json";
 import { COUNTED_BADGE_KEYS, MAX_TIER, sanitizeBadges } from "./badgeKeys";
 import type { BadgeMap, CountedBadgeKey, FixedBadgeKey } from "./badgeKeys";
 import { supporterYearNext, supporterYearTier } from "./proBadges";
+import { isRestrictedRow } from "./sanitize";
 import type { Photo } from "./types";
 
 /** 段の線（銅・銀・白金）。`first` は1段だけ */
@@ -404,9 +412,23 @@ export function countBooks(photos: Photo[]): number {
 
 // ─── まとめ ─────────────────────────────────────────────────
 
-/** 数えてよい写真（公開・ストーリーでない・実体がある） */
+/**
+ * 下書き・ストーリー・実体の無い行でない写真（公開・ストーリーでない・実体がある）。
+ * **旅のトランク（`trunk.ts`）もこの線でラベルを配る・取り消す**ので、公開範囲（`audience`）はここでは見ない。
+ * メダルの数は `isMedalCountablePhoto`（冒頭の 2026-10-18 判断）
+ */
 export function isCountablePhoto(p: Photo): boolean {
     return !!p && typeof p.src === "string" && p.src !== "" && p.published !== false && (p as { story?: unknown }).story !== true;
+}
+
+/**
+ * **メダルを数えてよい写真**: `isCountablePhoto` で、しかも公開範囲を絞っていないもの（冒頭の 2026-10-18 判断）。
+ * 2026-10-18 判断: `isCountablePhoto` そのものに足さないのは、旅のトランクのラベルを配る・取り消す判定が
+ * 同じ関数を使っていて、絞った写真の扱いを変えてしまうから。数え方（`countBadges`）と、1回限りの数え直し
+ * （`scripts/backfill-badges.js --public-only`）だけがこちらを使う
+ */
+export function isMedalCountablePhoto(p: Photo): boolean {
+    return isCountablePhoto(p) && !isRestrictedRow(p as { audience?: unknown });
 }
 
 /** 「行きたい」に入れたスポットのうち、写真を撮ったものの数 */
@@ -426,7 +448,7 @@ export function countWish(photos: Photo[], wishKeys: readonly string[]): number 
 export type BadgeCounts = Record<CountedBadgeKey, number>;
 
 export function countBadges(allPhotos: Photo[], wishKeys: readonly string[]): BadgeCounts {
-    const photos = allPhotos.filter(isCountablePhoto);
+    const photos = allPhotos.filter(isMedalCountablePhoto);
     const prefs = new Set<number>();
     const countries = new Set<string>();
     const seasonsByYear = new Map<number, Set<number>>();

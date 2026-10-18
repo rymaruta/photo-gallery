@@ -205,6 +205,14 @@ export default function BadgesPage() {
                                 </p>
                             )}
                             <MedalShelf items={items} locale={locale} />
+                            {/* 2026-10-18（journey.photo-ios #296）: メダルは公開範囲を絞っていない公開の写真だけで
+                                数える（`api-user/src/badges.ts` の `isMedalCountablePhoto`）。絞って上げた人が
+                                「数が合わない」と迷わないよう、棚の下に一言 */}
+                            <p className="mt-3 text-[12px] text-white/60" data-testid="badges-count-rule">
+                                {en
+                                    ? "Photos shared only with followers or close friends, and drafts, aren't counted."
+                                    : "フォロワーだけ・親しい友達だけの写真と下書きは数えません。"}
+                            </p>
                         </>
                     )}
                 </section>

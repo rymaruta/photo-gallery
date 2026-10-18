@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     BADGE_THRESHOLDS, tierFor, nextThreshold, countBadges, mergeBadges, badgeProgress,
     prefectureOfText, nearestPrefecture, prefectureOfPhoto, countryOfText, seasonOf, yearMonthOf,
-    lightOf, shotInstant, wallClockToInstant, sunriseSunset, countBooks, countWish, isCountablePhoto,
+    lightOf, shotInstant, wallClockToInstant, sunriseSunset, countBooks, countWish, isCountablePhoto, isMedalCountablePhoto,
     PREFECTURE_NAMES, timeZoneOfPhoto,
 } from "../badges";
 import { COUNTED_BADGE_KEYS } from "../badgeKeys";
@@ -53,6 +53,43 @@ describe("数えてよい写真", () => {
         expect(isCountablePhoto(photo({ src: "" }))).toBe(false);
         expect(countBadges([photo({ published: false }), photo({ story: true })], []).first).toBe(0);
         expect(countBadges([photo()], []).first).toBe(1);
+    });
+
+    // 2026-10-18（journey.photo-ios #296）: 公開範囲を絞った写真は数えない。
+    // 数えると、公開プロフィールのメダルの段と取った日から、絞った写真の県・日が推し量れる
+    it("公開範囲を絞った写真（フォロワーだけ・親しい友達だけ・知らない値）はメダルに数えない", () => {
+        expect(isMedalCountablePhoto(photo({ audience: "followers" }))).toBe(false);
+        expect(isMedalCountablePhoto(photo({ audience: "closeFriends" }))).toBe(false);
+        // 知らない綴りも「絞った」に倒す（`isRestrictedRow` と同じ）。公開に戻さない
+        expect(isMedalCountablePhoto(photo({ audience: "follower" }))).toBe(false);
+        // 空の文字列・項目なしは全体に公開
+        expect(isMedalCountablePhoto(photo({ audience: "" }))).toBe(true);
+        expect(isMedalCountablePhoto(photo({ audience: undefined }))).toBe(true);
+        // 下書き・ストーリーはもちろん数えない
+        expect(isMedalCountablePhoto(photo({ published: false }))).toBe(false);
+        expect(isMedalCountablePhoto(photo({ story: true }))).toBe(false);
+    });
+
+    // 旅のトランク（`trunk.ts`）はラベルを配る・取り消す判定に `isCountablePhoto` を使う。
+    // メダルのために絞った写真を落とすと、トランクの扱いまで変わる（2026-10-18 見直し）
+    it("isCountablePhoto（トランクと共有）は公開範囲を見ない", () => {
+        expect(isCountablePhoto(photo({ audience: "followers" }))).toBe(true);
+        expect(isCountablePhoto(photo({ audience: "closeFriends" }))).toBe(true);
+    });
+
+    it("絞った写真しか無い県・国・スポットは、どのメダルの数にも入らない", () => {
+        const kyoto = photo({ location: "京都府 京都市", audience: "followers" });
+        const france = photo({ location: "パリ, フランス", audience: "closeFriends" });
+        const c = countBadges([kyoto, france], []);
+        expect(c.first).toBe(0);
+        expect(c.prefectures).toBe(0);
+        expect(c.countries).toBe(0);
+        // 公開の写真と混ざっても、公開のぶんだけ
+        const pub = photo({ location: "東京都 港区" });
+        const c2 = countBadges([kyoto, france, pub], []);
+        expect(c2.first).toBe(1);
+        expect(c2.prefectures).toBe(1);
+        expect(c2.countries).toBe(0);
     });
 });
 
