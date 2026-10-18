@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 
 /**
  * 管理 API から写真を消した・非公開にした・撮影地を変えたときに、旅のトランクのラベルの
- * 「地名を人に見せてよい」印（`o`）を外す（2026-10-18・`trunkPlace.ts`）。
+ * 「地名を人に見せてよい」印（`o`）を外す（2026-10-18・`trunkLabelPlaceDrop.ts`）。
  * DynamoDB は中身を持つ作り物（rev 条件の Put を本当に通す）。写真の行の読み書きは `ddb-photos` を模す
  */
 type Item = Record<string, unknown>;
@@ -46,12 +46,12 @@ async function send(cmd: { constructor: { name: string }; input: Item }) {
 }
 
 // トップレベルの await は使わない（api の型検査の基準 11 件を増やさない）
-let dropTrunkPlaceOkQuietly: typeof import("../trunkPlace").dropTrunkPlaceOkQuietly;
-let dropPlaceOkFrom: typeof import("../trunkPlace").dropPlaceOkFrom;
+let dropTrunkPlaceOkQuietly: typeof import("../trunkLabelPlaceDrop").dropTrunkPlaceOkQuietly;
+let dropPlaceOkFrom: typeof import("../trunkLabelPlaceDrop").dropPlaceOkFrom;
 let updatePhoto: typeof import("../photosMutate").updatePhoto;
 let deletePhoto: typeof import("../photosMutate").deletePhoto;
 beforeAll(async () => {
-    ({ dropTrunkPlaceOkQuietly, dropPlaceOkFrom } = await import("../trunkPlace"));
+    ({ dropTrunkPlaceOkQuietly, dropPlaceOkFrom } = await import("../trunkLabelPlaceDrop"));
     ({ updatePhoto, deletePhoto } = await import("../photosMutate"));
 });
 
