@@ -828,9 +828,13 @@ describe("確かめの指摘（2026-10-17）", () => {
 describe("保存の形（短い鍵）", () => {
     it("書いて読むと元の形に戻る", async () => {
         setProfile(FREE);
-        const out = await grantLabel(UID, photo("p1", {
+        const p1 = photo("p1", {
             location: "Helsinki, フィンランド", date: "2026-01-10", exif: { dateTimeOriginal: "2026:01:10 05:00:00" }, groupId: "g-1",
-        }), new Date("2026-10-17T00:00:00.123Z"), (a, b) => (b === 10_000 ? 0 : 77));
+        });
+        // 写真の行も置く（印を付けたあとに読み直して確かめる・GET の突き合わせが一覧で見る）
+        store.set(`photos-test|p1`, p1 as unknown as Item);
+        mockListMyPhotos.mockResolvedValue([p1]);
+        const out = await grantLabel(UID, p1, new Date("2026-10-17T00:00:00.123Z"), (a, b) => (b === 10_000 ? 0 : 77));
         const raw = (trunkRow()?.pocket as Item[])[0];
         expect(raw.i).toBe("p1");
         expect(raw.id).toBeUndefined();
@@ -1228,9 +1232,9 @@ describe("口（serverless.yml の trunk 関数）", () => {
             "POST /user/trunk/labels/{id}/reroll", "POST /user/trunk/labels/{id}/reroll/choose",
             "PUT /user/trunk/labels/{id}/place", "POST /user/trunk/labels/{id}/unstick",
             "POST /user/trunk/gacha", "POST /user/trunk/parts/exchange", "PUT /user/trunk/equip",
-            "POST /user/trunk/welcome",
+            "GET /users/{uid}/trunk", "POST /user/trunk/welcome",
         ]) expect(routes).toContain(r);
-        expect(routes).toHaveLength(13);
+        expect(routes).toHaveLength(14);
         expect(block).toContain("handler: src/trunk.handler");
     });
 });
@@ -1241,6 +1245,8 @@ describe("2行に分ける（trunk# と trunkledger#・2026-10-17）", () => {
 
     it("配ると、持ち物は trunk#・台帳は trunkledger# に、1つの TransactWriteItems で書く", async () => {
         setProfile(FREE);
+        // 写真の行も置く（印を付けたあとの確かめで外さない＝書き込みは1回のまま）
+        store.set(`photos-test|p1`, photo("p1") as unknown as Item);
         await grantLabel(UID, photo("p1"));
         expect(trunkRow()?.dealt).toBeUndefined();
         expect(trunkRow()?.coins).toBe(1);

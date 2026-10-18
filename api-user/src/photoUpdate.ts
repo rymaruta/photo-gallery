@@ -17,7 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
-import { revokeLabelQuietly, grantLabelForPhotoQuietly } from "./trunk";
+import { revokeLabelQuietly, grantLabelForPhotoQuietly, refreshLabelPlaceQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
@@ -101,6 +101,13 @@ async function releaseFirstPublish(id: string, t: string): Promise<void> {
         }
     }
 }
+
+/**
+ * 旅のトランクのラベルの地名を人に見せてよいかに効く項目（`trunkPlace.ts` の `placeOf` と公開の判定が読むもの）。
+ * これに触れた編集だけ `refreshLabelPlaceQuietly` を呼ぶ（触れなければ trunk も写真も読み直さない）
+ */
+// `replace`（写真の差し替え）は EXIF から座標が変わりうる
+const PLACE_INPUTS = ["published", "audience", "location", "coords", "spotId", "replace"] as const;
 
 export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const id = event.pathParameters?.id;
@@ -870,8 +877,15 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             await releaseFirstPublish(id, firstPublish);
         }
         // **公開 → 非公開で、投稿から24時間以内ならラベルを取り消す**（削除と同じ扱い・`trunk.ts`）
-        if (visibilityChanged && body.published === false) {
+        // 取り消されずに残ったラベル（24時間を過ぎた）は、人のトランクで地名を見せてよい印を外す（同じ書き込みに相乗り）
+        const madePrivate = visibilityChanged && body.published === false;
+        if (madePrivate) {
             await revokeLabelQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`);
+        } else if (!firstPublish && PLACE_INPUTS.some((k) => k in body)) {
+            // **公開範囲・公開・撮影地に触れた編集**: ラベルの「地名を見せてよい」印を今の写真で付け直す
+            // （絞った・撮影地を変えた → 外す／全員に戻した・撮影地を戻した → 付ける）。取り消しの線は今までどおり。
+            // 初めての公開（いま配った回）は、配るときに印を決めているので呼ばない
+            await refreshLabelPlaceQuietly(ownerId, id, existing.Item, `updatePhotoVisibility(${id})`);
         }
 
         // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
