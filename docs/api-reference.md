@@ -290,7 +290,8 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 `POST /user/trunk/labels/{id}/stick` / `DELETE /user/trunk/labels/{id}` /
 `POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose` /
 （次の版・2026-10-17）`PUT /user/trunk/labels/{id}/place` / `POST /user/trunk/labels/{id}/unstick` /
-`POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip`
+`POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip` /
+（2026-10-18 追加・**本番未反映**）`POST /user/trunk/welcome`
 
 - 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
   応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
@@ -372,6 +373,24 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   `charms`→`charm`・`keys`→`key`）。絵の指定（色・形）は台帳に持たない（アプリが板から描く）。
   **id の番号は変えない**（持ち物として保存される）。部品を足すときは各 kind の後ろに番号を足す
 - 退会では `trunk#<uid>` と `trunkledger#<uid>` の2行を消すので、硬貨・部品・かけら・付けた部品・台帳も一緒に消える
+- **はじめての硬貨**（2026-10-18 owner 承認）: `POST /user/trunk/welcome`（本文なし・認証は JWT（id token）の `sub` と `auth_time`）。
+  アプリを開いたときに呼ぶ。硬貨の機能を本番に出した時刻（`TRUNK_COINS_LAUNCHED_AT` = `2026-10-17T23:32:10Z`・
+  #393 の Deploy API の完了）より前に登録した人に、**一度だけ**硬貨を10枚。
+  応答 `{ granted: boolean, added: number, coins: number }`
+  - `granted` はこの呼び出しで1枚以上配ったときだけ `true`。配り済み・対象外・決められないときは `false`（エラーにしない・200）
+  - `added` は足せた枚数（上限 99 を超える分は配らない）。`coins` は今の枚数（`GET /user/trunk` の `coins` と同じ値）
+  - 対象かの決め方（2026-10-18 判断・この順）: ① users の行の `createdAt` が線より前 → 対象
+    ② 行はあるが `createdAt` が無い・読めない（2026-08-19 より前の古い利用者）→ 対象
+    ③ JWT の `auth_time`（いまのログインを始めた時刻。更新トークンでの取り直しでは同じ・ログインし直すと新しくなる。
+    アプリは id token を送る）が線より前 → 対象（前から居るのに行がまだ無く、開いた瞬間に今の時刻で行が作られた人を拾う。
+    **拾えるのは「行の無い古い人で、線のあとにログインし直していない人」だけ**）
+    ④ 本人の写真・ストーリー（`userId-createdAt-index`）に線より前のものがある → 対象
+    ⑤ どれも無い → 対象外（印を残す）。ただし行が無く `auth_time` も無い・読めない人は配らず印も残さない
+    （あとで決め直せる）。退会の墓石の行は配らない
+  - 一度きり: `trunk#<uid>` に `welcomeCoinsAt`（と `welcomeCoinsAdded`）を書く。対象外と確かめた人には
+    `welcomeCheckedAt`。印のある人は2回目からトランクの2行を読むだけ（users・索引は読まない）。
+    書き込みはほかのトランクの口と同じ rev 条件（並んだ呼び出し・再送でも1回だけ）。99 枚で足せなかった（0 枚）ときも印は残す
+  - 印は `trunk#` の行にあるので、退会で一緒に消える。一括の移行はしない（呼んだ人の行だけ書く）
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
