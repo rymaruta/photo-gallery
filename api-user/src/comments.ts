@@ -3,7 +3,7 @@ import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { pushNotification, lookupDisplayName, deletedAmong, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
 import { canViewPhoto } from "./restrictedFeed";
@@ -125,7 +125,7 @@ async function commentsResponse(photoId: string, viewerId: string | undefined, l
         // 載るので、sub は秘密ではない（userProfile.ts のコメント参照）。
         // 画面側は `deleted` を見てプロフィールへの導線を出さない。
         // コメントが無ければ引きに行かない
-        const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
+        const gone = items.length === 0 ? new Set<string>() : await deletedAmong(items.map((c) => c.uid));
         const safeItems = gone.size === 0
             ? items
             : items.map((c) => (gone.has(c.uid)

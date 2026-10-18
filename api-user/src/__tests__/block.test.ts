@@ -12,7 +12,7 @@ vi.mock("../dynamodb", () => ({
 
 // 表示名の引きは境界としてモックする（`notify` は USERS_TABLE を要求する）
 const mockName = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
-const mockGone = vi.hoisted(() => vi.fn<() => Promise<Set<string>>>(async () => new Set<string>()));
+const mockGone = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
 const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 vi.mock("../notify", () => ({
     // 名前と @ユーザー名を1回で引く（`lookupListIdentity`）。名前は `mockName` が答える
@@ -21,7 +21,7 @@ vi.mock("../notify", () => ({
         const username = await mockUsername(uid);
         return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
     },
-    deletedUserIds: () => mockGone(),
+    deletedAmong: (ids: unknown) => mockGone(ids),
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
@@ -263,15 +263,17 @@ describe("listBlocks", () => {
             { id: OTHER, name: "生きている人" },
         ]);
         expect(mockName, "退会した人の名前を引きに行っている").not.toHaveBeenCalledWith(THEM);
+        // **一覧に出る ID を渡して引く**（表を走査しない。`notify.ts` の `deletedAmong`）
+        expect(mockGone).toHaveBeenCalledWith([THEM, OTHER]);
     });
 
     // 引くのは一覧が空でないときだけ（`getComments` と同じ）。
-    // このテーブルの走査は Scan なので、0件のときに撃たない
+    // 読み取りを増やさないよう、0件のときに撃たない
     it("一覧が空なら墓石を引きに行かない", async () => {
         world({ [blocksId(ME)]: { blockedIds: [] } });
         const r = await invoke(listBlocks, ev(ME));
         expect(bodyOf(r).users).toEqual([]);
-        expect(mockGone, "0件なのに Scan している").not.toHaveBeenCalled();
+        expect(mockGone, "0件なのに退会者を引いている").not.toHaveBeenCalled();
     });
 
     // **伏せられなくても一覧は返す。**
@@ -284,8 +286,8 @@ describe("listBlocks", () => {
     // この口は**ブロックを解除できる唯一の入口**（`BlockedUsers`）なので、
     // 墓石が引けないだけで外せなくなるのは倒れ方として悪い。
     //
-    // **ただし本番では発火しない。** `deletedUserIds` は `notify.ts` の
-    // 中で握って空集合を返すので reject しない——ここが reject するのは
+    // **ただし本番では発火しない。** `deletedAmong` は `notify.ts` の
+    // 中で握って（読めなかった ID を伏せて）返すので reject しない——ここが reject するのは
     // このファイルが `../notify` をモジュールごと差し替えているから。
     // コミットに「実際に投げさせると 500 を返していた」と書いたが、
     // 真なのは**モックの世界でだけ**。保険を保険として縛るテスト

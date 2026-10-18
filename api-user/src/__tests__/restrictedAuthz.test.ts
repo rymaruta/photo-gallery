@@ -17,7 +17,7 @@ const mockPush = vi.hoisted(() => vi.fn());
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: vi.fn(async () => "名前"),
-    deletedUserIds: vi.fn(async () => new Set<string>()),
+    deletedAmong: vi.fn(async () => new Set<string>()),
     DELETED_USER_NAME: "退会したユーザー",
 }));
 

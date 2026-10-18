@@ -9,11 +9,11 @@ vi.mock("../dynamodb", () => ({
     PHOTOS_TABLE: "photos-test",
     USER_INDEX: "userId-createdAt-index",
 }));
-const mockDeletedIds = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    deletedUserIds: mockDeletedIds,
+    deletedAmong: mockDeletedIds,
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
@@ -812,7 +812,7 @@ describe("コメント上限の免除: 古い写真の所有者", () => {
 // **退会してもコメントが公開のまま残っていた。**
 // このAPIは未認証で読めるのに投稿者の生死を見ていなかったので、退会したあとも
 // 本文と表示名が誰でも読めた。退会でプロフィールは墓石になるのに、コメント
-// だけ取り残される形。掃除役（全 Scan）は別枠なので、読むときに伏せる。
+// だけ取り残される形。掃除役は別枠なので、読むときに伏せる。
 describe("getComments: 退会した人の名前は出さない", () => {
     const publicPhoto = { Item: { src: "https://cdn/p1.jpg", published: true } };
     const items = [
@@ -836,6 +836,9 @@ describe("getComments: 退会した人の名前は出さない", () => {
         expect(c1.text).toBe("こんにちは");
         // uid は伏せない（/users/<sub> は公開ルートで、sub は秘密ではない）
         expect(c1.uid).toBe("gone");
+        // **コメントした人の ID を渡して引く**（表を走査しない。行が 5000 を超えると
+        // 前の全表 Scan は打ち切った先の退会者を伏せられなかった）
+        expect((mockDeletedIds.mock.calls[0][0] as string[]).slice().sort()).toEqual(["alive", "gone"]);
     });
 
     it("生きている人はそのまま", async () => {
@@ -849,9 +852,9 @@ describe("getComments: 退会した人の名前は出さない", () => {
     });
 
     // ここが押さえているのは「集合が空なら誰も伏せない」まで。
-    // deletedUserIds は丸ごとモックなので、**引けなかったときの挙動は
-    // ここでは通らない**（本体の fail-open は notify.test.ts
-    // 「引けなかったら空集合（投げない・控えもしない）」が押さえている）。
+    // deletedAmong は丸ごとモックなので、**引けなかったときの挙動は
+    // ここでは通らない**（本体は読めなかった ID を伏せる側に倒す。notify.test.ts
+    // 「読めなかった ID は退会扱いで伏せる」が押さえている）。
     it("墓石が1件も無ければ、誰も伏せない", async () => {
         mockDeletedIds.mockResolvedValue(new Set<string>());
         world();

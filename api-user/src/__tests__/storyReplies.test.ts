@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
-const mockDeletedIds = vi.hoisted(() => vi.fn(async () => new Set<string>()));
+const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -13,7 +13,7 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    deletedUserIds: mockDeletedIds,
+    deletedAmong: mockDeletedIds,
     DELETED_USER_NAME: "退会したユーザー",
 }));
 // ブロックの判定も境界にする（`stories.test.ts` と同じ形）
@@ -543,6 +543,8 @@ describe("getStoryReplies", () => {
         const r = await invoke(getStoryReplies, ev("owner", "story-1"));
         expect(bodyOf(r).items[0].name).toBe("退会したユーザー");
         expect(bodyOf(r).items[0].deleted).toBe(true);
+        // 返信した人の ID を渡して引く（表を走査しない）
+        expect(mockDeletedIds).toHaveBeenCalledWith(["gone"]);
     });
 
     it("0件なら退会者を引きに行かない", async () => {
