@@ -91,7 +91,7 @@ function fullOwner() {
     setTrunk(OWNER, {
         model: "starchart", lastFreeModel: "canvas",
         pocket: [label("pocket-photo-1")],
-        stuck: [label("stuck-photo-1", { p: [500, 250, -55], f: 1, s: 0 }), label("stuck-photo-2", { n: "", c: undefined })],
+        stuck: [label("stuck-photo-1", { p: [500, 250, -55], f: 1, s: 0, o: 1 }), label("stuck-photo-2", { n: "", c: undefined })],
         receiveLabels: false, coins: 12, parts: ["pin.1", "lining.2"], fragments: 3,
         equipped: { pins: ["pin.1"], lining: "lining.2" },
         rerolls: { month: "2026-10", used: 2 },
@@ -347,97 +347,172 @@ describe("見せる設定と乗車券（PUT /user/trunk/settings）", () => {
     });
 });
 
-describe("非公開・削除・絞った写真のラベルは、人の口で地名を伏せる（2026-10-18 coordinator 判断）", () => {
-    const { revokeLabelQuietly, showLabelPlaceQuietly } = T;
+describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（2026-10-18 coordinator 判断）", () => {
+    const { revokeLabelQuietly, refreshLabelPlaceQuietly, grantLabelForPhotoQuietly } = T;
     const OLD = "2026-01-01T00:00:00.000Z";   // 24時間を過ぎている（取り消されない）
-    const row = (id: string, over: Item = {}) => ({ id, userId: OWNER, src: "s", published: true, createdAt: OLD, firstPublishedAt: OLD, ...over });
-    const withLabels = () => {
-        setProfile(OWNER, {});
-        setTrunk(OWNER, {
-            stuck: [label("ph1", { l: "Kyoto", m: "firstCountry", k: "m" })],
-            pocket: [label("ph2", { n: "札幌" })],
-        });
-    };
+    const NEW = "2026-10-18T00:00:00.000Z";   // 機能を出した日より後
+    const row = (id: string, over: Item = {}) => ({
+        id, userId: OWNER, src: `https://cdn.example.com/${id}.webp`, published: true, location: "京都, Kyoto",
+        createdAt: OLD, firstPublishedAt: OLD, ...over,
+    });
+    const okLabel = (id: string, over: Record<string, unknown> = {}) => label(id, { l: "Kyoto", o: 1, ...over });
     const theirStuck = async () => (await their()).json.stuck as Item[];
     const ownStuck = async () => (await call("GET /user/trunk", { sub: OWNER })).json.stuck as Item[];
-
-    it("24時間を過ぎて非公開にした: 取り消さず、人には地名と手がかりを伏せる。自分には全部見える", async () => {
-        withLabels();
-        await revokeLabelQuietly(OWNER, row("ph1"), "test");
-        const [l] = await theirStuck();
-        expect(l).toMatchObject({ kind: "milestone", milestone: "firstCountry", seed: 42, placeHidden: true, where: null });
-        expect(l.place).toEqual({ name: "" });
-        const raw = (await their()).raw;
-        expect(raw).not.toContain("京都");
-        expect(raw).not.toContain("Kyoto");
-        expect(raw).not.toContain("日本");
-        // 手持ちの別のラベルは関係ない（人の口には手持ち自体が出ない）・自分の口では地名がそのまま
-        const [own] = await ownStuck();
-        expect(own.place).toEqual({ name: "京都", latin: "Kyoto", country: "日本" });
-        expect(own.placeHidden).toBe(true);
-    });
-
-    it("公開に戻すと伏せを外す（showLabelPlaceQuietly）。伏せていなければ書かない", async () => {
-        withLabels();
-        await revokeLabelQuietly(OWNER, row("ph1"), "test");
-        await showLabelPlaceQuietly(OWNER, row("ph1"), "test");
+    const expectHidden = async () => {
+        const r = await their();
+        const [l] = r.json.stuck as Item[];
+        expect(l).toMatchObject({ placeHidden: true, where: null, place: { name: "" } });
+        expect(r.raw).not.toContain("京都");
+        expect(r.raw).not.toContain("Kyoto");
+        expect(r.raw).not.toContain("日本");
+        return l;
+    };
+    const expectShown = async () => {
         const [l] = await theirStuck();
         expect(l.place).toEqual({ name: "京都", latin: "Kyoto", country: "日本" });
         expect(l.where).toEqual({ location: "京都" });
         expect(l).not.toHaveProperty("placeHidden");
-        const rev = trunkRow(OWNER)?.rev;
-        await showLabelPlaceQuietly(OWNER, row("ph1"), "test");
-        expect(trunkRow(OWNER)?.rev).toBe(rev);
+    };
+    /** 手持ちに届いたラベルを貼る（人の口に出るのは貼ったものだけ） */
+    const stickAll = async () => {
+        const t = trunkRow(OWNER)!;
+        setTrunk(OWNER, { ...t, stuck: [...((t.pocket as Item[]) ?? []), ...((t.stuck as Item[]) ?? [])], pocket: [] });
+    };
+
+    it("印の無いラベル（本番にもう在るラベル）は、人には地名を伏せる。kind・seed は残す。自分には全部見える", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto", m: "firstCountry", k: "m" })], pocket: [] });
+        const l = await expectHidden();
+        expect(l).toMatchObject({ kind: "milestone", milestone: "firstCountry", seed: 42 });
+        const [own] = await ownStuck();
+        expect(own.place).toEqual({ name: "京都", latin: "Kyoto", country: "日本" });
+        expect(own).not.toHaveProperty("placeOk");
     });
 
-    it("削除（24時間を過ぎた）も同じく伏せる", async () => {
-        withLabels();
-        await revokeLabelQuietly(OWNER, row("ph1", { published: true }), "deleteMyPhoto");
-        expect((await theirStuck())[0].placeHidden).toBe(true);
+    it("誰にでも見える公開の写真から配ったラベルにだけ印が付き、人に地名が出る", async () => {
+        setProfile(OWNER, {});
+        await grantLabel(OWNER, row("ph1", { createdAt: NEW }) as never);
+        await stickAll();
+        await expectShown();
+        expect(((await ownStuck())[0]).placeOk).toBe(true);
     });
 
-    it("公開範囲を絞った（revoke: false）: 24時間以内でも取り消さず、伏せるだけ", async () => {
-        withLabels();
-        const now = new Date().toISOString();
-        setTrunk(OWNER, { stuck: [label("ph1", { a: Math.floor(Date.now() / 1000) })], pocket: [] });
-        await revokeLabelQuietly(OWNER, row("ph1", { createdAt: now, firstPublishedAt: now }), "test", { revoke: false });
-        const s = await theirStuck();
-        expect(s).toHaveLength(1);
-        expect(s[0].placeHidden).toBe(true);
+    it("【1】絞った写真（closeFriends・フォロワー限定）から配ったラベルは印が無い＝地名は人に出ない", async () => {
+        for (const audience of ["closeFriends", "followers"]) {
+            store.clear();
+            setProfile(OWNER, {});
+            await grantLabel(OWNER, row("ph1", { createdAt: NEW, audience }) as never);
+            await stickAll();
+            await expectHidden();
+        }
     });
 
-    it("24時間以内の非公開は今までどおり取り消す（ラベルが消える・伏せの印だけ残ることはない）", async () => {
+    it("【1】下書き → 公開（絞った範囲で初公開）・再送でも、絞った写真なら印は付かない", async () => {
+        setProfile(OWNER, {});
+        setPhoto("ph1", row("ph1", { createdAt: NEW, audience: "followers" }));
+        await grantLabelForPhotoQuietly(OWNER, "ph1", "test");
+        await stickAll();
+        await expectHidden();
+        // 絞ったままの再送
+        await grantLabel(OWNER, row("ph1", { createdAt: NEW, audience: "followers" }) as never);
+        await expectHidden();
+        // 全員に向けた再送で付く・また絞った再送で外れる
+        await grantLabel(OWNER, row("ph1", { createdAt: NEW }) as never);
+        await expectShown();
+        await grantLabel(OWNER, row("ph1", { createdAt: NEW, audience: "closeFriends" }) as never);
+        await expectHidden();
+    });
+
+    it("24時間を過ぎて非公開・削除: 取り消さず印を外す（自分には地名が見える）", async () => {
+        for (const photo of [row("ph1", { published: false }), row("ph1")]) {
+            store.clear();
+            setProfile(OWNER, {});
+            setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });
+            await expectShown();
+            await revokeLabelQuietly(OWNER, photo, "test");
+            await expectHidden();
+            expect(((await ownStuck())[0]).place).toMatchObject({ name: "京都" });
+        }
+    });
+
+    it("24時間以内の非公開は今までどおり取り消す（ラベルが消える）", async () => {
         setProfile(OWNER, {});
         const now = new Date().toISOString();
-        setTrunk(OWNER, { stuck: [label("ph1", { a: Math.floor(Date.now() / 1000) }), label("keep")], pocket: [] });
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { a: Math.floor(Date.now() / 1000) }), okLabel("keep")], pocket: [] });
         await revokeLabelQuietly(OWNER, row("ph1", { createdAt: now, firstPublishedAt: now }), "test");
-        const s = await theirStuck();
-        expect(s).toHaveLength(1);
-        expect(s[0].placeHidden).toBeUndefined();
+        expect(await theirStuck()).toHaveLength(1);
         expect(JSON.stringify(trunkRow(OWNER)?.stuck)).not.toContain("ph1");
     });
 
-    it("束の写真がまだ公開で残っていれば伏せない（その土地は公開のまま）", async () => {
+    it("【2】束の兄弟が絞った写真だけになったら、取り消さなくても印を外す（絞った写真は「公開で残る」に数えない）", async () => {
         setProfile(OWNER, {});
         const g = T.groupKey("grp");
-        setTrunk(OWNER, { stuck: [label("ph1", { g })], pocket: [] });
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
         mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
-        setPhoto("ph9", { userId: OWNER, groupId: "grp" });
+        setPhoto("ph9", row("ph9", { groupId: "grp", audience: "followers" }));
         await revokeLabelQuietly(OWNER, row("ph1", { groupId: "grp" }), "test");
-        expect((await theirStuck())[0].placeHidden).toBeUndefined();
-        // 残りも隠したら伏せる
-        setPhoto("ph9", { userId: OWNER, groupId: "grp", published: false });
-        await revokeLabelQuietly(OWNER, row("ph9", { groupId: "grp" }), "test");
-        expect((await theirStuck())[0].placeHidden).toBe(true);
+        await expectHidden();
     });
 
-    it("再送で公開の写真が来た（grantLabel・配り済み）ら伏せを外す。絞った写真なら外さない", async () => {
-        withLabels();
-        await revokeLabelQuietly(OWNER, row("ph1"), "test");
-        await grantLabel(OWNER, row("ph1", { audience: "followers" }) as never);
-        expect((await theirStuck())[0].placeHidden).toBe(true);
-        const out = await grantLabel(OWNER, row("ph1") as never);
-        expect(out.coin).toBe(0);
-        expect((await theirStuck())[0].placeHidden).toBeUndefined();
+    it("束の兄弟が誰にでも見える公開で同じ撮影地に残っていれば、印を残す（撮影地が違えば外す）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        await revokeLabelQuietly(OWNER, row("ph1", { groupId: "grp" }), "test");
+        await expectShown();
+        setPhoto("ph9", row("ph9", { groupId: "grp", location: "大阪" }));
+        await revokeLabelQuietly(OWNER, row("ph1", { groupId: "grp" }), "test");
+        await expectHidden();
+    });
+
+    it("写真の編集で付け直す: 絞る → 外す・全員に戻す → 付ける・撮影地を変える → 外す・撮影地を戻す → 付ける", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });
+        const step = async (before: Item, after: Item) => {
+            setPhoto("ph1", after);
+            await refreshLabelPlaceQuietly(OWNER, "ph1", before, "test");
+        };
+        await step(row("ph1"), row("ph1", { audience: "followers" }));
+        await expectHidden();
+        await step(row("ph1", { audience: "followers" }), row("ph1"));
+        await expectShown();
+        await step(row("ph1"), row("ph1", { location: "大阪" }));
+        await expectHidden();
+        // 新しい撮影地で公開のままでも伏せたまま（ラベルの地名は配ったときのもの）
+        await step(row("ph1", { location: "大阪" }), row("ph1", { location: "大阪", title: "x" }));
+        await expectHidden();
+        await step(row("ph1", { location: "大阪" }), row("ph1"));
+        await expectShown();
+        await step(row("ph1"), row("ph1", { location: undefined }));
+        await expectHidden();
+    });
+
+    it("公開・撮影地が変わらない編集では trunk を読まない（写真を1回読むだけ）", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [okLabel("ph1")], pocket: [] });
+        setPhoto("ph1", row("ph1", { title: "新しい題" }));
+        fakeSend.mockClear();
+        await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1"), "test");
+        const keys = fakeSend.mock.calls.map((c) => String((c[0].input as { Key?: Item }).Key?.id ?? ""));
+        expect(keys).toEqual(["ph1"]);
+    });
+
+    it("人の口の印は本人ごとに違う（同じ写真の id でも、別の人のトランクと照らし合わせられない）", () => {
+        const l = { id: "same", photoId: "same", kind: "place" as const, place: { name: "" }, seed: 1, at: NEW };
+        expect(T.theirLabel(OWNER, l).id).not.toBe(T.theirLabel(VIEWER, l).id);
+        expect(T.theirLabel(OWNER, l).id).toMatch(/^t[0-9a-f]{12}$/);
+    });
+
+    it("posts は誰にでも見える公開の投稿だけで数える（絞った・下書き・ストーリーは数えない）", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [] });
+        mockListMyPhotos.mockResolvedValue([
+            row("a"), row("b", { audience: "followers" }), row("c", { published: false }), row("d", { story: true }),
+            row("e", { groupId: "g1" }), row("f", { groupId: "g1" }),
+        ]);
+        expect((await call("GET /user/trunk", { sub: OWNER })).json.posts).toBe(2);
+        expect((await their()).json.posts).toBe(2);
     });
 });

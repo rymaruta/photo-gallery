@@ -9,12 +9,10 @@ import { UserListError } from "./userList";
 import { isPro, publicSupporter, sanitizeBadges } from "./badgeKeys";
 import { isBlocked } from "./blockCheck";
 import { isUserId } from "./userId";
-import { isRestrictedRow } from "./sanitize";
 import { isDeletedProfile } from "./types";
-import {
-    PREFECTURE_NAMES, coordsOf, countryOfText, isCountablePhoto,
-    prefectureOfPhoto, seasonOf, yearMonthOf,
-} from "./badges";
+import { coordsOf, countryOfText, isCountablePhoto, seasonOf, yearMonthOf } from "./badges";
+import { isPublicListPhoto } from "./feed";
+import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
 import type { Photo } from "./types";
 import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
 
@@ -159,7 +157,6 @@ export const ROT_MAX = 30;
 /** 本流（savePhoto）の中で待ってよい上限。メダルの数え直し（`badgeStore.ts` の QUIET_LIMIT_MS）と同じ */
 export const TRUNK_QUIET_LIMIT_MS = 2500;
 
-const PLACE_NAME_MAX = 30;
 
 export const LABEL_KINDS = ["milestone", "timeslot", "season", "place"] as const;
 export type LabelKind = (typeof LABEL_KINDS)[number];
@@ -194,10 +191,11 @@ export type TrunkLabel = {
      */
     pos?: TrunkPos;
     /**
-     * 写真を非公開にした・消した・公開範囲を絞った（24時間を過ぎて取り消されなかった）印（2026-10-18 coordinator 判断）。
-     * 人の口（`theirLabel`）では地名と手がかりを伏せる。本人の口ではそのまま見える。公開に戻すと外す
+     * **地名を人に見せてよいと確かめた印**（2026-10-18 coordinator 判断「確かめた物だけ見せる」・`trunkPlace.ts`）。
+     * 誰にでも見える公開の写真から来て、撮影地が今もラベルと同じときだけ付く。人の口（`theirLabel`）は
+     * この印のあるラベルだけ地名と手がかりを出す。非公開・削除・絞る・撮影地の変更で外し、戻せば付け直す
      */
-    placeHidden?: true;
+    placeOk?: true;
 };
 
 export type TrunkPos = { x: number; y: number; rot: number };
@@ -418,10 +416,13 @@ export function parseTicket(v: unknown): TrunkTicket | undefined {
     return { photoId: t.photoId, note, origin, destination, face, showsFrom: t.showsFrom !== false };
 }
 
-/** 本人の公開写真か（下書き・ストーリー・公開範囲を絞った写真・ほかの人の写真は違う） */
+/**
+ * 本人の・誰にでも見える公開の写真か（下書き・ストーリー・公開範囲を絞った写真・ほかの人の写真は違う）。
+ * 判定は公開の一覧と同じ `feed.ts` の `isPublicListPhoto`（写さない）
+ */
 export function isOwnPublicPhoto(row: Record<string, unknown> | undefined, uid: string): boolean {
     if (!row) return false;
-    return (row.userId ?? row.uploadedBy) === uid && isCountablePhoto(row as unknown as Photo) && !isRestrictedRow(row);
+    return (row.userId ?? row.uploadedBy) === uid && isPublicListPhoto(row);
 }
 
 /** 0 以上の整数（違えば 0） */
@@ -483,7 +484,7 @@ function compactEquipped(e: Equipped): Record<string, unknown> {
  * `photoId` は `id` と同じなので持たない。読むとき（`decodeLabel`）に元の形へ戻す
  *
  *     i id ・ k kind(m/t/s/p) ・ n 地名 ・ l latin ・ c 国 ・ s 季節(0-3) ・ t 時刻(0-2) ・
- *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵 ・ h 地名を人に伏せる(1) ・
+ *     m 節目 ・ d seed ・ a 時刻(秒) ・ f foil(1) ・ g 束の鍵 ・ o 地名を人に見せてよい(1) ・
  *     p 置き場 [x×1000, y×1000, rot×10]（整数）
  */
 const KIND_CODE: Record<LabelKind, string> = { milestone: "m", timeslot: "t", season: "s", place: "p" };
@@ -504,7 +505,7 @@ function stored(l: TrunkLabel): Record<string, unknown> {
         a: Number.isFinite(at) ? Math.floor(at / 1000) : 0,
         ...(l.foil ? { f: 1 } : {}),
         ...(l.groupId ? { g: l.groupId } : {}),
-        ...(l.placeHidden ? { h: 1 } : {}),
+        ...(l.placeOk ? { o: 1 } : {}),
         ...(l.pos ? { p: [Math.round(l.pos.x * 1000), Math.round(l.pos.y * 1000), Math.round(l.pos.rot * 10)] } : {}),
     };
 }
@@ -530,7 +531,7 @@ function decodeLabel(v: unknown): unknown {
         at: typeof r.a === "number" ? new Date(r.a * 1000).toISOString() : "",
         ...(r.f === 1 ? { foil: true } : {}),
         ...(typeof r.g === "string" ? { groupId: r.g } : {}),
-        ...(r.h === 1 ? { placeHidden: true } : {}),
+        ...(r.o === 1 ? { placeOk: true } : {}),
         ...(posOfStored(r.p) ? { pos: posOfStored(r.p) } : {}),
     };
 }
@@ -619,28 +620,8 @@ export function timeslotOf(hour: number | null): TrunkLabel["timeslot"] | undefi
     return undefined;
 }
 
-const LATIN_RE = /^[\x20-\x7EÀ-ɏ]+$/;
-
-/**
- * 土地。撮影地の文字 → スポット・座標から分かる県 → 空。
- * 2026-10-17 判断: `latin` は撮影地の文字にラテン文字の区切りがあるときだけ（訳さない・作らない）。
- * 国名は**メダルの表**（`countryOfText`）で当たったときと、県が分かったとき（日本）だけ
- */
-export function placeOf(p: Photo): TrunkLabel["place"] {
-    const text = typeof p.location === "string" ? p.location.trim() : "";
-    const parts = text.split(/[,、，/()（）]/).map((s) => s.trim()).filter(Boolean);
-    const pref = prefectureOfPhoto(p);
-    const country = countryOfText(text) ?? (pref !== null ? "日本" : undefined);
-    let name = parts[0] ?? "";
-    if (!name && pref !== null) name = PREFECTURE_NAMES[pref] ?? "";
-    if (!name && country) name = country;
-    const latin = parts.find((s) => LATIN_RE.test(s) && /[A-Za-z]/.test(s));
-    return {
-        name: name.slice(0, PLACE_NAME_MAX),
-        ...(latin ? { latin: latin.slice(0, PLACE_NAME_MAX) } : {}),
-        ...(country ? { country } : {}),
-    };
-}
+/** 土地（`trunkPlace.ts` に移した。人の口の判定と台本が同じ関数を使う） */
+export { placeOf } from "./trunkPlace";
 
 /**
  * 節目。はじめての投稿 ＞ 100・50・10 投稿目 ＞ はじめての国。
@@ -735,13 +716,15 @@ const freshCoinLog = (log: TrunkDoc["coinLog"], now: Date) =>
  */
 export function dealInto(
     doc: TrunkDoc, label: TrunkLabel, limit: number, fingerprint: string, now: Date,
-    opts: { restricted?: boolean } = {},
 ): { doc: TrunkDoc | null; outcome: DealOutcome } {
     const existing = doc.pocket.find((l) => l.id === label.id) ?? doc.stuck.find((l) => l.id === label.id);
     if (existing) {
-        // 配り済みの写真がまた公開で来た（再送で公開に戻した）→ 地名の伏せを外す（同じ書き込み・読みは増やさない）
-        const shown = existing.placeHidden && !opts.restricted ? setPlaceHidden(doc, (l) => l.id === label.id, false) : null;
-        return { doc: shown, outcome: { label: stripInternal(shown ? { ...existing, placeHidden: undefined } : existing), coin: 0 } };
+        // 配り済みの写真がまた来た（再送）: 地名を見せてよいかを、今の写真で付け直す（同じ書き込み・読みは増やさない）。
+        // 見せてよいのは、今の写真が誰にでも見える公開で（`label.placeOk`）撮影地がラベルと同じときだけ
+        const ok = !!label.placeOk && placeKey(existing.place) === placeKey(label.place);
+        const next = setPlaceOk(doc, (l) => l.id === label.id, () => ok);
+        const shown = next ? (next.pocket.find((l) => l.id === label.id) ?? next.stuck.find((l) => l.id === label.id)!) : existing;
+        return { doc: next, outcome: { label: stripInternal(shown), coin: 0 } };
     }
     const skip = (why: DealOutcome["labelSkipped"]) => ({ doc: null, outcome: noDeal(doc.receiveLabels ? why : "off") });
     // 束は台帳で見る（手持ちから消しても、同じ束の別の写真には配らない）。台帳を入れる前に配った分は手持ち・貼った方で見る
@@ -824,14 +807,16 @@ export async function grantLabel(
     // この投稿（束なら束ごと）を除く。索引は結果整合なので、いま書いた行が見えていてもいなくても同じ数になる
     const others = mine.filter((o) => isCountablePhoto(o) && o.id !== photo.id && postKey(o) !== key);
     // 乱数は**書く前に1回だけ**引く（競合で読み直しても同じ1枚を足す）
-    const label = buildLabel(photo, others, now, rand);
+    const built = buildLabel(photo, others, now, rand);
+    // 地名を人に見せてよいのは、誰にでも見える公開の写真から配ったときだけ（絞った写真・下書きからの配りは伏せる）
+    const label: TrunkLabel = isPublicListPhoto(photo as unknown as Record<string, unknown>) ? { ...built, placeOk: true } : built;
     const fp = fingerprintOf(photo);
     // 人のトランクの古び方に使う控え（この投稿を足した数）。**配って書くときに相乗りするだけ**——配らない回
     // （歯止め・上限）は今までどおり何も書かない。控えは本人が `GET /user/trunk` を開いたときにも直る
-    const posts = countPosts(others) + 1;
+    const posts = countPublicPosts([...others, photo] as unknown as Record<string, unknown>[]);
     let outcome: DealOutcome = noDeal("error");
     await updateTrunk(uid, (doc) => {
-        const r = dealInto(doc, label, limit, fp, now, { restricted: isRestrictedRow(photo as unknown as Record<string, unknown>) });
+        const r = dealInto(doc, label, limit, fp, now);
         outcome = r.outcome;
         return r.doc ? { ...r.doc, posts } : null;
     });
@@ -1233,16 +1218,19 @@ export function revokeFrom(
 }
 
 /**
- * 当たるラベル（手持ち・貼った方）の地名の伏せを付ける／外す（純関数）。変わらなければ null
+ * 当たるラベル（手持ち・貼った方）の「地名を見せてよい」印を、`ok(ラベル)` のとおりに付ける／外す（純関数）。
+ * 変わらなければ null
  */
-export function setPlaceHidden(doc: TrunkDoc, match: (l: TrunkLabel) => boolean, hidden: boolean): TrunkDoc | null {
+export function setPlaceOk(doc: TrunkDoc, match: (l: TrunkLabel) => boolean, ok: (l: TrunkLabel) => boolean): TrunkDoc | null {
     let changed = false;
     const fix = (l: TrunkLabel): TrunkLabel => {
-        if (!match(l) || !!l.placeHidden === hidden) return l;
+        if (!match(l)) return l;
+        const want = ok(l);
+        if (!!l.placeOk === want) return l;
         changed = true;
-        if (hidden) return { ...l, placeHidden: true };
-        const { placeHidden: _h, ...rest } = l;
-        void _h;
+        if (want) return { ...l, placeOk: true };
+        const { placeOk: _o, ...rest } = l;
+        void _o;
         return rest;
     };
     const next = { ...doc, pocket: doc.pocket.map(fix), stuck: doc.stuck.map(fix) };
@@ -1263,16 +1251,26 @@ function labelMatcher(photoId: string, group: string): (l: TrunkLabel) => boolea
  * ⚠️ 索引にまだ載っていない兄弟（いま上げたばかりの写真）は見落としうる——そのときは
  * 「残っていない」と読んで取り消す側に倒れる。束の id を全部持つ場所は無い（行は1枚ずつ）
  */
-async function groupStillPublic(uid: string, group: string, exceptId: string): Promise<boolean> {
-    const siblings = (await listMyPhotos(uid))
+async function groupSiblings(uid: string, group: string, exceptId: string): Promise<{
+    /** 束の写真がまだ公開で残っているか（取り消しの線・下書きでない・ストーリーでない） */
+    remains: boolean;
+    /** 誰にでも見える公開で残っている兄弟の撮影地（`placeKey`）。地名を見せてよいかの根拠 */
+    publicPlaces: Set<string>;
+}> {
+    const ids = (await listMyPhotos(uid))
         .filter((o) => o.id !== exceptId && typeof o.groupId === "string" && o.groupId.trim() === group)
         .map((o) => o.id);
-    for (const id of siblings) {
+    let remains = false;
+    const publicPlaces = new Set<string>();
+    for (const id of ids) {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
-        const row = res.Item as Photo | undefined;
-        if (row && (row.userId ?? row.uploadedBy) === uid && isCountablePhoto(row)) return true;
+        const row = res.Item as Record<string, unknown> | undefined;
+        if (!row || (row.userId ?? row.uploadedBy) !== uid) continue;
+        if (isCountablePhoto(row as unknown as Photo)) remains = true;
+        // 2026-10-18: 絞った写真（closeFriends・フォロワー限定）は「公開で残っている」に数えない
+        if (isPublicListPhoto(row)) publicPlaces.add(placeKey(placeOf(row as unknown as Photo)));
     }
-    return false;
+    return { remains, publicPlaces };
 }
 
 /**
@@ -1280,31 +1278,27 @@ async function groupStillPublic(uid: string, group: string, exceptId: string): P
  * **投げない・上限つきで待つ**。落ちても削除・非公開は成功のまま（ラベルが残るだけ）。
  * `photo` は**消す・隠す前の行**。退会は行ごと消す（`account.ts`）ので、ここは通らない
  */
-export async function revokeLabelQuietly(
-    uid: string, photo: Record<string, unknown>, label: string, opts: { revoke?: boolean } = {},
-): Promise<void> {
+export async function revokeLabelQuietly(uid: string, photo: Record<string, unknown>, label: string): Promise<void> {
     const photoId = typeof photo.id === "string" ? photo.id : "";
     if (!uid || !photoId) return;
     const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
-    // 公開範囲を絞っただけ（`revoke: false`）は取り消さず、地名を伏せるだけ（2026-10-18 判断: 取り消しの線は今までどおり）
-    const revoke = opts.revoke !== false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
             (async () => {
-                const groupRemains = g ? await groupStillPublic(uid, g, photoId) : false;
+                const sib = g ? await groupSiblings(uid, g, photoId) : { remains: false, publicPlaces: new Set<string>() };
                 await updateTrunk(uid, (doc, exists) => {
                     if (!exists) return null;
-                    const revoked = revoke ? revokeFrom(doc, {
+                    const revoked = revokeFrom(doc, {
                         photoId,
-                        ...(g ? { group: groupKey(g), groupRemains } : {}),
+                        ...(g ? { group: groupKey(g), groupRemains: sib.remains } : {}),
                         postedAt: photo.firstPublishedAt ?? photo.createdAt,
-                    }, new Date()) : null;
-                    // 取り消されずに残ったラベルは、人の口で地名を伏せる（同じ書き込みに相乗り）。
-                    // 束の写真がまだ公開で残っていれば、その土地は公開のままなので伏せない
+                    }, new Date());
+                    // 取り消されずに残ったラベルは、地名を見せてよい印を外す（同じ書き込みに相乗り）。
+                    // 束は、誰にでも見える公開の兄弟が同じ撮影地で残っているときだけ印を残す
                     const base = revoked ?? doc;
-                    const hidden = g && groupRemains ? null : setPlaceHidden(base, labelMatcher(photoId, g), true);
-                    return hidden ?? revoked;
+                    const fixed = setPlaceOk(base, labelMatcher(photoId, g), (l) => sib.publicPlaces.has(placeKey(l.place)));
+                    return fixed ?? revoked;
                 });
             })().catch((e) => {
                 console.error(`${label}: ラベルを取り消せませんでした（${uid}）:`, e);
@@ -1317,18 +1311,35 @@ export async function revokeLabelQuietly(
 }
 
 /**
- * 非公開・公開範囲を絞った写真を**公開に戻した**ときに呼ぶ（`photoUpdate.ts`）。地名の伏せを外す。
- * 投げない・上限つきで待つ。行が無い・当たるラベルが無い・伏せていなければ何も書かない
+ * 写真の編集（`photoUpdate.ts` の `updatePhotoVisibility`）のあとに呼ぶ。公開範囲・公開の切り替え・撮影地が
+ * 変わったら、その写真から来たラベルの「地名を見せてよい」印を付け直す（絞った・撮影地を変えた → 外す、
+ * 全員に戻した・撮影地を戻した → 付ける）。
+ *
+ * `before` は**編集する前の行**。今の行は強い読みで1回読む。公開の一覧に載るかも撮影地も変わっていなければ
+ * trunk を読まない。束の写真は、誰にでも見える公開の兄弟が同じ撮影地で残っていれば印を残す。
+ * 投げない・上限つきで待つ
  */
-export async function showLabelPlaceQuietly(uid: string, photo: Record<string, unknown>, label: string): Promise<void> {
-    const photoId = typeof photo.id === "string" ? photo.id : "";
+export async function refreshLabelPlaceQuietly(
+    uid: string, photoId: string, before: Record<string, unknown>, label: string,
+): Promise<void> {
     if (!uid || !photoId) return;
-    const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         await Promise.race([
-            updateTrunk(uid, (doc, exists) => (exists ? setPlaceHidden(doc, labelMatcher(photoId, g), false) : null))
-                .catch((e) => { console.error(`${label}: ラベルの地名を戻せませんでした（${uid}）:`, e); }),
+            (async () => {
+                const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: photoId }, ConsistentRead: true }));
+                const after = res.Item as Record<string, unknown> | undefined;
+                if (!placeOkMayChange(before, after)) return;
+                const row = after ?? before;
+                const g = typeof row.groupId === "string" ? row.groupId.trim() : "";
+                const sib = g ? await groupSiblings(uid, g, photoId) : { remains: false, publicPlaces: new Set<string>() };
+                await updateTrunk(uid, (doc, exists) => (exists
+                    ? setPlaceOk(doc, labelMatcher(photoId, g),
+                        (l) => placeOkFor(l.place, after, uid) || sib.publicPlaces.has(placeKey(l.place)))
+                    : null));
+            })().catch((e) => {
+                console.error(`${label}: ラベルの地名の印を付け直せませんでした（${uid}）:`, e);
+            }),
             new Promise<void>((resolve) => { timer = setTimeout(resolve, TRUNK_QUIET_LIMIT_MS); }),
         ]);
     } finally {
@@ -1362,14 +1373,16 @@ export type TheirLabel = {
     foil?: true;
     pos?: TrunkPos;
     where: { location: string } | null;
-    /** 地名を伏せたラベル（`place` は `{ name: "" }`・`where` は null）。iOS は地名なしで描く */
+    /** 地名を伏せたラベル（`place` は `{ name: "" }`・`where` は null）。iOS は地名なしで描く。見せてよいと確かめていないラベルは全部これ */
     placeHidden?: true;
 };
 
-export function theirLabel(l: TrunkLabel): TheirLabel {
-    const hidden = !!l.placeHidden;
+export function theirLabel(uid: string, l: TrunkLabel): TheirLabel {
+    // **確かめた物だけ見せる**: 印（`placeOk`）の無いラベルは地名を伏せる（外し忘れ・古いラベルでも漏れない）
+    const hidden = !l.placeOk;
     return {
-        id: `t${shortHash(`label\u0000${l.id}`)}`,
+        // 本人ごとの塩（uid）を混ぜる（同じ写真の id を知る人が、別の人のトランクと照らし合わせられないように）
+        id: `t${shortHash(`label\u0000${uid}\u0000${l.id}`)}`,
         kind: l.kind,
         // 伏せたラベルは地名・ラテン文字・国を出さない（「はじめての国」でも国名を出さない）
         place: hidden ? { name: "" } : l.place,
@@ -1441,7 +1454,7 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
     return {
         userId: target,
         model: effectiveModel(doc, pro),
-        stuck: doc.stuck.map(theirLabel),
+        stuck: doc.stuck.map((l) => theirLabel(target, l)),
         equipped: viewEquipped(doc.equipped),
         ...(doc.posts !== undefined ? { posts: doc.posts } : {}),
         inside: {
@@ -1506,7 +1519,7 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 listMyPhotos(uid),
             ]);
             const doc = parseTrunk(rows.main, rows.ledger);
-            const posts = countPosts(photos);
+            const posts = countPublicPosts(photos as unknown as Record<string, unknown>[]);
             if (rows.main && doc.posts !== posts) await notePostsQuietly(uid, posts);
             return ok({ ...view(doc, pro, now), posts });
         }
