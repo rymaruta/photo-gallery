@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { planBackfill, rewriteUpdate, isRestrictedRow } from "../move-restricted-to-private";
+import { planBackfill, rewriteUpdate, isRestrictedRow, skipKeptAlive, applyEntries, type ApplyDeps } from "../move-restricted-to-private";
 import { PRIVATE_PREFIX } from "../../api-user/src/privateMove";
 
 /**
@@ -69,23 +69,93 @@ describe("行の書き換え", () => {
         expect(u.ConditionExpression).toContain("attribute_exists(id)");
         expect(u.ConditionExpression).toContain("attribute_exists(audience)");
     });
+
+    // 読んだあとに差し替えられていたら、古い計画で書くと差し替えを黙って古い画像へ戻す
+    it("読んだときの src のままのときだけ書く（差し替えを戻さない）", () => {
+        const u = rewriteUpdate(planBackfill([row()]).entries[0]);
+        expect(u.ConditionExpression).toContain("#src = :oldSrc");
+        expect(u.ExpressionAttributeNames["#src"]).toBe("src");
+        expect(u.ExpressionAttributeValues[":oldSrc"]).toBe(`${CDN}/uploads/u1/p1.jpg`);
+    });
 });
 
-describe("順番と既定", () => {
-    const src = readFileSync(join(__dirname, "..", "move-restricted-to-private.ts"), "utf8");
-
-    it("コピー → 行の書き換え → 元を消す（photoUpdate と同じ順）", () => {
-        const copy = src.indexOf("await copyAll(");
-        const update = src.indexOf("new UpdateCommand(");
-        const drop = src.indexOf("await dropUnusedKeys(");
-        expect(copy).toBeGreaterThan(0);
-        expect(update).toBeGreaterThan(copy);
-        expect(drop).toBeGreaterThan(update);
+describe("残した写真（元のストーリーが出ている間は移さない）", () => {
+    it("元のストーリーが生きていれば飛ばし、消えていれば移す・読めなければ飛ばす", async () => {
+        const plan = planBackfill([
+            row({ id: "alive", keptFrom: "s1" }),
+            row({ id: "gone", keptFrom: "s2" }),
+            row({ id: "broken", keptFrom: "s3" }),
+            row({ id: "plain" }),
+        ]);
+        const out = await skipKeptAlive(plan.entries, async (id) => {
+            if (id === "s3") throw new Error("read failed");
+            return id === "s1";
+        });
+        expect(out.entries.map((e) => e.id)).toEqual(["gone", "plain"]);
+        expect(out.keptAlive).toBe(1);
+        expect(out.unknown).toBe(1);
     });
+});
+
+describe("移す順と、元が残ったときの数え方", () => {
+    const deps = (over: Partial<ApplyDeps> = {}, log: string[] = []): ApplyDeps => ({
+        copyAll: async () => { log.push("copy"); return true; },
+        update: async () => { log.push("update"); },
+        dropUnused: async () => { log.push("drop"); },
+        exists: async () => { log.push("head"); return false; },
+        ...over,
+    });
+
+    it("コピー → 行の書き換え → 元を消す → 消えたか確かめる（photoUpdate と同じ順）", async () => {
+        const log: string[] = [];
+        const r = await applyEntries(planBackfill([row()]).entries, deps({}, log));
+        expect(log.slice(0, 3)).toEqual(["copy", "update", "drop"]);
+        expect(log.slice(3).every((x) => x === "head")).toBe(true);
+        expect(r).toEqual({ moved: 1, failed: 0, leftovers: [] });
+    });
+
+    it("コピーに失敗したら行も元も触らない", async () => {
+        const log: string[] = [];
+        const r = await applyEntries(planBackfill([row()]).entries, deps({ copyAll: async () => false }, log));
+        expect(log).toEqual([]);
+        expect(r.failed).toBe(1);
+    });
+
+    it("行を書けなかったら元を消さない", async () => {
+        const log: string[] = [];
+        const r = await applyEntries(planBackfill([row()]).entries,
+            deps({ update: async () => { throw Object.assign(new Error("x"), { name: "ConditionalCheckFailedException" }); } }, log));
+        expect(log).toEqual(["copy"]);
+        expect(r.failed).toBe(1);
+    });
+
+    it("🔴 元が uploads/ に残っていたら「移した」に数えない（失敗に数えて残りを返す）", async () => {
+        const r = await applyEntries(planBackfill([row()]).entries,
+            deps({ exists: async (k) => k === "uploads/u1/p1.jpg" }));
+        expect(r.moved).toBe(0);
+        expect(r.failed).toBe(1);
+        expect(r.leftovers).toEqual(["uploads/u1/p1.jpg"]);
+    });
+
+    it("在るか確かめられなければ「残っている」側に倒す", async () => {
+        const r = await applyEntries(planBackfill([row()]).entries,
+            deps({ exists: async () => { throw new Error("denied"); } }));
+        expect(r.moved).toBe(0);
+        expect(r.failed).toBe(1);
+    });
+});
+
+describe("既定と終了コード", () => {
+    const src = readFileSync(join(__dirname, "..", "move-restricted-to-private.ts"), "utf8");
 
     it("既定は下見（--apply が無ければ書かない）・適用には無効化先が要る", () => {
         expect(src).toContain('process.argv.includes("--apply")');
         expect(src).toMatch(/if \(!apply\) \{[\s\S]*?return;/);
         expect(src).toMatch(/apply && !process\.env\.CLOUDFRONT_DISTRIBUTION_ID/);
+    });
+
+    it("失敗（元が残ったものを含む）があれば終了コードを非0にする", () => {
+        expect(src).toMatch(/const \{ moved, failed, leftovers \} = await applyEntries\(/);
+        expect(src).toContain("if (failed > 0) process.exitCode = 1;");
     });
 });

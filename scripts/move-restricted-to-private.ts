@@ -52,6 +52,10 @@ export type BackfillEntry = {
     userId: string;
     moves: Move[];
     rewritten: Record<string, unknown>;
+    /** 読んだときの `src`。行の書き換えの条件にする（間に差し替えられていたら書かない） */
+    oldSrc?: string;
+    /** ストーリーから残した写真なら、元のストーリーの id（`storyKeep.ts`） */
+    keptFrom?: string;
 };
 
 export type BackfillPlan = {
@@ -80,10 +84,97 @@ export function planBackfill(items: Record<string, unknown>[]): BackfillPlan {
             plan.skipped.noOwner++;
             continue;
         }
-        plan.entries.push({ id: item.id, userId: item.userId, moves, rewritten });
+        plan.entries.push({
+            id: item.id, userId: item.userId, moves, rewritten,
+            ...(typeof item.src === "string" ? { oldSrc: item.src } : {}),
+            ...(typeof item.keptFrom === "string" && item.keptFrom ? { keptFrom: item.keptFrom } : {}),
+        });
         plan.objects += moves.length;
     }
     return plan;
+}
+
+/**
+ * 🔴 **元のストーリーが生きている「残した写真」は移さない**（`photoUpdate.ts` の公開範囲の変更と同じ判定）。
+ *
+ * その間、写真とストーリーは**同じ S3 の実体を共有**していて、移すとストーリーの画像が割れるか、
+ * 期限切れの掃除と競合して写真の実体を失いうる。ストーリーの行が消えれば（毎時の掃除）移せる。
+ * **読めなければ飛ばす**（分からないなら触らない）。
+ */
+export async function skipKeptAlive(
+    entries: BackfillEntry[],
+    storyAlive: (storyId: string) => Promise<boolean>,
+): Promise<{ entries: BackfillEntry[]; keptAlive: number; unknown: number }> {
+    const out: BackfillEntry[] = [];
+    let keptAlive = 0;
+    let unknown = 0;
+    for (const entry of entries) {
+        if (!entry.keptFrom) { out.push(entry); continue; }
+        let alive: boolean;
+        try {
+            alive = await storyAlive(entry.keptFrom);
+        } catch {
+            unknown++;
+            continue;
+        }
+        if (alive) { keptAlive++; continue; }
+        out.push(entry);
+    }
+    return { entries: out, keptAlive, unknown };
+}
+
+export type ApplyDeps = {
+    copyAll: (moves: Move[], tag: string) => Promise<boolean>;
+    update: (entry: BackfillEntry) => Promise<void>;
+    dropUnused: (userId: string, keys: string[], tag: string, selfId: string) => Promise<void>;
+    /** S3 にまだ在るか（HeadObject） */
+    exists: (key: string) => Promise<boolean>;
+};
+
+/**
+ * 移す。**コピー → 行の書き換え → 元を消す → 元が消えたかを確かめる**。
+ *
+ * 元が残っていたら（消せなかった・自分のほかの行が使っているので残した）、
+ * **その行は「移した」に数えない**——公開の置き場に実体が残っていて、URL を知っていれば取れる。
+ */
+export async function applyEntries(entries: BackfillEntry[], deps: ApplyDeps) {
+    let moved = 0;
+    let failed = 0;
+    const leftovers: string[] = [];
+    for (const entry of entries) {
+        const tag = `move-restricted(${entry.id})`;
+        // 1. コピー。1つでも失敗したら行も元も触らない（孤児が残るだけ）
+        if (!await deps.copyAll(entry.moves, tag)) { failed++; continue; }
+        // 2. 行を書き換える
+        try {
+            await deps.update(entry);
+        } catch (e) {
+            console.warn(`${tag}: 行を書き換えられませんでした（元は消しません）`, (e as Error)?.name);
+            failed++;
+            continue;
+        }
+        // 3. 最後に元を消す（自分のほかの行が使っていないものだけ・エッジの無効化まで）
+        await deps.dropUnused(entry.userId, entry.moves.map((m) => m.from), tag, entry.id);
+        // 4. 元が本当に消えたか。`dropUnusedKeys` は失敗を投げずに警告だけ出すので、ここで数える
+        const left: string[] = [];
+        for (const m of entry.moves) {
+            let still: boolean;
+            try {
+                still = await deps.exists(m.from);
+            } catch {
+                still = true;   // 確かめられないなら「残っている」側に倒す
+            }
+            if (still) left.push(m.from);
+        }
+        if (left.length > 0) {
+            console.warn(`${tag}: 元が uploads/ に残っています（${left.length} 個）`);
+            leftovers.push(...left);
+            failed++;
+            continue;
+        }
+        moved++;
+    }
+    return { moved, failed, leftovers };
 }
 
 /** 行の書き換え（移した先の URL を SET）。**同じ更新で全部**書く（分けると間で落ちたときにちぐはぐ） */
@@ -96,14 +187,20 @@ export function rewriteUpdate(entry: BackfillEntry) {
         values[`:mv${n}`] = value;
         sets.push(`#mv${n} = :mv${n}`);
     });
+    names["#src"] = "src";
+    if (entry.oldSrc !== undefined) values[":oldSrc"] = entry.oldSrc;
     return {
         Key: { id: entry.id },
         UpdateExpression: `SET ${sets.join(", ")}`,
         ExpressionAttributeNames: names,
         ExpressionAttributeValues: values,
         // 行が消えていたら作らない（UpdateItem はキーが無ければ行を作る）。
-        // 流している間に公開へ戻されていたら書かない（戻した行を `private/` へ向けない）
-        ConditionExpression: "attribute_exists(id) AND attribute_exists(audience)",
+        // 流している間に公開へ戻されていたら書かない（戻した行を `private/` へ向けない）。
+        // **読んだあとに差し替えられていたら書かない**（`src` が違う＝新しい画像。古い計画で
+        // 書くと、差し替えを黙って古い画像へ戻す）
+        ConditionExpression: entry.oldSrc !== undefined
+            ? "attribute_exists(id) AND attribute_exists(audience) AND #src = :oldSrc"
+            : "attribute_exists(id) AND attribute_exists(audience) AND attribute_not_exists(#src)",
     };
 }
 
@@ -122,7 +219,7 @@ async function main() {
     }
 
     const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient, ScanCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+    const { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand } = await import("@aws-sdk/lib-dynamodb");
     const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" }));
 
     console.log(`対象: ${table} / ${bucket}`);
@@ -141,9 +238,14 @@ async function main() {
     } while (lastKey);
 
     const plan = planBackfill(items);
+    // 元のストーリーが生きている「残した写真」は飛ばす（下見でも読むだけで数える）
+    const kept = await skipKeptAlive(plan.entries, async (storyId) =>
+        !!(await ddb.send(new GetCommand({ TableName: table, Key: { id: storyId } }))).Item);
+    const objects = kept.entries.reduce((n, e) => n + e.moves.length, 0);
     console.log(`\n絞った写真の行: ${plan.restricted} 件`);
-    console.log(`uploads/ に実体が残っている行: ${plan.entries.length} 件（移す実体 ${plan.objects} 個）`);
-    console.log(`飛ばした行: ストーリー ${plan.skipped.story} 件・持ち主の分からない行 ${plan.skipped.noOwner} 件`);
+    console.log(`uploads/ に実体が残っている行: ${kept.entries.length} 件（移す実体 ${objects} 個）`);
+    console.log(`飛ばした行: ストーリー ${plan.skipped.story} 件・持ち主の分からない行 ${plan.skipped.noOwner} 件・`
+        + `元のストーリーが出ている残した写真 ${kept.keptAlive} 件・元のストーリーを読めなかった ${kept.unknown} 件`);
     if (!apply) {
         console.log("\n下見なので何も変えていません。--apply で移します。");
         return;
@@ -158,23 +260,25 @@ async function main() {
         dropUnusedKeys: (u: string, k: string[], p: string, s?: string) => Promise<void>;
     };
 
-    let moved = 0;
-    let failed = 0;
-    for (const entry of plan.entries) {
-        const tag = `move-restricted(${entry.id})`;
-        // 1. コピー。1つでも失敗したら行も元も触らない（孤児が残るだけ）
-        if (!await copyAll(entry.moves, tag)) { failed++; continue; }
-        // 2. 行を書き換える
-        try {
-            await ddb.send(new UpdateCommand({ TableName: table, ...rewriteUpdate(entry) }));
-        } catch (e) {
-            console.warn(`${tag}: 行を書き換えられませんでした（元は消しません）`, (e as Error)?.name);
-            failed++;
-            continue;
-        }
-        // 3. 最後に元を消す（自分のほかの行が使っていないものだけ・エッジの無効化まで）
-        await dropUnusedKeys(entry.userId, entry.moves.map((m) => m.from), tag, entry.id);
-        moved++;
+    const { S3Client, HeadObjectCommand } = await import("@aws-sdk/client-s3");
+    const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
+    const { moved, failed, leftovers } = await applyEntries(kept.entries, {
+        copyAll: (moves, tag) => copyAll(moves, tag),
+        update: async (entry) => { await ddb.send(new UpdateCommand({ TableName: table, ...rewriteUpdate(entry) })); },
+        dropUnused: (userId, keys, tag, selfId) => dropUnusedKeys(userId, keys, tag, selfId),
+        exists: async (key) => {
+            try {
+                await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+                return true;
+            } catch (e) {
+                const name = (e as { name?: string })?.name;
+                if (name === "NotFound" || name === "NoSuchKey") return false;
+                throw e;
+            }
+        },
+    });
+    if (leftovers.length > 0) {
+        console.warn(`\nuploads/ に残った元: ${leftovers.length} 個（消せなかった・自分のほかの行が使っている）`);
     }
     console.log(`\n移した行: ${moved} 件 / 失敗: ${failed} 件`);
     if (failed > 0) process.exitCode = 1;

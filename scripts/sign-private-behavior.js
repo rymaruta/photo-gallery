@@ -41,10 +41,35 @@ const { PRIVATE_PATTERN, samePattern } = require("./add-private-behavior.js");
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
+/** 経路の、ワイルドカード（`*` `?`）より手前の確定している部分（先頭に `/` を揃える） */
+function literalHead(pattern) {
+    const p = String(pattern ?? "");
+    const norm = p.startsWith("/") || p.startsWith("*") || p.startsWith("?") ? p : `/${p}`;
+    const i = norm.search(/[*?]/);
+    return i === -1 ? norm : norm.slice(0, i);
+}
+
+/**
+ * 🔴 **`/private/*` より前に並んでいて、`/private/` の下に当たりうる振る舞い**（2026-10-18 判断）。
+ *
+ * CloudFront は振る舞いを**並び順に**照らし、最初に当たったものを使う。`*.jpg` や `/p*`、
+ * `/private/originals/*` のような振る舞いが前にあると、その画像は**署名なしのまま**そちらで配られる
+ * ——鍵グループを付けても効かない。確定部分（ワイルドカードの手前）が `/private/` と
+ * 前方一致で交わるものを「当たりうる」とみなす（迷ったら当たる側に倒す）。
+ */
+function shadowingBehaviors(items, privateIndex) {
+    const target = "/private/";
+    return items.slice(0, privateIndex).filter((b) => {
+        const head = literalHead(b.PathPattern);
+        return target.startsWith(head) || head.startsWith(target);
+    });
+}
+
 /**
  * 鍵グループを付けた設定を作る（**純関数**）。
  *
  * @returns {{ status: "no-private" }
+ *   | { status: "shadowed", behavior: object, shadows: object[] }
  *   | { status: "already", behavior: object }
  *   | { status: "other-signers", behavior: object }
  *   | { status: "sign", behavior: object, config: object }}
@@ -56,6 +81,8 @@ function planSignPrivate(config, keyGroupId) {
     // **ここで足さない。** 足すのは `add-private-behavior.js`（uploads/* を土台に写す）だけ
     if (index < 0) return { status: "no-private" };
     const current = items[index];
+    const shadows = shadowingBehaviors(items, index);
+    if (shadows.length > 0) return { status: "shadowed", behavior: current, shadows };
 
     const groups = current.TrustedKeyGroups;
     if (groups?.Enabled && (groups.Items ?? []).length === 1 && groups.Items[0] === keyGroupId) {
@@ -134,6 +161,13 @@ async function main() {
         process.exitCode = 1;
         return;
     }
+    if (plan.status === "shadowed") {
+        console.error(`\n${plan.behavior.PathPattern} より前に、/private/ の下に当たりうる振る舞いがあります:`);
+        for (const b of plan.shadows) console.error(`  ${b.PathPattern}  → ${b.TargetOriginId}`);
+        console.error("その画像は署名なしのままそちらで配られます（付けても効きません）。並びを直してから流してください。");
+        process.exitCode = 1;
+        return;
+    }
     if (plan.status === "already") {
         console.log(`\n${plan.behavior.PathPattern} には既にこの鍵グループが付いています。何もしません。`);
         return;
@@ -151,9 +185,11 @@ async function main() {
     }
     await cf.send(new UpdateDistributionCommand({ Id: DIST_ID, IfMatch: res.ETag, DistributionConfig: plan.config }));
     console.log("送りました。エッジへの反映に数分かかります。");
+    console.log("\n🔴 次に必ず確かめる（署名なしで 403・署名ありで 200・公開の /uploads/* は 200 のまま）:");
+    console.log("    PHOTO_ID=<絞った写真のid> npm run verify:visibility:live");
 }
 
-module.exports = { planSignPrivate, assertOnlySigned };
+module.exports = { planSignPrivate, assertOnlySigned, shadowingBehaviors };
 
 if (require.main === module) {
     main().catch((e) => {

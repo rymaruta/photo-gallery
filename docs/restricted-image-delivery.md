@@ -105,7 +105,7 @@ node の道具に任せる形に直した。順番は:
 
 1. 鍵を作り、公開鍵と鍵グループを作る（`setup-private-delivery.sh` の手順1・2。下見が既定）
 2. GitHub Secrets（`CLOUDFRONT_KEY_PAIR_ID`・`CLOUDFRONT_PRIVATE_KEY`）と、
-   Variables の `CLOUDFRONT_KEY_GROUP_ID` を登録 → API を出し直し、デプロイのログが
+   Variables の `CLOUDFRONT_KEY_GROUP_ID_STAGING`・`CLOUDFRONT_KEY_GROUP_ID_PROD`（同じ鍵グループなら同じ値）を登録 → API を出し直し、デプロイのログが
    `画像の署名=鍵あり` になったことを確かめる（この時点では何も割れない）
 3. Maintenance の `move-restricted-to-private-staging`（下見 → apply）で、`uploads/` に
    残った絞った写真を `private/` へ移す

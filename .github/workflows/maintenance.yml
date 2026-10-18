@@ -146,14 +146,15 @@ jobs:
         env:
           # **staging を明示する。** 上の env は本番向け
           CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
-          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID }}
+          # 鍵グループは環境ごとに分けられるよう、Variables も分ける（同じ鍵グループなら同じ値を入れる）
+          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID_STAGING }}
 
       - name: private/* を署名必須にする（本番）
         if: inputs.task == 'sign-private-behavior'
         run: node scripts/sign-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID }}
+          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID_PROD }}
 
       # 絞った写真で実体が uploads/ に残っているものを private/ へ移す（案A・署名の前の片付け）。
       # 既定は件数を出すだけ。移す順は photoUpdate と同じ（コピー → 行 → 元を消す・エッジも無効化）。

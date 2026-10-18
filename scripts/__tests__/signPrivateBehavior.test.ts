@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
-const { planSignPrivate, assertOnlySigned } = require("../sign-private-behavior.js");
+const { planSignPrivate, assertOnlySigned, shadowingBehaviors } = require("../sign-private-behavior.js");
 
 /**
  * 本番の CloudFront の `private/*` に署名必須を付ける道具。
@@ -98,5 +100,65 @@ describe("private/* に鍵グループを付ける", () => {
         const other = planSignPrivate(before, "KG1").config;
         other.Comment = "x";
         expect(() => assertOnlySigned(before, other)).toThrow(/以外の設定/);
+    });
+
+    it("🔴 鍵グループを付けた振る舞いが1つでなければ止める（何も付けていない・2つに付けた）", () => {
+        const before = config();
+        expect(() => assertOnlySigned(before, JSON.parse(JSON.stringify(before)))).toThrow(/0 個/);
+        const dup = config();
+        dup.CacheBehaviors.Items.push({ ...priv, PathPattern: "private/*" });
+        dup.CacheBehaviors.Quantity = 4;
+        const after = JSON.parse(JSON.stringify(dup));
+        for (const i of [2, 3]) after.CacheBehaviors.Items[i].TrustedKeyGroups = { Enabled: true, Quantity: 1, Items: ["KG1"] };
+        expect(() => assertOnlySigned(dup, after)).toThrow(/2 個/);
+    });
+});
+
+/**
+ * CloudFront は振る舞いを並び順に照らす。`/private/*` より前に `/private/` の下に当たりうる
+ * 振る舞い（`*.jpg`・`/p*`・`/private/originals/*`）があると、その画像は署名なしのまま配られる。
+ */
+describe("/private/* より前の振る舞い", () => {
+    it("前に当たりうる振る舞いがあれば付けずに止める", () => {
+        for (const pattern of ["*.jpg", "/p*", "/private/originals/*", "private/u/*", "/*"]) {
+            const c = config();
+            c.CacheBehaviors.Items.splice(1, 0, { PathPattern: pattern, TargetOriginId: "upload-bucket" });
+            c.CacheBehaviors.Quantity = 4;
+            const plan = planSignPrivate(c, "KG1");
+            expect(plan.status, pattern).toBe("shadowed");
+            expect(plan.shadows.map((b: { PathPattern: string }) => b.PathPattern)).toEqual([pattern]);
+        }
+    });
+
+    it("今の本番の並び（/_next/static/*・/api/*・/uploads/*・/profiles/*）は当たらない", () => {
+        const items = ["/_next/static/*", "/api/*", "/uploads/*", "/profiles/*", "/private/*"]
+            .map((p) => ({ PathPattern: p }));
+        expect(shadowingBehaviors(items, 4)).toEqual([]);
+    });
+
+    it("後ろに並んでいる振る舞いは見ない（先に /private/* が当たる）", () => {
+        const c = config();
+        c.CacheBehaviors.Items.push({ PathPattern: "*.jpg", TargetOriginId: "x" });
+        c.CacheBehaviors.Quantity = 4;
+        expect(planSignPrivate(c, "KG1").status).toBe("sign");
+    });
+});
+
+/** staging と本番で鍵グループの Id を取り違えない（どちらかの Variables を消しても気づける） */
+describe("Maintenance の配線", () => {
+    const yml = readFileSync(join(__dirname, "..", "..", ".github/workflows/maintenance.yml"), "utf8");
+    const step = (task: string) => {
+        const at = yml.indexOf(`inputs.task == '${task}'`);
+        const rest = yml.slice(at);
+        return rest.slice(0, rest.search(/\n\s{6}- name:/));
+    };
+    it("staging は staging の配信と鍵グループ、本番は本番のものを受け取る", () => {
+        const stg = step("sign-private-behavior-staging");
+        expect(stg).toContain("CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL");
+        expect(stg).toContain("vars.CLOUDFRONT_KEY_GROUP_ID_STAGING");
+        const prod = step("sign-private-behavior");
+        expect(prod).toContain("secrets.CLOUDFRONT_DISTRIBUTION_ID");
+        expect(prod).toContain("vars.CLOUDFRONT_KEY_GROUP_ID_PROD");
+        expect(prod).not.toContain("STAGING");
     });
 });
