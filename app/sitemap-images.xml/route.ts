@@ -6,7 +6,8 @@
 
 import { loadAllPhotos } from "@/lib/server/photos";
 import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
-import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
+import { getLocalizedParagraphs } from "@/lib/data/photos";
+import { photoOwnTitle } from "@/lib/utils/photoTitle";
 import type { Photo } from "@/lib/data/photos";
 import { truncate } from "@/lib/utils/text";
 import { metaText } from "@/lib/utils/metaText";
@@ -80,12 +81,12 @@ const toAbsolute = (src: string): string => publicImageUrl(src);
  *      日本語の説明が入り切らない**（実測で英語が途中で切れていた）
  *
  * **日本語が無い写真は英語に落ちる**（出せるものが無いよりはよい）。
- * その落とし方は `getLocalized` が持っている（`v[locale] || v.ja || v.en`）
- * ので、ここで `|| getLocalized(p.title, "en")` と書き足すのは死にコード
- * ——変異で生き残って気づいた。
+ * その落とし方は `photoOwnTitle` が持っている（このページの言語 → もう一方）。
  */
 export function titleOf(p: Photo): string {
-    return getLocalized(p.title, "ja");
+    // **旧い既定値の「無題」は題として扱わない**（`photoTitle.ts`）。無ければ空＝
+    // `<image:title>` を出さない（下の「空の要素を出さない」のまま。撮影地は caption が持つ）
+    return photoOwnTitle(p, "ja");
 }
 
 export const CAPTION_MAX = 500;

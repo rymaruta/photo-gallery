@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { getLocalized } from "@/lib/data/photos";
+import { photoTitleFor } from "@/lib/utils/photoTitle";
 import type { InspiredLink } from "@/lib/utils/inspired";
 import { publicImageUrl } from "@/lib/utils/seo";
 import { ROUTES } from "@/lib/routes";
@@ -22,9 +22,8 @@ import { ROUTES } from "@/lib/routes";
 export default function InspiredByLine({ source, locale }: { source: InspiredLink | null; locale: string }) {
     if (!source) return null;
     const isJa = locale !== "en";
-    const title = getLocalized(source.title, isJa ? "ja" : "en")
-        || getLocalized(source.title, isJa ? "en" : "ja")
-        || (isJa ? "無題" : "Untitled");
+    // 題が無い（「無題」を含む）元の写真は「写真」/ Photo（`photoTitleFor`。この行は撮影地を持たない）
+    const title = photoTitleFor(source, isJa ? "ja" : "en").text;
     const label = isJa ? "この写真を見て撮影" : "Inspired by this photo";
     return (
         <section className="mt-1" aria-label={label} data-testid="inspired-by">
