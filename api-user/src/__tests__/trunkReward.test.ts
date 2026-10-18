@@ -224,8 +224,12 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         const now = new Date("2026-10-18T05:00:00.000Z");
         const r = rewardInto(parseTrunk(undefined), "avatar", true, now);
         expect(r.doc?.rewardAvatarAt).toBe(now.toISOString());
-        // 印があれば変えない
+        expect(r.result.rewarded).toBe(true);
+        // 印があれば変えない（設定されていてもいなくても、印があれば rewarded: true）
         expect(rewardInto(r.doc!, "avatar", true, now).doc).toBeNull();
+        expect(rewardInto(r.doc!, "avatar", true, now).result).toEqual({ granted: false, added: 0, coins: 3, rewarded: true });
+        expect(rewardInto(r.doc!, "avatar", false, now).result.rewarded).toBe(true);
+        expect(rewardInto(parseTrunk(undefined), "cover", false, now).result.rewarded).toBe(false);
         // 設定されていなければ変えない
         expect(rewardInto(parseTrunk(undefined), "cover", false, now).doc).toBeNull();
         const back = parseTrunk({ rewardAvatarAt: now.toISOString(), rewardAvatarAdded: 3 });
