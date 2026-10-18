@@ -37,7 +37,8 @@ vi.mock("../badgeStore", () => ({ refreshBadgesQuietly: mockRefreshBadges }));
 
 // 旅のトランク（`trunk.ts`）。中身は `trunk.test.ts` が見るので、ここは呼ばれ方と応答の形だけ
 const mockGrantLabel = vi.hoisted(() => vi.fn());
-vi.mock("../trunk", () => ({ grantLabelQuietly: mockGrantLabel }));
+const mockRefreshPlace = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../trunk", () => ({ grantLabelQuietly: mockGrantLabel, refreshLabelPlaceQuietly: mockRefreshPlace }));
 
 // 共同アルバム（案C）。`savePhoto` が「メンバーか」を確かめるようになったので、
 // ここを模さないと本物が DynamoDB を掴む。**列挙式のモックは production の
@@ -126,6 +127,7 @@ beforeEach(() => {
     mockAddPhotoToAlbum.mockReset().mockResolvedValue(undefined);
     mockRefreshBadges.mockReset().mockResolvedValue(undefined);
     mockGrantLabel.mockReset().mockResolvedValue({ label: null, labelSkipped: "draft" });
+    mockRefreshPlace.mockReset().mockResolvedValue(undefined);
     mockListMyPhotos.mockReset().mockResolvedValue([]);
     mockReadVisibleSource.mockReset().mockResolvedValue(null);
     mockNotifyInspired.mockReset().mockResolvedValue(undefined);
@@ -506,6 +508,12 @@ describe("savePhoto: 公開したら静的サイトを作り直してもらう",
         expect(mockRequestSiteRebuild).toHaveBeenCalledTimes(1);
         expect(mockMarkStaticStale, "頼めた回は印を残さない").not.toHaveBeenCalled();
         expect(JSON.parse(res.body).photo.staticStale).toBeUndefined();
+        // 旅のトランクのラベルの「地名を見せてよい」印も、書き直す前の行を渡して付け直す（公開 → 下書きで外れる）
+        expect(mockRefreshPlace).toHaveBeenCalledTimes(1);
+        const [uid, photoId, before] = mockRefreshPlace.mock.calls[0] as unknown[];
+        expect(uid).toBe("u1");
+        expect(photoId).toBe(savedRewrite().id);
+        expect(before, "書き直す前の行（公開）").toMatchObject({ published: true });
     });
 
     it("再送で隠したとき再ビルドを頼めなければ、staticStale を残す", async () => {

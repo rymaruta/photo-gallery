@@ -7,6 +7,7 @@ import { isAdmin, getCallerUserId } from "./auth";
 import { requestSiteRebuild } from "./rebuild";
 import { invalidateUploads } from "./cdnInvalidate";
 import { requireEnv } from "./env";
+import { dropTrunkPlaceOkQuietly } from "./trunkLabelPlaceDrop";
 import {
     sanitizeExif, sanitizeText, sanitizeDate, dateWasRejected, sanitizeTags,
     sanitizeTitle, sanitizeDescription, sameStoredValue,
@@ -143,6 +144,13 @@ export const updatePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
             updates.geoApprox = undefined;
         }
         const updated = await updatePhotoFields(id, updates);
+        // **旅のトランクのラベルの地名を人に見せてよい印を外す**（2026-10-18・`trunkLabelPlaceDrop.ts`）: 非公開にした・撮影地を
+        // 変えた（消した）とき。付け直しは本人の編集に任せる（ここは外すだけ＝見せない側に倒す）。投げない
+        const hidingNow = fields.published === false && photo.published !== false;
+        const locationChanged = "location" in fields && !sameStoredValue(fields.location, photo.location);
+        if (hidingNow || locationChanged) {
+            await dropTrunkPlaceOkQuietly(photo as Record<string, unknown>, `updatePhoto(${id})`);
+        }
 
         // 静的ページに焼かれる内容が変わったら作り直しを頼む。
         // 「公開状態が変わったときだけ」では狭い——本文や撮影地を消しても
@@ -388,6 +396,8 @@ export const deletePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
 
         await deletePhotoById(id);
+        // 旅のトランクのラベルの地名を人に見せてよい印を外す（`trunkLabelPlaceDrop.ts`・投げない）
+        await dropTrunkPlaceOkQuietly(photo as Record<string, unknown>, `deletePhoto(${id})`);
 
         // **共同アルバムからも取り除く。**
         //
