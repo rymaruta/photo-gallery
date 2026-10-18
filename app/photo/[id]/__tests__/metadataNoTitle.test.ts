@@ -60,6 +60,15 @@ describe("題が無い写真のページ題", () => {
         }
     });
 
+    // 撮影地は最初の区切りまで。題を撮影地から作ったときは「｜撮影地」を足さない
+    // （「板橋区の写真｜板橋区, 日本」を作らない）
+    it("撮影地「板橋区, 日本」→「板橋区の写真」（二重にしない）", async () => {
+        for (const [, t] of NO_TITLES) {
+            const m = await meta({ ...base, ...t, location: "板橋区, 日本" });
+            expect(titles(m)).toEqual(["板橋区の写真", "板橋区の写真", "板橋区の写真"]);
+        }
+    });
+
     it("題があれば今までどおり「題｜撮影地」", async () => {
         const m = await meta({ ...base, title: { ja: "朝の湖" }, location: "板橋区" });
         expect(titles(m)).toEqual(["朝の湖｜板橋区", "朝の湖｜板橋区", "朝の湖｜板橋区"]);
