@@ -8,7 +8,7 @@ vi.stubEnv("PHOTOS_TABLE", "photos-test");
 vi.stubEnv("USERS_TABLE", "users-test");
 const lib = await import("../../api-user/src/trunkPlace");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { planRow, photoIdsOf, estimate } = require("../backfill-trunk-place-ok.js");
+const { planRow, photoIdsOf, estimate, run } = require("../backfill-trunk-place-ok.js");
 
 const U = "11111111-1111-4111-8111-111111111111";
 const pub = (id: string, over: Record<string, unknown> = {}) => ({
@@ -47,6 +47,84 @@ describe("印を足す台本（planRow）", () => {
     });
 
     it("見積もり: Scan は 4KB ごとに 0.5 単位", () => {
-        expect(estimate({ tableBytes: 8192 * 10, itemCount: 100 }).scanUnits).toBe(10);
+        expect(estimate({ tableBytes: 8192 * 10, itemCount: 100 })).toMatchObject({ scanUnits: 10, itemCount: 100 });
+    });
+});
+
+describe("台本の本体（run）", () => {
+    class Cmd { constructor(readonly input: Record<string, unknown>) {} }
+    class ScanCommand extends Cmd {}
+    class GetCommand extends Cmd {}
+    class PutCommand extends Cmd {}
+    const cmds = { ScanCommand, GetCommand, PutCommand };
+
+    function world() {
+        const store = new Map<string, Record<string, unknown>>();
+        store.set(`trunk#${U}`, { id: `trunk#${U}`, uid: U, rev: 1, pocket: [lab("a")], stuck: [] });
+        store.set("a", pub("a"));
+        const sent: { kind: string; input: Record<string, unknown> }[] = [];
+        let onPut: (() => void) | null = null;
+        const send = async (cmd: Cmd) => {
+            sent.push({ kind: cmd.constructor.name, input: cmd.input });
+            if (cmd instanceof ScanCommand) return { Items: [...store.values()].filter((r) => String(r.id).startsWith("trunk#")).map((r) => structuredClone(r)), ScannedCount: store.size };
+            if (cmd instanceof GetCommand) {
+                const v = store.get(String((cmd.input.Key as { id: string }).id));
+                return { Item: v ? structuredClone(v) : undefined };
+            }
+            if (cmd instanceof PutCommand) {
+                if (onPut) { const f = onPut; onPut = null; f(); }
+                const item = cmd.input.Item as Record<string, unknown>;
+                const cur = store.get(String(item.id));
+                if (cur?.rev !== (cmd.input.ExpressionAttributeValues as { ":rev": number })[":rev"]) {
+                    throw Object.assign(new Error("cond"), { name: "ConditionalCheckFailedException" });
+                }
+                store.set(String(item.id), structuredClone(item));
+                return {};
+            }
+            throw new Error("想定外");
+        };
+        const go = (argv: string[]) => run({
+            send, describe: async () => ({ TableSizeBytes: 1024, ItemCount: 2 }), lib, argv, PHOTOS_TABLE: "photos-test", cmds,
+            log: () => undefined, logError: () => undefined,
+        });
+        return { store, sent, go, setOnPut: (f: () => void) => { onPut = f; } };
+    }
+
+    it("既定（--apply なし）は書かない。数えるだけ", async () => {
+        const w = world();
+        const tally = await w.go(["node", "x"]);
+        expect(tally.toWrite).toBe(1);
+        expect(tally.added).toBe(1);
+        expect(w.sent.some((c) => c.kind === "PutCommand")).toBe(false);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBeUndefined();
+    });
+
+    it("--estimate は Scan もしない", async () => {
+        const w = world();
+        await w.go(["node", "x", "--estimate"]);
+        expect(w.sent).toHaveLength(0);
+    });
+
+    it("--apply で書く。写真は強い読み", async () => {
+        const w = world();
+        await w.go(["node", "x", "--apply"]);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBe(1);
+        expect(w.store.get(`trunk#${U}`)!.rev).toBe(2);
+        const gets = w.sent.filter((c) => c.kind === "GetCommand");
+        expect(gets.every((g) => g.input.ConsistentRead === true)).toBe(true);
+    });
+
+    it("競合したら、行も写真も強い読みで読み直す（あいだに絞られた写真には付けない）", async () => {
+        const w = world();
+        w.setOnPut(() => {
+            // アプリが先に書いた: rev が進み、写真も絞られた
+            w.store.set(`trunk#${U}`, { ...w.store.get(`trunk#${U}`)!, rev: 5 });
+            w.store.set("a", pub("a", { audience: "followers" }));
+        });
+        const tally = await w.go(["node", "x", "--apply"]);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBeUndefined();
+        expect(tally.failed).toBe(0);
+        // 写真は2回読んだ（cache を捨てて読み直した）
+        expect(w.sent.filter((c) => c.kind === "GetCommand" && (c.input.Key as { id: string }).id === "a")).toHaveLength(2);
     });
 });

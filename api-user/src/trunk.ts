@@ -1393,13 +1393,18 @@ export async function refreshLabelPlaceQuietly(
 
 /**
  * 人の口に出すラベル。**写真の id は出さない**（ラベルの id は写真の id。非公開にした・消した写真の id を
- * 人に渡さない——公開プロフィールのピン（`publicPinnedIds`）と同じ構え）。代わりに:
+ * 人に渡さない——公開プロフィールのピン（`publicPinnedIds`）と同じ構え）。
  *
- * - `id`: 写真の id から作った短い印（`t` ＋ sha256 の先頭12桁）。並べ・選ぶための見分けだけ
- * - `at`: 日付だけ（`YYYY-MM-DD`・ラベルの絵に刷る日付。時刻は出さない）
- * - `where`: その土地で撮った写真を引く手がかり。`GET /photos?userId=<uid>`（公開写真の口）の結果のうち、
- *   `location` を `,、，/()（）` で割った先頭が `where.location` と同じ写真（無ければ `location` に
- *   `where.location` を含む写真）。土地の名前が空のラベルは `null`
+ * - `id`: **この返答の中の番号**（`s` ＋ 貼った古い順の番号 0, 1, 2…）。写真の id からは計算できない。
+ *   画面がラベルを並べ・選ぶための見分けだけに使う（2026-10-18 判断: iOS の人のトランクの画面は1回の返答の中で
+ *   ラベルを選んで写真を出すだけで、返答をまたいで同じラベルを指す使い道が無い。古い順に数えるので、新しく貼られても
+ *   前の番号は変わらない。はがす・取り消すと、それより新しい番号はずれる）。新しい秘密の設定・行の項目は増やさない
+ * - **地名を見せてよいと確かめたラベル**（`placeOk`）で地名があるもの: `place`・`season`・`timeslot`・`milestone`・
+ *   `at`（日付だけ `YYYY-MM-DD`）・`where`（その土地で撮った写真を引く手がかり。`GET /photos?userId=<uid>` の結果のうち、
+ *   `location` を `,、，/()（）` で割った先頭が `where.location` と同じ写真・無ければ `location` に含む写真）
+ * - **それ以外**（確かめていない・地名がもともと空）: `{ id, kind, seed, foil?, pos?, place: { name: "" }, where: null }` だけ。
+ *   日付・季節・時刻・節目も落とす——伏せたラベルから「いつ投稿した写真が今は見えないか」が分からないように、
+ *   **2つは同じ形にして見分けられないようにする**（iOS は「地名が空なら地名なしの形で描く」）
  *
  * 2026-10-18 判断: 写真の一覧はサーバーで絞らない（人の写真を全部読むことになる・公開写真の口がもう在る）
  */
@@ -1411,32 +1416,31 @@ export type TheirLabel = {
     timeslot?: TrunkLabel["timeslot"];
     milestone?: TrunkLabel["milestone"];
     seed: number;
-    at: string;
+    at?: string;
     foil?: true;
     pos?: TrunkPos;
     where: { location: string } | null;
-    /** 地名を伏せたラベル（`place` は `{ name: "" }`・`where` は null）。iOS は地名なしで描く。見せてよいと確かめていないラベルは全部これ */
-    placeHidden?: true;
 };
 
-export function theirLabel(uid: string, l: TrunkLabel): TheirLabel {
-    // **確かめた物だけ見せる**: 印（`placeOk`）の無いラベルは地名を伏せる（外し忘れ・古いラベルでも漏れない）
-    const hidden = !l.placeOk;
-    return {
-        // 本人ごとの塩（uid）を混ぜる（同じ写真の id を知る人が、別の人のトランクと照らし合わせられないように）
-        id: `t${shortHash(`label\u0000${uid}\u0000${l.id}`)}`,
+/** `index` は貼った古い順の番号（`readTheirTrunk` が数える） */
+export function theirLabel(index: number, l: TrunkLabel): TheirLabel {
+    const base = {
+        id: `s${index}`,
         kind: l.kind,
-        // 伏せたラベルは地名・ラテン文字・国を出さない（「はじめての国」でも国名を出さない）
-        place: hidden ? { name: "" } : l.place,
+        seed: l.seed,
+        ...(l.foil ? { foil: true as const } : {}),
+        ...(l.pos ? { pos: l.pos } : {}),
+    };
+    // **確かめた物だけ見せる**: 印（`placeOk`）の無いラベルと、地名がもともと空のラベルは同じ形（地名・日付なし）
+    if (!l.placeOk || !l.place.name) return { ...base, place: { name: "" }, where: null };
+    return {
+        ...base,
+        place: l.place,
         ...(l.season ? { season: l.season } : {}),
         ...(l.timeslot ? { timeslot: l.timeslot } : {}),
         ...(l.milestone ? { milestone: l.milestone } : {}),
-        seed: l.seed,
         at: l.at.slice(0, 10),
-        ...(l.foil ? { foil: true as const } : {}),
-        ...(l.pos ? { pos: l.pos } : {}),
-        where: !hidden && l.place.name ? { location: l.place.name } : null,
-        ...(hidden ? { placeHidden: true as const } : {}),
+        where: { location: l.place.name },
     };
 }
 
@@ -1496,7 +1500,8 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
     return {
         userId: target,
         model: effectiveModel(doc, pro),
-        stuck: doc.stuck.map((l) => theirLabel(target, l)),
+        // 番号は古い順（`stuck` は新しい順なので後ろから数える）
+        stuck: doc.stuck.map((l, i) => theirLabel(doc.stuck.length - 1 - i, l)),
         equipped: viewEquipped(doc.equipped),
         ...(doc.posts !== undefined ? { posts: doc.posts } : {}),
         inside: {
@@ -1598,11 +1603,14 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 listMyPhotos(uid),
             ]);
             let doc = parseTrunk(rows.main, rows.ledger);
-            const posts = countPublicPosts(photos as unknown as Record<string, unknown>[]);
+            // 自分の口の posts は今までどおり（iOS の古び方・節目に使う）。控えに書くのは人の口に出す数
+            // ＝誰にでも見える公開の投稿だけ（`countPublicPosts`）
+            const posts = countPosts(photos);
+            const publicPosts = countPublicPosts(photos as unknown as Record<string, unknown>[]);
             // 外し損ねた印をここで外す（本人の写真はもう全部読んでいる＝読みは増やさない。付ける側はやらない）
             const stale = stalePlaceOkIds(doc, photos as unknown as Record<string, unknown>[], uid, now);
-            if (rows.main && (doc.posts !== posts || stale.size > 0)) {
-                await noteTrunkQuietly(uid, posts, stale);
+            if (rows.main && (doc.posts !== publicPosts || stale.size > 0)) {
+                await noteTrunkQuietly(uid, publicPosts, stale);
                 if (stale.size > 0) doc = setPlaceOk(doc, (l) => stale.has(l.id), () => false) ?? doc;
             }
             return ok({ ...view(doc, pro, now), posts });

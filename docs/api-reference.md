@@ -390,13 +390,17 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 
   - `model` は見せている型（`effectiveModel`。Pro をやめた人の Pro の型は出さない）。`equipped` は `GET` と同じ形
   - `stuck` は**貼ったラベルだけ**（置き場 `pos` つき）。1枚は `{ id, kind, place, season?, timeslot?, milestone?, seed, at, foil?, pos?, where }`:
-    `id` は本人の id と写真の id から作った印（`t` ＋ 12桁・**写真の id は出さない**。本人ごとに塩を混ぜるので、同じ写真の id を知る人でも照らし合わせられない）、`at` は日付だけ（`YYYY-MM-DD`）、
+    `id` は**この返答の中の番号**（`s` ＋ 貼った古い順の番号 `s0`・`s1`…）。**写真の id からは計算できない**（写真の id は出さない）。
+    画面がラベルを並べ・選ぶためだけのもので、返答をまたいで同じラベルを指す使い道は無い（新しく貼られても前の番号は変わらないが、
+    はがす・取り消すとそれより新しい番号はずれる）。`at` は日付だけ（`YYYY-MM-DD`）、
     `where` は「その土地で撮ったその人の写真」を引く手がかり `{ location }`（土地の名前が空なら `null`）。
     アプリは `GET /photos?userId=<uid>`（公開写真の口・管理 API）の結果から、`location` を `,、，/()（）` で割った先頭が
     `where.location` と同じ写真（無ければ `location` に `where.location` を含む写真）を出す。公開していない写真はそもそも来ない
   - **確かめた物だけ見せる**（2026-10-18 判断・`api-user/src/trunkPlace.ts`）: 人の口が地名と `where` を出すのは、
-    印 `placeOk`（保存は短い鍵 `o: 1`）のあるラベルだけ。印の無いラベルは `place: { name: "" }`・`where: null`・
-    `placeHidden: true` で返す（`kind`・`seed`・季節などは残すので、アプリは地名なしで描く。「はじめての国」でも国名は出さない）。
+    印 `placeOk`（保存は短い鍵 `o: 1`）のあるラベルだけ。印の無いラベルと、**地名がもともと空のラベル**は、同じ形
+    `{ id, kind, seed, foil?, pos?, place: { name: "" }, where: null }` で返す（日付・季節・時刻・節目も落とす。伏せた印の欄も出さない）
+    ——伏せたラベルから「いつの投稿が今は見えないか」が分からないよう、2つを見分けられないようにする。
+    アプリは「地名が空なら地名なしの形で描く」（`kind`・`seed` は残すので絵は描ける。「はじめての国」でも国名は出さない）。
     **外し忘れても漏れない側**（印が無ければ伏せる）。本番にもう在るラベルも印が無いので、台本で足すまで伏せたまま。
     **自分の口では地名がそのまま見え、確かめたラベルには `placeOk: true` が付く**
     - 印を付けてよいのは、ラベルの写真が**本人の・誰にでも見える公開の写真**（公開の一覧と同じ `feed.ts` の `isPublicListPhoto`。
@@ -414,10 +418,11 @@ export async function readApiError(res: Response, fallback: string): Promise<str
     - 外す: 写真の削除・公開 → 非公開（`revokeLabelQuietly`・24時間以内ならラベルごと取り消す・同じ書き込み）、公開範囲を絞った、
       撮影地を変えた・消した、**管理 API（`api`）の削除と非公開と撮影地の変更**（`api/src/trunkLabelPlaceDrop.ts`・trunk# を rev 条件で置き直す。
       外すだけ）。束のラベルは、誰にでも見える公開の兄弟が同じ撮影地で残っていれば印を残す（絞った兄弟は数えない）
-    - 本番にもう在るラベルに印を足す台本: `scripts/backfill-trunk-place-ok.js`（`--estimate` で表の大きさから見積もり、
+    - 本番にもう在るラベルに印を足す台本: `scripts/backfill-trunk-place-ok.js`（写真は強い読み・競合したら行も写真も読み直す。`--estimate` で表の大きさから見積もり（Scan しない）、
       引数なしは読むだけ＝何枚に付く／外れるかを出す、`--apply` で書く。判定は同じ `trunkPlace.ts`。流すのは owner の承認のあと）
     - 退会は行ごと消すので印も消える
-  - `posts` は古び方の段に使う、**誰にでも見える公開の投稿**の数（束は1件・絞った・下書き・ストーリーは数えない。自分の口の `posts` も同じ数え方）。**人の写真を全部読まないための控え**で、本人が `GET /user/trunk` を開いたときと、
+  - `posts` は古び方の段に使う、**誰にでも見える公開の投稿**の数（束は1件・絞った・下書き・ストーリーは数えない）。**自分の口（`GET /user/trunk`）の
+    `posts` は今までどおり**（下書き・ストーリーを除いた投稿。絞った写真も数える＝iOS の古び方・節目と同じ）。**人の写真を全部読まないための控え**で、本人が `GET /user/trunk` を開いたときと、
     投稿してラベルか硬貨を配ったときに書く（消したあとは本人が開くまで古い数のまま）。控えが無い行は項目ごと出さない
   - `inside.badges` は公開プロフィールの `badges` と同じ整え方（`sanitizeBadges`。無ければ `{}`）
   - `inside.card` はサポーター番号を持つ人だけ `{ pro }`（`pro` は今 Pro か）。**番号・始めた年月・月数は出さない**
