@@ -27,7 +27,8 @@ vi.mock("../../../../lib/hooks/useToast", () => ({
     useToast: () => ({ showToast: mockShowToast }),
 }));
 vi.mock("../../../../lib/utils/api", () => ({
-    userFetch: (...args: unknown[]) => mockUserFetch(...args),
+    // カバーの候補の一覧（#304・`GET /user/photos`）はこの試験の数え方の外に置く（順番どおりの応答を奪わない）
+    userFetch: (...args: unknown[]) => (args[0] === "/user/photos" ? Promise.resolve({ ok: false, json: async () => null }) : mockUserFetch(...args)),
 }));
 vi.mock("../../../../lib/utils/image", () => ({
     toUploadSafeFile: async (f: File) => f,

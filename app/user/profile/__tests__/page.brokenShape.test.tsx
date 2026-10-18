@@ -18,7 +18,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 vi.mock("../../../auth/context", () => ({ useAuth: () => ({ isAuthenticated: true, loading: false }) }));
 vi.mock("../../../i18n/context", () => ({ useLocale: () => ({ locale: "ja" }) }));
 vi.mock("../../../../lib/hooks/useToast", () => ({ useToast: () => ({ showToast: mockShowToast }) }));
-vi.mock("../../../../lib/utils/api", () => ({ userFetch: (...args: unknown[]) => mockUserFetch(...args) }));
+vi.mock("../../../../lib/utils/api", () => ({ // カバーの候補の一覧（#304・`GET /user/photos`）はこの試験の数え方の外に置く（順番どおりの応答を奪わない）
+    userFetch: (...args: unknown[]) => (args[0] === "/user/photos" ? Promise.resolve({ ok: false, json: async () => null }) : mockUserFetch(...args)) }));
 vi.mock("../../../../lib/utils/image", () => ({
     toUploadSafeFile: async (f: File) => f,
     UnstrippableFileError: class extends Error { },

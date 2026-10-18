@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { publicImageUrl } from "@/lib/utils/seo";
 
 const CLOUDFRONT_URL = process.env.NEXT_PUBLIC_CLOUDFRONT_URL ?? "";
@@ -80,5 +81,32 @@ export default function ProfileCover({ userId, onLoaded, className = "" }: {
             {/* 下の 110px を黒へ溶かす（アイコンと名前が乗る側） */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-bg to-transparent" style={{ height: "110px" }} />
         </div>
+    );
+}
+
+/**
+ * カバーが無いときの**自分のページだけ**の額縁（#304・板 52 MyPageCoverFrame・2026-10-18）。
+ *
+ * 帯の場所に真鍮の細い縁（黒地の上なので真鍮）と「ここにあなたの1枚」。灰色の塗りは置かない・責める言い方をしない。
+ * 押すとプロフィールの編集のカバーの候補へ。**ほかの人のページには出さない**（黒のまま・板 31）——
+ * 出すかどうかは呼び出し側（本人で、カバーが無いと分かったとき）が決める
+ */
+export function CoverFrame({ href, locale }: { href: string; locale: string }) {
+    const en = locale === "en";
+    return (
+        <Link
+            href={href}
+            prefetch={false}
+            data-testid="cover-frame"
+            aria-label={en ? "Choose a cover. Your photo goes here" : "カバーを選ぶ。ここにあなたの1枚"}
+            className="absolute inset-x-3 top-3 flex flex-col items-center gap-2 rounded-[14px] border border-accent/80 pt-[30px] text-accent"
+            style={{ height: `${COVER_HEIGHT_PX - 30}px` }}
+        >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m21 16-5-5-8 8" />
+            </svg>
+            <span className="font-serif text-[17px] font-bold">{en ? "Your photo goes here" : "ここにあなたの1枚"}</span>
+            <span className="text-xs text-white/60">{en ? "Tap to choose from your photos" : "押すと、あなたの写真から選べます"}</span>
+        </Link>
     );
 }
