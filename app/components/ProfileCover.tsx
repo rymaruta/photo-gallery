@@ -86,13 +86,17 @@ export default function ProfileCover({ userId, onLoaded, className = "" }: {
 
 /**
  * カバーが**無いと確かめられた**か（#304・2026-10-18 見直し）。絵を読めなかっただけでは決めない——HEAD が
- * 404（無い。S3 の OAC が返す 403 も CDN が 404 に振り替える）を返したときだけ true。圏外・ほかの失敗は false（額縁を出さない）
+ * 404（無い。S3 の OAC が返す 403 は CDN が 404 のページに振り替える）を返したときだけ true。
+ * 403 などそれ以外・圏外は「分からない」で false（額縁を出さない）。403 は配り方の変化かもしれないので警告に残す
+ * （iOS の `ProfileImageFromPhoto.existence` と同じ読み方）
  */
 export async function coverIsMissing(url: string): Promise<boolean> {
     if (!url) return false;
     try {
         const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-        return res.status === 404 || res.status === 403;
+        if (res.status === 404) return true;
+        if (res.status >= 300) console.warn(`coverIsMissing: HEAD ${res.status}`);
+        return false;
     } catch {
         return false;
     }
