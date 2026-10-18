@@ -6,7 +6,11 @@ import { describe, it, expect, vi } from "vitest";
  */
 vi.stubEnv("PHOTOS_TABLE", "photos-test");
 vi.stubEnv("USERS_TABLE", "users-test");
-const lib = await import("../../api-user/src/trunkPlace");
+// **道筋を文字の変数で渡す**（2026-10-18）。字のまま書くと、ルートの型検査（`next build` の TypeScript）が
+// api-user のコードを辿って `aws-lambda` の型を探し、サイトの組み立て（api-user の依存を入れない）で落ちた
+// （本番の Deploy Site・c9674d9e）。動きは同じ（テストの実行ではこのファイルから見た道筋で読む）
+const TRUNK_PLACE = "../../api-user/src/trunkPlace";
+const lib = await import(/* @vite-ignore */ TRUNK_PLACE);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { planRow, photoIdsOf, estimate, run } = require("../backfill-trunk-place-ok.js");
 

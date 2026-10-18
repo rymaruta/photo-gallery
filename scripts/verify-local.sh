@@ -272,8 +272,15 @@ const newest = photos.filter((ph) => ph.published !== false && ph.id).sort((a, b
     cmp(timeKey(b), timeKey(a)) || cmp(stripZone(b.createdAt), stripZone(a.createdAt)) || cmp(String(a.id), String(b.id)))[0];
 if (!newest) { console.error("::error:: 題を外す写真が無い"); process.exit(1); }
 delete newest.title;
+// **旧い既定値の「無題」＋区切りのある撮影地も混ぜる**（2026-10-18）。題の無い写真の
+// 代わりの題は撮影地の先頭だけを使う（「板橋区, 日本」→「板橋区の写真」）が、上の1枚は
+// 撮影地に区切りが無く、本番で「板橋区, 日本の写真」と出た形をこの関門が通らなかった。
+// サーバーが入れていた `{ ja: "無題", en: "Untitled" }` の形も実ビルドで通す
+const legacy = photos.find((ph) => ph !== newest && ph.published !== false && ph.id && /[,、，]/.test(String(ph.location ?? "")));
+if (!legacy) { console.error("::error:: 区切りのある撮影地の写真が無い（旧い「無題」の形を作れない）"); process.exit(1); }
+legacy.title = { ja: "無題", en: "Untitled" };
 fs.writeFileSync(p, JSON.stringify(photos, null, 2));
-console.log(`派生を足した写真: ${n}枚 ・ 題を外した写真: ${newest.id}`);
+console.log(`派生を足した写真: ${n}枚 ・ 題を外した写真: ${newest.id} ・ 題を「無題」にした写真: ${legacy.id}（${legacy.location}）`);
 // **0枚なら失敗にする。** 黙って進むと「派生あり」と称して派生の無いビルドを
 // 見ることになり、この関門を足した理由（`<picture>` が出る形を通す）が消える。
 if (n === 0) { console.error("::error:: 派生を1枚も足せなかった"); process.exit(1); }

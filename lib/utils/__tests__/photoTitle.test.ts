@@ -55,8 +55,26 @@ describe("photoTitleFor（必ず空でない題）", () => {
     });
 
     it("代わりの題の言い方は写真ページの見出しと同じ", () => {
-        expect(fallbackPhotoTitle("板橋区, 日本", "ja")).toBe("板橋区, 日本の写真");
+        expect(fallbackPhotoTitle("板橋区, 日本", "ja")).toBe("板橋区の写真");
         expect(fallbackPhotoTitle(undefined, "ja")).toBe("写真");
         expect(fallbackPhotoTitle(42, "en"), "文字列でない撮影地は無いのと同じ").toBe("Photo");
+    });
+});
+
+// 撮影地は最初の区切りまで（2026-10-18・本番で「板橋区, 日本の写真」になっていた）。
+// 切り方はホームのタイルの撮影地（`shortPlace`）と同じ
+describe("代わりの題の撮影地は先頭だけ", () => {
+    it.each([
+        ["板橋区, 日本", "板橋区の写真", "Photo taken in 板橋区"],
+        ["京都、日本", "京都の写真", "Photo taken in 京都"],
+        ["東京，日本", "東京の写真", "Photo taken in 東京"],
+        ["Itabashi, Tokyo, Japan", "Itabashiの写真", "Photo taken in Itabashi"],
+        ["  山中湖  ", "山中湖の写真", "Photo taken in 山中湖"],
+        // 区切りの前が空なら丸ごと（「の写真」だけにしない）
+        [", 日本", ", 日本の写真", "Photo taken in , 日本"],
+    ])("%s → %s / %s", (loc, ja, en) => {
+        expect(fallbackPhotoTitle(loc, "ja")).toBe(ja);
+        expect(fallbackPhotoTitle(loc, "en")).toBe(en);
+        expect(photoTitleFor({ title: { ja: "無題", en: "Untitled" }, location: loc }, "ja").text).toBe(ja);
     });
 });
