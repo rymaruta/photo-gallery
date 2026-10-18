@@ -3,7 +3,7 @@ import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, Delet
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
-import { lookupDisplayName, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
+import { displayNameOf, DEFAULT_NAME, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
@@ -17,7 +17,7 @@ import { isFollowing } from "./followCheck";
 import { hasStoryTextItem, sanitizeStoryTexts, storyTextsCaption } from "./storyText";
 import { storyAllowsReplies } from "./storyVisibility";
 import { isStoryExpired } from "./storyExpiry";
-import { assertLiveCaller } from "./liveCaller";
+import { readLiveCaller } from "./liveCaller";
 
 // バケット名の検証と S3 の削除は `s3Delete.ts` に寄せた（未設定なら
 // そちらの読み込みで止まる）。
@@ -296,9 +296,6 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     if (!userId) {
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
-    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
-    const gone = await assertLiveCaller(userId);
-    if (gone) return gone;
 
     // displayName は受け取らない（なりすまし防止のためサーバーで引く）。
     // key も受け取らない（publicUrl から導く。下のコメント参照）。
@@ -443,7 +440,12 @@ export const createStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
     // 「Journey 運営」のような名前でストーリーを出せた（ストーリーは
     // ログイン中の全員のトレイに並ぶので、なりすましがそのまま届く）。
     // 閲覧記録（viewStory）は既に同じ方針。
-    const displayName = await lookupDisplayName(userId) || undefined;
+    // **退会した本人（期限内のトークン）に書かせない**（`liveCaller.ts`）。表示名を引く読みに
+    // 墓石の印を相乗りさせる（users を読むのは1回）。ここより上は読むだけ——まだ何も書いていない。
+    // 入口で読まないので、形の違い・投稿の上限で断る回は users を読まない（2026-10-18 判断）
+    const caller = await readLiveCaller(userId, ["displayName"]);
+    if ("gone" in caller) return caller.gone;
+    const displayName = displayNameOf(caller.row) ?? DEFAULT_NAME;
 
     const now = Date.now();
     const story = {
@@ -504,10 +506,6 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     if (!viewerId || !storyId) {
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "不正なリクエスト" }) };
     }
-    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
-    const gone = await assertLiveCaller(viewerId);
-    if (gone) return gone;
-
     try {
         const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: storyId } }));
         const item = res.Item as Record<string, unknown> | undefined;
@@ -555,7 +553,11 @@ export const viewStory: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
         // 表示名はサーバーで引く。クライアント申告を保存すると、改造したクライアントから
         // 任意の名前で閲覧履歴に載れてしまう（notify.ts も同じ理由で申告を信用していない）。
         // 記録すると決まってから引く（本人の閲覧や404では無駄に叩かない）。
-        const displayName = await lookupDisplayName(viewerId);
+        // **退会した本人（期限内のトークン）の閲覧は記録しない**（`liveCaller.ts`）。墓石は
+        // 同じ1回の読みで見る。ここより上は読むだけなので、入口で読まずに済む（2026-10-18 判断）
+        const caller = await readLiveCaller(viewerId, ["displayName"]);
+        if ("gone" in caller) return caller.gone;
+        const displayName = displayNameOf(caller.row) ?? DEFAULT_NAME;
 
         // viewers マップが無ければ作ってから、閲覧者エントリを追加（初回閲覧時刻を保持）。
         //
