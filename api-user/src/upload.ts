@@ -18,7 +18,7 @@ import { photoLimitError } from "./photoLimit";
 import { PUBLIC_FEED_KEY, RESTRICTED_FEED_KEY } from "./publicFeed";
 import { isAlbumMember, addPhotoToAlbum } from "./albums";
 import { refreshBadgesQuietly } from "./badgeStore";
-import { grantLabelQuietly } from "./trunk";
+import { grantLabelQuietly, refreshLabelPlaceQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -751,6 +751,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
                 // **再送でも配る**（1回目が下書きだった・1回目の配りが上限の時間を越えた）。
                 // 写真の id で1枚だけなので、二重には配らない（配り済みならその1枚を返す）
                 const dealt = await grantLabelQuietly(userId, rewritten as Photo, `savePhoto(${photo.id})`, { requireNew: true });
+                // 再送で公開 → 下書き・絞る・撮影地が変わった回も、旅のトランクのラベルの「地名を見せてよい」印を付け直す
+                // （配る側は下書きでは何もしないので、ここで外す。変わっていなければ写真を1回読むだけ）
+                await refreshLabelPlaceQuietly(userId, photo.id, existing as unknown as Record<string, unknown>, `savePhoto(${photo.id})`);
                 console.log(`savePhoto: 同じ写真の再送を受け取り、今回の内容で書き直しました（${photo.id}）`);
                 return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ success: true, photo: rewritten, ...dealt }) };
             }

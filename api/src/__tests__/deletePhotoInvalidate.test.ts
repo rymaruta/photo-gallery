@@ -28,6 +28,8 @@ vi.mock("../ddb-photos", () => ({
     deletePhotoById: mockDeleteRow,
     updatePhotoFields: vi.fn(),
 }));
+// 旅のトランクの印を外す処理（`trunkLabelPlaceDrop.ts`）は自分のテストで見る。ここでは本物の DynamoDB に行かせない
+vi.mock("../trunkLabelPlaceDrop", () => ({ dropTrunkPlaceOkQuietly: vi.fn(async () => undefined) }));
 vi.mock("../rebuild", () => ({ requestSiteRebuild: mockRebuild }));
 vi.mock("../auth", () => ({ isAdmin: () => true, getCallerUserId: () => "admin" }));
 

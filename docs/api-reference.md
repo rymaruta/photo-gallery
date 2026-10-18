@@ -291,7 +291,8 @@ export async function readApiError(res: Response, fallback: string): Promise<str
 `POST /user/trunk/labels/{id}/reroll` / `POST /user/trunk/labels/{id}/reroll/choose` /
 （次の版・2026-10-17）`PUT /user/trunk/labels/{id}/place` / `POST /user/trunk/labels/{id}/unstick` /
 `POST /user/trunk/gacha` / `POST /user/trunk/parts/exchange` / `PUT /user/trunk/equip` /
-（2026-10-18 追加・**本番未反映**）`POST /user/trunk/welcome`
+（2026-10-18 追加・**本番未反映**）`POST /user/trunk/welcome` /
+（人のトランク・2026-10-18）`GET /users/{uid}/trunk`
 
 - 公開の投稿1件（束 `groupId` は1件）ごとに、`POST /upload/save` の成功のあとでラベルを1枚「手持ち」に配る。
   応答に `label`（配った1枚・配り済みならその1枚・配らなければ `null`）と、配らなかった理由
@@ -304,7 +305,7 @@ export async function readApiError(res: Response, fallback: string): Promise<str
   season?: spring|summer|autumn|winter, timeslot?: dawn|dusk|night,
   milestone?: first|posts10|posts50|posts100|firstCountry, seed(整数), at, foil?, pos? }`。絵はアプリが `seed` と `kind` から描く
 - `GET` → `{ model, effectiveModel, pocket, stuck, limit, isPro, rerolls{left, month}, pendingReroll?, receiveLabels,
-  coins, parts, fragments, equipped, posts }`。
+  coins, parts, fragments, equipped, showTrunk, ticket, posts }`（`showTrunk`・`ticket` は 2026-10-18 に足した。下の「人のトランク」）。
   更新の口は同じ形から `posts` を除いたものを返す。失敗は `{ error, code }`
   （`notFound` / `full` / `storage` / `proOnly` / `pendingReroll` / `noRerollsLeft` / `noPending` / `badSeed` / `badModel` / `badRequest` / `busy` /
   `badPlace` / `notStuck` / `noCoins` / `badPart` / `owned` / `notEnoughFragments` / `badKind` / `notOwned`）
@@ -391,6 +392,82 @@ export async function readApiError(res: Response, fallback: string): Promise<str
     `welcomeCheckedAt`。印のある人は2回目からトランクの2行を読むだけ（users・索引は読まない）。
     書き込みはほかのトランクの口と同じ rev 条件（並んだ呼び出し・再送でも1回だけ）。99 枚で足せなかった（0 枚）ときも印は残す
   - 印は `trunk#` の行にあるので、退会で一緒に消える。一括の移行はしない（呼んだ人の行だけ書く）
+
+*人のトランク（2026-10-18 owner「トランクはマイページに載せたい。他の人のトランクの中身とか見れたら楽しい」・板 TheirTrunk・TheirInside・TrunkPrivacy）*
+
+- **見せる設定**: `PUT /user/trunk/settings { receiveLabels?, showTrunk?, ticket? }`。本文に在る項目だけ変える
+  （1つも無い・真偽でない・形が違うは 400 `badRequest`／乗車券の形は 400 `badTicket`）。応答は `GET` と同じ形（`posts` なし）。
+  - `showTrunk`（既定 `true`）: `false` の間は人の口が 404。行に書くのは `trunk#<uid>`（rev 条件・今までの設定と同じ書き方）
+  - `ticket`: **わたしの乗車券**（すれちがいで交換する本人の1枚。今までは端末の中だけにあった）
+    `{ photoId, note?: 20字・80バイト, origin?: 6字・24バイト, destination?: 6字・24バイト, face?: 0〜255（0 はマルス券）, showsFrom?: 真偽（既定 true） }`。
+    `null` で外す。改行・制御文字は落とし、前後の空白を取る（**上限を越えたら切り詰めず 400**）。
+    写真は**本人の公開写真だけ**（下書き・ストーリー・公開範囲を絞った写真・ほかの人の写真・無い写真は 409 `ticketNotPublic`）
+- **読む**: `GET /users/{uid}/trunk`（**ログインした人だけ**）→
+
+      { userId, model, stuck: [ラベル], equipped, posts?,
+        inside: { badges, card: { pro } | null, ticket: { photoId, note, origin, destination, face, showsFrom } | null } }
+
+  - `model` は見せている型（`effectiveModel`。Pro をやめた人の Pro の型は出さない）。`equipped` は `GET` と同じ形
+  - `stuck` は**貼ったラベルだけ**（置き場 `pos` つき）。1枚は `{ id, kind, place, season?, timeslot?, milestone?, seed, at?, foil?, pos?, where }`（`at` 以下の任意の欄は、地名を見せるラベルにだけある）:
+    `id` は**この返答の中の番号**（`s` ＋ 貼った古い順の番号 `s0`・`s1`…）。**写真の id からは計算できない**（写真の id は出さない）。
+    画面がラベルを並べ・選ぶためだけのもので、返答をまたいで同じラベルを指す使い道は無い（新しく貼られても前の番号は変わらないが、
+    はがす・取り消すとそれより新しい番号はずれる）。`at` は日付だけ（`YYYY-MM-DD`）、
+    `where` は「その土地で撮ったその人の写真」を引く手がかり `{ location }`（土地の名前が空なら `null`）。
+    アプリは `GET /photos?userId=<uid>`（公開写真の口・管理 API）の結果から、`location` を `,、，/()（）` で割った先頭が
+    `where.location` と同じ写真（無ければ `location` に `where.location` を含む写真）を出す。公開していない写真はそもそも来ない
+  - **確かめた物だけ見せる**（2026-10-18 判断・`api-user/src/trunkPlace.ts`）: 人の口が地名と `where` を出すのは、
+    印 `placeOk`（保存は短い鍵 `o: 1`）のあるラベルだけ。印の無いラベルと、**地名がもともと空のラベル**は、同じ形
+    `{ id, kind, seed, foil?, pos?, place: { name: "" }, where: null }` で返す（日付・季節・時刻・節目も落とす。伏せた印の欄も出さない）
+    ——伏せたラベルから「いつの投稿が今は見えないか」が分からないよう、2つを見分けられないようにする。
+    アプリは「地名が空なら地名なしの形で描く」（`kind`・`seed` は残すので絵は描ける。「はじめての国」でも国名は出さない）。
+    **外し忘れても漏れない側**（印が無ければ伏せる）。本番にもう在るラベルも印が無いので、台本で足すまで伏せたまま。
+    **自分の口では地名がそのまま見え、確かめたラベルには `placeOk: true` が付く**
+    - 印を付けてよいのは、ラベルの写真が**本人の・誰にでも見える公開の写真**（公開の一覧と同じ `feed.ts` の `isPublicListPhoto`。
+      下書き・ストーリー・closeFriends・フォロワー限定は違う）で、**撮影地（`placeOf`）が今もラベルの地名と同じ**とき
+    - 付ける: 公開の投稿で配ったとき（`POST /upload/save`・下書き → 公開・再送）。絞った範囲で配ったラベルには付かない
+    - 付け直す（付ける／外す）: 写真の編集（`PUT /photos/{id}`）で公開・公開範囲・撮影地・座標・スポットに触れたとき
+      （`refreshLabelPlaceQuietly`。今の写真を1回強い読みで読み、公開の一覧に載るか・撮影地が変わったときだけ trunk の2行を読んで書く）、
+      再送（配りの書き込みに相乗り）。**撮影地を書き換えたら、新しい撮影地で公開のままでも伏せたまま**（ラベルの地名は配ったときのもので、
+      書き換えと食い違うため）。元の撮影地に戻せばまた付く
+    - **付けたら、書いたあとに写真を強い読みで読み直して確かめる**（配る・付け直す・再送のどれでも）。書くまでのあいだ（競合のやり直し・
+      Lambda の凍結）に絞られた・非公開にされた・撮影地が変わったなら、その場で外し直す。外す側は確かめない（外し過ぎても漏れない）。
+      確かめは**外すだけ**。**決まりは1か所**（`placeOkNext`）: 付けるのは、その写真そのもので確かめたときだけ。
+      残すのは、その写真か、強い読みで読んだ束の兄弟のどれかが誰にでも見える公開で撮影地が同じとき（取り消し・付け直し・GET の外しで同じ）。
+      確かめは付けた根拠のその写真だけを見る。配りの確かめは配りと同じ待ち（2.5 秒）の内側で
+      すぐ走り、切れたら配りの答えをそのまま返す（確かめは裏で続く）。確かめが落ちても記録だけ（配りの答えは変えない）
+    - 本人の `GET /user/trunk` で、外し損ねた印を外す（確かめが走りきらなかったときの受け皿）: 本人の写真の一覧（結果整合の索引）と
+      突き合わせて、印つきなのに公開でない・撮影地が違う・一覧に無いラベルを候補に挙げ、**候補の写真だけ強い読みで読み直してから**外す
+      （索引の古い姿で正しい印を外さない。ふだんは候補0件で読みは増えない）。束は兄弟のどれかが公開で同じ撮影地なら残す。付けはしない。
+      **外しは最善の努力**: 読みは並べて、1回の GET で 25 枚まで（超えた分は次の GET）。読みが落ちたラベルは外さない（記録だけ・画面は 500 にしない）。
+      25 枚より大きい束は、**読む枠が満タンの回だけ**（その GET でほかの候補を読む前）、ラベルの写真＋兄弟を 25 枚まで読み、
+      そこに残す根拠が無ければ外す（いつも同じ 25 枚で判断する。満タンでない回は次の GET に回す）（見せない側。束の枚数にサーバーの上限は無い——
+      `groupId` は画面が送る値で、同じ値の写真の行を幾つでも作れる。1行の中の複数枚 `extraImages` は 10 枚まで）
+    - 再送（`POST /upload/save` の再送で配り済みの写真が来た回・配りの書き込みに相乗り）も同じ決まり: 束なら兄弟を強い読みで並べて
+      25 枚まで読み、残す根拠にする。**読むのは要るときだけ**: 再送で、印つきの配り済みラベルに当たり、今の写真では印を残せないとき
+      （一度書かずに戻って兄弟を読み、配りをもう一度通す＝trunk の読みが1回増える）。読みは数十ミリ秒で、配りの待ち 2.5 秒の内に収まる。
+      再送でない配りでは兄弟を読まない
+    - **管理 API（`api/src/trunkLabelPlaceDrop.ts`）は外すだけ**（この決まりを通らない）。束の兄弟がまだ公開でも、その写真のラベルの印を外す
+      （見せない側。兄弟を編集・再送したときに付け直る）
+    - `POST /upload/save` の再送で書き直した回（公開 → 下書き・絞る・撮影地の変更）も付け直す。写真の差し替え（`replace`）も付け直しの対象
+    - 外す: 写真の削除・公開 → 非公開（`revokeLabelQuietly`・24時間以内ならラベルごと取り消す・同じ書き込み）、公開範囲を絞った、
+      撮影地を変えた・消した、**管理 API（`api`）の削除と非公開と撮影地の変更**（`api/src/trunkLabelPlaceDrop.ts`・trunk# を rev 条件で置き直す。
+      外すだけ）。束のラベルは、誰にでも見える公開の兄弟が同じ撮影地で残っていれば印を残す（絞った兄弟は数えない）
+    - 本番にもう在るラベルに印を足す台本: `scripts/backfill-trunk-place-ok.js`（写真は強い読み・競合したら行も写真も読み直す・書いたあとに印を付けた写真を読み直して外すべきなら外す（その確かめの失敗は「確かめの失敗」として別に数える・外す書き込みが競合したら行を読み直して1回やり直す）。`--estimate` で表の大きさから見積もり（Scan しない）、
+      引数なしは読むだけ＝何枚に付く／外れるかを出す、`--apply` で書く。判定は同じ `trunkPlace.ts`。流すのは owner の承認のあと）
+    - 退会は行ごと消すので印も消える
+  - `posts` は古び方の段に使う、**誰にでも見える公開の投稿**の数（束は1件・絞った・下書き・ストーリーは数えない）。**自分の口（`GET /user/trunk`）の
+    `posts` は今までどおり**（下書き・ストーリーを除いた投稿。絞った写真も数える＝iOS の古び方・節目と同じ）。**人の写真を全部読まないための控え**で、本人が `GET /user/trunk` を開いたときと、
+    投稿してラベルか硬貨を配ったときに書く（消したあとは本人が開くまで古い数のまま）。控えが無い行は項目ごと出さない
+  - `inside.badges` は公開プロフィールの `badges` と同じ整え方（`sanitizeBadges`。無ければ `{}`）
+  - `inside.card` はサポーター番号を持つ人だけ `{ pro }`（`pro` は今 Pro か）。**番号・始めた年月・月数は出さない**
+    （名前と @ は公開プロフィールから描く）
+  - `inside.ticket` は置いた写真が今も本人の公開写真のときだけ。Pro でなければ `face` は 0（マルス券）。「発」の居住地は公開プロフィールの `homeLocation`
+  - **出さない物**: 硬貨・手持ち・上限・作り直し・受け取りの設定・見せる設定・部品箱・かけら・新しいラベルの印・ラベルの数（数えれば分かるのは貼った枚数だけ）・
+    受け取った乗車券（サーバーに無い。端末の中だけ）
+  - **404 `notFound`（理由は区別しない）**: 見せない設定・見る人と相手のどちらかがブロックしている・退会した（プロフィールが無い・墓石）・
+    トランクの行がまだ無い・`uid` が人の id の形でない。**自分を読んだとき**は見せない設定・ブロックを見ずに同じ形を返す（人からの見え方の確かめ）
+  - 読みは GetItem だけ（相手のプロフィール・`trunk#`・ブロックの印2つ・乗車券の写真1枚）。台帳の行・人の写真の一覧は読まない。書かない
+  - 道筋は trunk 関数に1つ足しただけ（関数・統合・許可・ロール・テーブル・GSI は増やさない）
 
 **光と天気の知らせ（Pro）** ※2026-10-09 追加・**本番未反映**
 `GET /user/light-forecast`——「行きたい場所」の公式スポット（`SPOT-<slug>`）の、今日から7日の
