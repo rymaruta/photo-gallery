@@ -534,7 +534,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         //
         // **TTL を有効にする前に、コメントの掃除役を入れること。**
         // comments.ts の getComments は、表示のたびにこの墓石を引いて
-        // 退会した人の名前を伏せている（notify.ts の deletedAmong）。
+        // 退会した人の名前を伏せている（notify.ts の deletedUserIds）。
         // 墓石が消えると集合から外れ、**365日後に退会した人の実名が
         // 古いコメント上で公開に戻る**。fail-open なので警告も出ない。
         // 掃除したくなったら、まず本文と name をコメント文書から消す役を
