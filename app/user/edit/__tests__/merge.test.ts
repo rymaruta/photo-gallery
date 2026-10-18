@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getLocalized } from "@/lib/data/photos";
-import { mergeLocalizedTitle, mergeLocalizedDescription } from "../page";
+import { mergeLocalizedTitle, mergeLocalizedDescription, titleToText } from "../page";
 import { toDateInputValue, mergeDate } from "../../../../lib/utils/dateInput";
 
 // 編集画面は日本語と日付だけを扱うが、保存は全項目の置換になる。
@@ -82,5 +82,26 @@ describe("mergeLocalizedDescription", () => {
     it("英語が無ければ文字列のままでよい", () => {
         expect(mergeLocalizedDescription({ ja: ["旧"] }, "新")).toBe("新");
         expect(mergeLocalizedDescription(undefined, "新")).toBe("新");
+    });
+});
+
+// 旧い既定値の「無題」を本人の編集欄に入れない（2026-10-18）。入れると本人は自分で付けた題だと
+// 思ってそのまま保存し、「無題」が題として残る。保存のときも書かない
+describe("編集欄: 旧い既定値の「無題」", () => {
+    it("titleToText は「無題」/ Untitled を空の欄にする", () => {
+        expect(titleToText({ ja: "無題", en: "Untitled" })).toBe("");
+        expect(titleToText("無題")).toBe("");
+        expect(titleToText({ ja: " 無題 " })).toBe("");
+        expect(titleToText({ ja: "無題", en: "Sunset" }), "本物の英語の題は見せる").toBe("Sunset");
+        expect(titleToText({ ja: "無題の風景" }), "人が書いた題は残す").toBe("無題の風景");
+        expect(titleToText({ ja: "朝の湖", en: "Lake" })).toBe("朝の湖");
+    });
+    it("題を書いて保存しても、英語の Untitled を持ち越さない", () => {
+        expect(mergeLocalizedTitle({ ja: "無題", en: "Untitled" }, "朝の湖")).toBe("朝の湖");
+        expect(mergeLocalizedTitle({ ja: "無題", en: "Lake" }, "朝の湖")).toEqual({ ja: "朝の湖", en: "Lake" });
+    });
+    it("触らずに保存したときは「変わっていない」＝何も書かない（空の欄 → 空）", () => {
+        const original = { ja: "無題", en: "Untitled" };
+        expect(mergeLocalizedTitle(original, titleToText(original))).toBe("");
     });
 });
