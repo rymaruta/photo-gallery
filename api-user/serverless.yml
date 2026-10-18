@@ -9,6 +9,18 @@ provider:
   name: aws
   runtime: nodejs22.x
   region: ap-northeast-1
+  # **ログの保存期間は 90 日**（2026-10-18・owner の委任）。指定が無いと CloudWatch Logs は
+  # **無期限**に残す。ログには利用者 ID（Cognito の sub）が入るので、期限なしで溜めない。
+  # 効くのは **serverless が作る分は全部**（関数ごとのロググループ。HTTP API のアクセスログを
+  # 有効にした場合もこの値）。serverless は関数ごとのロググループを前から CloudFormation の
+  # 部品として作っているので、既存の部品に `RetentionInDays` を足すだけ（部品の数は増えない＝
+  # 上限 500 に響かない）。
+  # ⚠️ **Lambda@Edge（OGP の書き換え）のログは対象外。** CloudFormation の外で作られた関数で、
+  # ログは各地域の `/aws/lambda/us-east-1.<関数名>` に**無期限のまま**残る。
+  # その期限は owner が別に付ける必要がある（ここからは付けられない）。
+  # 費用は下がる方向だけ: 保存（GB・月）が 90 日で頭打ちになる。取り込み・期限切れの削除は
+  # 今と同じ／無料。api と api-user で同じ値にそろえる（`scripts/__tests__/logRetention.test.ts`）
+  logRetentionInDays: 90
   # **関数の版（AWS::Lambda::Version）を作らない**（2026-10-09）。関数が 82 あり、版の部品だけで
   # 82 個になって、CloudFormation の上限 500 を超えて本番・staging の反映が止まった（502 個）。
   # 別名（alias）・前もって温める設定（provisioned concurrency）は使っておらず、版を参照している所も無い
