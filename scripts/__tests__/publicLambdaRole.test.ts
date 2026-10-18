@@ -106,6 +106,8 @@ describe("PublicReadRole の中身に書き込みが混ざっていない", () =
         "dynamodb:GetItem",
         "dynamodb:Query",
         "dynamodb:Scan",
+        // 退会者の伏せ字（getComments → `notify.ts` の `deletedAmong`）。読み取りだけ
+        "dynamodb:BatchGetItem",
     ]);
 
     /** `resources:` の中から、名前を指定したロールのブロックだけを切り出す。

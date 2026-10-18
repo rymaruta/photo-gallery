@@ -24,7 +24,7 @@ vi.mock("../blockCheck", async (importActual) => ({
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { pushNotification, lookupDisplayName, lookupListIdentity, NOTIFS_MAX, notifsId,
-    deletedUserIds, resetDeletedUsersCache } = await import("../notify");
+    deletedAmong, withUnreadAsDeleted, resetDeletedUsersCache } = await import("../notify");
 
 type Input = {
     UpdateExpression?: string;
@@ -192,84 +192,185 @@ describe("notifsId", () => {
 });
 
 
-// コメント一覧は**未認証で叩ける公開API**なので、投稿者ごとに引くと
-// 1リクエストが人数ぶんの読み取りに増幅する（200件に100人いれば100回）。
-// 墓石は小さな行しかないので、まとめて1回引いてコンテナ内で使い回す。
-describe("deletedUserIds（退会した人の集合）", () => {
-    const scans = () => mockDdbSend.mock.calls
-        .map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> })
-        .filter((c) => c.constructor.name === "ScanCommand");
+// 退会した人の判定（`deletedAmong`）。コメント・通知・フォロー・ブロック・
+// ストーリーの閲覧者と返信の一覧が、**一覧に出てくる ID だけ**を渡して引く。
+//
+// 以前は users テーブルを丸ごと Scan していた（`deletedUserIds`）が、500件 × 10ページで
+// 打ち切り、しかも `Limit` は絞り込みの**前**に数えるので、**行が 5000 を超えると
+// 打ち切った先の退会者が伏せられず、未認証のコメント一覧に実名が出た**。
+describe("deletedAmong（一覧に出てくる人のうち、退会した人）", () => {
+    type Cmd = { constructor: { name: string }; input: Record<string, unknown> };
+    const cmds = () => mockDdbSend.mock.calls.map((c) => c[0] as Cmd);
+    const batches = () => cmds().filter((c) => c.constructor.name === "BatchGetCommand");
+    const keysOf = (c: Cmd) =>
+        (c.input.RequestItems as Record<string, { Keys: { userId: string }[] }>)["users-test"].Keys.map((k) => k.userId);
+    const TOMB = "2026-09-01T00:00:00.000Z";
+
+    /** users テーブルの代わり。BatchGet には持っている行だけを返す（無い行は返さない＝本物と同じ） */
+    const table = (rows: Map<string, Record<string, unknown>>) => (cmd: Cmd) => {
+        if (cmd.constructor.name === "BatchGetCommand") {
+            return Promise.resolve({ Responses: { "users-test": keysOf(cmd).filter((id) => rows.has(id)).map((id) => rows.get(id)) } });
+        }
+        if (cmd.constructor.name === "ScanCommand") {
+            // 前の作り（500件 × 10ページで打ち切り）を呼んだら、それと同じ答えを返す
+            const all = [...rows.values()];
+            const from = Number((cmd.input.ExclusiveStartKey as { i?: number } | undefined)?.i ?? 0);
+            const page = all.slice(from, from + Number(cmd.input.Limit ?? all.length));
+            const next = from + page.length;
+            return Promise.resolve({
+                Items: page.filter((r) => typeof r.deletedAt === "string"),
+                ...(next < all.length ? { LastEvaluatedKey: { i: next } } : {}),
+            });
+        }
+        return Promise.resolve({});
+    };
 
     beforeEach(() => { resetDeletedUsersCache(); });
 
-    it("墓石だけを引く（生きている行は読まない）", async () => {
-        mockDdbSend.mockResolvedValue({ Items: [{ userId: "gone1" }, { userId: "gone2" }] });
-        const ids = await deletedUserIds();
-
-        expect([...ids].sort()).toEqual(["gone1", "gone2"]);
-        // **どのテーブルを見ているかまで固定する。** 墓石は USERS_TABLE にしか
-        // 無いので、PHOTOS_TABLE に向けても集合は常に空になるだけ——誰も伏せられず、
-        // fail-open なのでログにも出ない。式だけ見ていると、この変異が緑で通る。
-        expect(scans()[0].input.TableName).toBe("users-test");
-        expect(scans()[0].input.FilterExpression).toContain("attribute_exists(deletedAt)");
-        // 要るのは userId だけ（名前やハンドルまで読まない）
-        expect(scans()[0].input.ProjectionExpression).toBe("userId");
+    it("渡した ID だけを users テーブルから引く（表は走査しない）", async () => {
+        mockDdbSend.mockImplementation(table(new Map([
+            ["gone1", { userId: "gone1", deletedAt: TOMB }],
+            ["alive", { userId: "alive" }],
+        ])));
+        const r = await deletedAmong(["gone1", "alive"]);
+        expect([...r.deleted]).toEqual(["gone1"]);
+        expect([...r.unread]).toEqual([]);
+        expect(cmds().filter((c) => c.constructor.name === "ScanCommand"), "表を走査している").toHaveLength(0);
+        expect(batches()).toHaveLength(1);
+        // **どのテーブルを見ているかまで固定する**（墓石は USERS_TABLE にしか無い）
+        expect(Object.keys(batches()[0].input.RequestItems as object)).toEqual(["users-test"]);
+        expect(keysOf(batches()[0]).sort()).toEqual(["alive", "gone1"]);
+        // 判定に要るのは deletedAt だけ（名前やハンドルまで読まない）
+        const req = (batches()[0].input.RequestItems as Record<string, { ProjectionExpression: string; ExpressionAttributeNames: Record<string, string> }>)["users-test"];
+        expect(Object.values(req.ExpressionAttributeNames).sort()).toEqual(["deletedAt", "userId"]);
+        // **置き換えた名前は全部、式の中で使うこと。** 使わない名前が残ると本番の DynamoDB は
+        // ValidationException を返す（モックは返さない）＝全員が「読めなかった」になる
+        const used = req.ProjectionExpression.split(",").map((t) => t.trim());
+        for (const name of Object.keys(req.ExpressionAttributeNames)) {
+            expect(used, `${name} が ProjectionExpression で使われていない`).toContain(name);
+        }
+        expect(used.sort()).toEqual(["#d", "#u"]);
     });
 
-    it("2回目はコンテナ内の控えを使う（公開APIを増幅させない）", async () => {
-        mockDdbSend.mockResolvedValue({ Items: [{ userId: "gone1" }] });
-        await deletedUserIds();
-        await deletedUserIds();
-        expect(scans()).toHaveLength(1);
+    // **この PR が直す穴。** 行が 6000 あり、退会者が 5000 行より先にいる表
+    it("users テーブルの行が 5000 を超えても、先にいる退会者を伏せる", async () => {
+        const rows = new Map<string, Record<string, unknown>>();
+        for (let i = 0; i < 6000; i++) rows.set(`u${i}`, { userId: `u${i}` });
+        rows.set("u5999", { userId: "u5999", deletedAt: TOMB });
+        mockDdbSend.mockImplementation(table(rows));
+
+        const r = await deletedAmong(["u1", "u5999", "u42"]);
+        expect([...r.deleted]).toEqual(["u5999"]);
+        // 読んだのは一覧に出た3人ぶんだけ（6000行ではない）
+        expect(batches().flatMap(keysOf)).toHaveLength(3);
     });
 
-    // 未認証で叩ける経路から呼ばれる。青天井にすると、コールドなコンテナの
-    // たびにユーザーテーブル全体を直列で読み切る（FilterExpression は読んだ
-    // あとに効き、ProjectionExpression は消費する読み取りを減らさない）。
-    // 遅いだけの場合は fail-open では拾えず、Lambda のタイムアウトに当たって
-    // 「誰も伏せない」ではなく「コメントが読めない」になる。
-    it("1ページの件数に上限を置く", async () => {
-        mockDdbSend.mockResolvedValue({ Items: [] });
-        await deletedUserIds();
-        expect(scans()[0].input.Limit).toBe(500);
+    it("100件ずつに分けて引く（BatchGetItem の上限）・重複は1回", async () => {
+        mockDdbSend.mockImplementation(table(new Map()));
+        const many = Array.from({ length: 250 }, (_, i) => `u${i}`);
+        await deletedAmong([...many, ...many.slice(0, 50)]);
+        expect(batches().map((b) => keysOf(b).length).sort((a, b) => a - b)).toEqual([50, 100, 100]);
+        expect(new Set(batches().flatMap(keysOf)).size).toBe(250);
     });
 
-    it("ページ数にも上限を置く（打ち切ったら warn を出す）", async () => {
-        // 12ページぶんだけ続きがあるテーブル。**無限に続く形にしない**——
-        // 上限を外す変異を入れたときにテストが固まって、落ちる代わりに
-        // タイムアウト待ちになる。
-        let page = 0;
-        mockDdbSend.mockImplementation(() => Promise.resolve({
-            Items: [{ userId: `u${page}` }],
-            ...(++page < 12 ? { LastEvaluatedKey: { userId: `u${page}` } } : {}),
-        }));
-        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    it("行が無い人は退会扱いにしない（PostConfirmation の取りこぼしで行の無い生きた人がいる）", async () => {
+        mockDdbSend.mockImplementation(table(new Map()));
+        const r = await deletedAmong(["nobody"]);
+        expect([...r.deleted]).toEqual([]);
+        expect([...r.unread], "行が無いのは「読めなかった」ではない").toEqual([]);
+    });
+
+    it("空・型違いの ID は引かない", async () => {
+        mockDdbSend.mockImplementation(table(new Map()));
+        await deletedAmong(["", undefined, 3, null, "x".repeat(300)]);
+        expect(batches()).toHaveLength(0);
+    });
+
+    it("2回目はコンテナ内の控えを使う（公開APIを増幅させない）・新しい人だけ引く", async () => {
+        mockDdbSend.mockImplementation(table(new Map([["gone1", { userId: "gone1", deletedAt: TOMB }]])));
+        await deletedAmong(["gone1", "alive"]);
+        const again = await deletedAmong(["gone1", "alive", "new"]);
+        expect([...again.deleted]).toEqual(["gone1"]);
+        expect(batches()).toHaveLength(2);
+        expect(keysOf(batches()[1])).toEqual(["new"]);
+    });
+
+    it("控えは60秒で切れる（退会が伏せに効くまでの遅れは最大60秒）", async () => {
+        const rows = new Map<string, Record<string, unknown>>([["u", { userId: "u" }]]);
+        mockDdbSend.mockImplementation(table(rows));
+        const now = vi.spyOn(Date, "now");
         try {
-            await deletedUserIds();
-            expect(scans()).toHaveLength(10);
-            // 打ち切った先にいる退会者は伏せられない。黙って落とさない
-            expect(warn).toHaveBeenCalledWith(expect.stringContaining("打ち切りました"));
+            now.mockReturnValue(1_000_000);
+            expect([...(await deletedAmong(["u"])).deleted]).toEqual([]);
+            rows.set("u", { userId: "u", deletedAt: TOMB });   // ここで退会
+            now.mockReturnValue(1_000_000 + 59_000);
+            expect([...(await deletedAmong(["u"])).deleted], "控えの内は前の判定").toEqual([]);
+            now.mockReturnValue(1_000_000 + 61_000);
+            expect([...(await deletedAmong(["u"])).deleted]).toEqual(["u"]);
         } finally {
-            warn.mockRestore();
+            now.mockRestore();
         }
     });
 
-    it("最後まで辿る（1ページで打ち切らない）", async () => {
-        mockDdbSend
-            .mockResolvedValueOnce({ Items: [{ userId: "a" }], LastEvaluatedKey: { userId: "a" } })
-            .mockResolvedValueOnce({ Items: [{ userId: "b" }] });
-        expect([...(await deletedUserIds())].sort()).toEqual(["a", "b"]);
+    it("未処理（UnprocessedKeys）で返った分は拾い直す", async () => {
+        let first = true;
+        mockDdbSend.mockImplementation((cmd: Cmd) => {
+            const keys = keysOf(cmd);
+            if (first) {
+                first = false;
+                return Promise.resolve({
+                    Responses: { "users-test": [{ userId: "a" }] },
+                    UnprocessedKeys: { "users-test": { Keys: keys.filter((k) => k !== "a").map((userId) => ({ userId })) } },
+                });
+            }
+            return Promise.resolve({ Responses: { "users-test": keys.map((userId) => ({ userId, deletedAt: TOMB })) } });
+        });
+        expect([...(await deletedAmong(["a", "b"])).deleted]).toEqual(["b"]);
+        expect(keysOf(batches()[1])).toEqual(["b"]);
     });
 
-    // 一時的な失敗で、生きている人の名前まで一斉に「退会したユーザー」に
-    // 化ける方が悪い。投げずに空集合を返す（＝誰も伏せない）。
-    it("引けなかったら空集合（投げない・控えもしない）", async () => {
+    // 🔴 **読めなかった ID は `deleted` に混ぜず `unread` で別に返す。** 扱いは呼ぶ側が
+    // 決める（名前を写して持つ口は伏せる・名前を引き直す一覧は生きている扱い）
+    it("読めなかった ID は unread で別に返す（投げない・控えない・ログに出す）", async () => {
         mockDdbSend.mockRejectedValue(new Error("throttled"));
-        await expect(deletedUserIds()).resolves.toEqual(new Set());
+        const err = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const r = await deletedAmong(["alive", "gone1"]);
+            expect([...r.deleted]).toEqual([]);
+            expect([...r.unread].sort()).toEqual(["alive", "gone1"]);
+            // 見張り: 件数つきで CloudWatch に出る
+            expect(err).toHaveBeenCalledWith(expect.stringContaining("読めなかった 2 件"));
+        } finally {
+            err.mockRestore();
+        }
+        // 失敗は控えない——次の呼び出しで引き直す
+        mockDdbSend.mockReset().mockImplementation(table(new Map([["gone1", { userId: "gone1", deletedAt: TOMB }]])));
+        const again = await deletedAmong(["alive", "gone1"]);
+        expect([...again.deleted]).toEqual(["gone1"]);
+        expect([...again.unread]).toEqual([]);
+    });
 
-        // 失敗はキャッシュしない——次の呼び出しでやり直す
-        mockDdbSend.mockReset().mockResolvedValue({ Items: [{ userId: "gone1" }] });
-        expect([...(await deletedUserIds())]).toEqual(["gone1"]);
+    it("withUnreadAsDeleted: 名前を写して持つ口は、読めなかった人も伏せる", () => {
+        const r = { deleted: new Set(["gone"]), unread: new Set(["unknown"]) };
+        expect([...withUnreadAsDeleted(r)].sort()).toEqual(["gone", "unknown"]);
+        expect(withUnreadAsDeleted({ deleted: new Set(["gone"]), unread: new Set() })).toEqual(new Set(["gone"]));
+    });
+
+    it("拾い直しても未処理のまま残った ID だけが読めなかった扱い（読めた分はそのまま使う）", async () => {
+        mockDdbSend.mockImplementation((cmd: Cmd) => Promise.resolve({
+            Responses: { "users-test": keysOf(cmd).includes("alive") ? [{ userId: "alive" }] : [] },
+            UnprocessedKeys: { "users-test": { Keys: [{ userId: "stuck" }] } },
+        }));
+        const err = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const r = await deletedAmong(["alive", "stuck"]);
+            expect([...r.deleted]).toEqual([]);
+            expect([...r.unread]).toEqual(["stuck"]);
+            // 初回＋拾い直し3回で止める（青天井に回さない）
+            expect(batches()).toHaveLength(4);
+        } finally {
+            err.mockRestore();
+        }
     });
 });
 

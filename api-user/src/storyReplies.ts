@@ -3,7 +3,7 @@ import { GetCommand, UpdateCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb"
 import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, deletedUserIds, DELETED_USER_NAME } from "./notify";
+import { pushNotification, lookupDisplayName, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked, hiddenUserIds } from "./blockCheck";
 import { isFollowing } from "./followCheck";
@@ -445,7 +445,7 @@ export const getStoryReplies: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         const visible = hidden.size === 0 ? all : all.filter((r) => !hidden.has(r.uid));
         const items = visible.slice(-REPLIES_MAX).reverse();   // 末尾追記なので後ろが新しい
         // 退会した人の名前は出さない（`getComments` と同じ）。0件なら引きに行かない
-        const gone = items.length === 0 ? new Set<string>() : await deletedUserIds();
+        const gone = items.length === 0 ? new Set<string>() : withUnreadAsDeleted(await deletedAmong(items.map((r) => r.uid)));
         const safeItems = gone.size === 0
             ? items
             : items.map((r) => (gone.has(r.uid) ? { ...r, name: DELETED_USER_NAME, deleted: true } : r));
