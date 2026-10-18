@@ -12,8 +12,12 @@ import { join, relative } from "node:path";
 // 関数の `logRetentionInDays` → provider の値の順で `RetentionInDays` に入れる。
 // HTTP API のアクセスログ（`provider.logs.httpApi`）を有効にした場合も
 // provider の値を使う（`compile/events/http-api.js`）。だから provider に1つ置けば
-// 全部にかかる。ここで固定するのは「新しい serverless 設定・新しい関数が
-// 黙って無期限に戻らない」こと。
+// **serverless が作る分は全部**にかかる。ここで固定するのは「新しい serverless
+// 設定・新しい関数が黙って無期限に戻らない」こと。
+//
+// ⚠️ **Lambda@Edge（OGP の書き換え）のログはこのテストの外。** CloudFormation の外で
+// 作られた関数で、ログは各地域の `/aws/lambda/us-east-1.<関数名>` に**無期限のまま**
+// 残る。その期限は owner が別に付ける必要がある。
 //
 // **YAML パーサは使わない**（`publicLambdaRole.test.ts` と同じ理由——js-yaml は
 // どの package.json にも書かれていない推移依存）。
