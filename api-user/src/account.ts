@@ -46,6 +46,39 @@ import { forgetAppStoreLinks } from "./supporterStore";
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
 /**
+ * 退会の墓石（users テーブルの `{userId, deletedAt, ttl, username}` の行）を残す日数。
+ * `ttl`（DynamoDB の TTL 用・epoch 秒）＝退会の時刻＋この日数。
+ *
+ * 🔴 **users テーブルの TTL はまだ有効にしていない**（2026-10-18 に調べて、有効にしないと決めた）。
+ * テーブルは serverless の resources ではなく `scripts/provision-env.js` が作っていて、
+ * そこにも TTL の定義は無い。だからこの値は今は**何も消さない**——有効にした日から効く。
+ *
+ * 有効にする前に要るもの（墓石が消えると壊れる所）:
+ *   - 他人の写真に残る自分のコメント（`comments.ts`）・他人の通知の `byName`
+ *     （`notifications.ts`）は、**書いた時点の表示名を写して持っている**。退会では
+ *     消していない（下の「v1 スコープ外」）。
+ *     （ストーリーの返信・閲覧者も同じ形で写しているが、ストーリーの期限で消えるので
+ *     1年の TTL より先に無くなる——ここには数えない）
+ *     表示のたびに `deletedAmong()`（一覧に出る ID ごとに墓石を引く）で「退会したユーザー」に伏せているので、
+ *     墓石が消えると**退会した人の実名が公開の口に戻る**
+ *   - 他人のフォロー・ブロック一覧（`follow.ts`・`block.ts`）も同じ判定で「退会した」印を
+ *     付けている。消えると名前の無い普通の行（空のプロフィールへのリンク）に戻る
+ *   - ハイライトの未認証の口（`highlights.ts` の `isDeletedUser`）は墓石を見て 404 にしている。
+ *     墓石が消えると「行が無い＝退会していない」と読み、掃除が転んで残った一覧の題
+ *     （本人の書いた文字列）を返し始める
+ *   → 先に「写した名前をコメント等から消す役」を作り、そのあとで TTL を有効にする。
+ *
+ * 🔴 **有効にすると、既にある墓石にも効く**（`ttl` を前から書いているので）。
+ * 「これから退会する人だけ」にはならない。有効にする日は owner が決める
+ */
+export const TOMBSTONE_RETENTION_DAYS = 365;
+
+/** 墓石の `ttl`（epoch 秒）。退会の時刻＋`TOMBSTONE_RETENTION_DAYS` 日 */
+export function tombstoneTtl(deletedAt: Date): number {
+    return Math.floor(deletedAt.getTime() / 1000) + TOMBSTONE_RETENTION_DAYS * 24 * 60 * 60;
+}
+
+/**
  * フォロー解除の片付けを試す回数。
  * 一番多い失敗（相手が人気ユーザーのときの TransactionConflict）は
  * その場でやり直せば通る。通らなかった分は following# に残して次に託す。
@@ -528,17 +561,16 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 取りこぼしを救う仕組み）が行を作り直す。作られた行は実在判定を
         // 通すので、**消えた ID がフォローできる**状態になり、誰も掃除しない。
         //
-        // ttl は DynamoDB の TTL 用（epoch 秒）。**このテーブルの TTL は
-        // まだ有効化していない**ので、今のところ墓石は消えない。userId だけの
-        // 小さな行なので当面はそれでよい。
+        // ttl は DynamoDB の TTL 用（epoch 秒・`tombstoneTtl`）。**このテーブルの
+        // TTL はまだ有効化していない**ので、今のところ墓石は消えない。
         //
-        // **TTL を有効にする前に、コメントの掃除役を入れること。**
-        // comments.ts の getComments は、表示のたびにこの墓石を引いて
-        // 退会した人の名前を伏せている（notify.ts の deletedUserIds）。
-        // 墓石が消えると集合から外れ、**365日後に退会した人の実名が
-        // 古いコメント上で公開に戻る**。fail-open なので警告も出ない。
-        // 掃除したくなったら、まず本文と name をコメント文書から消す役を
-        // 作り、そのあとで TTL を1回だけ有効にする:
+        // **TTL を有効にする前に、写した名前の掃除役を入れること**
+        // （理由と壊れる所は `TOMBSTONE_RETENTION_DAYS` の説明）。
+        // comments.ts の getComments などは、表示のたびにこの墓石を引いて
+        // 退会した人の名前を伏せている（notify.ts の deletedAmong）。
+        // 墓石が消えると「行が無い＝生きている人」と読まれ、**期限の日に退会した人の
+        // 実名が古いコメント上で公開に戻る**。伏せも警告も出ない。
+        // 掃除役を作ったあとで、TTL を1回だけ有効にする（owner が決める）:
         //   aws dynamodb update-time-to-live \
         //     --table-name prod-photo-gallery-users \
         //     --time-to-live-specification "Enabled=true,AttributeName=ttl"
@@ -548,7 +580,7 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
             Item: {
                 userId: uid,
                 deletedAt: deletedAt.toISOString(),
-                ttl: Math.floor(deletedAt.getTime() / 1000) + 365 * 24 * 60 * 60,
+                ttl: tombstoneTtl(deletedAt),
                 // **handle は墓石に残す。** 予約の解放が落ちたときに、退会を
                 // やり直して拾えるようにするため（残さないと永久に解放できない）。
                 // 解放は ownerId 一致が条件なので、その handle を後から取った

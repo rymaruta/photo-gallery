@@ -4,7 +4,7 @@ import { UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dy
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { updateUserList } from "./userList";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, lookupListIdentity, deletedUserIds } from "./notify";
+import { pushNotification, lookupDisplayName, lookupListIdentity, deletedAmong } from "./notify";
 import { requireEnv } from "./env";
 import { isUserId } from "./userId";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
@@ -695,7 +695,7 @@ async function withoutHidden(list: string[], me: string | undefined, where: stri
  * 出して空のプロフィールへリンクしていた。しかも退会は自分の
  * `following#` しか消さないので（`account.ts`）、**他人の一覧には残り続ける**。
  * `getComments` / `getNotifications` / `getStoryReplies` と同じ
- * `deletedUserIds()`（60秒の控えつき）を通す。
+ * `deletedAmong()`（一覧に出る ID だけ引く・60秒の控えつき）を通す。
  */
 export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = event.pathParameters?.uid;
@@ -712,7 +712,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const visible = await withoutHidden(list, me, "getUserFollowing");
         const page = visible.slice(0, FOLLOWING_PAGE);
         // 引くのは一覧が空でないときだけ（`getComments` と同じ）
-        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        // 読めなかった人は生きている扱い（名前は `lookupListIdentity` が引き直し、墓石からは返らない）
+        const gone = page.length > 0 ? (await deletedAmong(page)).deleted : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
             // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで
@@ -783,7 +784,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const list = usableUserIds(res.Item?.list, `followers#${uid}`);
         const visible = await withoutHidden(list, me, "getUserFollowers");
         const page = visible.slice(0, FOLLOWING_PAGE);
-        const gone = page.length > 0 ? await deletedUserIds() : new Set<string>();
+        // 読めなかった人は生きている扱い（名前は `lookupListIdentity` が引き直し、墓石からは返らない）
+        const gone = page.length > 0 ? (await deletedAmong(page)).deleted : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
             // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで

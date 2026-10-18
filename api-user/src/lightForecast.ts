@@ -148,7 +148,7 @@ export const getLightForecast: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
 /** 受け取る設定か。**既定は受け取る**（`lightAlert === false` のときだけ止める） */
 export const wantsLightAlert = (p: { lightAlert?: unknown } | null | undefined) => p?.lightAlert !== false;
 
-/** 走査の1ページ・ページ数の上限（`notify.ts` の `deletedUserIds` と同じ考え） */
+/** 走査の1ページ・ページ数の上限（`userSearch.ts` と同じ考え） */
 const SCAN_PAGE_SIZE = 500;
 const SCAN_MAX_PAGES = 200;
 
