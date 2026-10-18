@@ -33,7 +33,7 @@ import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSe
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
 import { photoAltText } from "../../../lib/utils/photoAlt";
-import { displayTitle } from "../../../lib/utils/photoTitle";
+import { photoOwnTitle, fallbackPhotoTitle, photoTitleFor } from "../../../lib/utils/photoTitle";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -680,8 +680,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         // パンくずの名前。**同じページの `ImageObject` は `name: ""` を出す**
         // ので、ここだけ "Untitled" にすると**同じ写真について2つの
         // 構造化データが違うことを言う**。日本語のサイトなので文言も揃える
-        const title = getLocalized(photo.title, locale) || getLocalized(photo.title, "ja") || getLocalized(photo.title, "en")
-            || (locale === "en" ? "Untitled" : "無題");
+        // **「無題」も出さない**——題が無ければ撮影地から組む（`photoTitleFor`。
+        // `<title>`・`ImageObject.name` と同じ決め方）
+        const title = photoTitleFor(photo, locale === "en" ? "en" : "ja").text;
         return generateBreadcrumbStructuredData([
             { name: locale === "en" ? "Home" : "ホーム", url: siteConfig.url },
             { name: title, url: `${siteConfig.url}/photo/${photo.id}` },
@@ -769,9 +770,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         );
     }
 
-    // **一覧（`GalleryGrid`）と同じく `displayTitle` を通す。** サーバーが入れていた
+    // **一覧（`GalleryGrid`）と同じく `displayTitle` を通す**（`photoOwnTitle` の中）。サーバーが入れていた
     // 「無題」（`{ ja: "無題" }`）は題として扱わない（`photoTitle.ts`）
-    const titleText = displayTitle(getLocalized(photo.title, locale) || (typeof photo.title === "string" ? photo.title : ""));
+    const titleText = photoOwnTitle(photo, locale === "en" ? "en" : "ja");
     // **画像検索が見るのはこの1枚。** 撮影地まで入れる（`photoAlt.ts`）
     const altText = photoAltText(photo, locale);
     // **もう一方の言語の本文は出さない。**
@@ -805,9 +806,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // 「無題」も代わりの文字も出さない）。見出しは読み上げ用（`sr-only`）に置く。
     // 上の 3. の「隠しテキスト」とは別物: 中身は画面に出ている撮影地と同じ
     // 短い説明で、検索のために語を足すものではない。
-    const fallbackHeading = locationText
-        ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
-        : (locale === "en" ? "Photo" : "写真");
+    // 言い方は `fallbackPhotoTitle` 1つに置く（`<title>`・パンくず・RSS・共有も同じ）
+    const fallbackHeading = fallbackPhotoTitle(locationText, locale === "en" ? "en" : "ja");
     // 撮影日（保存された通りに出す。`createdAt` には落とさない: 投稿日と撮影日は別）
     const shotDate = formatStoredDateTime(photo.date, locale === "en" ? "en" : "ja") ?? "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
@@ -828,7 +828,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     const currentUrl = typeof window !== "undefined" 
         ? `${window.location.origin}/photo/${photo.id}` 
         : `${siteConfig.url}/photo/${photo.id}`;
-    const shareText = titleText || "写真";
+    // 題が無ければ見出しと同じ「<撮影地>の写真」（以前は一律「写真」）
+    const shareText = titleText || fallbackHeading;
 
     const handleShare = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();

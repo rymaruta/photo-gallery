@@ -3,6 +3,7 @@
 import { spacelessName } from "./nameVariants";
 import { personNodeId } from "./personId";
 import { metaText } from "./metaText";
+import { displayTitle, photoOwnTitle, photoTitleFor } from "./photoTitle";
 
 /**
  * 公開する画像URLを、**サイトのドメインに揃える**。
@@ -193,8 +194,9 @@ export function generatePhotoStructuredData(photo: {
         return Array.isArray(arr) ? arr.join(" ") : "";
     };
     const other: "ja" | "en" = locale === "ja" ? "en" : "ja";
-    const title = titleOf(locale) || titleOf(other) || "";
-    const altTitle = titleOf(other);
+    // 「無題」（旧い既定値）は題として扱わない（`photoTitle.ts`）
+    const title = photoOwnTitle(photo, locale);
+    const altTitle = displayTitle(titleOf(other));
     // **説明はこのページの言語で1本だけ。**
     //
     // 以前は日英を `" / "` で併記していた（「両言語のクエリで拾えるように」）。
@@ -227,8 +229,10 @@ export function generatePhotoStructuredData(photo: {
         "@id": `${siteConfig.url}/photo/${photo.id}`,
         contentUrl: imageUrl,
         // 名前が無い写真は実在する（`sanitizeTitle` は空なら属性ごと消す）。
-        // `""` を出すと、同じページのパンくずが出す名前と食い違う
-        name: title || "無題",
+        // `""` を出すと、同じページのパンくずが出す名前と食い違う。
+        // **「無題」とも名乗らない**——撮影地から「板橋区の写真」と組む
+        // （`photoTitleFor`。パンくず・`<title>` と同じ決め方）
+        name: photoTitleFor(photo, locale).text,
         ...(altTitle && altTitle !== title ? { alternateName: altTitle } : {}),
         // **説明が無いときにサイトのキャッチコピーを名乗らない。**
         // 「この写真の説明はサイトの宣伝文です」と機械可読で配ることになり、
