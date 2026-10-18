@@ -153,8 +153,8 @@ describe("人のトランク（GET /users/{uid}/trunk）", () => {
         expect(r.raw).not.toContain("stuck-photo-1");
         expect(r.raw).not.toContain("pocket-photo-1");
         const ids = (r.json.stuck as { id: string }[]).map((l) => l.id);
-        expect(ids.every((id) => /^t[0-9a-f]{12}$/.test(id))).toBe(true);
-        expect(new Set(ids).size).toBe(2);
+        // id は返答の中の番号（貼った古い順）。写真の id からは計算できない
+        expect(ids).toEqual(["s1", "s0"]);
         expect((r.json.stuck as Item[]).every((l) => !("photoId" in l) && !("groupId" in l))).toBe(true);
         // 硬貨の数 12・手持ちの数・かけら 3 が値として紛れていない（数は返さない）
         expect(r.raw).not.toMatch(/"coins"|"fragments"|"pocket"/);
@@ -361,7 +361,10 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
     const expectHidden = async () => {
         const r = await their();
         const [l] = r.json.stuck as Item[];
-        expect(l).toMatchObject({ placeHidden: true, where: null, place: { name: "" } });
+        // 伏せたラベルは地名・日付・季節・時刻・節目を落とし、伏せた印そのものも出さない（地名がもともと空のラベルと同じ形）
+        expect(l.place).toEqual({ name: "" });
+        expect(l.where).toBeNull();
+        for (const k of ["at", "season", "timeslot", "milestone", "placeHidden"]) expect(l, k).not.toHaveProperty(k);
         expect(r.raw).not.toContain("京都");
         expect(r.raw).not.toContain("Kyoto");
         expect(r.raw).not.toContain("日本");
@@ -371,7 +374,7 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         const [l] = await theirStuck();
         expect(l.place).toEqual({ name: "京都", latin: "Kyoto", country: "日本" });
         expect(l.where).toEqual({ location: "京都" });
-        expect(l).not.toHaveProperty("placeHidden");
+        expect(l.at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     };
     /** 手持ちに届いたラベルを貼る（人の口に出るのは貼ったものだけ） */
     const stickAll = async () => {
@@ -383,7 +386,7 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         setProfile(OWNER, {});
         setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto", m: "firstCountry", k: "m" })], pocket: [] });
         const l = await expectHidden();
-        expect(l).toMatchObject({ kind: "milestone", milestone: "firstCountry", seed: 42 });
+        expect(l).toMatchObject({ kind: "milestone", seed: 42 });
         const [own] = await ownStuck();
         expect(own.place).toEqual({ name: "京都", latin: "Kyoto", country: "日本" });
         expect(own).not.toHaveProperty("placeOk");
@@ -573,10 +576,18 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await expectShown();
     });
 
-    it("人の口の印は本人ごとに違う（同じ写真の id でも、別の人のトランクと照らし合わせられない）", () => {
-        const l = { id: "same", photoId: "same", kind: "place" as const, place: { name: "" }, seed: 1, at: NEW };
-        expect(T.theirLabel(OWNER, l).id).not.toBe(T.theirLabel(VIEWER, l).id);
-        expect(T.theirLabel(OWNER, l).id).toMatch(/^t[0-9a-f]{12}$/);
+    it("【見直し5】伏せたラベルと、地名がもともと空のラベルは同じ形（見分けられない）", () => {
+        const base = { photoId: "x", kind: "season" as const, season: "spring" as const, seed: 7, at: "2026-04-01T00:00:00.000Z" };
+        const hidden = T.theirLabel(0, { ...base, id: "a", place: { name: "京都", country: "日本" } });
+        const blank = T.theirLabel(0, { ...base, id: "b", place: { name: "" }, placeOk: true });
+        expect(hidden).toEqual(blank);
+        expect(hidden).toEqual({ id: "s0", kind: "season", seed: 7, place: { name: "" }, where: null });
+    });
+
+    it("【見直し6】人の口の id は写真の id から計算できない（返答の中の番号）", () => {
+        const l = { id: "same-photo-id", photoId: "same-photo-id", kind: "place" as const, place: { name: "" }, seed: 1, at: NEW };
+        expect(T.theirLabel(3, l).id).toBe("s3");
+        expect(JSON.stringify(T.theirLabel(3, l))).not.toContain("same-photo-id");
     });
 
     it("posts は誰にでも見える公開の投稿だけで数える（絞った・下書き・ストーリーは数えない）", async () => {
@@ -586,7 +597,9 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
             row("a"), row("b", { audience: "followers" }), row("c", { published: false }), row("d", { story: true }),
             row("e", { groupId: "g1" }), row("f", { groupId: "g1" }),
         ]);
-        expect((await call("GET /user/trunk", { sub: OWNER })).json.posts).toBe(2);
+        // 自分の口は今までどおり（下書き・ストーリーは数えない・絞った写真は数える＝iOS の古び方・節目と同じ）
+        expect((await call("GET /user/trunk", { sub: OWNER })).json.posts).toBe(3);
+        // 人の口は誰にでも見える公開の投稿だけ
         expect((await their()).json.posts).toBe(2);
     });
 });

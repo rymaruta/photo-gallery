@@ -62,46 +62,40 @@ function photoIdsOf(row) {
 }
 
 /**
- * 見積もり（純関数）。Scan は結果整合の読みで 4KB ごとに 0.5 読み取り単位、GetItem は1件 0.5 単位（4KB 以下）
- * として数える。値段は書かない（地域と課金の形で変わる・owner の課金画面が正）
+ * 見積もり（純関数）。Scan は結果整合の読みで 4KB ごとに 0.5 読み取り単位として数える（全表を1回）。
+ * 写真の GetItem（強い読み・4KB 以下で1件 1 単位）は、ラベルの枚数が分かってから数える（読むだけの回の出力）。
+ * 値段は書かない（地域と課金の形で変わる・owner の課金画面が正）
  */
-function estimate({ tableBytes, itemCount }, guess = { trunkRows: 0, labelsPerRow: 0 }) {
+function estimate({ tableBytes, itemCount }) {
     const scanUnits = Math.ceil(tableBytes / 4096) * 0.5;
-    const getUnits = guess.trunkRows * guess.labelsPerRow * 0.5;
-    // Scan は1ページ 1MB・1ページおよそ 0.2 秒、GetItem はおよそ 10ms（並べずに1本ずつ）として
-    const seconds = Math.ceil(tableBytes / (1024 * 1024)) * 0.2 + guess.trunkRows * guess.labelsPerRow * 0.01;
-    return { itemCount, tableBytes, scanUnits, getUnits, seconds: Math.ceil(seconds) };
+    // Scan は1ページ 1MB・1ページおよそ 0.2 秒として
+    const seconds = Math.ceil(Math.ceil(tableBytes / (1024 * 1024)) * 0.2);
+    return { itemCount, tableBytes, scanUnits, seconds };
 }
 
-async function main() {
-    const { requireEnv } = require("./lib/env");
-    const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
-    requireEnv("USERS_TABLE", "判定の関数（api-user/src/trunkPlace.ts）を読み込むのに要ります（読みも書きもしません）");
-    const APPLY = process.argv.includes("--apply");
-    const ESTIMATE = process.argv.includes("--estimate");
-
-    const { DynamoDBClient, DescribeTableCommand } = require("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient, ScanCommand, GetCommand, PutCommand } = require("@aws-sdk/lib-dynamodb");
-    const raw = new DynamoDBClient({ region: REGION });
-    const ddb = DynamoDBDocumentClient.from(raw, { marshallOptions: { removeUndefinedValues: true } });
+/**
+ * 本体。DynamoDB は `deps.send`（ドキュメントのクライアントの send）と `deps.describe`（表の大きさ）で受け取る
+ * （テストで作り物を渡せるように）。`argv` に `--apply` が無ければ**書かない**
+ */
+async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = console.log, logError = console.error }) {
+    const APPLY = argv.includes("--apply");
+    const ESTIMATE = argv.includes("--estimate");
+    const { ScanCommand, GetCommand, PutCommand } = cmds;
 
     // 0) 見積もり（表の大きさは DynamoDB がおよそ6時間ごとに更新する値）
-    const table = (await raw.send(new DescribeTableCommand({ TableName: PHOTOS_TABLE }))).Table ?? {};
+    const table = (await describe()) ?? {};
     const est = estimate({ tableBytes: Number(table.TableSizeBytes ?? 0), itemCount: Number(table.ItemCount ?? 0) });
-    console.log(`表 ${PHOTOS_TABLE}: 約 ${est.itemCount} 件・約 ${(est.tableBytes / 1024 / 1024).toFixed(1)}MB`);
-    console.log(`  Scan の読み取り単位の見積もり: 約 ${est.scanUnits}（全表を1回）＋ ラベル1枚につき GetItem 0.5`);
-    console.log(`  Scan だけの時間の見積もり: 約 ${est.seconds} 秒`);
-    if (ESTIMATE) return;
-
-    require("tsx/cjs/api").register();
-    const lib = require("../api-user/src/trunkPlace");
+    log(`表 ${PHOTOS_TABLE}: 約 ${est.itemCount} 件・約 ${(est.tableBytes / 1024 / 1024).toFixed(1)}MB`);
+    log(`  Scan の読み取り単位の見積もり: 約 ${est.scanUnits}（全表を1回）・時間: 約 ${est.seconds} 秒`);
+    log("  ＋ ラベルの写真1枚につき GetItem（強い読み）1 単位（枚数は読むだけの回で出ます）");
+    if (ESTIMATE) return { written: 0 };
     const started = Date.now();
 
     // 1) trunk# の行を全部（Scan の絞り込みは読んだあとに効く＝全表ぶんを読む）
     const rows = [];
     let lastKey, scanned = 0, consumed = 0;
     do {
-        const res = await ddb.send(new ScanCommand({
+        const res = await send(new ScanCommand({
             TableName: PHOTOS_TABLE,
             FilterExpression: "begins_with(id, :p)",
             ExpressionAttributeValues: { ":p": PREFIX },
@@ -117,10 +111,11 @@ async function main() {
     const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0 };
     const sample = [];
     const cache = new Map();
+    // 写真は**強い読み**（いま絞った・非公開にした写真を古い姿で読まない）
     const getPhoto = async (id) => {
         if (cache.has(id)) return cache.get(id);
         tally.gets++;
-        const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ReturnConsumedCapacity: "TOTAL" }));
+        const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true, ReturnConsumedCapacity: "TOTAL" }));
         consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
         cache.set(id, res.Item);
         return res.Item;
@@ -143,7 +138,7 @@ async function main() {
             if (!plan.write || !APPLY) break;
             const rev = typeof row.rev === "number" ? row.rev : 0;
             try {
-                await ddb.send(new PutCommand({
+                await send(new PutCommand({
                     TableName: PHOTOS_TABLE,
                     Item: { ...row, pocket: plan.pocket, stuck: plan.stuck, rev: rev + 1, updatedAt: new Date().toISOString() },
                     ConditionExpression: rev === 0 ? "attribute_not_exists(rev) OR rev = :rev" : "rev = :rev",
@@ -154,29 +149,49 @@ async function main() {
             } catch (e) {
                 if (e.name !== "ConditionalCheckFailedException" || attempt === WRITE_ATTEMPTS - 1) {
                     tally.failed++;
-                    console.error(`  ${row.id}: 書けませんでした（${e.name}: ${e.message}）`);
+                    logError(`  ${row.id}: 書けませんでした（${e.name}: ${e.message}）`);
                     break;
                 }
-                // アプリが先に書いた。読み直してやり直す（写真の判定はそのまま使う）
-                row = (await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: row.id }, ConsistentRead: true }))).Item;
+                // アプリが先に書いた（あいだに写真を絞った・非公開にしたのかもしれない）。行も写真も強い読みで読み直す
+                row = (await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: row.id }, ConsistentRead: true }))).Item;
                 if (!row) break;
+                for (const id of photoIdsOf(row)) cache.delete(id);
             }
         }
     }
 
     const secs = Math.round((Date.now() - started) / 1000);
-    console.log(`trunk# の行 ${tally.rows} 件（Scan で読んだ ${scanned} 件）・ラベル ${tally.labels} 枚`);
-    console.log(`  印が付く: ${tally.added} 枚・外れる: ${tally.removed} 枚・書き直す行: ${tally.toWrite} 件`);
-    console.log(`  写真の GetItem: ${tally.gets} 回・使った読み取り単位: 約 ${consumed.toFixed(1)}・かかった時間: ${secs} 秒`);
-    console.log(`  先頭の ${sample.length} 件: ${sample.join(", ") || "（なし）"}`);
+    log(`trunk# の行 ${tally.rows} 件（Scan で読んだ ${scanned} 件）・ラベル ${tally.labels} 枚`);
+    log(`  印が付く: ${tally.added} 枚・外れる: ${tally.removed} 枚・書き直す行: ${tally.toWrite} 件`);
+    log(`  写真の GetItem: ${tally.gets} 回・使った読み取り単位: 約 ${consumed.toFixed(1)}・かかった時間: ${secs} 秒`);
+    log(`  先頭の ${sample.length} 件: ${sample.join(", ") || "（なし）"}`);
     if (!APPLY) {
-        console.log("  （読むだけ）--apply を付けて流すと書きます。");
-        return;
+        log("  （読むだけ）--apply を付けて流すと書きます。");
+        return tally;
     }
-    console.log(`書いた: ${tally.written} 件・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
+    log(`書いた: ${tally.written} 件・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
+    return tally;
 }
 
-module.exports = { planRow, photoIdsOf, estimate, main };
+async function main() {
+    const { requireEnv } = require("./lib/env");
+    const PHOTOS_TABLE = requireEnv("PHOTOS_TABLE");
+    requireEnv("USERS_TABLE", "判定の関数（api-user/src/trunkPlace.ts）を読み込むのに要ります（読みも書きもしません）");
+    const { DynamoDBClient, DescribeTableCommand } = require("@aws-sdk/client-dynamodb");
+    const ddbLib = require("@aws-sdk/lib-dynamodb");
+    const raw = new DynamoDBClient({ region: REGION });
+    const ddb = ddbLib.DynamoDBDocumentClient.from(raw, { marshallOptions: { removeUndefinedValues: true } });
+    require("tsx/cjs/api").register();
+    const lib = require("../api-user/src/trunkPlace");
+    await run({
+        send: (cmd) => ddb.send(cmd),
+        describe: async () => (await raw.send(new DescribeTableCommand({ TableName: PHOTOS_TABLE }))).Table,
+        lib, argv: process.argv, PHOTOS_TABLE,
+        cmds: { ScanCommand: ddbLib.ScanCommand, GetCommand: ddbLib.GetCommand, PutCommand: ddbLib.PutCommand },
+    });
+}
+
+module.exports = { planRow, photoIdsOf, estimate, run, main };
 
 if (require.main === module) {
     main().catch((e) => {
