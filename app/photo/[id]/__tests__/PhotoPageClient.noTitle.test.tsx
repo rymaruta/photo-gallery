@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 
 /**
@@ -29,6 +29,9 @@ vi.mock("../../../components/MusicCard", () => ({ default: () => null }));
 vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: false, count: 0, pending: false, toggle: vi.fn() }),
 }));
+
+const share = vi.hoisted(() => ({ shareUrl: vi.fn(async () => "shared" as const), shareToTwitter: vi.fn(), shareToLine: vi.fn(), copyToClipboard: vi.fn(async () => true) }));
+vi.mock("../../../../lib/utils/share", () => share);
 
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
 
@@ -87,4 +90,48 @@ describe("写真ページ: 題が無い写真の見出し", () => {
         expect(h1.textContent).toBe("朝の湖");
         expect(h1.className).not.toContain("sr-only");
     });
+});
+
+/** ページに焼く JSON-LD（ImageObject とパンくず） */
+function jsonLd(container: HTMLElement): Record<string, unknown>[] {
+    return Array.from(container.querySelectorAll('script[type="application/ld+json"]'))
+        .map((el) => JSON.parse(el.textContent || "{}") as Record<string, unknown>);
+}
+function crumbName(container: HTMLElement): unknown {
+    const b = jsonLd(container).find((d) => d["@type"] === "BreadcrumbList") as { itemListElement: { name: string }[] } | undefined;
+    return b?.itemListElement[1]?.name;
+}
+function imageName(container: HTMLElement): unknown {
+    return jsonLd(container).find((d) => d["@type"] === "ImageObject")?.name;
+}
+async function sharedText(): Promise<unknown> {
+    share.shareUrl.mockClear();
+    fireEvent.click(screen.getAllByRole("button", { name: "共有" })[0]);
+    await waitFor(() => expect(share.shareUrl).toHaveBeenCalled());
+    return (share.shareUrl.mock.calls[0] as unknown[])[1];
+}
+
+// 見出しだけ直して、パンくず・構造化データ・共有の文言は「無題」/「写真」のままだった（2026-10-18）。
+// 4か所とも見出しと同じ「<撮影地>の写真」に揃える
+describe("写真ページ: 題が無い写真のパンくず・構造化データ・共有", () => {
+    const { location: _omit, ...NO_PLACE } = NO_TITLE as unknown as Record<string, unknown>;
+    void _omit;
+    const cases: [string, Record<string, unknown>, string][] = [
+        ["欄が無い・撮影地あり", { ...NO_TITLE }, "板橋区, 日本の写真"],
+        ["空白だけ・撮影地あり", { ...NO_TITLE, title: { ja: "  " } }, "板橋区, 日本の写真"],
+        ["{ ja: 無題, en: Untitled }・撮影地あり", { ...NO_TITLE, title: { ja: "無題", en: "Untitled" } }, "板橋区, 日本の写真"],
+        ["欄が無い・撮影地なし", { ...NO_PLACE }, "写真"],
+        ["{ ja: 無題 }・撮影地なし", { ...NO_PLACE, title: { ja: "無題" } }, "写真"],
+        ["題あり", { ...NO_TITLE, title: { ja: "朝の湖" } }, "朝の湖"],
+    ];
+    for (const [name, photo, want] of cases) {
+        it(`${name} → ${want}`, async () => {
+            const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={photo as unknown as Photo} />);
+            await screen.findAllByRole("heading", { level: 1 });
+            expect(crumbName(container), "パンくず").toBe(want);
+            expect(imageName(container), "ImageObject.name").toBe(want);
+            expect(await sharedText(), "共有の文言").toBe(want);
+            expect(container.innerHTML).not.toMatch(/無題|Untitled/);
+        });
+    }
 });
