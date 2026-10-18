@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import type { MapPhoto } from "../components/PhotoMap";
-import { getLocalized } from "../../lib/data/photos";
+import { photoOwnTitle } from "../../lib/utils/photoTitle";
 import { publicImageUrl } from "../../lib/utils/seo";
 import { formatStoredDateTime } from "../../lib/utils/photoDate";
 import { ROUTES } from "../../lib/routes";
@@ -50,7 +50,8 @@ export default function MapPhotoList({ photos, locale, emptyHint }: {
             data-testid="map-list"
         >
             {photos.map((p) => {
-                const title = getLocalized(p.title, locale);
+                // 旧い「無題」は題として扱わない（空なら下の「写真」に落ちる）
+                const title = photoOwnTitle(p, (locale === "en" ? "en" : "ja"));
                 const location = (p.location ?? "").trim();
                 const date = formatStoredDateTime(p.date, locale)
                     ?? formatStoredDateTime(p.exif?.dateTimeOriginal, locale)

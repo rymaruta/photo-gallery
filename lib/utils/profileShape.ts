@@ -80,6 +80,9 @@ export function sanitizeProfile<T extends object>(raw: unknown, label: string): 
                 displayBadge: display,
                 pro: obj.pro === true,
                 proMarkStyle: obj.proMarkStyle === "plate" ? "plate" : "iris",
+                // 特別な乗車券の券面を見せてよいか（公開プロフィールだけに載る・`api-user/src/userProfile.ts`
+                // の `toPublicProfile`）。`pro`（名前の横の印）とは別。Web は今は使わない
+                passFace: obj.passFace === true,
             };
         })(),
     } as T;

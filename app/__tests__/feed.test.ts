@@ -248,3 +248,27 @@ describe("抜粋は1行", () => {
         expect(e.length).toBe(140);
     });
 });
+
+// 題が無い写真の項目の題（2026-10-18）。写真ページの `<title>` と同じく撮影地から組む
+describe("題が無い写真の項目の題", () => {
+    const titleOfItem = (p: Photo) => parse(buildFeed([p])).querySelector("item > title")?.textContent;
+    const cases: [string, Partial<Photo>][] = [
+        ["欄が無い", { title: undefined }],
+        ["空白だけ", { title: "  " } as Partial<Photo>],
+        ["{ ja: 無題, en: Untitled }", { title: { ja: "無題", en: "Untitled" } } as Partial<Photo>],
+    ];
+    for (const [name, over] of cases) {
+        it(`${name} ＋ 撮影地あり → 「<撮影地>の写真」`, () => {
+            expect(titleOfItem(photo({ ...over, location: "板橋区" } as Partial<Photo>))).toBe("板橋区の写真");
+        });
+        it(`${name} ＋ 撮影地なし → 「写真」`, () => {
+            expect(titleOfItem(photo(over))).toBe("写真");
+        });
+    }
+    it("題があればその題（撮影地は足さない）", () => {
+        expect(titleOfItem(photo({ title: "湖", location: "板橋区" } as Partial<Photo>))).toBe("湖");
+    });
+    it("フィードのどこにも「無題」「Untitled」が出ない", () => {
+        expect(buildFeed(cases.map(([, o], i) => photo({ ...o, id: `p${i}` })))).not.toMatch(/無題|Untitled/);
+    });
+});

@@ -6,7 +6,7 @@ import { safeSongPreviewUrl, safeSongArtworkUrl, safeSongTrackUrl, SONG_URL_MAX 
 import { requireEnv } from "./env";
 import { isDeletedProfile } from "./types";
 import { truncate, isRestrictedRow } from "./sanitize";
-import { badgeFields, isBadgeKey, isProMarkStyle, ownsBadge } from "./badgeKeys";
+import { badgeFields, isBadgeKey, isPro, isProMarkStyle, ownsBadge } from "./badgeKeys";
 import type { BadgeKey, BadgeMap, ProMarkStyle } from "./badgeKeys";
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
@@ -226,6 +226,12 @@ export type UserProfile = {
     supporter?: unknown;
     /** 応答だけに載る（行には保存しない）。Pro が今有効か（`badgeKeys.ts` の `isPro`） */
     pro?: boolean;
+    /**
+     * 応答だけに載る（行には保存しない）。**特別な乗車券の券面を見せてよいか**（2026-10-17 owner）。
+     * 公開プロフィールだけに載せる（`toPublicProfile`）。値は `pro` と同じ `isPro`（期限も同じ扱い）だが、
+     * **名前の横の印を外しても変わらない**——印の有無（`pro`）とは別の項目。詳しくは `toPublicProfile` の注記
+     */
+    passFace?: boolean;
     /**
      * 光と天気の知らせ（Pro・`lightForecast.ts`）を受け取るか。**既定は受け取る。**
      * 行には「受け取らない」（`false`）のときだけ置く（無い＝受け取る）。
@@ -988,7 +994,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             const guard = rev === 0
                 ? "attribute_not_exists(userId) OR attribute_not_exists(rev) OR rev = :rev"
                 : "rev = :rev";
-            profile = { ...mergeProfile(base, userId, changes), rev: rev + 1 } as typeof profile;
+            profile = {
+                ...mergeProfile(base, userId, changes),
+                // **行が無い人の行を作るときは、作った時刻を書く**（`createProfileIfMissing` と同じ）。
+                // 書かないと「createdAt の無い行＝2026-08-19 より前の古い利用者」と読まれ、
+                // 登録のトリガーが落ちた新しい人が先にこの口を打つと、はじめての硬貨（`trunk.ts` の
+                // `welcomeVerdictOf`）の対象に入ってしまう。既にある行の createdAt は変えない（無ければ無いまま）
+                ...(base ? {} : { createdAt: new Date().toISOString() }),
+                rev: rev + 1,
+            } as typeof profile;
             try {
                 await ddb.send(new PutItemCommand({
                     TableName: USERS_TABLE,
@@ -1152,8 +1166,19 @@ function withBadgeFields<T extends object>(p: T): T & ReturnType<typeof badgeFie
  * 2026-10-10 判断: 外した値（"none"・`verifiedMarkOff`）をそのまま渡して画面に任せる形にしない。
  * **古いアプリ・Web は "none" を絞り羽根として読み**、`verifiedMarkOff` を知らないので、
  * 他の人の画面に外したはずの印が出る。資格の項目そのものを落とせば、どの版でも出ない。
- * 他人の `pro` を印のほか（機能の判定）に使っているクライアントは無い（iOS・Web とも、
- * 機能の判定は自分のプロフィールの応答で見る）。`verifiedMarkOff` 自体も公開しない。
+ * `pro` は**名前の横の印を出すか**の意味に限る。`verifiedMarkOff` 自体も公開しない。
+ *
+ * **`passFace`（2026-10-17 owner）**: 特別な乗車券の券面を見せてよいか。iOS のすれちがいで、
+ * 受け取った側が送り主の公開プロフィールでこれを見て、偽なら ふつうの券面で見せる。
+ * 値は `isPro`（`pro` と同じ出どころ・期限の扱い）で、**印を外しても変わらない**（下の
+ * `withoutRemovedMarks` は `pro` だけを落とし、これには触らない）。Pro をやめれば（期限切れも）偽。
+ * 他人の機能の判定に使ってよいのはこの項目だけで、`pro` を券面の判定に使わないこと
+ * （印を外した Pro の人の券面が届かなくなる。それが今回この項目を足した理由）。
+ *
+ * 公開して困らないか（2026-10-17 判断）: これで**印を外した人でも「いま Pro か」が他人に分かる**
+ * （印を外すことは「Pro であることを隠す」ことにはならない）。owner の判断で、名前を券面の許可に
+ * 限り、値は真偽だけにする（番号・期限・商品・`supporter` の中身は増やさない）。
+ * なお `supporter`（番号・申し込んだ日・月数）は前から印と関係なく公開している。
  *
  * `owner: true` は**本人に返すとき**（`purchases.ts` の購入の応答）。資格をそのまま返す
  * （外していても Pro は Pro。買った直後に「Pro でない」と返さない）
@@ -1174,7 +1199,9 @@ export function toPublicProfile(p: UserProfile, opts: { owner?: boolean } = {}):
         tripTitles, tripCovers, tripSongs, statusText, homeLocation, verified,
         // メダルと Pro（`badgeKeys.ts` の形）。`supporter` は公開してよい3項目だけ
         ...badgeFields(p),
-        // 本人が外した印（上の注記）
+        // 特別な乗車券の券面を見せてよいか（上の注記）。印を外しても変わらない
+        passFace: isPro(p),
+        // 本人が外した印（上の注記）。`passFace` には触らない
         ...(opts.owner ? {} : withoutRemovedMarks(p)),
     });
 }

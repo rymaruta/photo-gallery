@@ -9,6 +9,18 @@ provider:
   name: aws
   runtime: nodejs22.x
   region: ap-northeast-1
+  # **ログの保存期間は 90 日**（2026-10-18・owner の委任）。指定が無いと CloudWatch Logs は
+  # **無期限**に残す。ログには利用者 ID（Cognito の sub）が入るので、期限なしで溜めない。
+  # 効くのは **serverless が作る分は全部**（関数ごとのロググループ。HTTP API のアクセスログを
+  # 有効にした場合もこの値）。serverless は関数ごとのロググループを前から CloudFormation の
+  # 部品として作っているので、既存の部品に `RetentionInDays` を足すだけ（部品の数は増えない＝
+  # 上限 500 に響かない）。
+  # ⚠️ **Lambda@Edge（OGP の書き換え）のログは対象外。** CloudFormation の外で作られた関数で、
+  # ログは各地域の `/aws/lambda/us-east-1.<関数名>` に**無期限のまま**残る。
+  # その期限は owner が別に付ける必要がある（ここからは付けられない）。
+  # 費用は下がる方向だけ: 保存（GB・月）が 90 日で頭打ちになる。取り込み・期限切れの削除は
+  # 今と同じ／無料。api と api-user で同じ値にそろえる（`scripts/__tests__/logRetention.test.ts`）
+  logRetentionInDays: 90
   # **関数の版（AWS::Lambda::Version）を作らない**（2026-10-09）。関数が 82 あり、版の部品だけで
   # 82 個になって、CloudFormation の上限 500 を超えて本番・staging の反映が止まった（502 個）。
   # 別名（alias）・前もって温める設定（provisioned concurrency）は使っておらず、版を参照している所も無い
@@ -115,6 +127,11 @@ provider:
             - dynamodb:DeleteItem
             # ユーザー検索（表示名の部分一致）。ユーザー数が増えたら GSI に置き換える
             - dynamodb:Scan
+            # 退会者の伏せ字（`notify.ts` の `deletedAmong`）。一覧に出る ID だけを
+            # 100 件ずつ引く。無いと**全員が読めない**扱いになり、名前を写して持つ4つ
+            # （コメント・通知・ストーリーの返信・閲覧者）は全員を伏せ、フォロー・
+            # フォロワー・ブロックの一覧は全員を生きている扱いにする（名前は引き直すので漏れない）
+            - dynamodb:BatchGetItem
           Resource:
             - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
 
@@ -840,7 +857,7 @@ functions:
             name: cognitoAuthorizer
 
   # 旅のトランク（`src/trunk.ts`・iOS の新機能・2026-10-17 owner 承認）。
-  # 1行 `trunk#<uid>`（photos テーブル）。**口は13でも関数は1つ**——CloudFormation の
+  # 1行 `trunk#<uid>`（photos テーブル）。**口は14でも関数は1つ**——CloudFormation の
   # 部品の数が上限 500 に近いので、関数ごとの部品（関数・版・ロググループ・統合・許可）を増やさない。
   # 道筋は `event.routeKey` で分ける。reservedConcurrency は付けない（アカウントの同時実行が 10）
   trunk:
@@ -907,6 +924,13 @@ functions:
       - httpApi:
           path: /user/trunk/equip
           method: PUT
+          authorizer:
+            name: cognitoAuthorizer
+      # はじめての硬貨（2026-10-18 owner 承認）: 硬貨より前から居る人に一度だけ10枚。アプリを開いたときに呼ぶ。
+      # 足すのは道筋（Route）1つだけ——関数・ロール・テーブル・GSI は増やさない
+      - httpApi:
+          path: /user/trunk/welcome
+          method: POST
           authorizer:
             name: cognitoAuthorizer
       # 人のトランク（2026-10-18 owner「他の人のトランクの中身とか見れたら楽しい」）。**ログインした人だけ**
@@ -1347,7 +1371,7 @@ functions:
 #   getPublicProfile  photos: GetItem / users: GetItem
 #   searchUsers                 users: GetItem, Scan
 #   getLikeCount      photos: GetItem
-#   getComments       photos: GetItem / users: Scan（deletedUserIds）
+#   getComments       photos: GetItem / users: BatchGetItem（deletedAmong）
 #   getFollowStats    photos: GetItem
 #
 # Query は1つも使っていない（全部 主キーの GetItem）。索引も引かないので
@@ -1555,8 +1579,10 @@ resources:
                 - Effect: Allow
                   Action:
                     - dynamodb:GetItem
-                    # 表示名の部分一致（searchUsers）と退会者の伏せ字（getComments）。
-                    # どちらも GSI が無いので全表 Scan になっている
+                    # 表示名の部分一致（searchUsers）。GSI が無いので全表 Scan
                     - dynamodb:Scan
+                    # 退会者の伏せ字（getComments → `notify.ts` の `deletedAmong`）。
+                    # 一覧に出る ID だけを引く（以前は全表 Scan で、行 5000 で打ち切っていた）
+                    - dynamodb:BatchGetItem
                   Resource:
                     - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}

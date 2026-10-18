@@ -844,6 +844,19 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await expectShown();
     });
 
+    it("【仕上げ4】印の無い配り済み＋絞った写真の再送では兄弟を読まない（残す印が無い）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto", g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }));
+        fakeSend.mockClear();
+        await T.grantLabelQuietly(OWNER, row("ph1", { groupId: "grp", audience: "followers", createdAt: NEW }) as never, "test", { requireNew: true });
+        expect(photoGets(["ph9"])).toHaveLength(0);
+        await expectHidden();
+    });
+
     it("【仕上げ2】25枚を超える束は、枠が満タンの回だけ読む（満タンでなければ次の GET に回す）", async () => {
         setProfile(OWNER, {});
         const g = T.groupKey("big");

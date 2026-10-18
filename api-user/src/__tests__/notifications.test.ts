@@ -133,15 +133,17 @@ describe("退会した人の名前は出さない", () => {
     const ALIVE = "33333333-3333-4333-8333-333333333333";
 
     /**
-     * notifs の Get → 退会者の Scan、の順に返す。
-     * **退会者の一覧は60秒キャッシュされる**ので毎回落とす
-     * （落とさないと、前のテストが入れた空集合を読んで伏せられない）
+     * notifs の Get → 退会者の BatchGet（通知に出る `byId` だけ）、の順に返す。
+     * **退会者の判定は60秒キャッシュされる**ので毎回落とす
+     * （落とさないと、前のテストが入れた判定を読んで伏せられない）
      */
     const world = (items: unknown[], deleted: string[]) => {
         resetDeletedUsersCache();
-        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string } }) => {
-            if (cmd.constructor.name === "ScanCommand") {
-                return Promise.resolve({ Items: deleted.map((userId) => ({ userId })) });
+        mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "BatchGetCommand") {
+                const req = (cmd.input.RequestItems as Record<string, { Keys: { userId: string }[] }>)["users-test"];
+                return Promise.resolve({ Responses: { "users-test": req.Keys.map(({ userId }) =>
+                    (deleted.includes(userId) ? { userId, deletedAt: "2026-09-01T00:00:00.000Z" } : { userId })) } });
             }
             return Promise.resolve({ Item: { id: "notifs#x", items, unread: items.length } });
         });
@@ -162,12 +164,43 @@ describe("退会した人の名前は出さない", () => {
         expect(body.items[0].deleted).toBeUndefined();
     });
 
-    it("通知が無ければ退会者を引きに行かない（無駄な走査をしない）", async () => {
+    it("通知が無ければ退会者を引きに行かない（無駄な読み取りをしない）", async () => {
         world([], []);
         await invoke(getNotifications, ev());
-        const scans = mockDdbSend.mock.calls.map((c) => c[0])
-            .filter((cmd) => (cmd as { constructor: { name: string } })?.constructor?.name === "ScanCommand");
-        expect(scans, "通知が無いのに退会者を走査している").toHaveLength(0);
+        const reads = mockDdbSend.mock.calls.map((c) => c[0])
+            .filter((cmd) => ["ScanCommand", "BatchGetCommand"].includes((cmd as { constructor: { name: string } })?.constructor?.name));
+        expect(reads, "通知が無いのに退会者を引いている").toHaveLength(0);
+    });
+
+    // **引くのは通知に出てくる人だけ**（テーブル全体を走査しない）。重複は1回、
+    // `byId` を持たない通知（メダル）は引かない
+    it("退会者は通知の byId だけを引く（重複は落とす・表は走査しない）", async () => {
+        world([{ ...notif(0), byId: GONE }, { ...notif(1), byId: GONE }, { ...notif(2), byId: ALIVE },
+            { ...notif(3), type: "badge", byId: undefined }], [GONE]);
+        await invoke(getNotifications, ev());
+        const cmds = mockDdbSend.mock.calls.map((c) => c[0] as { constructor: { name: string }; input: Record<string, unknown> });
+        expect(cmds.filter((c) => c.constructor.name === "ScanCommand"), "表を走査している").toHaveLength(0);
+        const batch = cmds.filter((c) => c.constructor.name === "BatchGetCommand");
+        expect(batch).toHaveLength(1);
+        const keys = (batch[0].input.RequestItems as Record<string, { Keys: { userId: string }[] }>)["users-test"].Keys;
+        expect(keys.map((k) => k.userId).sort()).toEqual([GONE, ALIVE].sort());
+    });
+
+    // 🔴 通知は作られた時点の名前（`byName`）を写して持つので、**判定が読めなかった人も伏せる**
+    // （ここは本物の `deletedAmong` を通す）
+    it("退会の判定が読めなかったら伏せる（実名を漏らさない側）", async () => {
+        world([{ ...notif(0), byId: ALIVE, byName: "旅人" }], []);
+        const base = mockDdbSend.getMockImplementation()!;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) =>
+            (cmd.constructor.name === "BatchGetCommand" ? Promise.reject(new Error("throttled")) : base(cmd)));
+        const err = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const body = JSON.parse((await invoke(getNotifications, ev())).body) as { items: Array<Record<string, unknown>> };
+            expect(body.items[0].byName).toBe("退会したユーザー");
+            expect(body.items[0].deleted).toBe(true);
+        } finally {
+            err.mockRestore();
+        }
     });
 
     it("未読数は変わらない（伏せても件数は同じ）", async () => {
@@ -191,13 +224,13 @@ describe("ブロックした相手の通知は出さない", () => {
     const OTHER = "66666666-6666-4666-8666-666666666666";
 
     /**
-     * notifs の Get → ブロックの2行（`blocks#` / `blockedby#`）→ 退会者の Scan。
+     * notifs の Get → ブロックの2行（`blocks#` / `blockedby#`）→ 退会者の BatchGet。
      * `mine` は自分がブロックした人、`theirs` は自分をブロックした人。
      */
     const world = (items: unknown[], mine: string[], theirs: string[], unread = items.length) => {
         resetDeletedUsersCache();
         mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
-            if (cmd.constructor.name === "ScanCommand") return Promise.resolve({ Items: [] });
+            if (cmd.constructor.name === "BatchGetCommand") return Promise.resolve({ Responses: { "users-test": [] } });
             const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
             if (key === `blocks#${ME}`) return Promise.resolve({ Item: { id: key, blockedIds: mine } });
             if (key === `blockedby#${ME}`) return Promise.resolve({ Item: { id: key, blockerIds: theirs } });
@@ -270,7 +303,7 @@ describe("ブロックした相手の通知は出さない", () => {
     it("ブロック一覧を読めなくても、通知は返す", async () => {
         resetDeletedUsersCache();
         mockDdbSend.mockReset().mockImplementation((cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
-            if (cmd.constructor.name === "ScanCommand") return Promise.resolve({ Items: [] });
+            if (cmd.constructor.name === "BatchGetCommand") return Promise.resolve({ Responses: { "users-test": [] } });
             const key = (cmd.input.Key as { id?: string } | undefined)?.id ?? "";
             if (key.startsWith("blocks#") || key.startsWith("blockedby#")) return Promise.reject(new Error("throttled"));
             return Promise.resolve({ Item: { id: `notifs#${ME}`, items: [{ ...notif(0), byId: OTHER }], unread: 1 } });
