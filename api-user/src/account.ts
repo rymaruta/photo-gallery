@@ -67,6 +67,22 @@ const USERS_TABLE = requireEnv("USERS_TABLE");
  *     墓石が消えると「行が無い＝退会していない」と読み、掃除が転んで残った一覧の題
  *     （本人の書いた文字列）を返し始める
  *   → 先に「写した名前をコメント等から消す役」を作り、そのあとで TTL を有効にする。
+ *     **掃除役は `scripts/scrub-deleted-names.js`**（札 #295。写しの一覧と TTL を
+ *     有効にする手順は `docs/tombstone-ttl.md`）。
+ *
+ * **2026-10-18 判断（札 #295）: 退会の処理では写しを書き換えない。読むときに伏せる今の作りは
+ * 残し、墓石が消える前に台本で写しそのものを伏せる。**
+ *   - 退会の時に書き換えるには「その人の写しがどこにあるか」が要るが、コメント・通知・
+ *     返信・閲覧者のどれにも人ごとの索引が無い（上の「v1 スコープ外」と同じ理由）。
+ *     ここで表を全部走査すると、このハンドラが避けている「実行時間を使い切って返らない」
+ *     に落ちる。新しい GSI は承認制で、写しのためだけに作る理由は薄い
+ *   - 読むときの伏せ（`deletedAmong`）は墓石が在る間は正しく、退会した直後
+ *     （台本がまだ流れていない間）も効く。だから外さない。足りないのは
+ *     「墓石が消えたあと」だけで、そこを台本が埋める——写しの名前を
+ *     `退会したユーザー` に書き換え、`deleted: true` を写しに刻む（読む口はこの印を
+ *     そのまま返すので、墓石が無くても画面はプロフィールへの導線を出さない）
+ *   - 台本は**墓石の寿命（`TOMBSTONE_RETENTION_DAYS`）より短い間隔で**流し続けること。
+ *     TTL を有効にしたあとも、新しく退会した人の写しはこの台本でしか伏せられない
  *
  * 🔴 **有効にすると、既にある墓石にも効く**（`ttl` を前から書いているので）。
  * 「これから退会する人だけ」にはならない。有効にする日は owner が決める
@@ -564,13 +580,15 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // ttl は DynamoDB の TTL 用（epoch 秒・`tombstoneTtl`）。**このテーブルの
         // TTL はまだ有効化していない**ので、今のところ墓石は消えない。
         //
-        // **TTL を有効にする前に、写した名前の掃除役を入れること**
-        // （理由と壊れる所は `TOMBSTONE_RETENTION_DAYS` の説明）。
+        // **TTL を有効にする前に、写した名前の掃除役を流すこと**
+        // （`scripts/scrub-deleted-names.js`。理由と壊れる所は `TOMBSTONE_RETENTION_DAYS` の説明、
+        // 手順は `docs/tombstone-ttl.md`）。
         // comments.ts の getComments などは、表示のたびにこの墓石を引いて
         // 退会した人の名前を伏せている（notify.ts の deletedAmong）。
         // 墓石が消えると「行が無い＝生きている人」と読まれ、**期限の日に退会した人の
         // 実名が古いコメント上で公開に戻る**。伏せも警告も出ない。
-        // 掃除役を作ったあとで、TTL を1回だけ有効にする（owner が決める）:
+        // 掃除役を流したあとで、TTL を1回だけ有効にする（owner が決める。手順は
+        // `docs/tombstone-ttl.md`）:
         //   aws dynamodb update-time-to-live \
         //     --table-name prod-photo-gallery-users \
         //     --time-to-live-specification "Enabled=true,AttributeName=ttl"

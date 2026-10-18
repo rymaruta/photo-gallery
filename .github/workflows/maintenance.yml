@@ -27,6 +27,8 @@ on:
           - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
           - backfill-likes # 既にあるいいねから likes#<uid> を作る
           - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
+          - scrub-deleted-names # 退会した人の名前の写し（コメント・通知・返信・閲覧者）を伏せる（既定は読むだけ・apply で書く。札 #295）
+          - scrub-deleted-names-staging # 同じことを **staging** に（既定は読むだけ・apply で書く）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
@@ -254,6 +256,26 @@ jobs:
         if: inputs.task == 'repair-follow-graph'
         run: node scripts/repair-follow-graph.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
+
+      # 退会した人の名前の写しを伏せる（scripts/scrub-deleted-names.js・札 #295）。
+      # 墓石（users の deletedAt の行）が TTL で消える前に、他人の行に写した名前を
+      # 「退会したユーザー」に書き換え、印（deleted: true）を刻む。
+      # **既定は読むだけ**（件数と読み書きの量を出す）。apply は退会者の写しの
+      # 要素だけを1つずつ書く（生きている人の要素・行には書かない）。
+      # 本番で apply するのは owner の許可のあと。手順は docs/tombstone-ttl.md
+      - name: 退会した人の名前の写しを伏せる
+        if: inputs.task == 'scrub-deleted-names'
+        run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20
+
+      - name: 退会した人の名前の写しを伏せる（staging）
+        if: inputs.task == 'scrub-deleted-names-staging'
+        run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20
+        env:
+          # **staging を明示する。** 上の env は本番向けなので、上書きしないと本番の表を読み書きする
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          USERS_TABLE: staging-photo-gallery-users
 
       # 読み取り専用。apply の指定は不要
       - name: 写真表示の速さを測る

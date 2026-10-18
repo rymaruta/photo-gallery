@@ -177,6 +177,16 @@ describe("運用タスクの配線", () => {
         expect(bad, bad.join(" / ")).toEqual([]);
     });
 
+    // 札 #295: 名前の写しを伏せる台本の staging 用の口。本番の env に落ちると
+    // 「staging で試したつもりで本番を書く」になる
+    it("scrub-deleted-names-staging は staging の表だけを受け取る", () => {
+        const env = stepEnvValues("scrub-deleted-names-staging");
+        for (const key of ["PHOTOS_TABLE", "USERS_TABLE"]) {
+            expect(env.get(key), `${key} の上書きが無い／staging- でない`).toMatch(/^staging-/);
+        }
+        expect(scriptFor("scrub-deleted-names-staging")).toBe("scripts/scrub-deleted-names.js");
+    });
+
     // 台帳の保留がこの口から実行される。名前が変わったら気づけるようにする
     it("owner の保留に使うタスクが揃っている", () => {
         const opt = new Set(options());
