@@ -17,7 +17,7 @@ const lib = { ...badges, ...badgeKeys, isRestrictedRow };
 
 const OLD = "2026-10-01T00:00:00.000Z";
 let n = 0;
-const photo = (over: Record<string, unknown> = {}) => ({ id: `p${++n}`, src: `photos/u1/p${n}.jpg`, ...over });
+const photo = (over: Record<string, unknown> = {}): Record<string, unknown> => ({ id: `p${++n}`, src: `photos/u1/p${n}.jpg`, ...over });
 /** 都道府県の段を上げるのに十分な県（`prefectureOfText` が読める名前） */
 const PREFS = ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県"];
 
