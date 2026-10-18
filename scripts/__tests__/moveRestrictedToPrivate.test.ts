@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { planBackfill, rewriteUpdate, isRestrictedRow, skipKeptAlive, applyEntries, type ApplyDeps } from "../move-restricted-to-private";
+import { planBackfill, rewriteUpdate, isRestrictedRow, skipKeptAlive, applyEntries, runBackfill, type ApplyDeps } from "../move-restricted-to-private";
 import { PRIVATE_PREFIX } from "../../api-user/src/privateMove";
 
 /**
@@ -111,7 +111,7 @@ describe("移す順と、元が残ったときの数え方", () => {
         const r = await applyEntries(planBackfill([row()]).entries, deps({}, log));
         expect(log.slice(0, 3)).toEqual(["copy", "update", "drop"]);
         expect(log.slice(3).every((x) => x === "head")).toBe(true);
-        expect(r).toEqual({ moved: 1, failed: 0, leftovers: [] });
+        expect(r).toEqual({ moved: 1, failed: 0, leftovers: [], failedIds: [] });
     });
 
     it("コピーに失敗したら行も元も触らない", async () => {
@@ -135,6 +135,7 @@ describe("移す順と、元が残ったときの数え方", () => {
         expect(r.moved).toBe(0);
         expect(r.failed).toBe(1);
         expect(r.leftovers).toEqual(["uploads/u1/p1.jpg"]);
+        expect(r.failedIds, "失敗した行の id を出さないと、やり直しで拾えない行を探せない").toEqual(["p1"]);
     });
 
     it("在るか確かめられなければ「残っている」側に倒す", async () => {
@@ -150,12 +151,62 @@ describe("既定と終了コード", () => {
 
     it("既定は下見（--apply が無ければ書かない）・適用には無効化先が要る", () => {
         expect(src).toContain('process.argv.includes("--apply")');
-        expect(src).toMatch(/if \(!apply\) \{[\s\S]*?return;/);
+        expect(src).toMatch(/apply: process\.argv\.includes\("--apply"\)|const apply = process\.argv\.includes\("--apply"\)/);
         expect(src).toMatch(/apply && !process\.env\.CLOUDFRONT_DISTRIBUTION_ID/);
     });
 
     it("失敗（元が残ったものを含む）があれば終了コードを非0にする", () => {
-        expect(src).toMatch(/const \{ moved, failed, leftovers \} = await applyEntries\(/);
+        expect(src).toMatch(/const \{ failed \} = await runBackfill\(/);
         expect(src).toContain("if (failed > 0) process.exitCode = 1;");
+    });
+});
+
+/** main の配線（計画 → 残した写真の除外 → 移す）。AWS の代わりに差し替えた部品で流す */
+describe("runBackfill（main の配線）", () => {
+    const items = () => [
+        row({ id: "alive", keptFrom: "s-alive" }),
+        row({ id: "plain" }),
+    ];
+    const recordingDeps = (copied: string[]): ApplyDeps => ({
+        copyAll: async (_m, tag) => { copied.push(tag); return true; },
+        update: async () => {},
+        dropUnused: async () => {},
+        exists: async () => false,
+    });
+
+    it("🔴 元のストーリーが生きている写真は、移す側に渡さない", async () => {
+        const copied: string[] = [];
+        const r = await runBackfill({
+            items: items(), apply: true, log: () => {},
+            storyAlive: async (id) => id === "s-alive",
+            makeDeps: async () => recordingDeps(copied),
+        });
+        expect(copied).toEqual(["move-restricted(plain)"]);
+        expect(r.kept.keptAlive).toBe(1);
+        expect(r.moved).toBe(1);
+    });
+
+    it("下見では移す部品を作りもしない（AWS の部品を読み込まない）", async () => {
+        let made = false;
+        const lines: string[] = [];
+        const r = await runBackfill({
+            items: items(), apply: false, log: (l) => lines.push(l),
+            storyAlive: async () => false,
+            makeDeps: async () => { made = true; return recordingDeps([]); },
+        });
+        expect(made).toBe(false);
+        expect(r.moved).toBe(0);
+        expect(lines.join("\n")).toContain("uploads/ に実体が残っている行: 2 件");
+    });
+
+    it("失敗した行の id を出す（元が残った行はやり直しで拾わない）", async () => {
+        const lines: string[] = [];
+        const r = await runBackfill({
+            items: [row({ id: "stuck" })], apply: true, log: (l) => lines.push(l),
+            storyAlive: async () => false,
+            makeDeps: async () => ({ ...recordingDeps([]), exists: async () => true }),
+        });
+        expect(r.failed).toBe(1);
+        expect(lines.join("\n")).toContain("stuck");
     });
 });
