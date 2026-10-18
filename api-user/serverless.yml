@@ -43,6 +43,12 @@ provider:
     # Sandbox（TestFlight・審査）のサポーター番号を公開せず、メダルにしない（`supporter.ts` の
     # `isPrivateSandbox`）。購入の2関数だけに置くと、ほかの関数は Sandbox だけのサーバーと見なして公開する
     APPSTORE_ENVIRONMENTS: ${param:appStoreEnvironments, ''}
+    # とおまわり号の要サーバーの部品を配り始める時刻（ISO・`src/camper.ts` の `camperLaunchedAt`・2026-10-18 owner 承認）。
+    # **未設定（既定）なら配らない**——口は `launched: false` を返し、投稿の相乗りも何も書かない。これより後に
+    # 作られた公開の写真・旅だけを数える（遡らない）。段1（欄を読んで書き戻すだけ）を本番に出してから、
+    # owner が時刻を決めて `--param camperLaunchedAt=2026-…Z` で渡す。公開の値で秘密ではない（全関数に配る:
+    # 投稿・写真の編集・削除の関数も trunk.ts を通る）
+    CAMPER_LAUNCHED_AT: ${param:camperLaunchedAt, ''}
     # 再ビルド依頼の設定（REBUILD_*）はここには置かない。**GitHub の書き込み
     # トークンなので、provider に置くと全関数の環境変数に入る**（IAM-2）。
     # 実際に頼むのは api-user で3つ・api で2つだけなので、その関数にだけ配る。
@@ -946,6 +952,28 @@ functions:
       - httpApi:
           path: /users/{uid}/trunk
           method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      # とおまわり号の要サーバーの部品（2026-10-18 owner 承認の設計案・段2・`src/camper.ts`）。
+      # 足すのは Route 4つだけ（関数・統合・許可・ロール・テーブル・GSI は trunk のものを使う）。相手は道の {uid} だけ
+      - httpApi:
+          path: /user/camper
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper/gift
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper/firewood
+          method: POST
           authorizer:
             name: cognitoAuthorizer
 

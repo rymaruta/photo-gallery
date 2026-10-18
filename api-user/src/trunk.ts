@@ -8,6 +8,11 @@ import { listMyPhotos } from "./ddb-photos";
 import { UserListError } from "./userList";
 import { isPro, publicSupporter, sanitizeBadges } from "./badgeKeys";
 import { isBlocked } from "./blockCheck";
+import {
+    CAMPER_GIFT_MIN_AGE_MS, CAMPER_WOOD, camperLaunchedAt, countTrip, emptyCamper, giftGivers, giftPartFor, grantParts,
+    isCamperPhoto, isEmptyCamper, parseCamper, photoParts, recordParts, serializeCamper, shotDayOf, type CamperDoc,
+} from "./camper";
+import { isFollowing } from "./followCheck";
 import { isUserId } from "./userId";
 import { isDeletedProfile } from "./types";
 import { profileImageExists, type ProfileImageKind } from "./profileImage";
@@ -16,7 +21,6 @@ import { isPublicListPhoto } from "./feed";
 import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
 import type { Photo } from "./types";
 import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
-import { isEmptyCamper, parseCamper, serializeCamper, type CamperDoc } from "./camper";
 
 /**
  * 旅のトランク（iOS の新機能・2026-10-17 owner 承認）。
@@ -749,9 +753,16 @@ export const groupKey = (groupId: string) => `g:${shortHash(groupId.trim())}`;
 export type DealOutcome = {
     /** 応答に出す形（`stripInternal` を通したもの。束の鍵は出さない） */
     label: PublicLabel | null;
-    labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error";
+    labelSkipped?: "draft" | "notNew" | "off" | "duplicate" | "daily" | "full" | "storage" | "samePost" | "timeout" | "error"
+        // 退会した人（墓石）。保存の口が先に 410 で止めるので、ふつうは応答に出ない
+        | "deleted";
     /** この投稿で配った硬貨の枚数（0 か 1）。savePhoto・写真の編集の応答にそのまま載る */
     coin: 0 | 1;
+    /**
+     * とおまわり号（`camper.ts`・2026-10-18 段2）: この投稿で新しく届いた部品の id（図鑑の並び）。
+     * 届かなかった回は項目ごと無い。savePhoto・写真の編集の応答にそのまま載る
+     */
+    camper?: { added: string[] };
 };
 
 /** 配らなかったときの形 */
@@ -851,11 +862,16 @@ function withoutMilestone(l: TrunkLabel): TrunkLabel {
     return { ...rest, kind: rest.timeslot ? "timeslot" : rest.season ? "season" : "place" };
 }
 
+/**
+ * 本人の users の行（Pro の判定と墓石の印）。
+ * 🔴 **`deletedAt` を射影から外さない。** 外すと墓石の印が返らず、`grantLabel` と口の
+ * 退会の確かめ（`goneIfDeleted`）が常に「生きている」と読んで黙って死ぬ（`types.ts` の注記）
+ */
 async function readProfileBits(uid: string): Promise<Record<string, unknown> | undefined> {
     const res = await ddb.send(new GetCommand({
         TableName: USERS_TABLE,
         Key: { userId: uid },
-        ProjectionExpression: "userId, supporter",
+        ProjectionExpression: "userId, supporter, deletedAt",
     }));
     return res.Item as Record<string, unknown> | undefined;
 }
@@ -871,6 +887,9 @@ export async function grantLabel(
     if (!uid || !isCountablePhoto(photo)) return noDeal("draft");
     // 本人の写真の一覧は、渡されたら使う（savePhoto がメダルの数え直しと1回の読みを分け合う）
     const [profile, mine] = await Promise.all([readProfileBits(uid), photos ?? listMyPhotos(uid)]);
+    // **退会した人には配らない**（二重の守り）。保存の口（`savePhoto`）が先に 410 で止めるが、
+    // 配りは `trunk#`・`trunkledger#` を作り直す——退会の掃除はもう走らないので、誰も消さない
+    if (isDeletedProfile(profile)) return noDeal("deleted");
     const limit = pocketLimit(isPro(profile, now.getTime()));
     const key = postKey(photo);
     // この投稿（束なら束ごと）を除く。索引は結果整合なので、いま書いた行が見えていてもいなくても同じ数になる
@@ -905,7 +924,12 @@ export async function grantLabel(
             outcome = r.outcome;
             // この書き込みで「地名を見せてよい」印を新しく付けたか（やり直しのたびに決め直す＝最後の1回が書いたもの）
             wroteOk = !!r.doc && hasPlaceOk(r.doc, label.id) && !hasPlaceOk(doc, label.id);
-            return r.doc ? { ...r.doc, posts } : null;
+            const dealt = r.doc ? { ...r.doc, posts } : null;
+            // とおまわり号（段2）: 同じ書き込みに相乗りする（読みは増やさない）。配りが止まった回（日の上限など）でも、
+            // 写真で決まる部品は届く。旅の数は**配りを新しく通った**投稿だけ（指紋がこの書き込みで台帳に載った）
+            const cam = camperOnPost(dealt ?? doc, uid, photo, mine, !!r.doc && !doc.dealt.includes(fp), now);
+            if (cam.added.length) outcome = { ...outcome, camper: { added: cam.added } };
+            return cam.doc ?? dealt;
         });
         if (!needSiblings) break;
         siblingPlaces = await strongSiblingPlaces(uid, g, photo.id, mine);
@@ -924,6 +948,35 @@ export async function grantLabel(
         outcome = { ...outcome, label: rest };
     }
     return outcome;
+}
+
+/**
+ * 投稿の配り（`grantLabel`）に相乗りして、とおまわり号の部品を判定する（純関数・変えないなら doc: null）。
+ *
+ * - 線（`CAMPER_LAUNCHED_AT`）が無い・この写真が線より前に作られた／公開でない → 何もしない
+ * - 旅の数: **配りを新しく通った**（`newDeal`）`trip-` の束だけ +1。同じ写真・同じ指紋・同じ束・1日3件・機能の前の
+ *   写真はトランクの歯止め（`dealInto`）で止まる（設計案 2.2）。旅の日（撮影日）と取り消し用の控えも足す
+ * - 写真の部品: この写真＋本人の写真の一覧（savePhoto が読んだもの・結果整合）のうち、線より後の公開の写真で判定
+ * - 記録の部品（旅の数の段など）も同じ決まりで見る（`recordParts`）
+ * 1行の予算を越えるなら足さない（配りはそのまま）
+ */
+export function camperOnPost(
+    base: TrunkDoc, uid: string, photo: Photo, mine: Photo[], newDeal: boolean, now: Date,
+): { doc: TrunkDoc | null; added: string[] } {
+    const launch = camperLaunchedAt();
+    if (launch === null || !isCamperPhoto(photo, uid, launch)) return { doc: null, added: [] };
+    const before = base.camper ?? emptyCamper();
+    let c = before;
+    const g = typeof photo.groupId === "string" ? photo.groupId.trim() : "";
+    if (newDeal && g.startsWith("trip-")) c = countTrip(c, groupKey(g), shotDayOf(photo), now);
+    const photos = [photo, ...mine.filter((o) => o.id !== photo.id)].filter((p) => isCamperPhoto(p, uid, launch));
+    const want = new Map(recordParts(c));
+    for (const id of photoParts(photos)) if (!want.has(id)) want.set(id, undefined);
+    const r = grantParts(c, want, now);
+    if (r.camper === before) return { doc: null, added: [] };
+    const next: TrunkDoc = { ...base, camper: r.camper };
+    if (!fitsBudget(next)) return { doc: null, added: [] };
+    return { doc: next, added: r.added };
 }
 
 /** 確かめを、待ちの切れ目までだけ待つ。切れた・落ちたら true（＝答えはそのまま。確かめは裏で続く・落ちたら記録だけ） */
@@ -1551,6 +1604,7 @@ export const settingsMutation = (b: Record<string, unknown>, ticketOk = true): M
  * - 束の写真は、**束の写真がもう1枚も公開で残っていない**とき（`groupRemains: false`）だけ取り消す。
  *   ラベルは束の最初の1枚の id を持つので、束の鍵で探す。時刻はラベルの `at`
  * - 束でない写真は写真の id で探す。時刻は写真の初めての公開（`firstPublishedAt`）→ 作成（`createdAt`）→ ラベルの `at`
+ * - とおまわり号の**旅の数**も同じ時刻の線で −1 する（`camperTripLog` に控えのある束だけ。届いた部品・旅の日は残す）
  * - **硬貨**も同じ時刻の線で取り消す（`coinLog` に控えのある投稿だけ）。まだ持っていれば1枚減らし、
  *   0 枚（もう使った）なら何もしない。控えはどちらでも消す。2026-10-17 判断: 硬貨は見分けが付かないので
  *   「その投稿の硬貨を使ったか」は数で見る（1枚でも持っていれば、それを戻す）
@@ -1573,7 +1627,10 @@ export function revokeFrom(
     };
     const dropLabel = !!label && within(Date.parse(label.at));
     const dropCoin = !!coinEntry && within(coinEntry.a * 1000);
-    if (!dropLabel && !dropCoin) return null;
+    // とおまわり号: 旅の数に足した束（`camperTripLog`）なら −1（届いた部品は消さない・メダルの「段は下げない」と同じ）
+    const tripEntry = target.group ? doc.camper?.tripLog.find((e) => e.k === target.group) : undefined;
+    const dropTrip = !!tripEntry && within(tripEntry.a * 1000);
+    if (!dropLabel && !dropCoin && !dropTrip) return null;
     return {
         ...doc,
         ...(dropLabel && label ? {
@@ -1584,6 +1641,9 @@ export function revokeFrom(
         ...(dropCoin ? {
             coins: Math.max(0, doc.coins - 1),
             coinLog: doc.coinLog.filter((e) => e !== coinEntry),
+        } : {}),
+        ...(dropTrip && doc.camper ? {
+            camper: { ...doc.camper, trips: Math.max(0, doc.camper.trips - 1), tripLog: doc.camper.tripLog.filter((e) => e !== tripEntry) },
         } : {}),
     };
 }
@@ -1979,10 +2039,15 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  *     GET    /users/{uid}/trunk                  → 人のトランク（`readTheirTrunk`・見せないときは 404）
  *     POST   /user/trunk/welcome                 → { granted, added, coins }（はじめての硬貨・一度きり）
  *     POST   /user/trunk/reward { kind }         → { granted, added, coins, rewarded }（アイコン・カバーのお礼・それぞれ一度きり・#304）
+ *     GET    /user/camper                        → とおまわり号の部品（`readMyCamper`・1日1回の数え直し）
+ *     GET    /users/{uid}/camper                 → 友達の車（`visitCamper`・訪ねた記録を足す）
+ *     POST   /users/{uid}/camper/gift            → { given, part? }（`giftCamper`・何を贈るかはサーバーが決める）
+ *     POST   /users/{uid}/camper/firewood        → { added, count, part? }（`firewoodCamper`）
  *
  * 失敗は `{ error, code }`（`code` は英字の印: notFound / full / storage / proOnly / pendingReroll /
  * noRerollsLeft / noPending / badSeed / badModel / badRequest / badPlace / notStuck / noCoins /
- * badPart / owned / notEnoughFragments / badKind / notOwned）。
+ * badPart / owned / notEnoughFragments / badKind / notOwned。とおまわり号: deleted / notLaunched / self / tombstone /
+ * blocked / notFriend / newAccount / noPost / already / daily）。
  */
 export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = getUserId(event);
@@ -2000,6 +2065,16 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 if (e instanceof HiddenTrunk) return jsonError(404, "見つかりません", "notFound");
                 throw e;
             }
+        }
+        // とおまわり号（2026-10-18 段2）。墓石・友達かは各口が自分の読みで見る。相手は道の {uid} だけ（本文は読まない）
+        if (route === "GET /user/camper") return ok(await readMyCamper(uid, now));
+        if (route === "GET /users/{uid}/camper" || route === "POST /users/{uid}/camper/gift"
+            || route === "POST /users/{uid}/camper/firewood") {
+            const target = event.pathParameters?.uid;
+            if (typeof target !== "string") return jsonError(404, "見つかりません", "notFound");
+            if (route === "GET /users/{uid}/camper") return ok(await visitCamper(uid, target, now));
+            if (route === "POST /users/{uid}/camper/gift") return ok(await giftCamper(uid, target, now));
+            return ok(await firewoodCamper(uid, target, now));
         }
         // Pro かどうかは要らない（users テーブルを読む回数を増やさない）
         if (route === "POST /user/trunk/welcome") {
@@ -2126,34 +2201,50 @@ const revOf = (item: Record<string, unknown> | undefined) => (typeof item?.rev =
  * @param fn 今の形（`exists` はどちらかの行が在るか）。変えないなら null。副作用を持たせない（やり直しで再び呼ぶ）
  */
 async function updateTrunk(uid: string, fn: (doc: TrunkDoc, exists: boolean) => TrunkDoc | null): Promise<void> {
+    await updateTrunks([{ uid, fn }]);
+}
+
+type TrunkUpdate = { uid: string; fn: (doc: TrunkDoc, exists: boolean) => TrunkDoc | null };
+
+/**
+ * `updateTrunk` を**何人分でも1つの取引で**（とおまわり号の「贈る」が、贈る人と受け取る人の4行を一度に書く・2026-10-18）。
+ * どれか1人の `fn` が null を返したら何も書かない。全員の2行（計 2×人数）を rev 条件で Put か ConditionCheck にする
+ */
+async function updateTrunks(list: TrunkUpdate[]): Promise<void> {
     for (let attempt = 0; attempt < TRUNK_WRITE_ATTEMPTS; attempt++) {
-        const rows = await readTrunkRows(uid);
-        const doc = parseTrunk(rows.main, rows.ledger);
-        const next = fn(doc, !!rows.main || !!rows.ledger);
-        if (!next) return;
-        const before = serializeRows(doc);
-        const after = serializeRows(next);
-        const legacy = !rows.ledger && !!rows.main && LEDGER_KEYS.some((k) => k in rows.main!);
-        const changed = {
-            main: legacy || JSON.stringify(before.main) !== JSON.stringify(after.main),
-            ledger: legacy || JSON.stringify(before.ledger) !== JSON.stringify(after.ledger),
-        };
-        if (!changed.main && !changed.ledger) return;
+        const read = await Promise.all(list.map((u) => readTrunkRows(u.uid)));
         const at = new Date().toISOString();
-        const item = (id: string, raw: Record<string, unknown> | undefined, body: Record<string, unknown>, isChanged: boolean) => {
-            const rev = revOf(raw);
-            const cond = { ConditionExpression: revGuard(rev), ExpressionAttributeValues: { ":rev": rev } };
-            return isChanged
-                ? { Put: { TableName: PHOTOS_TABLE, Item: { ...body, id, uid, rev: rev + 1, updatedAt: at }, ...cond } }
-                : { ConditionCheck: { TableName: PHOTOS_TABLE, Key: { id }, ...cond } };
-        };
+        const items: Record<string, unknown>[] = [];
+        let anyChanged = false;
+        for (let i = 0; i < list.length; i++) {
+            const { uid, fn } = list[i];
+            const rows = read[i];
+            const doc = parseTrunk(rows.main, rows.ledger);
+            const next = fn(doc, !!rows.main || !!rows.ledger);
+            if (!next) return;
+            const before = serializeRows(doc);
+            const after = serializeRows(next);
+            const legacy = !rows.ledger && !!rows.main && LEDGER_KEYS.some((k) => k in rows.main!);
+            const changed = {
+                main: legacy || JSON.stringify(before.main) !== JSON.stringify(after.main),
+                ledger: legacy || JSON.stringify(before.ledger) !== JSON.stringify(after.ledger),
+            };
+            if (changed.main || changed.ledger) anyChanged = true;
+            const item = (id: string, raw: Record<string, unknown> | undefined, body: Record<string, unknown>, isChanged: boolean) => {
+                const rev = revOf(raw);
+                const cond = { ConditionExpression: revGuard(rev), ExpressionAttributeValues: { ":rev": rev } };
+                return isChanged
+                    ? { Put: { TableName: PHOTOS_TABLE, Item: { ...body, id, uid, rev: rev + 1, updatedAt: at }, ...cond } }
+                    : { ConditionCheck: { TableName: PHOTOS_TABLE, Key: { id }, ...cond } };
+            };
+            items.push(
+                item(trunkId(uid), rows.main, after.main, changed.main),
+                item(trunkLedgerId(uid), rows.ledger, after.ledger, changed.ledger),
+            );
+        }
+        if (!anyChanged) return;
         try {
-            await ddb.send(new TransactWriteCommand({
-                TransactItems: [
-                    item(trunkId(uid), rows.main, after.main, changed.main),
-                    item(trunkLedgerId(uid), rows.ledger, after.ledger, changed.ledger),
-                ],
-            }));
+            await ddb.send(new TransactWriteCommand({ TransactItems: items as never }));
             return;
         } catch (e) {
             if ((e as { name?: string }).name !== "TransactionCanceledException") throw e;
@@ -2162,7 +2253,239 @@ async function updateTrunk(uid: string, fn: (doc: TrunkDoc, exists: boolean) => 
             }
         }
     }
-    throw new UserListError(`${trunkId(uid)} の書き込みが競合し続けました`);
+    throw new UserListError(`${list.map((u) => trunkId(u.uid)).join("・")} の書き込みが競合し続けました`);
+}
+
+
+// ─── とおまわり号の口（2026-10-18 owner 承認の設計案 3.2・段2） ───────────────
+
+/** 退会した本人への答え（`liveCaller.ts` の 410 と同じ文言） */
+const camperGone = () => new TrunkError(410, "このアカウントは削除されています", "deleted");
+
+/** users の行を**強い読み**で（墓石・登録の時刻・表示名） */
+async function readCamperUser(uid: string, fields: string): Promise<Record<string, unknown> | undefined> {
+    const res = await ddb.send(new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { userId: uid },
+        ProjectionExpression: fields,
+        ConsistentRead: true,
+    }));
+    return res.Item as Record<string, unknown> | undefined;
+}
+
+/** 応答の部品。贈り物で届いた部品は贈った人（名前は**読む時に引く**。退会した人は出さない・`docs/tombstone-ttl.md`） */
+async function camperPartsView(c: CamperDoc): Promise<{ id: string; at: string; from?: { userId: string; name: string | null } }[]> {
+    const givers = [...new Set(c.parts.map((p) => p.by).filter((v): v is string => !!v))];
+    const names = new Map<string, string | null>();
+    await Promise.all(givers.map(async (u) => {
+        try {
+            const row = await readCamperUser(u, "userId, displayName, deletedAt");
+            if (!row || isDeletedProfile(row)) return;
+            names.set(u, typeof row.displayName === "string" && row.displayName.trim() ? row.displayName.trim() : null);
+        } catch (e) {
+            // 名前が引けなくても部品は出す（贈った人の欄だけ無い）
+            console.error(`trunk: 贈った人の名前を引けませんでした（${u}）:`, e);
+        }
+    }));
+    return c.parts.map((p) => ({
+        id: p.id, at: p.at,
+        ...(p.by && names.has(p.by) ? { from: { userId: p.by, name: names.get(p.by) ?? null } } : {}),
+    }));
+}
+
+function camperProgress(c: CamperDoc) {
+    return {
+        trips: c.trips,
+        giftsFrom: giftGivers(c).length,
+        visits: c.visits.length,
+        wood: c.wood.length,
+        tripFriends: c.tripFriends.length,
+    };
+}
+
+/**
+ * `GET /user/camper`。2行を強い読みで読み、**今日まだ数え直していなければ**本人の写真（`listMyPhotos`）で
+ * A の 13 個と記録の 20 個を判定し、新しく満たしたものを `updateTrunk` で足す（数え直しは1人1日1回・日本時間）。
+ * 数え直した日の印（`camperRecountDay`）は台帳の行にだけ書く（持ち物の行は ConditionCheck）。
+ * 線（`CAMPER_LAUNCHED_AT`）が無ければ何も読まず・書かず `launched: false`
+ */
+export async function readMyCamper(uid: string, now: Date = new Date()) {
+    const launch = camperLaunchedAt();
+    const me = await readCamperUser(uid, "userId, deletedAt");
+    if (isDeletedProfile(me)) throw camperGone();
+    const rows = await readTrunkRows(uid);
+    let c = parseTrunk(rows.main, rows.ledger).camper ?? emptyCamper();
+    let added: string[] = [];
+    let recounted = false;
+    if (launch !== null) {
+        const today = jstDay(now);
+        const recount = c.recountDay !== today;
+        const fromPhotos = recount
+            ? photoParts((await listMyPhotos(uid)).filter((p) => isCamperPhoto(p, uid, launch)))
+            : new Set<string>();
+        const want = (cur: CamperDoc) => {
+            const m = new Map(recordParts(cur));
+            for (const id of fromPhotos) if (!m.has(id)) m.set(id, undefined);
+            return m;
+        };
+        if (recount || grantParts(c, want(c), now).added.length) {
+            await updateTrunk(uid, (doc) => {
+                const cur = doc.camper ?? emptyCamper();
+                const g = grantParts(cur, want(cur), now);
+                added = g.added;
+                const stillRecount = cur.recountDay !== today;
+                if (!g.added.length && !stillRecount) { c = cur; return null; }
+                const next = { ...g.camper, recountDay: today };
+                const nd: TrunkDoc = { ...doc, camper: next };
+                if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+                c = next;
+                return nd;
+            });
+            recounted = recount;
+        }
+    }
+    return {
+        launched: launch !== null,
+        parts: await camperPartsView(c),
+        trips: c.trips,
+        progress: camperProgress(c),
+        recounted,
+        added,
+    };
+}
+
+/**
+ * 友達（互いにフォロー）か・どちらかがブロックしていないか・どちらも退会していないかを見る。
+ * 相手の uid は道（`/users/{uid}/camper…`）だけから受ける。本人は JWT。読みは users 2・印 4 を並べて
+ */
+async function camperFriendGate(me: string, target: string): Promise<{ mine?: Record<string, unknown> }> {
+    if (!isUserId(target)) throw new TrunkError(404, "見つかりません", "notFound");
+    if (me === target) throw new TrunkError(400, "自分の車には使えません", "self");
+    const [mine, theirs, blockedA, blockedB, iFollow, theyFollow] = await Promise.all([
+        readCamperUser(me, "userId, createdAt, deletedAt"),
+        readCamperUser(target, "userId, deletedAt"),
+        isBlocked(me, target),
+        isBlocked(target, me),
+        isFollowing(target, me),
+        isFollowing(me, target),
+    ]);
+    if (isDeletedProfile(mine)) throw camperGone();
+    if (!theirs) throw new TrunkError(404, "見つかりません", "notFound");
+    if (isDeletedProfile(theirs)) throw new TrunkError(404, "このアカウントは削除されています", "tombstone");
+    if (blockedA || blockedB) throw new TrunkError(403, "この人には使えません", "blocked");
+    if (!iFollow || !theyFollow) throw new TrunkError(403, "互いにフォローしている友達だけです", "notFriend");
+    return { mine };
+}
+
+/**
+ * `GET /users/{uid}/camper`（友達の車を開く）。返すのは相手の要サーバーの部品の id だけ
+ * （飾り・塗装のサーバー保存は第2段の別の札）。本人の台帳に「訪ねた」を**友達×日で1回**足し、
+ * 相手の旅の日（持ち物の行）と自分の旅の日が重なれば「同じ日に旅をした友達」に足す。**相手の行には書かない**
+ */
+export async function visitCamper(me: string, target: string, now: Date = new Date()) {
+    await camperFriendGate(me, target);
+    const launch = camperLaunchedAt();
+    const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(target) } }));
+    const theirs = parseTrunk(res.Item as Record<string, unknown> | undefined, {}).camper ?? emptyCamper();
+    let counted = false;
+    let added: string[] = [];
+    if (launch !== null) {
+        const today = jstDay(now);
+        const theirDays = new Set(theirs.tripDays);
+        await updateTrunk(me, (doc) => {
+            const cur = doc.camper ?? emptyCamper();
+            let next = cur;
+            counted = !cur.visits.some((v) => v.u === target && v.d === today);
+            if (counted) next = { ...next, visits: [{ u: target, d: today }, ...next.visits] };
+            if (!next.tripFriends.includes(target) && next.tripDays.some((d) => theirDays.has(d))) {
+                next = { ...next, tripFriends: [target, ...next.tripFriends] };
+            }
+            const g = grantParts(next, recordParts(next), now);
+            added = g.added;
+            if (g.camper === cur) return null;
+            const nd: TrunkDoc = { ...doc, camper: g.camper };
+            if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+            return nd;
+        });
+    }
+    return { userId: target, launched: launch !== null, parts: theirs.parts.map((p) => p.id), visit: { counted, added } };
+}
+
+/**
+ * `POST /users/{uid}/camper/gift`（友達に贈る）。**何を贈るかはサーバーが決める**（本文は読まない）:
+ * 受け取る人にとって違う n 人目の贈り物なら、n = 1・2・4・6 で部品が1つ届く（1 人目は贈った人の名前を刻む）。
+ *
+ * 歯止め（設計案 3.3・4.4 の 4）: 贈る人は登録から 7 日以上（`createdAt` の無い古い行は満たす扱い・
+ * `welcomeVerdictOf` と同じ読み）・機能の後の公開の投稿が 1 件以上・1日1回・同じ相手には一度きり。
+ * 書くのは贈る人と受け取る人の4行を**1つの TransactWriteItems**（すべて rev 条件・`updateTrunks`）
+ */
+export async function giftCamper(me: string, target: string, now: Date = new Date()) {
+    const launch = camperLaunchedAt();
+    if (launch === null) throw new TrunkError(409, "まだ始まっていません", "notLaunched");
+    const { mine } = await camperFriendGate(me, target);
+    const created = typeof mine?.createdAt === "string" ? Date.parse(mine.createdAt) : NaN;
+    if (Number.isFinite(created) && now.getTime() - created < CAMPER_GIFT_MIN_AGE_MS) {
+        throw new TrunkError(403, "登録から7日たつと贈れます", "newAccount");
+    }
+    const posted = (await listMyPhotos(me)).some((p) => isCamperPhoto(p, me, launch));
+    if (!posted) throw new TrunkError(403, "公開の投稿をしてから贈れます", "noPost");
+    const today = jstDay(now);
+    const at = new Date(Math.floor(now.getTime() / 1000) * 1000).toISOString();
+    let part = "";
+    await updateTrunks([
+        {
+            uid: me,
+            fn: (doc) => {
+                const cur = doc.camper ?? emptyCamper();
+                if (cur.given.some((g) => g.u === target)) throw new TrunkError(409, "この友達にはもう贈りました", "already");
+                if (cur.given.some((g) => g.d === today)) throw new TrunkError(429, "贈れるのは1日1回です", "daily");
+                return { ...doc, camper: { ...cur, given: [{ u: target, d: today }, ...cur.given] } };
+            },
+        },
+        {
+            uid: target,
+            fn: (doc) => {
+                const cur = doc.camper ?? emptyCamper();
+                if (cur.gifts.some((g) => g.from === me)) throw new TrunkError(409, "この友達にはもう贈りました", "already");
+                const want = giftPartFor(giftGivers(cur).length + 1);
+                const withGift: CamperDoc = { ...cur, gifts: [{ from: me, part: want, at }, ...cur.gifts] };
+                const g = want ? grantParts(withGift, new Map([[want, me]]), now) : { camper: withGift, added: [] };
+                part = g.added[0] ?? "";
+                const nd: TrunkDoc = { ...doc, camper: g.camper };
+                if (!fitsBudget(nd)) throw new TrunkError(409, "相手の車がいっぱいです", "storage");
+                return nd;
+            },
+        },
+    ]);
+    return { given: true, ...(part ? { part } : {}) };
+}
+
+/**
+ * `POST /users/{uid}/camper/firewood`（友達の焚き火に薪をくべる）。**同じ友達に1日1回**。くべた数が 10 で
+ * `fire_pit.tripod_kettle`。書くのは本人の台帳だけ（相手の行には書かない）
+ */
+export async function firewoodCamper(me: string, target: string, now: Date = new Date()) {
+    const launch = camperLaunchedAt();
+    if (launch === null) throw new TrunkError(409, "まだ始まっていません", "notLaunched");
+    await camperFriendGate(me, target);
+    const today = jstDay(now);
+    let added = false;
+    let count = 0;
+    let parts: string[] = [];
+    await updateTrunk(me, (doc) => {
+        const cur = doc.camper ?? emptyCamper();
+        added = !cur.wood.some((w) => w.u === target && w.d === today);
+        const next = added ? { ...cur, wood: [{ u: target, d: today }, ...cur.wood] } : cur;
+        const g = grantParts(next, recordParts(next), now);
+        count = g.camper.wood.length;
+        parts = g.added;
+        if (g.camper === cur) return null;
+        const nd: TrunkDoc = { ...doc, camper: g.camper };
+        if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+        return nd;
+    });
+    const part = parts.find((id) => id === CAMPER_WOOD.part);
+    return { added, count, ...(part ? { part } : {}) };
 }
 
 function ok(payload: unknown) {
