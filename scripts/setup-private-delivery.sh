@@ -13,7 +13,8 @@
 # やること:
 #   1. RSA 鍵を作る（既にあれば使う）
 #   2. CloudFront に公開鍵と鍵グループを作る
-#   3. `/private/*` の振る舞いを足し、そこにだけ署名必須を付ける
+#   3. `/private/*` の振る舞いが無ければ足す（署名必須は Secrets 登録とデプロイのあとで
+#      `sign-private-behavior.js` が付ける）
 #
 # 🔴 **`/uploads/*` には絶対に付けない。** 付けると公開写真も 403 になり、
 # **サイト全体の画像が割れる**（静的サイトの URL には期限を載せられない）。
@@ -49,7 +50,7 @@ assert_not_uploads
 # ——流せないと「安全装置が効くか」を誰も確かめられない
 if [ "$APPLY" = "1" ]; then
     command -v aws >/dev/null 2>&1 || { say "aws コマンドが要ります"; exit 1; }
-    command -v jq  >/dev/null 2>&1 || { say "jq コマンドが要ります"; exit 1; }
+    command -v node >/dev/null 2>&1 || { say "node コマンドが要ります"; exit 1; }
 fi
 say "対象のディストリビューション: $DIST_ID / 経路: $PATTERN"
 [ "$APPLY" = "1" ] || say "※ 下見です。何も変えません（実行するには --apply）"
@@ -93,35 +94,21 @@ else
 fi
 
 # ---- 3. `/private/*` の振る舞い ----------------------------------------------
-say "3. $PATTERN の振る舞いを足す（$DIST_ID）"
+# 🔴 **2026-10-18 判断: ここでは jq で振る舞いを組まない。** 以前は
+# `"private/*"`・`"uploads/*"`（先頭の `/` なし）で探していたが、本番も staging も
+# 実際は `/private/*`・`/uploads/*`（先頭に `/`）なので、既にある `/private/*` を
+# 見つけられず、土台の `uploads/*` も見つけられずに**既定の振る舞い（静的サイトの
+# 入れ物）を写した2つ目の private を足す**形になっていた（＝画像が 404）。
+# 足す・付けるは、表記揺れを吸収して送る直前に差分を確かめる node の道具に任せる。
+#
+# **署名必須はここでは付けない。** Lambda が秘密鍵を持つ前に付けると、絞った写真が
+# 全部 403 になる。順番は下の「次にやること」。
+say "3. $PATTERN の振る舞い（無ければ uploads/* を写して足す・署名はまだ付けない）"
 assert_not_uploads      # **もう一度見る**（ここまでで書き換わっていないこと）
 if [ "$APPLY" = "1" ]; then
-    aws cloudfront get-distribution-config --id "$DIST_ID" > /tmp/dist.json
-    ETAG=$(jq -r '.ETag' /tmp/dist.json)
-    # 既に在れば触らない（冪等）
-    if jq -e --arg p "$PATTERN" \
-        '.DistributionConfig.CacheBehaviors.Items[]? | select(.PathPattern==$p)' \
-        /tmp/dist.json >/dev/null; then
-        say "   $PATTERN の振る舞いは既にあります（触りません）"
-    else
-        # 既存の `/uploads/*` の振る舞いを土台にして、署名必須だけ足す
-        jq --arg p "$PATTERN" --arg g "$GROUP_ID" '
-          .DistributionConfig as $c
-          | ($c.CacheBehaviors.Items[]? | select(.PathPattern=="uploads/*")) as $base
-          | $c
-          | .CacheBehaviors.Items = (($c.CacheBehaviors.Items // []) + [
-              ($base // $c.DefaultCacheBehavior)
-              | .PathPattern = $p
-              | .TrustedKeyGroups = { Enabled: true, Quantity: 1, Items: [$g] }
-            ])
-          | .CacheBehaviors.Quantity = (.CacheBehaviors.Items | length)
-        ' /tmp/dist.json > /tmp/dist-new.json
-        aws cloudfront update-distribution --id "$DIST_ID" \
-            --if-match "$ETAG" --distribution-config file:///tmp/dist-new.json >/dev/null
-        say "   足しました（反映に数分かかります）"
-    fi
+    CLOUDFRONT_DISTRIBUTION_ID="$DIST_ID" node "$(dirname "$0")/add-private-behavior.js" --apply
 else
-    say "  （下見）get-distribution-config → $PATTERN を足して update-distribution"
+    say "  （下見）node scripts/add-private-behavior.js（既にあれば何もしない）"
 fi
 
 # ---- 4. 次にやること ----------------------------------------------------------
@@ -130,5 +117,10 @@ say "次: GitHub の Secrets に登録してください（受け渡しの配線
 say "    CLOUDFRONT_KEY_PAIR_ID = $KEY_ID"
 say "    CLOUDFRONT_PRIVATE_KEY = $PRIVATE_PEM の中身"
 say ""
-say "登録して API を出し直すと署名が効きます。確かめ方:"
+say "登録して API を出し直し、デプロイのログが「画像の署名=鍵あり」になったら、"
+say "**そのあとで** $PATTERN を署名必須にします（先にすると絞った写真が全部 403）:"
+say "    CLOUDFRONT_DISTRIBUTION_ID=$DIST_ID CLOUDFRONT_KEY_GROUP_ID=$GROUP_ID node scripts/sign-private-behavior.js          # 下見"
+say "    CLOUDFRONT_DISTRIBUTION_ID=$DIST_ID CLOUDFRONT_KEY_GROUP_ID=$GROUP_ID node scripts/sign-private-behavior.js --apply  # 実行"
+say "    （Maintenance の sign-private-behavior-staging → sign-private-behavior でも流せます）"
+say "確かめ方:"
 say "    PHOTO_ID=<絞った写真のid> npm run verify:visibility:live"

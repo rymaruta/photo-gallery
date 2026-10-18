@@ -119,7 +119,7 @@ async function main() {
     console.log("送りました。エッジへの反映に数分かかります。");
 }
 
-module.exports = { planPrivateBehavior, assertOnlyAdded, PRIVATE_PATTERN };
+module.exports = { planPrivateBehavior, assertOnlyAdded, PRIVATE_PATTERN, samePattern };
 
 if (require.main === module) {
     main().catch((e) => {

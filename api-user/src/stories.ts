@@ -642,7 +642,7 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         // ここは `count` を**この一覧から導いている**ので、落としても数と
         // 中身が食い違わない（返信側はバッジが別系統なので、そちらは
         // `storyReplies.ts` にずれ方を書いた）。
-        const viewersMap = (item.viewers ?? {}) as Record<string, { displayName?: string; at?: string }>;
+        const viewersMap = (item.viewers ?? {}) as Record<string, { displayName?: string; at?: string; deleted?: boolean }>;
         const entries = Object.entries(viewersMap);
         // 引くのは閲覧者が居るときだけ（`getComments` と同じ）
         const [gone, hidden] = entries.length === 0
@@ -657,7 +657,11 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             ]);
         const viewers = entries
             .filter(([userId]) => !hidden.has(userId))
-            .map(([userId, v]) => (gone.has(userId)
+            // **写しに刻んだ印（`deleted: true`）も見る**（2026-10-18・札 #295）。
+            // `scripts/scrub-deleted-names.js` が墓石の在るうちに写しへ印を刻むので、
+            // 墓石が TTL で消えたあとも伏せが続く（コメント・通知・返信は写しを
+            // そのまま返すので印が素通しで届く。ここだけ形を組み直していた）
+            .map(([userId, v]) => (gone.has(userId) || v?.deleted === true
                 ? { userId, displayName: DELETED_USER_NAME, deleted: true, at: v?.at }
                 : { userId, displayName: v?.displayName, at: v?.at }))
             .sort((a, b) => String(b.at ?? "").localeCompare(String(a.at ?? "")));

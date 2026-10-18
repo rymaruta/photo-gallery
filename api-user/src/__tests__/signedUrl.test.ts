@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { generateKeyPairSync, createVerify } from "node:crypto";
 import {
     signUrl, signPhotoImages, signerFromEnv, isConfigured, cannedPolicy,
-    IMAGE_FIELDS, DEFAULT_TTL_SEC,
+    IMAGE_FIELDS, DEFAULT_TTL_SEC, EXPIRY_STEP_SEC, expiryFor,
 } from "../signedUrl";
 
 /**
@@ -38,6 +38,30 @@ describe("署名付き URL", () => {
         const q = new URL(signUrl(URL_, { now: NOW, signer })).searchParams;
         expect(Number(q.get("Expires"))).toBe(Math.floor(NOW / 1000) + DEFAULT_TTL_SEC);
         expect(DEFAULT_TTL_SEC).toBeLessThanOrEqual(15 * 60);
+    });
+
+    /**
+     * 2026-10-18: 期限を5分刻みに切り上げる。毎回「今＋10分」だと、API を呼ぶたびに URL が
+     * 変わって端末の控え（iOS の URLCache・ブラウザ）が毎回外れる。
+     */
+    it("同じ5分の間に作った URL は同じ（端末の控えが効く）", () => {
+        const a = signUrl(URL_, { now: NOW + 1_000, signer });
+        const b = signUrl(URL_, { now: NOW + 299_000, signer });
+        expect(b).toBe(a);
+        const c = signUrl(URL_, { now: NOW + 301_000, signer });
+        expect(c, "次の5分に入っても同じなら、期限が延びていかない").not.toBe(a);
+    });
+
+    it("切り上げなので、有効時間は既定より短くならない（15分未満）", () => {
+        for (const offset of [0, 1, 59, 299, 300, 301, 599]) {
+            const now = NOW + offset * 1000;
+            const left = expiryFor(now) - Math.floor(now / 1000);
+            expect(left).toBeGreaterThanOrEqual(DEFAULT_TTL_SEC);
+            expect(left).toBeLessThan(DEFAULT_TTL_SEC + EXPIRY_STEP_SEC);
+            expect(expiryFor(now) % EXPIRY_STEP_SEC).toBe(0);
+        }
+        const q = new URL(signUrl(URL_, { now: NOW + 1_000, signer })).searchParams;
+        expect(Number(q.get("Expires"))).toBe(expiryFor(NOW + 1_000));
     });
 
     it("**その URL だけ**に効く（前方一致にしない）", () => {

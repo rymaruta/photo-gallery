@@ -71,3 +71,20 @@ describe("公開する画像URLを揃える", () => {
         expect(f("/uploads/a.jpg"), "相対パスは従来どおり").toBe(`${SITE}/uploads/a.jpg`);
     });
 });
+
+/**
+ * 🔴 2026-10-18（札 #294）: 署名つき URL のホストは書き換えない。署名はホストを含む URL 全体に
+ * 掛かっているので、別名へ揃えると CloudFront が必ず 403 を返す（絞った写真が本人の画面で全部割れる）。
+ */
+describe("署名つき URL", () => {
+    it("自分の配信ドメインでも、署名つきならそのまま返す", async () => {
+        const f = await load();
+        const signed = `${CDN}/private/u/a.jpg?Expires=1760000000&Signature=abc~_-&Key-Pair-Id=K2`;
+        expect(f(signed)).toBe(signed);
+    });
+
+    it("署名の無い問い合わせ（?v=2）は今までどおり揃える", async () => {
+        const f = await load();
+        expect(f(`${CDN}/private/u/a.jpg?v=2`)).toBe(`${SITE}/private/u/a.jpg?v=2`);
+    });
+});

@@ -14,6 +14,7 @@ import { formatStoredDateTime } from "@/lib/utils/photoDate";
 import { useMemberGate } from "../../../lib/hooks/useMemberGate";
 import MemberOnlyNotice from "../../components/MemberOnlyNotice";
 import { publicImageUrl } from "@/lib/utils/seo";
+import { useSignedImageRefetch } from "@/lib/hooks/useSignedImageRefetch";
 
 export default function DraftsPage() {
     const { isAuthenticated, isAdminUser, isGeneralUser, loading } = useAuth();
@@ -67,6 +68,11 @@ export default function DraftsPage() {
     useEffect(() => {
         if (isAuthenticated && (isAdminUser || isGeneralUser)) void load();
     }, [isAuthenticated, isAdminUser, isGeneralUser, load]);
+
+    // 公開範囲を絞った下書きの画像は期限つきの URL（`/user/photos` が署名する）。
+    // 開いたまま期限が過ぎて割れたら、取り直して新しい URL をもらう（2026-10-18 判断・札 #294）
+    const reloadSigned = useCallback(() => { void load(); }, [load]);
+    useSignedImageRefetch(reloadSigned, isAuthenticated);
 
     // 権限が無い人はログイン画面へ送り返さない（/login が押し返して往復する）
     if (gate === "no-group") return <MemberOnlyNotice locale={locale} />;

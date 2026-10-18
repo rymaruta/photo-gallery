@@ -40,6 +40,25 @@ import { createSign } from "node:crypto";
 /** 署名の有効時間。**短くする**——長いと「外したのに見える」窓が伸びる */
 export const DEFAULT_TTL_SEC = 10 * 60;
 
+/**
+ * 期限を**5分刻みに切り上げる**（2026-10-18 判断）。
+ *
+ * 「今＋10分」をそのまま使うと、API を呼ぶたびに `Expires` と `Signature` が変わり、
+ * **同じ画像が毎回違う URL**になる。iOS（`URLCache`）も Web のブラウザも URL 全体を
+ * 鍵に控えるので、絞った写真は**開くたびに取り直し**になる（CloudFront のエッジは
+ * 問い合わせを鍵に入れないので外れないが、端末からの要求と転送量は増える）。
+ *
+ * 切り上げにするので、**有効時間は短くならない**（10分以上・15分未満）。
+ * 同じ5分の間に呼べば同じ URL になる。
+ */
+export const EXPIRY_STEP_SEC = 5 * 60;
+
+/** 期限（epoch 秒）。`now + ttl` を `EXPIRY_STEP_SEC` 刻みに切り上げる */
+export function expiryFor(nowMs: number, ttlSec: number = DEFAULT_TTL_SEC): number {
+    const raw = Math.floor(nowMs / 1000) + ttlSec;
+    return Math.ceil(raw / EXPIRY_STEP_SEC) * EXPIRY_STEP_SEC;
+}
+
 export type SignerConfig = {
     keyPairId: string;
     /** PEM（`-----BEGIN RSA PRIVATE KEY-----` …）。改行は `\n` でも実改行でもよい */
@@ -93,7 +112,7 @@ export function signUrl(
 
     const now = opts.now ?? Date.now();
     const ttl = opts.ttlSec ?? DEFAULT_TTL_SEC;
-    const expires = Math.floor(now / 1000) + ttl;
+    const expires = expiryFor(now, ttl);
 
     const policy = cannedPolicy(url, expires);
     let signature: string;

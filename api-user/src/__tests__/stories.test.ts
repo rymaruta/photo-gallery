@@ -1092,6 +1092,22 @@ describe("getStoryViewers", () => {
         expect(body.viewers[0].displayName).toBe("退会したユーザー");
     });
 
+    // 2026-10-18・札 #295: `scripts/scrub-deleted-names.js` が写しに印を刻む。
+    // 墓石が TTL で消えたあと（`deletedAmong` が何も返さない）も伏せが続くこと
+    it("写しに刻んだ退会の印（deleted: true）を、墓石が無くても返す", async () => {
+        mockDeleted.mockResolvedValue(new Set());
+        mockDdbSend.mockResolvedValueOnce({
+            Item: {
+                id: "story-1", story: true, userId: "owner",
+                viewers: { "u-b": { displayName: "退会したユーザー", deleted: true, at: "2026-07-04T11:00:00Z" } },
+            },
+        });
+        const res = await invoke(getStoryViewers, authedEvent("owner", { pathParameters: { id: "story-1" } }));
+        const body = JSON.parse(res.body) as { viewers: Array<{ displayName?: string; deleted?: boolean }> };
+        expect(body.viewers[0].deleted, "印が落ちると画面がプロフィールへの導線を出す").toBe(true);
+        expect(body.viewers[0].displayName).toBe("退会したユーザー");
+    });
+
     // **ブロックした相手は一覧に出さない（両向き）。**
     // 閲覧の記録は `viewStory` の時点で焼き込まれる。`viewStory` が断るのは
     // これからのぶんだけなので、ブロック前に見られたぶんは名前も `userId` も

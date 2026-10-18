@@ -18,6 +18,10 @@ on:
           - cdn-error-pages   # 存在しないURLを自作404へ
           - add-private-behavior # 絞った写真の置き場 private/* を配れるようにする（本番・既定は下見・apply で足す）
           - add-private-behavior-staging # 同じことを **staging** に
+          - sign-private-behavior-staging # **staging** の private/* に鍵グループを付ける（署名必須・既定は下見）。Secrets 登録とデプロイのあと
+          - sign-private-behavior # 同じことを **本番** に。staging で確かめてから
+          - move-restricted-to-private # 絞った写真で uploads/ に残っているものを private/ へ移す（本番・既定は件数を出すだけ・apply で移す）
+          - move-restricted-to-private-staging # 同じことを **staging** に
           - shrink-profiles   # 既存のプロフィール画像を縮小
           - enable-cdn-logs   # CloudFront のアクセスログを有効化
           - who-liked         # 自分の写真にいいねした人を特定
@@ -27,6 +31,8 @@ on:
           - backfill-followers # 既にあるフォロー関係から followers#<uid> を作る
           - backfill-likes # 既にあるいいねから likes#<uid> を作る
           - repair-follow-graph # フォローの4種類の行を突き合わせ、食い違いを直す（既定は読むだけ）
+          - scrub-deleted-names # 退会した人の名前の写し（コメント・通知・返信・閲覧者）を伏せる（既定は読むだけ・apply で書く。札 #295）
+          - scrub-deleted-names-staging # 同じことを **staging** に（既定は読むだけ・apply で書く）
           - normalize-image-urls  # 保存済みの画像URLのホスト名を配信URLに揃える
           - geocode-locations # 地名はあるが座標が無い写真に、おおよその座標を補う（地図ページの材料）
           - diagnose          # 本番の設定を読むだけ（索引の射影・日付の形・Cognito・CDN の TTL）
@@ -130,6 +136,46 @@ jobs:
         run: node scripts/add-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
         env:
           # **staging を明示する。** 上の env は本番向け
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
+
+      # 既にある private/* に鍵グループ（署名必須）を付ける（案A 第2段）。
+      # **Lambda が秘密鍵を持ってから**（デプロイのログが「画像の署名=鍵あり」）。
+      # 先に付けると絞った写真が全部 403 になる。uploads/* には付けない
+      # （スクリプトが送る直前に差分を比べて止まる）
+      - name: private/* を署名必須にする（staging）
+        if: inputs.task == 'sign-private-behavior-staging'
+        run: node scripts/sign-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          # **staging を明示する。** 上の env は本番向け
+          CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
+          # 鍵グループは環境ごとに分けられるよう、Variables も分ける（同じ鍵グループなら同じ値を入れる）
+          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID_STAGING }}
+
+      - name: private/* を署名必須にする（本番）
+        if: inputs.task == 'sign-private-behavior'
+        run: node scripts/sign-private-behavior.js ${{ inputs.apply && '--apply' || '' }}
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          CLOUDFRONT_KEY_GROUP_ID: ${{ vars.CLOUDFRONT_KEY_GROUP_ID_PROD }}
+
+      # 絞った写真で実体が uploads/ に残っているものを private/ へ移す（案A・署名の前の片付け）。
+      # 既定は件数を出すだけ。移す順は photoUpdate と同じ（コピー → 行 → 元を消す・エッジも無効化）。
+      # 移すと古い uploads/ の URL は 404 になる（2026-09-23 に owner が許容）
+      - name: 絞った写真を private/ へ移す（本番）
+        if: inputs.task == 'move-restricted-to-private'
+        run: npx tsx scripts/move-restricted-to-private.ts ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      - name: 絞った写真を private/ へ移す（staging）
+        if: inputs.task == 'move-restricted-to-private-staging'
+        run: npx tsx scripts/move-restricted-to-private.ts ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 15
+        env:
+          # **staging を明示する。** 上の env は本番向け
+          UPLOAD_BUCKET: staging-journey-photo-upload
+          PHOTOS_TABLE: staging-photo-gallery-photos
           CLOUDFRONT_DISTRIBUTION_ID: EF2TFEBBP24DL
 
       - name: 既存のプロフィール画像を縮小
@@ -254,6 +300,26 @@ jobs:
         if: inputs.task == 'repair-follow-graph'
         run: node scripts/repair-follow-graph.js ${{ inputs.apply && '--apply' || '' }}
         timeout-minutes: 15
+
+      # 退会した人の名前の写しを伏せる（scripts/scrub-deleted-names.js・札 #295）。
+      # 墓石（users の deletedAt の行）が TTL で消える前に、他人の行に写した名前を
+      # 「退会したユーザー」に書き換え、印（deleted: true）を刻む。
+      # **既定は読むだけ**（件数と読み書きの量を出す）。apply は退会者の写しの
+      # 要素だけを1つずつ書く（生きている人の要素・行には書かない）。
+      # 本番で apply するのは owner の許可のあと。手順は docs/tombstone-ttl.md
+      - name: 退会した人の名前の写しを伏せる
+        if: inputs.task == 'scrub-deleted-names'
+        run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20
+
+      - name: 退会した人の名前の写しを伏せる（staging）
+        if: inputs.task == 'scrub-deleted-names-staging'
+        run: node scripts/scrub-deleted-names.js ${{ inputs.apply && '--apply' || '' }}
+        timeout-minutes: 20
+        env:
+          # **staging を明示する。** 上の env は本番向けなので、上書きしないと本番の表を読み書きする
+          PHOTOS_TABLE: staging-photo-gallery-photos
+          USERS_TABLE: staging-photo-gallery-users
 
       # 読み取り専用。apply の指定は不要
       - name: 写真表示の速さを測る

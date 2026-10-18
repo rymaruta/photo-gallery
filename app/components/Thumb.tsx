@@ -133,6 +133,16 @@ export default function Thumb({ photo, alt, sizes, priority = false, objectPosit
     const loaded = phase === "loaded";
 
     const fallback = publicImageUrl(photo.thumbSrc || photo.src);
+    // **URL が替わったら、失敗と読み込みの段を戻す**（2026-10-18 判断・札 journey.photo-ios#294）。
+    // 絞った写真の画像は期限つきの URL で、期限が切れると 403 で割れる。一覧を取り直すと
+    // 同じ写真（同じ key）に新しい URL が来るが、`error` が立ったままだと割れた絵のまま残る。
+    // 描画の中で前の URL と比べて戻す（effect で戻すと、割れた絵が1回描かれてから戻る）
+    const [shownFallback, setShownFallback] = useState(fallback);
+    if (shownFallback !== fallback) {
+        setShownFallback(fallback);
+        setError(false);
+        setPhase("unknown");
+    }
     const avifSet = (photo.thumbSmAvif || photo.thumbAvif) ? buildSrcSet(photo.thumbSmAvif, photo.thumbAvif, photo, cellAspect) : undefined;
     const webpSet = photo.thumbSm ? buildSrcSet(photo.thumbSm, photo.thumbSrc, photo, cellAspect) : undefined;
 
