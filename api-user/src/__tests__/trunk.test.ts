@@ -1228,8 +1228,9 @@ describe("口（serverless.yml の trunk 関数）", () => {
             "POST /user/trunk/labels/{id}/reroll", "POST /user/trunk/labels/{id}/reroll/choose",
             "PUT /user/trunk/labels/{id}/place", "POST /user/trunk/labels/{id}/unstick",
             "POST /user/trunk/gacha", "POST /user/trunk/parts/exchange", "PUT /user/trunk/equip",
+            "POST /user/trunk/welcome",
         ]) expect(routes).toContain(r);
-        expect(routes).toHaveLength(12);
+        expect(routes).toHaveLength(13);
         expect(block).toContain("handler: src/trunk.handler");
     });
 });

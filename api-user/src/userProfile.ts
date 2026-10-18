@@ -988,7 +988,15 @@ export const updateMyProfile: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
             const guard = rev === 0
                 ? "attribute_not_exists(userId) OR attribute_not_exists(rev) OR rev = :rev"
                 : "rev = :rev";
-            profile = { ...mergeProfile(base, userId, changes), rev: rev + 1 } as typeof profile;
+            profile = {
+                ...mergeProfile(base, userId, changes),
+                // **行が無い人の行を作るときは、作った時刻を書く**（`createProfileIfMissing` と同じ）。
+                // 書かないと「createdAt の無い行＝2026-08-19 より前の古い利用者」と読まれ、
+                // 登録のトリガーが落ちた新しい人が先にこの口を打つと、はじめての硬貨（`trunk.ts` の
+                // `welcomeVerdictOf`）の対象に入ってしまう。既にある行の createdAt は変えない（無ければ無いまま）
+                ...(base ? {} : { createdAt: new Date().toISOString() }),
+                rev: rev + 1,
+            } as typeof profile;
             try {
                 await ddb.send(new PutItemCommand({
                     TableName: USERS_TABLE,
