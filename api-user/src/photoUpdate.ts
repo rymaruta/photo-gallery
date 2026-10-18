@@ -17,7 +17,7 @@ import { removePinnedPhoto } from "./userProfile";
 import { replaceRefusal, buildReplace, type ReplaceBody } from "./photoReplace";
 import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
-import { revokeLabelQuietly, grantLabelForPhotoQuietly } from "./trunk";
+import { revokeLabelQuietly, grantLabelForPhotoQuietly, showLabelPlaceQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
 
 /**
@@ -870,8 +870,20 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
             await releaseFirstPublish(id, firstPublish);
         }
         // **公開 → 非公開で、投稿から24時間以内ならラベルを取り消す**（削除と同じ扱い・`trunk.ts`）
-        if (visibilityChanged && body.published === false) {
+        // 取り消されずに残ったラベル（24時間を過ぎた）は、人のトランクで地名を伏せる（同じ書き込みに相乗り）
+        const madePrivate = visibilityChanged && body.published === false;
+        if (madePrivate) {
             await revokeLabelQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`);
+        } else if (becameRestricted && willBePublished) {
+            // **公開範囲を絞った**（公開のまま）: 取り消しはしない（今までどおり）。人のトランクで地名だけ伏せる
+            await revokeLabelQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`, { revoke: false });
+        }
+        // **誰にでも見える形に戻した**（非公開 → 公開・絞った範囲 → 全員）: 伏せた地名を戻す。
+        // 初めての公開（いま配った回）には伏せたラベルが無いので呼ばない
+        const publicBefore = wasPublished && !wasRestricted;
+        const publicAfter = willBePublished && !effectiveAudience;
+        if (!publicBefore && publicAfter && !firstPublish) {
+            await showLabelPlaceQuietly(ownerId, existing.Item, `updatePhotoVisibility(${id})`);
         }
 
         // **「この写真を見て撮影」の知らせ**（`inspired.ts`）。この保存のあとの姿が
