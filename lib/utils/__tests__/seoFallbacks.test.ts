@@ -13,9 +13,13 @@ const P = (over: Partial<Photo> = {}): Photo => ({
 // レビューが「この変更にはガードが1本も無い（戻しても全緑）」と実証したので
 // ここで固定する。
 describe("タイトル・説明が空の写真の構造化データ", () => {
-    it("name は空にせず、既存の言い回し（無題）に揃える", () => {
-        const data = generatePhotoStructuredData(P({ title: undefined })) as Record<string, unknown>;
-        expect(data.name, "空文字だと、同じページのパンくずと食い違う").toBe("無題");
+    // 2026-10-18: 「無題」とも名乗らない。パンくず・`<title>` と同じく撮影地から組む
+    it("name は空にせず、「無題」とも名乗らない（「<撮影地>の写真」/「写真」）", () => {
+        const data = generatePhotoStructuredData(P({ title: undefined, location: undefined })) as Record<string, unknown>;
+        expect(data.name, "空文字だと、同じページのパンくずと食い違う").toBe("写真");
+        const placed = generatePhotoStructuredData(P({ title: { ja: "無題", en: "Untitled" }, location: "板橋区" })) as Record<string, unknown>;
+        expect(placed.name).toBe("板橋区の写真");
+        expect(placed.alternateName, "旧い既定値の英語を別名として出さない").toBeUndefined();
     });
 
     // 「この写真の説明はサイトの宣伝文です」と機械可読で配らない。

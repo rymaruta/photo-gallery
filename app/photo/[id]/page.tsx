@@ -5,13 +5,14 @@ import type { Metadata } from "next";
 import { splitStoredDate } from "@/lib/utils/photoDate";
 import { ja } from "../../i18n/labels";
 import { siteConfig, publicImageUrl } from "@/lib/utils/seo";
-import { getLocalized, getLocalizedParagraphs } from "@/lib/data/photos";
+import { getLocalizedParagraphs } from "@/lib/data/photos";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { initialRelatedFor } from "@/lib/utils/related";
 import { withPlaceholderParam } from "../../../lib/server/staticParams";
 import { photoAltText } from "../../../lib/utils/photoAlt";
 import { metaText } from "@/lib/utils/metaText";
 import { titleWithPlace } from "@/lib/utils/titlePlace";
+import { photoTitleFor } from "@/lib/utils/photoTitle";
 import { categoryLabel } from "../../../lib/utils/collections";
 import { spotLinkForPhoto, spotTimeZoneForPhoto } from "@/lib/data/spotLink";
 import { inspiredSourceFor, toInspiredLink } from "@/lib/utils/inspired";
@@ -46,13 +47,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         };
     }
     
-    // **日本語のサイトに "Untitled" を出さない。** 言い回しは既存に揃える
-    // （`/admin`・`/user/drafts`・下書きの既定タイトルはどれも「無題」）。
-    // タイトルは空にできる
-    // （`sanitizeTitle` が空なら属性ごと REMOVE する）ので、公開のまま
-    // 名前の無い写真が実在しうる。`a287ee3` で潰した「日本語UIに残る英語」
-    // と同じ型だった
-    const ownTitle = getLocalized(photo.title, "ja") || getLocalized(photo.title, "en") || "無題";
+    // **題が無い写真にも、空でない日本語の題を付ける。** タイトルは空にできる
+    // （`sanitizeTitle` が空なら属性ごと REMOVE する）ので、公開のまま名前の無い
+    // 写真が実在する。日本語のサイトに "Untitled" を出さない（`a287ee3` で潰した
+    // 「日本語UIに残る英語」と同じ型）し、「無題」とも名乗らない。
+    //
+    // 2026-10-18 まで、題が無い写真（欄が無い・空白だけ・
+    // 旧い既定値 `{ ja: "無題" }`）は `<title>`・og:title・twitter:title が
+    // 「無題｜板橋区」になっていた。いまは撮影地から「板橋区の写真」と組む
+    // （`photoTitleFor`。写真ページの読み上げ用の見出しと同じ言い方）
+    const pageTitle = photoTitleFor(photo, "ja");
     const descriptionParagraphs = getLocalizedParagraphs(photo.description, "ja");
     // **1行に均す。** 利用者は段落の中でも改行するので、素で入れると
     //  `<meta name="description">` の属性値に生の改行が残る
@@ -107,7 +111,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     // いないので `startsWith` に掛からない（実データで確認）。
     // **並べ方の決め方は `titleWithPlace` 1つに置く**（画像の `alt` と同じ判断。
     // ここが決めるのは「｜でつなぐ」ことだけ）
-    const tp = titleWithPlace(ownTitle, place);
+    // **題を撮影地から作ったときも「｜撮影地」は足されない**——「板橋区の写真」は撮影地を
+    // 含むので `titleWithPlace` が題だけを返す（「板橋区の写真｜板橋区」を作らない）。
+    // `fromTitle` で枝を分ける1行は置かない: 変異で落としても結果が同じだった（等価）。
+    // 縛るのは `metadataNoTitle.test.ts`
+    const tp = titleWithPlace(pageTitle.text, place);
     const title = tp.kind === "single" ? tp.text : `${tp.title}｜${tp.place}`;
 
     // **説明に機材を添える。**

@@ -1,7 +1,8 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Photo, Locale } from "@/lib/data/photos";
-import { getLocalized, getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
+import { getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
+import { photoOwnTitle, photoTitleFor } from "@/lib/utils/photoTitle";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
 import { usePhotoLikes, type LikeResult } from "../../../lib/hooks/usePhotoLikes";
 import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
@@ -210,7 +211,10 @@ export default function GalleryModal({
     // --- Now safe to do the null guard ---
     if (!p) return null;
 
-    const titleText = getLocalized(p.title, locale) || (typeof p.title === "string" ? p.title : "");
+    // 見える題は空なら出さない（一覧と同じ・旧い「無題」も落とす）。名前が要る所
+    // （共有の文言・読み上げ名）は写真ページと同じ代わりの題（「<撮影地>の写真」/「写真」）
+    const titleText = photoOwnTitle(p, (locale === "en" ? "en" : "ja"));
+    const namedTitle = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
     const altText = photoAltText(p, locale);
     const locationText = typeof p.location === "string" ? p.location : "";
     const mapText = locale === "ja" ? mapLabel.ja : mapLabel.en;
@@ -221,7 +225,7 @@ export default function GalleryModal({
     const currentUrl = typeof window !== "undefined"
         ? `${window.location.origin}${ROUTES.PHOTO(p.id)}`
         : `${siteConfig.url}${ROUTES.PHOTO(p.id)}`;
-    const shareText = titleText || "写真";
+    const shareText = namedTitle;
 
     const handleShare = async () => {
         const result = await shareUrl(currentUrl, shareText, paragraphs.join(" "));
@@ -251,7 +255,7 @@ export default function GalleryModal({
             ref={modalRef}
             role="dialog"
             aria-modal="true"
-            aria-label={titleText || "写真"}
+            aria-label={namedTitle}
             onClick={handleOverlayClick}
             // **安全領域の内側に収める。** 上は時計・電池の帯（ホーム画面から
             // 起動したとき）、左右は横向きのノッチ・Dynamic Island、下は
@@ -279,8 +283,8 @@ export default function GalleryModal({
                     同じ形の読み上げ領域を持っている */}
                 <p className="sr-only" aria-live="polite" aria-atomic="true">
                     {locale === "en"
-                        ? `Photo ${currentIndex + 1} of ${photos.length}: ${titleText || "Photo"}`
-                        : `${photos.length}枚中 ${currentIndex + 1}枚目: ${titleText || "写真"}`}
+                        ? `Photo ${currentIndex + 1} of ${photos.length}: ${namedTitle}`
+                        : `${photos.length}枚中 ${currentIndex + 1}枚目: ${namedTitle}`}
                 </p>
                 {/* 画像エリア。
                     **下限を持たせない（TAP-7）。** 以前は `minHeight: 300px` が
