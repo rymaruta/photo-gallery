@@ -73,12 +73,18 @@ export const DELETED_USER_NAME = "退会したユーザー";
  *   - 引いた結果はコンテナ内で `DELETED_LOOKUP_CACHE_MS`（60 秒・前と同じ）控える。
  *     退会が伏せに効くまでの遅れは前と同じ最大 60 秒
  *
- * 🔴 **読めなかった ID は「退会した」側に倒す（伏せる）。** 前は空集合を返して
- * 伏せない側に倒していたが、それは「生きている人が一瞬『退会したユーザー』に
- * 見える」と「退会した人の実名が未認証の口に出る」を比べると逆だった——前者は
- * 次の読み込みで戻る見た目の傷、後者は取り消せない漏れ（コメント一覧は
- * `s-maxage=15` で共有キャッシュにも載る）。伏せるのは**読めなかった ID だけ**で、
- * 読めた ID の判定はそのまま使う。読めなかった ID は控えない（次の呼び出しで
+ * 🔴 **読めなかった ID は `deleted` に混ぜず `unread` で別に返す。** どちらに倒すかは
+ * 呼ぶ側が決める——漏れ方が口によって違うため:
+ *   - **名前を写して持っている口**（コメント・通知の `byName`・ストーリーの返信・
+ *     閲覧者）は `withUnreadAsDeleted` で**伏せる側**に倒す。前は空集合＝伏せない側
+ *     だったが、「生きている人が一瞬『退会したユーザー』に見える」は次の読み込みで
+ *     戻る見た目の傷、「退会した人の実名が未認証の口に出る」は取り消せない漏れ
+ *     （コメント一覧は `s-maxage=15` で共有キャッシュにも載る）
+ *   - **名前を `lookupListIdentity` で引き直す口**（フォロー・フォロワー・ブロックの
+ *     一覧）は `deleted` だけを見る（**生きている扱い**）。墓石からは名前が返らない
+ *     （`{}`）ので、そもそも実名は漏れない。伏せる側に倒すと害だけが出る——生きている
+ *     人が「退会した」と並び、親しい友達の画面などで本人が誤って外してしまう
+ * どちらでも、読めた ID の判定はそのまま使う。読めなかった ID は控えない（次の呼び出しで
  * 引き直す）。見張りとして `console.error` に件数を出す（CloudWatch で
  * `deletedAmong: 読めなかった` を数えれば分かる）。
  *
@@ -113,9 +119,22 @@ function remember(uid: string, deleted: boolean, at: number): void {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function deletedAmong(ids: Iterable<unknown>): Promise<Set<string>> {
+export type DeletedLookup = {
+    /** 墓石が立っていた（退会した）人 */
+    deleted: Set<string>;
+    /** 読めなかった人（判定できなかった）。扱いは呼ぶ側が決める */
+    unread: Set<string>;
+};
+
+/** 名前を写して持っている口の扱い: 読めなかった人も伏せる（実名を漏らさない側） */
+export function withUnreadAsDeleted(r: DeletedLookup): Set<string> {
+    return r.unread.size === 0 ? r.deleted : new Set([...r.deleted, ...r.unread]);
+}
+
+export async function deletedAmong(ids: Iterable<unknown>): Promise<DeletedLookup> {
     const now = Date.now();
     const gone = new Set<string>();
+    const unreadIds = new Set<string>();
     const want: string[] = [];
     const seen = new Set<string>();
     for (const id of ids) {
@@ -129,9 +148,8 @@ export async function deletedAmong(ids: Iterable<unknown>): Promise<Set<string>>
             want.push(id);
         }
     }
-    if (want.length === 0) return gone;
+    if (want.length === 0) return { deleted: gone, unread: unreadIds };
 
-    let unread = 0;
     await Promise.all(Array.from({ length: Math.ceil(want.length / BATCH_GET_MAX) }, async (_, i) => {
         const chunk = want.slice(i * BATCH_GET_MAX, (i + 1) * BATCH_GET_MAX);
         const pending = new Set(chunk);
@@ -170,14 +188,13 @@ export async function deletedAmong(ids: Iterable<unknown>): Promise<Set<string>>
         } catch (e) {
             console.error("deletedAmong error:", e);
         }
-        // ここまで残った ID は読めなかった——伏せる側に倒す（控えない）
-        for (const uid of pending) gone.add(uid);
-        unread += pending.size;
+        // ここまで残った ID は読めなかった（控えない。扱いは呼ぶ側が決める）
+        for (const uid of pending) unreadIds.add(uid);
     }));
-    if (unread > 0) {
-        console.error(`deletedAmong: 読めなかった ${unread} 件を退会扱いで伏せました`);
+    if (unreadIds.size > 0) {
+        console.error(`deletedAmong: 読めなかった ${unreadIds.size} 件（名前を写して持つ口では伏せる）`);
     }
-    return gone;
+    return { deleted: gone, unread: unreadIds };
 }
 
 /**

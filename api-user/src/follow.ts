@@ -712,7 +712,8 @@ export const getUserFollowing: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const visible = await withoutHidden(list, me, "getUserFollowing");
         const page = visible.slice(0, FOLLOWING_PAGE);
         // 引くのは一覧が空でないときだけ（`getComments` と同じ）
-        const gone = page.length > 0 ? await deletedAmong(page) : new Set<string>();
+        // 読めなかった人は生きている扱い（名前は `lookupListIdentity` が引き直し、墓石からは返らない）
+        const gone = page.length > 0 ? (await deletedAmong(page)).deleted : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
             // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで
@@ -783,7 +784,8 @@ export const getUserFollowers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
         const list = usableUserIds(res.Item?.list, `followers#${uid}`);
         const visible = await withoutHidden(list, me, "getUserFollowers");
         const page = visible.slice(0, FOLLOWING_PAGE);
-        const gone = page.length > 0 ? await deletedAmong(page) : new Set<string>();
+        // 読めなかった人は生きている扱い（名前は `lookupListIdentity` が引き直し、墓石からは返らない）
+        const gone = page.length > 0 ? (await deletedAmong(page)).deleted : new Set<string>();
         const users = await Promise.all(page.map(async (id) => {
             if (gone.has(id)) return { id, deleted: true };
             // 名前と @ユーザー名（アプリの板 34 の2行目）を1回の読みで

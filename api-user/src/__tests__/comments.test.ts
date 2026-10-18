@@ -10,10 +10,13 @@ vi.mock("../dynamodb", () => ({
     USER_INDEX: "userId-createdAt-index",
 }));
 const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+/** 読めなかった人（`deletedAmong` の `unread`） */
+const mockUnreadIds = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    deletedAmong: mockDeletedIds,
+    deletedAmong: async (ids: unknown) => ({ deleted: await mockDeletedIds(ids), unread: mockUnreadIds() }),
+    withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",
 }));
 
@@ -44,6 +47,7 @@ function ev(sub: string | undefined, params: Record<string, string> | undefined,
 }
 
 beforeEach(() => {
+    mockUnreadIds.mockReset().mockReturnValue(new Set<string>());
     mockDdbSend.mockReset();
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockPush.mockReset().mockResolvedValue(undefined);
@@ -861,6 +865,20 @@ describe("getComments: 退会した人の名前は出さない", () => {
         const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
 
         expect(data.items.every((c: { deleted?: boolean }) => c.deleted === undefined)).toBe(true);
+    });
+
+    // 🔴 **読めなかった人は伏せる側。** コメントは書いた時点の名前を写して持つので、
+    // 生きている扱いにすると退会した人の実名が未認証の口に出る
+    it("退会の判定が読めなかった人も伏せる（実名を漏らさない側）", async () => {
+        mockDeletedIds.mockResolvedValue(new Set<string>());
+        mockUnreadIds.mockReturnValue(new Set(["gone"]));
+        world();
+        const data = JSON.parse((await invoke(getComments, ev(undefined, { id: "p1" }))).body);
+        const c1 = data.items.find((c: { id: string }) => c.id === "c1");
+        expect(c1.name).toBe("退会したユーザー");
+        expect(c1.deleted).toBe(true);
+        // 読めた人はそのまま
+        expect(data.items.find((c: { id: string }) => c.id === "c2").name).toBe("居る人");
     });
 
     // 公開APIなので、無駄な読み取りを増やさない

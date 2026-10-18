@@ -7,6 +7,7 @@ const mockLookupIfSet = vi.hoisted(() => vi.fn<(uid: string) => Promise<string |
 // @ユーザー名（一覧の2行目）。名前と同じ読みで返る（`lookupListIdentity`）
 const mockUsername = vi.hoisted(() => vi.fn<(uid: string) => Promise<string | undefined>>(async () => undefined));
 const mockDeleted = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+const mockUnreadFollow = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 const mockIsBlocked = vi.hoisted(() => vi.fn());
 const mockHidden = vi.hoisted(() => vi.fn<(uid: string) => Promise<Set<string>>>(async () => new Set<string>()));
 
@@ -24,7 +25,7 @@ vi.mock("../notify", () => ({
         const username = await mockUsername(uid);
         return { ...(name ? { name } : {}), ...(username ? { username } : {}) };
     },
-    deletedAmong: (ids: unknown) => mockDeleted(ids),
+    deletedAmong: async (ids: unknown) => ({ deleted: await mockDeleted(ids), unread: mockUnreadFollow() }),
 }));
 // **境界として差し替える。** 素で通すと、この画面のほとんどのテストが
 // 使っている「`mockDdbSend` に順番どおり答えさせる」形が1つずつずれる
@@ -110,6 +111,7 @@ beforeEach(() => {
     mockLookupIfSet.mockReset().mockResolvedValue(undefined);
     mockUsername.mockReset().mockResolvedValue(undefined);
     mockDeleted.mockReset().mockResolvedValue(new Set<string>());
+    mockUnreadFollow.mockReset().mockReturnValue(new Set<string>());
     mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
 
@@ -1086,6 +1088,16 @@ describe("getUserFollowing（その人がフォローしている人）", () => 
         expect(mockDeleted).toHaveBeenCalledWith([OTHER, THIRD]);
     });
 
+    // 読めなかった人は**生きている扱い**（名前は引き直すので実名は漏れない）。
+    // 伏せる側に倒すと、親しい友達の画面などで生きている人が「退会した」と並ぶ
+    it("退会の判定が読めなかった人は、生きている扱いで名前を出す", async () => {
+        mockDdbSend.mockResolvedValue({ Item: { list: [OTHER] } });
+        mockUnreadFollow.mockReturnValue(new Set([OTHER]));
+        mockLookupIfSet.mockResolvedValue("旅人B");
+        const res = await invoke(getUserFollowing, evUid(ME, ME));
+        expect(JSON.parse(res.body).users).toEqual([{ id: OTHER, name: "旅人B" }]);
+    });
+
     it("一覧が空なら、退会者の照会には行かない", async () => {
         mockDdbSend.mockResolvedValue({ Item: { list: [] } });
         await invoke(getUserFollowing, evUid(ME, ME));
@@ -1326,6 +1338,15 @@ describe("フォロワーの一覧（followers#）", () => {
         const res = await invoke(getUserFollowers, evUid(ME, ME));
         expect(JSON.parse(res.body).users).toEqual([{ id: THIRD, deleted: true }]);
         expect(mockDeleted).toHaveBeenCalledWith([THIRD]);
+    });
+
+    it("退会の判定が読めなかった人は、生きている扱い（印を付けない）", async () => {
+        world({ [`followers#${ME}`]: { list: [THIRD] } });
+        mockUnreadFollow.mockReturnValue(new Set([THIRD]));
+        const res = await invoke(getUserFollowers, evUid(ME, ME));
+        const users = JSON.parse(res.body).users as { id: string; deleted?: boolean }[];
+        expect(users.map((u) => u.id)).toEqual([THIRD]);
+        expect(users[0].deleted).toBeUndefined();
     });
 
     // **数の Get が落ちただけで一覧を丸ごと失わせない**（`Promise.all` に

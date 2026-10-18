@@ -1354,7 +1354,7 @@ functions:
 #   getPublicProfile  photos: GetItem / users: GetItem
 #   searchUsers                 users: GetItem, Scan
 #   getLikeCount      photos: GetItem
-#   getComments       photos: GetItem / users: Scan（deletedUserIds）
+#   getComments       photos: GetItem / users: BatchGetItem（deletedAmong）
 #   getFollowStats    photos: GetItem
 #
 # Query は1つも使っていない（全部 主キーの GetItem）。索引も引かないので

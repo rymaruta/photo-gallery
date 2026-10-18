@@ -3,7 +3,7 @@ import { ScanCommand, QueryCommand, PutCommand, GetCommand, UpdateCommand, Delet
 import { randomUUID } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX, STORY_INDEX, STORY_FEED_KEY } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError, isAdmin } from "./http";
-import { lookupDisplayName, deletedAmong, DELETED_USER_NAME } from "./notify";
+import { lookupDisplayName, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
 import { mediaKeys, deriveUploadKey } from "./mediaKeys";
 import { isOwnUploadUrlFromEnv as isOwnUploadUrl, keyFromUploadUrl, canonicalUploadUrl } from "./uploadPolicy";
 import { s3DeleteMany } from "./s3Delete";
@@ -648,7 +648,7 @@ export const getStoryViewers: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
         const [gone, hidden] = entries.length === 0
             ? [new Set<string>(), new Set<string>()]
             : await Promise.all([
-                deletedAmong(entries.map(([userId]) => userId)),
+                deletedAmong(entries.map(([userId]) => userId)).then(withUnreadAsDeleted),
                 // 読めなければ一覧は返す（`getStories` と同じ判断）
                 hiddenUserIds(callerId).catch((e) => {
                     console.error("getStoryViewers: ブロック一覧を読めませんでした:", e);
