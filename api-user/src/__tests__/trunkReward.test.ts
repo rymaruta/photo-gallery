@@ -94,12 +94,12 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         expect(REWARD_COINS).toBe(3);
     });
 
-    it("アイコンを設定した人: トランクの行が無くても作って3枚。応答は { granted, added, coins } だけ・印は trunk# の行", async () => {
+    it("アイコンを設定した人: トランクの行が無くても作って3枚。応答は { granted, added, coins, rewarded } だけ・印は trunk# の行", async () => {
         setProfile();
         images.add(`${UID}:avatar`);
         const r = await reward("avatar");
         expect(r.status).toBe(200);
-        expect(r.json).toEqual({ granted: true, added: 3, coins: 3 });
+        expect(r.json).toEqual({ granted: true, added: 3, coins: 3, rewarded: true });
         expect(trunkRow()?.coins).toBe(3);
         expect(typeof trunkRow()?.rewardAvatarAt).toBe("string");
         expect(trunkRow()?.rewardAvatarAdded).toBe(3);
@@ -119,8 +119,8 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         setProfile();
         images.add(`${UID}:avatar`);
         images.add(`${UID}:cover`);
-        expect((await reward("avatar")).json).toEqual({ granted: true, added: 3, coins: 3 });
-        expect((await reward("cover")).json).toEqual({ granted: true, added: 3, coins: 6 });
+        expect((await reward("avatar")).json).toEqual({ granted: true, added: 3, coins: 3, rewarded: true });
+        expect((await reward("cover")).json).toEqual({ granted: true, added: 3, coins: 6, rewarded: true });
         expect(trunkRow()?.coins).toBe(6);
     });
 
@@ -132,7 +132,7 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         mockExists.mockClear();
         const r = await reward("avatar");
         expect(r.status).toBe(200);
-        expect(r.json).toEqual({ granted: false, added: 0, coins: 3 });
+        expect(r.json).toEqual({ granted: false, added: 0, coins: 3, rewarded: true });
         expect(calls).toEqual(["GetCommand:photos-test", "GetCommand:photos-test"]);
         expect(mockExists).not.toHaveBeenCalled();
     });
@@ -143,18 +143,18 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         await reward("avatar");
         setTrunk({ ...trunkRow(), coins: 0 });
         images.delete(`${UID}:avatar`);
-        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0 });
+        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0, rewarded: true });
         images.add(`${UID}:avatar`);
-        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0 });
+        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0, rewarded: true });
         expect(trunkRow()?.coins).toBe(0);
     });
 
     it("まだ設定していない: 配らず、印も立てない（設定したあとの呼び出しで渡せる）", async () => {
         setProfile();
-        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: 0 });
+        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: 0, rewarded: false });
         expect(trunkRow()).toBeUndefined();
         images.add(`${UID}:cover`);
-        expect((await reward("cover")).json).toEqual({ granted: true, added: 3, coins: 3 });
+        expect((await reward("cover")).json).toEqual({ granted: true, added: 3, coins: 3, rewarded: true });
     });
 
     it("上限 99 を超える分は配らない。0 枚でも印は立てる（あとで空いても配り直さない）", async () => {
@@ -162,19 +162,19 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
         images.add(`${UID}:avatar`);
         images.add(`${UID}:cover`);
         setTrunk({ coins: 98 });
-        expect((await reward("avatar")).json).toEqual({ granted: true, added: 1, coins: COINS_MAX });
+        expect((await reward("avatar")).json).toEqual({ granted: true, added: 1, coins: COINS_MAX, rewarded: true });
         expect(trunkRow()?.rewardAvatarAdded).toBe(1);
-        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: COINS_MAX });
+        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: COINS_MAX, rewarded: true });
         expect(typeof trunkRow()?.rewardCoverAt).toBe("string");
         expect(trunkRow()?.rewardCoverAdded).toBe(0);
         setTrunk({ ...trunkRow(), coins: 10 });
-        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: 10 });
+        expect((await reward("cover")).json).toEqual({ granted: false, added: 0, coins: 10, rewarded: true });
     });
 
     it("退会の墓石には配らない", async () => {
         setProfile({ deletedAt: "2026-10-18T01:00:00.000Z" });
         images.add(`${UID}:avatar`);
-        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0 });
+        expect((await reward("avatar")).json).toEqual({ granted: false, added: 0, coins: 0, rewarded: false });
         expect(trunkRow()).toBeUndefined();
     });
 
@@ -205,6 +205,15 @@ describe("アイコン・カバーのお礼（POST /user/trunk/reward）", () =>
             expect(r.json.code).toBe("badKind");
         }
         expect(calls).toHaveLength(0);
+    });
+
+    it("rewarded: まだ設定していない回だけ false（アプリは false の間、起動のときに確かめ直す）", async () => {
+        setProfile();
+        expect((await reward("avatar")).json.rewarded).toBe(false);
+        images.add(`${UID}:avatar`);
+        expect((await reward("avatar")).json.rewarded).toBe(true);
+        images.delete(`${UID}:avatar`);
+        expect((await reward("avatar")).json.rewarded).toBe(true);
     });
 
     it("ログインしていなければ 401", async () => {

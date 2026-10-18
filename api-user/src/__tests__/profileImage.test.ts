@@ -38,6 +38,17 @@ describe("profileImageExists", () => {
         expect(await profileImageExists("u1", "avatar")).toBe(false);
     });
 
+    it("404 以外の失敗（403 など）は警告に残す・404 は残さない", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        fetchMock.mockResolvedValueOnce(res(404));
+        await profileImageExists("u1", "avatar");
+        expect(warn).not.toHaveBeenCalled();
+        fetchMock.mockResolvedValueOnce(res(403));
+        await profileImageExists("u1", "avatar");
+        expect(warn).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+    });
+
     it("404・403・500・失敗・時間切れは「無い」に倒す", async () => {
         for (const status of [404, 403, 500]) {
             fetchMock.mockResolvedValueOnce(res(status));
