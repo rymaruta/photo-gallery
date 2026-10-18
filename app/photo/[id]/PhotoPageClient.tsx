@@ -1550,7 +1550,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                             <ChevronLeftIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                             <span className="min-w-0">
                                                 <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Newer" : "新しい写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{getLocalized(related.prev.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.prev, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                         </Link>
                                     ) : <span className="flex-1" />}
@@ -1564,7 +1564,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                         >
                                             <span className="min-w-0">
                                                 <span className="block text-[11px] uppercase tracking-wider text-white/50">{locale === "en" ? "Older" : "古い写真"}</span>
-                                                <span className="block text-sm text-white/85 truncate">{getLocalized(related.next.title, locale) || (locale === "en" ? "Photo" : "写真")}</span>
+                                                <span className="block text-sm text-white/85 truncate">{photoOwnTitle(related.next, locale === "en" ? "en" : "ja") || (locale === "en" ? "Photo" : "写真")}</span>
                                             </span>
                                             <ChevronRightIcon className="w-5 h-5 flex-shrink-0 text-white/50" />
                                         </Link>

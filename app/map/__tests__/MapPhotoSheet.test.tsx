@@ -254,3 +254,25 @@ describe("撮影地マップのボトムシート", () => {
         expect(img?.getAttribute("src")).toBe("https://example.org/x.webp");
     });
 });
+
+// 題が無い写真の札（2026-10-18）。「無題」と出していたのを、写真ページの `<title>` と
+// 同じ「<撮影地>の写真」/「写真」に（札の形は変えない・文字だけ）
+describe("撮影地マップの札: 題が無い写真", () => {
+    const cases: [string, Partial<MapPhoto>][] = [
+        ["欄が無い", { title: undefined }],
+        ["空白だけ", { title: { ja: "  " } }],
+        ["{ ja: 無題, en: Untitled }", { title: { ja: "無題", en: "Untitled" } }],
+    ];
+    for (const [name, over] of cases) {
+        it(`${name} ＋ 撮影地あり → 「<撮影地>の写真」`, () => {
+            setup([photo("a", { ...over, location: "板橋区" } as Partial<MapPhoto>)]);
+            expect(screen.getByText("板橋区の写真")).toBeTruthy();
+            expect(screen.getByTestId("map-photo-sheet").innerHTML).not.toMatch(/無題|Untitled/);
+        });
+        it(`${name} ＋ 撮影地なし → 「写真」`, () => {
+            setup([photo("a", over)]);
+            expect(screen.getByText("写真")).toBeTruthy();
+            expect(screen.getByTestId("map-photo-sheet").innerHTML).not.toMatch(/無題|Untitled/);
+        });
+    }
+});
