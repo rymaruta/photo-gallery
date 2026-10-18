@@ -64,8 +64,15 @@ describe("台本の本体（run）", () => {
         store.set("a", pub("a"));
         const sent: { kind: string; input: Record<string, unknown> }[] = [];
         let onPut: (() => void) | null = null;
+        let onGet: ((id: string, n: number) => void) | null = null;
+        const getsOf = new Map<string, number>();
         const send = async (cmd: Cmd) => {
             sent.push({ kind: cmd.constructor.name, input: cmd.input });
+            if (cmd instanceof GetCommand && onGet) {
+                const id = String((cmd.input.Key as { id: string }).id);
+                getsOf.set(id, (getsOf.get(id) ?? 0) + 1);
+                onGet(id, getsOf.get(id)!);
+            }
             if (cmd instanceof ScanCommand) return { Items: [...store.values()].filter((r) => String(r.id).startsWith("trunk#")).map((r) => structuredClone(r)), ScannedCount: store.size };
             if (cmd instanceof GetCommand) {
                 const v = store.get(String((cmd.input.Key as { id: string }).id));
@@ -87,7 +94,7 @@ describe("台本の本体（run）", () => {
             send, describe: async () => ({ TableSizeBytes: 1024, ItemCount: 2 }), lib, argv, PHOTOS_TABLE: "photos-test", cmds,
             log: () => undefined, logError: () => undefined,
         });
-        return { store, sent, go, setOnPut: (f: () => void) => { onPut = f; } };
+        return { store, sent, go, setOnPut: (f: () => void) => { onPut = f; }, setOnGet: (f: (id: string, n: number) => void) => { onGet = f; } };
     }
 
     it("既定（--apply なし）は書かない。数えるだけ", async () => {
@@ -125,6 +132,30 @@ describe("台本の本体（run）", () => {
         const gets = w.sent.filter((c) => c.kind === "GetCommand" && (c.input.Key as { id: string }).id === "a");
         expect(gets).toHaveLength(2);
         expect(gets.every((g) => g.input.ConsistentRead === true)).toBe(true);
+    });
+
+    it("書いたあとの確かめの読みが落ちたら、確かめの失敗として数える（書いた行の数・失敗の数と混ぜない）", async () => {
+        const w = world();
+        w.setOnGet((id, n) => { if (id === "a" && n === 2) throw Object.assign(new Error("boom"), { name: "InternalServerError" }); });
+        const tally = await w.go(["node", "x", "--apply"]);
+        expect([tally.written, tally.failed, tally.recheckFailed]).toEqual([1, 0, 1]);
+        // 確かめの読みも数える（写真の読みは2回）
+        expect(tally.gets).toBe(2);
+    });
+
+    it("書いたあとの確かめの Put が競合したら、行を読み直して1回やり直す", async () => {
+        const w = world();
+        // 1回目（印を書く）の直前に写真が絞られる・2回目（外す）の直前にアプリが先に書く（onPut は1回ごとに掛け直す）
+        w.setOnPut(() => {
+            w.store.set("a", pub("a", { audience: "followers" }));
+            w.setOnPut(() => { w.store.set(`trunk#${U}`, { ...w.store.get(`trunk#${U}`)!, rev: 7, coins: 3 }); });
+        });
+        const tally = await w.go(["node", "x", "--apply"]);
+        const row = w.store.get(`trunk#${U}`)!;
+        expect((row.pocket as Record<string, unknown>[])[0].o).toBeUndefined();
+        expect(row.rev).toBe(8);
+        expect(row.coins).toBe(3);
+        expect([tally.rechecked, tally.recheckFailed]).toEqual([1, 0]);
     });
 
     it("書いたあとの確かめで、公開のままなら書き足さない", async () => {

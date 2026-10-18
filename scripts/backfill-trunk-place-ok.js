@@ -109,7 +109,7 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0, rechecked: 0 };
+    const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0, rechecked: 0, recheckFailed: 0 };
     const sample = [];
     const cache = new Map();
     // 写真は**強い読み**（いま絞った・非公開にした写真を古い姿で読まない）
@@ -122,35 +122,52 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         return res.Item;
     };
 
+    /**
+     * 書いたあとに、印を付けた写真だけ強い読みで読み直し、外すべきなら外す（外すだけ）。
+     * **確かめの失敗は確かめの失敗として数える**（`recheckFailed`。書いた行は書けている＝`written` と食い違わせない）。
+     * 外す Put が競合したら（アプリが先に書いた）、行を強い読みで読み直して1回だけやり直す。外し損ねは本人の
+     * GET /user/trunk の外しが拾う
+     */
     const recheckAdded = async (plan, written) => {
         if (plan.addedIds.length === 0) return;
-        const fresh = new Map();
-        for (const id of plan.addedIds) {
-            const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
-            fresh.set(id, res.Item);
-            cache.set(id, res.Item);
-        }
-        let dropped = 0;
-        const drop = (list) => (Array.isArray(list) ? list.map((l) => {
-            if (!l || l.o !== 1 || !fresh.has(l.i)) return l;
-            const next = lib.storedLabelWithPlaceOk(l, fresh.get(l.i), plan.uid);
-            if (next.o !== 1) dropped++;
-            return next;
-        }) : list);
-        const pocket = drop(written.pocket), stuck = drop(written.stuck);
-        if (dropped === 0) return;
         try {
-            await send(new PutCommand({
-                TableName: PHOTOS_TABLE,
-                Item: { ...written, pocket, stuck, rev: written.rev + 1, updatedAt: new Date().toISOString() },
-                ConditionExpression: "rev = :rev",
-                ExpressionAttributeValues: { ":rev": written.rev },
-            }));
-            tally.rechecked += dropped;
+            const fresh = new Map();
+            for (const id of plan.addedIds) {
+                tally.gets++;
+                const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true, ReturnConsumedCapacity: "TOTAL" }));
+                consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
+                fresh.set(id, res.Item);
+                cache.set(id, res.Item);
+            }
+            let row = written;
+            for (let attempt = 0; attempt < 2 && row; attempt++) {
+                let dropped = 0;
+                const drop = (list) => (Array.isArray(list) ? list.map((l) => {
+                    if (!l || l.o !== 1 || !fresh.has(l.i)) return l;
+                    const next = lib.storedLabelWithPlaceOk(l, fresh.get(l.i), plan.uid);
+                    if (next.o !== 1) dropped++;
+                    return next;
+                }) : list);
+                const pocket = drop(row.pocket), stuck = drop(row.stuck);
+                if (dropped === 0) return;
+                const rev = typeof row.rev === "number" ? row.rev : 0;
+                try {
+                    await send(new PutCommand({
+                        TableName: PHOTOS_TABLE,
+                        Item: { ...row, pocket, stuck, rev: rev + 1, updatedAt: new Date().toISOString() },
+                        ConditionExpression: rev === 0 ? "attribute_not_exists(rev) OR rev = :rev" : "rev = :rev",
+                        ExpressionAttributeValues: { ":rev": rev },
+                    }));
+                    tally.rechecked += dropped;
+                    return;
+                } catch (e) {
+                    if (e.name !== "ConditionalCheckFailedException" || attempt === 1) throw e;
+                    row = (await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: written.id }, ConsistentRead: true }))).Item;
+                }
+            }
         } catch (e) {
-            // アプリが先に書いた。外し損ねは本人の GET /user/trunk の外しが拾う（記録だけ）
-            tally.failed++;
-            logError(`  ${written.id}: 確かめて外す書き込みができませんでした（${e.name}: ${e.message}）`);
+            tally.recheckFailed++;
+            logError(`  ${written.id}: 書いたあとの確かめができませんでした（${e.name}: ${e.message}）。本人が開いたときの外しが拾います`);
         }
     };
 
@@ -205,7 +222,7 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         log("  （読むだけ）--apply を付けて流すと書きます。");
         return tally;
     }
-    log(`書いた: ${tally.written} 件・書いたあとの確かめで外し直した: ${tally.rechecked} 枚・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
+    log(`書いた: ${tally.written} 件・書いたあとの確かめで外し直した: ${tally.rechecked} 枚（確かめの失敗 ${tally.recheckFailed} 件）・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
     return tally;
 }
 

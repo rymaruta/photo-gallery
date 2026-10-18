@@ -600,16 +600,19 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         expect((await ownStuck()).map((l) => l.placeOk)).toEqual([true, undefined]);
     });
 
-    it("【見直し3】束の付け直しの確かめは兄弟を根拠にしない（この写真で確かめられなければ外す）", async () => {
+    it("【見直し3】束の兄弟は印を「残す」根拠にだけなり、「付ける」根拠にならない（付けて外す2回書きをしない）", async () => {
         setProfile(OWNER, {});
         const g = T.groupKey("grp");
         setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto", g })], pocket: [] });
         mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
         setPhoto("ph9", row("ph9", { groupId: "grp" }));
         setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers" }));
-        // 兄弟が公開なので付け直しでは付くが、書いたあとの確かめ（この写真＝絞った）で外れる
         await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1", { groupId: "grp" }), "test");
         await expectHidden();
+        // 付けもしない＝書かない（rev はそのまま）
+        expect(trunkRow(OWNER)!.rev).toBe(1);
+        expect(T.placeOkNext({ id: "x", photoId: "x", kind: "place", place: { name: "京都", latin: "Kyoto", country: "日本" }, seed: 1, at: NEW },
+            undefined, OWNER, new Set([JSON.stringify(["京都", "Kyoto", "日本"])]))).toBe(false);
     });
 
     it("【見直し5】確かめ（confirmPlaceOk）は強い読みで、印を外すだけ（付けない）", async () => {
@@ -636,23 +639,114 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         const out = await T.grantLabelQuietly(OWNER, row("ph1", { createdAt: NEW }) as never, "test");
         expect(out.labelSkipped).toBeUndefined();
         expect(out.label?.id).toBe("ph1");
+        // 確かめられなかったときは応答の1枚の印もそのまま（行と食い違わせない。外し損ねは GET の外しが拾う）
+        expect(out.label?.placeOk).toBe(true);
+        expect(((trunkRow(OWNER)!.pocket as Item[])[0]).o).toBe(1);
         err.mockRestore();
     });
 
-    it("【見直し1】配ったあとの確かめが待ちの切れ目に掛かったら、確かめを待たずに配りの答えを返す（timeout にしない）", async () => {
-        setProfile(OWNER, {});
+    /**
+     * 確かめの写真の読みを止めておく（偽の時計で待ちの切れ目を進めてから放す）。放したあとの裏の確かめが
+     * 終わるまで待ってから終える（共有の作り物の表に、ほかのテストの最中に書かないように）
+     */
+    function holdConfirmRead(photoId: string) {
         let wrote = false;
+        let release!: () => void;
+        const gate = new Promise<void>((r) => { release = r; });
+        let held = 0;
+        let done!: () => void;
+        const finished = new Promise<void>((r) => { done = r; });
         fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
-            if (cmd.constructor.name === "TransactWriteCommand") wrote = true;
-            if (wrote && cmd.constructor.name === "GetCommand" && (cmd.input as { Key: Item }).Key.id === "ph1") {
-                await new Promise((r) => setTimeout(r, 3500));
+            if (cmd.constructor.name === "TransactWriteCommand") {
+                const out = await send(cmd as never);
+                if (held > 0) done();
+                wrote = true;
+                return out;
+            }
+            if (wrote && held === 0 && cmd.constructor.name === "GetCommand" && (cmd.input as { Key: Item }).Key.id === photoId
+                && (cmd.input as { ConsistentRead?: boolean }).ConsistentRead) {
+                held++;
+                await gate;
             }
             return send(cmd as never);
         });
-        const out = await T.grantLabelQuietly(OWNER, row("ph1", { createdAt: NEW }) as never, "test");
-        expect(out.labelSkipped).toBeUndefined();
-        expect(out.label?.id).toBe("ph1");
-    }, 10_000);
+        return { release, finished };
+    }
+
+    it("【見直し1】配ったあとの確かめが待ちの切れ目に掛かったら、確かめを待たずに配りの答えを返す（timeout にしない）", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+        try {
+            setProfile(OWNER, {});
+            const hold = holdConfirmRead("ph1");
+            const pending = T.grantLabelQuietly(OWNER, row("ph1", { createdAt: NEW }) as never, "test");
+            await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 100);
+            const out = await pending;
+            expect(out.labelSkipped).toBeUndefined();
+            expect(out.label?.id).toBe("ph1");
+            // 裏の確かめを放して、終わるまで待つ（写真の行が無い＝外す書き込みが1回走る）
+            hold.release();
+            await hold.finished;
+        } finally {
+            vi.useRealTimers();
+        }
+        expect(((trunkRow(OWNER)!.pocket as Item[])[0]).o).toBeUndefined();
+    });
+
+    it("【見直し5】下書き → 公開（grantLabelForPhotoQuietly）でも、確かめが切れ目に掛かったら配りの答えを返す", async () => {
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+        try {
+            setProfile(OWNER, {});
+            setPhoto("ph1", row("ph1", { createdAt: NEW }));
+            const hold = holdConfirmRead("ph1");
+            const pending = grantLabelForPhotoQuietly(OWNER, "ph1", "test");
+            await vi.advanceTimersByTimeAsync(T.TRUNK_QUIET_LIMIT_MS + 100);
+            const out = await pending;
+            expect(out.labelSkipped).toBeUndefined();
+            expect(out.label?.id).toBe("ph1");
+            hold.release();
+            // 写真は公開のまま＝確かめは何も書かない。読みが返るまで回す
+            await vi.advanceTimersByTimeAsync(10);
+        } finally {
+            vi.useRealTimers();
+        }
+        expect(((trunkRow(OWNER)!.pocket as Item[])[0]).o).toBe(1);
+    });
+
+    it("【見直し1】本人の GET の外しの読みが落ちても、画面は 500 にしない（外さない）", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [okLabel("a"), okLabel("b")], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("a", { audience: "followers" }), row("b", { audience: "followers" })]);
+        setPhoto("b", row("b", { audience: "followers" }));
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "GetCommand" && (cmd.input as { Key: Item }).Key.id === "a") throw new Error("boom");
+            return send(cmd as never);
+        });
+        const r = await call("GET /user/trunk", { sub: OWNER });
+        expect(r.status).toBe(200);
+        // 読めなかった a は外さない・読めた b は外す（1枚の失敗でほかの外しを止めない）
+        expect((r.json.stuck as Item[]).map((l) => l.placeOk)).toEqual([true, undefined]);
+        expect((trunkRow(OWNER)!.stuck as Item[]).map((l) => l.o ?? null)).toEqual([1, null]);
+        err.mockRestore();
+    });
+
+    it("【見直し1】本人の GET の外しは、1回に読む写真を上限まで（並べて読む）。残りは次の GET で外す", async () => {
+        setProfile(OWNER, {});
+        const n = T.STALE_READ_MAX + 5;
+        const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+        setTrunk(OWNER, { stuck: ids.map((id) => okLabel(id)), pocket: [] });
+        mockListMyPhotos.mockResolvedValue(ids.map((id) => row(id, { audience: "followers" })));
+        for (const id of ids) setPhoto(id, row(id, { audience: "followers" }));
+        fakeSend.mockClear();
+        await ownStuck();
+        const reads = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand"
+            && ids.includes(String((c.input as { Key: Item }).Key.id)));
+        expect(reads).toHaveLength(T.STALE_READ_MAX);
+        const left = () => (trunkRow(OWNER)!.stuck as Item[]).filter((l) => l.o === 1).length;
+        expect(left()).toBe(5);
+        await ownStuck();
+        expect(left()).toBe(0);
+    });
 
     it("【見直し9】再送で撮影地が変わっていたら印を外す（同じ撮影地なら残す）", async () => {
         setProfile(OWNER, {});
