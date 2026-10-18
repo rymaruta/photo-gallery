@@ -54,6 +54,33 @@ describe("数えてよい写真", () => {
         expect(countBadges([photo({ published: false }), photo({ story: true })], []).first).toBe(0);
         expect(countBadges([photo()], []).first).toBe(1);
     });
+
+    // 2026-10-18（journey.photo-ios #296）: 公開範囲を絞った写真は数えない。
+    // 数えると、公開プロフィールのメダルの段と取った日から、絞った写真の県・日が推し量れる
+    it("公開範囲を絞った写真（フォロワーだけ・親しい友達だけ・知らない値）は数えない", () => {
+        expect(isCountablePhoto(photo({ audience: "followers" }))).toBe(false);
+        expect(isCountablePhoto(photo({ audience: "closeFriends" }))).toBe(false);
+        // 知らない綴りも「絞った」に倒す（`isRestrictedRow` と同じ）。公開に戻さない
+        expect(isCountablePhoto(photo({ audience: "follower" }))).toBe(false);
+        // 空の文字列・項目なしは全体に公開
+        expect(isCountablePhoto(photo({ audience: "" }))).toBe(true);
+        expect(isCountablePhoto(photo({ audience: undefined }))).toBe(true);
+    });
+
+    it("絞った写真しか無い県・国・スポットは、どのメダルの数にも入らない", () => {
+        const kyoto = photo({ location: "京都府 京都市", audience: "followers" });
+        const france = photo({ location: "パリ, フランス", audience: "closeFriends" });
+        const c = countBadges([kyoto, france], []);
+        expect(c.first).toBe(0);
+        expect(c.prefectures).toBe(0);
+        expect(c.countries).toBe(0);
+        // 公開の写真と混ざっても、公開のぶんだけ
+        const pub = photo({ location: "東京都 港区" });
+        const c2 = countBadges([kyoto, france, pub], []);
+        expect(c2.first).toBe(1);
+        expect(c2.prefectures).toBe(1);
+        expect(c2.countries).toBe(0);
+    });
 });
 
 describe("都道府県", () => {
