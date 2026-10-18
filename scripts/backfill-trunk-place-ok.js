@@ -38,17 +38,18 @@ const WRITE_ATTEMPTS = 3;
 function planRow(lib, row, photos) {
     const uid = typeof row.uid === "string" && row.uid ? row.uid : String(row.id).slice(PREFIX.length);
     let added = 0, removed = 0, labels = 0;
+    const addedIds = new Set();
     const fix = (list) => (Array.isArray(list) ? list.map((l) => {
         if (!l || typeof l !== "object" || typeof l.i !== "string") return l;
         labels++;
         const next = lib.storedLabelWithPlaceOk(l, photos.get(l.i), uid);
-        if (next.o === 1 && l.o !== 1) added++;
+        if (next.o === 1 && l.o !== 1) { added++; addedIds.add(l.i); }
         if (next.o !== 1 && l.o === 1) removed++;
         return next;
     }) : list);
     const pocket = fix(row.pocket);
     const stuck = fix(row.stuck);
-    return { write: added + removed > 0, pocket, stuck, added, removed, labels };
+    return { write: added + removed > 0, pocket, stuck, added, removed, labels, addedIds: [...addedIds], uid };
 }
 
 /** ラベルの写真の id（同じものは1回） */
@@ -108,7 +109,7 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         lastKey = res.LastEvaluatedKey;
     } while (lastKey);
 
-    const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0 };
+    const tally = { rows: rows.length, labels: 0, added: 0, removed: 0, toWrite: 0, written: 0, failed: 0, gets: 0, rechecked: 0 };
     const sample = [];
     const cache = new Map();
     // 写真は**強い読み**（いま絞った・非公開にした写真を古い姿で読まない）
@@ -119,6 +120,38 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         consumed += res.ConsumedCapacity?.CapacityUnits ?? 0;
         cache.set(id, res.Item);
         return res.Item;
+    };
+
+    const recheckAdded = async (plan, written) => {
+        if (plan.addedIds.length === 0) return;
+        const fresh = new Map();
+        for (const id of plan.addedIds) {
+            const res = await send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id }, ConsistentRead: true }));
+            fresh.set(id, res.Item);
+            cache.set(id, res.Item);
+        }
+        let dropped = 0;
+        const drop = (list) => (Array.isArray(list) ? list.map((l) => {
+            if (!l || l.o !== 1 || !fresh.has(l.i)) return l;
+            const next = lib.storedLabelWithPlaceOk(l, fresh.get(l.i), plan.uid);
+            if (next.o !== 1) dropped++;
+            return next;
+        }) : list);
+        const pocket = drop(written.pocket), stuck = drop(written.stuck);
+        if (dropped === 0) return;
+        try {
+            await send(new PutCommand({
+                TableName: PHOTOS_TABLE,
+                Item: { ...written, pocket, stuck, rev: written.rev + 1, updatedAt: new Date().toISOString() },
+                ConditionExpression: "rev = :rev",
+                ExpressionAttributeValues: { ":rev": written.rev },
+            }));
+            tally.rechecked += dropped;
+        } catch (e) {
+            // アプリが先に書いた。外し損ねは本人の GET /user/trunk の外しが拾う（記録だけ）
+            tally.failed++;
+            logError(`  ${written.id}: 確かめて外す書き込みができませんでした（${e.name}: ${e.message}）`);
+        }
     };
 
     for (let row of rows) {
@@ -145,6 +178,9 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
                     ExpressionAttributeValues: { ":rev": rev },
                 }));
                 tally.written++;
+                // **書いたあとに確かめる**（Lambda と同じ）: 印を付けた写真だけ強い読みで読み直し、書くまでのあいだに
+                // 絞られた・非公開にされた・撮影地が変わったなら外し直す（外すだけ）
+                await recheckAdded(plan, { ...row, pocket: plan.pocket, stuck: plan.stuck, rev: rev + 1 });
                 break;
             } catch (e) {
                 if (e.name !== "ConditionalCheckFailedException" || attempt === WRITE_ATTEMPTS - 1) {
@@ -169,7 +205,7 @@ async function run({ send, describe, lib, argv, PHOTOS_TABLE, cmds, log = consol
         log("  （読むだけ）--apply を付けて流すと書きます。");
         return tally;
     }
-    log(`書いた: ${tally.written} 件・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
+    log(`書いた: ${tally.written} 件・書いたあとの確かめで外し直した: ${tally.rechecked} 枚・失敗: ${tally.failed} 件（失敗した行は流し直すと拾えます）`);
     return tally;
 }
 

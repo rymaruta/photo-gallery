@@ -114,6 +114,26 @@ describe("台本の本体（run）", () => {
         expect(gets.every((g) => g.input.ConsistentRead === true)).toBe(true);
     });
 
+    it("書いたあとに、印を付けた写真だけ強い読みで読み直し、外すべきなら外す", async () => {
+        const w = world();
+        // 書く直前に写真が絞られた（rev は進まない＝Put は通る）
+        w.setOnPut(() => { w.store.set("a", pub("a", { audience: "followers" })); });
+        const tally = await w.go(["node", "x", "--apply"]);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBeUndefined();
+        expect(w.store.get(`trunk#${U}`)!.rev).toBe(3);
+        expect(tally.rechecked).toBe(1);
+        const gets = w.sent.filter((c) => c.kind === "GetCommand" && (c.input.Key as { id: string }).id === "a");
+        expect(gets).toHaveLength(2);
+        expect(gets.every((g) => g.input.ConsistentRead === true)).toBe(true);
+    });
+
+    it("書いたあとの確かめで、公開のままなら書き足さない", async () => {
+        const w = world();
+        await w.go(["node", "x", "--apply"]);
+        expect(w.sent.filter((c) => c.kind === "PutCommand")).toHaveLength(1);
+        expect((w.store.get(`trunk#${U}`)!.pocket as Record<string, unknown>[])[0].o).toBe(1);
+    });
+
     it("競合したら、行も写真も強い読みで読み直す（あいだに絞られた写真には付けない）", async () => {
         const w = world();
         w.setOnPut(() => {
