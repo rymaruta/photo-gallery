@@ -24,7 +24,7 @@ vi.mock("../blockCheck", async (importActual) => ({
 
 vi.stubEnv("USERS_TABLE", "users-test");
 const { pushNotification, lookupDisplayName, lookupListIdentity, NOTIFS_MAX, notifsId,
-    deletedAmong, resetDeletedUsersCache } = await import("../notify");
+    deletedAmong, withUnreadAsDeleted, resetDeletedUsersCache } = await import("../notify");
 
 type Input = {
     UpdateExpression?: string;
@@ -232,8 +232,9 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
             ["gone1", { userId: "gone1", deletedAt: TOMB }],
             ["alive", { userId: "alive" }],
         ])));
-        const ids = await deletedAmong(["gone1", "alive"]);
-        expect([...ids]).toEqual(["gone1"]);
+        const r = await deletedAmong(["gone1", "alive"]);
+        expect([...r.deleted]).toEqual(["gone1"]);
+        expect([...r.unread]).toEqual([]);
         expect(cmds().filter((c) => c.constructor.name === "ScanCommand"), "表を走査している").toHaveLength(0);
         expect(batches()).toHaveLength(1);
         // **どのテーブルを見ているかまで固定する**（墓石は USERS_TABLE にしか無い）
@@ -242,6 +243,13 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
         // 判定に要るのは deletedAt だけ（名前やハンドルまで読まない）
         const req = (batches()[0].input.RequestItems as Record<string, { ProjectionExpression: string; ExpressionAttributeNames: Record<string, string> }>)["users-test"];
         expect(Object.values(req.ExpressionAttributeNames).sort()).toEqual(["deletedAt", "userId"]);
+        // **置き換えた名前は全部、式の中で使うこと。** 使わない名前が残ると本番の DynamoDB は
+        // ValidationException を返す（モックは返さない）＝全員が「読めなかった」になる
+        const used = req.ProjectionExpression.split(",").map((t) => t.trim());
+        for (const name of Object.keys(req.ExpressionAttributeNames)) {
+            expect(used, `${name} が ProjectionExpression で使われていない`).toContain(name);
+        }
+        expect(used.sort()).toEqual(["#d", "#u"]);
     });
 
     // **この PR が直す穴。** 行が 6000 あり、退会者が 5000 行より先にいる表
@@ -251,8 +259,8 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
         rows.set("u5999", { userId: "u5999", deletedAt: TOMB });
         mockDdbSend.mockImplementation(table(rows));
 
-        const ids = await deletedAmong(["u1", "u5999", "u42"]);
-        expect([...ids]).toEqual(["u5999"]);
+        const r = await deletedAmong(["u1", "u5999", "u42"]);
+        expect([...r.deleted]).toEqual(["u5999"]);
         // 読んだのは一覧に出た3人ぶんだけ（6000行ではない）
         expect(batches().flatMap(keysOf)).toHaveLength(3);
     });
@@ -267,7 +275,9 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
 
     it("行が無い人は退会扱いにしない（PostConfirmation の取りこぼしで行の無い生きた人がいる）", async () => {
         mockDdbSend.mockImplementation(table(new Map()));
-        expect([...(await deletedAmong(["nobody"]))]).toEqual([]);
+        const r = await deletedAmong(["nobody"]);
+        expect([...r.deleted]).toEqual([]);
+        expect([...r.unread], "行が無いのは「読めなかった」ではない").toEqual([]);
     });
 
     it("空・型違いの ID は引かない", async () => {
@@ -280,7 +290,7 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
         mockDdbSend.mockImplementation(table(new Map([["gone1", { userId: "gone1", deletedAt: TOMB }]])));
         await deletedAmong(["gone1", "alive"]);
         const again = await deletedAmong(["gone1", "alive", "new"]);
-        expect([...again]).toEqual(["gone1"]);
+        expect([...again.deleted]).toEqual(["gone1"]);
         expect(batches()).toHaveLength(2);
         expect(keysOf(batches()[1])).toEqual(["new"]);
     });
@@ -291,12 +301,12 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
         const now = vi.spyOn(Date, "now");
         try {
             now.mockReturnValue(1_000_000);
-            expect([...(await deletedAmong(["u"]))]).toEqual([]);
+            expect([...(await deletedAmong(["u"])).deleted]).toEqual([]);
             rows.set("u", { userId: "u", deletedAt: TOMB });   // ここで退会
             now.mockReturnValue(1_000_000 + 59_000);
-            expect([...(await deletedAmong(["u"]))], "控えの内は前の判定").toEqual([]);
+            expect([...(await deletedAmong(["u"])).deleted], "控えの内は前の判定").toEqual([]);
             now.mockReturnValue(1_000_000 + 61_000);
-            expect([...(await deletedAmong(["u"]))]).toEqual(["u"]);
+            expect([...(await deletedAmong(["u"])).deleted]).toEqual(["u"]);
         } finally {
             now.mockRestore();
         }
@@ -315,36 +325,47 @@ describe("deletedAmong（一覧に出てくる人のうち、退会した人）"
             }
             return Promise.resolve({ Responses: { "users-test": keys.map((userId) => ({ userId, deletedAt: TOMB })) } });
         });
-        expect([...(await deletedAmong(["a", "b"]))]).toEqual(["b"]);
+        expect([...(await deletedAmong(["a", "b"])).deleted]).toEqual(["b"]);
         expect(keysOf(batches()[1])).toEqual(["b"]);
     });
 
-    // 🔴 **読めなかったら伏せる側に倒す**（前は空集合＝伏せない側）。
-    // 「生きている人が一瞬『退会したユーザー』に見える」は次の読み込みで戻るが、
-    // 「退会した人の実名が未認証の口に出る」は取り消せない
-    it("読めなかった ID は退会扱いで伏せる（投げない・控えない・ログに出す）", async () => {
+    // 🔴 **読めなかった ID は `deleted` に混ぜず `unread` で別に返す。** 扱いは呼ぶ側が
+    // 決める（名前を写して持つ口は伏せる・名前を引き直す一覧は生きている扱い）
+    it("読めなかった ID は unread で別に返す（投げない・控えない・ログに出す）", async () => {
         mockDdbSend.mockRejectedValue(new Error("throttled"));
         const err = vi.spyOn(console, "error").mockImplementation(() => {});
         try {
-            await expect(deletedAmong(["alive", "gone1"])).resolves.toEqual(new Set(["alive", "gone1"]));
+            const r = await deletedAmong(["alive", "gone1"]);
+            expect([...r.deleted]).toEqual([]);
+            expect([...r.unread].sort()).toEqual(["alive", "gone1"]);
             // 見張り: 件数つきで CloudWatch に出る
             expect(err).toHaveBeenCalledWith(expect.stringContaining("読めなかった 2 件"));
         } finally {
             err.mockRestore();
         }
-        // 失敗は控えない——次の呼び出しで引き直し、生きている人は戻る
+        // 失敗は控えない——次の呼び出しで引き直す
         mockDdbSend.mockReset().mockImplementation(table(new Map([["gone1", { userId: "gone1", deletedAt: TOMB }]])));
-        expect([...(await deletedAmong(["alive", "gone1"]))]).toEqual(["gone1"]);
+        const again = await deletedAmong(["alive", "gone1"]);
+        expect([...again.deleted]).toEqual(["gone1"]);
+        expect([...again.unread]).toEqual([]);
     });
 
-    it("拾い直しても未処理のまま残った ID だけを伏せる（読めた分はそのまま使う）", async () => {
+    it("withUnreadAsDeleted: 名前を写して持つ口は、読めなかった人も伏せる", () => {
+        const r = { deleted: new Set(["gone"]), unread: new Set(["unknown"]) };
+        expect([...withUnreadAsDeleted(r)].sort()).toEqual(["gone", "unknown"]);
+        expect(withUnreadAsDeleted({ deleted: new Set(["gone"]), unread: new Set() })).toEqual(new Set(["gone"]));
+    });
+
+    it("拾い直しても未処理のまま残った ID だけが読めなかった扱い（読めた分はそのまま使う）", async () => {
         mockDdbSend.mockImplementation((cmd: Cmd) => Promise.resolve({
             Responses: { "users-test": keysOf(cmd).includes("alive") ? [{ userId: "alive" }] : [] },
             UnprocessedKeys: { "users-test": { Keys: [{ userId: "stuck" }] } },
         }));
         const err = vi.spyOn(console, "error").mockImplementation(() => {});
         try {
-            expect([...(await deletedAmong(["alive", "stuck"]))]).toEqual(["stuck"]);
+            const r = await deletedAmong(["alive", "stuck"]);
+            expect([...r.deleted]).toEqual([]);
+            expect([...r.unread]).toEqual(["stuck"]);
             // 初回＋拾い直し3回で止める（青天井に回さない）
             expect(batches()).toHaveLength(4);
         } finally {

@@ -4,6 +4,8 @@ const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
 const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<string>>>(async () => new Set<string>()));
+/** 読めなかった人（`deletedAmong` の `unread`） */
+const mockUnreadIds = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 
 vi.mock("../dynamodb", () => ({
     ddb: { send: mockDdbSend },
@@ -13,7 +15,8 @@ vi.mock("../dynamodb", () => ({
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: mockLookup,
-    deletedAmong: mockDeletedIds,
+    deletedAmong: async (ids: unknown) => ({ deleted: await mockDeletedIds(ids), unread: mockUnreadIds() }),
+    withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",
 }));
 // ブロックの判定も境界にする（`stories.test.ts` と同じ形）
@@ -66,6 +69,7 @@ function world(story: Record<string, unknown> | undefined, replies: unknown[] = 
 }
 
 beforeEach(() => {
+    mockUnreadIds.mockReset().mockReturnValue(new Set<string>());
     mockDdbSend.mockReset();
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
@@ -545,6 +549,13 @@ describe("getStoryReplies", () => {
         expect(bodyOf(r).items[0].deleted).toBe(true);
         // 返信した人の ID を渡して引く（表を走査しない）
         expect(mockDeletedIds).toHaveBeenCalledWith(["gone"]);
+    });
+
+    it("退会の判定が読めなかった人も伏せる（返信は名前を写して持つ）", async () => {
+        mockUnreadIds.mockReturnValue(new Set(["who"]));
+        world(STORY, [{ id: "r1", uid: "who", name: "むかしの名前", text: "x", t: "t" }]);
+        const r = await invoke(getStoryReplies, ev("owner", "story-1"));
+        expect(bodyOf(r).items[0].name).toBe("退会したユーザー");
     });
 
     it("0件なら退会者を引きに行かない", async () => {

@@ -186,6 +186,23 @@ describe("退会した人の名前は出さない", () => {
         expect(keys.map((k) => k.userId).sort()).toEqual([GONE, ALIVE].sort());
     });
 
+    // 🔴 通知は作られた時点の名前（`byName`）を写して持つので、**判定が読めなかった人も伏せる**
+    // （ここは本物の `deletedAmong` を通す）
+    it("退会の判定が読めなかったら伏せる（実名を漏らさない側）", async () => {
+        world([{ ...notif(0), byId: ALIVE, byName: "旅人" }], []);
+        const base = mockDdbSend.getMockImplementation()!;
+        mockDdbSend.mockImplementation((cmd: { constructor: { name: string } }) =>
+            (cmd.constructor.name === "BatchGetCommand" ? Promise.reject(new Error("throttled")) : base(cmd)));
+        const err = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const body = JSON.parse((await invoke(getNotifications, ev())).body) as { items: Array<Record<string, unknown>> };
+            expect(body.items[0].byName).toBe("退会したユーザー");
+            expect(body.items[0].deleted).toBe(true);
+        } finally {
+            err.mockRestore();
+        }
+    });
+
     it("未読数は変わらない（伏せても件数は同じ）", async () => {
         world([{ ...notif(0), byId: GONE, byName: "消えた人" }, { ...notif(1), byId: ALIVE }], [GONE]);
         const body = JSON.parse((await invoke(getNotifications, ev())).body) as { items: unknown[]; unread: number };
