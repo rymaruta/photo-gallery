@@ -543,6 +543,10 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         mockListMyPhotos.mockResolvedValue([
             row("restricted", { audience: "followers" }), row("moved", { location: "大阪" }), row("noOk"),
         ]);
+        // 強い読みで読み直す先（索引と同じ姿。いま上げたばかりの写真は索引にまだ無いが、行は在る）
+        setPhoto("restricted", row("restricted", { audience: "followers" }));
+        setPhoto("moved", row("moved", { location: "大阪" }));
+        setPhoto("justposted", row("justposted"));
         const own = await ownStuck();
         const ok = (id: string) => (own.find((l) => l.id === id) ?? {}).placeOk === true;
         expect(["restricted", "gone", "justposted", "moved", "noOk"].map(ok)).toEqual([false, false, true, false, false]);
@@ -553,6 +557,102 @@ describe("確かめた物だけ見せる: 地名を見せてよい印 placeOk（
         await ownStuck();
         expect(trunkRow(OWNER)!.rev).toBe(rev);
     });
+
+    it("【見直し2-2】索引が古い姿（下書き・絞った）でも、強い読みで公開なら印を外さない。候補が無ければ写真を読まない", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [okLabel("a"), okLabel("b"), okLabel("c")], pocket: [] });
+        // 索引は直前の姿（下書き → 公開・closeFriends → 全員の直後）
+        mockListMyPhotos.mockResolvedValue([row("a", { published: false }), row("b", { audience: "closeFriends" }), row("c")]);
+        setPhoto("a", row("a"));
+        setPhoto("b", row("b"));
+        setPhoto("c", row("c"));
+        fakeSend.mockClear();
+        const own = await ownStuck();
+        expect(own.map((l) => l.placeOk)).toEqual([true, true, true]);
+        // 読み直したのは候補の2枚だけ・強い読み
+        const photoGets = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "GetCommand"
+            && ["a", "b", "c"].includes(String((c.input as { Key: Item }).Key.id)));
+        expect(photoGets.map((c) => (c.input as { Key: Item }).Key.id).sort()).toEqual(["a", "b"]);
+        expect(photoGets.every((c) => (c.input as { ConsistentRead?: boolean }).ConsistentRead === true)).toBe(true);
+        // 配って1時間以内でも、強い読みで絞られていれば外す
+        setTrunk(OWNER, { ...trunkRow(OWNER), stuck: [okLabel("a", { a: Math.floor(Date.now() / 1000) })] });
+        setPhoto("a", row("a", { audience: "followers" }));
+        mockListMyPhotos.mockResolvedValue([row("a", { audience: "followers" })]);
+        expect((await ownStuck())[0].placeOk).toBeUndefined();
+    });
+
+    it("【見直し2-3】GET の外し: 束は兄弟のどれかが公開で同じ撮影地なら残す（索引で見えても、強い読みで見えても）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [okLabel("ph1", { g }), okLabel("ph2", { g: T.groupKey("grp2") })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([
+            row("ph1", { groupId: "grp", audience: "followers" }), row("ph9", { groupId: "grp" }),
+            row("ph2", { groupId: "grp2", audience: "followers" }), row("ph8", { groupId: "grp2", published: false }),
+        ]);
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers" }));
+        setPhoto("ph2", row("ph2", { groupId: "grp2", audience: "followers" }));
+        // grp2 の兄弟は索引では下書きだが、強い読みでは公開
+        setPhoto("ph8", row("ph8", { groupId: "grp2" }));
+        const own = await ownStuck();
+        expect(own.map((l) => l.placeOk)).toEqual([true, true]);
+        // 兄弟も強い読みで公開でなければ外す
+        setPhoto("ph8", row("ph8", { groupId: "grp2", published: false }));
+        expect((await ownStuck()).map((l) => l.placeOk)).toEqual([true, undefined]);
+    });
+
+    it("【見直し3】束の付け直しの確かめは兄弟を根拠にしない（この写真で確かめられなければ外す）", async () => {
+        setProfile(OWNER, {});
+        const g = T.groupKey("grp");
+        setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto", g })], pocket: [] });
+        mockListMyPhotos.mockResolvedValue([row("ph1", { groupId: "grp" }), row("ph9", { groupId: "grp" })]);
+        setPhoto("ph9", row("ph9", { groupId: "grp" }));
+        setPhoto("ph1", row("ph1", { groupId: "grp", audience: "followers" }));
+        // 兄弟が公開なので付け直しでは付くが、書いたあとの確かめ（この写真＝絞った）で外れる
+        await refreshLabelPlaceQuietly(OWNER, "ph1", row("ph1", { groupId: "grp" }), "test");
+        await expectHidden();
+    });
+
+    it("【見直し5】確かめ（confirmPlaceOk）は強い読みで、印を外すだけ（付けない）", async () => {
+        setProfile(OWNER, {});
+        setTrunk(OWNER, { stuck: [label("ph1", { l: "Kyoto" })], pocket: [] });
+        setPhoto("ph1", row("ph1"));
+        fakeSend.mockClear();
+        expect(await T.confirmPlaceOk(OWNER, "ph1", (l) => l.id === "ph1")).toBe(true);
+        expect((trunkRow(OWNER)!.stuck as Item[])[0].o).toBeUndefined();
+        const get = fakeSend.mock.calls.map((c) => c[0]).find((c) => c.constructor.name === "GetCommand"
+            && (c.input as { Key: Item }).Key.id === "ph1");
+        expect((get!.input as { ConsistentRead?: boolean }).ConsistentRead).toBe(true);
+    });
+
+    it("【見直し1】配ったあとの確かめが落ちても、配りの答えはそのまま（error にしない）", async () => {
+        setProfile(OWNER, {});
+        const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        let wrote = false;
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") wrote = true;
+            if (wrote && cmd.constructor.name === "GetCommand" && (cmd.input as { Key: Item }).Key.id === "ph1") throw new Error("boom");
+            return send(cmd as never);
+        });
+        const out = await T.grantLabelQuietly(OWNER, row("ph1", { createdAt: NEW }) as never, "test");
+        expect(out.labelSkipped).toBeUndefined();
+        expect(out.label?.id).toBe("ph1");
+        err.mockRestore();
+    });
+
+    it("【見直し1】配ったあとの確かめが待ちの切れ目に掛かったら、確かめを待たずに配りの答えを返す（timeout にしない）", async () => {
+        setProfile(OWNER, {});
+        let wrote = false;
+        fakeSend.mockImplementation(async (cmd: { constructor: { name: string }; input: Record<string, unknown> }) => {
+            if (cmd.constructor.name === "TransactWriteCommand") wrote = true;
+            if (wrote && cmd.constructor.name === "GetCommand" && (cmd.input as { Key: Item }).Key.id === "ph1") {
+                await new Promise((r) => setTimeout(r, 3500));
+            }
+            return send(cmd as never);
+        });
+        const out = await T.grantLabelQuietly(OWNER, row("ph1", { createdAt: NEW }) as never, "test");
+        expect(out.labelSkipped).toBeUndefined();
+        expect(out.label?.id).toBe("ph1");
+    }, 10_000);
 
     it("【見直し9】再送で撮影地が変わっていたら印を外す（同じ撮影地なら残す）", async () => {
         setProfile(OWNER, {});
