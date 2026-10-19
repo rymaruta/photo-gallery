@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
-import { GetCommand, QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { createHash, randomInt } from "crypto";
 import { ddb, PHOTOS_TABLE, USER_INDEX } from "./dynamodb";
 import { requireEnv } from "./env";
@@ -280,6 +280,13 @@ export type TrunkDoc = {
      * **何も持っていなければ undefined**（触れていない人の行は書き戻しても今までと同じ形）
      */
     camper?: CamperDoc;
+    /**
+     * **とおまわり号の書き込みが作った行**の印（2026-10-18 見直しの指摘）。トランクを使っていない人に贈り物・
+     * 訪問の部品が届くと trunk# が作られ、それまで 404 だった人のトランク（`GET /users/{uid}/trunk`）が急に
+     * 見えるようになっていた。印のある行は人の口では無いものとして扱う。**トランクの書き込み（キャンピングカー
+     * 以外の `updateTrunk`）が1回でも走れば外す**（`updateTrunks`）
+     */
+    camperOnly?: true;
 };
 
 /**
@@ -420,6 +427,7 @@ export function parseTrunk(item: Record<string, unknown> | undefined, ledger?: R
         ...(typeof item?.rewardCoverAt === "string" ? { rewardCoverAt: item.rewardCoverAt, rewardCoverAdded: count(item.rewardCoverAdded) } : {}),
         // とおまわり号（段1: 読んでそのまま書き戻す。台帳の側は古い形なら trunk# の中から読む＝`lg`）
         ...camperField(item?.camper, lg),
+        ...(item?.camperOnly === true ? { camperOnly: true as const } : {}),
     };
 }
 
@@ -525,6 +533,7 @@ function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: 
             ...(doc.rewardAvatarAt ? { rewardAvatarAt: doc.rewardAvatarAt, rewardAvatarAdded: doc.rewardAvatarAdded ?? 0 } : {}),
             ...(doc.rewardCoverAt ? { rewardCoverAt: doc.rewardCoverAt, rewardCoverAdded: doc.rewardCoverAdded ?? 0 } : {}),
             ...(camper.main ? { camper: camper.main } : {}),
+            ...(doc.camperOnly ? { camperOnly: true } : {}),
         },
         ledger: {
             dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
@@ -1903,6 +1912,8 @@ export async function readTheirTrunk(viewer: string, target: string, now: Date =
     const profile = profileRes.Item as Record<string, unknown> | undefined;
     const row = trunkRes.Item as Record<string, unknown> | undefined;
     if (!profile || isDeletedProfile(profile) || !row || blocked) throw new HiddenTrunk();
+    // とおまわり号の書き込みだけで作られた行（トランクを使っていない人）は、今までどおり無いものとして扱う
+    if (row.camperOnly === true) throw new HiddenTrunk();
     // 台帳は読まない（人に出す物は持ち物の行だけにある）。古い形の行でも持ち物は読める
     const doc = parseTrunk(row, {});
     if (!doc.showTrunk && !self) throw new HiddenTrunk();
@@ -2066,7 +2077,10 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
                 throw e;
             }
         }
-        // とおまわり号（2026-10-18 段2）。墓石・友達かは各口が自分の読みで見る。相手は道の {uid} だけ（本文は読まない）
+        // とおまわり号（2026-10-18 段2）の4つの口（GET /user/camper・GET /users/{uid}/camper・…/gift・…/firewood）。
+        // **退会した本人は4つとも 410**——下の Pro の読みより前に振り分けるので、各口が自分の強い読みで墓石を見る
+        // （`readMyCamper`・`camperFriendGate`。`camper.test.ts` の「退会した本人は4つの口すべてで 410」）。
+        // 友達か・相手の墓石・ブロックも各口が見る。相手は道の {uid} だけ（本文は読まない）
         if (route === "GET /user/camper") return ok(await readMyCamper(uid, now));
         if (route === "GET /users/{uid}/camper" || route === "POST /users/{uid}/camper/gift"
             || route === "POST /users/{uid}/camper/firewood") {
@@ -2204,7 +2218,12 @@ async function updateTrunk(uid: string, fn: (doc: TrunkDoc, exists: boolean) => 
     await updateTrunks([{ uid, fn }]);
 }
 
-type TrunkUpdate = { uid: string; fn: (doc: TrunkDoc, exists: boolean) => TrunkDoc | null };
+type TrunkRows = { main?: Record<string, unknown>; ledger?: Record<string, unknown> };
+/**
+ * `camper` はとおまわり号の書き込み（行が無ければ `camperOnly` の印を付けて作る）。そうでない書き込みは印を外す。
+ * `initial` は口が先に強い読みで読んだ2行（1回目だけそれを使い、読み直しを省く。競合したら読み直す）
+ */
+type TrunkUpdate = { uid: string; fn: (doc: TrunkDoc, exists: boolean) => TrunkDoc | null; camper?: boolean; initial?: TrunkRows };
 
 /**
  * `updateTrunk` を**何人分でも1つの取引で**（とおまわり号の「贈る」が、贈る人と受け取る人の4行を一度に書く・2026-10-18）。
@@ -2212,17 +2231,24 @@ type TrunkUpdate = { uid: string; fn: (doc: TrunkDoc, exists: boolean) => TrunkD
  */
 async function updateTrunks(list: TrunkUpdate[]): Promise<void> {
     for (let attempt = 0; attempt < TRUNK_WRITE_ATTEMPTS; attempt++) {
-        const read = await Promise.all(list.map((u) => readTrunkRows(u.uid)));
+        const read = await Promise.all(list.map((u) => (attempt === 0 && u.initial ? u.initial : readTrunkRows(u.uid))));
         const at = new Date().toISOString();
         const items: Record<string, unknown>[] = [];
         let anyChanged = false;
         for (let i = 0; i < list.length; i++) {
-            const { uid, fn } = list[i];
+            const { uid, fn, camper } = list[i];
             const rows = read[i];
             const doc = parseTrunk(rows.main, rows.ledger);
-            const next = fn(doc, !!rows.main || !!rows.ledger);
+            let next = fn(doc, !!rows.main || !!rows.ledger);
             if (!next) return;
             const before = serializeRows(doc);
+            if (!camper && next.camperOnly) {
+                const { camperOnly: _c, ...rest } = next;
+                void _c;
+                next = rest;
+            } else if (camper && !rows.main && JSON.stringify(serializeRows(next).main) !== JSON.stringify(before.main)) {
+                next = { ...next, camperOnly: true };
+            }
             const after = serializeRows(next);
             const legacy = !rows.ledger && !!rows.main && LEDGER_KEYS.some((k) => k in rows.main!);
             const changed = {
@@ -2273,6 +2299,47 @@ async function readCamperUser(uid: string, fields: string): Promise<Record<strin
     return res.Item as Record<string, unknown> | undefined;
 }
 
+/** 1回の問い合わせで読む写真の数（数え直し・贈る人の「投稿あり」の確かめ） */
+const CAMPER_PHOTO_PAGE = 50;
+
+/**
+ * 本人の、**線より後に作られた**写真だけを索引（`userId-createdAt-index`）で読む（2026-10-18 見直しの指摘: 全部の
+ * 写真を読む `listMyPhotos` をやめた。読む量は線の後の枚数だけ）。ストーリーは落とす（`listMyPhotos` と同じ絞り込み）。
+ * `firstOnly` なら判定に使える写真が1枚見つかった所でやめる（贈る人の「機能の後の公開の投稿が 1 件以上」）。
+ * 索引は結果整合（いま上げた写真が数秒見えないことはある。そのときは次の日の数え直し・次の投稿で拾う）
+ */
+async function camperPhotos(uid: string, launch: number, firstOnly = false): Promise<Photo[]> {
+    const out: Photo[] = [];
+    let lastKey: Record<string, unknown> | undefined;
+    do {
+        const res = await ddb.send(new QueryCommand({
+            TableName: PHOTOS_TABLE,
+            IndexName: USER_INDEX,
+            KeyConditionExpression: "userId = :u AND createdAt >= :t",
+            FilterExpression: "attribute_exists(src) AND attribute_not_exists(story)",
+            ExpressionAttributeValues: { ":u": uid, ":t": new Date(launch).toISOString() },
+            Limit: CAMPER_PHOTO_PAGE,
+            ExclusiveStartKey: lastKey,
+        }));
+        for (const p of (res.Items ?? []) as Photo[]) {
+            if (!isCamperPhoto(p, uid, launch)) continue;
+            out.push(p);
+            if (firstOnly) return out;
+        }
+        lastKey = res.LastEvaluatedKey as Record<string, unknown> | undefined;
+    } while (lastKey);
+    return out;
+}
+
+/**
+ * 数え直した日の印の行（`camperday#<uid>`・{ day }）。2026-10-18 判断（見直しの指摘「台帳の行を丸ごと書き直さない」）:
+ * 書き込みの費用は**行の大きさ**で決まる（UpdateItem でも書き換える前後の大きい方）ので、台帳（最大 180KB）に
+ * 印を置くと、何も届かない日にも台帳の大きさぶん書くことになる。印だけを小さな別の行に置き、毎日の書き込みを
+ * 1 単位にする。新しい表・索引ではない（`trunk#` と同じ photos 表の行・`userId` を持たないので写真の索引に出ない）。
+ * 退会の掃除（`account.ts`）が消す。段1 の台帳の `camperRecountDay` は使わない（欄は段1 の形のまま残す）
+ */
+export const camperDayId = (uid: string) => `camperday#${uid}`;
+
 /** 応答の部品。贈り物で届いた部品は贈った人（名前は**読む時に引く**。退会した人は出さない・`docs/tombstone-ttl.md`） */
 async function camperPartsView(c: CamperDoc): Promise<{ id: string; at: string; from?: { userId: string; name: string | null } }[]> {
     const givers = [...new Set(c.parts.map((p) => p.by).filter((v): v is string => !!v))];
@@ -2304,44 +2371,53 @@ function camperProgress(c: CamperDoc) {
 }
 
 /**
- * `GET /user/camper`。2行を強い読みで読み、**今日まだ数え直していなければ**本人の写真（`listMyPhotos`）で
- * A の 13 個と記録の 20 個を判定し、新しく満たしたものを `updateTrunk` で足す（数え直しは1人1日1回・日本時間）。
- * 数え直した日の印（`camperRecountDay`）は台帳の行にだけ書く（持ち物の行は ConditionCheck）。
- * 線（`CAMPER_LAUNCHED_AT`）が無ければ何も読まず・書かず `launched: false`
+ * `GET /user/camper`。2行を強い読みで読み、**今日まだ数え直していなければ**（印の行 `camperday#`）本人の線の後の
+ * 写真（`camperPhotos`）で A の 13 個と記録の 20 個を判定し、新しく満たしたものを `updateTrunk` で足す
+ * （数え直しは1人1日1回・日本時間）。トランクの2行を書くのは**新しく届いたときだけ**。先に読んだ2行を
+ * 書き込みの1回目に渡す（読み直しを省く）。線が無ければ何も読まず・書かず `launched: false`
  */
 export async function readMyCamper(uid: string, now: Date = new Date()) {
     const launch = camperLaunchedAt();
     const me = await readCamperUser(uid, "userId, deletedAt");
     if (isDeletedProfile(me)) throw camperGone();
-    const rows = await readTrunkRows(uid);
+    const [rows, dayRow] = await Promise.all([
+        readTrunkRows(uid),
+        launch !== null
+            ? ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: camperDayId(uid) }, ConsistentRead: true }))
+            : Promise.resolve({ Item: undefined }),
+    ]);
     let c = parseTrunk(rows.main, rows.ledger).camper ?? emptyCamper();
     let added: string[] = [];
     let recounted = false;
     if (launch !== null) {
         const today = jstDay(now);
-        const recount = c.recountDay !== today;
-        const fromPhotos = recount
-            ? photoParts((await listMyPhotos(uid)).filter((p) => isCamperPhoto(p, uid, launch)))
-            : new Set<string>();
+        const recount = (dayRow.Item as { day?: unknown } | undefined)?.day !== today;
+        const fromPhotos = recount ? photoParts(await camperPhotos(uid, launch)) : new Set<string>();
         const want = (cur: CamperDoc) => {
             const m = new Map(recordParts(cur));
             for (const id of fromPhotos) if (!m.has(id)) m.set(id, undefined);
             return m;
         };
-        if (recount || grantParts(c, want(c), now).added.length) {
-            await updateTrunk(uid, (doc) => {
-                const cur = doc.camper ?? emptyCamper();
-                const g = grantParts(cur, want(cur), now);
-                added = g.added;
-                const stillRecount = cur.recountDay !== today;
-                if (!g.added.length && !stillRecount) { c = cur; return null; }
-                const next = { ...g.camper, recountDay: today };
-                const nd: TrunkDoc = { ...doc, camper: next };
-                if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
-                c = next;
-                return nd;
-            });
-            recounted = recount;
+        if (grantParts(c, want(c), now).added.length) {
+            await updateTrunks([{
+                uid, camper: true, initial: rows,
+                fn: (doc) => {
+                    const cur = doc.camper ?? emptyCamper();
+                    const g = grantParts(cur, want(cur), now);
+                    added = g.added;
+                    c = g.camper;
+                    if (!g.added.length) return null;
+                    const nd: TrunkDoc = { ...doc, camper: g.camper };
+                    if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+                    return nd;
+                },
+            }]);
+        }
+        if (recount) {
+            // 印は数え直しの**あと**に書く（落ちたら次に開いたときにもう一度数え直すだけ）。並んだ2本は両方数え直しうるが、
+            // 部品は rev 条件と持っている印で1回だけ（費用が1回ぶん増えるだけ）
+            await ddb.send(new PutCommand({ TableName: PHOTOS_TABLE, Item: { id: camperDayId(uid), uid, day: today } }));
+            recounted = true;
         }
     }
     return {
@@ -2379,36 +2455,47 @@ async function camperFriendGate(me: string, target: string): Promise<{ mine?: Re
 
 /**
  * `GET /users/{uid}/camper`（友達の車を開く）。返すのは相手の要サーバーの部品の id だけ
- * （飾り・塗装のサーバー保存は第2段の別の札）。本人の台帳に「訪ねた」を**友達×日で1回**足し、
- * 相手の旅の日（持ち物の行）と自分の旅の日が重なれば「同じ日に旅をした友達」に足す。**相手の行には書かない**
+ * （飾り・塗装のサーバー保存は第2段の別の札）。**相手がトランクを見せない設定（`showTrunk: false`）なら部品は
+ * 空**（2026-10-18 見直しの指摘。訪ねた記録は数える＝見せない人の車も訪ねられる）。
+ * 本人の台帳に「訪ねた」を**友達×日で1回**足し、相手の旅の日（持ち物の行）と自分の旅の日が重なれば
+ * 「同じ日に旅をした友達」に足す。**相手の行には書かない**
  */
 export async function visitCamper(me: string, target: string, now: Date = new Date()) {
     await camperFriendGate(me, target);
     const launch = camperLaunchedAt();
     const res = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: trunkId(target) } }));
-    const theirs = parseTrunk(res.Item as Record<string, unknown> | undefined, {}).camper ?? emptyCamper();
+    const theirDoc = parseTrunk(res.Item as Record<string, unknown> | undefined, {});
+    const theirs = theirDoc.camper ?? emptyCamper();
     let counted = false;
     let added: string[] = [];
     if (launch !== null) {
         const today = jstDay(now);
         const theirDays = new Set(theirs.tripDays);
-        await updateTrunk(me, (doc) => {
-            const cur = doc.camper ?? emptyCamper();
-            let next = cur;
-            counted = !cur.visits.some((v) => v.u === target && v.d === today);
-            if (counted) next = { ...next, visits: [{ u: target, d: today }, ...next.visits] };
-            if (!next.tripFriends.includes(target) && next.tripDays.some((d) => theirDays.has(d))) {
-                next = { ...next, tripFriends: [target, ...next.tripFriends] };
-            }
-            const g = grantParts(next, recordParts(next), now);
-            added = g.added;
-            if (g.camper === cur) return null;
-            const nd: TrunkDoc = { ...doc, camper: g.camper };
-            if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
-            return nd;
-        });
+        await updateTrunks([{
+            uid: me, camper: true,
+            fn: (doc) => {
+                const cur = doc.camper ?? emptyCamper();
+                let next = cur;
+                counted = !cur.visits.some((v) => v.u === target && v.d === today);
+                if (counted) next = { ...next, visits: [{ u: target, d: today }, ...next.visits] };
+                if (!next.tripFriends.includes(target) && next.tripDays.some((d) => theirDays.has(d))) {
+                    next = { ...next, tripFriends: [target, ...next.tripFriends] };
+                }
+                const g = grantParts(next, recordParts(next), now);
+                added = g.added;
+                if (g.camper === cur) return null;
+                const nd: TrunkDoc = { ...doc, camper: g.camper };
+                if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+                return nd;
+            },
+        }]);
     }
-    return { userId: target, launched: launch !== null, parts: theirs.parts.map((p) => p.id), visit: { counted, added } };
+    return {
+        userId: target,
+        launched: launch !== null,
+        parts: theirDoc.showTrunk ? theirs.parts.map((p) => p.id) : [],
+        visit: { counted, added },
+    };
 }
 
 /**
@@ -2416,7 +2503,8 @@ export async function visitCamper(me: string, target: string, now: Date = new Da
  * 受け取る人にとって違う n 人目の贈り物なら、n = 1・2・4・6 で部品が1つ届く（1 人目は贈った人の名前を刻む）。
  *
  * 歯止め（設計案 3.3・4.4 の 4）: 贈る人は登録から 7 日以上（`createdAt` の無い古い行は満たす扱い・
- * `welcomeVerdictOf` と同じ読み）・機能の後の公開の投稿が 1 件以上・1日1回・同じ相手には一度きり。
+ * `welcomeVerdictOf` と同じ読み）・機能の後の公開の投稿が 1 件以上（見つかった所で読むのをやめる）・1日1回・
+ * 同じ相手には一度きり（贈る人の台帳と受け取る人の控えの両方で見る）。
  * 書くのは贈る人と受け取る人の4行を**1つの TransactWriteItems**（すべて rev 条件・`updateTrunks`）
  */
 export async function giftCamper(me: string, target: string, now: Date = new Date()) {
@@ -2427,14 +2515,13 @@ export async function giftCamper(me: string, target: string, now: Date = new Dat
     if (Number.isFinite(created) && now.getTime() - created < CAMPER_GIFT_MIN_AGE_MS) {
         throw new TrunkError(403, "登録から7日たつと贈れます", "newAccount");
     }
-    const posted = (await listMyPhotos(me)).some((p) => isCamperPhoto(p, me, launch));
-    if (!posted) throw new TrunkError(403, "公開の投稿をしてから贈れます", "noPost");
+    if (!(await camperPhotos(me, launch, true)).length) throw new TrunkError(403, "公開の投稿をしてから贈れます", "noPost");
     const today = jstDay(now);
     const at = new Date(Math.floor(now.getTime() / 1000) * 1000).toISOString();
     let part = "";
     await updateTrunks([
         {
-            uid: me,
+            uid: me, camper: true,
             fn: (doc) => {
                 const cur = doc.camper ?? emptyCamper();
                 if (cur.given.some((g) => g.u === target)) throw new TrunkError(409, "この友達にはもう贈りました", "already");
@@ -2443,7 +2530,7 @@ export async function giftCamper(me: string, target: string, now: Date = new Dat
             },
         },
         {
-            uid: target,
+            uid: target, camper: true,
             fn: (doc) => {
                 const cur = doc.camper ?? emptyCamper();
                 if (cur.gifts.some((g) => g.from === me)) throw new TrunkError(409, "この友達にはもう贈りました", "already");
@@ -2472,21 +2559,27 @@ export async function firewoodCamper(me: string, target: string, now: Date = new
     let added = false;
     let count = 0;
     let parts: string[] = [];
-    await updateTrunk(me, (doc) => {
-        const cur = doc.camper ?? emptyCamper();
-        added = !cur.wood.some((w) => w.u === target && w.d === today);
-        const next = added ? { ...cur, wood: [{ u: target, d: today }, ...cur.wood] } : cur;
-        const g = grantParts(next, recordParts(next), now);
-        count = g.camper.wood.length;
-        parts = g.added;
-        if (g.camper === cur) return null;
-        const nd: TrunkDoc = { ...doc, camper: g.camper };
-        if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
-        return nd;
-    });
+    await updateTrunks([{
+        uid: me, camper: true,
+        fn: (doc) => {
+            const cur = doc.camper ?? emptyCamper();
+            added = !cur.wood.some((w) => w.u === target && w.d === today);
+            const next = added ? { ...cur, wood: [{ u: target, d: today }, ...cur.wood] } : cur;
+            const g = grantParts(next, recordParts(next), now);
+            count = g.camper.wood.length;
+            parts = g.added;
+            if (g.camper === cur) return null;
+            const nd: TrunkDoc = { ...doc, camper: g.camper };
+            if (!fitsBudget(nd)) throw new TrunkError(409, "トランクの容量がいっぱいです", "storage");
+            return nd;
+        },
+    }]);
     const part = parts.find((id) => id === CAMPER_WOOD.part);
     return { added, count, ...(part ? { part } : {}) };
 }
+
+/** 試験だけが使う（`updateTrunks` の「1人でも null なら全体をやめる」を確かめる） */
+export const updateTrunksForTest = updateTrunks;
 
 function ok(payload: unknown) {
     return { statusCode: 200, headers: NO_STORE, body: JSON.stringify(payload) };

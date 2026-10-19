@@ -48,15 +48,29 @@ async function send(cmd: { constructor: { name: string }; input: Record<string, 
         for (const { k, op, put } of keyed) if (put) store.set(k, structuredClone(op.Item!));
         return {};
     }
+    if (cmd.constructor.name === "PutCommand") {
+        store.set(keyOf(input.TableName, input.Item!), structuredClone(input.Item!));
+        return {};
+    }
+    // 写真の索引（`userId-createdAt-index`）。`createdAt >= 線` の問い合わせとストーリーの絞り込みを本当に通す
+    if (cmd.constructor.name === "QueryCommand") {
+        const v = input.ExpressionAttributeValues!;
+        return { Items: indexed.filter((p) => p.userId === v[":u"] && typeof p.createdAt === "string" && p.createdAt >= String(v[":t"])
+            && !!p.src && (p as Item).story === undefined).map((p) => structuredClone(p)) };
+    }
     throw new Error(`想定外の命令 ${cmd.constructor.name}`);
 }
+/** 索引に載っている写真（全員分） */
+let indexed: Photo[] = [];
+const queries = () => fakeSend.mock.calls.filter((c) => c[0].constructor.name === "QueryCommand").length;
 
 const LAUNCH = "2026-10-20T00:00:00.000Z";
-vi.stubEnv("CAMPER_LAUNCHED_AT", LAUNCH);
 
 // 先頭の await は1つにまとめる（api-user の型検査の基準は「テスト1ファイルにつき TS1378 が1件」で数えている）
 const [T, C] = await Promise.all([import("../trunk"), import("../camper")]);
 const { handler, grantLabel, trunkId, trunkLedgerId } = T;
+/** 出荷した値（試験が書き換える前） */
+const SHIPPED_LAUNCH = C.CAMPER_LAUNCH.at;
 import type { Photo } from "../types";
 
 // 相手の uid は道で受けるので UUID の形（`isUserId`）
@@ -104,7 +118,8 @@ beforeEach(() => {
     seq = 0;
     fakeSend.mockReset().mockImplementation(send);
     mockListMyPhotos.mockReset().mockResolvedValue([]);
-    vi.stubEnv("CAMPER_LAUNCHED_AT", LAUNCH);
+    indexed = [];
+    C.CAMPER_LAUNCH.at = LAUNCH;
     user(ME);
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -173,18 +188,27 @@ describe("写真から読む部品（photoParts・純関数）", () => {
     });
 });
 
-describe("遡らない線（CAMPER_LAUNCHED_AT）", () => {
+describe("遡らない線（CAMPER_LAUNCH.at）", () => {
+    it("出荷した値は null（配り始めるときは時刻を入れる小さなコミットを別に出す）。環境変数・param にはしない", async () => {
+        expect(SHIPPED_LAUNCH).toBeNull();
+        const fs = await import("fs");
+        const path = await import("path");
+        const yml = fs.readFileSync(path.join(__dirname, "..", "..", "serverless.yml"), "utf8");
+        expect(yml).not.toContain("CAMPER_LAUNCHED_AT");
+        expect(yml).not.toContain("camperLaunchedAt");
+    });
+
     it("未設定なら配らない（投稿の相乗りも GET も書かない）", async () => {
-        vi.stubEnv("CAMPER_LAUNCHED_AT", "");
+        C.CAMPER_LAUNCH.at = null;
         expect(C.camperLaunchedAt()).toBeNull();
         const out = await grantLabel(ME, trip("2026-10-21", { spotId: "sp_350f9317cee7" }));
         expect(out.camper).toBeUndefined();
         expect(mainRow(ME)?.camper).toBeUndefined();
         const got = await call("GET /user/camper");
         expect(got.json).toMatchObject({ launched: false, parts: [], recounted: false });
-        expect(mockListMyPhotos).not.toHaveBeenCalledTimes(2);
-        expect(ledgerRow(ME)?.camperRecountDay).toBeUndefined();
-        expect(C.camperLaunchedAt({ CAMPER_LAUNCHED_AT: "あした" })).toBeNull();
+        expect(queries()).toBe(0);
+        expect(store.get(`photos-test|${T.camperDayId(ME)}`)).toBeUndefined();
+        expect(C.camperLaunchedAt("あした")).toBeNull();
     });
 
     it("線より前に作った写真は数えない（スポットも旅の数も）", async () => {
@@ -279,8 +303,8 @@ describe("投稿の相乗り（grantLabel）", () => {
 
 describe("GET /user/camper（数え直しは1人1日1回）", () => {
     it("本人の写真で取りこぼしを拾い、今日はもう写真を読まない", async () => {
-        mockListMyPhotos.mockResolvedValue([photo("a", { spotId: "sp_350f9317cee7" }), photo("b", { title: "雨" }),
-            photo("old", { createdAt: OLD, spotId: "sp_db4f3aba96a1" })]);
+        indexed = [photo("a", { spotId: "sp_350f9317cee7" }), photo("b", { title: "雨" }),
+            photo("old", { createdAt: OLD, spotId: "sp_db4f3aba96a1" }), photo("s", { story: true, title: "雨", spotId: "sp_db4f3aba96a1" } as never)];
         const a = await call("GET /user/camper");
         expect(a.status).toBe(200);
         expect(a.json).toMatchObject({ launched: true, recounted: true, trips: 0 });
@@ -288,9 +312,10 @@ describe("GET /user/camper（数え直しは1人1日1回）", () => {
         expect((a.json.parts as Item[]).map((p) => p.id).sort()).toEqual(["tire_tread.mud_block", "window_shape.porthole"]);
         const b = await call("GET /user/camper");
         expect(b.json).toMatchObject({ recounted: false, added: [] });
-        expect(mockListMyPhotos).toHaveBeenCalledTimes(1);
-        // 持ち物の行は書かずに、台帳の行に今日の印だけ
-        expect(ledgerRow(ME)?.camperRecountDay).toBe(T.jstDay(new Date()));
+        expect(queries()).toBe(1);
+        // 今日の印は小さな別の行に（台帳の行は書き直さない）
+        expect(store.get(`photos-test|${T.camperDayId(ME)}`)).toMatchObject({ day: T.jstDay(new Date()), uid: ME });
+        expect(ledgerRow(ME)?.camperRecountDay).toBeUndefined();
     });
 
     it("日が替われば数え直す", async () => {
@@ -298,7 +323,7 @@ describe("GET /user/camper（数え直しは1人1日1回）", () => {
         vi.useFakeTimers({ toFake: ["Date"] });
         vi.setSystemTime(Date.now() + 86_400_000);
         await call("GET /user/camper");
-        expect(mockListMyPhotos).toHaveBeenCalledTimes(2);
+        expect(queries()).toBe(2);
     });
 
     it("退会した本人は 410", async () => {
@@ -387,7 +412,7 @@ describe("贈る（POST /users/{uid}/camper/gift）", () => {
     const gift = (to: string, from = ME) => call("POST /users/{uid}/camper/gift", { uid: to, sub: from, body: { part: "wheel.brass_spoke", to: F4 } });
     beforeEach(() => {
         for (const f of [F1, F2, F3, F4]) { user(f); friends(ME, f); }
-        mockListMyPhotos.mockImplementation(async (uid: string) => [photo("mine", {}, uid)]);
+        indexed = [ME, F1, F2, F3, F4].map((u) => photo(`mine-${u}`, {}, u));
     });
 
     it("1 人目の贈り物で署名入り（贈った人を刻む）。何を贈るかはサーバーが決める（本文は読まない）", async () => {
@@ -445,7 +470,7 @@ describe("贈る（POST /users/{uid}/camper/gift）", () => {
         user(ME, { createdAt: new Date(Date.now() - 3 * 86_400_000).toISOString() });
         expect((await gift(F1)).json.code).toBe("newAccount");
         user(ME, { createdAt: OLD });
-        mockListMyPhotos.mockResolvedValue([photo("old", { createdAt: OLD })]);
+        indexed = [photo("old", { createdAt: OLD }), photo("story", { story: true } as never)];
         expect((await gift(F1)).json.code).toBe("noPost");
         expect(mainRow(F1)).toBeUndefined();
     });
@@ -461,7 +486,7 @@ describe("贈る（POST /users/{uid}/camper/gift）", () => {
         user(ME, { deletedAt: "2026-10-22T00:00:00.000Z" });
         expect((await gift(F3)).status).toBe(410);
         user(ME);
-        vi.stubEnv("CAMPER_LAUNCHED_AT", "");
+        C.CAMPER_LAUNCH.at = null;
         expect((await gift(F3)).json.code).toBe("notLaunched");
         for (const u of [stranger, F1, F2, F3]) expect(mainRow(u)).toBeUndefined();
     });
@@ -510,5 +535,132 @@ describe("持っている印で二重に配らない（grantParts・純関数）
         const r = C.grantParts({ ...C.emptyCamper(), trips: 20 }, C.recordParts({ ...C.emptyCamper(), trips: 20 }), new Date());
         expect(r.added).toHaveLength(12);
         expect(C.recordParts({ ...C.emptyCamper(), trips: 19 }).has("wheel.brass_spoke")).toBe(false);
+    });
+});
+
+describe("見直しの指摘（2026-10-18）", () => {
+    it("退会した本人は4つの口すべて（GET /user/camper・GET /users/{uid}/camper・gift・firewood）で 410。何も書かない", async () => {
+        user(F1);
+        friends(ME, F1);
+        indexed = [photo("mine")];
+        user(ME, { deletedAt: "2026-10-21T00:00:00.000Z" });
+        const rs = [
+            await call("GET /user/camper"),
+            await call("GET /users/{uid}/camper", { uid: F1 }),
+            await call("POST /users/{uid}/camper/gift", { uid: F1 }),
+            await call("POST /users/{uid}/camper/firewood", { uid: F1 }),
+        ];
+        expect(rs.map((r) => r.status)).toEqual([410, 410, 410, 410]);
+        for (const u of [ME, F1]) {
+            expect(mainRow(u)).toBeUndefined();
+            expect(ledgerRow(u)).toBeUndefined();
+        }
+        expect(store.get(`photos-test|${T.camperDayId(ME)}`)).toBeUndefined();
+    });
+
+    it("天気・祭りの言葉は地名に当てない（雨晴海岸・雨滝・雨引観音・葬祭殿・祭場）。ほんとうの雨・祭りは当てる", () => {
+        for (const title of ["雨晴海岸の朝", "雨滝", "雨引観音の紫陽花", "雨竜の渓谷"]) {
+            expect(C.isRainPhoto(photo("a", { title })), title).toBe(false);
+        }
+        for (const title of ["ハトシェプスト女王葬祭殿", "三神合祭殿", "高宮祭場", "祭壇"]) {
+            expect(C.isFestivalPhoto(photo("a", { title })), title).toBe(false);
+        }
+        expect(C.isRainPhoto(photo("a", { title: "雨晴海岸、雨の朝" }))).toBe(true);
+        expect(C.isFestivalPhoto(photo("a", { title: "祇園祭" }))).toBe(true);
+        expect(C.isFestivalPhoto(photo("a", { tags: ["夏祭り"] }))).toBe(true);
+    });
+
+    it("相手がトランクを見せない設定なら、友達の車の部品は空（訪ねた記録は数える）", async () => {
+        user(F1);
+        friends(ME, F1);
+        store.set(`photos-test|${trunkId(F1)}`, { id: trunkId(F1), uid: F1, rev: 1, showTrunk: false, camper: { parts: [{ id: "flag.swallowtail", at: "x" }] } });
+        const r = await call("GET /users/{uid}/camper", { uid: F1 });
+        expect(r.json.parts).toEqual([]);
+        expect((r.json.visit as Item).counted).toBe(true);
+    });
+
+    it("トランクを使っていない人に贈り物で trunk# が作られても、人のトランクの口は 404 のまま。トランクを使えば見える", async () => {
+        user(F1);
+        friends(ME, F1);
+        indexed = [photo("mine")];
+        expect((await call("POST /users/{uid}/camper/gift", { uid: F1 })).json.given).toBe(true);
+        expect(mainRow(F1)?.camperOnly).toBe(true);
+        await expect(T.readTheirTrunk(ME, F1)).rejects.toThrow();
+        // 本人がトランクを使う（設定を書く）と印は外れ、贈られた部品は残る
+        await call("PUT /user/trunk/settings", { sub: F1, body: { receiveLabels: false } });
+        expect(mainRow(F1)?.camperOnly).toBeUndefined();
+        expect(camperOf(F1).parts.map((p) => p.id)).toEqual(["sticker_edge.signed"]);
+        expect((await T.readTheirTrunk(ME, F1)).userId).toBe(F1);
+    });
+
+    it("前からトランクを使っている人には印を付けない（見え方を変えない）", async () => {
+        user(F1);
+        friends(ME, F1);
+        indexed = [photo("mine")];
+        store.set(`photos-test|${trunkId(F1)}`, { id: trunkId(F1), uid: F1, rev: 1, coins: 3 });
+        await call("POST /users/{uid}/camper/gift", { uid: F1 });
+        expect(mainRow(F1)?.camperOnly).toBeUndefined();
+        expect((await T.readTheirTrunk(ME, F1)).userId).toBe(F1);
+    });
+
+    it("訪ねて部品が届いても、自分の行が新しく作られるなら印つき（自分のトランクが人に見え始めない）", async () => {
+        for (const f of [F1, F2, F3]) { user(f); friends(ME, f); }
+        for (const f of [F1, F2, F3]) await call("GET /users/{uid}/camper", { uid: f });
+        expect(partIds(ME)).toEqual(["ladder.wood_rungs"]);
+        expect(mainRow(ME)?.camperOnly).toBe(true);
+    });
+
+    it("updateTrunks: 1人でも null を返したら、ほかの人の分も含めて何も書かない", async () => {
+        store.set(`photos-test|${trunkId(F1)}`, { id: trunkId(F1), uid: F1, rev: 1, coins: 3 });
+        fakeSend.mockClear();
+        await T.updateTrunksForTest([
+            { uid: ME, fn: (d) => ({ ...d, coins: 5 }) },
+            { uid: F1, fn: () => null },
+        ]);
+        expect(fakeSend.mock.calls.some((c) => c[0].constructor.name === "TransactWriteCommand")).toBe(false);
+        expect(mainRow(ME)).toBeUndefined();
+        expect(mainRow(F1)?.coins).toBe(3);
+    });
+
+    it("受け取る側の控えでも「同じ人から一度きり」（贈る人の台帳に無くても）", async () => {
+        user(F1);
+        friends(ME, F1);
+        indexed = [photo("mine")];
+        store.set(`photos-test|${trunkId(F1)}`, { id: trunkId(F1), uid: F1, rev: 1, camper: { gifts: [{ from: ME, part: "sticker_edge.signed", at: "x" }] } });
+        const r = await call("POST /users/{uid}/camper/gift", { uid: F1 });
+        expect([r.status, r.json.code]).toEqual([409, "already"]);
+        expect(ledgerRow(ME)).toBeUndefined();
+        expect(camperOf(F1).gifts).toHaveLength(1);
+    });
+
+    it("費用: 何も届かない日の数え直しはトランクの2行を書かない（小さな印の行だけ）。2行は1回だけ読む", async () => {
+        indexed = [photo("plain")];
+        fakeSend.mockClear();
+        await call("GET /user/camper");
+        const names = fakeSend.mock.calls.map((c) => c[0].constructor.name);
+        expect(names).not.toContain("TransactWriteCommand");
+        expect(names.filter((n) => n === "PutCommand")).toHaveLength(1);
+        // 届く日: 先に読んだ2行を書き込みの1回目に使う（trunk# の読みは1回）
+        indexed = [photo("p", { spotId: "sp_350f9317cee7" })];
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(Date.now() + 86_400_000);
+        fakeSend.mockClear();
+        const r = await call("GET /user/camper");
+        expect(r.json.added).toEqual(["window_shape.porthole"]);
+        const trunkReads = fakeSend.mock.calls.map((c) => c[0])
+            .filter((c) => c.constructor.name === "GetCommand" && (c.input as { Key: Item }).Key.id === trunkId(ME));
+        expect(trunkReads).toHaveLength(1);
+    });
+
+    it("贈る人の「投稿あり」は線の後の写真だけを問い合わせ、見つかった所でやめる", async () => {
+        user(F1);
+        friends(ME, F1);
+        indexed = [photo("a"), photo("b"), photo("c")];
+        fakeSend.mockClear();
+        await call("POST /users/{uid}/camper/gift", { uid: F1 });
+        const q = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "QueryCommand");
+        expect(q).toHaveLength(1);
+        expect((q[0].input as { KeyConditionExpression: string }).KeyConditionExpression).toContain("createdAt >= :t");
+        expect(mockListMyPhotos).not.toHaveBeenCalled();
     });
 });
