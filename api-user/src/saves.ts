@@ -6,6 +6,7 @@ import { updateUserList, readUserList } from "./userList";
 import { canViewPhoto } from "./restrictedFeed";
 import { isBlocked } from "./blockCheck";
 import { isRestrictedRow } from "./sanitize";
+import { assertLiveCaller } from "./liveCaller";
 
 // 写真の「保存」（ブックマーク）。あとで見返すための、**自分だけの棚**。
 //
@@ -195,6 +196,9 @@ export const savePhoto: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     const userId = getUserId(event);
     const photoId = event.pathParameters?.id;
     if (!userId || !photoId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     try {
         if (!await isVisiblePhoto(photoId, userId)) {

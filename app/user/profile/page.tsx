@@ -721,7 +721,7 @@ export default function ProfileEditPage() {
                     return (
                         <section id="cover-pick" aria-label={locale === "en" ? "Pick a cover from your posts" : "カバーにする写真"} className="mb-8 -mt-2" data-testid="cover-pick">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[11px] font-semibold tracking-[0.12em] text-accent">
+                                <span className="eyebrow text-accent">
                                     {locale === "en" ? "COVER FROM YOUR POSTS" : "カバーにする写真"}
                                 </span>
                                 {thumbs.length > 0 && (

@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// 退会の確かめ（`liveCaller.ts`）は生きている本人として通す。ここで見たいのは口の中身で、
+// 墓石の 410 は `liveCaller.test.ts`・`liveCallerGuard.test.ts` が見る
+vi.mock("../liveCaller", async (orig) => ({
+    ...(await orig<typeof import("../liveCaller")>()),
+    assertLiveCaller: async () => null,
+    readLiveCaller: async () => ({ row: undefined }),
+}));
+
 const mockDdbSend = vi.hoisted(() => vi.fn());
 
 vi.mock("../dynamodb", () => ({

@@ -11,6 +11,7 @@ import { isBlocked } from "./blockCheck";
 import { isStoryExpired } from "./storyExpiry";
 import { isDeletedProfile } from "./types";
 import { requireEnv } from "./env";
+import { assertLiveCaller } from "./liveCaller";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
@@ -282,6 +283,9 @@ const isRejection = (v: unknown): v is Rejection => typeof (v as Rejection)?.sta
 export const createHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const body = parseBody(event.body);
     if (!body) return jsonError(400, "不正なリクエスト");
 
@@ -330,6 +334,9 @@ export const createHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 export const updateHighlight: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const hid = event.pathParameters?.id;
     if (!isHighlightId(hid)) return jsonError(404, "ハイライトが見つかりません");
     const body = parseBody(event.body);
