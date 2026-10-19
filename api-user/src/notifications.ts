@@ -4,6 +4,7 @@ import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { notifsId, NOTIFS_MAX, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME, visibleUnread } from "./notify";
 import { hiddenUserIds } from "./blockCheck";
+import { assertLiveCaller } from "./liveCaller";
 
 // 通知の取得と既読化。
 // 通知本体は "notifs#<uid>" 文書に { items: Notif[], unread: number } として持つ。
@@ -103,6 +104,9 @@ export const getNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async
 export const readNotifications: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const uid = getUserId(event);
     if (!uid) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(uid);
+    if (gone) return gone;
     try {
         await ddb.send(new UpdateCommand({
             TableName: PHOTOS_TABLE,

@@ -17,6 +17,9 @@ const mockPush = vi.hoisted(() => vi.fn());
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
     lookupDisplayName: vi.fn(async () => "名前"),
+    // コメントの表示名は、退会の確かめ（`liveCaller.ts`）と同じ1回の読みの行から取る
+    displayNameOf: () => "名前",
+    DEFAULT_NAME: "名前未設定さん",
     deletedAmong: vi.fn(async () => ({ deleted: new Set<string>(), unread: new Set<string>() })),
     withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",

@@ -5,6 +5,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { JSON_HEADERS, getUserId } from "./http";
 import { extForType } from "./uploadPolicy";
 import { requireEnv } from "./env";
+import { assertLiveCaller } from "./liveCaller";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
 // `process.env.UPLOAD_BUCKET!` だった。`!` は型を黙らせるだけで、未設定なら
@@ -21,6 +22,9 @@ export const profileAvatarPresignedUrl: APIGatewayProxyHandlerV2WithJWTAuthorize
     if (!userId) {
         return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: "認証が必要です" }) };
     }
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     let body: { fileType?: string; type?: string };
     try {

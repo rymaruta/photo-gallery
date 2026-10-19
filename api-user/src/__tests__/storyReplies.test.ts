@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// 退会の確かめ（`liveCaller.ts`）は生きている本人として通す。ここで見たいのは口の中身で、
+// 墓石の 410 は `liveCaller.test.ts`・`liveCallerGuard.test.ts` が見る
+// 表示名はこの1回の読み（`readLiveCaller(uid, ["displayName"])`）から取る。中身は `mockLookup`。
+// 1回の読みで users の Get が1回であることは `liveCaller.test.ts` が見る
+const mockReadLive = vi.hoisted(() => vi.fn());
+vi.mock("../liveCaller", async (orig) => ({
+    ...(await orig<typeof import("../liveCaller")>()),
+    assertLiveCaller: async () => null,
+    readLiveCaller: (...a: unknown[]) => mockReadLive(...a),
+}));
+
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
@@ -14,7 +25,9 @@ vi.mock("../dynamodb", () => ({
 }));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
-    lookupDisplayName: mockLookup,
+    displayNameOf: (r?: { displayName?: unknown }) =>
+        (typeof r?.displayName === "string" && r.displayName.trim()) || undefined,
+    DEFAULT_NAME: "名前未設定さん",
     deletedAmong: async (ids: unknown) => ({ deleted: await mockDeletedIds(ids), unread: mockUnreadIds() }),
     withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",
@@ -73,6 +86,7 @@ beforeEach(() => {
     mockDdbSend.mockReset();
     mockPush.mockReset().mockResolvedValue(undefined);
     mockLookup.mockReset().mockResolvedValue("旅人A");
+    mockReadLive.mockReset().mockImplementation(async (uid: string) => ({ row: { userId: uid, displayName: await mockLookup(uid) } }));
     mockDeletedIds.mockReset().mockResolvedValue(new Set<string>());
     mockHidden.mockReset().mockResolvedValue(new Set<string>());
 });
@@ -90,6 +104,23 @@ describe("postStoryReply", () => {
             pathParameters: { id: "story-1" }, body: "{broken",
         });
         expect(r.statusCode).toBe(400);
+    });
+
+    // 退会しても配ったトークンは期限まで通る（`liveCaller.ts`）。表示名を引く読みに
+    // 墓石を相乗りさせる——users の読みは1回のまま（2026-10-18）
+    it("users の読みは1回だけ（表示名と墓石を同じ読みで）", async () => {
+        world(STORY);
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "きれい" }))).statusCode).toBe(200);
+        expect(mockReadLive).toHaveBeenCalledTimes(1);
+        expect(mockReadLive).toHaveBeenCalledWith("u1", ["displayName"]);
+    });
+
+    it("退会した本人（墓石）は 410 で、返信を書かず通知もしない", async () => {
+        world(STORY);
+        mockReadLive.mockResolvedValue({ gone: { statusCode: 410, body: "{}" } });
+        expect((await invoke(postStoryReply, ev("u1", "story-1", { text: "きれい" }))).statusCode).toBe(410);
+        expect(inputs().some((i) => i.UpdateExpression), "退会した人の返信を書いている").toBe(false);
+        expect(mockPush).not.toHaveBeenCalled();
     });
 
     it("空の返信は 400（何も書かない）", async () => {

@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { updateUserList, readUserList, UserListError } from "./userList";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * 「行きたい場所」——**撮影スポット**（`/location/<スラッグ>`）を保存する口。
@@ -120,6 +121,9 @@ export const getMySavedSpots: APIGatewayProxyHandlerV2WithJWTAuthorizer = async 
 export const saveSpot: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     let body: { slug?: unknown };
     try {
