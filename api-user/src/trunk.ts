@@ -1452,8 +1452,10 @@ export const stickMutation = (id: string, pos?: TrunkPos, slot?: number): Mutati
     if (doc.stuck.length >= STUCK_MAX) throw new TrunkError(409, "トランクがいっぱいです", "full");
     const { slot: _s, ...plain } = label;
     void _s;
-    // 置き場があればそれ（番号は付けない）。無ければ、送られたおまかせの置き場の番号（2026-10-19・「ひとつ戻す」）
-    const stuck = pos ? { ...plain, pos } : slot !== undefined ? { ...plain, slot } : plain;
+    // 置き場があればそれ（番号は付けない）。無ければ、送られたおまかせの置き場の番号（2026-10-19・「ひとつ戻す」）。
+    // **いま貼ってあるラベルがもう使っている番号は書かない**（古い画面・別の端末から重ならないように）
+    const taken = slot !== undefined && doc.stuck.some((l) => !l.pos && l.slot === slot);
+    const stuck = pos ? { ...plain, pos } : slot !== undefined && !taken ? { ...plain, slot } : plain;
     return {
         ...doc,
         pocket: doc.pocket.filter((l) => l.id !== id),
@@ -1497,9 +1499,17 @@ export const unstickMutation = (id: string, slots: Record<string, number> = {}):
     // 2026-10-19: ずれるラベルにおまかせの置き場の番号を、はがすのと同じ1回で書く（置き場つきのラベル・
     // はがす1枚・どこにも無い id には書かない）。番号を書くと容量を越えるなら、番号なしではがす（はがせない、をしない）
     if (Object.keys(slots).length === 0) return plain;
+    // **いま貼ってあるラベルがもう使っている番号は書かない**（本文の中の重なりは `parseSlots` が断る。
+    // 古い画面・別の端末から送られた番号が、ほかのラベルの番号と重ならないように）。番号を持つラベルは書き換えない
+    const used = new Set(plain.stuck.filter((l) => !l.pos && l.slot !== undefined).map((l) => l.slot as number));
     const pinned = {
         ...plain,
-        stuck: plain.stuck.map((l) => (!l.pos && slots[l.id] !== undefined ? { ...l, slot: slots[l.id] } : l)),
+        stuck: plain.stuck.map((l) => {
+            const n = slots[l.id];
+            if (l.pos || l.slot !== undefined || n === undefined || used.has(n)) return l;
+            used.add(n);
+            return { ...l, slot: n };
+        }),
     };
     return fitsBudget(pinned) ? pinned : plain;
 };
