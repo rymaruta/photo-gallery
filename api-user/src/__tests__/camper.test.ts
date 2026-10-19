@@ -189,8 +189,14 @@ describe("写真から読む部品（photoParts・純関数）", () => {
 });
 
 describe("遡らない線（CAMPER_LAUNCH.at）", () => {
-    it("出荷した値は null（配り始めるときは時刻を入れる小さなコミットを別に出す）。環境変数・param にはしない", async () => {
-        expect(SHIPPED_LAUNCH).toBeNull();
+    it("出荷した値は 2026-10-19T04:00:00.000Z（ISO の形・未来に寄せすぎない）。環境変数・param にはしない", async () => {
+        // 2026-10-19 判断: owner の許可（TestFlight まで自動で進めてよい）のもとで配り始め。値は動かさない
+        expect(SHIPPED_LAUNCH).toBe("2026-10-19T04:00:00.000Z");
+        expect(new Date(SHIPPED_LAUNCH!).toISOString()).toBe(SHIPPED_LAUNCH);
+        expect(C.camperLaunchedAt(SHIPPED_LAUNCH)).toBe(Date.parse("2026-10-19T04:00:00.000Z"));
+        // 未来に寄せすぎない（段2 を本番に出した 2026-10-19 から 1 日以内。遠い未来だと配り始めたつもりで配られない）
+        expect(Date.parse(SHIPPED_LAUNCH!)).toBeLessThanOrEqual(Date.parse("2026-10-20T00:00:00.000Z"));
+        expect(Date.parse(SHIPPED_LAUNCH!)).toBeGreaterThanOrEqual(Date.parse("2026-10-18T00:00:00.000Z"));
         const fs = await import("fs");
         const path = await import("path");
         const yml = fs.readFileSync(path.join(__dirname, "..", "..", "serverless.yml"), "utf8");

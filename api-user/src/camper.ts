@@ -163,8 +163,12 @@ export function serializeCamper(c: CamperDoc | undefined): { main?: Record<strin
  * 配り始めるときは、ここに ISO の時刻（例 `"2026-11-01T15:00:00.000Z"`）を入れる**小さなコミットを別に出す**
  * （`camper.test.ts` の「いまは null」の試験も一緒に直す）。入れた値は後ろへずらさない（遡って対象外にしない）。
  * 試験だけがこの値を書き換える（そのため定数ではなく箱にしてある）
+ *
+ * 2026-10-19 判断: owner の許可（TestFlight まで自動で進めてよい）のもとで配り始め。線は 2026-10-19T04:00:00.000Z
+ * （日本時間 13:00）。段1・段2 が本番に出たあと（main d1db3385）の時刻で、これより後に作られた公開の写真・旅だけ数える。
+ * **この値は動かさない**（後ろへずらすと、その間に撮った写真が遡って対象外になる）
  */
-export const CAMPER_LAUNCH: { at: string | null } = { at: null };
+export const CAMPER_LAUNCH: { at: string | null } = { at: "2026-10-19T04:00:00.000Z" };
 
 export function camperLaunchedAt(at: string | null = CAMPER_LAUNCH.at): number | null {
     const raw = (at ?? "").trim();
