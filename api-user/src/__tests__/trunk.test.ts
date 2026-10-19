@@ -977,6 +977,18 @@ describe("おまかせの置き場の番号（slot・2026-10-19 はがした所�
         expect(stuckOf(both)[0].slot).toBeUndefined();
     });
 
+    it("いま貼ってあるラベルがもう使っている番号は書かない（はがす・貼る）。番号を持つラベルは書き換えない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("n")], stuck: [label("a"), label("b", { slot: 3 }), label("c"), label("d")] });
+        const r = await call("POST /user/trunk/labels/{id}/unstick", { id: "d", body: { slots: { a: 3, b: 6, c: 5 } } });
+        expect(r.status).toBe(200);
+        expect(stuckOf(r).map((l) => [l.id, l.slot])).toEqual([["a", undefined], ["b", 3], ["c", 5]]);
+        const s1 = await call("POST /user/trunk/labels/{id}/stick", { id: "n", body: { slot: 5 } });
+        expect(stuckOf(s1)[0]).toMatchObject({ id: "n" });
+        expect(stuckOf(s1)[0].slot).toBeUndefined();
+        expect(stuckOf(s1).filter((l) => l.slot === 5)).toHaveLength(1);
+    });
+
     it("形の違う番号は 400 badPlace（範囲の外・小数・同じ番号が2つ・多すぎる・配列）で、何も変えない", async () => {
         setProfile(FREE);
         setTrunk({ pocket: [label("n")], stuck: [label("a"), label("b")] });
