@@ -1445,21 +1445,32 @@ function body(event: { body?: string | null; isBase64Encoded?: boolean }): Recor
  * 手持ちから貼る。貼った方に在れば何もしない（再送で 404 にしない）。
  * `pos` があればその置き場に、無ければ置き場なし（アプリがおまかせで置く）
  */
-export const stickMutation = (id: string, pos?: TrunkPos, slot?: number): Mutation => (doc) => {
+export const stickMutation = (id: string, pos?: TrunkPos, slot?: number, take = false): Mutation => (doc) => {
     if (doc.stuck.some((l) => l.id === id)) return null;
     const label = doc.pocket.find((l) => l.id === id);
     if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
     if (doc.stuck.length >= STUCK_MAX) throw new TrunkError(409, "トランクがいっぱいです", "full");
     const { slot: _s, ...plain } = label;
     void _s;
-    // 置き場があればそれ（番号は付けない）。無ければ、送られたおまかせの置き場の番号（2026-10-19・「ひとつ戻す」）。
-    // **いま貼ってあるラベルがもう使っている番号は書かない**（古い画面・別の端末から重ならないように）
-    const taken = slot !== undefined && doc.stuck.some((l) => !l.pos && l.slot === slot);
-    const stuck = pos ? { ...plain, pos } : slot !== undefined && !taken ? { ...plain, slot } : plain;
+    // 置き場があればそれ（番号は付けない）。無ければ、送られたおまかせの置き場の番号（2026-10-19・アプリが貼るたびに決める）。
+    // **いま貼ってあるラベルがもう使っている番号は書かない**（古い画面・別の端末から重ならないように）。
+    // ただし `take`（置き場が全部埋まっていて、いちばん古い番号つきのラベルから番号を移す）のときは、
+    // 同じ1回の更新で古いラベルの番号を消して新しいラベルに移す（古いラベルは番号なし＝並びの外になる）
+    const owner = slot !== undefined && !pos ? doc.stuck.find((l) => !l.pos && l.slot === slot) : undefined;
+    const write = !pos && slot !== undefined && (!owner || take);
+    const stuck = pos ? { ...plain, pos } : write ? { ...plain, slot } : plain;
+    const rest = write && owner
+        ? doc.stuck.map((l) => {
+            if (l !== owner) return l;
+            const { slot: _o, ...freed } = l;
+            void _o;
+            return freed;
+        })
+        : doc.stuck;
     return {
         ...doc,
         pocket: doc.pocket.filter((l) => l.id !== id),
-        stuck: [stuck, ...doc.stuck],
+        stuck: [stuck, ...rest],
         // 選びかけの作り直しは手持ちのラベルだけのもの。貼ったら捨てる（使った回数は戻らない）
         ...(doc.pendingReroll?.labelId === id ? { pendingReroll: undefined } : {}),
     };
@@ -2108,7 +2119,7 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  * 旅のトランクの口（1つの関数に寄せる。CloudFormation の部品が上限 500 に近いため）。
  *
  *     GET    /user/trunk                         → view ＋ posts（公開している投稿の数・古び方用）
- *     POST   /user/trunk/labels/{id}/stick       → view（本文 { x, y, rot } か { slot }・どちらも無ければ置き場なし）
+ *     POST   /user/trunk/labels/{id}/stick       → view（本文 { x, y, rot } か { slot, take? }・どちらも無ければ置き場なし）
  *     DELETE /user/trunk/labels/{id}             → view
  *     POST   /user/trunk/labels/{id}/reroll      → view（pendingReroll に候補3つ）
  *     POST   /user/trunk/labels/{id}/reroll/choose { seed } → view
@@ -2246,7 +2257,7 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
         switch (route) {
             case "POST /user/trunk/labels/{id}/stick": {
                 const b = body(event);
-                fn = stickMutation(id, parsePos(b), parseSlot(b));
+                fn = stickMutation(id, parsePos(b), parseSlot(b), b.take === true);
                 break;
             }
             case "PUT /user/trunk/labels/{id}/place": fn = placeMutation(id, parsePos(body(event))); break;
