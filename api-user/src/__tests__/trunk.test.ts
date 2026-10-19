@@ -938,6 +938,99 @@ describe("はがす（POST /user/trunk/labels/{id}/unstick）", () => {
     });
 });
 
+describe("おまかせの置き場の番号（slot・2026-10-19 はがした所にほかのラベルがずれ込まない）", () => {
+    const stuckOf = (r: { json: Record<string, unknown> }) => r.json.stuck as Item[];
+
+    it("はがすのと同じ1回で、ずれるラベルに番号を書く。保存は q・応答は slot。置き場つき・はがす1枚・無い id には書かない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [], stuck: [label("a"), label("b"), label("p", { pos: { x: 0.5, y: 0.5, rot: 0 } }), label("c"), label("d")] });
+        // 書き込みの回数は、番号なしではがすときと同じ（1回の条件付き更新）
+        const before = fakeSend.mock.calls.length;
+        const r = await call("POST /user/trunk/labels/{id}/unstick", { id: "c", body: { slots: { a: 3, b: 5, p: 7, c: 8, zz: 9 } } });
+        expect(r.status).toBe(200);
+        const withSlots = fakeSend.mock.calls.length - before;
+        const saved = trunkRow();
+        setTrunk({ pocket: [], stuck: [label("a"), label("b"), label("c")] });
+        const before2 = fakeSend.mock.calls.length;
+        await call("POST /user/trunk/labels/{id}/unstick", { id: "c" });
+        expect(withSlots).toBe(fakeSend.mock.calls.length - before2);
+        store.set(`photos-test|${trunkId(UID)}`, saved!);
+        expect(stuckOf(r).map((l) => [l.id, l.slot])).toEqual([["a", 3], ["b", 5], ["p", undefined], ["d", undefined]]);
+        expect(stuckRaw().map((l) => l.q)).toEqual([3, 5, undefined, undefined]);
+        expect((r.json.pocket as Item[])[0]).not.toHaveProperty("slot");
+    });
+
+    it("番号のあるラベルを置き直す・はがすと番号は消える。置き場なしで番号つきで貼れる（戻す）", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("n")], stuck: [label("a", { slot: 2 }), label("b", { slot: 4 })] });
+        const placed = await call("PUT /user/trunk/labels/{id}/place", { id: "a", body: { x: 0.2, y: 0.3, rot: 0 } });
+        expect(stuckOf(placed)[0]).toMatchObject({ id: "a", pos: { x: 0.2, y: 0.3, rot: 0 } });
+        expect(stuckOf(placed)[0].slot).toBeUndefined();
+        const peeled = await call("POST /user/trunk/labels/{id}/unstick", { id: "b" });
+        expect((peeled.json.pocket as Item[])[0]).toMatchObject({ id: "b" });
+        expect((peeled.json.pocket as Item[])[0].slot).toBeUndefined();
+        const back = await call("POST /user/trunk/labels/{id}/stick", { id: "b", body: { slot: 4 } });
+        expect(stuckOf(back)[0]).toMatchObject({ id: "b", slot: 4 });
+        expect(stuckOf(back)[0].pos).toBeUndefined();
+        // 置き場があれば番号は付けない
+        const both = await call("POST /user/trunk/labels/{id}/stick", { id: "n", body: { x: 0.5, y: 0.5, rot: 0, slot: 1 } });
+        expect(stuckOf(both)[0].slot).toBeUndefined();
+    });
+
+    it("形の違う番号は 400 badPlace（範囲の外・小数・同じ番号が2つ・多すぎる・配列）で、何も変えない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("n")], stuck: [label("a"), label("b")] });
+        for (const slots of [{ a: 11 }, { a: -1 }, { a: 1.5 }, { a: 1, b: 1 }, [1],
+            Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`x${i}`, i % 11]))]) {
+            const r = await call("POST /user/trunk/labels/{id}/unstick", { id: "b", body: { slots } });
+            expect([r.status, r.json.code]).toEqual([400, "badPlace"]);
+        }
+        expect(stuckRaw()).toHaveLength(2);
+        for (const slot of [11, "1", 0.5]) {
+            const r = await call("POST /user/trunk/labels/{id}/stick", { id: "n", body: { slot } });
+            expect([r.status, r.json.code]).toEqual([400, "badPlace"]);
+        }
+    });
+
+    it("番号を書くと容量を越えるなら、番号なしではがす（はがせない、をしない）", () => {
+        // はがしただけなら予算の 30B 内側に収まり、11 枚に番号（1枚 6B ほど）を足すと越える行を作る
+        const make = (pad: number) => parseTrunk({
+            pocket: [],
+            stuck: Array.from({ length: 120 }, (_, i) => label(`s${i}`, { place: { name: (i === 119 ? "い".repeat(pad) : "") + "あ".repeat(900) } })),
+        });
+        const peeled = (pad: number) => T.unstickMutation("s0")(make(pad), { pro: true, now: new Date() })!;
+        // いちばん長い pad（はがした行が予算の 30B 内側に収まる）を二分で探す
+        let lo = 0, hi = 40_000;
+        while (lo < hi) {
+            const mid = Math.ceil((lo + hi) / 2);
+            if (T.rowSizes(peeled(mid)).main <= T.TRUNK_BUDGET_BYTES - 30) lo = mid; else hi = mid - 1;
+        }
+        const pad = lo;
+        expect(pad).toBeGreaterThan(0);
+        expect(T.rowSizes(peeled(pad)).main).toBeLessThanOrEqual(T.TRUNK_BUDGET_BYTES);
+        const slots = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [`s${i + 1}`, i]));
+        const next = T.unstickMutation("s0", slots)(make(pad), { pro: true, now: new Date() })!;
+        expect(next.stuck.some((l) => l.slot !== undefined)).toBe(false);
+        expect(next.stuck).toHaveLength(119);
+        // 余裕があれば書く
+        const roomy = T.unstickMutation("s0", slots)(parseTrunk({ pocket: [], stuck: [label("s0"), label("s1"), label("s2")] }),
+            { pro: true, now: new Date() })!;
+        expect(roomy.stuck.map((l) => l.slot)).toEqual([0, 1]);
+    });
+
+    it("人のトランクの口にも番号を出す（置き場が無いときだけ）", () => {
+        const base = label("a") as never;
+        expect(T.theirLabel(0, { ...(base as object), slot: 6 } as never).slot).toBe(6);
+        expect(T.theirLabel(0, { ...(base as object), slot: 6, pos: { x: 0.1, y: 0.1, rot: 0 } } as never).slot).toBeUndefined();
+    });
+
+    it("保存の形を読み直しても番号が残る（q）。置き場と番号が両方あれば置き場", () => {
+        const doc = parseTrunk({ pocket: [], stuck: [{ i: "a", k: "p", n: "京都", d: 1, a: 1, q: 4 },
+            { i: "b", k: "p", n: "京都", d: 1, a: 1, q: 4, p: [500, 500, 0] }, { i: "c", k: "p", n: "京都", d: 1, a: 1, q: 11 }] });
+        expect(doc.stuck.map((l) => l.slot)).toEqual([4, undefined, undefined]);
+    });
+});
+
 describe("硬貨（公開の投稿1件につき1枚）", () => {
     const exif = (t: string) => ({ exif: { dateTimeOriginal: t, camera: "X", imageSize: "1x1" } });
     const coins = () => trunkRow()?.coins;

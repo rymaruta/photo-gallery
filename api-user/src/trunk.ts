@@ -78,6 +78,9 @@ import { goneIfDeleted } from "./liveCaller";
  *   保存（`model`）は残す（再開すれば戻る）。手持ちが30を超えていても消さない
  * - 貼ったラベルは置き場 `pos` { x, y, rot } を持てる（x・y はトランク正面の 0〜1・rot は -30〜30 度）。
  *   無ければアプリがおまかせで置く。はがすと手持ちに戻り、置き場は消える
+ * - 置き場の無い貼ったラベルは、おまかせの置き場の番号 `slot`（0〜10）を持てる（2026-10-19・はがした所に
+ *   ほかのラベルがずれ込まないよう、はがすときに同じ1回で書く・`unstickMutation`）。番号の無いラベルは今までどおり
+ *   アプリが並びの何番目かで置く
  * - **硬貨**（2026-10-17 次の版）: ラベルと同じ歯止め（指紋・束・1日3件・notNew）を通った投稿に1枚。
  *   **手持ちがいっぱいでも・受け取らない設定でも配る**（受け取らない設定はラベルのこと）。上限 99 枚。
  *   お金では買えない。24時間以内の削除・非公開で取り消し（まだ持っていれば1枚減らす。0 枚なら何もしない）
@@ -217,6 +220,14 @@ export type TrunkLabel = {
      */
     pos?: TrunkPos;
     /**
+     * おまかせの置き場の番号（0〜`SLOT_COUNT`−1・置き場 `pos` の無い貼ったラベルだけ）。2026-10-19 判断:
+     * 置き場なしのラベルは、アプリが「並びの何番目か」でおまかせの置き場を決める。1枚はがすとほかがずれて、
+     * はがした所に別のラベルが入っていた。はがすときにアプリが「ずれるラベルの今の番号」を送り
+     * （`unstick` の本文 `slots`）、はがすのと**同じ1回の書き込み**で覚える。番号なので大きさは置き場の枠のまま。
+     * `pos` が付いたら（置き直し・置き場つきで貼る）・はがしたら消す。保存は `stored` の `q`
+     */
+    slot?: number;
+    /**
      * **地名を人に見せてよいと確かめた印**（2026-10-18 coordinator 判断「確かめた物だけ見せる」・`trunkPlace.ts`）。
      * 誰にでも見える公開の写真から来て、撮影地が今もラベルと同じときだけ付く。人の口（`theirLabel`）は
      * この印のあるラベルだけ地名と手がかりを出す。非公開・削除・絞る・撮影地の変更で外し、戻せば付け直す
@@ -225,6 +236,10 @@ export type TrunkLabel = {
 };
 
 export type TrunkPos = { x: number; y: number; rot: number };
+
+/** おまかせの置き場の数（アプリの `TrunkSlots.slots`） */
+export const SLOT_COUNT = 11;
+const isSlot = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v < SLOT_COUNT;
 
 export type Equipped = { [K in SingleSlot]?: string } & { pins: string[]; patches: string[] };
 
@@ -586,6 +601,7 @@ function stored(l: TrunkLabel): Record<string, unknown> {
         ...(l.groupId ? { g: l.groupId } : {}),
         ...(l.placeOk ? { o: 1 } : {}),
         ...(l.pos ? { p: [Math.round(l.pos.x * 1000), Math.round(l.pos.y * 1000), Math.round(l.pos.rot * 10)] } : {}),
+        ...(!l.pos && isSlot(l.slot) ? { q: l.slot } : {}),
     };
 }
 
@@ -612,6 +628,7 @@ function decodeLabel(v: unknown): unknown {
         ...(typeof r.g === "string" ? { groupId: r.g } : {}),
         ...(r.o === 1 ? { placeOk: true } : {}),
         ...(posOfStored(r.p) ? { pos: posOfStored(r.p) } : {}),
+        ...(!posOfStored(r.p) && isSlot(r.q) ? { slot: r.q } : {}),
     };
 }
 
@@ -635,6 +652,33 @@ export function parsePos(b: Record<string, unknown>): TrunkPos | undefined {
         throw new TrunkError(400, "置き場が正しくありません", "badPlace");
     }
     return { x: Math.round(pos.x * 1000) / 1000, y: Math.round(pos.y * 1000) / 1000, rot: Math.round(pos.rot * 10) / 10 };
+}
+
+/**
+ * 本文のおまかせの置き場の番号（`stick` の `slot`）。無ければ undefined。違えば 400 `badPlace`
+ */
+export function parseSlot(b: Record<string, unknown>): number | undefined {
+    if (b.slot === undefined) return undefined;
+    if (!isSlot(b.slot)) throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+    return b.slot;
+}
+
+/**
+ * 本文の `slots`（`unstick`・ラベルの id → おまかせの置き場の番号）。無ければ空。
+ * 形が違う・番号が範囲の外・同じ番号が2つ・`SLOT_COUNT` 枚を越える なら 400 `badPlace`
+ */
+export function parseSlots(b: Record<string, unknown>): Record<string, number> {
+    if (b.slots === undefined) return {};
+    const v = b.slots;
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+    const entries = Object.entries(v as Record<string, unknown>);
+    const used = new Set<number>();
+    if (entries.length > SLOT_COUNT) throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+    for (const [id, n] of entries) {
+        if (!LABEL_ID_RE.test(id) || !isSlot(n) || used.has(n)) throw new TrunkError(400, "置き場が正しくありません", "badPlace");
+        used.add(n);
+    }
+    return Object.fromEntries(entries) as Record<string, number>;
 }
 
 /** 2行の大きさ（JSON で数えたバイト数）。テストが最大の行を実測するのにも使う */
@@ -1401,15 +1445,19 @@ function body(event: { body?: string | null; isBase64Encoded?: boolean }): Recor
  * 手持ちから貼る。貼った方に在れば何もしない（再送で 404 にしない）。
  * `pos` があればその置き場に、無ければ置き場なし（アプリがおまかせで置く）
  */
-export const stickMutation = (id: string, pos?: TrunkPos): Mutation => (doc) => {
+export const stickMutation = (id: string, pos?: TrunkPos, slot?: number): Mutation => (doc) => {
     if (doc.stuck.some((l) => l.id === id)) return null;
     const label = doc.pocket.find((l) => l.id === id);
     if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
     if (doc.stuck.length >= STUCK_MAX) throw new TrunkError(409, "トランクがいっぱいです", "full");
+    const { slot: _s, ...plain } = label;
+    void _s;
+    // 置き場があればそれ（番号は付けない）。無ければ、送られたおまかせの置き場の番号（2026-10-19・「ひとつ戻す」）
+    const stuck = pos ? { ...plain, pos } : slot !== undefined ? { ...plain, slot } : plain;
     return {
         ...doc,
         pocket: doc.pocket.filter((l) => l.id !== id),
-        stuck: [pos ? { ...label, pos } : label, ...doc.stuck],
+        stuck: [stuck, ...doc.stuck],
         // 選びかけの作り直しは手持ちのラベルだけのもの。貼ったら捨てる（使った回数は戻らない）
         ...(doc.pendingReroll?.labelId === id ? { pendingReroll: undefined } : {}),
     };
@@ -1428,21 +1476,32 @@ export const placeMutation = (id: string, pos: TrunkPos | undefined): Mutation =
     }
     const cur = label.pos;
     if (cur && cur.x === pos.x && cur.y === pos.y && cur.rot === pos.rot) return null;
-    return { ...doc, stuck: doc.stuck.map((l) => (l.id === id ? { ...l, pos } : l)) };
+    const { slot: _s, ...plain } = label;
+    void _s;
+    return { ...doc, stuck: doc.stuck.map((l) => (l.id === id ? { ...plain, pos } : l)) };
 };
 
 /**
  * はがして手持ちに戻す（手持ちのいちばん上・置き場は消す）。手持ちが上限なら 409 `full`。
  * 手持ちに在れば何もしない（再送で 404 にしない）。24時間の取り消し・指紋の台帳は変えない
  */
-export const unstickMutation = (id: string): Mutation => (doc, { pro }) => {
+export const unstickMutation = (id: string, slots: Record<string, number> = {}): Mutation => (doc, { pro }) => {
     if (doc.pocket.some((l) => l.id === id)) return null;
     const label = doc.stuck.find((l) => l.id === id);
     if (!label) throw new TrunkError(404, "ラベルが見つかりません", "notFound");
     if (doc.pocket.length >= pocketLimit(pro)) throw new TrunkError(409, "手持ちがいっぱいです", "full");
-    const { pos: _p, ...rest } = label;
+    const { pos: _p, slot: _s, ...rest } = label;
     void _p;
-    return { ...doc, stuck: doc.stuck.filter((l) => l.id !== id), pocket: [rest, ...doc.pocket] };
+    void _s;
+    const plain = { ...doc, stuck: doc.stuck.filter((l) => l.id !== id), pocket: [rest, ...doc.pocket] };
+    // 2026-10-19: ずれるラベルにおまかせの置き場の番号を、はがすのと同じ1回で書く（置き場つきのラベル・
+    // はがす1枚・どこにも無い id には書かない）。番号を書くと容量を越えるなら、番号なしではがす（はがせない、をしない）
+    if (Object.keys(slots).length === 0) return plain;
+    const pinned = {
+        ...plain,
+        stuck: plain.stuck.map((l) => (!l.pos && slots[l.id] !== undefined ? { ...l, slot: slots[l.id] } : l)),
+    };
+    return fitsBudget(pinned) ? pinned : plain;
 };
 
 /** ガチャの乱数（書く前に引く。競合で読み直しても同じ1回にする） */
@@ -1851,6 +1910,7 @@ export type TheirLabel = {
     at?: string;
     foil?: true;
     pos?: TrunkPos;
+    slot?: number;
     where: { location: string } | null;
 };
 
@@ -1862,6 +1922,7 @@ export function theirLabel(index: number, l: TrunkLabel): TheirLabel {
         seed: l.seed,
         ...(l.foil ? { foil: true as const } : {}),
         ...(l.pos ? { pos: l.pos } : {}),
+        ...(!l.pos && l.slot !== undefined ? { slot: l.slot } : {}),
     };
     // **確かめた物だけ見せる**: 印（`placeOk`）の無いラベルと、地名がもともと空のラベルは同じ形（地名・日付なし）
     if (!l.placeOk || !l.place.name) return { ...base, place: { name: "" }, where: null };
@@ -2037,14 +2098,14 @@ async function confirmStale(doc: TrunkDoc, candidates: Map<string, string[]>, ui
  * 旅のトランクの口（1つの関数に寄せる。CloudFormation の部品が上限 500 に近いため）。
  *
  *     GET    /user/trunk                         → view ＋ posts（公開している投稿の数・古び方用）
- *     POST   /user/trunk/labels/{id}/stick       → view
+ *     POST   /user/trunk/labels/{id}/stick       → view（本文 { x, y, rot } か { slot }・どちらも無ければ置き場なし）
  *     DELETE /user/trunk/labels/{id}             → view
  *     POST   /user/trunk/labels/{id}/reroll      → view（pendingReroll に候補3つ）
  *     POST   /user/trunk/labels/{id}/reroll/choose { seed } → view
  *     PUT    /user/trunk/model { model }         → view
  *     PUT    /user/trunk/settings { receiveLabels } → view
  *     PUT    /user/trunk/labels/{id}/place { x, y, rot } → view
- *     POST   /user/trunk/labels/{id}/unstick     → view
+ *     POST   /user/trunk/labels/{id}/unstick     → view（本文 { slots?: { id: 番号 } }・ずれるラベルの番号を同じ1回で書く）
  *     POST   /user/trunk/gacha                   → { part, duplicate, fragments, coins }
  *     POST   /user/trunk/parts/exchange { partId } → view ＋ part
  *     PUT    /user/trunk/equip { handle?, …, pins?, patches? } → view
@@ -2173,9 +2234,13 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
         if (typeof id !== "string" || !LABEL_ID_RE.test(id)) return jsonError(400, "不正なリクエスト", "badRequest");
         let fn: Mutation;
         switch (route) {
-            case "POST /user/trunk/labels/{id}/stick": fn = stickMutation(id, parsePos(body(event))); break;
+            case "POST /user/trunk/labels/{id}/stick": {
+                const b = body(event);
+                fn = stickMutation(id, parsePos(b), parseSlot(b));
+                break;
+            }
             case "PUT /user/trunk/labels/{id}/place": fn = placeMutation(id, parsePos(body(event))); break;
-            case "POST /user/trunk/labels/{id}/unstick": fn = unstickMutation(id); break;
+            case "POST /user/trunk/labels/{id}/unstick": fn = unstickMutation(id, parseSlots(body(event))); break;
             case "DELETE /user/trunk/labels/{id}": fn = removeMutation(id); break;
             case "POST /user/trunk/labels/{id}/reroll": {
                 const seeds = Array.from({ length: REROLL_CANDIDATES }, () => newSeed());
