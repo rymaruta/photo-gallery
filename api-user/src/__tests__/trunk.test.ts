@@ -989,6 +989,37 @@ describe("おまかせの置き場の番号（slot・2026-10-19 はがした所�
         expect(stuckOf(s1).filter((l) => l.slot === 5)).toHaveLength(1);
     });
 
+    it("take: 番号を持つ古いラベルから同じ1回で番号を移す（古いラベルは番号なし）。take なしなら書かない", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("n1"), label("n2")], stuck: [label("a", { slot: 2 }), label("b", { slot: 7 }), label("p", { pos: { x: 0.5, y: 0.5, rot: 0 } })] });
+        const before = fakeSend.mock.calls.length;
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "n1", body: { slot: 7, take: true } });
+        expect(r.status).toBe(200);
+        expect(stuckOf(r).map((l) => [l.id, l.slot])).toEqual([["n1", 7], ["a", 2], ["b", undefined], ["p", undefined]]);
+        expect(stuckRaw().map((l) => l.q)).toEqual([7, 2, undefined, undefined]);
+        const withTake = fakeSend.mock.calls.length - before;
+        // 書き込みの回数は、番号なしで貼るときと同じ（1回の条件付き更新）
+        const saved = trunkRow();
+        setTrunk({ pocket: [label("z")], stuck: [] });
+        const before2 = fakeSend.mock.calls.length;
+        await call("POST /user/trunk/labels/{id}/stick", { id: "z" });
+        expect(withTake).toBe(fakeSend.mock.calls.length - before2);
+        store.set(`photos-test|${trunkId(UID)}`, saved!);
+        // take なし: 使われている番号は書かない
+        const r2 = await call("POST /user/trunk/labels/{id}/stick", { id: "n2", body: { slot: 2 } });
+        expect(stuckOf(r2)[0].slot).toBeUndefined();
+        expect(stuckOf(r2).find((l) => l.id === "a")?.slot).toBe(2);
+    });
+
+    it("take: だれも持っていない番号なら、そのまま書く。置き場つきなら番号も take も無視", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("n1"), label("n2")], stuck: [label("a", { slot: 2 })] });
+        const r = await call("POST /user/trunk/labels/{id}/stick", { id: "n1", body: { slot: 4, take: true } });
+        expect(stuckOf(r).map((l) => [l.id, l.slot])).toEqual([["n1", 4], ["a", 2]]);
+        const r2 = await call("POST /user/trunk/labels/{id}/stick", { id: "n2", body: { x: 0.5, y: 0.5, rot: 0, slot: 2, take: true } });
+        expect(stuckOf(r2).map((l) => [l.id, l.slot])).toEqual([["n2", undefined], ["n1", 4], ["a", 2]]);
+    });
+
     it("形の違う番号は 400 badPlace（範囲の外・小数・同じ番号が2つ・多すぎる・配列）で、何も変えない", async () => {
         setProfile(FREE);
         setTrunk({ pocket: [label("n")], stuck: [label("a"), label("b")] });
