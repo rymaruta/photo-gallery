@@ -69,6 +69,14 @@ vi.mock("../inspired", async (importActual) => ({
 
 import { updatePhotoVisibility, isValidYouTubeUrl } from "../photoUpdate";
 
+// 退会の確かめ（`liveCaller.ts`）は生きている本人として通す。ここで見たいのは口の中身で、
+// 墓石の 410 は `liveCaller.test.ts`・`liveCallerGuard.test.ts` が見る
+vi.mock("../liveCaller", async (orig) => ({
+    ...(await orig<typeof import("../liveCaller")>()),
+    assertLiveCaller: async () => null,
+    readLiveCaller: async () => ({ row: undefined }),
+}));
+
 const CDN = "https://d15fn3rcaiymu9.cloudfront.net";
 const UID = "11111111-2222-4333-8444-555555555555";
 const mine = (p: string) => `${CDN}/uploads/${UID}/${p}`;

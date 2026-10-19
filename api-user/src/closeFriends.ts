@@ -1,6 +1,7 @@
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
 import { readUserList, updateUserList, UserListError } from "./userList";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * 「親しい友達」（モック4-7 の3つ目）。
@@ -60,6 +61,12 @@ export const setCloseFriend: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (
     if (targetId === userId) return jsonError(400, "自分は追加できません");
 
     const wanted = event.requestContext.http.method !== "DELETE";
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）。
+    // 外す（DELETE）は通す——削除の系統は止めない（`liveCallerGuard.test.ts` の除外と同じ線）
+    if (wanted) {
+        const gone = await assertLiveCaller(userId);
+        if (gone) return gone;
+    }
     try {
         await updateUserList(
             closeFriendsId(userId),

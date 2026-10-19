@@ -2,6 +2,7 @@ import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { getUserId, jsonError, JSON_HEADERS, type AuthedEvent } from "./http";
 import type { APIGatewayProxyHandlerV2WithJWTAuthorizer } from "aws-lambda";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * プッシュ通知の宛先（端末のトークン）。
@@ -109,6 +110,9 @@ export async function forgetTokens(uid: string, tokens: readonly string[]): Prom
 export const registerDevice: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event as AuthedEvent);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     let body: { token?: unknown };
     try {
