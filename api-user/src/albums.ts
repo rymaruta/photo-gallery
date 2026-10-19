@@ -34,6 +34,7 @@ import {
     ALBUMS_PER_USER, ALBUM_TITLE_MAX, MEMBERS_PER_ALBUM, PHOTOS_PER_ALBUM, INVITE_PREVIEW_PHOTOS, INVITE_LOOKUP_BUDGET,
     albumMemberKey, type InviteItem,
 } from "./invite";
+import { assertLiveCaller } from "./liveCaller";
 
 type AlbumItem = {
     id: string;
@@ -132,6 +133,9 @@ async function listOwnAlbumIds(userId: string, consistent = false): Promise<stri
 export const createAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     let body: { title?: unknown };
     try {
@@ -230,6 +234,9 @@ export const listAlbums: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
 export const createInvite: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const albumId = event.pathParameters?.id;
     if (!albumId) return jsonError(400, "アルバムが指定されていません");
 
@@ -454,6 +461,9 @@ export const getInvite: APIGatewayProxyHandlerV2 = async (event) => {
 export const joinAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
 
     const token = event.pathParameters?.token;
     if (!isValidInviteToken(token)) {
@@ -566,6 +576,9 @@ export { removePhotoFromAlbum } from "./albumCleanup";
 export const renameAlbum: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) => {
     const userId = getUserId(event);
     if (!userId) return jsonError(401, "認証が必要です");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(userId);
+    if (gone) return gone;
     const albumId = event.pathParameters?.id;
     if (!albumId) return jsonError(400, "アルバムが指定されていません");
 

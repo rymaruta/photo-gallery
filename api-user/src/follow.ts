@@ -10,6 +10,7 @@ import { isUserId } from "./userId";
 import { hiddenUserIds, isBlocked } from "./blockCheck";
 import { followMarkerId, followingId, followersId } from "./followCheck";
 import { isDeletedProfile } from "./types";
+import { assertLiveCaller } from "./liveCaller";
 
 const USERS_TABLE = requireEnv("USERS_TABLE");
 
@@ -384,6 +385,9 @@ export const followUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (even
     // ゴミが増えるほど全員の表示が遅くなる。しかも notifs# は
     // 退会処理でも消えない。
     if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(me);
+    if (gone) return gone;
 
     // **ブロックした相手とは、フォローの関係を作らせない。**
     //

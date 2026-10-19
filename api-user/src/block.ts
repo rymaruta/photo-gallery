@@ -6,6 +6,7 @@ import { isUserId } from "./userId";
 import { unfollowQuietly } from "./follow";
 import { blockMarkerId, blocksId, blockedById, ids } from "./blockCheck";
 import { lookupListIdentity, deletedAmong, DELETED_USER_NAME } from "./notify";
+import { assertLiveCaller } from "./liveCaller";
 
 // **読み取りは全部 `blockCheck.ts` にある**（`isBlocked` / `hiddenUserIds` /
 // キーの綴り）。ここに残すのは書き込みと口だけ。
@@ -105,6 +106,9 @@ export const blockUser: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event
     // **実在までは見ない**——ブロックは「居ない人でも印だけ」で害が無く、
     // フォローと違って通知も集計も作らない
     if (!isUserId(target)) return jsonError(400, "不正なリクエスト");
+    // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+    const gone = await assertLiveCaller(me);
+    if (gone) return gone;
 
     try {
         const mine = await ddb.send(new GetCommand({ TableName: PHOTOS_TABLE, Key: { id: blocksId(me) } }));
