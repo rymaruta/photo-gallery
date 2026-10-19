@@ -25,7 +25,7 @@ import { forgetAppStoreLinks } from "./supporterStore";
 //   - アバター/カバー       … profiles/<uid>・profiles/<uid>/cover（決定的キー）
 //   - プロフィール          … USERS_TABLE の {userId}
 //   - 自分の各ドキュメント  … notifs#/followstats#/following#/followers#/
-//                            spots#/saves#/likes#/trips#/closefriends#/devices#/trunk#/trunkledger#
+//                            spots#/saves#/likes#/trips#/closefriends#/devices#/trunk#/trunkledger#/camperday#
 //     ⚠️ **この一覧を手で書き足さない。** 足すべき行が増えたかどうかは
 //     `api-user/src/__tests__/accountCleanupRows.test.ts` が走査して見る
 //   - 自分の「フォロー中」   … following の各 target の follow# マーカー削除 + target.followers 減算
@@ -771,6 +771,8 @@ export const deleteAccount: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (e
         // 旅のトランクの悪用の歯止めの台帳（`trunk.ts` の `trunkledger#<uid>`・2026-10-17 に trunk# から分けた）。
         // 写真の指紋・束の鍵・節目・日ごとの数＝本人の投稿の履歴なので、同じく消す
         await ddbDelete(PHOTOS_TABLE, { id: `trunkledger#${uid}` });
+        // とおまわり号の「今日は数え直した」の印（`trunk.ts` の `camperday#<uid>`・2026-10-18）。日付だけの小さな行
+        await ddbDelete(PHOTOS_TABLE, { id: `camperday#${uid}` });
         // 端末の宛先（`devices.ts` の `devices#<uid>`）。**プッシュ通知の
         // APNs トークンの集合。**
         //

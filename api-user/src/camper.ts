@@ -155,13 +155,19 @@ export function serializeCamper(c: CamperDoc | undefined): { main?: Record<strin
 // ─── 段2: 配る決まり（2026-10-18 owner 承認の設計案 2.1〜2.3・純関数だけ。書くのは `trunk.ts` の `updateTrunk`） ───
 
 /**
- * 配り始める線。**これより後に作られた公開の写真・旅だけ**を数える（遡らない・設計案 1）。
- * 値は環境変数 `CAMPER_LAUNCHED_AT`（ISO の時刻・`serverless.yml` の `camperLaunchedAt`）。
- * **未設定・読めない値なら配らない**（口は `launched: false` を返し、何も書かない）。
- * 2026-10-18 判断: 段1 を本番に出したあと、owner が時刻を決めて入れる（段2 のコードを出しただけでは配り始めない）
+ * 配り始める線（`at`）。**これより後に作られた公開の写真・旅だけ**を数える（遡らない・設計案 1）。
+ * **null（いま）なら配らない**（口は `launched: false` を返し、投稿の相乗りも何も書かない）。
+ *
+ * 2026-10-18 判断（見直しの指摘）: 環境変数（serverless の param）にしていたが、`deploy-api.yml` は決まった
+ * `--param` しか渡さないので、本番では永久に空のままだった。**`TRUNK_LAUNCHED_AT` と同じくコードに持つ。**
+ * 配り始めるときは、ここに ISO の時刻（例 `"2026-11-01T15:00:00.000Z"`）を入れる**小さなコミットを別に出す**
+ * （`camper.test.ts` の「いまは null」の試験も一緒に直す）。入れた値は後ろへずらさない（遡って対象外にしない）。
+ * 試験だけがこの値を書き換える（そのため定数ではなく箱にしてある）
  */
-export function camperLaunchedAt(env: Record<string, string | undefined> = process.env): number | null {
-    const raw = (env.CAMPER_LAUNCHED_AT ?? "").trim();
+export const CAMPER_LAUNCH: { at: string | null } = { at: null };
+
+export function camperLaunchedAt(at: string | null = CAMPER_LAUNCH.at): number | null {
+    const raw = (at ?? "").trim();
     if (!raw) return null;
     const t = Date.parse(raw);
     return Number.isFinite(t) ? t : null;
@@ -286,9 +292,18 @@ const FESTIVAL_RE = /祭|\bfestivals?\b/i;
  */
 const RAIN_RE = /雨|\brain(y|ing|s)?\b/i;
 const WIND_RE = /強風|風の強い|風が強い|暴風|突風|\bwindy\b|\bgales?\b|\bstrong winds?\b/i;
+/**
+ * 言葉を探す前に消す**地名・建物の名前**（2026-10-18 見直しの指摘）。台帳（`content/spots.json`）の名前・別名で
+ * 「雨」「祭」を含むのに天気・祭りではないものを拾った: 雨晴海岸・雨滝・雨引観音・雨竜（中津渓谷）と、
+ * 葬祭殿（ハトシェプスト女王葬祭殿）・三神合祭殿（出羽三山神社）・祭場（宗像大社の高宮祭場・相馬野馬追の祭場地）。
+ * 祭壇・祭神・祭祀も同じ「祭り（行事）ではない祭」なので落とす。地名を足すときはここに足す
+ */
+const NOT_RAIN_RE = /雨晴|雨滝|雨引|雨竜|雨飾|雨乞/g;
+const NOT_FESTIVAL_RE = /葬祭|祭殿|祭場|祭壇|祭神|祭祀/g;
 
-export const isFestivalPhoto = (p: Photo) => (spotMaskOf(p) & classBit("festival")) !== 0 || FESTIVAL_RE.test(textOf(p, false));
-export const isRainPhoto = (p: Photo) => RAIN_RE.test(textOf(p, true));
+export const isFestivalPhoto = (p: Photo) => (spotMaskOf(p) & classBit("festival")) !== 0
+    || FESTIVAL_RE.test(textOf(p, false).replace(NOT_FESTIVAL_RE, ""));
+export const isRainPhoto = (p: Photo) => RAIN_RE.test(textOf(p, true).replace(NOT_RAIN_RE, ""));
 export const isWindPhoto = (p: Photo) => WIND_RE.test(textOf(p, true));
 
 /** 本人の・公開の（`isCountablePhoto`）・線より後に作られた写真か */
