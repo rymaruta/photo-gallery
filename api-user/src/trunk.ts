@@ -21,6 +21,7 @@ import { isPublicListPhoto } from "./feed";
 import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
 import type { Photo } from "./types";
 import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
+import { goneIfDeleted } from "./liveCaller";
 
 /**
  * 旅のトランク（iOS の新機能・2026-10-17 owner 承認）。
@@ -2067,6 +2068,7 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
     const id = event.pathParameters?.id;
     const now = new Date();
     try {
+        // ⚠️ 下の `readProfileBits` より前で返す道（人のトランク・とおまわり号の4つの口・welcome・reward）は退会の確かめ（`goneIfDeleted`）を通らない。ここに書く道を足すなら自分で墓石を見る——`liveCallerGuard.test.ts` は handler 単位なので見逃す
         if (route === "GET /users/{uid}/trunk") {
             const target = event.pathParameters?.uid;
             if (typeof target !== "string" || !isUserId(target)) return jsonError(404, "見つかりません", "notFound");
@@ -2100,7 +2102,16 @@ export const handler: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (event) 
             if (!isRewardKind(kind)) return jsonError(400, "不正なリクエスト", "badKind");
             return ok(await rewardCoins(uid, kind, now));
         }
-        const pro = isPro(await readProfileBits(uid), now.getTime());
+        const me = await readProfileBits(uid);
+        // 退会した本人（期限内のトークン）にトランクを書かせない（`liveCaller.ts`）。
+        // **Pro の判定の読みに相乗りする**（users の読みを増やさない）。GET /user/trunk も
+        // 控え（posts）を書き直すので止める。ラベルを外す（DELETE）だけは削除の系統として通す。
+        // welcome・reward は上で自分の読みで墓石を見ている（硬貨を配らない・200）
+        if (!route.startsWith("DELETE ")) {
+            const gone = goneIfDeleted(me);
+            if (gone) return gone;
+        }
+        const pro = isPro(me, now.getTime());
         if (route === "GET /user/trunk") {
             const [rows, photos] = await Promise.all([
                 readTrunkRows(uid),

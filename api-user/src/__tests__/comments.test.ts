@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// 退会の確かめ（`liveCaller.ts`）は生きている本人として通す。ここで見たいのは口の中身で、
+// 墓石の 410 は `liveCaller.test.ts`・`liveCallerGuard.test.ts` が見る
+// 表示名はこの1回の読み（`readLiveCaller(uid, ["displayName"])`）から取る。中身は `mockLookup`。
+// 1回の読みで users の Get が1回であることは `liveCaller.test.ts` が見る
+const mockReadLive = vi.hoisted(() => vi.fn());
+vi.mock("../liveCaller", async (orig) => ({
+    ...(await orig<typeof import("../liveCaller")>()),
+    assertLiveCaller: async () => null,
+    readLiveCaller: (...a: unknown[]) => mockReadLive(...a),
+}));
+
 const mockDdbSend = vi.hoisted(() => vi.fn());
 const mockPush = vi.hoisted(() => vi.fn());
 const mockLookup = vi.hoisted(() => vi.fn());
@@ -14,7 +25,9 @@ const mockDeletedIds = vi.hoisted(() => vi.fn<(ids?: unknown) => Promise<Set<str
 const mockUnreadIds = vi.hoisted(() => vi.fn<() => Set<string>>(() => new Set<string>()));
 vi.mock("../notify", () => ({
     pushNotification: mockPush,
-    lookupDisplayName: mockLookup,
+    displayNameOf: (r?: { displayName?: unknown }) =>
+        (typeof r?.displayName === "string" && r.displayName.trim()) || undefined,
+    DEFAULT_NAME: "名前未設定さん",
     deletedAmong: async (ids: unknown) => ({ deleted: await mockDeletedIds(ids), unread: mockUnreadIds() }),
     withUnreadAsDeleted: (r: { deleted: Set<string>; unread: Set<string> }) => new Set([...r.deleted, ...r.unread]),
     DELETED_USER_NAME: "退会したユーザー",
@@ -53,6 +66,7 @@ beforeEach(() => {
     mockPush.mockReset().mockResolvedValue(undefined);
     mockIsBlocked.mockReset().mockResolvedValue(false);
     mockLookup.mockReset().mockResolvedValue("旅人A");
+    mockReadLive.mockReset().mockImplementation(async (uid: string) => ({ row: { userId: uid, displayName: await mockLookup(uid) } }));
 });
 
 describe("getComments", () => {
@@ -134,6 +148,35 @@ describe("postComment", () => {
         expect(mockPush.mock.calls[0][0]).toBe("owner");
         expect(mockPush.mock.calls[0][1].type).toBe("comment");
         expect(mockPush.mock.calls[0][1].photoSrc).toBe("https://cdn/p1_thumb.webp");
+    });
+
+    // 退会しても配ったトークンは期限まで通る（`liveCaller.ts`）。表示名を引く読みに
+    // 墓石を相乗りさせる——users の読みは1回のまま（2026-10-18）
+    it("users の読みは1回だけ（表示名と墓石を同じ読みで）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValueOnce({ Item: { items: [] } })
+            .mockResolvedValue({});
+        expect((await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }))).statusCode).toBe(200);
+        expect(mockReadLive).toHaveBeenCalledTimes(1);
+        expect(mockReadLive).toHaveBeenCalledWith("u1", ["displayName"]);
+    });
+
+    it("退会した本人（墓石）は 410 で、コメントも件数も書かず通知もしない", async () => {
+        mockReadLive.mockResolvedValue({ gone: { statusCode: 410, body: "{}" } });
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { src: "https://cdn/p1.jpg", userId: "owner" } })
+            .mockResolvedValue({ Item: { items: [] } });
+        expect((await invoke(postComment, ev("u1", { id: "p1" }, { text: "hi" }))).statusCode).toBe(410);
+        const writes = mockDdbSend.mock.calls.filter(([c]) => /Put|Update|Delete/.test((c as { constructor: { name: string } }).constructor.name));
+        expect(writes).toEqual([]);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("写真が無い回は users を読まない（入口で読まない）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: undefined });
+        expect((await invoke(postComment, ev("u1", { id: "ghost" }, { text: "hi" }))).statusCode).toBe(404);
+        expect(mockReadLive).not.toHaveBeenCalled();
     });
 
     it("自分の写真には通知しない", async () => {

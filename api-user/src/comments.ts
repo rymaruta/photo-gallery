@@ -3,10 +3,11 @@ import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 import { ddb, PHOTOS_TABLE } from "./dynamodb";
 import { JSON_HEADERS, getUserId, jsonError } from "./http";
-import { pushNotification, lookupDisplayName, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
+import { pushNotification, displayNameOf, DEFAULT_NAME, deletedAmong, withUnreadAsDeleted, DELETED_USER_NAME } from "./notify";
 import { truncate } from "./sanitize";
 import { isBlocked } from "./blockCheck";
 import { canViewPhoto } from "./restrictedFeed";
+import { readLiveCaller } from "./liveCaller";
 
 // 写真コメント。
 // ストレージ: "comments#<photoId>" の list ドキュメント（notifs と同型）に
@@ -226,10 +227,16 @@ export const postComment: APIGatewayProxyHandlerV2WithJWTAuthorizer = async (eve
         }
         const isOwner = photoOwner === uid;
 
+        // **退会した本人（期限内のトークン）に書かせない**（`liveCaller.ts`）。表示名を引く読みに
+        // 墓石の印を相乗りさせる（users を読むのは1回）。ここより上は読むだけ——まだ何も書いていない。
+        // 入口で読まないので、形の違い・404・ブロックで断る回は users を読まない（2026-10-18 判断）
+        const caller = await readLiveCaller(uid, ["displayName"]);
+        if ("gone" in caller) return caller.gone;
+
         const comment: Comment = {
             id: uuidv4(),
             uid,
-            name: await lookupDisplayName(uid),
+            name: displayNameOf(caller.row) ?? DEFAULT_NAME,
             text,
             t: new Date().toISOString(),
         };

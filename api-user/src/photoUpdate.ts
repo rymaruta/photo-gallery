@@ -19,6 +19,7 @@ import { sweepStoryVotes } from "./storyVotes";
 import { refreshBadgesQuietly } from "./badgeStore";
 import { revokeLabelQuietly, grantLabelForPhotoQuietly, refreshLabelPlaceQuietly } from "./trunk";
 import { sanitizeInspiredBy, isInspiredByClear, readVisibleSource, notifyInspiredOnce } from "./inspired";
+import { assertLiveCaller } from "./liveCaller";
 
 /**
  * 保存する URL の土台。**呼ぶたびに読む。**
@@ -258,6 +259,9 @@ export const updatePhotoVisibility: APIGatewayProxyHandlerV2WithJWTAuthorizer = 
         if (!ownerId || ownerId !== callerId) {
             return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: "権限がありません" }) };
         }
+        // 退会した本人（期限内のトークン）に書かせない（`liveCaller.ts`）
+        const gone = await assertLiveCaller(callerId);
+        if (gone) return gone;
         // ストーリーはこのAPIの対象外。published:true を書き込むと
         // 永久の写真ページになり、24時間後の期限切れ掃除が実体だけ消して
         // 壊れたページが残る。いいね・コメントと同じ扱いにする。

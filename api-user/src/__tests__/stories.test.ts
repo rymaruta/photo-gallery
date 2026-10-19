@@ -1511,3 +1511,69 @@ describe("createStory: 置いた文字", () => {
         expect(saved().caption, "文言を2か所で持っている").toBe("ひとこと");
     });
 });
+
+// ────────────────────────────────
+// 退会した本人（墓石）・users の読みは1回（2026-10-18）
+// ────────────────────────────────
+/**
+ * 退会しても配ったトークンは期限まで通る。表示名を引く読みに墓石の印を相乗りさせ
+ * （`liveCaller.ts` の `readLiveCaller`）、users を読むのは1回のまま 410 で止める。
+ */
+describe("ストーリー: 退会した本人と users の読み", () => {
+    type Cmd = { constructor: { name: string }; input: { TableName?: string; ProjectionExpression?: string; ExpressionAttributeNames?: Record<string, string> } };
+    const calls = () => mockDdbSend.mock.calls.map(([c]) => c as Cmd);
+    const userReads = () => calls().filter((c) => c.input.TableName === process.env.USERS_TABLE);
+    const writes = () => calls().filter((c) => /Put|Update|Delete|TransactWrite/.test(c.constructor.name));
+    const projected = (c: Cmd) => (c.input.ProjectionExpression ?? "").split(",").map((s) => s.trim())
+        .map((s) => c.input.ExpressionAttributeNames?.[s] ?? s);
+    const TOMB = { Item: { userId: "x", deletedAt: "2026-10-18T00:00:00.000Z" } };
+    const follows = () => ({ Item: { id: "follow#owner#viewer-1" } });
+    const post = () => invoke(createStory, authedEvent("u1", { body: JSON.stringify({ publicUrl: "https://cdn.test/uploads/u1/a.jpg" }) }));
+    const view = () => invoke(viewStory, authedEvent("viewer-1", { pathParameters: { id: "story-1" } }));
+
+    it("createStory: users は1回だけ読み、その1回で表示名と deletedAt を引く", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Count: 0 })
+            .mockResolvedValueOnce({ Item: { userId: "u1", displayName: "旅子" } })
+            .mockResolvedValue({});
+        expect((await post()).statusCode).toBe(201);
+        expect(userReads()).toHaveLength(1);
+        expect(projected(userReads()[0])).toEqual(expect.arrayContaining(["deletedAt", "displayName"]));
+        expect(storyPuts()[0].displayName).toBe("旅子");
+    });
+
+    it("createStory: 墓石なら 410 で、ストーリーを書かない", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Count: 0 }).mockResolvedValueOnce(TOMB).mockResolvedValue({});
+        expect((await post()).statusCode).toBe(410);
+        expect(writes()).toEqual([]);
+    });
+
+    it("viewStory: 記録する回は users を1回だけ読む（表示名と deletedAt を一緒に）", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
+            .mockResolvedValueOnce({ Item: { userId: "viewer-1", displayName: "見た人" } })
+            .mockResolvedValue({});
+        expect((await view()).statusCode).toBe(200);
+        expect(userReads()).toHaveLength(1);
+        expect(projected(userReads()[0])).toEqual(expect.arrayContaining(["deletedAt", "displayName"]));
+    });
+
+    it("viewStory: 墓石なら 410 で、閲覧者に記録しない", async () => {
+        mockDdbSend
+            .mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "owner" } })
+            .mockResolvedValueOnce(follows())
+            .mockResolvedValueOnce(TOMB)
+            .mockResolvedValue({});
+        expect((await view()).statusCode).toBe(410);
+        expect(writes()).toEqual([]);
+    });
+
+    it("viewStory: 本人の閲覧・無いストーリーでは users を読まない（前の作りのまま）", async () => {
+        mockDdbSend.mockResolvedValueOnce({ Item: { id: "story-1", story: true, userId: "viewer-1" } });
+        expect((await view()).statusCode).toBe(200);
+        mockDdbSend.mockResolvedValueOnce({});
+        expect((await view()).statusCode).toBe(404);
+        expect(userReads()).toEqual([]);
+    });
+});

@@ -1524,3 +1524,66 @@ describe("見直しで守りの無かった2か所（2026-10-17）", () => {
         expect(r.outcome).toEqual({ label: null, labelSkipped: "storage", coin: 0 });
     });
 });
+
+/**
+ * **退会した人（墓石）には配らない・書かせない**（2026-10-18）。
+ *
+ * 退会しても配ったトークンは期限まで通る。保存の口（`savePhoto`）が通ってしまうと
+ * `grantLabelQuietly` → `grantLabel` → `updateTrunk` で、退会の掃除が消した `trunk#`・
+ * `trunkledger#` が作り直される（掃除はもう走らない）。保存の口が 410 で止めるのに加えて、
+ * 配る側でも墓石を見る（二重の守り）。
+ */
+describe("退会した人（墓石）", () => {
+    const TOMB = { userId: UID, deletedAt: "2026-10-18T00:00:00.000Z" };
+    const writes = () => fakeSend.mock.calls.filter(([c]) => c.constructor.name !== "GetCommand");
+
+    it("grantLabel は配らない（trunk# も trunkledger# も作り直さない）", async () => {
+        setProfile(TOMB);
+        const out = await grantLabel(UID, photo("p1"));
+        expect(out).toEqual({ label: null, labelSkipped: "deleted", coin: 0 });
+        expect(writes()).toEqual([]);
+        expect(trunkRow()).toBeUndefined();
+        expect(ledgerRow()).toBeUndefined();
+    });
+
+    it("本人の行の射影に deletedAt が入る（入らないと墓石が見えず、上の守りが黙って死ぬ）", async () => {
+        // 作り物の GetCommand は射影を無視して行を丸ごと返すので、上のテストだけでは
+        // 射影から deletedAt が落ちても緑のまま。読みに渡した射影そのものを見る
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        await call("GET /user/trunk");
+        const userReads = fakeSend.mock.calls
+            .map(([c]) => c.input as { TableName?: string; ProjectionExpression?: string })
+            .filter((i) => i.TableName === "users-test");
+        expect(userReads.length).toBeGreaterThanOrEqual(2);
+        for (const r of userReads) expect(r.ProjectionExpression ?? "").toMatch(/\bdeletedAt\b/);
+    });
+
+    it("口は 410（書く口も、控えを書き直す GET /user/trunk も）。何も書かない", async () => {
+        setProfile(TOMB);
+        setTrunk({ pocket: [label("a")], stuck: [] });
+        fakeSend.mockClear();
+        for (const [route, id, body] of [
+            ["GET /user/trunk", undefined, undefined],
+            ["POST /user/trunk/labels/{id}/stick", "a", undefined],
+            ["PUT /user/trunk/model", undefined, { model: "classic" }],
+            ["POST /user/trunk/gacha", undefined, undefined],
+        ] as const) {
+            const r = await call(route, { id, body });
+            expect(r.status, route).toBe(410);
+        }
+        expect(writes()).toEqual([]);
+    });
+
+    it("ラベルを外す（DELETE）は削除の系統として止めない", async () => {
+        setProfile(TOMB);
+        setTrunk({ pocket: [label("a")], stuck: [] });
+        expect((await call("DELETE /user/trunk/labels/{id}", { id: "a" })).status).toBe(200);
+    });
+
+    it("生きている人はこれまでどおり", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [] });
+        expect((await call("POST /user/trunk/labels/{id}/stick", { id: "a" })).status).toBe(200);
+    });
+});
