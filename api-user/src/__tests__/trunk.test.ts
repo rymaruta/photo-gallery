@@ -1399,6 +1399,130 @@ describe("見直しで守りの無かった2か所（2026-10-17）", () => {
     });
 });
 
+describe("とおまわり号の欄を落とさない（段1・2026-10-18）", () => {
+    // 段2 の Lambda が書いた形（部品・旅の数・旅の日・贈り物／台帳の訪問・薪・贈った・同じ日の友達・数え直しの日・旅の控え）
+    const CAMPER_MAIN = {
+        parts: [{ id: "wheel.brass_spoke", at: "2026-10-20T00:00:00.000Z" }, { id: "sticker_edge.signed", at: "2026-10-21T00:00:00.000Z", by: "friend-1" }],
+        trips: 7,
+        tripDays: ["2026-10-20", "2026-10-19"],
+        gifts: [{ from: "friend-1", part: "sticker_edge.signed", at: "2026-10-21T00:00:00.000Z" }],
+    };
+    const CAMPER_LEDGER = {
+        camperVisits: [{ u: "friend-1", d: "2026-10-21" }],
+        camperWood: [{ u: "friend-1", d: "2026-10-21" }, { u: "friend-2", d: "2026-10-21" }],
+        camperGiven: [{ u: "friend-2", d: "2026-10-20" }],
+        camperTripFriends: ["friend-1"],
+        camperRecountDay: "2026-10-21",
+        camperTripLog: [{ k: "g:abcdefabcdef", a: 1_800_000_000 }],
+    };
+    function setBoth() {
+        setTrunk({ pocket: [label("a")], stuck: [], camper: structuredClone(CAMPER_MAIN) });
+        store.set(`photos-test|${T.trunkLedgerId(UID)}`, { id: T.trunkLedgerId(UID), uid: UID, rev: 1, dealt: [], ...structuredClone(CAMPER_LEDGER) });
+    }
+
+    it("配る（2行とも Put）を通っても、trunk# の camper と台帳の camper* がそのまま残る", async () => {
+        setProfile(FREE);
+        setBoth();
+        await grantLabel(UID, photo("p1"));
+        expect(pocketIds()).toEqual(["p1", "a"]);
+        expect(trunkRow()?.camper).toEqual(CAMPER_MAIN);
+        expect(ledgerRow()).toMatchObject(CAMPER_LEDGER);
+    });
+
+    it("持ち物だけ変わる口（貼る）・設定・取り消しでも残る", async () => {
+        setProfile(FREE);
+        setBoth();
+        await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        await call("PUT /user/trunk/settings", { body: { receiveLabels: false } });
+        await T.revokeLabelQuietly(UID, { id: "a", createdAt: new Date().toISOString() }, "test");
+        expect(trunkRow()?.receiveLabels).toBe(false);
+        expect(trunkRow()?.camper).toEqual(CAMPER_MAIN);
+        expect(ledgerRow()).toMatchObject(CAMPER_LEDGER);
+    });
+
+    it("古い形（台帳が trunk# の中）を2行に分けるときも残る", async () => {
+        setProfile(FREE);
+        setTrunk({ pocket: [label("a")], stuck: [], dealt: ["i:x"], camper: structuredClone(CAMPER_MAIN) });
+        await call("POST /user/trunk/labels/{id}/stick", { id: "a" });
+        expect(trunkRow()?.camper).toEqual(CAMPER_MAIN);
+        expect(ledgerRow()?.dealt).toEqual(["i:x"]);
+    });
+
+    it("段2 で足しうる部品の id（図鑑にまだ無い）も形が合えば落とさない。形の違う要素は落とす", () => {
+        const doc = parseTrunk({
+            camper: {
+                parts: [{ id: "future_kind.new_part", at: "x" }, { id: "BAD ID", at: "x" }, { id: "wheel.brass_spoke" }, "x",
+                    { id: "future_kind.new_part", at: "dup" }],
+                trips: -3,
+                tripDays: ["2026-10-20", "10/20", "2026-10-20"],
+                gifts: [{ from: "f#1", part: "", at: "x" }, { from: "f1", part: "", at: "x" }],
+            },
+        }, { camperVisits: [{ u: "f1", d: "bad" }, { u: "f1", d: "2026-10-20" }], camperRecountDay: 3 });
+        expect(doc.camper?.parts).toEqual([{ id: "future_kind.new_part", at: "x" }]);
+        expect(doc.camper?.trips).toBe(0);
+        expect(doc.camper?.tripDays).toEqual(["2026-10-20"]);
+        expect(doc.camper?.gifts).toEqual([{ from: "f1", part: "", at: "x" }]);
+        expect(doc.camper?.visits).toEqual([{ u: "f1", d: "2026-10-20" }]);
+        expect(doc.camper?.recountDay).toBeUndefined();
+    });
+
+    it("キャンピングカーに触れていない人の行は、書き戻しても camper の欄を作らない（今までと同じ形）", async () => {
+        setProfile(FREE);
+        await grantLabel(UID, photo("p1"));
+        expect(trunkRow()?.camper).toBeUndefined();
+        expect(Object.keys(ledgerRow()!).filter((k) => k.startsWith("camper"))).toEqual([]);
+        expect(parseTrunk(trunkRow(), ledgerRow()).camper).toBeUndefined();
+    });
+
+    it("人のトランクの口（GET /users/{uid}/trunk）には出さない", async () => {
+        store.set(`users-test|${UID}`, FREE);
+        setBoth();
+        const got = await T.readTheirTrunk("viewer-1", UID);
+        expect(JSON.stringify(got)).not.toContain("camper");
+        expect(JSON.stringify(got)).not.toContain("brass_spoke");
+    });
+
+    it("いちばん大きい行に camper の上限ぶんを足しても予算の内（持ち物・台帳とも）", () => {
+        const real = (id: string) => ({
+            ...label(id, { place: { name: "高屋神社・天空の鳥居", latin: "Takaya Shrine", country: "日本" } }),
+            season: "autumn", timeslot: "dawn", foil: true, groupId: T.groupKey(`trip-${id}-0000-0000-0000-000000000000`),
+            id: `${id}`.padEnd(36, "0"), seed: 2_147_000_000,
+        });
+        const uid = "00000000-0000-0000-0000-000000000000";
+        const day = "2026-10-20";
+        const doc = parseTrunk({
+            pocket: Array.from({ length: 150 }, (_, i) => real(`p${i}`)),
+            stuck: Array.from({ length: 1200 }, (_, i) => ({ ...real(`s${i}`), pos: { x: 0.999, y: 0.999, rot: -30 } })),
+            coins: 99,
+            parts: TRUNK_PARTS.map((p) => p.id),
+            fragments: 99_999,
+            camper: {
+                parts: Array.from({ length: 64 }, (_, i) => ({ id: `sticker_edge.part_${String(i).padStart(30, "x")}`, at: "2026-10-20T00:00:00.000Z", by: uid })),
+                trips: 99_999,
+                tripDays: Array.from({ length: 60 }, (_, i) => `2026-${String(1 + (i % 12)).padStart(2, "0")}-${String(1 + (i % 28)).padStart(2, "0")}`),
+                gifts: Array.from({ length: 40 }, () => ({ from: uid, part: "awning.rust_stripe", at: "2026-10-20T00:00:00.000Z" })),
+            },
+        }, {
+            dealt: Array.from({ length: 3000 }, (_, i) => `x:${String(i).padStart(12, "0")}`),
+            groups: Array.from({ length: 3000 }, (_, i) => `g:${String(i).padStart(12, "0")}`),
+            milestones: Array.from({ length: 300 }, (_, i) => `firstCountry:${"ボスニア・ヘルツェゴビナ"}${i}`),
+            coinLog: Array.from({ length: 20 }, (_, i) => ({ k: `${"p".repeat(64)}${i}`, a: 1_800_000_000 })),
+            camperVisits: Array.from({ length: 300 }, () => ({ u: uid, d: day })),
+            camperWood: Array.from({ length: 300 }, () => ({ u: uid, d: day })),
+            camperGiven: Array.from({ length: 300 }, () => ({ u: uid, d: day })),
+            camperTripFriends: Array.from({ length: 50 }, (_, i) => `${uid.slice(0, -2)}${String(i).padStart(2, "0")}`),
+            camperRecountDay: day,
+            camperTripLog: Array.from({ length: 20 }, (_, i) => ({ k: `${"p".repeat(64)}${i}`, a: 1_800_000_000 })),
+        });
+        expect(doc.camper?.parts).toHaveLength(64);
+        expect(doc.camper?.visits).toHaveLength(300);
+        const z = T.rowSizes(doc);
+        // 2026-10-18 実測: 持ち物 296,982B・台帳 179,918B（予算はどちらも 389,120B。camper なしの最大は持ち物 283KB）
+        expect(z.main).toBeLessThan(T.TRUNK_BUDGET_BYTES - 80 * 1024);
+        expect(z.ledger).toBeLessThan(T.TRUNK_BUDGET_BYTES - 200 * 1024);
+    });
+});
+
 /**
  * **退会した人（墓石）には配らない・書かせない**（2026-10-18）。
  *

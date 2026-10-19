@@ -16,6 +16,7 @@ import { isPublicListPhoto } from "./feed";
 import { countPublicPosts, placeKey, placeOf, placeOkFor, placeOkMayChange } from "./trunkPlace";
 import type { Photo } from "./types";
 import { PARTS_BY_RARITY, partOf, rarityOfRoll, type PartKind, type TrunkPart } from "./trunkParts";
+import { isEmptyCamper, parseCamper, serializeCamper, type CamperDoc } from "./camper";
 import { goneIfDeleted } from "./liveCaller";
 
 /**
@@ -58,6 +59,7 @@ import { goneIfDeleted } from "./liveCaller";
  *     welcomeCheckedAt 対象外と確かめた時刻（2回目からは読むだけにする）
  *     rewardAvatarAt / rewardCoverAt  アイコン／カバーを初めて設定したお礼を配った時刻（一度きり・`POST /user/trunk/reward`・#304）。
  *                    rewardAvatarAdded / rewardCoverAdded は足せた枚数
+ *     camper         とおまわり号の要サーバーの部品（`camper.ts`）。台帳の側は trunkledger# の `camper*` の欄
  *     rev            書き込みの版
  *
  * ## 決まり
@@ -270,6 +272,11 @@ export type TrunkDoc = {
     rewardCoverAt?: string;
     /** カバーのお礼で足せた枚数 */
     rewardCoverAdded?: number;
+    /**
+     * とおまわり号の部品（`camper.ts`・2026-10-18 段1）。trunk# の `camper` と trunkledger# の `camper*` を1つに読む。
+     * **何も持っていなければ undefined**（触れていない人の行は書き戻しても今までと同じ形）
+     */
+    camper?: CamperDoc;
 };
 
 /**
@@ -408,7 +415,14 @@ export function parseTrunk(item: Record<string, unknown> | undefined, ledger?: R
         // #304 のお礼の印（最小限の足し・`TrunkDoc` の注記）
         ...(typeof item?.rewardAvatarAt === "string" ? { rewardAvatarAt: item.rewardAvatarAt, rewardAvatarAdded: count(item.rewardAvatarAdded) } : {}),
         ...(typeof item?.rewardCoverAt === "string" ? { rewardCoverAt: item.rewardCoverAt, rewardCoverAdded: count(item.rewardCoverAdded) } : {}),
+        // とおまわり号（段1: 読んでそのまま書き戻す。台帳の側は古い形なら trunk# の中から読む＝`lg`）
+        ...camperField(item?.camper, lg),
     };
+}
+
+function camperField(main: unknown, ledger: Record<string, unknown> | undefined): { camper?: CamperDoc } {
+    const c = parseCamper(main, ledger);
+    return isEmptyCamper(c) ? {} : { camper: c };
 }
 
 const isCount = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0;
@@ -483,6 +497,8 @@ function parseEquipped(v: unknown, owned: Set<string>): Equipped {
 
 /** 書く項目を2行に分ける（`updateTrunk` が id・uid・rev・updatedAt を足す） */
 function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: Record<string, unknown> } {
+    // とおまわり号の欄（`camper.ts`）。**ここで書かないと、次の書き込みで黙って消える**（段1 の本題）
+    const camper = serializeCamper(doc.camper);
     return {
         main: {
             model: doc.model,
@@ -505,6 +521,7 @@ function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: 
             // #304 のお礼の印（最小限の足し・`TrunkDoc` の注記）
             ...(doc.rewardAvatarAt ? { rewardAvatarAt: doc.rewardAvatarAt, rewardAvatarAdded: doc.rewardAvatarAdded ?? 0 } : {}),
             ...(doc.rewardCoverAt ? { rewardCoverAt: doc.rewardCoverAt, rewardCoverAdded: doc.rewardCoverAdded ?? 0 } : {}),
+            ...(camper.main ? { camper: camper.main } : {}),
         },
         ledger: {
             dealt: doc.dealt.slice(0, DEALT_LEDGER_MAX),
@@ -512,6 +529,7 @@ function serializeRows(doc: TrunkDoc): { main: Record<string, unknown>; ledger: 
             milestones: doc.milestones.slice(0, MILESTONE_LEDGER_MAX),
             groups: doc.groups.slice(0, DEALT_LEDGER_MAX),
             coinLog: doc.coinLog.slice(0, COIN_LOG_MAX),
+            ...camper.ledger,
         },
     };
 }
