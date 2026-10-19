@@ -1233,8 +1233,10 @@ describe("口（serverless.yml の trunk 関数）", () => {
             "PUT /user/trunk/labels/{id}/place", "POST /user/trunk/labels/{id}/unstick",
             "POST /user/trunk/gacha", "POST /user/trunk/parts/exchange", "PUT /user/trunk/equip",
             "GET /users/{uid}/trunk", "POST /user/trunk/welcome", "POST /user/trunk/reward",
+            // とおまわり号（2026-10-18 段2）
+            "GET /user/camper", "GET /users/{uid}/camper", "POST /users/{uid}/camper/gift", "POST /users/{uid}/camper/firewood",
         ]) expect(routes).toContain(r);
-        expect(routes).toHaveLength(15);
+        expect(routes).toHaveLength(19);
         expect(block).toContain("handler: src/trunk.handler");
     });
 });
@@ -1362,43 +1364,6 @@ describe("2行に分ける（trunk# と trunkledger#・2026-10-17）", () => {
     });
 });
 
-describe("配り始める線（TRUNK_LAUNCHED_AT）", () => {
-    it("本番と同じ日本時間 2026-10-17 0:00。10/17 に作った写真は配る側", () => {
-        expect(T.TRUNK_LAUNCHED_AT).toBe("2026-10-16T15:00:00.000Z");
-        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T16:00:00.000Z" })).toBe(true);   // 10/17 1:00 JST
-        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T14:59:59.000Z" })).toBe(false);
-    });
-});
-
-describe("見直しで守りの無かった2か所（2026-10-17）", () => {
-    it("古い形の行は、持ち物が変わらない書き込み（台帳だけの変化）でも trunk# を Put して台帳の項目を抜く", async () => {
-        setProfile(FREE);
-        const now = Math.floor(Date.now() / 1000);
-        // 古い形: 台帳が trunk# の中。硬貨は使い切り（0 枚）＝取り消しで変わるのは台帳（coinLog）だけ
-        setTrunk({ pocket: [], stuck: [], coins: 0, dealt: ["i:x"], coinLog: [{ k: "p1", a: now }], daily: { day: "2000-01-01", count: 1 } });
-        fakeSend.mockClear();
-        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: new Date().toISOString() }, "test");
-        const tx = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "TransactWriteCommand")
-            .map((c) => (c.input as { TransactItems: Record<string, unknown>[] }).TransactItems);
-        expect(tx).toHaveLength(1);
-        expect(tx[0].map((t) => Object.keys(t)[0])).toEqual(["Put", "Put"]);
-        for (const k of ["dealt", "coinLog", "daily", "groups", "milestones"]) expect(trunkRow()?.[k]).toBeUndefined();
-        expect(ledgerRow()).toMatchObject({ dealt: ["i:x"], coinLog: [], daily: { day: "2000-01-01", count: 1 } });
-    });
-
-    it("1行の大きさは台帳の行でも見る（台帳が予算を越えるなら配らない・書かない）", () => {
-        const doc = parseTrunk({ pocket: [], stuck: [] }, {
-            milestones: Array.from({ length: 300 }, (_, i) => `firstCountry:${"あ".repeat(500)}${i}`),
-        });
-        const z = T.rowSizes(doc);
-        expect(z.main).toBeLessThan(10_000);
-        expect(z.ledger).toBeGreaterThan(T.TRUNK_BUDGET_BYTES);
-        const r = dealInto(doc, label("new") as never, 30, "i:new", new Date());
-        expect(r.doc).toBeNull();
-        expect(r.outcome).toEqual({ label: null, labelSkipped: "storage", coin: 0 });
-    });
-});
-
 describe("とおまわり号の欄を落とさない（段1・2026-10-18）", () => {
     // 段2 の Lambda が書いた形（部品・旅の数・旅の日・贈り物／台帳の訪問・薪・贈った・同じ日の友達・数え直しの日・旅の控え）
     const CAMPER_MAIN = {
@@ -1520,6 +1485,43 @@ describe("とおまわり号の欄を落とさない（段1・2026-10-18）", ()
         // 2026-10-18 実測: 持ち物 296,982B・台帳 179,918B（予算はどちらも 389,120B。camper なしの最大は持ち物 283KB）
         expect(z.main).toBeLessThan(T.TRUNK_BUDGET_BYTES - 80 * 1024);
         expect(z.ledger).toBeLessThan(T.TRUNK_BUDGET_BYTES - 200 * 1024);
+    });
+});
+
+describe("配り始める線（TRUNK_LAUNCHED_AT）", () => {
+    it("本番と同じ日本時間 2026-10-17 0:00。10/17 に作った写真は配る側", () => {
+        expect(T.TRUNK_LAUNCHED_AT).toBe("2026-10-16T15:00:00.000Z");
+        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T16:00:00.000Z" })).toBe(true);   // 10/17 1:00 JST
+        expect(T.createdAfterLaunch({ createdAt: "2026-10-16T14:59:59.000Z" })).toBe(false);
+    });
+});
+
+describe("見直しで守りの無かった2か所（2026-10-17）", () => {
+    it("古い形の行は、持ち物が変わらない書き込み（台帳だけの変化）でも trunk# を Put して台帳の項目を抜く", async () => {
+        setProfile(FREE);
+        const now = Math.floor(Date.now() / 1000);
+        // 古い形: 台帳が trunk# の中。硬貨は使い切り（0 枚）＝取り消しで変わるのは台帳（coinLog）だけ
+        setTrunk({ pocket: [], stuck: [], coins: 0, dealt: ["i:x"], coinLog: [{ k: "p1", a: now }], daily: { day: "2000-01-01", count: 1 } });
+        fakeSend.mockClear();
+        await T.revokeLabelQuietly(UID, { id: "p1", createdAt: new Date().toISOString() }, "test");
+        const tx = fakeSend.mock.calls.map((c) => c[0]).filter((c) => c.constructor.name === "TransactWriteCommand")
+            .map((c) => (c.input as { TransactItems: Record<string, unknown>[] }).TransactItems);
+        expect(tx).toHaveLength(1);
+        expect(tx[0].map((t) => Object.keys(t)[0])).toEqual(["Put", "Put"]);
+        for (const k of ["dealt", "coinLog", "daily", "groups", "milestones"]) expect(trunkRow()?.[k]).toBeUndefined();
+        expect(ledgerRow()).toMatchObject({ dealt: ["i:x"], coinLog: [], daily: { day: "2000-01-01", count: 1 } });
+    });
+
+    it("1行の大きさは台帳の行でも見る（台帳が予算を越えるなら配らない・書かない）", () => {
+        const doc = parseTrunk({ pocket: [], stuck: [] }, {
+            milestones: Array.from({ length: 300 }, (_, i) => `firstCountry:${"あ".repeat(500)}${i}`),
+        });
+        const z = T.rowSizes(doc);
+        expect(z.main).toBeLessThan(10_000);
+        expect(z.ledger).toBeGreaterThan(T.TRUNK_BUDGET_BYTES);
+        const r = dealInto(doc, label("new") as never, 30, "i:new", new Date());
+        expect(r.doc).toBeNull();
+        expect(r.outcome).toEqual({ label: null, labelSkipped: "storage", coin: 0 });
     });
 });
 

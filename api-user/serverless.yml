@@ -948,6 +948,28 @@ functions:
           method: GET
           authorizer:
             name: cognitoAuthorizer
+      # とおまわり号の要サーバーの部品（2026-10-18 owner 承認の設計案・段2・`src/camper.ts`）。
+      # 足すのは Route 4つだけ（関数・統合・許可・ロール・テーブル・GSI は trunk のものを使う）。相手は道の {uid} だけ
+      - httpApi:
+          path: /user/camper
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper
+          method: GET
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper/gift
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+      - httpApi:
+          path: /users/{uid}/camper/firewood
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
 
   getComments:
     handler: src/comments.getComments
