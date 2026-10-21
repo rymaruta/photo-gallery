@@ -72,40 +72,67 @@ describe("mapNominatimResults", () => {
     });
 });
 
-// 2026-10-21 判断: 国・都道府県/州だけの候補は落とす（ホームの人気の撮影地で
-// 「フランス」が重複する元）。ただし細かい候補が1件も無いときは残す
-describe("広すぎる候補（国・都道府県/州）", () => {
-    const france = { lat: "46.6", lon: "1.88", display_name: "フランス", category: "boundary", type: "administrative", addresstype: "country", place_rank: 4 };
-    const nagano = { lat: "36.1", lon: "138.0", display_name: "長野県, 日本", category: "boundary", type: "administrative", addresstype: "province", place_rank: 8 };
-    const california = { lat: "36.7", lon: "-119.4", display_name: "カリフォルニア州, アメリカ合衆国", category: "boundary", type: "administrative", addresstype: "state", place_rank: 8 };
-    const paris = { lat: "48.8534951", lon: "2.3483915", display_name: "パリ, イル＝ド＝フランス, フランス", category: "boundary", type: "administrative", addresstype: "city", place_rank: 12 };
-    const kamikochi = { lat: "36.25", lon: "137.64", display_name: "上高地, 松本市, 長野県, 日本", category: "place", type: "locality", addresstype: "locality", place_rank: 25 };
+// 2026-10-21 判断: 落とすと同名の別の場所が残るので、広い候補（国・都道府県/州・
+// 地方・海や湾）は後ろへ回すだけにする。件数は変えない
+describe("広い候補（国・都道府県/州・地方）は後ろへ回す", () => {
+    const row = (display_name: string, extra: Record<string, unknown>) => ({ lat: "35", lon: "135", display_name, ...extra });
+    const labels = (json: unknown) => mapNominatimResults(json).map((r) => r.label);
 
-    it("細かい候補があれば、国・県・州だけの候補は落とす", () => {
-        expect(mapNominatimResults([france, paris, nagano, california, kamikochi]).map((r) => r.label))
-            .toEqual(["パリ, イル＝ド＝フランス, フランス", "上高地, 松本市, 長野県, 日本"]);
+    it("全件残し、広い候補だけを元の順のまま細かい候補の後ろへ回す", () => {
+        const france = row("フランス", { category: "boundary", addresstype: "country", place_rank: 4 });
+        const paris = row("パリ, フランス", { category: "boundary", addresstype: "city", place_rank: 12 });
+        const nagano = row("長野県, 日本", { category: "boundary", addresstype: "province", place_rank: 8 });
+        const kamikochi = row("上高地, 松本市, 長野県, 日本", { category: "place", addresstype: "locality", place_rank: 25 });
+        expect(labels([france, paris, nagano, kamikochi]))
+            .toEqual(["パリ, フランス", "上高地, 松本市, 長野県, 日本", "フランス", "長野県, 日本"]);
     });
 
-    it("細かい候補が1件も無ければ、広い候補を元の順で残す（何も出ないよりよい）", () => {
-        expect(mapNominatimResults([france, nagano]).map((r) => r.label)).toEqual(["フランス", "長野県, 日本"]);
+    it("カリフォルニア: 州も湾も残り、広いもの（州・湾）は後ろ", () => {
+        const out = labels([
+            row("カリフォルニア州, アメリカ合衆国", { category: "boundary", addresstype: "state", place_rank: 8 }),
+            row("カリフォルニア湾", { category: "natural", type: "bay", addresstype: "bay", place_rank: 4 }),
+            row("カリフォルニア, ペンシルベニア州", { category: "place", addresstype: "town", place_rank: 16 }),
+        ]);
+        expect(out).toHaveLength(3);
+        expect(out[0]).toBe("カリフォルニア, ペンシルベニア州");
+        expect(out.slice(1)).toEqual(["カリフォルニア州, アメリカ合衆国", "カリフォルニア湾"]);
     });
 
-    it("addresstype が無い行は、行政界の place_rank（≤8）で見分ける。自然地名は落とさない", () => {
-        expect(isBroadPlace({ category: "boundary", place_rank: 4 })).toBe(true);
-        expect(isBroadPlace({ category: "boundary", place_rank: "8" })).toBe(true);
-        expect(isBroadPlace({ category: "boundary", place_rank: 12 })).toBe(false);
-        // 海・大きな湖などは rank が小さくても行政界ではない
-        expect(isBroadPlace({ category: "natural", place_rank: 4 })).toBe(false);
-        // 手掛かりの無い行（控えから読み直す行）は落とさない
+    it("スコットランド: 本体は残り、米国の郡の後ろへ回る", () => {
+        expect(labels([
+            row("スコットランド, イギリス", { category: "boundary", addresstype: "state", place_rank: 8 }),
+            row("スコットランド郡, ミズーリ州", { category: "boundary", addresstype: "county", place_rank: 12 }),
+        ])).toEqual(["スコットランド郡, ミズーリ州", "スコットランド, イギリス"]);
+    });
+
+    it("北海道: 北海道・北海道地方（region）は後ろ、名所が先", () => {
+        expect(labels([
+            row("北海道地方, 日本", { category: "boundary", addresstype: "region", place_rank: 6 }),
+            row("北海道, 日本", { category: "boundary", addresstype: "province", place_rank: 8 }),
+            row("北海道大学, 札幌市", { category: "amenity", addresstype: "amenity", place_rank: 30 }),
+        ])).toEqual(["北海道大学, 札幌市", "北海道地方, 日本", "北海道, 日本"]);
+    });
+
+    it("見分け: addresstype か place_rank ≤ 8（natural も）。手掛かりの無い行は広くない", () => {
+        expect(isBroadPlace({ addresstype: "region" })).toBe(true);
+        expect(isBroadPlace({ category: "natural", addresstype: "bay", place_rank: 4 })).toBe(true);
+        expect(isBroadPlace({ place_rank: "8" })).toBe(true);
+        expect(isBroadPlace({ addresstype: "city", place_rank: 12 })).toBe(false);
+        expect(isBroadPlace({ place_rank: null })).toBe(false);
+        // 控えから読み直す行
         expect(isBroadPlace({})).toBe(false);
     });
 
-    it("相手から返った広い候補は、返す結果にも控えにも入れない", async () => {
-        fetchMock.mockResolvedValueOnce(ok([france, paris]));
+    it("返す結果と控えにも、同じ並びで全件入る", async () => {
+        fetchMock.mockResolvedValueOnce(ok([
+            { lat: "46.6", lon: "1.88", display_name: "フランス", addresstype: "country", place_rank: 4 },
+            { lat: "48.8534951", lon: "2.3483915", display_name: "パリ, フランス", addresstype: "city", place_rank: 12 },
+        ]));
         const res = await invoke("パリ");
-        expect(JSON.parse(res.body).results).toEqual([{ label: "パリ, イル＝ド＝フランス, フランス", lat: 48.85, lng: 2.35 }]);
+        const want = [{ label: "パリ, フランス", lat: 48.85, lng: 2.35 }, { label: "フランス", lat: 46.6, lng: 1.88 }];
+        expect(JSON.parse(res.body).results).toEqual(want);
         const put = mockDdbSend.mock.calls.map((c) => c[0]).find((cmd) => cmd?.input?.Item);
-        expect(put.input.Item.results).toEqual([{ label: "パリ, イル＝ド＝フランス, フランス", lat: 48.85, lng: 2.35 }]);
+        expect(put.input.Item.results).toEqual(want);
     });
 });
 
