@@ -176,6 +176,10 @@ function isImmutableAsset(url) {
 function isWebFont(url) {
     return /\.woff2?$/.test(url.pathname);
 }
+// 2026-10-21: 本番（main）のデプロイがこの直しを欠いたままスモークで止まった
+// （異なり 92 × 2 = 184 ／ 上限 150）。見張りの `scripts/e2e-smoke.mjs` は、
+// 数え方の写しを持たず**このファイルの `isImmutableAsset` と
+// `MAX_ASSET_ENTRIES` を読み込んで**数える——SW と見張りがずれないように。
 
 /**
  * ページの控えのキー。**クエリを落とす。**
@@ -282,6 +286,11 @@ async function trimCache(cache) {
             // 受け皿は追い出さない。ここが無いと、上の説明のとおり
             // manifest が二度と戻らない
             if (isPrecacheEntry(url)) continue;
+            // **前の版の SW が控えた字のファイルは、ここで捨てる**（2026-10-21）。
+            // 今は入れない（`isWebFont`）が、入れていた版の端末には残っている。
+            // `isImmutableAsset` から外れたので、放っておくと「ページ」として
+            // 数えられ、ページの枠（`MAX_PAGE_ENTRIES`）を食い続ける
+            if (isWebFont(url)) { await cache.delete(k); continue; }
             if (isImmutableAsset(url)) assets.push(k);
             else pages.push(k);
         }
