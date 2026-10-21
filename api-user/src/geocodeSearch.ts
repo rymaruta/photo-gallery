@@ -42,15 +42,19 @@ export const FETCH_TIMEOUT_MS = 3000;
 const UA = process.env.GEOCODE_UA || "journey-photo.com place picker (+https://journey-photo.com/privacy)";
 
 /**
- * **国・都道府県/州・地方などの広い候補は、細かい候補の後ろへ回す。**
- * 撮影地に「フランス」「長野県」だけが入ると撮影地として粗く、ホームの
- * 人気の撮影地で細かい地名と別に並ぶ元にもなる。市区町村・名所などを先に見せる。
+ * **国・都道府県/州・地方などの広い候補は、その中にある細かい候補が返っているときだけ
+ * 後ろへ回す。** 「沖縄」で沖縄県が先頭だと、撮影地として粗い県が選ばれやすく、
+ * ホームの人気の撮影地で細かい地名と別に並ぶ元にもなる。沖縄本島・沖縄市を先に見せる。
  *
- * 2026-10-21 判断: 落とすと同名の別の場所が残るので後ろへ回すだけにする
- * （本物の Nominatim で「カリフォルニア」がカリフォルニア湾だけ、「スコットランド」が
- * 米国の郡だけになった）。件数は変えず、広い候補どうし・細かい候補どうしは元の順のまま。
+ * 2026-10-21 判断: 同じ場所の中の細かい候補があるときだけ後ろへ。
+ * 落とすと同名の別の場所だけが残り（「カリフォルニア」→ カリフォルニア湾だけ）、
+ * 無条件に後ろへ回すと別の場所の下に沈む（「スコットランド」が米国の郡の後ろ）。
+ * 「中にある」は、細かい候補の `display_name` を「, 」で区切った2番目以降に、
+ * 広い候補の `display_name` の最初の要素がそのまま含まれること
+ * （「香港島, 香港」は「香港」の中）。件数は変えない。並びは安定
+ * （細かい候補どうし・回した広い候補どうしは元の順、回さない広い候補は元の位置）。
  *
- * 見分けは Nominatim（jsonv2）の `addresstype`（continent / country / state /
+ * 広いの見分けは Nominatim（jsonv2）の `addresstype`（continent / country / state /
  * province / region。日本の都道府県は province・米国の州は state・「北海道地方」は
  * region で返る）か、`place_rank` ≤ 8（国=4・州=8。海・湾などの natural も含む）。
  * 控え（`readCache`）から読み直す行はこの手掛かりを持たないので、元の順のまま通る
@@ -73,8 +77,7 @@ export function isBroadPlace(r: Record<string, unknown>): boolean {
  */
 export function mapNominatimResults(json: unknown): PlaceResult[] {
     if (!Array.isArray(json)) return [];
-    const fine: PlaceResult[] = [];
-    const broad: PlaceResult[] = [];
+    const rows: Array<{ place: PlaceResult; broad: boolean }> = [];
     for (const r of json as Array<Record<string, unknown>>) {
         if (!r || typeof r !== "object") continue;
         const lat = Number(r.lat);
@@ -83,10 +86,22 @@ export function mapNominatimResults(json: unknown): PlaceResult[] {
         if (Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
         const label = typeof r.display_name === "string" ? r.display_name : "";
         if (!label) continue;
-        (isBroadPlace(r) ? broad : fine).push({ label, lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 });
+        rows.push({ place: { label, lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 }, broad: isBroadPlace(r) });
     }
-    // 落とさない。広い候補を元の順のまま後ろへ（安定な並べ替え）
-    return [...fine, ...broad];
+    return moveContainingBroadLast(rows);
+}
+
+/** 上の説明の「中にある細かい候補があるときだけ後ろへ」。落とさない・安定 */
+function moveContainingBroadLast(rows: Array<{ place: PlaceResult; broad: boolean }>): PlaceResult[] {
+    const parts = (label: string) => label.split(", ").map((s) => s.trim());
+    // 細かい候補が「どこの中にあるか」（2番目以降の要素）
+    const containers = new Set(rows.filter((x) => !x.broad).flatMap((x) => parts(x.place.label).slice(1)));
+    const stay: PlaceResult[] = [];
+    const moved: PlaceResult[] = [];
+    for (const x of rows) {
+        (x.broad && containers.has(parts(x.place.label)[0]) ? moved : stay).push(x.place);
+    }
+    return [...stay, ...moved];
 }
 
 /**
