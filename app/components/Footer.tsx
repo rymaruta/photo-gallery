@@ -97,6 +97,16 @@ export default function Footer() {
                             著作権表記に年は必須ではないので、持たない方を選ぶ。 */}
                         © Journey Photo
                     </p>
+                    {/* **字のライセンスの表示**（SIL OFL 1.1）。見出しの明朝はこのサイトから配っている
+                        （`app/layout.tsx`）。リンクは黒地の上の出典・規約のリンク＝真鍮（owner の好み） */}
+                    <p className="text-[12px] text-white/50" data-testid="font-license">
+                        {locale === "en" ? "Headings: " : "見出しの字: "}Shippori Mincho B1 © 2021 The Shippori Mincho Project Authors ·{" "}
+                        {/* 全文は配布元の OFL.txt をそのまま置いたもの（`public/licenses/`） */}
+                        <a href="/licenses/ShipporiMinchoB1-OFL.txt"
+                           className="inline-flex items-center min-h-[24px] text-accent underline underline-offset-2 hover:text-accent-strong">
+                            SIL Open Font License 1.1
+                        </a>
+                    </p>
                 </div>
             </div>
         </footer>

@@ -114,7 +114,7 @@ export default function LightForecastPage() {
                 <h1 className="text-xl font-bold mb-6">{en ? "Light & weather alerts" : "光と天気の知らせ"}</h1>
 
                 {/* 眉ラベル（真鍮は黒地の上の合図） */}
-                <p className="text-[11px] tracking-[0.12em] text-accent mb-4">
+                <p className="eyebrow eyebrow-line text-accent mb-4">
                     {en ? "Light at your wishlist places (this week)" : "行きたい場所の光（今週）"}
                 </p>
 

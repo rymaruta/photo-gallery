@@ -153,7 +153,8 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/Footer.tsx", "© Journey Photo", "全ページに出る著作権表示"],
     ["app/privacy/page.tsx", "最終更新日: {LAST_UPDATED}", "プライバシーポリシーの更新日"],
     // 子の <Link>（/70）を親と取り違えていたので、包む <p> を直接の目印にする
-    ["app/components/CommentSection.tsx", '<p className="mb-4 text-xs', "コメントの案内"],
+    // 2026-10-21: 案内の文は下に貼る「ログインしてコメント」の札になった（`text-text-2` を持つ）
+    ["app/components/CommentSection.tsx", '"Log in to comment" : "ログインしてコメント"', "コメントの案内（ログインしてコメント）", true],
     // `app/map/page.tsx` はサーバー側の殻になった（台帳をクライアントに
     // 載せないため）。文言を持つのは画面の方
     ["app/map/MapPageClient.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
@@ -167,7 +168,9 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     // 訪問者が読む画面（コメントがある／メニューを開いた／拡大した状態）。
     // **ブラウザの実測は「そのとき描かれているもの」しか見られない**ので、
     // 状態を作らないと出てこない文字はここで縛る
-    ["app/components/CommentSection.tsx", "No comments yet", "コメントが0件のときの案内"],
+    // 0件・失敗の文は共通の部品（`StateViews`・2026-10-21）が色を持つ。呼ぶ側は文字を渡すだけ
+    ["app/components/CommentSection.tsx", "No comments yet", "コメントが0件のときの案内", true],
+    ["app/components/StateViews.tsx", "text-text-2 break-words", "空・失敗の説明（共通の部品・text-2＝黒の上 10.6:1）"],
     ["app/components/CommentSection.tsx", "{timeAgo(c.t, locale)}", "コメントの時刻"],
     ["app/components/CommentSection.tsx", "{c.name}", "コメントした人の名前"],
     ["app/components/HeaderNav.tsx", 'navLabels.account || "Account"', "メニューの見出し"],

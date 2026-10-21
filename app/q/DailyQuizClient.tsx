@@ -246,7 +246,7 @@ export default function DailyQuizClient() {
                             <span className="flex items-center justify-between gap-3">
                                 <span className="min-w-0">{c.name}</span>
                                 {answered && isAnswer && (
-                                    <span className={`shrink-0 font-mono font-medium ${isChosen ? "text-ink" : "text-accent"}`}
+                                    <span className={`shrink-0 font-sans tabular-nums font-medium ${isChosen ? "text-ink" : "text-accent"}`}
                                           style={{ fontSize: "12px", letterSpacing: "1px" }}>
                                         {/* ✓ は飾り（読み上げに「チェックマーク」を入れない） */}
                                         <span aria-hidden="true">✓ </span>{en ? "ANSWER" : "正解"}
@@ -263,8 +263,7 @@ export default function DailyQuizClient() {
                     {/* 本物の見出し（フォーカスが移った先として「見出し」と読まれる）。
                         `focus:outline-hidden`＝ハイコントラスト表示では輪が残る。`focus:` を外すと常に枠が出る（`chipStyles.test.ts` の決まり） */}
                     <h2 ref={resultRef} tabIndex={-1}
-                       className={`m-0 font-mono font-medium uppercase focus:outline-hidden ${correct ? "text-accent" : "text-white/60"}`}
-                       style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
+                       className={`m-0 eyebrow focus:outline-hidden ${correct ? "text-accent" : "text-white/60"}`}>
                         {correct ? (en ? "Correct" : "正解") : (en ? "Not quite" : "残念")}
                         {/* 答えたらここへフォーカスが移る＝読み上げはここで1回。名前まで読ませる
                             （読み上げ用の領域を別に置くと、同じことを2回聞くことになる） */}
@@ -308,7 +307,7 @@ export default function DailyQuizClient() {
 function Shell({ en, date, children }: { en: boolean; date: string | null; children: React.ReactNode }) {
     return (
         <main className="px-4 sm:px-6 pt-5 pb-28 min-h-screen text-white bg-bg max-w-xl mx-auto w-full">
-            <p className="m-0 font-mono font-medium uppercase text-accent" style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
+            <p className="m-0 eyebrow text-accent">
                 {en ? "Today's question" : "今日の一問"}{date ? ` · ${date.replaceAll("-", ".")}` : ""}
             </p>
             <h1 className="sr-only">{en ? "Today's question" : "今日の一問"}</h1>

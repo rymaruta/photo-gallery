@@ -18,6 +18,7 @@ import { HEADER_ICON_BTN, HEADER_ICON_BTN_STYLE, HEADER_ICON_STYLE } from "./hea
 import { useFocusTrap } from "../../lib/hooks/useFocusTrap";
 import { lockBodyScroll, unlockBodyScroll } from "../../lib/utils/scrollLock";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
+import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { badgeImage, badgeLabel, isBadgeKey } from "../../lib/data/badges";
 
 type Notif = {
@@ -745,49 +746,41 @@ export default function NotificationsBell() {
      * 1件も無いとき。**「まだ」「0件」「取れなかった」を分ける**（`status`）。
      *
      * 0件のときだけモック 05 の「空の状態」に寄せる（ベルの絵・見出し・
-     * 「写真を投稿する」）。読み込み中と失敗は**文だけ**——絵と導線を出すと
-     * 「通知が無い」と言い切ることになる。
+     * 「写真を投稿する」）。読み込み中と失敗には**ベルの絵と導線を出さない**——出すと
+     * 「通知が無い」と言い切ることになる（失敗は灰の三角・読み込み中は灰の骨組み）。
      */
     const empty = (
         <div
             // スマホは残りの高さを取って**中央に置く**（モックの空の状態と同じ）。
             // PC の板は高さが中身で決まるので、余白だけで足りる
             className={`flex flex-col items-center justify-center text-center ${wide ? "" : "flex-1 min-h-0"}`}
-            style={{ paddingLeft: 24, paddingRight: 24, paddingTop: wide ? 32 : 56, paddingBottom: wide ? 32 : 56 }}
+            // 左右の余白は中の部品（`StateViews` の p-6＝24）が持つ
+            style={{ paddingTop: wide ? 8 : 32, paddingBottom: wide ? 8 : 32 }}
         >
+            {/* 失敗・読み込み中・0件は共通の形（`StateViews`・iOS の `ErrorBanner` と同じ並び）。
+                失敗は「もう一度試す」を出さない——このベルは POLL_MS ごとに勝手に取り直す */}
             {status === "error" ? (
-                <p className="text-white/50" style={{ fontSize: M.time }}>
-                    {locale === "en"
+                <ErrorState
+                    message={locale === "en"
                         ? "Couldn't load notifications. Retrying shortly."
                         : "通知を読み込めませんでした。しばらくすると取り直します。"}
-                </p>
+                    locale={locale === "en" ? "en" : "ja"}
+                    testId="notifications-error"
+                />
             ) : status === "loading" ? (
-                <p className="text-white/50" style={{ fontSize: M.time }}>
-                    {locale === "en" ? "Loading…" : "読み込み中…"}
-                </p>
+                <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} testId="notifications-loading" />
             ) : (
-                <>
-                    <BellIcon className={`${M.emptyBell} text-white/50`} aria-hidden="true" />
-                    <p className="font-semibold text-white" style={{ fontSize: M.body, marginTop: 12 }}>
-                        {locale === "en" ? "No notifications yet" : "まだ通知はありません"}
-                    </p>
-                    <p className="text-white/50" style={{ fontSize: M.time, marginTop: 6, lineHeight: 1.7 }}>
-                        {locale === "en"
-                            ? "Likes, comments, story replies, and new followers will show up here."
-                            : "いいね・コメント・ストーリーへの返信・フォローがここに届きます。"}
-                    </p>
-                    {/* モックの「空の状態」にある「写真を投稿する」。
-                        **実在する画面へ送る**（`ROUTES.UPLOAD` = `/user/upload`）。
-                        絵だけのボタンは置かない */}
-                    <Link
-                        href={ROUTES.UPLOAD}
-                        onClick={closePanel}
-                        className="inline-flex items-center justify-center rounded-full bg-accent-fill text-ink font-semibold hover:brightness-110 transition"
-                        style={{ fontSize: 13, minHeight: 40, paddingLeft: 18, paddingRight: 18, marginTop: 16, touchAction: "manipulation" }}
-                    >
-                        {locale === "en" ? "Post a photo" : "写真を投稿する"}
-                    </Link>
-                </>
+                <EmptyState
+                    icon={<BellIcon className={M.emptyBell} />}
+                    title={locale === "en" ? "No notifications yet" : "まだ通知はありません"}
+                    message={locale === "en"
+                        ? "Likes, comments, story replies, and new followers will show up here."
+                        : "いいね・コメント・ストーリーへの返信・フォローがここに届きます。"}
+                    // モックの「空の状態」にある「写真を投稿する」。
+                    // **実在する画面へ送る**（`ROUTES.UPLOAD` = `/user/upload`）。絵だけのボタンは置かない
+                    action={{ label: locale === "en" ? "Post a photo" : "写真を投稿する", href: ROUTES.UPLOAD, onClick: closePanel }}
+                    testId="notifications-empty"
+                />
             )}
         </div>
     );
@@ -811,12 +804,10 @@ export default function NotificationsBell() {
                 同じ「まだ届いていません」にすると、絞っていることを忘れた人に
                 **通知が消えた**ように見える */}
             {groups.length === 0 ? (
-                <p
-                    className="text-center text-white/50"
-                    style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 32, paddingBottom: 32, fontSize: M.time }}
-                >
-                    {locale === "en" ? "Nothing in this tab yet." : "このタブに届いた通知はまだありません。"}
-                </p>
+                <EmptyState
+                    message={locale === "en" ? "Nothing in this tab yet." : "このタブに届いた通知はまだありません。"}
+                    testId="notifications-tab-empty"
+                />
             ) : groups.map(({ bucket, rows }) => (
                 <section key={bucket}>
                     {/* 見出しは貼り付ける（繰ると、いま何の区分を見ているか

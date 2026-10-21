@@ -193,7 +193,7 @@ function LightTable({ light, sky, isJa }: { light: LightCalendar; sky: SpotSky |
                             <th scope="col" className="py-2 font-normal">{isJa ? "夕方のゴールデンアワー" : "Evening golden hour"}</th>
                         </tr>
                     </thead>
-                    <tbody className="font-mono tabular-nums text-white/85">
+                    <tbody className="font-sans tabular-nums text-white/85">
                         {light.rows.map((r) => (
                             <tr key={r.month} className="border-b border-line/60">
                                 <th scope="row" className={`${cell} font-normal font-sans text-white/60`}>
@@ -253,7 +253,7 @@ function NightSky({ sky, isJa }: { sky: SpotSky; isJa: boolean }) {
                                 <th scope="col" className="py-2 font-normal">{isJa ? "長さ" : "Length"}</th>
                             </tr>
                         </thead>
-                        <tbody className="font-mono tabular-nums text-white/85">
+                        <tbody className="font-sans tabular-nums text-white/85">
                             {mw.months.map((r) => {
                                 const h = Math.floor(r.minutes / 60), min = r.minutes % 60;
                                 const len = isJa
@@ -369,7 +369,7 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
                         const texts = b.isMorning ? guides.morning : guides.evening;
                         return (
                             <div key={b.title} className={`p-3.5 ${i > 0 ? "border-t border-line" : ""}`} data-testid="spot-today-light-block">
-                                <p className="m-0 mb-2 uppercase tracking-[0.16em] text-accent" style={{ fontSize: "11px", lineHeight: "14px" }}>{b.title}</p>
+                                <p className="m-0 mb-2 eyebrow text-accent">{b.title}</p>
                                 {b.rows.length > 0 && (
                                     <dl className={`m-0 flex flex-col gap-1.5 ${placeholder ? "invisible" : ""}`} aria-hidden={placeholder || undefined}>
                                         {b.rows.map((r) => (
@@ -732,8 +732,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     {/* 公開の回は読み上げから外す（すぐ上のパンくずが同じ「撮影スポット」を読む）。
                         「下書き・未確認」は意味を持つので読ませる */}
                     <p aria-hidden={verified ? true : undefined}
-                       className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
-                       style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>
+                       className={`m-0 mb-1.5 eyebrow ${verified ? "text-accent" : "text-white/60"}`}>
                         {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
                     </p>
                     <h1 className="m-0 font-serif font-bold text-white wrap-anywhere"

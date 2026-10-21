@@ -48,6 +48,59 @@
   --color-danger-fill: #c8323a;  /* アカウント削除の確定だけ（白で 5.29:1） */
   --color-success: #7fc489;      /* 成功のアイコンだけ */
   --color-location: #9cc3e6;     /* 地図の現在地だけ（黒 2px の縁と組む） */
+
+  /* **字（2026-10-15・アプリ v2 の `JPFont` と同じ役割分担）。**
+       sans  … 本文。iOS のシステムの字（SF Pro＋ヒラギノ角ゴ）。Windows・Android は Noto へ
+       serif … 見出し。Shippori Mincho B1 Bold（`layout.tsx` が配る）→ 端末の明朝
+       mono  … 数字と眉ラベル。**等幅の字ではなく本文と同じ字＋等幅数字**
+               （owner の好み 2026-10-02: 板の IBM Plex Mono をやめて SF に。iOS の `JPFont.mono`）
+       wordmark … ヘッダーの「Journey Photo」だけ。iOS は `design: .serif`（New York） */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-wordmark: ui-serif, "New York", Georgia, serif;
+}
+
+/* **見出しの明朝は `@theme inline` に置く**（2026-10-15・検証サイトで明朝が1か所も当たっていなかった）。
+   `--font-mincho` は next/font が `<body>` のクラスで立てる。ふつうの `@theme` だと
+   `--font-serif: var(--font-mincho), …` が `:root`（＝html）で計算され、そこには
+   `--font-mincho` が無い＝**値ごと無効**になり、`font-serif` は本文の字を継いでいた。
+   `inline` にすると `.font-serif{font-family:var(--font-mincho),…}` と使う側で読むので、
+   body の中ならどこでも届く（`fontStack.test.ts` が縛る） */
+@theme inline {
+  --font-serif: var(--font-mincho), "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+
+/* **眉ラベル**（iOS v2 の `jpEyebrow()`・板 02 Eyebrow: SF 600・11・字間 0.14em・大文字）。
+   以前は11か所が手で書いていて、字間 0.12em / 0.16em / 1.5px・等幅の有無が割れていた。
+   **色は呼ぶ側が決める**——黒地の上なら `text-accent`、写真の上なら白 */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* **眉ラベル＋右へ消えていく真鍮の 1px の線**（iOS の `JPEyebrowLine`・板 Components 05 の節の見出し）。
+   字と線のすき間 10・線は真鍮 55% → 0。**黒地の上だけ**（真鍮は写真の上では読めない）。
+   線は飾りなので `::after`（読み上げに出ない） */
+@utility eyebrow-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgb(201 166 107 / 0.55), rgb(201 166 107 / 0));
+  }
+}
+
+/* `font-mono` は等幅の字ではなく**等幅数字**（上の `--font-mono`）。桁がそろう */
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 /* body が読む2つだけ。以前ここにあった `--fg` `--muted` `--accent-bg` 等は
@@ -126,7 +179,7 @@ body {
      ⚠️ スクロールバーの差はこの環境では測れていない（この Chromium は
      オーバーレイで描くため、どちらも黒のまま）。 */
   color-scheme: dark;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
   /* iOS / Instagram IAB の 300ms タップ遅延を解消 */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -228,7 +281,7 @@ body {
 
 /* HeaderNav で使用 */
 .site-header__nav {
-  font-family: "Noto Sans JP", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* 横スクロール行のスクロールバー非表示（FilterBar チップ列など） */
@@ -294,6 +347,12 @@ body {
   h1 { font-size: 1.25rem; }
   h2 { font-size: 1.125rem; }
   h3 { font-size: 1rem; }
+
+  /* **見出しの要素に付けた眉ラベルは 11 のまま**（2026-10-21 判断）。上の `h2` はレイヤーの外の規則なので、
+     `@layer utilities` の `eyebrow` の 11px に詳細度と関係なく勝ち、人のページの「訪れた場所」「旅の一冊」と
+     旅の一冊の「たどった場所」（どれも `<h2 class="eyebrow">`）がスマホで 15.75px の真鍮の見出しに膨らんでいた。
+     要素＋クラスで上の行より強く書いて戻す（`fontStack.test.ts` の「眉ラベル」が縛る） */
+  h1.eyebrow, h2.eyebrow, h3.eyebrow { font-size: 11px; }
 }
 
 /* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */

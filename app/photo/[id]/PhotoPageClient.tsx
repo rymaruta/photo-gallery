@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
+import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
 
 /**
  * カテゴリ・タグのチップ。**板（`PhotoDetail.dc.html`）の寸法**
@@ -24,7 +26,7 @@ import { ShareIcon, ChatBubbleOvalLeftIcon, PaperAirplaneIcon, BookmarkIcon, Map
 import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
 import { usePhotoSave } from "../../../lib/hooks/usePhotoSave";
 import { useSwipe } from "../../../lib/hooks/useSwipe";
-import { formatStoredDateTime } from "../../../lib/utils/photoDate";
+import { formatPhotoStamp } from "../../../lib/utils/photoDate";
 import { FollowAction } from "../../components/FollowButton";
 import UserAvatar from "../../components/UserAvatar";
 import MoreMenu from "../../components/MoreMenu";
@@ -72,7 +74,19 @@ import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
 import PhotoTripSection from "./PhotoTripSection";
+// **全画面は押したときに読む**（写真ページの最初の JS に載せない。検索の着地点で、
+// 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
+const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
+
+/**
+ * 写真ページの戻る・共有・「…」。**スマホは写真の上のガラスの丸**（黒 55%＋ぼかし・白・44px。
+ * iOS の写真の詳細と同じ）、PC は2カラムの上の行に素の白で（今までの見た目）
+ */
+/** 写真を押した／引いたの境目（px）。これより動いたら「送った」で、全画面は開かない */
+const HERO_TAP_SLOP = 10;
+
+const TOP_BUTTON = "pointer-events-auto inline-flex items-center justify-center rounded-full text-white bg-black/55 backdrop-blur-md hover:bg-black/70 transition-colors lg:bg-transparent lg:backdrop-blur-none lg:text-white/85 lg:hover:text-white lg:hover:bg-white/10";
 
 // EXIF情報の型定義
 type ExtractedExif = {
@@ -130,7 +144,8 @@ function PhotoImage({
     width,
     height,
     extractExif = false,
-    onExifLoaded
+    onExifLoaded,
+    onImageError,
 }: {
     src: string;
     alt: string;
@@ -143,8 +158,13 @@ function PhotoImage({
     // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
     extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
+    /** 読み込めなかった（呼ぶ側は全画面を開かない） */
+    onImageError?: () => void;
 }) {
     const [imageError, setImageError] = useState(false);
+    // 失敗の知らせは ref 越しに呼ぶ（下の `attach` を描くたびに作り直さない）
+    const onImageErrorRef = useRef(onImageError);
+    useEffect(() => { onImageErrorRef.current = onImageError; }, [onImageError]);
     // **ハイドレーションまでは隠さない**（`Thumb` と同じ理由。この画面は検索の
     // 着地点なので、JS を待ってから写真を出すのは LCP をそのぶん遅らせる）。
     // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める。
@@ -162,6 +182,7 @@ function PhotoImage({
             // 本体は静的HTML由来＝失敗は React より先に終わっている）
             setImageError(true);
             setPhase("loaded");
+            onImageErrorRef.current?.();
             void dropCachedPhoto(img.currentSrc || img.src);
             return;
         }
@@ -332,6 +353,7 @@ function PhotoImage({
                         onError={(e) => {
                             setImageError(true);
                             setPhase("loaded");
+                            onImageErrorRef.current?.();
                             void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src);
                         }}
                         onLoad={() => setPhase("loaded")}
@@ -479,6 +501,14 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
         ];
     }, [photo?.src, photo?.srcAvif, photo?.blurDataURL, photo?.width, photo?.height, photo?.extraImages]);
     const [shown, setShown] = useState(0);
+    /** 写真を全画面で見ている（`PhotoViewer`）。開いている間の送りは `shown` を共有する */
+    const [viewerOpen, setViewerOpen] = useState(false);
+    /** 写真を包むボタン（全画面を閉じたらここへフォーカスを戻す） */
+    const heroButtonRef = React.useRef<HTMLButtonElement>(null);
+    /** 読み込めなかった写真の src（押しても全画面を開かない。開いても同じく読めない） */
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    /** 写真の上で指・マウスを置いた所（引いて送った後の click で全画面を開かない） */
+    const heroPressRef = React.useRef<{ x: number; y: number } | null>(null);
     /**
      * いま出す1枚。**枚数が減っても落ちない**ように挟む（写真を差し替えた直後など）。
      *
@@ -518,6 +548,17 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             showToast(r.message ?? (locale === "en" ? "Couldn't save this photo. Please try again." : "保存できませんでした。もう一度お試しください"), "error");
         });
     }, [toggleSave, showToast, locale]);
+    // いいねを切り替える（下の ♡ と全画面の ♡・2回叩きが同じ口を通る）
+    const handleLike = useCallback(() => {
+        hapticTap();
+        void toggleLike().then((r) => {
+            // 押し直しても直らない失敗（セッション切れ・通信できない）は
+            // その文言をそのまま出す
+            if (!r.ok) showToast(r.message ?? (locale === "en"
+                ? "Couldn't save your like. Please try again."
+                : "いいねを保存できませんでした。もう一度お試しください"), "error");
+        });
+    }, [toggleLike, showToast, locale]);
     const { handlers: swipeHandlers } = useSwipe({
         onSwipeLeft: () => setShown((i) => (i + 1) % Math.max(1, images.length)),
         onSwipeRight: () => setShown((i) => (i - 1 + images.length) % Math.max(1, images.length)),
@@ -806,8 +847,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     // 短い説明で、検索のために語を足すものではない。
     // 言い方は `fallbackPhotoTitle` 1つに置く（`<title>`・パンくず・RSS・共有も同じ）
     const fallbackHeading = fallbackPhotoTitle(locationText, locale === "en" ? "en" : "ja");
-    // 撮影日（保存された通りに出す。`createdAt` には落とさない: 投稿日と撮影日は別）
-    const shotDate = formatStoredDateTime(photo.date, locale === "en" ? "en" : "ja") ?? "";
+    // 撮影日（保存された通りに出す。`createdAt` には落とさない: 投稿日と撮影日は別）。
+    // **形は iOS と同じ「2026.09.23 · 14:29」**（`PhotoMetaLine.stamp`・2026-10-21）。
+    // 時刻はカメラが書いた撮影時刻（EXIF）からだけ。画面で抜いた値を先に見る
+    const shotDate = formatPhotoStamp(photo.date, extractedExif?.DateTimeOriginal ?? photo.exif?.dateTimeOriginal) ?? "";
     const paragraphs = getLocalizedParagraphs(photo.description, locale);
 
     const preferred = getPreferredMapLink(photo);
@@ -871,7 +914,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, "\\u003c").replace(/>/g, "\\u003e") }}
                 />
             )}
-            <main className="min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
+            <main className="relative min-h-screen text-white bg-bg max-w-2xl lg:max-w-6xl mx-auto w-full pb-8">
             {/* **最終版モックの並び**（2026-09-21・owner「全く同じにしたい」）:
                 戻る/共有/⋯ の行 → 端までのヒーロー（撮影地チップ・地図）→ 題 →
                 作者行（枠線のフォロー）→ 撮影日 · 撮影地 → 本文 → チップ →
@@ -879,30 +922,39 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 PC も中央に幅を絞った同じ画面（以前の2カラムはやめた）。
                 **全体ヘッダー（ロゴ・ハンバーガー）は layout のもの**——本番の
                 スモークがハンバーガーの存在と開くことを見るので、この行は
-                その下に置く（重ねない） */}
-            <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                その下に置く（重ねない）。
+                **スマホ（1024px 未満）では行をやめ、写真の左上・右上にガラスの丸を重ねる**
+                （iOS の `PhotoDetailView`・板 02・2026-10-21）。行のぶん（約 52px）写真が上へ
+                上がり、写真がサイトの見出しのすぐ下から始まる。写真の上なので白だけ・
+                当たりは 44px。PC は2カラムの上に今までどおり行で置く（同じボタンを1組だけ
+                描き、位置だけを幅で切り替える——2組描くと読み上げにも2組出る） */}
+            <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 px-2 pt-2 pointer-events-none lg:static lg:z-auto lg:py-1.5 lg:pt-1.5"
+                 data-testid="photo-top-bar">
                 <Link
                     href="/"
                     prefetch={false}
                     aria-label={locale === "en" ? "Back to Gallery" : "ギャラリーに戻る"}
-                    className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
-                    style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    className={TOP_BUTTON}
+                    style={{ width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                 >
                     <ArrowLeftIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
                 </Link>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2 lg:gap-1">
                     <button
                         type="button"
                         onClick={handleShare}
                         aria-label={locale === "en" ? "Share" : "共有"}
-                        className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
-                        style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                        className={TOP_BUTTON}
+                        style={{ width: "44px", height: "44px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                     >
                         <ShareIcon aria-hidden="true" style={{ width: "22px", height: "22px" }} />
                     </button>
                     <MoreMenu
                         label={locale === "en" ? "More" : "その他"}
                         buttonRef={reportBtnRef}
+                        className="pointer-events-auto"
+                        buttonClassName={TOP_BUTTON}
+                        buttonSize={44}
                         items={[
                             { key: "copy", label: locale === "en" ? "Copy link" : "リンクをコピー", onSelect: () => void handleCopyLink() },
                             { key: "x", label: locale === "en" ? "Share on X" : "Xで共有", onSelect: () => shareToTwitter(currentUrl, shareText) },
@@ -931,7 +983,29 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 {/* **1枚目は必ずここで描く。** 静的書き出しなので、送る仕組みを
                     state で包むと JS が届くまで写真が出ない——この画面は
                     検索の着地点で、LCP がそのぶん遅れる。`shown === 0` の間は
-                    今までとまったく同じ木になる */}
+                    今までとまったく同じ木になる。
+                    **押すと全画面で開く**（`PhotoViewer`・iOS と同じ）。ボタンは写真を包むだけで、
+                    静的HTMLにも同じ形で出る（水和で木が変わらない） */}
+                <button
+                    ref={heroButtonRef}
+                    type="button"
+                    onPointerDown={(e) => { heroPressRef.current = { x: e.clientX, y: e.clientY }; }}
+                    onClick={(e) => {
+                        // **引いて送ったあとの click は捨てる**（PC でマウスを引いて写真を送ると、
+                        // 離したところで click が来て全画面が開いていた）。キーボード（Enter）の
+                        // click は pointerdown を伴わないので、そのまま開く
+                        const press = heroPressRef.current;
+                        heroPressRef.current = null;
+                        if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > HERO_TAP_SLOP) return;
+                        if (failedSrc === current.src) return;
+                        setViewerOpen(true);
+                    }}
+                    aria-haspopup={failedSrc === current.src ? undefined : "dialog"}
+                    aria-disabled={failedSrc === current.src ? true : undefined}
+                    className={`block w-full p-0 m-0 border-0 bg-transparent text-left ${failedSrc === current.src ? "cursor-default" : "cursor-zoom-in"} focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white`}
+                    style={{ touchAction: images.length > 1 ? "pan-y" : "manipulation", WebkitTapHighlightColor: "transparent" }}
+                    data-testid="photo-hero-open"
+                >
                 <PhotoImage
                     key={shown}
                     src={current.src}
@@ -945,12 +1019,21 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     // 無いので、2枚目以降から抜くと表紙のものと食い違う
                     extractExif={shown === 0 && !hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
+                    onImageError={() => setFailedSrc(current.src)}
                 />
+                {failedSrc !== current.src && (
+                    <span className="sr-only">{locale === "en" ? " (view full screen)" : "（全画面で見る）"}</span>
+                )}
+                </button>
+                {/* **上の端の黒のぼかし**（iOS の `TopBarScrim`: 黒 70% → 0）。スマホだけ——
+                    戻る・共有・「…」の白い丸が明るい空の上でも沈まないように。押せない飾り */}
+                <div aria-hidden="true" data-testid="photo-top-scrim" className="lg:hidden absolute inset-x-0 top-0 pointer-events-none"
+                     style={{ height: "96px", background: "linear-gradient(to bottom, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0))" }} />
 
                 {images.length > 1 && (
                     <>
                         {/* 「N/M」。モックの「1/10」 */}
-                        <p className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white pointer-events-none"
+                        <p className="absolute top-4 left-1/2 -translate-x-1/2 lg:top-3 lg:left-auto lg:right-3 lg:translate-x-0 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white tabular-nums pointer-events-none"
                            style={{ fontSize: "12px", lineHeight: "14px" }}
                            aria-hidden="true">
                             {shown + 1}/{images.length}
@@ -1034,12 +1117,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                 {/* 板（`PhotoDetail.dc.html`）の題は **明朝 32px / 行間1.2**。
                     検索の着地点で、題を「作品の名前」として見せる形。
-                    **字体は足していない**——`lib/utils/storyText.ts` の明朝と
-                    同じ端末の字体だけ（ダウンロードは0バイト）。板は先頭に
-                    Shippori Mincho B1 を置いているが、あれは Google Fonts から
-                    落とす字体なので採らない（1書体ぶん重くなる）。 */}
+                    字体は `lib/utils/headingFont.ts` の並び——先頭は自前で配る
+                    Shippori Mincho B1 Bold（板・アプリと同じ・2026-10-21）、落ちるまでは端末の明朝。 */}
                 {titleText
-                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
+                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: DISPLAY_MINCHO_STACK }}>{titleText}</h1>
                     : <h1 className="sr-only">{fallbackHeading}</h1>}
 
                 {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
@@ -1077,7 +1158,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     （おおよその座標では立てない: 街の中心のピンは「ここで撮った」と読まれる） */}
                 {(shotDate || locationText) && (
                     <p className="m-0 text-white/60 flex flex-wrap items-center gap-x-2" style={{ fontSize: "12px", lineHeight: "16px" }}>
-                        {shotDate && <span>{shotDate}</span>}
+                        {shotDate && <span className="tabular-nums" data-testid="photo-shot-stamp">{shotDate}</span>}
                         {shotDate && locationText && <span aria-hidden="true">·</span>}
                         {locationText && (href ? (
                             <a href={href} target="_blank" rel="noopener noreferrer"
@@ -1168,16 +1249,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                 <div className="flex items-center gap-5 pt-1">
                     <button
                         type="button"
-                        onClick={() => {
-                            hapticTap();
-                            void toggleLike().then((r) => {
-                                // 押し直しても直らない失敗（セッション切れ・通信できない）は
-                                // その文言をそのまま出す
-                                if (!r.ok) showToast(r.message ?? (locale === "en"
-                                    ? "Couldn't save your like. Please try again."
-                                    : "いいねを保存できませんでした。もう一度お試しください"), "error");
-                            });
-                        }}
+                        onClick={handleLike}
                         disabled={likePending}
                         aria-pressed={isFav}
                         // **見えている数を名前に含める**（画面は数字だけ・読み上げが「いいね」だけだと
@@ -1595,6 +1667,22 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
             </div>{/* /右カラム */}
             </div>{/* /2カラム（PC） */}
             </main>
+            {viewerOpen && (
+                <PhotoViewer
+                    images={images}
+                    index={shown}
+                    onIndexChange={setShown}
+                    altFor={(i) => (i === 0 ? altText : `${altText}（${i + 1}/${images.length}）`)}
+                    title={titleText || fallbackHeading}
+                    liked={isFav}
+                    likeCount={likeCount}
+                    likePending={likePending}
+                    onToggleLike={handleLike}
+                    onClose={() => setViewerOpen(false)}
+                    restoreRef={heroButtonRef}
+                    locale={locale === "en" ? "en" : "ja"}
+                />
+            )}
         </>
     );
 }

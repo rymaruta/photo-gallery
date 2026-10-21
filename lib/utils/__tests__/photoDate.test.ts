@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitStoredDate, formatStoredDateTime, EN_MONTHS } from "../photoDate";
+import { splitStoredDate, formatStoredDateTime, formatPhotoStamp, EN_MONTHS } from "../photoDate";
 
 // 写真ページの「撮影日時」は描画中に toLocaleString を呼んでいた。
 // 2つ壊れていた:
@@ -55,6 +55,48 @@ describe("formatStoredDateTime", () => {
     it("整形できなければ null（＝その行を出さない）", () => {
         expect(formatStoredDateTime(undefined, "ja")).toBeNull();
         expect(formatStoredDateTime("", "ja")).toBeNull();
+    });
+});
+
+// 写真ページの題の下の1行（iOS の `PhotoMetaLine.stamp` と同じ決まり）
+describe("formatPhotoStamp", () => {
+    it("撮影日だけなら「2026.09.23」（月日は2桁）", () => {
+        expect(formatPhotoStamp("2026-09-23", undefined)).toBe("2026.09.23");
+        expect(formatPhotoStamp("2024-05-02", null)).toBe("2024.05.02");
+    });
+
+    it("EXIF の撮影時刻が同じ日なら「 · 14:29」を足す（3通りの形）", () => {
+        expect(formatPhotoStamp("2026-09-23", "2026-09-23T14:29:10")).toBe("2026.09.23 · 14:29");
+        expect(formatPhotoStamp("2026-09-23", "2026:09:23 14:29:10")).toBe("2026.09.23 · 14:29");
+        expect(formatPhotoStamp("2026-09-23", new Date(2026, 8, 23, 14, 29))).toBe("2026.09.23 · 14:29");
+    });
+
+    it("EXIF に時刻が無ければ、撮影日に付いた時刻で出す（直す前の画面と同じ）", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", undefined)).toBe("2026.09.23 · 09:05");
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:23")).toBe("2026.09.23 · 09:05");
+    });
+
+    it("EXIF の時刻があればそちらを先に使う", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:23 14:29:00")).toBe("2026.09.23 · 14:29");
+    });
+
+    it("EXIF の日付が食い違えば、撮影日の時刻にも落とさない", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:22 23:59:00")).toBe("2026.09.23");
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:22")).toBe("2026.09.23");
+    });
+
+    it("EXIF の日付が撮影日と食い違えば時刻を出さない（持ち主が日付を直した写真）", () => {
+        expect(formatPhotoStamp("2026-09-23", "2026:09:22 23:59:00")).toBe("2026.09.23");
+    });
+
+    it("撮影日が無ければ EXIF の日付で出す", () => {
+        expect(formatPhotoStamp(undefined, "2024:10:12 09:05:00")).toBe("2024.10.12 · 09:05");
+    });
+
+    it("どちらも読めなければ null（行ごと出さない）", () => {
+        expect(formatPhotoStamp(undefined, undefined)).toBeNull();
+        expect(formatPhotoStamp("きのう", "x")).toBeNull();
+        expect(formatPhotoStamp(undefined, new Date(Number.NaN))).toBeNull();
     });
 });
 

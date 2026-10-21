@@ -3,7 +3,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { resolveOgImage } from "@/lib/server/photos";
 import Link from "next/link";
-import { Inter, Yusei_Magic, Yomogi } from "next/font/google";
+import { Shippori_Mincho_B1, Yusei_Magic, Yomogi } from "next/font/google";
 import HeaderNav from "./components/HeaderNav";
 import Footer from "./components/Footer";
 import ToastProvider from "./components/ToastProvider";
@@ -22,41 +22,34 @@ import { LocaleProvider } from "./i18n/context";
 import { siteConfig, generateWebSiteStructuredData, INDEXABLE_ROBOTS, FEED_ALTERNATE } from "../lib/utils/seo";
 
 /**
- * **日本語の字体を宣言する。**
+ * **見出しの明朝（Shippori Mincho B1 Bold）——アプリ v2 と同じ字（2026-10-15）。**
  *
- * `Inter` は日本語のグリフを持たない。生成されるクラスは
- * `font-family: Inter, "Inter Fallback"` **だけ**で、総称ファミリ
- * （`sans-serif`）が付かない。`globals.css` の
- * `html, body { font-family: Arial, Helvetica, sans-serif }` は
- * **クラスの方が詳細度が高いので効かない**（実ビルドの CSS で確認）。
+ * iOS は `JPFont.display`（写真の題・画面の題・名前）でこの字を同梱している。
+ * Web の `font-serif`（31か所・見出しだけ）は端末の明朝任せで、iPhone では
+ * ヒラギノ明朝、Windows では游明朝と、**アプリと別の字**になっていた。
  *
- * つまりこのサイトの本文（ほぼ全部が日本語）は**どのフォントも宣言されて
- * いない**状態で、ブラウザの既定に落ちていた。既定は環境ごとに違う。
- * 一方**ヘッダーだけは `.site-header__nav` で
- * `"Noto Sans JP", system-ui, -apple-system, sans-serif` を宣言している**
- * ので、同じページの中で見出しと本文の字体が割れうる。
+ * **本文の Inter はやめた。** Inter は日本語の字を持たず、ほぼ日本語の本文には
+ * 当たっていなかった（英数字だけ Inter・日本語は端末の字で割れていた）。
+ * iOS の本文はシステムの字（SF Pro＋ヒラギノ角ゴ）なので、Web も
+ * `globals.css` の `--font-sans`（`-apple-system` から始まる並び）にそろえる。
+ * Inter の webfont を全ページに配っていたぶん、配る量は減る。
  *
- * `fallback` に**そのヘッダーと同じ並び**を渡して揃える
- * （`app/__tests__/fontStack.test.ts` が2つの一致を縛る）。
- * **新しい字体を持ち込んでいない**——`Noto Sans JP` は端末に在れば使う
- * 名前で、ここから webfont を落とすわけではない。
+ * **配る量を抑える形**（手書き2種と同じ。理由は下の docstring）:
+ *   - 太さは **700 の1つだけ**（アプリも Bold だけ）
+ *   - `subsets` を書かない＝日本語の `unicode-range` を全部持ち、**ブラウザは
+ *     そのページで使った字の範囲だけ**落とす
+ *   - `preload: false`——見出しの無いページに先読みを出さない
+ *   - `display: "swap"`——落ちてくるまでは端末の明朝で読める
+ *   - `fallback` を渡さない——並びは `globals.css` の `--font-serif` だけが持つ
  *
- * **代償を測った。** `fallback` を渡すと Next は CLS 対策の
- * `Inter Fallback`（Arial を Inter の字幅に合わせた面）を出さなくなる。
- * 実ビルドをフォント 1.5 秒遅延で測った CLS は
- * **元 0.0008 / 変更後 0.0006**＝誤差。本文がほぼ日本語で Inter が
- * もともと当たらないため。
- *
- * ⚠️ **字体の見た目の差はこの環境では測れていない**（コンテナに CJK
- * フォントが1つしか無く、serif と sans-serif が同じ幅になる）。
- * 直したのは「総称ファミリも日本語の字体も宣言されていない」という
- * CSS の側の事実。
+ * 字は SIL OFL（配ってよい）。ファイルは next/font がビルド時に取り込み、
+ * **このサイト自身から配る**（Google へ閲覧者の通信は出ない）。
  */
-const inter = Inter({
-    subsets: ["latin"],
-    weight: ["400", "700", "900"],
+const mincho = Shippori_Mincho_B1({
+    weight: ["700"],
     display: "swap",
-    fallback: ["Noto Sans JP", "system-ui", "-apple-system", "sans-serif"],
+    preload: false,
+    variable: "--font-mincho",
 });
 
 /**
@@ -325,7 +318,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${inter.className} ${marker.variable} ${scribble.variable} min-h-screen flex flex-col bg-bg text-white`}>
+      <body className={`${mincho.variable} ${marker.variable} ${scribble.variable} min-h-screen flex flex-col bg-bg text-white`}>
         <Analytics />
         <DisableSave />
         <AssetRecovery />
@@ -388,7 +381,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       抜き方は**明るさをそのまま透明度にする**だけで、形は1画素も
                       変えていない（しきい値で切ると縁がギザギザになる）。
                       装飾なので読み上げには渡さない（`aria-hidden`＋空の `alt`）。 */}
-                  <p className="font-serif text-[20px] min-[360px]:text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0 flex-1">
+                  <p className="font-wordmark text-[20px] min-[360px]:text-[22px] md:text-[26px] font-bold tracking-tight text-white m-0 min-w-0 flex-1">
                     <Link
                       href="/"
                       prefetch={false}
@@ -413,7 +406,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                           ⚠️ **この容れ物の実測は当てにならない。** コンテナに CJK
                           フォントが1つしか無く `font-serif` が sans と同じ幅になる
-                          （上の `inter` の docstring と同じ理由）。ここでは 97px に
+                          （このコンテナの字の事情）。ここでは 97px に
                           収まるが、実機の本物の serif はこれより広い。だから
                           「入る幅にする」ではなく「**空いている場所を全部使う**」
                           側で直してある。

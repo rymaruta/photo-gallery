@@ -51,3 +51,46 @@ export function formatStoredDateTime(value: unknown, locale: "ja" | "en"): strin
         ? `${EN_MONTHS[p.m - 1]} ${p.d}, ${p.y}${time}`
         : `${p.y}年${p.m}月${p.d}日${time}`;
 }
+
+/**
+ * 撮影日時の短い1行「2026.09.23 · 14:29」（iOS の `PhotoMetaLine.stamp`・2026-10-21）。
+ * 写真ページの題の下に出す。数字は等幅の数字で組む（呼ぶ側が `tabular-nums`）。
+ *
+ * **日付は `date`（撮影日）。時刻はカメラが書いた撮影時刻（EXIF）を先に見る。**
+ * EXIF に時刻が無い写真だけ、`date` に付いている時刻で出す（直す前の画面はこれを出していた・
+ * 2026-10-21 の見直し）。
+ *
+ * EXIF の日付が `date` と食い違うときは**時刻を出さない**——持ち主が撮影日を
+ * 直した写真に、別の日の時刻を添えることになる（`date` の時刻にも落とさない）。
+ * `date` が無ければ EXIF の日付で出す。
+ *
+ * EXIF の値は3通り来る: 保存済みの `2024-10-12T09:00:00`、アプリが送る生の
+ * `2024:10:12 09:00:00`、画面で抜いた `Date`（exifr はカメラの壁時計を
+ * 端末の時刻として読むので、端末の時刻の部品で読み戻す）。
+ * 読めなければ null（＝その行を出さない）。言語で書式は変えない（iOS と同じ）
+ */
+export function formatPhotoStamp(date: unknown, exifDateTime: unknown): string | null {
+    const exif = splitExifDateTime(exifDateTime);
+    const day = splitStoredDate(date) ?? exif;
+    if (!day) return null;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    let line = `${day.y}.${pad(day.m)}.${pad(day.d)}`;
+    const sameDay = !!exif && exif.y === day.y && exif.m === day.m && exif.d === day.d;
+    // EXIF が別の日を言うなら、どちらの時刻も添えない
+    const clock = exif && exif.hh !== undefined
+        ? (sameDay ? exif : null)
+        : (exif && !sameDay ? null : day);
+    if (clock && clock.hh !== undefined) line += ` · ${pad(clock.hh)}:${pad(clock.mm ?? 0)}`;
+    return line;
+}
+
+/** EXIF の撮影日時（文字列2通りか `Date`）を成分へ。読めなければ null */
+export function splitExifDateTime(value: unknown): Parts | null {
+    if (value instanceof Date) {
+        if (Number.isNaN(value.getTime())) return null;
+        return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate(), hh: value.getHours(), mm: value.getMinutes() };
+    }
+    if (typeof value !== "string") return null;
+    // EXIF の生の形（`2024:10:12 09:00:00`）は区切りを `-` に直してから同じ読み方で
+    return splitStoredDate(value.trim().replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3"));
+}

@@ -15,7 +15,11 @@ import { arcControls, countriesLine, routeShape, type LatLng } from "../../lib/u
  *   （静的な HTML では最初から引き終えた形で出る＝JS が無くても線は見える）
  *
  * 真鍮は黒い地の上だけ（このページの本文は黒地）。数字は白（真鍮は合図と飾りの色）。
- * 本人のページにだけ出す（他人のページは「訪れた場所」のチップ）。押すと撮影地マップ。
+ *
+ * **人のページにも出す**（2026-10-21・iOS の `TravelRecordSection(isMine: false)`）。数はその人の
+ * 公開写真だけから作る（呼ぶ側の `profileTripPhotos`）。**押して撮影地マップへ行けるのは本人だけ**
+ * ——地図は全員の写真なので、人のページで押せると「この人の旅の続き」に見えて別のものへ連れて行く。
+ * `href` を渡さなければ、押せない塊（`role="group"`）で描く。
  */
 
 /** 線の高さ（iOS と同じ 100。上下 26 は弧のふくらみの分） */
@@ -166,7 +170,7 @@ function TravelRoute({ coordinates }: { coordinates: LatLng[] }) {
     );
 }
 
-export default function TravelRecord({ distanceKm, countries, coordinates, firstYear, href, locale }: {
+export default function TravelRecord({ distanceKm, countries, coordinates, firstYear, href, isMine = true, locale }: {
     /** 写真をつないだ距離（km）。null なら距離と線を出さない */
     distanceKm: number | null;
     /** 訪れた国・地域（初めて訪れた順）。空なら国を出さない */
@@ -174,36 +178,32 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
     /** 撮影地（距離と同じ写真・同じ順） */
     coordinates: LatLng[];
     firstYear: number | null;
-    href: string;
+    /** 押した先（本人のページだけ）。無ければ押せない */
+    href?: string;
+    /** 本人の記録か。人の記録は「公開写真の」と読み上げる */
+    isMine?: boolean;
     locale: string;
 }) {
     const isJa = locale !== "en";
     const km = distanceKm !== null ? Math.round(distanceKm).toLocaleString("ja-JP") : null;
     const label = [
-        isJa ? "旅の記録" : "Travel log",
+        isJa ? (isMine ? "旅の記録" : "旅の記録（公開写真から）") : (isMine ? "Travel log" : "Travel log (from public photos)"),
         km !== null ? (isJa ? `写真をつないだ距離 ${km} キロメートル` : `Distance between photos, ${km} kilometers`) : null,
         countries.length > 0
             ? (isJa ? `訪れた国・地域 ${countries.length}、${countries.join("、")}` : `Countries and regions visited, ${countries.length}: ${countries.join(", ")}`)
             : null,
-        isJa ? "撮影地マップを開く" : "Open the photo map",
+        href ? (isJa ? "撮影地マップを開く" : "Open the photo map") : null,
     ].filter(Boolean).join(isJa ? "。" : ". ");
 
-    return (
-        <Link
-            href={href}
-            prefetch={false}
-            aria-label={label}
-            data-testid="travel-record"
-            className="block mb-5 pt-1 pb-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            style={{ touchAction: "manipulation", minHeight: "44px" }}
-        >
-            {/* 眉ラベル: 真鍮・SF 600・字間 0.14em。右へ消える真鍮の線（55% → 0） */}
-            <span className="flex items-center gap-2.5 text-accent" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.14em", lineHeight: "16px" }}>
+    const body = (
+        <>
+            {/* 眉ラベル（`eyebrow`）。右へ消える真鍮の線（55% → 0）の後ろに「◯年から」を置くので、線は `eyebrow-line` ではなく手で置く */}
+            <span className="flex items-center gap-2.5 eyebrow text-accent">
                 <span className="flex-shrink-0">{isJa ? "旅の記録" : "TRAVEL LOG"}</span>
                 <span aria-hidden="true" className="flex-1 h-px"
                       style={{ background: "linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 55%, transparent), transparent)" }} />
                 {firstYear !== null && (
-                    <span className="flex-shrink-0 text-white/60 tabular-nums" style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "0.04em" }}>
+                    <span className="flex-shrink-0 normal-case text-white/60 tabular-nums" style={{ fontSize: "12px", fontWeight: 500, letterSpacing: "0.04em" }}>
                         {isJa ? `${firstYear} 年から` : `Since ${firstYear}`}
                     </span>
                 )}
@@ -239,6 +239,30 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
                     <TravelRoute coordinates={coordinates} />
                 </span>
             )}
+        </>
+    );
+
+    if (!href) {
+        // 押せない塊。**読み上げは1回だけ**——`role="group"` に名前を付けて中身も読ませると、
+        // 「旅の記録、写真をつないだ距離 …」の後に同じ数と字をもう一度読む（2026-10-21 判断）。
+        // まとめた1文を読ませ、見た目の字は読ませない（押せる形の Link と同じ読み方）
+        return (
+            <div data-testid="travel-record" className="block mb-5 pt-1 pb-2">
+                <span className="sr-only">{label}</span>
+                <span aria-hidden="true" className="block">{body}</span>
+            </div>
+        );
+    }
+    return (
+        <Link
+            href={href}
+            prefetch={false}
+            aria-label={label}
+            data-testid="travel-record"
+            className="block mb-5 pt-1 pb-2 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            style={{ touchAction: "manipulation", minHeight: "44px" }}
+        >
+            {body}
         </Link>
     );
 }

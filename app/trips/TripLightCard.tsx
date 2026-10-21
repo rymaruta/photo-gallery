@@ -113,7 +113,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
     ];
     return (
         <section className="mb-4 rounded-2xl bg-surface p-4" aria-labelledby="trip-light-title" data-testid="trip-light">
-            <p className="m-0 font-mono font-medium uppercase text-accent" style={{ fontSize: "11px", letterSpacing: "1.5px" }}>
+            <p className="m-0 eyebrow text-accent">
                 {en ? `${when} · Day ${shown.dayNumber} · ${m}/${d}` : `${when} · ${shown.dayNumber}日目 · ${m}/${d}`}
             </p>
             <h2 id="trip-light-title" className="m-0 mt-1 font-serif font-bold text-white" style={{ fontSize: "18px", lineHeight: "24px" }}>
@@ -128,7 +128,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
                 {rows.map(([label, value]) => (
                     <React.Fragment key={label}>
                         <dt className="text-white/60">{label}</dt>
-                        <dd className="m-0 font-mono tabular-nums text-white/90">{value}</dd>
+                        <dd className="m-0 font-sans tabular-nums text-white/90">{value}</dd>
                     </React.Fragment>
                 ))}
             </dl>

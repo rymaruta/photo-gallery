@@ -150,7 +150,7 @@ describe("抜粋", () => {
 // `robots.txt` に書いても購読の導線にはならない。
 describe("フィードの場所を名乗っているか", () => {
     // レイアウトは `next/font` を読むので vitest から import できない
-    // （`Inter is not a function`）。ソースで見る——このリポジトリの
+    // （`… is not a function`）。ソースで見る——このリポジトリの
     // 他の配線テスト（`sitemapCamera` / `collectionRoutes`）と同じ手。
     // **`alternates` はオブジェクトごと差し替わる。** ルートに書いても、
     // 子が `alternates: { canonical }` を返した瞬間に消える

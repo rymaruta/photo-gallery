@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // コメント欄の「断られた理由」の出し方。
@@ -106,6 +106,78 @@ describe("CommentSection: 断られた理由の表示", () => {
     });
 });
 
+// 送ったコメントは先頭（新しい順・iOS と同じ）に出るが、入力欄は下に貼ってあるので画面の外に
+// 出ることがある。送れたら先頭の1件を画面内へ送り、読み上げに1回だけ伝える（2026-10-21）
+describe("CommentSection: 送ったコメントを見せる", () => {
+    const posted = (id: string, text: string) => ({
+        ok: true, json: async () => ({ comment: { id, uid: "me", name: "私", text, t: "2026-10-21T00:00:00Z" } }),
+    });
+    let scrolled: { el: Element; opts: ScrollIntoViewOptions | undefined }[] = [];
+    const origScroll = Element.prototype.scrollIntoView;
+    const origMatch = window.matchMedia;
+    const setReduced = (reduce: boolean) => {
+        Object.defineProperty(window, "matchMedia", {
+            configurable: true, writable: true,
+            value: (q: string) => ({ matches: reduce && q.includes("reduce"), addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+        });
+    };
+    beforeEach(() => {
+        scrolled = [];
+        Element.prototype.scrollIntoView = function (this: Element, opts?: boolean | ScrollIntoViewOptions) {
+            scrolled.push({ el: this, opts: typeof opts === "object" ? opts : undefined });
+        };
+        mockUserPublicFetch.mockResolvedValue({ ok: true, json: async () => ({
+            items: [{ id: "old", uid: "u1", name: "旅人", text: "前からある", t: "2026-08-01T00:00:00Z" }], count: 1,
+        }) });
+    });
+    afterEach(() => {
+        Element.prototype.scrollIntoView = origScroll;
+        Object.defineProperty(window, "matchMedia", { configurable: true, writable: true, value: origMatch });
+    });
+
+    it("送れたら先頭（送った1件）を画面内へ送り、「コメントを送りました」を1回読み上げる", async () => {
+        setReduced(false);
+        mockUserFetch.mockResolvedValue(posted("new", "送った"));
+        render(<CommentSection photoId="p1" locale="ja" />);
+        await screen.findByText("前からある");
+        const status = screen.getByTestId("comment-posted-status");
+        expect(status.getAttribute("aria-live")).toBe("polite");
+        expect(status.textContent).toBe("");
+        fireEvent.change(screen.getByPlaceholderText("コメントを追加…"), { target: { value: "送った" } });
+        fireEvent.click(screen.getByRole("button", { name: "送信" }));
+        await waitFor(() => expect(status.textContent).toBe("コメントを送りました"));
+        // 並びは新しい順のまま（先頭が送った1件）
+        const items = screen.getAllByRole("listitem");
+        expect(items[0].textContent).toContain("送った");
+        expect(scrolled).toHaveLength(1);
+        expect(scrolled[0].el).toBe(items[0]);
+        expect(scrolled[0].opts).toEqual({ block: "nearest", behavior: "smooth" });
+    });
+
+    it("動きを減らす設定なら滑らせない", async () => {
+        setReduced(true);
+        mockUserFetch.mockResolvedValue(posted("new", "送った"));
+        render(<CommentSection photoId="p1" locale="en" />);
+        await screen.findByText("前からある");
+        fireEvent.change(screen.getByPlaceholderText("Add a comment…"), { target: { value: "送った" } });
+        fireEvent.click(screen.getByRole("button", { name: "Post" }));
+        await waitFor(() => expect(screen.getByTestId("comment-posted-status").textContent).toBe("Comment posted"));
+        expect(scrolled[0].opts).toEqual({ block: "nearest", behavior: "auto" });
+    });
+
+    it("送れなかったら動かさず、読み上げもしない・開いただけでも動かさない", async () => {
+        setReduced(false);
+        mockUserFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+        render(<CommentSection photoId="p1" locale="ja" />);
+        await screen.findByText("前からある");
+        fireEvent.change(screen.getByPlaceholderText("コメントを追加…"), { target: { value: "x" } });
+        fireEvent.click(screen.getByRole("button", { name: "送信" }));
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+        expect(scrolled).toHaveLength(0);
+        expect(screen.getByTestId("comment-posted-status").textContent).toBe("");
+    });
+});
+
 // 取得の失敗が「まだコメントがありません」と同じ見た目だった（SW-b2）。
 // 付いているコメントが消えたように見える。失敗は失敗と伝えて再試行を出す。
 describe("CommentSection: 一覧の取得失敗", () => {
@@ -121,7 +193,7 @@ describe("CommentSection: 一覧の取得失敗", () => {
         expect(await screen.findByText(/コメントを読み込めませんでした/)).toBeInTheDocument();
         expect(screen.queryByText(/まだコメントがありません/)).toBeNull();
 
-        fireEvent.click(screen.getByRole("button", { name: "再読み込み" }));
+        fireEvent.click(screen.getByRole("button", { name: "もう一度試す" }));
         expect(await screen.findByText("きれい")).toBeInTheDocument();
     });
 });

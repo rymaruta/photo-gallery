@@ -3,36 +3,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * **本文の字体が宣言されていなかった。**
+ * **字の並びは `globals.css` の `@theme` の1か所だけが持つ（2026-10-15・アプリ v2）。**
  *
- * `Inter` は日本語のグリフを持たず、`next/font` が作るクラスは
- * `font-family: Inter, "Inter Fallback"` **だけ**（実ビルドの CSS で確認）。
- * `globals.css` の `html, body { font-family: ... sans-serif }` は
- * **クラスの方が詳細度が高いので効かない**。
- *
- * 結果、ほぼ全部が日本語のこのサイトで、本文は**総称ファミリすら無い**
- * 状態だった。一方ヘッダーは `.site-header__nav` で日本語の並びを
- * 宣言している——**同じページの中で字体が割れうる**。
- *
- * ここで縛るのは「2つが同じ並びであること」。片方だけ足すと、
- * また割れる（台帳の型「入口が2つあるのに片方しか直っていない」）。
+ * 以前は本文が `Inter`（日本語の字を持たない）のクラスで、`fallback` と
+ * ヘッダーの `.site-header__nav` の2か所に同じ並びを写して縛っていた。
+ * Inter をやめ、本文・ヘッダー・数字は `--font-sans` / `--font-mono`、
+ * 見出しは `--font-serif`（Shippori Mincho B1）を読むだけにした。
+ * ここで縛るのは「写しが生まれていないこと」と「並びが壊れていないこと」。
  */
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
-/** `globals.css` のヘッダーが宣言している並び */
-function navStack(): string[] {
+/** `@theme` の `--font-<name>` の並び */
+function themeStack(name: string): string[] {
     const css = read("app/globals.css");
-    const m = /\.site-header__nav\s*\{[^}]*font-family:\s*([^;}]+)/.exec(css);
+    const m = new RegExp(`--font-${name}:\\s*([^;]+);`).exec(css);
     if (!m) return [];
     return m[1].split(",").map((s) => s.trim().replace(/^["']|["']$/g, ""));
-}
-
-/** `layout.tsx` が `next/font` に渡している fallback */
-function fontFallback(): string[] {
-    const src = read("app/layout.tsx");
-    const m = /fallback:\s*\[([^\]]*)\]/.exec(src);
-    if (!m) return [];
-    return m[1].split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
 }
 
 const GENERIC = new Set(["sans-serif", "serif", "monospace", "cursive", "fantasy", "system-ui", "ui-sans-serif"]);
@@ -58,30 +44,80 @@ function offlineStack(): string[] {
 }
 
 describe("本文の字体", () => {
-    it("ヘッダーの宣言を読めている（空振りしていない）", () => {
-        expect(navStack().length).toBeGreaterThan(2);
+    it("`--font-sans` を読めている（空振りしていない）", () => {
+        expect(themeStack("sans").length).toBeGreaterThan(2);
     });
 
-    it("本文の fallback を渡している", () => {
-        expect(fontFallback().length, "next/font に fallback が無い＝日本語の字体が宣言されない").toBeGreaterThan(0);
+    it("総称ファミリで終わる（無い端末でブラウザの既定＝環境により明朝に落ちない）", () => {
+        expect(GENERIC.has(String(themeStack("sans").at(-1)))).toBe(true);
     });
 
-    // **同じ並びにする。** 片方だけ足すと、見出しと本文で字体が割れる
-    it("ヘッダーと本文が同じ並びを宣言する", () => {
-        expect(fontFallback()).toEqual(navStack());
+    it("アプリと同じシステムの字から始まり、日本語の字体を名指ししている", () => {
+        expect(themeStack("sans")[0]).toBe("-apple-system");
+        expect(themeStack("sans").some((f) => /JP|Hiragino/i.test(f)), "日本語の字体が並びに無い").toBe(true);
     });
 
-    // 総称ファミリで終わらないと、どれも無い端末でブラウザの既定
-    // （環境により明朝）に落ちる
-    it("総称ファミリで終わる", () => {
-        const last = fontFallback().at(-1);
-        expect(GENERIC.has(String(last)), `最後が総称ファミリでない: ${last}`).toBe(true);
-        expect(GENERIC.has(String(navStack().at(-1))), "ヘッダー側も総称で終わっていない").toBe(true);
+    // html/body とヘッダーが並びを写さず変数を読む（写すと、また割れる）
+    it("本文とヘッダーは `var(--font-sans)` を読むだけ", () => {
+        const css = read("app/globals.css");
+        const body = /color-scheme:\s*dark;\s*font-family:\s*([^;]+);/.exec(css);
+        expect(body?.[1].trim()).toBe("var(--font-sans)");
+        const nav = /\.site-header__nav\s*\{[^}]*font-family:\s*([^;}]+)/.exec(css);
+        expect(nav?.[1].trim()).toBe("var(--font-sans)");
     });
 
-    // 日本語の字体を1つは名指しする（総称だけだと端末の既定任せに戻る）
-    it("日本語の字体を名指ししている", () => {
-        expect(fontFallback().some((f) => /JP|Japanese|Gothic|ゴシック/i.test(f)), "日本語の字体が並びに無い").toBe(true);
+    // 日本語の字を持たない Inter を本文に戻さない
+    it("Inter を読んでいない", () => {
+        expect(read("app/layout.tsx")).not.toMatch(/\bInter\b\s*[,(}]/);
+    });
+
+    // owner の好み（2026-10-02）: 数字・眉ラベルは等幅の字ではなく本文の字＋等幅数字
+    it("`--font-mono` は本文と同じ字で、等幅数字を足している", () => {
+        expect(themeStack("mono")).toEqual(themeStack("sans"));
+        expect(read("app/globals.css")).toMatch(/\.font-mono\s*\{\s*font-variant-numeric:\s*tabular-nums;/);
+    });
+});
+
+/**
+ * **見出しの明朝（Shippori Mincho B1 Bold・iOS の `JPFont.display` と同じ字）。**
+ * 配線は2か所（`layout.tsx` が変数を立て、`globals.css` の `--font-serif` が先頭で読む）。
+ * 片方だけ消えても画面は落ちず、**黙って端末の明朝に落ちる**ので機械で縛る。
+ */
+describe("見出しの明朝（webfont の配線）", () => {
+    const call = () => /Shippori_Mincho_B1\(\{([\s\S]*?)\}\)/.exec(read("app/layout.tsx"));
+
+    it("`layout.tsx` が読み、`--font-mincho` を <body> に立てている", () => {
+        const src = read("app/layout.tsx");
+        expect(call(), "Shippori_Mincho_B1 を読んでいない").not.toBeNull();
+        expect(call()![1]).toContain('variable: "--font-mincho"');
+        expect(src).toContain("mincho.variable");
+    });
+
+    // 検証サイトで明朝が1か所も当たっていなかった（2026-10-15）。`--font-mincho` は <body> の
+    // クラスが立てるので、`:root` で計算されるふつうの `@theme` からは見えず、値ごと無効になる
+    it("`--font-serif` は `@theme inline` に置く（:root では --font-mincho が見えない）", () => {
+        const css = read("app/globals.css");
+        const inline = /@theme inline\s*\{([^}]*)\}/.exec(css);
+        expect(inline, "@theme inline が無い").not.toBeNull();
+        expect(inline![1]).toMatch(/--font-serif:\s*var\(--font-mincho\)/);
+        const plain = /@theme\s*\{([\s\S]*?)\n\}/.exec(css);
+        expect(plain![1], "ふつうの @theme に --font-serif がある").not.toMatch(/--font-serif:/);
+    });
+
+    it("`--font-serif` が変数を先頭で読み、端末の明朝と総称 serif が続く", () => {
+        const st = themeStack("serif");
+        expect(st[0]).toBe("var(--font-mincho)");
+        expect(st).toContain("Hiragino Mincho ProN");
+        expect(st.at(-1)).toBe("serif");
+    });
+
+    // 手書き2種と同じ理由（下の describe の docstring）
+    it("subsets・fallback を渡さず、preload を切り、太さは 700 だけ", () => {
+        const body = call()![1];
+        expect(body).not.toMatch(/^\s*subsets:/m);
+        expect(body).not.toMatch(/^\s*fallback:/m);
+        expect(body).toMatch(/preload:\s*false/);
+        expect(body).toMatch(/weight:\s*\["700"\]/);
     });
 });
 
@@ -190,4 +226,40 @@ describe("ストーリーの手書き（webfont の配線）", () => {
             expect(css.split(",").at(-1)!.trim(), "総称ファミリで終わっていない").toBe("cursive");
         });
     }
+});
+
+/**
+ * **眉ラベルは `eyebrow` の1つだけ**（iOS の `jpEyebrow()`・2026-10-15）。
+ * 以前は11か所が手で書き、字間 0.12em / 0.16em / 1.5px と等幅の有無が割れていた。
+ */
+describe("眉ラベル", () => {
+    // スマホ幅の `h1/h2/h3 { font-size }` はレイヤーの外なので、`h2` に付けた `eyebrow`（@layer utilities）の
+    // 11px を上書きし、眉が 15.75px に膨らんでいた（2026-10-21・人のページ・旅の一冊）
+    it("スマホ幅の見出しの字の大きさが、見出しの要素に付けた眉ラベルを膨らませない", () => {
+        const css = read("app/globals.css");
+        const mobile = /@media \(max-width: 639px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+        expect(mobile, "スマホ幅の見出しの規則が無い").not.toBeNull();
+        expect(mobile![1]).toMatch(/h2 \{ font-size/);
+        expect(mobile![1]).toMatch(/h1\.eyebrow,\s*h2\.eyebrow,\s*h3\.eyebrow\s*\{\s*font-size:\s*11px;\s*\}/);
+    });
+
+    it("`globals.css` が `eyebrow` を v2 の値（600・11・字間 0.14em・大文字・数字の字）で定義している", () => {
+        const m = /@utility eyebrow\s*\{([^}]*)\}/.exec(read("app/globals.css"));
+        expect(m, "eyebrow が無い").not.toBeNull();
+        expect(m![1]).toMatch(/font-family:\s*var\(--font-mono\)/);
+        expect(m![1]).toMatch(/font-size:\s*11px/);
+        expect(m![1]).toMatch(/font-weight:\s*600/);
+        expect(m![1]).toMatch(/letter-spacing:\s*0\.14em/);
+        expect(m![1]).toMatch(/text-transform:\s*uppercase/);
+    });
+
+    it("手で書いた眉ラベルが残っていない", async () => {
+        const { readdirSync } = await import("node:fs");
+        const files = (readdirSync(join(process.cwd(), "app"), { recursive: true }) as string[])
+            .filter((f) => f.endsWith(".tsx") && !f.includes("__tests__"))
+            .map((f) => join("app", f));
+        expect(files.length, "ファイルを読めていない").toBeGreaterThan(50);
+        const hand = files.filter((f) => /letterSpacing:\s*"(1\.5px|0\.14em)"|tracking-\[0\.1[26]em\]/.test(read(f)));
+        expect(hand, "`eyebrow` を使う").toEqual([]);
+    });
 });

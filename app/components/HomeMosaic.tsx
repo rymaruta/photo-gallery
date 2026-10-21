@@ -162,7 +162,7 @@ function HomeTile({ photo, locale, large = false, priority = false }: {
             <span className="absolute inline-flex items-center gap-1 rounded-full text-white bg-black/55 backdrop-blur-md pointer-events-none"
                   style={{ right: 6, bottom: 6, minWidth: 44, height: 32, padding: "0 10px", justifyContent: "center" }}>
                 <HeartIcon aria-hidden="true" style={{ width: 14, height: 14, strokeWidth: 2 }} />
-                <span aria-hidden="true" className="font-mono tabular-nums" style={{ fontSize: "12px" }}>{likes.toLocaleString()}</span>
+                <span aria-hidden="true" className="font-sans tabular-nums" style={{ fontSize: "12px" }}>{likes.toLocaleString()}</span>
                 <span className="sr-only">
                     {isJa ? `、いいね ${likes.toLocaleString()}件` : `, ${likes.toLocaleString()} ${likes === 1 ? "like" : "likes"}`}
                 </span>

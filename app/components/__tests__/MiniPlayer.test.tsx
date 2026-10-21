@@ -138,3 +138,39 @@ describe("MiniPlayer 配置クランプ（メニューバーを塞がない）",
         expect(root.className).not.toContain("z-[70]");
     });
 });
+
+describe("MiniPlayer: 下に貼った高さを --mini-player-h に出す（2026-10-21）", () => {
+    // 下の案内の上に貼る帯（写真のコメントの入力欄・旅の一冊の「この一冊を送る」）が、これを読んで上がる
+    const read = () => document.documentElement.style.getPropertyValue("--mini-player-h");
+    afterEach(() => { document.documentElement.style.removeProperty("--mini-player-h"); });
+
+    it("モバイル: 出ている間は 高さ＋12px、消えたら変数ごと消す", async () => {
+        setDesktop(false);
+        stubBoxSize();
+        const { unmount } = render(<MiniPlayer />);
+        await waitFor(() => expect(read()).toBe(`${BOX_H + 12}px`));
+        unmount();
+        expect(read()).toBe("");
+    });
+
+    it("曲が無い（バーを描かない）なら出さない", () => {
+        setDesktop(false);
+        const saved = music.current;
+        (music as { current: unknown }).current = null;
+        try {
+            render(<MiniPlayer />);
+            expect(read()).toBe("");
+        } finally {
+            (music as { current: unknown }).current = saved;
+        }
+    });
+
+    it("デスクトップで動かした（下に居ない）間は出さない", async () => {
+        setDesktop(true);
+        stubBoxSize();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: 200, y: 200 }));
+        const { container } = render(<MiniPlayer />);
+        await waitFor(() => expect((container.firstElementChild as HTMLElement).style.top).not.toBe(""));
+        expect(read()).toBe("");
+    });
+});

@@ -89,11 +89,14 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Timeline");
     });
 
-    it("右端で左スワイプしてもクランプされ、年表のまま", () => {
+    // 2026-10-21: 右端は3つ目の「旅」（旅の一冊の棚）になった
+    it("右端で左スワイプしてもクランプされ、旅のまま", () => {
         render(<UserProfileClient userId="nobody" />);
         swipe("left");
         swipe("left");
-        expect(activeTab()).toContain("Timeline");
+        expect(activeTab()).toContain("Trips");
+        swipe("left");
+        expect(activeTab()).toContain("Trips");
     });
 
     it("左端で右スワイプしてもクランプされ、投稿のまま", () => {
@@ -110,11 +113,11 @@ describe("UserProfileClient - タブの横スワイプ（タッチ操作の保�
         expect(activeTab()).toContain("Posts");
     });
 
-    it("右端（年表）で左スワイプしてもクランプされる", () => {
+    it("右端（旅）で左スワイプしてもクランプされる", () => {
         render(<UserProfileClient userId="nobody" />);
-        fireEvent.click(tabButton("Timeline"));
+        fireEvent.click(tabButton("Trips"));
         swipe("left");
-        expect(activeTab()).toContain("Timeline");
+        expect(activeTab()).toContain("Trips");
     });
 
     it("縦方向の動きではタブが変わらない（縦スクロールを奪わない）", () => {
