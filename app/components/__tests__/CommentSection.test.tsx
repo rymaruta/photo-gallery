@@ -121,7 +121,7 @@ describe("CommentSection: 一覧の取得失敗", () => {
         expect(await screen.findByText(/コメントを読み込めませんでした/)).toBeInTheDocument();
         expect(screen.queryByText(/まだコメントがありません/)).toBeNull();
 
-        fireEvent.click(screen.getByRole("button", { name: "再読み込み" }));
+        fireEvent.click(screen.getByRole("button", { name: "もう一度試す" }));
         expect(await screen.findByText("きれい")).toBeInTheDocument();
     });
 });
