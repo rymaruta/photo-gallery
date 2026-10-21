@@ -398,12 +398,12 @@ describe("速さの直し（2026-10-21）: 答えは変えない", () => {
     it("暦日の書式は時刻帯ごとに1つだけ作る", () => {
         const Orig = Intl.DateTimeFormat;
         let made = 0;
-        const Counting = function (this: unknown, ...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+        function Counting(...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
             made++;
             return new Orig(...args);
-        } as unknown as typeof Intl.DateTimeFormat;
+        }
         Counting.prototype = Orig.prototype;
-        Intl.DateTimeFormat = Counting;
+        Intl.DateTimeFormat = Counting as unknown as typeof Intl.DateTimeFormat;
         try {
             for (let i = 0; i < 30; i++) dayOf(photo(`m${i}`, { createdAt: `2026-05-01T1${i % 10}:00:00Z` }), "America/Denver");
             expect(made).toBeLessThanOrEqual(1);
