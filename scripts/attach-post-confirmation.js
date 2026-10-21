@@ -22,6 +22,14 @@
  *   node scripts/attach-post-confirmation.js            # 読むだけ（何をするか出す）
  *   node scripts/attach-post-confirmation.js --apply    # 実行
  *
+ * **Apple でサインインのトリガー3本にも使う（2026-10-21）。** `TRIGGER=` で付けるものを選ぶ
+ * （既定は PostConfirmation）。相手の関数の名前は `TRIGGER_FUNCTIONS` で決まる:
+ *
+ *   TRIGGER=DefineAuthChallenge node scripts/attach-post-confirmation.js --apply
+ *   TRIGGER=CreateAuthChallenge …  /  TRIGGER=VerifyAuthChallengeResponse …
+ *
+ * 1回に1つだけ付ける（他のトリガーは残し、残ったことまで読み直して確かめる）。
+ *
  * `UpdateUserPool` は**渡さなかった項目を既定値に戻す**（AWS の仕様）。
  * ここは serverless の `getUpdateConfigFromCurrentSetup` と同じ手順で
  * `DescribeUserPool` の中身を丸ごと送り返し、読み取り専用の項目だけ落とす。
@@ -44,8 +52,18 @@ const { requireEnv } = require("./lib/env");
 
 const TRIGGER = "PostConfirmation";
 
-function expectedFunctionName(stage) {
-    return `photo-gallery-api-${stage}-postConfirmation`;
+/** 付けられるトリガーと、`api/serverless.yml` の関数の名前 */
+const TRIGGER_FUNCTIONS = {
+    PostConfirmation: "postConfirmation",
+    DefineAuthChallenge: "defineAuthChallenge",
+    CreateAuthChallenge: "createAuthChallenge",
+    VerifyAuthChallengeResponse: "verifyAuthChallengeResponse",
+};
+
+function expectedFunctionName(stage, trigger = TRIGGER) {
+    const fn = TRIGGER_FUNCTIONS[trigger];
+    if (!fn) throw new Error(`TRIGGER=${trigger} は扱えません（${Object.keys(TRIGGER_FUNCTIONS).join(" / ")}）`);
+    return `photo-gallery-api-${stage}-${fn}`;
 }
 
 /**
@@ -116,7 +134,7 @@ function planAttach({ attachedArn, expectedArn, sameNamePoolIds }) {
  * 両方送ると API が断るので、旧が返ってきたときだけ新へ写して旧を落とす
  * （serverless と同じ。無いときは触らない——`undefined` を書くと既定値に戻る）。
  */
-function buildUpdateParams(userPool, expectedArn) {
+function buildUpdateParams(userPool, expectedArn, trigger = TRIGGER) {
     const p = { ...userPool };
     for (const k of READ_ONLY) delete p[k];
     const admin = { ...(p.AdminCreateUserConfig ?? {}) };
@@ -127,7 +145,7 @@ function buildUpdateParams(userPool, expectedArn) {
         delete admin.UnusedAccountValidityDays;
         p.AdminCreateUserConfig = admin;
     }
-    p.LambdaConfig = { ...(userPool.LambdaConfig ?? {}), [TRIGGER]: expectedArn };
+    p.LambdaConfig = { ...(userPool.LambdaConfig ?? {}), [trigger]: expectedArn };
     p.UserPoolId = userPool.Id;
     return p;
 }
@@ -165,7 +183,8 @@ async function main() {
     const region = process.env.AWS_REGION ?? "ap-northeast-1";
     const idp = new CognitoIdentityProviderClient({ region });
     const lambda = new LambdaClient({ region });
-    const fnName = expectedFunctionName(stage);
+    const trigger = process.env.TRIGGER || TRIGGER;
+    const fnName = expectedFunctionName(stage, trigger);
 
     console.log(`[attach] pool=${poolId} function=${fnName} ${apply ? "（実行）" : "（読むだけ。--apply で実行）"}`);
 
@@ -174,7 +193,7 @@ async function main() {
     if (pool.Name !== poolNameForStage(stage)) {
         throw new Error(`プール ${poolId} の名前は ${pool.Name} で、STAGE=${stage} の ${poolNameForStage(stage)} と合いません。別環境のプールに付けようとしています`);
     }
-    const attachedArn = pool.LambdaConfig?.[TRIGGER] ?? "";
+    const attachedArn = pool.LambdaConfig?.[trigger] ?? "";
     const sameNamePoolIds = await listPoolsNamed(idp, pool.Name);
 
     let expectedArn;
@@ -196,7 +215,7 @@ async function main() {
     }
 
     const plan = planAttach({ attachedArn, expectedArn, sameNamePoolIds });
-    console.log(`[attach] プール名: ${pool.Name} / いま付いている ${TRIGGER}: ${attachedArn || "（無し）"}`);
+    console.log(`[attach] プール名: ${pool.Name} / いま付いている ${trigger}: ${attachedArn || "（無し）"}`);
     console.log(`[attach] 期待する関数: ${expectedArn}`);
     console.log(`[attach] Cognito からこの関数を呼べる許可（SourceArn=このプール）: ${policyOk ? "あり" : "**無し**"}`);
     for (const w of plan.warnings) console.log(`[attach] ⚠️ ${w}`);
@@ -222,12 +241,12 @@ async function main() {
         console.log("[attach] 呼び出し許可を付けました");
     }
     if (plan.action !== "none") {
-        await idp.send(new UpdateUserPoolCommand(buildUpdateParams(pool, expectedArn)));
+        await idp.send(new UpdateUserPoolCommand(buildUpdateParams(pool, expectedArn, trigger)));
         const after = (await idp.send(new DescribeUserPoolCommand({ UserPoolId: poolId }))).UserPool ?? {};
-        const got = after.LambdaConfig?.[TRIGGER];
-        if (got !== expectedArn) throw new Error(`付けたあとに読み直したら ${TRIGGER}=${got ?? "（無し）"} でした`);
+        const got = after.LambdaConfig?.[trigger];
+        if (got !== expectedArn) throw new Error(`付けたあとに読み直したら ${trigger}=${got ?? "（無し）"} でした`);
         // 他のトリガーも残っているか（PostConfirmation だけ差し替えたはず）
-        const otherTriggers = Object.keys(pool.LambdaConfig ?? {}).filter((k) => k !== TRIGGER);
+        const otherTriggers = Object.keys(pool.LambdaConfig ?? {}).filter((k) => k !== trigger);
         const lostTriggers = otherTriggers.filter((k) => JSON.stringify(after.LambdaConfig?.[k]) !== JSON.stringify(pool.LambdaConfig[k]));
         const changed = changedKeys(pool, after);
         if (changed.length || lostTriggers.length) {
@@ -238,12 +257,12 @@ async function main() {
             process.exitCode = 1;
             return;
         }
-        console.log(`[attach] ${TRIGGER} を付けました（読み直して確認済み・トリガー以外の設定は変わっていない）`);
+        console.log(`[attach] ${trigger} を付けました（読み直して確認済み・トリガー以外の設定は変わっていない）`);
     }
     console.log("[attach] 完了。次に新規登録した人から user グループとプロフィール行に入ります");
 }
 
-module.exports = { planAttach, buildUpdateParams, policyAllowsPool, changedKeys, expectedFunctionName, poolNameForStage, READ_ONLY, TRIGGER };
+module.exports = { TRIGGER_FUNCTIONS, planAttach, buildUpdateParams, policyAllowsPool, changedKeys, expectedFunctionName, poolNameForStage, READ_ONLY, TRIGGER };
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }

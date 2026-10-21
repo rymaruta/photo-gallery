@@ -83,6 +83,10 @@ function bodyOfHandler(handler: string): string {
  */
 const EXCLUDED: Array<{ route: string; reason: string; stillChecks?: [file: string, fn: string, re: RegExp] }> = [
     { route: "DELETE /user/account", reason: "退会そのもの。やり直し（途中で落ちた回の続き）も通す" },
+    {
+        route: "POST /user/apple/revoke",
+        reason: "退会の系統（Apple でサインインの許可の取り消し・退会の直前に呼ぶ）。こちらのデータは書かない（Apple を呼ぶだけ）",
+    },
     { route: "DELETE /upload/discard", reason: "削除の系統（上げた実体を消す）" },
     { route: "DELETE /photos/{id}", reason: "削除の系統" },
     { route: "DELETE /albums/{id}", reason: "削除の系統" },

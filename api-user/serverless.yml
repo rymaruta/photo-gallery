@@ -1363,6 +1363,28 @@ functions:
           authorizer:
             name: cognitoAuthorizer
 
+  # 退会のときの Apple でサインインの取り消し（審査 5.1.1(v)・`src/appleRevoke.ts`・2026-10-21）。
+  # アプリが退会の直前に取り直した認可コードを Apple の /auth/token で交換し、/auth/revoke で取り消す。
+  # **Apple の鍵（SSM パラメータ）を読めるのはこの関数だけ**（専用のロール `AppleRevokeRole`。
+  # `scripts/__tests__/appleSignInKeyScope.test.ts` が見張る）。鍵が無ければ 503（アプリは退会を続ける）
+  revokeAppleSignIn:
+    handler: src/appleRevoke.revokeAppleSignIn
+    role: AppleRevokeRole
+    environment:
+      # 鍵は SSM パラメータストア（owner が画面で作る・`src/appleRevoke.ts` の注記）。
+      # ここに渡すのは道の頭と公開識別子だけ。client_id はそのステージのアプリの Bundle ID
+      APPLE_SIGNIN_PARAM_PREFIX: /journey-photo/${sls:stage}/apple-signin
+      APPLE_TEAM_ID: 5428GX5UM8
+      APPLE_CLIENT_ID: ${param:appStoreBundleId, ''}
+    # Apple への2往復（打ち切り8秒ずつ）
+    timeout: 20
+    events:
+      - httpApi:
+          path: /user/apple/revoke
+          method: POST
+          authorizer:
+            name: cognitoAuthorizer
+
   cleanupStories:
     handler: src/stories.cleanupExpiredStories
     # S3 の削除は直列。6秒では完走できない（黙って途中で切れ、期限切れが
@@ -1540,6 +1562,38 @@ resources:
                     - ssm:GetParameters
                   Resource:
                     - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/journey-photo/${sls:stage}/weatherkit/*
+
+    # Apple でサインインの取り消し（`revokeAppleSignIn`）だけのロール。
+    # **Apple の鍵（SSM パラメータ）を読めるのはここだけ**（WeatherKit の `LightForecastRole` と同じ考え・
+    # 互いの鍵は読ませない）。DynamoDB・S3・Cognito には触らない（Apple を呼ぶだけ）
+    AppleRevokeRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-appleRevoke
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: appleRevoke
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # ログ。これが無いと失敗の理由がどこにも残らない
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - ssm:GetParameters
+                  Resource:
+                    - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/journey-photo/${sls:stage}/apple-signin/*
 
     AppStoreNotifyRole:
       Type: AWS::IAM::Role

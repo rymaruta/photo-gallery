@@ -28,7 +28,7 @@ type PostConfirmationEvent = {
  *
  * 失敗しても登録自体は止めない（トリガーが例外を投げるとサインアップが失敗する）。
  */
-async function createProfileIfMissing(userId: string): Promise<void> {
+export async function createProfileIfMissing(userId: string): Promise<void> {
     try {
         await ddb.send(new PutItemCommand({
             TableName: USERS_TABLE,
@@ -58,14 +58,17 @@ async function createProfileIfMissing(userId: string): Promise<void> {
  * 1人目の登録で作られるようにして、その穴を塞ぐ。
  *
  * 作るのは `user` だけ。`admin` は絶対に作らないし入れない。
+ *
+ * **Apple でサインインで作った利用者にも使う**（`appleSignIn.ts`）。AdminCreateUser で作った
+ * 利用者には PostConfirmation が走らないので、口の中から同じ手順を呼ぶ（2026-10-21）
  */
-async function addToUserGroup(
+export async function addToUserGroup(
     client: CognitoIdentityProviderClient,
-    event: PostConfirmationEvent,
+    target: { userPoolId: string; userName: string },
 ): Promise<void> {
     const add = () => client.send(new AdminAddUserToGroupCommand({
-        UserPoolId: event.userPoolId,
-        Username: event.userName,
+        UserPoolId: target.userPoolId,
+        Username: target.userName,
         GroupName: USER_GROUP,
     }));
     try {
@@ -82,7 +85,7 @@ async function addToUserGroup(
     }
     try {
         await client.send(new CreateGroupCommand({
-            UserPoolId: event.userPoolId,
+            UserPoolId: target.userPoolId,
             GroupName: USER_GROUP,
             Description: "写真の投稿・編集ができる利用者",
         }));

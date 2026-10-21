@@ -212,6 +212,59 @@ functions:
           trigger: PostConfirmation
           existing: true
 
+  # ─── Apple でサインイン（2026-10-21・`src/appleSignIn.ts` / `src/appleChallenge.ts`）───
+  # アプリがネイティブで受け取った Apple の ID トークンを確かめ、Cognito のカスタム認証で入れる。
+  # **Apple の公開鍵だけで確かめる**（秘密は持たない。取り消しの鍵は api-user の `revokeAppleSignIn`）。
+  # `appleBundleIds` が空なら止まる（入口は 503・Verify は通さない）。既定値は置かない
+
+  # 入口（未認証）。探す・既存のメールのアカウントにつなぐ・作る。トークンは出さない
+  appleSignIn:
+    handler: src/appleSignIn.appleSignIn
+    role: AppleSignInRole
+    environment:
+      COGNITO_USER_POOL_ID: ${param:cognitoUserPoolId}
+      APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}
+    # Apple の公開鍵（打ち切り3秒）＋ Cognito の数回
+    timeout: 15
+    events:
+      - httpApi:
+          path: /auth/apple
+          method: POST
+
+  # カスタム認証のトリガー3本。**`custom:apple_sub` を持たない利用者は Define が断る**
+  # （パスワードの人をこの道で開けない）。付け損ねたら
+  # `TRIGGER=DefineAuthChallenge node scripts/attach-post-confirmation.js` で付け直す
+  defineAuthChallenge:
+    handler: src/appleChallenge.defineAuthChallenge
+    role: CognitoChallengeRole
+    events:
+      - cognitoUserPool:
+          pool: ${param:cognitoPoolName}
+          trigger: DefineAuthChallenge
+          existing: true
+
+  createAuthChallenge:
+    handler: src/appleChallenge.createAuthChallenge
+    role: CognitoChallengeRole
+    events:
+      - cognitoUserPool:
+          pool: ${param:cognitoPoolName}
+          trigger: CreateAuthChallenge
+          existing: true
+
+  verifyAuthChallengeResponse:
+    handler: src/appleChallenge.verifyAuthChallengeResponse
+    role: CognitoChallengeRole
+    environment:
+      APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}
+    # Cognito のトリガーの上限は5秒。Apple の公開鍵は控えに当たればすぐ
+    timeout: 5
+    events:
+      - cognitoUserPool:
+          pool: ${param:cognitoPoolName}
+          trigger: VerifyAuthChallengeResponse
+          existing: true
+
 # ---------------------------------------------------------------------------
 # 未認証で呼べる2つの口だけ、専用の最小ロールに分ける（IAM-1。api-user 側と対）
 #
@@ -229,6 +282,72 @@ functions:
 # 書き込みは1つも無い。users テーブル・S3・Cognito にも触らない。
 resources:
   Resources:
+    # Apple でサインインの入口（`appleSignIn`・未認証で呼べる）だけのロール。
+    # 持たせるのは実際に叩くものだけ: そのプールの利用者を探す・作る・属性を書く・
+    # パスワードを確定する・`user` グループに入れる（無ければ作る）、users テーブルの PutItem
+    # （プロフィール行）。写真テーブル・S3・削除の権限は持たない
+    AppleSignInRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-appleSignIn
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: appleSignIn
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+                - Effect: Allow
+                  Action:
+                    - cognito-idp:ListUsers
+                    - cognito-idp:AdminCreateUser
+                    - cognito-idp:AdminSetUserPassword
+                    - cognito-idp:AdminUpdateUserAttributes
+                    - cognito-idp:AdminAddUserToGroup
+                    - cognito-idp:CreateGroup
+                  Resource: arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${param:cognitoUserPoolId}
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                  Resource:
+                    - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${param:usersTable}
+
+    # カスタム認証のトリガー3本のロール。**ログだけ**（Apple の公開鍵を読むのは外への https で、
+    # AWS の権限は要らない）
+    CognitoChallengeRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${sls:stage}-${aws:region}-cognitoChallenge
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: cognitoChallenge
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}*:*
+
     PublicReadRole:
       Type: AWS::IAM::Role
       Properties:

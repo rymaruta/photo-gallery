@@ -60,7 +60,14 @@ const services = [
         /** PublicReadRole ではなく専用ロールで動かす公開関数（関数名 → ロール名） */
         ownRole: { getFeed: "PublicFeedRole", appStoreNotification: "AppStoreNotifyRole" } as Record<string, string>,
     },
-    { name: "api", file: "api/serverless.yml", publicFns: ["getPhotos", "getPhoto"], ownRole: {} as Record<string, string> },
+    {
+        name: "api", file: "api/serverless.yml",
+        // `appleSignIn`（Apple でサインインの入口・2026-10-21）。ログイン前に呼ぶので未認証。
+        // 守りは Apple の ID トークンの署名と nonce（`appleIdToken.ts`）で、ロールは利用者を探す・作る
+        // だけの専用の `AppleSignInRole`（`appleSignInWiring.test.ts` が中身を縛る）
+        publicFns: ["getPhotos", "getPhoto", "appleSignIn"],
+        ownRole: { appleSignIn: "AppleSignInRole" } as Record<string, string>,
+    },
 ];
 
 describe.each(services)("$name: 未認証の口は読み取り専用ロールで動く", ({ file, publicFns, ownRole }) => {
