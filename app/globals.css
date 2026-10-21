@@ -347,6 +347,12 @@ body {
   h1 { font-size: 1.25rem; }
   h2 { font-size: 1.125rem; }
   h3 { font-size: 1rem; }
+
+  /* **見出しの要素に付けた眉ラベルは 11 のまま**（2026-10-21 判断）。上の `h2` はレイヤーの外の規則なので、
+     `@layer utilities` の `eyebrow` の 11px に詳細度と関係なく勝ち、人のページの「訪れた場所」「旅の一冊」と
+     旅の一冊の「たどった場所」（どれも `<h2 class="eyebrow">`）がスマホで 15.75px の真鍮の見出しに膨らんでいた。
+     要素＋クラスで上の行より強く書いて戻す（`fontStack.test.ts` の「眉ラベル」が縛る） */
+  h1.eyebrow, h2.eyebrow, h3.eyebrow { font-size: 11px; }
 }
 
 /* 撮影地マップ（/map）の束（複数枚が重なった升）。数字だけを丸で出す */
