@@ -153,11 +153,13 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
             {/* 入力欄。**画面の下に貼る**（iOS の写真の詳細と同じ・2026-10-21）。一覧の後ろに置き、
                 コメントの段が画面に入っている間は下の案内（`BottomNav`・`--bottom-bar-h`）の**すぐ上**に
                 留まる——下の案内と重ならない。段を過ぎれば一緒に流れる（`sticky`）。
-                **ログインしていない人にも同じ場所に「ログインしてコメント」**（44 の当たり） */}
+                **ログインしていない人にも同じ場所に「ログインしてコメント」**（44 の当たり）。
+                **再生バー（`MiniPlayer`）が出ている間はそのぶん上がる**（`--mini-player-h`・2026-10-21 判断）。
+                同じ所に重なり、入力欄が再生バーの裏に入っていた */}
             <div
                 data-testid="comment-composer"
                 className="sticky z-30 mt-4 -mx-4 px-4 lg:mx-0 lg:px-0 pt-2.5 pb-2.5 bg-bg/95 backdrop-blur border-t border-line"
-                style={{ bottom: "var(--bottom-bar-h, calc(max(22px, env(safe-area-inset-bottom, 0px)) + 62px))" }}
+                style={{ bottom: "calc(var(--bottom-bar-h, calc(max(22px, env(safe-area-inset-bottom, 0px)) + 62px)) + var(--mini-player-h, 0px))" }}
             >
             {isAuthenticated ? (
                 <div className="flex items-end gap-2">

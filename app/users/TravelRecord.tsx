@@ -243,9 +243,13 @@ export default function TravelRecord({ distanceKm, countries, coordinates, first
     );
 
     if (!href) {
+        // 押せない塊。**読み上げは1回だけ**——`role="group"` に名前を付けて中身も読ませると、
+        // 「旅の記録、写真をつないだ距離 …」の後に同じ数と字をもう一度読む（2026-10-21 判断）。
+        // まとめた1文を読ませ、見た目の字は読ませない（押せる形の Link と同じ読み方）
         return (
-            <div role="group" aria-label={label} data-testid="travel-record" className="block mb-5 pt-1 pb-2">
-                {body}
+            <div data-testid="travel-record" className="block mb-5 pt-1 pb-2">
+                <span className="sr-only">{label}</span>
+                <span aria-hidden="true" className="block">{body}</span>
             </div>
         );
     }

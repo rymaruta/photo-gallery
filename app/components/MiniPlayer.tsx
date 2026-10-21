@@ -15,6 +15,7 @@ import { XMarkIcon, MusicalNoteIcon, ArrowsRightLeftIcon, ArrowPathIcon } from "
 import { useMusic } from "../music/MusicContext";
 import SmoothProgress from "./SmoothProgress";
 import { clampMiniPlayerPos } from "../../lib/utils/miniPlayerPos";
+import { MINI_PLAYER_GAP_PX, useMiniPlayerHeight } from "../../lib/hooks/useBottomBarHeight";
 
 // 画面下に固定の操作バーがあるページでは、その上へ逃がす。
 // **高さは決め打ちしない。** 以前は「`p-4` + ボタン44px + 枠線 ≒ 80px」と
@@ -50,6 +51,14 @@ export default function MiniPlayer() {
     const [pos, setPos] = useState<Pos | null>(null);
     // ドラッグ中の状態: ポインタと要素左上のオフセット + 要素サイズ
     const dragRef = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null);
+    // 下に貼ったときの高さを `--mini-player-h` に出す（下の案内の上に貼る帯がそのぶん上がる）。
+    // **デスクトップで動かした間は出さない**——下に居ないので、帯を上げると隙間だけが空く
+    const publishHeight = useMiniPlayerHeight();
+    const positionedNow = draggable && pos !== null;
+    const setBox = useCallback((node: HTMLDivElement | null) => {
+        boxRef.current = node;
+        publishHeight(positionedNow ? null : node);
+    }, [publishHeight, positionedNow]);
 
     // デスクトップ（hover 可能・細かいポインタ）だけ移動を許可
     useEffect(() => {
@@ -139,10 +148,10 @@ export default function MiniPlayer() {
     // 押したつもりでプレイヤーのボタンが反応していた（iPhone で顕著）。
     const outerStyle: React.CSSProperties = positioned
         ? { left: pos!.x, top: pos!.y, width: "min(28rem, calc(100vw - 24px))" }
-        : { bottom: "calc(12px + var(--bottom-bar-h, env(safe-area-inset-bottom, 0px)))" };
+        : { bottom: `calc(${MINI_PLAYER_GAP_PX}px + var(--bottom-bar-h, env(safe-area-inset-bottom, 0px)))` };
 
     return (
-        <div ref={boxRef} className={outerClass} style={outerStyle}>
+        <div ref={setBox} className={outerClass} style={outerStyle}>
             <div className="relative rounded-2xl bg-surface-2/95 backdrop-blur-md ring-1 ring-white/15 shadow-2xl shadow-black/50 overflow-hidden">
                 {/* プログレス（上辺・rAFで滑らかに更新） */}
                 <SmoothProgress

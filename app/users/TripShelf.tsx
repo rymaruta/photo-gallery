@@ -41,6 +41,7 @@ export function shelfExplanation(isJa: boolean): string {
         : "Two or more public photos taken around the same time become a trip";
 }
 
+/** 表紙の札。**フォーカスの枠は白**（写真の上には白しか置かない。真鍮の枠は写真に溶ける・2026-10-21） */
 function CoverCard({ trip, userId, isJa }: { trip: Trip; userId: string; isJa: boolean }) {
     const cover = coverOf(trip);
     const title = tripName(trip, isJa);
@@ -50,8 +51,8 @@ function CoverCard({ trip, userId, isJa }: { trip: Trip; userId: string; isJa: b
             href={tripBookPath(userId, trip)}
             prefetch={false}
             data-testid="trip-shelf-cover"
-            aria-label={`${title}、${line}`}
-            className="relative block overflow-hidden rounded-2xl ring-1 ring-inset ring-line focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label={`${title}${isJa ? "、" : ", "}${line}`}
+            className="relative block overflow-hidden rounded-2xl ring-1 ring-inset ring-line focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             style={{ height: "190px", touchAction: "manipulation" }}
         >
             {cover && (
@@ -78,7 +79,7 @@ function Row({ trip, userId, isJa }: { trip: Trip; userId: string; isJa: boolean
             href={tripBookPath(userId, trip)}
             prefetch={false}
             data-testid="trip-shelf-row"
-            aria-label={`${title}、${line}`}
+            aria-label={`${title}${isJa ? "、" : ", "}${line}`}
             className="flex items-center gap-[14px] py-2 border-b border-line focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             style={{ minHeight: "72px", touchAction: "manipulation" }}
         >
