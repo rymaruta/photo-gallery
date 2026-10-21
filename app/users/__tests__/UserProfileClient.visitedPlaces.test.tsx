@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 // **他人のページの「訪れた場所」**（板 v2 UserProfile のチップ）。
 //
@@ -76,8 +76,9 @@ describe("訪れた場所のチップ", () => {
 
     it("🔴 行き先のページが無い撮影地はリンクにしない（404 へ連れて行かない）", async () => {
         render(<UserProfileClient userId={OWNER} />);
-        await screen.findByTestId("visited-places");
-        expect(screen.queryByRole("link", { name: /新しい町/ })).toBeNull();
+        const section = await screen.findByTestId("visited-places");
+        // チップの中だけを見る（同じ地名は「旅の一冊」の札にも出る・2026-10-21）
+        expect(within(section).queryByRole("link", { name: /新しい町/ })).toBeNull();
         const kyoto = screen.getByRole("link", { name: "京都（3枚）" });
         expect(kyoto.getAttribute("href")).toBe(`/location/${encodeURIComponent("京都")}`);
         expect(kyoto.style.minHeight, "押せる高さが 44 に足りない").toBe("44px");
