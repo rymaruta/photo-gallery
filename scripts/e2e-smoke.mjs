@@ -90,24 +90,46 @@ function resolveChromium() {
  * スモークは全画面を回らないので、実際の数はこれより多い——だから
  * 「半分」という余裕のある線で見る。
  */
-function maxAssetEntriesFromSw() {
+/**
+ * **数え方は `public/sw.js` の実物から読む**（2026-10-21）。
+ *
+ * SW は字のファイル（woff2）を控えない（`isWebFont`）。以前はその判定の
+ * 写し（正規表現）をここに持っていたが、写しは片方だけ直されてずれる
+ * （実際に main は SW 側の直しを欠いたまま出ようとして、ここで止まった）。
+ * sw.js を読み込んで、SW が資産キャッシュに入れる判定（`isImmutableAsset`）と
+ * 上限（`MAX_ASSET_ENTRIES`）をそのまま使う。
+ */
+function loadSwAssetRule() {
     const src = fs.readFileSync(path.resolve(__dirname, "..", "public", "sw.js"), "utf8");
-    const m = /const\s+MAX_ASSET_ENTRIES\s*=\s*(\d+)/.exec(src);
-    return m ? Number(m[1]) : 0;
+    const self_ = { addEventListener() {}, location: { origin: `http://localhost:${PORT}` } };
+    // eslint-disable-next-line no-new-func
+    return new Function("self", `${src}\nreturn { isImmutableAsset, MAX_ASSET_ENTRIES };`)(self_);
 }
-/** このエンジンで要求された `/_next/static/**` の異なり */
+const swAssetRule = loadSwAssetRule();
+/** このエンジンで要求され、SW が資産キャッシュに控える `/_next/static/**` の異なり */
 const staticAssets = new Set();
+/** 要求されたが SW が控えないもの（字のファイル）の異なり。内訳の報告用 */
+const skippedStaticAssets = new Set();
 function watchStaticAssets(ctx) {
     ctx.on("request", (req) => {
         try {
             const u = new URL(req.url());
-            // 字のファイル（woff2・woff）は SW が控えない（`public/sw.js` の `isWebFont`）ので数えない
-            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")
-                && !/\.woff2?$/.test(u.pathname)) {
-                staticAssets.add(u.pathname);
+            if ((u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.pathname.startsWith("/_next/static/")) {
+                if (swAssetRule.isImmutableAsset(u)) staticAssets.add(u.pathname);
+                else skippedStaticAssets.add(u.pathname);
             }
         } catch { /* 相対でない URL は無視 */ }
     });
+}
+/** 内訳（js / css / その他）。落ちたときに何が増えたか分かるように */
+function breakdownOf(set) {
+    const n = { js: 0, css: 0, other: 0 };
+    for (const p of set) {
+        if (p.endsWith(".js")) n.js++;
+        else if (p.endsWith(".css")) n.css++;
+        else n.other++;
+    }
+    return `js ${n.js}・css ${n.css}・その他 ${n.other}`;
 }
 
 const failures = [];
@@ -805,10 +827,12 @@ async function runChecks(browser, eng) {
     await runSignedInChecks(browser, eng);
 
     // **資産の異なりが、SW の上限の半分に収まっているか**（上の注記を参照）
-    const limit = maxAssetEntriesFromSw();
+    const limit = swAssetRule.MAX_ASSET_ENTRIES;
+    console.log(`  ℹ️ [${eng}] SW が控える資産の異なり ${staticAssets.size}（${breakdownOf(staticAssets)}）`
+        + `／控えない字のファイル ${skippedStaticAssets.size}`);
     check(`[${eng}] SW の資産キャッシュに 2デプロイぶんが収まる`,
         limit > 0 && staticAssets.size > 0 && staticAssets.size * 2 <= limit,
-        `異なり=${staticAssets.size} × 2デプロイ = ${staticAssets.size * 2} / 上限 ${limit}`);
+        `異なり=${staticAssets.size}（${breakdownOf(staticAssets)}） × 2デプロイ = ${staticAssets.size * 2} / 上限 ${limit}`);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
