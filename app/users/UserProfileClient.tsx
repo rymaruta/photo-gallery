@@ -11,6 +11,8 @@ import { swipeDirection, stepInList } from "../../lib/utils/swipe";
 import { nextTabIndex } from "../../lib/utils/tabKeys";
 import { routeCoordinates, connectKm, countriesInOrder, firstYear } from "../../lib/utils/travelRoute";
 import TravelRecord from "./TravelRecord";
+import { TripShelfList, ProfileTripsLine } from "./TripShelf";
+import { profileTripPhotos, shelfTrips } from "../../lib/utils/tripBook";
 import { hapticTap } from "../../lib/utils/haptics";
 import MusicCard from "../components/MusicCard";
 import FollowButton, { FollowAction } from "../components/FollowButton";
@@ -112,9 +114,12 @@ type UserProfile = {
  */
 const StoriesBar = dynamic(() => import("../components/stories/StoriesBar"), { ssr: false });
 
-type TabKey = "posts" | "timeline";
-/** タブ。`timeline` は**年表**（内部名は古い）。「フォロー中」はトップのタブに在る */
-const TAB_ORDER: TabKey[] = ["posts", "timeline"];
+type TabKey = "posts" | "timeline" | "trips";
+/**
+ * タブ。`timeline` は**年表**（内部名は古い）。「フォロー中」はトップのタブに在る。
+ * `trips` は**旅の一冊の棚**（iOS の「旅の記録」のタブ・2026-10-21 に Web へ）
+ */
+const TAB_ORDER: TabKey[] = ["posts", "timeline", "trips"];
 
 // 写真を「YYYY年 / M月」で時系列グループ化（撮影日 date 優先、なければ createdAt）
 type TimelineGroup = { key: string; year: string; label: string; photos: Photo[] };
@@ -1080,16 +1085,34 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
     // （EXIF 由来の撮影日）がローカル時刻として読まれ、見えている距離が閲覧者の
     // タイムゾーンで変わりえた。**日時を読めない写真は入れない**（つなぐ順が決まらない
     // 写真を、いちばん古い場所として数えると1脚ぶん距離が増える）。
+    //
+    // **人のページにも出す**（2026-10-21・iOS の `ProfileTravelRecord`・owner「他人のプロフィールでも
+    // 旅の記録を」）。人のページは**その人の公開写真だけ**から作り（`profileTripPhotos`）、
+    // **ブロックの関係なら何も作らない**。本人は今までどおり自分の写真すべて。
+    const tripPhotos = useMemo(
+        () => profileTripPhotos(publishedPhotos, !isOwner && blocked),
+        [publishedPhotos, isOwner, blocked],
+    );
+    const travelSource = isOwner ? visiblePhotos : tripPhotos;
     const travel = useMemo(() => {
-        const coordinates = routeCoordinates(visiblePhotos);
+        const coordinates = routeCoordinates(travelSource);
         return {
             coordinates,
             distanceKm: connectKm(coordinates),
             geoCount: coordinates.length,
-            countries: countriesInOrder(visiblePhotos),
-            firstYear: firstYear(visiblePhotos),
+            countries: countriesInOrder(travelSource),
+            firstYear: firstYear(travelSource),
         };
-    }, [visiblePhotos]);
+    }, [travelSource]);
+
+    // 旅の一冊の棚（iOS の `TripBook.shelfTrips`）。**本人のページでも公開写真だけ**——
+    // 一冊のページ（`/users/trip`）は誰が開いても公開写真から作るので、本人の棚にだけ
+    // 非公開の一冊が並ぶと、押した先で「見つかりません」になる
+    const trips = useMemo(() => shelfTrips(tripPhotos), [tripPhotos]);
+    const showTrips = useCallback(() => {
+        setTab("trips");
+        document.getElementById("profile-tab-trips")?.scrollIntoView({ block: "nearest" });
+    }, []);
 
 
     // 訪れた場所（板 v2 UserProfile のチップ）: この人の公開写真の撮影地を多い順に。
@@ -1496,12 +1519,13 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
 
                     {/* 旅の記録（v2 の板 MyPage・案 H1「星図」。iOS の `TravelRecordView` と同じ形）。
                         以前は「総移動距離」の1行（紙飛行機のアイコン＋数字）だった。
-                        **本人のページだけ。** 他人のページは板 UserProfile のとおり「訪れた場所」。
-                        押した先は撮影地マップ（`/map`）＝**全員の写真**なので、他人のページに
-                        置くと「この人の旅の続き」に見えて別のものへ連れて行く。
+                        **人のページにも出す**（2026-10-21・iOS の `ProfileTravelRecord` と同じ。その人の
+                        公開写真だけ・ブロックの関係なら出さない・写真が届いてから）。ただし**押せるのは
+                        本人のページだけ**——押した先の撮影地マップ（`/map`）は**全員の写真**なので、
+                        人のページで押せると「この人の旅の続き」に見えて別のものへ連れて行く。
                         距離は2枚以上・1km 以上のときだけ（同じ町の中だけの数字は出さない）。
                         国・地域は撮影地に国名が書かれた写真だけを数える（`visitedCountries.ts`）。 */}
-                    {isOwner && (() => {
+                    {(isOwner || photosResolved) && (() => {
                         const showDistance = travel.geoCount >= 2 && travel.distanceKm >= 1;
                         if (!showDistance && travel.countries.length === 0) return null;
                         return (
@@ -1510,7 +1534,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 countries={travel.countries}
                                 coordinates={travel.coordinates}
                                 firstYear={travel.firstYear}
-                                href={ROUTES.MAP}
+                                href={isOwner ? ROUTES.MAP : undefined}
+                                isMine={isOwner}
                                 locale={locale}
                             />
                         );
@@ -1555,6 +1580,12 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                                 )}
                             </ul>
                         </section>
+                    )}
+
+                    {/* 旅の一冊（板 UserProfile F33「旅」・iOS の `ProfileTripsLine`）。いちばん新しい一冊の札と、
+                        2冊以上なら「すべての旅 · N冊」（旅のタブへ）。一冊も無ければ節ごと出さない */}
+                    {photosResolved && trips.length > 0 && (
+                        <ProfileTripsLine trips={trips} userId={userId} isJa={locale !== "en"} onShowAll={showTrips} />
                     )}
 
                     {userProfile?.website && (
@@ -1729,7 +1760,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     **本人には「行きたい場所」「保存」も並べる**（板 MyPage の4つに寄せる）。
                     中身は別のページ（`/saved-spots`・`/saves`）なので**タブではなくリンク**で、
                     tablist の外に置く（`role="tab"` で別ページへ飛ぶと、矢印キーの作法と食い違う）。
-                    板の「旅の記録」（旅の一冊の棚）は Web に無いので作らない——年表はそのまま */}
+                    3つ目の「旅」は**旅の一冊の棚**（板の「旅の記録」のタブ・iOS の `TripShelfList`・2026-10-21）。
+                    その人の公開写真から、3日空くまでを1つの旅・2枚から一冊にまとめる（`lib/utils/tripBook.ts`） */}
                 <div className="flex items-end gap-[22px] border-b border-line mb-[2px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 <div
                     role="tablist"
@@ -1739,6 +1771,7 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {([
                         { key: "posts", label: locale === "en" ? "Posts" : "投稿" },
                         { key: "timeline", label: locale === "en" ? "Timeline" : "年表" },
+                        { key: "trips", label: locale === "en" ? "Trips" : "旅" },
                     ] as const).filter(({ key }) => (TAB_ORDER as string[]).includes(key)).map(({ key, label }) => {
                         const active = tab === key;
                         return (
@@ -1812,7 +1845,8 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                             testId="profile-posts-empty"
                         />
                     ) : <LoadingState kind="grid" locale={locale === "en" ? "en" : "ja"} testId="profile-posts-loading" />) : (
-                        <div className="grid grid-cols-3 gap-[2px] pb-8">
+                        // **スマホ（640px 未満）は端から端まで**（iOS の格子と同じ・2026-10-21）。外枠の左右 16px を打ち消す
+                        <div className="grid grid-cols-3 gap-[2px] pb-8 -mx-4 sm:mx-0" data-testid="profile-grid">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
                                     key={photo.id}
@@ -1832,7 +1866,14 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     </div>
                 )}
 
-                {/* 旅アルバムタブ: 撮影日から自動生成される旅ごとのアルバム */}
+                {/* 旅タブ: 旅の一冊の棚（公開写真から自動でまとまる） */}
+                {tab === "trips" && (
+                    <div role="tabpanel" id="profile-panel-trips" aria-labelledby="profile-tab-trips" className="pt-4 pb-8">
+                        {photosResolved
+                            ? <TripShelfList trips={trips} userId={userId} isJa={locale !== "en"} />
+                            : <LoadingState kind="rows" locale={locale === "en" ? "en" : "ja"} testId="profile-trips-loading" />}
+                    </div>
+                )}
                 {/* 年表タブ */}
                 {tab === "timeline" && (
                     <div role="tabpanel" id="profile-panel-timeline" aria-labelledby="profile-tab-timeline" className="pb-8 pt-2">

@@ -40,7 +40,7 @@ describe("マイページのタブの意味づけ", () => {
     it("🔴 `role=\"tablist\"` の中の `role=\"tab\"` で、選択中は `aria-selected`", () => {
         render(<UserProfileClient userId="nobody" />);
         expect(screen.getByRole("tablist")).toBeTruthy();
-        expect(tabs()).toHaveLength(2);
+        expect(tabs()).toHaveLength(3); // 投稿・年表・旅（2026-10-21）
         expect(selected()?.textContent).toContain("Posts");
         // **`aria-pressed` は名乗らない**（押し直しても外れないので嘘になる）
         for (const t of tabs()) expect(t.hasAttribute("aria-pressed"), "`aria-pressed` が残っている").toBe(false);
@@ -49,7 +49,7 @@ describe("マイページのタブの意味づけ", () => {
     // roving tabindex（停止点は1つ）。無いと、タブの数だけ Tab を押すことになる
     it("止まれるのは選択中のタブだけ", () => {
         render(<UserProfileClient userId="nobody" />);
-        expect(tabs().map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1"]);
+        expect(tabs().map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
     });
 
     // 🔴 `role="tab"` を名乗った以上、矢印で動かないと壊れて見える
@@ -58,6 +58,8 @@ describe("マイページのタブの意味づけ", () => {
         fireEvent.keyDown(selected()!, { key: "ArrowRight" });
         expect(selected()?.textContent).toContain("Timeline");
         expect(document.activeElement).toBe(selected());
+        fireEvent.keyDown(selected()!, { key: "ArrowRight" });
+        expect(selected()?.textContent).toContain("Trips");
         // 端で折り返す（`tabKeys.ts` の規則）
         fireEvent.keyDown(selected()!, { key: "ArrowRight" });
         expect(selected()?.textContent).toContain("Posts");

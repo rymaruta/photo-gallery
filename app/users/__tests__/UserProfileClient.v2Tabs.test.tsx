@@ -65,10 +65,10 @@ describe("下線の札（v2）", () => {
         const want = await screen.findByRole("link", { name: "行きたい場所" });
         expect(want.getAttribute("href")).toBe("/saved-spots");
         expect(screen.getByRole("link", { name: "保存" }).getAttribute("href")).toBe("/saves");
-        // tablist の中に入れない＝タブは2つのまま
+        // tablist の中に入れない＝タブは 投稿・年表・旅 の3つのまま（旅は 2026-10-21）
         const tablist = screen.getByRole("tablist");
         expect(tablist.contains(want)).toBe(false);
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["投稿", "年表"]);
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["投稿", "年表", "旅"]);
         // 押せる高さ 44
         expect(want.style.height).toBe("44px");
     });
