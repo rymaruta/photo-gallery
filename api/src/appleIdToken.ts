@@ -29,6 +29,9 @@ const CLOCK_SKEW_SEC = 60;
 
 export type AppleIdClaims = {
     sub: string;
+    /** nonce の SHA-256（使い回しの見張りの鍵）と、トークンの期限（epoch ミリ秒） */
+    nonceHash: string;
+    expiresAtMs: number;
     email?: string;
     emailVerified: boolean;
     isPrivateEmail: boolean;
@@ -42,6 +45,14 @@ export class AppleTokenError extends Error {
 }
 
 type Jwk = JsonWebKey & { kid?: string; alg?: string };
+
+/**
+ * 機能の切り替え（`APPLE_SIGNIN_ENABLED`・**既定は off**・2026-10-21）。`"true"` のときだけ動く。
+ * off の間は入口が 503 を返し、Verify も通さない（Bundle ID の設定とは別に、止めた状態を明示で持つ）
+ */
+export function appleSignInEnabled(raw = process.env.APPLE_SIGNIN_ENABLED ?? ""): boolean {
+    return raw.trim().toLowerCase() === "true";
+}
 
 /** 許す Bundle ID（`APPLE_BUNDLE_IDS`）。空なら機能を止める（既定値は置かない） */
 export function allowedAudiences(raw = process.env.APPLE_BUNDLE_IDS ?? ""): string[] {
@@ -78,11 +89,16 @@ function sameString(a: string, b: string): boolean {
 // ─── 公開鍵 ─────────────────────────────────────────────
 
 const KEYS_TTL_MS = 60 * 60 * 1000;
+/** Apple へ鍵を読みにいく間合いの下限（知らない `kid` を投げ続けられても、Apple を叩き続けない） */
+export const KEYS_REFETCH_MIN_MS = 5 * 60 * 1000;
 let cachedKeys: { keys: Jwk[]; at: number } | null = null;
+let lastFetchAt = Number.NEGATIVE_INFINITY;
 
 /** 控えを捨てる（テストから） */
 export function resetAppleKeys(): void {
     cachedKeys = null;
+    lastFetchAt = Number.NEGATIVE_INFINITY;
+    seenNonces.clear();
 }
 
 export type KeyFetcher = () => Promise<Jwk[]>;
@@ -95,16 +111,58 @@ export const fetchAppleKeys: KeyFetcher = async () => {
 };
 
 /**
- * `kid` の公開鍵。1時間控える。**控えに無い `kid` が来たら1度だけ読み直す**（Apple が鍵を回した）
+ * `kid` の公開鍵。1時間控える。控えに無い `kid` が来たら読み直す（Apple が鍵を回した）。
+ *
+ * - **読み直しは `KEYS_REFETCH_MIN_MS`（5分）に1回まで。** 未認証の口なので、でたらめな `kid` を
+ *   投げ続けられると、そのたびに Apple を叩いていた
+ * - **読めなかった回・空の答えでは控えを上書きしない**（Apple の一時的な不調で、手元の正しい鍵まで
+ *   捨てない）。古くなった控えでも、合う鍵があれば使う
  */
 async function keyFor(kid: string, fetchKeys: KeyFetcher, now: number): Promise<Jwk | undefined> {
-    const fresh = cachedKeys && now - cachedKeys.at < KEYS_TTL_MS;
-    let hit = fresh ? cachedKeys!.keys.find((k) => k.kid === kid) : undefined;
-    if (hit) return hit;
-    const keys = await fetchKeys();
-    cachedKeys = { keys, at: now };
-    hit = keys.find((k) => k.kid === kid);
-    return hit;
+    const fresh = cachedKeys !== null && now - cachedKeys.at < KEYS_TTL_MS;
+    const hit = cachedKeys?.keys.find((k) => k.kid === kid);
+    if (hit && fresh) return hit;
+    if (now - lastFetchAt < KEYS_REFETCH_MIN_MS) return hit;
+    lastFetchAt = now;
+    let keys: Jwk[];
+    try {
+        keys = await fetchKeys();
+    } catch (e) {
+        if (hit) return hit;
+        throw e;
+    }
+    if (keys.length > 0) cachedKeys = { keys, at: now };
+    return cachedKeys?.keys.find((k) => k.kid === kid);
+}
+
+// ─── 使い回しの見張り ─────────────────────────────────────
+
+/**
+ * nonce の使い回しを止める（**Lambda の1つの実体の中だけ**・2026-10-21 判断）。
+ *
+ * 同じ nonce（＝同じ Apple のトークン）は、入口（`/auth/apple`）で1回・Verify で1回まで。
+ * 覚えるのはトークンの期限まで。
+ *
+ * ⚠️ **実体をまたいだ見張りではない。** 別の実体に回された2回目は通る。既存の DynamoDB の表に
+ * 置くことも考えたが、**どの表も TTL が有効になっていない**（users の墓石の `ttl` も未有効・
+ * `api-user/src/account.ts`）。写真テーブル・users テーブルは全表 Scan で読む口があり、消えない行を
+ * ログインのたびに足すと全員の表示が遅くなる。新しい表・TTL の有効化は owner の承認が要るので見送った。
+ * 残る使い回しの道は「通信の途中でトークンと nonce を盗む」ことで、TLS とトークンの短い期限（Apple は
+ * 約10分）で狭まっている
+ */
+const seenNonces = new Map<string, number>();
+
+/**
+ * @returns 初めてなら true（覚える）。期限内に同じ `purpose` で見ていれば false
+ */
+export function consumeNonce(nonceHash: string, purpose: "link" | "verify", expiresAtMs: number, now = Date.now()): boolean {
+    for (const [k, exp] of seenNonces) if (exp < now) seenNonces.delete(k);
+    const key = `${purpose}:${nonceHash}`;
+    if (seenNonces.has(key)) return false;
+    // 溢れさせない（1つの実体が覚えるのは最近の分だけ）
+    if (seenNonces.size >= 5000) seenNonces.delete(seenNonces.keys().next().value as string);
+    seenNonces.set(key, expiresAtMs);
+    return true;
 }
 
 // ─── 確かめる ───────────────────────────────────────────
@@ -160,12 +218,14 @@ export async function verifyAppleIdentityToken(
     // Apple の sub は「000123.abcdef….0123」の形（英数と点）。Cognito の属性に入れるので形も見る
     if (!/^[A-Za-z0-9.]{1,128}$/.test(sub)) throw new AppleTokenError("sub の形が違う");
 
-    // **大文字小文字は触らない**（Cognito に入っているメールと同じ綴りで探すため。
-    // 登録の口も前後の空白しか落としていない・iOS の `AuthGateway.signUp`）
+    // ここでは大文字小文字を触らない（探すときに、元の綴りと小文字の両方で引いて、小文字で比べる・
+    // `appleSignIn.ts` の `sameEmail`）
     const email = typeof payload.email === "string" && payload.email.includes("@")
         ? payload.email.trim() : undefined;
     return {
         sub,
+        nonceHash: nonce,
+        expiresAtMs: exp * 1000,
         email,
         emailVerified: truthy(payload.email_verified),
         isPrivateEmail: truthy(payload.is_private_email),

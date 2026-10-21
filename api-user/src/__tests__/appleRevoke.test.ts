@@ -54,10 +54,13 @@ describe("revokeWithCode", () => {
     });
 
     // 🔴 他人の Apple ID のコードで、他人の許可を取り消させない
-    it("Apple の sub が呼んだ人の custom:apple_sub と違えば取り消さない", async () => {
-        const post = vi.fn().mockResolvedValueOnce({ status: 200, body: { refresh_token: "rt-1", id_token: idToken("002.b.2") } });
+    it("Apple の sub が呼んだ人の custom:apple_sub と違えば断る（交換で生まれた更新トークンは取り消してから）", async () => {
+        const post = vi.fn()
+            .mockResolvedValueOnce({ status: 200, body: { refresh_token: "rt-1", id_token: idToken("002.b.2") } })
+            .mockResolvedValueOnce({ status: 200, body: "" });
         expect(await revokeWithCode("code-1", "001.a.1", cfg, post)).toBe("mismatch");
-        expect(post).toHaveBeenCalledTimes(1);
+        expect(post).toHaveBeenCalledTimes(2);
+        expect(post.mock.calls[1][1]).toMatchObject({ token: "rt-1", token_type_hint: "refresh_token" });
     });
 
     it("交換を断られた・取り消しを断られたら failed", async () => {

@@ -13,8 +13,8 @@ import { jsonError } from "./http";
  *   1. https://appleid.apple.com/auth/token   認可コード → 更新トークン（と ID トークン）
  *   2. https://appleid.apple.com/auth/revoke  更新トークンを取り消す
  *
- * の順に呼ぶ。**取り消すのは呼んだ本人の Apple ID だけ**: 1. で Apple から返った ID トークンの sub が、
- * 呼んだ人の Cognito の ID トークンの `custom:apple_sub` と同じことを確かめてから 2. へ進む。
+ * の順に呼ぶ。1. で Apple から返った ID トークンの sub が、呼んだ人の Cognito の ID トークンの
+ * `custom:apple_sub` と違えば 403（交換で生まれた更新トークンは取り消してから断る）。
  *
  *     要求  { "authorizationCode": "<ASAuthorizationAppleIDCredential.authorizationCode>" }
  *     応答  204（取り消した）
@@ -153,11 +153,14 @@ export async function revokeWithCode(
         console.warn(`appleRevoke: コードを交換できませんでした（${token.status} ${String(body.error ?? "")}）`);
         return "failed";
     }
-    if (subOfIdToken(body.id_token) !== expectedSub) return "mismatch";
+    // **sub が違っても、交換で受け取った更新トークンは取り消してから断る**（2026-10-21）。
+    // 交換した時点で新しい更新トークンが生まれている——放っておくと、使われない鍵が Apple に残る
+    const mismatch = subOfIdToken(body.id_token) !== expectedSub;
     const revoke = await post(`${APPLE}/auth/revoke`, {
         client_id: cfg.clientId, client_secret: cfg.clientSecret,
         token: body.refresh_token, token_type_hint: "refresh_token",
     });
+    if (mismatch) return "mismatch";
     if (revoke.status !== 200) {
         console.warn(`appleRevoke: 取り消しを断られました（${revoke.status}）`);
         return "failed";

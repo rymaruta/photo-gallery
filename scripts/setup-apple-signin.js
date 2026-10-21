@@ -20,10 +20,14 @@
  * カスタム認証を許しても、パスワードの利用者がこの道で入ることはできない（`api/src/appleChallenge.ts`
  * の Define が `custom:apple_sub` の無い人を断る）。
  *
- * 書き込める属性（`WriteAttributes`）は**変えない**（2026-10-21 判断）。利用者が自分の
- * `custom:apple_sub` を書き換えても、他人のアカウントには入れない（Apple のトークンの sub と一致しないと
- * 通らない）ので害は自分のアカウントのつなぎが外れるだけ。絞り直すと、Web とアプリが書いている属性を
- * 列挙し損ねたときにメールの変更などが壊れる方が怖い。
+ * 3. 🔴 **利用者が `custom:apple_sub` を書けないようにする**（`WriteAttributes`・2026-10-21 の見直し）。
+ *    書けるままだと、一時的にログインを奪った人が**自分の Apple の sub を書き込み、裏口として残せる**
+ *    （パスワードを変えても消えない）。サーバーは Admin の API で書くので、クライアントの許可は要らない。
+ *    - いま一覧を持っている（絞っている）なら、そこから `custom:apple_sub` だけを外す（ほかは残す）
+ *    - 一覧が無い（＝全部書ける）なら、**アプリが実際に書く属性だけ**の一覧にする: `APP_WRITES`
+ *      （Web の登録とメールの変更・`lib/auth/cognito.ts`、iOS の登録・`AuthGateway.signUp` が書くのは
+ *      `email` だけ）。プールの必須の属性があれば足す（登録で要る）
+ *    前の一覧は画面に出す（戻すときに使う）。
  */
 const {
     AddCustomAttributesCommand, CognitoIdentityProviderClient, DescribeUserPoolClientCommand,
@@ -34,6 +38,8 @@ const { requireEnv } = require("./lib/env");
 const ATTR = "apple_sub";
 const ATTR_FULL = `custom:${ATTR}`;
 const FLOW = "ALLOW_CUSTOM_AUTH";
+/** アプリ（Web・iOS）が利用者の鍵で書く属性。増やした日はここにも足す */
+const APP_WRITES = ["email"];
 
 /** `UpdateUserPoolClient` が受け取る項目（AWS の API の一覧。これ以外は送らない） */
 const CLIENT_WRITABLE = [
@@ -53,7 +59,7 @@ function hasAppleAttribute(userPool) {
  * クライアントの更新の本文と、変える項目を決める（純関数・テスト可能）。
  * @returns { params, changes: string[] }  changes が空なら何もしない
  */
-function planClientUpdate(client) {
+function planClientUpdate(client, userPool = {}) {
     const params = { UserPoolId: client.UserPoolId, ClientId: client.ClientId };
     for (const k of CLIENT_WRITABLE) if (client[k] !== undefined) params[k] = client[k];
     const changes = [];
@@ -67,6 +73,16 @@ function planClientUpdate(client) {
     if (read.length > 0 && !read.includes(ATTR_FULL)) {
         params.ReadAttributes = [...read, ATTR_FULL];
         changes.push("ReadAttributes");
+    }
+    // 書ける属性から custom:apple_sub を外す（裏口にさせない）
+    const write = client.WriteAttributes ?? [];
+    const required = (userPool.SchemaAttributes ?? []).filter((a) => a.Required).map((a) => a.Name);
+    const nextWrite = write.length > 0
+        ? write.filter((a) => a !== ATTR_FULL)
+        : [...new Set([...APP_WRITES, ...required])].filter((a) => a !== ATTR_FULL);
+    if (JSON.stringify(nextWrite) !== JSON.stringify(write)) {
+        params.WriteAttributes = nextWrite;
+        changes.push("WriteAttributes");
     }
     return { params, changes };
 }
@@ -118,10 +134,10 @@ async function main() {
     if (clients.length === 0) throw new Error("アプリのクライアントがありません");
     for (const c of clients) {
         const client = (await idp.send(new DescribeUserPoolClientCommand({ UserPoolId: poolId, ClientId: c.ClientId }))).UserPoolClient;
-        const { params, changes } = planClientUpdate(client);
+        const { params, changes } = planClientUpdate(client, pool);
         console.log(`[apple] クライアント ${client.ClientName}（${client.ClientId}）: ${changes.length ? `変える ${changes.join(", ")}` : "何もしない"}`);
-        if (!client.WriteAttributes?.length || client.WriteAttributes.includes(ATTR_FULL)) {
-            console.log(`[apple]   （${ATTR_FULL} は利用者が自分で書けます。害は小さいので変えません・冒頭の注記）`);
+        if (changes.includes("WriteAttributes")) {
+            console.log(`[apple]   書ける属性: ${client.WriteAttributes?.length ? JSON.stringify(client.WriteAttributes) : "（一覧なし＝全部）"} → ${JSON.stringify(params.WriteAttributes)}`);
         }
         if (!apply || changes.length === 0) continue;
         await idp.send(new UpdateUserPoolClientCommand(params));
@@ -138,7 +154,7 @@ async function main() {
     if (!apply) console.log("[apple] 読むだけで終わります（--apply で実行）");
 }
 
-module.exports = { hasAppleAttribute, planClientUpdate, unexpectedClientChanges, poolNameForStage, CLIENT_WRITABLE, ATTR_FULL, FLOW };
+module.exports = { APP_WRITES, hasAppleAttribute, planClientUpdate, unexpectedClientChanges, poolNameForStage, CLIENT_WRITABLE, ATTR_FULL, FLOW };
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }

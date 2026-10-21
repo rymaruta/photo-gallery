@@ -4,7 +4,9 @@ import {
     AdminCreateUserCommand, AdminSetUserPasswordCommand, AdminUpdateUserAttributesCommand,
     CognitoIdentityProviderClient, ListUsersCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { APPLE_SUB_ATTR, AppleTokenError, allowedAudiences, verifyAppleIdentityToken, type AppleIdClaims } from "./appleIdToken";
+import {
+    APPLE_SUB_ATTR, AppleTokenError, allowedAudiences, appleSignInEnabled, consumeNonce, verifyAppleIdentityToken, type AppleIdClaims,
+} from "./appleIdToken";
 import { addToUserGroup, createProfileIfMissing } from "./cognitoTrigger";
 
 /**
@@ -54,15 +56,18 @@ export type AppleAccountDecision =
 /**
  * そのメールの利用者の一覧から、どうするかを決める（純関数）。
  *
- * 1. この Apple ID（sub）とつながった利用者が居れば、その人でログイン
+ * 0. 比べるのは **メールが同じ人だけ**（大文字小文字をそろえて比べる）
+ * 1. この Apple ID（sub）とつながった利用者が居て、**そのメールが確認済み**なら、その人でログイン
+ *    （確認済みでない人の `custom:apple_sub` は、Apple のメールの持ち主かを確かめていない）
  * 2. メールが確認済みの利用者（エイリアスはこの1人だけ）が居れば
  *    - 別の Apple ID とつながっている → 断る
  *    - 確認済み（CONFIRMED）で、Apple 側もメール確認済み → つなぐ
  *    - それ以外（パスワードの再設定待ちなど）→ 断る（作ろうとしてもエイリアスがぶつかる）
  * 3. 居ない（未確認の利用者しか居ない・誰も居ない）→ 新しく作る
  */
-export function decideAppleAccount(users: PoolUser[], claims: AppleIdClaims): AppleAccountDecision {
-    const mine = users.find((u) => u.attrs[APPLE_SUB_ATTR] === claims.sub);
+export function decideAppleAccount(all: PoolUser[], claims: AppleIdClaims): AppleAccountDecision {
+    const users = all.filter((u) => sameEmail(u.attrs.email, claims.email));
+    const mine = users.find((u) => u.attrs[APPLE_SUB_ATTR] === claims.sub && u.attrs.email_verified === "true");
     if (mine) return { kind: "signIn", user: mine };
     const verified = users.find((u) => u.attrs.email_verified === "true");
     if (!verified) return { kind: "create" };
@@ -70,6 +75,12 @@ export function decideAppleAccount(users: PoolUser[], claims: AppleIdClaims): Ap
     if (verified.status !== "CONFIRMED") return { kind: "conflict", reason: `つなげない状態（${verified.status ?? "不明"}）` };
     if (!claims.emailVerified) return { kind: "conflict", reason: "Apple 側のメールが未確認" };
     return { kind: "link", user: verified };
+}
+
+/** メールが同じか（前後の空白と大文字小文字をそろえて比べる） */
+export function sameEmail(a: string | undefined, b: string | undefined): boolean {
+    if (!a || !b) return false;
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 /** Cognito の ListUsers の絞り込みの値に入れてよいメールか（引用符・逆斜線は入れない） */
@@ -106,11 +117,18 @@ export function livePool(userPoolId: string, client = new CognitoIdentityProvide
         attrs: Object.fromEntries((u.Attributes ?? []).map((a) => [a.Name ?? "", a.Value ?? ""])),
     });
     return {
+        // **元の綴りと小文字の両方で引く**（Cognito の絞り込みは綴りどおりにしか当たらない。
+        // 登録の口は大文字小文字を触らずに入れている）。比べるのは `decideAppleAccount` が小文字で
         async listByEmail(email) {
-            const res = await client.send(new ListUsersCommand({
-                UserPoolId: userPoolId, Filter: `email = "${email}"`, Limit: 10,
-            }));
-            return (res.Users ?? []).map(toPoolUser).filter((u) => u.username);
+            const spellings = [...new Set([email, email.toLowerCase()])];
+            const found = new Map<string, PoolUser>();
+            for (const e of spellings) {
+                const res = await client.send(new ListUsersCommand({
+                    UserPoolId: userPoolId, Filter: `email = "${e}"`, Limit: 10,
+                }));
+                for (const u of (res.Users ?? []).map(toPoolUser)) if (u.username) found.set(u.username, u);
+            }
+            return [...found.values()];
         },
         async link(username, sub) {
             await client.send(new AdminUpdateUserAttributesCommand({
@@ -188,8 +206,8 @@ let pool: AppleSignInPool | null = null;
 
 export const appleSignIn: APIGatewayProxyHandlerV2 = async (event) => {
     const userPoolId = process.env.COGNITO_USER_POOL_ID ?? "";
-    if (!userPoolId || allowedAudiences().length === 0) {
-        console.warn("appleSignIn: COGNITO_USER_POOL_ID か APPLE_BUNDLE_IDS が未設定です（機能を止めています）");
+    if (!appleSignInEnabled() || !userPoolId || allowedAudiences().length === 0) {
+        console.warn("appleSignIn: 止めています（APPLE_SIGNIN_ENABLED が true でない・COGNITO_USER_POOL_ID か APPLE_BUNDLE_IDS が未設定）");
         return fail(503, "apple_signin_off", "Apple でサインインは準備中です");
     }
     let body: { identityToken?: unknown; nonce?: unknown };
@@ -212,6 +230,11 @@ export const appleSignIn: APIGatewayProxyHandlerV2 = async (event) => {
         }
         console.error("appleSignIn: Apple の公開鍵を読めませんでした:", e);
         return fail(503, "apple_unreachable", "Apple に繋がりませんでした。しばらくしてからお試しください");
+    }
+    // 同じトークンでこの口を2回通さない（`consumeNonce` の注記: 実体の中だけ）
+    if (!consumeNonce(claims.nonceHash, "link", claims.expiresAtMs)) {
+        console.warn("appleSignIn: 同じ nonce の2回目");
+        return fail(401, "apple_token_invalid", "Apple の確認が通りませんでした。もう一度お試しください");
     }
     if (!claims.email || !filterSafeEmail(claims.email)) {
         return fail(400, "apple_email_missing", "Apple からメールアドレスを受け取れませんでした");

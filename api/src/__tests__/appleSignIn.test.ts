@@ -28,14 +28,28 @@ type PoolUser = Parameters<typeof decideAppleAccount>[0][number];
 
 const SUB = "001234.abcdef0123456789.0123";
 const claims = (over: Partial<AppleIdClaims> = {}): AppleIdClaims & { email: string } => ({
-    sub: SUB, email: "taro@example.com", emailVerified: true, isPrivateEmail: false, ...over,
+    sub: SUB, nonceHash: "h", expiresAtMs: 0, email: "taro@example.com", emailVerified: true, isPrivateEmail: false, ...over,
 } as AppleIdClaims & { email: string });
-const user = (username: string, status: string, attrs: Record<string, string>): PoolUser => ({ username, status, attrs });
+const user = (username: string, status: string, attrs: Record<string, string>): PoolUser =>
+    ({ username, status, attrs: { email: "taro@example.com", ...attrs } });
 
 describe("decideAppleAccount（同じメールのアカウントとの関係）", () => {
     it("この Apple ID とつながった人が居れば、その人で入る", () => {
         const me = user("u-1", "CONFIRMED", { email_verified: "true", "custom:apple_sub": SUB });
         expect(decideAppleAccount([me], claims())).toEqual({ kind: "signIn", user: me });
+    });
+
+    // 🔴 メールが確認済みでない人の custom:apple_sub は、Apple のメールの持ち主かを確かめていない
+    it("この Apple ID とつながっていても、メールが確認済みでなければその人では入らない", () => {
+        const unverified = user("u-1", "CONFIRMED", { email_verified: "false", "custom:apple_sub": SUB });
+        expect(decideAppleAccount([unverified], claims()).kind).not.toBe("signIn");
+    });
+
+    it("メールは大文字小文字をそろえて比べ、違うメールの人は見ない", () => {
+        const upper = user("u-2", "CONFIRMED", { email: "Taro@Example.com", email_verified: "true" });
+        expect(decideAppleAccount([upper], claims()).kind).toBe("link");
+        const other = user("u-3", "CONFIRMED", { email: "jiro@example.com", email_verified: "true", "custom:apple_sub": SUB });
+        expect(decideAppleAccount([other], claims())).toEqual({ kind: "create" });
     });
 
     it("確認済みのメールのアカウントには、つなぐ（新しく作らない）", () => {
@@ -93,7 +107,7 @@ describe("resolveAppleAccount", () => {
     });
 
     it("作った直後にパスワードの確定だけ落ちた人は、次の回に確定し直す", async () => {
-        const pool = fakePool([user("u-1", "FORCE_CHANGE_PASSWORD", { "custom:apple_sub": SUB })]);
+        const pool = fakePool([user("u-1", "FORCE_CHANGE_PASSWORD", { email_verified: "true", "custom:apple_sub": SUB })]);
         expect((await resolveAppleAccount(pool, claims())).status).toBe(200);
         expect(pool.calls).toEqual(["password:u-1"]);
     });
@@ -123,10 +137,11 @@ describe("Cognito への頼み方（livePool）", () => {
         const pool = livePool("pool-1", { send: mockCognitoSend } as any);
         expect(await pool.listByEmail("taro@example.com")).toEqual([{ username: "u-1", status: "CONFIRMED", attrs: { email_verified: "true" } }]);
         expect(mockCognitoSend.mock.calls[0][0].input).toMatchObject({ UserPoolId: "pool-1", Filter: 'email = "taro@example.com"' });
+        mockCognitoSend.mockReset();
 
         mockCognitoSend.mockResolvedValueOnce({ User: { Attributes: [{ Name: "sub", Value: "sub-new" }] } });
         expect(await pool.create("new-uuid", "taro@example.com", SUB)).toBe("sub-new");
-        const input = mockCognitoSend.mock.calls[1][0].input;
+        const input = mockCognitoSend.mock.calls[0][0].input;
         expect(input.MessageAction).toBe("SUPPRESS");
         expect(input.UserAttributes).toEqual([
             { Name: "email", Value: "taro@example.com" },
@@ -136,7 +151,17 @@ describe("Cognito への頼み方（livePool）", () => {
 
         mockCognitoSend.mockResolvedValueOnce({});
         await pool.setRandomPassword("new-uuid");
-        expect(mockCognitoSend.mock.calls[2][0].input).toMatchObject({ Username: "new-uuid", Permanent: true });
+        expect(mockCognitoSend.mock.calls[1][0].input).toMatchObject({ Username: "new-uuid", Permanent: true });
+    });
+
+    it("大文字の混じったメールは、元の綴りと小文字の両方で引く（同じ人は1回だけ）", async () => {
+        mockCognitoSend
+            .mockResolvedValueOnce({ Users: [{ Username: "u-1", Attributes: [] }] })
+            .mockResolvedValueOnce({ Users: [{ Username: "u-1", Attributes: [] }, { Username: "u-2", Attributes: [] }] });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pool = livePool("pool-1", { send: mockCognitoSend } as any);
+        expect((await pool.listByEmail("Taro@Example.com")).map((u) => u.username)).toEqual(["u-1", "u-2"]);
+        expect(mockCognitoSend.mock.calls.map((c) => c[0].input.Filter)).toEqual(['email = "Taro@Example.com"', 'email = "taro@example.com"']);
     });
 
     it("ランダムなパスワードはプールの決まり（大小英字・数字・記号・8字以上）を満たし、毎回違う", () => {
@@ -161,7 +186,17 @@ describe("POST /auth/apple（入口）", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const call = (body: unknown) => (appleSignIn as any)({ body: typeof body === "string" ? body : JSON.stringify(body) });
 
+    it("切り替えが off なら、ほかの設定が揃っていても 503（既定は off）", async () => {
+        vi.stubEnv("COGNITO_USER_POOL_ID", "pool-1");
+        vi.stubEnv("APPLE_BUNDLE_IDS", "com.journeyphoto.JourneyPhoto");
+        vi.stubEnv("APPLE_SIGNIN_ENABLED", "");
+        const res = await call({ identityToken: "x", nonce: "y" });
+        expect(res.statusCode).toBe(503);
+        expect(JSON.parse(res.body).code).toBe("apple_signin_off");
+    });
+
     it("設定が無ければ 503（既定値で動かない）", async () => {
+        vi.stubEnv("APPLE_SIGNIN_ENABLED", "true");
         vi.stubEnv("COGNITO_USER_POOL_ID", "");
         vi.stubEnv("APPLE_BUNDLE_IDS", "");
         const res = await call({ identityToken: "x", nonce: "y" });
@@ -172,6 +207,7 @@ describe("POST /auth/apple（入口）", () => {
     it("形の違う要求は 400、確かめられないトークンは 401（Cognito に触らない）", async () => {
         vi.stubEnv("COGNITO_USER_POOL_ID", "pool-1");
         vi.stubEnv("APPLE_BUNDLE_IDS", "com.journeyphoto.JourneyPhoto");
+        vi.stubEnv("APPLE_SIGNIN_ENABLED", "true");
         mockCognitoSend.mockReset();
         expect((await call("not json")).statusCode).toBe(400);
         expect((await call({ identityToken: 1 })).statusCode).toBe(400);

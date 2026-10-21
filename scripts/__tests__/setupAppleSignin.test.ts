@@ -16,7 +16,7 @@ const client = {
 describe("setup-apple-signin: クライアントの更新", () => {
     it("ALLOW_CUSTOM_AUTH を足し、ほかの書ける項目はそのまま送り返す（渡さないと既定値に戻る）", () => {
         const { params, changes } = setup.planClientUpdate(client);
-        expect(changes).toEqual(["ExplicitAuthFlows"]);
+        expect(changes).toEqual(["ExplicitAuthFlows", "WriteAttributes"]);
         expect(params.ExplicitAuthFlows).toEqual(["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_CUSTOM_AUTH"]);
         expect(params).toMatchObject({
             UserPoolId: "pool-1", ClientId: "c-1", ClientName: client.ClientName, PreventUserExistenceErrors: "ENABLED",
@@ -28,7 +28,9 @@ describe("setup-apple-signin: クライアントの更新", () => {
     });
 
     it("済んでいれば何もしない", () => {
-        expect(setup.planClientUpdate({ ...client, ExplicitAuthFlows: [...client.ExplicitAuthFlows, "ALLOW_CUSTOM_AUTH"] }).changes).toEqual([]);
+        expect(setup.planClientUpdate({
+            ...client, ExplicitAuthFlows: [...client.ExplicitAuthFlows, "ALLOW_CUSTOM_AUTH"], WriteAttributes: ["email"],
+        }).changes).toEqual([]);
     });
 
     it("読める属性を絞っているときだけ custom:apple_sub を足す（ID トークンに入れる）", () => {
@@ -36,10 +38,23 @@ describe("setup-apple-signin: クライアントの更新", () => {
         expect(setup.planClientUpdate(client).params).not.toHaveProperty("ReadAttributes");
     });
 
-    it("書き込める属性（WriteAttributes）は変えない", () => {
-        const { params, changes } = setup.planClientUpdate({ ...client, WriteAttributes: ["email", "name"] });
+    // 🔴 書けるままだと、一時的にログインを奪った人が自分の Apple の sub を書き込み、裏口として残せる
+    it("一覧が無い（全部書ける）クライアントは、アプリが書く属性だけにする（custom:apple_sub を書かせない）", () => {
+        const { params, changes } = setup.planClientUpdate(client);
+        expect(changes).toContain("WriteAttributes");
+        expect(params.WriteAttributes).toEqual(["email"]);
+        expect(params.WriteAttributes).not.toContain("custom:apple_sub");
+        expect(setup.APP_WRITES).toEqual(["email"]);
+    });
+
+    it("絞っている一覧からは custom:apple_sub だけを外し、ほかは残す", () => {
+        const { params } = setup.planClientUpdate({ ...client, WriteAttributes: ["email", "name", "custom:apple_sub"] });
         expect(params.WriteAttributes).toEqual(["email", "name"]);
-        expect(changes).not.toContain("WriteAttributes");
+    });
+
+    it("プールの必須の属性は書ける一覧に入れる（登録で要る）", () => {
+        const pool = { SchemaAttributes: [{ Name: "email", Required: false }, { Name: "name", Required: true }] };
+        expect(setup.planClientUpdate(client, pool).params.WriteAttributes).toEqual(["email", "name"]);
     });
 
     it("読み直したときの狙っていない変化を見つける", () => {

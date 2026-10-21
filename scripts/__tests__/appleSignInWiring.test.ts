@@ -96,6 +96,13 @@ describe("api: Apple でサインインの入口とトリガー", () => {
         expect(r).not.toMatch(/dynamodb:|s3:|cognito-idp:|ssm:/);
     });
 
+    it("止めた状態が既定（APPLE_SIGNIN_ENABLED の既定は false）・入口には同時実行の上限", () => {
+        for (const fn of ["appleSignIn", "verifyAuthChallengeResponse"]) {
+            expect(fns.get(fn), fn).toContain("APPLE_SIGNIN_ENABLED: ${param:appleSignInEnabled, 'false'}");
+        }
+        expect(fns.get("appleSignIn")).toMatch(/reservedConcurrency: \d+/);
+    });
+
     it("Bundle ID に既定値を置かない・共有の環境にも置かない", () => {
         expect(fns.get("appleSignIn")).toContain("APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}");
         expect(fns.get("verifyAuthChallengeResponse")).toContain("APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}");
@@ -106,5 +113,8 @@ describe("api: Apple でサインインの入口とトリガー", () => {
         const wf = readFileSync(join(ROOT, ".github", "workflows", "deploy-api.yml"), "utf8");
         expect(wf).toContain("APPLE_BUNDLE_IDS: ${{ needs.config.outputs.apnsTopic }}");
         expect(wf).toContain('extra+=(--param "appleBundleIds=$APPLE_BUNDLE_IDS")');
+        // 本番の値が空のとき staging の値に落ちない（環境ごとに選ぶ）
+        expect(wf).toContain('if [ "$ENV_NAME" = "prod" ]; then appleOn="${APPLE_SIGNIN_ENABLED_PROD:-}"');
+        expect(wf).toContain('if [ "$appleOn" = "true" ]; then extra+=(--param "appleSignInEnabled=true"); fi');
     });
 });

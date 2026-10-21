@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AppleTokenError, allowedAudiences, resetAppleKeys, verifyAppleIdentityToken } from "../appleIdToken";
+import {
+    AppleTokenError, KEYS_REFETCH_MIN_MS, allowedAudiences, appleSignInEnabled, consumeNonce, hashNonce, resetAppleKeys, verifyAppleIdentityToken,
+} from "../appleIdToken";
 import { BUNDLE, KID, NOW, RAW_NONCE, appleKeys, appleToken, otherKey } from "./helpers/appleJwt";
 
 const opts = { audiences: [BUNDLE], now: NOW, fetchKeys: appleKeys };
@@ -21,6 +23,8 @@ describe("Apple の ID トークンを確かめる", () => {
         const claims = await verifyAppleIdentityToken(appleToken(), RAW_NONCE, opts);
         expect(claims).toEqual({
             sub: "001234.abcdef0123456789.0123",
+            nonceHash: hashNonce(RAW_NONCE),
+            expiresAtMs: (Math.floor(NOW / 1000) + 600) * 1000,
             email: "taro@example.com",
             emailVerified: true,
             isPrivateEmail: false,
@@ -77,14 +81,45 @@ describe("Apple の ID トークンを確かめる", () => {
         expect(allowedAudiences(" a , b ,")).toEqual(["a", "b"]);
     });
 
-    it("知らない kid が来たら鍵を1度だけ読み直す（Apple が鍵を回した）", async () => {
+    // 🔴 未認証の口なので、でたらめな kid を投げ続けられても Apple を叩き続けない
+    it("知らない kid での読み直しは5分に1回まで", async () => {
         const fetchKeys = vi.fn(appleKeys);
         await verifyAppleIdentityToken(appleToken(), RAW_NONCE, { ...opts, fetchKeys });
         await verifyAppleIdentityToken(appleToken(), RAW_NONCE, { ...opts, fetchKeys });
         expect(fetchKeys).toHaveBeenCalledTimes(1);   // 控えに当たる
-        expect(await reason(verifyAppleIdentityToken(appleToken({}, { kid: "UNKNOWN" }), RAW_NONCE, { ...opts, fetchKeys }))).toMatch(/kid/);
+        for (let i = 0; i < 5; i++) {
+            expect(await reason(verifyAppleIdentityToken(appleToken({}, { kid: "UNKNOWN" }), RAW_NONCE, { ...opts, fetchKeys }))).toMatch(/kid/);
+        }
+        expect(fetchKeys).toHaveBeenCalledTimes(1);
+        const later = NOW + KEYS_REFETCH_MIN_MS + 1;
+        await reason(verifyAppleIdentityToken(appleToken({ exp: Math.floor(later / 1000) + 600 }, { kid: "UNKNOWN" }), RAW_NONCE, { ...opts, now: later, fetchKeys }));
         expect(fetchKeys).toHaveBeenCalledTimes(2);
         expect(KID).toBe("TESTKID1");
+    });
+
+    it("読めなかった回・空の答えでは手元の鍵を捨てない", async () => {
+        await verifyAppleIdentityToken(appleToken(), RAW_NONCE, opts);
+        const later = NOW + 2 * 60 * 60 * 1000;   // 控えの1時間を過ぎた
+        const tok = appleToken({ exp: Math.floor(later / 1000) + 600 });
+        await expect(verifyAppleIdentityToken(tok, RAW_NONCE, { ...opts, now: later, fetchKeys: async () => { throw new Error("down"); } }))
+            .resolves.toBeTruthy();
+        const later2 = later + KEYS_REFETCH_MIN_MS + 1;
+        const tok2 = appleToken({ exp: Math.floor(later2 / 1000) + 600 });
+        await expect(verifyAppleIdentityToken(tok2, RAW_NONCE, { ...opts, now: later2, fetchKeys: async () => [] })).resolves.toBeTruthy();
+    });
+
+    it("同じ nonce は同じ口で1回まで（期限が過ぎたら忘れる）", () => {
+        expect(consumeNonce("h1", "link", NOW + 1000, NOW)).toBe(true);
+        expect(consumeNonce("h1", "link", NOW + 1000, NOW)).toBe(false);
+        expect(consumeNonce("h1", "verify", NOW + 1000, NOW)).toBe(true);
+        expect(consumeNonce("h1", "verify", NOW + 1000, NOW)).toBe(false);
+        expect(consumeNonce("h1", "link", NOW + 5000, NOW + 2000)).toBe(true);
+    });
+
+    it("機能の切り替えは true のときだけ動く（既定は off）", () => {
+        expect(appleSignInEnabled("")).toBe(false);
+        expect(appleSignInEnabled("false")).toBe(false);
+        expect(appleSignInEnabled("TRUE")).toBe(true);
     });
 
     it("sub の形が Apple のものでなければ断る（属性に入れる値）", async () => {

@@ -215,7 +215,8 @@ functions:
   # ─── Apple でサインイン（2026-10-21・`src/appleSignIn.ts` / `src/appleChallenge.ts`）───
   # アプリがネイティブで受け取った Apple の ID トークンを確かめ、Cognito のカスタム認証で入れる。
   # **Apple の公開鍵だけで確かめる**（秘密は持たない。取り消しの鍵は api-user の `revokeAppleSignIn`）。
-  # `appleBundleIds` が空なら止まる（入口は 503・Verify は通さない）。既定値は置かない
+  # **止めた状態を明示で持つ**: `appleSignInEnabled` が true でなければ止まる（既定は off）。
+  # `appleBundleIds` が空でも止まる（入口は 503・Verify は通さない）。既定値は置かない
 
   # 入口（未認証）。探す・既存のメールのアカウントにつなぐ・作る。トークンは出さない
   appleSignIn:
@@ -224,8 +225,13 @@ functions:
     environment:
       COGNITO_USER_POOL_ID: ${param:cognitoUserPoolId}
       APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}
+      APPLE_SIGNIN_ENABLED: ${param:appleSignInEnabled, 'false'}
     # Apple の公開鍵（打ち切り3秒）＋ Cognito の数回
     timeout: 15
+    # **呼ばれすぎの守り**（未認証の口・2026-10-21）。同時に走るのは5本まで（超えた分は 429）。
+    # ログインの瞬間だけ呼ばれる口なので、この規模では足りる。⚠️ アカウントの同時実行の上限が小さい
+    # （新しいアカウントの10）と、予約でデプロイが断られる——そのときはこの行を外す
+    reservedConcurrency: 5
     events:
       - httpApi:
           path: /auth/apple
@@ -257,6 +263,7 @@ functions:
     role: CognitoChallengeRole
     environment:
       APPLE_BUNDLE_IDS: ${param:appleBundleIds, ''}
+      APPLE_SIGNIN_ENABLED: ${param:appleSignInEnabled, 'false'}
     # Cognito のトリガーの上限は5秒。Apple の公開鍵は控えに当たればすぐ
     timeout: 5
     events:

@@ -308,6 +308,12 @@ jobs:
           # Apple でサインイン（2026-10-21）: ID トークンの aud に許す Bundle ID。**APNs の topic と同じ**
           # （そのステージのアプリ）。空なら旗ごと渡さない＝機能は止まる（`src/appleSignIn.ts`）
           APPLE_BUNDLE_IDS: ${{ needs.config.outputs.apnsTopic }}
+          # 止めた状態が既定（2026-10-21）。動かすのは Variables の APPLE_SIGNIN_ENABLED_STAGING /
+          # APPLE_SIGNIN_ENABLED_PROD を true にした環境だけ（owner が順に入れる）
+          # （式の `&& ||` は本番の値が空だと staging の値に落ちるので使わない。下の run で選ぶ）
+          APPLE_SIGNIN_ENABLED_PROD: ${{ vars.APPLE_SIGNIN_ENABLED_PROD }}
+          APPLE_SIGNIN_ENABLED_STAGING: ${{ vars.APPLE_SIGNIN_ENABLED_STAGING }}
+          ENV_NAME: ${{ needs.config.outputs.envName }}
         run: |
           set -euo pipefail
           extra=()
@@ -315,6 +321,8 @@ jobs:
           if [ -n "$REBUILD_TOKEN" ]; then extra+=(--param "rebuildToken=$REBUILD_TOKEN"); fi
           if [ -n "${REBUILD_MONTHLY_MAX:-}" ]; then extra+=(--param "rebuildMonthlyMax=$REBUILD_MONTHLY_MAX"); fi
           if [ -n "${APPLE_BUNDLE_IDS:-}" ]; then extra+=(--param "appleBundleIds=$APPLE_BUNDLE_IDS"); fi
+          if [ "$ENV_NAME" = "prod" ]; then appleOn="${APPLE_SIGNIN_ENABLED_PROD:-}"; else appleOn="${APPLE_SIGNIN_ENABLED_STAGING:-}"; fi
+          if [ "$appleOn" = "true" ]; then extra+=(--param "appleSignInEnabled=true"); fi
           echo "再ビルド依頼: repo=$([ -n "$REBUILD_REPO" ] && echo "$REBUILD_REPO" || echo '(なし)')" \
                "token=$([ -n "$REBUILD_TOKEN" ] && echo '設定あり' || echo '(なし)')"
           npx serverless@3 deploy --stage ${{ needs.config.outputs.envName }} \

@@ -1366,7 +1366,7 @@ functions:
   # 退会のときの Apple でサインインの取り消し（審査 5.1.1(v)・`src/appleRevoke.ts`・2026-10-21）。
   # アプリが退会の直前に取り直した認可コードを Apple の /auth/token で交換し、/auth/revoke で取り消す。
   # **Apple の鍵（SSM パラメータ）を読めるのはこの関数だけ**（専用のロール `AppleRevokeRole`。
-  # `scripts/__tests__/appleSignInKeyScope.test.ts` が見張る）。鍵が無ければ 503（アプリは退会を続ける）
+  # `scripts/__tests__/appleSignInWiring.test.ts` が見張る）。鍵が無ければ 503（アプリは退会を続ける）
   revokeAppleSignIn:
     handler: src/appleRevoke.revokeAppleSignIn
     role: AppleRevokeRole

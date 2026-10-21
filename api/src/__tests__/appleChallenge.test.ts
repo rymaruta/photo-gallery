@@ -5,7 +5,7 @@ import { BUNDLE, NOW, RAW_NONCE, appleKeys, appleToken } from "./helpers/appleJw
 
 const APPLE_SUB = "001234.abcdef0123456789.0123";
 const appleUser = { "custom:apple_sub": APPLE_SUB, sub: "uuid-1" };
-const opts = { audiences: [BUNDLE], now: NOW, fetchKeys: appleKeys };
+const opts = { audiences: [BUNDLE], now: NOW, fetchKeys: appleKeys, enabled: "true" };
 const answer = (token = appleToken(), nonce = RAW_NONCE) => JSON.stringify({ identityToken: token, nonce });
 
 beforeEach(() => resetAppleKeys());
@@ -21,17 +21,21 @@ describe("DefineAuthChallenge", () => {
             .toEqual({ issueTokens: true, failAuthentication: false });
     });
 
-    // 🔴 クライアントに ALLOW_CUSTOM_AUTH を足すと、パスワードの人にもカスタム認証を始められる。
-    // ここで断らないと「パスワードを飛ばして入る」口になる
-    it("Apple とつながっていない人（パスワードだけの人）は断る", () => {
-        expect(decideChallenge({ session: [], userAttributes: { sub: "uuid-2" } }))
-            .toEqual({ issueTokens: false, failAuthentication: true });
-        expect(decideChallenge({ session: [{ challengeName: "CUSTOM_CHALLENGE", challengeResult: true }], userAttributes: { sub: "uuid-2" } }))
-            .toEqual({ issueTokens: false, failAuthentication: true });
+    // 🔴 最初の一手で断ると「そのユーザー名が Apple とつながっているか」を外から見分けられる。
+    // 誰にでも同じ問いを出し、Verify で落とす
+    it("つながっていない人・居ない人にも、同じ形の問いを出す", () => {
+        const challenge = { challengeName: "CUSTOM_CHALLENGE", issueTokens: false, failAuthentication: false };
+        expect(decideChallenge({ session: [], userAttributes: { sub: "uuid-2" } })).toEqual(challenge);
+        expect(decideChallenge({ session: [], userNotFound: true })).toEqual(challenge);
     });
 
-    it("居ない利用者は断る", () => {
-        expect(decideChallenge({ session: [], userNotFound: true, userAttributes: appleUser }).failAuthentication).toBe(true);
+    // 🔴 クライアントに ALLOW_CUSTOM_AUTH を足すと、パスワードの人にもカスタム認証を始められる。
+    // ここで断らないと「パスワードを飛ばして入る」口になる
+    it("つながっていない人・居ない人には、通った印があってもトークンを出さない", () => {
+        const passed = [{ challengeName: "CUSTOM_CHALLENGE", challengeResult: true }];
+        expect(decideChallenge({ session: passed, userAttributes: { sub: "uuid-2" } }))
+            .toEqual({ issueTokens: false, failAuthentication: true });
+        expect(decideChallenge({ session: passed, userNotFound: true, userAttributes: appleUser }).failAuthentication).toBe(true);
     });
 
     it("SRP など別の段が混ざった回は断る", () => {
@@ -67,6 +71,15 @@ describe("VerifyAuthChallengeResponse", () => {
     it("署名・nonce が合わない答えは通さない", async () => {
         expect(await isCorrectAnswer({ challengeAnswer: answer(appleToken(), "different-raw-nonce-xxxx"), userAttributes: appleUser }, opts)).toBe(false);
         expect(await isCorrectAnswer({ challengeAnswer: answer(appleToken({ aud: "com.other" })), userAttributes: appleUser }, opts)).toBe(false);
+    });
+
+    it("機能を止めている間は通さない", async () => {
+        expect(await isCorrectAnswer({ challengeAnswer: answer(), userAttributes: appleUser }, { ...opts, enabled: "" })).toBe(false);
+    });
+
+    it("同じトークンでは2回通さない（使い回し）", async () => {
+        expect(await isCorrectAnswer({ challengeAnswer: answer(), userAttributes: appleUser }, opts)).toBe(true);
+        expect(await isCorrectAnswer({ challengeAnswer: answer(), userAttributes: appleUser }, opts)).toBe(false);
     });
 
     it("形の違う答え・属性の無い人は通さない（投げない）", async () => {
