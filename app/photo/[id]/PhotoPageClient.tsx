@@ -1116,10 +1116,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                 {/* 板（`PhotoDetail.dc.html`）の題は **明朝 32px / 行間1.2**。
                     検索の着地点で、題を「作品の名前」として見せる形。
-                    **字体は足していない**——`lib/utils/storyText.ts` の明朝と
-                    同じ端末の字体だけ（ダウンロードは0バイト）。板は先頭に
-                    Shippori Mincho B1 を置いているが、あれは Google Fonts から
-                    落とす字体なので採らない（1書体ぶん重くなる）。 */}
+                    字体は `lib/utils/storyText.ts` の明朝の並び——先頭は自前で配る
+                    Shippori Mincho B1 Bold（板・アプリと同じ・2026-10-21）、落ちるまでは端末の明朝。 */}
                 {titleText
                     ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
                     : <h1 className="sr-only">{fallbackHeading}</h1>}
