@@ -35,17 +35,21 @@
  */
 
 /**
- * **端末に在る明朝の並び。**
+ * **明朝の並び。**
  *
  * 写真ページの題（`PhotoPageClient`）も同じ並びを使う——板
  * （`PhotoDetail.dc.html`）が題を明朝で組んでいるため。**同じ字体の並びを
  * 2か所に書かない**（片方だけ直して系統がずれる、が台帳のいちばん多い型）。
  *
- * ⚠️ **webfont は足さない。** 板は先頭に Shippori Mincho B1 を置いているが、
- * あれは Google Fonts から落とす字体で、1書体ぶん重くなる。ここに並ぶのは
- * 端末が既に持っているものだけなので、**ダウンロードは0バイト**。
+ * **先頭は見出しの明朝（Shippori Mincho B1 Bold・2026-10-21）。** `--font-mincho` は
+ * `app/layout.tsx` が next/font で立てる変数で、字のファイルは**このサイト自身から**
+ * 配る（Google へ閲覧者の通信は出ない）。太さ 700 だけ・`unicode-range` で細かく割れた
+ * woff2・`font-display: swap`——ページで使った字の範囲だけが落ち、落ちるまでは後ろの
+ * 端末の明朝で読める。以前は「Google Fonts から落とす字体なので足さない」としていたが、
+ * 自前で配るようになったので、板（先頭が Shippori）とアプリにそろえる。
+ * 字は SIL OFL 1.1（表示はフッター）。
  */
-export const MINCHO_STACK = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+export const MINCHO_STACK = 'var(--font-mincho),"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
 
 /** 字体。**ファミリと太さの組み合わせ**（見た目の系統として1つの鍵にする） */
 export const STORY_FONTS = {
