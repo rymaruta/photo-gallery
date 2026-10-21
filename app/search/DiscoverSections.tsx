@@ -6,6 +6,7 @@ import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
+import SharedSectionHead from "../components/SectionHead";
 import { CHIP_OFF, CHIP_SIZE } from "@/app/components/chipStyles";
 import { placeLine, placeParts } from "@/lib/utils/placeName";
 
@@ -142,25 +143,9 @@ function ItemLink({ href, className, style, children }: {
  * ほか）で、そこは `collectEntries` の全件を並べる＝「すべて見る」が本当。
  * 見張りは `DiscoverSections.test.tsx` の「見出しから索引ページへ行ける」。
  */
-function SectionHead({ id, title, href, moreLabel }: {
-    id: string; title: string; href: string; moreLabel: string;
-}) {
-    return (
-        <div className="flex items-baseline justify-between mb-2.5">
-            <h2 id={id} className="font-bold m-0" style={{ fontSize: "16px", lineHeight: "22px" }}>{title}</h2>
-            {/* **先読みしない**（公開ページの `<Link>` は全部そう）。
-                行き先は普通のページなので、項目と違って `<Link>` のままでよい
-                ——クエリを持たないので `useGallery` の読み落としに当たらない */}
-            <Link
-                href={href}
-                prefetch={false}
-                className="flex-shrink-0 text-white/60 hover:text-white transition-colors"
-                style={{ fontSize: "12px", touchAction: "manipulation" }}
-            >
-                {moreLabel}
-            </Link>
-        </div>
-    );
+function SectionHead(props: { id: string; eyebrow: string; title: string; href: string; moreLabel: string }) {
+    // 形はホームの「おすすめ」と共通の部品（`app/components/SectionHead.tsx`）
+    return <SharedSectionHead {...props} testId="discover-section-head" />;
 }
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
@@ -192,7 +177,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
         <div className="space-y-6 mb-6">
             {categories.length > 0 && (
                 <section aria-labelledby="discover-categories">
-                    <SectionHead id="discover-categories" title={isJa ? "カテゴリからさがす" : "Browse by category"}
+                    <SectionHead id="discover-categories" eyebrow="CATEGORIES" title={isJa ? "カテゴリからさがす" : "Browse by category"}
                                  href={collectionIndexPath("category")} moreLabel={more} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {categories.map((c) => {
@@ -221,7 +206,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                 <section aria-labelledby="discover-spots">
                     {/* **「人気」とは呼ばない。** 数えているのは投稿の枚数だけで、
                         閲覧数も保存数も持っていない（指示書 7） */}
-                    <SectionHead id="discover-spots" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
+                    <SectionHead id="discover-spots" eyebrow="PLACES" title={isJa ? "写真の多い撮影地" : "Places with the most photos"}
                                  href={collectionIndexPath("location")} moreLabel={more} />
                     <ul className={`${row} m-0 p-0`} style={{ listStyle: "none" }}>
                         {spots.map((s) => {
@@ -257,7 +242,7 @@ export default function DiscoverSections({ photos, locale, categoryDisplayMap }:
                         センサーの大きさを持っていない＝35mm換算に直せない。
                         APS-C の 28mm を「広角」と出すと嘘になる（指示書: 実際のデータが
                         存在しない限り表示しない） */}
-                    <SectionHead id="discover-cameras" title={isJa ? "機材からさがす" : "Browse by camera"}
+                    <SectionHead id="discover-cameras" eyebrow="GEAR" title={isJa ? "機材からさがす" : "Browse by camera"}
                                  href={collectionIndexPath("camera")} moreLabel={more} />
                     <ul className="flex flex-wrap gap-2 m-0 p-0" style={{ listStyle: "none" }}>
                         {cameras.map((c) => (
