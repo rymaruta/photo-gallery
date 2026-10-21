@@ -78,9 +78,15 @@ describe("人のページの旅の記録", () => {
         await show(null);
         const block = await screen.findByTestId("travel-record");
         expect(block.tagName, "人のページで撮影地マップへのリンクになっている").not.toBe("A");
-        expect(block.getAttribute("role")).toBe("group");
-        expect(block.getAttribute("aria-label")).toContain("公開写真から");
-        expect(block.getAttribute("aria-label")).not.toContain("撮影地マップを開く");
+        // 読み上げは1回だけ（2026-10-21）: まとめた1文を読ませ、見た目の字は読ませない。
+        // 名前つきの group にして中身も読ませていた頃は、同じ数と字を2回読んだ
+        expect(block.getAttribute("aria-label")).toBeNull();
+        const spoken = block.querySelector(".sr-only")!;
+        expect(spoken.textContent).toContain("公開写真から");
+        expect(spoken.textContent).not.toContain("撮影地マップを開く");
+        const visible = [...block.children].filter((c) => c !== spoken);
+        expect(visible.length).toBeGreaterThan(0);
+        for (const c of visible) expect(c.getAttribute("aria-hidden")).toBe("true");
         // フォロワー限定（アメリカ）は国に入らない
         expect(screen.getByTestId("travel-countries").textContent).toBe("2か国・地域フランス・スペイン");
         // パリ → バルセロナの1区間（ニューヨークへの線は無い）

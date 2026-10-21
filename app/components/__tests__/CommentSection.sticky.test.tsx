@@ -43,6 +43,8 @@ describe("コメントの入力欄（下に貼る）", () => {
         const bar = screen.getByTestId("comment-composer");
         expect(bar.className).toContain("sticky");
         expect(bar.style.bottom).toContain("--bottom-bar-h");
+        // 再生バー（MiniPlayer）が出ている間はそのぶん上がる（同じ所に重なっていた・2026-10-21）
+        expect(bar.style.bottom).toContain("--mini-player-h");
         // 一覧の後ろ（sticky の bottom は、上に置くと貼り付かない）
         const list = screen.getByText("きれい").closest("ul")!;
         expect(list.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

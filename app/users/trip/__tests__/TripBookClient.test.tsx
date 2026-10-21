@@ -7,7 +7,7 @@ import { render, screen, within, fireEvent, waitFor } from "@testing-library/rea
  *
  * 表紙（写真が全面・白の眉ラベル「TRIP BOOK」・明朝の題・期間）→ 数（枚・撮影地・km）→
  * たどった場所 → 日ごとのページ。その人の**公開写真だけ**から、棚と同じ規則でまとめる。
- * 「この一冊を送る」は共有の口（`shareUrl`）。ブロックの関係なら出さない。
+ * 「この一冊を送る」は共有の口（`shareUrl`）・**本人の一冊だけ**。ブロックの関係なら出さない。
  */
 const mockPublicFetch = vi.hoisted(() => vi.fn());
 const mockUserFetch = vi.hoisted(() => vi.fn());
@@ -78,7 +78,8 @@ describe("旅の一冊", () => {
         expect(within(days[0]).getAllByRole("link")[0].getAttribute("href")).toContain("kz1");
     });
 
-    it("「この一冊を送る」は共有の口に、題と期間と撮った人を渡す", async () => {
+    it("「この一冊を送る」は共有の口に、題と期間と撮った人を渡す（本人の一冊）", async () => {
+        auth.value = { isAuthenticated: true, userId: OWNER, loading: false };
         render(<TripBookClient userId={OWNER} photoId="kz1" />);
         fireEvent.click(await screen.findByTestId("trip-book-share"));
         await waitFor(() => expect(mockShare).toHaveBeenCalledTimes(1));
@@ -86,6 +87,39 @@ describe("旅の一冊", () => {
         expect(url).toBe(window.location.href);
         expect(title).toBe("金沢の旅");
         expect(text).toBe("金沢の旅\n2026.09.12 — 09.14 · 3日間 · 3枚\n撮影: 旅人");
+    });
+
+    it("人の一冊・ログインしていない人には「この一冊を送る」を出さない（2026-10-21 判断: iOS にそろえる）", async () => {
+        for (const value of [
+            { isAuthenticated: false, userId: null, loading: false },
+            { isAuthenticated: true, userId: "viewer", loading: false },
+            // ログインを確かめている間も出さない（本人と分かってから）
+            { isAuthenticated: false, userId: null, loading: true },
+        ]) {
+            auth.value = value;
+            const { unmount } = render(<TripBookClient userId={OWNER} photoId="kz1" />);
+            await screen.findByTestId("trip-book");
+            await waitFor(() => expect(screen.getAllByTestId("trip-book-day").length).toBeGreaterThan(0));
+            expect(screen.queryByTestId("trip-book-share"), JSON.stringify(value)).toBeNull();
+            unmount();
+        }
+    });
+
+    it("「この一冊を送る」の帯は、再生バーが出ている間そのぶん上がる（--mini-player-h）", async () => {
+        auth.value = { isAuthenticated: true, userId: OWNER, loading: false };
+        render(<TripBookClient userId={OWNER} photoId="kz1" />);
+        const bar = await screen.findByTestId("trip-book-share-bar");
+        expect(bar.className).toContain("sticky");
+        expect(bar.style.bottom).toContain("--bottom-bar-h");
+        expect(bar.style.bottom).toContain("--mini-player-h");
+    });
+
+    it("たどった場所は1枚の図（role=img は並びの ol ではなく div に付ける）", async () => {
+        render(<TripBookClient userId={OWNER} photoId="kz1" />);
+        const route = await screen.findByTestId("trip-book-route");
+        const img = within(route).getByRole("img");
+        expect(img.tagName).toBe("DIV");
+        expect(route.querySelector("ol, li")).toBeNull();
     });
 
     it("一冊に入らない写真（下書き）を指したら「見つかりません」", async () => {

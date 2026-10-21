@@ -35,7 +35,9 @@ import {
  * - **ブロックの関係なら出さない**（見ている人がこの人をブロックしている。プロフィールと同じ一覧で見る）
  * - 色: 表紙は写真の上なので**白だけ**（眉ラベルも白・iOS と同じ）。黒地の上の眉ラベル
  *   （「たどった場所」「DAY 1」）と足取りの線は真鍮。数字は白の等幅数字
- * - 「この一冊を送る」は写真のある画面の主ボタン＝白。共有シート（無ければ URL をコピー）
+ * - 「この一冊を送る」は写真のある画面の主ボタン＝白。共有シート（無ければ URL をコピー）。
+ *   **本人の一冊だけに出す**（2026-10-21 判断: iOS にそろえる。iOS は 2026-10-16 に、人の一冊では
+ *   出さないと決めた——人の旅を本人の知らない所へ配る口を、見ている人に持たせない）
  */
 
 const display = (s: string) => shortPlace(s) || s;
@@ -115,12 +117,16 @@ export default function TripBookClient({ userId, photoId }: { userId: string; ph
         );
     }
 
-    return <Book trip={trip} isJa={isJa} ownerName={ownerName} profileHref={profileHref} showToast={showToast} />;
+    // 本人かどうかはログインが確かめられてから（確かめる前・人の一冊では「送る」を出さない）
+    const isMine = isAuthenticated && !!viewerId && viewerId === userId;
+    return <Book trip={trip} isJa={isJa} ownerName={ownerName} profileHref={profileHref} showToast={showToast} canShare={isMine} />;
 }
 
-function Book({ trip, isJa, ownerName, profileHref, showToast }: {
+function Book({ trip, isJa, ownerName, profileHref, showToast, canShare }: {
     trip: Trip; isJa: boolean; ownerName: string; profileHref: string;
     showToast: ReturnType<typeof useToast>["showToast"];
+    /** 「この一冊を送る」を出すか（本人の一冊だけ） */
+    canShare: boolean;
 }) {
     const cover = coverOf(trip);
     const title = tripName(trip, isJa);
@@ -207,9 +213,11 @@ function Book({ trip, isJa, ownerName, profileHref, showToast }: {
                 </div>
             </div>
 
-            {/* 「この一冊を送る」——下の案内の上に貼る（写真のある画面の主ボタン＝白） */}
-            <div className="sticky z-30 mt-10 px-5 pb-3 pt-4 max-w-2xl mx-auto w-full"
-                 style={{ bottom: "var(--bottom-bar-h, 84px)", background: "linear-gradient(to bottom, rgb(0 0 0 / 0), #000 16px)" }}>
+            {/* 「この一冊を送る」——下の案内の上に貼る（写真のある画面の主ボタン＝白）。**本人の一冊だけ**。
+                再生バー（`MiniPlayer`）が出ている間はそのぶん上がる（`--mini-player-h`・2026-10-21 判断） */}
+            {canShare ? (
+            <div className="sticky z-30 mt-10 px-5 pb-3 pt-4 max-w-2xl mx-auto w-full" data-testid="trip-book-share-bar"
+                 style={{ bottom: "calc(var(--bottom-bar-h, 84px) + var(--mini-player-h, 0px))", background: "linear-gradient(to bottom, rgb(0 0 0 / 0), #000 16px)" }}>
                 <button type="button" onClick={() => void share()} data-testid="trip-book-share"
                         className={`${BTN_FILL} w-full inline-flex items-center justify-center gap-2 bg-primary text-ink hover:brightness-95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                         style={{ touchAction: "manipulation" }}>
@@ -217,6 +225,7 @@ function Book({ trip, isJa, ownerName, profileHref, showToast }: {
                     {isJa ? "この一冊を送る" : "Send this trip book"}
                 </button>
             </div>
+            ) : <div aria-hidden="true" className="h-10" />}
         </main>
     );
 }
@@ -248,24 +257,25 @@ function Route({ stops, distance, isJa }: { stops: RouteStop[]; distance: number
                 <p className="m-0 text-text-3 tabular-nums" style={{ fontSize: "12px", letterSpacing: "0.12em" }} aria-hidden="true">
                     ROUTE · {distanceText(distance)}{distance === null ? "" : " km"}
                 </p>
-                <ol role="img" aria-label={spoken} className="relative m-0 mt-3 p-0 list-none flex">
+                {/* 1枚の図として読ませる（`role="img"` の子は読まれない。`ol` に付けると並びの意味と食い違う） */}
+                <div role="img" aria-label={spoken} className="relative m-0 mt-3 p-0 flex">
                     {/* 線は最初の丸の中心から最後の丸の中心まで */}
                     <span aria-hidden="true" className="absolute bg-accent"
                           style={{ top: "9.25px", height: "1.5px", left: `${half}%`, right: `${half}%` }} />
                     {stops.map((s, i) => {
                         const last = i === stops.length - 1;
                         return (
-                            <li key={i} aria-hidden="true" className="relative flex-1 min-w-0 flex flex-col items-center text-center gap-1.5">
+                            <div key={i} aria-hidden="true" className="relative flex-1 min-w-0 flex flex-col items-center text-center gap-1.5">
                                 <span className={`inline-flex items-center justify-center rounded-full tabular-nums font-bold ${last ? "bg-accent text-ink" : "bg-black text-accent"}`}
                                       style={{ width: "20px", height: "20px", fontSize: "12px", boxShadow: "inset 0 0 0 1.5px var(--color-accent)" }}>
                                     {i + 1}
                                 </span>
                                 <span className="text-text-3 tabular-nums" style={{ fontSize: "12px", lineHeight: "16px" }}>DAY {s.day}</span>
                                 <span className="text-text-3 truncate max-w-full px-1" style={{ fontSize: "12px", lineHeight: "16px" }}>{display(s.place)}</span>
-                            </li>
+                            </div>
                         );
                     })}
-                </ol>
+                </div>
             </div>
         </section>
     );
