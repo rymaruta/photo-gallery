@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
+import { DISPLAY_MINCHO_STACK } from "@/lib/utils/headingFont";
 
 /**
  * カテゴリ・タグのチップ。**板（`PhotoDetail.dc.html`）の寸法**
@@ -1116,10 +1117,10 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     （自己紹介・説明と同じ。実測で幅375pxの55文字から超える） */}
                 {/* 板（`PhotoDetail.dc.html`）の題は **明朝 32px / 行間1.2**。
                     検索の着地点で、題を「作品の名前」として見せる形。
-                    字体は `lib/utils/storyText.ts` の明朝の並び——先頭は自前で配る
+                    字体は `lib/utils/headingFont.ts` の並び——先頭は自前で配る
                     Shippori Mincho B1 Bold（板・アプリと同じ・2026-10-21）、落ちるまでは端末の明朝。 */}
                 {titleText
-                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: MINCHO }}>{titleText}</h1>
+                    ? <h1 className="font-bold break-words m-0" style={{ fontSize: "32px", lineHeight: 1.2, fontFamily: DISPLAY_MINCHO_STACK }}>{titleText}</h1>
                     : <h1 className="sr-only">{fallbackHeading}</h1>}
 
                 {/* 作者行: アバター・名前（＋@名があれば）／右に枠線の「フォロー」 */}
