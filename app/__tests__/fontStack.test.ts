@@ -233,6 +233,16 @@ describe("ストーリーの手書き（webfont の配線）", () => {
  * 以前は11か所が手で書き、字間 0.12em / 0.16em / 1.5px と等幅の有無が割れていた。
  */
 describe("眉ラベル", () => {
+    // スマホ幅の `h1/h2/h3 { font-size }` はレイヤーの外なので、`h2` に付けた `eyebrow`（@layer utilities）の
+    // 11px を上書きし、眉が 15.75px に膨らんでいた（2026-10-21・人のページ・旅の一冊）
+    it("スマホ幅の見出しの字の大きさが、見出しの要素に付けた眉ラベルを膨らませない", () => {
+        const css = read("app/globals.css");
+        const mobile = /@media \(max-width: 639px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+        expect(mobile, "スマホ幅の見出しの規則が無い").not.toBeNull();
+        expect(mobile![1]).toMatch(/h2 \{ font-size/);
+        expect(mobile![1]).toMatch(/h1\.eyebrow,\s*h2\.eyebrow,\s*h3\.eyebrow\s*\{\s*font-size:\s*11px;\s*\}/);
+    });
+
     it("`globals.css` が `eyebrow` を v2 の値（600・11・字間 0.14em・大文字・数字の字）で定義している", () => {
         const m = /@utility eyebrow\s*\{([^}]*)\}/.exec(read("app/globals.css"));
         expect(m, "eyebrow が無い").not.toBeNull();
