@@ -46,9 +46,31 @@ const UA = process.env.GEOCODE_UA || "journey-photo.com place picker (+https://j
  * 同じ精度で、地図のピンの粒度もこれに揃えてある。撮影者が選んだ場所でも、
  * 自宅が特定できる細かさでは残さない。
  */
+/**
+ * **国・都道府県/州だけの候補は落とす（2026-10-21 判断）。**
+ * 撮影地に「フランス」「長野県」だけが入ると、ホームの人気の撮影地で
+ * 「フランス」が細かい地名と別に並ぶ（重複する）元になる。撮影地としても粗すぎる。
+ * ただし**市区町村・名所・自然地名など、より細かい候補が1件も無いときは残す**
+ * ——何も出ないより、広い候補でも選べるほうがよい。
+ *
+ * 見分けは Nominatim（jsonv2）の `addresstype`（country / state / province。
+ * 日本の都道府県は province・米国の州は state で返る）を主に使い、
+ * それが無い行は行政界（category=boundary）の `place_rank` ≤ 8（国=4・州=8）で見る。
+ * 山・湖・島などの自然地名は行政界ではないので、rank が小さくてもここでは落とさない。
+ * 控え（`readCache`）から読み直す行はこの手掛かりを持たないので、そのまま通る
+ * ——既に控えた結果・利用者が保存済みの撮影地は変えない。新しい候補の出し方だけ。
+ */
+const BROAD_ADDRESS_TYPES = new Set(["continent", "country", "state", "province"]);
+export function isBroadPlace(r: Record<string, unknown>): boolean {
+    if (typeof r.addresstype === "string" && r.addresstype) return BROAD_ADDRESS_TYPES.has(r.addresstype);
+    const rank = Number(r.place_rank);
+    return r.category === "boundary" && Number.isFinite(rank) && rank <= 8;
+}
+
 export function mapNominatimResults(json: unknown): PlaceResult[] {
     if (!Array.isArray(json)) return [];
-    const out: PlaceResult[] = [];
+    const fine: PlaceResult[] = [];
+    const broad: PlaceResult[] = [];
     for (const r of json as Array<Record<string, unknown>>) {
         if (!r || typeof r !== "object") continue;
         const lat = Number(r.lat);
@@ -57,9 +79,10 @@ export function mapNominatimResults(json: unknown): PlaceResult[] {
         if (Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
         const label = typeof r.display_name === "string" ? r.display_name : "";
         if (!label) continue;
-        out.push({ label, lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 });
+        (isBroadPlace(r) ? broad : fine).push({ label, lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 });
     }
-    return out;
+    // 細かい候補が1件でもあれば広い候補は出さない。無ければ広い候補を（元の順で）残す
+    return fine.length > 0 ? fine : broad;
 }
 
 /**
