@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { EmptyState } from "./StateViews";
 import type { Photo, Locale } from "@/lib/data/photos";
 import { getLabels } from "../i18n/labels";
 import { useFavorites } from "../../lib/hooks/useFavorites";
@@ -137,7 +138,8 @@ export default function GalleryGrid({
     }, [visible, total]);
 
     if (!photos || photos.length === 0) {
-        return <div className="text-sm text-white/70">{emptyMessage}</div>;
+        // 空は共通の形（`StateViews`・iOS の `EmptyState`）
+        return <EmptyState message={emptyMessage} testId="grid-empty" />;
     }
 
     const shown = photos.slice(0, visible);
