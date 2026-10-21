@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { Photo } from "@/lib/data/photos";
 
@@ -28,6 +28,21 @@ vi.mock("../../../../lib/hooks/usePhotoLikes", () => ({
     usePhotoLikes: () => ({ liked: like.liked, count: 7, pending: false, toggle: like.toggle }),
 }));
 
+// 全画面は `next/dynamic` で後ろへ回してある。**本物の loader を通す**（`HighlightsRow.test.tsx` と同じ）
+vi.mock("next/dynamic", () => ({
+    default: (loader: () => Promise<{ default: React.ComponentType<Record<string, unknown>> }>) => {
+        return function Lazy(props: Record<string, unknown>) {
+            const [C, setC] = React.useState<React.ComponentType<Record<string, unknown>> | null>(null);
+            React.useEffect(() => {
+                let alive = true;
+                void loader().then((m) => { if (alive) setC(() => m.default); });
+                return () => { alive = false; };
+            }, []);
+            return C ? <C {...props} /> : null;
+        };
+    },
+}));
+
 const PhotoPageClient = (await import("../PhotoPageClient")).default;
 
 const BASE = {
@@ -35,9 +50,25 @@ const BASE = {
     displayName: "アリス", location: "銀山温泉", date: "2024-05-12",
 } as unknown as Photo;
 
+// 写真が「届いている」ことにする（テストの DOM は外の画像を読まず、何もしないと
+// `complete && naturalWidth === 0`＝読み込み失敗と見えて、全画面を開かない側に入る）
+let ready = true;
+const saved = {
+    complete: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete"),
+    naturalWidth: Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth"),
+};
 beforeEach(() => {
     like.liked = false;
     like.toggle.mockClear();
+    ready = true;
+    Object.defineProperty(HTMLImageElement.prototype, "complete", { configurable: true, get: () => ready });
+    Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => (ready ? 1000 : 0) });
+});
+afterEach(() => {
+    if (saved.complete) Object.defineProperty(HTMLImageElement.prototype, "complete", saved.complete);
+    else delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).complete;
+    if (saved.naturalWidth) Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", saved.naturalWidth);
+    else delete (HTMLImageElement.prototype as unknown as Record<string, unknown>).naturalWidth;
 });
 
 describe("写真ページ: 写真の上の戻る・共有・「…」（A1）", () => {
@@ -89,7 +120,8 @@ describe("写真ページ: 全画面で見る（A2）", () => {
         await screen.findByText("朝の湖");
         expect(screen.queryByTestId("photo-viewer")).toBeNull();
         fireEvent.click(screen.getByTestId("photo-hero-open"));
-        const dialog = screen.getByRole("dialog", { name: "朝の湖（全画面）" });
+        const dialog = await screen.findByRole("dialog", { name: "朝の湖（全画面）" });
+        await act(async () => {});
         expect(dialog.getAttribute("aria-modal")).toBe("true");
         const close = screen.getByRole("button", { name: "閉じる" });
         expect(close.style.width).toBe("44px");
@@ -103,7 +135,9 @@ describe("写真ページ: 全画面で見る（A2）", () => {
         const hero = screen.getByTestId("photo-hero-open");
         hero.focus();
         fireEvent.click(hero);
-        expect(screen.getByTestId("photo-viewer")).toBeTruthy();
+        expect(await screen.findByTestId("photo-viewer")).toBeTruthy();
+        // 後から読んだ部品の購読（useEffect）が張られるまで1拍待つ
+        await act(async () => {});
         fireEvent.keyDown(document, { key: "Escape" });
         expect(screen.queryByTestId("photo-viewer")).toBeNull();
         expect(document.activeElement).toBe(hero);
@@ -113,7 +147,8 @@ describe("写真ページ: 全画面で見る（A2）", () => {
         render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
         await screen.findByText("朝の湖");
         fireEvent.click(screen.getByTestId("photo-hero-open"));
-        const dialog = screen.getByTestId("photo-viewer");
+        const dialog = await screen.findByTestId("photo-viewer");
+        await act(async () => {});
         const focusables = dialog.querySelectorAll<HTMLElement>("button:not([disabled])");
         const last = focusables[focusables.length - 1];
         last.focus();
@@ -127,7 +162,7 @@ describe("写真ページ: 全画面で見る（A2）", () => {
             const { rerender } = render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
             await screen.findByText("朝の湖");
             fireEvent.click(screen.getByTestId("photo-hero-open"));
-            const stage = screen.getByTestId("photo-viewer-stage");
+            const stage = await screen.findByTestId("photo-viewer-stage");
             now.mockReturnValue(10_000);
             fireEvent.click(stage, { clientX: 100, clientY: 100 });
             now.mockReturnValue(10_200);
@@ -152,7 +187,7 @@ describe("写真ページ: 全画面で見る（A2）", () => {
             render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
             await screen.findByText("朝の湖");
             fireEvent.click(screen.getByTestId("photo-hero-open"));
-            const stage = screen.getByTestId("photo-viewer-stage");
+            const stage = await screen.findByTestId("photo-viewer-stage");
             now.mockReturnValue(10_000);
             fireEvent.click(stage, { clientX: 10, clientY: 10 });
             now.mockReturnValue(10_100);
@@ -163,5 +198,47 @@ describe("写真ページ: 全画面で見る（A2）", () => {
         } finally {
             now.mockRestore();
         }
+    });
+
+    // iOS の Safari はボタンを押してもフォーカスを当てない。戻り先を明示していないと
+    // 閉じたときにフォーカスがページの先頭（body）へ落ちる
+    it("フォーカスを当てずに開いても、閉じたら写真のボタンへ戻る", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
+        await screen.findByText("朝の湖");
+        (document.activeElement as HTMLElement | null)?.blur();
+        expect(document.activeElement).toBe(document.body);
+        fireEvent.click(screen.getByTestId("photo-hero-open"));
+        await screen.findByTestId("photo-viewer");
+        await act(async () => {});
+        fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
+        expect(screen.queryByTestId("photo-viewer")).toBeNull();
+        expect(document.activeElement).toBe(screen.getByTestId("photo-hero-open"));
+    });
+
+    it("マウスを引いて送ったあとの click では開かない（叩いたときだけ開く）", async () => {
+        render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
+        await screen.findByText("朝の湖");
+        const hero = screen.getByTestId("photo-hero-open");
+        fireEvent.pointerDown(hero, { clientX: 300, clientY: 200 });
+        fireEvent.click(hero, { clientX: 120, clientY: 205 });
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByTestId("photo-viewer")).toBeNull();
+        // 同じ所で離せば開く
+        fireEvent.pointerDown(hero, { clientX: 300, clientY: 200 });
+        fireEvent.click(hero, { clientX: 303, clientY: 202 });
+        expect(await screen.findByTestId("photo-viewer")).toBeTruthy();
+    });
+
+    it("写真を読み込めなかったときは、押しても開かない", async () => {
+        ready = false;   // まだ届いていない（読み込みの途中で失敗する形）
+        const { container } = render(<PhotoPageClient photoId="p1" initialPhoto={BASE} />);
+        await screen.findByText("朝の湖");
+        const img = container.querySelector<HTMLImageElement>('[data-testid="photo-hero-open"] img')!;
+        fireEvent.error(img);
+        const hero = screen.getByTestId("photo-hero-open");
+        fireEvent.click(hero);
+        await new Promise((r) => setTimeout(r, 50));
+        expect(screen.queryByTestId("photo-viewer")).toBeNull();
+        expect(hero.getAttribute("aria-haspopup")).toBeNull();
     });
 });
