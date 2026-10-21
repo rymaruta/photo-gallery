@@ -40,6 +40,12 @@ type Props = {
     onToggleLike: () => void;
     onClose: () => void;
     locale: "ja" | "en";
+    /**
+     * 閉じたときにフォーカスを戻す先（写真を包むボタン）。**明示する**——iOS の Safari は
+     * ボタンを押してもフォーカスを当てないので、「開いた瞬間のフォーカス」に頼ると
+     * 閉じたときにページの先頭（body）へ落ちる
+     */
+    restoreRef?: React.RefObject<HTMLElement | null>;
 };
 
 export const MAX_SCALE = 4;
@@ -52,7 +58,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 
 export default function PhotoViewer({
     images, index, onIndexChange, altFor, title, liked, likeCount, likePending = false,
-    onToggleLike, onClose, locale,
+    onToggleLike, onClose, locale, restoreRef,
 }: Props) {
     const en = locale === "en";
     const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -75,7 +81,7 @@ export default function PhotoViewer({
     const safeIndex = clamp(index, 0, Math.max(0, total - 1));
     const current = images[safeIndex];
 
-    useFocusTrap(true, dialogRef, undefined, closeRef);
+    useFocusTrap(true, dialogRef, restoreRef, closeRef);
     useEscapeKey(true, onClose);
     useEffect(() => {
         lockBodyScroll();

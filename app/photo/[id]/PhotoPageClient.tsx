@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { MINCHO_STACK as MINCHO } from "@/lib/utils/storyText";
 
 /**
@@ -72,13 +73,18 @@ import { inspiredSourceFor, type InspiredLink } from "@/lib/utils/inspired";
 import type { SpotLink } from "@/lib/data/spotLink";
 import { CHIP_OFF } from "@/app/components/chipStyles";
 import PhotoTripSection from "./PhotoTripSection";
-import PhotoViewer from "./PhotoViewer";
+// **全画面は押したときに読む**（写真ページの最初の JS に載せない。検索の着地点で、
+// 押さずに去る人が大半）。静的書き出しでは描かないので ssr: false
+const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 import { photoLightZone, directionsTarget, offersInspiredShoot } from "@/lib/utils/photoTrip";
 
 /**
  * 写真ページの戻る・共有・「…」。**スマホは写真の上のガラスの丸**（黒 55%＋ぼかし・白・44px。
  * iOS の写真の詳細と同じ）、PC は2カラムの上の行に素の白で（今までの見た目）
  */
+/** 写真を押した／引いたの境目（px）。これより動いたら「送った」で、全画面は開かない */
+const HERO_TAP_SLOP = 10;
+
 const TOP_BUTTON = "pointer-events-auto inline-flex items-center justify-center rounded-full text-white bg-black/55 backdrop-blur-md hover:bg-black/70 transition-colors lg:bg-transparent lg:backdrop-blur-none lg:text-white/85 lg:hover:text-white lg:hover:bg-white/10";
 
 // EXIF情報の型定義
@@ -137,7 +143,8 @@ function PhotoImage({
     width,
     height,
     extractExif = false,
-    onExifLoaded
+    onExifLoaded,
+    onImageError,
 }: {
     src: string;
     alt: string;
@@ -150,8 +157,13 @@ function PhotoImage({
     // データ側 exif が無い写真だけ true。画像から EXIF をクライアント抽出する
     extractExif?: boolean;
     onExifLoaded?: (exif: ExtractedExif | null) => void;
+    /** 読み込めなかった（呼ぶ側は全画面を開かない） */
+    onImageError?: () => void;
 }) {
     const [imageError, setImageError] = useState(false);
+    // 失敗の知らせは ref 越しに呼ぶ（下の `attach` を描くたびに作り直さない）
+    const onImageErrorRef = useRef(onImageError);
+    useEffect(() => { onImageErrorRef.current = onImageError; }, [onImageError]);
     // **ハイドレーションまでは隠さない**（`Thumb` と同じ理由。この画面は検索の
     // 着地点なので、JS を待ってから写真を出すのは LCP をそのぶん遅らせる）。
     // "unknown" = React がまだ付いていない（静的HTMLのまま）。ref で決める。
@@ -169,6 +181,7 @@ function PhotoImage({
             // 本体は静的HTML由来＝失敗は React より先に終わっている）
             setImageError(true);
             setPhase("loaded");
+            onImageErrorRef.current?.();
             void dropCachedPhoto(img.currentSrc || img.src);
             return;
         }
@@ -339,6 +352,7 @@ function PhotoImage({
                         onError={(e) => {
                             setImageError(true);
                             setPhase("loaded");
+                            onImageErrorRef.current?.();
                             void dropCachedPhoto(e.currentTarget.currentSrc || e.currentTarget.src);
                         }}
                         onLoad={() => setPhase("loaded")}
@@ -488,6 +502,12 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
     const [shown, setShown] = useState(0);
     /** 写真を全画面で見ている（`PhotoViewer`）。開いている間の送りは `shown` を共有する */
     const [viewerOpen, setViewerOpen] = useState(false);
+    /** 写真を包むボタン（全画面を閉じたらここへフォーカスを戻す） */
+    const heroButtonRef = React.useRef<HTMLButtonElement>(null);
+    /** 読み込めなかった写真の src（押しても全画面を開かない。開いても同じく読めない） */
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    /** 写真の上で指・マウスを置いた所（引いて送った後の click で全画面を開かない） */
+    const heroPressRef = React.useRef<{ x: number; y: number } | null>(null);
     /**
      * いま出す1枚。**枚数が減っても落ちない**ように挟む（写真を差し替えた直後など）。
      *
@@ -966,10 +986,22 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     **押すと全画面で開く**（`PhotoViewer`・iOS と同じ）。ボタンは写真を包むだけで、
                     静的HTMLにも同じ形で出る（水和で木が変わらない） */}
                 <button
+                    ref={heroButtonRef}
                     type="button"
-                    onClick={() => setViewerOpen(true)}
-                    aria-haspopup="dialog"
-                    className="block w-full p-0 m-0 border-0 bg-transparent text-left cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                    onPointerDown={(e) => { heroPressRef.current = { x: e.clientX, y: e.clientY }; }}
+                    onClick={(e) => {
+                        // **引いて送ったあとの click は捨てる**（PC でマウスを引いて写真を送ると、
+                        // 離したところで click が来て全画面が開いていた）。キーボード（Enter）の
+                        // click は pointerdown を伴わないので、そのまま開く
+                        const press = heroPressRef.current;
+                        heroPressRef.current = null;
+                        if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > HERO_TAP_SLOP) return;
+                        if (failedSrc === current.src) return;
+                        setViewerOpen(true);
+                    }}
+                    aria-haspopup={failedSrc === current.src ? undefined : "dialog"}
+                    aria-disabled={failedSrc === current.src ? true : undefined}
+                    className={`block w-full p-0 m-0 border-0 bg-transparent text-left ${failedSrc === current.src ? "cursor-default" : "cursor-zoom-in"} focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white`}
                     style={{ touchAction: images.length > 1 ? "pan-y" : "manipulation", WebkitTapHighlightColor: "transparent" }}
                     data-testid="photo-hero-open"
                 >
@@ -986,8 +1018,11 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     // 無いので、2枚目以降から抜くと表紙のものと食い違う
                     extractExif={shown === 0 && !hasStoredExif(photo.exif)}
                     onExifLoaded={setExtractedExif}
+                    onImageError={() => setFailedSrc(current.src)}
                 />
-                <span className="sr-only">{locale === "en" ? " (view full screen)" : "（全画面で見る）"}</span>
+                {failedSrc !== current.src && (
+                    <span className="sr-only">{locale === "en" ? " (view full screen)" : "（全画面で見る）"}</span>
+                )}
                 </button>
                 {/* **上の端の黒のぼかし**（iOS の `TopBarScrim`: 黒 70% → 0）。スマホだけ——
                     戻る・共有・「…」の白い丸が明るい空の上でも沈まないように。押せない飾り */}
@@ -1645,6 +1680,7 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                     likePending={likePending}
                     onToggleLike={handleLike}
                     onClose={() => setViewerOpen(false)}
+                    restoreRef={heroButtonRef}
                     locale={locale === "en" ? "en" : "ja"}
                 />
             )}

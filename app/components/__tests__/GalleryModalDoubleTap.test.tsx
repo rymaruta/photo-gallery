@@ -87,4 +87,25 @@ describe("ダブルタップいいね", () => {
         await new Promise((r) => setTimeout(r, 30));
         expect(likePosts(), "前の写真のタップが次の写真のいいねになっている").toBe(0);
     });
+
+    // iOS の `DoubleTapLike` と同じ約束: 2回叩きは演出だけで、**いいね済みを消さない**
+    // （うっかり2回叩いて消えても、数は他人のぶんを含むので本人は気づけない）
+    it("いいね済みの写真を2回叩いても、いいねを外さない", async () => {
+        mockUserFetch.mockReset().mockImplementation((path: string) =>
+            Promise.resolve(String(path).startsWith("/user/likes/")
+                ? { ok: true, json: async () => ({ liked: true }) }
+                : { ok: true, json: async () => ({ likes: 2 }) }));
+        render(view(0));
+        // サーバーの答え（いいね済み）が画面に届くまで待つ
+        await screen.findByRole("button", { name: "いいねを取り消す" });
+        const area = tapArea();
+        fireEvent.click(area, { clientX: 100, clientY: 200 });
+        fireEvent.click(area, { clientX: 102, clientY: 201 });
+
+        await new Promise((r) => setTimeout(r, 30));
+        const mutations = mockUserFetch.mock.calls.filter((c) => String(c[0]).includes("/like")
+            && ["POST", "DELETE"].includes(String((c[1] as { method?: string } | undefined)?.method)));
+        expect(mutations, "2回叩きでいいねを外した").toEqual([]);
+        expect(screen.getByRole("button", { name: "いいねを取り消す" })).toBeTruthy();
+    });
 });
