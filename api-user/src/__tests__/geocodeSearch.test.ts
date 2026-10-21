@@ -6,7 +6,7 @@ import { join } from "node:path";
 const mockDdbSend = vi.hoisted(() => vi.fn());
 vi.mock("../dynamodb", () => ({ ddb: { send: mockDdbSend }, PHOTOS_TABLE: "photos-test" }));
 
-import { geocodeSearch, geocodeReverse, mapNominatimResults, placeNameFromReverse, FETCH_TIMEOUT_MS, CACHE_TTL_MS } from "../geocodeSearch";
+import { geocodeSearch, geocodeReverse, mapNominatimResults, isBroadPlace, placeNameFromReverse, FETCH_TIMEOUT_MS, CACHE_TTL_MS } from "../geocodeSearch";
 
 // 撮影地の位置さがし（Nominatim の代理）。
 // **画面から直接叩かない**——利用者の IP を相手に渡さず、規約が求める
@@ -69,6 +69,43 @@ describe("mapNominatimResults", () => {
     it("配列でなければ空", () => {
         expect(mapNominatimResults({ results: [] })).toEqual([]);
         expect(mapNominatimResults(null)).toEqual([]);
+    });
+});
+
+// 2026-10-21 判断: 国・都道府県/州だけの候補は落とす（ホームの人気の撮影地で
+// 「フランス」が重複する元）。ただし細かい候補が1件も無いときは残す
+describe("広すぎる候補（国・都道府県/州）", () => {
+    const france = { lat: "46.6", lon: "1.88", display_name: "フランス", category: "boundary", type: "administrative", addresstype: "country", place_rank: 4 };
+    const nagano = { lat: "36.1", lon: "138.0", display_name: "長野県, 日本", category: "boundary", type: "administrative", addresstype: "province", place_rank: 8 };
+    const california = { lat: "36.7", lon: "-119.4", display_name: "カリフォルニア州, アメリカ合衆国", category: "boundary", type: "administrative", addresstype: "state", place_rank: 8 };
+    const paris = { lat: "48.8534951", lon: "2.3483915", display_name: "パリ, イル＝ド＝フランス, フランス", category: "boundary", type: "administrative", addresstype: "city", place_rank: 12 };
+    const kamikochi = { lat: "36.25", lon: "137.64", display_name: "上高地, 松本市, 長野県, 日本", category: "place", type: "locality", addresstype: "locality", place_rank: 25 };
+
+    it("細かい候補があれば、国・県・州だけの候補は落とす", () => {
+        expect(mapNominatimResults([france, paris, nagano, california, kamikochi]).map((r) => r.label))
+            .toEqual(["パリ, イル＝ド＝フランス, フランス", "上高地, 松本市, 長野県, 日本"]);
+    });
+
+    it("細かい候補が1件も無ければ、広い候補を元の順で残す（何も出ないよりよい）", () => {
+        expect(mapNominatimResults([france, nagano]).map((r) => r.label)).toEqual(["フランス", "長野県, 日本"]);
+    });
+
+    it("addresstype が無い行は、行政界の place_rank（≤8）で見分ける。自然地名は落とさない", () => {
+        expect(isBroadPlace({ category: "boundary", place_rank: 4 })).toBe(true);
+        expect(isBroadPlace({ category: "boundary", place_rank: "8" })).toBe(true);
+        expect(isBroadPlace({ category: "boundary", place_rank: 12 })).toBe(false);
+        // 海・大きな湖などは rank が小さくても行政界ではない
+        expect(isBroadPlace({ category: "natural", place_rank: 4 })).toBe(false);
+        // 手掛かりの無い行（控えから読み直す行）は落とさない
+        expect(isBroadPlace({})).toBe(false);
+    });
+
+    it("相手から返った広い候補は、返す結果にも控えにも入れない", async () => {
+        fetchMock.mockResolvedValueOnce(ok([france, paris]));
+        const res = await invoke("パリ");
+        expect(JSON.parse(res.body).results).toEqual([{ label: "パリ, イル＝ド＝フランス, フランス", lat: 48.85, lng: 2.35 }]);
+        const put = mockDdbSend.mock.calls.map((c) => c[0]).find((cmd) => cmd?.input?.Item);
+        expect(put.input.Item.results).toEqual([{ label: "パリ, イル＝ド＝フランス, フランス", lat: 48.85, lng: 2.35 }]);
     });
 });
 
