@@ -2,8 +2,11 @@
 /**
  * Apple でサインイン（2026-10-21）のために、**既にあるプール**を用意する。owner が流す。
  *
- *   COGNITO_USER_POOL_ID=<id> STAGE=staging node scripts/setup-apple-signin.js          # 読むだけ
- *   COGNITO_USER_POOL_ID=<id> STAGE=staging node scripts/setup-apple-signin.js --apply  # 実行
+ *   COGNITO_USER_POOL_ID=<id> COGNITO_CLIENT_ID=<アプリのクライアント> STAGE=staging node scripts/setup-apple-signin.js          # 読むだけ
+ *   COGNITO_USER_POOL_ID=<id> COGNITO_CLIENT_ID=<アプリのクライアント> STAGE=staging node scripts/setup-apple-signin.js --apply  # 実行
+ *
+ * 変えるのは **`COGNITO_CLIENT_ID` のクライアントだけ**（`deploy-api.yml` の `cognitoClientId`・Web と iOS が
+ * 使うもの）。ほかのクライアントには触らず、一覧と書ける属性を画面に出すだけ（2026-10-21 の見直し）
  *
  * することは2つ（どちらも済んでいれば何もしない）:
  *
@@ -94,6 +97,22 @@ function unexpectedClientChanges(before, after, intended) {
     return [...keys].filter((k) => !skip.has(k) && JSON.stringify(before?.[k]) !== JSON.stringify(after?.[k])).sort();
 }
 
+/**
+ * 変える相手と、見るだけの相手に分ける（純関数）。指名したクライアントが無ければ投げる
+ */
+function splitClients(clientIds, targetId) {
+    if (!clientIds.includes(targetId)) {
+        throw new Error(`クライアント ${targetId} がこのプールにありません（${clientIds.join(", ") || "なし"}）`);
+    }
+    return { target: targetId, others: clientIds.filter((id) => id !== targetId) };
+}
+
+/** 書ける属性の見せ方（読むだけの出力） */
+function describeWrites(client) {
+    const w = client.WriteAttributes ?? [];
+    return w.length ? JSON.stringify(w) : "（一覧なし＝全部書ける）";
+}
+
 function poolNameForStage(stage) {
     return `${stage}-journey-photo-client-spa`;
 }
@@ -102,6 +121,7 @@ async function main() {
     const apply = process.argv.includes("--apply");
     const poolId = requireEnv("COGNITO_USER_POOL_ID");
     const stage = requireEnv("STAGE", "prod か staging。プール名と一致しなければ止まる");
+    const targetClientId = requireEnv("COGNITO_CLIENT_ID", "アプリ（Web・iOS）のクライアント ID。これだけを変える");
     const idp = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION ?? "ap-northeast-1" });
     console.log(`[apple] pool=${poolId} ${apply ? "（実行）" : "（読むだけ。--apply で実行）"}`);
 
@@ -128,11 +148,19 @@ async function main() {
         }
     }
 
-    // 2. クライアント（名前がプールと同じもの＝provision-env.js が作る形。本番は手で作ったので全部見る）
+    // 2. クライアント。**全部の一覧と書ける属性を出し、変えるのは指名した1つだけ**
     const list = await idp.send(new ListUserPoolClientsCommand({ UserPoolId: poolId, MaxResults: 60 }));
     const clients = list.UserPoolClients ?? [];
-    if (clients.length === 0) throw new Error("アプリのクライアントがありません");
+    const { target, others } = splitClients(clients.map((c) => c.ClientId), targetClientId);
+    console.log(`[apple] プールのクライアント（${clients.length}）:`);
     for (const c of clients) {
+        const d = (await idp.send(new DescribeUserPoolClientCommand({ UserPoolId: poolId, ClientId: c.ClientId }))).UserPoolClient;
+        console.log(`[apple]   ${c.ClientId === target ? "★変える" : "　見るだけ"} ${d.ClientName}（${d.ClientId}）`
+            + ` 流れ=${JSON.stringify(d.ExplicitAuthFlows ?? [])} 書ける属性=${describeWrites(d)}`);
+    }
+    if (others.length) console.log("[apple]   （見るだけのクライアントには触りません。カスタム認証も許しません）");
+    {
+        const c = { ClientId: target };
         const client = (await idp.send(new DescribeUserPoolClientCommand({ UserPoolId: poolId, ClientId: c.ClientId }))).UserPoolClient;
         const { params, changes } = planClientUpdate(client, pool);
         console.log(`[apple] クライアント ${client.ClientName}（${client.ClientId}）: ${changes.length ? `変える ${changes.join(", ")}` : "何もしない"}`);
@@ -154,7 +182,7 @@ async function main() {
     if (!apply) console.log("[apple] 読むだけで終わります（--apply で実行）");
 }
 
-module.exports = { APP_WRITES, hasAppleAttribute, planClientUpdate, unexpectedClientChanges, poolNameForStage, CLIENT_WRITABLE, ATTR_FULL, FLOW };
+module.exports = { APP_WRITES, splitClients, describeWrites, hasAppleAttribute, planClientUpdate, unexpectedClientChanges, poolNameForStage, CLIENT_WRITABLE, ATTR_FULL, FLOW };
 if (require.main === module) {
     main().catch((e) => { console.error(e); process.exit(1); });
 }

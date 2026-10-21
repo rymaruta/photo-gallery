@@ -83,6 +83,25 @@ export function sameEmail(a: string | undefined, b: string | undefined): boolean
     return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+/**
+ * Cognito を引くときの綴りの候補（純関数）。Cognito の絞り込みは綴りどおりにしか当たらないので、
+ * 登録した人が打ちがちな形を並べる: Apple の綴りそのもの・全部小文字・ドメインだけ小文字・
+ * 先頭だけ大文字（ドメインは小文字）。**全部の綴りは拾えない**——拾えずに作ろうとして別名が
+ * ぶつかった回は、`resolveAppleAccount` が 409（メールとパスワードで入って）に倒す（500 にしない）
+ */
+export function emailSpellings(email: string): string[] {
+    const at = email.lastIndexOf("@");
+    if (at < 1) return [email];
+    const local = email.slice(0, at), domain = email.slice(at + 1).toLowerCase();
+    const lowerLocal = local.toLowerCase();
+    return [...new Set([
+        email,
+        email.toLowerCase(),
+        `${local}@${domain}`,
+        `${lowerLocal.charAt(0).toUpperCase()}${lowerLocal.slice(1)}@${domain}`,
+    ])];
+}
+
 /** Cognito の ListUsers の絞り込みの値に入れてよいメールか（引用符・逆斜線は入れない） */
 export function filterSafeEmail(email: string): boolean {
     return email.length <= 254 && !/["\\\s]/.test(email);
@@ -117,10 +136,10 @@ export function livePool(userPoolId: string, client = new CognitoIdentityProvide
         attrs: Object.fromEntries((u.Attributes ?? []).map((a) => [a.Name ?? "", a.Value ?? ""])),
     });
     return {
-        // **元の綴りと小文字の両方で引く**（Cognito の絞り込みは綴りどおりにしか当たらない。
+        // **綴りの候補を広げて引く**（`emailSpellings`。Cognito の絞り込みは綴りどおりにしか当たらない。
         // 登録の口は大文字小文字を触らずに入れている）。比べるのは `decideAppleAccount` が小文字で
         async listByEmail(email) {
-            const spellings = [...new Set([email, email.toLowerCase()])];
+            const spellings = emailSpellings(email);
             const found = new Map<string, PoolUser>();
             for (const e of spellings) {
                 const res = await client.send(new ListUsersCommand({
@@ -190,7 +209,12 @@ export async function resolveAppleAccount(
                     userId = await pool.create(username, claims.email, claims.sub);
                 } catch (e) {
                     const name = (e as { name?: string }).name;
-                    if (attempt === 0 && (name === "AliasExistsException" || name === "UsernameExistsException")) continue;
+                    if (name === "AliasExistsException" || name === "UsernameExistsException") {
+                        // 1回目: 同時に作られた → 探し直す。2回目: 探しても見つからない（綴りの違いで
+                        // 引けない同じメールの人が居る）→ 500 ではなく「メールで入って」の 409
+                        if (attempt === 0) continue;
+                        return { status: 409, reason: "同じメールの別名が既にある（綴りの違いで引けない）" };
+                    }
                     throw e;
                 }
                 await pool.setRandomPassword(username);

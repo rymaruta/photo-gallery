@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AppleIdClaims } from "../appleIdToken";
 import {
-    decideAppleAccount, filterSafeEmail, livePool, randomPassword, resolveAppleAccount, appleSignIn,
+    decideAppleAccount, emailSpellings, filterSafeEmail, livePool, randomPassword, resolveAppleAccount, appleSignIn,
 } from "../appleSignIn";
 
 // `cognitoTrigger.ts` は読み込んだ時に USERS_TABLE を読む。**import より先に**置く
@@ -121,6 +121,15 @@ describe("resolveAppleAccount", () => {
             .toEqual({ status: 200, username: "u-9", created: false, linked: false });
     });
 
+    // 引けない綴りの同じメールの人が居て、作ろうとして別名がぶつかる回を 500 にしない
+    it("探し直しても見つからず別名がぶつかるなら 409（500 にしない）", async () => {
+        const pool = fakePool();
+        (pool.create as ReturnType<typeof vi.fn>).mockRejectedValue(Object.assign(new Error("x"), { name: "AliasExistsException" }));
+        const r = await resolveAppleAccount(pool, claims(), () => "new-uuid");
+        expect(r.status).toBe(409);
+        expect(pool.create).toHaveBeenCalledTimes(2);
+    });
+
     it("つなげないときは 409（作らない）", async () => {
         const pool = fakePool([user("u-4", "CONFIRMED", { email_verified: "true", "custom:apple_sub": "009999.x.1" })]);
         expect((await resolveAppleAccount(pool, claims())).status).toBe(409);
@@ -133,6 +142,7 @@ describe("Cognito への頼み方（livePool）", () => {
 
     it("メールで探し、作るときは招待のメールを送らず・確認済み・apple_sub 付きで作る", async () => {
         mockCognitoSend.mockResolvedValueOnce({ Users: [{ Username: "u-1", UserStatus: "CONFIRMED", Attributes: [{ Name: "email_verified", Value: "true" }] }] });
+        mockCognitoSend.mockResolvedValueOnce({ Users: [] });   // 2つ目の綴り（Taro@example.com）
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pool = livePool("pool-1", { send: mockCognitoSend } as any);
         expect(await pool.listByEmail("taro@example.com")).toEqual([{ username: "u-1", status: "CONFIRMED", attrs: { email_verified: "true" } }]);
@@ -154,14 +164,24 @@ describe("Cognito への頼み方（livePool）", () => {
         expect(mockCognitoSend.mock.calls[1][0].input).toMatchObject({ Username: "new-uuid", Permanent: true });
     });
 
-    it("大文字の混じったメールは、元の綴りと小文字の両方で引く（同じ人は1回だけ）", async () => {
+    it("綴りの候補を広げて引く（同じ人は1回だけ）", async () => {
         mockCognitoSend
             .mockResolvedValueOnce({ Users: [{ Username: "u-1", Attributes: [] }] })
-            .mockResolvedValueOnce({ Users: [{ Username: "u-1", Attributes: [] }, { Username: "u-2", Attributes: [] }] });
+            .mockResolvedValueOnce({ Users: [{ Username: "u-1", Attributes: [] }, { Username: "u-2", Attributes: [] }] })
+            .mockResolvedValue({ Users: [] });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pool = livePool("pool-1", { send: mockCognitoSend } as any);
         expect((await pool.listByEmail("Taro@Example.com")).map((u) => u.username)).toEqual(["u-1", "u-2"]);
-        expect(mockCognitoSend.mock.calls.map((c) => c[0].input.Filter)).toEqual(['email = "Taro@Example.com"', 'email = "taro@example.com"']);
+        expect(mockCognitoSend.mock.calls.map((c) => c[0].input.Filter))
+            .toEqual(['email = "Taro@Example.com"', 'email = "taro@example.com"', 'email = "Taro@example.com"']);
+    });
+
+    // Apple は小文字で返し、登録時は先頭を大文字で打った人（Cognito はその綴りのまま持つ）
+    it("Apple の綴りが小文字でも、先頭だけ大文字・ドメインだけ違う綴りも引く", () => {
+        expect(emailSpellings("taro@example.com")).toEqual(["taro@example.com", "Taro@example.com"]);
+        expect(emailSpellings("Taro.Y@Mail.Example.com")).toEqual([
+            "Taro.Y@Mail.Example.com", "taro.y@mail.example.com", "Taro.Y@mail.example.com", "Taro.y@mail.example.com",
+        ]);
     });
 
     it("ランダムなパスワードはプールの決まり（大小英字・数字・記号・8字以上）を満たし、毎回違う", () => {

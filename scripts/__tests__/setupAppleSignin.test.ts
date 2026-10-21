@@ -62,6 +62,13 @@ describe("setup-apple-signin: クライアントの更新", () => {
         expect(setup.unexpectedClientChanges(client, after, ["ExplicitAuthFlows"])).toEqual(["PreventUserExistenceErrors"]);
     });
 
+    it("変えるのは指名したクライアントだけ（ほかは見るだけ）・無ければ止まる", () => {
+        expect(setup.splitClients(["web", "admin"], "web")).toEqual({ target: "web", others: ["admin"] });
+        expect(() => setup.splitClients(["web"], "other")).toThrow(/ありません/);
+        expect(setup.describeWrites({})).toMatch(/全部/);
+        expect(setup.describeWrites({ WriteAttributes: ["email"] })).toBe('["email"]');
+    });
+
     it("属性があるかを見る", () => {
         expect(setup.hasAppleAttribute({ SchemaAttributes: [{ Name: "email" }, { Name: "custom:apple_sub" }] })).toBe(true);
         expect(setup.hasAppleAttribute({ SchemaAttributes: [{ Name: "email" }] })).toBe(false);

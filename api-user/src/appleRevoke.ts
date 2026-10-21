@@ -153,8 +153,11 @@ export async function revokeWithCode(
         console.warn(`appleRevoke: コードを交換できませんでした（${token.status} ${String(body.error ?? "")}）`);
         return "failed";
     }
-    // **sub が違っても、交換で受け取った更新トークンは取り消してから断る**（2026-10-21）。
-    // 交換した時点で新しい更新トークンが生まれている——放っておくと、使われない鍵が Apple に残る
+    // **2026-10-21 判断: sub が違っても、交換で受け取った更新トークンは取り消してから断る。**
+    // 交換した時点で新しい更新トークンが生まれている——放っておくと、使われない鍵が Apple に残る。
+    // **残る鍵を消すことを優先した。** その代わり、家族で共有している端末などで、退会する人とは別の
+    // Apple ID でシートに答えた回は、**その別の人の「Apple でサインイン」の許可を取り消すことがありうる**
+    // （その人は次に Apple で入るとき、もう一度許可を求められるだけで、アカウントは消えない）
     const mismatch = subOfIdToken(body.id_token) !== expectedSub;
     const revoke = await post(`${APPLE}/auth/revoke`, {
         client_id: cfg.clientId, client_secret: cfg.clientSecret,
