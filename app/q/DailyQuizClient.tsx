@@ -246,7 +246,7 @@ export default function DailyQuizClient() {
                             <span className="flex items-center justify-between gap-3">
                                 <span className="min-w-0">{c.name}</span>
                                 {answered && isAnswer && (
-                                    <span className={`shrink-0 font-mono font-medium ${isChosen ? "text-ink" : "text-accent"}`}
+                                    <span className={`shrink-0 font-sans tabular-nums font-medium ${isChosen ? "text-ink" : "text-accent"}`}
                                           style={{ fontSize: "12px", letterSpacing: "1px" }}>
                                         {/* ✓ は飾り（読み上げに「チェックマーク」を入れない） */}
                                         <span aria-hidden="true">✓ </span>{en ? "ANSWER" : "正解"}
