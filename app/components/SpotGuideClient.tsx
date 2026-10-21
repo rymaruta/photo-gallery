@@ -193,7 +193,7 @@ function LightTable({ light, sky, isJa }: { light: LightCalendar; sky: SpotSky |
                             <th scope="col" className="py-2 font-normal">{isJa ? "夕方のゴールデンアワー" : "Evening golden hour"}</th>
                         </tr>
                     </thead>
-                    <tbody className="font-mono tabular-nums text-white/85">
+                    <tbody className="font-sans tabular-nums text-white/85">
                         {light.rows.map((r) => (
                             <tr key={r.month} className="border-b border-line/60">
                                 <th scope="row" className={`${cell} font-normal font-sans text-white/60`}>
@@ -253,7 +253,7 @@ function NightSky({ sky, isJa }: { sky: SpotSky; isJa: boolean }) {
                                 <th scope="col" className="py-2 font-normal">{isJa ? "長さ" : "Length"}</th>
                             </tr>
                         </thead>
-                        <tbody className="font-mono tabular-nums text-white/85">
+                        <tbody className="font-sans tabular-nums text-white/85">
                             {mw.months.map((r) => {
                                 const h = Math.floor(r.minutes / 60), min = r.minutes % 60;
                                 const len = isJa

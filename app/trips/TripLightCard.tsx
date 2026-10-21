@@ -128,7 +128,7 @@ export default function TripLightCard({ plans, spots, en }: { plans: readonly Tr
                 {rows.map(([label, value]) => (
                     <React.Fragment key={label}>
                         <dt className="text-white/60">{label}</dt>
-                        <dd className="m-0 font-mono tabular-nums text-white/90">{value}</dd>
+                        <dd className="m-0 font-sans tabular-nums text-white/90">{value}</dd>
                     </React.Fragment>
                 ))}
             </dl>

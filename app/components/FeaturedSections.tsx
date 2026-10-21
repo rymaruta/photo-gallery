@@ -5,6 +5,7 @@ import type { Photo } from "../../lib/data/photos";
 import { featuredGroups } from "../../lib/utils/featured";
 import { collectionPath } from "../../lib/utils/collections";
 import GalleryGrid from "./GalleryGrid";
+import SectionHead from "./SectionHead";
 import { GRID_SIZES_HOME_6XL } from "./gridSizes";
 import type { Locale } from "../../lib/data/photos";
 
@@ -37,9 +38,9 @@ export default function FeaturedSections({ photos, categoryNames, locale, onOpen
 
     return (
         <section className="mb-8" aria-labelledby="featured-heading">
-            <h2 id="featured-heading" className="text-sm font-semibold tracking-wide text-white/80 mb-3">
-                {isJa ? "おすすめ" : "Featured"}
-            </h2>
+            {/* 節の見出しは「さがす」と同じ形（眉＋消える線 → 明朝 22・iOS の `JPSectionHeading`）。
+                以前は 14px のゴシックの太字で、同じアプリの中で節の声が割れていた */}
+            <SectionHead id="featured-heading" eyebrow="FEATURED" title={isJa ? "おすすめ" : "Featured"} />
             <div className="space-y-6">
                 {groups.map((g) => (
                     <div key={g.slug}>

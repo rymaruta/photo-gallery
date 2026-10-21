@@ -6,6 +6,7 @@ import type { Photo } from "@/lib/data/photos";
 import { collectEntries, collectionPath, collectionIndexPath, slugify, type CollectionEntry } from "@/lib/utils/collections";
 import { dedupeCameraName } from "@/lib/utils/cameraName";
 import Thumb from "../components/Thumb";
+import SharedSectionHead from "../components/SectionHead";
 import { CHIP_OFF, CHIP_SIZE } from "@/app/components/chipStyles";
 import { placeLine, placeParts } from "@/lib/utils/placeName";
 
@@ -148,28 +149,9 @@ function ItemLink({ href, className, style, children }: {
  * 眉は英字の飾りなので読み上げに出さない（題が同じことを日本語で言う）。
  * 「すべて見る」を真鍮にしない——節の行き先は合図ではなく道（iOS の `MoreLink` と同じ）。
  */
-function SectionHead({ id, eyebrow, title, href, moreLabel }: {
-    id: string; eyebrow: string; title: string; href: string; moreLabel: string;
-}) {
-    return (
-        <div className="flex items-end justify-between gap-3 mb-3" data-testid="discover-section-head">
-            <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-                <p aria-hidden="true" className="m-0 eyebrow eyebrow-line text-accent">{eyebrow}</p>
-                <h2 id={id} className="m-0 font-serif font-bold text-white" style={{ fontSize: "22px", lineHeight: "1.3" }}>{title}</h2>
-            </div>
-            {/* **先読みしない**（公開ページの `<Link>` は全部そう）。
-                行き先は普通のページなので、項目と違って `<Link>` のままでよい
-                ——クエリを持たないので `useGallery` の読み落としに当たらない */}
-            <Link
-                href={href}
-                prefetch={false}
-                className="flex-shrink-0 inline-flex items-center min-h-[44px] text-white/70 hover:text-white transition-colors"
-                style={{ fontSize: "13px", touchAction: "manipulation" }}
-            >
-                {moreLabel}
-            </Link>
-        </div>
-    );
+function SectionHead(props: { id: string; eyebrow: string; title: string; href: string; moreLabel: string }) {
+    // 形はホームの「おすすめ」と共通の部品（`app/components/SectionHead.tsx`）
+    return <SharedSectionHead {...props} testId="discover-section-head" />;
 }
 
 export default function DiscoverSections({ photos, locale, categoryDisplayMap }: Props) {
