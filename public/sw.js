@@ -161,8 +161,25 @@ function isStorable(res) {
 
 /** 中身がハッシュ名の資産。内容が変われば必ず別のURLになる */
 function isImmutableAsset(url) {
-    return url.pathname.startsWith("/_next/static/");
+    return url.pathname.startsWith("/_next/static/") && !isWebFont(url);
 }
+
+/**
+ * **字のファイル（woff2・woff）は控えない**（2026-10-16）。
+ *
+ * 見出しの明朝（Shippori Mincho B1）は `unicode-range` で 122 本に割れていて、ページで使った字の
+ * 範囲だけが落ちる（実測: 撮影スポットの頁で 19 本・一覧で 12 本）。これを資産の控えに入れると
+ * `MAX_ASSET_ENTRIES` の数え方では字の数だけ JS・CSS を押し出し、2デプロイぶんが収まらなくなった
+ * （スモークの実測: 異なり 86 × 2 = 172 ／ 上限 150）。
+ * 字は無くても読める（端末の明朝に落ちる・`display: swap`）ので、ブラウザのふつうのキャッシュに任せる
+ */
+function isWebFont(url) {
+    return /\.woff2?$/.test(url.pathname);
+}
+// 2026-10-21: 本番（main）のデプロイがこの直しを欠いたままスモークで止まった
+// （異なり 92 × 2 = 184 ／ 上限 150）。見張りの `scripts/e2e-smoke.mjs` は、
+// 数え方の写しを持たず**このファイルの `isImmutableAsset` と
+// `MAX_ASSET_ENTRIES` を読み込んで**数える——SW と見張りがずれないように。
 
 /**
  * ページの控えのキー。**クエリを落とす。**
@@ -269,6 +286,11 @@ async function trimCache(cache) {
             // 受け皿は追い出さない。ここが無いと、上の説明のとおり
             // manifest が二度と戻らない
             if (isPrecacheEntry(url)) continue;
+            // **前の版の SW が控えた字のファイルは、ここで捨てる**（2026-10-21）。
+            // 今は入れない（`isWebFont`）が、入れていた版の端末には残っている。
+            // `isImmutableAsset` から外れたので、放っておくと「ページ」として
+            // 数えられ、ページの枠（`MAX_PAGE_ENTRIES`）を食い続ける
+            if (isWebFont(url)) { await cache.delete(k); continue; }
             if (isImmutableAsset(url)) assets.push(k);
             else pages.push(k);
         }

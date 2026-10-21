@@ -300,6 +300,9 @@ describe("触らないもの", () => {
         // 外しても**どの分岐にも入らないので素通りした**（変異が空振り）。
         ["別オリジンのハッシュ名資産", new Request("https://other.example/_next/static/chunks/x.js")],
         ["ハッシュ名でない同一オリジンの GET", new Request("https://journey-photo.com/data/photos.json")],
+        // 明朝は 122 本に割れていて、控えると JS・CSS を押し出す（2026-10-16・`isWebFont`）
+        ["字のファイル（woff2）", new Request("https://journey-photo.com/_next/static/media/a4a2b44c2c53fac0-s.25990012.woff2")],
+        ["字のファイル（woff）", new Request("https://journey-photo.com/_next/static/media/x.woff")],
     ])("%s は素通しする", (_name, req) => {
         const e = makeEvent(req);
         handlers.fetch(e);
@@ -331,6 +334,35 @@ describe("ハッシュ名の資産", () => {
     });
 });
 
+
+// **2026-10-21: 字のファイルの控えの後始末と、media/ の字以外。**
+describe("字のファイル", () => {
+    it("同じ media/ でも字以外（画像）は今までどおり控える", async () => {
+        const cache = await installed();
+        fetchMock.mockResolvedValue(new Response("png", { status: 200 }));
+        const url = "https://journey-photo.com/_next/static/media/logo.0a1b2c3d.png";
+        const e = makeEvent(new Request(url));
+        handlers.fetch(e);
+        expect(await (await e.response!).text()).toBe("png");
+        await new Promise((r) => setTimeout(r, 10));
+        expect(await cache.match(url)).toBeTruthy();
+    });
+
+    // 前の版の SW は字を控えていた。`isImmutableAsset` から外れたので、
+    // 残すと「ページ」として数えられ、ページの枠を食い続ける
+    it("前の版が控えた字のファイルは、次の追い出しで捨てる", async () => {
+        const cache = await installed();
+        const font = "https://journey-photo.com/_next/static/media/old-s.p.woff2";
+        await cache.put(font, new Response("font", { status: 200 }));
+        fetchMock.mockResolvedValue(new Response("chunk", { status: 200 }));
+        const e = makeEvent(new Request("https://journey-photo.com/_next/static/chunks/z.js"));
+        handlers.fetch(e);
+        await e.response;
+        await new Promise((r) => setTimeout(r, 10));
+        expect(await cache.match(font), "前の版の字のファイルが残っている").toBeUndefined();
+        expect(await cache.match("https://journey-photo.com/_next/static/chunks/z.js")).toBeTruthy();
+    });
+});
 
 describe("控えの上限", () => {
     /** 種類ごとに数える（この控えはページ・資産・受け皿が同居している） */
