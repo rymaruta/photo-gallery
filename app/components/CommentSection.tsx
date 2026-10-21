@@ -3,7 +3,7 @@
 // 写真ページのコメント欄。公開閲覧、認証ユーザーが投稿でき、
 // 投稿者本人または写真オーナーが削除できる。
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChatBubbleOvalLeftIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useComments } from "../../lib/hooks/useComments";
@@ -49,9 +49,30 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
     const [text, setText] = useState("");
     useEffect(() => { onCountChange?.(count); }, [count, onCountChange]);
 
+    // **送ったコメントを見せる**（2026-10-21 判断）。並びは iOS と同じ新しい順（先頭）のまま——
+    // 入力欄は下に貼ってあるので、送った1件が画面の外（上）に出ることがある。送れたら先頭の1件を
+    // 画面内へ送り（`block: "nearest"`＝見えていれば動かさない。動きを減らす設定なら滑らせない）、
+    // 読み上げには「送りました」を1回だけ出す
+    const listRef = useRef<HTMLUListElement | null>(null);
+    const [postedTick, setPostedTick] = useState(0);
+    // 読み上げの文は送れた回数から決める。続けて送ったときに同じ文だと読み上げが黙るので、
+    // 回ごとに末尾の見えない空白を付け外しする
+    const announce = postedTick === 0 ? ""
+        : `${locale === "en" ? "Comment posted" : "コメントを送りました"}${postedTick % 2 === 0 ? "\u00A0" : ""}`;
+    useEffect(() => {
+        if (postedTick === 0) return;
+        const first = listRef.current?.firstElementChild as HTMLElement | null | undefined;
+        let reduced = false;
+        try { reduced = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; } catch { /* 動かす */ }
+        first?.scrollIntoView?.({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    }, [postedTick]);
+
     const submit = async () => {
         const r = await add(text);
-        if (r.status === "ok") { setText(""); }
+        if (r.status === "ok") {
+            setText("");
+            setPostedTick((n) => n + 1);
+        }
         else if (r.status === "auth-required") showToast(locale === "en" ? "Log in to comment" : "コメントするにはログインしてください", "info");
         // 断られた理由はサーバーが日本語で返している
         // （「同じ写真へのコメントは10件までです」など）。
@@ -95,7 +116,7 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                     testId="comments-empty"
                 />
             ) : (
-                <ul className="space-y-3.5">
+                <ul ref={listRef} className="space-y-3.5">
                     {items.map((c) => {
                         const canDelete = isAuthenticated && (c.uid === userId || (photoOwnerId && photoOwnerId === userId));
                         return (
@@ -213,6 +234,8 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
                 </Link>
             )}
             </div>
+            {/* 送れたことの読み上げ（1回だけ）。見た目は送った1件が先頭に出ることで伝える */}
+            <p className="sr-only" role="status" aria-live="polite" data-testid="comment-posted-status">{announce}</p>
         </section>
     );
 }
