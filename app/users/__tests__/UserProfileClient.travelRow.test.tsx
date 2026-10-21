@@ -7,8 +7,8 @@ import { render, screen } from "@testing-library/react";
  *
  * 以前は「総移動距離」の1行だった。いまは真鍮の眉ラベル「旅の記録」・写真をつないだ距離・
  * 訪れた国・地域・写真をつないだ線。押した先は撮影地マップ（`/map`）＝**全員の写真**なので、
- * 他人のページに置くと「この人の旅の続き」に見えて別のものへ連れて行く——
- * **本人のページだけ**に出す（他人のページは板 UserProfile の「訪れた場所」）。
+ * 他人のページで押せると「この人の旅の続き」に見えて別のものへ連れて行く——
+ * **押せるのは本人のページだけ**（2026-10-21 から人のページにも出す。押せない塊として）。
  *
  * あわせて「数字の行」の字の大きさが2つのファイルでずれないことも見る
  * ——投稿は `UserProfileClient`、フォロワー／フォロー中は `FollowButton` が
@@ -101,15 +101,21 @@ describe("旅の記録", () => {
         expect(km.className).toContain("text-white/60");
     });
 
-    it("他人のページには出さない（全員の地図へ連れて行かない）", async () => {
+    // 2026-10-21: 人のページにも出す（iOS の `ProfileTravelRecord`）。ただし押せない
+    // ——押した先の撮影地マップは全員の写真で、「この人の旅の続き」に見えて別のものへ連れて行く
+    // （公開写真だけで数えること・ブロックの関係なら出さないことは `UserProfileClient.trips.test.tsx`）
+    it("他人のページにも出すが、全員の地図へは連れて行かない（押せない）", async () => {
         await show("55555555-5555-4555-8555-555555555555");
-        expect(screen.queryByTestId("travel-record")).toBeNull();
+        const block = await screen.findByTestId("travel-record");
+        expect(block.tagName).not.toBe("A");
         expect(screen.queryByRole("link", { name: /撮影地マップを開く/ })).toBeNull();
     });
 
-    it("未ログインでも出さない", async () => {
+    it("未ログインでも同じ（出すが押せない）", async () => {
         await show(null);
-        expect(screen.queryByTestId("travel-record")).toBeNull();
+        const block = await screen.findByTestId("travel-record");
+        expect(block.tagName).not.toBe("A");
+        expect(block.querySelector("a")).toBeNull();
     });
 });
 

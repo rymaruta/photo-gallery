@@ -153,7 +153,8 @@ const GUARDED: Array<[string, string, string, boolean?]> = [
     ["app/components/Footer.tsx", "© Journey Photo", "全ページに出る著作権表示"],
     ["app/privacy/page.tsx", "最終更新日: {LAST_UPDATED}", "プライバシーポリシーの更新日"],
     // 子の <Link>（/70）を親と取り違えていたので、包む <p> を直接の目印にする
-    ["app/components/CommentSection.tsx", '<p className="mb-4 text-xs', "コメントの案内"],
+    // 2026-10-21: 案内の文は下に貼る「ログインしてコメント」の札になった（`text-text-2` を持つ）
+    ["app/components/CommentSection.tsx", '"Log in to comment" : "ログインしてコメント"', "コメントの案内（ログインしてコメント）", true],
     // `app/map/page.tsx` はサーバー側の殻になった（台帳をクライアントに
     // 載せないため）。文言を持つのは画面の方
     ["app/map/MapPageClient.tsx", "GPS 付きの写真をアップロード", "地図が空のときの案内"],
