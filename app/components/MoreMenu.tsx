@@ -18,6 +18,12 @@ type Props = {
     /** 押した要素へフォーカスを戻すために親が握る ref（通報ダイアログの `openerRef` と共用） */
     buttonRef?: React.RefObject<HTMLButtonElement | null>;
     className?: string;
+    /**
+     * ボタンの見た目を差し替える（既定は黒地の上の素の「⋯」・40px）。
+     * 写真の上に重ねる所（写真ページのスマホ）はガラスの丸 44px を渡す
+     */
+    buttonClassName?: string;
+    buttonSize?: number;
 };
 
 /**
@@ -28,7 +34,7 @@ type Props = {
  *   中身が無ければボタンごと出さない（押しても何も無いボタンを置かない）
  * - 一覧は `role="menu"`／`menuitem`。矢印キーで移動、Escape で戻る
  */
-export default function MoreMenu({ items, label, buttonRef, className = "" }: Props) {
+export default function MoreMenu({ items, label, buttonRef, className = "", buttonClassName, buttonSize = 40 }: Props) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const innerBtnRef = useRef<HTMLButtonElement>(null);
@@ -75,8 +81,8 @@ export default function MoreMenu({ items, label, buttonRef, className = "" }: Pr
                 aria-expanded={open}
                 aria-controls={open ? menuId : undefined}
                 aria-label={label}
-                className="inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"
-                style={{ width: "40px", height: "40px", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                className={buttonClassName ?? "inline-flex items-center justify-center rounded-full text-white/85 hover:text-white hover:bg-white/10 transition-colors"}
+                style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
             >
                 <EllipsisHorizontalIcon aria-hidden="true" style={{ width: "24px", height: "24px" }} />
             </button>
