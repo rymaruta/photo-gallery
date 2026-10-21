@@ -71,8 +71,18 @@ describe("formatPhotoStamp", () => {
         expect(formatPhotoStamp("2026-09-23", new Date(2026, 8, 23, 14, 29))).toBe("2026.09.23 · 14:29");
     });
 
-    it("撮影日に付いた時刻は使わない（撮った時刻とは限らない）", () => {
-        expect(formatPhotoStamp("2026-09-23T09:00:00", undefined)).toBe("2026.09.23");
+    it("EXIF に時刻が無ければ、撮影日に付いた時刻で出す（直す前の画面と同じ）", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", undefined)).toBe("2026.09.23 · 09:05");
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:23")).toBe("2026.09.23 · 09:05");
+    });
+
+    it("EXIF の時刻があればそちらを先に使う", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:23 14:29:00")).toBe("2026.09.23 · 14:29");
+    });
+
+    it("EXIF の日付が食い違えば、撮影日の時刻にも落とさない", () => {
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:22 23:59:00")).toBe("2026.09.23");
+        expect(formatPhotoStamp("2026-09-23T09:05:00", "2026:09:22")).toBe("2026.09.23");
     });
 
     it("EXIF の日付が撮影日と食い違えば時刻を出さない（持ち主が日付を直した写真）", () => {
