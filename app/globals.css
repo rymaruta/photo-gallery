@@ -77,6 +77,36 @@
   padding-left: env(safe-area-inset-left, 0px);
 }
 
+/* **眉ラベル**（iOS v2 の `jpEyebrow()`・板 02 Eyebrow: SF 600・11・字間 0.14em・大文字）。
+   共通の節の見出し（`app/components/SectionHead.tsx`）が使う。develop の `fd398f0cb` と同じ形だが、
+   本番の木には `--font-mono` を SF に読み替える設定が無いので、字は本文の字（`--font-sans`）を名指しする
+   ——等幅の書体にしない（owner の好み・iOS の `JPFont.mono`）。
+   **色は呼ぶ側が決める**——黒地の上なら `text-accent`、写真の上なら白 */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* **眉ラベル＋右へ消えていく真鍮の 1px の線**（iOS の `JPEyebrowLine`・板 Components 05 の節の見出し）。
+   字と線のすき間 10・線は真鍮 55% → 0。**黒地の上だけ**（真鍮は写真の上では読めない）。
+   線は飾りなので `::after`（読み上げに出ない） */
+@utility eyebrow-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgb(201 166 107 / 0.55), rgb(201 166 107 / 0));
+  }
+}
+
 html {
   scroll-behavior: smooth;
   /* ⚠️ **ここに `scroll-padding-top` を置かないこと。** sticky のヘッダーは

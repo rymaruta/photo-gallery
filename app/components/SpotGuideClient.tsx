@@ -732,7 +732,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
                     {/* 公開の回は読み上げから外す（すぐ上のパンくずが同じ「撮影スポット」を読む）。
                         「下書き・未確認」は意味を持つので読ませる */}
                     <p aria-hidden={verified ? true : undefined}
-                       className={`m-0 mb-1.5 font-mono font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
+                       className={`m-0 mb-1.5 font-sans tabular-nums font-medium uppercase ${verified ? "text-accent" : "text-white/60"}`}
                        style={{ fontSize: "11px", lineHeight: "16px", letterSpacing: "1.5px" }}>
                         {verified ? (isJa ? "撮影スポット" : "Photo spot") : (isJa ? "下書き・未確認" : "Draft · Unreviewed")}
                     </p>
