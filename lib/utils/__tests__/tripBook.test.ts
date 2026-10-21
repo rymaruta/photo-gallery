@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
     trips, shelfTrips, groupTrips, coverOf, tripDays, mainPlace, dateRange, monthDay, daysLabel, tripTitle,
     placeCount, tripDistanceKm, distanceText, daysOf, routeStops, sampledStops, shareText, dayOf, inOrder,
-    ymdToDay, profileTripPhotos, findTrip, tripBookPath, tripLine, type TripPhoto, type RouteStop,
+    ymdToDay, profileTripPhotos, isPublicPhoto, hasTakenDay, findTrip, tripBookPath, tripLine, type TripPhoto, type RouteStop,
 } from "../tripBook";
 
 /**
@@ -313,8 +313,20 @@ describe("人のページの棚（ProfileTravelRecord）", () => {
             photo("f", { date: "2026-05-02", audience: "followers" }), photo("d", { date: "2026-05-02", published: false }),
             photo("e", { date: "2026-05-02", audience: "everyone" }),
         ];
-        expect(ids(profileTripPhotos(list, false))).toEqual(["a", "b", "e"]);
+        // "everyone" も公開範囲を持っている＝隠す（サーバーの公開の口 `isRestricted` と同じ）
+        expect(ids(profileTripPhotos(list, false))).toEqual(["a", "b"]);
         expect(profileTripPhotos(list, true)).toEqual([]);
+    });
+
+    it("公開範囲の読み方はサーバーの公開の口と同じ（持っていれば隠す・空白だけは持っていない）", () => {
+        const cases: [unknown, boolean][] = [
+            [undefined, true], [null, true], ["", true], ["  ", true],
+            ["everyone", false], ["followers", false], ["closeFriends", false], ["typo", false], [false, false], [0, false],
+        ];
+        for (const [audience, shown] of cases) {
+            expect(isPublicPhoto(photo("x", { audience })), JSON.stringify(audience)).toBe(shown);
+        }
+        expect(isPublicPhoto(photo("x", { published: false }))).toBe(false);
     });
 
     it("一冊は写真の id で引ける・URL はクエリの形", () => {
@@ -339,5 +351,71 @@ describe("実データ（app/data/photos.json の撮影日のある8枚）と同
             ["山中湖の旅", "2026.04.29 · 1日間 · 2枚"],
             ["パリの旅", "2024.10.11 — 10.12 · 2日間 · 2枚"],
         ]);
+    });
+});
+
+describe("速さの直し（2026-10-21）: 答えは変えない", () => {
+    // 直す前の作り方（並べてから撮影日の無い写真を落とす）。答えがこれと同じことを見張る
+    const before = (list: TripPhoto[], tz: string) => {
+        const dated = inOrder(list, tz).filter(hasTakenDay).map((p) => ({ p, d: dayOf(p, tz) as number }));
+        const groups: { p: TripPhoto; d: number }[][] = [];
+        for (const item of dated) {
+            const last = groups[groups.length - 1]?.at(-1);
+            if (last && item.d - last.d <= 3) groups[groups.length - 1].push(item); else groups.push([item]);
+        }
+        return groups.filter((g) => g.length >= 2).map((g) => g.map((x) => x.p.id));
+    };
+    const mixed: TripPhoto[] = [
+        photo("u1", { createdAt: "2026-05-02T01:00:00Z" }),
+        photo("b", { date: "2026-05-02", createdAt: "2026-05-02T09:00:00Z" }),
+        photo("a", { date: "2026-05-02", createdAt: "2026-05-02T03:00:00Z" }),
+        photo("same1", { date: "2026-05-03" }), photo("same2", { date: "2026-05-03" }),
+        photo("u2", { createdAt: "not a date" }),
+        photo("c", { date: "2026-05-01T23:00:00", createdAt: "2026-04-30T23:00:00+09:00" }),
+        photo("far1", { date: "2026-06-20" }), photo("u3"), photo("far2", { date: "2026-06-23" }),
+        photo("lone", { date: "2026-08-01" }),
+    ];
+
+    it("撮影日の無い写真を先に落としても、旅の分け方と並びは同じ", () => {
+        for (const tz of [UTC, TOKYO]) {
+            expect(trips(mixed, tz).map((t) => ids(t.photos)).reverse(), tz).toEqual(before(mixed, tz));
+        }
+    });
+
+    it("撮影日の無い写真のために暦の計算をしない（先に落とす）", () => {
+        const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts");
+        try {
+            trips([
+                photo("a", { date: "2026-05-01" }), photo("b", { date: "2026-05-02" }),
+                ...Array.from({ length: 20 }, (_, i) => photo(`u${i}`, { createdAt: `2026-05-01T0${i % 10}:00:00Z` })),
+            ], TOKYO);
+            expect(spy).not.toHaveBeenCalled();
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("暦日の書式は時刻帯ごとに1つだけ作る", () => {
+        const Orig = Intl.DateTimeFormat;
+        let made = 0;
+        const Counting = function (this: unknown, ...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+            made++;
+            return new Orig(...args);
+        } as unknown as typeof Intl.DateTimeFormat;
+        Counting.prototype = Orig.prototype;
+        Intl.DateTimeFormat = Counting;
+        try {
+            for (let i = 0; i < 30; i++) dayOf(photo(`m${i}`, { createdAt: `2026-05-01T1${i % 10}:00:00Z` }), "America/Denver");
+            expect(made).toBeLessThanOrEqual(1);
+            // 答えは時刻帯の暦日のまま（デンバーの 2026-05-01 10:00Z は 04:00 の 5月1日）
+            expect(dayOf(photo("d", { createdAt: "2026-05-01T05:00:00Z" }), "America/Denver")).toBe(day("2026-04-30"));
+        } finally {
+            Intl.DateTimeFormat = Orig;
+        }
+    });
+
+    it("読めない時刻帯は前と同じく日を決めない（覚えない）", () => {
+        expect(dayOf(photo("z", { createdAt: "2026-05-01T05:00:00Z" }), "Not/AZone")).toBeNull();
+        expect(dayOf(photo("z", { createdAt: "2026-05-01T05:00:00Z" }), "Not/AZone")).toBeNull();
     });
 });

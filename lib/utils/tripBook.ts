@@ -75,12 +75,26 @@ function instantMs(text: unknown): number | null {
     return Number.isFinite(t) ? t : null;
 }
 
+/**
+ * 時刻帯ごとの暦日の書式。**1つ作って使い回す**（2026-10-21 判断）——`Intl.DateTimeFormat` は
+ * 作るのが重く、写真1枚ごと・並べ替えの比べるたびに作ると数百枚の人で目に見えて遅い。
+ * 鍵は時刻帯の名前（指定なしは空）。読めない時刻帯は作るときに投げるので、覚えずに毎回 null
+ */
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+function dayFormat(timeZone?: string): Intl.DateTimeFormat {
+    const key = timeZone ?? "";
+    let f = dayFormats.get(key);
+    if (!f) {
+        f = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
+        dayFormats.set(key, f);
+    }
+    return f;
+}
+
 /** 瞬間を、その時刻帯の暦日の通しの日数に */
 function localDay(ms: number, timeZone?: string): number | null {
     try {
-        const parts = new Intl.DateTimeFormat("en-CA", {
-            timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-        }).formatToParts(new Date(ms));
+        const parts = dayFormat(timeZone).formatToParts(new Date(ms));
         const get = (k: string) => parts.find((p) => p.type === k)?.value ?? "";
         return ymdToDay(`${get("year")}-${get("month")}-${get("day")}`);
     } catch {
@@ -162,8 +176,9 @@ function ownerOf(p: TripPhoto): string {
 }
 
 function tripsForOnePerson(photos: TripPhoto[], timeZone?: string): Trip[] {
-    const dated = inOrder(photos, timeZone)
-        .filter(hasTakenDay)
+    // **先に撮影日の無い写真を落としてから並べる**（2026-10-21 判断）。並べ替えは同じ並びなら
+    // 元の順で決めるので、落としてから並べても答えは同じ。並べる数が減る
+    const dated = inOrder(photos.filter(hasTakenDay), timeZone)
         .map((p) => ({ p, d: dayOf(p, timeZone) as number }));
     const groups: { p: TripPhoto; d: number }[][] = [];
     for (const item of dated) {
@@ -259,8 +274,12 @@ export function shelfTrips(photos: ReadonlyArray<TripPhoto>, timeZone?: string):
  */
 export function isPublicPhoto(p: TripPhoto): boolean {
     if (p.published === false) return false;
-    const raw = typeof p.audience === "string" ? p.audience.trim() : p.audience == null ? "" : "?";
-    return raw === "" || raw === "everyone";
+    // **公開範囲を持っていれば隠す**（中身が "everyone" でも・知らない綴りでも）。サーバーの公開の口
+    // （`api/src/photos.ts` の `isRestricted`・`attribute_not_exists(audience)` と同じ読み）と同じ規則で、
+    // 空白だけの文字列は「持っていない」。"everyone" を通していた頃は、口が返さない写真を静的 JSON
+    // からだけ数えて、棚の数がサーバーとずれた（2026-10-21 判断）
+    const a = p.audience;
+    return typeof a === "string" ? a.trim() === "" : a == null;
 }
 
 /** 人のページの旅の棚と旅の記録に使う写真。**ブロックの関係なら何も返さない** */
