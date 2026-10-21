@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { MINCHO_STACK } from "../../lib/utils/storyText";
+import { DISPLAY_MINCHO_STACK } from "../../lib/utils/headingFont";
 
 /**
  * **大見出しの明朝（Shippori Mincho B1 Bold）を自分のサーバーから配る**（2026-10-21・板 DesignSystem 02
@@ -9,18 +10,21 @@ import { MINCHO_STACK } from "../../lib/utils/storyText";
  *
  * 字のファイルは `app/layout.tsx` の next/font（ビルド時に取り込み、このサイトから配る）。
  * ここで縛るのは:
- *   - 写真ページの題（h1）が読む `MINCHO_STACK` の**先頭が自前の明朝**で、後ろに端末の明朝が続くこと
+ *   - 写真ページの題（h1）が読む `DISPLAY_MINCHO_STACK` の**先頭が自前の明朝**で、後ろに端末の明朝が続くこと
+ *   - ストーリーの字（`MINCHO_STACK`・サーバーの写し）は変えないこと
  *   - 太さ 700 だけ・`display: swap`・先読みしない（見出しの無いページに重さを足さない）
  *   - 配る字のライセンス（SIL OFL 1.1）を画面に出していること
  */
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 describe("見出しの明朝", () => {
-    it("MINCHO_STACK の先頭は自前の明朝、落ちるまでは端末の明朝・最後は総称", () => {
-        const parts = MINCHO_STACK.split(",").map((s) => s.trim());
+    it("大見出しの並びの先頭は自前の明朝、落ちるまでは端末の明朝・最後は総称", () => {
+        const parts = DISPLAY_MINCHO_STACK.split(",").map((s) => s.trim());
         expect(parts[0]).toBe("var(--font-mincho)");
         expect(parts).toContain('"Hiragino Mincho ProN"');
         expect(parts[parts.length - 1]).toBe("serif");
+        // ストーリーの明朝（サーバーの写し）には webfont を足さない
+        expect(MINCHO_STACK).not.toContain("--font-mincho");
     });
 
     it("next/font の指定: 700 だけ・swap・先読みしない・変数は --font-mincho", () => {
@@ -34,10 +38,9 @@ describe("見出しの明朝", () => {
         expect(opts).toMatch(/variable:\s*"--font-mincho"/);
     });
 
-    it("写真ページの題は MINCHO_STACK を読む", () => {
+    it("写真ページの題（h1）は大見出しの並びを読む", () => {
         const page = read("app/photo/[id]/PhotoPageClient.tsx");
-        expect(page).toMatch(/import \{ MINCHO_STACK as MINCHO \} from "@\/lib\/utils\/storyText"/);
-        expect(page).toMatch(/<h1[^>]*fontFamily: MINCHO/);
+        expect(page).toMatch(/<h1[^>]*fontFamily: DISPLAY_MINCHO_STACK/);
     });
 
     it("ライセンスの表示がフッターにある（SIL OFL 1.1）", () => {
