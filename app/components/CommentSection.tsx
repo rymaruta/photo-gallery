@@ -11,6 +11,7 @@ import { useAuth } from "../auth/context";
 import { useToast } from "../../lib/hooks/useToast";
 import { ROUTES } from "../../lib/routes";
 import UserAvatar from "./UserAvatar";
+import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { loginWithNext } from "../../lib/routes";
 
 type Props = {
@@ -124,21 +125,23 @@ export default function CommentSection({ photoId, photoOwnerId, locale, initialC
             )}
 
             {/* 一覧 */}
+            {/* 読み込み中・失敗・0件は共通の形（`StateViews`・iOS の `ErrorBanner` と同じ並び） */}
             {loading ? (
-                <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" /></div>
+                <LoadingState kind="rows" locale={locale} testId="comments-loading" />
             ) : loadError ? (
                 // 取得の失敗を「0件」と混ぜない。付いているコメントが
                 // 消えたように見える（admin 一覧・下書き一覧と同じ扱い）
-                <p className="text-xs text-white/50 py-2">
-                    {locale === "en" ? "Couldn't load comments. " : "コメントを読み込めませんでした。"}
-                    <button onClick={reload} className="underline text-white/70 hover:text-white">
-                        {locale === "en" ? "Retry" : "再読み込み"}
-                    </button>
-                </p>
+                <ErrorState
+                    message={locale === "en" ? "Couldn't load comments." : "コメントを読み込めませんでした。"}
+                    onRetry={reload}
+                    locale={locale}
+                    testId="comments-error"
+                />
             ) : items.length === 0 ? (
-                <p className="text-xs text-white/50 py-2">
-                    {locale === "en" ? "No comments yet. Be the first!" : "まだコメントがありません。最初のひとことを。"}
-                </p>
+                <EmptyState
+                    message={locale === "en" ? "No comments yet. Be the first!" : "まだコメントがありません。最初のひとことを。"}
+                    testId="comments-empty"
+                />
             ) : (
                 <ul className="space-y-3.5">
                     {items.map((c) => {

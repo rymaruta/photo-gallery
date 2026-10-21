@@ -21,6 +21,7 @@ import { useToast } from "../lib/hooks/useToast";
 import { useAuth } from "./auth/context";
 import TimelineFeed from "./components/TimelineFeed";
 import HomeMosaic from "./components/HomeMosaic";
+import { EmptyState } from "./components/StateViews";
 import QuizEntry from "./components/QuizEntry";
 import ThemeEntry from "./components/ThemeEntry";
 import SpotsEntry from "./components/SpotsEntry";
@@ -701,11 +702,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
               iOS の `GalleryView` と同じ——段は選ばれた写真があるときだけ、並びは必ず出る */}
           <div className="max-w-xl mx-auto lg:mx-0 lg:max-w-[40rem]">
             {filteredPhotos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-                <p className="text-sm m-0">
-                  {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-                </p>
-              </div>
+              <EmptyState className="py-16" message={locale === "en" ? "No photos yet." : "まだ写真がありません。"} testId="gallery-empty" />
             ) : (
               <HomeMosaic
                 photos={filteredPhotos}
@@ -721,11 +718,7 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
            写真ページにある。サムネを並べる格子は「さがす」の持ち場のまま */
         <HomePanel scope="all"><HomeColumns rail={discoverRail}>
           {filteredPhotos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-              <p className="text-sm m-0">
-                {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-              </p>
-            </div>
+            <EmptyState className="py-16" message={locale === "en" ? "No photos yet." : "まだ写真がありません。"} testId="gallery-empty" />
           ) : (
             <HomeMosaic
               photos={filteredPhotos}
@@ -807,26 +800,19 @@ export default function GalleryPageClient({ surface = "home", seasonalSpots = nu
           // 公開が全部消えた）は下の `GalleryGrid` の既定文言
           // 「該当する写真がありません。」に落ちていた。絞り込んでいない
           // 人に「該当」と言うと、条件を外そうとして探し回ることになる。
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm">
-              {locale === "en" ? "No photos yet." : "まだ写真がありません。"}
-            </p>
-          </div>
+          <EmptyState className="py-16" message={locale === "en" ? "No photos yet." : "まだ写真がありません。"} testId="gallery-empty" />
         ) : filteredPhotos.length === 0 && PHOTOS.length > 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-white/60">
-            <p className="text-sm">
-              {locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
-            </p>
-            <button
-              // `scope` も戻す。「さがす」にはタブが無いので、URL から来た
-              // `?scope=following`（一覧が空になる）をここでしか外せない
-              onClick={() => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" })}
-              className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-              style={{ touchAction: "manipulation" }}
-            >
-              {locale === "en" ? "Reset filters" : "フィルターをリセット"}
-            </button>
-          </div>
+          <EmptyState
+            className="py-16"
+            message={locale === "en" ? "No photos match the current filters." : "条件に一致する写真がありません。"}
+            // `scope` も戻す。「さがす」にはタブが無いので、URL から来た
+            // `?scope=following`（一覧が空になる）をここでしか外せない
+            action={{
+              label: locale === "en" ? "Reset filters" : "フィルターをリセット",
+              onClick: () => setFilters({ category: "all", selectedTags: [], query: "", sort: "new", scope: "all" }),
+            }}
+            testId="gallery-no-match"
+          />
         ) : (
           <GalleryGrid
             sizes={GRID_SIZES_SEARCH}

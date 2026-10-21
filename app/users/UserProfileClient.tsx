@@ -35,6 +35,7 @@ import { ROUTES, hasPhotoPage } from "../../lib/routes";
 import { collectEntries, collectionPath, slugify } from "../../lib/utils/collections";
 import { toastWithStaticPage } from "../../lib/utils/staticPage";
 import UserAvatar from "../components/UserAvatar";
+import { EmptyState, LoadingState } from "../components/StateViews";
 import ProfileCover, { COVER_HEIGHT_PX, COVER_AVATAR_OVERLAP_PX, CoverFrame, coverIsMissing, profileCoverUrl } from "../components/ProfileCover";
 import ProfileHandleLine from "../components/ProfileHandleLine";
 import { STAT_NUMBER_PX, STAT_LABEL_PX, STAT_DIVIDER_PX } from "../components/statCellStyle";
@@ -1807,19 +1808,17 @@ export default function UserProfileClient({ userId, initialBio }: { userId: stri
                     {// 分かるまでは何も出さない。**待っている間に「無い」と
                     // 言わない**（言ってしまうと、写真がある人のページでも
                     // 空の案内が一瞬出る）
+                    // 待っている間は格子と同じ形の灰の骨組み（0.3 秒より早く届けば何も出さない）。
+                    // 空は共通の形（`StateViews`・iOS の `EmptyState`）
                     postCount === 0 ? (photosResolved ? (
-                        <div className="flex flex-col items-center justify-center py-24 text-white/50 gap-3">
-                            <div className="w-16 h-16 rounded-full border-2 border-white/15 flex items-center justify-center">
-                                <PhotoStackIcon className="w-7 h-7" />
-                            </div>
-                            <p className="text-sm">{locale === "en" ? "No photos yet." : "まだ写真がありません。"}</p>
-                            {isOwner && (
-                                <Link href={ROUTES.UPLOAD} prefetch={false} className="mt-1 px-5 py-2 bg-accent-fill text-ink text-sm font-semibold rounded-full hover:brightness-110 transition-colors">
-                                    {locale === "en" ? "Share your first photo" : "最初の写真を投稿"}
-                                </Link>
-                            )}
-                        </div>
-                    ) : null) : (
+                        <EmptyState
+                            className="py-16"
+                            icon={<PhotoStackIcon className="w-7 h-7" />}
+                            message={locale === "en" ? "No photos yet." : "まだ写真がありません。"}
+                            action={isOwner ? { label: locale === "en" ? "Share your first photo" : "最初の写真を投稿", href: ROUTES.UPLOAD } : undefined}
+                            testId="profile-posts-empty"
+                        />
+                    ) : <LoadingState kind="grid" locale={locale === "en" ? "en" : "ja"} testId="profile-posts-loading" />) : (
                         <div className="grid grid-cols-3 gap-[2px] pb-8">
                             {orderedPhotos.map((photo, i) => (
                                 <PhotoCard
