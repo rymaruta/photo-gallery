@@ -8,7 +8,7 @@ import {
     homeSeasonalSpots, seasonOfMonth, SEASON_TOP_CARDS, spotTopicSitemapEntries, themePath, seasonPath,
 } from "../spotTopics";
 import { prefectureByName, OVERSEAS_SLUG } from "../prefectures";
-import { siteConfig } from "../../utils/seo";
+import { siteConfig, INDEXABLE_ROBOTS } from "../../utils/seo";
 
 /**
  * **撮影スポットの切り口の頁（国・テーマ・季節）**（2026-10-11）。
@@ -164,7 +164,7 @@ describe("国", () => {
         expect(spotTopicSitemapEntries().map((e) => e.url)).not.toContain(`${siteConfig.url}/spots/area/overseas/${one!.code}`);
         const big = countryView("fr")!;
         expect(big.indexable).toBe(true);
-        expect(topicMetadata(big).robots).toBeUndefined();
+        expect(topicMetadata(big).robots).toEqual(INDEXABLE_ROBOTS);
         expect(topicMetadata(big).alternates?.canonical).toBe(`${siteConfig.url}/spots/area/overseas/fr`);
     });
 

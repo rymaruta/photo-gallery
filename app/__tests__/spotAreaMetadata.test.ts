@@ -13,6 +13,7 @@ const ledger = vi.hoisted(() => ({ spots: [] as unknown[] }));
 vi.mock("../../lib/data/spots", () => ({ get SPOTS() { return ledger.spots; } }));
 
 import { generateMetadata } from "../spots/area/[area]/page";
+import { INDEXABLE_ROBOTS } from "../../lib/utils/seo";
 
 function spot(slug: string, over: Partial<Spot> = {}): Spot {
     return {
@@ -54,7 +55,8 @@ describe("県ページの題と説明", () => {
         ledger.spots = [spot("a"), spot("b")];
         const m = await meta();
         expect(m.title).toBe("香川県の撮影スポット2選");
-        expect(m.robots).toBeUndefined();
+        // 2026-10-22: undefined はレイアウトの googlebot の指定（max-image-preview: large）を消す
+        expect(m.robots).toEqual(INDEXABLE_ROBOTS);
     });
 
     it("下書きは建てないので、下書きだけの県はページが無い", async () => {

@@ -518,6 +518,21 @@ export const INDEXABLE_ROBOTS = {
     },
 } as const;
 
+/** 検索に出さないページの robots（リンクは辿らせる） */
+export const NOINDEX_FOLLOW_ROBOTS = { index: false, follow: true } as const;
+
+/**
+ * 検索に出すか出さないかで分かれるページの robots。**出す側は必ず `INDEXABLE_ROBOTS`。**
+ *
+ * 2026-10-22（本番と GSC で確認）: スポット・県・季節・テーマ・タグ・撮影地のページが
+ * `robots: indexable ? undefined : { index: false, … }` と書いていた。Next のメタデータ結合は
+ * **キーが在れば値が `undefined` でも親を上書きする**ので、出す側で `max-image-preview: large` を含む
+ * googlebot の指定がまるごと消えていた（`/users/<id>` で踏んだのと同じ形）。三項で `undefined` を返さず、ここを通す
+ */
+export function pageRobots(indexable: boolean) {
+    return indexable ? INDEXABLE_ROBOTS : NOINDEX_FOLLOW_ROBOTS;
+}
+
 export function noindexMetadata(title: string) {
     return {
         title,
