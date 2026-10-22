@@ -3,7 +3,7 @@ import SpotAreaIndexClient from "@/app/components/SpotAreaIndexClient";
 import { SPOTS } from "@/lib/data/spots";
 import { spotAreas } from "@/lib/data/spotLink";
 import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { spotIndexTopics, firstSpotOgImage } from "@/lib/data/spotTopics";
@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
         title,
         description,
         alternates: { canonical: `${siteConfig.url}/spots` },
-        robots: verified >= MIN_INDEXABLE_SPOTS ? undefined : { index: false, follow: true },
+        robots: pageRobots(verified >= MIN_INDEXABLE_SPOTS),
         openGraph: {
             type: "website", url: `${siteConfig.url}/spots`, siteName: siteConfig.name, title, description,
             // 子の `openGraph` は親（レイアウト）の画像ごと置き換えるので、ここで渡す（2026-10-16・絵が無かった）

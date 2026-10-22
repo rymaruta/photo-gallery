@@ -22,7 +22,7 @@ import { spotCoverImage } from "./spotImages";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import { COUNTRY_SHARD_KEYS } from "./spotFeedShards";
 import { REGIONS, prefectureByName, OVERSEAS_SLUG, OVERSEAS_NAME, type RegionName } from "./prefectures";
-import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData, pageRobots } from "../utils/seo";
 import { ROUTES } from "../routes";
 
 /**
@@ -883,7 +883,7 @@ export function topicMetadata(view: TopicView | null) {
         title,
         description,
         alternates: { canonical: url },
-        robots: view.indexable ? undefined : { index: false, follow: true },
+        robots: pageRobots(view.indexable),
         openGraph: {
             type: "website" as const, url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,

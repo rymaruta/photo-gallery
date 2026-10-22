@@ -3,7 +3,7 @@ import SpotGuidePage from "@/app/components/SpotGuidePage";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import { spotCoverImage } from "@/lib/data/spotImages";
 import { spotSamples } from "@/lib/data/spotSamples";
 import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
@@ -69,7 +69,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         description,
         alternates: { canonical: url },
         // **下書きは検索に出さない**（リンクは辿らせる。確かめたら外れる）
-        robots: verified ? undefined : { index: false, follow: true },
+        robots: pageRobots(verified),
         openGraph: {
             type: "article",
             locale: siteConfig.locale.ja,

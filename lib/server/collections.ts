@@ -18,7 +18,7 @@ import {
     collectionCopy,
     type CollectionType,
 } from "../utils/collections";
-import { siteConfig, publicImageUrl } from "../utils/seo";
+import { siteConfig, publicImageUrl, pageRobots } from "../utils/seo";
 import { withPlaceholderParam } from "./staticParams";
 
 /** 静的エクスポート用: そのタイプの全 slug を列挙（列挙外のパスは 404） */
@@ -62,7 +62,7 @@ export async function collectionMetadata(type: CollectionType, slug: string): Pr
         // 下がる。サイト内から辿る分には見られる。
         // **線は種別で違う**（タグ・カテゴリ・機材は3枚、撮影地は2枚）ので、
         // 枚数の条件はここに書かず `isIndexableCollection` に集めてある。
-        robots: isIndexableCollection(matched.length, type) ? undefined : { index: false, follow: true },
+        robots: pageRobots(isIndexableCollection(matched.length, type)),
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,
@@ -102,7 +102,7 @@ export async function collectionIndexMetadata(type: CollectionType): Promise<Met
         title,
         description,
         alternates: { canonical: url },
-        robots: isIndexableCollectionIndex(entries.length) ? undefined : { index: false, follow: true },
+        robots: pageRobots(isIndexableCollectionIndex(entries.length)),
         openGraph: {
             type: "website",
             locale: siteConfig.locale.ja,
