@@ -95,10 +95,11 @@ describe("スポットのページの OGP 画像", () => {
         const summary = `${"い".repeat(40)}。`;
         ledger.spots = [spot("sky", { summary })];
         const m = await meta("sky");
-        // 台帳の座標（北緯34°・東経134°・香川県）。要約は紹介文のすぐ後（`spotPageDescription` の computed）、
-        // その後ろにページに在るものの要約（撮影の光の表）が続く（spot-cover-seo と併合・2026-10-11）
-        expect(m.description).toBe(`${summary}日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。`
-            + "撮影の光（月ごとの日の出・日の入り・ゴールデンアワー）を掲載。");
+        // 台帳の座標（北緯34°・東経134°・香川県）。2026-10-22: 押す理由（ページに在るもの・計算の要約）を頭に、
+        // 紹介文（Wikipedia 由来）は最後（`spotPageDescription`）
+        // 写真が1枚も無いスポットなので「写真」と名乗らない
+        expect(m.description).toBe("skyの撮影地ガイド。月ごとの日の出・日の入り・ゴールデンアワー。"
+            + `日の入りは6月が西北西寄り、12月が西南西寄り。天の川の中心は2〜10月の夜。${summary}`);
         expect((m.openGraph as { description?: string }).description).toBe(m.description);
     });
 
