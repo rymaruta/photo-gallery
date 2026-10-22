@@ -15,6 +15,7 @@ import { titleWithPlace } from "@/lib/utils/titlePlace";
 import { photoTitleFor } from "@/lib/utils/photoTitle";
 import { categoryLabel } from "../../../lib/utils/collections";
 import { spotLinkForPhoto, spotTimeZoneForPhoto } from "@/lib/data/spotLink";
+import { nearbySpotsForPhoto } from "@/lib/data/spotSeo";
 import { inspiredSourceFor, toInspiredLink } from "@/lib/utils/inspired";
 
 // 写真データを読み込む関数
@@ -243,6 +244,9 @@ export default async function PhotoPage({ params }: PageProps) {
             // 「次のゴールデンアワー」をスポットの土地の時計で言う（台帳はここで解く）
             spotTimeZone={spotTimeZoneForPhoto(photo?.spotId)}
             initialInspired={inspired ? toInspiredLink(inspired) : null}
+            // 近くの撮影スポット（公開済みの撮影地ガイドを近い順に数件・距離は出さない）。静的HTMLに焼く
+            // ＝写真ページから撮影地ガイドへの内部リンク（2026-10-22）
+            nearbySpots={photo ? nearbySpotsForPhoto(photo) : []}
         />
     );
 }
