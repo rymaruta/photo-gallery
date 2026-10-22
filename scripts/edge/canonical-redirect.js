@@ -58,6 +58,15 @@
 var APEX_HOST = "journey-photo.com";
 var WWW_HOST = "www.journey-photo.com";
 
+/**
+ * 旧サイトの URL（GSC で 404 と出ていたもの・2026-10-22）。いまのページに**はっきり当たるものだけ**。
+ * 当たりの無いもの（`/photo/18` のような数字の id・消えた写真）は 404 のまま
+ */
+var LEGACY_REDIRECTS = {
+    "/gallery": "/",
+    "/journey/domestic/hikarinomichi": "/spots/miyajidake-jinja",
+};
+
 /** パスの規則（末尾スラッシュ・`.html`）を掛けない頭 */
 var PASSTHROUGH_PREFIXES = ["/_next/", "/api/", "/uploads/", "/profiles/"];
 
@@ -130,9 +139,27 @@ function canonicalRedirectTarget(req) {
     var host = (req.host || "").toLowerCase().replace(/\.$/, "").replace(/:\d+$/, "");
     var toApex = host === WWW_HOST;
     var path = canonicalPath(uri);
+    if (Object.prototype.hasOwnProperty.call(LEGACY_REDIRECTS, path)) path = LEGACY_REDIRECTS[path];
     if (!toApex && path === uri) return null;
-    var qs = req.querystring ? "?" + req.querystring : "";
-    return (toApex ? "https://" + APEX_HOST : "") + path + qs;
+    // クエリも行き先のパスと同じく、16進を大文字に・生の非 ASCII をエンコードする（見出しに非 ASCII を入れない）
+    var qs = req.querystring ? "?" + locationSafe(req.querystring) : "";
+    return (toApex ? "https://" + APEX_HOST : "") + locationSafe(path) + qs;
+}
+
+/**
+ * 行き先のパスを `Location` に載せられる形にする（**転送するときだけ**掛ける。転送しない URL の綴りは変えない）。
+ *   - 百分率エンコードの16進は大文字にそろえる（`%e3` → `%E3`。ページの canonical・サイトマップと同じ形
+ *     ＝転送先がもう一度別の綴りで拾われない）
+ *   - 生の非 ASCII（エンコードされずに届いた日本語）はエンコードする。見出しに非 ASCII を入れると
+ *     Lambda@Edge は応答ごと落とす（502）
+ *   - NFC / NFD の違いには触らない（デコードしないので、届いたバイト列のまま。S3 の鍵の形を推測しない）
+ */
+function locationSafe(path) {
+    return path
+        .replace(/%[0-9a-f]{2}/gi, function (m) { return m.toUpperCase(); })
+        .replace(/[^\u0021-\u007e]+/g, function (m) {
+            try { return encodeURIComponent(m); } catch (_e) { return ""; }
+        });
 }
 
 /** 301 の応答の見出し（Lambda@Edge と CloudFront Functions で形が違うので、値だけここで決める） */
@@ -222,6 +249,8 @@ if (typeof module !== "undefined" && module.exports) {
         APEX_HOST: APEX_HOST,
         WWW_HOST: WWW_HOST,
         canonicalPath: canonicalPath,
+        locationSafe: locationSafe,
+        LEGACY_REDIRECTS: LEGACY_REDIRECTS,
         canonicalRedirectTarget: canonicalRedirectTarget,
         lambdaEdgeRedirect: lambdaEdgeRedirect,
         withCanonicalRedirect: withCanonicalRedirect,
