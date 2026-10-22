@@ -4,15 +4,19 @@ import path from "node:path";
 import type { Spot } from "../spots";
 import { SPOTS } from "../spots";
 import { SPOT_IMAGES, SEO_IMAGE_MIN_WIDTH, spotCoverLarge, type SpotImage } from "../spotImages";
-import { spotSamples, spotSeoImage, spotCoverSeoSource, type SpotSample } from "../spotSamples";
+import {
+    spotSamples, spotSeoImage, spotCoverSeoSource, reviewedSampleSources, SPOT_SAMPLES,
+    type SpotSample, type SpotSampleRecord, type SpotSamplesFile,
+} from "../spotSamples";
 import { spotStructuredData } from "../spotSeo";
 import { publishableSpots } from "../../utils/spotGuide";
 import { siteConfig } from "../../utils/seo";
 import { generateMetadata } from "../../../app/spots/[slug]/page";
 import { spotImageEntries } from "../../../app/sitemap-images.xml/route";
-import { firstSpotOgImage } from "../spotTopics";
+import { firstSpotOgImage, seasonView, topicMetadata, areaStructuredData } from "../spotTopics";
+import { spotAreas, visibleSpotsInArea } from "../spotLink";
 import SpotGuidePage from "../../../app/components/SpotGuidePage";
-import { usableLarge, knownSizes, normalizeLarge } from "../../../scripts/spot-cover-large.mjs";
+import { usableLarge, knownSizes, normalizeLarge, applyLarge } from "../../../scripts/spot-cover-large.mjs";
 
 /**
  * **スポットのページの代表写真を、横 1,200px 以上で検索に渡す**（2026-10-22・SEO）。
@@ -87,6 +91,8 @@ describe("代表写真の 1,200px 以上の版（spotCoverLarge）", () => {
         // 縮小版でない（元画像の URL）・URL の幅と記録の幅が食い違う
         expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo_bar.jpg", width: 1280, height: 853 } }) })).toBeUndefined();
         expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: COMMONS_1280, width: 4000, height: 2667 } }) })).toBeUndefined();
+        // URL に空白・引用符などが混ざる（属性やメタの値を壊しうる）ものは使わない
+        expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: `${COMMONS_1280.replace(/\/1280px-Foo_bar\.jpg$/, "")}/1280px-Foo bar".jpg`, width: 1280, height: 853 } }) })).toBeUndefined();
         // Commons 以外
         expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: "https://example.com/Foo_bar.jpg", width: 1280, height: 853 } }) })).toBeUndefined();
         // 画面に代表写真を出さない（サイトに置いていない・下書き）なら渡さない
@@ -95,26 +101,55 @@ describe("代表写真の 1,200px 以上の版（spotCoverLarge）", () => {
     });
 });
 
+/** 確定ファイルの1行（Commons・CC BY 4.0） */
+function rec(name: string, px: number, w: number, h: number, pickedBy = "visual-review"): SpotSampleRecord {
+    return {
+        file: `File:${name}.jpg`,
+        pageUrl: `https://commons.wikimedia.org/wiki/File:${name}.jpg`,
+        thumbUrl: `https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/${name}.jpg/${px}px-${name}.jpg`,
+        width: w,
+        height: h,
+        author: "Hanako",
+        license: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+        pickedBy,
+    } as SpotSampleRecord;
+}
+
 describe("検索・共有に渡す1枚（spotSeoImage）の選ぶ順", () => {
     const s = spot();
+    const fileOf = (...rows: SpotSampleRecord[]): SpotSamplesFile => ({ [s.spotId]: { slug: s.slug, name: s.name, samples: rows } });
+    const pick = (file: SpotSamplesFile, images: Record<string, SpotImage>) => spotSeoImage(s, spotSamples(s, { file }), images, file);
+
     it("1. 代表写真の 1,200 以上の版（寸法つき）", () => {
-        expect(spotSeoImage(s, [sample()], { [s.slug]: image() })).toEqual({ url: COMMONS_1280, width: 1280, height: 853, from: "cover" });
+        expect(pick(fileOf(rec("Big", 1280, 1280, 720)), { [s.slug]: image() })).toEqual({ url: COMMONS_1280, width: 1280, height: 853, from: "cover" });
     });
-    it("2. 代表写真が 1,200 に届かなければ、1,200 以上の作例（小さい作例は飛ばす）", () => {
-        const small = sample({ src: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/S.jpg/960px-S.jpg", width: 960, height: 640 });
-        const big = sample();
-        const got = spotSeoImage(s, [small, big], { [s.slug]: image({ large: undefined }) });
-        expect(got).toMatchObject({ url: big.src, width: 1280, height: 720, from: "sample" });
-        expect(got?.sample).toBe(big);
-        // 代表写真が無くても、1,200 以上の作例があればそれ
-        expect(spotSeoImage(s, [big], {})).toMatchObject({ url: big.src, from: "sample" });
+    it("2. 代表写真が 1,200 に届かなければ、場所を確かめた 1,200 以上の作例（小さい作例は飛ばす）", () => {
+        const file = fileOf(rec("Small", 960, 960, 640), rec("Big", 1280, 1280, 720));
+        const got = pick(file, { [s.slug]: image({ large: undefined }) });
+        expect(got).toMatchObject({ url: expect.stringContaining("/1280px-Big.jpg"), width: 1280, height: 720, from: "sample" });
+        expect(got?.sample?.title).toBe("Big");
+        // 代表写真が無くても、確かめた 1,200 以上の作例があればそれ
+        expect(pick(file, {})).toMatchObject({ from: "sample", width: 1280 });
+    });
+    it("🔴 2. 名前の一致だけで選んだ作例（pickedBy: auto）は代表にしない（2026-10-22 判断）", () => {
+        const file = fileOf(rec("Big", 1280, 1280, 720, "auto"));
+        expect(pick(file, { [s.slug]: image({ large: undefined }) })).toMatchObject({ from: "cover", width: 960 });
+        expect(pick(file, {})).toBeUndefined();
+    });
+    it("🔴 作例の幅は URL の幅が正（URL は 960px なのに記録が 1280 の行を 1,200 以上と申告しない）", () => {
+        // dubai-frame の1件と同じ形（縦長・記録は元の縦横比のまま幅だけ別）
+        const file = fileOf(rec("Tall", 960, 1280, 1706));
+        const [one] = spotSamples(s, { file });
+        expect(one).toMatchObject({ width: 960, height: 1280 });
+        expect(pick(file, {})).toBeUndefined();
     });
     it("3. どちらも無ければ代表写真の 960px（寸法つき）。何も無ければ undefined", () => {
-        const small = sample({ width: 960, height: 640 });
-        expect(spotSeoImage(s, [small], { [s.slug]: image({ large: undefined }) })).toEqual({
+        const file = fileOf(rec("Small", 960, 960, 640));
+        expect(pick(file, { [s.slug]: image({ large: undefined }) })).toEqual({
             url: `${siteConfig.url}/images/spots/test-spot.jpg`, width: 960, height: 640, from: "cover",
         });
-        expect(spotSeoImage(s, [small], {})).toBeUndefined();
+        expect(pick(file, {})).toBeUndefined();
     });
     it("構造化データ: 作例を選んだときはその1枚が先頭、代表写真が次", () => {
         const big = sample();
@@ -155,14 +190,79 @@ describe("実データ（2026-10-22）", () => {
         expect((m.twitter as { card: string }).card).toBe("summary_large_image");
     });
 
-    it("🔴 代表写真が 1,200 に届かない公開ページは、1,200 以上の作例があればそれを og:image にする", async () => {
-        const hit = withCover.find((p) => !spotCoverSeoSource(p)!.large
-            && spotSamples(p, { exclude: [SPOT_IMAGES[p.slug]?.pageUrl] }).some((s) => s.width >= 1200));
+    /** 代表写真が 1,200 に届かず、場所を確かめた 1,200 以上の作例を代表にするページ */
+    const sampleLed = () => pages.find((p) => {
+        const cover = spotCoverSeoSource(p);
+        return Boolean(cover && !cover.large)
+            && spotSeoImage(p, spotSamples(p, { exclude: [SPOT_IMAGES[p.slug]?.pageUrl] }))?.from === "sample";
+    });
+
+    it("🔴 代表写真が 1,200 に届かない公開ページは、場所を確かめた 1,200 以上の作例があればそれを og:image にする", async () => {
+        const hit = sampleLed();
         expect(hit, "該当するページが無い（データが変わった）").toBeDefined();
         const m = await generateMetadata({ params: Promise.resolve({ slug: hit!.slug }) });
         const og = (m.openGraph as { images: Array<{ url: string; width?: number }> }).images[0];
         expect(og.width).toBeGreaterThanOrEqual(1200);
         expect(og.url).not.toContain("/images/spots/");
+        // 選んだ作例は場所を確かめた1枚
+        const reviewed = reviewedSampleSources(hit!, SPOT_SAMPLES);
+        const picked = spotSeoImage(hit!, spotSamples(hit!, { exclude: [SPOT_IMAGES[hit!.slug]?.pageUrl] }))!;
+        expect(reviewed.has(picked.sample!.sourceUrl)).toBe(true);
+    });
+
+    it("🔴 確かめた 1,200 以上の写真が無いページは、代表写真の 960px（寸法つき）のまま", async () => {
+        const hit = pages.find((p) => {
+            const cover = spotCoverSeoSource(p);
+            return Boolean(cover && !cover.large)
+                && spotSeoImage(p, spotSamples(p, { exclude: [SPOT_IMAGES[p.slug]?.pageUrl] }))?.from === "cover";
+        });
+        expect(hit, "該当するページが無い（データが変わった）").toBeDefined();
+        const m = await generateMetadata({ params: Promise.resolve({ slug: hit!.slug }) });
+        const og = (m.openGraph as { images: Array<{ url: string; width?: number; height?: number }> }).images[0];
+        expect(og.url).toBe(`${siteConfig.url}/images/spots/${hit!.slug}.jpg`);
+        expect(og.width).toBe(SPOT_IMAGES[hit!.slug].local!.width);
+        expect(og.height).toBe(SPOT_IMAGES[hit!.slug].local!.height);
+    });
+
+    it("🔴 og:image・JSON-LD の先頭・画像サイトマップの先頭は同じ1枚（代表写真の版／作例を選んだページの両方）", async () => {
+        const coverLed = withCover.find((p) => spotCoverSeoSource(p)!.large)!;
+        for (const p of [coverLed, sampleLed()!]) {
+            const m = await generateMetadata({ params: Promise.resolve({ slug: p.slug }) });
+            const og = (m.openGraph as { images: Array<{ url: string; width?: number; height?: number }> }).images[0];
+            const el = await SpotGuidePage({ slug: p.slug });
+            type El = { type?: unknown; props?: { dangerouslySetInnerHTML?: { __html: string }; children?: unknown } };
+            const scripts = ((el as El).props?.children as El[]).filter((c) => c && c.type === "script");
+            const place = scripts.map((c) => JSON.parse(c.props!.dangerouslySetInnerHTML!.__html)).find((d) => d["@type"] === "TouristAttraction");
+            const first = (Array.isArray(place.image) ? place.image[0] : place.image) as { contentUrl: string; width: number; height: number };
+            const site = spotImageEntries([p])[0];
+            expect(first.contentUrl, p.slug).toBe(og.url);
+            expect(site.images[0].src, p.slug).toBe(og.url);
+            expect([first.width, first.height], p.slug).toEqual([og.width, og.height]);
+        }
+    });
+
+    it("🔴 画像サイトマップ: 作例を選んだページは、その作例が先頭・代表写真が次・残りの作例はそのあと（重複なし）", () => {
+        const p = sampleLed()!;
+        const cover = spotCoverSeoSource(p)!;
+        const samples = spotSamples(p, { exclude: [SPOT_IMAGES[p.slug]?.pageUrl] });
+        const lead = spotSeoImage(p, samples)!.sample!;
+        const srcs = spotImageEntries([p])[0].images.map((i) => i.src);
+        expect(srcs[0]).toBe(lead.src);
+        expect(srcs[1]).toBe(cover.url);
+        expect(srcs.slice(2)).toEqual(samples.filter((x) => x !== lead).map((x) => x.src));
+        expect(new Set(srcs).size).toBe(srcs.length);
+    });
+
+    it("🔴 県・まとめの頁の OGP に幅・高さ（topicMetadata・areaStructuredData）", () => {
+        const view = seasonView("autumn", null)!;
+        const og = topicMetadata(view).openGraph!.images![0] as { url: string; width?: number; height?: number };
+        expect(og.width).toBeGreaterThanOrEqual(1200);
+        expect(og.height).toBeGreaterThan(0);
+        const area = spotAreas().find((a) => visibleSpotsInArea(a.slug).some((x) => spotCoverSeoSource(x)?.large))!;
+        const { ogImage } = areaStructuredData(area, visibleSpotsInArea(area.slug));
+        expect(ogImage!.width).toBeGreaterThanOrEqual(1200);
+        expect(ogImage!.height).toBeGreaterThan(0);
+        expect(ogImage!.url).toMatch(new RegExp(`/${ogImage!.width}px-`));
     });
 
     it("🔴 ページの構造化データの代表写真（ImageObject）も横 1,200px 以上の版で、幅・高さつき", async () => {
@@ -213,6 +313,27 @@ describe("記録を作る道具（scripts/spot-cover-large.mjs）", () => {
             width: 1280, height: 853,
         })).toEqual({ src: COMMONS_1280, width: 1280, height: 853 });
         expect(usableLarge("File:Foo bar.jpg", { src: COMMONS_1280, width: 3008, height: 2000 })).toBe(false);
+    });
+
+    it("🔴 手元の記録が使えない・無いときも、前に書いた使える large は消さない（使えない large は消す）", () => {
+        const good = { src: COMMONS_1280, width: 1280, height: 853 };
+        const a = { file: "File:Foo bar.jpg", large: { ...good } };
+        const b = { file: "File:Foo bar.jpg", large: { ...good } };
+        const c = { file: "File:Foo bar.jpg", large: { src: COMMONS_1280, width: 3008, height: 2000 } };
+        const known = new Map([["Foo bar.jpg", { src: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo_bar.jpg", width: 900, height: 600 }]]);
+        expect(applyLarge([a], known)).toMatchObject({ large: 1, changed: 0 });
+        expect(a.large).toEqual(good);
+        expect(applyLarge([b], new Map())).toMatchObject({ large: 1, changed: 0 });
+        expect(b.large).toEqual(good);
+        expect(applyLarge([c], known)).toMatchObject({ small: 1, changed: 1 });
+        expect(c.large).toBeUndefined();
+    });
+    it("🔴 使える記録を、後から来た使えない記録で上書きしない", () => {
+        const m = knownSizes(
+            { a: { samples: [{ file: "File:Foo bar.jpg", thumbUrl: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo_bar.jpg", width: 900, height: 600 }] } },
+            { spots: { a: { candidates: [{ file: "File:Foo bar.jpg", thumbUrl: COMMONS_1280, width: 1280, height: 853 }] } } },
+        );
+        expect(m.get("Foo bar.jpg")).toEqual({ src: COMMONS_1280, width: 1280, height: 853 });
     });
 
     it("作例の確定ファイルの寸法を候補より優先する", () => {
