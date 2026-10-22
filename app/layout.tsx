@@ -386,8 +386,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       // 押せる高さを 44px に（ヘッダーは 64px あるので見た目は変わらない。#50）
                       className="inline-flex items-center gap-2 min-w-0 max-w-full min-h-[44px] hover:opacity-70 transition-opacity duration-200 relative group"
                     >
+                      {/* **`fetchPriority="low"` で React の自動の先読みを外す**（2026-10-22）。React は
+                          `loading="lazy"` でも `fetchPriority="low"` でもない `<img>` を `<head>` の
+                          `<link rel="preload">` に上げる。2.7KB のロゴが全ページの先頭で代表写真（LCP）の先読みと
+                          帯域を取り合っていた。遅延読み込みにはしない（ヘッダーの中で最初から見えている） */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src="/logo-aperture.png" alt="" aria-hidden="true" width={32} height={32}
+                           fetchPriority="low" decoding="async"
                            className="w-7 h-7 md:w-8 md:h-8 flex-shrink-0" />
                       {/* **切るなら「…」を見せる。** `truncate` は外側の `<p>` に
                           掛かっていたが、中身が `inline-flex` なので**省略記号が出ず、
