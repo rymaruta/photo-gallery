@@ -516,6 +516,11 @@
       "src": "/images/spots/akiyoshido.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/USMC-090419-M-8097K-001.jpg/1280px-USMC-090419-M-8097K-001.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "ako-misaki": {
@@ -1021,6 +1026,11 @@
       "src": "/images/spots/arita-sueyama-jinja.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Tozan_Shrine02.jpg/1280px-Tozan_Shrine02.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "asahidake": {
@@ -1378,6 +1388,11 @@
       "src": "/images/spots/byodoin.jpg",
       "width": 960,
       "height": 502
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Phoenix_Hall%2C_Byodo-in%2C_November_2016_-01.jpg/1280px-Phoenix_Hall%2C_Byodo-in%2C_November_2016_-01.jpg",
+      "width": 1280,
+      "height": 669
     }
   },
   "cape-ashizuri": {
@@ -1419,6 +1434,11 @@
       "src": "/images/spots/centrair-skydeck.jpg",
       "width": 960,
       "height": 642
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Chubu_Centrair_International_Airport_-_North_Wing_-_01.JPG/1280px-Chubu_Centrair_International_Airport_-_North_Wing_-_01.JPG",
+      "width": 1280,
+      "height": 856
     }
   },
   "chateau-de-versailles": {
@@ -1437,6 +1457,11 @@
       "src": "/images/spots/chateau-de-versailles.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_083.jpg/1280px-Vue_a%C3%A9rienne_du_domaine_de_Versailles_par_ToucanWings_-_Creative_Commons_By_Sa_3.0_-_083.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "chatsubomigoke": {
@@ -1496,6 +1521,11 @@
       "src": "/images/spots/chiba-port-tower.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Chiba_Port_Tower_20111211.jpg/1280px-Chiba_Port_Tower_20111211.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "chibusan": {
@@ -1730,6 +1760,11 @@
       "src": "/images/spots/choshi-dentetsu.jpg",
       "width": 960,
       "height": 637
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Choshi_Dentetsu_22008_in_Kasagami-Kurohae_Station_20240331.jpg/1280px-Choshi_Dentetsu_22008_in_Kasagami-Kurohae_Station_20240331.jpg",
+      "width": 1280,
+      "height": 850
     }
   },
   "choshigawa": {
@@ -2054,6 +2089,11 @@
       "src": "/images/spots/dakigaeri-gorge.jpg",
       "width": 960,
       "height": 543
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/View_of_Dakigaeri_Gorge_from_Kami-no-iwahashi_Bridge.jpg/1280px-View_of_Dakigaeri_Gorge_from_Kami-no-iwahashi_Bridge.jpg",
+      "width": 1280,
+      "height": 725
     }
   },
   "danjo-garan": {
@@ -2153,6 +2193,11 @@
       "src": "/images/spots/dogo-onsen-honkan.jpg",
       "width": 960,
       "height": 637
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/D%C5%8Dgo_Onsen.jpg/1280px-D%C5%8Dgo_Onsen.jpg",
+      "width": 1280,
+      "height": 849
     }
   },
   "dojoji": {
@@ -2290,6 +2335,11 @@
       "src": "/images/spots/echizen-ono-castle.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/EchizenOnoCastle-01.JPG/1280px-EchizenOnoCastle-01.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "ei-kaigan": {
@@ -2381,6 +2431,11 @@
       "src": "/images/spots/enchoen.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Enchoen01n4592.jpg/1280px-Enchoen01n4592.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "engakuji": {
@@ -2399,6 +2454,11 @@
       "src": "/images/spots/engakuji.jpg",
       "width": 960,
       "height": 669
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Engakuji-Shariden-M9239.jpg/1280px-Engakuji-Shariden-M9239.jpg",
+      "width": 1280,
+      "height": 893
     }
   },
   "engyoji": {
@@ -2431,6 +2491,11 @@
       "src": "/images/spots/enkoji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Enk%C5%8D-ji_in_Kyoto_Japan04-r.jpg/1280px-Enk%C5%8D-ji_in_Kyoto_Japan04-r.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "enoshima": {
@@ -2449,6 +2514,11 @@
       "src": "/images/spots/enoshima.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Enoshima_06.jpg/1280px-Enoshima_06.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "entsuin-matsushima": {
@@ -2646,6 +2716,11 @@
       "src": "/images/spots/fujisan-hongu-sengen.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Fujisan_Hong%C5%AB_Sengen_Taisha_20220724k.jpg/1280px-Fujisan_Hong%C5%AB_Sengen_Taisha_20220724k.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "fujita-kinen-teien": {
@@ -2837,6 +2912,11 @@
       "src": "/images/spots/fukuoka-tower.jpg",
       "width": 960,
       "height": 1196
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Fukuoka_Tower_October_2011_01.jpg/1280px-Fukuoka_Tower_October_2011_01.jpg",
+      "width": 1280,
+      "height": 1595
     }
   },
   "fukuroda-falls": {
@@ -2896,6 +2976,11 @@
       "src": "/images/spots/fukuyama-castle.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Fukuyamajyou7055.JPG/1280px-Fukuyamajyou7055.JPG",
+      "width": 1280,
+      "height": 851
     }
   },
   "furumine": {
@@ -2952,6 +3037,11 @@
       "src": "/images/spots/fushimi-inari-taisha.jpg",
       "width": 960,
       "height": 636
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Fushimiinari-taisha%2C_naihaiden-1.jpg/1280px-Fushimiinari-taisha%2C_naihaiden-1.jpg",
+      "width": 1280,
+      "height": 848
     }
   },
   "futami-meotoiwa": {
@@ -2988,6 +3078,11 @@
       "src": "/images/spots/futtsu-misaki.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Futsu_misaki.JPG/1280px-Futsu_misaki.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "gamagori-takeshima": {
@@ -3144,6 +3239,11 @@
       "src": "/images/spots/genbaku-dome.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Genbaku_Dome04-r.JPG/1280px-Genbaku_Dome04-r.JPG",
+      "width": 1280,
+      "height": 853
     }
   },
   "genbikei": {
@@ -3222,6 +3322,11 @@
       "src": "/images/spots/genkyuen.jpg",
       "width": 960,
       "height": 643
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Genkyuen09s3200.jpg/1280px-Genkyuen09s3200.jpg",
+      "width": 1280,
+      "height": 857
     }
   },
   "gero-onsen": {
@@ -3298,6 +3403,11 @@
       "src": "/images/spots/ginzan-onsen.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Ginzan_Onsen_in_blue_hour.jpg/1280px-Ginzan_Onsen_in_blue_hour.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "glover-garden": {
@@ -3388,6 +3498,11 @@
       "src": "/images/spots/goryokaku.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Hakodate_Goryokaku_Panorama_1.JPG/1280px-Hakodate_Goryokaku_Panorama_1.JPG",
+      "width": 1280,
+      "height": 853
     }
   },
   "goshikinuma": {
@@ -3619,6 +3734,11 @@
       "src": "/images/spots/hakone-open-air-museum.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Hakone5.jpg/1280px-Hakone5.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "hakusui-dam": {
@@ -3911,6 +4031,11 @@
       "src": "/images/spots/harimayabashi.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Harimayabashi.JPG/1280px-Harimayabashi.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "harukas-300": {
@@ -4021,6 +4146,11 @@
       "src": "/images/spots/hasedera.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Hasedera_Sakurai_Nara_pref58s5s4272.jpg/1280px-Hasedera_Sakurai_Nara_pref58s5s4272.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "hashidate-shonyudo": {
@@ -4153,6 +4283,11 @@
       "src": "/images/spots/hedo-misaki.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Cape_Hedo_202011.jpg/1280px-Cape_Hedo_202011.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "heian-jingu": {
@@ -4230,6 +4365,11 @@
       "src": "/images/spots/heiwa.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Fountain_at_Nagasaki_Peace_Park.jpg/1280px-Fountain_at_Nagasaki_Peace_Park.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "hibara": {
@@ -4644,6 +4784,11 @@
       "src": "/images/spots/hinoyama.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/View_from_roof_of_Hinoyama_Station_%28northeast%29.jpg/1280px-View_from_roof_of_Hinoyama_Station_%28northeast%29.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "hirado-castle": {
@@ -4800,6 +4945,11 @@
       "src": "/images/spots/hirome.jpg",
       "width": 960,
       "height": 643
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Entrance_to_Hirome_Ichiba_%286453684561%29.jpg/1280px-Entrance_to_Hirome_Ichiba_%286453684561%29.jpg",
+      "width": 1280,
+      "height": 857
     }
   },
   "hirosaki-park": {
@@ -5781,6 +5931,11 @@
       "src": "/images/spots/ine-no-funaya.jpg",
       "width": 960,
       "height": 542
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Funaya_in_Ine_Town%2C_Yosa_District%2C_Kyoto_Prefecture_003.jpg/1280px-Funaya_in_Ine_Town%2C_Yosa_District%2C_Kyoto_Prefecture_003.jpg",
+      "width": 1280,
+      "height": 723
     }
   },
   "inokashira-park": {
@@ -5799,6 +5954,11 @@
       "src": "/images/spots/inokashira-park.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Cherry_blossoms_at_Inokashira_Park.jpg/1280px-Cherry_blossoms_at_Inokashira_Park.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "inubosaki-lighthouse": {
@@ -5972,6 +6132,11 @@
       "src": "/images/spots/ise-jingu-geku.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Geku_Maine_sanctuary_Ise-jingu_Grand_Shrine_01-r.jpg/1280px-Geku_Maine_sanctuary_Ise-jingu_Grand_Shrine_01-r.jpg",
+      "width": 1280,
+      "height": 855
     }
   },
   "ise-jingu-naiku": {
@@ -6790,6 +6955,11 @@
       "src": "/images/spots/kagamiyama.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/View_from_Karatsu_Castle%2833707194761%29.jpg/1280px-View_from_Karatsu_Castle%2833707194761%29.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "kagawa-ayagawa": {
@@ -7989,6 +8159,11 @@
       "src": "/images/spots/kawagoe-kurazukuri.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Tokinokane-2006-03-20_1.jpg/1280px-Tokinokane-2006-03-20_1.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "kawazu-nanadaru": {
@@ -8322,6 +8497,11 @@
       "src": "/images/spots/kikuchi-keikoku.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Tengu_fall_in_the_Kikuchi_River_001.jpg/1280px-Tengu_fall_in_the_Kikuchi_River_001.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "kikuma": {
@@ -8395,6 +8575,11 @@
       "src": "/images/spots/kinkakuji.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg/1280px-Water_reflection_of_Kinkaku-ji_Temple_a_sunny_day%2C_Kyoto%2C_Japan.jpg",
+      "width": 1280,
+      "height": 720
     }
   },
   "kinkasan": {
@@ -10547,6 +10732,11 @@
       "src": "/images/spots/meiji-jingu.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Courtyard_of_Meiji_Shrine_20190717.jpg/1280px-Courtyard_of_Meiji_Shrine_20190717.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "meijimura": {
@@ -12023,6 +12213,11 @@
       "src": "/images/spots/nagoya-port-aquarium.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Port_of_Nagoya_Public_Aquarium_Exterior_%281%29%2C_Minato-machi_Minato_Ward_Nagoya_2022.jpg/1280px-Port_of_Nagoya_Public_Aquarium_Exterior_%281%29%2C_Minato-machi_Minato_Ward_Nagoya_2022.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "nagoyajo": {
@@ -12251,6 +12446,11 @@
       "src": "/images/spots/naminoue-gu.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/The_distant_view_of_Naminoueg%C5%AB_Honden.jpg/1280px-The_distant_view_of_Naminoueg%C5%AB_Honden.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "nanatsugama": {
@@ -12687,6 +12887,11 @@
       "src": "/images/spots/nirayama-hansharo.jpg",
       "width": 960,
       "height": 889
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Reverberatory_furnace_of_Nirayama.jpg/1280px-Reverberatory_furnace_of_Nirayama.jpg",
+      "width": 1280,
+      "height": 1185
     }
   },
   "nishi-chaya": {
@@ -13175,6 +13380,11 @@
       "src": "/images/spots/oita-takasakiyama.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Takasakiyama_esayari_01.jpg/1280px-Takasakiyama_esayari_01.jpg",
+      "width": 1280,
+      "height": 851
     }
   },
   "oiwasan": {
@@ -14048,6 +14258,11 @@
       "src": "/images/spots/otsuka-museum.jpg",
       "width": 960,
       "height": 643
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/The_Otsuka_Museum_of_Art01s3200.jpg/1280px-The_Otsuka_Museum_of_Art01s3200.jpg",
+      "width": 1280,
+      "height": 857
     }
   },
   "ouchi-juku": {
@@ -14402,6 +14617,11 @@
       "src": "/images/spots/palais-garnier.jpg",
       "width": 960,
       "height": 543
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Paris_Palais_Garnier_2010-04-06_16.55.07.jpg/1280px-Paris_Palais_Garnier_2010-04-06_16.55.07.jpg",
+      "width": 1280,
+      "height": 724
     }
   },
   "place-vendome": {
@@ -14420,6 +14640,11 @@
       "src": "/images/spots/place-vendome.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Place_Vend%C3%B4me_vue_a%C3%A9rienne.png/1280px-Place_Vend%C3%B4me_vue_a%C3%A9rienne.png",
+      "width": 1280,
+      "height": 853
     }
   },
   "rainbow-bridge": {
@@ -14438,6 +14663,11 @@
       "src": "/images/spots/rainbow-bridge.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Rainbow-Bridge_%28%E3%83%AC%E3%82%A4%E3%83%B3%E3%83%9C%E3%83%BC%E3%83%96%E3%83%AA%E3%83%83%E3%82%B8%29_-_panoramio.jpg/1280px-Rainbow-Bridge_%28%E3%83%AC%E3%82%A4%E3%83%B3%E3%83%9C%E3%83%BC%E3%83%96%E3%83%AA%E3%83%83%E3%82%B8%29_-_panoramio.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "rainbow-line": {
@@ -14483,6 +14713,11 @@
       "src": "/images/spots/rikugien.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Bunkyo_Rikugien_Panoramic_View_In_Late_Autumn_1.JPG/1280px-Bunkyo_Rikugien_Panoramic_View_In_Late_Autumn_1.JPG",
+      "width": 1280,
+      "height": 853
     }
   },
   "rinku-marble-beach": {
@@ -14560,6 +14795,11 @@
       "src": "/images/spots/ritsurin-garden.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ritsurin.JPG/1280px-Ritsurin.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "rokkaen": {
@@ -14725,6 +14965,11 @@
       "src": "/images/spots/ryugado.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Ryuga-do%2C_entrance.jpg/1280px-Ryuga-do%2C_entrance.jpg",
+      "width": 1280,
+      "height": 851
     }
   },
   "ryuganbuchi": {
@@ -14864,6 +15109,11 @@
       "src": "/images/spots/sadamisaki.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Sadamisaki01.jpg/1280px-Sadamisaki01.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "saga-balloon": {
@@ -14959,6 +15209,11 @@
       "src": "/images/spots/sagrada-familia.jpg",
       "width": 960,
       "height": 663
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/SF_maig_2026.jpg/1280px-SF_maig_2026.jpg",
+      "width": 1280,
+      "height": 883
     }
   },
   "saijoinari": {
@@ -14977,6 +15232,11 @@
       "src": "/images/spots/saijoinari.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Saijo_Inari_02.JPG/1280px-Saijo_Inari_02.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "saikai-bridge": {
@@ -15322,6 +15582,11 @@
       "src": "/images/spots/sankeien.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Sankeien_Rinshukaku_and_Teisha_Bridge.jpg/1280px-Sankeien_Rinshukaku_and_Teisha_Bridge.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "sankyo-soko": {
@@ -15930,6 +16195,11 @@
       "src": "/images/spots/sensuijima.jpg",
       "width": 960,
       "height": 562
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Tomonoura_-01.jpg/1280px-Tomonoura_-01.jpg",
+      "width": 1280,
+      "height": 750
     }
   },
   "sesoko-beach": {
@@ -16180,6 +16450,11 @@
       "src": "/images/spots/shikaumi-jinja.jpg",
       "width": 960,
       "height": 637
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Shikaumi-jinja_haiden.JPG/1280px-Shikaumi-jinja_haiden.JPG",
+      "width": 1280,
+      "height": 849
     }
   },
   "shikemichi": {
@@ -16345,6 +16620,11 @@
       "src": "/images/spots/shimonada-station.jpg",
       "width": 960,
       "height": 541
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Shimonada_Station_201507%281%29.JPG/1280px-Shimonada_Station_201507%281%29.JPG",
+      "width": 1280,
+      "height": 722
     }
   },
   "shimonoseki-karato": {
@@ -16422,6 +16702,11 @@
       "src": "/images/spots/shinjuku-gyoen.jpg",
       "width": 960,
       "height": 626
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG/1280px-Shinjuku_Gyoen_National_Garden_-_sakura_3.JPG",
+      "width": 1280,
+      "height": 834
     }
   },
   "shiogama-jinja": {
@@ -16440,6 +16725,11 @@
       "src": "/images/spots/shiogama-jinja.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Shiogama_Shrine_romon.jpeg/1280px-Shiogama_Shrine_romon.jpeg",
+      "width": 1280,
+      "height": 960
     }
   },
   "shionomisaki": {
@@ -16458,6 +16748,11 @@
       "src": "/images/spots/shionomisaki.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Shiono_Misaki_and_Shiono_Misaki_Lighthouse_20100214.jpg/1280px-Shiono_Misaki_and_Shiono_Misaki_Lighthouse_20100214.jpg",
+      "width": 1280,
+      "height": 719
     }
   },
   "shioyazaki": {
@@ -16582,6 +16877,11 @@
       "src": "/images/spots/shirahige-jinja.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Shirahige-jinja_%28Takashima%29_keidai.JPG/1280px-Shirahige-jinja_%28Takashima%29_keidai.JPG",
+      "width": 1280,
+      "height": 851
     }
   },
   "shirahige-no-taki": {
@@ -16600,6 +16900,11 @@
       "src": "/images/spots/shirahige-no-taki.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Shirahige_Falls%2C_Biei_River%2C_Hokkaido%2C_Japan.jpg/1280px-Shirahige_Falls%2C_Biei_River%2C_Hokkaido%2C_Japan.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "shiraike": {
@@ -17293,6 +17598,11 @@
       "src": "/images/spots/showa-kinen-park.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Showa_Commemorative_National_Government_Park_1.JPG/1280px-Showa_Commemorative_National_Government_Park_1.JPG",
+      "width": 1280,
+      "height": 853
     }
   },
   "shukkeien": {
@@ -17765,6 +18075,11 @@
       "src": "/images/spots/suwa-taisha.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Suwa_taisha_harumiya13bs3200.jpg/1280px-Suwa_taisha_harumiya13bs3200.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "suwako": {
@@ -17891,6 +18206,11 @@
       "src": "/images/spots/taisho-ike.jpg",
       "width": 960,
       "height": 717
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Taisho_Pond_2011-09.jpg/1280px-Taisho_Pond_2011-09.jpg",
+      "width": 1280,
+      "height": 956
     }
   },
   "takachiho-gorge": {
@@ -18001,6 +18321,11 @@
       "src": "/images/spots/takaoka-daibutsu.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Takaoka_Daibutsu_2011-07-15_01.jpg/1280px-Takaoka_Daibutsu_2011-07-15_01.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "takaosan": {
@@ -18162,6 +18487,11 @@
       "src": "/images/spots/takayama-jinya.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Takayama_Jinya_inside_view_201706.jpg/1280px-Takayama_Jinya_inside_view_201706.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "takeda-castle-ruins": {
@@ -18397,6 +18727,11 @@
       "src": "/images/spots/tanzan-jinja.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Tanzan-jinja%2C_keidai.jpg/1280px-Tanzan-jinja%2C_keidai.jpg",
+      "width": 1280,
+      "height": 851
     }
   },
   "tappizaki": {
@@ -18601,6 +18936,11 @@
       "src": "/images/spots/tempozan-ferris-wheel.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Tempozan_giant_wheel02s2048.jpg/1280px-Tempozan_giant_wheel02s2048.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "tendaki": {
@@ -18736,6 +19076,11 @@
       "src": "/images/spots/teshima.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Teshima_Museum_Ryue_Nishizawa_Rei_Naito_1.JPG/1280px-Teshima_Museum_Ryue_Nishizawa_Rei_Naito_1.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "to-no-hetsuri": {
@@ -18803,6 +19148,11 @@
       "src": "/images/spots/todaiji.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Daibutsu-den_in_Todaiji_Nara02bs3200.jpg/1280px-Daibutsu-den_in_Todaiji_Nara02bs3200.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "todoroki-taki": {
@@ -18885,6 +19235,11 @@
       "src": "/images/spots/togetsukyo.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Togetsukyo_in_Kyoto_Arashiyama.jpg/1280px-Togetsukyo_in_Kyoto_Arashiyama.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "toi-misaki": {
@@ -18993,6 +19348,11 @@
       "src": "/images/spots/tokugawaen.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Tokugawaen_Ryusen-ko_01%2C_Tokugawa-cho_Higashi_Ward_Nagoya_2014.jpg/1280px-Tokugawaen_Ryusen-ko_01%2C_Tokugawa-cho_Higashi_Ward_Nagoya_2014.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "tokushima-castle": {
@@ -19093,6 +19453,11 @@
       "src": "/images/spots/tokyo-skytree.jpg",
       "width": 960,
       "height": 1707
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Tokyo_Skytree_2023.jpg/1280px-Tokyo_Skytree_2023.jpg",
+      "width": 1280,
+      "height": 2276
     }
   },
   "tokyo-station": {
@@ -19284,6 +19649,11 @@
       "src": "/images/spots/toshodaiji.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Toshodai-ji%2C_Golden_Hall_01.jpg/1280px-Toshodai-ji%2C_Golden_Hall_01.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "tottori-hanakairo": {
@@ -19384,6 +19754,11 @@
       "src": "/images/spots/towada-art-center.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Towada_art_center.JPG/1280px-Towada_art_center.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "toyako": {
@@ -19525,6 +19900,11 @@
       "src": "/images/spots/tsugaike.jpg",
       "width": 960,
       "height": 675
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Tsugaike_Nature_Park_s2.jpg/1280px-Tsugaike_Nature_Park_s2.jpg",
+      "width": 1280,
+      "height": 900
     }
   },
   "tsujunkyo": {
@@ -19658,6 +20038,11 @@
       "src": "/images/spots/tsumago-juku.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Tsumago_2009_4.JPG/1280px-Tsumago_2009_4.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "tsumekizaki": {
@@ -19676,6 +20061,11 @@
       "src": "/images/spots/tsumekizaki.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cape_Tsumeki_20121010_a.jpg/1280px-Cape_Tsumeki_20121010_a.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "tsunoshima-ohashi": {
@@ -19845,6 +20235,11 @@
       "src": "/images/spots/tsuruoka-park.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Tsuruoka_Park_Outside.JPG/1280px-Tsuruoka_Park_Outside.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "tsushima-watatsumi": {
@@ -20009,6 +20404,11 @@
       "src": "/images/spots/udo-jingu.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Udo-jingu_Main_hall_001.jpg/1280px-Udo-jingu_Main_hall_001.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "ueda-castle": {
@@ -20314,6 +20714,11 @@
       "src": "/images/spots/usui-meganebashi.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Usui_Bridge_Gunma_prefecture2024.jpg/1280px-Usui_Bridge_Gunma_prefecture2024.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "usuki-sekibutsu": {
@@ -20466,6 +20871,11 @@
       "src": "/images/spots/uwajima-castle.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Uwajima-jo.JPG/1280px-Uwajima-jo.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "vories": {
@@ -20587,6 +20997,11 @@
       "src": "/images/spots/wakayama-castle.jpg",
       "width": 960,
       "height": 643
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Wakayama_Castle_2011_Kuruwa.jpg/1280px-Wakayama_Castle_2011_Kuruwa.jpg",
+      "width": 1280,
+      "height": 857
     }
   },
   "warei": {
@@ -20710,6 +21125,11 @@
       "src": "/images/spots/yakushiji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Yakushiji_Nara03s3s4350.jpg/1280px-Yakushiji_Nara03s3s4350.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "yakusugi-land": {
@@ -20782,6 +21202,11 @@
       "src": "/images/spots/yanaka-ginza.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Yanaka_Ginza_by_yisris_in_Tokyo.jpg/1280px-Yanaka_Ginza_by_yisris_in_Tokyo.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "yanase": {
@@ -20924,6 +21349,11 @@
       "src": "/images/spots/yokohama-chukagai.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Yokohama_Chinatown_signage_2015.jpg/1280px-Yokohama_Chinatown_signage_2015.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "yokote-kamakura": {
@@ -21052,6 +21482,11 @@
       "src": "/images/spots/yoro-no-taki.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Yoro-waterfall.JPG/1280px-Yoro-waterfall.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "yoshimi-hyakuana": {
@@ -21116,6 +21551,11 @@
       "src": "/images/spots/yoshinoyama.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Cherry_blossoms_at_Yoshinoyama_02.jpg/1280px-Cherry_blossoms_at_Yoshinoyama_02.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "yoteizan": {
@@ -21765,6 +22205,11 @@
       "src": "/images/spots/dewa-sanzan.jpg",
       "width": 960,
       "height": 600
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Hagurosan_Gohaiden_2006.jpg/1280px-Hagurosan_Gohaiden_2006.jpg",
+      "width": 1280,
+      "height": 800
     }
   },
   "goto-dozaki": {
@@ -22461,6 +22906,11 @@
       "src": "/images/spots/takamatsu-castle.jpg",
       "width": 960,
       "height": 752
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Takamatsu_castle23.jpg/1280px-Takamatsu_castle23.jpg",
+      "width": 1280,
+      "height": 1003
     }
   },
   "takehara-machinami": {
@@ -22525,6 +22975,11 @@
       "src": "/images/spots/tocho-observatory.jpg",
       "width": 960,
       "height": 833
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Tokyo_Metropolitan_Government_Building_2024.jpg/1280px-Tokyo_Metropolitan_Government_Building_2024.jpg",
+      "width": 1280,
+      "height": 1111
     }
   },
   "todoroki-keikoku": {
@@ -22543,6 +22998,11 @@
       "src": "/images/spots/todoroki-keikoku.jpg",
       "width": 960,
       "height": 1284
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Todoroki_Keikoku_July_4_2020_various_18_29_04_301000.jpeg/1280px-Todoroki_Keikoku_July_4_2020_various_18_29_04_301000.jpeg",
+      "width": 1280,
+      "height": 1712
     }
   },
   "tono-kappabuchi": {
@@ -22689,6 +23149,11 @@
       "src": "/images/spots/eiffel-tower.jpg",
       "width": 960,
       "height": 1777
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/1280px-Tour_Eiffel_Wikimedia_Commons.jpg",
+      "width": 1280,
+      "height": 2369
     }
   },
   "helsinki-cathedral": {
@@ -22792,6 +23257,11 @@
       "src": "/images/spots/park-guell.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/G%C3%BCell_BCN_edited.jpg/1280px-G%C3%BCell_BCN_edited.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "plaza-mayor-madrid": {
@@ -22828,6 +23298,11 @@
       "src": "/images/spots/reims-cathedral.jpg",
       "width": 960,
       "height": 1284
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Reims_Cathedral_016_8341.jpg/1280px-Reims_Cathedral_016_8341.jpg",
+      "width": 1280,
+      "height": 1713
     }
   },
   "saint-malo": {
@@ -22905,6 +23380,11 @@
       "src": "/images/spots/suomenlinna.jpg",
       "width": 960,
       "height": 721
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Suomenlinna.jpg/1280px-Suomenlinna.jpg",
+      "width": 1280,
+      "height": 962
     }
   },
   "arc-de-triomphe": {
@@ -22946,6 +23426,11 @@
       "src": "/images/spots/etretat.jpg",
       "width": 960,
       "height": 361
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Vue_d%27%C3%89tretat.jpg/1280px-Vue_d%27%C3%89tretat.jpg",
+      "width": 1280,
+      "height": 481
     }
   },
   "helsinki-central-station": {
@@ -23051,6 +23536,11 @@
       "src": "/images/spots/place-de-la-concorde.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Place_de_la_Concorde_from_the_Eiffel_Tower%2C_Paris_April_2011.jpg/1280px-Place_de_la_Concorde_from_the_Eiffel_Tower%2C_Paris_April_2011.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "pont-du-gard": {
@@ -23069,6 +23559,11 @@
       "src": "/images/spots/pont-du-gard.jpg",
       "width": 960,
       "height": 371
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Pont_du_Gard_BLS.jpg/1280px-Pont_du_Gard_BLS.jpg",
+      "width": 1280,
+      "height": 494
     }
   },
   "sainte-chapelle": {
@@ -23231,6 +23726,11 @@
       "src": "/images/spots/pantheon-paris.jpg",
       "width": 960,
       "height": 651
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Panth%C3%A9on%2C_Paris_25_March_2012.jpg/1280px-Panth%C3%A9on%2C_Paris_25_March_2012.jpg",
+      "width": 1280,
+      "height": 869
     }
   },
   "plaza-de-espana-seville": {
@@ -23249,6 +23749,11 @@
       "src": "/images/spots/plaza-de-espana-seville.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Plaza_de_Espa%C3%B1a_%28Sevilla%29_-_01.jpg/1280px-Plaza_de_Espa%C3%B1a_%28Sevilla%29_-_01.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "pont-neuf": {
@@ -23267,6 +23772,11 @@
       "src": "/images/spots/pont-neuf.jpg",
       "width": 960,
       "height": 534
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/The_western_sides_of_the_%C3%8Ele_de_la_Cit%C3%A9_and_the_Pont_Neuf%2C_14_July_2008.jpg/1280px-The_western_sides_of_the_%C3%8Ele_de_la_Cit%C3%A9_and_the_Pont_Neuf%2C_14_July_2008.jpg",
+      "width": 1280,
+      "height": 712
     }
   },
   "royal-palace-of-madrid": {
@@ -23285,6 +23795,11 @@
       "src": "/images/spots/royal-palace-of-madrid.jpg",
       "width": 960,
       "height": 726
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg/1280px-Palacio_Real_de_Madrid_Julio_2016_%28cropped%29.jpg",
+      "width": 1280,
+      "height": 967
     }
   },
   "santa-claus-village": {
@@ -23321,6 +23836,11 @@
       "src": "/images/spots/strasbourg-cathedral.jpg",
       "width": 960,
       "height": 1227
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Strasbourg_Cathedral_Exterior_-_Diliff.jpg/1280px-Strasbourg_Cathedral_Exterior_-_Diliff.jpg",
+      "width": 1280,
+      "height": 1636
     }
   },
   "toledo-cathedral": {
@@ -23385,6 +23905,11 @@
       "src": "/images/spots/brandenburg-gate.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Brandenburger_Tor_morgens.jpg/1280px-Brandenburger_Tor_morgens.jpg",
+      "width": 1280,
+      "height": 855
     }
   },
   "cologne-cathedral": {
@@ -23421,6 +23946,11 @@
       "src": "/images/spots/galleria-vittorio-emanuele-ii.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Veduta_della_Galleria_Vittorio_Emanuele_II_da_piazza_del_Duomo%2C_Milano.jpg/1280px-Veduta_della_Galleria_Vittorio_Emanuele_II_da_piazza_del_Duomo%2C_Milano.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "meteora": {
@@ -23475,6 +24005,11 @@
       "src": "/images/spots/pompeii.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Pompeii_%284873744179%29.jpg/1280px-Pompeii_%284873744179%29.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "siena-cathedral": {
@@ -23534,6 +24069,11 @@
       "src": "/images/spots/alcazar-of-segovia.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Panor%C3%A1mica_Oto%C3%B1o_Alc%C3%A1zar_de_Segovia.jpg/1280px-Panor%C3%A1mica_Oto%C3%B1o_Alc%C3%A1zar_de_Segovia.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "buckingham-palace": {
@@ -23552,6 +24092,11 @@
       "src": "/images/spots/buckingham-palace.jpg",
       "width": 960,
       "height": 628
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Buckingham_Palace%2C_London_-_April_2009.jpg/1280px-Buckingham_Palace%2C_London_-_April_2009.jpg",
+      "width": 1280,
+      "height": 838
     }
   },
   "chartres-cathedral": {
@@ -23570,6 +24115,11 @@
       "src": "/images/spots/chartres-cathedral.jpg",
       "width": 960,
       "height": 1480
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Westfassade_Chartres.jpg/1280px-Westfassade_Chartres.jpg",
+      "width": 1280,
+      "height": 1973
     }
   },
   "colosseum": {
@@ -23588,6 +24138,11 @@
       "src": "/images/spots/colosseum.jpg",
       "width": 960,
       "height": 673
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/1280px-Colosseo_2020.jpg",
+      "width": 1280,
+      "height": 897
     }
   },
   "heidelberg-castle": {
@@ -23665,6 +24220,11 @@
       "src": "/images/spots/pena-palace.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Sintra_-_Palacio_da_Pena_%2820332995770%29.jpg/1280px-Sintra_-_Palacio_da_Pena_%2820332995770%29.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "pont-alexandre-iii": {
@@ -23683,6 +24243,11 @@
       "src": "/images/spots/pont-alexandre-iii.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Pont_Alexandre_III_from_pont_de_la_Concorde%2C_Paris_17_May_2012.jpg/1280px-Pont_Alexandre_III_from_pont_de_la_Concorde%2C_Paris_17_May_2012.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "roman-forum": {
@@ -23719,6 +24284,11 @@
       "src": "/images/spots/st-marks-basilica.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Venice_-_St._Marc%27s_Basilica_01.jpg/1280px-Venice_-_St._Marc%27s_Basilica_01.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "tower-of-london": {
@@ -23737,6 +24307,11 @@
       "src": "/images/spots/tower-of-london.jpg",
       "width": 960,
       "height": 603
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Tower_of_London_viewed_from_the_River_Thames.jpg/1280px-Tower_of_London_viewed_from_the_River_Thames.jpg",
+      "width": 1280,
+      "height": 804
     }
   },
   "barcelona-cathedral": {
@@ -23778,6 +24353,11 @@
       "src": "/images/spots/casa-batllo.jpg",
       "width": 960,
       "height": 1183
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Casa_Batllo_Overview_Barcelona_Spain_cut.jpg/1280px-Casa_Batllo_Overview_Barcelona_Spain_cut.jpg",
+      "width": 1280,
+      "height": 1577
     }
   },
   "chateau-de-chambord": {
@@ -23814,6 +24394,11 @@
       "src": "/images/spots/dom-luis-i-bridge.jpg",
       "width": 960,
       "height": 592
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Puente_Don_Luis_I%2C_Oporto%2C_Portugal%2C_2012-05-09%2C_DD_13.JPG/1280px-Puente_Don_Luis_I%2C_Oporto%2C_Portugal%2C_2012-05-09%2C_DD_13.JPG",
+      "width": 1280,
+      "height": 790
     }
   },
   "hohenzollern-castle": {
@@ -23832,6 +24417,11 @@
       "src": "/images/spots/hohenzollern-castle.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Burg_Hohenzollern_ak.jpg/1280px-Burg_Hohenzollern_ak.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "leaning-tower-of-pisa": {
@@ -23850,6 +24440,11 @@
       "src": "/images/spots/leaning-tower-of-pisa.jpg",
       "width": 960,
       "height": 2129
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Campanile_D%C3%B4me_-_Pise_%28IT52%29_-_2022-08-31_-_20.jpg/1280px-Campanile_D%C3%B4me_-_Pise_%28IT52%29_-_2022-08-31_-_20.jpg",
+      "width": 1280,
+      "height": 2838
     }
   },
   "neuschwanstein-castle": {
@@ -23909,6 +24504,11 @@
       "src": "/images/spots/ponte-vecchio.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Ponte_Vecchio_sobre_el_r%C3%ADo_Arno%2C_Florencia%2C_Italia%2C_2022-09-19%2C_DD_02.jpg/1280px-Ponte_Vecchio_sobre_el_r%C3%ADo_Arno%2C_Florencia%2C_Italia%2C_2022-09-19%2C_DD_02.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "sacre-coeur-paris": {
@@ -23945,6 +24545,11 @@
       "src": "/images/spots/st-pauls-cathedral.jpg",
       "width": 960,
       "height": 659
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/St_Pauls_aerial_%28cropped%29.jpg/1280px-St_Pauls_aerial_%28cropped%29.jpg",
+      "width": 1280,
+      "height": 879
     }
   },
   "trevi-fountain": {
@@ -23963,6 +24568,11 @@
       "src": "/images/spots/trevi-fountain.jpg",
       "width": 960,
       "height": 521
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Trevi_Fountain_-_Roma.jpg/1280px-Trevi_Fountain_-_Roma.jpg",
+      "width": 1280,
+      "height": 694
     }
   },
   "belem-tower": {
@@ -24004,6 +24614,11 @@
       "src": "/images/spots/casa-mila.jpg",
       "width": 960,
       "height": 748
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Casa_Mil%C3%A0%2C_general_view.jpg/1280px-Casa_Mil%C3%A0%2C_general_view.jpg",
+      "width": 1280,
+      "height": 997
     }
   },
   "dubrovnik": {
@@ -24022,6 +24637,11 @@
       "src": "/images/spots/dubrovnik.jpg",
       "width": 960,
       "height": 596
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/The_walls_of_the_fortress_and_View_of_the_old_city._panorama.jpg/1280px-The_walls_of_the_fortress_and_View_of_the_old_city._panorama.jpg",
+      "width": 1280,
+      "height": 794
     }
   },
   "hospital-de-sant-pau": {
@@ -24040,6 +24660,11 @@
       "src": "/images/spots/hospital-de-sant-pau.jpg",
       "width": 960,
       "height": 624
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/San_Pau_Hospital.jpg/1280px-San_Pau_Hospital.jpg",
+      "width": 1280,
+      "height": 832
     }
   },
   "louvre": {
@@ -24189,6 +24814,11 @@
       "src": "/images/spots/belvedere-vienna.jpg",
       "width": 960,
       "height": 538
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Wien_-_Schloss_Belvedere%2C_oberes_%282%29.JPG/1280px-Wien_-_Schloss_Belvedere%2C_oberes_%282%29.JPG",
+      "width": 1280,
+      "height": 718
     }
   },
   "cesky-krumlov-castle": {
@@ -24253,6 +24883,11 @@
       "src": "/images/spots/edinburgh-castle.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Edinburgh_Castle_from_the_Grassmarket.jpg/1280px-Edinburgh_Castle_from_the_Grassmarket.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "jeronimos-monastery": {
@@ -24317,6 +24952,11 @@
       "src": "/images/spots/palau-de-la-musica-catalana.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Palau_m%C3%BAsica_catalana_exterior.jpg/1280px-Palau_m%C3%BAsica_catalana_exterior.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "piazza-san-marco": {
@@ -24335,6 +24975,11 @@
       "src": "/images/spots/piazza-san-marco.jpg",
       "width": 960,
       "height": 690
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Piazza_San_Marco_%28Venice%29_at_night-msu-2021-6449-.jpg/1280px-Piazza_San_Marco_%28Venice%29_at_night-msu-2021-6449-.jpg",
+      "width": 1280,
+      "height": 920
     }
   },
   "prague-castle": {
@@ -24394,6 +25039,11 @@
       "src": "/images/spots/st-stephens-cathedral-vienna.jpg",
       "width": 960,
       "height": 1440
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Wien_-_Stephansdom_%281%29.JPG/1280px-Wien_-_Stephansdom_%281%29.JPG",
+      "width": 1280,
+      "height": 1920
     }
   },
   "uffizi": {
@@ -24412,6 +25062,11 @@
       "src": "/images/spots/uffizi.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Florence%2C_Italy_-_panoramio_%28125%29.jpg/1280px-Florence%2C_Italy_-_panoramio_%28125%29.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "big-ben": {
@@ -24430,6 +25085,11 @@
       "src": "/images/spots/big-ben.jpg",
       "width": 960,
       "height": 1707
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Elizabeth_Tower_and_the_north_front_of_the_Palace_of_Westminster%2C_London.jpg/1280px-Elizabeth_Tower_and_the_north_front_of_the_Palace_of_Westminster%2C_London.jpg",
+      "width": 1280,
+      "height": 2276
     }
   },
   "champs-elysees": {
@@ -24548,6 +25208,11 @@
       "src": "/images/spots/melk-abbey.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Stift_Melk%2C_Westansicht.jpg/1280px-Stift_Melk%2C_Westansicht.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "pantheon-rome": {
@@ -24566,6 +25231,11 @@
       "src": "/images/spots/pantheon-rome.jpg",
       "width": 960,
       "height": 773
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Pantheon_%28Rome%29_-_Right_side_and_front.jpg/1280px-Pantheon_%28Rome%29_-_Right_side_and_front.jpg",
+      "width": 1280,
+      "height": 1031
     }
   },
   "plitvice-lakes-national-park": {
@@ -24584,6 +25254,11 @@
       "src": "/images/spots/plitvice-lakes-national-park.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Plitvice_Lakes_National_Park_%282%29.jpg/1280px-Plitvice_Lakes_National_Park_%282%29.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "rialto-bridge": {
@@ -24602,6 +25277,11 @@
       "src": "/images/spots/rialto-bridge.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Rialto_2025_4.jpg/1280px-Rialto_2025_4.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "schonbrunn-palace": {
@@ -24643,6 +25323,11 @@
       "src": "/images/spots/stonehenge.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Stonehenge_Total.jpg/1280px-Stonehenge_Total.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "verona-arena": {
