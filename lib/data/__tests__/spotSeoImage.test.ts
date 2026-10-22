@@ -255,9 +255,12 @@ describe("実データ（2026-10-22）", () => {
 
     it("🔴 県・まとめの頁の OGP に幅・高さ（topicMetadata・areaStructuredData）", () => {
         const view = seasonView("autumn", null)!;
-        const og = topicMetadata(view).openGraph!.images![0] as { url: string; width?: number; height?: number };
+        const meta = topicMetadata(view);
+        const og = meta.openGraph!.images![0] as { url: string; width?: number; height?: number };
         expect(og.width).toBeGreaterThanOrEqual(1200);
         expect(og.height).toBeGreaterThan(0);
+        // X のカードも同じ1枚（レイアウトの新着写真を残さない）
+        expect((meta as { twitter?: { images?: string[] } }).twitter?.images).toEqual([og.url]);
         const area = spotAreas().find((a) => visibleSpotsInArea(a.slug).some((x) => spotCoverSeoSource(x)?.large))!;
         const { ogImage } = areaStructuredData(area, visibleSpotsInArea(area.slug));
         expect(ogImage!.width).toBeGreaterThanOrEqual(1200);
