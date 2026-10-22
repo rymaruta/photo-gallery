@@ -7,16 +7,22 @@ import React from "react";
 import Thumb from "./Thumb";
 import Link from "next/link";
 import type { Photo } from "@/lib/data/photos";
-import { photoOwnTitle, photoTitleFor } from "@/lib/utils/photoTitle";
+import { photoOwnTitle } from "@/lib/utils/photoTitle";
+import { relatedPhotoAlt } from "@/lib/utils/photoAlt";
 import { ROUTES } from "../../lib/routes";
 
 type Props = {
     title: string;
     photos: Photo[];
     locale: "ja" | "en";
+    /**
+     * 題も撮影地も alt も無い写真の alt（例「luzhjさんの写真」）。無ければ「写真」のまま。
+     * 2026-10-22: 本番の写真ページで関連写真の alt が「写真」だけ4枚あった
+     */
+    fallbackAlt?: string;
 };
 
-export default function RelatedPhotos({ title, photos, locale }: Props) {
+export default function RelatedPhotos({ title, photos, locale, fallbackAlt }: Props) {
     if (!photos || photos.length === 0) return null;
 
     return (
@@ -27,7 +33,7 @@ export default function RelatedPhotos({ title, photos, locale }: Props) {
                 {photos.map((p) => {
                     // 題は空なら出さない（旧い「無題」も落とす）。画像の alt は名前が要るので代わりの題
                     const t = photoOwnTitle(p, (locale === "en" ? "en" : "ja"));
-                    const named = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
+                    const named = relatedPhotoAlt(p, locale, fallbackAlt);
                     return (
                         // **先読みしない。** 一覧で何本も出るリンクなので、画面に入るたびに
                         // 行き先の RSC の控え（`no-store` 配信）を落とし直す。理由と実測は

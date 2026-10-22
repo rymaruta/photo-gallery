@@ -34,7 +34,7 @@ import type { Photo } from "@/lib/data/photos";
 import { getLocalizedParagraphs, getPreferredMapLink, makeGoogleSearch } from "@/lib/data/photos";
 import { usePhotoLikes } from "../../../lib/hooks/usePhotoLikes";
 import { hapticTap } from "../../../lib/utils/haptics";
-import { photoAltText } from "../../../lib/utils/photoAlt";
+import { photoAltText, relatedPhotoAlt } from "../../../lib/utils/photoAlt";
 import { photoOwnTitle, fallbackPhotoTitle, photoTitleFor } from "../../../lib/utils/photoTitle";
 import { dropCachedPhoto } from "../../../lib/utils/photoCache";
 import { parseMusicEmbed, isYouTubeMvUrl } from "../../../lib/utils/music";
@@ -1538,8 +1538,8 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                         </div>
                         <div className="grid grid-cols-4 gap-0.5 rounded-xl overflow-hidden">
                             {related.nearby.map((p) => {
-                                // alt は名前が要るので代わりの題（旧い「無題」も落とす）
-                                const t = photoTitleFor(p, (locale === "en" ? "en" : "ja")).text;
+                                // alt は名前が要る。題（撮影地）→「撮影地の写真」（`photoAltText`・旧い「無題」も落とす）
+                                const t = relatedPhotoAlt(p, locale === "en" ? "en" : "ja");
                                 return (
                                     <Link key={p.id} href={ROUTES.PHOTO(p.id)} prefetch={false}
                                           data-photo-id={p.id}
@@ -1649,6 +1649,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     : (locale === "en" ? "More photos" : "他の写真")}
                                 photos={related.author}
                                 locale={locale}
+                                fallbackAlt={photo.displayName
+                                    ? (locale === "en" ? `Photo by ${photo.displayName}` : `${photo.displayName}さんの写真`)
+                                    : undefined}
                             />
 
                             <RelatedPhotos
@@ -1657,6 +1660,9 @@ export default function PhotoPageClient({ photoId, initialPhoto, initialRelated,
                                     : (locale === "en" ? "Nearby" : "同じ場所の写真")}
                                 photos={related.location}
                                 locale={locale}
+                                fallbackAlt={locationText
+                                    ? (locale === "en" ? `Photo taken in ${locationText}` : `${locationText}の写真`)
+                                    : undefined}
                             />
                         </div>
                     ) : (
