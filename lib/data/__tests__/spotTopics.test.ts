@@ -224,10 +224,12 @@ describe("季節", () => {
         for (const s of firstSix) expect(s.seasonalGuide!.some((g) => g.season === "autumn" && g.text.includes("紅葉")), s.slug).toBe(true);
         const regionOf = (s: Spot) => (s.region?.country === "日本" ? prefectureByName(s.region?.prefecture)?.region : "海外");
         expect(new Set(firstSix.map(regionOf)).size).toBe(6);
-        // OGP は先頭のカードの元の写真（サムネではない）
+        // OGP は元の写真（サムネではない）。2026-10-22: 横 1,200px 以上の版（Commons の 1280px）があればそれ
         expect(v.ogImage?.src).toBeTruthy();
-        expect(v.ogImage!.src).not.toContain("/thumb/");
-        expect(topicMetadata(v).openGraph?.images?.[0].url).toBe(`${siteConfig.url}${v.ogImage!.src}`);
+        expect(v.ogImage!.src).not.toContain("/images/spots/thumb/");
+        expect(v.ogImage!.width).toBeGreaterThanOrEqual(1200);
+        const abs = v.ogImage!.src.startsWith("http") ? v.ogImage!.src : `${siteConfig.url}${v.ogImage!.src}`;
+        expect(topicMetadata(v).openGraph?.images?.[0].url).toBe(abs);
     });
 
     it("秋の導入文は「紅葉」の記述の件数を数える（題には使わない）", () => {

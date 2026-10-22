@@ -25,7 +25,10 @@
 // 🔴 台帳と同じく JSON を値で読む。**`"use client"` から import しない**（型だけは可）。
 
 import raw from "@/content/spot-samples.json";
-import { cleanAuthor, licenseKindOf, isReviewedPick, isNoFopCoverExcluded, isExcludedSample, titleFromFile, SAMPLE_COVER_METHOD, type SpotImage } from "./spotImages";
+import {
+    cleanAuthor, licenseKindOf, isReviewedPick, isNoFopCoverExcluded, isExcludedSample, titleFromFile, SAMPLE_COVER_METHOD,
+    SPOT_IMAGES, SEO_IMAGE_MIN_WIDTH, spotCoverImage, spotCoverLarge, spotCoverSize, type SpotImage,
+} from "./spotImages";
 import type { Spot, SpotCoverImage } from "./spots";
 import { publicImageUrl, siteConfig } from "@/lib/utils/seo";
 import { isPublished } from "@/lib/utils/spotGuide";
@@ -568,13 +571,15 @@ export function sampleImageObject(s: SpotSample) {
  * Public Domain Mark）、出典のページを `acquireLicensePage`、表示の文字を `creditText`。
  * Commons の写真でない（owner・許諾）代表写真は、ライセンスの文面を持たないので書かない
  */
-export function coverImageObject(cover: SpotCoverImage, url: string) {
+export function coverImageObject(cover: SpotCoverImage, url: string, size?: { width?: number; height?: number }) {
     const license = cover.licenseUrl ?? (cover.license === "public-domain" ? PUBLIC_DOMAIN_MARK_URL : undefined);
     const fromCommons = Boolean(cover.sourceUrl && /^https:\/\/commons\.wikimedia\.org\//.test(cover.sourceUrl));
     const credit = cover.credit.trim();
     return {
         "@type": "ImageObject",
         contentUrl: url,
+        // 寸法は分かるときだけ（2026-10-22・`spotCoverSeoSource`）
+        ...(size?.width && size?.height ? { width: size.width, height: size.height } : {}),
         name: cover.title ?? cover.alt,
         ...(credit && credit !== UNKNOWN_AUTHOR
             ? { creator: { "@type": isOrganizationName(credit) ? "Organization" : "Person", name: credit } }
@@ -584,4 +589,55 @@ export function coverImageObject(cover: SpotCoverImage, url: string) {
         ...(license ? { license } : {}),
         ...(cover.sourceUrl ? { acquireLicensePage: cover.sourceUrl } : {}),
     };
+}
+
+const absoluteUrl = (src: string) => (/^https?:\/\//.test(src) ? src : `${siteConfig.url}${src}`);
+
+/**
+ * **代表写真を検索に渡すときの URL と寸法**（構造化データ・画像サイトマップ・2026-10-22）。
+ * 横 1,200px 以上の版（`spotCoverLarge`・Commons の 1280px）があればそれ、無ければ画面と同じ
+ * サイトに置いた縮小版（横 960px）。代表写真が無ければ undefined
+ */
+export function spotCoverSeoSource(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): { url: string; width?: number; height?: number; large: boolean } | undefined {
+    const cover = spotCoverImage(spot, images);
+    if (!cover?.src) return undefined;
+    const large = spotCoverLarge(spot, images);
+    if (large) return { url: large.src, width: large.width, height: large.height, large: true };
+    return { url: absoluteUrl(cover.src), ...spotCoverSize(spot, images), large: false };
+}
+
+/** 検索・共有に渡す1枚（og:image・twitter:image・構造化データの先頭） */
+export type SpotSeoImage = {
+    url: string;
+    width?: number;
+    height?: number;
+    /** どこから選んだか。`sample` は画面の作例の1枚（`sample` にその1枚） */
+    from: "cover" | "sample";
+    sample?: SpotSample;
+};
+
+/**
+ * **スポットのページを代表して検索・共有に渡す1枚**（2026-10-22・SEO）。
+ *
+ * Google の画像検索・Discover は横 1,200px 以上の画像を大きく出すので、選ぶ順は:
+ *   1. 代表写真の横 1,200px 以上の版（`spotCoverLarge`）
+ *   2. 画面に出している作例のうち、横 1,200px 以上の最初の1枚（代表写真が小さい・無いとき）
+ *   3. 代表写真のサイトに置いた縮小版（横 960px。1,200 に届く写真がほかに無いとき）
+ * どれも無ければ undefined（呼ぶ側がサイトの既定の画像に落とす）。
+ * `samples` は画面に出すもの（`spotSamples(spot, { exclude: [cover?.sourceUrl] })`）をそのまま渡す
+ */
+export function spotSeoImage(
+    spot: Spot,
+    samples: readonly SpotSample[],
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): SpotSeoImage | undefined {
+    const cover = spotCoverSeoSource(spot, images);
+    if (cover?.large) return { url: cover.url, width: cover.width, height: cover.height, from: "cover" };
+    const big = samples.find((s) => s.width >= SEO_IMAGE_MIN_WIDTH && s.height > 0);
+    if (big) return { url: absoluteUrl(big.src), width: big.width, height: big.height, from: "sample", sample: big };
+    if (cover) return { url: cover.url, width: cover.width, height: cover.height, from: "cover" };
+    return undefined;
 }
