@@ -35,6 +35,7 @@ import {
     PREFECTURES, OVERSEAS_SLUG, OVERSEAS_NAME, OVERSEAS_NAME_EN,
     prefectureByName, type RegionName,
 } from "./prefectures";
+import { topicCardCover, type TopicCard } from "./spotTopics";
 
 /**
  * 画面がスポットへリンクするのに要る項目**だけ**。
@@ -112,7 +113,15 @@ export function toSpotLink(spot: Spot): SpotLink {
  * `deploy-static-site.js` は HTML を `no-cache, no-store` で配るので、
  * ここは**訪問のたびに落ちるバイト**になる（`CLAUDE.md` の表示速度の節）。
  */
-export type SpotIndexItem = SpotLink & { category?: string };
+export type SpotIndexItem = Omit<SpotLink, "cover" | "coords"> & {
+    category?: string;
+    /**
+     * 代表写真。**季節・テーマの頁のカードと同じもの**（`topicCardCover`＝`spotCoverImage` のサムネと、
+     * CC BY 系の作者・ライセンス・出典）。2026-10-22: 以前は台帳の `coverImage` だけを見ていたので、
+     * Commons の代表写真を持つスポットでも県の頁のカードは全部「写真なし」だった
+     */
+    cover: TopicCard["cover"];
+};
 
 /**
  * 写真が指しているスポット。**`spotId` でしか照合しない。**
@@ -354,6 +363,10 @@ export function visibleSpotsInArea(slug: string): Spot[] {
 
 /** その区画のスポット。索引と同じ軽い形（`/spots/area/<slug>` が読む） */
 export function spotIndexItemsForArea(slug: string): SpotIndexItem[] {
-    return visibleSpotsInArea(slug)
-        .map((s) => ({ ...toSpotLink(s), ...(s.category ? { category: s.category } : {}) }));
+    return visibleSpotsInArea(slug).map((s) => {
+        // 座標は画面が読まない（地図は出さない）ので運ばない。代表写真は切り口の頁と同じ判断
+        const { coords: _coords, cover: _cover, ...link } = toSpotLink(s);
+        void _coords; void _cover;
+        return { ...link, cover: topicCardCover(s), ...(s.category ? { category: s.category } : {}) };
+    });
 }

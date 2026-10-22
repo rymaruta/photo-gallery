@@ -119,10 +119,10 @@ const EXEMPT: Array<[string, string, string]> = [
     ["app/map/MapSpotList.tsx", "s.cover.src",
      "地図の下の公式スポット一覧の代表写真。上と同じ値・同じ経路"],
     ["app/components/SpotIndexClient.tsx", "s.cover!.src",
-     "公式撮影地ガイドの索引に出す代表写真。`SpotGuideClient` と同じ値で、"
-     + "運営が台帳に書いたサイト内のパス（利用者が上げた写真ではない）。"
-     + "`SpotLinkCard` と同じく、台帳をクライアントに載せないため"
-     + "サーバー側（`lib/data/spotLink.ts`）で解いた形から受け取る"],
+     "県の頁（`/spots/area/<県>`）のカードの代表写真。季節・テーマの頁と同じ値"
+     + "（`topicCardCover`＝`spotCoverImage` のサイト内のパスかそのサムネ・2026-10-22）。"
+     + "利用者が上げた写真ではない。台帳をクライアントに載せないため"
+     + "サーバー側（`lib/data/spotLink.ts` の `spotIndexItemsForArea`）で解いた形から受け取る"],
     ["app/components/SpotTopicLists.tsx", "c.cover.src",
      "切り口の頁（国・テーマ・季節・2026-10-11）のカードの代表写真。`SpotGuideClient` と同じ値"
      + "（`spotCoverImage`）のサイト内のパスかそのサムネ（`/images/spots/thumb/…`）。"
