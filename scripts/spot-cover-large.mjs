@@ -92,7 +92,11 @@ export function knownSizes(samplesFile, candidatesFile) {
         const src = String(thumbUrl).replace(/^http:\/\//, "https://");
         if (!fileKeyOfUpload(src)) return;
         // 元画像の URL（縮小版が無い＝元が小さい）は寸法だけ残す（`usableLarge` は通さない＝「無し」に数える）
-        map.set(fileKey(file), normalizeLarge({ src, width, height }) ?? { src: src.split("?")[0], width, height });
+        const rec = normalizeLarge({ src, width, height }) ?? { src: src.split("?")[0], width, height };
+        // 使える記録（1,200 以上の縮小版）を、使えない記録（元画像・小さい版）で上書きしない
+        const prev = map.get(fileKey(file));
+        if (prev && usableLarge(file, prev) && !usableLarge(file, rec)) return;
+        map.set(fileKey(file), rec);
     };
     for (const s of Object.values(candidatesFile?.spots ?? {})) {
         for (const c of s.candidates ?? []) add(c.file, c.thumbUrl, c.width, c.height);
@@ -132,6 +136,33 @@ async function fetchSizes(files) {
     return out;
 }
 
+/**
+ * 記録（`known`）から各写真の `large` を書き換える（その場で）。数を返す。
+ * - 手元の記録が使える（同じファイル・1,200 以上の縮小版）→ それを書く
+ * - 手元の記録が無い・使えない → **前に書いた使える `large` は残す**（`--fetch` で確かめたもの。2026-10-22 レビュー）
+ * - どちらも使えない → `large` を消す（記録が「小さい」と言っている）
+ */
+export function applyLarge(targets, known) {
+    let large = 0, small = 0, unknown = 0, changed = 0;
+    for (const img of targets) {
+        const rec = known.get(fileKey(img.file));
+        if (rec && usableLarge(img.file, rec)) {
+            large++;
+            const next = { src: rec.src, width: rec.width, height: rec.height };
+            if (JSON.stringify(img.large) !== JSON.stringify(next)) { img.large = next; changed++; }
+        } else if (usableLarge(img.file, img.large)) {
+            large++;
+        } else if (!rec) {
+            unknown++;
+            if (img.large) { delete img.large; changed++; }
+        } else {
+            small++;
+            if (img.large) { delete img.large; changed++; }
+        }
+    }
+    return { large, small, unknown, changed };
+}
+
 async function main() {
     const check = process.argv.includes("--check");
     const doFetch = process.argv.includes("--fetch");
@@ -144,20 +175,7 @@ async function main() {
         console.log(`Commons に尋ねる: ${missing.length} 件`);
         for (const [k, v] of await fetchSizes(missing)) known.set(k, v);
     }
-    let large = 0, small = 0, unknown = 0, changed = 0;
-    for (const [, img] of targets) {
-        const rec = known.get(fileKey(img.file));
-        // 手元のファイルに無くても、前に（`--fetch` で）書いた記録は残す
-        if (!rec) { if (usableLarge(img.file, img.large)) large++; else unknown++; continue; }
-        if (usableLarge(img.file, rec)) {
-            large++;
-            const next = { src: rec.src, width: rec.width, height: rec.height };
-            if (JSON.stringify(img.large) !== JSON.stringify(next)) { img.large = next; changed++; }
-        } else {
-            small++;
-            if (img.large) { delete img.large; changed++; }
-        }
-    }
+    const { large, small, unknown, changed } = applyLarge(targets.map(([, img]) => img), known);
     console.log(`サイトに置いた代表写真 ${targets.length}: 横 ${MIN_WIDTH}px 以上の版あり ${large}・無し ${small}・寸法が分からない ${unknown}`);
     if (check) return;
     if (changed > 0) fs.writeFileSync(IMAGES_PATH, JSON.stringify(images, null, 2) + "\n");

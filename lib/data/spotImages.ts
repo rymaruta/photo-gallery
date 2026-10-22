@@ -259,7 +259,7 @@ export const SEO_IMAGE_MIN_WIDTH = 1200;
 
 /** Commons の画像の URL の元のファイル名（比べる形）。縮小版でも元画像でも */
 function uploadFileKey(url: string): string | undefined {
-    const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)(?:\/[^/]+)?$/.exec(url);
+    const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/?#\s"<>]+)(?:\/[^/?#\s"<>]+)?$/.exec(url);
     if (!m) return undefined;
     try {
         return sampleFileKey(decodeURIComponent(m[1]));
@@ -285,7 +285,7 @@ export function spotCoverLarge(
     const large = image.large;
     if (!large || !(large.width >= SEO_IMAGE_MIN_WIDTH) || !(large.height > 0)) return undefined;
     // Commons の縮小版（`/thumb/…/<幅>px-…`）で、URL の幅と記録の幅が同じもの（元画像の URL は寸法が信じられない）
-    const px = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/.+\/(\d+)px-[^/?#]+$/.exec(String(large.src ?? ""));
+    const px = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/[^/?#\s"<>]+\/(\d+)px-[^/?#\s"<>]+$/.exec(String(large.src ?? ""));
     if (!px || Number(px[1]) !== large.width) return undefined;
     const key = uploadFileKey(String(large.src ?? ""));
     if (!key || key !== sampleFileKey(image.file)) return undefined;

@@ -239,6 +239,11 @@ export const PUBLIC_DOMAIN_MARK_URL = "https://creativecommons.org/publicdomain/
 const isHttps = (u: unknown): u is string => typeof u === "string" && /^https:\/\/[^\s]+$/.test(u);
 const isCommonsPage = (u: string) => /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(u);
 const isCommonsUpload = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(u);
+/** Commons の縮小版の URL の幅（`…/<幅>px-<名前>`）。縮小版でなければ undefined */
+export function commonsThumbWidth(u: string): number | undefined {
+    const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/[^?#\s"<>]+\/(\d+)px-[^/?#\s"<>]+$/.exec(u);
+    return m ? Number(m[1]) : undefined;
+}
 const isCommonsThumb = (u: string) => /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\//.test(u);
 /** Flickr の写真のページ（`https://www.flickr.com/photos/<人>/<写真ID>/`）。写真ID を返す */
 const flickrPhotoIdOfPage = (u: string) => /^https:\/\/www\.flickr\.com\/photos\/[A-Za-z0-9@_-]+\/(\d+)\/?$/.exec(u)?.[1];
@@ -313,6 +318,13 @@ export function toSpotSample(r: SpotSampleRecord): SpotSample | undefined {
         const small = standardThumbOf(src, width, height);
         if (!small) return undefined;
         ({ url: src, width, height } = small);
+    }
+    // 縮小版は **URL の幅（`/<幅>px-`）が正**（2026-10-22 レビュー）。記録の寸法が元画像や別の幅のままだと、
+    // og:image・構造化データに 960px の画像を 1280px と申告する（dubai-frame の1件）。高さは縦横比から出し直す
+    const px = commonsThumbWidth(src);
+    if (px && px !== width) {
+        height = Math.max(1, Math.round((height * px) / width));
+        width = px;
     }
     const licenseUrl = r.licenseUrl ? r.licenseUrl.replace(/^http:\/\//, "https://") : undefined;
     if (byLicense && !isHttps(licenseUrl)) return undefined;
@@ -591,7 +603,8 @@ export function coverImageObject(cover: SpotCoverImage, url: string, size?: { wi
     };
 }
 
-const absoluteUrl = (src: string) => (/^https?:\/\//.test(src) ? src : `${siteConfig.url}${src}`);
+/** 検索・共有に渡す絶対 URL（サイト内のパスは `publicImageUrl` で本番のオリジンへ・2026-10-22 レビュー） */
+const absoluteUrl = (src: string) => publicImageUrl(src);
 
 /**
  * **代表写真を検索に渡すときの URL と寸法**（構造化データ・画像サイトマップ・2026-10-22）。
@@ -633,11 +646,43 @@ export function spotSeoImage(
     spot: Spot,
     samples: readonly SpotSample[],
     images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+    file: Readonly<SpotSamplesFile> = SPOT_SAMPLES,
 ): SpotSeoImage | undefined {
     const cover = spotCoverSeoSource(spot, images);
     if (cover?.large) return { url: cover.url, width: cover.width, height: cover.height, from: "cover" };
-    const big = samples.find((s) => s.width >= SEO_IMAGE_MIN_WIDTH && s.height > 0);
-    if (big) return { url: absoluteUrl(big.src), width: big.width, height: big.height, from: "sample", sample: big };
+    // 🔴 2026-10-22 判断: 作例から選ぶのは**場所を人（または写真を1枚ずつ見る作業）が確かめた1枚だけ**
+    // （`isReviewedPick`）。"auto"（名前の一致と距離だけ）は、別の場所の写真をこの場所の写真として
+    // 検索・共有のカードに出しうる（ページの metadata の注記「別の場所の写真を、この場所の写真として見せない」と同じ考え）。
+    // 代表写真が無いページも同じ。確かめた作例が無ければ 1,200 未満の代表写真のまま（無ければ既定の画像）
+    const reviewed = reviewedSampleSources(spot, file);
+    const big = samples.find((s) => reviewed.has(s.sourceUrl) && seoWidthOf(s) >= SEO_IMAGE_MIN_WIDTH && s.height > 0);
+    if (big) {
+        const width = seoWidthOf(big);
+        const height = width === big.width ? big.height : Math.max(1, Math.round((big.height * width) / big.width));
+        return { url: absoluteUrl(big.src), width, height, from: "sample", sample: big };
+    }
     if (cover) return { url: cover.url, width: cover.width, height: cover.height, from: "cover" };
     return undefined;
+}
+
+/** 作例の幅。Commons の縮小版は URL の幅が正（記録の幅と食い違っても URL を信じる） */
+function seoWidthOf(s: SpotSample): number {
+    return commonsThumbWidth(s.src) ?? s.width;
+}
+
+/**
+ * そのスポットの作例のうち、**場所を確かめた1枚**（`isReviewedPick`）の出典の URL（`SpotSample.sourceUrl` と同じ形）。
+ * 画面と本文の JSON（`SpotSample`）には印を足さない——アプリと HTML に載る形を変えずに、確定ファイルの行から引く
+ */
+export function reviewedSampleSources(
+    spot: Pick<Spot, "spotId">,
+    file: Readonly<SpotSamplesFile> = SPOT_SAMPLES,
+): Set<string> {
+    const out = new Set<string>();
+    for (const r of file[spot.spotId]?.samples ?? []) {
+        if (!isReviewedPick(r)) continue;
+        const s = toSpotSample(r);
+        if (s) out.add(s.sourceUrl);
+    }
+    return out;
 }
