@@ -147,7 +147,8 @@ async function main() {
     let large = 0, small = 0, unknown = 0, changed = 0;
     for (const [, img] of targets) {
         const rec = known.get(fileKey(img.file));
-        if (!rec) { unknown++; continue; }
+        // 手元のファイルに無くても、前に（`--fetch` で）書いた記録は残す
+        if (!rec) { if (usableLarge(img.file, img.large)) large++; else unknown++; continue; }
         if (usableLarge(img.file, rec)) {
             large++;
             const next = { src: rec.src, width: rec.width, height: rec.height };
