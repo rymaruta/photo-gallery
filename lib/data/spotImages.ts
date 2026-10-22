@@ -284,6 +284,9 @@ export function spotCoverLarge(
     if (!image?.local || !spotCoverImage(spot, images)) return undefined;
     const large = image.large;
     if (!large || !(large.width >= SEO_IMAGE_MIN_WIDTH) || !(large.height > 0)) return undefined;
+    // Commons の縮小版（`/thumb/…/<幅>px-…`）で、URL の幅と記録の幅が同じもの（元画像の URL は寸法が信じられない）
+    const px = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/.+\/(\d+)px-[^/?#]+$/.exec(String(large.src ?? ""));
+    if (!px || Number(px[1]) !== large.width) return undefined;
     const key = uploadFileKey(String(large.src ?? ""));
     if (!key || key !== sampleFileKey(image.file)) return undefined;
     return { src: large.src, width: large.width, height: large.height };

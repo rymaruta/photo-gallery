@@ -54,10 +54,32 @@ export function fileKeyOfUpload(url) {
 }
 
 /**
- * 1枚の大きい版の記録として使えるか。**同じファイルの** Commons の画像で、横 `MIN_WIDTH` 以上
+ * 記録を**縮小版の URL とその実寸**にそろえる。使えなければ undefined。
+ *
+ * - URL の問い合わせ（`?utm_source=…`）を落とし、`thumb.wikimedia.org` は `upload.wikimedia.org` に
+ *   （Commons の API が 2026 年に返し始めた形。中身は同じ縮小版）
+ * - **縮小版（`/thumb/…/<幅>px-…`）だけ**を使う。元画像の URL は落とす——API は元画像が頼んだ幅より
+ *   小さくても `thumbwidth` に頼んだ幅（1280）を返すので、元画像の寸法として信じられない（実測 2026-10-22）
+ * - 幅は URL の `<幅>px` が正。記録の幅が元画像の寸法のまま（候補ファイルの一部）なら、縦横比から高さを出し直す
+ */
+export function normalizeLarge(rec) {
+    if (!rec || !(rec.width > 0) || !(rec.height > 0)) return undefined;
+    const src = String(rec.src ?? "").split("?")[0].replace(/^https:\/\/thumb\.wikimedia\.org\//, "https://upload.wikimedia.org/");
+    const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/[^/]+\/(\d+)px-[^/]+$/.exec(src);
+    if (!m) return undefined;
+    const width = Number(m[1]);
+    const height = rec.width === width ? rec.height : Math.round((rec.height * width) / rec.width);
+    return { src, width, height };
+}
+
+/**
+ * 1枚の大きい版の記録として使えるか。**同じファイルの** Commons の縮小版で、横 `MIN_WIDTH` 以上
+ * （`normalizeLarge` を通した記録を渡す）
  */
 export function usableLarge(file, rec) {
     if (!rec || !(rec.width >= MIN_WIDTH) || !(rec.height > 0)) return false;
+    const m = /\/(\d+)px-[^/]+$/.exec(String(rec.src ?? ""));
+    if (!m || Number(m[1]) !== rec.width) return false;
     const k = fileKeyOfUpload(rec.src);
     return Boolean(k) && k === fileKey(file);
 }
@@ -69,7 +91,8 @@ export function knownSizes(samplesFile, candidatesFile) {
         if (!file || !thumbUrl || !(width > 0) || !(height > 0)) return;
         const src = String(thumbUrl).replace(/^http:\/\//, "https://");
         if (!fileKeyOfUpload(src)) return;
-        map.set(fileKey(file), { src, width, height });
+        // 元画像の URL（縮小版が無い＝元が小さい）は寸法だけ残す（`usableLarge` は通さない＝「無し」に数える）
+        map.set(fileKey(file), normalizeLarge({ src, width, height }) ?? { src: src.split("?")[0], width, height });
     };
     for (const s of Object.values(candidatesFile?.spots ?? {})) {
         for (const c of s.candidates ?? []) add(c.file, c.thumbUrl, c.width, c.height);
@@ -100,11 +123,9 @@ async function fetchSizes(files) {
         for (const p of json?.query?.pages ?? []) {
             const ii = p.imageinfo?.[0];
             if (!ii) continue;
-            out.set(fileKey(p.title), {
-                src: ii.thumburl ?? ii.url,
-                width: ii.thumbwidth ?? ii.width,
-                height: ii.thumbheight ?? ii.height,
-            });
+            // 元画像が 1280px 以下だと縮小版は無く、`thumburl` は元画像（`normalizeLarge` が落とす）
+            const rec = normalizeLarge({ src: ii.thumburl, width: ii.thumbwidth, height: ii.thumbheight });
+            if (rec) out.set(fileKey(p.title), rec);
         }
         await sleep(60_000);
     }

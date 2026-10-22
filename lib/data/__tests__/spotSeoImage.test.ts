@@ -12,7 +12,7 @@ import { generateMetadata } from "../../../app/spots/[slug]/page";
 import { spotImageEntries } from "../../../app/sitemap-images.xml/route";
 import { firstSpotOgImage } from "../spotTopics";
 import SpotGuidePage from "../../../app/components/SpotGuidePage";
-import { usableLarge, knownSizes } from "../../../scripts/spot-cover-large.mjs";
+import { usableLarge, knownSizes, normalizeLarge } from "../../../scripts/spot-cover-large.mjs";
 
 /**
  * **スポットのページの代表写真を、横 1,200px 以上で検索に渡す**（2026-10-22・SEO）。
@@ -84,6 +84,9 @@ describe("代表写真の 1,200px 以上の版（spotCoverLarge）", () => {
         // 別のファイル（別の写真を「大きい代表写真」として渡さない）
         const other = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Other.jpg/1280px-Other.jpg";
         expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: other, width: 1280, height: 853 } }) })).toBeUndefined();
+        // 縮小版でない（元画像の URL）・URL の幅と記録の幅が食い違う
+        expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo_bar.jpg", width: 1280, height: 853 } }) })).toBeUndefined();
+        expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: COMMONS_1280, width: 4000, height: 2667 } }) })).toBeUndefined();
         // Commons 以外
         expect(spotCoverLarge(s, { [s.slug]: image({ large: { src: "https://example.com/Foo_bar.jpg", width: 1280, height: 853 } }) })).toBeUndefined();
         // 画面に代表写真を出さない（サイトに置いていない・下書き）なら渡さない
@@ -133,6 +136,7 @@ describe("実データ（2026-10-22）", () => {
         for (const p of large) {
             const src = spotCoverSeoSource(p)!;
             expect(src.width, p.slug).toBeGreaterThanOrEqual(SEO_IMAGE_MIN_WIDTH);
+            expect(src.url, p.slug).toMatch(new RegExp(`/${src.width}px-[^/?]+$`));
             expect(src.height, p.slug).toBeGreaterThan(0);
             // 縦横比はサイトに置いた版と同じ（同じ写真）
             const local = SPOT_IMAGES[p.slug].local!;
@@ -199,6 +203,18 @@ describe("記録を作る道具（scripts/spot-cover-large.mjs）", () => {
         expect(usableLarge("File:Foo bar.jpg", { src: COMMONS_1280, width: 1000, height: 853 })).toBe(false);
         expect(usableLarge("File:Baz.jpg", { src: COMMONS_1280, width: 1280, height: 853 })).toBe(false);
     });
+    it("🔴 URL の幅が正。元画像の寸法のままの記録は高さを出し直し、元画像の URL・問い合わせ付きの新しい形は直す", () => {
+        // 候補ファイルの一部は縮小版の URL に元画像の寸法を書いていた（実データ 57 件）
+        expect(normalizeLarge({ src: COMMONS_1280, width: 3008, height: 2000 })).toEqual({ src: COMMONS_1280, width: 1280, height: 851 });
+        // Commons の API は元画像が 1280 より小さくても thumbwidth=1280 を返す。元画像の URL は使わない
+        expect(normalizeLarge({ src: "https://upload.wikimedia.org/wikipedia/commons/0/0a/X.jpg?utm_content=thumbnail_unscaled", width: 1280, height: 856 })).toBeUndefined();
+        expect(normalizeLarge({
+            src: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo_bar.jpg/1280px-Foo_bar.jpg?utm_source=commons.wikimedia.org",
+            width: 1280, height: 853,
+        })).toEqual({ src: COMMONS_1280, width: 1280, height: 853 });
+        expect(usableLarge("File:Foo bar.jpg", { src: COMMONS_1280, width: 3008, height: 2000 })).toBe(false);
+    });
+
     it("作例の確定ファイルの寸法を候補より優先する", () => {
         const m = knownSizes(
             { a: { samples: [{ file: "File:Foo_bar.jpg", thumbUrl: COMMONS_1280, width: 1280, height: 853 }] } },

@@ -281,8 +281,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Akashi_Bridge.JPG/1280px-Akashi_Bridge.JPG",
-      "width": 3008,
-      "height": 2000
+      "width": 1280,
+      "height": 851
     }
   },
   "akebono-kodomo": {
@@ -377,8 +377,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Akita_Kanto_Festival_2017.jpg/1280px-Akita_Kanto_Festival_2017.jpg",
-      "width": 4608,
-      "height": 2592
+      "width": 1280,
+      "height": 720
     }
   },
   "akita-museum": {
@@ -400,8 +400,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Akita_Museum_of_Art_20180520.jpg/1280px-Akita_Museum_of_Art_20180520.jpg",
-      "width": 4800,
-      "height": 3200
+      "width": 1280,
+      "height": 853
     }
   },
   "akita-nairiku": {
@@ -739,8 +739,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Angel_Road_Shodo_Island_Japan01s3.jpg/1280px-Angel_Road_Shodo_Island_Japan01s3.jpg",
-      "width": 4440,
-      "height": 2960
+      "width": 1280,
+      "height": 853
     }
   },
   "anmon-no-taki": {
@@ -818,8 +818,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Aomori_Nebuta_Festival_Float_August_2006.jpg/1280px-Aomori_Nebuta_Festival_Float_August_2006.jpg",
-      "width": 3264,
-      "height": 2448
+      "width": 1280,
+      "height": 960
     }
   },
   "aquas": {
@@ -841,8 +841,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Public_aquariums_in_Aquas.JPG/1280px-Public_aquariums_in_Aquas.JPG",
-      "width": 4000,
-      "height": 3000
+      "width": 1280,
+      "height": 960
     }
   },
   "arafune-fuketsu": {
@@ -975,6 +975,11 @@
       "src": "/images/spots/arashiyama-bamboo-grove.jpg",
       "width": 960,
       "height": 656
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/2021_Sagano_Bamboo_forest_in_Arashiyama%2C_Kyoto%2C_Japan.jpg/1280px-2021_Sagano_Bamboo_forest_in_Arashiyama%2C_Kyoto%2C_Japan.jpg",
+      "width": 1280,
+      "height": 875
     }
   },
   "arima-onsen": {
@@ -996,8 +1001,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/170811_Rokko-Arima_Ropeway_Kobe_Japan00n.jpg/1280px-170811_Rokko-Arima_Ropeway_Kobe_Japan00n.jpg",
-      "width": 2907,
-      "height": 1938
+      "width": 1280,
+      "height": 853
     }
   },
   "arita-sueyama-jinja": {
@@ -1129,6 +1134,11 @@
       "src": "/images/spots/atsuta-jingu.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Atsuta_Shrine.jpg/1280px-Atsuta_Shrine.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "awaji-hanasajiki": {
@@ -1184,6 +1194,11 @@
       "src": "/images/spots/bandaibashi.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Bandaibashi-Bridge_20130929.JPG/1280px-Bandaibashi-Bridge_20130929.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "bandaisan": {
@@ -1381,6 +1396,11 @@
       "src": "/images/spots/cape-ashizuri.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Ashizuri_Cape_07.JPG/1280px-Ashizuri_Cape_07.JPG",
+      "width": 1280,
+      "height": 851
     }
   },
   "centrair-skydeck": {
@@ -1691,8 +1711,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/150425_The_Old_Shioya_Demise_Chizu_Tottori_pref_Japan01n.jpg/1280px-150425_The_Old_Shioya_Demise_Chizu_Tottori_pref_Japan01n.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "choshi-dentetsu": {
@@ -1751,6 +1771,11 @@
       "src": "/images/spots/churaumi.jpg",
       "width": 960,
       "height": 674
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/%E6%B2%96%E7%B8%84%E7%BE%8E%E3%82%89%E6%B5%B7%E6%B0%B4%E6%97%8F%E9%A4%A8%EF%BC%BF%E5%A4%A7.jpg/1280px-%E6%B2%96%E7%B8%84%E7%BE%8E%E3%82%89%E6%B5%B7%E6%B0%B4%E6%97%8F%E9%A4%A8%EF%BC%BF%E5%A4%A7.jpg",
+      "width": 1280,
+      "height": 898
     }
   },
   "chusonji": {
@@ -1768,6 +1793,11 @@
       "src": "/images/spots/chusonji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg/1280px-230728_Chusonji_Hiraizumi_Iwate_pref_Japan01s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "chuzenji-ko": {
@@ -1786,6 +1816,11 @@
       "src": "/images/spots/chuzenji-ko.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/200731_Lake_Chuzenji_Boat_House_Nikko_Tochigi_pref_Japan01bs7.jpg/1280px-200731_Lake_Chuzenji_Boat_House_Nikko_Tochigi_pref_Japan01bs7.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "cross-sea": {
@@ -2287,6 +2322,11 @@
       "src": "/images/spots/eiheiji.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Joyomon_of_Eiheiji_in_September_2024.jpg/1280px-Joyomon_of_Eiheiji_in_September_2024.jpg",
+      "width": 1280,
+      "height": 720
     }
   },
   "enakyo": {
@@ -2427,11 +2467,6 @@
       "src": "/images/spots/entsuin-matsushima.jpg",
       "width": 960,
       "height": 639
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Entsuin2.jpg",
-      "width": 1280,
-      "height": 852
     }
   },
   "erinji": {
@@ -2843,11 +2878,6 @@
       "src": "/images/spots/fukuurajima.jpg",
       "width": 960,
       "height": 726
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/2/22/Fukuura_Bridge_With_Fukuura_Island.JPG",
-      "width": 1280,
-      "height": 968
     }
   },
   "fukuyama-castle": {
@@ -2979,8 +3009,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Le_Temple_Shint%C3%B4_Yaotomi-jinja_-_Le_haiden_%28La_construction_du_culte%29.jpg/1280px-Le_Temple_Shint%C3%B4_Yaotomi-jinja_-_Le_haiden_%28La_construction_du_culte%29.jpg",
-      "width": 4128,
-      "height": 3096
+      "width": 1280,
+      "height": 960
     }
   },
   "gangala": {
@@ -3210,6 +3240,11 @@
       "src": "/images/spots/gero-onsen.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/260125_Gero_Onsen_Gero_Gifu_pref_Japan01s3.jpg/1280px-260125_Gero_Onsen_Gero_Gifu_pref_Japan01s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "ghibli-park": {
@@ -3240,6 +3275,11 @@
       "src": "/images/spots/gifu-castle.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/%E5%B2%90%E9%98%9C%E5%9F%8E_%E5%A4%A9%E5%AE%88%E9%96%A3.jpg/1280px-%E5%B2%90%E9%98%9C%E5%9F%8E_%E5%A4%A9%E5%AE%88%E9%96%A3.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "ginzan-onsen": {
@@ -3556,6 +3596,11 @@
       "src": "/images/spots/hakata-sennenmon.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/%E5%8D%9A%E5%A4%9A%E5%8D%83%E5%B9%B4%E9%96%80.jpg/1280px-%E5%8D%9A%E5%A4%9A%E5%8D%83%E5%B9%B4%E9%96%80.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "hakone-open-air-museum": {
@@ -3660,6 +3705,11 @@
       "src": "/images/spots/hanamiyama.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/20100418%E8%8A%B1%E8%A6%8B%E5%B1%B1%E5%85%AC%E5%9C%92%E5%85%A8%E6%99%AF.jpg/1280px-20100418%E8%8A%B1%E8%A6%8B%E5%B1%B1%E5%85%AC%E5%9C%92%E5%85%A8%E6%99%AF.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "hananoiwaya": {
@@ -3795,8 +3845,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/%E5%85%AB%E6%96%B9%E6%B1%A0_-_panoramio_%289%29.jpg/1280px-%E5%85%AB%E6%96%B9%E6%B1%A0_-_panoramio_%289%29.jpg",
-      "width": 5472,
-      "height": 3648
+      "width": 1280,
+      "height": 853
     }
   },
   "harajiri-no-taki": {
@@ -3841,8 +3891,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Tomiura_Haraoka_Pier_201808c.jpg/1280px-Tomiura_Haraoka_Pier_201808c.jpg",
-      "width": 2400,
-      "height": 1800
+      "width": 1280,
+      "height": 960
     }
   },
   "harimayabashi": {
@@ -3953,11 +4003,6 @@
       "src": "/images/spots/haruna-ko.jpg",
       "width": 960,
       "height": 640
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/d/df/%E9%80%86%E3%81%95%E6%A6%9B%E5%90%8D%E5%AF%8C%E5%A3%AB_-_panoramio.jpg",
-      "width": 1280,
-      "height": 854
     }
   },
   "hasedera": {
@@ -4126,6 +4171,11 @@
       "src": "/images/spots/heian-jingu.jpg",
       "width": 960,
       "height": 630
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Heian-jingu%2C_keidai-1.jpg/1280px-Heian-jingu%2C_keidai-1.jpg",
+      "width": 1280,
+      "height": 840
     }
   },
   "heijokyo": {
@@ -4284,6 +4334,11 @@
       "src": "/images/spots/hida-takayama-sanmachi.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/260923_Sanmachi_Takayama_Japan03s3.jpg/1280px-260923_Sanmachi_Takayama_Japan03s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "hieizan-enryakuji": {
@@ -4325,6 +4380,11 @@
       "src": "/images/spots/higashi-chaya.jpg",
       "width": 960,
       "height": 629
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Higashiyamahigashi_2015.JPG/1280px-Higashiyamahigashi_2015.JPG",
+      "width": 1280,
+      "height": 839
     }
   },
   "higashi-hennazaki": {
@@ -4383,6 +4443,11 @@
       "src": "/images/spots/hikone-castle.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Hikone_Castle_November_2016_-02.jpg/1280px-Hikone_Castle_November_2016_-02.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "hikosan": {
@@ -4438,6 +4503,11 @@
       "src": "/images/spots/himeji-castle.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Himeji_castle_in_may_2015.jpg/1280px-Himeji_castle_in_may_2015.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "himekamisan": {
@@ -4528,6 +4598,11 @@
       "src": "/images/spots/hinomisaki.jpg",
       "width": 960,
       "height": 1442
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Hinomisaki_lighthouse_Izumo01bs3200.jpg/1280px-Hinomisaki_lighthouse_Izumo01bs3200.jpg",
+      "width": 1280,
+      "height": 1923
     }
   },
   "hinomisaki-jinja": {
@@ -4546,6 +4621,11 @@
       "src": "/images/spots/hinomisaki-jinja.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Hinomisaki-jinja_Two-storied_Gate_001.jpg/1280px-Hinomisaki-jinja_Two-storied_Gate_001.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "hinoyama": {
@@ -5005,6 +5085,11 @@
       "src": "/images/spots/hokokuji.jpg",
       "width": 960,
       "height": 673
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/2019_H%C5%8Dkoku-ji_01.jpg/1280px-2019_H%C5%8Dkoku-ji_01.jpg",
+      "width": 1280,
+      "height": 897
     }
   },
   "homma-museum": {
@@ -5153,8 +5238,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Horyu-ji45s2s4500.jpg/1280px-Horyu-ji45s2s4500.jpg",
-      "width": 4500,
-      "height": 3000
+      "width": 1280,
+      "height": 853
     }
   },
   "hosenin": {
@@ -5409,6 +5494,11 @@
       "src": "/images/spots/ichijodani.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Asakura_Yakata_of_Ichijodani_Asakura_Family_Historic_Ruins02s3s4440.jpg/1280px-Asakura_Yakata_of_Ichijodani_Asakura_Family_Historic_Ruins02s3s4440.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "ichinokurasawa": {
@@ -5550,6 +5640,11 @@
       "src": "/images/spots/ikuta-jinja.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Ikuta-jinja%2C_haiden-1.jpg/1280px-Ikuta-jinja%2C_haiden-1.jpg",
+      "width": 1280,
+      "height": 851
     }
   },
   "imabari-castle": {
@@ -5568,6 +5663,11 @@
       "src": "/images/spots/imabari-castle.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Imabari_Castle_01.JPG/1280px-Imabari_Castle_01.JPG",
+      "width": 1280,
+      "height": 850
     }
   },
   "imabari-towel": {
@@ -5599,6 +5699,11 @@
       "src": "/images/spots/inamuragasaki.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Inamuragasaki_-_01.jpg/1280px-Inamuragasaki_-_01.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "inasa-no-hama": {
@@ -5748,6 +5853,11 @@
       "src": "/images/spots/inuyama-castle.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Inuyama_Castle_%281%29%2C_Kitakoken_Inuyama_Inuyama_City_2023.jpg/1280px-Inuyama_Castle_%281%29%2C_Kitakoken_Inuyama_Inuyama_City_2023.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "irabu-ohashi": {
@@ -5880,6 +5990,11 @@
       "src": "/images/spots/ise-jingu-naiku.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Ise-Shrine_Itagaki-minami-gomon.jpg/1280px-Ise-Shrine_Itagaki-minami-gomon.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "ishibutai-kofun": {
@@ -5936,6 +6051,11 @@
       "src": "/images/spots/ishiteji.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Ishiteji_05.JPG/1280px-Ishiteji_05.JPG",
+      "width": 1280,
+      "height": 850
     }
   },
   "ishiyamadera": {
@@ -5954,6 +6074,11 @@
       "src": "/images/spots/ishiyamadera.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Ishiyamadera45n4272.jpg/1280px-Ishiyamadera45n4272.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "ishizuchisan": {
@@ -6026,6 +6151,11 @@
       "src": "/images/spots/itsukushima-jinja.jpg",
       "width": 960,
       "height": 641
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Itsukushima_Gate.jpg/1280px-Itsukushima_Gate.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "iwadonoyama": {
@@ -6080,6 +6210,11 @@
       "src": "/images/spots/iwakuni-castle.jpg",
       "width": 960,
       "height": 1445
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/20100724_Iwakuni_Castle_5262.jpg/1280px-20100724_Iwakuni_Castle_5262.jpg",
+      "width": 1280,
+      "height": 1927
     }
   },
   "iwate-sanriku-railway": {
@@ -6169,8 +6304,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Iya_Kazurabashi-4.jpg/1280px-Iya_Kazurabashi-4.jpg",
-      "width": 4912,
-      "height": 3264
+      "width": 1280,
+      "height": 851
     }
   },
   "iyakei-shonben-kozo": {
@@ -6229,8 +6364,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Izanagi-jingu_Haiden.JPG/1280px-Izanagi-jingu_Haiden.JPG",
-      "width": 2352,
-      "height": 1568
+      "width": 1280,
+      "height": 853
     }
   },
   "izumo-taisha": {
@@ -6249,6 +6384,11 @@
       "src": "/images/spots/izumo-taisha.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Izumo-Taisha_Haiden.jpg/1280px-Izumo-Taisha_Haiden.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "izunuma": {
@@ -6627,6 +6767,11 @@
       "src": "/images/spots/kabushima.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Kabushima%2C_-8_May_2010_a.jpg/1280px-Kabushima%2C_-8_May_2010_a.jpg",
+      "width": 1280,
+      "height": 720
     }
   },
   "kagamiyama": {
@@ -6686,6 +6831,11 @@
       "src": "/images/spots/kaike.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Kaike_onsen01n3200.jpg/1280px-Kaike_onsen01n3200.jpg",
+      "width": 1280,
+      "height": 720
     }
   },
   "kaimondake-nagasakibana": {
@@ -6718,6 +6868,11 @@
       "src": "/images/spots/kairakuen.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Kairaku-en%2C_Ibaraki_24.jpg/1280px-Kairaku-en%2C_Ibaraki_24.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kaiwomaru-park": {
@@ -6816,11 +6971,6 @@
       "src": "/images/spots/kaizu-osaki.jpg",
       "width": 960,
       "height": 640
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Kaizu-Osaki1645.JPG",
-      "width": 1280,
-      "height": 853
     }
   },
   "kakegawa-castle": {
@@ -6839,6 +6989,11 @@
       "src": "/images/spots/kakegawa-castle.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Kakegawa_Jo_201803mid.jpg/1280px-Kakegawa_Jo_201803mid.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kakitagawa": {
@@ -6883,8 +7038,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Bukeyashiki_Street_in_Kakunodate_20180428b.jpg/1280px-Bukeyashiki_Street_in_Kakunodate_20180428b.jpg",
-      "width": 3264,
-      "height": 2448
+      "width": 1280,
+      "height": 960
     }
   },
   "kakusenkei": {
@@ -6939,6 +7094,11 @@
       "src": "/images/spots/kamakura-daibutsu.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Kamakura_Budda_Daibutsu_front_1885.jpg/1280px-Kamakura_Budda_Daibutsu_front_1885.jpg",
+      "width": 1280,
+      "height": 1707
     }
   },
   "kamakura-hasedera": {
@@ -6957,6 +7117,11 @@
       "src": "/images/spots/kamakura-hasedera.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/230128_Hasedera_Kamakura_Kanagawa_pref_Japan04s3.jpg/1280px-230128_Hasedera_Kamakura_Kanagawa_pref_Japan04s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kamakurakokomae-crossing": {
@@ -6988,6 +7153,11 @@
       "src": "/images/spots/kameido-tenjin.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Kameido_Tenjin_20130506e.jpg/1280px-Kameido_Tenjin_20130506e.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "kamikatsu": {
@@ -7199,6 +7369,11 @@
       "src": "/images/spots/kamui-misaki.jpg",
       "width": 960,
       "height": 1440
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/130823_Cape_Kamui_Shakotan_Hokkaido_Japan08s3.jpg/1280px-130823_Cape_Kamui_Shakotan_Hokkaido_Japan08s3.jpg",
+      "width": 1280,
+      "height": 1920
     }
   },
   "kanayamachi": {
@@ -7240,6 +7415,11 @@
       "src": "/images/spots/kanazawa-21st-museum.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/21st_Century_Museum_of_Contemporary_Art%2C_Kanazawa011.jpg/1280px-21st_Century_Museum_of_Contemporary_Art%2C_Kanazawa011.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kanda-myojin": {
@@ -7258,6 +7438,11 @@
       "src": "/images/spots/kanda-myojin.jpg",
       "width": 960,
       "height": 619
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/KandaMyojinGate8837.jpg/1280px-KandaMyojinGate8837.jpg",
+      "width": 1280,
+      "height": 825
     }
   },
   "kanegasaki": {
@@ -7328,8 +7513,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Kannonzaki_park_01.jpg/1280px-Kannonzaki_park_01.jpg",
-      "width": 3648,
-      "height": 2736
+      "width": 1280,
+      "height": 960
     }
   },
   "kanoya-bara": {
@@ -7433,6 +7618,11 @@
       "src": "/images/spots/kashihara-jingu.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/251206_Kashihara_Shrine_Kashihara_Nara_pref_Japan05s3.jpg/1280px-251206_Kashihara_Shrine_Kashihara_Nara_pref_Japan05s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kashima-jingu": {
@@ -7558,6 +7748,11 @@
       "src": "/images/spots/kasuga-taisha.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Kasuga-taisha%2C_chumon-3.jpg/1280px-Kasuga-taisha%2C_chumon-3.jpg",
+      "width": 1280,
+      "height": 851
     }
   },
   "kasugayama": {
@@ -7625,6 +7820,11 @@
       "src": "/images/spots/katori-jingu.jpg",
       "width": 960,
       "height": 636
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Katori-jingu_haiden_shomen.JPG/1280px-Katori-jingu_haiden_shomen.JPG",
+      "width": 1280,
+      "height": 848
     }
   },
   "katsuoji": {
@@ -7643,6 +7843,11 @@
       "src": "/images/spots/katsuoji.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/%E5%8B%9D%E5%B0%BE%E5%AF%BA%E5%A5%89%E7%B4%8D%E6%A3%9A.jpg/1280px-%E5%8B%9D%E5%B0%BE%E5%AF%BA%E5%A5%89%E7%B4%8D%E6%A3%9A.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "katsura-sakamoto": {
@@ -7664,8 +7869,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/View_from_Sea_Side_of_Sakamoto_Ryoma_Memorial_Museum.jpg/1280px-View_from_Sea_Side_of_Sakamoto_Ryoma_Memorial_Museum.jpg",
-      "width": 3008,
-      "height": 2000
+      "width": 1280,
+      "height": 851
     }
   },
   "katsurahama": {
@@ -7746,8 +7951,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Wisteria_Tunnel_in_Kawachi_Wisteria_Garden_20150509-2.jpg/1280px-Wisteria_Tunnel_in_Kawachi_Wisteria_Garden_20150509-2.jpg",
-      "width": 2448,
-      "height": 3264
+      "width": 1280,
+      "height": 1707
     }
   },
   "kawagoe-hikawa": {
@@ -8061,6 +8266,11 @@
       "src": "/images/spots/kifune-jinja.jpg",
       "width": 960,
       "height": 837
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/%E8%B2%B4%E8%88%B9%E7%A5%9E%E7%A4%BE_Kibune_Jinja_%28KYOTO-JAPAN%29_%284951368080%29.jpg/1280px-%E8%B2%B4%E8%88%B9%E7%A5%9E%E7%A4%BE_Kibune_Jinja_%28KYOTO-JAPAN%29_%284951368080%29.jpg",
+      "width": 1280,
+      "height": 1115
     }
   },
   "kikuchi-castle": {
@@ -8162,6 +8372,11 @@
       "src": "/images/spots/kinchakuda.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Hidaka_Saitama_Kinchakuda_Panorama_1.jpg/1280px-Hidaka_Saitama_Kinchakuda_Panorama_1.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kinkakuji": {
@@ -8308,6 +8523,11 @@
       "src": "/images/spots/kintaikyo.jpg",
       "width": 960,
       "height": 416
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Iwakuni%2C_ponte_kintai-kyo%2C_05.jpg/1280px-Iwakuni%2C_ponte_kintai-kyo%2C_05.jpg",
+      "width": 1280,
+      "height": 554
     }
   },
   "kirifuri": {
@@ -8593,8 +8813,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Kitano_Street_Kobe02s3s4272.jpg/1280px-Kitano_Street_Kobe02s3s4272.jpg",
-      "width": 4272,
-      "height": 2848
+      "width": 1280,
+      "height": 853
     }
   },
   "kochi-castle": {
@@ -8644,6 +8864,11 @@
       "src": "/images/spots/kodaiji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/170923_Kodaiji_Kyoto_Japan09n.jpg/1280px-170923_Kodaiji_Kyoto_Japan09n.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kodokan": {
@@ -8905,8 +9130,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Korakukan_20220508.jpg/1280px-Korakukan_20220508.jpg",
-      "width": 4800,
-      "height": 2700
+      "width": 1280,
+      "height": 720
     }
   },
   "kosode-kaigan": {
@@ -9245,6 +9470,11 @@
       "src": "/images/spots/kumano-hongu.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Inside_the_Kumano_Hongu_Taisha.jpg/1280px-Inside_the_Kumano_Hongu_Taisha.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "kumano-magaibutsu": {
@@ -9365,6 +9595,11 @@
       "src": "/images/spots/kunozan-toshogu.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/231006_Kunozan_Tosho-gu_Shizuoka_Japan13s3.jpg/1280px-231006_Kunozan_Tosho-gu_Shizuoka_Japan13s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kuonji": {
@@ -9414,6 +9649,11 @@
       "src": "/images/spots/kurashiki-bikan.jpg",
       "width": 960,
       "height": 639
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/080727_At_Kurashiki_Bikan_historical_quarter_Kurashiki_Okayama_pref_Japan01s3.jpg/1280px-080727_At_Kurashiki_Bikan_historical_quarter_Kurashiki_Okayama_pref_Japan01s3.jpg",
+      "width": 1280,
+      "height": 852
     }
   },
   "kurobe-dam": {
@@ -9463,11 +9703,6 @@
       "src": "/images/spots/kurokawa.jpg",
       "width": 960,
       "height": 642
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/4/42/Kurokawa_Onsen_-%E6%B8%A9%E6%B3%89%E8%A1%97.jpg",
-      "width": 1280,
-      "height": 856
     }
   },
   "kuroshima": {
@@ -9542,6 +9777,11 @@
       "src": "/images/spots/kusatsu-yubatake.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/%E8%8D%89%E6%B4%A5%E6%B8%A9%E6%B3%89%E3%81%AE%E6%B9%AF%E7%95%9103.jpg/1280px-%E8%8D%89%E6%B4%A5%E6%B8%A9%E6%B3%89%E3%81%AE%E6%B9%AF%E7%95%9103.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "kushida-jinja": {
@@ -9971,8 +10211,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Marugame_Castle01.jpg/1280px-Marugame_Castle01.jpg",
-      "width": 1600,
-      "height": 1200
+      "width": 1280,
+      "height": 960
     }
   },
   "maruoka-castle": {
@@ -10066,8 +10306,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/%E3%81%BE%E3%81%9F%E3%81%B9%E3%81%841.jpg/1280px-%E3%81%BE%E3%81%9F%E3%81%B9%E3%81%841.jpg",
-      "width": 4032,
-      "height": 3024
+      "width": 1280,
+      "height": 960
     }
   },
   "matsue-castle": {
@@ -10107,8 +10347,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Matsumoto_Castle05s5s4592.jpg/1280px-Matsumoto_Castle05s5s4592.jpg",
-      "width": 4592,
-      "height": 3056
+      "width": 1280,
+      "height": 852
     }
   },
   "matsumoto-toge": {
@@ -10269,8 +10509,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Megijima_Port_and_Takamatsu_%288760506382%29.jpg/1280px-Megijima_Port_and_Takamatsu_%288760506382%29.jpg",
-      "width": 5760,
-      "height": 3840
+      "width": 1280,
+      "height": 853
     }
   },
   "meigetsuin": {
@@ -10325,6 +10565,11 @@
       "src": "/images/spots/meijimura.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Imperial_Hotel%2C_Tokyo_%281923-1968%29.jpg/1280px-Imperial_Hotel%2C_Tokyo_%281923-1968%29.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "mekari-park": {
@@ -10369,6 +10614,11 @@
       "src": "/images/spots/mifuneyama-rakuen.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Azalea_Valley_in_Mifuneyama_Garden_and_Mount_Mifuneyama_3.jpg/1280px-Azalea_Valley_in_Mifuneyama_Garden_and_Mount_Mifuneyama_3.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "miharu-takizakura": {
@@ -10447,6 +10697,11 @@
       "src": "/images/spots/miho-museum.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/241119_MIHO_MUSEUM_Koga_Shiga_pref_Japan08s3.jpg/1280px-241119_MIHO_MUSEUM_Koga_Shiga_pref_Japan08s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "miho-no-matsubara": {
@@ -10909,8 +11164,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Haiden_of_Miyajidake_Shrine.JPG/1280px-Haiden_of_Miyajidake_Shrine.JPG",
-      "width": 3250,
-      "height": 2437
+      "width": 1280,
+      "height": 960
     }
   },
   "miyakonojo": {
@@ -11001,8 +11256,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Mizuki_Shigeru_Road_-01.jpg/1280px-Mizuki_Shigeru_Road_-01.jpg",
-      "width": 2592,
-      "height": 1944
+      "width": 1280,
+      "height": 960
     }
   },
   "mizushima": {
@@ -11167,8 +11422,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Ishiwari-zakura_April_2024d.jpg/1280px-Ishiwari-zakura_April_2024d.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "mosaic-tile-museum": {
@@ -11241,6 +11496,11 @@
       "src": "/images/spots/motsuji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/230728_Motsuji_Hiraizumi_Iwate_pref_Japan13s3.jpg/1280px-230728_Motsuji_Hiraizumi_Iwate_pref_Japan13s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "mt-daisen": {
@@ -11272,6 +11532,11 @@
       "src": "/images/spots/mt-hakodate.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Kanemori_Red_Brick_Warehouse_Hakodate_Hokkaido_pref_Japan01n.jpg/1280px-Kanemori_Red_Brick_Warehouse_Hakodate_Hokkaido_pref_Japan01n.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "mukabaki": {
@@ -11502,6 +11767,11 @@
       "src": "/images/spots/nabana-no-sato.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/%E3%81%AA%E3%81%B0%E3%81%AA%E3%81%AE%E9%87%8C_%E4%B8%89%E9%87%8D%E7%9C%8C%E6%A1%91%E5%90%8D%E5%B8%82%E9%95%B7%E5%B3%B6%E7%94%BA_%284038094192%29.jpg/1280px-%E3%81%AA%E3%81%B0%E3%81%AA%E3%81%AE%E9%87%8C_%E4%B8%89%E9%87%8D%E7%9C%8C%E6%A1%91%E5%90%8D%E5%B8%82%E9%95%B7%E5%B3%B6%E7%94%BA_%284038094192%29.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "nabegataki": {
@@ -12111,8 +12381,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/220729_Nakasendo_Narai-juku_Shiojiri_Nagano_pref_Japan05s3.jpg/1280px-220729_Nakasendo_Narai-juku_Shiojiri_Nagano_pref_Japan05s3.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "naramachi": {
@@ -12144,6 +12414,11 @@
       "src": "/images/spots/naritasan.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/120803_Narita-san_Shinsho-ji_Narita_Chiba_pref_Japan01n.jpg/1280px-120803_Narita-san_Shinsho-ji_Narita_Chiba_pref_Japan01n.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "naruto-whirlpools": {
@@ -12162,6 +12437,11 @@
       "src": "/images/spots/naruto-whirlpools.jpg",
       "width": 960,
       "height": 773
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Big_Naruto_Bridge05n3872edit.jpg/1280px-Big_Naruto_Bridge05n3872edit.jpg",
+      "width": 1280,
+      "height": 1031
     }
   },
   "nasudake": {
@@ -12588,8 +12868,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Nyudozaki_Lighthouse_20231007a.jpg/1280px-Nyudozaki_Lighthouse_20231007a.jpg",
-      "width": 4000,
-      "height": 5333
+      "width": 1280,
+      "height": 1707
     }
   },
   "oasis21-tv-tower": {
@@ -13028,6 +13308,11 @@
       "src": "/images/spots/okayama-korakuen.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/250505_Korakuen_Okayama_Japan06s3.jpg/1280px-250505_Korakuen_Okayama_Japan06s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "okazaki-castle": {
@@ -13350,8 +13635,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Omi-jingu02n4592.jpg/1280px-Omi-jingu02n4592.jpg",
-      "width": 4046,
-      "height": 2697
+      "width": 1280,
+      "height": 853
     }
   },
   "omijima": {
@@ -13573,6 +13858,11 @@
       "src": "/images/spots/orizuru-tower.jpg",
       "width": 960,
       "height": 1280
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Hiroshima_MAZDA_Otemachi_BLD_20160717-1.JPG/1280px-Hiroshima_MAZDA_Otemachi_BLD_20160717-1.JPG",
+      "width": 1280,
+      "height": 1707
     }
   },
   "osaka-chuo-kokaido": {
@@ -13900,6 +14190,11 @@
       "src": "/images/spots/oyama-afuri.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/%C5%8Cyama_Aburi_Shrine%2C_Kanagawa%2C_Japan_-_April_2008.jpg/1280px-%C5%8Cyama_Aburi_Shrine%2C_Kanagawa%2C_Japan_-_April_2008.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "oyama-jinja": {
@@ -13977,6 +14272,11 @@
       "src": "/images/spots/oyamazumi-jinja.jpg",
       "width": 960,
       "height": 717
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/%C5%8Cyamazumi-jinja_keidai.JPG/1280px-%C5%8Cyamazumi-jinja_keidai.JPG",
+      "width": 1280,
+      "height": 956
     }
   },
   "oyashirazu": {
@@ -14237,6 +14537,11 @@
       "src": "/images/spots/rinnoji.jpg",
       "width": 960,
       "height": 638
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/JP-Nikko-Sanbutsu-do.JPG/1280px-JP-Nikko-Sanbutsu-do.JPG",
+      "width": 1280,
+      "height": 850
     }
   },
   "ritsurin-garden": {
@@ -14356,11 +14661,6 @@
       "src": "/images/spots/rurikoin.jpg",
       "width": 960,
       "height": 641
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/9/98/%E7%91%A0%E7%92%83%E5%85%89%E9%99%A2%E3%81%AE2%E9%9A%8E%E6%9B%B8%E9%99%A2%E3%81%AE%E7%B4%85%E8%91%89.jpg",
-      "width": 1280,
-      "height": 854
     }
   },
   "rurikoji": {
@@ -14402,6 +14702,11 @@
       "src": "/images/spots/ryoanji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/250201_Ryoan-ji_Kyoto_Japan06s3.jpg/1280px-250201_Ryoan-ji_Kyoto_Japan06s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "ryugado": {
@@ -14478,8 +14783,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Ryusendo_Cave_Underground_Lake_Cap_20201115.jpg/1280px-Ryusendo_Cave_Underground_Lake_Cap_20201115.jpg",
-      "width": 1731,
-      "height": 1080
+      "width": 1280,
+      "height": 799
     }
   },
   "ryuzu-no-taki": {
@@ -14501,8 +14806,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/200731_Ryuzu_Falls_Nikko_Japan01s3.jpg/1280px-200731_Ryuzu_Falls_Nikko_Japan01s3.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "sada-jinja": {
@@ -14979,8 +15284,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/131221_Sandanbeki_Shirahama_Wakayama_pref_Japan07bs12.jpg/1280px-131221_Sandanbeki_Shirahama_Wakayama_pref_Japan07bs12.jpg",
-      "width": 4770,
-      "height": 3180
+      "width": 1280,
+      "height": 853
     }
   },
   "sandankyo": {
@@ -15035,6 +15340,11 @@
       "src": "/images/spots/sankyo-soko.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/1_Chome-1_Sankyomachi%2C_Sakata-shi%2C_Yamagata-ken_998-0838%2C_Japan_-_panoramio_%282%29.jpg/1280px-1_Chome-1_Sankyomachi%2C_Sakata-shi%2C_Yamagata-ken_998-0838%2C_Japan_-_panoramio_%282%29.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "sannai-maruyama": {
@@ -15728,8 +16038,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/130928_Settsu-kyo_Gorge_Takatsuki_Osaka_pref_Japan03s3.jpg/1280px-130928_Settsu-kyo_Gorge_Takatsuki_Osaka_pref_Japan03s3.jpg",
-      "width": 4912,
-      "height": 3264
+      "width": 1280,
+      "height": 851
     }
   },
   "shayokan": {
@@ -16001,8 +16311,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/140321_Shimabara_Castle_Shimabara_Nagasaki_pref_Japan01bs5.jpg/1280px-140321_Shimabara_Castle_Shimabara_Nagasaki_pref_Japan01bs5.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "shimanto-chinkabashi": {
@@ -16192,8 +16502,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/131222_Engetsu_Island_Shirahama_Wakayama_pref_Japan01bs.jpg/1280px-131222_Engetsu_Island_Shirahama_Wakayama_pref_Japan01bs.jpg",
-      "width": 3660,
-      "height": 2440
+      "width": 1280,
+      "height": 853
     }
   },
   "shirahama-jinja": {
@@ -16468,8 +16778,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/131221_Shirarahama_Beach_Shirahama_Wakayama_pref_Japan09bs.jpg/1280px-131221_Shirarahama_Beach_Shirahama_Wakayama_pref_Japan09bs.jpg",
-      "width": 4650,
-      "height": 3100
+      "width": 1280,
+      "height": 853
     }
   },
   "shiratani-unsuikyo": {
@@ -16546,8 +16856,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/140829_Ichiko_of_Shiretoko_Goko_Lakes_Hokkaido_Japan02s5.jpg/1280px-140829_Ichiko_of_Shiretoko_Goko_Lakes_Hokkaido_Japan02s5.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "shiriyazaki": {
@@ -16566,6 +16876,11 @@
       "src": "/images/spots/shiriyazaki.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/%E5%B0%BB%E5%B1%8B%E5%9F%BC%E7%81%AF%E5%8F%B0%E3%81%AE%E5%AF%92%E7%AB%8B%E9%A6%AC_03.jpg/1280px-%E5%B0%BB%E5%B1%8B%E5%9F%BC%E7%81%AF%E5%8F%B0%E3%81%AE%E5%AF%92%E7%AB%8B%E9%A6%AC_03.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "shirogane-blue-pond": {
@@ -16584,6 +16899,11 @@
       "src": "/images/spots/shirogane-blue-pond.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Biei_Blue-pond.jpg/1280px-Biei_Blue-pond.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "shiroishi-castle": {
@@ -16810,8 +17130,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/%E5%B0%86%E8%BB%8D%E6%9D%89%E3%81%A8%E5%B9%B3%E7%B6%AD%E8%8C%82%E5%A2%93%E7%A2%91.JPG/1280px-%E5%B0%86%E8%BB%8D%E6%9D%89%E3%81%A8%E5%B9%B3%E7%B6%AD%E8%8C%82%E5%A2%93%E7%A2%91.JPG",
-      "width": 4608,
-      "height": 3456
+      "width": 1280,
+      "height": 960
     }
   },
   "shojiko": {
@@ -16886,6 +17206,11 @@
       "src": "/images/spots/shokasonjuku.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/%E6%9D%BE%E4%B8%8B%E6%9D%91%E5%A1%BE.jpg/1280px-%E6%9D%BE%E4%B8%8B%E6%9D%91%E5%A1%BE.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "shokawa-zakura": {
@@ -16986,6 +17311,11 @@
       "src": "/images/spots/shukkeien.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Hiroshima_Shukkei-en_Pond.jpg/1280px-Hiroshima_Shukkei-en_Pond.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "shurijo": {
@@ -17003,6 +17333,11 @@
       "src": "/images/spots/shurijo.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Kankai-mon_in_Shuri-castle.jpeg/1280px-Kankai-mon_in_Shuri-castle.jpeg",
+      "width": 1280,
+      "height": 960
     }
   },
   "shutoken-gaikaku-hosuiro": {
@@ -17021,6 +17356,11 @@
       "src": "/images/spots/shutoken-gaikaku-hosuiro.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Kasukabe2006_06_07.JPG/1280px-Kasukabe2006_06_07.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "shuzenji-chikurin": {
@@ -17373,8 +17713,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Yashirojima_Island_from_train_near_Obatake_Station_1.jpg/1280px-Yashirojima_Island_from_train_near_Obatake_Station_1.jpg",
-      "width": 4032,
-      "height": 3024
+      "width": 1280,
+      "height": 960
     }
   },
   "susa-hornfels": {
@@ -17916,8 +18256,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/251011_Tokei-jinja_Tanabe_Wakayama_prefecture_Japan03s3.jpg/1280px-251011_Tokei-jinja_Tanabe_Wakayama_prefecture_Japan03s3.jpg",
-      "width": 5472,
-      "height": 3648
+      "width": 1280,
+      "height": 853
     }
   },
   "tanesashi-kaigan": {
@@ -18106,11 +18446,6 @@
       "src": "/images/spots/tatami-ga-ura.jpg",
       "width": 960,
       "height": 720
-    },
-    "large": {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Tatami-ga-ura_02.jpg",
-      "width": 1280,
-      "height": 960
     }
   },
   "tatara-numa": {
@@ -18820,6 +19155,11 @@
       "src": "/images/spots/tomonoura.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Ioji_Fukuyama_Hiroshima_pref02n3200.jpg/1280px-Ioji_Fukuyama_Hiroshima_pref02n3200.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "tonaru": {
@@ -18924,8 +19264,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Tonomine_highland_Kamikawa_Hyogo_pref_Japan01bs5.jpg/1280px-Tonomine_highland_Kamikawa_Hyogo_pref_Japan01bs5.jpg",
-      "width": 4912,
-      "height": 3264
+      "width": 1280,
+      "height": 851
     }
   },
   "toshodaiji": {
@@ -19277,6 +19617,11 @@
       "src": "/images/spots/tsukiji-honganji.jpg",
       "width": 960,
       "height": 601
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/2019_Tsukiji_Honganji.jpg/1280px-2019_Tsukiji_Honganji.jpg",
+      "width": 1280,
+      "height": 801
     }
   },
   "tsukubasan": {
@@ -19408,6 +19753,11 @@
       "src": "/images/spots/tsurugajo.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Aizuwakamatsu_Castle_ac_%281%29.jpg/1280px-Aizuwakamatsu_Castle_ac_%281%29.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "tsurugaoka-hachimangu": {
@@ -19429,8 +19779,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Tsurugaoka_Hachimangu_001.jpg/1280px-Tsurugaoka_Hachimangu_001.jpg",
-      "width": 4282,
-      "height": 2839
+      "width": 1280,
+      "height": 849
     }
   },
   "tsurugisan": {
@@ -19545,6 +19895,11 @@
       "src": "/images/spots/tsuyama-castle.jpg",
       "width": 960,
       "height": 643
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/%E6%B4%A5%E5%B1%B1%E5%9F%8E_%E5%82%99%E4%B8%AD%E6%AB%93%E3%81%A8%E6%A1%9C.jpg/1280px-%E6%B4%A5%E5%B1%B1%E5%9F%8E_%E5%82%99%E4%B8%AD%E6%AB%93%E3%81%A8%E6%A1%9C.jpg",
+      "width": 1280,
+      "height": 857
     }
   },
   "tsuyama-jotoku": {
@@ -19675,8 +20030,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Ueda_Castle_Amagafuchi.jpg/1280px-Ueda_Castle_Amagafuchi.jpg",
-      "width": 3978,
-      "height": 2236
+      "width": 1280,
+      "height": 719
     }
   },
   "ueno-park": {
@@ -19708,6 +20063,11 @@
       "src": "/images/spots/umeda-sky-building.jpg",
       "width": 960,
       "height": 1425
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/2018_Umeda_Sky_Building.jpg/1280px-2018_Umeda_Sky_Building.jpg",
+      "width": 1280,
+      "height": 1900
     }
   },
   "umi-jigoku": {
@@ -20207,8 +20567,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/101120_Wakasahiko-jinja_Obama_Fukui_pref_Japan07s5.jpg/1280px-101120_Wakasahiko-jinja_Obama_Fukui_pref_Japan07s5.jpg",
-      "width": 4592,
-      "height": 3056
+      "width": 1280,
+      "height": 852
     }
   },
   "wakayama-castle": {
@@ -20381,6 +20741,11 @@
       "src": "/images/spots/yamadera-risshakuji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/211029_Risshaku-ji_Yamagata_Yamagata_pref_Japan107s3.jpg/1280px-211029_Risshaku-ji_Yamagata_Yamagata_pref_Japan107s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "yamaguchi-xavier": {
@@ -20490,6 +20855,11 @@
       "src": "/images/spots/yashima.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/%E6%B5%B7%E4%B8%8A%E3%81%8B%E3%82%89%E3%81%AE%E5%B1%8B%E5%B3%B6.JPG/1280px-%E6%B5%B7%E4%B8%8A%E3%81%8B%E3%82%89%E3%81%AE%E5%B1%8B%E5%B3%B6.JPG",
+      "width": 1280,
+      "height": 960
     }
   },
   "yogo-ko": {
@@ -20511,8 +20881,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Lake_Yogo01s3200.jpg/1280px-Lake_Yogo01s3200.jpg",
-      "width": 3000,
-      "height": 2000
+      "width": 1280,
+      "height": 853
     }
   },
   "yokohama-akarenga": {
@@ -20700,6 +21070,11 @@
       "src": "/images/spots/yoshimi-hyakuana.jpg",
       "width": 960,
       "height": 594
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Hundred_Caves_of_Yoshimi_-_front_b_-_2018-4-1.jpg/1280px-Hundred_Caves_of_Yoshimi_-_front_b_-_2018-4-1.jpg",
+      "width": 1280,
+      "height": 792
     }
   },
   "yoshinogari": {
@@ -20718,6 +21093,11 @@
       "src": "/images/spots/yoshinogari.jpg",
       "width": 960,
       "height": 487
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Yoshinogari-iseki_zenkei.JPG/1280px-Yoshinogari-iseki_zenkei.JPG",
+      "width": 1280,
+      "height": 649
     }
   },
   "yoshinoyama": {
@@ -20836,6 +21216,11 @@
       "src": "/images/spots/yudaki.jpg",
       "width": 960,
       "height": 1440
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/200731_Yudaki_Nikko_Tochigi_pref_Japan01s7.jpg/1280px-200731_Yudaki_Nikko_Tochigi_pref_Japan01s7.jpg",
+      "width": 1280,
+      "height": 1920
     }
   },
   "yudonosan": {
@@ -20931,6 +21316,11 @@
       "src": "/images/spots/yutoku-inari.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/%E7%A5%90%E5%BE%B3%E7%A8%B2%E8%8D%B7%E7%A5%9E%E7%A4%BE_%E6%A5%BC%E9%96%80.JPG/1280px-%E7%A5%90%E5%BE%B3%E7%A8%B2%E8%8D%B7%E7%A5%9E%E7%A4%BE_%E6%A5%BC%E9%96%80.JPG",
+      "width": 1280,
+      "height": 853
     }
   },
   "yuushien": {
@@ -21043,8 +21433,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Zeniarai_Benzaiten_-_Benten_01.jpg/1280px-Zeniarai_Benzaiten_-_Benten_01.jpg",
-      "width": 3648,
-      "height": 2736
+      "width": 1280,
+      "height": 960
     }
   },
   "zenigata": {
@@ -21076,6 +21466,11 @@
       "src": "/images/spots/zenkoji.jpg",
       "width": 960,
       "height": 651
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/ZenkojiWP.jpg/1280px-ZenkojiWP.jpg",
+      "width": 1280,
+      "height": 868
     }
   },
   "zentsuji": {
@@ -21172,6 +21567,11 @@
       "src": "/images/spots/zuiganji.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/211030_Zuigan-ji_Matsushima_Miyagi_pref_Japan09s3.jpg/1280px-211030_Zuigan-ji_Matsushima_Miyagi_pref_Japan09s3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "zuihoden": {
@@ -21305,6 +21705,11 @@
       "src": "/images/spots/azuchi-castle.jpg",
       "width": 960,
       "height": 540
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Azuchi_Castle_Tower.jpg/1280px-Azuchi_Castle_Tower.jpg",
+      "width": 1280,
+      "height": 720
     }
   },
   "daikakuji-osawaike": {
@@ -21549,8 +21954,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Autumn_leaves_of_Kimimachizaka_in_October_2022d.jpg/1280px-Autumn_leaves_of_Kimimachizaka_in_October_2022d.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "kitakata-kura": {
@@ -21766,6 +22171,11 @@
       "src": "/images/spots/morioka-jozan.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/171103_Morioka_Castle_Morioka_Iwate_pref_Japan17bs3.jpg/1280px-171103_Morioka_Castle_Morioka_Iwate_pref_Japan17bs3.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "morioka-kaiunbashi": {
@@ -21787,8 +22197,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Kaiun_Bridge_%28Morioka%29_20220402a.jpg/1280px-Kaiun_Bridge_%28Morioka%29_20220402a.jpg",
-      "width": 6000,
-      "height": 4000
+      "width": 1280,
+      "height": 853
     }
   },
   "mugi": {
@@ -22256,6 +22666,11 @@
       "src": "/images/spots/alhambra.jpg",
       "width": 960,
       "height": 651
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Alhambra_detail.jpg/1280px-Alhambra_detail.jpg",
+      "width": 1280,
+      "height": 868
     }
   },
   "eiffel-tower": {
@@ -22508,6 +22923,11 @@
       "src": "/images/spots/arc-de-triomphe.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg/1280px-Arc_de_Triomphe_-_Ao%C3%BBt_2026.jpg",
+      "width": 1280,
+      "height": 854
     }
   },
   "etretat": {
@@ -22544,6 +22964,11 @@
       "src": "/images/spots/helsinki-central-station.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Helsinki_Central_railway_station_in_Finland%2C_2021_July.jpg/1280px-Helsinki_Central_railway_station_in_Finland%2C_2021_July.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "mezquita-cordoba": {
@@ -22603,6 +23028,11 @@
       "src": "/images/spots/palais-des-papes.jpg",
       "width": 960,
       "height": 391
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Avignon%2C_Palais_des_Papes_by_JM_Rosier.jpg/1280px-Avignon%2C_Palais_des_Papes_by_JM_Rosier.jpg",
+      "width": 1280,
+      "height": 522
     }
   },
   "place-de-la-concorde": {
@@ -22706,6 +23136,11 @@
       "src": "/images/spots/carcassonne.jpg",
       "width": 960,
       "height": 566
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/1_carcassonne_aerial_2016.jpg/1280px-1_carcassonne_aerial_2016.jpg",
+      "width": 1280,
+      "height": 755
     }
   },
   "guggenheim-museum-bilbao": {
@@ -22927,6 +23362,11 @@
       "src": "/images/spots/alberobello.jpg",
       "width": 960,
       "height": 688
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Alberobello_con_il_drone.jpg/1280px-Alberobello_con_il_drone.jpg",
+      "width": 1280,
+      "height": 918
     }
   },
   "brandenburg-gate": {
@@ -23202,6 +23642,11 @@
       "src": "/images/spots/milan-cathedral.jpg",
       "width": 960,
       "height": 834
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/20110724_Milan_Cathedral_5260.jpg/1280px-20110724_Milan_Cathedral_5260.jpg",
+      "width": 1280,
+      "height": 1112
     }
   },
   "pena-palace": {
@@ -23310,6 +23755,11 @@
       "src": "/images/spots/barcelona-cathedral.jpg",
       "width": 960,
       "height": 1440
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Barcelona_Cathedral_Saint_Eulalia.jpg/1280px-Barcelona_Cathedral_Saint_Eulalia.jpg",
+      "width": 1280,
+      "height": 1920
     }
   },
   "casa-batllo": {
@@ -23436,6 +23886,11 @@
       "src": "/images/spots/piazza-del-campo.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Il_campo_view_from_torre.jpg/1280px-Il_campo_view_from_torre.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "ponte-vecchio": {
@@ -23526,6 +23981,11 @@
       "src": "/images/spots/belem-tower.jpg",
       "width": 960,
       "height": 720
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Belem_Tower_-_April_2019_%282%29.jpg/1280px-Belem_Tower_-_April_2019_%282%29.jpg",
+      "width": 1280,
+      "height": 960
     }
   },
   "casa-mila": {
@@ -23706,6 +24166,11 @@
       "src": "/images/spots/st-peters-basilica.jpg",
       "width": 960,
       "height": 501
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Basilica_di_San_Pietro_in_Vaticano_September_2015-1a.jpg/1280px-Basilica_di_San_Pietro_in_Vaticano_September_2015-1a.jpg",
+      "width": 1280,
+      "height": 668
     }
   },
   "belvedere-vienna": {
@@ -23806,6 +24271,11 @@
       "src": "/images/spots/jeronimos-monastery.jpg",
       "width": 960,
       "height": 577
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/1502_legte_K%C3%B6nig_Manuel_I._den_Grundstein_f%C3%BCr_das_Hieronymus_Kloster_in_Lissabon._06.jpg/1280px-1502_legte_K%C3%B6nig_Manuel_I._den_Grundstein_f%C3%BCr_das_Hieronymus_Kloster_in_Lissabon._06.jpg",
+      "width": 1280,
+      "height": 769
     }
   },
   "matterhorn": {
@@ -23824,6 +24294,11 @@
       "src": "/images/spots/matterhorn.jpg",
       "width": 960,
       "height": 1446
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/0_106_Walliser_Alpen_-_Matterhorn.jpg/1280px-0_106_Walliser_Alpen_-_Matterhorn.jpg",
+      "width": 1280,
+      "height": 1928
     }
   },
   "palau-de-la-musica-catalana": {
@@ -23973,6 +24448,11 @@
       "src": "/images/spots/champs-elysees.jpg",
       "width": 960,
       "height": 640
+    },
+    "large": {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Avenue_des_Champs-%C3%89lys%C3%A9es%2C_Paris_3_October_2010.jpg/1280px-Avenue_des_Champs-%C3%89lys%C3%A9es%2C_Paris_3_October_2010.jpg",
+      "width": 1280,
+      "height": 853
     }
   },
   "cinque-terre": {
@@ -24030,8 +24510,8 @@
     },
     "large": {
       "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Florence_Duomo_from_Michelangelo_hill.jpg/1280px-Florence_Duomo_from_Michelangelo_hill.jpg",
-      "width": 3308,
-      "height": 2399
+      "width": 1280,
+      "height": 928
     }
   },
   "jungfrau": {
