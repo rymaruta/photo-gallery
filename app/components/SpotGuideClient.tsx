@@ -419,7 +419,17 @@ function LightToday({ spot, zone, isJa }: { spot: Spot; zone: string; isJa: bool
 /** 作例の出どころの名前（`source` が無ければ Wikimedia Commons・2026-10-04 から Flickr と環境省・県の観光協会なども） */
 const sampleSourceName = (s: SpotSample) => s.source?.name ?? "Wikimedia Commons";
 
-function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
+/**
+ * 作例の画像の alt（2026-10-22）。**場所の名前を入れる**——画像検索は alt で写真の中身を読むので、
+ * 「作例の写真（撮影: Σ64）」では何の写真か伝わらない。例「あぶくま洞の写真（作例・撮影: Σ64）」。
+ * 題（Commons のファイル名）は英語や番号まじりが多いので使わない。出典の文（`credit`）はそのまま
+ */
+export function sampleAlt(spot: { name: string; nameEn?: string }, s: Pick<SpotSample, "author" | "credit">, isJa: boolean): string {
+    if (!isJa) return `Example photo of ${spot.nameEn || spot.name} by ${s.author}`;
+    return `${spot.name}の写真（作例・${s.credit ?? `撮影: ${s.author}`}）`;
+}
+
+function Samples({ samples, isJa, spot }: { samples: SpotSample[]; isJa: boolean; spot: { name: string; nameEn?: string } }) {
     // 読み込めなかった1枚（Commons 側で消えた・差し替わった）は、出典ごと隠す。
     // 全部読めなければ節ごと隠す（割れた画像の枠と出典だけが並ばないように）
     const [broken, setBroken] = React.useState<ReadonlySet<string>>(() => new Set());
@@ -460,7 +470,7 @@ function Samples({ samples, isJa }: { samples: SpotSample[]; isJa: boolean }) {
                                 <img src={small ?? s.src} srcSet={srcSet}
                                      sizes="(min-width:1024px) 240px, (min-width:640px) 30vw, 46vw"
                                      width={s.width} height={s.height} loading="lazy" decoding="async"
-                                     alt={isJa ? `作例の写真（${s.credit ?? `撮影: ${s.author}`}）` : `Example photo by ${s.author}`}
+                                     alt={sampleAlt(spot, s, isJa)}
                                      onError={() => setBroken((prev) => new Set(prev).add(s.sourceUrl))}
                                      className="block w-full h-auto rounded-lg bg-surface" />
                                 <figcaption className="mt-1.5 text-white/60 wrap-anywhere" style={{ fontSize: "12px", lineHeight: "15px" }}
@@ -832,7 +842,7 @@ export default function SpotGuideClient({ spot, photos, nearby, locationPath, ar
 
                         {/* ── 作例（Wikimedia Commons）──────────
                             投稿が0枚の場所でも、どんな写真が撮れるかが分かるように。撮影ガイドの前 */}
-                        {samples.length > 0 && <Samples samples={samples} isJa={isJa} />}
+                        {samples.length > 0 && <Samples samples={samples} isJa={isJa} spot={spot} />}
 
                         {/* ── 5. 撮影ガイド ──────────────────
                             **事実ではなく運営のアドバイス**なので、出典は求めない

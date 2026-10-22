@@ -46,3 +46,17 @@ export function photoAltText(photo: Photo, locale: Locale): string {
     if (r.kind === "both") return `${r.title}（${r.place}）`;
     return r.text || photoTitleFor(photo, locale).text;
 }
+
+/**
+ * 回遊リンク（関連写真の帯・近くの写真）の画像の alt（2026-10-22）。
+ * `photoAltText`（alt → 題（撮影地）→「撮影地の写真」）で、それも決まり文句の「写真」「Photo」しか
+ * 残らないときだけ、呼ぶ側が知っている文脈（「luzhjさんの写真」）に替える
+ */
+export function relatedPhotoAlt(photo: Photo, locale: Locale, fallback?: string): string {
+    // 題か alt があれば写真ページの本体と同じ組み立て（`photoAltText`）。どちらも無ければ
+    // 代わりの題（「板橋区の写真」・`photoTitleFor`）——撮影地の生の文字列（「板橋区, 日本」）を alt にしない
+    const hasOwn = Boolean(getLocalized(photo.alt, locale) || photoOwnTitle(photo, locale));
+    const text = hasOwn ? photoAltText(photo, locale) : photoTitleFor(photo, locale).text;
+    const generic = text === "" || text === "写真" || text === "Photo";
+    return generic && fallback?.trim() ? fallback.trim() : text;
+}
