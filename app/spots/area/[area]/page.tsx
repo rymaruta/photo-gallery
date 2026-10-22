@@ -5,7 +5,7 @@ import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import SpotTopicPage from "@/app/components/SpotTopicPage";
-import { overseasView, topicMetadata, areaStructuredData } from "@/lib/data/spotTopics";
+import { overseasView, topicMetadata, areaStructuredData, spotTwitterMeta } from "@/lib/data/spotTopics";
 import { OVERSEAS_SLUG } from "@/lib/data/prefectures";
 
 /** JSON-LD を `<script>` に埋める形（`SpotTopicPage.tsx` と同じ。`</script>` で閉じられないように） */
@@ -87,6 +87,8 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
             locale: siteConfig.locale.ja, title, description,
             ...(ogImage ? { images: [ogImage] } : {}),
         },
+        // og:image と同じ1枚（レイアウトの新着写真を残さない・2026-10-22）
+        twitter: spotTwitterMeta(title, description, ogImage?.url),
     };
 }
 

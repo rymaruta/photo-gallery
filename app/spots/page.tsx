@@ -6,7 +6,7 @@ import { visibleSpots, publishableSpots } from "@/lib/utils/spotGuide";
 import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import { spotAreaItemList } from "@/lib/data/spotSeo";
 import { spotCheckedClaim } from "@/lib/data/spotPageMeta";
-import { spotIndexTopics, firstSpotOgImage } from "@/lib/data/spotTopics";
+import { spotIndexTopics, firstSpotOgImage, spotTwitterMeta } from "@/lib/data/spotTopics";
 import { TopicChips, Lang } from "@/app/components/SpotTopicLists";
 
 /**
@@ -43,6 +43,8 @@ export async function generateMetadata(): Promise<Metadata> {
             // 子の `openGraph` は親（レイアウト）の画像ごと置き換えるので、ここで渡す（2026-10-16・絵が無かった）
             ...(og ? { images: [og] } : {}),
         },
+        // og:image と同じ1枚（レイアウトの新着写真を残さない・2026-10-22）
+        twitter: spotTwitterMeta(title, description, og?.url),
     };
 }
 

@@ -931,5 +931,17 @@ export function topicMetadata(view: TopicView | null) {
             locale: siteConfig.locale.ja, title, description,
             ...(image ? { images: [{ url: image, ...(og?.width && og?.height ? { width: og.width, height: og.height } : {}), alt: view.heading }] } : {}),
         },
+        twitter: spotTwitterMeta(title, description, image),
     };
+}
+
+/**
+ * **X（Twitter）のカード**（2026-10-22）。子が `twitter` を書かないと、レイアウトの値（新着の投稿写真・サイト名の題）が
+ * そのまま残り、og:image と別の1枚・別の題になっていた（県・季節の頁で実測）。og:image と同じ1枚を渡す。
+ * 画像が無ければ書かない（レイアウトの既定に任せる）
+ */
+export function spotTwitterMeta(title: string, description: string, image: string | undefined) {
+    return image
+        ? { card: "summary_large_image" as const, title, description, images: [image], creator: siteConfig.twitterHandle }
+        : undefined;
 }
