@@ -14,7 +14,7 @@ import { metaText } from "@/lib/utils/metaText";
 import { SPOTS, type Spot } from "@/lib/data/spots";
 import { publishableSpots } from "@/lib/utils/spotGuide";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { spotSamples } from "@/lib/data/spotSamples";
+import { spotSamples, spotCoverSeoSource, spotSeoImage } from "@/lib/data/spotSamples";
 
 export const dynamic = "force-static";
 
@@ -129,15 +129,25 @@ export type SpotImageEntry = { loc: string; images: { src: string; title: string
  * - ライセンスは書かない。`<image:license>` は Google が文書から外した（`image:title`・`image:caption`・
  *   `image:geo_location` も同じ）。作者・ライセンスはページの JSON-LD の `ImageObject` が持つ
  * - 作例の画像は Commons・Flickr の URL のまま（画面が読んでいる URL と同じ）
+ * - 2026-10-22: 代表写真は**横 1,200px 以上の版があればそれ**（Commons の 1280px・`spotCoverSeoSource`）。
+ *   無ければサイトに置いた縮小版（960px）。代表写真が 1,200 に届かず届く作例があれば、その作例を先頭に
+ *   （`spotSeoImage`・OGP と構造化データと同じ1枚）
  */
 export function spotImageEntries(spots: readonly Spot[] = publishableSpots(SPOTS)): SpotImageEntry[] {
     const out: SpotImageEntry[] = [];
     for (const spot of spots) {
         const cover = spotCoverImage(spot);
-        const images = [
-            ...(cover?.src ? [{ src: toAbsolute(cover.src), title: spot.name }] : []),
-            ...spotSamples(spot, { exclude: [cover?.sourceUrl] }).map((s) => ({ src: toAbsolute(s.src), title: s.title })),
-        ].slice(0, MAX_IMAGES_PER_URL);
+        const coverSeo = cover?.src ? spotCoverSeoSource(spot) : undefined;
+        const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });
+        const seo = spotSeoImage(spot, samples);
+        const lead = seo?.from === "sample" ? seo.sample : undefined;
+        const ordered = lead ? [lead, ...samples.filter((s) => s !== lead)] : samples;
+        const sampleImages = ordered.map((s) => ({ src: toAbsolute(s.src), title: s.title }));
+        const coverImages = coverSeo ? [{ src: coverSeo.url, title: spot.name }] : [];
+        const images = (lead
+            ? [sampleImages[0], ...coverImages, ...sampleImages.slice(1)]
+            : [...coverImages, ...sampleImages]
+        ).slice(0, MAX_IMAGES_PER_URL);
         if (images.length > 0) out.push({ loc: `${siteConfig.url}/spots/${spot.slug}`, images });
     }
     return out;

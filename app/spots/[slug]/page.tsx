@@ -5,7 +5,7 @@ import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
 import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { spotSamples } from "@/lib/data/spotSamples";
+import { spotSamples, spotSeoImage } from "@/lib/data/spotSamples";
 import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
 import { spotSkyDescription } from "@/lib/utils/spotSky";
@@ -47,16 +47,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     // 新着の写真（`resolveOgImage`）には落とさない: 別の場所の写真を、この場所の写真として
     // 見せることになる。既定の画像は正方形のアイコンなので、カードは小さい形（`summary`）
     const cover = spotCoverImage(spot);
-    const photo = cover?.src
-        ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
-        : undefined;
-    const image = photo ?? `${siteConfig.url}${siteConfig.ogImage}`;
     // 数えるのは画面と同じもの（作例は代表写真と同じ1枚を除く・`SpotGuidePage`）
+    const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });
+    // 2026-10-22: OGP の1枚は**横 1,200px 以上を優先**（`spotSeoImage`）。代表写真の Commons の 1280px 版 →
+    // 画面の作例の 1,200 以上 → 代表写真の 960px の順。幅・高さも申告する
+    const seo = spotSeoImage(spot, samples);
+    const image = seo?.url ?? `${siteConfig.url}${siteConfig.ogImage}`;
+    const ogSize = seo?.width && seo?.height ? { width: seo.width, height: seo.height } : {};
     // 2026-10-22: title と description は同じ事実（作例の実数・光の表など）から組む
     const facts = {
         light: lightCalendar(spot.coords, spot.region?.country, spot.timeZone) !== null,
-        samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,
-        cover: Boolean(photo),
+        samples: samples.length,
+        // 画面に代表写真を出すか（OGP の1枚が作例でも、ここは画面の代表写真の有無）
+        cover: Boolean(cover?.src),
         // 座標から計算した要約（日の入りの方角・天の川の月）。紹介文より前に置く（`spotSkyDescription`）
         computed: spotSkyDescription(spot),
     };
@@ -77,10 +80,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
             siteName: siteConfig.name,
             title,
             description,
-            images: [{ url: image, alt: photo ? spot.name : siteConfig.name }],
+            images: [{ url: image, ...ogSize, alt: seo ? spot.name : siteConfig.name }],
         },
         twitter: {
-            card: photo ? "summary_large_image" : "summary",
+            card: seo ? "summary_large_image" : "summary",
             title,
             description,
             images: [image],
