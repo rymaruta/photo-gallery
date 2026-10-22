@@ -61,6 +61,26 @@ const many = (field: "location" | "category", n: number) =>
     Array.from({ length: n * 2 }, (_, i) =>
         photo(`p${i}`, { [field]: `場所${Math.floor(i / 2)}` } as Partial<Photo>));
 
+describe("柱の行き先（2026-10-22）", () => {
+    it("🔴 検索に出す集約ページ（index）へは直接、noindex になるものは /search の検索結果へ", () => {
+        const { container } = draw([
+            // 山中湖は2枚（撮影地の線は2枚＝検索に出す）、パリは1枚（noindex）
+            photo("a", { location: "山中湖", category: "landscape" }),
+            photo("b", { location: "山中湖", category: "landscape" }),
+            photo("c", { location: "パリ", category: "landscape" }),
+            photo("d", { location: "山中湖", category: "animal" }),
+        ]);
+        const hrefs = itemLinks(container).map((a) => a.getAttribute("href") ?? "");
+        expect(hrefs).toContain(`/location/${encodeURIComponent("山中湖")}`);
+        expect(hrefs.some((h) => h.startsWith("/search?") && h.includes(encodeURIComponent("パリ"))), "noindex の撮影地が検索結果へ行っていない").toBe(true);
+        expect(hrefs, "noindex の撮影地ページへ直接張っている").not.toContain(`/location/${encodeURIComponent("パリ")}`);
+        // カテゴリの線は3枚: landscape（3枚）は直接、animal（1枚）は検索結果
+        expect(hrefs).toContain("/category/landscape");
+        expect(hrefs).not.toContain("/category/animal");
+        expect(hrefs).toContain("/search?category=animal");
+    });
+});
+
 describe("柱の中身", () => {
     // 2026-09-30 のレビュー: 長い住所を見出しにしない・地域の束は「地域」と名乗る
     it("撮影地のタイルは具体的な部分を見出しに・地域は2行目に", () => {

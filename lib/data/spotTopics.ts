@@ -22,7 +22,7 @@ import { spotCoverImage } from "./spotImages";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import { COUNTRY_SHARD_KEYS } from "./spotFeedShards";
 import { REGIONS, prefectureByName, OVERSEAS_SLUG, OVERSEAS_NAME, type RegionName } from "./prefectures";
-import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData } from "../utils/seo";
+import { siteConfig, generateItemListStructuredData, generateBreadcrumbStructuredData, pageRobots } from "../utils/seo";
 import { ROUTES } from "../routes";
 
 /**
@@ -378,8 +378,11 @@ export const countryHeading = (t: Pick<CountryTopic, "name">) => `${t.name}の�
 export const themePath = (t: Pick<ThemeTopic, "categorySlug" | "place">) => ROUTES.SPOT_THEME(t.categorySlug, t.place.slug);
 export const seasonPath = (t: Pick<SeasonTopic, "season" | "area">) => ROUTES.SPOT_SEASON(t.season, t.area ?? undefined);
 
-/** 代表写真（スポットの頁と同じ判断）。サムネが在ればサムネ */
-function cardCover(s: Spot): TopicCard["cover"] {
+/**
+ * 代表写真（スポットの頁と同じ判断）。サムネが在ればサムネ。
+ * 県の頁（`/spots/area/<県>`・`spotIndexItemsForArea`）のカードも同じものを使う（2026-10-22）
+ */
+export function topicCardCover(s: Spot): TopicCard["cover"] {
     const c = spotCoverImage(s);
     if (!c?.src) return null;
     const thumb = spotThumbSrc(c.src);
@@ -408,7 +411,7 @@ export function toTopicCard(s: Spot): TopicCard {
         name: s.name,
         region: [isJapan(s) ? undefined : s.region?.country, s.region?.prefecture, s.region?.city].filter(Boolean).join(" "),
         ...(s.summary ? { summary: s.summary } : {}),
-        cover: cardCover(s),
+        cover: topicCardCover(s),
     };
 }
 
@@ -883,7 +886,7 @@ export function topicMetadata(view: TopicView | null) {
         title,
         description,
         alternates: { canonical: url },
-        robots: view.indexable ? undefined : { index: false, follow: true },
+        robots: pageRobots(view.indexable),
         openGraph: {
             type: "website" as const, url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,

@@ -3,7 +3,7 @@ import SpotGuidePage from "@/app/components/SpotGuidePage";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
 import { withPlaceholderParam } from "@/lib/server/staticParams";
-import { siteConfig } from "@/lib/utils/seo";
+import { siteConfig, pageRobots } from "@/lib/utils/seo";
 import { spotCoverImage } from "@/lib/data/spotImages";
 import { spotSamples } from "@/lib/data/spotSamples";
 import { spotPageTitle, spotPageDescription } from "@/lib/data/spotPageMeta";
@@ -37,10 +37,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!spot) return { robots: { index: false, follow: true } };
 
     const verified = isPublished(spot);
-    // 2026-10-11: title は検索の語（撮影スポット・撮影ガイド）を入れて短く、description は紹介文に
-    // ページに在るもの（撮影の光・作例の枚数）の要約を足す（`lib/data/spotPageMeta.ts`）。
+    // title・description は検索される語（〈名所〉 写真／撮影／撮影地）と押す理由（作例の数・撮影に向く季節）を頭に置く
+    // （`lib/data/spotPageMeta.ts`・2026-10-22）。
     // 下書きは説明文の頭でもそう名乗る（共有プレビューで「確認済み」に見せない）
-    const title = spotPageTitle(spot);
     const url = `${siteConfig.url}/spots/${spot.slug}`;
     // 代表写真があればそれを OGP に出す。
     // **無ければサイトの既定の画像（`siteConfig.ogImage`）に落とす**——画像を申告しないと、
@@ -53,13 +52,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         : undefined;
     const image = photo ?? `${siteConfig.url}${siteConfig.ogImage}`;
     // 数えるのは画面と同じもの（作例は代表写真と同じ1枚を除く・`SpotGuidePage`）
-    const description = spotPageDescription(spot, {
+    // 2026-10-22: title と description は同じ事実（作例の実数・光の表など）から組む
+    const facts = {
         light: lightCalendar(spot.coords, spot.region?.country, spot.timeZone) !== null,
         samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,
         cover: Boolean(photo),
-        // 座標から計算した要約（日の入りの方角・天の川の月）を紹介文のすぐ後に入れる（`spotSkyDescription`）
+        // 座標から計算した要約（日の入りの方角・天の川の月）。紹介文より前に置く（`spotSkyDescription`）
         computed: spotSkyDescription(spot),
-    });
+    };
+    const title = spotPageTitle(spot, facts);
+    const description = spotPageDescription(spot, facts);
 
     return {
         // サイト全体の template（「 | Journey Photo 旅フォトギャラリー」）を外し、短い名前を自分で付ける
@@ -67,7 +69,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         description,
         alternates: { canonical: url },
         // **下書きは検索に出さない**（リンクは辿らせる。確かめたら外れる）
-        robots: verified ? undefined : { index: false, follow: true },
+        robots: pageRobots(verified),
         openGraph: {
             type: "article",
             locale: siteConfig.locale.ja,

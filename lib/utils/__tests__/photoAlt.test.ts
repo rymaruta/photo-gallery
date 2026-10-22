@@ -90,7 +90,7 @@ describe("alt を出す4か所すべてが、この1本を通る", () => {
         const src = readFileSync(resolve(process.cwd(), file), "utf8");
         // 深さはファイルごとに違うので、相対の段数は見ない
         expect(src, `${file} が photoAltText を import していない`)
-            .toMatch(/import \{ photoAltText \} from "[./]+lib\/utils\/photoAlt";/);
+            .toMatch(/import \{ photoAltText(, relatedPhotoAlt)? \} from "[./]+lib\/utils\/photoAlt";/);
         expect(src, `${file} が photoAltText を呼んでいない`).toContain("photoAltText(");
     });
 
