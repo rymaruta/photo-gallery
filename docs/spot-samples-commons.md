@@ -173,6 +173,8 @@ CC BY / CC BY-SA の表示条件（TASL: 題・作者・出典・ライセンス
 代わりに、Commons 側が消す・差し替える・止まると、その1枚は割れる。サイト内に置く方へ
 寄せるなら、代表写真と同じ道具で置ける。
 
+**2026-10-22 owner 判断:** メタ情報（og:image・twitter:image・構造化データ・画像サイトマップ）では、代表写真に Commons の縮小版の URL（横 1280px・`content/spot-images.json` の `large`・`scripts/spot-cover-large.mjs`）を使ってよい。ページの `<img>` は今までどおりサイト内（960px）。
+
 ## 候補ファイルの大きさ
 
 - 候補ファイル（約 7MB）は**次の収集から**説明（`description`）と種類（`mime`）を残さない

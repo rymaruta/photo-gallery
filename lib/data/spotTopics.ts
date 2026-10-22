@@ -18,7 +18,7 @@
 
 import { SPOTS, type Spot, type SpotSeason } from "./spots";
 import { visibleSpots, isPublished } from "../utils/spotGuide";
-import { spotCoverImage } from "./spotImages";
+import { spotCoverImage, spotCoverLarge, spotCoverSize } from "./spotImages";
 import { spotThumbSrc, spotThumbExists } from "./spotThumbs";
 import { COUNTRY_SHARD_KEYS } from "./spotFeedShards";
 import { REGIONS, prefectureByName, OVERSEAS_SLUG, OVERSEAS_NAME, type RegionName } from "./prefectures";
@@ -176,7 +176,7 @@ export type TopicView = {
     /** 説明（`description`）に足す事実（導入文の後ろ・数えた件数だけ） */
     descriptionExtra?: string;
     /** OGP の画像（**元の大きさ**の代表写真・サムネではない）。クライアントへは渡さない */
-    ogImage?: { src: string; alt: string };
+    ogImage?: { src: string; alt: string; width?: number; height?: number };
     /** 検索に出すか */
     indexable: boolean;
     /** 中身の最終更新（載せたスポットの `updatedAt` の最大） */
@@ -421,12 +421,39 @@ export function topicCards(spots: readonly Spot[]): TopicCard[] {
     return [...cards.filter((c) => c.cover), ...cards.filter((c) => !c.cover)];
 }
 
-/** OGP の画像: 並びの先頭で写真のある行の、**元の大きさ**の代表写真（サムネは 240px で小さすぎる） */
+/**
+ * OGP の画像の1枚（**元の大きさ**の代表写真・サムネは 240px で小さすぎる）。寸法つき。
+ * 2026-10-22: 横 1,200px 以上の版（`spotCoverLarge`・Commons の 1280px）があればそれ、無ければサイトに置いた 960px
+ */
+function coverOgOf(s: Spot): { src: string; alt: string; width?: number; height?: number; large: boolean } | undefined {
+    const c = spotCoverImage(s);
+    if (!c?.src) return undefined;
+    const alt = c.alt || s.name;
+    const large = spotCoverLarge(s);
+    if (large) return { src: large.src, alt, width: large.width, height: large.height, large: true };
+    return { src: c.src, alt, ...spotCoverSize(s), large: false };
+}
+
+/**
+ * 並びの順に見て、**横 1,200px 以上の版を持つ最初の行**の代表写真。どの行にも無ければ、写真のある最初の行の
+ * 960px（2026-10-22・SEO。1,200 に届かない写真は代表に選ぶ順を下げる）
+ */
+function firstOgCover(spots: readonly Spot[]): TopicView["ogImage"] {
+    let fallback: ReturnType<typeof coverOgOf>;
+    for (const s of spots) {
+        const og = coverOgOf(s);
+        if (!og) continue;
+        if (og.large) return { src: og.src, alt: og.alt, width: og.width, height: og.height };
+        if (!fallback) fallback = og;
+    }
+    if (!fallback) return undefined;
+    return { src: fallback.src, alt: fallback.alt, ...(fallback.width && fallback.height ? { width: fallback.width, height: fallback.height } : {}) };
+}
+
+/** OGP の画像: カードの並び（写真のある行が先）の順で `firstOgCover` */
 function ogImageOf(spots: readonly Spot[], cards: readonly TopicCard[]): TopicView["ogImage"] {
-    const first = cards.find((c) => c.cover);
-    const s = first && spots.find((x) => x.slug === first.slug);
-    const c = s ? spotCoverImage(s) : null;
-    return c?.src ? { src: c.src, alt: c.alt || s!.name } : undefined;
+    const bySlug = new Map(spots.map((s) => [s.slug, s]));
+    return firstOgCover(cards.filter((c) => c.cover).map((c) => bySlug.get(c.slug)).filter((s): s is Spot => Boolean(s)));
 }
 
 /** 説明に足す事実: 時間帯の案内を持つ件数（数えた分だけ。無ければ足さない） */
@@ -677,12 +704,18 @@ export function topicStructuredData(view: TopicView) {
  * **OGP の画像に使う代表写真**（台帳の順で、代表写真を持つ最初の行の元の大きさ）。
  * 撮影スポットの入口（`/spots`）は子の `openGraph` が親の画像を消すので、絵が無かった（2026-10-16）
  */
-export function firstSpotOgImage(spots: readonly Spot[], alt: string): { url: string; alt: string } | undefined {
-    for (const s of spots) {
-        const c = spotCoverImage(s);
-        if (c?.src) return { url: c.src.startsWith("http") ? c.src : `${siteConfig.url}${c.src}`, alt };
-    }
-    return undefined;
+export function firstSpotOgImage(
+    spots: readonly Spot[],
+    alt: string,
+): { url: string; alt: string; width?: number; height?: number } | undefined {
+    // 2026-10-22: 横 1,200px 以上の版を持つ行を先に（`firstOgCover`）
+    const og = firstOgCover(spots);
+    if (!og) return undefined;
+    return {
+        url: og.src.startsWith("http") ? og.src : `${siteConfig.url}${og.src}`,
+        alt,
+        ...(og.width && og.height ? { width: og.width, height: og.height } : {}),
+    };
 }
 
 /**
@@ -705,7 +738,13 @@ export function areaStructuredData(area: { slug: string; name: string }, spots: 
     const items = spots.map((s) => ({ name: s.name, url: abs(`${ROUTES.SPOTS}/${s.slug}`) }));
     const itemList = items.length > 0 ? generateItemListStructuredData(heading, items) : null;
     const og = ogImageOf(spots, topicCards(spots));
-    const ogImage = og ? { url: og.src.startsWith("http") ? og.src : abs(og.src), alt: heading } : undefined;
+    const ogImage = og
+        ? {
+            url: og.src.startsWith("http") ? og.src : abs(og.src),
+            ...(og.width && og.height ? { width: og.width, height: og.height } : {}),
+            alt: heading,
+        }
+        : undefined;
     return { breadcrumb, itemList, ogImage };
 }
 
@@ -890,7 +929,19 @@ export function topicMetadata(view: TopicView | null) {
         openGraph: {
             type: "website" as const, url, siteName: siteConfig.name,
             locale: siteConfig.locale.ja, title, description,
-            ...(image ? { images: [{ url: image, alt: view.heading }] } : {}),
+            ...(image ? { images: [{ url: image, ...(og?.width && og?.height ? { width: og.width, height: og.height } : {}), alt: view.heading }] } : {}),
         },
+        twitter: spotTwitterMeta(title, description, image),
     };
+}
+
+/**
+ * **X（Twitter）のカード**（2026-10-22）。子が `twitter` を書かないと、レイアウトの値（新着の投稿写真・サイト名の題）が
+ * そのまま残り、og:image と別の1枚・別の題になっていた（県・季節の頁で実測）。og:image と同じ1枚を渡す。
+ * 画像が無ければ書かない（レイアウトの既定に任せる）
+ */
+export function spotTwitterMeta(title: string, description: string, image: string | undefined) {
+    return image
+        ? { card: "summary_large_image" as const, title, description, images: [image], creator: siteConfig.twitterHandle }
+        : undefined;
 }

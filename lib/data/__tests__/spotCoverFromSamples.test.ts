@@ -271,7 +271,11 @@ describe("レビューの直し（2026-10-11）", () => {
         for (const { spot, image } of promoted) {
             const e = entries.get(`https://journey-photo.com/spots/${spot.slug}`);
             if (!e) continue;
-            expect(e.images.some((i) => i.src === image.thumbUrl), spot.slug).toBe(false);
+            // 2026-10-22: 代表写真は横 1,200px 以上の版（Commons の 1280px＝元の作例と同じ URL のことがある）で載せる。
+            // 同じ写真が代表写真（サイトの 960px か Commons の版）と作例で2回載らないこと
+            const same = e.images.filter((i) => i.src === image.thumbUrl || i.src === image.large?.src || i.src.endsWith(image.local!.src));
+            expect(same.length, spot.slug).toBeLessThanOrEqual(1);
+            expect(new Set(e.images.map((i) => i.src)).size, spot.slug).toBe(e.images.length);
             checked++;
         }
         expect(checked).toBeGreaterThan(100);
@@ -294,7 +298,8 @@ describe("レビューの直し（2026-10-11）", () => {
         const page = fs.readFileSync(path.join(__dirname, "../../../app/components/SpotGuidePage.tsx"), "utf8");
         expect(page).toContain("const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });");
         const route = fs.readFileSync(path.join(__dirname, "../../../app/spots/[slug]/page.tsx"), "utf8");
-        expect(route).toContain("samples: spotSamples(spot, { exclude: [cover?.sourceUrl] }).length,");
+        expect(route).toContain("const samples = spotSamples(spot, { exclude: [cover?.sourceUrl] });");
+        expect(route).toContain("samples: samples.length,");
     });
 
     it("使えないパブリックドメイン: PD-Detroit・Flickr の Public Domain Mark を落とす", () => {

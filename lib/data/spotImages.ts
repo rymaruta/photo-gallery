@@ -41,6 +41,13 @@ export type SpotImage = {
      */
     local?: { src: string; width: number; height: number };
     /**
+     * **同じ写真の横 1,200px 以上の版**（Commons の標準の縮小版・横 1280px。2026-10-22・SEO）。
+     * 書くのは `scripts/spot-cover-large.mjs`（Commons の API が返した寸法をそのまま写す。画像は落とさない）。
+     * 使うのは og:image・構造化データ・画像サイトマップだけ（`spotCoverLarge`）。ページの `<img>` は
+     * `local` のまま（外へのホットリンクをしない・LCP を変えない）
+     */
+    large?: { src: string; width: number; height: number };
+    /**
      * 作例から昇格させた行（`method: "commons-sample"`・2026-10-11）だけが持つ。作例の `pickedBy`
      * をそのまま写す（"visual-review"＝写真を1枚ずつ見てその撮影地の景色と確かめた・人の名前）。
      * **"auto"（名前の一致だけ）は昇格させない**（`shownSpotImage` が落とす）
@@ -242,4 +249,55 @@ export function spotCoverImage(
         checkedAt: image.reviewedAt ?? spot.aiCheck?.checkedAt ?? image.fetchedAt,
         verifiedPlace: true,
     };
+}
+
+/**
+ * **検索に渡す画像の幅の下限**（2026-10-22）。Google の画像検索・Discover は横 1,200px 以上の画像を
+ * 大きく出す（`max-image-preview:large` と組み・`pageRobots`）。`scripts/spot-cover-large.mjs` の `MIN_WIDTH` と同じ
+ */
+export const SEO_IMAGE_MIN_WIDTH = 1200;
+
+/** Commons の画像の URL の元のファイル名（比べる形）。縮小版でも元画像でも */
+function uploadFileKey(url: string): string | undefined {
+    const m = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/?#\s"<>]+)(?:\/[^/?#\s"<>]+)?$/.exec(url);
+    if (!m) return undefined;
+    try {
+        return sampleFileKey(decodeURIComponent(m[1]));
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * **代表写真の横 1,200px 以上の版**（og:image・構造化データ・画像サイトマップ用）。無ければ undefined。
+ *
+ * 画面に代表写真を出しているとき（`spotCoverImage` が Commons の写真から組む＝`local` がある）だけ。
+ * 記録（`large`）が**同じファイル**の Commons の画像で、横 `SEO_IMAGE_MIN_WIDTH` 以上のときだけ返す
+ * ——別の写真・小さい版を「大きい代表写真」として渡さない
+ */
+export function spotCoverLarge(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): { src: string; width: number; height: number } | undefined {
+    if (spot.coverImage) return undefined;
+    const image = shownSpotImage(spot, images);
+    if (!image?.local || !spotCoverImage(spot, images)) return undefined;
+    const large = image.large;
+    if (!large || !(large.width >= SEO_IMAGE_MIN_WIDTH) || !(large.height > 0)) return undefined;
+    // Commons の縮小版（`/thumb/…/<幅>px-…`）で、URL の幅と記録の幅が同じもの（元画像の URL は寸法が信じられない）
+    const px = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/[^/?#\s"<>]+\/(\d+)px-[^/?#\s"<>]+$/.exec(String(large.src ?? ""));
+    if (!px || Number(px[1]) !== large.width) return undefined;
+    const key = uploadFileKey(String(large.src ?? ""));
+    if (!key || key !== sampleFileKey(image.file)) return undefined;
+    return { src: large.src, width: large.width, height: large.height };
+}
+
+/** 画面に出している代表写真（サイトに置いた縮小版）の寸法。台帳の `coverImage` は寸法を持たないので undefined */
+export function spotCoverSize(
+    spot: Spot,
+    images: Readonly<Record<string, SpotImage>> = SPOT_IMAGES,
+): { width: number; height: number } | undefined {
+    if (spot.coverImage) return undefined;
+    const local = shownSpotImage(spot, images)?.local;
+    return local && spotCoverImage(spot, images) ? { width: local.width, height: local.height } : undefined;
 }

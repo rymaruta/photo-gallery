@@ -13,7 +13,7 @@
 import { notFound } from "next/navigation";
 import SpotGuideClient from "./SpotGuideClient";
 import { spotCoverImage } from "@/lib/data/spotImages";
-import { spotSamples, coverImageObject } from "@/lib/data/spotSamples";
+import { spotSamples, coverImageObject, spotCoverSeoSource, spotSeoImage } from "@/lib/data/spotSamples";
 import { loadAllPhotos } from "@/lib/server/photos";
 import { SPOTS } from "@/lib/data/spots";
 import { visibleSpots, isPublished } from "@/lib/utils/spotGuide";
@@ -21,7 +21,7 @@ import { slimForGrid } from "@/lib/utils/related";
 import { collectionPath, slugify } from "@/lib/utils/collections";
 import { spotAreaOf } from "@/lib/data/spotLink";
 import { spotBreadcrumb, spotStructuredData, sameAreaSpots, sameAreaLabel, spotPageUrl, handPickedNearby } from "@/lib/data/spotSeo";
-import { generateBreadcrumbStructuredData, siteConfig } from "@/lib/utils/seo";
+import { generateBreadcrumbStructuredData } from "@/lib/utils/seo";
 import { lightCalendar } from "@/lib/utils/lightCalendar";
 import { spotSky } from "@/lib/utils/spotSky";
 import { topicLinksForSpot, spotCountryRef } from "@/lib/data/spotTopics";
@@ -78,9 +78,6 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
 
     // 検索に読ませる形（観光地・パンくず）と、同じ県のほかのスポット
     const area = spotAreaOf(spot);
-    const coverUrl = cover?.src
-        ? (cover.src.startsWith("http") ? cover.src : `${siteConfig.url}${cover.src}`)
-        : undefined;
     // 観光地の構造化データは**人が確かめた行だけ**（下書きを建てる設定のとき、noindex の
     // ページから「確かな場所」として読ませない）
     // 作例（Wikimedia Commons の自由に使える写真）。代表写真と同じ写真は2度出さない
@@ -88,9 +85,14 @@ export default async function SpotGuidePage({ slug }: { slug: string }) {
     // 構造化データ（検索に「この場所の写真」として渡す）には、**画面に出している作例を全部**入れる
     // （作者・ライセンス・出典つき。2026-10-03 のレビュー: 自動で選んだ作例が抜けていた。
     // 画面に出す以上、出典の表示は構造化データでも同じにそろえる）
-    // 代表写真は作者・ライセンスつきの ImageObject で渡す（2026-10-11）
-    const coverImage = cover && coverUrl ? coverImageObject(cover, coverUrl) : coverUrl;
-    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples }) : null;
+    // 代表写真は作者・ライセンスつきの ImageObject で渡す（2026-10-11）。
+    // 2026-10-22: URL は横 1,200px 以上の版があればそれ（Commons の 1280px・`spotCoverSeoSource`）、寸法つき。
+    // 代表写真が 1,200 に届かず、届く作例があれば、その作例を先頭にする（`spotSeoImage`・OGP と同じ1枚）
+    const coverSeo = spotCoverSeoSource(spot);
+    const coverImage = cover && coverSeo ? coverImageObject(cover, coverSeo.url, coverSeo) : undefined;
+    const seoImage = spotSeoImage(spot, samples);
+    const lead = seoImage?.from === "sample" ? seoImage.sample : undefined;
+    const placeData = isPublished(spot) ? spotStructuredData(spot, { image: coverImage, samples, lead }) : null;
     // 海外のスポットは 海外 → 国 → スポット（区画の一覧は国の一覧になった・2026-10-11）
     const country = spotCountryRef(spot);
     const breadcrumbData = generateBreadcrumbStructuredData(spotBreadcrumb(spot, area, country));

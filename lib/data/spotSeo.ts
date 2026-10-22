@@ -76,10 +76,17 @@ function countryOf(spot: Spot): string | undefined {
 export function spotStructuredData(
     spot: Spot,
     // 2026-10-11: 代表写真は作者・ライセンスつきの `ImageObject` でも渡せる（`coverImageObject`）
-    opts: { image?: string | ReturnType<typeof coverImageObject>; samples?: SpotSample[] } = {},
+    // 2026-10-22: `lead` は検索に代表として渡す作例（`spotSeoImage` が作例を選んだとき）。代表写真より前に置く
+    // ——代表写真が横 1,200px に届かず、届く作例があるとき、その1枚を先頭にする
+    opts: { image?: string | ReturnType<typeof coverImageObject>; samples?: SpotSample[]; lead?: SpotSample } = {},
 ) {
-    const samples = (opts.samples ?? []).map(sampleImageObject);
-    const image = samples.length > 0 ? [...(opts.image ? [opts.image] : []), ...samples] : opts.image;
+    const all = opts.samples ?? [];
+    const lead = opts.lead && all.includes(opts.lead) ? opts.lead : undefined;
+    const samples = all.filter((s) => s !== lead).map(sampleImageObject);
+    const cover = opts.image ? [opts.image] : [];
+    const image = lead
+        ? [sampleImageObject(lead), ...cover, ...samples]
+        : samples.length > 0 ? [...cover, ...samples] : opts.image;
     const region = spot.region;
     const address = (region?.prefecture || region?.city || region?.country)
         ? {
