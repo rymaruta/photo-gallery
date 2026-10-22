@@ -6,6 +6,7 @@ import type { SpotIndexItem } from "@/lib/data/spotLink";
 import { useLocale } from "@/app/i18n/context";
 import { ROUTES } from "@/lib/routes";
 import { CHIP_ON, CHIP_OFF, CHIP_SIZE } from "./chipStyles";
+import { TopicCreditLine } from "./SpotTopicLists";
 
 /**
  * **公式撮影地ガイドの索引**（`/spots`）。
@@ -118,34 +119,29 @@ export default function SpotIndexClient({ spots, area }: Props) {
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 m-0 p-0" style={{ listStyle: "none" }}>
                     {shown.map((s) => {
                         const where = s.region;
-                        // 出すかどうかの判断はサーバー側で済んでいる（`cover` が null なら写真なし）
-                        const noImage = !s.cover;
+                        // 出すかどうかの判断はサーバー側で済んでいる（`cover` が null なら写真なし）。
+                        // 2026-10-22: 季節・テーマの頁のカード（`SpotTopicLists` の `Card`）と同じ形——サムネと、
+                        // CC BY 系の作者・ライセンス・出典の表示を写真の下・リンクの外に出す
+                        const cover = s.cover;
                         return (
                             <li key={s.slug}>
+                                <div className="h-full flex flex-col rounded-2xl overflow-hidden bg-surface ring-1 ring-line">
                                 <Link href={`/spots/${s.slug}`} prefetch={false}
-                                      className="group block rounded-2xl overflow-hidden bg-surface ring-1 ring-line hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                                    <div className="relative w-full aspect-[3/2] overflow-hidden">
-                                        {noImage ? (
-                                            /* 代表写真が無いときは**地図と名前**（無関係な写真で埋めない） */
-                                            <div className="absolute inset-0 flex items-center justify-center bg-surface-2 px-4">
+                                      className="group block flex-1 hover:bg-surface-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">
+                                    <div className="relative w-full aspect-[3/2] overflow-hidden bg-surface-2">
+                                        {!cover ? (
+                                            /* 代表写真が無いときは**名前**（無関係な写真で埋めない） */
+                                            <div className="absolute inset-0 flex items-center justify-center px-4">
                                                 <span className="font-serif font-bold text-white/80 text-center"
                                                       style={{ fontSize: "17px", lineHeight: "1.3" }}>{s.name}</span>
                                             </div>
                                         ) : (
-                                            <>
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={s.cover!.src} alt={s.cover!.alt}
-                                                     className="absolute inset-0 w-full h-full object-cover" />
-                                                {s.cover!.credit && (
-                                                    <span className="absolute bottom-1 right-2 text-white/70"
-                                                          style={{ fontSize: "9px" }}>
-                                                        {`Photo: ${s.cover!.credit}`}
-                                                    </span>
-                                                )}
-                                            </>
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={s.cover!.src} alt={cover.alt} loading="lazy" decoding="async"
+                                                 className="absolute inset-0 w-full h-full object-cover" />
                                         )}
                                     </div>
-                                    <div className="p-3">
+                                    <div className="p-3 pb-2">
                                         <p className="m-0 font-serif font-bold text-white wrap-anywhere"
                                            style={{ fontSize: "16px", lineHeight: "22px" }}>{s.name}</p>
                                         {(where || s.stage === "review") && (
@@ -161,6 +157,11 @@ export default function SpotIndexClient({ spots, area }: Props) {
                                         )}
                                     </div>
                                 </Link>
+                                {/* CC BY・CC BY-SA は作者とライセンスの表示が条件。写真の下・リンクの外（本文系の最小 12） */}
+                                {cover?.credit
+                                    ? <div className="px-3 pb-3"><TopicCreditLine credit={cover.credit} /></div>
+                                    : <div className="pb-1" />}
+                                </div>
                             </li>
                         );
                     })}
